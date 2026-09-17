@@ -62,6 +62,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
             "agent_id": "agent-a",
             "skill_ids": ["skill-a"],
             "knowledge_base_ids": [],
+            "run_as_user": "configurator",
             "create_user": "alice",
             "update_user": "alice",
         }
@@ -78,6 +79,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
             "bkci_project_id": "project-a",
             "repository_alias": "repo-a",
             "agent_id": "agent-a",
+            "run_as_user": "configurator",
         }
         defaults.update(kwargs)
         return IssueSourceAnalysisRule.objects.create(**defaults)
@@ -545,7 +547,11 @@ class TestSourceAnalysisFrontendResources(TestCase):
 
         execution = IssueSourceAnalysisExecution.objects.get()
         self.assertEqual(execution.trigger_type, SourceAnalysisTriggerType.INITIAL)
+        self.assertEqual(execution.create_user, "alice")
+        self.assertEqual(execution.run_as_user, "configurator")
         self.assertEqual(result["latest"]["analysis_id"], execution.analysis_id)
+        self.assertEqual(result["latest"]["triggered_by"], "alice")
+        self.assertEqual(result["latest"]["run_as_user"], "configurator")
         dispatch.assert_called_once_with(execution)
 
     @patch.object(SourceAnalysisExecutionBaseResource, "dispatch_execution")
@@ -576,6 +582,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertEqual(retry.retry_of_analysis_id, failed.analysis_id)
         self.assertEqual(retry.attempt, 2)
         self.assertEqual(retry.alert_id, failed.alert_id)
+        self.assertEqual(retry.run_as_user, failed.run_as_user)
         self.assertNotEqual(retry.analysis_id, failed.analysis_id)
         self.assertIsNone(retry.bkfara_provision_id)
         self.assertIsNone(retry.bkfara_task_id)
@@ -645,7 +652,6 @@ class TestSourceAnalysisFrontendResources(TestCase):
             bk_biz_id=self.BK_BIZ_ID,
             bkci_project_id="project-a",
             repository_alias="repo-a",
-            bkfara_provision_id="existing-provision",
         )
         self.create_execution(
             status=SourceAnalysisStatus.SUCCESS,
@@ -666,6 +672,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertEqual(execution.trigger_type, SourceAnalysisTriggerType.REANALYZE)
         self.assertEqual(execution.alert_id, "latest-alert")
         self.assertEqual(execution.rule_id, rule.id)
+        self.assertEqual(execution.run_as_user, rule.run_as_user)
         self.assertIsNone(execution.bkfara_provision_id)
         self.assertEqual(result["latest"]["analysis_id"], execution.analysis_id)
         dispatch.assert_called_once_with(execution)
@@ -673,7 +680,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
     @patch("fta_web.issue.resources.AssignRuleMatch")
     @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions", return_value={})
     def test_availability_distinguishes_disabled_matching_rule(self, _get_dimensions, rule_match):
-        self.create_rule(is_enabled=False)
+        self.create_rule(is_enabled=False, run_as_user="")
         rule_match.return_value.is_matched.return_value = True
 
         rule, reason = SourceAnalysisExecutionBaseResource.get_rule_availability(
@@ -683,6 +690,18 @@ class TestSourceAnalysisFrontendResources(TestCase):
 
         self.assertIsNone(rule)
         self.assertEqual(reason, "rule_disabled")
+
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_alert_match_dimensions", return_value={})
+    def test_availability_skips_enabled_rule_without_run_as_user(self, _get_dimensions):
+        self.create_rule(run_as_user="")
+
+        rule, reason = SourceAnalysisExecutionBaseResource.get_rule_availability(
+            self.BK_BIZ_ID,
+            SimpleNamespace(),
+        )
+
+        self.assertIsNone(rule)
+        self.assertEqual(reason, "no_matched_rule")
 
 
 class TestSourceAnalysisFrontendRoutes(TestCase):

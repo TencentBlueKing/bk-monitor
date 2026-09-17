@@ -103,6 +103,8 @@ export type SourceAnalysisRuleDto = {
   priority: number;
   /** 源码仓库别名 */
   repository_alias: string;
+  /** 执行分析时使用的规则配置用户 */
+  run_as_user: string;
   /** 关联 skill id 列表 */
   skill_ids: string[];
   /** 更新时间戳 */

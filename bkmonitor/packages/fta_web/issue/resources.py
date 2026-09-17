@@ -82,7 +82,7 @@ from core.errors.issue import (
     SourceAnalysisDefaultRuleCannotDeleteError,
     SourceAnalysisDefaultRuleConditionsInvalidError,
     SourceAnalysisDefaultRulePriorityImmutableError,
-    SourceAnalysisFlowInitializationFailedError,
+    SourceAnalysisExecutionCredentialUnavailableError,
     SourceAnalysisInvalidStatusTransitionError,
     SourceAnalysisOperationConflictError,
     SourceAnalysisRepositoryInvalidError,
@@ -132,7 +132,7 @@ def build_bkfara_client_request_id(purpose: str, *parts) -> str:
 class SourceAnalysisBaseResource(Resource):
     """源码分析选项、配置与规则接口的公共基类。
 
-    集中承载上游异常收敛、快照序列化、代码库与 AI 资源校验、BKFara 流程初始化等逻辑，
+    集中承载上游异常收敛、快照序列化、代码库与 AI 资源校验、规则执行身份准备等逻辑，
     子类只实现各自的 perform_request。本类不实现 perform_request，因此是抽象类，
     resource 适配器会跳过它，不会注册成接口。
     """
@@ -229,6 +229,7 @@ class SourceAnalysisBaseResource(Resource):
             "agent_id": rule.agent_id,
             "skill_ids": rule.skill_ids,
             "knowledge_base_ids": rule.knowledge_base_ids,
+            "run_as_user": rule.run_as_user,
             "created_by": rule.create_user,
             "created_at": cls.to_timestamp(rule.create_time),
             "updated_by": rule.update_user,
@@ -398,17 +399,25 @@ class SourceAnalysisBaseResource(Resource):
 
     @staticmethod
     def is_rule_complete(rule: IssueSourceAnalysisRule) -> bool:
-        # 智能体、知识库、Skill 都不是启用前提，规则可以先建好再补资源。智能体缺失
-        # 会在触发分析时拦截并写入本地失败原因，比在这里拦住更利于分批配置。
+        # 智能体、知识库、Skill 都不是启用前提；禁用规则也不要求提前持久化执行身份。
+        # 智能体缺失会在触发分析时拦截并写入本地失败原因，比在这里拦住更利于分批配置。
         return bool(rule.is_default or rule.conditions)
+
+    @classmethod
+    def validate_rule_definition(cls, rule: IssueSourceAnalysisRule, config: IssueSourceAnalysisConfig | None) -> None:
+        """校验不依赖用户凭证的规则结构，避免鉴权错误覆盖更直接的配置错误。"""
+
+        if config is None:
+            raise SourceAnalysisConfigNotFoundError()
+        if not (rule.is_default or rule.conditions):
+            raise SourceAnalysisRuleIncompleteError()
 
     @classmethod
     def validate_rule_local(cls, rule: IssueSourceAnalysisRule, config: IssueSourceAnalysisConfig | None) -> None:
         """只依赖本地数据的启用前校验，可以安全地放在事务内复核。"""
 
-        if config is None:
-            raise SourceAnalysisConfigNotFoundError()
-        if not cls.is_rule_complete(rule):
+        cls.validate_rule_definition(rule, config)
+        if not rule.run_as_user:
             raise SourceAnalysisRuleIncompleteError()
 
     @classmethod
@@ -417,6 +426,28 @@ class SourceAnalysisBaseResource(Resource):
 
         cls.validate_rule_local(rule, config)
         cls.validate_resources(rule)
+
+    @classmethod
+    def prepare_rule_run_as_user(cls) -> str:
+        """持久化当前配置人的 Token，并返回后续执行使用的身份快照。"""
+
+        request = get_request(peaceful=True)
+        username = get_request_username()
+        if request is None or not username:
+            raise SourceAnalysisExecutionCredentialUnavailableError()
+
+        try:
+            token = oauth_client.get_access_token(request)
+            if not getattr(token, "access_token", ""):
+                raise TokenNotExist("current user access token is empty")
+
+            persisted_token = oauth_client.get_access_token_by_user(username)
+            if not getattr(persisted_token, "access_token", ""):
+                raise TokenNotExist("persisted user access token is empty")
+        except TokenException as error:
+            logger.warning("Source analysis rule run-as token unavailable: username=%s", username)
+            raise SourceAnalysisExecutionCredentialUnavailableError() from error
+        return username
 
     @classmethod
     def apply_rule_patch(
@@ -440,73 +471,6 @@ class SourceAnalysisBaseResource(Resource):
         rule.bkci_project_id = config.bkci_project_id if config else None
         rule.repository_alias = config.repository_alias if config else None
         return rule
-
-    @classmethod
-    def ensure_flow_initialized(cls, bk_biz_id: int, bkci_project_id: str) -> str:
-        """发起一次 BKFara 场景初始化并返回后续查询所需的 provision_id。"""
-
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
-        try:
-            # Web 请求不传 bk_username，由 BKFara Resource 使用当前登录态换取用户
-            # access_token；异步恢复路径才显式传执行快照中的触发人。
-            scene_state = api.bk_incident.ensure_source_analysis_scene(
-                bk_biz_id=bk_biz_id,
-                bk_tenant_id=bk_tenant_id,
-                devops_project_id=bkci_project_id,
-                # 幂等键只约束本次用户操作。若项目历史初始化已进入失败终态，
-                # 后续用户重试必须生成新键，不能永久复用旧失败 provision。
-                client_request_id=str(uuid.uuid4()),
-            )
-        except TokenException as error:
-            detail = json.dumps(
-                {
-                    "code": "USER_ACCESS_TOKEN_UNAVAILABLE",
-                    "message": _(SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE),
-                    "retryable": True,
-                },
-                ensure_ascii=False,
-            )
-            logger.warning("Source analysis flow initialization failed: user access token unavailable")
-            raise SourceAnalysisFlowInitializationFailedError(data=detail) from error
-        except BKAPIError as error:
-            detail = cls.serialize_bkfara_error_detail(error.data)
-            logger.warning("Source analysis flow initialization failed: BKAPIError, detail=%s", detail)
-            raise SourceAnalysisFlowInitializationFailedError(data=detail) from error
-        except Exception as error:  # NOCC:broad-except(BKFara 网络等未知异常统一映射为配置保存失败)
-            logger.warning("Source analysis flow initialization failed: %s", type(error).__name__)
-            raise SourceAnalysisFlowInitializationFailedError() from error
-
-        provision_id = str(scene_state.get("provision_id") or "") if isinstance(scene_state, dict) else ""
-        status = scene_state.get("status") if isinstance(scene_state, dict) else None
-        terminal = scene_state.get("terminal") if isinstance(scene_state, dict) else None
-        if provision_id and status == "failed" and not scene_state.get("error"):
-            try:
-                # ensure_scene 复用历史失败 provision 时可能只返回 failed，不带具体错误；
-                # 状态接口包含完整 error，补查后才能向配置页面透出可排查信息。
-                scene_status = api.bk_incident.get_source_analysis_scene_status(
-                    provision_id=provision_id,
-                    bk_tenant_id=bk_tenant_id,
-                )
-                if isinstance(scene_status, dict):
-                    scene_state = scene_status
-                    status = scene_state.get("status")
-                    terminal = scene_state.get("terminal")
-            except Exception as error:  # NOCC:broad-except(补充错误详情失败不能覆盖原始场景失败)
-                logger.warning(
-                    "Failed to fetch BKFara source analysis scene error: provision_id=%s, error=%s",
-                    _sanitize_for_log(provision_id),
-                    type(error).__name__,
-                )
-        if not provision_id or status not in {"pending", "provisioning", "ready"} or not isinstance(terminal, bool):
-            error_data = scene_state.get("error") if isinstance(scene_state, dict) else None
-            detail = cls.serialize_bkfara_error_detail(error_data)
-            logger.warning(
-                "Invalid BKFara source analysis scene response: bk_biz_id=%s, detail=%s",
-                bk_biz_id,
-                detail,
-            )
-            raise SourceAnalysisFlowInitializationFailedError(data=detail)
-        return provision_id
 
 
 class SourceAnalysisExecutionBaseResource(Resource):
@@ -636,28 +600,18 @@ class SourceAnalysisExecutionBaseResource(Resource):
 
     @classmethod
     def dispatch_execution(cls, execution: IssueSourceAnalysisExecution) -> None:
-        """持久化当前用户凭证并推进一次，后续轮询交给 Celery。"""
-
-        request = get_request(peaceful=True)
-        if request is None:
-            cls._mark_user_access_token_unavailable(execution)
-            return
+        """确认规则执行用户凭证并推进一次，后续轮询交给 Celery。"""
 
         try:
-            token = oauth_client.get_access_token(request)
-            if not getattr(token, "access_token", ""):
-                raise TokenNotExist("current user access token is empty")
-
-            # bkoauth 以 request.user.username 为键保存。这里按执行快照立即回读，
-            # 提前保证无 request 的 Celery 与周期恢复任务能够取得同一条记录。
-            persisted_token = oauth_client.get_access_token_by_user(execution.create_user)
+            persisted_token = oauth_client.get_access_token_by_user(execution.run_as_user)
             if not getattr(persisted_token, "access_token", ""):
                 raise TokenNotExist("persisted user access token is empty")
         except TokenException:
             cls._mark_user_access_token_unavailable(execution)
             return
 
-        next_poll_after_seconds = cls.advance_bkfara_task(execution.analysis_id, use_current_request=True)
+        # 首次推进和 Celery 恢复必须使用同一个规则执行身份，不能退回点击人的 request Token。
+        next_poll_after_seconds = cls.advance_bkfara_task(execution.analysis_id)
         if next_poll_after_seconds is None:
             return
 
@@ -722,6 +676,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             "attempt": execution.attempt,
             "retry_of_analysis_id": execution.retry_of_analysis_id,
             "triggered_by": execution.create_user or "",
+            "run_as_user": execution.run_as_user or "",
             "triggered_at": SourceAnalysisBaseResource.to_timestamp(execution.create_time),
             "started_at": SourceAnalysisBaseResource.to_timestamp(execution.started_at),
             "finished_at": SourceAnalysisBaseResource.to_timestamp(execution.finished_at),
@@ -1032,6 +987,13 @@ class SourceAnalysisExecutionBaseResource(Resource):
                         rule.id,
                     )
                 continue
+            if rule.is_enabled and not rule.run_as_user:
+                logger.warning(
+                    "Skip enabled source analysis rule without run-as user: bk_biz_id=%s, rule_id=%s",
+                    bk_biz_id,
+                    rule.id,
+                )
+                continue
             complete_rules.append(rule)
 
         if not complete_rules:
@@ -1099,6 +1061,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     agent_id=rule.agent_id,
                     skill_ids=list(rule.skill_ids),
                     knowledge_base_ids=list(rule.knowledge_base_ids),
+                    run_as_user=rule.run_as_user,
                     # 每次执行都重新 ensure 场景，避免直接复用已被删除或失效的流水线绑定。
                     # ensure 返回的 provision_id 会在第一次推进状态机时写入本执行记录。
                     bkfara_provision_id=None,
@@ -1176,6 +1139,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     agent_id=target.agent_id,
                     skill_ids=list(target.skill_ids),
                     knowledge_base_ids=list(target.knowledge_base_ids),
+                    run_as_user=target.run_as_user,
                     # 重试复用分析输入，但不复用旧场景绑定；执行前重新 ensure。
                     bkfara_provision_id=None,
                     create_user=operator,
@@ -1238,7 +1202,8 @@ class SourceAnalysisExecutionBaseResource(Resource):
                     agent_id=rule.agent_id,
                     skill_ids=list(rule.skill_ids),
                     knowledge_base_ids=list(rule.knowledge_base_ids),
-                    # 重新分析同样先 ensure 场景，不继承业务配置中的历史 provision_id。
+                    run_as_user=rule.run_as_user,
+                    # 重新分析同样先 ensure 场景，不继承旧执行的 provision_id。
                     bkfara_provision_id=None,
                     create_user=operator,
                     update_user=operator,
@@ -1254,9 +1219,8 @@ class SourceAnalysisExecutionBaseResource(Resource):
     def build_ensure_scene_params(
         cls,
         execution: IssueSourceAnalysisExecution,
-        use_current_request: bool = False,
     ) -> dict:
-        """从执行快照构造场景初始化参数，兼容历史记录缺少 provision_id 的恢复路径。"""
+        """从执行快照构造场景初始化参数；每次新执行都会生成独立的幂等键。"""
 
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(execution.bk_biz_id)
         params = {
@@ -1271,16 +1235,13 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 execution.analysis_id,
             ),
         }
-        if not use_current_request:
-            # 异步任务没有原始 Web request，复用执行快照中的触发人恢复用户态。
-            params["bk_username"] = execution.create_user
+        params["bk_username"] = execution.run_as_user
         return params
 
     @classmethod
     def build_trigger_params(
         cls,
         execution: IssueSourceAnalysisExecution,
-        use_current_request: bool = False,
     ) -> dict:
         """从不可变执行快照构造正式 trigger.inputs，规则变更不会污染已发起任务。"""
 
@@ -1313,9 +1274,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
             },
         }
-        if not use_current_request:
-            # trigger 由 Celery 补偿任务执行时，不能依赖线程中的 request。
-            params["bk_username"] = execution.create_user
+        params["bk_username"] = execution.run_as_user
         return params
 
     @classmethod
@@ -1347,7 +1306,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
         )
 
     @classmethod
-    def advance_bkfara_task(cls, analysis_id: str, use_current_request: bool = False) -> int | None:
+    def advance_bkfara_task(cls, analysis_id: str) -> int | None:
         """把活动记录向前推进一次；返回服务端建议的下次轮询秒数，终态返回 None。"""
 
         execution = IssueSourceAnalysisExecution.objects.filter(analysis_id=analysis_id).first()
@@ -1367,10 +1326,10 @@ class SourceAnalysisExecutionBaseResource(Resource):
         execution.update_time = lease_time
 
         if not execution.bkfara_task_id:
-            scene_ready, poll_interval = cls._advance_bkfara_scene(execution, use_current_request=use_current_request)
+            scene_ready, poll_interval = cls._advance_bkfara_scene(execution)
             if not scene_ready:
                 return poll_interval
-            return cls._trigger_bkfara_task(execution, use_current_request=use_current_request)
+            return cls._trigger_bkfara_task(execution)
 
         task_params = cls.build_get_task_params(execution)
         try:
@@ -1383,7 +1342,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
     def _advance_bkfara_scene(
         cls,
         execution: IssueSourceAnalysisExecution,
-        use_current_request: bool = False,
     ) -> tuple[bool, int | None]:
         if execution.bkfara_provision_id:
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(execution.bk_biz_id)
@@ -1400,7 +1358,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
                 )
             return cls._apply_bkfara_scene_state(execution, scene_state)
 
-        ensure_params = cls.build_ensure_scene_params(execution, use_current_request=use_current_request)
+        ensure_params = cls.build_ensure_scene_params(execution)
         try:
             scene_state = api.bk_incident.ensure_source_analysis_scene(**ensure_params)
         except TokenException:
@@ -1490,7 +1448,6 @@ class SourceAnalysisExecutionBaseResource(Resource):
     def _trigger_bkfara_task(
         cls,
         execution: IssueSourceAnalysisExecution,
-        use_current_request: bool = False,
     ) -> int | None:
         if not execution.agent_id:
             # 规则允许不配智能体，但流水线把 agent_id 当作必填入参，带空值触发只会在
@@ -1505,7 +1462,7 @@ class SourceAnalysisExecutionBaseResource(Resource):
             )
             return None
 
-        trigger_params = cls.build_trigger_params(execution, use_current_request=use_current_request)
+        trigger_params = cls.build_trigger_params(execution)
         try:
             task_state = api.bk_incident.trigger_source_analysis(**trigger_params)
         except TokenException:
@@ -2057,17 +2014,12 @@ class SaveSourceAnalysisConfigResource(GetSourceAnalysisConfigResource):
         self.validate_repository(bk_biz_id, bkci_project_id, repository_alias)
 
         with transaction.atomic(using=self.db_alias()):
-            previous_config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
-            project_changed = previous_config is None or previous_config.bkci_project_id != bkci_project_id
             operator = get_global_user() or "unknown"
             config_defaults = {
                 "bkci_project_id": bkci_project_id,
                 "repository_alias": repository_alias,
                 "update_user": operator,
             }
-            if project_changed:
-                # provision_id 只属于原项目；新项目初始化成功后再写入新的 ID。
-                config_defaults["bkfara_provision_id"] = None
             # update_or_create 在首次并发保存时会处理唯一键竞争，避免其中一个请求直接返回 500。
             config, _config_created = IssueSourceAnalysisConfig.objects.update_or_create(
                 bk_biz_id=bk_biz_id,
@@ -2102,12 +2054,6 @@ class SaveSourceAnalysisConfigResource(GetSourceAnalysisConfigResource):
                 rule.bkci_project_id = bkci_project_id
                 rule.repository_alias = repository_alias
 
-            if (project_changed or not config.bkfara_provision_id) and any(
-                rule.is_enabled and self.is_rule_complete(rule) for rule in rules
-            ):
-                config.bkfara_provision_id = self.ensure_flow_initialized(bk_biz_id, bkci_project_id)
-                config.save(update_fields=["bkfara_provision_id", "update_time"])
-
         return self.serialize_config(config, bk_biz_id)
 
 
@@ -2134,7 +2080,10 @@ class CreateSourceAnalysisRuleResource(SourceAnalysisBaseResource):
         # 启用校验会向 AIDEV 分页拉取用户可见资源，耗时不可控，必须在事务外完成，
         # 否则会在持有配置行锁的状态下等待上游响应。事务内再用 validate_rule_local 复核。
         if rule.is_enabled:
-            self.validate_rule_ready(rule, IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first())
+            config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
+            self.validate_rule_definition(rule, config)
+            rule.run_as_user = self.prepare_rule_run_as_user()
+            self.validate_rule_ready(rule, config)
 
         try:
             with transaction.atomic(using=self.db_alias()):
@@ -2144,9 +2093,6 @@ class CreateSourceAnalysisRuleResource(SourceAnalysisBaseResource):
                 if rule.is_enabled:
                     self.validate_rule_local(rule, config)
                 rule.save()
-                if rule.is_enabled and not config.bkfara_provision_id:
-                    config.bkfara_provision_id = self.ensure_flow_initialized(bk_biz_id, rule.bkci_project_id)
-                    config.save(update_fields=["bkfara_provision_id", "update_time"])
         except IntegrityError as error:
             raise SourceAnalysisRulePriorityConflictError() from error
         return self.serialize_rule(rule)
@@ -2187,7 +2133,11 @@ class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
         # 同 Create：先在事务外用未加锁的快照跑完含上游调用的完整校验，事务内只做本地复核。
         unlocked_config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
         preview = self.apply_rule_patch(self.get_rule(bk_biz_id, rule_id), validated_request_data, unlocked_config)
+        run_as_user = None
         if preview.is_enabled:
+            self.validate_rule_definition(preview, unlocked_config)
+            run_as_user = self.prepare_rule_run_as_user()
+            preview.run_as_user = run_as_user
             self.validate_rule_ready(preview, unlocked_config)
 
         try:
@@ -2196,11 +2146,9 @@ class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
                 config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
                 rule = self.apply_rule_patch(rule, validated_request_data, config)
                 if rule.is_enabled:
+                    rule.run_as_user = run_as_user
                     self.validate_rule_local(rule, config)
                 rule.save()
-                if rule.is_enabled and not config.bkfara_provision_id:
-                    config.bkfara_provision_id = self.ensure_flow_initialized(bk_biz_id, rule.bkci_project_id)
-                    config.save(update_fields=["bkfara_provision_id", "update_time"])
         except IntegrityError as error:
             raise SourceAnalysisRulePriorityConflictError() from error
         return self.serialize_rule(rule)

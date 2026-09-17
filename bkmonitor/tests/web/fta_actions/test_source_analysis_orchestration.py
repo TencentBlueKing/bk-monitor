@@ -37,9 +37,7 @@ from constants.issue import (
     SourceAnalysisStage,
     SourceAnalysisStatus,
 )
-from core.errors.issue import SourceAnalysisFlowInitializationFailedError
 from fta_web.issue.resources import (
-    SourceAnalysisBaseResource,
     SourceAnalysisExecutionBaseResource,
     build_bkfara_client_request_id,
 )
@@ -360,72 +358,7 @@ class TestSourceAnalysisContract(SimpleTestCase):
         self.assertNotIn("access_token", request_data)
 
     @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
-    @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
-    def test_ensure_scene_uses_request_login_state(self, ensure_scene, _get_tenant_id):
-        ensure_scene.return_value = {
-            "provision_id": "provision-1",
-            "status": "ready",
-            "terminal": True,
-        }
-
-        with patch(
-            "fta_web.issue.resources.uuid.uuid4",
-            return_value="43c3ca39-d60f-4482-854d-00f771e149fb",
-        ):
-            provision_id = SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
-
-        self.assertEqual(provision_id, "provision-1")
-        ensure_scene.assert_called_once_with(
-            bk_biz_id=2,
-            bk_tenant_id="system",
-            devops_project_id="project-a",
-            client_request_id="43c3ca39-d60f-4482-854d-00f771e149fb",
-        )
-
-    @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
-    @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
-    def test_new_scene_initialization_attempt_uses_new_client_request_id(self, ensure_scene, _get_tenant_id):
-        ensure_scene.return_value = {
-            "provision_id": "provision-1",
-            "status": "ready",
-            "terminal": True,
-        }
-
-        with patch(
-            "fta_web.issue.resources.uuid.uuid4",
-            side_effect=[
-                "43c3ca39-d60f-4482-854d-00f771e149fb",
-                "4fc1586b-f4c7-4785-90d7-d408a994ba05",
-            ],
-        ):
-            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
-            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
-
-        first_request_id = ensure_scene.call_args_list[0].kwargs["client_request_id"]
-        second_request_id = ensure_scene.call_args_list[1].kwargs["client_request_id"]
-        self.assertEqual(first_request_id, "43c3ca39-d60f-4482-854d-00f771e149fb")
-        self.assertEqual(second_request_id, "4fc1586b-f4c7-4785-90d7-d408a994ba05")
-
-    @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
-    @patch(
-        "fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene",
-        side_effect=TokenException("token unavailable"),
-    )
-    def test_ensure_scene_returns_stable_user_token_error(self, _ensure_scene, _get_tenant_id):
-        with self.assertRaises(SourceAnalysisFlowInitializationFailedError) as context:
-            SourceAnalysisBaseResource.ensure_flow_initialized(2, "project-a")
-
-        self.assertEqual(
-            json.loads(context.exception.data),
-            {
-                "code": "USER_ACCESS_TOKEN_UNAVAILABLE",
-                "message": SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE,
-                "retryable": True,
-            },
-        )
-
-    @patch("fta_web.issue.resources.bk_biz_id_to_bk_tenant_id", return_value="system")
-    def test_execution_params_restore_user_and_use_runtime_placeholders(self, _get_tenant_id):
+    def test_execution_params_use_rule_configurer_and_runtime_placeholders(self, _get_tenant_id):
         execution = SimpleNamespace(
             analysis_id="analysis-1",
             issue_id="issue-1",
@@ -437,23 +370,14 @@ class TestSourceAnalysisContract(SimpleTestCase):
             knowledge_base_ids=["knowledge-a"],
             alert_id="alert-1",
             create_user="operator-a",
+            run_as_user="configurator-a",
         )
 
         ensure_params = SourceAnalysisExecutionBaseResource.build_ensure_scene_params(execution)
         trigger_params = SourceAnalysisExecutionBaseResource.build_trigger_params(execution)
-        web_ensure_params = SourceAnalysisExecutionBaseResource.build_ensure_scene_params(
-            execution,
-            use_current_request=True,
-        )
-        web_trigger_params = SourceAnalysisExecutionBaseResource.build_trigger_params(
-            execution,
-            use_current_request=True,
-        )
 
-        self.assertEqual(ensure_params["bk_username"], "operator-a")
-        self.assertEqual(trigger_params["bk_username"], "operator-a")
-        self.assertNotIn("bk_username", web_ensure_params)
-        self.assertNotIn("bk_username", web_trigger_params)
+        self.assertEqual(ensure_params["bk_username"], "configurator-a")
+        self.assertEqual(trigger_params["bk_username"], "configurator-a")
         self.assertEqual(
             ensure_params["client_request_id"],
             build_bkfara_client_request_id("ensure-scene", "system", 2, "project-a", "analysis-1"),
@@ -508,6 +432,7 @@ class TestSourceAnalysisOrchestration(TestCase):
             "knowledge_base_ids": ["knowledge-a"],
             "bkfara_provision_id": "provision-1",
             "create_user": "operator-a",
+            "run_as_user": "configurator-a",
             "update_user": "operator-a",
         }
         defaults.update(kwargs)
@@ -568,7 +493,7 @@ class TestSourceAnalysisOrchestration(TestCase):
             bk_biz_id=2,
             bk_tenant_id="system",
             devops_project_id="project-a",
-            bk_username=execution.create_user,
+            bk_username=execution.run_as_user,
             client_request_id=build_bkfara_client_request_id("trigger", execution.analysis_id),
             inputs={
                 # 业务与租户标识和顶层重复：inputs 除运行时占位符外会被 BKFara
@@ -959,46 +884,29 @@ class TestSourceAnalysisOrchestration(TestCase):
         get_scene.assert_not_called()
         trigger.assert_not_called()
 
-    @patch("fta_web.issue.resources.get_request")
-    @patch("fta_web.issue.resources.oauth_client.get_access_token")
     @patch("fta_web.issue.resources.oauth_client.get_access_token_by_user")
     @patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task", return_value=3)
     @patch.object(run_source_analysis_execution, "apply_async", side_effect=RuntimeError("broker unavailable"))
-    def test_dispatch_persists_token_before_advancing(
+    def test_dispatch_uses_rule_configurer_token_before_advancing(
         self,
         apply_async,
         advance,
         get_access_token_by_user,
-        get_access_token,
-        get_request,
     ):
         execution = self.create_execution()
-        get_access_token.return_value = SimpleNamespace(access_token="web-access-token")
         get_access_token_by_user.return_value = SimpleNamespace(access_token="persisted-access-token")
 
         SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
 
-        get_request.assert_called_once_with(peaceful=True)
-        get_access_token.assert_called_once_with(get_request.return_value)
-        get_access_token_by_user.assert_called_once_with(execution.create_user)
-        advance.assert_called_once_with(execution.analysis_id, use_current_request=True)
+        get_access_token_by_user.assert_called_once_with(execution.run_as_user)
+        advance.assert_called_once_with(execution.analysis_id)
         apply_async.assert_called_once_with(args=(execution.analysis_id,), countdown=3)
 
-    def test_persisted_web_token_is_recovered_by_celery_trigger(self):
+    def test_persisted_rule_configurer_token_is_recovered_by_celery_trigger(self):
         execution = self.create_execution(bkfara_provision_id=None)
-        request = SimpleNamespace(
-            user=SimpleNamespace(username=execution.create_user),
-            COOKIES={},
-            session={},
-            GET={},
-            META={},
-        )
-        persisted_tokens = {}
-
-        def persist_token(current_request):
-            token = SimpleNamespace(access_token="persisted-access-token")
-            persisted_tokens[current_request.user.username] = token
-            return token
+        persisted_tokens = {
+            execution.run_as_user: SimpleNamespace(access_token="persisted-access-token"),
+        }
 
         def recover_token(username):
             try:
@@ -1015,8 +923,6 @@ class TestSourceAnalysisOrchestration(TestCase):
         }
 
         with (
-            patch("fta_web.issue.resources.get_request", return_value=request),
-            patch.object(oauth_client, "get_access_token", side_effect=persist_token),
             patch.object(oauth_client, "get_access_token_by_user", side_effect=recover_token) as get_token_by_user,
             patch(
                 "fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene",
@@ -1026,8 +932,7 @@ class TestSourceAnalysisOrchestration(TestCase):
         ):
             SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
 
-        self.assertIn(execution.create_user, persisted_tokens)
-        get_token_by_user.assert_called_once_with(execution.create_user)
+        get_token_by_user.assert_called_once_with(execution.run_as_user)
         execution.refresh_from_db()
         self.assertEqual(execution.bkfara_provision_id, "provision-new")
         apply_async.assert_called_once_with(args=(execution.analysis_id,), countdown=2)
@@ -1035,7 +940,7 @@ class TestSourceAnalysisOrchestration(TestCase):
         def trigger_with_celery_token(**params):
             self.assertEqual(
                 TriggerSourceAnalysisResource._get_user_access_token(params["bk_username"]),
-                persisted_tokens[execution.create_user].access_token,
+                persisted_tokens[execution.run_as_user].access_token,
             )
             return {
                 "analysis_task_id": "task-from-celery",
@@ -1067,17 +972,16 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.bkfara_task_id, "task-from-celery")
         self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
         self.assertEqual(execution.stage, SourceAnalysisStage.ANALYZING)
-        celery_get_token.assert_called_once_with(execution.create_user)
+        celery_get_token.assert_called_once_with(execution.run_as_user)
         celery_apply_async.assert_called_once_with(args=(execution.analysis_id,), countdown=4)
 
-    @patch("fta_web.issue.resources.get_request", return_value=object())
     @patch(
-        "fta_web.issue.resources.oauth_client.get_access_token",
+        "fta_web.issue.resources.oauth_client.get_access_token_by_user",
         side_effect=TokenException("token unavailable"),
     )
     @patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task")
     @patch.object(run_source_analysis_execution, "apply_async")
-    def test_dispatch_token_failure_is_retryable(self, apply_async, advance, _get_access_token, _get_request):
+    def test_dispatch_token_failure_is_retryable(self, apply_async, advance, _get_access_token_by_user):
         execution = self.create_execution()
 
         SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
@@ -1090,11 +994,6 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.failure_message, SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE)
         self.assertTrue(execution.failure_retryable)
 
-    @patch("fta_web.issue.resources.get_request", return_value=object())
-    @patch(
-        "fta_web.issue.resources.oauth_client.get_access_token",
-        return_value=SimpleNamespace(access_token="web-access-token"),
-    )
     @patch(
         "fta_web.issue.resources.oauth_client.get_access_token_by_user",
         side_effect=TokenNotExist("persisted token unavailable"),
@@ -1106,8 +1005,6 @@ class TestSourceAnalysisOrchestration(TestCase):
         apply_async,
         advance,
         _get_access_token_by_user,
-        _get_access_token,
-        _get_request,
     ):
         execution = self.create_execution()
 
@@ -1120,37 +1017,31 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.failure_code, "USER_ACCESS_TOKEN_UNAVAILABLE")
         self.assertTrue(execution.failure_retryable)
 
-    @patch("fta_web.issue.resources.get_request", return_value=object())
     @patch(
-        "fta_web.issue.resources.oauth_client.get_access_token",
+        "fta_web.issue.resources.oauth_client.get_access_token_by_user",
         side_effect=DatabaseError("database unavailable"),
     )
-    def test_dispatch_does_not_hide_token_storage_error(self, _get_access_token, _get_request):
+    def test_dispatch_does_not_hide_token_storage_error(self, _get_access_token_by_user):
         execution = self.create_execution()
 
         with self.assertRaisesMessage(DatabaseError, "database unavailable"):
             SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
 
     @patch.object(SourceAnalysisExecutionBaseResource, "advance_bkfara_task", return_value=None)
-    @patch("fta_web.issue.resources.get_request")
-    @patch("fta_web.issue.resources.oauth_client.get_access_token")
     @patch("fta_web.issue.resources.oauth_client.get_access_token_by_user")
     @patch.object(run_source_analysis_execution, "apply_async")
     def test_dispatch_terminal_execution_is_not_scheduled(
         self,
         apply_async,
         get_access_token_by_user,
-        get_access_token,
-        get_request,
         advance,
     ):
         execution = self.create_execution()
-        get_access_token.return_value = SimpleNamespace(access_token="web-access-token")
         get_access_token_by_user.return_value = SimpleNamespace(access_token="persisted-access-token")
 
         SourceAnalysisExecutionBaseResource.dispatch_execution(execution)
 
-        advance.assert_called_once_with(execution.analysis_id, use_current_request=True)
+        advance.assert_called_once_with(execution.analysis_id)
         apply_async.assert_not_called()
 
     @patch(

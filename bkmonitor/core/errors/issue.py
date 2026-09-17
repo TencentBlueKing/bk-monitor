@@ -83,12 +83,6 @@ class SourceAnalysisDefaultRulePriorityImmutableError(IssueError):
     message_tpl = _lazy("默认规则优先级不可修改")
 
 
-class SourceAnalysisFlowInitializationFailedError(IssueError):
-    code = 3327010
-    name = _lazy("源码分析流程初始化失败")
-    message_tpl = _lazy("源码分析流程初始化失败，请稍后重试")
-
-
 class SourceAnalysisDefaultRuleConditionsInvalidError(IssueError):
     code = 3327011
     name = _lazy("源码分析默认规则条件无效")
@@ -111,3 +105,9 @@ class SourceAnalysisOperationConflictError(IssueError):
     status_code = 409
     name = _lazy("源码分析操作冲突")
     message_tpl = "{message}"
+
+
+class SourceAnalysisExecutionCredentialUnavailableError(IssueError):
+    code = 3327014
+    name = _lazy("源码分析执行身份不可用")
+    message_tpl = _lazy("无法保存规则执行用户的访问凭证，请重新登录后重试")

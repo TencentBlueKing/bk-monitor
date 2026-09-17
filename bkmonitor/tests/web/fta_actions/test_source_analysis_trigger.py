@@ -49,6 +49,7 @@ class TestSourceAnalysisInitialTrigger(TestCase):
             "agent_id": "agent-a",
             "skill_ids": ["skill-b", "skill-a"],
             "knowledge_base_ids": [],
+            "run_as_user": "configurator",
         }
         defaults.update(kwargs)
         return IssueSourceAnalysisRule.objects.create(**defaults)
@@ -62,6 +63,7 @@ class TestSourceAnalysisInitialTrigger(TestCase):
             "bkci_project_id": "project-a",
             "repository_alias": "repo-a",
             "agent_id": "agent-a",
+            "run_as_user": "configurator",
         }
         defaults.update(kwargs)
         return IssueSourceAnalysisExecution.objects.create(**defaults)
@@ -167,7 +169,6 @@ class TestSourceAnalysisInitialTrigger(TestCase):
             bk_biz_id=self.BK_BIZ_ID,
             bkci_project_id="project-a",
             repository_alias="repo-a",
-            bkfara_provision_id="existing-provision",
         )
         self.create_rule(
             priority=100,
@@ -204,6 +205,7 @@ class TestSourceAnalysisInitialTrigger(TestCase):
         self.assertEqual(execution.agent_id, "agent-a")
         self.assertEqual(execution.skill_ids, ["skill-b", "skill-a"])
         self.assertEqual(execution.knowledge_base_ids, [])
+        self.assertEqual(execution.run_as_user, "configurator")
         self.assertEqual(execution.status, SourceAnalysisStatus.PENDING)
         self.assertEqual(execution.stage, SourceAnalysisStage.WAITING)
         self.assertEqual(execution.trigger_type, SourceAnalysisTriggerType.INITIAL)

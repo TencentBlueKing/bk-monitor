@@ -63,6 +63,7 @@ export const useSourceAnalysisRuleDetail = () => {
     knowledge_base_ids: [],
     priority: 10,
     repository_alias: '',
+    run_as_user: '',
     skill_ids: [],
     updated_at: 0,
     updated_by: '',

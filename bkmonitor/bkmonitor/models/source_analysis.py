@@ -39,13 +39,6 @@ class IssueSourceAnalysisConfig(AbstractRecordModel):
     bk_biz_id = models.IntegerField(unique=True, verbose_name="业务 ID")
     bkci_project_id = models.CharField(max_length=128, verbose_name="蓝盾项目 ID")
     repository_alias = models.CharField(max_length=255, verbose_name="蓝盾代码库别名")
-    bkfara_provision_id = models.CharField(
-        max_length=128,
-        null=True,
-        blank=True,
-        default=None,
-        verbose_name="BKFara 场景初始化 ID",
-    )
 
 
 class IssueSourceAnalysisRule(AbstractRecordModel):
@@ -100,6 +93,8 @@ class IssueSourceAnalysisRule(AbstractRecordModel):
     agent_id = models.CharField(max_length=64, default="", blank=True, verbose_name="智能体 ID")
     skill_ids = JsonField(default=list, blank=True, verbose_name="Skill ID")
     knowledge_base_ids = JsonField(default=list, blank=True, verbose_name="知识库 ID")
+    # 规则资源按用户权限校验，实际执行必须沿用同一身份，不能随点击分析的人变化。
+    run_as_user = models.CharField(max_length=64, default="", blank=True, verbose_name="规则执行用户")
 
 
 class IssueSourceAnalysisExecution(AbstractRecordModel):
@@ -200,6 +195,7 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     agent_id = models.CharField(max_length=64, verbose_name="智能体 ID 快照")
     skill_ids = JsonField(default=list, blank=True, verbose_name="Skill ID 快照")
     knowledge_base_ids = JsonField(default=list, blank=True, verbose_name="知识库 ID 快照")
+    run_as_user = models.CharField(max_length=64, default="", blank=True, verbose_name="规则执行用户快照")
     bkfara_provision_id = models.CharField(
         max_length=128,
         null=True,

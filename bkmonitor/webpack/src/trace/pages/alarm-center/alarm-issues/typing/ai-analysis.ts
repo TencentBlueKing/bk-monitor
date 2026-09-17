@@ -138,6 +138,8 @@ export interface SourceAnalysisLatest {
   result: null | SourceAnalysisResult;
   /** 重试来源分析 ID（仅失败重试有值） */
   retry_of_analysis_id: null | string;
+  /** 规则配置时确认的执行用户 */
+  run_as_user: string;
   /** 当前阶段（终态为 null） */
   stage: null | SourceAnalysisStage;
   /** 当前阶段中文名 */
