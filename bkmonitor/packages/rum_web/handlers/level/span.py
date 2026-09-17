@@ -496,7 +496,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         """
         span = self.query.query_detail(record_id)
         if not span:
-            raise serializers.ValidationError(_("span_id={} 记录不存在").format(record_id))
+            raise serializers.ValidationError(_("span_id = {} 记录不存在").format(record_id))
 
         related_spans = self._query_related_spans(span)
         return build_span_detail(span, related_spans)
@@ -505,14 +505,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
         """仅对 View 类型补查关联 Span：同 View ID 下 span_type=view / vital 的记录。
 
         - 应用与 Session 沿用主记录范围。
-        - 时间范围覆盖后续生命周期：[start_time, end_time + 1d]，转换为秒级传入。
+        - 不限定时间窗：关联查询覆盖整个保留期，由查询层基于 retention 自动补齐
+          （``query_list(None, None, ...)``），避免遗漏生命周期后段（如 Web Vitals 快照）。
         - 其他类型返回空列表，避免不必要的存储查询。
-
-        .. note::
-            Span 记录中的 ``start_time`` / ``end_time`` 为微秒级时间戳，
-            而 :meth:`SpanQuery.query_list` 期望秒级时间戳（内部会 ``* 1000`` 转毫秒），
-            因此需先 ``// 1_000_000`` 归一化，否则会触发底层 unify-query
-            "start time and end time must have the same format" 报错。
         """
         flat = flatten_dict_data(span)
         if flat.get("attributes.span_type") != RumSpanType.VIEW.value:
