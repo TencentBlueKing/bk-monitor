@@ -13,7 +13,8 @@ from typing import Any
 
 from constants.otel_query import RatingLevel
 
-from rum_web.handlers.builder.base import BaseSection, KeyValueItem, NamedKeyValueItem, SpanBuilder
+from rum_web.handlers.builder.base import BaseSection, KeyValueItem, NamedKeyValueItem
+from rum_web.handlers.builder.span.base import SpanBuilder
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.span.base import (
     OVERVIEW_ELAPSED_TIME,
@@ -39,9 +40,9 @@ class RatingLevelBadgeItem(NamedKeyValueItem):
                 return item
         return None
 
-    def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
-        metric = origin_data.get("attributes.vital.metric", "")
-        value = get_safe_number(origin_data.get("attributes.vital.value"))
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        metric = flatten_data.get("attributes.vital.metric", "")
+        value = get_safe_number(flatten_data.get("attributes.vital.value"))
         matched: dict[str, Any] = self._match_rating(metric, value) or {}
         return {
             "field_name": self.field_name,
@@ -56,8 +57,8 @@ class RatingConfigItem(KeyValueItem):
 
     key: str = "display.rating_config"
 
-    def render(self, origin_data: dict[str, Any]) -> dict[str, Any]:
-        metric = origin_data.get("attributes.vital.metric", "")
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        metric = flatten_data.get("attributes.vital.metric", "")
         return {self.key: RatingLevel.get_rating_config(metric) if metric else []}
 
 
