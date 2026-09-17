@@ -24,34 +24,46 @@
  * IN THE SOFTWARE.
  */
 
+import { hydrateEntityLinkPlaceholders } from './entity-link-placeholder';
+
 import type { PluginContext } from '@toast-ui/editor/types/editor';
 
 /**
- * Toast-ui 编辑器插件：为所有 <a> 标签添加 target="_blank" 和 rel="noopener noreferrer"
+ * Toast-ui 编辑器插件：
+ * 1. 在 beforePreviewRender 阶段，将实体链接占位符 %%BKENTITY:...%% 水合为真实 <a>
+ * 2. 渲染完成后，为所有 <a> 补充 target="_blank" / rel
  *
- * 设计原理：
- *   - Markdown 文本中 [display_name](jump_target) 经 toast-ui 渲染后生成 <a href="url">text</a>
- *   - 默认 <a> 标签没有 target 属性，点击会在当前页面跳转
- *   - 本插件监听 afterPreviewRender 事件，在渲染完成后为所有 <a> 添加 target="_blank"
+ * 为什么不用 Markdown [text](url) 或直接塞 HTML：
+ *   - display_name 含 `[`/`]` 会破坏 Markdown 链接语法
+ *   - toast-ui Viewer 会把 Markdown 里的原始 HTML 转义成纯文本
  *
  * 时序说明：
+ *   - beforePreviewRender：在 HTML 写入 DOM 前替换占位符（无闪烁）
  *   - fixUrlPlugin 在 setTimeout(100ms) 后修改 innerHTML（修复 URL）
- *   - 本插件在 setTimeout(150ms) 后操作 DOM 元素（添加 target）
- *   - innerHTML 替换会重建 DOM 树，因此本插件必须延迟至 fixUrlPlugin 完成后执行
- *   - 否则 fixUrlPlugin 的 innerHTML 赋值会覆盖本插件设置的 target 属性
+ *   - 本插件在 setTimeout(150ms) 后设置 target（须晚于 fixUrlPlugin）
  */
 export default function entityLinkPlugin(context: PluginContext) {
+  // emitReduce：返回值会作为下一轮 HTML 继续传递
+  context.eventEmitter.listen('beforePreviewRender', (html: string) => {
+    return hydrateEntityLinkPlaceholders(html);
+  });
+
   context.eventEmitter.listen('afterPreviewRender', () => {
     setTimeout(() => {
       const previewArea = context.instance.options.el;
-      if (previewArea) {
-        const links = previewArea.querySelectorAll('a');
-        for (const link of links) {
-          const anchor = link as HTMLAnchorElement;
-          anchor.setAttribute('target', '_blank');
-          // 安全性：添加 rel="noopener noreferrer" 防止 window.opener 泄漏
-          anchor.setAttribute('rel', 'noopener noreferrer');
-        }
+      if (!previewArea) return;
+
+      // 兜底：若 fixUrlPlugin 的 innerHTML 重写意外带回占位符原文，再水合一次
+      if (previewArea.innerHTML.includes('%%BKENTITY:')) {
+        previewArea.innerHTML = hydrateEntityLinkPlaceholders(previewArea.innerHTML);
+      }
+
+      const links = previewArea.querySelectorAll('a');
+      for (const link of links) {
+        const anchor = link as HTMLAnchorElement;
+        anchor.setAttribute('target', '_blank');
+        // 安全性：添加 rel="noopener noreferrer" 防止 window.opener 泄漏
+        anchor.setAttribute('rel', 'noopener noreferrer');
       }
     }, 150);
   });

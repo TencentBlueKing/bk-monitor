@@ -323,7 +323,7 @@ export function createShootingModule(
   const renderDisposalSlot = () => {
     return (
       <MarkdownViewer
-        class='markdown-viewer-has-link'
+        class='trouble-shooting-markdown-viewer'
         value={replaceEntityInText(options.contentList?.suggestion, options.extractedInfoList?.suggestion)}
       />
     );
@@ -650,7 +650,7 @@ export function createShootingModule(
         <div class='card-summary'>
           <div class='card-summary-title'>{$t('事件分析总结：')}</div>
           <MarkdownViewer
-            class='markdown-viewer-has-link'
+            class='trouble-shooting-markdown-viewer'
             value={replaceEntityInText(options.summaryList.events_analysis, options.extractedInfoList?.events_analysis)}
           />
         </div>
@@ -707,7 +707,7 @@ export function createShootingModule(
         <div class='card-summary'>
           <div class='card-summary-title'>{$t('日志分析总结：')}</div>
           <MarkdownViewer
-            class='markdown-viewer-has-link'
+            class='trouble-shooting-markdown-viewer'
             value={replaceEntityInText(options.summaryList.logs_analysis, options.extractedInfoList?.logs_analysis)}
           />
         </div>
@@ -817,7 +817,7 @@ export function createShootingModule(
         <div class='card-summary'>
           <div class='card-summary-title'>{$t('Trace 分析总结：')}</div>
           <MarkdownViewer
-            class='markdown-viewer-has-link'
+            class='trouble-shooting-markdown-viewer'
             value={replaceEntityInText(options.summaryList.trace_analysis, options.extractedInfoList?.trace_analysis)}
           />
         </div>
