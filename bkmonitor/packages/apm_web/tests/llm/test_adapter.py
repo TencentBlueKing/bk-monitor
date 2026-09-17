@@ -122,7 +122,7 @@ class AdapterTests(TestCase):
         conversation_field = "attributes.gen_ai.conversation.id"
         self.assertEqual(resolve_query_field("aidev", conversation_field), "attributes.agent.session.session_code")
         self.assertEqual(resolve_query_field("agentlens", conversation_field), "attributes.gen_ai.session.id")
-        self.assertEqual(resolve_query_field("galileo", conversation_field), "attributes.gen_ai.session_id")
+        self.assertEqual(resolve_query_field("galileo", conversation_field), conversation_field)
         self.assertEqual(resolve_query_field("langfuse", conversation_field), "attributes.session.id")
         self.assertEqual(resolve_query_field("default", conversation_field), conversation_field)
         # 非 LLM 服务或未命中映射表的字段原样透传
