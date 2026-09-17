@@ -14,7 +14,7 @@ from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.data_source.utils.apm import APMQueryFilterMixin
+from bkmonitor.data_source.utils.apm import APMQueryFilterMixin, FilterOperator
 from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension
@@ -180,7 +180,7 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             end_time=None,
             offset=0,
             limit=1,
-            filters=[{"key": "span_id", "value": [record_id], "operator": "equal"}],
+            filters=[{"key": "span_id", "value": [record_id], "operator": FilterOperator.EQUAL}],
         )
         return records[0] if records else {}
 
