@@ -192,7 +192,7 @@ class AlertBuilder(BaseAlertProcessor):
                 "strategy_id": alert.strategy_id,
             }
             for alert in alerts
-            if alert.is_new() and alert.strategy_id
+            if alert.is_new() and alert.strategy_id and not alert.shield_end_close
         ]
         # 利用send_check_task 创建[alert.manager]延时任务
         send_check_task(alerts=alerts_params, run_immediately=False)
@@ -371,10 +371,19 @@ class AlertBuilder(BaseAlertProcessor):
 
         # 根据这批事件的dedupe_md5，获取已经存在的告警
         current_alerts = self.get_current_alerts(events)
+        from alarm_backends.service.converge.shield.close import CloseShieldMatcher
+
+        close_shields = CloseShieldMatcher()
         new_alerts = {}
         # 对事件进行遍历，逐个更新告警内容
         for event in events:
             alert: Alert = current_alerts.get(event.dedupe_md5)
+            if alert and alert.is_abnormal():
+                close_shields.take_over(alert)
+                if alert.shield_end_close:
+                    alert.update(event)
+                    new_alerts[alert.id] = alert
+                    continue
             if alert and alert.is_abnormal():
                 # 存量告警处理
                 # 当前事件已经关联了告警， 且告警处于未恢复状态
@@ -423,6 +432,7 @@ class AlertBuilder(BaseAlertProcessor):
                 )
 
             # 回写到 current_alerts 用于后续遍历继续更新
+            close_shields.take_over(alert)
             current_alerts[event.dedupe_md5] = alert
             new_alerts[alert.id] = alert
 

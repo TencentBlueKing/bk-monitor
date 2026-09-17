@@ -25,6 +25,7 @@
  */
 
 export default {
+  请选择业务: 'Please select a business',
   '正则匹配：': 'Regex matching:',
   '范围匹配：': 'Range matching:',
   搜索字段名: 'Search field name',

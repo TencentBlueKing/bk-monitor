@@ -79,6 +79,7 @@ function normalizeViewConfig(raw: IRumRawViewConfig): IRumViewConfig {
     default_sort: raw?.default_sort || [],
     display_fields: raw?.display_fields || [],
     span_type_display_fields: raw?.span_type_display_fields || {},
+    span_type_resident_fields: raw?.span_type_resident_fields || {},
     resident_fields: raw?.resident_fields || [],
     groups: (raw?.groups || []).map(group => ({
       name: group.name,
@@ -95,6 +96,7 @@ const EMPTY_VIEW_CONFIG: IRumViewConfig = {
   default_sort: [],
   display_fields: [],
   span_type_display_fields: {},
+  span_type_resident_fields: {},
 };
 
 interface IFieldsOptionValuesParams extends IRumQueryParams {

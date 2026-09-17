@@ -539,6 +539,13 @@ export default defineComponent({
     };
 
     /**
+     * @description 弹层内容渲染完成后重新定向：数据加载前后内容高度不同，初始定位会偏移导致底部内容被裁
+     */
+    const handleStatisticsPopoverUpdate = () => {
+      statisticsPopoverInstance?.popperInstance?.forceUpdate();
+    };
+
+    /**
      * @description 字段分析组件渲染方法
      */
     const statisticsDomRender = () => {
@@ -555,6 +562,7 @@ export default defineComponent({
           isInteger={['double', 'long', 'integer'].includes(fieldOptions?.name)}
           isShow={showStatisticsPopover.value}
           onConditionChange={handleConditionChange}
+          onContentRendered={handleStatisticsPopoverUpdate}
           onShowMore={() => handleStatisticsPopoverHide(false)}
           onSliderShowChange={handleStatisticsSliderShow}
         />,

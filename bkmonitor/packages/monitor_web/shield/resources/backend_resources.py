@@ -40,7 +40,7 @@ from bkmonitor.utils.time_tools import (
 )
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
-from constants.shield import ScopeType, ShieldCategory, ShieldStatus
+from constants.shield import ScopeType, ShieldCategory, ShieldEndPolicy, ShieldStatus
 from core.drf_resource import resource
 from core.drf_resource.base import Resource
 from core.errors.shield import DuplicateQuickShieldError, ShieldNotExist
@@ -163,6 +163,7 @@ class ShieldListResource(Resource):
                     "id": shield.id,
                     "bk_biz_id": shield.bk_biz_id,
                     "category": shield.category,
+                    "end_policy": shield.end_policy,
                     "status": shield.status,
                     "begin_time": strftime_local(shield.begin_time, DEFAULT_FORMAT),
                     "end_time": strftime_local(shield.end_time, DEFAULT_FORMAT),
@@ -204,6 +205,7 @@ class ShieldDetailResource(Resource):
             "bk_biz_id": shield.bk_biz_id,
             "is_enabled": shield.is_enabled,
             "category": shield.category,
+            "end_policy": shield.end_policy,
             "status": shield.status,
             "scope_type": shield.scope_type,
             "description": shield.description,
@@ -382,6 +384,7 @@ class AddShieldResource(Resource, EventDimensionMixin):
         shield_obj = Shield.objects.create(
             bk_biz_id=data["bk_biz_id"],
             category=data["category"],
+            end_policy=data.get("end_policy", ShieldEndPolicy.NOTIFY_ONCE),
             begin_time=begin_time,
             end_time=end_time,
             failure_time=end_time,
@@ -510,6 +513,7 @@ class BulkAddAlertShieldResource(AddShieldResource):
                 Shield(
                     bk_biz_id=data["bk_biz_id"],
                     category=data["category"],
+                    end_policy=data.get("end_policy", ShieldEndPolicy.NOTIFY_ONCE),
                     create_user=shield_operator,
                     update_user=shield_operator,
                     begin_time=begin_time,
@@ -535,6 +539,7 @@ class EditShieldResource(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        end_policy = serializers.ChoiceField(choices=ShieldEndPolicy.CHOICES, required=False, label="屏蔽结束处理方式")
         id = serializers.IntegerField(required=True, label="屏蔽id")
         bk_biz_id = serializers.IntegerField(required=True, label="业务id")
         begin_time = serializers.CharField(required=True, label="屏蔽开始时间")
@@ -551,6 +556,9 @@ class EditShieldResource(Resource):
             shield = Shield.objects.get(id=data["id"])
         except Shield.DoesNotExist:
             raise ShieldNotExist({"msg": data["id"]})
+
+        if "end_policy" in data and data["end_policy"] != shield.end_policy:
+            raise ValidationError({"end_policy": _("结束处理方式创建后不可修改")})
 
         # 处理时间数据
         begin_time, end_time = handle_shield_time(

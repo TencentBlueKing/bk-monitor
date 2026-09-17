@@ -467,7 +467,8 @@
     }
 
     &.is-host-tab,
-    &.is-container-tab {
+    &.is-container-tab,
+    &.is-llm-tab {
       padding: 0 0 0 16px;
 
       .host-tab-container {
@@ -1014,7 +1015,8 @@
       padding: 0 16px 14px;
 
       &.is-host-tab,
-      &.is-container-tab {
+      &.is-container-tab,
+      &.is-llm-tab {
         padding-right: 0;
         padding-bottom: 0;
       }

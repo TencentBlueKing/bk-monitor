@@ -162,6 +162,22 @@ def test_build_strategy_from_simplified_request():
     assert "detect" not in result
 
 
+def test_update_alarm_strategy_prevalidates_issue_config(monkeypatch):
+    class CandidateStrategy:
+        public_dimensions = []
+
+        def __init__(self, **_kwargs):
+            pass
+
+        def convert(self):
+            pass
+
+    monkeypatch.setattr(alert, "Strategy", CandidateStrategy)
+
+    with pytest.raises(ValidationError, match="alert_levels"):
+        alert._validate_strategy_before_write({"issue_config": {}})
+
+
 def test_update_alarm_strategy_requires_complete_config():
     serializer = alert.UpdateAlarmStrategyResource.RequestSerializer(
         data={

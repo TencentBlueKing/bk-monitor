@@ -94,7 +94,7 @@ class CompatibleIAM(IAM):
             try:
                 alias_policies = self._do_policy_query(alias_request, with_resources)
             except AuthAPIError:
-                logger.exception("[CompatibleIAM] 查询别名动作策略失败, action_id=%s", alias_action_id)
+                logger.exception(f"[CompatibleIAM] 查询别名动作策略失败, action_id={alias_action_id}")
                 continue
             if not alias_policies:
                 continue

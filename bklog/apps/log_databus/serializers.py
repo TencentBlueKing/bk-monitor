@@ -962,7 +962,8 @@ class CollectorEtlSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=False)
     etl_config = serializers.CharField(label=_("清洗类型"), required=True)
     etl_params = CollectorEtlParamsSerializer(required=False)
-    data = serializers.CharField(label=_("日志内容"), required=True)
+    # 调试原文必须与真实入库的日志逐字节一致，末尾换行等空白字符参与清洗匹配，不能裁剪
+    data = serializers.CharField(label=_("日志内容"), required=True, trim_whitespace=False)
 
 
 class CleanTemplatePreviewSerializer(serializers.Serializer):

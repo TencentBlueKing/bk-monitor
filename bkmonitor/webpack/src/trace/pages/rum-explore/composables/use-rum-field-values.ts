@@ -79,7 +79,8 @@ export function useRumFieldValues(fields: Ref<IRumField[]>) {
   /** 登记单个字段的单位与枚举别名（key 为字段名） */
   function setFieldOptionsMap(field: IRumField) {
     fieldOptionsMap.value.set(field.name, {
-      unit: field.field_unit,
+      // 常驻条件没有单条记录的指标上下文，vital 按原始数值展示。
+      unit: field.field_unit === 'vital' ? '' : field.field_unit,
       values: field.option_values.map(item => ({ id: `${item.value}`, name: `${item.alias}` })),
       fieldDisplayType: field.field_display_type,
     });

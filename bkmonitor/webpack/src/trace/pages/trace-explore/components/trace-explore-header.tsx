@@ -248,7 +248,6 @@ export default defineComponent({
               </div>
             </div>
           )}
-          {/* // #if !IS_APM_MONITOR */}
           {this.hideFeatures.includes('application') ? null : (
             <Select
               ref='applicationSelectRef'
@@ -313,9 +312,7 @@ export default defineComponent({
               }}
             </Select>
           )}
-          {/* // #endif */}
         </div>
-        {/* // #if !IS_APM_MONITOR */}
         {this.hideFeatures.includes('dateRange') ? null : (
           <div class='header-tools'>
             <span class='inquire-header-append-item'>
@@ -341,31 +338,31 @@ export default defineComponent({
             </span>
           </div>
         )}
-
-        <div class='goto-old'>
-          <div
-            class='goto-old-wrap'
-            v-bk-tooltips={{
-              content: this.t('回到旧版'),
-              placements: ['bottom-end'],
-              zIndex: 9999,
-            }}
-            onClick={() => this.handleGotoOld()}
-          >
-            <div class='icon'>
-              <i class='icon-monitor icon-zhuanhuan' />
+        {!this.hideFeatures.includes('gotoOld') ? (
+          <div class='goto-old'>
+            <div
+              class='goto-old-wrap'
+              v-bk-tooltips={{
+                content: this.t('回到旧版'),
+                placements: ['bottom-end'],
+                zIndex: 9999,
+              }}
+              onClick={() => this.handleGotoOld()}
+            >
+              <div class='icon'>
+                <i class='icon-monitor icon-zhuanhuan' />
+              </div>
+              {this.$slots.default || (
+                <Badge
+                  count='!'
+                  theme='warning'
+                >
+                  <span>{this.t('回到旧版')}</span>
+                </Badge>
+              )}
             </div>
-            {this.$slots.default || (
-              <Badge
-                count='!'
-                theme='warning'
-              >
-                <span>{this.t('回到旧版')}</span>
-              </Badge>
-            )}
           </div>
-        </div>
-        {/* // #endif */}
+        ) : null}
       </div>
     );
   },

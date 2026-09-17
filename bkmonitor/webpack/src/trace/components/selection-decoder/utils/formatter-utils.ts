@@ -71,10 +71,10 @@ export const autoDecodeString = (str: string): string => {
     { type: EncodingType.ASCII, canDecode: canDecodeAscii },
   ];
 
-  // 找到第一个匹配的编码类型并解码
+  // 找到第一个匹配的编码类型并解码；若结果是 JSON 则顺带美化
   for (const check of encodingChecks) {
     if (check.canDecode(trimmedStr)) {
-      return decodeString(str, check.type);
+      return tryFormatJson(decodeString(str, check.type));
     }
   }
 
@@ -231,24 +231,10 @@ export const decodeString = (str: string, type: EncodingType): string => {
 
       case EncodingType.BASE64:
         try {
-          const s = trimmedStr;
-
-          // 标准化 Base64 字符串
-          const core = s.replace(/=+$/g, '');
-          let normalized = core.replace(/-/g, '+').replace(/_/g, '/');
-
-          // 处理填充
-          const mod = normalized.length % 4;
-          if (mod === 1) {
-            // 余数为 1 是非法的
+          const binary = atobBase64(trimmedStr);
+          if (binary === null) {
             return str;
           }
-          if (mod !== 0) {
-            normalized = normalized + '='.repeat(4 - mod);
-          }
-
-          // 解码
-          const binary = atob(normalized);
 
           // 转换为字节数组
           const bytes = new Uint8Array(binary.length);
@@ -549,31 +535,130 @@ const canDecodeAscii = (str: string): boolean => {
 };
 
 /**
+ * 折叠 Base64 中的空白（复制时常见的换行折行）
+ */
+const compactBase64Text = (str: string): string => str.replace(/\s+/g, '');
+
+/**
+ * 判断是否更像 URL 路径，而不是 Base64。
+ * `/` 是标准 Base64 字母表字符，长 payload（尤其是 JSON）出现多个 `/` 完全正常，
+ * 不能仅凭斜杠数量拒绝。
+ */
+const looksLikeUrlPath = (s: string): boolean => {
+  // `/123`、`/main` 这类短路径
+  if (/^\/\d+$/.test(s) || /^\/[A-Za-z0-9._~-]+$/.test(s)) {
+    return true;
+  }
+
+  // 有填充，或 JSON / JWT header 的经典前缀，基本可排除路径
+  if (/=+$/.test(s) || /^eyJ/i.test(s) || /^W3s/i.test(s)) {
+    return false;
+  }
+
+  if (!s.includes('/')) {
+    return false;
+  }
+
+  const parts = s.split('/');
+
+  // /foo/bar/baz：以 / 开头、各段短且像路径 token
+  if (s.startsWith('/')) {
+    const segs = parts.filter(Boolean);
+    return segs.length >= 1 && segs.every(p => p.length <= 32 && /^[A-Za-z0-9._~-]+$/.test(p));
+  }
+
+  // foo/bar/baz：全小写短段、无 +/=
+  return (
+    parts.length >= 3 && !/[+=]/.test(s) && parts.every(p => p.length > 0 && p.length <= 24 && /^[a-z0-9._-]+$/.test(p))
+  );
+};
+
+/**
+ * 标准化（含 Base64URL、省略填充）后 atob，失败返回 null
+ */
+const atobBase64 = (str: string): null | string => {
+  try {
+    const compact = compactBase64Text(str);
+    const core = compact.replace(/=+$/g, '');
+    if (!core) {
+      return null;
+    }
+    let normalized = core.replace(/-/g, '+').replace(/_/g, '/');
+    const mod = normalized.length % 4;
+    if (mod === 1) {
+      return null;
+    }
+    if (mod !== 0) {
+      normalized += '='.repeat(4 - mod);
+    }
+    return atob(normalized);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * 将 atob 得到的 binary string 转为 UTF-8 文本
+ */
+const binaryStringToUtf8 = (binary: string): string => {
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i) & 0xff;
+  }
+  if (typeof TextDecoder === 'undefined') {
+    return binary;
+  }
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    try {
+      return new TextDecoder('utf-8').decode(bytes);
+    } catch {
+      return binary;
+    }
+  }
+};
+
+/**
+ * 解码结果是否为 JSON 对象 / 数组
+ */
+const isJsonObjectOrArrayText = (text: string): boolean => {
+  const trimmed = text.trim();
+  if (!(trimmed.startsWith('{') && trimmed.endsWith('}')) && !(trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+    return false;
+  }
+  try {
+    JSON.parse(trimmed);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/**
  * 判断字符串是否为 Base64 编码
  * @param str 待判断的字符串
  * @returns 是否为 Base64 编码
  */
 const canDecodeBase64 = (str: string): boolean => {
   try {
-    // 1. 预处理：去除前后空格，排除空字符串
-    const s = str.trim();
+    const s = compactBase64Text(str.trim());
     if (!s) {
       return false;
     }
 
-    // 2. 基础规则1：长度必须是4的整数倍（Base64编码逻辑：3字节→4字符，不足补=）
+    const core = s.replace(/=+$/g, '');
+    const isJsonB64Prefix = /^eyJ/i.test(core) || /^W3s/i.test(core);
+
+    // 标准 Base64 长度是 4 的倍数；允许 JSON Base64 省略填充（len % 4 !== 1）
     if (s.length % 4 !== 0) {
-      return false;
+      if (!(isJsonB64Prefix && core.length % 4 !== 1 && !/=/.test(s))) {
+        return false;
+      }
     }
 
-    // 3. 排除明显的非Base64模式（在字符集检查前）
-    // HTTP路径：以/开头，可能包含状态码或路径段
-    if (/^\/\d+$/.test(s) || /^\/[a-zA-Z0-9]+$/.test(s)) {
-      return false;
-    }
-
-    // URL路径段：包含多个/的明显路径
-    if (s.includes('/') && s.split('/').length > 2) {
+    // 排除明显的非 Base64 模式（在字符集检查前）
+    if (looksLikeUrlPath(s)) {
       return false;
     }
 
@@ -590,32 +675,24 @@ const canDecodeBase64 = (str: string): boolean => {
         return false;
       }
     }
-    // 4. 基础规则2：字符集合规 + 填充符位置合法
-    // 标准Base64字符集：A-Z, a-z, 0-9, +, /；Base64URL变体：-, _；填充符：=（仅允许在末尾，最多2个）
-    const base64Pattern = /^[A-Za-z0-9+/\-_]+(={0,2})$/;
-    if (!base64Pattern.test(s)) {
+
+    // 字符集合规 + 填充符位置合法
+    // 标准Base64：A-Z a-z 0-9 + /；Base64URL：- _；填充符 = 仅允许在末尾，最多 2 个
+    if (!/^[A-Za-z0-9+/\-_]+={0,2}$/.test(s)) {
       return false;
     }
 
-    // 4. 核心验证：尝试解码（排除"格式合规但无效"的情况）
-    let decodedData: string;
-    try {
-      // 先尝试标准Base64解码（处理+、/）
-      decodedData = atob(s);
-    } catch {
-      try {
-        // 若标准解码失败，尝试Base64URL解码（处理-、_）
-        const normalized = s.replace(/-/g, '+').replace(/_/g, '/');
-        // 补充填充符（Base64URL可能省略填充符）
-        const padded = normalized + '='.repeat((4 - (normalized.length % 4)) % 4);
-        decodedData = atob(padded);
-      } catch {
-        return false;
-      }
+    const decodedData = atobBase64(s);
+    if (decodedData === null || decodedData.length === 0) {
+      return false;
     }
 
-    // 5. 增强验证：解码后数据的"合理性"（避免纯随机二进制的误判）
-    // 使用新的严格验证逻辑，包含乱码检测和HTML显示能力检查
+    // JSON payload（含中文）是最强的正向信号，优先于可读性启发式
+    if (isJsonObjectOrArrayText(binaryStringToUtf8(decodedData))) {
+      return true;
+    }
+
+    // 增强验证：解码后数据的"合理性"（避免纯随机二进制的误判）
     return isValidUtf8OrText(decodedData);
   } catch {
     return false;

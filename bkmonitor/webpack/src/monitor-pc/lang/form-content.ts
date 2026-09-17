@@ -26,6 +26,24 @@
 
 // 表单内容相关的词条
 export default {
+  屏蔽期间产生的告警: 'Alerts generated during shielding',
+  屏蔽期内告警通知: 'Alert notifications during shielding',
+  屏蔽结束后发送一次通知: 'Send one notification after shielding ends',
+  屏蔽结束时不再通知: 'Do not notify when shielding ends',
+  '屏蔽结束时关闭告警，不再通知': 'Close alerts when shielding ends without notifications',
+  '屏蔽期间产生的告警不通知、不执行处理套餐；屏蔽结束时关闭，不补发通知、不补执行处理。屏蔽开始前的告警不受影响。':
+    'Alerts generated during shielding send no notifications and run no actions. They close when shielding ends, without deferred notifications or actions. Earlier alerts are unaffected.',
+  '屏蔽结束时，仍未恢复的告警将各发送一次通知，可能集中产生多条通知。':
+    'Each unrecovered alert sends one notification when shielding ends. Multiple notifications may arrive together.',
+  '屏蔽结束时，仍未恢复的告警将各发送一次通知。告警较多时，可能在短时间内集中产生多条通知。':
+    'Each unrecovered alert sends one notification when shielding ends. Many alerts may produce a burst of notifications.',
+  '屏蔽期间产生的告警，期间不发送通知、不执行处理套餐（作业、回调、自愈等），屏蔽结束时系统将这些告警关闭，不补发通知、不补执行处理，后续新触发的告警按原策略通知和处理。':
+    'Alerts generated during shielding send no notifications and run no actions (jobs, callbacks, self-healing, and so on). The system closes them when shielding ends, without deferred notifications or actions. Later alerts follow the original strategy.',
+  '结束处理方式创建后不可修改。如需使用另一种方式，请新建屏蔽规则。':
+    'The end policy cannot be changed after creation. Create a new shielding rule to use a different policy.',
+  '「屏蔽结束」包括按计划到期和提前解除，此选项不影响屏蔽开始前已存在的告警。':
+    '"Shielding ended" includes both scheduled expiry and early removal. This option does not affect alerts that already existed before shielding started.',
+  请选择屏蔽结束后的告警通知方式: 'Select how alerts are notified after shielding ends',
   // 规范：仅首字母大写
   // 规范：占位使用整条
 

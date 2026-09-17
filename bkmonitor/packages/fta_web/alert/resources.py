@@ -2335,7 +2335,7 @@ class AlertTopNResource(Resource):
         search_object = handler.get_search_object()
         search_object = handler.add_conditions(search_object)
         search_object = handler.add_query_string(search_object)
-        search_object = search_object.params(track_total_hits=True).extra(size=0)
+        search_object = search_object.params(track_total_hits=False).extra(size=0)
 
         bucket_count_suffix = handler.bucket_count_suffix
 

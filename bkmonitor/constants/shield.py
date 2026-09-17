@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,10 +7,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from django.utils.translation import gettext as _
 
 
-class ScopeType(object):
+class ScopeType:
     INSTANCE = "instance"
     IP = "ip"
     NODE = "node"
@@ -28,7 +28,7 @@ SCOPE_TYPE_NAME_MAPPING = {
 }
 
 
-class ShieldStatus(object):
+class ShieldStatus:
     SHIELDED = 1
     EXPIRED = 2
     REMOVED = 3
@@ -41,7 +41,7 @@ SHIELD_STATUS_NAME_MAPPING = {
 }
 
 
-class ShieldCategory(object):
+class ShieldCategory:
     SCOPE = "scope"
     STRATEGY = "strategy"
     EVENT = "event"
@@ -49,6 +49,12 @@ class ShieldCategory(object):
     DIMENSION = "dimension"
 
     CHOICES = [SCOPE, STRATEGY, EVENT, ALERT, DIMENSION]
+
+
+class ShieldEndPolicy:
+    NOTIFY_ONCE = "notify_once"
+    CLOSE = "close"
+    CHOICES = [NOTIFY_ONCE, CLOSE]
 
 
 SHIELD_CATEGORY_NAME_MAPPING = {
@@ -59,14 +65,14 @@ SHIELD_CATEGORY_NAME_MAPPING = {
 }
 
 
-class ShieldCycleType(object):
+class ShieldCycleType:
     ONCE = 1  # 一次
     EVERYDAY = 2  # 每天
     EVERY_WEEK = 3  # 每周
     EVERY_MONTH = 4  # 每月
 
 
-class ShieldType(object):
+class ShieldType:
     SAAS_CONFIG = "saas_config"
     HOST_STATUS = "host_status"
     HOST_TARGET = "host_target"

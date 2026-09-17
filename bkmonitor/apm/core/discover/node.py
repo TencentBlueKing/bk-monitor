@@ -120,9 +120,8 @@ class NodeDiscover(DiscoverBase):
         )
 
         llm_products: dict[str, str] = {}
-        for instances_mapping in results:
-            for topo_key, topo_value in (instances_mapping or {}).items():
-                product: str | None = topo_value["extra_data"].get("llm", {}).get("product")
+        for _, batch_products in results:
+            for topo_key, product in batch_products.items():
                 self.set_preferred_llm_product(llm_products, topo_key, product)
         llm_updated_at: int = int(datetime.now().timestamp())
 
@@ -132,7 +131,7 @@ class NodeDiscover(DiscoverBase):
         pod_tuples = set()
         create_instances = {}
         update_instances = {}
-        for instances_mapping in results:
+        for instances_mapping, _ in results:
             if not instances_mapping:
                 continue
 
@@ -307,8 +306,10 @@ class NodeDiscover(DiscoverBase):
         source["workloads"] = list(merged_workload_mapping.values())
         return source
 
-    def batch_execute(self, origin_data, category_rules, rules):
+    def batch_execute(self, origin_data, category_rules, rules) -> tuple[dict[str, Any], dict[str, str]]:
         instance_mapping = self.extra_data_factory
+        # LLM 产品单独收集：extra_data 归类别发现所有，发现组件时会被整体重写，标记放进去会被丢掉
+        llm_products: dict[str, str] = {}
         for span in origin_data:
             topo_key = None
 
@@ -339,10 +340,7 @@ class NodeDiscover(DiscoverBase):
             if not topo_key:
                 continue
 
-            product: str | None = self.get_llm_product(span)
-            if product:
-                llm: dict[str, str] = instance_mapping[topo_key]["extra_data"].setdefault("llm", {})
-                self.set_preferred_llm_product(llm, "product", product)
+            self.set_preferred_llm_product(llm_products, topo_key, self.get_llm_product(span))
 
             # 后续的规则基于上一步发现的 topo_key 来补充数据
             for item in rules:
@@ -364,7 +362,7 @@ class NodeDiscover(DiscoverBase):
                     if match_rule:
                         self.find_sdk(instance_mapping, match_rule, span, topo_key)
 
-        return instance_mapping
+        return instance_mapping, llm_products
 
     def get_llm_product(self, span: dict[str, Any]) -> str | None:
         attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES) or {}

@@ -357,12 +357,12 @@ class CreateActionProcessor:
         self.alerts = [
             AlertDocument(**alert.data)
             for alert in self.alert_objs.values()
-            if alert.is_valid_handle(execute_times, relation_id)
+            if not alert.shield_end_close and alert.is_valid_handle(execute_times, relation_id)
         ]
         self.is_alert_shielded = False
         self.shield_detail = ""
-        self.alert_ids = alert_ids
-        self.severity = severity or self.alerts[0].severity
+        self.alert_ids = [alert.id for alert in self.alerts]
+        self.severity = severity or (self.alerts[0].severity if self.alerts else None)
         self.dimensions = dimensions
         self.dimension_hash = dimension_hash
         self.relation_id = relation_id

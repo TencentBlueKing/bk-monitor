@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 
 from bkmonitor.utils.range import SUPPORT_COMPOSITE_METHODS, SUPPORT_SIMPLE_METHODS
-from constants.shield import ShieldCategory
+from constants.shield import ShieldCategory, ShieldEndPolicy
 
 
 class DimensionConditionSlz(serializers.Serializer):
@@ -39,6 +39,9 @@ class BaseSerializer(serializers.Serializer):
 
     bk_biz_id = serializers.IntegerField(required=True, label="业务id")
     category = serializers.ChoiceField(required=True, choices=ShieldCategory.CHOICES, label="屏蔽类型")
+    end_policy = serializers.ChoiceField(
+        choices=ShieldEndPolicy.CHOICES, default=ShieldEndPolicy.NOTIFY_ONCE, label="屏蔽结束处理方式"
+    )
     begin_time = serializers.CharField(required=True, label="屏蔽开始时间")
     end_time = serializers.CharField(required=True, label="屏蔽结束时间")
     dimension_config = serializers.DictField(required=True, label="维度配置")
@@ -48,6 +51,13 @@ class BaseSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, label="屏蔽原因", allow_blank=True)
     is_quick = serializers.BooleanField(required=False, label="是否是快捷屏蔽", default=False)
     label = serializers.CharField(required=False, label="标签", default="", allow_blank=True)
+
+    def validate(self, attrs):
+        if attrs["end_policy"] == ShieldEndPolicy.CLOSE and (
+            attrs["category"] in (ShieldCategory.EVENT, ShieldCategory.ALERT) or attrs["is_quick"]
+        ):
+            raise serializers.ValidationError({"end_policy": "快捷屏蔽不支持屏蔽结束时关闭告警"})
+        return attrs
 
 
 class ScopeSerializer(BaseSerializer):

@@ -22,19 +22,19 @@ RESOURCE_TRANSFER_SIZE = FieldSpec(
     field_name="resource.transfer_size", field_alias=_("传输大小"), field_unit=FieldUnit.BYTES.value
 )
 RESOURCE_DECODED_BODY_SIZE = FieldSpec(
-    field_name="resource.decoded_body_size", field_alias=_("解码后正文大小"), field_unit=FieldUnit.BYTES.value
+    field_name="resource.decoded_body_size", field_alias=_("解压后大小"), field_unit=FieldUnit.BYTES.value
 )
 RESOURCE_ENCODED_BODY_SIZE = FieldSpec(
-    field_name="resource.encoded_body_size", field_alias=_("编码后正文大小"), field_unit=FieldUnit.BYTES.value
+    field_name="resource.encoded_body_size", field_alias=_("压缩后大小"), field_unit=FieldUnit.BYTES.value
 )
-RESOURCE_PROTOCOL = FieldSpec(field_name="resource.protocol", field_alias=_("传输协议"))
+RESOURCE_PROTOCOL = FieldSpec(field_name="resource.protocol", field_alias=_("资源协议"))
 RESOURCE_CACHE_HIT = FieldSpec(
     field_name="resource.cache.hit",
     field_type=FieldTypeEnum.BOOLEAN.value,
-    field_alias=_("缓存命中标记"),
+    field_alias=_("缓存命中"),
     option_values=ResourceCacheHit,
 )
-RESOURCE_DELIVERY_TYPE = FieldSpec(field_name="resource.delivery_type", field_alias=_("交付类型"))
+RESOURCE_DELIVERY_TYPE = FieldSpec(field_name="resource.delivery_type", field_alias=_("资源获取方式"))
 RESOURCE_RENDER_BLOCKING_STATUS = FieldSpec(
     field_name="resource.render_blocking_status",
     field_alias=_("渲染阻塞状态"),
@@ -66,26 +66,26 @@ RESOURCE_WORKER_DURATION = FieldSpec(
 
 RESOURCE_DNS_START = FieldSpec(
     field_name="resource.dns.start",
-    field_alias=_("DNS 查询开始时间"),
+    field_alias=_("DNS 解析开始时间"),
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
 )
 RESOURCE_DNS_DURATION = FieldSpec(
     field_name="resource.dns.duration",
-    field_alias=_("DNS 查询耗时"),
+    field_alias=_("DNS 解析耗时"),
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
 )
 
 RESOURCE_CONNECT_START = FieldSpec(
     field_name="resource.connect.start",
-    field_alias=_("传输连接开始时间"),
+    field_alias=_("连接开始时间"),
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
 )
 RESOURCE_CONNECT_DURATION = FieldSpec(
     field_name="resource.connect.duration",
-    field_alias=_("传输连接耗时"),
+    field_alias=_("连接耗时（含 TLS）"),
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
 )
@@ -105,26 +105,26 @@ RESOURCE_SSL_DURATION = FieldSpec(
 
 RESOURCE_FIRST_BYTE_START = FieldSpec(
     field_name="resource.first_byte.start",
-    field_alias=_("首字节阶段开始时间"),
+    field_alias=_("首字节等待开始时间"),
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
 )
 RESOURCE_FIRST_BYTE_DURATION = FieldSpec(
     field_name="resource.first_byte.duration",
-    field_alias=_("首字节耗时"),
+    field_alias=_("首字节等待耗时"),
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
 )
 
 RESOURCE_DOWNLOAD_START = FieldSpec(
     field_name="resource.download.start",
-    field_alias=_("下载开始时间"),
+    field_alias=_("内容下载开始时间"),
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
 )
 RESOURCE_DOWNLOAD_DURATION = FieldSpec(
     field_name="resource.download.duration",
-    field_alias=_("下载耗时"),
+    field_alias=_("内容下载耗时"),
     field_unit=FieldUnit.MS.value,
     field_display_type=FieldDisplayType.DURATION.value,
 )

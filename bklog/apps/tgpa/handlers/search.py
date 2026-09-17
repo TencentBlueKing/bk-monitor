@@ -116,8 +116,13 @@ class TGPASearchHandler:
         bk_biz_id = params["bk_biz_id"]
         source = params.get("source") or None
         task_id = params.get("task_id")
+        keyword = params.get("keyword")
         openid = params.get("openid")
         file_name = params.get("file_name")
+
+        # 综合关键字搜索由各数据源自行匹配；避免同时携带 openid 造成条件叠加。
+        if keyword:
+            openid = None
 
         # tgpa_task 接口不支持 file_name 查询，如果匹配该格式，则提取 task_id 用于查询，并去掉 file_name
         if not task_id and file_name:
@@ -145,37 +150,43 @@ class TGPASearchHandler:
         # 并行查询 task 和 report
         multi_execute = MultiExecuteFunc()
         if query_task:
+            task_params = {
+                "bk_biz_id": bk_biz_id,
+                "page": 1,
+                "pagesize": fetch_size,
+                "openid": openid,
+                "task_id": task_id,
+                "start_time": start_time,
+                "end_time": end_time,
+                "ordering": "-created_at",
+            }
+            if keyword:
+                task_params["keyword"] = keyword
             multi_execute.append(
                 result_key="task_result",
                 func=TGPATaskHandler.get_task_page,
                 params={
-                    "params": {
-                        "bk_biz_id": bk_biz_id,
-                        "page": 1,
-                        "pagesize": fetch_size,
-                        "openid": openid,
-                        "task_id": task_id,
-                        "start_time": start_time,
-                        "end_time": end_time,
-                        "ordering": "-created_at",
-                    },
+                    "params": task_params,
                     "need_format": False,
                 },
                 multi_func_params=True,
             )
         if query_report:
+            report_params = {
+                "bk_biz_id": bk_biz_id,
+                "openid": openid,
+                "file_name": file_name,
+                "start_time": start_time,
+                "end_time": end_time,
+                "page": 1,
+                "pagesize": fetch_size,
+            }
+            if keyword:
+                report_params["keyword"] = keyword
             multi_execute.append(
                 result_key="report_result",
                 func=TGPAReportHandler.get_report_list,
-                params={
-                    "bk_biz_id": bk_biz_id,
-                    "openid": openid,
-                    "file_name": file_name,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "page": 1,
-                    "pagesize": fetch_size,
-                },
+                params=report_params,
             )
         results = multi_execute.run()
 

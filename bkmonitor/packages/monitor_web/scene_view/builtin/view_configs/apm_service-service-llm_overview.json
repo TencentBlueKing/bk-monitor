@@ -2,7 +2,7 @@
     "id": "llm_overview",
     "type": "overview",
     "mode": "auto",
-    "name": "LLM概览",
+    "name": "LLM 概览",
     "variables": [],
     "panels": [],
     "overview_panels": [

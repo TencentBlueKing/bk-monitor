@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const webpack = require('webpack');
 
-const { createTraceWebpackIfdefRules } = require('./scripts/monitor-alarm-center/trace-ifdef-webpack.js');
+const { ensureApmVue3ForVue2 } = require('./webpack/ensure-apm-vue3-for-vue2');
 const MonitorWebpackPlugin = require('./webpack/monitor-webpack-plugin');
 const { transformAppDir, transformDistDir } = require('./webpack/utils');
 
@@ -66,12 +66,12 @@ const setupTraceWorkerWebpack = config => {
 };
 
 module.exports = async (baseConfig, { production, app }) => {
+  await ensureApmVue3ForVue2(app);
   const distUrl = path.resolve(`./${transformDistDir(app)}/`);
   const config = baseConfig;
   let activePort = devConfig.port;
 
   if (app === 'trace') {
-    config.module.rules.unshift(...createTraceWebpackIfdefRules(__dirname, production));
     setupTraceWorkerWebpack(config);
   }
   if (!production) {

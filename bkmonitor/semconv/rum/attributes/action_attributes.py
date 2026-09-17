@@ -14,10 +14,10 @@ from semconv.rum.constants import FrustrationType
 from semconv.rum.field import FieldSpec
 
 
-ACTION_ID = FieldSpec(field_name="action.id", field_alias=_("动作 ID"))
-ACTION_TYPE = FieldSpec(field_name="action.type", field_alias=_("动作类型"))
-ACTION_TARGET_NAME = FieldSpec(field_name="action.target.name", field_alias=_("目标元素名称"))
-ACTION_TARGET_TAG = FieldSpec(field_name="action.target.tag", field_alias=_("目标元素标签"))
+ACTION_ID = FieldSpec(field_name="action.id", field_alias=_("操作 ID"))
+ACTION_TYPE = FieldSpec(field_name="action.type", field_alias=_("操作类型"))
+ACTION_TARGET_NAME = FieldSpec(field_name="action.target.name", field_alias=_("操作元素"))
+ACTION_TARGET_TAG = FieldSpec(field_name="action.target.tag", field_alias=_("操作元素标签"))
 ACTION_FRUSTRATION_TYPE = FieldSpec(
-    field_name="action.frustration.type", field_alias=_("挫败感"), option_values=FrustrationType
+    field_name="action.frustration.type", field_alias=_("异常点击类型"), option_values=FrustrationType
 )

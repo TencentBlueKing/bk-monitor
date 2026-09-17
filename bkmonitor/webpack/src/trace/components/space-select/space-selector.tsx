@@ -36,7 +36,7 @@ import {
   watch,
 } from 'vue';
 
-import { useDebounceFn } from '@vueuse/core';
+import { useDebounceFn, useEventListener } from '@vueuse/core';
 import { Button, Checkbox, Input } from 'bkui-vue';
 import { bizWithAlertStatistics } from 'monitor-api/modules/home';
 import EmptyStatus, { type EmptyStatusOperationType } from 'trace/components/empty-status/empty-status';
@@ -85,6 +85,7 @@ export default defineComponent({
     const selectRef = useTemplateRef<HTMLDivElement>('selectRef');
     const wrapRef = useTemplateRef<HTMLDivElement>('wrapRef');
     const typeListRef = useTemplateRef<HTMLDivElement>('typeListRef');
+    const searchInputRef = useTemplateRef<InstanceType<typeof Input>>('searchInput');
 
     const localValue = shallowRef<number[]>([]);
     /* 当前的主空间 */
@@ -109,6 +110,12 @@ export default defineComponent({
     const isErr = shallowRef(false);
     /* 是否弹出弹窗 */
     const isOpen = shallowRef(false);
+    /** 键盘高亮项 id */
+    const highlightId = shallowRef<null | number | string>(null);
+    /** 避免 keydown 与 enter 各触发一次导致多选勾选被抵消 */
+    let lastEnterAt = 0;
+    /** 下拉打开时在 window 捕获阶段监听键盘，绕过 Input 默认 stopPropagation */
+    let stopKeyboardListen: (() => void) | null = null;
     /* 当前分页数据 */
     const pagination = shallowReactive<{
       count: number;
@@ -137,7 +144,9 @@ export default defineComponent({
     const bizNameMap = shallowRef(new Map<number, string>());
 
     initLocalSpaceList();
-    onUnmounted(() => {});
+    onUnmounted(() => {
+      unbindKeyboard();
+    });
     watch(
       () => props.value,
       val => {
@@ -226,7 +235,7 @@ export default defineComponent({
           name,
           noAuth: true,
           hasData: false,
-        } as ILocalSpaceList;
+        } as unknown as ILocalSpaceList;
         missing.push(noAuthItem);
         existingIds.add(numId);
       }
@@ -329,8 +338,11 @@ export default defineComponent({
       isOpen.value = true;
       sortSpaceList();
       setPaginationData(true);
+      resetHighlight(true);
+      bindKeyboard();
       setTimeout(() => {
         addMousedownEvent();
+        searchInputRef.value?.focus();
       }, 300);
     }
 
@@ -371,9 +383,11 @@ export default defineComponent({
       popInstance?.destroy?.();
       searchValue.value = '';
       searchTypeId.value = '';
+      highlightId.value = null;
       popInstance = null;
       controller?.abort?.();
       isOpen.value = false;
+      unbindKeyboard();
       for (const item of localSpaceList.value) {
         item.show = true;
         item.preciseMatch = false;
@@ -642,6 +656,9 @@ export default defineComponent({
       }
       triggerRef(localSpaceList);
       setPaginationData(true);
+      if (isOpen.value) {
+        resetHighlight(false);
+      }
     }
 
     function selectOption(item: ILocalSpaceList, v: boolean) {
@@ -725,6 +742,124 @@ export default defineComponent({
       handleSearchChange(searchValue.value);
     }
 
+    function isSameSpaceId(a: null | number | string, b: null | number | string) {
+      if (a == null || b == null) return false;
+      return String(a) === String(b);
+    }
+
+    /** 打开时优先高亮当前/已选空间；搜索/筛选后高亮第一项 */
+    function resetHighlight(preferCurrent: boolean) {
+      const items = pagination.data;
+      if (!items.length) {
+        highlightId.value = null;
+        return;
+      }
+      if (preferCurrent) {
+        const preferredId = needCurSpace.value ? localCurrentSpace.value : localValue.value[0];
+        const matched =
+          preferredId != null
+            ? items.find(item => isSameSpaceId(item.id, preferredId))
+            : items.find(item => item.isCheck);
+        if (matched) {
+          highlightId.value = matched.id;
+          scrollHighlightIntoView();
+          return;
+        }
+      }
+      highlightId.value = items[0].id;
+      scrollHighlightIntoView();
+    }
+
+    function scrollHighlightIntoView() {
+      if (highlightId.value == null || highlightId.value === '') return;
+      nextTick(() => {
+        const el = wrapRef.value?.querySelector?.(`[data-space-id="${highlightId.value}"]`) as HTMLElement;
+        el?.scrollIntoView?.({ block: 'nearest' });
+      });
+    }
+
+    function bindKeyboard() {
+      unbindKeyboard();
+      stopKeyboardListen = useEventListener(window, 'keydown', handleWindowKeydown, { capture: true });
+    }
+
+    function unbindKeyboard() {
+      stopKeyboardListen?.();
+      stopKeyboardListen = null;
+    }
+
+    function handleWindowKeydown(event: KeyboardEvent) {
+      if (!isOpen.value || event.isComposing) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        event.stopPropagation();
+        moveHighlight(event.key === 'ArrowDown' ? 1 : -1);
+        return;
+      }
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        event.stopPropagation();
+        confirmHighlightItem();
+      }
+    }
+
+    /** 单选：Enter 选中并关闭；多选：Enter 只切换勾选，面板保持打开 */
+    function confirmHighlightItem() {
+      const now = Date.now();
+      if (now - lastEnterAt < 50) return;
+      lastEnterAt = now;
+      const target = pagination.data.find(item => isSameSpaceId(item.id, highlightId.value));
+      if (!target) return;
+      if (props.multiple) {
+        if (target.noAuth && !target.hasData) return;
+        handleCheckOption(!target.isCheck, target);
+        scrollHighlightIntoView();
+        return;
+      }
+      handleSelectOption(target);
+    }
+
+    /** 方向键在可见项间移动；触底且还有分页时先加载再继续 */
+    function moveHighlight(step: number) {
+      const items = pagination.data;
+      if (!items.length) return;
+      const index = items.findIndex(item => isSameSpaceId(item.id, highlightId.value));
+      if (index < 0) {
+        highlightId.value = items[step > 0 ? 0 : items.length - 1].id;
+        scrollHighlightIntoView();
+        return;
+      }
+      let next = index + step;
+      if (next < 0) {
+        next = 0;
+      } else if (next >= items.length) {
+        const beforeCount = items.length;
+        setPaginationData(false);
+        if (pagination.data.length > beforeCount) {
+          next = Math.min(index + step, pagination.data.length - 1);
+          highlightId.value = pagination.data[next].id;
+          scrollHighlightIntoView();
+          return;
+        }
+        next = items.length - 1;
+      }
+      highlightId.value = pagination.data[next].id;
+      scrollHighlightIntoView();
+    }
+
+    function handleContentMouseDown(e: MouseEvent) {
+      const inputEl = (searchInputRef.value as null | { $el?: HTMLElement })?.$el;
+      if (inputEl?.contains(e.target as Node)) {
+        return;
+      }
+      const target = e.target as HTMLElement;
+      // 复选框、权限按钮等需要保留默认行为，避免 mousedown.preventDefault 把 click 吃掉
+      if (target.closest?.('.bk-checkbox, .bk-button, a, button')) {
+        return;
+      }
+      e.preventDefault();
+    }
+
     /**
      * @description 左右切换type栏
      * @param type
@@ -788,6 +923,7 @@ export default defineComponent({
       pagination,
       needCurSpace,
       localCurrentSpace,
+      highlightId,
       handleChangeChoiceType,
       handleSearchType,
       t,
@@ -801,6 +937,8 @@ export default defineComponent({
       handleSetCurBiz,
       handleDebounceSearchChange,
       handleOperation,
+      handleContentMouseDown,
+      isSameSpaceId,
     };
   },
   render() {
@@ -861,9 +999,11 @@ export default defineComponent({
           <div
             ref='wrapRef'
             class={componentClassNames.pop}
+            onMousedown={this.handleContentMouseDown}
           >
             <div class='search-input'>
               <Input
+                ref='searchInput'
                 v-model={this.searchValue}
                 behavior={'simplicity'}
                 placeholder={this.t('请输入关键字或标签')}
@@ -930,6 +1070,7 @@ export default defineComponent({
                     class={[
                       'space-list-item',
                       { active: !this.multiple && item.isCheck },
+                      { highlight: this.isSameSpaceId(item.id, this.highlightId) },
                       {
                         'no-hover-btn':
                           !this.needCurSpace ||
@@ -939,6 +1080,7 @@ export default defineComponent({
                       },
                     ]}
                     v-authority={{ active: !!(item.noAuth && !item.hasData) }}
+                    data-space-id={item.id}
                     onClick={() => this.handleSelectOption(item)}
                   >
                     {this.multiple && (
