@@ -1042,7 +1042,7 @@ class AdapterTests(TestCase):
                 attributes = adapt_spans([source], product)[0]["attributes"]
                 self.assertEqual(attributes["gen_ai.system_instructions"], standard)
 
-    def test_bkaidev_classifies_business_llm_span(self) -> None:
+    def test_bkaidev_llm_spans_are_not_deduplicated(self) -> None:
         base = agentlens_span()
         business = {
             **base,
@@ -1080,9 +1080,8 @@ class AdapterTests(TestCase):
             {span["span_id"] for span in spans},
             {"1" * 16, "2" * 16},
         )
-        business_span = next(span for span in spans if span["span_id"] == "1" * 16)
-        self.assertEqual(business_span["attributes"]["gen_ai.operation.name"], "chat")
-        self.assertEqual(business_span["span_type"], "LLM")
+        self.assertEqual({span["attributes"]["gen_ai.operation.name"] for span in spans}, {"chat"})
+        self.assertEqual({span["span_type"] for span in spans}, {"LLM"})
 
     def test_bkaidev_classifies_workflow_and_tool_spans(self) -> None:
         base = agentlens_span()
@@ -1119,15 +1118,16 @@ class AdapterTests(TestCase):
 
         spans = adapt_spans([workflow, workflow_wrapper, tool, tool_wrapper], "aidev")
 
-        self.assertEqual(len(spans), 3)
+        self.assertEqual(len(spans), 4)
         self.assertEqual(
             {span["span_id"] for span in spans},
-            {"1" * 16, "3" * 16, "4" * 16},
+            {"1" * 16, "2" * 16, "3" * 16, "4" * 16},
         )
-        operations = {span["span_id"]: span["attributes"].get("gen_ai.operation.name") for span in spans}
+        operations = {span["span_id"]: span["attributes"]["gen_ai.operation.name"] for span in spans}
         self.assertEqual(operations["1" * 16], "invoke_workflow")
+        self.assertEqual(operations["2" * 16], "invoke_workflow")
         self.assertEqual(operations["3" * 16], "execute_tool")
-        self.assertIsNone(operations["4" * 16])
+        self.assertEqual(operations["4" * 16], "execute_tool")
 
     def test_bkaidev_classifies_agent_execution(self) -> None:
         span = agentlens_span()
@@ -1233,7 +1233,7 @@ class AdapterTests(TestCase):
 
     def test_bkaidev_prefers_standard_content_over_product_fallbacks(self) -> None:
         span = agentlens_span()
-        span["span_name"] = "chat_model.generate"
+        span["span_name"] = "ChatModel.chat"
         span["attributes"] = {
             "gen_ai.operation.name": "chat",
             "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "standard"}]}],
@@ -1243,6 +1243,10 @@ class AdapterTests(TestCase):
             "llm.request.type": "completion",
             "llm.input": '[{"role":"user","content":"legacy"}]',
             "llm.output": '{"role":"assistant","content":"legacy output"}',
+            "traceloop.entity.input": json.dumps({"inputs": [{"type": "human", "data": {"content": "traceloop"}}]}),
+            "traceloop.entity.output": json.dumps(
+                {"outputs": [{"type": "ai", "data": {"content": "traceloop output"}}]}
+            ),
         }
 
         attributes = adapt_spans([span], "aidev")[0]["attributes"]
@@ -1251,9 +1255,174 @@ class AdapterTests(TestCase):
         self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "standard")
         self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "standard output")
 
-    def test_bkaidev_normalizes_unknown_indexed_message_roles_by_direction(self) -> None:
+    def test_bkaidev_normalizes_legacy_messages_stored_under_standard_field_names(self) -> None:
         span = agentlens_span()
         span["span_name"] = "chat_model.generate"
+        span["attributes"] = {
+            "gen_ai.input.messages": [
+                [
+                    {"type": "system", "data": {"content": "system prompt", "type": "system"}},
+                    {"type": "human", "data": {"content": "user question", "type": "human"}},
+                ]
+            ],
+            "gen_ai.output.messages": [
+                [
+                    {
+                        "role": "ChatGeneration",
+                        "content": "assistant answer",
+                        "tool_call": [
+                            {
+                                "id": "call-1",
+                                "name": "search",
+                                "arguments": '{"query":"error logs"}',
+                            }
+                        ],
+                    }
+                ]
+            ],
+            "llm.input": '[{"type":"human","data":{"content":"duplicate input"}}]',
+            "llm.output": '[{"type":"ai","data":{"content":"duplicate output"}}]',
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.system_instructions"],
+            [{"type": "text", "content": "system prompt"}],
+        )
+        self.assertEqual(
+            attributes["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "user question"}]}],
+        )
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["role"], "assistant")
+        self.assertEqual(
+            attributes["gen_ai.output.messages"][0]["parts"],
+            [
+                {"type": "text", "content": "assistant answer"},
+                {
+                    "type": "tool_call",
+                    "id": "call-1",
+                    "name": "search",
+                    "arguments": {"query": "error logs"},
+                },
+            ],
+        )
+
+    def test_bkaidev_falls_back_to_traceloop_workflow_payload(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "LangGraph.workflow"
+        span["attributes"] = {
+            "traceloop.span.kind": "workflow",
+            "traceloop.entity.input": json.dumps(
+                {
+                    "inputs": {
+                        "messages": [
+                            {
+                                "lc": 1,
+                                "type": "constructor",
+                                "id": ["langchain", "schema", "messages", "SystemMessage"],
+                                "kwargs": {"content": "system prompt", "type": "system"},
+                            },
+                            {
+                                "lc": 1,
+                                "type": "constructor",
+                                "id": ["langchain", "schema", "messages", "HumanMessage"],
+                                "kwargs": {"content": "user question", "type": "human"},
+                            },
+                        ],
+                        "execute_kwargs": {
+                            "session_code": "session-1",
+                            "caller_executor": "user-1",
+                        },
+                    },
+                    "metadata": {"thread_id": "thread-1"},
+                }
+            ),
+            "traceloop.entity.output": json.dumps(
+                {
+                    "outputs": {
+                        "messages": [
+                            {
+                                "lc": 1,
+                                "type": "constructor",
+                                "id": ["langchain", "schema", "messages", "AIMessage"],
+                                "kwargs": {"content": "assistant answer", "type": "ai"},
+                            }
+                        ]
+                    }
+                }
+            ),
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "invoke_workflow")
+        self.assertEqual(attributes["gen_ai.conversation.id"], "session-1")
+        self.assertEqual(attributes["user.id"], "user-1")
+        self.assertEqual(attributes["gen_ai.system_instructions"][0]["content"], "system prompt")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "user question")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "assistant answer")
+
+    def test_bkaidev_ignores_untyped_traceloop_task_wrapper(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "model.task"
+        span["attributes"] = {
+            "traceloop.span.kind": "task",
+            "traceloop.entity.name": "model",
+            "traceloop.entity.input": json.dumps(
+                {"inputs": {"messages": [{"type": "human", "data": {"content": "duplicate"}}]}}
+            ),
+            "agent.info.id": 17,
+            "agent.info.name": "duplicate wrapper",
+            "agent.session.session_code": "session-1",
+        }
+
+        self.assertEqual(adapt_spans([span], "aidev"), [])
+
+    def test_bkaidev_falls_back_to_traceloop_tool_payload(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "search.tool"
+        span["attributes"] = {
+            "traceloop.span.kind": "tool",
+            "traceloop.entity.name": "search",
+            "traceloop.entity.input": json.dumps(
+                {
+                    "input_str": {"query": "fallback"},
+                    "inputs": {"query": "official Traceloop arguments"},
+                    "metadata": {},
+                }
+            ),
+            "traceloop.entity.output": json.dumps({"output": {"items": [1, 2]}, "kwargs": {}}),
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "execute_tool")
+        self.assertEqual(attributes["gen_ai.tool.name"], "search")
+        self.assertEqual(attributes["gen_ai.tool.call.arguments"], {"query": "official Traceloop arguments"})
+        self.assertEqual(attributes["gen_ai.tool.call.result"], {"items": [1, 2]})
+
+    def test_bkaidev_unwraps_langchain_tool_message_result(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "tool.execution"
+        span["attributes"] = {
+            "tool.name": "search",
+            "tool.output": (
+                'content=\'{"status_code":200,"response_body":{"items":[1,2]}}\' '
+                "name='search' tool_call_id='call-1'"
+            ),
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.tool.call.result"],
+            {"status_code": 200, "response_body": {"items": [1, 2]}},
+        )
+
+    def test_bkaidev_normalizes_unknown_indexed_message_roles_by_direction(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "ChatModel.chat"
         span["attributes"] = {
             "llm.request.type": "chat",
             "gen_ai.prompt.0.role": "unknown",
