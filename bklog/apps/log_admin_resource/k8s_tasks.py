@@ -84,12 +84,28 @@ def run_k8s_inspection(task_id: str) -> None:
         expected = expected_bklog_configs(collector, container_configs)
         client = K8sInspectionClient(cluster_id=collector.bcs_cluster_id)
 
+        for skipped in options.get("skipped_evidence_groups") or []:
+            group = str((skipped or {}).get("group") or "").strip()
+            if not group or group in probes:
+                continue
+            skipped_probe = _probe(
+                "skipped",
+                str((skipped or {}).get("code") or "evidence_group_skipped"),
+                str((skipped or {}).get("message") or f"evidence group {group} was skipped"),
+                {"group": group, "reason": skipped},
+            )
+            probes[group] = skipped_probe
+            _save_probe(task_id, group, skipped_probe)
+
         control_probe, target_node, required_bk_envs = _control_plane_probe(
             record=record,
             collector=collector,
             expected=expected,
             client=client,
         )
+        for warning in options.get("identity_warnings") or []:
+            if isinstance(warning, dict):
+                control_probe.setdefault("warnings", []).append(warning)
         probes["control_plane"] = control_probe
         _save_probe(task_id, "control_plane", control_probe)
         if control_probe["status"] == "failed":
@@ -296,14 +312,32 @@ def run_k8s_inspection(task_id: str) -> None:
 def _load_bound_collector(record: dict[str, Any]) -> CollectorConfig:
     target = record.get("target") or {}
     collector = CollectorConfig.objects.get(collector_config_id=target["collector_config_id"])
-    expected_binding = {
-        "bk_biz_id": target.get("bk_biz_id"),
-        "bk_data_id": target.get("bk_data_id"),
-        "bcs_cluster_id": target.get("bcs_cluster_id"),
-    }
-    actual_binding = {key: getattr(collector, key, None) for key in expected_binding}
-    if actual_binding != expected_binding or not collector.is_active or not collector.is_container_collector:
+    overrides = dict(target.get("identity_overrides") or {})
+
+    def _normalize(key: str, value: Any) -> Any:
+        if key == "bk_data_id":
+            return int(value) if value else None
+        if key == "bcs_cluster_id":
+            return str(value or "").strip() or None
+        return value
+
+    for key in ("bk_biz_id", "bk_data_id", "bcs_cluster_id"):
+        expected = _normalize(key, target.get(key))
+        actual = _normalize(key, getattr(collector, key, None))
+        if actual == expected:
+            continue
+        # Dispatch-time identity overlays are allowed only while the DB field remains empty.
+        if key in overrides and not actual and expected == _normalize(key, overrides.get(key)):
+            continue
         raise RuntimeError("collector binding changed after inspection dispatch")
+
+    if not collector.is_active or not collector.is_container_collector:
+        raise RuntimeError("collector binding changed after inspection dispatch")
+
+    if overrides.get("bk_data_id") and not collector.bk_data_id:
+        collector.bk_data_id = overrides["bk_data_id"]
+    if overrides.get("bcs_cluster_id") and not getattr(collector, "bcs_cluster_id", None):
+        collector.bcs_cluster_id = overrides["bcs_cluster_id"]
 
     if settings.ENABLE_MULTI_TENANT_MODE:
         tenant_id = Space.get_tenant_id(bk_biz_id=collector.bk_biz_id, is_need_default=False)
