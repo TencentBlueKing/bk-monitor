@@ -113,17 +113,21 @@
   .card-value-row {
     display: flex;
     gap: 4px;
-    align-items: baseline;
+    align-items: center;
     min-width: 0;
+
+    &.unit-value-row {
+      align-items: baseline;
+    }
   }
 
   .card-prefix-tag {
-    padding: 0 6px;
-    font-size: 12px;
+    padding: 0 4px;
+    font-size: 16px;
     font-weight: 700;
-    line-height: 20px;
+    line-height: 28px;
     color: #fff;
-    border-radius: 2px;
+    border-radius: 4px;
   }
 
   .card-value {
@@ -162,6 +166,12 @@
     line-height: 20px;
     color: #979ba5;
     white-space: nowrap;
+  }
+
+  &.request-method {
+    .card-value {
+      font-size: 16px;
+    }
   }
 }
 

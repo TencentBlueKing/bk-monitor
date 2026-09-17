@@ -25,11 +25,14 @@
  */
 import { rumRecords, rumStatistics } from 'monitor-api/modules/rum_query';
 
-import { USE_DETAIL_MOCK } from '../constants';
-import { getMockActionRelated, getMockErrorRelated, getMockLongTaskRelated } from './mock/related.mock';
-
 import type { IRumFilter, RumModeType } from '../../typings';
-import type { IRumActionRelated, IRumDetailContext, IRumErrorRelated, IRumLongTaskRelated } from '../typings';
+import type {
+  IRumActionRelated,
+  IRumDetailContext,
+  IRumErrorRelated,
+  IRumLongTaskRelated,
+  IRumViewRelated,
+} from '../typings';
 
 const SILENT = { needMessage: false };
 
@@ -88,7 +91,6 @@ export async function getActionRelated(
   context: IRumDetailContext,
   mode: RumModeType
 ): Promise<IRumActionRelated | null> {
-  if (USE_DETAIL_MOCK) return getMockActionRelated();
   const actionId = String(context.record_id || '');
   const rows = await fetchStatistics(
     context,
@@ -124,7 +126,6 @@ export async function getErrorRelated(
   errorFilters: IRumFilter[],
   timeRange: { end_time: number; start_time: number }
 ): Promise<IRumErrorRelated | null> {
-  if (USE_DETAIL_MOCK) return getMockErrorRelated(context.end_time);
   const filters: IRumFilter[] = [{ key: 'attributes.span_type', operator: 'equal', value: ['error'] }, ...errorFilters];
   /** 影响用户数额外带上「与查询区间等长」的时移，用于算环比 */
   const compareShift = `${Math.max(timeRange.end_time - timeRange.start_time, 1)}s`;
@@ -173,7 +174,6 @@ export async function getLongTaskRelated(
   mode: RumModeType,
   actionId: string
 ): Promise<IRumLongTaskRelated | null> {
-  if (USE_DETAIL_MOCK) return getMockLongTaskRelated();
   if (!actionId) return { actionName: '', actionType: '' };
   const res = await rumRecords(
     {
@@ -195,5 +195,56 @@ export async function getLongTaskRelated(
   return {
     actionName: String(record?.['attributes.action.target.name'] ?? ''),
     actionType: String(record?.['attributes.action.type'] ?? ''),
+  };
+}
+
+/**
+ * @description View 详情的关联数据：统计当前视图下触发的请求数（xhr / fetch）、错误数与 Span 总数
+ * 按 view.id + session.id 定位，查询时间范围按协议取 [end_time - 1d, end_time + 1d]，
+ * session_id 缺失时不请求，卡片侧展示占位值
+ */
+export async function getViewRelated(
+  context: IRumDetailContext,
+  mode: RumModeType,
+  sessionId: string
+): Promise<IRumViewRelated | null> {
+  const viewId = String(context.record_id || '');
+  if (!viewId || !sessionId) return null;
+  const timeRange = { start_time: context.end_time - 86400, end_time: context.end_time + 86400 };
+  const baseFilters: IRumFilter[] = [
+    { key: 'attributes.view.id', operator: 'equal', value: [viewId] },
+    { key: 'attributes.session.id', operator: 'equal', value: [sessionId] },
+  ];
+  const [resourceRows, errorRows, spanRows] = await Promise.all([
+    fetchStatistics(context, mode, timeRange, {
+      cal_type: 'count',
+      field: 'attributes.span_type',
+      filters: [
+        ...baseFilters,
+        { key: 'attributes.span_type', operator: 'equal', value: ['resource'] },
+        { key: 'attributes.resource.type', operator: 'equal', value: ['xhr', 'fetch'] },
+      ],
+      group_by: [],
+    }),
+    fetchStatistics(context, mode, timeRange, {
+      cal_type: 'count',
+      field: 'attributes.span_type',
+      filters: [...baseFilters, { key: 'attributes.span_type', operator: 'equal', value: ['error'] }],
+      group_by: [],
+    }),
+    fetchStatistics(context, mode, timeRange, {
+      cal_type: 'count',
+      field: 'attributes.span_type',
+      filters: [
+        ...baseFilters,
+        { key: 'attributes.span_type', operator: 'not_equal', value: ['view', 'vital', 'session'] },
+      ],
+      group_by: [],
+    }),
+  ]);
+  return {
+    resourceCount: baselineValue(resourceRows[0]),
+    errorCount: baselineValue(errorRows[0]),
+    spanCount: baselineValue(spanRows[0]),
   };
 }

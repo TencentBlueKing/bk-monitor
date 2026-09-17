@@ -25,8 +25,6 @@
  */
 import { rumRecordDetail } from 'monitor-api/modules/rum_query';
 
-// import { USE_DETAIL_MOCK } from '../constants';
-// import { getMockRecordDetail } from './mock/record-detail.mock';
 import type { RumModeType } from '../../typings';
 import type { IRumDetailContext, IRumRecordDetail } from '../typings';
 import type { RequestConfig } from 'monitor-api/base';
@@ -44,9 +42,6 @@ export async function getRecordDetail(
   mode: RumModeType,
   requestConfig?: RequestConfig
 ): Promise<IRumRecordDetail | null> {
-  // if (USE_DETAIL_MOCK) {
-  //   return getMockRecordDetail(context.span_type, context.record_id);
-  // }
   const res = await rumRecordDetail(
     { app_name: context.app_name, mode, record_id: context.record_id },
     { ...SILENT, ...requestConfig }
