@@ -38,6 +38,7 @@ import {
   getSceneView, // 详情页
   modifyCustomTsFields, // 详情页
 } from '../../../service';
+import { ensureDemoMetricTreeIfNeeded } from '../../../metric-manage/metric-type';
 import HeaderBox from './components/header-box';
 import MetricsSelect from './components/metrics-select';
 import PanelChartView from './components/panel-chart-view';
@@ -184,7 +185,12 @@ export default class ViewContent extends tsc<IProps, IEmit> {
         });
       }
       const result = await this.requestHandlerMap.getCustomTsMetricGroups(params);
-      customEscalationViewStore.updateMetricGroupList(result.metric_groups);
+      const metricGroups = (result.metric_groups || []).map(group => ({
+        ...group,
+        // Histogram 只展示聚合指标名称，不再显示子指标（Mock 收敛）
+        metrics: ensureDemoMetricTreeIfNeeded(group.metrics || []),
+      }));
+      customEscalationViewStore.updateMetricGroupList(metricGroups);
     } finally {
       this.handleCustomTsMetricGroups();
     }

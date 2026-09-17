@@ -131,12 +131,14 @@ $border-color: #d9d9d9;
         .bk-table {
           overflow: visible;
 
-          .bk-table-body-wrapper {
-            border-right: 1px solid #dfe0e5;
-          }
-
           .bk-table-fixed-body-wrapper {
             border-left: 1px solid #dfe0e5;
+          }
+
+          // 最右列格子自带 border-right，再叠 wrapper/::after 会变成 2px
+          th.is-last,
+          td.is-last {
+            border-right: none;
           }
 
           th {
@@ -201,6 +203,57 @@ $border-color: #d9d9d9;
           color: #3a84ff;
         }
 
+        .metric-name-cell {
+          display: flex;
+          align-items: center;
+          min-width: 0;
+          color: #3a84ff;
+          cursor: pointer;
+
+          &.is-family-child {
+            padding-left: 8px;
+
+            .metric-name-text {
+              padding-left: 9px;
+            }
+          }
+
+          .family-expand-icon {
+            margin-right: 4px;
+            font-size: 12px;
+            color: #979ba5;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+
+            &.is-expanded {
+              transform: rotate(90deg);
+            }
+          }
+
+          .family-expand-placeholder {
+            display: inline-block;
+            flex-shrink: 0;
+            width: 16px;
+          }
+
+          .metric-name-text {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+          }
+        }
+
+        .type-source-cell {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+
+          .type-conflict-btn {
+            padding: 0;
+            font-size: 12px;
+          }
+        }
+
         .cell {
           &:has(.table-group-box) {
             padding-left: 5px;
@@ -209,6 +262,23 @@ $border-color: #d9d9d9;
 
           &:has(.description-content) {
             padding-left: 7px;
+          }
+        }
+
+        // 子指标层级竖线画在 td 上，避免被 .cell overflow 裁切，并铺满行高（42px）
+        .bk-table-row td:has(.is-family-child) {
+          position: relative;
+
+          &::before {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 39px;
+            z-index: 1;
+            width: 1px;
+            pointer-events: none;
+            content: '';
+            background: #dcdee5;
           }
         }
 
@@ -273,6 +343,12 @@ $border-color: #d9d9d9;
         }
 
         .description-content {
+          &.is-readonly {
+            padding: 0 10px;
+            color: #63656e;
+            line-height: 32px;
+          }
+
           .description-input {
             input {
               background-color: #fff !important;
@@ -356,7 +432,6 @@ $border-color: #d9d9d9;
     .detail {
       background: #f5f7fa;
       border: 1px solid #dcdee5;
-      border-left: none;
 
       .metric-card {
         padding: 14px 12px 8px 24px;

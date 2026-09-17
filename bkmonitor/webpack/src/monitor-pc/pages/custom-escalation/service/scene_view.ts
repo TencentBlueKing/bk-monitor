@@ -79,6 +79,11 @@ interface ICustomTsMetricGroups {
       alias: string;
       field_id: number;
       metric_name: string;
+      /** Prometheus 指标类型（后端缺失时前端 Mock） */
+      metric_type?: 'unclassified' | 'gauge' | 'counter' | 'histogram' | 'summary';
+      /** 是否为指标族聚合父指标 */
+      is_family_parent?: boolean;
+      family_members?: { field_id: number; name: string; suffix?: string }[];
     }[];
     name: string;
     scope_id: number;
