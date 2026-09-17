@@ -46,7 +46,7 @@ class ListTracesResourceTestCase(TestCase):
         cases = {
             "aidev": "attributes.agent.session.session_code",
             "agentlens": "attributes.gen_ai.session.id",
-            "galileo": "attributes.gen_ai.session_id",
+            "galileo": "attributes.gen_ai.conversation.id",
             "langfuse": "attributes.session.id",
             "default": "attributes.gen_ai.conversation.id",
         }
@@ -587,7 +587,7 @@ class ListTracesResourceTestCase(TestCase):
             ("default", "gen_ai.conversation.id"),
             ("agentlens", "gen_ai.session.id"),
             ("aidev", "agent.session.session_code"),
-            ("galileo", "gen_ai.session_id"),
+            ("galileo", "gen_ai.conversation.id"),
             ("langfuse", "session.id"),
         ]:
             with self.subTest(product=product):

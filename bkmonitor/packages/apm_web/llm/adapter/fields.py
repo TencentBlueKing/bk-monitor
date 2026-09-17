@@ -55,7 +55,6 @@ QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
     "attributes.gen_ai.conversation.id": {
         LLMProduct.AIDEV.value: "attributes.agent.session.session_code",
         LLMProduct.AGENTLENS.value: "attributes.gen_ai.session.id",
-        LLMProduct.GALILEO.value: "attributes.gen_ai.session_id",
         LLMProduct.LANGFUSE.value: "attributes.session.id",
     },
     "attributes.gen_ai.operation.name": {
