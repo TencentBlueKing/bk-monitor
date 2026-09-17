@@ -69,11 +69,33 @@ class AttachLLMDetailTests(TestCase):
     def test_grayscale_gate_skips_topology_query(self):
         tree = trace_tree("1" * 16)
 
-        with mock.patch(f"{DETAIL_MODULE}.EntitySet") as entity_set_cls:
+        with (
+            mock.patch(f"{DETAIL_MODULE}.EntitySet") as entity_set_cls,
+            mock.patch(f"{DETAIL_MODULE}.logger") as logger,
+        ):
             attach_llm_detail(11, "agent-app", tree, [raw_span("1" * 16, "invoke_agent")])
 
         entity_set_cls.assert_not_called()
+        logger.info.assert_not_called()
         self.assertNotIn("llm_detail", tree["spans"][0])
+
+    @override_settings(LLM_BIZ_LIST=[11])
+    def test_logs_biz_app_and_username(self):
+        tree = trace_tree("1" * 16)
+
+        with (
+            mock.patch(f"{DETAIL_MODULE}.EntitySet", return_value=entity_set("agent-service")),
+            mock.patch(f"{DETAIL_MODULE}.get_request_username", return_value="alice"),
+            mock.patch(f"{DETAIL_MODULE}.logger") as logger,
+        ):
+            attach_llm_detail(11, "agent-app", tree, [raw_span("1" * 16, "invoke_agent")])
+
+        logger.info.assert_called_once_with(
+            "[LLM] attach_detail bk_biz_id=%s app_name=%s username=%s",
+            11,
+            "agent-app",
+            "alice",
+        )
 
     @override_settings(LLM_BIZ_LIST=[11])
     def test_topology_failure_does_not_break_detail(self):

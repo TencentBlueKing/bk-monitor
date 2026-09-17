@@ -1,12 +1,14 @@
-"""BKAIDev 固定转换规则。"""
+"""BKAIDev 转换：标准 OTel GenAI 优先，否则走存量埋点规则。"""
 
 from __future__ import annotations
 
 import ast
+import json
 from typing import Any
 
 from apm_web.llm.constants import STANDARD_FIELDS
 
+from . import adapter_default
 from .utils import (
     first,
     indexed,
@@ -64,12 +66,20 @@ ALIASES = {
 
 def parse_nested(value: Any) -> Any:
     """Parse nested JSON strings emitted by Traceloop without changing plain text."""
+    original: Any = value
     for _ in range(3):
-        parsed = safe_parse(value)
-        if parsed == value:
+        if not isinstance(value, str):
+            return value
+        try:
+            parsed: Any = json.loads(value)
+        except ValueError:
+            parsed = safe_parse(value)
+        if isinstance(parsed, dict | list):
+            return parsed
+        if not isinstance(parsed, str) or parsed == value:
             break
         value = parsed
-    return value
+    return original
 
 
 def traceloop_payload(value: Any, wrapper: str) -> Any:
@@ -88,11 +98,19 @@ def traceloop_payload(value: Any, wrapper: str) -> Any:
 
 def traceloop_tool_value(value: Any, *, output: bool) -> Any:
     """Unwrap the arguments/result carried by a Traceloop tool span."""
-    payload = parse_nested(value)
+    payload: Any = parse_nested(value)
     if not isinstance(payload, dict):
         return payload
-    keys = ("output", "outputs") if output else ("inputs", "input_str")
-    return parse_nested(first(payload, *keys))
+    if output:
+        # LangChain 回调同时上报结果和 kwargs；装饰器直接上报业务结果。
+        if isinstance(payload.get("kwargs"), dict) and ("output" in payload or "outputs" in payload):
+            return parse_nested(first(payload, "output", "outputs"))
+        return payload
+    if isinstance(payload.get("args"), list) and isinstance(payload.get("kwargs"), dict):
+        # 位置参数没有参数名，保留 args/kwargs 结构以免丢失信息。
+        return payload if payload["args"] else payload["kwargs"]
+    arguments: Any = first(payload, "inputs", "input_str")
+    return parse_nested(arguments) if arguments is not None else payload
 
 
 def tool_result(value: Any) -> Any:
@@ -312,6 +330,25 @@ def convert_content(span: dict[str, Any]) -> dict[str, Any]:
 
 
 def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """先按标准 OTel 转换；带 operation.name 的视为新语义，其余再走存量规则。"""
+    standard_by_span_id: dict[str, dict[str, Any]] = {}
+    for converted in adapter_default.convert(raw):
+        operation_name = converted["attributes"].get("gen_ai.operation.name")
+        if isinstance(operation_name, str) and operation_name.strip():
+            standard_by_span_id[converted["span_id"]] = converted
+
+    leftover = [span for span in raw if span["span_id"] not in standard_by_span_id]
+    legacy_by_span_id = {span["span_id"]: span for span in _convert_legacy(leftover)}
+
+    spans: list[dict[str, Any]] = []
+    for span in raw:
+        converted = standard_by_span_id.get(span["span_id"]) or legacy_by_span_id.get(span["span_id"])
+        if converted is not None:
+            spans.append(converted)
+    return spans
+
+
+def _convert_legacy(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
     spans: list[dict[str, Any]] = []
     for span in raw:
         attrs = span["attributes"]
