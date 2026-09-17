@@ -1083,6 +1083,26 @@ class AdapterTests(TestCase):
         self.assertEqual({span["attributes"]["gen_ai.operation.name"] for span in spans}, {"chat"})
         self.assertEqual({span["span_type"] for span in spans}, {"LLM"})
 
+    def test_bkaidev_normalizes_traceloop_usage_details(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "ChatModel.chat"
+        span["attributes"] = {
+            "llm.request.type": "chat",
+            "gen_ai.usage.prompt_tokens": 100,
+            "gen_ai.usage.completion_tokens": 20,
+            "gen_ai.usage.cache_read_input_tokens": 30,
+            "gen_ai.usage.cache_creation.input_tokens": 40,
+            "gen_ai.usage.reasoning_tokens": 5,
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.usage.input_tokens"], 100)
+        self.assertEqual(attributes["gen_ai.usage.output_tokens"], 20)
+        self.assertEqual(attributes["gen_ai.usage.cache_read.input_tokens"], 30)
+        self.assertEqual(attributes["gen_ai.usage.cache_write.input_tokens"], 40)
+        self.assertEqual(attributes["gen_ai.usage.reasoning.output_tokens"], 5)
+
     def test_bkaidev_classifies_workflow_and_tool_spans(self) -> None:
         base = agentlens_span()
         workflow = {

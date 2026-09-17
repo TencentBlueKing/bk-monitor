@@ -50,6 +50,13 @@ ALIASES = {
     "gen_ai.agent.id": ("agent.info.id",),
     "gen_ai.usage.input_tokens": ("gen_ai.usage.prompt_tokens",),
     "gen_ai.usage.output_tokens": ("gen_ai.usage.completion_tokens",),
+    "gen_ai.usage.cache_read.input_tokens": ("gen_ai.usage.cache_read_input_tokens",),
+    "gen_ai.usage.cache_write.input_tokens": (
+        "gen_ai.usage.cache_creation.input_tokens",
+        "gen_ai.usage.cache_creation_input_tokens",
+        "gen_ai.usage.cache_write_input_tokens",
+    ),
+    "gen_ai.usage.reasoning.output_tokens": ("gen_ai.usage.reasoning_tokens",),
     "gen_ai.tool.name": ("tool.name",),
     "gen_ai.request.model": ("gen_ai.model_name",),
 }
