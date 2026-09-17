@@ -26,11 +26,12 @@
 import { computed, defineComponent, shallowRef, toRef } from 'vue';
 import type { PropType } from 'vue';
 
-import { Exception, Loading, Sideslider } from 'bkui-vue';
+import { Exception, Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import DetailHeader from './components/detail-header/detail-header';
 import DetailSections from './components/detail-sections/detail-sections';
+import DetailSkeleton from './components/detail-skeleton/detail-skeleton';
 import OriginDataPanel from './components/origin-data-panel/origin-data-panel';
 import { useDetailFormatter, useDetailOverview, useDetailSections, useOriginData, useSpanDetail } from './composables';
 import { RumDetailTabEnum } from './typings';
@@ -165,12 +166,7 @@ export default defineComponent({
 
     function renderContent() {
       if (loading.value) {
-        return (
-          <Loading
-            class='detail-loading'
-            loading={true}
-          />
-        );
+        return <DetailSkeleton />;
       }
       if (!detail.value) {
         return (

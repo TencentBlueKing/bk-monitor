@@ -26,6 +26,8 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
+import './key-value-list.scss';
+
 /** 平铺键值列表：用于「版本关联」这类固定几行说明的区块 */
 export default defineComponent({
   name: 'RumKeyValueList',

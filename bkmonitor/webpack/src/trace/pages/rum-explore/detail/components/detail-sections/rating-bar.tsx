@@ -30,6 +30,8 @@ import { RATING_FALLBACK_META, RATING_META } from '../../constants';
 
 import type { IRumRatingBarVM } from '../../typings';
 
+import './rating-bar.scss';
+
 /** Web Vitals 指标评级条：指标值 + 评级标签 + 等宽分段的阈值刻度 */
 export default defineComponent({
   name: 'RumRatingBar',

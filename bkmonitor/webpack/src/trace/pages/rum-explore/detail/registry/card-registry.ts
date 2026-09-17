@@ -25,8 +25,7 @@
  */
 import { RUM_OUTCOME_TYPE_MAP } from '../../constants';
 import { formatUnitValueParts } from '../../utils';
-import { RATING_META, VITAL_METRIC_META } from '../constants';
-import { RumCardToneEnum } from '../typings';
+import { RumCardToneEnum, RumRatingEnum } from '../typings';
 
 import type {
   IRumCardDescriptor,
@@ -79,7 +78,6 @@ const isXhrLike = (ctx: IRumCardResolveCtx) => {
  */
 const vitalCard = (): IRumCardDescriptor => data => {
   const metric = String(data['attributes.vital.metric'] ?? '').toLowerCase();
-  const meta = VITAL_METRIC_META[metric];
   const value = data['attributes.vital.value'];
   const hasValue = value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const configs = (data['display.rating_config'] ?? []) as IRumRatingConfig[];
@@ -94,15 +92,20 @@ const vitalCard = (): IRumCardDescriptor => data => {
       }
     }
   }
-  const ratingMeta = RATING_META[hitRating];
+
+  const ratingToneMap = {
+    [RumRatingEnum.GOOD]: RumCardToneEnum.SUCCESS,
+    [RumRatingEnum.NEEDS_IMPROVEMENT]: RumCardToneEnum.WARNING,
+    [RumRatingEnum.POOR]: RumCardToneEnum.DANGER,
+  };
+
   return [
     {
       label: metric.toUpperCase(),
       value: text(value),
-      unit: meta?.unit ? { text: meta.unit } : undefined,
-      tag: ratingMeta
-        ? { text: ratingMeta.alias, color: ratingMeta.color, bgColor: ratingMeta.badgeBgColor }
-        : undefined,
+      unit: { text: 'ms', tone: ratingToneMap[hitRating] },
+      tone: ratingToneMap[hitRating],
+      cardCls: `vital-card ${ratingToneMap[hitRating]}`,
     },
   ];
 };
