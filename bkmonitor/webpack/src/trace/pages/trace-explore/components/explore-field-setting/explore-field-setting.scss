@@ -88,12 +88,23 @@
             color: #313238;
           }
 
+          .header-operations {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+          }
+
           .header-operation {
             color: #3a84ff;
             cursor: pointer;
 
+            /* 与 bkui-vue primary text button 的 hover 色保持一致 */
+            &:not(.disabled):hover {
+              color: #5594fa;
+            }
+
             &.disabled {
-              color: var(--light-gray);
+              color: #c4c6cc;
               cursor: not-allowed;
             }
           }

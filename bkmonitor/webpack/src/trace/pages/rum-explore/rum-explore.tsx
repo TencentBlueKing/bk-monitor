@@ -504,6 +504,7 @@ export default defineComponent({
                               baseColumns={this.columnConfig.baseColumns.value}
                               commonParams={queryCtx.commonParams.value}
                               data={tableCtx.tableData.value}
+                              defaultFieldKeys={this.columnConfig.defaultDisplayFields.value}
                               displayableFields={this.columnConfig.displayableFields.value}
                               emptyType={this.emptyType}
                               fieldMap={this.columnConfig.fieldMap.value}

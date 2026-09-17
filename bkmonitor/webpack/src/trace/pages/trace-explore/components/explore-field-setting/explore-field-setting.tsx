@@ -88,6 +88,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 默认展示列（顺序即列顺序）：传入后在「已选字段」头部展示「恢复默认」入口，不传则隐藏该入口 */
+    defaultFields: {
+      type: Array as PropType<string[]>,
+      default: undefined,
+    },
   },
   emits: {
     confirm: (targetList: string[]) => Array.isArray(targetList),
@@ -135,6 +140,20 @@ export default defineComponent({
     });
     const selectedListLen = computed(() => selectedList.value.length);
     const toBeChosenListLen = computed(() => toBeChosenList.value.length);
+    /** 恢复默认的回填列表：按当前可展示字段过滤，避免字段下线后回填出幽灵列 */
+    const restorableDefaultFields = computed<string[]>(() =>
+      (props.defaultFields ?? []).filter(field => sourceListMap.value[field])
+    );
+    /** 是否展示「恢复默认」入口：调用方传入默认列配置，且存在可恢复的默认列（默认列未全部下线/已就绪） */
+    const showRestoreDefault = computed(
+      () => Array.isArray(props.defaultFields) && restorableDefaultFields.value.length > 0
+    );
+    /** 「恢复默认」是否可用：当前已选还不是默认配置（顺序与内容均相同才算默认） */
+    const canRestoreDefault = computed(
+      () =>
+        restorableDefaultFields.value.length !== selectedList.value.length ||
+        restorableDefaultFields.value.some((field, index) => selectedList.value[index] !== field)
+    );
 
     /** 待选区域空数据时展示类型 */
     const emptyConfig = computed<null | { description: string; type: 'empty' | 'search-empty' }>(() => {
@@ -275,6 +294,8 @@ export default defineComponent({
         popoverInstance.value = null;
         inst.destroy();
       }
+      // 面板收起时元素被摘走，mouseleave 不再触发，需手动清理文本 tooltip
+      hideTextTooltip();
     }
 
     /**
@@ -327,6 +348,29 @@ export default defineComponent({
         return;
       }
       selectedList.value = [...props.fixedDisplayList];
+    }
+
+    /**
+     * @description 恢复默认按钮点击回调
+     * 仅把草稿回填为默认列（显示与顺序），不落库也不关闭面板；「取消」即撤销，「确定」才生效。
+     *
+     */
+    function handleRestoreDefault() {
+      if (!canRestoreDefault.value) {
+        return;
+      }
+      selectedList.value = [...restorableDefaultFields.value];
+    }
+
+    /**
+     * @description 禁用态「恢复默认」的提示（与字段文本 tooltip 复用同一套交互）
+     *
+     */
+    function handleRestoreDefaultTipShow(e: MouseEvent) {
+      if (canRestoreDefault.value) {
+        return;
+      }
+      showTextTooltip(e, t('当前已是默认配置'));
     }
 
     /**
@@ -554,12 +598,24 @@ export default defineComponent({
                   <span class='title-label'>{t('已选字段')}</span>
                   <span class='list-count'>（{selectedListLen.value}）</span>
                 </div>
-                <span
-                  class={`header-operation ${!selectedListLen.value ? 'disabled' : ''}`}
-                  onClick={handleRemoveAll}
-                >
-                  {t('清空')}
-                </span>
+                <div class='header-operations'>
+                  {showRestoreDefault.value ? (
+                    <span
+                      class={`header-operation ${canRestoreDefault.value ? '' : 'disabled'}`}
+                      onClick={handleRestoreDefault}
+                      onMouseenter={handleRestoreDefaultTipShow}
+                      onMouseleave={hideTextTooltip}
+                    >
+                      {t('恢复默认')}
+                    </span>
+                  ) : null}
+                  <span
+                    class={`header-operation ${!selectedListLen.value ? 'disabled' : ''}`}
+                    onClick={handleRemoveAll}
+                  >
+                    {t('清空')}
+                  </span>
+                </div>
               </div>
               {targetListRender()}
             </div>
