@@ -587,22 +587,20 @@ class TraceDataSource(ApmDataSourceConfigBase):
     STORAGE_TYPE = "elasticsearch"
 
     # 默认的动态维度发现配置；ignore_above 在应用时读取，便于全局配置热更新。
-    @property
-    def ES_DYNAMIC_CONFIG(self) -> dict[str, Any]:
-        return {
-            "dynamic_templates": [
-                {
-                    "strings_as_keywords": {
-                        "match_mapping_type": "string",
-                        "mapping": {
-                            "norms": "false",
-                            "type": "keyword",
-                            "ignore_above": settings.APM_TRACE_KEYWORDS_IGNORE_ABOVE,
-                        },
-                    }
+    ES_DYNAMIC_CONFIG = {
+        "dynamic_templates": [
+            {
+                "strings_as_keywords": {
+                    "match_mapping_type": "string",
+                    "mapping": {
+                        "norms": "false",
+                        "type": "keyword",
+                        "ignore_above": 1024,
+                    },
                 }
-            ]
-        }
+            }
+        ]
+    }
 
     FILTER_KIND = {
         "exists": lambda field_name, _, q: q & Q(**{f"{field_name}__exists": ""}),
