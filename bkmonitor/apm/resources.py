@@ -792,7 +792,7 @@ class QueryTopoNodeResource(Resource):
             data["extra_data"] = instance.extra_data
             return data
 
-    def perform_request(self, data):
+    def perform_request(self, data: dict[str, Any]) -> list[dict[str, Any]]:
         filter_params = DiscoverHandler.get_retention_filter_params(
             data["bk_biz_id"], data["app_name"], TopoNode.EXPIRED_DAYS
         )
@@ -801,7 +801,7 @@ class QueryTopoNodeResource(Resource):
             filter_params["topo_key"] = data["topo_key"]
 
         res = []
-        nodes = TopoNode.objects.filter(**filter_params)
+        nodes = TopoNode.get_service_queryset(**filter_params)
         for n in nodes:
             extra = n.extra_data
             if (
@@ -832,14 +832,14 @@ class SearchServiceNamesResource(Resource):
         query = serializers.CharField(label="服务名称关键字")
         limit = serializers.IntegerField(label="返回数量", min_value=1, max_value=100, default=20)
 
-    def perform_request(self, data):
+    def perform_request(self, data: dict[str, Any]) -> list[dict[str, Any]]:
         scope = {"bk_biz_id__in": data["bk_biz_ids"]} if data["bk_biz_ids"] else {}
         if data.get("app_names"):
             scope["app_name__in"] = data["app_names"]
         limit = data.get("limit", 20)
         services = {}
         nodes = (
-            TopoNode.objects.filter(
+            TopoNode.get_service_queryset(
                 **scope,
                 topo_key__icontains=data["query"],
                 updated_at__gte=datetime.datetime.now() - datetime.timedelta(days=TopoNode.EXPIRED_DAYS),

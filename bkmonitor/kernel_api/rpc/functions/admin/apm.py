@@ -138,7 +138,7 @@ def _load_service_count_map(applications: list[Any]) -> dict[tuple[int, str], in
     bk_biz_ids = sorted({application.bk_biz_id for application in applications})
     app_names = sorted({application.app_name for application in applications})
     items = (
-        apm_models.TopoNode.objects.filter(bk_biz_id__in=bk_biz_ids, app_name__in=app_names)
+        apm_models.TopoNode.get_service_queryset(bk_biz_id__in=bk_biz_ids, app_name__in=app_names)
         .values("bk_biz_id", "app_name")
         .annotate(total=Count("id"))
     )
@@ -394,9 +394,7 @@ def _build_profiling_component_item(
         item["data_id_name"] = resource_names.get("data_id_name")
         doris_binding_name = resource_names.get("doris_binding_name")
         item["sink_names"] = (
-            [{"kind": "DorisBinding", "name": doris_binding_name, "namespace": namespace}]
-            if doris_binding_name
-            else []
+            [{"kind": "DorisBinding", "name": doris_binding_name, "namespace": namespace}] if doris_binding_name else []
         )
 
     if include_component_config:
@@ -424,18 +422,14 @@ def _empty_profiling_datalink_detail(
             if profile_datasource and isinstance(profile_datasource.bkdata_datalink_config, dict)
             else None
         ),
-        "v4_resource_names": (
-            _read_profiling_v4_resource_names(profile_datasource) if profile_datasource else {}
-        ),
+        "v4_resource_names": (_read_profiling_v4_resource_names(profile_datasource) if profile_datasource else {}),
         "data_link_name": f"profile_{application.app_name}",
         "bk_tenant_id": application.bk_tenant_id,
         "namespace": namespace,
         "data_link_strategy": PROFILING_DATALINK_STRATEGY,
         "bk_data_id": getattr(profile_datasource, "bk_data_id", None) or 0,
         "table_ids": (
-            [profile_datasource.result_table_id]
-            if profile_datasource and profile_datasource.result_table_id
-            else []
+            [profile_datasource.result_table_id] if profile_datasource and profile_datasource.result_table_id else []
         ),
         "created_at": serialize_value(getattr(profile_datasource, "created", None)) or "",
         "updated_at": serialize_value(getattr(profile_datasource, "updated", None)) or "",
@@ -610,9 +604,9 @@ def get_apm_application_detail(params: dict[str, Any]) -> dict[str, Any]:
             custom_reports.append(_serialize_custom_metric_group(group, metric_count))
 
     service_nodes = list(
-        apm_models.TopoNode.objects.filter(bk_biz_id=application.bk_biz_id, app_name=application.app_name).order_by(
-            "-updated_at", "topo_key"
-        )[:10]
+        apm_models.TopoNode.get_service_queryset(
+            bk_biz_id=application.bk_biz_id, app_name=application.app_name
+        ).order_by("-updated_at", "topo_key")[:10]
     )
     instance_count_map = _load_instance_count_map(application, [node.topo_key for node in service_nodes])
     relation_preview = list(
@@ -663,7 +657,7 @@ def list_apm_services(params: dict[str, Any]) -> dict[str, Any]:
     application = _get_application(params.get("application_id"), bk_tenant_id)
     page, page_size = normalize_pagination(params)
 
-    queryset = apm_models.TopoNode.objects.filter(bk_biz_id=application.bk_biz_id, app_name=application.app_name)
+    queryset = apm_models.TopoNode.get_service_queryset(bk_biz_id=application.bk_biz_id, app_name=application.app_name)
     service_name = str(params.get("service_name") or "").strip()
     if service_name:
         queryset = queryset.filter(topo_key__icontains=service_name)
@@ -862,9 +856,7 @@ def get_apm_profiling_datalink_detail(params: dict[str, Any]) -> dict[str, Any]:
                 warnings_list.append(
                     {
                         "code": "COMPONENT_CONFIG_UNAVAILABLE",
-                        "message": (
-                            f"component_config 获取失败: namespace={namespace}, kind={kind}, name={name}"
-                        ),
+                        "message": (f"component_config 获取失败: namespace={namespace}, kind={kind}, name={name}"),
                     }
                 )
 

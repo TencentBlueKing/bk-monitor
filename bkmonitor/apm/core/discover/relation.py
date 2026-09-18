@@ -10,11 +10,12 @@ specific language governing permissions and limitations under the License.
 
 from collections import defaultdict
 import logging
+from typing import Any
 
 from opentelemetry.semconv.trace import SpanAttributes
 
 from apm.constants import ApmCacheType
-from apm.core.discover.base import DiscoverBase, exists_field, get_topo_instance_key
+from apm.core.discover.base import ApmTopoDiscoverRuleCls, DiscoverBase, exists_field, get_topo_instance_key
 from apm.core.discover.cached_mixin import CachedDiscoverMixin
 from apm.core.discover.instance_data import RelationInstanceData
 from apm.models import ApmTopoDiscoverRule, TopoNode, TopoRelation, TraceDataSource
@@ -91,7 +92,13 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
 
         return {_: i for _, i in relation_mapping.items() if i["from"]}
 
-    def find_relation_by_single_span(self, component_rules, from_key, from_span, kind):
+    def find_relation_by_single_span(
+        self,
+        component_rules: list[ApmTopoDiscoverRuleCls],
+        from_key: str,
+        from_span: dict[str, Any],
+        kind: int,
+    ) -> set[tuple[str, str, str, str, str]]:
         relation_kind = TopoRelation.KIND_MAPPING[kind]
         found_keys = set()
         if exists_field((OtlpKey.ATTRIBUTES, SpanAttributes.PEER_SERVICE), from_span):
@@ -140,7 +147,10 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
                     )
                 elif kind in [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]:
                     topo_node = TopoNode.objects.filter(
-                        bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=self.get_service_name(from_span)
+                        ~TopoNode.new_source_filter(),
+                        bk_biz_id=self.bk_biz_id,
+                        app_name=self.app_name,
+                        topo_key=self.get_service_name(from_span),
                     ).first()
                     kind = ApmTopoDiscoverRule.TOPO_SERVICE
                     category = ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
@@ -162,7 +172,15 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
     def is_match_component_rule(self, component_rules, from_span):
         return bool(next((r for r in component_rules if exists_field(r.predicate_key, from_span)), None))
 
-    def find_async_relation(self, rules, other_rules, from_key, from_span, to_spans, kind):
+    def find_async_relation(
+        self,
+        rules: list[ApmTopoDiscoverRuleCls],
+        other_rules: ApmTopoDiscoverRuleCls,
+        from_key: str,
+        from_span: dict[str, Any],
+        to_spans: list[dict[str, Any]],
+        kind: str,
+    ) -> set[tuple[str, str, str, str, str]]:
         found_keys = set()
 
         component_rules = [r for r in rules + [other_rules] if r.topo_kind == ApmTopoDiscoverRule.TOPO_COMPONENT]
@@ -208,7 +226,10 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
                 messaging_service_kind = ApmTopoDiscoverRule.TOPO_SERVICE
                 messaging_service_category = ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
                 topo_node = TopoNode.objects.filter(
-                    bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=messaging_service_name
+                    ~TopoNode.new_source_filter(),
+                    bk_biz_id=self.bk_biz_id,
+                    app_name=self.app_name,
+                    topo_key=messaging_service_name,
                 ).first()
                 # topo_node 存在则更新
                 if topo_node:

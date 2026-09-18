@@ -13,12 +13,14 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any
 
+from django.utils import timezone
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
 from apm.constants import DiscoverRuleType
 from apm.core.discover.base import (
     DiscoverBase,
+    ApmTopoDiscoverRuleCls,
     exists_field,
     extract_field_value,
     get_topo_instance_key,
@@ -104,7 +106,7 @@ class NodeDiscover(DiscoverBase):
 
         return pod_workload_mapping
 
-    def discover(self, origin_data, remain_data=None):
+    def discover(self, origin_data: list[dict[str, Any]], remain_data: Any = None) -> None:
         rules_map = defaultdict(list)
 
         all_rules, other_rule = self.get_rules(_type="all")
@@ -120,9 +122,12 @@ class NodeDiscover(DiscoverBase):
         )
 
         llm_products: dict[str, str] = {}
-        for _, batch_products in results:
+        last_data_at_mapping: dict[str, int] = {}
+        for _, batch_products, batch_times in results:
             for topo_key, product in batch_products.items():
                 self.set_preferred_llm_product(llm_products, topo_key, product)
+            for topo_key, timestamp in batch_times.items():
+                last_data_at_mapping[topo_key] = max(last_data_at_mapping.get(topo_key, 0), timestamp)
         llm_updated_at: int = int(datetime.now().timestamp())
 
         # 结合发现的数据和已有数据判断 创建/更新
@@ -131,7 +136,7 @@ class NodeDiscover(DiscoverBase):
         pod_tuples = set()
         create_instances = {}
         update_instances = {}
-        for instances_mapping, _ in results:
+        for instances_mapping, _, _ in results:
             if not instances_mapping:
                 continue
 
@@ -146,6 +151,9 @@ class NodeDiscover(DiscoverBase):
                     continue
 
                 exists_instance = exists_instances.get(k)
+                previous_extra: dict[str, Any] = exists_instance["extra_data"] if exists_instance else {}
+                if exists_instance and not TopoNode.has_trace_or_metric_source(exists_instance["source"]):
+                    previous_extra = {}
                 if v["extra_data"].get("kind") == ApmTopoDiscoverRule.TOPO_SERVICE:
                     if product := llm_products.get(k):
                         v["extra_data"]["llm"] = {"product": product, "updated_at": llm_updated_at}
@@ -161,7 +169,7 @@ class NodeDiscover(DiscoverBase):
                         update_instances[k] = {
                             **v,
                             "extra_data": self.merge_other_extra_data_preserving_category(
-                                exists_instance["extra_data"], v["extra_data"]
+                                previous_extra, v["extra_data"]
                             ),
                             "source": self.combine_sources(exists_instance["source"], TelemetryDataType.TRACE.value),
                         }
@@ -198,7 +206,7 @@ class NodeDiscover(DiscoverBase):
                     system=combine_list(exist_instance["system"], topo_value["system"]),
                     sdk=combine_list(exist_instance["sdk"], topo_value["sdk"]),
                     source=topo_value["source"],
-                    updated_at=datetime.now(),
+                    updated_at=timezone.now(),
                 )
             )
 
@@ -217,6 +225,14 @@ class NodeDiscover(DiscoverBase):
                 TopoNode(bk_biz_id=self.bk_biz_id, app_name=self.app_name, topo_key=topo_key, **topo_value)
             )
         TopoNode.objects.bulk_create(to_be_created_instances)
+
+        TopoNode.touch_heartbeat(
+            self.bk_biz_id,
+            self.app_name,
+            TelemetryDataType.TRACE.value,
+            last_data_at_mapping,
+            int(datetime.now().timestamp()),
+        )
 
         self.clear_if_overflow()
         self.clear_expired()
@@ -306,18 +322,25 @@ class NodeDiscover(DiscoverBase):
         source["workloads"] = list(merged_workload_mapping.values())
         return source
 
-    def batch_execute(self, origin_data, category_rules, rules) -> tuple[dict[str, Any], dict[str, str]]:
+    def batch_execute(
+        self,
+        origin_data: list[dict[str, Any]],
+        category_rules: tuple[list[ApmTopoDiscoverRuleCls], ApmTopoDiscoverRuleCls],
+        rules: list[tuple[str, list[ApmTopoDiscoverRuleCls]]],
+    ) -> tuple[dict[str, Any], dict[str, str], dict[str, int]]:
         instance_mapping = self.extra_data_factory
         # LLM 产品单独收集：extra_data 归类别发现所有，发现组件时会被整体重写，标记放进去会被丢掉
         llm_products: dict[str, str] = {}
+        last_data_at_mapping: dict[str, int] = {}
         for span in origin_data:
+            span_topo_keys: set[str] = set()
             topo_key = None
 
             # 先进行 category 类型的规则发现
             # 类型为: category | 作用: 推断出 span 的服务、组件、自定义服务
             match_rule = self.get_match_rule(span, category_rules[0], category_rules[1])
             if match_rule:
-                topo_key = self.find_category(instance_mapping, match_rule, category_rules[1], span)
+                topo_key = self.find_category(instance_mapping, match_rule, category_rules[1], span, span_topo_keys)
 
             if not topo_key:
                 # topo_key 为空表明发现的是组件类型的节点，服务、组件等类别不一定互斥，比如一个 RPC 服务的 DB 请求 Span。
@@ -337,9 +360,12 @@ class NodeDiscover(DiscoverBase):
                 instance_mapping[topo_key]["extra_data"]["category"] = match_rule.category_id
                 instance_mapping[topo_key]["extra_data"]["kind"] = match_rule.topo_kind
 
+            if topo_key:
+                span_topo_keys.add(topo_key)
+            for found_key in span_topo_keys:
+                self.record_data_time(last_data_at_mapping, found_key, span)
             if not topo_key:
                 continue
-
             self.set_preferred_llm_product(llm_products, topo_key, self.get_llm_product(span))
 
             # 后续的规则基于上一步发现的 topo_key 来补充数据
@@ -362,7 +388,14 @@ class NodeDiscover(DiscoverBase):
                     if match_rule:
                         self.find_sdk(instance_mapping, match_rule, span, topo_key)
 
-        return instance_mapping, llm_products
+        return instance_mapping, llm_products, last_data_at_mapping
+
+    @staticmethod
+    def record_data_time(last_data_at_mapping: dict[str, int], topo_key: str, span: dict[str, Any]) -> None:
+        """Span 时间为微秒，心跳统一使用秒；缺少时间不以处理时钟代替。"""
+        end_time: int | None = span.get(OtlpKey.END_TIME)
+        if topo_key and end_time is not None:
+            last_data_at_mapping[topo_key] = max(last_data_at_mapping.get(topo_key, 0), int(end_time) // 1_000_000)
 
     def get_llm_product(self, span: dict[str, Any]) -> str | None:
         attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES) or {}
@@ -397,8 +430,15 @@ class NodeDiscover(DiscoverBase):
             return LLMProduct.DEFAULT.value
         return None
 
-    def find_category(self, instance_mapping, match_rule, other_rule, span):
-        self.find_remote_service(span, match_rule, instance_mapping)
+    def find_category(
+        self,
+        instance_mapping: dict[str, Any],
+        match_rule: ApmTopoDiscoverRuleCls,
+        other_rule: ApmTopoDiscoverRuleCls,
+        span: dict[str, Any],
+        found_topo_keys: set[str],
+    ) -> str | None:
+        self.find_remote_service(span, match_rule, instance_mapping, found_topo_keys)
 
         topo_key = get_topo_instance_key(
             match_rule.instance_keys,
@@ -411,6 +451,7 @@ class NodeDiscover(DiscoverBase):
             # 组件类型的节点名称需要添加上服务名称的前缀 (不考虑拼接后与用户定义的服务重名情况需要引导用户进行更改)
             topo_key = f"{self.get_service_name(span)}-{topo_key}"
 
+        found_topo_keys.add(topo_key)
         instance_mapping[topo_key]["extra_data"]["category"] = match_rule.category_id
         instance_mapping[topo_key]["extra_data"]["kind"] = match_rule.topo_kind
         instance_mapping[topo_key]["extra_data"]["predicate_value"] = extract_field_value(
@@ -426,6 +467,7 @@ class NodeDiscover(DiscoverBase):
                 other_rule.category_id,
                 span,
             )
+            found_topo_keys.add(other_rule_topo_key)
             instance_mapping[other_rule_topo_key]["extra_data"] = {
                 "category": other_rule.category_id,
                 "kind": other_rule.topo_kind,
@@ -490,7 +532,13 @@ class NodeDiscover(DiscoverBase):
             )
         }
 
-    def find_remote_service(self, span, rule, instance_map):
+    def find_remote_service(
+        self,
+        span: dict[str, Any],
+        rule: ApmTopoDiscoverRuleCls,
+        instance_map: dict[str, Any],
+        found_topo_keys: set[str],
+    ) -> None:
         predicate_key = (OtlpKey.ATTRIBUTES, SpanAttributes.PEER_SERVICE)
 
         if exists_field(predicate_key, span):
@@ -500,6 +548,7 @@ class NodeDiscover(DiscoverBase):
                 rule.category_id,
                 span,
             )
+            found_topo_keys.add(instance_key)
             instance_map[instance_key]["extra_data"]["category"] = rule.category_id
             # remote service found by span additionally
             instance_map[instance_key]["extra_data"]["kind"] = ApmTopoDiscoverRule.TOPO_REMOTE_SERVICE

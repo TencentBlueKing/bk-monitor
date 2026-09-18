@@ -7,8 +7,8 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from collections import defaultdict
-from typing import Dict, List
 
 from django.utils.functional import cached_property
 
@@ -23,7 +23,7 @@ class APMCollector(BaseCollector):
     """APM 指标采集器"""
 
     @cached_property
-    def applications_biz_map(self) -> Dict[int, List[Application]]:
+    def applications_biz_map(self) -> dict[int, list[Application]]:
         biz_map = defaultdict(list)
         for app in Application.objects.filter(bk_biz_id__in=list(self.biz_info.keys()), is_enabled=True):
             biz_map[app.bk_biz_id].append(app)
@@ -32,7 +32,7 @@ class APMCollector(BaseCollector):
     @cached_property
     def top_node_biz_map(self) -> dict:
         biz_map = defaultdict(list)
-        for node in TopoNode.objects.filter(bk_biz_id__in=list(self.biz_info.keys())):
+        for node in TopoNode.get_service_queryset(bk_biz_id__in=list(self.biz_info.keys())):
             biz_map[node.bk_biz_id].append(node)
 
         return biz_map

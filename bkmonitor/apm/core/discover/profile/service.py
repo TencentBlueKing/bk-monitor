@@ -11,13 +11,16 @@ specific language governing permissions and limitations under the License.
 import datetime
 import logging
 import re
+import time
 
 from django.utils import timezone
 
 from apm.constants import ProfileApiType
 from apm.core.discover.profile.base import Discover
 from apm.models.profile import ProfileService
+from apm.models.topo import TopoNode
 from apm.utils.report_event import EventReportHelper
+from constants.apm import TelemetryDataType
 
 logger = logging.getLogger("apm")
 
@@ -28,7 +31,7 @@ class ServiceDiscover(Discover):
     MAX_DIMENSION_COMBINATION_LIMIT = 3000
     LARGE_SERVICE_SIZE = 10000
 
-    def discover(self, start_time: int, end_time: int):
+    def discover(self, start_time: int, end_time: int) -> None:
         check_time = timezone.now()
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")
 
@@ -49,7 +52,7 @@ class ServiceDiscover(Discover):
                 f"应用：({self.bk_biz_id}){self.app_name} Profile 服务 sample 发现超过了上限({self.MAX_DIMENSION_COMBINATION_LIMIT}), 需要人工介入"
             )
 
-        instances = []
+        instances: list[ProfileService] = []
 
         # Step2: 遍历 service_name，type，sample_type三个键的字典组成的列表，再从字典内去获取字典内的type，sample_type，service_name去查询数据
         if result_list:
@@ -102,6 +105,29 @@ class ServiceDiscover(Discover):
 
         # Final: 保存到数据库
         self._upsert(instances, check_time)
+        service_names: set[str] = {instance.name for instance in instances if instance.name}
+        TopoNode.upsert_telemetry_nodes(
+            self.bk_biz_id,
+            self.app_name,
+            TelemetryDataType.PROFILING.value,
+            service_names,
+            {
+                "category": TelemetryDataType.PROFILING.value,
+                "kind": TelemetryDataType.PROFILING.value,
+                "predicate_value": None,
+                "service_language": None,
+                "instance": {},
+            },
+        )
+        # 截断时只发布已证实有样本的服务，不宣称其余节点已完整检查。
+        TopoNode.touch_heartbeat(
+            self.bk_biz_id,
+            self.app_name,
+            TelemetryDataType.PROFILING.value,
+            {name: end_time // 1000 for name in service_names},
+            int(time.time()),
+            check_all_services=len(result_list) < self.MAX_DIMENSION_COMBINATION_LIMIT,
+        )
 
     def _upsert(self, instances, check_time):
         """创建/更新到数据库"""
