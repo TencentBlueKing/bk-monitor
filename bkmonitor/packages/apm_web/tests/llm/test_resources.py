@@ -1600,6 +1600,7 @@ class ListFlowsResourceTestCase(TestCase):
         application.build_data_sources.return_value = []
         span_query = mock.Mock()
         span_query.query_group_trace_list.return_value = []
+        span_query.query_by_group_ids.return_value = []
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
@@ -1622,7 +1623,11 @@ class ListFlowsResourceTestCase(TestCase):
                 "traces": [],
             },
         )
-        span_query.query_by_group_ids.assert_not_called()
+        span_query.query_group_trace_list.assert_not_called()
+        span_query.query_by_group_ids.assert_called_once_with(
+            group_field="trace_id",
+            group_ids=["missing-trace"],
+        )
 
 
 LLM_METRIC_REQUEST = {

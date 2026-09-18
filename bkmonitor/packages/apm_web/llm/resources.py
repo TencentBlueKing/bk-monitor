@@ -462,18 +462,23 @@ class ListFlowsResource(Resource):
         span_query = get_query(application.build_data_sources())
         group_field = validated_request_data["group_field"]
         group_id = validated_request_data["group_id"]
-        group_trace_records = span_query.query_group_trace_list(
-            group_field=group_field,
-            group_ids=[group_id],
-        )
-        trace_ids = list(
-            dict.fromkeys(record[OtlpKey.TRACE_ID] for record in group_trace_records if record.get(OtlpKey.TRACE_ID))
-        )
         result = {
             "group_field": group_field,
             "group_id": group_id,
             "traces": [],
         }
+        if group_field == OtlpKey.TRACE_ID:
+            trace_ids = [group_id]
+        else:
+            group_trace_records = span_query.query_group_trace_list(
+                group_field=group_field,
+                group_ids=[group_id],
+            )
+            trace_ids = list(
+                dict.fromkeys(
+                    record[OtlpKey.TRACE_ID] for record in group_trace_records if record.get(OtlpKey.TRACE_ID)
+                )
+            )
         if not trace_ids:
             return result
 
@@ -481,6 +486,9 @@ class ListFlowsResource(Resource):
             group_field=OtlpKey.TRACE_ID,
             group_ids=trace_ids,
         )
+        if not spans:
+            return result
+
         entity_set = EntitySet(
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
@@ -491,7 +499,9 @@ class ListFlowsResource(Resource):
                 spans_by_trace[trace_id].append(span)
 
         for trace_id in trace_ids:
-            raw_trace_spans = spans_by_trace[trace_id]
+            raw_trace_spans = spans_by_trace.get(trace_id)
+            if not raw_trace_spans:
+                continue
             result["traces"].append(
                 {
                     "trace_id": trace_id,

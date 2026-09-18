@@ -39,10 +39,10 @@
   "trace_id": "e61291b15858305c87ecc0a40204b39b",
   "statistics": {
     "8436ce649940adeb": {
-      "input_tokens": 6100,
-      "output_tokens": 1100,
-      "total_tokens": 7200,
-      "cache_read_input_tokens": 0,
+      "input_tokens": 5822513,
+      "output_tokens": 10882,
+      "total_tokens": 5833395,
+      "cache_read_input_tokens": 2881152,
       "cache_write_input_tokens": 0
     }
   }
