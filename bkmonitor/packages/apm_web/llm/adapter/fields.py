@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.db.models import Q
 
+from apm_web.llm.constants import SPAN_TYPES
 from constants.apm import LLMProduct
 
 if TYPE_CHECKING:
@@ -20,20 +21,6 @@ AGENT_CANDIDATE_FIELDS: tuple[str, ...] = (
     "attributes.langfuse.observation.type",
 )
 AGENT_CANDIDATE_Q: Q = Q(*(Q(**{f"{field}__exists": [""]}) for field in AGENT_CANDIDATE_FIELDS), _connector=Q.OR)
-
-# gen_ai.operation.name -> Span 语义层级，未登记的取值（检索、任务等）不归类。
-SPAN_TYPES: dict[str, str] = {
-    "invoke_workflow": "AGENT",
-    "create_agent": "AGENT",
-    "invoke_agent": "AGENT",
-    "plan": "AGENT",
-    "execute_tool": "TOOL",
-    "chat": "LLM",
-    "generate_content": "LLM",
-    "text_completion": "LLM",
-    "fetch_response": "LLM",
-    "embeddings": "LLM",
-}
 
 
 def resolve_product(entity_set: EntitySet, service_name: str) -> str:

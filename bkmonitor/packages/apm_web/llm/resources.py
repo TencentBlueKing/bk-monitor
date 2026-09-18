@@ -454,7 +454,13 @@ class ListFlowsResource(Resource):
         group_field = serializers.CharField(required=True, label="分组字段")
         group_id = serializers.CharField(required=True, label="分组值")
 
-    def perform_request(self, validated_request_data):
+    @classmethod
+    def build_trace_flows(cls, validated_request_data) -> dict[str, FlowBuilder]:
+        """按分组字段查询 Trace 并构造执行线，key 为 trace_id，保持查询到的 Trace 顺序。
+
+        执行线的构造与 Token 回填、统计在同一次递归内完成，Token 统计接口直接复用本方法的结果，
+        避免对同一棵树重复遍历。
+        """
         application = Application.objects.get(
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
@@ -462,11 +468,6 @@ class ListFlowsResource(Resource):
         span_query = get_query(application.build_data_sources())
         group_field = validated_request_data["group_field"]
         group_id = validated_request_data["group_id"]
-        result = {
-            "group_field": group_field,
-            "group_id": group_id,
-            "traces": [],
-        }
         if group_field == OtlpKey.TRACE_ID:
             trace_ids = [group_id]
         else:
@@ -480,14 +481,14 @@ class ListFlowsResource(Resource):
                 )
             )
         if not trace_ids:
-            return result
+            return {}
 
         spans = span_query.query_by_group_ids(
             group_field=OtlpKey.TRACE_ID,
             group_ids=trace_ids,
         )
         if not spans:
-            return result
+            return {}
 
         entity_set = EntitySet(
             bk_biz_id=validated_request_data["bk_biz_id"],
@@ -498,17 +499,25 @@ class ListFlowsResource(Resource):
             if trace_id := span.get(OtlpKey.TRACE_ID):
                 spans_by_trace[trace_id].append(span)
 
+        flows: dict[str, FlowBuilder] = {}
         for trace_id in trace_ids:
             raw_trace_spans = spans_by_trace.get(trace_id)
             if not raw_trace_spans:
                 continue
-            result["traces"].append(
-                {
-                    "trace_id": trace_id,
-                    "flow": FlowBuilder(raw_trace_spans, adapt_spans(raw_trace_spans, entity_set)).build(),
-                }
-            )
-        return result
+            builder = FlowBuilder(raw_trace_spans, adapt_spans(raw_trace_spans, entity_set))
+            builder.build()
+            flows[trace_id] = builder
+        return flows
+
+    def perform_request(self, validated_request_data):
+        return {
+            "group_field": validated_request_data["group_field"],
+            "group_id": validated_request_data["group_id"],
+            "traces": [
+                {"trace_id": trace_id, "flow": builder.flow}
+                for trace_id, builder in self.build_trace_flows(validated_request_data).items()
+            ],
+        }
 
 
 class TokenStatisticsResource(Resource):
@@ -521,7 +530,7 @@ class TokenStatisticsResource(Resource):
 
     def perform_request(self, validated_request_data):
         trace_id = validated_request_data["trace_id"]
-        result = ListFlowsResource().request(
+        flows = ListFlowsResource.build_trace_flows(
             {
                 "bk_biz_id": validated_request_data["bk_biz_id"],
                 "app_name": validated_request_data["app_name"],
@@ -529,8 +538,8 @@ class TokenStatisticsResource(Resource):
                 "group_id": trace_id,
             }
         )
-        flow = result["traces"][0]["flow"] if result["traces"] else []
-        return {"trace_id": trace_id, "statistics": FlowBuilder.token_statistics_map(flow)}
+        builder = flows.get(trace_id)
+        return {"trace_id": trace_id, "statistics": builder.statistics if builder else {}}
 
 
 class LLMMetricRequestSerializer(serializers.Serializer):
