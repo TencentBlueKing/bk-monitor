@@ -58,7 +58,7 @@
     display: grid;
     flex: 0 1 calc(50% + 160px);
     grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr);
-    gap: 4px;
+    gap: 8px;
     align-items: center;
     min-width: 0;
   }
@@ -133,7 +133,7 @@
   &-arrow {
     font-size: 16px;
     font-weight: 800;
-    color: #313238;
+    color: #4d4f56;
   }
 
   &-toggle {
