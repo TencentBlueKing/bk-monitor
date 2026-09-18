@@ -339,7 +339,9 @@ export default defineComponent({
                         <ExploreFieldSetting
                           class='table-field-setting'
                           defaultFields={this.defaultFieldKeys}
+                          dragHandle='.list-item-left'
                           fixedDisplayList={this.fixedDisplayList}
+                          popoverTheme='rum-explore-field-setting'
                           showFieldName={true}
                           sourceList={this.displayableFields}
                           targetList={this.displayFieldKeys}

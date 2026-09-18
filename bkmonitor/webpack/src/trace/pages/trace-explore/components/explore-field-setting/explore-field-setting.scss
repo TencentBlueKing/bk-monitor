@@ -127,6 +127,9 @@
 
             .list-item-left {
               display: flex;
+
+              /* 撑满整行剩余宽度：作为拖拽热区时，文本右侧的空白也能命中 */
+              flex-grow: 1;
               flex-basis: auto;
               column-gap: 4px;
               align-items: center;
@@ -228,7 +231,7 @@
         }
 
         .list-item {
-          .icon-mc-tuozhuai {
+          .field-drag-handle {
             margin-right: 4px;
             font-size: 12px;
             color: #979ba5;
