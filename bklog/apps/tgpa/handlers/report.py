@@ -88,7 +88,16 @@ class TGPAReportHandler:
         return cls._get_feature_config().get("tgpa_report_result_table_id")
 
     @classmethod
-    def _build_es_query(cls, bk_biz_id, keyword=None, file_name_list=None, openid=None, start_time=None, end_time=None):
+    def _build_es_query(
+        cls,
+        bk_biz_id,
+        keyword=None,
+        file_name_list=None,
+        openid=None,
+        extend_info=None,
+        start_time=None,
+        end_time=None,
+    ):
         """
         构建ES DSL查询条件
 
@@ -96,6 +105,7 @@ class TGPAReportHandler:
         :param keyword: 搜索关键词，匹配 openid / file_name 前缀或 extend_info 包含内容
         :param file_name_list: 文件名列表，精确匹配
         :param openid: openid，精确匹配
+        :param extend_info: 扩展信息，包含匹配
         :param start_time: 开始时间，默认为七天前
         :param end_time: 结束时间，默认为当前时间
         """
@@ -114,6 +124,17 @@ class TGPAReportHandler:
                 }
             )
             must_conditions.append({"bool": {"should": should_conditions, "minimum_should_match": 1}})
+        if extend_info:
+            wildcard_extend_info = extend_info.replace("\\", "\\\\").replace("*", "\\*").replace("?", "\\?")
+            must_conditions.append(
+                {
+                    "wildcard": {
+                        TGPA_REPORT_EXTEND_INFO_FIELD: {
+                            "value": f"*{wildcard_extend_info}*",
+                        }
+                    }
+                }
+            )
         if file_name_list:
             must_conditions.append({"terms": {"file_name": file_name_list}})
         if openid:
@@ -202,6 +223,7 @@ class TGPAReportHandler:
             keyword=params.get("keyword"),
             file_name_list=[params["file_name"]] if params.get("file_name") else None,
             openid=params.get("openid"),
+            extend_info=params.get("extend_info"),
             start_time=params.get("start_time"),
             end_time=params.get("end_time"),
         )
