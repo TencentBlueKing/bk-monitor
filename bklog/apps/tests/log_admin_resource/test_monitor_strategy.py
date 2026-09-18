@@ -69,6 +69,8 @@ class MonitorStrategySnapshotTest(SimpleTestCase):
 
         result = get_monitor_strategy_snapshot({"bk_biz_id": 2, "strategy_id": 1001})
 
+        request_params = mock_search.call_args[0][0]
+        self.assertTrue(request_params["no_request"])
         self.assertEqual(result["status"], "ok")
         self.assertEqual(result["summary"]["name"], "keyword-alert")
         self.assertEqual(result["items"][0]["algorithms"][0]["type"], "Threshold")
@@ -155,6 +157,41 @@ class MonitorStrategySnapshotTest(SimpleTestCase):
         self.assertIsNone(result["next_call"])
 
     @patch("apps.log_admin_resource.handlers.monitor_strategy.MonitorApi.search_alarm_strategy_v3")
+    def test_new_series_sdk_intelligent_detect_is_not_applicable(self, mock_search):
+        mock_search.return_value = {
+            "strategy_config_list": [
+                {
+                    "id": 3004,
+                    "name": "new-class-sdk",
+                    "is_enabled": True,
+                    "items": [
+                        {
+                            "algorithms": [
+                                {"type": "NewSeries", "level": 2, "config": {"detect_range": 86400, "threshold": 0}}
+                            ],
+                            "query_configs": [
+                                {
+                                    "data_source_label": "bk_log_search",
+                                    "data_type_label": "log",
+                                    "index_set_id": 755,
+                                    "intelligent_detect": {"use_sdk": True, "status": "ready"},
+                                }
+                            ],
+                        }
+                    ],
+                    "notice": {},
+                }
+            ]
+        }
+
+        result = get_monitor_strategy_snapshot({"bk_biz_id": 2, "strategy_id": 3004})
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["items"][0]["query_configs"][0]["intelligent_detect"]["use_sdk"], True)
+        self.assertEqual(result["serving_flow"]["applicability"], "not_applicable")
+        self.assertIsNone(result["next_call"])
+
+    @patch("apps.log_admin_resource.handlers.monitor_strategy.MonitorApi.search_alarm_strategy_v3")
     def test_empty_strategy_list_is_not_found(self, mock_search):
         mock_search.return_value = {"strategy_config_list": []}
         result = get_monitor_strategy_snapshot({"bk_biz_id": 2, "strategy_id": 404})
@@ -169,6 +206,19 @@ class MonitorStrategySnapshotTest(SimpleTestCase):
         self.assertEqual(result["status"], "unknown")
         self.assertIn("monitor strategy lookup failed", result["status_detail"])
         self.assertNotEqual(result["status"], "not_found")
+
+    @patch("apps.log_admin_resource.handlers.monitor_strategy.MonitorApi.search_alarm_strategy_v3")
+    def test_mismatched_strategy_id_is_not_found(self, mock_search):
+        mock_search.return_value = {"strategy_config_list": [{"id": 9999, "name": "other", "items": [], "notice": {}}]}
+        result = get_monitor_strategy_snapshot({"bk_biz_id": 2, "strategy_id": 1001})
+        self.assertEqual(result["status"], "not_found")
+        self.assertIsNone(result["summary"])
+
+    @patch("apps.log_admin_resource.handlers.monitor_strategy.MonitorApi.search_alarm_strategy_v3")
+    def test_unexpected_monitor_error_is_not_swallowed(self, mock_search):
+        mock_search.side_effect = TypeError("broken client")
+        with self.assertRaises(TypeError):
+            get_monitor_strategy_snapshot({"bk_biz_id": 2, "strategy_id": 1001})
 
     @override_settings(ENABLE_MULTI_TENANT_MODE=True)
     @patch("apps.log_admin_resource.handlers.monitor_strategy.require_biz_in_request_tenant")
@@ -202,6 +252,14 @@ class ClusteringStrategyBindingsTest(TestCase):
             signature="pattern-only",
             index_set_id=config.index_set_id,
             strategy_id=111,
+            enabled=True,
+            bk_biz_id=99,
+            strategy_type=StrategiesType.NORMAL_STRATEGY,
+        )
+        SignatureStrategySettings.objects.create(
+            signature="",
+            index_set_id=config.index_set_id,
+            strategy_id=None,
             enabled=True,
             bk_biz_id=99,
             strategy_type=StrategiesType.NORMAL_STRATEGY,

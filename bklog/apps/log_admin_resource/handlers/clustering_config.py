@@ -190,6 +190,8 @@ def _strategy_bindings(config):
         index_set_id=config.index_set_id,
         signature="",
     ).order_by("strategy_type", "id"):
+        if not settings_row.strategy_id:
+            continue
         bindings.append(
             {
                 "strategy_type": settings_row.strategy_type,

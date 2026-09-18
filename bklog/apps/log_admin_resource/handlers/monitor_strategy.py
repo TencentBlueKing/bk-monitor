@@ -14,6 +14,7 @@ from apps.log_admin_resource.handlers.inspection import (
     sanitize_json,
 )
 from apps.log_admin_resource.response_schema import object_schema
+from apps.utils.local import get_request_tenant_id
 
 
 FUNC_NAME = "bklog.monitor.strategy.snapshot"
@@ -87,25 +88,22 @@ def get_monitor_strategy_snapshot(params: dict[str, Any] | None) -> dict[str, An
     bk_biz_id = require_biz_in_request_tenant(require_nonzero_int(params, "bk_biz_id"))
     strategy_id = require_positive_int(params, "strategy_id")
 
+    request_params = {
+        "bk_biz_id": bk_biz_id,
+        "conditions": [{"key": "strategy_id", "value": [strategy_id]}],
+        "page": 1,
+        "page_size": 1,
+        "with_notice_group": False,
+        "with_notice_group_detail": False,
+        "no_request": True,
+    }
+    tenant_id = get_request_tenant_id()
+    if tenant_id:
+        request_params["bk_tenant_id"] = tenant_id
+
     try:
-        result_data = MonitorApi.search_alarm_strategy_v3(
-            {
-                "bk_biz_id": bk_biz_id,
-                "conditions": [{"key": "strategy_id", "value": [strategy_id]}],
-                "page": 1,
-                "page_size": 1,
-                "with_notice_group": False,
-                "with_notice_group_detail": False,
-            }
-        )
+        result_data = MonitorApi.search_alarm_strategy_v3(request_params)
     except ApiError as error:
-        return _empty_snapshot(
-            bk_biz_id=bk_biz_id,
-            strategy_id=strategy_id,
-            status=STATUS_UNKNOWN,
-            status_detail=f"monitor strategy lookup failed: {error}",
-        )
-    except Exception as error:  # noqa: BLE001 - bounded diagnostic surface
         return _empty_snapshot(
             bk_biz_id=bk_biz_id,
             strategy_id=strategy_id,
@@ -114,15 +112,14 @@ def get_monitor_strategy_snapshot(params: dict[str, Any] | None) -> dict[str, An
         )
 
     strategy_list = (result_data or {}).get("strategy_config_list") or []
-    if not strategy_list:
+    strategy = _matched_strategy(strategy_list, strategy_id)
+    if strategy is None:
         return _empty_snapshot(
             bk_biz_id=bk_biz_id,
             strategy_id=strategy_id,
             status=STATUS_NOT_FOUND,
             status_detail="strategy does not exist in the requested business",
         )
-
-    strategy = strategy_list[0]
     items = [_serialize_item(item) for item in strategy.get("items") or [] if isinstance(item, dict)]
     serving_flow, next_call = _serving_flow_and_next_call(bk_biz_id=bk_biz_id, items=items)
     notice = strategy.get("notice") if isinstance(strategy.get("notice"), dict) else {}
@@ -150,6 +147,19 @@ def get_monitor_strategy_snapshot(params: dict[str, Any] | None) -> dict[str, An
         "serving_flow": serving_flow,
         "next_call": next_call,
     }
+
+
+def _matched_strategy(strategy_list: Any, strategy_id: int) -> dict[str, Any] | None:
+    for strategy in strategy_list:
+        if not isinstance(strategy, dict):
+            continue
+        try:
+            returned_id = int(strategy.get("id"))
+        except (TypeError, ValueError):
+            continue
+        if returned_id == strategy_id:
+            return strategy
+    return None
 
 
 def _empty_snapshot(*, bk_biz_id: int, strategy_id: int, status: str, status_detail: str) -> dict[str, Any]:
@@ -240,19 +250,29 @@ def _serialize_intelligent_detect(raw: Any) -> dict[str, Any] | None:
 
 
 def _serving_flow_and_next_call(*, bk_biz_id: int, items: list[dict[str, Any]]) -> tuple[dict[str, Any], dict | None]:
-    selected = None
+    """Serving Flow is applicable only when a usable data_flow_id exists.
+
+    SDK / NewSeries strategies may still carry intelligent_detect={use_sdk: True}
+    without a serving DataFlow; those must stay not_applicable.
+    """
+
+    data_flow_id = None
+    result_table_id = None
     for item in items:
         for query_config in item.get("query_configs") or []:
             intelligent_detect = query_config.get("intelligent_detect")
             if not intelligent_detect:
                 continue
-            selected = intelligent_detect
-            if intelligent_detect.get("data_flow_id"):
-                break
-        if selected and selected.get("data_flow_id"):
+            candidate_flow_id = intelligent_detect.get("data_flow_id")
+            if not candidate_flow_id:
+                continue
+            data_flow_id = candidate_flow_id
+            result_table_id = intelligent_detect.get("result_table_id")
+            break
+        if data_flow_id:
             break
 
-    if not selected:
+    if not data_flow_id:
         return (
             {
                 "applicability": SERVING_NOT_APPLICABLE,
@@ -262,19 +282,17 @@ def _serving_flow_and_next_call(*, bk_biz_id: int, items: list[dict[str, Any]]) 
             None,
         )
 
-    data_flow_id = selected.get("data_flow_id")
-    result_table_id = selected.get("result_table_id")
-    serving_flow = {
-        "applicability": SERVING_APPLICABLE,
-        "data_flow_id": data_flow_id,
-        "result_table_id": result_table_id,
-    }
-    if not data_flow_id:
-        return serving_flow, None
-    return serving_flow, {
-        "func_name": FLOW_SNAPSHOT_FUNC,
-        "params": {"bk_biz_id": bk_biz_id, "flow_id": data_flow_id},
-    }
+    return (
+        {
+            "applicability": SERVING_APPLICABLE,
+            "data_flow_id": data_flow_id,
+            "result_table_id": result_table_id,
+        },
+        {
+            "func_name": FLOW_SNAPSHOT_FUNC,
+            "params": {"bk_biz_id": bk_biz_id, "flow_id": data_flow_id},
+        },
+    )
 
 
 FUNCTIONS = {
