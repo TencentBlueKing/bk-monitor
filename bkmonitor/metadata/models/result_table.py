@@ -3235,6 +3235,7 @@ class ResultTableOption(OptionBase):
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
     OPTION_METRIC_GROUP_DIMENSIONS = "metric_group_dimensions"
     OPTION_QUERY_ROUTER_CONFIG = "query_router_config"
+    OPTION_DATABUS_PREFER_CLUSTER = "databus_prefer_cluster"
 
     # 选项类型
     TYPE_BOOL = "bool"
@@ -3266,6 +3267,7 @@ class ResultTableOption(OptionBase):
             (OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK, _("是否开启自定义格式 V4 数据链路")),
             (OPTION_CUSTOM_FORMAT_V4_DATA_LINK, _("自定义格式 V4 数据链路配置")),
             (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),
+            (OPTION_DATABUS_PREFER_CLUSTER, _("Databus 优先集群配置")),
         ),
         max_length=128,
     )
