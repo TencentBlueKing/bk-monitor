@@ -154,12 +154,19 @@ def list_storage_clusters_by_tenant(cluster_type):
         try:
             clusters = TransferApi.get_cluster_info({"cluster_type": cluster_type}, bk_tenant_id=tenant_id) or []
         except Exception as e:  # pylint: disable=broad-except
-            logger.exception(
-                f"[sync_storage_capacity] get {cluster_type} cluster info failed, tenant={tenant_id}: {e}"
-            )
+            logger.exception(f"[sync_storage_capacity] get {cluster_type} cluster info failed, tenant={tenant_id}: {e}")
             continue
         result.append((tenant_id, clusters))
     return result
+
+
+def get_cluster_biz_count_map():
+    """流式构建集群业务数量映射，避免缓存完整 LogIndexSet 模型。"""
+    cluster_biz_count_map = defaultdict(set)
+    index_sets = LogIndexSet.objects.filter().values_list("storage_cluster_id", "space_uid")
+    for storage_cluster_id, space_uid in index_sets.iterator(chunk_size=2000):
+        cluster_biz_count_map[storage_cluster_id].add(space_uid)
+    return cluster_biz_count_map
 
 
 @periodic_task(run_every=crontab(minute="0"))
@@ -170,7 +177,7 @@ def sync_storage_capacity():
     """
     # 1、按租户获取所有集群，doris 与 ES 的容量指标取数方式不同，分别获取后合并处理
     es_clusters = []
-    for _, clusters in list_storage_clusters_by_tenant(STORAGE_CLUSTER_TYPE):
+    for _tenant_id, clusters in list_storage_clusters_by_tenant(STORAGE_CLUSTER_TYPE):
         es_clusters.extend(clusters)
 
     # doris 指标依赖 metadata，单个租户取不到时跳过该租户，不影响 ES 集群
@@ -184,11 +191,7 @@ def sync_storage_capacity():
             logger.exception(f"[sync_storage_capacity] sync doris cluster capacity failed, tenant={tenant_id}: {e}")
 
     # 2、构建集群业务映射
-    from apps.log_search.models import LogIndexSet
-
-    cluster_biz_cnt_map = defaultdict(lambda: defaultdict(int))
-    for index_set in LogIndexSet.objects.all():
-        cluster_biz_cnt_map[index_set.storage_cluster_id][index_set.space_uid] += 1
+    cluster_biz_cnt_map = get_cluster_biz_count_map()
 
     # 批量收集所有需要创建或更新的 StorageUsed 对象
     storage_used_objects = []
@@ -215,7 +218,7 @@ def sync_storage_capacity():
                 storage_total=total,
                 storage_usage=usage,
                 index_count=index_count,
-                biz_count=len(cluster_biz_cnt_map.get(cluster_id, {}).keys()),
+                biz_count=len(cluster_biz_cnt_map.get(cluster_id, ())),
             )
             storage_used_objects.append(cluster_storage_obj)
 
