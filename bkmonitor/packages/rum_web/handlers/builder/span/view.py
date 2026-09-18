@@ -334,6 +334,7 @@ class ViewLoadingTimingSection(BaseSection):
                     "key": name,
                     "field_name": name,
                     "value": value,
+                    "display.rating_config": RatingLevel.get_rating_config(metric),
                 }
             )
         return markers
