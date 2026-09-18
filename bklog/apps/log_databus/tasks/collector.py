@@ -162,8 +162,6 @@ def list_storage_clusters_by_tenant(cluster_type):
 
 def get_cluster_biz_count_map():
     """流式构建集群业务数量映射，避免缓存完整 LogIndexSet 模型。"""
-    from apps.log_search.models import LogIndexSet
-
     cluster_biz_count_map = defaultdict(set)
     index_sets = LogIndexSet.objects.filter().values_list("storage_cluster_id", "space_uid")
     for storage_cluster_id, space_uid in index_sets.iterator(chunk_size=2000):
