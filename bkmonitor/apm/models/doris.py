@@ -158,7 +158,7 @@ def compose_profile_data_id_name(bk_biz_id: int, app_name: str) -> str:
     _RANDOM_LENGTH = 5
 
     sanitized = _sanitize_name(app_name)
-    prefix = f"profile_space_{abs(bk_biz_id)}" if bk_biz_id < 0 else str(bk_biz_id)
+    prefix = f"profile_space_{abs(bk_biz_id)}" if bk_biz_id < 0 else f"profile_{bk_biz_id}"
     # profile_{bk_biz_id}_{sanitized}
     name = f"{prefix}_{sanitized}"
 

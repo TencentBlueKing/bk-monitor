@@ -4,6 +4,11 @@ from apm.models.datasource import ProfileDataSource
 from apm.models.doris import BkDataDorisV4Provider, compose_profile_data_id_name
 
 
+def test_compose_profile_data_id_name_uses_biz_prefix_for_positive_biz():
+    assert compose_profile_data_id_name(100, "same-app") == "profile_100_same_app"
+    assert compose_profile_data_id_name(200, "same-app") == "profile_200_same_app"
+
+
 def test_compose_profile_data_id_name_uses_space_prefix_for_negative_biz():
     assert compose_profile_data_id_name(-100, "same-app") == "profile_space_100_same_app"
     assert compose_profile_data_id_name(-200, "same-app") == "profile_space_200_same_app"
@@ -37,6 +42,7 @@ def test_v4_provider_separates_source_biz_from_bkbase_biz(settings):
 
 
 def test_apply_profile_datasource_uses_tenant_default_biz_for_space(settings, mocker):
+    settings.ENABLE_MULTI_TENANT_MODE = True
     settings.APM_APP_BKDATA_MAINTAINER = []
     settings.APM_PROFILE_V4_BIZ_WHITE_LIST = []
     settings.APM_PROFILING_DEFAULT_USE_BKDATA_V4 = False
