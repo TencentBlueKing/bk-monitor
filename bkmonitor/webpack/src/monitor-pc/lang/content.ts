@@ -197,6 +197,7 @@ export default {
   '支持{0}等文件格式': 'File formats such as {0} are supported',
   通知人员类型: 'Notification person type',
   到底了: 'In the end',
+  加载失败: 'Load failed',
   多: 'Multi',
   少: 'Less',
   日志聚类: 'Log Clustering',
