@@ -45,6 +45,7 @@ import {
   AlarmStatusIconMap,
 } from '../typings';
 import { type RequestOptions, AlarmService } from './base';
+import { withEmbedQuery } from '@/common/embed-context';
 import { type IFilterField, EFieldType } from '@/components/retrieval-filter/typing';
 const ALERT_TABLE_COLUMNS = [
   {
@@ -809,17 +810,7 @@ export class AlertService extends AlarmService {
     isAll = false,
     options?: RequestOptions
   ): Promise<AnalysisTopNDataResponse<AnalysisFieldAggItem>> {
-    const paramsClone = _.cloneDeep(params);
-    // #if IS_APM_MONITOR
-    paramsClone.bk_biz_ids = [Number(window.bk_biz_id)];
-    if (paramsClone.query_string) {
-      // 语句模式
-      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
-    } else {
-      // ui 模式
-      paramsClone.query_string = window.APM_QUERY_STRING || '';
-    }
-    // #endif
+    const paramsClone = withEmbedQuery(_.cloneDeep(params));
     const data = await alertTopN(
       {
         ...paramsClone,
@@ -836,17 +827,7 @@ export class AlertService extends AlarmService {
     params: Partial<CommonFilterParams>,
     options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
-    const paramsClone = _.cloneDeep(params);
-    // #if IS_APM_MONITOR
-    paramsClone.bk_biz_ids = [Number(window.bk_biz_id)];
-    if (paramsClone.query_string) {
-      // 语句模式
-      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
-    } else {
-      // ui 模式
-      paramsClone.query_string = window.APM_QUERY_STRING || '';
-    }
-    // #endif
+    const paramsClone = withEmbedQuery(_.cloneDeep(params));
     const data = await searchAlert(
       {
         ...paramsClone,
@@ -902,17 +883,7 @@ export class AlertService extends AlarmService {
   }
 
   async getQuickFilterList(params: Partial<CommonFilterParams>, options?: RequestOptions): Promise<QuickFilterItem[]> {
-    const paramsClone = _.cloneDeep(params);
-    // #if IS_APM_MONITOR
-    paramsClone.bk_biz_ids = [Number(window.bk_biz_id)];
-    if (paramsClone.query_string) {
-      // 语句模式
-      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
-    } else {
-      // ui 模式
-      paramsClone.query_string = window.APM_QUERY_STRING || '';
-    }
-    // #endif
+    const paramsClone = withEmbedQuery(_.cloneDeep(params));
     const data = await searchAlert(
       {
         ...paramsClone,
@@ -991,17 +962,7 @@ export class AlertService extends AlarmService {
     return data;
   }
   async getRetrievalFilterValues(params: Partial<CommonFilterParams>, config = {}) {
-    const paramsClone = _.cloneDeep(params);
-    // #if IS_APM_MONITOR
-    paramsClone.bk_biz_ids = [Number(window.bk_biz_id)];
-    if (paramsClone.query_string) {
-      // 语句模式
-      paramsClone.query_string = `(${paramsClone.query_string}) AND ${window.APM_QUERY_STRING || ''}`;
-    } else {
-      // ui 模式
-      paramsClone.query_string = window.APM_QUERY_STRING || '';
-    }
-    // #endif
+    const paramsClone = withEmbedQuery(_.cloneDeep(params));
     const data = await alertTopN(
       {
         ...paramsClone,

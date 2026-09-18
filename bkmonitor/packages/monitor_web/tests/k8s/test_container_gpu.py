@@ -8,8 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from django.test import TestCase
+from unittest import TestCase
 
+from monitor_web.k8s.core.filters import load_resource_filter
 from monitor_web.k8s.core.gpu_compat import gpu_or
 from monitor_web.k8s.core.meta import (
     K8sContainerMeta,
@@ -79,6 +80,26 @@ class TestTkeGpuDualSourcePromql(TestCase):
                     promql,
                     f"{meta_cls.__name__}.{metric_id} 叶子未走双源",
                 )
+
+    def test_workload_relation_is_independent_from_cadvisor(self):
+        for meta_cls in [K8sWorkloadMeta, K8sPodMeta, K8sContainerMeta]:
+            promql = meta_cls(2, "BCS-K8S-00000").meta_prom_with_container_gpu_utilization
+            self.assertEqual(promql.count("pod_with_workload_relation"), 2)
+            self.assertIn("unless on(bcs_cluster_id, namespace, pod_name)", promql)
+            self.assertIn("* on(bcs_cluster_id, pod_name, namespace)", promql)
+            self.assertIn("container_cpu_usage_seconds_total", promql)
+
+    def test_new_relation_wins_when_workload_labels_conflict(self):
+        meta = K8sWorkloadMeta(2, "BCS-K8S-00000")
+        meta.add_filter(load_resource_filter("workload", "Job:training"))
+
+        promql = meta.meta_prom_with_container_gpu_utilization
+
+        self.assertIn(
+            'pod_with_workload_relation{bcs_cluster_id="BCS-K8S-00000",workload_kind="Job",workload_name="training"}',
+            promql,
+        )
+        self.assertIn('pod_with_workload_relation{bcs_cluster_id="BCS-K8S-00000"}', promql)
 
     def test_used_metrics_rename_to_card_telemetry(self):
         # 实际用量类:整卡语义下直接取卡级遥测(算力->GPU_UTIL,显存->FB_USED);dcgm 支带 pod_name!="" 护栏

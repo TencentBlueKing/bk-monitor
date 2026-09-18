@@ -30,11 +30,11 @@ import { hexToRgba } from 'monitor-common/utils/colorHelpers';
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
 import {
   type BaseTableColumn,
+  type TableCellRenderContext,
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import {
   RUM_HTTP_STATUS_CODE_MAP,
-  RUM_LINK_FIELDS,
   RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
   RumFieldDisplayEnum,
@@ -45,7 +45,10 @@ import {
 import { formatUnitValue } from '../../../utils';
 import { BaseScenario } from './base-scenario';
 
+import type { IUsePopoverTools } from '../../../../alarm-center/components/alarm-table/hooks/use-popover';
+import type { IRumSpanRecord } from '../../../typings';
 import type { SlotReturnValue } from 'tdesign-vue-next';
+import type { TippyContent } from 'vue-tippy';
 
 /**
  * @class SpanScenario
@@ -57,16 +60,13 @@ export class SpanScenario extends BaseScenario {
   readonly privateClassName = 'span-table';
   readonly rowKey = 'span_id';
   protected columnOverrides: Record<string, BaseTableColumn> = {
-    /** 链接列：点击把值加为检索条件 */
-    ...Object.fromEntries(
-      [...RUM_LINK_FIELDS].map((key): [string, BaseTableColumn] => [
-        key,
-        {
-          renderType: ExploreTableColumnTypeEnum.CLICK,
-          clickCallback: (row, _column, _event) => this.context.onCellFilter(key, `${row?.[key] ?? ''}`),
-        },
-      ])
-    ),
+    /**
+     * span_name 列：蓝色链接样式，点击把值加为检索条件，hover 展示 span / trace 信息 tooltip。
+     * 渲染由 cellRenderer 全权接管，不再声明 renderType（两者互斥，见 BaseScenario.resolveColumnConfig）。
+     */
+    span_name: {
+      cellRenderer: (row, column, renderCtx) => this.renderSpanNameCell(row, column, renderCtx),
+    },
     /** kind 列：Span 调用类型（图标 + 类型名，展示语义与 trace 检索 kind 列一致） */
     kind: {
       renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
@@ -110,6 +110,8 @@ export class SpanScenario extends BaseScenario {
 
   constructor(
     protected readonly context: {
+      /** span_name 列 hover 展示详情信息的 popover 工具 */
+      hoverPopoverTools: IUsePopoverTools;
       /** 点击链接类单元格，把值加为检索条件 */
       onCellFilter: (colKey: string, value: string) => void;
     } & BaseScenario['context']
@@ -125,12 +127,21 @@ export class SpanScenario extends BaseScenario {
    */
   protected buildBaseline(colKey: string): Partial<BaseTableColumn> {
     const field = get(this.context.fieldMap).get(colKey);
-    // vital 的单位由每行的指标决定，不能交给按整列统一单位处理的 duration 渲染器。
+    /**
+     * 指标值列（attributes.vital.value）特殊处理。
+     * 该列元数据是伪单位 vital（display_type=duration），含义为「单位由每行是哪一个 Web Vitals 指标决定」：
+     * Span 视角下一行即一条 vital span，只带一个指标，指标名在 attributes.vital.metric，数值统一存在本列：
+     *   - lcp / fcp / inp / ttfb → 毫秒耗时，按 ms 换算展示（如 2.5s、180ms）
+     *   - cls → 0~1 的无量纲分数，原样展示（不能拼时间单位）
+     * 故不能交给下面按整列固定 durationUnit 的 DURATION 渲染器，改为按行取值；
+     * 不指定 renderType，格式化后的字符串走默认 TEXT 渲染。
+     */
     if (field?.field_unit === 'vital') {
       return {
         getRenderValue: row => {
           const value = row[colKey];
           if (value === null || value === undefined || value === '') return '';
+          /** CLS 分数与不可转数值的脏数据都原样输出，避免拼出无意义的时间单位 */
           if (String(row['attributes.vital.metric']).toLowerCase() === 'cls' || !Number.isFinite(Number(value))) {
             return String(value);
           }
@@ -155,6 +166,103 @@ export class SpanScenario extends BaseScenario {
   }
 
   // ----------------- Span 场景私有逻辑方法 -----------------
+
+  /**
+   * @description span_name 列单元格渲染：保留 CLICK 列「点击加为检索条件」的结构与交互（含右键条件菜单），
+   *              并在 hover 时展示 span 名称 / Span ID / 所属 Trace ID 信息
+   * @param {IRumSpanRecord} row 当前行数据
+   * @param {BaseTableColumn} column 当前列配置项
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文
+   * @returns {SlotReturnValue} 渲染dom
+   */
+  private renderSpanNameCell(row: IRumSpanRecord, column: BaseTableColumn, renderCtx: TableCellRenderContext) {
+    const alias = renderCtx.getTableCellRenderValue(row, column);
+    if (alias === null || alias === undefined || alias === '') {
+      return renderCtx.cellRenderHandleMap[ExploreTableColumnTypeEnum.TEXT]?.(row, column, renderCtx);
+    }
+    /**
+     * 省略号不使用 renderCtx.isEnabledCellEllipsis：该类是表格溢出 tip 的事件委托类，
+     * 挂上后长文本 hover 会同时弹出「完整文本 tip」与本列的 span / trace 信息 tooltip（后者已含完整名称）。
+     * 这里仅做纯 CSS 省略（与告警中心 alert_name 列 ellipsis-text 的处理一致）。
+     */
+    return (
+      <div class='explore-col explore-click-col'>
+        <div class='span-name-ellipsis'>
+          <span
+            class='explore-click-text'
+            data-col-id={column.colKey}
+            data-row-id={renderCtx.getRowId(row)}
+            onClick={() => this.context.onCellFilter(column.colKey, String(row?.span_name ?? ''))}
+            onMouseenter={e => this.handleSpanNameHover(e, row)}
+            onMouseleave={this.context.hoverPopoverTools.clearPopoverTimer}
+          >
+            {alias}
+          </span>
+        </div>
+      </div>
+    ) as unknown as SlotReturnValue;
+  }
+
+  /**
+   * @description span_name 列 hover 事件：展示 span 名称 / Span ID 信息
+   *              （所属 Trace ID 待 Trace 关联能力上线后补充）
+   * @param {MouseEvent} e 鼠标事件
+   * @param {IRumSpanRecord} row 当前行数据
+   */
+  private handleSpanNameHover(e: MouseEvent, row: IRumSpanRecord) {
+    /** 标签文案与表头同源（fieldMap.alias），避免「表头 Span 名称 / tooltip Span Name」两套叫法；字段不在 fieldMap（未开放为列）时回落前端文案 */
+    const label = (colKey: string, fallback: string) => get(this.context.fieldMap).get(colKey)?.alias ?? fallback;
+    const content = (
+      <div class='span-name-popover-container'>
+        <div class='span-name-popover-item'>
+          <span class='span-name-popover-item-label'>{label('span_name', window.i18n.t('Span 名称'))}：</span>
+          <span class='span-name-popover-item-value'>{row?.span_name || '--'}</span>
+        </div>
+        <div class='span-name-popover-item'>
+          <span class='span-name-popover-item-label'>{label('span_id', 'Span ID')}：</span>
+          <span class='span-name-popover-item-value'>{row?.span_id || '--'}</span>
+        </div>
+        {/* 所属 Trace ID 行：Trace 关联能力本期未做，暂不展示，下期开放后放开
+        <div class='span-name-popover-item'>
+          <span class='span-name-popover-item-label'>{window.i18n.t('所属 Trace ID')}：</span>
+          {row?.trace_id ? (
+            <a
+              class='span-name-popover-item-value is-link'
+              href={this.getTraceQueryUrl(row)}
+              rel='noopener noreferrer'
+              target='_blank'
+            >
+              <span>{row.trace_id}</span>
+              <i class='icon-monitor icon-mc-goto' />
+            </a>
+          ) : (
+            <span class='span-name-popover-item-value'>--</span>
+          )}
+        </div>
+        */}
+      </div>
+    ) as unknown as TippyContent;
+    this.context.hoverPopoverTools.showPopover(e, content, {
+      theme: 'rum-span-name-popover max-width-40vw text-wrap padding-0',
+    });
+  }
+
+  /**
+   * @description 所属 Trace 检索页链接：按 trace_id 精确查询并展开 trace 详情侧栏
+   *              （链接规则与 trace 检索 span 详情的「所属 Trace」一致，应用 / 业务取行数据自带的 app_name / bk_biz_id）
+   *              Trace 关联能力本期未做，暂不展示，下期开放后连同 tooltip 中的所属 Trace ID 行一起放开
+   * @param {IRumSpanRecord} row 当前行数据
+   * @returns {string} Trace 检索页链接
+   */
+  // private getTraceQueryUrl(row: IRumSpanRecord) {
+  //   const hash = `#/trace/home?app_name=${row?.app_name}&sceneMode=trace&trace_id=${row?.trace_id}`;
+  //   const url = new URL(location.href.replace(location.hash, hash));
+  //   /** 监控 URL 约定：bizId 位于 hash 之前的 search 上（?bizId=xx#/trace/home） */
+  //   if (row?.bk_biz_id != null) {
+  //     url.searchParams.set('bizId', String(row.bk_biz_id));
+  //   }
+  //   return url.toString();
+  // }
 
   /**
    * @description Span 类型列渲染值：类型图标 + 类型别名（复用内置前置图标渲染）

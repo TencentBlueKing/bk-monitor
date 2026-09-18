@@ -642,7 +642,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         need_bucket_count: bool = True,
         **kwargs,
     ):
-        super().__init__(bk_biz_ids, username, **kwargs)
+        super().__init__(bk_biz_ids, username, need_bucket_count=need_bucket_count, **kwargs)
         self.must_exists_fields = kwargs.get("must_exists_fields", [])
         self.status = [status] if isinstance(status, str) else status
         if not self.ordering:

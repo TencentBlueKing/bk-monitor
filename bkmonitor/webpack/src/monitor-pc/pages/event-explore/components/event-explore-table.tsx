@@ -29,6 +29,8 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
 
+import K8sSlider from '../../../components/k8s-silder/k8s-slider';
+import { parseK8sMonitorUrl } from '../../../components/k8s-silder/utils';
 import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { formatTime } from '../../../utils';
 import RetrievalEmptyShow from '../../data-retrieval/data-retrieval-view/retrieval-empty-show';
@@ -157,6 +159,10 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   /** kv 面板主要是利用接口中 origin_data 作为数据驱动渲染，
    * 所以使用 map 结构并采用 origin_data 作为 key 对处理成 kvField 的数据做一层缓存 */
   kvFieldMap = new WeakMap();
+  /** 容器监控侧滑 */
+  k8sSliderShow = false;
+  k8sSliderUrl = '';
+  k8sSliderSubTitle = '';
 
   get tableColumns() {
     const column = this.getTableColumns();
@@ -202,7 +208,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     const nQueryConfig = nVal?.query_configs?.[0];
     const oQueryConfig = oVal?.query_configs?.[0];
     if (
-      !!oQueryConfig &&
+      oQueryConfig &&
       (nQueryConfig?.table !== oQueryConfig?.table ||
         nQueryConfig?.data_source_label !== oQueryConfig?.data_source_label)
     ) {
@@ -225,6 +231,22 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   @Emit('clearSearch')
   clearSearch() {
     return;
+  }
+
+  /**
+   * @description 容器监控链接改为就地侧滑打开
+   * 表格内各处跳转入口（目标列、内容浮层、KV 面板、场景菜单）统一走这里，
+   * 返回 false 表示该链接不是当前业务的容器监控，调用方需保持原有新开页行为
+   */
+  @Provide('openK8sSlider')
+  handleOpenK8sSlider(url: string, subTitle = '') {
+    if (!parseK8sMonitorUrl(url).isK8sMonitor) {
+      return false;
+    }
+    this.k8sSliderUrl = url;
+    this.k8sSliderSubTitle = subTitle;
+    this.k8sSliderShow = true;
+    return true;
   }
 
   @Emit('search')
@@ -517,17 +539,19 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    */
   handleContentHover(e: MouseEvent, detail: Record<string, any>) {
     const createListItem = item => {
-      const itemValueDom =
-        item?.type === 'link' && item?.url
-          ? `<a
+      const isLink = item?.type === 'link' && item?.url;
+      // 容器监控链接打上标记，由浮层根节点上的委托监听改为侧滑打开
+      const k8sAttr = isLink && parseK8sMonitorUrl(item.url).isK8sMonitor ? ' data-k8s-slider="1"' : '';
+      const itemValueDom = isLink
+        ? `<a
             class='content-item-value-link'
             href=${item.url}
             rel='noreferrer'
-            target='_blank'
+            target='_blank'${k8sAttr}
           >
             ${item.alias || '--'}
           </a>`
-          : `<span class="content-item-value">${item.alias || '--'}</span>`;
+        : `<span class="content-item-value">${item.alias || '--'}</span>`;
       return `
       <div class="explore-content-popover-main-item">
         <span class="content-item-key">${item.label}</span>
@@ -545,7 +569,33 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           ${main}
         </div>
       </div>`;
-    this.handlePopoverShow(e, content);
+    this.handlePopoverShow(e, content, {
+      onShown: (instance: { popper?: HTMLElement }) => {
+        instance?.popper?.addEventListener('click', this.handleContentPopoverClick);
+      },
+    });
+  }
+
+  /**
+   * @description: 内容浮层内链接点击委托，命中容器监控则拦截跳转改为侧滑
+   */
+  handleContentPopoverClick(e: MouseEvent) {
+    const link = (e.target as HTMLElement)?.closest?.('a[data-k8s-slider]') as HTMLAnchorElement;
+    if (!link) return;
+    if (this.handleOpenK8sSlider(link.href, link.textContent?.trim())) {
+      e.preventDefault();
+      this.handlePopoverHide();
+    }
+  }
+
+  /**
+   * @description: 表格内链接点击，命中容器监控则拦截跳转改为侧滑
+   */
+  handleLinkClick(e: MouseEvent, url: string, alias?: string) {
+    if (this.handleOpenK8sSlider(url, alias)) {
+      e.preventDefault();
+      this.handlePopoverHide();
+    }
   }
 
   /**
@@ -754,6 +804,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
             href={item.url}
             rel='noreferrer'
             target='_blank'
+            onClick={e => this.handleLinkClick(e, item.url, item.alias)}
             onMouseenter={e => this.handleTargetHover(e, `点击前往: ${item.scenario || '--'}`)}
             onMouseleave={this.handleClearTimer}
           >
@@ -852,6 +903,14 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           style={{ visibility: this.tableLoading[ExploreTableLoadingEnum.REFRESH] ? 'visible' : 'hidden' }}
           class='explore-table-skeleton'
           type={6}
+        />
+        <K8sSlider
+          isShow={this.k8sSliderShow}
+          subTitle={this.k8sSliderSubTitle}
+          url={this.k8sSliderUrl}
+          onShowChange={v => {
+            this.k8sSliderShow = v;
+          }}
         />
       </div>
     );

@@ -5,7 +5,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
-from .fields import STANDARD_FIELDS
+from apm_web.llm.constants import STANDARD_FIELDS
+
 from .utils import (
     first,
     normalize_schema,
@@ -22,7 +23,11 @@ ALIASES = {
     "gen_ai.conversation.id": ("gen_ai.session_id",),
     "user.id": ("gen_ai.user.id",),
     "gen_ai.usage.cache_read.input_tokens": ("gen_ai.usage.cache_read_input_tokens",),
-    "gen_ai.usage.cache_creation.input_tokens": ("gen_ai.usage.cache_creation_input_tokens",),
+    # GenAI 语义约定独立成库时把 cache_creation 改名为 cache_write，该产品仍是改名前的两种形态
+    "gen_ai.usage.cache_write.input_tokens": (
+        "gen_ai.usage.cache_creation.input_tokens",
+        "gen_ai.usage.cache_creation_input_tokens",
+    ),
     "gen_ai.usage.reasoning.output_tokens": ("gen_ai.usage.reasoning_tokens",),
     "gen_ai.tool.name": ("tool.name", "traceloop.entity.name"),
     "gen_ai.agent.name": (

@@ -105,6 +105,12 @@ src/mermaid/
 .trae
 
 monitor-vue3-components
+apm-vue3-for-vue2/dist
+apm-vue3-for-vue2/readme.md
+apm-vue3-for-vue2/.ensure.lock
+apm-vue3-for-vue2/*.js
+apm-vue3-for-vue2/*.css
+apm-vue3-for-vue2/assets
 monitor-vue2-components
 
 monitor-trace-explore
@@ -112,8 +118,10 @@ monitor-alarm-center
 
 .agents/**
 skills-lock.json
-AGENTS.md
 
 .pnpm-store
 .opencode/
 .pnpm-store/
+
+# 一次性 E2E 用例、登录态与测试证据，仅保留在本地。
+.e2e-runs/

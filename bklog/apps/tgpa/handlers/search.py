@@ -118,6 +118,7 @@ class TGPASearchHandler:
         task_id = params.get("task_id")
         openid = params.get("openid")
         file_name = params.get("file_name")
+        extend_info = params.get("extend_info")
 
         # tgpa_task 接口不支持 file_name 查询，如果匹配该格式，则提取 task_id 用于查询，并去掉 file_name
         if not task_id and file_name:
@@ -137,45 +138,48 @@ class TGPASearchHandler:
         fetch_size = page * pagesize
 
         # 根据 source 参数决定查询哪些数据源
-        # task 接口不支持 file_name 查询，有 file_name 但无 task_id 时跳过
-        query_task = source in (None, "task") and (not file_name or task_id)
+        # task 接口不支持 file_name 查询，有 file_name 但无 task_id 时跳过；extend_info 仅 report 数据源支持
+        query_task = source in (None, "task") and (not file_name or task_id) and not extend_info
         # 指定了 task_id 时无需查询 report
         query_report = source in (None, "report") and not task_id
 
         # 并行查询 task 和 report
         multi_execute = MultiExecuteFunc()
         if query_task:
+            task_params = {
+                "bk_biz_id": bk_biz_id,
+                "page": 1,
+                "pagesize": fetch_size,
+                "openid": openid,
+                "task_id": task_id,
+                "start_time": start_time,
+                "end_time": end_time,
+                "ordering": "-created_at",
+            }
             multi_execute.append(
                 result_key="task_result",
                 func=TGPATaskHandler.get_task_page,
                 params={
-                    "params": {
-                        "bk_biz_id": bk_biz_id,
-                        "page": 1,
-                        "pagesize": fetch_size,
-                        "openid": openid,
-                        "task_id": task_id,
-                        "start_time": start_time,
-                        "end_time": end_time,
-                        "ordering": "-created_at",
-                    },
+                    "params": task_params,
                     "need_format": False,
                 },
                 multi_func_params=True,
             )
         if query_report:
+            report_params = {
+                "bk_biz_id": bk_biz_id,
+                "openid": openid,
+                "file_name": file_name,
+                "extend_info": extend_info,
+                "start_time": start_time,
+                "end_time": end_time,
+                "page": 1,
+                "pagesize": fetch_size,
+            }
             multi_execute.append(
                 result_key="report_result",
                 func=TGPAReportHandler.get_report_list,
-                params={
-                    "bk_biz_id": bk_biz_id,
-                    "openid": openid,
-                    "file_name": file_name,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "page": 1,
-                    "pagesize": fetch_size,
-                },
+                params=report_params,
             )
         results = multi_execute.run()
 

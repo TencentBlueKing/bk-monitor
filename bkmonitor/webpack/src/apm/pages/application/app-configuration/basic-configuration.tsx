@@ -845,7 +845,7 @@ export default class BasicInfo extends tsc<IProps> {
 
   /** 获取采样配置常量 */
   async getSamplingOptions() {
-    await samplingOptions().then(data => {
+    await samplingOptions({ application_id: this.appInfo.application_id }).then(data => {
       this.samplingTypeList = this.samplingTypeList.filter(item => (data?.sampler_types || []).includes(item.id));
       // is_enabled_tail_sampling关闭 则不显示尾部采样的下拉选项
       if (!this.appInfo.is_enabled_tail_sampling) {

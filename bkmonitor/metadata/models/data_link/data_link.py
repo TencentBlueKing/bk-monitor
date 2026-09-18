@@ -2563,6 +2563,36 @@ class DataLink(models.Model):
             )
         return table
 
+    def _get_databus_option_labels(self) -> dict[str, str]:
+        """读取唯一关联结果表的标签配置；非法配置必须在组件写入前失败。"""
+        from metadata.models import ResultTableOption
+
+        table_ids = {table_id for table_id in self.table_ids if table_id}
+        if len(table_ids) != 1:
+            return {}
+        table_id = table_ids.pop()
+        option = ResultTableOption.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            table_id=table_id,
+            name=ResultTableOption.OPTION_DATABUS_LABELS,
+        ).first()
+        if option is None:
+            return {}
+
+        error_message = (
+            f"Invalid databus_labels: bk_tenant_id={self.bk_tenant_id}, table_id={table_id}; "
+            "expected a dictionary with non-empty string keys and string values"
+        )
+        try:
+            labels = option.get_value()
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise ValueError(error_message) from exc
+        if not isinstance(labels, dict) or any(
+            not isinstance(key, str) or not key or not isinstance(value, str) for key, value in labels.items()
+        ):
+            raise ValueError(error_message)
+        return labels
+
     @staticmethod
     def _inject_databus_monitor_labels(
         configs: list[dict[str, Any]],
@@ -2588,6 +2618,7 @@ class DataLink(models.Model):
         """
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
+        databus_option_labels = self._get_databus_option_labels()
         consumer_group: str | None = kwargs.pop("consumer_group", None)
         force_cleanup_absent_components = kwargs.pop("cleanup_absent_components", False)
         storage_type = kwargs.pop("storage_type", None)
@@ -2716,6 +2747,10 @@ class DataLink(models.Model):
                 data_source=data_source,
             )
             self._inject_databus_monitor_labels(configs, monitor_labels)
+        if databus_option_labels:
+            for config in configs:
+                if config.get("kind") == DataLinkKind.DATABUS.value:
+                    config["metadata"].setdefault("labels", {}).update(databus_option_labels)
         components_to_delete = self._get_absent_components_to_delete(
             configs,
             force_delete=force_cleanup_absent_components,

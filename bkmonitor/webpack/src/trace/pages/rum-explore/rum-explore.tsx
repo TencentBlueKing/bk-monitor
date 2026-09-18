@@ -125,8 +125,24 @@ export default defineComponent({
       ),
     });
 
+    /** 检索条件字段：具体 span 类型视角下，该类型的展示字段按声明顺序前置 */
+    const retrievalFields = computed(() => {
+      const priorityDisplay = isSpanSpecialPerspective.value
+        ? (viewConfigCtx.viewConfig.value.span_type_display_fields?.[store.spanType] ?? [])
+        : [];
+      const fields = viewConfigCtx.retrievalFields.value;
+      if (!priorityDisplay.length) return fields;
+      const priorityMap = new Map<string, number>();
+      for (const [index, name] of priorityDisplay.entries()) {
+        priorityMap.set(name, index);
+      }
+      const priorityFields = fields.filter(field => priorityMap.has(field.name));
+      priorityFields.sort((a, b) => (priorityMap.get(a.name) ?? 0) - (priorityMap.get(b.name) ?? 0));
+      return [...priorityFields, ...fields.filter(field => !priorityMap.has(field.name))];
+    });
+
     const favoriteBoxRef = useTemplateRef<InstanceType<typeof FavoriteBox>>('favoriteBoxRef');
-    /** 检索视图容器 ref，其根节点即表格的滚动容器 */
+    /** 检索视图容器 ref，其根节点即表格的滚动容器，也是吸顶表头锚定的容器 */
     const rumExploreViewRef = useTemplateRef<InstanceType<typeof RumExploreView>>('rumExploreViewRef');
     const favoriteCtx = useRumFavorite({
       where: queryCtx.where,
@@ -262,6 +278,10 @@ export default defineComponent({
       if (isRangeValue && matched) {
         endStr = `${key} : [${matched[1]} TO ${matched[2] || matched[1]}]`;
       }
+      // 语句里已有完全相同的条件时忽略本次添加，避免重复检索；
+      // 比对时忽略空白差异，兼容 UI 模式切换过来时由后端生成的语句空格格式
+      const normalize = (str: string) => str.replace(/\s+/g, '');
+      if (queryCtx.queryString.value.split(/\s+AND\s+/).some(item => normalize(item) === normalize(endStr))) return;
       queryCtx.queryStringChange(
         queryCtx.queryString.value ? `${queryCtx.queryString.value} AND ${endStr}` : `${endStr}`
       );
@@ -331,6 +351,7 @@ export default defineComponent({
       tableCtx,
       thumbtackList,
       viewConfigCtx,
+      retrievalFields,
       getFieldValues,
       getResidentConfig,
       getResidentConfigCustom,
@@ -391,7 +412,9 @@ export default defineComponent({
                 copyLoading={queryCtx.generateQueryStringLoading.value}
                 defaultShowResidentBtn={queryCtx.showResidentBtn.value}
                 favoriteList={this.favoriteList}
-                fields={viewConfigCtx.retrievalFields.value}
+                fields={this.retrievalFields}
+                /* UI 模式添加条件时不预选字段，直接聚焦到字段搜索框 */
+                fieldSearchAutoFocus={true}
                 filterMode={queryCtx.filterMode.value}
                 getValueFn={this.getFieldValues}
                 handleGetUserConfig={this.getResidentConfigCustom as IHandleGetUserConfig}
@@ -481,6 +504,7 @@ export default defineComponent({
                               baseColumns={this.columnConfig.baseColumns.value}
                               commonParams={queryCtx.commonParams.value}
                               data={tableCtx.tableData.value}
+                              defaultFieldKeys={this.columnConfig.defaultDisplayFields.value}
                               displayableFields={this.columnConfig.displayableFields.value}
                               emptyType={this.emptyType}
                               fieldMap={this.columnConfig.fieldMap.value}
@@ -504,6 +528,7 @@ export default defineComponent({
                           ),
                         }}
                         backTopSignal={tableCtx.backTopSignal.value}
+                        syncAffixOnResize={true}
                       />
                     </div>
                   ),

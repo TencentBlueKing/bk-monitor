@@ -1682,6 +1682,7 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer, ParentInd
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
     )
     is_display = serializers.BooleanField(label=_("是否展示"), default=True, required=False)
+    # 授权范围：采集项 + 索引集 + 所属业务的业务访问，详见 CollectorHandler._authorization_owners
     owners = serializers.ListField(
         label=_("授权用户列表"),
         required=False,

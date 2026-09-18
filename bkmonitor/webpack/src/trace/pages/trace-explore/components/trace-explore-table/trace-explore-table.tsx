@@ -102,6 +102,11 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    /** 默认展示列字段名（顺序即列顺序），列设置「恢复默认」的回填来源 */
+    defaultFieldKeys: {
+      type: Array as PropType<string[]>,
+      default: undefined,
+    },
     /** 缓存的列宽配置 */
     fieldsWidthConfig: {
       type: Object as PropType<Record<string, number>>,
@@ -539,6 +544,13 @@ export default defineComponent({
     };
 
     /**
+     * @description 弹层内容渲染完成后重新定向：数据加载前后内容高度不同，初始定位会偏移导致底部内容被裁
+     */
+    const handleStatisticsPopoverUpdate = () => {
+      statisticsPopoverInstance?.popperInstance?.forceUpdate();
+    };
+
+    /**
      * @description 字段分析组件渲染方法
      */
     const statisticsDomRender = () => {
@@ -555,6 +567,7 @@ export default defineComponent({
           isInteger={['double', 'long', 'integer'].includes(fieldOptions?.name)}
           isShow={showStatisticsPopover.value}
           onConditionChange={handleConditionChange}
+          onContentRendered={handleStatisticsPopoverUpdate}
           onShowMore={() => handleStatisticsPopoverHide(false)}
           onSliderShowChange={handleStatisticsSliderShow}
         />,
@@ -700,7 +713,11 @@ export default defineComponent({
                       return (
                         <ExploreFieldSetting
                           class='table-field-setting'
+                          defaultFields={this.defaultFieldKeys}
+                          dragHandle='.list-item-left'
                           fixedDisplayList={[this.tableRowKeyField]}
+                          popoverTheme='trace-explore-field-setting'
+                          showFieldName={true}
                           sourceList={this.tableColumns.fieldList}
                           sourceMap={this.tableColumns.fieldMap}
                           targetList={this.displayFields}

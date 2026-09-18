@@ -509,6 +509,7 @@ export default defineComponent({
               <UiSelector
                 clearKey={this.clearKey}
                 fields={this.localFields}
+                fieldSearchAutoFocus={this.fieldSearchAutoFocus}
                 getValueFn={this.getValueFn}
                 hasShortcutKey={this.hasShortcutKey}
                 limit={this.limit}

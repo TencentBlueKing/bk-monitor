@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
+import {
+  type PropType,
+  computed,
+  defineComponent,
+  nextTick,
+  onMounted,
+  shallowRef,
+  toRef,
+  useTemplateRef,
+  watch,
+} from 'vue';
 
 import {
   type BkUiSettings,
@@ -49,6 +59,7 @@ import { DEFAULT_TABLE_CONFIG } from './table-constants';
 
 import type {
   BaseTableColumn,
+  EllipsisPosition,
   TableCellRenderer,
 } from '../../../../../trace-explore/components/trace-explore-table/typing';
 import type { CheckboxGroupValue, SelectOptions, SizeEnum, SlotReturnValue, TdAffixProps } from 'tdesign-vue-next';
@@ -132,6 +143,10 @@ export default defineComponent({
     customDefaultGetRenderValue: {
       type: Function as PropType<(row: Record<string, unknown>, column: BaseTableColumn) => unknown>,
     },
+    /** 表格单元格溢出省略号位置全局默认值（end: 末尾省略；start: 开头省略。优先级低于列配置 ellipsisPosition） */
+    ellipsisPosition: {
+      type: String as PropType<EllipsisPosition>,
+    },
     /** 表格默认选中高亮的行 */
     defaultActiveRowKeys: {
       type: Array as PropType<(number | string)[]>,
@@ -191,10 +206,11 @@ export default defineComponent({
     const wrapperRef = useTemplateRef<HTMLElement>('wrapperRef');
     /** 表格单元格渲染逻辑 */
     const { tableCellRender, renderContext } = useTableCell({
-      rowKeyField: props.rowKey,
+      rowKeyField: toRef(props, 'rowKey'),
       customCellRenderMap: props.customCellRenderMap,
       customDefaultGetRenderValue: props.customDefaultGetRenderValue,
       cellEllipsisClass: COMMON_TABLE_ELLIPSIS_CLASS_NAME,
+      ellipsisPosition: toRef(props, 'ellipsisPosition'),
     });
     /** 表格功能单元格内容溢出弹出 popover 功能（绑定到包裹层，避免表格重建时事件委托丢失） */
     const { initListeners: initEllipsisListeners } = useTableEllipsis(wrapperRef, {

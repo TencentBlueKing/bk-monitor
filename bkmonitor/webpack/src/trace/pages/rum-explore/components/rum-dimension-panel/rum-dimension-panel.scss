@@ -39,19 +39,20 @@
 
   .panel-search {
     padding: 0 12px;
-    margin-bottom: 8px;
 
     .bk-input {
       cursor: pointer;
       border-color: transparent;
 
       input,
+      /* stylelint-disable-next-line selector-class-pattern */
       .bk-input--suffix-icon {
         background-color: #f0f1f5;
       }
 
       &:hover {
         input,
+        /* stylelint-disable-next-line selector-class-pattern */
         .bk-input--suffix-icon {
           background-color: #eaebf0;
         }
@@ -82,8 +83,8 @@
   .group-title {
     display: flex;
     align-items: center;
+    padding: 8px 12px;
     line-height: 20px;
-    padding: 12px 12px 6px;
     cursor: pointer;
 
     .group-icon {
@@ -170,10 +171,8 @@
     padding: 12px;
   }
 
-  // #if IS_APM_MONITOR
-  > .tippy-arrow {
+  /* 嵌入宿主时弹层箭头需要额外偏移 */
+  body.is-monitor-embed & > .tippy-arrow {
     margin-top: -6px;
   }
-
-  // #endif
 }

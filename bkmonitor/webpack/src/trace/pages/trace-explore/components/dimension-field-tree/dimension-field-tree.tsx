@@ -26,20 +26,11 @@
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import FieldTypeIcon from '../field-type-icon';
+import { getEmbedContext } from '@/common/embed-context';
 
 import type { IDimensionFieldTreeItem } from '../../typing';
 
 import './dimension-field-tree.scss';
-
-/**
- * APM 嵌入时 trace 主站的 global.scss 可能未进包，宿主全局气泡样式会污染默认主题，
- * 需要额外的 theme token 提高特异性；独立运行时该对象为空，等价于不传配置。
- */
-const OVERFLOW_TIPS_OPTIONS = {
-  // #if IS_APM_MONITOR
-  theme: 'dark dimension-filter-name-overflow',
-  // #endif
-};
 
 /**
  * 维度字段树。
@@ -61,6 +52,12 @@ export default defineComponent({
     fieldClick: (_event: MouseEvent, _field: IDimensionFieldTreeItem) => true,
   },
   setup(props, { emit }) {
+    /**
+     * 嵌入宿主时 trace 主站的 global.scss 不随包发布，宿主的全局气泡样式会污染默认主题，
+     * 需要额外的 theme token 提高特异性；主站下为空对象，等价于不传配置。
+     */
+    const overflowTipsOptions = getEmbedContext() ? { theme: 'dark dimension-filter-name-overflow' } : {};
+
     /** 用户手动展开收起的结果，未记录的节点回落到 expandAll */
     const expandOverrides = shallowRef(new Map<string, boolean>());
 
@@ -119,7 +116,7 @@ export default defineComponent({
             <FieldTypeIcon type={item.type} />
             <span
               class='dimension-name'
-              v-overflow-tips={OVERFLOW_TIPS_OPTIONS}
+              v-overflow-tips={overflowTipsOptions}
             >
               {item.levelAlias}
               {item?.levelName && !isTreeNode && item.name !== item.alias && (

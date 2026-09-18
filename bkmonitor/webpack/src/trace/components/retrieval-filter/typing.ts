@@ -507,6 +507,11 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Boolean,
     default: false,
   },
+  // ui模式在添加条件的时候聚焦在搜索key值的搜索框上而非默认选中第一个key值
+  fieldSearchAutoFocus: {
+    type: Boolean,
+    default: false,
+  },
 };
 export const RETRIEVAL_FILTER_EMITS = {
   favorite: (_isEdit: boolean) => true,
@@ -583,6 +588,11 @@ export const UI_SELECTOR_PROPS = {
     type: Boolean,
     default: false,
   },
+  // ui模式在添加条件的时候聚焦在搜索key值的搜索框上而非默认选中第一个key值
+  fieldSearchAutoFocus: {
+    type: Boolean,
+    default: false,
+  },
 };
 export const UI_SELECTOR_EMITS = {
   change: (_v: IFilterItem[]) => true,
@@ -624,6 +634,11 @@ export const UI_SELECTOR_OPTIONS_PROPS = {
   noValueOfMethods: {
     type: Array as PropType<string[]>,
     default: () => [],
+  },
+  // ui模式在添加条件的时候聚焦在搜索key值的搜索框上而非默认选中第一个key值
+  fieldSearchAutoFocus: {
+    type: Boolean,
+    default: false,
   },
 };
 export const UI_SELECTOR_OPTIONS_EMITS = {
