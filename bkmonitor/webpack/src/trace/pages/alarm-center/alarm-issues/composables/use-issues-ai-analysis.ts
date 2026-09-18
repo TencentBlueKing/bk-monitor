@@ -107,6 +107,9 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
     sourceAnalysisData.value = await startIssueSourceAnalysis(params).finally(() => {
       loading.retryAnalysis = false;
     });
+    if (sourceAnalysisIsPending.value) {
+      await getSourceAnalysisData(params);
+    }
   };
 
   /**
@@ -124,6 +127,12 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
     } else {
       sourceAnalysisData.value = await reanalyzeIssueSourceAnalysis(params).finally(() => {
         loading.retryAnalysis = false;
+      });
+    }
+    if (sourceAnalysisIsPending.value) {
+      await getSourceAnalysisData({
+        bk_biz_id: params.bk_biz_id,
+        issue_id: params.issue_id,
       });
     }
   };
