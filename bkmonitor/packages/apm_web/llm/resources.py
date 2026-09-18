@@ -15,6 +15,7 @@ from apm_web.handlers.trace_handler.query import QueryHandler, QueryStringBuilde
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import AGENT_CANDIDATE_Q, resolve_product, resolve_query_field
 from apm_web.llm.constants import CalculationType
+from apm_web.llm.flow import FlowBuilder
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
@@ -453,44 +454,13 @@ class ListFlowsResource(Resource):
         group_field = serializers.CharField(required=True, label="分组字段")
         group_id = serializers.CharField(required=True, label="分组值")
 
-    @staticmethod
-    def _build_flow(
-        raw_spans: list[dict[str, Any]],
-        spans: list[dict[str, Any]],
-    ) -> list[dict[str, Any]]:
-        nodes = [{**span, "childs": []} for span in spans]
-        nodes_by_span_id = {node[OtlpKey.SPAN_ID]: node for node in nodes if node.get(OtlpKey.SPAN_ID)}
-        raw_spans_by_span_id = {span[OtlpKey.SPAN_ID]: span for span in raw_spans if span.get(OtlpKey.SPAN_ID)}
-        raw_children_by_parent_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        raw_roots = []
-        for span in raw_spans:
-            span_id = span.get(OtlpKey.SPAN_ID)
-            parent_span_id = span.get(OtlpKey.PARENT_SPAN_ID)
-            if parent_span_id and parent_span_id in raw_spans_by_span_id and parent_span_id != span_id:
-                raw_children_by_parent_id[parent_span_id].append(span)
-            else:
-                raw_roots.append(span)
+    @classmethod
+    def build_trace_flows(cls, validated_request_data) -> dict[str, FlowBuilder]:
+        """按分组字段查询 Trace 并构造执行线，key 为 trace_id，保持查询到的 Trace 顺序。
 
-        roots = []
-
-        def project(span: dict[str, Any], parent: dict[str, Any] | None) -> None:
-            node = nodes_by_span_id.get(span.get(OtlpKey.SPAN_ID))
-            if node is not None:
-                if parent is None:
-                    roots.append(node)
-                else:
-                    parent["childs"].append(node)
-                parent = node
-
-            for child in raw_children_by_parent_id.get(span.get(OtlpKey.SPAN_ID), []):
-                project(child, parent)
-
-        for raw_root in raw_roots:
-            project(raw_root, None)
-
-        return roots
-
-    def perform_request(self, validated_request_data):
+        执行线的构造与 Token 回填、统计在同一次递归内完成，Token 统计接口直接复用本方法的结果，
+        避免对同一棵树重复遍历。
+        """
         application = Application.objects.get(
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
@@ -498,25 +468,28 @@ class ListFlowsResource(Resource):
         span_query = get_query(application.build_data_sources())
         group_field = validated_request_data["group_field"]
         group_id = validated_request_data["group_id"]
-        group_trace_records = span_query.query_group_trace_list(
-            group_field=group_field,
-            group_ids=[group_id],
-        )
-        trace_ids = list(
-            dict.fromkeys(record[OtlpKey.TRACE_ID] for record in group_trace_records if record.get(OtlpKey.TRACE_ID))
-        )
-        result = {
-            "group_field": group_field,
-            "group_id": group_id,
-            "traces": [],
-        }
+        if group_field == OtlpKey.TRACE_ID:
+            trace_ids = [group_id]
+        else:
+            group_trace_records = span_query.query_group_trace_list(
+                group_field=group_field,
+                group_ids=[group_id],
+            )
+            trace_ids = list(
+                dict.fromkeys(
+                    record[OtlpKey.TRACE_ID] for record in group_trace_records if record.get(OtlpKey.TRACE_ID)
+                )
+            )
         if not trace_ids:
-            return result
+            return {}
 
         spans = span_query.query_by_group_ids(
             group_field=OtlpKey.TRACE_ID,
             group_ids=trace_ids,
         )
+        if not spans:
+            return {}
+
         entity_set = EntitySet(
             bk_biz_id=validated_request_data["bk_biz_id"],
             app_name=validated_request_data["app_name"],
@@ -526,15 +499,47 @@ class ListFlowsResource(Resource):
             if trace_id := span.get(OtlpKey.TRACE_ID):
                 spans_by_trace[trace_id].append(span)
 
+        flows: dict[str, FlowBuilder] = {}
         for trace_id in trace_ids:
-            raw_trace_spans = spans_by_trace[trace_id]
-            result["traces"].append(
-                {
-                    "trace_id": trace_id,
-                    "flow": self._build_flow(raw_trace_spans, adapt_spans(raw_trace_spans, entity_set)),
-                }
-            )
-        return result
+            raw_trace_spans = spans_by_trace.get(trace_id)
+            if not raw_trace_spans:
+                continue
+            builder = FlowBuilder(raw_trace_spans, adapt_spans(raw_trace_spans, entity_set))
+            builder.build()
+            flows[trace_id] = builder
+        return flows
+
+    def perform_request(self, validated_request_data):
+        return {
+            "group_field": validated_request_data["group_field"],
+            "group_id": validated_request_data["group_id"],
+            "traces": [
+                {"trace_id": trace_id, "flow": builder.flow}
+                for trace_id, builder in self.build_trace_flows(validated_request_data).items()
+            ],
+        }
+
+
+class TokenStatisticsResource(Resource):
+    """统计 Trace 内所有 Agent Span 子树的模型 Token。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        app_name = serializers.CharField(required=True, label="应用名称")
+        trace_id = serializers.CharField(required=True, label="Trace ID")
+
+    def perform_request(self, validated_request_data):
+        trace_id = validated_request_data["trace_id"]
+        flows = ListFlowsResource.build_trace_flows(
+            {
+                "bk_biz_id": validated_request_data["bk_biz_id"],
+                "app_name": validated_request_data["app_name"],
+                "group_field": OtlpKey.TRACE_ID,
+                "group_id": trace_id,
+            }
+        )
+        builder = flows.get(trace_id)
+        return {"trace_id": trace_id, "statistics": builder.statistics if builder else {}}
 
 
 class LLMMetricRequestSerializer(serializers.Serializer):

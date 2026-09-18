@@ -51,6 +51,28 @@ class CalculationType(CachedEnum):
         return labels.get(self) or self.value
 
 
+class SpanType:
+    """Span 的 LLM 语义层级，由 adapter 依据操作名归类，执行线构造与统计侧共用。"""
+
+    AGENT = "AGENT"
+    LLM = "LLM"
+    TOOL = "TOOL"
+
+
+# gen_ai.operation.name -> Span 语义层级，未登记的取值（检索、任务等）不归类。
+SPAN_TYPES: dict[str, str] = {
+    "invoke_workflow": SpanType.AGENT,
+    "create_agent": SpanType.AGENT,
+    "invoke_agent": SpanType.AGENT,
+    "plan": SpanType.AGENT,
+    "execute_tool": SpanType.TOOL,
+    "chat": SpanType.LLM,
+    "generate_content": SpanType.LLM,
+    "text_completion": SpanType.LLM,
+    "fetch_response": SpanType.LLM,
+    "embeddings": SpanType.LLM,
+}
+
 STANDARD_FIELDS: set[str] = {
     "error.type",
     "user.id",

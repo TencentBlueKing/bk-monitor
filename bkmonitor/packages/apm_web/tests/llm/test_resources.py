@@ -8,6 +8,7 @@ from apm_web.handlers.metric_group.define import CalculationType as MetricCalcul
 from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import AGENT_CANDIDATE_Q
 from apm_web.llm.constants import CalculationType
+from apm_web.llm.flow import FlowBuilder
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery
 from apm_web.llm.resources import (
@@ -15,6 +16,7 @@ from apm_web.llm.resources import (
     ListFlowsResource,
     ListSpansResource,
     ListTracesResource,
+    TokenStatisticsResource,
     TimeSeriesResource,
 )
 
@@ -1294,8 +1296,19 @@ class ListFlowsResourceTestCase(TestCase):
 
         spans = spans_result["spans"]
         flow = flows_result["traces"][0]["flow"]
+        flattened_flow = flatten(flow)
         self.assertEqual(spans_result["total"], 4)
-        self.assertEqual(flatten(flow), spans)
+        self.assertEqual(flattened_flow[1:], spans[1:])
+        self.assertEqual(
+            {
+                key: value
+                for key, value in flattened_flow[0]["attributes"].items()
+                if not key.startswith("gen_ai.usage.")
+            },
+            spans[0]["attributes"],
+        )
+        self.assertEqual(flattened_flow[0]["attributes"]["gen_ai.usage.input_tokens"], 300)
+        self.assertEqual(flattened_flow[0]["attributes"]["gen_ai.usage.output_tokens"], 116)
         self.assertEqual(
             [span["attributes"]["gen_ai.operation.name"] for span in spans],
             ["invoke_agent", "chat", "execute_tool", "chat"],
@@ -1356,11 +1369,310 @@ class ListFlowsResourceTestCase(TestCase):
             },
         ]
 
-        flow = ListFlowsResource._build_flow(raw_spans, [raw_spans[0], raw_spans[2]])
+        flow = FlowBuilder(raw_spans, [raw_spans[0], raw_spans[2]]).build()
 
         self.assertEqual([span["span_id"] for span in flow], ["agent"])
         self.assertEqual([span["span_id"] for span in flow[0]["childs"]], ["tool"])
         self.assertEqual(flow[0]["childs"][0]["parent_span_id"], "framework")
+
+    def test_flow_builder_fills_agent_tokens_from_llm_descendants(self):
+        raw_spans = [
+            {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100},
+            {"trace_id": "trace-1", "span_id": "framework", "parent_span_id": "agent", "start_time": 110},
+            {"trace_id": "trace-1", "span_id": "llm-1", "parent_span_id": "framework", "start_time": 120},
+            {"trace_id": "trace-1", "span_id": "llm-2", "parent_span_id": "agent", "start_time": 130},
+        ]
+        spans = [
+            {
+                **raw_spans[0],
+                "span_type": "AGENT",
+                "attributes": {"gen_ai.operation.name": "invoke_agent"},
+            },
+            {
+                **raw_spans[2],
+                "span_type": "LLM",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.input_tokens": 10,
+                    "gen_ai.usage.output_tokens": 3,
+                    "gen_ai.usage.cache_read.input_tokens": 2,
+                },
+            },
+            {
+                **raw_spans[3],
+                "span_type": "LLM",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.input_tokens": 20,
+                    "gen_ai.usage.output_tokens": 7,
+                    "gen_ai.usage.cache_write.input_tokens": 4,
+                },
+            },
+        ]
+
+        builder = FlowBuilder(raw_spans, spans)
+        flow = builder.build()
+
+        self.assertEqual(
+            builder.statistics["agent"],
+            {
+                "input_tokens": 30,
+                "output_tokens": 10,
+                "total_tokens": 40,
+                "cache_read_input_tokens": 2,
+                "cache_write_input_tokens": 4,
+            },
+        )
+        self.assertEqual(
+            {key: value for key, value in flow[0]["attributes"].items() if key.startswith("gen_ai.usage.")},
+            {
+                "gen_ai.usage.input_tokens": 30,
+                "gen_ai.usage.output_tokens": 10,
+                "gen_ai.usage.cache_read.input_tokens": 2,
+                "gen_ai.usage.cache_write.input_tokens": 4,
+            },
+        )
+        self.assertNotIn("gen_ai.usage.input_tokens", spans[0]["attributes"])
+
+    def test_flow_builder_prefers_nested_agent_reported_tokens(self):
+        raw_spans = [
+            {"trace_id": "trace-1", "span_id": "outer", "parent_span_id": "", "start_time": 100},
+            {"trace_id": "trace-1", "span_id": "inner", "parent_span_id": "outer", "start_time": 110},
+            {"trace_id": "trace-1", "span_id": "llm", "parent_span_id": "inner", "start_time": 120},
+        ]
+        spans = [
+            {
+                **raw_spans[0],
+                "span_type": "AGENT",
+                "attributes": {"gen_ai.operation.name": "invoke_workflow"},
+            },
+            {
+                **raw_spans[1],
+                "span_type": "AGENT",
+                "attributes": {
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.usage.input_tokens": 100,
+                    "gen_ai.usage.output_tokens": 50,
+                },
+            },
+            {
+                **raw_spans[2],
+                "span_type": "LLM",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.input_tokens": 60,
+                    "gen_ai.usage.output_tokens": 20,
+                },
+            },
+        ]
+
+        builder = FlowBuilder(raw_spans, spans)
+        builder.build()
+
+        self.assertEqual(
+            builder.statistics["outer"],
+            {
+                "input_tokens": 100,
+                "output_tokens": 50,
+                "total_tokens": 150,
+                "cache_read_input_tokens": 0,
+                "cache_write_input_tokens": 0,
+            },
+        )
+
+    def test_flow_builder_keeps_agent_reported_cache_and_backfills_other_fields(self):
+        """Agent 只报缓存、未报输入输出时，缓存不被子树统计覆盖。"""
+        raw_spans = [
+            {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100},
+            {"trace_id": "trace-1", "span_id": "llm", "parent_span_id": "agent", "start_time": 110},
+        ]
+        spans = [
+            {
+                **raw_spans[0],
+                "span_type": "AGENT",
+                "attributes": {
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.usage.cache_read.input_tokens": 80,
+                },
+            },
+            {
+                **raw_spans[1],
+                "span_type": "LLM",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.input_tokens": 100,
+                    "gen_ai.usage.output_tokens": 20,
+                },
+            },
+        ]
+
+        builder = FlowBuilder(raw_spans, spans)
+        builder.build()
+
+        self.assertEqual(
+            builder.statistics["agent"],
+            {
+                "input_tokens": 100,
+                "output_tokens": 20,
+                "total_tokens": 120,
+                "cache_read_input_tokens": 80,
+                "cache_write_input_tokens": 0,
+            },
+        )
+
+    def test_flow_builder_keeps_descendant_cache_when_agent_reports_usage(self):
+        """Agent 只报输入输出时，缺失的缓存字段仍由子树回填。"""
+        raw_spans = [
+            {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100},
+            {"trace_id": "trace-1", "span_id": "llm", "parent_span_id": "agent", "start_time": 110},
+        ]
+        spans = [
+            {
+                **raw_spans[0],
+                "span_type": "AGENT",
+                "attributes": {
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.usage.input_tokens": 100,
+                    "gen_ai.usage.output_tokens": 20,
+                },
+            },
+            {
+                **raw_spans[1],
+                "span_type": "LLM",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.input_tokens": 60,
+                    "gen_ai.usage.output_tokens": 20,
+                    "gen_ai.usage.cache_read.input_tokens": 30,
+                    "gen_ai.usage.cache_write.input_tokens": 5,
+                },
+            },
+        ]
+
+        builder = FlowBuilder(raw_spans, spans)
+        flow = builder.build()
+
+        self.assertEqual(
+            builder.statistics["agent"],
+            {
+                "input_tokens": 100,
+                "output_tokens": 20,
+                "total_tokens": 120,
+                "cache_read_input_tokens": 30,
+                "cache_write_input_tokens": 5,
+            },
+        )
+        # 回填只补缺失字段，已上报的输入输出保持原值并写入节点属性
+        self.assertEqual(flow[0]["attributes"]["gen_ai.usage.input_tokens"], 100)
+        self.assertEqual(flow[0]["attributes"]["gen_ai.usage.cache_read.input_tokens"], 30)
+
+    def test_flow_builder_keeps_explicit_zero_reported_by_agent(self):
+        """Agent 显式上报 0 属有效值，不再用子树统计覆盖。"""
+        raw_spans = [
+            {"trace_id": "trace-1", "span_id": "agent", "parent_span_id": "", "start_time": 100},
+            {"trace_id": "trace-1", "span_id": "llm", "parent_span_id": "agent", "start_time": 110},
+        ]
+        spans = [
+            {
+                **raw_spans[0],
+                "span_type": "AGENT",
+                "attributes": {
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.usage.cache_read.input_tokens": 0,
+                },
+            },
+            {
+                **raw_spans[1],
+                "span_type": "LLM",
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.cache_read.input_tokens": 30,
+                },
+            },
+        ]
+
+        builder = FlowBuilder(raw_spans, spans)
+        builder.build()
+
+        self.assertEqual(builder.statistics["agent"]["cache_read_input_tokens"], 0)
+
+    def test_token_statistics_returns_all_agents_from_one_flow_query(self):
+        resource = {"service.name": "agent-service"}
+        status = {"code": 1, "message": ""}
+        raw_spans = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "agent",
+                "parent_span_id": "",
+                "span_name": "invoke_agent",
+                "start_time": 100,
+                "end_time": 200,
+                "elapsed_time": 100,
+                "status": status,
+                "resource": resource,
+                "attributes": {
+                    "gen_ai.operation.name": "invoke_agent",
+                    "gen_ai.usage.input_tokens": 30,
+                    "gen_ai.usage.output_tokens": 10,
+                },
+                "events": [],
+            },
+            {
+                "trace_id": "trace-1",
+                "span_id": "llm",
+                "parent_span_id": "agent",
+                "span_name": "chat demo-model",
+                "start_time": 110,
+                "end_time": 190,
+                "elapsed_time": 80,
+                "status": status,
+                "resource": resource,
+                "attributes": {
+                    "gen_ai.operation.name": "chat",
+                    "gen_ai.usage.input_tokens": 20,
+                    "gen_ai.usage.output_tokens": 5,
+                    "gen_ai.usage.cache_read.input_tokens": 7,
+                },
+                "events": [],
+            },
+        ]
+        application = mock.Mock()
+        application.build_data_sources.return_value = [mock.sentinel.data_source]
+        span_query = mock.Mock()
+        span_query.query_by_group_ids.return_value = raw_spans
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
+
+        with (
+            mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+        ):
+            result = TokenStatisticsResource().request(
+                {
+                    "bk_biz_id": 11,
+                    "app_name": "sand_local_dev",
+                    "trace_id": "trace-1",
+                }
+            )
+
+        # 统计与执行线出自同一次查询；Agent 自报输入输出，缺失的缓存字段由子树回填
+        self.assertEqual(
+            result,
+            {
+                "trace_id": "trace-1",
+                "statistics": {
+                    "agent": {
+                        "input_tokens": 30,
+                        "output_tokens": 10,
+                        "total_tokens": 40,
+                        "cache_read_input_tokens": 7,
+                        "cache_write_input_tokens": 0,
+                    }
+                },
+            },
+        )
+        span_query.query_by_group_ids.assert_called_once_with(group_field="trace_id", group_ids=["trace-1"])
 
     def test_builds_span_tree_for_each_trace(self):
         group_field = "attributes.gen_ai.conversation.id"
@@ -1445,6 +1757,7 @@ class ListFlowsResourceTestCase(TestCase):
         application.build_data_sources.return_value = []
         span_query = mock.Mock()
         span_query.query_group_trace_list.return_value = []
+        span_query.query_by_group_ids.return_value = []
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
@@ -1467,7 +1780,11 @@ class ListFlowsResourceTestCase(TestCase):
                 "traces": [],
             },
         )
-        span_query.query_by_group_ids.assert_not_called()
+        span_query.query_group_trace_list.assert_not_called()
+        span_query.query_by_group_ids.assert_called_once_with(
+            group_field="trace_id",
+            group_ids=["missing-trace"],
+        )
 
 
 LLM_METRIC_REQUEST = {
