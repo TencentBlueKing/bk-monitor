@@ -166,7 +166,7 @@ def compose_profile_data_id_name(bk_biz_id: int, app_name: str) -> str:
         return name
 
     # 截断：profile_{bk_biz_id}_{truncated}_{random}
-    # 固定部分 = 前缀 + bk_biz_id  + random下划线 + random
+    # 固定部分 = 前缀 + random下划线 + random
     fixed_len = len(prefix) + 1 + _RANDOM_LENGTH
     truncated_max = _MAX_LENGTH - fixed_len
     if truncated_max < 1:
