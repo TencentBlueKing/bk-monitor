@@ -1562,7 +1562,10 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         profile_bk_biz_id = bk_biz_id
         if bk_biz_id < 0:
             # 非业务创建 profile 将创建在租户默认业务下
-            profile_bk_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                profile_bk_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+            else:
+                profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
 
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
 

@@ -154,27 +154,26 @@ def compose_profile_data_id_name(bk_biz_id: int, app_name: str) -> str:
     @param app_name: 应用名称
     @return: DataId 资源名称，长度 ≤ 50
     """
-    _PREFIX = "profile_"
     _MAX_LENGTH = 50
     _RANDOM_LENGTH = 5
 
     sanitized = _sanitize_name(app_name)
-    biz_id = f"space_{abs(bk_biz_id)}" if bk_biz_id < 0 else str(bk_biz_id)
+    prefix = f"profile_space_{abs(bk_biz_id)}" if bk_biz_id < 0 else str(bk_biz_id)
     # profile_{bk_biz_id}_{sanitized}
-    name = f"{_PREFIX}{biz_id}_{sanitized}"
+    name = f"{prefix}_{sanitized}"
 
     if len(name) <= _MAX_LENGTH:
         return name
 
     # 截断：profile_{bk_biz_id}_{truncated}_{random}
     # 固定部分 = 前缀 + bk_biz_id + 2个下划线 + random下划线 + random
-    fixed_len = len(_PREFIX) + len(biz_id) + 2 + 1 + _RANDOM_LENGTH
+    fixed_len = len(prefix) + 2 + 1 + _RANDOM_LENGTH
     truncated_max = _MAX_LENGTH - fixed_len
     if truncated_max < 1:
         truncated_max = 1
     truncated = sanitized[:truncated_max].rstrip("_")
     random_suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=_RANDOM_LENGTH))
-    return f"{_PREFIX}{biz_id}_{truncated}_{random_suffix}"
+    return f"{prefix}_{truncated}_{random_suffix}"
 
 
 def compose_profile_resource_name(app_name: str, bk_data_id: int) -> str:
