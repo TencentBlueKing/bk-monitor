@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from types import SimpleNamespace
 from unittest.mock import Mock, patch
 
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import resolve
 from rest_framework import permissions
 
@@ -22,6 +22,7 @@ from bkmonitor.utils.user import set_local_username
 from core.drf_resource import api
 from core.drf_resource.exceptions import custom_exception_handler
 from core.errors.issue import (
+    IssueAIAnalysisNotEnabledError,
     IssueError,
     SourceAnalysisConfigNotFoundError,
     SourceAnalysisDefaultRuleCannotDeleteError,
@@ -35,6 +36,7 @@ from core.errors.issue import (
     SourceAnalysisUpstreamUnavailableError,
 )
 from fta_web.issue.resources import (
+    AIAnalysisOverviewResource,
     CreateSourceAnalysisRuleResource,
     DeleteSourceAnalysisRuleResource,
     GetSourceAnalysisConfigResource,
@@ -46,6 +48,7 @@ from fta_web.issue.resources import (
     SourceAnalysisRuleWriteSerializer,
     UpdateSourceAnalysisRuleResource,
 )
+from fta_web.issue.source_analysis import is_issue_ai_analysis_enabled_for_biz
 from fta_web.issue.views import SourceAnalysisConfigViewSet, SourceAnalysisRulesViewSet
 
 
@@ -56,6 +59,40 @@ def validate(serializer_class, data):
 
 
 class TestSourceAnalysisRuleSerializers(SimpleTestCase):
+    @override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=[])
+    def test_issue_ai_analysis_empty_white_list_disables_all_biz(self):
+        self.assertFalse(is_issue_ai_analysis_enabled_for_biz(2))
+
+    @override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=[-1])
+    def test_issue_ai_analysis_minus_one_enables_all_biz(self):
+        self.assertTrue(is_issue_ai_analysis_enabled_for_biz(2))
+
+    @override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=["2"])
+    def test_issue_ai_analysis_normalizes_and_matches_biz_id(self):
+        self.assertTrue(is_issue_ai_analysis_enabled_for_biz(2))
+        self.assertFalse(is_issue_ai_analysis_enabled_for_biz(3))
+
+    @override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=["invalid"])
+    def test_issue_ai_analysis_invalid_white_list_fails_closed(self):
+        self.assertFalse(is_issue_ai_analysis_enabled_for_biz(2))
+
+    @override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=[])
+    def test_source_analysis_resources_reject_biz_outside_white_list(self):
+        resource_requests = (
+            (ListSourceAnalysisRulesResource, {"bk_biz_id": 2}),
+            (AIAnalysisOverviewResource, {"bk_biz_id": 2, "issue_id": "issue-1"}),
+        )
+        for resource_class, request_data in resource_requests:
+            with self.subTest(resource_class=resource_class.__name__):
+                with self.assertRaises(IssueAIAnalysisNotEnabledError):
+                    resource_class().validate_request_data(request_data)
+
+    @override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=[2])
+    def test_source_analysis_resources_accept_biz_inside_white_list(self):
+        validated_data = ListSourceAnalysisRulesResource().validate_request_data({"bk_biz_id": 2})
+
+        self.assertEqual(validated_data["bk_biz_id"], 2)
+
     def test_rule_contract_does_not_expose_name(self):
         self.assertNotIn("name", SourceAnalysisRuleWriteSerializer().fields)
         self.assertNotIn("name", SourceAnalysisRulePatchSerializer().fields)
@@ -190,6 +227,7 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
 
     def test_source_analysis_errors_use_unique_issue_error_codes(self):
         error_classes = [
+            IssueAIAnalysisNotEnabledError,
             SourceAnalysisUpstreamUnavailableError,
             SourceAnalysisConfigNotFoundError,
             SourceAnalysisRepositoryInvalidError,
@@ -239,6 +277,7 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
         )
 
 
+@override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=[2])
 class TestSourceAnalysisConfigAndRules(TestCase):
     databases = {"default", "monitor_api"}
 

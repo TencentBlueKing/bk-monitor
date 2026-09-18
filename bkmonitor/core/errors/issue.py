@@ -83,6 +83,13 @@ class SourceAnalysisDefaultRulePriorityImmutableError(IssueError):
     message_tpl = _lazy("默认规则优先级不可修改")
 
 
+class IssueAIAnalysisNotEnabledError(IssueError):
+    code = 3327010
+    status_code = 403
+    name = _lazy("Issue AI 分析未开放")
+    message_tpl = _lazy("当前业务暂未开放 Issue AI 分析能力")
+
+
 class SourceAnalysisDefaultRuleConditionsInvalidError(IssueError):
     code = 3327011
     name = _lazy("源码分析默认规则条件无效")

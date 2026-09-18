@@ -363,7 +363,7 @@ export const getRouteConfig = () => {
         //     }
         //   ]
         // },
-        window.enable_aiops
+        window.enable_aiops || window.enable_issue_ai_analysis
           ? {
               name: '智能设置',
               shortName: '智能',

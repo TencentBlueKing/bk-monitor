@@ -99,3 +99,25 @@ def test_get_basic_context_disables_ai_assistant_by_environment_variable():
         context = get_basic_context(make_request(), [{"bk_biz_id": 2}], 2)
 
     assert context["ENABLE_AI_ASSISTANT"] == "false"
+
+
+@override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=[2])
+def test_get_basic_context_enables_issue_ai_analysis_for_whitelisted_biz():
+    with (
+        mock.patch("common.context_processors.get_core_context", return_value={}),
+        mock.patch("common.context_processors.is_ipv6_biz", return_value=False),
+    ):
+        context = get_basic_context(make_request(), [{"bk_biz_id": 2}], 2)
+
+    assert context["ENABLE_ISSUE_AI_ANALYSIS"] is True
+
+
+@override_settings(ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST=[])
+def test_get_basic_context_disables_issue_ai_analysis_for_empty_white_list():
+    with (
+        mock.patch("common.context_processors.get_core_context", return_value={}),
+        mock.patch("common.context_processors.is_ipv6_biz", return_value=False),
+    ):
+        context = get_basic_context(make_request(), [{"bk_biz_id": 2}], 2)
+
+    assert context["ENABLE_ISSUE_AI_ANALYSIS"] is False

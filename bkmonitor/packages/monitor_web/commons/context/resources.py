@@ -176,6 +176,7 @@ class EnhancedGetContextResource(Resource):
             "MAX_AVAILABLE_DURATION_LIMIT",
             "GRAPH_WATERMARK",
             "ENABLE_AIOPS",
+            "ENABLE_ISSUE_AI_ANALYSIS",
             "ENABLE_AIOPS_INCIDENT",
             "ENABLE_APM",
             "ENABLE_CMDB_LEVEL",

@@ -77,6 +77,7 @@ from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
 from core.errors.common import HTTP404Error
 from core.errors.issue import (
+    IssueAIAnalysisNotEnabledError,
     IssueRenameConflictError,
     SourceAnalysisConfigNotFoundError,
     SourceAnalysisDefaultRuleCannotDeleteError,
@@ -97,6 +98,7 @@ from fta_web.issue.handlers.issue import (
     IssueQueryHandler,
 )
 from fta_web.issue.serializers import IssueSearchSerializer
+from fta_web.issue.source_analysis import is_issue_ai_analysis_enabled_for_biz
 from fta_web.issue.source_analysis_result import (
     SOURCE_ANALYSIS_RESULT_SCHEMA_VERSION,
     SourceAnalysisResultValidationError,
@@ -129,7 +131,17 @@ def build_bkfara_client_request_id(purpose: str, *parts) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_URL, identity))
 
 
-class SourceAnalysisBaseResource(Resource):
+class IssueAIAnalysisWhitelistMixin:
+    """统一保护 Issue AI 分析的用户态 Resource 入口。"""
+
+    def validate_request_data(self, request_data):
+        validated_request_data = super().validate_request_data(request_data)
+        if not is_issue_ai_analysis_enabled_for_biz(validated_request_data.get("bk_biz_id")):
+            raise IssueAIAnalysisNotEnabledError()
+        return validated_request_data
+
+
+class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
     """源码分析选项、配置与规则接口的公共基类。
 
     集中承载上游异常收敛、快照序列化、代码库与 AI 资源校验、规则执行身份准备等逻辑，
@@ -473,7 +485,7 @@ class SourceAnalysisBaseResource(Resource):
         return rule
 
 
-class SourceAnalysisExecutionBaseResource(Resource):
+class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
     """Issue 源码分析执行入口的公共业务逻辑。
 
     首次触发负责选择当前输入并落执行记录；异步任务随后复用本类完成 BKFara 创建、执行、

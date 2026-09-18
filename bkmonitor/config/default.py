@@ -433,6 +433,9 @@ AIOPS_BIZ_WHITE_LIST = []
 # 是否开启AIOPS根因故障定位功能，业务白名单
 AIOPS_INCIDENT_BIZ_WHITE_LIST = []
 
+# Issue AI 分析业务白名单：空名单关闭，-1 表示全量开启
+ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST = []
+
 # 是否由GSE分配dataid，默认是False，由监控自身来负责分配
 IS_ASSIGN_DATAID_BY_GSE = True
 

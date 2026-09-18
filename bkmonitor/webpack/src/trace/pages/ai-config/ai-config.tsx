@@ -44,12 +44,16 @@ export default defineComponent({
     const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
+    const enableAnomalyDetection = !!window.enable_aiops;
+    const enableSourceCodeAnalysis = !!window.enable_issue_ai_analysis;
 
     /** 当前 Tab 由 url query 决定，保证刷新与分享后仍停留在同一 Tab */
     const activeTab = shallowRef(
-      route.query.tab === EAiConfigTab.sourceCodeAnalysis
+      route.query.tab === EAiConfigTab.sourceCodeAnalysis && enableSourceCodeAnalysis
         ? EAiConfigTab.sourceCodeAnalysis
-        : EAiConfigTab.anomalyDetection
+        : enableAnomalyDetection
+          ? EAiConfigTab.anomalyDetection
+          : EAiConfigTab.sourceCodeAnalysis
     );
 
     /** 当前激活 Tab 对应的子组件 ref，用于在路由离开时调用其暴露的 save / isEdited */
@@ -165,20 +169,24 @@ export default defineComponent({
           type='card-grid'
           onChange={handleTabChange}
         >
-          <Tab.TabPanel
-            v-slots={{ label: () => renderTabLabel('icon-yichangjiance', t('异常检测')) }}
-            label={t('异常检测')}
-            name={EAiConfigTab.anomalyDetection}
-          >
-            <AnomalyDetection ref='anomalyDetection' />
-          </Tab.TabPanel>
-          <Tab.TabPanel
-            v-slots={{ label: () => renderTabLabel('icon-code', t('源码 AI 分析')) }}
-            label={t('源码 AI 分析')}
-            name={EAiConfigTab.sourceCodeAnalysis}
-          >
-            <SourceCodeAnalysis ref='sourceCodeAnalysis' />
-          </Tab.TabPanel>
+          {enableAnomalyDetection && (
+            <Tab.TabPanel
+              v-slots={{ label: () => renderTabLabel('icon-yichangjiance', t('异常检测')) }}
+              label={t('异常检测')}
+              name={EAiConfigTab.anomalyDetection}
+            >
+              <AnomalyDetection ref='anomalyDetection' />
+            </Tab.TabPanel>
+          )}
+          {enableSourceCodeAnalysis && (
+            <Tab.TabPanel
+              v-slots={{ label: () => renderTabLabel('icon-code', t('源码 AI 分析')) }}
+              label={t('源码 AI 分析')}
+              name={EAiConfigTab.sourceCodeAnalysis}
+            >
+              <SourceCodeAnalysis ref='sourceCodeAnalysis' />
+            </Tab.TabPanel>
+          )}
         </Tab>
       </div>
     );

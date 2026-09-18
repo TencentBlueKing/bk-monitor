@@ -128,6 +128,9 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const currentTab = shallowRef<IssueDetailTabType>(IssueDetailTabEnum.LATEST);
+    const tabList = computed(() =>
+      TAB_LIST.filter(item => item.name !== IssueDetailTabEnum.AI_ANALYSIS || window.enable_issue_ai_analysis)
+    );
 
     /** 告警详情页签（视图/日志/调用链等）默认选中项（Sideslider 使用 v-if，每次打开为新实例） */
     const controllableDefaultInnerTab = shallowRef<'' | AlarmCenterPanelTabType>(props.defaultInnerTab);
@@ -350,6 +353,7 @@ export default defineComponent({
     });
 
     const handleTabChange = (tab: IssueDetailTabType) => {
+      if (tab === IssueDetailTabEnum.AI_ANALYSIS && !window.enable_issue_ai_analysis) return;
       controllableDefaultInnerTab.value = '';
       currentTab.value = tab;
     };
@@ -493,6 +497,7 @@ export default defineComponent({
             />
           );
         case IssueDetailTabEnum.AI_ANALYSIS:
+          if (!window.enable_issue_ai_analysis) return null;
           return (
             <IssuesAiAnalysis
               detail={props.detail}
@@ -509,6 +514,7 @@ export default defineComponent({
 
     return {
       currentTab,
+      tabList,
       alertCount,
       commonParams,
       dimensionStatsData,
@@ -560,7 +566,7 @@ export default defineComponent({
             type='unborder-card'
             onUpdate:active={this.handleTabChange}
           >
-            {TAB_LIST.map(item => (
+            {this.tabList.map(item => (
               <Tab.TabPanel
                 key={item.name}
                 v-slots={{
@@ -593,12 +599,14 @@ export default defineComponent({
             onImpactScopeClick={this.handleImpactScopeClick}
             onPriorityChange={this.handlePriorityChange}
           />
-          <IssuesAiAnalysisOverview
-            detail={this.detail}
-            onViewReport={() => {
-              this.handleTabChange(IssueDetailTabEnum.AI_ANALYSIS);
-            }}
-          />
+          {window.enable_issue_ai_analysis && (
+            <IssuesAiAnalysisOverview
+              detail={this.detail}
+              onViewReport={() => {
+                this.handleTabChange(IssueDetailTabEnum.AI_ANALYSIS);
+              }}
+            />
+          )}
           <IssuesRelationTapd detail={this.detail} />
           <IssuesHistory detail={this.detail} />
           <IssuesActivity
