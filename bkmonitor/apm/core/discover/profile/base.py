@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,10 +7,12 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
 import datetime
 import logging
 
+from django.db import models
 from django.utils import timezone
 
 from apm.core.discover.base import DiscoverContainer
@@ -41,12 +42,14 @@ class Discover(abc.ABC):
     def get_builder(self):
         return ProfileQueryBuilder.from_table(self.result_table_id, self.bk_biz_id, self.app_name)
 
-    def clear_if_overflow(self, model):
-        count = model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).count()
-        if count > self.MAX_COUNT:
-            delete_count = count - self.MAX_COUNT
-            delete_pks = model.objects.order_by("updated_at").values_list("pk", flat=True)[:delete_count]
-            model.objects.filter(pk__in=list(delete_pks)).delete()
+    def clear_if_overflow(self, model: type[models.Model]) -> None:
+        queryset = model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        delete_count: int = queryset.count() - self.MAX_COUNT
+        if delete_count > 0:
+            delete_pks: list[int] = list(
+                queryset.order_by("updated_at", "pk").values_list("pk", flat=True)[:delete_count]
+            )
+            queryset.filter(pk__in=delete_pks).delete()
 
     def clear_expired(self, model):
         # clean expired topo data based on expiration

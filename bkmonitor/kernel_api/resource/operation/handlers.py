@@ -160,11 +160,11 @@ def apm_not_biz_application_count(bk_biz_id: int, end_time: int | None = None):
     return len([app for app in _apm_enabled_apps() if app.bk_biz_id < 0])
 
 
-def apm_service_count(bk_biz_id: int, end_time: int | None = None):
+def apm_service_count(bk_biz_id: int, end_time: int | None = None) -> int:
     """APM 服务数（拓扑节点数）。"""
     from apm.models import TopoNode
 
-    return TopoNode.objects.count()
+    return TopoNode.get_service_queryset().count()
 
 
 def apm_profiling_application_count(bk_biz_id: int, end_time: int | None = None):

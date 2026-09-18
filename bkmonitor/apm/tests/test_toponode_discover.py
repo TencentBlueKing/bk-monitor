@@ -13,7 +13,7 @@ from unittest import mock
 import pytest
 
 from apm.core.discover.node import NodeDiscover
-from apm.models import ApmTopoDiscoverRule
+from apm.models import ApmTopoDiscoverRule, TopoNode
 from constants.apm import TelemetryDataType
 
 BK_BIZ_ID = 2
@@ -51,6 +51,8 @@ class FakeQuerySet:
 class FakeTopoNode:
     EXPIRED_DAYS = NodeDiscover.model.EXPIRED_DAYS
     objects = None
+    touch_heartbeat = mock.Mock()
+    has_trace_or_metric_source = staticmethod(TopoNode.has_trace_or_metric_source)
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -443,3 +445,25 @@ def test_llm_metadata_survives_component_span_in_same_batch():
     topo_node, _ = run_discover(existing_node, [build_llm_span({"gen_ai.span.kind": "AGENT"}), build_component_span()])
 
     assert topo_node["extra_data"]["llm"]["product"] == "agentlens"
+
+
+def test_trace_heartbeat_uses_latest_span_time_for_service_component_and_remote() -> None:
+    existing = build_topo_node({"kind": "service", "category": "other"})
+    earlier = build_component_span()
+    earlier["attributes"]["peer.service"] = "remote"
+    later = build_component_span()
+    later["end_time"] += 10_000_000
+    FakeTopoNode.touch_heartbeat.reset_mock()
+    run_discover(existing, [later, earlier], discover_cls=OneSpanPerBatchNodeDiscover)
+    call = FakeTopoNode.touch_heartbeat.call_args
+    times = call.args[3]
+    assert times[SERVICE_NAME] == later["end_time"] // 1_000_000
+    assert times[f"{SERVICE_NAME}-redis"] == later["end_time"] // 1_000_000
+    assert any(name.endswith(":remote") and value == earlier["end_time"] // 1_000_000 for name, value in times.items())
+
+
+def test_trace_promotes_profiling_only_node() -> None:
+    existing = build_topo_node({"kind": "profiling", "category": "profiling"}, source=["profiling"])
+    node, _ = run_discover(existing, build_other_span_without_platform())
+    assert node["extra_data"]["kind"] == "service"
+    assert node["source"] == ["profiling", "trace"]
