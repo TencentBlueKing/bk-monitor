@@ -714,7 +714,10 @@ export default defineComponent({
                         <ExploreFieldSetting
                           class='table-field-setting'
                           defaultFields={this.defaultFieldKeys}
+                          dragHandle='.list-item-left'
                           fixedDisplayList={[this.tableRowKeyField]}
+                          popoverTheme='trace-explore-field-setting'
+                          showFieldName={true}
                           sourceList={this.tableColumns.fieldList}
                           sourceMap={this.tableColumns.fieldMap}
                           targetList={this.displayFields}

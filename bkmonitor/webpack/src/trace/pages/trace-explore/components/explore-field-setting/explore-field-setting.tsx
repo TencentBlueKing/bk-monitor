@@ -51,6 +51,12 @@ import type { IDimensionField } from '../../typing';
 import './explore-field-setting.scss';
 
 export type FieldSettingItem = Pick<IDimensionField, 'alias' | 'name' | 'type'> | { [key in string]: any };
+
+/** 列表项根元素 class（拖拽源/落点定位用） */
+const TARGET_ITEM_CLASS = 'target-item';
+/** 默认拖拽热区：组件渲染的拖拽手柄 */
+const DEFAULT_DRAG_HANDLE = '.field-drag-handle';
+
 export default defineComponent({
   name: 'ExploreFieldSetting',
   props: {
@@ -93,6 +99,23 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: undefined,
     },
+    /**
+     * 拖拽热区：相对列表项根元素匹配的选择器，鼠标在其上按下才允许拖动该项
+     * 默认 '.field-drag-handle'（仅拖拽图标可拖）；传 '.list-item-left' 即整个左侧区域可拖；传 '' 关闭拖拽排序
+     */
+    dragHandle: {
+      type: String,
+      default: DEFAULT_DRAG_HANDLE,
+    },
+    /**
+     * 弹层私有主题 token：追加到 tippy theme，供宿主写自己场景的弹层样式
+     * 弹层由 tippy 挂载到 body，脱离宿主子树，不传时只能用组件公共主题写全局样式（会跨宿主污染）
+     * 宿主用 `.tippy-box[data-theme~='token']` 即可命中弹层盒子及其内部任意元素
+     */
+    popoverTheme: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
     confirm: (targetList: string[]) => Array.isArray(targetList),
@@ -101,6 +124,8 @@ export default defineComponent({
     const { t } = useI18n();
     /** 拖拽容器 */
     let dragContainer = null;
+    /** 当前按住拖拽热区、被置为可拖拽的列表项（mouseup/dragend 时复位） */
+    let activeDragItem: HTMLElement | null = null;
 
     /** popover tippy 实例 */
     const popoverInstance = shallowRef<Instance | null>(null);
@@ -222,15 +247,22 @@ export default defineComponent({
       }
       dragContainer.addEventListener('dragover', dragPreventDefault);
       dragContainer.addEventListener('dragenter', dragPreventDefault);
+      // 捕获阶段：在拖拽手势判定前把列表项置为可拖拽
+      dragContainer.addEventListener('mousedown', handleHandleMousedown, true);
+      // 绑在 document 上，避免在热区按下后移出容器松开导致 draggable 残留
+      document.addEventListener('mouseup', resetDraggable);
     }
 
     /** 移除监听事件 */
     function removeDragListener() {
+      document.removeEventListener('mouseup', resetDraggable);
+      resetDraggable();
       if (!dragContainer) {
         return;
       }
       dragContainer?.removeEventListener('dragover', dragPreventDefault);
       dragContainer?.removeEventListener('dragenter', dragPreventDefault);
+      dragContainer?.removeEventListener('mousedown', handleHandleMousedown, true);
       dragContainer = null;
     }
 
@@ -255,7 +287,7 @@ export default defineComponent({
         content: contentEl,
         trigger: 'manual',
         placement: 'bottom-end',
-        theme: 'light explore-table-field-setting',
+        theme: `light explore-table-field-setting ${props.popoverTheme}`.trim(),
         arrow: true,
         interactive: true,
         maxWidth: 'none',
@@ -390,8 +422,7 @@ export default defineComponent({
       draggingField.value = field;
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setData('text/plain', field);
-      // @ts-expect-error
-      e.target.closest('.target-item').classList.add('dragging');
+      (e.currentTarget as HTMLElement).classList.add('dragging');
     }
 
     /**
@@ -423,13 +454,8 @@ export default defineComponent({
      *
      */
     function handleDragend(e: DragEvent) {
-      const target = e.target as HTMLElement;
-      const dragDom = target.closest('.target-item');
-      if (dragDom) {
-        dragDom?.classList.remove('dragging');
-        // @ts-expect-error
-        dragDom.draggable = false;
-      }
+      (e.currentTarget as HTMLElement).classList.remove('dragging');
+      resetDraggable();
       draggingField.value = '';
     }
 
@@ -442,12 +468,37 @@ export default defineComponent({
     }
 
     /**
-     * @description drag 操作句柄鼠标 按下/松开 触发回调事件
+     * @description 鼠标在拖拽热区按下时，把所在的列表项置为可拖拽
+     * 热区由 dragHandle 选择器声明，命中范围之外的区域不触发拖拽
      *
      */
-    function dragHandleMouseOperation(e: MouseEvent, draggable) {
-      // @ts-expect-error
-      e.target.closest('.target-item').draggable = draggable;
+    function handleHandleMousedown(e: MouseEvent) {
+      if (!props.dragHandle) {
+        return;
+      }
+      const target = e.target as HTMLElement;
+      const item = target.closest<HTMLElement>(`.${TARGET_ITEM_CLASS}`);
+      const handle = target.closest<HTMLElement>(props.dragHandle);
+      // contains 保证命中的热区确实属于当前列表项，避免跨项误判
+      if (!item || !handle || !item.contains(handle)) {
+        return;
+      }
+      activeDragItem = item;
+      item.draggable = true;
+      // 热区覆盖文本时，按住即拖会残留溢出 tooltip
+      hideTextTooltip();
+    }
+
+    /**
+     * @description 复位列表项的可拖拽状态
+     *
+     */
+    function resetDraggable() {
+      if (!activeDragItem) {
+        return;
+      }
+      activeDragItem.draggable = false;
+      activeDragItem = null;
     }
 
     /**
@@ -468,17 +519,13 @@ export default defineComponent({
             return (
               <li
                 key={field}
-                class='list-item target-item'
+                class={`list-item ${TARGET_ITEM_CLASS}`}
                 onDragend={handleDragend}
                 onDragover={e => debounceDragover(e, field)}
                 onDragstart={e => handleDragstart(e, field)}
               >
                 <div class={{ 'list-item-left': true, 'show-field-name': props.showFieldName }}>
-                  <i
-                    class='icon-monitor icon-mc-tuozhuai'
-                    onMousedown={e => dragHandleMouseOperation(e, true)}
-                    onMouseup={e => dragHandleMouseOperation(e, false)}
-                  />
+                  <i class='icon-monitor icon-mc-tuozhuai field-drag-handle' />
                   <FieldTypeIcon
                     class='item-prefix'
                     type={fieldType}
