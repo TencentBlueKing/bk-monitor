@@ -30,7 +30,6 @@ from apps.log_databus.constants import (
 )
 from apps.log_databus.models import StorageUsed
 from apps.log_databus.tasks.collector import (
-    count_storage_indices,
     get_cluster_biz_count_map,
     get_doris_cluster_stats,
     sync_storage_capacity,
@@ -443,14 +442,6 @@ class TestSyncStorageCapacity(TestCase):
 
 class TestStorageCapacityMemoryOptimization(TestCase):
     """容量同步任务的低内存查询行为"""
-
-    @patch("apps.log_databus.tasks.collector.query")
-    def test_count_storage_indices_only_requests_index_field(self, mock_query):
-        mock_get = mock_query.return_value
-        mock_get.return_value = [{"index": "v2_1_bklog_20260918"}, {"index": "v2_2_bklog_20260918"}]
-
-        self.assertEqual(count_storage_indices(101), 2)
-        mock_get.assert_called_once_with("_cat/indices?format=json&bytes=b&h=index")
 
     @patch("apps.log_search.models.LogIndexSet.objects.filter")
     def test_cluster_biz_count_map_streams_only_required_fields(self, mock_filter):

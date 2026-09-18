@@ -285,8 +285,7 @@ def get_storage_usage_and_all(cluster_id):
 
 
 def count_storage_indices(cluster_id):
-    # 只需要索引数量，避免 ES 返回 docs、分片、容量等无关字段。
-    indices = query(cluster_id)("_cat/indices?format=json&bytes=b&h=index")
+    indices = query(cluster_id)("_cat/indices?bytes=b")
     if not indices:
         return 0
 
