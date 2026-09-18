@@ -150,7 +150,7 @@ def compose_profile_data_id_name(bk_biz_id: int, app_name: str) -> str:
     正常格式：profile_{bk_biz_id}_{sanitized_app_name}
     截断格式：profile_{bk_biz_id}_{truncated_app_name}_{random}
 
-    @param bk_biz_id: DataId 命名业务标识，负数空间使用 space_{space_id}
+    @param bk_biz_id: 业务ID
     @param app_name: 应用名称
     @return: DataId 资源名称，长度 ≤ 50
     """
@@ -166,8 +166,8 @@ def compose_profile_data_id_name(bk_biz_id: int, app_name: str) -> str:
         return name
 
     # 截断：profile_{bk_biz_id}_{truncated}_{random}
-    # 固定部分 = 前缀 + bk_biz_id + 2个下划线 + random下划线 + random
-    fixed_len = len(prefix) + 2 + 1 + _RANDOM_LENGTH
+    # 固定部分 = 前缀 + bk_biz_id  + random下划线 + random
+    fixed_len = len(prefix) + 1 + _RANDOM_LENGTH
     truncated_max = _MAX_LENGTH - fixed_len
     if truncated_max < 1:
         truncated_max = 1
