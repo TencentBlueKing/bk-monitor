@@ -271,7 +271,7 @@ export default defineComponent({
 
     init();
 
-    // ExploreTraceSlider 使用 KeepAlive，关闭侧边栏只会 deactivated，不会 unmount
+    // TraceSlider 在 trace-explore 里被 KeepAlive，关闭侧边栏只会 deactivated，不会 unmount
     onDeactivated(() => {
       restoreHostWindowState();
     });

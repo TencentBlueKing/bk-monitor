@@ -41,7 +41,9 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 const ExploreSpanSlider = defineAsyncComponent(() => import('../explore-span-slider/explore-span-slider'));
-const ExploreTraceSlider = defineAsyncComponent(() => import('../explore-trace-slider/explore-trace-slider'));
+const TraceSlider = defineAsyncComponent(
+  () => import(/* webpackChunkName: "trace-slider" */ '@/components/trace-slider/trace-slider')
+);
 import BackTop from '../../../../components/back-top/back-top';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ChartWrapper from '../explore-chart/chart-wrapper';
@@ -309,10 +311,10 @@ export default defineComponent({
             onSortChange={this.handleTableSortChange}
           />
         </div>
-        <KeepAlive include={['ExploreTraceSlider', 'ExploreSpanSlider', 'AsyncComponentWrapper']}>
+        <KeepAlive include={['TraceSlider', 'ExploreSpanSlider', 'AsyncComponentWrapper']}>
           <div>
             {this.sliderMode === 'trace' && (
-              <ExploreTraceSlider
+              <TraceSlider
                 appName={this.activeSliderAppName || this.appName}
                 bizId={this.activeSliderBizId}
                 isShow={this.sliderMode === 'trace'}
