@@ -72,6 +72,10 @@ from apps.log_admin_resource.handlers.model_query import (
     FUNCTIONS as MODEL_QUERY_FUNCTIONS,
     HANDLERS as MODEL_QUERY_HANDLERS,
 )
+from apps.log_admin_resource.handlers.monitor_strategy import (
+    FUNCTIONS as MONITOR_STRATEGY_FUNCTIONS,
+    HANDLERS as MONITOR_STRATEGY_HANDLERS,
+)
 from apps.log_admin_resource.handlers.platform_source import (
     FUNCTIONS as PLATFORM_SOURCE_FUNCTIONS,
     HANDLERS as PLATFORM_SOURCE_HANDLERS,
@@ -376,6 +380,7 @@ FUNCTIONS = {
             "flow_references",
             "generated_flow_configs",
             "result_table_references",
+            "strategy_bindings",
             "access_tasks",
         ),
         "examples": [
@@ -587,6 +592,7 @@ FUNCTIONS.update(MODEL_QUERY_FUNCTIONS)
 FUNCTIONS.update(HOST_INSPECTION_FUNCTIONS)
 FUNCTIONS.update(K8S_INSPECTION_FUNCTIONS)
 FUNCTIONS.update(IAM_DECISION_FUNCTIONS)
+FUNCTIONS.update(MONITOR_STRATEGY_FUNCTIONS)
 FUNCTIONS.update(RUNTIME_FUNCTIONS)
 
 HANDLERS = {
@@ -619,6 +625,7 @@ HANDLERS.update(MODEL_QUERY_HANDLERS)
 HANDLERS.update(HOST_INSPECTION_HANDLERS)
 HANDLERS.update(K8S_INSPECTION_HANDLERS)
 HANDLERS.update(IAM_DECISION_HANDLERS)
+HANDLERS.update(MONITOR_STRATEGY_HANDLERS)
 HANDLERS.update(RUNTIME_HANDLERS)
 
 
