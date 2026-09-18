@@ -522,14 +522,6 @@ export default defineComponent({
         filters,
       };
 
-      /** 携带traceId检索，展开详情侧栏 */
-      const hasIdFilter = filters.find(item => item.key === 'trace_id');
-      if (hasIdFilter) {
-        showSlideDetail.value = {
-          type: 'trace',
-          id: hasIdFilter.value[0],
-        };
-      }
       setUrlParams();
     };
 
@@ -629,6 +621,11 @@ export default defineComponent({
         }
         if (trace_id) {
           where.value.push({ key: 'trace_id', operator: 'equal', value: [trace_id as string] });
+          /** 仅专用 trace_id 直达参数展开详情，普通 Trace ID 筛选不应自动弹出详情 */
+          showSlideDetail.value = {
+            type: 'trace',
+            id: trace_id as string,
+          };
         }
       } catch (error) {
         console.log('route query:', error);
