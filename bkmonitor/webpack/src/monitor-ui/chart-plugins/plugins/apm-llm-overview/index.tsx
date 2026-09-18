@@ -312,7 +312,7 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
       <div class='llm-overview-card'>
         <div class='llm-overview-card-title'>
           {title}
-          {this.trendInterval ? (
+          {/* {this.trendInterval ? (
             <span
               class='llm-overview-card-interval'
               v-bk-tooltips={{
@@ -323,7 +323,7 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
             >
               {this.trendInterval}
             </span>
-          ) : undefined}
+          ) : undefined} */}
         </div>
         {hasData ? (
           <div class='llm-overview-card-chart'>
