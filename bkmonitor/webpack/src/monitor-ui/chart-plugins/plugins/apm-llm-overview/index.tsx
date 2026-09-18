@@ -299,7 +299,10 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
             <div class='metric-card-title'>{this.$t(item.title)}</div>
             <div class='metric-card-body'>
               <span class='metric-card-value'>{item.value}</span>
-              <span class={['metric-card-trend', `is-${item.trendTheme}`]}>{item.trend}</span>
+              <span class='metric-card-trend-wrap'>
+                <span class='metric-card-trend-label'>{this.$t('环比')}</span>
+                <span class={['metric-card-trend', `is-${item.trendTheme}`]}>{item.trend}</span>
+              </span>
             </div>
           </div>
         ))}

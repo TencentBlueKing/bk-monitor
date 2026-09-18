@@ -324,6 +324,7 @@ export default {
   按模型: 'By Model',
   '模型调用平均耗时 TOP10': 'Model Avg Duration TOP10',
   '当前 {0} 个模型 · 最多 TOP10': 'Current {0} models · up to TOP10',
+  环比: 'MoM',
   Agent: 'Agent',
   模型: 'Model',
   工具: 'Tool',

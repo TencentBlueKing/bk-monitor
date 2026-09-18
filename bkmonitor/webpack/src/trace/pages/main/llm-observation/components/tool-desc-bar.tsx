@@ -79,7 +79,7 @@ export default defineComponent({
             ref={textRef}
             class='llm-tool-desc-bar-text'
           >
-            {props.description}
+            {props.description.trim() || '--'}
           </span>
         </div>
         {overflowing.value || expanded.value ? (

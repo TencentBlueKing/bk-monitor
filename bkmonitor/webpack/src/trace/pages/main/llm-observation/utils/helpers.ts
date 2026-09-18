@@ -48,6 +48,14 @@ export function formatJsonDisplay(value: unknown): string {
 }
 
 /**
+ * @description 将秒数格式化为展示文本，最多保留两位小数
+ */
+export function formatSecondCount(value: number): string {
+  if (!Number.isFinite(value)) return '--';
+  return String(Math.round(value * 100) / 100);
+}
+
+/**
  * @description 将 Token 数量格式化为千分位文本
  */
 export function formatTokenCount(value: number): string {
@@ -99,11 +107,31 @@ export function pickList(source: Record<string, unknown>, keys: string[]): unkno
  * @description 按候选 key 依次取值，返回第一个有限数字，找不到则返回 0
  */
 export function pickNumber(source: Record<string, unknown>, keys: string[]): number {
+  return pickOptionalNumber(source, keys) ?? 0;
+}
+
+/**
+ * @description 按候选 key 依次取值，返回第一个有限数字；找不到则返回 undefined
+ */
+export function pickOptionalNumber(source: Record<string, unknown>, keys: string[]): number | undefined {
   for (const key of keys) {
     const num = toFiniteNumber(getByPath(source, key));
     if (num !== undefined) return num;
   }
-  return 0;
+  return undefined;
+}
+
+/**
+ * @description 按候选 key 依次取值，返回第一个非空字符串
+ */
+export function pickString(source: Record<string, unknown>, keys: string[]): string {
+  for (const key of keys) {
+    const value = getByPath(source, key);
+    if (value == null) continue;
+    const text = String(value).trim();
+    if (text) return text;
+  }
+  return '';
 }
 
 /**
@@ -126,6 +154,10 @@ export function toTextItem(id: string, value: unknown): LlmTextItem | null {
   const content = stringifyContent(value).trim();
   if (!content) return null;
   return { id, content };
+}
+
+export function truncateTipContent(text: string): string {
+  return text.length > 200 ? `${text.slice(0, 200)}...` : text;
 }
 
 function escapeJsonControlChar(ch: string): string {
@@ -245,8 +277,4 @@ function tryParseJsonText(text: string): { ok: false } | { ok: true; value: unkn
       return { ok: false };
     }
   }
-}
-
-export function truncateTipContent(text: string): string {
-  return text.length > 200 ? `${text.slice(0, 200)}...` : text;
 }

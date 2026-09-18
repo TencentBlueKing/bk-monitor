@@ -58,7 +58,7 @@ export default defineComponent({
 
     return () => (
       <div class='llm-tool-panel'>
-        {observation.value.description ? <ToolDescBar description={observation.value.description} /> : null}
+        <ToolDescBar description={observation.value.description} />
         <JsonCodeBlock
           bordered={true}
           data={observation.value.arguments}
