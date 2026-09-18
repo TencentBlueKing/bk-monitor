@@ -249,14 +249,19 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
     },
   ],
 
-  /** 目标元素 */
-  'key_info.target': data => [
-    {
-      label: t('目标元素'),
-      value: text(data['attributes.action.target.name']),
-      footer: [{ text: 'CSS Selector' }],
-    },
-  ],
+  /** 目标元素：tag 与 name 不同时叠加 tag 前缀，相同时只展示 name 以避免重复 */
+  'key_info.target': data => {
+    const tag = String(data['attributes.action.target.tag'] ?? '');
+    const name = String(data['attributes.action.target.name'] ?? '');
+    return [
+      {
+        label: t('目标元素'),
+        /** 走 text 的 EMPTY_TEXT 兜底，避免缺失字段被拼成 "undefined" */
+        value: tag && tag !== name ? text(`${tag}${name}`) : text(name),
+        footer: [{ text: 'CSS Selector' }],
+      },
+    ];
+  },
 
   /* ---------------- Long Task ---------------- */
 

@@ -82,7 +82,7 @@ export default defineComponent({
                 style={{ left: `${data.thumbPercent}%` }}
                 class='track-thumb'
               >
-                <i class='icon-monitor icon-dingwei' />
+                <i class='icon-monitor icon-dingwei1' />
               </span>
             </div>
             <div class='rating-scale'>
