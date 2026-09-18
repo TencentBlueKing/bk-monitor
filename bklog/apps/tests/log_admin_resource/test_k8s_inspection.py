@@ -2107,7 +2107,7 @@ class K8sInspectionWorkerTest(SimpleTestCase):
         self.assertEqual(bound.bk_data_id, 2002)
         self.assertEqual(bound.bcs_cluster_id, "BCS-K8S-9")
 
-    def _record(self, *, target=None, groups=None, candidate_id=None):
+    def _record(self, *, target=None, groups=None, candidate_id=None, skipped_groups=None):
         return ResourceInspectionTaskRecord.create_or_reuse(
             app_code="reader-a",
             bk_tenant_id="tenant-a",
@@ -2121,6 +2121,7 @@ class K8sInspectionWorkerTest(SimpleTestCase):
             request_options={
                 "target": target,
                 "evidence_groups": groups or ["control_plane"],
+                "skipped_evidence_groups": skipped_groups or [],
                 "collector_candidate_id": candidate_id,
                 "source": None,
                 "include_source_sample": False,
@@ -2146,6 +2147,35 @@ class K8sInspectionWorkerTest(SimpleTestCase):
         self.assertEqual(stored["task_status"], "success")
         self.assertEqual(result["remote_execution"]["executor"], "K8S_API")
         self.assertFalse(result["remote_execution"]["mutations_permitted"])
+
+    @patch("apps.log_admin_resource.k8s_tasks.K8sInspectionClient")
+    @patch("apps.log_admin_resource.k8s_tasks.expected_bklog_configs", return_value=[])
+    @patch("apps.log_admin_resource.k8s_tasks.ContainerCollectorConfig.objects.filter")
+    @patch("apps.log_admin_resource.k8s_tasks.CollectorConfig.objects.get", return_value=collector())
+    @patch("apps.log_admin_resource.k8s_tasks._control_plane_probe")
+    def test_skipped_deep_groups_mark_task_partial(self, control, _get, configs_filter, _expected, _client):
+        configs_filter.return_value.order_by.return_value = []
+        control.return_value = (probe(evidence={}), None, [])
+        record = self._record(
+            groups=["control_plane"],
+            skipped_groups=[
+                {
+                    "group": "collector",
+                    "code": "data_id_missing",
+                    "message": "sidecar/collector/progress evidence requires a positive bk_data_id",
+                }
+            ],
+        )
+
+        run_k8s_inspection.run(record["task_id"])
+
+        stored = ResourceInspectionTaskRecord.get(record["task_id"])
+        result = ResourceInspectionTaskRecord.load_result(record["task_id"])
+        self.assertEqual(stored["task_status"], "partial")
+        self.assertEqual(stored["error"]["code"], "evidence_groups_skipped")
+        self.assertTrue(result["partial"])
+        self.assertEqual(result["probes"]["collector"]["status"], "skipped")
+        self.assertEqual(result["probes"]["collector"]["code"], "data_id_missing")
 
     @patch("apps.log_admin_resource.k8s_tasks._revalidate_candidate")
     @patch("apps.log_admin_resource.k8s_tasks._discover_candidates")

@@ -115,7 +115,13 @@ def run_k8s_inspection(task_id: str) -> None:
         groups = set(options.get("evidence_groups") or [])
         observed_target = options.get("target")
         if not observed_target:
-            _finish(task_id, record, probes, "success", None)
+            task_status = _aggregate_status(probes)
+            error = None
+            if task_status == "failed":
+                error = _task_error("no_usable_evidence")
+            elif task_status == "partial":
+                error = _task_error("evidence_groups_skipped")
+            _finish(task_id, record, probes, task_status, error)
             return
         if not target_node:
             _finish(task_id, record, probes, "failed", _task_error("target_node_unavailable"))
@@ -1050,7 +1056,7 @@ def _aggregate_status(probes: dict[str, dict[str, Any]]) -> str:
     statuses = [probe.get("status") for probe in probes.values() if isinstance(probe, dict)]
     if not any(status in {"success", "warning"} for status in statuses):
         return "failed"
-    if any(status == "failed" for status in statuses):
+    if any(status in {"failed", "skipped"} for status in statuses):
         return "partial"
     return "success"
 
@@ -1070,6 +1076,12 @@ def _finish(
     if ResourceInspectionTaskRecord.is_deadline_exceeded(current):
         task_status = "timed_out"
         error = _task_error("task_timed_out")
+    skipped_groups = (current.get("request_options") or {}).get("skipped_evidence_groups") or []
+    if task_status == "success" and skipped_groups:
+        # Requested deep groups were not executed; success would hide missing
+        # sidecar/collector/progress evidence behind a green task_status.
+        task_status = "partial"
+        error = error or _task_error("evidence_groups_skipped")
     partial = task_status == "partial" or (task_status == "timed_out" and _has_usable_probe(probes))
     result = {
         "problem_env": getattr(settings, "ENVIRONMENT", ""),
@@ -1129,6 +1141,7 @@ def _task_error(code: str) -> dict[str, Any]:
         "target_resolution_failed": "the selected target could not be resolved",
         "unsupported_os": "Windows collector nodes are not supported",
         "response_compacted": "oversized evidence was compacted to preserve the final response",
+        "evidence_groups_skipped": "requested evidence groups were skipped because collector identity is incomplete",
     }
     return {
         "code": code,
