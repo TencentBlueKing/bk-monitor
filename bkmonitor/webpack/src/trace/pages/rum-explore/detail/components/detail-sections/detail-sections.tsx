@@ -75,7 +75,8 @@ export default defineComponent({
                   'section-body': true,
                   /** 资源详情与瀑布图外层有独立底色，其余区块直接贴白底 */
                   'is-boxed': section.key === SectionKeyEnum.RESOURCE_INFO,
-                  'is-bordered': section.key === SectionKeyEnum.LOADING_TIMING,
+                  /** view 类 span 的瀑布图自带边框外壳（span-type-view-rum-waterfall），外层不再加边框避免双层 */
+                  'is-bordered': section.key === SectionKeyEnum.LOADING_TIMING && section.spanType !== 'view',
                 }}
               >
                 {renderSection(section)}

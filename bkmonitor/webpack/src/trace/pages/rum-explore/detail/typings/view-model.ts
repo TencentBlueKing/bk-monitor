@@ -92,6 +92,8 @@ export interface IRumDetailSectionVM {
   loading?: boolean;
   /** 评级条区块的数据 */
   ratingBar?: IRumRatingBarVM;
+  /** 当前详情的 span 类型（如 view），驱动瀑布图等区块的差异化渲染 */
+  spanType?: string;
   /** 区块标题右侧的补充说明（如「总耗时：122.2ms」） */
   subTitle?: string;
   /** 区块顶部的提示条 */
@@ -187,6 +189,26 @@ export interface IRumSummaryCardVM {
   value: string;
 }
 
+/** 瀑布图的 TTFB 分解说明 */
+export interface IRumTtfbBreakdownVM {
+  /** 子项合计与 TTFB 主值的差值文案 */
+  diffText: string;
+  /** 分摊 TTFB 的子项合计耗时文案 */
+  itemsTotalText: string;
+}
+
+/** 瀑布图上的一个时间点标记 */
+export interface IRumWaterfallMarkerVM {
+  /** 到达该时间点所耗时长文案（如 375.1ms） */
+  durationText: string;
+  /** 唯一标识（取自接口 markers[].key），同时用作渲染 key */
+  key: string;
+  /** 展示名（取自接口 field_name，缺省回落到 key） */
+  label: string;
+  /** 竖线左偏移百分比 */
+  percent: number;
+}
+
 /** 瀑布图的一行 */
 export interface IRumWaterfallRowVM {
   /** 色块颜色 */
@@ -203,8 +225,10 @@ export interface IRumWaterfallRowVM {
 /** 瀑布图视图模型 */
 export interface IRumWaterfallVM {
   /** 时间点标记 */
-  markers?: Array<{ key: string; label: string; percent: number }>;
-  /** 跨阶段的合并说明（如「连接复用：DNS、TCP、TLS」） */
-  mergedTip?: string;
+  markers?: IRumWaterfallMarkerVM[];
+  /** 被合并掉的阶段名（如 DNS、TCP、TLS），由瀑布图组件拼装成说明文案 */
+  mergedNames?: string[];
   rows: IRumWaterfallRowVM[];
+  /** TTFB 分解说明，后端缺少 TTFB 时间点或子项时为空 */
+  ttfbBreakdown?: IRumTtfbBreakdownVM;
 }

@@ -43,7 +43,12 @@ type IRumSectionRenderer = (section: IRumDetailSectionVM) => null | VNode;
  */
 const SECTION_RENDERERS: Partial<Record<RumSectionType, IRumSectionRenderer>> = {
   [RumSectionTypeEnum.SUMMARY_CARDS]: section => <SummaryCards rows={section.cardRows || []} />,
-  [RumSectionTypeEnum.WATERFALL]: section => <WaterfallChart data={section.waterfall || null} />,
+  [RumSectionTypeEnum.WATERFALL]: section => (
+    <WaterfallChart
+      data={section.waterfall || null}
+      spanType={section?.spanType || null}
+    />
+  ),
   [RumSectionTypeEnum.RATING_BAR]: section => <RatingBar data={section.ratingBar || null} />,
   [RumSectionTypeEnum.KEY_VALUE_LIST]: section => <KeyValueList items={section.keyValues || []} />,
 };

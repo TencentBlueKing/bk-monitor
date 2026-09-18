@@ -35,6 +35,7 @@ import {
   WATERFALL_FALLBACK_COLORS,
   WATERFALL_MERGED_PHASES,
   WATERFALL_PHASE_COLOR,
+  WATERFALL_TTFB_MARKER_KEY,
 } from '../constants';
 import { getCardDescriptor, itemToCard } from '../registry/card-registry';
 import { getSpanTypeDetailConfig } from '../registry/span-type-registry';
@@ -52,6 +53,7 @@ import type {
   IRumRecordDetail,
   IRumRelatedData,
   IRumSummaryCardVM,
+  IRumTtfbBreakdownVM,
   IRumWaterfallData,
   IRumWaterfallVM,
 } from '../typings';
@@ -116,6 +118,7 @@ export function useDetailSections(
               ? `${t('总耗时')}：${formatDuration(Number(waterfallData.total_duration) || 0, '', 3, waterfallData.unit || 'us').replace(/ /g, '')}`
               : '',
             tip: hasFirstByte ? t(TTFB_TIP) : '',
+            spanType: type,
           };
         }
         case RumSectionTypeEnum.RATING_BAR:
@@ -218,6 +221,26 @@ function buildSummaryCards(section: IRumDetailSection, spanType: string, ctx: IR
 }
 
 /**
+ * @description TTFB 分解：把结束时间不晚于 TTFB 时间点的阶段（浏览器准备 / DNS / TCP / TLS / 等待首字节）作为分摊
+ * TTFB 的子项，给出子项合计与 TTFB 主值的差值
+ *
+ * 后端没返回 TTFB 时间点标记、或没有落在 TTFB 之前的阶段时不返回，UI 不展示该说明。
+ */
+function buildTtfbBreakdown(data: IRumWaterfallData): IRumTtfbBreakdownVM | undefined {
+  const unit = data.unit || 'us';
+  const ttfb = (data.markers || []).find(marker => marker.key === WATERFALL_TTFB_MARKER_KEY);
+  const ttfbValue = Number(ttfb?.value);
+  if (!Number.isFinite(ttfbValue)) return undefined;
+  const items = (data.phases || []).filter(phase => phase.start + phase.duration <= ttfbValue);
+  if (!items.length) return undefined;
+  const itemsTotal = items.reduce((sum, phase) => sum + (Number(phase.duration) || 0), 0);
+  return {
+    itemsTotalText: formatDuration(itemsTotal, '', 3, unit).replace(/ /g, ''),
+    diffText: formatDuration(Math.abs(ttfbValue - itemsTotal), '', 3, unit).replace(/ /g, ''),
+  };
+}
+
+/**
  * @description 瀑布图区块：把绝对时序换算成百分比布局
  *
  * DNS / TCP / TLS 耗时为 0 时说明连接被复用，这三段合并成一条说明线而不单独占行。
@@ -246,11 +269,13 @@ function buildWaterfall(data: IRumWaterfallData): IRumWaterfallVM {
     }));
   return {
     rows,
-    mergedTip: mergedNames.length ? `${t('连接复用')}：${mergedNames.join('、')}` : '',
+    mergedNames,
+    ttfbBreakdown: buildTtfbBreakdown(data),
     markers: (data.markers || []).map(marker => ({
       key: marker.key,
       label: marker.field_name || marker.key,
       percent: Math.min((marker.value / total) * 100, 100),
+      durationText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
     })),
   };
 }
