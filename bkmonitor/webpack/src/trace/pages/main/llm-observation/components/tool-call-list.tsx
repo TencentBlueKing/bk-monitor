@@ -27,9 +27,10 @@ import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue
 
 import { useI18n } from 'vue-i18n';
 
-import { parseJsonValue, stringifyContent } from '../utils/helpers';
+import { parseJsonValue, stringifyContent, truncateTipContent } from '../utils/helpers';
 import { flattenKvPairs } from '../utils/parse-input';
 import JsonCodeBlock from './json-code-block';
+import ToolDescBar from './tool-desc-bar';
 
 import type { LlmPlannedToolCall, LlmToolCallRecord } from '../utils/typings';
 
@@ -81,14 +82,14 @@ export default defineComponent({
         : [...expandedIds.value, id];
     };
 
-    const renderPreview = (preview: ReturnType<typeof toPreview>) => (
+    const renderPairs = (preview: ReturnType<typeof toPreview>, className?: string) => (
       <div
-        style={{
-          gridTemplateColumns: preview.pairs.length
-            ? `repeat(${preview.pairs.length}, max-content minmax(0, max-content))`
-            : undefined,
-        }}
-        class='llm-tool-call-list-preview-value'
+        style={
+          preview.pairs.length
+            ? { gridTemplateColumns: `repeat(${preview.pairs.length}, max-content minmax(0, max-content))` }
+            : undefined
+        }
+        class={['llm-tool-call-list-pairs', className]}
       >
         {preview.pairs.length ? (
           preview.pairs.map(pair => (
@@ -98,13 +99,13 @@ export default defineComponent({
             >
               <span
                 class='llm-tool-call-list-kv-key'
-                v-overflow-tips
+                v-overflow-tips={{ content: truncateTipContent(pair.key), placement: 'top' }}
               >
                 {pair.key}
               </span>
               <span
                 class='llm-tool-call-list-kv-value'
-                v-overflow-tips
+                v-overflow-tips={{ content: truncateTipContent(pair.value), placement: 'top' }}
               >
                 :{pair.value}
               </span>
@@ -112,8 +113,8 @@ export default defineComponent({
           ))
         ) : (
           <span
-            class='llm-tool-call-list-preview-text'
-            v-overflow-tips
+            class='llm-tool-call-list-pairs-text'
+            v-overflow-tips={{ content: truncateTipContent(preview.text), placement: 'top' }}
           >
             {preview.text}
           </span>
@@ -139,19 +140,19 @@ export default defineComponent({
                   onClick={() => toggleTool(item.id)}
                 >
                   <div class='llm-tool-call-list-header-main'>
-                    <div class='llm-tool-call-list-preview'>
+                    <div class={['llm-tool-call-list-call', { 'has-result': response !== undefined }]}>
                       <span
                         class='llm-tool-call-list-name'
                         v-overflow-tips
                       >
                         {item.name || t('未命名工具')}
                       </span>
-                      {renderPreview(argumentsPreview)}
+                      {renderPairs(argumentsPreview)}
                     </div>
                     {response !== undefined && (
                       <>
                         <i class='icon-monitor icon-next-one llm-tool-call-list-arrow' />
-                        {renderPreview(responsePreview)}
+                        {renderPairs(responsePreview, 'llm-tool-call-list-result')}
                       </>
                     )}
                   </div>
@@ -165,12 +166,7 @@ export default defineComponent({
                 </div>
                 {expanded && (
                   <div class='llm-tool-call-list-content'>
-                    {description && (
-                      <div class='llm-tool-call-list-desc'>
-                        <span class='llm-tool-call-list-desc-label'>{t('工具描述')}</span>
-                        <span class='llm-tool-call-list-desc-text'>{description}</span>
-                      </div>
-                    )}
+                    {description ? <ToolDescBar description={description} /> : null}
                     <div class='llm-tool-call-list-panels'>
                       <JsonCodeBlock
                         data={item.arguments ?? {}}

@@ -23,8 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, onMounted, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, shallowRef, watch } from 'vue';
 
+import { useResizeObserver } from '@vueuse/core';
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
@@ -59,24 +60,34 @@ export default defineComponent({
     const { t } = useI18n();
     const expanded = shallowRef(false);
     const bodyRef = shallowRef<HTMLElement | null>(null);
-    /** 折叠态内容是否超出容器，用于决定是否展示底部渐变 */
+    /** 折叠态内容是否超出 max-height，用于渐变遮罩与展开按钮可用性 */
     const overflowing = shallowRef(false);
 
     // 复制仍输出合法 JSON（文本则保留原文），不使用含多行叶子的可读展示文本。
     const prettyText = computed(() => stringifyContent(beautifyJsonValue(props.data)));
 
-    /** 同步折叠态是否溢出，用于控制底部渐变遮罩 */
-    const syncOverflow = async () => {
-      await nextTick();
+    /** 仅在折叠态测量：展开后容器会撑开，不能据此关掉展开按钮 */
+    const syncOverflow = () => {
+      if (expanded.value) return;
       const el = bodyRef.value;
       overflowing.value = Boolean(el && el.scrollHeight > el.clientHeight + 2);
     };
 
-    watch([() => props.data, expanded], () => {
-      syncOverflow();
-    });
+    // JsonView / vue-json-pretty 渲染、宽度变化后都要重新判断。
+    useResizeObserver(bodyRef, syncOverflow);
 
-    onMounted(syncOverflow);
+    watch(
+      () => props.data,
+      () => {
+        expanded.value = false;
+        nextTick(syncOverflow);
+      }
+    );
+
+    const handleToggleExpand = () => {
+      if (!overflowing.value && !expanded.value) return;
+      expanded.value = !expanded.value;
+    };
 
     const handleCopy = () => {
       copyText(prettyText.value, (msg: string) => {
@@ -88,7 +99,7 @@ export default defineComponent({
     return () => (
       <div class={['llm-json-code-block', { 'is-bordered': props.bordered }]}>
         <div class='llm-json-code-block-header'>
-          <span class='llm-json-code-block-title'>{props.title}</span>
+          {props.title ? <span class='llm-json-code-block-title'>{props.title}</span> : null}
           <div class='llm-json-code-block-actions'>
             <div
               class='llm-json-code-block-action'
@@ -99,22 +110,21 @@ export default defineComponent({
             </div>
             <div
               class='llm-json-code-block-action'
+              style='margin-right: -6px;'
               onClick={() => emit('viewAlone', props.data, props.title)}
             >
               <i class='icon-monitor icon-chakan1' />
               <span>{t('独立查看')}</span>
             </div>
             <div
-              class='llm-json-code-block-action'
-              onClick={() => {
-                expanded.value = !expanded.value;
-              }}
+              class={['llm-json-code-block-action', { 'is-disabled': !overflowing.value }]}
+              onClick={handleToggleExpand}
             >
               <i
-                style='font-size: 18px;'
+                style='font-size: 18px;margin-right: -4px;'
                 class={['icon-monitor', expanded.value ? 'icon-double-up' : 'icon-double-down']}
               />
-              <span>{expanded.value ? t('收起') : t('原地展开')}</span>
+              <span>{expanded.value ? t('收起') : t('展开')}</span>
             </div>
           </div>
         </div>
