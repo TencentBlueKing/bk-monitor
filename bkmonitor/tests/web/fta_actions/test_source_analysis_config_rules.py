@@ -586,3 +586,13 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         rule.refresh_from_db()
         self.assertFalse(rule.is_enabled)
+
+    def test_enabled_rule_without_run_as_user_reports_credential_error(self):
+        config = self.create_config()
+        rule = self.create_rule(
+            is_enabled=True,
+            conditions=[{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
+        )
+
+        with self.assertRaises(SourceAnalysisExecutionCredentialUnavailableError):
+            SourceAnalysisBaseResource.validate_rule_local(rule, config)

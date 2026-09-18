@@ -62,7 +62,7 @@ class SourceAnalysisResourceNotFoundError(IssueError):
 class SourceAnalysisRuleIncompleteError(IssueError):
     code = 3327006
     name = _lazy("源码分析规则配置不完整")
-    message_tpl = _lazy("启用规则必须配置匹配条件和至少一个智能体")
+    message_tpl = _lazy("自定义规则必须配置匹配条件")
 
 
 class SourceAnalysisRulePriorityConflictError(IssueError):

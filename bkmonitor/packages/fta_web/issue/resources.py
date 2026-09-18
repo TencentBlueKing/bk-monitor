@@ -430,7 +430,7 @@ class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
 
         cls.validate_rule_definition(rule, config)
         if not rule.run_as_user:
-            raise SourceAnalysisRuleIncompleteError()
+            raise SourceAnalysisExecutionCredentialUnavailableError()
 
     @classmethod
     def validate_rule_ready(cls, rule: IssueSourceAnalysisRule, config: IssueSourceAnalysisConfig | None) -> None:
