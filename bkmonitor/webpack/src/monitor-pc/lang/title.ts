@@ -381,4 +381,5 @@ export default {
   '首字节时间（Time to First Byte，TTFB）': 'Time to First Byte (TTFB)',
   '累积布局偏移（Cumulative Layout Shift，CLS）': 'Cumulative Layout Shift (CLS)',
   链路上下文: 'Trace Context',
+  页面加载时序: 'Page Load Timeline',
 };

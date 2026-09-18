@@ -23,30 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, shallowRef, useTemplateRef } from 'vue';
+import { computed, defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import { useResizeObserver } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 
-import type { IRumWaterfallMarkerVM, IRumWaterfallRowVM, IRumWaterfallVM } from '../../typings';
+import { RATING_META } from '../../constants';
 
-/** 标记文案行高，多根竖线靠得很近时按该高度错行摆放 */
-const MARKER_LABEL_HEIGHT = 20;
-/** 文案与竖线之间的水平间距 */
-const MARKER_LABEL_GAP = 6;
-
-/** 健康度图例：良好 / 待改善 / 差三档，颜色与各阶段色块的阈值评级对应 */
-const healthList = [
-  { label: window.i18n.t('良好'), color: '#21A380' },
-  { label: window.i18n.t('待改善'), color: '#F59500' },
-  { label: window.i18n.t('差'), color: '#EA3636' },
-];
-
-/** 粗估文案宽度（中文 12px、其余字符 7px），够用于判断相邻标记的文案是否互相压盖 */
-function estimateLabelWidth(text: string) {
-  return Array.from(text).reduce((width, char) => width + (/[\u4e00-\u9fa5]/.test(char) ? 12 : 7), 0);
-}
+import type { IRumWaterfallMarkerVM, IRumWaterfallVM } from '../../typings';
 
 import './waterfall-chart.scss';
 
@@ -70,57 +54,66 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const markersElRef = useTemplateRef<HTMLElement>('markersEl');
-    const trackWidth = shallowRef(0);
-    useResizeObserver(markersElRef, entries => {
-      trackWidth.value = entries[0]?.contentRect?.width || 0;
-    });
-    /**
-     * 标记排版：竖线贯穿整张瀑布图，文案排在竖线右侧顶部；
-     * 竖线横坐标由左到右贪心分行，放不下就换到下一行，避免相邻文案重叠。
-     */
-    const markerLayout = computed(() => {
-      const width = trackWidth.value;
-      /** 每一行已被占用的最右坐标 */
-      const lineEnds: number[] = [];
-      const markers = [...(props.data?.markers || [])]
-        .sort((a, b) => a.percent - b.percent)
-        .map((marker: IRumWaterfallMarkerVM) => {
-          let line = 0;
-          let labelLeft = 0;
-          if (width) {
-            labelLeft = (marker.percent / 100) * width + MARKER_LABEL_GAP;
-            while (line < lineEnds.length && labelLeft < lineEnds[line]) line += 1;
-            lineEnds[line] =
-              labelLeft + estimateLabelWidth(`${marker.label} ${marker.durationText}`) + MARKER_LABEL_GAP;
-          }
-          return { ...marker, labelTop: line * MARKER_LABEL_HEIGHT };
-        });
-      return { markers, topSpace: markers.length ? Math.max(lineEnds.length, 1) * MARKER_LABEL_HEIGHT : 0 };
-    });
-    return () => {
-      const { data } = props;
-      if (!data?.rows?.length) return null;
-      /** 时间轴与阶段行共用同一份色块渲染逻辑，保证两侧颜色与位置一一对应 */
-      const renderRowBlock = (row: IRumWaterfallRowVM) => (
-        <span
-          key={row.key}
-          style={{ left: `${row.startPercent}%`, width: `${row.durationPercent}%`, backgroundColor: row.color }}
-          class='row-block'
-        />
-      );
-      const { markers, topSpace } = markerLayout.value;
 
-      /** 瀑布图主体：汇总时间轴 + TTFB 分解说明 + 阶段行 + 标记层 */
-      const rumWaterfallWrap = () => (
-        <div
-          style={{ paddingTop: `${topSpace ? topSpace : props.spanType === 'view' ? 16 : 0}px` }}
-          class='rum-waterfall'
-        >
-          <div class='waterfall-row waterfall-axis-row'>
+    const markerColumns = computed(() => {
+      const rowCounter = new Map<number, IRumWaterfallMarkerVM[]>();
+      let maxRowCount = 1;
+      for (const marker of props.data.markers) {
+        const column = rowCounter.get(marker.percent) ?? [];
+        rowCounter.set(marker.percent, [...column, marker]);
+        maxRowCount = Math.max(maxRowCount, column.length + 1);
+      }
+
+      return {
+        maxRowCount,
+        columns: Array.from(rowCounter.entries()),
+      };
+    });
+
+    const renderWaterfall = () => {
+      const { data } = props;
+      const { columns, maxRowCount } = markerColumns.value;
+      return (
+        <div class='rum-waterfall-wrap'>
+          {columns.length ? (
+            <div
+              style={{ height: `${maxRowCount * 20}px` }}
+              class='waterfall-markers'
+            >
+              {columns.map(column => (
+                <span
+                  key={column[0]}
+                  style={{ left: `${column[0]}%` }}
+                  class='marker-column'
+                >
+                  <div class='marker-line' />
+                  <div class='marker-list'>
+                    {column[1].map(marker => (
+                      <div
+                        key={marker.key}
+                        class='marker-item'
+                      >
+                        <span class='marker-label'>{marker.label}</span>
+                        <span class='marker-duration'>{marker.valueText}</span>
+                      </div>
+                    ))}
+                  </div>
+                </span>
+              ))}
+            </div>
+          ) : null}
+          <div class='waterfall-row timestamp-row'>
             <span class='row-label'>{t('时间轴')}</span>
-            <span class='row-duration' />
-            <div class='row-track'>{data.rows.map(row => renderRowBlock(row))}</div>
+            <span class='row-duration'>{data.durationTotalText}</span>
+            <div class='row-track'>
+              {data.rows.map(row => (
+                <span
+                  key={row.key}
+                  style={{ left: `${row.startPercent}%`, width: `${row.durationPercent}%`, backgroundColor: row.color }}
+                  class='row-block'
+                />
+              ))}
+            </div>
           </div>
           {data.ttfbBreakdown ? (
             <div class='waterfall-ttfb-breakdown'>
@@ -134,7 +127,12 @@ export default defineComponent({
             >
               <span class='row-label'>{row.label}</span>
               <span class='row-duration'>{row.durationText}</span>
-              <div class='row-track'>{renderRowBlock(row)}</div>
+              <div class='row-track'>
+                <span
+                  style={{ left: `${row.startPercent}%`, width: `${row.durationPercent}%`, backgroundColor: row.color }}
+                  class='row-block'
+                />
+              </div>
             </div>,
             /** 合并说明紧跟在首行之后，对应「浏览器准备」与「等待 TTFB」之间的连接复用提示 */
             index === 0 && data.mergedNames?.length ? (
@@ -159,64 +157,43 @@ export default defineComponent({
               </div>
             ) : null,
           ])}
-          {markers.length ? (
-            <div
-              ref={'markersEl'}
-              class='waterfall-markers'
-            >
-              {markers.map(marker => (
-                <span
-                  key={`line_${marker.key}`}
-                  style={{ left: `${marker.percent}%` }}
-                  class='marker-line'
-                />
-              ))}
-              {markers.map(marker => (
-                <span
-                  key={marker.key}
-                  style={{ left: `${marker.percent}%`, top: `${marker.labelTop}px` }}
-                  class='marker-label'
-                >
-                  <span class='marker-name'>{marker.label}</span>
-                  <span class='marker-value'>{marker.durationText}</span>
-                </span>
-              ))}
-            </div>
-          ) : null}
         </div>
       );
+    };
 
-      /** view 类 span 额外包一层「页面加载时序」标题与健康度图例，其余类型直接渲染主体 */
-      const rumWaterfallRender = () => {
-        if (props.spanType === 'view') {
-          return (
-            <div class='span-type-view-rum-waterfall'>
-              <div class='span-type-view-rum-waterfall-head'>
-                <span class='left-title'>{t('页面加载时序')}</span>
-                <span class='right-tips'>
-                  {healthList.map(item => (
-                    <>
-                      <span
-                        style={`background: ${item.color}`}
-                        class='point'
-                      />
-                      <span
-                        style={`color: ${item.color}`}
-                        class='health-label'
-                      >
-                        {item.label}
-                      </span>
-                    </>
+    return () => {
+      const { data } = props;
+      if (!data?.rows?.length) return null;
+      return (
+        <div
+          class={[
+            'waterfall-chart',
+            { 'complex-behavior': data.behavior === 'complex', 'has-marker': data.markers.length > 0 },
+          ]}
+        >
+          {data.behavior === 'complex' ? (
+            <div class='complex-behavior-wrap'>
+              <div class='complex-behavior-header'>
+                <div class='waterfall-chart-title'>{t('页面加载时序')}</div>
+                <div class='waterfall-chart-status'>
+                  {Object.entries(RATING_META).map(([key, meta]) => (
+                    <div
+                      key={key}
+                      style={{ '--status-color': meta.color }}
+                      class='waterfall-chart-status-item'
+                    >
+                      {meta.alias}
+                    </div>
                   ))}
-                </span>
+                </div>
               </div>
-              {rumWaterfallWrap()}
+              {renderWaterfall()}
             </div>
-          );
-        }
-        return rumWaterfallWrap();
-      };
-      return rumWaterfallRender();
+          ) : (
+            renderWaterfall()
+          )}
+        </div>
+      );
     };
   },
 });

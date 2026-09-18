@@ -108,7 +108,7 @@ export function useDetailSections(
         }
         case RumSectionTypeEnum.WATERFALL: {
           const waterfallData = (section.data || { phases: [], unit: 'ms' }) as IRumWaterfallData;
-          const waterfall = buildWaterfall(waterfallData);
+          const waterfall = buildWaterfall(waterfallData, type);
           /** 含等待首字节阶段时补一条口径说明，避免把 TTFB 直接当作服务端处理耗时 */
           const hasFirstByte = waterfallData.phases?.some(phase => phase.key === 'first_byte');
           return {
@@ -245,7 +245,7 @@ function buildTtfbBreakdown(data: IRumWaterfallData): IRumTtfbBreakdownVM | unde
  *
  * DNS / TCP / TLS 耗时为 0 时说明连接被复用，这三段合并成一条说明线而不单独占行。
  */
-function buildWaterfall(data: IRumWaterfallData): IRumWaterfallVM {
+function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfallVM {
   const phases = data.phases || [];
   const total =
     data.total_duration || phases.reduce((max, phase) => Math.max(max, phase.start + phase.duration), 0) || 1;
@@ -269,13 +269,17 @@ function buildWaterfall(data: IRumWaterfallData): IRumWaterfallVM {
     }));
   return {
     rows,
+    durationTotal: total,
+    durationTotalText: formatDuration(Number(total) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
     mergedNames,
+    behavior: spanType === 'view' ? 'complex' : 'simplicity',
     ttfbBreakdown: buildTtfbBreakdown(data),
     markers: (data.markers || []).map(marker => ({
       key: marker.key,
       label: marker.field_name || marker.key,
       percent: Math.min((marker.value / total) * 100, 100),
-      durationText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
+      value: marker.value,
+      valueText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
     })),
   };
 }

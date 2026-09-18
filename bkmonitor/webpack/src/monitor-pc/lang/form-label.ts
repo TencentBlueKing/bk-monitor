@@ -2053,4 +2053,7 @@ export default {
   用户: 'User',
   环境: 'Environment',
   'View 详情': 'View Details',
+  请求: 'Request',
+  时间轴: 'Time line',
+  停留时长: 'duration',
 };
