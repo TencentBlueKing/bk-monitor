@@ -38,7 +38,7 @@ from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.db import JsonField
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, get_tenant_default_biz_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from common.log import logger
@@ -1558,10 +1558,14 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         profile_bk_biz_id = bk_biz_id
         if bk_biz_id < 0:
-            # 非业务创建 profile 将创建在公共业务下
-            profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
+            # 非业务创建 profile 将创建在租户默认业务下
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                profile_bk_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+            else:
+                profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
 
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
 
@@ -1576,7 +1580,6 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         global_user = get_global_user(bk_tenant_id=bk_tenant_id)
         maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
 
@@ -1596,7 +1599,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                 operator=global_user,
                 prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             )
-            data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
+            data_id_name = compose_profile_data_id_name(provider.bk_biz_id, obj.app_name)
             obj.bkdata_datalink_config = {
                 "version": 4,
                 "namespace": _V4_NAMESPACE,
