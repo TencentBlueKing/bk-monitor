@@ -218,7 +218,7 @@ export interface INormalWhere {
 }
 
 export interface IOptionsInfo {
-  count: 0;
+  count: number;
   list: IValue[];
 }
 export interface IValue {
@@ -482,6 +482,16 @@ export const RETRIEVAL_FILTER_PROPS = {
     type: Function as PropType<TTagValueDisplayFormatter>,
     default: (val, _fieldId) => `${val}`,
   },
+  // ui只读模式
+  uiModeReadonly: {
+    type: Boolean,
+    default: false,
+  },
+  /** 拥有快捷键功能 */
+  hasShortcutKey: {
+    type: Boolean,
+    default: true,
+  },
   // 模式切换中
   modeChangeLoading: {
     type: Boolean,
@@ -572,6 +582,11 @@ export const UI_SELECTOR_PROPS = {
   tagValueDisplayFormatter: {
     type: Function as PropType<TTagValueDisplayFormatter>,
     default: (val, _fieldId) => `${val}`,
+  },
+  // ui只读模式
+  readonly: {
+    type: Boolean,
+    default: false,
   },
   // ui模式在添加条件的时候聚焦在搜索key值的搜索框上而非默认选中第一个key值
   fieldSearchAutoFocus: {
@@ -893,6 +908,10 @@ export const KV_TAG_PROPS = {
     default: false,
   },
   hasTagHidden: {
+    type: Boolean,
+    default: true,
+  },
+  hasTagDelete: {
     type: Boolean,
     default: true,
   },

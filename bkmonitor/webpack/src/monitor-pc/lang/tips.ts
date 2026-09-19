@@ -542,4 +542,26 @@ export default {
     'After the group is deleted, the related metrics will be moved to <{name}>',
   '触发规则：仅当对应数据值大于 {threshold} 时触发告警':
     'Trigger rule: alarm is triggered only when the corresponding data value is greater than {threshold}',
+
+  '暂未关联蓝盾项目 & 源码仓库，{0}': 'No BK-DevOps project & source code repository has been associated yet, {0}',
+  '已关联蓝盾项目 & 源码仓库，{0}': 'BK-DevOps project & source code repository has been associated, {0}',
+
+  // AI 设置
+  暂无关联知识库: 'No knowledge base associated',
+  可绑定本空间有使用权限的知识库: 'You can bind knowledge bases with usage permissions in this space',
+  暂无关联Skill: 'No Skill associated',
+  '可绑定本空间有使用权限的 Skill': 'You can bind Skills with usage permissions in this space',
+  暂无关联智能体: 'No agent associated',
+  可绑定本空间有使用权限的智能体: 'You can bind agents with usage permissions in this space',
+  数据未变更: 'Data has not changed',
+  '数据未就绪，请稍后重试': 'Data is not ready, please try again later',
+  优先级不能为空: 'Priority cannot be empty',
+  匹配条件不能为空: 'Matching conditions cannot be empty',
+  请添加告警策略匹配规则: 'Please add alarm strategy matching rules',
+  请选择智能体: 'Please select an agent',
+  请选择知识库: 'Please select a knowledge base',
+  请选择Skill: 'Please select a Skill',
+  请输入优先级: 'Please enter the priority',
+  '优先级需在1-10000之间': 'The priority must be between 1 and 10000',
+  '正在拉取来源构建、提交历史与 Blame 信息': 'Pulling source build, commit history, and blame information',
 };

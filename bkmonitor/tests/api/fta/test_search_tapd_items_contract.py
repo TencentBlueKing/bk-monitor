@@ -99,9 +99,9 @@ class TestSearchTapdItemsContract(unittest.TestCase):
     def test_monitor_api_exports_search_and_create_tapd(self):
         source = _read("bkmonitor/webpack/src/monitor-api/modules/issue.js")
 
-        self.assertIn("export const searchTAPDItems", source)
+        self.assertIn("export const searchTapdItems", source)
         self.assertIn("export const createTapd", source)
-        self.assertIn("searchTAPDItems,", source)
+        self.assertIn("searchTapdItems,", source)
         self.assertIn("createTapd,", source)
 
 

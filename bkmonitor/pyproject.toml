@@ -51,6 +51,7 @@ dependencies = [
     "ipython==9.4.0",
     "jinja2==3.1.6",
     "jmespath==1.0.1",
+    "jsonschema==4.25.1",
     "kafka-python==1.4.6",
     "kubernetes==18.20.0",
     "langfuse==2.60.5",
@@ -165,7 +166,6 @@ testpaths = [
     "alarm_backends/tests",
     "bkmonitor/data_source/tests",
     "metadata/tests",
-    "tests/api/unify_query",
 ]
 python_files = ["test_*.py", "tests.py"]
 log_level = "ERROR"

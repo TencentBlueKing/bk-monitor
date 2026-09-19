@@ -109,7 +109,7 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertIn("self.TAPDAuthPermission", _call_names(get_permissions))
 
     def test_user_workspace_error_url_is_optional_and_falls_back_to_success_url(self):
-        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "ListUserTapdWorkspaceResource")
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "GetUserWorkspaceResource")
         request_serializer = _class(resource, "RequestSerializer")
         error_url_field = _serializer_field(request_serializer, "error_url")
 
@@ -202,7 +202,7 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertIsNotNone(_serializer_field(participant_projects_serializer, "access_token"))
 
     def test_user_workspace_uses_participant_projects_with_workspace_shape(self):
-        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "ListUserTapdWorkspaceResource")
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "GetUserWorkspaceResource")
         fetch_user_workspaces = _method(resource, "_fetch_user_workspaces")
         perform_request = _method(resource, "perform_request")
         source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), fetch_user_workspaces)
@@ -271,12 +271,12 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertNotIn('logger.exception(f"exchange token unexpected error: {e}")', source)
 
     def test_rebind_requires_app_granted_workspace_before_creating_binding(self):
-        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "RebindTapdWorkspaceResource")
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "RebindWorkspaceResource")
         perform_request = _method(resource, "perform_request")
         source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), perform_request)
 
-        self.assertIn("ListUserTapdWorkspaceResource._fetch_app_granted_ids", source)
-        app_grant_index = source.index("ListUserTapdWorkspaceResource._fetch_app_granted_ids")
+        self.assertIn("GetUserWorkspaceResource._fetch_app_granted_ids", source)
+        app_grant_index = source.index("GetUserWorkspaceResource._fetch_app_granted_ids")
         create_binding_index = source.index("TapdWorkspaceBinding.objects.get_or_create")
 
         self.assertLess(app_grant_index, create_binding_index)
@@ -284,7 +284,7 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertIn("TAPD 项目未完成应用授权", source)
 
     def test_unbind_checks_active_issue_relations_before_deleting_binding(self):
-        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "UnbindTapdWorkspaceResource")
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "UnbindWorkspaceResource")
         perform_request = _method(resource, "perform_request")
         check_relations = _method(resource, "_check_active_tapd_relations")
         perform_source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), perform_request)
@@ -305,7 +305,7 @@ class TestTapdOauthContract(unittest.TestCase):
         self.assertIn("fail-open", check_source)
 
     def test_unbind_active_issue_query_is_batched_and_uses_es_total(self):
-        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "UnbindTapdWorkspaceResource")
+        resource = _class(_parse("bkmonitor/packages/fta_web/issue/resources.py"), "UnbindWorkspaceResource")
         check_relations = _method(resource, "_check_active_tapd_relations")
         source = ast.get_source_segment(_read("bkmonitor/packages/fta_web/issue/resources.py"), check_relations)
 

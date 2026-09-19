@@ -2033,6 +2033,11 @@ export default {
   ID: 'ID',
   启动命令: 'Start command',
 
+  已就绪: 'Ready',
+  绑定智能体: 'Bind smart body',
+  '绑定 skill': 'Bind skill',
+  绑定知识库: 'Bind knowledge base',
+  指派对象: 'Assignee',
   调用参数: 'Call parameters',
   返回结果: 'Return result',
   工具描述: 'Tool description',
@@ -2046,5 +2051,5 @@ export default {
   原地展开: 'Expand in place',
   未命名工具: 'Unnamed tool',
   规划的工具调用: 'Planned tool calls',
-  模型输出: 'Model output'
+  模型输出: 'Model output',
 };

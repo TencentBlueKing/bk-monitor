@@ -155,4 +155,10 @@ class Config:
             "enabled": True,
             "options": {"queue": "celery_resource"},
         },
+        "fta_web.tasks.recover_source_analysis_executions": {
+            "task": "fta_web.tasks.recover_source_analysis_executions",
+            "schedule": crontab(minute="*/10"),
+            "enabled": True,
+            "options": {"queue": "celery_resource"},
+        },
     }

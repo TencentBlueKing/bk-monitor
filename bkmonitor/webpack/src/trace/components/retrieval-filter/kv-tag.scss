@@ -1,4 +1,4 @@
-
+/* stylelint-disable selector-class-pattern */
 .vue3_retrieval-filter__kv-tag-component {
   .retrieval-filter__kv-tag-component-wrap {
     position: relative;
@@ -22,6 +22,7 @@
       align-items: center;
       padding-right: 42px;
       font-size: 12px;
+      line-height: 16px;
 
       .key-name {
         color: #757880;
@@ -39,17 +40,18 @@
 
     .value-wrap {
       font-size: 12px;
+      line-height: 14px;
       color: #313238;
 
       .value-condition {
         margin: 0 4px;
-        font-family: 'RobotoMono-Medium', 'Menlo', 'Monaco', Consolas, 'Courier New', monospace;
+        font-family: RobotoMono-Medium, Menlo, Monaco, Consolas, 'Courier New', monospace;
         font-weight: 500;
         color: #f59500;
       }
 
       .value-name {
-        font-family: 'RobotoMono-Regular', 'Menlo', 'Monaco', Consolas, 'Courier New', monospace;
+        font-family: RobotoMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace;
         font-weight: 400;
         color: #313238;
       }
@@ -77,7 +79,7 @@
         width: 18px;
         height: 18px;
         margin-left: 2px;
-        background: #ffffff;
+        background: #fff;
         border-radius: 2px;
         box-shadow: 0 1px 2px 0 #00000014;
 
