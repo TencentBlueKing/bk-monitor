@@ -26,6 +26,7 @@
 import { defineComponent, ref } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import { random } from '@/common/util';
+import { isValidOccupyName, RegexTableValidateError, type RegexTableColumn } from '../occupy-rules';
 import ValidateInput from './validate-input';
 import './index.scss';
 
@@ -66,8 +67,8 @@ export default defineComponent({
         message: t('不能为空'),
       },
       {
-        validator: (value: string) => /^[A-Z_-]+$/.test(value),
-        message: t('{n}不规范, 包含特殊符号.', { n: t('占位符') }),
+        validator: (value: string) => isValidOccupyName(value),
+        message: t('占位符仅支持字母、数字、下划线、连字符'),
       },
     ];
 
@@ -147,9 +148,35 @@ export default defineComponent({
         updateTableRenderKey();
       },
       getData: async () => {
-        await Promise.all(inputColumnsMapRef.value.regex.map((el: any) => el.getValue()));
-        await Promise.all(inputColumnsMapRef.value.occupy.map((el: any) => el.getValue()));
+        const errors: Array<{ rowIndex: number; column: RegexTableColumn; message: string }> = [];
+        for (let index = 0; index < tableData.value.length; index++) {
+          const row = tableData.value[index];
+          if (row.disabled) {
+            continue;
+          }
+          for (const column of ['regex', 'occupy'] as RegexTableColumn[]) {
+            const el = inputColumnsMapRef.value[column][index] as { getValue?: () => Promise<string> } | undefined;
+            if (!el?.getValue) {
+              continue;
+            }
+            try {
+              await el.getValue();
+            } catch (raw) {
+              errors.push({
+                rowIndex: index,
+                column,
+                message: typeof raw === 'string' ? raw : (raw as Error)?.message || String(raw),
+              });
+            }
+          }
+        }
+        if (errors.length) {
+          throw new RegexTableValidateError(errors);
+        }
         return tableData.value;
+      },
+      focusCell: (index: number, column: RegexTableColumn) => {
+        inputColumnsMapRef.value[column][index]?.focus?.();
       },
     });
 
