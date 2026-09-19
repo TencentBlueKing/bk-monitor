@@ -652,6 +652,61 @@ def test_enable_relation_graph_v4_uses_result_table_modify(mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_enable_relation_graph_v4_publishes_route_after_binding_exists(mocker):
+    """首次 Graph 接入不得在 Binding 创建前发布不完整的 SurrealDB 路由。"""
+    table_id = "2_bkcc_built_in_time_series.__default__"
+    data_source = _create_relation_graph_source(61005, "2_bkcc_built_in_time_series", "system", table_id)
+    _create_relation_graph_clusters("system")
+    vertices = [{"name": "host", "id_fields": ["bk_host_id"]}]
+    relations = [{"name": "host_service"}]
+    storage_config = {
+        "storage_cluster_id": 910101,
+        "table_type": models.SurrealDBStorage.TEMPORARY_TABLE_TYPE,
+        "vertices": vertices,
+        "relations": relations,
+    }
+    events = []
+
+    def apply_datalink(*args, **kwargs):
+        events.append(("apply_datalink", models.SurrealDBBindingConfig.objects.filter(table_id=table_id).exists()))
+        models.SurrealDBBindingConfig.objects.create(
+            bk_tenant_id="system",
+            bk_biz_id=2,
+            data_link_name="2_bkcc_built_in_time_series",
+            kind="SurrealDBBinding",
+            name="2_bkcc_built_in_time_series",
+            namespace="bkmonitor",
+            status="Ok",
+            surrealdb_cluster_name="surreal-default-system",
+            table_id=table_id,
+            bkbase_result_table_name=table_id,
+            vertices=vertices,
+            relations=relations,
+        )
+
+    def publish_route(*args, **kwargs):
+        from metadata.models.space.ds_rt import get_table_info_for_influxdb_and_vm
+
+        route = get_table_info_for_influxdb_and_vm(bk_tenant_id="system", table_id_list=[table_id])[table_id][
+            models.SurrealDBStorage.STORAGE_TYPE
+        ]
+        events.append(("publish_route", route["namespace"]))
+
+    mocker.patch(
+        "metadata.task.sync_cmdb_relation.EntityMeta.auto_query_graph_definitions", return_value=(vertices, relations)
+    )
+    mocker.patch("metadata.models.ResultTable.apply_datalink", autospec=True, side_effect=apply_datalink)
+    mocker.patch(
+        "metadata.models.space.utils.get_space_by_table_id", return_value={"space_type_id": "bkcc", "space_id": "2"}
+    )
+    mocker.patch("metadata.task.tasks.push_and_publish_space_router", side_effect=publish_route)
+
+    enable_relation_surrealdb_dual_write(data_source, "system", 2, storage_config=storage_config)
+
+    assert events == [("apply_datalink", False), ("publish_route", "bkmonitor")]
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_enable_relation_graph_v4_reapplies_when_graph_definitions_change(mocker):
     table_id = "2_bkcc_built_in_time_series.__default__"
     data_source = _create_relation_graph_source(61004, "2_bkcc_built_in_time_series", "system", table_id)
