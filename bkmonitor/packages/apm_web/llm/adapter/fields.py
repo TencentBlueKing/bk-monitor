@@ -63,6 +63,11 @@ def resolve_query_field(product: str, field: str) -> str:
     return QUERY_FIELD_MAPPING.get(field, {}).get(product, field)
 
 
+def resolve_query_fields(field: str) -> tuple[str, ...]:
+    """返回标准字段及各产品登记的原始字段，用于无法预先确定产品的跨服务查询。"""
+    return tuple(dict.fromkeys((field, *QUERY_FIELD_MAPPING.get(field, {}).values())))
+
+
 # 产品存储里的操作名 -> 标准 gen_ai.operation.name，未登记的取值只做小写化。
 # 与 adapter 的归一口径对齐：聚合侧拿不到 span_name / 消息结构，只能映射字段取值本身。
 OPERATION_NAME_ALIASES: dict[str, dict[str, str]] = {

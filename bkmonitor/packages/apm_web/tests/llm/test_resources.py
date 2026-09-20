@@ -1676,13 +1676,16 @@ class ListFlowsResourceTestCase(TestCase):
 
     def test_builds_span_tree_for_each_trace(self):
         group_field = "attributes.gen_ai.conversation.id"
+        aidev_group_field = "attributes.agent.session.session_code"
+        agentlens_group_field = "attributes.gen_ai.session.id"
+        langfuse_group_field = "attributes.session.id"
         application = mock.Mock()
         data_sources = [mock.sentinel.data_source]
         application.build_data_sources.return_value = data_sources
         span_query = mock.Mock()
         span_query.query_group_trace_list.return_value = [
-            {group_field: "conversation-1", "trace_id": "trace-1"},
-            {group_field: "conversation-1", "trace_id": "trace-2"},
+            {"trace_id": "trace-1"},
+            {"trace_id": "trace-2"},
         ]
         spans = [
             {
@@ -1742,6 +1745,7 @@ class ListFlowsResourceTestCase(TestCase):
         span_query.query_group_trace_list.assert_called_once_with(
             group_field=group_field,
             group_ids=["conversation-1"],
+            possible_group_fields=(group_field, aidev_group_field, agentlens_group_field, langfuse_group_field),
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
