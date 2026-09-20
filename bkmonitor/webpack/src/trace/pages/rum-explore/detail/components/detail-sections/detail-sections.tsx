@@ -26,14 +26,70 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import { Alert, Loading } from 'bkui-vue';
+import { Alert } from 'bkui-vue';
 
 import { SectionKeyEnum } from '../../constants';
 import { renderSection } from '../../registry/section-registry';
+import { RumSectionTypeEnum } from '../../typings';
 
 import type { IRumDetailSectionVM } from '../../typings';
 
 import './detail-sections.scss';
+
+/** 卡片骨架的默认占位数量：关联数据未回时拿不到行结构，按一行 5 张兜底 */
+const SKELETON_CARD_COUNT = 5;
+/** 键值列表骨架的默认行数（版本关联区块实际为 3 行） */
+const SKELETON_ROW_COUNT = 3;
+
+/**
+ * 区块骨架：按展示类型占位，尺寸取自对应真实组件的样式，
+ * 保证关联数据返回、切换到真实内容时布局不跳动。
+ */
+function renderSectionSkeleton(section: IRumDetailSectionVM) {
+  /** 键值列表区块：沿用真实行数占位，行高与 .rum-key-value-list 一致 */
+  if (section.type === RumSectionTypeEnum.KEY_VALUE_LIST) {
+    return (
+      <div class='section-skeleton skeleton-key-value-list'>
+        {Array.from({ length: section.keyValues?.length || SKELETON_ROW_COUNT }, (_, index) => (
+          <div
+            key={index}
+            class='skeleton-row'
+          >
+            <div class='skeleton-element skeleton-row-label' />
+            <div class='skeleton-element skeleton-row-value' />
+          </div>
+        ))}
+      </div>
+    );
+  }
+  /** 瀑布图区块：整块占位，高度与 .rum-waterfall 的时间轴 + 阶段行接近 */
+  if (section.type === RumSectionTypeEnum.WATERFALL) {
+    return (
+      <div class='section-skeleton'>
+        <div class='skeleton-element skeleton-block' />
+      </div>
+    );
+  }
+  /** 卡片区块沿用真实的行列结构占位 */
+  const rowCounts = section.cardRows?.length ? section.cardRows.map(row => row.length) : [SKELETON_CARD_COUNT];
+  return (
+    <div class='section-skeleton'>
+      {rowCounts.map((count, rowIndex) => (
+        <div
+          key={rowIndex}
+          class='skeleton-card-row'
+        >
+          {Array.from({ length: count }, (_, index) => (
+            <div
+              key={index}
+              class='skeleton-element skeleton-card'
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
 
 /**
  * 详情区块列表：负责区块外壳（标题、说明、提示条、加载态），
@@ -69,18 +125,16 @@ export default defineComponent({
                 title={section.tip}
               />
             ) : null}
-            <Loading loading={!!section.loading}>
-              <div
-                class={{
-                  'section-body': true,
-                  /** 资源详情与瀑布图外层有独立底色，其余区块直接贴白底 */
-                  'is-boxed': section.key === SectionKeyEnum.RESOURCE_INFO,
-                  'is-bordered': section.key === SectionKeyEnum.LOADING_TIMING,
-                }}
-              >
-                {renderSection(section)}
-              </div>
-            </Loading>
+            <div
+              class={{
+                'section-body': true,
+                /** 资源详情与瀑布图外层有独立底色，其余区块直接贴白底 */
+                'is-boxed': section.key === SectionKeyEnum.RESOURCE_INFO,
+                'is-bordered': section.key === SectionKeyEnum.LOADING_TIMING,
+              }}
+            >
+              {section.loading ? renderSectionSkeleton(section) : renderSection(section)}
+            </div>
           </div>
         ))}
       </div>

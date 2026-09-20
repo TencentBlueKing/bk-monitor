@@ -138,10 +138,11 @@ export default defineComponent({
               {row.key}
             </span>
             <div class='row-operator'>
+              {/* 回传 originKey：嵌套块里 row.key 只是末级字段名，检索条件需要完整路径 */}
               <EnlargeLine
                 class='icon-add-query'
-                v-bk-tooltips={{ content: t('添加为检索条件') }}
-                onClick={() => emit('conditionAdd', row.key, row.value)}
+                v-bk-tooltips={{ content: t('检索') }}
+                onClick={() => emit('conditionAdd', row.originKey, row.value)}
               />
               <i
                 class='icon-monitor icon-mc-copy'

@@ -50,8 +50,8 @@ export function useOriginData(originData: MaybeRef<Record<string, any> | undefin
     const spanRows = Object.entries(data)
       .filter(([key]) => !ORIGIN_NESTED_KEYS.has(key))
       .map(([key, value]) => toRow(key, value));
-    const attributeRows = toRows(data.attributes);
-    const resourceRows = toRows(data.resource);
+    const attributeRows = toRows(data.attributes, 'attributes');
+    const resourceRows = toRows(data.resource, 'resource');
 
     /** 块内搜索关键字，只作用于 Events（Links 未开启 searchable） */
     const keyword = eventKeyword.value.trim().toLowerCase();
@@ -61,15 +61,15 @@ export function useOriginData(originData: MaybeRef<Record<string, any> | undefin
       rows: [
         ...Object.entries(link)
           .filter(([key]) => key !== 'attributes')
-          .map(([key, value]) => toRow(key, value)),
-        ...toRows(link.attributes),
+          .map(([key, value]) => toRow(key, value, 'links')),
+        ...toRows(link.attributes, 'links.attributes'),
       ],
     }));
     /** Events 块：按事件名分组，组内为 timestamp + attributes；有关键字时只保留键或值命中的行 */
     const eventGroups = ((data.events || []) as Array<Record<string, any>>).map((event, index) => {
       const rows = [
-        ...(event.timestamp === undefined ? [] : [toRow('timestamp', event.timestamp)]),
-        ...toRows(event.attributes),
+        ...(event.timestamp === undefined ? [] : [toRow('timestamp', event.timestamp, 'events')]),
+        ...toRows(event.attributes, 'events.attributes'),
       ];
       return {
         name: String(event.name ?? `event_${index}`),
@@ -120,19 +120,33 @@ function resolveValueType(value: unknown): IRumOriginRowVM['valueType'] {
   return 'string';
 }
 
-function toRow(key: string, value: unknown): IRumOriginRowVM {
+/**
+ * 把字段名拼成原始数据里的完整路径（如 attributes.view.id），检索条件按这个路径回传。
+ * 数组类型的块（links / events）沿用后端扁平化的字段命名，不带数组下标。
+ */
+function toOriginKey(prefix: string, key: string): string {
+  return prefix ? `${prefix}.${key}` : key;
+}
+
+/**
+ * 构造一行键值
+ * @param key 展示用字段名（数组块内为后端扁平化后的末级字段名）
+ * @param prefix 所属块的路径前缀，仅用于拼 originKey；Span 顶层字段不传
+ */
+function toRow(key: string, value: unknown, prefix = ''): IRumOriginRowVM {
   const valueType = resolveValueType(value);
   return {
     key,
+    originKey: toOriginKey(prefix, key),
     valueType,
     value: valueType === 'object' ? JSON.stringify(value, null, 2) : String(value ?? ''),
   };
 }
 
 /** 把对象铺平成键值行，嵌套对象整体序列化（原始数据面板只做一层展开） */
-function toRows(source: Record<string, unknown> | undefined): IRumOriginRowVM[] {
+function toRows(source: Record<string, unknown> | undefined, prefix = ''): IRumOriginRowVM[] {
   if (!source) return [];
-  return Object.entries(source).map(([key, value]) => toRow(key, value));
+  return Object.entries(source).map(([key, value]) => toRow(key, value, prefix));
 }
 
 function toSummary(rows: IRumOriginRowVM[]): string {

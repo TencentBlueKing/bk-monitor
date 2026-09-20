@@ -122,6 +122,8 @@ export interface IRumOriginBlockVM {
 /** 原始数据面板的一行键值 */
 export interface IRumOriginRowVM {
   key: string;
+  /** 字段在原始数据里的完整路径（如 attributes.view.id），「添加为检索条件」回传上层时用它 */
+  originKey: string;
   /** 展示用的值文本 */
   value: string;
   /** 值的原始类型，决定前置的数据类型图标 */

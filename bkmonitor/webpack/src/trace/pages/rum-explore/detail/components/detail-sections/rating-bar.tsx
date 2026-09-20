@@ -78,12 +78,13 @@ export default defineComponent({
                   class='track-segment'
                 />
               ))}
-              <span
+              {/* 指针用 div：与 track-segment 的 span 区分元素类型，避免被 :last-of-type 命中 */}
+              <div
                 style={{ left: `${data.thumbPercent}%` }}
                 class='track-thumb'
               >
                 <i class='icon-monitor icon-dingwei1' />
-              </span>
+              </div>
             </div>
             <div class='rating-scale'>
               {data.segments.map(segment => (
