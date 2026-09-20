@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, nextTick, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, inject, nextTick, shallowRef, watch } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
 import { Message } from 'bkui-vue';
@@ -31,6 +31,8 @@ import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 
 import { beautifyJsonValue, stringifyContent } from '../utils/helpers';
+import { isActiveHitOnBlock, LLM_OBSERVATION_SEARCH_KEY } from '../utils/search';
+import HighlightText from './highlight-text';
 import JsonView from './json-view';
 
 import './json-code-block.scss';
@@ -52,6 +54,16 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** JSON 搜索 path 前缀，叶子 path 可能是 prefix.key 或 prefix[0] */
+    searchBlockId: {
+      type: String,
+      default: '',
+    },
+    /** 标题单独计数时的 blockId，例如输出侧工具结果名 */
+    titleBlockId: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
     viewAlone: (_data: unknown, _title: string) => true,
@@ -62,6 +74,27 @@ export default defineComponent({
     const bodyRef = shallowRef<HTMLElement | null>(null);
     /** 折叠态内容是否超出 max-height，用于渐变遮罩与展开按钮可用性 */
     const overflowing = shallowRef(false);
+    const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
+
+    // 命中折叠区后面的叶子时，先去掉 max-height 再滚到当前高亮，否则 scrollIntoView 看不见
+    watch(
+      () => [search?.activeIndex.value, search?.keyword.value, search?.activeHit.value] as const,
+      async ([, , hit]) => {
+        const inJson = isActiveHitOnBlock(hit, props.searchBlockId);
+        const inTitle = Boolean(props.titleBlockId && hit?.blockId === props.titleBlockId);
+        if (!inJson && !inTitle) return;
+        if (!expanded.value) {
+          expanded.value = true;
+        }
+        if (inJson) {
+          await nextTick();
+          bodyRef.value
+            ?.querySelector('[data-llm-search-hit="current"]')
+            ?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        }
+      },
+      { immediate: true }
+    );
 
     // 复制仍输出合法 JSON（文本则保留原文），不使用含多行叶子的可读展示文本。
     const prettyText = computed(() => stringifyContent(beautifyJsonValue(props.data)));
@@ -99,7 +132,18 @@ export default defineComponent({
     return () => (
       <div class={['llm-json-code-block', { 'is-bordered': props.bordered }]}>
         <div class='llm-json-code-block-header'>
-          {props.title ? <span class='llm-json-code-block-title'>{props.title}</span> : null}
+          {props.title ? (
+            <span class='llm-json-code-block-title'>
+              {props.titleBlockId ? (
+                <HighlightText
+                  blockId={props.titleBlockId}
+                  text={props.title}
+                />
+              ) : (
+                props.title
+              )}
+            </span>
+          ) : null}
           <div class='llm-json-code-block-actions'>
             <div
               class='llm-json-code-block-action'
@@ -132,7 +176,10 @@ export default defineComponent({
           ref={bodyRef}
           class={['llm-json-code-block-body', { 'is-expanded': expanded.value, 'is-overflowing': overflowing.value }]}
         >
-          <JsonView data={props.data} />
+          <JsonView
+            data={props.data}
+            searchBlockId={props.searchBlockId}
+          />
         </div>
       </div>
     );

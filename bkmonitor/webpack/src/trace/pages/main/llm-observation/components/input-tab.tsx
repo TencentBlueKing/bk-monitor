@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, inject, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { parseInputObservation } from '../utils/parse-input';
+import { LLM_OBSERVATION_SEARCH_KEY, LLM_SEARCH_SECTION } from '../utils/search';
 import CollapseSection from './collapse-section';
+import HighlightText from './highlight-text';
 import JsonCodeBlock from './json-code-block';
 import JsonView from './json-view';
 import TextContentItem from './text-content-item';
@@ -69,6 +71,7 @@ export default defineComponent({
     const detail = shallowRef<DetailState>(null);
     /** 当前选中的可用工具 */
     const selectedToolName = shallowRef('');
+    const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
 
     const observation = computed(() => parseInputObservation(props.attributes));
     const selectedTool = computed(
@@ -98,6 +101,16 @@ export default defineComponent({
       { immediate: true }
     );
 
+    // 可用工具只渲染当前选中项的描述 / 参数，定位前要先切到命中的那个 tag
+    watch(
+      () => [search?.activeIndex.value, search?.activeHit.value?.toolName] as const,
+      ([, toolName]) => {
+        if (toolName && observation.value.availableTools.some(item => item.name === toolName)) {
+          selectedToolName.value = toolName;
+        }
+      }
+    );
+
     /** 打开文本独立查看侧栏 */
     const openTextDetail = (title: string, content: string) => {
       detail.value = { kind: 'text', title, text: content };
@@ -113,13 +126,14 @@ export default defineComponent({
       detail.value = null;
     };
 
-    /** 渲染文本分区条目 */
-    const renderTextItems = (items: LlmTextItem[], title: string) =>
+    /** 渲染文本分区条目；searchPrefix 须与 collectInputHits 的 blockId 前缀一致 */
+    const renderTextItems = (items: LlmTextItem[], title: string, searchPrefix: string) =>
       items.map((item, index) => (
         <TextContentItem
           key={item.id}
           content={item.content}
           index={index + 1}
+          searchBlockId={`${searchPrefix}:${item.id}`}
           onViewAlone={content => openTextDetail(title, content)}
         />
       ));
@@ -136,13 +150,22 @@ export default defineComponent({
                 selectedToolName.value = tool.name;
               }}
             >
-              {tool.name}
+              <HighlightText
+                blockId={`input:tool:${tool.name}:name`}
+                text={tool.name.trim()}
+              />
             </div>
           ))}
         </div>
-        {selectedTool.value ? <ToolDescBar description={selectedTool.value.description} /> : null}
+        {selectedTool.value ? (
+          <ToolDescBar
+            descBlockId={`input:tool:${selectedTool.value.name}:desc`}
+            description={selectedTool.value.description}
+          />
+        ) : null}
         <JsonCodeBlock
           data={selectedTool.value?.parameters ?? {}}
+          searchBlockId={selectedTool.value ? `input:tool:${selectedTool.value.name}:params` : ''}
           title={t('调用参数')}
           onViewAlone={openJsonDetail}
         />
@@ -159,46 +182,52 @@ export default defineComponent({
               <CollapseSection
                 count={observation.value.userMessages.length}
                 icon='icon-a-chatqipao'
+                sectionId={LLM_SEARCH_SECTION.inputUser}
                 title={t('用户消息')}
               >
-                {renderTextItems(observation.value.userMessages, t('用户消息'))}
+                {renderTextItems(observation.value.userMessages, t('用户消息'), 'input:user')}
               </CollapseSection>
             )}
             {observation.value.modelMessages.length > 0 && (
               <CollapseSection
                 count={observation.value.modelMessages.length}
                 icon='icon-LLM'
+                sectionId={LLM_SEARCH_SECTION.inputModel}
                 title={t('模型消息')}
               >
-                {renderTextItems(observation.value.modelMessages, t('模型消息'))}
+                {renderTextItems(observation.value.modelMessages, t('模型消息'), 'input:model')}
               </CollapseSection>
             )}
             {observation.value.systemPrompts.length > 0 && (
               <CollapseSection
                 count={observation.value.systemPrompts.length}
                 icon='icon-neizhi'
+                sectionId={LLM_SEARCH_SECTION.inputSystem}
                 title={t('系统 Prompts')}
               >
-                {renderTextItems(observation.value.systemPrompts, t('系统 Prompts'))}
+                {renderTextItems(observation.value.systemPrompts, t('系统 Prompts'), 'input:system')}
               </CollapseSection>
             )}
             {observation.value.reasoningMessages.length > 0 && (
               <CollapseSection
                 count={observation.value.reasoningMessages.length}
                 icon='icon-tuiliguocheng'
+                sectionId={LLM_SEARCH_SECTION.inputReasoning}
                 title={t('推理过程')}
               >
-                {renderTextItems(observation.value.reasoningMessages, t('推理过程'))}
+                {renderTextItems(observation.value.reasoningMessages, t('推理过程'), 'input:reasoning')}
               </CollapseSection>
             )}
             {observation.value.toolCalls.length > 0 && (
               <CollapseSection
                 count={observation.value.toolCalls.length}
                 icon='icon-gongjutiaoyongjilu'
+                sectionId={LLM_SEARCH_SECTION.inputToolCalls}
                 title={t('工具调用记录')}
               >
                 <ToolCallList
                   items={observation.value.toolCalls}
+                  searchPrefix='input:toolcall'
                   onViewAlone={openJsonDetail}
                 />
               </CollapseSection>
@@ -207,6 +236,7 @@ export default defineComponent({
               <CollapseSection
                 count={observation.value.availableTools.length}
                 icon='icon-Tool'
+                sectionId={LLM_SEARCH_SECTION.inputTools}
                 title={t('可用工具')}
               >
                 {renderAvailableTools(observation.value.availableTools)}

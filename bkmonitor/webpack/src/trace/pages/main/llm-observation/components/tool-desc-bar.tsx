@@ -23,10 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, shallowRef, watch } from 'vue';
+import { defineComponent, inject, nextTick, shallowRef, watch } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
+
+import { LLM_OBSERVATION_SEARCH_KEY } from '../utils/search';
+import HighlightText from './highlight-text';
 
 import './tool-desc-bar.scss';
 
@@ -38,10 +41,25 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    name: {
+      type: String,
+      default: '',
+    },
+    /** 工具名高亮锚点；可用工具 tag 已单独高亮时可不传 */
+    nameBlockId: {
+      type: String,
+      default: '',
+    },
+    /** 描述高亮锚点；命中时把单行省略展开成多行 */
+    descBlockId: {
+      type: String,
+      default: '',
+    },
   },
   setup(props) {
     const { t } = useI18n();
     const expanded = shallowRef(false);
+    const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
     const textRef = shallowRef<HTMLElement | null>(null);
     /** 折叠态描述是否超出单行，用于展示「展开」 */
     const overflowing = shallowRef(false);
@@ -54,6 +72,20 @@ export default defineComponent({
     };
 
     useResizeObserver(textRef, syncOverflow);
+
+    // 描述默认单行省略，命中名称或描述时展开才能看到高亮
+    watch(
+      () => [search?.activeIndex.value, search?.keyword.value, search?.activeHit.value?.blockId] as const,
+      ([, , blockId]) => {
+        if (
+          (props.descBlockId && blockId === props.descBlockId) ||
+          (props.nameBlockId && blockId === props.nameBlockId)
+        ) {
+          expanded.value = true;
+        }
+      },
+      { immediate: true }
+    );
 
     watch(
       () => props.description,
@@ -74,12 +106,28 @@ export default defineComponent({
     return () => (
       <div class={['llm-tool-desc-bar', { 'is-expanded': expanded.value }]}>
         <div class='llm-tool-desc-bar-main'>
-          <span class='llm-tool-desc-bar-label'>{t('工具描述')}</span>
+          <span class='llm-tool-desc-bar-label'>
+            {props.nameBlockId && props.name.trim() ? (
+              <HighlightText
+                blockId={props.nameBlockId}
+                text={props.name.trim()}
+              />
+            ) : (
+              props.name.trim() || t('工具描述')
+            )}
+          </span>
           <span
             ref={textRef}
             class='llm-tool-desc-bar-text'
           >
-            {props.description.trim() || '--'}
+            {props.descBlockId ? (
+              <HighlightText
+                blockId={props.descBlockId}
+                text={props.description.trim() || '--'}
+              />
+            ) : (
+              props.description.trim() || '--'
+            )}
           </span>
         </div>
         {overflowing.value || expanded.value ? (

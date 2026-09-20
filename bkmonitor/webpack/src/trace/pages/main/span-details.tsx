@@ -88,6 +88,7 @@ import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import K8sContainer from './k8s-container';
 import LlmObservation from './llm-observation';
+import ObservationSearch from './llm-observation/components/observation-search';
 import { formatSpanLinks } from './utils/format-span-links';
 
 import type { Span } from '../../components/trace-view/typings';
@@ -1327,6 +1328,48 @@ export default defineComponent({
       return '';
     });
 
+    /** LLM 观测 Tab 页内搜索：状态放在详情侧，避免切 Span 后子树重建丢词 */
+    const llmSearchKeyword = shallowRef('');
+    const llmSearchActiveIndex = shallowRef(0);
+    const llmSearchMatchCount = shallowRef(0);
+
+    const resetLlmSearch = () => {
+      llmSearchKeyword.value = '';
+      llmSearchActiveIndex.value = 0;
+      llmSearchMatchCount.value = 0;
+    };
+
+    const handleLlmSearchKeyword = (value: string) => {
+      llmSearchKeyword.value = value;
+      // 换词后 hits 重算，序号从第一条重新数
+      llmSearchActiveIndex.value = 0;
+    };
+
+    const handleLlmSearchStep = (step: number) => {
+      const total = llmSearchMatchCount.value;
+      if (!total) return;
+      llmSearchActiveIndex.value = (llmSearchActiveIndex.value + step + total) % total;
+    };
+
+    const handleLlmSearchMatchCount = (count: number) => {
+      llmSearchMatchCount.value = count;
+      if (count > 0 && llmSearchActiveIndex.value >= count) {
+        llmSearchActiveIndex.value = count - 1;
+      }
+    };
+
+    const handleLlmSearchActiveIndex = (index: number) => {
+      if (index < 0) return;
+      llmSearchActiveIndex.value = index;
+    };
+
+    watch(
+      () => [props.show, props.spanDetails?.span_id],
+      () => {
+        resetLlmSearch();
+      }
+    );
+
     const sceneData = deepRef<BookMarkModel>({});
     const isSingleChart = computed<boolean>(() => {
       return (
@@ -1632,8 +1675,8 @@ export default defineComponent({
                     class='info-tab'
                     v-slots={{
                       setting: () => {
-                        return (
-                          exploreButtonName.value && (
+                        if (exploreButtonName.value) {
+                          return (
                             <div class='quick-jump-container'>
                               {activeTab.value === 'Log' && (
                                 <Button
@@ -1660,8 +1703,20 @@ export default defineComponent({
                                 <i class='icon-monitor icon-fenxiang' />
                               </Button>
                             </div>
-                          )
-                        );
+                          );
+                        }
+                        if (activeTab.value === 'LlmObservation') {
+                          return (
+                            <ObservationSearch
+                              activeIndex={llmSearchActiveIndex.value}
+                              keyword={llmSearchKeyword.value}
+                              matchCount={llmSearchMatchCount.value}
+                              onNext={() => handleLlmSearchStep(1)}
+                              onPrev={() => handleLlmSearchStep(-1)}
+                              onUpdate:keyword={handleLlmSearchKeyword}
+                            />
+                          );
+                        }
                       },
                     }}
                     active={activeTab.value}
@@ -1908,6 +1963,10 @@ export default defineComponent({
                               <LlmObservation
                                 key={`${detailSpan.value.traceID}:${detailSpan.value.span_id}`}
                                 llmDetail={llmDetail.value}
+                                searchActiveIndex={llmSearchActiveIndex.value}
+                                searchKeyword={llmSearchKeyword.value}
+                                onMatchCount={handleLlmSearchMatchCount}
+                                onSearchActiveIndex={handleLlmSearchActiveIndex}
                               />
                             </div>
                           )}

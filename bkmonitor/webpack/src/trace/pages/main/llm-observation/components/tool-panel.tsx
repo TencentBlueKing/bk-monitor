@@ -58,10 +58,17 @@ export default defineComponent({
 
     return () => (
       <div class='llm-tool-panel'>
-        <ToolDescBar description={observation.value.description} />
+        {/* blockId 与 collectToolHits 固定前缀对齐 */}
+        <ToolDescBar
+          descBlockId='tool:desc'
+          description={observation.value.description}
+          name={observation.value.name}
+          nameBlockId='tool:name'
+        />
         <JsonCodeBlock
           bordered={true}
           data={observation.value.arguments}
+          searchBlockId='tool:args'
           title={t('调用参数')}
           onViewAlone={(data, title) => {
             detail.value = { data, title };
@@ -70,6 +77,7 @@ export default defineComponent({
         <JsonCodeBlock
           bordered={true}
           data={observation.value.result}
+          searchBlockId='tool:result'
           title={t('返回结果')}
           onViewAlone={(data, title) => {
             detail.value = { data, title };
