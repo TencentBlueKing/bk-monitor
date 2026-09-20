@@ -15,6 +15,7 @@ import requests
 from django.conf import settings
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.custom_report_endpoint import get_valid_custom_report_endpoints
 from bkmonitor.utils.thread_backend import ThreadPool
 
 logger = logging.getLogger(__name__)
@@ -63,14 +64,20 @@ class custom_report_tool:
         :param access_token: token
         :param parallel: 是否并发请求
         """
-        cluster_service = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE", "")
-        assert (
-            cluster_service or settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN or settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
-        ), _(
-            "全局配置中: 自定义上报默认服务器[CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE或"
-            "CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN或CUSTOM_REPORT_DEFAULT_PROXY_IP]"
-            "未配置，请确认bkmonitorproxy已部署，并在全局配置中配置！"
+        valid_services = get_valid_custom_report_endpoints(
+            getattr(settings, "CUSTOM_REPORT_ENDPOINTS", [])
         )
+        cluster_service = valid_services[0]["endpoint"] if valid_services else None
+        if not (
+            cluster_service or settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN or settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
+        ):
+            raise ValueError(
+                _(
+                    "全局配置中: 自定义上报默认服务器[CUSTOM_REPORT_ENDPOINTS或"
+                    "CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN或CUSTOM_REPORT_DEFAULT_PROXY_IP]"
+                    "未配置，请确认bkmonitorproxy已部署，并在全局配置中配置！"
+                )
+            )
         send_list = [[]]
         chunk_index = 0
         # 避免每次发送的数据太长，分批进行上报
