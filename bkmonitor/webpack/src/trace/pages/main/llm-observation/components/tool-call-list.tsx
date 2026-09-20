@@ -166,7 +166,7 @@ export default defineComponent({
                 </div>
                 {expanded && (
                   <div class='llm-tool-call-list-content'>
-                    {description ? <ToolDescBar description={description} /> : null}
+                    <ToolDescBar description={description} />
                     <div class='llm-tool-call-list-panels'>
                       <JsonCodeBlock
                         data={item.arguments ?? {}}

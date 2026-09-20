@@ -140,7 +140,7 @@ export default defineComponent({
             </div>
           ))}
         </div>
-        {selectedTool.value?.description ? <ToolDescBar description={selectedTool.value.description} /> : null}
+        {selectedTool.value ? <ToolDescBar description={selectedTool.value.description} /> : null}
         <JsonCodeBlock
           data={selectedTool.value?.parameters ?? {}}
           title={t('调用参数')}

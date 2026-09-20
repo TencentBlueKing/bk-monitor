@@ -68,6 +68,21 @@
     color: #313238;
   }
 
+  .metric-card-trend-wrap {
+    display: flex;
+    flex-shrink: 0;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .metric-card-trend-label {
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 20px;
+    color: #8f9fbd;
+  }
+
   .metric-card-trend {
     font-family: Arial, sans-serif;
     font-size: 14px;

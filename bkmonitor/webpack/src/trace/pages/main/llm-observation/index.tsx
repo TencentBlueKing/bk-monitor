@@ -30,7 +30,7 @@ import { useI18n } from 'vue-i18n';
 import InputTab from './components/input-tab';
 import OutputTab from './components/output-tab';
 import ToolPanel from './components/tool-panel';
-import { formatTokenCount, pickNumber } from './utils/helpers';
+import { formatSecondCount, formatTokenCount, pickNumber, pickOptionalNumber, pickString } from './utils/helpers';
 import { countInputObservation, parseInputObservation } from './utils/parse-input';
 import { countOutputObservation, parseOutputObservation } from './utils/parse-output';
 
@@ -41,12 +41,14 @@ import './index.scss';
 /** 输入 / 输出页签 */
 type IoTabName = 'input' | 'output';
 
-/** Token 统计卡片 */
+/** Token / 模型 / 耗时统计卡片 */
 type LlmStatCard = {
+  extra?: string;
   key: string;
   label: string;
   theme?: 'success';
-  value: number;
+  unit?: string;
+  value: number | string;
 };
 
 /**
@@ -80,7 +82,7 @@ export default defineComponent({
       }
     );
 
-    /** Token / 缓存统计卡片；工具类型没有 Token 消耗 */
+    /** Token / 模型 / 耗时统计卡片；工具类型不展示 */
     const stats = computed<LlmStatCard[]>(() => {
       if (isToolSpan.value) return [];
 
@@ -88,11 +90,26 @@ export default defineComponent({
       const inputTokens = pickNumber(attrs, ['gen_ai.usage.input_tokens', 'gen_ai.usage.prompt_tokens']);
       const outputTokens = pickNumber(attrs, ['gen_ai.usage.output_tokens', 'gen_ai.usage.completion_tokens']);
       const totalTokens = pickNumber(attrs, ['gen_ai.usage.total_tokens']) || inputTokens + outputTokens;
+      const firstChunk = pickOptionalNumber(attrs, ['gen_ai.response.time_to_first_chunk']);
+      const modelName = pickString(attrs, ['gen_ai.request.model']);
+      const providerName = pickString(attrs, ['gen_ai.provider.name']);
 
       return [
+        {
+          extra: providerName,
+          key: 'model',
+          label: t('模型 & 厂商'),
+          value: modelName || '--',
+        },
         { key: 'input', label: t('输入 Tokens'), value: inputTokens },
         { key: 'output', label: t('输出 Tokens'), value: outputTokens },
         { key: 'total', label: t('总 Tokens'), value: totalTokens, theme: 'success' },
+        {
+          key: 'firstToken',
+          label: t('首 Token 耗时'),
+          unit: firstChunk === undefined ? undefined : 's',
+          value: firstChunk === undefined ? '--' : firstChunk,
+        },
         {
           key: 'cacheRead',
           label: t('缓存读数'),
@@ -127,17 +144,44 @@ export default defineComponent({
         <div class='llm-observation-main'>
           {stats.value.length > 0 && (
             <div class='llm-observation-stats'>
-              {stats.value.map(item => (
-                <div
-                  key={item.key}
-                  class='llm-observation-stat-card'
-                >
-                  <span class='llm-observation-stat-label'>{item.label}</span>
-                  <span class={['llm-observation-stat-value', { 'is-success': item.theme === 'success' }]}>
-                    {formatTokenCount(item.value)}
-                  </span>
-                </div>
-              ))}
+              {stats.value.map(item => {
+                const displayValue =
+                  typeof item.value === 'string'
+                    ? item.value
+                    : item.unit
+                      ? formatSecondCount(item.value)
+                      : formatTokenCount(item.value);
+
+                return (
+                  <div
+                    key={item.key}
+                    class='llm-observation-stat-card'
+                  >
+                    <div class='llm-observation-stat-head'>
+                      <span class='llm-observation-stat-label'>{item.label}</span>
+                      {item.extra ? (
+                        <span
+                          class='llm-observation-stat-extra'
+                          v-overflow-tips
+                        >
+                          {item.extra}
+                        </span>
+                      ) : null}
+                    </div>
+                    <div class='llm-observation-stat-value-row'>
+                      <span
+                        class={['llm-observation-stat-value', { 'is-success': item.theme === 'success' }]}
+                        v-overflow-tips
+                      >
+                        {displayValue}
+                      </span>
+                      {item.unit && typeof item.value === 'number' ? (
+                        <span class='llm-observation-stat-unit'>{item.unit}</span>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
           {isToolSpan.value ? (
