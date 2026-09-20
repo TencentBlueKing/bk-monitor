@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-import fs from 'node:fs';
-import path from 'node:path';
 import { execFileSync } from 'node:child_process';
+import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
@@ -33,11 +33,7 @@ check(
 );
 
 for (const dependency of ['@playwright/test', 'pixelmatch', 'pngjs']) {
-  check(
-    `依赖 ${dependency}`,
-    () => require.resolve(dependency),
-    '执行 pnpm install。'
-  );
+  check(`依赖 ${dependency}`, () => require.resolve(dependency), '执行 pnpm install。');
 }
 
 check(

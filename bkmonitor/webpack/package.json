@@ -39,11 +39,6 @@
     "analyze:fta": "npm run clean && bkmonitor-cli build -f -a",
     "e2e:doctor": "node ./e2e/scripts/doctor.mjs",
     "e2e:install": "playwright install chromium",
-    "e2e:init": "node ./e2e/scripts/init-run.mjs",
-    "e2e:preflight": "node ./e2e/scripts/preflight.mjs",
-    "e2e:run": "node ./e2e/scripts/run.mjs",
-    "e2e:report": "node ./e2e/scripts/summarize-results.mjs",
-    "e2e:delivery": "node ./e2e/scripts/render-delivery.mjs",
     "replace": "cross-env execMode=move node ./webpack/exec-shell.js"
   },
   "simple-git-hooks": {
