@@ -197,16 +197,12 @@ export interface IRumTtfbBreakdownVM {
   itemsTotalText: string;
 }
 
-/** 瀑布图上的一个时间点标记 */
 export interface IRumWaterfallMarkerVM {
-  /** 到达该时间点所耗时长文案（如 375.1ms） */
-  durationText: string;
-  /** 唯一标识（取自接口 markers[].key），同时用作渲染 key */
   key: string;
-  /** 展示名（取自接口 field_name，缺省回落到 key） */
   label: string;
-  /** 竖线左偏移百分比 */
   percent: number;
+  value: number;
+  valueText: string;
 }
 
 /** 瀑布图的一行 */
@@ -224,8 +220,13 @@ export interface IRumWaterfallRowVM {
 
 /** 瀑布图视图模型 */
 export interface IRumWaterfallVM {
+  /** 风格：带有标题的复杂风格 和 不带标题的简约风格  */
+  behavior?: 'complex' | 'simplicity';
+  /** 总耗时 */
+  durationTotal: number;
+  durationTotalText: string;
   /** 时间点标记 */
-  markers?: IRumWaterfallMarkerVM[];
+  markers?: Array<IRumWaterfallMarkerVM>;
   /** 被合并掉的阶段名（如 DNS、TCP、TLS），由瀑布图组件拼装成说明文案 */
   mergedNames?: string[];
   rows: IRumWaterfallRowVM[];

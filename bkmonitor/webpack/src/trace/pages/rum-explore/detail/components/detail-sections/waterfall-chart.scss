@@ -1,80 +1,184 @@
-.rum-waterfall {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.waterfall-chart {
+  padding: 24px;
+  background-color: #f7f9fc;
 
-  .waterfall-row {
+  .complex-behavior-wrap {
+    .complex-behavior-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+
+      .waterfall-chart-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: #313238;
+      }
+
+      .waterfall-chart-status {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+
+        .waterfall-chart-status-item {
+          position: relative;
+          padding-left: 12px;
+          font-size: 12px;
+          color: var(--status-color, #313238);
+
+          &::before {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 8px;
+            height: 8px;
+            content: '';
+            background-color: var(--status-color, #313238);
+            border-radius: 50%;
+            transform: translateY(-50%);
+          }
+        }
+      }
+    }
+  }
+
+  .rum-waterfall-wrap {
+    position: relative;
     display: flex;
+    flex-direction: column;
     gap: 12px;
-    align-items: center;
-  }
 
-  .row-label {
-    flex-shrink: 0;
-    width: 112px;
-    font-size: 13px;
-    font-weight: 500;
-    line-height: 22px;
-    color: #313238;
-    text-align: right;
-    text-decoration: underline dotted #979ba5;
-  }
+    .waterfall-row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
 
-  .row-duration {
-    flex-shrink: 0;
-    width: 48px;
-    font-size: 12px;
-    font-weight: 700;
-    line-height: 20px;
-    color: #979ba5;
-    text-align: right;
-  }
+      .row-label {
+        flex-shrink: 0;
+        width: 112px;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 22px;
+        color: #313238;
+        text-align: right;
+        text-decoration: underline dotted #979ba5;
+      }
 
-  .row-track {
-    position: relative;
-    flex: 1;
-    height: 20px;
-    background: #e9edf5;
-    border-radius: 4px;
-  }
+      .row-duration {
+        flex-shrink: 0;
+        width: 48px;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 20px;
+        color: #979ba5;
+        text-align: right;
+      }
 
-  .row-block {
-    position: absolute;
-    top: 0;
-    height: 20px;
-    border-radius: 4px;
-  }
+      .row-track {
+        position: relative;
+        flex: 1;
+        height: 20px;
+        overflow: hidden;
+        background: #e9edf5;
+        border-radius: 4px;
+      }
 
-  .waterfall-merged-tip {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-    padding-left: 184px;
+      .row-block {
+        position: absolute;
+        top: 0;
+        height: 20px;
+        border-radius: 4px;
+      }
 
-    .tip-line {
-      flex: 1;
-      height: 1px;
-      background: #e4e9f2;
+      &.timestamp-row {
+        .row-block {
+          border-radius: 0;
+        }
+      }
     }
 
-    .tip-text {
+    .waterfall-merged-tip {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding-left: 184px;
+
+      .tip-line {
+        flex: 1;
+        height: 1px;
+        background: #e4e9f2;
+      }
+
+      .tip-text {
+        font-size: 12px;
+        line-height: 20px;
+        color: #4e5e7a;
+      }
+    }
+
+    /** TTFB 分解说明：紧跟时间轴下方，左边缘与右侧轨道对齐 */
+    .waterfall-ttfb-breakdown {
+      padding-top: 16px;
       font-size: 12px;
       line-height: 20px;
-      color: #4e5e7a;
+      color: #8f9fbd;
+      border-top: 1px solid #e4e9f2;
+    }
+
+    .waterfall-markers {
+      margin-left: 172px;
+
+      .marker-column {
+        position: absolute;
+        z-index: 2;
+        display: flex;
+        height: 100%;
+
+        .marker-line {
+          width: 1px;
+          height: 100%;
+          margin-right: 10px;
+          background: #21a380;
+        }
+
+        .marker-list {
+          display: flex;
+          flex-direction: column;
+          font-size: 12px;
+          line-height: 20px;
+          color: #4e5e7a;
+        }
+
+        .marker-label,
+        .marker-duration {
+          font-size: 12px;
+          font-weight: 700;
+          line-height: 20px;
+          color: #21a380;
+        }
+
+        .marker-label {
+          margin-right: 4px;
+          border-bottom: 1px dotted #21a380;
+        }
+      }
     }
   }
 
-  .waterfall-markers {
-    position: relative;
-    height: 20px;
-    margin-left: 172px;
+  &.complex-behavior {
+    padding: 16px 24px;
+    background-color: #fff;
 
-    .marker-item {
-      position: absolute;
-      font-size: 12px;
-      line-height: 20px;
-      color: #4e5e7a;
-      transform: translateX(-50%);
+    .rum-waterfall-wrap {
+      padding: 16px;
+      background-color: #f7f9fc;
+      border-radius: 8px;
+    }
+  }
+
+  &.has-marker {
+    .rum-waterfall-wrap {
+      padding-top: 0;
     }
   }
 }
