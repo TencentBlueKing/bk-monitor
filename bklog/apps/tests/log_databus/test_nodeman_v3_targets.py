@@ -482,3 +482,45 @@ class PeriodicReconcileTest(TestCase):
         self._run_recovery()
 
         self.mock_installer.assert_not_called()
+
+
+class CeleryRegistrationTest(TestCase):
+    """
+    守住「BKL-3 两个定时任务必须被 celery 注册」。
+
+    直接调函数的用例已经全绿过，但 CELERY_IMPORTS 漏写时部署环境里这两个任务根本不存在：
+    目标动态收敛与卡单恢复全部静默不跑，而节点管理建的是一次性 trigger，不重放就永久漏采。
+    所以这里必须断言 settings + celery 注册表，不能只断言函数能 import。
+    """
+
+    MODULE = "apps.log_databus.tasks.nodeman_v3"
+    TASK_NAMES = (
+        "apps.log_databus.tasks.nodeman_v3.reconcile_nodeman_v3_targets",
+        "apps.log_databus.tasks.nodeman_v3.recover_nodeman_v3_operations",
+    )
+
+    def test_module_is_in_celery_imports(self):
+        from django.conf import settings
+
+        self.assertIn(self.MODULE, settings.CELERY_IMPORTS)
+
+    def test_both_tasks_are_registered_on_celery_app(self):
+        from importlib import import_module
+
+        from django.conf import settings
+
+        from config import celery_app
+
+        # 测试进程不会替 celery beat 预加载 CELERY_IMPORTS。这里按 beat 的加载方式
+        # 从 settings 里取出模块名再 import —— 模块不在 CELERY_IMPORTS 里时这条会先失败
+        self.assertIn(self.MODULE, settings.CELERY_IMPORTS)
+        import_module(self.MODULE)
+
+        registered = set(celery_app.tasks.keys())
+        missing = [name for name in self.TASK_NAMES if name not in registered]
+        self.assertEqual(
+            missing,
+            [],
+            f"nodeman_v3 periodic tasks missing from celery registry: {missing}. "
+            f"CELERY_IMPORTS must include {self.MODULE}",
+        )
