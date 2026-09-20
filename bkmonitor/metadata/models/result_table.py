@@ -3115,6 +3115,7 @@ class LogV4DataLinkOption(pydantic.BaseModel):
         json_fields: list[str] = pydantic.Field(description="JSON字段列表", default_factory=list)
         original_json_fields: list[str] = pydantic.Field(description="原始JSON字段列表", default_factory=list)
         field_config_group: dict[str, Any] = pydantic.Field(description="字段配置组", default_factory=dict)
+        tokenizers: dict[str, str] | None = pydantic.Field(description="字段自定义分词规则", default=None)
         flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒", default=None)
 
     class CleanRule(pydantic.BaseModel):

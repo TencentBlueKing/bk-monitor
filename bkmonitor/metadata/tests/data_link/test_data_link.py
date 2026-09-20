@@ -7294,6 +7294,7 @@ def test_compose_log_configs_reuses_legacy_components(create_or_delete_records, 
             "json_fields": ["json_body"],
             "original_json_fields": ["origin_json"],
             "field_config_group": {"search_analyzed": ["log"]},
+            "tokenizers": {"log": "._=:,"},
             "flush_timeout": 30,
         },
     }
@@ -7385,6 +7386,8 @@ def test_compose_log_configs_reuses_legacy_components(create_or_delete_records, 
     assert configs[1]["spec"]["data"]["name"] == "legacy_log_rt"
     assert configs[2]["metadata"]["name"] == "legacy_log_doris_binding"
     assert configs[2]["spec"]["data"]["name"] == "legacy_log_rt"
+    assert configs[2]["spec"]["storage_config"]["field_config_group"] == {"search_analyzed": ["log"]}
+    assert configs[2]["spec"]["storage_config"]["tokenizers"] == {"log": "._=:,"}
     assert configs[3]["metadata"]["name"] == "legacy_log_databus"
     assert configs[3]["spec"]["sources"][0]["name"] == "legacy_log_data_id"
     assert configs[3]["spec"]["sinks"] == [

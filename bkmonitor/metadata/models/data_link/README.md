@@ -179,6 +179,22 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 联邦子集群策略在组装阶段重点产出 `ConditionalSink` + `Databus` 路由配置；其策略映射中仍包含其他组件类型，用于统一生命周期管理和清理。
 - 日志链路支持 ES 与 Doris，至少需要一个存储绑定，否则抛出 `ValueError("至少需要一个存储绑定配置")`。
 
+日志链路的 `log_v4_data_link.doris_storage_config` 和自定义格式链路的
+`custom_format_v4_data_link.doris_storage_config` 均支持自定义分词规则，例如：
+
+```json
+{
+  "storage_keys": [],
+  "tokenizers": {
+    "log": "._=:,"
+  }
+}
+```
+
+`tokenizers` 按字段名配置分词字符串，下发到 `DorisBinding.spec.storage_config.tokenizers`，
+与 `field_config_group` 同级。省略或设置为 `null` 时不下发该键；显式 `{}` 原样下发。
+`field_config_group` 保持原样透传。存量链路修改分词配置后需重新下发才能生效。
+
 ---
 
 ## 6. 核心流程
