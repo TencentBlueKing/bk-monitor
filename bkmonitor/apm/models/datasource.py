@@ -41,6 +41,8 @@ from bkmonitor.utils.db import JsonField
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, get_tenant_default_biz_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
+from bkm_space.errors import NoRelatedResourceError
+from bkm_space.validate import validate_bk_biz_id
 from common.log import logger
 from constants.apm import (
     FlowType,
@@ -1561,11 +1563,15 @@ class ProfileDataSource(ApmDataSourceConfigBase):
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         profile_bk_biz_id = bk_biz_id
         if bk_biz_id < 0:
-            # 非业务创建 profile 将创建在租户默认业务下
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                profile_bk_biz_id = get_tenant_default_biz_id(bk_tenant_id)
-            else:
-                profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
+            # 负数 bk_biz_id 表示项目空间，需先尝试获取其关联的业务ID；
+            # 若空间无关联业务（如 SAAS 空间），再回退到租户默认业务ID。
+            try:
+                profile_bk_biz_id = validate_bk_biz_id(bk_biz_id)
+            except NoRelatedResourceError:
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    profile_bk_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+                else:
+                    profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
 
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
 
