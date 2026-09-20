@@ -10,34 +10,15 @@ specific language governing permissions and limitations under the License.
 
 import logging
 import os
-from collections.abc import Callable
-from typing import Any
 
 import requests
 from django.conf import settings
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.custom_report_endpoint import get_valid_custom_report_endpoints
 from bkmonitor.utils.thread_backend import ThreadPool
 
 logger = logging.getLogger(__name__)
-
-
-def get_valid_custom_report_endpoints(configured_endpoints: Any) -> list[dict[str, str]]:
-    """按配置顺序返回具有有效地址和别名的上报服务。"""
-    if not isinstance(configured_endpoints, list):
-        logger.warning("CUSTOM_REPORT_ENDPOINTS must be a list")
-        return []
-
-    valid_services = []
-    for index, service in enumerate(configured_endpoints):
-        endpoint = service.get("endpoint") if isinstance(service, dict) else None
-        alias = service.get("alias") if isinstance(service, dict) else None
-        if not all(isinstance(value, str) and value.strip() for value in (endpoint, alias)):
-            logger.warning(f"skip invalid CUSTOM_REPORT_ENDPOINTS item at index {index}")
-            continue
-        valid_services.append({"endpoint": endpoint.strip(), "alias": alias.strip()})
-
-    return valid_services
 
 
 class custom_report_tool:

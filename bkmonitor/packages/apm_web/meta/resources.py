@@ -114,6 +114,7 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
+from bkmonitor.utils.custom_report_endpoint import get_valid_custom_report_endpoints
 from bkmonitor.utils.ip import is_v6
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
@@ -1765,19 +1766,7 @@ class PushUrlResource(Resource):
 
     def _get_configured_endpoints(self, endpoint_configs):
         """按 CUSTOM_REPORT_ENDPOINTS 的配置顺序生成地址，跳过无效条目。"""
-        configured_endpoints = getattr(settings, "CUSTOM_REPORT_ENDPOINTS", [])
-        if not isinstance(configured_endpoints, list):
-            logger.warning("CUSTOM_REPORT_ENDPOINTS must be a list")
-            return []
-        # 先剔除 CUSTOM_REPORT_ENDPOINTS 中存在格式等错误的数据。
-        valid_services = []
-        for index, service in enumerate(configured_endpoints):
-            endpoint = service.get("endpoint") if isinstance(service, dict) else None
-            alias = service.get("alias") if isinstance(service, dict) else None
-            if not all(isinstance(value, str) and value.strip() for value in (endpoint, alias)):
-                logger.warn(f"skip invalid CUSTOM_REPORT_ENDPOINTS item at index {index}")
-                continue
-            valid_services.append({"endpoint": endpoint.strip(), "alias": alias.strip()})
+        valid_services = get_valid_custom_report_endpoints(getattr(settings, "CUSTOM_REPORT_ENDPOINTS", []))
 
         return [
             {

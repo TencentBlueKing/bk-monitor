@@ -628,7 +628,7 @@ STANDARD_CONFIGS = OrderedDict(
         ("CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER", slz.ListField(label=_("自定义上报默认部署K8S集群"), default=[])),
         (
             "CUSTOM_REPORT_ENDPOINTS",
-            slz.ListField(
+            slz.JSONField(
                 label=_("集群内上报服务配置"),
                 default=[
                     {"endpoint": "bkm-collector.bkmonitor-operator", "alias": "集群内服务"},
