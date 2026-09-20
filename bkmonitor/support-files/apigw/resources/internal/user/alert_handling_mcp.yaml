@@ -712,7 +712,7 @@ paths:
   /mcp/create_alarm_shield/:
     post:
       operationId: create_alarm_shield
-      description: Create an alarm shield. Supported categories are scope, strategy, alert, and dimension; event shields are not exposed because the backend has no safe event-to-alert mapping. First resolve the target and check for an existing active shield. For a strategy shield use category="strategy" and dimension_config.id=[strategy_id]. Times use "YYYY-MM-DD HH:mm:ss"; cycle type 1=once, 2=daily, 3=weekly, 4=monthly. Production write; confirm=true is required. 创建告警屏蔽。支持scope、strategy、alert、dimension；后端缺少安全的事件到告警映射，暂不开放event屏蔽。先定位目标并检查已有屏蔽。生产写操作，必须confirm=true。
+      description: Create an alarm shield. Supported categories are scope, strategy, alert, and dimension; event shields are not exposed because the backend has no safe event-to-alert mapping. First resolve the target and check for an existing active shield. For a strategy shield use category="strategy" and dimension_config.id=[strategy_id]. Times use "YYYY-MM-DD HH:mm:ss"; cycle type 1=once, 2=daily, 3=weekly, 4=monthly. Optional end_policy is notify_once (default, send one unshielded notice after the window) or close (silently close alerts that began during the window; immutable after create; not allowed for alert/quick shields). Production write; confirm=true is required. 创建告警屏蔽。支持scope、strategy、alert、dimension；后端缺少安全的事件到告警映射，暂不开放event屏蔽。先定位目标并检查已有屏蔽。end_policy可选notify_once（默认，结束后补发一次解除屏蔽通知）或close（期间产生的告警结束时关闭且不补发；创建后不可改；告警/快捷屏蔽不支持close）。生产写操作，必须confirm=true。
       tags:
       - alert_handling_mcp
       requestBody:
@@ -740,6 +740,13 @@ paths:
                   - alert
                   - dimension
                   description: Shield category. 屏蔽类型。
+                end_policy:
+                  type: string
+                  enum:
+                  - notify_once
+                  - close
+                  default: notify_once
+                  description: How to handle alerts after the shield ends. notify_once (default) sends one unshielded notice for still-abnormal alerts; close silently closes alerts whose begin_time fell in this shield window and does not notify or run action plugins. Immutable after create. Alert/quick shields cannot use close. 屏蔽结束处理方式。notify_once（默认）结束后对未恢复告警补发一次通知；close将期间产生的告警静默关闭且不补发。创建后不可改。告警/快捷屏蔽不支持close。
                 description:
                   type: string
                   description: Shield reason. 屏蔽原因。
@@ -852,7 +859,7 @@ paths:
   /mcp/update_alarm_shield/:
     post:
       operationId: update_alarm_shield
-      description: Update editable fields of an existing alarm shield. Call get_alarm_shield first and submit complete begin_time, end_time, cycle_config, and shield_notice values even when only one field changes. The shield target/category cannot be replaced here. Production write; confirm=true is required. 编辑已有告警屏蔽。必须先读取详情，即使只修改一个字段也要完整回填开始时间、结束时间、周期和通知开关。不能通过本工具替换屏蔽对象或类型。生产写操作，必须confirm=true。
+      description: Update editable fields of an existing alarm shield. Call get_alarm_shield first and submit complete begin_time, end_time, cycle_config, and shield_notice values even when only one field changes. The shield target/category cannot be replaced here. end_policy is immutable; omit it to keep the current value, or pass the same value. Production write; confirm=true is required. 编辑已有告警屏蔽。必须先读取详情，即使只修改一个字段也要完整回填开始时间、结束时间、周期和通知开关。不能通过本工具替换屏蔽对象或类型。end_policy创建后不可改，省略保留原值，传入不同值会被拒绝。生产写操作，必须confirm=true。
       tags:
       - alert_handling_mcp
       requestBody:
@@ -875,6 +882,12 @@ paths:
                 id:
                   type: string
                   description: Shield ID from get_alarm_shield. 屏蔽ID。
+                end_policy:
+                  type: string
+                  enum:
+                  - notify_once
+                  - close
+                  description: Shield end policy. Omit to keep the current value; a different value is rejected. 屏蔽结束处理方式。省略保留原值，传入与创建时不同的值会被拒绝。
                 begin_time:
                   type: string
                   description: Complete start time. 完整开始时间。

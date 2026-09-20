@@ -59,6 +59,7 @@
 | id               | int    | 屏蔽ID                                                                              |
 | bk_biz_id        | int    | 业务ID                                                                              |
 | category         | string | 屏蔽类型(scope:范围, strategy:策略, event:事件, alert:告警, dimension:维度)        |
+| end_policy       | string | 屏蔽结束处理方式：`notify_once`（结束后补发一次解除屏蔽通知）、`close`（期间产生的告警结束时关闭且不补发） |
 | status           | int    | 当前状态，屏蔽中(1)，过期(2)，解除(3)                                               |
 | begin_time       | string | 开始时间                                                                            |
 | end_time         | string | 结束时间                                                                            |
@@ -171,6 +172,7 @@
             "scope_type": "instance",
             "status": 1,
             "category":"scope",
+            "end_policy":"notify_once",
             "begin_time":"2019-11-21 00:00:00",
             "end_time":"2019-11-23 23:59:59",
             "failure_time": "",
