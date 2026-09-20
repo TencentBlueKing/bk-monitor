@@ -165,8 +165,32 @@ export interface IncidentDetailData {
 /** 事件各数据源分析结果状态 */
 export interface IncidentResults {
   [key: string]: any;
-  incident_topology: { enabled: boolean; status: string };
+  incident_topology: IncidentTopology;
 }
+
+/** 故障拓扑面板状态 */
+export interface IncidentTopology {
+  enabled: boolean;
+  /**
+   * reason=insufficient_data 时，归因到具体数据源列的 name/key 列表
+   * 与数据接入表格列 id 一致（如 metric_ebpf / apm / metric）；空数组表示无法归因到具体列
+   */
+  insufficient_data_sources?: string[];
+  /** 空态提示文案，非空时优先展示 */
+  message?: string;
+  /** 空态分支主字段，优先级高于 enabled */
+  reason?: IncidentTopologyReason | string;
+  status: string;
+}
+
+/** 图谱 RCA 拓扑空态原因（incident_topology.reason） */
+export type IncidentTopologyReason =
+  | 'execution_failed'
+  | 'feature_disabled'
+  | 'insufficient_data'
+  | 'no_result'
+  | 'not_scheduled'
+  | 'running';
 
 /** 弹窗位置坐标 */
 export interface IPosition {
@@ -265,6 +289,9 @@ export interface TopoRawData {
   fpp_snapshot_id: string;
   incident_id: string;
 }
+
+/** 拓扑页视图模式 */
+export type TopoViewMode = 'access' | 'normal' | 'tip';
 
 /** 事件分析选中配置项（内部使用） */
 interface EventConfigItem {

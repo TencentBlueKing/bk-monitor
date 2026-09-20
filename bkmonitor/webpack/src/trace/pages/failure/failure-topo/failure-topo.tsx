@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, onMounted, onUnmounted, watch } from 'vue';
+import { defineComponent, inject, onMounted, onUnmounted, watch } from 'vue';
 
 import { Loading, Popover, Slider } from 'bkui-vue';
 
@@ -93,6 +93,13 @@ export default defineComponent({
 
     const refresh = () => emit('refresh');
 
+    /** 一键开启成功后刷新 incident_results panels */
+    const refreshIncidentResults = inject<() => void>('refreshIncidentResults', () => {});
+
+    const handleDataAccessEnabled = () => {
+      refreshIncidentResults();
+    };
+
     onMounted(() => {
       if (state.topoStatus.value === 'normal') {
         data.registerInitGraphCallback(initGraph);
@@ -142,7 +149,7 @@ export default defineComponent({
           graph.findAllByState('node', 'running').forEach?.(node => {
             graph.setItemState(node, 'running', false);
           });
-          interaction.navSelectNode.value?.map?.((item, index) => {
+          interaction.navSelectNode.value?.forEach?.((item, index) => {
             /** 多个节点只设置第一个节点为资源图节点 */
             if (index === 0) {
               if (item.entityId !== state.nodeEntityId.value) {
@@ -219,6 +226,11 @@ export default defineComponent({
       refreshTime: state.refreshTime,
       showViewResource: state.showViewResource,
       topoStatus: state.topoStatus,
+      showEnableButton: state.showEnableButton,
+      /** insufficient_data 时按数据源列强制标红的单元格映射 */
+      forceUnmetCells: state.forceUnmetCells,
+      topoTipTitle: state.topoTipTitle,
+      topoTipIsError: state.topoTipIsError,
       bkzIds: state.bkzIds,
       dataAccessSpaceList: state.dataAccessSpaceList,
       incidentDetailData: state.incidentDetailData,
@@ -253,6 +265,7 @@ export default defineComponent({
       // 主文件纯 emit
       handleToDetail,
       refresh,
+      handleDataAccessEnabled,
     };
   },
   render() {
@@ -263,16 +276,27 @@ export default defineComponent({
         class={[
           'failure-topo',
           this.isPlay && 'failure-topo-play',
-          this.topoStatus === 'empty' && 'failure-topo-empty',
+          (this.topoStatus === 'access' || this.topoStatus === 'tip') && 'failure-topo-empty',
         ]}
       >
-        {this.topoStatus === null ? null : this.topoStatus === 'empty' && this.dataAccessSpaceList?.length ? (
+        {this.topoStatus === null ? null : this.topoStatus === 'access' && this.dataAccessSpaceList?.length ? (
           <DataAccess
-            showEnableButton={false}
+            forceUnmetCells={this.forceUnmetCells}
+            showEnableButton={this.showEnableButton}
             spaceList={this.dataAccessSpaceList}
             wxCsLink={this.incidentDetailData.wx_cs_link}
             isDarkTheme
+            onEnabled={this.handleDataAccessEnabled}
           />
+        ) : this.topoStatus === 'tip' ? (
+          <div class='failure-topo-reason-empty'>
+            <ExceptionComp
+              imgHeight={100}
+              isDarkTheme={true}
+              isError={this.topoTipIsError}
+              title={this.topoTipTitle}
+            />
+          </div>
         ) : (
           <>
             <TopoTools
@@ -330,6 +354,7 @@ export default defineComponent({
                                   content: this.t('显示图例'),
                                   disabled: this.showLegend,
                                   boundary: this.wrapRef,
+                                  extCls: 'failure-topo-dark-tooltip',
                                 }}
                                 onClick={this.handleShowLegend}
                               >
@@ -376,7 +401,12 @@ export default defineComponent({
                         <span class='failure-topo-graph-line' />
                         <div
                           class={['failure-topo-graph-proportion', { disabled: this.isPlay }]}
-                          v-bk-tooltips={{ content: this.t('重置比例'), boundary: this.wrapRef, zIndex: 999999 }}
+                          v-bk-tooltips={{
+                            content: this.t('重置比例'),
+                            boundary: this.wrapRef,
+                            zIndex: 999999,
+                            extCls: 'failure-topo-dark-tooltip',
+                          }}
                           onClick={this.handleResetZoom}
                         >
                           <i class='icon-monitor icon-mc-restoration-ratio' />

@@ -674,6 +674,7 @@ export default defineComponent({
             v-bk-tooltips={{
               content: this.t('暂无关联的事件数据'),
               disabled: this.allEventsData.length > 0 && !this.disableEventAnalysis,
+              extCls: 'failure-topo-dark-tooltip',
             }}
           >
             <Switcher
@@ -757,6 +758,7 @@ export default defineComponent({
                     v-bk-tooltips={{
                       content: this.t('请先打开事件分析'),
                       disabled: this.showEventAnalyze || this.allEventsData.length === 0 || this.disableEventAnalysis,
+                      extCls: 'failure-topo-dark-tooltip',
                     }}
                     onClick={this.handleShowPopover}
                   >

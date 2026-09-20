@@ -246,7 +246,7 @@ export default defineComponent({
             <span
               style={{ backgroundImage: `url(${base64Svg[source.value?.toLowerCase() || 'bcs']})` }}
               class='event-icon'
-              v-bk-tooltips={{ content: source.alias, extCls: 'event-analyze-tooltip' }}
+              v-bk-tooltips={{ content: source.alias, extCls: 'event-analyze-tooltip failure-topo-dark-tooltip' }}
             />
             <div class='event-name'>{event_name.alias}</div>
             <span
@@ -254,7 +254,7 @@ export default defineComponent({
               v-bk-tooltips={{
                 content: this.t('查看事件详情'),
                 allowHTML: false,
-                extCls: 'event-analyze-tooltip',
+                extCls: 'event-analyze-tooltip failure-topo-dark-tooltip',
               }}
               onMousedown={e => this.handleListGotoEventDetail(e, list[0])}
             >
@@ -336,7 +336,10 @@ export default defineComponent({
                   <span
                     style={{ backgroundImage: `url(${base64Svg[item?.source.value?.toLowerCase() || 'bcs']})` }}
                     class='event-icon'
-                    v-bk-tooltips={{ content: item?.source.alias, extCls: 'event-analyze-tooltip' }}
+                    v-bk-tooltips={{
+                      content: item?.source.alias,
+                      extCls: 'event-analyze-tooltip failure-topo-dark-tooltip',
+                    }}
                   />
                   <div class='content-item-content'>
                     {item.event_name.alias}
@@ -345,7 +348,7 @@ export default defineComponent({
                       v-bk-tooltips={{
                         content: this.t('查看资源'),
                         allowHTML: false,
-                        extCls: 'event-analyze-tooltip',
+                        extCls: 'event-analyze-tooltip failure-topo-dark-tooltip',
                       }}
                       onMousedown={() => item.target.url && window.open(item.target.url, '_blank')}
                     >
@@ -357,7 +360,7 @@ export default defineComponent({
                     v-bk-tooltips={{
                       content: this.t('查看事件详情'),
                       allowHTML: false,
-                      extCls: 'event-analyze-tooltip',
+                      extCls: 'event-analyze-tooltip failure-topo-dark-tooltip',
                     }}
                     onMousedown={e => this.handleListGotoEventDetail(e, item)}
                   />
@@ -381,7 +384,10 @@ export default defineComponent({
                     <span
                       style={{ backgroundImage: `url(${base64Svg[item?.source.value?.toLowerCase() || 'bcs']})` }}
                       class='event-icon'
-                      v-bk-tooltips={{ content: item?.source.alias, extCls: 'event-analyze-tooltip' }}
+                      v-bk-tooltips={{
+                        content: item?.source.alias,
+                        extCls: 'event-analyze-tooltip failure-topo-dark-tooltip',
+                      }}
                     />
                     {item.event_name.alias}
                     <span class='proportions-num'>{item.count}</span>
@@ -391,7 +397,7 @@ export default defineComponent({
                       v-bk-tooltips={{
                         content: this.t('查看事件详情'),
                         allowHTML: false,
-                        extCls: 'event-analyze-tooltip',
+                        extCls: 'event-analyze-tooltip failure-topo-dark-tooltip',
                       }}
                       onMousedown={e => this.handleTopKGotoEventDetail(e, item)}
                     />

@@ -426,7 +426,10 @@ export default defineComponent({
           <div class='topo-sidebar-toggle'>
             <span
               class={['resource-wrap', { selected: this.isResourceSelected }]}
-              v-bk-tooltips={{ content: this.isResourceSelected ? this.t('收起资源拓扑') : this.t('展开资源拓扑') }}
+              v-bk-tooltips={{
+                content: this.isResourceSelected ? this.t('收起资源拓扑') : this.t('展开资源拓扑'),
+                extCls: 'failure-topo-dark-tooltip',
+              }}
               onClick={() => this.handleToggle('resource')}
               onMouseenter={() => {
                 this.isResourceHover = true;
@@ -441,6 +444,7 @@ export default defineComponent({
               class={['service-wrap', { selected: this.isServiceSelected }]}
               v-bk-tooltips={{
                 content: this.isServiceSelected ? this.t('收起节点/边概览') : this.t('展开节点/边概览'),
+                extCls: 'failure-topo-dark-tooltip',
               }}
               onClick={() => this.handleToggle('service')}
               onMouseenter={() => {
@@ -456,7 +460,11 @@ export default defineComponent({
         </div>
         <div
           class='topo-tools-list'
-          v-bk-tooltips={{ content: this.t('全屏'), disabled: this.isFullscreen }}
+          v-bk-tooltips={{
+            content: this.t('全屏'),
+            disabled: this.isFullscreen,
+            extCls: 'failure-topo-dark-tooltip',
+          }}
           onClick={this.handleFullscreen}
         >
           <span class='fullscreen'>

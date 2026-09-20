@@ -240,6 +240,7 @@ export default defineComponent({
                 v-bk-tooltips={{
                   placement: 'bottom',
                   content: this.t('自动刷新设置'),
+                  extCls: 'failure-topo-dark-tooltip',
                 }}
                 onClick={() => (this.isShow = !this.isShow && !this.isPlay)}
               >

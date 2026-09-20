@@ -52,7 +52,15 @@ import { useIncidentInject } from '../../utils';
 import type { SpaceInfo } from '../../../../components/data-access';
 import type { G6TooltipInstance } from '../types/composable';
 import type { ComboLabelPoint, DetailType, ErrorData, TooltipType } from '../types/g6';
-import type { IEdge, IEntity, IncidentDetailData, IncidentResults, ITopoNode } from '../types/topo';
+import type {
+  IEdge,
+  IEntity,
+  IncidentDetailData,
+  IncidentResults,
+  IncidentTopologyReason,
+  ITopoNode,
+  TopoViewMode,
+} from '../types/topo';
 import type { Graph } from '@antv/g6';
 
 // ============================================================================
@@ -103,6 +111,8 @@ export function useTopoState(props: TopoStateProps) {
   const incidentId = useIncidentInject();
   /** 告警详情数据更新方法，点击节点时同步刷新右侧告警面板 */
   const { updateAlarmDetailData } = incidentAlarmDetailInject();
+  /** 本页已一键开启（与告警中心 enabled_spaces 刷新后隐藏按钮对齐） */
+  const featureEnabledLocally = inject<Ref<boolean>>('featureEnabledLocally', shallowRef(false));
 
   // ---------------------------------------------------------------------------
   // Inject 派生 computed
@@ -122,25 +132,81 @@ export function useTopoState(props: TopoStateProps) {
     return [{ bk_biz_id: Number(bizId), space_name: bizName || String(bizId), space_id: Number(bizId) }];
   });
 
-  /** 拓扑数据状态 */
-  const topoStatus = computed(() => {
-    if (incidentResults.value.incident_topology) {
-      if (
-        incidentResults.value.incident_topology.enabled &&
-        incidentResults.value.incident_topology.status === 'finished'
-      ) {
-        return 'normal';
-      }
-      if (
-        incidentResults.value.incident_topology.enabled &&
-        incidentResults.value.incident_topology.status === 'canceled'
-      ) {
-        return 'nodata';
-      }
-      return 'empty';
-    }
-    return null;
+  /** 当前故障拓扑面板数据 */
+  const incidentTopology = computed(() => incidentResults.value?.incident_topology);
+
+  /** 图谱 RCA 空态 reason（分支主字段） */
+  const topoReason = computed(() => incidentTopology.value?.reason || '');
+
+  /**
+   * 根据 reason / status 解析拓扑页视图模式
+   * - access：展示数据接入矩阵（feature_disabled / insufficient_data）
+   * - tip：仅展示空态图 + 文案（not_scheduled / execution_failed / running / no_result）
+   * - normal：拉取并展示拓扑图
+   */
+  const topoStatus = computed<null | TopoViewMode>(() => {
+    const topo = incidentTopology.value;
+    if (!topo) return null;
+
+    const reason = (topoReason.value || undefined) as IncidentTopologyReason | undefined;
+    const accessReasons: IncidentTopologyReason[] = ['feature_disabled', 'insufficient_data'];
+    const tipReasons: IncidentTopologyReason[] = ['not_scheduled', 'execution_failed', 'running', 'no_result'];
+
+    if (reason && accessReasons.includes(reason)) return 'access';
+    if (reason && tipReasons.includes(reason)) return 'tip';
+
+    // 无 reason 时兼容旧逻辑（后台暂时保持 enabled: false）
+    if (topo.enabled && topo.status === 'finished') return 'normal';
+    if (topo.enabled && topo.status === 'canceled') return 'tip';
+    return 'access';
   });
+
+  /** 是否展示「一键开启」按钮（仅 reason 为 feature_disabled 时展示） */
+  const showEnableButton = computed(() => {
+    // 一键开启成功后立即隐藏，与告警中心刷新 enabled_spaces 后行为一致
+    if (featureEnabledLocally.value) return false;
+    // 分支以 reason 为准；旧接口无 reason 时不展示按钮，避免误判
+    return topoReason.value === 'feature_disabled';
+  });
+
+  /**
+   * insufficient_data 时，按列覆盖为「未接入」的单元格映射
+   * key=功能模块 id（图谱 RCA），value=数据源 name/key（与表格列 id 一致）
+   * insufficient_data_sources 为空时不强制标红任何列
+   */
+  const forceUnmetCells = computed<Record<string, string[]>>(() => {
+    if (topoReason.value !== 'insufficient_data') return {};
+    const sources = incidentTopology.value?.insufficient_data_sources;
+    if (!sources?.length) return {};
+    return { graph_rca: sources };
+  });
+
+  /** reason 对应的默认提示文案 */
+  const getReasonDefaultTitle = (reason: string) => {
+    const titleMap: Record<string, string> = {
+      not_scheduled: t('本次故障未满足图谱 RCA 调度条件'),
+      execution_failed: t('系统异常'),
+      running: t('分析中'),
+      no_result: t('暂无图谱 RCA 分析结果'),
+    };
+    return titleMap[reason] || t('暂无数据');
+  };
+
+  /** tip 态主标题：优先 message，否则 reason 映射 */
+  const topoTipTitle = computed(() => {
+    const topo = incidentTopology.value;
+    if (!topo) return '';
+    const message = topo.message?.trim();
+    if (message) return message;
+    if (topoReason.value) return getReasonDefaultTitle(topoReason.value);
+    if (topo.enabled && topo.status === 'canceled') {
+      return t('本次故障未满足图谱 RCA 调度条件');
+    }
+    return t('暂无数据');
+  });
+
+  /** tip 态是否为错误样式（execution_failed） */
+  const topoTipIsError = computed(() => topoReason.value === 'execution_failed');
 
   // ---------------------------------------------------------------------------
   // DOM Ref — 模板引用
@@ -331,6 +397,12 @@ export function useTopoState(props: TopoStateProps) {
     // computed — 派生计算属性
     dataAccessSpaceList,
     topoStatus,
+    topoReason,
+    showEnableButton,
+    /** insufficient_data 时按数据源列强制标红的单元格映射 */
+    forceUnmetCells,
+    topoTipTitle,
+    topoTipIsError,
     getTopoWidth,
   };
 }

@@ -225,6 +225,7 @@ export default defineComponent({
                 disabled: node.entity.entity_id.indexOf('Unknown') === -1,
                 content: t('第三方节点不支持查看从属'),
                 placement: 'bottom',
+                extCls: 'failure-topo-dark-tooltip',
               }}
               onClick={handleViewResource.bind(this, node)}
             >

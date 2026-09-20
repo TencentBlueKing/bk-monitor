@@ -67,6 +67,7 @@ export default defineComponent({
             v-bk-tooltips={{
               disabled: node.status !== 'restored' || isEn,
               content: node.fullText ? t(node.fullText) : '',
+              extCls: 'failure-topo-dark-tooltip',
             }}
             v-overflowText={{
               text: node.fullText ? t(node.fullText) : t(node.text),

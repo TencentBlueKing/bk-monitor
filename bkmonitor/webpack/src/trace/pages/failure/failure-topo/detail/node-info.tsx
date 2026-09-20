@@ -218,6 +218,7 @@ export default defineComponent({
                     {t(`点击前往：${typeToLinkHandle[node?.entity?.entity_type]?.title ?? '主机详情页'}`)}
                   </div>
                 ),
+                extCls: 'failure-topo-dark-tooltip',
               }}
             >
               <span onClick={handleToLink.bind(this, node, bkzIds.value, incidentDetailData.value)}>
