@@ -79,7 +79,7 @@
 
     .track-thumb {
       position: absolute;
-      top: -12px;
+      top: -16px;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -87,6 +87,8 @@
       transform: translateX(-50%);
 
       i {
+        position: relative;
+        top: -2px;
         font-size: 16px;
       }
 
@@ -111,6 +113,7 @@
     }
 
     .scale-label {
+      margin: 0 auto;
       font-size: 13px;
       font-weight: 500;
       line-height: 22px;
