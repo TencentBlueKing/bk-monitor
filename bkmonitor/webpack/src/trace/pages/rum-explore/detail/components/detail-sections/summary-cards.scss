@@ -1,7 +1,26 @@
 .rum-summary-cards {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  &.group-layout {
+    display: flex;
+    gap: 12px;
+  }
+
+  .summary-card-group {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .summary-card-group-title {
+    padding: 0 8px;
+    font-size: 14px;
+    font-weight: 50;
+    line-height: 28px;
+    color: #111214;
+    background: #f0f1f5;
+    border-radius: 4px;
+  }
 
   .summary-card-row {
     display: flex;
@@ -15,7 +34,6 @@
     flex-direction: column;
     gap: 4px;
     min-width: 0;
-    max-width: 20%;
     padding: 8px 12px 8px 16px;
     background: #fff;
     border: 1px solid #c1cde5;
@@ -131,6 +149,15 @@
       &.danger {
         background-color: #fff0f0;
         border-color: #fdd;
+      }
+    }
+
+    &.view-extra-card {
+      .card-value {
+        line-height: 32px;
+        text-decoration-line: underline;
+        text-decoration-style: solid;
+        text-underline-position: from-font;
       }
     }
   }

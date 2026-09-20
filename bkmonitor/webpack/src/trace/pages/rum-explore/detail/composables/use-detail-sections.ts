@@ -27,6 +27,7 @@ import { computed, unref } from 'vue';
 import type { MaybeRef } from 'vue';
 
 import {
+  CARD_GROUP_TITLE_MAP,
   CARDS_PER_ROW,
   RATING_FALLBACK_META,
   RATING_META,
@@ -49,6 +50,7 @@ import type {
   IRumDetailSectionVM,
   IRumRatingBarData,
   IRumRatingBarVM,
+  IRumRatingConfig,
   IRumRatingSegmentVM,
   IRumRecordDetail,
   IRumRelatedData,
@@ -56,6 +58,7 @@ import type {
   IRumTtfbBreakdownVM,
   IRumWaterfallData,
   IRumWaterfallVM,
+  RumRatingType,
 } from '../typings';
 
 const t = (text: string) => window.i18n.t(text) as string;
@@ -63,6 +66,22 @@ const t = (text: string) => window.i18n.t(text) as string;
 /** 请求时序区块的 TTFB 口径说明 */
 const TTFB_TIP =
   'TTFB 表示从请求发出到收到响应首字节的时间，包含请求传输、服务端处理和排队时间；仅凭浏览器时序不能直接判定服务端处理，需结合 Trace 或 Server-Timing。';
+
+/**
+ * @description 按评级阈值配置匹配指标值的评级：value 不超过某个配置的上界（value ≦ config.value）时
+ * 命中该配置的 rating，不带 value 的配置视为无上界兜底；配置为空时返回空串
+ */
+export function matchRating(value: number, ratingConfig: IRumRatingConfig[]): RumRatingType | string {
+  if (!ratingConfig.length) return '';
+  let hitRating = ratingConfig[ratingConfig.length - 1].rating;
+  for (const config of ratingConfig) {
+    if (config.value === undefined || value <= config.value) {
+      hitRating = config.rating;
+      break;
+    }
+  }
+  return hitRating;
+}
 
 /**
  * @description 区块视图模型：接口区块归一化 + 按 span 类型注册的扩展卡片 / 扩展区块
@@ -91,7 +110,7 @@ export function useDetailSections(
         })
         .filter(Boolean) as IRumSummaryCardVM[];
 
-    const vms: IRumDetailSectionVM[] = (data?.sections || []).map(section => {
+    const vms = (data?.sections || []).reduce((acc, section) => {
       const base: IRumDetailSectionVM = {
         key: section.key,
         type: section.type,
@@ -104,14 +123,33 @@ export function useDetailSections(
           const extras = extraCards[section.key]
             ? buildExtraCards(extraCards[section.key], `${section.key}_extra`)
             : [];
-          return { ...base, cardRows: chunkCards([...cards, ...extras]) };
+          /** 登记了组标题的区块按分组形态渲染，标题由组标题栏承担，外层不再重复渲染标题行 */
+          const groupTitle = CARD_GROUP_TITLE_MAP[`${type}.${section.key}`] ?? CARD_GROUP_TITLE_MAP[section.key];
+          /** view的web_vitals需要前端特殊处理，把web_vitals放到key_info卡片中，横向展示 */
+          if (type === 'view' && section.key === 'web_vitals') {
+            const keyInfoCard = acc.find(item => item.key === 'key_info');
+            keyInfoCard.cardGroups.push({
+              key: section.key,
+              title: groupTitle,
+              rows: chunkCards([...cards, ...extras]),
+            });
+            return acc;
+          } else if (groupTitle) {
+            acc.push({
+              ...base,
+              cardGroups: [{ key: section.key, title: groupTitle, rows: chunkCards([...cards, ...extras]) }],
+            });
+          } else {
+            acc.push({ ...base, cardRows: chunkCards([...cards, ...extras]) });
+          }
+          break;
         }
         case RumSectionTypeEnum.WATERFALL: {
           const waterfallData = (section.data || { phases: [], unit: 'ms' }) as IRumWaterfallData;
           const waterfall = buildWaterfall(waterfallData, type);
           /** 含等待首字节阶段时补一条口径说明，避免把 TTFB 直接当作服务端处理耗时 */
           const hasFirstByte = waterfallData.phases?.some(phase => phase.key === 'first_byte');
-          return {
+          acc.push({
             ...base,
             waterfall,
             subTitle: waterfallData.total_duration
@@ -119,15 +157,17 @@ export function useDetailSections(
               : '',
             tip: hasFirstByte ? t(TTFB_TIP) : '',
             spanType: type,
-          };
+          });
+          break;
         }
         case RumSectionTypeEnum.RATING_BAR:
-          return { ...base, ratingBar: buildRatingBar(section.data as IRumRatingBarData) };
+          acc.push({ ...base, ratingBar: buildRatingBar(section.data as IRumRatingBarData) });
+          break;
         default:
-          return base;
+          acc.push(base);
       }
-    });
-
+      return acc;
+    }, [] as IRumDetailSectionVM[]);
     for (const extra of extraSections) {
       const base: IRumDetailSectionVM = {
         key: extra.key,
@@ -165,7 +205,7 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
   let thumbPercent = 0;
   /** 指标值可能恰好落在 0%，不能用 thumbPercent 自身判断是否已定位 */
   let thumbResolved = false;
-  let hitRating = configs[configs.length - 1]?.rating ?? '';
+  const hitRating = matchRating(value, configs);
 
   let lower = 0;
   for (const [index, config] of configs.entries()) {
@@ -185,7 +225,6 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
       const span = isLast ? Math.max(lower, 1) : Math.max(upper - lower, 1);
       const ratio = Math.min(Math.max((value - lower) / span, 0), 1);
       thumbPercent = ((index + ratio) / configs.length) * 100;
-      hitRating = config.rating;
       thumbResolved = true;
     }
     lower = upper ?? lower;
@@ -213,6 +252,7 @@ function buildSummaryCards(section: IRumDetailSection, spanType: string, ctx: IR
   const cards: IRumSummaryCardVM[] = [];
   for (const [groupKey, groupData] of Object.entries(data)) {
     const descriptor = getCardDescriptor(spanType, section.key, groupKey);
+    if (!descriptor) continue;
     for (const [index, card] of descriptor(groupData, ctx).entries()) {
       cards.push({ ...card, key: `${groupKey}_${index}` });
     }
@@ -279,6 +319,7 @@ function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfal
       label: marker.field_name || marker.key,
       percent: Math.min((marker.value / total) * 100, 100),
       value: marker.value,
+      color: RATING_META[matchRating(marker.value, marker['display.rating_config'])].color,
       valueText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
     })),
   };

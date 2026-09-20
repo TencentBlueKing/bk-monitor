@@ -42,7 +42,12 @@ type IRumSectionRenderer = (section: IRumDetailSectionVM) => null | VNode;
  * 后端新增 sections[].type 时，只需在 RumSectionTypeEnum 加枚举并在这里注册渲染器。
  */
 const SECTION_RENDERERS: Partial<Record<RumSectionType, IRumSectionRenderer>> = {
-  [RumSectionTypeEnum.SUMMARY_CARDS]: section => <SummaryCards rows={section.cardRows || []} />,
+  [RumSectionTypeEnum.SUMMARY_CARDS]: section => (
+    <SummaryCards
+      groups={section.cardGroups || []}
+      rows={section.cardRows || []}
+    />
+  ),
   [RumSectionTypeEnum.WATERFALL]: section => (
     <WaterfallChart
       data={section.waterfall || null}

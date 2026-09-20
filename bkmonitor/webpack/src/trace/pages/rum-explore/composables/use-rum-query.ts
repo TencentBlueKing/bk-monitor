@@ -98,7 +98,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
   }
 
   /** 当前可复现的查询状态对应的 URL 参数，setUrlParams 与新开页共用，避免两边字段不同步 */
-  function buildUrlQuery(): Record<string, string> {
+  function buildUrlQuery(params?: Record<string, string>): Record<string, string> {
     const query: Record<string, string> = {
       mode: store.mode,
       app_name: encodeURIComponent(store.appName || ''),
@@ -113,6 +113,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
       showResidentBtn: `${showResidentBtn.value}`,
       // 记录用户意图而非当前生效值，避免把回落的 default_sort 固化成显式排序
       sortBy: encodeURIComponent(JSON.stringify(store.userSort)),
+      ...(params || {}),
     };
     if (urlFavoriteId.value) {
       query.favorite_id = `${urlFavoriteId.value}`;
@@ -120,8 +121,8 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     return query;
   }
 
-  function setUrlParams() {
-    router.replace({ query: buildUrlQuery() }).catch(() => {
+  function setUrlParams(params?: Record<string, string>) {
+    router.replace({ query: buildUrlQuery(params) }).catch(() => {
       // 相同路由重复跳转会 reject，这里忽略即可
     });
   }

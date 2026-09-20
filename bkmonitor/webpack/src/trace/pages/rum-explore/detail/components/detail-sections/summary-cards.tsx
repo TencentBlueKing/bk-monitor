@@ -29,17 +29,21 @@ import type { PropType } from 'vue';
 import { CARD_TONE_COLOR } from '../../constants';
 import { RumCardToneEnum } from '../../typings';
 
-import type { IRumSummaryCardVM } from '../../typings';
+import type { IRumSummaryCardGroupVM, IRumSummaryCardVM } from '../../typings';
 
 import './summary-cards.scss';
 
 /** 迷你柱状图的固定高度，柱高按最大值归一化 */
 const SPARKLINE_HEIGHT = 32;
 
-/** 统计卡片组：一行内的卡片等宽平铺，行与行之间等间距 */
+/** 统计卡片组：支持分组展示（组标题栏 + 组内卡片平铺），未传 groups 时退化为逐行一字排开 */
 export default defineComponent({
   name: 'RumSummaryCards',
   props: {
+    groups: {
+      type: Array as PropType<IRumSummaryCardGroupVM[]>,
+      default: () => [],
+    },
     rows: {
       type: Array as PropType<IRumSummaryCardVM[][]>,
       default: () => [],
@@ -137,16 +141,31 @@ export default defineComponent({
       );
     }
 
+    /** 一行内的卡片等宽平铺 */
+    function renderRow(cards: IRumSummaryCardVM[], key: string) {
+      return (
+        <div
+          key={key}
+          class='summary-card-row'
+        >
+          {cards.map(renderCard)}
+        </div>
+      );
+    }
+
     return () => (
-      <div class='rum-summary-cards'>
-        {props.rows.map(row => (
-          <div
-            key={row.map(card => card.key).join('|')}
-            class='summary-card-row'
-          >
-            {row.map(renderCard)}
-          </div>
-        ))}
+      <div class={['rum-summary-cards', { 'group-layout': props.groups.length > 0 }]}>
+        {props.groups.length
+          ? props.groups.map(group => (
+              <div
+                key={group.key}
+                class='summary-card-group'
+              >
+                {group.title ? <div class='summary-card-group-title'>{group.title}</div> : null}
+                {group.rows.map((row, index) => renderRow(row, `${group.key}_${index}`))}
+              </div>
+            ))
+          : props.rows.map((row, index) => renderRow(row, String(index)))}
       </div>
     );
   },

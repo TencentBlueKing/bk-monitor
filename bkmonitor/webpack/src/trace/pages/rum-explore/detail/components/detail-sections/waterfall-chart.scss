@@ -126,27 +126,56 @@
     }
 
     .waterfall-markers {
-      margin-left: 172px;
+      margin-left: 184px;
+
+      .waterfall-markers-wrap {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        padding: 0 16px 0 200px;
+
+        .marker-columns {
+          position: relative;
+          width: 100%;
+          height: 100%;
+        }
+      }
 
       .marker-column {
         position: absolute;
+        top: 0;
         z-index: 2;
-        display: flex;
+        width: 0;
         height: 100%;
 
         .marker-line {
+          position: absolute;
+          top: 0;
+          left: 0;
           width: 1px;
           height: 100%;
-          margin-right: 10px;
-          background: #21a380;
+          background: var(--marker-color, #21a380);
         }
 
         .marker-list {
+          position: absolute;
           display: flex;
           flex-direction: column;
           font-size: 12px;
           line-height: 20px;
           color: #4e5e7a;
+          white-space: nowrap;
+
+          /** 文本默认放竖线右侧，右侧放不下时放竖线左侧 */
+          &.align-left {
+            right: 11px;
+          }
+
+          &.align-right {
+            left: 11px;
+          }
         }
 
         .marker-label,
@@ -154,12 +183,12 @@
           font-size: 12px;
           font-weight: 700;
           line-height: 20px;
-          color: #21a380;
+          color: var(--marker-color, #21a380);
         }
 
         .marker-label {
           margin-right: 4px;
-          border-bottom: 1px dotted #21a380;
+          border-bottom: 1px dotted var(--marker-color, #21a380);
         }
       }
     }

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent } from 'vue';
+import { computed, defineComponent, shallowRef, useTemplateRef, watchEffect } from 'vue';
 import type { PropType } from 'vue';
 
 import { useI18n } from 'vue-i18n';
@@ -33,6 +33,25 @@ import { RATING_META } from '../../constants';
 import type { IRumWaterfallMarkerVM, IRumWaterfallVM } from '../../typings';
 
 import './waterfall-chart.scss';
+
+/** 竖线与文本的间距（px），与 scss 中 .marker-list 的定位偏移保持一致 */
+const MARKER_TEXT_OFFSET = 11;
+/** 单条 marker 文本行高（px），与 scss 中 line-height 保持一致 */
+const MARKER_ROW_HEIGHT = 20;
+/** 文本宽度测量余量（px），补偿 canvas 字体与实际渲染字体的差异 */
+const MARKER_TEXT_BUFFER = 4;
+
+let textMeasureCtx: CanvasRenderingContext2D | null | undefined;
+
+/** 按渲染字号（12px 加粗）测量文本宽度，canvas 不可用时按字符数估算 */
+function measureTextWidth(text: string): number {
+  if (textMeasureCtx === undefined) {
+    textMeasureCtx = typeof document === 'undefined' ? null : document.createElement('canvas').getContext('2d');
+  }
+  if (!textMeasureCtx) return text.length * 7 + MARKER_TEXT_BUFFER;
+  textMeasureCtx.font = '700 12px "Microsoft YaHei", "PingFang SC", Arial, sans-serif';
+  return textMeasureCtx.measureText(text).width + MARKER_TEXT_BUFFER;
+}
 
 /**
  * 请求时序瀑布图：左侧阶段名与耗时定宽，右侧轨道按百分比定位色块。
@@ -55,19 +74,65 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
 
+    /** marker 轨道容器：防重叠布局依赖其实际像素宽度 */
+    const markerColumnsRef = useTemplateRef<HTMLDivElement>('markerColumns');
+    const markerColumnsWidth = shallowRef(0);
+
+    watchEffect(onCleanup => {
+      const el = markerColumnsRef.value;
+      if (!el || typeof ResizeObserver === 'undefined') return;
+      markerColumnsWidth.value = el.clientWidth;
+      const observer = new ResizeObserver(entries => {
+        markerColumnsWidth.value = Math.round(entries[0].contentRect.width);
+      });
+      observer.observe(el);
+      onCleanup(() => observer.disconnect());
+    });
+
     const markerColumns = computed(() => {
+      const trackWidth = markerColumnsWidth.value;
       const rowCounter = new Map<number, IRumWaterfallMarkerVM[]>();
-      let maxRowCount = 1;
-      for (const marker of props.data.markers) {
+      for (const marker of props.data?.markers ?? []) {
         const column = rowCounter.get(marker.percent) ?? [];
         rowCounter.set(marker.percent, [...column, marker]);
-        maxRowCount = Math.max(maxRowCount, column.length + 1);
       }
 
-      return {
-        maxRowCount,
-        columns: Array.from(rowCounter.entries()),
-      };
+      /** 已放置文本的占位：水平区间 [x1, x2) × 行区间 [rowStart, rowEnd) */
+      const placed: Array<{ rowEnd: number; rowStart: number; x1: number; x2: number }> = [];
+      let maxRowCount = 1;
+
+      const columns = Array.from(rowCounter.entries())
+        .sort(([percentA], [percentB]) => percentA - percentB)
+        .map(([percent, markers]) => {
+          const textWidth = Math.max(...markers.map(marker => measureTextWidth(`${marker.label} ${marker.valueText}`)));
+          const lineX = (percent / 100) * trackWidth;
+          /** 文本默认放竖线右侧，右侧放不下时放竖线左侧 */
+          const alignRight = lineX + MARKER_TEXT_OFFSET + textWidth <= trackWidth;
+          const x1 = alignRight ? lineX + MARKER_TEXT_OFFSET : lineX - MARKER_TEXT_OFFSET - textWidth;
+          const x2 = alignRight ? lineX + MARKER_TEXT_OFFSET + textWidth : lineX - MARKER_TEXT_OFFSET;
+
+          /** 与已放置文本重叠时，后面的列整列逐行下移，直到不重叠 */
+          let row = 0;
+          while (
+            placed.some(
+              item => x1 < item.x2 && item.x1 < x2 && row < item.rowEnd && item.rowStart < row + markers.length
+            )
+          ) {
+            row += 1;
+          }
+          placed.push({ x1, x2, rowStart: row, rowEnd: row + markers.length });
+          maxRowCount = Math.max(maxRowCount, row + markers.length);
+
+          return {
+            percent,
+            color: markers[0].color,
+            markers,
+            alignRight,
+            row,
+          };
+        });
+
+      return { maxRowCount, columns };
     });
 
     const renderWaterfall = () => {
@@ -77,29 +142,39 @@ export default defineComponent({
         <div class='rum-waterfall-wrap'>
           {columns.length ? (
             <div
-              style={{ height: `${maxRowCount * 20}px` }}
+              style={{ height: `${maxRowCount * MARKER_ROW_HEIGHT}px` }}
               class='waterfall-markers'
             >
-              {columns.map(column => (
-                <span
-                  key={column[0]}
-                  style={{ left: `${column[0]}%` }}
-                  class='marker-column'
+              <div class='waterfall-markers-wrap'>
+                <div
+                  ref='markerColumns'
+                  class='marker-columns'
                 >
-                  <div class='marker-line' />
-                  <div class='marker-list'>
-                    {column[1].map(marker => (
+                  {columns.map(column => (
+                    <span
+                      key={column.percent}
+                      style={{ left: `${column.percent}%`, '--marker-color': column.color }}
+                      class='marker-column'
+                    >
+                      <div class='marker-line' />
                       <div
-                        key={marker.key}
-                        class='marker-item'
+                        style={{ top: `${column.row * MARKER_ROW_HEIGHT}px` }}
+                        class={['marker-list', column.alignRight ? 'align-right' : 'align-left']}
                       >
-                        <span class='marker-label'>{marker.label}</span>
-                        <span class='marker-duration'>{marker.valueText}</span>
+                        {column.markers.map(marker => (
+                          <div
+                            key={marker.key}
+                            class='marker-item'
+                          >
+                            <span class='marker-label'>{marker.label}</span>
+                            <span class='marker-duration'>{marker.valueText}</span>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                </span>
-              ))}
+                    </span>
+                  ))}
+                </div>
+              </div>
             </div>
           ) : null}
           <div class='waterfall-row timestamp-row'>

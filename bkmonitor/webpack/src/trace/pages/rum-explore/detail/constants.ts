@@ -198,5 +198,15 @@ export const SECTION_TITLE_MAP: Record<string, string> = {
 /** 一行最多放几张统计卡片，超出换行 */
 export const CARDS_PER_ROW = 5;
 
+/**
+ * 统计卡片分组的标题映射，key 为 `${spanType}.${sectionKey}`，未命中回退 `${sectionKey}`。
+ * 登记的区块按分组形态渲染（组标题栏 + 组内卡片平铺，外层不再渲染区块标题行），
+ * 未登记的保持原有的一字排开形态。
+ */
+export const CARD_GROUP_TITLE_MAP: Record<string, string> = {
+  [`view.${SectionKeyEnum.KEY_INFO}`]: window.i18n.t('核心结果'),
+  [`view.${SectionKeyEnum.WEB_VITALS}`]: window.i18n.t('Web Vitals'),
+};
+
 /** origin_data 中不参与 Span 折叠块展示的嵌套字段（各自已有独立折叠块） */
 export const ORIGIN_NESTED_KEYS = new Set(['attributes', 'resource', 'events', 'links']);
