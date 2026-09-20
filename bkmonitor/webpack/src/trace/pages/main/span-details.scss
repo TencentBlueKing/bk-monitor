@@ -258,6 +258,12 @@
       }
     }
 
+    .bk-tab-header-setting {
+      display: flex;
+      align-items: center;
+      line-height: 32px;
+    }
+
     .quick-jump-container {
       display: flex;
       gap: 12px;

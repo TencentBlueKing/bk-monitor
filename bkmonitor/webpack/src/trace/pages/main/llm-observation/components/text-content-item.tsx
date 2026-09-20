@@ -23,12 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, shallowRef, watch } from 'vue';
+import { defineComponent, inject, nextTick, shallowRef, watch } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
+
+import { LLM_OBSERVATION_SEARCH_KEY } from '../utils/search';
+import HighlightText from './highlight-text';
 
 import './text-content-item.scss';
 
@@ -49,6 +52,11 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 搜索命中块 id，用于高亮与定位展开 */
+    searchBlockId: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
     viewAlone: (_content: string) => true,
@@ -59,6 +67,18 @@ export default defineComponent({
     /** 折叠态是否发生溢出 */
     const overflow = shallowRef(false);
     const textRef = shallowRef<HTMLElement>();
+    const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
+
+    // 折叠态 -webkit-line-clamp 会裁掉后面的命中，定位时先展开
+    watch(
+      () => [search?.activeIndex.value, search?.keyword.value, search?.activeHit.value?.blockId] as const,
+      ([, , blockId]) => {
+        if (props.searchBlockId && blockId === props.searchBlockId) {
+          expanded.value = true;
+        }
+      },
+      { immediate: true }
+    );
 
     /** 按可见行高判断文本是否溢出 */
     const measureOverflow = () => {
@@ -111,7 +131,14 @@ export default defineComponent({
                 ref={textRef}
                 class='llm-text-content-body'
               >
-                {props.content}
+                {props.searchBlockId ? (
+                  <HighlightText
+                    blockId={props.searchBlockId}
+                    text={props.content}
+                  />
+                ) : (
+                  props.content
+                )}
               </div>
             </div>
             {overflow.value && (

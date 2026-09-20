@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, inject, shallowRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
 import { parseJsonValue, stringifyContent, truncateTipContent } from '../utils/helpers';
 import { flattenKvPairs } from '../utils/parse-input';
+import { LLM_OBSERVATION_SEARCH_KEY, resolveToolCallExpandId } from '../utils/search';
+import HighlightText from './highlight-text';
 import JsonCodeBlock from './json-code-block';
 import ToolDescBar from './tool-desc-bar';
 
@@ -46,6 +48,11 @@ export default defineComponent({
       type: Array as PropType<ToolCallItem[]>,
       default: () => [],
     },
+    /** 搜索 path 前缀，实际 block 为 `${prefix}:${item.id}:...` */
+    searchPrefix: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
     viewAlone: (_data: unknown, _title: string) => true,
@@ -53,6 +60,7 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const expandedIds = shallowRef<string[]>([]);
+    const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
 
     /** 预览只在数据变化时计算，收展卡片时复用。 */
     const records = computed(() =>
@@ -72,6 +80,26 @@ export default defineComponent({
       () => props.items,
       items => {
         expandedIds.value = items[0] ? [items[0].id] : [];
+      },
+      { immediate: true }
+    );
+
+    /** 命中折叠卡片内的参数 / 结果时，先把该卡片加进 expandedIds */
+    const ensureExpandedForHit = () => {
+      const expandId = resolveToolCallExpandId(
+        search?.activeHit.value,
+        props.searchPrefix,
+        props.items.map(item => item.id)
+      );
+      if (expandId && !expandedIds.value.includes(expandId)) {
+        expandedIds.value = [...expandedIds.value, expandId];
+      }
+    };
+
+    watch(
+      () => [search?.activeIndex.value, search?.keyword.value, search?.activeHit.value?.blockId],
+      () => {
+        ensureExpandedForHit();
       },
       { immediate: true }
     );
@@ -128,6 +156,7 @@ export default defineComponent({
       <div class='llm-tool-call-list'>
         {records.value.map(({ item, response, description, argumentsPreview, responsePreview }, index) => {
           const expanded = expandedIds.value.includes(item.id);
+          const searchPrefix = props.searchPrefix ? `${props.searchPrefix}:${item.id}` : '';
           return (
             <div
               key={item.id}
@@ -145,7 +174,14 @@ export default defineComponent({
                         class='llm-tool-call-list-name'
                         v-overflow-tips
                       >
-                        {item.name || t('未命名工具')}
+                        {searchPrefix ? (
+                          <HighlightText
+                            blockId={`${searchPrefix}:name`}
+                            text={item.name.trim() || t('未命名工具')}
+                          />
+                        ) : (
+                          item.name || t('未命名工具')
+                        )}
                       </span>
                       {renderPairs(argumentsPreview)}
                     </div>
@@ -166,16 +202,21 @@ export default defineComponent({
                 </div>
                 {expanded && (
                   <div class='llm-tool-call-list-content'>
-                    <ToolDescBar description={description} />
+                    <ToolDescBar
+                      descBlockId={searchPrefix ? `${searchPrefix}:desc` : ''}
+                      description={description}
+                    />
                     <div class='llm-tool-call-list-panels'>
                       <JsonCodeBlock
                         data={item.arguments ?? {}}
+                        searchBlockId={searchPrefix ? `${searchPrefix}:args` : ''}
                         title={t('调用参数')}
                         onViewAlone={openJsonDetail}
                       />
                       {response !== undefined && (
                         <JsonCodeBlock
                           data={response}
+                          searchBlockId={searchPrefix ? `${searchPrefix}:resp` : ''}
                           title={t('返回结果')}
                           onViewAlone={openJsonDetail}
                         />
