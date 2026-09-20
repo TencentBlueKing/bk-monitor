@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
 from django.db.models import Q
@@ -247,15 +247,24 @@ class LLMQuery(SpanQuery):
         self,
         group_field: str,
         group_ids: list[Any],
+        possible_group_fields: Sequence[str] | None = None,
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
     ) -> list[dict[str, Any]]:
         fields = [group_field]
         if group_field != OtlpKey.TRACE_ID:
             fields.append(OtlpKey.TRACE_ID)
-        queries = [
-            query.filter(**{f"{group_field}__eq": group_ids}).distinct(OtlpKey.TRACE_ID).values(*fields)
-            for query in self.build_queries()
-        ]
+
+        possible_group_condition = Q()
+        for possible_group_field in possible_group_fields or ():
+            possible_group_condition |= Q(**{f"{possible_group_field}__eq": group_ids})
+
+        queries = []
+        for query in self.build_queries():
+            if possible_group_fields:
+                query = query.filter(possible_group_condition)
+            else:
+                query = query.filter(**{f"{group_field}__eq": group_ids})
+            queries.append(query.distinct(OtlpKey.TRACE_ID).values(*fields))
         return self._query_list(queries, None, None, 0, limit)
 
 

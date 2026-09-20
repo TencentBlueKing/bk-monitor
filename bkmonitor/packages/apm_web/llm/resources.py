@@ -472,14 +472,15 @@ class ListFlowsResource(Resource):
             trace_ids = [group_id]
         else:
             # list_flows 没有 service_name，无法像 list_traces 一样预先确定产品。
-            # 同时查询标准字段及已登记的产品原始字段，兼容同一应用内混合新旧版本的上报。
+            # 用一个 OR 条件同时查询标准字段及产品原始字段，
+            # 兼容同一应用内混合新旧版本的上报，避免按别名重复查询数据源。
             trace_ids = list(
                 dict.fromkeys(
                     record[OtlpKey.TRACE_ID]
-                    for query_group_field in resolve_query_fields(group_field)
                     for record in span_query.query_group_trace_list(
-                        group_field=query_group_field,
+                        group_field=group_field,
                         group_ids=[group_id],
+                        possible_group_fields=resolve_query_fields(group_field),
                     )
                     if record.get(OtlpKey.TRACE_ID)
                 )

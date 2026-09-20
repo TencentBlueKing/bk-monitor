@@ -1,5 +1,7 @@
 from unittest import TestCase, mock
 
+from django.db.models import Q
+
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from constants.apm import OtlpKey
 
@@ -217,4 +219,32 @@ class LLMQueryTestCase(TestCase):
         query_builder.filter.assert_called_once_with(**{"attributes.session.id__eq": ["session-1"]})
         query_builder.distinct.assert_called_once_with(OtlpKey.TRACE_ID)
         query_builder.values.assert_called_once_with("attributes.session.id", OtlpKey.TRACE_ID)
+        query_list.assert_called_once_with([query_builder], None, None, 0, 10000)
+
+    def test_query_group_trace_list_with_possible_group_fields(self):
+        query_builder = mock.Mock()
+        query_builder.filter.return_value = query_builder
+        query_builder.distinct.return_value = query_builder
+        query_builder.values.return_value = query_builder
+        records = [{"trace_id": "trace-1"}, {"trace_id": "trace-2"}]
+        group_fields = ("attributes.gen_ai.conversation.id", "attributes.session.id")
+
+        with (
+            mock.patch.object(self.query, "build_queries", return_value=[query_builder]) as build_queries,
+            mock.patch.object(self.query, "_query_list", return_value=records) as query_list,
+        ):
+            result = self.query.query_group_trace_list(
+                group_field="attributes.gen_ai.conversation.id",
+                group_ids=["session-1"],
+                possible_group_fields=group_fields,
+            )
+
+        self.assertEqual(result, records)
+        build_queries.assert_called_once_with()
+        query_builder.filter.assert_called_once_with(
+            Q(**{"attributes.gen_ai.conversation.id__eq": ["session-1"]})
+            | Q(**{"attributes.session.id__eq": ["session-1"]})
+        )
+        query_builder.distinct.assert_called_once_with(OtlpKey.TRACE_ID)
+        query_builder.values.assert_called_once_with("attributes.gen_ai.conversation.id", OtlpKey.TRACE_ID)
         query_list.assert_called_once_with([query_builder], None, None, 0, 10000)
