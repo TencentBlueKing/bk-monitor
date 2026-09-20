@@ -12,30 +12,40 @@
     gap: 8px;
     justify-content: space-between;
     width: 100%;
+    min-height: 24px;
+    overflow: visible;
 
-    @include flex-align(flex-start);
+    @include flex-align(center);
   }
 
   &-title {
+    min-width: 0;
     font-size: 13px;
     font-weight: 500;
     line-height: 22px;
     color: #111214;
-    white-space: nowrap;
+
+    @include ellipsis;
   }
 
   &-actions {
+    display: flex;
+    visibility: hidden;
     flex-shrink: 0;
     gap: 8px;
+    align-items: center;
+    margin-left: auto;
+  }
 
-    @include flex-align(center);
+  &:hover &-actions {
+    visibility: visible;
   }
 
   &-action {
     gap: 3px;
     padding: 2px 6px;
     font-size: $font-size-base;
-    line-height: 20px;
+    line-height: 22px;
     color: $primary-color;
     white-space: nowrap;
     cursor: pointer;
@@ -44,25 +54,32 @@
     @include flex-align(center);
 
     .icon-monitor {
+      flex-shrink: 0;
       font-size: $font-size-medium;
+      line-height: 1;
+    }
+
+    &.is-disabled {
+      color: #c4c6cc;
+      cursor: not-allowed;
     }
   }
 
   &-body {
     position: relative;
-    height: 168px;
+    height: auto;
+    max-height: 168px;
     padding: 8px;
     overflow: hidden;
     background: #f7f9fc;
     border-radius: 8px;
 
     &.is-expanded {
-      height: auto;
       max-height: none;
       overflow: visible;
     }
 
-    &:not(.is-expanded)::after {
+    &:not(.is-expanded).is-overflowing::after {
       position: absolute;
       right: 0;
       bottom: 0;
@@ -80,14 +97,5 @@
     background: #fff;
     border: 1px solid #c1cde5;
     border-radius: 6px;
-
-    .llm-json-code-block-body:not(.is-expanded) {
-      height: auto;
-      max-height: 168px;
-
-      &:not(.is-overflowing)::after {
-        content: none;
-      }
-    }
   }
 }

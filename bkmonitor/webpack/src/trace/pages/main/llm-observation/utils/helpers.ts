@@ -246,3 +246,7 @@ function tryParseJsonText(text: string): { ok: false } | { ok: true; value: unkn
     }
   }
 }
+
+export function truncateTipContent(text: string): string {
+  return text.length > 200 ? `${text.slice(0, 200)}...` : text;
+}

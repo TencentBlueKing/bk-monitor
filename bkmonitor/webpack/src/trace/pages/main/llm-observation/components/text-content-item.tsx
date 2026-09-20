@@ -32,8 +32,8 @@ import { useI18n } from 'vue-i18n';
 
 import './text-content-item.scss';
 
-/** 折叠态最多展示行数，超出后显示「原地展开 / 独立查看」 */
-const MAX_VISIBLE_LINES = 7;
+/** 折叠态最多展示行数（Figma 160px 卡片内 120px 正文 + 20px 展开） */
+const MAX_VISIBLE_LINES = 6;
 const LINE_HEIGHT = 20;
 
 /** 文本消息条目：支持复制、溢出折叠、独立查看 */
@@ -86,6 +86,13 @@ export default defineComponent({
       Message({ message: t('复制成功'), theme: 'success' });
     };
 
+    const handleToggleExpand = () => {
+      expanded.value = !expanded.value;
+      if (!expanded.value) {
+        nextTick(measureOverflow);
+      }
+    };
+
     return () => (
       <div
         class={[
@@ -98,11 +105,27 @@ export default defineComponent({
       >
         <div class='llm-text-content-row'>
           <span class='llm-text-content-index'>[{props.index}]</span>
-          <div
-            ref={textRef}
-            class='llm-text-content-body'
-          >
-            {props.content}
+          <div class='llm-text-content-main'>
+            <div class='llm-text-content-clip'>
+              <div
+                ref={textRef}
+                class='llm-text-content-body'
+              >
+                {props.content}
+              </div>
+            </div>
+            {overflow.value && (
+              <div
+                class='llm-text-content-expand'
+                onClick={handleToggleExpand}
+              >
+                <span>{expanded.value ? t('收起') : t('展开')}</span>
+                <i
+                  style='font-size: 18px;'
+                  class={['icon-monitor', 'icon-double-down', { 'is-expanded': expanded.value }]}
+                />
+              </div>
+            )}
           </div>
         </div>
         {!expanded.value && (
@@ -115,37 +138,14 @@ export default defineComponent({
               <span>{t('复制信息')}</span>
             </div>
             {overflow.value && (
-              <>
-                <div
-                  class='llm-text-content-action'
-                  onClick={() => emit('viewAlone', props.content)}
-                >
-                  <i class='icon-monitor icon-chakan1' />
-                  <span>{t('独立查看')}</span>
-                </div>
-                <div
-                  class='llm-text-content-action'
-                  onClick={() => {
-                    expanded.value = true;
-                  }}
-                >
-                  <i class='icon-monitor icon-double-down' />
-                  <span>{t('原地展开')}</span>
-                </div>
-              </>
+              <div
+                class='llm-text-content-action'
+                onClick={() => emit('viewAlone', props.content)}
+              >
+                <i class='icon-monitor icon-chakan1' />
+                <span>{t('独立查看')}</span>
+              </div>
             )}
-          </div>
-        )}
-        {expanded.value && (
-          <div
-            class='llm-text-content-action is-collapse'
-            onClick={() => {
-              expanded.value = false;
-              nextTick(measureOverflow);
-            }}
-          >
-            <i class='icon-monitor icon-double-up' />
-            <span>{t('收起')}</span>
           </div>
         )}
       </div>

@@ -34,6 +34,7 @@ import JsonCodeBlock from './json-code-block';
 import JsonView from './json-view';
 import TextContentItem from './text-content-item';
 import ToolCallList from './tool-call-list';
+import ToolDescBar from './tool-desc-bar';
 
 import type { LlmTextItem, LlmToolDefinition } from '../utils/typings';
 
@@ -107,6 +108,11 @@ export default defineComponent({
       detail.value = { kind: 'json', title, data };
     };
 
+    /** 关闭独立查看：卸载 Sideslider，避免 teleport 到 body 的 .bk-modal 残留挡点击 */
+    const closeDetail = () => {
+      detail.value = null;
+    };
+
     /** 渲染文本分区条目 */
     const renderTextItems = (items: LlmTextItem[], title: string) =>
       items.map((item, index) => (
@@ -134,12 +140,7 @@ export default defineComponent({
             </div>
           ))}
         </div>
-        {selectedTool.value?.description ? (
-          <div class='llm-input-tab-tool-desc'>
-            <span class='llm-input-tab-tool-desc-label'>{t('工具描述')}</span>
-            <span class='llm-input-tab-tool-desc-text'>{selectedTool.value.description}</span>
-          </div>
-        ) : null}
+        {selectedTool.value?.description ? <ToolDescBar description={selectedTool.value.description} /> : null}
         <JsonCodeBlock
           data={selectedTool.value?.parameters ?? {}}
           title={t('调用参数')}
@@ -157,7 +158,7 @@ export default defineComponent({
             {observation.value.userMessages.length > 0 && (
               <CollapseSection
                 count={observation.value.userMessages.length}
-                icon='icon-xiaoxi'
+                icon='icon-a-chatqipao'
                 title={t('用户消息')}
               >
                 {renderTextItems(observation.value.userMessages, t('用户消息'))}
@@ -166,7 +167,7 @@ export default defineComponent({
             {observation.value.modelMessages.length > 0 && (
               <CollapseSection
                 count={observation.value.modelMessages.length}
-                icon='icon-mc-robot'
+                icon='icon-LLM'
                 title={t('模型消息')}
               >
                 {renderTextItems(observation.value.modelMessages, t('模型消息'))}
@@ -175,7 +176,7 @@ export default defineComponent({
             {observation.value.systemPrompts.length > 0 && (
               <CollapseSection
                 count={observation.value.systemPrompts.length}
-                icon='icon-setting'
+                icon='icon-neizhi'
                 title={t('系统 Prompts')}
               >
                 {renderTextItems(observation.value.systemPrompts, t('系统 Prompts'))}
@@ -184,7 +185,7 @@ export default defineComponent({
             {observation.value.reasoningMessages.length > 0 && (
               <CollapseSection
                 count={observation.value.reasoningMessages.length}
-                icon='icon-mind-fill'
+                icon='icon-tuiliguocheng'
                 title={t('推理过程')}
               >
                 {renderTextItems(observation.value.reasoningMessages, t('推理过程'))}
@@ -193,7 +194,7 @@ export default defineComponent({
             {observation.value.toolCalls.length > 0 && (
               <CollapseSection
                 count={observation.value.toolCalls.length}
-                icon='icon-setting'
+                icon='icon-gongjutiaoyongjilu'
                 title={t('工具调用记录')}
               >
                 <ToolCallList
@@ -205,7 +206,7 @@ export default defineComponent({
             {observation.value.availableTools.length > 0 && (
               <CollapseSection
                 count={observation.value.availableTools.length}
-                icon='icon-setting'
+                icon='icon-Tool'
                 title={t('可用工具')}
               >
                 {renderAvailableTools(observation.value.availableTools)}
@@ -213,34 +214,35 @@ export default defineComponent({
             )}
           </>
         )}
-        <Sideslider
-          width={640}
-          extCls='llm-input-tab-slider'
-          isShow={Boolean(detail.value)}
-          quickClose={true}
-          transfer={true}
-          onClosed={() => {
-            detail.value = null;
-          }}
-          onUpdate:isShow={(val: boolean) => {
-            if (!val) detail.value = null;
-          }}
-        >
-          {{
-            header: () => <span>{detail.value?.title || ''}</span>,
-            default: () =>
-              detail.value?.kind === 'json' ? (
-                <div class='llm-input-tab-slider-json'>
-                  <JsonView
-                    data={detail.value.data}
-                    showLineNumber={true}
-                  />
-                </div>
-              ) : (
-                <pre class='llm-input-tab-slider-text'>{detail.value?.kind === 'text' ? detail.value.text : ''}</pre>
-              ),
-          }}
-        </Sideslider>
+        {detail.value ? (
+          <Sideslider
+            width={640}
+            extCls='llm-input-tab-slider'
+            isShow={true}
+            quickClose={true}
+            transfer={true}
+            onClosed={closeDetail}
+            onHidden={closeDetail}
+            onUpdate:isShow={(val: boolean) => {
+              if (!val) closeDetail();
+            }}
+          >
+            {{
+              header: () => <span>{detail.value?.title || ''}</span>,
+              default: () =>
+                detail.value?.kind === 'json' ? (
+                  <div class='llm-input-tab-slider-json'>
+                    <JsonView
+                      data={detail.value.data}
+                      showLineNumber={true}
+                    />
+                  </div>
+                ) : (
+                  <pre class='llm-input-tab-slider-text'>{detail.value?.kind === 'text' ? detail.value.text : ''}</pre>
+                ),
+            }}
+          </Sideslider>
+        ) : null}
       </div>
     );
   },
