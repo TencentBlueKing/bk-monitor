@@ -367,7 +367,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
  * @description 通用卡片渲染：分组未登记描述符时的兜底
  * 取分组内第一个字段作为标题与主值，其余字段拼成副文案，保证后端新增分组也能展示
  */
-const genericCardDescriptor: IRumCardDescriptor = (data, ctx) => {
+export const genericCardDescriptor: IRumCardDescriptor = (data, ctx) => {
   const entries = Object.entries(data);
   if (!entries.length) return [];
   const [mainField, mainValue] = entries[0];
@@ -392,8 +392,7 @@ export function getCardDescriptor(spanType: string, sectionKey: string, groupKey
   return (
     CARD_DESCRIPTORS[`${spanType}.${sectionKey}.${groupKey}`] ??
     CARD_DESCRIPTORS[`${sectionKey}.${groupKey}`] ??
-    CARD_DESCRIPTORS[groupKey] ??
-    genericCardDescriptor
+    CARD_DESCRIPTORS[groupKey]
   );
 }
 

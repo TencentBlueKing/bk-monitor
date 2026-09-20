@@ -73,16 +73,14 @@ interface IRumExtraSection {
 
 /** 计数类卡片：有值时以蓝色可点击样式呈现，0 或缺失时为普通文本 */
 const countCard =
-  (label: string, relatedKey: keyof IRumRelatedData, footerText = ''): IRumExtraCardBuilder =>
+  (config: Omit<IRumSummaryCardVM, 'key' | 'value'>, relatedKey: keyof IRumRelatedData): IRumExtraCardBuilder =>
   ctx => {
     const count = Number(ctx.related[relatedKey] ?? Number.NaN);
-    const footer = footerText ? [{ text: footerText }] : undefined;
-    if (!Number.isFinite(count)) return { label, value: EMPTY_TEXT, footer };
+    if (!Number.isFinite(count)) return { ...config, value: EMPTY_TEXT };
     return {
-      label,
       value: formatCount(count),
       tone: count > 0 ? RumCardToneEnum.LINK : RumCardToneEnum.DEFAULT,
-      footer,
+      ...config,
     };
   };
 
@@ -108,9 +106,9 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
   action: {
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
-        countCard(t('触发请求数'), 'resourceCount'),
-        countCard(t('错误数'), 'errorCount'),
-        countCard(t('Long Tasks 数'), 'longTaskCount'),
+        countCard({ label: t('触发请求数') }, 'resourceCount'),
+        countCard({ label: t('错误数') }, 'errorCount'),
+        countCard({ label: t('Long Tasks 数') }, 'longTaskCount'),
       ],
     },
     loadRelated: (context, mode) => getActionRelated(context, mode),
@@ -128,8 +126,8 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
   error: {
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
-        countCard(t('影响用户'), 'userCount', t('当前查询范围 · 相同错误信息')),
-        countCard(t('发生次数'), 'occurrenceCount', t('当前查询范围')),
+        countCard({ label: t('影响用户'), footer: [{ text: t('当前查询范围 · 相同错误信息') }] }, 'userCount'),
+        countCard({ label: t('发生次数'), footer: [{ text: t('当前查询范围') }] }, 'occurrenceCount'),
       ],
     },
     extraSections: [
@@ -152,7 +150,10 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
               footer: [{ text: t('当前查询范围 · 独立用户数') }],
             };
           },
-          countCard(t('影响会话数'), 'sessionCount', t('当前查询范围 · 独立 session_id 数')),
+          countCard(
+            { label: t('影响会话数'), footer: [{ text: t('当前查询范围 · 独立 session_id 数') }] },
+            'sessionCount'
+          ),
           ctx => {
             const trend = (ctx.related.trend ?? []) as Array<{ value: number }>;
             if (!trend.length) return null;
@@ -186,9 +187,9 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
   view: {
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
-        countCard(t('请求'), 'resourceCount'),
-        countCard(t('错误'), 'errorCount'),
-        countCard('Span', 'spanCount'),
+        countCard({ label: t('请求'), tone: 'link', cardCls: 'view-extra-card' }, 'resourceCount'),
+        countCard({ label: t('错误'), tone: 'danger', cardCls: 'view-extra-card' }, 'errorCount'),
+        countCard({ label: 'Span', tone: 'link', cardCls: 'view-extra-card' }, 'spanCount'),
       ],
     },
     loadRelated: (context, mode, detail) => {

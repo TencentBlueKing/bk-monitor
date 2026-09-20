@@ -104,6 +104,7 @@ export interface IRumWaterfallData {
 
 /** 瀑布图上的时间点标记（如 TTFB / FCP / LCP） */
 export interface IRumWaterfallMarker {
+  'display.rating_config': IRumRatingConfig[];
   field_name: string;
   key: string;
   value: number;

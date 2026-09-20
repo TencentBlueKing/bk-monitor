@@ -358,7 +358,20 @@ export default defineComponent({
         end_time: endTime,
       };
       detailShow.value = true;
+      queryCtx.setUrlParams({
+        detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
+        detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
+      });
     }
+
+    const handleSpanDetailShowChange = (show: boolean) => {
+      detailShow.value = show;
+      if (!show) detailContext.value = null;
+      queryCtx.setUrlParams({
+        detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
+        detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
+      });
+    };
 
     /**
      * 详情抽屉「上一条 / 下一条」共用逻辑：从当前记录出发按 step 方向查找相邻的可展示详情记录，
@@ -422,6 +435,13 @@ export default defineComponent({
       await fetchUserConfig();
       await fetchApplicationList();
       queryCtx.handleQuery();
+      const query = route.query as Record<string, string>;
+      if (query.detailShow) {
+        detailShow.value = JSON.parse(decodeURIComponent(query.detailShow));
+      }
+      if (query.detailContext) {
+        detailContext.value = JSON.parse(decodeURIComponent(query.detailContext));
+      }
     });
 
     onBeforeUnmount(() => {
@@ -469,6 +489,7 @@ export default defineComponent({
       handlePreviousDetail,
       handleNextDetail,
       handleRumSpanDetailConditionAdd,
+      handleSpanDetailShowChange,
     };
   },
   render() {
@@ -653,10 +674,7 @@ export default defineComponent({
           }
           onNext={this.handleNextDetail}
           onPrevious={this.handlePreviousDetail}
-          onUpdate:isShow={show => {
-            this.detailShow = show;
-            if (!show) this.detailContext = null;
-          }}
+          onUpdate:isShow={this.handleSpanDetailShowChange}
         />
 
         <EditFavorite

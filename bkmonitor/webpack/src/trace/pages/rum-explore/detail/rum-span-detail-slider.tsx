@@ -120,12 +120,16 @@ export default defineComponent({
                     <span class='sub-divider' />
                     <span class='sub-label'>span_id:</span>
                     <span class='sub-value'>{spanId.value}</span>
-                    <TemporaryShareNew type='rum' />
+                    <TemporaryShareNew
+                      icon='icon-copy-link'
+                      type='rum'
+                    />
                   </span>
                 ) : null}
               </div>
             ),
           }}
+          buttons={['fullscreen', 'previous', 'next']}
           isFullscreen={isFullscreen.value}
           onFullscreen={fullscreen => {
             isFullscreen.value = fullscreen;

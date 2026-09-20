@@ -83,6 +83,8 @@ export interface IRumDetailHeaderVM {
 
 /** 归一化后的区块视图模型，渲染层只认这个结构 */
 export interface IRumDetailSectionVM {
+  /** 卡片分组形态（组标题栏 + 组内卡片平铺），与 cardRows 二选一 */
+  cardGroups?: IRumSummaryCardGroupVM[];
   /** 卡片按行分组，一行内的卡片等宽平铺 */
   cardRows?: IRumSummaryCardVM[][];
   key: string;
@@ -164,6 +166,15 @@ export interface IRumRatingSegmentVM {
   threshold: string;
 }
 
+/** 统计卡片分组视图模型：登记了 title 时渲染组标题栏，组内卡片平铺 */
+export interface IRumSummaryCardGroupVM {
+  key: string;
+  /** 组内卡片按行切分，一行内的卡片等宽平铺 */
+  rows: IRumSummaryCardVM[][];
+  /** 组标题，为空时不渲染标题栏 */
+  title?: string;
+}
+
 /** 统计卡片视图模型 */
 export interface IRumSummaryCardVM {
   /** 卡片的类名 */
@@ -198,6 +209,7 @@ export interface IRumTtfbBreakdownVM {
 }
 
 export interface IRumWaterfallMarkerVM {
+  color?: string;
   key: string;
   label: string;
   percent: number;

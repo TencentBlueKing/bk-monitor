@@ -65,7 +65,7 @@ export default defineComponent({
     },
     /** 操作按钮配置，传入后替换默认按钮集合；按钮点击统一通过事件抛出 */
     buttons: {
-      type: Array as PropType<ISliderHeaderButton[]>,
+      type: Array as PropType<string[]>,
       default: () => [],
     },
   },
@@ -96,7 +96,7 @@ export default defineComponent({
       },
     ]);
 
-    const buttonList = computed(() => (props.buttons.length ? props.buttons : defaultButtons.value));
+    const buttonList = computed(() => defaultButtons.value.filter(button => props.buttons.includes(button.id)));
 
     const handleButtonClick = (button: ISliderHeaderButton) => {
       if (button.disabled) return;
