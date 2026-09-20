@@ -1676,14 +1676,21 @@ class ListFlowsResourceTestCase(TestCase):
 
     def test_builds_span_tree_for_each_trace(self):
         group_field = "attributes.gen_ai.conversation.id"
+        aidev_group_field = "attributes.agent.session.session_code"
+        agentlens_group_field = "attributes.gen_ai.session.id"
+        langfuse_group_field = "attributes.session.id"
         application = mock.Mock()
         data_sources = [mock.sentinel.data_source]
         application.build_data_sources.return_value = data_sources
         span_query = mock.Mock()
-        span_query.query_group_trace_list.return_value = [
-            {group_field: "conversation-1", "trace_id": "trace-1"},
-            {group_field: "conversation-1", "trace_id": "trace-2"},
-        ]
+        span_query.query_group_trace_list.side_effect = lambda group_field, group_ids: {
+            "attributes.gen_ai.conversation.id": [
+                {"attributes.gen_ai.conversation.id": "conversation-1", "trace_id": "trace-1"}
+            ],
+            "attributes.agent.session.session_code": [
+                {"attributes.agent.session.session_code": "conversation-1", "trace_id": "trace-2"}
+            ],
+        }.get(group_field, [])
         spans = [
             {
                 "trace_id": "trace-1",
@@ -1739,9 +1746,14 @@ class ListFlowsResourceTestCase(TestCase):
         application.build_data_sources.assert_called_once_with()
         get_query.assert_called_once_with(data_sources)
         entity_set_class.assert_called_once_with(bk_biz_id=11, app_name="sand_local_dev")
-        span_query.query_group_trace_list.assert_called_once_with(
-            group_field=group_field,
-            group_ids=["conversation-1"],
+        self.assertEqual(
+            span_query.query_group_trace_list.call_args_list,
+            [
+                mock.call(group_field=group_field, group_ids=["conversation-1"]),
+                mock.call(group_field=aidev_group_field, group_ids=["conversation-1"]),
+                mock.call(group_field=agentlens_group_field, group_ids=["conversation-1"]),
+                mock.call(group_field=langfuse_group_field, group_ids=["conversation-1"]),
+            ],
         )
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",

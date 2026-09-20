@@ -13,7 +13,7 @@ from core.drf_resource import Resource, api
 from apm_web.handlers.metric_group import GroupEnum, MetricGroupRegistry
 from apm_web.handlers.trace_handler.query import QueryHandler, QueryStringBuilder, SpanQueryTransformer
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.adapter.fields import AGENT_CANDIDATE_Q, resolve_product, resolve_query_field
+from apm_web.llm.adapter.fields import AGENT_CANDIDATE_Q, resolve_product, resolve_query_field, resolve_query_fields
 from apm_web.llm.constants import CalculationType
 from apm_web.llm.flow import FlowBuilder
 from apm_web.llm.metric_group import LLMMetricGroup
@@ -471,13 +471,17 @@ class ListFlowsResource(Resource):
         if group_field == OtlpKey.TRACE_ID:
             trace_ids = [group_id]
         else:
-            group_trace_records = span_query.query_group_trace_list(
-                group_field=group_field,
-                group_ids=[group_id],
-            )
+            # list_flows 没有 service_name，无法像 list_traces 一样预先确定产品。
+            # 同时查询标准字段及已登记的产品原始字段，兼容同一应用内混合新旧版本的上报。
             trace_ids = list(
                 dict.fromkeys(
-                    record[OtlpKey.TRACE_ID] for record in group_trace_records if record.get(OtlpKey.TRACE_ID)
+                    record[OtlpKey.TRACE_ID]
+                    for query_group_field in resolve_query_fields(group_field)
+                    for record in span_query.query_group_trace_list(
+                        group_field=query_group_field,
+                        group_ids=[group_id],
+                    )
+                    if record.get(OtlpKey.TRACE_ID)
                 )
             )
         if not trace_ids:
