@@ -26,7 +26,7 @@
 
 import { random } from 'monitor-common/utils/utils.js';
 
-import type { IEdge, IRank, ITopoData } from '../failure-topo/types';
+import type { IEdge, IRank, ITopoData } from '../failure-topo/types/topo';
 export enum ComboStatus {
   DataCenter = '数据中心',
   Host = '主机',
