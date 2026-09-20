@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import concurrent.futures
 import logging
 import os
@@ -25,7 +25,7 @@ class BeatShutdown(Exception):
     always_raise = True
 
 
-class MonitorBeater(object):
+class MonitorBeater:
     """
     任务执行方式：
     dumy: 单进程堵塞式执行，注意该模式可能会让周期任务调度并不是那么精确，但是消耗最小同时最可靠。
@@ -38,6 +38,7 @@ class MonitorBeater(object):
             entries = {}
         self.name = name
         self.entries = entries
+        self.entries_lock = RLock()
         self.max_interval = 1
         self.executor = BeaterExecutor(self, exec_type=os.getenv("MONITOR_BEAT_EXEC_TYPE", "thread"))
         signal.signal(signal.SIGTERM, self.shutdown)
@@ -68,24 +69,23 @@ class MonitorBeater(object):
         """
         remaining_times = []
         entries_temp = {}
-        entry_keys = list(self.entries.keys())
-        for entry_key in entry_keys:
+        with self.entries_lock:
+            entries = list(self.entries.items())
+        for entry_key, entry in entries:
             try:
-                next_time_to_run, new_entry = self.maybe_due(self.entries[entry_key])
-                # 由于并发原因，entries 中可能会出现 key 被修改的情况
-                # logger.debug(
-                #     f"{self.display_name} Ticks runtime key: {entry_key},"
-                #     f"values: {self.entries[entry_key].args}, next_time: {next_time_to_run}"
-                # )
+                next_time_to_run, new_entry = self.maybe_due(entry)
                 if next_time_to_run:
                     remaining_times.append(next_time_to_run)
                 if new_entry:
-                    entries_temp[entry_key] = new_entry
+                    entries_temp[entry_key] = (entry, new_entry)
             except RuntimeError as e:
-                logger.exception(f"{self.display_name} Ticks runtime error:{e}, key: {self.entries[entry_key].args}")
+                logger.exception(f"{self.display_name} Ticks runtime error:{e}, key: {entry.args}")
 
-        for group_key, entry in entries_temp.items():
-            self.entries[group_key] = entry
+        with self.entries_lock:
+            for group_key, (entry, new_entry) in entries_temp.items():
+                # 刷新可能已删除或替换条目，不用旧调度结果覆盖刷新结果。
+                if self.entries.get(group_key) is entry:
+                    self.entries[group_key] = new_entry
 
         return min(remaining_times + [self.max_interval])
 
@@ -94,8 +94,10 @@ class MonitorBeater(object):
         调度器
         :param drift: 偏移
         """
-        logger.info(f"{self.display_name} Starting, load {len(self.entries)} entries")
-        for entry in self.entries.values():
+        with self.entries_lock:
+            entries = list(self.entries.values())
+        logger.info(f"{self.display_name} Starting, load {len(entries)} entries")
+        for entry in entries:
             logger.info(f"{self.display_name} loading entry: {entry.task.__name__}({entry.schedule})")
         while not self.__shutdown:
             interval = self.tick()
@@ -139,7 +141,7 @@ class DummyExecutor(Executor):
             self._shutdown = True
 
 
-class BeaterExecutor(object):
+class BeaterExecutor:
     """
     reference: apscheduler
     """
