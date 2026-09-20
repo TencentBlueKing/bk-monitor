@@ -16,6 +16,7 @@
 | description   | string    | 否  | 说明                                       |
 | level         | list[int] | 否  | 屏蔽策略的等级（如果屏蔽类型是策略屏蔽，则level需要传入），元素类型：int |
 | label         | string    | 否  | 标签                                       |
+| end_policy    | string    | 否  | 屏蔽结束处理方式。省略则保留原值；显式传入必须与创建时一致，传入不同值整次编辑被拒绝。如需另一种方式，请新建屏蔽 |
 
 #### 屏蔽配置(cycle_config)
 
