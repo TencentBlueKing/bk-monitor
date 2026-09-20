@@ -1734,7 +1734,7 @@ class PushUrlResource(Resource):
     CLOUD_AREA_ZERO_ALIAS = "内网"
 
     def get_proxy_endpoints(self, bk_biz_id, endpoint_configs):
-        # 默认区域上报地址
+        # 中心化上报地址排在最前，供接入页默认选中。
         default_cloud_display = settings.CUSTOM_REPORT_DEFAULT_PROXY_DOMAIN or settings.CUSTOM_REPORT_DEFAULT_PROXY_IP
         default_proxy_infos = [{"ip": proxy_ip, "bk_cloud_id": 0} for proxy_ip in default_cloud_display]
 
@@ -1742,35 +1742,52 @@ class PushUrlResource(Resource):
         proxy_host_infos = []
         try:
             proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
-            proxy_host_infos = [
-                {
-                    "ip": host.get("conn_ip") or host.get("inner_ip"),
-                    "bk_cloud_id": int(host["bk_cloud_id"]),
-                }
-                for host in proxy_hosts
-            ]
+            for host in proxy_hosts:
+                try:
+                    proxy_host_info = {
+                        "ip": host.get("conn_ip") or host.get("inner_ip"),
+                        "bk_cloud_id": int(host["bk_cloud_id"]),
+                    }
+                    if proxy_host_info["ip"]:
+                        proxy_host_infos.append(proxy_host_info)
+                except Exception:
+                    logger.exception(f"skip invalid proxy host for bk_biz_id={bk_biz_id}")
         except Exception as e:
             logger.exception(e)
 
-        # 添加集群内上报 endpoint（在默认区域 0 之后）
-        cluster_service_configs = getattr(settings, "CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE_CONFIGS", [])
-        cluster_proxy_infos = [
+        cloud_alias_map = self._get_cloud_alias_map()
+        # 接入页默认选中第一项：中心化地址、配置地址、业务 Proxy 依次排列。
+        return (
+            self._get_endpoints(default_proxy_infos, endpoint_configs, cloud_alias_map)
+            + self._get_configured_endpoints(endpoint_configs)
+            + self._get_endpoints(proxy_host_infos, endpoint_configs, cloud_alias_map)
+        )
+
+    def _get_configured_endpoints(self, endpoint_configs):
+        """按 CUSTOM_REPORT_ENDPOINTS 的配置顺序生成地址，跳过无效条目。"""
+        configured_endpoints = getattr(settings, "CUSTOM_REPORT_ENDPOINTS", [])
+        if not isinstance(configured_endpoints, list):
+            logger.warning("CUSTOM_REPORT_ENDPOINTS must be a list")
+            return []
+        # 先剔除 CUSTOM_REPORT_ENDPOINTS 中存在格式等错误的数据。
+        valid_services = []
+        for index, service in enumerate(configured_endpoints):
+            endpoint = service.get("endpoint") if isinstance(service, dict) else None
+            alias = service.get("alias") if isinstance(service, dict) else None
+            if not all(isinstance(value, str) and value.strip() for value in (endpoint, alias)):
+                logger.warn(f"skip invalid CUSTOM_REPORT_ENDPOINTS item at index {index}")
+                continue
+            valid_services.append({"endpoint": endpoint.strip(), "alias": alias.strip()})
+
+        return [
             {
                 "push_url": self.generate_endpoint(service["endpoint"], config["port"], config["path"]),
                 "tags": config["tags"],
                 "bk_cloud_id": 0,
                 "bk_cloud_alias": service["alias"],
             }
-            for service, config in itertools.product(cluster_service_configs, endpoint_configs)
+            for service, config in itertools.product(valid_services, endpoint_configs)
         ]
-
-        cloud_alias_map = self._get_cloud_alias_map()
-        # 按默认区域、集群内服务、业务 Proxy 的顺序返回
-        return (
-            self._get_endpoints(default_proxy_infos, endpoint_configs, cloud_alias_map)
-            + cluster_proxy_infos
-            + self._get_endpoints(proxy_host_infos, endpoint_configs, cloud_alias_map)
-        )
 
     @classmethod
     def generate_endpoint(cls, ip: str, port: int | str | None = None, path: str | None = None) -> str:
@@ -1842,8 +1859,16 @@ class PushUrlResource(Resource):
                 # 复刻旧代码，没有对应的 formatType 的报错
                 raise KeyError(format_type)
         endpoints = self.get_proxy_endpoints(validated_request_data["bk_biz_id"], endpoint_configs)
-        # 去重
-        return list({(endpoint["push_url"], endpoint["bk_cloud_id"]): endpoint for endpoint in endpoints}.values())
+        # 相同地址只保留首次出现的配置，避免后续地址覆盖中心化地址及其顺序。
+        unique_endpoints = []
+        seen = set()
+        for endpoint in endpoints:
+            key = (endpoint["push_url"], endpoint["bk_cloud_id"])
+            if key in seen:
+                continue
+            seen.add(key)
+            unique_endpoints.append(endpoint)
+        return unique_endpoints
 
 
 class QueryBkDataToken(Resource):
