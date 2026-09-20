@@ -87,7 +87,7 @@ export default class SharePage extends tsc<object> {
         ''
       )}`;
     } else if (/^\/trace/.test(data.path)) {
-      // apm 处理
+      // trace 处理
       const route = this.$router.resolve({
         name: data.path,
         params: data.params,
