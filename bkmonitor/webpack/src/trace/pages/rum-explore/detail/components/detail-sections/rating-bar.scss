@@ -64,16 +64,17 @@
     align-items: center;
     height: 12px;
 
+    /** 轨道末尾还有绝对定位的指针节点，按同类型元素取首尾分段，避免 :last-child 命中指针 */
     .track-segment {
       flex: 1;
       height: 100%;
 
-      &:first-child {
-        border-radius: 999px 0 0 999px;
+      &:first-of-type {
+        border-radius: 12px 0 0 12px;
       }
 
-      &:last-child {
-        border-radius: 0 999px 999px 0;
+      &:last-of-type {
+        border-radius: 0 12px 12px 0;
       }
     }
 

@@ -54,6 +54,62 @@
       border-radius: 4px;
     }
   }
+
+  /* 关联数据加载中的区块骨架，尺寸与真实的卡片 / 键值行保持一致 */
+  .section-skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .skeleton-card-row {
+    display: flex;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .skeleton-card {
+    flex: 1;
+    height: 70px;
+    background: #fff;
+    border: 1px solid #c1cde5;
+    border-radius: 4px;
+  }
+
+  /* 瀑布图区块：整块占位，高度与 .rum-waterfall 的时间轴 + 阶段行接近 */
+  .skeleton-block {
+    height: 240px;
+    background: #f7f9fc;
+    border-radius: 4px;
+  }
+
+  /* 对应 .rum-key-value-list：整块带边框，行与行之间无间距 */
+  .skeleton-key-value-list {
+    gap: 0;
+    padding: 4px 0;
+    border: 1px solid #c1cde5;
+    border-radius: 4px;
+  }
+
+  .skeleton-row {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+  }
+
+  /* 宽度对齐 .rum-key-value-list 真实的键列与值列，切换真实内容时列宽不跳动 */
+  .skeleton-row-label {
+    flex-shrink: 0;
+    width: 84px;
+    height: 12px;
+  }
+
+  .skeleton-row-value {
+    width: 40%;
+    height: 12px;
+  }
 }
 
 .rum-summary-cards {

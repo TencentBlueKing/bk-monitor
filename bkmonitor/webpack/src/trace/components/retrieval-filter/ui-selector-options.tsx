@@ -504,7 +504,8 @@ export default defineComponent({
       }
     }
     function handleSearchChange() {
-      cursorIndex.value = -1;
+      /** 过滤结果变化后光标落回首项：与 initData 的初始值一致，回车可直接选中第一条命中项 */
+      cursorIndex.value = 0;
       if (!searchValue.value) {
         searchLocalFields.value = props.fields.slice();
       } else {
