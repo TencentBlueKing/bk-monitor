@@ -26,15 +26,21 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
+import dayjs from 'dayjs';
+
 import { CARD_TONE_COLOR } from '../../constants';
+import { formatCount } from '../../registry/card-registry';
 import { RumCardToneEnum } from '../../typings';
 
-import type { IRumSummaryCardGroupVM, IRumSummaryCardVM } from '../../typings';
+import type { IRumSparklinePoint, IRumSummaryCardGroupVM, IRumSummaryCardVM } from '../../typings';
 
 import './summary-cards.scss';
 
 /** 迷你柱状图的固定高度，柱高按最大值归一化 */
 const SPARKLINE_HEIGHT = 32;
+
+/** 柱状图 tips 的时间格式：秒级精度 + 时区偏移，与 utils.formatTime 保持同一展示口径 */
+const SPARKLINE_TIME_FORMAT = 'YYYY-MM-DD HH:mm:ssZZ';
 
 /** 统计卡片组：支持分组展示（组标题栏 + 组内卡片平铺），未传 groups 时退化为逐行一字排开 */
 export default defineComponent({
@@ -50,19 +56,46 @@ export default defineComponent({
     },
   },
   setup(props) {
-    /** 迷你柱状图：末位柱体高亮，用于突出最新一个时间桶 */
-    function renderSparkline(values: number[]) {
-      const max = Math.max(...values, 1);
+    /** 单根柱子的 tips：时间桶起点 · 该桶的次数 */
+    function sparklineTip(point: IRumSparklinePoint) {
+      const bucketTime = dayjs.tz(point.time * 1000).format(SPARKLINE_TIME_FORMAT);
+      return (
+        <span style='color: #fafbfd;display: flex;align-items: center;'>
+          {bucketTime}{' '}
+          <span
+            style='align-items: center;
+              background-color: rgba(1, 1, 1, .8);
+              border-radius: 3px;
+              display: flex;
+              height: 18px;
+              margin-left: 6px;
+              padding: 0 5px;'
+          >
+            {formatCount(point.value)}
+          </span>
+        </span>
+      );
+    }
+
+    /** 迷你柱状图：柱高按最大值归一化，最低 2px 保证 0 值桶仍可见；兜底 1 避免全 0 时出现 0/0 */
+    function renderSparkline(points: IRumSparklinePoint[]) {
+      const max = Math.max(...points.map(point => point.value), 1);
       return (
         <div class='card-sparkline'>
-          {values.map((value, index) => (
+          {points.map((point, index) => (
             <span
               key={index}
               style={{
-                height: `${Math.max((value / max) * SPARKLINE_HEIGHT, 2)}px`,
-                backgroundColor: index === values.length - 1 ? '#EA3636' : '#3A84FF',
+                height: `${Math.max((point.value / max) * SPARKLINE_HEIGHT, 2)}px`,
+                backgroundColor: '#3A84FF',
               }}
               class='sparkline-bar'
+              v-bk-tooltips={{
+                content: sparklineTip(point),
+                placement: 'top',
+                /** 深色 tips 主题样式定义在 static/scss/global.scss */
+                extCls: 'tooltip-chart-tips-dark-theme',
+              }}
             />
           ))}
         </div>
@@ -99,7 +132,7 @@ export default defineComponent({
           {card.sparkline ? (
             renderSparkline(card.sparkline)
           ) : (
-            <div class={['card-value-row', { 'unit-value-row': !!card.unit }]}>
+            <div class={['card-value-row', { 'unit-value-row': !!card.unit || !!card.growthRate }]}>
               {card.prefixTag ? (
                 <span
                   style={{ backgroundColor: card.prefixTag.bgColor }}
@@ -115,6 +148,14 @@ export default defineComponent({
               >
                 {card.value}
               </span>
+              {card.growthRate ? (
+                <span
+                  style={{ color: CARD_TONE_COLOR[card.growthRate.tone ?? RumCardToneEnum.DEFAULT] }}
+                  class='card-growth'
+                >
+                  {card.growthRate.text}
+                </span>
+              ) : null}
               {card.unit ? (
                 <span
                   style={{ color: CARD_TONE_COLOR[card.unit.tone ?? RumCardToneEnum.DEFAULT] }}

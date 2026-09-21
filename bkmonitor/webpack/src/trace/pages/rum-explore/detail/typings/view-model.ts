@@ -168,6 +168,14 @@ export interface IRumRatingSegmentVM {
   threshold: string;
 }
 
+/** 迷你柱状图的一个数据点 */
+export interface IRumSparklinePoint {
+  /** 时间桶起点，秒级时间戳 */
+  time: number;
+  /** 该时间桶内的统计值，用于柱高归一化与 tips 展示 */
+  value: number;
+}
+
 /** 统计卡片分组视图模型：登记了 title 时渲染组标题栏，组内卡片平铺 */
 export interface IRumSummaryCardGroupVM {
   key: string;
@@ -183,6 +191,8 @@ export interface IRumSummaryCardVM {
   cardCls?: string;
   /** 卡片底部辅助说明，支持分段着色 */
   footer?: IRumCardFooterPart[];
+  /** 主值右侧的环比增长率（如 +300%），涨跌语义配色，与 unit（单位）互斥使用 */
+  growthRate?: { text: string; tone?: RumCardToneType };
   key: string;
   /** 卡片标题 */
   label: string;
@@ -190,13 +200,13 @@ export interface IRumSummaryCardVM {
   operation?: { label: string; onClick: () => void };
   /** 主值前缀标签（如 HTTP Method 的 POST 色块） */
   prefixTag?: { bgColor: string; text: string };
-  /** 以迷你柱状图代替主值展示（如 24 小时趋势） */
-  sparkline?: number[];
+  /** 以迷你柱状图代替主值展示（如 24 小时趋势），每根柱子的 tips 需要 time */
+  sparkline?: IRumSparklinePoint[];
   /** 卡片右上角的状态标签（如「低可信度」） */
   tag?: { bgColor: string; color: string; text: string };
   /** 主值语义配色 */
   tone?: RumCardToneType;
-  /** 主值右侧的次要文本（单位或环比） */
+  /** 主值右侧的次要文本（单位） */
   unit?: { text: string; tone?: RumCardToneType };
   /** 主值 */
   value: string;

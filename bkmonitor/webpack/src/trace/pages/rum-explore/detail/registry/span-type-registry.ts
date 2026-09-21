@@ -34,6 +34,7 @@ import type {
   IRumDetailContext,
   IRumRecordDetail,
   IRumRelatedData,
+  IRumSparklinePoint,
   IRumSummaryCardVM,
   RumSectionType,
 } from '../typings';
@@ -126,8 +127,14 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
   error: {
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
-        countCard({ label: t('影响用户'), footer: [{ text: t('当前查询范围 · 相同错误信息') }] }, 'userCount'),
-        countCard({ label: t('发生次数'), footer: [{ text: t('当前查询范围') }] }, 'occurrenceCount'),
+        countCard(
+          { label: t('影响用户'), tone: RumCardToneEnum.DEFAULT, footer: [{ text: t('当前查询范围 · 相同错误信息') }] },
+          'userCount'
+        ),
+        countCard(
+          { label: t('发生次数'), tone: RumCardToneEnum.DEFAULT, footer: [{ text: t('当前查询范围') }] },
+          'occurrenceCount'
+        ),
       ],
     },
     extraSections: [
@@ -141,7 +148,8 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
             return {
               label: t('影响用户数'),
               value: Number.isFinite(count) ? formatCount(count) : EMPTY_TEXT,
-              unit: growth
+              /** 环比为 0 时不展示涨跌标签 */
+              growthRate: growth
                 ? {
                     text: `${growth > 0 ? '+' : ''}${growth}%`,
                     tone: growth > 0 ? RumCardToneEnum.DANGER : RumCardToneEnum.SUCCESS,
@@ -155,12 +163,13 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
             'sessionCount'
           ),
           ctx => {
-            const trend = (ctx.related.trend ?? []) as Array<{ value: number }>;
+            /** 关联数据已是 { time, value } 结构，直接透传给 sparkline；无趋势数据时整张卡片不渲染 */
+            const trend = (ctx.related.trend ?? []) as IRumSparklinePoint[];
             if (!trend.length) return null;
             return {
               label: t('24 小时趋势'),
               value: '',
-              sparkline: trend.map(point => point.value),
+              sparkline: trend,
               footer: [{ text: t('每 1h 一桶') }],
             };
           },

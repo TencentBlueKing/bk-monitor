@@ -108,6 +108,13 @@
       line-height: 22px;
     }
 
+    .card-growth {
+      flex-shrink: 0;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 22px;
+    }
+
     .card-sparkline {
       display: flex;
       gap: 1px;
