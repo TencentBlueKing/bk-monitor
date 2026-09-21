@@ -64,17 +64,31 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 传入后为受控展开，供左右代码块联动 */
+    expanded: {
+      type: Boolean as PropType<boolean | undefined>,
+      default: undefined,
+    },
   },
   emits: {
     viewAlone: (_data: unknown, _title: string) => true,
+    'update:expanded': (_value: boolean) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    const expanded = shallowRef(false);
+    const innerExpanded = shallowRef(false);
     const bodyRef = shallowRef<HTMLElement | null>(null);
     /** 折叠态内容是否超出 max-height，用于渐变遮罩与展开按钮可用性 */
     const overflowing = shallowRef(false);
     const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
+    const isExpanded = computed(() => (props.expanded === undefined ? innerExpanded.value : props.expanded));
+
+    const setExpanded = (value: boolean) => {
+      if (props.expanded === undefined) {
+        innerExpanded.value = value;
+      }
+      emit('update:expanded', value);
+    };
 
     // 命中折叠区后面的叶子时，先去掉 max-height 再滚到当前高亮，否则 scrollIntoView 看不见
     watch(
@@ -83,8 +97,8 @@ export default defineComponent({
         const inJson = isActiveHitOnBlock(hit, props.searchBlockId);
         const inTitle = Boolean(props.titleBlockId && hit?.blockId === props.titleBlockId);
         if (!inJson && !inTitle) return;
-        if (!expanded.value) {
-          expanded.value = true;
+        if (!isExpanded.value) {
+          setExpanded(true);
         }
         if (inJson) {
           await nextTick();
@@ -101,7 +115,7 @@ export default defineComponent({
 
     /** 仅在折叠态测量：展开后容器会撑开，不能据此关掉展开按钮 */
     const syncOverflow = () => {
-      if (expanded.value) return;
+      if (isExpanded.value) return;
       const el = bodyRef.value;
       overflowing.value = Boolean(el && el.scrollHeight > el.clientHeight + 2);
     };
@@ -112,14 +126,17 @@ export default defineComponent({
     watch(
       () => props.data,
       () => {
-        expanded.value = false;
+        setExpanded(false);
         nextTick(syncOverflow);
       }
     );
 
+    watch(isExpanded, expanded => {
+      if (!expanded) nextTick(syncOverflow);
+    });
+
     const handleToggleExpand = () => {
-      if (!overflowing.value && !expanded.value) return;
-      expanded.value = !expanded.value;
+      setExpanded(!isExpanded.value);
     };
 
     const handleCopy = () => {
@@ -131,8 +148,8 @@ export default defineComponent({
 
     return () => (
       <div class={['llm-json-code-block', { 'is-bordered': props.bordered }]}>
-        <div class='llm-json-code-block-header'>
-          {props.title ? (
+        {props.title ? (
+          <div class='llm-json-code-block-header'>
             <span class='llm-json-code-block-title'>
               {props.titleBlockId ? (
                 <HighlightText
@@ -143,43 +160,53 @@ export default defineComponent({
                 props.title
               )}
             </span>
-          ) : null}
-          <div class='llm-json-code-block-actions'>
+          </div>
+        ) : null}
+        <div class='llm-json-code-block-main'>
+          <div
+            ref={bodyRef}
+            class={[
+              'llm-json-code-block-body',
+              { 'is-expanded': isExpanded.value, 'is-overflowing': overflowing.value },
+            ]}
+          >
+            <JsonView
+              data={props.data}
+              searchBlockId={props.searchBlockId}
+            />
+          </div>
+          {overflowing.value && (
             <div
-              class='llm-json-code-block-action'
-              onClick={handleCopy}
-            >
-              <i class='icon-monitor icon-mc-copy' />
-              <span>{t('复制')}</span>
-            </div>
-            <div
-              class='llm-json-code-block-action'
-              style='margin-right: -6px;'
-              onClick={() => emit('viewAlone', props.data, props.title)}
-            >
-              <i class='icon-monitor icon-chakan1' />
-              <span>{t('独立查看')}</span>
-            </div>
-            <div
-              class={['llm-json-code-block-action', { 'is-disabled': !overflowing.value }]}
+              class='llm-json-code-block-expand'
               onClick={handleToggleExpand}
             >
+              <span>{isExpanded.value ? t('收起') : t('展开')}</span>
               <i
-                style='font-size: 18px;margin-right: -4px;'
-                class={['icon-monitor', expanded.value ? 'icon-double-up' : 'icon-double-down']}
+                style='font-size: 18px;'
+                class={['icon-monitor', 'icon-double-down', { 'is-expanded': isExpanded.value }]}
               />
-              <span>{expanded.value ? t('收起') : t('展开')}</span>
             </div>
-          </div>
-        </div>
-        <div
-          ref={bodyRef}
-          class={['llm-json-code-block-body', { 'is-expanded': expanded.value, 'is-overflowing': overflowing.value }]}
-        >
-          <JsonView
-            data={props.data}
-            searchBlockId={props.searchBlockId}
-          />
+          )}
+          {!isExpanded.value && (
+            <div class='llm-json-code-block-actions'>
+              <div
+                class='llm-json-code-block-action'
+                onClick={handleCopy}
+              >
+                <i class='icon-monitor icon-mc-copy' />
+                <span>{t('复制信息')}</span>
+              </div>
+              {overflowing.value && (
+                <div
+                  class='llm-json-code-block-action'
+                  onClick={() => emit('viewAlone', props.data, props.title)}
+                >
+                  <i class='icon-monitor icon-chakan1' />
+                  <span>{t('独立查看')}</span>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     );

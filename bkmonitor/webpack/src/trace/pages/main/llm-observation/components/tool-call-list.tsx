@@ -60,6 +60,8 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const expandedIds = shallowRef<string[]>([]);
+    /** 同一卡片内左右 JSON 共用展开态 */
+    const jsonExpandedIds = shallowRef<string[]>([]);
     const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
 
     /** 预览只在数据变化时计算，收展卡片时复用。 */
@@ -80,6 +82,7 @@ export default defineComponent({
       () => props.items,
       items => {
         expandedIds.value = items[0] ? [items[0].id] : [];
+        jsonExpandedIds.value = [];
       },
       { immediate: true }
     );
@@ -108,6 +111,14 @@ export default defineComponent({
       expandedIds.value = expandedIds.value.includes(id)
         ? expandedIds.value.filter(value => value !== id)
         : [...expandedIds.value, id];
+    };
+
+    const setJsonExpanded = (id: string, expanded: boolean) => {
+      const has = jsonExpandedIds.value.includes(id);
+      if (expanded === has) return;
+      jsonExpandedIds.value = expanded
+        ? [...jsonExpandedIds.value, id]
+        : jsonExpandedIds.value.filter(value => value !== id);
     };
 
     const renderPairs = (preview: ReturnType<typeof toPreview>, className?: string) => (
@@ -209,15 +220,19 @@ export default defineComponent({
                     <div class='llm-tool-call-list-panels'>
                       <JsonCodeBlock
                         data={item.arguments ?? {}}
+                        expanded={jsonExpandedIds.value.includes(item.id)}
                         searchBlockId={searchPrefix ? `${searchPrefix}:args` : ''}
                         title={t('调用参数')}
+                        onUpdate:expanded={val => setJsonExpanded(item.id, val)}
                         onViewAlone={openJsonDetail}
                       />
                       {response !== undefined && (
                         <JsonCodeBlock
                           data={response}
+                          expanded={jsonExpandedIds.value.includes(item.id)}
                           searchBlockId={searchPrefix ? `${searchPrefix}:resp` : ''}
                           title={t('返回结果')}
+                          onUpdate:expanded={val => setJsonExpanded(item.id, val)}
                           onViewAlone={openJsonDetail}
                         />
                       )}
