@@ -11,7 +11,6 @@ on:
       - main
       - master
       - develop
-      - feat/monitor-nodeman-v3
     paths:
       - 'bk-monitor-base/**'
       - '.github/workflows/base-pytest.yml'
