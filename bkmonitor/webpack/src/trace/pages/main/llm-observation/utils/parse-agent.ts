@@ -23,10 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-export * from './helpers';
-export * from './parse-agent';
-export * from './parse-input';
-export * from './parse-output';
-export * from './parse-tool';
-export * from './search';
-export * from './typings';
+import { pickString } from './helpers';
+
+import type { LlmAgentObservation } from './typings';
+
+/** `{name} {version}：`，无版本时省略；名称和版本都空则返回空串 */
+export function formatAgentLabel(name: string, version: string): string {
+  const title = [name.trim(), version.trim()].filter(Boolean).join(' ');
+  return title ? `${title}：` : '';
+}
+
+/**
+ * @description 从 Span attributes 读取 Agent 名称、版本、描述
+ */
+export function parseAgentObservation(attributes: Record<string, unknown>): LlmAgentObservation {
+  return {
+    name: pickString(attributes, ['gen_ai.agent.name']),
+    description: pickString(attributes, ['gen_ai.agent.description']),
+    version: pickString(attributes, ['gen_ai.agent.version']),
+  };
+}

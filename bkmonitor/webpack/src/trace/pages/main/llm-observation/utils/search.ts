@@ -1,6 +1,32 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import type { ComputedRef, InjectionKey } from 'vue';
 
 import { beautifyJsonValue, formatJsonDisplay, isRecord } from './helpers';
+import { formatAgentLabel, parseAgentObservation } from './parse-agent';
 import { parseInputObservation } from './parse-input';
 import { parseOutputObservation } from './parse-output';
 import { parseToolObservation } from './parse-tool';
@@ -9,11 +35,12 @@ import type { LlmInputObservation, LlmOutputObservation, LlmPlannedToolCall, Llm
 
 /** 页内搜索：字面量匹配、命中收集、高亮定位与 provide/inject 上下文 */
 
-/** 命中所属页签：输入 / 输出一起搜，Tool Span 只搜工具面板 */
-export type LlmSearchTab = 'input' | 'output' | 'tool';
+/** 命中所属页签：输入 / 输出一起搜，Tool Span 只搜工具面板，Agent 名称条始终可见 */
+export type LlmSearchTab = 'agent' | 'input' | 'output' | 'tool';
 
 /** 折叠分区 id，定位时自动展开 */
 export const LLM_SEARCH_SECTION = {
+  agent: 'agent',
   inputModel: 'input-model',
   inputReasoning: 'input-reasoning',
   inputSystem: 'input-system',
@@ -26,22 +53,6 @@ export const LLM_SEARCH_SECTION = {
   outputResults: 'output-results',
   tool: 'tool',
 } as const;
-
-export type LlmSearchSectionId = (typeof LLM_SEARCH_SECTION)[keyof typeof LLM_SEARCH_SECTION];
-
-/** 单条命中，按输入 → 输出（或工具面板）的文档顺序编号 */
-export type LlmSearchHit = {
-  /** 与渲染侧 HighlightText / JsonView 对齐的锚点 */
-  blockId: string;
-  /** 工具调用卡片 id，定位时展开对应卡片 */
-  expandId?: string;
-  /** 全局序号，与搜索框 n / total 对齐 */
-  index: number;
-  sectionId: LlmSearchSectionId;
-  tab: LlmSearchTab;
-  /** 可用工具 tag 名，定位时切到该工具 */
-  toolName?: string;
-};
 
 /** 高亮拆段：match 段保留原文大小写 */
 export type LlmHighlightPart = {
@@ -61,68 +72,31 @@ export type LlmObservationSearchContext = {
   keyword: ComputedRef<string>;
 };
 
+/** 单条命中，按输入 → 输出（或工具面板）的文档顺序编号 */
+export type LlmSearchHit = {
+  /** 与渲染侧 HighlightText / JsonView 对齐的锚点 */
+  blockId: string;
+  /** 工具调用卡片 id，定位时展开对应卡片 */
+  expandId?: string;
+  /** 全局序号，与搜索框 n / total 对齐 */
+  index: number;
+  sectionId: LlmSearchSectionId;
+  tab: LlmSearchTab;
+  /** 可用工具 tag 名，定位时切到该工具 */
+  toolName?: string;
+};
+
+export type LlmSearchSectionId = (typeof LLM_SEARCH_SECTION)[keyof typeof LLM_SEARCH_SECTION];
+
 export const LLM_OBSERVATION_SEARCH_KEY: InjectionKey<LlmObservationSearchContext> = Symbol('llm-observation-search');
 
-/** 转义用户输入，按字面量做大小写不敏感匹配 */
-export function escapeRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
+type HitBuilder = {
+  hits: LlmSearchHit[];
+  pushJson: (data: unknown, rootPath: string, meta: Omit<HitMeta, 'blockId'>) => void;
+  pushText: (text: string, meta: HitMeta) => void;
+};
 
-/** 统计一段文本里的命中次数 */
-export function countMatches(text: string, keyword: string): number {
-  if (!keyword || !text) return 0;
-  return text.match(new RegExp(escapeRegExp(keyword), 'gi'))?.length ?? 0;
-}
-
-/** 把文本拆成「普通 / 命中」片段，命中段保留原文大小写 */
-export function splitHighlightParts(text: string, keyword: string): LlmHighlightPart[] {
-  if (!keyword || !text) return [{ match: false, text }];
-  const reg = new RegExp(escapeRegExp(keyword), 'gi');
-  const parts: LlmHighlightPart[] = [];
-  let lastIndex = 0;
-  let match = reg.exec(text);
-  while (match) {
-    if (match.index > lastIndex) {
-      parts.push({ match: false, text: text.slice(lastIndex, match.index) });
-    }
-    parts.push({ match: true, text: match[0] });
-    lastIndex = match.index + match[0].length;
-    // 空串匹配会让 lastIndex 不前进，必须手动推进避免死循环
-    if (!match[0].length) reg.lastIndex += 1;
-    match = reg.exec(text);
-  }
-  if (lastIndex < text.length) {
-    parts.push({ match: false, text: text.slice(lastIndex) });
-  }
-  return parts;
-}
-
-/**
- * 当前命中是否落在指定文本 / JSON 块。
- * 文本块用 `prefix:field`；JSON 叶子用 vue-json-pretty path，中间是 `.` / `[` 而不是 `:`。
- */
-export function isActiveHitOnBlock(hit: LlmSearchHit | null | undefined, blockId: string): boolean {
-  if (!hit?.blockId || !blockId) return false;
-  if (hit.blockId === blockId) return true;
-  // JSON path：tool:args.user、tool:args[0].x；文本块：tool:args:field
-  return (
-    hit.blockId.startsWith(`${blockId}:`) ||
-    hit.blockId.startsWith(`${blockId}.`) ||
-    hit.blockId.startsWith(`${blockId}[`)
-  );
-}
-
-/** 工具调用列表：根据命中 block 或 expandId 找到应展开的卡片 id */
-export function resolveToolCallExpandId(
-  hit: LlmSearchHit | null | undefined,
-  searchPrefix: string,
-  itemIds: string[]
-): string {
-  if (!hit || !searchPrefix || !itemIds.length) return '';
-  if (hit.expandId && itemIds.includes(hit.expandId)) return hit.expandId;
-  const matched = itemIds.find(id => isActiveHitOnBlock(hit, `${searchPrefix}:${id}`));
-  return matched ?? '';
-}
+type HitMeta = Omit<LlmSearchHit, 'index'>;
 
 /**
  * 按 vue-json-pretty 的 path 规则展开 JSON，供高亮与计数共用。
@@ -158,7 +132,8 @@ export function collectJsonSearchTexts(data: unknown, rootPath: string): { block
 export function collectObservationHits(
   keyword: string,
   attributes: Record<string, unknown>,
-  isTool: boolean
+  isTool: boolean,
+  isAgent = false
 ): LlmSearchHit[] {
   const trimmed = keyword.trim();
   if (!trimmed) return [];
@@ -169,37 +144,81 @@ export function collectObservationHits(
     return builder.hits;
   }
 
+  if (isAgent) {
+    collectAgentHits(builder, parseAgentObservation(attributes));
+  }
   collectInputHits(builder, parseInputObservation(attributes));
   collectOutputHits(builder, parseOutputObservation(attributes));
   return builder.hits;
 }
 
-type HitMeta = Omit<LlmSearchHit, 'index'>;
+/** 统计一段文本里的命中次数 */
+export function countMatches(text: string, keyword: string): number {
+  if (!keyword || !text) return 0;
+  return text.match(new RegExp(escapeRegExp(keyword), 'gi'))?.length ?? 0;
+}
 
-type HitBuilder = {
-  hits: LlmSearchHit[];
-  pushJson: (data: unknown, rootPath: string, meta: Omit<HitMeta, 'blockId'>) => void;
-  pushText: (text: string, meta: HitMeta) => void;
-};
+/** 转义用户输入，按字面量做大小写不敏感匹配 */
+export function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
-/** 同一段文本的多次命中共用 meta，index 取全局递增序号 */
-function createHitBuilder(keyword: string): HitBuilder {
-  const hits: LlmSearchHit[] = [];
+/**
+ * 当前命中是否落在指定文本 / JSON 块。
+ * 文本块用 `prefix:field`；JSON 叶子用 vue-json-pretty path，中间是 `.` / `[` 而不是 `:`。
+ */
+export function isActiveHitOnBlock(hit: LlmSearchHit | null | undefined, blockId: string): boolean {
+  if (!hit?.blockId || !blockId) return false;
+  if (hit.blockId === blockId) return true;
+  // JSON path：tool:args.user、tool:args[0].x；文本块：tool:args:field
+  return (
+    hit.blockId.startsWith(`${blockId}:`) ||
+    hit.blockId.startsWith(`${blockId}.`) ||
+    hit.blockId.startsWith(`${blockId}[`)
+  );
+}
 
-  const pushText = (text: string, meta: HitMeta) => {
-    const total = countMatches(text, keyword);
-    for (let index = 0; index < total; index++) {
-      hits.push({ ...meta, index: hits.length });
+/** 工具调用列表：根据命中 block 或 expandId 找到应展开的卡片 id */
+export function resolveToolCallExpandId(
+  hit: LlmSearchHit | null | undefined,
+  searchPrefix: string,
+  itemIds: string[]
+): string {
+  if (!hit || !searchPrefix || !itemIds.length) return '';
+  if (hit.expandId && itemIds.includes(hit.expandId)) return hit.expandId;
+  const matched = itemIds.find(id => isActiveHitOnBlock(hit, `${searchPrefix}:${id}`));
+  return matched ?? '';
+}
+
+/** 把文本拆成「普通 / 命中」片段，命中段保留原文大小写 */
+export function splitHighlightParts(text: string, keyword: string): LlmHighlightPart[] {
+  if (!keyword || !text) return [{ match: false, text }];
+  const reg = new RegExp(escapeRegExp(keyword), 'gi');
+  const parts: LlmHighlightPart[] = [];
+  let lastIndex = 0;
+  let match = reg.exec(text);
+  while (match) {
+    if (match.index > lastIndex) {
+      parts.push({ match: false, text: text.slice(lastIndex, match.index) });
     }
-  };
+    parts.push({ match: true, text: match[0] });
+    lastIndex = match.index + match[0].length;
+    // 空串匹配会让 lastIndex 不前进，必须手动推进避免死循环
+    if (!match[0].length) reg.lastIndex += 1;
+    match = reg.exec(text);
+  }
+  if (lastIndex < text.length) {
+    parts.push({ match: false, text: text.slice(lastIndex) });
+  }
+  return parts;
+}
 
-  const pushJson = (data: unknown, rootPath: string, meta: Omit<HitMeta, 'blockId'>) => {
-    for (const item of collectJsonSearchTexts(data, rootPath)) {
-      pushText(item.text, { ...meta, blockId: item.blockId });
-    }
-  };
-
-  return { hits, pushJson, pushText };
+/** Agent 名称条在输入 / 输出页签之上，命中时不切页签 */
+function collectAgentHits(builder: HitBuilder, observation: ReturnType<typeof parseAgentObservation>) {
+  const label = formatAgentLabel(observation.name, observation.version);
+  const meta = { sectionId: LLM_SEARCH_SECTION.agent, tab: 'agent' };
+  builder.pushText(label, { ...meta, blockId: 'agent:name' });
+  builder.pushText(observation.description.trim(), { ...meta, blockId: 'agent:desc' });
 }
 
 /** 输入侧：消息 / 推理 / 工具调用 / 可用工具，顺序即翻页顺序 */
@@ -279,15 +298,6 @@ function collectOutputHits(builder: HitBuilder, observation: LlmOutputObservatio
   }
 }
 
-/** Tool Span 只扫描述 / 参数 / 结果，不走输入输出页签 */
-function collectToolHits(builder: HitBuilder, observation: ReturnType<typeof parseToolObservation>) {
-  const meta = { sectionId: LLM_SEARCH_SECTION.tool, tab: 'tool' as const };
-  builder.pushText(observation.name.trim(), { ...meta, blockId: 'tool:name' });
-  builder.pushText(observation.description.trim(), { ...meta, blockId: 'tool:desc' });
-  builder.pushJson(observation.arguments, 'tool:args', meta);
-  builder.pushJson(observation.result, 'tool:result', meta);
-}
-
 function collectToolCallHits(
   builder: HitBuilder,
   item: LlmPlannedToolCall | LlmToolCallRecord,
@@ -304,6 +314,35 @@ function collectToolCallHits(
   if ('response' in item) {
     builder.pushJson(item.response, `${prefix}:resp`, meta);
   }
+}
+
+/** Tool Span 只扫描述 / 参数 / 结果，不走输入输出页签 */
+function collectToolHits(builder: HitBuilder, observation: ReturnType<typeof parseToolObservation>) {
+  const meta = { sectionId: LLM_SEARCH_SECTION.tool, tab: 'tool' };
+  builder.pushText(observation.name.trim(), { ...meta, blockId: 'tool:name' });
+  builder.pushText(observation.description.trim(), { ...meta, blockId: 'tool:desc' });
+  builder.pushJson(observation.arguments, 'tool:args', meta);
+  builder.pushJson(observation.result, 'tool:result', meta);
+}
+
+/** 同一段文本的多次命中共用 meta，index 取全局递增序号 */
+function createHitBuilder(keyword: string): HitBuilder {
+  const hits: LlmSearchHit[] = [];
+
+  const pushText = (text: string, meta: HitMeta) => {
+    const total = countMatches(text, keyword);
+    for (let index = 0; index < total; index++) {
+      hits.push({ ...meta, index: hits.length });
+    }
+  };
+
+  const pushJson = (data: unknown, rootPath: string, meta: Omit<HitMeta, 'blockId'>) => {
+    for (const item of collectJsonSearchTexts(data, rootPath)) {
+      pushText(item.text, { ...meta, blockId: item.blockId });
+    }
+  };
+
+  return { hits, pushJson, pushText };
 }
 
 /** 与 vue-json-pretty 展平 path 的规则对齐 */
