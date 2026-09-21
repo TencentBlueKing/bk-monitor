@@ -42,6 +42,63 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 BK_BIZ_ID = 2
 
 
+@pytest.mark.django_db(databases="__all__", transaction=True)
+def test_access_lookback_reaches_worker_through_public_cache_loader(strategy_config_fixture, mocker, settings):
+    """真实保存和公共包读取后，缓存中的分组与 worker 窗口必须使用同一覆盖值。"""
+    import fakeredis
+    import redis
+
+    from alarm_backends.core.cache.strategy import StrategyCacheManager
+    from alarm_backends.core.control.checkpoint import Checkpoint
+    from alarm_backends.service.access.data.processor import AccessDataProcess
+
+    strategy = strategy_config_fixture["strategy"]
+    first = strategy_config_fixture["first_item"]
+    strategy.is_enabled = True
+    strategy.save(update_fields=["is_enabled"])
+    first.target = [[]]
+    first.save(update_fields=["target"])
+    settings.NUM_OF_COUNT_FREQ_ACCESS = 1
+    settings.ACCESS_DATA_TIME_DELAY = 10
+    cache = redis.StrictRedis(
+        connection_pool=redis.ConnectionPool(
+            connection_class=fakeredis.FakeConnection, server=fakeredis.FakeServer(), decode_responses=True
+        )
+    )
+    mocker.patch.object(StrategyCacheManager, "cache", cache)
+    # 隔离业务目录、指标校验和租户服务，不替换配置读取、序列化、分组或 Item 构建。
+    mocker.patch("alarm_backends.core.cache.strategy.BusinessManager.keys", return_value=[BK_BIZ_ID])
+    for name in ("check_biz", "check_metrics", "check_related_strategy", "add_source_identity"):
+        mocker.patch.object(StrategyCacheManager, name)
+    mocker.patch("alarm_backends.core.control.strategy.bk_biz_id_to_bk_tenant_id", return_value="system")
+    mocker.patch.object(Checkpoint, "get", return_value=3600)
+
+    def load_process():
+        configs = StrategyCacheManager.get_strategies_map([BK_BIZ_ID])
+        cached_item = next(item for item in configs[strategy.id]["items"] if item["id"] == first.id)
+        StrategyCacheManager.refresh_strategy(list(configs.values()))
+        process = AccessDataProcess(cached_item["query_md5"])
+        process.get_query_time_range(4000)
+        return cached_item, process
+
+    original, inherited = load_process()
+    assert "access_lookback_periods" not in original
+    assert inherited.from_timestamp == 3480
+    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": 15}]})
+    configured, overridden = load_process()
+    assert configured["access_lookback_periods"] == 15
+    assert configured["query_md5"] != original["query_md5"]
+    assert overridden.items[0].access_lookback_periods == 15
+    assert overridden.from_timestamp == 1800
+    assert overridden.until_timestamp == inherited.until_timestamp
+
+    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": None}]})
+    cleared, reset = load_process()
+    assert "access_lookback_periods" not in cleared
+    assert cleared["query_md5"] == original["query_md5"]
+    assert reset.from_timestamp == inherited.from_timestamp
+
+
 def test_access_lookback_patch_roundtrip_preserves_other_items_and_meta(strategy_config_fixture):
     strategy = strategy_config_fixture["strategy"]
     first = strategy_config_fixture["first_item"]
