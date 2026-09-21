@@ -114,7 +114,8 @@ def test_access_lookback_patch_roundtrip_preserves_other_items_and_meta(strategy
     assert "access_lookback_periods" not in read_override()
     perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": 15}]})
     first.refresh_from_db()
-    assert first.meta == {"owner": "monitor", "access_lookback_periods": 15}
+    assert first.meta == {"owner": "monitor"}
+    assert first.access_lookback_periods == 15
     assert read_override()["access_lookback_periods"] == 15
     history_count = StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count()
     assert history_count == 1
@@ -131,6 +132,11 @@ def test_access_lookback_patch_roundtrip_preserves_other_items_and_meta(strategy
     assert first.meta == {"owner": "monitor"}
     assert "access_lookback_periods" not in read_override()
     assert second.meta == second_meta
+    assert first.access_lookback_periods is None
+    assert second.access_lookback_periods is None
+    history_count = StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count()
+    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": None}]})
+    assert StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count() == history_count
 
 
 @pytest.mark.parametrize("labels", [["z", "a", "a", "parent", "parent/child"], []])

@@ -446,10 +446,6 @@ class StrategyConfigUpdater:
         update_fields: dict[str, Any] = {
             field_name: copy.deepcopy(getattr(item, field_name)) for field_name in change.fields
         }
-        if "access_lookback_periods" in update_fields:
-            update_fields.pop("access_lookback_periods")
-            model = ItemModel.objects.get(id=item.id, strategy_id=item.strategy_id)
-            update_fields["meta"] = item.update_access_lookback_meta(model.meta)
         ItemModel.objects.filter(id=item.id, strategy_id=item.strategy_id).update(**update_fields)
 
     @staticmethod

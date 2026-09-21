@@ -8,7 +8,7 @@ from rest_framework.exceptions import ValidationError
 from bkmonitor.management.commands.rollback_strategy import prepare_history_content_for_rollback
 from bkmonitor.models import ItemModel
 from bkmonitor.strategy.new_strategy import QUERY_OUTPUT_CONFIG_EMPTY, Item, Strategy
-from bkmonitor.strategy.partial_update import ItemPatchSerializer, StrategyConfigUpdater
+from bkmonitor.strategy.partial_update import ItemPatchSerializer
 
 from .test_named_outputs import item_config, named_output_config
 
@@ -25,12 +25,13 @@ def test_full_save_database_roundtrip_with_omission_and_clear(clean_model):
     model.refresh_from_db()
     assert model.meta == {
         "owner": "monitor",
-        "access_lookback_periods": 15,
         "query_output_config": named_output_config(),
     }
+    assert model.access_lookback_periods == 15
     Item(strategy_id=1, **item_config(id=item.id, access_lookback_periods=None)).save()
     model.refresh_from_db()
     assert model.meta == {"owner": "monitor", "query_output_config": named_output_config()}
+    assert model.access_lookback_periods is None
 
 
 @pytest.mark.parametrize("value", [None, 1, 15, 100])
@@ -63,9 +64,9 @@ def test_omitted_field_is_not_injected_and_survives_deepcopy():
 
 
 @pytest.mark.parametrize("value", [serializers.empty, None, 1, 15])
-def test_full_save_preserves_omitted_or_merges_explicit_override(mocker, value):
-    meta = {"owner": "monitor", "access_lookback_periods": 12, "query_output_config": named_output_config()}
-    model = SimpleNamespace(meta=copy.deepcopy(meta), time_delay=0, save=mocker.Mock())
+def test_full_save_preserves_omitted_or_updates_explicit_override(mocker, value):
+    meta = {"owner": "monitor", "query_output_config": named_output_config()}
+    model = SimpleNamespace(meta=copy.deepcopy(meta), time_delay=0, access_lookback_periods=12, save=mocker.Mock())
     mocker.patch.object(ItemModel.objects, "get", return_value=model)
     config = item_config(id=101)
     if value is not serializers.empty:
@@ -74,12 +75,8 @@ def test_full_save_preserves_omitted_or_merges_explicit_override(mocker, value):
     mocker.patch.object(item, "save_algorithms")
     mocker.patch.object(item, "save_query_configs")
     item.save()
-    expected = copy.deepcopy(meta)
-    if value is None:
-        expected.pop("access_lookback_periods")
-    elif value is not serializers.empty:
-        expected["access_lookback_periods"] = value
-    assert model.meta == expected
+    assert model.access_lookback_periods == (12 if value is serializers.empty else value)
+    assert model.meta == meta
 
 
 def test_create_and_read_back_with_named_output_meta(mocker):
@@ -87,8 +84,8 @@ def test_create_and_read_back_with_named_output_meta(mocker):
     item = Item(strategy_id=1, **item_config(access_lookback_periods=15, query_output_config=named_output_config()))
     item._create()
     saved = create.call_args.kwargs
-    assert "access_lookback_periods" not in saved
-    assert saved["meta"] == {"access_lookback_periods": 15, "query_output_config": named_output_config()}
+    assert saved["access_lookback_periods"] == 15
+    assert saved["meta"] == {"query_output_config": named_output_config()}
     model = SimpleNamespace(id=101, **saved)
     mocker.patch("bkmonitor.strategy.new_strategy.QueryConfig.from_models", return_value=item.query_configs)
     restored = Item.from_models([model], {101: []}, {101: []})[0]
@@ -96,19 +93,16 @@ def test_create_and_read_back_with_named_output_meta(mocker):
     assert restored.to_dict()["query_output_config"] == named_output_config()
 
 
-@pytest.mark.parametrize("meta", [None, [], {}, {"owner": "monitor"}])
-def test_empty_meta_is_supported_without_overwriting_other_values(meta):
-    item = Item(strategy_id=1, **item_config(access_lookback_periods=15))
-    original = copy.deepcopy(meta)
-    assert item.update_access_lookback_meta(meta) == {**(meta or {}), "access_lookback_periods": 15}
-    assert meta == original
-
-
-@pytest.mark.parametrize("meta", [["historical"], "historical", 1])
-def test_non_object_meta_is_not_silently_overwritten(meta):
-    item = Item(strategy_id=1, **item_config(access_lookback_periods=15))
-    with pytest.raises(ValidationError, match="meta"):
-        item.update_access_lookback_meta(meta)
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("meta", [[], {"owner": "monitor"}, ["historical"]])
+def test_lookback_column_is_independent_of_meta(clean_model, meta):
+    item = Item(strategy_id=1, **item_config())
+    item.save()
+    ItemModel.objects.filter(id=item.id).update(meta=meta)
+    Item(strategy_id=1, **item_config(id=item.id, access_lookback_periods=15)).save()
+    model = ItemModel.objects.get(id=item.id)
+    assert model.access_lookback_periods == 15
+    assert model.meta == meta
 
 
 def test_full_save_history_preserves_omitted_value_even_with_explicit_output_config(mocker):
@@ -116,7 +110,7 @@ def test_full_save_history_preserves_omitted_value_even_with_explicit_output_con
     strategy._id = 1
     strategy.items = [SimpleNamespace(id=101, query_output_config=None, access_lookback_periods=serializers.empty)]
     strategy.to_dict = mocker.Mock(return_value={"items": [{"id": 101, "query_output_config": None}]})
-    model = SimpleNamespace(id=101, meta={"access_lookback_periods": 15})
+    model = SimpleNamespace(id=101, meta=[], access_lookback_periods=15)
     mocker.patch.object(ItemModel.objects, "filter").return_value.only.return_value = [model]
     assert strategy.get_history_content()["items"][0]["access_lookback_periods"] == 15
 
@@ -127,19 +121,3 @@ def test_rollback_to_pre_feature_history_clears_override_without_mutating_histor
     assert prepared["items"][0]["access_lookback_periods"] is None
     assert prepared["items"][1]["access_lookback_periods"] == 12
     assert "access_lookback_periods" not in history["items"][0]
-
-
-@pytest.mark.parametrize("value", [None, 15])
-def test_partial_save_updates_only_meta(mocker, value):
-    item = Item(strategy_id=1, **item_config(id=101))
-    candidate = SimpleNamespace(items=[item])
-    StrategyConfigUpdater._apply_item_patches(candidate, [{"id": 101, "access_lookback_periods": value}])
-    model = SimpleNamespace(meta={"owner": "monitor", "access_lookback_periods": 12})
-    mocker.patch.object(ItemModel.objects, "get", return_value=model)
-    update = mocker.patch.object(ItemModel.objects, "filter").return_value.update
-    change = SimpleNamespace(item=item, fields={"access_lookback_periods"})
-    StrategyConfigUpdater._save_item(change)
-    expected = {"owner": "monitor"}
-    if value is not None:
-        expected["access_lookback_periods"] = value
-    update.assert_called_once_with(meta=expected)

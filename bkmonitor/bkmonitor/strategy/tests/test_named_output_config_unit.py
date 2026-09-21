@@ -279,6 +279,7 @@ def test_item_from_models_roundtrips_named_output_config_without_database():
         target=[[]],
         metric_type="time_series",
         time_delay=0,
+        access_lookback_periods=None,
         meta={"owner": "monitor", "query_output_config": named_output_config()},
     )
 
@@ -316,7 +317,9 @@ def test_strategy_history_content_resolves_omitted_named_output_config(mocker):
         )
     ]
     strategy.to_dict = mocker.Mock(return_value={"items": [{"id": 101}]})
-    current_item = SimpleNamespace(id=101, meta={"query_output_config": named_output_config()})
+    current_item = SimpleNamespace(
+        id=101, access_lookback_periods=None, meta={"query_output_config": named_output_config()}
+    )
     mocker.patch.object(ItemModel.objects, "filter").return_value.only.return_value = [current_item]
 
     content = strategy.get_history_content()
