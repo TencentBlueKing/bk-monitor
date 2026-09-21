@@ -20,6 +20,7 @@ from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.utils.bcs import BcsKubeClient
 from bkmonitor.utils.common_utils import count_md5, safe_int
 from bkmonitor.utils.new_env import is_biz_id_in_black_list
+from bkmonitor.utils.nodeman import host_queries
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -62,7 +63,7 @@ class BkCollectorConfig:
                 continue
 
             try:
-                proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+                proxy_list = host_queries.proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
             except APIPermissionDeniedError as error:
                 logger.warning(
                     "get proxies permission denied, skip bk_tenant_id(%s), bk_cloud_id(%s), error: %s",
@@ -97,7 +98,7 @@ class BkCollectorConfig:
             return []
 
         try:
-            proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            proxies = host_queries.business_proxies(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         except Exception as e:  # pylint: disable=broad-except
             proxies = []
             logger.info(f"get_proxies_by_biz({bk_biz_id}) error ({e})")

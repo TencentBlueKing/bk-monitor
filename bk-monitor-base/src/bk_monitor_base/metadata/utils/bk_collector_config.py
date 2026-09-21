@@ -8,6 +8,7 @@ from kubernetes import client
 from bk_monitor_base.domains.space.define import SpaceTypeEnum
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
+from bk_monitor_base.infras.nodeman_control import host_queries
 from bk_monitor_base.infras.third_party_api.cmdb.api import HostIPParams, HostPropertyFilter, format_ip_filter_rule
 from bk_monitor_base.infras.third_party_api.cmdb.entity import Host
 from bk_monitor_base.metadata.config import settings
@@ -56,7 +57,7 @@ class BkCollectorConfig:
             if int(bk_cloud_id) in [0, -1]:
                 continue
 
-            proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+            proxy_list = host_queries.proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
             for p in proxy_list:
                 if p["status"] != "RUNNING":
                     logger.warning(
@@ -78,7 +79,7 @@ class BkCollectorConfig:
             return []
 
         try:
-            proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            proxies = host_queries.business_proxies(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         except Exception as e:  # pylint: disable=broad-except
             proxies = []
             logger.info(f"get_proxies_by_biz({bk_biz_id}) error ({e})")
