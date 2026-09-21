@@ -1899,8 +1899,15 @@ class TestReleasePluginVersion:
 class TestExportMetricPluginPackage:
     """测试 export_metric_plugin_package 函数"""
 
-    def test_export_metric_plugin_package_uses_latest_release_when_version_missing(self, mocker: MockerFixture):
-        """测试未显式指定版本时，导出已发布版本"""
+    @pytest.mark.parametrize(
+        ("related_params", "expected_backend"),
+        [({}, "v2"), ({"nodeman_backend": "v2"}, "v2"), ({"nodeman_backend": "v3"}, "v3")],
+        ids=["legacy-v2", "explicit-v2", "backend-forwarding"],
+    )
+    def test_export_metric_plugin_package_uses_latest_release_when_version_missing(
+        self, mocker: MockerFixture, related_params: dict[str, str], expected_backend: str
+    ) -> None:
+        """未指定版本时按插件归属选择管理器并导出已发布版本；V3 仅验证参数透传。"""
         bk_tenant_id = "test_tenant"
         plugin_id = "test_plugin"
         operator = "admin"
@@ -1908,6 +1915,7 @@ class TestExportMetricPluginPackage:
         mock_plugin = mocker.MagicMock()
         mock_plugin_model = mocker.MagicMock()
         mock_plugin_model.type = "script"
+        mock_plugin_model.related_params = related_params
         mock_plugin_model.to_plugin.return_value = mock_plugin
 
         mock_filter = mocker.patch("bk_monitor_base.domains.metric_plugin.operation.MetricPluginModel.objects.filter")
@@ -1934,7 +1942,7 @@ class TestExportMetricPluginPackage:
             plugin_id=plugin_id,
             is_deleted=False,
         )
-        mock_get_manager_class.assert_called_once_with("script")
+        mock_get_manager_class.assert_called_once_with("script", expected_backend)
         mock_plugin_model.to_plugin.assert_called_once_with(status=MetricPluginStatus.RELEASE)
         mock_manager_class.assert_called_once_with(plugin=mock_plugin, plugin_model=mock_plugin_model)
         mock_manager.export_package.assert_called_once_with(operator=operator)
