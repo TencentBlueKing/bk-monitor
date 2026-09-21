@@ -447,12 +447,12 @@ export default defineComponent({
       }
     });
 
-    addEvent(
-      [RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE, RetrieveEvent.TREND_GRAPH_SEARCH],
-      () => {
+    addEvent([RetrieveEvent.SEARCH_VALUE_CHANGE, RetrieveEvent.SEARCH_TIME_CHANGE], resetPageState);
+    addEvent(RetrieveEvent.TREND_GRAPH_SEARCH, ({ source } = {}) => {
+      if (source !== 'grade-option') {
         resetPageState();
-      },
-    );
+      }
+    });
 
     addEvent(RetrieveEvent.SORT_LIST_CHANGED, () => {
       /**

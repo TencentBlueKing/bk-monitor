@@ -153,7 +153,7 @@ export default defineComponent({
     const handleGradeOptionChange = ({ isSave }) => {
       refGradePopover.value?.hide();
       if (isSave) {
-        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH, { source: 'grade-option' });
       }
     };
 
