@@ -1,0 +1,31 @@
+blueking:
+  app_code: bk_monitorv3
+  app_secret: "test-only-app-secret"
+  api_url: http://bkapi.example.com
+  a: "1"
+file_storages:
+  default:
+    type: local
+    local:
+      path: src/bk_monitor_base/tests/media
+domains:
+  uptime_check:
+    use_old_model: false
+  space:
+    use_old_model: false
+  strategy:
+    use_old_model: false
+django:
+  media_root: src/bk_monitor_base/tests/media
+  databases:
+    default:
+      engine: django.db.backends.sqlite3
+      name: bk-monitor-base
+      host: 127.0.0.1
+      user: root
+      password: ""
+      timezone: Asia/Shanghai
+      test:
+        NAME: test_bk-monitor-base
+        CHARSET: utf8
+        COLLATION: utf8_general_ci
