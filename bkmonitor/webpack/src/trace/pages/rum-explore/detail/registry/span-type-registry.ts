@@ -107,9 +107,10 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
   action: {
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
-        countCard({ label: t('触发请求数') }, 'resourceCount'),
-        countCard({ label: t('错误数') }, 'errorCount'),
-        countCard({ label: t('Long Tasks 数') }, 'longTaskCount'),
+        // TODO(2026-09-21): 有值时本应可点击跳转「链路上下文」tab，该 tab 本期未实现，暂按普通样式渲染
+        countCard({ label: t('触发请求数'), tone: RumCardToneEnum.DEFAULT }, 'resourceCount'),
+        countCard({ label: t('错误数'), tone: RumCardToneEnum.DEFAULT }, 'errorCount'),
+        countCard({ label: t('Long Tasks 数'), tone: RumCardToneEnum.DEFAULT }, 'longTaskCount'),
       ],
     },
     loadRelated: (context, mode) => getActionRelated(context, mode),
