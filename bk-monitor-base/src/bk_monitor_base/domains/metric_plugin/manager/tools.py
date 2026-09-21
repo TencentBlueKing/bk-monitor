@@ -13,7 +13,6 @@ from bk_monitor_base.domains.metric_plugin.manager.k8s import K8sPluginManager
 from bk_monitor_base.domains.metric_plugin.manager.node_man.base import NodemanPluginManager
 from bk_monitor_base.domains.metric_plugin.manager.node_man.built_in import BuiltInPluginManager
 from bk_monitor_base.domains.metric_plugin.models import MetricPluginModel
-from bk_monitor_base.nodeman import NodeManBackend, UnsupportedNodeManBackend
 
 from .job.db2 import DB2PluginManager
 from .job.mssql import MSSQLPluginManager
@@ -62,10 +61,6 @@ PLUGIN_MANAGERS: dict[str, type[BaseMetricPluginManager]] = {
     **NODEMAN_DEPLOY_PLUGIN_MANAGERS,
     **JOB_PLUGIN_MANGERS,
     PluginType.K8S: K8sPluginManager,
-}
-
-NODEMAN_PLUGIN_BACKENDS: dict[str, dict[str, type[BaseMetricPluginManager]]] = {
-    NodeManBackend.V2: dict(NODEMAN_DEPLOY_PLUGIN_MANAGERS),
 }
 
 
@@ -126,7 +121,7 @@ def get_nodeman_plugin_manager(plugin: MetricPlugin) -> NodemanPluginManager:
     """
     if plugin.type.lower() not in NODEMAN_PLUGIN_MANGERS:
         raise MetricPluginManagerNotFoundError(f"节点管理插件管理器不存在: {plugin.type}")
-    manager = get_plugin_manager_class(plugin.type, plugin.related_params.get("nodeman_backend", NodeManBackend.V2))
+    manager = get_plugin_manager_class(plugin.type)
     return cast(NodemanPluginManager, manager(plugin))
 
 
@@ -163,7 +158,7 @@ def get_nodeman_built_in_plugin_manager(plugin: MetricPlugin) -> BuiltInPluginMa
 
     if plugin.type.lower() not in NODEMAN_BUILT_IN_PLUGIN_MANGERS:
         raise MetricPluginManagerNotFoundError(f"内置插件管理器不存在: {plugin.type}")
-    manager = get_plugin_manager_class(plugin.type, plugin.related_params.get("nodeman_backend", NodeManBackend.V2))
+    manager = get_plugin_manager_class(plugin.type)
     return cast(BuiltInPluginManager, manager(plugin))
 
 
@@ -181,11 +176,11 @@ def get_nodeman_deploy_plugin_manager(plugin: MetricPlugin) -> NodemanPluginMana
     """
     if plugin.type.lower() not in NODEMAN_DEPLOY_PLUGIN_MANAGERS:
         raise MetricPluginManagerNotFoundError(f"节点管理部署插件管理器不存在: {plugin.type}")
-    manager = get_plugin_manager_class(plugin.type, plugin.related_params.get("nodeman_backend", NodeManBackend.V2))
+    manager = get_plugin_manager_class(plugin.type)
     return cast(NodemanPluginManager | BuiltInPluginManager, manager(plugin))
 
 
-def get_plugin_manager_class(plugin_type: str, backend: str = NodeManBackend.V2) -> type[BaseMetricPluginManager]:
+def get_plugin_manager_class(plugin_type: str) -> type[BaseMetricPluginManager]:
     """获取插件管理器类
 
     Args:
@@ -198,11 +193,6 @@ def get_plugin_manager_class(plugin_type: str, backend: str = NodeManBackend.V2)
         MetricPluginManagerNotFoundError: 插件管理器不存在
     """
     plugin_type = plugin_type.lower()
-    if plugin_type in NODEMAN_DEPLOY_PLUGIN_MANAGERS:
-        try:
-            return NODEMAN_PLUGIN_BACKENDS[backend][plugin_type]
-        except KeyError:
-            raise UnsupportedNodeManBackend(f"插件管理后端尚未支持: {backend}/{plugin_type}") from None
     if plugin_type in PLUGIN_MANAGERS:
         return PLUGIN_MANAGERS[plugin_type]
 
@@ -234,9 +224,7 @@ def get_plugin_manager(
     if not plugin_model:
         raise MetricPluginNotFoundError(f"插件不存在: {bk_tenant_id}/{plugin_id}")
 
-    plugin_manager_class = get_plugin_manager_class(
-        plugin_model.type, plugin_model.related_params.get("nodeman_backend", NodeManBackend.V2)
-    )
+    plugin_manager_class = get_plugin_manager_class(plugin_model.type)
     return plugin_manager_class(plugin=plugin_model.to_plugin(version=version), plugin_model=plugin_model)
 
 

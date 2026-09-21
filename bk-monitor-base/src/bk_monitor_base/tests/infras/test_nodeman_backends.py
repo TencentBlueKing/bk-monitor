@@ -1,25 +1,25 @@
-"""集成能力边界的无数据库测试，覆盖归属、选择与兼容控制入口。"""
+"""集成能力边界的无数据库测试，覆盖安装器选择与兼容控制入口。"""
 
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 
+from bk_monitor_base.domains.metric_plugin.errors import MetricPluginManagerNotFoundError
 from bk_monitor_base.domains.metric_plugin.installer import nodeman, tools
 from bk_monitor_base.domains.metric_plugin.installer.base import BaseInstaller
 from bk_monitor_base.domains.metric_plugin.manager import tools as managers
 from bk_monitor_base.infras.nodeman_control import host_queries, official_plugins
 from bk_monitor_base.infras.third_party_api.nodeman import api
-from bk_monitor_base.nodeman import UnsupportedNodeManBackend
 
 
-def make_installer(deployment_params: dict, plugin_params: dict | None = None):
+def make_installer(deployment_params: dict):
     """隔离 ORM，只验证实际安装器初始化与调用，不替换其路由判断。"""
     deployment = SimpleNamespace(related_params=deployment_params, bk_tenant_id="tenant-a")
 
     def initialize(self, deployment, operator):
         self.deployment = deployment
-        self.plugin = SimpleNamespace(related_params=plugin_params or {})
+        self.plugin = SimpleNamespace(related_params={})
 
     with (
         mock.patch.object(BaseInstaller, "__init__", initialize),
@@ -28,47 +28,32 @@ def make_installer(deployment_params: dict, plugin_params: dict | None = None):
         return nodeman.NodemanInstaller(deployment, "tester")
 
 
-@pytest.mark.parametrize("params", [{}, {"nodeman_backend": "v2"}])
-def test_legacy_record_is_v2(params):
-    """历史无标记记录固定归 V2，内存中的绑定随既有保存动作持久化。"""
+@pytest.mark.parametrize("params", [{}, {"subscription_id": 12, "subscription_task_id": 31}])
+def test_installer_does_not_add_persistent_metadata(params):
+    """构造安装器不改变既有部署记录，无需补充后端标记。"""
     installer = make_installer(params.copy())
-    assert installer.deployment.related_params["nodeman_backend"] == "v2"
-    installer._record_task(123)
-    assert installer.deployment.related_params["subscription_task_id"] == 123
-    assert installer.deployment.related_params["execution_backend"] == "v2"
+    assert installer.deployment.related_params == params
 
 
-@pytest.mark.parametrize("key", ["nodeman_backend", "execution_backend"])
-@pytest.mark.parametrize("backend", ["v3", "unknown", ""])
-def test_foreign_resource_or_execution_rejected_before_request(key, backend):
-    """部署和执行身份均不能通过 V2 安装器解释，不做失败回退。"""
-    with mock.patch.object(nodeman, "create_subscription") as create:
-        with pytest.raises(UnsupportedNodeManBackend):
-            make_installer({key: backend})
-        create.assert_not_called()
-
-
-def test_foreign_plugin_rejected():
-    """V2 配置下发不能引用另一控制面的插件包。"""
-    with pytest.raises(UnsupportedNodeManBackend):
-        make_installer({}, {"nodeman_backend": "v3"})
-
-
-def test_installer_factory_uses_record_and_tenant():
-    """工厂先按租户查插件，再按部署记录选择后端。"""
-    deployment = SimpleNamespace(plugin_id="example", bk_tenant_id="tenant-a", related_params={"nodeman_backend": "v3"})
-    with mock.patch.object(tools.MetricPluginModel.objects, "filter") as query:
+def test_installer_factory_uses_type_and_tenant():
+    """工厂按租户查插件，沿用插件类型选择安装器，不依赖新增字段。"""
+    deployment = SimpleNamespace(plugin_id="example", bk_tenant_id="tenant-a", related_params={})
+    installer = mock.Mock()
+    with (
+        mock.patch.object(tools.MetricPluginModel.objects, "filter") as query,
+        mock.patch.dict(tools.INSTALLERS, {"exporter": installer}),
+    ):
         query.return_value.first.return_value = SimpleNamespace(type="exporter")
-        with pytest.raises(UnsupportedNodeManBackend):
-            tools.get_installer(deployment, "tester")
+        assert tools.get_installer(deployment, "tester") is installer.return_value
+        installer.assert_called_once_with(deployment=deployment, operator="tester")
         query.assert_called_once_with(bk_tenant_id="tenant-a", plugin_id="example")
 
 
 def test_plugin_manager_registry_has_no_unknown_fallback():
-    """尚未接入的插件后端必须明确失败。"""
-    with pytest.raises(UnsupportedNodeManBackend):
-        managers.get_plugin_manager_class("exporter", "v3")
-    assert managers.get_plugin_manager_class("exporter", "v2") is managers.ExporterPluginManager
+    """插件类型映射保持有效，未知类型不隐式回退。"""
+    with pytest.raises(MetricPluginManagerNotFoundError):
+        managers.get_plugin_manager_class("unknown")
+    assert managers.get_plugin_manager_class("exporter") is managers.ExporterPluginManager
 
 
 def test_readiness_is_owned_by_installer():

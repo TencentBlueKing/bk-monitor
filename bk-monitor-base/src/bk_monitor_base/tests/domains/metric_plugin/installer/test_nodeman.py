@@ -113,7 +113,7 @@ class TestNodemanInstaller:
         mock_create.assert_called_once_with(bk_tenant_id="test_tenant", params=expected_params)
         assert result == {"subscription_id": 9527, "task_id": 1001}
         assert installer.subscription_id is None
-        assert installer.deployment.related_params == {"nodeman_backend": "v2"}
+        assert installer.deployment.related_params == {}
 
     def test_update_subscription(self) -> None:
         """测试更新订阅时会生成预期参数并返回结果。"""
@@ -154,7 +154,6 @@ class TestNodemanInstaller:
         assert installer.deployment.related_params == {
             "subscription_id": 9527,
             "subscription_id_history": [9527],
-            "nodeman_backend": "v2",
         }
 
     def test_update_subscription_without_subscription_id(self) -> None:
@@ -247,8 +246,6 @@ class TestNodemanInstaller:
             "subscription_id": 9527,
             "subscription_id_history": [9527],
             "subscription_task_id": 1002,
-            "nodeman_backend": "v2",
-            "execution_backend": "v2",
         }
         assert installer.deployment.status == "deploying"
         assert installer.deployment_version is deployment_version

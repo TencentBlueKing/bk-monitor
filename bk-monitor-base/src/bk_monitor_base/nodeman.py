@@ -1,18 +1,6 @@
 """监控侧节点管理集成的公共值类型，不包含任一版本的远端协议。"""
 
 from dataclasses import dataclass
-from enum import StrEnum
-
-
-class NodeManBackend(StrEnum):
-    """资源所属的节点管理后端，不等同于网关地址或兼容协议版本。"""
-
-    V2 = "v2"
-    V3 = "v3"
-
-
-class UnsupportedNodeManBackend(ValueError):
-    """资源对应的后端尚未实现；禁止隐式改用其他后端。"""
 
 
 @dataclass(frozen=True)

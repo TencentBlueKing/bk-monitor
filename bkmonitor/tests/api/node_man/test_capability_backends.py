@@ -1,10 +1,10 @@
-"""验证业务能力边界与资源归属，无需真实节点管理或数据库。"""
+"""验证业务能力边界，无需真实节点管理或数据库。"""
 
 from types import SimpleNamespace
 from unittest import mock
 
-import pytest
-from bk_monitor_base.nodeman import CollectionStatistics, UnsupportedNodeManBackend
+from bk_monitor_base.nodeman import CollectionStatistics
+from django.test import override_settings
 
 from bkmonitor.utils.nodeman import host_queries, official_plugins
 from core.drf_resource import api
@@ -17,56 +17,47 @@ from monitor_web.collecting.resources.toolkit import IsTaskReady
 from monitor_web.collecting.deploy import fetch_collection_statistics
 from monitor_web.models import CollectorPluginMeta, DeploymentConfigVersion
 from monitor_web.plugin.constant import PluginType
-from monitor_web.plugin.manager import PluginManagerFactory
+from monitor_web.plugin.manager import SUPPORTED_PLUGINS, PluginManagerFactory
 
 
-def config(config_id=1, backend="v2", tenant="tenant-a", subscription_id=10):
+def config(config_id=1, tenant="tenant-a", subscription_id=10):
     """模拟持久化部署版本；外部身份相同也不能混淆监控配置和租户。"""
     return SimpleNamespace(
         pk=config_id,
         bk_tenant_id=tenant,
         collect_type=PluginType.SCRIPT,
-        plugin=SimpleNamespace(plugin_type=PluginType.SCRIPT, nodeman_backend=backend),
+        plugin=SimpleNamespace(plugin_type=PluginType.SCRIPT),
         deployment_config_id=100 + config_id,
-        deployment_config=SimpleNamespace(nodeman_backend=backend, subscription_id=subscription_id, task_ids=[31]),
+        deployment_config=SimpleNamespace(subscription_id=subscription_id, task_ids=[31]),
         cache_data={"total_instance_count": 4, "error_instance_count": 0},
         save=mock.Mock(),
     )
 
 
-def test_legacy_database_defaults_are_v2():
-    """增量字段的历史默认值固定为 V2，不取运行时路由开关。"""
-    assert CollectorPluginMeta().nodeman_backend == "v2"
-    assert DeploymentConfigVersion().nodeman_backend == "v2"
+def test_collection_models_do_not_require_backend_fields():
+    """本期不新增采集后端数据库字段。"""
+    for model in (CollectorPluginMeta, DeploymentConfigVersion):
+        assert "nodeman_backend" not in {field.name for field in model._meta.get_fields()}
 
 
-@pytest.mark.parametrize("backend", ["v3", "unknown", ""])
-def test_unimplemented_backend_never_falls_back(backend):
-    """未实现或损坏的归属不能被默认分支吞掉。"""
-    with mock.patch.object(api.node_man, "create_subscription") as create:
-        with pytest.raises(UnsupportedNodeManBackend):
-            deploy.get_collect_installer(config(backend=backend))
-        create.assert_not_called()
+def test_collection_installer_stays_v2_without_backend_fields():
+    """控制面开关不切换采集链路，既有记录不需要补充字段。"""
+    with override_settings(BKNODEMAN_CONTROL_API_BASE_URL="https://control.example.com/api"):
+        assert isinstance(deploy.get_collect_installer(config()), NodeManInstaller)
 
 
-def test_plugin_and_deployment_cannot_cross_backends():
-    """存量部署仍属于 V2 时，不能混用另一后端的插件包。"""
-    item = config()
-    item.plugin.nodeman_backend = "v3"
-    with pytest.raises(UnsupportedNodeManBackend):
-        deploy.get_collect_installer(item)
-
-
-def test_plugin_factory_rejects_unknown_backend():
-    """发布、调试等入口也按插件归属选择实现。"""
-    plugin = CollectorPluginMeta(plugin_id="example", plugin_type=PluginType.SCRIPT, nodeman_backend="v3")
-    with pytest.raises(UnsupportedNodeManBackend):
-        PluginManagerFactory.get_manager(plugin=plugin, operator="tester")
+def test_plugin_factory_uses_plugin_type_without_backend_fields():
+    """插件管理沿用类型工厂，不要求持久化后端。"""
+    plugin = CollectorPluginMeta(plugin_id="example", plugin_type=PluginType.SCRIPT)
+    manager = mock.Mock()
+    with mock.patch.dict(SUPPORTED_PLUGINS, {PluginType.SCRIPT: manager}):
+        assert PluginManagerFactory.get_manager(plugin=plugin, operator="tester") is manager.return_value
+        manager.assert_called_once_with(plugin, "tester", None, None)
 
 
 def test_k8s_has_no_nodeman_dependency():
     """K8s 的路由和就绪不受节点管理后端影响。"""
-    item = config(backend="not-a-nodeman-backend")
+    item = config()
     item.collect_type = PluginType.K8S
     assert deploy.get_collect_installer_class(item) is K8sInstaller
     assert deploy.get_collect_installer(item).is_task_ready() is True
@@ -96,7 +87,7 @@ def test_statistics_keep_batches_and_skip_missing_results():
 
 def test_future_backend_can_replace_capability_without_subscription(monkeypatch):
     """测试替身代表未来实现：调用方只消费统一结果，不要求它提供 V2 字段。"""
-    item = config(backend="v3")
+    item = config()
     del item.deployment_config.subscription_id
 
     class FutureInstaller:
@@ -104,7 +95,7 @@ def test_future_backend_can_replace_capability_without_subscription(monkeypatch)
         def statistics(cls, configs):
             return {entry.pk: CollectionStatistics(total=2, running=1) for entry in configs}
 
-    monkeypatch.setitem(deploy.NODEMAN_INSTALLERS, "v3", FutureInstaller)
+    monkeypatch.setattr(deploy, "get_collect_installer_class", lambda config: FutureInstaller)
     assert fetch_collection_statistics([item]) == {1: CollectionStatistics(total=2, running=1)}
 
 
@@ -119,7 +110,7 @@ def test_readiness_resource_delegates_to_installer():
     """Resource 层不再因没有 subscription_id 就提前报告就绪。"""
     from monitor_web.collecting.resources import toolkit
 
-    item = config(backend="v3", subscription_id=0)
+    item = config(subscription_id=0)
     with (
         mock.patch.object(toolkit.CollectConfigMeta.objects, "select_related") as select,
         mock.patch.object(toolkit, "get_collect_installer") as factory,

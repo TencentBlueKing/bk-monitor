@@ -314,7 +314,6 @@ class DeploymentConfigVersion(OperateRecordModelBase):
     parent_id = models.IntegerField("父配置ID", default=None, null=True)
     config_meta_id = models.IntegerField("所属采集配置ID")
     subscription_id = models.IntegerField("节点管理订阅ID", default=0)
-    nodeman_backend = models.CharField("节点管理后端", max_length=16, default="v2")
 
     target_node_type = models.CharField("采集目标类型", max_length=32, choices=TARGET_NODE_TYPE_CHOICES)
 

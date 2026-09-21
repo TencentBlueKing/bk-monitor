@@ -4,7 +4,6 @@ from bk_monitor_base.domains.metric_plugin.installer.job import SQLInstaller
 from bk_monitor_base.domains.metric_plugin.installer.k8s import K8sInstaller
 from bk_monitor_base.domains.metric_plugin.installer.nodeman import NodemanInstaller
 from bk_monitor_base.domains.metric_plugin.models import MetricPluginModel
-from bk_monitor_base.nodeman import NodeManBackend, UnsupportedNodeManBackend
 
 INSTALLERS: dict[str, type[BaseInstaller]] = {
     # 目前默认使用 NodemanInstaller，后续可以扩展
@@ -20,8 +19,6 @@ INSTALLERS: dict[str, type[BaseInstaller]] = {
     "k8s": K8sInstaller,
     "job_mssql": SQLInstaller,
 }
-
-NODEMAN_INSTALLERS: dict[str, type[BaseInstaller]] = {NodeManBackend.V2: NodemanInstaller}
 
 
 def get_installer(deployment: MetricPluginDeployment, operator: str) -> BaseInstaller:
@@ -41,11 +38,4 @@ def get_installer(deployment: MetricPluginDeployment, operator: str) -> BaseInst
         raise ValueError(f"插件不存在: {plugin_id}")
 
     installer_class = INSTALLERS.get(plugin.type, INSTALLERS["default"])
-    if installer_class is NodemanInstaller:
-        # 历史记录无标记时固定解释为 V2，不读取环境级默认值。
-        backend = deployment.related_params.get("nodeman_backend", NodeManBackend.V2)
-        try:
-            installer_class = NODEMAN_INSTALLERS[backend]
-        except KeyError:
-            raise UnsupportedNodeManBackend(f"采集后端尚未支持: {backend}") from None
     return installer_class(deployment=deployment, operator=operator)

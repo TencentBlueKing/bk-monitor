@@ -15,7 +15,6 @@ specific language governing permissions and limitations under the License.
 
 import os
 
-from bk_monitor_base.nodeman import NodeManBackend, UnsupportedNodeManBackend
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.user import get_global_user
@@ -65,9 +64,6 @@ FILE_PLUGINS_FACTORY = {
     CollectorPluginMeta.PluginType.SNMP: PluginFileManager,
 }
 
-# 插件类型与节点管理后端是两个维度，后续 V3 管理器在此注册，不改业务调用方。
-NODEMAN_PLUGIN_BACKENDS = {NodeManBackend.V2: SUPPORTED_PLUGINS}
-
 
 class PluginManagerFactory:
     @classmethod
@@ -98,13 +94,7 @@ class PluginManagerFactory:
         plugin_type = plugin.plugin_type
         if plugin_type not in SUPPORTED_PLUGINS:
             raise KeyError(f"Unsupported plugin type: {plugin_type}")
-        if plugin_type == CollectorPluginMeta.PluginType.K8S:
-            plugin_manager_cls = SUPPORTED_PLUGINS[plugin_type]
-        else:
-            try:
-                plugin_manager_cls = NODEMAN_PLUGIN_BACKENDS[plugin.nodeman_backend][plugin_type]
-            except KeyError:
-                raise UnsupportedNodeManBackend(f"插件管理后端尚未支持: {plugin.nodeman_backend}") from None
+        plugin_manager_cls = SUPPORTED_PLUGINS[plugin_type]
 
         if not operator:
             operator = get_global_user()

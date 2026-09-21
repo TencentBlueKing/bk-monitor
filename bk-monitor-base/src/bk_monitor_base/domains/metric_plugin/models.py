@@ -5,8 +5,6 @@ from typing import Any, final
 from django.db import models, transaction
 from typing_extensions import override
 
-from bk_monitor_base.nodeman import NodeManBackend
-
 from .constants import JobTaskActionEnum, JobTaskStatusEnum, MetricPluginStatus
 from .define import (
     CreatePluginParams,
@@ -279,7 +277,6 @@ class MetricPluginModel(models.Model):
             is_global=params.is_global,
             is_internal=params.is_internal,
             label=params.label,
-            related_params={"nodeman_backend": NodeManBackend.V2.value},
         )
 
         MetricPluginVersionModel.objects.create(

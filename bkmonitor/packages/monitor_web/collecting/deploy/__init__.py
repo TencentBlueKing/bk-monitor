@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from collections import defaultdict
 
-from bk_monitor_base.nodeman import CollectionStatistics, NodeManBackend, UnsupportedNodeManBackend
+from bk_monitor_base.nodeman import CollectionStatistics
 
 from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.plugin.constant import PluginType
@@ -19,22 +19,12 @@ from .base import BaseInstaller
 from .k8s import K8sInstaller
 from .node_man import NodeManInstaller
 
-NODEMAN_INSTALLERS = {NodeManBackend.V2: NodeManInstaller}
-
 
 def get_collect_installer_class(collect_config: CollectConfigMeta) -> type[BaseInstaller]:
-    """按资源归属选择整套部署和结果能力，不使用环境开关重路由存量记录。"""
+    """按采集类型选择部署和结果能力，当前节点管理采集统一使用 V2。"""
     if collect_config.collect_type == PluginType.K8S:
         return K8sInstaller
-    backend = (
-        collect_config.deployment_config.nodeman_backend
-        if collect_config.deployment_config_id
-        else collect_config.plugin.nodeman_backend
-    )
-    try:
-        return NODEMAN_INSTALLERS[backend]
-    except KeyError:
-        raise UnsupportedNodeManBackend(f"采集后端尚未支持: {backend}") from None
+    return NodeManInstaller
 
 
 def get_collect_installer(collect_config: CollectConfigMeta, *args, **kwargs) -> BaseInstaller:
@@ -43,7 +33,7 @@ def get_collect_installer(collect_config: CollectConfigMeta, *args, **kwargs) ->
 
 
 def fetch_collection_statistics(config_data_list: list[CollectConfigMeta]) -> dict[int, CollectionStatistics]:
-    """按资源后端批量查询，业务调用方不再处理 Subscription/Policy 身份。"""
+    """按安装器批量查询，业务调用方不再处理远端订阅身份。"""
     groups = defaultdict(list)
     for config in config_data_list:
         groups[get_collect_installer_class(config)].append(config)

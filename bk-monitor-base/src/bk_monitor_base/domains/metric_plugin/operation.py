@@ -723,9 +723,7 @@ def export_metric_plugin_package(
         if not plugin_model:
             raise MetricPluginNotFoundError(f"插件不存在: {bk_tenant_id}/{plugin_id}")
 
-        plugin_manager_class = get_plugin_manager_class(
-            plugin_model.type, plugin_model.related_params.get("nodeman_backend", "v2")
-        )
+        plugin_manager_class = get_plugin_manager_class(plugin_model.type)
         plugin_manager = plugin_manager_class(
             plugin=plugin_model.to_plugin(status=MetricPluginStatus.RELEASE),
             plugin_model=plugin_model,
@@ -1017,7 +1015,6 @@ def save_and_install_metric_plugin_deployment(
                 status=MetricPluginDeploymentStatusEnum.INITIALIZING.value,
                 created_by=operator,
                 updated_by=operator,
-                related_params={"nodeman_backend": plugin_model.related_params.get("nodeman_backend", "v2")},
             )
 
         deployment = deployment_model.to_deployment()

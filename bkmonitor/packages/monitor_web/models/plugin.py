@@ -64,7 +64,6 @@ class CollectorPluginMeta(OperateRecordModelBase):
     id = models.BigAutoField("ID", primary_key=True)
     bk_tenant_id = models.CharField("租户ID", max_length=128, default=DEFAULT_TENANT_ID)
     plugin_id = models.CharField("插件ID", max_length=64)
-    nodeman_backend = models.CharField("节点管理后端", max_length=16, default="v2")
     bk_biz_id = models.IntegerField("业务ID", default=0, blank=True, db_index=True)
     bk_supplier_id = models.IntegerField("开发商ID", default=0, blank=True)
     plugin_type = models.CharField("插件类型", max_length=32, choices=PLUGIN_TYPE_CHOICES, db_index=True)

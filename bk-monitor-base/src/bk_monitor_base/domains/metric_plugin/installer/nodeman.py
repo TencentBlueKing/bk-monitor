@@ -27,7 +27,6 @@ from bk_monitor_base.infras.third_party_api.nodeman.api import (
     switch_subscription,
     update_subscription,
 )
-from bk_monitor_base.nodeman import NodeManBackend, UnsupportedNodeManBackend
 
 from ..define import (
     MetricPluginDeployment,
@@ -56,29 +55,18 @@ class NodemanInstaller(BaseInstaller):
 
     def __init__(self, deployment: MetricPluginDeployment, operator: str):
         super().__init__(deployment, operator)
-        backend = deployment.related_params.get("nodeman_backend", NodeManBackend.V2)
-        plugin_backend = self.plugin.related_params.get("nodeman_backend", NodeManBackend.V2)
-        execution_backend = deployment.related_params.get("execution_backend", NodeManBackend.V2)
-        if any(value != NodeManBackend.V2 for value in (backend, plugin_backend, execution_backend)):
-            raise UnsupportedNodeManBackend("V2 安装器不能操作其他后端的插件、部署或执行记录")
-        self.deployment.related_params["nodeman_backend"] = NodeManBackend.V2.value
         self.plugin_manager: NodemanPluginManager | BuiltInPluginManager = get_nodeman_deploy_plugin_manager(
             self.plugin
         )
 
     def is_task_ready(self) -> bool:
-        """就绪检查跟随部署后端；不对 V3 执行记录套用 V2 的降级逻辑。"""
+        """由安装器封装 V2 订阅任务的就绪检查。"""
         if not self.subscription_id:
             return True
         return check_subscription_task_ready(
             bk_tenant_id=self.deployment.bk_tenant_id,
             subscription_id=self.subscription_id,
         )
-
-    def _record_task(self, task_id: int | None) -> None:
-        """保存 V2 执行身份及所属后端，由既有 _save 一并持久化。"""
-        self.deployment.related_params["subscription_task_id"] = task_id
-        self.deployment.related_params["execution_backend"] = NodeManBackend.V2.value
 
     def _get_subscription_scope(self, deployment_version: MetricPluginDeploymentVersion) -> ScopeParams:
         """构建订阅范围参数。
@@ -213,7 +201,7 @@ class NodemanInstaller(BaseInstaller):
                 task_id,
             )
 
-        self._record_task(task_id)
+        self.deployment.related_params["subscription_task_id"] = task_id
 
         # 更新部署状态
         self.deployment.status = MetricPluginDeploymentStatusEnum.DEPLOYING.value
@@ -330,7 +318,7 @@ class NodemanInstaller(BaseInstaller):
         # 更新部署状态
         task_id = result.get("task_id")
         self.deployment.status = MetricPluginDeploymentStatusEnum.STOPPING.value
-        self._record_task(task_id)
+        self.deployment.related_params["subscription_task_id"] = task_id
         logger.debug("stop plugin %s: run_subscription result task_id=%s", self.plugin.id, task_id)
 
         # 保存到数据库
@@ -376,7 +364,7 @@ class NodemanInstaller(BaseInstaller):
         # 更新部署状态
         task_id = result.get("task_id")
         self.deployment.status = MetricPluginDeploymentStatusEnum.STARTING.value
-        self._record_task(task_id)
+        self.deployment.related_params["subscription_task_id"] = task_id
         logger.debug("start plugin %s: run_subscription result task_id=%s", self.plugin.id, task_id)
 
         # 保存到数据库

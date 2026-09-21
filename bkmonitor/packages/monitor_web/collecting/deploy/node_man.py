@@ -14,7 +14,7 @@ import logging
 from collections import defaultdict
 from typing import Any, cast
 
-from bk_monitor_base.nodeman import CollectionStatistics, NodeManBackend, UnsupportedNodeManBackend
+from bk_monitor_base.nodeman import CollectionStatistics
 from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext as _
@@ -51,14 +51,9 @@ class NodeManInstaller(BaseInstaller):
     """
 
     running_status = {OperationType.START: TaskStatus.STARTING, OperationType.STOP: TaskStatus.STOPPING}
-    backend = NodeManBackend.V2
 
     def __init__(self, collect_config: CollectConfigMeta, topo_tree: TopoTree = None):
         super().__init__(collect_config)
-        if self.plugin.nodeman_backend != self.backend or (
-            collect_config.deployment_config_id and collect_config.deployment_config.nodeman_backend != self.backend
-        ):
-            raise UnsupportedNodeManBackend("V2 安装器不能操作其他后端的插件或采集配置")
         self._topo_tree = topo_tree
         self._topo_links = None
 
@@ -68,8 +63,6 @@ class NodeManInstaller(BaseInstaller):
         grouped = defaultdict(lambda: defaultdict(list))
         for config in configs:
             version = config.deployment_config
-            if version.nodeman_backend != cls.backend:
-                raise UnsupportedNodeManBackend("V2 统计不能读取其他后端的部署记录")
             if version.subscription_id:
                 grouped[config.bk_tenant_id][version.subscription_id].append(config.pk)
 
@@ -285,8 +278,6 @@ class NodeManInstaller(BaseInstaller):
         """
         部署插件采集
         """
-        if target_version.nodeman_backend != self.backend:
-            raise UnsupportedNodeManBackend("不能通过普通部署或回滚切换节点管理后端")
         if self.collect_config.deployment_config_id and self.collect_config.deployment_config_id != target_version.pk:
             last_version: DeploymentConfigVersion | None = self.collect_config.deployment_config
         else:
@@ -415,7 +406,6 @@ class NodeManInstaller(BaseInstaller):
 
         # 创建新的部署记录
         deployment_config_params = {
-            "nodeman_backend": self.backend,
             "plugin_version": release_version,
             "target_node_type": install_config["target_node_type"],
             "target_nodes": install_config["target_nodes"],
@@ -476,7 +466,6 @@ class NodeManInstaller(BaseInstaller):
         self._release_package(release_version)
 
         deployment_config_params = {
-            "nodeman_backend": self.backend,
             "plugin_version": release_version,
             "target_node_type": current_version.target_node_type,
             "target_nodes": current_version.target_nodes,
