@@ -68,8 +68,11 @@
 | metric_type | string | 否 | 指标类型 |
 | query_configs | list[dict] | 否 | 整体替换查询配置，不能为空，按数据源类型校验 |
 | algorithms | list[dict] | 否 | 整体替换算法配置，使用策略保存接口的算法结构 |
+| access_lookback_periods | int/null | 否 | Access 额外回看的聚合周期数，正整数；省略保留，`null` 清除覆盖并继承全局默认值 |
 
-字段未传时保留已有配置，`null` 不是保留或清空指令。`items: []` 表示不修改监控项，`notice: {}` 表示不修改通知组，`notice.user_groups: []` 清空通知组。算法和检测配置还须满足完整策略的组合校验。
+字段未传时保留已有配置。除 `access_lookback_periods` 明确支持 `null` 清除覆盖外，`null` 不是保留或清空指令。`items: []` 表示不修改监控项，`notice: {}` 表示不修改通知组，`notice.user_groups: []` 清空通知组。算法和检测配置还须满足完整策略的组合校验。
+
+例如 `{"items": [{"id": 123, "access_lookback_periods": 15}]}` 只调整监控项 123 的回看周期。配置变化可能切换查询分组，过渡期沿用现有 checkpoint 初始化和复用规则，不迁移去重状态；未配置的监控项保持原查询分组，NewSeries 基线和 last_seen 不重置。
 
 `strategy_config`、其监控项和通知对象拒绝未声明字段。`strategy_config` 必须单独使用，不能与 `edit_data` 中的旧字段混传；旧请求不传此字段时保持原行为。
 

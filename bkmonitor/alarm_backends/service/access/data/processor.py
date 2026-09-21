@@ -572,8 +572,18 @@ class AccessDataProcess(BaseAccessDataProcess):
         checkpoint = Checkpoint(self.strategy_group_key).get(min_last_checkpoint, interval=agg_interval)
         checkpoint = checkpoint // agg_interval * agg_interval
 
-        # 由于存在入库延时问题，每次多往前拉取settings.NUM_OF_COUNT_FREQ_ACCESS个周期的数据
-        self.from_timestamp = checkpoint - settings.NUM_OF_COUNT_FREQ_ACCESS * agg_interval
+        # 同组监控项的回看配置一致；未配置时保持全局默认行为。
+        lookback_periods = first_item.access_lookback_periods
+        if lookback_periods is None:
+            lookback_periods = settings.NUM_OF_COUNT_FREQ_ACCESS
+        self.from_timestamp = checkpoint - lookback_periods * agg_interval
+        if first_item.access_lookback_periods is not None:
+            logger.info(
+                "strategy_group_key(%s), access_lookback_periods(%s), checkpoint(%s)",
+                self.strategy_group_key,
+                lookback_periods,
+                checkpoint,
+            )
 
         # 计算平台类型尝试获取上次未处理完的时间
         until_timestamp = None

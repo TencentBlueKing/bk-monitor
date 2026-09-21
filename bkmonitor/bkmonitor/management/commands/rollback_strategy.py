@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -43,6 +42,7 @@ def prepare_history_content_for_rollback(content):
     for item in content.get("items", []):
         if isinstance(item, dict):
             item.setdefault("query_output_config", None)
+            item.setdefault("access_lookback_periods", None)
     return content
 
 

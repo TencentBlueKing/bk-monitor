@@ -42,6 +42,40 @@ pytestmark = pytest.mark.django_db(databases="__all__")
 BK_BIZ_ID = 2
 
 
+def test_access_lookback_patch_roundtrip_preserves_other_items_and_meta(strategy_config_fixture):
+    strategy = strategy_config_fixture["strategy"]
+    first = strategy_config_fixture["first_item"]
+    second = strategy_config_fixture["second_item"]
+    first.meta = {"owner": "monitor"}
+    first.save(update_fields=["meta"])
+    second_meta = copy.deepcopy(second.meta)
+
+    def read_override():
+        loaded = Strategy.from_models([strategy])[0]
+        return next(item for item in loaded.to_dict()["items"] if item["id"] == first.id)
+
+    assert "access_lookback_periods" not in read_override()
+    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": 15}]})
+    first.refresh_from_db()
+    assert first.meta == {"owner": "monitor", "access_lookback_periods": 15}
+    assert read_override()["access_lookback_periods"] == 15
+    history_count = StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count()
+    assert history_count == 1
+
+    # 重复配置不触发保存；后续只改名称时保持覆盖。
+    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": 15}]})
+    assert StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count() == history_count
+    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "name": "renamed"}]})
+    assert read_override()["access_lookback_periods"] == 15
+
+    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": None}]})
+    first.refresh_from_db()
+    second.refresh_from_db()
+    assert first.meta == {"owner": "monitor"}
+    assert "access_lookback_periods" not in read_override()
+    assert second.meta == second_meta
+
+
 @pytest.mark.parametrize("labels", [["z", "a", "a", "parent", "parent/child"], []])
 def test_partial_label_update_normalizes_once(strategy_config_fixture: dict[str, Any], labels: list[str]) -> None:
     strategy: StrategyModel = strategy_config_fixture["strategy"]
