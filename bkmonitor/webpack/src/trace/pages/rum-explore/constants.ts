@@ -34,6 +34,7 @@ import ResourceIcon from '../../static/img/rum-explore/span-type/resource.svg';
 import ViewIcon from '../../static/img/rum-explore/span-type/view.svg';
 import VitalIcon from '../../static/img/rum-explore/span-type/vital.svg';
 import WebsocketIcon from '../../static/img/rum-explore/span-type/websocket.svg';
+import { RumCardToneEnum } from './detail';
 
 import type { IRumColumnLayoutPreset, RumModeType } from './typings';
 
@@ -236,6 +237,14 @@ export const RUM_OUTCOME_TYPE_MAP: Record<string, { icon: string; label: string 
   error: { icon: 'icon-monitor icon-mc-close-fill outcome-type-icon-error', label: window.i18n.t('失败') },
   timeout: { icon: 'icon-monitor icon-Long-Task outcome-type-icon-timeout', label: window.i18n.t('超时') },
   abort: { icon: 'icon-monitor icon-mc-minus-plus outcome-type-icon-abort', label: window.i18n.t('中止') },
+};
+
+export const OUTCOME_TYPE_TONE_MAP = {
+  success: RumCardToneEnum.SUCCESS,
+  warning: RumCardToneEnum.WARNING,
+  error: RumCardToneEnum.DANGER,
+  timeout: RumCardToneEnum.DANGER,
+  abort: RumCardToneEnum.DEFAULT,
 };
 
 /** attributes.http.response.status_code 列按状态码分组的展示配置 */

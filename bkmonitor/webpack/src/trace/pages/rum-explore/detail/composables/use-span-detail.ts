@@ -28,6 +28,7 @@ import type { Ref } from 'vue';
 
 import { getSpanTypeDetailConfig } from '../registry/span-type-registry';
 import { getRecordDetail } from '../services';
+import { fetchEventStream } from '@/utils';
 
 import type { IRumTimeRange, RumModeType } from '../../typings';
 import type { IRumDetailContext, IRumRecordDetail, IRumRelatedData } from '../typings';
@@ -48,6 +49,7 @@ interface IUseSpanDetailOptions {
  */
 export function useSpanDetail({ context, mode, timeRange }: IUseSpanDetailOptions) {
   const detail = shallowRef<IRumRecordDetail | null>(null);
+  const traceInfo = shallowRef(null);
   const related = shallowRef<IRumRelatedData>({});
   const loading = shallowRef(false);
   const relatedLoading = shallowRef(false);
@@ -66,6 +68,7 @@ export function useSpanDetail({ context, mode, timeRange }: IUseSpanDetailOption
     related.value = {};
     const res = await getRecordDetail(current, mode.value);
     if (seq !== requestId) return;
+    fetchTraceInfo(res);
     detail.value = res;
     loading.value = false;
     if (res) fetchRelated(res, current, seq);
@@ -81,7 +84,18 @@ export function useSpanDetail({ context, mode, timeRange }: IUseSpanDetailOption
     relatedLoading.value = false;
   }
 
+  async function fetchTraceInfo(detail: IRumRecordDetail) {
+    if (!detail) {
+      traceInfo.value = null;
+    } else {
+      const url = `${location.origin}${window.site_url}rest/v2/overview/search/?query=${encodeURIComponent(detail.origin_data.trace_id)}&bk_biz_id=${encodeURIComponent(String(detail.origin_data.bk_biz_id))}`;
+      fetchEventStream(url).then(res => {
+        traceInfo.value = res[0]?.items?.[0];
+      });
+    }
+  }
+
   watch(context, fetchDetail, { immediate: true });
 
-  return { detail, related, loading, relatedLoading, refresh: fetchDetail };
+  return { detail, traceInfo, related, loading, relatedLoading, refresh: fetchDetail };
 }

@@ -595,8 +595,7 @@ export default defineComponent({
         selectedType,
         favorite_id,
         trace_id,
-        /** 兼容一下老版本的listType和query参数 */
-        listType,
+        slideDetail /** 兼容一下老版本的listType和query参数 */: listType,
         query,
         sortBy,
         descending,
