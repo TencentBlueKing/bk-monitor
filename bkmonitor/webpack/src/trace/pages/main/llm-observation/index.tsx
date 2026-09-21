@@ -27,10 +27,13 @@ import { type PropType, computed, defineComponent, nextTick, provide, shallowRef
 
 import { useI18n } from 'vue-i18n';
 
+import ErrorAlert from './components/error-alert';
 import InputTab from './components/input-tab';
 import OutputTab from './components/output-tab';
+import ToolDescBar from './components/tool-desc-bar';
 import ToolPanel from './components/tool-panel';
 import { formatSecondCount, formatTokenCount, pickNumber, pickOptionalNumber, pickString } from './utils/helpers';
+import { formatAgentLabel, parseAgentObservation } from './utils/parse-agent';
 import { countInputObservation, parseInputObservation } from './utils/parse-input';
 import { countOutputObservation, parseOutputObservation } from './utils/parse-output';
 import { collectObservationHits, LLM_OBSERVATION_SEARCH_KEY } from './utils/search';
@@ -90,12 +93,23 @@ export default defineComponent({
 
     /** 工具走独立面板，Agent / 模型走输入输出页 */
     const isToolSpan = computed(() => props.llmDetail?.span_type === 'TOOL');
+    const isAgentSpan = computed(() => props.llmDetail?.span_type === 'AGENT');
     const isModelSpan = computed(() => props.llmDetail?.span_type === 'LLM');
     const inputObservation = computed(() => parseInputObservation(attributes.value));
     const outputObservation = computed(() => parseOutputObservation(attributes.value));
+    const agentObservation = computed(() => parseAgentObservation(attributes.value));
+    const agentLabel = computed(() => formatAgentLabel(agentObservation.value.name, agentObservation.value.version));
+    /** 名称、版本、描述都空时不占位 */
+    const showAgentBar = computed(
+      () =>
+        isAgentSpan.value &&
+        Boolean(agentObservation.value.name || agentObservation.value.version || agentObservation.value.description)
+    );
 
-    /** Tool Span 只扫工具面板；其余 Span 先输入后输出 */
-    const hits = computed(() => collectObservationHits(props.searchKeyword, attributes.value, isToolSpan.value));
+    /** Tool Span 只扫工具面板；Agent 先扫名称条，再输入后输出 */
+    const hits = computed(() =>
+      collectObservationHits(props.searchKeyword, attributes.value, isToolSpan.value, isAgentSpan.value)
+    );
     const activeHit = computed(() => hits.value[props.searchActiveIndex] ?? null);
 
     provide(LLM_OBSERVATION_SEARCH_KEY, {
@@ -137,15 +151,26 @@ export default defineComponent({
     watch(
       () => [props.searchKeyword, props.searchActiveIndex, activeHit.value?.blockId],
       (curr, prev) => {
-        const keywordChanged = !prev || curr[0] !== prev[0];
+        const keywordChanged = curr[0] !== prev?.[0];
         // 换词只定位当前页签内的命中，避免手动停在输出时又被拉回输入
         if (keywordChanged) {
           if (isToolSpan.value) {
             locateCurrentHit(true);
             return;
           }
-          const firstInTab = hits.value.find(hit => hit.tab === activeIoTab.value);
-          if (!firstInTab) return;
+          const firstInTab = hits.value.find(
+            hit => hit.tab === activeIoTab.value || (activeIoTab.value === 'input' && hit.tab === 'agent')
+          );
+          if (!firstInTab) {
+            const firstAgent = hits.value.find(hit => hit.tab === 'agent');
+            if (!firstAgent) return;
+            if (firstAgent.index !== props.searchActiveIndex) {
+              emit('searchActiveIndex', firstAgent.index);
+              return;
+            }
+            locateCurrentHit(true);
+            return;
+          }
           if (firstInTab.index !== props.searchActiveIndex) {
             emit('searchActiveIndex', firstInTab.index);
             return;
@@ -227,6 +252,14 @@ export default defineComponent({
     const inputCount = computed(() => countInputObservation(inputObservation.value));
     const outputCount = computed(() => countOutputObservation(outputObservation.value));
 
+    /** code=2 才展示错误条；message 空时占位 -- */
+    const errorMessage = computed(() => {
+      const status = props.llmDetail?.status;
+      if (Number(status?.code) !== 2) return '';
+      const message = typeof status?.message === 'string' ? status.message.trim() : '';
+      return message || '--';
+    });
+
     const ioTabs = computed(() => [
       {
         name: 'input' as const,
@@ -246,6 +279,17 @@ export default defineComponent({
         class='llm-observation'
       >
         <div class='llm-observation-main'>
+          {showAgentBar.value ? (
+            <ToolDescBar
+              class='llm-observation-agent-bar'
+              descBlockId='agent:desc'
+              description={agentObservation.value.description}
+              name={agentLabel.value}
+              nameBlockId='agent:name'
+              variant='agent'
+            />
+          ) : null}
+          {errorMessage.value ? <ErrorAlert message={errorMessage.value} /> : null}
           {stats.value.length > 0 && (
             <div class='llm-observation-stats'>
               {stats.value.map(item => {

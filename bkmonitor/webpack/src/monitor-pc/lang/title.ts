@@ -345,4 +345,6 @@ export default {
   删除记忆: 'Delete Memory',
   创建记忆库: 'Create Memory Store',
   删除记忆库: 'Delete Memory Store',
+  '模型 & 厂商': 'Model & Vendor',
+  '首 Token 耗时': 'First Token Duration',
 };

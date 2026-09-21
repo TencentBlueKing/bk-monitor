@@ -15,6 +15,11 @@
 
   @include flex-align(center);
 
+  &.is-agent {
+    background: #f1f8fd;
+    border-color: #bcdbf0;
+  }
+
   &.is-expanded {
     align-items: flex-start;
     overflow: visible;
@@ -39,6 +44,10 @@
     line-height: $line-height-base;
     color: #3ba365;
     white-space: nowrap;
+  }
+
+  &.is-agent &-label {
+    color: #3292d1;
   }
 
   &-text {
