@@ -5,6 +5,30 @@
   flex-direction: column;
   min-height: 0;
 
+  &__page-selection {
+    margin-left: 16px;
+  }
+
+  &__skeleton,
+  &__error {
+    height: 100%;
+    min-height: 200px;
+    background: #fff;
+  }
+
+  &__skeleton {
+    padding: 10px 8px;
+
+    .common-table-skeleton-comp {
+      height: 100%;
+    }
+  }
+
+  &__error {
+    display: flex;
+    align-items: center;
+  }
+
   &__metric-error {
     display: flex;
     flex: 0 0 36px;

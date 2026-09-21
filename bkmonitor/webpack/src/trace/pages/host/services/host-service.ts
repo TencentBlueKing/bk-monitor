@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+import { request } from 'monitor-api/base';
 import { getTopoTree } from 'monitor-api/modules/commons';
 import { searchHostInfo, searchHostMetric } from 'monitor-api/modules/performance';
 
 import type { IHostTopoTree } from '../types';
 import type { IHostBaseInfo, IHostMetricInfo } from '../types/host';
+import type { EHostQuickCategory } from '../types/host-list';
 import type { HostScopeParams } from '../utils/share-scope';
 
 /**
@@ -36,8 +38,32 @@ import type { HostScopeParams } from '../utils/share-scope';
  * @returns {Promise<IHostBaseInfo[]>} 基础主机列表
  */
 export const getHostInfoList = async (scope: HostScopeParams = {}) => {
-  const data: IHostBaseInfo[] = await searchHostInfo(scope);
+  const data: IHostBaseInfo[] = await searchHostInfo(scope, { needMessage: false, reject403: true });
   return data;
+};
+
+export interface IHostInfoPage {
+  items: IHostBaseInfo[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
+export const getHostInfoPage = async (params: HostScopeParams & { page: number; page_size: number }) => {
+  const data: IHostInfoPage = await searchHostInfo(params, { needMessage: false, reject403: true });
+  return data;
+};
+
+const searchHostMetricStats = request('post', 'rest/v2/performance/search_host_metric_stats/');
+
+export const getHostMetricStats = async (
+  params: HostScopeParams & {
+    category: Exclude<EHostQuickCategory, 'alarm'>;
+    end_time: number;
+    start_time: number;
+  }
+): Promise<{ complete: boolean; value: null | number }> => {
+  return await searchHostMetricStats(params, { needMessage: false, reject403: true });
 };
 
 /**
@@ -50,8 +76,8 @@ export const getHostMetricInfoList = async (
     end_time: number;
     start_time: number;
   }
-) => {
-  return await searchHostMetric(params);
+): Promise<Record<string, IHostMetricInfo>> => {
+  return await searchHostMetric(params, { needMessage: false, reject403: true });
 };
 
 /**
