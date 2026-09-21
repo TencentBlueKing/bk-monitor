@@ -27,15 +27,9 @@ def _read_token(attributes: dict[str, Any], field: str) -> int | None:
 
 def _serialize_tokens(totals: dict[str, int]) -> dict[str, int]:
     """按 TOKEN_FIELDS 输出响应字段，total_tokens 由输入、输出派生。"""
-    input_tokens = totals[TOKEN_FIELDS["input_tokens"]]
-    output_tokens = totals[TOKEN_FIELDS["output_tokens"]]
-    return {
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
-        "total_tokens": input_tokens + output_tokens,
-        "cache_read_input_tokens": totals[TOKEN_FIELDS["cache_read_input_tokens"]],
-        "cache_write_input_tokens": totals[TOKEN_FIELDS["cache_write_input_tokens"]],
-    }
+    tokens: dict[str, int] = {name: totals[field] for name, field in TOKEN_FIELDS.items()}
+    tokens["total_tokens"] = tokens["input_tokens"] + tokens["output_tokens"]
+    return tokens
 
 
 class FlowBuilder:
@@ -48,6 +42,17 @@ class FlowBuilder:
         self.flow: list[dict[str, Any]] = []
         # 各 Agent 的 Token 统计，key 为 span_id，build() 后可用
         self.statistics: dict[str, dict[str, int]] = {}
+
+    @property
+    def tokens(self) -> dict[str, int]:
+        """Trace 消耗只累计 LLM Span，避免重复计入 Agent 自报或回填的 Token。"""
+        totals: dict[str, int] = dict.fromkeys(TOKEN_ATTRIBUTES, 0)
+        for span in self.spans:
+            if span.get("span_type") == SpanType.LLM:
+                attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES) or {}
+                for field in TOKEN_ATTRIBUTES:
+                    totals[field] += _read_token(attributes, field) or 0
+        return _serialize_tokens(totals)
 
     def build(self) -> list[dict[str, Any]]:
         """构造执行线，并在同一次递归中完成 Token 回填与统计收集。"""
@@ -96,6 +101,10 @@ class FlowBuilder:
 
         for raw_root in raw_roots:
             project(raw_root, None)
+        # 中间 Span 投影后，原始兄弟关系的时间顺序不一定等于展示节点的顺序。
+        roots.sort(key=lambda node: node.get(OtlpKey.START_TIME) or 0)
+        for node in nodes_by_span_id.values():
+            node["childs"].sort(key=lambda child: child.get(OtlpKey.START_TIME) or 0)
         return roots
 
     def _aggregate(self, node: dict[str, Any]) -> dict[str, int]:

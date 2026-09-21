@@ -244,7 +244,7 @@ class TracePreviewQueryTestCase(TestCase):
         field, _, operator = field.partition("__")
         if field == "events.name":
             return any(event["name"] in expected for event in record.get("events", []))
-        value = LLMQuery._get_field_value(record, field)
+        value = LLMQuery.get_field_value(record, field)
         if operator == "exists":
             return value is not None and value != ""
         matched = value in expected if isinstance(expected, list) else value == expected
@@ -294,7 +294,8 @@ class TracePreviewQueryTestCase(TestCase):
         return query_list
 
     def test_preview_bounds_use_agent_and_llm_spans(self):
-        from apm_web.llm.resources import ListTracesResource
+        from apm_web.llm.adapter import adapt_spans
+        from apm_web.llm.builders.summary import TraceSummary
 
         spans = [self.span(index, attributes={"http.method": "GET"}) for index in range(1, 101)]
         for index, operation in ((1, "invoke_agent"), (50, "chat"), (75, "chat"), (90, "execute_tool")):
@@ -325,7 +326,9 @@ class TracePreviewQueryTestCase(TestCase):
         self.assertEqual(errors, [{"trace_id": "trace-1", "status": {"code": 2}}])
         entity_set = mock.Mock(service_names=["agent-service"])
         entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
-        item = ListTracesResource._trace_item("trace-1", samples, entity_set, {"input_tokens": 800}, has_error=True)
+        item = TraceSummary.build(
+            "trace-1", samples, adapt_spans(samples, entity_set), {"input_tokens": 800}, has_error=True
+        )
         self.assertEqual((item["input"], item["output"]), ("first", "answer"))
         self.assertEqual((item["start_time"], item["end_time"], item["status"]), (200, 7650, "error"))
         self.assertEqual(item["input_tokens"], 800)
@@ -456,7 +459,7 @@ class TracePreviewQueryTestCase(TestCase):
 
     def test_collapsed_product_spans_can_be_converted_by_adapters(self):
         from apm_web.llm.adapter import adapt_spans
-        from apm_web.llm.resources import ListTracesResource
+        from apm_web.llm.builders.summary import TraceSummary
 
         standard = {
             "gen_ai.operation.name": "invoke_agent",
@@ -516,12 +519,8 @@ class TracePreviewQueryTestCase(TestCase):
                     outputs = self.preview(["trace-1"], product, "output")
                 self.assertEqual(inputs, [span])
                 self.assertEqual(outputs, [span])
-                self.assertEqual(
-                    ListTracesResource._trace_previews(adapt_spans(inputs, entity_set))[0], "question", product
-                )
-                self.assertEqual(
-                    ListTracesResource._trace_previews(adapt_spans(outputs, entity_set))[1], "answer", product
-                )
+                self.assertEqual(TraceSummary._trace_previews(adapt_spans(inputs, entity_set))[0], "question", product)
+                self.assertEqual(TraceSummary._trace_previews(adapt_spans(outputs, entity_set))[1], "answer", product)
 
     def test_error_query_only_returns_collapsed_trace_id_and_status(self):
         spans = [
@@ -566,6 +565,7 @@ class TracePreviewQueryTestCase(TestCase):
                 group_field="attributes.gen_ai.conversation.id",
                 group_ids=["session-1"],
                 possible_group_fields=group_fields,
+                extra_fields=["resource.service.name", OtlpKey.TRACE_ID],
             )
 
         self.assertEqual(result, records)
@@ -575,5 +575,7 @@ class TracePreviewQueryTestCase(TestCase):
             | Q(**{"attributes.session.id__eq": ["session-1"]})
         )
         query_builder.distinct.assert_called_once_with(OtlpKey.TRACE_ID)
-        query_builder.values.assert_called_once_with("attributes.gen_ai.conversation.id", OtlpKey.TRACE_ID)
+        query_builder.values.assert_called_once_with(
+            "attributes.gen_ai.conversation.id", OtlpKey.TRACE_ID, "resource.service.name"
+        )
         query_list.assert_called_once_with([query_builder], None, None, 0, 10000)

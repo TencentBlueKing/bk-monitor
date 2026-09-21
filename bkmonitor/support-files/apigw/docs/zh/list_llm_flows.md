@@ -1,8 +1,20 @@
 ### 功能描述
 
-按 `group_field`、`group_id` 精确查询 Agent 执行事件线。接口先定位分组内的 Trace，再将每个 Trace 的标准化 Span 按 `span_id`、`parent_span_id` 组织为树。
+按 `group_field`、`group_id` 精确查询 Agent Trace：
 
-树节点与 `list_llm_spans` 返回的 Span 字段一致，`childs` 表示直接子 Span。一个 Trace 可以有多个根节点；父 Span 未出现在标准化结果中时，该 Span 作为根节点返回。
+- `group_field = trace_id`：返回单条 Trace 的概览和完整执行线。
+- 其他分组字段（如会话 ID）：返回分组内各条 Trace 的概览，`flow` 为 `[]`，不加载完整调用链。
+
+树节点与 `list_llm_spans` 返回的 Span 字段一致，`childs` 表示子节点。同级节点按开始时间排序，一个 Trace 可以有多棵树。中间 Span 未参与标准化时，节点连接到最近的可展示祖先；找不到祖先时作为根节点返回。
+
+### 查看同会话完整时间线
+
+前端通过 `list_flows` 分步加载：
+
+1. 进入「查看同会话完整时间线」时，以会话字段和会话 ID 调用 `list_flows`，仅获取各条 Trace 的概览信息，返回的 `flow = []` 表示尚未加载详情。
+2. 用户点开某一条 Trace 时，再次调用 `list_flows`，设置 `group_field = trace_id`、`group_id = 对应 Trace ID`，获取该 Trace 的概览和完整执行线。
+
+当会话概览返回的 Trace 数量不超过 `5` 条（`data.traces.length <= 5`）时，前端可以主动按 Trace ID 分别异步调用 `list_flows`，预加载详情，无需等待用户展开。概览展示无需等待这些异步请求完成。
 
 ### 请求参数
 
@@ -15,7 +27,7 @@
 
 ### 请求参数示例
 
-按会话查看其中所有 Trace 的事件线：
+按会话查看 Trace 概览：
 
 ```json
 {
@@ -59,7 +71,21 @@
 | 字段名 | 类型 | 描述 |
 |---|---|---|
 | trace_id | string | Trace ID |
-| flow | list | 该 Trace 的根 Span 列表 |
+| group_id | string | 当前 Trace ID |
+| group_field | string | 固定为 `trace_id` |
+| conversation_id | string | 会话 ID，未上报时为空字符串 |
+| status | string | `success` 或 `error`，任一 Span 报错即为 `error` |
+| input | string | 输入概览，与 `list_llm_traces` 使用相同选取规则 |
+| output | string | 输出概览，与 `list_llm_traces` 使用相同选取规则 |
+| input_tokens | number | LLM Span 的输入 Token 总量 |
+| output_tokens | number | LLM Span 的输出 Token 总量 |
+| start_time | int | Span 范围内最早开始时间，微秒时间戳 |
+| end_time | int | Span 范围内最晚结束时间，微秒时间戳 |
+| elapsed_time | int | 结束时间与开始时间之差，单位为微秒 |
+| user_id | string | 用户 ID，未上报时为空字符串 |
+| flow | list | 按 Trace ID 查询时返回根节点列表，按会话查询时为空列表 |
+
+时间范围取决于查询方式：会话查询使用折叠后的预览 Span，Trace ID 查询使用完整调用链的 Span。
 
 `flow` 及其递归 `childs` 节点包含 `list_llm_spans` 的完整 Span 字段，包括 `trace_id`、`span_id`、`parent_span_id`、`span_name`、`start_time`、`end_time`、`elapsed_time`、`status`、`resource` 和 `attributes`。
 
@@ -109,7 +135,7 @@
 
 ### 响应参数示例
 
-以下示例与 `list_llm_spans` 使用同一组脱敏 Span，仅增加 `childs` 层级。
+按会话查询：
 
 ```json
 {
@@ -119,6 +145,38 @@
     "data": {
         "group_field": "attributes.gen_ai.conversation.id",
         "group_id": "conversation-demo-01",
+        "traces": [
+            {
+                "group_id": "9519ce8934ad4c2f04753eef6ce44b08",
+                "group_field": "trace_id",
+                "trace_id": "9519ce8934ad4c2f04753eef6ce44b08",
+                "conversation_id": "conversation-demo-01",
+                "status": "success",
+                "input": "检查 CPU 使用率",
+                "output": "CPU 使用率持续升高",
+                "input_tokens": 300,
+                "output_tokens": 116,
+                "start_time": 1700000000000000,
+                "end_time": 1700000001000000,
+                "elapsed_time": 1000000,
+                "user_id": "demo-user",
+                "flow": []
+            }
+        ]
+    }
+}
+```
+
+按 Trace ID 查询的执行线示例与 `list_llm_spans` 使用同一组脱敏 Span，以下省略已展示的概览字段。
+
+```json
+{
+    "result": true,
+    "code": 200,
+    "message": "OK",
+    "data": {
+        "group_field": "trace_id",
+        "group_id": "9519ce8934ad4c2f04753eef6ce44b08",
         "traces": [
             {
                 "trace_id": "9519ce8934ad4c2f04753eef6ce44b08",
