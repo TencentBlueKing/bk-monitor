@@ -34,7 +34,7 @@ from apm_web.handlers.trace_handler.query import (
     TraceQueryTransformer,
 )
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
-from apm_web.llm.detail import attach_llm_detail
+from apm_web.llm.builders.detail import attach_llm_detail
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
 from apm_web.trace.serializers import (
