@@ -26,21 +26,30 @@
 
 import { type PropType, defineComponent } from 'vue';
 
+import { Button } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
-import { HOST_QUICK_CARD_LIST } from '../../constants/host-list';
-
-import type { EHostQuickCategory, IHostQuickCardStats } from '../../types/host-list';
 import AlarmHostIcon from '../../../../static/img/alarm-host.png';
 import CpuUsageIcon from '../../../../static/img/cpu-usage.png';
 import DiskUsageIcon from '../../../../static/img/disk-usage.png';
 import MemoryUsageIcon from '../../../../static/img/memory-usage.png';
+import { HOST_QUICK_CARD_LIST } from '../../constants/host-list';
+
+import type { EHostQuickCategory, IHostQuickCardStats } from '../../types/host-list';
 
 import './host-stat-cards.scss';
 
 export default defineComponent({
   name: 'HostStatCards',
   props: {
+    fullDataReady: {
+      type: Boolean,
+      default: false,
+    },
+    states: {
+      type: Object as PropType<Record<EHostQuickCategory, { error: boolean; loading: boolean }>>,
+      required: true,
+    },
     /** 各分类命中主机数 */
     stats: {
       type: Object as PropType<IHostQuickCardStats>,
@@ -48,13 +57,14 @@ export default defineComponent({
     },
     /** 当前激活的分类（空为未激活） */
     activeKey: {
-      type: String as PropType<EHostQuickCategory | ''>,
+      type: String as PropType<'' | EHostQuickCategory>,
       default: '',
     },
   },
   emits: {
     /** 点击卡片快速过滤（再次点击取消） */
     cardClick: (_key: EHostQuickCategory) => true,
+    retry: (_key: EHostQuickCategory) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -79,19 +89,60 @@ export default defineComponent({
         {HOST_QUICK_CARD_LIST.map(card => (
           <div
             key={card.key}
-            class={['host-stat-cards__item', { 'is-active': props.activeKey === card.key }]}
-            onClick={() => emit('cardClick', card.key)}
+            class={[
+              'host-stat-cards__item',
+              {
+                'is-active': props.fullDataReady && props.activeKey === card.key,
+                'is-disabled': !props.fullDataReady,
+              },
+            ]}
           >
             <div class='host-stat-cards__active-bar' />
-            <img
-              src={getIcon(card.key)}
-              alt={card.name}
-              class='host-stat-cards__icon'
-            />
-            <div class='host-stat-cards__desc'>
-              <span class='host-stat-cards__name'>{t(card.name)}</span>
-              <span class='host-stat-cards__num'>{props.stats[card.key] ?? 0}</span>
-            </div>
+            <button
+              class='host-stat-cards__content'
+              disabled={!props.fullDataReady}
+              title={!props.fullDataReady ? t('全量数据加载完成后可点击筛选') : ''}
+              type='button'
+              onClick={() => props.fullDataReady && emit('cardClick', card.key)}
+            >
+              <img
+                class='host-stat-cards__icon'
+                alt=''
+                src={getIcon(card.key)}
+              />
+              <span class='host-stat-cards__desc'>
+                <span class='host-stat-cards__name'>{t(card.name)}</span>
+                {!props.fullDataReady && card.key === 'alarm' ? (
+                  <span
+                    class='host-stat-cards__num'
+                    title={t('等待全量数据')}
+                  >
+                    --
+                  </span>
+                ) : props.states[card.key].loading ? (
+                  <span
+                    class='host-stat-cards__loading skeleton-element'
+                    aria-label={t('加载中')}
+                    role='status'
+                  />
+                ) : (
+                  <span class='host-stat-cards__num'>
+                    {props.states[card.key].error ? '--' : props.stats[card.key]}
+                  </span>
+                )}
+              </span>
+            </button>
+            {!props.fullDataReady && card.key !== 'alarm' && props.states[card.key].error && (
+              <Button
+                class='host-stat-cards__retry'
+                disabled={props.states[card.key].loading}
+                title={t('加载失败')}
+                text
+                onClick={() => !props.fullDataReady && !props.states[card.key].loading && emit('retry', card.key)}
+              >
+                {t('重试')}
+              </Button>
+            )}
           </div>
         ))}
       </div>

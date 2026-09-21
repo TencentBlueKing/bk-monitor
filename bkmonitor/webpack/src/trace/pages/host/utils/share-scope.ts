@@ -25,6 +25,7 @@
  */
 
 export type HostScopeParams = {
+  bk_biz_id?: number | string;
   bk_host_id?: number;
   bk_inst_id?: number;
   bk_obj_id?: string;

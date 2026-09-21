@@ -4,13 +4,13 @@
 
 主机列表接口返回**全量数据**（规模可达数十万甚至百万级）。若在主线程完成以下操作，会导致页面长时间卡死、无法交互：
 
-| 操作 | 原主线程行为 | 数据量级影响 |
-| --- | --- | --- |
-| 行派生字段计算 | `createHostListRow` 对全量数据 `map` | CPU 密集，阻塞渲染 |
-| 拓扑 / 快捷 / where / 关键字过滤 | 多次 `filter` 全量遍历 | 每次交互都重算 |
-| 排序 | `sort` 全量数组 | 大数组排序耗时显著 |
-| 过滤候选项构建 | `buildFilterOptionsMap` 遍历全量 | 阻塞 retrieval-filter |
-| 内存占用 | 主线程持有 `rawRows: IHostListRow[]` | 百万行对象占用大量堆内存 |
+| 操作                             | 原主线程行为                         | 数据量级影响             |
+| -------------------------------- | ------------------------------------ | ------------------------ |
+| 行派生字段计算                   | `createHostListRow` 对全量数据 `map` | CPU 密集，阻塞渲染       |
+| 拓扑 / 快捷 / where / 关键字过滤 | 多次 `filter` 全量遍历               | 每次交互都重算           |
+| 排序                             | `sort` 全量数组                      | 大数组排序耗时显著       |
+| 过滤候选项构建                   | `buildFilterOptionsMap` 遍历全量     | 阻塞 retrieval-filter    |
+| 内存占用                         | 主线程持有 `rawRows: IHostListRow[]` | 百万行对象占用大量堆内存 |
 
 **目标**：将重计算迁移到 Web Worker，主线程仅持有**当前页数据**（默认 50 条）与轻量 UI 状态。
 
@@ -43,14 +43,14 @@
 
 ### 2.1 分层职责
 
-| 层级 | 文件 | 职责 |
-| --- | --- | --- |
-| 视图 | `components/host-list/*` | 渲染、事件绑定，不直接接触全量数据 |
-| 编排 | `composables/use-host-list.ts` | 状态管理、API 调用、触发 Worker 计算 |
-| Worker 客户端 | `composables/use-host-list-worker.ts` | Worker 生命周期、消息协议、序列化 |
-| Worker 运行时 | `workers/host-list.worker.raw.js` | 全量数据存储与重计算 |
-| 纯函数（主线程） | `utils/host-list-core.ts` | 与 Worker 逻辑对齐的 TS 纯函数（类型安全、可单测） |
-| 对外 re-export | `utils/host-list.ts` | 从 `host-list-core` 导出，兼容旧引用 |
+| 层级             | 文件                                  | 职责                                               |
+| ---------------- | ------------------------------------- | -------------------------------------------------- |
+| 视图             | `components/host-list/*`              | 渲染、事件绑定，不直接接触全量数据                 |
+| 编排             | `composables/use-host-list.ts`        | 状态管理、API 调用、触发 Worker 计算               |
+| Worker 客户端    | `composables/use-host-list-worker.ts` | Worker 生命周期、消息协议、序列化                  |
+| Worker 运行时    | `workers/host-list.worker.raw.js`     | 全量数据存储与重计算                               |
+| 纯函数（主线程） | `utils/host-list-core.ts`             | 与 Worker 逻辑对齐的 TS 纯函数（类型安全、可单测） |
+| 对外 re-export   | `utils/host-list.ts`                  | 从 `host-list-core` 导出，兼容旧引用               |
 
 ---
 
@@ -81,11 +81,11 @@ new Worker(new URL('./host-list.worker.ts', import.meta.url));
 
 在 trace 微前端（bk-weweb）场景下连续踩坑，**最终放弃该方案**，改用 **Blob Worker**：
 
-| 方案 | 问题 |
-| --- | --- |
+| 方案                             | 问题                                                                                                                                      |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
 | webpack Worker + `importScripts` | babel `useBuiltIns: 'usage'` 注入 core-js，拆出 vendor chunk；Worker 的 `publicPath` 与主应用不一致，请求路径变成 `/js/js/vendors-xxx.js` |
-| 跨域 Worker URL | trace 子应用资源在 `:7002`，主壳在 `:9002`，`new Worker(url)` 受同源策略限制 |
-| 与主 bundle 共享 chunk | Worker import 业务模块会触发 splitChunks，仍走 `importScripts` |
+| 跨域 Worker URL                  | trace 子应用资源在 `:7002`，主壳在 `:9002`，`new Worker(url)` 受同源策略限制                                                              |
+| 与主 bundle 共享 chunk           | Worker import 业务模块会触发 splitChunks，仍走 `importScripts`                                                                            |
 
 **最终方案**：
 
@@ -102,9 +102,9 @@ const worker = new Worker(URL.createObjectURL(blob));
 
 ### 3.2 逻辑双份维护说明
 
-| 文件 | 用途 |
-| --- | --- |
-| `utils/host-list-core.ts` | 主线程侧 TypeScript 纯函数，有完整类型 |
+| 文件                              | 用途                                             |
+| --------------------------------- | ------------------------------------------------ |
+| `utils/host-list-core.ts`         | 主线程侧 TypeScript 纯函数，有完整类型           |
 | `workers/host-list.worker.raw.js` | Worker 运行时，纯 JS，**逻辑须与 core 保持同步** |
 
 修改过滤 / 排序 / 行派生逻辑时，**两处都要改**。Worker 侧只内联了运行所需常量（阈值、状态映射等），避免引入外部依赖。
@@ -230,13 +230,13 @@ rawRows
 
 ### 5.2 Worker → 主线程
 
-| type | 字段 | 说明 |
-| --- | --- | --- |
-| `INIT_BASE_DONE` | `rawRowCount`, `filterOptionsMap` | 基础数据就绪 |
-| `MERGE_METRICS_DONE` | `filterOptionsMap` | 指标合并完成 |
-| `COMPUTE_DONE` | `categoryStats`, `total`, `pagedRows` | 过滤排序分页结果 |
-| `GET_FILTER_OPTIONS_DONE` | `result: { count, list }` | 候选项 |
-| `GET_SELECTED_IPS_DONE` | `ips: string[]` | 内网 IP 列表 |
+| type                      | 字段                                  | 说明             |
+| ------------------------- | ------------------------------------- | ---------------- |
+| `INIT_BASE_DONE`          | `rawRowCount`, `filterOptionsMap`     | 基础数据就绪     |
+| `MERGE_METRICS_DONE`      | `filterOptionsMap`                    | 指标合并完成     |
+| `COMPUTE_DONE`            | `categoryStats`, `total`, `pagedRows` | 过滤排序分页结果 |
+| `GET_FILTER_OPTIONS_DONE` | `result: { count, list }`             | 候选项           |
+| `GET_SELECTED_IPS_DONE`   | `ips: string[]`                       | 内网 IP 列表     |
 
 ---
 
@@ -244,12 +244,12 @@ rawRows
 
 ### 6.1 状态变化
 
-| 原方案 | Worker 方案 |
-| --- | --- |
-| `rawRows` 全量数组 | `rawRowCount` 仅记录条数 |
-| `computed` 链式派生 | `categoryStats` / `total` / `pagedRows` 由 Worker 回写 |
-| `selectedRows` computed | `selectedRowKeys` + Worker `GET_SELECTED_IPS` |
-| `optionsMap` computed | Worker 内缓存 + `GET_FILTER_OPTIONS` |
+| 原方案                  | Worker 方案                                            |
+| ----------------------- | ------------------------------------------------------ |
+| `rawRows` 全量数组      | `rawRowCount` 仅记录条数                               |
+| `computed` 链式派生     | `categoryStats` / `total` / `pagedRows` 由 Worker 回写 |
+| `selectedRows` computed | `selectedRowKeys` + Worker `GET_SELECTED_IPS`          |
+| `optionsMap` computed   | Worker 内缓存 + `GET_FILTER_OPTIONS`                   |
 
 ### 6.2 数据加载（两段式，与原先一致）
 
@@ -282,15 +282,15 @@ await hostListWorker.mergeMetrics(metricListMap);
 
 ### 7.1 请求竞态处理
 
-- **Promise 类请求**（`INIT_BASE` / `MERGE_METRICS` / `GET_*`）：`pendingRequests` Map 按 `requestId` resolve
-- **COMPUTE**：仅保留最新 `latestComputeId`，过期响应直接丢弃
+- **Promise 类请求**（`INIT_BASE` / `MERGE_METRICS` / `GET_*` / `compute()`）：`pendingRequests` Map 按 `requestId` resolve；页面控制器按数据和视图代次丢弃过期计算，表格与卡片统计一起更新
+- **回调式 COMPUTE**：仅保留最新 `latestComputeId`，过期响应直接丢弃
 
 ### 7.2 postMessage 序列化（DataCloneError 修复）
 
 `postMessage` 使用结构化克隆算法，**不能传递**：
 
 - Vue `reactive` / `readonly` 代理对象
-- 函数、DOM 节点、含循环引用的对象
+- 函数、DOM 节点（结构化克隆本身支持循环引用，但下面的 JSON 解包路径不支持）
 
 处理方式：
 
@@ -299,18 +299,18 @@ await hostListWorker.mergeMetrics(metricListMap);
 const cloneWorkerPayload = <T>(value: T): T => JSON.parse(JSON.stringify(toRaw(value)));
 
 /** 拓扑节点只传过滤所需三字段，避免克隆整棵 children 子树 */
-const serializeTopoNodeForWorker = (node) => ({
+const serializeTopoNodeForWorker = node => ({
   id: node.id,
   bk_obj_id: node.bk_obj_id,
   bk_host_id: node.bk_host_id,
 });
 ```
 
-所有 `postRequest` 走 `cloneWorkerPayload`；`COMPUTE` 的 `params` 走 `serializeComputeParams`。
+普通请求走 `cloneWorkerPayload`，`COMPUTE` 的 `params` 走 `serializeComputeParams`。`INIT_BASE` / `MERGE_METRICS` 仅接收纯 HTTP JSON 数据，直接 `postMessage`，避免结构化克隆之前额外进行一轮 JSON 序列化和解析；不能把 Vue 响应式对象传入这两个入口。
 
 ### 7.3 生命周期
 
-`onScopeDispose` 时 `worker.terminate()`，清空 pending 请求，避免组件卸载后仍回写状态。
+Worker 出错时销毁实例并拒绝 pending 请求，重试时允许创建新实例；控制器重新初始化其数据。`onScopeDispose` 时销毁 Worker、拒绝 pending 请求，并阻止延迟计算在卸载后重建实例。
 
 ---
 
@@ -318,16 +318,16 @@ const serializeTopoNodeForWorker = (node) => ({
 
 与 `host-list-core.ts` 对齐，核心函数：
 
-| 函数 | 作用 |
-| --- | --- |
-| `createHostListRow` | 派生 `bkClusters` / `clusterNames` / `rowId` / `totalAlarmCount` 等 |
-| `matchTopoNode` | 拓扑节点范围过滤 |
-| `matchQuickCategory` | 快捷卡片（告警 / CPU / 内存 / 磁盘） |
-| `matchWhere` | retrieval-filter where 条件 |
-| `matchKeyword` | 关键字模糊搜索 |
-| `sortRows` | tdesign 排序字符串 |
-| `buildFilterOptionsMap` | 全量候选项 Map |
-| `computeCategoryStats` | 快捷卡片命中数 |
+| 函数                    | 作用                                                                |
+| ----------------------- | ------------------------------------------------------------------- |
+| `createHostListRow`     | 派生 `bkClusters` / `clusterNames` / `rowId` / `totalAlarmCount` 等 |
+| `matchTopoNode`         | 拓扑节点范围过滤                                                    |
+| `matchQuickCategory`    | 快捷卡片（告警 / CPU / 内存 / 磁盘）                                |
+| `matchWhere`            | retrieval-filter where 条件                                         |
+| `matchKeyword`          | 关键字模糊搜索                                                      |
+| `sortRows`              | tdesign 排序字符串                                                  |
+| `buildFilterOptionsMap` | 全量候选项 Map                                                      |
+| `computeCategoryStats`  | 快捷卡片命中数                                                      |
 
 内联常量（与 `constants/host-list.ts` 保持一致）：
 
@@ -372,19 +372,19 @@ Failed to execute 'postMessage' on 'Worker': #<Object> could not be cloned.
 
 ### 10.1 收益
 
-| 维度 | 效果 |
-| --- | --- |
-| 主线程 CPU | 过滤 / 排序 / 行转换不阻塞 UI |
+| 维度       | 效果                                |
+| ---------- | ----------------------------------- |
+| 主线程 CPU | 过滤 / 排序 / 行转换不阻塞 UI       |
 | 主线程内存 | 仅 ~50 条 `pagedRows`，不持有百万行 |
-| 交互响应 | 过滤防抖 150ms，减少 Worker 排队 |
+| 交互响应   | 过滤防抖 150ms，减少 Worker 排队    |
 
 ### 10.2 仍在主线程的开销
 
-| 环节 | 说明 |
-| --- | --- |
-| API JSON 解析 | fetch 层，与 Worker 无关 |
-| `postMessage` 拷贝 | 传入 `baseList` / `metricListMap` 时有一次结构化克隆 |
-| Worker 内存 | 全量数据在 Worker 线程独立堆中，不减轻总内存，只减轻主线程压力 |
+| 环节                 | 说明                                                             |
+| -------------------- | ---------------------------------------------------------------- |
+| API JSON 解析        | fetch 层，与 Worker 无关                                         |
+| `postMessage` 拷贝   | 传入 `baseList` / `metricListMap` 时有一次结构化克隆             |
+| Worker 内存          | 全量数据在 Worker 线程独立堆中，不减轻总内存，只减轻主线程压力   |
 | 百万级 `bk_host_ids` | 指标接口一次传全量 ID 仍可能超时，需后端分批（未在本方案 scope） |
 
 ### 10.3 后续可优化方向
@@ -431,9 +431,9 @@ webpack.config.js             # 已有 ?raw rule，无需重复配置
 
 ## 12. 相关代码入口
 
-| 场景 | 入口 |
-| --- | --- |
-| 页面挂载加载数据 | `host-list.tsx` → `onMounted` → `ctx.loadData()` |
-| Worker 创建 | `use-host-list-worker.ts` → `createBlobWorker()` |
-| 过滤触发计算 | `use-host-list.ts` → `watch` → `refreshList()` |
-| 表格渲染 | `host-list-table.tsx` → `props.data` = `pagedRows` |
+| 场景             | 入口                                               |
+| ---------------- | -------------------------------------------------- |
+| 页面挂载加载数据 | `host-list.tsx` → `onMounted` → `ctx.loadData()`   |
+| Worker 创建      | `use-host-list-worker.ts` → `createBlobWorker()`   |
+| 过滤触发计算     | `use-host-list.ts` → `watch` → `refreshList()`     |
+| 表格渲染         | `host-list-table.tsx` → `props.data` = `pagedRows` |

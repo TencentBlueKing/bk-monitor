@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+from collections.abc import Iterable
 
 from django.conf import settings
 from django.utils.functional import cached_property
@@ -369,6 +370,30 @@ class TopoTree(TopoNode):
                 node = node._parent
             topo_link_dict[topo_link[0].id] = topo_link
         return topo_link_dict
+
+    @staticmethod
+    def module_links_from_raw(tree_data: dict, module_ids: Iterable[int | str]) -> dict[str, list[TopoNode]]:
+        """只为目标模块叶子构造自底向上的路径，不修改原始拓扑。"""
+        targets = {f"module|{module_id}" for module_id in module_ids}
+        if not targets:
+            return {}
+        links = {}
+        path = []
+
+        def visit(node):
+            path.append(node)
+            children = node.get("child", [])
+            if children:
+                for child in children:
+                    visit(child)
+            elif node.get("bk_obj_id") == "module" and f"module|{int(node['bk_inst_id'])}" in targets:
+                # 与完整树转换一致：重复叶子 ID 由最后出现的路径覆盖。
+                nodes = [TopoNode(**item) for item in reversed(path)]
+                links[nodes[0].id] = nodes
+            path.pop()
+
+        visit(tree_data)
+        return links
 
     @classmethod
     def get_all_nodes(cls, tree, nodes):

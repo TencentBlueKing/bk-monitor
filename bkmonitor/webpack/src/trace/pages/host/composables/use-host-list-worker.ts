@@ -56,6 +56,7 @@ type WorkerResponse =
       type: 'COMPUTE_DONE';
     }
   | { filterOptionsMap: Record<string, IValue[]>; rawRowCount: number; requestId: number; type: 'INIT_BASE_DONE' }
+  | { filterOptionsMap: Record<string, IValue[]>; requestId: number; type: 'GET_FILTER_OPTIONS_MAP_DONE' }
   | { filterOptionsMap: Record<string, IValue[]>; requestId: number; type: 'MERGE_METRICS_DONE' }
   | { ips: string[]; requestId: number; type: 'GET_SELECTED_IPS_DONE' }
   | { requestId: number; result: { count: number; list: IValue[] }; type: 'GET_FILTER_OPTIONS_DONE' }
@@ -90,14 +91,15 @@ const serializeComputeParams = (params: IHostListComputeParams) => ({
 });
 
 /** 通过 Blob URL 创建 Worker，避免微前端 / webpack worker chunk 的跨域与 publicPath 问题 */
-const createBlobWorker = (): Worker => {
+const createBlobWorker = (): { instance: Worker; url: string } => {
   const blob = new Blob([workerSource], { type: 'application/javascript' });
   const url = URL.createObjectURL(blob);
-  const instance = new Worker(url);
-  instance.addEventListener('error', () => {
+  try {
+    return { instance: new Worker(url), url };
+  } catch (error) {
     URL.revokeObjectURL(url);
-  });
-  return instance;
+    throw error;
+  }
 };
 
 /**
@@ -106,17 +108,34 @@ const createBlobWorker = (): Worker => {
  */
 export const useHostListWorker = () => {
   const worker = shallowRef<null | Worker>(null);
+  let workerUrl: null | string = null;
+  let disposed = false;
   let requestSeq = 0;
   let latestComputeId = 0;
   const pendingRequests = new Map<number, { reject: (reason?: unknown) => void; resolve: (value: unknown) => void }>();
 
+  const terminateWorker = () => {
+    worker.value?.terminate();
+    worker.value = null;
+    if (workerUrl) URL.revokeObjectURL(workerUrl);
+    workerUrl = null;
+  };
+
   const ensureWorker = () => {
+    if (disposed) throw new Error('Host list worker disposed');
     if (worker.value) {
       return worker.value;
     }
-    const instance = createBlobWorker();
+    const { instance, url } = createBlobWorker();
+    workerUrl = url;
     instance.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const data = event.data;
+      const pending = pendingRequests.get(data.requestId);
+      if (pending) {
+        pendingRequests.delete(data.requestId);
+        pending.resolve(data);
+        return;
+      }
       if (data.type === 'COMPUTE_DONE') {
         if (data.requestId !== latestComputeId) {
           return;
@@ -124,14 +143,9 @@ export const useHostListWorker = () => {
         onComputeDone?.(data);
         return;
       }
-      const pending = pendingRequests.get(data.requestId);
-      if (!pending) {
-        return;
-      }
-      pendingRequests.delete(data.requestId);
-      pending.resolve(data);
     };
     instance.onerror = error => {
+      terminateWorker();
       for (const { reject } of pendingRequests.values()) {
         reject(error);
       }
@@ -141,12 +155,13 @@ export const useHostListWorker = () => {
     return instance;
   };
 
-  const postRequest = <T extends WorkerResponse>(payload: Record<string, unknown>): Promise<T> => {
+  const postRequest = <T extends WorkerResponse>(payload: Record<string, unknown>, clonePayload = true): Promise<T> => {
     const requestId = ++requestSeq;
     return new Promise((resolve, reject) => {
       pendingRequests.set(requestId, { resolve: resolve as (value: unknown) => void, reject });
       try {
-        ensureWorker().postMessage(cloneWorkerPayload({ ...payload, requestId }));
+        const message = { ...payload, requestId };
+        ensureWorker().postMessage(clonePayload ? cloneWorkerPayload(message) : message);
       } catch (error) {
         pendingRequests.delete(requestId);
         reject(error);
@@ -161,18 +176,24 @@ export const useHostListWorker = () => {
   };
 
   const initBaseData = (baseList: IHostBaseInfo[]) =>
-    postRequest<Extract<WorkerResponse, { type: 'INIT_BASE_DONE' }>>({
-      baseList,
-      type: 'INIT_BASE',
-    });
+    // HTTP JSON 响应直接结构化克隆，不再为全量数据额外执行 JSON 往返。
+    postRequest<Extract<WorkerResponse, { type: 'INIT_BASE_DONE' }>>({ baseList, type: 'INIT_BASE' }, false);
 
   const mergeMetrics = (metricListMap: Record<string, IHostMetricInfo>) =>
-    postRequest<Extract<WorkerResponse, { type: 'MERGE_METRICS_DONE' }>>({
-      metricListMap,
-      type: 'MERGE_METRICS',
-    });
+    postRequest<Extract<WorkerResponse, { type: 'MERGE_METRICS_DONE' }>>(
+      { metricListMap, type: 'MERGE_METRICS' },
+      false
+    );
+
+  /** 调用方按自己的数据与视图代次接替结果，计算异常通过 Promise 传播。 */
+  const compute = (params: IHostListComputeParams) =>
+    postRequest<Extract<WorkerResponse, { type: 'COMPUTE_DONE' }>>(
+      { params: serializeComputeParams(params), type: 'COMPUTE' },
+      false
+    );
 
   const computeNow = (params: IHostListComputeParams) => {
+    if (disposed) return;
     latestComputeId = ++requestSeq;
     ensureWorker().postMessage({
       params: serializeComputeParams(params),
@@ -218,12 +239,16 @@ export const useHostListWorker = () => {
     });
 
   onScopeDispose(() => {
-    worker.value?.terminate();
-    worker.value = null;
+    disposed = true;
+    terminateWorker();
+    for (const { reject } of pendingRequests.values()) {
+      reject(new Error('Host list worker disposed'));
+    }
     pendingRequests.clear();
   });
 
   return {
+    compute,
     computeNow,
     getFilterOptions,
     getFilteredRowKeys,

@@ -12,7 +12,7 @@ import copy
 import logging
 import typing
 import uuid
-from collections import defaultdict
+from collections import Counter, defaultdict
 from multiprocessing.pool import ApplyResult
 from typing import Any
 
@@ -97,11 +97,12 @@ def _host_from_raw(record, bk_biz_id):
     return host
 
 
-def _host_full_cloud(host, clouds=None):
+def _host_full_cloud(host, clouds=None, *, cloud_id_to_name=None):
     # 获取云区域信息
-    if clouds is None:
-        clouds = api.cmdb.search_cloud_area()
-    cloud_id_to_name = {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
+    if cloud_id_to_name is None:
+        if clouds is None:
+            clouds = api.cmdb.search_cloud_area()
+        cloud_id_to_name = {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
     host["bk_cloud_name"] = cloud_id_to_name.get(host["bk_cloud_id"], "")
     return host
 
@@ -323,6 +324,89 @@ class GetHostByTopoNode(CacheResource):
         return [Host(host) for host in hosts]
 
 
+class GetHostPage(Resource):
+    """在 CMDB 端过滤和分页，仅实例化本页主机。"""
+
+    class RequestSerializer(HostRequestSerializer):
+        bk_biz_id = serializers.IntegerField()
+        bk_host_id = serializers.IntegerField(required=False)
+        topo_nodes = serializers.DictField(child=serializers.ListField(), required=False)
+        page = serializers.IntegerField(min_value=1)
+        page_size = serializers.IntegerField(min_value=1, max_value=500)
+
+    def perform_request(self, params):
+        request_params = {
+            "bk_biz_id": params["bk_biz_id"],
+            "fields": params["fields"],
+            # CMDB 的默认顺序也是 bk_host_id；与原 batch_request 的分页顺序一致。
+            "page": {"start": (params["page"] - 1) * params["page_size"], "limit": params["page_size"]},
+            "host_property_filter": {
+                "condition": "AND",
+                "rules": [
+                    {
+                        "condition": "OR",
+                        "rules": [
+                            # CMDB contains 编译为正则；与 split_inner_host 一样要求
+                            # 至少有一个非逗号字符，同时排除 null/缺失/空字符串。
+                            {"field": "bk_host_innerip", "operator": "contains", "value": "[^,]"},
+                            {"field": "bk_host_innerip_v6", "operator": "contains", "value": "[^,]"},
+                        ],
+                    }
+                ],
+            },
+        }
+        if params.get("bk_host_id") is not None:
+            request_params["host_property_filter"]["rules"].append(
+                {"field": "bk_host_id", "operator": "equal", "value": params["bk_host_id"]}
+            )
+        if params.get("topo_nodes") and params["topo_nodes"] != {"biz": [params["bk_biz_id"]]}:
+            module_ids = _trans_topo_node_to_module_ids(params["bk_biz_id"], copy.deepcopy(params["topo_nodes"]))
+            if not module_ids:
+                return {"items": [], "total": 0}
+            request_params["module_property_filter"] = {
+                "condition": "AND",
+                "rules": [{"field": "bk_module_id", "operator": "in", "value": sorted(module_ids)}],
+            }
+        result = client.list_biz_hosts_topo(request_params)
+        clouds = api.cmdb.search_cloud_area() if result["info"] else []
+        cloud_id_to_name = {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
+        hosts = []
+        for record in result["info"]:
+            host = _host_from_raw(record, params["bk_biz_id"])
+            if host is not None:
+                hosts.append(Host(_host_full_cloud(host, cloud_id_to_name=cloud_id_to_name)))
+        return {"items": hosts, "total": result["count"]}
+
+
+class GetHostIdentities(Resource):
+    """复用业务主机缓存，提供统计所需的当前 CMDB 身份白名单。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField()
+        bk_host_id = serializers.IntegerField(required=False)
+        topo_nodes = serializers.DictField(child=serializers.ListField(), required=False)
+
+    def perform_request(self, params):
+        fields = ["bk_host_id", "bk_host_innerip", "bk_host_innerip_v6", "bk_cloud_id"]
+        # 与 cmdb_api_list 的预热位置参数完全一致；缓存命中后仍需解码并遍历全业务主机。
+        hosts = get_host_dict_by_biz(params["bk_biz_id"], Host.Fields)
+        ip_counts = Counter((host["bk_host_innerip"], int(host.get("bk_cloud_id") or 0)) for host in hosts)
+        if params.get("bk_host_id") is not None:
+            hosts = [host for host in hosts if host["bk_host_id"] == params["bk_host_id"]]
+        elif params.get("topo_nodes") and params["topo_nodes"] != {"biz": [params["bk_biz_id"]]}:
+            module_ids = _trans_topo_node_to_module_ids(params["bk_biz_id"], copy.deepcopy(params["topo_nodes"]))
+            hosts = [host for host in hosts if set(host["bk_module_ids"]) & module_ids]
+        return [
+            {
+                **{field: host.get(field) for field in fields},
+                # 全业务列表先映射身份再按节点过滤。重复 IP 跨节点时，局部集合
+                # 无法复现全量列表的后写覆盖，交给统计完整性检查处理。
+                "has_duplicate_ip": ip_counts[(host["bk_host_innerip"], int(host.get("bk_cloud_id") or 0))] > 1,
+            }
+            for host in hosts
+        ]
+
+
 class GetHostByIP(CacheResource):
     class RequestSerializer(HostRequestSerializer):
         class HostSerializer(serializers.Serializer):
@@ -461,9 +545,11 @@ class GetTopoTreeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        raw = serializers.BooleanField(default=False, label="仅返回原始拓扑")
 
     def perform_request(self, params):
-        return TopoTree(_get_topo_tree(params["bk_biz_id"]))
+        tree_data = _get_topo_tree(params["bk_biz_id"])
+        return tree_data if params.get("raw") else TopoTree(tree_data)
 
 
 class GetBusiness(Resource):
@@ -684,12 +770,18 @@ class GetProcess(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         bk_host_id = serializers.IntegerField(label="主机ID", required=False, allow_null=True)
+        bk_host_ids = serializers.ListField(label="主机ID列表", child=serializers.IntegerField(), required=False)
         include_multiple_bind_info = serializers.BooleanField(
             required=False, label="是否返回多个绑定信息", default=False
         )
 
     def perform_request(self, validated_request_data):
         include_multiple_bind_info = validated_request_data["include_multiple_bind_info"]
+        host_ids = validated_request_data.get("bk_host_ids")
+        if host_ids is not None:
+            host_ids = set(host_ids)
+            if not host_ids:
+                return []
         params = {
             "bk_biz_id": validated_request_data["bk_biz_id"],
         }
@@ -703,6 +795,8 @@ class GetProcess(Resource):
         for service_instances in response_data:
             process_instances = service_instances["process_instances"] or []
             for process_instance in process_instances:
+                if host_ids is not None and int(process_instance["relation"]["bk_host_id"]) not in host_ids:
+                    continue
                 process_params = {}
                 # process info
                 process_params.update(process_instance["process"])
