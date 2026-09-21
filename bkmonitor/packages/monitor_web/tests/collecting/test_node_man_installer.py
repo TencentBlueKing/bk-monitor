@@ -8,6 +8,7 @@ from monitor_web.collecting.deploy.node_man import NodeManInstaller
 class FakeDeploymentConfig:
     def __init__(self, subscription_id):
         self.subscription_id = subscription_id
+        self.nodeman_backend = "v2"
         self.task_ids = []
         self.save_called = 0
 
@@ -18,7 +19,8 @@ class FakeDeploymentConfig:
 class FakeCollectConfig:
     def __init__(self, subscription_id=123):
         self.bk_tenant_id = "tenant-a"
-        self.plugin = SimpleNamespace(plugin_type="Script")
+        self.plugin = SimpleNamespace(plugin_type="Script", nodeman_backend="v2")
+        self.deployment_config_id = 1
         self.deployment_config = FakeDeploymentConfig(subscription_id)
         self.operation_result = OperationResult.SUCCESS
         self.last_operation = OperationType.START

@@ -9,11 +9,12 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
-import logging
 import itertools
+import logging
 from collections import defaultdict
 from typing import Any, cast
 
+from bk_monitor_base.nodeman import CollectionStatistics, NodeManBackend, UnsupportedNodeManBackend
 from django.conf import settings
 from django.db import transaction
 from django.utils.translation import gettext as _
@@ -41,7 +42,6 @@ from monitor_web.plugin.manager.process import ProcessPluginManager
 
 from .base import BaseInstaller
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -51,11 +51,65 @@ class NodeManInstaller(BaseInstaller):
     """
 
     running_status = {OperationType.START: TaskStatus.STARTING, OperationType.STOP: TaskStatus.STOPPING}
+    backend = NodeManBackend.V2
 
     def __init__(self, collect_config: CollectConfigMeta, topo_tree: TopoTree = None):
         super().__init__(collect_config)
+        if self.plugin.nodeman_backend != self.backend or (
+            collect_config.deployment_config_id and collect_config.deployment_config.nodeman_backend != self.backend
+        ):
+            raise UnsupportedNodeManBackend("V2 安装器不能操作其他后端的插件或采集配置")
         self._topo_tree = topo_tree
         self._topo_links = None
+
+    @classmethod
+    def statistics(cls, configs: list[CollectConfigMeta]) -> dict[int, CollectionStatistics]:
+        """V2 统计映射为监控配置 ID；保留批量查询，并按租户隔离订阅 ID。"""
+        grouped = defaultdict(lambda: defaultdict(list))
+        for config in configs:
+            version = config.deployment_config
+            if version.nodeman_backend != cls.backend:
+                raise UnsupportedNodeManBackend("V2 统计不能读取其他后端的部署记录")
+            if version.subscription_id:
+                grouped[config.bk_tenant_id][version.subscription_id].append(config.pk)
+
+        result = {}
+        for tenant, subscriptions in grouped.items():
+            ids = list(subscriptions)
+            batches = api.node_man.fetch_subscription_statistic.bulk_request(
+                [
+                    {"bk_tenant_id": tenant, "subscription_id_list": ids[index : index + 20]}
+                    for index in range(0, len(ids), 20)
+                ],
+                ignore_exceptions=True,
+            )
+            for batch in batches:
+                for item in batch or []:
+                    counts = {entry["status"]: entry["count"] for entry in item.get("status", [])}
+                    statistics = CollectionStatistics(
+                        total=item.get("instances", 0),
+                        failed=counts.get(CollectStatus.FAILED, 0),
+                        pending=counts.get(CollectStatus.PENDING, 0),
+                        running=counts.get(CollectStatus.RUNNING, 0),
+                    )
+                    for config_id in subscriptions.get(item["subscription_id"], []):
+                        result[config_id] = statistics
+        return result
+
+    def is_task_ready(self) -> bool:
+        """只在 V2 实现内保留旧接口缺失时的兼容行为。"""
+        version = self.collect_config.deployment_config
+        if not version.subscription_id:
+            return True
+        try:
+            return api.node_man.check_task_ready(
+                bk_tenant_id=self.bk_tenant_id,
+                subscription_id=version.subscription_id,
+                task_id_list=version.task_ids,
+            )
+        except BKAPIError as exc:
+            logger.info("[is_task_ready] %s", exc)
+            return True
 
     @property
     def bk_tenant_id(self) -> str:
@@ -231,6 +285,8 @@ class NodeManInstaller(BaseInstaller):
         """
         部署插件采集
         """
+        if target_version.nodeman_backend != self.backend:
+            raise UnsupportedNodeManBackend("不能通过普通部署或回滚切换节点管理后端")
         if self.collect_config.deployment_config_id and self.collect_config.deployment_config_id != target_version.pk:
             last_version: DeploymentConfigVersion | None = self.collect_config.deployment_config
         else:
@@ -359,6 +415,7 @@ class NodeManInstaller(BaseInstaller):
 
         # 创建新的部署记录
         deployment_config_params = {
+            "nodeman_backend": self.backend,
             "plugin_version": release_version,
             "target_node_type": install_config["target_node_type"],
             "target_nodes": install_config["target_nodes"],
@@ -419,6 +476,7 @@ class NodeManInstaller(BaseInstaller):
         self._release_package(release_version)
 
         deployment_config_params = {
+            "nodeman_backend": self.backend,
             "plugin_version": release_version,
             "target_node_type": current_version.target_node_type,
             "target_nodes": current_version.target_nodes,

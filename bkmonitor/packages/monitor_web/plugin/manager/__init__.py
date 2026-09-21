@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -16,6 +15,7 @@ specific language governing permissions and limitations under the License.
 
 import os
 
+from bk_monitor_base.nodeman import NodeManBackend, UnsupportedNodeManBackend
 from django.utils.translation import gettext as _
 
 from bkmonitor.utils.user import get_global_user
@@ -65,10 +65,15 @@ FILE_PLUGINS_FACTORY = {
     CollectorPluginMeta.PluginType.SNMP: PluginFileManager,
 }
 
+# 插件类型与节点管理后端是两个维度，后续 V3 管理器在此注册，不改业务调用方。
+NODEMAN_PLUGIN_BACKENDS = {NodeManBackend.V2: SUPPORTED_PLUGINS}
 
-class PluginManagerFactory(object):
+
+class PluginManagerFactory:
     @classmethod
-    def get_manager(cls, bk_tenant_id=None, plugin=None, plugin_type=None, operator="", tmp_path=None, plugin_configs=None) -> PluginManager:
+    def get_manager(
+        cls, bk_tenant_id=None, plugin=None, plugin_type=None, operator="", tmp_path=None, plugin_configs=None
+    ) -> PluginManager:
         """
         根据插件ID和插件类型获取对应的插件管理对象
         :param plugin: CollectorPluginMeta对象或id
@@ -78,7 +83,7 @@ class PluginManagerFactory(object):
         :rtype: PluginManager
         """
         if (tmp_path and not os.path.exists(tmp_path)) and not plugin_configs:
-            raise IOError(_("文件夹不存在：%s ，或指标插件配置不存在：plugin_configs") % tmp_path)
+            raise OSError(_("文件夹不存在：%s ，或指标插件配置不存在：plugin_configs") % tmp_path)
 
         if not isinstance(plugin, CollectorPluginMeta):
             if not bk_tenant_id:
@@ -92,8 +97,14 @@ class PluginManagerFactory(object):
 
         plugin_type = plugin.plugin_type
         if plugin_type not in SUPPORTED_PLUGINS:
-            raise KeyError("Unsupported plugin type: %s" % plugin_type)
-        plugin_manager_cls = SUPPORTED_PLUGINS[plugin_type]
+            raise KeyError(f"Unsupported plugin type: {plugin_type}")
+        if plugin_type == CollectorPluginMeta.PluginType.K8S:
+            plugin_manager_cls = SUPPORTED_PLUGINS[plugin_type]
+        else:
+            try:
+                plugin_manager_cls = NODEMAN_PLUGIN_BACKENDS[plugin.nodeman_backend][plugin_type]
+            except KeyError:
+                raise UnsupportedNodeManBackend(f"插件管理后端尚未支持: {plugin.nodeman_backend}") from None
 
         if not operator:
             operator = get_global_user()
@@ -101,7 +112,7 @@ class PluginManagerFactory(object):
         return plugin_manager_cls(plugin, operator, tmp_path, plugin_configs)
 
 
-class PluginFileManagerFactory(object):
+class PluginFileManagerFactory:
     @classmethod
     def get_manager(cls, plugin_type=None):
         """

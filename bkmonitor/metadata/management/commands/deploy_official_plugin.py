@@ -13,6 +13,7 @@ from django.core.management import BaseCommand
 
 from bkmonitor.models import GlobalConfig
 from bkmonitor.utils.common_utils import split_list
+from bkmonitor.utils.nodeman import official_plugins
 from core.drf_resource import api
 
 
@@ -95,17 +96,12 @@ class Command(BaseCommand):
         except Exception:  # noqa
             self.stderr.write("Get host info from CMDB error")
         else:
-            params = dict(
-                plugin_params={"name": plugin_name, "version": plugin_version},
-                job_type="MAIN_INSTALL_PLUGIN",
-                bk_host_id=bk_host_ids,
-            )
             try:
-                result = api.node_man.plugin_operate(**params)
-                message = f"update plugin success with result({result}), Please see detail in bk_nodeman SaaS"
+                result = official_plugins.install(name=plugin_name, version=plugin_version, host_ids=bk_host_ids)
+                message = f"plugin operation submitted with result({result}), Please see detail in bk_nodeman SaaS"
                 self.stdout.write(message)
             except Exception as e:  # noqa
-                raise Exception(f"update plugin error:{e}, params:{params}")
+                raise Exception(f"update plugin error:{e}")
 
     def deploy_1_3(self, bk_biz_id, plugin_name, plugin_version, target_hosts):
         print("deploy with nodeman1.3")

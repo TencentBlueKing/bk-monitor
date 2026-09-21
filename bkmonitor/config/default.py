@@ -1277,6 +1277,9 @@ BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
+# NodeMan 共存部署：上面的地址继续指向 V2；本地址为 V3 提供 V2 兼容协议的 APIGW 入口。
+# 仅供 Host/Proxy 查询及官方插件控制使用，留空保持原部署；不是 V3 原生 Backend 地址。
+BKNODEMAN_CONTROL_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_CONTROL_API_BASE_URL", "")
 BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")

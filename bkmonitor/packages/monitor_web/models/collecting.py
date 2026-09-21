@@ -10,8 +10,8 @@ specific language governing permissions and limitations under the License.
 
 from typing import TYPE_CHECKING, Optional
 
-from django.db import models
 from django.conf import settings
+from django.db import models
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
@@ -314,6 +314,7 @@ class DeploymentConfigVersion(OperateRecordModelBase):
     parent_id = models.IntegerField("父配置ID", default=None, null=True)
     config_meta_id = models.IntegerField("所属采集配置ID")
     subscription_id = models.IntegerField("节点管理订阅ID", default=0)
+    nodeman_backend = models.CharField("节点管理后端", max_length=16, default="v2")
 
     target_node_type = models.CharField("采集目标类型", max_length=32, choices=TARGET_NODE_TYPE_CHOICES)
 

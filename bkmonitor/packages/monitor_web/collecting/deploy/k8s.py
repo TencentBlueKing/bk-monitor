@@ -104,6 +104,15 @@ spec:
 
 
 class K8sInstaller(BaseInstaller):
+    @classmethod
+    def statistics(cls, configs):
+        """K8s 沿用调用方的实例状态统计，不查询节点管理。"""
+        return {}
+
+    def is_task_ready(self) -> bool:
+        """K8s 不存在节点管理任务初始化阶段。"""
+        return True
+
     """
     k8s安装器
 
