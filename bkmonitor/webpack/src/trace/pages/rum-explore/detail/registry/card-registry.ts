@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { RUM_OUTCOME_TYPE_MAP } from '../../constants';
+// import { OUTCOME_TYPE_TONE_MAP, RUM_OUTCOME_TYPE_MAP } from '../../constants';
 import { formatUnitValueParts } from '../../utils';
 import { RumCardToneEnum, RumRatingEnum } from '../typings';
 
@@ -156,7 +156,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
    */
   'key_info.http_result': (data, ctx) => {
     const statusCode = data['attributes.http.response.status_code'];
-    const outcome = String(data['attributes.outcome.type'] ?? '');
+    // const outcome = String(data['attributes.outcome.type'] ?? '');
     const isSuccess = Number(statusCode) >= 200 && Number(statusCode) < 400;
     const tone = isSuccess ? RumCardToneEnum.SUCCESS : RumCardToneEnum.DANGER;
     const statusDesc = `HTTP ${text(statusCode)} · ${isSuccess ? 'OK' : t('失败')} · ${
@@ -172,7 +172,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
         },
       ];
     }
-    const outcomeMeta = RUM_OUTCOME_TYPE_MAP[outcome];
+    // const outcomeMeta = RUM_OUTCOME_TYPE_MAP[outcome];
     return [
       {
         label: t('HTTP 状态'),
@@ -180,12 +180,12 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
         tone,
         footer: [{ text: statusDesc.replace(`HTTP ${text(statusCode)} · `, '') }],
       },
-      {
-        label: t('业务结果'),
-        value: outcomeMeta ? ctx.formatField('attributes.outcome.type', outcome) || outcomeMeta.label : t('未采集'),
-        tone: outcomeMeta ? RumCardToneEnum.DEFAULT : RumCardToneEnum.WARNING,
-        footer: [{ text: t('业务码、状态与消息均未上报') }],
-      },
+      // {
+      //   label: t('业务结果'),
+      //   value: outcomeMeta ? ctx.formatField('attributes.outcome.type', outcome) || outcomeMeta.label : t('未采集'),
+      //   tone: outcomeMeta ? OUTCOME_TYPE_TONE_MAP[outcome] : RumCardToneEnum.WARNING,
+      //   footer: [{ text: t('业务码、状态与消息均未上报') }],
+      // },
     ];
   },
 

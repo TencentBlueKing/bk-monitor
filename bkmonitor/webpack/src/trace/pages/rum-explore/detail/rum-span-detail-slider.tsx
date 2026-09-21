@@ -26,7 +26,7 @@
 import { computed, defineComponent, shallowRef, toRef } from 'vue';
 import type { PropType } from 'vue';
 
-import { Exception, Sideslider } from 'bkui-vue';
+import { Alert, Button, Exception, Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import DetailHeader from './components/detail-header/detail-header';
@@ -83,7 +83,6 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-
     const activeTab = shallowRef<string>(RumDetailTabEnum.BASIC);
     const spanType = computed(() => props.context?.span_type || '');
     const isFullscreen = shallowRef(false);
@@ -93,7 +92,7 @@ export default defineComponent({
       end_time: props.context?.end_time ?? 0,
     }));
 
-    const { detail, related, loading, relatedLoading } = useSpanDetail({
+    const { detail, related, loading, relatedLoading, traceInfo } = useSpanDetail({
       context: toRef(props, 'context'),
       mode: toRef(props, 'mode'),
       timeRange,
@@ -105,8 +104,24 @@ export default defineComponent({
     const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading);
     const { blocks, eventKeyword } = useOriginData(originData);
 
+    const isXhrOrFetch = computed(() => {
+      const spanType = detail.value?.overview.items.find(item => item.field_name === 'display.span_type')?.value;
+      return ['Resource(fetch)', 'Resource(xhr)'].includes(spanType as string);
+    });
+
     /** 标题栏展示的 span_id，优先取接口回传值 */
     const spanId = computed(() => detail.value?.span_id || props.context?.record_id || '');
+
+    const handleJumpTrace = () => {
+      if (traceInfo.value) {
+        window.open(
+          location.href.replace(
+            location.hash,
+            `#/trace/home?app_name=${traceInfo.value.app_name}&trace_id=${traceInfo.value.trace_id}&sceneMode=trace&filterMode=ui`
+          )
+        );
+      }
+    };
 
     function renderTitle() {
       return (
@@ -190,6 +205,29 @@ export default defineComponent({
           />
           {renderTabs()}
           <div class='rum-detail-card'>
+            {isXhrOrFetch.value ? (
+              <Alert
+                class='related-trace-alert'
+                v-slots={{
+                  title: () => (
+                    <div>
+                      <span>{t('已有关联 Trace：')}</span>
+                      <span>{originData.value.trace_id || '--'}，</span>
+                      <Button
+                        class='jump-btn'
+                        theme='primary'
+                        text
+                        onClick={handleJumpTrace}
+                      >
+                        {t('查看 Trace 详情')}
+                        <i class='icon-monitor icon-fenxiang' />
+                      </Button>
+                    </div>
+                  ),
+                }}
+                theme='info'
+              />
+            ) : null}
             <DetailSections sections={sectionVMs.value} />
             <OriginDataPanel
               blocks={blocks.value}
