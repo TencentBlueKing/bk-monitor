@@ -7,8 +7,10 @@ import json
 from typing import Any
 
 from apm_web.llm.constants import STANDARD_FIELDS
+from constants.apm import LLMProduct
 
 from . import adapter_default
+from .fields import OPERATION_NAME_ALIASES
 from .utils import (
     first,
     indexed,
@@ -23,12 +25,6 @@ from .utils import (
     tool_response_part,
 )
 
-REQUEST_OPERATIONS = {
-    "chat": "chat",
-    "completion": "text_completion",
-    "embedding": "embeddings",
-    "rerank": "retrieval",
-}
 ROLE_MAP = {
     "human": "user",
     "humanmessage": "user",
@@ -160,7 +156,7 @@ def operation(span: dict[str, Any]) -> str | None:
 
     request_type = str(attrs.get("llm.request.type", "")).lower()
     if request_type:
-        return REQUEST_OPERATIONS.get(request_type, request_type)
+        return OPERATION_NAME_ALIASES[LLMProduct.AIDEV.value].get(request_type, request_type)
 
     span_name = str(span.get("span_name", ""))
     traceloop_kind = str(attrs.get("traceloop.span.kind", "")).lower()

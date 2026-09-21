@@ -5,6 +5,9 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from constants.apm import LLMProduct
+
+from .fields import OPERATION_NAME_ALIASES
 from .utils import (
     CONTENT_FIELDS,
     first,
@@ -18,14 +21,6 @@ from .utils import (
     tool_response_part,
 )
 from ..constants import STANDARD_FIELDS
-
-OPERATION_MAPPING = {
-    "agent": "invoke_agent",
-    "chain": "invoke_workflow",
-    "embedding": "embeddings",
-    "retriever": "retrieval",
-    "tool": "execute_tool",
-}
 
 ALIASES = {
     "gen_ai.conversation.id": "session.id",
@@ -264,9 +259,12 @@ def convert(raw: list[dict[str, Any]]) -> list[dict[str, Any]]:
         }
         attributes.update(standard_content(attrs))
         observation_type = str(attrs.get("langfuse.observation.type", "")).lower()
-        operation = OPERATION_MAPPING.get(observation_type)
-        if observation_type == "span" and attrs.get("langfuse.internal.is_app_root") is True:
-            operation = "invoke_agent"
+        operation: str | None = OPERATION_NAME_ALIASES[LLMProduct.LANGFUSE.value].get(observation_type)
+        # generation 由消息结构细分；普通 span 只有应用根节点才归为 Agent。
+        if observation_type == "generation" or (
+            observation_type == "span" and attrs.get("langfuse.internal.is_app_root") is not True
+        ):
+            operation = None
         put(attributes, "gen_ai.operation.name", operation)
         for target, source_key in ALIASES.items():
             put(attributes, target, attrs.get(source_key))
