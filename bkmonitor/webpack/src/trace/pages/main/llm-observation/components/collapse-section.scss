@@ -7,9 +7,12 @@
   @include flex-column;
 
   &-header {
+    position: sticky;
+    top: var(--llm-section-sticky-top, 90px);
+    z-index: 3;
     flex-shrink: 0;
     justify-content: space-between;
-    height: 32px;
+    height: var(--llm-section-header-height, 32px);
     padding: 0 12px;
     cursor: pointer;
     background: #e4e9f2;
