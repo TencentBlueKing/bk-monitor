@@ -40,16 +40,14 @@ def build_host_stats_query(bk_biz_id, category, hosts):
             ("b", {"targets": targets}, [{"key": "bk_host_id", "method": "eq", "value": [""]}]),
         )
     ]
-    # 列表按三元身份聚合后再映射至 CMDB；NaN 与列表一样不计为异常。
-    by_id = "(a == a)"
+    # 列表按三元身份聚合后再映射至 CMDB；阈值比较本身会排除 NaN。
     raw_by_ip = (
         'label_replace(label_replace(b, "raw_cloud", "$1", "bk_target_cloud_id", "(.*)"), '
         '"bk_target_cloud_id", "0", "bk_target_cloud_id", "^$")'
     )
-    by_ip = f"({raw_by_ip} == {raw_by_ip})"
     # ratio=1 的百分比：79.995 是使 Python round(value, 2) >= 80 的最小 float64。
     # 前一个相邻浮点数 round 后是 79.99，避免 PromQL round 的中点规则差异。
-    counts = f"(count({by_id} >= 79.995) or vector(0)) + (count({by_ip} >= 79.995) or vector(0))"
+    counts = f"(count(a >= 79.995) or vector(0)) + (count({raw_by_ip} >= 79.995) or vector(0))"
     duplicates = (
         "(count(count by (bk_host_id) (a) > 1) or vector(0)) + "
         f"(count(count by (bk_target_ip, bk_target_cloud_id) ({raw_by_ip}) > 1) or vector(0))"

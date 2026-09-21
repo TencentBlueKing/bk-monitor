@@ -1,4 +1,5 @@
 import math
+import re
 from types import SimpleNamespace
 
 import pytest
@@ -42,6 +43,12 @@ def test_stats_query_preserves_metrics_and_exact_cmdb_identity_whitelist(mocker,
     assert "79.995" in expression
     assert "count by (bk_host_id)" in expression
     assert "count by (bk_target_ip, bk_target_cloud_id)" in expression
+    assert "==" not in expression
+    # 阈值直接排除 NaN；身份计数及重复身份检查仍读取未过滤的 a/b。
+    assert "count(a) or vector(0)" in expression
+    assert "count(b) or vector(0)" in expression
+    assert len(re.findall(r"\ba\b", expression)) == 3
+    assert len(re.findall(r"\bb\b", expression)) == 3
 
 
 @pytest.mark.parametrize(

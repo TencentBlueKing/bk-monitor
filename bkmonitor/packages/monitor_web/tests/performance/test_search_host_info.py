@@ -1,4 +1,6 @@
 import threading
+from copy import deepcopy
+from types import SimpleNamespace
 
 import pytest
 
@@ -112,7 +114,73 @@ def test_search_host_info_page_resolves_related_space_before_cmdb(mocker):
     SearchHostInfoResource().request({"bk_biz_id": -100, "page": 1, "page_size": 50})
     validate.assert_called_once_with(-100)
     get_page.assert_called_once_with(bk_biz_id=2, page=1, page_size=50)
-    get_tree.assert_called_once_with(bk_biz_id=2)
+    get_tree.assert_called_once_with(bk_biz_id=2, raw=True)
+
+
+def test_host_page_keeps_host_and_raw_topology_queries_concurrent(mocker):
+    barrier = threading.Barrier(2)
+    overlapped = []
+
+    def get_page(**_kwargs):
+        barrier.wait(timeout=1)
+        overlapped.append("hosts")
+        return {"items": [], "total": 0}
+
+    def get_tree(**kwargs):
+        assert kwargs == {"bk_biz_id": 2, "raw": True}
+        barrier.wait(timeout=1)
+        overlapped.append("topology")
+        return {"bk_obj_id": "biz", "bk_inst_id": 2, "child": []}
+
+    mocker.patch("monitor_web.performance.resources.api.cmdb.get_host_page", side_effect=get_page)
+    mocker.patch("monitor_web.performance.resources.api.cmdb.get_topo_tree", side_effect=get_tree)
+    result = SearchHostInfoResource().perform_request({"bk_biz_id": 2, "page": 1, "page_size": 50})
+    assert result["items"] == []
+    assert set(overlapped) == {"hosts", "topology"}
+
+
+def test_nonempty_page_matches_full_list_and_only_requests_its_modules(mocker):
+    from api.cmdb.define import TopoTree
+
+    raw_tree = {
+        "bk_obj_id": "biz",
+        "bk_inst_id": 2,
+        "child": [{"bk_obj_id": "module", "bk_inst_id": i, "bk_inst_name": str(i)} for i in [8, 9, 10]],
+    }
+    original = deepcopy(raw_tree)
+    host = SimpleNamespace(
+        **{
+            key: ""
+            for key in [
+                "display_name",
+                "bk_cloud_name",
+                "bk_host_innerip",
+                "bk_host_outerip",
+                "bk_os_type",
+                "bk_os_name",
+                "bk_province_name",
+                "bk_host_name",
+                "ignore_monitoring",
+                "is_shielding",
+            ]
+        },
+        bk_host_id=1,
+        bk_biz_id=2,
+        bk_cloud_id=0,
+        bk_module_ids=["9", 8, "9"],
+    )
+    mocker.patch("monitor_web.performance.resources.api.cmdb.get_host_by_topo_node", return_value=[host])
+    mocker.patch("monitor_web.performance.resources.api.cmdb.get_host_page", return_value={"items": [host], "total": 1})
+    mocker.patch(
+        "monitor_web.performance.resources.api.cmdb.get_topo_tree", side_effect=[TopoTree(deepcopy(raw_tree)), raw_tree]
+    )
+    baseline = SearchHostInfoResource().perform_request({"bk_biz_id": 2})
+    paths = mocker.spy(TopoTree, "module_links_from_raw")
+    actual = SearchHostInfoResource().perform_request({"bk_biz_id": 2, "page": 1, "page_size": 50})
+    paths.assert_called_once_with(raw_tree, {8, "9"})
+    assert actual["items"] == baseline
+    assert [module["bk_inst_id"] for module in actual["items"][0]["module"]] == [9, 8, 9]
+    assert raw_tree == original
 
 
 @pytest.mark.parametrize("page,page_size", [(0, 50), (1, 0), (1, 501)])

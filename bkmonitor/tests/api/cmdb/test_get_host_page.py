@@ -66,12 +66,35 @@ def test_host_identities_use_current_cmdb_scope_without_constructing_hosts(mocke
         {"bk_host_id": 2, "bk_host_innerip": "host-b", "bk_cloud_id": 0, "bk_module_ids": [9]},
     ]
     get_raw = mocker.patch.object(cmdb, "get_host_dict_by_biz", return_value=hosts)
+    warmed_fields = cmdb.Host.Fields
     build_host = mocker.patch.object(cmdb, "Host")
+    build_host.Fields = warmed_fields
     mocker.patch.object(cmdb, "_trans_topo_node_to_module_ids", return_value={8})
     result = cmdb.GetHostIdentities().perform_request({"bk_biz_id": 2, "topo_nodes": {"module": [8]}})
     assert [host["bk_host_id"] for host in result] == [1]
-    assert get_raw.call_args.args[1] == ["bk_host_id", "bk_host_innerip", "bk_host_innerip_v6", "bk_cloud_id"]
+    # cmdb_api_list 预热使用 (bk_biz_id, Host.Fields) 位置参数，字段或调用方式变化都会另建缓存键。
+    get_raw.assert_called_once_with(2, warmed_fields)
     build_host.assert_not_called()
+
+
+def test_host_page_builds_cloud_mapping_once_and_keeps_legacy_helper(mocker):
+    class Clouds(list):
+        iterations = 0
+
+        def __iter__(self):
+            self.iterations += 1
+            return super().__iter__()
+
+    clouds = Clouds([{"bk_cloud_id": 0, "bk_cloud_name": "cloud-a"}])
+    records = [host_record(host_id) for host_id in range(50)]
+    mocker.patch.object(cmdb.client, "list_biz_hosts_topo", return_value={"info": records, "count": 20000})
+    mocker.patch.object(cmdb.api.cmdb, "search_cloud_area", return_value=clouds)
+    mocker.patch.object(cmdb, "Host", side_effect=lambda value: value)
+    result = cmdb.GetHostPage().perform_request({"bk_biz_id": 2, "fields": [], "page": 1, "page_size": 50})
+    assert clouds.iterations == 1
+    assert all(host["bk_cloud_name"] == "cloud-a" for host in result["items"])
+    assert cmdb._host_full_cloud({"bk_cloud_id": 0}, clouds)["bk_cloud_name"] == "cloud-a"
+    assert cmdb._host_full_cloud({"bk_cloud_id": 9}, clouds)["bk_cloud_name"] == ""
 
 
 @pytest.mark.parametrize("address", [None, "", ",", ",,", "host-a", ",host-a,host-b", "host-v6"])

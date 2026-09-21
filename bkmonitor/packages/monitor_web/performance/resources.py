@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
-from api.cmdb.define import Host, TopoNode
+from api.cmdb.define import Host, TopoNode, TopoTree
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import time_tools
@@ -390,11 +390,14 @@ class SearchHostInfoResource(ApiAuthResource):
 
         pool = ThreadPool(2)
         hosts_future = pool.apply_async(get_hosts)
-        topo_future = pool.apply_async(api.cmdb.get_topo_tree, kwds={"bk_biz_id": params["bk_biz_id"]})
+        topo_params = {"bk_biz_id": params["bk_biz_id"]}
+        if "page" in params:
+            topo_params["raw"] = True
+        topo_future = pool.apply_async(api.cmdb.get_topo_tree, kwds=topo_params)
         pool.close()
         try:
             hosts = hosts_future.get()
-            topo_links: dict[str, list[TopoNode]] = topo_future.get().convert_to_topo_link()
+            topo_tree = topo_future.get()
         finally:
             pool.join()
 
@@ -402,6 +405,10 @@ class SearchHostInfoResource(ApiAuthResource):
         if "page" in params:
             total = hosts["total"]
             hosts = hosts["items"]
+            module_ids = {module_id for host in hosts for module_id in host.bk_module_ids}
+            topo_links = TopoTree.module_links_from_raw(topo_tree, module_ids)
+        else:
+            topo_links = topo_tree.convert_to_topo_link()
         result = []
         module_cache = {}
         for host in hosts:

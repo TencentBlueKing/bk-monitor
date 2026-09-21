@@ -263,8 +263,11 @@ def get_process_info(
     if len(hosts) == 1:
         bk_host_id = hosts[0].bk_host_id
 
-    # 查询进程信息
-    result = api.cmdb.get_process(bk_biz_id=bk_biz_id, bk_host_id=bk_host_id)
+    # 多主机页先筛选原始服务实例，避免为全业务构造 Process 后再过滤。
+    process_params = {"bk_biz_id": bk_biz_id, "bk_host_id": bk_host_id}
+    if push_host_target and bk_host_id is None:
+        process_params["bk_host_ids"] = [host.bk_host_id for host in hosts]
+    result = api.cmdb.get_process(**process_params)
 
     # 查询进程状态数据
     statuses: dict[int, dict[str, int]] = get_process_status(

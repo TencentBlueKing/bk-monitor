@@ -97,11 +97,12 @@ def _host_from_raw(record, bk_biz_id):
     return host
 
 
-def _host_full_cloud(host, clouds=None):
+def _host_full_cloud(host, clouds=None, *, cloud_id_to_name=None):
     # 获取云区域信息
-    if clouds is None:
-        clouds = api.cmdb.search_cloud_area()
-    cloud_id_to_name = {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
+    if cloud_id_to_name is None:
+        if clouds is None:
+            clouds = api.cmdb.search_cloud_area()
+        cloud_id_to_name = {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
     host["bk_cloud_name"] = cloud_id_to_name.get(host["bk_cloud_id"], "")
     return host
 
@@ -368,11 +369,12 @@ class GetHostPage(Resource):
             }
         result = client.list_biz_hosts_topo(request_params)
         clouds = api.cmdb.search_cloud_area() if result["info"] else []
+        cloud_id_to_name = {cloud["bk_cloud_id"]: cloud["bk_cloud_name"] for cloud in clouds}
         hosts = []
         for record in result["info"]:
             host = _host_from_raw(record, params["bk_biz_id"])
             if host is not None:
-                hosts.append(Host(_host_full_cloud(host, clouds)))
+                hosts.append(Host(_host_full_cloud(host, cloud_id_to_name=cloud_id_to_name)))
         return {"items": hosts, "total": result["count"]}
 
 
@@ -386,7 +388,8 @@ class GetHostIdentities(Resource):
 
     def perform_request(self, params):
         fields = ["bk_host_id", "bk_host_innerip", "bk_host_innerip_v6", "bk_cloud_id"]
-        hosts = get_host_dict_by_biz(params["bk_biz_id"], fields)
+        # 与 cmdb_api_list 的预热位置参数完全一致；缓存命中后仍需解码并遍历全业务主机。
+        hosts = get_host_dict_by_biz(params["bk_biz_id"], Host.Fields)
         ip_counts = Counter((host["bk_host_innerip"], int(host.get("bk_cloud_id") or 0)) for host in hosts)
         if params.get("bk_host_id") is not None:
             hosts = [host for host in hosts if host["bk_host_id"] == params["bk_host_id"]]
@@ -542,9 +545,11 @@ class GetTopoTreeResource(Resource):
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
+        raw = serializers.BooleanField(default=False, label="仅返回原始拓扑")
 
     def perform_request(self, params):
-        return TopoTree(_get_topo_tree(params["bk_biz_id"]))
+        tree_data = _get_topo_tree(params["bk_biz_id"])
+        return tree_data if params.get("raw") else TopoTree(tree_data)
 
 
 class GetBusiness(Resource):
@@ -765,12 +770,18 @@ class GetProcess(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         bk_host_id = serializers.IntegerField(label="主机ID", required=False, allow_null=True)
+        bk_host_ids = serializers.ListField(label="主机ID列表", child=serializers.IntegerField(), required=False)
         include_multiple_bind_info = serializers.BooleanField(
             required=False, label="是否返回多个绑定信息", default=False
         )
 
     def perform_request(self, validated_request_data):
         include_multiple_bind_info = validated_request_data["include_multiple_bind_info"]
+        host_ids = validated_request_data.get("bk_host_ids")
+        if host_ids is not None:
+            host_ids = set(host_ids)
+            if not host_ids:
+                return []
         params = {
             "bk_biz_id": validated_request_data["bk_biz_id"],
         }
@@ -784,6 +795,8 @@ class GetProcess(Resource):
         for service_instances in response_data:
             process_instances = service_instances["process_instances"] or []
             for process_instance in process_instances:
+                if host_ids is not None and int(process_instance["relation"]["bk_host_id"]) not in host_ids:
+                    continue
                 process_params = {}
                 # process info
                 process_params.update(process_instance["process"])
