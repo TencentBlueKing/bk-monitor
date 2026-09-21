@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 
+from apm_web.decorators import user_visit_record
 from apm_web.llm.views import LLMViewSet
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission
@@ -25,6 +26,17 @@ def test_get_permissions_uses_apm_application_permission():
     assert isinstance(permission, InstanceActionForDataPermission)
     assert permission.actions == [ActionEnum.VIEW_APM_APPLICATION]
     assert permission.resource_meta == ResourceEnum.APM_APPLICATION
+
+
+def test_list_traces_and_calculate_by_range_record_user_visits():
+    routes = {route.endpoint: route for route in LLMViewSet.resource_routes}
+
+    assert routes["list_traces"].decorators == [user_visit_record]
+    assert routes["list_flows"].decorators == [user_visit_record]
+    assert routes["calculate_by_range"].decorators == [user_visit_record]
+    assert routes["list_spans"].decorators is None
+    assert routes["token_statistics"].decorators is None
+    assert routes["time_series"].decorators is None
 
 
 @pytest.mark.parametrize("allowed", [True, False])

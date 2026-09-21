@@ -15,16 +15,53 @@
     @include flex-align(flex-start);
   }
 
-  .llm-text-content-body {
+  .llm-text-content-main {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
+    min-height: 0;
+
+    @include flex-column;
+  }
+
+  .llm-text-content-clip {
+    position: relative;
+    width: 100%;
+    min-height: 0;
+  }
+
+  .llm-text-content-body {
+    width: 100%;
     font-family: arial, sans-serif;
     font-size: $font-size-base;
     line-height: 20px;
     color: #4e5e7a;
     overflow-wrap: break-word;
     white-space: pre-wrap;
+  }
+
+  .llm-text-content-expand {
+    flex-shrink: 0;
+    gap: 2px;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: $primary-color;
+    cursor: pointer;
+    user-select: none;
+    background: #fff;
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      width: 12px;
+      height: 12px;
+      font-size: 12px;
+      line-height: 12px;
+      transition: transform 0.2s ease;
+    }
+
+    .icon-double-down.is-expanded {
+      transform: rotate(180deg);
+    }
   }
 
   .llm-text-content-actions {
@@ -56,51 +93,48 @@
     .icon-monitor {
       font-size: $font-size-medium;
     }
-
-    &.is-collapse {
-      position: absolute;
-      right: 8px;
-      bottom: 8px;
-      z-index: 1;
-      display: none;
-    }
   }
 
-  &.is-overflow {
-    height: 160px;
-    overflow: hidden;
-
-    &::after {
-      position: absolute;
-      right: 0;
-      bottom: -1px;
-      left: 0;
-      height: 31px;
-      pointer-events: none;
-      content: '';
-      background: linear-gradient(180deg, rgb(255 255 255 / 0%) 0%, #fff 100%);
+  // 卡片 160px = padding 8+8 + 正文 120px + 展开 20px，正文再高会把按钮裁掉一半。
+  &:not(.is-expanded) {
+    .llm-text-content-clip {
+      max-height: 120px;
+      overflow: hidden;
     }
 
     .llm-text-content-body {
       /* stylelint-disable value-no-vendor-prefix, property-no-vendor-prefix -- 多行截断依赖 webkit box */
       display: -webkit-box;
+      max-height: 120px;
       overflow: hidden;
-      -webkit-line-clamp: 7;
+      -webkit-line-clamp: 6;
       -webkit-box-orient: vertical;
 
       /* stylelint-enable value-no-vendor-prefix, property-no-vendor-prefix */
     }
   }
 
+  &.is-overflow {
+    height: 160px;
+    overflow: hidden;
+  }
+
+  // 展开后仍限制可视高度，收起始终跟在可见正文下方，避免再滚到文末才找得到。
+  &.is-expanded {
+    .llm-text-content-clip {
+      max-height: 60vh;
+      overflow: auto;
+    }
+  }
+
   &:hover {
     background: #f7f9fc;
 
-    &.is-overflow::after {
-      background: linear-gradient(180deg, rgb(247 249 252 / 0%) 0%, #f7f9fc 100%);
+    .llm-text-content-expand {
+      background: #f7f9fc;
     }
 
-    .llm-text-content-actions,
-    .llm-text-content-action.is-collapse {
+    .llm-text-content-actions {
       display: flex;
     }
   }
@@ -112,6 +146,6 @@
   font-family: menlo, monaco, consolas, monospace;
   font-size: $font-size-base;
   line-height: 20px;
-  color: $primary-color;
+  color: #8f9fbd;
   white-space: nowrap;
 }

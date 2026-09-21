@@ -1102,6 +1102,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         "json_fields", // JSON字段
         "original_json_fields",
         "field_config_group", // 字段配置，search_en: ["log"]
+        "tokenizers", // 字段自定义分词规则，例如 {"log": "._=:,"}
         "expires", // 保留时间, 7d, 30d
         "is_profiling", // 是否为profiling, true/false
         "unique_partition_table", // 是否为unique partition table, true/false
@@ -1132,6 +1133,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
         expires: str,
         flush_timeout: int | None,
         rt_name: str | None = None,
+        tokenizers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """
         组装Doris存储绑定配置
@@ -1140,6 +1142,7 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             rt_name: 关联的 ResultTable 名称。默认沿用 ``self.name``，以兼容历史上
                 binding 与 RT 同名的调用方式；当 compose 复用到不同名的 RT 时，由
                 调用方显式传入实际 RT name。
+            tokenizers: 字段自定义分词规则。None 时不下发，显式空对象仍原样下发。
         """
         tpl = """
         {
@@ -1179,6 +1182,9 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
                     "json_fields": {{json_fields}},
                     "original_json_fields": {{original_json_fields}},
                     "field_config_group": {{field_config_group}},
+                    {% if tokenizers is defined %}
+                    "tokenizers": {{tokenizers}},
+                    {% endif %}
                     "expires": "{{expires}}",
                     "flush_timeout": {{flush_timeout}}
                 }
@@ -1200,6 +1206,8 @@ class DorisStorageBindingConfig(DataLinkResourceConfigBase):
             "expires": expires,
             "flush_timeout": json.dumps(flush_timeout),
         }
+        if tokenizers is not None:
+            render_params["tokenizers"] = json.dumps(tokenizers)
 
         # 现阶段仅在多租户模式下添加tenant字段
         if settings.ENABLE_MULTI_TENANT_MODE:

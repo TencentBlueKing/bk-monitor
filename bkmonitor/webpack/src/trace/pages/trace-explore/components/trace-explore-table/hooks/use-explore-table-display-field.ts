@@ -66,19 +66,18 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
     () => `${get(options.mode)}_${get(options.appName)}_${TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX}`
   );
 
-  /** table 显示列配置 */
-  const displayColumnFields = computed<string[]>(() => {
-    // 前端写死的兜底默认显示列配置(优先级：userConfig -> appList -> defaultConfig)
-    const defaultColumnsConfig = get(options.mode) === 'span' ? spanConfig : traceConfig;
+  /** 未做用户个性化配置时的展示列：应用视角配置优先，未配置时兜底前端写死的默认展示列（列设置「恢复默认」的回填来源） */
+  const defaultDisplayFields = computed<string[]>(() => {
     const applicationColumnConfig =
       store?.currentApp?.view_config?.[`${get(options.mode)}_config`]?.display_columns || [];
-    // 需要展示的字段列名数组
-    return get(customDisplayFields)?.length
-      ? get(customDisplayFields)
-      : applicationColumnConfig?.length
-        ? applicationColumnConfig
-        : ((defaultColumnsConfig?.displayFields || []) as string[]);
+    const builtInColumns = (get(options.mode) === 'span' ? spanConfig : traceConfig)?.displayFields || [];
+    return applicationColumnConfig?.length ? applicationColumnConfig : [...builtInColumns];
   });
+
+  /** table 显示列配置：需要展示的字段列名数组(优先级：userConfig -> appList -> defaultConfig) */
+  const displayColumnFields = computed<string[]>(() =>
+    get(customDisplayFields)?.length ? get(customDisplayFields) : defaultDisplayFields.value
+  );
 
   /**
    * @method handleSetFavoriteFields 设置收藏中表格显示字段及字段宽度配置
@@ -167,6 +166,7 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
 
   return {
     displayColumnFields,
+    defaultDisplayFields,
     fieldsWidthConfig: customFieldsWidthConfig,
     getCustomFieldsConfig,
     handleDisplayColumnFieldsChange,

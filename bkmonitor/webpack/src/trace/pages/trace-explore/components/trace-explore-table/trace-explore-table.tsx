@@ -102,6 +102,11 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    /** 默认展示列字段名（顺序即列顺序），列设置「恢复默认」的回填来源 */
+    defaultFieldKeys: {
+      type: Array as PropType<string[]>,
+      default: undefined,
+    },
     /** 缓存的列宽配置 */
     fieldsWidthConfig: {
       type: Object as PropType<Record<string, number>>,
@@ -708,7 +713,11 @@ export default defineComponent({
                       return (
                         <ExploreFieldSetting
                           class='table-field-setting'
+                          defaultFields={this.defaultFieldKeys}
+                          dragHandle='.list-item-left'
                           fixedDisplayList={[this.tableRowKeyField]}
+                          popoverTheme='trace-explore-field-setting'
+                          showFieldName={true}
                           sourceList={this.tableColumns.fieldList}
                           sourceMap={this.tableColumns.fieldMap}
                           targetList={this.displayFields}

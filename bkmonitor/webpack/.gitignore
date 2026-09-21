@@ -118,8 +118,10 @@ monitor-alarm-center
 
 .agents/**
 skills-lock.json
-AGENTS.md
 
 .pnpm-store
 .opencode/
 .pnpm-store/
+
+# 一次性 E2E 用例、登录态与测试证据，仅保留在本地。
+.e2e-runs/

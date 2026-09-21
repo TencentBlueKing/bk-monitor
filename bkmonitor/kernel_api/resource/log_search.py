@@ -132,7 +132,7 @@ class ListLogScenesResource(Resource):
     def perform_request(self, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         logger.info("ListLogScenesResource: list log scenes, bk_biz_id->[%s]", bk_biz_id)
-        scenes = api.log_search.list_scenes(bk_biz_id=bk_biz_id)
+        scenes = call_log_api("list_scenes", bk_biz_id=bk_biz_id)
         return {"scenes": scenes}
 
 
@@ -160,7 +160,8 @@ class ListSceneDimensionValuesResource(Resource):
             dimension_key,
             len(filters),
         )
-        return api.log_search.scene_dimension_values(
+        return call_log_api(
+            "scene_dimension_values",
             bk_biz_id=bk_biz_id,
             scene=scene,
             dimension_key=dimension_key,
@@ -189,7 +190,8 @@ class GetSceneLogFieldsResource(Resource):
             bk_biz_id,
             len(table_id_conditions),
         )
-        result = api.log_search.scene_fields(
+        result = call_log_api(
+            "scene_fields",
             space_uid=bk_biz_id_to_space_uid(bk_biz_id),
             bk_biz_id=bk_biz_id,
             table_id_conditions=table_id_conditions,
@@ -299,7 +301,8 @@ class SearchLogResource(Resource):
             offset,
             limit,
         )
-        result = api.log_search.scene_search(
+        result = call_log_api(
+            "scene_search",
             space_uid=bk_biz_id_to_space_uid(bk_biz_id),
             bk_biz_id=bk_biz_id,
             table_id_conditions=table_id_conditions,

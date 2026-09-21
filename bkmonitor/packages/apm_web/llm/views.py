@@ -1,8 +1,10 @@
+from apm_web.decorators import user_visit_record
 from apm_web.llm.resources import (
     CalculateByRangeResource,
     ListFlowsResource,
     ListSpansResource,
     ListTracesResource,
+    TokenStatisticsResource,
     TimeSeriesResource,
 )
 from apm_web.models import Application
@@ -25,9 +27,31 @@ class LLMViewSet(ResourceViewSet):
         ]
 
     resource_routes = [
-        ResourceRoute("POST", ListTracesResource, endpoint="list_traces"),
+        ResourceRoute(
+            "POST",
+            ListTracesResource,
+            endpoint="list_traces",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
         ResourceRoute("POST", ListSpansResource, endpoint="list_spans"),
-        ResourceRoute("POST", ListFlowsResource, endpoint="list_flows"),
+        ResourceRoute(
+            "POST",
+            ListFlowsResource,
+            endpoint="list_flows",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
+        ResourceRoute("POST", TokenStatisticsResource, endpoint="token_statistics"),
         ResourceRoute("POST", TimeSeriesResource, endpoint="time_series"),
-        ResourceRoute("POST", CalculateByRangeResource, endpoint="calculate_by_range"),
+        ResourceRoute(
+            "POST",
+            CalculateByRangeResource,
+            endpoint="calculate_by_range",
+            decorators=[
+                user_visit_record,
+            ],
+        ),
     ]

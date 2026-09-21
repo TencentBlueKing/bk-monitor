@@ -8,9 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import sqlparse
 from django.core.paginator import Paginator
 from django.db import models
 from rest_framework import serializers
+from sqlparse import sql as sql_nodes
+from sqlparse import tokens as sql_tokens
 
 from bkmonitor.utils.request import get_request_tenant_id
 from bkm_space.utils import bk_biz_id_to_space_uid
@@ -18,6 +21,69 @@ from core.drf_resource import api, resource
 from core.drf_resource.base import Resource, logger
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
 from metadata.models import DataSource, TimeSeriesGroup
+
+
+def ensure_time_series_table_belongs_to_biz(
+    bk_biz_id: int | str, table_id: str, *, allow_platform: bool = True
+) -> None:
+    """确认时序结果表属于目标业务；调用方显式决定是否接受平台数据源。"""
+    bk_tenant_id = get_request_tenant_id()
+    group = TimeSeriesGroup.objects.filter(
+        bk_tenant_id=bk_tenant_id,
+        table_id=table_id,
+        is_delete=False,
+    ).first()
+    if group is None:
+        raise serializers.ValidationError({"table_id": "The time-series table does not exist."})
+    if int(group.bk_biz_id) == int(bk_biz_id):
+        return
+    if (
+        allow_platform
+        and DataSource.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            bk_data_id=group.bk_data_id,
+            is_platform_data_id=True,
+        ).exists()
+    ):
+        return
+    raise serializers.ValidationError({"table_id": "The time-series table does not belong to the target space."})
+
+
+def ensure_sql_reads_declared_table(sql: str, table_id: str) -> None:
+    """只允许单条 SELECT 读取声明的单张结果表。"""
+    statements = sqlparse.parse(sql.strip())
+    if len(statements) != 1 or statements[0].get_type() != "SELECT":
+        raise serializers.ValidationError({"sql": "Only one SELECT statement is supported."})
+    statement = statements[0]
+    flattened = [token for token in statement.flatten() if not token.is_whitespace]
+    if any(token.ttype in sql_tokens.Comment for token in flattened):
+        raise serializers.ValidationError({"sql": "SQL comments are not supported."})
+    if sum(token.ttype is sql_tokens.DML and token.normalized == "SELECT" for token in flattened) != 1:
+        raise serializers.ValidationError({"sql": "Subqueries are not supported."})
+    forbidden = {"UNION", "INTERSECT", "EXCEPT", "WITH"}
+    if any(
+        token.ttype in sql_tokens.Keyword
+        and (token.normalized.split()[0] in forbidden or token.normalized.endswith("JOIN"))
+        for token in flattened
+    ):
+        raise serializers.ValidationError({"sql": "Joins, set operations, and CTEs are not supported."})
+
+    significant = [token for token in statement.tokens if not token.is_whitespace]
+    from_positions = [
+        index
+        for index, token in enumerate(significant)
+        if token.ttype in sql_tokens.Keyword and token.normalized == "FROM"
+    ]
+    if len(from_positions) != 1 or from_positions[0] + 1 >= len(significant):
+        raise serializers.ValidationError({"sql": "SQL must read exactly one declared result table."})
+    table = significant[from_positions[0] + 1]
+    if not isinstance(table, sql_nodes.Identifier) or isinstance(table, sql_nodes.IdentifierList):
+        raise serializers.ValidationError({"sql": "SQL must read exactly one declared result table."})
+    real_name = table.get_real_name()
+    parent_name = table.get_parent_name()
+    referenced_table = f"{parent_name}.{real_name}" if parent_name else real_name
+    if referenced_table != table_id:
+        raise serializers.ValidationError({"sql": "SQL may only read the declared table_id."})
 
 
 class TimeSeriesGroupListResource(Resource):

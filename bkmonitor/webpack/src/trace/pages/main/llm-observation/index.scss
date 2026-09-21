@@ -15,6 +15,10 @@
     @include flex-column;
   }
 
+  &-agent-bar {
+    margin-top: 16px;
+  }
+
   &-stats {
     flex-shrink: 0;
     gap: 8px;
@@ -36,7 +40,21 @@
     @include flex-column;
   }
 
+  &-stat-head,
+  &-stat-value-row {
+    align-self: stretch;
+    min-width: 0;
+  }
+
+  &-stat-head {
+    gap: 8px;
+    justify-content: space-between;
+
+    @include flex-align(flex-start);
+  }
+
   &-stat-label {
+    flex-shrink: 0;
     font-family: 'Microsoft YaHei', sans-serif;
     font-size: $font-size-base;
     line-height: 20px;
@@ -44,17 +62,45 @@
     white-space: nowrap;
   }
 
+  &-stat-extra {
+    min-width: 0;
+    font-family: arial, sans-serif;
+    font-size: $font-size-base;
+    font-weight: 400;
+    line-height: 20px;
+    color: #8f9fbd;
+
+    @include ellipsis;
+  }
+
+  &-stat-value-row {
+    gap: 4px;
+
+    @include flex-align(flex-end);
+  }
+
   &-stat-value {
+    min-width: 0;
     font-family: arial, sans-serif;
     font-size: 24px;
     font-weight: 700;
     line-height: 32px;
     color: #313238;
-    white-space: nowrap;
+
+    @include ellipsis;
 
     &.is-success {
       color: #21a380;
     }
+  }
+
+  &-stat-unit {
+    flex-shrink: 0;
+    padding-bottom: 3px;
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: $font-size-large;
+    line-height: 24px;
+    color: #313238;
   }
 
   &-io {
@@ -135,5 +181,11 @@
     background: #fff;
     border: 1px solid #c1cde5;
     border-radius: 0 6px 6px;
+  }
+
+  &-io-pane {
+    &.is-hidden {
+      display: none;
+    }
   }
 }

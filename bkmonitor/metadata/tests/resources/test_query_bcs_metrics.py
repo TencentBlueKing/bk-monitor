@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
+from bkmonitor.utils.k8s_metric import get_built_in_k8s_metrics
 from metadata import models
 from metadata.resources import QueryBCSMetricsResource
 
@@ -19,6 +20,15 @@ DEFAULT_ID = 1000
 DEFAULT_BCS_CLUSTER_ID = "BCS-K8S-00000"
 BUILD_IN_DATA_ID = 1000
 CUSTOM_DATA_ID = 1001
+
+
+def test_dcgm_power_usage_is_builtin_metric():
+    metric = next(metric for metric in get_built_in_k8s_metrics() if metric["field_name"] == "DCGM_FI_DEV_POWER_USAGE")
+
+    assert metric["unit"] == "watt"
+    assert {"bcs_cluster_id", "node", "gpu", "UUID", "pod_name", "container_name"} <= {
+        tag["field_name"] for tag in metric["tag_list"]
+    }
 
 
 @pytest.fixture

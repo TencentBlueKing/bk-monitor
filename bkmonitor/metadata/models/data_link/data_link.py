@@ -780,6 +780,7 @@ class DataLink(models.Model):
                         storage_keys=storage_option.storage_keys,
                         json_fields=storage_option.json_fields,
                         field_config_group=storage_option.field_config_group,
+                        tokenizers=storage_option.tokenizers,
                         original_json_fields=storage_option.original_json_fields,
                         expires=f"{storage.expire_days}d",
                         flush_timeout=storage_option.flush_timeout,
@@ -1369,6 +1370,7 @@ class DataLink(models.Model):
                         storage_keys=storage_option.storage_keys,
                         json_fields=storage_option.json_fields,
                         field_config_group=storage_option.field_config_group,
+                        tokenizers=storage_option.tokenizers,
                         original_json_fields=storage_option.original_json_fields,
                         expires=f"{doris_storage.expire_days}d",
                         flush_timeout=storage_option.flush_timeout,
@@ -2563,6 +2565,78 @@ class DataLink(models.Model):
             )
         return table
 
+    def _get_databus_option_labels(self) -> dict[str, str]:
+        """读取唯一关联结果表的标签配置；非法配置必须在组件写入前失败。"""
+        from metadata.models import ResultTableOption
+
+        table_ids = {table_id for table_id in self.table_ids if table_id}
+        if len(table_ids) != 1:
+            return {}
+        table_id = table_ids.pop()
+        option = ResultTableOption.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            table_id=table_id,
+            name=ResultTableOption.OPTION_DATABUS_LABELS,
+        ).first()
+        if option is None:
+            return {}
+
+        error_message = (
+            f"Invalid databus_labels: bk_tenant_id={self.bk_tenant_id}, table_id={table_id}; "
+            "expected a dictionary with non-empty string keys and string values"
+        )
+        try:
+            labels = option.get_value()
+        except (ValueError, TypeError, AttributeError) as exc:
+            raise ValueError(error_message) from exc
+        if not isinstance(labels, dict) or any(
+            not isinstance(key, str) or not key or not isinstance(value, str) for key, value in labels.items()
+        ):
+            raise ValueError(error_message)
+        return labels
+
+    def _get_databus_prefer_cluster(self) -> dict[str, str] | None:
+        """读取单表链路的优先集群；只需配置 name，其余字段默认沿用链路上下文。"""
+        from metadata.models import ResultTableOption
+
+        table_ids = {table_id for table_id in self.table_ids if table_id}
+        if len(table_ids) != 1:
+            return None
+
+        table_id = table_ids.pop()
+        option = ResultTableOption.objects.filter(
+            bk_tenant_id=self.bk_tenant_id,
+            table_id=table_id,
+            name=ResultTableOption.OPTION_DATABUS_PREFER_CLUSTER,
+        ).first()
+        if option is None:
+            return None
+
+        error_prefix = (
+            f"invalid {ResultTableOption.OPTION_DATABUS_PREFER_CLUSTER}: "
+            f"data_link_name({self.data_link_name}), bk_tenant_id({self.bk_tenant_id}), table_id({table_id})"
+        )
+        try:
+            value = option.get_value()
+        except (ValueError, TypeError, AttributeError) as error:
+            raise ValueError(f"{error_prefix}, cannot decode option value") from error
+        if not isinstance(value, dict) or "name" not in value:
+            raise ValueError(f"{error_prefix}, expected a dict with a non-empty name")
+        if any(
+            key not in {"kind", "tenant", "namespace", "name"} or not isinstance(item, str) or not item.strip()
+            for key, item in value.items()
+        ):
+            raise ValueError(f"{error_prefix}, only non-empty string kind/tenant/namespace/name fields are allowed")
+        if value.get("kind", "DatabusCluster") != "DatabusCluster":
+            raise ValueError(f"{error_prefix}, kind must be DatabusCluster")
+
+        prefer_cluster = {"kind": "DatabusCluster", "namespace": self.namespace}
+        # 与其他 BKBase 资源引用保持一致，单租户模式默认不携带 tenant。
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            prefer_cluster["tenant"] = self.bk_tenant_id
+        prefer_cluster.update(value)
+        return prefer_cluster
+
     @staticmethod
     def _inject_databus_monitor_labels(
         configs: list[dict[str, Any]],
@@ -2588,12 +2662,15 @@ class DataLink(models.Model):
         """
         from metadata.models.bkdata.result_table import BkBaseResultTable
 
+        databus_option_labels = self._get_databus_option_labels()
         consumer_group: str | None = kwargs.pop("consumer_group", None)
         force_cleanup_absent_components = kwargs.pop("cleanup_absent_components", False)
         storage_type = kwargs.pop("storage_type", None)
         compose_arguments = inspect.signature(self._get_compose_method()).bind_partial(*args, **kwargs).arguments
         data_source = compose_arguments.get("data_source")
         table_id = compose_arguments.get("table_id")
+        # 在声明 BkBaseResultTable 和 compose 写入组件之前校验配置。
+        databus_prefer_cluster = self._get_databus_prefer_cluster()
 
         graph_relation_option = None
         if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES:
@@ -2697,6 +2774,11 @@ class DataLink(models.Model):
             raise e
 
         configs = self.merge_existing_component_configs(configs)
+        if databus_prefer_cluster is not None:
+            for config in configs:
+                if config.get("kind") == DataLinkKind.DATABUS.value:
+                    # 配置优先；未配置时保留合并得到的远端 preferCluster。
+                    config["spec"]["preferCluster"] = dict(databus_prefer_cluster)
         if data_source is None and self.bk_data_id:
             from metadata.models.data_source import DataSource
 
@@ -2716,6 +2798,10 @@ class DataLink(models.Model):
                 data_source=data_source,
             )
             self._inject_databus_monitor_labels(configs, monitor_labels)
+        if databus_option_labels:
+            for config in configs:
+                if config.get("kind") == DataLinkKind.DATABUS.value:
+                    config["metadata"].setdefault("labels", {}).update(databus_option_labels)
         components_to_delete = self._get_absent_components_to_delete(
             configs,
             force_delete=force_cleanup_absent_components,

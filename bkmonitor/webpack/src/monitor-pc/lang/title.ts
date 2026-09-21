@@ -324,6 +324,7 @@ export default {
   按模型: 'By Model',
   '模型调用平均耗时 TOP10': 'Model Avg Duration TOP10',
   '当前 {0} 个模型 · 最多 TOP10': 'Current {0} models · up to TOP10',
+  环比: 'MoM',
   Agent: 'Agent',
   模型: 'Model',
   工具: 'Tool',
@@ -344,6 +345,8 @@ export default {
   删除记忆: 'Delete Memory',
   创建记忆库: 'Create Memory Store',
   删除记忆库: 'Delete Memory Store',
+  '模型 & 厂商': 'Model & Vendor',
+  '首 Token 耗时': 'First Token Duration',
 
   // RUM 检索--详情
   关键信息: 'Key Information',

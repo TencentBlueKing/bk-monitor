@@ -3076,7 +3076,6 @@ class ESStorage(models.Model, StorageResultTable):
     def _get_index_infos(
         self, namespaced: str, request_timeout: int | None = None
     ) -> tuple[dict[str, dict[str, Any]], str]:
-        index_version = ""
         extra = {ESNamespacedClientType.CAT.value: {"format": "json"}, ESNamespacedClientType.INDICES.value: {}}[
             namespaced
         ]
@@ -3091,15 +3090,21 @@ class ESStorage(models.Model, StorageResultTable):
             ESNamespacedClientType.INDICES.value: self.es_client.indices.stats,
         }[namespaced]
 
-        index_info_map: dict[str, dict[str, Any]] = getdata(func(index=self.search_format_v2(), **extra))
-        if len(index_info_map) != 0:
-            index_version = "v2"
-        else:
-            index_info_map: dict[str, dict[str, Any]] = getdata(func(index=self.search_format_v1(), **extra))
-            if len(index_info_map) != 0:
-                index_version = "v1"
+        # 通配符可能命中索引名前缀更长的其他结果表，需先精确过滤再判断索引版本。
+        for index_version, search_format, index_re in (
+            ("v2", self.search_format_v2(), self.index_re_v2),
+            ("v1", self.search_format_v1(), self.index_re_v1),
+        ):
+            raw_index_info_map: dict[str, dict[str, Any]] = getdata(func(index=search_format, **extra))
+            index_info_map = {
+                index_name: index_info
+                for index_name, index_info in raw_index_info_map.items()
+                if index_re.fullmatch(index_name)
+            }
+            if index_info_map:
+                return index_info_map, index_version
 
-        return index_info_map, index_version
+        return {}, ""
 
     def get_index_names(self, request_timeout: int | None = None) -> list[str]:
         index_info_map, index_version = self._get_index_infos(

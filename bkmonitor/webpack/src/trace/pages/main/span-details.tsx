@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
+/** biome-ignore-all lint/suspicious/noExplicitAny: 兼容原始 Span 的动态属性及不同详情区块的数据结构。 */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -29,6 +29,7 @@ import {
   type PropType,
   type Ref,
   computed,
+  ref as deepRef,
   defineComponent,
   inject,
   nextTick,
@@ -36,7 +37,6 @@ import {
   onMounted,
   provide,
   reactive,
-  ref,
   shallowRef,
   watch,
 } from 'vue';
@@ -88,6 +88,7 @@ import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import K8sContainer from './k8s-container';
 import LlmObservation from './llm-observation';
+import ObservationSearch from './llm-observation/components/observation-search';
 import { formatSpanLinks } from './utils/format-span-links';
 
 import type { Span } from '../../components/trace-view/typings';
@@ -161,7 +162,7 @@ export default defineComponent({
     const spanDetailQueryStore = useSpanDetailQueryStore();
     const { t } = useI18n();
     /* 侧栏show */
-    const localShow = ref(false);
+    const localShow = shallowRef(false);
     /* 详情数据 */
     const tempInfo = {
       title: '',
@@ -175,10 +176,10 @@ export default defineComponent({
     const info = reactive<IInfo>(deepClone(tempInfo));
 
     /** 切换显示原始数据 */
-    const showOriginalData = ref(false);
+    const showOriginalData = shallowRef(false);
 
     /** 原始数据 */
-    const originalData = ref<null | Record<string, any>>(null);
+    const originalData = deepRef<null | Record<string, any>>(null);
 
     /** TraceDetail 等上级注入的当前页面业务 / 应用上下文 */
     const injectedBizId = inject<Ref<number | string> | undefined>('bizId', undefined);
@@ -283,21 +284,21 @@ export default defineComponent({
     });
     provide('customTimeProvider', customTimeProvider);
 
-    const serviceNameProvider = ref('');
+    const serviceNameProvider = shallowRef('');
     // 服务、应用 名在日志 tab 里能用到
     provide('serviceName', serviceNameProvider);
     provide('appName', appName);
     provide('bizId', bizId);
 
     // 用于关联日志跳转信息
-    const traceId = ref('');
+    const traceId = shallowRef('');
     provide('traceId', traceId);
-    const spanTime = ref(0);
-    const spanStartTime = ref(0);
-    const spanEndTime = ref(0);
-    const originSpanStartTime = ref(0);
+    const spanTime = shallowRef(0);
+    const spanStartTime = shallowRef(0);
+    const spanEndTime = shallowRef(0);
+    const originSpanStartTime = shallowRef(0);
     provide('originSpanStartTime', originSpanStartTime);
-    const originSpanEndTime = ref(0);
+    const originSpanEndTime = shallowRef(0);
     provide('originSpanEndTime', originSpanEndTime);
 
     const spanId = computed(() => props.spanDetails.span_id);
@@ -1100,7 +1101,7 @@ export default defineComponent({
         <div class='tags-template'>
           {data.map((item, index) => (
             <div
-              key={index}
+              key={item.label}
               class={['tags-row', { grey: !(index % 2) }]}
             >
               <span class='left'>
@@ -1169,9 +1170,9 @@ export default defineComponent({
     const stageTimeTemplate = (active: string, list: IStageTimeItem['list'], content: IStageTimeItemContent[]) => (
       <div class='stage-time'>
         <div class='stage-time-list'>
-          {list.map((item, index) => (
+          {list.map(item => (
             <Popover
-              key={index}
+              key={item.id}
               content={item.errorMsg}
               disabled={!item.error || !item.errorMsg}
               placement={'left'}
@@ -1191,12 +1192,12 @@ export default defineComponent({
           ))}
         </div>
         <div class='stage-time-content'>
-          {content.map((item, index) => {
+          {content.map(item => {
             if (item.type === 'useTime') {
               const times = item[item.type] as any;
               return (
                 <div
-                  key={index}
+                  key={times.gap.type}
                   class='use-time'
                 >
                   <span class='left'>{times.tags[0]}</span>
@@ -1242,7 +1243,7 @@ export default defineComponent({
             if (item.type === 'gapTime') {
               return (
                 <div
-                  key={index}
+                  key={item.type}
                   class='gap-time'
                 >
                   <div class='top' />
@@ -1327,7 +1328,49 @@ export default defineComponent({
       return '';
     });
 
-    const sceneData = ref<BookMarkModel>({});
+    /** LLM 观测 Tab 页内搜索：状态放在详情侧，避免切 Span 后子树重建丢词 */
+    const llmSearchKeyword = shallowRef('');
+    const llmSearchActiveIndex = shallowRef(0);
+    const llmSearchMatchCount = shallowRef(0);
+
+    const resetLlmSearch = () => {
+      llmSearchKeyword.value = '';
+      llmSearchActiveIndex.value = 0;
+      llmSearchMatchCount.value = 0;
+    };
+
+    const handleLlmSearchKeyword = (value: string) => {
+      llmSearchKeyword.value = value;
+      // 换词后 hits 重算，序号从第一条重新数
+      llmSearchActiveIndex.value = 0;
+    };
+
+    const handleLlmSearchStep = (step: number) => {
+      const total = llmSearchMatchCount.value;
+      if (!total) return;
+      llmSearchActiveIndex.value = (llmSearchActiveIndex.value + step + total) % total;
+    };
+
+    const handleLlmSearchMatchCount = (count: number) => {
+      llmSearchMatchCount.value = count;
+      if (count > 0 && llmSearchActiveIndex.value >= count) {
+        llmSearchActiveIndex.value = count - 1;
+      }
+    };
+
+    const handleLlmSearchActiveIndex = (index: number) => {
+      if (index < 0) return;
+      llmSearchActiveIndex.value = index;
+    };
+
+    watch(
+      () => [props.show, props.spanDetails?.span_id],
+      () => {
+        resetLlmSearch();
+      }
+    );
+
+    const sceneData = deepRef<BookMarkModel>({});
     const isSingleChart = computed<boolean>(() => {
       return (
         sceneData.value?.panelCount < 2 &&
@@ -1346,7 +1389,7 @@ export default defineComponent({
     const isDisabledNext = computed(
       () => spans.value.findIndex(span => span.span_id === props.spanDetails?.span_id) === spans.value.length - 1
     );
-    const isTabPanelLoading = ref(false);
+    const isTabPanelLoading = shallowRef(false);
     const handleActiveTabChange = async () => {
       isTabPanelLoading.value = true;
       if (hostAndContainerCancelToken) {
@@ -1375,7 +1418,6 @@ export default defineComponent({
           };
         }
         sceneData.value = new BookMarkModel(result);
-        isTabPanelLoading.value = false;
       }
       if (activeTab.value === 'Host') {
         const result = await getSceneView(
@@ -1394,7 +1436,6 @@ export default defineComponent({
           }
         ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
-        isTabPanelLoading.value = false;
       }
       if (activeTab.value === 'Container') {
         const startTime = dayjs(spanTime.value).unix() - 60 * 60;
@@ -1419,17 +1460,13 @@ export default defineComponent({
           }
         ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
-        isTabPanelLoading.value = false;
       }
-      if (activeTab.value === 'Profiling') {
-        if (enableProfiling.value) {
-          await getFlameGraphData();
-        }
-        isTabPanelLoading.value = false;
+      if (activeTab.value === 'Profiling' && enableProfiling.value) {
+        await getFlameGraphData();
       }
-      if (activeTab.value === 'LlmObservation') {
-        isTabPanelLoading.value = false;
-      }
+      // 统一收口：基础信息、LLM 观测这类无需取数的页签也要清掉开头置上的 loading，
+      // 否则它会一直留着，被下一个走 loading 的页签继承
+      isTabPanelLoading.value = false;
     };
     const getProfilingTimeRange = () => {
       const halfHour = 18 * 10 ** 8;
@@ -1617,9 +1654,9 @@ export default defineComponent({
                       titleInfoElem()
                     )}
                     <div class='details-others'>
-                      {info.header.others.map((item, index) => (
+                      {info.header.others.map(item => (
                         <span
-                          key={index}
+                          key={item.label}
                           class='other-item'
                         >
                           <span class='label'>{`${item.label}: `}</span>
@@ -1638,8 +1675,8 @@ export default defineComponent({
                     class='info-tab'
                     v-slots={{
                       setting: () => {
-                        return (
-                          exploreButtonName.value && (
+                        if (exploreButtonName.value) {
+                          return (
                             <div class='quick-jump-container'>
                               {activeTab.value === 'Log' && (
                                 <Button
@@ -1666,8 +1703,20 @@ export default defineComponent({
                                 <i class='icon-monitor icon-fenxiang' />
                               </Button>
                             </div>
-                          )
-                        );
+                          );
+                        }
+                        if (activeTab.value === 'LlmObservation') {
+                          return (
+                            <ObservationSearch
+                              activeIndex={llmSearchActiveIndex.value}
+                              keyword={llmSearchKeyword.value}
+                              matchCount={llmSearchMatchCount.value}
+                              onNext={() => handleLlmSearchStep(1)}
+                              onPrev={() => handleLlmSearchStep(-1)}
+                              onUpdate:keyword={handleLlmSearchKeyword}
+                            />
+                          );
+                        }
                       },
                     }}
                     active={activeTab.value}
@@ -1676,9 +1725,9 @@ export default defineComponent({
                       handleActiveTabChange();
                     }}
                   >
-                    {tabList.value.map((item, index) => (
+                    {tabList.value.map(item => (
                       <Tab.TabPanel
-                        key={index}
+                        key={item.name}
                         v-slots={{
                           label: () => (
                             <div style='display: flex;'>
@@ -1782,6 +1831,7 @@ export default defineComponent({
                                 handleSmallExpanChange(false, index, childIndex);
                               }
                               return (
+                                // biome-ignore lint/suspicious/noArrayIndexKey: 事件列表加载后不增删或重排，同名同时间的事件也需按原始位置区分。
                                 <div key={childIndex}>
                                   {expanItemSmall(
                                     child.isExpan,
@@ -1910,7 +1960,14 @@ export default defineComponent({
                           {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
                           {!isTabPanelLoading.value && (
                             <div class='host-tab-container'>
-                              <LlmObservation llmDetail={llmDetail.value} />
+                              <LlmObservation
+                                key={`${detailSpan.value.traceID}:${detailSpan.value.span_id}`}
+                                llmDetail={llmDetail.value}
+                                searchActiveIndex={llmSearchActiveIndex.value}
+                                searchKeyword={llmSearchKeyword.value}
+                                onMatchCount={handleLlmSearchMatchCount}
+                                onSearchActiveIndex={handleLlmSearchActiveIndex}
+                              />
                             </div>
                           )}
                         </Loading>
@@ -2076,6 +2133,8 @@ export default defineComponent({
           resetSpanLinksRequestState();
           isInvokeOnceFlag = true;
           activeTab.value = 'BasicInfo';
+          // 关闭时可能还有页签数据在飞，不清掉会让下次打开的首个页签卡在 loading
+          isTabPanelLoading.value = false;
           // countOfInfo.value = {};
           fullscreen.value = false;
         }

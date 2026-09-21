@@ -1634,6 +1634,46 @@ def test_merge_component_config_keeps_existing_result_table_biz_id_on_conflict(c
 
 
 @pytest.mark.django_db(databases="__all__")
+def test_apply_data_link_injects_prefer_cluster(create_or_delete_records, settings):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    data_source = models.DataSource.objects.get(bk_data_id=50010)
+    table = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
+    data_link = DataLink.objects.create(
+        data_link_name="prefer_cluster_real_compose",
+        bk_tenant_id=table.bk_tenant_id,
+        namespace="bkmonitor",
+        data_link_strategy=DataLink.BK_STANDARD_V2_TIME_SERIES,
+        bk_data_id=data_source.bk_data_id,
+        table_ids=[table.table_id],
+    )
+    models.ResultTableOption.create_option(
+        bk_tenant_id=data_link.bk_tenant_id,
+        table_id=table.table_id,
+        name=models.ResultTableOption.OPTION_DATABUS_PREFER_CLUSTER,
+        value={"name": "databus-cluster"},
+        creator="system",
+    )
+    models.ResultTableOption.create_option(
+        bk_tenant_id=data_link.bk_tenant_id,
+        table_id=table.table_id,
+        name=models.ResultTableOption.OPTION_DATABUS_LABELS,
+        value={"workload": "custom-metric"},
+        creator="system",
+    )
+
+    configs = _apply_standard_v2_data_link(data_link, data_source, table.table_id)
+
+    assert _get_databus_config_payload(configs)["metadata"]["labels"]["workload"] == "custom-metric"
+    assert _get_databus_config_payload(configs)["spec"]["preferCluster"] == {
+        "kind": "DatabusCluster",
+        "tenant": data_link.bk_tenant_id,
+        "namespace": "bkmonitor",
+        "name": "databus-cluster",
+    }
+    assert all("preferCluster" not in config["spec"] for config in configs if config["kind"] != "Databus")
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_apply_data_link_merges_existing_component_config_before_apply(create_or_delete_records, mocker):
     ds = models.DataSource.objects.get(bk_data_id=50010)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50010.__default__")
@@ -7254,6 +7294,7 @@ def test_compose_log_configs_reuses_legacy_components(create_or_delete_records, 
             "json_fields": ["json_body"],
             "original_json_fields": ["origin_json"],
             "field_config_group": {"search_analyzed": ["log"]},
+            "tokenizers": {"log": "._=:,"},
             "flush_timeout": 30,
         },
     }
@@ -7345,6 +7386,8 @@ def test_compose_log_configs_reuses_legacy_components(create_or_delete_records, 
     assert configs[1]["spec"]["data"]["name"] == "legacy_log_rt"
     assert configs[2]["metadata"]["name"] == "legacy_log_doris_binding"
     assert configs[2]["spec"]["data"]["name"] == "legacy_log_rt"
+    assert configs[2]["spec"]["storage_config"]["field_config_group"] == {"search_analyzed": ["log"]}
+    assert configs[2]["spec"]["storage_config"]["tokenizers"] == {"log": "._=:,"}
     assert configs[3]["metadata"]["name"] == "legacy_log_databus"
     assert configs[3]["spec"]["sources"][0]["name"] == "legacy_log_data_id"
     assert configs[3]["spec"]["sinks"] == [

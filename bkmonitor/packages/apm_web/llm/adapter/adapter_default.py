@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from .fields import STANDARD_FIELDS
+from apm_web.llm.constants import STANDARD_FIELDS
+
 from .utils import standard_content
 
 

@@ -150,30 +150,30 @@ def compose_profile_data_id_name(bk_biz_id: int, app_name: str) -> str:
     正常格式：profile_{bk_biz_id}_{sanitized_app_name}
     截断格式：profile_{bk_biz_id}_{truncated_app_name}_{random}
 
-    @param bk_biz_id: 业务 ID
+    @param bk_biz_id: 业务ID
     @param app_name: 应用名称
     @return: DataId 资源名称，长度 ≤ 50
     """
-    _PREFIX = "profile_"
     _MAX_LENGTH = 50
     _RANDOM_LENGTH = 5
 
     sanitized = _sanitize_name(app_name)
+    prefix = f"profile_space_{abs(bk_biz_id)}" if bk_biz_id < 0 else f"profile_{bk_biz_id}"
     # profile_{bk_biz_id}_{sanitized}
-    name = f"{_PREFIX}{bk_biz_id}_{sanitized}"
+    name = f"{prefix}_{sanitized}"
 
     if len(name) <= _MAX_LENGTH:
         return name
 
     # 截断：profile_{bk_biz_id}_{truncated}_{random}
-    # 固定部分 = 前缀 + bk_biz_id + 2个下划线 + random下划线 + random
-    fixed_len = len(_PREFIX) + len(str(bk_biz_id)) + 2 + 1 + _RANDOM_LENGTH
+    # 固定部分 = 前缀 + random下划线 + random
+    fixed_len = len(prefix) + 1 + _RANDOM_LENGTH
     truncated_max = _MAX_LENGTH - fixed_len
     if truncated_max < 1:
         truncated_max = 1
     truncated = sanitized[:truncated_max].rstrip("_")
     random_suffix = "".join(random.choices(string.ascii_lowercase + string.digits, k=_RANDOM_LENGTH))
-    return f"{_PREFIX}{bk_biz_id}_{truncated}_{random_suffix}"
+    return f"{prefix}_{truncated}_{random_suffix}"
 
 
 def compose_profile_resource_name(app_name: str, bk_data_id: int) -> str:
@@ -589,12 +589,12 @@ class BkDataDorisV4Provider:
       2. 用 bk_data_id 构建 ResultTable / DorisBinding / Databus 并提交
     """
 
-    bk_biz_id: int  # profile_bk_biz_id，用于 BkBase API 请求中的 bizId / labels / db 命名
+    bk_biz_id: int  # 真实业务 ID，用于区分业务/空间及 DataId 命名
+    bkbase_biz_id: int  # BKBase 资源归属业务 ID，用于 bizId / labels / db 命名
     app_name: str
     bk_tenant_id: str
     maintainer: str
     operator: str
-    data_biz_id: int = 0  # 仅用于 DataId 命名（通过 get_tenant_datalink_biz_id 获取）
     # DataId.spec.preferCluster.name，来自默认 Kafka 集群的 cluster_name（ClusterInfo）。
     prefer_kafka_cluster_name: str | None = None
 
@@ -611,17 +611,14 @@ class BkDataDorisV4Provider:
         prefer_kafka_cluster_name: str | None = None,
     ) -> "BkDataDorisV4Provider":
         """从 ProfileDataSource 实例构造 V4 Provider"""
-        from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
-
-        datalink_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id, obj.profile_bk_biz_id)
 
         return cls(
-            bk_biz_id=obj.profile_bk_biz_id,
+            bk_biz_id=obj.bk_biz_id,
+            bkbase_biz_id=obj.profile_bk_biz_id,
             app_name=obj.app_name,
             bk_tenant_id=bk_tenant_id,
             maintainer=maintainer,
             operator=operator,
-            data_biz_id=datalink_biz_ids.data_biz_id,
             prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             _obj=obj,
         )
@@ -631,7 +628,7 @@ class BkDataDorisV4Provider:
     def _data_id_name(self) -> str:
         """DataId 资源名称，优先使用已存储的名称"""
         stored = self._obj.bkdata_datalink_config.get("v4_resource_names", {}) if self._obj else {}
-        return stored.get("data_id_name") or compose_profile_data_id_name(self.data_biz_id, self.app_name)
+        return stored.get("data_id_name") or compose_profile_data_id_name(self.bk_biz_id, self.app_name)
 
     def _result_table_name(self, bk_data_id: int) -> str:
         """ResultTable 资源名称，优先使用已存储的名称"""
@@ -663,7 +660,7 @@ class BkDataDorisV4Provider:
 
     def _metadata_labels(self) -> dict:
         """V4 资源的 metadata.labels，与指标链路保持一致"""
-        return {"bk_biz_id": str(self.bk_biz_id)}
+        return {"bk_biz_id": str(self.bkbase_biz_id)}
 
     @cached_property
     def _tenant_kwargs(self) -> dict:
@@ -696,7 +693,7 @@ class BkDataDorisV4Provider:
             "spec": {
                 "description": f"App<{self.app_name}> profiling data id",
                 "alias": name,
-                "bizId": self.bk_biz_id,
+                "bizId": self.bkbase_biz_id,
                 "maintainers": self._maintainers_list(),
                 "preferCluster": {
                     "kind": "KafkaChannel",
@@ -721,7 +718,7 @@ class BkDataDorisV4Provider:
             },
             "spec": {
                 "description": f"App<{self.app_name}> profiling result table",
-                "bizId": self.bk_biz_id,
+                "bizId": self.bkbase_biz_id,
                 "alias": rt_name,
                 "maintainers": self._maintainers_list(),
                 "dataType": "log",
@@ -851,15 +848,15 @@ class BkDataDorisV4Provider:
                     "table_type": "duplicate_table",
                     "is_profiling": True,
                     "unique_partition_table": False,
-                    "db": f"mapleleaf_{self.bk_biz_id}",
+                    "db": f"mapleleaf_{self.bkbase_biz_id}",
                     "table": dorisbinding_name,
                     "storage_keys": [],
                     "json_fields": [],
                     "original_json_fields": [],
                     "field_config_group": {},
                     "expires": self.config.expires,
-                    "sample_table_name": f"{rt_name}_sample_{self.bk_biz_id}",
-                    "label_table_name": f"{rt_name}_label_{self.bk_biz_id}",
+                    "sample_table_name": f"{rt_name}_sample_{self.bkbase_biz_id}",
+                    "label_table_name": f"{rt_name}_label_{self.bkbase_biz_id}",
                     "flush_timeout": 300,
                 },
             },
@@ -1056,9 +1053,9 @@ class BkDataDorisV4Provider:
             )
             raise e.__cause__ if e.__cause__ else e
 
-        # result_table_id 格式：{bk_biz_id}_{rt_name}
+        # result_table_id 格式：{bkbase_biz_id}_{rt_name}
         rt_name = self._result_table_name(bk_data_id)
-        result_table_id = f"{self.bk_biz_id}_{rt_name}"
+        result_table_id = f"{self.bkbase_biz_id}_{rt_name}"
 
         # 过期天数：从 config.expires 中提取（格式如 "3d"）
         retention = int(self.config.expires.rstrip("d"))

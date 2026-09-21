@@ -23,22 +23,22 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
-import VueJsonPretty from 'vue-json-pretty';
 
-import { toJsonPrettyData } from '../utils/helpers';
 import { parseOutputObservation } from '../utils/parse-output';
+import { LLM_SEARCH_SECTION } from '../utils/search';
 import CollapseSection from './collapse-section';
 import JsonCodeBlock from './json-code-block';
+import JsonView from './json-view';
 import TextContentItem from './text-content-item';
+import ToolCallList from './tool-call-list';
 
-import type { LlmPlannedToolCall, LlmTextItem, LlmToolResult } from '../utils/typings';
+import type { LlmTextItem, LlmToolResult } from '../utils/typings';
 
 import './output-tab.scss';
-import 'vue-json-pretty/lib/styles.css';
 
 /** 独立查看侧栏内容：文本或 JSON */
 type DetailState =
@@ -54,7 +54,7 @@ type DetailState =
       title: string;
     };
 
-/** 输出 Tab：推理过程、规划的工具调用、模型输出、工具结果 */
+/** 输出 Tab：推理过程、模型输出、规划的工具调用、工具结果 */
 export default defineComponent({
   name: 'LlmOutputTab',
   props: {
@@ -67,33 +67,13 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const detail = shallowRef<DetailState>(null);
-    /** 当前选中的规划工具 */
-    const selectedToolId = shallowRef('');
-
     const observation = computed(() => parseOutputObservation(props.attributes));
-    const selectedTool = computed(
-      () =>
-        observation.value.plannedToolCalls.find(item => item.id === selectedToolId.value) ||
-        observation.value.plannedToolCalls[0]
-    );
-    const hasContent = computed(() =>
-      Boolean(
-        observation.value.reasoningMessages.length ||
-        observation.value.plannedToolCalls.length ||
-        observation.value.modelOutputs.length ||
-        observation.value.toolResults.length
-      )
-    );
-
-    watch(
-      () => observation.value.plannedToolCalls,
-      calls => {
-        if (!calls.find(item => item.id === selectedToolId.value)) {
-          selectedToolId.value = calls[0]?.id || '';
-        }
-      },
-      { immediate: true }
-    );
+    const hasContent = computed(() => {
+      const data = observation.value;
+      return [data.reasoningMessages, data.plannedToolCalls, data.modelOutputs, data.toolResults].some(
+        items => items.length > 0
+      );
+    });
 
     /** 打开文本独立查看侧栏 */
     const openTextDetail = (title: string, content: string) => {
@@ -105,13 +85,19 @@ export default defineComponent({
       detail.value = { kind: 'json', title, data };
     };
 
-    /** 渲染文本分区条目 */
-    const renderTextItems = (items: LlmTextItem[], title: string) =>
+    /** 关闭独立查看：卸载 Sideslider，避免 teleport 到 body 的 .bk-modal 残留挡点击 */
+    const closeDetail = () => {
+      detail.value = null;
+    };
+
+    /** 渲染文本分区条目；searchPrefix 须与 collectOutputHits 的 blockId 前缀一致 */
+    const renderTextItems = (items: LlmTextItem[], title: string, searchPrefix: string) =>
       items.map((item, index) => (
         <TextContentItem
           key={item.id}
           content={item.content}
           index={index + 1}
+          searchBlockId={`${searchPrefix}:${item.id}`}
           onViewAlone={content => openTextDetail(title, content)}
         />
       ));
@@ -123,40 +109,12 @@ export default defineComponent({
           <JsonCodeBlock
             key={item.id}
             data={item.result ?? {}}
-            title={item.name || t('返回结果')}
+            searchBlockId={`output:result:${item.id}:json`}
+            title={item.name.trim() || t('返回结果')}
+            titleBlockId={item.name.trim() ? `output:result:${item.id}:name` : ''}
             onViewAlone={openJsonDetail}
           />
         ))}
-      </div>
-    );
-
-    /** 渲染规划中的工具调用标签与当前选中工具参数 */
-    const renderPlannedTools = (tools: LlmPlannedToolCall[]) => (
-      <div class='llm-output-tab-tools'>
-        <div class='llm-output-tab-tool-tags'>
-          {tools.map(tool => (
-            <div
-              key={tool.id}
-              class={['llm-output-tab-tool-tag', { 'is-active': selectedTool.value?.id === tool.id }]}
-              onClick={() => {
-                selectedToolId.value = tool.id;
-              }}
-            >
-              {tool.name || t('未命名工具')}
-            </div>
-          ))}
-        </div>
-        {selectedTool.value?.description ? (
-          <div class='llm-output-tab-tool-desc'>
-            <span class='llm-output-tab-tool-desc-label'>{t('工具描述')}</span>
-            <span class='llm-output-tab-tool-desc-text'>{selectedTool.value.description}</span>
-          </div>
-        ) : null}
-        <JsonCodeBlock
-          data={selectedTool.value?.arguments ?? {}}
-          title={t('调用参数')}
-          onViewAlone={openJsonDetail}
-        />
       </div>
     );
 
@@ -169,34 +127,42 @@ export default defineComponent({
             {observation.value.reasoningMessages.length > 0 && (
               <CollapseSection
                 count={observation.value.reasoningMessages.length}
-                icon='icon-mind-fill'
+                icon='icon-tuiliguocheng'
+                sectionId={LLM_SEARCH_SECTION.outputReasoning}
                 title={t('推理过程')}
               >
-                {renderTextItems(observation.value.reasoningMessages, t('推理过程'))}
-              </CollapseSection>
-            )}
-            {observation.value.plannedToolCalls.length > 0 && (
-              <CollapseSection
-                count={observation.value.plannedToolCalls.length}
-                icon='icon-setting'
-                title={t('规划的工具调用')}
-              >
-                {renderPlannedTools(observation.value.plannedToolCalls)}
+                {renderTextItems(observation.value.reasoningMessages, t('推理过程'), 'output:reasoning')}
               </CollapseSection>
             )}
             {observation.value.modelOutputs.length > 0 && (
               <CollapseSection
                 count={observation.value.modelOutputs.length}
-                icon='icon-mc-robot'
+                icon='icon-LLM'
+                sectionId={LLM_SEARCH_SECTION.outputModel}
                 title={t('模型输出')}
               >
-                {renderTextItems(observation.value.modelOutputs, t('模型输出'))}
+                {renderTextItems(observation.value.modelOutputs, t('模型输出'), 'output:model')}
+              </CollapseSection>
+            )}
+            {observation.value.plannedToolCalls.length > 0 && (
+              <CollapseSection
+                count={observation.value.plannedToolCalls.length}
+                icon='icon-Tool'
+                sectionId={LLM_SEARCH_SECTION.outputPlanned}
+                title={t('规划的工具调用')}
+              >
+                <ToolCallList
+                  items={observation.value.plannedToolCalls}
+                  searchPrefix='output:planned'
+                  onViewAlone={openJsonDetail}
+                />
               </CollapseSection>
             )}
             {observation.value.toolResults.length > 0 && (
               <CollapseSection
                 count={observation.value.toolResults.length}
                 icon='icon-setting'
+                sectionId={LLM_SEARCH_SECTION.outputResults}
                 title={t('工具调用结果')}
               >
                 {renderToolResults(observation.value.toolResults)}
@@ -204,39 +170,35 @@ export default defineComponent({
             )}
           </>
         )}
-        <Sideslider
-          width={640}
-          extCls='llm-output-tab-slider'
-          isShow={Boolean(detail.value)}
-          quickClose={true}
-          transfer={true}
-          onClosed={() => {
-            detail.value = null;
-          }}
-          onUpdate:isShow={(val: boolean) => {
-            if (!val) detail.value = null;
-          }}
-        >
-          {{
-            header: () => <span>{detail.value?.title || ''}</span>,
-            default: () =>
-              detail.value?.kind === 'json' ? (
-                <div class='llm-output-tab-slider-json'>
-                  <VueJsonPretty
-                    collapsedOnClickBrackets={false}
-                    data={toJsonPrettyData(detail.value.data)}
-                    deep={20}
-                    showIcon={false}
-                    showKeyValueSpace={true}
-                    showLine={false}
-                    showLineNumber={true}
-                  />
-                </div>
-              ) : (
-                <pre class='llm-output-tab-slider-text'>{detail.value?.kind === 'text' ? detail.value.text : ''}</pre>
-              ),
-          }}
-        </Sideslider>
+        {detail.value ? (
+          <Sideslider
+            width={640}
+            extCls='llm-output-tab-slider'
+            isShow={true}
+            quickClose={true}
+            transfer={true}
+            onClosed={closeDetail}
+            onHidden={closeDetail}
+            onUpdate:isShow={(val: boolean) => {
+              if (!val) closeDetail();
+            }}
+          >
+            {{
+              header: () => <span>{detail.value?.title || ''}</span>,
+              default: () =>
+                detail.value?.kind === 'json' ? (
+                  <div class='llm-output-tab-slider-json'>
+                    <JsonView
+                      data={detail.value.data}
+                      showLineNumber={true}
+                    />
+                  </div>
+                ) : (
+                  <pre class='llm-output-tab-slider-text'>{detail.value?.kind === 'text' ? detail.value.text : ''}</pre>
+                ),
+            }}
+          </Sideslider>
+        ) : null}
       </div>
     );
   },

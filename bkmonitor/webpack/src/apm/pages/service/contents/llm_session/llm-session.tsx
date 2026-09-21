@@ -44,6 +44,12 @@ import type { IViewOptions } from 'monitor-ui/chart-plugins/typings';
 
 import './llm-session.scss';
 
+interface IViewModeItem {
+  icon: string;
+  id: LlmViewMode;
+  name: string;
+}
+
 /** 从当前 URL 读取视角。class 字段初始化时 $route 可能尚未注入，因此同时看 search 与 hash */
 function getViewModeFromLocation(): LlmViewMode {
   const hash = window.location.hash || '';
@@ -52,12 +58,6 @@ function getViewModeFromLocation(): LlmViewMode {
     new URLSearchParams(window.location.search).get(LLM_SESSION_TAB_QUERY_KEY) ||
     new URLSearchParams(hashQuery).get(LLM_SESSION_TAB_QUERY_KEY);
   return tab === 'trace' ? 'trace' : 'session';
-}
-
-interface IViewModeItem {
-  icon: string;
-  id: LlmViewMode;
-  name: string;
 }
 
 /**
@@ -132,9 +132,7 @@ export default class LlmSession extends tsc<object> {
   }
 
   get searchPlaceholder() {
-    return this.isSessionMode
-      ? this.$tc('搜索 会话 ID、User ID')
-      : this.$tc('搜索 Trace ID、User ID、会话 ID、输入输出摘要');
+    return this.$tc('搜索 会话 ID、Trace ID、用户 ID、消息关键字');
   }
 
   /** 请求依赖的上下文，聚合成单一 key 以避免多个 watch 造成重复请求 */
@@ -345,6 +343,7 @@ export default class LlmSession extends tsc<object> {
           class='llm-session-table-wrap'
         >
           <LlmTable
+            key={this.viewMode}
             columns={this.columns}
             data={this.rows}
             expandColumns={this.expandColumns}

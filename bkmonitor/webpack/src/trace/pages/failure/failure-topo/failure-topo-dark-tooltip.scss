@@ -1,0 +1,27 @@
+/* v-bk-tooltips 挂载到 body，统一暗色边框，避免默认 #dcdee5 在画布上突兀 */
+.failure-topo-dark-tooltip {
+  z-index: 9999 !important;
+  border: 1px solid #454547 !important;
+  border-radius: 2px !important;
+  box-shadow: 0 2px 6px 0 #00000080 !important;
+
+  &[data-popper-placement^='top'] .bk-popper-arrow::before {
+    border-right: 1px solid #454547;
+    border-bottom: 1px solid #454547;
+  }
+
+  &[data-popper-placement^='bottom'] .bk-popper-arrow::before {
+    border-left: 1px solid #454547;
+    border-top: 1px solid #454547;
+  }
+
+  &[data-popper-placement^='left'] .bk-popper-arrow::before {
+    border-right: 1px solid #454547;
+    border-top: 1px solid #454547;
+  }
+
+  &[data-popper-placement^='right'] .bk-popper-arrow::before {
+    border-left: 1px solid #454547;
+    border-bottom: 1px solid #454547;
+  }
+}

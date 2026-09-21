@@ -23,736 +23,103 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 
-import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
-import { random, tryURLDecodeParse } from 'monitor-common/utils';
+import { Component, Mixins } from 'vue-property-decorator';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
-import { EMode } from '../../components/retrieval-filter/utils';
-import { DEFAULT_TIME_RANGE } from '../../components/time-range/utils';
-import { getDefaultTimezone } from '../../i18n/dayjs';
+import K8sMonitorPanel from '../../components/k8s-silder/k8s-monitor-panel';
+import { buildK8sMonitorQuery, parseK8sMonitorQuery } from '../../components/k8s-silder/utils';
 import NewUserConfigMixin from '../../mixins/newUserStoreConfig';
-import K8sEventExplore from '../event-explore/k8s-event-explore';
-import FilterByCondition from './components/filter-by-condition/filter-by-condition';
-import GroupByCondition from './components/group-by-condition/group-by-condition';
-import K8SCharts from './components/k8s-charts/k8s-charts';
-import K8sDimensionList from './components/k8s-left-panel/k8s-dimension-list';
-import K8sLeftPanel from './components/k8s-left-panel/k8s-left-panel';
-import K8sMetricList from './components/k8s-left-panel/k8s-metric-list';
 import K8sNavBar from './components/k8s-nav-bar/K8s-nav-bar';
-import K8sTableNew, {
-  type K8sTableColumnResourceKey,
-  type K8sTableGroupByEvent,
-} from './components/k8s-table-new/k8s-table-new';
-import { K8sGroupDimension, sceneDimensionMap } from './k8s-dimension';
-import {
-  type ICommonParams,
-  type IFilterCommonParams,
-  type IK8SMetricItem,
-  type ITableCommonParams,
-  EDimensionKey,
-  K8sNewTabEnum,
-  SceneEnum,
-} from './typings/k8s-new';
+import { SceneEnum } from './typings/k8s-new';
 
-import type { TimeRangeType } from '../../components/time-range/time-range';
-import type { IWhere } from './typings';
-
-import './monitor-k8s-new.scss';
-
-const HIDE_METRICS_KEY = 'monitor_k8s_hide_metrics';
+import type { K8sMonitorNavBarScope } from '../../components/k8s-silder/k8s-monitor-panel';
+import type { K8sMonitorInitialParams, K8sMonitorStateChangeEvent } from '../../components/k8s-silder/typings';
 
 const CACHE_SEARCH_QUERY = 'cacheSearchQuery';
 
-/** 网络场景默认隐藏的指标 */
-const networkDefaultHideMetrics = [
-  'nw_container_network_receive_errors_total',
-  'nw_container_network_transmit_errors_total',
-];
-
-const tabList = [
-  {
-    label: window.i18n.t('K8s对象列表'),
-    id: K8sNewTabEnum.LIST,
-    icon: 'icon-mc-list',
-  },
-  {
-    label: window.i18n.t('指标视图'),
-    id: K8sNewTabEnum.CHART,
-    icon: 'icon-zhibiao',
-  },
-  {
-    label: window.i18n.t('K8s集群数据详情'),
-    id: K8sNewTabEnum.DETAIL,
-    icon: 'icon-Component',
-  },
-];
-
+/**
+ * 容器监控（新版）路由页。
+ *
+ * 只负责路由相关的事：URL ↔ 视图状态同步、引导页、离开时缓存查询条件，
+ * 以及在 navBar 插槽里渲染顶部导航。视图主体在 `K8sMonitorPanel`，与侧滑共用。
+ */
 @Component
 export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
-  // 数据时间间隔
-  @ProvideReactive('timeRange') timeRange: TimeRangeType = DEFAULT_TIME_RANGE;
-  // 时区
-  @ProvideReactive('timezone') timezone: string = getDefaultTimezone();
-  // 刷新间隔
-  @ProvideReactive('refreshInterval') refreshInterval = -1;
-  // 是否立即刷新
-  @ProvideReactive('refreshImmediate') refreshImmediate = '';
-  @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
-  @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
-  @ProvideReactive('showRestore') showRestore = false;
-  // 场景
-  @ProvideReactive('scene')
-  scene: SceneEnum = SceneEnum.Performance;
-  // 集群
-  cluster = '';
-  /** 集群选择器下拉折叠状态 */
-  clusterToggle = false;
-  // 集群列表
-  clusterList = [];
-  // 集群加载状态
-  clusterLoading = true;
-  // 当前 tab
-  activeTab = K8sNewTabEnum.LIST;
-  filterBy: Record<string, string[]> = {};
-  // Group By 选择器的值
-  @ProvideReactive('groupInstance')
-  groupInstance: K8sGroupDimension = K8sGroupDimension.createInstance(SceneEnum.Performance);
-
-  // 是否展示撤回下钻
-  showCancelDrill = false;
-  groupList = [];
-
   bizId = this.$store.getters.bizId;
 
-  cacheFilterBy: Record<string, string[]> = {};
-  cacheGroupBy = [];
+  /** 只在进入页面时解析一次，避免回写 URL 时反复给视图传入新的初始状态 */
+  initialParams: K8sMonitorInitialParams | null = null;
 
-  /** 指标列表 */
-  metricList: IK8SMetricItem[] = [];
-  // 指标隐藏项
-  hideMetrics: string[] = [];
-  /** 当前选中的指标 */
-  activeMetricId = '';
-
-  metricLoading = true;
-  /** 自动刷新定时器 */
-  timer = null;
-  /** 各维度数据总和 */
-  dimensionTotal: Record<string, number> = {};
-
-  cacheTimeRange = [];
-
-  resizeObserver = null;
-  headerHeight = 102;
-  /** 事件场景字段 */
-  eventWhere = [];
-  eventQueryString = '';
-  eventFilterMode = EMode.ui;
-
-  get isChart() {
-    return this.activeTab === K8sNewTabEnum.CHART;
-  }
-
-  /** 当前选择的集群 */
-  get selectCluster() {
-    return this.clusterList.find(item => item.id === this.cluster);
-  }
-
-  get groupFilters() {
-    return this.groupInstance.groupFilters;
-  }
-
-  // 禁用的指标列表
-  get disabledMetricList(): { id: string; tooltips: string }[] {
-    /** 最后一级维度 */
-    const { groupByDimensions: dimensions } = this.groupInstance;
-    const lastDimension =
-      this.activeTab === K8sNewTabEnum.DETAIL
-        ? dimensions[dimensions.length - 1]
-        : this.groupInstance.getResourceType();
-    const disabledMetricList = [];
-    for (const metrics of this.metricList) {
-      for (const metric of metrics.children) {
-        if ((metric.unsupported_resource || []).includes(lastDimension)) {
-          disabledMetricList.push({
-            id: metric.id,
-            tooltips: this.$t('该指标在当前级别({0})不可用', [lastDimension]),
-          });
-        }
-      }
-    }
-    return disabledMetricList;
-  }
-
-  /** 最终需要隐藏的指标项， 需要通过用户配置以及groupBy选择两种一起判断 */
-  get resultHideMetrics(): string[] {
-    const set = new Set<string>([...this.hideMetrics, ...this.disabledMetricList.map(item => item.id)]);
-    return Array.from(set);
-  }
-
-  /** 当前场景下的维度列表 */
-  get sceneDimensionList() {
-    return sceneDimensionMap[this.scene] || [];
-  }
+  /** 插槽对象保持同一引用，避免每次渲染都强制视图整树更新 */
+  panelSlots = {
+    navBar: (scope: K8sMonitorNavBarScope) => this.navBarRender(scope),
+  };
 
   // 获取引导页状态
   get showGuidePage() {
     return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
   }
 
-  /** 公共参数 */
-  @ProvideReactive('commonParams')
-  get commonParams(): ICommonParams {
-    return {
-      scenario: this.scene,
-      bcs_cluster_id: this.cluster,
-      timeRange: this.timeRange,
-    };
-  }
-
-  get tableCommonParam(): ITableCommonParams {
-    return {
-      ...this.commonParams,
-      filter_dict: Object.fromEntries(Object.entries(this.filterBy).filter(([, v]) => v?.length)),
-    };
-  }
-
-  get filterCommonParams(): IFilterCommonParams {
-    return {
-      ...this.tableCommonParam,
-      resource_type: this.groupInstance.groupFilters.at(-1),
-      with_history: false,
-    };
-  }
-
-  setGroupFilters(groupId: K8sTableColumnResourceKey, config?: { single: boolean }) {
-    if (this.groupInstance.hasGroupFilter(groupId)) {
-      this.groupInstance.deleteGroupFilter(groupId, config);
-      return;
-    }
-    this.groupInstance?.addGroupFilter(groupId, config);
-  }
-
-  @Watch('groupFilters')
-  watchGroupFiltersChange() {
-    this.setRouteParams({
-      tableSort: '',
-      tableOrder: '',
-      tableMethod: '',
-    });
-  }
-
-  @Watch('filterBy', { deep: true })
-  watchFilterByChange() {
-    this.setRouteParams();
-  }
-
-  /**
-   * @description 表格下钻点击回调
-   * @param {K8sTableGroupByEvent} item
-   */
-  @Provide('onGroupChange')
-  handleTableGroupChange(item: K8sTableGroupByEvent, showCancelDrill = false) {
-    const cacheGroupBy = [...this.groupInstance.groupFilters];
-    const cacheFilterBy = JSON.parse(JSON.stringify(this.filterBy));
-    const { filterById, id, dimension } = item;
-    this.handleDrillDown(filterById, id, dimension);
-    if (showCancelDrill) {
-      this.showCancelDrill = true;
-      this.cacheGroupBy = cacheGroupBy;
-      this.cacheFilterBy = cacheFilterBy;
-    }
-  }
-
-  /**
-   * 修改filterBy
-   * @param id 数据Id
-   * @param dimensionId 维度Id
-   * @param isSelect 是否选中
-   */
-  @Provide('onFilterChange')
-  filterByChange(id: string, dimensionId: string, isSelect: boolean) {
-    this.showCancelDrill = false;
-    if (!this.filterBy[dimensionId]) {
-      this.$set(this.filterBy, dimensionId, []);
-    }
-    if (isSelect) {
-      if (!this.groupInstance.hasGroupFilter(dimensionId as K8sTableColumnResourceKey)) {
-        this.groupByChange(dimensionId, true);
-      }
-      /** workload维度只能选择一项 */
-      if (dimensionId === EDimensionKey.workload) {
-        this.$set(this.filterBy, dimensionId, [id]);
-      } else if (!this.filterBy[dimensionId].includes(id)) {
-        this.filterBy[dimensionId].push(id);
-      }
-    } else {
-      this.$set(
-        this.filterBy,
-        dimensionId,
-        this.filterBy[dimensionId].filter(item => item !== id)
-      );
-    }
-  }
-
-  async created() {
-    /** URL没有参数且存在缓存查询条件，使用缓存查询条件 */
-    if (!Object.keys(this.$route.query).length) {
-      await this.getClusterList();
-      const data = await this.handleGetUserConfig<Record<string, string | string[]>>(
-        `${CACHE_SEARCH_QUERY}_${this.bizId}_${this.cluster}`
-      );
-      data && this.getRouteParams(data);
-    } else {
-      this.getRouteParams(this.$route.query);
-      this.getClusterList();
-    }
-    this.getScenarioMetricList();
-    this.getHideMetrics();
-  }
-
-  mounted() {
-    this.observerFilterByHeader();
-  }
-
-  observerFilterByHeader() {
-    this.resizeObserver?.disconnect();
-    this.resizeObserver = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const height = entry?.contentRect?.height || 50;
-        this.headerHeight = 52 + height;
-      }
-    });
-    const el = this.$el.querySelector('.____monitor-k8s-new-header');
-    if (el) {
-      this.resizeObserver.observe(el);
-    }
+  created() {
+    /** URL 带参时由 URL 决定初始状态；不带参则交给视图用缓存的查询条件恢复 */
+    this.initialParams = Object.keys(this.$route.query).length ? parseK8sMonitorQuery(this.$route.query) : null;
   }
 
   beforeRouteLeave(to, from, next) {
     // 离开时缓存当前查询条件，方便下次进入时使用
-    this.handleSetUserConfig(`${CACHE_SEARCH_QUERY}_${this.bizId}_${this.cluster}`, JSON.stringify(from.query));
+    const cluster = (from.query?.cluster as string) || '';
+    this.handleSetUserConfig(`${CACHE_SEARCH_QUERY}_${this.bizId}_${cluster}`, JSON.stringify(from.query));
     next();
   }
 
-  destroyed() {
-    this.resizeObserver.disconnect();
-  }
-
-  /** 初始化filterBy结构 */
-  initFilterBy() {
-    this.filterBy = this.sceneDimensionList.reduce((pre, cur) => {
-      pre[cur] = [];
-      return pre;
-    }, {});
-  }
-
-  /** 重新实例化 GroupBy */
-  initGroupBy() {
-    this.groupInstance = K8sGroupDimension.createInstance(this.scene);
-  }
-
-  @Provide('handleChartDataZoom')
-  handleChartDataZoom(value) {
-    if (JSON.stringify(this.timeRange) !== JSON.stringify(value)) {
-      this.cacheTimeRange = JSON.parse(JSON.stringify(this.timeRange));
-      this.timeRange = value;
-      this.showRestore = true;
-    }
-  }
-  @Provide('handleRestoreEvent')
-  handleRestoreEvent() {
-    this.timeRange = JSON.parse(JSON.stringify(this.cacheTimeRange));
-    this.showRestore = false;
-  }
-  async getClusterList() {
-    this.clusterLoading = true;
-    this.clusterList = await listBcsCluster().catch(() => []);
-    this.clusterLoading = false;
-    if (this.clusterList.length && !this.cluster) {
-      this.cluster = this.clusterList[0].id;
-    }
-    this.setRouteParams();
-  }
-
   /**
-   * @description 获取场景指标列表
+   * @description 视图状态变更后回写 URL
    */
-  async getScenarioMetricList() {
-    this.metricList = [];
-    if (this.scene === SceneEnum.Event) return;
-    this.metricLoading = true;
-    const data = await scenarioMetricList({ scenario: this.scene }).catch(() => []);
-    this.metricLoading = false;
-    this.metricList = data.map(item => ({
-      ...item,
-      count: item.children.length,
-    }));
-  }
-
-  /** 获取隐藏的指标项 */
-  getHideMetrics() {
-    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
-      if (this.scene === SceneEnum.Network && !res) {
-        /** 网络场景初始化，默认隐藏丢包量指标 */
-        this.hideMetrics = [...networkDefaultHideMetrics];
-      } else {
-        this.hideMetrics = res || [];
-      }
-    });
-  }
-
-  /** 场景切换 */
-  handleSceneChange(value: SceneEnum) {
-    const oldScene = this.scene;
-    this.scene = value;
-    /** 非事件场景之间切换，对filterBy和groupBy查询条件取交集 */
-    if (oldScene !== SceneEnum.Event && value !== SceneEnum.Event) {
-      this.filterBy = this.sceneDimensionList.reduce((pre, cur) => {
-        if (Object.hasOwn(this.filterBy, cur)) {
-          pre[cur] = this.filterBy[cur];
-        } else {
-          pre[cur] = [];
-        }
-        return pre;
-      }, {});
-      const groupBy = this.groupFilters.filter(item => this.sceneDimensionList.includes(item));
-      this.initGroupBy();
-      if (groupBy.length) this.groupInstance.setGroupFilters(groupBy);
-    } else {
-      this.initFilterBy();
-      this.initGroupBy();
-    }
-    this.getHideMetrics();
-    this.getScenarioMetricList();
-    this.setRouteParams();
-    this.showCancelDrill = false;
-    this.$nextTick(() => {
-      this.observerFilterByHeader();
-    });
-  }
-
-  handleImmediateRefresh() {
-    this.refreshImmediate = random(4);
-  }
-
-  handleRefreshChange(value: number) {
-    this.refreshInterval = value;
-    this.setRouteParams();
-    this.timer && clearInterval(this.timer);
-    if (value > -1) {
-      this.timer = setInterval(() => {
-        this.handleImmediateRefresh();
-      }, value);
-    }
-  }
-
-  handleTimeRangeChange(timeRange: TimeRangeType) {
-    this.timeRange = timeRange;
-    this.setRouteParams();
-  }
-
-  handleTimezoneChange(timezone: string) {
-    this.timezone = timezone;
-    // updateTimezone(timezone);
-  }
-
-  dimensionTotalChange(dimensionTotal: Record<string, number>) {
-    this.dimensionTotal = dimensionTotal;
-  }
-
-  /** 撤回下钻 */
-  handleCancelDrillDown() {
-    this.filterBy = this.cacheFilterBy;
-    this.groupInstance.setGroupFilters(this.cacheGroupBy);
-    this.showCancelDrill = false;
-  }
-
-  /**
-   * 修改groupBy
-   * @param groupId
-   * @param isSelect 是否选中
-   */
-  groupByChange(groupId: string, isSelect: boolean) {
-    this.showCancelDrill = false;
-    if (isSelect) {
-      this.groupInstance.addGroupFilter(groupId as K8sTableColumnResourceKey);
-    } else {
-      this.setGroupFilters(groupId as K8sTableColumnResourceKey);
-    }
-  }
-
-  /**
-   * 下钻功能
-   * @param filterById 下钻数据Id
-   * @param filterByDimension  下钻数据所在维度
-   * @param drillDownDimension 下钻维度
-   */
-  handleDrillDown(filterById: string, filterByDimension: string, drillDownDimension: string) {
-    this.filterByChange(filterById, filterByDimension, true);
-    this.groupByChange(drillDownDimension, true);
-  }
-
-  /** 清除某个维度的filterBy */
-  clearFilterBy(dimensionId: string) {
-    this.filterBy[dimensionId] = [];
-    this.filterBy = { ...this.filterBy };
-  }
-
-  /** 隐藏指标项变化 */
-  metricHiddenChange(hideMetrics: string[]) {
-    this.hideMetrics = hideMetrics;
-    /** 网络场景下如果隐藏的指标项和默认隐藏的指标项一致直接初始化 */
-    if (
-      this.scene === SceneEnum.Network &&
-      this.hideMetrics.length === networkDefaultHideMetrics.length &&
-      this.hideMetrics.every(item => networkDefaultHideMetrics.includes(item))
-    ) {
-      this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(null));
-    } else {
-      this.handleSetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`, JSON.stringify(this.hideMetrics));
-    }
-  }
-
-  /** 指标列表项点击 */
-  async handleMetricItemClick(metricId: string) {
-    if (this.hideMetrics.includes(metricId) || !metricId) return;
-    this.activeTab = K8sNewTabEnum.CHART;
-    this.activeMetricId = metricId;
-    setTimeout(() => {
-      this.activeMetricId = '';
-    }, 3000);
-  }
-
-  /** 事件场景 过滤模式切换 */
-  handleEventFilterModeChange(filterMode: EMode.ui) {
-    this.eventFilterMode = filterMode;
-    this.setRouteParams();
-  }
-
-  /** 事件场景Where条件变更 */
-  handleEventWhereChange(where: IWhere[]) {
-    this.eventWhere = where;
-    this.setRouteParams();
-  }
-
-  /** 事件场景queryString修改 */
-  handleEventQueryStringChange(queryString: string) {
-    this.eventQueryString = queryString;
-    this.setRouteParams();
-  }
-
-  handleClusterChange(cluster: string) {
-    this.cluster = cluster;
-    this.eventWhere = [];
-    this.eventQueryString = '';
-    this.initFilterBy();
-    this.groupInstance.initGroupFilter();
-    this.showCancelDrill = false;
-    this.getScenarioMetricList();
-    this.setRouteParams();
-  }
-
-  handleClusterToggle(toggle: boolean) {
-    this.clusterToggle = toggle;
-  }
-
-  /**
-   * @description tab切换回调
-   * @param {K8sNewTabEnum} v
-   */
-  async handleTabChange(v: K8sNewTabEnum) {
-    this.activeTab = v;
-    this.setRouteParams();
-  }
-
-  handleGroupChecked(groupId: K8sTableColumnResourceKey) {
-    this.showCancelDrill = false;
-    this.setGroupFilters(groupId, { single: true });
-  }
-
-  /**
-   * @description table需要存储路由的值改变后回调，将值存入路由
-   */
-  handleTableRouterParamChange(tableRouterParam: Record<string, any>) {
-    this.setRouteParams(tableRouterParam);
-  }
-
-  handleTableClearSearch() {
-    this.initFilterBy();
-  }
-
-  handleFilterByChange(v) {
-    this.filterBy = this.sceneDimensionList.reduce((pre, cur) => {
-      if (v[cur]) {
-        pre[cur] = v[cur];
-      } else {
-        pre[cur] = [];
-      }
-      return pre;
-    }, {});
-    this.showCancelDrill = false;
-  }
-
-  getRouteParams(query: Record<string, string | string[]> = {}) {
-    const {
-      from = 'now-1h',
-      to = 'now',
-      refreshInterval = '-1',
-      filterBy,
-      groupBy,
-      cluster = '',
-      scene = SceneEnum.Performance,
-      activeTab = K8sNewTabEnum.LIST,
-      targets,
-      filterMode,
-    } = query;
-    this.timeRange = [from as string, to as string];
-    this.refreshInterval = Number(refreshInterval);
-    this.cluster = cluster as string;
-    this.scene = scene as SceneEnum;
-    if (scene === SceneEnum.Event) {
-      if (targets) {
-        const targetsList = tryURLDecodeParse(targets as string, []);
-        const [
-          {
-            data: {
-              query_configs: [{ where, query_string: queryString }],
-            },
-          },
-        ] = targetsList;
-        this.eventFilterMode = (filterMode as EMode) || EMode.ui;
-        this.eventWhere = where || [];
-        this.eventQueryString = queryString || '';
-      } else {
-        this.eventWhere = [];
-        this.eventQueryString = '';
-        this.eventFilterMode = EMode.ui;
-      }
-    } else {
-      this.initGroupBy();
-      this.initFilterBy();
-      this.activeTab = activeTab as K8sNewTabEnum;
-      this.groupInstance.setGroupFilters(tryURLDecodeParse(groupBy as string, []));
-      this.filterBy = { ...this.filterBy, ...tryURLDecodeParse(filterBy as string, {}) };
-    }
-  }
-
-  setRouteParams(otherQuery = {}) {
-    const commonQuery = {
-      sceneId: 'kubernetes',
-      from: this.timeRange[0],
-      to: this.timeRange[1],
-      refreshInterval: String(this.refreshInterval),
-      scene: this.scene,
-      cluster: this.cluster,
+  handleStateChange({ state, extra }: K8sMonitorStateChangeEvent) {
+    const query = {
+      ...buildK8sMonitorQuery(state),
+      // 事件场景的表格排序沿用事件检索的 URL 字段，未被 extra 覆盖时保持原值
+      ...(state.scene === SceneEnum.Event
+        ? { prop: this.$route.query?.prop || '', order: this.$route.query?.order || '' }
+        : {}),
+      ...extra,
     };
-    /** 非事件场景参数 */
-    const notEventQuery = {
-      ...commonQuery,
-      filterBy: JSON.stringify(this.filterBy),
-      groupBy: JSON.stringify(this.groupInstance.groupFilters),
-      activeTab: this.activeTab,
-      ...otherQuery,
-    };
-    /** 事件场景参数 */
-    const eventQuery = {
-      ...commonQuery,
-      /** 因存在内部跳转功能，所以使用事件检索URL格式 */
-      targets: JSON.stringify([
-        {
-          data: {
-            query_configs: [
-              {
-                where: this.eventWhere,
-                query_string: this.eventQueryString,
-              },
-            ],
-          },
-        },
-      ]),
-      filterMode: this.eventFilterMode,
-      prop: this.$route.query?.prop || '',
-      order: this.$route.query?.order || '',
-      ...otherQuery,
-    };
-    const query = this.scene === SceneEnum.Event ? eventQuery : notEventQuery;
 
-    const targetRoute = this.$router.resolve({
-      query,
-    });
+    const targetRoute = this.$router.resolve({ query });
 
     /** 防止出现跳转当前地址导致报错 */
     if (targetRoute.resolved.fullPath !== this.$route.fullPath) {
-      this.$router.replace({
-        query,
-      });
+      this.$router.replace({ query });
     }
   }
 
-  tabContentRender() {
-    switch (this.activeTab) {
-      case K8sNewTabEnum.CHART:
-        return (
-          <K8SCharts
-            activeMetricId={this.activeMetricId}
-            filterCommonParams={this.filterCommonParams}
-            groupBy={this.groupFilters}
-            hideMetrics={this.resultHideMetrics}
-            metricList={this.metricList}
-          />
-        );
-      default:
-        return (
-          <K8sTableNew
-            activeTab={this.activeTab}
-            filterCommonParams={this.tableCommonParam}
-            groupInstance={this.groupInstance}
-            hideMetrics={this.resultHideMetrics}
-            metricList={this.metricList}
-            onClearSearch={this.handleTableClearSearch}
-            onRouterParamChange={this.handleTableRouterParamChange}
-          />
-        );
-    }
-  }
-
-  renderClusterList() {
-    if (this.clusterLoading) return <div class='skeleton-element cluster-skeleton' />;
-
+  navBarRender(scope: K8sMonitorNavBarScope) {
     return (
-      <bk-select
-        class='cluster-select'
-        clearable={false}
-        value={this.cluster}
-        search-placeholder={this.$t('请输入 关键字')}
-        searchable
-        onChange={this.handleClusterChange}
-        onToggle={this.handleClusterToggle}
+      <K8sNavBar
+        refreshInterval={scope.refreshInterval}
+        timeRange={scope.timeRange}
+        timezone={scope.timezone}
+        value={scope.scene}
+        onImmediateRefresh={scope.onImmediateRefresh}
+        onRefreshChange={scope.onRefreshChange}
+        onSelected={scope.onSceneChange}
+        onTimeRangeChange={scope.onTimeRangeChange}
+        onTimezoneChange={scope.onTimezoneChange}
       >
-        <div
-          class='cluster-select-trigger'
-          slot='trigger'
-        >
-          <span
-            class='cluster-name'
-            v-bk-overflow-tips
+        {scope.showCancelDrill && (
+          <div
+            class='cancel-drill-down'
+            onClick={scope.onCancelDrillDown}
           >
-            {this.$t('集群')}: {this.selectCluster?.name}
-          </span>
-          <span class={`icon-monitor icon-mc-arrow-down ${this.clusterToggle ? 'expand' : ''}`} />
-        </div>
-        {this.clusterList.map(cluster => (
-          <bk-option
-            id={cluster.id}
-            key={cluster.id}
-            name={cluster.name}
-          />
-        ))}
-      </bk-select>
+            <div class='back-icon'>
+              <i class='icon-monitor icon-undo' />
+            </div>
+            <span class='text'>{this.$t('撤回下钻')}</span>
+          </div>
+        )}
+      </K8sNavBar>
     );
   }
 
@@ -765,145 +132,12 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
         />
       );
     return (
-      <div class={['monitor-k8s-new', this.scene]}>
-        <div class='monitor-k8s-new-nav-bar'>
-          <K8sNavBar
-            refreshInterval={this.refreshInterval}
-            timeRange={this.timeRange}
-            timezone={this.timezone}
-            value={this.scene}
-            onImmediateRefresh={this.handleImmediateRefresh}
-            onRefreshChange={this.handleRefreshChange}
-            onSelected={this.handleSceneChange}
-            onTimeRangeChange={this.handleTimeRangeChange}
-            onTimezoneChange={this.handleTimezoneChange}
-          >
-            {this.showCancelDrill && (
-              <div
-                class='cancel-drill-down'
-                onClick={this.handleCancelDrillDown}
-              >
-                <div class='back-icon'>
-                  <i class='icon-monitor icon-undo' />
-                </div>
-                <span class='text'>{this.$t('撤回下钻')}</span>
-              </div>
-            )}
-          </K8sNavBar>
-        </div>
-        {this.scene === SceneEnum.Event ? (
-          <K8sEventExplore
-            scopedSlots={{
-              filterPrepend: () => this.renderClusterList(),
-            }}
-            dataId={this.selectCluster?.event_table_id || ''}
-            filterMode={this.eventFilterMode}
-            queryString={this.eventQueryString}
-            where={this.eventWhere}
-            onFilterModeChange={this.handleEventFilterModeChange}
-            onQueryStringChange={this.handleEventQueryStringChange}
-            onSetRouteParams={this.setRouteParams}
-            onWhereChange={this.handleEventWhereChange}
-          />
-        ) : (
-          [
-            <div
-              key='monitor-k8s-new-header'
-              class='monitor-k8s-new-header ____monitor-k8s-new-header'
-            >
-              {this.renderClusterList()}
-              <div class='filter-header-wrap'>
-                <div class='filter-by-wrap __filter-by__'>
-                  <div class='filter-by-title'>{this.$t('过滤条件')}</div>
-                  <div class='filter-by-content'>
-                    <FilterByCondition
-                      commonParams={this.commonParams}
-                      filterBy={this.filterBy}
-                      onChange={this.handleFilterByChange}
-                    />
-                  </div>
-                </div>
-                <div class='filter-by-wrap __group-by__'>
-                  <GroupByCondition
-                    dimensionTotal={this.dimensionTotal}
-                    groupInstance={this.groupInstance}
-                    scene={this.scene}
-                    title={this.$tc('聚合维度')}
-                    onChange={this.handleGroupChecked}
-                  />
-                </div>
-              </div>
-            </div>,
-            <div
-              key='monitor-k8s-new-content'
-              style={{
-                height: `calc(100% - ${this.headerHeight}px)`,
-              }}
-              class='monitor-k8s-new-content'
-            >
-              <div class='content-left'>
-                <K8sLeftPanel>
-                  <K8sDimensionList
-                    key='dimension-list'
-                    commonParams={this.commonParams as ICommonParams}
-                    filterBy={this.filterBy}
-                    groupBy={this.groupFilters}
-                    onClearFilterBy={this.clearFilterBy}
-                    onDimensionTotal={this.dimensionTotalChange}
-                    onDrillDown={this.handleTableGroupChange}
-                    onFilterByChange={this.filterByChange}
-                    onGroupByChange={this.groupByChange}
-                  />
-                  <K8sMetricList
-                    key='metric-list'
-                    activeMetric={this.activeMetricId}
-                    disabledMetricList={this.disabledMetricList}
-                    hideMetrics={this.resultHideMetrics}
-                    loading={this.metricLoading}
-                    metricList={this.metricList}
-                    onHandleItemClick={this.handleMetricItemClick}
-                    onMetricHiddenChange={this.metricHiddenChange}
-                  />
-                </K8sLeftPanel>
-              </div>
-              <div class='content-right'>
-                <div class='content-tab-wrap'>
-                  <bk-tab
-                    class='k8s-new-tab'
-                    active={this.activeTab}
-                    type='unborder-card'
-                    {...{ on: { 'update:active': this.handleTabChange } }}
-                  >
-                    {tabList.map(panel => (
-                      <bk-tab-panel
-                        key={panel.id}
-                        label={panel.label}
-                        name={panel.id}
-                      >
-                        <div
-                          class='k8s-tab-panel'
-                          slot='label'
-                        >
-                          <i class={['icon-monitor', panel.icon]} />
-                          <span class='panel-name'>{panel.label}</span>
-                        </div>
-                      </bk-tab-panel>
-                    ))}
-                  </bk-tab>
-                </div>
-                <div
-                  style={{
-                    background: this.activeTab === K8sNewTabEnum.CHART ? 'transparent' : '#fff',
-                  }}
-                  class='content-main-wrap'
-                >
-                  {this.tabContentRender()}
-                </div>
-              </div>
-            </div>,
-          ]
-        )}
-      </div>
+      <K8sMonitorPanel
+        initialParams={this.initialParams}
+        queryCacheKey={CACHE_SEARCH_QUERY}
+        scopedSlots={this.panelSlots}
+        onStateChange={this.handleStateChange}
+      />
     );
   }
 }

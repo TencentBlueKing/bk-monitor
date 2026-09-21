@@ -12,6 +12,7 @@ from __future__ import annotations
 import ast
 import json
 import logging
+import secrets
 import socket
 import sys
 import time
@@ -181,17 +182,20 @@ def log_args(**extra):
 def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     native = registry.get_tool_registry()
     tool = native.get("search_logs")
-    assert len(native) == 92
-    assert sum(bool(tool.native_permission) for tool in native.list()) == 21
+    assert len(native) == 89
+    assert sum(bool(tool.native_permission) for tool in native.list()) == 64
+    assert {tool.name for tool in native.list() if tool.risk == "query" and not tool.permission_exempt} == set(
+        registry.NATIVE_PERMISSIONS
+    )
     assert native.get_by_backend("POST", "/api/v4/log_search/search_log/") is tool
     assert native.get_by_backend("GET", "/api/v4/log_search/search_log/") is None
     assert native.get_by_backend("POST", "/api/v4/log_search/search_log.json/") is tool
     assert native.get_by_backend("HEAD", "/api/v4/log_search/get_index_set_list/").name == "list_index_sets"
     assert tool.permission_payload()["system_id"] == "bk_log_search"
     assert tool.permission_payload()["resource_arg"] == "index_set_id"
-    assert tool.input_schema["properties"]["target_type"]["enum"] == ["index_set"]
-    assert "index_set_id" in tool.input_schema["required"]
-    assert "table_id_conditions" not in tool.input_schema["properties"]
+    assert tool.input_schema["properties"]["target_type"]["enum"] == ["index_set", "scene"]
+    assert "table_id_conditions" in tool.input_schema["properties"]
+    assert tool.resolve_native_permission({"target_type": "scene"})["action_id"] == "view_business_v2"
     monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
     legacy = registry.get_tool_registry()
     assert legacy.catalog_version != native.catalog_version
@@ -201,6 +205,419 @@ def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
         "resource_arg": "bk_biz_id",
     }
     assert all(not item.native_permission for item in legacy.list())
+
+
+def test_all_non_exempt_query_tools_have_reviewed_native_permissions():
+    catalog = registry.get_tool_registry()
+    expected = {}
+
+    def add(names, action, system="bk_monitorv3", resource_type="space", resource_arg="bk_biz_id"):
+        for name in names:
+            expected[name] = (system, action, resource_type, resource_arg)
+
+    add(
+        (
+            "list_time_series_groups",
+            "list_time_series_metrics",
+            "execute_range_query",
+            "execute_sql_query",
+            "find_relations",
+            "find_relations_range",
+        ),
+        "explore_metric_v2",
+    )
+    add(
+        (
+            "get_index_set_fields",
+            "search_logs",
+            "search_index_set_context",
+            "analyze_field",
+            "search_log_clustering_pattern",
+        ),
+        "search_log_v2",
+        "bk_log_search",
+        "indices",
+        "index_set_id",
+    )
+    add(
+        ("list_index_sets", "list_log_scenes", "list_scene_dimension_values", "get_scene_log_fields"),
+        "view_business_v2",
+        "bk_log_search",
+    )
+    alert_tools = {tool.name for tool in catalog.list(category="alert")}
+    add(alert_tools - {"get_strategy_detail"}, "view_event_v2")
+    add(("get_strategy_detail",), "view_rule_v2")
+    add(("list_events", "get_event_view_config", "search_event_log"), "explore_metric_v2")
+    add(("list_apm_applications", "get_profile_application_service"), "view_business_v2")
+    add(
+        {tool.name for tool in catalog.list(category="apm")}
+        - {"list_apm_applications", "get_profile_application_service"},
+        "view_apm_application_v2",
+        resource_type="apm_application",
+        resource_arg="app_name",
+    )
+    add(("get_dashboard_tree_list",), "view_dashboard_v2")
+    add(
+        ("get_dashboard_detail_by_uid",),
+        "view_single_dashboard",
+        resource_type="grafana_dashboard",
+        resource_arg="dashboard_uid",
+    )
+    add(
+        (
+            "search_alarm_strategies",
+            "get_alarm_strategy",
+            "search_alarm_action_configs",
+            "get_alarm_action_config",
+            "search_alarm_assign_groups",
+        ),
+        "view_rule_v2",
+    )
+    add(("search_alarm_shields", "get_alarm_shield"), "view_downtime_v2")
+    add(("search_alarm_notice_groups",), "view_notify_team_v2")
+    add(
+        (
+            "list_log_collectors",
+            "get_log_collector",
+            "get_log_index_set",
+            "list_third_party_es_clusters",
+            "list_result_tables",
+            "list_log_index_set_groups",
+        ),
+        "view_business_v2",
+    )
+    add(("preview_log_etl", "get_log_collector_status"), "view_collection_v2")
+    add(
+        (
+            "list_log_extract_topology",
+            "search_log_extract_hosts",
+            "list_log_extract_allowed_paths",
+            "get_log_extract_task",
+        ),
+        "view_business_v2",
+        "bk_log_search",
+    )
+    add(("list_bcs_clusters",), "view_business_v2")
+
+    query_tools = {tool.name for tool in catalog.list() if tool.risk == "query" and not tool.permission_exempt}
+    assert set(expected) == query_tools == set(registry.NATIVE_PERMISSIONS)
+    assert {
+        name: tuple(
+            registry.NATIVE_PERMISSIONS[name][field]
+            for field in (
+                "system_id",
+                "action_id",
+                "resource_type",
+                "resource_arg",
+            )
+        )
+        for name in expected
+    } == expected
+
+
+@pytest.mark.parametrize("tool_name", sorted(registry.NATIVE_PERMISSIONS))
+@pytest.mark.parametrize(
+    "native_result,legacy_allowed",
+    [(True, False), (False, True), (False, False), ("error", True)],
+)
+def test_every_query_tool_uses_strict_native_then_legacy(
+    monkeypatch, request_factory, io, tool_name, native_result, legacy_allowed
+):
+    tool = registry.get_tool_registry().get(tool_name)
+    context = {}
+    spec = tool.resolve_native_permission(context)
+    if spec["resource_type"] == "indices":
+        context["index_set_id"] = 123
+    elif spec["resource_type"] == "apm_application":
+        context["app_name"] = "demo"
+        monkeypatch.setattr(
+            auth,
+            "_apm_application_resource",
+            lambda *_args: Resource("bk_monitorv3", "apm_application", "1001", {"name": "demo"}),
+        )
+    elif spec["resource_type"] == "grafana_dashboard":
+        context["dashboard_uid"] = "dash-1"
+        monkeypatch.setattr(
+            auth,
+            "_dashboard_resource",
+            lambda *_args: Resource("bk_monitorv3", "grafana_dashboard", "dash-1", {"name": "Demo"}),
+        )
+    monkeypatch.setattr(auth, "_validate_native_target", Mock())
+
+    def native_decision():
+        if native_result == "error":
+            raise RuntimeError("private IAM failure")
+        return native_result
+
+    io.iam.is_allowed.side_effect = lambda _query: native_decision()
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: (
+        legacy_allowed if query.action.id == tool.iam_action else native_decision()
+    )
+
+    if native_result == "error":
+        with pytest.raises(auth.AuthorizationUnavailable):
+            auth.permission_state(tool, request_factory(), 2, context)
+        assert tool.iam_action not in [
+            call.args[0].action.id for call in io.monitor.iam_client.is_allowed.call_args_list
+        ]
+        return
+
+    result = auth.permission_state(tool, request_factory(), 2, context)
+    expected_source = "native" if native_result else "legacy" if legacy_allowed else "none"
+    assert result["authorized"] is bool(native_result or legacy_allowed)
+    assert result["authorization_source"] == expected_source
+    assert result["native_authorized"] is native_result
+    assert result["legacy_authorized"] is (None if native_result else legacy_allowed)
+
+
+def test_conditional_native_permissions_follow_the_actual_query_branch():
+    catalog = registry.get_tool_registry()
+    log = catalog.get("search_logs")
+    event = catalog.get("search_event_log")
+
+    assert log.resolve_native_permission({"target_type": "index_set"})["action_id"] == "search_log_v2"
+    assert log.resolve_native_permission({"target_type": "scene"}) == {
+        "system_id": "bk_log_search",
+        "action_id": "view_business_v2",
+        "resource_type": "space",
+        "resource_arg": "bk_biz_id",
+    }
+    assert event.resolve_native_permission({"app_name": "demo", "service_name": "api"}) == {
+        "system_id": "bk_monitorv3",
+        "action_id": "view_apm_application_v2",
+        "resource_type": "apm_application",
+        "resource_arg": "app_name",
+    }
+    assert event.resolve_native_permission({"app_name": "demo"})["action_id"] == "explore_metric_v2"
+
+
+def test_scene_search_uses_log_business_permission_and_keeps_dynamic_route(request_factory, io):
+    tool = registry.get_tool_registry().get("search_logs")
+    args = {
+        "target_type": "scene",
+        "bk_biz_id": "2",
+        "table_id_conditions": [[{"field_name": "scene", "value": ["k8s"], "op": "eq"}]],
+        "start_time": "1",
+        "end_time": "2",
+    }
+
+    assert auth.execute_native_tool(tool, args, request_factory()) == {"ok": True}
+
+    query = io.iam.is_allowed.call_args.args[0]
+    assert (query.system, query.action.id) == ("bk_log_search", "view_business_v2")
+    assert (query.resources[0].system, query.resources[0].type, query.resources[0].id) == (
+        "bk_monitorv3",
+        "space",
+        "2",
+    )
+    io.catalog.assert_not_called()
+    io.dispatch.assert_called_once_with("search_logs", args)
+
+
+def test_apm_event_branch_uses_application_instance(monkeypatch, request_factory, io):
+    resource = Resource(
+        "bk_monitorv3",
+        "apm_application",
+        "1001",
+        {"name": "demo", "_bk_iam_path_": "/space,2/"},
+    )
+    resolve = Mock(return_value=resource)
+    monkeypatch.setattr(auth, "_apm_application_resource", resolve)
+    tool = registry.get_tool_registry().get("search_event_log")
+    args = {
+        "bk_biz_id": "2",
+        "data_source_label": "custom",
+        "data_type_label": "event",
+        "table": "demo.event",
+        "start_time": "1",
+        "end_time": "2",
+        "app_name": "demo",
+        "service_name": "api",
+    }
+
+    assert auth.execute_native_tool(tool, args, request_factory()) == {"ok": True}
+
+    resolve.assert_called_once_with(2, args)
+    query = io.monitor.iam_client.is_allowed.call_args.args[0]
+    assert (query.action.id, query.resources[0].type, query.resources[0].id) == (
+        "view_apm_application_v2",
+        "apm_application",
+        "1001",
+    )
+
+
+def test_apm_dispatcher_skips_duplicate_check_only_for_matching_native_scope(monkeypatch):
+    application_query = NS(values_list=lambda *_args, **_kwargs: NS(first=lambda: 1001))
+    permission = Mock()
+    check = source_method(
+        "kernel_api/unified_mcp/dispatcher.py",
+        "_ensure_apm_application_permission",
+        Application=NS(objects=NS(filter=lambda **_kwargs: application_query)),
+        get_request=lambda **_kwargs: NS(native_mcp_tool="search_spans", mcp_permission_source="legacy"),
+        Permission=lambda: permission,
+        ActionEnum=NS(VIEW_APM_APPLICATION="view_apm_application_v2"),
+        ResourceEnum=NS(APM_APPLICATION=NS(create_simple_instance=lambda value: value)),
+        ValidationError=ValidationError,
+    )
+    native_tool = NS(resolve_native_permission=lambda _args: {"resource_type": "apm_application"})
+    monkeypatch.setattr(registry, "get_tool_registry", lambda: NS(get=lambda _name: native_tool))
+
+    check({"bk_biz_id": 2, "app_name": "demo"})
+    permission.is_allowed.assert_not_called()
+
+    native_tool.resolve_native_permission = lambda _args: {"resource_type": "space"}
+    check({"bk_biz_id": 2, "app_name": "demo"})
+    permission.is_allowed.assert_called_once()
+
+
+def test_instance_native_permissions_remain_unresolved_without_the_instance(request_factory, io):
+    catalog = registry.get_tool_registry()
+    for name in ("get_apm_filter_fields", "get_dashboard_detail_by_uid"):
+        result = auth.permission_state(catalog.get(name), request_factory(), 2)
+        assert result["state"] == "requires_resource" and result["authorized"] is False
+    io.monitor.iam_client.is_allowed.assert_not_called()
+
+
+def test_sql_scope_is_validated_before_iam(monkeypatch, request_factory, io):
+    scope = Mock(side_effect=ValidationError({"table_id": "foreign table"}))
+    metrics_module = ModuleType("kernel_api.resource.metrics")
+    metrics_module.ensure_time_series_table_belongs_to_biz = scope
+    metrics_module.ensure_sql_reads_declared_table = Mock()
+    monkeypatch.setitem(sys.modules, metrics_module.__name__, metrics_module)
+    args = {
+        "bk_biz_id": "2",
+        "table_id": "other.table",
+        "sql": "SELECT * FROM other.table",
+        "start_time": "1",
+        "end_time": "2",
+    }
+
+    with pytest.raises(ValidationError, match="foreign table"):
+        auth.execute_native_tool(registry.get_tool_registry().get("execute_sql_query"), args, request_factory())
+
+    scope.assert_called_once_with(2, "other.table", allow_platform=False)
+    io.monitor.iam_client.is_allowed.assert_not_called()
+    io.dispatch.assert_not_called()
+
+
+def test_sql_query_only_reads_the_declared_single_table():
+    import sqlparse
+    from sqlparse import sql as sql_nodes
+    from sqlparse import tokens as sql_tokens
+
+    validate = source_method(
+        "kernel_api/resource/metrics.py",
+        "ensure_sql_reads_declared_table",
+        sqlparse=sqlparse,
+        sql_nodes=sql_nodes,
+        sql_tokens=sql_tokens,
+        serializers=serializers,
+    )
+    for statement in (
+        "SELECT * FROM db.table",
+        "SELECT value FROM `db`.`table` AS source WHERE value > 0",
+        "SELECT count(*) FROM db.table LIMIT 10",
+    ):
+        validate(statement, "db.table")
+
+    for statement in (
+        "SELECT * FROM other.table",
+        "SELECT * FROM db.table JOIN other.table AS other ON 1=1",
+        "SELECT * FROM db.table LEFT JOIN other.table AS other ON 1=1",
+        "SELECT * FROM db.table UNION SELECT * FROM other.table",
+        "SELECT * FROM (SELECT * FROM db.table) AS source",
+        "SELECT * FROM db.table; SELECT * FROM other.table",
+        "SELECT * FROM db.table -- hidden source",
+        "UPDATE db.table SET value = 1",
+    ):
+        with pytest.raises(ValidationError):
+            validate(statement, "db.table")
+
+
+def test_apm_and_dashboard_resources_are_resolved_inside_the_requested_business(monkeypatch):
+    class APMQuery:
+        def values(self, *_fields):
+            return self
+
+        def first(self):
+            return {"application_id": 1001, "app_name": "demo", "bk_biz_id": 2}
+
+    apm_filter = Mock(return_value=APMQuery())
+    apm_models = ModuleType("apm_web.models")
+    apm_models.Application = NS(objects=NS(filter=apm_filter))
+    monkeypatch.setitem(sys.modules, "apm_web.models", apm_models)
+
+    app = auth._apm_application_resource(2, {"app_name": "demo"})
+    assert (app.system, app.type, app.id, app.attribute["_bk_iam_path_"]) == (
+        "bk_monitorv3",
+        "apm_application",
+        "1001",
+        "/space,2/",
+    )
+    apm_filter.assert_called_once_with(bk_biz_id=2, app_name="demo")
+
+    class OrgQuery:
+        def values_list(self, *_fields, **_kwargs):
+            return [7]
+
+    class DashboardQuery:
+        def values(self, *_fields):
+            return [{"uid": "dash-1", "title": "Demo"}]
+
+    org_filter = Mock(return_value=OrgQuery())
+    dashboard_filter = Mock(return_value=DashboardQuery())
+    dashboard_models = ModuleType("bk_dataview.models")
+    dashboard_models.Org = NS(objects=NS(filter=org_filter))
+    dashboard_models.Dashboard = NS(objects=NS(filter=dashboard_filter))
+    monkeypatch.setitem(sys.modules, "bk_dataview.models", dashboard_models)
+
+    dashboard = auth._dashboard_resource(2, {"dashboard_uid": "dash-1"})
+    assert (dashboard.system, dashboard.type, dashboard.id, dashboard.attribute["_bk_iam_path_"]) == (
+        "bk_monitorv3",
+        "grafana_dashboard",
+        "dash-1",
+        "/space,2/",
+    )
+    org_filter.assert_called_once_with(name="2")
+    dashboard_filter.assert_called_once_with(org_id=7, uid="dash-1", is_folder=0)
+
+
+def test_sql_native_scope_rejects_platform_tables(monkeypatch):
+    group = NS(bk_biz_id=9, bk_data_id=1001)
+    groups = NS(objects=NS(filter=lambda **_kwargs: NS(first=lambda: group)))
+    platform = Mock(return_value=True)
+    data_sources = NS(objects=NS(filter=lambda **_kwargs: NS(exists=platform)))
+    validate = source_method(
+        "kernel_api/resource/metrics.py",
+        "ensure_time_series_table_belongs_to_biz",
+        get_request_tenant_id=lambda: "system",
+        TimeSeriesGroup=groups,
+        DataSource=data_sources,
+        serializers=serializers,
+    )
+
+    validate(2, "demo.table", allow_platform=True)
+    with pytest.raises(ValidationError, match="does not belong"):
+        validate(2, "demo.table", allow_platform=False)
+    platform.assert_called_once_with()
+
+
+def test_lookup_metadata_reuses_native_bcs_permission(request_factory):
+    request = request_factory()
+    tool = NS(native_permission={"action_id": "view_business_v2"})
+    execute = Mock(return_value=[{"cluster_id": "demo"}])
+    perform = source_method(
+        "kernel_api/resource/unified_mcp.py",
+        "LookupMetadataResource.perform_request",
+        get_tool_registry=lambda: NS(get=lambda name: tool),
+        execute_native_tool=execute,
+        get_request=lambda: request,
+    )
+
+    result = perform(NS(), {"metadata_type": "bcs_clusters", "bk_biz_id": 2})
+
+    assert result == {"metadata_type": "bcs_clusters", "bcs_clusters": [{"cluster_id": "demo"}]}
+    execute.assert_called_once_with(tool, {"bk_biz_id": "2"}, request)
 
 
 def test_public_tools_publish_executable_permission_and_confirmation_contracts():
@@ -257,10 +674,16 @@ def test_standard_tools_reuse_original_mcp_and_route_permissions():
 
     assert log_collection.legacy_action_ids == ("using_log_collection_mcp", "view_business_v2")
     assert log_collection.permission_payload() == {
-        "action_id": "using_log_collection_mcp",
+        "system_id": "bk_monitorv3",
+        "action_id": "view_business_v2",
         "resource_type": "space",
         "resource_arg": "bk_biz_id",
-        "additional_action_ids": ["view_business_v2"],
+        "mode": "native_then_legacy",
+        "fallback_system_id": "bk_monitorv3",
+        "fallback_action_id": "using_log_collection_mcp",
+        "fallback_resource_type": "space",
+        "fallback_resource_arg": "bk_biz_id",
+        "fallback_on": "explicit_denial_only",
     }
     assert metadata_discovery.permission_exempt is True
     assert metadata_discovery.permission_payload() == {
@@ -282,7 +705,15 @@ def test_registry_rejects_unreviewed_mcp_source_file(tmp_path):
 
 def test_private_mcp_sources_are_not_part_of_tool_search():
     catalog = registry.get_tool_registry()
-    assert registry.IGNORED_SOURCE_FILES == {"openclaw_recovering_mcp.yaml", "ops_mcp.yaml"}
+    assert registry.IGNORED_SOURCE_FILES == {
+        "openclaw_recovering_mcp.yaml",
+        "operation_mcp.yaml",
+        "ops_mcp.yaml",
+    }
+    assert "operation" not in registry.CATEGORIES
+    from constants.mcp import get_mcp_permission_action_by_server_name
+
+    assert get_mcp_permission_action_by_server_name("bk-monitor-prod-operation") == "using_operation_mcp"
     for tool_name in (
         "search_openclaw_spans",
         "get_openclaw_trace_detail",
@@ -291,6 +722,9 @@ def test_private_mcp_sources_are_not_part_of_tool_search():
         "query_data_link_info",
         "diagnose_metadata_datalink",
         "get_data_link_metadata",
+        "list_operation_metrics",
+        "get_operation_metric",
+        "get_operation_overview",
     ):
         with pytest.raises(KeyError):
             catalog.get(tool_name)
@@ -368,7 +802,18 @@ def test_dispatcher_logs_failure_type_without_exception_text(caplog):
 
 
 @pytest.mark.parametrize(
-    "names", [["search_event_log"], ["execute_sql_query"], ["typo"], "search_logs", [True], None, "", 0]
+    "names",
+    [
+        ["create_dashboard"],
+        ["update_alarm_strategy"],
+        ["get_operation_metric"],
+        ["typo"],
+        "search_logs",
+        [True],
+        None,
+        "",
+        0,
+    ],
 )
 def test_invalid_opt_in_does_not_silently_fall_back(monkeypatch, names):
     monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", names)
@@ -439,8 +884,8 @@ def test_dynamic_configuration_round_trip_rebuilds_catalog(monkeypatch, redis_en
     assert native.catalog_version != legacy.catalog_version
     for name in enabled:
         assert native.get(name).permission_payload()["mode"] == "native_then_legacy"
-    assert native.get("search_logs").input_schema["properties"]["target_type"]["enum"] == ["index_set"]
-    assert not native.get("execute_sql_query").native_permission
+    assert native.get("search_logs").input_schema["properties"]["target_type"]["enum"] == ["index_set", "scene"]
+    assert native.get("execute_sql_query").native_permission is None
 
     profile = {"mode": "v3-current", "gateway_url": "https://iam.invalid/"}
     dynamic.MCP_LOG_IAM_PROFILE = profile
@@ -503,15 +948,17 @@ def test_permission_lookup_preserves_exempt_space_discovery(permission_lookup, i
     io.monitor.filter_space_list_by_action.assert_not_called()
 
 
-def test_permission_lookup_requires_additional_route_action(permission_lookup, io):
-    io.monitor.is_allowed_by_biz.side_effect = lambda _biz, action: action == "using_log_collection_mcp"
+def test_permission_lookup_reuses_original_route_action_with_legacy_fallback(permission_lookup, io):
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: query.action.id == "using_log_collection_mcp"
 
     result = permission_lookup(bk_biz_id=2, tool_name="list_log_collectors")
 
-    assert result["authorized"] is False
-    assert result["scopes"][0]["action_id"] == "using_log_collection_mcp"
-    assert result["scopes"][0]["additional_action_ids"] == ["view_business_v2"]
-    assert result["missing_permissions"][0]["action_id"] == "view_business_v2"
+    scope = result["scopes"][0]
+    assert result["authorized"] is True
+    assert scope["action_id"] == "view_business_v2"
+    assert scope["native_authorized"] is False
+    assert scope["legacy_authorized"] is True
+    assert scope["authorization_source"] == "legacy"
 
 
 @pytest.mark.parametrize("tool_name", ["search_logs", "search_index_set_context"])
@@ -760,6 +1207,7 @@ def test_get_and_aggregate_share_normalized_log_arguments(native_http, io):
     response, request = native_http(tool, {"bk_biz_id": "2", "index_set_id": "123"}, unified=False)
     assert request.method == "GET"
     assert response.status_code == 200
+    assert request.mcp_usage_tool == "get_index_set_fields"
     io.dispatch.assert_called_once_with(tool.name, {"bk_biz_id": "2", "index_set_id": 123})
 
 
@@ -873,6 +1321,7 @@ def test_standalone_and_unified_middleware_route_from_same_catalog(
         json=json,
         settings=settings,
         time=time,
+        secrets=secrets,
         log_mcp_event=auth.log_mcp_event,
         log_mcp_tool_event=auth.log_mcp_tool_event,
         HttpResponseForbidden=HttpResponseForbidden,
@@ -920,6 +1369,7 @@ def test_middleware_preserves_exempt_space_discovery(monkeypatch, request_factor
         json=json,
         settings=settings,
         time=time,
+        secrets=secrets,
         log_mcp_event=auth.log_mcp_event,
         log_mcp_tool_event=auth.log_mcp_tool_event,
         HttpResponseForbidden=HttpResponseForbidden,
@@ -937,7 +1387,46 @@ def test_middleware_preserves_exempt_space_discovery(monkeypatch, request_factor
 
     assert response is None
     assert request.unified_mcp_permission_checked is True
+    assert len(request.mcp_usage_event_id) == 32
+    assert request.mcp_usage_tool == "search_spaces"
+    assert request.mcp_usage_target_tool == ""
     report.assert_called_once()
+    legacy.assert_not_called()
+
+
+def test_middleware_keeps_facade_and_target_tool_separate(monkeypatch, request_factory):
+    for name in ("bkmonitor.iam", "bkmonitor.iam.action", "bkmonitor.iam.drf"):
+        monkeypatch.setitem(sys.modules, name, ModuleType(name))
+    legacy = Mock(side_effect=AssertionError("facade tool must not query permissions"))
+    sys.modules["bkmonitor.iam.action"].get_action_by_id = legacy
+    sys.modules["bkmonitor.iam.drf"].MCPPermission = legacy
+    handle = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware._handle_mcp_auth",
+        logger=logging.getLogger("test"),
+        logging=logging,
+        json=json,
+        settings=settings,
+        time=time,
+        secrets=secrets,
+        log_mcp_event=auth.log_mcp_event,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+        HttpResponseForbidden=HttpResponseForbidden,
+    )
+    extract = source_method(
+        "kernel_api/middlewares/authentication.py", "AuthenticationMiddleware.extract_tool_name_from_path"
+    )
+    request = request_factory(
+        "/api/v4/unified_mcp/lookup_tool_schema/",
+        body={"tool_name": "search_logs"},
+    )
+
+    response = handle(NS(extract_tool_name_from_path=extract, _report_mcp_metric=Mock()), request, "alice")
+
+    assert response is None
+    assert request.mcp_usage_operation == request.mcp_usage_tool == "lookup_tool_schema"
+    assert request.mcp_usage_target_tool == "search_logs"
+    assert request.mcp_permission_source == "exempt"
     legacy.assert_not_called()
 
 
@@ -963,6 +1452,124 @@ def test_middleware_closes_unified_tool_trace_with_http_status(request_factory, 
     assert fields["operation"] == "execute_tool" and fields["tool"] == "search_logs"
     assert fields["decision"] == "failed" and fields["status_code"] == 403
     assert fields["duration_ms"] >= 0
+
+
+def test_middleware_emits_one_complete_usage_record(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    process_response = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware.process_response",
+        time=time,
+        logging=logging,
+        MCP_USAGE_SCHEMA_VERSION=1,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+        log_mcp_usage_event=auth.log_mcp_usage_event,
+    )
+    request = request_factory()
+    request.META.update(
+        HTTP_X_BK_REQUEST_FROM="knot",
+        HTTP_X_BK_REQUEST_SOURCE="bkm-mcp-client",
+        HTTP_X_REQUEST_ID="request-id-1",
+    )
+    request.mcp_usage_started_at = time.monotonic() - 0.01
+    request.mcp_usage_event_id = "event-id-1"
+    request.mcp_usage_app_code = "knot-app"
+    request.mcp_usage_entry_point = "unified"
+    request.mcp_usage_operation = "execute_tool"
+    request.mcp_usage_tool = "search_logs"
+    request.mcp_usage_target_tool = ""
+    request.unified_mcp_tool = "search_logs"
+    request.mcp_permission_action = "search_log_v2"
+    request.mcp_permission_source = "native"
+    request.biz_id = 2
+
+    response = HttpResponse(status=200)
+    assert process_response(NS(), request, response) is response
+
+    records = [row.getMessage() for row in caplog.records if row.getMessage().startswith("MCP_USAGE:")]
+    assert len(records) == 1
+    fields = json.loads(records[0].split(" ", 2)[2])
+    assert fields == {
+        "action_id": "search_log_v2",
+        "app_code": "knot-app",
+        "authorization_source": "native",
+        "bk_biz_id": "2",
+        "checked_action_id": "search_log_v2",
+        "decision": "succeeded",
+        "duration_ms": fields["duration_ms"],
+        "entry_point": "unified",
+        "mcp_server_name": "bk-monitor-prod-unified",
+        "method": "POST",
+        "operation": "execute_tool",
+        "path": "/api/v4/unified_mcp/execute_tool/",
+        "request_event_id": "event-id-1",
+        "request_from": "knot",
+        "request_source": "bkm-mcp-client",
+        "status_code": 200,
+        "target_tool": "",
+        "tenant_id": "system",
+        "tool": "search_logs",
+        "trace_id": request.mcp_trace_id,
+        "usage_schema_version": 1,
+        "username": "alice",
+        "x_request_id": "request-id-1",
+    }
+    assert fields["duration_ms"] >= 0
+
+
+def test_usage_record_does_not_report_denied_action_as_effective(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    process_response = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware.process_response",
+        time=time,
+        logging=logging,
+        MCP_USAGE_SCHEMA_VERSION=1,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+        log_mcp_usage_event=auth.log_mcp_usage_event,
+    )
+    request = request_factory()
+    request.mcp_usage_started_at = time.monotonic()
+    request.mcp_permission_action = "using_log_mcp"
+    request.mcp_permission_source = "none"
+
+    process_response(NS(), request, HttpResponse(status=403))
+
+    record = next(row.getMessage() for row in caplog.records if row.getMessage().startswith("MCP_USAGE:"))
+    fields = json.loads(record.split(" ", 2)[2])
+    assert fields["action_id"] == ""
+    assert fields["checked_action_id"] == "using_log_mcp"
+    assert fields["authorization_source"] == "none"
+    assert fields["decision"] == "failed"
+
+
+def test_usage_record_clears_internal_permission_probe_from_exempt_facade(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    process_response = source_method(
+        "kernel_api/middlewares/authentication.py",
+        "AuthenticationMiddleware.process_response",
+        time=time,
+        logging=logging,
+        MCP_USAGE_SCHEMA_VERSION=1,
+        log_mcp_tool_event=auth.log_mcp_tool_event,
+        log_mcp_usage_event=auth.log_mcp_usage_event,
+    )
+    request = request_factory("/api/v4/unified_mcp/lookup_permissions/")
+    request.mcp_usage_started_at = time.monotonic()
+    request.mcp_usage_operation = "lookup_permissions"
+    request.mcp_usage_tool = "lookup_permissions"
+    request.mcp_usage_target_tool = "search_logs"
+    request.mcp_permission_action = "search_log_v2"
+    request.mcp_permission_source = "exempt"
+
+    process_response(NS(), request, HttpResponse(status=200))
+
+    record = next(row.getMessage() for row in caplog.records if row.getMessage().startswith("MCP_USAGE:"))
+    fields = json.loads(record.split(" ", 2)[2])
+    assert fields["operation"] == fields["tool"] == "lookup_permissions"
+    assert fields["target_tool"] == "search_logs"
+    assert fields["action_id"] == fields["checked_action_id"] == ""
+    assert fields["authorization_source"] == "exempt"
 
 
 def test_middleware_marks_wrapped_application_error_as_failed(request_factory, caplog):
@@ -1047,7 +1654,8 @@ def test_native_discovery_keeps_unresolved_tool_without_old_grant(request_factor
     io.iam.is_allowed.assert_not_called()
 
 
-def test_tool_lookup_requires_actions_on_the_same_space(request_factory):
+def test_tool_lookup_requires_actions_on_the_same_space(monkeypatch, request_factory):
+    monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", [])
     request = request_factory()
     permission = Mock()
     permission.filter_space_list_by_action.side_effect = lambda action: [
@@ -1108,7 +1716,11 @@ def test_lookup_permission_uses_native_instance_and_apply_guide(request_factory,
 
 @pytest.mark.parametrize(
     "api_name,tool_name",
-    [("log_search_index_set", "get_index_set_fields"), ("search_index_set_context", "search_index_set_context")],
+    [
+        ("log_search_index_set", "get_index_set_fields"),
+        ("search_index_set_context", "search_index_set_context"),
+        ("scene_fields", "get_scene_log_fields"),
+    ],
 )
 def test_native_log_api_uses_new_instance_and_current_identity(monkeypatch, request_factory, api_name, tool_name):
     from bkmonitor.utils import request as request_utils
@@ -1202,6 +1814,7 @@ def test_native_first_fallback_matrix_and_english_logs(
         io.dispatch.assert_not_called()
     source = "native" if native_allowed else "legacy" if legacy_allowed else "none"
     assert request.mcp_permission_source == source
+    assert request.mcp_permission_action == (native_action if native_allowed else legacy_action)
     checks = [record for record in audit_records(caplog) if record["decision"] == "checking"]
     assert [(row["phase"], row["action_id"]) for row in checks] == (
         [("native", native_action)] + ([] if native_allowed else [("legacy", legacy_action)])
@@ -1275,7 +1888,10 @@ def test_alert_queries_have_explicit_native_and_legacy_actions(request_factory, 
     auth.execute_native_tool(tool, args, request_factory())
     query = io.monitor.iam_client.is_allowed.call_args.args[0]
     assert query.action.id == action and query.resources[0].id == "2"
-    io.target_scope.assert_called_once_with(tool.native_permission, 2, args)
+    if tool.native_permission.get("target_arg"):
+        io.target_scope.assert_called_once_with(tool.native_permission, 2, args)
+    else:
+        io.target_scope.assert_not_called()
     io.dispatch.assert_called_once_with(tool_name, args)
 
 
@@ -1424,6 +2040,7 @@ def test_ingress_logs_do_not_dump_headers_or_parameters(request_factory, caplog,
         "kernel_api/middlewares/authentication.py",
         "AuthenticationMiddleware.process_view",
         settings=settings,
+        secrets=secrets,
         BkJWTClient=lambda *args: jwt,
         auth=NS(authenticate=lambda **kwargs: user),
         DEFAULT_TENANT_ID="system",
@@ -1436,7 +2053,10 @@ def test_ingress_logs_do_not_dump_headers_or_parameters(request_factory, caplog,
         _handle_mcp_auth=lambda *args, **kwargs: "handled",
     )
     assert process(middleware, request, NS()) == "handled"
-    assert "event=request_received " in caplog.text
+    record = next(row.getMessage() for row in caplog.records if "event=request_received " in row.getMessage())
+    fields = json.loads(record.split(" ", 2)[2])
+    assert len(request.mcp_usage_event_id) == 32
+    assert fields["request_event_id"] == request.mcp_usage_event_id
     assert not any(
         s in caplog.text for s in ("private-query", "private-secret", "private-jwt", "get_params", "post_params")
     )
@@ -1484,6 +2104,7 @@ def test_routing_configuration_errors_are_logged_without_legacy_fallback(
         "AuthenticationMiddleware._handle_mcp_auth",
         settings=settings,
         time=time,
+        secrets=secrets,
         json=json,
         log_mcp_event=auth.log_mcp_event,
         log_mcp_tool_event=auth.log_mcp_tool_event,
@@ -1528,6 +2149,19 @@ def test_log_format_is_ascii_single_line_and_bounded(request_factory, caplog):
     assert record.startswith("MCP_AUTH: event=auth_begin ") and record.isascii() and "\n" not in record
     fields = json.loads(record.split(" ", 2)[2])
     assert len(fields["tool"]) == 256 and fields["username"] == request.user.username
+    assert fields["trace_id"] == request.mcp_trace_id
+
+
+def test_usage_log_uses_separate_prefix_and_same_trace(request_factory, caplog):
+    caplog.set_level(logging.INFO, logger=auth.__name__)
+    request = request_factory()
+
+    auth.log_mcp_usage_event("request_finished", request, request_from="knot", action_id="search_log_v2")
+
+    record = caplog.records[-1].getMessage()
+    assert record.startswith("MCP_USAGE: event=request_finished ") and record.isascii() and "\n" not in record
+    fields = json.loads(record.split(" ", 2)[2])
+    assert fields["request_from"] == "knot" and fields["action_id"] == "search_log_v2"
     assert fields["trace_id"] == request.mcp_trace_id
 
 
@@ -1742,8 +2376,8 @@ def test_filter_requires_schema_object_without_json_string_decoding(native_http,
     "tool_name",
     [
         name
-        for name, spec in registry.NATIVE_PERMISSIONS.items()
-        if spec["action_id"] in {"view_event_v2", "view_rule_v2"}
+        for name in registry.NATIVE_PERMISSIONS
+        if name.startswith("get_alert_") or name in {"list_alerts", "get_strategy_snapshot", "get_strategy_detail"}
     ],
 )
 @pytest.mark.parametrize("unified", [False, True])
@@ -1772,7 +2406,10 @@ def test_alert_pilot_http_permission_matrix(
     queries = [call.args[0] for call in io.monitor.iam_client.is_allowed.call_args_list]
     assert [query.action.id for query in queries] == [native_action] + ([] if native_allowed else ["using_alarm_mcp"])
     assert all(query.resources[0].id == "2" for query in queries)
-    io.target_scope.assert_called_once()
+    if tool.native_permission.get("target_arg"):
+        io.target_scope.assert_called_once()
+    else:
+        io.target_scope.assert_not_called()
     source = "native" if native_allowed else "legacy" if legacy_allowed else "none"
     assert request.mcp_permission_source == source
     assert response.status_code == (200 if native_allowed or legacy_allowed else 403)
@@ -1935,34 +2572,30 @@ def test_source_schema_defaults_match_declared_types(filename):
                 check(registry._extract_input_schema(operation))
 
 
-def test_unified_resource_preserves_additional_route_permissions(request_factory):
+def test_unified_resource_reuses_original_route_permission_native_first(request_factory, io):
     request = request_factory()
-    permission = Mock()
-    dispatch = Mock(return_value={"ok": True})
     perform = source_method(
         "kernel_api/resource/unified_mcp.py",
         "ExecuteToolResource.perform_request",
         get_tool_registry=registry.get_tool_registry,
         get_request=lambda **kwargs: request,
-        Draft7Validator=Draft7Validator,
-        ValidationError=ValidationError,
-        get_permission_client=lambda: permission,
         execute_native_tool=auth.execute_native_tool,
-        dispatch_tool=dispatch,
     )
 
     result = perform(NS(), {"tool_name": "list_log_collectors", "tool_args": {"bk_biz_id": "2"}})
 
     assert result["data"] == {"ok": True}
-    permission.is_allowed_by_biz.assert_called_once_with(2, "view_business_v2", raise_exception=True)
-    dispatch.assert_called_once_with("list_log_collectors", {"bk_biz_id": "2"})
+    query = io.monitor.iam_client.is_allowed.call_args.args[0]
+    assert query.action.id == "view_business_v2"
+    io.dispatch.assert_called_once_with("list_log_collectors", {"bk_biz_id": "2"})
 
-    request.unified_mcp_permission_checked = False
-    permission.reset_mock()
-    perform(NS(), {"tool_name": "list_log_collectors", "tool_args": {"bk_biz_id": "2"}})
-    assert [call.args[1] for call in permission.is_allowed_by_biz.call_args_list] == [
-        "using_log_collection_mcp",
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: query.action.id == "using_log_collection_mcp"
+    io.dispatch.reset_mock()
+    result = perform(NS(), {"tool_name": "list_log_collectors", "tool_args": {"bk_biz_id": "2"}})
+    assert result["data"] == {"ok": True}
+    assert [call.args[0].action.id for call in io.monitor.iam_client.is_allowed.call_args_list[-2:]] == [
         "view_business_v2",
+        "using_log_collection_mcp",
     ]
 
 

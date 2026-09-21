@@ -30,6 +30,10 @@ import type { UrlState } from './types';
 
 /** URL 条件参数的 key 列表 */
 const URL_PARAM_KEYS = [
+  'openid',
+  'task_id',
+  'file_name',
+  'extend_info',
   'keyword',
   'startTime',
   'endTime',
@@ -62,6 +66,10 @@ export default () => {
   const getUrlState = (): Partial<UrlState> => {
     const query = route.query;
     const state: Partial<UrlState> = {};
+    if (query.openid) state.openid = String(query.openid);
+    if (query.task_id) state.task_id = String(query.task_id);
+    if (query.file_name) state.file_name = String(query.file_name);
+    if (query.extend_info) state.extend_info = String(query.extend_info);
     if (query.keyword) state.keyword = String(query.keyword);
     if (query.startTime) state.startTime = String(query.startTime);
     if (query.endTime) state.endTime = String(query.endTime);

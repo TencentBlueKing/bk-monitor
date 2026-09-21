@@ -1,8 +1,8 @@
 @font-face {
   font-family: "icon-monitor"; /* Project id 1185924 */
-  src: url('monitor-icons.woff2?t=1788941885392') format('woff2'),
-       url('monitor-icons.woff?t=1788941885392') format('woff'),
-       url('monitor-icons.ttf?t=1788941885392') format('truetype');
+  src: url('monitor-icons.woff2?t=1789715444863') format('woff2'),
+       url('monitor-icons.woff?t=1789715444863') format('woff'),
+       url('monitor-icons.ttf?t=1789715444863') format('truetype');
 }
 
 .icon-monitor {
@@ -11,6 +11,58 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-tuiliguocheng:before {
+  content: "\e892";
+}
+
+.icon-tuili:before {
+  content: "\e891";
+}
+
+.icon-gongjutiaoyongjilu:before {
+  content: "\e890";
+}
+
+.icon-a-chatqipao:before {
+  content: "\e88f";
+}
+
+.icon-qianjin:before {
+  content: "\e88c";
+}
+
+.icon-yichang:before {
+  content: "\e88d";
+}
+
+.icon-sidebar:before {
+  content: "\e88b";
+}
+
+.icon-BackToTop1:before {
+  content: "\e88a";
+}
+
+.icon-zhinengti:before {
+  content: "\e888";
+}
+
+.icon-LLM:before {
+  content: "\e889";
+}
+
+.icon-Agent:before {
+  content: "\e886";
+}
+
+.icon-jishiqi1:before {
+  content: "\e887";
+}
+
+.icon-Tool:before {
+  content: "\e885";
 }
 
 .icon-mc-ai-output:before {

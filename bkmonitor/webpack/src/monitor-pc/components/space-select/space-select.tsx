@@ -115,6 +115,7 @@ export default class SpaceSelect extends tsc<
   @Ref('wrap') wrapRef: HTMLDivElement;
   @Ref('select') selectRef: HTMLDivElement;
   @Ref('typeList') typeListRef: HTMLDivElement;
+  @Ref('searchInput') searchInputRef: any;
   localValue: number[] = [];
   /* 当前的主空间 */
   localCurrentSpace: number = null;
@@ -156,6 +157,9 @@ export default class SpaceSelect extends tsc<
     nextDisable: false,
     preDisable: false,
   };
+  /** 键盘高亮项 id */
+  highlightId: null | number | string = null;
+
   /* 是否需要当前空间功能 */
   get needCurSpace() {
     return this.currentSpace !== null;
@@ -414,8 +418,10 @@ export default class SpaceSelect extends tsc<
     this.isOpen = true;
     this.sortSpaceList();
     this.setPaginationData(true);
+    this.resetHighlight(true);
     setTimeout(() => {
       this.addMousedownEvent();
+      this.searchInputRef?.focus?.();
     }, 50);
   }
   /* 添加清楚弹出层事件 */
@@ -460,6 +466,7 @@ export default class SpaceSelect extends tsc<
     this.popInstance?.destroy?.();
     this.searchValue = '';
     this.searchTypeId = '';
+    this.highlightId = null;
     this.popInstance = null;
     this.controller?.abort?.();
     this.isOpen = false;
@@ -512,6 +519,9 @@ export default class SpaceSelect extends tsc<
       item.preciseMatch = typeShow && preciseMatch;
     });
     this.setPaginationData(true);
+    if (this.isOpen) {
+      this.resetHighlight(false);
+    }
   }
   selectOption(item: ILocalSpaceList, v: boolean) {
     if (this.multiple) {
@@ -655,6 +665,104 @@ export default class SpaceSelect extends tsc<
     this.searchTypeId = typeId === this.searchTypeId ? '' : typeId;
     this.handleSearchChange(this.searchValue);
   }
+
+  isSameSpaceId(a: null | number | string, b: null | number | string) {
+    if (a == null || b == null) return false;
+    return String(a) === String(b);
+  }
+
+  /** 打开时优先高亮当前/已选空间；搜索/筛选后高亮第一项 */
+  resetHighlight(preferCurrent: boolean) {
+    const items = this.pagination.data;
+    if (!items.length) {
+      this.highlightId = null;
+      return;
+    }
+    if (preferCurrent) {
+      const preferredId = this.needCurSpace ? this.localCurrentSpace : this.localValue[0];
+      const matched =
+        preferredId != null
+          ? items.find(item => this.isSameSpaceId(item.id, preferredId))
+          : items.find(item => item.isCheck);
+      if (matched) {
+        this.highlightId = matched.id;
+        this.scrollHighlightIntoView();
+        return;
+      }
+    }
+    this.highlightId = items[0].id;
+    this.scrollHighlightIntoView();
+  }
+
+  scrollHighlightIntoView() {
+    if (this.highlightId == null || this.highlightId === '') return;
+    this.$nextTick(() => {
+      const el = this.wrapRef?.querySelector?.(`[data-space-id="${this.highlightId}"]`) as HTMLElement;
+      el?.scrollIntoView?.({ block: 'nearest' });
+    });
+  }
+
+  handleSearchKeydown(value: KeyboardEvent | string, event?: KeyboardEvent) {
+    const keyEvent = (event || value) as KeyboardEvent;
+    if (!keyEvent?.key) return;
+    if (keyEvent.key === 'Enter') {
+      keyEvent.preventDefault();
+      return;
+    }
+    if (keyEvent.key !== 'ArrowDown' && keyEvent.key !== 'ArrowUp') return;
+    keyEvent.preventDefault();
+    keyEvent.stopPropagation();
+    this.moveHighlight(keyEvent.key === 'ArrowDown' ? 1 : -1);
+  }
+
+  handleSearchEnter(_value: string, event?: KeyboardEvent) {
+    event?.preventDefault?.();
+    const target = this.pagination.data.find(item => this.isSameSpaceId(item.id, this.highlightId));
+    if (target) {
+      this.handleSelectOption(target);
+      this.scrollHighlightIntoView();
+    }
+  }
+
+  /** 方向键在可见项间移动；触底且还有分页时先加载再继续 */
+  moveHighlight(step: number) {
+    const items = this.pagination.data;
+    if (!items.length) return;
+    const index = items.findIndex(item => this.isSameSpaceId(item.id, this.highlightId));
+    if (index < 0) {
+      this.highlightId = items[step > 0 ? 0 : items.length - 1].id;
+      this.scrollHighlightIntoView();
+      return;
+    }
+    let next = index + step;
+    if (next < 0) {
+      next = 0;
+    } else if (next >= items.length) {
+      const beforeCount = items.length;
+      this.setPaginationData(false);
+      if (this.pagination.data.length > beforeCount) {
+        next = Math.min(index + step, this.pagination.data.length - 1);
+        this.highlightId = this.pagination.data[next].id;
+        this.scrollHighlightIntoView();
+        return;
+      }
+      next = items.length - 1;
+    }
+    this.highlightId = this.pagination.data[next].id;
+    this.scrollHighlightIntoView();
+  }
+
+  handleContentMouseDown(e: MouseEvent) {
+    if (this.searchInputRef?.$el?.contains(e.target as Node)) {
+      return;
+    }
+    const target = e.target as HTMLElement;
+    // 复选框、权限按钮等需要保留默认行为，避免 mousedown.preventDefault 把 click 吃掉
+    if (target.closest?.('.bk-checkbox, .bk-button, a, button')) {
+      return;
+    }
+    e.preventDefault();
+  }
   /* 是否展示type栏左右切换按钮 */
   typeListWrapNextPreShowChange() {
     this.$nextTick(() => {
@@ -740,14 +848,18 @@ export default class SpaceSelect extends tsc<
           <div
             ref='wrap'
             class={componentClassNames.pop}
+            onMousedown={this.handleContentMouseDown}
           >
             <div class='search-input'>
               <bk-input
+                ref='searchInput'
                 v-model={this.searchValue}
                 behavior={'simplicity'}
                 left-icon='bk-icon icon-search'
                 placeholder={this.$t('请输入 关键字')}
                 onChange={this.handleSearchChange}
+                onEnter={this.handleSearchEnter}
+                onKeydown={this.handleSearchKeydown}
               />
             </div>
             <div class={['space-type-list-wrap', { 'show-btn': this.typeWrapInfo.showBtn }]}>
@@ -793,6 +905,7 @@ export default class SpaceSelect extends tsc<
                   class={[
                     'space-list-item',
                     { active: !this.multiple && item.isCheck },
+                    { highlight: this.isSameSpaceId(item.id, this.highlightId) },
                     {
                       'no-hover-btn':
                         !this.needCurSpace ||
@@ -801,6 +914,7 @@ export default class SpaceSelect extends tsc<
                         (!!item.noAuth && !item.hasData),
                     },
                   ]}
+                  data-space-id={item.id}
                   onClick={() => this.handleSelectOption(item)}
                 >
                   {this.multiple && (

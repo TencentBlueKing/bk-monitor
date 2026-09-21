@@ -1169,6 +1169,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: "query hierarchical Agent spans by group"
+  /app/apm/llm_token_statistics/:
+    post:
+      operationId: llm_token_statistics
+      description: 查询 Trace 内所有 Agent Span 的 Token 统计
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/apm_llm_web/token_statistics/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: "query token statistics for all Agent spans in a Trace"
   /app/apm/list_llm_traces/:
     post:
       operationId: list_llm_traces

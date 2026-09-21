@@ -161,6 +161,7 @@ export default {
   '当前空间未开启故障诊断功能, 请联系': 'The current space does not support this function. please contact',
   BK助手: 'BK Assistant',
   'BK 助手': 'BK Assistant',
+  产品白皮书: 'Product White Paper',
   当前告警关联故障: 'Current alarm associated fault',
   当前告警无关联故障: 'The current alarm has no associated faults',
   当前无异常事件: 'Currently no abnormal events',

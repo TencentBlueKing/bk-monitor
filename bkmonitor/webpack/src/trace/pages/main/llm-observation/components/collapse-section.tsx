@@ -23,7 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent, inject, shallowRef, watch } from 'vue';
+
+import { LLM_OBSERVATION_SEARCH_KEY } from '../utils/search';
 
 import './collapse-section.scss';
 
@@ -51,9 +53,32 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    /** 搜索定位所属分区，命中时自动展开 */
+    sectionId: {
+      type: String,
+      default: '',
+    },
   },
   setup(props, { slots }) {
     const expanded = shallowRef(props.defaultExpand);
+    const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
+
+    // 分区折叠后子节点不在 DOM 里，定位前必须先展开
+    watch(
+      () =>
+        [
+          search?.activeIndex.value,
+          search?.keyword.value,
+          search?.activeHit.value?.sectionId,
+          search?.activeHit.value?.blockId,
+        ] as const,
+      ([, , sectionId]) => {
+        if (props.sectionId && sectionId === props.sectionId) {
+          expanded.value = true;
+        }
+      },
+      { immediate: true }
+    );
 
     return () => (
       <div class='llm-collapse-section'>

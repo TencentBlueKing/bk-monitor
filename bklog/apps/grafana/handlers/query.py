@@ -27,6 +27,7 @@ from collections import defaultdict
 from functools import partial
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from apps.api import CCApi
@@ -275,11 +276,30 @@ class GrafanaQueryHandler:
             )
         return ip_chooser
 
+    def _apply_platform_index_isolation(self, index_set_id: int, data: dict = None):
+        """Grafana 执行入口复用检索侧隔离。
+
+        下拉只解决「看得见」，真正 query / query_log / dimension 仍可能回落到
+        不认识 platform_index_filter 的 ESQuery。跨空间平台索引必须走 UnifyQuery，
+        开关关闭时 fail closed，与 `_apply_index_set_search_bk_biz_id` 同口径。
+        """
+        from apps.log_search.views.search_views import _apply_index_set_search_bk_biz_id
+
+        index_set = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
+        if not index_set:
+            return data
+        payload = data if data is not None else {}
+        payload.setdefault("bk_biz_id", self.bk_biz_id)
+        payload.setdefault("space_uid", self.space_uid)
+        return _apply_index_set_search_bk_biz_id(index_set, payload)
+
     def query(self, query_dict: dict):
         """
         数据查询
         """
         self.check_panel_permission(query_dict["dashboard_id"], query_dict["panel_id"], query_dict["result_table_id"])
+        isolation = {"bk_biz_id": self.bk_biz_id, "space_uid": self.space_uid}
+        self._apply_platform_index_isolation(query_dict["result_table_id"], isolation)
 
         # 初始化DB脱敏配置
         desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(
@@ -327,7 +347,7 @@ class GrafanaQueryHandler:
             "begin": 0,
             "size": 1,
             # "time_range": f"1m",
-            "bk_biz_id": self.bk_biz_id,
+            "bk_biz_id": isolation["bk_biz_id"],
             "keyword": query_dict.get("query_string", ""),
             "aggs": aggs,
             "is_desensitize": False,
@@ -353,6 +373,8 @@ class GrafanaQueryHandler:
         数据查询
         """
         self.check_panel_permission(query_dict["dashboard_id"], query_dict["panel_id"], query_dict["result_table_id"])
+        isolation = {"bk_biz_id": self.bk_biz_id, "space_uid": self.space_uid}
+        self._apply_platform_index_isolation(query_dict["result_table_id"], isolation)
 
         time_field = SearchHandler(query_dict["result_table_id"], {}).time_field
 
@@ -371,12 +393,12 @@ class GrafanaQueryHandler:
             ],
             "begin": 0,
             "size": query_dict.get("size", 10),
-            "bk_biz_id": self.bk_biz_id,
+            "bk_biz_id": isolation["bk_biz_id"],
             "keyword": query_dict.get("query_string", ""),
             "sort_list": query_dict.get("sort_list", []),
             "index_set_ids": [query_dict["result_table_id"]],
         }
-        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, self.bk_biz_id):
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, isolation["bk_biz_id"]):
             query_handler = UnifyQueryHandler(search_dict)
             result = query_handler.search(search_type=None)
         else:
@@ -409,6 +431,8 @@ class GrafanaQueryHandler:
         数据查询
         """
         self.check_panel_permission(query_dict["dashboard_id"], query_dict["panel_id"], query_dict["result_table_id"])
+        isolation = {"bk_biz_id": self.bk_biz_id, "space_uid": self.space_uid}
+        self._apply_platform_index_isolation(query_dict["result_table_id"], isolation)
 
         # 初始化DB脱敏配置
         desensitize_field_config_objs = DesensitizeFieldConfig.objects.filter(
@@ -447,7 +471,7 @@ class GrafanaQueryHandler:
             ],
             "begin": 0,
             "size": 1,
-            "bk_biz_id": self.bk_biz_id,
+            "bk_biz_id": isolation["bk_biz_id"],
             "keyword": query_dict.get("query_string", ""),
             "is_desensitize": False,
             "index_set_ids": [query_dict["result_table_id"]],
@@ -478,7 +502,15 @@ class GrafanaQueryHandler:
             return []
 
         space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
-        index_set_list = LogIndexSet.objects.filter(space_uid__in=space_uids)
+        # 与检索侧 LogIndexSet.get_index_set 保持同一口径：归属空间之外，
+        # 还要补上按 platform_index_visibility 对当前空间开放的平台级索引集
+        space_filter = Q(space_uid__in=space_uids)
+        visible_platform_index_set_ids = LogIndexSet.get_visible_platform_index_set_ids(
+            space_uids, current_space_uid=space_uid
+        )
+        if visible_platform_index_set_ids:
+            space_filter |= Q(index_set_id__in=visible_platform_index_set_ids)
+        index_set_list = LogIndexSet.objects.filter(space_filter)
 
         if category_id:
             index_set_list = index_set_list.filter(category_id=category_id)
@@ -816,6 +848,7 @@ class GrafanaQueryHandler:
                 for cond in where_conditions
             ]
         data["bk_biz_id"] = self.bk_biz_id
+        self._apply_platform_index_isolation(index_set_id, data)
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             data["index_set_ids"] = [index_set_id]
             result = UnifyQueryTermsAggsHandler(data.get("fields", []), data).terms()

@@ -8,12 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
+
+from django.db.models import Q
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
+from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import OtlpKey
 
 from apm_web.handlers.query.span import SpanQuery
@@ -24,6 +27,10 @@ class LLMQuery(SpanQuery):
 
     # 时序图展示的曲线数上限
     SERIES_LIMIT = 20
+
+    # 按 ID 拉全量 Span 时单次查询的 ID 数；超过后按该大小切片并发请求。
+    GROUP_ID_BATCH_SIZE = 30
+    GROUP_ID_QUERY_WORKERS = 5
 
     # 参与求和的每个字段占一个引用别名。
     METRIC_ALIASES: tuple[str, ...] = tuple(f"q{index}" for index in range(8))
@@ -167,10 +174,14 @@ class LLMQuery(SpanQuery):
         limit: int,
         filters: list[types.Filter] | None = None,
         query_string: str | None = None,
+        extra_filter: Q | None = None,
     ) -> list[Any]:
+        builders = self.build_queries(filters, query_string)
+        if extra_filter:
+            builders = [query.filter(extra_filter) for query in builders]
         queries = [
             query.distinct(group_field).values(group_field).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
-            for query in self.build_queries(filters, query_string)
+            for query in builders
         ]
         records = self._query_list(queries, start_time, end_time, offset, limit)
         result: list[Any] = []
@@ -180,6 +191,44 @@ class LLMQuery(SpanQuery):
                 result.append(value)
         return result
 
+    def iter_by_group_ids(
+        self,
+        group_field: str,
+        group_ids: list[Any],
+        start_time: int | None = None,
+        end_time: int | None = None,
+        limit: int = SpanQuery.QUERY_MAX_LIMIT,
+    ) -> Iterator[list[dict[str, Any]]]:
+        """按 ID 分片拉取 Span，每完成一批就交给调用方。
+
+        全量 `_source` 很大：调用方应在本批算完 compact 结果后丢掉 raw，
+        不要先 `extend` 成一张总表。分片仍并发，但生成器按切片顺序产出，
+        避免再额外持有一份拼接后的大 list。
+        """
+        if not group_ids:
+            return
+
+        chunks: list[list[Any]] = [
+            group_ids[index : index + self.GROUP_ID_BATCH_SIZE]
+            for index in range(0, len(group_ids), self.GROUP_ID_BATCH_SIZE)
+        ]
+
+        def _query_chunk(chunk: list[Any]) -> list[dict[str, Any]]:
+            queries = [
+                query.order_by(OtlpKey.START_TIME).filter(**{f"{group_field}__eq": chunk})
+                for query in self.build_queries(time_field=OtlpKey.START_TIME)
+            ]
+            return self._query_list(queries, start_time, end_time, 0, limit)
+
+        if len(chunks) == 1:
+            yield _query_chunk(chunks[0])
+            return
+
+        worker_count: int = min(self.GROUP_ID_QUERY_WORKERS, len(chunks))
+        with ThreadPool(processes=worker_count) as pool:
+            # imap 按切片顺序产出；调用方处理完一批后该批才能被回收。
+            yield from pool.imap(_query_chunk, chunks)
+
     def query_by_group_ids(
         self,
         group_field: str,
@@ -188,25 +237,34 @@ class LLMQuery(SpanQuery):
         end_time: int | None = None,
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
     ) -> list[dict[str, Any]]:
-        queries = [
-            query.order_by(OtlpKey.START_TIME).filter(**{f"{group_field}__eq": group_ids})
-            for query in self.build_queries(time_field=OtlpKey.START_TIME)
-        ]
-        return self._query_list(queries, start_time, end_time, 0, limit)
+        """拉取指定 ID 的全部 Span。需要整表时再用；列表接口请走 `iter_by_group_ids`。"""
+        spans: list[dict[str, Any]] = []
+        for batch in self.iter_by_group_ids(group_field, group_ids, start_time, end_time, limit):
+            spans.extend(batch)
+        return spans
 
     def query_group_trace_list(
         self,
         group_field: str,
         group_ids: list[Any],
+        possible_group_fields: Sequence[str] | None = None,
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
     ) -> list[dict[str, Any]]:
         fields = [group_field]
         if group_field != OtlpKey.TRACE_ID:
             fields.append(OtlpKey.TRACE_ID)
-        queries = [
-            query.filter(**{f"{group_field}__eq": group_ids}).distinct(OtlpKey.TRACE_ID).values(*fields)
-            for query in self.build_queries()
-        ]
+
+        possible_group_condition = Q()
+        for possible_group_field in possible_group_fields or ():
+            possible_group_condition |= Q(**{f"{possible_group_field}__eq": group_ids})
+
+        queries = []
+        for query in self.build_queries():
+            if possible_group_fields:
+                query = query.filter(possible_group_condition)
+            else:
+                query = query.filter(**{f"{group_field}__eq": group_ids})
+            queries.append(query.distinct(OtlpKey.TRACE_ID).values(*fields))
         return self._query_list(queries, None, None, 0, limit)
 
 
