@@ -177,10 +177,5 @@
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
     gap: 24px;
     min-width: 0;
-
-    .llm-json-code-block-header,
-    .llm-json-code-block-actions {
-      flex-wrap: wrap;
-    }
   }
 }
