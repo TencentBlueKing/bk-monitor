@@ -8,6 +8,14 @@
   }
 
   .explore-col {
+    /* span_name 列：hover 已用于展示 span / trace 信息 tooltip，不参与表格溢出 tip，仅做纯 CSS 省略
+     * （可点的链接列与无详情的 TEXT 列两种渲染共用） */
+    .span-name-ellipsis {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
     &.explore-prefix-icon-col {
       &:has([data-col-id='attributes.span_type']) {
         column-gap: 4px;
@@ -89,15 +97,6 @@
       }
     }
 
-    &.explore-click-col {
-      /* span_name 列：hover 已用于展示 span / trace 信息 tooltip，不参与表格溢出 tip，仅做纯 CSS 省略 */
-      .span-name-ellipsis {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-    }
-
     &.explore-duration-col {
       font-weight: 700;
     }
@@ -120,7 +119,7 @@
 
       .span-name-popover-item-label {
         flex-shrink: 0;
-        width: 86px;
+        width: 72px;
         color: #c4c6cc;
         text-align: right;
       }

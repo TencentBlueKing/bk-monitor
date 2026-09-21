@@ -121,6 +121,11 @@ export default defineComponent({
       return hasCondition ? 'search-empty' : 'empty';
     });
 
+    /** 详情抽屉对应的表格高亮行：上一个 / 下一个切换与关闭抽屉时跟随 detailContext 同步 */
+    const detailActiveRowKeys = computed<string[]>(() =>
+      detailContext.value?.record_id ? [detailContext.value.record_id] : []
+    );
+
     /** 当前视角的列布局预设（默认列宽 / 固定列）：列配置与列设置面板共用同一份声明 */
     const layoutPreset = computed<IRumColumnLayoutPreset>(() => RUM_COLUMN_LAYOUT_PRESET[store.mode] ?? {});
 
@@ -461,6 +466,7 @@ export default defineComponent({
       columnConfig,
       detailContext,
       detailShow,
+      detailActiveRowKeys,
       emptyType,
       layoutPreset,
       isSpanSpecialPerspective,
@@ -634,6 +640,7 @@ export default defineComponent({
                               baseColumns={this.columnConfig.baseColumns.value}
                               commonParams={queryCtx.commonParams.value}
                               data={tableCtx.tableData.value}
+                              defaultActiveRowKeys={this.detailActiveRowKeys}
                               defaultFieldKeys={this.columnConfig.defaultDisplayFields.value}
                               displayableFields={this.columnConfig.displayableFields.value}
                               emptyType={this.emptyType}

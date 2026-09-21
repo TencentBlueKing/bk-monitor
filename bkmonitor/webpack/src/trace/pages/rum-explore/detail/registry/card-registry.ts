@@ -304,7 +304,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
         label: t('主要归因'),
         value: name || EMPTY_TEXT,
         footer: [{ text: 'Performance Entry name' }],
-        tag: name && name !== entryType ? undefined : { text: t('低可信度'), color: '#F59500', bgColor: '#FDF4E8' },
+        tag: name && name !== entryType ? undefined : { text: t('低可信度'), color: '#E38B02', bgColor: '#FDF4E8' },
       },
     ];
   },
