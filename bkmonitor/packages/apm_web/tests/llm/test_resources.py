@@ -501,6 +501,43 @@ class ListTracesResourceTestCase(TestCase):
         self.assertEqual((item["input"], item["output"]), ("input", "output"))
         adapt.assert_called_once_with([span], entity_set)
 
+    def test_trace_items_query_only_requested_calculation_types(self):
+        query = mock.Mock()
+        query.query_trace_preview.return_value = [{"trace_id": "trace-1", "span_id": "span-1"}]
+        query.query_trace_errors.return_value = []
+        cases = (
+            ((), {}),
+            ((CalculationType.CACHE_READ_INPUT_TOKENS,) * 2, {"cache_read_input_tokens": 7}),
+            ((CalculationType.CACHE_WRITE_INPUT_TOKENS,), {"cache_write_input_tokens": 0}),
+        )
+        for cal_types, expected in cases:
+            with (
+                self.subTest(cal_types=cal_types),
+                mock.patch("apm_web.llm.resources.adapt_spans", return_value=[]),
+                mock.patch(
+                    "apm_web.llm.resources.LLMMetricGroup.handle",
+                    side_effect=lambda cal_type: (
+                        [{"trace_id": "trace-1", "_result_": 7}] if cal_type == "cache_read_input_tokens" else []
+                    ),
+                ) as handle,
+            ):
+                items = list(
+                    ListTracesResource.iter_trace_items(
+                        bk_biz_id=11,
+                        app_name="demo",
+                        span_query=query,
+                        entity_set=mock.Mock(),
+                        trace_ids=["trace-1"],
+                        product="default",
+                        cal_types=cal_types,
+                    )
+                )
+                self.assertCountEqual(handle.call_args_list, [mock.call(name) for name in expected])
+                self.assertEqual(
+                    {name: value for name, value in items[0].items() if name.endswith("_tokens")},
+                    {"input_tokens": 0, "output_tokens": 0, **expected},
+                )
+
     def test_five_queries_run_concurrently_and_propagate_failures(self):
         for failure in (None, "token", "errors"):
             with self.subTest(failure=failure):
@@ -1176,6 +1213,8 @@ class ListFlowsResourceTestCase(TestCase):
                     "user.id": "user-1",
                     "gen_ai.usage.input_tokens": 999,
                     "gen_ai.usage.output_tokens": 999,
+                    "gen_ai.usage.cache_read.input_tokens": 999,
+                    "gen_ai.usage.cache_write.input_tokens": 999,
                 },
             ),
             span(
@@ -1188,6 +1227,7 @@ class ListFlowsResourceTestCase(TestCase):
                     "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
                     "gen_ai.usage.input_tokens": 10,
                     "gen_ai.usage.output_tokens": 3,
+                    "gen_ai.usage.cache_read.input_tokens": 2,
                 },
             ),
             span(
@@ -1200,6 +1240,7 @@ class ListFlowsResourceTestCase(TestCase):
                     "gen_ai.output.messages": [{"role": "assistant", "parts": [{"type": "text", "content": "answer"}]}],
                     "gen_ai.usage.input_tokens": 20,
                     "gen_ai.usage.output_tokens": 7,
+                    "gen_ai.usage.cache_write.input_tokens": 4,
                 },
             ),
         ]
@@ -1235,6 +1276,9 @@ class ListFlowsResourceTestCase(TestCase):
                 "output": "answer",
                 "input_tokens": 30,
                 "output_tokens": 10,
+                "total_tokens": 40,
+                "cache_read_input_tokens": 2,
+                "cache_write_input_tokens": 4,
                 "start_time": 10,
                 "end_time": 500,
                 "elapsed_time": 490,
@@ -1246,11 +1290,28 @@ class ListFlowsResourceTestCase(TestCase):
                 "trace-1",
                 raw_spans,
                 adapt_spans(raw_spans, entity_set),
-                {"input_tokens": 30, "output_tokens": 10},
+                {
+                    "input_tokens": 30,
+                    "output_tokens": 10,
+                    "total_tokens": 40,
+                    "cache_read_input_tokens": 2,
+                    "cache_write_input_tokens": 4,
+                },
                 has_error=True,
             ),
         )
         self.assertEqual([node["span_id"] for node in flow], ["agent", "last"])
+        for name in (
+            "input_tokens",
+            "output_tokens",
+            "total_tokens",
+            "cache_read_input_tokens",
+            "cache_write_input_tokens",
+            "start_time",
+            "end_time",
+            "elapsed_time",
+        ):
+            self.assertEqual(result[name], trace[name])
         self.assertEqual(flow[0]["attributes"]["gen_ai.usage.input_tokens"], 999)
 
     def test_forest_orders_projected_siblings_by_time(self):
@@ -1873,7 +1934,15 @@ class ListFlowsResourceTestCase(TestCase):
             mock.patch(
                 "apm_web.llm.resources.LLMMetricGroup.handle",
                 side_effect=lambda cal_type: [
-                    {"trace_id": span["trace_id"], "_result_": 10 if cal_type == "input_tokens" else 3}
+                    {
+                        "trace_id": span["trace_id"],
+                        "_result_": {
+                            "input_tokens": 10,
+                            "output_tokens": 3,
+                            "cache_read_input_tokens": 2,
+                            "cache_write_input_tokens": 1,
+                        }[cal_type],
+                    }
                     for span in spans
                 ],
             ),
@@ -1888,11 +1957,25 @@ class ListFlowsResourceTestCase(TestCase):
             )
         self.assertEqual(result["group_id"], "session-1")
         self.assertEqual(result["group_field"], group_field)
+        self.assertEqual(
+            {name: value for name, value in result.items() if name.endswith("_tokens")},
+            {
+                "input_tokens": 20,
+                "output_tokens": 6,
+                "total_tokens": 26,
+                "cache_read_input_tokens": 4,
+                "cache_write_input_tokens": 2,
+            },
+        )
+        self.assertEqual((result["start_time"], result["end_time"], result["elapsed_time"]), (100, 250, 150))
         self.assertEqual([trace["trace_id"] for trace in result["traces"]], ["trace-1", "trace-2"])
         for index, trace in enumerate(result["traces"], 1):
             self.assertEqual(trace["flow"], [])
             self.assertEqual((trace["input"], trace["output"]), ("question", "answer"))
             self.assertEqual((trace["input_tokens"], trace["output_tokens"]), (10, 3))
+            self.assertEqual(
+                (trace["total_tokens"], trace["cache_read_input_tokens"], trace["cache_write_input_tokens"]), (13, 2, 1)
+            )
             self.assertEqual(
                 (trace["start_time"], trace["end_time"], trace["elapsed_time"]), (index * 100, index * 100 + 50, 50)
             )
@@ -1961,7 +2044,7 @@ class ListFlowsResourceTestCase(TestCase):
             [
                 (product, trace_ids, cal_type)
                 for product, trace_ids in expected_trace_ids.items()
-                for cal_type in ("input_tokens", "output_tokens")
+                for cal_type in ("input_tokens", "output_tokens", "cache_read_input_tokens", "cache_write_input_tokens")
             ],
         )
         self.assertCountEqual(
@@ -1998,6 +2081,17 @@ class ListFlowsResourceTestCase(TestCase):
                 }
             )
         self.assertEqual(result["traces"], [])
+        for name in (
+            "input_tokens",
+            "output_tokens",
+            "total_tokens",
+            "cache_read_input_tokens",
+            "cache_write_input_tokens",
+            "start_time",
+            "end_time",
+            "elapsed_time",
+        ):
+            self.assertEqual(result[name], 0)
         span_query.query_trace_preview.assert_not_called()
         span_query.query_trace_errors.assert_not_called()
         span_query.query_by_group_ids.assert_not_called()
@@ -2028,6 +2122,14 @@ class ListFlowsResourceTestCase(TestCase):
             {
                 "group_field": "trace_id",
                 "group_id": "missing-trace",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "total_tokens": 0,
+                "cache_read_input_tokens": 0,
+                "cache_write_input_tokens": 0,
+                "start_time": 0,
+                "end_time": 0,
+                "elapsed_time": 0,
                 "traces": [],
             },
         )
@@ -2051,6 +2153,8 @@ CAL_TYPE_CHOICES = {
     "output_tokens",
     "total_tokens",
     "cache_tokens",
+    "cache_read_input_tokens",
+    "cache_write_input_tokens",
     "request_count",
     "model_call_count",
     "duration",
@@ -2378,6 +2482,52 @@ class CalculateByRangeResourceTestCase(TestCase):
                 "attributes.gen_ai.usage.cache_creation_input_tokens",
             ],
         )
+
+    def test_cache_read_and_write_query_separate_product_fields(self):
+        cases = {
+            "default": {
+                "cache_read_input_tokens": ["attributes.gen_ai.usage.cache_read.input_tokens"],
+                "cache_write_input_tokens": ["attributes.gen_ai.usage.cache_write.input_tokens"],
+            },
+            "galileo": {
+                "cache_read_input_tokens": [
+                    "attributes.gen_ai.usage.cache_read.input_tokens",
+                    "attributes.gen_ai.usage.cache_read_input_tokens",
+                    "attributes.gen_ai.usage.cached.input_tokens",
+                ],
+                "cache_write_input_tokens": [
+                    "attributes.gen_ai.usage.cache_creation.input_tokens",
+                    "attributes.gen_ai.usage.cache_creation_input_tokens",
+                ],
+            },
+        }
+        for product, fields_by_type in cases.items():
+            for cal_type, fields in fields_by_type.items():
+                query = make_query(records=[{"_result_": 7}])
+                with self.subTest(product=product, cal_type=cal_type), patch_llm_metric_group(query, product=product):
+                    result = CalculateByRangeResource().request(
+                        {**LLM_METRIC_REQUEST, "cal_type": cal_type, "group_by": []}
+                    )
+                self.assertEqual(result["data"][0]["0s"], 7)
+                self.assertEqual(aggregate_call(query), (fields, "SUM", []))
+
+    def test_langfuse_cache_read_and_write_are_aggregated_separately(self):
+        for cal_type, expected in (("cache_read_input_tokens", 12), ("cache_write_input_tokens", 1672)):
+            query = make_query()
+            query.query_field_values.return_value = [
+                {
+                    "attributes.langfuse.observation.usage_details": (
+                        '{"input": 5, "output": 38, "cache_read_input_tokens": 12, "cache_creation_input_tokens": 1672}'
+                    )
+                },
+                {"attributes.langfuse.observation.usage_details": '{"input": 5, "output": 7}'},
+            ]
+            with self.subTest(cal_type=cal_type), patch_llm_metric_group(query, product="langfuse"):
+                result = CalculateByRangeResource().request(
+                    {**LLM_METRIC_REQUEST, "cal_type": cal_type, "group_by": []}
+                )
+            self.assertEqual(result["data"][0]["0s"], expected)
+            query.query_field_aggregated_group.assert_not_called()
 
     def test_cache_tokens_fall_back_to_the_standard_field_only(self):
         """多字段是产品特例：未单独登记的产品只查标准名，不跟着别家的拼写一起放大查询。"""

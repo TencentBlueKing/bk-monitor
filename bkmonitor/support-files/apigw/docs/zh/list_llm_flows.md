@@ -64,7 +64,17 @@
 |---|---|---|
 | group_field | string | 本次查询的分组字段 |
 | group_id | string | 本次查询的分组值 |
+| input_tokens | number | 返回的所有 Trace 的输入 Token 总量 |
+| output_tokens | number | 返回的所有 Trace 的输出 Token 总量 |
+| total_tokens | number | `input_tokens + output_tokens` |
+| cache_read_input_tokens | number | 返回的所有 Trace 的缓存读取 Token 总量 |
+| cache_write_input_tokens | number | 返回的所有 Trace 的缓存写入 Token 总量 |
+| start_time | int | 返回的所有 Trace 中最早的开始时间，微秒时间戳 |
+| end_time | int | 返回的所有 Trace 中最晚的结束时间，微秒时间戳 |
+| elapsed_time | int | `max(0, end_time - start_time)`，单位为微秒，包含 Trace 之间的间隔 |
 | traces | list | 分组内的 Trace 列表；没有匹配结果时为空列表 |
+
+整体统计由 `traces` 汇总，空列表时以上统计字段均为 `0`。单 Trace 查询时，整体统计与该 Trace 一致。
 
 #### traces 元素
 
@@ -79,6 +89,9 @@
 | output | string | 输出概览，与 `list_llm_traces` 使用相同选取规则 |
 | input_tokens | number | LLM Span 的输入 Token 总量 |
 | output_tokens | number | LLM Span 的输出 Token 总量 |
+| total_tokens | number | `input_tokens + output_tokens` |
+| cache_read_input_tokens | number | LLM Span 的缓存读取 Token 总量，缺失时为 `0` |
+| cache_write_input_tokens | number | LLM Span 的缓存写入 Token 总量，缺失时为 `0` |
 | start_time | int | Span 范围内最早开始时间，微秒时间戳 |
 | end_time | int | Span 范围内最晚结束时间，微秒时间戳 |
 | elapsed_time | int | 结束时间与开始时间之差，单位为微秒 |
@@ -86,6 +99,8 @@
 | flow | list | 按 Trace ID 查询时返回根节点列表，按会话查询时为空列表 |
 
 时间范围取决于查询方式：会话查询使用折叠后的预览 Span，Trace ID 查询使用完整调用链的 Span。
+
+会话查询的 Token 统计来自全量 LLM Span 聚合，不受预览折叠影响。缓存字段沿用 `token_statistics` 的命名，表示缓存读取和写入量，不额外累加到 `total_tokens`。
 
 `flow` 及其递归 `childs` 节点包含 `list_llm_spans` 的完整 Span 字段，包括 `trace_id`、`span_id`、`parent_span_id`、`span_name`、`start_time`、`end_time`、`elapsed_time`、`status`、`resource` 和 `attributes`。
 
@@ -145,6 +160,14 @@
     "data": {
         "group_field": "attributes.gen_ai.conversation.id",
         "group_id": "conversation-demo-01",
+        "input_tokens": 300,
+        "output_tokens": 116,
+        "total_tokens": 416,
+        "cache_read_input_tokens": 164,
+        "cache_write_input_tokens": 0,
+        "start_time": 1700000000000000,
+        "end_time": 1700000001000000,
+        "elapsed_time": 1000000,
         "traces": [
             {
                 "group_id": "9519ce8934ad4c2f04753eef6ce44b08",
@@ -156,6 +179,9 @@
                 "output": "CPU 使用率持续升高",
                 "input_tokens": 300,
                 "output_tokens": 116,
+                "total_tokens": 416,
+                "cache_read_input_tokens": 164,
+                "cache_write_input_tokens": 0,
                 "start_time": 1700000000000000,
                 "end_time": 1700000001000000,
                 "elapsed_time": 1000000,
@@ -177,9 +203,22 @@
     "data": {
         "group_field": "trace_id",
         "group_id": "9519ce8934ad4c2f04753eef6ce44b08",
+        "input_tokens": 340,
+        "output_tokens": 96,
+        "total_tokens": 436,
+        "cache_read_input_tokens": 164,
+        "cache_write_input_tokens": 0,
+        "start_time": 1787912684072035,
+        "end_time": 1787912699650734,
+        "elapsed_time": 15578699,
         "traces": [
             {
                 "trace_id": "9519ce8934ad4c2f04753eef6ce44b08",
+                "input_tokens": 340,
+                "output_tokens": 96,
+                "total_tokens": 436,
+                "cache_read_input_tokens": 164,
+                "cache_write_input_tokens": 0,
                 "flow": [
                     {
                         "trace_id": "9519ce8934ad4c2f04753eef6ce44b08",

@@ -1,5 +1,5 @@
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from typing import Any
 
 from django.db.models import Q
@@ -22,7 +22,7 @@ from apm_web.llm.adapter.fields import (
     resolve_query_field,
     resolve_query_fields,
 )
-from apm_web.llm.builders.flow import FlowBuilder
+from apm_web.llm.builders.flow import TOKEN_FIELDS, FlowBuilder
 from apm_web.llm.builders.summary import TraceSummary
 from apm_web.llm.constants import CalculationType, SpanType
 from apm_web.llm.metric_group import LLMMetricGroup
@@ -72,6 +72,7 @@ class ListTracesResource(Resource):
         entity_set: EntitySet,
         trace_ids: list[str],
         product: str,
+        cal_types: Sequence[CalculationType] = (CalculationType.INPUT_TOKENS, CalculationType.OUTPUT_TOKENS),
     ) -> Iterator[dict[str, Any]]:
         """按 Trace 折叠查询预览及统计，不加载完整调用链。"""
         if not trace_ids:
@@ -89,8 +90,9 @@ class ListTracesResource(Resource):
             name for name, span_type in SPAN_TYPES.items() if span_type in {SpanType.AGENT, SpanType.LLM}
         ]
         extra_filter: Q = operation_query(product, operations)
-        # 五路查询继承请求上下文；get() 传播异常，不能把失败伪装成空预览或零 Token。
-        with ThreadPool(processes=5) as pool:
+        # 统计按需查询并去重；get() 传播异常，不能把失败伪装成空预览或零 Token。
+        cal_types = tuple(dict.fromkeys(cal_types))
+        with ThreadPool(processes=3 + len(cal_types)) as pool:
             input_preview = pool.apply_async(
                 span_query.query_trace_preview,
                 (trace_ids,),
@@ -107,13 +109,13 @@ class ListTracesResource(Resource):
                     "sort": ["end_time desc"],
                 },
             )
-            input_tokens = pool.apply_async(metric_group.handle, (CalculationType.INPUT_TOKENS.value,))
-            output_tokens = pool.apply_async(metric_group.handle, (CalculationType.OUTPUT_TOKENS.value,))
+            token_queries = {
+                cal_type.value: pool.apply_async(metric_group.handle, (cal_type.value,)) for cal_type in cal_types
+            }
             errors = pool.apply_async(span_query.query_trace_errors, (trace_ids,))
             previews = [*input_preview.get(), *output_preview.get()]
             token_results: dict[str, list[dict[str, Any]]] = {
-                CalculationType.INPUT_TOKENS.value: input_tokens.get(),
-                CalculationType.OUTPUT_TOKENS.value: output_tokens.get(),
+                name: query.get() for name, query in token_queries.items()
             }
             error_trace_ids: set[str] = {record[OtlpKey.TRACE_ID] for record in errors.get()}
 
@@ -138,7 +140,7 @@ class ListTracesResource(Resource):
                 trace_id,
                 raw_spans,
                 adapt_spans(raw_spans, entity_set),
-                tokens_by_trace[trace_id],
+                {name: tokens_by_trace[trace_id].get(name, 0) for name in token_results},
                 has_error=trace_id in error_trace_ids,
             )
 
@@ -409,6 +411,7 @@ class ListFlowsResource(Resource):
                 entity_set=entity_set,
                 trace_ids=trace_ids,
                 product=product,
+                cal_types=tuple(CalculationType(name) for name in TOKEN_FIELDS),
             ):
                 items[item["trace_id"]] = {**item, "flow": []}
 
@@ -436,9 +439,19 @@ class ListFlowsResource(Resource):
                 )
                 item["flow"] = builder.flow
                 traces.append(item)
+        tokens: dict[str, float] = {name: sum(trace[name] for trace in traces) for name in TOKEN_FIELDS}
+        tokens["total_tokens"] = tokens["input_tokens"] + tokens["output_tokens"]
+        for trace in traces:
+            trace["total_tokens"] = trace["input_tokens"] + trace["output_tokens"]
+        start_time: int = min((trace["start_time"] for trace in traces), default=0)
+        end_time: int = max((trace["end_time"] for trace in traces), default=0)
         return {
             "group_field": validated_request_data["group_field"],
             "group_id": validated_request_data["group_id"],
+            **tokens,
+            "start_time": start_time,
+            "end_time": end_time,
+            "elapsed_time": max(0, end_time - start_time),
             "traces": traces,
         }
 

@@ -143,6 +143,8 @@ class LLMMetricGroup(base.BaseMetricGroup):
         CalculationType.OUTPUT_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("output_tokens",)),
         CalculationType.TOTAL_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("input_tokens", "output_tokens")),
         CalculationType.CACHE_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("cache_read", "cache_write")),
+        CalculationType.CACHE_READ_INPUT_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("cache_read",)),
+        CalculationType.CACHE_WRITE_INPUT_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("cache_write",)),
         CalculationType.MODEL_CALL_COUNT.value: Aggregation(Layer.MODEL, "COUNT", field="_index"),
         # 操作次数按调用方的查询范围直接计数，不额外限定 Span 层级。
         CalculationType.OPERATION_COUNT.value: Aggregation(None, "COUNT", field="_index"),

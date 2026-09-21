@@ -119,6 +119,7 @@ class TraceSummary:
             "output": output_text,
             "input_tokens": tokens.get("input_tokens", 0),
             "output_tokens": tokens.get("output_tokens", 0),
+            **tokens,
             "start_time": start_time,
             "end_time": end_time,
             "elapsed_time": max(0, end_time - start_time),
