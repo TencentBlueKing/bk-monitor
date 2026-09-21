@@ -315,3 +315,23 @@ body {
 .tippy-box[data-theme~='light'][data-placement^='bottom'] > .tippy-arrow::before {
   border-bottom-color: #fff;
 }
+
+.bk-popper {
+  &.tooltip-chart-tips-dark-theme {
+    display: block;
+    padding: 10px;
+    font-size: 12px;
+    color: rgb(190 192 198);
+    white-space: nowrap;
+    background: rgb(54 58 67 / 88%);
+    border-color: rgb(255 255 255);
+    border-style: solid;
+    border-width: 0;
+    border-radius: 4px;
+    box-shadow: rgb(0 0 0 / 20%) 1px 2px 10px;
+
+    .bk-popper-arrow::before {
+      background: transparent;
+    }
+  }
+}
