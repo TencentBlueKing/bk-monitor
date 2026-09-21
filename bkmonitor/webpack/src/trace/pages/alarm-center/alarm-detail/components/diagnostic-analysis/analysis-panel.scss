@@ -77,4 +77,9 @@
       margin-bottom: 40px;
     }
   }
+
+  /* 板块之间的分隔线由各自 header 的上边框画出，末尾板块下方再补一条收口 */
+  &:last-child {
+    border-bottom: 1px solid var(--neutral-border, #e9edf5);
+  }
 }
