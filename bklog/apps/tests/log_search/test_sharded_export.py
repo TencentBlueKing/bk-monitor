@@ -25,7 +25,7 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
@@ -46,14 +46,12 @@ from apps.log_search.export.planner import (
 )
 from apps.log_search.export.scheduler import (
     _inflight_by_index_set,
-    artifact_names,
     cleanup_artifacts,
     dispatch_ready_parts,
     enqueue_finalization,
     enqueue_planning,
 )
 from apps.log_search.export.storage import artifact_name, manifest_name
-from apps.utils.remote_storage import NfsStorage
 
 
 def build_policy(**overrides):
@@ -453,49 +451,28 @@ class SchedulerTests(TestCase):
         self.job.save(update_fields=["part_success", "status"])
         self.assertEqual(enqueue_finalization(10), [self.job.pk])
 
-    def test_artifact_names_include_parts_without_recorded_object_key(self):
-        ExportPart.objects.filter(part_no=1).update(object_key="legacy-random-name.tar.gz")
+    def test_cleanup_registers_expired_job_once(self):
+        self.job.status = ExportJobStatus.SUCCESS
+        self.job.expires_at = timezone.now() + timedelta(seconds=60)
+        self.job.save(update_fields=["status", "expires_at"])
 
-        names = artifact_names(self.job)
+        # 未过期不登记
+        self.assertEqual(cleanup_artifacts(10), [])
+        ExportJob.objects.filter(pk=self.job.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
+        self.assertEqual(cleanup_artifacts(10), [self.job.pk])
+        self.job.refresh_from_db()
+        self.assertIsNotNone(self.job.artifacts_cleaned_at)
+        # 已登记的任务不再重复扫描
+        self.assertEqual(cleanup_artifacts(10), [])
 
-        # 升级前随机命名的产物只能靠已记录的对象名兜底
-        self.assertIn("legacy-random-name.tar.gz", names)
-        # 没有成功回填的分片也必须能推导出来，否则取消/超时回收产生的产物永远清不掉
-        self.assertIn(artifact_name(self.job, 2), names)
-        self.assertIn(manifest_name(self.job), names)
-
-    @patch("apps.log_search.export.scheduler.build_storage", return_value=Mock())
-    def test_object_storage_cleanup_is_marked_but_not_reported_as_cleaned(self, _storage):
-        self._expire_job()
+    def test_cleanup_defers_job_with_inflight_parts(self):
+        ExportPart.objects.filter(part_no=1).update(status=ExportPartStatus.RUNNING)
+        self.job.status = ExportJobStatus.CANCELED
+        self.job.save(update_fields=["status"])
 
         self.assertEqual(cleanup_artifacts(10), [])
         self.job.refresh_from_db()
-        self.assertIsNotNone(self.job.artifacts_cleaned_at)
-
-    def test_nfs_cleanup_runs_after_expiry_and_removes_derived_artifacts(self):
-        with tempfile.TemporaryDirectory() as directory:
-            self.job.status = ExportJobStatus.SUCCESS
-            self.job.expires_at = timezone.now() + timedelta(seconds=60)
-            self.job.save(update_fields=["status", "expires_at"])
-            names = artifact_names(self.job)
-            for name in names:
-                (Path(directory) / name).write_bytes(b"x")
-
-            with (
-                override_settings(EXTRACT_SAAS_STORE_DIR=directory),
-                patch("apps.log_search.export.scheduler.build_storage", return_value=NfsStorage(directory)),
-            ):
-                # 未过期不清理
-                self.assertEqual(cleanup_artifacts(10), [])
-                ExportJob.objects.filter(pk=self.job.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
-                self.assertEqual(cleanup_artifacts(10), [self.job.pk])
-
-            self.assertFalse(any((Path(directory) / name).exists() for name in names))
-
-    def _expire_job(self):
-        self.job.status = ExportJobStatus.SUCCESS
-        self.job.expires_at = timezone.now() - timedelta(seconds=1)
-        self.job.save(update_fields=["status", "expires_at"])
+        self.assertIsNone(self.job.artifacts_cleaned_at)
 
     def test_inflight_count_groups_by_index_set(self):
         ExportPart.objects.filter(part_no=1).update(status=ExportPartStatus.DISPATCHED)

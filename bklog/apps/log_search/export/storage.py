@@ -19,10 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-import os
-
-from django.conf import settings
-
 from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_search.constants import (
@@ -31,21 +27,30 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
 )
-from apps.utils.remote_storage import NfsStorage, StorageType
+from apps.utils.remote_storage import StorageType
+
+
+class UnsupportedExportStorage(Exception):
+    """分片导出只支持对象存储。"""
+
+
+# NFS 的下载链接是应用内下载接口加固定密文：没有签名有效期，也无法按需刷新，
+# 与分片导出按需签发临时链接的契约不符，因此只接受对象存储。
+SUPPORTED_STORAGE_TYPES = (RemoteStorageType.COS.value, RemoteStorageType.BKREPO.value)
 
 
 def build_storage():
     """
     构建产物存储实例。
 
-    直接复用旧异步导出链路的开关与封装（COS/NFS/BKRepo 三选一），
-    分片导出不新增存储配置，也不新增一种后端。
+    复用旧异步导出链路的开关与配置，但只接受对象存储；分片导出不新增存储配置，
+    也不新增一种后端。
     """
     toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config
     storage_type = toggle.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
+    if storage_type not in SUPPORTED_STORAGE_TYPES:
+        raise UnsupportedExportStorage(f"分片导出仅支持 COS / BKREPO 存储，当前配置为 {storage_type!r}")
     storage = StorageType.get_instance(storage_type)
-    if not storage_type or storage_type == RemoteStorageType.NFS.value:
-        return storage(settings.EXTRACT_SAAS_STORE_DIR)
     if storage_type == RemoteStorageType.BKREPO.value:
         return storage(expired=ASYNC_EXPORT_EXPIRED)
     return storage(
@@ -77,19 +82,3 @@ def upload(storage, file_path, file_name):
 
 def download_url(storage, url_path, file_name, ttl):
     return storage.generate_download_url(url_path=url_path, file_name=file_name, expired=ttl)
-
-
-def supports_artifact_cleanup(storage):
-    """只有 NFS 的产物是共享目录里可直接删除的文件；对象存储一期依赖桶的生命周期策略。"""
-    return isinstance(storage, NfsStorage)
-
-
-def remove_local_artifact(storage, file_name):
-    """删除 NFS 共享目录里的产物文件，返回是否真的删掉了。"""
-    if not supports_artifact_cleanup(storage) or not file_name:
-        return False
-    path = os.path.join(settings.EXTRACT_SAAS_STORE_DIR, file_name)
-    if not os.path.isfile(path):
-        return False
-    os.remove(path)
-    return True
