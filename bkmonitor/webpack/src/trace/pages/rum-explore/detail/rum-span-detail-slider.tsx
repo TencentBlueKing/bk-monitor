@@ -205,14 +205,14 @@ export default defineComponent({
           />
           {renderTabs()}
           <div class='rum-detail-card'>
-            {isXhrOrFetch.value ? (
+            {isXhrOrFetch.value && traceInfo.value ? (
               <Alert
                 class='related-trace-alert'
                 v-slots={{
                   title: () => (
                     <div>
                       <span>{t('已有关联 Trace：')}</span>
-                      <span>{originData.value.trace_id || '--'}，</span>
+                      <span>{originData.value.links?.[0]?.trace_id || '--'}，</span>
                       <Button
                         class='jump-btn'
                         theme='primary'

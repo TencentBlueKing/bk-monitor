@@ -553,4 +553,7 @@ export default {
   差: 'Poor',
   连接复用: 'Connection Reuse',
   '查询详情失败，请稍后重试': 'Failed to query details, please try again later',
+  'TTFB 分解（RUM 协议）': 'TTFB Decomposition (RUM Protocol)',
+  子项合计: 'Subtotal',
+  '与 TTFB 相差': 'Difference from TTFB',
 };
