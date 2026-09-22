@@ -70,15 +70,13 @@ def _write_rows(handler, payload):
         }
     )
     deadline = time.monotonic() + settings.ASYNC_EXPORT_PART_TIMEOUT
-    rows = size = calls = 0
+    rows = size = 0
     with payload.open("wb") as stream:
         while True:
             if time.monotonic() >= deadline:
                 raise PartError("PART_TIMEOUT", "分片执行超过时间预算")
-            if calls >= settings.ASYNC_EXPORT_PART_MAX_CALLS:
-                raise PartError("PART_CALL_LIMIT_EXCEEDED", "分片滚动查询次数超过预算")
-            calls += 1
-            params["clear_cache"] = calls == 1
+            # 与旧异步导出链路一致：首轮清空缓存，后续滚动复用同一份查询上下文
+            params["clear_cache"] = rows == 0
             result = UnifyQueryApi.query_ts_raw_with_scroll(params)
             batch = result.get("list") if isinstance(result, dict) else None
             if not isinstance(batch, list):

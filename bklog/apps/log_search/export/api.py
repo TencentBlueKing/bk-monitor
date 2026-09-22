@@ -104,15 +104,12 @@ def job_detail(job):
         "parts_total": total,
         "parts_completed": success,
         "percent": percent,
-        "percent_basis": "completed_parts",
         "requested_parallelism": job.requested_parallelism,
-        "inflight_parts": len(stages),
         "error_code": job.error_code,
         "created_by": job.created_by,
         "created_at": job.created_at,
         "completed_at": job.completed_at,
         "expires_at": job.expires_at,
-        "poll_after": None if job.status in TERMINAL else 3,
         "can_operate": job.created_by == get_request_username(default="") and job.status not in TERMINAL,
     }
 

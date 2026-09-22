@@ -35,7 +35,15 @@ from apps.log_search.export import state
 from apps.log_search.export.config import ExportPolicy
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.log_search.export.worker import _pack, _write_rows
-from apps.log_search.export.planner import PartSpec, choose_interval, merge_adjacent, refine, uniform_parts
+from apps.log_search.export.planner import (
+    PlanError,
+    PartSpec,
+    build_parts,
+    choose_interval,
+    merge_adjacent,
+    refine,
+    run_planning,
+)
 from apps.log_search.export.scheduler import (
     _inflight_by_index_set,
     cleanup_artifacts,
@@ -132,14 +140,81 @@ class MergeTests(SimpleTestCase):
         self.assertEqual(len(merge_adjacent(parts, policy)), 2)
 
 
-class UniformPartsTests(SimpleTestCase):
-    def test_uniform_parts_cover_the_whole_range(self):
-        parts = uniform_parts(1000, 0, 10000, 1000, build_policy(target_rows=300))
-        self.assertEqual(parts[0].start_time, 0)
-        self.assertEqual(parts[-1].end_time, 10000)
-        for previous, current in zip(parts, parts[1:]):
-            self.assertEqual(previous.end_time, current.start_time)
-        self.assertEqual(sum(part.estimated_rows for part in parts), 1000)
+class BuildPartsTests(TestCase):
+    """build_parts 是规划链路的契约点：返回 (parts, total, interval) 且完整覆盖任务区间。"""
+
+    def setUp(self):
+        self.job = create_job()
+
+    def plan_with(self, *, total, buckets, sample=None, policy=None):
+        with (
+            patch("apps.log_search.export.planner.build_handler"),
+            patch("apps.log_search.export.planner.count_rows", return_value=total),
+            patch("apps.log_search.export.planner.sample_rows", return_value=sample or []),
+            patch("apps.log_search.export.planner.histogram", return_value=buckets),
+        ):
+            return build_parts(self.job, policy or build_policy())
+
+    def test_returns_parts_total_and_interval_for_the_whole_range(self):
+        parts, total, interval = self.plan_with(total=40, buckets={0: 40}, sample=[b"x" * 20])
+
+        self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
+        self.assertEqual(total, 40)
+        self.assertEqual(parts[0].estimated_rows, 40)
+        self.assertEqual(parts[0].estimated_bytes, 800)
+        self.assertGreaterEqual(interval, self.job.time_tick)
+        self.assertEqual(interval % self.job.time_tick, 0)
+
+    def test_empty_histogram_is_a_retryable_statistics_failure(self):
+        with self.assertRaises(PlanError) as context:
+            self.plan_with(total=40, buckets={})
+
+        self.assertEqual(context.exception.code, "STATISTICS_FAILED")
+        self.assertTrue(context.exception.retryable)
+
+    def test_rows_over_quota_fail_before_any_density_query(self):
+        with (
+            patch("apps.log_search.export.planner.build_handler"),
+            patch("apps.log_search.export.planner.count_rows", return_value=20_000_000),
+            patch("apps.log_search.export.planner.histogram") as histogram,
+        ):
+            with self.assertRaises(PlanError) as context:
+                build_parts(self.job, build_policy())
+
+        self.assertEqual(context.exception.code, "QUOTA_EXCEEDED")
+        histogram.assert_not_called()
+
+    def test_empty_range_returns_one_covering_part(self):
+        parts, total, interval = self.plan_with(total=0, buckets={})
+
+        self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
+        self.assertEqual(total, 0)
+        self.assertGreater(interval, 0)
+
+
+class RunPlanningTests(TestCase):
+    """规划必须真的把任务推进到 READY —— 覆盖 build_parts 返回值契约被破坏的回归场景。"""
+
+    def test_run_planning_persists_plan_and_moves_job_to_ready(self):
+        job = create_job()
+        with (
+            patch("apps.log_search.export.planner.build_handler"),
+            patch("apps.log_search.export.planner.count_rows", return_value=40),
+            patch("apps.log_search.export.planner.sample_rows", return_value=[b"x" * 20]),
+            patch("apps.log_search.export.planner.histogram", return_value={0: 40}),
+        ):
+            run_planning(job.pk)
+
+        job.refresh_from_db()
+        self.assertEqual(job.status, ExportJobStatus.READY)
+        self.assertEqual(job.part_total, 1)
+        self.assertEqual(job.estimated_total, 40)
+        self.assertIsNotNone(job.interval)
+        self.assertIsNotNone(job.statistics_at)
+        part = ExportPart.objects.get(job=job)
+        self.assertEqual((part.start_time, part.end_time), (0, 4000))
+        self.assertEqual(part.status, ExportPartStatus.WAITING)
+        self.assertEqual(part.estimated_rows, 40)
 
 
 class PartRunnerTests(TestCase):
@@ -295,7 +370,7 @@ class ExportStateTestCase(TestCase):
         self.assertEqual(job.requested_parallelism, 4)
 
 
-@override_settings(ASYNC_EXPORT_SCAN_LIMIT=10)
+@override_settings(ASYNC_EXPORT_COORDINATE_BATCH=10)
 class SchedulerTests(TestCase):
     def setUp(self):
         self.job = create_job(
@@ -308,23 +383,45 @@ class SchedulerTests(TestCase):
         for part_no, (start, end) in enumerate([(0, 1000), (1000, 2000), (2000, 3000)], start=1):
             ExportPart.objects.create(job=self.job, part_no=part_no, start_time=start, end_time=end)
 
-    @patch("apps.log_search.export.scheduler.scheduler_limits", return_value=(2, 2))
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=2, global_parallelism=2),
+    )
     @patch("apps.log_search.export.scheduler._send")
-    def test_dispatch_respects_index_limit(self, send, _limits):
-        dispatched = dispatch_ready_parts(10)
+    def test_dispatch_respects_index_limit(self, send, _policy):
+        dispatched = dispatch_ready_parts()
         self.assertEqual(len(dispatched), 2)
         self.assertEqual(send.call_count, 2)
         self.assertEqual(ExportPart.objects.filter(status=ExportPartStatus.DISPATCHED).count(), 2)
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
 
-    @patch("apps.log_search.export.scheduler.scheduler_limits", return_value=(2, 2))
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=2, global_parallelism=2),
+    )
     @patch("apps.log_search.export.scheduler._send")
-    def test_dispatch_publish_failure_returns_part_to_waiting(self, send, _limits):
+    def test_dispatch_publish_failure_returns_part_to_waiting(self, send, _policy):
         send.side_effect = RuntimeError("broker down")
-        self.assertEqual(dispatch_ready_parts(10), [])
+        self.assertEqual(dispatch_ready_parts(), [])
         self.assertEqual(ExportPart.objects.filter(status=ExportPartStatus.WAITING).count(), 3)
         self.assertEqual(ExportPart.objects.filter(error_code="DISPATCH_FAILED").count(), 1)
+
+    @patch("apps.log_search.export.scheduler.current_policy", return_value=build_policy(global_parallelism=0))
+    @patch("apps.log_search.export.scheduler._send")
+    def test_dispatch_refuses_when_global_capacity_is_not_configured(self, send, _policy):
+        self.assertEqual(dispatch_ready_parts(), [])
+        send.assert_not_called()
+        self.assertEqual(ExportPart.objects.filter(status=ExportPartStatus.WAITING).count(), 3)
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=4, global_parallelism=3),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_global_capacity_bounds_total_dispatch(self, send, _policy):
+        self.assertEqual(len(dispatch_ready_parts()), 3)
+        self.assertEqual(send.call_count, 3)
 
     @patch("apps.log_search.export.scheduler._send")
     def test_enqueue_planning_only_picks_unplanned_jobs(self, send):

@@ -268,7 +268,7 @@ def recover_stale_parts(limit=None):
     一期不做租约心跳：Worker 有明确的分片超时（ASYNC_EXPORT_PART_TIMEOUT），
     超过这个时间仍未回填结果的分片一律交回调度器重试。
     """
-    limit = limit or settings.ASYNC_EXPORT_SCAN_LIMIT
+    limit = limit or settings.ASYNC_EXPORT_COORDINATE_BATCH
     cutoff = timezone.now() - timedelta(seconds=settings.ASYNC_EXPORT_PART_TIMEOUT)
     stale = (
         ExportPart.objects.filter(status__in=ExportPartStatus.INFLIGHT)
