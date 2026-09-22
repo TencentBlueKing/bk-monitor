@@ -232,6 +232,7 @@ CELERY_IMPORTS = (
     "apps.log_search.tasks.async_export",
     "apps.log_search.tasks.scene_async_export",
     "apps.log_search.tasks.unify_query_async_export",
+    "apps.log_search.tasks.sharded_export",
     "apps.log_search.tasks.project",
     "apps.log_search.tasks.space",
     "apps.log_search.tasks.cmdb",
@@ -1402,6 +1403,25 @@ TGPA_SDK_DOC_URL = os.getenv("BKAPP_TGPA_SDK_DOC_URL", "")
 
 # 异步下载最大并发任务数
 MAX_CONCURRENT_EXPORT_TASKS = int(os.getenv("BKAPP_MAX_CONCURRENT_EXPORT_TASKS", 3))
+
+# ===============================================================================
+# 分片异步导出（ExportJob / ExportPart）
+# ===============================================================================
+# 分片执行队列与轻量控制队列；控制任务不与重型的导出任务共用拥塞队列
+ASYNC_EXPORT_PART_QUEUE = os.getenv("BKAPP_ASYNC_EXPORT_PART_QUEUE", "sharded_export")
+ASYNC_EXPORT_CONTROL_QUEUE = os.getenv("BKAPP_ASYNC_EXPORT_CONTROL_QUEUE", "celery")
+ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS", 10))
+
+# 环境容量硬上限；FeatureConfig 只能在硬上限以内动态调整
+ASYNC_EXPORT_INDEX_HARD_LIMIT = int(os.getenv("BKAPP_ASYNC_EXPORT_INDEX_HARD_LIMIT", 4))
+ASYNC_EXPORT_GLOBAL_HARD_LIMIT = int(os.getenv("BKAPP_ASYNC_EXPORT_GLOBAL_HARD_LIMIT", 4))
+ASYNC_EXPORT_SCAN_LIMIT = int(os.getenv("BKAPP_ASYNC_EXPORT_SCAN_LIMIT", 100))
+
+# 故障恢复超时和单次执行安全边界
+ASYNC_EXPORT_PLANNING_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PLANNING_TIMEOUT", 600))
+# 单分片执行超时：超过该时间仍未回填结果的分片会被回收重试
+ASYNC_EXPORT_PART_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PART_TIMEOUT", 1800))
+ASYNC_EXPORT_PART_MAX_CALLS = int(os.getenv("BKAPP_ASYNC_EXPORT_PART_MAX_CALLS", 100000))
 
 """
 以下为框架代码 请勿修改

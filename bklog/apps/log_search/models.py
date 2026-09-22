@@ -49,6 +49,7 @@ from apps.log_search.constants import (
     ASYNC_EXPORT_SCENE_ID,
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     DEFAULT_TIME_FIELD,
+    ExportJobStatus,
     ExportStatus,
     ExportType,
     INDEX_SET_NO_DATA_CHECK_INTERVAL,
@@ -93,6 +94,7 @@ from apps.log_search.exceptions import (
     SourceDuplicateException,
 )
 from apps.log_search.utils import fetch_request_username
+from apps.log_search.export.models import ExportJob  # noqa: F401
 from apps.models import (
     JsonField,
     MultiStrSplitByCommaField,
@@ -1780,10 +1782,10 @@ class AsyncTask(OperateRecordModel):
         else:
             qs = qs.exclude(scenario_id=ASYNC_EXPORT_SCENE_ID)
 
-        if (
-            qs.filter(Q(export_status__in=running_status) | Q(export_status__isnull=True)).count()
-            >= settings.MAX_CONCURRENT_EXPORT_TASKS
-        ):
+        running_count = qs.filter(Q(export_status__in=running_status) | Q(export_status__isnull=True)).count()
+        # 新旧链路共用同一个用户级并发额度：分片导出任务也计入未完成的导出数
+        running_count += ExportJob.objects.filter(created_by=username, status__in=ExportJobStatus.ACTIVE).count()
+        if running_count >= settings.MAX_CONCURRENT_EXPORT_TASKS:
             raise ConcurrentExportLimitException(
                 ConcurrentExportLimitException.MESSAGE.format(limit_count=settings.MAX_CONCURRENT_EXPORT_TASKS)
             )

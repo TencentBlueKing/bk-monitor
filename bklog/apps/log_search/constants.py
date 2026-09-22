@@ -239,6 +239,66 @@ class MsgModel:
     ABNORMAL = "abnormal"
 
 
+# 分片异步导出任务状态
+class ExportJobStatus:
+    PENDING = "PENDING"
+    PLANNING = "PLANNING"
+    READY = "READY"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    CANCELED = "CANCELED"
+
+    CHOICES = (
+        (PENDING, "待规划"),
+        (PLANNING, "规划中"),
+        (READY, "待调度"),
+        (RUNNING, "执行中"),
+        (SUCCESS, "成功"),
+        (FAILED, "失败"),
+        (CANCELED, "已取消"),
+    )
+    # 仍会占用并发额度的状态
+    ACTIVE = [PENDING, PLANNING, READY, RUNNING]
+    TERMINAL = [SUCCESS, FAILED, CANCELED]
+
+
+# 分片状态
+class ExportPartStatus:
+    WAITING = "WAITING"
+    DISPATCHED = "DISPATCHED"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    CANCELED = "CANCELED"
+
+    CHOICES = (
+        (WAITING, "待投递"),
+        (DISPATCHED, "已投递"),
+        (RUNNING, "执行中"),
+        (SUCCESS, "成功"),
+        (FAILED, "失败"),
+        (CANCELED, "已取消"),
+    )
+    # 已占用 Worker 资源、需要计入侵占额度的状态
+    INFLIGHT = [DISPATCHED, RUNNING]
+
+
+# 分片导出阶段（仅用于前端展示进度）
+class ExportStage:
+    DOWNLOAD_LOG = "DOWNLOAD_LOG"
+    PACKAGE = "PACKAGE"
+    UPLOAD = "UPLOAD"
+    FINALIZING = "FINALIZING"
+
+    CHOICES = (
+        (DOWNLOAD_LOG, "取数"),
+        (PACKAGE, "打包"),
+        (UPLOAD, "上传"),
+        (FINALIZING, "生成清单"),
+    )
+
+
 # 数据平台mapping返回错误
 class BkDataErrorCode:
     COULD_NOT_GET_METADATA_ERROR = 1532013
