@@ -170,9 +170,6 @@
 | origin_sql                | string | 否   | 源sql，默认为空字符串                          |
 | metric_type               | string | 否   | 指标类型，默认为空字符串（不填时自动从query_configs推断） |
 | query_output_config       | object/null | 否 | UQ 命名多输出配置；省略时保留已有值，传 `null` 时删除 |
-| access_lookback_periods | int/null | 否 | Access 额外回看的聚合周期数，正整数；省略时保留已有配置，传 `null` 时清除覆盖并继承全局默认值 |
-
-`access_lookback_periods` 按监控项生效。例如聚合周期为 60 秒、配置为 15 时，从 checkpoint 额外向前查询 900 秒。它不改变调度频率或查询结束时间，也不能覆盖超出窗口的迟到数据。未配置的监控项保持原查询分组；显式配置按值分组。切换配置时沿用已有 checkpoint 初始化和复用规则，不迁移去重状态，过渡期可能出现补查、重复处理或漏过部分数据；NewSeries 基线和 last_seen 不重置。
 
 ##### QueryOutputConfig
 
