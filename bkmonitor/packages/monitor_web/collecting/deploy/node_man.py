@@ -39,7 +39,7 @@ from monitor_web.plugin.constant import ParamMode, PluginType
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.plugin.manager.process import ProcessPluginManager
 
-from .base import BaseInstaller
+from .base import BaseInstaller, CollectionStatistics
 
 
 logger = logging.getLogger(__name__)
@@ -56,6 +56,54 @@ class NodeManInstaller(BaseInstaller):
         super().__init__(collect_config)
         self._topo_tree = topo_tree
         self._topo_links = None
+
+    @classmethod
+    def statistics(cls, configs: list[CollectConfigMeta]) -> dict[int, CollectionStatistics]:
+        """按租户隔离 V2 订阅，每批最多查询 20 个，返回监控配置维度统计。"""
+        grouped = defaultdict(lambda: defaultdict(list))
+        for config in configs:
+            version = cast(DeploymentConfigVersion, config.deployment_config)
+            subscription_id = version.subscription_id
+            if subscription_id:
+                grouped[config.bk_tenant_id][subscription_id].append(config.pk)
+
+        result = {}
+        for tenant, subscriptions in grouped.items():
+            ids = list(subscriptions)
+            batches = api.node_man.fetch_subscription_statistic.bulk_request(
+                [
+                    {"bk_tenant_id": tenant, "subscription_id_list": ids[index : index + 20]}
+                    for index in range(0, len(ids), 20)
+                ],
+                ignore_exceptions=True,
+            )
+            for batch in batches:
+                for item in batch or []:
+                    counts = {entry["status"]: entry["count"] for entry in item.get("status", [])}
+                    statistics = CollectionStatistics(
+                        total=item.get("instances", 0),
+                        failed=counts.get(CollectStatus.FAILED, 0),
+                        pending=counts.get(CollectStatus.PENDING, 0),
+                        running=counts.get(CollectStatus.RUNNING, 0),
+                    )
+                    for config_id in subscriptions.get(item["subscription_id"], []):
+                        result[config_id] = statistics
+        return result
+
+    def is_task_ready(self) -> bool:
+        version = cast(DeploymentConfigVersion, self.collect_config.deployment_config)
+        if not version.subscription_id:
+            return True
+        try:
+            return api.node_man.check_task_ready(
+                bk_tenant_id=self.bk_tenant_id,
+                subscription_id=version.subscription_id,
+                task_id_list=version.task_ids,
+            )
+        except BKAPIError as exc:
+            # 保留现有 V2 兼容行为，不扩散到其他安装器。
+            logger.info("[is_task_ready] %s", exc)
+            return True
 
     @property
     def bk_tenant_id(self) -> str:
