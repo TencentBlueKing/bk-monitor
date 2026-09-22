@@ -8,6 +8,7 @@
   "scripts": {
     "build:vue3-components": "node ./scripts/vue3-lib/vite-build.mjs ./scripts/build.vue3.components.ts",
     "build:apm-vue3-for-vue2": "node ./scripts/vue3-lib/vite-build.mjs ./scripts/build.apm-vue3-for-vue2.ts",
+    "dev:apm-vue3-for-vue2": "node ./scripts/vue3-lib/vite-build.mjs ./scripts/build.apm-vue3-for-vue2.ts --watch",
     "build:vue2-components": "npx vite build -c ./scripts/build.vue2.components.ts",
     "debug": "node node_modules/@blueking/bkmonitor-cli/dist/index.js dev -t",
     "preinstall": "npx only-allow pnpm",
@@ -71,7 +72,6 @@
     "picocolors": "^1.1.1",
     "pixelmatch": "7.2.0",
     "pngjs": "7.0.0",
-    "portfinder": "^1.0.38",
     "postcss-html": "^1.8.0",
     "postcss-scss": "^4.0.9",
     "prettier": "^3.6.2",
@@ -94,7 +94,6 @@
   },
   "nodemonConfig": {
     "watch": [
-      "local.settings.js",
       "webpack.config.js",
       "pnpm-lock.yaml"
     ]

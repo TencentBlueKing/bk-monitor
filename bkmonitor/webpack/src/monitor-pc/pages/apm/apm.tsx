@@ -50,7 +50,7 @@ export default class ApmPage extends tsc<object> {
     bizId: +window.bk_biz_id,
   };
   get apmHost() {
-    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
+    return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7003` : location.origin;
   }
   get apmUrl() {
     return process.env.NODE_ENV === 'development'
