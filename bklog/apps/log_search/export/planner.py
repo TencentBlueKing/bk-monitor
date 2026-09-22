@@ -80,15 +80,38 @@ def _statistics_params(handler, start, end):
     return params
 
 
+def _series_points(result, label):
+    """取出聚合结果的单序列点位；聚合接口只应返回一条序列。"""
+    series = result.get("series") if isinstance(result, dict) else None
+    if not isinstance(series, list) or len(series) > 1:
+        raise PlanError("STATISTICS_FAILED", f"unify-query {label}结果格式不合法", retryable=True)
+    points = []
+    for item in (series[0].get("values") if series else []) or []:
+        if not isinstance(item, list) or len(item) != 2 or not isinstance(item[0], int):
+            raise PlanError("STATISTICS_FAILED", f"unify-query {label}点位格式不合法", retryable=True)
+        points.append((item[0], item[1]))
+    return points
+
+
 def count_rows(handler, start, end):
-    """区间内的总条数，用于配额校验和分片收益估算。"""
+    """
+    区间内的总条数，用于配额校验和分片收益估算。
+
+    不能用 query/ts/raw 的 total：它取自 ES 的 hits.total.value，而 unify-query 没有设置
+    track_total_hits，超过 1 万的区间会被 ES 默认截断（多路由时还按路由数成倍截断），
+    拿它做配额校验和密度估算都会失真。这里改用聚合 count，聚合结果不受 result window 限制。
+    """
     params = _statistics_params(handler, start, end)
-    params["limit"] = 1
-    result = UnifyQueryApi.query_ts_raw(params)
-    total = result.get("total") if isinstance(result, dict) else None
-    if not isinstance(total, int) or total < 0:
-        raise PlanError("STATISTICS_FAILED", "unify-query 未返回合法总量", retryable=True)
-    return total
+    for query in params.get("query_list", []):
+        query["function"] = [{"method": "count"}]
+        query["time_aggregation"] = {}
+    result = UnifyQueryApi.query_ts_reference(params)
+    total = 0
+    for _, value in _series_points(result, "统计"):
+        if not isinstance(value, int | float) or value < 0:
+            raise PlanError("STATISTICS_FAILED", "unify-query 未返回合法总量", retryable=True)
+        total += value
+    return int(total)
 
 
 def sample_rows(handler, start, end, limit):
@@ -111,14 +134,9 @@ def histogram(handler, start, end, interval):
         query["time_aggregation"] = {}
     params.update({"step": window, "order_by": [], "start_time": str(start), "end_time": str(end)})
     result = UnifyQueryApi.query_ts_reference(params)
-    series = result.get("series") if isinstance(result, dict) else None
-    if not isinstance(series, list) or len(series) > 1:
-        raise PlanError("STATISTICS_FAILED", "unify-query 直方图结果格式不合法", retryable=True)
     buckets = {}
-    for item in (series[0].get("values") if series else []) or []:
-        if not isinstance(item, list) or len(item) != 2 or not isinstance(item[0], int):
-            raise PlanError("STATISTICS_FAILED", "unify-query 直方图点位格式不合法", retryable=True)
-        buckets[item[0]] = buckets.get(item[0], 0) + item[1]
+    for timestamp, value in _series_points(result, "直方图"):
+        buckets[timestamp] = buckets.get(timestamp, 0) + value
     return buckets
 
 
