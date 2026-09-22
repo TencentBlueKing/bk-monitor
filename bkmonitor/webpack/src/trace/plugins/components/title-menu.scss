@@ -11,6 +11,11 @@
   border-radius: 2px;
   box-shadow: 0 3px 6px 0 rgb(0 0 0 / 15%);
 
+  &.is-fixed {
+    position: fixed !important;
+    z-index: 99999;
+  }
+
   &-item {
     display: flex;
     flex: 0 0 32px;
