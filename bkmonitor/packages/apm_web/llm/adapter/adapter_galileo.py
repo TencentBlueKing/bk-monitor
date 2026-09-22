@@ -30,7 +30,13 @@ from .utils import (
 ALIASES = {
     "gen_ai.conversation.id": ("gen_ai.session_id",),
     "user.id": ("gen_ai.user.id",),
-    "gen_ai.usage.cache_read.input_tokens": ("gen_ai.usage.cache_read_input_tokens",),
+    "gen_ai.request.stream": ("gen_ai.request.is_stream", "gen_ai.is_stream"),
+    # Galileo 协议以秒上报首 Token 耗时，沿用页面首响应分片字段，无需换算单位。
+    "gen_ai.response.time_to_first_chunk": ("gen_ai.server.time_to_first_token",),
+    "gen_ai.usage.cache_read.input_tokens": (
+        "gen_ai.usage.cache_read_input_tokens",
+        "gen_ai.usage.cached.input_tokens",
+    ),
     # GenAI 语义约定独立成库时把 cache_creation 改名为 cache_write，该产品仍是改名前的两种形态
     "gen_ai.usage.cache_write.input_tokens": (
         "gen_ai.usage.cache_creation.input_tokens",
@@ -100,9 +106,17 @@ def parse_event_message(detail: Any, default_role: str) -> dict[str, Any] | None
     content = message.get("content")
     if not parts and content not in (None, ""):
         if role == "tool":
-            parts.append(tool_response_part(content, message.get("tool_call_id")))
+            parts.append(tool_response_part(content, first(message, "tool_call_id", "id")))
         else:
             parts.extend(text_message(role, content)["parts"])
+    # 标准 parts 优先，旧消息字段仅补齐缺失的内容类型。
+    if not any(part.get("type") == "reasoning" for part in parts):
+        if reasoning := first(message, "reasoning_content", "reasoning"):
+            parts.insert(0, {"type": "reasoning", "content": str(reasoning)})
+    if not any(part.get("type") == "tool_call" for part in parts):
+        calls = message.get("tool_calls")
+        if isinstance(calls, list):
+            parts.extend(tool_call_part(call) for call in calls if isinstance(call, dict))
     return {"role": role, "parts": parts} if parts else None
 
 
@@ -137,6 +151,8 @@ def parse_event_definitions(detail: Any) -> list[dict[str, Any]]:
         declarations = group.get("function_declarations")
         if isinstance(declarations, list):
             functions.extend(item for item in declarations if isinstance(item, dict))
+        elif isinstance(group.get("function"), dict):
+            functions.append(group["function"])
         elif group.get("name") not in (None, ""):
             functions.append(group)
     return [
@@ -144,7 +160,7 @@ def parse_event_definitions(detail: Any) -> list[dict[str, Any]]:
             "type": "function",
             "name": str(function["name"]),
             "description": str(function.get("description", "")),
-            "parameters": normalize_schema(safe_parse(function.get("parameters", {}))),
+            "parameters": normalize_schema(safe_parse(first(function, "parameters", "inputSchema") or {})),
         }
         for function in functions
         if function.get("name") not in (None, "")
