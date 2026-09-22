@@ -19,29 +19,35 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
 from datetime import timedelta
 
-from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework.exceptions import APIException, PermissionDenied
+from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
 from rest_framework.reverse import reverse
 
-from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import IAMPermission
 from apps.log_search.constants import ExportJobStatus, ExportPartStatus, ExportStage
 from apps.log_search.export import state
-from apps.log_search.export.config import policy_from_snapshot
+from apps.log_search.export.config import current_policy, is_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
-from apps.log_search.export.storage import build_storage, download_url
-from apps.log_search.models import Space
-from apps.utils.local import get_request_app_code, get_request_tenant_id, get_request_username
+from apps.log_search.export.storage import UnsupportedExportStorage, build_storage, download_url
+from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
+from apps.log_search.models import AsyncTask, LogIndexSet, Space
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.utils.local import (
+    get_request_app_code,
+    get_request_external_username,
+    get_request_tenant_id,
+    get_request_username,
+)
 
 
 TERMINAL = ExportJobStatus.TERMINAL
 INFLIGHT = ExportPartStatus.INFLIGHT
 # 进度展示时取最靠后的阶段
 STAGE_ORDER = [ExportStage.DOWNLOAD_LOG, ExportStage.PACKAGE, ExportStage.UPLOAD]
+TIME_TICK_BY_UNIT = {"second": 1000, "millisecond": 1}
 
 
 class ExportConflict(APIException):
@@ -62,20 +68,75 @@ class ExportStorageUnavailable(APIException):
     default_code = "EXPORT_STORAGE_UNAVAILABLE"
 
 
-def authorized_job(request, job_id, space_uid, *, operate=False):
-    """按空间、来源应用和索引集检索权限三重校验任务可见性。"""
+def resolve_time_tick(index_set_id):
+    """时间字段的最小精度，决定分片递归的下界。"""
+    _, _, unit = SearchHandler.init_time_field(index_set_id)
+    tick = TIME_TICK_BY_UNIT.get(unit)
+    if not tick:
+        raise ValidationError({"detail": "暂不支持该索引集的时间字段精度"})
+    return tick
+
+
+def create_export_job(data):
+    """创建分片导出任务。"""
     username = get_request_username(default="")
-    if not username:
-        raise PermissionDenied("缺少用户身份")
-    job = get_object_or_404(ExportJob, pk=job_id, space_uid=space_uid, source_app_code=get_request_app_code())
-    if not Space.objects.filter(space_uid=job.space_uid, bk_tenant_id=get_request_tenant_id()).exists():
-        raise Http404
-    IAMPermission([ActionEnum.SEARCH_LOG], [ResourceEnum.INDICES.create_instance(job.index_set_id)]).has_permission(
-        request, None
+    if not username or get_request_external_username():
+        raise PermissionDenied("仅支持 Web 用户创建分片导出任务")
+    space = get_object_or_404(Space, space_uid=data["space_uid"], bk_tenant_id=get_request_tenant_id())
+    if not is_enabled(space.bk_biz_id):
+        raise ValidationError({"detail": "分片导出未启用"})
+    # 只支持对象存储；配置不匹配时在创建阶段就失败，避免任务跑到执行阶段才报错
+    try:
+        build_storage()
+    except UnsupportedExportStorage as error:
+        raise ValidationError({"detail": str(error)}) from error
+    index = get_object_or_404(LogIndexSet, pk=data["index_set_id"], space_uid=space.space_uid)
+
+    tick = resolve_time_tick(index.pk)
+    if data["start_time"] % tick or data["end_time"] % tick:
+        raise ValidationError({"detail": "导出时间范围必须对齐时间字段精度"})
+
+    # 与旧异步导出共用同一个用户级并发额度
+    AsyncTask.check_running_count_by_user(username)
+
+    params = {
+        key: copy.deepcopy(data[key]) for key in ("keyword", "addition", "ip_chooser", "sort_list", "export_fields")
+    }
+    params.update(
+        start_time=data["start_time"],
+        end_time=data["end_time"],
+        index_set_ids=[index.pk],
+        bk_biz_id=space.bk_biz_id,
+        is_desensitize=True,
+        interval="30s",
     )
-    if operate and job.created_by != username:
-        raise PermissionDenied("只有任务创建者可以操作该任务")
-    return job
+    handler = UnifyQueryHandler(params)
+    if data["sort_list"]:
+        handler.check_sort_list(handler.fields()["fields"], data["sort_list"])
+    # 冻结解析后的排序与脱敏结论，保证后续所有分片重建出完全一致的查询条件
+    params["sort_list"] = copy.deepcopy(handler.origin_order_by)
+    params["is_desensitize"] = handler.is_desensitize
+
+    policy = current_policy()
+    requested_parallelism = data.get("requested_parallelism", policy.default_parallelism)
+    if requested_parallelism > policy.max_parallelism:
+        raise ValidationError({"requested_parallelism": f"并行度不能超过 {policy.max_parallelism}"})
+
+    return ExportJob.objects.create(
+        space_uid=space.space_uid,
+        created_by=username,
+        source_app_code=get_request_app_code(),
+        index_set_id=index.pk,
+        bk_biz_id=space.bk_biz_id,
+        search_params=params,
+        base_dict=copy.deepcopy(handler.base_dict),
+        policy=policy.snapshot(),
+        start_time=data["start_time"],
+        end_time=data["end_time"],
+        time_tick=tick,
+        requested_parallelism=requested_parallelism,
+        status=ExportJobStatus.PENDING,
+    )
 
 
 def job_detail(job):
