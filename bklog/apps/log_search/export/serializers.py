@@ -23,16 +23,11 @@ from rest_framework import serializers
 
 
 class ExportAdditionSerializer(serializers.Serializer):
+    """搜索条件字段：与旧导出链路保持一致的宽松契约，不对取值的具体类型做额外限制。"""
+
     field = serializers.CharField()
     operator = serializers.CharField()
     value = serializers.JSONField()
-
-    def validate_value(self, value):
-        if not isinstance(value, str | list) or (
-            isinstance(value, list) and any(not isinstance(item, str) for item in value)
-        ):
-            raise serializers.ValidationError("检索条件值必须是字符串或字符串列表")
-        return value
 
 
 class ExportCreateSerializer(serializers.Serializer):

@@ -37,8 +37,8 @@ from apps.log_search.export.config import (
     FINALIZE_TASK_NAME,
     PART_TASK_NAME,
     PLAN_TASK_NAME,
+    current_policy,
     policy_from_snapshot,
-    scheduler_limits,
 )
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.log_search.export.storage import build_storage, manifest_name, remove_local_artifact, upload
@@ -77,31 +77,36 @@ def _inflight_by_index_set():
     return {row["job__index_set_id"]: row["total"] for row in rows}
 
 
-def dispatch_ready_parts(limit):
+def dispatch_ready_parts():
     """
     按公平顺序投递分片。
 
+    并行额度只来自 FeatureConfig：单 Job 上限、单索引集上限、环境全局上限三者取小。
     一期不引入分布式令牌：在途分片本身就是预算账本，直接按数据库计数判断是否还有额度；
     并发投递由「先占用分片状态、再发布消息」和行锁兜底，极端情况下可能略微超出全局上限。
     """
     jobs = list(
         ExportJob.objects.filter(status__in=[ExportJobStatus.READY, ExportJobStatus.RUNNING]).order_by(
             F("last_dispatched_at").asc(nulls_first=True), "pk"
-        )[: settings.ASYNC_EXPORT_SCAN_LIMIT]
+        )[: settings.ASYNC_EXPORT_COORDINATE_BATCH]
     )
     if not jobs:
         return []
-    # 动态并行度只能在环境容量硬上限以内生效
-    index_limit, global_limit = scheduler_limits()
+
+    policy = current_policy()
+    if policy.global_parallelism <= 0:
+        # 环境容量没有配置就不投递：宁可任务停在 READY，也不要多 Pod 各自按本地预算相乘
+        logger.warning("[dispatch_ready_parts] 环境全局并行度未配置，%s 个任务已跳过投递", len(jobs))
+        return []
+
+    index_limit, global_limit = policy.index_parallelism, policy.global_parallelism
     index_inflight = _inflight_by_index_set()
     global_inflight = sum(index_inflight.values())
     dispatched = []
     for job in jobs:
-        if len(dispatched) >= limit:
-            break
         job_inflight = ExportPart.objects.filter(job=job, status__in=ExportPartStatus.INFLIGHT).count()
         index_used = index_inflight.get(job.index_set_id, 0)
-        while len(dispatched) < limit:
+        while True:
             capacity = min(
                 job.requested_parallelism - job_inflight,
                 index_limit - index_used,
@@ -235,11 +240,11 @@ def cleanup_artifacts(limit):
 
 def coordinate(limit=None):
     """周期控制入口：回收超时分片、补投规划/收尾消息、按额度投递分片、清理过期产物。"""
-    limit = limit or settings.ASYNC_EXPORT_SCAN_LIMIT
+    limit = limit or settings.ASYNC_EXPORT_COORDINATE_BATCH
     started = time.monotonic()
     recovered = state.recover_stale_parts(limit)
     planned = enqueue_planning(limit)
-    dispatched = dispatch_ready_parts(limit)
+    dispatched = dispatch_ready_parts()
     finalized = enqueue_finalization(limit)
     cleaned = cleanup_artifacts(limit)
     result = {

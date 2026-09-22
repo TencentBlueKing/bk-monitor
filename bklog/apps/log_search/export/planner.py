@@ -197,21 +197,6 @@ def refine(handler, start, end, rows, tick, policy, avg_bytes):
     return parts
 
 
-def uniform_parts(total, start, end, tick, policy):
-    """直方图不可用时的退化路径：按条数目标等分时间范围，保证计划仍然完整。"""
-    span = end - start
-    count = max(1, min(policy.max_parts, -(-total // policy.target_rows)))
-    width = max(tick, _ceil_to(span / count, tick))
-    parts = []
-    cursor = start
-    while cursor < end and len(parts) < policy.max_parts:
-        next_cursor = min(cursor + width, end)
-        rows = int(total * (next_cursor - cursor) / span)
-        parts.append(PartSpec(cursor, next_cursor, rows, rows * policy.fallback_row_bytes))
-        cursor = next_cursor
-    return parts
-
-
 def merge_adjacent(parts, policy):
     """相邻小分片合并，减少低密度区间产生的大量碎片。"""
     merged = []
@@ -240,29 +225,24 @@ def merge_adjacent(parts, policy):
 
 
 def build_parts(job, policy):
-    """生成覆盖 [start_time, end_time) 且无重叠无遗漏的完整分片计划。"""
+    """生成覆盖 [start_time, end_time) 且无重叠无遗漏的完整分片计划，返回分片、总量与统计桶宽。"""
     handler = build_handler(job)
     total = count_rows(handler, job.start_time, job.end_time)
     if total > policy.max_rows:
         raise PlanError("QUOTA_EXCEEDED", f"预计条数 {total} 超过单任务上限 {policy.max_rows}")
+    interval = choose_interval(total, job.start_time, job.end_time, job.time_tick, policy)
     if not total:
-        return [PartSpec(job.start_time, job.end_time, 0, 0)], total
+        return [PartSpec(job.start_time, job.end_time, 0, 0)], total, interval
 
     avg_bytes = policy.fallback_row_bytes
     sample = sample_rows(handler, job.start_time, job.end_time, policy.sample_rows)
     if sample:
         avg_bytes = max(1, sum(len(row) for row in sample) // len(sample))
 
-    interval = choose_interval(total, job.start_time, job.end_time, job.time_tick, policy)
     buckets = histogram(handler, job.start_time, job.end_time, interval)
     if not buckets:
-        logger.warning(
-            "[build_parts] job=%s histogram empty, fallback to uniform split, total=%s interval=%s",
-            job.pk,
-            total,
-            interval,
-        )
-        return merge_adjacent(uniform_parts(total, job.start_time, job.end_time, job.time_tick, policy), policy), total
+        # 有总量却拿不到时间分布，说明统计链路异常；交给重试而不是猜一份没有密度依据的等分计划
+        raise PlanError("STATISTICS_FAILED", "unify-query 直方图未返回任何数据点", retryable=True)
 
     parts = []
     cursor = _align(job.start_time, interval)
@@ -277,7 +257,7 @@ def build_parts(job, policy):
     parts = merge_adjacent(parts, policy)
     if len(parts) > policy.max_parts:
         raise PlanError("PART_LIMIT_EXCEEDED", f"分片数量超过上限 {policy.max_parts}")
-    return parts, total
+    return parts, total, interval
 
 
 def run_planning(job_id):

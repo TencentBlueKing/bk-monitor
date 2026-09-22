@@ -2,8 +2,6 @@
 
 from dataclasses import asdict, dataclass
 
-from django.conf import settings
-
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.utils.log import logger
 
@@ -32,7 +30,8 @@ class ExportPolicy:
     default_parallelism: int = 4
     max_parallelism: int = 8
     index_parallelism: int = 4
-    global_parallelism: int = 4
+    # 0 表示环境容量未配置：调度器会拒绝投递并告警，必须由运维按真实容量显式配置
+    global_parallelism: int = 0
     part_max_attempts: int = 3
     planning_attempts: int = 3
     artifact_retention_seconds: int = 86_400
@@ -42,49 +41,47 @@ class ExportPolicy:
         return asdict(self)
 
 
-_INTEGER_RANGES = {
-    "target_rows": (1, 100_000_000),
-    "target_bytes": (1, 10 * 1024 * 1024 * 1024),
-    "max_rows": (1, 100_000_000),
-    "max_parts": (1, 10_000),
-    "sample_rows": (1, 10_000),
-    "bucket_seconds": (1, 86_400),
-    "max_buckets": (1, 10_000),
-    "fallback_row_bytes": (1, 10 * 1024 * 1024),
-    "default_parallelism": (1, 64),
-    "max_parallelism": (1, 64),
-    "index_parallelism": (0, 10_000),
-    "global_parallelism": (0, 10_000),
-    "part_max_attempts": (1, 20),
-    "planning_attempts": (1, 20),
-    "artifact_retention_seconds": (1, 365 * 86_400),
-    "signed_url_seconds": (1, 86_400),
+# 策略字段取值范围；FeatureConfig 是无 Schema 的 JSONField，非法值逐项回退默认值。
+# 键值为 (允许类型, 最小值, 最大值)，float 字段同时接受 int，运维可以直接写 2 这样的值。
+_BOUNDS = {
+    "target_rows": (int, 1, 100_000_000),
+    "target_bytes": (int, 1, 10 * 1024 * 1024 * 1024),
+    "split_factor": ((int, float), 1.0, 100.0),
+    "merge_factor": ((int, float), 1.0, 100.0),
+    "max_rows": (int, 1, 100_000_000),
+    "max_parts": (int, 1, 10_000),
+    "sample_rows": (int, 1, 10_000),
+    "bucket_seconds": (int, 1, 86_400),
+    "max_buckets": (int, 1, 10_000),
+    "fallback_row_bytes": (int, 1, 10 * 1024 * 1024),
+    "default_parallelism": (int, 1, 64),
+    "max_parallelism": (int, 1, 64),
+    "index_parallelism": (int, 1, 10_000),
+    # 0 是「未配置」的哨兵值，调度器据此拒绝投递
+    "global_parallelism": (int, 0, 10_000),
+    "part_max_attempts": (int, 1, 20),
+    "planning_attempts": (int, 1, 20),
+    "artifact_retention_seconds": (int, 1, 365 * 86_400),
+    "signed_url_seconds": (int, 1, 86_400),
 }
-_FLOAT_RANGES = {"split_factor": (1.0, 100.0), "merge_factor": (1.0, 100.0)}
 
 
 def _validated_policy(raw):
-    """FeatureConfig 是无 Schema 的 JSONField，非法值逐项回退默认值。"""
+    """按 _BOUNDS 逐项校验并回退默认值。"""
     defaults = ExportPolicy()
-    values = defaults.snapshot()
-    if raw is None:
-        return defaults
     if not isinstance(raw, dict):
-        logger.warning("[sharded_export_config] feature_config is not a mapping, using defaults")
+        if raw is not None:
+            logger.warning("[sharded_export_config] feature_config is not a mapping, using defaults")
         return defaults
 
-    for name, (minimum, maximum) in _INTEGER_RANGES.items():
+    values = defaults.snapshot()
+    for name, (types, minimum, maximum) in _BOUNDS.items():
         value = raw.get(name, values[name])
-        if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= maximum:
+        # bool 是 int 的子类，需要显式排除
+        if isinstance(value, bool) or not isinstance(value, types) or not minimum <= value <= maximum:
             logger.warning("[sharded_export_config] invalid %s=%r, using default=%r", name, value, values[name])
             continue
-        values[name] = value
-    for name, (minimum, maximum) in _FLOAT_RANGES.items():
-        value = raw.get(name, values[name])
-        if isinstance(value, bool) or not isinstance(value, int | float) or not minimum <= value <= maximum:
-            logger.warning("[sharded_export_config] invalid %s=%r, using default=%r", name, value, values[name])
-            continue
-        values[name] = float(value)
+        values[name] = float(value) if types is not int else value
 
     values["max_parallelism"] = max(values["default_parallelism"], values["max_parallelism"])
     values["signed_url_seconds"] = min(values["signed_url_seconds"], values["artifact_retention_seconds"])
@@ -105,12 +102,3 @@ def policy_from_snapshot(snapshot):
 def is_enabled(bk_biz_id=None):
     """仅用于决定新请求是否进入分片导出链路。"""
     return FeatureToggleObject.switch(FEATURE_ASYNC_EXPORT_SHARDED, biz_id=bk_biz_id, default=False)
-
-
-def scheduler_limits():
-    """动态软限制不得超过环境容量硬上限。"""
-    policy = current_policy()
-    return (
-        min(policy.index_parallelism, settings.ASYNC_EXPORT_INDEX_HARD_LIMIT),
-        min(policy.global_parallelism, settings.ASYNC_EXPORT_GLOBAL_HARD_LIMIT),
-    )
