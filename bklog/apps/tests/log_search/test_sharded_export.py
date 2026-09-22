@@ -34,7 +34,7 @@ from apps.log_search.constants import ExportJobStatus, ExportPartStatus
 from apps.log_search.export import state
 from apps.log_search.export.config import ExportPolicy
 from apps.log_search.export.models import ExportJob, ExportPart
-from apps.log_search.export.part_runner import _pack, _write_rows
+from apps.log_search.export.worker import _pack, _write_rows
 from apps.log_search.export.planner import PartSpec, choose_interval, merge_adjacent, refine, uniform_parts
 from apps.log_search.export.scheduler import (
     _inflight_by_index_set,
@@ -151,7 +151,7 @@ class PartRunnerTests(TestCase):
         ]
         with tempfile.TemporaryDirectory() as directory:
             payload = Path(directory) / "logs.jsonl"
-            with patch("apps.log_search.export.part_runner.UnifyQueryApi") as api:
+            with patch("apps.log_search.export.worker.UnifyQueryApi") as api:
                 api.query_ts_raw_with_scroll.side_effect = responses
                 rows, size = _write_rows(FakeHandler(), payload)
             lines = payload.read_text(encoding="utf-8").strip().split("\n")
@@ -162,7 +162,7 @@ class PartRunnerTests(TestCase):
 
     def test_write_rows_stops_on_empty_batch(self):
         with tempfile.TemporaryDirectory() as directory:
-            with patch("apps.log_search.export.part_runner.UnifyQueryApi") as api:
+            with patch("apps.log_search.export.worker.UnifyQueryApi") as api:
                 api.query_ts_raw_with_scroll.side_effect = [{"list": [], "done": False}]
                 rows, size = _write_rows(FakeHandler(), Path(directory) / "logs.jsonl")
         self.assertEqual((rows, size), (0, 0))

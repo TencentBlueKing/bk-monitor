@@ -28,7 +28,7 @@ from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from django.conf import settings
 
-from apps.log_search.export.part_runner import run_part
+from apps.log_search.export.worker import run_part
 from apps.log_search.export.planner import run_planning
 from apps.log_search.export.scheduler import coordinate, finalize_export
 
