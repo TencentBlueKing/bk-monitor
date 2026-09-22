@@ -19,6 +19,7 @@ from rum_web.query.resources import (
     RumFieldsOptionValuesResource,
     RumGenerateQueryStringResource,
     RumRecordsResource,
+    RumStatisticsResource,
     RumViewConfigResource,
     RumFieldsTopKResource,
     RumFieldStatisticsInfoResource,
@@ -54,6 +55,7 @@ class SearchViewSet(ResourceViewSet):
         ResourceRoute("POST", RumFieldStatisticsInfoResource, endpoint="field_statistics_info"),
         ResourceRoute("POST", RumFieldStatisticsGraphResource, endpoint="field_statistics_graph"),
         ResourceRoute("POST", RumRecordDetailResource, endpoint="record_detail"),
+        ResourceRoute("POST", RumStatisticsResource, endpoint="statistics"),
     ]
 
     @action(methods=["POST"], detail=False, url_path="download_topk")
