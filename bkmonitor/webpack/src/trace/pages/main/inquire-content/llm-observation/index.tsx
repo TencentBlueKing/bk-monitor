@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type Ref, computed, defineComponent, inject, toRef } from 'vue';
+import { type PropType, defineComponent } from 'vue';
 
 import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -33,7 +33,7 @@ import ExecutionToolbar from './components/execution-toolbar';
 import LlmSkeleton from './components/llm-skeleton';
 import StatisticCards from './components/statistic-cards';
 import TraceBlock from './components/trace-block';
-import { useLlmObservation } from './hooks/use-llm-observation';
+import type { UseLlmObservationReturn } from './hooks/use-llm-observation';
 
 import './index.scss';
 
@@ -41,13 +41,9 @@ import './index.scss';
 export default defineComponent({
   name: 'TraceLlmObservation',
   props: {
-    appName: {
-      type: String,
-      default: '',
-    },
-    traceId: {
-      type: String,
-      default: '',
+    observation: {
+      type: Object as PropType<UseLlmObservationReturn>,
+      required: true,
     },
   },
   emits: {
@@ -56,29 +52,13 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    // 优先 inject，否则回退全局 bizId（与 Trace 详情其它 Tab 一致）
-    const injectedBizId = inject<Ref<number | string> | undefined>('bizId', undefined);
-    const bizId = computed(() => {
-      const fromInject = injectedBizId?.value;
-      if (fromInject != null && fromInject !== '' && !Number.isNaN(+fromInject)) {
-        return +fromInject;
-      }
-      return +(window.bk_biz_id || window.cc_biz_id || 0);
-    });
-
-    const state = useLlmObservation({
-      appName: toRef(props, 'appName'),
-      bizId,
-      traceId: toRef(props, 'traceId'),
-    });
-
     const handleViewDetail = (spanId: string) => {
       emit('showSpanDetail', spanId);
     };
 
     return {
       t,
-      ...state,
+      ...props.observation,
       handleViewDetail,
     };
   },

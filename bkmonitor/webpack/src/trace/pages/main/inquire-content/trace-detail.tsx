@@ -59,6 +59,7 @@ import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
 import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-query';
 import { toUnixMilliseconds } from '../../../utils/date';
 import TraceLlmObservation from './llm-observation';
+import { useLlmObservation } from './llm-observation/hooks/use-llm-observation';
 const MonitorTraceLog = defineAsyncComponent(
   () =>
     import(/* webpackChunkName: "monitor-trace-log" */ '../../../plugins/charts/monitor-trace-log/monitor-trace-log')
@@ -101,7 +102,7 @@ const TraceDetailProps = {
   },
   appName: {
     type: String,
-    default: true,
+    default: '',
   },
   /** 跨业务打开时的目标业务 ID，缺省则使用当前 window 业务 */
   bizId: {
@@ -277,6 +278,10 @@ export default defineComponent({
     });
     /* 当前应用名称：优先 props.appName（关联 trace 侧滑场景） */
     const appName = computed(() => props.appName || store.traceData.appName);
+    const llmObservation = useLlmObservation({ appName, bizId: resolvedBizId, traceId: currentTraceId });
+    const visibleTabPanels = computed(() =>
+      state.tabPanels.filter(item => item.id !== 'llm' || llmObservation.hasTraces.value)
+    );
     provide('traceId', currentTraceId);
     provide('appName', appName);
     /**
@@ -893,8 +898,13 @@ export default defineComponent({
       const url = location.href.replace(location.hash, `#/apm/application/config/${props.appName}`);
       window.open(url, '_blank');
     };
+    watch(llmObservation.hasTraces, hasTraces => {
+      if (!hasTraces && state.activePanel === 'llm') handleTabChange('timeline');
+    });
     return {
       ...toRefs(state),
+      llmObservation,
+      visibleTabPanels,
       isLoading,
       contentLoading,
       traceView,
@@ -1184,7 +1194,7 @@ export default defineComponent({
             active={this.activePanel}
             onTabChange={this.handleTabChange}
           >
-            {this.tabPanels.map(item => (
+            {this.visibleTabPanels.map(item => (
               <TabPanel
                 key={item.id}
                 v-slots={{
@@ -1345,8 +1355,7 @@ export default defineComponent({
                 {/* LLM 观测 */}
                 {this.activePanel === 'llm' && (
                   <TraceLlmObservation
-                    appName={this.appName}
-                    traceId={this.traceID || traceId}
+                    observation={this.llmObservation}
                     onShowSpanDetail={this.handleShowSpanDetails}
                   />
                 )}

@@ -7,6 +7,10 @@
 
 树节点与 `list_llm_spans` 返回的 Span 字段一致，`childs` 表示子节点。同级节点按开始时间排序，一个 Trace 可以有多棵树。中间 Span 未参与标准化时，节点连接到最近的可展示祖先；找不到祖先时作为根节点返回。
 
+业务未开启 LLM 灰度、查询范围内不包含 LLM 服务，或按 Trace ID 查询得到的执行线为空时，仅返回 `{"traces": []}`。
+
+前端打开 Trace 详情时即按 Trace ID 请求 `list_flows`，仅在 `traces` 非空时展示「LLM 观测」Tab。面板复用本次查询结果，切换 Tab 无需重复请求。
+
 ### 查看同会话完整时间线
 
 前端通过 `list_flows` 分步加载：
@@ -62,8 +66,8 @@
 
 | 字段名 | 类型 | 描述 |
 |---|---|---|
-| group_field | string | 本次查询的分组字段 |
-| group_id | string | 本次查询的分组值 |
+| group_field | string | 本次查询的分组字段，仅在 `traces` 非空时返回 |
+| group_id | string | 本次查询的分组值，仅在 `traces` 非空时返回 |
 | input_tokens | number | 返回的所有 Trace 的输入 Token 总量 |
 | output_tokens | number | 返回的所有 Trace 的输出 Token 总量 |
 | total_tokens | number | `input_tokens + output_tokens` |
@@ -74,7 +78,7 @@
 | elapsed_time | int | `max(0, end_time - start_time)`，单位为微秒，包含 Trace 之间的间隔 |
 | traces | list | 分组内的 Trace 列表；没有匹配结果时为空列表 |
 
-整体统计由 `traces` 汇总，空列表时以上统计字段均为 `0`。单 Trace 查询时，整体统计与该 Trace 一致。
+整体统计由 `traces` 汇总，空列表时仅返回 `{"traces": []}`。单 Trace 查询时，整体统计与该 Trace 一致。会话概览中的 `flow: []` 表示详情尚未加载，对应 Trace 仍保留。
 
 #### traces 元素
 

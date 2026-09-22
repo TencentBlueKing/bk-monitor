@@ -87,8 +87,8 @@ export interface LlmFlowsResponse {
   cache_write_input_tokens?: number;
   elapsed_time?: number;
   end_time?: number;
-  group_field: string;
-  group_id: string;
+  group_field?: string;
+  group_id?: string;
   input_tokens?: number;
   output_tokens?: number;
   start_time?: number;
