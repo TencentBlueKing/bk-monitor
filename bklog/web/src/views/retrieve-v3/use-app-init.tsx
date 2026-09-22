@@ -535,7 +535,9 @@ export default () => {
 
                 setSearchMode();
                 setDefaultRouteUrl();
-                syncIndexIdToRoute(indexId, unionList, queryTab);
+                const { ids, isUnionIndex, items } = store.state.indexItem;
+                const currentQueryTab = RetrieveHelper.routeQueryTabValueFix(items?.[0], route.query.tab, isUnionIndex);
+                syncIndexIdToRoute(isUnionIndex ? undefined : ids[0], isUnionIndex ? ids : undefined, currentQueryTab);
               })
               .catch(err => {
                 console.error('requestIndexSetFieldInfo failed:', err);
@@ -559,11 +561,11 @@ export default () => {
           }
         }
 
-        const queryTab = RetrieveHelper.routeQueryTabValueFix(
-          store.state.indexItem.items?.[0],
-          route.query.tab,
-          store.getters.isUnionSearch,
-        );
+        // const queryTab = RetrieveHelper.routeQueryTabValueFix(
+        //   store.state.indexItem.items?.[0],
+        //   route.query.tab,
+        //   store.getters.isUnionSearch,
+        // );
       })
       .catch(err => {
         // 任何异常（请求失败 / then 内同步代码抛错）都要确保 loading 能退出
