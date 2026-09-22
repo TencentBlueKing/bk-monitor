@@ -198,7 +198,7 @@ def finalize_export(job_id):
         with tempfile.TemporaryDirectory(prefix=f"bklog-export-manifest-{job.pk}-") as directory:
             path = Path(directory) / "manifest.json"
             path.write_bytes(content)
-            upload(build_storage(), path, manifest_name(job))
+            upload(build_storage(external=job.is_external), path, manifest_name(job))
         return state.finalize_job(job_id, manifest_object_key=manifest_name(job), manifest_bytes=len(content))
     except Exception as error:  # pylint: disable=broad-except
         # 分片产物都已成功，清单失败不能让调度器无限重投，直接给出明确错误

@@ -17,6 +17,7 @@ class Migration(migrations.Migration):
                 ("space_uid", models.CharField(max_length=256, verbose_name="空间标识")),
                 ("created_by", models.CharField(max_length=64, verbose_name="创建者")),
                 ("source_app_code", models.CharField(blank=True, default="", max_length=32, verbose_name="来源系统")),
+                ("is_external", models.BooleanField(default=False, verbose_name="外部版任务")),
                 ("index_set_id", models.IntegerField(verbose_name="索引集ID")),
                 ("bk_biz_id", models.IntegerField(blank=True, null=True, verbose_name="业务ID")),
                 ("search_params", models.JSONField(verbose_name="冻结查询参数")),

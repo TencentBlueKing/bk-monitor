@@ -36,6 +36,8 @@ class ExportJob(models.Model):
     space_uid = models.CharField(_("空间标识"), max_length=256)
     created_by = models.CharField(_("创建者"), max_length=64)
     source_app_code = models.CharField(_("来源系统"), max_length=32, blank=True, default="")
+    # 存储配置依赖该标识，Worker/收尾没有请求上下文
+    is_external = models.BooleanField(_("外部版任务"), default=False)
     index_set_id = models.IntegerField(_("索引集ID"))
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, blank=True)
     # 冻结的查询条件：search_params 用于重建 UnifyQueryHandler，base_dict 是实际下发的查询体。

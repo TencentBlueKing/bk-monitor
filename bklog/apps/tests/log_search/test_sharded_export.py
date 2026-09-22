@@ -25,16 +25,27 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
+from django.conf import settings
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
-from apps.log_search.constants import ExportJobStatus, ExportPartStatus
+from apps.constants import RemoteStorageType
+from apps.log_search.constants import (
+    ASYNC_EXPORT_EXPIRED,
+    FEATURE_ASYNC_EXPORT_COMMON,
+    FEATURE_ASYNC_EXPORT_EXTERNAL,
+    ExportJobStatus,
+    ExportPartStatus,
+)
 from apps.log_search.export import state
 from apps.log_search.export.config import ExportPolicy
+from apps.log_search.export.api import create_export_job, download_link
 from apps.log_search.export.models import ExportJob, ExportPart
-from apps.log_search.export.worker import _pack, _write_rows
+from apps.log_search.models import LogIndexSet, Scenario, Space
+from apps.log_search.views.export_views import ExportJobViewSet
+from apps.log_search.export.worker import _execute, _pack, _write_rows
 from apps.log_search.export.planner import (
     PlanError,
     PartSpec,
@@ -51,7 +62,7 @@ from apps.log_search.export.scheduler import (
     enqueue_finalization,
     enqueue_planning,
 )
-from apps.log_search.export.storage import artifact_name, manifest_name
+from apps.log_search.export.storage import UnsupportedExportStorage, artifact_name, build_storage, manifest_name
 
 
 def build_policy(**overrides):
@@ -251,6 +262,27 @@ class PartRunnerTests(TestCase):
             self.assertEqual(archive.name, "part-7.tar.gz")
             self.assertGreater(archive.stat().st_size, 0)
 
+    def test_execute_uses_job_frozen_external_flag(self):
+        """Worker 没有请求上下文，必须按任务冻结的外部标识上传到外部版的桶"""
+        job = create_job(is_external=True, status=ExportJobStatus.RUNNING, end_time=1000)
+        part = ExportPart.objects.create(
+            job=job, part_no=1, start_time=0, end_time=1000, status=ExportPartStatus.RUNNING
+        )
+        with (
+            patch("apps.log_search.export.worker.build_storage") as build_storage,
+            patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
+            patch("apps.log_search.export.worker.UnifyQueryApi") as api,
+            patch("apps.log_search.export.worker.upload"),
+            patch("apps.log_search.export.worker._sha256", return_value="checksum"),
+        ):
+            api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
+            _execute(job, part)
+
+        build_storage.assert_called_once_with(external=True)
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.SUCCESS)
+        self.assertEqual(part.object_key, artifact_name(job, 1))
+
 
 class ExportStateTestCase(TestCase):
     def setUp(self):
@@ -384,6 +416,52 @@ class ArtifactNameTests(SimpleTestCase):
         self.assertEqual(manifest_name(job), manifest_name(job))
 
 
+class BuildStorageTests(SimpleTestCase):
+    """外部版与内部版必须读各自的存储开关，且都只接受对象存储。"""
+
+    def _build(self, *, external, config, toggle_missing=False):
+        toggle = None if toggle_missing else SimpleNamespace(feature_config=config)
+        factory = MagicMock()
+        with (
+            patch("apps.log_search.export.storage.FeatureToggleObject.toggle", return_value=toggle) as toggle_mock,
+            patch("apps.log_search.export.storage.StorageType.get_instance", return_value=factory) as get_instance,
+        ):
+            return build_storage(external=external), toggle_mock, get_instance, factory
+
+    def test_internal_request_uses_common_toggle_and_cos_config(self):
+        _, toggle, get_instance, factory = self._build(
+            external=False,
+            config={
+                "storage_type": RemoteStorageType.COS.value,
+                "qcloud_secret_id": "secret-id",
+                "qcloud_secret_key": "secret-key",
+                "qcloud_cos_region": "region",
+                "qcloud_cos_bucket": "bucket",
+            },
+        )
+
+        toggle.assert_called_once_with(FEATURE_ASYNC_EXPORT_COMMON)
+        get_instance.assert_called_once_with(RemoteStorageType.COS.value)
+        factory.assert_called_once_with("secret-id", "secret-key", "region", "bucket", ASYNC_EXPORT_EXPIRED)
+
+    def test_external_request_uses_external_toggle(self):
+        _, toggle, get_instance, factory = self._build(
+            external=True, config={"storage_type": RemoteStorageType.BKREPO.value}
+        )
+
+        toggle.assert_called_once_with(FEATURE_ASYNC_EXPORT_EXTERNAL)
+        get_instance.assert_called_once_with(RemoteStorageType.BKREPO.value)
+        factory.assert_called_once_with(expired=ASYNC_EXPORT_EXPIRED)
+
+    def test_external_nfs_configuration_is_rejected(self):
+        with self.assertRaises(UnsupportedExportStorage):
+            self._build(external=True, config={"storage_type": RemoteStorageType.NFS.value})
+
+    def test_missing_toggle_reports_the_toggle_name(self):
+        with self.assertRaisesMessage(UnsupportedExportStorage, FEATURE_ASYNC_EXPORT_EXTERNAL):
+            self._build(external=True, config=None, toggle_missing=True)
+
+
 @override_settings(ASYNC_EXPORT_COORDINATE_BATCH=10)
 class SchedulerTests(TestCase):
     def setUp(self):
@@ -513,3 +591,148 @@ class JobDetailTests(TestCase):
         self.assertEqual(snapshot["consistency"], "weak_snapshot")
         self.assertEqual(snapshot["parts"][0]["object_key"], "object")
         json.dumps(snapshot)
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
+class ExternalIdentityTests(TestCase):
+    """外部请求经代理转发后 request.user 是空间授权人，身份必须取外部用户。"""
+
+    SPACE_UID = "bkcc__2"
+
+    def setUp(self):
+        Space.objects.create(
+            space_uid=self.SPACE_UID,
+            bk_biz_id=2,
+            space_type_id="bkcc",
+            space_type_name="业务",
+            space_id="2",
+            space_name="biz-2",
+            bk_tenant_id="tenant-a",
+        )
+        self.index_set = LogIndexSet.objects.create(
+            index_set_id=755,
+            index_set_name="index-755",
+            space_uid=self.SPACE_UID,
+            category_id="application",
+            scenario_id=Scenario.LOG,
+        )
+
+    def create(self, external_username):
+        handler = MagicMock(
+            base_dict={"query_list": []},
+            origin_order_by=[["dtEventTimeStamp", "desc"]],
+            is_desensitize=True,
+        )
+        with (
+            patch("apps.log_search.export.api.is_enabled", return_value=True),
+            patch("apps.log_search.export.api.build_storage") as build_storage,
+            patch("apps.log_search.export.api.resolve_time_tick", return_value=1000),
+            patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
+            patch("apps.log_search.export.api.get_request_username", return_value="authorizer"),
+            patch("apps.log_search.export.api.get_request_external_username", return_value=external_username),
+            patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
+        ):
+            self.build_storage = build_storage
+            return create_export_job(
+                {
+                    "space_uid": self.SPACE_UID,
+                    "index_set_id": self.index_set.pk,
+                    "start_time": 0,
+                    "end_time": 2000,
+                    "keyword": "*",
+                    "addition": [],
+                    "ip_chooser": {},
+                    "sort_list": [],
+                    "export_fields": [],
+                }
+            )
+
+    def test_external_creator_is_recorded_and_frozen(self):
+        job = self.create("external_a")
+
+        self.assertEqual(job.created_by, "external_a")
+        self.assertTrue(job.is_external)
+        self.build_storage.assert_called_once_with(external=True)
+
+    def test_internal_creator_uses_login_username(self):
+        job = self.create("")
+
+        self.assertEqual(job.created_by, "authorizer")
+        self.assertFalse(job.is_external)
+        self.build_storage.assert_called_once_with(external=False)
+
+    def get_queryset(self):
+        view = ExportJobViewSet()
+        view.request = SimpleNamespace(data={"space_uid": self.SPACE_UID}, query_params={})
+        return view.get_queryset()
+
+    def make_job(self, created_by):
+        return create_job(space_uid=self.SPACE_UID, created_by=created_by, source_app_code=settings.APP_CODE)
+
+    @patch("apps.log_search.views.export_views.get_request_external_username", return_value="external_a")
+    def test_external_user_only_sees_own_jobs(self, _external):
+        own = self.make_job("external_a")
+        self.make_job("external_b")
+
+        self.assertEqual(list(self.get_queryset().values_list("pk", flat=True)), [own.pk])
+
+    @patch("apps.log_search.views.export_views.get_request_external_username", return_value="")
+    def test_internal_user_sees_the_whole_space(self, _external):
+        own = self.make_job("external_a")
+        other = self.make_job("external_b")
+
+        self.assertCountEqual(list(self.get_queryset().values_list("pk", flat=True)), [own.pk, other.pk])
+
+    @patch("apps.log_search.export.api.get_request_username", return_value="authorizer")
+    @patch("apps.log_search.export.api.get_request_external_username", return_value="external_a")
+    def test_can_operate_follows_external_identity(self, _external, _username):
+        from apps.log_search.export.api import job_detail
+
+        own = self.make_job("external_a")
+        other = self.make_job("external_b")
+
+        self.assertTrue(job_detail(own)["can_operate"])
+        self.assertFalse(job_detail(other)["can_operate"])
+
+
+class DownloadLinkTests(TestCase):
+    """下载链接由对象存储预签名，不经过应用内下载路由。"""
+
+    def setUp(self):
+        self.job = create_job(
+            end_time=1000,
+            status=ExportJobStatus.SUCCESS,
+            expires_at=timezone.now() + timedelta(seconds=600),
+            manifest_object_key="manifest.json",
+            is_external=True,
+        )
+        ExportPart.objects.create(
+            job=self.job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.SUCCESS,
+            object_key="part.tar.gz",
+        )
+
+    def sign(self, artifact_id):
+        with (
+            patch("apps.log_search.export.api.build_storage") as build_storage,
+            patch("apps.log_search.export.api.download_url", return_value="https://cos.example/x") as download_url,
+        ):
+            return download_link(self.job, artifact_id), build_storage, download_url
+
+    def test_manifest_link_uses_job_storage_config(self):
+        result, build_storage, download_url = self.sign("manifest")
+
+        self.assertEqual(result["url"], "https://cos.example/x")
+        build_storage.assert_called_once_with(external=True)
+        self.assertEqual(download_url.call_args.args[1], "manifest.json")
+        self.assertGreater(download_url.call_args.args[2], 0)
+
+    def test_part_link_targets_the_part_object(self):
+        part = ExportPart.objects.get(job=self.job)
+
+        _, _, download_url = self.sign(str(part.pk))
+
+        self.assertEqual(download_url.call_args.args[1], "part.tar.gz")

@@ -37,7 +37,7 @@ from apps.log_search.export.serializers import (
 )
 from apps.log_search.models import Space
 from apps.utils.drf import detail_route
-from apps.utils.local import get_request_app_code, get_request_tenant_id, get_request_username
+from apps.utils.local import get_request_app_code, get_request_external_username, get_request_tenant_id
 
 
 class ExportJobViewSet(APIViewSet):
@@ -59,11 +59,15 @@ class ExportJobViewSet(APIViewSet):
         return [ViewBusinessPermission()]
 
     def get_queryset(self):
-        """任务可见范围：请求空间 + 来源应用，空间不属于当前租户时返回空集。"""
+        """任务可见范围：请求空间 + 来源应用，空间不属于当前租户时返回空集；外部用户只看自己创建的任务。"""
         space_uid = self.request.data.get("space_uid") or self.request.query_params.get("space_uid")
         if not Space.objects.filter(space_uid=space_uid, bk_tenant_id=get_request_tenant_id()).exists():
             return ExportJob.objects.none()
-        return ExportJob.objects.filter(space_uid=space_uid, source_app_code=get_request_app_code())
+        queryset = ExportJob.objects.filter(space_uid=space_uid, source_app_code=get_request_app_code())
+        external_username = get_request_external_username()
+        if external_username:
+            queryset = queryset.filter(created_by=external_username)
+        return queryset
 
     def list(self, request):
         data = self.valid_serializer(ExportListSerializer).validated_data
@@ -88,12 +92,12 @@ class ExportJobViewSet(APIViewSet):
     @detail_route(methods=["GET"])
     def download_link(self, request, pk=None):
         data = self.valid_serializer(ExportLinkSerializer).validated_data
-        return Response(api.download_link(request, self.get_object(), data["artifact_id"]))
+        return Response(api.download_link(self.get_object(), data["artifact_id"]))
 
     @detail_route(methods=["POST"])
     def cancel(self, request, pk=None):
         self.valid_serializer(ExportScopeSerializer)
         job = self.get_object()
-        if job.created_by != get_request_username(default=""):
+        if job.created_by != api.current_username():
             raise PermissionDenied("只有任务创建者可以操作该任务")
         return Response(api.cancel_job(job.pk))

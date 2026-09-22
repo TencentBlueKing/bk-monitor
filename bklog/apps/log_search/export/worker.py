@@ -102,7 +102,7 @@ def _pack(directory, part):
 
 
 def _execute(job, part):
-    storage = build_storage()
+    storage = build_storage(external=job.is_external)
     with tempfile.TemporaryDirectory(prefix=f"bklog-export-{job.pk}-") as directory:
         directory = Path(directory)
         handler = build_handler(job, part.start_time, part.end_time)

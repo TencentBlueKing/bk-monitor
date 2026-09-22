@@ -25,7 +25,6 @@ from datetime import timedelta
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
-from rest_framework.reverse import reverse
 
 from apps.log_search.constants import ExportJobStatus, ExportPartStatus, ExportStage
 from apps.log_search.export import state
@@ -77,17 +76,23 @@ def resolve_time_tick(index_set_id):
     return tick
 
 
+def current_username():
+    """当前请求用户：外部版经代理转发时是外部用户，而不是被替换的空间授权人。"""
+    return get_request_external_username() or get_request_username(default="")
+
+
 def create_export_job(data):
     """创建分片导出任务。"""
-    username = get_request_username(default="")
-    if not username or get_request_external_username():
-        raise PermissionDenied("仅支持 Web 用户创建分片导出任务")
+    username = current_username()
+    if not username:
+        raise PermissionDenied("无法识别请求用户")
     space = get_object_or_404(Space, space_uid=data["space_uid"], bk_tenant_id=get_request_tenant_id())
     if not is_enabled(space.bk_biz_id):
         raise ValidationError({"detail": "分片导出未启用"})
+    is_external = bool(get_request_external_username())
     # 只支持对象存储；配置不匹配时在创建阶段就失败，避免任务跑到执行阶段才报错
     try:
-        build_storage()
+        build_storage(external=is_external)
     except UnsupportedExportStorage as error:
         raise ValidationError({"detail": str(error)}) from error
     index = get_object_or_404(LogIndexSet, pk=data["index_set_id"], space_uid=space.space_uid)
@@ -126,6 +131,7 @@ def create_export_job(data):
         space_uid=space.space_uid,
         created_by=username,
         source_app_code=get_request_app_code(),
+        is_external=is_external,
         index_set_id=index.pk,
         bk_biz_id=space.bk_biz_id,
         search_params=params,
@@ -171,7 +177,7 @@ def job_detail(job):
         "created_at": job.created_at,
         "completed_at": job.completed_at,
         "expires_at": job.expires_at,
-        "can_operate": job.created_by == get_request_username(default="") and job.status not in TERMINAL,
+        "can_operate": job.created_by == current_username() and job.status not in TERMINAL,
     }
 
 
@@ -210,7 +216,7 @@ def job_results(job):
     }
 
 
-def download_link(request, job, artifact_id):
+def download_link(job, artifact_id):
     """按需签发下载链接，有效期不超过产物的剩余保留时间。"""
     job_results(job)
     if artifact_id == "manifest":
@@ -225,8 +231,8 @@ def download_link(request, job, artifact_id):
     if ttl <= 0:
         raise ExportExpired()
     try:
-        storage = build_storage()
-        url = download_url(storage, reverse("tasks-download-file", request=request), name, ttl=ttl)
+        storage = build_storage(external=job.is_external)
+        url = download_url(storage, name, ttl)
     except Exception as error:  # pylint: disable=broad-except
         raise ExportStorageUnavailable() from error
     return {"url": url, "expires_at": timezone.now() + timedelta(seconds=ttl)}
