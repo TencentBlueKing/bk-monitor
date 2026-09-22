@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import os
 from abc import ABC, abstractmethod
 from shutil import copyfile
@@ -62,8 +62,8 @@ class CosStorage(Storage):
     def export_upload(self, file_path, file_name, **kwargs):
         return self.qcloud_cos.upload_file(file_path, file_name)
 
-    def generate_download_url(self, file_name, **kwargs):
-        return self.qcloud_cos.get_download_url(file_name)
+    def generate_download_url(self, file_name, expired=None, **kwargs):
+        return self.qcloud_cos.get_download_url(file_name, expired=expired)
 
 
 class NfsStorage(Storage):
@@ -88,11 +88,11 @@ class BKREPOStorage(Storage):
     def export_upload(self, file_path, file_name, **kwargs):
         self.bk_repo_storage.client.upload_file(filepath=file_path, key=file_name)
 
-    def generate_download_url(self, file_name: str, **kwargs):
-        return self.bk_repo_storage.client.generate_presigned_url(key=file_name, expires_in=self.expired)
+    def generate_download_url(self, file_name: str, expired=None, **kwargs):
+        return self.bk_repo_storage.client.generate_presigned_url(key=file_name, expires_in=expired or self.expired)
 
 
-class StorageType(object):
+class StorageType:
     @classmethod
     def get_instance(cls, storage_type=None):
         mapping = {

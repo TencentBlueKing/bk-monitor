@@ -536,6 +536,18 @@ class QcloudCosMetadataTest(TestCase):
 
         self.assertEqual(result, "https://bucket.cos.region.myqcloud.com/a")
 
+    @patch("apps.utils.cos.CosS3Client")
+    @patch("apps.utils.cos.CosConfig")
+    def test_download_url_forwards_custom_expiration(self, mock_config, mock_client):
+        mock_client.return_value.get_presigned_download_url.return_value = "https://bucket.cos.region.myqcloud.com/a"
+        cos = QcloudCos("secret-id", "secret-key", "region", "bucket")
+
+        cos.get_download_url("artifact.tar.gz", expired=600)
+
+        mock_client.return_value.get_presigned_download_url.assert_called_once_with(
+            Bucket="bucket", Key="artifact.tar.gz", Expired=600
+        )
+
     @override_settings(EXTRACT_COS_DOMAIN="accelerate.example.com")
     @patch("apps.utils.cos.CosS3Client")
     @patch("apps.utils.cos.CosConfig")

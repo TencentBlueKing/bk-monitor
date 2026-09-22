@@ -1,0 +1,304 @@
+"""
+Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
+License for BK-LOG 蓝鲸日志平台:
+--------------------------------------------------------------------
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial
+portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+We undertake not to change the open source license (MIT license) applicable to the current version of
+the project delivered to anyone in the future.
+"""
+
+import copy
+from dataclasses import dataclass, replace
+
+import ujson
+from django.utils import timezone
+
+from apps.api import UnifyQueryApi
+from apps.log_search.export import state
+from apps.log_search.export.config import policy_from_snapshot
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.utils.log import logger
+
+
+class PlanError(Exception):
+    """规划阶段的确定性失败；retryable 表示换一次尝试可能成功。"""
+
+    def __init__(self, code, detail="", retryable=False):
+        super().__init__(detail or code)
+        self.code = code
+        self.retryable = retryable
+
+
+def encode_export_row(row):
+    """与旧异步导出链路一致的 JSONL 编码方式。"""
+    return (ujson.dumps(row, ensure_ascii=False) + "\n").encode("utf-8")
+
+
+def build_handler(job, start=None, end=None):
+    """
+    用任务创建时冻结的快照重建查询 Handler。
+
+    这里直接复用 UnifyQueryHandler：路由、字段映射、脱敏与结果投影都由它负责，
+    分片只需要把时间范围收窄到自己的区间。base_dict 用冻结值覆盖，保证一个任务的
+    所有分片下发完全相同的查询条件。
+    """
+    params = copy.deepcopy(job.search_params)
+    if start is not None:
+        params["start_time"], params["end_time"] = start, end
+    handler = UnifyQueryHandler(params)
+    base_dict = copy.deepcopy(job.base_dict)
+    if start is not None:
+        base_dict["start_time"], base_dict["end_time"] = str(start), str(end)
+    handler.base_dict = base_dict
+    return handler
+
+
+def _statistics_params(handler, start, end):
+    params = copy.deepcopy(handler.base_dict)
+    params.update(
+        {
+            "start_time": str(start),
+            "end_time": str(end),
+            "from": 0,
+            # 一期只做应用层时间分片，明确关闭 ES slice
+            "slice_max": 0,
+            "highlight": {"enable": False},
+        }
+    )
+    return params
+
+
+def count_rows(handler, start, end):
+    """区间内的总条数，用于配额校验和分片收益估算。"""
+    params = _statistics_params(handler, start, end)
+    params["limit"] = 1
+    result = UnifyQueryApi.query_ts_raw(params)
+    total = result.get("total") if isinstance(result, dict) else None
+    if not isinstance(total, int) or total < 0:
+        raise PlanError("STATISTICS_FAILED", "unify-query 未返回合法总量", retryable=True)
+    return total
+
+
+def sample_rows(handler, start, end, limit):
+    """采样少量日志用来估算平均序列化字节数，避免单条日志很大时只按条数判断失真。"""
+    params = _statistics_params(handler, start, end)
+    params["limit"] = limit
+    result = UnifyQueryApi.query_ts_raw(params)
+    if not isinstance(result, dict) or not isinstance(result.get("list"), list):
+        raise PlanError("STATISTICS_FAILED", "unify-query 未返回合法结果", retryable=True)
+    # 复用 handler 的结果投影，保证采样口径与真实导出完全一致
+    return [encode_export_row(row) for row in handler._deal_query_result(result)["origin_log_list"]]
+
+
+def histogram(handler, start, end, interval):
+    """按 interval 统计时间密度，用于定位热点区间。返回 {桶起始毫秒: 条数}。"""
+    window = f"{interval}ms"
+    params = copy.deepcopy(handler.base_dict)
+    for query in params.get("query_list", []):
+        query["function"] = [{"method": "count"}, {"method": "date_histogram", "window": window}]
+        query["time_aggregation"] = {}
+    params.update({"step": window, "order_by": [], "start_time": str(start), "end_time": str(end)})
+    result = UnifyQueryApi.query_ts_reference(params)
+    series = result.get("series") if isinstance(result, dict) else None
+    if not isinstance(series, list) or len(series) > 1:
+        raise PlanError("STATISTICS_FAILED", "unify-query 直方图结果格式不合法", retryable=True)
+    buckets = {}
+    for item in (series[0].get("values") if series else []) or []:
+        if not isinstance(item, list) or len(item) != 2 or not isinstance(item[0], int):
+            raise PlanError("STATISTICS_FAILED", "unify-query 直方图点位格式不合法", retryable=True)
+        buckets[item[0]] = buckets.get(item[0], 0) + item[1]
+    return buckets
+
+
+@dataclass(frozen=True)
+class PartSpec:
+    """一个待落库的分片时间范围，estimated_* 是规划期的预估值。"""
+
+    start_time: int
+    end_time: int
+    estimated_rows: int
+    estimated_bytes: int
+    oversized: bool = False
+
+
+def split_thresholds(policy):
+    """递归拆分触发值：达到软目标的 split_factor 倍时继续细分时间范围。"""
+    return int(policy.target_rows * policy.split_factor), int(policy.target_bytes * policy.split_factor)
+
+
+def merge_thresholds(policy):
+    """相邻合并上限：合计不超过软目标的 merge_factor 倍时合并。"""
+    return int(policy.target_rows * policy.merge_factor), int(policy.target_bytes * policy.merge_factor)
+
+
+def is_hot(rows, avg_bytes, policy):
+    split_rows, split_bytes = split_thresholds(policy)
+    return rows >= split_rows or rows * avg_bytes >= split_bytes
+
+
+def can_merge(rows, size, policy):
+    merge_rows, merge_bytes = merge_thresholds(policy)
+    return rows <= merge_rows and size <= merge_bytes
+
+
+def _ceil_to(value, step):
+    return -(-int(value) // step) * step
+
+
+def _align(value, step):
+    return value - value % step
+
+
+def choose_interval(total, start, end, tick, policy):
+    """
+    选择初始统计桶宽。
+
+    按当前区间的数据密度反推：让每个桶的期望条数接近单分片目标，这样桶数只和
+    数据量有关，不会因为查询范围很长而爆炸；同时用 max_buckets 兜住桶数上限。
+    """
+    span = max(tick, end - start)
+    if total <= 0:
+        return max(tick, _ceil_to(policy.bucket_seconds * 1000, tick))
+    interval = int(policy.target_rows * span / total)
+    interval = max(interval, policy.bucket_seconds * 1000)
+    interval = max(interval, _ceil_to(span / policy.max_buckets, tick))
+    return max(tick, _ceil_to(interval, tick))
+
+
+def refine(handler, start, end, rows, tick, policy, avg_bytes):
+    """把超过触发值的时间范围按时间二分，直到达到软目标或时间字段最小精度。"""
+    parts = []
+    pending = [(start, end, rows)]
+    while pending:
+        left, right, count = pending.pop()
+        hot = is_hot(count, avg_bytes, policy)
+        if not hot or right - left <= tick:
+            # 到达时间字段最小精度仍超量时标记 oversized，交由 Worker 按原样受控执行
+            parts.append(PartSpec(left, right, count, count * avg_bytes, oversized=hot))
+            continue
+        middle = left + ((right - left) // tick // 2) * tick
+        if middle <= left:
+            parts.append(PartSpec(left, right, count, count * avg_bytes, oversized=True))
+            continue
+        pending.append((middle, right, count_rows(handler, middle, right)))
+        pending.append((left, middle, count_rows(handler, left, middle)))
+    return parts
+
+
+def uniform_parts(total, start, end, tick, policy):
+    """直方图不可用时的退化路径：按条数目标等分时间范围，保证计划仍然完整。"""
+    span = end - start
+    count = max(1, min(policy.max_parts, -(-total // policy.target_rows)))
+    width = max(tick, _ceil_to(span / count, tick))
+    parts = []
+    cursor = start
+    while cursor < end and len(parts) < policy.max_parts:
+        next_cursor = min(cursor + width, end)
+        rows = int(total * (next_cursor - cursor) / span)
+        parts.append(PartSpec(cursor, next_cursor, rows, rows * policy.fallback_row_bytes))
+        cursor = next_cursor
+    return parts
+
+
+def merge_adjacent(parts, policy):
+    """相邻小分片合并，减少低密度区间产生的大量碎片。"""
+    merged = []
+    for part in parts:
+        previous = merged[-1] if merged else None
+        if (
+            previous is not None
+            and not previous.oversized
+            and not part.oversized
+            and previous.end_time == part.start_time
+            and can_merge(
+                previous.estimated_rows + part.estimated_rows,
+                previous.estimated_bytes + part.estimated_bytes,
+                policy,
+            )
+        ):
+            merged[-1] = replace(
+                previous,
+                end_time=part.end_time,
+                estimated_rows=previous.estimated_rows + part.estimated_rows,
+                estimated_bytes=previous.estimated_bytes + part.estimated_bytes,
+            )
+            continue
+        merged.append(part)
+    return merged
+
+
+def build_parts(job, policy):
+    """生成覆盖 [start_time, end_time) 且无重叠无遗漏的完整分片计划。"""
+    handler = build_handler(job)
+    total = count_rows(handler, job.start_time, job.end_time)
+    if total > policy.max_rows:
+        raise PlanError("QUOTA_EXCEEDED", f"预计条数 {total} 超过单任务上限 {policy.max_rows}")
+    if not total:
+        return [PartSpec(job.start_time, job.end_time, 0, 0)], total
+
+    avg_bytes = policy.fallback_row_bytes
+    sample = sample_rows(handler, job.start_time, job.end_time, policy.sample_rows)
+    if sample:
+        avg_bytes = max(1, sum(len(row) for row in sample) // len(sample))
+
+    interval = choose_interval(total, job.start_time, job.end_time, job.time_tick, policy)
+    buckets = histogram(handler, job.start_time, job.end_time, interval)
+    if not buckets:
+        logger.warning(
+            "[build_parts] job=%s histogram empty, fallback to uniform split, total=%s interval=%s",
+            job.pk,
+            total,
+            interval,
+        )
+        return merge_adjacent(uniform_parts(total, job.start_time, job.end_time, job.time_tick, policy), policy), total
+
+    parts = []
+    cursor = _align(job.start_time, interval)
+    while cursor < job.end_time:
+        left = max(cursor, job.start_time)
+        right = min(cursor + interval, job.end_time)
+        parts.extend(refine(handler, left, right, buckets.get(cursor, 0), job.time_tick, policy, avg_bytes))
+        if len(parts) > policy.max_parts:
+            raise PlanError("PART_LIMIT_EXCEEDED", f"分片数量超过上限 {policy.max_parts}")
+        cursor += interval
+
+    parts = merge_adjacent(parts, policy)
+    if len(parts) > policy.max_parts:
+        raise PlanError("PART_LIMIT_EXCEEDED", f"分片数量超过上限 {policy.max_parts}")
+    return parts, total
+
+
+def run_planning(job_id):
+    """规划一个任务的完整分片计划；重复投递由状态流转保证幂等。"""
+    job = state.claim_planning(job_id)
+    if job is None:
+        return
+    try:
+        # 使用任务创建时冻结的策略，避免灰度调整影响已准入的任务
+        policy = policy_from_snapshot(job.policy)
+        parts, total, interval = build_parts(job, policy)
+        state.persist_plan(
+            job.pk,
+            parts=parts,
+            estimated_total=total,
+            interval=interval,
+            statistics_at=timezone.now(),
+        )
+    except PlanError as error:
+        logger.warning("[run_planning] job=%s code=%s detail=%s", job.pk, error.code, error)
+        state.fail_planning(job.pk, error.code, str(error), retryable=error.retryable)
+    except Exception as error:  # pylint: disable=broad-except
+        logger.exception("[run_planning] job=%s planning failed: %s", job.pk, error)
+        state.fail_planning(job.pk, "PLANNING_FAILED", type(error).__name__, retryable=True)
