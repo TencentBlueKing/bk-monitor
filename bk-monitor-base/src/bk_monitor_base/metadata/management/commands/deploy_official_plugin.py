@@ -4,8 +4,8 @@ from django.core.management import BaseCommand
 
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
+from bk_monitor_base.infras.nodeman_control import official_plugins
 from bk_monitor_base.infras.third_party_api.cmdb.api import HostIPParams
-from bk_monitor_base.infras.third_party_api.nodeman.api import PluginOperateParams
 from bk_monitor_base.metadata.config import settings
 
 
@@ -90,14 +90,11 @@ class Command(BaseCommand):
         except Exception:  # noqa
             self.stderr.write("Get host info from CMDB error")
         else:
-            params = PluginOperateParams(
-                plugin_params={"name": plugin_name, "version": plugin_version},
-                job_type="MAIN_INSTALL_PLUGIN",
-                bk_host_id=bk_host_ids,
-            )
             try:
-                result = api.node_man.plugin_operate(bk_tenant_id=DEFAULT_TENANT_ID, params=params)
-                message = f"update plugin success with result({result}), Please see detail in bk_nodeman SaaS"
+                result = official_plugins.install(
+                    bk_tenant_id=DEFAULT_TENANT_ID, name=plugin_name, version=plugin_version, host_ids=bk_host_ids
+                )
+                message = f"plugin operation submitted with result({result}), Please see detail in bk_nodeman SaaS"
                 self.stdout.write(message)
             except Exception as e:  # noqa
-                raise Exception(f"update plugin error:{e}, params:{params}")
+                raise Exception(f"update plugin error:{e}")
