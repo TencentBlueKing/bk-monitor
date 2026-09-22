@@ -334,17 +334,6 @@ def cancel_job(job_id):
         return _finish_job(job, ExportJobStatus.CANCELED)
 
 
-def set_parallelism(job_id, value):
-    with transaction.atomic():
-        job = ExportJob.objects.select_for_update().get(pk=job_id)
-        if job.status in ExportJobStatus.TERMINAL:
-            return job
-        if job.requested_parallelism == value:
-            return job
-        # 只影响后续投递，不抢占已在执行的分片
-        return _save(job, requested_parallelism=value)
-
-
 def mark_artifacts_cleaned(job_id):
     return ExportJob.objects.filter(pk=job_id, artifacts_cleaned_at__isnull=True).update(
         artifacts_cleaned_at=timezone.now(), updated_at=timezone.now()
