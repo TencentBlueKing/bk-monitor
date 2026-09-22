@@ -99,7 +99,7 @@ def claim_planning(job_id):
         )
 
 
-def persist_plan(job_id, *, parts, estimated_total, interval, statistics_at=None):
+def persist_plan(job_id, *, parts, estimated_total):
     """把完整计划落库，并把任务推进到可调度状态。"""
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
@@ -126,8 +126,6 @@ def persist_plan(job_id, *, parts, estimated_total, interval, statistics_at=None
             status=ExportJobStatus.READY,
             part_total=len(parts),
             estimated_total=estimated_total,
-            interval=interval,
-            statistics_at=statistics_at,
             error_code="",
             error_detail="",
         )
@@ -332,12 +330,6 @@ def cancel_job(job_id):
         if job.status in ExportJobStatus.TERMINAL:
             return job
         return _finish_job(job, ExportJobStatus.CANCELED)
-
-
-def mark_artifacts_cleaned(job_id):
-    return ExportJob.objects.filter(pk=job_id, artifacts_cleaned_at__isnull=True).update(
-        artifacts_cleaned_at=timezone.now(), updated_at=timezone.now()
-    )
 
 
 def _job_id_of(part_id):

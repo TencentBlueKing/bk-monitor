@@ -43,9 +43,7 @@ SUPPORTED_STORAGE_TYPES = (RemoteStorageType.COS.value, RemoteStorageType.BKREPO
 def build_storage(external=False):
     """构建产物存储实例；外部版任务读 feature_async_export_external，内部任务读 feature_async_export。"""
     toggle_name = FEATURE_ASYNC_EXPORT_EXTERNAL if external else FEATURE_ASYNC_EXPORT_COMMON
-    config = getattr(FeatureToggleObject.toggle(toggle_name), "feature_config", None)
-    if not isinstance(config, dict):
-        raise UnsupportedExportStorage(f"分片导出存储配置未就绪：{toggle_name}")
+    config = FeatureToggleObject.toggle(toggle_name).feature_config
     storage_type = config.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
     if storage_type not in SUPPORTED_STORAGE_TYPES:
         raise UnsupportedExportStorage(
@@ -82,5 +80,4 @@ def upload(storage, file_path, file_name):
 
 
 def download_url(storage, file_name, ttl):
-    """分片导出只支持对象存储，预签名链接直接指向存储，不需要应用内下载路由。"""
     return storage.generate_download_url(file_name=file_name, expired=ttl)

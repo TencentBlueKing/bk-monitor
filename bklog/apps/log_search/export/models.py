@@ -36,12 +36,9 @@ class ExportJob(models.Model):
     space_uid = models.CharField(_("空间标识"), max_length=256)
     created_by = models.CharField(_("创建者"), max_length=64)
     source_app_code = models.CharField(_("来源系统"), max_length=32, blank=True, default="")
-    # 存储配置依赖该标识，Worker/收尾没有请求上下文
     is_external = models.BooleanField(_("外部版任务"), default=False)
     index_set_id = models.IntegerField(_("索引集ID"))
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, blank=True)
-    # 冻结的查询条件：search_params 用于重建 UnifyQueryHandler，base_dict 是实际下发的查询体。
-    # 两者都在创建任务时确定，后续索引路由或用户偏好变化不影响已创建的任务。
     search_params = models.JSONField(_("冻结查询参数"))
     base_dict = models.JSONField(_("冻结查询体"))
     policy = models.JSONField(_("任务策略快照"), default=dict)
@@ -51,9 +48,6 @@ class ExportJob(models.Model):
     status = models.CharField(
         _("状态"), max_length=16, choices=ExportJobStatus.CHOICES, default=ExportJobStatus.PENDING
     )
-    # 规划产出：实际使用的初始统计桶宽与统计时间（软目标见 policy 快照）
-    interval = models.PositiveBigIntegerField(_("初始统计桶宽（毫秒）"), null=True, blank=True)
-    statistics_at = models.DateTimeField(_("统计时间"), null=True, blank=True)
     estimated_total = models.PositiveBigIntegerField(_("预计总条数"), null=True, blank=True)
     actual_total = models.PositiveBigIntegerField(_("已导出条数"), default=0)
     part_total = models.PositiveIntegerField(_("有效分片总数"), default=0)
@@ -63,14 +57,12 @@ class ExportJob(models.Model):
     manifest_bytes = models.PositiveBigIntegerField(_("清单字节数"), null=True, blank=True)
     error_code = models.CharField(_("错误分类"), max_length=64, blank=True, default="")
     error_detail = models.TextField(_("错误详情"), blank=True, default="")
-    # 规划使用独立的尝试计数，避免与分片执行次数互相消耗
     planning_started_at = models.DateTimeField(_("规划开始时间"), null=True, blank=True)
     planning_attempts = models.PositiveIntegerField(_("规划尝试次数"), default=0)
     last_dispatched_at = models.DateTimeField(_("最近投递时间"), null=True, blank=True)
     started_at = models.DateTimeField(_("开始执行时间"), null=True, blank=True)
     completed_at = models.DateTimeField(_("完成时间"), null=True, blank=True)
     expires_at = models.DateTimeField(_("产物过期时间"), null=True, blank=True)
-    artifacts_cleaned_at = models.DateTimeField(_("产物清理时间"), null=True, blank=True)
     created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
     updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
 

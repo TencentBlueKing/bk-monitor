@@ -35,9 +35,8 @@ from apps.log_search.export.serializers import (
     ExportListSerializer,
     ExportScopeSerializer,
 )
-from apps.log_search.models import Space
 from apps.utils.drf import detail_route
-from apps.utils.local import get_request_app_code, get_request_external_username, get_request_tenant_id
+from apps.utils.local import get_request_app_code, get_request_external_username
 
 
 class ExportJobViewSet(APIViewSet):
@@ -59,10 +58,8 @@ class ExportJobViewSet(APIViewSet):
         return [ViewBusinessPermission()]
 
     def get_queryset(self):
-        """任务可见范围：请求空间 + 来源应用，空间不属于当前租户时返回空集；外部用户只看自己创建的任务。"""
+        """任务可见范围：请求空间 + 来源应用；外部用户只看自己创建的任务。"""
         space_uid = self.request.data.get("space_uid") or self.request.query_params.get("space_uid")
-        if not Space.objects.filter(space_uid=space_uid, bk_tenant_id=get_request_tenant_id()).exists():
-            return ExportJob.objects.none()
         queryset = ExportJob.objects.filter(space_uid=space_uid, source_app_code=get_request_app_code())
         external_username = get_request_external_username()
         if external_username:

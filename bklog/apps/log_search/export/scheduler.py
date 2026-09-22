@@ -207,42 +207,19 @@ def finalize_export(job_id):
         return None
 
 
-def cleanup_artifacts(limit):
-    """
-    登记已过期或已终止任务的产物回收。
-
-    产物都在对象存储里，一期没有删除接口，生命周期由桶策略管理；这里只登记清理时间，
-    避免每轮重复扫描同一批任务。仍在途的分片会让任务延后到下一轮。
-    """
-    now = timezone.now()
-    candidates = ExportJob.objects.filter(artifacts_cleaned_at__isnull=True).filter(
-        Q(status=ExportJobStatus.SUCCESS, expires_at__lte=now)
-        | Q(status__in=[ExportJobStatus.FAILED, ExportJobStatus.CANCELED])
-    )
-    cleaned = []
-    for job in candidates.order_by("pk")[:limit]:
-        if ExportPart.objects.filter(job=job, status__in=ExportPartStatus.INFLIGHT).exists():
-            continue
-        state.mark_artifacts_cleaned(job.pk)
-        cleaned.append(job.pk)
-    return cleaned
-
-
 def coordinate(limit=None):
-    """周期控制入口：回收超时分片、补投规划/收尾消息、按额度投递分片、清理过期产物。"""
+    """周期控制入口：回收超时分片、补投规划/收尾消息、按额度投递分片。"""
     limit = limit or settings.ASYNC_EXPORT_COORDINATE_BATCH
     started = time.monotonic()
     recovered = state.recover_stale_parts(limit)
     planned = enqueue_planning(limit)
     dispatched = dispatch_ready_parts()
     finalized = enqueue_finalization(limit)
-    cleaned = cleanup_artifacts(limit)
     result = {
         "recovered": len(recovered),
         "planned": len(planned),
         "dispatched": len(dispatched),
         "finalized": len(finalized),
-        "cleaned": len(cleaned),
     }
     logger.info("[coordinate] %s cost=%.3fs", result, time.monotonic() - started)
     return result
