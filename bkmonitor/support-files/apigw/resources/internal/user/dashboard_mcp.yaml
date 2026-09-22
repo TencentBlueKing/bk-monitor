@@ -79,8 +79,11 @@ paths:
               - configs
               properties:
                 configs:
-                  type: string
-                  description: 'Dashboard config dict. Key: path like "grafana/folder/dashboard.json" (folder is optional). Value: JSON string of Grafana 10 dashboard config (converted via json.dumps()). Must include __inputs, __requires, panels, title. Get template from get_dashboard_detail. 仪表盘配置字典。Key: 路径如 "grafana/目录/仪表盘.json"（目录可选）。Value: Grafana 10 仪表盘配置的 JSON 字符串（通过 json.dumps() 转换）。必须包含 __inputs、__requires、panels、title。可从 get_dashboard_detail 获取模板。'
+                  type: object
+                  minProperties: 1
+                  additionalProperties:
+                    type: string
+                  description: 'Dashboard config dict. Key: path like "grafana/folder/dashboard.json" (folder is optional). Value: JSON string of Grafana 10 dashboard config (json.dumps the dashboard object only, not the whole configs). Must include __inputs, __requires, panels, title. Get template from get_dashboard_detail. 仪表盘配置字典。Key: 路径如 "grafana/目录/仪表盘.json"（目录可选）。Value: 单张 Grafana 10 仪表盘配置的 JSON 字符串（只 dumps 盘配置，不要 dumps 整个 configs）。必须包含 __inputs、__requires、panels、title。可从 get_dashboard_detail 获取模板。'
                 bk_biz_id:
                   type: string
                   description: Business ID in BlueKing Monitor. 业务ID。
@@ -118,8 +121,11 @@ paths:
               - configs
               properties:
                 configs:
-                  type: string
-                  description: 'Dashboard config dict. Same format as create_dashboard. Key: path like "grafana/folder/dashboard.json". Value: JSON string of complete Grafana 10 config. Dashboard with matching uid or title will be overwritten. 仪表盘配置字典。格式与create_dashboard相同。Key: 路径。Value: 完整Grafana 10配置的JSON字符串。匹配uid或title的仪表盘将被覆盖。'
+                  type: object
+                  minProperties: 1
+                  additionalProperties:
+                    type: string
+                  description: 'Dashboard config dict. Same format as create_dashboard. Key: path like "grafana/folder/dashboard.json". Value: JSON string of complete Grafana 10 config (json.dumps the dashboard object only, not the whole configs). Dashboard with matching uid or title will be overwritten. 仪表盘配置字典。格式与create_dashboard相同。Key: 路径。Value: 单张 Grafana 10 配置的JSON字符串（只 dumps 盘配置，不要 dumps 整个 configs）。匹配uid或title的仪表盘将被覆盖。'
                 bk_biz_id:
                   type: string
                   description: Business ID in BlueKing Monitor. 业务ID。
