@@ -19,6 +19,7 @@ from django.db import transaction
 from django.utils.translation import gettext as _
 
 from api.cmdb.define import TopoNode, TopoTree
+from api.node_man.default import FetchSubscriptionStatistic
 from constants.cmdb import TargetNodeType, TargetObjectType
 from core.drf_resource import api, resource
 from core.errors.api import BKAPIError
@@ -70,7 +71,8 @@ class NodeManInstaller(BaseInstaller):
         result = {}
         for tenant, subscriptions in grouped.items():
             ids = list(subscriptions)
-            batches = api.node_man.fetch_subscription_statistic.bulk_request(
+            # bulk_request 复用实例状态，每个租户独立实例，避免并发请求覆盖租户及鉴权身份。
+            batches = FetchSubscriptionStatistic().bulk_request(
                 [
                     {"bk_tenant_id": tenant, "subscription_id_list": ids[index : index + 20]}
                     for index in range(0, len(ids), 20)

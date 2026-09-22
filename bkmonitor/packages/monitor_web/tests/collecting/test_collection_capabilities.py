@@ -1,11 +1,15 @@
 """采集结果能力回归：不依赖真实节点管理或数据库。"""
 
+import json
+from concurrent.futures import ThreadPoolExecutor
+from threading import Barrier
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
 from django.test import override_settings
 
+from api.node_man.default import FetchSubscriptionStatistic
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 from monitor_web.collecting import deploy
@@ -42,7 +46,7 @@ def test_control_switch_does_not_change_collection_backend(control_url):
 def test_k8s_does_not_query_nodeman():
     item = config(plugin_type=PluginType.K8S, subscription_id=0)
     with mock.patch.object(api.node_man, "check_task_ready") as ready:
-        with mock.patch.object(api.node_man.fetch_subscription_statistic, "bulk_request") as query:
+        with mock.patch.object(FetchSubscriptionStatistic, "bulk_request") as query:
             assert deploy.get_collect_installer_class(item) is K8sInstaller
             assert deploy.get_collect_installer(item).is_task_ready() is True
             assert deploy.fetch_collection_statistics([item]) == {}
@@ -56,7 +60,7 @@ def test_statistics_isolate_tenants_and_preserve_all_configs():
         [[{"subscription_id": 10, "instances": 3, "status": [{"status": "FAILED", "count": 1}]}]],
         [[{"subscription_id": 10, "instances": 8, "status": [{"status": "RUNNING", "count": 2}]}]],
     ]
-    with mock.patch.object(api.node_man.fetch_subscription_statistic, "bulk_request", side_effect=responses) as query:
+    with mock.patch.object(FetchSubscriptionStatistic, "bulk_request", side_effect=responses) as query:
         assert deploy.fetch_collection_statistics(items) == {
             1: CollectionStatistics(total=3, failed=1),
             2: CollectionStatistics(total=3, failed=1),
@@ -66,6 +70,53 @@ def test_statistics_isolate_tenants_and_preserve_all_configs():
             mock.call([{"bk_tenant_id": "tenant-a", "subscription_id_list": [10]}], ignore_exceptions=True),
             mock.call([{"bk_tenant_id": "tenant-b", "subscription_id_list": [10]}], ignore_exceptions=True),
         ]
+
+
+@pytest.mark.parametrize("config_count", [1, 21])
+def test_concurrent_statistics_keep_tenant_headers_and_results_isolated(config_count):
+    """走真实请求处理层，强制不同租户在写入实例租户后交错执行。"""
+    barrier = Barrier(2 * ((config_count + 19) // 20))
+    full_request_data = FetchSubscriptionStatistic.full_request_data
+    tenant_counts = {"tenant-a": 3, "tenant-b": 8}
+
+    def synchronized_request_data(instance, params):
+        barrier.wait(timeout=10)
+        return full_request_data(instance, params)
+
+    def transport(**kwargs):
+        tenant = kwargs["headers"]["X-Bk-Tenant-Id"]
+        assert json.loads(kwargs["headers"]["x-bkapi-authorization"])["bk_username"] == f"{tenant}-admin"
+        return mock.Mock(
+            json=mock.Mock(
+                return_value={
+                    "code": 0,
+                    "result": True,
+                    "data": [
+                        {"subscription_id": sid, "instances": tenant_counts[tenant], "status": []}
+                        for sid in kwargs["json"]["subscription_id_list"]
+                    ],
+                }
+            )
+        )
+
+    with (
+        mock.patch.object(FetchSubscriptionStatistic, "full_request_data", synchronized_request_data),
+        mock.patch("api.node_man.default.get_admin_username", side_effect=lambda bk_tenant_id: f"{bk_tenant_id}-admin"),
+        mock.patch("requests.sessions.Session.request", side_effect=transport) as query,
+        ThreadPoolExecutor(max_workers=2) as pool,
+    ):
+        futures = {
+            tenant: pool.submit(
+                deploy.fetch_collection_statistics,
+                [config(i, tenant=tenant, subscription_id=i) for i in range(1, config_count + 1)],
+            )
+            for tenant in tenant_counts
+        }
+        for tenant, future in futures.items():
+            assert future.result(timeout=15) == {
+                i: CollectionStatistics(total=tenant_counts[tenant]) for i in range(1, config_count + 1)
+            }
+        assert query.call_count == barrier.parties
 
 
 def test_statistics_batches_and_partial_failure():
@@ -78,7 +129,7 @@ def test_statistics_batches_and_partial_failure():
         return [{"subscription_id": i, "instances": 2, "status": []} for i in ids]
 
     # 使用真实 bulk_request，验证失败批次返回 None 不影响其他批次。
-    with mock.patch.object(api.node_man.fetch_subscription_statistic, "request", side_effect=response) as query:
+    with mock.patch.object(FetchSubscriptionStatistic, "request", side_effect=response) as query:
         result = deploy.fetch_collection_statistics(items)
         assert set(result) == {*range(1, 21), 41}
         assert all(item == CollectionStatistics(total=2) for item in result.values())
@@ -86,21 +137,21 @@ def test_statistics_batches_and_partial_failure():
 
 
 def test_statistics_all_failed_still_raises():
-    with mock.patch.object(api.node_man.fetch_subscription_statistic, "request", side_effect=BKAPIError()):
+    with mock.patch.object(FetchSubscriptionStatistic, "request", side_effect=BKAPIError()):
         with pytest.raises(BKAPIError):
             deploy.fetch_collection_statistics([config()])
 
 
 @pytest.mark.parametrize("items", [[], [config(subscription_id=0)]])
 def test_statistics_without_subscription_does_not_query(items):
-    with mock.patch.object(api.node_man.fetch_subscription_statistic, "bulk_request") as query:
+    with mock.patch.object(FetchSubscriptionStatistic, "bulk_request") as query:
         assert deploy.fetch_collection_statistics(items) == {}
         query.assert_not_called()
 
 
 def test_statistics_ignore_unrequested_subscription():
     with mock.patch.object(
-        api.node_man.fetch_subscription_statistic,
+        FetchSubscriptionStatistic,
         "bulk_request",
         return_value=[[{"subscription_id": 99, "instances": 1}]],
     ):
@@ -246,7 +297,7 @@ def test_v2_statistics_to_list_integration():
         {"subscription_id": 20, "instances": 2, "status": [{"status": "RUNNING", "count": 2}]},
     ]
     with (
-        mock.patch.object(api.node_man.fetch_subscription_statistic, "request", return_value=response) as query,
+        mock.patch.object(FetchSubscriptionStatistic, "request", return_value=response) as query,
         mock.patch.object(backend.CollectorPluginMeta.objects, "filter") as plugins,
         mock.patch.object(backend.CollectConfigMeta.objects, "bulk_update") as update,
         override_settings(BKNODEMAN_CONTROL_API_BASE_URL="https://control.example.com/api"),
