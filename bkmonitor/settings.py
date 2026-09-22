@@ -97,8 +97,12 @@ try:
 
     merge_django_settings(globals())
 
-    # 暂时排除metadata app
-    globals()["INSTALLED_APPS"] = tuple(app for app in globals()["INSTALLED_APPS"] if app != "bk_monitor_base.metadata")
+    # 主仓继续使用自身的 metadata / apm；Base apm_core 依赖 Base metadata，需一并排除。
+    globals()["INSTALLED_APPS"] = tuple(
+        app
+        for app in globals()["INSTALLED_APPS"]
+        if app not in ("bk_monitor_base.metadata", "bk_monitor_base.domains.apm_core")
+    )
 
     from bk_monitor_base.infras.constant import OLD_MONITOR_BACKEND_DB_NAME, OLD_MONITOR_SAAS_DB_NAME
 
