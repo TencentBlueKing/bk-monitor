@@ -1,4 +1,4 @@
 [submodule "bk-monitor-base"]
-        branch = deploy/tencent-ieod
+        branch = main
 	path = bk-monitor-base
 	url = git@github.com:TencentBlueKing/bk-monitor-base.git
