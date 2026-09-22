@@ -21,13 +21,13 @@ the project delivered to anyone in the future.
 
 """分片异步导出的 Web 接口；既有 AsyncTask 导出路由保持原契约。"""
 
-from django.http import Http404
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission, ViewBusinessPermission
 from apps.log_search.export import api
-from apps.log_search.export.create import create_export_job
 from apps.log_search.export.models import ExportJob
 from apps.log_search.export.serializers import (
     ExportCreateSerializer,
@@ -35,51 +35,65 @@ from apps.log_search.export.serializers import (
     ExportListSerializer,
     ExportScopeSerializer,
 )
+from apps.log_search.models import Space
 from apps.utils.drf import detail_route
-from apps.utils.local import get_request_app_code
+from apps.utils.local import get_request_app_code, get_request_tenant_id, get_request_username
 
 
 class ExportJobViewSet(APIViewSet):
     serializer_class = ExportScopeSerializer
     lookup_value_regex = "[0-9]+"
 
+    def get_permissions(self):
+        if self.action == "create":
+            # 创建任务需要索引集级检索权限，实例ID由请求体传入；非法入参交给序列化器报错
+            try:
+                int(self.request.data.get("index_set_id"))
+            except (TypeError, ValueError):
+                return []
+            return [
+                PlatformAwareIndexSearchPermission(
+                    [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES, iam_instance_id_key="index_set_id"
+                )
+            ]
+        return [ViewBusinessPermission()]
+
+    def get_queryset(self):
+        """任务可见范围：请求空间 + 来源应用，空间不属于当前租户时返回空集。"""
+        space_uid = self.request.data.get("space_uid") or self.request.query_params.get("space_uid")
+        if not Space.objects.filter(space_uid=space_uid, bk_tenant_id=get_request_tenant_id()).exists():
+            return ExportJob.objects.none()
+        return ExportJob.objects.filter(space_uid=space_uid, source_app_code=get_request_app_code())
+
     def list(self, request):
         data = self.valid_serializer(ExportListSerializer).validated_data
-        queryset = ExportJob.objects.filter(
-            space_uid=data["space_uid"], source_app_code=get_request_app_code()
-        ).order_by("-created_at", "-pk")
+        queryset = self.get_queryset().order_by("-created_at", "-pk")
         offset = (data["page"] - 1) * data["limit"]
-        results = []
-        for job in queryset[offset : offset + data["limit"]]:
-            try:
-                api.authorized_job(request, job.pk, data["space_uid"])
-            except (Http404, PermissionDenied):
-                # 无权访问的记录不泄露任何元数据
-                continue
-            results.append(api.job_detail(job))
+        results = [api.job_detail(job) for job in queryset[offset : offset + data["limit"]]]
         return Response({"page": data["page"], "limit": data["limit"], "results": results})
 
     def create(self, request):
         data = self.valid_serializer(ExportCreateSerializer).validated_data
-        return Response(api.job_detail(create_export_job(data)))
+        return Response(api.job_detail(api.create_export_job(data)))
 
     def retrieve(self, request, pk=None):
-        data = self.valid_serializer(ExportScopeSerializer).validated_data
-        return Response(api.job_detail(api.authorized_job(request, pk, data["space_uid"])))
+        self.valid_serializer(ExportScopeSerializer)
+        return Response(api.job_detail(self.get_object()))
 
     @detail_route(methods=["GET"])
     def results(self, request, pk=None):
-        data = self.valid_serializer(ExportScopeSerializer).validated_data
-        return Response(api.job_results(api.authorized_job(request, pk, data["space_uid"])))
+        self.valid_serializer(ExportScopeSerializer)
+        return Response(api.job_results(self.get_object()))
 
     @detail_route(methods=["GET"])
     def download_link(self, request, pk=None):
         data = self.valid_serializer(ExportLinkSerializer).validated_data
-        job = api.authorized_job(request, pk, data["space_uid"])
-        return Response(api.download_link(request, job, data["artifact_id"]))
+        return Response(api.download_link(request, self.get_object(), data["artifact_id"]))
 
     @detail_route(methods=["POST"])
     def cancel(self, request, pk=None):
-        data = self.valid_serializer(ExportScopeSerializer).validated_data
-        job = api.authorized_job(request, pk, data["space_uid"], operate=True)
+        self.valid_serializer(ExportScopeSerializer)
+        job = self.get_object()
+        if job.created_by != get_request_username(default=""):
+            raise PermissionDenied("只有任务创建者可以操作该任务")
         return Response(api.cancel_job(job.pk))
