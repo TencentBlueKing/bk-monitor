@@ -1,0 +1,236 @@
+@import '../../../../../theme/theme';
+@import '../../../../../theme/mixin';
+
+.llm-trace-block {
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #cddffe;
+  border-radius: 4px;
+
+  &.is-collapsed {
+    border-color: #c1cde5;
+  }
+
+  &.is-current {
+    border-color: #cddffe;
+  }
+
+  & + & {
+    margin-top: 16px;
+  }
+}
+
+.llm-trace-header {
+  height: 42px;
+  padding-right: 12px;
+  cursor: pointer;
+  background: #f0f5ff;
+  border-bottom: 1px solid #cddffe;
+
+  @include flex-align(center);
+  @include flex-justify(space-between);
+
+  .llm-trace-block.is-collapsed & {
+    background: #f2f6fc;
+    border-bottom: 0;
+  }
+}
+
+.llm-trace-header-main,
+.llm-trace-header-meta {
+  gap: 8px;
+  min-width: 0;
+
+  @include flex-align(center);
+}
+
+.llm-trace-header-meta {
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.llm-trace-bar {
+  flex-shrink: 0;
+  width: 4px;
+  height: 42px;
+  background: #c1cde5;
+
+  &.is-current {
+    background: $primary-color;
+  }
+}
+
+.llm-trace-expand {
+  font-size: $font-size-large;
+  color: #4e5e7a;
+  transition: transform 0.2s;
+
+  &.is-collapsed {
+    transform: rotate(-90deg);
+  }
+}
+
+.llm-trace-time {
+  font-family: 'Roboto Mono', menlo, monospace;
+  font-size: 13px;
+  line-height: 20px;
+  color: #4e5e7a;
+  white-space: nowrap;
+}
+
+.llm-trace-title {
+  max-width: 360px;
+  font-family: 'PingFang SC', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 22px;
+  color: #313238;
+  text-decoration: underline dotted #979ba5;
+  text-decoration-thickness: 10%;
+  text-underline-offset: 2px;
+  cursor: pointer;
+
+  @include ellipsis;
+}
+
+.llm-trace-meta {
+  gap: 3px;
+  height: 22px;
+  padding: 3px 4px;
+  font-family: arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  white-space: nowrap;
+  border: 1px solid;
+  border-radius: 4px;
+
+  @include flex-align(center);
+
+  .is-label {
+    color: #8f9fbd;
+  }
+
+  .is-value {
+    color: #4e5e7a;
+  }
+
+  &.is-span {
+    background: #f7f9fc;
+    border-color: #dde3f0;
+  }
+
+  &.is-error {
+    color: $danger-color;
+    background: #fff0f0;
+    border-color: #f8b4b4;
+  }
+
+  &.is-duration {
+    color: #0061b4;
+    background: #f0f5ff;
+    border-color: #cddffe;
+  }
+
+  &.is-token {
+    background: #f7f9fc;
+    border-color: #dde3f0;
+
+    .is-output {
+      color: #7269f0;
+    }
+  }
+
+  &-divider {
+    width: 1px;
+    height: 12px;
+    background: #e4e9f2;
+  }
+
+  .icon-monitor {
+    font-size: $font-size-base;
+  }
+
+  .icon-jishiqi1,
+  .icon-yichang {
+    font-size: $font-size-medium;
+  }
+}
+
+.llm-trace-badge {
+  gap: 2px;
+  height: 22px;
+  padding: 2px 8px;
+  font-family: 'PingFang SC', sans-serif;
+  font-size: $font-size-base;
+  font-weight: 500;
+  line-height: 20px;
+  color: $primary-color;
+  white-space: nowrap;
+  background: #e1ecff;
+  border-radius: 999px;
+
+  @include flex-align(center);
+  @include flex-justify(center);
+
+  &.is-current {
+    color: #fff;
+    background: $primary-color;
+  }
+
+  .icon-monitor {
+    font-size: $font-size-base;
+  }
+
+  .icon-mc-position-tips {
+    font-size: $font-size-medium;
+  }
+}
+
+.llm-trace-table-head {
+  height: 36px;
+  font-family: 'PingFang SC', sans-serif;
+  font-size: $font-size-base;
+  font-weight: 500;
+  line-height: 20px;
+  color: #313238;
+  background: #fafbfd;
+  border-bottom: 1px solid #e4e9f2;
+
+  @include flex-align(center);
+
+  > span {
+    padding: 0 12px;
+  }
+
+  .is-time {
+    width: 84px;
+  }
+
+  .is-tree {
+    width: 68px;
+  }
+
+  .is-span {
+    width: 259px;
+  }
+
+  .is-io {
+    flex: 1;
+    min-width: 0;
+    padding-left: 16px;
+  }
+
+  .is-duration {
+    width: 78px;
+  }
+
+  .is-token {
+    width: 170px;
+  }
+
+  .is-action {
+    width: 40px;
+    padding: 0;
+  }
+}

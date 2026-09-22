@@ -176,7 +176,7 @@ export default defineComponent({
                 class='llm-json-code-block-action'
                 onClick={() => emit('viewAlone', props.data, props.title)}
               >
-                <i class='icon-monitor icon-chakan1' />
+                <i class='icon-monitor icon-sidebar' />
                 <span>{t('独立查看')}</span>
               </div>
             )}
