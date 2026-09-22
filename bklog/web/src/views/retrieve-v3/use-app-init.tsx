@@ -152,7 +152,7 @@ export default () => {
   const bkBizId = computed(() => store.state.bkBizId);
 
   const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
-  const isMonitorEmbed = computed(() => isMonitorIframeContext(route.query));
+  const isMonitorIframe = computed(() => isMonitorIframeContext(route.query));
 
   /**
    * 扁平化索引集列表
@@ -165,7 +165,7 @@ export default () => {
       '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
       '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
       '--trend-graph-height': `${trendGraphHeight.value}px`,
-      '--header-height': isMonitorEmbed.value ? '0px' : '52px',
+      '--header-height': isMonitorIframe.value ? '0px' : '52px',
       '--scene-toolbar-height': isSceneMode.value ? `${52 + (hasSceneFilterTags.value ? 34 : 0)}px` : '0px',
     };
   });
