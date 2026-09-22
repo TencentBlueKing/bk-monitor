@@ -23,6 +23,7 @@ from rum_web.query.serializers import (
     RumFieldsOptionValuesRequestSerializer,
     RumGenerateQueryStringRequestSerializer,
     RumRecordsRequestSerializer,
+    RumStatisticsRequestSerializer,
     RumViewConfigRequestSerializer,
     RumFieldsTopKRequestSerializer,
     RumFieldStatisticsInfoRequestSerializer,
@@ -172,6 +173,28 @@ class RumFieldStatisticsGraphResource(Resource):
             start_time=data["start_time"],
             end_time=data["end_time"],
             field=data["field"],
+            filters=data["filters"],
+            query_string=data["query_string"],
+        )
+
+
+class RumStatisticsResource(Resource):
+    """POST /rum/search/statistics/ — 数据统计（多时间偏移聚合）"""
+
+    RequestSerializer = RumStatisticsRequestSerializer
+
+    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(data["bk_biz_id"], data["app_name"])
+        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+        return handler.statistics(
+            start_time=data.get("start_time"),
+            end_time=data.get("end_time"),
+            field=data["field"],
+            cal_type=data["cal_type"],
+            baseline=data["baseline"],
+            time_shifts=data["time_shifts"],
+            group_by=data["group_by"],
+            interval=data.get("interval"),
             filters=data["filters"],
             query_string=data["query_string"],
         )

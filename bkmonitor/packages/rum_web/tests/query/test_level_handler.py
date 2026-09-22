@@ -80,6 +80,22 @@ class TestBaseRumLevelHandler:
             def generate_query_string(self, filters, extra_config=None):
                 return ""
 
+            def statistics(
+                self,
+                start_time,
+                end_time,
+                cal_type,
+                field,
+                baseline,
+                time_shifts,
+                group_by=None,
+                interval=None,
+                filters=None,
+                query_string="",
+                extra_config=None,
+            ):
+                return {}
+
         handler = _MinimalHandler(data_sources)
         assert handler.data_sources is data_sources
 

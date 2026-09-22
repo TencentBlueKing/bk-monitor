@@ -12,9 +12,9 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
-from rum_web.constants import RumQueryMode
+from rum_web.constants import RumQueryMode, RumGroupName
 from constants.apm import OperatorGroupRelation
-from constants.otel_query import EnabledStatisticsDimension
+from constants.otel_query import EnabledStatisticsDimension, AggregatedMethod
 
 
 class FilterValueCharField(serializers.CharField):
@@ -155,4 +155,37 @@ class RumFieldStatisticsGraphRequestSerializer(BaseRumSearchSerializer):
 
         if len(values) < 4:
             raise serializers.ValidationError(_("数值类型查询条件不足"))
+        return attrs
+
+
+class RumStatisticsRequestSerializer(BaseRumSearchSerializer):
+    """数据统计：多时间偏移聚合查询
+
+    支持 baseline + time_shifts 增长率对比、分组维度以及时间分桶（``group_by`` 含 ``time`` 时启用 ``interval``）。
+    """
+
+    #: 基准时间偏移，会自动补入 time_shifts
+    ZERO_TIME_SHIFT: str = "0s"
+    #: 最多支持两个对比时间点 + 基准共 3 个 time_shift
+    MAX_TIME_SHIFTS: int = 3
+
+    #: start_time / end_time 允许不传：未传时由查询层基于数据保留期自动补齐时间窗口
+    start_time = serializers.IntegerField(label=_("开始时间"), required=False)
+    end_time = serializers.IntegerField(label=_("结束时间"), required=False)
+
+    group_name = serializers.ChoiceField(label=_("计算组"), choices=RumGroupName.choices())
+    cal_type = serializers.ChoiceField(label=_("指标计算类型"), choices=AggregatedMethod.choices())
+    field = serializers.CharField(label=_("计算字段"))
+    baseline = serializers.CharField(label=_("对比基准时间偏移"), default=ZERO_TIME_SHIFT)
+    time_shifts = serializers.ListField(label=_("时间偏移列表"), child=serializers.CharField(), default=list)
+    group_by = serializers.ListField(label=_("分组字段列表"), child=serializers.CharField(), default=list)
+    interval = serializers.IntegerField(label=_("时间分桶间隔（秒）"), required=False, min_value=1)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        # 保序去重并保证 baseline 一定在 time_shifts 中
+        time_shifts: list[str] = list(dict.fromkeys([attrs["baseline"], *attrs["time_shifts"]]))
+        if len(time_shifts) > self.MAX_TIME_SHIFTS:
+            raise serializers.ValidationError(_("最多支持 2 个对比时间点"))
+        attrs["time_shifts"] = time_shifts
         return attrs
