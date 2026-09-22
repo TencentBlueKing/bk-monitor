@@ -288,6 +288,19 @@ export function formatSeriesInterval(res: ITimeSeriesItem[] | ITimeSeriesResult 
   return `${interval}s`;
 }
 
+/** 环比窗口紧邻当前窗口，偏移量等于本次查询的时间跨度（秒）。 */
+export function getComparisonTimeShift(startTime: number, endTime: number): string {
+  const seconds = endTime - startTime;
+  for (const [unit, size] of [
+    ['d', 86400],
+    ['h', 3600],
+    ['m', 60],
+  ] as const) {
+    if (seconds > 0 && seconds % size === 0) return `${seconds / size}${unit}`;
+  }
+  return `${seconds}s`;
+}
+
 export function getDimensionName(item: ICalculateItem, key: string) {
   return item.dimensions?.[key] || '--';
 }

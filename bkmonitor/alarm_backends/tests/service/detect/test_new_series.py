@@ -206,6 +206,34 @@ def seed_baseline(item, threshold):
     NewSeries._mark_baseline_done(item, signature(item), threshold, 86400)
 
 
+def test_lookback_switch_preserves_baseline_and_seen_and_detects_late_new_series():
+    item = make_item(data_source_label=DataSourceLabel.BK_LOG_SEARCH, data_type_label=DataTypeLabel.LOG)
+    seed_baseline(item, 0)
+    detector = NewSeries(config=default_config())
+    current = make_dp("known", 100000000, item)
+    detector.pre_detect([current])
+    assert len(detector.detect(current)) == 1
+
+    # 模拟配置刷新后的新 Item 实例，策略和监控项 ID 保持不变。
+    updated = make_item(
+        strategy_id=item.strategy.id,
+        data_source_label=DataSourceLabel.BK_LOG_SEARCH,
+        data_type_label=DataTypeLabel.LOG,
+    )
+    updated.access_lookback_periods = 15
+    assert baseline_done(updated)
+    assert seen_score(updated, "known") == 100000000
+    replay = make_dp("known", 99999940, updated)
+    late_new = make_dp("late-new", 99999400, updated)
+    next_detector = NewSeries(config=default_config())
+    next_detector.pre_detect([replay, late_new])
+    assert len(next_detector.detect(replay)) == 0
+    assert len(next_detector.detect(late_new)) == 1
+    assert seen_score(updated, "known") == 100000000
+    assert seen_score(updated, "late-new") == 99999400
+    assert baseline_done(updated)
+
+
 def learn_start_exists(item):
     sig = signature(item)
     learn_key = key.NEW_SERIES_LEARN_START_KEY.get_key(

@@ -1536,7 +1536,7 @@ class Item(AbstractConfig):
         algorithms = Algorithm.Serializer(many=True)
         metric_type = serializers.CharField(allow_blank=True, default="")
         query_output_config = serializers.DictField(required=False, allow_null=True)
-        # 目前只允许后台修改
+        # time_delay 和 access_lookback_periods 只允许后台修改，不接受接口入参。
         # time_delay = serializers.IntegerField(default=0)
 
     def __init__(
@@ -1555,6 +1555,7 @@ class Item(AbstractConfig):
         instance: ItemModel = None,
         time_delay: int = None,
         query_output_config=QUERY_OUTPUT_CONFIG_EMPTY,
+        access_lookback_periods=serializers.empty,
         **kwargs,
     ):
         self.functions = functions or []
@@ -1569,6 +1570,11 @@ class Item(AbstractConfig):
         self.id = id
         self.instance = instance
         self.time_delay = time_delay or 0
+        self.access_lookback_periods = access_lookback_periods
+        if access_lookback_periods is not serializers.empty:
+            self.access_lookback_periods = serializers.IntegerField(allow_null=True, min_value=1).run_validation(
+                access_lookback_periods
+            )
         self.query_output_config = (
             query_output_config
             if query_output_config is QUERY_OUTPUT_CONFIG_EMPTY or query_output_config is None
@@ -1632,6 +1638,8 @@ class Item(AbstractConfig):
         }
         if self.query_output_config is not QUERY_OUTPUT_CONFIG_EMPTY:
             data["query_output_config"] = self.query_output_config
+        if self.access_lookback_periods is not serializers.empty and self.access_lookback_periods is not None:
+            data["access_lookback_periods"] = self.access_lookback_periods
         return data
 
     @staticmethod
@@ -1859,6 +1867,8 @@ class Item(AbstractConfig):
                 item.time_delay = self.time_delay if self.time_delay else item.time_delay
                 if self.query_output_config is not QUERY_OUTPUT_CONFIG_EMPTY:
                     item.meta = self.update_query_output_meta(item.meta, self.query_output_config)
+                if self.access_lookback_periods is not serializers.empty:
+                    item.access_lookback_periods = self.access_lookback_periods
                 item.save()
             else:
                 item = self._create()
@@ -1895,6 +1905,7 @@ class Item(AbstractConfig):
                 metric_type=item.metric_type,
                 instance=item,
                 time_delay=item.time_delay,
+                access_lookback_periods=item.access_lookback_periods,
             )
             record.algorithms = Algorithm.from_models(algorithms[item.id])
             record.query_configs = QueryConfig.from_models(query_configs[item.id])
@@ -2959,16 +2970,20 @@ class Strategy(AbstractConfig):
         if self.id <= 0:
             return content
 
-        current_items = list(ItemModel.objects.filter(strategy_id=self.id).only("id", "meta"))
+        current_items = list(
+            ItemModel.objects.filter(strategy_id=self.id).only("id", "meta", "access_lookback_periods")
+        )
         current_items_by_id = {item.id: item for item in current_items}
         for index, (item, item_content) in enumerate(zip(self.items, content["items"])):
-            if item.query_output_config is not QUERY_OUTPUT_CONFIG_EMPTY:
-                continue
             current_item = current_items_by_id.get(item.id)
             if current_item is None and index < len(current_items):
                 current_item = current_items[index]
-            if isinstance(getattr(current_item, "meta", None), dict) and "query_output_config" in current_item.meta:
-                item_content["query_output_config"] = copy.deepcopy(current_item.meta["query_output_config"])
+            if isinstance(getattr(current_item, "meta", None), dict):
+                if item.query_output_config is QUERY_OUTPUT_CONFIG_EMPTY and "query_output_config" in current_item.meta:
+                    item_content["query_output_config"] = copy.deepcopy(current_item.meta["query_output_config"])
+            if item.access_lookback_periods is serializers.empty and current_item is not None:
+                if current_item.access_lookback_periods is not None:
+                    item_content["access_lookback_periods"] = current_item.access_lookback_periods
 
         return content
 

@@ -29,6 +29,11 @@
  *
  * 构建选项与 `@blueking/monitor-vue3-components` 完全共用，见 vue3-lib/create-config.ts。
  * 本包是 pnpm workspace（apm-vue3-for-vue2/package.json 提交在包根），产物只进 dist/。
+ *
+ * 模式跟 Vue2 宿主走（webpack/ensure-apm-vue3-for-vue2.js）：
+ * - 宿主 dev：watch + development（也可单独 `pnpm dev:apm-vue3-for-vue2`）
+ * - 宿主 build：一次性 production（也可单独 `pnpm build:apm-vue3-for-vue2`）
+ * 都走 vue3-lib/vite-build.mjs，不要直接 vite CLI。
  */
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
@@ -37,11 +42,26 @@ import { createVue3LibConfig } from './vue3-lib/create-config';
 
 const packageDir = resolve(__dirname, '../apm-vue3-for-vue2');
 
-export default defineConfig(
-  createVue3LibConfig({
+export default defineConfig(({ mode }) => {
+  const isDev = mode === 'development';
+  const config = createVue3LibConfig({
     entry: resolve(__dirname, '../src/trace/apm-vue3-for-vue2.ts'),
     outputDir: resolve(packageDir, 'dist'),
     metaDir: packageDir,
     readmeFile: resolve(__dirname, '../src/trace/apm-vue3-for-vue2.md'),
-  })
-);
+  });
+  return {
+    ...config,
+    define: {
+      ...config.define,
+      // Vite build 命令默认 NODE_ENV=production，watch 必须显式改成 development
+      'process.env.NODE_ENV': JSON.stringify(isDev ? 'development' : 'production'),
+    },
+    build: {
+      ...config.build,
+      sourcemap: isDev,
+      // watch 若清空 dist，宿主 webpack 会在空窗期解析不到 package exports 的 index.js / index.css
+      emptyOutDir: !isDev,
+    },
+  };
+});

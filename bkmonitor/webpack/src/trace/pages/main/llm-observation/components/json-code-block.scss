@@ -35,14 +35,11 @@
   }
 
   &-actions {
-    position: absolute;
-    top: 8px;
-    right: 8px;
     z-index: 1;
     display: none;
     flex-direction: column;
     gap: 8px;
-    align-items: flex-start;
+    pointer-events: none;
   }
 
   &-action {
@@ -51,6 +48,7 @@
     font-size: $font-size-base;
     line-height: 20px;
     color: $primary-color;
+    pointer-events: auto;
     white-space: nowrap;
     cursor: pointer;
     background: #fff;
@@ -100,8 +98,11 @@
     border-radius: 8px;
 
     &.is-expanded {
-      max-height: none;
-      overflow: visible;
+      flex: 1;
+      min-height: 0;
+      // 整块上限 − 标题 24 − 间距 8 − 收起 20，保证收起始终在容器外可见
+      max-height: calc(var(--llm-expand-max-height, calc(100vh - 174px)) - 52px);
+      overflow: auto;
     }
 
     &:not(.is-expanded).is-overflowing::after {
@@ -118,6 +119,40 @@
 
   &:hover &-actions {
     display: flex;
+  }
+
+  &:not(.is-expanded) &-actions {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    align-items: flex-start;
+  }
+
+  &.is-expanded {
+    overflow: visible;
+
+    .llm-json-code-block-header {
+      flex-shrink: 0;
+    }
+
+    .llm-json-code-block-main {
+      flex: 1;
+      min-height: 0;
+      overflow: visible;
+    }
+
+    .llm-json-code-block-actions {
+      position: sticky;
+      top: calc(var(--llm-section-sticky-top, 90px) + var(--llm-section-header-height, 32px) + 8px);
+      align-items: flex-end;
+      width: 100%;
+      height: 0;
+      overflow: visible;
+    }
+
+    .llm-json-code-block-expand {
+      flex-shrink: 0;
+    }
   }
 
   &.is-bordered {

@@ -47,6 +47,7 @@
   &-item {
     &.is-expanded {
       .llm-tool-call-list-card {
+        overflow: visible;
         background: #fff;
         border-color: #c1cde5;
       }
@@ -176,6 +177,13 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
     gap: 24px;
+    align-items: stretch;
     min-width: 0;
+
+    /* 展开后左右灰底跟较高的一侧对齐 */
+    .llm-json-code-block {
+      height: 100%;
+      min-height: 0;
+    }
   }
 }
