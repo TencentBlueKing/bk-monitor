@@ -33,7 +33,6 @@ from apps.log_search.export.serializers import (
     ExportCreateSerializer,
     ExportLinkSerializer,
     ExportListSerializer,
-    ExportParallelismSerializer,
     ExportScopeSerializer,
 )
 from apps.utils.drf import detail_route
@@ -84,9 +83,3 @@ class ExportJobViewSet(APIViewSet):
         data = self.valid_serializer(ExportScopeSerializer).validated_data
         job = api.authorized_job(request, pk, data["space_uid"], operate=True)
         return Response(api.cancel_job(job.pk))
-
-    @detail_route(methods=["PATCH"])
-    def parallelism(self, request, pk=None):
-        data = self.valid_serializer(ExportParallelismSerializer).validated_data
-        job = api.authorized_job(request, pk, data["space_uid"], operate=True)
-        return Response(api.set_parallelism(job.pk, data["requested_parallelism"]))

@@ -173,15 +173,3 @@ def download_link(request, job, artifact_id):
 
 def cancel_job(job_id):
     return job_detail(state.cancel_job(job_id))
-
-
-def set_parallelism(job_id, value):
-    job = ExportJob.objects.filter(pk=job_id).first()
-    if job is None:
-        raise Http404
-    if job.status in TERMINAL:
-        raise ExportConflict("任务已结束，无法调整并行度")
-    maximum = policy_from_snapshot(job.policy).max_parallelism
-    if value > maximum:
-        raise ExportConflict(f"并行度不能超过任务创建时的上限 {maximum}")
-    return job_detail(state.set_parallelism(job_id, value))

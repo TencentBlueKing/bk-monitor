@@ -367,11 +367,6 @@ class ExportStateTestCase(TestCase):
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, ExportJobStatus.FAILED)
 
-    def test_set_parallelism_is_ignored_for_terminal_job(self):
-        state.cancel_job(self.job.pk)
-        job = state.set_parallelism(self.job.pk, 8)
-        self.assertEqual(job.requested_parallelism, 4)
-
 
 class ArtifactNameTests(SimpleTestCase):
     """产物名必须是 (job, part_no) 的纯函数，否则重试会留下无人引用的孤儿对象。"""

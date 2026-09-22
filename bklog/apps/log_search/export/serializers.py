@@ -63,10 +63,6 @@ class ExportListSerializer(ExportScopeSerializer):
     limit = serializers.IntegerField(min_value=1, max_value=100, default=20)
 
 
-class ExportParallelismSerializer(ExportScopeSerializer):
-    requested_parallelism = serializers.IntegerField(min_value=1)
-
-
 class ExportLinkSerializer(ExportScopeSerializer):
     artifact_id = serializers.CharField(max_length=32)
 
