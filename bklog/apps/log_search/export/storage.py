@@ -22,8 +22,6 @@ the project delivered to anyone in the future.
 import os
 
 from django.conf import settings
-from django.utils import timezone
-from django.utils.crypto import get_random_string
 
 from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
@@ -59,10 +57,14 @@ def build_storage():
     )
 
 
-def artifact_name(job, part):
-    """分片产物名；同时作为对象存储里的对象键。"""
-    stamp = timezone.now().strftime("%Y%m%d%H%M%S")
-    return f"{ASYNC_APP_CODE}_{job.index_set_id}_{job.pk}_{part.part_no}_{stamp}_{get_random_string(8)}.tar.gz"
+def artifact_name(job, part_no):
+    """
+    分片产物名；同时作为对象存储里的对象键。
+
+    必须是 (job, part_no) 的纯函数：重试、重复投递和超时回收都会重新执行同一个分片，
+    确定性命名让后一次执行覆盖同一个对象，而不是留下没有任何引用的孤儿产物。
+    """
+    return f"{ASYNC_APP_CODE}_{job.index_set_id}_{job.pk}_{part_no}.tar.gz"
 
 
 def manifest_name(job):
@@ -77,14 +79,14 @@ def download_url(storage, url_path, file_name, ttl):
     return storage.generate_download_url(url_path=url_path, file_name=file_name, expired=ttl)
 
 
-def remove_local_artifact(storage, file_name):
-    """
-    清理本地临时产物。
+def supports_artifact_cleanup(storage):
+    """只有 NFS 的产物是共享目录里可直接删除的文件；对象存储一期依赖桶的生命周期策略。"""
+    return isinstance(storage, NfsStorage)
 
-    NFS 场景下产物就是共享目录里的文件，需要主动删除；对象存储场景依赖桶的生命周期策略，
-    一期不新增删除接口。
-    """
-    if not isinstance(storage, NfsStorage) or not file_name:
+
+def remove_local_artifact(storage, file_name):
+    """删除 NFS 共享目录里的产物文件，返回是否真的删掉了。"""
+    if not supports_artifact_cleanup(storage) or not file_name:
         return False
     path = os.path.join(settings.EXTRACT_SAAS_STORE_DIR, file_name)
     if not os.path.isfile(path):
