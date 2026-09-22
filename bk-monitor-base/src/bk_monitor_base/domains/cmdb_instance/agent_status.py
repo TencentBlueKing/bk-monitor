@@ -101,10 +101,10 @@ def get_host_agent_status_map(
             }
             response = host_queries.details(
                 bk_tenant_id=bk_tenant_id,
-                params=params,
+                params=dict(params),
             )
             for host_detail in response:
-                status_map[str(host_detail["bk_host_id"])] = host_detail
+                status_map[str(host_detail["bk_host_id"])] = cast(IpchooserHostDetail, cast(object, host_detail))
         return status_map
     except Exception as error:
         logger.warning("get_host_agent_status_map failed: %s", error)

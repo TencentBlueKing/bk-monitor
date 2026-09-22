@@ -14,7 +14,6 @@ from .client import (
     get_subscription_task_result_client,
     get_subscription_task_result_detail_client,
     ipchooser_host_details_client,
-    official_plugin_operate_client,
     plugin_operate_client,
     plugin_search_client,
     query_export_plugin_task_client,
@@ -1011,24 +1010,6 @@ def plugin_operate(bk_tenant_id: str, params: PluginOperateParams) -> Any:
         params["plugin_params"]["version"] = "latest"
 
     return plugin_operate_client(bk_tenant_id=bk_tenant_id, params=params)
-
-
-def official_plugin_operate(bk_tenant_id: str, params: PluginOperateParams) -> Any:
-    """向官方插件控制面提交操作，不等待任务完成或回退到 V2。
-
-    Args:
-        bk_tenant_id: 租户 ID。
-        params: 与 V2 插件管理接口一致的操作参数。
-
-    Returns:
-        节点管理返回的任务提交结果。
-
-    Raises:
-        BkApiError: 接口调用失败。
-    """
-    if not params["plugin_params"].get("version"):
-        params["plugin_params"]["version"] = "latest"
-    return official_plugin_operate_client(bk_tenant_id=bk_tenant_id, params=params)
 
 
 class PluginSearchParams(TypedDict):

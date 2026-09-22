@@ -78,21 +78,6 @@ class NodeManAPIGWResource(APIResource, metaclass=abc.ABCMeta):
         return validated_request_data
 
 
-class NodeManControlAPIGWResource(NodeManAPIGWResource):
-    """主机和官方插件控制面；采集 Subscription 及其插件实例仍使用 V2。
-
-    未配置兼容控制面入口时沿用原部署。配置后只请求该入口，不做失败回退。
-    """
-
-    @property
-    def base_url(self):
-        return settings.BKNODEMAN_CONTROL_API_BASE_URL or super().base_url
-
-    @property
-    def use_apigw(self):
-        return bool(settings.BKNODEMAN_CONTROL_API_BASE_URL) or super().use_apigw
-
-
 class RenderConfigTemplateResource(NodeManAPIGWResource):
     """
     渲染配置模板
@@ -672,7 +657,7 @@ class TasksResource(NodeManAPIGWResource):
         global_params = GlobalParams(required=True, label="全局参数")
 
 
-class GetProxiesResource(NodeManControlAPIGWResource):
+class GetProxiesResource(NodeManAPIGWResource):
     """
     【节点管理2.0】查询云区域下的proxy列表
     """
@@ -690,7 +675,7 @@ class GetProxiesResource(NodeManControlAPIGWResource):
         bk_cloud_id = serializers.IntegerField(label="云区域ID", required=True)
 
 
-class GetProxiesByBizResource(NodeManControlAPIGWResource):
+class GetProxiesByBizResource(NodeManAPIGWResource):
     """
     【节点管理2.0】通过业务查询业务所使用的所有云区域下的ProxyIP
     """
@@ -747,10 +732,6 @@ class PluginOperate(NodeManAPIGWResource):
         conditions = serializers.ListField(label="搜索条件", required=False)
         bk_host_id = serializers.ListField(label="主机ID", required=False)
         exclude_hosts = serializers.ListField(label="跨页全选排除主机", required=False)
-
-
-class OfficialPluginOperateResource(PluginOperate, NodeManControlAPIGWResource):
-    """官方插件控制入口；V2 auto_deploy_proxy 继续调用 plugin_operate。"""
 
 
 class PluginSearch(NodeManAPIGWResource):
@@ -885,7 +866,7 @@ class BatchTaskResultResource(Resource):
         return response_data
 
 
-class IpchooserHostDetailResource(NodeManControlAPIGWResource):
+class IpchooserHostDetailResource(NodeManAPIGWResource):
     @property
     def action(self):
         if self.use_apigw:

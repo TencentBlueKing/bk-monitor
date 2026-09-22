@@ -4,7 +4,7 @@ from typing import Any, ClassVar
 import requests
 from typing_extensions import override
 
-from bk_monitor_base.infras.third_party_api.api_client import BkApiClient, BkApiMode
+from bk_monitor_base.infras.third_party_api.api_client import BkApiClient
 
 
 class NodeManApiClient(BkApiClient, ABC):
@@ -24,42 +24,6 @@ class NodeManApiClient(BkApiClient, ABC):
         处理响应结果，返回数据部分
         """
         return super().handle_response(response).get("data")
-
-
-class NodeManControlApiClient(NodeManApiClient, ABC):
-    """可单独路由的兼容控制面，不影响 V2 Subscription 和采集插件实例。
-
-    使用既有 blueking.api_configs 的 nodeman_control 配置；未配置时保持原部署。
-    配置存在时必须提供入口，不能因配置错误或请求失败隐式回到 V2。
-    """
-
-    @override
-    def _get_api_mode(self) -> BkApiMode:
-        """兼容控制面默认使用 APIGW，多租户始终使用 APIGW。"""
-        control_config = self.config.blueking.api_configs.get("nodeman_control")
-        if control_config is None:
-            return super()._get_api_mode()
-        if self.config.blueking.enable_multi_tenancy:
-            return BkApiMode.APIGW
-        return BkApiMode(control_config.mode or "apigw")
-
-    @override
-    def _get_api_url(self, params: dict[str, Any]) -> str:
-        """按当前控制面配置构建 URL，保留原接口参数和返回值。"""
-        control_config = self.config.blueking.api_configs.get("nodeman_control")
-        if control_config is None:
-            return super()._get_api_url(params)
-        if not control_config.custom_api_url:
-            raise ValueError("nodeman_control.custom_api_url must be configured")
-        if self._get_api_mode() == BkApiMode.APIGW:
-            path, path_keys = self.apigw_path, self.apigw_path_keys
-            # 与监控主仓一致：Host/Plugin 兼容接口仅在多租户下使用 system 路径。
-            if not self.config.blueking.enable_multi_tenancy and path.startswith("system/api/"):
-                path = path.removeprefix("system/")
-        else:
-            path, path_keys = self.esb_path, self.esb_path_keys
-        url = f"{str(control_config.custom_api_url).rstrip('/')}/{path.lstrip('/')}"
-        return self._format_path(url, path_keys, params)
 
 
 class UploadPlugin(NodeManApiClient):
@@ -304,18 +268,18 @@ class GetSubscriptionTaskResult(NodeManApiClient):
     apigw_path: ClassVar[str] = "system/backend/api/subscription/task_result/"
 
 
-class GetProxies(NodeManControlApiClient):
+class GetProxies(NodeManApiClient):
     """
     【节点管理2.0】查询云区域下的proxy列表
     """
 
     action: ClassVar[str] = "get_proxies"
-    method: ClassVar[str] = "GET"
+    method: ClassVar[str] = "POST"
     esb_path: ClassVar[str] = "api/host/proxies/"
     apigw_path: ClassVar[str] = "system/api/host/proxies/"
 
 
-class GetProxiesByBiz(NodeManControlApiClient):
+class GetProxiesByBiz(NodeManApiClient):
     """
     【节点管理2.0】通过业务查询业务所使用的所有云区域下的ProxyIP
     """
@@ -335,10 +299,6 @@ class PluginOperate(NodeManApiClient):
     method: ClassVar[str] = "POST"
     esb_path: ClassVar[str] = "api/plugin/operate/"
     apigw_path: ClassVar[str] = "system/api/plugin/operate/"
-
-
-class OfficialPluginOperate(PluginOperate, NodeManControlApiClient):
-    """官方插件控制入口；采集器自动部署仍通过 PluginOperate 使用 V2。"""
 
 
 class PluginSearch(NodeManApiClient):
@@ -363,7 +323,7 @@ class SubscriptionCheckTaskReady(NodeManApiClient):
     apigw_path: ClassVar[str] = "system/backend/api/subscription/check_task_ready/"
 
 
-class IpchooserHostDetails(NodeManControlApiClient):
+class IpchooserHostDetails(NodeManApiClient):
     """
     查询主机详情 API Client
     """
@@ -400,7 +360,6 @@ get_subscription_task_result_client = GetSubscriptionTaskResult()
 get_proxies_client = GetProxies()
 get_proxies_by_biz_client = GetProxiesByBiz()
 plugin_operate_client = PluginOperate()
-official_plugin_operate_client = OfficialPluginOperate()
 plugin_search_client = PluginSearch()
 subscription_check_task_ready_client = SubscriptionCheckTaskReady()
 ipchooser_host_details_client = IpchooserHostDetails()

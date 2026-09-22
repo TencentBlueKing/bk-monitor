@@ -1,4 +1,4 @@
-"""验证共存路由的地址、请求与失败隔离，无需数据库或真实网关。"""
+"""V2/V3 原生 API 隔离及能力层选择，不依赖真实网关。"""
 
 import inspect
 import json
@@ -9,27 +9,21 @@ import requests
 
 from bk_monitor_base.config import Config
 from bk_monitor_base.config.blueking import BkApiModuleConfig, BlueKingConfig
-from bk_monitor_base.infras.nodeman_control import host_queries, official_plugins
-from bk_monitor_base.infras.third_party_api.api_client import BkApiMode
-from bk_monitor_base.infras.third_party_api.nodeman import api as nodeman_api
-from bk_monitor_base.infras.third_party_api.nodeman import client as nodeman
-
-CONTROL_CLIENTS = (
-    nodeman.GetProxies,
-    nodeman.GetProxiesByBiz,
-    nodeman.IpchooserHostDetails,
-    nodeman.OfficialPluginOperate,
-)
+from bk_monitor_base.infras import nodeman_control
+from bk_monitor_base.infras.nodeman_control.contracts import PluginOperation
+from bk_monitor_base.infras.nodeman_control.v2 import V2HostQueries, V2OfficialPlugins
+from bk_monitor_base.infras.nodeman_control.v3 import V3HostQueries, V3OfficialPlugins
+from bk_monitor_base.infras.third_party_api.errors import BkApiError
+from bk_monitor_base.infras.third_party_api.nodeman import api, client, v3
 
 
-def make_config(multi_tenant: bool, control: bool, legacy_mode: str = "apigw") -> Config:
-    """构造测试配置，只使用虚构地址，不加载本机 YAML 或凭证。"""
+def make_config(multi_tenant=True, control=True, legacy_mode="apigw"):
     api_configs = {
         "nodeman": BkApiModuleConfig.model_validate({"mode": legacy_mode, "custom_api_url": "https://v2.example.com/"})
     }
     if control:
         api_configs["nodeman_control"] = BkApiModuleConfig.model_validate(
-            {"custom_api_url": "https://control.example.com/api/"}
+            {"custom_api_url": "https://v3.example.com/gateway/"}
         )
     return Config(blueking=BlueKingConfig(enable_multi_tenancy=multi_tenant, api_configs=api_configs))
 
@@ -37,114 +31,97 @@ def make_config(multi_tenant: bool, control: bool, legacy_mode: str = "apigw") -
 @pytest.mark.parametrize("multi_tenant", [False, True])
 @pytest.mark.parametrize("control", [False, True])
 @pytest.mark.parametrize("legacy_mode", ["apigw", "esb"])
-def test_control_routes_and_v2_isolation(multi_tenant: bool, control: bool, legacy_mode: str) -> None:
-    """只有四个控制入口使用新地址，所有其他 V2 API 均保持原配置。"""
+def test_v2_apis_never_change_destination(multi_tenant, control, legacy_mode):
     config = make_config(multi_tenant, control, legacy_mode)
-    for client_class in CONTROL_CLIENTS:
-        client = client_class(config=config)
-        mode = BkApiMode.APIGW if multi_tenant or control else BkApiMode(legacy_mode)
-        path = client.apigw_path if mode == BkApiMode.APIGW else client.esb_path
-        if control and not multi_tenant and path.startswith("system/api/"):
-            path = path.removeprefix("system/")
-        root = "https://control.example.com/api/" if control else "https://v2.example.com/"
-        assert client.get_api_mode() == mode
-        assert client._get_api_url({}) == root + path
-
-    for _, client_class in inspect.getmembers(nodeman, inspect.isclass):
-        if (
-            issubclass(client_class, nodeman.NodeManApiClient)
-            and not issubclass(client_class, nodeman.NodeManControlApiClient)
-            and client_class is not nodeman.NodeManApiClient
-        ):
-            client = client_class(config=config)
-            assert client._get_api_url({"id": 1}).startswith("https://v2.example.com/")
+    for _, cls in inspect.getmembers(client, inspect.isclass):
+        if issubclass(cls, client.NodeManApiClient) and cls is not client.NodeManApiClient:
+            assert cls(config=config)._get_api_url({"id": 1}).startswith("https://v2.example.com/")
 
 
-def test_missing_control_url_does_not_fall_back() -> None:
-    """配置项已存在但地址缺失时显式失败，不能误发 V2 写请求。"""
-    config = make_config(False, True)
+@pytest.mark.parametrize("control", [False, True])
+def test_capability_selection(control):
+    with mock.patch.object(nodeman_control, "get_config", return_value=make_config(control=control)):
+        assert isinstance(nodeman_control.get_host_queries(), V3HostQueries if control else V2HostQueries)
+        assert isinstance(nodeman_control.get_official_plugins(), V3OfficialPlugins if control else V2OfficialPlugins)
+
+
+def test_missing_v3_url_never_falls_back():
+    config = make_config()
     config.blueking.api_configs["nodeman_control"] = BkApiModuleConfig(mode="apigw")
-    client = nodeman.OfficialPluginOperate(config=config)
-    with mock.patch.object(client.session, "request") as request:
+    resource = v3.InstallPlugin(config=config)
+    with mock.patch.object(resource.session, "request") as request:
         with pytest.raises(ValueError, match="custom_api_url"):
-            client.request(bk_tenant_id="tenant-a", user_params={"bk_username": "admin"}, params={})
+            resource.request(bk_tenant_id="t", user_params={"bk_username": "admin"}, params={})
         request.assert_not_called()
 
 
-@pytest.mark.parametrize("fails", [False, True])
+@pytest.mark.parametrize("outcome", ["success", "api_error", "network_error"])
 @pytest.mark.parametrize("multi_tenant", [False, True])
-def test_control_request_and_no_retry(fails: bool, multi_tenant: bool) -> None:
-    """通过真实 request 验证协议和租户头；网络失败只向控制面发送一次。"""
-    client = nodeman.OfficialPluginOperate(config=make_config(multi_tenant, True))
-    payload = {
-        "plugin_params": {"name": "bkmonitorbeat", "version": "1.0.0"},
-        "job_type": "MAIN_INSTALL_PLUGIN",
-        "bk_host_id": [1],
-    }
+def test_native_request_response_and_no_fallback(outcome, multi_tenant):
+    resource = v3.InstallPlugin(config=make_config(multi_tenant))
+    payload = {"plugin": [{"bk_host_id": 1, "plugin_name": "bkmonitorbeat", "version": "1.0"}]}
     response = mock.Mock()
-    response.json.return_value = {"result": True, "data": {"job_id": 42}}
-    with mock.patch.object(client.session, "request", return_value=response) as request:
-        if fails:
+    response.json.return_value = (
+        {"code": 0, "data": {"workflow_id": "wf-1"}}
+        if outcome == "success"
+        else {"code": 40001, "message": "denied", "data": None}
+    )
+    with mock.patch.object(resource.session, "request", return_value=response) as request:
+        if outcome == "network_error":
             request.side_effect = requests.ConnectionError("unavailable")
-            with pytest.raises(requests.ConnectionError):
-                client.request(bk_tenant_id="tenant-a", user_params={"bk_username": "admin"}, params=payload)
-        else:
-            assert client.request(bk_tenant_id="tenant-a", user_params={"bk_username": "admin"}, params=payload) == {
-                "job_id": 42
+        if outcome == "success":
+            assert resource.request(bk_tenant_id="t", user_params={"bk_username": "admin"}, params=payload) == {
+                "workflow_id": "wf-1"
             }
+        else:
+            with pytest.raises(BkApiError if outcome == "api_error" else requests.ConnectionError):
+                resource.request(bk_tenant_id="t", user_params={"bk_username": "admin"}, params=payload)
         request.assert_called_once()
         sent = request.call_args.kwargs
-        path = "system/api/plugin/operate/" if multi_tenant else "api/plugin/operate/"
-        assert sent["url"] == "https://control.example.com/api/" + path
+        assert sent["url"] == "https://v3.example.com/gateway/api/v3/plugin/install"
         assert sent["json"] == payload
-        assert sent["headers"]["X-Bk-Tenant-Id"] == ("tenant-a" if multi_tenant else "default")
+        assert sent["headers"]["X-Bk-Tenant-Id"] == ("t" if multi_tenant else "default")
         assert json.loads(sent["headers"]["X-Bkapi-Authorization"])["bk_username"] == "admin"
 
 
-def test_proxy_query_uses_get_params() -> None:
-    """Proxy 兼容协议为 GET，不可将查询参数放入 POST JSON。"""
-    client = nodeman.GetProxies(config=make_config(True, True))
-    with mock.patch.object(client.session, "request") as request:
-        client.request(bk_tenant_id="tenant-a", user_params={"bk_username": "admin"}, params={"bk_cloud_id": 1})
-        assert request.call_args.kwargs["method"] == "get"
-        assert request.call_args.kwargs["params"] == {"bk_cloud_id": 1}
-        assert "json" not in request.call_args.kwargs
-
-
-def test_plugin_operation_entry_points_remain_separate() -> None:
-    """两个公开操作入口复用旧参数，只在最终目标客户端上分流。"""
+def test_v2_capabilities_keep_existing_protocol():
     with (
-        mock.patch.object(nodeman_api, "official_plugin_operate_client", return_value={"job_id": 42}) as control,
-        mock.patch.object(nodeman_api, "plugin_operate_client", return_value={"job_id": 24}) as v2,
+        mock.patch.object(api, "plugin_operate", return_value={"job_id": 7}) as operate,
+        mock.patch.object(api, "get_proxies", return_value=[]) as query,
     ):
-        for function, client, job_id in (
-            (nodeman_api.official_plugin_operate, control, 42),
-            (nodeman_api.plugin_operate, v2, 24),
-        ):
-            params = nodeman_api.PluginOperateParams(
-                plugin_params={"name": "bkmonitorbeat"}, job_type="MAIN_INSTALL_PLUGIN", bk_host_id=[1]
-            )
-            assert function("tenant-a", params) == {"job_id": job_id}
-            client.assert_called_once_with(bk_tenant_id="tenant-a", params=params)
-            assert client.call_args.kwargs["params"]["plugin_params"]["version"] == "latest"
-
-
-def test_control_capabilities_preserve_intent_and_tenant() -> None:
-    """能力入口隔离官方插件安装与 V2 安装，并完整传递主机查询租户。"""
-    with (
-        mock.patch.object(nodeman_api, "official_plugin_operate", return_value={"job_id": 7}) as control,
-        mock.patch.object(nodeman_api, "plugin_operate") as v2,
-        mock.patch.object(nodeman_api, "get_proxies", return_value=[]) as query,
-    ):
-        assert official_plugins.install("tenant-a", "bkmonitorbeat", "1.0", [1]) == {"job_id": 7}
-        control.assert_called_once_with(
-            bk_tenant_id="tenant-a",
+        assert V2OfficialPlugins().install("t", "bkmonitorbeat", "1.0", [1]) == PluginOperation("7")
+        operate.assert_called_once_with(
+            bk_tenant_id="t",
             params={
                 "plugin_params": {"name": "bkmonitorbeat", "version": "1.0"},
                 "job_type": "MAIN_INSTALL_PLUGIN",
                 "bk_host_id": [1],
             },
         )
-        v2.assert_not_called()
-        assert host_queries.proxies("tenant-a", 0) == []
-        query.assert_called_once_with(bk_tenant_id="tenant-a", bk_cloud_id=0)
+        assert V2HostQueries().proxies("t", 0) == []
+        query.assert_called_once_with(bk_tenant_id="t", bk_cloud_id=0)
+
+
+def test_base_facade_invokes_native_client():
+    with (
+        mock.patch.object(nodeman_control, "get_config", return_value=make_config()),
+        mock.patch.object(v3, "install_plugin", return_value={"workflow_id": "wf-1"}) as install,
+        mock.patch.object(api, "plugin_operate") as old_install,
+    ):
+        assert nodeman_control.official_plugins.install("t", "bkmonitorbeat", "1", [1]) == PluginOperation("wf-1")
+        install.assert_called_once_with(
+            bk_tenant_id="t", params={"plugin": [{"bk_host_id": 1, "plugin_name": "bkmonitorbeat", "version": "1"}]}
+        )
+        old_install.assert_not_called()
+
+
+def test_v2_latest_does_not_perform_v3_version_resolution():
+    """不配置 V3 时 latest 的语义和调用协议均保持 V2。"""
+    with (
+        mock.patch.object(nodeman_control, "get_config", return_value=make_config(control=False)),
+        mock.patch.object(api, "plugin_operate", return_value={"job_id": 7}) as install,
+        mock.patch.object(v3, "list_plugins") as lookup,
+    ):
+        nodeman_control.official_plugins.install("t", "collector", "latest", [1])
+        assert install.call_args.kwargs["params"]["plugin_params"]["version"] == "latest"
+        lookup.assert_not_called()
