@@ -28,6 +28,7 @@ import { defineAsyncComponent, defineComponent, toRef } from 'vue';
 import { Sideslider } from 'bkui-vue';
 
 import { useTraceSlider } from './hooks/use-trace-slider';
+import { TRACE_SLIDER_Z_INDEX } from '@/pages/main/constants';
 import TraceDetailHeader from '@/pages/main/inquire-content/trace-detail-header';
 
 import './trace-slider.scss';
@@ -100,7 +101,7 @@ export default defineComponent({
         esc-close={false}
         is-show={isShow}
         render-directive='if'
-        zIndex={2500}
+        zIndex={TRACE_SLIDER_Z_INDEX}
         transfer
         onClosed={this.handleClosed}
         onUpdate:isShow={(visible: boolean) => {
