@@ -111,7 +111,7 @@ def _execute(job, part):
         archive = _pack(directory, part)
         state.set_stage(part.pk, ExportStage.UPLOAD)
         checksum = _sha256(archive)
-        name = artifact_name(job, part)
+        name = artifact_name(job, part.part_no)
         upload(storage, archive, name)
         state.complete_part(
             part.pk,
