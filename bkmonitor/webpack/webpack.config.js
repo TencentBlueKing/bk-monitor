@@ -1,5 +1,6 @@
 const CopyPlugin = require('copy-webpack-plugin');
 const fs = require('node:fs');
+const net = require('node:net');
 const path = require('node:path');
 const webpack = require('webpack');
 
@@ -22,7 +23,7 @@ if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
   devConfig = Object.assign({}, devConfig, localConfig);
 }
 
-/** weweb 子应用跑在 7002、主应用在 7001，跨端口请求需要这些 CORS 头；尤其是 axios 注入的 traceparent */
+/** 主应用 7001，子应用跨端口请求需要这些 CORS 头；尤其是 axios 注入的 traceparent */
 const DEV_CORS_HEADERS = {
   'Access-Control-Allow-Origin': `http://${devConfig.host}:${devPort}`,
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, PATCH, OPTIONS',
@@ -65,8 +66,82 @@ const setupTraceWorkerWebpack = config => {
   config.module.rules.unshift(workerRawRule);
 };
 
+const AUTH_HEADER_NAMES = new Set(['cookie', 'x-csrftoken']);
+/** 主应用 7001；weweb 子应用同时跑时各占一个固定口 */
+const DEV_APP_PORTS = {
+  trace: 7002,
+  apm: 7003,
+  fta: 7004,
+};
+const localSettingsPath = path.resolve(__dirname, './local.settings.js');
+let proxyAuthCache = { mtimeMs: -1, headers: { Cookie: '', 'X-CSRFToken': '' } };
+
+const omitAuthHeaders = (headers = {}) =>
+  Object.fromEntries(Object.entries(headers).filter(([key]) => !AUTH_HEADER_NAMES.has(key.toLowerCase())));
+
+/** Cookie/CSRF 按文件 mtime 重读，避免更新鉴权时 nodemon 重启抢端口 */
+const readProxyAuthHeaders = () => {
+  if (!fs.existsSync(localSettingsPath)) {
+    proxyAuthCache = { mtimeMs: -1, headers: { Cookie: '', 'X-CSRFToken': '' } };
+    return proxyAuthCache.headers;
+  }
+  const mtimeMs = fs.statSync(localSettingsPath).mtimeMs;
+  if (mtimeMs === proxyAuthCache.mtimeMs) return proxyAuthCache.headers;
+  try {
+    delete require.cache[require.resolve(localSettingsPath)];
+    const headers = require(localSettingsPath).proxy?.headers || {};
+    proxyAuthCache = {
+      mtimeMs,
+      headers: {
+        Cookie: headers.Cookie || headers.cookie || '',
+        'X-CSRFToken': headers['X-CSRFToken'] || headers['x-csrftoken'] || '',
+      },
+    };
+  } catch {
+    proxyAuthCache = { mtimeMs, headers: { Cookie: '', 'X-CSRFToken': '' } };
+  }
+  return proxyAuthCache.headers;
+};
+
+const applyProxyAuthHeaders = proxyReq => {
+  const authHeaders = readProxyAuthHeaders();
+  if (authHeaders.Cookie) proxyReq.setHeader('Cookie', authHeaders.Cookie);
+  if (authHeaders['X-CSRFToken']) proxyReq.setHeader('X-CSRFToken', authHeaders['X-CSRFToken']);
+};
+
+/** 重启时等旧进程释放首选端口，不往后换口（weweb 宿主写死了 7001/7002） */
+const waitForPreferredPort = (port, host, timeoutMs = 5000) =>
+  new Promise((resolve, reject) => {
+    const started = Date.now();
+    const attempt = () => {
+      const server = net.createServer();
+      server.unref();
+      server.once('error', err => {
+        if (err.code !== 'EADDRINUSE') {
+          reject(err);
+          return;
+        }
+        if (Date.now() - started >= timeoutMs) {
+          reject(
+            Object.assign(new Error(`listen EADDRINUSE: address already in use ${host}:${port}`), {
+              code: 'EADDRINUSE',
+              address: host,
+              port,
+            })
+          );
+          return;
+        }
+        setTimeout(attempt, 150);
+      });
+      server.listen({ port, host }, () => {
+        server.close(closeErr => (closeErr ? reject(closeErr) : resolve(port)));
+      });
+    };
+    attempt();
+  });
+
 module.exports = async (baseConfig, { production, app }) => {
-  await ensureApmVue3ForVue2(app);
+  await ensureApmVue3ForVue2(app, production);
   const distUrl = path.resolve(`./${transformDistDir(app)}/`);
   const config = baseConfig;
   let activePort = devConfig.port;
@@ -75,11 +150,9 @@ module.exports = async (baseConfig, { production, app }) => {
     setupTraceWorkerWebpack(config);
   }
   if (!production) {
-    // 自动配port
-    activePort = await require('portfinder').getPortPromise({
-      port: devConfig.port,
-      stopPort: 8888,
-    });
+    // 固定端口，被占用则短等，不换口
+    const preferredPort = DEV_APP_PORTS[app] || devConfig.port;
+    activePort = await waitForPreferredPort(preferredPort, devConfig.host);
     config.devServer = {
       port: activePort,
       host: devConfig.host,
@@ -89,11 +162,17 @@ module.exports = async (baseConfig, { production, app }) => {
         .map(key => {
           const proxyItem = devConfig[key];
           if (!proxyItem?.target) return undefined;
+          const prevOnProxyReq = proxyItem.onProxyReq;
           const prevOnProxyRes = proxyItem.onProxyRes;
           return {
             ...proxyItem,
+            headers: omitAuthHeaders(proxyItem.headers),
             proxyTimeout: 5 * 60 * 1000,
             timeout: 5 * 60 * 1000,
+            onProxyReq: (proxyReq, req, res) => {
+              applyProxyAuthHeaders(proxyReq);
+              prevOnProxyReq?.(proxyReq, req, res);
+            },
             onProxyRes: (proxyRes, req, res) => {
               applyDevCorsHeaders(proxyRes.headers);
               prevOnProxyRes?.(proxyRes, req, res);
