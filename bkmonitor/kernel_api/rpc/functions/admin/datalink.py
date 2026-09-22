@@ -32,6 +32,7 @@ from kernel_api.rpc.functions.admin.common import (
 )
 from metadata import models
 from metadata.models.data_link.data_link_configs import ClusterConfig, COMPONENT_CLASS_MAP
+from metadata.models.data_link.vm_query_cluster import VmQueryClusterConfig
 
 FUNC_COMPONENT_LIST = "admin.datalink.component_list"
 FUNC_COMPONENT_DETAIL = "admin.datalink.component_detail"
@@ -85,6 +86,24 @@ CLUSTER_CONFIG_FIELDS = [
     "update_time",
 ]
 
+VM_QUERY_CLUSTER_FIELDS = [
+    "bk_tenant_id",
+    "namespace",
+    "name",
+    "cluster_name",
+    "cluster_domain",
+    "num_replicas",
+    "monitor_storage_clusters",
+    "k8s_cluster",
+    "k8s_namespace",
+    "version",
+    "status",
+    "last_synced_at",
+    "origin_config",
+    "create_time",
+    "last_modify_time",
+]
+
 DATALINK_FIELDS = [
     "data_link_name",
     "bk_tenant_id",
@@ -122,8 +141,8 @@ DATALINK_DETAIL_KIND_ORDER = [
 
 DRLRB_KINDS = set(COMPONENT_CLASS_MAP.keys())
 CLUSTER_CONFIG_KINDS = set(ClusterConfig.KIND_TO_NAMESPACES_MAP.keys())
-VALID_KINDS_FOR_LIST = DRLRB_KINDS | CLUSTER_CONFIG_KINDS
-VALID_KINDS_FOR_COMPONENT_CONFIG = DRLRB_KINDS | CLUSTER_CONFIG_KINDS
+VALID_KINDS_FOR_LIST = DRLRB_KINDS | CLUSTER_CONFIG_KINDS | {VmQueryClusterConfig.kind}
+VALID_KINDS_FOR_COMPONENT_CONFIG = VALID_KINDS_FOR_LIST
 
 KIND_FILTER_MAP: dict[str, list[str]] = {
     "DataId": ["bk_data_id"],
@@ -150,6 +169,12 @@ def _valid_kind_message(kinds: set[str]) -> str:
 
 
 def _get_component_config_instance(kind: str, bk_tenant_id: str, namespace: str, name: str):
+    if kind == VmQueryClusterConfig.kind:
+        try:
+            return VmQueryClusterConfig.objects.get(bk_tenant_id=bk_tenant_id, namespace=namespace, name=name)
+        except VmQueryClusterConfig.DoesNotExist as error:
+            raise CustomException(message=f"未找到组件: kind={kind}, namespace={namespace}, name={name}") from error
+
     if kind in COMPONENT_CLASS_MAP:
         model_class = COMPONENT_CLASS_MAP[kind]
         try:
@@ -181,6 +206,16 @@ def _serialize_component(instance, kind: str) -> dict[str, Any]:
     item["created_at"] = item.pop("create_time", None)
     item["updated_at"] = item.pop("last_modify_time", None)
     item["kind"] = kind
+    return item
+
+
+def _serialize_vm_query_cluster(instance: VmQueryClusterConfig) -> dict[str, Any]:
+    """序列化独立的 VM Query 镜像，不添加链路或业务归属字段。"""
+    item = serialize_model(instance, VM_QUERY_CLUSTER_FIELDS)
+    item["kind"] = instance.kind
+    item["created_at"] = item.pop("create_time", None)
+    item["updated_at"] = item.pop("last_modify_time", None)
+    item["origin_config"] = _mask_sensitive_fields(item["origin_config"])
     return item
 
 
@@ -271,7 +306,7 @@ def _fetch_component_config_for_item(instance, item, warnings_list):
 @KernelRPCRegistry.register(
     FUNC_COMPONENT_LIST,
     summary="Admin 查询 DataLink 组件列表",
-    description="按 kind 查询指定类型的 DataLink 组件或 ClusterConfig 组件，支持条件过滤和分页。",
+    description="按 kind 查询 DataLink 组件、ClusterConfig 或 VmQueryCluster 镜像，支持条件过滤和分页。",
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "kind": "必填，组件类型: " + _valid_kind_message(VALID_KINDS_FOR_LIST),
@@ -317,7 +352,20 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
             message=f"未知的组件类型 (kind={kind})，有效值: {_valid_kind_message(VALID_KINDS_FOR_LIST)}"
         )
 
-    if kind in CLUSTER_CONFIG_KINDS:
+    if kind == VmQueryClusterConfig.kind:
+        queryset = filter_by_bk_tenant_id(VmQueryClusterConfig.objects.all(), bk_tenant_id)
+        namespaces = normalize_string_list_filter(params, "namespace", "namespaces")
+        if namespaces:
+            queryset = queryset.filter(namespace__in=namespaces)
+        if params.get("search"):
+            queryset = queryset.filter(name__contains=str(params["search"]).strip())
+        statuses = normalize_string_list_filter(params, "status", "statuses")
+        if statuses:
+            queryset = queryset.filter(status__in=statuses)
+        queryset = queryset.order_by("-create_time")
+        items_raw, total = paginate_queryset(queryset, page=page, page_size=page_size)
+        items = [_serialize_vm_query_cluster(item) for item in items_raw]
+    elif kind in CLUSTER_CONFIG_KINDS:
         queryset = ClusterConfig.objects.filter(kind=kind, **tenant_filter_kwargs(bk_tenant_id))
 
         namespaces = normalize_string_list_filter(params, "namespace", "namespaces")
@@ -378,7 +426,7 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_COMPONENT_DETAIL,
     summary="Admin 查询 DataLink 组件详情",
-    description="按 kind、namespace、name 查询单个 DataLink 组件或 ClusterConfig 组件详情。",
+    description="按 kind、namespace、name 查询 DataLink 组件、ClusterConfig 或 VmQueryCluster 镜像详情。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "kind": "必填，组件类型: " + _valid_kind_message(VALID_KINDS_FOR_LIST),
@@ -412,7 +460,10 @@ def get_component_detail(params: dict[str, Any]) -> dict[str, Any]:
     if not name:
         raise CustomException(message="name 为必填项")
 
-    if kind in CLUSTER_CONFIG_KINDS:
+    if kind == VmQueryClusterConfig.kind:
+        instance = _get_component_config_instance(kind, bk_tenant_id, namespace, name)
+        item = _serialize_vm_query_cluster(instance)
+    elif kind in CLUSTER_CONFIG_KINDS:
         try:
             instance = ClusterConfig.objects.get(bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, name=name)
         except ClusterConfig.DoesNotExist as error:
