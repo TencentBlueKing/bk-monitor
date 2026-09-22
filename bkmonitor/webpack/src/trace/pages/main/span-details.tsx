@@ -1360,6 +1360,19 @@ export default defineComponent({
       };
     };
 
+    /** LLM 观测外滚吸顶后切走，父级高度收回但祖先 scrollTop 仍在，整栏会被顶出视口 */
+    const resetInfoTabScroll = () => {
+      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      let el: HTMLElement | null = content;
+      while (el && el !== document.body) {
+        if (el.scrollTop) {
+          el.scrollTop = 0;
+        }
+        el = el.parentElement;
+      }
+      infoTabStuck.value = false;
+    };
+
     const resetLlmSearch = () => {
       llmSearchKeyword.value = '';
       llmSearchActiveIndex.value = 0;
@@ -2231,6 +2244,14 @@ export default defineComponent({
         infoTabStuck.value = false;
       }
     );
+
+    watch(activeTab, async () => {
+      if (!props.show) return;
+      resetInfoTabScroll();
+      await nextTick();
+      resetInfoTabScroll();
+      syncInfoTabStuck();
+    });
 
     onMounted(() => {
       getSpanDetailExpandUserConfig();

@@ -267,16 +267,16 @@
       min-width: 0;
       background: #f3f6fa;
 
+      /* 不要 width:100% 打到 setting：离开 LLM 后搜索卸掉，空 setting 会把 nav 挤成 0 */
       > div {
-        width: 100%;
         min-width: 0;
         gap: 8px;
       }
     }
 
-    /* 导航按 Tab 内容宽度占位；空间不够时再收缩并横向滚动，避免盖住「性能分析」 */
+    /* 导航吃剩余空间；空间不够时再收缩并横向滚动，避免盖住「性能分析」 */
     .bk-tab-header-nav {
-      flex: 0 1 auto;
+      flex: 1 1 auto;
       min-width: 0;
       overflow-x: auto;
     }
@@ -309,8 +309,9 @@
 
     .bk-tab-header-setting {
       display: flex;
-      flex-shrink: 0;
+      flex: 0 0 auto;
       align-items: center;
+      width: auto;
       min-width: 0;
       overflow: visible;
       line-height: 32px;
