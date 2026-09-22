@@ -91,6 +91,7 @@ STANDARD_FIELDS: set[str] = {
     "gen_ai.agent.description",
     "gen_ai.agent.version",
     "gen_ai.request.model",
+    "gen_ai.request.stream",
     "gen_ai.request.temperature",
     "gen_ai.request.reasoning.level",
     "gen_ai.response.id",
@@ -113,8 +114,4 @@ STANDARD_FIELDS: set[str] = {
     "gen_ai.tool.call.id",
     "gen_ai.tool.call.arguments",
     "gen_ai.tool.call.result",
-    "gen_ai.retrieval.query.text",
-    "gen_ai.retrieval.top_k",
-    "gen_ai.retrieval.documents",
-    "gen_ai.data_source.id",
 }
