@@ -20,6 +20,7 @@ from django.test.utils import CaptureQueriesContext
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.dataflow.constant import VisualType
+from bkmonitor.management.commands.rollback_strategy import rollback_strategy
 from bkmonitor.models import (
     ActionConfig,
     AlgorithmModel,
@@ -35,7 +36,7 @@ from bkmonitor.strategy.new_strategy import Algorithm, Detect, Item, QueryConfig
 from bkmonitor.strategy.partial_update import StrategyConfigUpdater
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource.exceptions import CustomException
-from monitor_web.strategies.resources.v2 import UpdatePartialStrategyV2Resource
+from monitor_web.strategies.resources.v2 import SaveStrategyV2Resource, UpdatePartialStrategyV2Resource
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
@@ -84,7 +85,7 @@ def test_access_lookback_reaches_worker_through_public_cache_loader(strategy_con
     original, inherited = load_process()
     assert "access_lookback_periods" not in original
     assert inherited.from_timestamp == 3480
-    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": 15}]})
+    ItemModel.objects.filter(id=first.id).update(access_lookback_periods=15)
     configured, overridden = load_process()
     assert configured["access_lookback_periods"] == 15
     assert configured["query_md5"] != original["query_md5"]
@@ -92,51 +93,109 @@ def test_access_lookback_reaches_worker_through_public_cache_loader(strategy_con
     assert overridden.from_timestamp == 1800
     assert overridden.until_timestamp == inherited.until_timestamp
 
-    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": None}]})
+    ItemModel.objects.filter(id=first.id).update(access_lookback_periods=None)
     cleared, reset = load_process()
     assert "access_lookback_periods" not in cleared
     assert cleared["query_md5"] == original["query_md5"]
     assert reset.from_timestamp == inherited.from_timestamp
 
 
-def test_access_lookback_patch_roundtrip_preserves_other_items_and_meta(strategy_config_fixture):
+@pytest.mark.parametrize("value", [None, 1, 15])
+def test_public_patch_cannot_change_internal_lookback(strategy_config_fixture, value):
+    strategy = strategy_config_fixture["strategy"]
+    first = strategy_config_fixture["first_item"]
+    ItemModel.objects.filter(id=first.id).update(access_lookback_periods=12)
+    assert_invalid_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": value}]})
+    first.refresh_from_db()
+    assert first.access_lookback_periods == 12
+    assert StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count() == 0
+
+
+def test_public_patch_preserves_internal_lookback_and_history(strategy_config_fixture):
     strategy = strategy_config_fixture["strategy"]
     first = strategy_config_fixture["first_item"]
     second = strategy_config_fixture["second_item"]
-    first.meta = {"owner": "monitor"}
-    first.save(update_fields=["meta"])
+    ItemModel.objects.filter(id=first.id).update(access_lookback_periods=15, meta={"owner": "monitor"})
     second_meta = copy.deepcopy(second.meta)
 
-    def read_override():
-        loaded = Strategy.from_models([strategy])[0]
-        return next(item for item in loaded.to_dict()["items"] if item["id"] == first.id)
-
-    assert "access_lookback_periods" not in read_override()
-    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": 15}]})
-    first.refresh_from_db()
-    assert first.meta == {"owner": "monitor"}
-    assert first.access_lookback_periods == 15
-    assert read_override()["access_lookback_periods"] == 15
-    history_count = StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count()
-    assert history_count == 1
-
-    # 重复配置不触发保存；后续只改名称时保持覆盖。
-    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": 15}]})
-    assert StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count() == history_count
     perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "name": "renamed"}]})
-    assert read_override()["access_lookback_periods"] == 15
-
-    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": None}]})
     first.refresh_from_db()
     second.refresh_from_db()
+    assert first.name == "renamed"
+    assert first.access_lookback_periods == 15
     assert first.meta == {"owner": "monitor"}
-    assert "access_lookback_periods" not in read_override()
-    assert second.meta == second_meta
-    assert first.access_lookback_periods is None
     assert second.access_lookback_periods is None
-    history_count = StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count()
-    perform_strategy_config_patch([strategy.id], {"items": [{"id": first.id, "access_lookback_periods": None}]})
-    assert StrategyHistoryModel.objects.filter(strategy_id=strategy.id).count() == history_count
+    assert second.meta == second_meta
+    history = StrategyHistoryModel.objects.get(strategy_id=strategy.id)
+    saved_item = next(item for item in history.content["items"] if item["id"] == first.id)
+    assert saved_item["access_lookback_periods"] == 15
+
+
+@pytest.mark.parametrize("historical_value", [None, 15, "omitted", -1])
+@pytest.mark.filterwarnings("ignore:DateTimeField.*received a naive datetime:RuntimeWarning")
+def test_internal_rollback_restores_lookback_without_public_request_field(
+    strategy_config_fixture, mocker, capsys, historical_value
+):
+    strategy = strategy_config_fixture["strategy"]
+    first = strategy_config_fixture["first_item"]
+    ItemModel.objects.filter(id=first.id).update(access_lookback_periods=12)
+    historical_content = Strategy.from_models([strategy])[0].to_dict()
+    for field in ("app", "path"):
+        historical_content[field] = historical_content.get(field) or ""
+    historical_item = next(item for item in historical_content["items"] if item["id"] == first.id)
+    if historical_value == "omitted":
+        historical_item.pop("access_lookback_periods")
+    else:
+        historical_item["access_lookback_periods"] = historical_value
+    old = StrategyHistoryModel.objects.create(strategy_id=strategy.id, operate="update", content=historical_content)
+    new = StrategyHistoryModel.objects.create(strategy_id=strategy.id, operate="update", content={})
+    timestamp = 1700000000
+    StrategyHistoryModel.objects.filter(id=old.id).update(create_time=datetime.datetime.fromtimestamp(timestamp - 60))
+    StrategyHistoryModel.objects.filter(id=new.id).update(create_time=datetime.datetime.fromtimestamp(timestamp + 60))
+    # 隔离配置转换中的外部服务；保留真实请求校验、Resource 保存和数据库历史。
+    mocker.patch.object(Strategy, "convert")
+    mocker.patch("bkmonitor.strategy.new_strategy.is_ipv6_biz", return_value=False)
+    rollback_strategy(strategy.id, timestamp)
+
+    first.refresh_from_db()
+    output = capsys.readouterr().out
+    if historical_value == -1:
+        assert "rollback error" in output
+        assert first.access_lookback_periods == 12
+    else:
+        assert "rollback done" in output
+        assert first.access_lookback_periods == (None if historical_value == "omitted" else historical_value)
+        saved_history = StrategyHistoryModel.objects.filter(strategy_id=strategy.id).latest("id")
+        saved_item = next(item for item in saved_history.content["items"] if item["id"] == first.id)
+        assert saved_item.get("access_lookback_periods") == first.access_lookback_periods
+    old.refresh_from_db()
+    assert old.content == historical_content
+
+
+def test_full_save_resource_preserves_internal_lookback(strategy_config_fixture, mocker):
+    strategy = strategy_config_fixture["strategy"]
+    first = strategy_config_fixture["first_item"]
+    ItemModel.objects.filter(id=first.id).update(access_lookback_periods=15)
+    payload = Strategy.from_models([strategy])[0].to_dict()
+    for field in ("app", "path"):
+        payload[field] = payload.get(field) or ""
+    payload["name"] = "full-save-renamed"
+    for item in payload["items"]:
+        item["access_lookback_periods"] = None
+        item["time_delay"] = 120
+    mocker.patch.object(Strategy, "convert")
+    mocker.patch("bkmonitor.strategy.new_strategy.is_ipv6_biz", return_value=False)
+    save_resource = SaveStrategyV2Resource()
+    save_resource.request(payload)
+
+    first.refresh_from_db()
+    strategy.refresh_from_db()
+    assert strategy.name == "full-save-renamed"
+    assert first.access_lookback_periods == 15
+    assert first.time_delay == 30
+    history = StrategyHistoryModel.objects.get(strategy_id=strategy.id)
+    saved_item = next(item for item in history.content["items"] if item["id"] == first.id)
+    assert saved_item["access_lookback_periods"] == 15
 
 
 @pytest.mark.parametrize("labels", [["z", "a", "a", "parent", "parent/child"], []])

@@ -35,21 +35,39 @@ def test_full_save_database_roundtrip_with_omission_and_clear(clean_model):
 
 
 @pytest.mark.parametrize("value", [None, 1, 15, 100])
-def test_full_and_partial_serializers_accept_lookback(value):
+def test_internal_item_accepts_lookback(value):
+    item = Item(strategy_id=1, **item_config(access_lookback_periods=value))
+    assert item.access_lookback_periods == value
+
+
+@pytest.mark.parametrize("value", [None, 1, 15, 100])
+def test_public_serializers_do_not_accept_internal_lookback(value):
     full = Item.Serializer(data=item_config(access_lookback_periods=value))
     partial = ItemPatchSerializer(data={"access_lookback_periods": value})
     assert full.is_valid(), full.errors
-    assert partial.is_valid(), partial.errors
-    assert full.validated_data["access_lookback_periods"] == value
-    assert partial.validated_data["access_lookback_periods"] == value
+    assert "access_lookback_periods" not in full.validated_data
+    assert not partial.is_valid()
+    assert "access_lookback_periods" in partial.errors
 
 
 @pytest.mark.parametrize("value", [0, -1, 1.5, True, "invalid", [], {}])
-def test_invalid_lookback_is_rejected_by_both_api_paths(value):
-    assert not Item.Serializer(data=item_config(access_lookback_periods=value)).is_valid()
-    assert not ItemPatchSerializer(data={"access_lookback_periods": value}).is_valid()
+def test_internal_item_rejects_invalid_lookback(value):
     with pytest.raises(ValidationError):
         Item(strategy_id=1, **item_config(access_lookback_periods=value))
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("current", [None, 15])
+@pytest.mark.parametrize("value", [None, 1, 30])
+def test_full_request_cannot_overwrite_internal_fields(clean_model, current, value):
+    item = Item(strategy_id=1, **item_config(time_delay=60, access_lookback_periods=current))
+    item.save()
+    serializer = Item.Serializer(data=item_config(id=item.id, time_delay=value, access_lookback_periods=value))
+    serializer.is_valid(raise_exception=True)
+    Item(strategy_id=1, **serializer.validated_data).save()
+    model = ItemModel.objects.get(id=item.id)
+    assert model.time_delay == 60
+    assert model.access_lookback_periods == current
 
 
 def test_omitted_field_is_not_injected_and_survives_deepcopy():

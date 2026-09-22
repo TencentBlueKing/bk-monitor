@@ -68,7 +68,12 @@ def rollback_strategy(strategy_id, timestamp):
     if old.operate == "create":
         old_content["id"] = strategy_id
     try:
-        resource.strategies.save_strategy_v2(old_content)
+        save_resource = resource.strategies.save_strategy_v2
+        validated_content = save_resource.validate_request_data(old_content)
+        # 回看配置仅由内部控制；历史回滚在接口校验后恢复它，不开放普通请求写入。
+        for item, historical_item in zip(validated_content["items"], old_content["items"]):
+            item["access_lookback_periods"] = historical_item["access_lookback_periods"]
+        save_resource.perform_request(validated_content)
     except Exception as e:
         print(f"strategy[{strategy_id}] rollback error: {e}")
     else:

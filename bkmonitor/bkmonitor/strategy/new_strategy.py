@@ -1536,8 +1536,7 @@ class Item(AbstractConfig):
         algorithms = Algorithm.Serializer(many=True)
         metric_type = serializers.CharField(allow_blank=True, default="")
         query_output_config = serializers.DictField(required=False, allow_null=True)
-        access_lookback_periods = serializers.IntegerField(required=False, allow_null=True, min_value=1)
-        # 目前只允许后台修改
+        # time_delay 和 access_lookback_periods 只允许后台修改，不接受接口入参。
         # time_delay = serializers.IntegerField(default=0)
 
     def __init__(

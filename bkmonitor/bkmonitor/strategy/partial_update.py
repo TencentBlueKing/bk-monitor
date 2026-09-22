@@ -62,7 +62,6 @@ class ItemPatchSerializer(StrictSerializer):
     )
     query_configs = serializers.ListField(required=False, child=serializers.DictField(), allow_empty=False)
     algorithms = Algorithm.Serializer(many=True, required=False)
-    access_lookback_periods = serializers.IntegerField(required=False, allow_null=True, min_value=1)
 
 
 class NoticePatchSerializer(StrictSerializer):
@@ -120,7 +119,7 @@ class StrategyConfigUpdater:
     事务、外部校验及操作历史由 Resource 编排，避免各业务入口各自维护一套保存流程。
     """
 
-    ITEM_FIELDS: tuple[str, ...] = ("name", "expression", "functions", "metric_type", "access_lookback_periods")
+    ITEM_FIELDS: tuple[str, ...] = ("name", "expression", "functions", "metric_type")
 
     @classmethod
     def prepare(cls, current: Strategy, patch: dict[str, Any]) -> StrategyConfigPatch:
