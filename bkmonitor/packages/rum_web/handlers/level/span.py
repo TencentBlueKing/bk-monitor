@@ -615,16 +615,19 @@ class SpanLevelHandler(BaseRumLevelHandler):
     def _process_statistics_growth_rates(baseline: str, time_shifts: list[str], records: list[dict[str, Any]]) -> None:
         """基于 baseline 计算各时间偏移的增长率（百分比数值）。
 
+        - baseline 或对比点缺数据时（值为 None）无法计算，增长率记为 None
         - 两个都为 0 时增长率为 0
         - 一端为 0 且另一端非 0 时视作 100%（正负号取决于方向）
         - 其余按 (baseline - shift) / shift * 100 计算
         """
         for record in records:
-            base_value = record.get(baseline) or 0
+            base_value = record.get(baseline)
             growth_rates: dict[str, float | None] = {}
             for time_shift in time_shifts:
-                shift_value = record.get(time_shift) or 0
-                if base_value == 0 and shift_value == 0:
+                shift_value = record.get(time_shift)
+                if base_value is None or shift_value is None:
+                    growth_rates[time_shift] = None
+                elif base_value == 0 and shift_value == 0:
                     growth_rates[time_shift] = 0
                 elif shift_value == 0:
                     growth_rates[time_shift] = 100
