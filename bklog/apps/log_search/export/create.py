@@ -29,6 +29,7 @@ from apps.iam.handlers.drf import IAMPermission
 from apps.log_search.constants import ExportJobStatus
 from apps.log_search.export.config import current_policy, is_enabled
 from apps.log_search.export.models import ExportJob
+from apps.log_search.export.storage import UnsupportedExportStorage, build_storage
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -66,6 +67,11 @@ def create_export_job(data):
     space = get_object_or_404(Space, space_uid=data["space_uid"], bk_tenant_id=get_request_tenant_id())
     if not is_enabled(space.bk_biz_id):
         raise ValidationError({"detail": "分片导出未启用"})
+    # 只支持对象存储；配置不匹配时在创建阶段就失败，避免任务跑到执行阶段才报错
+    try:
+        build_storage()
+    except UnsupportedExportStorage as error:
+        raise ValidationError({"detail": str(error)}) from error
     index = get_object_or_404(LogIndexSet, pk=data["index_set_id"], space_uid=space.space_uid)
     if index.is_group:
         raise ValidationError({"detail": "暂不支持索引集组导出"})

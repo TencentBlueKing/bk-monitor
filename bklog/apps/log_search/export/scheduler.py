@@ -41,14 +41,7 @@ from apps.log_search.export.config import (
     policy_from_snapshot,
 )
 from apps.log_search.export.models import ExportJob, ExportPart
-from apps.log_search.export.storage import (
-    artifact_name,
-    build_storage,
-    manifest_name,
-    remove_local_artifact,
-    supports_artifact_cleanup,
-    upload,
-)
+from apps.log_search.export.storage import build_storage, manifest_name, upload
 from apps.utils.log import logger
 
 
@@ -214,49 +207,21 @@ def finalize_export(job_id):
         return None
 
 
-def artifact_names(job):
-    """
-    任务可能产生的全部产物名。
-
-    分片产物名是 (job, part_no) 的纯函数，所以重试、重复投递和超时回收竞态里写出去、
-    但没有成功回填的分片也能被枚举到；同时并入已记录的对象名，兜住升级前随机命名的产物。
-    """
-    names = {manifest_name(job)}
-    for part_no, object_key in ExportPart.objects.filter(job=job).values_list("part_no", "object_key"):
-        names.add(artifact_name(job, part_no))
-        if object_key:
-            names.add(object_key)
-    return names
-
-
 def cleanup_artifacts(limit):
-    """清理已过期或已终止任务的产物；仍在途的分片会让任务延后到下一轮。"""
+    """
+    登记已过期或已终止任务的产物回收。
+
+    产物都在对象存储里，一期没有删除接口，生命周期由桶策略管理；这里只登记清理时间，
+    避免每轮重复扫描同一批任务。仍在途的分片会让任务延后到下一轮。
+    """
     now = timezone.now()
     candidates = ExportJob.objects.filter(artifacts_cleaned_at__isnull=True).filter(
         Q(status=ExportJobStatus.SUCCESS, expires_at__lte=now)
         | Q(status__in=[ExportJobStatus.FAILED, ExportJobStatus.CANCELED])
     )
     cleaned = []
-    storage = None
     for job in candidates.order_by("pk")[:limit]:
         if ExportPart.objects.filter(job=job, status__in=ExportPartStatus.INFLIGHT).exists():
-            continue
-        if storage is None:
-            storage = build_storage()
-        if not supports_artifact_cleanup(storage):
-            # 对象存储一期没有删除接口，产物交给桶的生命周期策略回收；
-            # 标记后不再重复扫描，但不计入"已清理"
-            logger.info("[cleanup_artifacts] job=%s 产物依赖对象存储生命周期策略回收", job.pk)
-            state.mark_artifacts_cleaned(job.pk)
-            continue
-        failed = False
-        for name in artifact_names(job):
-            try:
-                remove_local_artifact(storage, name)
-            except OSError as error:
-                logger.exception("[cleanup_artifacts] job=%s name=%s remove failed: %s", job.pk, name, error)
-                failed = True
-        if failed:
             continue
         state.mark_artifacts_cleaned(job.pk)
         cleaned.append(job.pk)

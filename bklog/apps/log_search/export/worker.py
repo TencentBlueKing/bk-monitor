@@ -32,7 +32,7 @@ from apps.api import UnifyQueryApi
 from apps.log_search.constants import ASYNC_EXPORT_SCROLL, MAX_RESULT_WINDOW, ExportStage
 from apps.log_search.export import state
 from apps.log_search.export.planner import build_handler, encode_export_row
-from apps.log_search.export.storage import artifact_name, build_storage, upload
+from apps.log_search.export.storage import UnsupportedExportStorage, artifact_name, build_storage, upload
 from apps.utils.log import logger
 
 
@@ -130,6 +130,10 @@ def run_part(part_id):
         return
     try:
         _execute(part.job, part)
+    except UnsupportedExportStorage as error:
+        # 存储配置问题重试也不会成功，直接给明确错误码
+        logger.error("[run_part] part=%s storage unsupported: %s", part.pk, error)
+        state.fail_part(part.pk, error_code="STORAGE_UNSUPPORTED", error_detail=str(error), retryable=False)
     except PartError as error:
         logger.warning("[run_part] part=%s code=%s detail=%s", part.pk, error.code, error)
         state.fail_part(part.pk, error_code=error.code, error_detail=str(error), retryable=True)
