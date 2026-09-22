@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-import datetime
 import logging
 import re
 import time
@@ -35,13 +34,12 @@ class ServiceDiscover(Discover):
         check_time = timezone.now()
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")
 
-        # Step1: 获取 service_name，type，sample_type
-
+        # 按服务、采样类型聚合，同一窗口的计数同时用于大数据量判定。
         result_list = (
             self.get_builder()
             .with_api_type(ProfileApiType.AGGREGATE)
             .with_time(start_time, end_time)
-            .with_metric_fields("count(1)")
+            .with_metric_fields("count(*) AS count")
             .with_dimension_fields("service_name,sample_type,type")
             .with_offset_limit(0, self.MAX_DIMENSION_COMBINATION_LIMIT)
             .execute()
@@ -53,55 +51,51 @@ class ServiceDiscover(Discover):
             )
 
         instances: list[ProfileService] = []
+        for result in result_list:
+            data_type = result.get("type", "")
+            sample_type = result.get("sample_type", "")
+            service_name = result.get("service_name", "")
+            if not (data_type or sample_type or service_name):
+                continue
 
-        # Step2: 遍历 service_name，type，sample_type三个键的字典组成的列表，再从字典内去获取字典内的type，sample_type，service_name去查询数据
-        if result_list:
-            for result_dict in result_list:
-                col_type = result_dict.get("type", "")
-                sample_type = result_dict.get("sample_type", "")
-                svr = result_dict.get("service_name", "")
-                # 如果这三个值都没有，直接 continue，查出来的可能也是重复的数据
-                if not col_type and not sample_type and not svr:
-                    logger.info(
-                        f"[ProfileServiceDiscover] "
-                        f"when service_name: {svr} and type: {col_type} and sample_type: {sample_type} has no value, "
-                        f"The queried data may be duplicated! ! !！！！"
-                    )
-                    continue
-                sample_type_samplers = (
-                    self.get_builder()
-                    .with_time(start_time, end_time)
-                    .with_api_type(ProfileApiType.SAMPLE)
-                    .with_service_filter(svr)
-                    .with_offset_limit(0, 1)
-                    .with_type(col_type)
-                    .with_general_filters({"sample_type": f"op_eq|{sample_type}"})
-                    .execute()
+            samples = (
+                self.get_builder()
+                .with_time(start_time, end_time)
+                .with_api_type(ProfileApiType.SAMPLE)
+                .with_service_filter(service_name)
+                .with_offset_limit(0, 1)
+                .with_type(data_type)
+                .with_general_filters({"sample_type": f"op_eq|{sample_type}"})
+                .execute()
+            )
+            # 聚合命中不代表样本查询仍有结果，只有拿到样本才写入服务和心跳。
+            if not samples or not samples[0]:
+                logger.info(
+                    "[ProfileServiceDiscover] sample missing: bk_biz_id=%s app_name=%s "
+                    "service_name=%s type=%s sample_type=%s",
+                    self.bk_biz_id,
+                    self.app_name,
+                    service_name,
+                    data_type,
+                    sample_type,
                 )
-                if not sample_type_samplers:
-                    logger.info(
-                        f"[ProfileServiceDiscover] "
-                        f"service_name: {svr} + type: {col_type} + sample_type: {sample_type} cannot find data！！！"
-                    )
-                    continue
-                sampler = sample_type_samplers[0]
-                if sampler:
-                    period = sampler.get("period", "")
-                    period_type = sampler.get("period_type", "")
-                    instances.append(
-                        ProfileService(
-                            bk_biz_id=self.bk_biz_id,
-                            app_name=self.app_name,
-                            name=svr,
-                            period=period,
-                            period_type=period_type,
-                            frequency=self._calculate_frequency(sampler),
-                            data_type=col_type,
-                            last_check_time=check_time,
-                            sample_type=sample_type,
-                            is_large=self.is_large_service(end_time, svr, col_type, sample_type),
-                        )
-                    )
+                continue
+
+            sample = samples[0]
+            instances.append(
+                ProfileService(
+                    bk_biz_id=self.bk_biz_id,
+                    app_name=self.app_name,
+                    name=service_name,
+                    period=sample.get("period", ""),
+                    period_type=sample.get("period_type", ""),
+                    frequency=self._calculate_frequency(sample),
+                    data_type=data_type,
+                    last_check_time=check_time,
+                    sample_type=sample_type,
+                    is_large=result["count"] > self.LARGE_SERVICE_SIZE,
+                )
+            )
 
         # Final: 保存到数据库
         self._upsert(instances, check_time)
@@ -198,34 +192,3 @@ class ServiceDiscover(Discover):
                 return int(value) / (period * (duration_nanos / 1e9))
 
         return None
-
-    def is_large_service(self, end_timestamp, service, _type, sample_type):
-        """
-        判断此服务是否是大数据量应用
-        如果 10 分钟内超过 10000 条数据即认为是大数据量应用
-        """
-
-        end_time = datetime.datetime.fromtimestamp(end_timestamp / 1000)
-        start_time = end_time - datetime.timedelta(minutes=10)
-
-        response = (
-            self.get_builder()
-            .with_api_type(ProfileApiType.AGGREGATE)
-            .with_time(int(start_time.timestamp() * 1000), int(end_time.timestamp() * 1000))
-            .with_metric_fields("count(*) AS count")
-            .with_type(_type)
-            .with_service_filter(service)
-            .with_dimension_fields("service_name")
-            .with_general_filters(
-                {
-                    "sample_type": f"op_eq|{sample_type}",
-                }
-            )
-            .execute()
-        )
-
-        if not response:
-            return False
-
-        count = next((i.get("count", 0) for i in response if i.get("service_name") == service), None)
-        return count and count > self.LARGE_SERVICE_SIZE

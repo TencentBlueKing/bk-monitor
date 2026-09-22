@@ -1,24 +1,22 @@
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
-from threading import Event
+from threading import Barrier, Event
 from typing import Any
 
 import pytest
-from django.db import connections, transaction
-
-pytest_plugins = ("apm.tests.test_service_heartbeat",)
+from django.db import connections, router, transaction
 
 from apm.models import TopoNode
 from apm.tests.test_service_heartbeat import make_node
 
 
-def require_mysql(alias: str) -> None:
-    if connections[alias].vendor != "mysql":
-        pytest.skip("设置 APM_HEARTBEAT_TEST_MYSQL_SOCKET 后，在隔离 MySQL 测试库验证行锁")
+pytestmark = pytest.mark.django_db(databases="__all__", transaction=True)
 
 
-def test_mysql_concurrent_heartbeat_merges_preserve_both_sources(heartbeat_db: str) -> None:
-    require_mysql(heartbeat_db)
+def test_mysql_concurrent_heartbeat_merges_preserve_both_sources() -> None:
+    database = router.db_for_write(TopoNode)
+    assert connections[database].vendor == "mysql", "并发与锁超时测试必须使用 MySQL"
     node = make_node()
     initial_updated_at = node.updated_at
     locked = Event()
@@ -26,19 +24,19 @@ def test_mysql_concurrent_heartbeat_merges_preserve_both_sources(heartbeat_db: s
 
     def first_writer() -> None:
         try:
-            with transaction.atomic(using=heartbeat_db):
+            with transaction.atomic(using=database):
                 TopoNode.touch_heartbeat(2, "app", "trace", {"demo": 100}, 110)
                 locked.set()
                 assert release.wait(10)
         finally:
-            connections[heartbeat_db].close()
+            connections[database].close()
 
     def second_writer() -> bool:
         try:
             assert locked.wait(5)
             return TopoNode.touch_heartbeat(2, "app", "metric", {"demo": 120}, 130)
         finally:
-            connections[heartbeat_db].close()
+            connections[database].close()
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         first = pool.submit(first_writer)
@@ -48,7 +46,7 @@ def test_mysql_concurrent_heartbeat_merges_preserve_both_sources(heartbeat_db: s
             deadline = time.monotonic() + 5
             waiting = False
             while time.monotonic() < deadline:
-                with connections[heartbeat_db].cursor() as cursor:
+                with connections[database].cursor() as cursor:
                     cursor.execute("SELECT COUNT(*) FROM performance_schema.data_lock_waits")
                     waiting = cursor.fetchone()[0] > 0
                 if waiting:
@@ -68,22 +66,56 @@ def test_mysql_concurrent_heartbeat_merges_preserve_both_sources(heartbeat_db: s
     assert node.updated_at == initial_updated_at
 
 
-def test_mysql_lock_timeout_keeps_previous_heartbeat(heartbeat_db: str) -> None:
-    require_mysql(heartbeat_db)
+def test_mysql_lock_timeout_keeps_previous_heartbeat() -> None:
+    database = router.db_for_write(TopoNode)
+    assert connections[database].vendor == "mysql", "并发与锁超时测试必须使用 MySQL"
     previous: dict[str, Any] = {"trace": {"last_data_at": 100, "checked_at": 110}}
     node = make_node(heartbeat=previous)
 
     def blocked_writer() -> bool:
         try:
-            with connections[heartbeat_db].cursor() as cursor:
+            with connections[database].cursor() as cursor:
                 cursor.execute("SET SESSION innodb_lock_wait_timeout = 1")
             return TopoNode.touch_heartbeat(2, "app", "log", {"demo": 200}, 210)
         finally:
-            connections[heartbeat_db].close()
+            connections[database].close()
 
     with ThreadPoolExecutor(max_workers=1) as pool:
-        with transaction.atomic(using=heartbeat_db):
-            TopoNode.objects.using(heartbeat_db).select_for_update().get(id=node.id)
+        with transaction.atomic(using=database):
+            TopoNode.objects.using(database).select_for_update().get(id=node.id)
             assert pool.submit(blocked_writer).result(timeout=5) is False
     node.refresh_from_db()
     assert node.heartbeat == previous
+
+
+def test_mysql_deadlock_keeps_victims_previous_heartbeat(caplog: pytest.LogCaptureFixture) -> None:
+    database = router.db_for_write(TopoNode)
+    assert connections[database].vendor == "mysql", "死锁测试必须使用 MySQL"
+    previous = {"log": {"last_data_at": 80, "checked_at": 90}}
+    first = make_node("first", heartbeat=previous)
+    second = make_node("second", heartbeat=previous)
+    both_locked = Barrier(2, timeout=5)
+    caplog.set_level(logging.WARNING, logger="apm")
+
+    def update_other(locked_id: int, target_name: str) -> bool:
+        try:
+            with connections[database].cursor() as cursor:
+                cursor.execute("SET SESSION innodb_lock_wait_timeout = 3")
+            with transaction.atomic(using=database):
+                TopoNode.objects.using(database).select_for_update().get(id=locked_id)
+                both_locked.wait()
+                return TopoNode.touch_heartbeat(2, "app", "trace", {target_name: 100}, 110)
+        finally:
+            connections[database].close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        writers = [pool.submit(update_other, first.id, "second"), pool.submit(update_other, second.id, "first")]
+        results = [writer.result(timeout=10) for writer in writers]
+    assert sorted(results) == [False, True]
+    assert "errno=1213" in caplog.text
+    for target, succeeded in zip((second, first), results):
+        target.refresh_from_db()
+        expected = dict(previous)
+        if succeeded:
+            expected["trace"] = {"last_data_at": 100, "checked_at": 110}
+        assert target.heartbeat == expected

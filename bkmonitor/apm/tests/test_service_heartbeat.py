@@ -1,15 +1,12 @@
-import os
-
-from collections.abc import Iterator
-from copy import deepcopy
+import json
 from types import SimpleNamespace
 from typing import Any
 from unittest import mock
 
 import pytest
-from django.db import OperationalError, connections
+from celery.exceptions import SoftTimeLimitExceeded
+from django.db import OperationalError, connections, router
 from django.db.models.query import QuerySet
-from django.test import override_settings
 
 from apm.core.discover.exceptions import IncompleteDiscoveryError
 from apm.core.discover.log.service import ServiceDiscover as LogServiceDiscover
@@ -19,44 +16,7 @@ from apm.models import ProfileService, TopoNode
 from apm.resources import QueryTopoNodeResource
 
 
-@pytest.fixture
-def heartbeat_db(django_db_blocker: Any) -> Iterator[str]:
-    """默认使用内存 SQLite；显式指定测试 socket 时连接隔离的 MySQL 测试库。"""
-    alias = "apm_heartbeat_test"
-    config = deepcopy(connections.databases["default"])
-    config.update(ENGINE="django.db.backends.sqlite3", NAME=":memory:", OPTIONS={}, ATOMIC_REQUESTS=False)
-    mysql_socket: str | None = os.environ.get("APM_HEARTBEAT_TEST_MYSQL_SOCKET")
-    if mysql_socket:
-        config.update(
-            ENGINE="django.db.backends.mysql",
-            NAME="apm_heartbeat_test",
-            USER="root",
-            PASSWORD="",
-            HOST="localhost",
-            PORT="",
-            OPTIONS={"unix_socket": mysql_socket, "charset": "utf8mb4"},
-        )
-    connections.databases[alias] = config
-    with (
-        django_db_blocker.unblock(),
-        override_settings(USE_TZ=False),
-        mock.patch("apm.models.topo.router.db_for_write", return_value=alias),
-        mock.patch("apm.models.topo.router.db_for_read", return_value=alias),
-    ):
-        connection = connections[alias]
-        with connection.schema_editor() as editor:
-            editor.create_model(TopoNode)
-            editor.create_model(ProfileService)
-        try:
-            yield alias
-        finally:
-            if mysql_socket:
-                with connection.schema_editor() as editor:
-                    editor.delete_model(ProfileService)
-                    editor.delete_model(TopoNode)
-            connection.close()
-            del connections[alias]
-            connections.databases.pop(alias)
+pytestmark = pytest.mark.django_db(databases="__all__")
 
 
 def make_node(name: str = "demo", **kwargs: Any) -> TopoNode:
@@ -73,7 +33,7 @@ def datasource() -> SimpleNamespace:
     return SimpleNamespace(bk_biz_id=2, app_name="app", result_table_id="2_apm.app", retention=7)
 
 
-def test_heartbeat_monotonic_and_preserves_unrequested_fields(heartbeat_db: str) -> None:
+def test_heartbeat_monotonic_and_preserves_unrequested_fields() -> None:
     node = make_node(heartbeat={"metric": {"last_data_at": 100, "checked_at": 110}})
     updated_at = node.updated_at
     for data_type, data_time, checked_at in (("trace", 150, 160), ("trace", 120, 130), ("trace", None, 200)):
@@ -87,7 +47,7 @@ def test_heartbeat_monotonic_and_preserves_unrequested_fields(heartbeat_db: str)
     assert node.source == []
 
 
-def test_heartbeat_scope_duplicates_empty_and_missing_nodes(heartbeat_db: str) -> None:
+def test_heartbeat_scope_duplicates_empty_and_missing_nodes() -> None:
     nodes = [make_node(), make_node()]
     other_app = make_node(app_name="other")
     other_biz = make_node(bk_biz_id=3)
@@ -104,14 +64,17 @@ def test_heartbeat_scope_duplicates_empty_and_missing_nodes(heartbeat_db: str) -
     assert nodes[0].heartbeat["log"]["checked_at"] == 300
 
 
-def test_heartbeat_locks_and_rolls_back_on_routed_database(heartbeat_db: str) -> None:
+@pytest.mark.django_db(databases="__all__", transaction=True)
+def test_heartbeat_locks_and_rolls_back_on_routed_database() -> None:
     node = make_node()
+    database = router.db_for_write(TopoNode)
+    assert not connections[database].in_atomic_block
     select_for_update = QuerySet.select_for_update
     bulk_update = QuerySet.bulk_update
 
     def lock(queryset: QuerySet, *args: Any, **kwargs: Any) -> QuerySet:
-        assert queryset.db == heartbeat_db
-        assert connections[heartbeat_db].in_atomic_block
+        assert queryset.db == database
+        assert connections[database].in_atomic_block
         return select_for_update(queryset, *args, **kwargs)
 
     def fail_after_update(queryset: QuerySet, *args: Any, **kwargs: Any) -> None:
@@ -140,7 +103,7 @@ def log_response(name: str = "demo", timestamp: int = 150000) -> dict[str, Any]:
     }
 
 
-def test_log_discover_creates_nodes_and_merges_fields(heartbeat_db: str) -> None:
+def test_log_discover_creates_nodes_and_merges_fields() -> None:
     existing = make_node("existing", source=["trace"], heartbeat={"trace": {"last_data_at": 80, "checked_at": 90}})
     with (
         mock.patch(
@@ -165,7 +128,7 @@ def test_log_discover_creates_nodes_and_merges_fields(heartbeat_db: str) -> None
 
 
 @pytest.mark.parametrize("failure", ["exception", "shard", "timeout"])
-def test_log_failure_does_not_write_or_renew(heartbeat_db: str, failure: str) -> None:
+def test_log_failure_does_not_write_or_renew(failure: str) -> None:
     previous = {"log": {"last_data_at": 90, "checked_at": 100}}
     node = make_node(heartbeat=previous)
     response = log_response()
@@ -188,7 +151,7 @@ def metric_series(keys: list[str], values: list[str], points: list[list[Any]]) -
     return {"group_keys": keys, "group_values": values, "columns": ["_time", "_value"], "values": points}
 
 
-def test_metric_heartbeat_keys_and_non_null_zero(heartbeat_db: str) -> None:
+def test_metric_heartbeat_keys_and_non_null_zero() -> None:
     for name in ("demo", "demo-redis", "demo-kafka", "http:remote", "empty"):
         make_node(name)
     responses = [
@@ -220,7 +183,7 @@ def test_metric_heartbeat_keys_and_non_null_zero(heartbeat_db: str) -> None:
         {"series": [], "status": {"series_limit_reached": True}},
     ],
 )
-def test_metric_partial_failure_keeps_old_heartbeat(heartbeat_db: str, response: Any) -> None:
+def test_metric_partial_failure_keeps_old_heartbeat(response: Any) -> None:
     node = make_node(heartbeat={"metric": {"last_data_at": 90, "checked_at": 100}})
     with mock.patch(
         "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
@@ -235,7 +198,7 @@ def test_metric_partial_failure_keeps_old_heartbeat(heartbeat_db: str, response:
     assert node.heartbeat == {"metric": {"last_data_at": 90, "checked_at": 100}}
 
 
-def test_legacy_topology_filters_only_new_source_nodes(heartbeat_db: str) -> None:
+def test_legacy_topology_filters_only_new_source_nodes() -> None:
     for name, sources in (
         ("legacy", []),
         ("trace", ["trace"]),
@@ -255,7 +218,7 @@ def test_legacy_topology_filters_only_new_source_nodes(heartbeat_db: str) -> Non
     assert all("heartbeat" not in node and "source" not in node for node in nodes)
 
 
-def test_upsert_preserves_metadata_and_legacy_empty_source(heartbeat_db: str) -> None:
+def test_upsert_preserves_metadata_and_legacy_empty_source() -> None:
     legacy = make_node()
     trace = make_node("trace", source=["trace"], extra_data={"kind": "service", "category": "rpc"})
     TopoNode.upsert_telemetry_nodes(2, "app", "profiling", {"demo", "trace", "new"}, {"kind": "profiling"})
@@ -267,7 +230,7 @@ def test_upsert_preserves_metadata_and_legacy_empty_source(heartbeat_db: str) ->
     assert TopoNode.objects.get(topo_key="new").source == ["profiling"]
 
 
-def test_successful_empty_log_check_keeps_data_time(heartbeat_db: str) -> None:
+def test_successful_empty_log_check_keeps_data_time() -> None:
     node = make_node(heartbeat={"log": {"last_data_at": 90, "checked_at": 100}})
     response = log_response()
     response["aggregations"]["service_names"]["buckets"] = []
@@ -298,13 +261,13 @@ def profile_builder(results: list[Any]) -> mock.MagicMock:
     return builder
 
 
-def test_profile_discover_keeps_old_table_and_creates_topology(heartbeat_db: str) -> None:
+def test_profile_discover_keeps_old_table_and_creates_topology() -> None:
     existing = make_node("trace", source=["trace"], heartbeat={"trace": {"last_data_at": 90, "checked_at": 100}})
     builder = profile_builder([])
     builder.execute.side_effect = [
         [
-            {"service_name": "demo", "type": "cpu", "sample_type": "cpu"},
-            {"service_name": "demo", "type": "alloc_objects", "sample_type": "alloc_objects"},
+            {"service_name": "demo", "type": "cpu", "sample_type": "cpu", "count": 1},
+            {"service_name": "demo", "type": "alloc_objects", "sample_type": "alloc_objects", "count": 1},
         ],
         [{"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}],
         [{"period": 10, "period_type": "space/bytes", "type": "alloc_objects", "value": 100}],
@@ -312,7 +275,6 @@ def test_profile_discover_keeps_old_table_and_creates_topology(heartbeat_db: str
     discover = ProfileServiceDiscover(datasource())
     with (
         mock.patch.object(discover, "get_builder", return_value=builder),
-        mock.patch.object(discover, "is_large_service", return_value=False),
     ):
         discover.discover(100000, 200000)
     node = TopoNode.objects.get(topo_key="demo")
@@ -327,10 +289,10 @@ def test_profile_discover_keeps_old_table_and_creates_topology(heartbeat_db: str
     assert existing.heartbeat["profiling"]["last_data_at"] is None
 
 
-def test_profile_failed_sample_query_does_not_touch_heartbeat(heartbeat_db: str) -> None:
+def test_profile_failed_sample_query_does_not_touch_heartbeat() -> None:
     node = make_node(heartbeat={"profiling": {"last_data_at": 90, "checked_at": 100}})
     builder = profile_builder(
-        [[{"service_name": "demo", "type": "cpu", "sample_type": "cpu"}], RuntimeError("sample failed")]
+        [[{"service_name": "demo", "type": "cpu", "sample_type": "cpu", "count": 1}], RuntimeError("sample failed")]
     )
     discover = ProfileServiceDiscover(datasource())
     with mock.patch.object(discover, "get_builder", return_value=builder), pytest.raises(RuntimeError):
@@ -340,7 +302,7 @@ def test_profile_failed_sample_query_does_not_touch_heartbeat(heartbeat_db: str)
     assert ProfileService.objects.count() == 0
 
 
-def test_metric_promotes_profile_node_without_overwriting_other_nodes(heartbeat_db: str) -> None:
+def test_metric_promotes_profile_node_without_overwriting_other_nodes() -> None:
     profile = make_node(source=["profiling"], extra_data={"kind": "profiling", "category": "profiling"})
     trace = make_node("trace", source=["trace"], extra_data={"kind": "service", "category": "rpc"})
     discover = MetricServiceDiscover(datasource())
@@ -376,7 +338,7 @@ def test_metric_splits_discovery_but_queries_heartbeat_once(settings: Any) -> No
 
 
 @pytest.mark.parametrize("timestamp", [1789530120, 1789530120000, "2026-09-16T03:42:00Z"])
-def test_metric_timestamp_units(heartbeat_db: str, timestamp: Any) -> None:
+def test_metric_timestamp_units(timestamp: Any) -> None:
     node = make_node()
     series = metric_series(["service_name"], ["demo"], [[timestamp, 0]])
     with mock.patch(
@@ -388,7 +350,7 @@ def test_metric_timestamp_units(heartbeat_db: str, timestamp: Any) -> None:
     assert node.heartbeat["metric"]["last_data_at"] == 1789530120
 
 
-def test_metric_does_not_overwrite_concurrent_trace_classification(heartbeat_db: str) -> None:
+def test_metric_does_not_overwrite_concurrent_trace_classification() -> None:
     node = make_node(source=["profiling"], extra_data={"kind": "profiling", "category": "profiling"})
     discover = MetricServiceDiscover(datasource())
     old_mapping = discover.list_exists_mapping()
@@ -405,7 +367,7 @@ def test_metric_does_not_overwrite_concurrent_trace_classification(heartbeat_db:
     assert node.extra_data == {"kind": "service", "category": "rpc"}
 
 
-def test_log_paginates_all_services_before_publishing(heartbeat_db: str) -> None:
+def test_log_paginates_all_services_before_publishing() -> None:
     page = log_response()
     page["aggregations"]["service_names"]["buckets"] = [
         {"key": {"service_name": f"svc-{number}"}, "last_data_at": {"value": 150000}} for number in range(1000)
@@ -433,7 +395,7 @@ def test_log_paginates_all_services_before_publishing(heartbeat_db: str) -> None
     assert TopoNode.objects.get(topo_key="svc-1000").heartbeat["log"]["last_data_at"] == 190
 
 
-def test_log_failed_later_page_does_not_publish_partial_coverage(heartbeat_db: str) -> None:
+def test_log_failed_later_page_does_not_publish_partial_coverage() -> None:
     node = make_node(heartbeat={"log": {"last_data_at": 90, "checked_at": 100}})
     page = log_response("new")
     page["aggregations"]["service_names"]["after_key"] = {"service_name": "new"}
@@ -450,7 +412,7 @@ def test_log_failed_later_page_does_not_publish_partial_coverage(heartbeat_db: s
     assert TopoNode.objects.count() == 1
 
 
-def test_complete_empty_check_and_partial_observation_have_different_coverage(heartbeat_db: str) -> None:
+def test_complete_empty_check_and_partial_observation_have_different_coverage() -> None:
     first = make_node("first")
     second = make_node("second")
     TopoNode.touch_heartbeat(2, "app", "log", {"first": 90}, 100)
@@ -464,7 +426,7 @@ def test_complete_empty_check_and_partial_observation_have_different_coverage(he
 
 
 @pytest.mark.parametrize("error_code", [1205, 1213, 2006])
-def test_database_lock_failure_rolls_back_but_other_errors_propagate(heartbeat_db: str, error_code: int) -> None:
+def test_database_lock_failure_rolls_back_but_other_errors_propagate(error_code: int) -> None:
     node = make_node(heartbeat={"trace": {"last_data_at": 80, "checked_at": 90}})
     original = QuerySet.bulk_update
 
@@ -480,3 +442,126 @@ def test_database_lock_failure_rolls_back_but_other_errors_propagate(heartbeat_d
             assert TopoNode.touch_heartbeat(2, "app", "trace", {"demo": 100}, 110) is False
     node.refresh_from_db()
     assert node.heartbeat == {"trace": {"last_data_at": 80, "checked_at": 90}}
+
+
+@pytest.mark.parametrize("response", [{}, {"list": None}, {"list": {}}])
+@pytest.mark.parametrize("stage", ["aggregate", "sample"])
+def test_profile_invalid_response_does_not_refresh_or_create(response: dict[str, Any], stage: str) -> None:
+    previous = {"profiling": {"last_data_at": 1789957493, "checked_at": 1789957512}}
+    node = make_node(heartbeat=previous)
+    responses = [response]
+    if stage == "sample":
+        responses.insert(0, {"list": [{"service_name": "demo", "type": "cpu", "sample_type": "cpu", "count": 1}]})
+    with mock.patch("apm.core.handlers.profile.query.api.bkdata.query_profile_data", side_effect=responses):
+        with pytest.raises(ValueError, match="list"):
+            ProfileServiceDiscover(datasource()).discover(1789956912000, 1789957512000)
+    node.refresh_from_db()
+    assert node.heartbeat == previous
+    assert ProfileService.objects.count() == 0
+
+
+def test_profile_empty_query_is_successful_check() -> None:
+    node = make_node(heartbeat={"profiling": {"last_data_at": 90, "checked_at": 100}})
+    with mock.patch("apm.core.handlers.profile.query.api.bkdata.query_profile_data", return_value={"list": []}):
+        ProfileServiceDiscover(datasource()).discover(1789956912000, 1789957512000)
+    node.refresh_from_db()
+    assert node.heartbeat["profiling"]["last_data_at"] == 90
+    assert node.heartbeat["profiling"]["checked_at"] > 100
+    assert ProfileService.objects.count() == 0
+
+
+def test_profile_reuses_group_count_and_requires_a_sample() -> None:
+    groups = [
+        {"service_name": "boundary", "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 10000},
+        {"service_name": "large", "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 10001},
+        {"service_name": "no-sample", "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 10},
+    ]
+    sample = {"period": "10000000", "period_type": "cpu/nanoseconds", "type": "cpu", "value": "10000000"}
+
+    def query(**kwargs: Any) -> dict[str, Any]:
+        request = json.loads(kwargs["sql"])
+        params = request["api_params"]
+        assert request["result_table_id"] == "2_apm.app"
+        assert (params["start"], params["end"]) == (1789956912000, 1789957512000)
+        if request["api_type"] == "select_aggregate":
+            return {"list": groups}
+        assert request["api_type"] == "query_sample_by_json"
+        assert params["general_filters"] == {"sample_type": "op_eq|cpu/nanoseconds"}
+        return {"list": [] if params["service_name"] == "no-sample" else [sample]}
+
+    with mock.patch("apm.core.handlers.profile.query.api.bkdata.query_profile_data", side_effect=query) as request:
+        ProfileServiceDiscover(datasource()).discover(1789956912000, 1789957512000)
+    assert request.call_count == 4  # 一次聚合加每个组合一次样本查询。
+    assert json.loads(request.call_args_list[0].kwargs["sql"])["api_params"]["metric_fields"] == "count(*) AS count"
+    profiles = {p.name: p for p in ProfileService.objects.all()}
+    assert set(profiles) == {"boundary", "large"}
+    assert profiles["boundary"].is_large is False
+    assert profiles["large"].is_large is True
+    assert profiles["boundary"].frequency == 100
+    assert profiles["boundary"].last_check_time == profiles["large"].last_check_time
+    assert not TopoNode.objects.filter(topo_key="no-sample").exists()
+    assert TopoNode.objects.get(topo_key="large").heartbeat["profiling"]["last_data_at"] == 1789957512
+
+
+@pytest.mark.parametrize("stage", ["dimensions", "heartbeat"])
+def test_metric_soft_timeout_aborts_remaining_queries(stage: str) -> None:
+    node = make_node(heartbeat={"metric": {"last_data_at": 90, "checked_at": 100}})
+    discover = MetricServiceDiscover(datasource())
+    with mock.patch(
+        "apm.core.discover.metric.service.api.unify_query.query_data_by_promql", side_effect=SoftTimeLimitExceeded
+    ) as query:
+        if stage == "heartbeat":
+            with mock.patch.object(discover, "discover_services"), pytest.raises(SoftTimeLimitExceeded):
+                discover.discover(100, 700)
+        else:
+            with pytest.raises(SoftTimeLimitExceeded):
+                discover.discover(100, 700)
+    assert query.call_count == 1
+    node.refresh_from_db()
+    assert node.heartbeat == {"metric": {"last_data_at": 90, "checked_at": 100}}
+
+
+def test_profile_later_sample_failure_keeps_existing_profile_and_heartbeat() -> None:
+    discover = ProfileServiceDiscover(datasource())
+    groups = [{"service_name": "demo", "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 10001}]
+    sample = {"period": "10000000", "period_type": "cpu/nanoseconds", "type": "cpu", "value": "1"}
+    with mock.patch(
+        "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
+        side_effect=[{"list": groups}, {"list": [sample]}],
+    ):
+        discover.discover(1789956912000, 1789957512000)
+    profile = ProfileService.objects.get(name="demo")
+    node = TopoNode.objects.get(topo_key="demo")
+    old_heartbeat = node.heartbeat
+    old_check_time = profile.last_check_time
+
+    groups = [
+        {"service_name": name, "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 1}
+        for name in ["demo", "new-service"]
+    ]
+    with (
+        mock.patch(
+            "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
+            side_effect=[{"list": groups}, {"list": [sample]}, RuntimeError("later sample failed")],
+        ),
+        pytest.raises(RuntimeError),
+    ):
+        discover.discover(1789957512000, 1789958112000)
+    profile.refresh_from_db()
+    node.refresh_from_db()
+    assert profile.is_large is True
+    assert profile.last_check_time == old_check_time
+    assert node.heartbeat == old_heartbeat
+    assert ProfileService.objects.count() == TopoNode.objects.count() == 1
+
+    with mock.patch(
+        "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
+        side_effect=[{"list": groups[:1]}, {"list": [sample]}],
+    ):
+        discover.discover(1789957512000, 1789958112000)
+    profile.refresh_from_db()
+    node.refresh_from_db()
+    assert ProfileService.objects.count() == 1
+    assert profile.is_large is False
+    assert profile.last_check_time >= old_check_time
+    assert node.heartbeat["profiling"]["last_data_at"] == 1789958112

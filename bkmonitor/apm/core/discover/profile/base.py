@@ -51,9 +51,9 @@ class Discover(abc.ABC):
             )
             queryset.filter(pk__in=delete_pks).delete()
 
-    def clear_expired(self, model):
-        # clean expired topo data based on expiration
-        boundary = datetime.datetime.now() - datetime.timedelta(self.retention)
+    def clear_expired(self, model: type[models.Model]) -> None:
+        # 跟随项目时区设置，避免启用 USE_TZ 时用无时区时间查询。
+        boundary = timezone.now() - datetime.timedelta(days=self.retention)
         filter_params = {"bk_biz_id": self.bk_biz_id, "app_name": self.app_name, "updated_at__lte": boundary}
 
         model.objects.filter(**filter_params).delete()

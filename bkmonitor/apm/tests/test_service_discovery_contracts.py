@@ -3,8 +3,8 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
-
-pytest_plugins = ("apm.tests.test_service_heartbeat",)
+from django.utils import timezone
+from pytest_django.fixtures import SettingsWrapper
 
 from apm.core.discover.node import NodeDiscover
 from apm.core.discover.profile.service import ServiceDiscover as ProfileDiscover
@@ -23,10 +23,30 @@ from monitor_web.search.handlers.base import SearchScope
 from monitor_web.statistics.v2.apm import APMCollector
 
 
-@pytest.mark.parametrize("sources,kind", [(["profiling"], "service"), (["log"], "service"), (["metric"], "service")])
-def test_relation_discovery_does_not_consume_new_only_classification(
-    heartbeat_db: str, sources: list[str], kind: str
+pytestmark = pytest.mark.django_db(databases="__all__")
+
+
+@pytest.mark.parametrize("use_tz", [True, False])
+def test_profile_expiration_preserves_recent_and_other_application_services(
+    settings: SettingsWrapper, use_tz: bool
 ) -> None:
+    settings.USE_TZ = use_tz
+    discover = ProfileDiscover(datasource())
+    now = timezone.now()
+    expired = ProfileService.objects.create(name="expired", bk_biz_id=2, app_name="app", last_check_time=now)
+    recent = ProfileService.objects.create(name="recent", bk_biz_id=2, app_name="app", last_check_time=now)
+    other = ProfileService.objects.create(name="other", bk_biz_id=2, app_name="other", last_check_time=now)
+    ProfileService.objects.filter(pk__in=[expired.pk, other.pk]).update(
+        updated_at=now - datetime.timedelta(days=discover.retention + 1)
+    )
+
+    discover.clear_expired(ProfileService)
+
+    assert set(ProfileService.objects.values_list("pk", flat=True)) == {recent.pk, other.pk}
+
+
+@pytest.mark.parametrize("sources,kind", [(["profiling"], "service"), (["log"], "service"), (["metric"], "service")])
+def test_relation_discovery_does_not_consume_new_only_classification(sources: list[str], kind: str) -> None:
     extra_data = (
         {"kind": "profiling", "category": "profiling"}
         if sources != ["metric"]
@@ -60,7 +80,7 @@ def test_relation_discovery_does_not_consume_new_only_classification(
     assert relation.to_topo_key_category == ("rpc" if sources == ["metric"] else "http")
 
 
-def test_service_counts_and_search_share_legacy_visibility(heartbeat_db: str) -> None:
+def test_service_counts_and_search_share_legacy_visibility() -> None:
     make_node("old", source=["trace"])
     make_node("new-log", source=["log"])
     make_node("new-profile", source=["profiling"])
@@ -79,11 +99,11 @@ def test_service_counts_and_search_share_legacy_visibility(heartbeat_db: str) ->
     assert TopoNode.objects.count() == 3
 
 
-def test_node_overflow_does_not_delete_other_applications(heartbeat_db: str) -> None:
+def test_node_overflow_does_not_delete_other_applications() -> None:
     make_node("a")
     make_node("b")
     other = make_node("unrelated", bk_biz_id=3, app_name="other")
-    TopoNode.objects.filter(id=other.id).update(updated_at="2020-01-01 00:00:00")
+    TopoNode.objects.filter(id=other.id).update(updated_at=timezone.now() - datetime.timedelta(days=365))
     discover = object.__new__(NodeDiscover)
     discover.bk_biz_id = 2
     discover.app_name = "app"
@@ -93,10 +113,10 @@ def test_node_overflow_does_not_delete_other_applications(heartbeat_db: str) -> 
     assert TopoNode.objects.filter(bk_biz_id=2).count() == 1
 
 
-def test_profile_overflow_does_not_delete_other_applications(heartbeat_db: str) -> None:
+def test_profile_overflow_does_not_delete_other_applications() -> None:
     for name, biz, app in (("a", 2, "app"), ("b", 2, "app"), ("unrelated", 3, "other")):
-        ProfileService.objects.create(name=name, bk_biz_id=biz, app_name=app, last_check_time=datetime.datetime.now())
-    ProfileService.objects.filter(bk_biz_id=3).update(updated_at="2020-01-01 00:00:00")
+        ProfileService.objects.create(name=name, bk_biz_id=biz, app_name=app, last_check_time=timezone.now())
+    ProfileService.objects.filter(bk_biz_id=3).update(updated_at=timezone.now() - datetime.timedelta(days=365))
     discover = ProfileDiscover(datasource())
     discover.MAX_COUNT = 1
     discover.clear_if_overflow(ProfileService)
@@ -104,19 +124,18 @@ def test_profile_overflow_does_not_delete_other_applications(heartbeat_db: str) 
     assert ProfileService.objects.filter(bk_biz_id=2).count() == 1
 
 
-def test_profile_truncated_result_only_checks_observed_services(heartbeat_db: str) -> None:
+def test_profile_truncated_result_only_checks_observed_services() -> None:
     unknown = make_node("unknown", heartbeat={"profiling": {"last_data_at": 50, "checked_at": 60}})
     discover = ProfileDiscover(datasource())
     discover.MAX_DIMENSION_COMBINATION_LIMIT = 1
     builder = profile_builder(
         [
-            [{"service_name": "demo", "type": "cpu", "sample_type": "cpu"}],
+            [{"service_name": "demo", "type": "cpu", "sample_type": "cpu", "count": 1}],
             [{"period": 10_000_000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 100}],
         ]
     )
     with (
         mock.patch.object(discover, "get_builder", return_value=builder),
-        mock.patch.object(discover, "is_large_service", return_value=False),
         mock.patch("apm.core.discover.profile.service.EventReportHelper.report"),
     ):
         discover.discover(100000, 200000)

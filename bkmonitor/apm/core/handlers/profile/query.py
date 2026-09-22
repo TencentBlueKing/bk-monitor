@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import copy
 import json
 import logging
@@ -39,7 +39,7 @@ class ApiParam:
     type: str = ""
     start: int = ""
     end: int = ""
-    label_filter: typing.Dict = field(default_factory=list)
+    label_filter: dict = field(default_factory=list)
     service_name: str = ""
     limit: ApiParamLimit = None
     order: ApiParamOrder = None
@@ -154,7 +154,7 @@ class ProfileQueryBuilder:
     def copy(self):
         return copy.deepcopy(self)
 
-    def execute(self):
+    def execute(self) -> list[dict[str, typing.Any]]:
         params = {
             "sql": json.dumps(
                 {
@@ -168,4 +168,8 @@ class ProfileQueryBuilder:
         }
         logger.info(f"[ProfileQuery] origin_params: \n-----\n{json.dumps(params)}\n-----\n")
         response = api.bkdata.query_profile_data(**params)
-        return response.get("list", [])
+        # 只有显式空列表才表示查询成功但无数据，异常响应不能被用来续期心跳。
+        rows = response.get("list")
+        if not isinstance(rows, list):
+            raise ValueError("invalid profiling query response: list must be an array")
+        return rows
