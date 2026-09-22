@@ -25,6 +25,7 @@ from apps.log_search.constants import (
     ASYNC_APP_CODE,
     ASYNC_EXPORT_EXPIRED,
     FEATURE_ASYNC_EXPORT_COMMON,
+    FEATURE_ASYNC_EXPORT_EXTERNAL,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
 )
 from apps.utils.remote_storage import StorageType
@@ -39,25 +40,25 @@ class UnsupportedExportStorage(Exception):
 SUPPORTED_STORAGE_TYPES = (RemoteStorageType.COS.value, RemoteStorageType.BKREPO.value)
 
 
-def build_storage():
-    """
-    构建产物存储实例。
-
-    复用旧异步导出链路的开关与配置，但只接受对象存储；分片导出不新增存储配置，
-    也不新增一种后端。
-    """
-    toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config
-    storage_type = toggle.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
+def build_storage(external=False):
+    """构建产物存储实例；外部版任务读 feature_async_export_external，内部任务读 feature_async_export。"""
+    toggle_name = FEATURE_ASYNC_EXPORT_EXTERNAL if external else FEATURE_ASYNC_EXPORT_COMMON
+    config = getattr(FeatureToggleObject.toggle(toggle_name), "feature_config", None)
+    if not isinstance(config, dict):
+        raise UnsupportedExportStorage(f"分片导出存储配置未就绪：{toggle_name}")
+    storage_type = config.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
     if storage_type not in SUPPORTED_STORAGE_TYPES:
-        raise UnsupportedExportStorage(f"分片导出仅支持 COS / BKREPO 存储，当前配置为 {storage_type!r}")
+        raise UnsupportedExportStorage(
+            f"分片导出仅支持 COS / BKREPO 存储，当前配置 {toggle_name}.{FEATURE_ASYNC_EXPORT_STORAGE_TYPE}={storage_type!r}"
+        )
     storage = StorageType.get_instance(storage_type)
     if storage_type == RemoteStorageType.BKREPO.value:
         return storage(expired=ASYNC_EXPORT_EXPIRED)
     return storage(
-        toggle.get("qcloud_secret_id"),
-        toggle.get("qcloud_secret_key"),
-        toggle.get("qcloud_cos_region"),
-        toggle.get("qcloud_cos_bucket"),
+        config.get("qcloud_secret_id"),
+        config.get("qcloud_secret_key"),
+        config.get("qcloud_cos_region"),
+        config.get("qcloud_cos_bucket"),
         ASYNC_EXPORT_EXPIRED,
     )
 
@@ -80,5 +81,6 @@ def upload(storage, file_path, file_name):
     return storage.export_upload(file_path=str(file_path), file_name=file_name)
 
 
-def download_url(storage, url_path, file_name, ttl):
-    return storage.generate_download_url(url_path=url_path, file_name=file_name, expired=ttl)
+def download_url(storage, file_name, ttl):
+    """分片导出只支持对象存储，预签名链接直接指向存储，不需要应用内下载路由。"""
+    return storage.generate_download_url(file_name=file_name, expired=ttl)
