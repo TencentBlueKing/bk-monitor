@@ -1234,10 +1234,13 @@ class ListFlowsResourceTestCase(TestCase):
                 "trace_id": "trace-1",
                 "span_id": "span-1",
                 "span_name": "framework",
+                "parent_span_id": "external",
                 "start_time": 1,
                 "end_time": 2,
+                "elapsed_time": 1,
+                "status": {"code": 1},
                 "resource": {"service.name": "agent-service"},
-                "attributes": {},
+                "attributes": {"gen_ai.operation.name": "task"},
             }
         ]
         with (
@@ -1390,7 +1393,7 @@ class ListFlowsResourceTestCase(TestCase):
             {"span_id": "early-child", "parent_span_id": "early-root", "start_time": 200},
             {"span_id": "early-root", "parent_span_id": "external", "start_time": 100},
         ]
-        spans = [span for span in raw_spans if span["span_id"] != "bridge"]
+        spans = [{**span, "span_type": "LLM"} if span["span_id"] != "bridge" else span for span in raw_spans]
         builder = FlowBuilder(raw_spans, spans)
         for _ in range(2):
             flow = builder.build()
@@ -1654,11 +1657,30 @@ class ListFlowsResourceTestCase(TestCase):
             },
         ]
 
-        flow = FlowBuilder(raw_spans, [raw_spans[0], raw_spans[2]]).build()
+        for framework_type in (None, "", "TASK"):
+            with self.subTest(span_type=framework_type):
+                spans = [
+                    {**raw_spans[0], "span_type": "AGENT"},
+                    {**raw_spans[1], "span_type": framework_type},
+                    {**raw_spans[2], "span_type": "TOOL"},
+                ]
+                flow = FlowBuilder(raw_spans, spans).build()
 
-        self.assertEqual([span["span_id"] for span in flow], ["agent"])
-        self.assertEqual([span["span_id"] for span in flow[0]["childs"]], ["tool"])
-        self.assertEqual(flow[0]["childs"][0]["parent_span_id"], "framework")
+                self.assertEqual([span["span_id"] for span in flow], ["agent"])
+                self.assertEqual([span["span_id"] for span in flow[0]["childs"]], ["tool"])
+                self.assertEqual(flow[0]["childs"][0]["parent_span_id"], "framework")
+
+    def test_flow_promotes_supported_children_of_filtered_root(self):
+        raw_spans = [
+            {"span_id": "framework", "parent_span_id": "external", "start_time": 100},
+            {"span_id": "llm", "parent_span_id": "framework", "start_time": 120},
+        ]
+        spans = [raw_spans[0], {**raw_spans[1], "span_type": "LLM"}]
+
+        flow = FlowBuilder(raw_spans, spans).build()
+
+        self.assertEqual([span["span_id"] for span in flow], ["llm"])
+        self.assertEqual(flow[0]["parent_span_id"], "framework")
 
     def test_flow_builder_fills_agent_tokens_from_llm_descendants(self):
         raw_spans = [
