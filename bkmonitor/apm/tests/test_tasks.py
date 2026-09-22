@@ -6,6 +6,9 @@ from typing import Any
 
 import fakeredis
 import pytest
+from celery.exceptions import SoftTimeLimitExceeded
+
+from apm.core.discover.metric.service import ServiceDiscover as MetricServiceDiscover
 
 from apm.core.discover.exceptions import IncompleteDiscoveryError
 
@@ -197,3 +200,18 @@ def test_profile_sharding_covers_every_application_once_per_cycle(settings, mock
     )
     cron_tasks = ast.literal_eval(cron_node.value)
     assert next(cron for name, cron, _ in cron_tasks if name == "apm.task.tasks.profile_discover_cron") == "* * * * *"
+
+
+def test_metric_worker_soft_timeout_releases_execution_lock(settings, mocker) -> None:
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    redis = fakeredis.FakeRedis(decode_responses=True)
+    mocker.patch("apm.task.tasks.ApmCacheHandler.get_redis_client", return_value=redis)
+    mocker.patch("apm.task.tasks.DiscoverContainer.list_discovers", return_value=[MetricServiceDiscover])
+    query = mocker.patch(
+        "apm.core.discover.metric.service.api.unify_query.query_data_by_promql", side_effect=SoftTimeLimitExceeded
+    )
+    datasource = SimpleNamespace(bk_biz_id=2, app_name="app", result_table_id="2_apm.app")
+    with pytest.raises(SoftTimeLimitExceeded):
+        tasks.datasource_discover_handler(datasource, 10, 100)
+    assert query.call_count == 1
+    assert redis.keys() == []

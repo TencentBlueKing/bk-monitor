@@ -14,6 +14,7 @@ import time
 from typing import Any
 
 import arrow
+from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.utils import timezone
 
@@ -57,6 +58,8 @@ class ServiceDiscover(Discover):
     def query_dimensions(self, promql: str, start_time: int, end_time: int) -> list[dict[str, str | None]]:
         try:
             series: list[dict[str, Any]] = self.query_series(promql, start_time, end_time)
+        except SoftTimeLimitExceeded:
+            raise
         except Exception:
             logger.exception(
                 "[MetricServiceDiscover] query failed: bk_biz_id=%s app_name=%s", self.bk_biz_id, self.app_name
@@ -71,6 +74,8 @@ class ServiceDiscover(Discover):
             self.discover_services(start, end)
         try:
             self.discover_heartbeat(start_time, end_time)
+        except SoftTimeLimitExceeded:
+            raise
         except Exception:
             logger.exception(
                 "[MetricServiceDiscover] heartbeat unchanged: bk_biz_id=%s app_name=%s start=%s end=%s",
