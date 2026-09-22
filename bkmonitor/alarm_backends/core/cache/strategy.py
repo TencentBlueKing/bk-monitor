@@ -549,10 +549,7 @@ class StrategyCacheManager(CacheManager):
             }
         # 未配置或清除覆盖时保留原有身份，不将全局默认值注入旧策略的分组。
         if item.get("access_lookback_periods") is not None:
-            query_identity = {
-                "query": query_identity,
-                "access_lookback_periods": item["access_lookback_periods"],
-            }
+            query_identity["access_lookback_periods"] = item["access_lookback_periods"]
         return count_md5(query_identity)
 
     @classmethod
