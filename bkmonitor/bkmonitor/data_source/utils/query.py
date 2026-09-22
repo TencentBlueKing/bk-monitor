@@ -41,6 +41,12 @@ class BaseQuery:
     # 字段操作符映射，{field_type: operations}
     FIELD_OPERATIONS: dict[str, list[dict[str, Any]]] = {}
 
+    # 参与求和的每个字段占一个引用别名。
+    METRIC_ALIASES: tuple[str, ...] = tuple(f"q{index}" for index in range(8))
+
+    # 时序图展示的曲线数上限
+    SERIES_LIMIT = 20
+
     def __init__(self, data_sources: list[DataSourceTarget]):
         self.data_sources = data_sources
 
@@ -494,3 +500,73 @@ class BaseQuery:
                 "end_time": end_time,
             }
         ).get("data", [])
+
+    @classmethod
+    def _metric_queries(
+        cls,
+        queries: list[QueryConfigBuilder],
+        fields: list[str],
+        method: str,
+        group_by: list[str],
+    ) -> list[QueryConfigBuilder]:
+        """一个字段一个引用；应用配置了多个结果表时，每个结果表各出一个。"""
+        return [
+            query.alias(alias).metric(field=field, method=method, alias=alias).group_by(*group_by)
+            for alias, field in zip(cls.METRIC_ALIASES, fields)
+            for query in queries
+        ]
+
+    @classmethod
+    def _sum_expression(cls, fields: list[str]) -> str:
+        aliases: tuple[str, ...] = cls.METRIC_ALIASES[: len(fields)]
+        if len(aliases) == 1:
+            return aliases[0]
+        return " + ".join(
+            "({} or {})".format(alias, " or ".join(f"{other} * 0" for other in aliases if other != alias))
+            for alias in aliases
+        )
+
+    def _query_fields_aggregated_group(
+        self,
+        queries: list[QueryConfigBuilder],
+        start_time: int | None,
+        end_time: int | None,
+        fields: list[str],
+        method: str,
+        group_by: list[str] | None = None,
+    ) -> list[dict[str, Any]]:
+        group_by = group_by or []
+        if not group_by and len(fields) == 1:
+            # 无维度的单字段聚合直接用标量查询：它额外处理了多结果表下
+            # DISTINCT 需枚举合并去重的情况，分组查询替代不了。
+            value = self._query_field_aggregated_value(queries, start_time, end_time, fields[0], method)
+            return [{"_result_": value or 0}]
+
+        qs = (
+            self.get_qs(start_time, end_time)
+            .expression(self._sum_expression(fields))
+            .time_agg(False)
+            .instant()
+            .limit(self.QUERY_MAX_LIMIT if group_by else 1)
+        )
+        return list(self._add_query(qs, self._metric_queries(queries, fields, method, group_by)))
+
+    def _query_fields_graph_config(
+        self,
+        queries: list[QueryConfigBuilder],
+        start_time: int | None,
+        end_time: int | None,
+        fields: list[str],
+        method: str,
+        interval: int,
+        group_by: list[str] | None = None,
+    ) -> dict[str, Any]:
+        group_by = group_by or []
+        expression: str = self._sum_expression(fields)
+        return self._add_query(
+            self.get_qs(start_time, end_time)
+            .expression(f"topk({self.SERIES_LIMIT}, {expression})" if group_by else expression)
+            .time_agg(False),
+            # 显式下发聚合周期，不走 grafana 的 auto：它按采集周期取点，时间范围拉长后数据点过密
+            [query.interval(interval) for query in self._metric_queries(queries, fields, method, group_by)],
+        ).config
