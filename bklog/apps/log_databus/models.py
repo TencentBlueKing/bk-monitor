@@ -718,8 +718,10 @@ class RestoreConfig(SoftDeleteModel):
             "content": _("你创建的归档回溯已经完成"),
             "title": str(_("【日志平台】")),
         }
-        CmsiApi.send_mail(send_params)
-        CmsiApi.send_weixin(send_params)
+        index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+        bk_tenant_id = Space.get_tenant_id(space_uid=index_set.space_uid)
+        CmsiApi.send_mail(send_params, bk_tenant_id=bk_tenant_id)
+        CmsiApi.send_weixin(send_params, bk_tenant_id=bk_tenant_id)
 
     @classmethod
     def get_collector_config_id(cls, restore_config_id):

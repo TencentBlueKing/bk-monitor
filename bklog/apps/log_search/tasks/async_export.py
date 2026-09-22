@@ -59,6 +59,7 @@ from apps.log_search.handlers.search.search_handlers_esquery import SearchHandle
 from apps.log_search.models import (
     AsyncTask,
     LogIndexSet,
+    Space,
     Scenario,
     StorageClusterRecord,
 )
@@ -626,7 +627,13 @@ class AsyncExportUtils:
             language=language,
         )
         receivers = self.external_user_email if self.is_external else async_task.created_by
-        self.notify.send(receivers=receivers, title=title, content=content, is_external=self.is_external)
+        self.notify.send(
+            receivers=receivers,
+            title=title,
+            content=content,
+            is_external=self.is_external,
+            bk_tenant_id=Space.get_tenant_id(bk_biz_id=async_task.bk_biz_id),
+        )
 
     @classmethod
     def generate_title_template(cls, title_model):
@@ -946,7 +953,13 @@ class UnionAsyncExportUtils:
             language=language,
         )
         receivers = self.external_user_email if self.is_external else async_task.created_by
-        self.notify.send(receivers=receivers, title=title, content=content, is_external=self.is_external)
+        self.notify.send(
+            receivers=receivers,
+            title=title,
+            content=content,
+            is_external=self.is_external,
+            bk_tenant_id=Space.get_tenant_id(bk_biz_id=async_task.bk_biz_id),
+        )
 
     @classmethod
     def generate_title_template(cls, title_model):
