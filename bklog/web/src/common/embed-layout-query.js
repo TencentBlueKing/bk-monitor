@@ -85,5 +85,5 @@ export function buildMonitorLogRetrievalUrl(options = {}) {
 }
 
 export function isMonitorEmbedContext(query = {}) {
-  return Boolean(window.__IS_MONITOR_COMPONENT__) || query.from === 'monitor';
+  return Boolean(window.__IS_MONITOR_COMPONENT__) || (query.from === 'monitor' && window.self !== window.top);
 }
