@@ -26,7 +26,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { VIEW_BUSINESS } from '@/common/authority-map';
-import { isMonitorEmbedContext } from '@/common/embed-layout-query';
+import { isMonitorIframeContext } from '@/common/embed-layout-query';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
@@ -152,7 +152,7 @@ export default () => {
   const bkBizId = computed(() => store.state.bkBizId);
 
   const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
-  const isMonitorEmbed = computed(() => isMonitorEmbedContext(route.query));
+  const isMonitorEmbed = computed(() => isMonitorIframeContext(route.query));
 
   /**
    * 扁平化索引集列表
