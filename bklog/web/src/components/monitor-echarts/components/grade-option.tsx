@@ -273,6 +273,7 @@ export default defineComponent({
               allow-create
               clearable
               multiple
+              collapse-tags
               searchable
               onChange={v => handleSettingItemChange(index, 'fieldValue', v)}
             />

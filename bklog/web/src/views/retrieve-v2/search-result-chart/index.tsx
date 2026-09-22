@@ -136,14 +136,10 @@ export default defineComponent({
       },
     };
 
-    // popover 隐藏前的拦截逻辑
+    // popover 隐藏前的拦截逻辑：点击内层浮层内的任意位置时，不关闭外层弹层
     const beforePopoverHide = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (
-        ((target.classList.contains('bk-option-name') || target.classList.contains('bk-option-content-default')) &&
-          target.closest('.bk-select-dropdown-content.bklog-popover-stop')) ||
-        target.classList.contains('bklog-popover-stop')
-      ) {
+      if (target?.closest('.bklog-popover-stop, .bk-selector-list')) {
         return false;
       }
       return true;
