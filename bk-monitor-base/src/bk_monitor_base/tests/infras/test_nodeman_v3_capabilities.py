@@ -65,6 +65,25 @@ def test_proxy_cloud_zero_and_native_mapping():
     assert result[0]["status"] == "RUNNING"
 
 
+@pytest.mark.parametrize(
+    "native_field,field,addresses",
+    [
+        ("bk_host_innerip_list", "inner_ip", ["127.0.0.1", "127.0.0.2"]),
+        ("bk_host_innerip_v6_list", "inner_ipv6", ["::1", "::2"]),
+        ("bk_host_outerip_list", "outer_ip", ["127.0.0.3", "127.0.0.2"]),
+    ],
+)
+@pytest.mark.parametrize("count", [None, 0, 1, 2])
+def test_proxy_address_fields_keep_first_ip(native_field, field, addresses, count):
+    """业务单地址字段沿用 V2 的首个 IP 约定，空列表或 null 返回空串。"""
+    item = host()
+    item["info"][native_field] = addresses[:count] if count is not None else None
+    before = deepcopy(item)
+    result = v3.V3HostQueries(Mock(return_value=page(item))).proxies("tenant", 0)
+    assert result[0][field] == (addresses[0] if count else "")
+    assert item == before
+
+
 def test_business_proxies_include_shared_proxy_from_other_business():
     request = Mock(side_effect=[{"bk_networkarea_id": ["0", "3"]}, page(host(biz=88, area=3))])
     assert v3.V3HostQueries(request).business_proxies("tenant", 2)[0]["bk_biz_id"] == 88

@@ -56,13 +56,14 @@ class V3HostQueries(HostQueries):
         """NetworkAreaID 来自 CMDB BKCloudID；不把 networkunit_id 当作云区域。"""
         info = host["info"]
         state: dict[str, Any] = host.get("state") or {}
+        # 下游用这些字段查主机、生成上报 URL，沿用 V2 的首个 IP，不能拼接地址列表。
         return {
             "bk_host_id": int(host["bk_host_id"]),
             "bk_biz_id": int(info["bk_biz_id"]),
             "bk_cloud_id": int(info["bk_networkarea_id"]),
-            "inner_ip": ",".join(info.get("bk_host_innerip_list") or []),
-            "inner_ipv6": ",".join(info.get("bk_host_innerip_v6_list") or []),
-            "outer_ip": ",".join(info.get("bk_host_outerip_list") or []),
+            "inner_ip": (info.get("bk_host_innerip_list") or [""])[0],
+            "inner_ipv6": (info.get("bk_host_innerip_v6_list") or [""])[0],
+            "outer_ip": (info.get("bk_host_outerip_list") or [""])[0],
             "conn_ip": info.get("advertise_ip") or info.get("advertise_ip_v6") or "",
             "status": str(state.get("node_status") or "unknown").upper(),
             "bk_agent_id": state.get("bk_agent_id") or "",
