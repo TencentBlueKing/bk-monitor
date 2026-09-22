@@ -32,7 +32,6 @@
   }
 
   &-title {
-    gap: 12px;
     min-width: 0;
     color: #111214;
 
@@ -50,6 +49,8 @@
   }
 
   &-label {
+    margin-right: 6px;
+    margin-left: 12px;
     font-family: 'PingFang SC', sans-serif;
     font-size: 13px;
     font-weight: 500;

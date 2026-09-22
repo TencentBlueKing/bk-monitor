@@ -1,0 +1,164 @@
+@import '../../../../../theme/theme';
+@import '../../../../../theme/mixin';
+
+.llm-span-expand {
+  /* InputTab / OutputTab 吸顶变量是给 span 详情抽屉用的（默认 top: 90px）。
+     行内展开没有三层 Tab 栈，且 .llm-span-expand-content 的 overflow 会形成 sticky 滚动端口，
+     沿用 90px 会把分区标题往下推、正文穿到标题上方。 */
+  --llm-section-sticky-top: 0px;
+  --llm-section-header-height: 32px;
+
+  gap: 12px;
+  padding: 12px 40px 24px;
+  background: #f2f6fc;
+
+  @include flex-column;
+
+  &-actions {
+    gap: 24px;
+    padding-bottom: 10px;
+
+    @include flex-align(center);
+
+    &.is-flush {
+      padding-bottom: 0;
+    }
+  }
+
+  &-toolbar {
+    justify-content: space-between;
+    width: 100%;
+
+    @include flex-align(flex-end);
+
+    &.is-tool {
+      align-items: center;
+      justify-content: flex-end;
+    }
+  }
+
+  &-tabs {
+    gap: 8px;
+
+    @include flex-align(flex-end);
+  }
+
+  &-tab {
+    position: relative;
+    gap: 6px;
+    justify-content: center;
+    height: 40px;
+    padding: 10px 24px;
+    font-size: $font-size-medium;
+    font-weight: 500;
+    line-height: 22px;
+    color: #4e5e7a;
+    white-space: nowrap;
+    cursor: pointer;
+    background: #e4e9f2;
+    border-radius: 8px 8px 0 0;
+
+    @include flex-align(center);
+
+    &-icon {
+      flex-shrink: 0;
+      font-size: $font-size-large;
+    }
+
+    &.is-active {
+      z-index: 1;
+      margin-bottom: -1px;
+      color: $primary-color;
+      background: #fff;
+      box-shadow: 0 -1px 1px rgb(25 25 41 / 4%);
+    }
+  }
+
+  &-switch {
+    gap: 8px;
+    font-size: $font-size-base;
+    font-weight: 500;
+    line-height: 20px;
+    color: #313238;
+    white-space: nowrap;
+
+    @include flex-align(center);
+
+    &-text {
+      font-family: 'PingFang SC', sans-serif;
+      font-size: $font-size-base;
+      font-weight: 500;
+    }
+  }
+
+  &-detail-link {
+    gap: 6px;
+    font-family: 'PingFang SC', sans-serif;
+    font-size: $font-size-base;
+    font-weight: 500;
+    line-height: 20px;
+    color: $primary-color;
+    white-space: nowrap;
+    cursor: pointer;
+
+    @include flex-align(center);
+
+    .icon-mc-goto {
+      font-size: $font-size-medium;
+      font-weight: normal;
+    }
+  }
+
+  &-content {
+    max-height: 520px;
+    overflow: auto;
+    background: #fff;
+    border-radius: 0 6px 6px;
+    box-shadow: 0 2px 4px rgb(25 25 41 / 5%);
+
+    &.is-raw-json {
+      background: #1e1e1e;
+      box-shadow: none;
+    }
+
+    .llm-input-tab,
+    .llm-output-tab {
+      padding: 12px 16px 16px;
+    }
+  }
+
+  &-json {
+    max-height: 480px;
+    padding: 20px 24px 24px;
+    overflow: auto;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgb(25 25 41 / 5%);
+
+    &.is-dark {
+      background: #1e1e1e;
+      box-shadow: none;
+    }
+  }
+
+  &-io &-json {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  &-tool {
+    gap: 12px;
+    width: 100%;
+
+    @include flex-align(flex-start);
+  }
+
+  &-tool-col {
+    flex: 1;
+    min-width: 0;
+    padding: 16px;
+    background: #fff;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgb(25 25 41 / 5%);
+  }
+}

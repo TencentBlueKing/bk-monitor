@@ -7,7 +7,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   position: relative;
   box-sizing: border-box !important;
   height: 100%;
-  padding: 0 16px 12px;
+
+  // padding: 0 16px 12px;
   overflow: hidden auto;
 
   .header {
@@ -41,6 +42,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
     justify-content: space-between;
     max-width: 734px;
     padding-right: 24px;
+    padding-left: 16px;
     margin-top: 8px;
 
     .message-item {
@@ -77,6 +79,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
   .overview-content {
     display: inline-block;
+    padding-left: 16px;
     margin-top: 8px;
 
     .item-card {
@@ -189,7 +192,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
     .tab-panel-content {
       position: relative;
       box-sizing: border-box;
-      padding: 0 16px 16px;
+      padding: 24px 16px 16px;
       background-color: #fff;
 
       .bklog-result-container.has-scroll-x .bklog-row-box .bklog-row-container .expand-view-wrapper::after {
@@ -426,6 +429,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   }
 
   .trace-main-tab {
+    padding: 0 16px;
+
     .bk-tab-header {
       .bk-tab-header-nav {
         flex: 1;

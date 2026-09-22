@@ -58,6 +58,7 @@ import FlameGraphV2 from '../../../plugins/charts/flame-graph-v2/flame-graph';
 import TopoSpanList from '../../../plugins/charts/span-list/topo-span-list';
 import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-query';
 import { toUnixMilliseconds } from '../../../utils/date';
+import TraceLlmObservation from './llm-observation';
 const MonitorTraceLog = defineAsyncComponent(
   () =>
     import(/* webpackChunkName: "monitor-trace-log" */ '../../../plugins/charts/monitor-trace-log/monitor-trace-log')
@@ -91,7 +92,6 @@ import './trace-detail.scss';
  * 宿主 webpack 对 mermaid 的 bundling 方式与 trace 主站一致，不会出现 getBBox 问题
  */
 const SequenceGraph = defineAsyncComponent(() => import('../../../plugins/charts/sequence-graph/sequence-graph'));
-
 const { TabPanel } = Tab;
 
 const TraceDetailProps = {
@@ -114,7 +114,7 @@ const TraceDetailProps = {
   },
 };
 
-type IPanelEnum = 'flame' | 'sequence' | 'statistics' | 'timeline' | 'topo' | 'log';
+type IPanelEnum = 'flame' | 'llm' | 'log' | 'sequence' | 'statistics' | 'timeline' | 'topo';
 
 interface IState {
   activePanel: IPanelEnum;
@@ -186,6 +186,7 @@ export default defineComponent({
         { id: 'sequence', name: t('时序图'), icon: 'Sequence' },
         { id: 'flame', name: t('火焰图'), icon: 'Flame' },
         { id: 'log', name: t('日志'), icon: 'a-logrizhi' },
+        { id: 'llm', name: t('LLM 观测'), icon: 'LLM' },
       ],
       isClassifyFilter: false,
       filterSpanIds: [],
@@ -541,12 +542,15 @@ export default defineComponent({
         }
         const toolRowHeight = TOOLS_ROW_HEIGHT;
         // 视图容器的最小高度
-        const viewHeight = containerHeight - offsetTop - toolRowHeight - 12; // 12为padding大小
+        let viewHeight = containerHeight - offsetTop - toolRowHeight - 12; // 12为padding大小
+        if (state.activePanel === 'llm') {
+          viewHeight += 50;
+        }
         const viewWidth =
           showSpanList.value && !contentLoading.value && ['topo', 'sequence', 'flame'].includes(state.activePanel)
             ? `${clientWidth - spanListWidth.value}px`
             : '100%';
-        const isHaveHeight = ['topo', 'statistics', 'flame', 'sequence'].includes(state.activePanel);
+        const isHaveHeight = ['topo', 'statistics', 'flame', 'sequence', 'llm'].includes(state.activePanel);
         state.traceMainStyle = `width:${viewWidth};min-height: ${viewHeight}px${
           isHaveHeight ? `; height: ${viewHeight}px` : '; height: 100%'
         };padding-right:${showSpanList.value ? '0' : '16px'}`;
@@ -1197,7 +1201,7 @@ export default defineComponent({
             ))}
           </MonitorTab>
           {/* 工具栏 */}
-          {this.activePanel !== 'log' && (
+          {!['log', 'llm'].includes(this.activePanel) && (
             <div
               ref='viewTool'
               class='view-tools'
@@ -1338,6 +1342,14 @@ export default defineComponent({
                 )}
                 {/* 日志视图 */}
                 {this.activePanel === 'log' && <MonitorTraceLog />}
+                {/* LLM 观测 */}
+                {this.activePanel === 'llm' && (
+                  <TraceLlmObservation
+                    appName={this.appName}
+                    traceId={this.traceID || traceId}
+                    onShowSpanDetail={this.handleShowSpanDetails}
+                  />
+                )}
               </Loading>
               <ResizeLayout
                 key={this.activePanel}

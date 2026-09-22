@@ -139,7 +139,7 @@ export default defineComponent({
                   class='llm-text-content-action'
                   onClick={() => emit('viewAlone', props.content)}
                 >
-                  <i class='icon-monitor icon-chakan1' />
+                  <i class='icon-monitor icon-sidebar' />
                   <span>{t('独立查看')}</span>
                 </div>
               )}
