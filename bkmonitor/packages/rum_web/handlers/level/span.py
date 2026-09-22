@@ -535,7 +535,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
             for point_value, timestamp_ms in series.get("datapoints", []):
                 if point_value is None:
                     continue
-                bucket_start: int = (timestamp_ms // 1000 // interval) * interval
+                bucket_start: int = timestamp_ms // 1000
                 record = bucket_records.setdefault(
                     (dimension_kv, bucket_start),
                     {
