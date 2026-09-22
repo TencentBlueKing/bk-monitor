@@ -24,27 +24,25 @@ from datetime import timedelta
 
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
-from rest_framework.exceptions import APIException, PermissionDenied, ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 
 from apps.log_search.constants import ExportJobStatus, ExportPartStatus, ExportStage
 from apps.log_search.export import state
 from apps.log_search.export.config import current_policy, is_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
-from apps.log_search.export.storage import UnsupportedExportStorage, build_storage, download_url
+from apps.log_search.export.storage import build_storage, download_url
 from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.local import (
     get_request_app_code,
     get_request_external_username,
-    get_request_tenant_id,
     get_request_username,
 )
 
 
 TERMINAL = ExportJobStatus.TERMINAL
 INFLIGHT = ExportPartStatus.INFLIGHT
-# 进度展示时取最靠后的阶段
 STAGE_ORDER = [ExportStage.DOWNLOAD_LOG, ExportStage.PACKAGE, ExportStage.UPLOAD]
 TIME_TICK_BY_UNIT = {"second": 1000, "millisecond": 1}
 
@@ -84,24 +82,15 @@ def current_username():
 def create_export_job(data):
     """创建分片导出任务。"""
     username = current_username()
-    if not username:
-        raise PermissionDenied("无法识别请求用户")
-    space = get_object_or_404(Space, space_uid=data["space_uid"], bk_tenant_id=get_request_tenant_id())
+    space = Space.objects.get(space_uid=data["space_uid"])
     if not is_enabled(space.bk_biz_id):
         raise ValidationError({"detail": "分片导出未启用"})
-    is_external = bool(get_request_external_username())
-    # 只支持对象存储；配置不匹配时在创建阶段就失败，避免任务跑到执行阶段才报错
-    try:
-        build_storage(external=is_external)
-    except UnsupportedExportStorage as error:
-        raise ValidationError({"detail": str(error)}) from error
-    index = get_object_or_404(LogIndexSet, pk=data["index_set_id"], space_uid=space.space_uid)
 
+    index = LogIndexSet.objects.get(index_set_id=data["index_set_id"])
     tick = resolve_time_tick(index.pk)
     if data["start_time"] % tick or data["end_time"] % tick:
         raise ValidationError({"detail": "导出时间范围必须对齐时间字段精度"})
 
-    # 与旧异步导出共用同一个用户级并发额度
     AsyncTask.check_running_count_by_user(username)
 
     params = {
@@ -131,7 +120,7 @@ def create_export_job(data):
         space_uid=space.space_uid,
         created_by=username,
         source_app_code=get_request_app_code(),
-        is_external=is_external,
+        is_external=bool(get_request_external_username()),
         index_set_id=index.pk,
         bk_biz_id=space.bk_biz_id,
         search_params=params,

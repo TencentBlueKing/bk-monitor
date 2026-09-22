@@ -78,9 +78,7 @@ def _write_rows(handler, payload):
             # 与旧异步导出链路一致：首轮清空缓存，后续滚动复用同一份查询上下文
             params["clear_cache"] = rows == 0
             result = UnifyQueryApi.query_ts_raw_with_scroll(params)
-            batch = result.get("list") if isinstance(result, dict) else None
-            if not isinstance(batch, list):
-                raise PartError("INVALID_SCROLL_RESPONSE", "滚动查询返回格式不合法")
+            batch = result["list"]
             if not batch:
                 break
             for row in handler._deal_query_result(result)["origin_log_list"]:

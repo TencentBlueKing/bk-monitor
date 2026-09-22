@@ -33,7 +33,6 @@ class ExportAdditionSerializer(serializers.Serializer):
 class ExportCreateSerializer(serializers.Serializer):
     space_uid = serializers.CharField(max_length=256)
     index_set_id = serializers.IntegerField(min_value=1)
-    # 与 GetExportHistorySerializer 保持一致，统一使用毫秒时间戳
     start_time = serializers.IntegerField(label="起始时间（毫秒时间戳）", min_value=0)
     end_time = serializers.IntegerField(label="结束时间（毫秒时间戳）", min_value=1)
     keyword = serializers.CharField(default="*", allow_blank=True)

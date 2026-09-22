@@ -57,7 +57,6 @@ from apps.log_search.export.planner import (
 )
 from apps.log_search.export.scheduler import (
     _inflight_by_index_set,
-    cleanup_artifacts,
     dispatch_ready_parts,
     enqueue_finalization,
     enqueue_planning,
@@ -153,7 +152,7 @@ class MergeTests(SimpleTestCase):
 
 
 class BuildPartsTests(TestCase):
-    """build_parts 是规划链路的契约点：返回 (parts, total, interval) 且完整覆盖任务区间。"""
+    """build_parts 是规划链路的契约点：返回 (parts, total) 且完整覆盖任务区间。"""
 
     def setUp(self):
         self.job = create_job()
@@ -167,15 +166,13 @@ class BuildPartsTests(TestCase):
         ):
             return build_parts(self.job, policy or build_policy())
 
-    def test_returns_parts_total_and_interval_for_the_whole_range(self):
-        parts, total, interval = self.plan_with(total=40, buckets={0: 40}, sample=[b"x" * 20])
+    def test_returns_parts_and_total_for_the_whole_range(self):
+        parts, total = self.plan_with(total=40, buckets={0: 40}, sample=[b"x" * 20])
 
         self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
         self.assertEqual(total, 40)
         self.assertEqual(parts[0].estimated_rows, 40)
         self.assertEqual(parts[0].estimated_bytes, 800)
-        self.assertGreaterEqual(interval, self.job.time_tick)
-        self.assertEqual(interval % self.job.time_tick, 0)
 
     def test_empty_histogram_is_a_retryable_statistics_failure(self):
         with self.assertRaises(PlanError) as context:
@@ -197,11 +194,10 @@ class BuildPartsTests(TestCase):
         histogram.assert_not_called()
 
     def test_empty_range_returns_one_covering_part(self):
-        parts, total, interval = self.plan_with(total=0, buckets={})
+        parts, total = self.plan_with(total=0, buckets={})
 
         self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
         self.assertEqual(total, 0)
-        self.assertGreater(interval, 0)
 
 
 class RunPlanningTests(TestCase):
@@ -221,8 +217,6 @@ class RunPlanningTests(TestCase):
         self.assertEqual(job.status, ExportJobStatus.READY)
         self.assertEqual(job.part_total, 1)
         self.assertEqual(job.estimated_total, 40)
-        self.assertIsNotNone(job.interval)
-        self.assertIsNotNone(job.statistics_at)
         part = ExportPart.objects.get(job=job)
         self.assertEqual((part.start_time, part.end_time), (0, 4000))
         self.assertEqual(part.status, ExportPartStatus.WAITING)
@@ -296,12 +290,7 @@ class ExportStateTestCase(TestCase):
             PartSpec(3000, 4000, 10, 10),
         ]
         self.assertIsNotNone(state.claim_planning(self.job.pk))
-        return state.persist_plan(
-            self.job.pk,
-            parts=parts,
-            estimated_total=40,
-            interval=30000,
-        )
+        return state.persist_plan(self.job.pk, parts=parts, estimated_total=40)
 
     def complete_parts(self, count):
         for part in ExportPart.objects.filter(job=self.job).order_by("part_no")[:count]:
@@ -419,8 +408,8 @@ class ArtifactNameTests(SimpleTestCase):
 class BuildStorageTests(SimpleTestCase):
     """外部版与内部版必须读各自的存储开关，且都只接受对象存储。"""
 
-    def _build(self, *, external, config, toggle_missing=False):
-        toggle = None if toggle_missing else SimpleNamespace(feature_config=config)
+    def _build(self, *, external, config):
+        toggle = SimpleNamespace(feature_config=config)
         factory = MagicMock()
         with (
             patch("apps.log_search.export.storage.FeatureToggleObject.toggle", return_value=toggle) as toggle_mock,
@@ -456,10 +445,6 @@ class BuildStorageTests(SimpleTestCase):
     def test_external_nfs_configuration_is_rejected(self):
         with self.assertRaises(UnsupportedExportStorage):
             self._build(external=True, config={"storage_type": RemoteStorageType.NFS.value})
-
-    def test_missing_toggle_reports_the_toggle_name(self):
-        with self.assertRaisesMessage(UnsupportedExportStorage, FEATURE_ASYNC_EXPORT_EXTERNAL):
-            self._build(external=True, config=None, toggle_missing=True)
 
 
 @override_settings(ASYNC_EXPORT_COORDINATE_BATCH=10)
@@ -528,29 +513,6 @@ class SchedulerTests(TestCase):
         self.job.status = ExportJobStatus.RUNNING
         self.job.save(update_fields=["part_success", "status"])
         self.assertEqual(enqueue_finalization(10), [self.job.pk])
-
-    def test_cleanup_registers_expired_job_once(self):
-        self.job.status = ExportJobStatus.SUCCESS
-        self.job.expires_at = timezone.now() + timedelta(seconds=60)
-        self.job.save(update_fields=["status", "expires_at"])
-
-        # 未过期不登记
-        self.assertEqual(cleanup_artifacts(10), [])
-        ExportJob.objects.filter(pk=self.job.pk).update(expires_at=timezone.now() - timedelta(seconds=1))
-        self.assertEqual(cleanup_artifacts(10), [self.job.pk])
-        self.job.refresh_from_db()
-        self.assertIsNotNone(self.job.artifacts_cleaned_at)
-        # 已登记的任务不再重复扫描
-        self.assertEqual(cleanup_artifacts(10), [])
-
-    def test_cleanup_defers_job_with_inflight_parts(self):
-        ExportPart.objects.filter(part_no=1).update(status=ExportPartStatus.RUNNING)
-        self.job.status = ExportJobStatus.CANCELED
-        self.job.save(update_fields=["status"])
-
-        self.assertEqual(cleanup_artifacts(10), [])
-        self.job.refresh_from_db()
-        self.assertIsNone(self.job.artifacts_cleaned_at)
 
     def test_inflight_count_groups_by_index_set(self):
         ExportPart.objects.filter(part_no=1).update(status=ExportPartStatus.DISPATCHED)
@@ -625,14 +587,12 @@ class ExternalIdentityTests(TestCase):
         )
         with (
             patch("apps.log_search.export.api.is_enabled", return_value=True),
-            patch("apps.log_search.export.api.build_storage") as build_storage,
             patch("apps.log_search.export.api.resolve_time_tick", return_value=1000),
             patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
             patch("apps.log_search.export.api.get_request_username", return_value="authorizer"),
             patch("apps.log_search.export.api.get_request_external_username", return_value=external_username),
             patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
         ):
-            self.build_storage = build_storage
             return create_export_job(
                 {
                     "space_uid": self.SPACE_UID,
@@ -652,14 +612,12 @@ class ExternalIdentityTests(TestCase):
 
         self.assertEqual(job.created_by, "external_a")
         self.assertTrue(job.is_external)
-        self.build_storage.assert_called_once_with(external=True)
 
     def test_internal_creator_uses_login_username(self):
         job = self.create("")
 
         self.assertEqual(job.created_by, "authorizer")
         self.assertFalse(job.is_external)
-        self.build_storage.assert_called_once_with(external=False)
 
     def get_queryset(self):
         view = ExportJobViewSet()

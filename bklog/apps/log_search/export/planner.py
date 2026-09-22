@@ -23,7 +23,6 @@ import copy
 from dataclasses import dataclass, replace
 
 import ujson
-from django.utils import timezone
 
 from apps.api import UnifyQueryApi
 from apps.log_search.export import state
@@ -81,16 +80,11 @@ def _statistics_params(handler, start, end):
 
 
 def _series_points(result, label):
-    """取出聚合结果的单序列点位；聚合接口只应返回一条序列。"""
-    series = result.get("series") if isinstance(result, dict) else None
-    if not isinstance(series, list) or len(series) > 1:
-        raise PlanError("STATISTICS_FAILED", f"unify-query {label}结果格式不合法", retryable=True)
-    points = []
-    for item in (series[0].get("values") if series else []) or []:
-        if not isinstance(item, list) or len(item) != 2 or not isinstance(item[0], int):
-            raise PlanError("STATISTICS_FAILED", f"unify-query {label}点位格式不合法", retryable=True)
-        points.append((item[0], item[1]))
-    return points
+    """取出聚合结果的单序列点位；聚合只应返回一条序列，多于一条说明统计口径不成立。"""
+    series = result["series"]
+    if len(series) > 1:
+        raise PlanError("STATISTICS_FAILED", f"unify-query {label}返回了多条序列", retryable=True)
+    return [(item[0], item[1]) for item in (series[0]["values"] if series else [])]
 
 
 def count_rows(handler, start, end):
@@ -106,12 +100,7 @@ def count_rows(handler, start, end):
         query["function"] = [{"method": "count"}]
         query["time_aggregation"] = {}
     result = UnifyQueryApi.query_ts_reference(params)
-    total = 0
-    for _, value in _series_points(result, "统计"):
-        if not isinstance(value, int | float) or value < 0:
-            raise PlanError("STATISTICS_FAILED", "unify-query 未返回合法总量", retryable=True)
-        total += value
-    return int(total)
+    return int(sum(value for _, value in _series_points(result, "统计")))
 
 
 def sample_rows(handler, start, end, limit):
@@ -119,8 +108,6 @@ def sample_rows(handler, start, end, limit):
     params = _statistics_params(handler, start, end)
     params["limit"] = limit
     result = UnifyQueryApi.query_ts_raw(params)
-    if not isinstance(result, dict) or not isinstance(result.get("list"), list):
-        raise PlanError("STATISTICS_FAILED", "unify-query 未返回合法结果", retryable=True)
     # 复用 handler 的结果投影，保证采样口径与真实导出完全一致
     return [encode_export_row(row) for row in handler._deal_query_result(result)["origin_log_list"]]
 
@@ -152,12 +139,10 @@ class PartSpec:
 
 
 def split_thresholds(policy):
-    """递归拆分触发值：达到软目标的 split_factor 倍时继续细分时间范围。"""
     return int(policy.target_rows * policy.split_factor), int(policy.target_bytes * policy.split_factor)
 
 
 def merge_thresholds(policy):
-    """相邻合并上限：合计不超过软目标的 merge_factor 倍时合并。"""
     return int(policy.target_rows * policy.merge_factor), int(policy.target_bytes * policy.merge_factor)
 
 
@@ -243,14 +228,14 @@ def merge_adjacent(parts, policy):
 
 
 def build_parts(job, policy):
-    """生成覆盖 [start_time, end_time) 且无重叠无遗漏的完整分片计划，返回分片、总量与统计桶宽。"""
+    """生成覆盖 [start_time, end_time) 且无重叠无遗漏的完整分片计划，返回分片与总量。"""
     handler = build_handler(job)
     total = count_rows(handler, job.start_time, job.end_time)
     if total > policy.max_rows:
         raise PlanError("QUOTA_EXCEEDED", f"预计条数 {total} 超过单任务上限 {policy.max_rows}")
     interval = choose_interval(total, job.start_time, job.end_time, job.time_tick, policy)
     if not total:
-        return [PartSpec(job.start_time, job.end_time, 0, 0)], total, interval
+        return [PartSpec(job.start_time, job.end_time, 0, 0)], total
 
     avg_bytes = policy.fallback_row_bytes
     sample = sample_rows(handler, job.start_time, job.end_time, policy.sample_rows)
@@ -275,7 +260,7 @@ def build_parts(job, policy):
     parts = merge_adjacent(parts, policy)
     if len(parts) > policy.max_parts:
         raise PlanError("PART_LIMIT_EXCEEDED", f"分片数量超过上限 {policy.max_parts}")
-    return parts, total, interval
+    return parts, total
 
 
 def run_planning(job_id):
@@ -286,14 +271,8 @@ def run_planning(job_id):
     try:
         # 使用任务创建时冻结的策略，避免灰度调整影响已准入的任务
         policy = policy_from_snapshot(job.policy)
-        parts, total, interval = build_parts(job, policy)
-        state.persist_plan(
-            job.pk,
-            parts=parts,
-            estimated_total=total,
-            interval=interval,
-            statistics_at=timezone.now(),
-        )
+        parts, total = build_parts(job, policy)
+        state.persist_plan(job.pk, parts=parts, estimated_total=total)
     except PlanError as error:
         logger.warning("[run_planning] job=%s code=%s detail=%s", job.pk, error.code, error)
         state.fail_planning(job.pk, error.code, str(error), retryable=error.retryable)
