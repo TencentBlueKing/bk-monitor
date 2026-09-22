@@ -3,11 +3,16 @@ paths:
     post:
       operationId: lookup_tool
       description: >-
-        Query the deterministic tool catalog exposed by the unified observability MCP Server.
-        Supports exact tool_name and enum-based category/capability filters. Private or specialized
-        MCP Servers are excluded from this public catalog. This tool does not perform semantic search
-        or call a model. Agent 根据用户意图选择过滤条件和最终工具；私有或专用 MCP Server 不进入本目录。
-        服务端不做自然语言理解、模糊搜索或相关性排序。
+        Use this first when the exact underlying tool is unknown. Translate the user's intent into a
+        category and/or capability filter; tool_name only accepts an exact registered ID and must not
+        contain a natural-language request. This deterministic catalog does not perform semantic search
+        or call a model. Inspect each candidate's required_context and prerequisites, select one exact
+        tool, then call lookup_tool_schema before execute_tool. Skip discovery only when the exact tool
+        and its contract for the current catalog_version are already known. Private or specialized MCP
+        Servers are excluded. 当尚不确定底层工具时先调用本工具：由 Agent 将用户意图转换为 category／capability，
+        tool_name 只接受精确工具 ID，不能传自然语言问题。服务端不做语义搜索、模糊搜索或模型排序。
+        读取候选工具的 required_context 与 prerequisites，选定一个精确工具后调用 lookup_tool_schema，
+        再进入 execute_tool；只有已知精确工具且已持有当前 catalog_version 对应契约时才可跳过发现。
       tags: [unified_mcp]
       requestBody:
         required: false
@@ -59,9 +64,15 @@ paths:
     post:
       operationId: lookup_tool_schema
       description: >-
-        Return one registered tool's exact input schema, prerequisites, permission requirement,
-        execution status, limits and return description. tool_name must match exactly.
-        按精确工具名查询底层工具完整调用契约及执行状态。
+        Call this after selecting one exact tool and before execute_tool, unless the same tool contract
+        for the current catalog_version is already available. Read input_schema, guidelines, prerequisites,
+        permission, execution and limits; do not infer arguments from the tool name or examples. If required
+        business or resource identifiers are missing, use lookup_metadata for spaces/BCS clusters or call
+        the prerequisite tools named in this response. For mutation or data-export tools, review the target
+        and effect and obtain explicit user confirmation before execution. 选定精确工具后、执行前调用本工具；
+        仅在已持有当前 catalog_version 对应契约时可复用缓存。必须读取 input_schema、guidelines、
+        prerequisites、permission、execution 和 limits，不能根据工具名或示例猜参数。缺少业务／资源标识时，
+        空间或 BCS 集群使用 lookup_metadata，其余标识调用本响应列出的前置工具；写入、任务和导出还须先确认影响并获得用户明确同意。
       tags: [unified_mcp]
       requestBody:
         required: true
@@ -86,14 +97,21 @@ paths:
     post:
       operationId: execute_tool
       description: >-
-        Execute one registered underlying tool after validating arguments and resource scope. Enabled tools
-        check native permissions first and the original MCP action only after explicit denial; errors never
-        trigger fallback. Other tools retain legacy permissions. Mutation and data-export tools require confirm=true
-        after explicit user confirmation; the field is removed before calling backends that do not define it.
-        Agent supplies tool_name and business tool_args; permission and backend routing come from the registry.
-        执行一个已登记的底层工具，服务端先校验参数与资源范围。启用工具先查原生权限，明确无权才检查原 MCP 权限，
-        异常不回退；其他工具保留旧权限模式。
-        写操作、任务和数据导出必须在用户明确确认后传 confirm=true；原接口没有该字段时，分发前会移除。
+        Final execution step for one exact registered tool. Before calling, read lookup_tool_schema for the
+        current catalog_version, satisfy its prerequisites, and obtain every business/resource ID from
+        lookup_metadata or prerequisite tool results; never guess IDs or permission actions. Ordinary read-only
+        queries may execute directly after the contract is complete; use lookup_permissions when the user asks
+        about access or after a permission denial. Mutation, task and data-export tools require a target/effect
+        preview, explicit user confirmation and confirm=true; permission preflight is recommended after resolving
+        the target. The Server always revalidates JSON Schema, tenant/resource ownership and authorization.
+        Native denial alone may fall back to the original MCP action; errors never fall back. After execution,
+        verify both the transport envelope and the business result instead of treating HTTP 200 as success.
+        本工具是精确底层工具的最终执行步骤。执行前读取当前 catalog_version 对应的 lookup_tool_schema，
+        完成 prerequisites，并从 lookup_metadata 或前置工具结果取得真实业务／资源 ID；禁止猜测 ID 或权限点。
+        普通只读查询在契约完整后可直接执行，用户询问权限或执行被拒时再调用 lookup_permissions。
+        写入、任务和导出必须先展示目标与影响、获得明确确认并传 confirm=true，解析目标后建议先做权限预检。
+        服务端始终重验 Schema、租户／资源归属和权限；只有原生明确无权才回退旧 MCP 权限，异常不回退。
+        执行后同时检查传输层结果和业务结果，不能把 HTTP 200 直接当作业务成功。
       tags: [unified_mcp]
       requestBody:
         required: true
@@ -122,10 +140,16 @@ paths:
     post:
       operationId: lookup_metadata
       description: >-
-        Query observability spaces or BCS clusters through existing metadata APIs. metadata_type=spaces
-        requires space_name; metadata_type=bcs_clusters requires bk_biz_id. 通过现有元数据 API
-        查询观测空间或 BCS 集群；metadata_type=spaces 时需要 space_name，
-        metadata_type=bcs_clusters 时需要 bk_biz_id。
+        Use this when the target observability space/business ID is unknown, or when a BCS cluster list is
+        required by the selected tool. Search spaces with a real, user-provided space-name keyword and reuse
+        the returned bk_biz_id; never invent or infer a business ID. metadata_type=spaces requires space_name, while
+        metadata_type=bcs_clusters requires a resolved bk_biz_id. This facade only resolves spaces and BCS
+        clusters; obtain index sets, tables, applications, dashboards, alerts and other identifiers from the
+        prerequisite tools returned by lookup_tool_schema. 当目标观测空间／业务 ID 未知，或所选工具需要 BCS
+        集群列表时调用。使用用户提供的真实空间名称检索并复用返回的 bk_biz_id，禁止猜测业务 ID。
+        metadata_type=spaces 需要 space_name，metadata_type=bcs_clusters 需要已解析的 bk_biz_id。
+        本门面只解析空间与 BCS 集群；索引集、结果表、应用、仪表盘、告警等标识应从 lookup_tool_schema
+        返回的前置工具中获取。
       tags: [unified_mcp]
       requestBody:
         required: true
@@ -170,17 +194,18 @@ paths:
     post:
       operationId: lookup_permissions
       description: >-
-        Query the current user's observability permission scopes. Can check by space, category or exact
-        tool name and return missing IAM actions plus an application URL. Read-only: it never grants
-        permission and never replaces execute_tool's final authorization check. Enabled tools check native
-        permissions first and the legacy MCP action only after explicit denial, reporting authorization_source.
-        Tools that retain additional permissions from their original route report every required action.
-        resource_context can identify a log index set or scene, time-series table, APM application,
-        dashboard, alert, or strategy; unresolved resources are not grants.
-        查询当前用户的可观测权限范围。可按空间、领域或精确工具名检查，并返回缺失的 IAM 权限点及申请入口；
-        启用工具先查原生权限，明确无权才检查旧 MCP 权限，并返回 authorization_source；原路由还有附加权限的工具会返回全部必需权限。
-        resource_context 支持日志索引集／场景、时序表、APM 应用、仪表盘、告警或策略。
-        缺少必要资源不代表授权通过。本工具只读，不授予权限，也不替代 execute_tool 的最终鉴权。
+        Use this only when the user asks what they can access, before a mutation/task/data export after the
+        target is resolved, or after a permission denial. Do not call it before every ordinary read-only query.
+        Query the current user's scope by space, category or exact tool. For instance-scoped tools, first obtain
+        the real resource from lookup_metadata or the prerequisite tools and pass matching resource_context;
+        requires_resource means unresolved, not granted. The response reports native/legacy checks,
+        authorization_source, missing IAM actions and optional application URLs. Never open or submit an
+        application automatically. This read-only tool does not grant permission and never replaces execute_tool's
+        final authorization check. 仅在用户主动询问可访问范围、目标已解析后的写入／任务／导出预检，或权限拒绝后调用；
+        普通只读查询不必每次预查权限。可按空间、领域或精确工具查询当前用户权限。实例级工具必须先通过
+        lookup_metadata 或前置工具取得真实资源，再传匹配的 resource_context；requires_resource 表示资源未解析，
+        不代表已授权。返回值区分 native／legacy、authorization_source、缺失权限与可选申请入口；不得自动打开或提交申请。
+        本工具只读，不授予权限，也不替代 execute_tool 的最终鉴权。
       tags: [unified_mcp]
       requestBody:
         required: false
