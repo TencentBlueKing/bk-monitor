@@ -27,7 +27,7 @@ from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.log_search.export import api
-from apps.log_search.export.creator import create_export_job
+from apps.log_search.export.create import create_export_job
 from apps.log_search.export.models import ExportJob
 from apps.log_search.export.serializers import (
     ExportCreateSerializer,
