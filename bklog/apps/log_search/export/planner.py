@@ -207,20 +207,18 @@ def choose_interval(total, start, end, tick, policy):
 
 
 def refine(handler, start, end, rows, tick, policy, avg_bytes):
-    """把超过触发值的时间范围按时间二分，直到达到软目标或时间字段最小精度。"""
+    """把超过触发值的时间范围按时间二分，直到达到软目标或切分步长下界。"""
     parts = []
     pending = [(start, end, rows)]
     while pending:
         left, right, count = pending.pop()
         hot = is_hot(count, avg_bytes, policy)
         if not hot or right - left <= tick:
-            # 到达时间字段最小精度仍超量时标记 oversized，交由 Worker 按原样受控执行
+            # 到达最小步长仍超量时标记 oversized，交由 Worker 按原样受控执行
             parts.append(PartSpec(left, right, count, count * avg_bytes, oversized=hot))
             continue
-        middle = left + ((right - left) // tick // 2) * tick
-        if middle <= left:
-            parts.append(PartSpec(left, right, count, count * avg_bytes, oversized=True))
-            continue
+        # 纯中点二分：不对齐步长，二分点必然落在区间内部，oversized 宽度也不会超过步长
+        middle = (left + right) // 2
         pending.append((middle, right, count_rows(handler, middle, right)))
         pending.append((left, middle, count_rows(handler, left, middle)))
     return parts
@@ -259,7 +257,8 @@ def build_parts(job, policy):
     total = count_rows(handler, job.start_time, job.end_time)
     if total > policy.max_rows:
         raise PlanError("QUOTA_EXCEEDED", f"预计条数 {total} 超过单任务上限 {policy.max_rows}")
-    interval = choose_interval(total, job.start_time, job.end_time, job.time_tick, policy)
+    step = policy.split_step_ms
+    interval = choose_interval(total, job.start_time, job.end_time, step, policy)
     if not total:
         parts = [PartSpec(job.start_time, job.end_time, 0, 0)]
         return parts, total, _plan_result(total, policy.fallback_row_bytes, interval)
@@ -279,7 +278,7 @@ def build_parts(job, policy):
     while cursor < job.end_time:
         left = max(cursor, job.start_time)
         right = min(cursor + interval, job.end_time)
-        parts.extend(refine(handler, left, right, buckets.get(cursor, 0), job.time_tick, policy, avg_bytes))
+        parts.extend(refine(handler, left, right, buckets.get(cursor, 0), step, policy, avg_bytes))
         if len(parts) > policy.max_parts:
             raise PlanError("PART_LIMIT_EXCEEDED", f"分片数量超过上限 {policy.max_parts}")
         cursor += interval

@@ -31,7 +31,6 @@ from apps.log_search.export import state
 from apps.log_search.export.config import current_policy, is_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.log_search.export.storage import build_storage, download_url
-from apps.log_search.handlers.search.search_handlers_esquery import SearchHandler
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.local import (
@@ -44,7 +43,6 @@ from apps.utils.local import (
 TERMINAL = ExportJobStatus.TERMINAL
 INFLIGHT = ExportPartStatus.INFLIGHT
 STAGE_ORDER = [ExportStage.DOWNLOAD_LOG, ExportStage.PACKAGE, ExportStage.UPLOAD]
-TIME_TICK_BY_UNIT = {"second": 1000, "millisecond": 1}
 
 
 class ExportConflict(APIException):
@@ -65,15 +63,6 @@ class ExportStorageUnavailable(APIException):
     default_code = "EXPORT_STORAGE_UNAVAILABLE"
 
 
-def resolve_time_tick(index_set_id):
-    """时间字段的最小精度，决定分片递归的下界。"""
-    _, _, unit = SearchHandler.init_time_field(index_set_id)
-    tick = TIME_TICK_BY_UNIT.get(unit)
-    if not tick:
-        raise ValidationError({"detail": "暂不支持该索引集的时间字段精度"})
-    return tick
-
-
 def current_username():
     """当前请求用户：外部版经代理转发时是外部用户，而不是被替换的空间授权人。"""
     return get_request_external_username() or get_request_username(default="")
@@ -87,9 +76,6 @@ def create_export_job(data):
         raise ValidationError({"detail": "分片导出未启用"})
 
     index = LogIndexSet.objects.get(index_set_id=data["index_set_id"])
-    tick = resolve_time_tick(index.pk)
-    if data["start_time"] % tick or data["end_time"] % tick:
-        raise ValidationError({"detail": "导出时间范围必须对齐时间字段精度"})
 
     AsyncTask.check_running_count_by_user(username)
 
@@ -128,7 +114,6 @@ def create_export_job(data):
         policy=policy.snapshot(),
         start_time=data["start_time"],
         end_time=data["end_time"],
-        time_tick=tick,
         requested_parallelism=requested_parallelism,
         status=ExportJobStatus.PENDING,
     )

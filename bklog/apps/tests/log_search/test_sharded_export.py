@@ -86,7 +86,6 @@ def create_job(**overrides):
         "policy": ExportPolicy().snapshot(),
         "start_time": 0,
         "end_time": 4000,
-        "time_tick": 1000,
         "status": ExportJobStatus.PENDING,
     }
     values.update(overrides)
@@ -231,6 +230,22 @@ class BuildPartsTests(TestCase):
 
         self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
         self.assertEqual(sum(part.estimated_rows for part in parts), 300)
+
+    def test_build_parts_uses_split_step_from_policy(self):
+        """切分步长完全由策略决定，refine 应收到配置的步长。"""
+        policy = build_policy(target_rows=100, split_step_ms=5000)
+        job = create_job(policy=policy.snapshot())
+        with (
+            patch("apps.log_search.export.planner.build_handler"),
+            patch("apps.log_search.export.planner.count_rows", return_value=100),
+            patch("apps.log_search.export.planner.sample_rows", return_value=[]),
+            patch("apps.log_search.export.planner.histogram", return_value={0: 100}),
+            patch("apps.log_search.export.planner.refine", return_value=[]) as refine_mock,
+        ):
+            build_parts(job, policy)
+
+        self.assertTrue(refine_mock.call_args_list)
+        self.assertTrue(all(call.args[4] == 5000 for call in refine_mock.call_args_list))
 
     def test_rows_over_quota_fail_before_any_density_query(self):
         with (
@@ -443,6 +458,31 @@ class ExportStateTestCase(TestCase):
     def test_persist_plan_rejects_incomplete_coverage(self):
         with self.assertRaises(ValueError):
             self.plan(parts=[PartSpec(0, 1000, 0, 0), PartSpec(2000, 4000, 0, 0)])
+
+    def test_plan_boundaries_need_not_align_to_time_precision(self):
+        """区间是否对齐时间精度不影响正确性，分片只需连续覆盖任务区间。"""
+        job = self.plan(parts=[PartSpec(0, 1234, 10, 10), PartSpec(1234, 4000, 10, 10)])
+
+        self.assertEqual(job.status, ExportJobStatus.READY)
+        self.assertEqual(state.leaf_stats(job)["total"], 2)
+
+    def test_oversized_part_may_be_narrower_than_the_split_step(self):
+        """二分改为纯中点后，oversized 分片宽度只会小于等于切分步长。"""
+        job = self.plan(parts=[PartSpec(0, 700, 10, 10, oversized=True), PartSpec(700, 4000, 10, 10)])
+
+        self.assertEqual(job.status, ExportJobStatus.READY)
+        self.assertTrue(ExportPart.objects.get(job=job, part_no=1).oversized)
+
+    def test_oversized_part_wider_than_the_split_step_is_rejected(self):
+        with self.assertRaises(ValueError):
+            self.plan(parts=[PartSpec(0, 1001, 10, 10, oversized=True), PartSpec(1001, 4000, 10, 10)])
+
+    def test_split_step_comes_from_the_policy(self):
+        self.assertEqual(state._split_step(create_job()), 1000)
+        self.assertEqual(
+            state._split_step(create_job(policy=build_policy(split_step_ms=1).snapshot())),
+            1,
+        )
 
     def test_planning_is_claimed_once(self):
         self.assertIsNotNone(state.claim_planning(self.job.pk))
@@ -663,7 +703,7 @@ class SplitTests(TestCase):
         self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
         self.assertEqual(state.leaf_stats(self.job)["total"], 2)
 
-    def test_part_at_time_precision_fails_the_job_with_oversized_error(self):
+    def test_part_at_split_step_fails_the_job_with_oversized_error(self):
         job = create_job(end_time=1000, policy={**ExportPolicy().snapshot(), "part_max_attempts": 1})
         state.claim_planning(job.pk)
         state.persist_plan(job.pk, parts=[PartSpec(0, 1000, 40, 4000, oversized=True)], estimated_total=40)
@@ -1146,7 +1186,6 @@ class ExternalIdentityTests(TestCase):
         )
         with (
             patch("apps.log_search.export.api.is_enabled", return_value=True),
-            patch("apps.log_search.export.api.resolve_time_tick", return_value=1000),
             patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
             patch("apps.log_search.export.api.get_request_username", return_value="authorizer"),
             patch("apps.log_search.export.api.get_request_external_username", return_value=external_username),
@@ -1210,6 +1249,52 @@ class ExternalIdentityTests(TestCase):
 
         self.assertTrue(job_detail(own)["can_operate"])
         self.assertFalse(job_detail(other)["can_operate"])
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
+class CreateJobRangeTests(TestCase):
+    """导出时间区间不再要求对齐索引集时间精度，与旧异步导出链路保持一致。"""
+
+    def test_range_need_not_align_to_time_precision(self):
+        Space.objects.create(
+            space_uid="bkcc__2",
+            bk_biz_id=2,
+            space_type_id="bkcc",
+            space_type_name="业务",
+            space_id="2",
+            space_name="biz-2",
+            bk_tenant_id="tenant-a",
+        )
+        index_set = LogIndexSet.objects.create(
+            index_set_id=756,
+            index_set_name="index-756",
+            space_uid="bkcc__2",
+            category_id="application",
+            scenario_id=Scenario.LOG,
+        )
+        handler = MagicMock(base_dict={"query_list": []}, origin_order_by=[], is_desensitize=True)
+        with (
+            patch("apps.log_search.export.api.is_enabled", return_value=True),
+            patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
+            patch("apps.log_search.export.api.get_request_username", return_value="tester"),
+            patch("apps.log_search.export.api.get_request_external_username", return_value=""),
+            patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
+        ):
+            job = create_export_job(
+                {
+                    "space_uid": "bkcc__2",
+                    "index_set_id": index_set.pk,
+                    "start_time": 1500,
+                    "end_time": 3700,
+                    "keyword": "*",
+                    "addition": [],
+                    "ip_chooser": {},
+                    "sort_list": [],
+                    "export_fields": [],
+                }
+            )
+
+        self.assertEqual((job.start_time, job.end_time), (1500, 3700))
 
 
 class DownloadLinkTests(TestCase):
