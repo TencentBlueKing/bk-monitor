@@ -183,10 +183,8 @@ def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     native = registry.get_tool_registry()
     tool = native.get("search_logs")
     assert len(native) == 89
-    assert sum(bool(tool.native_permission) for tool in native.list()) == 64
-    assert {tool.name for tool in native.list() if tool.risk == "query" and not tool.permission_exempt} == set(
-        registry.NATIVE_PERMISSIONS
-    )
+    assert sum(bool(tool.native_permission) for tool in native.list()) == 88
+    assert {tool.name for tool in native.list() if not tool.permission_exempt} == set(registry.NATIVE_PERMISSIONS)
     assert native.get_by_backend("POST", "/api/v4/log_search/search_log/") is tool
     assert native.get_by_backend("GET", "/api/v4/log_search/search_log/") is None
     assert native.get_by_backend("POST", "/api/v4/log_search/search_log.json/") is tool
@@ -207,7 +205,7 @@ def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     assert all(not item.native_permission for item in legacy.list())
 
 
-def test_all_non_exempt_query_tools_have_reviewed_native_permissions():
+def test_all_non_exempt_public_tools_have_reviewed_native_permissions():
     catalog = registry.get_tool_registry()
     expected = {}
 
@@ -298,9 +296,39 @@ def test_all_non_exempt_query_tools_have_reviewed_native_permissions():
         "bk_log_search",
     )
     add(("list_bcs_clusters",), "view_business_v2")
+    add(
+        (
+            "create_alarm_strategy",
+            "update_alarm_strategy",
+            "update_alarm_action_config",
+            "save_alarm_assign_group",
+            "delete_alarm_assign_group",
+        ),
+        "manage_rule_v2",
+    )
+    add(("create_alarm_shield", "update_alarm_shield", "disable_alarm_shield"), "manage_downtime_v2")
+    add(("create_alarm_notice_group", "update_alarm_notice_group"), "manage_notify_team_v2")
+    add(("create_dashboard", "update_dashboard"), "manage_dashboard_v2")
+    add(
+        (
+            "update_log_collector_clean_config",
+            "fast_create_log_collector",
+            "create_custom_report",
+            "create_bkdata_index_set",
+            "create_third_party_es",
+            "update_custom_report",
+            "update_third_party_es",
+            "update_bkdata_index_set",
+            "fast_update_log_collector",
+        ),
+        "manage_collection_v2",
+    )
+    add(("search_log_extract_files",), "view_business_v2", "bk_log_search")
+    add(("create_log_extract_task",), "create_client_log_task", "bk_log_search")
+    add(("get_log_extract_download_url",), "download_client_log", "bk_log_search")
 
-    query_tools = {tool.name for tool in catalog.list() if tool.risk == "query" and not tool.permission_exempt}
-    assert set(expected) == query_tools == set(registry.NATIVE_PERMISSIONS)
+    protected_tools = {tool.name for tool in catalog.list() if not tool.permission_exempt}
+    assert set(expected) == protected_tools == set(registry.NATIVE_PERMISSIONS)
     assert {
         name: tuple(
             registry.NATIVE_PERMISSIONS[name][field]
@@ -320,7 +348,7 @@ def test_all_non_exempt_query_tools_have_reviewed_native_permissions():
     "native_result,legacy_allowed",
     [(True, False), (False, True), (False, False), ("error", True)],
 )
-def test_every_query_tool_uses_strict_native_then_legacy(
+def test_every_native_tool_uses_strict_native_then_legacy(
     monkeypatch, request_factory, io, tool_name, native_result, legacy_allowed
 ):
     tool = registry.get_tool_registry().get(tool_name)
@@ -627,14 +655,24 @@ def test_public_tools_publish_executable_permission_and_confirmation_contracts()
 
     assert dashboard.risk == "mutation"
     assert dashboard.permission_payload() == {
-        "action_id": "using_dashboard_mcp",
+        "system_id": "bk_monitorv3",
+        "action_id": "manage_dashboard_v2",
         "resource_type": "space",
         "resource_arg": "bk_biz_id",
+        "mode": "native_then_legacy",
+        "fallback_system_id": "bk_monitorv3",
+        "fallback_action_id": "using_dashboard_mcp",
+        "fallback_resource_type": "space",
+        "fallback_resource_arg": "bk_biz_id",
+        "fallback_on": "explicit_denial_only",
     }
     assert dashboard.requires_confirmation is True and dashboard.forwards_confirmation is False
     assert dashboard.input_schema["properties"]["configs"]["type"] == "object"
     assert dashboard.input_schema["properties"]["configs"]["additionalProperties"] == {"type": "string"}
     assert export.risk == "data_export"
+    assert export.permission_payload()["system_id"] == "bk_log_search"
+    assert export.permission_payload()["action_id"] == "create_client_log_task"
+    assert export.permission_payload()["fallback_action_id"] == "using_log_extract_mcp"
     assert export.requires_confirmation is True and export.forwards_confirmation is False
     schema = dashboard.schema_payload(catalog.catalog_version)
     assert schema["execution"] == {
@@ -747,6 +785,37 @@ def test_unified_openapi_filters_cover_the_full_catalog_taxonomy():
     }
 
 
+def test_unified_facade_descriptions_publish_agent_workflow():
+    document = yaml.safe_load((BASE / "support-files/apigw/resources/internal/user/unified_mcp.yaml").read_text())
+
+    def description(tool_name):
+        return document["paths"][f"/mcp/{tool_name}/"]["post"]["description"]
+
+    lookup = description("lookup_tool")
+    assert "tool_name only accepts an exact registered ID" in lookup
+    assert "call lookup_tool_schema before execute_tool" in lookup
+    assert "required_context and prerequisites" in lookup
+
+    schema = description("lookup_tool_schema")
+    assert "current catalog_version" in schema
+    assert "use lookup_metadata for spaces/BCS clusters" in schema
+    assert "mutation or data-export tools" in schema
+
+    metadata = description("lookup_metadata")
+    assert "never invent or infer a business ID" in metadata
+    assert "prerequisite tools returned by lookup_tool_schema" in metadata
+
+    permissions = description("lookup_permissions")
+    assert "Do not call it before every ordinary read-only query" in permissions
+    assert "requires_resource means unresolved, not granted" in permissions
+    assert "Never open or submit an application automatically" in permissions
+
+    execute = description("execute_tool")
+    assert "never guess IDs or permission actions" in execute
+    assert "explicit user confirmation and confirm=true" in execute
+    assert "verify both the transport envelope and the business result" in execute
+
+
 def test_dispatcher_contains_every_public_catalog_tool():
     tree = ast.parse((BASE / "kernel_api/unified_mcp/dispatcher.py").read_text())
     assignment = next(
@@ -804,8 +873,7 @@ def test_dispatcher_logs_failure_type_without_exception_text(caplog):
 @pytest.mark.parametrize(
     "names",
     [
-        ["create_dashboard"],
-        ["update_alarm_strategy"],
+        ["search_spaces"],
         ["get_operation_metric"],
         ["typo"],
         "search_logs",
@@ -2599,9 +2667,8 @@ def test_unified_resource_reuses_original_route_permission_native_first(request_
     ]
 
 
-def test_unified_resource_requires_and_routes_explicit_confirmation(request_factory):
+def test_unified_resource_requires_and_routes_explicit_confirmation(request_factory, io):
     request = request_factory()
-    dispatch = Mock(return_value={"ok": True})
     perform = source_method(
         "kernel_api/resource/unified_mcp.py",
         "ExecuteToolResource.perform_request",
@@ -2611,21 +2678,21 @@ def test_unified_resource_requires_and_routes_explicit_confirmation(request_fact
         ValidationError=ValidationError,
         get_permission_client=lambda: Mock(),
         execute_native_tool=auth.execute_native_tool,
-        dispatch_tool=dispatch,
+        dispatch_tool=io.dispatch,
     )
     dashboard_args = {"bk_biz_id": "2", "configs": {"grafana/demo.json": "{}"}}
 
     with pytest.raises(ValidationError, match="confirm"):
         perform(NS(), {"tool_name": "create_dashboard", "tool_args": dashboard_args})
-    dispatch.assert_not_called()
+    io.dispatch.assert_not_called()
 
     perform(NS(), {"tool_name": "create_dashboard", "tool_args": {**dashboard_args, "confirm": True}})
-    dispatch.assert_called_once_with("create_dashboard", dashboard_args)
+    io.dispatch.assert_called_once_with("create_dashboard", dashboard_args)
 
-    dispatch.reset_mock()
+    io.dispatch.reset_mock()
     shield_args = {"bk_biz_id": "2", "id": ["1"], "confirm": True}
     perform(NS(), {"tool_name": "disable_alarm_shield", "tool_args": shield_args})
-    dispatch.assert_called_once_with("disable_alarm_shield", shield_args)
+    io.dispatch.assert_called_once_with("disable_alarm_shield", shield_args)
 
 
 def test_unified_resource_preserves_exempt_space_discovery(request_factory):
