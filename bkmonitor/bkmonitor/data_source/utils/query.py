@@ -15,9 +15,11 @@ from core.drf_resource import api
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.utils.base import get_bar_interval_number, DataSourceTarget
-from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.data_source.utils.statistics import process_growth_rates, process_proportions
+from bkmonitor.utils.thread_backend import ThreadPool, InheritParentThread, run_threads
+from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
 from bkmonitor.data_source.utils import types
-from constants.otel_query import FieldTypeEnum
+from constants.otel_query import FieldTypeEnum, AggregatedMethod
 
 
 class BaseQuery:
@@ -534,6 +536,7 @@ class BaseQuery:
         fields: list[str],
         method: str,
         group_by: list[str] | None = None,
+        interval: int | None = None,
     ) -> list[dict[str, Any]]:
         group_by = group_by or []
         if not group_by and len(fields) == 1:
@@ -542,31 +545,110 @@ class BaseQuery:
             value = self._query_field_aggregated_value(queries, start_time, end_time, fields[0], method)
             return [{"_result_": value or 0}]
 
+        time_agg = False
+        instant = True
+        expression: str = self._sum_expression(fields)
+        if "time" in group_by:
+            group_by = [field_name for field_name in group_by if field_name != "time"]
+            interval = interval or get_bar_interval_number(start_time, end_time)
+            queries = [q.interval(interval) for q in queries]
+            time_agg = True
+            instant = False
+
         qs = (
             self.get_qs(start_time, end_time)
-            .expression(self._sum_expression(fields))
-            .time_agg(False)
-            .instant()
+            .expression(f"topk({self.SERIES_LIMIT}, {expression})" if group_by else expression)
+            .time_agg(time_agg)
+            .instant(instant)
             .limit(self.QUERY_MAX_LIMIT if group_by else 1)
         )
         return list(self._add_query(qs, self._metric_queries(queries, fields, method, group_by)))
 
-    def _query_fields_graph_config(
+    @classmethod
+    def _merge_statistics_records(
+        cls,
+        group_by: list[str],
+        alias_records_map: dict[str, list[dict[str, Any]]],
+    ) -> list[dict[str, Any]]:
+        group_key_record_map: dict[tuple, dict[str, Any]] = {}
+        # 多个对比时间维度数量可能存在差异，此处合并取维度数的交集
+        for alias, records in alias_records_map.items():
+            for record in records:
+                record["time"] = record.get("_time_", 0) // 1000
+                group_key: tuple = tuple((field, record.get(field) or "") for field in group_by)
+                group_key_record_map.setdefault(group_key, {})[alias] = record["_result_"]
+
+        merged_records: list[dict[str, Any]] = []
+        aliases: list[str] = list(alias_records_map.keys())
+        for group_key, record in group_key_record_map.items():
+            # 确保 dimensions 以 group_fields 为序
+            dimensions: dict[str, Any] = dict(group_key)
+            processed_record: dict[str, Any] = {"dimensions": {}}
+            for field in group_by:
+                processed_record["dimensions"][field] = dimensions.get(field) or ""
+
+            # 对合并后不存在的数值补 None
+            for alias in aliases:
+                processed_record[alias] = record.get(alias)
+                if processed_record[alias] is None:
+                    continue
+            merged_records.append(processed_record)
+        return merged_records
+
+    def _statistics(
         self,
         queries: list[QueryConfigBuilder],
         start_time: int | None,
         end_time: int | None,
-        fields: list[str],
-        method: str,
-        interval: int,
+        field: str,
+        cal_type: str,
+        baseline: str,
+        time_shifts: list[str],
         group_by: list[str] | None = None,
+        interval: int | None = None,
     ) -> dict[str, Any]:
+        """数据统计：多时间偏移聚合查询。
+
+        - 传入 ``interval`` 走 ``query_fields_graph_config``（时间分桶）；否则走 ``query_fields_aggregated_group``。
+        - 时间统一透传（可为 None，由查询层按保留期补齐），不再在此处解析/偏移时间窗口，
+          多时间偏移对比交由统一查询层处理。
+        - 按维度合并各时间偏移的结果，基于 baseline 计算 growth_rates。
+        - cal_type=count 时按每个时间偏移维度的总量计算 proportions。
+        """
         group_by = group_by or []
-        expression: str = self._sum_expression(fields)
-        return self._add_query(
-            self.get_qs(start_time, end_time)
-            .expression(f"topk({self.SERIES_LIMIT}, {expression})" if group_by else expression)
-            .time_agg(False),
-            # 显式下发聚合周期，不走 grafana 的 auto：它按采集周期取点，时间范围拉长后数据点过密
-            [query.interval(interval) for query in self._metric_queries(queries, fields, method, group_by)],
-        ).config
+        alias_records_map: dict[str, list[dict[str, Any]]] = {}
+        now: int = int(datetime.datetime.now().timestamp())
+
+        def _collect(time_shift: str) -> None:
+            offset_seconds: int = parse_time_compare_abbreviation(time_shift)
+            shifted_start: int | None = start_time - offset_seconds if start_time else start_time
+            shifted_end: int = end_time - offset_seconds if end_time else now - offset_seconds
+            alias_records_map[time_shift] = self._query_fields_aggregated_group(
+                queries,
+                shifted_start,
+                shifted_end,
+                [field],
+                cal_type,
+                group_by=group_by,
+                interval=interval,
+            )
+
+        run_threads(
+            [
+                InheritParentThread(
+                    target=_collect,
+                    args=(time_shift,),
+                )
+                for time_shift in time_shifts
+            ]
+        )
+
+        merged_records: list[dict[str, Any]] = self._merge_statistics_records(
+            group_by,
+            alias_records_map,
+        )
+        process_growth_rates(baseline, time_shifts, merged_records)
+        if cal_type == AggregatedMethod.COUNT.value:
+            process_proportions(time_shifts, merged_records)
+
+        return {"total": len(merged_records), "data": merged_records}
