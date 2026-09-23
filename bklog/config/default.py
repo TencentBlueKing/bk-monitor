@@ -1420,6 +1420,11 @@ ASYNC_EXPORT_PLANNING_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PLANNING_TIMEO
 # 单分片执行超时：超过该时间仍未回填结果的分片会被回收重试
 ASYNC_EXPORT_PART_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PART_TIMEOUT", 1800))
 
+# 分片上传失败时在当前进程内做短重试（退避为 interval * 第几次尝试）：
+# 本地压缩文件此时仍然可用，一次上传抖动不应该让整个分片重新查询和重新压缩
+ASYNC_EXPORT_UPLOAD_ATTEMPTS = int(os.getenv("BKAPP_ASYNC_EXPORT_UPLOAD_ATTEMPTS", 3))
+ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS", 2))
+
 """
 以下为框架代码 请勿修改
 """

@@ -138,6 +138,16 @@ class PartSpec:
     oversized: bool = False
 
 
+@dataclass(frozen=True)
+class PlanResult:
+    """规划输入与产出，随计划版本落库。"""
+
+    total_rows: int
+    avg_row_bytes: int
+    initial_interval_ms: int
+    planned_parts: int
+
+
 def split_thresholds(policy):
     return int(policy.target_rows * policy.split_factor), int(policy.target_bytes * policy.split_factor)
 
@@ -228,14 +238,15 @@ def merge_adjacent(parts, policy):
 
 
 def build_parts(job, policy):
-    """生成覆盖 [start_time, end_time) 且无重叠无遗漏的完整分片计划，返回分片与总量。"""
+    """生成覆盖 [start_time, end_time) 且无重叠无遗漏的完整分片计划，返回分片、总量与规划过程量。"""
     handler = build_handler(job)
     total = count_rows(handler, job.start_time, job.end_time)
     if total > policy.max_rows:
         raise PlanError("QUOTA_EXCEEDED", f"预计条数 {total} 超过单任务上限 {policy.max_rows}")
     interval = choose_interval(total, job.start_time, job.end_time, job.time_tick, policy)
     if not total:
-        return [PartSpec(job.start_time, job.end_time, 0, 0)], total
+        parts = [PartSpec(job.start_time, job.end_time, 0, 0)]
+        return parts, total, _plan_result(parts, total, policy.fallback_row_bytes, interval)
 
     avg_bytes = policy.fallback_row_bytes
     sample = sample_rows(handler, job.start_time, job.end_time, policy.sample_rows)
@@ -260,7 +271,16 @@ def build_parts(job, policy):
     parts = merge_adjacent(parts, policy)
     if len(parts) > policy.max_parts:
         raise PlanError("PART_LIMIT_EXCEEDED", f"分片数量超过上限 {policy.max_parts}")
-    return parts, total
+    return parts, total, _plan_result(parts, total, avg_bytes, interval)
+
+
+def _plan_result(parts, total, avg_bytes, interval):
+    return PlanResult(
+        total_rows=total,
+        avg_row_bytes=avg_bytes,
+        initial_interval_ms=interval,
+        planned_parts=len(parts),
+    )
 
 
 def run_planning(job_id):
@@ -271,8 +291,8 @@ def run_planning(job_id):
     try:
         # 使用任务创建时冻结的策略，避免灰度调整影响已准入的任务
         policy = policy_from_snapshot(job.policy)
-        parts, total = build_parts(job, policy)
-        state.persist_plan(job.pk, parts=parts, estimated_total=total)
+        parts, total, result = build_parts(job, policy)
+        state.persist_plan(job.pk, parts=parts, estimated_total=total, plan_result=result)
     except PlanError as error:
         logger.warning("[run_planning] job=%s code=%s detail=%s", job.pk, error.code, error)
         state.fail_planning(job.pk, error.code, str(error), retryable=error.retryable)

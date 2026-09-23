@@ -23,12 +23,46 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.db import transaction
-from django.db.models import Q
+from django.db.models import Count, Max, Q, Sum
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
-from apps.log_search.constants import ExportJobStatus, ExportPartStatus, ExportStage
+from apps.log_search.constants import (
+    NON_SPLITTABLE_ERROR_CODES,
+    ExportJobStatus,
+    ExportPartStatus,
+    ExportPlanStatus,
+    ExportStage,
+)
 from apps.log_search.export.config import policy_from_snapshot
-from apps.log_search.export.models import ExportJob, ExportPart
+from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
+
+
+def leaf_parts(job):
+    """叶子分片：有效分片口径的唯一来源。"""
+    return ExportPart.objects.filter(job=job).exclude(status__in=ExportPartStatus.NON_LEAF)
+
+
+def leaf_stats(job):
+    """叶子分片的数量与已导出条数。"""
+    return leaf_parts(job).aggregate(
+        total=Count("pk"),
+        success=Count("pk", filter=Q(status=ExportPartStatus.SUCCESS)),
+        rows=Coalesce(Sum("actual_rows"), 0),
+    )
+
+
+def leaf_counts_annotation():
+    """列表页共用的叶子计数注解。"""
+    return {
+        "leaf_total": Count("parts", filter=~Q(parts__status__in=ExportPartStatus.NON_LEAF), distinct=True),
+        "leaf_success": Count("parts", filter=Q(parts__status=ExportPartStatus.SUCCESS), distinct=True),
+    }
+
+
+def sync_actual_total(job):
+    """把导出总量对齐到叶子聚合值。"""
+    return _save(job, actual_total=leaf_stats(job)["rows"])
 
 
 def _validate_parts(job, parts):
@@ -71,6 +105,32 @@ def _finish_job(job, status, error_code="", error_detail=""):
     return job
 
 
+def _claim_plan_record(job, policy, now):
+    """认领当前计划版本行；失败的尝试复用同一版本，不虚增版本号。"""
+    plan, _ = ExportPlan.objects.update_or_create(
+        job=job,
+        plan_version=job.plan_version + 1,
+        defaults={
+            "status": ExportPlanStatus.PLANNING,
+            "target_rows": policy.target_rows,
+            "target_bytes": policy.target_bytes,
+            "started_at": now,
+        },
+    )
+    return plan
+
+
+def _finish_plan(job, version, plan_result, planned_parts):
+    defaults = {"status": ExportPlanStatus.SUCCESS, "planned_parts": planned_parts, "finished_at": timezone.now()}
+    if plan_result is not None:
+        defaults.update(
+            total_rows=plan_result.total_rows,
+            avg_row_bytes=plan_result.avg_row_bytes,
+            initial_interval_ms=plan_result.initial_interval_ms,
+        )
+    return ExportPlan.objects.update_or_create(job=job, plan_version=version, defaults=defaults)
+
+
 def claim_planning(job_id):
     """
     认领初始规划。
@@ -81,7 +141,7 @@ def claim_planning(job_id):
         job = ExportJob.objects.select_for_update().get(pk=job_id)
         if job.status not in (ExportJobStatus.PENDING, ExportJobStatus.PLANNING):
             return None
-        attempts = policy_from_snapshot(job.policy).planning_attempts
+        policy = policy_from_snapshot(job.policy)
         now = timezone.now()
         if (
             job.status == ExportJobStatus.PLANNING
@@ -89,7 +149,9 @@ def claim_planning(job_id):
             and now - job.planning_started_at < timedelta(seconds=settings.ASYNC_EXPORT_PLANNING_TIMEOUT)
         ):
             return None
-        if job.planning_attempts >= attempts:
+        plan = _claim_plan_record(job, policy, now)
+        if job.planning_attempts >= policy.planning_attempts:
+            _save(plan, status=ExportPlanStatus.FAILED, finished_at=now)
             return _finish_job(job, ExportJobStatus.FAILED, "PLANNING_RETRIES_EXHAUSTED", "规划重试次数已耗尽")
         return _save(
             job,
@@ -99,18 +161,20 @@ def claim_planning(job_id):
         )
 
 
-def persist_plan(job_id, *, parts, estimated_total):
+def persist_plan(job_id, *, parts, estimated_total, plan_result=None):
     """把完整计划落库，并把任务推进到可调度状态。"""
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
         if job.status != ExportJobStatus.PLANNING:
             return None
         _validate_parts(job, parts)
+        version = job.plan_version + 1
         ExportPart.objects.bulk_create(
             [
                 ExportPart(
                     job=job,
                     part_no=index + 1,
+                    plan_version=version,
                     start_time=part.start_time,
                     end_time=part.end_time,
                     oversized=part.oversized,
@@ -121,14 +185,16 @@ def persist_plan(job_id, *, parts, estimated_total):
                 for index, part in enumerate(parts)
             ]
         )
-        return _save(
+        _finish_plan(job, version, plan_result, planned_parts=len(parts))
+        job = _save(
             job,
             status=ExportJobStatus.READY,
-            part_total=len(parts),
+            plan_version=version,
             estimated_total=estimated_total,
             error_code="",
             error_detail="",
         )
+        return sync_actual_total(job)
 
 
 def fail_planning(job_id, code, detail="", retryable=False):
@@ -136,6 +202,10 @@ def fail_planning(job_id, code, detail="", retryable=False):
         job = ExportJob.objects.select_for_update().get(pk=job_id)
         if job.status != ExportJobStatus.PLANNING:
             return None
+        now = timezone.now()
+        ExportPlan.objects.filter(job=job, plan_version=job.plan_version + 1, status=ExportPlanStatus.PLANNING).update(
+            status=ExportPlanStatus.FAILED, finished_at=now, updated_at=now
+        )
         if retryable and job.planning_attempts < policy_from_snapshot(job.policy).planning_attempts:
             # 交回调度器重新规划，保留失败原因便于排查
             return _save(job, status=ExportJobStatus.PENDING, error_code=code, error_detail=(detail or "")[:2000])
@@ -219,11 +289,7 @@ def complete_part(part_id, *, actual_rows, actual_bytes, compressed_bytes, objec
             error_code="",
             error_detail="",
         )
-        _save(
-            job,
-            part_success=job.part_success + 1,
-            actual_total=job.actual_total + actual_rows,
-        )
+        sync_actual_total(job)
         return part
 
 
@@ -247,15 +313,76 @@ def _fail_locked(job, part, error_code, error_detail, retryable=True):
         and part.attempts < policy_from_snapshot(job.policy).part_max_attempts
     ):
         return _save(part, status=ExportPartStatus.WAITING, stage="", task_id="", **changes)
+    if _can_split(job, part, error_code):
+        return _split_locked(job, part, error_code, error_detail)
     # 不再重试：让任务明确失败，避免用户拿到不完整的清单
     _save(part, status=ExportPartStatus.FAILED, stage="", **changes)
     if job.status in (ExportJobStatus.READY, ExportJobStatus.RUNNING):
-        _finish_job(
-            job,
-            ExportJobStatus.FAILED,
-            "PART_EXECUTION_FAILED",
-            f"分片 {part.part_no} 执行失败：{error_code}",
-        )
+        job_error = "OVERSIZED_PART_FAILED" if part.oversized else "PART_EXECUTION_FAILED"
+        _finish_job(job, ExportJobStatus.FAILED, job_error, f"分片 {part.part_no} 执行失败：{error_code}")
+    return part
+
+
+def _can_split(job, part, error_code):
+    """重试耗尽后是否能按时间继续细分。"""
+    policy = policy_from_snapshot(job.policy)
+    if job.status not in (ExportJobStatus.READY, ExportJobStatus.RUNNING):
+        return False
+    if error_code in NON_SPLITTABLE_ERROR_CODES:
+        return False
+    if part.end_time - part.start_time <= job.time_tick:
+        return False
+    return leaf_stats(job)["total"] < policy.max_parts
+
+
+def _split_locked(job, part, error_code, error_detail):
+    """把父分片标记为 SPLIT 并生成两个相邻子分片，由调度器重新投递。"""
+    span = part.end_time - part.start_time
+    middle = part.start_time + (span // job.time_tick // 2) * job.time_tick
+    if middle <= part.start_time or middle >= part.end_time:
+        return None
+
+    next_no = (ExportPart.objects.filter(job=job).aggregate(Max("part_no"))["part_no__max"] or 0) + 1
+    estimated_rows = part.estimated_rows or 0
+    estimated_bytes = part.estimated_bytes or 0
+    left_rows = estimated_rows * (middle - part.start_time) // span
+    left_bytes = estimated_bytes * (middle - part.start_time) // span
+    ExportPart.objects.bulk_create(
+        [
+            ExportPart(
+                job=job,
+                part_no=next_no,
+                plan_version=part.plan_version,
+                parent_part=part,
+                start_time=part.start_time,
+                end_time=middle,
+                estimated_rows=left_rows,
+                estimated_bytes=left_bytes,
+                status=ExportPartStatus.WAITING,
+            ),
+            ExportPart(
+                job=job,
+                part_no=next_no + 1,
+                plan_version=part.plan_version,
+                parent_part=part,
+                start_time=middle,
+                end_time=part.end_time,
+                estimated_rows=estimated_rows - left_rows,
+                estimated_bytes=estimated_bytes - left_bytes,
+                status=ExportPartStatus.WAITING,
+            ),
+        ]
+    )
+    _save(
+        part,
+        status=ExportPartStatus.SPLIT,
+        stage="",
+        task_id="",
+        finished_at=timezone.now(),
+        error_code=error_code,
+        error_detail=(error_detail or "")[:2000],
+    )
+    sync_actual_total(job)
     return part
 
 
@@ -284,12 +411,12 @@ def recover_stale_parts(limit=None):
 
 
 def finalize_job(job_id, *, manifest_object_key, manifest_bytes):
-    """只有全部分片成功、边界连续且数量自洽时才允许任务成功。"""
+    """只有全部叶子分片成功、边界连续且数量自洽时才允许任务成功。"""
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
         if job.status != ExportJobStatus.RUNNING:
             return None
-        parts = list(ExportPart.objects.filter(job=job).order_by("start_time", "part_no"))
+        parts = list(leaf_parts(job).order_by("start_time", "part_no"))
         if not parts or any(part.status != ExportPartStatus.SUCCESS for part in parts):
             return None
         cursor = job.start_time

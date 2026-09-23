@@ -27,7 +27,7 @@ from rest_framework.response import Response
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission, ViewBusinessPermission
-from apps.log_search.export import api
+from apps.log_search.export import api, state
 from apps.log_search.export.models import ExportJob
 from apps.log_search.export.serializers import (
     ExportCreateSerializer,
@@ -68,7 +68,7 @@ class ExportJobViewSet(APIViewSet):
 
     def list(self, request):
         data = self.valid_serializer(ExportListSerializer).validated_data
-        queryset = self.get_queryset().order_by("-created_at", "-pk")
+        queryset = self.get_queryset().annotate(**state.leaf_counts_annotation()).order_by("-created_at", "-pk")
         offset = (data["page"] - 1) * data["limit"]
         results = [api.job_detail(job) for job in queryset[offset : offset + data["limit"]]]
         return Response({"page": data["page"], "limit": data["limit"], "results": results})
