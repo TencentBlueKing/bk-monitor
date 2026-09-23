@@ -1407,10 +1407,10 @@ MAX_CONCURRENT_EXPORT_TASKS = int(os.getenv("BKAPP_MAX_CONCURRENT_EXPORT_TASKS",
 # ===============================================================================
 # 分片异步导出（ExportJob / ExportPart）
 # ===============================================================================
-# 分片执行队列与轻量控制队列；控制任务不与重型的导出任务共用拥塞队列
-ASYNC_EXPORT_PART_QUEUE = os.getenv("BKAPP_ASYNC_EXPORT_PART_QUEUE", "sharded_export")
-ASYNC_EXPORT_CONTROL_QUEUE = os.getenv("BKAPP_ASYNC_EXPORT_CONTROL_QUEUE", "celery")
 ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS", 10))
+
+# 调度轮次互斥锁租约，需覆盖一轮调度的最长执行时间
+ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT", 120))
 
 # coordinator 每轮处理的批次规模（候选 Job 扫描、规划、回收、清理）
 ASYNC_EXPORT_COORDINATE_BATCH = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_BATCH", 100))

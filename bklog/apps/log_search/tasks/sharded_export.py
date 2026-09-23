@@ -28,14 +28,16 @@ from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from django.conf import settings
 
+from apps.log_search.export.config import CONTROL_QUEUE, PART_QUEUE
 from apps.log_search.export.worker import run_part
 from apps.log_search.export.planner import run_planning
 from apps.log_search.export.scheduler import coordinate, finalize_export
+from apps.utils.lock import share_lock
 
 
 @app.task(
     ignore_result=True,
-    queue=settings.ASYNC_EXPORT_PART_QUEUE,
+    queue=PART_QUEUE,
     acks_late=True,
     reject_on_worker_lost=True,
 )
@@ -43,20 +45,21 @@ def execute_sharded_export_part(part_id):
     run_part(part_id)
 
 
-@app.task(ignore_result=True, queue=settings.ASYNC_EXPORT_CONTROL_QUEUE)
+@app.task(ignore_result=True, queue=CONTROL_QUEUE)
 def plan_sharded_export(job_id):
     run_planning(job_id)
 
 
-@app.task(ignore_result=True, queue=settings.ASYNC_EXPORT_CONTROL_QUEUE)
+@app.task(ignore_result=True, queue=CONTROL_QUEUE)
 def finalize_sharded_export(job_id):
     finalize_export(job_id)
 
 
 @periodic_task(
     run_every=settings.ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS,
-    options={"queue": settings.ASYNC_EXPORT_CONTROL_QUEUE},
+    options={"queue": CONTROL_QUEUE},
 )
+@share_lock(ttl=settings.ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT)
 def coordinate_sharded_exports():
     """补回缺失的规划与收尾消息，按额度投递分片，并回收超时分片。"""
     coordinate()

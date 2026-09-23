@@ -31,6 +31,7 @@ from unittest.mock import MagicMock, patch
 from django.conf import settings
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
+from redis.exceptions import RedisError
 
 from apps.constants import RemoteStorageType
 from apps.log_search.constants import (
@@ -66,6 +67,7 @@ from apps.log_search.export.scheduler import (
     finalize_export,
 )
 from apps.log_search.export.storage import UnsupportedExportStorage, artifact_name, build_storage, manifest_name
+from apps.log_search.tasks.sharded_export import coordinate_sharded_exports
 
 
 def build_policy(**overrides):
@@ -904,6 +906,52 @@ class SchedulerTests(TestCase):
         """上传阶段尚未收尾，仍然占用并行额度。"""
         ExportPart.objects.filter(part_no=1).update(status=ExportPartStatus.UPLOADING)
         self.assertEqual(_inflight_by_index_set(), {11: 1})
+
+
+@override_settings(USE_REDIS=True)
+class CoordinateLockTests(SimpleTestCase):
+    """调度任务单轮互斥：上一轮没结束时跳过本轮，不重复发放额度。"""
+
+    @patch("apps.log_search.tasks.sharded_export.coordinate")
+    def test_skips_when_another_round_holds_the_lock(self, coordinate):
+        cache = MagicMock()
+        cache.set.return_value = False
+        with patch("apps.utils.lock.cache", cache):
+            coordinate_sharded_exports.run()
+        coordinate.assert_not_called()
+        self.assertEqual(
+            cache.set.call_args.kwargs,
+            {"timeout": settings.ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT, "nx": True},
+        )
+
+    @patch("apps.log_search.tasks.sharded_export.coordinate")
+    def test_runs_and_releases_the_lock(self, coordinate):
+        cache = MagicMock()
+        cache.set.return_value = True
+        cache.get.side_effect = lambda key: cache.set.call_args.args[1]
+        with patch("apps.utils.lock.cache", cache):
+            coordinate_sharded_exports.run()
+        coordinate.assert_called_once_with()
+        cache.delete.assert_called_once_with(cache.set.call_args.args[0])
+
+    @override_settings(USE_REDIS=False)
+    @patch("apps.log_search.tasks.sharded_export.coordinate")
+    def test_runs_without_redis(self, coordinate):
+        """没有配置 Redis 时不加锁，本轮照常执行。"""
+        cache = MagicMock()
+        with patch("apps.utils.lock.cache", cache):
+            coordinate_sharded_exports.run()
+        coordinate.assert_called_once_with()
+        cache.set.assert_not_called()
+
+    @patch("apps.log_search.tasks.sharded_export.coordinate")
+    def test_redis_failure_skips_the_round(self, coordinate):
+        """Redis 异常时本轮不执行，由下一个调度周期重试。"""
+        cache = MagicMock()
+        cache.set.side_effect = RedisError("redis down")
+        with patch("apps.utils.lock.cache", cache), self.assertRaises(RedisError):
+            coordinate_sharded_exports.run()
+        coordinate.assert_not_called()
 
 
 class ManifestChecksumTests(TestCase):
