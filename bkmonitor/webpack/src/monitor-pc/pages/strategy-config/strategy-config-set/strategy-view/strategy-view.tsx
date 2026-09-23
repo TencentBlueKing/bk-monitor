@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/member-ordering */
 /* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
@@ -416,7 +415,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   }
   handleToolPanelChange({ tools, type }) {
     this.tools = tools;
-    type !== 'interval' && (this.lastTimeRange = tools.timeRange);
+    if (type !== 'interval') {
+      this.lastTimeRange = tools.timeRange;
+    }
     if (type === 'timeRange') {
       this.timeRange = this.tools.timeRange;
       this.handleRefreshView();
@@ -559,8 +560,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       params.start_time = startTime;
       params.end_time = endTime;
     }
-    let firstData;
     const { series: queryData } = await graphUnifyQuery(params).catch(() => ({ series: [] }));
+    let firstData: (typeof queryData)[number] | null = null;
     if (hasIntelligentDetect) {
       firstData = queryData.find(item => item.alias === 'value') || [];
     } else if (this.isAlertStrategy) {
@@ -656,15 +657,18 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (this.editMode === 'Source') {
       const params = {
         ...timePrams,
-        expression: 'a',
-        query_configs: [
-          {
-            data_source_label: 'prometheus',
-            data_type_label: 'time_series',
-            promql: this.sourceData.sourceCode,
-            agg_interval: this.sourceData.step,
-          },
-        ],
+        ...(this.sourceData.queryConfigs?.length > 1 ? { promql_multi_expression: true } : {}),
+        expression: this.expression || 'a',
+        query_configs: (this.sourceData.queryConfigs?.length
+          ? this.sourceData.queryConfigs
+          : [{ alias: 'a', promql: this.sourceData.sourceCode }]
+        ).map(item => ({
+          data_source_label: 'prometheus',
+          data_type_label: 'time_series',
+          promql: item.promql,
+          agg_interval: this.sourceData.step,
+          alias: item.alias,
+        })),
       };
       return params;
     }
@@ -943,7 +947,9 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                       method: 'eq',
                       value: [this.chartDimensions[key]],
                     };
-                    index > 0 && (temp.condition = 'and');
+                    if (index > 0) {
+                      temp.condition = 'and';
+                    }
                     return temp;
                   })
                   .filter(item => !!item.key && item.value?.length),
@@ -1188,7 +1194,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
               />,
             ]
           : (() => {
-              if (this.isMultivariateAnomalyDetection && !!this.multivariateAnomalyDetectionParams?.metrics?.length) {
+              if (this.isMultivariateAnomalyDetection && this.multivariateAnomalyDetectionParams?.metrics?.length) {
                 return [
                   <div
                     key={'tool-container'}

@@ -240,6 +240,7 @@ export interface ISceneConfig {
 export interface ISourceData {
   errorMsg?: string;
   promqlError?: boolean;
+  queryConfigs?: { alias: string; promql: string }[];
   sourceCode: string;
   sourceCodeCache?: string;
   step: number | string;
