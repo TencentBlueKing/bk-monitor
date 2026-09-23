@@ -353,6 +353,9 @@ success = sync_bkbase_vm_query_clusters(bk_tenant_id="system")
 
 Admin 使用现有 `admin.datalink.component_list`、`component_detail`、`component_config`，
 指定 `kind="VmQueryCluster"`。列表和详情展示本地结构化字段、状态及快照，并保留失效项；
+列表支持 `search` 按资源 `name` 模糊匹配，以及 `vmstorage` 按
+`monitor_storage_clusters` 数组成员精确匹配（不是子串匹配）。两者可组合使用，
+过滤在租户、namespace 范围内且先于分页执行。
 `component_config`（或详情的 `include=["component_config"]`）按需读取 BKBase 实时配置。
 
 ---

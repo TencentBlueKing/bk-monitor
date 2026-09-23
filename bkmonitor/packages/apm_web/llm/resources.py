@@ -12,6 +12,7 @@ from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from typing import Any
 
+from django.conf import settings
 from django.db.models import Q
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.trace import StatusCode
@@ -368,7 +369,9 @@ class ListFlowsResource(Resource):
         group_id = serializers.CharField(required=True, label="分组值")
 
     @staticmethod
-    def build_trace_flow(bk_biz_id: int, app_name: str, trace_id: str) -> FlowBuilder | None:
+    def build_trace_flow(
+        bk_biz_id: int, app_name: str, trace_id: str, entity_set: EntitySet | None = None
+    ) -> FlowBuilder | None:
         """仅加载单个 Trace 的完整 Span，执行线与 Agent Token 统计共用一次构造。"""
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
         raw_spans: list[dict[str, Any]] = get_query(application.build_data_sources()).query_by_group_ids(
@@ -377,13 +380,14 @@ class ListFlowsResource(Resource):
         )
         if not raw_spans:
             return None
-        entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
+        if entity_set is None:
+            entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
         builder = FlowBuilder(raw_spans, adapt_spans(raw_spans, entity_set))
         builder.build()
         return builder
 
     @staticmethod
-    def list_session_traces(validated_request_data: dict[str, Any]) -> list[dict[str, Any]]:
+    def list_session_traces(validated_request_data: dict[str, Any], entity_set: EntitySet) -> list[dict[str, Any]]:
         bk_biz_id: int = validated_request_data["bk_biz_id"]
         app_name: str = validated_request_data["app_name"]
         group_field: str = validated_request_data["group_field"]
@@ -401,7 +405,6 @@ class ListFlowsResource(Resource):
             return []
 
         trace_products: dict[str, str] = {}
-        entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
         for record in records:
             trace_id: str = record.get(OtlpKey.TRACE_ID, "")
             if trace_id and trace_id not in trace_products:
@@ -428,33 +431,42 @@ class ListFlowsResource(Resource):
         return [items[trace_id] for trace_id in trace_products if trace_id in items]
 
     def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        empty_result: dict[str, Any] = {"traces": []}
+        if not (0 in settings.LLM_BIZ_LIST or bk_biz_id in settings.LLM_BIZ_LIST):
+            return empty_result
+        entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
+        if not any(resolve_product(entity_set, service_name) for service_name in entity_set.service_names):
+            return empty_result
+
         traces: list[dict[str, Any]] = []
         if validated_request_data["group_field"] != OtlpKey.TRACE_ID:
-            traces = self.list_session_traces(validated_request_data)
+            traces = self.list_session_traces(validated_request_data, entity_set)
         else:
             trace_id: str = validated_request_data["group_id"]
-            builder = self.build_trace_flow(
-                validated_request_data["bk_biz_id"], validated_request_data["app_name"], trace_id
+            builder = self.build_trace_flow(bk_biz_id, app_name, trace_id, entity_set)
+            if builder is None or not builder.flow:
+                return empty_result
+            item: dict[str, Any] = TraceSummary.build(
+                trace_id,
+                builder.raw_spans,
+                builder.spans,
+                builder.tokens,
+                has_error=any(
+                    (span.get(OtlpKey.STATUS) or {}).get("code") == StatusCode.ERROR.value for span in builder.raw_spans
+                ),
             )
-            if builder is not None:
-                item: dict[str, Any] = TraceSummary.build(
-                    trace_id,
-                    builder.raw_spans,
-                    builder.spans,
-                    builder.tokens,
-                    has_error=any(
-                        (span.get(OtlpKey.STATUS) or {}).get("code") == StatusCode.ERROR.value
-                        for span in builder.raw_spans
-                    ),
-                )
-                item["flow"] = builder.flow
-                traces.append(item)
+            item["flow"] = builder.flow
+            traces.append(item)
+        if not traces:
+            return empty_result
         tokens: dict[str, float] = {name: sum(trace[name] for trace in traces) for name in TOKEN_FIELDS}
         tokens["total_tokens"] = tokens["input_tokens"] + tokens["output_tokens"]
         for trace in traces:
             trace["total_tokens"] = trace["input_tokens"] + trace["output_tokens"]
-        start_time: int = min((trace["start_time"] for trace in traces), default=0)
-        end_time: int = max((trace["end_time"] for trace in traces), default=0)
+        start_time: int = min(trace["start_time"] for trace in traces)
+        end_time: int = max(trace["end_time"] for trace in traces)
         return {
             "group_field": validated_request_data["group_field"],
             "group_id": validated_request_data["group_id"],

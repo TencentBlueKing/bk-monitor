@@ -202,6 +202,34 @@ def test_single_tenant_remote_identity_and_unreconciled_resource(external_apis, 
     assert record.status == ""
 
 
+def test_admin_filters_name_and_vmstorage_before_pagination(external_apis):
+    list_api, _ = external_apis
+    primary = remote_cluster("query-primary")
+    backup = remote_cluster("query-backup")
+    prefix_only = remote_cluster("query-other")
+    prefix_only["spec"]["monitorStorageClusters"] = ["monitor-40"]
+    list_api.return_value = [primary, backup, prefix_only]
+    assert sync_bkbase_vm_query_clusters("tenant-a")
+    params = {
+        "bk_tenant_id": "tenant-a",
+        "namespace": "bkmonitor",
+        "kind": "VmQueryCluster",
+        "search": "query-",
+        "vmstorage": " monitor-4 ",
+        "page_size": 1,
+    }
+    first = list_components(params)["data"]
+    second = list_components({**params, "page": 2})["data"]
+    assert first["total"] == second["total"] == 2
+    assert len(first["items"]) == len(second["items"]) == 1
+    assert {first["items"][0]["name"], second["items"][0]["name"]} == {"query-primary", "query-backup"}
+    assert list_components({**params, "search": "primary"})["data"]["total"] == 1
+    assert list_components({**params, "vmstorage": "monitor-"})["data"]["total"] == 0
+    assert list_components({**params, "vmstorage": " "})["data"]["total"] == 3
+    assert list_components({**params, "bk_tenant_id": "other"})["data"]["total"] == 0
+    assert list_components({**params, "namespace": "other"})["data"]["total"] == 0
+
+
 def test_admin_reads_independent_model_and_live_config(external_apis):
     list_api, get_api = external_apis
     resource = remote_cluster()

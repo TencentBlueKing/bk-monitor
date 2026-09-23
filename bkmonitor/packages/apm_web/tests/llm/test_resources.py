@@ -3,6 +3,7 @@ from threading import Barrier, get_ident
 from unittest import TestCase, mock
 
 from django.db.models import Q
+from django.test import override_settings
 
 from apm_web.handlers.metric_group.define import CalculationType as MetricCalculationType
 from apm_web.llm.adapter import adapt_spans
@@ -1185,6 +1186,76 @@ class ListSpansResourceTestCase(TestCase):
 
 
 class ListFlowsResourceTestCase(TestCase):
+    def setUp(self):
+        self.enterContext(override_settings(LLM_BIZ_LIST=[11]))
+
+    def test_disabled_grayscale_skips_topology_and_span_queries(self):
+        for biz_list in ([], [22]):
+            for group_field in ("trace_id", "attributes.gen_ai.conversation.id"):
+                with (
+                    self.subTest(biz_list=biz_list, group_field=group_field),
+                    override_settings(LLM_BIZ_LIST=biz_list),
+                    mock.patch("apm_web.llm.resources.EntitySet") as entity_set,
+                    mock.patch("apm_web.llm.resources.Application.objects.get") as application,
+                    mock.patch("apm_web.llm.resources.get_query") as get_query,
+                ):
+                    result = ListFlowsResource().request(
+                        {"bk_biz_id": 11, "app_name": "demo", "group_field": group_field, "group_id": "group-1"}
+                    )
+                    self.assertEqual(result, {"traces": []})
+                    entity_set.assert_not_called()
+                    application.assert_not_called()
+                    get_query.assert_not_called()
+
+    def test_no_llm_service_skips_span_queries(self):
+        for service_names in ([], ["web-service"]):
+            entity_set = mock.Mock(service_names=service_names)
+            entity_set.get_system.return_value = {"is_support_llm": False}
+            for group_field in ("trace_id", "attributes.gen_ai.conversation.id"):
+                with (
+                    self.subTest(service_names=service_names, group_field=group_field),
+                    mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+                    mock.patch("apm_web.llm.resources.get_query") as get_query,
+                    mock.patch("apm_web.llm.resources.Application.objects.get") as application,
+                ):
+                    result = ListFlowsResource().request(
+                        {"bk_biz_id": 11, "app_name": "demo", "group_field": group_field, "group_id": "group-1"}
+                    )
+                    self.assertEqual(result["traces"], [])
+                    get_query.assert_not_called()
+                    application.assert_not_called()
+
+    def test_empty_flow_returns_only_traces_without_building_summary(self):
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
+        span_query = mock.Mock()
+        span_query.query_by_group_ids.return_value = [
+            {
+                "trace_id": "trace-1",
+                "span_id": "span-1",
+                "span_name": "framework",
+                "parent_span_id": "external",
+                "start_time": 1,
+                "end_time": 2,
+                "elapsed_time": 1,
+                "status": {"code": 1},
+                "resource": {"service.name": "agent-service"},
+                "attributes": {"gen_ai.operation.name": "task"},
+            }
+        ]
+        with (
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
+            mock.patch("apm_web.llm.resources.Application.objects.get"),
+            mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            mock.patch("apm_web.llm.resources.TraceSummary.build") as summary,
+        ):
+            result = ListFlowsResource().request(
+                {"bk_biz_id": 11, "app_name": "demo", "group_field": "trace_id", "group_id": "trace-1"}
+            )
+        self.assertEqual(result, {"traces": []})
+        summary.assert_not_called()
+
+    @override_settings(LLM_BIZ_LIST=[0])
     def test_flow_summary_uses_all_spans_and_counts_only_llm_tokens(self):
         def span(span_id, parent_span_id, start_time, end_time, attributes, status=1):
             return {
@@ -1322,7 +1393,7 @@ class ListFlowsResourceTestCase(TestCase):
             {"span_id": "early-child", "parent_span_id": "early-root", "start_time": 200},
             {"span_id": "early-root", "parent_span_id": "external", "start_time": 100},
         ]
-        spans = [span for span in raw_spans if span["span_id"] != "bridge"]
+        spans = [{**span, "span_type": "LLM"} if span["span_id"] != "bridge" else span for span in raw_spans]
         builder = FlowBuilder(raw_spans, spans)
         for _ in range(2):
             flow = builder.build()
@@ -1586,11 +1657,30 @@ class ListFlowsResourceTestCase(TestCase):
             },
         ]
 
-        flow = FlowBuilder(raw_spans, [raw_spans[0], raw_spans[2]]).build()
+        for framework_type in (None, "", "TASK"):
+            with self.subTest(span_type=framework_type):
+                spans = [
+                    {**raw_spans[0], "span_type": "AGENT"},
+                    {**raw_spans[1], "span_type": framework_type},
+                    {**raw_spans[2], "span_type": "TOOL"},
+                ]
+                flow = FlowBuilder(raw_spans, spans).build()
 
-        self.assertEqual([span["span_id"] for span in flow], ["agent"])
-        self.assertEqual([span["span_id"] for span in flow[0]["childs"]], ["tool"])
-        self.assertEqual(flow[0]["childs"][0]["parent_span_id"], "framework")
+                self.assertEqual([span["span_id"] for span in flow], ["agent"])
+                self.assertEqual([span["span_id"] for span in flow[0]["childs"]], ["tool"])
+                self.assertEqual(flow[0]["childs"][0]["parent_span_id"], "framework")
+
+    def test_flow_promotes_supported_children_of_filtered_root(self):
+        raw_spans = [
+            {"span_id": "framework", "parent_span_id": "external", "start_time": 100},
+            {"span_id": "llm", "parent_span_id": "framework", "start_time": 120},
+        ]
+        spans = [raw_spans[0], {**raw_spans[1], "span_type": "LLM"}]
+
+        flow = FlowBuilder(raw_spans, spans).build()
+
+        self.assertEqual([span["span_id"] for span in flow], ["llm"])
+        self.assertEqual(flow[0]["parent_span_id"], "framework")
 
     def test_flow_builder_fills_agent_tokens_from_llm_descendants(self):
         raw_spans = [
@@ -2067,10 +2157,12 @@ class ListFlowsResourceTestCase(TestCase):
     def test_missing_session_does_not_query_previews_or_spans(self):
         span_query = mock.Mock()
         span_query.query_group_trace_list.return_value = []
+        topology = mock.Mock(service_names=["agent-service"])
+        topology.get_system.return_value = {"is_support_llm": True, "product": "default"}
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get"),
             mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
-            mock.patch("apm_web.llm.resources.EntitySet") as entity_set,
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=topology) as entity_set,
         ):
             result = ListFlowsResource().request(
                 {
@@ -2080,22 +2172,11 @@ class ListFlowsResourceTestCase(TestCase):
                     "group_id": "missing-session",
                 }
             )
-        self.assertEqual(result["traces"], [])
-        for name in (
-            "input_tokens",
-            "output_tokens",
-            "total_tokens",
-            "cache_read_input_tokens",
-            "cache_write_input_tokens",
-            "start_time",
-            "end_time",
-            "elapsed_time",
-        ):
-            self.assertEqual(result[name], 0)
+        self.assertEqual(result, {"traces": []})
         span_query.query_trace_preview.assert_not_called()
         span_query.query_trace_errors.assert_not_called()
         span_query.query_by_group_ids.assert_not_called()
-        entity_set.assert_not_called()
+        entity_set.assert_called_once_with(bk_biz_id=11, app_name="demo")
 
     def test_returns_empty_traces_when_group_does_not_exist(self):
         application = mock.Mock()
@@ -2103,10 +2184,13 @@ class ListFlowsResourceTestCase(TestCase):
         span_query = mock.Mock()
         span_query.query_group_trace_list.return_value = []
         span_query.query_by_group_ids.return_value = []
+        entity_set = mock.Mock(service_names=["agent-service"])
+        entity_set.get_system.return_value = {"is_support_llm": True, "product": "default"}
 
         with (
             mock.patch("apm_web.llm.resources.Application.objects.get", return_value=application),
             mock.patch("apm_web.llm.resources.get_query", return_value=span_query),
+            mock.patch("apm_web.llm.resources.EntitySet", return_value=entity_set),
         ):
             result = ListFlowsResource().request(
                 {
@@ -2117,22 +2201,7 @@ class ListFlowsResourceTestCase(TestCase):
                 }
             )
 
-        self.assertEqual(
-            result,
-            {
-                "group_field": "trace_id",
-                "group_id": "missing-trace",
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "total_tokens": 0,
-                "cache_read_input_tokens": 0,
-                "cache_write_input_tokens": 0,
-                "start_time": 0,
-                "end_time": 0,
-                "elapsed_time": 0,
-                "traces": [],
-            },
-        )
+        self.assertEqual(result, {"traces": []})
         span_query.query_group_trace_list.assert_not_called()
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",

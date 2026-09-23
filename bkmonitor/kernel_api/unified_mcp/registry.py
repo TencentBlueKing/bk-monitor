@@ -233,6 +233,45 @@ for _name in (
 
 NATIVE_PERMISSIONS["list_bcs_clusters"] = _native_permission("view_business_v2")
 
+# 告警处置写工具复用各自页面的管理权限；Resource 继续校验目标业务、对象归属和并发版本。
+for _name in (
+    "create_alarm_strategy",
+    "update_alarm_strategy",
+    "update_alarm_action_config",
+    "save_alarm_assign_group",
+    "delete_alarm_assign_group",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_rule_v2")
+for _name in ("create_alarm_shield", "update_alarm_shield", "disable_alarm_shield"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_downtime_v2")
+for _name in ("create_alarm_notice_group", "update_alarm_notice_group"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_notify_team_v2")
+
+# Dashboard as Code 可一次导入多个配置，当前无法收敛为单一仪表盘实例；先复用业务级仪表盘管理权限。
+for _name in ("create_dashboard", "update_dashboard"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_dashboard_v2")
+
+# 日志采集写工具复用 Unified 旧路径已补回的采集管理权限。
+for _name in (
+    "update_log_collector_clean_config",
+    "fast_create_log_collector",
+    "create_custom_report",
+    "create_bkdata_index_set",
+    "create_third_party_es",
+    "update_custom_report",
+    "update_third_party_es",
+    "update_bkdata_index_set",
+    "fast_update_log_collector",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_collection_v2")
+
+# 日志文件发现保留业务访问和下载策略，创建任务、取得下载地址分别复用日志平台既有动作。
+NATIVE_PERMISSIONS["search_log_extract_files"] = _native_permission("view_business_v2", system_id="bk_log_search")
+NATIVE_PERMISSIONS["create_log_extract_task"] = _native_permission("create_client_log_task", system_id="bk_log_search")
+NATIVE_PERMISSIONS["get_log_extract_download_url"] = _native_permission(
+    "download_client_log", system_id="bk_log_search"
+)
+
 
 def native_tool_names() -> tuple[str, ...]:
     """读取并校验动态启用的原生权限工具白名单。"""
