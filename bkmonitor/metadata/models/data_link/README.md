@@ -358,6 +358,14 @@ Admin 使用现有 `admin.datalink.component_list`、`component_detail`、`compo
 过滤在租户、namespace 范围内且先于分页执行。
 `component_config`（或详情的 `include=["component_config"]`）按需读取 BKBase 实时配置。
 
+`admin.vm_query.query` 按 `bk_tenant_id + namespace + name` 查找本地镜像，再使用
+`cluster_domain` 无认证直查 VM select，拒绝失效集群与客户端 URL/路径/Header 覆盖。
+支持 `mode=instant + time` 或 `mode=range + start/end/step`，表达式使用 `query` 原样传递，
+时间参数为 Unix 秒。裸域名默认 HTTP 8481；请求路径固定为
+`/select/0/prometheus/api/v1/query` 或 `query_range`，通过 POST form 发送，不跟随重定向。
+查询超时 30 秒、跨度最多 31 天、每序列最多 11000 点；响应最多 5 MiB、1000 条序列和
+100000 个总采样点，超限明确报错，不静默截断。请求与结果均不经 Admin 服务直连 VM。
+
 ---
 
 ## 10. 常见问题与排障
