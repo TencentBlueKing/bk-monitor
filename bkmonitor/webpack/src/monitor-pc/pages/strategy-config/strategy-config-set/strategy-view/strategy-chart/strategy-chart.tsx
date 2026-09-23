@@ -416,7 +416,9 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
               data_type_label: 'time_series',
               promql: item.promql,
               interval: this.sourceData.step,
-              alias: item.alias,
+              ...(!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
+                ? { alias: item.alias }
+                : {}),
             }))
           : this.metricData.map(
               ({
