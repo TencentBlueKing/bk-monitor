@@ -8,9 +8,12 @@
     width: auto !important;
     height: var(--height) !important;
 
+    /* imgHeight 作用在外层容器，内层图片需跟随高度才生效 */
     .exception-img {
-      width: 100%;
+      width: auto;
+      height: 100%;
       max-width: 220px;
+      object-fit: contain;
     }
   }
 

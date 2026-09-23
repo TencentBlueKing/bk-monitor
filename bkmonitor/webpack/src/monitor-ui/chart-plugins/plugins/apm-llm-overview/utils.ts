@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import dayjs from 'dayjs';
 import deepmerge from 'deepmerge';
 import { deepClone } from 'monitor-common/utils/utils';
 
-import { MONITOR_LINE_OPTIONS, MONITOR_PIE_OPTIONS } from '../../constants';
 import { getValueFormat } from '../../../monitor-echarts/valueFormats';
+import { MONITOR_LINE_OPTIONS, MONITOR_PIE_OPTIONS } from '../../constants';
 
 import type { MonitorEchartOptions } from '../../typings';
 
@@ -71,9 +72,9 @@ export const OPERATION_NAME_MAP: Record<string, string> = {
 
 export interface ICalculateItem {
   '0s'?: number;
+  [key: string]: number | Record<string, null | number> | Record<string, string> | undefined;
   dimensions?: Record<string, string>;
   growth_rates?: Record<string, null | number>;
-  [key: string]: number | Record<string, null | number> | Record<string, string> | undefined;
 }
 
 export interface ICalculateResult {
@@ -81,18 +82,18 @@ export interface ICalculateResult {
   total?: number;
 }
 
-export interface IMetricCardConfig {
-  calType: CalType;
-  format: 'compact' | 'count';
-  title: string;
-  trendTheme: TrendTheme;
-}
-
 export interface IMetricCard {
   title: string;
   trend: string;
   trendTheme: TrendTheme;
   value: string;
+}
+
+export interface IMetricCardConfig {
+  calType: CalType;
+  format: 'compact' | 'count';
+  title: string;
+  trendTheme: TrendTheme;
 }
 
 export interface IPieLegendItem {
@@ -129,75 +130,29 @@ export const METRIC_CARD_CONFIG: IMetricCardConfig[] = [
   { calType: 'model_call_count', title: '模型调用次数', trendTheme: 'warn', format: 'count' },
 ];
 
-export function unwrapCalculateList(res: ICalculateItem[] | ICalculateResult | null | undefined): ICalculateItem[] {
-  if (Array.isArray(res)) return res;
-  if (Array.isArray(res?.data)) return res.data;
-  return [];
-}
-
-export function unwrapSeriesList(res: ITimeSeriesItem[] | ITimeSeriesResult | null | undefined): ITimeSeriesItem[] {
-  if (Array.isArray(res)) return res;
-  if (Array.isArray(res?.series)) return res.series;
-  return [];
-}
-
-/** 把后端按时间范围算出的聚合周期（秒）转成步长文案，取值来自 allowed_interval，最小 10s，最大 3h。 */
-export function formatSeriesInterval(res: ITimeSeriesItem[] | ITimeSeriesResult | null | undefined): string {
-  const interval = Array.isArray(res) ? 0 : res?.query_config?.interval;
-  if (!interval) return '';
-  if (interval % 3600 === 0) return `${interval / 3600}h`;
-  if (interval % 60 === 0) return `${interval / 60}m`;
-  return `${interval}s`;
-}
-
-export function getDimensionName(item: ICalculateItem, key: string) {
-  return item.dimensions?.[key] || '--';
-}
-
-export function getOperationDisplayName(name: string) {
-  return OPERATION_NAME_MAP[name] || name;
-}
-
-export function formatCount(value: number) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '--';
-  return Math.round(value).toLocaleString('en-US');
-}
-
-export function formatCompactNumber(value: number) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '--';
-  const abs = Math.abs(value);
-  if (abs >= 1e9) return `${trimFixed(value / 1e9)}B`;
-  if (abs >= 1e6) return `${trimFixed(value / 1e6)}M`;
-  if (abs >= 1e3) return `${trimFixed(value / 1e3)}K`;
-  return formatCount(value);
-}
-
-export function formatDuration(value: number) {
-  if (typeof value !== 'number' || Number.isNaN(value)) return '--';
-  const formatted = getValueFormat('µs')(value, 2);
-  return `${formatted.text}${formatted.suffix || ''}`;
-}
-
-export function formatGrowthRate(rate: null | number | undefined) {
-  if (typeof rate !== 'number' || Number.isNaN(rate)) return '--';
-  if (rate === 0) return '0%';
-  const sign = rate > 0 ? '+ ' : '- ';
-  return `${sign}${Math.abs(rate)}%`;
-}
-
-export function formatMetricValue(value: number, format: IMetricCardConfig['format']) {
-  return format === 'compact' ? formatCompactNumber(value) : formatCount(value);
-}
-
-export function sortByCurrentValue(list: ICalculateItem[], limit = RANK_TOP) {
-  return [...list]
-    .sort((a, b) => (Number(b['0s']) || 0) - (Number(a['0s']) || 0))
-    .slice(0, limit)
-    .filter(item => typeof item['0s'] === 'number');
-}
-
-export function toEchartsPoints(datapoints: [number, number][] = []): [number, number][] {
-  return datapoints.map(([value, timestamp]) => [timestamp, value]);
+export function buildPieOptions(list: IPieLegendItem[]): MonitorEchartOptions {
+  const chartBaseOptions = deepClone(MONITOR_PIE_OPTIONS);
+  return deepmerge(chartBaseOptions, {
+    tooltip: {
+      trigger: 'item',
+      formatter: '{b}: {c}',
+    },
+    series: [
+      {
+        type: 'pie',
+        radius: ['68%', '88%'],
+        center: ['50%', '50%'],
+        silent: false,
+        label: { show: false },
+        labelLine: { show: false },
+        data: list.map(item => ({
+          name: item.name,
+          value: item.rawValue,
+          itemStyle: { color: item.color },
+        })),
+      },
+    ],
+  }) as MonitorEchartOptions;
 }
 
 export function buildTimeLineOptions(
@@ -238,6 +193,8 @@ export function buildTimeLineOptions(
         color: '#979ba5',
         showMinLabel: true,
         showMaxLabel: true,
+        hideOverlap: true,
+        formatter: createTimeAxisLabelFormatter(series),
       },
       splitLine: { show: false },
     },
@@ -276,29 +233,103 @@ export function buildTimeLineOptions(
   }) as MonitorEchartOptions;
 }
 
-export function buildPieOptions(list: IPieLegendItem[]): MonitorEchartOptions {
-  const chartBaseOptions = deepClone(MONITOR_PIE_OPTIONS);
-  return deepmerge(chartBaseOptions, {
-    tooltip: {
-      trigger: 'item',
-      formatter: '{b}: {c}',
-    },
-    series: [
-      {
-        type: 'pie',
-        radius: ['68%', '88%'],
-        center: ['50%', '50%'],
-        silent: false,
-        label: { show: false },
-        labelLine: { show: false },
-        data: list.map(item => ({
-          name: item.name,
-          value: item.rawValue,
-          itemStyle: { color: item.color },
-        })),
-      },
-    ],
-  }) as MonitorEchartOptions;
+/** 同一天只显示时分，跨天才带上日期。 */
+export function createTimeAxisLabelFormatter(series: { data: [number, number][] }[]) {
+  let minX = Number.POSITIVE_INFINITY;
+  let maxX = Number.NEGATIVE_INFINITY;
+  for (const item of series) {
+    for (const [timestamp] of item.data) {
+      if (timestamp < minX) minX = timestamp;
+      if (timestamp > maxX) maxX = timestamp;
+    }
+  }
+  const sameDay = Number.isFinite(minX) && Number.isFinite(maxX) && dayjs.tz(minX).isSame(dayjs.tz(maxX), 'day');
+  const format = sameDay ? 'HH:mm' : 'MM-DD HH:mm';
+  return (value: number) => dayjs.tz(value).format(format);
+}
+
+export function formatCompactNumber(value: number) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '--';
+  const abs = Math.abs(value);
+  if (abs >= 1e9) return `${trimFixed(value / 1e9)}B`;
+  if (abs >= 1e6) return `${trimFixed(value / 1e6)}M`;
+  if (abs >= 1e3) return `${trimFixed(value / 1e3)}K`;
+  return formatCount(value);
+}
+
+export function formatCount(value: number) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '--';
+  return Math.round(value).toLocaleString('en-US');
+}
+
+export function formatDuration(value: number) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '--';
+  const formatted = getValueFormat('µs')(value, 2);
+  return `${formatted.text}${formatted.suffix || ''}`;
+}
+
+export function formatGrowthRate(rate: null | number | undefined) {
+  if (typeof rate !== 'number' || Number.isNaN(rate)) return '--';
+  if (rate === 0) return '0%';
+  const sign = rate > 0 ? '+ ' : '- ';
+  return `${sign}${Math.abs(rate)}%`;
+}
+
+export function formatMetricValue(value: number, format: IMetricCardConfig['format']) {
+  return format === 'compact' ? formatCompactNumber(value) : formatCount(value);
+}
+
+/** 把后端按时间范围算出的聚合周期（秒）转成步长文案，取值来自 allowed_interval，最小 10s，最大 3h。 */
+export function formatSeriesInterval(res: ITimeSeriesItem[] | ITimeSeriesResult | null | undefined): string {
+  const interval = Array.isArray(res) ? 0 : res?.query_config?.interval;
+  if (!interval) return '';
+  if (interval % 3600 === 0) return `${interval / 3600}h`;
+  if (interval % 60 === 0) return `${interval / 60}m`;
+  return `${interval}s`;
+}
+
+/** 环比窗口紧邻当前窗口，偏移量等于本次查询的时间跨度（秒）。 */
+export function getComparisonTimeShift(startTime: number, endTime: number): string {
+  const seconds = endTime - startTime;
+  for (const [unit, size] of [
+    ['d', 86400],
+    ['h', 3600],
+    ['m', 60],
+  ] as const) {
+    if (seconds > 0 && seconds % size === 0) return `${seconds / size}${unit}`;
+  }
+  return `${seconds}s`;
+}
+
+export function getDimensionName(item: ICalculateItem, key: string) {
+  return item.dimensions?.[key] || '--';
+}
+
+export function getOperationDisplayName(name: string) {
+  return OPERATION_NAME_MAP[name] || name;
+}
+
+export function sortByCurrentValue(list: ICalculateItem[], limit = RANK_TOP) {
+  return [...list]
+    .sort((a, b) => (Number(b['0s']) || 0) - (Number(a['0s']) || 0))
+    .slice(0, limit)
+    .filter(item => typeof item['0s'] === 'number');
+}
+
+export function toEchartsPoints(datapoints: [number, number][] = []): [number, number][] {
+  return datapoints.map(([value, timestamp]) => [timestamp, value]);
+}
+
+export function unwrapCalculateList(res: ICalculateItem[] | ICalculateResult | null | undefined): ICalculateItem[] {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.data)) return res.data;
+  return [];
+}
+
+export function unwrapSeriesList(res: ITimeSeriesItem[] | ITimeSeriesResult | null | undefined): ITimeSeriesItem[] {
+  if (Array.isArray(res)) return res;
+  if (Array.isArray(res?.series)) return res.series;
+  return [];
 }
 
 function trimFixed(value: number) {

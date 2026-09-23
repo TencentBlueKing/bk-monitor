@@ -60,11 +60,15 @@ class AuthorizedScopeProvider(Protocol):
 
 
 class AuthorizationWriter(Protocol):
-    """向单个 IAM 权限提供方写入资源创建者授权。
+    """向单个 IAM 权限提供方写入授权。
 
     ``grant_resource_creator_actions`` 一步完成请求构造与写入，适合不需要重试的目标。
     需要重试的目标先用 ``prepare_resource_creator_actions`` 冻结请求，再用 ``grant_prepared``
     写入：同一份冻结请求既用于首次直写，也用于失败后的回落重试，重放因此不会重算 ``expired_at``。
+
+    ``grant_space_access`` 是独立能力：空间不是新建实例，两代协议的授权入口完全不同
+    （legacy 调权限中心实例授权 API，current 授最小空间访问角色），因此不走创建者授权的
+    冻结 / 重试编排，失败由调用方按主体汇总上报。
     """
 
     def grant_resource_creator_actions(self, application: Mapping[str, Any]) -> Any: ...
@@ -74,3 +78,5 @@ class AuthorizationWriter(Protocol):
     ) -> PreparedAuthorizationGrant: ...
 
     def grant_prepared(self, grant: PreparedAuthorizationGrant) -> Any: ...
+
+    def grant_space_access(self, *, space_id: str, subject_id: str, space_name: str = "") -> Any: ...

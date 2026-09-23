@@ -1145,9 +1145,12 @@ class CollectorHandler:
             )
 
     @staticmethod
-    def _authorization_owners(collector_config: CollectorConfig, owners: list = None):
+    def _authorization_owners(collector_config: CollectorConfig, owners: list = None, grant_space_access: bool = True):
         """
-        将采集项及其索引集的新建关联权限授予指定用户，仅新增授权，不回收历史权限
+        将采集项、索引集及所属业务的访问权限授予指定用户，仅新增授权，不回收历史权限
+
+        :param grant_space_access: 是否一并授予业务访问。幂等命中已存在采集项时传 False，
+            该分支只校验业务级新建权限，不校验对目标实例的管理权限，不应再扩大授权范围
         """
         if not owners:
             return
@@ -1169,6 +1172,19 @@ class CollectorHandler:
                         index_set.index_set_id, attribute={"name": index_set.index_set_name}
                     ),
                     creators=owners,
+                )
+
+            if not grant_space_access:
+                return
+
+            # 创建者授权只绑定实例本身，owner 拿不到业务访问就进不了这个业务，
+            # 采集项与索引集权限也就用不上，所以必须补一次空间访问授权
+            failed_owners = permission.grant_space_access_batch(collector_config.bk_biz_id, owners)
+            if failed_owners:
+                logger.warning(
+                    f"collector_config->({collector_config.collector_config_id}) grant space access to owners "
+                    f"{failed_owners} failed, bk_biz_id: {collector_config.bk_biz_id}, "
+                    f"bk_tenant_id: {permission.bk_tenant_id}"
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(
@@ -1514,8 +1530,10 @@ class CollectorHandler:
                 existing = CollectorConfig.objects.get(
                     collector_config_name_en=collector_config_name_en, bk_biz_id=bkdata_biz_id
                 )
-                # 幂等创建同样要保证 owners 拿到权限
-                self._authorization_owners(existing, owners)
+                # 幂等创建同样要保证 owners 拿到采集项与索引集权限。
+                # 但这个分支只校验了业务级新建权限，没有校验调用方对 existing 的管理权限，
+                # 在实例级校验收口前不能再往外授业务访问（见 TAPD #1010158081138359778）。
+                self._authorization_owners(existing, owners, grant_space_access=False)
                 return {
                     "collector_config_id": existing.collector_config_id,
                     "index_set_id": existing.index_set_id,

@@ -23,13 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, inject, shallowRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
-import { parseJsonValue, stringifyContent } from '../utils/helpers';
+import { parseJsonValue, stringifyContent, truncateTipContent } from '../utils/helpers';
 import { flattenKvPairs } from '../utils/parse-input';
+import { LLM_OBSERVATION_SEARCH_KEY, resolveToolCallExpandId } from '../utils/search';
+import HighlightText from './highlight-text';
 import JsonCodeBlock from './json-code-block';
+import ToolDescBar from './tool-desc-bar';
 
 import type { LlmPlannedToolCall, LlmToolCallRecord } from '../utils/typings';
 
@@ -45,6 +48,11 @@ export default defineComponent({
       type: Array as PropType<ToolCallItem[]>,
       default: () => [],
     },
+    /** 搜索 path 前缀，实际 block 为 `${prefix}:${item.id}:...` */
+    searchPrefix: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
     viewAlone: (_data: unknown, _title: string) => true,
@@ -52,6 +60,9 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const expandedIds = shallowRef<string[]>([]);
+    /** 同一卡片内左右 JSON 共用展开态 */
+    const jsonExpandedIds = shallowRef<string[]>([]);
+    const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
 
     /** 预览只在数据变化时计算，收展卡片时复用。 */
     const records = computed(() =>
@@ -71,6 +82,27 @@ export default defineComponent({
       () => props.items,
       items => {
         expandedIds.value = items[0] ? [items[0].id] : [];
+        jsonExpandedIds.value = [];
+      },
+      { immediate: true }
+    );
+
+    /** 命中折叠卡片内的参数 / 结果时，先把该卡片加进 expandedIds */
+    const ensureExpandedForHit = () => {
+      const expandId = resolveToolCallExpandId(
+        search?.activeHit.value,
+        props.searchPrefix,
+        props.items.map(item => item.id)
+      );
+      if (expandId && !expandedIds.value.includes(expandId)) {
+        expandedIds.value = [...expandedIds.value, expandId];
+      }
+    };
+
+    watch(
+      () => [search?.activeIndex.value, search?.keyword.value, search?.activeHit.value?.blockId],
+      () => {
+        ensureExpandedForHit();
       },
       { immediate: true }
     );
@@ -81,14 +113,22 @@ export default defineComponent({
         : [...expandedIds.value, id];
     };
 
-    const renderPreview = (preview: ReturnType<typeof toPreview>) => (
+    const setJsonExpanded = (id: string, expanded: boolean) => {
+      const has = jsonExpandedIds.value.includes(id);
+      if (expanded === has) return;
+      jsonExpandedIds.value = expanded
+        ? [...jsonExpandedIds.value, id]
+        : jsonExpandedIds.value.filter(value => value !== id);
+    };
+
+    const renderPairs = (preview: ReturnType<typeof toPreview>, className?: string) => (
       <div
-        style={{
-          gridTemplateColumns: preview.pairs.length
-            ? `repeat(${preview.pairs.length}, max-content minmax(0, max-content))`
-            : undefined,
-        }}
-        class='llm-tool-call-list-preview-value'
+        style={
+          preview.pairs.length
+            ? { gridTemplateColumns: `repeat(${preview.pairs.length}, max-content minmax(0, max-content))` }
+            : undefined
+        }
+        class={['llm-tool-call-list-pairs', className]}
       >
         {preview.pairs.length ? (
           preview.pairs.map(pair => (
@@ -98,13 +138,13 @@ export default defineComponent({
             >
               <span
                 class='llm-tool-call-list-kv-key'
-                v-overflow-tips
+                v-overflow-tips={{ content: truncateTipContent(pair.key), placement: 'top' }}
               >
                 {pair.key}
               </span>
               <span
                 class='llm-tool-call-list-kv-value'
-                v-overflow-tips
+                v-overflow-tips={{ content: truncateTipContent(pair.value), placement: 'top' }}
               >
                 :{pair.value}
               </span>
@@ -112,8 +152,8 @@ export default defineComponent({
           ))
         ) : (
           <span
-            class='llm-tool-call-list-preview-text'
-            v-overflow-tips
+            class='llm-tool-call-list-pairs-text'
+            v-overflow-tips={{ content: truncateTipContent(preview.text), placement: 'top' }}
           >
             {preview.text}
           </span>
@@ -127,6 +167,7 @@ export default defineComponent({
       <div class='llm-tool-call-list'>
         {records.value.map(({ item, response, description, argumentsPreview, responsePreview }, index) => {
           const expanded = expandedIds.value.includes(item.id);
+          const searchPrefix = props.searchPrefix ? `${props.searchPrefix}:${item.id}` : '';
           return (
             <div
               key={item.id}
@@ -139,19 +180,26 @@ export default defineComponent({
                   onClick={() => toggleTool(item.id)}
                 >
                   <div class='llm-tool-call-list-header-main'>
-                    <div class='llm-tool-call-list-preview'>
+                    <div class={['llm-tool-call-list-call', { 'has-result': response !== undefined }]}>
                       <span
                         class='llm-tool-call-list-name'
                         v-overflow-tips
                       >
-                        {item.name || t('未命名工具')}
+                        {searchPrefix ? (
+                          <HighlightText
+                            blockId={`${searchPrefix}:name`}
+                            text={item.name.trim() || t('未命名工具')}
+                          />
+                        ) : (
+                          item.name || t('未命名工具')
+                        )}
                       </span>
-                      {renderPreview(argumentsPreview)}
+                      {renderPairs(argumentsPreview)}
                     </div>
                     {response !== undefined && (
                       <>
                         <i class='icon-monitor icon-next-one llm-tool-call-list-arrow' />
-                        {renderPreview(responsePreview)}
+                        {renderPairs(responsePreview, 'llm-tool-call-list-result')}
                       </>
                     )}
                   </div>
@@ -165,22 +213,26 @@ export default defineComponent({
                 </div>
                 {expanded && (
                   <div class='llm-tool-call-list-content'>
-                    {description && (
-                      <div class='llm-tool-call-list-desc'>
-                        <span class='llm-tool-call-list-desc-label'>{t('工具描述')}</span>
-                        <span class='llm-tool-call-list-desc-text'>{description}</span>
-                      </div>
-                    )}
+                    <ToolDescBar
+                      descBlockId={searchPrefix ? `${searchPrefix}:desc` : ''}
+                      description={description}
+                    />
                     <div class='llm-tool-call-list-panels'>
                       <JsonCodeBlock
                         data={item.arguments ?? {}}
+                        expanded={jsonExpandedIds.value.includes(item.id)}
+                        searchBlockId={searchPrefix ? `${searchPrefix}:args` : ''}
                         title={t('调用参数')}
+                        onUpdate:expanded={val => setJsonExpanded(item.id, val)}
                         onViewAlone={openJsonDetail}
                       />
                       {response !== undefined && (
                         <JsonCodeBlock
                           data={response}
+                          expanded={jsonExpandedIds.value.includes(item.id)}
+                          searchBlockId={searchPrefix ? `${searchPrefix}:resp` : ''}
                           title={t('返回结果')}
+                          onUpdate:expanded={val => setJsonExpanded(item.id, val)}
                           onViewAlone={openJsonDetail}
                         />
                       )}

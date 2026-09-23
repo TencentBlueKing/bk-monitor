@@ -90,6 +90,19 @@ def task_cache():
     return caches["redis"]
 
 
+def resolved_identity(**overrides):
+    values = {
+        "tenant_id": "tenant-a",
+        "bk_biz_id": 2,
+        "bk_data_id": 1001,
+        "bcs_cluster_id": "BCS-K8S-1",
+        "overrides": {},
+        "warnings": [],
+    }
+    values.update(overrides)
+    return values
+
+
 def collector(**overrides):
     values = {
         "collector_config_id": 123,
@@ -506,7 +519,9 @@ class K8sInspectionHandlerTest(SimpleTestCase):
             _validate_collector(collector(), "tenant-a")
 
     @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
-    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
     @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_control_plane_only_is_always_async_without_target(self, _identity, _get, _validate, apply_async):
@@ -519,7 +534,9 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         self.assertEqual(record["deadline_seconds"], 120)
 
     @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
-    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
     @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_omitted_groups_defaults_to_control_plane(self, _identity, _get, _validate, apply_async):
@@ -529,14 +546,18 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         self.assertEqual(record["request_options"]["evidence_groups"], ["control_plane"])
         apply_async.assert_called_once()
 
-    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
     @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_deep_evidence_requires_business_target(self, _identity, _get, _validate):
         with self.assertRaisesRegex(ValidationError, "target is required"):
             start_k8s_inspection({"collector_config_id": 123, "evidence_groups": ["collector"]})
 
-    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
     @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_source_sample_requires_explicit_source(self, _identity, _get, _validate):
@@ -582,8 +603,8 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 return_value=collector(),
             ),
             patch(
-                "apps.log_admin_resource.handlers.k8s_inspection._validate_collector",
-                return_value="tenant-a",
+                "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity",
+                return_value=resolved_identity(),
             ),
             patch(
                 "apps.log_admin_resource.handlers.k8s_inspection.ContainerCollectorConfig.objects.filter",
@@ -655,8 +676,8 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 return_value=collector(),
             ),
             patch(
-                "apps.log_admin_resource.handlers.k8s_inspection._validate_collector",
-                return_value="tenant-a",
+                "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity",
+                return_value=resolved_identity(),
             ),
             patch(
                 "apps.log_admin_resource.handlers.k8s_inspection.ContainerCollectorConfig.objects.filter",
@@ -694,7 +715,9 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         return_value=("reader-a", "tenant-a"),
     )
     @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
-    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
     def test_target_discovery_rejects_blank_namespace_instead_of_scanning_cluster(
         self, _validate_collector, _get_collector, _identity
     ):
@@ -742,6 +765,87 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 collector=collector(),
                 target={"type": "node", "node_name": "node-a"},
             )
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value="tenant-a")
+    def test_missing_cluster_returns_structured_incomplete_error(self, _tenant):
+        from apps.log_admin_resource.handlers.k8s_inspection import _resolve_collector_identity
+
+        with self.assertRaises(ValidationError) as raised:
+            _resolve_collector_identity(collector(bcs_cluster_id=""), "tenant-a", {})
+        self.assertEqual(raised.exception.message, "collector_context_incomplete")
+        self.assertEqual(raised.exception.data["missing_fields"], ["bcs_cluster_id"])
+        self.assertEqual(raised.exception.data["allowed_overrides"], ["bcs_cluster_id"])
+
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection.BcsHandler.list_bcs_cluster",
+        return_value=[{"cluster_id": "BCS-K8S-9"}],
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value="tenant-a")
+    def test_empty_cluster_accepts_visible_override(self, _tenant, _clusters):
+        from apps.log_admin_resource.handlers.k8s_inspection import _resolve_collector_identity
+
+        identity = _resolve_collector_identity(
+            collector(bcs_cluster_id=None),
+            "tenant-a",
+            {"bcs_cluster_id": "BCS-K8S-9"},
+        )
+        self.assertEqual(identity["bcs_cluster_id"], "BCS-K8S-9")
+        self.assertEqual(identity["overrides"]["bcs_cluster_id"], "BCS-K8S-9")
+        self.assertEqual(identity["warnings"][0]["code"], "bcs_cluster_id_overridden")
+
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection.TransferApi.get_data_id",
+        return_value={"bk_biz_id": 2},
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value="tenant-a")
+    def test_empty_data_id_accepts_business_owned_override(self, _tenant, _data_id):
+        from apps.log_admin_resource.handlers.k8s_inspection import _resolve_collector_identity
+
+        identity = _resolve_collector_identity(
+            collector(bk_data_id=None),
+            "tenant-a",
+            {"bk_data_id": 2002},
+        )
+        self.assertEqual(identity["bk_data_id"], 2002)
+        self.assertEqual(identity["overrides"]["bk_data_id"], 2002)
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value="tenant-a")
+    def test_missing_data_id_skips_deep_groups_but_keeps_control_plane(self, _tenant):
+        from apps.log_admin_resource.handlers.k8s_inspection import (
+            _resolve_collector_identity,
+            _select_runnable_evidence_groups,
+        )
+
+        identity = _resolve_collector_identity(collector(bk_data_id=None), "tenant-a", {})
+        runnable, skipped = _select_runnable_evidence_groups(
+            ["control_plane", "sidecar", "collector", "progress"],
+            identity,
+        )
+        self.assertEqual(runnable, ["control_plane"])
+        self.assertEqual({item["group"] for item in skipped}, {"sidecar", "collector", "progress"})
+
+    @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._get_collector",
+        return_value=collector(bk_data_id=None),
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_start_degrades_to_control_plane_when_data_id_missing(self, _identity, _get, _tenant, apply_async):
+        result = start_k8s_inspection(
+            {
+                "collector_config_id": 123,
+                "evidence_groups": ["control_plane", "collector"],
+            }
+        )
+        record = ResourceInspectionTaskRecord.get(result["task_id"])
+        self.assertEqual(record["request_options"]["evidence_groups"], ["control_plane"])
+        self.assertEqual(
+            [item["group"] for item in record["request_options"]["skipped_evidence_groups"]],
+            ["collector"],
+        )
+        self.assertIsNone(record["target"]["bk_data_id"])
+        apply_async.assert_called_once()
 
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-b", "tenant-a"))
     def test_detail_hides_cross_app_task_existence(self, _identity):
@@ -1983,7 +2087,27 @@ class K8sInspectionWorkerTest(SimpleTestCase):
                 }
             )
 
-    def _record(self, *, target=None, groups=None, candidate_id=None):
+    @patch(
+        "apps.log_admin_resource.k8s_tasks.CollectorConfig.objects.get",
+        return_value=collector(bk_data_id=None, bcs_cluster_id=None),
+    )
+    def test_worker_accepts_dispatch_time_identity_overrides(self, _get):
+        bound = _load_bound_collector(
+            {
+                "bk_tenant_id": "tenant-a",
+                "target": {
+                    "collector_config_id": 123,
+                    "bk_biz_id": 2,
+                    "bk_data_id": 2002,
+                    "bcs_cluster_id": "BCS-K8S-9",
+                    "identity_overrides": {"bk_data_id": 2002, "bcs_cluster_id": "BCS-K8S-9"},
+                },
+            }
+        )
+        self.assertEqual(bound.bk_data_id, 2002)
+        self.assertEqual(bound.bcs_cluster_id, "BCS-K8S-9")
+
+    def _record(self, *, target=None, groups=None, candidate_id=None, skipped_groups=None):
         return ResourceInspectionTaskRecord.create_or_reuse(
             app_code="reader-a",
             bk_tenant_id="tenant-a",
@@ -1997,6 +2121,7 @@ class K8sInspectionWorkerTest(SimpleTestCase):
             request_options={
                 "target": target,
                 "evidence_groups": groups or ["control_plane"],
+                "skipped_evidence_groups": skipped_groups or [],
                 "collector_candidate_id": candidate_id,
                 "source": None,
                 "include_source_sample": False,
@@ -2022,6 +2147,35 @@ class K8sInspectionWorkerTest(SimpleTestCase):
         self.assertEqual(stored["task_status"], "success")
         self.assertEqual(result["remote_execution"]["executor"], "K8S_API")
         self.assertFalse(result["remote_execution"]["mutations_permitted"])
+
+    @patch("apps.log_admin_resource.k8s_tasks.K8sInspectionClient")
+    @patch("apps.log_admin_resource.k8s_tasks.expected_bklog_configs", return_value=[])
+    @patch("apps.log_admin_resource.k8s_tasks.ContainerCollectorConfig.objects.filter")
+    @patch("apps.log_admin_resource.k8s_tasks.CollectorConfig.objects.get", return_value=collector())
+    @patch("apps.log_admin_resource.k8s_tasks._control_plane_probe")
+    def test_skipped_deep_groups_mark_task_partial(self, control, _get, configs_filter, _expected, _client):
+        configs_filter.return_value.order_by.return_value = []
+        control.return_value = (probe(evidence={}), None, [])
+        record = self._record(
+            groups=["control_plane"],
+            skipped_groups=[
+                {
+                    "group": "collector",
+                    "code": "data_id_missing",
+                    "message": "sidecar/collector/progress evidence requires a positive bk_data_id",
+                }
+            ],
+        )
+
+        run_k8s_inspection.run(record["task_id"])
+
+        stored = ResourceInspectionTaskRecord.get(record["task_id"])
+        result = ResourceInspectionTaskRecord.load_result(record["task_id"])
+        self.assertEqual(stored["task_status"], "partial")
+        self.assertEqual(stored["error"]["code"], "evidence_groups_skipped")
+        self.assertTrue(result["partial"])
+        self.assertEqual(result["probes"]["collector"]["status"], "skipped")
+        self.assertEqual(result["probes"]["collector"]["code"], "data_id_missing")
 
     @patch("apps.log_admin_resource.k8s_tasks._revalidate_candidate")
     @patch("apps.log_admin_resource.k8s_tasks._discover_candidates")

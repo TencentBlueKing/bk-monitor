@@ -121,7 +121,7 @@ class TGPAViewSet(APIViewSet):
         @apiParam {Int} bk_biz_id 业务ID
         @apiParam {String} [source] 数据源过滤，可选值：task、report，为空时查询全部
         @apiParam {Int} [task_id] 后台任务ID（指定时仅查询 task 数据源，不查 report）
-        @apiParam {String} [keyword] 综合关键字，匹配 openid、文件名前缀或用户上报扩展信息
+        @apiParam {String} [extend_info] 用户上报扩展信息（包含匹配，仅查询 report 数据源）
         @apiParam {String} [openid] openid
         @apiParam {Int} start_time 开始时间（毫秒时间戳）
         @apiParam {Int} end_time 结束时间（毫秒时间戳）

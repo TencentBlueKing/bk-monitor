@@ -1,897 +1,263 @@
-# 蓝鲸监控平台前端开发指南
+# 开发与 AI 协作指南
 
-> 本文档旨在帮助新人快速了解项目结构、开发规范和开发流程，快速上手开发。
+本文面向在 `bkmonitor/webpack` 中开发、排查问题和交付改动的贡献者，重点说明如何让 AI 在正确的代码基线上工作，以及如何从源码定位到可验证的结果。
 
-## 目录
+[README](../README.md) 提供项目介绍、skills 入口与环境启动方法；[AGENTS.md](../AGENTS.md) 维护项目硬约束；已安装的 skills 维护各阶段的具体操作。本文提供开发导航，不替代这些规则。目录、依赖和实现细节必须与本次任务的目标分支核对。
 
-- [项目概述](#项目概述)
-- [技术栈](#技术栈)
-- [环境搭建](#环境搭建)
-- [项目结构](#项目结构)
-- [开发规范](#开发规范)
-- [核心功能使用](#核心功能使用)
-- [开发流程](#开发流程)
-- [构建和部署](#构建和部署)
-- [常见问题](#常见问题)
-- [最佳实践](#最佳实践)
+## 1. 开始一个任务
 
----
+### 准备环境与 AI 能力
 
-## 项目概述
+首次搭建使用 `bkmonitor-onboarding`；已有环境的启动、代理鉴权和服务诊断使用 `bkmonitor-dev-server`。工具版本与安装步骤见 [README：本地运行与构建](../README.md#本地运行与构建)。
 
-蓝鲸监控平台前端采用**微前端架构**，包含多个独立的微应用模块：
+团队 skills 独立分发，本地常见路径为 `.agents/skills/<skill-name>/SKILL.md`。该目录被 Git 忽略，克隆业务仓库不会自动获得 skills。缺少时获取完整目录包，不只复制入口文件；也不要把私有正文、脚本或凭据复制到公开文档中。
 
-- **monitor-pc**：监控平台主应用（Vue2 + TSX）
-- **trace**：链路追踪应用（Vue3 + TSX）
-- **apm**：应用性能监控（Vue2 + TSX）
-- **fta-solutions**：故障自愈（Vue2 + TSX）
-- **monitor-mobile**：移动端应用（Vue2 + Vue）
-- **external**：外部应用（Vue2 + TSX）
+AI 需要能够读取项目、执行已授权的工具；Figma、TAPD、GitHub 等外部操作还需要对应集成与账号权限。缺少集成时，说明受影响的步骤，继续其余已具备条件的工作。
 
-### 技术栈
+### 描述目标和终点
 
-#### Vue 版本
+任务至少说清楚预期行为、入口、验收要求和本次做到哪一步。有条件时补充复现步骤、截图、接口说明和已知影响范围。
 
-- **Vue2 模块**：monitor-pc、apm、fta-solutions、monitor-mobile、external
-  - Vue 2.x
-  - TypeScript + TSX
-  - Vue Router 3.x
-  - Vuex 3.x
+```text
+目标：<期望解决的问题>
+页面 / 目录：<入口或目标 package>
+分支与基线：<已确认目标；不确定的先核对>
+现象与预期：<复现步骤、实际结果、期望结果>
+范围：<允许修改的内容与明确不做项>
+验收：<需要验证的操作、状态和边界>
+本次终点：<只分析 / 实现并验证 / 提交 PR>
+```
 
-- **Vue3 模块**：trace
-  - Vue 3.x
-  - TypeScript + TSX
-  - Vue Router 4.x
-  - Pinia
+业务开发由 `bkmonitor-workflow` 编排。只查组件 API、启动服务、执行测试或交付已有改动时，使用对应 skill，保留各自的任务终点。只要求分析，不自动进入编码或提交。
 
-#### 其他技术
+### 先核对分支，再分析业务实现
 
-- **包管理**：pnpm（必须使用 pnpm，项目已配置 `only-allow pnpm`）
-- **构建工具**：@blueking/bkmonitor-cli + webpack
-- **Node.js 版本**：>= 20.17.0（使用 nvm 管理）
-- **UI 组件库**：
-  - Vue2：bk-magic-vue
-  - Vue3：bkui-vue、@blueking/tdesign-ui
-- **图表库**：ECharts
-- **代码规范**：ESLint + Biome + Prettier
+当前分支可能落后于目标基线，也可能包含尚未合入的功能。业务开发、修复和设计实现的分析前，需要确认目标分支、基线及继续 / 切换 / 新建策略；已确认且事实未变时复用，不重复询问。
 
----
-
-## 环境搭建
-
-### 1. 前置要求
-
-- [pnpm](https://pnpm.io/installation) 用于前端依赖管理
-- [nvm](https://github.com/nvm-sh/nvm) 用于 Node.js 版本管理
-- Node.js >= 20.17.0
-
-### 2. 安装依赖
+以下是可直接进行的只读侦察：
 
 ```bash
-# 使用 nvm 切换到项目要求的 Node.js 版本
-nvm use
-
-# 安装依赖（项目会自动检查是否使用 pnpm）
-pnpm i
-# 或使用 Makefile
-make deps
-```
-
-### 3. 配置本地开发环境
-
-在项目根目录创建 `local.settings.js` 文件（**此文件不会提交到 Git**）：
-
-```javascript
-const context = ['/apm', '/rest', '/fta', '/api', '/weixin', '/version_log', '/calendars', '/alert', '/query-api'];
-const changeOrigin = true;
-const secure = false;
-const devProxyUrl = 'http://xxx.com'; // 代理的后台 API 目标环境地址
-
-const host = `appdev.${devProxyUrl.match(/\.([^.]+)\.com\/?/)[1]}.com`; // 本地 hosts 配置的同级域名
-const proxy = {
-  context,
-  changeOrigin,
-  secure,
-  target: devProxyUrl,
-  headers: {
-    host: devProxyUrl.replace(/https?:\/\//i, ''),
-    referer: devProxyUrl,
-    'X-CSRFToken: '', // 监控平台 API 所需的 X-CSRFToken
-    Cookie: ``, // 监控平台 API 所需的 cookie
-  },
-};
-const defaultBizId = proxy.headers.Cookie.match(/bk_biz_id=([^;]+);?/)[1]; // 默认空间业务 ID
-module.exports = {
-  devProxyUrl,
-  host,
-  proxy,
-  defaultBizId,
-};
-```
-
-### 4. 启动开发服务器
-
-```bash
-# monitor-pc 模块
-make dev-pc
-# 或
-pnpm pc:dev
-
-# trace 模块（Vue3）
-make dev-vue3
-# 或
-pnpm trace:dev
-
-# 其他模块
-make dev-apm      # APM 模块
-make dev-fta      # FTA 模块
-make dev-mobile   # 移动端
-make dev-external # 外部应用
-```
-
-**默认端口**：7001（会自动寻找可用端口，范围 7001-8888）
-
-**访问地址**：`http://appdev.xxx.com:7001`（根据 `local.settings.js` 中的 host 配置）
-
----
-
-## 项目结构
-
-```
-bkmonitor/webpack/
-├── src/
-│   ├── monitor-pc/          # 监控平台主应用（Vue2）
-│   ├── trace/               # 链路追踪应用（Vue3）
-│   ├── apm/                 # 应用性能监控（Vue2）
-│   ├── fta-solutions/       # 故障自愈（Vue2）
-│   ├── monitor-mobile/      # 移动端应用（Vue2）
-│   ├── external/            # 外部应用（Vue2）
-│   ├── monitor-api/         # API 封装（公共）
-│   ├── monitor-common/      # 公共工具（公共）
-│   ├── monitor-ui/          # UI 组件库（公共）
-│   └── monitor-static/      # 静态资源（公共）
-├── webpack/                 # webpack 配置
-├── public/                  # 公共静态资源
-├── package.json
-├── pnpm-workspace.yaml     # pnpm workspace 配置
-├── local.settings.js        # 本地开发配置（不提交）
-├── Makefile                 # 常用命令
-└── README.md
-```
-
-### 路径别名
-
-项目配置了以下路径别名，方便引用：
-
-- `@`：当前模块目录（如 `src/monitor-pc`）
-- `@router`：路由目录
-- `@store`：状态管理目录
-- `@page`：页面目录
-- `@api`：API 目录（`src/monitor-api`）
-- `@static`：静态资源目录（`src/monitor-static`）
-- `@common`：公共工具目录（`src/monitor-common`）
-
----
-
-## 开发规范
-
-### 1. 文件命名规范
-
-- **文件名**：使用 kebab-case（如 `hello-world.tsx`）
-- **组件名**：使用 PascalCase（如 `HelloWorld`）
-- **SCSS 类名**：使用 kebab-case（如 `.hello-world`）
-
-### 2. 代码格式规范
-
-- **缩进**：2 个空格
-- **行宽**：120 字符
-- **引号**：单引号
-- **分号**：必须使用
-- **换行符**：LF
-
-### 3. 组件开发规范
-
-#### Vue2 组件模板（monitor-pc、apm、fta-solutions 等）
-
-```tsx
-import { Component } from 'vue-property-decorator';
-import { Component as tsc } from 'vue-tsx-support';
-
-import './hello-world.scss';
-
-interface IHelloWorldProps {
-  // TODO: 定义 props 类型
-}
-
-interface IHelloWorldEvents {
-  // TODO: 定义 events 类型
-}
-
-@Component({
-  name: 'HelloWorld',
-})
-export default class HelloWorld extends tsc<IHelloWorldProps, IHelloWorldEvents> {
-  // @Prop({ type: String, default: '' }) propName: string;
-
-  render() {
-    return <div class='hello-world'>{/* TODO: 组件内容 */}</div>;
-  }
-}
-```
-
-#### Vue3 组件模板（trace 模块）
-
-```tsx
-import { defineComponent } from 'vue';
-
-import './desk-top.scss';
-
-export default defineComponent({
-  name: 'DeskTop',
-  props: {},
-  emits: [],
-  setup(props, { emit }) {
-    return {};
-  },
-  render() {
-    return <div class='desk-top'>{/* TODO: 组件内容 */}</div>;
-  },
-});
-```
-
-#### SCSS 文件模板
-
-```scss
-.hello-world {
-  // TODO: 样式内容
-}
-```
-
-**提示**：可以使用 `.cursor/commands/create-component.md` 命令快速创建组件模板。
-
-### 4. Git 规范
-
-#### 分支命名
-
-格式：`type/功能名/#TAPD_ID`
-
-示例：
-
-- `feat/ai/#1010158081130505269`
-- `fix/bug/#1010158081130505270`
-- `feat/new-feature`（无 TAPD ID）
-
-#### Commit Message 规范
-
-遵循 [Conventional Commits](https://www.conventionalcommits.org/) 规范：
-
-```
-<type>(<scope>): <subject>
-
-<body>
-```
-
-**类型（type）**：
-
-- `feat`：新功能
-- `fix`：Bug 修复
-- `docs`：文档变更
-- `style`：代码格式（不影响功能）
-- `refactor`：重构
-- `perf`：性能优化
-- `test`：测试相关
-- `chore`：构建/工具变更
-
-**示例**：
-
-```
-feat: 【监控平台】新增告警通知配置功能
-
-本次改动：
-- 添加通知渠道选择组件
-- 实现通知规则配置逻辑
-- 新增相关 API 接口调用
-```
-
-**提示**：可以使用 `.cursor/commands/git-commit.md` 命令自动生成 commit message。
-
-### 5. 代码检查
-
-项目配置了 Git Hooks，提交前会自动检查：
-
-- **pre-commit**：执行 `lint-staged`，检查代码格式
-- **commit-msg**：验证 commit message 格式
-
-如果检查失败，需要修复后才能提交。
-
----
-
-## 核心功能使用
-
-### 1. API 调用
-
-#### Vue2 模块
-
-```typescript
-// 调用 API
-this.$api[模块名][方法名](参数, 配置);
-
-// 示例
-const data = await this.$api.alert.searchAlert(
-  {
-    keyword: 'test',
-    page: 1,
-    page_size: 10,
-  },
-  {
-    needMessage: false, // 不显示错误提示
-    needCancel: true, // 取消重复请求
-  }
-);
-```
-
-#### Vue3 模块
-
-```typescript
-import Api from 'monitor-api';
-
-// 调用 API
-const data = await Api.alert.searchAlert({
-  keyword: 'test',
-  page: 1,
-  page_size: 10,
-});
-```
-
-#### API 配置选项
-
-- `needBiz: true`：自动添加业务 ID（默认开启）
-- `needMessage: true`：错误时自动弹窗提示（默认开启）
-- `needCancel: false`：是否取消重复请求
-- `isAsync: false`：是否为异步任务
-- `needRes: false`：是否返回完整 response 对象
-
-#### API 模块定义
-
-API 模块定义在 `src/monitor-api/modules/` 目录下：
-
-```javascript
-import { request } from '../base';
-
-export const searchAlert = request('POST', 'fta/alert/alert/search/');
-export const alertDetail = request('GET', 'fta/alert/alert/detail/');
-
-export default {
-  searchAlert,
-  alertDetail,
-};
-```
-
-### 2. 路由配置
-
-#### Vue2 模块
-
-在对应模块的 `router/router-config.ts` 中定义路由：
-
-```typescript
-export default [
-  {
-    path: '/example',
-    name: 'example',
-    component: () => import('@page/example/example'),
-    meta: {
-      title: '示例页面',
-      navId: 'example',
-    },
-  },
-] as RouteConfig[];
-```
-
-#### Vue3 模块
-
-在 `src/trace/router/router-config.ts` 中定义路由：
-
-```typescript
-export default [
-  {
-    path: '/example',
-    name: 'example',
-    component: () => import('@page/example/example'),
-    meta: {
-      title: '示例页面',
-    },
-  },
-];
-```
-
-**注意**：微前端环境下，路由路径会自动添加 `parentRoute` 前缀。
-
-### 3. 权限控制
-
-#### Vue2 模块
-
-使用 `authorityMixin` 混入：
-
-```typescript
-import authorityMixinCreate from '@/mixins/authorityMixin';
-
-const authMap = {
-  VIEW_AUTH: 'view_action_id',
-  EDIT_AUTH: 'edit_action_id',
-};
-
-@Component
-class MyComponent extends Mixins(authorityMixinCreate(authMap)) {
-  // 通过 this.authority.VIEW_AUTH 判断权限
-  render() {
-    return (
-      <div>
-        {this.authority.VIEW_AUTH && <div>有查看权限</div>}
-        {this.authority.EDIT_AUTH && <button>编辑</button>}
-      </div>
-    );
-  }
-}
-```
-
-#### Vue3 模块
-
-使用 Pinia store：
-
-```typescript
-import { useAuthorityStore } from '@/store/modules/authority';
-
-const authorityStore = useAuthorityStore();
-const authority = await getAuthorityMap({
-  VIEW_AUTH: 'view_action_id',
-  EDIT_AUTH: 'edit_action_id',
-});
-```
-
-### 4. 国际化
-
-#### Vue2 模块
-
-```typescript
-// 在模板中使用
-this.$t('common.confirm');
-this.$tc('common.cancel');
-
-// 在代码中使用
-import i18n from '@/i18n';
-i18n.t('common.confirm');
-```
-
-#### Vue3 模块
-
-```typescript
-import { useI18n } from 'vue-i18n';
-
-const { t } = useI18n();
-t('common.confirm');
-```
-
-**语言文件位置**：各模块的 `i18n/lang/` 目录
-
-### 5. UI 组件使用
-
-#### Vue2 模块（bk-magic-vue）
-
-```tsx
-import { bkButton, bkTable, bkDialog } from 'bk-magic-vue';
-
-// 全局已注册，直接使用
-<bk-button theme="primary">确认</bk-button>
-<bk-table :data="tableData" />
-```
-
-#### Vue3 模块（bkui-vue）
-
-```tsx
-import { Button, Table, Message } from 'bkui-vue';
-
-<Button theme="primary">确认</Button>
-<Table :data="tableData" />
-<Message theme="success">操作成功</Message>
-```
-
-### 6. 图表使用
-
-#### Vue2 模块
-
-```tsx
-import MonitorEcharts from 'monitor-ui/monitor-echarts';
-
-<MonitorEcharts
-  :options="chartOptions"
-  :get-series-data="getData"
-  :height="400"
-/>
-```
-
-#### Vue3 模块
-
-```tsx
-import VueEcharts from 'vue-echarts';
-
-<VueEcharts
-  :option="chartOptions"
-  autoresize
-/>
-```
-
-### 7. Loading 状态
-
-#### Vue2 模块
-
-```tsx
-// 使用指令
-<div v-bkloading={{ isLoading: loading }}>内容</div>;
-
-// 全局 loading
-this.$store.commit('app/SET_MAIN_LOADING', true);
-```
-
-#### Vue3 模块
-
-```tsx
-// 使用指令
-<div v-loading='loading'>内容</div>
-```
-
-### 8. 表单验证
-
-```typescript
-// 获取表单引用
-const formRef = this.$refs.formRef; // Vue2
-const formRef = ref<InstanceType<typeof Form>>(null); // Vue3
-
-// 验证
-await formRef.validate();
-
-// 清除验证
-formRef.clearValidate();
-```
-
-### 9. 样式变量
-
-各模块有主题变量文件：
-
-- `src/monitor-pc/theme/theme.scss`
-- `src/trace/theme/theme.scss`
-- `src/apm/theme/theme.scss`
-
-常用变量：
-
-```scss
-$primary-color: #3a84ff;
-$success-color: #2dcb56;
-$warning-color: #ff9c01;
-$danger-color: #ea3636;
-$font-size-base: 12px;
-$border-color-base: #dcdee5;
-```
-
----
-
-## 开发流程
-
-### 1. 根据 TAPD 单开发
-
-#### 创建分支
-
-**分支命名规则：** `{type}/{category}/#{TAPD_ID}`
-
-| 单据类型      | type   | 示例分支名                       |
-| ------------- | ------ | -------------------------------- |
-| 需求（Story） | `feat` | `feat/opus/#1010158081130072997` |
-| 缺陷（Bug）   | `fix`  | `fix/opus/#1010158081130072997`  |
-| 任务（Task）  | `task` | `task/opus/#1010158081130072997` |
-
-**category 取值规则：**
-
-使用当前执行操作的 AI 模型缩写作为 category，如果无法确定则回退到 `ai`。
-
-| 模型              | category   |
-| ----------------- | ---------- |
-| Claude Opus 4.5   | `opus`     |
-| Claude Sonnet 4   | `sonnet`   |
-| Claude 3.5 Sonnet | `sonnet35` |
-| GPT-4             | `gpt4`     |
-| 其他/未知         | `ai`       |
-
-> 💡 category 用于标识分支由哪个 AI 模型辅助创建，方便追溯。
-
-**创建步骤（三条 Git 命令）：**
-
-```bash
-# 1. 同步 upstream 仓库最新代码
-git fetch upstream
-
-# 2. 基于 upstream/master 创建新分支（以 Claude Opus 4.5 为例）
-git checkout -b feat/opus/#1010158081130072997 upstream/master
-
-# 3. 推送分支到 origin 仓库并设置上游追踪
-git push --set-upstream origin feat/opus/#1010158081130072997
-```
-
-**命令说明：**
-
-| 命令                                       | 作用                                    |
-| ------------------------------------------ | --------------------------------------- |
-| `git fetch upstream`                       | 从 upstream 仓库拉取最新代码（不合并）  |
-| `git checkout -b <branch> upstream/master` | 基于 upstream/master 创建并切换到新分支 |
-| `git push --set-upstream origin <branch>`  | 推送新分支到 origin 并建立追踪关系      |
-
-**验证分支创建成功：**
-
-```bash
+git rev-parse --show-toplevel
+git status --short --branch
 git branch --show-current
-# 输出：feat/opus/#1010158081130072997
+git remote -v
 ```
 
-#### 开发前准备
+确定基线后，核验引用是否最新，再比较双方独有的提交和工作区改动。例如 `git rev-list --left-right --count <baseline-ref>...HEAD` 左侧为基线独有提交数，右侧为当前分支独有提交数；占位符需要替换为已确认的引用。未更新的本地 remote-tracking 引用不能代表远端最新状态。
 
-1. **提出实现方案**：开发新组件或需求前，先提出实现思路和方案，确认后再开始
-2. **创建组件**：使用组件模板创建组件（`.cursor/commands/create-component.md`）
-3. **了解需求**：仔细阅读 TAPD 单，明确需求细节
+不要假定基线是 `master`、remote 叫 `upstream`，也不要为了准备环境自动 checkout、stash、reset 或 rebase。规范咨询、文档审查和 Git 元数据检查可先只读进行。
 
-#### 开发中
+### 用源码形成方案
 
-1. **遵循规范**：按照代码规范和组件模板开发
-2. **及时沟通**：遇到不确定的地方主动询问
-3. **代码检查**：开发过程中注意代码格式和 lint 规则
+实现前先定位已有功能、数据流、可复用封装和共享消费方。方案说明修改目录、复用点、接口或已批准的 mock、明确不做项及验证范围；获批后实施，范围未变时不重复审批。
 
-#### 提交代码
+需要人决定的是查证后仍会改变行为、范围或交付目标的歧义。其余可确认的事实先从源码、配置和资料中查清楚。
+
+## 2. 找到正确的源码入口
+
+### 按 package 选择技术栈
+
+| 目录 | 组件与状态约定 | 常用 UI / 国际化 |
+| --- | --- | --- |
+| [`src/monitor-pc`](../src/monitor-pc) | Vue2，TSX class 为主，Vuex；包含历史 SFC | `bk-magic-vue`、`this.$t` |
+| [`src/apm`](../src/apm) | Vue2，TSX class、Vuex | 复用 PC 系组件与国际化 |
+| [`src/fta-solutions`](../src/fta-solutions) | Vue2，TSX class、Vuex | 复用 PC 系组件与国际化 |
+| [`src/trace`](../src/trace) | Vue3，TSX `defineComponent` + `setup` + `render`，Pinia | `bkui-vue` / `@blueking/tdesign-ui`、`useI18n` |
+| [`src/monitor-mobile`](../src/monitor-mobile) | Vue2 SFC、Vuex | Vant，独立语言资源 |
+
+`external` 是 `monitor-pc` 的构建变体，没有独立的 `src/external`。具体映射见 [webpack/utils.js](../webpack/utils.js)。`trace` 的业务也不限于 Trace 检索，当前包含告警、主机、轮值、Profiling、RUM 等页面。
+
+跨包复用时查看实际依赖、import 和构建入口。`monitor-ui` 以 Vue2 为主；不能因 `monitor-common` 或 `monitor-static` 名称带有“公共”就认定其中所有内容都与 Vue 版本无关。
+
+### 从页面追到依赖
+
+推荐按以下顺序阅读，而不是先全仓库扫描所有组件：
+
+1. 页面入口、实际路由与导航配置，确认用户如何到达页面。
+2. 页面使用的组件、hooks / mixins、store，确认状态由谁持有。
+3. API 声明、请求封装和接口契约，确认数据来源及错误处理。
+4. 共享模块的调用方，确认修复应放在共享源头还是局部适配层。
+5. 已有测试、设计标注与相关状态，确定本次验收边界。
+
+可按任务关键词从 `src/<package>` 开始用 `rg` 搜索，再扩大到共享包。包内别名以该包的 `tsconfig.json` 与构建配置为准，不把另一应用的 `@`、`@static` 等映射直接搬过来。
+
+| 要找的能力 | 源码入口 |
+| --- | --- |
+| API 声明与请求行为 | [monitor-api/modules](../src/monitor-api/modules)、[base.ts](../src/monitor-api/base.ts)、[axios](../src/monitor-api/axios) |
+| 公共工具 | [monitor-common](../src/monitor-common) |
+| 共享 UI、样式与图标 | [monitor-ui](../src/monitor-ui)、[monitor-static](../src/monitor-static) |
+| 主应用初始化 | [monitor-pc/index.ts](../src/monitor-pc/index.ts) |
+| Vue3 应用初始化 | [trace/index.ts](../src/trace/index.ts) |
+| 组件库构建与跨 Vue 适配入口 | [scripts](../scripts)、[package.json](../package.json) 中的 `build:*components` 与 `build:apm-vue3-for-vue2` |
+
+## 3. 实现时需要核对的约定
+
+### 组件、状态和复用边界
+
+Vue2 页面遵循所在模块的 TSX class、Vuex 和 `this.$t` 方式；移动端保留 Vue2 SFC 与 Vant 的实现方式。不要把 Vue3 的组合式写法直接移入 Vue2 页面。
+
+`src/trace` 按项目约定使用 TSX `defineComponent`、`setup` 和 `render`，不新写 `.vue` SFC 或 `<script setup>`。响应式状态优先 `shallowRef`，需要深层响应时采用规范中的 `deepRef` 写法；浅层状态的内部修改不会自动等同于替换引用。组件内使用 `useI18n`，跨组件状态按需要放入 Pinia。
+
+TSX 中使用 JavaScript 表达式传递属性，例如 `data={rows}`；不要混入 Vue 模板的 `:data="rows"`。具体事件、插槽、指令与 ref 写法应匹配该 package 的 JSX 转换和组件 API。
+
+页面展示、状态编排、数据转换和 API 调用按职责分离。新增目录与抽象必须服务于实际需求，不为凑层级建立空的 hooks / services，也不顺手重构无关代码。可参考旧实现，但先判断版本、契约和业务差异，优先复用已有封装。
+
+### API 与异步状态
+
+接口声明集中在 [monitor-api/modules](../src/monitor-api/modules)。例如 [alert.js](../src/monitor-api/modules/alert.js) 的 `searchAlert` 使用 `request('POST', 'fta/alert/alert/search/')` 声明接口；参数字段与响应类型仍需查对应接口契约，不能从函数名推断。
+
+新增 API 时，先查是否已有等价接口，再按所在模块形式声明和导出。[api.ts](../src/monitor-api/api.ts) 会收集 `modules` 下的 `.js` 模块；改变模块形式或后缀前，要检查这个聚合入口及实际导入方。
+
+调用前重点核对 [base.ts](../src/monitor-api/base.ts) 和拦截器中的以下行为：
+
+| 问题 | 核对重点 |
+| --- | --- |
+| 返回什么 | 默认取响应的 `data`；`needRes` 会改变返回形态，业务类型应与之对应 |
+| 业务 / 空间参数从哪里来 | 请求封装会处理业务与空间上下文；按实际请求方法分支核对，不重复猜填 |
+| 是否出现重复错误提示 | `needMessage`、本地开关、拦截器和页面自有提示共同影响行为 |
+| 连续查询或切换页面是否串数据 | 检查取消、过期响应和卸载清理；`needCancel` 按方法与 URL 管理请求，使用前考虑并发调用方 |
+| 无权限如何处理 | 核对 403、权限映射和页面反馈，不将所有失败显示为空列表 |
+
+界面分别处理加载、成功、空结果和失败状态。真实接口异常不自动切换为 mock；mock 仅用于已批准的方案，数据需脱敏，并在验证结果中说明边界。
+
+### 路由、导航和权限
+
+路由定义与导航配置是两个入口，新增一个并不意味着另一个已经生效。
+
+| 应用 | 路由与页面挂载 | 导航信息 |
+| --- | --- | --- |
+| 监控主应用 | [monitor-pc/router/router.ts](../src/monitor-pc/router/router.ts) 及其导入的路由文件 | [monitor-pc/router/router-config.ts](../src/monitor-pc/router/router-config.ts) |
+| Vue3 应用 | [trace/router/router.ts](../src/trace/router/router.ts)、[trace/router/modules](../src/trace/router/modules) | [trace/router/router-config.ts](../src/trace/router/router-config.ts) |
+
+新增或调整页面时，一起核对路由名称、参数、懒加载、入口菜单、激活态、面包屑和返回路径；涉及分享、外部访问或嵌入场景时，只检查本次实际支持的入口，不擅自扩展功能。
+
+权限实现可从 [Vue2 authorityMixin](../src/monitor-pc/mixins/authorityMixin.ts) 和 [Vue3 authority store](../src/trace/store/modules/authority.ts) 追踪。权限 ID、资源范围及申请流程以当前契约为准；只隐藏按钮不等于完成权限校验，还需核对路由与接口失败时的行为。
+
+### 国际化、组件与样式
+
+PC 系语言资源聚合入口为 [monitor-pc/i18n/common.ts](../src/monitor-pc/i18n/common.ts)，资源位于 [monitor-pc/lang](../src/monitor-pc/lang)。[trace/i18n/i18n.ts](../src/trace/i18n/i18n.ts) 也复用该聚合逻辑；移动端使用 [monitor-mobile/i18n/i18n.ts](../src/monitor-mobile/i18n/i18n.ts) 和自身语言资源。新增可见文案先找已有语义一致的词条，再按实际分类补充，不假设每个 package 都有独立的 `i18n/lang`。
+
+组件按实际 import 包名选择对应 skill，完整索引见 [README：按目标选择入口](../README.md#按目标选择入口)。API、props、events 和 slots 需要匹配已安装版本；相邻示例可用于理解业务，不能独立证明组件 API。
+
+设计任务使用 `blueking-figma-dev` 核对画板、标注与状态。`trace` 新增表格或 tips 优先复用目标区域已有业务封装；没有合适封装时再按项目规范核验 TDesign / `vue-tippy` 等选型。基础组件资料无匹配项时，先说明缺口，不直接手写替代品。
+
+样式优先对齐同模块稳定实现与已加载的主题资源。不能把设计工具中的 token 名称直接当作项目 CSS 变量，也不因局部任务替换现有组件体系。文件名使用 kebab-case，组件名使用 PascalCase；AI 不主动处理格式问题或运行批量格式修复。
+
+### 微前端边界
+
+项目使用 `@blueking/bk-weweb`。涉及装载、路由或宿主上下文时，同时读宿主容器与子应用入口。例如 [monitor-pc/pages/rum/rum.tsx](../src/monitor-pc/pages/rum/rum.tsx) 提供子应用地址、`parentRoute` 和卸载回调；[trace/index.ts](../src/trace/index.ts) 根据嵌入上下文初始化应用，并注册卸载处理。
+
+需要重点验证：
+
+- 宿主使用的子应用地址与实际开发服务一致，不能只看端口已经监听。
+- `parentRoute` 与子应用路由拼接正确，刷新、前进后退和入口跳转符合预期。
+- 切换业务 / 空间时上下文正确，重复进入不会残留实例、监听器或旧请求。
+- Vue2 容器 class 不与自定义元素 tag 撞名；跨窗口通信不使用 `targetOrigin='*'`。
+
+是否覆盖独立访问和宿主嵌入两种模式，由本次支持的场景和改动影响决定；只验证独立页不能证明嵌入链路通过。
+
+## 4. 调试与验证
+
+### 选择与问题相符的检查
+
+| 改动或现象 | 验证重点 |
+| --- | --- |
+| 纯文档更新 | 路径、链接、命令和源码事实一致，无需业务 E2E |
+| 请求、数据转换或状态逻辑 | 相关现有测试、实际参数和响应、竞态与失败分支 |
+| 页面交互 | 需求范围内的一次性 E2E，覆盖主要操作与边界状态 |
+| Figma 还原 | 设计状态、行为、视觉对比与截图 |
+| 溢出、遮挡、截断 | 对应几何断言和最终截图，不只判断元素存在 |
+| 共享模块或微前端契约 | 明确消费方，验证受影响入口、上下文与卸载行为 |
+| 构建配置或适配入口 | 相关应用 / 组件库的构建及实际消费路径 |
+
+优先查 [tests](../tests) 中已有的相关用例，按改动范围选择验证。构建通过不等于浏览器行为通过；开发服务启动、登录态有效与测试通过也要分别记录。
+
+业务实现后尚无 E2E 决定时，由主流程统一询问。直接要求 E2E 已包含对应授权；同范围修复后的复测复用授权，不逐条命令重复确认。环境、验收范围或副作用变化时再核对新增范围。
+
+### 一次性 E2E 的产物
+
+`bkmonitor-e2e-test` 负责本次需求用例、执行和报告，设计或布局任务配合 `bkmonitor-e2e-visual`。公共配置说明见 [e2e/README.md](../e2e/README.md)。
 
 ```bash
-# 1. 暂存文件
-git add .
-
-# 2. 使用 Git commit 命令自动生成 commit message
-# （会自动从分支名提取 TAPD ID 并关联 TAPD 信息）
-
-# 3. 如果 commit message 生成失败，手动编写
-git commit -m "feat: 【监控平台】TAPD标题
-
-本次改动：
-- 改动说明1
-- 改动说明2"
+pnpm e2e:doctor
+pnpm e2e:install
 ```
 
-### 2. 开发新功能的标准流程
+前者检查运行前提，后者在需要时安装匹配项目版本的 Chromium，都不能替代测试执行。公共配置只执行本次运行目录中的用例，没有预置全站回归套件。
 
-1. **需求分析**：理解需求，明确功能点
-2. **技术方案**：提出实现思路和方案，**等待确认**
-3. **创建分支**：基于 TAPD 单创建功能分支
-4. **开发实现**：按照方案实现功能
-5. **自测验证**：本地测试功能是否正常
-6. **代码提交**：提交代码并推送到远程
-7. **Code Review**：等待代码审查
+运行产物保留在 `.e2e-runs/<run-id>/`，HTML 报告入口为 `report/index.html`，`delivery-facts.json` 供交付复用。认证状态、一次性用例、截图、视频、trace 和报告不提交到 Git；分享证据前需脱敏。
 
-### 3. 注意事项
+### 哪些情况需要复测
 
-⚠️ **重要提醒**：
+**已测试且代码内容未变，提交 PR 时复用结果；测试后代码发生变化，必须按影响范围复测。**
 
-- ✅ **开发前必须先提出方案，确认后再实现**
-- ✅ **有任何不确定都需要主动询问**
-- ❌ **不要主动处理 eslint 或格式问题**（需经过确认）
-- ❌ **不要执行脚本**（需经过确认）
-- ❌ **不要使用 `debugger`**（会被 lint 拦截）
-- ❌ **不要提交 `local.settings.js`**（已加入 .gitignore）
+仅 commit SHA 改变而代码相同，核对内容后保留原测试记录；仅修改 PR 文案、报告展示或附件，不重跑业务 E2E。测试源码、验收条件、设计基准或执行工具变化时，需要重新核对证据有效性。
 
----
+报告写清测试对象、覆盖范围与实际结果。失败、环境阻塞和未执行分别说明，不把历史通过结果或未完成的命令写成当前通过。
 
-## 构建和部署
+### 常见问题定位
 
-### 构建命令
+| 现象 | 先核对什么 |
+| --- | --- |
+| 依赖安装失败 | 当前 Node / pnpm、锁文件和具体错误；不要先删锁文件或清空依赖缓存 |
+| 服务启动后访问不到 | 启动日志、实际端口、监听进程、host 与代理配置；交给 `bkmonitor-dev-server` 诊断 |
+| 登录跳转、401 或代理鉴权失效 | 本人通过安全登录流程刷新，不在对话中传递 Cookie / Token |
+| 接口返回 403 | 区分登录态与业务权限，检查对应权限契约 |
+| Vue3 独立页正常，宿主内空白 | 子应用地址、宿主传参、路由前缀、挂载与卸载，不先重装依赖 |
+| 修改路由后菜单不对 | 路由模块与导航元数据是否一致 |
+| 文案没有翻译 | 词条归属、聚合入口与当前语言，避免加到未加载的资源文件 |
+| 修复后原问题仍存在 | 补充真实复现和新证据；根因已被否定时先调整假设再修改 |
 
-```bash
-# 并行构建所有模块
-make build
-# 或
-pnpm run build
+`local.settings.js` 含本地代理与鉴权配置，不手工修改、提交或全文读入对话。配置骨架创建与安全鉴权刷新按开发服务 skill 执行。
 
-# 串行构建
-make build-s
+## 5. 从本地结果到 PR / TAPD
 
-# 单个模块构建
-make build-pc      # monitor-pc
-make build-vue3    # trace
-make build-apm     # apm
-make build-fta     # fta-solutions
-make build-mobile  # monitor-mobile
-make build-external # external
+### 先检查本次 diff
 
-# 生产构建（构建 + 清理 + 移动文件）
-make prod
-```
+完成本地任务时，说明改动行为、影响面、实际验证和有意义的未覆盖项。交付前检查全部待提交改动，排除无关文件、本地配置和运行产物；不要用 `git add .` 把整个工作区一并纳入。
 
-### 构建输出
+只有用户要求 Git / TAPD 交付时，才进入 `blueking-tapd-dev`。已授权范围内连续执行，明确要求人工 review 时等待其完成。
 
-构建完成后，各模块会输出到对应目录：
+### 核对交付目标和文稿
 
-- `monitor/` → `../static/monitor/`
-- `trace/` → `../static/trace/`
-- `apm/` → `../static/apm/`
-- 等等...
+交付预览明确写出 `head_remote:head → pr_target_remote:base`、关联 TAPD 单据、提交内容和测试事实。remote 以实际配置为准，base 需要 fetch 验证存在；“PR 提到 feat/X”表示目标 base 为 `feat/X`，不是默认改合主分支。
 
-### Docker 构建
+commit subject 简短描述最终改动，关联形式为 `--story=<短ID>` 或 `--bug=<短ID>`，具体校验见 [webpack/verify-commit.js](../webpack/verify-commit.js)。不要把完整单据标题或内部链接直接塞进提交信息。
 
-```bash
-make docker-build
-# 或
-./docker_build.sh
-```
+PR 标题、正文和 TAPD 评论的自然语言默认简体中文，路径、API、命令、SHA 与 ID 保留原文。说明问题、修改后的行为、影响范围和已完成的验证；公开内容不包含内网 URL、完整 TAPD 链接或凭据。脱敏不等于翻译成英文。
 
-构建完成后会生成 `frontend.tar.gz` 文件。
+项目提交 hook 配置见 [package.json](../package.json)。不使用 `--no-verify` 绕过检查，不主动批量修格式；若 hook 改变了待交付代码，需要重新检查 diff，并按代码变化规则复测。签名和交互认证由本人本地完成。
 
-### 构建分析
+### PR 成功后自动回写
 
-```bash
-# 可视化构建分析
-make vis-pc      # monitor-pc
-make vis-vue3    # trace
-make vis-apm     # apm
-```
+本项目“提交 / 创建 PR”默认包含成功后自动回写对应 TAPD 评论，明确要求不要回写时跳过。流程为：
 
----
+1. 创建并核验 PR，取得真实 URL、分支与 SHA。
+2. 核对关联单据；缺失或不明确时只补问目标，不猜测或自动建单。
+3. 基于真实改动与测试事实准备评论及所需证据，写入前查重。
+4. 回写并核验结果；失败时保留 PR 成功事实，从评论步骤恢复。
 
-## 常见问题
+PR 创建失败或结果未知时，不写“PR 已创建”的成功评论。只修改历史 PR 的文案，不自动新增 TAPD 评论；建单、状态、负责人和迭代变更也不包含在默认回写中。
 
-### 1. 端口冲突
+### 中断后继续
 
-**问题**：开发服务器启动失败，提示端口被占用
+续跑时复核已确认的分支、基线、方案、授权、代码和验证产物，从首个未完成步骤恢复。记录外部动作是计划执行、等待确认、已请求但结果未知，还是已核验成功；结果未知时先查现状，避免重复 PR 或评论。
 
-**解决**：开发服务器会自动寻找可用端口（7001-8888），如果都被占用，需要手动关闭占用端口的进程。
+## 6. 构建与资料索引
 
-### 2. 代理配置问题
+开发、构建命令在 `bkmonitor/webpack` 执行，完整入口见 [package.json](../package.json) 和 [Makefile](../Makefile)。按目标选择 `pnpm pc:build`、`pnpm trace:build`、`pnpm apm:build`、`pnpm fta:build`、`pnpm mobile:build` 或 `pnpm external:build`；只有需要全量构建时才使用 `pnpm build`。
 
-**问题**：API 请求失败，无法连接后端
+[webpack/utils.js](../webpack/utils.js) 定义应用与产物目录映射，例如主应用输出到 `monitor`、移动端输出到 `weixin`。`make prod` 包含构建、清理和搬运到 `../static/`，不能把它当作无副作用检查或已经完成部署的证据。
 
-**解决**：
+| 进一步核对 | 维护入口 |
+| --- | --- |
+| AI 工作规则与授权边界 | [AGENTS.md](../AGENTS.md) |
+| 安装、启动和 skills 清单 | [README](../README.md) |
+| 流程推进与续跑 | `bkmonitor-workflow` |
+| 各 package 规范、架构与共享边界 | `bkmonitor-dev`、`bkmonitor-dev-guardrails` |
+| 设计取证、组件映射与验收 | `blueking-figma-dev` 与匹配依赖的组件 skill |
+| 环境与服务诊断 | `bkmonitor-onboarding`、`bkmonitor-dev-server` |
+| 验证与视觉证据 | `bkmonitor-e2e-test`、`bkmonitor-e2e-visual`、[公共 E2E 配置](../e2e/README.md) |
+| PR / TAPD 文稿与交付操作 | `blueking-tapd-dev` |
 
-1. 检查 `local.settings.js` 中的 `devProxyUrl` 是否正确
-2. 检查 `host` 配置是否在本地 hosts 文件中
-3. 检查 `Cookie` 和 `X-CSRFToken` 是否正确
-
-### 3. 权限问题
-
-**问题**：页面显示 403 无权限
-
-**解决**：
-
-1. 检查路由配置中的 `authority` 配置
-2. 确认当前用户是否有对应权限
-3. 可以通过权限申请页面申请权限
-
-### 4. 微前端环境判断
-
-**问题**：路由跳转异常，路径不正确
-
-**解决**：注意判断是否在微前端环境中：
-
-```typescript
-// 判断是否在微前端环境
-if (window.__POWERED_BY_BK_WEWEB__) {
-  // 微前端环境下的逻辑
-  const parentRoute = window.__BK_WEWEB_DATA__?.parentRoute || '/';
-}
-```
-
-### 5. Vue2 和 Vue3 语法差异
-
-**问题**：在 trace 模块中使用 Vue2 语法报错
-
-**解决**：
-
-- trace 模块是 Vue3，需要使用 Vue3 的语法
-- 其他模块是 Vue2，使用 Vue2 的语法
-- 注意区分 `defineComponent`（Vue3）和 `@Component`（Vue2）
-
-### 6. 代码检查失败
-
-**问题**：提交代码时 lint 检查失败
-
-**解决**：
-
-1. 查看错误信息，修复对应问题
-2. 未使用的变量：删除或使用
-3. 格式问题：运行 `pnpm biome:check` 自动修复
-4. TypeScript 错误：修正类型定义
-
-### 7. 依赖安装失败
-
-**问题**：`pnpm i` 失败
-
-**解决**：
-
-1. 确认使用 pnpm（项目强制使用 pnpm）
-2. 检查 Node.js 版本（>= 20.17.0）
-3. 清除缓存：`pnpm store prune`
-4. 删除 `node_modules` 和 `pnpm-lock.yaml`，重新安装
-
----
-
-## 最佳实践
-
-### 1. 代码组织
-
-- ✅ 使用路径别名（`@`、`@api`、`@common` 等）
-- ✅ 优先使用公共工具函数（`monitor-common/utils`）
-- ✅ 遵循组件模板规范
-- ✅ 合理使用代码分割和懒加载
-
-### 2. 性能优化
-
-- ✅ 路由使用懒加载
-- ✅ 大组件使用代码分割
-- ✅ 避免不必要的重复渲染
-- ✅ 使用 `keep-alive` 缓存页面组件
-- ✅ 图表组件支持按需加载
-
-### 3. 错误处理
-
-- ✅ API 调用统一错误处理
-- ✅ 使用 try-catch 捕获异常
-- ✅ 友好的错误提示（使用 `bkMessage`）
-- ✅ 404/403 页面跳转处理
-
-### 4. 样式规范
-
-- ✅ 优先使用主题变量，避免硬编码颜色
-- ✅ 使用 SCSS 混入（mixins）复用样式
-- ✅ 遵循 BEM 命名规范（部分模块）
-- ✅ 样式文件与组件文件同名
-
-### 5. 调试技巧
-
-- ✅ 使用 Vue DevTools 调试组件
-- ✅ 使用 `console.log` 调试（生产环境会自动移除）
-- ✅ 移动端可通过 URL 参数 `?console` 启用 vconsole
-- ✅ 使用浏览器 Network 面板查看 API 请求
-
-### 6. Git 使用
-
-- ✅ 提交前先检查代码（`git status`、`git diff`）
-- ✅ 使用有意义的 commit message
-- ✅ 及时提交代码，避免大文件提交
-- ✅ 提交前确保代码通过 lint 检查
-
----
-
-## 相关资源
-
-### 文档
-
-- [README.md](../README.md)：项目基础文档
-- [.cursor/commands/create-component.md](../.cursor/commands/create-component.md)：组件创建命令
-- [.cursor/commands/git-commit.md](../.cursor/commands/git-commit.md)：Git 提交命令
-
-### 工具
-
-- **Makefile**：常用命令集合，运行 `make help` 查看所有命令
-- **组件模板**：使用 `.cursor/commands/create-component.md` 快速创建组件
-- **Git 提交助手**：使用 `.cursor/commands/git-commit.md` 自动生成 commit message
-
-### 联系方式
-
-如有问题，可以：
-
-1. 查看项目文档
-2. 询问团队成员
-3. 查看代码注释和 TODO
-
----
-
-## 总结
-
-作为新人，开发时请记住：
-
-1. ✅ **先理解需求，再提出方案，确认后再实现**
-2. ✅ **遵循代码规范和项目结构**
-3. ✅ **遇到问题主动询问，不要自己猜测**
-4. ✅ **提交前检查代码，确保通过 lint**
-5. ✅ **使用项目提供的工具和模板，提高效率**
-
-祝开发顺利！🎉
+团队经验仅在明确要求时通过 `bkmonitor-continual-learning` 沉淀；历史经验使用前仍需与当前源码核对。更新本文时优先修正入口和事实，具体操作规则继续在对应 skill 中维护，避免产生多套不一致的流程。

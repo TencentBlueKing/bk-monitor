@@ -115,7 +115,7 @@ export default class SharePage extends tsc<object> {
       setShadowDom: true,
       keepAlive: false,
       data: {
-        // host: `http://${process.env.devHost}:7002`,
+        // host: `http://${process.env.devHost}:7004`,
         // parentRoute: '/fta/',
         ...(data.weWebData || {}),
         token: this.token,

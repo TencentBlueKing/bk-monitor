@@ -28,7 +28,7 @@ import type { ILlmColumn } from '../typings';
 // 12px 表格字体下，实测 hex 字符最宽约 7.125px：32 × 7.125 × 1.1 + 内边距 30px ≈ 281px。
 // ID 列不参与剩余空间分配，较长的会话 ID 在单行内省略。
 const ID_WIDTH = 284;
-const TOKENS_WIDTH = 240;
+const TOKENS_WIDTH = 180;
 
 /**
  * 列定义注册表。

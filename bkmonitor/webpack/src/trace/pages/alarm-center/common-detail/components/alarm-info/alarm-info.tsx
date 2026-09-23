@@ -27,7 +27,7 @@ import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Dialog, Message } from 'bkui-vue';
 import dayjs from 'dayjs';
-import { toBcsDetail, toCollectDetail, toPerformanceDetail } from 'fta-solutions/common/go-link';
+import { toCollectDetail, toPerformanceDetail } from 'fta-solutions/common/go-link';
 import { copyText, xssFilter } from 'monitor-common/utils';
 import { ETagsType } from 'monitor-common/utils/biz';
 import { TabEnum as CollectorTabEnum } from 'monitor-pc/pages/collector-config/collector-detail/typings/detail';
@@ -36,8 +36,15 @@ import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
+import {
+  AlertTargetType,
+  getDimensionDisplayValue,
+  getDimensionSceneLinks,
+  getTargetJumpUrl,
+  isTargetDimension,
+} from '../../../utils/dimension-scene-links';
 
-import type { AlarmDetail, AlertActionOverview } from '../../../typings';
+import type { AlarmDetail, AlertActionOverview, IDimension } from '../../../typings';
 
 import './alarm-info.scss';
 
@@ -57,7 +64,7 @@ export default defineComponent({
   emits: ['manualProcess', 'alarmDispatch', 'alarmStatusDetailShow'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const { bizItem, loading } = storeToRefs(useAlarmCenterDetailStore());
+    const { bizItem, loading, timeRange } = storeToRefs(useAlarmCenterDetailStore());
     const bizIdName = computed(() =>
       bizItem.value?.space_type_id === ETagsType.BKCC
         ? `#${bizItem.value?.id}`
@@ -68,7 +75,6 @@ export default defineComponent({
       'bk_target_ip',
       'ip',
       'bk_host_id',
-      'tags.bcs_cluster_id',
       'tags.bk_collect_config_id', // 采集配置ID
       'bk_collect_config_id', // 采集配置ID
     ];
@@ -132,60 +138,110 @@ export default defineComponent({
         : '';
     });
 
+    const sceneLinkContext = computed(() => {
+      const range = timeRange.value;
+      const linkTimeRange =
+        Array.isArray(range) && typeof range[0] === 'number' && typeof range[1] === 'number'
+          ? ([range[0], range[1]] as [number, number])
+          : undefined;
+      const targetDim = props.data?.dimensions?.find(item => isTargetDimension(item.key));
+      return {
+        bizId: props.data?.bk_biz_id || (window.cc_biz_id as number),
+        dimensions: props.data?.dimensions || [],
+        targetType: props.data?.target_type || '',
+        target: String(targetDim?.value ?? ''),
+        timeRange: linkTimeRange,
+      };
+    });
+
+    const isDimensionClickable = (item: IDimension) => {
+      if (props.readonly) return false;
+      if (ipMap.includes(item.key)) return true;
+      if (!isTargetDimension(item.key)) return false;
+      return sceneLinkContext.value.targetType === AlertTargetType.HOST || !!getTargetJumpUrl(sceneLinkContext.value);
+    };
+
     /** 渲染维度信息列表 */
     const renderDimensionsInfo = () => {
       return filterDimensions.value?.length
-        ? filterDimensions.value?.map(item => [
-            <span
-              key={item.display_key}
-              style={{
-                cursor: ipMap.includes(item.key) ? 'pointer' : 'auto',
-              }}
-              class='dimensions-item'
-              onClick={() => handleToPerformance(item)}
-            >
-              <span class='name'>{item.display_key}</span>
-              <span class='eq'>=</span>
+        ? filterDimensions.value?.map(item => {
+            const sceneLinks = props.readonly ? [] : getDimensionSceneLinks(item, sceneLinkContext.value);
+            const clickable = isDimensionClickable(item);
+            return (
               <span
-                style='margin-left: 0; display: block'
-                class={['content', { 'info-check': ipMap.includes(item.key) }]}
+                key={item.display_key}
+                class='dimensions-item'
+                onClick={() => handleDimensionClick(item)}
               >
-                {item.display_value}
+                <span class='name'>{item.display_key}</span>
+                <span class='eq'>=</span>
+                <span class='content-wrap'>
+                  <span class={['content', { 'info-check': clickable }]}>{getDimensionDisplayValue(item)}</span>
+                  {sceneLinks.map(link => (
+                    <span
+                      key={link.alias}
+                      class='value-jump-link'
+                      onClick={event => handleSceneLinkClick(event, link.url)}
+                    >
+                      <span class='jump-link-label'>{link.alias}</span>
+                      <i class='icon-monitor icon-mc-goto' />
+                    </span>
+                  ))}
+                </span>
               </span>
-            </span>,
-          ])
+            );
+          })
         : '--';
     };
 
-    /** 不同情况下的跳转逻辑 */
-    const handleToPerformance = item => {
-      const isKeyInIpMap = ipMap.includes(item.key);
-      if (!isKeyInIpMap) {
+    const handleSceneLinkClick = (event: MouseEvent, url: string) => {
+      event.stopPropagation();
+      if (!url) return;
+      window.open(url, '_blank');
+    };
+
+    const handleHostTargetJump = () => {
+      const { bk_biz_id: bizId, bk_host_id: hostId } = props.data || {};
+      if (hostId) {
+        toPerformanceDetail(bizId, String(hostId));
         return;
       }
+      const target = sceneLinkContext.value.target;
+      if (!target) return;
+      const [ip, cloudId = '0'] = target.split('|');
+      if (!ip) return;
+      toPerformanceDetail(bizId, `${ip}-${cloudId}`);
+    };
+
+    const handleDimensionClick = (item: IDimension) => {
+      if (props.readonly) return;
+      if (isTargetDimension(item.key)) {
+        if (sceneLinkContext.value.targetType === AlertTargetType.HOST) {
+          handleHostTargetJump();
+          return;
+        }
+        const url = getTargetJumpUrl(sceneLinkContext.value);
+        if (url) window.open(url, '_blank');
+        return;
+      }
+      handleToPerformance(item);
+    };
+
+    /** 主机 / 采集配置跳转 */
+    const handleToPerformance = (item: IDimension) => {
+      if (!ipMap.includes(item.key)) return;
       switch (item.key) {
-        /** 增加集群跳转到BCS */
-        case 'tags.bcs_cluster_id':
-          toBcsDetail(item.project_name, item.value);
-          break;
-
-        /** 跳转到主机监控 */
         case 'bk_host_id':
-          toPerformanceDetail(props.data?.bk_biz_id, item.value);
+          toPerformanceDetail(props.data?.bk_biz_id, String(item.value));
           break;
-
         case 'bk_collect_config_id':
         case 'tags.bk_collect_config_id':
-          toCollectDetail(props.data?.bk_biz_id, item.value);
+          toCollectDetail(props.data?.bk_biz_id, String(item.value));
           break;
-
         default: {
           const cloudIdItem = props.data?.dimensions.find(dim => cloudIdMap.includes(dim.key));
-          if (!cloudIdItem) {
-            return;
-          }
-          const cloudId = cloudIdItem.value;
-          toPerformanceDetail(props.data?.bk_biz_id, `${item.value}-${cloudId}`);
+          if (!cloudIdItem) return;
+          toPerformanceDetail(props.data?.bk_biz_id, `${item.value}-${cloudIdItem.value}`);
           break;
         }
       }

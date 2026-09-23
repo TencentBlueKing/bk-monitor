@@ -77,6 +77,8 @@
 | gen_ai.agent.name | string | Agent 名称 |
 | gen_ai.provider.name | string | 模型服务提供方 |
 | gen_ai.request.model | string | 请求模型 |
+| gen_ai.request.stream | bool | 是否以流式方式请求 |
+| gen_ai.request.temperature | number | 温度参数 |
 | gen_ai.request.reasoning.level | string | 请求的推理强度 |
 | gen_ai.response.model | string | 响应模型 |
 | gen_ai.response.finish_reasons | list | 模型结束原因，例如 `tool_call`、`stop` |
@@ -88,13 +90,31 @@
 | gen_ai.usage.input_tokens | int | 输入 Token 数 |
 | gen_ai.usage.output_tokens | int | 输出 Token 数 |
 | gen_ai.usage.cache_read.input_tokens | int | 缓存读取 Token 数 |
-| gen_ai.usage.cache_creation.input_tokens | int | 缓存写入 Token 数 |
+| gen_ai.usage.cache_write.input_tokens | int | 缓存写入 Token 数 |
 | gen_ai.usage.reasoning.output_tokens | int | 推理过程使用的输出 Token 数 |
 | gen_ai.tool.name | string | 工具名称 |
 | gen_ai.tool.call.id | string | 工具调用 ID |
 | gen_ai.tool.call.arguments | object | 工具调用参数 |
 | gen_ai.tool.call.result | object | 工具调用结果 |
 | user.id | string | 用户 ID |
+
+#### Galileo 字段兼容
+
+响应的标准属性仅包含《LLM 核心字段》（`3-llm-semcov.md`）列出的字段。[Galileo 协议](https://iwiki.woa.com/p/4015969950) 中的历史字段按下表转换，未纳入核心字段规范的属性不输出：
+
+| Galileo 原始字段 | 响应中的标准字段 |
+|---|---|
+| `gen_ai.server.time_to_first_token` | `gen_ai.response.time_to_first_chunk`，保留秒单位 |
+| `gen_ai.request.is_stream`、`gen_ai.is_stream` | `gen_ai.request.stream` |
+| `gen_ai.user.id` | `user.id` |
+| `gen_ai.usage.cache_read_input_tokens`、`gen_ai.usage.cached.input_tokens` | `gen_ai.usage.cache_read.input_tokens` |
+| `gen_ai.usage.cache_creation.input_tokens`、`gen_ai.usage.cache_creation_input_tokens` | `gen_ai.usage.cache_write.input_tokens` |
+
+已上报的标准字段优先，别名只补充缺失字段，`0` 和 `false` 均保留。
+
+工具定义中的 `inputSchema` 转换为 `gen_ai.tool.definitions[].parameters`。消息中的 `reasoning_content`、`tool_calls` 分别补充为 `reasoning`、`tool_call` Part，已有对应标准 Part 时不重复添加。
+
+#### 消息与工具结构
 
 消息结构：
 

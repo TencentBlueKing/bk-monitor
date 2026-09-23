@@ -95,6 +95,14 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
+    /**
+     * 强制按「未接入」红色样式覆盖的单元格
+     * key 为功能模块 id（如 graph_rca），value 为数据源 name/key 列表（如 metric_ebpf）
+     */
+    forceUnmetCells: {
+      type: Object as PropType<Record<string, string[]>>,
+      default: () => ({}),
+    },
     /** bk助手链接 */
     wxCsLink: {
       type: String,
@@ -141,13 +149,30 @@ export default defineComponent({
     const globalVariables = shallowRef<Record<string, { category: string; desc: string; name: string; value: string }>>(
       {}
     );
+
+    /** 产品白皮书链接（incident_overview，category: docs；value 为空时不展示入口） */
+    const productDocLink = computed(() => {
+      const item = globalVariables.value.incident_overview;
+      return item?.category === 'docs' && item.value?.trim() ? item.value.trim() : '';
+    });
     /** 数据类型 → 拼接好的跳转链接（加载 globalVariables 后计算） */
     const dataTypeLinks = shallowRef<Record<string, string>>({});
 
     const getKey = (moduleId: string, dataTypeId: string) => `${moduleId}_${dataTypeId}`;
 
-    const getStatusConfig = (moduleId: string, dataTypeId: string): null | StatusConfig =>
-      statusData[getKey(moduleId, dataTypeId)] || null;
+    /** 是否强制将该模块下某一数据源列按未接入（红色）展示 */
+    const isForceUnmetCell = (moduleId: string, dataTypeId: string) =>
+      props.forceUnmetCells[moduleId]?.includes(dataTypeId) ?? false;
+
+    const getStatusConfig = (moduleId: string, dataTypeId: string): null | StatusConfig => {
+      const config = statusData[getKey(moduleId, dataTypeId)] || null;
+      if (!config) return null;
+      // 仅覆盖命中的数据源列；empty 格不强制改色
+      if (isForceUnmetCell(moduleId, dataTypeId) && config.connectStatus !== 'empty') {
+        return { ...config, connectStatus: 'unconnect' };
+      }
+      return config;
+    };
 
     const getCellBgClass = (moduleId: string, dataTypeId: string) => {
       const config = getStatusConfig(moduleId, dataTypeId);
@@ -167,6 +192,7 @@ export default defineComponent({
     };
 
     const getModuleUnmetTip = (moduleId: string): string => {
+      // 含 forceUnmetCells 覆盖后的 connectStatus，按原有 required / at_least_one 规则判断
       const hasUnmet = dataTypes.value.some(dt => {
         const config = getStatusConfig(moduleId, dt.id);
         if (!config) return false;
@@ -325,6 +351,7 @@ export default defineComponent({
           class='incident-empty-status'
           isDarkTheme={props.isDarkTheme}
           mode={props.mode}
+          productDocLink={productDocLink.value}
           selectedSpaceId={selectedSpace.value}
           showEnableButton={shouldShowEnableButton.value}
           spaceList={props.spaceList}

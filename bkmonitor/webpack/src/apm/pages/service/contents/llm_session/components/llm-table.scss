@@ -1,3 +1,5 @@
+@import '../../../../../theme';
+
 .llm-table-expand {
   padding: 16px;
   background-color: #f5f7fa;
@@ -15,6 +17,12 @@
 }
 
 .llm-table {
+  &.is-expandable {
+    .bk-table-body .bk-table-row {
+      cursor: pointer;
+    }
+  }
+
   .llm-table-skeleton {
     padding-top: 8px;
   }
@@ -72,6 +80,15 @@
     text-align: left;
   }
 
+  .llm-table-io-popover-trigger {
+    &,
+    .bk-tooltip-ref {
+      display: block;
+      width: 100%;
+      min-width: 0;
+    }
+  }
+
   .llm-table-io-summary {
     display: flex;
     align-items: center;
@@ -82,9 +99,8 @@
     .io-text {
       flex: 1;
       min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
+
+      @include ellipsis;
     }
 
     .io-arrow {
@@ -180,5 +196,69 @@
       margin: 0 3px;
       background-color: #e4e9f2;
     }
+  }
+}
+
+/* 弹层 transfer 到 body，不能挂在 .llm-table 下 */
+.tippy-tooltip.light-theme.llm-table-io-theme {
+  padding: 0;
+  pointer-events: all;
+  background-color: #fff;
+  border: $border-width-base $border-style-base $border-color-base;
+  border-radius: 4px;
+  box-shadow: 0 0 20px 0 rgb(0 0 0 / 16%);
+}
+
+.llm-table-io-popover {
+  $max-visible-lines: 5;
+  $text-line-height: 20px;
+
+  gap: 24px;
+  width: 100%;
+  padding: 16px;
+  white-space: normal;
+
+  @include flex-column;
+
+  .io-popover-section {
+    gap: 4px;
+    width: 100%;
+
+    @include flex-column;
+  }
+
+  .io-popover-title {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #313238;
+  }
+
+  .io-popover-box {
+    position: relative;
+    width: 100%;
+    padding: 12px 32px 12px 12px;
+    background-color: #f7f9fc;
+    border-radius: 4px;
+  }
+
+  .io-popover-text {
+    max-height: $max-visible-lines * $text-line-height;
+    overflow-y: auto;
+    font-size: $font-size-base;
+    line-height: $text-line-height;
+    color: #4d4f56;
+    overflow-wrap: anywhere;
+    white-space: pre-wrap;
+  }
+
+  .io-popover-copy {
+    position: absolute;
+    top: 14px;
+    right: 12px;
+    color: $primary-color;
+    cursor: pointer;
+
+    @include icon-size($font-size-large, $font-size-large);
   }
 }

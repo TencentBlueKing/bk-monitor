@@ -8,6 +8,7 @@
   "scripts": {
     "build:vue3-components": "node ./scripts/vue3-lib/vite-build.mjs ./scripts/build.vue3.components.ts",
     "build:apm-vue3-for-vue2": "node ./scripts/vue3-lib/vite-build.mjs ./scripts/build.apm-vue3-for-vue2.ts",
+    "dev:apm-vue3-for-vue2": "node ./scripts/vue3-lib/vite-build.mjs ./scripts/build.apm-vue3-for-vue2.ts --watch",
     "build:vue2-components": "npx vite build -c ./scripts/build.vue2.components.ts",
     "debug": "node node_modules/@blueking/bkmonitor-cli/dist/index.js dev -t",
     "preinstall": "npx only-allow pnpm",
@@ -37,6 +38,8 @@
     "analyze": "npm run clean && bkmonitor-cli build -t -a",
     "analyze:mobile": "npm run clean && bkmonitor-cli build -m -a",
     "analyze:fta": "npm run clean && bkmonitor-cli build -f -a",
+    "e2e:doctor": "node ./e2e/scripts/doctor.mjs",
+    "e2e:install": "playwright install chromium",
     "replace": "cross-env execMode=move node ./webpack/exec-shell.js"
   },
   "simple-git-hooks": {
@@ -50,6 +53,7 @@
     "@blueking/bkmonitor-cli": "7.0.3",
     "@blueking/stylelint-config": "0.0.3",
     "@eslint/js": "^9.35.0",
+    "@playwright/test": "1.63.0",
     "@rollup/plugin-babel": "^6.0.4",
     "@types/throttle-debounce": "^5.0.2",
     "@vitejs/plugin-vue-jsx": "^5.1.1",
@@ -66,7 +70,8 @@
     "nodemon": "^3.1.10",
     "npm-run-all": "^4.1.5",
     "picocolors": "^1.1.1",
-    "portfinder": "^1.0.38",
+    "pixelmatch": "7.2.0",
+    "pngjs": "7.0.0",
     "postcss-html": "^1.8.0",
     "postcss-scss": "^4.0.9",
     "prettier": "^3.6.2",
@@ -89,7 +94,6 @@
   },
   "nodemonConfig": {
     "watch": [
-      "local.settings.js",
       "webpack.config.js",
       "pnpm-lock.yaml"
     ]

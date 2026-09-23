@@ -74,6 +74,10 @@ grant_permissions:
     #   - resource_name_2
   - bk_app_code: bk_log_search
     grant_dimension: "gateway"
+  - bk_app_code: bk-incident
+    grant_dimension: "gateway"
+  - bk_app_code: bkincident
+    grant_dimension: "gateway"
   - bk_app_code: bk_sops
     grant_dimension: "resource"
     resource_names:

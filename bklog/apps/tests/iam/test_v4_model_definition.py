@@ -341,7 +341,18 @@ class V4ModelBaselineTest(SimpleTestCase):
 
     def test_baseline_file_is_valid(self):
         self.assertEqual(self.model.resource_type_ids(), ("space", "indices", "collection", "es_source"))
-        self.assertEqual(self.model.role_ids(), ("space_operator", "space_viewer", "system_admin"))
+        self.assertEqual(self.model.role_ids(), ("space_operator", "space_viewer", "space_access", "system_admin"))
+
+    def test_space_access_role_only_grants_business_view(self):
+        """space_access 存在的意义就是最小化：多一个 Action 就会把子资源权限一起授出去。"""
+        from apps.iam.backends.v4.writer import SPACE_ACCESS_ROLE_ID
+
+        space_access = next(role for role in self.model.roles if role.id == SPACE_ACCESS_ROLE_ID)
+
+        self.assertEqual(
+            [(action.id, action.resource_type_id) for action in space_access.actions],
+            [("view_business", "space")],
+        )
 
     def test_baseline_does_not_pin_environment_specific_fields(self):
         # system_id / callback_url / managers 必须由 settings 注入，否则 test 与 prod 又会分叉成两份文件。

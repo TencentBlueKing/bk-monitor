@@ -25,7 +25,7 @@ from constants.apm import LLMProduct, OtlpKey
 from core.drf_resource import resource
 
 from apm_web.handlers.metric_group import base, define
-from apm_web.llm.adapter.fields import resolve_operation_name, resolve_query_field
+from apm_web.llm.adapter.fields import operation_query, resolve_operation_name, resolve_query_field
 from apm_web.llm.constants import CalculationType
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.models import Application
@@ -77,14 +77,16 @@ class LLMMetricGroup(base.BaseMetricGroup):
             # operation.name 取值为大写的 CHAT，统一用 span.kind 判定
             LLMProduct.AGENTLENS.value: Q(**{"attributes.gen_ai.span.kind": "LLM"}),
             LLMProduct.LANGFUSE.value: Q(**{"attributes.langfuse.observation.type": "generation"}),
-            # ChatModel.chat 与 chat_model.generate 包裹同一次调用，只有前者带 Token，两者同时计数会翻倍
-            LLMProduct.AIDEV.value: Q(span_name="ChatModel.chat"),
+            # 同时支持标准 GenAI 与旧埋点，旧模式只取业务模型 Span，避免包装层重复计数。
+            LLMProduct.AIDEV.value: operation_query(
+                LLMProduct.AIDEV.value, ["chat", "generate_content", "text_completion", "embeddings"]
+            ),
         },
         Layer.AGENT: {
             LLMProduct.DEFAULT.value: Q(**{"attributes.gen_ai.operation.name": ["invoke_agent", "invoke_workflow"]}),
             LLMProduct.AGENTLENS.value: Q(**{"attributes.gen_ai.span.kind": "AGENT"}),
             LLMProduct.LANGFUSE.value: Q(**{"attributes.langfuse.internal.is_app_root": "true"}),
-            LLMProduct.AIDEV.value: Q(span_name="agent.execution"),
+            LLMProduct.AIDEV.value: operation_query(LLMProduct.AIDEV.value, ["invoke_agent", "invoke_workflow"]),
         },
     }
 
@@ -93,12 +95,18 @@ class LLMMetricGroup(base.BaseMetricGroup):
     TOKEN_FIELDS: dict[str, dict[str, tuple[str, ...]]] = {
         "input_tokens": {
             LLMProduct.DEFAULT.value: ("attributes.gen_ai.usage.input_tokens",),
-            # 旧版 traceloop 语义约定，新标准名在该产品上 52 天回溯内一条都没有
-            LLMProduct.AIDEV.value: ("attributes.gen_ai.usage.prompt_tokens",),
+            # 新版 GenAI 与旧版 traceloop 使用不同的 Token 字段。
+            LLMProduct.AIDEV.value: (
+                "attributes.gen_ai.usage.input_tokens",
+                "attributes.gen_ai.usage.prompt_tokens",
+            ),
         },
         "output_tokens": {
             LLMProduct.DEFAULT.value: ("attributes.gen_ai.usage.output_tokens",),
-            LLMProduct.AIDEV.value: ("attributes.gen_ai.usage.completion_tokens",),
+            LLMProduct.AIDEV.value: (
+                "attributes.gen_ai.usage.output_tokens",
+                "attributes.gen_ai.usage.completion_tokens",
+            ),
         },
         "cache_read": {
             LLMProduct.DEFAULT.value: ("attributes.gen_ai.usage.cache_read.input_tokens",),
@@ -135,6 +143,8 @@ class LLMMetricGroup(base.BaseMetricGroup):
         CalculationType.OUTPUT_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("output_tokens",)),
         CalculationType.TOTAL_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("input_tokens", "output_tokens")),
         CalculationType.CACHE_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("cache_read", "cache_write")),
+        CalculationType.CACHE_READ_INPUT_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("cache_read",)),
+        CalculationType.CACHE_WRITE_INPUT_TOKENS.value: Aggregation(Layer.MODEL, "SUM", slots=("cache_write",)),
         CalculationType.MODEL_CALL_COUNT.value: Aggregation(Layer.MODEL, "COUNT", field="_index"),
         # 操作次数按调用方的查询范围直接计数，不额外限定 Span 层级。
         CalculationType.OPERATION_COUNT.value: Aggregation(None, "COUNT", field="_index"),
@@ -162,7 +172,8 @@ class LLMMetricGroup(base.BaseMetricGroup):
         )
         # 分组字段按产品换算成存储中的原始字段，聚合结果再回填成调用方传入的标准名
         self.group_fields: list[str] = [
-            resolve_query_field(self.product, OtlpKey.get_attributes_key(field)) for field in self.group_by
+            field if field == OtlpKey.TRACE_ID else resolve_query_field(self.product, OtlpKey.get_attributes_key(field))
+            for field in self.group_by
         ]
         # 该产品把一个 Agent 拆成多个上报服务，带 Token 的模型 Span 落在兄弟服务 {svc}-default 上，
         # 按服务过滤必然漏数，改为不加过滤，由应用维度兜住全部上报名。
@@ -370,9 +381,24 @@ class LLMMetricGroup(base.BaseMetricGroup):
         self, layer: str | None, start_time: int | None, end_time: int | None, extra_fields: tuple[str, ...] = ()
     ) -> list[dict[str, Any]]:
         fields: list[str] = [self.LANGFUSE_USAGE_FIELD, *self.group_fields, *extra_fields]
-        return self.query.query_field_values(
-            self._queries(layer), start_time, end_time, fields, self.query.QUERY_MAX_LIMIT
-        )
+        queries: list[QueryConfigBuilder] = self._queries(layer)
+        trace_ids: list[str] = self.filter_dict.get("trace_id__eq") or []
+        if not trace_ids:
+            return self.query.query_field_values(queries, start_time, end_time, fields, self.query.QUERY_MAX_LIMIT)
+        # JSON 用量仍是一条模型 Span 一行，沿用原始查询的 ID 批次，避免多会话共用一页上限。
+        records: list[dict[str, Any]] = []
+        for index in range(0, len(trace_ids), self.query.GROUP_ID_BATCH_SIZE):
+            chunk: list[str] = trace_ids[index : index + self.query.GROUP_ID_BATCH_SIZE]
+            records.extend(
+                self.query.query_field_values(
+                    [query.filter(trace_id__eq=chunk) for query in queries],
+                    start_time,
+                    end_time,
+                    fields,
+                    self.query.QUERY_MAX_LIMIT,
+                )
+            )
+        return records
 
     def _usage_value(self, record: dict[str, Any], aggregation: Aggregation) -> float:
         usage: dict[str, Any] = self._parse_usage(record.get(self.LANGFUSE_USAGE_FIELD))

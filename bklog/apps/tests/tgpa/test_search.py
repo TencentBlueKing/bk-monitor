@@ -234,6 +234,7 @@ class TestTGPASearchHandler(SimpleTestCase):
                 "bk_biz_id": 2,
                 "openid": "openid_1",
                 "file_name": None,
+                "extend_info": None,
                 "start_time": 1716000000000,
                 "end_time": 1716600000000,
                 "page": 1,
@@ -243,10 +244,11 @@ class TestTGPASearchHandler(SimpleTestCase):
 
     @patch("apps.tgpa.handlers.search.TGPAReportHandler.get_report_list")
     @patch("apps.tgpa.handlers.search.TGPATaskHandler.get_task_page")
-    def test_get_merged_task_list_passes_keyword_to_both_sources(self, mock_get_task_page, mock_get_report_list):
+    def test_get_merged_task_list_passes_extend_info_to_report_only(self, mock_get_task_page, mock_get_report_list):
+        """extend_info 传入时仅查 report 数据源，不查 task"""
         params = {
             "bk_biz_id": 2,
-            "keyword": "LoginBugReport",
+            "extend_info": "PeopleUnVisible",
             "start_time": 1716000000000,
             "end_time": 1716600000000,
             "page": 1,
@@ -258,30 +260,17 @@ class TestTGPASearchHandler(SimpleTestCase):
         result = TGPASearchHandler.get_merged_task_list(params)
 
         self.assertEqual(result, {"total": 0, "list": []})
-        mock_get_task_page.assert_called_once_with(
-            params={
-                "bk_biz_id": 2,
-                "page": 1,
-                "pagesize": 2,
-                "openid": None,
-                "task_id": None,
-                "start_time": 1716000000000,
-                "end_time": 1716600000000,
-                "ordering": "-created_at",
-                "keyword": "LoginBugReport",
-            },
-            need_format=False,
-        )
+        mock_get_task_page.assert_not_called()
         mock_get_report_list.assert_called_once_with(
             {
                 "bk_biz_id": 2,
                 "openid": None,
                 "file_name": None,
+                "extend_info": "PeopleUnVisible",
                 "start_time": 1716000000000,
                 "end_time": 1716600000000,
                 "page": 1,
                 "pagesize": 2,
-                "keyword": "LoginBugReport",
             }
         )
 
@@ -429,6 +418,7 @@ class TestTGPASearchHandler(SimpleTestCase):
                 "bk_biz_id": 2,
                 "openid": None,
                 "file_name": "some_other_file.zip",
+                "extend_info": None,
                 "start_time": None,
                 "end_time": None,
                 "page": 1,

@@ -23,17 +23,20 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, nextTick, shallowRef, watch } from 'vue';
+import { defineComponent, inject, nextTick, shallowRef, watch } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
 import { Message } from 'bkui-vue';
 import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 
+import { LLM_OBSERVATION_SEARCH_KEY } from '../utils/search';
+import HighlightText from './highlight-text';
+
 import './text-content-item.scss';
 
-/** 折叠态最多展示行数，超出后显示「原地展开 / 独立查看」 */
-const MAX_VISIBLE_LINES = 7;
+/** 折叠态最多展示行数（Figma 160px 卡片内 120px 正文 + 20px 展开） */
+const MAX_VISIBLE_LINES = 6;
 const LINE_HEIGHT = 20;
 
 /** 文本消息条目：支持复制、溢出折叠、独立查看 */
@@ -49,6 +52,11 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    /** 搜索命中块 id，用于高亮与定位展开 */
+    searchBlockId: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
     viewAlone: (_content: string) => true,
@@ -59,6 +67,18 @@ export default defineComponent({
     /** 折叠态是否发生溢出 */
     const overflow = shallowRef(false);
     const textRef = shallowRef<HTMLElement>();
+    const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
+
+    // 折叠态 -webkit-line-clamp 会裁掉后面的命中，定位时先展开
+    watch(
+      () => [search?.activeIndex.value, search?.keyword.value, search?.activeHit.value?.blockId] as const,
+      ([, , blockId]) => {
+        if (props.searchBlockId && blockId === props.searchBlockId) {
+          expanded.value = true;
+        }
+      },
+      { immediate: true }
+    );
 
     /** 按可见行高判断文本是否溢出 */
     const measureOverflow = () => {
@@ -86,6 +106,13 @@ export default defineComponent({
       Message({ message: t('复制成功'), theme: 'success' });
     };
 
+    const handleToggleExpand = () => {
+      expanded.value = !expanded.value;
+      if (!expanded.value) {
+        nextTick(measureOverflow);
+      }
+    };
+
     return () => (
       <div
         class={[
@@ -98,56 +125,54 @@ export default defineComponent({
       >
         <div class='llm-text-content-row'>
           <span class='llm-text-content-index'>[{props.index}]</span>
-          <div
-            ref={textRef}
-            class='llm-text-content-body'
-          >
-            {props.content}
-          </div>
-        </div>
-        {!expanded.value && (
-          <div class='llm-text-content-actions'>
-            <div
-              class='llm-text-content-action'
-              onClick={handleCopy}
-            >
-              <i class='icon-monitor icon-mc-copy' />
-              <span>{t('复制信息')}</span>
-            </div>
-            {overflow.value && (
-              <>
+          <div class='llm-text-content-main'>
+            <div class='llm-text-content-actions'>
+              <div
+                class='llm-text-content-action'
+                onClick={handleCopy}
+              >
+                <i class='icon-monitor icon-mc-copy' />
+                <span>{t('复制信息')}</span>
+              </div>
+              {overflow.value && (
                 <div
                   class='llm-text-content-action'
                   onClick={() => emit('viewAlone', props.content)}
                 >
-                  <i class='icon-monitor icon-chakan1' />
+                  <i class='icon-monitor icon-sidebar' />
                   <span>{t('独立查看')}</span>
                 </div>
-                <div
-                  class='llm-text-content-action'
-                  onClick={() => {
-                    expanded.value = true;
-                  }}
-                >
-                  <i class='icon-monitor icon-double-down' />
-                  <span>{t('原地展开')}</span>
-                </div>
-              </>
+              )}
+            </div>
+            <div class='llm-text-content-clip'>
+              <div
+                ref={textRef}
+                class='llm-text-content-body'
+              >
+                {props.searchBlockId ? (
+                  <HighlightText
+                    blockId={props.searchBlockId}
+                    text={props.content}
+                  />
+                ) : (
+                  props.content
+                )}
+              </div>
+            </div>
+            {overflow.value && (
+              <div
+                class='llm-text-content-expand'
+                onClick={handleToggleExpand}
+              >
+                <span>{expanded.value ? t('收起') : t('展开')}</span>
+                <i
+                  style='font-size: 18px;'
+                  class={['icon-monitor', 'icon-double-down', { 'is-expanded': expanded.value }]}
+                />
+              </div>
             )}
           </div>
-        )}
-        {expanded.value && (
-          <div
-            class='llm-text-content-action is-collapse'
-            onClick={() => {
-              expanded.value = false;
-              nextTick(measureOverflow);
-            }}
-          >
-            <i class='icon-monitor icon-double-up' />
-            <span>{t('收起')}</span>
-          </div>
-        )}
+        </div>
       </div>
     );
   },

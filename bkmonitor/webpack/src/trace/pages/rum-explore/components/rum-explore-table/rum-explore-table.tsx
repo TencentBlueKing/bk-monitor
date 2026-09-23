@@ -67,6 +67,11 @@ export default defineComponent({
       type: Array as PropType<BaseTableColumn[]>,
       required: true,
     },
+    /** 默认展示列字段名（顺序即列顺序），列设置「恢复默认」的回填来源 */
+    defaultFieldKeys: {
+      type: Array as PropType<string[]>,
+      default: undefined,
+    },
     /** 可作为列的字段全集，供字段设置使用 */
     displayableFields: {
       type: Array as PropType<IRumField[]>,
@@ -333,7 +338,10 @@ export default defineComponent({
                       (
                         <ExploreFieldSetting
                           class='table-field-setting'
+                          defaultFields={this.defaultFieldKeys}
+                          dragHandle='.list-item-left'
                           fixedDisplayList={this.fixedDisplayList}
+                          popoverTheme='rum-explore-field-setting'
                           showFieldName={true}
                           sourceList={this.displayableFields}
                           targetList={this.displayFieldKeys}

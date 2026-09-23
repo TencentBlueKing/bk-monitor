@@ -51,9 +51,32 @@ $blue: #3a84ff;
         margin: 0 2px;
       }
 
+      .content-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        align-items: center;
+      }
+
       .content {
-        display: block;
         margin-left: 0;
+      }
+
+      .value-jump-link {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        color: $blue;
+        cursor: pointer;
+
+        .icon-mc-goto {
+          margin-left: 2px;
+          font-size: 14px;
+        }
+
+        &:hover {
+          color: #699df4;
+        }
       }
     }
 

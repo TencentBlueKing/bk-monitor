@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
@@ -72,3 +72,9 @@ class SearchHostMetricViewSet(PermissionMixin, ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", resource.performance.search_host_metric, content_encoding="gzip"),
     ]
+
+
+class SearchHostMetricStatsViewSet(PermissionMixin, ResourceViewSet):
+    """查询单张主机性能卡片。"""
+
+    resource_routes = [ResourceRoute("POST", resource.performance.search_host_metric_stats)]

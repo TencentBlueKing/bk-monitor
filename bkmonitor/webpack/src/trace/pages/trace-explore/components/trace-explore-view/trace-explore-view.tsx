@@ -115,6 +115,7 @@ export default defineComponent({
     const { mode, appName } = storeToRefs(store);
     const {
       displayColumnFields,
+      defaultDisplayFields,
       fieldsWidthConfig,
       getCustomFieldsConfig,
       handleDisplayColumnFieldsChange,
@@ -251,6 +252,7 @@ export default defineComponent({
       mode,
       appName,
       displayColumnFields,
+      defaultDisplayFields,
       fieldsWidthConfig,
       sourceFieldConfigs,
       tableViewData,
@@ -287,6 +289,7 @@ export default defineComponent({
             ref='traceExploreTable'
             appName={this.appName}
             commonParams={this.commonParams}
+            defaultFieldKeys={this.defaultDisplayFields}
             displayFields={this.displayColumnFields}
             fieldsWidthConfig={this.fieldsWidthConfig}
             mode={this.mode}

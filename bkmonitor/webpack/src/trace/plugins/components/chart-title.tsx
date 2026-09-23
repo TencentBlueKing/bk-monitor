@@ -23,7 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type ComputedRef, type PropType, computed, defineComponent, onBeforeMount, onMounted, ref, watch } from 'vue';
+import {
+  type ComputedRef,
+  type PropType,
+  Teleport,
+  computed,
+  defineComponent,
+  onBeforeMount,
+  onMounted,
+  ref,
+  watch,
+} from 'vue';
 
 import { bkTooltips, Popover } from 'bkui-vue';
 import { fetchItemStatus } from 'monitor-api/modules/strategies';
@@ -172,15 +182,18 @@ export default defineComponent({
       handleChildMenuToggle(false);
     }
 
-    function handleShowMenu(e: any) {
-      // console.log('handleShowMenu', isAlertListShown);
+    function handleShowMenu(e: MouseEvent) {
       if (!props.dragging) {
         if (!props.showMore || isAlertListShown.value) return;
         showMenu.value = !showMenu.value;
         const rect = chartTitleRef.value?.getBoundingClientRect();
-        if (typeof rect !== 'undefined') {
-          menuTop.value = rect.top + 36;
-          menuLeft.value = rect.right - 185 < rect.left + e.layerX ? rect.right - 185 : rect.left + e.layerX;
+        if (rect) {
+          // 仍贴在标题下方，只是用视口坐标配合 fixed，避免被图表 overflow 裁切
+          const menuWidth = 185;
+          const offsetX = e.clientX - rect.left;
+          const maxLeft = Math.max(rect.width - menuWidth, 0);
+          menuLeft.value = rect.left + Math.min(Math.max(offsetX, 0), maxLeft);
+          menuTop.value = rect.bottom;
         }
       }
       emit('updateDragging', false);
@@ -403,21 +416,24 @@ export default defineComponent({
           )}
           {this.$slots.tagTitle && <div class='tag-title'>{this.$slots.tagTitle()}</div>}
         </div>
-        <TitleMenu
-          style={{
-            left: `${this.menuLeft}px`,
-            top: `${this.menuTop}px`,
-            display: this.showMenu ? 'flex' : 'none',
-          }}
-          drillDownOption={this.drillDownOption}
-          list={this.menuList}
-          metrics={this.metrics}
-          showAddMetric={this.showAddMetric}
-          onChildMenuToggle={this.handleChildMenuToggle}
-          onMetricSelect={this.handleMetricSelect}
-          onSelect={this.handleMenuClick}
-          onSelectChild={this.handleMenuChildClick}
-        />
+        <Teleport to='body'>
+          <TitleMenu
+            class='is-fixed'
+            style={{
+              left: `${this.menuLeft}px`,
+              top: `${this.menuTop}px`,
+              display: this.showMenu ? 'flex' : 'none',
+            }}
+            drillDownOption={this.drillDownOption}
+            list={this.menuList}
+            metrics={this.metrics}
+            showAddMetric={this.showAddMetric}
+            onChildMenuToggle={this.handleChildMenuToggle}
+            onMetricSelect={this.handleMetricSelect}
+            onSelect={this.handleMenuClick}
+            onSelectChild={this.handleMenuChildClick}
+          />
+        </Teleport>
       </div>
     );
   },

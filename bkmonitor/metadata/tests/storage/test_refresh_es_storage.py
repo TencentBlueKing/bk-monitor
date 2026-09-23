@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from datetime import datetime
 from unittest import mock
 
+import elasticsearch5
 import pytest
 from dateutil import tz
 from elasticsearch import NotFoundError
@@ -76,6 +77,63 @@ EXPECTED_CURRENT_ALIAS = "write_20241015_2_bklog_test_rotation"
 EXPECTED_FUTURE_ALIAS = "write_20241016_2_bklog_test_rotation"
 EXPECTED_FUTURE_INDEX = "v2_2_bklog_test_rotation_20241016_0"
 PAST_AVAILABLE_INDEX = "v2_2_bklog_test_rotation_20241015_0"
+PREFIX_COLLISION_TABLE_ID = "2_bklog.application"
+PREFIX_COLLISION_V2_INDEX = "v2_2_bklog_application_extra_20260915_0"
+PREFIX_COLLISION_V1_INDEX = "2_bklog_application_extra_20260915_0"
+VALID_V2_INDEX = "v2_2_bklog_application_20260915_0"
+VALID_V1_INDEX = "2_bklog_application_20260915_0"
+
+
+@pytest.fixture
+def prefix_collision_es_storage():
+    storage = ESStorage(table_id=PREFIX_COLLISION_TABLE_ID, time_zone=0, date_format="%Y%m%d")
+    storage.es_client = mock.Mock()
+    return storage
+
+
+def test_get_index_stats_filters_longer_v2_index_prefix(prefix_collision_es_storage):
+    valid_index_info = {"primaries": {"store": {"size_in_bytes": 1}}}
+    prefix_collision_es_storage.es_client.indices.stats.return_value = {
+        "indices": {
+            PREFIX_COLLISION_V2_INDEX: {"primaries": {"store": {"size_in_bytes": 2}}},
+            VALID_V2_INDEX: valid_index_info,
+        }
+    }
+
+    index_info_map, index_version = prefix_collision_es_storage.get_index_stats()
+
+    assert index_version == "v2"
+    assert index_info_map == {VALID_V2_INDEX: valid_index_info}
+    prefix_collision_es_storage.es_client.indices.stats.assert_called_once_with(
+        index=prefix_collision_es_storage.search_format_v2()
+    )
+
+
+def test_get_index_stats_falls_back_to_v1_after_v2_prefix_collision(prefix_collision_es_storage):
+    valid_index_info = {"primaries": {"store": {"size_in_bytes": 1}}}
+    prefix_collision_es_storage.es_client.indices.stats.side_effect = [
+        {"indices": {PREFIX_COLLISION_V2_INDEX: {}}},
+        {"indices": {VALID_V1_INDEX: valid_index_info}},
+    ]
+
+    index_info_map, index_version = prefix_collision_es_storage.get_index_stats()
+
+    assert index_version == "v1"
+    assert index_info_map == {VALID_V1_INDEX: valid_index_info}
+    assert prefix_collision_es_storage.es_client.indices.stats.call_args_list == [
+        mock.call(index=prefix_collision_es_storage.search_format_v2()),
+        mock.call(index=prefix_collision_es_storage.search_format_v1()),
+    ]
+
+
+def test_current_index_info_treats_prefix_collisions_as_not_found(prefix_collision_es_storage):
+    prefix_collision_es_storage.es_client.indices.stats.side_effect = [
+        {"indices": {PREFIX_COLLISION_V2_INDEX: {}}},
+        {"indices": {PREFIX_COLLISION_V1_INDEX: {}}},
+    ]
+
+    with pytest.raises(elasticsearch5.NotFoundError):
+        ESStorage.current_index_info.__wrapped__(prefix_collision_es_storage)
 
 
 @pytest.mark.django_db(databases="__all__")

@@ -19,7 +19,12 @@ from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 
 from . import platform_catalog  # noqa: F401 (triggers catalog package load)
-from .platform_catalog._catalog import OperationSpec, ParamsGuardRejected, PlatformSourceCatalog
+from .platform_catalog._catalog import (
+    OperationSpec,
+    ParamsGuardRejected,
+    PlatformSourceCatalog,
+    ProviderResponseRejected,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -248,12 +253,15 @@ def _invoke(domain_id: str, operation_id: str, params: dict[str, Any], *, force_
         return _error(code="provider_unavailable", message=str(e))
 
     requested_fields = invoke_params.get("fields") or op.default_fields or None
-    if op.response_postprocess is None:
-        result = raw
-    elif op.response_postprocess_needs_params:
-        result = op.response_postprocess(raw, requested_fields, invoke_params)
-    else:
-        result = op.response_postprocess(raw, requested_fields)
+    try:
+        if op.response_postprocess is None:
+            result = raw
+        elif op.response_postprocess_needs_params:
+            result = op.response_postprocess(raw, requested_fields, invoke_params)
+        else:
+            result = op.response_postprocess(raw, requested_fields)
+    except ProviderResponseRejected as error:
+        return _error(code="provider_unavailable", message=str(error))
     return {
         "status": "ok",
         "kind": "invocation",

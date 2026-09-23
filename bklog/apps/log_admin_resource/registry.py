@@ -25,6 +25,7 @@ from apps.log_admin_resource.handlers.collector_storage import (
 )
 from apps.log_admin_resource.handlers.bkdata_inspection import (
     batch_get_bkdata_result_table_snapshots,
+    get_bkdata_clean_errors,
     get_bkdata_clean_snapshot,
     get_bkdata_flow_snapshot,
     get_bkdata_raw_snapshot,
@@ -52,6 +53,10 @@ from apps.log_admin_resource.handlers.host_inspection import (
     FUNCTIONS as HOST_INSPECTION_FUNCTIONS,
     HANDLERS as HOST_INSPECTION_HANDLERS,
 )
+from apps.log_admin_resource.handlers.iam_decision import (
+    FUNCTIONS as IAM_DECISION_FUNCTIONS,
+    HANDLERS as IAM_DECISION_HANDLERS,
+)
 from apps.log_admin_resource.handlers.k8s_inspection import (
     FUNCTIONS as K8S_INSPECTION_FUNCTIONS,
     HANDLERS as K8S_INSPECTION_HANDLERS,
@@ -67,6 +72,10 @@ from apps.log_admin_resource.handlers.log_query import (
 from apps.log_admin_resource.handlers.model_query import (
     FUNCTIONS as MODEL_QUERY_FUNCTIONS,
     HANDLERS as MODEL_QUERY_HANDLERS,
+)
+from apps.log_admin_resource.handlers.monitor_strategy import (
+    FUNCTIONS as MONITOR_STRATEGY_FUNCTIONS,
+    HANDLERS as MONITOR_STRATEGY_HANDLERS,
 )
 from apps.log_admin_resource.handlers.platform_source import (
     FUNCTIONS as PLATFORM_SOURCE_FUNCTIONS,
@@ -372,6 +381,7 @@ FUNCTIONS = {
             "flow_references",
             "generated_flow_configs",
             "result_table_references",
+            "strategy_bindings",
             "access_tasks",
         ),
         "examples": [
@@ -471,6 +481,28 @@ FUNCTIONS = {
         "params_schema": _bkdata_id_schema("raw_data_id", include_sample_limit=True),
         "response_schema": _snapshot_response_schema("raw_data_id", "bk_biz_id", probe_keys=("deploy", "tail")),
         "examples": [{"params": {"bk_biz_id": 5000140, "raw_data_id": 12345, "sample_limit": 10}}],
+    },
+    "bklog.bkdata.clean.errors": {
+        "func_name": "bklog.bkdata.clean.errors",
+        "validate_params": True,
+        "description": "Sample DataID clean errors and filter by exact RT locally; no match does not prove no errors.",
+        "safety_level": "inspect",
+        "data_classification": "sensitive_logs",
+        "params_schema": {
+            "type": "object",
+            "properties": {
+                "bk_biz_id": {"type": "integer", "not": {"const": 0}},
+                "raw_data_id": {"type": "integer", "minimum": 1},
+                "result_table_id": {"type": "string", "minLength": 1},
+                "sample_limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+            "required": ["bk_biz_id", "raw_data_id", "result_table_id"],
+            "additionalProperties": False,
+        },
+        "response_schema": _snapshot_response_schema(
+            "raw_data_id", "result_table_id", "bk_biz_id", probe_keys=("errors",)
+        ),
+        "examples": [{"params": {"bk_biz_id": 2, "raw_data_id": 1, "result_table_id": "2_clean", "sample_limit": 5}}],
     },
     "bklog.bkdata.clean.snapshot": {
         "func_name": "bklog.bkdata.clean.snapshot",
@@ -582,6 +614,8 @@ FUNCTIONS.update(LOG_QUERY_FUNCTIONS)
 FUNCTIONS.update(MODEL_QUERY_FUNCTIONS)
 FUNCTIONS.update(HOST_INSPECTION_FUNCTIONS)
 FUNCTIONS.update(K8S_INSPECTION_FUNCTIONS)
+FUNCTIONS.update(IAM_DECISION_FUNCTIONS)
+FUNCTIONS.update(MONITOR_STRATEGY_FUNCTIONS)
 FUNCTIONS.update(RUNTIME_FUNCTIONS)
 
 HANDLERS = {
@@ -601,6 +635,7 @@ HANDLERS = {
     "bklog.clustering_config.pipeline.force_fail": force_fail_clustering_pipeline_node,
     "bklog.bkdata.raw.snapshot": get_bkdata_raw_snapshot,
     "bklog.bkdata.clean.snapshot": get_bkdata_clean_snapshot,
+    "bklog.bkdata.clean.errors": get_bkdata_clean_errors,
     "bklog.bkdata.flow.snapshot": get_bkdata_flow_snapshot,
     "bklog.bkdata.result_table.snapshot_batch": batch_get_bkdata_result_table_snapshots,
 }
@@ -613,6 +648,8 @@ HANDLERS.update(LOG_QUERY_HANDLERS)
 HANDLERS.update(MODEL_QUERY_HANDLERS)
 HANDLERS.update(HOST_INSPECTION_HANDLERS)
 HANDLERS.update(K8S_INSPECTION_HANDLERS)
+HANDLERS.update(IAM_DECISION_HANDLERS)
+HANDLERS.update(MONITOR_STRATEGY_HANDLERS)
 HANDLERS.update(RUNTIME_HANDLERS)
 
 

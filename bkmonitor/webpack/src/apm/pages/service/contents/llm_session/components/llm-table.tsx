@@ -26,6 +26,7 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { copyText } from 'monitor-common/utils/utils';
 import TableSkeleton from 'monitor-pc/components/skeleton/table-skeleton';
 
 import { EMPTY_TEXT } from '../constants';
@@ -65,6 +66,9 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
   @Prop({ default: false, type: Boolean }) scrollLoading: boolean;
   @Prop({ type: [Number, String] }) maxHeight: number | string;
 
+  /** 手风琴：同时最多展开一行 */
+  expandRowKeys: string[] = [];
+
   get hasExpand() {
     return !!this.expandColumns?.length;
   }
@@ -82,10 +86,43 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
     this.$emit('traceIdClick', traceId);
   }
 
+  /** 会话视角：点击整行切换展开；已展开另一行时先收起，保证手风琴 */
+  handleRowClick(row: LlmRow) {
+    if (!this.hasExpand) return;
+    this.setExpandedKey(this.expandRowKeys[0] === row.key ? undefined : row.key);
+  }
+
+  /** 展开图标走表格内部 toggle，再用受控 keys 收成单行展开 */
+  handleExpandChange(row: LlmRow, expandedRows: LlmRow[]) {
+    if (!this.hasExpand) return;
+    const opened = expandedRows.some(item => item.key === row.key);
+    this.setExpandedKey(opened ? row.key : undefined);
+  }
+
+  setExpandedKey(key?: string) {
+    this.expandRowKeys = key ? [key] : [];
+  }
+
   clipTooltipContent(value: string) {
     if (!value) return EMPTY_TEXT;
     if (value.length <= 200) return value;
     return `${value.substring(0, 200)}...`;
+  }
+
+  handleCopyIoText(event: Event, text: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (!text) return;
+    copyText(text, msg => {
+      this.$bkMessage({
+        message: msg,
+        theme: 'error',
+      });
+    });
+    this.$bkMessage({
+      message: this.$t('复制成功'),
+      theme: 'success',
+    });
   }
 
   /** 单元格分发。取值字段与列 id 一致，值均已在数据转换阶段格式化完成 */
@@ -119,14 +156,7 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
           </span>
         );
       case 'duration':
-        return (
-          <span
-            class='llm-table-text'
-            v-bk-tooltips={{ content: row.elapsedDetailText }}
-          >
-            {value || EMPTY_TEXT}
-          </span>
-        );
+        return <span class='llm-table-text'>{value || EMPTY_TEXT}</span>;
       case 'tokens':
       case 'tokensBadge':
         return this.renderTokensBadge(value as ITokensCell);
@@ -146,25 +176,54 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
     }
   }
 
-  /** 输入 / 输出摘要：两侧各自缩略，中间箭头分隔，悬停各自展示完整文本 */
+  /** 输入 / 输出摘要：两侧各自缩略，中间箭头分隔；悬停弹出完整内容，超出 5 行滚动，可复制 */
   renderIoSummary(ioSummary: IIoSummaryCell) {
     const input = ioSummary?.input || EMPTY_TEXT;
     const output = ioSummary?.output || EMPTY_TEXT;
     return (
-      <div class='llm-table-io-summary'>
-        <span
-          class='io-text'
-          v-bk-overflow-tips={{ content: this.clipTooltipContent(input) }}
+      <bk-popover
+        width={597}
+        class='llm-table-io-popover-trigger'
+        tippy-options={{
+          animateFill: false,
+          animation: false,
+          arrow: false,
+          hideOnClick: false,
+          interactive: true,
+        }}
+        max-width={597}
+        placement='top'
+        theme='light padding-0 llm-table-io'
+        transfer
+      >
+        <div class='llm-table-io-summary'>
+          <span class='io-text'>{input}</span>
+          <i class='icon-monitor icon-next-one io-arrow' />
+          <span class='io-text'>{output}</span>
+        </div>
+        <div
+          class='llm-table-io-popover'
+          slot='content'
         >
-          {input}
-        </span>
-        <i class='icon-monitor icon-next-one io-arrow' />
-        <span
-          class='io-text'
-          v-bk-overflow-tips={{ content: this.clipTooltipContent(output) }}
-        >
-          {output}
-        </span>
+          {this.renderIoPopoverSection(this.$t('输入') as string, input)}
+          {this.renderIoPopoverSection(this.$t('输出') as string, output)}
+        </div>
+      </bk-popover>
+    );
+  }
+
+  /** 弹层内的输入 / 输出分区：标题 + 最多 5 行正文 + 复制 */
+  renderIoPopoverSection(title: string, content: string) {
+    return (
+      <div class='io-popover-section'>
+        <div class='io-popover-title'>{title}</div>
+        <div class='io-popover-box'>
+          <div class='io-popover-text'>{content}</div>
+          <i
+            class='icon-monitor icon-mc-copy io-popover-copy'
+            onClick={(event: Event) => this.handleCopyIoText(event, content)}
+          />
+        </div>
       </div>
     );
   }
@@ -237,7 +296,7 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
 
   render() {
     return (
-      <div class='llm-table'>
+      <div class={['llm-table', { 'is-expandable': this.hasExpand }]}>
         {this.loading ? (
           <TableSkeleton
             class='llm-table-skeleton'
@@ -253,9 +312,12 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
               placement: 'right',
             }}
             data={this.data}
+            expand-row-keys={this.expandRowKeys}
             max-height={this.maxHeight}
             outer-border={false}
             row-key='key'
+            on-expand-change={this.handleExpandChange}
+            on-row-click={this.handleRowClick}
             on-scroll-end={this.handleScrollEnd}
             on-sort-change={this.handleSortChange}
           >

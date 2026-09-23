@@ -58,3 +58,31 @@ class TestTGPAReportHandler(SimpleTestCase):
 
         wildcard_query = query["bool"]["must"][1]["bool"]["should"][2]
         self.assertEqual(wildcard_query["wildcard"]["extend_info"]["value"], r"*foo\*bar\?*")
+
+    def test_extend_info_uses_wildcard_match(self):
+        """extend_info 参数使用包含匹配"""
+        query = TGPAReportHandler._build_es_query(
+            bk_biz_id=100231,
+            extend_info="PeopleUnVisible",
+            start_time=1716000000000,
+            end_time=1716600000000,
+        )
+
+        self.assertEqual(
+            query["bool"]["must"][1],
+            {"wildcard": {"extend_info": {"value": "*PeopleUnVisible*"}}},
+        )
+
+    def test_extend_info_escapes_wildcard_operators(self):
+        """extend_info 参数的 wildcard 做转义"""
+        query = TGPAReportHandler._build_es_query(
+            bk_biz_id=100231,
+            extend_info=r"foo*bar?",
+            start_time=1716000000000,
+            end_time=1716600000000,
+        )
+
+        self.assertEqual(
+            query["bool"]["must"][1],
+            {"wildcard": {"extend_info": {"value": r"*foo\*bar\?*"}}},
+        )

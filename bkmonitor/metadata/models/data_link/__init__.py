@@ -16,7 +16,10 @@ from .data_link_configs import (  # noqa
     SurrealDBBindingConfig,
 )
 
+from .vm_query_cluster import VmQueryClusterConfig
+
 __all__ = [
+    "VmQueryClusterConfig",
     "DataLinkResourceConfigBase",
     "DataLink",
     "DataIdConfig",

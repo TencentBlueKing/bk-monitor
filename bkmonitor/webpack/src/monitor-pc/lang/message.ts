@@ -475,6 +475,7 @@ export default {
   确定回收所选分享链接: 'Recycle these sharing links ?',
   确定回收当前分享链接: 'Recycle the sharing link ?',
   '是否还原默认配置？': 'Do you want to restore the default configuration?',
+  当前已是默认配置: 'The current configuration is already the default',
   发送测试邮件成功: 'Sent test Email successful',
   索引集非COUNT汇聚方法需要选择一个指标: 'The index set non-COUNT aggregation method needs to select a metric',
   '是否克隆 {0} ?': 'Do you want to clone {0}?',

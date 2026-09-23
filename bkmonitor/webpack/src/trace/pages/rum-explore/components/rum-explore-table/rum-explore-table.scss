@@ -113,3 +113,12 @@
     }
   }
 }
+
+/* 字段设置弹层的已选字段：拖拽热区为整个左侧区域（dragHandle='.list-item-left'），光标与热区保持一致
+ * 弹层由 tippy 挂载于 body，不在 .rum-explore-table 子树内，故用宿主私有主题 .tippy-box[data-theme~='rum-explore-field-setting'] 限定作用域
+ */
+.tippy-box[data-theme~='rum-explore-field-setting'] {
+  .transfer-target .list-item .list-item-left {
+    cursor: move;
+  }
+}

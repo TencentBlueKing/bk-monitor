@@ -18,6 +18,7 @@ from monitor_web.performance.views import (
     HostPerformanceDetailViewSet,
     SearchHostInfoViewSet,
     SearchHostMetricViewSet,
+    SearchHostMetricStatsViewSet,
 )
 from monitor_web.permissions import BusinessViewPermission
 
@@ -29,6 +30,7 @@ from monitor_web.permissions import BusinessViewPermission
         HostPerformanceDetailViewSet,
         SearchHostInfoViewSet,
         SearchHostMetricViewSet,
+        SearchHostMetricStatsViewSet,
     ],
 )
 def test_host_read_endpoints_require_view_host(viewset_class):

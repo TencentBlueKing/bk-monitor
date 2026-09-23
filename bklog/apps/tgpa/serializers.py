@@ -183,7 +183,7 @@ class GetMergedTaskListSerializer(serializers.Serializer):
         label=_("数据源"), choices=["task", "report"], required=False, allow_null=True, allow_blank=True
     )
     task_id = serializers.IntegerField(label=_("后台任务ID"), required=False, allow_null=True)
-    keyword = serializers.CharField(label=_("关键字"), required=False, allow_null=True, allow_blank=True)
+    extend_info = serializers.CharField(label=_("扩展信息"), required=False, allow_null=True, allow_blank=True)
     openid = serializers.CharField(label=_("openid"), required=False, allow_null=True, allow_blank=True)
     file_name = serializers.CharField(label=_("文件名（精确匹配）"), required=False, allow_null=True, allow_blank=True)
     start_time = serializers.IntegerField(label=_("开始时间（毫秒时间戳）"), required=False, allow_null=True)

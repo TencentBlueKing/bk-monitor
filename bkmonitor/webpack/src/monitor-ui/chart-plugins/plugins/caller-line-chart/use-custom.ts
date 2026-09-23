@@ -412,9 +412,10 @@ export const createCustomEventSeries = (list: ICustomEventTagsItem[]) => {
 export const getCustomEventAnalysisConfig = async (
   params: Pick<IEventTagsItem, 'app_name' | 'service_name'> & {
     key: string;
-  }
+  },
+  requestConfig?: Record<string, any>
 ) => {
-  return await eventGetTagConfig(params)
+  return await eventGetTagConfig(params, requestConfig)
     .then((res: { columns: EventTagColumn[]; config: EventTagConfig }) => {
       const { columns, config } = res;
       if (config.source?.is_select_all) {
@@ -455,10 +456,16 @@ export const updateCustomEventAnalysisConfig = async (
     .catch(() => false);
 };
 
-export const getCustomEventSeries = async (params: Record<string, any>): Promise<ICustomEventTagsItem[]> => {
-  return await eventTimeSeries({
-    ...params,
-  })
+export const getCustomEventSeries = async (
+  params: Record<string, any>,
+  requestConfig?: Record<string, any>
+): Promise<ICustomEventTagsItem[]> => {
+  return await eventTimeSeries(
+    {
+      ...params,
+    },
+    requestConfig
+  )
     .then(data => {
       const series = data?.series?.slice(0, 1) || [];
       if (!series.length) return undefined;
