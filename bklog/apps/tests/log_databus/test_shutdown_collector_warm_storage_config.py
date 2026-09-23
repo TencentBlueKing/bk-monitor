@@ -83,6 +83,21 @@ class TestShutdownCollectorWarmStorageConfig(TestCase):
             table_id=table_id,
         )
 
+    def _execute_and_get_sql(self, cluster_id):
+        """
+        执行函数并返回其产生的 SQL 语句。
+
+        通过记录执行前的查询数量，精确定位目标查询，避免取到 setUp 或
+        _create_collector 产生的无关 SQL。
+
+        :param cluster_id: 集群 ID
+        :return: 函数执行产生的 SQL 语句
+        """
+        query_count_before = len(connection.queries)
+        with self.assertNumQueries(1):
+            shutdown_collector_warm_storage_config(cluster_id)
+        return connection.queries[query_count_before]["sql"]
+
     # ==================== SQL 优化验证测试 ====================
 
     def test_sql_single_query_with_field_projection(self):
@@ -102,10 +117,8 @@ class TestShutdownCollectorWarmStorageConfig(TestCase):
             },
         }
 
-        with self.assertNumQueries(1):
-            shutdown_collector_warm_storage_config(TARGET_CLUSTER_ID)
+        sql = self._execute_and_get_sql(TARGET_CLUSTER_ID)
 
-        sql = connection.queries[0]["sql"]
         self.assertIn("table_id", sql)
         self.assertIn("bk_biz_id", sql)
         self.assertNotIn("params", sql)
@@ -116,7 +129,8 @@ class TestShutdownCollectorWarmStorageConfig(TestCase):
         """
         验证 SQL WHERE 条件包含 is_deleted=False（软删除过滤）。
 
-        CollectorConfig 继承自 SoftDeleteModel，查询时应自动添加 is_deleted=False 条件。
+        CollectorConfig 继承链：CollectorConfig -> CollectorBase -> SoftDeleteModel，
+        查询时应自动添加 is_deleted=False 条件。
         """
         self._create_collector(table_id="1_bklog.test_index", bk_biz_id=100)
 
@@ -127,10 +141,8 @@ class TestShutdownCollectorWarmStorageConfig(TestCase):
             },
         }
 
-        with self.assertNumQueries(1):
-            shutdown_collector_warm_storage_config(TARGET_CLUSTER_ID)
+        sql = self._execute_and_get_sql(TARGET_CLUSTER_ID)
 
-        sql = connection.queries[0]["sql"]
         self.assertIn("is_deleted", sql)
 
     # ==================== 数据库过滤逻辑测试 ====================
@@ -344,4 +356,3 @@ class TestShutdownCollectorWarmStorageConfig(TestCase):
         self.assertIn(100, calls_biz_ids)
         self.assertIn(200, calls_biz_ids)
         self.assertIn(300, calls_biz_ids)
-
