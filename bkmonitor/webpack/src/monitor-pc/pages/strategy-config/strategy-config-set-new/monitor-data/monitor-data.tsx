@@ -406,7 +406,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     if (this.legacyMultiQuery) return;
     const alias = 'abcdefghijklmnopqrstuvwxyz'
       .split('')
-      .find(value => !this.sourceQueries.some(item => item.alias === value));
+      .find(value => !this.sourceQueries.some(item => item.alias.toLowerCase() === value));
     if (!alias) return;
     this.$emit('sourceQueriesChange', [...this.sourceQueries, { alias, promql: '' }]);
     if (this.sourceQueries.length === 1 && this.expression === this.sourceQueries[0].alias) {

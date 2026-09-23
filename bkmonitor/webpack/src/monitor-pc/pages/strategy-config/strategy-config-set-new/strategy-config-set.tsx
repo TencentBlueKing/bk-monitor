@@ -676,7 +676,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           this.sourceData.sourceCode = promql;
           this.sourceData.queryConfigs = (metric.query_configs?.length ? metric.query_configs : metric.data || []).map(
             (item, index) => ({
-              alias: (item.alias || LETTERS[index]).toLocaleLowerCase(),
+              alias: item.alias || LETTERS[index],
               promql: item.promql || '',
             })
           );
@@ -1300,7 +1300,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         this.sourceData.sourceCode = promqlItem.promql;
         this.sourceData.step = promqlItem.agg_interval;
         this.sourceData.queryConfigs = queryConfigs.map((item, index) => ({
-          alias: (item.alias || LETTERS[index]).toLocaleLowerCase(),
+          alias: item.alias || LETTERS[index],
           promql: item.promql || '',
         }));
         this.sourceData.legacyMultiQuery =
