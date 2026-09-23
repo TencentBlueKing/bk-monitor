@@ -135,44 +135,30 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             self.get_queries(filters, query_string), start_time, end_time, field, method
         )
 
-    def query_fields_aggregated_group(
+    def statistics(
         self,
         start_time: int | None,
         end_time: int | None,
-        fields: list[str],
-        method: str,
+        field: str,
+        cal_type: str,
+        baseline: str,
+        time_shifts: list[str],
         group_by: list[str] | None = None,
+        interval: int | None = None,
         filters: list[types.Filter] | None = None,
         query_string: str = "",
     ):
-        return super()._query_fields_aggregated_group(
-            self.get_queries(filters, query_string), start_time, end_time, fields, method, group_by
+        return super()._statistics(
+            self.get_queries(filters, query_string),
+            start_time,
+            end_time,
+            field,
+            cal_type,
+            baseline,
+            time_shifts,
+            group_by,
+            interval,
         )
-
-    def query_fields_graph_config(
-        self,
-        start_time: int | None,
-        end_time: int | None,
-        fields: list[str],
-        method: str,
-        interval: int,
-        group_by: list[str] | None = None,
-        filters: list[types.Filter] | None = None,
-        query_string: str = "",
-    ):
-        config = super()._query_fields_graph_config(
-            self.get_queries(filters, query_string), start_time, end_time, fields, method, interval, group_by
-        )
-        config.update(
-            {
-                "time_alignment": False,
-                "query_method": "query_reference",
-                "null_as_zero": True,
-                "start_time": config["start_time"] // self.TIME_FIELD_ACCURACY,
-                "end_time": config["end_time"] // self.TIME_FIELD_ACCURACY,
-            }
-        )
-        return config
 
     @classmethod
     def _apply_field_spec(cls, field_dict: dict[str, Any], spec: FieldSpec) -> dict[str, Any]:
