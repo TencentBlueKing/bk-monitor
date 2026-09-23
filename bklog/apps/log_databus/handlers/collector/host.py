@@ -113,6 +113,11 @@ class HostCollectorHandler(CollectorHandler):
 
         return NodeManV3CollectorInstaller(self.data)
 
+    def _persist_nodeman_v3_task_ids(self, installer) -> None:
+        """把本轮 V3 收敛的父 workflow ID 写回采集项，供接口回显与历史任务查询。"""
+        self.data.task_id_list = installer.latest_task_ids()
+        self.data.save(update_fields=["task_id_list"])
+
     def _pre_start(self):
         if self.use_nodeman_v3:
             # V3 没有订阅开关这一层，启用动作由 start() 的期望态收敛完成
@@ -127,7 +132,9 @@ class HostCollectorHandler(CollectorHandler):
     def start(self, **kwargs):
         super().start()
         if self.use_nodeman_v3:
-            self.nodeman_v3_installer.start()
+            installer = self.nodeman_v3_installer
+            installer.start()
+            self._persist_nodeman_v3_task_ids(installer)
             return True
         if self.data.subscription_id:
             return self._run_subscription_task()
@@ -148,7 +155,9 @@ class HostCollectorHandler(CollectorHandler):
     def stop(self, is_stop_index_set=True, **kwargs):
         super().stop(is_stop_index_set=is_stop_index_set)
         if self.use_nodeman_v3:
-            self.nodeman_v3_installer.stop()
+            installer = self.nodeman_v3_installer
+            installer.stop()
+            self._persist_nodeman_v3_task_ids(installer)
             return True
         if self.data.subscription_id:
             return self._run_subscription_task("STOP")
@@ -166,7 +175,9 @@ class HostCollectorHandler(CollectorHandler):
         }
         """
         if self.use_nodeman_v3:
-            self.nodeman_v3_installer.destroy()
+            installer = self.nodeman_v3_installer
+            installer.destroy()
+            self._persist_nodeman_v3_task_ids(installer)
             return
         if not self.data.subscription_id:
             return
@@ -1169,9 +1180,10 @@ class HostCollectorHandler(CollectorHandler):
             return {"task_ready": True, "contents": []}
 
         if self.use_nodeman_v3:
-            task_ids = [str(task_id) for task_id in (id_list or self.data.task_id_list or [])] if read_only else []
-            if read_only and not task_ids:
-                return {"task_ready": False, "contents": []}
+            # 只有调用方显式传 task_id_list 时才查历史任务；普通状态页必须按本地最新 generation
+            # 解析。采集项升级前或异常中断时 task_id_list 可能滞后，用它硬筛会把停用/删除的新
+            # workflow 隐藏掉，页面继续展示上一轮 update 的成功状态。
+            task_ids = [str(task_id) for task_id in id_list] if read_only and id_list else []
             instance_status = self.format_task_instance_status(self._v3_instance_data(task_ids=task_ids))
             # task_ready 恒为 True：V2 里它表示「订阅任务已创建」，而 V3 的状态不依赖任务对象，
             # 就算最近一轮 workflow 还没落库，本地快照也已经能回答每台主机的状态

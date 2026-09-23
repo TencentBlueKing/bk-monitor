@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 
 from datetime import timedelta
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -984,6 +984,75 @@ class HostHandlerWiringTest(TestCase):
 
         parent_calls = [payload for name, payload in self.client.calls if name == "list_deploy_policy_workflows"]
         self.assertEqual(parent_calls[-1]["exact_include_conditions"]["workflow_id"], [old_parent_id])
+
+    def test_current_status_does_not_filter_by_stale_persisted_task_id(self):
+        self.collector_config.task_id_list = ["parent-workflow-old"]
+        self.collector_config.save(update_fields=["task_id_list"])
+
+        with patch.object(self.handler, "_v3_instance_data", return_value=[]) as instance_data:
+            result = self.handler.get_task_status([], read_only=True)
+
+        instance_data.assert_called_once_with(task_ids=[])
+        self.assertTrue(result["task_ready"])
+
+    def test_stop_persists_latest_parent_workflow_id(self):
+        from apps.log_databus.handlers.collector import HostCollectorHandler
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        installer = MagicMock()
+        installer.latest_task_ids.return_value = ["parent-workflow-stop"]
+        with (
+            patch.object(CollectorHandler, "stop", return_value=True),
+            patch.object(
+                HostCollectorHandler,
+                "nodeman_v3_installer",
+                new_callable=PropertyMock,
+                return_value=installer,
+            ),
+        ):
+            self.handler.stop(is_stop_index_set=False)
+
+        installer.stop.assert_called_once_with()
+        self.collector_config.refresh_from_db()
+        self.assertEqual(self.collector_config.task_id_list, ["parent-workflow-stop"])
+
+    def test_start_persists_latest_parent_workflow_id(self):
+        from apps.log_databus.handlers.collector import HostCollectorHandler
+        from apps.log_databus.handlers.collector.base import CollectorHandler
+
+        installer = MagicMock()
+        installer.latest_task_ids.return_value = ["parent-workflow-start"]
+        with (
+            patch.object(CollectorHandler, "start", return_value=True),
+            patch.object(
+                HostCollectorHandler,
+                "nodeman_v3_installer",
+                new_callable=PropertyMock,
+                return_value=installer,
+            ),
+        ):
+            self.handler.start()
+
+        installer.start.assert_called_once_with()
+        self.collector_config.refresh_from_db()
+        self.assertEqual(self.collector_config.task_id_list, ["parent-workflow-start"])
+
+    def test_destroy_persists_latest_parent_workflow_id(self):
+        from apps.log_databus.handlers.collector import HostCollectorHandler
+
+        installer = MagicMock()
+        installer.latest_task_ids.return_value = ["parent-workflow-destroy"]
+        with patch.object(
+            HostCollectorHandler,
+            "nodeman_v3_installer",
+            new_callable=PropertyMock,
+            return_value=installer,
+        ):
+            self.handler._pre_destroy()
+
+        installer.destroy.assert_called_once_with()
+        self.collector_config.refresh_from_db()
+        self.assertEqual(self.collector_config.task_id_list, ["parent-workflow-destroy"])
 
     def test_retry_goes_to_v3_workflow_not_v2_subscription(self):
         from apps.api import NodeApi
