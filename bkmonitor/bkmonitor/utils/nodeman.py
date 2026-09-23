@@ -3,9 +3,9 @@
 from copy import deepcopy
 from typing import Any
 
+from bk_monitor_base.config.nodeman import is_nodeman_v3_enabled
 from bk_monitor_base.infras.nodeman_control.contracts import HostQueries, OfficialPlugins, PluginOperation
 from bk_monitor_base.infras.nodeman_control.v3 import V3HostQueries, V3OfficialPlugins
-from django.conf import settings
 
 from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.utils.nodeman_v2 import V2HostQueries, V2OfficialPlugins
@@ -24,11 +24,11 @@ _v2_plugins, _v3_plugins = V2OfficialPlugins(), V3OfficialPlugins(_request_v3)
 
 
 def get_host_queries() -> HostQueries:
-    return _v3_hosts if settings.BKNODEMAN_CONTROL_API_BASE_URL else _v2_hosts
+    return _v3_hosts if is_nodeman_v3_enabled() else _v2_hosts
 
 
 def get_official_plugins() -> OfficialPlugins:
-    return _v3_plugins if settings.BKNODEMAN_CONTROL_API_BASE_URL else _v2_plugins
+    return _v3_plugins if is_nodeman_v3_enabled() else _v2_plugins
 
 
 def _tenant(tenant: str | None, biz_id: int | None = None) -> str:

@@ -23,13 +23,15 @@ from metadata.management.commands.deploy_official_plugin import Command
 
 @pytest.mark.parametrize("multi_tenant", [False, True])
 @pytest.mark.parametrize("v2_url", ["", "https://v2.example.com/"])
-@pytest.mark.parametrize("control_url", ["", "https://v3.example.com/"])
-def test_v2_apis_keep_original_destination(multi_tenant, v2_url, control_url):
-    with override_settings(
-        ENABLE_MULTI_TENANT_MODE=multi_tenant,
-        BKNODEMAN_API_BASE_URL=v2_url,
-        BKNODEMAN_CONTROL_API_BASE_URL=control_url,
-        BK_COMPONENT_API_URL="https://gateway.example.com",
+@pytest.mark.parametrize("enabled", ["false", "true"])
+def test_v2_apis_keep_original_destination(multi_tenant, v2_url, enabled):
+    with (
+        mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": enabled}),
+        override_settings(
+            ENABLE_MULTI_TENANT_MODE=multi_tenant,
+            BKNODEMAN_API_BASE_URL=v2_url,
+            BK_COMPONENT_API_URL="https://gateway.example.com",
+        ),
     ):
         expected = v2_url or (
             "https://gateway.example.com/api/bk-nodeman/prod/"
@@ -46,12 +48,13 @@ def test_v2_apis_keep_original_destination(multi_tenant, v2_url, control_url):
         assert v2.UploadResource().base_url == v2.UploadResource.base_url
 
 
-@pytest.mark.parametrize("configured", [False, True])
-def test_capability_backend_selection(configured):
-    with override_settings(BKNODEMAN_CONTROL_API_BASE_URL="https://v3.example.com/" if configured else ""):
-        assert isinstance(nodeman.get_host_queries(), nodeman.V3HostQueries if configured else nodeman.V2HostQueries)
+@pytest.mark.parametrize("enabled", [None, "false", "true"])
+def test_capability_backend_selection(enabled):
+    with mock.patch.dict("os.environ", {} if enabled is None else {"BKAPP_ENABLE_NODEMAN_V3": enabled}, clear=True):
+        use_v3 = enabled == "true"
+        assert isinstance(nodeman.get_host_queries(), nodeman.V3HostQueries if use_v3 else nodeman.V2HostQueries)
         assert isinstance(
-            nodeman.get_official_plugins(), nodeman.V3OfficialPlugins if configured else nodeman.V2OfficialPlugins
+            nodeman.get_official_plugins(), nodeman.V3OfficialPlugins if use_v3 else nodeman.V2OfficialPlugins
         )
 
 
@@ -80,8 +83,15 @@ def test_v3_api_registration_and_serializer():
 
 
 @pytest.mark.parametrize("outcome", ["success", "api_error", "network_error"])
-@override_settings(ENABLE_MULTI_TENANT_MODE=True, BKNODEMAN_CONTROL_API_BASE_URL="https://v3.example.com/gateway/")
-def test_v3_native_request_and_no_fallback(outcome):
+@pytest.mark.parametrize(
+    ("override", "expected_url"),
+    [
+        ("", "https://gateway.example.com/api/bk-nodemgr/prod/api/v3/plugin/install"),
+        ("https://nodeman-v3.example.com/custom/", "https://nodeman-v3.example.com/custom/api/v3/plugin/install"),
+    ],
+)
+@override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_COMPONENT_API_URL="https://gateway.example.com/")
+def test_v3_native_request_and_no_fallback(outcome, override, expected_url):
     resource = v3.InstallPluginResource()
     payload = {"bk_tenant_id": "t", "plugin": [{"bk_host_id": 1, "plugin_name": "bkmonitorbeat", "version": "1.0"}]}
     response = mock.Mock()
@@ -91,6 +101,7 @@ def test_v3_native_request_and_no_fallback(outcome):
         else {"code": 40001, "message": "denied", "data": None}
     )
     with (
+        mock.patch.dict("os.environ", {"BKAPP_BKNODEMAN_V3_API_BASE_URL": override}),
         mock.patch.object(v3, "get_admin_username", return_value="tenant-admin"),
         mock.patch.object(resource.session, "request", return_value=response) as request,
     ):
@@ -103,13 +114,13 @@ def test_v3_native_request_and_no_fallback(outcome):
                 resource.request(payload)
         request.assert_called_once()
         sent = request.call_args.kwargs
-        assert sent["url"] == "https://v3.example.com/gateway/api/v3/plugin/install"
+        assert sent["url"] == expected_url
         assert sent["json"] == {"plugin": payload["plugin"]}
         assert sent["headers"]["X-Bk-Tenant-Id"] == "t"
         assert json.loads(sent["headers"]["x-bkapi-authorization"])["bk_username"] == "tenant-admin"
 
 
-@override_settings(BKNODEMAN_CONTROL_API_BASE_URL="https://v3.example.com/")
+@mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": "true"})
 def test_auto_deploy_proxy_keeps_v2_package_query_and_install_chain():
     spec = importlib.util.spec_from_file_location(
         "nodeman_test_auto_deploy_proxy", Path(v2.__file__).parents[2] / "metadata/task/auto_deploy_proxy.py"
@@ -137,7 +148,7 @@ def test_auto_deploy_proxy_keeps_v2_package_query_and_install_chain():
         official.assert_not_called()
 
 
-@override_settings(BKNODEMAN_CONTROL_API_BASE_URL="https://v3.example.com/")
+@mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": "true"})
 def test_official_command_uses_native_install_without_polling():
     with (
         mock.patch.object(api.cmdb, "get_host_by_ip", return_value=[SimpleNamespace(bk_host_id=1)]),
@@ -173,7 +184,7 @@ def test_space_mapping_keeps_caller_input_unchanged():
         assert params == original
 
 
-@override_settings(BKNODEMAN_CONTROL_API_BASE_URL="https://v3.example.com/")
+@mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": "true"})
 def test_official_command_resolves_latest_without_new_user_parameter():
     """沿用命令的 latest 入参，由 V3 能力实现解析，不要求运维指定版本。"""
     with (

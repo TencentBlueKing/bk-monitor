@@ -17,42 +17,51 @@ from bk_monitor_base.infras.third_party_api.errors import BkApiError
 from bk_monitor_base.infras.third_party_api.nodeman import api, client, v3
 
 
-def make_config(multi_tenant=True, control=True, legacy_mode="apigw"):
+def make_config(multi_tenant=True, legacy_mode="apigw"):
     api_configs = {
         "nodeman": BkApiModuleConfig.model_validate({"mode": legacy_mode, "custom_api_url": "https://v2.example.com/"})
     }
-    if control:
-        api_configs["nodeman_control"] = BkApiModuleConfig.model_validate(
-            {"custom_api_url": "https://v3.example.com/gateway/"}
+    return Config(
+        blueking=BlueKingConfig(
+            enable_multi_tenancy=multi_tenant,
+            api_configs=api_configs,
+            bk_component_api_url="https://gateway.example.com/",
         )
-    return Config(blueking=BlueKingConfig(enable_multi_tenancy=multi_tenant, api_configs=api_configs))
+    )
 
 
 @pytest.mark.parametrize("multi_tenant", [False, True])
-@pytest.mark.parametrize("control", [False, True])
+@pytest.mark.parametrize("enabled", ["false", "true"])
 @pytest.mark.parametrize("legacy_mode", ["apigw", "esb"])
-def test_v2_apis_never_change_destination(multi_tenant, control, legacy_mode):
-    config = make_config(multi_tenant, control, legacy_mode)
-    for _, cls in inspect.getmembers(client, inspect.isclass):
-        if issubclass(cls, client.NodeManApiClient) and cls is not client.NodeManApiClient:
-            assert cls(config=config)._get_api_url({"id": 1}).startswith("https://v2.example.com/")
+def test_v2_apis_never_change_destination(multi_tenant, enabled, legacy_mode):
+    with mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": enabled}):
+        config = make_config(multi_tenant, legacy_mode)
+        for _, cls in inspect.getmembers(client, inspect.isclass):
+            if issubclass(cls, client.NodeManApiClient) and cls is not client.NodeManApiClient:
+                assert cls(config=config)._get_api_url({"id": 1}).startswith("https://v2.example.com/")
 
 
-@pytest.mark.parametrize("control", [False, True])
-def test_capability_selection(control):
-    with mock.patch.object(nodeman_control, "get_config", return_value=make_config(control=control)):
-        assert isinstance(nodeman_control.get_host_queries(), V3HostQueries if control else V2HostQueries)
-        assert isinstance(nodeman_control.get_official_plugins(), V3OfficialPlugins if control else V2OfficialPlugins)
+@pytest.mark.parametrize("enabled", [None, "false", "true"])
+def test_capability_selection(enabled):
+    with mock.patch.dict("os.environ", {} if enabled is None else {"BKAPP_ENABLE_NODEMAN_V3": enabled}, clear=True):
+        use_v3 = enabled == "true"
+        assert isinstance(nodeman_control.get_host_queries(), V3HostQueries if use_v3 else V2HostQueries)
+        assert isinstance(nodeman_control.get_official_plugins(), V3OfficialPlugins if use_v3 else V2OfficialPlugins)
 
 
-def test_missing_v3_url_never_falls_back():
+@pytest.mark.parametrize(
+    ("override", "expected"),
+    [
+        ("", "https://gateway.example.com/api/bk-nodemgr/prod/api/v3/plugin/install"),
+        ("https://nodeman-v3.example.com/custom", "https://nodeman-v3.example.com/custom/api/v3/plugin/install"),
+    ],
+)
+def test_v3_url_inferred_or_explicitly_overridden(override, expected):
     config = make_config()
-    config.blueking.api_configs["nodeman_control"] = BkApiModuleConfig(mode="apigw")
     resource = v3.InstallPlugin(config=config)
-    with mock.patch.object(resource.session, "request") as request:
-        with pytest.raises(ValueError, match="custom_api_url"):
-            resource.request(bk_tenant_id="t", user_params={"bk_username": "admin"}, params={})
-        request.assert_not_called()
+    assert "nodeman_control" not in config.blueking.api_configs
+    with mock.patch.dict("os.environ", {"BKAPP_BKNODEMAN_V3_API_BASE_URL": override}):
+        assert resource._get_api_url({}) == expected
 
 
 @pytest.mark.parametrize("outcome", ["success", "api_error", "network_error"])
@@ -78,7 +87,7 @@ def test_native_request_response_and_no_fallback(outcome, multi_tenant):
                 resource.request(bk_tenant_id="t", user_params={"bk_username": "admin"}, params=payload)
         request.assert_called_once()
         sent = request.call_args.kwargs
-        assert sent["url"] == "https://v3.example.com/gateway/api/v3/plugin/install"
+        assert sent["url"] == "https://gateway.example.com/api/bk-nodemgr/prod/api/v3/plugin/install"
         assert sent["json"] == payload
         assert sent["headers"]["X-Bk-Tenant-Id"] == ("t" if multi_tenant else "default")
         assert json.loads(sent["headers"]["X-Bkapi-Authorization"])["bk_username"] == "admin"
@@ -104,7 +113,7 @@ def test_v2_capabilities_keep_existing_protocol():
 
 def test_base_facade_invokes_native_client():
     with (
-        mock.patch.object(nodeman_control, "get_config", return_value=make_config()),
+        mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": "true"}),
         mock.patch.object(v3, "install_plugin", return_value={"workflow_id": "wf-1"}) as install,
         mock.patch.object(api, "plugin_operate") as old_install,
     ):
@@ -116,9 +125,9 @@ def test_base_facade_invokes_native_client():
 
 
 def test_v2_latest_does_not_perform_v3_version_resolution():
-    """不配置 V3 时 latest 的语义和调用协议均保持 V2。"""
+    """关闭 V3 时 latest 的语义和调用协议均保持 V2。"""
     with (
-        mock.patch.object(nodeman_control, "get_config", return_value=make_config(control=False)),
+        mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": "false"}),
         mock.patch.object(api, "plugin_operate", return_value={"job_id": 7}) as install,
         mock.patch.object(v3, "list_plugins") as lookup,
     ):
