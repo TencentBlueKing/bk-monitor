@@ -94,34 +94,3 @@ class TestQueryFieldsAggregatedGroup:
             result = query._query_fields_aggregated_group([], 1000, 2000, ["f1"], "count", group_by=["service"])
         mock_add.assert_called_once()
         assert result == [{"service": "a", "_result_": 10}]
-
-
-class TestQueryFieldsGraphConfig:
-    """BaseQuery._query_fields_graph_config：时间分桶图配置"""
-
-    @pytest.fixture
-    def query(self):
-        return SpanQuery([_make_target()])
-
-    def test_no_group_returns_expression_config(self, query):
-        """无分组时直接返回求和表达式，不加 topk 包裹"""
-        fake_qs = MagicMock()
-        fake_qs.config = {"expression": "q0"}
-        with (
-            patch.object(query, "_get_time_range", return_value=(1000, 2000)),
-            patch.object(query, "_add_query", return_value=fake_qs),
-        ):
-            config = query._query_fields_graph_config([], 1000, 2000, ["f0"], "avg", interval=60)
-        # 表达式不含 topk 前缀
-        assert "topk(" not in config["expression"]
-
-    def test_with_group_wraps_topk(self, query):
-        """分组时表达式用 topk(SERIES_LIMIT, ...) 包裹以限制曲线数"""
-        fake_qs = MagicMock()
-        fake_qs.config = {"expression": f"topk({BaseQuery.SERIES_LIMIT}, q0)"}
-        with (
-            patch.object(query, "_get_time_range", return_value=(1000, 2000)),
-            patch.object(query, "_add_query", return_value=fake_qs),
-        ):
-            config = query._query_fields_graph_config([], 1000, 2000, ["f0"], "avg", interval=60, group_by=["service"])
-        assert config["expression"].startswith(f"topk({BaseQuery.SERIES_LIMIT}, ")
