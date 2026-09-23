@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from dataclasses import dataclass
 from datetime import timedelta
 
 from django.conf import settings
@@ -36,6 +37,23 @@ from apps.log_search.constants import (
 )
 from apps.log_search.export.config import policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
+
+
+@dataclass(frozen=True)
+class PartFence:
+    """分片状态写入的身份令牌：task_id 标识投递，attempts 标识认领。"""
+
+    task_id: str
+    attempts: int
+
+    @classmethod
+    def of(cls, part):
+        """从分片实例取出当前栅栏令牌。"""
+        return cls(task_id=part.task_id, attempts=part.attempts)
+
+
+def _fenced(part, fence):
+    return part.task_id == fence.task_id and part.attempts == fence.attempts
 
 
 def leaf_parts(job):
@@ -249,12 +267,21 @@ def dispatch_part(part_id, task_id):
         return part
 
 
-def claim_part(part_id):
-    """Worker 开始执行时占分片；重复投递、已取消或已回收的投递不会发起查询。"""
+def claim_part(part_id, task_id):
+    """
+    Worker 开始执行时占分片；已取消、已细分或属于其它投递的消息不会发起查询。
+
+    同一次投递被重发（worker 崩溃后由 broker 重投递）时允许重新认领，不必干等分片超时回收：
+    投递身份未变不会串投递，旧执行会被递增后的 attempts 挡在门外。
+    """
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=_job_id_of(part_id))
         part = ExportPart.objects.select_for_update().get(pk=part_id)
-        if part.status != ExportPartStatus.DISPATCHED or job.status != ExportJobStatus.RUNNING:
+        if (
+            part.task_id != task_id
+            or part.status not in ExportPartStatus.INFLIGHT
+            or job.status != ExportJobStatus.RUNNING
+        ):
             return None
         if part.attempts >= policy_from_snapshot(job.policy).part_max_attempts:
             _fail_locked(job, part, "PART_RETRIES_EXHAUSTED", "执行次数已耗尽", retryable=False)
@@ -268,24 +295,27 @@ def claim_part(part_id):
         )
 
 
-def set_stage(part_id, stage):
+def set_stage(part_id, fence, stage):
     """
-    推进分片执行阶段。
-
-    进入上传阶段时一并把状态推进到 UPLOADING，与方案里的
-    `RUNNING -> UPLOADING -> SUCCESS` 保持一致；分片已被回收或取消时不做任何事。
+    推进分片执行阶段；进入上传阶段时一并把状态推进到 UPLOADING。
+    返回更新行数，0 表示本次执行已经出局。
     """
     changes = {"stage": stage, "updated_at": timezone.now()}
     if stage == ExportStage.UPLOAD:
         changes["status"] = ExportPartStatus.UPLOADING
-    return ExportPart.objects.filter(pk=part_id, status__in=ExportPartStatus.EXECUTING).update(**changes)
+    return ExportPart.objects.filter(
+        pk=part_id,
+        task_id=fence.task_id,
+        attempts=fence.attempts,
+        status__in=ExportPartStatus.EXECUTING,
+    ).update(**changes)
 
 
-def complete_part(part_id, *, actual_rows, actual_bytes, compressed_bytes, object_key, checksum):
+def complete_part(part_id, fence, *, actual_rows, actual_bytes, compressed_bytes, object_key, checksum):
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=_job_id_of(part_id))
         part = ExportPart.objects.select_for_update().get(pk=part_id)
-        if part.status not in ExportPartStatus.EXECUTING:
+        if part.status not in ExportPartStatus.EXECUTING or not _fenced(part, fence):
             # 已被超时回收并重新投递，本次结果作废
             return None
         now = timezone.now()
@@ -308,10 +338,12 @@ def complete_part(part_id, *, actual_rows, actual_bytes, compressed_bytes, objec
         return part
 
 
-def fail_part(part_id, *, error_code, error_detail="", retryable=True):
+def fail_part(part_id, fence, *, error_code, error_detail="", retryable=True):
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=_job_id_of(part_id))
         part = ExportPart.objects.select_for_update().get(pk=part_id)
+        if not _fenced(part, fence):
+            return None
         return _fail_locked(job, part, error_code, error_detail, retryable=retryable)
 
 
@@ -401,6 +433,26 @@ def _split_locked(job, part, error_code, error_detail):
     return part
 
 
+def _is_stale(part, cutoff):
+    """分片是否已超过执行超时；口径需与 recover_stale_parts 的候选查询保持一致。"""
+    if part.status in ExportPartStatus.EXECUTING:
+        return part.started_at is not None and part.started_at < cutoff
+    if part.status == ExportPartStatus.DISPATCHED:
+        return part.updated_at < cutoff
+    return False
+
+
+def recover_part(part_id, cutoff=None):
+    """回收单个超时未完成的分片；在行锁内重判，避免误回收候选查询之后刚被认领或重新投递的分片。"""
+    cutoff = cutoff or timezone.now() - timedelta(seconds=settings.ASYNC_EXPORT_PART_TIMEOUT)
+    with transaction.atomic():
+        job = ExportJob.objects.select_for_update().get(pk=_job_id_of(part_id))
+        part = ExportPart.objects.select_for_update().get(pk=part_id)
+        if not _is_stale(part, cutoff):
+            return None
+        return _fail_locked(job, part, "PART_TIMEOUT", "分片执行超时，已重新调度", retryable=True)
+
+
 def recover_stale_parts(limit=None):
     """
     回收超时未完成的分片。
@@ -410,17 +462,18 @@ def recover_stale_parts(limit=None):
     """
     limit = limit or settings.ASYNC_EXPORT_COORDINATE_BATCH
     cutoff = timezone.now() - timedelta(seconds=settings.ASYNC_EXPORT_PART_TIMEOUT)
-    stale = (
+    candidates = (
         ExportPart.objects.filter(status__in=ExportPartStatus.INFLIGHT)
         .filter(
             Q(status=ExportPartStatus.DISPATCHED, updated_at__lt=cutoff)
             | Q(status__in=ExportPartStatus.EXECUTING, started_at__lt=cutoff)
         )
+        .order_by("pk")
         .values_list("pk", flat=True)[:limit]
     )
     recovered = []
-    for part_id in list(stale):
-        if fail_part(part_id, error_code="PART_TIMEOUT", error_detail="分片执行超时，已重新调度", retryable=True):
+    for part_id in list(candidates):
+        if recover_part(part_id, cutoff):
             recovered.append(part_id)
     return recovered
 
