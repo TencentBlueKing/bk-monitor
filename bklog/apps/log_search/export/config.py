@@ -12,6 +12,10 @@ PLAN_TASK_NAME = "apps.log_search.tasks.sharded_export.plan_sharded_export"
 PART_TASK_NAME = "apps.log_search.tasks.sharded_export.execute_sharded_export_part"
 FINALIZE_TASK_NAME = "apps.log_search.tasks.sharded_export.finalize_sharded_export"
 
+# 队列名需与 support-files/supervisord.conf 的 -Q 保持一致
+PART_QUEUE = "sharded_export"
+CONTROL_QUEUE = "celery"
+
 
 @dataclass(frozen=True)
 class ExportPolicy:

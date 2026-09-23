@@ -35,7 +35,9 @@ from django.utils import timezone
 from apps.log_search.constants import ExportJobStatus, ExportPartStatus
 from apps.log_search.export import state
 from apps.log_search.export.config import (
+    CONTROL_QUEUE,
     FINALIZE_TASK_NAME,
+    PART_QUEUE,
     PART_TASK_NAME,
     PLAN_TASK_NAME,
     current_policy,
@@ -47,7 +49,7 @@ from apps.utils.log import logger
 
 
 def _send(task_name, *args, **kwargs):
-    queue = kwargs.pop("queue", settings.ASYNC_EXPORT_CONTROL_QUEUE)
+    queue = kwargs.pop("queue", CONTROL_QUEUE)
     return app.send_task(task_name, args=list(args), queue=queue, retry=False, **kwargs)
 
 
@@ -90,9 +92,8 @@ def dispatch_ready_parts():
     并行额度只来自 FeatureConfig：单 Job 上限、单索引集上限、环境全局上限三者取小。
     多个任务同时等待时，环境全局额度按竞争任务数均分（两个任务即 2+2），先到的大任务
     不会在一个调度周期内占满全局槽位；只有一个任务在等待时它仍然可以借满全局额度，
-    避免槽位闲置。一期不引入分布式令牌：在途分片本身就是预算账本，直接按数据库计数
-    判断是否还有额度；并发投递由「先占用分片状态、再发布消息」和行锁兜底，极端情况下
-    可能略微超出全局上限。
+    避免槽位闲置。在途分片本身就是预算账本，直接按数据库计数判断额度；同一个分片不会
+    被重复投递，轮次之间由调度任务的共享锁保证不会同时算出两份额度。
     """
     jobs = list(
         ExportJob.objects.filter(status__in=[ExportJobStatus.READY, ExportJobStatus.RUNNING]).order_by(
@@ -138,7 +139,7 @@ def dispatch_ready_parts():
             if part is None:
                 break
             try:
-                _send(PART_TASK_NAME, part.pk, task_id=part.task_id, queue=settings.ASYNC_EXPORT_PART_QUEUE)
+                _send(PART_TASK_NAME, part.pk, task_id=part.task_id, queue=PART_QUEUE)
             except Exception as error:  # pylint: disable=broad-except
                 logger.exception("[dispatch_ready_parts] part=%s publish failed: %s", part.pk, error)
                 state.fail_part(
