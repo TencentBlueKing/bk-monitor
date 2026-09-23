@@ -88,6 +88,11 @@ def _validated_policy(raw):
     return ExportPolicy(**values)
 
 
+# 策略分两类用途，读入口不同，改动时注意不要混用：
+# - 任务行为（重试次数、产物保留时间等）读任务创建时的快照 policy_from_snapshot，
+#   灰度期调参不会改变已准入任务的行为；
+# - 环境容量（单索引集并行上限、环境全局并行度）读实时 current_policy，
+#   运维改配置后下一轮调度即生效。
 def current_policy():
     """读取当前动态策略；开关关闭时仍供存量任务和调度器读取。"""
     toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_SHARDED)

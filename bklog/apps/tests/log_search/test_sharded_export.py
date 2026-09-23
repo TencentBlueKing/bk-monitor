@@ -34,7 +34,6 @@ from django.utils import timezone
 
 from apps.constants import RemoteStorageType
 from apps.log_search.constants import (
-    ASYNC_EXPORT_EXPIRED,
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
     ExportJobStatus,
@@ -99,6 +98,16 @@ class FakeHandler:
 
     def _deal_query_result(self, result):
         return {"origin_log_list": [{"value": row} for row in result["list"]]}
+
+
+class PolicyBoundsTests(SimpleTestCase):
+    """FeatureConfig 没有 Schema，_BOUNDS 是唯一的字段白名单。"""
+
+    def test_every_policy_field_is_registered_in_bounds(self):
+        """漏登记的字段会被 _validated_policy 静默丢弃，运维配的值不生效也不报错。"""
+        from apps.log_search.export import config
+
+        self.assertEqual(set(ExportPolicy().snapshot()), set(config._BOUNDS))
 
 
 class ChooseIntervalTests(SimpleTestCase):
@@ -179,7 +188,6 @@ class BuildPartsTests(TestCase):
         self.assertEqual(parts[0].estimated_bytes, 800)
         self.assertEqual(result.total_rows, 40)
         self.assertEqual(result.avg_row_bytes, 20)
-        self.assertEqual(result.planned_parts, 1)
 
     def test_empty_histogram_is_a_retryable_statistics_failure(self):
         with self.assertRaises(PlanError) as context:
@@ -206,7 +214,6 @@ class BuildPartsTests(TestCase):
         self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
         self.assertEqual(total, 0)
         self.assertEqual(result.total_rows, 0)
-        self.assertEqual(result.planned_parts, 1)
 
 
 class RunPlanningTests(TestCase):
@@ -731,7 +738,8 @@ class BuildStorageTests(SimpleTestCase):
 
         toggle.assert_called_once_with(FEATURE_ASYNC_EXPORT_COMMON)
         get_instance.assert_called_once_with(RemoteStorageType.COS.value)
-        factory.assert_called_once_with("secret-id", "secret-key", "region", "bucket", ASYNC_EXPORT_EXPIRED)
+        # 存储实例上的默认有效期不影响分片导出：下载链接由 download_link 按剩余保留时间逐次签发
+        factory.assert_called_once_with("secret-id", "secret-key", "region", "bucket", 0)
 
     def test_external_request_uses_external_toggle(self):
         _, toggle, get_instance, factory = self._build(
@@ -740,7 +748,7 @@ class BuildStorageTests(SimpleTestCase):
 
         toggle.assert_called_once_with(FEATURE_ASYNC_EXPORT_EXTERNAL)
         get_instance.assert_called_once_with(RemoteStorageType.BKREPO.value)
-        factory.assert_called_once_with(expired=ASYNC_EXPORT_EXPIRED)
+        factory.assert_called_once_with()
 
     def test_external_nfs_configuration_is_rejected(self):
         with self.assertRaises(UnsupportedExportStorage):

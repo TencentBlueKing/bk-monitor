@@ -106,7 +106,12 @@ def _finish_job(job, status, error_code="", error_detail=""):
 
 
 def _claim_plan_record(job, policy, now):
-    """认领当前计划版本行；失败的尝试复用同一版本，不虚增版本号。"""
+    """
+    认领当前计划版本行；失败的尝试复用同一版本，不虚增版本号。
+
+    当前只有 0 -> 1 一条路径（规划成功后任务进入 READY 即不再规划），ExportPlan 的多版本
+    能力是给后续"重新规划"入口预留的，不要据此认为已经有重规划流程。
+    """
     plan, _ = ExportPlan.objects.update_or_create(
         job=job,
         plan_version=job.plan_version + 1,

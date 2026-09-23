@@ -212,10 +212,6 @@ class Migration(migrations.Migration):
             index=models.Index(fields=["status", "last_dispatched_at"], name="export_job_dispatch"),
         ),
         migrations.AddIndex(
-            model_name="exportplan",
-            index=models.Index(fields=["status", "created_at"], name="export_plan_status"),
-        ),
-        migrations.AddIndex(
             model_name="exportpart",
             index=models.Index(fields=["job", "status"], name="export_part_job_status"),
         ),
