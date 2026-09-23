@@ -77,13 +77,21 @@ def _inflight_by_index_set():
     return {row["job__index_set_id"]: row["total"] for row in rows}
 
 
+def _competing_job_count(jobs):
+    """本轮真正在竞争额度的任务数：还有 WAITING 分片的活跃任务。"""
+    return ExportPart.objects.filter(status=ExportPartStatus.WAITING, job__in=jobs).values("job_id").distinct().count()
+
+
 def dispatch_ready_parts():
     """
     按公平顺序投递分片。
 
     并行额度只来自 FeatureConfig：单 Job 上限、单索引集上限、环境全局上限三者取小。
-    一期不引入分布式令牌：在途分片本身就是预算账本，直接按数据库计数判断是否还有额度；
-    并发投递由「先占用分片状态、再发布消息」和行锁兜底，极端情况下可能略微超出全局上限。
+    多个任务同时等待时，环境全局额度按竞争任务数均分（两个任务即 2+2），先到的大任务
+    不会在一个调度周期内占满全局槽位；只有一个任务在等待时它仍然可以借满全局额度，
+    避免槽位闲置。一期不引入分布式令牌：在途分片本身就是预算账本，直接按数据库计数
+    判断是否还有额度；并发投递由「先占用分片状态、再发布消息」和行锁兜底，极端情况下
+    可能略微超出全局上限。
     """
     jobs = list(
         ExportJob.objects.filter(status__in=[ExportJobStatus.READY, ExportJobStatus.RUNNING]).order_by(
@@ -102,19 +110,27 @@ def dispatch_ready_parts():
     index_limit, global_limit = policy.index_parallelism, policy.global_parallelism
     index_inflight = _inflight_by_index_set()
     global_inflight = sum(index_inflight.values())
+    # 全局额度按竞争任务数均分；只有一个任务在等待时它能借满，不让槽位闲置
+    shared_limit = max(1, global_limit // max(1, _competing_job_count(jobs)))
     dispatched = []
     for job in jobs:
         job_inflight = ExportPart.objects.filter(job=job, status__in=ExportPartStatus.INFLIGHT).count()
         index_used = index_inflight.get(job.index_set_id, 0)
+        # 任务自身的期望并行度仍是上限，均分只用于在任务之间切分全局额度
+        job_limit = min(job.requested_parallelism, shared_limit)
         while True:
             capacity = min(
-                job.requested_parallelism - job_inflight,
+                job_limit - job_inflight,
                 index_limit - index_used,
                 global_limit - global_inflight,
             )
             if capacity <= 0:
                 break
-            part = ExportPart.objects.filter(job=job, status=ExportPartStatus.WAITING).order_by("part_no").first()
+            part = (
+                ExportPart.objects.filter(job=job, status=ExportPartStatus.WAITING)
+                .order_by("start_time", "part_no")
+                .first()
+            )
             if part is None:
                 break
             part = state.dispatch_part(part.pk, uuid4().hex)
@@ -136,12 +152,11 @@ def dispatch_ready_parts():
 
 
 def finalizing_jobs(limit):
+    """叶子分片全部成功的任务。"""
     return list(
-        ExportJob.objects.filter(
-            status=ExportJobStatus.RUNNING,
-            part_total__gt=0,
-            part_success=F("part_total"),
-        )
+        ExportJob.objects.filter(status=ExportJobStatus.RUNNING, plan_version__gt=0)
+        .annotate(**state.leaf_counts_annotation())
+        .filter(leaf_total__gt=0, leaf_success=F("leaf_total"))
         .order_by("pk")
         .values_list("pk", flat=True)[:limit]
     )
@@ -155,7 +170,7 @@ def enqueue_finalization(limit):
 
 
 def manifest_snapshot(job, parts):
-    """清单只汇总成功分片，边界与条数由状态流转在提交时再次校验。"""
+    """清单只汇总成功叶子分片，边界与条数在提交时再次校验。"""
     return {
         "schema_version": 1,
         "job_id": job.pk,
@@ -184,11 +199,11 @@ def manifest_snapshot(job, parts):
 
 
 def finalize_export(job_id):
-    """任务的全部有效分片都成功后，生成清单并让任务进入成功态。"""
+    """任务的叶子分片都成功后，生成清单并让任务进入成功态。"""
     job = ExportJob.objects.filter(pk=job_id).first()
     if job is None or job.status != ExportJobStatus.RUNNING:
         return None
-    parts = list(ExportPart.objects.filter(job=job).order_by("start_time", "part_no"))
+    parts = list(state.leaf_parts(job).order_by("start_time", "part_no"))
     if not parts or any(part.status != ExportPartStatus.SUCCESS for part in parts):
         return None
     try:

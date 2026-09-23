@@ -37,15 +37,16 @@ from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
     ExportJobStatus,
+    ExportPlanStatus,
     ExportPartStatus,
 )
 from apps.log_search.export import state
 from apps.log_search.export.config import ExportPolicy
 from apps.log_search.export.api import create_export_job, download_link
-from apps.log_search.export.models import ExportJob, ExportPart
+from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.models import LogIndexSet, Scenario, Space
 from apps.log_search.views.export_views import ExportJobViewSet
-from apps.log_search.export.worker import _execute, _pack, _write_rows
+from apps.log_search.export.worker import _execute, _pack, _write_rows, run_part
 from apps.log_search.export.planner import (
     PlanError,
     PartSpec,
@@ -152,7 +153,7 @@ class MergeTests(SimpleTestCase):
 
 
 class BuildPartsTests(TestCase):
-    """build_parts 是规划链路的契约点：返回 (parts, total) 且完整覆盖任务区间。"""
+    """build_parts 是规划链路的契约点：返回 (parts, total, result) 且完整覆盖任务区间。"""
 
     def setUp(self):
         self.job = create_job()
@@ -166,13 +167,16 @@ class BuildPartsTests(TestCase):
         ):
             return build_parts(self.job, policy or build_policy())
 
-    def test_returns_parts_and_total_for_the_whole_range(self):
-        parts, total = self.plan_with(total=40, buckets={0: 40}, sample=[b"x" * 20])
+    def test_returns_parts_total_and_plan_result_for_the_whole_range(self):
+        parts, total, result = self.plan_with(total=40, buckets={0: 40}, sample=[b"x" * 20])
 
         self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
         self.assertEqual(total, 40)
         self.assertEqual(parts[0].estimated_rows, 40)
         self.assertEqual(parts[0].estimated_bytes, 800)
+        self.assertEqual(result.total_rows, 40)
+        self.assertEqual(result.avg_row_bytes, 20)
+        self.assertEqual(result.planned_parts, 1)
 
     def test_empty_histogram_is_a_retryable_statistics_failure(self):
         with self.assertRaises(PlanError) as context:
@@ -194,14 +198,16 @@ class BuildPartsTests(TestCase):
         histogram.assert_not_called()
 
     def test_empty_range_returns_one_covering_part(self):
-        parts, total = self.plan_with(total=0, buckets={})
+        parts, total, result = self.plan_with(total=0, buckets={})
 
         self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
         self.assertEqual(total, 0)
+        self.assertEqual(result.total_rows, 0)
+        self.assertEqual(result.planned_parts, 1)
 
 
 class RunPlanningTests(TestCase):
-    """规划必须真的把任务推进到 READY —— 覆盖 build_parts 返回值契约被破坏的回归场景。"""
+    """规划必须真的把任务推进到 READY，并把规划过程量写进当前计划版本。"""
 
     def test_run_planning_persists_plan_and_moves_job_to_ready(self):
         job = create_job()
@@ -215,9 +221,15 @@ class RunPlanningTests(TestCase):
 
         job.refresh_from_db()
         self.assertEqual(job.status, ExportJobStatus.READY)
-        self.assertEqual(job.part_total, 1)
+        self.assertEqual(job.plan_version, 1)
         self.assertEqual(job.estimated_total, 40)
+        plan = ExportPlan.objects.get(job=job, plan_version=1)
+        self.assertEqual(plan.status, ExportPlanStatus.SUCCESS)
+        self.assertEqual(plan.total_rows, 40)
+        self.assertEqual(plan.planned_parts, 1)
+        self.assertIsNotNone(plan.finished_at)
         part = ExportPart.objects.get(job=job)
+        self.assertEqual(part.plan_version, 1)
         self.assertEqual((part.start_time, part.end_time), (0, 4000))
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.estimated_rows, 40)
@@ -277,6 +289,59 @@ class PartRunnerTests(TestCase):
         self.assertEqual(part.status, ExportPartStatus.SUCCESS)
         self.assertEqual(part.object_key, artifact_name(job, 1))
 
+    @override_settings(ASYNC_EXPORT_UPLOAD_ATTEMPTS=3, ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS=1)
+    def test_execute_retries_upload_without_requerying(self):
+        """上传抖动只重试上传本身：不重新查询、不重新压缩，退避按尝试次数递增。"""
+        job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        part = ExportPart.objects.create(
+            job=job, part_no=1, start_time=0, end_time=1000, status=ExportPartStatus.RUNNING
+        )
+        with (
+            patch("apps.log_search.export.worker.build_storage"),
+            patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
+            patch("apps.log_search.export.worker.UnifyQueryApi") as api,
+            patch("apps.log_search.export.worker.upload") as upload,
+            patch("apps.log_search.export.worker._sha256", return_value="checksum"),
+            patch("apps.log_search.export.worker.time.sleep") as sleep,
+        ):
+            upload.side_effect = [RuntimeError("cos 5xx"), RuntimeError("cos 5xx"), "etag"]
+            api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
+            _execute(job, part)
+
+        self.assertEqual(upload.call_count, 3)
+        self.assertEqual(api.query_ts_raw_with_scroll.call_count, 1)
+        self.assertEqual([item.args[0] for item in sleep.call_args_list], [1, 2])
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.SUCCESS)
+
+    @override_settings(ASYNC_EXPORT_UPLOAD_ATTEMPTS=2, ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS=0)
+    def test_run_part_returns_to_waiting_after_upload_attempts_exhausted(self):
+        """上传重试耗尽后整片交回调度器，等待下一轮重新执行。"""
+        job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        part = ExportPart.objects.create(
+            job=job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.DISPATCHED,
+            task_id="task-1",
+        )
+        with (
+            patch("apps.log_search.export.worker.build_storage"),
+            patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
+            patch("apps.log_search.export.worker.UnifyQueryApi") as api,
+            patch("apps.log_search.export.worker.upload", side_effect=RuntimeError("cos down")) as upload,
+            patch("apps.log_search.export.worker._sha256", return_value="checksum"),
+            patch("apps.log_search.export.worker.time.sleep"),
+        ):
+            api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
+            run_part(part.pk)
+
+        self.assertEqual(upload.call_count, 2)
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.WAITING)
+        self.assertEqual(part.error_code, "UPLOAD_FAILED")
+
 
 class ExportStateTestCase(TestCase):
     def setUp(self):
@@ -308,8 +373,11 @@ class ExportStateTestCase(TestCase):
     def test_persist_plan_moves_job_to_ready(self):
         job = self.plan()
         self.assertEqual(job.status, ExportJobStatus.READY)
-        self.assertEqual(job.part_total, 4)
+        self.assertEqual(job.plan_version, 1)
         self.assertEqual(ExportPart.objects.filter(job=job).count(), 4)
+        self.assertEqual(ExportPart.objects.filter(job=job, plan_version=1).count(), 4)
+        self.assertEqual(state.leaf_stats(job)["total"], 4)
+        self.assertEqual(ExportPlan.objects.get(job=job, plan_version=1).planned_parts, 4)
 
     def test_persist_plan_rejects_incomplete_coverage(self):
         with self.assertRaises(ValueError):
@@ -324,12 +392,19 @@ class ExportStateTestCase(TestCase):
         self.complete_parts(4)
         job = ExportJob.objects.get(pk=self.job.pk)
         self.assertEqual(job.status, ExportJobStatus.RUNNING)
-        self.assertEqual(job.part_success, 4)
+        self.assertEqual(state.leaf_stats(job)["success"], 4)
         self.assertEqual(job.actual_total, 40)
         self.assertIsNotNone(state.finalize_job(job.pk, manifest_object_key="manifest", manifest_bytes=10))
         job.refresh_from_db()
         self.assertEqual(job.status, ExportJobStatus.SUCCESS)
         self.assertIsNotNone(job.expires_at)
+
+    def test_finalize_rejects_broken_leaf_boundaries(self):
+        self.plan()
+        self.complete_parts(4)
+        ExportPart.objects.filter(job=self.job, part_no=3).update(start_time=2500)
+        with self.assertRaises(ValueError):
+            state.finalize_job(self.job.pk, manifest_object_key="manifest", manifest_bytes=10)
 
     def test_failed_part_is_requeued_before_exhausting_attempts(self):
         self.plan()
@@ -385,6 +460,170 @@ class ExportStateTestCase(TestCase):
         state.fail_planning(self.job.pk, "STATISTICS_FAILED", retryable=True)
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, ExportJobStatus.FAILED)
+
+
+class PlanRecordTests(TestCase):
+    """计划版本的审计口径：失败的尝试复用同一版本，历史成功计划不被覆盖。"""
+
+    def setUp(self):
+        self.job = create_job()
+
+    def test_claim_planning_reserves_the_current_version(self):
+        state.claim_planning(self.job.pk)
+
+        plan = ExportPlan.objects.get(job=self.job, plan_version=1)
+        self.assertEqual(plan.status, ExportPlanStatus.PLANNING)
+        self.assertEqual(plan.target_rows, ExportPolicy().target_rows)
+        self.assertEqual(plan.target_bytes, ExportPolicy().target_bytes)
+        self.assertIsNotNone(plan.started_at)
+
+    def test_retryable_failure_reuses_the_same_version(self):
+        state.claim_planning(self.job.pk)
+        state.fail_planning(self.job.pk, "STATISTICS_FAILED", "统计失败", retryable=True)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.PENDING)
+
+        state.claim_planning(self.job.pk)
+
+        self.assertEqual(ExportPlan.objects.filter(job=self.job).count(), 1)
+        plan = ExportPlan.objects.get(job=self.job)
+        self.assertEqual(plan.plan_version, 1)
+        self.assertEqual(plan.status, ExportPlanStatus.PLANNING)
+
+    def test_failed_planning_marks_the_plan_row_failed(self):
+        state.claim_planning(self.job.pk)
+        state.fail_planning(self.job.pk, "QUOTA_EXCEEDED", "超过单任务上限")
+
+        self.job.refresh_from_db()
+        plan = ExportPlan.objects.get(job=self.job, plan_version=1)
+        self.assertEqual(self.job.status, ExportJobStatus.FAILED)
+        self.assertEqual(plan.status, ExportPlanStatus.FAILED)
+        self.assertIsNotNone(plan.finished_at)
+
+    def test_new_version_never_overwrites_effective_history(self):
+        self.job.plan_version = 1
+        self.job.save(update_fields=["plan_version"])
+        ExportPlan.objects.create(job=self.job, plan_version=1, status=ExportPlanStatus.SUCCESS, planned_parts=2)
+
+        state.claim_planning(self.job.pk)
+
+        self.assertTrue(
+            ExportPlan.objects.filter(
+                job=self.job, plan_version=1, status=ExportPlanStatus.SUCCESS, planned_parts=2
+            ).exists()
+        )
+        self.assertEqual(ExportPlan.objects.get(job=self.job, plan_version=2).status, ExportPlanStatus.PLANNING)
+
+
+class SplitTests(TestCase):
+    """重试耗尽后按时间细分，父分片转 SPLIT。"""
+
+    def setUp(self):
+        self.job = create_job(policy={**ExportPolicy().snapshot(), "part_max_attempts": 1})
+        self.assertIsNotNone(state.claim_planning(self.job.pk))
+        state.persist_plan(self.job.pk, parts=[PartSpec(0, 4000, 40, 4000)], estimated_total=40)
+
+    def fail_first_part(self, error_code="PART_TIMEOUT"):
+        part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
+        state.dispatch_part(part.pk, "task")
+        state.claim_part(part.pk)
+        state.fail_part(part.pk, error_code=error_code, error_detail="执行超时", retryable=True)
+        return part
+
+    def children_of(self, parent):
+        return list(ExportPart.objects.filter(job=self.job, parent_part=parent).order_by("part_no"))
+
+    def test_exhausted_part_is_split_into_two_children(self):
+        parent = self.fail_first_part()
+
+        parent.refresh_from_db()
+        self.assertEqual(parent.status, ExportPartStatus.SPLIT)
+        self.assertEqual(parent.task_id, "")
+        children = self.children_of(parent)
+        self.assertEqual([(child.start_time, child.end_time) for child in children], [(0, 2000), (2000, 4000)])
+        self.assertEqual([child.status for child in children], [ExportPartStatus.WAITING] * 2)
+        self.assertEqual([child.plan_version for child in children], [1, 1])
+        self.assertEqual(sum(child.estimated_rows for child in children), 40)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
+        self.assertEqual(state.leaf_stats(self.job)["total"], 2)
+
+    def test_part_at_time_precision_fails_the_job_with_oversized_error(self):
+        job = create_job(end_time=1000, policy={**ExportPolicy().snapshot(), "part_max_attempts": 1})
+        state.claim_planning(job.pk)
+        state.persist_plan(job.pk, parts=[PartSpec(0, 1000, 40, 4000, oversized=True)], estimated_total=40)
+        part = ExportPart.objects.get(job=job)
+        state.dispatch_part(part.pk, "task")
+        state.claim_part(part.pk)
+        state.fail_part(part.pk, error_code="PART_TIMEOUT", retryable=True)
+
+        job.refresh_from_db()
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.FAILED)
+        self.assertEqual(job.status, ExportJobStatus.FAILED)
+        self.assertEqual(job.error_code, "OVERSIZED_PART_FAILED")
+
+    def test_non_workload_error_is_never_split(self):
+        parent = self.fail_first_part(error_code="STORAGE_UNSUPPORTED")
+
+        parent.refresh_from_db()
+        self.assertEqual(parent.status, ExportPartStatus.FAILED)
+        self.assertEqual(self.children_of(parent), [])
+
+    def test_upload_failure_is_never_split(self):
+        """上传失败与工作量无关，重试耗尽后整片失败，不做无意义的时间细分。"""
+        parent = self.fail_first_part(error_code="UPLOAD_FAILED")
+
+        parent.refresh_from_db()
+        self.assertEqual(parent.status, ExportPartStatus.FAILED)
+        self.assertEqual(self.children_of(parent), [])
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.FAILED)
+
+    def test_part_limit_stops_splitting(self):
+        job = create_job(policy={**ExportPolicy().snapshot(), "part_max_attempts": 1, "max_parts": 1})
+        state.claim_planning(job.pk)
+        state.persist_plan(job.pk, parts=[PartSpec(0, 4000, 40, 4000)], estimated_total=40)
+        part = ExportPart.objects.get(job=job)
+        state.dispatch_part(part.pk, "task")
+        state.claim_part(part.pk)
+        state.fail_part(part.pk, error_code="PART_TIMEOUT", retryable=True)
+
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.FAILED)
+
+    def test_children_take_over_the_leaf_scope(self):
+        parent = self.fail_first_part()
+        for child in self.children_of(parent):
+            state.dispatch_part(child.pk, f"task-{child.pk}")
+            state.claim_part(child.pk)
+            state.complete_part(
+                child.pk,
+                actual_rows=20,
+                actual_bytes=200,
+                compressed_bytes=100,
+                object_key=f"object-{child.pk}",
+                checksum="checksum",
+            )
+
+        job = ExportJob.objects.get(pk=self.job.pk)
+        self.assertEqual(job.actual_total, 40)
+        self.assertEqual(state.leaf_stats(job)["success"], 2)
+        self.assertIsNotNone(state.finalize_job(job.pk, manifest_object_key="manifest", manifest_bytes=1))
+        job.refresh_from_db()
+        self.assertEqual(job.status, ExportJobStatus.SUCCESS)
+
+    def test_late_result_of_a_split_parent_is_discarded(self):
+        parent = self.fail_first_part()
+
+        self.assertIsNone(
+            state.complete_part(
+                parent.pk, actual_rows=40, actual_bytes=400, compressed_bytes=1, object_key="stale", checksum="c"
+            )
+        )
+        parent.refresh_from_db()
+        self.assertEqual(parent.object_key, "")
+        self.assertEqual(parent.status, ExportPartStatus.SPLIT)
 
 
 class ArtifactNameTests(SimpleTestCase):
@@ -455,10 +694,10 @@ class SchedulerTests(TestCase):
             base_dict={},
             end_time=3000,
             status=ExportJobStatus.READY,
-            part_total=3,
+            plan_version=1,
         )
         for part_no, (start, end) in enumerate([(0, 1000), (1000, 2000), (2000, 3000)], start=1):
-            ExportPart.objects.create(job=self.job, part_no=part_no, start_time=start, end_time=end)
+            ExportPart.objects.create(job=self.job, part_no=part_no, plan_version=1, start_time=start, end_time=end)
 
     @patch(
         "apps.log_search.export.scheduler.current_policy",
@@ -500,6 +739,54 @@ class SchedulerTests(TestCase):
         self.assertEqual(len(dispatch_ready_parts()), 3)
         self.assertEqual(send.call_count, 3)
 
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=4, global_parallelism=4),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_global_capacity_is_shared_by_competing_jobs(self, send, _policy):
+        """两个任务同时等待时按 2+2 均分，先到的任务不会一次占满全局槽位。"""
+        second = create_job(index_set_id=12, base_dict={}, end_time=2000, status=ExportJobStatus.READY, plan_version=1)
+        for part_no, (start, end) in enumerate([(0, 1000), (1000, 2000)], start=1):
+            ExportPart.objects.create(job=second, part_no=part_no, plan_version=1, start_time=start, end_time=end)
+
+        self.assertEqual(len(dispatch_ready_parts()), 4)
+        self.assertEqual(ExportPart.objects.filter(job=self.job, status=ExportPartStatus.DISPATCHED).count(), 2)
+        self.assertEqual(ExportPart.objects.filter(job=second, status=ExportPartStatus.DISPATCHED).count(), 2)
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=4, global_parallelism=4),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_single_waiting_job_can_borrow_full_global_capacity(self, send, _policy):
+        """只有一个任务在等待时它可以借满全局额度，不让槽位闲置。"""
+        self.assertEqual(len(dispatch_ready_parts()), 3)
+        self.assertEqual(send.call_count, 3)
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=4, global_parallelism=4),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_job_without_waiting_parts_does_not_consume_share(self, send, _policy):
+        """没有待投递分片的任务不参与额度均分，剩余全局槽位由其他任务借用。"""
+        runner = create_job(
+            index_set_id=12, base_dict={}, end_time=1000, status=ExportJobStatus.RUNNING, plan_version=1
+        )
+        ExportPart.objects.create(
+            job=runner,
+            part_no=1,
+            plan_version=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.DISPATCHED,
+        )
+
+        # 竞争任务只有 setUp 的任务：全局额度 4 减去在途 1，剩下 3 个都归它
+        self.assertEqual(len(dispatch_ready_parts()), 3)
+        self.assertEqual(ExportPart.objects.filter(job=self.job, status=ExportPartStatus.DISPATCHED).count(), 3)
+
     @patch("apps.log_search.export.scheduler._send")
     def test_enqueue_planning_only_picks_unplanned_jobs(self, send):
         self.assertEqual(enqueue_planning(10), [])
@@ -508,10 +795,19 @@ class SchedulerTests(TestCase):
 
     @patch("apps.log_search.export.scheduler._send")
     def test_enqueue_finalization_waits_for_all_parts(self, send):
+        self.assertEqual(enqueue_finalization(10), [])
         ExportPart.objects.update(status=ExportPartStatus.SUCCESS)
-        self.job.part_success = 3
         self.job.status = ExportJobStatus.RUNNING
-        self.job.save(update_fields=["part_success", "status"])
+        self.job.save(update_fields=["status"])
+        self.assertEqual(enqueue_finalization(10), [self.job.pk])
+
+    @patch("apps.log_search.export.scheduler._send")
+    def test_enqueue_finalization_ignores_split_parents(self, send):
+        """收尾判定只看叶子分片。"""
+        ExportPart.objects.filter(part_no=1).update(status=ExportPartStatus.SPLIT)
+        ExportPart.objects.filter(part_no__in=[2, 3]).update(status=ExportPartStatus.SUCCESS)
+        self.job.status = ExportJobStatus.RUNNING
+        self.job.save(update_fields=["status"])
         self.assertEqual(enqueue_finalization(10), [self.job.pk])
 
     def test_inflight_count_groups_by_index_set(self):
@@ -553,6 +849,29 @@ class JobDetailTests(TestCase):
         self.assertEqual(snapshot["consistency"], "weak_snapshot")
         self.assertEqual(snapshot["parts"][0]["object_key"], "object")
         json.dumps(snapshot)
+
+    def test_job_detail_counts_leaf_parts_only(self):
+        from apps.log_search.export.api import job_detail
+
+        job = create_job(end_time=2000, status=ExportJobStatus.RUNNING, plan_version=1)
+        parent = ExportPart.objects.create(
+            job=job, part_no=1, plan_version=1, start_time=0, end_time=2000, status=ExportPartStatus.SPLIT
+        )
+        for part_no, (start, end) in enumerate([(0, 1000), (1000, 2000)], start=2):
+            ExportPart.objects.create(
+                job=job,
+                part_no=part_no,
+                plan_version=1,
+                start_time=start,
+                end_time=end,
+                parent_part=parent,
+                status=ExportPartStatus.SUCCESS,
+                actual_rows=10,
+            )
+        detail = job_detail(job)
+        self.assertEqual(detail["parts_total"], 2)
+        self.assertEqual(detail["parts_completed"], 2)
+        self.assertEqual(detail["plan_version"], 1)
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")

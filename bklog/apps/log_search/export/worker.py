@@ -99,6 +99,32 @@ def _pack(directory, part):
     return archive
 
 
+def _upload_with_retry(storage, path, name, part):
+    """
+    上传失败只在当前进程内重试上传本身。
+
+    本地压缩文件在分片执行期间一直可用，重试不会重新查询和重新压缩（取数与转换约占
+    单分片成本的 80%）。重试耗尽后按 UPLOAD_FAILED 上抛：上传失败与分片工作量无关，
+    只让当前分片回到 WAITING，重试次数用尽后整片失败，不做时间细分。
+    """
+    attempts = settings.ASYNC_EXPORT_UPLOAD_ATTEMPTS
+    interval = settings.ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS
+    for attempt in range(1, attempts + 1):
+        try:
+            return upload(storage, path, name)
+        except Exception as error:  # pylint: disable=broad-except
+            if attempt >= attempts:
+                raise PartError("UPLOAD_FAILED", f"上传重试 {attempts} 次仍失败：{error}") from error
+            logger.warning(
+                "[run_part] part=%s upload attempt %s/%s failed, retry with local artifact: %s",
+                part.pk,
+                attempt,
+                attempts,
+                error,
+            )
+            time.sleep(interval * attempt)
+
+
 def _execute(job, part):
     storage = build_storage(external=job.is_external)
     with tempfile.TemporaryDirectory(prefix=f"bklog-export-{job.pk}-") as directory:
@@ -110,7 +136,7 @@ def _execute(job, part):
         state.set_stage(part.pk, ExportStage.UPLOAD)
         checksum = _sha256(archive)
         name = artifact_name(job, part.part_no)
-        upload(storage, archive, name)
+        _upload_with_retry(storage, archive, name, part)
         state.complete_part(
             part.pk,
             actual_rows=rows,

@@ -45,8 +45,7 @@ class Migration(migrations.Migration):
                 ),
                 ("estimated_total", models.PositiveBigIntegerField(blank=True, null=True, verbose_name="预计总条数")),
                 ("actual_total", models.PositiveBigIntegerField(default=0, verbose_name="已导出条数")),
-                ("part_total", models.PositiveIntegerField(default=0, verbose_name="有效分片总数")),
-                ("part_success", models.PositiveIntegerField(default=0, verbose_name="成功分片数")),
+                ("plan_version", models.PositiveIntegerField(default=0, verbose_name="当前生效计划版本")),
                 ("requested_parallelism", models.PositiveSmallIntegerField(default=4, verbose_name="期望并行上限")),
                 (
                     "manifest_object_key",
@@ -71,10 +70,53 @@ class Migration(migrations.Migration):
             },
         ),
         migrations.CreateModel(
+            name="ExportPlan",
+            fields=[
+                ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                ("plan_version", models.PositiveIntegerField(verbose_name="计划版本")),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[("PLANNING", "规划中"), ("SUCCESS", "规划成功"), ("FAILED", "规划失败")],
+                        default="PLANNING",
+                        max_length=16,
+                        verbose_name="规划状态",
+                    ),
+                ),
+                ("target_rows", models.PositiveBigIntegerField(blank=True, null=True, verbose_name="目标条数")),
+                ("target_bytes", models.PositiveBigIntegerField(blank=True, null=True, verbose_name="目标字节数")),
+                ("total_rows", models.PositiveBigIntegerField(blank=True, null=True, verbose_name="统计总条数")),
+                ("avg_row_bytes", models.PositiveBigIntegerField(blank=True, null=True, verbose_name="平均单条字节数")),
+                (
+                    "initial_interval_ms",
+                    models.PositiveBigIntegerField(blank=True, null=True, verbose_name="初始统计桶（毫秒）"),
+                ),
+                ("planned_parts", models.PositiveIntegerField(blank=True, null=True, verbose_name="预计分片数")),
+                ("started_at", models.DateTimeField(blank=True, null=True, verbose_name="规划开始时间")),
+                ("finished_at", models.DateTimeField(blank=True, null=True, verbose_name="规划结束时间")),
+                ("created_at", models.DateTimeField(auto_now_add=True, verbose_name="创建时间")),
+                ("updated_at", models.DateTimeField(auto_now=True, verbose_name="更新时间")),
+                (
+                    "job",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="plans",
+                        to="log_search.exportjob",
+                    ),
+                ),
+            ],
+            options={
+                "verbose_name": "分片导出计划",
+                "verbose_name_plural": "45_分片导出计划",
+                "db_table": "log_export_plan",
+            },
+        ),
+        migrations.CreateModel(
             name="ExportPart",
             fields=[
                 ("id", models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
                 ("part_no", models.PositiveIntegerField(verbose_name="分片序号")),
+                ("plan_version", models.PositiveIntegerField(default=0, verbose_name="所属计划版本")),
                 ("start_time", models.BigIntegerField(verbose_name="起始时间（毫秒，闭区间）")),
                 ("end_time", models.BigIntegerField(verbose_name="结束时间（毫秒，开区间）")),
                 ("oversized", models.BooleanField(default=False, verbose_name="已到最小时间精度仍超量")),
@@ -95,6 +137,7 @@ class Migration(migrations.Migration):
                             ("RUNNING", "执行中"),
                             ("SUCCESS", "成功"),
                             ("FAILED", "失败"),
+                            ("SPLIT", "已细分"),
                             ("CANCELED", "已取消"),
                         ],
                         default="WAITING",
@@ -133,6 +176,17 @@ class Migration(migrations.Migration):
                         on_delete=django.db.models.deletion.CASCADE, related_name="parts", to="log_search.exportjob"
                     ),
                 ),
+                (
+                    "parent_part",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="children",
+                        to="log_search.exportpart",
+                        verbose_name="父分片",
+                    ),
+                ),
             ],
             options={
                 "verbose_name": "分片导出子任务",
@@ -153,6 +207,10 @@ class Migration(migrations.Migration):
             index=models.Index(fields=["status", "last_dispatched_at"], name="export_job_dispatch"),
         ),
         migrations.AddIndex(
+            model_name="exportplan",
+            index=models.Index(fields=["status", "created_at"], name="export_plan_status"),
+        ),
+        migrations.AddIndex(
             model_name="exportpart",
             index=models.Index(fields=["job", "status"], name="export_part_job_status"),
         ),
@@ -161,7 +219,11 @@ class Migration(migrations.Migration):
             index=models.Index(fields=["status", "updated_at"], name="export_part_recover"),
         ),
         migrations.AlterUniqueTogether(
+            name="exportplan",
+            unique_together={("job", "plan_version")},
+        ),
+        migrations.AlterUniqueTogether(
             name="exportpart",
-            unique_together={("job", "part_no")},
+            unique_together={("job", "plan_version", "part_no")},
         ),
     ]

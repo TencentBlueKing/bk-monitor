@@ -270,6 +270,7 @@ class ExportPartStatus:
     RUNNING = "RUNNING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
+    SPLIT = "SPLIT"
     CANCELED = "CANCELED"
 
     CHOICES = (
@@ -278,10 +279,30 @@ class ExportPartStatus:
         (RUNNING, "执行中"),
         (SUCCESS, "成功"),
         (FAILED, "失败"),
+        (SPLIT, "已细分"),
         (CANCELED, "已取消"),
     )
     # 已占用 Worker 资源、需要计入侵占额度的状态
     INFLIGHT = [DISPATCHED, RUNNING]
+    # 已细分、由子分片接管的分片：不产出产物、不进清单
+    NON_LEAF = [SPLIT]
+
+
+# 导出计划状态
+class ExportPlanStatus:
+    PLANNING = "PLANNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+    CHOICES = (
+        (PLANNING, "规划中"),
+        (SUCCESS, "规划成功"),
+        (FAILED, "规划失败"),
+    )
+
+
+# 与工作量无关的错误，重试耗尽也不做时间细分
+NON_SPLITTABLE_ERROR_CODES = frozenset({"STORAGE_UNSUPPORTED", "QUOTA_EXCEEDED", "PLANNING_FAILED", "UPLOAD_FAILED"})
 
 
 # 分片导出阶段（仅用于前端展示进度）

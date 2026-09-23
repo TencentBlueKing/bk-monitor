@@ -134,10 +134,19 @@ def create_export_job(data):
     )
 
 
+def _leaf_counts(job):
+    """叶子分片计数：列表页由注解带出，详情回退到聚合查询。"""
+    annotated = (getattr(job, "leaf_total", None), getattr(job, "leaf_success", None))
+    if None not in annotated:
+        return annotated
+    stats = state.leaf_stats(job)
+    return stats["total"], stats["success"]
+
+
 def job_detail(job):
-    """任务进度：预计条数与实际条数分开，完成度按已成功的分片数计算。"""
+    """任务进度：预计条数与实际条数分开，完成度按已成功的叶子分片数计算。"""
     stages = list(ExportPart.objects.filter(job=job, status__in=INFLIGHT).values_list("stage", flat=True))
-    total, success = job.part_total, job.part_success
+    total, success = _leaf_counts(job)
     if job.status == ExportJobStatus.SUCCESS:
         percent = 100
     elif not total:
@@ -160,6 +169,7 @@ def job_detail(job):
         "parts_total": total,
         "parts_completed": success,
         "percent": percent,
+        "plan_version": job.plan_version,
         "requested_parallelism": job.requested_parallelism,
         "error_code": job.error_code,
         "created_by": job.created_by,

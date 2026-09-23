@@ -22,7 +22,12 @@ the project delivered to anyone in the future.
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from apps.log_search.constants import ExportJobStatus, ExportPartStatus, ExportStage
+from apps.log_search.constants import (
+    ExportJobStatus,
+    ExportPartStatus,
+    ExportPlanStatus,
+    ExportStage,
+)
 
 
 class ExportJob(models.Model):
@@ -49,9 +54,9 @@ class ExportJob(models.Model):
         _("状态"), max_length=16, choices=ExportJobStatus.CHOICES, default=ExportJobStatus.PENDING
     )
     estimated_total = models.PositiveBigIntegerField(_("预计总条数"), null=True, blank=True)
+    # 叶子分片 actual_rows 的聚合快照，分片变更时整体重算
     actual_total = models.PositiveBigIntegerField(_("已导出条数"), default=0)
-    part_total = models.PositiveIntegerField(_("有效分片总数"), default=0)
-    part_success = models.PositiveIntegerField(_("成功分片数"), default=0)
+    plan_version = models.PositiveIntegerField(_("当前生效计划版本"), default=0)
     requested_parallelism = models.PositiveSmallIntegerField(_("期望并行上限"), default=4)
     manifest_object_key = models.CharField(_("清单对象名"), max_length=1024, blank=True, default="")
     manifest_bytes = models.PositiveBigIntegerField(_("清单字节数"), null=True, blank=True)
@@ -77,11 +82,43 @@ class ExportJob(models.Model):
         ]
 
 
+class ExportPlan(models.Model):
+    """一个计划版本的规划输入与产出快照；版本只由成功落库的计划递增。"""
+
+    job = models.ForeignKey(ExportJob, on_delete=models.CASCADE, related_name="plans")
+    plan_version = models.PositiveIntegerField(_("计划版本"))
+    status = models.CharField(
+        _("规划状态"), max_length=16, choices=ExportPlanStatus.CHOICES, default=ExportPlanStatus.PLANNING
+    )
+    target_rows = models.PositiveBigIntegerField(_("目标条数"), null=True, blank=True)
+    target_bytes = models.PositiveBigIntegerField(_("目标字节数"), null=True, blank=True)
+    total_rows = models.PositiveBigIntegerField(_("统计总条数"), null=True, blank=True)
+    avg_row_bytes = models.PositiveBigIntegerField(_("平均单条字节数"), null=True, blank=True)
+    initial_interval_ms = models.PositiveBigIntegerField(_("初始统计桶（毫秒）"), null=True, blank=True)
+    planned_parts = models.PositiveIntegerField(_("预计分片数"), null=True, blank=True)
+    started_at = models.DateTimeField(_("规划开始时间"), null=True, blank=True)
+    finished_at = models.DateTimeField(_("规划结束时间"), null=True, blank=True)
+    created_at = models.DateTimeField(_("创建时间"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("更新时间"), auto_now=True)
+
+    class Meta:
+        db_table = "log_export_plan"
+        verbose_name = _("分片导出计划")
+        verbose_name_plural = _("45_分片导出计划")
+        unique_together = (("job", "plan_version"),)
+        indexes = [models.Index(fields=["status", "created_at"], name="export_plan_status")]
+
+
 class ExportPart(models.Model):
     """规划产出的一个固定时间区间，是调度、重试和产物管理的最小单位。"""
 
     job = models.ForeignKey(ExportJob, on_delete=models.CASCADE, related_name="parts")
     part_no = models.PositiveIntegerField(_("分片序号"))
+    plan_version = models.PositiveIntegerField(_("所属计划版本"), default=0)
+    # 细分血缘：父分片转为 SPLIT 后不再产出产物
+    parent_part = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.SET_NULL, related_name="children", verbose_name=_("父分片")
+    )
     start_time = models.BigIntegerField(_("起始时间（毫秒，闭区间）"))
     end_time = models.BigIntegerField(_("结束时间（毫秒，开区间）"))
     # 已经递归到时间字段最小精度仍然超量，一期直接按原样执行并在清单中标记
@@ -110,7 +147,7 @@ class ExportPart(models.Model):
         db_table = "log_export_part"
         verbose_name = _("分片导出子任务")
         verbose_name_plural = _("44_分片导出子任务")
-        unique_together = (("job", "part_no"),)
+        unique_together = (("job", "plan_version", "part_no"),)
         indexes = [
             models.Index(fields=["job", "status"], name="export_part_job_status"),
             models.Index(fields=["status", "updated_at"], name="export_part_recover"),
