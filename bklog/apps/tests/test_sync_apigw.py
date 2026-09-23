@@ -34,7 +34,7 @@ class SyncApiGatewayStageTests(SimpleTestCase):
     def test_stage_definition_matches_release_target(self):
         definition_path = Path(settings.BASE_DIR) / "support-files" / "apigw" / "definition.yaml"
 
-        for stage, description in (("prod", "生产环境"), ("stage", "测试环境")):
+        for stage, description in (("prod", "生产环境"), ("stag", "测试环境")):
             with self.subTest(stage=stage), override_settings(APIGW_STAGE=stage):
                 definition = Definition.load_from(definition_path, {"settings": settings})
                 self.assertEqual(definition.get("stage")["name"], stage)

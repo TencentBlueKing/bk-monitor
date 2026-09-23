@@ -38,7 +38,7 @@ stage:
   # 环境的英文名，蓝鲸官方网关需提供，以支持国际化
   description_en: "Production Environment"
   {% else %}
-  name: "stage"
+  name: "stag"
   description: "测试环境"
   description_en: "Test Environment"
   {% endif %}
