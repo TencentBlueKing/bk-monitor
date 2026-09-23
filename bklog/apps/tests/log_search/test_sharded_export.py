@@ -50,6 +50,7 @@ from apps.log_search.models import LogIndexSet, Scenario, Space
 from apps.log_search.views.export_views import ExportJobViewSet
 from apps.log_search.export.worker import _execute, _pack, _write_rows, run_part
 from apps.log_search.export.planner import (
+    INTERVAL_LADDER_MS,
     PlanError,
     PartSpec,
     build_handler,
@@ -127,6 +128,24 @@ class ChooseIntervalTests(SimpleTestCase):
         interval = choose_interval(1, 0, 30 * 24 * 3600 * 1000, 1000, policy)
         self.assertLessEqual((30 * 24 * 3600 * 1000) // interval, 500 + 1)
 
+    def test_density_interval_is_snapped_to_a_supported_window(self):
+        policy = build_policy(target_rows=500, bucket_seconds=30, max_buckets=500)
+
+        interval = choose_interval(10165, 0, 3600 * 1000, 1, policy)
+
+        self.assertEqual(interval, 180_000)
+        self.assertIn(interval, INTERVAL_LADDER_MS)
+
+    def test_interval_is_never_shorter_than_a_second(self):
+        policy = build_policy(target_rows=30000, bucket_seconds=30, max_buckets=500)
+
+        self.assertGreaterEqual(choose_interval(10**9, 0, 3600 * 1000, 1, policy), 1000)
+
+    def test_interval_never_exceeds_the_query_span(self):
+        policy = build_policy(target_rows=30000, bucket_seconds=30, max_buckets=500)
+
+        self.assertLessEqual(choose_interval(1, 0, 40 * 1000, 1000, policy), 40 * 1000)
+
 
 class RefineTests(SimpleTestCase):
     def test_hot_range_is_split_until_it_reaches_target(self):
@@ -198,6 +217,20 @@ class BuildPartsTests(TestCase):
 
         self.assertEqual(context.exception.code, "STATISTICS_FAILED")
         self.assertTrue(context.exception.retryable)
+
+    def test_bucket_keys_are_matched_on_unify_query_grid(self):
+        """桶键锚点与按 start_time 推出的网格不一致时，仍要取到真实条数。"""
+        with (
+            patch("apps.log_search.export.planner.build_handler"),
+            patch("apps.log_search.export.planner.count_rows", return_value=300),
+            patch("apps.log_search.export.planner.sample_rows", return_value=[b"x" * 10]),
+            patch("apps.log_search.export.planner.choose_interval", return_value=3000),
+            patch("apps.log_search.export.planner.histogram", return_value={1500: 300}),
+        ):
+            parts, total, _ = build_parts(self.job, build_policy(target_rows=1000))
+
+        self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
+        self.assertEqual(sum(part.estimated_rows for part in parts), 300)
 
     def test_rows_over_quota_fail_before_any_density_query(self):
         with (
