@@ -43,6 +43,7 @@ from bkmonitor.action.serializers import (
 )
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source.promql_expression import compile_promql_expression
 from bkmonitor.data_source.unify_query.functions import add_expression_functions
 from bkmonitor.dataflow.constant import AccessStatus
 from bkmonitor.middlewares.source import get_source_app_code
@@ -1538,6 +1539,22 @@ class Item(AbstractConfig):
         query_output_config = serializers.DictField(required=False, allow_null=True)
         # time_delay 和 access_lookback_periods 只允许后台修改，不接受接口入参。
         # time_delay = serializers.IntegerField(default=0)
+
+        def validate(self, attrs):
+            query_configs = attrs["query_configs"]
+            modes = [config.get("expression_mode") for config in query_configs]
+            if any(modes):
+                if len(query_configs) < 2 or not all(
+                    (config.get("data_source_label"), config.get("data_type_label"), config.get("expression_mode"))
+                    == ("prometheus", "time_series", "promql")
+                    for config in query_configs
+                ):
+                    raise ValidationError(detail="PromQL expression mode requires all queries to be Prometheus")
+                try:
+                    compile_promql_expression(query_configs, attrs["expression"])
+                except ValueError as exc:
+                    raise ValidationError(detail=str(exc)) from exc
+            return attrs
 
     def __init__(
         self,
