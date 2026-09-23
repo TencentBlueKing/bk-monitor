@@ -29,6 +29,8 @@ class ExportPolicy:
     max_parts: int = 500
     sample_rows: int = 100
     bucket_seconds: int = 30
+    # 分片可继续细分的最小步长，决定二分下界与失败细分粒度
+    split_step_ms: int = 1000
     max_buckets: int = 500
     fallback_row_bytes: int = 1024
     default_parallelism: int = 4
@@ -56,6 +58,7 @@ _BOUNDS = {
     "max_parts": (int, 1, 10_000),
     "sample_rows": (int, 1, 10_000),
     "bucket_seconds": (int, 1, 86_400),
+    "split_step_ms": (int, 1, 86_400_000),
     "max_buckets": (int, 1, 10_000),
     "fallback_row_bytes": (int, 1, 10 * 1024 * 1024),
     "default_parallelism": (int, 1, 64),

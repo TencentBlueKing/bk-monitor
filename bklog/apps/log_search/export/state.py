@@ -65,18 +65,22 @@ def sync_actual_total(job):
     return _save(job, actual_total=leaf_stats(job)["rows"])
 
 
+def _split_step(job):
+    """分片可继续细分的最小步长。"""
+    return policy_from_snapshot(job.policy).split_step_ms
+
+
 def _validate_parts(job, parts):
-    """分片必须对齐时间精度，并且无重叠、无遗漏地覆盖整个任务区间。"""
+    """分片必须无重叠、无遗漏地覆盖整个任务区间。"""
     if not parts:
         raise ValueError("计划不能为空")
+    step = _split_step(job)
     cursor = job.start_time
     for part in parts:
-        if part.start_time % job.time_tick or part.end_time % job.time_tick:
-            raise ValueError("分片边界必须对齐时间字段精度")
         if part.start_time != cursor or part.end_time <= cursor or part.end_time > job.end_time:
             raise ValueError("分片必须连续覆盖任务时间范围")
-        if part.oversized and part.end_time - part.start_time != job.time_tick:
-            raise ValueError("oversized 分片必须是时间字段最小精度")
+        if part.oversized and part.end_time - part.start_time > step:
+            raise ValueError("oversized 分片不能超过切分步长")
         cursor = part.end_time
     if cursor != job.end_time:
         raise ValueError("分片必须连续覆盖任务时间范围")
@@ -341,7 +345,7 @@ def _can_split(job, part, error_code):
         return False
     if error_code in NON_SPLITTABLE_ERROR_CODES:
         return False
-    if part.end_time - part.start_time <= job.time_tick:
+    if part.end_time - part.start_time <= _split_step(job):
         return False
     return leaf_stats(job)["total"] < policy.max_parts
 
@@ -349,7 +353,7 @@ def _can_split(job, part, error_code):
 def _split_locked(job, part, error_code, error_detail):
     """把父分片标记为 SPLIT 并生成两个相邻子分片，由调度器重新投递。"""
     span = part.end_time - part.start_time
-    middle = part.start_time + (span // job.time_tick // 2) * job.time_tick
+    middle = (part.start_time + part.end_time) // 2
     if middle <= part.start_time or middle >= part.end_time:
         return None
 

@@ -49,7 +49,6 @@ class ExportJob(models.Model):
     policy = models.JSONField(_("任务策略快照"), default=dict)
     start_time = models.BigIntegerField(_("起始时间（毫秒，闭区间）"))
     end_time = models.BigIntegerField(_("结束时间（毫秒，开区间）"))
-    time_tick = models.PositiveBigIntegerField(_("时间字段最小精度（毫秒）"))
     status = models.CharField(
         _("状态"), max_length=16, choices=ExportJobStatus.CHOICES, default=ExportJobStatus.PENDING
     )

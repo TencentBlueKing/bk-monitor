@@ -25,7 +25,6 @@ class Migration(migrations.Migration):
                 ("policy", models.JSONField(default=dict, verbose_name="任务策略快照")),
                 ("start_time", models.BigIntegerField(verbose_name="起始时间（毫秒，闭区间）")),
                 ("end_time", models.BigIntegerField(verbose_name="结束时间（毫秒，开区间）")),
-                ("time_tick", models.PositiveBigIntegerField(verbose_name="时间字段最小精度（毫秒）")),
                 (
                     "status",
                     models.CharField(

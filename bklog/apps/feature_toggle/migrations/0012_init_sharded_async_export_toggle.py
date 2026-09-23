@@ -14,6 +14,7 @@ DEFAULT_CONFIG = {
     "max_parts": 500,
     "sample_rows": 100,
     "bucket_seconds": 30,
+    "split_step_ms": 1000,
     "max_buckets": 500,
     "fallback_row_bytes": 1024,
     "default_parallelism": 4,
