@@ -36,13 +36,15 @@ from apps.utils.lock import share_lock
 
 
 @app.task(
+    bind=True,
     ignore_result=True,
     queue=PART_QUEUE,
     acks_late=True,
     reject_on_worker_lost=True,
 )
-def execute_sharded_export_part(part_id):
-    run_part(part_id)
+def execute_sharded_export_part(self, part_id):
+    """投递身份取自 Celery 消息 id，与 dispatch_part 写入分片的 task_id 同值。"""
+    run_part(part_id, self.request.id)
 
 
 @app.task(ignore_result=True, queue=CONTROL_QUEUE)

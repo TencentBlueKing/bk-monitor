@@ -125,20 +125,23 @@ def _upload_with_retry(storage, path, name, part):
             time.sleep(interval * attempt)
 
 
-def _execute(job, part):
+def _execute(job, part, fence):
     storage = build_storage(external=job.is_external)
     with tempfile.TemporaryDirectory(prefix=f"bklog-export-{job.pk}-") as directory:
         directory = Path(directory)
         handler = build_handler(job, part.start_time, part.end_time)
         rows, size = _write_rows(handler, directory / "logs.jsonl")
-        state.set_stage(part.pk, ExportStage.PACKAGE)
+        if not state.set_stage(part.pk, fence, ExportStage.PACKAGE):
+            return
         archive = _pack(directory, part)
-        state.set_stage(part.pk, ExportStage.UPLOAD)
+        if not state.set_stage(part.pk, fence, ExportStage.UPLOAD):
+            return
         checksum = _sha256(archive)
         name = artifact_name(job, part.part_no)
         _upload_with_retry(storage, archive, name, part)
         state.complete_part(
             part.pk,
+            fence,
             actual_rows=rows,
             actual_bytes=size,
             compressed_bytes=archive.stat().st_size,
@@ -147,20 +150,27 @@ def _execute(job, part):
         )
 
 
-def run_part(part_id):
+def run_part(part_id, task_id):
     """执行一个分片；重复投递、已取消或已回收的投递不会发起任何查询。"""
-    part = state.claim_part(part_id)
+    part = state.claim_part(part_id, task_id)
     if part is None:
         return
+    fence = state.PartFence.of(part)
     try:
-        _execute(part.job, part)
+        _execute(part.job, part, fence)
     except UnsupportedExportStorage as error:
         # 存储配置问题重试也不会成功，直接给明确错误码
         logger.error("[run_part] part=%s storage unsupported: %s", part.pk, error)
-        state.fail_part(part.pk, error_code="STORAGE_UNSUPPORTED", error_detail=str(error), retryable=False)
+        state.fail_part(part.pk, fence, error_code="STORAGE_UNSUPPORTED", error_detail=str(error), retryable=False)
     except PartError as error:
         logger.warning("[run_part] part=%s code=%s detail=%s", part.pk, error.code, error)
-        state.fail_part(part.pk, error_code=error.code, error_detail=str(error), retryable=True)
+        state.fail_part(part.pk, fence, error_code=error.code, error_detail=str(error), retryable=True)
     except Exception as error:  # pylint: disable=broad-except
         logger.exception("[run_part] part=%s unexpected failure: %s", part.pk, error)
-        state.fail_part(part.pk, error_code="PART_EXECUTION_FAILED", error_detail=type(error).__name__, retryable=True)
+        state.fail_part(
+            part.pk,
+            fence,
+            error_code="PART_EXECUTION_FAILED",
+            error_detail=type(error).__name__,
+            retryable=True,
+        )

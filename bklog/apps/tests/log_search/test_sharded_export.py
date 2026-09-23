@@ -43,7 +43,7 @@ from apps.log_search.constants import (
     ExportStage,
 )
 from apps.log_search.export import state
-from apps.log_search.export.config import ExportPolicy
+from apps.log_search.export.config import PART_TASK_NAME, ExportPolicy
 from apps.log_search.export.api import create_export_job, download_link, job_results
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.models import LogIndexSet, Scenario, Space
@@ -62,13 +62,14 @@ from apps.log_search.export.planner import (
 )
 from apps.log_search.export.scheduler import (
     _inflight_by_index_set,
+    _send,
     dispatch_ready_parts,
     enqueue_finalization,
     enqueue_planning,
     finalize_export,
 )
 from apps.log_search.export.storage import UnsupportedExportStorage, artifact_name, build_storage, manifest_name
-from apps.log_search.tasks.sharded_export import coordinate_sharded_exports
+from apps.log_search.tasks.sharded_export import coordinate_sharded_exports, execute_sharded_export_part
 
 
 def build_policy(**overrides):
@@ -90,6 +91,11 @@ def create_job(**overrides):
     }
     values.update(overrides)
     return ExportJob.objects.create(**values)
+
+
+def fence_of(part):
+    """取分片当前的栅栏令牌。"""
+    return state.PartFence.of(part)
 
 
 class FakeHandler:
@@ -348,7 +354,13 @@ class PartRunnerTests(TestCase):
         """Worker 没有请求上下文，必须按任务冻结的外部标识上传到外部版的桶"""
         job = create_job(is_external=True, status=ExportJobStatus.RUNNING, end_time=1000)
         part = ExportPart.objects.create(
-            job=job, part_no=1, start_time=0, end_time=1000, status=ExportPartStatus.RUNNING
+            job=job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.RUNNING,
+            task_id="task-1",
+            attempts=1,
         )
         with (
             patch("apps.log_search.export.worker.build_storage") as build_storage,
@@ -358,7 +370,7 @@ class PartRunnerTests(TestCase):
             patch("apps.log_search.export.worker._sha256", return_value="checksum"),
         ):
             api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
-            _execute(job, part)
+            _execute(job, part, fence_of(part))
 
         build_storage.assert_called_once_with(external=True)
         part.refresh_from_db()
@@ -370,7 +382,13 @@ class PartRunnerTests(TestCase):
         """上传抖动只重试上传本身：不重新查询、不重新压缩，退避按尝试次数递增。"""
         job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
         part = ExportPart.objects.create(
-            job=job, part_no=1, start_time=0, end_time=1000, status=ExportPartStatus.RUNNING
+            job=job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.RUNNING,
+            task_id="task-1",
+            attempts=1,
         )
         with (
             patch("apps.log_search.export.worker.build_storage"),
@@ -382,7 +400,7 @@ class PartRunnerTests(TestCase):
         ):
             upload.side_effect = [RuntimeError("cos 5xx"), RuntimeError("cos 5xx"), "etag"]
             api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
-            _execute(job, part)
+            _execute(job, part, fence_of(part))
 
         self.assertEqual(upload.call_count, 3)
         self.assertEqual(api.query_ts_raw_with_scroll.call_count, 1)
@@ -411,12 +429,29 @@ class PartRunnerTests(TestCase):
             patch("apps.log_search.export.worker.time.sleep"),
         ):
             api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
-            run_part(part.pk)
+            run_part(part.pk, "task-1")
 
         self.assertEqual(upload.call_count, 2)
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.error_code, "UPLOAD_FAILED")
+
+
+class PartTaskContractTests(SimpleTestCase):
+    """分片任务的投递身份契约：消息体只带 part_id，身份走 Celery 消息 id。"""
+
+    def test_message_carries_part_id_and_task_id_only(self):
+        with patch("apps.log_search.export.scheduler.app.send_task") as send_task:
+            _send(PART_TASK_NAME, 7, task_id="token-a")
+
+        self.assertEqual(send_task.call_args.kwargs["args"], [7])
+        self.assertEqual(send_task.call_args.kwargs["task_id"], "token-a")
+
+    def test_task_passes_message_id_as_fence(self):
+        with patch("apps.log_search.tasks.sharded_export.run_part") as run_part:
+            execute_sharded_export_part.apply(args=[7], task_id="token-a", throw=True)
+
+        run_part.assert_called_once_with(7, "token-a")
 
 
 class ExportStateTestCase(TestCase):
@@ -436,9 +471,10 @@ class ExportStateTestCase(TestCase):
     def complete_parts(self, count):
         for part in ExportPart.objects.filter(job=self.job).order_by("part_no")[:count]:
             state.dispatch_part(part.pk, f"task-{part.pk}")
-            state.claim_part(part.pk)
+            part = state.claim_part(part.pk, f"task-{part.pk}")
             state.complete_part(
                 part.pk,
+                fence_of(part),
                 actual_rows=10,
                 actual_bytes=100,
                 compressed_bytes=50,
@@ -517,8 +553,8 @@ class ExportStateTestCase(TestCase):
         self.plan()
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
         state.dispatch_part(part.pk, "task")
-        state.claim_part(part.pk)
-        state.fail_part(part.pk, error_code="QUERY_FAILED", retryable=True)
+        part = state.claim_part(part.pk, "task")
+        state.fail_part(part.pk, fence_of(part), error_code="QUERY_FAILED", retryable=True)
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.task_id, "")
@@ -529,8 +565,8 @@ class ExportStateTestCase(TestCase):
         self.plan()
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
         state.dispatch_part(part.pk, "task")
-        state.claim_part(part.pk)
-        state.fail_part(part.pk, error_code="QUERY_FAILED", retryable=True)
+        part = state.claim_part(part.pk, "task")
+        state.fail_part(part.pk, fence_of(part), error_code="QUERY_FAILED", retryable=True)
         part.refresh_from_db()
         self.job.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.FAILED)
@@ -541,12 +577,128 @@ class ExportStateTestCase(TestCase):
         self.plan()
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
         state.dispatch_part(part.pk, "task")
-        state.claim_part(part.pk)
+        part = state.claim_part(part.pk, "task")
         ExportPart.objects.filter(pk=part.pk).update(started_at=timezone.now() - timedelta(seconds=10))
         self.assertEqual(state.recover_stale_parts(), [part.pk])
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.error_code, "PART_TIMEOUT")
+
+    @override_settings(ASYNC_EXPORT_PART_TIMEOUT=1)
+    def test_recover_rechecks_staleness_inside_the_row_lock(self):
+        """候选查询只做粗筛，回收必须在锁内按当前数据重判。"""
+        self.plan()
+        part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
+        state.dispatch_part(part.pk, "task")
+        part = state.claim_part(part.pk, "task")
+        ExportPart.objects.filter(pk=part.pk).update(started_at=timezone.now() - timedelta(seconds=10))
+
+        with patch("apps.log_search.export.state._is_stale", return_value=False):
+            self.assertEqual(state.recover_stale_parts(), [])
+
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.RUNNING)
+
+        # 事实未变时按超时正常回收
+        self.assertEqual(state.recover_stale_parts(), [part.pk])
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.WAITING)
+
+    def test_old_worker_cannot_change_reclaimed_part(self):
+        """旧投递和旧执行在新一次认领后均不得修改分片或任务结果。"""
+        self.plan()
+        part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
+        state.dispatch_part(part.pk, "task-a")
+        old = state.claim_part(part.pk, "task-a")
+        state.fail_part(part.pk, fence_of(old), error_code="PART_TIMEOUT", retryable=True)
+        state.dispatch_part(part.pk, "task-b")
+        self.assertIsNone(state.claim_part(part.pk, "task-a"))
+        self.assertIsNone(state.fail_part(part.pk, fence_of(old), error_code="OLD_FAILURE", retryable=False))
+        self.assertEqual(ExportPart.objects.get(pk=part.pk).status, ExportPartStatus.DISPATCHED)
+        current = state.claim_part(part.pk, "task-b")
+
+        self.assertEqual(state.set_stage(part.pk, fence_of(old), ExportStage.UPLOAD), 0)
+        self.assertIsNone(
+            state.complete_part(
+                part.pk,
+                fence_of(old),
+                actual_rows=999,
+                actual_bytes=999,
+                compressed_bytes=999,
+                object_key="old-object",
+                checksum="old-checksum",
+            )
+        )
+        self.assertIsNone(state.fail_part(part.pk, fence_of(old), error_code="OLD_FAILURE", retryable=False))
+        part.refresh_from_db()
+        self.job.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.RUNNING)
+        self.assertEqual(part.stage, ExportStage.DOWNLOAD_LOG)
+        self.assertEqual(part.attempts, current.attempts)
+        self.assertEqual(part.object_key, "")
+        self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
+        self.assertEqual(self.job.actual_total, 0)
+
+        self.assertIsNotNone(
+            state.complete_part(
+                part.pk,
+                fence_of(current),
+                actual_rows=10,
+                actual_bytes=100,
+                compressed_bytes=50,
+                object_key="current-object",
+                checksum="current-checksum",
+            )
+        )
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.actual_total, 10)
+
+    def test_redelivered_task_reclaims_a_running_part(self):
+        """worker 崩溃后 broker 重投递同一条消息，应当立即重新认领而不是干等超时回收。"""
+        self.plan()
+        part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
+        state.dispatch_part(part.pk, "task")
+        state.claim_part(part.pk, "task")
+
+        again = state.claim_part(part.pk, "task")
+
+        self.assertIsNotNone(again)
+        self.assertEqual(again.attempts, 2)
+        self.assertEqual(again.status, ExportPartStatus.RUNNING)
+
+    def test_reclaim_invalidates_the_previous_attempt_fence(self):
+        """重投递后 task_id 不变，执行代际只能靠 attempts 区分。"""
+        self.plan()
+        part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
+        state.dispatch_part(part.pk, "task")
+        old = state.claim_part(part.pk, "task")
+        current = state.claim_part(part.pk, "task")
+
+        self.assertIsNone(
+            state.complete_part(
+                part.pk,
+                fence_of(old),
+                actual_rows=10,
+                actual_bytes=1,
+                compressed_bytes=1,
+                object_key="old-object",
+                checksum="old-checksum",
+            )
+        )
+        self.assertIsNone(state.fail_part(part.pk, fence_of(old), error_code="PART_TIMEOUT", retryable=True))
+        self.assertIsNotNone(
+            state.complete_part(
+                part.pk,
+                fence_of(current),
+                actual_rows=10,
+                actual_bytes=1,
+                compressed_bytes=1,
+                object_key="new-object",
+                checksum="new-checksum",
+            )
+        )
+        part.refresh_from_db()
+        self.assertEqual(part.object_key, "new-object")
 
     def test_finalize_requires_every_part_success(self):
         self.plan()
@@ -568,12 +720,12 @@ class ExportStateTestCase(TestCase):
         self.plan()
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
         state.dispatch_part(part.pk, "task")
-        state.claim_part(part.pk)
+        part = state.claim_part(part.pk, "task")
 
-        state.set_stage(part.pk, ExportStage.PACKAGE)
+        state.set_stage(part.pk, fence_of(part), ExportStage.PACKAGE)
         self.assertEqual(ExportPart.objects.get(pk=part.pk).status, ExportPartStatus.RUNNING)
 
-        state.set_stage(part.pk, ExportStage.UPLOAD)
+        state.set_stage(part.pk, fence_of(part), ExportStage.UPLOAD)
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.UPLOADING)
         self.assertEqual(part.stage, ExportStage.UPLOAD)
@@ -583,12 +735,18 @@ class ExportStateTestCase(TestCase):
         self.plan()
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
         state.dispatch_part(part.pk, "task")
-        state.claim_part(part.pk)
-        state.set_stage(part.pk, ExportStage.UPLOAD)
+        part = state.claim_part(part.pk, "task")
+        state.set_stage(part.pk, fence_of(part), ExportStage.UPLOAD)
 
         self.assertIsNotNone(
             state.complete_part(
-                part.pk, actual_rows=10, actual_bytes=100, compressed_bytes=50, object_key="object", checksum="sum"
+                part.pk,
+                fence_of(part),
+                actual_rows=10,
+                actual_bytes=100,
+                compressed_bytes=50,
+                object_key="object",
+                checksum="sum",
             )
         )
         part.refresh_from_db()
@@ -600,8 +758,8 @@ class ExportStateTestCase(TestCase):
         self.plan()
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
         state.dispatch_part(part.pk, "task")
-        state.claim_part(part.pk)
-        state.set_stage(part.pk, ExportStage.UPLOAD)
+        part = state.claim_part(part.pk, "task")
+        state.set_stage(part.pk, fence_of(part), ExportStage.UPLOAD)
         ExportPart.objects.filter(pk=part.pk).update(started_at=timezone.now() - timedelta(seconds=10))
 
         self.assertEqual(state.recover_stale_parts(), [part.pk])
@@ -681,8 +839,8 @@ class SplitTests(TestCase):
     def fail_first_part(self, error_code="PART_TIMEOUT"):
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
         state.dispatch_part(part.pk, "task")
-        state.claim_part(part.pk)
-        state.fail_part(part.pk, error_code=error_code, error_detail="执行超时", retryable=True)
+        part = state.claim_part(part.pk, "task")
+        state.fail_part(part.pk, fence_of(part), error_code=error_code, error_detail="执行超时", retryable=True)
         return part
 
     def children_of(self, parent):
@@ -709,8 +867,8 @@ class SplitTests(TestCase):
         state.persist_plan(job.pk, parts=[PartSpec(0, 1000, 40, 4000, oversized=True)], estimated_total=40)
         part = ExportPart.objects.get(job=job)
         state.dispatch_part(part.pk, "task")
-        state.claim_part(part.pk)
-        state.fail_part(part.pk, error_code="PART_TIMEOUT", retryable=True)
+        part = state.claim_part(part.pk, "task")
+        state.fail_part(part.pk, fence_of(part), error_code="PART_TIMEOUT", retryable=True)
 
         job.refresh_from_db()
         part.refresh_from_db()
@@ -741,8 +899,8 @@ class SplitTests(TestCase):
         state.persist_plan(job.pk, parts=[PartSpec(0, 4000, 40, 4000)], estimated_total=40)
         part = ExportPart.objects.get(job=job)
         state.dispatch_part(part.pk, "task")
-        state.claim_part(part.pk)
-        state.fail_part(part.pk, error_code="PART_TIMEOUT", retryable=True)
+        part = state.claim_part(part.pk, "task")
+        state.fail_part(part.pk, fence_of(part), error_code="PART_TIMEOUT", retryable=True)
 
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.FAILED)
@@ -751,9 +909,10 @@ class SplitTests(TestCase):
         parent = self.fail_first_part()
         for child in self.children_of(parent):
             state.dispatch_part(child.pk, f"task-{child.pk}")
-            state.claim_part(child.pk)
+            child = state.claim_part(child.pk, f"task-{child.pk}")
             state.complete_part(
                 child.pk,
+                fence_of(child),
                 actual_rows=20,
                 actual_bytes=200,
                 compressed_bytes=100,
@@ -777,7 +936,13 @@ class SplitTests(TestCase):
 
         self.assertIsNone(
             state.complete_part(
-                parent.pk, actual_rows=40, actual_bytes=400, compressed_bytes=1, object_key="stale", checksum="c"
+                parent.pk,
+                fence_of(parent),
+                actual_rows=40,
+                actual_bytes=400,
+                compressed_bytes=1,
+                object_key="stale",
+                checksum="c",
             )
         )
         parent.refresh_from_db()

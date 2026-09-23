@@ -141,11 +141,16 @@ def dispatch_ready_parts():
             if part is None:
                 break
             try:
+                # 投递身份由 Celery 消息 id 承载，消息体只带 part_id
                 _send(PART_TASK_NAME, part.pk, task_id=part.task_id, queue=PART_QUEUE)
             except Exception as error:  # pylint: disable=broad-except
                 logger.exception("[dispatch_ready_parts] part=%s publish failed: %s", part.pk, error)
                 state.fail_part(
-                    part.pk, error_code="DISPATCH_FAILED", error_detail="投递到 Celery 失败", retryable=True
+                    part.pk,
+                    state.PartFence.of(part),
+                    error_code="DISPATCH_FAILED",
+                    error_detail="投递到 Celery 失败",
+                    retryable=True,
                 )
                 break
             dispatched.append(part.pk)
