@@ -39,6 +39,7 @@ class SyncApiGatewayStageTests(SimpleTestCase):
                 definition = Definition.load_from(definition_path, {"settings": settings})
                 self.assertEqual(definition.get("stage")["name"], stage)
                 self.assertEqual(definition.get("stage")["description"], description)
+                self.assertEqual(definition.get("stage")["proxy_http"]["timeout"], 160)
 
                 with patch("apps.api.management.commands.sync_apigw.call_command") as mock_call:
                     Command().handle()
