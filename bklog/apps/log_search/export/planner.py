@@ -166,8 +166,28 @@ def _ceil_to(value, step):
     return -(-int(value) // step) * step
 
 
-def _align(value, step):
-    return value - value % step
+# unify-query 的 date_histogram 只接受规整时长，任意毫秒值（如 177078ms）会返回空序列
+INTERVAL_LADDER_MS = (
+    *(unit * 1000 for unit in (1, 2, 3, 5, 10, 15, 20, 30)),
+    *(unit * 60_000 for unit in (1, 2, 3, 5, 10, 15, 30, 60)),
+    *(unit * 3_600_000 for unit in (2, 3, 6, 12, 24)),
+)
+
+
+def _canonical_interval(interval, span):
+    """把桶宽向上取整到 unify-query 接受的规整时长，且不超过查询跨度。"""
+    candidates = [value for value in INTERVAL_LADDER_MS if value <= span]
+    if not candidates:
+        return span
+    for value in candidates:
+        if value >= interval:
+            return value
+    return candidates[-1]
+
+
+def _bucket_origin(buckets, interval):
+    """桶键锚点由 unify-query 决定，按 start_time 推出的网格可能取不到桶。"""
+    return min(buckets) % interval
 
 
 def choose_interval(total, start, end, tick, policy):
@@ -179,11 +199,11 @@ def choose_interval(total, start, end, tick, policy):
     """
     span = max(tick, end - start)
     if total <= 0:
-        return max(tick, _ceil_to(policy.bucket_seconds * 1000, tick))
+        return _canonical_interval(policy.bucket_seconds * 1000, span)
     interval = int(policy.target_rows * span / total)
     interval = max(interval, policy.bucket_seconds * 1000)
     interval = max(interval, _ceil_to(span / policy.max_buckets, tick))
-    return max(tick, _ceil_to(interval, tick))
+    return _canonical_interval(interval, span)
 
 
 def refine(handler, start, end, rows, tick, policy, avg_bytes):
@@ -255,7 +275,7 @@ def build_parts(job, policy):
         raise PlanError("STATISTICS_FAILED", "unify-query 直方图未返回任何数据点", retryable=True)
 
     parts = []
-    cursor = _align(job.start_time, interval)
+    cursor = job.start_time - (job.start_time - _bucket_origin(buckets, interval)) % interval
     while cursor < job.end_time:
         left = max(cursor, job.start_time)
         right = min(cursor + interval, job.end_time)
