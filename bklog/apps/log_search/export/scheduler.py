@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import hashlib
 import json
 import tempfile
 import time
@@ -214,7 +215,12 @@ def finalize_export(job_id):
             path = Path(directory) / "manifest.json"
             path.write_bytes(content)
             upload(build_storage(external=job.is_external), path, manifest_name(job))
-        return state.finalize_job(job_id, manifest_object_key=manifest_name(job), manifest_bytes=len(content))
+        return state.finalize_job(
+            job_id,
+            manifest_object_key=manifest_name(job),
+            manifest_bytes=len(content),
+            manifest_checksum=hashlib.sha256(content).hexdigest(),
+        )
     except Exception as error:  # pylint: disable=broad-except
         # 分片产物都已成功，清单失败不能让调度器无限重投，直接给出明确错误
         logger.exception("[finalize_export] job=%s manifest failed: %s", job.pk, error)
