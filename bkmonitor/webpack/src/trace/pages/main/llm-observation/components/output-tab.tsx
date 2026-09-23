@@ -29,6 +29,7 @@ import { Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { parseOutputObservation } from '../utils/parse-output';
+import { LLM_SEARCH_SECTION } from '../utils/search';
 import CollapseSection from './collapse-section';
 import JsonCodeBlock from './json-code-block';
 import JsonView from './json-view';
@@ -84,13 +85,19 @@ export default defineComponent({
       detail.value = { kind: 'json', title, data };
     };
 
-    /** 渲染文本分区条目 */
-    const renderTextItems = (items: LlmTextItem[], title: string) =>
+    /** 关闭独立查看：卸载 Sideslider，避免 teleport 到 body 的 .bk-modal 残留挡点击 */
+    const closeDetail = () => {
+      detail.value = null;
+    };
+
+    /** 渲染文本分区条目；searchPrefix 须与 collectOutputHits 的 blockId 前缀一致 */
+    const renderTextItems = (items: LlmTextItem[], title: string, searchPrefix: string) =>
       items.map((item, index) => (
         <TextContentItem
           key={item.id}
           content={item.content}
           index={index + 1}
+          searchBlockId={`${searchPrefix}:${item.id}`}
           onViewAlone={content => openTextDetail(title, content)}
         />
       ));
@@ -102,7 +109,9 @@ export default defineComponent({
           <JsonCodeBlock
             key={item.id}
             data={item.result ?? {}}
-            title={item.name || t('返回结果')}
+            searchBlockId={`output:result:${item.id}:json`}
+            title={item.name.trim() || t('返回结果')}
+            titleBlockId={item.name.trim() ? `output:result:${item.id}:name` : ''}
             onViewAlone={openJsonDetail}
           />
         ))}
@@ -118,29 +127,33 @@ export default defineComponent({
             {observation.value.reasoningMessages.length > 0 && (
               <CollapseSection
                 count={observation.value.reasoningMessages.length}
-                icon='icon-mind-fill'
+                icon='icon-tuiliguocheng'
+                sectionId={LLM_SEARCH_SECTION.outputReasoning}
                 title={t('推理过程')}
               >
-                {renderTextItems(observation.value.reasoningMessages, t('推理过程'))}
+                {renderTextItems(observation.value.reasoningMessages, t('推理过程'), 'output:reasoning')}
               </CollapseSection>
             )}
             {observation.value.modelOutputs.length > 0 && (
               <CollapseSection
                 count={observation.value.modelOutputs.length}
-                icon='icon-mc-robot'
+                icon='icon-LLM'
+                sectionId={LLM_SEARCH_SECTION.outputModel}
                 title={t('模型输出')}
               >
-                {renderTextItems(observation.value.modelOutputs, t('模型输出'))}
+                {renderTextItems(observation.value.modelOutputs, t('模型输出'), 'output:model')}
               </CollapseSection>
             )}
             {observation.value.plannedToolCalls.length > 0 && (
               <CollapseSection
                 count={observation.value.plannedToolCalls.length}
-                icon='icon-setting'
+                icon='icon-Tool'
+                sectionId={LLM_SEARCH_SECTION.outputPlanned}
                 title={t('规划的工具调用')}
               >
                 <ToolCallList
                   items={observation.value.plannedToolCalls}
+                  searchPrefix='output:planned'
                   onViewAlone={openJsonDetail}
                 />
               </CollapseSection>
@@ -149,6 +162,7 @@ export default defineComponent({
               <CollapseSection
                 count={observation.value.toolResults.length}
                 icon='icon-setting'
+                sectionId={LLM_SEARCH_SECTION.outputResults}
                 title={t('工具调用结果')}
               >
                 {renderToolResults(observation.value.toolResults)}
@@ -156,34 +170,35 @@ export default defineComponent({
             )}
           </>
         )}
-        <Sideslider
-          width={640}
-          extCls='llm-output-tab-slider'
-          isShow={Boolean(detail.value)}
-          quickClose={true}
-          transfer={true}
-          onClosed={() => {
-            detail.value = null;
-          }}
-          onUpdate:isShow={(val: boolean) => {
-            if (!val) detail.value = null;
-          }}
-        >
-          {{
-            header: () => <span>{detail.value?.title || ''}</span>,
-            default: () =>
-              detail.value?.kind === 'json' ? (
-                <div class='llm-output-tab-slider-json'>
-                  <JsonView
-                    data={detail.value.data}
-                    showLineNumber={true}
-                  />
-                </div>
-              ) : (
-                <pre class='llm-output-tab-slider-text'>{detail.value?.kind === 'text' ? detail.value.text : ''}</pre>
-              ),
-          }}
-        </Sideslider>
+        {detail.value ? (
+          <Sideslider
+            width={640}
+            extCls='llm-output-tab-slider'
+            isShow={true}
+            quickClose={true}
+            transfer={true}
+            onClosed={closeDetail}
+            onHidden={closeDetail}
+            onUpdate:isShow={(val: boolean) => {
+              if (!val) closeDetail();
+            }}
+          >
+            {{
+              header: () => <span>{detail.value?.title || ''}</span>,
+              default: () =>
+                detail.value?.kind === 'json' ? (
+                  <div class='llm-output-tab-slider-json'>
+                    <JsonView
+                      data={detail.value.data}
+                      showLineNumber={true}
+                    />
+                  </div>
+                ) : (
+                  <pre class='llm-output-tab-slider-text'>{detail.value?.kind === 'text' ? detail.value.text : ''}</pre>
+                ),
+            }}
+          </Sideslider>
+        ) : null}
       </div>
     );
   },

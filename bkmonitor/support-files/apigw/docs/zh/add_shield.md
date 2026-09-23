@@ -21,6 +21,20 @@
 | source                 | string    | 否   | 来源                                                                                |
 | verify_user_permission | bool      | 否   | 是否额外验证用户权限(apigw场景)，默认false                                          |
 | dimension_keys         | list[str] | 否   | 维度键名列表(仅用于alert和event类型，用于移动端快捷屏蔽，动态删除维度) |
+| end_policy             | string    | 否   | 屏蔽结束处理方式，默认 `notify_once`。可选值见下文 |
+
+#### 屏蔽结束处理方式(end_policy)
+
+| 取值 | 行为 |
+| ---- | ---- |
+| notify_once | 默认值，与历史行为一致：告警仍会生成；屏蔽期间拦截通知和处理；结束后对未恢复告警各补发一次解除屏蔽通知 |
+| close | `begin_time` 落在本条屏蔽当时生效窗内的告警，期间不发送通知、不执行处理套餐；屏蔽结束（到期或提前解除）时关闭这些告警，不补发、不补执行。屏蔽开始前已存在的告警不受本条 `close` 影响。关闭后同维度再次异常将作为新告警按原策略通知 |
+
+约束：
+
+- 创建时省略该字段视为 `notify_once`。
+- 创建后不可修改；如需另一种方式，请新建屏蔽。
+- 快捷屏蔽（`is_quick=true` 或 `category` 为 `alert` / `event`）不支持 `close`，传入将被拒绝。
 
 #### 屏蔽配置(cycle_config)
 
@@ -133,6 +147,7 @@
         ]
     },
     "description":"test",
+    "end_policy":"close",
     "dimension_config":{
         "scope_type":"instance",
         "target":[8]

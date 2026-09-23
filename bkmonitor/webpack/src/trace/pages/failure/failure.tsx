@@ -171,6 +171,17 @@ export default defineComponent({
     provide('incidentResults', incidentResultList);
     provide('isShowDiagnosis', isShowDiagnosis);
     /**
+     * 本页是否已一键开启故障分析（对齐告警中心：开启后立即视为已接入，隐藏按钮）
+     * 后台 incident_results.reason 可能仍短暂为 feature_disabled
+     */
+    const featureEnabledLocally = shallowRef(false);
+    provide('featureEnabledLocally', featureEnabledLocally);
+    /** 刷新故障分析 panels（拓扑一键开启成功后调用，与告警中心 onEnabled 刷新列表一致） */
+    provide('refreshIncidentResults', () => {
+      featureEnabledLocally.value = true;
+      getIncidentResults();
+    });
+    /**
      * @description: 获取告警分析TopN数据
      * @param {*}
      * @return {*}
@@ -344,9 +355,12 @@ export default defineComponent({
           getIncidentOperations();
           getIncidentOperationTypes();
           handleGetSearchTopNList();
-          /** 判断路由里是否带了activeTab，需要调整到指定tab，由于其他tab的接口请求依赖详情数据，所以要在跳转前确保已经正确获取到详情数据 */
-          if (route.query?.activeTab) {
-            changeTab();
+          /** 仅处理外部指定的一级 Tab；未指定时由 FailureContent 按原有规则决定默认 Tab */
+          const activeTab = Array.isArray(route.query?.activeTab) ? route.query.activeTab[0] : route.query?.activeTab;
+          if (activeTab) {
+            if (['FailureTopo', 'FailureView'].includes(activeTab)) {
+              changeTab(activeTab);
+            }
             nextTick(() => {
               const restQuery = { ...route.query };
               delete restQuery.activeTab;
@@ -438,8 +452,8 @@ export default defineComponent({
     const handleChangeSpace = (space: string[]) => {
       bkzIds.value = space || [window.bk_biz_id];
     };
-    const changeTab = () => {
-      refContent.value?.handleChangeActive('FailureView');
+    const changeTab = (activeTab = 'FailureView') => {
+      refContent.value?.handleChangeActive(activeTab);
     };
     const goAlertList = data => {
       refContent.value?.goAlertDetail(data);

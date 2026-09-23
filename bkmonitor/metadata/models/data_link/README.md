@@ -179,6 +179,22 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 联邦子集群策略在组装阶段重点产出 `ConditionalSink` + `Databus` 路由配置；其策略映射中仍包含其他组件类型，用于统一生命周期管理和清理。
 - 日志链路支持 ES 与 Doris，至少需要一个存储绑定，否则抛出 `ValueError("至少需要一个存储绑定配置")`。
 
+日志链路的 `log_v4_data_link.doris_storage_config` 和自定义格式链路的
+`custom_format_v4_data_link.doris_storage_config` 均支持自定义分词规则，例如：
+
+```json
+{
+  "storage_keys": [],
+  "tokenizers": {
+    "log": "._=:,"
+  }
+}
+```
+
+`tokenizers` 按字段名配置分词字符串，下发到 `DorisBinding.spec.storage_config.tokenizers`，
+与 `field_config_group` 同级。省略或设置为 `null` 时不下发该键；显式 `{}` 原样下发。
+`field_config_group` 保持原样透传。存量链路修改分词配置后需重新下发才能生效。
+
 ---
 
 ## 6. 核心流程
@@ -309,6 +325,46 @@ ES/Doris 仅实际下发字段发生变化时触发同步。只修改 `custom_op
 `display_name` 等管理字段不会调用 BKBase。Doris 同步前要求本地 `host/port/write_port/user/password`
 完整有效；历史 `origin_config` 不用于补齐必需字段，缺失时应在修改请求中显式补齐。
 校验失败或 BKBase 请求失败会回滚创建/修改的本地事务，远端成功操作不受数据库事务回滚保护。
+
+---
+
+### 9.4 VM Query 集群反向同步与查询
+
+`VmQueryClusterConfig` 是独立的只读镜像模型，记录 `VmQueryCluster` 的资源身份、
+查询域名、部署信息、`monitorStorageClusters` 关系、状态及完整远端快照。
+它不依赖 `ClusterInfo` 或 `ClusterConfig`，也不参与 DataLink 编排、下发和远端删除。
+`metadata.name` 与 `spec.clusterName` 分别保存在 `name` 和 `cluster_name`。
+
+部署时先执行 Metadata 的 `0277_vm_query_cluster_config` 建表迁移，再启动同步任务。
+现有每小时集群同步及租户初始化会拉取 `bkmonitor` 下的 `vmqueryclusters`；
+也可在 Django 环境中按租户手动同步：
+
+```python
+from metadata.task.bkbase import sync_bkbase_vm_query_clusters
+
+success = sync_bkbase_vm_query_clusters(bk_tenant_id="system")
+```
+
+同步不受 `SYNC_BKBASE_CLUSTER_INFO_UPDATE` 限制。完整列表通过校验后才整体落库；
+远端消失的资源标记为 `Terminated`，保留最后的字段及原始快照，重新出现时恢复远端状态。
+成功返回空列表会标记该租户和 namespace 的全部 VM Query 失效；请求失败或列表非法时，
+本地记录及同步时间均保持不变。`last_synced_at` 表示最后一次成功对账时间，
+失效记录的 `origin_config` 仍是最后一次见到该资源时的远端响应。
+
+Admin 使用现有 `admin.datalink.component_list`、`component_detail`、`component_config`，
+指定 `kind="VmQueryCluster"`。列表和详情展示本地结构化字段、状态及快照，并保留失效项；
+列表支持 `search` 按资源 `name` 模糊匹配，以及 `vmstorage` 按
+`monitor_storage_clusters` 数组成员精确匹配（不是子串匹配）。两者可组合使用，
+过滤在租户、namespace 范围内且先于分页执行。
+`component_config`（或详情的 `include=["component_config"]`）按需读取 BKBase 实时配置。
+
+`admin.vm_query.query` 按 `bk_tenant_id + namespace + name` 查找本地镜像，再使用
+`cluster_domain` 无认证直查 VM select，拒绝失效集群与客户端 URL/路径/Header 覆盖。
+支持 `mode=instant + time` 或 `mode=range + start/end/step`，表达式使用 `query` 原样传递，
+时间参数为 Unix 秒。裸域名默认 HTTP 8481；请求路径固定为
+`/select/0/prometheus/api/v1/query` 或 `query_range`，通过 POST form 发送，不跟随重定向。
+查询超时 30 秒、跨度最多 31 天、每序列最多 11000 点；响应最多 5 MiB、1000 条序列和
+100000 个总采样点，超限明确报错，不静默截断。请求与结果均不经 Admin 服务直连 VM。
 
 ---
 

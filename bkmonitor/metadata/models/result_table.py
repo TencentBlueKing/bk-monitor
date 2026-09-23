@@ -3115,6 +3115,7 @@ class LogV4DataLinkOption(pydantic.BaseModel):
         json_fields: list[str] = pydantic.Field(description="JSON字段列表", default_factory=list)
         original_json_fields: list[str] = pydantic.Field(description="原始JSON字段列表", default_factory=list)
         field_config_group: dict[str, Any] = pydantic.Field(description="字段配置组", default_factory=dict)
+        tokenizers: dict[str, str] | None = pydantic.Field(description="字段自定义分词规则", default=None)
         flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒", default=None)
 
     class CleanRule(pydantic.BaseModel):
@@ -3235,6 +3236,7 @@ class ResultTableOption(OptionBase):
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
     OPTION_METRIC_GROUP_DIMENSIONS = "metric_group_dimensions"
     OPTION_QUERY_ROUTER_CONFIG = "query_router_config"
+    OPTION_DATABUS_PREFER_CLUSTER = "databus_prefer_cluster"
 
     # 选项类型
     TYPE_BOOL = "bool"
@@ -3266,6 +3268,7 @@ class ResultTableOption(OptionBase):
             (OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK, _("是否开启自定义格式 V4 数据链路")),
             (OPTION_CUSTOM_FORMAT_V4_DATA_LINK, _("自定义格式 V4 数据链路配置")),
             (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),
+            (OPTION_DATABUS_PREFER_CLUSTER, _("Databus 优先集群配置")),
         ),
         max_length=128,
     )

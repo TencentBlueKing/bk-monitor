@@ -15,10 +15,22 @@
     @include flex-align(flex-start);
   }
 
-  .llm-text-content-body {
+  .llm-text-content-main {
     flex: 1;
     min-width: 0;
-    overflow: hidden;
+    min-height: 0;
+
+    @include flex-column;
+  }
+
+  .llm-text-content-clip {
+    position: relative;
+    width: 100%;
+    min-height: 0;
+  }
+
+  .llm-text-content-body {
+    width: 100%;
     font-family: arial, sans-serif;
     font-size: $font-size-base;
     line-height: 20px;
@@ -27,15 +39,37 @@
     white-space: pre-wrap;
   }
 
+  .llm-text-content-expand {
+    flex-shrink: 0;
+    gap: 2px;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: $primary-color;
+    cursor: pointer;
+    user-select: none;
+    background: #fff;
+
+    @include flex-align(center);
+
+    .icon-monitor {
+      width: 12px;
+      height: 12px;
+      font-size: 12px;
+      line-height: 12px;
+      transition: transform 0.2s ease;
+    }
+
+    .icon-double-down.is-expanded {
+      transform: rotate(180deg);
+    }
+  }
+
   .llm-text-content-actions {
-    position: absolute;
-    top: 8px;
-    right: 8px;
     z-index: 1;
     display: none;
     flex-direction: column;
     gap: 8px;
-    align-items: flex-start;
+    pointer-events: none;
   }
 
   .llm-text-content-action {
@@ -44,6 +78,7 @@
     font-size: $font-size-base;
     line-height: 20px;
     color: $primary-color;
+    pointer-events: auto;
     white-space: nowrap;
     cursor: pointer;
     background: #fff;
@@ -56,24 +91,28 @@
     .icon-monitor {
       font-size: $font-size-medium;
     }
-
-    &.is-collapse {
-      position: absolute;
-      right: 8px;
-      bottom: 8px;
-      z-index: 1;
-      display: none;
-    }
   }
 
-  // 默认折叠由展示状态决定，首次溢出检测完成前也限制消息高度。
+  // 卡片 160px = padding 8+8 + 正文 120px + 展开 20px，正文再高会把按钮裁掉一半。
   &:not(.is-expanded) {
+    .llm-text-content-actions {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      align-items: flex-start;
+    }
+
+    .llm-text-content-clip {
+      max-height: 120px;
+      overflow: hidden;
+    }
+
     .llm-text-content-body {
       /* stylelint-disable value-no-vendor-prefix, property-no-vendor-prefix -- 多行截断依赖 webkit box */
       display: -webkit-box;
-      max-height: 140px;
+      max-height: 120px;
       overflow: hidden;
-      -webkit-line-clamp: 7;
+      -webkit-line-clamp: 6;
       -webkit-box-orient: vertical;
 
       /* stylelint-enable value-no-vendor-prefix, property-no-vendor-prefix */
@@ -83,28 +122,46 @@
   &.is-overflow {
     height: 160px;
     overflow: hidden;
+  }
 
-    &::after {
-      position: absolute;
-      right: 0;
-      bottom: -1px;
-      left: 0;
-      height: 31px;
-      pointer-events: none;
-      content: '';
-      background: linear-gradient(180deg, rgb(255 255 255 / 0%) 0%, #fff 100%);
+  // 展开后：滚动时吸在小标题下方，模块滚走后一起离开。
+  &.is-expanded {
+    overflow: visible;
+
+    @include flex-column;
+
+    .llm-text-content-actions {
+      position: sticky;
+      top: calc(var(--llm-section-sticky-top, 90px) + var(--llm-section-header-height, 32px) + 8px);
+      align-items: flex-end;
+      width: 100%;
+      height: 0;
+      overflow: visible;
+    }
+
+    .llm-text-content-row {
+      overflow: visible;
+      align-items: stretch;
+    }
+
+    .llm-text-content-clip {
+      max-height: calc(var(--llm-expand-max-height, calc(100vh - 174px)) - 36px);
+      overflow: auto;
+    }
+
+    .llm-text-content-expand {
+      flex-shrink: 0;
     }
   }
 
   &:hover {
     background: #f7f9fc;
 
-    &.is-overflow::after {
-      background: linear-gradient(180deg, rgb(247 249 252 / 0%) 0%, #f7f9fc 100%);
+    .llm-text-content-expand {
+      background: #f7f9fc;
     }
 
-    .llm-text-content-actions,
-    .llm-text-content-action.is-collapse {
+    .llm-text-content-actions {
       display: flex;
     }
   }
@@ -116,6 +173,6 @@
   font-family: menlo, monaco, consolas, monospace;
   font-size: $font-size-base;
   line-height: 20px;
-  color: $primary-color;
+  color: #8f9fbd;
   white-space: nowrap;
 }

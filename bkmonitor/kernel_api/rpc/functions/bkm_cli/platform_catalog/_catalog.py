@@ -39,6 +39,10 @@ class ParamsGuardRejected(ValueError):
     """params_guard 拒绝本次调用：属策略拦截（映射 unsafe_action_blocked），不是 provider 故障。"""
 
 
+class ProviderResponseRejected(ValueError):
+    """上游响应不符合已注册的只读结果契约，不得投影为完整空结果。"""
+
+
 @dataclass
 class OperationSpec:
     """一个具体的 api.<domain>.<resource> 能力描述。

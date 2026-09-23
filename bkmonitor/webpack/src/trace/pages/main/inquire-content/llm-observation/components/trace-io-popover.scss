@@ -1,0 +1,135 @@
+@import '../../../../../theme/theme';
+@import '../../../../../theme/mixin';
+
+.bk-popover.bk-pop2-content.llm-trace-io-popover {
+  padding: 16px;
+  background: #fff;
+  border: 1px solid $border-color-base;
+  border-radius: 4px;
+  box-shadow: 0 0 20px 0 rgb(0 0 0 / 16%);
+}
+
+.llm-trace-io {
+  &-content {
+    gap: 32px;
+    width: 100%;
+
+    @include flex-column;
+  }
+
+  &-section {
+    gap: 8px;
+    width: 100%;
+
+    @include flex-column;
+  }
+
+  &-head {
+    gap: 8px;
+    width: 100%;
+
+    @include flex-align(flex-start);
+  }
+
+  &-avatar {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+
+    @include flex-center;
+
+    &.is-input {
+      background: #f0f4fa;
+    }
+
+    &.is-output {
+      background: #f6f5fa;
+    }
+
+    .icon-monitor {
+      font-size: 24px;
+      color: #4e5e7a;
+    }
+
+    .icon-zhinengti {
+      color: #7269f0;
+    }
+  }
+
+  &-head-main {
+    flex: 1;
+    min-width: 0;
+
+    @include flex-column;
+  }
+
+  &-title {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #313238;
+  }
+
+  &-meta {
+    gap: 12px;
+    min-width: 0;
+
+    @include flex-align(center);
+  }
+
+  &-meta-item {
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4e5e7a;
+
+    @include ellipsis;
+  }
+
+  &-meta-divider {
+    flex-shrink: 0;
+    width: 1px;
+    height: 12px;
+    background: #c1cde5;
+  }
+
+  &-preview {
+    position: relative;
+    width: 100%;
+    padding: 12px 32px 12px 12px;
+    border-radius: 4px;
+
+    &.is-input {
+      background: #f7f9fc;
+    }
+
+    &.is-output {
+      background: #f6f5fa;
+    }
+  }
+
+  &-preview-text {
+    max-height: 100px;
+    margin: 0;
+    overflow: auto;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4d4f56;
+    overflow-wrap: break-word;
+    white-space: pre-wrap;
+  }
+
+  &-copy {
+    position: absolute;
+    top: 14px;
+    right: 12px;
+    font-size: $font-size-large;
+    color: #979ba5;
+    cursor: pointer;
+
+    &:hover {
+      color: $primary-color;
+    }
+  }
+}

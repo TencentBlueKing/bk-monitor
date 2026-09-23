@@ -24,15 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, toRef } from 'vue';
+import { type PropType, computed, defineComponent, toRef } from 'vue';
 
+import { Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import RetrievalFilter from '../../../../components/retrieval-filter/retrieval-filter';
+import { EMode } from '../../../../components/retrieval-filter/typing';
 import { useHostListFilter } from '../../composables/use-host-list-filter';
 
 import type {
-  EMode,
   IFilterField,
   IGetValueFnParams,
   IWhereItem,
@@ -44,6 +45,10 @@ import './host-list-filter.scss';
 export default defineComponent({
   name: 'HostListFilter',
   props: {
+    disabled: {
+      type: Boolean,
+      default: false,
+    },
     /** 过滤字段列表 */
     fields: {
       type: Array as PropType<IFilterField[]>,
@@ -86,28 +91,49 @@ export default defineComponent({
     const ctx = useHostListFilter({
       filterOptionsMap: toRef(props, 'filterOptionsMap'),
     });
+    const pausedSummary = computed(() => {
+      if (props.filterMode === EMode.queryString) return props.queryString;
+      return props.where
+        .map((item, index) => {
+          const field = props.fields.find(field => field.name === item.key);
+          const method = field?.methods.find(method => method.value === item.method);
+          const values = item.value.map(value =>
+            ctx.tagValueDisplayFormatter(String(value), { value: { id: value }, key: item.key, isTips: false })
+          );
+          return `${index ? `${item.condition || 'AND'} ` : ''}${field?.alias || item.key} ${method?.alias || item.method || ''} ${values.join(', ')}`;
+        })
+        .join(' ');
+    });
     return () => (
       <div class='host-list-filter'>
-        <RetrievalFilter
-          key={`${ctx.refreshKey.value}`}
-          fields={props.fields}
-          filterMode={props.filterMode}
-          getValueFn={props.getValueFn}
-          isShowClear={true}
-          isShowCopy={false}
-          isShowFavorite={false}
-          isShowResident={false}
-          isSingleMode={true}
-          loadDelay={0}
-          placeholder={t('/ 快速唤起，请输入')}
-          queryString={props.queryString}
-          tagValueDisplayFormatter={ctx.tagValueDisplayFormatter}
-          where={props.where}
-          onModeChange={(v: EMode) => emit('modeChange', v)}
-          onQueryStringChange={(v: string) => emit('queryStringChange', v)}
-          onSearch={() => emit('search')}
-          onWhereChange={(v: IWhereItem[]) => emit('whereChange', v)}
-        />
+        {props.disabled ? (
+          <Input
+            modelValue={pausedSummary.value}
+            placeholder={t('筛选将在全量数据加载完成后生效')}
+            disabled
+          />
+        ) : (
+          <RetrievalFilter
+            key={`${ctx.refreshKey.value}`}
+            fields={props.fields}
+            filterMode={props.filterMode}
+            getValueFn={props.getValueFn}
+            isShowClear={true}
+            isShowCopy={false}
+            isShowFavorite={false}
+            isShowResident={false}
+            isSingleMode={true}
+            loadDelay={0}
+            placeholder={t('/ 快速唤起，请输入')}
+            queryString={props.queryString}
+            tagValueDisplayFormatter={ctx.tagValueDisplayFormatter}
+            where={props.where}
+            onModeChange={(v: EMode) => !props.disabled && emit('modeChange', v)}
+            onQueryStringChange={(v: string) => !props.disabled && emit('queryStringChange', v)}
+            onSearch={() => !props.disabled && emit('search')}
+            onWhereChange={(v: IWhereItem[]) => !props.disabled && emit('whereChange', v)}
+          />
+        )}
       </div>
     );
   },

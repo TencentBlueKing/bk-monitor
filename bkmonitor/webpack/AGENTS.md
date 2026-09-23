@@ -12,54 +12,58 @@
 
 | 场景                                  | 必读 skill                                        |
 | ------------------------------------- | ------------------------------------------------- |
-| 改业务代码 / 修 bug / 新页面          | `bkmonitor-dev` + `bkmonitor-dev-guardrails`      |
-| Figma / 设计稿还原                    | 先 `blueking-figma-dev`，编码仍过 `bkmonitor-dev` |
+| 改业务代码 / 修 bug / 新页面 / 续跑   | `bkmonitor-workflow`，按阶段使用 `bkmonitor-dev` / `bkmonitor-dev-guardrails` |
+| 只读分析 / 规范咨询                   | 按问题使用对应 skill，不启动完整开发流程         |
+| Figma / 设计稿还原                    | `bkmonitor-workflow` + `blueking-figma-dev`       |
 | TAPD 建单 / 分支 / commit / PR / 回写 | `blueking-tapd-dev`（该 skill **不编码**）        |
 | 一次性 E2E / 设计还原度               | `bkmonitor-e2e-test`                              |
-| 环境搭建                              | `bkmonitor-onboarding`                            |
+| 首次环境搭建                          | `bkmonitor-onboarding`                            |
+| 已有环境启动 / 服务诊断               | `bkmonitor-dev-server`                            |
 | 用户明确要求沉淀会话经验              | `bkmonitor-continual-learning`                    |
 
-混合任务顺序：护栏与方案确认 → 设计还原 / 编码 → 验证询问 → TAPD 交付。
+混合任务由 `bkmonitor-workflow` 推进：确认目标分支与基线 → 代码 / 设计取证与护栏核验 → 方案确认 → 实现 → 已授权验证。仅在用户要求时进入 Git / TAPD 交付；单独测试、启动、咨询或交付保留各自终点。
 
-Git 根在 `bk-monitor/`，不在 `bkmonitor/webpack/`。git 写操作通常需要完整权限。
+Git 根用 `git rev-parse --show-toplevel` 获取，不依赖本地目录名。权限按实际操作和工具限制处理，不预设需要提权。
 
 ---
 
 ## 1. 硬门禁
 
-1. **不确定就问**。禁止猜测业务交互、组件选型、路由契约、范围外功能、remote / base。
-2. **写代码前先出方案并得到确认**（目录、复用点、明确不做项、数据来源：真实接口或 mock）。琐碎改动（改文案、调已有样式一两处）可跳过。
-3. **脚本、dev server、批量 lint/format、浏览器自动化、git 写操作**（commit / push / checkout / stash）必须先征得同意。只读侦察（`status` / `diff` / `log` / `rg`）可直接跑。
-4. **格式化工具能修的问题不要手改**。不要写 licensed 头。注释只在有必要且有信息量时加。
-5. 分支策略（切 / 建、基于哪条）以**当次口令**为准；未确认前不要为了「规范」擅自切分支。
+1. **先查证，仍有实质歧义再问**。通过代码、配置和对应文档核验；仍存在会改变业务行为、范围或交付目标的歧义时集中询问，只暂停依赖该决定的工作。禁止猜测业务交互、路由契约、范围外功能、remote / base。
+2. **写代码前先出方案并得到确认**（目录、复用点、明确不做项、数据来源：真实接口或 mock）。已有批准且范围未变时直接复用；琐碎改动（改文案、调已有样式一两处）可跳过。
+3. **脚本、dev server、浏览器自动化、git 写操作**（commit / push / checkout / stash）执行前核对授权，缺失时先征得同意。明确请求所覆盖的必要动作跨轮次、跨 skill 复用授权，不逐命令重复询问；新增范围、环境或副作用才补问。只读侦察（`status` / `diff` / `log` / `rg`）可直接跑。
+4. **不主动处理代码格式问题，不运行格式修复或批量 lint/format**；新增代码遵循既有风格。用户的明确限制持续有效。不要写 licensed 头。注释只在有必要且有信息量时加。
+5. 开发、修复及设计实现相关的业务代码分析前，先确认目标分支与基线，核验当前分支相对基线的领先 / 落后及工作区改动；分支策略（继续 / 切 / 建、基于哪条）以**当次口令**为准。已有确认且事实未变直接复用，不默认当前分支等于主分支，不擅自切分支或同步代码。
 6. 需求含「有没有 X / 好像没生效 / 补上 X」时，先核验现状再动手，禁止重复实现。
+7. 规范咨询、skills / 文档审查与 Git 元数据侦察可直接只读进行；涉及开发根因或实现方案的业务代码分析仍先确认分支与基线，但不要求先批准开发方案。只读任务不自动扩展为实现、测试或交付。
 
 ---
 
 ## 2. 开发风格
 
 - 先定位 `src/*` package，再选 Vue2 / Vue3，禁止混用语法。
-- Vue3 只在 `src/trace`：TSX `defineComponent` + `setup` + `render`，Pinia，`shallowRef` 优先，`useI18n`。禁止 `.vue` SFC、`<script setup>`、直接 `ref()`（用 `shallowRef` / `deepRef`）。
+- `src/trace` 按 Vue3 规范：TSX `defineComponent` + `setup` + `render`，Pinia，`shallowRef` 优先，`useI18n`。禁止 `.vue` SFC、`<script setup>`、直接 `ref()`（用 `shallowRef` / `deepRef`）。
 - Vue2（`monitor-pc` / `apm` / `fta-solutions`）：TSX class + Vuex + `this.$t` + `bk-magic-vue`。
-- Vue3 新页面默认四层：`typings/`（M）→ `components/`（V）→ `hooks/`（C）→ `services/`（取数）。目录名跟仓库多数实现用 `hooks/`；用户点名 `composables/` 时从其口令。组件层不直接打 API。
-- **可参考旧实现，禁止照搬。** 优先复用用户点名或相邻已有封装。要改共享源头（`trace-explore`、`monitor-ui`、`common-table` 等）必须单独确认，默认在本目录做 adapter。
-- 用户写「只改 X / 暂时不开发 Y / 不兼容旧版」时严格限缩 diff；范围外用空占位，禁止顺手做完。
-- 多变体 UI 用注册表 / 配置扩展，少写类型 if-else。
-- API 未通：按文档 mock，数据要多样，去掉敏感信息。
+- `monitor-mobile` 使用 Vue2 SFC + Vant；共享包及 Vue2/Vue3 适配入口按实际依赖、导入和构建配置核验，不仅凭 API 名称判断技术栈。
+- 页面分层、hooks 目录与多变体实现按 `bkmonitor-dev` 的适用规范和已确认方案执行，不为凑层级创建空目录或无必要抽象。
+- **可参考旧实现，禁止照搬。** 优先复用用户点名或相邻已有封装。修改共享源头（`trace-explore`、`monitor-ui`、`common-table` 等）时，在方案中说明消费方与回归范围；已有批准覆盖时不再单独确认。根据问题归属选择共享修复或局部 adapter。
+- 用户写「只改 X / 暂时不开发 Y / 不兼容旧版」时严格限缩 diff；范围外保持现状，仅在已确认设计需要时增加占位。
+- mock 必须属于已确认方案，按接口文档构造多样且脱敏的数据，并说明验证边界；真实接口异常不自动切换为 mock。
+- 组件按目标 package、实际 import 包名与 Vue 入口路由。优先查对应 skill reference；版本不明、资料缺失或冲突时，核查匹配安装版本的类型、源码或官方资料。相邻用法不能单独证明 API，禁止凭记忆补全。
+- 外部维护的组件 skill（如 MagicBox、bkui-vue）仅消费；项目侧处理版本适配，未经明确要求不修改其正文、生成器或 references。
 - 可见文案走 i18n，不要硬编码中文（调试占位除外）。
-- 文件名 kebab-case；组件 PascalCase；2 空格、行宽 120、单引号、分号。
+- 文件名 kebab-case；组件 PascalCase。
 - 微前端是 `@blueking/bk-weweb`，不要引入 qiankun。新页面对照 `bkmonitor-dev-guardrails` 清单；Vue2 容器 class 不得与自定义元素 tag 撞名。
 
 ---
 
 ## 3. Figma → 代码
 
-- 必须读 Annotations / 画布旁注 / 多态 variants。设计稿与标注优先于推断。大画板先 `get_metadata`，再 `get_design_context` + `get_screenshot`。
+- 必须核对设计稿及已有标注、旁注和相关状态，设计证据优先于推断；工具调用、组件映射、icon 与主题处理按 `blueking-figma-dev` 执行。
 - 设计稿与接口 / 旧实现冲突时，列差异表询问，禁止静默选边。
-- 组件候选走 BlueKing 映射，出码前读对应组件 skill reference（API 以 reference 为准，相邻代码只决定封装与风格）。
-- Vue3：表格默认 `@blueking/tdesign-ui`；tips 默认 `vue-tippy`；另做 icon / 主题映射。Vue2：主要做组件映射。
-- 静态 map 与组件 skill 都未命中时，列出缺口并询问是否允许最小手写，禁止发明基础组件 API。
-- 样式：同模块有稳定相邻实现则对齐相邻。Vue3 在项目已加载对应 token 时用 `var(--xxx)`，否则用局部既有写法或设计值。Vue2 可用设计稿原始值。
+- `src/trace` 新增表格 / tips 优先复用目标区域的业务封装；无既有封装时默认考虑 `@blueking/tdesign-ui` / `vue-tippy`，按语义、能力和版本核验，不为统一选型替换现有组件。
+- 静态 map 与组件 skill 完整索引均未命中所需基础组件时，列出缺口并询问是否允许最小手写；普通 HTML/CSS 布局和业务组合不属于手写基础组件。
+- 样式优先对齐同模块稳定实现；不得输出项目未加载或未定义的 token，具体映射按设计 skill 核验。
 - 交付对照截图与标注做视觉 / 行为自检。未跑通的不要写成已还原。
 
 ---
@@ -68,24 +72,26 @@ Git 根在 `bk-monitor/`，不在 `bkmonitor/webpack/`。git 写操作通常需�
 
 - 「基于暂存区 / 改动生成 tapd」= 反向建单：只读 diff → 展示草稿 → 确认后才创建。大改动默认按功能拆单，拆法需确认。
 - 蓝鲸监控 TAPD workspace 默认 `10158081`；owner / 迭代预填后仍要展示核对。
-- 交付授权按用户请求的范围复用。用户明确要求串联交付时，commit / push / PR / TAPD 评论与测试附件合并为一次交付预览；已经明确授权且目标无歧义则展示后连续执行，不逐步重复询问。只要求 PR 不自动授权 TAPD 回写。建单、分支变更、状态/负责人/迭代变更仅在请求涵盖时执行；缺少必要选择或实质范围变化时才补问，细则见 `blueking-tapd-dev`。
+- 交付授权按用户请求的范围复用。用户明确要求串联交付时，commit / push / PR / TAPD 评论与测试附件合并为一次交付预览；已经明确授权且目标无歧义则展示后连续执行，不逐步重复询问。本项目「提交 / 创建 PR」默认包含 PR 成功后自动回写对应 TAPD 评论，无需再次询问回写授权；用户明确「不要回写」时跳过。建单、分支变更、状态/负责人/迭代变更仅在请求涵盖时执行；缺少必要选择或实质范围变化时才补问，细则见 `blueking-tapd-dev`。
 - **严格听当次口令**，不沿用上一会话习惯：`不需要切换分支` / `本分支提 PR` / `切开发分支` / `PR 提到 feat/X` / `推 fork`。
 - 「upstream」不等于 remote 一定叫 `upstream`。以 `git remote -v` 为准；交付预览必须写清 `head_remote:head → pr_target_remote:base`。
 - 「PR 提到 feat/X」默认 base = `feat/X`，不要默认合进 `master`。base 必须 fetch 验证存在；不存在则停问，禁止静默改 base。
-- commit subject 走 hook 限制（约 1–50 字），关联格式 `--story=<短ID>` 或 `--bug=<短ID>`。公开仓库禁止贴 TAPD 完整链接。
-- 未 review / 用户未说可以提交前，不 commit。`/git-commit` 只表示现在允许提交，不等于 push / PR / 回写。
+- PR 标题、正文和 TAPD 评论的自然语言说明默认使用简体中文，用户明确指定其他语言时遵从；路径、API、命令、SHA、关联 ID 与状态枚举保留原文。公开内容脱敏不等于翻译成英文；发布前检查完整文稿，不只检查章节标题。
+- commit subject 保持简短，格式以当前 hook 和交付规则为准；关联格式 `--story=<短ID>` 或 `--bug=<短ID>`。公开仓库禁止贴 TAPD 完整链接。
+- 提交前完成本次 diff 自检，并确认提交动作在用户授权范围内；明确要求创建 PR 时按交付规则复用必要提交授权。用户明确要求人工 review 时等待其完成。`/git-commit` 只授权提交，不等于 push / PR / 回写。
 - GPG / SSH 签名和交互认证交给用户本地执行，只提供可复制命令。
-- TAPD 回写仅在用户要求或交付预览确认后执行；评论只写已验证的分支 / SHA / PR URL，禁止猜测链接。
-- 状态只能是：计划执行 / 等待确认 / 已请求但结果未知 / 已验证成功。摘要不得把前三类说成已完成。
+- PR 创建并核验成功后，自动回写已验证关联的 TAPD 单据；评论与所需证据按交付 skill 生成、查重、写入并核验。单据缺失或关联不明确时只补问目标，不猜测、不自动建单；PR 失败或结果未知时不回写成功评论。回写失败保留 PR 成功事实，从评论步骤恢复。评论只写已验证的分支 / SHA / PR URL，禁止猜测链接。
+- 外部动作的证据状态区分：计划执行 / 等待确认 / 已请求但结果未知 / 已验证成功。前三类不得说成已完成；失败时明确失败事实与恢复点。测试分类另按验证 skill 记录，不套用这四类状态。
 
 ---
 
 ## 5. 验证
 
-- 业务改动的对话交付用三段式：改了什么 / 验证到哪一步 / 影响面。`[未验证]` 不得空；没跑本地就写「未本地运行验证」。
-- 不要用「已修复」这类断言。没有实际执行过的动作，只能写未验证或假设。
-- 实现完成后主动问是否跑一次性 E2E（`bkmonitor-e2e-test`）；询问中说明会预检登录态，必要时打开临时浏览器由用户完成登录并安全刷新本地鉴权。同一份 diff 已答复则不重复问，也不为这次鉴权刷新再次询问。设计稿任务若跑 E2E，必须带视觉还原对比；布局/溢出/遮挡类缺陷必须带几何断言和最终截图。
-- 用户连续否定你的根因判断时停止打补丁，先对齐复现、观察和假设差异。
+- 交付说明改动、实际验证、影响面与未覆盖项，篇幅与任务相称，不强制固定版式或非空的未验证项。未本地运行时明确说明。
+- 结论不得超出验证证据；代码阅读、静态检查、运行时验证分开陈述，未执行不得宣称通过。
+- 业务实现完成且尚无 E2E 决定时，由主流程统一询问是否跑一次性 E2E（`bkmonitor-e2e-test`）。询问须说明登录态预检、必要的临时浏览器登录及安全鉴权刷新、所需服务和本地报告；直接要求 E2E 视为授权。同一任务范围内复用接受或拒绝决定；已测试且代码内容未变时复用结果，不因提交 PR 重跑；测试后代码发生变化必须复测，复用原范围测试授权。仅提交 SHA、PR 文案、报告展示或附件变化不触发业务 E2E；测试证据仍须完整可信。环境、验收范围或副作用变化才补问。具体执行与证据要求由 E2E skill 维护。
+- 设计任务的 E2E 包含视觉对比；布局、溢出、遮挡类缺陷的 E2E 包含几何断言和最终截图。未执行时如实说明，不声称视觉或行为通过。
+- 明确根因被实际结果否定后，先补复现路径、实际观察和不同于上轮的假设，再修复；无新证据不继续打补丁。
 
 ---
 
@@ -93,7 +99,7 @@ Git 根在 `bk-monitor/`，不在 `bkmonitor/webpack/`。git 写操作通常需�
 
 - 不用 `--no-verify`。默认禁止 force push；仅当用户对本分支和目标 SHA 明确授权时可用 `--force-with-lease`。
 - 不静默 stash / reset，不把无关文件混进提交。
-- 不改、不提交、不把 `local.settings.js` 全文读进对话。凭据零接触（Cookie / Token / bk_ticket）。
+- 不手工修改、不提交、不把 `local.settings.js` 全文或凭据读进对话；允许 `bkmonitor-dev-server` 指定脚本在已有授权内创建配置骨架或刷新鉴权。模型不读取、索要或回显 Cookie / Token / bk_ticket。
 - 不留 `debugger` 和提交用的 `console.log`。
 - `postMessage` 禁止 `targetOrigin='*'`；`/share/:token` 类分享链接不外广播。
 - 公开 PR / commit 不得出现内网 URL。
@@ -102,7 +108,11 @@ Git 根在 `bk-monitor/`，不在 `bkmonitor/webpack/`。git 写操作通常需�
 
 ## 7. 细节去哪查
 
+- 阶段推进 / 授权复用 / 续跑 → `bkmonitor-workflow`
 - 各 package 写法 → `bkmonitor-dev`
 - 影响面 / 同类扫描 / 对外安全 → `bkmonitor-dev-guardrails`
+- 设计取证 / 映射 / 视觉验收输入 → `blueking-figma-dev`
+- 环境与鉴权 → `bkmonitor-dev-server`；首次搭建 → `bkmonitor-onboarding`
+- 一次性测试与视觉证据 → `bkmonitor-e2e-test` / `bkmonitor-e2e-visual`
 - PR 正文与 TAPD 评论模板 → `blueking-tapd-dev`
-- 组件 API → `bkui-vue-components` / `bk-magicbox-vue-components` / `blueking-tdesign-ui`
+- 组件 API → 按实际包名选择组件 skill，包括基础组件、`blueking-tdesign-ui`、`blueking-date-picker`、`blueking-search-select-v3`

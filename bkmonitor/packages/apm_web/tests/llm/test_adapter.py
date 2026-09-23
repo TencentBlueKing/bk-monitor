@@ -869,12 +869,13 @@ class AdapterTests(TestCase):
         self.assertEqual(output["finish_reason"], "stop")
         self.assertEqual(llm["attributes"]["gen_ai.response.finish_reasons"], ["stop"])
 
-    def test_galileo_drops_stream_ttft_and_cached_alias(self) -> None:
+    def test_galileo_maps_stream_ttft_and_cached_alias(self) -> None:
         span = agentlens_span()
         span["span_name"] = "call_llm"
         span["resource"] = {"telemetry.sdk.name": "galileo"}
         span["attributes"] = {
             "gen_ai.operation.name": "chat",
+            "gen_ai.system": "trpc.go.agent",
             "gen_ai.request.is_stream": True,
             "gen_ai.server.time_to_first_token": 0.2,
             "gen_ai.usage.cached.input_tokens": 12,
@@ -883,10 +884,113 @@ class AdapterTests(TestCase):
 
         attributes = adapt_spans([span], "galileo")[0]["attributes"]
 
-        self.assertNotIn("gen_ai.request.stream", attributes)
-        self.assertNotIn("gen_ai.response.time_to_first_chunk", attributes)
+        self.assertNotIn("gen_ai.provider.name", attributes)
+        self.assertNotIn("gen_ai.system", attributes)
+        self.assertIs(attributes["gen_ai.request.stream"], True)
+        self.assertEqual(attributes["gen_ai.response.time_to_first_chunk"], 0.2)
+        self.assertEqual(attributes["gen_ai.usage.cache_read.input_tokens"], 12)
         self.assertNotIn("gen_ai.usage.cached.input_tokens", attributes)
         self.assertEqual(attributes["gen_ai.usage.reasoning.output_tokens"], 3)
+
+    def test_galileo_aliases_preserve_standard_values_and_zero(self) -> None:
+        for stream_field in ("gen_ai.request.is_stream", "gen_ai.is_stream"):
+            with self.subTest(stream_field=stream_field):
+                span = agentlens_span()
+                span["attributes"] = {
+                    "gen_ai.operation.name": "chat",
+                    stream_field: False,
+                    "gen_ai.server.time_to_first_token": 0,
+                    "gen_ai.system": "trpc.go.agent",
+                }
+                attributes = adapt_spans([span], "galileo")[0]["attributes"]
+                self.assertIs(attributes["gen_ai.request.stream"], False)
+                self.assertEqual(attributes["gen_ai.response.time_to_first_chunk"], 0)
+                span["attributes"].update(
+                    {
+                        "gen_ai.request.stream": True,
+                        "gen_ai.response.time_to_first_chunk": 0.125,
+                        "gen_ai.provider.name": "standard-provider",
+                    }
+                )
+                attributes = adapt_spans([span], "galileo")[0]["attributes"]
+                self.assertIs(attributes["gen_ai.request.stream"], True)
+                self.assertEqual(attributes["gen_ai.response.time_to_first_chunk"], 0.125)
+                self.assertEqual(attributes["gen_ai.provider.name"], "standard-provider")
+
+    def test_only_documented_standard_fields_are_preserved(self) -> None:
+        excluded_fields = {
+            "gen_ai.request.choice.count": 1,
+            "gen_ai.request.encoding_formats": ["float"],
+            "gen_ai.request.frequency_penalty": 0,
+            "gen_ai.request.max_tokens": 100000,
+            "gen_ai.request.presence_penalty": 0.1,
+            "gen_ai.request.seed": 0,
+            "gen_ai.request.stop_sequences": ["stop"],
+            "gen_ai.request.top_k": 40,
+            "gen_ai.request.top_p": 0.9,
+            "gen_ai.output.type": "json",
+            "gen_ai.workflow.name": "support",
+            "gen_ai.retrieval.query.text": "demo",
+            "gen_ai.retrieval.top_k": 5,
+            "gen_ai.retrieval.documents": [{"id": "doc-1"}],
+            "gen_ai.data_source.id": "source-1",
+            "vendor.debug": "ignored",
+        }
+        fields = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.request.model": "test-model",
+            "gen_ai.request.temperature": 0,
+            "gen_ai.request.stream": False,
+            "gen_ai.request.reasoning.level": "high",
+        }
+        for product in ("galileo", "default", "agentlens", "aidev", "langfuse"):
+            with self.subTest(product=product):
+                span = agentlens_span()
+                span["attributes"] = {**fields, **excluded_fields}
+                self.assertEqual(adapt_spans([span], product)[0]["attributes"], fields)
+
+    def test_galileo_tool_definitions_keep_mcp_input_schema(self) -> None:
+        from apm_web.llm.adapter.adapter_galileo import parse_event_definitions
+
+        schema = {"type": "OBJECT", "properties": {"count": {"type": "INTEGER"}}, "required": ["count"]}
+        definitions = parse_event_definitions(
+            json.dumps(
+                [
+                    {"name": "mcp-tool", "inputSchema": schema},
+                    {"type": "function", "function": {"name": "openai-tool", "parameters": schema}},
+                    {"name": "standard-tool", "parameters": {"type": "STRING"}, "inputSchema": schema},
+                ]
+            )
+        )
+        self.assertEqual(
+            definitions[0]["parameters"],
+            {
+                "type": "object",
+                "properties": {"count": {"type": "integer"}},
+                "required": ["count"],
+            },
+        )
+        self.assertEqual(definitions[1]["parameters"], definitions[0]["parameters"])
+        self.assertEqual(definitions[2]["parameters"], {"type": "string"})
+
+    def test_galileo_legacy_message_content_is_preserved_without_duplicate_parts(self) -> None:
+        from apm_web.llm.adapter.adapter_galileo import parse_choice_message, parse_event_message
+
+        call = {"id": "call-1", "function": {"name": "lookup", "arguments": '{"query":"demo"}'}}
+        message = {"role": "assistant", "content": "checking", "reasoning_content": "need lookup", "tool_calls": [call]}
+        expected_parts = [
+            {"type": "reasoning", "content": "need lookup"},
+            {"type": "text", "content": "checking"},
+            {"type": "tool_call", "id": "call-1", "name": "lookup", "arguments": {"query": "demo"}},
+        ]
+        result = parse_choice_message(json.dumps({"finish_reason": "tool_calls", "message": message}))
+        self.assertEqual(result, {"role": "assistant", "parts": expected_parts, "finish_reason": "tool_call"})
+        message["parts"] = expected_parts
+        self.assertEqual(parse_event_message(message, "assistant")["parts"], expected_parts)
+        self.assertEqual(
+            parse_event_message({"content": "found", "id": "call-1"}, "tool"),
+            {"role": "tool", "parts": [{"type": "tool_call_response", "response": "found", "id": "call-1"}]},
+        )
 
     def test_galileo_legacy_cache_write_spellings_map_to_the_standard_field(self) -> None:
         for legacy in ("gen_ai.usage.cache_creation.input_tokens", "gen_ai.usage.cache_creation_input_tokens"):

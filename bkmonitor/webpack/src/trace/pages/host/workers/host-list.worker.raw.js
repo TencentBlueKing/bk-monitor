@@ -89,20 +89,22 @@ const mergeHostComponents = components => {
   return [...componentMap.values()];
 };
 
-const createHostListRow = (row, metric = {}) => {
+const createHostListRow = (row, metric = {}, baseRow) => {
   const modules = row.module || [];
-  const bkClusters = extractClusters(modules);
+  const bkClusters = baseRow ? baseRow.bkClusters : extractClusters(modules);
   const components = mergeHostComponents(metric.component);
-  const rowId = String(row.bk_host_id != null ? row.bk_host_id : `${row.bk_host_innerip}|${row.bk_cloud_id}`);
+  const rowId = baseRow
+    ? baseRow.rowId
+    : String(row.bk_host_id != null ? row.bk_host_id : `${row.bk_host_innerip}|${row.bk_cloud_id}`);
   const totalAlarmCount = Array.isArray(metric.alarm_count)
     ? metric.alarm_count.reduce((pre, cur) => pre + (cur.count || 0), 0)
     : null;
   return Object.assign({}, row || {}, metric || {}, {
     id: rowId,
     bkClusters,
-    clusterNames: bkClusters.map(c => c.name).join(','),
+    clusterNames: baseRow ? baseRow.clusterNames : bkClusters.map(c => c.name).join(','),
     component: components,
-    moduleNames: modules.map(m => m.bk_inst_name).join(','),
+    moduleNames: baseRow ? baseRow.moduleNames : modules.map(m => m.bk_inst_name).join(','),
     processNames: components?.map(c => c.display_name).join(',') || '',
     rowId,
     totalAlarmCount,
@@ -329,10 +331,8 @@ const buildFilterOptionsMap = rows => {
     display_name: new Map(),
   };
 
-  /** 拓扑节点 ID → 名称 映射（用于去重合并） */
-  const topoNameMap = {};
-  /** 每行主机对应的拓扑路径列表（二维数组） */
-  const topoList = [];
+  const clusterModuleTreeList = [];
+  const nodeMap = {};
 
   for (const row of rows) {
     if (row.bk_host_innerip) setMap.bk_host_innerip.set(row.bk_host_innerip, row.bk_host_innerip);
@@ -348,14 +348,20 @@ const buildFilterOptionsMap = rows => {
       if (module.bk_inst_name) {
         setMap.bk_inst_name.set(module.bk_inst_name, module.bk_inst_name);
       }
-      const topo = module.topo_link.map((id, index) => {
-        topoNameMap[id] = module.topo_link_display[index];
-        return {
-          id,
-          name: module.topo_link_display[index],
-        };
-      });
-      topoList.push(topo);
+      // 按首次出现的路径直接建树，保留节点名称、父节点归属和插入顺序。
+      let parentNode = null;
+      for (let index = 0; index < module.topo_link.length; index += 1) {
+        const id = module.topo_link[index];
+        if (!nodeMap[id]) {
+          nodeMap[id] = { id, name: module.topo_link_display[index], children: [] };
+          if (parentNode) {
+            parentNode.children.push(nodeMap[id]);
+          } else {
+            clusterModuleTreeList.push(nodeMap[id]);
+          }
+        }
+        parentNode = nodeMap[id];
+      }
     }
     for (const component of row.component || []) {
       if (component.display_name) setMap.display_name.set(component.display_name, component.display_name);
@@ -368,34 +374,6 @@ const buildFilterOptionsMap = rows => {
       [...valueMap.entries()].map(([id, name]) => ({ id, name }))
     );
   }
-  // 处理集群模块
-  const clusterModuleTreeList = [];
-  /** 拓扑节点 ID → 树节点 映射（用于去重合并相同路径的节点） */
-  const nodeMap = {};
-  /** 创建树节点（id + name + children） */
-  const createNode = data => ({
-    id: data.id,
-    name: data.name,
-    children: [],
-  });
-  for (let i = 0; i < topoList.length; i++) {
-    const pathList = topoList[i];
-    let parentNode = null;
-
-    for (let j = 0; j < pathList.length; j++) {
-      const nodeData = pathList[j];
-      if (!nodeMap[nodeData.id]) {
-        nodeMap[nodeData.id] = createNode(nodeData);
-        if (parentNode) {
-          parentNode.children.push(nodeMap[nodeData.id]);
-        } else {
-          clusterModuleTreeList.push(nodeMap[nodeData.id]);
-        }
-      }
-      parentNode = nodeMap[nodeData.id];
-    }
-  }
-
   // 追加集群模块字段的选项树
   result.set('cluster_module', clusterModuleTreeList);
   return result;
@@ -404,6 +382,17 @@ const buildFilterOptionsMap = rows => {
 let baseRows = [];
 let rawRows = [];
 let filterOptionsMap = new Map();
+let dataVersion = 0;
+let nodeResult = null;
+let filteredResult = null;
+let sortedResult = null;
+
+const invalidateData = () => {
+  dataVersion += 1;
+  nodeResult = null;
+  filteredResult = null;
+  sortedResult = null;
+};
 
 const optionsMapToRecord = map => {
   const record = {};
@@ -422,29 +411,49 @@ const filterByConditions = (rows, params) =>
       matchKeyword(row, params.keyword)
   );
 
-/** 拓扑 + 条件过滤后的全量行（不含分页） */
+const getNodeResult = params => {
+  const node = params.selectedNode;
+  const key = JSON.stringify([node?.bk_obj_id, node?.bk_host_id, node?.id, !!node && isHostNode(node)]);
+  if (nodeResult?.version !== dataVersion || nodeResult.key !== key) {
+    const rows = rawRows.filter(row => matchTopoNode(row, node));
+    nodeResult = { key, version: dataVersion, rows, categoryStats: computeCategoryStats(rows) };
+    filteredResult = null;
+    sortedResult = null;
+  }
+  return nodeResult;
+};
+
+/** 仅保存当前条件的原始行顺序，跨页全选不受排序和置顶影响。 */
 const getFilteredRows = params => {
-  const nodeScopedRows = rawRows.filter(row => matchTopoNode(row, params.selectedNode));
-  return filterByConditions(nodeScopedRows, params);
+  const node = getNodeResult(params);
+  const key = JSON.stringify([params.activeCategory, params.keyword, params.where]);
+  if (filteredResult?.key !== key) {
+    filteredResult = { key, rows: filterByConditions(node.rows, params) };
+    sortedResult = null;
+  }
+  return filteredResult.rows;
 };
 
 const runCompute = params => {
-  const nodeScopedRows = rawRows.filter(row => matchTopoNode(row, params.selectedNode));
-  const categoryStats = computeCategoryStats(nodeScopedRows);
-  const filteredRows = filterByConditions(nodeScopedRows, params);
-  const sortedRows = sortRows(filteredRows, params.sortInfo, params.stickyValue);
+  const filteredRows = getFilteredRows(params);
+  const key = JSON.stringify([params.sortInfo, params.stickyValue]);
+  if (sortedResult?.key !== key) {
+    sortedResult = { key, rows: sortRows(filteredRows, params.sortInfo, params.stickyValue) };
+  }
+  const sortedRows = sortedResult.rows;
   const total = sortedRows.length;
   const start = (params.page - 1) * params.pageSize;
   const pagedRows = sortedRows.slice(start, start + params.pageSize);
-  return { categoryStats, pagedRows, total };
+  return { categoryStats: nodeResult.categoryStats, pagedRows, total };
 };
 
 self.onmessage = event => {
   const message = event.data;
   switch (message.type) {
     case 'INIT_BASE': {
-      baseRows = message.baseList;
-      rawRows = baseRows.map(row => createHostListRow(row));
+      baseRows = message.baseList.map(row => createHostListRow(row));
+      rawRows = baseRows;
+      invalidateData();
       filterOptionsMap = buildFilterOptionsMap(rawRows);
       self.postMessage({
         filterOptionsMap: optionsMapToRecord(filterOptionsMap),
@@ -456,7 +465,9 @@ self.onmessage = event => {
     }
     case 'MERGE_METRICS': {
       const metricListMap = message.metricListMap;
-      rawRows = baseRows.map(row => createHostListRow(row, metricListMap[row.bk_host_id]));
+      // 始终从基础批次合并，复用基础拓扑派生；缺失指标不会沿用上一批值。
+      rawRows = baseRows.map(row => createHostListRow(row, metricListMap[row.bk_host_id], row));
+      invalidateData();
       filterOptionsMap = buildFilterOptionsMap(rawRows);
       self.postMessage({
         filterOptionsMap: optionsMapToRecord(filterOptionsMap),

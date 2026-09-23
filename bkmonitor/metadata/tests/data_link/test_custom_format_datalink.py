@@ -468,6 +468,7 @@ def test_compose_custom_format_log_storage_is_direct(custom_format_records, targ
                 "json_fields": [],
                 "original_json_fields": [],
                 "field_config_group": {},
+                "tokenizers": {"metric": "._=:,"},
                 "flush_timeout": None,
             }
         }
@@ -490,6 +491,9 @@ def test_compose_custom_format_log_storage_is_direct(custom_format_records, targ
     )
 
     assert [config["kind"] for config in configs] == ["ResultTable", binding_kind, "Databus"]
+    if target == models.ClusterInfo.TYPE_DORIS:
+        assert configs[1]["spec"]["storage_config"]["field_config_group"] == {}
+        assert configs[1]["spec"]["storage_config"]["tokenizers"] == {"metric": "._=:,"}
     databus = configs[-1]
     assert databus["spec"]["sources"][0]["kind"] == "DataId"
     assert databus["spec"]["sinks"][0]["kind"] == binding_kind

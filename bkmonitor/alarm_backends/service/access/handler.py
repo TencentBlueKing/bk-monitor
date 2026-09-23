@@ -194,21 +194,22 @@ class AccessBeater(MonitorBeater):
                 f"strategy groups filtered"
             )
 
-        for interval, group_keys in interval_map.items():
-            schedule_dict = {
-                "task": self.batch_access_data,
-                "schedule": interval,
-                "args": (interval,),
-            }
-            if interval not in self.entries:
-                self.entries[interval] = ScheduleEntry(**schedule_dict)
-            else:
-                self.entries[interval].args = schedule_dict["args"]
+        with self.entries_lock:
+            for interval, group_keys in interval_map.items():
+                schedule_dict = {
+                    "task": self.batch_access_data,
+                    "schedule": interval,
+                    "args": (interval,),
+                }
+                if interval not in self.entries:
+                    self.entries[interval] = ScheduleEntry(**schedule_dict)
+                else:
+                    self.entries[interval].args = schedule_dict["args"]
 
-        intervals = list(self.entries.keys())
-        for interval in intervals:
-            if interval not in interval_map and interval not in [REFRESH_STRATEGY_INFO, REFRESH_TARGETS]:
-                self.entries.pop(interval)
+            intervals = list(self.entries.keys())
+            for interval in intervals:
+                if interval not in interval_map and interval not in [REFRESH_STRATEGY_INFO, REFRESH_TARGETS]:
+                    self.entries.pop(interval)
 
     def batch_access_data(self, interval_key):
         """

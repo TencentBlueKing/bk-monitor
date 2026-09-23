@@ -1,0 +1,13 @@
+/* 普通命中浅黄、当前命中深橙，对齐 Figma Search 标注 */
+.llm-highlight-text-mark {
+  padding: 0 1px;
+  font-weight: 400;
+  color: inherit;
+  background: #ffdd63;
+  border-radius: 4px;
+
+  &.is-current {
+    font-weight: 700;
+    background: #ffb542;
+  }
+}

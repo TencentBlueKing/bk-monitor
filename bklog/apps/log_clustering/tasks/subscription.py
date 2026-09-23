@@ -53,7 +53,7 @@ from apps.log_search.exceptions import IndexSetDoseNotExistException
 from apps.log_search.handlers.search.search_handlers_esquery import (
     SearchHandler as SearchHandlerEsquery,
 )
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Space
 from apps.log_search.serializers import SearchAttrSerializer
 from apps.utils.drf import custom_params_valid
 from apps.utils.local import set_local_param
@@ -323,7 +323,7 @@ def send_wechat(params: dict, receivers: list, log_prefix: str):
     logger.info(f"{log_prefix} Successfully sent WeChat group params: {send_params}")
 
 
-def send_mail(params: dict, receivers: list, log_prefix: str):
+def send_mail(params: dict, receivers: list, log_prefix: str, bk_tenant_id: str):
     tpl_name = "clustering_mail_en.html" if params["language"] == "en" else "clustering_mail.html"
     params["title"] = render_title(params["title"], params)
     content = render_template(tpl_name, params)
@@ -332,7 +332,7 @@ def send_mail(params: dict, receivers: list, log_prefix: str):
         "content": content,
         "title": params["title"],
     }
-    CmsiApi.send_mail(send_params)
+    CmsiApi.send_mail(send_params, bk_tenant_id=bk_tenant_id)
     logger.info(f"{log_prefix} Successfully sent mail params: {send_params}")
 
 
@@ -388,7 +388,12 @@ def send(
 
         elif config.subscription_type == SubscriptionTypeEnum.EMAIL.value:
             if all_patterns["patterns"]["data"] or all_patterns["new_patterns"]["data"]:
-                send_mail(params, config.receivers, log_prefix)
+                send_mail(
+                    params,
+                    config.receivers,
+                    log_prefix,
+                    bk_tenant_id=Space.get_tenant_id(space_uid=log_index_set.space_uid),
+                )
 
     except Exception as e:
         logger.exception(f"{log_prefix} send report error: {e}")

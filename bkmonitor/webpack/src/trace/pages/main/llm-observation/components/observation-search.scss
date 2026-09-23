@@ -1,0 +1,91 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+/* Figma SearchSelect：白底、#c4c6cc 线框 32px，右侧翻页 / 无结果 + 16px 搜索图标同一行 */
+.llm-observation-search {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  max-width: 400px;
+  height: 32px;
+  padding: 6px 8px;
+  background: #fff;
+  border: 1px solid #c4c6cc;
+  border-radius: 2px;
+
+  &:focus-within {
+    /* 设计稿聚焦仍是灰线框，不要跟 bk-input 一样变蓝 */
+    border-color: #c4c6cc;
+    box-shadow: none;
+  }
+
+  &-field {
+    flex: 1;
+    min-width: 0;
+    padding: 0;
+    margin: 0;
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4d4f56;
+    outline: none;
+    background: transparent;
+    border: 0;
+
+    &::placeholder {
+      color: #c4c6cc;
+    }
+  }
+
+  &-addon {
+    flex-shrink: 0;
+    gap: 4px;
+    margin-left: 8px;
+    background: transparent;
+
+    @include flex-align(center);
+  }
+
+  &-nav {
+    gap: 4px;
+
+    @include flex-align(center);
+  }
+
+  &-arrow {
+    font-size: 12px;
+    line-height: 12px;
+    color: #4d4f56;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  &-count {
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4d4f56;
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  &-empty {
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: $font-size-base;
+    font-weight: 400;
+    line-height: 20px;
+    color: #979ba5;
+    white-space: nowrap;
+  }
+
+  &-icon {
+    flex-shrink: 0;
+    font-size: 16px;
+    line-height: 16px;
+    color: #979ba5;
+  }
+}

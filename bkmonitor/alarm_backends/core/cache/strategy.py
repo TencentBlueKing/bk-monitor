@@ -541,15 +541,16 @@ class StrategyCacheManager(CacheManager):
             if len(configs) == 1 and len(item.get("expression", "").strip(" ")) <= 1
             else {"expression": item["expression"], "query_configs": configs}
         )
-        if "query_output_config" not in item:
-            return count_md5(legacy_query_identity)
-
-        return count_md5(
-            {
+        query_identity = legacy_query_identity
+        if "query_output_config" in item:
+            query_identity = {
                 "legacy_query": legacy_query_identity,
                 "query_output_config": cls.canonical_query_output_config(item["query_output_config"]),
             }
-        )
+        # 未配置或清除覆盖时保留原有身份，不将全局默认值注入旧策略的分组。
+        if item.get("access_lookback_periods") is not None:
+            query_identity["access_lookback_periods"] = item["access_lookback_periods"]
+        return count_md5(query_identity)
 
     @classmethod
     def handle_strategy(cls, strategy: dict, invalid_strategy_dict=None) -> bool:

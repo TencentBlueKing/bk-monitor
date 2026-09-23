@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import pytest
+from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.management.commands.rollback_strategy import prepare_history_content_for_rollback
@@ -278,6 +279,7 @@ def test_item_from_models_roundtrips_named_output_config_without_database():
         target=[[]],
         metric_type="time_series",
         time_delay=0,
+        access_lookback_periods=None,
         meta={"owner": "monitor", "query_output_config": named_output_config()},
     )
 
@@ -309,9 +311,15 @@ def test_item_from_models_roundtrips_named_output_config_without_database():
 def test_strategy_history_content_resolves_omitted_named_output_config(mocker):
     strategy = Strategy.__new__(Strategy)
     strategy._id = 1
-    strategy.items = [SimpleNamespace(id=101, query_output_config=QUERY_OUTPUT_CONFIG_EMPTY)]
+    strategy.items = [
+        SimpleNamespace(
+            id=101, query_output_config=QUERY_OUTPUT_CONFIG_EMPTY, access_lookback_periods=serializers.empty
+        )
+    ]
     strategy.to_dict = mocker.Mock(return_value={"items": [{"id": 101}]})
-    current_item = SimpleNamespace(id=101, meta={"query_output_config": named_output_config()})
+    current_item = SimpleNamespace(
+        id=101, access_lookback_periods=None, meta={"query_output_config": named_output_config()}
+    )
     mocker.patch.object(ItemModel.objects, "filter").return_value.only.return_value = [current_item]
 
     content = strategy.get_history_content()

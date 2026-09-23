@@ -46,4 +46,63 @@
   .vjs-value-string {
     white-space: pre-wrap;
   }
+
+  &.is-dark {
+    color: #d4d4d4;
+
+    &-text {
+      color: #ce9178;
+    }
+
+    .vjs-tree-node {
+      color: #d4d4d4;
+    }
+
+    .vjs-tree-node.is-highlight,
+    .vjs-tree-node:hover {
+      background-color: rgb(255 255 255 / 8%);
+    }
+
+    .vjs-tree-brackets {
+      color: #ffd700;
+
+      &:hover {
+        color: #ffea80;
+      }
+    }
+
+    .vjs-key {
+      color: #9cdcfe;
+    }
+
+    .vjs-value,
+    .vjs-value-string {
+      color: #ce9178;
+    }
+
+    .vjs-value-number {
+      color: #b5cea8;
+    }
+
+    .vjs-value-boolean {
+      color: #569cd6;
+    }
+
+    .vjs-value-null,
+    .vjs-value-undefined {
+      color: #569cd6;
+    }
+
+    .vjs-comment {
+      color: #6a9955;
+    }
+
+    .vjs-node-index {
+      color: #858585;
+    }
+
+    .vjs-indent-unit.has-line {
+      border-left-color: #404040;
+    }
+  }
 }

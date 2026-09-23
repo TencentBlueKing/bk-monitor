@@ -1,4 +1,12 @@
-"""产品路由和标准字段定义。"""
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +14,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.db.models import Q
 
+from apm_web.llm.constants import SPAN_TYPES
 from constants.apm import LLMProduct
 
 if TYPE_CHECKING:
@@ -20,20 +29,6 @@ AGENT_CANDIDATE_FIELDS: tuple[str, ...] = (
     "attributes.langfuse.observation.type",
 )
 AGENT_CANDIDATE_Q: Q = Q(*(Q(**{f"{field}__exists": [""]}) for field in AGENT_CANDIDATE_FIELDS), _connector=Q.OR)
-
-# gen_ai.operation.name -> Span 语义层级，未登记的取值（检索、任务等）不归类。
-SPAN_TYPES: dict[str, str] = {
-    "invoke_workflow": "AGENT",
-    "create_agent": "AGENT",
-    "invoke_agent": "AGENT",
-    "plan": "AGENT",
-    "execute_tool": "TOOL",
-    "chat": "LLM",
-    "generate_content": "LLM",
-    "text_completion": "LLM",
-    "fetch_response": "LLM",
-    "embeddings": "LLM",
-}
 
 
 def resolve_product(entity_set: EntitySet, service_name: str) -> str:
@@ -61,7 +56,6 @@ QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
         # 该产品的 operation.name 取值为大写，语义层级实际由 span.kind 表达
         LLMProduct.AGENTLENS.value: "attributes.gen_ai.span.kind",
         LLMProduct.LANGFUSE.value: "attributes.langfuse.observation.type",
-        LLMProduct.AIDEV.value: "attributes.llm.request.type",
     },
     "attributes.gen_ai.response.model": {
         # 该产品未上报 response.model，但 request.model 在样本与生产环境都是全量填充的
@@ -76,6 +70,11 @@ def resolve_query_field(product: str, field: str) -> str:
     return QUERY_FIELD_MAPPING.get(field, {}).get(product, field)
 
 
+def resolve_query_fields(field: str) -> tuple[str, ...]:
+    """返回标准字段及各产品登记的原始字段，用于无法预先确定产品的跨服务查询。"""
+    return tuple(dict.fromkeys((field, *QUERY_FIELD_MAPPING.get(field, {}).values())))
+
+
 # 产品存储里的操作名 -> 标准 gen_ai.operation.name，未登记的取值只做小写化。
 # 与 adapter 的归一口径对齐：聚合侧拿不到 span_name / 消息结构，只能映射字段取值本身。
 OPERATION_NAME_ALIASES: dict[str, dict[str, str]] = {
@@ -86,6 +85,7 @@ OPERATION_NAME_ALIASES: dict[str, dict[str, str]] = {
         "rerank": "retrieval",
     },
     LLMProduct.LANGFUSE.value: {
+        "span": "invoke_agent",
         "agent": "invoke_agent",
         "chain": "invoke_workflow",
         "embedding": "embeddings",
@@ -108,3 +108,24 @@ def resolve_operation_name(product: str, value: Any) -> str:
         return ""
     lowered = raw.lower()
     return OPERATION_NAME_ALIASES.get(product, {}).get(lowered, lowered)
+
+
+def operation_query(product: str, operations: list[str]) -> Q:
+    """将标准操作名条件映射到产品原始字段，同时保留标准语义的 Span。"""
+    standard_field: str = "attributes.gen_ai.operation.name"
+    query: Q = Q(**{standard_field: operations})
+    if product == LLMProduct.AIDEV.value:
+        # 旧埋点的 request.type 无法覆盖 Agent，且会命中同一次模型调用的包装 Span。
+        if "chat" in operations:
+            query |= Q(span_name=["chat_model.generate", "ChatModel.chat"])
+        if "invoke_agent" in operations:
+            query |= Q(span_name="agent.execution")
+        return query
+    product_field: str = resolve_query_field(product, standard_field)
+    aliases: dict[str, str] = OPERATION_NAME_ALIASES.get(product, {})
+    values: list[str] = [raw for raw, standard in aliases.items() if standard in operations]
+    if product == LLMProduct.AGENTLENS.value:
+        values = [value.upper() for value in values]
+    if product_field != standard_field and values:
+        query |= Q(**{product_field: values})
+    return query

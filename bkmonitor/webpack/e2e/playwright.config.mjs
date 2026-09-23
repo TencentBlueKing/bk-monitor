@@ -71,7 +71,7 @@ function parseViewport(value) {
 function requiredEnv(name) {
   const value = process.env[name];
   if (!value) {
-    throw new Error(`缺少环境变量 ${name}，请通过 pnpm e2e:run 执行。`);
+    throw new Error(`缺少环境变量 ${name}，请由调用方传入本次运行目录与目标地址。`);
   }
   return value;
 }

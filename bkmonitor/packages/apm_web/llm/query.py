@@ -8,10 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any
 
 from django.db.models import Q
+from opentelemetry.trace import StatusCode
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from bkmonitor.data_source.utils import types
@@ -101,7 +102,7 @@ class LLMQuery(SpanQuery):
         records: list[dict[str, Any]] = self._query_list(
             [query.values(*fields) for query in queries], start_time, end_time, 0, limit or self.QUERY_MAX_LIMIT
         )
-        return [{field: self._get_field_value(record, field) for field in fields} for record in records]
+        return [{field: self.get_field_value(record, field) for field in fields} for record in records]
 
     def query_field_graph_config(
         self,
@@ -134,7 +135,7 @@ class LLMQuery(SpanQuery):
         return config
 
     @staticmethod
-    def _get_field_value(record: dict[str, Any], field: str) -> Any:
+    def get_field_value(record: dict[str, Any], field: str) -> Any:
         """按“扁平键/嵌套路径”提取字段，返回空字符串表示不存在。"""
 
         def _extract(value: Any, keys: list[str], index: int = 0) -> Any:
@@ -186,7 +187,7 @@ class LLMQuery(SpanQuery):
         records = self._query_list(queries, start_time, end_time, offset, limit)
         result: list[Any] = []
         for record in records:
-            value = self._get_field_value(record, group_field)
+            value = self.get_field_value(record, group_field)
             if value is not None and value != "":
                 result.append(value)
         return result
@@ -237,25 +238,64 @@ class LLMQuery(SpanQuery):
         end_time: int | None = None,
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
     ) -> list[dict[str, Any]]:
-        """拉取指定 ID 的全部 Span。需要整表时再用；列表接口请走 `iter_by_group_ids`。"""
+        """拉取指定 ID 的全部 Span。用于需要完整调用链的详情接口。"""
         spans: list[dict[str, Any]] = []
         for batch in self.iter_by_group_ids(group_field, group_ids, start_time, end_time, limit):
             spans.extend(batch)
         return spans
 
+    def query_trace_preview(
+        self,
+        trace_ids: list[str],
+        *,
+        extra_filter: Q,
+        sort: list[str],
+    ) -> list[dict[str, Any]]:
+        """按调用方指定的过滤与排序，每个 Trace 返回一个完整 Span。"""
+        if not trace_ids:
+            return []
+        queries: list[QueryConfigBuilder] = [
+            query.filter(trace_id__eq=trace_ids).filter(extra_filter).distinct(OtlpKey.TRACE_ID).order_by(*sort)
+            for query in self.build_queries(time_field=OtlpKey.START_TIME)
+        ]
+        return self._query_list(queries, None, None, 0, len(trace_ids))
+
+    def query_trace_errors(self, trace_ids: list[str]) -> list[dict[str, Any]]:
+        """按错误过滤再折叠，避免遗漏没有输入输出的失败 Span。"""
+        if not trace_ids:
+            return []
+        queries: list[QueryConfigBuilder] = [
+            query.filter(trace_id__eq=trace_ids, **{"status.code": StatusCode.ERROR.value})
+            .distinct(OtlpKey.TRACE_ID)
+            .values(OtlpKey.TRACE_ID, "status.code")
+            for query in self.build_queries(time_field=OtlpKey.START_TIME)
+        ]
+        return self._query_list(queries, None, None, 0, len(trace_ids))
+
     def query_group_trace_list(
         self,
         group_field: str,
         group_ids: list[Any],
+        possible_group_fields: Sequence[str] | None = None,
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
+        extra_fields: Sequence[str] = (),
     ) -> list[dict[str, Any]]:
         fields = [group_field]
         if group_field != OtlpKey.TRACE_ID:
             fields.append(OtlpKey.TRACE_ID)
-        queries = [
-            query.filter(**{f"{group_field}__eq": group_ids}).distinct(OtlpKey.TRACE_ID).values(*fields)
-            for query in self.build_queries()
-        ]
+        fields = list(dict.fromkeys([*fields, *extra_fields]))
+
+        possible_group_condition = Q()
+        for possible_group_field in possible_group_fields or ():
+            possible_group_condition |= Q(**{f"{possible_group_field}__eq": group_ids})
+
+        queries = []
+        for query in self.build_queries():
+            if possible_group_fields:
+                query = query.filter(possible_group_condition)
+            else:
+                query = query.filter(**{f"{group_field}__eq": group_ids})
+            queries.append(query.distinct(OtlpKey.TRACE_ID).values(*fields))
         return self._query_list(queries, None, None, 0, limit)
 
 

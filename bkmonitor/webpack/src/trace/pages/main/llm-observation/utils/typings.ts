@@ -26,6 +26,13 @@
 
 /** LLM 观测页数据类型 */
 
+/** Agent Span 名称 / 版本 / 描述 */
+export type LlmAgentObservation = {
+  description: string;
+  name: string;
+  version: string;
+};
+
 /** 输入 Tab 解析后的观测数据 */
 export type LlmInputObservation = {
   /** 当前可用工具定义 */

@@ -193,7 +193,7 @@ export default defineComponent({
   setup(props, { emit }) {
     /** 滚动容器元素 */
     let scrollContainer: HTMLElement = null;
-    /** 触底加载前记录的滚动位置，数据追加后还原以避免仍停在底部重复触发 */
+    /** 触底加载前的滚动位置，恢复完成前同时阻止再次触底加载 */
     let scrollTopBeforeLoad: null | number = null;
     /** 滚动结束后回调逻辑执行计时器  */
     let scrollPointerEventsTimer = null;
@@ -328,7 +328,7 @@ export default defineComponent({
      * @param onlyNoScrollBar 为 true 时仅处理无滚动条场景（大屏内容未撑满视口），避免数据追加后仍粘在底部而重复触发
      */
     const handleScrollToEnd = (target?: HTMLElement, onlyNoScrollBar = false) => {
-      if (!props.tableHasScrollLoading || !target) {
+      if (!props.tableHasScrollLoading || !target || scrollTopBeforeLoad !== null) {
         return;
       }
       const { scrollHeight, scrollTop, clientHeight } = target;
@@ -617,7 +617,13 @@ export default defineComponent({
     // 监听 tableData 变化，更新缓存并触发触底加载逻辑兼容
     watch(
       () => props.tableData,
-      (newData, oldData) => {
+      (newData, oldData, onCleanup) => {
+        let active = true;
+        let frameId = 0;
+        onCleanup(() => {
+          active = false;
+          cancelAnimationFrame(frameId);
+        });
         // 更新数据缓存
         if (newData?.length) {
           // 如果是新数据（长度变小或完全不同），清空缓存重新缓存
@@ -628,15 +634,23 @@ export default defineComponent({
           cacheRows(newData as Record<string, unknown>[]);
         } else {
           clearCache();
+          scrollTopBeforeLoad = null;
         }
         nextTick(() => {
-          requestAnimationFrame(() => {
-            const container = document.querySelector(props.scrollContainerSelector) as HTMLElement | null;
-            if (!container) return;
+          if (!active) return;
+          frameId = requestAnimationFrame(() => {
+            const container = scrollContainer;
+            // 前一批数据的回调不能提前解除新请求的滚动保护。
+            if (!container || props.tableLoading[ExploreTableLoadingEnum.SCROLL]) return;
             // 触底加载完成后还原滚动位置，避免浏览器粘在底部继续触发下一页
             if (scrollTopBeforeLoad !== null) {
               container.scrollTop = scrollTopBeforeLoad;
-              scrollTopBeforeLoad = null;
+              // 保持保护到下一帧，让恢复位置产生的 scroll 事件先处理完。
+              frameId = requestAnimationFrame(() => {
+                scrollTopBeforeLoad = null;
+                handleScrollToEnd(container, true);
+              });
+              return;
             }
             // 仅无滚动条时自动补全，兼容屏幕过大或 dpr 很小的场景
             handleScrollToEnd(container, true);

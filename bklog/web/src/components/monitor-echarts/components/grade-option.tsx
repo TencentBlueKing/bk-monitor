@@ -128,6 +128,24 @@ export default defineComponent({
      * 分级配置表单
      */
     const gradeOptionForm = ref(getDefaultGradeOption());
+    const formRef = ref<any>(null);
+    const formRules = {
+      type: [
+        {
+          trigger: 'change',
+          validator: () => gradeOptionForm.value.disabled || ['normal', 'custom'].includes(gradeOptionForm.value.type),
+          message: $t('必填项'),
+        },
+      ],
+      field: [
+        {
+          trigger: 'change',
+          validator: () =>
+            gradeOptionForm.value.disabled || gradeOptionForm.value.type !== 'custom' || !!gradeOptionForm.value.field,
+          message: $t('必填项'),
+        },
+      ],
+    };
 
     const isLoading = ref(false);
     const indexedRows = ref<Record<string, any>[]>([]);
@@ -176,14 +194,20 @@ export default defineComponent({
       return [];
     });
 
-    const handleSaveGradeSettingClick = (e: MouseEvent, isSave = true) => {
+    const handleSaveGradeSettingClick = async (e: MouseEvent, isSave = true) => {
       if (!isSave) {
         gradeOptionForm.value = getDefaultGradeOption();
+        formRef.value?.clearError();
         emit('change', { event: e, isSave, data: gradeOptionForm.value });
         return;
       }
 
-      if (isSave) {
+      if (isSave && !isLoading.value) {
+        try {
+          await formRef.value?.validate();
+        } catch {
+          return;
+        }
         isLoading.value = true;
 
         $http
@@ -199,10 +223,10 @@ export default defineComponent({
           })
           .then(resp => {
             if (resp.result) {
-              emit('change', { event: e, isSave, data: gradeOptionForm.value });
               store.commit('updateIndexSetCustomConfig', {
                 grade_options: structuredClone(gradeOptionForm.value),
               });
+              emit('change', { event: e, isSave, data: gradeOptionForm.value });
               return;
             }
 
@@ -220,6 +244,7 @@ export default defineComponent({
     const updateOptions = (cfg?) => {
       const target = cfg ?? getDefaultGradeOption();
       Object.assign(gradeOptionForm.value, structuredClone(target));
+      formRef.value?.clearError();
     };
 
     const handleTypeChange = type => {
@@ -228,6 +253,7 @@ export default defineComponent({
         target.settings = getDefaultGradeOption().settings;
       }
       Object.assign(gradeOptionForm.value, target);
+      formRef.value?.clearError();
     };
 
     const handleGradeOptionFormChange = (key: string, value: any) => {
@@ -240,6 +266,7 @@ export default defineComponent({
 
     const handleSettingFieldChange = (value: any) => {
       handleGradeOptionFormChange('field', value);
+      formRef.value?.clearError();
       nextTick(() => {
         handleGradeOptionFormChange('fieldType', gradeOptionField.value?.field_type);
       });
@@ -273,6 +300,7 @@ export default defineComponent({
               allow-create
               clearable
               multiple
+              collapse-tags
               searchable
               onChange={v => handleSettingItemChange(index, 'fieldValue', v)}
             />
@@ -299,51 +327,71 @@ export default defineComponent({
             <bk-switcher
               theme='primary'
               value={!gradeOptionForm.value.disabled}
-              on-change={v => handleGradeOptionFormChange('disabled', !v)}
+              on-change={v => {
+                handleGradeOptionFormChange('disabled', !v);
+                formRef.value?.clearError();
+              }}
             />
             <span class='bklog-icon bklog-info-fill' />
             <span>{$t('指定清洗字段后可生效该配置，日志页面将会按照不同颜色清洗分类，最多六个字段')}</span>
           </div>
         </div>
         <div class='grade-row'>
-          <div class='grade-label required'>{$t('字段设置')}</div>
-          <div class='grade-field-setting'>
-            <bk-select
-              style='width: 240px'
-              disabled={gradeOptionForm.value.disabled}
-              ext-popover-cls='bklog-popover-stop'
-              value={gradeOptionForm.value.type}
-              searchable
-              on-change={handleTypeChange}
+          <div class={['grade-label', { required: !gradeOptionForm.value.disabled }]}>{$t('字段设置')}</div>
+          <bk-form
+            ref={formRef}
+            class='grade-field-setting'
+            form-type='vertical'
+            {...{ props: { model: gradeOptionForm.value, rules: formRules } }}
+          >
+            <bk-form-item
+              class='grade-type-form-item'
+              property='type'
+              error-display-type='tooltips'
+              icon-offset={26}
             >
-              {gradeCategory.value.map(option => (
-                <bk-option
-                  id={option.id}
-                  key={option.id}
-                  name={option.name}
-                />
-              ))}
-            </bk-select>
-            {gradeOptionForm.value.type === 'custom' && (
               <bk-select
-                style='width: 366px; margin-left: 10px'
                 disabled={gradeOptionForm.value.disabled}
                 ext-popover-cls='bklog-popover-stop'
-                placeholder={$t('请选择字段')}
-                value={gradeOptionForm.value.field}
+                value={gradeOptionForm.value.type}
                 searchable
-                on-change={val => handleSettingFieldChange(val)}
+                on-change={handleTypeChange}
               >
-                {fieldList.value.map(option => (
+                {gradeCategory.value.map(option => (
                   <bk-option
-                    id={option.field_name}
-                    key={option.field_name}
-                    name={`${option.field_name}(${option.field_alias || option.field_name})`}
+                    id={option.id}
+                    key={option.id}
+                    name={option.name}
                   />
                 ))}
               </bk-select>
+            </bk-form-item>
+            {gradeOptionForm.value.type === 'custom' && (
+              <bk-form-item
+                class='grade-custom-field-form-item'
+                property='field'
+                error-display-type='tooltips'
+                icon-offset={26}
+              >
+                <bk-select
+                  disabled={gradeOptionForm.value.disabled}
+                  ext-popover-cls='bklog-popover-stop'
+                  placeholder={$t('请选择字段')}
+                  value={gradeOptionForm.value.field}
+                  searchable
+                  on-change={val => handleSettingFieldChange(val)}
+                >
+                  {fieldList.value.map(option => (
+                    <bk-option
+                      id={option.field_name}
+                      key={option.field_name}
+                      name={`${option.field_name}(${option.field_alias || option.field_name})`}
+                    />
+                  ))}
+                </bk-select>
+              </bk-form-item>
             )}
-          </div>
+          </bk-form>
         </div>
         <div class='grade-row'>
           <div class='grade-label'>{$t('字段列表')}</div>

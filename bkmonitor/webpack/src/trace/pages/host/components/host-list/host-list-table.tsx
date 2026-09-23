@@ -46,6 +46,8 @@ import AcrossPageSelection, {
   type SelectTypeEnum,
   SelectType,
 } from '../../../../components/across-page-selection/across-page-selection';
+import EmptyStatus from '../../../../components/empty-status/empty-status';
+import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import TagOverflow from '../../../../components/tag-overflow/tag-overflow';
 import { useTableEllipsis } from '../../../../hooks/use-table-popover';
 import { usePopover } from '../../../alarm-center/components/alarm-table/hooks/use-popover';
@@ -117,6 +119,18 @@ const getAlarmColor = (alarmCount: IHostAlarmCount[]) => {
 export default defineComponent({
   name: 'HostListTable',
   props: {
+    fullDataReady: {
+      type: Boolean,
+      default: false,
+    },
+    loading: {
+      type: Boolean,
+      default: false,
+    },
+    loadError: {
+      type: Boolean,
+      default: false,
+    },
     /** 当前页数据 */
     data: {
       type: Array as PropType<IHostListRow[]>,
@@ -200,6 +214,7 @@ export default defineComponent({
     ipMark: (_row: IHostListRow) => true,
     processClick: (_row: IHostListRow, _processId: string) => true,
     retryMetric: () => true,
+    retryPage: () => true,
   },
   setup(props, { emit }) {
     const { t, locale } = useI18n();
@@ -367,7 +382,7 @@ export default defineComponent({
 
     /** 排序转换为 tdesign 数组形式 */
     const tableSort = computed<TableSort>(() => {
-      if (!props.sort) return [];
+      if (!props.fullDataReady || !props.sort) return [];
       const descending = props.sort.startsWith('-');
       return [{ sortBy: descending ? props.sort.slice(1) : props.sort, descending }];
     });
@@ -429,6 +444,7 @@ export default defineComponent({
             />
           )}
           {!props.readonly &&
+            props.fullDataReady &&
             (locale.value !== 'enUS' ? (
               <svg
                 class={['host-table-ip-mark', isMarked ? 'path-primary' : 'path-default']}
@@ -436,7 +452,7 @@ export default defineComponent({
                 onClick={(e: MouseEvent) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  emit('ipMark', row);
+                  if (props.fullDataReady) emit('ipMark', row);
                 }}
               >
                 <path d='M26,0H2C0.9,0,0,0.9,0,2v12c0,1.1,0.9,2,2,2h24c1.1,0,2-0.9,2-2V2C28,0.9,27.1,0,26,0z' />
@@ -456,7 +472,7 @@ export default defineComponent({
                 onClick={(e: MouseEvent) => {
                   e.stopPropagation();
                   e.preventDefault();
-                  emit('ipMark', row);
+                  if (props.fullDataReady) emit('ipMark', row);
                 }}
               >
                 <g>
@@ -591,12 +607,27 @@ export default defineComponent({
 
     /** 渲染 checkbox 头 */
     const renderCheckboxHeader = () => {
+      if (!props.fullDataReady) {
+        const selectedCount = props.data.filter(row => props.selectedRowKeys.has(String(row.id))).length;
+        return (
+          <Checkbox
+            class='host-list-table__page-selection'
+            v-bk-tooltips={{ content: t('本页全选') }}
+            disabled={!props.data.length}
+            indeterminate={selectedCount > 0 && selectedCount < props.data.length}
+            modelValue={props.data.length > 0 && selectedCount === props.data.length}
+            onChange={(checked: boolean) =>
+              emit('headerSelect', checked ? SelectType.SELECTED : SelectType.UN_SELECTED)
+            }
+          />
+        );
+      }
       return (
         <AcrossPageSelection
           class='across-page-selection'
           value={props.selectType}
           onChange={(type: SelectTypeEnum) => {
-            emit('headerSelect', type);
+            if (props.fullDataReady) emit('headerSelect', type);
           }}
         />
       );
@@ -624,7 +655,7 @@ export default defineComponent({
         title,
         minWidth: config.minWidth,
         width: props.columnWidths[config.id] || config.width,
-        sorter: config.sortable,
+        sorter: props.fullDataReady && config.sortable,
         ellipsis: false,
         fixed: config.fixed,
       };
@@ -672,6 +703,7 @@ export default defineComponent({
     });
 
     const handleSortChange = (sortEvent: TableSort) => {
+      if (!props.fullDataReady) return;
       const target = Array.isArray(sortEvent) ? sortEvent[0] : sortEvent;
       emit('sortChange', target?.sortBy ? `${target.descending ? '-' : ''}${target.sortBy}` : '');
     };
@@ -681,7 +713,7 @@ export default defineComponent({
         ref='table'
         class='host-list-table'
       >
-        {props.metricLoadError && (
+        {!props.loading && !props.loadError && props.metricLoadError && (
           <div class='host-list-table__metric-error'>
             <span>{t('指标数据加载失败，当前仅展示主机基础信息')}</span>
             <Button
@@ -695,16 +727,32 @@ export default defineComponent({
         )}
         <div
           ref='body'
-          class={['host-list-table__body', !props.data.length ? 'host-list-table__body--empty' : '']}
+          class={[
+            'host-list-table__body',
+            !props.data.length || props.loading || props.loadError ? 'host-list-table__body--empty' : '',
+          ]}
         >
+          {props.loading && (
+            <div class='host-list-table__skeleton'>
+              <TableSkeleton />
+            </div>
+          )}
+          {!props.loading && props.loadError && (
+            <EmptyStatus
+              class='host-list-table__error'
+              type='500'
+              onOperation={() => emit('retryPage')}
+            />
+          )}
           <PrimaryTable
+            style={{ display: props.loading || props.loadError ? 'none' : '' }}
             class={props.data.length === 0 ? 'host-list-table--empty' : ''}
             v-slots={{
               empty: () => (
                 <ExploreTableEmpty
-                  showOperation={props.emptyType === 'search-empty'}
+                  showOperation={props.fullDataReady && props.emptyType === 'search-empty'}
                   type={props.emptyType}
-                  onClearFilter={() => emit('clearFilter')}
+                  onClearFilter={() => props.fullDataReady && emit('clearFilter')}
                 />
               ),
             }}
