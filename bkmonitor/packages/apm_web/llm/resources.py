@@ -19,6 +19,7 @@ from apm_web.metric.resources import CalculateByRangeResource as MetricCalculate
 from apm_web.models import Application
 from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.data_source import get_auto_interval
+from bkmonitor.data_source.utils.statistics import process_growth_rates
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 
 
@@ -553,6 +554,6 @@ class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResour
         aliases: list[str] = list(alias_aggregated_records_map.keys())
         # 分组结果按基准列降序，概览页的 TopK 卡片直接取前 N 条
         merged_records.sort(key=lambda record: record.get(baseline) or 0, reverse=True)
-        self._process_growth_rates(baseline, aliases, merged_records)
+        process_growth_rates(baseline, aliases, merged_records)
 
         return {"total": len(merged_records), "data": self._process_sorted(merged_records)}
