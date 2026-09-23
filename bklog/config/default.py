@@ -429,6 +429,8 @@ BK_BKLOG_API_HOST = os.getenv("BKAPP_BKLOG_API_HOST", "http://bk-log-search-api"
 APIGW_MANAGERS = f"[{','.join(os.getenv('BKAPP_APIGW_MANAGERS', 'admin').split(','))}]"
 # 网关名称
 BK_APIGW_NAME = os.getenv("BKAPP_APIGW_NAME", "bk-log-search")
+# 网关环境名；未配置时沿用已有的 prod 环境
+APIGW_STAGE = os.getenv("APIGW_STAGE", "prod")
 # APIGW 接口地址模板
 BK_API_URL_TMPL = os.getenv("BKAPP_API_URL_TMPL", f"{PAAS_API_HOST}/api/{{api_name}}/")
 BK_APIGW_JWT_PROVIDER_CLS = "apps.middleware.apigw.ApiGatewayJWTProvider"

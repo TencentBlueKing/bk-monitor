@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -22,13 +21,16 @@ the project delivered to anyone in the future.
 
 from django.conf import settings
 from django.core.management import call_command
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         if settings.SYNC_APIGATEWAY_ENABLED == "off":
             return
+
+        if settings.APIGW_STAGE not in {"prod", "stage"}:
+            raise CommandError("APIGW_STAGE must be prod or stage")
 
         gateway_name = settings.BK_APIGW_NAME
 
@@ -45,6 +47,11 @@ class Command(BaseCommand):
             f"--file={definition_path}",
             "--safe-mode",
         )
-        call_command("create_version_and_release_apigw", f"--gateway-name={gateway_name}", f"--file={definition_path}")
+        call_command(
+            "create_version_and_release_apigw",
+            f"--gateway-name={gateway_name}",
+            f"--file={definition_path}",
+            f"--stage={settings.APIGW_STAGE}",
+        )
         call_command("grant_apigw_permissions", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("fetch_apigw_public_key", f"--gateway-name={gateway_name}")
