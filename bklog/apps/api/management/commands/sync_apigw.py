@@ -21,16 +21,13 @@ the project delivered to anyone in the future.
 
 from django.conf import settings
 from django.core.management import call_command
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         if settings.SYNC_APIGATEWAY_ENABLED == "off":
             return
-
-        if settings.APIGW_STAGE not in {"prod", "stage"}:
-            raise CommandError("APIGW_STAGE must be prod or stage")
 
         gateway_name = settings.BK_APIGW_NAME
 

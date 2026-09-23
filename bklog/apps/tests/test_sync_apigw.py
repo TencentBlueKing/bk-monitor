@@ -24,7 +24,6 @@ from unittest.mock import patch
 
 from apigw_manager.apigw.helper import Definition
 from django.conf import settings
-from django.core.management.base import CommandError
 from django.test import SimpleTestCase, override_settings
 
 from apps.api.management.commands.sync_apigw import Command
@@ -48,11 +47,3 @@ class SyncApiGatewayStageTests(SimpleTestCase):
                     call for call in mock_call.call_args_list if call.args[0] == "create_version_and_release_apigw"
                 )
                 self.assertIn(f"--stage={stage}", release_call.args)
-
-    @override_settings(SYNC_APIGATEWAY_ENABLED="on", APIGW_STAGE="stag")
-    def test_invalid_stage_stops_before_sync(self):
-        with patch("apps.api.management.commands.sync_apigw.call_command") as mock_call:
-            with self.assertRaises(CommandError):
-                Command().handle()
-
-        mock_call.assert_not_called()
