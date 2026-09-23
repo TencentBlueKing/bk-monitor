@@ -76,6 +76,7 @@ from apm_web.utils import (
     handle_filter_fields,
 )
 from bkmonitor.data_source import q_to_dict
+from bkmonitor.data_source.utils.statistics import process_growth_rates, process_proportions
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.common_utils import format_percent
@@ -3275,49 +3276,6 @@ class CalculateByRangeResource(Resource, call_analysis.RecordHelperMixin, call_a
             merged_records.append(processed_record)
         return merged_records
 
-    @classmethod
-    def _process_growth_rates(cls, baseline: str, aliases: list[str], records: list[dict[str, Any]]):
-        for record in records:
-            for alias in aliases:
-                growth_rate: float | None = None
-
-                if record[baseline] == 0 and record[alias] == 0:
-                    # 两个数据都为 0 时，设定增长率为 0%
-                    growth_rate = 0
-                elif not record[alias] and record[baseline]:
-                    # 往期无数据，同比正增长 100%
-                    growth_rate = 100
-                elif record[alias] and not record[baseline]:
-                    # 当前无数据，同比负增长 100%
-                    growth_rate = -100
-                elif record[alias] and record[baseline]:
-                    # 设置 4 位可读精度，非 0 展示 0.0001
-                    growth_rate = format_percent(
-                        (record[baseline] - record[alias]) / record[alias] * 100,
-                        precision=2,
-                        sig_fig_cnt=1,
-                        readable_precision=4,
-                    )
-
-                record.setdefault("growth_rates", {})[alias] = growth_rate
-
-    @classmethod
-    def _process_proportions(cls, aliases: list[str], records: list[dict[str, Any]]):
-        alias_total_map: dict[str, int] = defaultdict(int)
-        for record in records:
-            for alias in aliases:
-                alias_total_map[alias] += record[alias] or 0
-
-        for record in records:
-            for alias in aliases:
-                if alias_total_map[alias] == 0 or record[alias] is None:
-                    # 总数为 0 或者 数据为空 的情况下，直接置空
-                    record.setdefault("proportions", {})[alias] = None
-                    continue
-                record.setdefault("proportions", {})[alias] = format_percent(
-                    (record[alias] / alias_total_map[alias]) * 100, precision=2, sig_fig_cnt=1, readable_precision=4
-                )
-
     def perform_request(self, validated_request_data):
         def _collect(_alias: str | None, **_kwargs):
             _group: metric_group.BaseMetricGroup = metric_group.MetricGroupRegistry.get(
@@ -3360,10 +3318,10 @@ class CalculateByRangeResource(Resource, call_analysis.RecordHelperMixin, call_a
 
         aliases: list[str] = list(alias_aggregated_records_map.keys())
         # 计算增长率
-        self._process_growth_rates(baseline, aliases, merged_records)
+        process_growth_rates(baseline, aliases, merged_records)
         if validated_request_data["metric_cal_type"] == metric_group.CalculationType.REQUEST_TOTAL.value:
             # 计算占比
-            self._process_proportions(aliases, merged_records)
+            process_proportions(aliases, merged_records)
 
         return {"total": len(merged_records), "data": self._process_sorted(merged_records)}
 
