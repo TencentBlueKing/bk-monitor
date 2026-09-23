@@ -196,6 +196,8 @@ def job_results(job):
         "manifest": {
             "artifact_id": "manifest",
             "compressed_bytes": job.manifest_bytes,
+            "checksum": job.manifest_checksum,
+            "checksum_algorithm": "sha256",
         },
         "parts": [
             {

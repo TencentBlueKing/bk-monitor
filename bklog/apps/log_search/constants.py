@@ -268,6 +268,7 @@ class ExportPartStatus:
     WAITING = "WAITING"
     DISPATCHED = "DISPATCHED"
     RUNNING = "RUNNING"
+    UPLOADING = "UPLOADING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
     SPLIT = "SPLIT"
@@ -277,13 +278,16 @@ class ExportPartStatus:
         (WAITING, "待投递"),
         (DISPATCHED, "已投递"),
         (RUNNING, "执行中"),
+        (UPLOADING, "上传中"),
         (SUCCESS, "成功"),
         (FAILED, "失败"),
         (SPLIT, "已细分"),
         (CANCELED, "已取消"),
     )
+    # 已开始执行、允许回填结果或推进阶段的运行态
+    EXECUTING = [RUNNING, UPLOADING]
     # 已占用 Worker 资源、需要计入侵占额度的状态
-    INFLIGHT = [DISPATCHED, RUNNING]
+    INFLIGHT = [DISPATCHED, RUNNING, UPLOADING]
     # 已细分、由子分片接管的分片：不产出产物、不进清单
     NON_LEAF = [SPLIT]
 

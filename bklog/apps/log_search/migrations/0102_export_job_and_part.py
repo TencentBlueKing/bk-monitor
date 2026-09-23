@@ -52,6 +52,10 @@ class Migration(migrations.Migration):
                     models.CharField(blank=True, default="", max_length=1024, verbose_name="清单对象名"),
                 ),
                 ("manifest_bytes", models.PositiveBigIntegerField(blank=True, null=True, verbose_name="清单字节数")),
+                (
+                    "manifest_checksum",
+                    models.CharField(blank=True, default="", max_length=64, verbose_name="清单SHA256"),
+                ),
                 ("error_code", models.CharField(blank=True, default="", max_length=64, verbose_name="错误分类")),
                 ("error_detail", models.TextField(blank=True, default="", verbose_name="错误详情")),
                 ("planning_started_at", models.DateTimeField(blank=True, null=True, verbose_name="规划开始时间")),
@@ -135,6 +139,7 @@ class Migration(migrations.Migration):
                             ("WAITING", "待投递"),
                             ("DISPATCHED", "已投递"),
                             ("RUNNING", "执行中"),
+                            ("UPLOADING", "上传中"),
                             ("SUCCESS", "成功"),
                             ("FAILED", "失败"),
                             ("SPLIT", "已细分"),

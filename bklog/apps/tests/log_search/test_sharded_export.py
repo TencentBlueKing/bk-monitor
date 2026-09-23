@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import hashlib
 import json
 import tempfile
 from dataclasses import replace
@@ -39,10 +40,11 @@ from apps.log_search.constants import (
     ExportJobStatus,
     ExportPlanStatus,
     ExportPartStatus,
+    ExportStage,
 )
 from apps.log_search.export import state
 from apps.log_search.export.config import ExportPolicy
-from apps.log_search.export.api import create_export_job, download_link
+from apps.log_search.export.api import create_export_job, download_link, job_results
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.models import LogIndexSet, Scenario, Space
 from apps.log_search.views.export_views import ExportJobViewSet
@@ -61,6 +63,7 @@ from apps.log_search.export.scheduler import (
     dispatch_ready_parts,
     enqueue_finalization,
     enqueue_planning,
+    finalize_export,
 )
 from apps.log_search.export.storage import UnsupportedExportStorage, artifact_name, build_storage, manifest_name
 
@@ -394,7 +397,11 @@ class ExportStateTestCase(TestCase):
         self.assertEqual(job.status, ExportJobStatus.RUNNING)
         self.assertEqual(state.leaf_stats(job)["success"], 4)
         self.assertEqual(job.actual_total, 40)
-        self.assertIsNotNone(state.finalize_job(job.pk, manifest_object_key="manifest", manifest_bytes=10))
+        self.assertIsNotNone(
+            state.finalize_job(
+                job.pk, manifest_object_key="manifest", manifest_bytes=10, manifest_checksum="manifest-checksum"
+            )
+        )
         job.refresh_from_db()
         self.assertEqual(job.status, ExportJobStatus.SUCCESS)
         self.assertIsNotNone(job.expires_at)
@@ -404,7 +411,9 @@ class ExportStateTestCase(TestCase):
         self.complete_parts(4)
         ExportPart.objects.filter(job=self.job, part_no=3).update(start_time=2500)
         with self.assertRaises(ValueError):
-            state.finalize_job(self.job.pk, manifest_object_key="manifest", manifest_bytes=10)
+            state.finalize_job(
+                self.job.pk, manifest_object_key="manifest", manifest_bytes=10, manifest_checksum="manifest-checksum"
+            )
 
     def test_failed_part_is_requeued_before_exhausting_attempts(self):
         self.plan()
@@ -444,7 +453,11 @@ class ExportStateTestCase(TestCase):
     def test_finalize_requires_every_part_success(self):
         self.plan()
         self.complete_parts(3)
-        self.assertIsNone(state.finalize_job(self.job.pk, manifest_object_key="manifest", manifest_bytes=1))
+        self.assertIsNone(
+            state.finalize_job(
+                self.job.pk, manifest_object_key="manifest", manifest_bytes=1, manifest_checksum="manifest-checksum"
+            )
+        )
 
     def test_cancel_job_cancels_waiting_parts(self):
         self.plan()
@@ -452,6 +465,50 @@ class ExportStateTestCase(TestCase):
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, ExportJobStatus.CANCELED)
         self.assertFalse(ExportPart.objects.filter(job=self.job, status=ExportPartStatus.WAITING).exists())
+
+    def test_upload_stage_moves_part_to_uploading(self):
+        self.plan()
+        part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
+        state.dispatch_part(part.pk, "task")
+        state.claim_part(part.pk)
+
+        state.set_stage(part.pk, ExportStage.PACKAGE)
+        self.assertEqual(ExportPart.objects.get(pk=part.pk).status, ExportPartStatus.RUNNING)
+
+        state.set_stage(part.pk, ExportStage.UPLOAD)
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.UPLOADING)
+        self.assertEqual(part.stage, ExportStage.UPLOAD)
+
+    def test_uploading_part_can_still_complete(self):
+        """上传阶段仍是可回填结果的运行态，重新进入上传阶段不会让回填失效。"""
+        self.plan()
+        part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
+        state.dispatch_part(part.pk, "task")
+        state.claim_part(part.pk)
+        state.set_stage(part.pk, ExportStage.UPLOAD)
+
+        self.assertIsNotNone(
+            state.complete_part(
+                part.pk, actual_rows=10, actual_bytes=100, compressed_bytes=50, object_key="object", checksum="sum"
+            )
+        )
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.SUCCESS)
+
+    @override_settings(ASYNC_EXPORT_PART_TIMEOUT=1)
+    def test_uploading_part_is_recovered_after_timeout(self):
+        """上传阶段同样计入在途，卡住时按超时回收。"""
+        self.plan()
+        part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
+        state.dispatch_part(part.pk, "task")
+        state.claim_part(part.pk)
+        state.set_stage(part.pk, ExportStage.UPLOAD)
+        ExportPart.objects.filter(pk=part.pk).update(started_at=timezone.now() - timedelta(seconds=10))
+
+        self.assertEqual(state.recover_stale_parts(), [part.pk])
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.WAITING)
 
     def test_planning_attempt_budget_is_taken_from_job_policy(self):
         self.job.policy = {**ExportPolicy().snapshot(), "planning_attempts": 1}
@@ -609,7 +666,11 @@ class SplitTests(TestCase):
         job = ExportJob.objects.get(pk=self.job.pk)
         self.assertEqual(job.actual_total, 40)
         self.assertEqual(state.leaf_stats(job)["success"], 2)
-        self.assertIsNotNone(state.finalize_job(job.pk, manifest_object_key="manifest", manifest_bytes=1))
+        self.assertIsNotNone(
+            state.finalize_job(
+                job.pk, manifest_object_key="manifest", manifest_bytes=1, manifest_checksum="manifest-checksum"
+            )
+        )
         job.refresh_from_db()
         self.assertEqual(job.status, ExportJobStatus.SUCCESS)
 
@@ -814,6 +875,61 @@ class SchedulerTests(TestCase):
         ExportPart.objects.filter(part_no=1).update(status=ExportPartStatus.DISPATCHED)
         ExportPart.objects.filter(part_no=2).update(status=ExportPartStatus.RUNNING)
         self.assertEqual(_inflight_by_index_set(), {11: 2})
+
+    def test_uploading_part_still_occupies_a_slot(self):
+        """上传阶段尚未收尾，仍然占用并行额度。"""
+        ExportPart.objects.filter(part_no=1).update(status=ExportPartStatus.UPLOADING)
+        self.assertEqual(_inflight_by_index_set(), {11: 1})
+
+
+class ManifestChecksumTests(TestCase):
+    """清单上传后落库自身 checksum，下载方可以据此校验清单完整性。"""
+
+    def setUp(self):
+        self.job = create_job(status=ExportJobStatus.RUNNING, plan_version=1, end_time=1000)
+        ExportPart.objects.create(
+            job=self.job,
+            part_no=1,
+            plan_version=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.SUCCESS,
+            actual_rows=10,
+            actual_bytes=100,
+            object_key="part-object",
+            checksum="part-checksum",
+        )
+        state.sync_actual_total(self.job)
+
+    def test_manifest_checksum_matches_the_uploaded_content(self):
+        captured = []
+        with (
+            patch("apps.log_search.export.scheduler.build_storage"),
+            patch(
+                "apps.log_search.export.scheduler.upload",
+                side_effect=lambda _storage, path, _name: captured.append(path.read_bytes()),
+            ),
+        ):
+            finalize_export(self.job.pk)
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.SUCCESS)
+        content = captured[0]
+        self.assertEqual(self.job.manifest_bytes, len(content))
+        self.assertEqual(self.job.manifest_checksum, hashlib.sha256(content).hexdigest())
+        self.assertEqual(self.job.manifest_object_key, manifest_name(self.job))
+
+    def test_manifest_checksum_is_exposed_with_the_download_manifest(self):
+        state.finalize_job(
+            self.job.pk,
+            manifest_object_key="manifest.json",
+            manifest_bytes=10,
+            manifest_checksum="manifest-checksum",
+        )
+
+        results = job_results(ExportJob.objects.get(pk=self.job.pk))
+        self.assertEqual(results["manifest"]["checksum"], "manifest-checksum")
+        self.assertEqual(results["manifest"]["checksum_algorithm"], "sha256")
 
 
 class JobDetailTests(TestCase):

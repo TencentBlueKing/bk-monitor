@@ -260,17 +260,23 @@ def claim_part(part_id):
 
 
 def set_stage(part_id, stage):
-    """更新展示阶段；分片已被回收或取消时不做任何事。"""
-    return ExportPart.objects.filter(pk=part_id, status=ExportPartStatus.RUNNING).update(
-        stage=stage, updated_at=timezone.now()
-    )
+    """
+    推进分片执行阶段。
+
+    进入上传阶段时一并把状态推进到 UPLOADING，与方案里的
+    `RUNNING -> UPLOADING -> SUCCESS` 保持一致；分片已被回收或取消时不做任何事。
+    """
+    changes = {"stage": stage, "updated_at": timezone.now()}
+    if stage == ExportStage.UPLOAD:
+        changes["status"] = ExportPartStatus.UPLOADING
+    return ExportPart.objects.filter(pk=part_id, status__in=ExportPartStatus.EXECUTING).update(**changes)
 
 
 def complete_part(part_id, *, actual_rows, actual_bytes, compressed_bytes, object_key, checksum):
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=_job_id_of(part_id))
         part = ExportPart.objects.select_for_update().get(pk=part_id)
-        if part.status != ExportPartStatus.RUNNING:
+        if part.status not in ExportPartStatus.EXECUTING:
             # 已被超时回收并重新投递，本次结果作废
             return None
         now = timezone.now()
@@ -301,7 +307,7 @@ def fail_part(part_id, *, error_code, error_detail="", retryable=True):
 
 
 def _fail_locked(job, part, error_code, error_detail, retryable=True):
-    if part.status not in (ExportPartStatus.DISPATCHED, ExportPartStatus.RUNNING):
+    if part.status not in ExportPartStatus.INFLIGHT:
         return None
     now = timezone.now()
     changes = {"error_code": error_code, "error_detail": (error_detail or "")[:2000], "finished_at": now}
@@ -399,7 +405,7 @@ def recover_stale_parts(limit=None):
         ExportPart.objects.filter(status__in=ExportPartStatus.INFLIGHT)
         .filter(
             Q(status=ExportPartStatus.DISPATCHED, updated_at__lt=cutoff)
-            | Q(status=ExportPartStatus.RUNNING, started_at__lt=cutoff)
+            | Q(status__in=ExportPartStatus.EXECUTING, started_at__lt=cutoff)
         )
         .values_list("pk", flat=True)[:limit]
     )
@@ -410,7 +416,7 @@ def recover_stale_parts(limit=None):
     return recovered
 
 
-def finalize_job(job_id, *, manifest_object_key, manifest_bytes):
+def finalize_job(job_id, *, manifest_object_key, manifest_bytes, manifest_checksum):
     """只有全部叶子分片成功、边界连续且数量自洽时才允许任务成功。"""
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
@@ -436,6 +442,7 @@ def finalize_job(job_id, *, manifest_object_key, manifest_bytes):
             status=ExportJobStatus.SUCCESS,
             manifest_object_key=manifest_object_key,
             manifest_bytes=manifest_bytes,
+            manifest_checksum=manifest_checksum,
             completed_at=now,
             expires_at=now + timedelta(seconds=policy_from_snapshot(job.policy).artifact_retention_seconds),
             error_code="",

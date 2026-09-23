@@ -60,6 +60,8 @@ class ExportJob(models.Model):
     requested_parallelism = models.PositiveSmallIntegerField(_("期望并行上限"), default=4)
     manifest_object_key = models.CharField(_("清单对象名"), max_length=1024, blank=True, default="")
     manifest_bytes = models.PositiveBigIntegerField(_("清单字节数"), null=True, blank=True)
+    # 清单文件自身的 sha256，下载方可以据此校验清单没有被截断或篡改
+    manifest_checksum = models.CharField(_("清单SHA256"), max_length=64, blank=True, default="")
     error_code = models.CharField(_("错误分类"), max_length=64, blank=True, default="")
     error_detail = models.TextField(_("错误详情"), blank=True, default="")
     planning_started_at = models.DateTimeField(_("规划开始时间"), null=True, blank=True)
