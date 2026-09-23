@@ -57,6 +57,8 @@ export interface UseExploreTableDataReturn {
   getExploreList: (loadingType?: ExploreTableLoadingEnum) => Promise<void>;
   /** 排序变化处理 */
   handleSortChange: (sortEvent: TableSort) => void;
+  /** 后续分页是否失败（保留已有结果，等待重试） */
+  scrollLoadError: Ref<boolean>;
   /** table loading 配置 */
   tableLoading: {
     [ExploreTableLoadingEnum.BODY_SKELETON]: boolean;
@@ -92,6 +94,8 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
 
   /** 判断table数据是否还有数据可以获取 */
   const tableHasMoreData = shallowRef(false);
+  /** 后续分页请求失败，保留已有结果并提供重试 */
+  const scrollLoadError = shallowRef(false);
   /** table loading 配置 */
   const tableLoading = reactive({
     /** table body部分 骨架屏 loading */
@@ -165,6 +169,8 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
     const { app_name, start_time, end_time } = queryParams.value;
     if (!app_name || !start_time || !end_time) {
       store.updateTableList([]);
+      tableHasMoreData.value = false;
+      scrollLoadError.value = false;
       tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
       tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = false;
       tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
@@ -188,9 +194,13 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
     }
     if (loadingType === ExploreTableLoadingEnum.BODY_SKELETON) {
       store.updateTableList([]);
+      scrollLoadError.value = false;
     }
 
     tableLoading[loadingType] = true;
+    if (loadingType === ExploreTableLoadingEnum.SCROLL) {
+      scrollLoadError.value = false;
+    }
     store.updateTableLoading(true);
     const requestParam = {
       ...queryParams.value,
@@ -208,6 +218,17 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
     }
     tableLoading[loadingType] = false;
     tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
+    if (res?.isError) {
+      if (loadingType === ExploreTableLoadingEnum.SCROLL) {
+        // 后续分页失败：保留已有结果，不把 hasMore 清掉，等待用户重试
+        scrollLoadError.value = true;
+        return;
+      }
+      store.updateTableList([]);
+      tableHasMoreData.value = false;
+      scrollLoadError.value = false;
+      return;
+    }
     // 更新表格数据
     if (loadingType === ExploreTableLoadingEnum.BODY_SKELETON) {
       store.updateTableList(res.data);
@@ -215,6 +236,7 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
       store.updateTableList([...tableData.value, ...res.data]);
     }
     tableHasMoreData.value = res.data?.length >= limit;
+    scrollLoadError.value = false;
   };
 
   const debouncedGetExploreList = useDebounceFn(getExploreList, 200);
@@ -236,6 +258,8 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
       onBackTop?.();
       tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
       tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
+      tableHasMoreData.value = false;
+      scrollLoadError.value = false;
       store.updateTableList([]);
 
       if (nVal[0] !== oVal[0] || nVal[1] !== oVal[1]) {
@@ -258,6 +282,7 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
   return {
     getExploreList,
     handleSortChange,
+    scrollLoadError,
     sortContainer,
     tableHasScrollLoading,
     tableLoading,

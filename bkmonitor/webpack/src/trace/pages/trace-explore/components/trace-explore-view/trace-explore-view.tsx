@@ -126,14 +126,21 @@ export default defineComponent({
     const sourceFieldConfigs = computed(() => props.fieldListMap?.[mode.value] ?? []);
 
     // 使用数据处理 hook
-    const { tableViewData, tableHasScrollLoading, tableLoading, sortContainer, getExploreList, handleSortChange } =
-      useExploreTableData({
-        commonParams: toRef(props, 'commonParams'),
-        sourceFieldConfigs,
-        onBackTop: () => {
-          backTopRef.value?.handleBackTop?.(false);
-        },
-      });
+    const {
+      tableViewData,
+      tableHasScrollLoading,
+      tableLoading,
+      sortContainer,
+      scrollLoadError,
+      getExploreList,
+      handleSortChange,
+    } = useExploreTableData({
+      commonParams: toRef(props, 'commonParams'),
+      sourceFieldConfigs,
+      onBackTop: () => {
+        backTopRef.value?.handleBackTop?.(false);
+      },
+    });
 
     /**
      * @description 触底加载更多
@@ -258,6 +265,7 @@ export default defineComponent({
       tableViewData,
       tableHasScrollLoading,
       tableLoading,
+      scrollLoadError,
       sortContainer,
       sliderMode,
       activeSliderId,
@@ -298,6 +306,7 @@ export default defineComponent({
             tableData={this.tableViewData}
             tableHasScrollLoading={this.tableHasScrollLoading}
             tableLoading={this.tableLoading}
+            scrollLoadError={this.scrollLoadError}
             onClearRetrievalFilter={() => this.$emit('clearRetrievalFilter')}
             onColumnResize={this.handleDisplayColumnResize}
             onConditionChange={(conditionEvent, isMergeSameKey) =>

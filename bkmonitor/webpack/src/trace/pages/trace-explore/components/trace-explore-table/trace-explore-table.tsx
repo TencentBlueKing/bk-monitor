@@ -127,6 +127,11 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 后续分页是否失败，用于展示重试入口并阻止自动继续请求 */
+    scrollLoadError: {
+      type: Boolean,
+      default: false,
+    },
     /** table loading 配置 */
     tableLoading: {
       type: Object as PropType<{
@@ -195,6 +200,8 @@ export default defineComponent({
     let scrollContainer: HTMLElement = null;
     /** 触底加载前记录的滚动位置，数据追加后还原以避免仍停在底部重复触发 */
     let scrollTopBeforeLoad: null | number = null;
+    /** 请求发出到数据渲染完成前加锁，避免生产环境接口很快时滚动事件连打下一页 */
+    let isRequestingLock = false;
     /** 滚动结束后回调逻辑执行计时器  */
     let scrollPointerEventsTimer = null;
     /** 统计弹窗 tippy 实例 */
@@ -328,7 +335,7 @@ export default defineComponent({
      * @param onlyNoScrollBar 为 true 时仅处理无滚动条场景（大屏内容未撑满视口），避免数据追加后仍粘在底部而重复触发
      */
     const handleScrollToEnd = (target?: HTMLElement, onlyNoScrollBar = false) => {
-      if (!props.tableHasScrollLoading || !target) {
+      if (!props.tableHasScrollLoading || props.scrollLoadError || !target) {
         return;
       }
       const { scrollHeight, scrollTop, clientHeight } = target;
@@ -340,13 +347,15 @@ export default defineComponent({
         !(
           props.tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ||
           props.tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] ||
-          props.tableLoading[ExploreTableLoadingEnum.SCROLL]
+          props.tableLoading[ExploreTableLoadingEnum.SCROLL] ||
+          isRequestingLock
         )
       ) {
         // 记录触底前的滚动位置，请求完成后还原
         if (isEnd) {
           scrollTopBeforeLoad = scrollTop;
         }
+        isRequestingLock = true;
         emit('scrollToEnd');
       }
     };
@@ -453,6 +462,49 @@ export default defineComponent({
      */
     const handleSliderShowChange = (openMode: '' | 'span' | 'trace', activeId: string) => {
       emit('sliderShow', openMode, activeId);
+    };
+
+    /**
+     * @description 后续分页失败后的手动重试
+     */
+    const handleScrollLoadRetry = (event: Event) => {
+      event.stopPropagation();
+      emit('scrollToEnd');
+    };
+
+    /**
+     * @description 表尾加载状态：首次加载走骨架；后续分页显示「正在加载更多」；结束显示「到底了」；失败提供重试
+     */
+    const scrollEndRowRender = () => {
+      if (props.tableLoading[ExploreTableLoadingEnum.SCROLL]) {
+        return (
+          <Loading
+            class='scroll-end-loading'
+            loading={true}
+            mode='spin'
+            size='mini'
+            theme='primary'
+            title={window.i18n.t('正加载更多内容…')}
+          />
+        );
+      }
+      if (props.scrollLoadError) {
+        return (
+          <div class='scroll-end-loading is-error'>
+            <span>{window.i18n.t('加载失败')}</span>
+            <span
+              class='scroll-end-retry'
+              onClick={handleScrollLoadRetry}
+            >
+              {window.i18n.t('点击重试')}
+            </span>
+          </div>
+        );
+      }
+      if (props.tableHasScrollLoading) {
+        return null;
+      }
+      return <div class='scroll-end-loading is-end'>{window.i18n.t('到底了')}</div>;
     };
 
     /**
@@ -620,8 +672,8 @@ export default defineComponent({
       (newData, oldData) => {
         // 更新数据缓存
         if (newData?.length) {
-          // 如果是新数据（长度变小或完全不同），清空缓存重新缓存
-          if (!oldData?.length || newData.length < oldData.length) {
+          // 如果是新数据（长度变小、持平或完全不同），清空缓存重新缓存
+          if (!oldData?.length || newData.length <= oldData.length) {
             clearCache();
             scrollTopBeforeLoad = null;
           }
@@ -631,11 +683,16 @@ export default defineComponent({
         }
         nextTick(() => {
           requestAnimationFrame(() => {
+            isRequestingLock = false;
             const container = document.querySelector(props.scrollContainerSelector) as HTMLElement | null;
             if (!container) return;
             // 触底加载完成后还原滚动位置，避免浏览器粘在底部继续触发下一页
             if (scrollTopBeforeLoad !== null) {
-              container.scrollTop = scrollTopBeforeLoad;
+              const { scrollHeight, clientHeight } = container;
+              const maxScrollTop = scrollHeight - clientHeight;
+              if (maxScrollTop > 0) {
+                container.scrollTop = Math.max(1, Math.min(scrollTopBeforeLoad, maxScrollTop - 2));
+              }
               scrollTopBeforeLoad = null;
             }
             // 仅无滚动条时自动补全，兼容屏幕过大或 dpr 很小的场景
@@ -644,6 +701,15 @@ export default defineComponent({
         });
       },
       { immediate: true }
+    );
+
+    watch(
+      () => props.scrollLoadError,
+      err => {
+        if (!err) return;
+        isRequestingLock = false;
+        scrollTopBeforeLoad = null;
+      }
     );
 
     onMounted(() => {
@@ -672,6 +738,7 @@ export default defineComponent({
       statisticsDomRender,
       handleMenuClick,
       handleConditionChange,
+      scrollEndRowRender,
     };
   },
 
@@ -737,21 +804,7 @@ export default defineComponent({
             container: this.scrollContainerSelector,
           }}
           // @ts-expect-error
-          lastFullRow={
-            this.tableData.length
-              ? () => (
-                  <Loading
-                    style={{ display: this.tableHasScrollLoading ? 'inline-flex' : 'none' }}
-                    class='scroll-end-loading'
-                    loading={true}
-                    mode='spin'
-                    size='mini'
-                    theme='primary'
-                    title={window.i18n.t('加载中...')}
-                  />
-                )
-              : undefined
-          }
+          lastFullRow={this.tableData.length ? this.scrollEndRowRender : undefined}
           rowspanAndColspan={
             this.enabledDisplayFieldSetting
               ? ({ colIndex }) => {

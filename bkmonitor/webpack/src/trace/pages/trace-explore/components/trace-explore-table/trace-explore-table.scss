@@ -223,6 +223,19 @@
         margin-top: 0;
       }
     }
+
+    &.is-end,
+    &.is-error {
+      height: 32px;
+      font-size: 12px;
+      color: #979ba5;
+    }
+
+    .scroll-end-retry {
+      margin-left: 8px;
+      color: #3a84ff;
+      cursor: pointer;
+    }
   }
 
   .explore-table.t-table {
