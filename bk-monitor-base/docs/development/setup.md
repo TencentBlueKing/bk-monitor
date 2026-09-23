@@ -59,9 +59,3 @@ uv remove <package>
 ## 环境变量
 
 项目支持 .env 和环境变量两种方式进行配置。
-
-### NodeMan V3 控制面
-
-监控 SaaS 与 Base 共用 `BKAPP_ENABLE_NODEMAN_V3` 开关；仅设为 `true` 时，主机查询和独立官方插件操作走 V3，未设置或设为 `false` 时走 V2。V2 Subscription 采集链路不受此开关影响。
-
-V3 API 地址默认由现有蓝鲸 API 网关根地址推导为 `/api/bk-nodemgr/prod/`。非标准部署可用 `BKAPP_BKNODEMAN_V3_API_BASE_URL` 覆盖此地址；覆盖值应是服务根地址，不包含 `/api/v3`。地址覆盖项本身不会启用 V3。
