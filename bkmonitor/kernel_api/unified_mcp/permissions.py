@@ -696,7 +696,10 @@ def _execute_native_tool(tool, tool_args, request):
             source=request.mcp_permission_source,
             action_id=request.mcp_permission_action,
         )
-        data = dispatch_tool(tool.name, args)
+        dispatch_args = dict(args)
+        if tool.requires_confirmation and not tool.forwards_confirmation:
+            dispatch_args.pop("confirm", None)
+        data = dispatch_tool(tool.name, dispatch_args)
         _audit(
             tool,
             request,

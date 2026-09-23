@@ -295,6 +295,55 @@ def test_list_strategy_restores_query_output_config_from_item_meta(
 
 
 @pytest.mark.django_db(databases=["default"])
+@pytest.mark.parametrize("value", [None, 1, 15, 100])
+def test_list_strategy_reads_access_lookback_column(value: int | None) -> None:
+    """公共列表读取独立列；未配置时省略字段，读取不修改其他元数据。"""
+    strategy_model = StrategyModel.objects.create(
+        bk_biz_id=2,
+        name="test_access_lookback_column",
+        scenario="os",
+        type=StrategyModel.StrategyType.Monitor,
+    )
+    item_model = ItemModel.objects.create(
+        strategy_id=strategy_model.pk,
+        name="lookback-item",
+        expression="a",
+        metric_type="time_series",
+        access_lookback_periods=value,
+        meta={"owner": "monitor"},
+    )
+    result = list_strategy(bk_biz_id=2, apply_converters=False)
+    item_config = next(row for row in result["data"] if row["id"] == strategy_model.pk)["items"][0]
+    if value is None:
+        assert "access_lookback_periods" not in item_config
+    else:
+        assert item_config["access_lookback_periods"] == value
+    item_model.refresh_from_db()
+    assert item_model.meta == {"owner": "monitor"}
+    assert item_model.access_lookback_periods == value
+
+
+@pytest.mark.django_db(databases=["default"])
+def test_item_save_preserves_omitted_lookback_and_clears_explicit_null() -> None:
+    """公共包保存普通字段时保留省略的回看配置，显式 null 清除覆盖。"""
+    item = Item(
+        strategy_id=1, name="lookback", no_data_config={}, metric_type="time_series", access_lookback_periods=15
+    )
+    item.save()
+    Item(strategy_id=1, id=item.id, name="renamed", no_data_config={}, metric_type="time_series").save()
+    assert ItemModel.objects.get(id=item.id).access_lookback_periods == 15
+    Item(
+        strategy_id=1,
+        id=item.id,
+        name="renamed",
+        no_data_config={},
+        metric_type="time_series",
+        access_lookback_periods=None,
+    ).save()
+    assert ItemModel.objects.get(id=item.id).access_lookback_periods is None
+
+
+@pytest.mark.django_db(databases=["default"])
 def test_restored_query_output_config_is_not_written_when_item_is_recreated() -> None:
     """从模型恢复的命名输出配置是只读信息，Item 重建时不应写入普通模型字段。"""
     strategy_model = StrategyModel.objects.create(
@@ -312,6 +361,7 @@ def test_restored_query_output_config_is_not_written_when_item_is_recreated() ->
         no_data_config={"is_enabled": False},
         target=[[]],
         meta={"query_output_config": deepcopy(NAMED_OUTPUT_CONFIG)},
+        access_lookback_periods=15,
         metric_type="time_series",
     )
     record = Item.from_models([item_model], {item_model.id: []}, {item_model.id: []})[0]
@@ -321,7 +371,9 @@ def test_restored_query_output_config_is_not_written_when_item_is_recreated() ->
 
     recreated_item = ItemModel.objects.get(id=record.id)
     assert recreated_item.meta == []
+    assert recreated_item.access_lookback_periods == 15
     assert record.to_dict()["query_output_config"] == NAMED_OUTPUT_CONFIG
+    assert record.to_dict()["access_lookback_periods"] == 15
 
 
 @pytest.mark.django_db(databases=["default"])

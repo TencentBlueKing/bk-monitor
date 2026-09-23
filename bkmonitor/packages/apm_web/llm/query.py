@@ -102,7 +102,7 @@ class LLMQuery(SpanQuery):
         records: list[dict[str, Any]] = self._query_list(
             [query.values(*fields) for query in queries], start_time, end_time, 0, limit or self.QUERY_MAX_LIMIT
         )
-        return [{field: self._get_field_value(record, field) for field in fields} for record in records]
+        return [{field: self.get_field_value(record, field) for field in fields} for record in records]
 
     def query_field_graph_config(
         self,
@@ -135,7 +135,7 @@ class LLMQuery(SpanQuery):
         return config
 
     @staticmethod
-    def _get_field_value(record: dict[str, Any], field: str) -> Any:
+    def get_field_value(record: dict[str, Any], field: str) -> Any:
         """按“扁平键/嵌套路径”提取字段，返回空字符串表示不存在。"""
 
         def _extract(value: Any, keys: list[str], index: int = 0) -> Any:
@@ -187,7 +187,7 @@ class LLMQuery(SpanQuery):
         records = self._query_list(queries, start_time, end_time, offset, limit)
         result: list[Any] = []
         for record in records:
-            value = self._get_field_value(record, group_field)
+            value = self.get_field_value(record, group_field)
             if value is not None and value != "":
                 result.append(value)
         return result
@@ -278,10 +278,12 @@ class LLMQuery(SpanQuery):
         group_ids: list[Any],
         possible_group_fields: Sequence[str] | None = None,
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
+        extra_fields: Sequence[str] = (),
     ) -> list[dict[str, Any]]:
         fields = [group_field]
         if group_field != OtlpKey.TRACE_ID:
             fields.append(OtlpKey.TRACE_ID)
+        fields = list(dict.fromkeys([*fields, *extra_fields]))
 
         possible_group_condition = Q()
         for possible_group_field in possible_group_fields or ():

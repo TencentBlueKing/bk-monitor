@@ -1376,6 +1376,7 @@ class Item(AbstractConfig):
         metric_type: str = "",
         instance: ItemModel | None = None,
         time_delay: int | None = None,
+        access_lookback_periods: int | None | type[serializers.empty] = serializers.empty,
         **kwargs: Any,
     ):
         self.functions = functions or []
@@ -1392,6 +1393,7 @@ class Item(AbstractConfig):
         self._id = id
         self.instance = instance
         self.time_delay = time_delay or 0
+        self.access_lookback_periods = access_lookback_periods
 
         if metric_type:
             self.metric_type = metric_type
@@ -1449,6 +1451,8 @@ class Item(AbstractConfig):
         }
         if isinstance(self._query_output_config, dict):
             data["query_output_config"] = self._query_output_config
+        if self.access_lookback_periods is not serializers.empty and self.access_lookback_periods is not None:
+            data["access_lookback_periods"] = cast(int, self.access_lookback_periods)
         return data
 
     def to_unify_query_config(self) -> dict[str, Any]:
@@ -1551,6 +1555,8 @@ class Item(AbstractConfig):
                 item.origin_sql = self.origin_sql
                 item.metric_type = self.metric_type
                 item.time_delay = self.time_delay if self.time_delay else item.time_delay
+                if self.access_lookback_periods is not serializers.empty:
+                    item.access_lookback_periods = cast(int | None, self.access_lookback_periods)
                 item.save()
             else:
                 item = self._create()
@@ -1594,6 +1600,7 @@ class Item(AbstractConfig):
                 metric_type=item.metric_type,
                 instance=item,
                 time_delay=item.time_delay,
+                access_lookback_periods=item.access_lookback_periods,
             )
             record._query_output_config = query_output_config
             record.algorithms = Algorithm.from_models(algorithms[item.pk])

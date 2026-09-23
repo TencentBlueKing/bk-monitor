@@ -328,6 +328,38 @@ ES/Doris 仅实际下发字段发生变化时触发同步。只修改 `custom_op
 
 ---
 
+### 9.4 VM Query 集群反向同步与查询
+
+`VmQueryClusterConfig` 是独立的只读镜像模型，记录 `VmQueryCluster` 的资源身份、
+查询域名、部署信息、`monitorStorageClusters` 关系、状态及完整远端快照。
+它不依赖 `ClusterInfo` 或 `ClusterConfig`，也不参与 DataLink 编排、下发和远端删除。
+`metadata.name` 与 `spec.clusterName` 分别保存在 `name` 和 `cluster_name`。
+
+部署时先执行 Metadata 的 `0277_vm_query_cluster_config` 建表迁移，再启动同步任务。
+现有每小时集群同步及租户初始化会拉取 `bkmonitor` 下的 `vmqueryclusters`；
+也可在 Django 环境中按租户手动同步：
+
+```python
+from metadata.task.bkbase import sync_bkbase_vm_query_clusters
+
+success = sync_bkbase_vm_query_clusters(bk_tenant_id="system")
+```
+
+同步不受 `SYNC_BKBASE_CLUSTER_INFO_UPDATE` 限制。完整列表通过校验后才整体落库；
+远端消失的资源标记为 `Terminated`，保留最后的字段及原始快照，重新出现时恢复远端状态。
+成功返回空列表会标记该租户和 namespace 的全部 VM Query 失效；请求失败或列表非法时，
+本地记录及同步时间均保持不变。`last_synced_at` 表示最后一次成功对账时间，
+失效记录的 `origin_config` 仍是最后一次见到该资源时的远端响应。
+
+Admin 使用现有 `admin.datalink.component_list`、`component_detail`、`component_config`，
+指定 `kind="VmQueryCluster"`。列表和详情展示本地结构化字段、状态及快照，并保留失效项；
+列表支持 `search` 按资源 `name` 模糊匹配，以及 `vmstorage` 按
+`monitor_storage_clusters` 数组成员精确匹配（不是子串匹配）。两者可组合使用，
+过滤在租户、namespace 范围内且先于分页执行。
+`component_config`（或详情的 `include=["component_config"]`）按需读取 BKBase 实时配置。
+
+---
+
 ## 10. 常见问题与排障
 
 ### 10.1 下发失败或重试耗尽

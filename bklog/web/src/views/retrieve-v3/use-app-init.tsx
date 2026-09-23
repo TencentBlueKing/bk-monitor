@@ -26,6 +26,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import { VIEW_BUSINESS } from '@/common/authority-map';
+import { isMonitorIframeContext } from '@/common/embed-layout-query';
 import useResizeObserve from '@/hooks/use-resize-observe';
 import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import useStore from '@/hooks/use-store';
@@ -151,7 +152,7 @@ export default () => {
   const bkBizId = computed(() => store.state.bkBizId);
 
   const indexSetIdList = computed(() => store.state.indexItem.ids.filter(id => id?.length ?? false));
-  const fromMonitor = computed(() => route.query.from === 'monitor');
+  const isMonitorIframe = computed(() => isMonitorIframeContext(route.query));
 
   /**
    * 扁平化索引集列表
@@ -164,7 +165,7 @@ export default () => {
       '--left-field-setting-width': `${leftFieldSettingWidth.value}px`,
       '--left-collection-width': `${isFavoriteShown.value ? favoriteWidth.value : 0}px`,
       '--trend-graph-height': `${trendGraphHeight.value}px`,
-      '--header-height': fromMonitor.value ? '0px' : '52px',
+      '--header-height': isMonitorIframe.value ? '0px' : '52px',
       '--scene-toolbar-height': isSceneMode.value ? `${52 + (hasSceneFilterTags.value ? 34 : 0)}px` : '0px',
     };
   });
@@ -535,7 +536,9 @@ export default () => {
 
                 setSearchMode();
                 setDefaultRouteUrl();
-                syncIndexIdToRoute(indexId, unionList, queryTab);
+                const { ids, isUnionIndex, items } = store.state.indexItem;
+                const currentQueryTab = RetrieveHelper.routeQueryTabValueFix(items?.[0], route.query.tab, isUnionIndex);
+                syncIndexIdToRoute(isUnionIndex ? undefined : ids[0], isUnionIndex ? ids : undefined, currentQueryTab);
               })
               .catch(err => {
                 console.error('requestIndexSetFieldInfo failed:', err);
@@ -559,11 +562,11 @@ export default () => {
           }
         }
 
-        const queryTab = RetrieveHelper.routeQueryTabValueFix(
-          store.state.indexItem.items?.[0],
-          route.query.tab,
-          store.getters.isUnionSearch,
-        );
+        // const queryTab = RetrieveHelper.routeQueryTabValueFix(
+        //   store.state.indexItem.items?.[0],
+        //   route.query.tab,
+        //   store.getters.isUnionSearch,
+        // );
       })
       .catch(err => {
         // 任何异常（请求失败 / then 内同步代码抛错）都要确保 loading 能退出

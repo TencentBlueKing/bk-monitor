@@ -1,4 +1,12 @@
-"""Agent 执行线构造与 Token 统计。"""
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
 
 from __future__ import annotations
 
@@ -27,15 +35,9 @@ def _read_token(attributes: dict[str, Any], field: str) -> int | None:
 
 def _serialize_tokens(totals: dict[str, int]) -> dict[str, int]:
     """按 TOKEN_FIELDS 输出响应字段，total_tokens 由输入、输出派生。"""
-    input_tokens = totals[TOKEN_FIELDS["input_tokens"]]
-    output_tokens = totals[TOKEN_FIELDS["output_tokens"]]
-    return {
-        "input_tokens": input_tokens,
-        "output_tokens": output_tokens,
-        "total_tokens": input_tokens + output_tokens,
-        "cache_read_input_tokens": totals[TOKEN_FIELDS["cache_read_input_tokens"]],
-        "cache_write_input_tokens": totals[TOKEN_FIELDS["cache_write_input_tokens"]],
-    }
+    tokens: dict[str, int] = {name: totals[field] for name, field in TOKEN_FIELDS.items()}
+    tokens["total_tokens"] = tokens["input_tokens"] + tokens["output_tokens"]
+    return tokens
 
 
 class FlowBuilder:
@@ -49,6 +51,17 @@ class FlowBuilder:
         # 各 Agent 的 Token 统计，key 为 span_id，build() 后可用
         self.statistics: dict[str, dict[str, int]] = {}
 
+    @property
+    def tokens(self) -> dict[str, int]:
+        """Trace 消耗只累计 LLM Span，避免重复计入 Agent 自报或回填的 Token。"""
+        totals: dict[str, int] = dict.fromkeys(TOKEN_ATTRIBUTES, 0)
+        for span in self.spans:
+            if span.get("span_type") == SpanType.LLM:
+                attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES) or {}
+                for field in TOKEN_ATTRIBUTES:
+                    totals[field] += _read_token(attributes, field) or 0
+        return _serialize_tokens(totals)
+
     def build(self) -> list[dict[str, Any]]:
         """构造执行线，并在同一次递归中完成 Token 回填与统计收集。"""
         self.flow = self._build_tree()
@@ -58,7 +71,7 @@ class FlowBuilder:
         return self.flow
 
     def _build_tree(self) -> list[dict[str, Any]]:
-        """按 Span 父子关系成树，标准化结果里缺失的中间 Span 不参与成树。"""
+        """按 Span 父子关系成树，仅展示支持的 Span 类型。"""
         nodes_by_span_id: dict[str, dict[str, Any]] = {
             span[OtlpKey.SPAN_ID]: {
                 **span,
@@ -67,7 +80,7 @@ class FlowBuilder:
                 "childs": [],
             }
             for span in self.spans
-            if span.get(OtlpKey.SPAN_ID)
+            if span.get(OtlpKey.SPAN_ID) and span.get("span_type") in (SpanType.AGENT, SpanType.LLM, SpanType.TOOL)
         }
         raw_span_ids = {span[OtlpKey.SPAN_ID] for span in self.raw_spans if span.get(OtlpKey.SPAN_ID)}
         children_by_parent_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -96,6 +109,10 @@ class FlowBuilder:
 
         for raw_root in raw_roots:
             project(raw_root, None)
+        # 中间 Span 投影后，原始兄弟关系的时间顺序不一定等于展示节点的顺序。
+        roots.sort(key=lambda node: node.get(OtlpKey.START_TIME) or 0)
+        for node in nodes_by_span_id.values():
+            node["childs"].sort(key=lambda child: child.get(OtlpKey.START_TIME) or 0)
         return roots
 
     def _aggregate(self, node: dict[str, Any]) -> dict[str, int]:

@@ -147,7 +147,7 @@ export default defineComponent({
     };
 
     return () => (
-      <div class={['llm-json-code-block', { 'is-bordered': props.bordered }]}>
+      <div class={['llm-json-code-block', { 'is-bordered': props.bordered, 'is-expanded': isExpanded.value }]}>
         {props.title ? (
           <div class='llm-json-code-block-header'>
             <span class='llm-json-code-block-title'>
@@ -163,6 +163,24 @@ export default defineComponent({
           </div>
         ) : null}
         <div class='llm-json-code-block-main'>
+          <div class='llm-json-code-block-actions'>
+            <div
+              class='llm-json-code-block-action'
+              onClick={handleCopy}
+            >
+              <i class='icon-monitor icon-mc-copy' />
+              <span>{t('复制信息')}</span>
+            </div>
+            {overflowing.value && (
+              <div
+                class='llm-json-code-block-action'
+                onClick={() => emit('viewAlone', props.data, props.title)}
+              >
+                <i class='icon-monitor icon-sidebar' />
+                <span>{t('独立查看')}</span>
+              </div>
+            )}
+          </div>
           <div
             ref={bodyRef}
             class={[
@@ -175,7 +193,7 @@ export default defineComponent({
               searchBlockId={props.searchBlockId}
             />
           </div>
-          {overflowing.value && (
+          {(overflowing.value || isExpanded.value) && (
             <div
               class='llm-json-code-block-expand'
               onClick={handleToggleExpand}
@@ -185,26 +203,6 @@ export default defineComponent({
                 style='font-size: 18px;'
                 class={['icon-monitor', 'icon-double-down', { 'is-expanded': isExpanded.value }]}
               />
-            </div>
-          )}
-          {!isExpanded.value && (
-            <div class='llm-json-code-block-actions'>
-              <div
-                class='llm-json-code-block-action'
-                onClick={handleCopy}
-              >
-                <i class='icon-monitor icon-mc-copy' />
-                <span>{t('复制信息')}</span>
-              </div>
-              {overflowing.value && (
-                <div
-                  class='llm-json-code-block-action'
-                  onClick={() => emit('viewAlone', props.data, props.title)}
-                >
-                  <i class='icon-monitor icon-chakan1' />
-                  <span>{t('独立查看')}</span>
-                </div>
-              )}
             </div>
           )}
         </div>

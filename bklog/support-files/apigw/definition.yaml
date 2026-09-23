@@ -116,6 +116,20 @@ grant_permissions:
       - esquery_scroll
       - esquery_mapping
 
+  - bk_app_code: "bk_dbm"
+    grant_dimension: "resource"
+    resource_names:
+      - esquery_search
+      - databus_collector_fast_create
+      - databus_collector_fast_update
+      - databus_collector_pre_check
+      - list_databus_collectors
+      - search_index_set
+      - run_databus_collectors
+      - retrieve_databus_collector
+      - query_ts
+      - query_ts_reference
+
 # 应用申请指定网关所有资源的权限，待网关管理员审批后，应用才可访问网关资源；
 # 用于命令 `apply_apigw_permissions`
 # apply_permissions:

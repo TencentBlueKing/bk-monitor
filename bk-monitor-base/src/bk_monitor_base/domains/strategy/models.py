@@ -46,6 +46,7 @@ class ItemModel(models.Model):
     meta: list[dict[str, Any]] = models.JSONField("查询配置元数据", default=list)  # pyright: ignore[reportUnknownVariableType,reportAssignmentType]
     metric_type = models.CharField("指标类型", max_length=32, default="", blank=True)
     time_delay = models.IntegerField("策略等待时间", default=0)
+    access_lookback_periods = models.IntegerField("Access 回看周期数", null=True, blank=True, default=None)
 
     objects = models_manager
 

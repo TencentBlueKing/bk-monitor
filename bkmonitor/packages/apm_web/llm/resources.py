@@ -1,9 +1,21 @@
-import json
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
+
 from collections import defaultdict
+from collections.abc import Iterator, Sequence
 from typing import Any
 
+from django.conf import settings
 from django.db.models import Q
 from opentelemetry.semconv.resource import ResourceAttributes
+from opentelemetry.trace import StatusCode
 from rest_framework import serializers
 
 from constants.apm import LLMProduct, OtlpKey
@@ -21,8 +33,9 @@ from apm_web.llm.adapter.fields import (
     resolve_query_field,
     resolve_query_fields,
 )
+from apm_web.llm.builders.flow import TOKEN_FIELDS, FlowBuilder
+from apm_web.llm.builders.summary import TraceSummary
 from apm_web.llm.constants import CalculationType, SpanType
-from apm_web.llm.flow import FlowBuilder
 from apm_web.llm.metric_group import LLMMetricGroup
 from apm_web.llm.query import LLMQuery, get_query
 from apm_web.metric.resources import CalculateByRangeResource as MetricCalculateByRangeResource
@@ -51,9 +64,6 @@ class ListTracesResource(Resource):
                 raise serializers.ValidationError("start_time 不能大于 end_time")
             return attrs
 
-    _TEXT_PART_TYPES = {"", "text", "input_text", "output_text"}
-    _OUTPUT_PREVIEW_KEYS = ("text", "reasoning", "tool_call", "tool_result")
-
     @staticmethod
     def _build_keyword_query(product: str, bk_biz_id: int, app_name: str, keyword: str) -> str:
         """构造关键词查询，避免 hex32 会话 ID 被误判为仅查询 Trace ID。"""
@@ -62,128 +72,88 @@ class ListTracesResource(Resource):
             fields = dict.fromkeys((OtlpKey.TRACE_ID, conversation_field))
             return " OR ".join(f'{field}: "{hex32}"' for field in fields)
 
-        return QueryHandler.process_query_string(SpanQueryTransformer(bk_biz_id, app_name), keyword)
+        return QueryHandler.process_query_string(SpanQueryTransformer(bk_biz_id, app_name), keyword) or ""
 
     @staticmethod
-    def _preview_text(value: Any) -> str:
-        if isinstance(value, str):
-            return value.strip()
-        if value in (None, "", [], {}):
-            return ""
-        try:
-            return json.dumps(value, ensure_ascii=False)
-        except (TypeError, ValueError):
-            return str(value).strip()
-
-    @classmethod
-    def _part_preview(cls, part: dict[str, Any], expected: str) -> str:
-        part_type = str(part.get("type") or "")
-        if expected == "text" and part_type in cls._TEXT_PART_TYPES:
-            return cls._preview_text(part.get("content", part.get("text")))
-        if expected == "reasoning" and part_type in {"reasoning", "thinking"}:
-            return cls._preview_text(part.get("content", part.get("text", part.get("thinking"))))
-        if expected == "tool_call" and part_type == "tool_call":
-            name = cls._preview_text(part.get("name"))
-            arguments = cls._preview_text(part.get("arguments"))
-            return " ".join(item for item in (name, arguments) if item)
-        if expected == "tool_result" and part_type in {"tool_call_response", "tool_result"}:
-            return cls._preview_text(part.get("response", part.get("content", part.get("result"))))
-        return ""
-
-    @classmethod
-    def _message_previews(cls, messages: Any, expected: str, *, roles: set[str]) -> list[str]:
-        if not isinstance(messages, list):
-            return []
-        previews: list[str] = []
-        for message in messages:
-            if not isinstance(message, dict) or message.get("role") not in roles:
-                continue
-            parts = message.get("parts")
-            if not isinstance(parts, list):
-                continue
-            for part in parts:
-                if isinstance(part, dict) and (preview := cls._part_preview(part, expected)):
-                    previews.append(preview)
-        return previews
-
-    @classmethod
-    def _trace_previews(cls, spans: list[dict[str, Any]]) -> tuple[str, str]:
-        """输入取最早的用户文本；输出按 模型文本 → 推理 → 规划工具调用 → 工具返回 取最新一条。"""
-        user_inputs: list[tuple[int, int, str]] = []
-        tool_inputs: list[tuple[int, int, str]] = []
-        output_buckets: dict[str, list[tuple[int, int, str]]] = {key: [] for key in cls._OUTPUT_PREVIEW_KEYS}
-
-        for index, span in enumerate(spans):
-            attributes = span.get(OtlpKey.ATTRIBUTES)
-            if not isinstance(attributes, dict):
-                continue
-            start_time = span.get(OtlpKey.START_TIME) or 0
-            end_time = span.get(OtlpKey.END_TIME) or start_time
-            user_texts = cls._message_previews(attributes.get("gen_ai.input.messages"), "text", roles={"user"})
-            if user_texts:
-                user_inputs.append((start_time, index, user_texts[-1]))
-            elif arguments := cls._preview_text(attributes.get("gen_ai.tool.call.arguments")):
-                tool_inputs.append((start_time, index, arguments))
-
-            for key in cls._OUTPUT_PREVIEW_KEYS:
-                roles = {"assistant", "tool"} if key == "tool_result" else {"assistant"}
-                previews = cls._message_previews(attributes.get("gen_ai.output.messages"), key, roles=roles)
-                if key == "tool_result":
-                    if result := cls._preview_text(attributes.get("gen_ai.tool.call.result")):
-                        previews.append(result)
-                if previews:
-                    output_buckets[key].append((end_time, index, previews[-1]))
-
-        input_text = min(user_inputs)[2] if user_inputs else (min(tool_inputs)[2] if tool_inputs else "")
-        for key in cls._OUTPUT_PREVIEW_KEYS:
-            if candidates := output_buckets[key]:
-                return input_text, max(candidates)[2]
-        return input_text, ""
-
-    @classmethod
-    def _trace_item(
-        cls,
-        trace_id: str,
-        raw_spans: list[dict[str, Any]],
+    def iter_trace_items(
+        *,
+        bk_biz_id: int,
+        app_name: str,
+        span_query: LLMQuery,
         entity_set: EntitySet,
-        tokens: dict[str, float],
-        has_error: bool = False,
-    ) -> dict[str, Any]:
-        # 仅适配折叠后的预览，不再拉取整条 Trace 计算 Token。
-        converted_spans = adapt_spans(raw_spans, entity_set)
-        converted_attributes = [
-            attributes for span in converted_spans if isinstance((attributes := span.get(OtlpKey.ATTRIBUTES)), dict)
+        trace_ids: list[str],
+        product: str,
+        cal_types: Sequence[CalculationType] = (CalculationType.INPUT_TOKENS, CalculationType.OUTPUT_TOKENS),
+    ) -> Iterator[dict[str, Any]]:
+        """按 Trace 折叠查询预览及统计，不加载完整调用链。"""
+        if not trace_ids:
+            return
+
+        metric_group = LLMMetricGroup(
+            bk_biz_id,
+            app_name,
+            group_by=[OtlpKey.TRACE_ID],
+            filter_dict={"trace_id__eq": trace_ids},
+            product=product,
+            query=span_query,
+        )
+        operations: list[str] = [
+            name for name, span_type in SPAN_TYPES.items() if span_type in {SpanType.AGENT, SpanType.LLM}
         ]
-        input_text, output_text = cls._trace_previews(converted_spans)
-        start_time = min((span.get(OtlpKey.START_TIME, 0) for span in raw_spans), default=0)
-        end_time = max((span.get(OtlpKey.END_TIME, start_time) for span in raw_spans), default=start_time)
+        extra_filter: Q = operation_query(product, operations)
+        # 统计按需查询并去重；get() 传播异常，不能把失败伪装成空预览或零 Token。
+        cal_types = tuple(dict.fromkeys(cal_types))
+        with ThreadPool(processes=3 + len(cal_types)) as pool:
+            input_preview = pool.apply_async(
+                span_query.query_trace_preview,
+                (trace_ids,),
+                {"extra_filter": extra_filter, "sort": ["start_time asc"]},
+            )
+            output_preview = pool.apply_async(
+                span_query.query_trace_preview,
+                (trace_ids,),
+                {
+                    # agent.execution 恒无输出；UQ 不保留 ~Q 的取反标记，排除条件必须用 __neq。
+                    "extra_filter": extra_filter & Q(span_name__neq=["agent.execution"])
+                    if product == LLMProduct.AIDEV.value
+                    else extra_filter,
+                    "sort": ["end_time desc"],
+                },
+            )
+            token_queries = {
+                cal_type.value: pool.apply_async(metric_group.handle, (cal_type.value,)) for cal_type in cal_types
+            }
+            errors = pool.apply_async(span_query.query_trace_errors, (trace_ids,))
+            previews = [*input_preview.get(), *output_preview.get()]
+            token_results: dict[str, list[dict[str, Any]]] = {
+                name: query.get() for name, query in token_queries.items()
+            }
+            error_trace_ids: set[str] = {record[OtlpKey.TRACE_ID] for record in errors.get()}
 
-        def attribute_values(attribute: str) -> list[Any]:
-            return [attributes[attribute] for attributes in converted_attributes if attribute in attributes]
+        spans_by_trace: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
+        for span in previews:
+            trace_id = span[OtlpKey.TRACE_ID]
+            if trace_id not in trace_ids:
+                continue
+            spans_by_trace[trace_id][span[OtlpKey.SPAN_ID]] = span
 
-        user_id = next(
-            (str(value) for value in attribute_values("user.id") if value not in (None, "")),
-            "",
-        )
-        conversation_id = next(
-            (str(value) for value in attribute_values("gen_ai.conversation.id") if value not in (None, "")),
-            "",
-        )
-        return {
-            "group_id": trace_id,
-            "group_field": OtlpKey.TRACE_ID,
-            "trace_id": trace_id,
-            "conversation_id": conversation_id,
-            "status": "error" if has_error else "success",
-            "input": input_text,
-            "output": output_text,
-            "input_tokens": tokens.get("input_tokens", 0),
-            "output_tokens": tokens.get("output_tokens", 0),
-            "start_time": start_time,
-            "end_time": end_time,
-            "elapsed_time": max(0, end_time - start_time),
-            "user_id": user_id,
-        }
+        tokens_by_trace: dict[str, dict[str, float]] = defaultdict(dict)
+        for name, records in token_results.items():
+            for record in records:
+                tokens_by_trace[record[OtlpKey.TRACE_ID]][name] = record["_result_"]
+
+        for trace_id in trace_ids:
+            spans: dict[str, dict[str, Any]] = spans_by_trace.get(trace_id, {})
+            if not spans:
+                continue
+            raw_spans: list[dict[str, Any]] = list(spans.values())
+            yield TraceSummary.build(
+                trace_id,
+                raw_spans,
+                adapt_spans(raw_spans, entity_set),
+                {name: tokens_by_trace[trace_id].get(name, 0) for name in token_results},
+                has_error=trace_id in error_trace_ids,
+            )
 
     @classmethod
     def _assemble_group_items(
@@ -195,13 +165,18 @@ class ListTracesResource(Resource):
         """用已经算好的 compact child 拼分页顺序的 group item，不再碰 raw Span。"""
         items: list[dict[str, Any]] = []
         for group_id in group_ids:
-            childs = childs_by_group.get(group_id)
+            childs: list[dict[str, Any]] | None = childs_by_group.get(group_id)
             if not childs:
-                # Trace 视角没有 child 就组不出行；会话视角保留缺省行，避免短页掐掉下拉加载。
-                if group_field == OtlpKey.TRACE_ID:
-                    continue
-                items.append(cls._empty_group_item(group_field, group_id))
+                # 会话视角保留缺省行，避免短页掐掉下拉加载。
+                if group_field != OtlpKey.TRACE_ID:
+                    items.append(cls._empty_group_item(group_field, group_id))
                 continue
+
+            if group_field == OtlpKey.TRACE_ID:
+                latest_child: dict[str, Any] = max(childs, key=lambda child: child["end_time"])
+                items.append(latest_child.copy())
+                continue
+
             childs.sort(key=lambda child: child["end_time"], reverse=True)
             start_time = min(child["start_time"] for child in childs)
             end_time = max(child["end_time"] for child in childs)
@@ -228,9 +203,6 @@ class ListTracesResource(Resource):
                 }
             )
 
-        if group_field == OtlpKey.TRACE_ID:
-            for item in items:
-                item.update(item.pop("childs")[0])
         return items
 
     @classmethod
@@ -314,71 +286,20 @@ class ListTracesResource(Resource):
             if not trace_id:
                 continue
 
-            group_id = LLMQuery._get_field_value(record, query_group_field)
+            group_id = LLMQuery.get_field_value(record, query_group_field)
             if group_id is not None and group_id != "" and trace_id not in trace_group_map:
                 trace_group_map[trace_id] = group_id
 
         childs_by_group: dict[Any, list[dict[str, Any]]] = defaultdict(list)
-        if trace_group_map:
-            trace_ids: list[str] = list(trace_group_map)
-            metric_group = LLMMetricGroup(
-                bk_biz_id,
-                app_name,
-                group_by=[OtlpKey.TRACE_ID],
-                filter_dict={"trace_id__eq": trace_ids},
-                product=product,
-                query=span_query,
-            )
-            operations: list[str] = [
-                name for name, span_type in SPAN_TYPES.items() if span_type in {SpanType.AGENT, SpanType.LLM}
-            ]
-            extra_filter: Q = operation_query(product, operations)
-            # 五路查询继承请求上下文；get() 传播异常，不能把失败伪装成空预览或零 Token。
-            with ThreadPool(processes=5) as pool:
-                input_preview = pool.apply_async(
-                    span_query.query_trace_preview,
-                    (trace_ids,),
-                    {"extra_filter": extra_filter, "sort": ["start_time asc"]},
-                )
-                output_preview = pool.apply_async(
-                    span_query.query_trace_preview,
-                    (trace_ids,),
-                    {
-                        # agent.execution 恒无输出；UQ 不保留 ~Q 的取反标记，排除条件必须用 __neq。
-                        "extra_filter": extra_filter & Q(span_name__neq=["agent.execution"])
-                        if is_aidev
-                        else extra_filter,
-                        "sort": ["end_time desc"],
-                    },
-                )
-                input_tokens = pool.apply_async(metric_group.handle, (CalculationType.INPUT_TOKENS.value,))
-                output_tokens = pool.apply_async(metric_group.handle, (CalculationType.OUTPUT_TOKENS.value,))
-                errors = pool.apply_async(span_query.query_trace_errors, (trace_ids,))
-                previews = [*input_preview.get(), *output_preview.get()]
-                token_results: dict[str, list[dict[str, Any]]] = {
-                    CalculationType.INPUT_TOKENS.value: input_tokens.get(),
-                    CalculationType.OUTPUT_TOKENS.value: output_tokens.get(),
-                }
-                error_trace_ids: set[str] = {record[OtlpKey.TRACE_ID] for record in errors.get()}
-            spans_by_trace: dict[str, dict[str, dict[str, Any]]] = defaultdict(dict)
-            for span in previews:
-                trace_id = span[OtlpKey.TRACE_ID]
-                if trace_id not in trace_group_map:
-                    continue
-                spans_by_trace[trace_id][span[OtlpKey.SPAN_ID]] = span
-            tokens_by_trace: dict[str, dict[str, float]] = defaultdict(dict)
-            for name, records in token_results.items():
-                for record in records:
-                    tokens_by_trace[record[OtlpKey.TRACE_ID]][name] = record["_result_"]
-            for trace_id, spans in spans_by_trace.items():
-                child = self._trace_item(
-                    trace_id,
-                    list(spans.values()),
-                    entity_set,
-                    tokens_by_trace[trace_id],
-                    has_error=trace_id in error_trace_ids,
-                )
-                childs_by_group[trace_group_map[trace_id]].append(child)
+        for child in self.iter_trace_items(
+            bk_biz_id=bk_biz_id,
+            app_name=app_name,
+            span_query=span_query,
+            entity_set=entity_set,
+            trace_ids=list(trace_group_map),
+            product=product,
+        ):
+            childs_by_group[trace_group_map[child["trace_id"]]].append(child)
         result["items"] = self._assemble_group_items(group_field, group_ids, childs_by_group)
         return result
 
@@ -439,7 +360,7 @@ class ListSpansResource(Resource):
 
 
 class ListFlowsResource(Resource):
-    """按会话或 Trace 查询层级 Span。"""
+    """会话查询只返回 Trace 概览，按 Trace ID 查询完整执行线。"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
@@ -447,74 +368,113 @@ class ListFlowsResource(Resource):
         group_field = serializers.CharField(required=True, label="分组字段")
         group_id = serializers.CharField(required=True, label="分组值")
 
-    @classmethod
-    def build_trace_flows(cls, validated_request_data) -> dict[str, FlowBuilder]:
-        """按分组字段查询 Trace 并构造执行线，key 为 trace_id，保持查询到的 Trace 顺序。
-
-        执行线的构造与 Token 回填、统计在同一次递归内完成，Token 统计接口直接复用本方法的结果，
-        避免对同一棵树重复遍历。
-        """
-        application = Application.objects.get(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            app_name=validated_request_data["app_name"],
-        )
-        span_query = get_query(application.build_data_sources())
-        group_field = validated_request_data["group_field"]
-        group_id = validated_request_data["group_id"]
-        if group_field == OtlpKey.TRACE_ID:
-            trace_ids = [group_id]
-        else:
-            # list_flows 没有 service_name，无法像 list_traces 一样预先确定产品。
-            # 用一个 OR 条件同时查询标准字段及产品原始字段，
-            # 兼容同一应用内混合新旧版本的上报，避免按别名重复查询数据源。
-            trace_ids = list(
-                dict.fromkeys(
-                    record[OtlpKey.TRACE_ID]
-                    for record in span_query.query_group_trace_list(
-                        group_field=group_field,
-                        group_ids=[group_id],
-                        possible_group_fields=resolve_query_fields(group_field),
-                    )
-                    if record.get(OtlpKey.TRACE_ID)
-                )
-            )
-        if not trace_ids:
-            return {}
-
-        spans = span_query.query_by_group_ids(
+    @staticmethod
+    def build_trace_flow(
+        bk_biz_id: int, app_name: str, trace_id: str, entity_set: EntitySet | None = None
+    ) -> FlowBuilder | None:
+        """仅加载单个 Trace 的完整 Span，执行线与 Agent Token 统计共用一次构造。"""
+        application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        raw_spans: list[dict[str, Any]] = get_query(application.build_data_sources()).query_by_group_ids(
             group_field=OtlpKey.TRACE_ID,
-            group_ids=trace_ids,
+            group_ids=[trace_id],
         )
-        if not spans:
-            return {}
+        if not raw_spans:
+            return None
+        if entity_set is None:
+            entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
+        builder = FlowBuilder(raw_spans, adapt_spans(raw_spans, entity_set))
+        builder.build()
+        return builder
 
-        entity_set = EntitySet(
-            bk_biz_id=validated_request_data["bk_biz_id"],
-            app_name=validated_request_data["app_name"],
+    @staticmethod
+    def list_session_traces(validated_request_data: dict[str, Any], entity_set: EntitySet) -> list[dict[str, Any]]:
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        group_field: str = validated_request_data["group_field"]
+        application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
+        span_query = get_query(application.build_data_sources())
+        service_field: str = OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME)
+        # 会话可能使用产品别名；附带服务名以确定每条 Trace 的统计口径。
+        records: list[dict[str, Any]] = span_query.query_group_trace_list(
+            group_field=group_field,
+            group_ids=[validated_request_data["group_id"]],
+            possible_group_fields=resolve_query_fields(group_field),
+            extra_fields=[service_field],
         )
-        spans_by_trace: dict[str, list[dict[str, Any]]] = defaultdict(list)
-        for span in spans:
-            if trace_id := span.get(OtlpKey.TRACE_ID):
-                spans_by_trace[trace_id].append(span)
+        if not records:
+            return []
 
-        flows: dict[str, FlowBuilder] = {}
-        for trace_id in trace_ids:
-            raw_trace_spans = spans_by_trace.get(trace_id)
-            if not raw_trace_spans:
-                continue
-            builder = FlowBuilder(raw_trace_spans, adapt_spans(raw_trace_spans, entity_set))
-            builder.build()
-            flows[trace_id] = builder
-        return flows
+        trace_products: dict[str, str] = {}
+        for record in records:
+            trace_id: str = record.get(OtlpKey.TRACE_ID, "")
+            if trace_id and trace_id not in trace_products:
+                service_name: str = LLMQuery.get_field_value(record, service_field)
+                trace_products[trace_id] = resolve_product(entity_set, service_name) or LLMProduct.DEFAULT.value
+
+        traces_by_product: dict[str, list[str]] = defaultdict(list)
+        for trace_id, product in trace_products.items():
+            traces_by_product[product].append(trace_id)
+
+        items: dict[str, dict[str, Any]] = {}
+        for product, trace_ids in traces_by_product.items():
+            for item in ListTracesResource.iter_trace_items(
+                bk_biz_id=bk_biz_id,
+                app_name=app_name,
+                span_query=span_query,
+                entity_set=entity_set,
+                trace_ids=trace_ids,
+                product=product,
+                cal_types=tuple(CalculationType(name) for name in TOKEN_FIELDS),
+            ):
+                items[item["trace_id"]] = {**item, "flow": []}
+
+        return [items[trace_id] for trace_id in trace_products if trace_id in items]
 
     def perform_request(self, validated_request_data):
+        bk_biz_id: int = validated_request_data["bk_biz_id"]
+        app_name: str = validated_request_data["app_name"]
+        empty_result: dict[str, Any] = {"traces": []}
+        if not (0 in settings.LLM_BIZ_LIST or bk_biz_id in settings.LLM_BIZ_LIST):
+            return empty_result
+        entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
+        if not any(resolve_product(entity_set, service_name) for service_name in entity_set.service_names):
+            return empty_result
+
+        traces: list[dict[str, Any]] = []
+        if validated_request_data["group_field"] != OtlpKey.TRACE_ID:
+            traces = self.list_session_traces(validated_request_data, entity_set)
+        else:
+            trace_id: str = validated_request_data["group_id"]
+            builder = self.build_trace_flow(bk_biz_id, app_name, trace_id, entity_set)
+            if builder is None or not builder.flow:
+                return empty_result
+            item: dict[str, Any] = TraceSummary.build(
+                trace_id,
+                builder.raw_spans,
+                builder.spans,
+                builder.tokens,
+                has_error=any(
+                    (span.get(OtlpKey.STATUS) or {}).get("code") == StatusCode.ERROR.value for span in builder.raw_spans
+                ),
+            )
+            item["flow"] = builder.flow
+            traces.append(item)
+        if not traces:
+            return empty_result
+        tokens: dict[str, float] = {name: sum(trace[name] for trace in traces) for name in TOKEN_FIELDS}
+        tokens["total_tokens"] = tokens["input_tokens"] + tokens["output_tokens"]
+        for trace in traces:
+            trace["total_tokens"] = trace["input_tokens"] + trace["output_tokens"]
+        start_time: int = min(trace["start_time"] for trace in traces)
+        end_time: int = max(trace["end_time"] for trace in traces)
         return {
             "group_field": validated_request_data["group_field"],
             "group_id": validated_request_data["group_id"],
-            "traces": [
-                {"trace_id": trace_id, "flow": builder.flow}
-                for trace_id, builder in self.build_trace_flows(validated_request_data).items()
-            ],
+            **tokens,
+            "start_time": start_time,
+            "end_time": end_time,
+            "elapsed_time": max(0, end_time - start_time),
+            "traces": traces,
         }
 
 
@@ -528,15 +488,9 @@ class TokenStatisticsResource(Resource):
 
     def perform_request(self, validated_request_data):
         trace_id = validated_request_data["trace_id"]
-        flows = ListFlowsResource.build_trace_flows(
-            {
-                "bk_biz_id": validated_request_data["bk_biz_id"],
-                "app_name": validated_request_data["app_name"],
-                "group_field": OtlpKey.TRACE_ID,
-                "group_id": trace_id,
-            }
+        builder = ListFlowsResource.build_trace_flow(
+            validated_request_data["bk_biz_id"], validated_request_data["app_name"], trace_id
         )
-        builder = flows.get(trace_id)
         return {"trace_id": trace_id, "statistics": builder.statistics if builder else {}}
 
 
