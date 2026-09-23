@@ -90,6 +90,9 @@ class SpanLevelHandler(BaseRumLevelHandler):
         "False": False,
     }
 
+    #: 分组维度里表示时间分桶的 key，由 interval 触发
+    STATISTICS_TIME_BUCKET_KEY: str = "time"
+
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         super().__init__(data_sources)
         self.query = SpanQuery(data_sources)
@@ -388,7 +391,23 @@ class SpanLevelHandler(BaseRumLevelHandler):
     ) -> dict[str, Any]:
         raise NotImplementedError
 
-    # ---------------- 内部工具方法 ----------------
+    def statistics(
+        self,
+        start_time: int | None,
+        end_time: int | None,
+        field: str,
+        cal_type: str,
+        baseline: str,
+        time_shifts: list[str],
+        group_by: list[str] | None = None,
+        interval: int | None = None,
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
+        extra_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return self.query.statistics(
+            start_time, end_time, field, cal_type, baseline, time_shifts, group_by, interval, filters, query_string
+        )
 
     @staticmethod
     def _process_graph_info(datapoints: list[list[Any]]) -> dict[str, Any]:

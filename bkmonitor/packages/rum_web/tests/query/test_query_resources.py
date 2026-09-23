@@ -22,12 +22,13 @@ from rum_web.query.resources import (
     RumFieldsTopKResource,
     RumGenerateQueryStringResource,
     RumRecordsResource,
+    RumStatisticsResource,
     RumViewConfigResource,
 )
 from rum_web.query.serializers import (
     BaseRumRequestSerializer,
-    BaseRumSearchSerializer,
     BaseRumTimeRangeSerializer,
+    BaseRumSearchSerializer,
     FilterSerializer,
     QueryStringFilterSerializer,
     RumFieldsOptionValuesRequestSerializer,
@@ -36,6 +37,7 @@ from rum_web.query.serializers import (
     RumFieldStatisticsInfoRequestSerializer,
     RumGenerateQueryStringRequestSerializer,
     RumRecordsRequestSerializer,
+    RumStatisticsRequestSerializer,
     RumViewConfigRequestSerializer,
 )
 from rum_web.query.views import SearchViewSet
@@ -54,6 +56,7 @@ EXPECTED_ROUTES = [
     ("fields_topk", "POST", RumFieldsTopKResource, "field_topk"),
     ("field_statistics_info", "POST", RumFieldStatisticsInfoResource, "field_statistics_info"),
     ("field_statistics_graph", "POST", RumFieldStatisticsGraphResource, "field_statistics_graph"),
+    ("statistics", "POST", RumStatisticsResource, "statistics"),
 ]
 
 
@@ -450,3 +453,146 @@ class TestSerializerInheritance:
         filters_field = s.fields["filters"]
         child_serializer = filters_field.child
         assert isinstance(child_serializer, QueryStringFilterSerializer)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# [g] RumStatistics 请求协议与服务资源
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestRumStatisticsSerializer:
+    """RumStatisticsRequestSerializer 协议与校验逻辑"""
+
+    def test_minimal_valid(self):
+        """仅传必填项即可通过校验，baseline 默认补入 time_shifts"""
+        s = RumStatisticsRequestSerializer(
+            data={
+                "bk_biz_id": 2,
+                "app_name": "my_app",
+                "mode": "span",
+                "field": "duration",
+                "cal_type": "count",
+                "group_name": "origin",
+            }
+        )
+        assert s.is_valid(), s.errors
+        assert s.validated_data["time_shifts"] == ["0s"]
+
+    def test_baseline_prepended_and_deduped(self):
+        """baseline 与 time_shifts 去重保序，且 baseline 一定在最前"""
+        s = RumStatisticsRequestSerializer(
+            data={
+                "bk_biz_id": 2,
+                "app_name": "my_app",
+                "mode": "span",
+                "field": "duration",
+                "cal_type": "count",
+                "group_name": "origin",
+                "baseline": "1d",
+                "time_shifts": ["1d", "7d", "0s"],
+            }
+        )
+        assert s.is_valid(), s.errors
+        # 去重保序，baseline "1d" 已在其余 shifts 中，结果保持 ["1d", "7d", "0s"]
+        assert s.validated_data["time_shifts"] == ["1d", "7d", "0s"]
+
+    def test_time_shifts_exceed_limit_rejected(self):
+        """对比时间点超过 2 个（共 3 个以上 time_shift）校验失败"""
+        s = RumStatisticsRequestSerializer(
+            data={
+                "bk_biz_id": 2,
+                "app_name": "my_app",
+                "mode": "span",
+                "field": "duration",
+                "cal_type": "count",
+                "group_name": "origin",
+                "baseline": "0s",
+                "time_shifts": ["1d", "7d", "30d"],
+            }
+        )
+        assert not s.is_valid()
+        # validate() 抛出的非字段错误归入 non_field_errors
+        assert "non_field_errors" in s.errors
+
+    def test_optional_time_allowed(self):
+        """start_time / end_time 允许不传"""
+        s = RumStatisticsRequestSerializer(
+            data={
+                "bk_biz_id": 2,
+                "app_name": "my_app",
+                "mode": "span",
+                "field": "duration",
+                "cal_type": "count",
+                "group_name": "origin",
+            }
+        )
+        assert s.is_valid(), s.errors
+        assert "start_time" not in s.validated_data
+        assert "end_time" not in s.validated_data
+
+    def test_interval_min_value(self):
+        """interval 必须 >= 1"""
+        s = RumStatisticsRequestSerializer(
+            data={
+                "bk_biz_id": 2,
+                "app_name": "my_app",
+                "mode": "span",
+                "field": "duration",
+                "cal_type": "count",
+                "group_name": "origin",
+                "interval": 0,
+            }
+        )
+        assert not s.is_valid()
+
+
+class TestRumStatisticsResource:
+    """RumStatisticsResource 路由与服务调用"""
+
+    def test_resource_registered_in_viewset(self):
+        from rum_web.query.views import SearchViewSet
+
+        matched = [r for r in SearchViewSet.resource_routes if r.endpoint == "statistics"]
+        assert matched
+        assert matched[0].resource_class is RumStatisticsResource
+
+    def test_perform_request_calls_statistics(self, mocker):
+        """perform_request 调用 LevelHandler.statistics 并透传统计参数"""
+        mock_app = mocker.MagicMock()
+        mock_app.bk_biz_id = 2
+        mock_app.app_name = "my_app"
+        mock_app.span_result_table_id = "bk_rum.default.span"
+        mock_app.retention_days = 7
+        mocker.patch("rum_web.query.resources._get_application", return_value=mock_app)
+
+        from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
+        from rum_web.handlers.level.span import SpanLevelHandler
+
+        handler = SpanLevelHandler(
+            [TraceDatasourceTarget.build(bk_biz_id=2, app_name="my_app", table_id="bk_rum.default.span")]
+        )
+        mock_statistics = mocker.patch.object(handler, "statistics", return_value={"total": 0, "data": []})
+        mocker.patch("rum_web.query.resources.RumLevelHandlerFactory.create", return_value=handler)
+
+        payload = {
+            "bk_biz_id": 2,
+            "app_name": "my_app",
+            "mode": "span",
+            "field": "duration",
+            "cal_type": "count",
+            "group_name": "origin",
+            "baseline": "0s",
+            "time_shifts": ["0s", "1d"],
+            "group_by": ["service"],
+            "filters": [],
+            "query_string": "",
+        }
+        result = RumStatisticsResource().perform_request(payload)
+        mock_statistics.assert_called_once()
+        _, kwargs = mock_statistics.call_args
+        assert kwargs["field"] == "duration"
+        assert kwargs["cal_type"] == "count"
+        assert kwargs["baseline"] == "0s"
+        assert kwargs["time_shifts"] == ["0s", "1d"]
+        assert kwargs["group_by"] == ["service"]
+        assert result == {"total": 0, "data": []}

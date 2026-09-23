@@ -135,6 +135,31 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             self.get_queries(filters, query_string), start_time, end_time, field, method
         )
 
+    def statistics(
+        self,
+        start_time: int | None,
+        end_time: int | None,
+        field: str,
+        cal_type: str,
+        baseline: str,
+        time_shifts: list[str],
+        group_by: list[str] | None = None,
+        interval: int | None = None,
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
+    ):
+        return super()._statistics(
+            self.get_queries(filters, query_string),
+            start_time,
+            end_time,
+            field,
+            cal_type,
+            baseline,
+            time_shifts,
+            group_by,
+            interval,
+        )
+
     @classmethod
     def _apply_field_spec(cls, field_dict: dict[str, Any], spec: FieldSpec) -> dict[str, Any]:
         """将 FieldSpec 中的数据（单位、展示类型、枚举候选值）填充到字段字典中。
