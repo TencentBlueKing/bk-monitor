@@ -80,20 +80,15 @@ def _inflight_by_index_set():
     return {row["job__index_set_id"]: row["total"] for row in rows}
 
 
-def _competing_job_count(jobs):
-    """本轮真正在竞争额度的任务数：还有 WAITING 分片的活跃任务。"""
-    return ExportPart.objects.filter(status=ExportPartStatus.WAITING, job__in=jobs).values("job_id").distinct().count()
-
-
 def dispatch_ready_parts():
     """
     按公平顺序投递分片。
 
     并行额度只来自 FeatureConfig：单 Job 上限、单索引集上限、环境全局上限三者取小。
-    多个任务同时等待时，环境全局额度按竞争任务数均分（两个任务即 2+2），先到的大任务
-    不会在一个调度周期内占满全局槽位；只有一个任务在等待时它仍然可以借满全局额度，
-    避免槽位闲置。在途分片本身就是预算账本，直接按数据库计数判断额度；同一个分片不会
-    被重复投递，轮次之间由调度任务的共享锁保证不会同时算出两份额度。
+    多个任务同时等待时，环境全局额度按剩余任务数依次切分（两个任务即 2+2），先到的大
+    任务不会在一个调度周期内占满全局槽位；某个任务没分片可发或用不完自己的份额时，
+    空出的额度当轮就让给后面的任务。在途分片本身就是预算账本，直接按数据库计数判断
+    额度；同一个分片不会被重复投递，轮次之间由调度任务的共享锁保证不会同时算出两份额度。
     """
     jobs = list(
         ExportJob.objects.filter(status__in=[ExportJobStatus.READY, ExportJobStatus.RUNNING]).order_by(
@@ -112,13 +107,20 @@ def dispatch_ready_parts():
     index_limit, global_limit = policy.index_parallelism, policy.global_parallelism
     index_inflight = _inflight_by_index_set()
     global_inflight = sum(index_inflight.values())
-    # 全局额度按竞争任务数均分；只有一个任务在等待时它能借满，不让槽位闲置
-    shared_limit = max(1, global_limit // max(1, _competing_job_count(jobs)))
+    # 本轮还有待投递分片的任务；份额按剩余额度动态切分，空出的额度当轮就让给后面的任务
+    waiting_jobs = set(
+        ExportPart.objects.filter(status=ExportPartStatus.WAITING, job__in=jobs).values_list("job_id", flat=True)
+    )
+    remaining_jobs = len(waiting_jobs)
     dispatched = []
     for job in jobs:
+        if job.pk not in waiting_jobs:
+            continue
+        shared_limit = max(1, (global_limit - global_inflight) // max(1, remaining_jobs))
+        remaining_jobs -= 1
         job_inflight = ExportPart.objects.filter(job=job, status__in=ExportPartStatus.INFLIGHT).count()
         index_used = index_inflight.get(job.index_set_id, 0)
-        # 任务自身的期望并行度仍是上限，均分只用于在任务之间切分全局额度
+        # 任务自身的期望并行度仍是上限，切分只用于在任务之间分配全局额度
         job_limit = min(job.requested_parallelism, shared_limit)
         while True:
             capacity = min(
