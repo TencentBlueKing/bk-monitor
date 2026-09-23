@@ -874,6 +874,25 @@ class SchedulerTests(TestCase):
         self.assertEqual(len(dispatch_ready_parts()), 3)
         self.assertEqual(ExportPart.objects.filter(job=self.job, status=ExportPartStatus.DISPATCHED).count(), 3)
 
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=4, global_parallelism=4),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_share_left_by_a_job_is_reclaimed_in_the_same_round(self, send, _policy):
+        """前面的任务分片少、用不完自己的份额时，空出的额度当轮就让给后面的任务。"""
+        # 本任务只留 1 片：均分份额是 2，但实际只能用掉 1
+        ExportPart.objects.filter(job=self.job, part_no__gt=1).delete()
+        second = create_job(index_set_id=12, base_dict={}, end_time=5000, status=ExportJobStatus.READY, plan_version=1)
+        for part_no, (start, end) in enumerate(
+            [(0, 1000), (1000, 2000), (2000, 3000), (3000, 4000), (4000, 5000)], start=1
+        ):
+            ExportPart.objects.create(job=second, part_no=part_no, plan_version=1, start_time=start, end_time=end)
+
+        self.assertEqual(len(dispatch_ready_parts()), 4)
+        self.assertEqual(ExportPart.objects.filter(job=self.job, status=ExportPartStatus.DISPATCHED).count(), 1)
+        self.assertEqual(ExportPart.objects.filter(job=second, status=ExportPartStatus.DISPATCHED).count(), 3)
+
     @patch("apps.log_search.export.scheduler._send")
     def test_enqueue_planning_only_picks_unplanned_jobs(self, send):
         self.assertEqual(enqueue_planning(10), [])
