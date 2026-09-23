@@ -51,6 +51,7 @@ from apps.log_search.export.worker import _execute, _pack, _write_rows, run_part
 from apps.log_search.export.planner import (
     PlanError,
     PartSpec,
+    build_handler,
     build_parts,
     choose_interval,
     merge_adjacent,
@@ -214,6 +215,21 @@ class BuildPartsTests(TestCase):
         self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
         self.assertEqual(total, 0)
         self.assertEqual(result.total_rows, 0)
+
+
+class BuildHandlerTests(TestCase):
+    """分片时间范围只在冻结的 base_dict 上覆盖一次，不下发给构造器。"""
+
+    def test_part_range_is_applied_only_to_the_frozen_body(self):
+        job = create_job(
+            search_params={"index_set_ids": [1], "start_time": 0, "end_time": 4000},
+            base_dict={"start_time": "0", "end_time": "4000"},
+        )
+        with patch("apps.log_search.export.planner.UnifyQueryHandler") as handler_cls:
+            handler = build_handler(job, 1000, 2000)
+
+        self.assertEqual((handler.base_dict["start_time"], handler.base_dict["end_time"]), ("1000", "2000"))
+        self.assertEqual(handler_cls.call_args.args[0]["start_time"], 0)
 
 
 class RunPlanningTests(TestCase):
