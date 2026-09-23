@@ -31,9 +31,10 @@ from apps.log_databus.nodeman_v3.constants import (
     NodeManV3OperationStatus,
     NodeManV3OperationType,
     RESOURCE_TYPE_COLLECTOR_CONFIG,
+    RESOURCE_TYPE_COLLECTOR_PLUGIN,
 )
 from apps.log_databus.nodeman_v3.exceptions import NodeManV3CapabilityBlocked
-from apps.log_databus.nodeman_v3.identity import build_resource_key, build_sub_config_name
+from apps.log_databus.nodeman_v3.identity import build_plugin_resource_key, build_resource_key, build_sub_config_name
 from apps.log_databus.nodeman_v3.models import (
     NodeManV3Binding,
     NodeManV3Operation,
@@ -144,6 +145,10 @@ class TargetSnapshotTest(TestCase):
         self.assertEqual(diff.added, {11, 12})
         self.assertEqual(diff.removed, set())
         self.assertEqual(NodeManV3SubConfigTarget.objects.filter(binding=self.binding).count(), 2)
+        self.assertEqual(
+            set(NodeManV3SubConfigTarget.objects.filter(binding=self.binding).values_list("generation", flat=True)),
+            {0},
+        )
 
     def test_unchanged_target_produces_no_diff(self):
         self._snapshot([11, 12])
@@ -439,6 +444,33 @@ class PeriodicReconcileTest(TestCase):
         self._run_recovery(minutes_later=0)
 
         self.mock_installer.return_value.apply.assert_not_called()
+
+    def test_stuck_plugin_operation_is_recovered(self):
+        plugin_binding = NodeManV3Binding.objects.create(
+            resource_type=RESOURCE_TYPE_COLLECTOR_PLUGIN,
+            resource_key=build_plugin_resource_key(PLUGIN_NAME),
+            bk_biz_id=BK_BIZ_ID,
+            bk_tenant_id="system",
+            collector_config_id=0,
+            deploy_policy_id=2001,
+            policy_name=f"bklog-plugin-{PLUGIN_NAME}-{BK_BIZ_ID}",
+            generation=1,
+            is_enabled=True,
+        )
+        operation = NodeManV3Operation.objects.create(
+            binding=plugin_binding,
+            operation_type=NodeManV3OperationType.PLUGIN_RECONCILE,
+            generation=1,
+            status=NodeManV3OperationStatus.UNKNOWN,
+        )
+
+        with patch("apps.log_databus.nodeman_v3.reconciler.CollectorPluginReconciler") as mock_plugin_reconciler:
+            self._run_recovery()
+
+        mock_plugin_reconciler.assert_called_once_with(BK_BIZ_ID, plugin_name=PLUGIN_NAME)
+        mock_plugin_reconciler.return_value.reconcile.assert_called_once()
+        operation.refresh_from_db()
+        self.assertEqual(operation.status, NodeManV3OperationStatus.FAILED)
 
     def test_succeeded_operation_is_not_recovered(self):
         NodeManV3Operation.objects.create(

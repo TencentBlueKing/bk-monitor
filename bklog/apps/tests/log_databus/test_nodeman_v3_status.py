@@ -19,10 +19,12 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from apps.log_databus.constants import CollectStatus, LogPluginInfo, RunStatus, TargetNodeTypeEnum
 from apps.log_databus.nodeman_v3.constants import (
@@ -40,9 +42,11 @@ from apps.log_databus.nodeman_v3.models import (
     NodeManV3Workflow,
 )
 from apps.log_databus.nodeman_v3.status import (
+    CHILD_VISIBILITY_GRACE_SECONDS,
     CollectorStatusReader,
     PAGE_LIMIT,
     build_v2_compatible_instance_data,
+    iter_paged,
     summary_to_status,
 )
 
@@ -52,7 +56,9 @@ BK_BIZ_ID = 2
 COLLECTOR_CONFIG_ID = 8001
 POLICY_ID = 1001
 TRIGGER_ID = "trigger-1001-1"
-WORKFLOW_ID = "workflow-abc"
+PARENT_WORKFLOW_ID = "parent-workflow-abc"
+WORKFLOW_ID = "plugin-workflow-abc"
+SECOND_WORKFLOW_ID = "plugin-workflow-def"
 
 
 class FakeStatusClient:
@@ -61,11 +67,22 @@ class FakeStatusClient:
     def __init__(self):
         self.tenant_id = "system"
         self.calls = []
-        self.workflow_items = [{"workflow_id": WORKFLOW_ID, "trigger_id": TRIGGER_ID, "deploy_policy_ids": [POLICY_ID]}]
+        self.parent_items = [
+            {
+                "workflow_id": PARENT_WORKFLOW_ID,
+                "trigger_id": TRIGGER_ID,
+                "deploy_policy_id": POLICY_ID,
+                "status": "success",
+                "children": [{"type": "plugin", "workflow_id": WORKFLOW_ID}],
+            }
+        ]
+        self.workflow_items = [{"workflow_id": WORKFLOW_ID, "status": "success"}]
         # bk_host_id -> life_cycle.state
         self.host_states = {}
         # bk_host_id -> 该主机上**额外**几条 operation 的 state（同机多 spec 会各出一条）
         self.host_extra_states = {}
+        # plugin workflow_id -> bk_host_id -> life_cycle.state；为空时沿用 host_states
+        self.workflow_host_states = {}
         # bk_host_id -> process_info.status
         self.process_states = {}
         self.retry_payloads = []
@@ -90,14 +107,25 @@ class FakeStatusClient:
 
     def list_workflows(self, payload):
         self.calls.append(("list_workflows", payload))
-        return {"items": self._paged(self.workflow_items, payload), "total": len(self.workflow_items)}
+        conditions = payload.get("exact_include_conditions") or {}
+        workflow_ids = conditions.get("workflow_id") or []
+        items = [item for item in self.workflow_items if not workflow_ids or item.get("workflow_id") in workflow_ids]
+        return {"items": self._paged(items, payload), "total": len(items)}
+
+    def list_deploy_policy_workflows(self, payload):
+        self.calls.append(("list_deploy_policy_workflows", payload))
+        conditions = payload.get("exact_include_conditions") or {}
+        workflow_ids = conditions.get("workflow_id") or []
+        items = [item for item in self.parent_items if not workflow_ids or item.get("workflow_id") in workflow_ids]
+        return {"items": self._paged(items, payload), "total": len(items)}
 
     def list_workflow_operations(self, payload):
         self.calls.append(("list_workflow_operations", payload))
         # 一台主机可以有多条 operation：策略至少带两个 spec（装插件 + 下子配置），各自一条。
         # 桩要能造出这种形状，否则「多条里取最坏」这条规则没法被用例约束住
         operations = []
-        for bk_host_id, primary_state in self.host_states.items():
+        states_by_host = self.workflow_host_states.get(payload["workflow_id"], self.host_states)
+        for bk_host_id, primary_state in states_by_host.items():
             states = [primary_state, *self.host_extra_states.get(bk_host_id, [])]
             for index, oper_state in enumerate(states):
                 suffix = "" if index == 0 else f"-{index}"
@@ -125,7 +153,12 @@ class FakeStatusClient:
         self.calls.append(("list_workflow_operation_instances", payload))
         return {
             "oper_inst_data": [
-                {"operation_id": payload["operation_id"][0], "oper_inst_id": "oi-1", "oper_inst_status": "success"}
+                {
+                    "operation_id": operation_id,
+                    "oper_inst_id": f"oi-{index}",
+                    "oper_inst_status": "success",
+                }
+                for index, operation_id in enumerate(payload["operation_id"], start=1)
             ]
         }
 
@@ -168,7 +201,15 @@ class StatusReaderTest(TestCase):
             operation_type=NodeManV3OperationType.RECONCILE,
             generation=2,
         )
-        NodeManV3Workflow.objects.create(operation=self.operation, trigger_id=TRIGGER_ID)
+        NodeManV3Workflow.objects.create(
+            operation=self.operation,
+            parent_workflow_id=PARENT_WORKFLOW_ID,
+            status_summary={
+                "parent_terminal_observed_at": int(
+                    (timezone.now() - timedelta(seconds=CHILD_VISIBILITY_GRACE_SECONDS + 1)).timestamp()
+                )
+            },
+        )
 
         self.client = FakeStatusClient()
         patcher = patch("apps.log_databus.nodeman_v3.status.get_client", side_effect=lambda *a, **kw: self.client)
@@ -187,29 +228,182 @@ class StatusReaderTest(TestCase):
     def _reader(self):
         return CollectorStatusReader(self.collector_config)
 
-    # ------------------------------------------------------------------
-    # workflow 反查
-    # ------------------------------------------------------------------
-    def test_workflow_id_resolved_from_trigger_id(self):
-        # execute 只返回 trigger_id，而 per-host 详情与重试都要 workflow_id；
-        # workflow/list 的精确条件里没有 trigger_id，只能按 deploy_policy_id 过滤后自己匹配
-        self.assertEqual(self._reader().resolve_workflow_id(), WORKFLOW_ID)
+    def _expire_child_visibility_grace(self):
+        workflow = NodeManV3Workflow.objects.get(operation=self.operation)
+        workflow.status_summary = {
+            **(workflow.status_summary or {}),
+            "parent_terminal_observed_at": int(
+                (timezone.now() - timedelta(seconds=CHILD_VISIBILITY_GRACE_SECONDS + 1)).timestamp()
+            ),
+            "children_reconciled_by_trigger": False,
+        }
+        workflow.save(update_fields=["status_summary"])
 
-    def test_workflow_id_is_cached_after_first_resolve(self):
-        self._reader().resolve_workflow_id()
-        self._reader().resolve_workflow_id()
-        self.assertEqual(self.client.call_names().count("list_workflows"), 1)
-        self.assertEqual(NodeManV3Workflow.objects.get(operation=self.operation).workflow_id, WORKFLOW_ID)
+    def _reset_child_visibility_grace(self):
+        workflow = NodeManV3Workflow.objects.get(operation=self.operation)
+        workflow.status_summary = {}
+        workflow.save(update_fields=["status_summary"])
 
-    def test_workflow_id_resolved_beyond_first_page(self):
-        # workflow/list 既不支持按 trigger_id 过滤也没有排序参数，只能按策略拉全量自己匹配，
-        # 目标 workflow 完全可能不在第一页。分页写错时这里只会拿到空字符串
+    # ------------------------------------------------------------------
+    # deploy-policy 父 workflow -> plugin 子 workflow
+    # ------------------------------------------------------------------
+    def test_repeated_full_page_fails_closed(self):
+        with (
+            patch("apps.log_databus.nodeman_v3.status.PAGE_LIMIT", 2),
+            self.assertRaises(NodeManV3CapabilityBlocked),
+        ):
+            list(iter_paged(lambda _offset: {"items": [{"workflow_id": "a"}, {"workflow_id": "b"}]}, "items"))
+
+    def test_parent_workflow_resolves_and_persists_plugin_children(self):
+        resolution = self._reader().resolve_workflows()
+
+        self.assertEqual(resolution.parent_workflow_id, PARENT_WORKFLOW_ID)
+        self.assertEqual(resolution.plugin_workflow_ids, [WORKFLOW_ID])
+        self.assertEqual(resolution.normalized_status, "success")
+        workflow = NodeManV3Workflow.objects.get(operation=self.operation)
+        self.assertEqual(workflow.trigger_id, TRIGGER_ID)
+        self.assertEqual(workflow.plugin_workflow_ids, [WORKFLOW_ID])
+
+    def test_parent_workflow_is_queried_by_exact_id(self):
+        self._reader().resolve_workflows()
+        call = next(payload for name, payload in self.client.calls if name == "list_deploy_policy_workflows")
+        self.assertEqual(call["exact_include_conditions"]["workflow_id"], [PARENT_WORKFLOW_ID])
+
+    def test_parent_workflow_visibility_window_stays_running(self):
+        self.client.parent_items = []
+        resolution = self._reader().resolve_workflows()
+        self.assertEqual(resolution.plugin_workflow_ids, [])
+        self.assertEqual(resolution.normalized_status, "running")
+
+    def test_plugin_workflow_visibility_window_stays_running(self):
+        self.client.workflow_items = []
+        resolution = self._reader().resolve_workflows()
+        self.assertEqual(resolution.plugin_workflow_ids, [WORKFLOW_ID])
+        self.assertEqual(resolution.normalized_status, "running")
+
+    def test_parent_success_does_not_hide_running_child(self):
+        self.client.workflow_items[0]["status"] = "running"
+        self.assertEqual(self._reader().resolve_workflows().normalized_status, "running")
+
+    def test_parent_failure_waits_for_running_child(self):
+        # 父失败只表示 dispatch 没完整完成，已经启动的 child 不会被终止。
+        self.client.parent_items[0]["status"] = "failed"
+        self.client.workflow_items[0]["status"] = "running"
+        self.assertEqual(self._reader().resolve_workflows().normalized_status, "running")
+
+    def test_multiple_children_aggregate_partial_failure(self):
+        self.client.parent_items[0]["children"] = [
+            {"type": "plugin", "workflow_id": WORKFLOW_ID},
+            {"type": "plugin", "workflow_id": SECOND_WORKFLOW_ID},
+        ]
         self.client.workflow_items = [
-            {"workflow_id": f"noise-{index}", "trigger_id": f"trigger-noise-{index}"}
-            for index in range(PAGE_LIMIT + 100)
-        ] + self.client.workflow_items
+            {"workflow_id": WORKFLOW_ID, "status": "success"},
+            {"workflow_id": SECOND_WORKFLOW_ID, "status": "failed"},
+        ]
+        self.assertEqual(self._reader().resolve_workflows().normalized_status, "partial_failed")
 
-        self.assertEqual(self._reader().resolve_workflow_id(), WORKFLOW_ID)
+    def test_cached_terminal_state_survives_remote_retention(self):
+        self.assertEqual(self._reader().resolve_workflows().normalized_status, "success")
+        self.client.parent_items = []
+        self.client.workflow_items = []
+        self.assertEqual(self._reader().resolve_workflows().normalized_status, "success")
+
+    def test_missing_parent_child_association_falls_back_to_trigger(self):
+        # NodeMan 启动 child 后记录父子关联失败只记日志，父流程仍可能 success。
+        # 不能把 children=[] 直接当 no-op。
+        self.client.parent_items[0]["children"] = []
+        self.client.workflow_items = [{"workflow_id": WORKFLOW_ID, "trigger_id": TRIGGER_ID, "status": "success"}]
+
+        resolution = self._reader().resolve_workflows()
+
+        self.assertEqual(resolution.plugin_workflow_ids, [WORKFLOW_ID])
+
+    def test_trigger_fallback_keeps_all_plugin_children(self):
+        self.client.parent_items[0]["children"] = []
+        self.client.workflow_items = [
+            {"workflow_id": WORKFLOW_ID, "trigger_id": TRIGGER_ID, "status": "success"},
+            {"workflow_id": SECOND_WORKFLOW_ID, "trigger_id": TRIGGER_ID, "status": "success"},
+        ]
+
+        self.assertEqual(
+            self._reader().resolve_workflows().plugin_workflow_ids,
+            [WORKFLOW_ID, SECOND_WORKFLOW_ID],
+        )
+
+    def test_trigger_fallback_repairs_partially_missing_child_association(self):
+        self.client.parent_items[0]["children"] = [{"type": "plugin", "workflow_id": WORKFLOW_ID}]
+        self.client.workflow_items = [
+            {"workflow_id": WORKFLOW_ID, "trigger_id": TRIGGER_ID, "status": "success"},
+            {"workflow_id": SECOND_WORKFLOW_ID, "trigger_id": TRIGGER_ID, "status": "success"},
+        ]
+
+        self.assertEqual(
+            self._reader().resolve_workflows().plugin_workflow_ids,
+            [WORKFLOW_ID, SECOND_WORKFLOW_ID],
+        )
+
+    def test_old_workflow_still_gets_grace_from_first_terminal_observation(self):
+        self._reset_child_visibility_grace()
+        NodeManV3Workflow.objects.filter(operation=self.operation).update(created_at=timezone.now() - timedelta(days=1))
+        self.client.parent_items[0]["children"] = []
+        self.client.workflow_items = []
+
+        self.assertEqual(self._reader().resolve_workflows().normalized_status, "running")
+
+    def test_delayed_second_child_is_discovered_during_visibility_grace(self):
+        self._reset_child_visibility_grace()
+        self.client.parent_items[0]["children"] = [{"type": "plugin", "workflow_id": WORKFLOW_ID}]
+        self.client.workflow_items = [{"workflow_id": WORKFLOW_ID, "trigger_id": TRIGGER_ID, "status": "success"}]
+        first = self._reader().resolve_workflows()
+        self.assertEqual(first.plugin_workflow_ids, [WORKFLOW_ID])
+        self.assertEqual(first.normalized_status, "running")
+
+        self.client.workflow_items.append(
+            {"workflow_id": SECOND_WORKFLOW_ID, "trigger_id": TRIGGER_ID, "status": "failed"}
+        )
+        second = self._reader().resolve_workflows()
+        self.assertEqual(second.plugin_workflow_ids, [WORKFLOW_ID, SECOND_WORKFLOW_ID])
+        self.assertEqual(second.normalized_status, "running")
+
+        self._expire_child_visibility_grace()
+        self.assertEqual(self._reader().resolve_workflows().normalized_status, "partial_failed")
+
+    def test_legacy_trigger_id_record_still_resolves_plugin_workflow(self):
+        workflow = NodeManV3Workflow.objects.get(operation=self.operation)
+        workflow.parent_workflow_id = ""
+        workflow.trigger_id = TRIGGER_ID
+        workflow.plugin_workflow_ids = []
+        workflow.save(update_fields=["parent_workflow_id", "trigger_id", "plugin_workflow_ids"])
+        self.client.workflow_items = [
+            {
+                "workflow_id": WORKFLOW_ID,
+                "trigger_id": TRIGGER_ID,
+                "deploy_policy_ids": [POLICY_ID],
+                "status": "success",
+            }
+        ]
+
+        resolution = self._reader().resolve_workflows()
+
+        self.assertEqual(resolution.parent_workflow_id, "")
+        self.assertEqual(resolution.plugin_workflow_ids, [WORKFLOW_ID])
+
+    def test_legacy_trigger_id_resolves_beyond_first_page(self):
+        workflow = NodeManV3Workflow.objects.get(operation=self.operation)
+        workflow.parent_workflow_id = ""
+        workflow.trigger_id = TRIGGER_ID
+        workflow.plugin_workflow_ids = []
+        workflow.save(update_fields=["parent_workflow_id", "trigger_id", "plugin_workflow_ids"])
+        self.client.workflow_items = [
+            {
+                "workflow_id": f"noise-{index}",
+                "trigger_id": f"trigger-noise-{index}",
+                "status": "success",
+            }
+            for index in range(PAGE_LIMIT + 100)
+        ] + [{"workflow_id": WORKFLOW_ID, "trigger_id": TRIGGER_ID, "status": "success"}]
+
+        self.assertEqual(self._reader().resolve_workflows().plugin_workflow_ids, [WORKFLOW_ID])
         self.assertGreater(self.client.call_names().count("list_workflows"), 1)
 
     def test_host_operations_span_multiple_pages(self):
@@ -217,21 +411,36 @@ class StatusReaderTest(TestCase):
         host_count = PAGE_LIMIT + 100
         self.client.host_states = {bk_host_id: "success" for bk_host_id in range(1, host_count + 1)}
 
-        operations = self._reader().fetch_host_operations(WORKFLOW_ID)
+        operations = self._reader().fetch_host_operations([WORKFLOW_ID])
 
         self.assertEqual(len(operations), host_count)
         self.assertIn(host_count, operations)
 
-    def test_unmatched_trigger_id_resolves_to_empty(self):
-        # execute 之后 workflow 可能还没落库，这不是错误，下次开页面再试
-        self.client.workflow_items = [{"workflow_id": "other", "trigger_id": "trigger-x"}]
-        self.assertEqual(self._reader().resolve_workflow_id(), "")
-
     def test_host_operations_are_keyed_by_host_id(self):
         self.client.host_states = {11: "success", 12: "failed"}
-        operations = self._reader().fetch_host_operations(WORKFLOW_ID)
+        operations = self._reader().fetch_host_operations([WORKFLOW_ID])
         self.assertEqual(set(operations.keys()), {11, 12})
         self.assertEqual(operations[11]["operation_id"], "op-11")
+
+    def test_host_operations_merge_multiple_plugin_children(self):
+        self.client.parent_items[0]["children"] = [
+            {"type": "plugin", "workflow_id": WORKFLOW_ID},
+            {"type": "plugin", "workflow_id": SECOND_WORKFLOW_ID},
+        ]
+        self.client.workflow_items = [
+            {"workflow_id": WORKFLOW_ID, "status": "success"},
+            {"workflow_id": SECOND_WORKFLOW_ID, "status": "success"},
+        ]
+        self.client.workflow_host_states = {
+            WORKFLOW_ID: {11: "success"},
+            SECOND_WORKFLOW_ID: {12: "failed"},
+        }
+
+        resolution = self._reader().resolve_workflows()
+        operations = self._reader().fetch_host_operations(resolution.plugin_workflow_ids)
+
+        self.assertEqual(set(operations), {11, 12})
+        self.assertEqual(operations[12]["workflow_id"], SECOND_WORKFLOW_ID)
 
     # ------------------------------------------------------------------
     # 生效态判定
@@ -249,6 +458,7 @@ class StatusReaderTest(TestCase):
     def test_old_generation_is_stale_not_failed(self):
         # 生效的是旧版配置，仍在出数。翻红会让用户去重试一个正在正常采集的采集项
         self._add_target(11, generation=1)
+        NodeManV3Workflow.objects.all().delete()
         self.client.host_states = {}
         self.client.process_states = {11: "running"}
 
@@ -283,6 +493,7 @@ class StatusReaderTest(TestCase):
 
     def test_never_applied_host_is_absent(self):
         self._add_target(11, generation=0)
+        NodeManV3Workflow.objects.all().delete()
         self.client.process_states = {11: "running"}
 
         self.assertEqual(self._reader().refresh()[11].state, NodeManV3TargetState.ABSENT)
@@ -297,10 +508,73 @@ class StatusReaderTest(TestCase):
         # 同机多采集项共用一个 bkunifylogbeat 进程，进程活着只说明别的采集项在跑。
         # 这是 BKL-4 明确要消除的口径错误
         self._add_target(11, generation=0)
+        NodeManV3Workflow.objects.all().delete()
         self.client.host_states = {}
         self.client.process_states = {11: "running"}
 
         self.assertEqual(self._reader().refresh()[11].state, NodeManV3TargetState.ABSENT)
+
+    def test_parent_success_without_children_is_valid_noop(self):
+        row = self._add_target(11, generation=1)
+        self._expire_child_visibility_grace()
+        self.client.parent_items[0]["children"] = []
+        self.client.workflow_items = []
+        self.client.process_states = {11: "running"}
+
+        status = self._reader().refresh()[11]
+
+        self.assertEqual(status.state, NodeManV3TargetState.LATEST)
+        row.refresh_from_db()
+        self.assertEqual(row.generation, 2)
+
+    def test_parent_running_without_children_is_dispatching(self):
+        self._add_target(11, generation=0)
+        self.client.parent_items[0]["status"] = "running"
+        self.client.parent_items[0]["children"] = []
+
+        self.assertEqual(self._reader().refresh()[11].state, NodeManV3TargetState.DISPATCHING)
+
+    def test_parent_failure_without_host_operation_is_failed(self):
+        self._add_target(11, generation=0)
+        self._expire_child_visibility_grace()
+        self.client.parent_items[0]["status"] = "failed"
+        self.client.parent_items[0]["children"] = []
+        self.client.process_states = {11: "running"}
+
+        self.assertEqual(self._reader().refresh()[11].state, NodeManV3TargetState.FAILED)
+
+    def test_parent_success_empty_children_waits_during_visibility_grace(self):
+        self._add_target(11, generation=0)
+        self._reset_child_visibility_grace()
+        self.client.parent_items[0]["children"] = []
+        self.client.workflow_items = []
+
+        self.assertEqual(self._reader().refresh()[11].state, NodeManV3TargetState.DISPATCHING)
+
+    def test_noop_does_not_advance_generation_when_collector_process_is_down(self):
+        row = self._add_target(11, generation=1)
+        self._expire_child_visibility_grace()
+        self.client.parent_items[0]["children"] = []
+        self.client.workflow_items = []
+        self.client.process_states = {11: "stopped"}
+
+        status = self._reader().refresh()[11]
+
+        self.assertEqual(status.state, NodeManV3TargetState.ABSENT)
+        row.refresh_from_db()
+        self.assertEqual(row.generation, 1)
+
+    def test_terminal_failed_child_does_not_mark_unchanged_host_failed(self):
+        # host 12 有变更且失败，host 11 配置无需变更所以没有 operation。父 dispatch 成功且
+        # child 已终态时，host 11 应推进本地代次，不能被另一个主机的失败拖成红色。
+        row = self._add_target(11, generation=1)
+        self.client.workflow_items[0]["status"] = "failed"
+        self.client.host_states = {12: "failed"}
+        self.client.process_states = {11: "running", 12: "running"}
+
+        self.assertEqual(self._reader().refresh()[11].state, NodeManV3TargetState.LATEST)
+        row.refresh_from_db()
+        self.assertEqual(row.generation, 2)
 
     def test_stale_generation_is_not_rolled_back_by_older_workflow(self):
         # 回读到的是一轮更早的 workflow 时，不能把已生效代数往回退
@@ -372,16 +646,26 @@ class StatusReaderTest(TestCase):
         summary = self._reader().summary()
 
         self.assertEqual(summary["total"], 3)
-        # 已生效最新 + 已生效旧版都算成功：旧版确实在出数
+        # workflow 成功且 host 12 没有 operation 表示合法 no-op，仍应推进到最新代次
         self.assertEqual(summary["success"], 2)
         self.assertEqual(summary["failed"], 1)
-        self.assertEqual(summary["counts"][NodeManV3TargetState.STALE], 1)
+        self.assertEqual(summary["counts"][NodeManV3TargetState.LATEST], 2)
 
     def test_summary_to_status_marks_part_failed(self):
         summary = {"total": 2, "success": 1, "failed": 1, "pending": 0}
         result = summary_to_status(summary, self.collector_config)
         self.assertEqual(result["status"], CollectStatus.FAILED)
         self.assertEqual(result["status_name"], RunStatus.PARTFAILED)
+
+    def test_absent_host_is_counted_as_pending(self):
+        self._add_target(11, generation=0)
+        NodeManV3Workflow.objects.all().delete()
+        self.client.process_states = {11: "running"}
+
+        summary = self._reader().summary()
+
+        self.assertEqual(summary["pending"], 1)
+        self.assertEqual(summary_to_status(summary, self.collector_config)["status"], CollectStatus.RUNNING)
 
     def test_summary_to_status_prepare_when_no_host_yet(self):
         summary = {"total": 0, "success": 0, "failed": 0, "pending": 0}
@@ -402,15 +686,77 @@ class StatusReaderTest(TestCase):
         self.assertEqual(len(detail["instances"]), 1)
         self.assertIn("oi-1", detail["logs"])
 
+    def test_instance_detail_groups_operations_by_plugin_workflow(self):
+        self.client.parent_items[0]["children"] = [
+            {"type": "plugin", "workflow_id": WORKFLOW_ID},
+            {"type": "plugin", "workflow_id": SECOND_WORKFLOW_ID},
+        ]
+        self.client.workflow_items = [
+            {"workflow_id": WORKFLOW_ID, "status": "failed"},
+            {"workflow_id": SECOND_WORKFLOW_ID, "status": "failed"},
+        ]
+        self.client.workflow_host_states = {
+            WORKFLOW_ID: {11: "failed"},
+            SECOND_WORKFLOW_ID: {11: "failed"},
+        }
+
+        self._reader().instance_detail(11)
+
+        instance_calls = [payload for name, payload in self.client.calls if name == "list_workflow_operation_instances"]
+        self.assertEqual(len(instance_calls), 2)
+        self.assertTrue(all(len(payload["operation_id"]) == 1 for payload in instance_calls))
+
     def test_retry_sends_operation_ids_of_requested_hosts(self):
         self.client.host_states = {11: "failed", 12: "success"}
         self._reader().retry_hosts([11])
         self.assertEqual(self.client.retry_payloads[0]["operation_ids"], ["op-11"])
         self.assertEqual(self.client.retry_payloads[0]["workflow_id"], WORKFLOW_ID)
+        self.assertEqual(self.client.retry_payloads[0]["retry_mod"], "PARTIAL")
+
+    def test_retry_groups_failed_operations_by_plugin_workflow(self):
+        self.client.parent_items[0]["children"] = [
+            {"type": "plugin", "workflow_id": WORKFLOW_ID},
+            {"type": "plugin", "workflow_id": SECOND_WORKFLOW_ID},
+        ]
+        self.client.workflow_items = [
+            {"workflow_id": WORKFLOW_ID, "status": "failed"},
+            {"workflow_id": SECOND_WORKFLOW_ID, "status": "failed"},
+        ]
+        self.client.workflow_host_states = {
+            WORKFLOW_ID: {11: "failed"},
+            SECOND_WORKFLOW_ID: {11: "failed"},
+        }
+
+        task_id = self._reader().retry_hosts([11])
+
+        self.assertEqual(task_id, PARENT_WORKFLOW_ID)
+        self.assertEqual(
+            {payload["workflow_id"] for payload in self.client.retry_payloads},
+            {WORKFLOW_ID, SECOND_WORKFLOW_ID},
+        )
+        self.assertTrue(all(payload["retry_mod"] == "PARTIAL" for payload in self.client.retry_payloads))
+
+    def test_retry_terminated_operation_uses_all_mode(self):
+        # NodeMan 明确拒绝对 terminated 的最后一次实例做 PARTIAL retry。
+        self.client.host_states = {11: "terminated"}
+
+        self._reader().retry_hosts([11])
+
+        self.assertEqual(self.client.retry_payloads[0]["retry_mod"], "ALL")
+
+    def test_retry_mixed_terminated_and_failed_operations_keeps_modes_separate(self):
+        self.client.host_states = {11: "terminated"}
+        self.client.host_extra_states = {11: ["failed"]}
+
+        self._reader().retry_hosts([11])
+
+        payloads = {payload["retry_mod"]: payload["operation_ids"] for payload in self.client.retry_payloads}
+        self.assertEqual(payloads["ALL"], ["op-11"])
+        self.assertEqual(payloads["PARTIAL"], ["op-11-1"])
 
     def test_retry_fails_closed_without_workflow(self):
         # 静默成功会让用户以为已经重试过了
-        self.client.workflow_items = []
+        self.client.parent_items = []
         with self.assertRaises(NodeManV3CapabilityBlocked):
             self._reader().retry_hosts([11])
 
@@ -429,6 +775,55 @@ class StatusReaderTest(TestCase):
         )
         self.assertEqual(CollectorStatusReader(other).refresh(), {})
 
+    def test_explicit_task_id_selects_historical_workflow(self):
+        old_parent_id = "parent-workflow-old"
+        old_operation = NodeManV3Operation.objects.create(
+            binding=self.binding,
+            operation_type=NodeManV3OperationType.RECONCILE,
+            generation=1,
+        )
+        NodeManV3Workflow.objects.create(operation=old_operation, parent_workflow_id=old_parent_id)
+        self.client.parent_items.append(
+            {
+                "workflow_id": old_parent_id,
+                "trigger_id": "trigger-old",
+                "deploy_policy_id": POLICY_ID,
+                "status": "success",
+                "children": [],
+            }
+        )
+
+        resolution = CollectorStatusReader(self.collector_config, task_ids=[old_parent_id]).resolve_workflows()
+
+        self.assertEqual(resolution.parent_workflow_id, old_parent_id)
+
+    def test_historical_task_query_does_not_mutate_current_target_snapshot(self):
+        old_parent_id = "parent-workflow-old"
+        row = self._add_target(11, generation=0)
+        old_operation = NodeManV3Operation.objects.create(
+            binding=self.binding,
+            operation_type=NodeManV3OperationType.RECONCILE,
+            generation=1,
+        )
+        NodeManV3Workflow.objects.create(operation=old_operation, parent_workflow_id=old_parent_id)
+        self.client.parent_items.append(
+            {
+                "workflow_id": old_parent_id,
+                "trigger_id": "trigger-old",
+                "deploy_policy_id": POLICY_ID,
+                "status": "success",
+                "children": [{"type": "plugin", "workflow_id": SECOND_WORKFLOW_ID}],
+            }
+        )
+        self.client.workflow_items.append({"workflow_id": SECOND_WORKFLOW_ID, "status": "success"})
+        self.client.workflow_host_states[SECOND_WORKFLOW_ID] = {11: "success"}
+
+        statuses = CollectorStatusReader(self.collector_config, task_ids=[old_parent_id]).refresh()
+
+        self.assertEqual(statuses[11].state, NodeManV3TargetState.LATEST)
+        row.refresh_from_db()
+        self.assertEqual(row.generation, 0)
+
 
 class InstanceDataCompatTest(TestCase):
     """V3 状态 -> V2 实例结构的形状适配"""
@@ -440,7 +835,13 @@ class InstanceDataCompatTest(TestCase):
 
     def test_shape_matches_v2_instance_contract(self):
         data = build_v2_compatible_instance_data(
-            {11: self._status(NodeManV3TargetState.LATEST, operation_id="op-11")},
+            {
+                11: self._status(
+                    NodeManV3TargetState.LATEST,
+                    task_id=PARENT_WORKFLOW_ID,
+                    operation_id="op-11",
+                )
+            },
             {11: {"bk_host_innerip": "127.0.0.1", "bk_cloud_id": 0, "bk_host_name": "h1"}},
         )
         host = data[0]["instance_info"]["host"]
@@ -448,6 +849,7 @@ class InstanceDataCompatTest(TestCase):
         self.assertEqual(host["bk_host_id"], 11)
         self.assertEqual(host["bk_host_innerip"], "127.0.0.1")
         self.assertEqual(host["bk_host_name"], "h1")
+        self.assertEqual(data[0]["task_id"], PARENT_WORKFLOW_ID)
 
     def test_stale_is_reported_as_success(self):
         data = build_v2_compatible_instance_data({11: self._status(NodeManV3TargetState.STALE)}, {})
@@ -509,7 +911,7 @@ class HostHandlerWiringTest(TestCase):
             operation_type=NodeManV3OperationType.RECONCILE,
             generation=1,
         )
-        NodeManV3Workflow.objects.create(operation=operation, trigger_id=TRIGGER_ID)
+        NodeManV3Workflow.objects.create(operation=operation, parent_workflow_id=PARENT_WORKFLOW_ID)
 
         self.client = FakeStatusClient()
         self.client.host_states = {11: "failed"}
@@ -558,6 +960,31 @@ class HostHandlerWiringTest(TestCase):
         self.assertNotIn("[INFO] \n", detail["log_detail"])
         self.assertEqual(detail["log_result"]["bk_host_id"], 11)
 
+    def test_detail_honors_explicit_historical_task_id(self):
+        old_parent_id = "parent-workflow-old"
+        old_operation = NodeManV3Operation.objects.create(
+            binding=self.binding,
+            operation_type=NodeManV3OperationType.RECONCILE,
+            generation=0,
+        )
+        NodeManV3Workflow.objects.create(operation=old_operation, parent_workflow_id=old_parent_id)
+        self.client.parent_items.append(
+            {
+                "workflow_id": old_parent_id,
+                "trigger_id": "trigger-old",
+                "deploy_policy_id": POLICY_ID,
+                "status": "failed",
+                "children": [{"type": "plugin", "workflow_id": SECOND_WORKFLOW_ID}],
+            }
+        )
+        self.client.workflow_items.append({"workflow_id": SECOND_WORKFLOW_ID, "status": "failed"})
+        self.client.workflow_host_states[SECOND_WORKFLOW_ID] = {11: "failed"}
+
+        self.handler.get_subscription_task_detail("host|instance|host|11", task_id=old_parent_id)
+
+        parent_calls = [payload for name, payload in self.client.calls if name == "list_deploy_policy_workflows"]
+        self.assertEqual(parent_calls[-1]["exact_include_conditions"]["workflow_id"], [old_parent_id])
+
     def test_retry_goes_to_v3_workflow_not_v2_subscription(self):
         from apps.api import NodeApi
 
@@ -566,13 +993,20 @@ class HostHandlerWiringTest(TestCase):
 
         v2_retry.assert_not_called()
         self.assertEqual(self.client.retry_payloads[0]["workflow_id"], WORKFLOW_ID)
-        self.assertEqual(task_id_list, [WORKFLOW_ID])
+        self.assertEqual(task_id_list, [PARENT_WORKFLOW_ID])
 
     def test_retry_task_id_is_persisted_as_string(self):
         # V3 的 task_id 是 workflow_id 字符串，写进 IntegerField 会炸；这里确认落的是 task_id_list
         self.handler.retry_target_nodes(["host|instance|host|11"])
         self.collector_config.refresh_from_db()
-        self.assertEqual(self.collector_config.task_id_list, [WORKFLOW_ID])
+        self.assertEqual(self.collector_config.task_id_list, [PARENT_WORKFLOW_ID])
+
+    def test_repeated_retry_does_not_duplicate_same_parent_task_id(self):
+        self.handler.retry_target_nodes(["host|instance|host|11"])
+        self.handler.retry_target_nodes(["host|instance|host|11"])
+
+        self.collector_config.refresh_from_db()
+        self.assertEqual(self.collector_config.task_id_list, [PARENT_WORKFLOW_ID])
 
     def test_retry_without_resolvable_host_fails_closed(self):
         # 解析不出主机就重试，会退化成「全量重试」，把好的机器也拖下来重跑一遍

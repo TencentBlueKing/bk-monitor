@@ -69,7 +69,7 @@ class PolicyReconcilerBase:
     - 采集项子配置策略（CollectorPolicyReconciler）
     - 业务级采集器安装策略（CollectorPluginReconciler）
 
-    注意收敛不是周期性的：deploy_policy/execute 建的是一次性 trigger
+    注意收敛不是周期性的：deploy_policy/execute 建的是一次性父 workflow
     （NodeMan internal/backend/manager/deploypolicy_manager.go:31 用 trigger.CategoryOnce），
     节点管理不会自己重算策略。目标范围变化后的自动收敛需要日志侧定时触发（BKL-3）。
     """
@@ -108,17 +108,42 @@ class PolicyReconcilerBase:
         （文件名含策略 ID，互不覆盖），同一份日志会被采两遍。
         """
         client = get_client(self.bk_biz_id)
-        # deploy_policy/list 的分页参数是 {count, start, limit}，与插件包列表的 {offset, limit} 不同
-        payload = {
-            "page": {"count": False, "start": 0, "limit": 10},
-            "exact_include_conditions": {"deploy_policy_name": [binding.policy_name]},
-        }
-        items = (client.list_deploy_policies(payload) or {}).get("items") or []
-        for item in items:
-            name = (item.get("meta") or {}).get("name") or item.get("name")
-            if name == binding.policy_name and item.get("deploy_policy_id"):
-                return int(item["deploy_policy_id"])
-        return None
+        # 最新 application proto 的 Page 只有 offset/limit；apigw 文档仍残留旧 count/start，
+        # 后端 gin 又会静默忽略未知字段，沿用旧参数会永远停在第一页。
+        page_limit = 500
+        offset = 0
+        matches = []
+        seen_policy_ids = set()
+        while True:
+            data = client.list_deploy_policies(
+                {
+                    "page": {"offset": offset, "limit": page_limit},
+                    "exact_include_conditions": {"deploy_policy_name": [binding.policy_name]},
+                }
+            )
+            items = (data or {}).get("items") or []
+            for item in items:
+                name = (item.get("meta") or {}).get("name") or item.get("name")
+                deploy_policy_id = int(item.get("deploy_policy_id") or 0)
+                if name != binding.policy_name or not deploy_policy_id:
+                    continue
+                if deploy_policy_id in seen_policy_ids:
+                    raise NodeManV3CapabilityBlocked(
+                        NodeManV3CapabilityBlocked.MESSAGE.format(
+                            err=_("节点管理部署策略分页结果重复，无法安全恢复策略绑定")
+                        )
+                    )
+                seen_policy_ids.add(deploy_policy_id)
+                matches.append(deploy_policy_id)
+            if len(items) < page_limit:
+                break
+            offset += page_limit
+
+        if len(matches) > 1:
+            raise NodeManV3CapabilityBlocked(
+                NodeManV3CapabilityBlocked.MESSAGE.format(err=_("节点管理存在多个同名部署策略，无法安全恢复策略绑定"))
+            )
+        return matches[0] if matches else None
 
     # ------------------------------------------------------------------
     # 收敛
@@ -211,15 +236,15 @@ class PolicyReconcilerBase:
             binding.save(update_fields=["deploy_policy_id", "updated_at", "updated_by"])
 
             executed = client.execute_deploy_policy(deploy_policy_id)
-            trigger_id = executed.get("trigger_id") or ""
-            if not trigger_id:
+            parent_workflow_id = executed.get("workflow_id") or ""
+            if not parent_workflow_id:
                 raise NodeManV3UnknownResultError(
-                    NodeManV3UnknownResultError.MESSAGE.format(err=_("执行部署策略未返回 trigger_id"))
+                    NodeManV3UnknownResultError.MESSAGE.format(err=_("执行部署策略未返回 workflow_id"))
                 )
 
             NodeManV3Workflow.objects.create(
                 operation=operation,
-                trigger_id=trigger_id,
+                parent_workflow_id=parent_workflow_id,
                 dispatch_status=NodeManV3DispatchStatus.SUBMITTED,
                 normalized_status=NodeManV3OperationStatus.PENDING,
             )

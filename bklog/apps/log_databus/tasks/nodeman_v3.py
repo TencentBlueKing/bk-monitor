@@ -31,6 +31,7 @@ from apps.log_databus.nodeman_v3.constants import (
     NodeManV3OperationStatus,
     RECONCILE_BATCH_LIMIT,
     RESOURCE_TYPE_COLLECTOR_CONFIG,
+    RESOURCE_TYPE_COLLECTOR_PLUGIN,
     TARGET_RECONCILE_INTERVAL_MINUTES,
 )
 from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
@@ -223,13 +224,28 @@ def recover_nodeman_v3_operations():
         NodeManV3Operation.objects.filter(
             status__in=[NodeManV3OperationStatus.DISPATCHING, NodeManV3OperationStatus.UNKNOWN],
             updated_at__lt=threshold,
-            binding__resource_type=RESOURCE_TYPE_COLLECTOR_CONFIG,
+            binding__resource_type__in=[RESOURCE_TYPE_COLLECTOR_CONFIG, RESOURCE_TYPE_COLLECTOR_PLUGIN],
         )
         .select_related("binding")
         .order_by("updated_at")[:RECONCILE_BATCH_LIMIT]
     )
 
     for operation in stuck:
+        if operation.binding.resource_type == RESOURCE_TYPE_COLLECTOR_PLUGIN:
+            try:
+                from apps.log_databus.nodeman_v3.reconciler import CollectorPluginReconciler
+
+                plugin_name = operation.binding.resource_key.partition(":")[2]
+                CollectorPluginReconciler(operation.binding.bk_biz_id, plugin_name=plugin_name).reconcile()
+            except Exception:  # pylint: disable=broad-except
+                logger.exception(
+                    f"[nodeman_v3] failed to recover stuck plugin operation {operation.id}, "
+                    f"bk_biz_id={operation.binding.bk_biz_id}"
+                )
+                continue
+            _close_superseded_operation(operation)
+            continue
+
         collector_config = CollectorConfig.objects.filter(
             collector_config_id=operation.binding.collector_config_id
         ).first()
@@ -258,14 +274,19 @@ def recover_nodeman_v3_operations():
             )
             continue
 
-        # 必须给旧记录落一个终态。apply 创建的是**新**的 operation，旧那条会一直停在
-        # dispatching + 旧 updated_at 上，于是每 10 分钟都被重新选中、无限重放同一次恢复。
-        # 落 FAILED 而不是 SUCCESS：这一轮到底派发成没成我们并不知道（知道就不会卡住了），
-        # 真实结果由新 operation 负责记录。
-        operation.status = NodeManV3OperationStatus.FAILED
-        operation.error_message = f"operation stuck over {STUCK_OPERATION_MINUTES}min, superseded by periodic recovery"
-        operation.save(update_fields=["status", "error_message", "updated_at", "updated_by"])
+        _close_superseded_operation(operation)
         logger.info(
             f"[nodeman_v3] recovered stuck operation {operation.id}, "
             f"collector_config_id={operation.binding.collector_config_id}"
         )
+
+
+def _close_superseded_operation(operation: NodeManV3Operation) -> None:
+    """
+    恢复动作会创建新 operation，旧记录必须结束，否则每轮都会再次被选中。
+
+    旧轮次真实结果未知，不能写 SUCCESS；新 operation 负责记录本次恢复结果。
+    """
+    operation.status = NodeManV3OperationStatus.FAILED
+    operation.error_message = f"operation stuck over {STUCK_OPERATION_MINUTES}min, superseded by periodic recovery"
+    operation.save(update_fields=["status", "error_message", "updated_at", "updated_by"])

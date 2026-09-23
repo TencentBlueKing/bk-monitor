@@ -123,17 +123,21 @@ class NodeManV3Workflow(OperateRecordModel):
     """
     控制面动作在节点管理侧对应的执行批次。
 
-    workflow_id 与 trigger_id 都是字符串，无法写回 CollectorConfig.subscription_id（IntegerField），
-    因此 V3 模式下 subscription_id 保持为空，任务标识只落在这张表与 task_id_list
-    （MultiStrSplitByCommaField 的 sub_type 默认是 str，可以存字符串 ID）。
+    NodeMan v3.0.1-alpha.84 起，deploy_policy/execute 返回父 workflow_id。父流程只表示
+    dispatch，实际部署结果需要沿 deploy_policy/workflow/list 的 children 下钻到 plugin
+    workflow。parent_workflow_id 与 plugin_workflow_ids 保存新契约；trigger_id 与 workflow_id
+    保留给 alpha.84 之前已经落库的任务，避免滚动升级期间历史状态页失效。
 
-    部署策略 execute 只返回 trigger_id，workflow_id 需要按 deploy_policy_id 反查
-    （plugin/workflow/list 支持 deploy_policy_id 过滤），拿到后才能做 per-host 详情与重试。
+    这些 ID 都是字符串，无法写回 CollectorConfig.subscription_id（IntegerField），因此 V3
+    模式下 subscription_id 保持为空，任务标识只落在这张表与 task_id_list。
     """
 
     operation = models.ForeignKey(
         NodeManV3Operation, verbose_name=_("操作"), on_delete=models.CASCADE, related_name="workflows"
     )
+    parent_workflow_id = models.CharField(_("部署策略父工作流ID"), max_length=128, default="", db_index=True)
+    plugin_workflow_ids = models.JSONField(_("插件子工作流ID列表"), default=list)
+    # 旧契约兼容字段：workflow_id 表示 plugin 子 workflow，而不是 deploy-policy 父 workflow。
     trigger_id = models.CharField(_("触发器ID"), max_length=128, default="")
     workflow_id = models.CharField(_("工作流ID"), max_length=128, default="")
     dispatch_status = models.CharField(
@@ -155,6 +159,11 @@ class NodeManV3Workflow(OperateRecordModel):
         verbose_name = _("节点管理V3工作流")
         verbose_name_plural = _("节点管理V3工作流")
         unique_together = ("operation", "trigger_id")
+
+    @property
+    def task_id(self) -> str:
+        """返回可暴露给日志平台任务列表的稳定入口。"""
+        return self.parent_workflow_id or self.workflow_id or self.trigger_id
 
 
 class NodeManV3SubConfigTarget(OperateRecordModel):

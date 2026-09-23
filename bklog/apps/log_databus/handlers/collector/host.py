@@ -626,7 +626,7 @@ class HostCollectorHandler(CollectorHandler):
         :return: [dict]
         """
         if self.use_nodeman_v3:
-            return self._get_task_detail_v3(instance_id)
+            return self._get_task_detail_v3(instance_id, task_id=task_id)
 
         # 详情接口查询，原始日志
         param = {
@@ -668,7 +668,7 @@ class HostCollectorHandler(CollectorHandler):
             return 0
         return int(parts[3])
 
-    def _get_task_detail_v3(self, instance_id: str) -> dict:
+    def _get_task_detail_v3(self, instance_id: str, task_id: str | None = None) -> dict:
         """
         V3 下的单实例任务日志。
 
@@ -681,7 +681,7 @@ class HostCollectorHandler(CollectorHandler):
         if not bk_host_id:
             return {"log_detail": "", "log_result": {}}
 
-        detail = CollectorStatusReader(self.data).instance_detail(bk_host_id)
+        detail = CollectorStatusReader(self.data, task_ids=[task_id] if task_id else None).instance_detail(bk_host_id)
         log = []
         for oper_inst_id, actions in (detail.get("logs") or {}).items():
             log.append("{}{}{}".format("=" * 20, oper_inst_id, "=" * 20))
@@ -734,7 +734,10 @@ class HostCollectorHandler(CollectorHandler):
 
         workflow_id = CollectorStatusReader(self.data).retry_hosts(bk_host_ids)
         # 不能直接 append：V3 下发不走订阅任务，task_id_list 一直是 None，append 会直接抛
-        self.data.task_id_list = [*(self.data.task_id_list or []), workflow_id]
+        task_ids = list(self.data.task_id_list or [])
+        if workflow_id not in task_ids:
+            task_ids.append(workflow_id)
+        self.data.task_id_list = task_ids
         self.data.save()
         return self.data.task_id_list
 
@@ -1166,7 +1169,10 @@ class HostCollectorHandler(CollectorHandler):
             return {"task_ready": True, "contents": []}
 
         if self.use_nodeman_v3:
-            instance_status = self.format_task_instance_status(self._v3_instance_data())
+            task_ids = [str(task_id) for task_id in (id_list or self.data.task_id_list or [])] if read_only else []
+            if read_only and not task_ids:
+                return {"task_ready": False, "contents": []}
+            instance_status = self.format_task_instance_status(self._v3_instance_data(task_ids=task_ids))
             # task_ready 恒为 True：V2 里它表示「订阅任务已创建」，而 V3 的状态不依赖任务对象，
             # 就算最近一轮 workflow 还没落库，本地快照也已经能回答每台主机的状态
             return {"task_ready": True, "contents": self._get_status_content(instance_status, is_task=True)}
@@ -1215,7 +1221,7 @@ class HostCollectorHandler(CollectorHandler):
 
         return {"task_ready": True, "contents": self._get_status_content(instance_status, is_task=True)}
 
-    def _v3_instance_data(self) -> list:
+    def _v3_instance_data(self, task_ids: list[str] | None = None) -> list:
         """
         构造 V3 下的每主机实例数据，形状与 V2 订阅任务状态一致。
 
@@ -1227,7 +1233,22 @@ class HostCollectorHandler(CollectorHandler):
             build_v2_compatible_instance_data,
         )
 
-        host_statuses = CollectorStatusReader(self.data).refresh()
+        if task_ids:
+            # V2 的 read_only 查询允许同时传多轮任务，并按主机保留其中最新一轮。
+            # V3 task ID 不可按字符串排序，改用本地 operation.generation 做同样聚合。
+            host_statuses = {}
+            host_generations = {}
+            for task_id in dict.fromkeys(task_ids):
+                reader = CollectorStatusReader(self.data, task_ids=[task_id])
+                workflow = reader._latest_workflow()
+                if not workflow:
+                    continue
+                for bk_host_id, status in reader.refresh().items():
+                    if workflow.operation.generation >= host_generations.get(bk_host_id, -1):
+                        host_statuses[bk_host_id] = status
+                        host_generations[bk_host_id] = workflow.operation.generation
+        else:
+            host_statuses = CollectorStatusReader(self.data).refresh()
         if not host_statuses:
             return []
 

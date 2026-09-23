@@ -49,7 +49,7 @@ class _BKNodeV3Api:
         V3 只有 APIGW 一条入口（ESB compapi 未提供 v3），base_url 支持独立配置以便联调环境直连。
         """
         base_url = settings.BKNODEMAN_V3_API_BASE_URL or (
-            f"{settings.PAAS_API_HOST}/api/bk-nodeman/{settings.ENVIRONMENT}/"
+            f"{settings.PAAS_API_HOST}/api/bk-nodemgr/{settings.ENVIRONMENT}/"
         )
         if not base_url.endswith("/"):
             base_url += "/"
@@ -151,7 +151,7 @@ class _BKNodeV3Api:
             method="POST",
             url=self._build_url("api/v3/deploy_policy/execute"),
             module=self.MODULE,
-            description="执行部署策略（触发一次收敛，返回 trigger_id）",
+            description="执行部署策略（触发一次收敛，返回父 workflow_id）",
             before_request=get_bk_node_v3_request_before,
             use_superuser=True,
         )
@@ -160,6 +160,14 @@ class _BKNodeV3Api:
             url=self._build_url("api/v3/deploy_policy/list"),
             module=self.MODULE,
             description="查询部署策略列表",
+            before_request=get_bk_node_v3_request_before,
+            use_superuser=True,
+        )
+        self.list_deploy_policy_workflows = DataAPI(
+            method="POST",
+            url=self._build_url("api/v3/deploy_policy/workflow/list"),
+            module=self.MODULE,
+            description="查询部署策略父工作流及其子工作流",
             before_request=get_bk_node_v3_request_before,
             use_superuser=True,
         )

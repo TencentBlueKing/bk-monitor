@@ -151,7 +151,7 @@ class NodeManV3CollectorInstaller:
         """
         返回最近一次收敛的任务标识。
 
-        V3 的 trigger_id 是字符串，写不进 CollectorConfig.subscription_id（IntegerField），
+        V3 的父 workflow_id 是字符串，写不进 CollectorConfig.subscription_id（IntegerField），
         但可以写进 task_id_list（MultiStrSplitByCommaField 的 sub_type 默认为 str）。
         """
         binding = NodeManV3Binding.objects.filter(
@@ -164,4 +164,4 @@ class NodeManV3CollectorInstaller:
         operation = binding.operations.order_by("-generation", "-created_at").first()
         if not operation:
             return []
-        return [workflow.trigger_id for workflow in operation.workflows.all() if workflow.trigger_id]
+        return [workflow.task_id for workflow in operation.workflows.all() if workflow.task_id]

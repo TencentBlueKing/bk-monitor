@@ -155,7 +155,7 @@ def build_plugin_install_payload(
     （internal/backend/dpmgr/conflict_resolver.go:48-50、:109-120）。
     主机被剔除后又会命中「不在目标范围内」分支，把该采集项**已经生效**的子配置删掉
     （analyze_specific_plugin_sub_config_template.go:228-236）。
-    净效果是同机第二个采集项静默失效，且 execute 照常返回 trigger_id。
+    净效果是同机第二个采集项静默失效，且 execute 照常返回父 workflow_id。
 
     只声明子配置 spec 的策略在策略发现里是叶子节点，不查库不扩散
     （internal/backend/dpmgr/discover.go:218-222），因此永远是单例闭包，目标完整保留。

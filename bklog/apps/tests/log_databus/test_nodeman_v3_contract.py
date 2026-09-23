@@ -149,7 +149,7 @@ class SpecTranslationTest(TestCase):
         # 回归用例。采集项策略一旦带上 specify_plugin，策略发现就会按插件名把同插件的所有
         # enabled 策略拉进同一个冲突闭包，冲突消解再按创建时间把后建采集项的共享主机整体剔除，
         # 被剔除的主机随后命中「不在范围内」分支，把该采集项已经生效的子配置删掉。
-        # 净效果是同机第二个采集项静默失效，而 execute 照常返回 trigger_id。
+        # 净效果是同机第二个采集项静默失效，而 execute 照常返回父 workflow_id。
         # 取证见 docs/节点管理V3适配/deploypolicy冲突消解_同机多采集项互斥_取证.md
         specs = SubscriptionStepsTranslator().build_specs(build_steps())
         self.assertNotIn(SPEC_TYPE_SPECIFY_PLUGIN, [spec["type"] for spec in specs])
@@ -372,6 +372,20 @@ class ClientEnvelopeTest(TestCase):
         client, api = self._client({"code": 0, "message": "ok", "data": {"deploy_policy_id": 1001}})
         self.assertEqual(client._call(api, "deploy_policy/create", {}, write=True), {"deploy_policy_id": 1001})
 
+    @override_settings(
+        BKNODEMAN_V3_API_BASE_URL="",
+        PAAS_API_HOST="https://bkapi.example.com",
+        ENVIRONMENT="prod",
+    )
+    def test_default_v3_gateway_uses_bk_nodemgr(self):
+        from apps.api.modules.bk_node_v3 import _BKNodeV3Api
+
+        api = _BKNodeV3Api()
+        self.assertEqual(
+            api.list_deploy_policy_workflows.url,
+            "https://bkapi.example.com/api/bk-nodemgr/prod/api/v3/deploy_policy/workflow/list",
+        )
+
 
 class IntegrationModeTest(TestCase):
     @override_settings(NODEMAN_INTEGRATION_MODE="v2")
@@ -510,7 +524,7 @@ class FakeNodeManV3Client:
 
     def execute_deploy_policy(self, deploy_policy_id):
         self.calls.append(("execute", deploy_policy_id))
-        return {"trigger_id": f"trigger-{deploy_policy_id}-{len(self.calls)}"}
+        return {"workflow_id": f"parent-workflow-{deploy_policy_id}-{len(self.calls)}"}
 
     def policy_name_of(self, call_name, payload):
         if call_name == "create":
@@ -563,9 +577,26 @@ class ReconcileBehaviourTest(TestCase):
         return CollectorPolicyReconciler(self.collector_config)
 
     def test_first_reconcile_creates_policy_then_executes(self):
+        from apps.log_databus.nodeman_v3.models import NodeManV3Workflow
+
         operation = self._reconciler().reconcile(build_steps())
         self.assertIsNotNone(operation)
         self.assertEqual(self.client.write_calls("collector"), ["create", "execute"])
+        workflow = NodeManV3Workflow.objects.get(operation=operation)
+        self.assertTrue(workflow.parent_workflow_id.startswith("parent-workflow-"))
+        self.assertEqual(workflow.trigger_id, "")
+
+    def test_execute_without_parent_workflow_id_fails_closed(self):
+        original = self.client.execute_deploy_policy
+
+        def missing_parent_workflow(deploy_policy_id):
+            if self.client.policy_names.get(deploy_policy_id, "").startswith("bklog-plugin-"):
+                return original(deploy_policy_id)
+            return {"trigger_id": "legacy-trigger"}
+
+        self.client.execute_deploy_policy = missing_parent_workflow
+        with self.assertRaises(NodeManV3UnknownResultError):
+            self._reconciler().reconcile(build_steps())
 
     def test_install_policy_is_reconciled_before_collector_policy(self):
         # 节点管理只对插件进程已 running 的主机下发子配置，安装策略必须先执行；
@@ -645,15 +676,67 @@ class ReconcileBehaviourTest(TestCase):
         binding.deploy_policy_id = None
         binding.policy_fingerprint = ""
         binding.save()
-        self.client.list_deploy_policies = lambda payload: {
-            "items": [{"deploy_policy_id": recovered_policy_id, "meta": {"name": binding.policy_name}}]
-        }
+        list_payloads = []
+
+        def list_deploy_policies(payload):
+            list_payloads.append(payload)
+            return {"items": [{"deploy_policy_id": recovered_policy_id, "meta": {"name": binding.policy_name}}]}
+
+        self.client.list_deploy_policies = list_deploy_policies
 
         self._reconciler().reconcile(build_steps(), force=True)
         # 找回后必须走 update：再 create 一条会让同机出现两份子配置，日志被采两遍
         self.assertEqual(self.client.write_calls("collector"), ["create", "execute", "update", "execute"])
+        self.assertEqual(list_payloads[0]["page"], {"offset": 0, "limit": 500})
         binding.refresh_from_db()
         self.assertEqual(binding.deploy_policy_id, recovered_policy_id)
+
+    def test_binding_recovery_fails_closed_for_duplicate_policy_names(self):
+        from apps.log_databus.nodeman_v3.models import NodeManV3Binding
+
+        self._reconciler().reconcile(build_steps())
+        binding = NodeManV3Binding.objects.get(collector_config_id=8001)
+        binding.deploy_policy_id = None
+        binding.policy_fingerprint = ""
+        binding.save()
+        self.client.list_deploy_policies = lambda _payload: {
+            "items": [
+                {"deploy_policy_id": 4242, "meta": {"name": binding.policy_name}},
+                {"deploy_policy_id": 4243, "meta": {"name": binding.policy_name}},
+            ]
+        }
+
+        with self.assertRaises(NodeManV3CapabilityBlocked):
+            self._reconciler().reconcile(build_steps(), force=True)
+
+    def test_binding_recovery_follows_offset_pagination(self):
+        from apps.log_databus.nodeman_v3.models import NodeManV3Binding
+
+        self._reconciler().reconcile(build_steps())
+        binding = NodeManV3Binding.objects.get(collector_config_id=8001)
+        binding.deploy_policy_id = None
+        binding.policy_fingerprint = ""
+        binding.save()
+        offsets = []
+
+        def list_deploy_policies(payload):
+            offset = payload["page"]["offset"]
+            offsets.append(offset)
+            if offset == 0:
+                return {
+                    "items": [
+                        {"deploy_policy_id": 10_000 + index, "meta": {"name": f"noise-{index}"}} for index in range(500)
+                    ]
+                }
+            return {"items": [{"deploy_policy_id": 5252, "meta": {"name": binding.policy_name}}]}
+
+        self.client.list_deploy_policies = list_deploy_policies
+
+        self._reconciler().reconcile(build_steps(), force=True)
+
+        binding.refresh_from_db()
+        self.assertEqual(binding.deploy_policy_id, 5252)
+        self.assertEqual(offsets, [0, 500])
 
     def test_fingerprint_not_advanced_when_dispatch_fails(self):
         # 失败后必须保持旧指纹，否则会记成「已下发」而实际一台机器都没生效

@@ -143,6 +143,17 @@ class NodeManV3Client:
     def list_deploy_policies(self, payload: dict[str, Any]) -> dict:
         return self._call(BKNodeV3Api.list_deploy_policies, "deploy_policy/list", payload, write=False) or {}
 
+    def list_deploy_policy_workflows(self, payload: dict[str, Any]) -> dict:
+        return (
+            self._call(
+                BKNodeV3Api.list_deploy_policy_workflows,
+                "deploy_policy/workflow/list",
+                payload,
+                write=False,
+            )
+            or {}
+        )
+
     # ------------------------------------------------------------------
     # 子配置
     # ------------------------------------------------------------------

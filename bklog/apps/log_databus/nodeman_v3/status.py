@@ -45,9 +45,9 @@ from apps.utils.log import logger
 # NodeMan 一次 list 的分页上限，按主机展开的接口都要翻页
 PAGE_LIMIT = 500
 
-# 翻页轮数上限。workflow 列表既没有 trigger_id 过滤也没有排序参数，只能按策略拉全量自己匹配，
-# 给个上限避免策略历史任务堆积后把状态页拖死。
-MAX_PAGES = 20
+# 父流程落终态后，child workflow/父子关联仍可能短暂不可见。NodeMan 自身对 operation
+# 缺失使用一分钟宽限；日志侧沿用同一量级，避免把首次空查询误判成合法 no-op。
+CHILD_VISIBILITY_GRACE_SECONDS = 60
 
 
 def iter_paged(fetch, items_key: str):
@@ -58,7 +58,8 @@ def iter_paged(fetch, items_key: str):
 
     - `plugin/workflow/list`、`plugin/workflow/operation/list`、`process/list` 用 `{offset, limit}`，
       且 `limit` 必填、必须落在 `(0, 500]`
-    - `deploy_policy/list` 用 `{count, start, limit}`
+    - 最新 `deploy_policy/list` application proto 同样使用 `{offset, limit}`；其 apigw 文档里的
+      `{count, start, limit}` 已滞后，找回策略的实现独立放在 reconciler 并按 proto 处理
 
     传错不会报错 —— gin 没开 `EnableDecoderDisallowUnknownFields`，未知字段被静默忽略，
     于是 `offset` 恒为 0，翻页永远停在第一页。
@@ -67,15 +68,25 @@ def iter_paged(fetch, items_key: str):
     控制，`only_count` 为假时 `total` 可能回 0，拿它当边界会在第一页就退出。
     """
     offset = 0
-    for _page_index in range(MAX_PAGES):
+    seen_item_ids = set()
+    while True:
         items = (fetch(offset) or {}).get(items_key) or []
         if not items:
             return
+        item_ids = {
+            item.get("workflow_id") or item.get("operation_id") or repr(item)
+            for item in items
+            if isinstance(item, dict)
+        }
+        if len(item_ids) != len(items) or seen_item_ids & item_ids:
+            raise NodeManV3CapabilityBlocked(
+                NodeManV3CapabilityBlocked.MESSAGE.format(err=_("节点管理分页结果重复，无法确认任务数据完整性"))
+            )
         yield items
         if len(items) < PAGE_LIMIT:
             return
+        seen_item_ids.update(item_ids)
         offset += PAGE_LIMIT
-    logger.warning(f"[nodeman_v3] paged query hit MAX_PAGES={MAX_PAGES}, results may be truncated")
 
 
 # 同一主机多条 operation 时的取舍优先级，数值越大越「坏」。
@@ -94,6 +105,73 @@ def _operation_severity(state: str) -> int:
     if normalized is None:
         return _UNKNOWN_OPERATION_SEVERITY
     return _OPERATION_SEVERITY.get(normalized, _UNKNOWN_OPERATION_SEVERITY)
+
+
+def _aggregate_workflow_status(
+    parent_status: str,
+    child_workflow_ids: list[str],
+    child_statuses: dict[str, str],
+    *,
+    has_parent: bool,
+    children_resolved: bool,
+) -> str:
+    """
+    汇总 deploy-policy 父流程与 plugin 子流程状态。
+
+    父流程成功只表示 dispatch 完成，不能覆盖仍在运行或失败的子流程。反过来，父流程失败说明
+    dispatch 没有完整完成，即使已启动的部分子流程成功，整轮也不能报成功。
+    """
+    parent_failed = False
+    if has_parent:
+        if not parent_status:
+            return NodeManV3OperationStatus.RUNNING
+        if parent_status not in (
+            NodeManV3OperationStatus.SUCCESS,
+            NodeManV3OperationStatus.FAILED,
+            NodeManV3OperationStatus.PARTIAL_FAILED,
+        ):
+            return NodeManV3OperationStatus.RUNNING
+        parent_failed = parent_status in (
+            NodeManV3OperationStatus.FAILED,
+            NodeManV3OperationStatus.PARTIAL_FAILED,
+        )
+        if not children_resolved:
+            return NodeManV3OperationStatus.RUNNING
+        if not child_workflow_ids:
+            return parent_status
+
+    if not child_workflow_ids:
+        return NodeManV3OperationStatus.RUNNING
+    if any(workflow_id not in child_statuses for workflow_id in child_workflow_ids):
+        return NodeManV3OperationStatus.RUNNING
+
+    statuses = [child_statuses[workflow_id] for workflow_id in child_workflow_ids]
+    if any(
+        status
+        not in (
+            NodeManV3OperationStatus.SUCCESS,
+            NodeManV3OperationStatus.FAILED,
+            NodeManV3OperationStatus.PARTIAL_FAILED,
+        )
+        for status in statuses
+    ):
+        return NodeManV3OperationStatus.RUNNING
+    if any(status == NodeManV3OperationStatus.PARTIAL_FAILED for status in statuses):
+        return NodeManV3OperationStatus.PARTIAL_FAILED
+    failed_count = sum(status == NodeManV3OperationStatus.FAILED for status in statuses)
+    if parent_failed:
+        if parent_status == NodeManV3OperationStatus.PARTIAL_FAILED or failed_count != len(statuses):
+            return NodeManV3OperationStatus.PARTIAL_FAILED
+        return NodeManV3OperationStatus.FAILED
+    if failed_count:
+        return (
+            NodeManV3OperationStatus.FAILED
+            if failed_count == len(statuses)
+            else NodeManV3OperationStatus.PARTIAL_FAILED
+        )
+    if any(status != NodeManV3OperationStatus.SUCCESS for status in statuses):
+        return NodeManV3OperationStatus.RUNNING
+    return NodeManV3OperationStatus.SUCCESS
 
 
 # V3 生效态 -> V2 状态页口径。
@@ -132,7 +210,7 @@ def build_v2_compatible_instance_data(host_statuses: dict[int, "HostStatus"], ho
             {
                 "instance_id": f"host|instance|host|{bk_host_id}",
                 "status": TARGET_STATE_TO_COLLECT_STATUS.get(status.state, CollectStatus.UNKNOWN),
-                "task_id": status.operation_id,
+                "task_id": status.task_id or status.operation_id,
                 "create_time": host.get("create_time", ""),
                 "steps": [],
                 "instance_info": {
@@ -197,6 +275,7 @@ class HostStatus:
     applied_generation: int = 0
     # 采集器进程状态。不是采集项状态——同机多采集项共用一个进程，进程活着只说明「别的采集项可能在跑」
     process_status: str = ""
+    task_id: str = ""
     operation_id: str = ""
     message: str = ""
 
@@ -207,9 +286,55 @@ class HostStatus:
             "state_name": str(NodeManV3TargetState(self.state).label),
             "applied_generation": self.applied_generation,
             "process_status": self.process_status,
+            "task_id": self.task_id,
             "operation_id": self.operation_id,
             "message": self.message,
         }
+
+
+@dataclass
+class WorkflowResolution:
+    """最近一次本地任务对应的 deploy-policy 父流程和 plugin 子流程。"""
+
+    workflow: NodeManV3Workflow | None = None
+    parent_workflow_id: str = ""
+    plugin_workflow_ids: list[str] | None = None
+    parent_status: str = ""
+    child_statuses: dict[str, str] | None = None
+    normalized_status: str = NodeManV3OperationStatus.UNKNOWN
+    children_resolved: bool = False
+
+    def __post_init__(self):
+        self.plugin_workflow_ids = list(self.plugin_workflow_ids or [])
+        self.child_statuses = dict(self.child_statuses or {})
+
+    @property
+    def task_id(self) -> str:
+        if self.parent_workflow_id:
+            return self.parent_workflow_id
+        if self.plugin_workflow_ids:
+            return self.plugin_workflow_ids[0]
+        return self.workflow.task_id if self.workflow else ""
+
+    @property
+    def missing_operation_is_noop(self) -> bool:
+        """
+        父 dispatch 成功且所有已知子流程都已结束时，operation 列表里没有某台主机，
+        表示该主机配置无需变更。父失败时不能这样推断，因为 dispatch 可能没走到该主机。
+        """
+        if not self.parent_workflow_id or self.parent_status != NodeManV3OperationStatus.SUCCESS:
+            return False
+        if not self.children_resolved:
+            return False
+        return all(
+            self.child_statuses.get(workflow_id)
+            in (
+                NodeManV3OperationStatus.SUCCESS,
+                NodeManV3OperationStatus.FAILED,
+                NodeManV3OperationStatus.PARTIAL_FAILED,
+            )
+            for workflow_id in self.plugin_workflow_ids
+        )
 
 
 class CollectorStatusReader:
@@ -222,10 +347,9 @@ class CollectorStatusReader:
 
     状态来源分两层：
 
-    - **权威层**：节点管理的 workflow → operation（per-host），给出最近一轮下发在每台主机上的
-      成败。链路是 execute 返回 trigger_id → plugin/workflow/list 按 deploy_policy_id 反查
-      workflow_id → plugin/workflow/operation/list 按 workflow_id 拿到每台主机的 operation
-      （PluginDeploymentInfo.bk_host_id）。
+    - **权威层**：execute 返回 deploy-policy 父 workflow_id；deploy_policy/workflow/list 给出
+      dispatch 状态和 plugin 子 workflow；再从 plugin workflow → operation（per-host）拿到
+      每台主机的执行结果（PluginDeploymentInfo.bk_host_id）。
     - **本地层**：NodeManV3SubConfigTarget 记录每台主机当前生效的是第几代期望态，用于区分
       「已生效且最新」与「已生效但旧版」——这个区分节点管理给不出来，它只知道最近一轮任务的成败，
       不知道上一代配置是不是还留在机器上。
@@ -235,10 +359,16 @@ class CollectorStatusReader:
     常态，不是下发失败，所以这种情况不能翻红，否则每次采集器升级都会让整页告警。
     """
 
-    def __init__(self, collector_config, plugin_name: str = LogPluginInfo.NAME):
+    def __init__(
+        self,
+        collector_config,
+        plugin_name: str = LogPluginInfo.NAME,
+        task_ids: list[str] | None = None,
+    ):
         self.collector_config = collector_config
         self.plugin_name = plugin_name
         self.bk_biz_id = collector_config.bk_biz_id
+        self.task_ids = {str(task_id) for task_id in (task_ids or []) if task_id}
 
     # ------------------------------------------------------------------
     # binding / workflow
@@ -253,29 +383,48 @@ class CollectorStatusReader:
             ).first()
         return self._binding_cache
 
-    def resolve_workflow_id(self) -> str:
-        """
-        把最近一次 execute 的 trigger_id 解析成 workflow_id。
-
-        deploy_policy/execute 只返回 trigger_id，而 per-host 详情、日志与重试都要 workflow_id。
-        plugin/workflow/list 的精确条件里没有 trigger_id，只能按 deploy_policy_id 过滤后
-        在返回项里匹配 trigger_id。解析结果回写 NodeManV3Workflow，避免每次开状态页都查一遍。
-        """
+    def _latest_workflow(self) -> NodeManV3Workflow | None:
         binding = self.binding
         if not binding or not binding.deploy_policy_id:
-            return ""
-
-        workflow = (
+            return None
+        workflows = (
             NodeManV3Workflow.objects.filter(operation__binding=binding)
+            .select_related("operation")
             .order_by("-operation__generation", "-created_at")
-            .first()
         )
-        if not workflow:
-            return ""
-        if workflow.workflow_id:
-            return workflow.workflow_id
+        if not self.task_ids:
+            return workflows.first()
+        for workflow in workflows:
+            identifiers = {
+                workflow.parent_workflow_id,
+                workflow.workflow_id,
+                workflow.trigger_id,
+                *(workflow.plugin_workflow_ids or []),
+            }
+            if self.task_ids & identifiers:
+                return workflow
+        return None
 
+    def _resolve_plugin_workflows_by_trigger(
+        self,
+        workflow: NodeManV3Workflow,
+        *,
+        force_scan: bool = False,
+        trigger_id: str = "",
+    ) -> list[str]:
+        """按父流程的 trigger_id 回查 plugin workflow，兼容旧记录并修复 children 关联丢失。"""
+        existing_workflow_ids = list(workflow.plugin_workflow_ids or [])
+        if existing_workflow_ids and not force_scan:
+            return existing_workflow_ids
+        if workflow.workflow_id:
+            existing_workflow_ids = list(dict.fromkeys([*existing_workflow_ids, workflow.workflow_id]))
+
+        binding = self.binding
+        effective_trigger_id = trigger_id or workflow.trigger_id
+        if not binding or not binding.deploy_policy_id or not effective_trigger_id:
+            return existing_workflow_ids
         client = get_client(self.bk_biz_id)
+        workflow_ids = list(existing_workflow_ids)
         for items in iter_paged(
             lambda offset: client.list_workflows(
                 {
@@ -286,58 +435,242 @@ class CollectorStatusReader:
             "items",
         ):
             for item in items:
-                if item.get("trigger_id") == workflow.trigger_id and item.get("workflow_id"):
-                    workflow.workflow_id = item["workflow_id"]
-                    workflow.save(update_fields=["workflow_id", "updated_at", "updated_by"])
-                    return workflow.workflow_id
+                if item.get("trigger_id") == effective_trigger_id and item.get("workflow_id"):
+                    workflow_ids.append(item["workflow_id"])
+        workflow_ids = list(dict.fromkeys(workflow_ids))
+        if workflow_ids:
+            workflow.workflow_id = workflow.workflow_id or workflow_ids[0]
+            workflow.plugin_workflow_ids = workflow_ids
+            workflow.save(update_fields=["workflow_id", "plugin_workflow_ids", "updated_at", "updated_by"])
+            return workflow_ids
 
-        # 解析不到不是错误：execute 之后 workflow 可能还没落库，下次开页面再试
         logger.info(
-            f"[nodeman_v3] workflow not resolved yet, trigger_id={workflow.trigger_id}, "
+            f"[nodeman_v3] plugin workflow not resolved by trigger, trigger_id={effective_trigger_id}, "
             f"deploy_policy_id={binding.deploy_policy_id}"
         )
-        return ""
+        return []
+
+    def _list_plugin_workflow_statuses(self, workflow_ids: list[str]) -> dict[str, str]:
+        if not workflow_ids:
+            return {}
+        client = get_client(self.bk_biz_id)
+        statuses = {}
+        for chunk_start in range(0, len(workflow_ids), PAGE_LIMIT):
+            chunk = workflow_ids[chunk_start : chunk_start + PAGE_LIMIT]
+            for items in iter_paged(
+                lambda offset: client.list_workflows(
+                    {
+                        "page": {"offset": offset, "limit": PAGE_LIMIT},
+                        "exact_include_conditions": {"workflow_id": chunk},
+                    }
+                ),
+                "items",
+            ):
+                for item in items:
+                    workflow_id = item.get("workflow_id") or ""
+                    if workflow_id in chunk:
+                        statuses[workflow_id] = item.get("status") or ""
+        return statuses
+
+    @staticmethod
+    def _sync_workflow(
+        workflow: NodeManV3Workflow,
+        *,
+        trigger_id: str,
+        plugin_workflow_ids: list[str],
+        parent_status: str,
+        child_statuses: dict[str, str],
+        normalized_status: str,
+        children_reconciled_by_trigger: bool,
+        parent_terminal_observed_at: int,
+    ) -> None:
+        fields = []
+        updates = {
+            "trigger_id": trigger_id,
+            "plugin_workflow_ids": plugin_workflow_ids,
+            "normalized_status": normalized_status,
+            "status_summary": {
+                "parent_status": parent_status,
+                "plugin_workflow_statuses": child_statuses,
+                "children_reconciled_by_trigger": children_reconciled_by_trigger,
+                "parent_terminal_observed_at": parent_terminal_observed_at,
+            },
+        }
+        for field, value in updates.items():
+            if getattr(workflow, field) != value:
+                setattr(workflow, field, value)
+                fields.append(field)
+        if fields:
+            workflow.save(update_fields=[*fields, "updated_at", "updated_by"])
+
+        operation = workflow.operation
+        if operation.status != normalized_status:
+            operation.status = normalized_status
+            operation.save(update_fields=["status", "updated_at", "updated_by"])
+
+    def resolve_workflows(self) -> WorkflowResolution:
+        """
+        解析最近一次执行的父子 workflow。
+
+        新契约按 execute 返回的父 workflow_id 精确查询，不再按策略扫描历史 plugin workflow。
+        父记录暂不可见、子记录暂不可见都属于异步可见性窗口，保持 running 而不是误报 no-op。
+        """
+        workflow = self._latest_workflow()
+        if not workflow:
+            return WorkflowResolution()
+
+        parent_workflow_id = workflow.parent_workflow_id
+        parent_status = ""
+        trigger_id = workflow.trigger_id
+        plugin_workflow_ids = list(workflow.plugin_workflow_ids or [])
+        cached_summary = workflow.status_summary or {}
+        children_reconciled_by_trigger = bool(cached_summary.get("children_reconciled_by_trigger"))
+        parent_terminal_observed_at = int(cached_summary.get("parent_terminal_observed_at") or 0)
+
+        if parent_workflow_id:
+            client = get_client(self.bk_biz_id)
+            data = client.list_deploy_policy_workflows(
+                {
+                    "page": {"offset": 0, "limit": PAGE_LIMIT},
+                    "exact_include_conditions": {"workflow_id": [parent_workflow_id]},
+                }
+            )
+            parent = next(
+                (item for item in (data.get("items") or []) if item.get("workflow_id") == parent_workflow_id),
+                None,
+            )
+            if parent:
+                parent_status = parent.get("status") or ""
+                trigger_id = parent.get("trigger_id") or trigger_id
+                observed_plugin_workflow_ids = list(
+                    dict.fromkeys(
+                        child.get("workflow_id")
+                        for child in (parent.get("children") or [])
+                        if child.get("type") == "plugin" and child.get("workflow_id")
+                    )
+                )
+                plugin_workflow_ids = list(dict.fromkeys([*plugin_workflow_ids, *observed_plugin_workflow_ids]))
+            else:
+                # workflow 记录有保留期。已经观测过的终态不能因远端记录过期而倒退成 running。
+                parent_status = cached_summary.get("parent_status") or ""
+        else:
+            plugin_workflow_ids = self._resolve_plugin_workflows_by_trigger(workflow)
+
+        terminal_statuses = (
+            NodeManV3OperationStatus.SUCCESS,
+            NodeManV3OperationStatus.FAILED,
+            NodeManV3OperationStatus.PARTIAL_FAILED,
+        )
+        if parent_workflow_id and parent_status in terminal_statuses:
+            now_timestamp = int(timezone.now().timestamp())
+            if not parent_terminal_observed_at:
+                parent_terminal_observed_at = now_timestamp
+            if trigger_id and not children_reconciled_by_trigger:
+                # 宽限期内每次都按 trigger 全量扫描。看到一个 child 不代表关联完整：
+                # NodeMan 对每个 child 独立落关联，允许部分成功、部分延迟或失败。
+                workflow.plugin_workflow_ids = plugin_workflow_ids
+                plugin_workflow_ids = self._resolve_plugin_workflows_by_trigger(
+                    workflow,
+                    force_scan=True,
+                    trigger_id=trigger_id,
+                )
+                children_reconciled_by_trigger = (
+                    now_timestamp - parent_terminal_observed_at >= CHILD_VISIBILITY_GRACE_SECONDS
+                )
+        elif parent_workflow_id:
+            parent_terminal_observed_at = 0
+            children_reconciled_by_trigger = False
+
+        child_statuses = self._list_plugin_workflow_statuses(plugin_workflow_ids)
+        cached_child_statuses = cached_summary.get("plugin_workflow_statuses") or {}
+        for workflow_id in plugin_workflow_ids:
+            if workflow_id not in child_statuses and cached_child_statuses.get(workflow_id):
+                child_statuses[workflow_id] = cached_child_statuses[workflow_id]
+        normalized_status = _aggregate_workflow_status(
+            parent_status,
+            plugin_workflow_ids,
+            child_statuses,
+            has_parent=bool(parent_workflow_id),
+            children_resolved=children_reconciled_by_trigger,
+        )
+        self._sync_workflow(
+            workflow,
+            trigger_id=trigger_id,
+            plugin_workflow_ids=plugin_workflow_ids,
+            parent_status=parent_status,
+            child_statuses=child_statuses,
+            normalized_status=normalized_status,
+            children_reconciled_by_trigger=children_reconciled_by_trigger,
+            parent_terminal_observed_at=parent_terminal_observed_at,
+        )
+        return WorkflowResolution(
+            workflow=workflow,
+            parent_workflow_id=parent_workflow_id,
+            plugin_workflow_ids=plugin_workflow_ids,
+            parent_status=parent_status,
+            child_statuses=child_statuses,
+            normalized_status=normalized_status,
+            children_resolved=children_reconciled_by_trigger,
+        )
 
     # ------------------------------------------------------------------
     # 节点管理侧事实
     # ------------------------------------------------------------------
-    def fetch_host_operations(self, workflow_id: str) -> dict[int, dict]:
+    def fetch_host_operations(self, workflow_ids: list[str]) -> dict[int, dict]:
         """
-        按主机拿到最近一轮下发的 operation。
+        按主机聚合最近一轮所有 plugin 子 workflow 的 operation。
 
-        返回 {bk_host_id: {"operation_id": ..., "state": ..., "raw": ...}}。
+        同一主机可能同时出现在多个子 workflow、每个 workflow 又可能有多个 spec operation。
+        返回值保留完整 operations，顶层 operation_id/state 仅是用于列表展示的最差一条。
         """
-        if not workflow_id:
+        if not workflow_ids:
             return {}
 
         client = get_client(self.bk_biz_id)
         operations: dict[int, dict] = {}
-        for items in iter_paged(
-            lambda offset: client.list_workflow_operations(
-                {
-                    "workflow_id": workflow_id,
-                    "page": {"offset": offset, "limit": PAGE_LIMIT},
-                    "exact_include_conditions": {"plugin_name": [self.plugin_name]},
-                }
-            ),
-            "operations",
-        ):
-            for item in items:
-                bk_host_id = ((item.get("plugin_deployment_info") or {}).get("bk_host_id")) or 0
-                if not bk_host_id:
-                    continue
-                state = ((item.get("latest_oper_inst_brief_data") or {}).get("life_cycle") or {}).get("state") or ""
-                candidate = {
-                    "operation_id": item.get("operation_id") or "",
-                    "state": state,
-                    "instance_ids": item.get("instance_ids") or [],
-                }
-                current = operations.get(int(bk_host_id))
-                # 同一主机会有多个 operation：策略至少带两个 spec（装插件 + 下子配置），
-                # 各自生成一条。直接覆盖等于按接口返回顺序随机取一条，会把失败那条盖掉而显示成功。
-                # 取最坏的那条：只要有一步没成，这台主机就不算下发成功
-                if current is None or _operation_severity(candidate["state"]) > _operation_severity(current["state"]):
-                    operations[int(bk_host_id)] = candidate
+        for workflow_id in workflow_ids:
+            for items in iter_paged(
+                lambda offset, current_workflow_id=workflow_id: client.list_workflow_operations(
+                    {
+                        "workflow_id": current_workflow_id,
+                        "page": {"offset": offset, "limit": PAGE_LIMIT},
+                        "exact_include_conditions": {"plugin_name": [self.plugin_name]},
+                    }
+                ),
+                "operations",
+            ):
+                for item in items:
+                    bk_host_id = ((item.get("plugin_deployment_info") or {}).get("bk_host_id")) or 0
+                    if not bk_host_id:
+                        continue
+                    state = ((item.get("latest_oper_inst_brief_data") or {}).get("life_cycle") or {}).get("state") or ""
+                    candidate = {
+                        "workflow_id": workflow_id,
+                        "operation_id": item.get("operation_id") or "",
+                        "state": state,
+                        "instance_ids": item.get("instance_ids") or [],
+                    }
+                    host = operations.setdefault(
+                        int(bk_host_id),
+                        {
+                            "operation_id": "",
+                            "state": "",
+                            "instance_ids": [],
+                            "operations": [],
+                        },
+                    )
+                    host["operations"].append(candidate)
+                    host["instance_ids"] = list(dict.fromkeys([*host["instance_ids"], *candidate["instance_ids"]]))
+                    if not host["operation_id"] or _operation_severity(candidate["state"]) > _operation_severity(
+                        host["state"]
+                    ):
+                        host.update(
+                            {
+                                "workflow_id": workflow_id,
+                                "operation_id": candidate["operation_id"],
+                                "state": candidate["state"],
+                            }
+                        )
         return operations
 
     def fetch_process_status(self, bk_host_ids: list[int]) -> dict[int, str]:
@@ -381,21 +714,18 @@ class CollectorStatusReader:
         if not binding:
             return {}
 
-        workflow_id = self.resolve_workflow_id()
-        host_operations = self.fetch_host_operations(workflow_id)
+        resolution = self.resolve_workflows()
+        if self.task_ids and resolution.workflow is None:
+            return {}
+        host_operations = self.fetch_host_operations(resolution.plugin_workflow_ids)
+        if self.task_ids:
+            return self._historical_statuses(host_operations, resolution)
 
-        # 本轮 workflow 对应的是哪一代期望态，取自本地 operation 记录而不是节点管理：
-        # 对方不知道我们的 generation，只有我们自己知道这次 execute 推的是第几代
-        workflow = (
-            NodeManV3Workflow.objects.filter(operation__binding=binding, workflow_id=workflow_id)
-            .select_related("operation")
-            .first()
-            if workflow_id
-            else None
-        )
-        dispatched_generation = workflow.operation.generation if workflow else 0
+        # 本轮 workflow 对应的是哪一代期望态，取自本地 operation 记录而不是节点管理。
+        dispatched_generation = resolution.workflow.operation.generation if resolution.workflow else 0
 
         rows = list(NodeManV3SubConfigTarget.objects.filter(binding=binding))
+        process_status = self.fetch_process_status(sorted({row.bk_host_id for row in rows}))
         now = timezone.now()
         for row in rows:
             if not row.is_desired:
@@ -403,10 +733,17 @@ class CollectorStatusReader:
                 # 推进它会让待删除主机在页面上显示成已生效最新
                 continue
             operation = host_operations.get(row.bk_host_id)
-            if not operation:
+            proc = process_status.get(row.bk_host_id, "")
+            process_allows_apply = not proc or proc == PROCESS_STATUS_RUNNING
+            operation_succeeded = operation and (
+                NODEMAN_V3_LIFE_CYCLE_STATE_MAPPING.get(operation["state"]) == NodeManV3OperationStatus.SUCCESS
+            )
+            # 父、子 workflow 均成功但该主机没有 operation，表示 NodeMan 判断资源无需变更。
+            # 这是一轮合法 no-op，仍要把本地代次推进到最新。
+            no_op_succeeded = not operation and resolution.missing_operation_is_noop
+            if not process_allows_apply:
                 continue
-            normalized = NODEMAN_V3_LIFE_CYCLE_STATE_MAPPING.get(operation["state"])
-            if normalized != NodeManV3OperationStatus.SUCCESS:
+            if not operation_succeeded and not no_op_succeeded:
                 continue
             if dispatched_generation <= row.generation:
                 continue
@@ -414,15 +751,58 @@ class CollectorStatusReader:
             row.applied_at = now
             row.save(update_fields=["generation", "applied_at", "updated_at", "updated_by"])
 
-        return self._assemble(binding, rows, host_operations)
+        return self._assemble(
+            binding,
+            rows,
+            host_operations,
+            resolution.normalized_status,
+            resolution.missing_operation_is_noop,
+            resolution.task_id,
+            process_status,
+        )
+
+    def _historical_statuses(
+        self,
+        host_operations: dict[int, dict],
+        resolution: WorkflowResolution,
+    ) -> dict[int, HostStatus]:
+        """
+        显式 task ID 查询是历史审计视图，只按该轮 operation 事实展示。
+
+        当前 target 快照会随编辑、扩缩容变化，既不能拿来补历史 no-op，也不能在查看旧任务时
+        被反向推进。没有 operation 的历史主机因 NodeMan 契约信息不足而不伪造。
+        """
+        generation = resolution.workflow.operation.generation if resolution.workflow else 0
+        statuses = {}
+        for bk_host_id, operation in host_operations.items():
+            normalized = NODEMAN_V3_LIFE_CYCLE_STATE_MAPPING.get(operation.get("state"))
+            if normalized == NodeManV3OperationStatus.SUCCESS:
+                state = NodeManV3TargetState.LATEST
+            elif normalized == NodeManV3OperationStatus.FAILED:
+                state = NodeManV3TargetState.FAILED
+            else:
+                state = NodeManV3TargetState.DISPATCHING
+            statuses[bk_host_id] = HostStatus(
+                bk_host_id=bk_host_id,
+                state=state,
+                applied_generation=generation if normalized == NodeManV3OperationStatus.SUCCESS else 0,
+                task_id=resolution.task_id,
+                operation_id=operation.get("operation_id", ""),
+            )
+        return statuses
 
     def _assemble(
         self,
         binding: NodeManV3Binding,
         rows: list[NodeManV3SubConfigTarget],
         host_operations: dict[int, dict],
+        workflow_status: str,
+        missing_operation_is_noop: bool,
+        task_id: str,
+        process_status: dict[int, str] | None = None,
     ) -> dict[int, HostStatus]:
-        process_status = self.fetch_process_status(sorted({row.bk_host_id for row in rows}))
+        if process_status is None:
+            process_status = self.fetch_process_status(sorted({row.bk_host_id for row in rows}))
 
         # 一个采集项可能声明多个子配置模板（主配置 + 多个子配置），同一主机会有多行。
         # 必须取「最落后」的那一行：只要有一个模板没落地，这台主机就不算生效完整。
@@ -442,7 +822,15 @@ class CollectorStatusReader:
             conservative[bk_host_id] = min(desired_rows or host_rows, key=lambda row: row.generation)
 
         return {
-            bk_host_id: self._classify(binding, row, host_operations, process_status)
+            bk_host_id: self._classify(
+                binding,
+                row,
+                host_operations,
+                process_status,
+                workflow_status,
+                missing_operation_is_noop,
+                task_id,
+            )
             for bk_host_id, row in conservative.items()
         }
 
@@ -452,6 +840,9 @@ class CollectorStatusReader:
         row: NodeManV3SubConfigTarget,
         host_operations: dict[int, dict],
         process_status: dict[int, str],
+        workflow_status: str,
+        missing_operation_is_noop: bool,
+        task_id: str,
     ) -> HostStatus:
         operation = host_operations.get(row.bk_host_id) or {}
         normalized = NODEMAN_V3_LIFE_CYCLE_STATE_MAPPING.get(operation.get("state"))
@@ -461,6 +852,7 @@ class CollectorStatusReader:
             state=NodeManV3TargetState.ABSENT,
             applied_generation=row.generation,
             process_status=proc,
+            task_id=task_id,
             operation_id=operation.get("operation_id", ""),
         )
 
@@ -470,17 +862,44 @@ class CollectorStatusReader:
             status.message = _("已移出采集目标，等待节点管理删除子配置")
             return status
 
+        if (
+            not operation
+            and not missing_operation_is_noop
+            and workflow_status
+            in (
+                NodeManV3OperationStatus.PENDING,
+                NodeManV3OperationStatus.RUNNING,
+            )
+        ):
+            status.state = NodeManV3TargetState.DISPATCHING
+            return status
+
+        if (
+            not operation
+            and not missing_operation_is_noop
+            and workflow_status
+            in (
+                NodeManV3OperationStatus.FAILED,
+                NodeManV3OperationStatus.PARTIAL_FAILED,
+            )
+        ):
+            if proc and proc != PROCESS_STATUS_RUNNING:
+                status.message = _("采集器进程未运行，子配置暂不下发")
+                return status
+            status.state = NodeManV3TargetState.FAILED
+            status.message = _("最近一次部署策略派发失败")
+            return status
+
         if normalized in (NodeManV3OperationStatus.PENDING, NodeManV3OperationStatus.RUNNING):
             status.state = NodeManV3TargetState.DISPATCHING
             return status
 
+        if proc and proc != PROCESS_STATUS_RUNNING:
+            status.state = NodeManV3TargetState.ABSENT
+            status.message = _("采集器进程未运行，子配置暂不下发")
+            return status
+
         if normalized == NodeManV3OperationStatus.FAILED:
-            if proc and proc != PROCESS_STATUS_RUNNING:
-                # 采集器进程不 running 时节点管理本来就不会下发子配置，这不是采集项配置错了。
-                # 判成失败会让每次采集器升级/重启窗口整页翻红，真正的故障反而被淹没
-                status.state = NodeManV3TargetState.ABSENT
-                status.message = _("采集器进程未运行，子配置暂不下发")
-                return status
             status.state = NodeManV3TargetState.FAILED
             status.message = _("最近一次下发失败")
             return status
@@ -513,7 +932,7 @@ class CollectorStatusReader:
             "counts": counts,
             # 兼容旧状态页的三态口径：STALE 归入成功（它确实在出数），PENDING_REMOVAL 不计入
             "success": counts[NodeManV3TargetState.LATEST] + counts[NodeManV3TargetState.STALE],
-            "pending": counts[NodeManV3TargetState.DISPATCHING],
+            "pending": counts[NodeManV3TargetState.DISPATCHING] + counts[NodeManV3TargetState.ABSENT],
             "failed": counts[NodeManV3TargetState.FAILED],
         }
 
@@ -528,15 +947,25 @@ class CollectorStatusReader:
         点开单台详情正是它唯一负担得起的场景，而这时用户要回答的恰恰是
         「这台机器上到底有没有我这份配置」—— 状态页的 workflow 成败推断答不了。
         """
-        workflow_id = self.resolve_workflow_id()
-        operation = self.fetch_host_operations(workflow_id).get(bk_host_id)
+        resolution = self.resolve_workflows()
+        operation = self.fetch_host_operations(resolution.plugin_workflow_ids).get(bk_host_id)
         if not operation:
             return {"bk_host_id": bk_host_id, "instances": [], "logs": {}, "config_files": self._verify(bk_host_id)}
 
         client = get_client(self.bk_biz_id)
-        instances = (client.list_workflow_operation_instances({"operation_id": [operation["operation_id"]]}) or {}).get(
-            "oper_inst_data"
-        ) or []
+        operation_ids_by_workflow: dict[str, list[str]] = {}
+        for item in operation["operations"]:
+            workflow_id = item.get("workflow_id") or ""
+            operation_id = item.get("operation_id") or ""
+            if workflow_id and operation_id:
+                operation_ids_by_workflow.setdefault(workflow_id, []).append(operation_id)
+
+        # instance/list 用首个 operation_id 定位所属 workflow 并做权限校验，不能把不同
+        # plugin workflow 的 operation 混在同一次请求里。
+        instances = []
+        for operation_ids in operation_ids_by_workflow.values():
+            data = client.list_workflow_operation_instances({"operation_id": list(dict.fromkeys(operation_ids))})
+            instances.extend((data or {}).get("oper_inst_data") or [])
 
         logs = {}
         for instance in instances:
@@ -573,36 +1002,47 @@ class CollectorStatusReader:
             )
             return {"checked": False}
 
-    def retry_hosts(self, bk_host_ids: list[int], retry_mod: str = "failed") -> str:
+    def retry_hosts(self, bk_host_ids: list[int]) -> str:
         """
         按主机重试最近一轮下发。
 
         重试的是节点管理侧那一轮 workflow，不是重新推期望态：期望态没变时重推会被指纹短路，
         而这里要做的恰恰是「配置是对的、执行失败了，再跑一次」。
         """
-        workflow_id = self.resolve_workflow_id()
-        if not workflow_id:
-            # 失败关闭：拿不到 workflow_id 就没法定位要重试哪一批，静默成功会让用户
+        resolution = self.resolve_workflows()
+        if not resolution.plugin_workflow_ids:
+            # 失败关闭：拿不到 plugin 子 workflow 就没法定位要重试哪一批，静默成功会让用户
             # 以为已经重试过了
             raise NodeManV3CapabilityBlocked(
-                NodeManV3CapabilityBlocked.MESSAGE.format(err=_("尚未解析到 workflow_id，无法重试"))
+                NodeManV3CapabilityBlocked.MESSAGE.format(err=_("尚未解析到插件子 workflow，无法重试"))
             )
 
-        host_operations = self.fetch_host_operations(workflow_id)
-        operation_ids = [
-            host_operations[bk_host_id]["operation_id"]
-            for bk_host_id in bk_host_ids
-            if bk_host_id in host_operations and host_operations[bk_host_id].get("operation_id")
-        ]
-        if not operation_ids:
+        host_operations = self.fetch_host_operations(resolution.plugin_workflow_ids)
+        operations_by_workflow_and_mode: dict[tuple[str, str], list[dict]] = {}
+        for bk_host_id in bk_host_ids:
+            for item in (host_operations.get(bk_host_id) or {}).get("operations") or []:
+                if NODEMAN_V3_LIFE_CYCLE_STATE_MAPPING.get(item.get("state")) != NodeManV3OperationStatus.FAILED:
+                    continue
+                workflow_id = item.get("workflow_id") or ""
+                operation_id = item.get("operation_id") or ""
+                if workflow_id and operation_id:
+                    retry_mod = "ALL" if item.get("state") == "terminated" else "PARTIAL"
+                    operations_by_workflow_and_mode.setdefault((workflow_id, retry_mod), []).append(item)
+
+        if not operations_by_workflow_and_mode:
             raise NodeManV3CapabilityBlocked(
-                NodeManV3CapabilityBlocked.MESSAGE.format(err=_("目标主机在最近一轮任务中没有执行记录"))
+                NodeManV3CapabilityBlocked.MESSAGE.format(err=_("目标主机在最近一轮任务中没有失败的执行记录"))
             )
 
         binding = self.binding
         operation = binding.operations.order_by("-generation", "-created_at").first() if binding else None
         client = get_client(self.bk_biz_id, operation_id=str(operation.id) if operation else "")
-        client.retry_workflow_operation(
-            {"workflow_id": workflow_id, "retry_mod": retry_mod, "operation_ids": operation_ids}
-        )
-        return workflow_id
+        for (workflow_id, retry_mod), items in operations_by_workflow_and_mode.items():
+            client.retry_workflow_operation(
+                {
+                    "workflow_id": workflow_id,
+                    "retry_mod": retry_mod,
+                    "operation_ids": list(dict.fromkeys(item["operation_id"] for item in items)),
+                }
+            )
+        return resolution.task_id

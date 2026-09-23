@@ -172,7 +172,9 @@ def reconcile_binding_targets(
                         binding=binding,
                         bk_host_id=host_id,
                         config_file_name=config_file_name,
-                        generation=binding.generation,
+                        # 新目标只是进入期望范围，尚未证明配置已落地。生效代次只能由
+                        # workflow operation 成功或可靠的配置文件对账推进。
+                        generation=0,
                         is_desired=True,
                     )
                     continue
