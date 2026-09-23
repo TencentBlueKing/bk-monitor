@@ -9,7 +9,6 @@ import requests
 
 from bk_monitor_base.config import Config
 from bk_monitor_base.config.blueking import BkApiModuleConfig, BlueKingConfig
-from bk_monitor_base.config.nodeman import is_nodeman_v3_enabled
 from bk_monitor_base.infras import nodeman_control, nodeman_runtime
 from bk_monitor_base.infras.nodeman_control.contracts import PluginOperation
 from bk_monitor_base.infras.nodeman_control.v2 import V2HostQueries, V2OfficialPlugins
@@ -35,7 +34,7 @@ def make_config(multi_tenant=True, legacy_mode="apigw"):
 @pytest.mark.parametrize("enabled", [False, True])
 @pytest.mark.parametrize("legacy_mode", ["apigw", "esb"])
 def test_v2_apis_never_change_destination(multi_tenant, enabled, legacy_mode):
-    with mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": "true" if enabled else "false"}):
+    with mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True, ENABLE_NODEMAN_V3=enabled)):
         config = make_config(multi_tenant, legacy_mode)
         for _, cls in inspect.getmembers(client, inspect.isclass):
             if issubclass(cls, client.NodeManApiClient) and cls is not client.NodeManApiClient:
@@ -44,33 +43,26 @@ def test_v2_apis_never_change_destination(multi_tenant, enabled, legacy_mode):
 
 @pytest.mark.parametrize("enabled", [False, True])
 def test_capability_selection(enabled):
-    with (
-        mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": "true" if enabled else "false"}),
-        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=False)),
-    ):
+    with mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True, ENABLE_NODEMAN_V3=enabled)):
         assert isinstance(nodeman_control.get_host_queries(), V3HostQueries if enabled else V2HostQueries)
         assert isinstance(nodeman_control.get_official_plugins(), V3OfficialPlugins if enabled else V2OfficialPlugins)
 
 
-@pytest.mark.parametrize(
-    ("raw_value", "enabled"),
-    [("", False), ("false", False), ("1", False), ("yes", False), ("true", True), ("TRUE", True)],
-)
-def test_nodeman_switch_matches_saas_settings(raw_value, enabled):
-    """空值与非 true 值不能让 Base 单独切到 V3，也不能阻断全局配置初始化。"""
+@pytest.mark.parametrize("raw_value", ["", "false", "1", "yes", "true", "TRUE"])
+def test_base_does_not_read_nodeman_environment_without_monitor_settings(raw_value):
+    """Base 不重复读取环境变量；缺少监控 settings 时保持 V2。"""
     with (
         mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": raw_value}),
         mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=False)),
     ):
-        assert is_nodeman_v3_enabled() is enabled
-        assert nodeman_runtime.nodeman_v3_enabled() is enabled
-        assert isinstance(nodeman_control.get_host_queries(), V3HostQueries if enabled else V2HostQueries)
+        assert nodeman_runtime.nodeman_v3_enabled() is False
+        assert isinstance(nodeman_control.get_host_queries(), V2HostQueries)
         assert not hasattr(Config(), "nodeman")
 
 
 def test_nodeman_switch_unset_keeps_v2():
-    with mock.patch.dict("os.environ", {}, clear=True):
-        assert is_nodeman_v3_enabled() is False
+    with mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True)):
+        assert nodeman_runtime.nodeman_v3_enabled() is False
 
 
 @pytest.mark.parametrize(
@@ -81,14 +73,30 @@ def test_nodeman_switch_unset_keeps_v2():
     ],
 )
 def test_v3_url_inferred_or_explicitly_overridden(override, expected):
-    with (
-        mock.patch.dict("os.environ", {"BKAPP_BKNODEMAN_V3_API_BASE_URL": override}),
-        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=False)),
+    with mock.patch.object(
+        nodeman_runtime,
+        "django_settings",
+        mock.Mock(
+            configured=True,
+            BKNODEMAN_V3_API_BASE_URL=override,
+            BK_COMPONENT_API_URL="https://gateway.example.com/",
+        ),
     ):
         config = make_config()
         resource = v3.InstallPlugin(config=config)
         assert "nodeman_control" not in config.blueking.api_configs
         assert resource._get_api_url({}) == expected
+
+
+def test_v3_url_without_monitor_settings_ignores_environment_override():
+    """Base 不能绕开监控 settings 自行使用环境变量中的 V3 地址。"""
+    with (
+        mock.patch.dict("os.environ", {"BKAPP_BKNODEMAN_V3_API_BASE_URL": "https://unused.example.com/"}),
+        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=False)),
+    ):
+        assert nodeman_runtime.nodeman_v3_base_url("https://gateway.example.com/") == (
+            "https://gateway.example.com/api/bk-nodemgr/prod/"
+        )
 
 
 @pytest.mark.parametrize("outcome", ["success", "api_error", "network_error"])
@@ -140,8 +148,7 @@ def test_v2_capabilities_keep_existing_protocol():
 
 def test_base_facade_invokes_native_client():
     with (
-        mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": "true"}),
-        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=False)),
+        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True, ENABLE_NODEMAN_V3=True)),
         mock.patch.object(v3, "install_plugin", return_value={"workflow_id": "wf-1"}) as install,
         mock.patch.object(api, "plugin_operate") as old_install,
     ):
@@ -155,8 +162,7 @@ def test_base_facade_invokes_native_client():
 def test_v2_latest_does_not_perform_v3_version_resolution():
     """关闭 V3 时 latest 的语义和调用协议均保持 V2。"""
     with (
-        mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": "false"}),
-        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=False)),
+        mock.patch.object(nodeman_runtime, "django_settings", mock.Mock(configured=True, ENABLE_NODEMAN_V3=False)),
         mock.patch.object(api, "plugin_operate", return_value={"job_id": 7}) as install,
         mock.patch.object(v3, "list_plugins") as lookup,
     ):
