@@ -140,12 +140,11 @@ class PartSpec:
 
 @dataclass(frozen=True)
 class PlanResult:
-    """规划输入与产出，随计划版本落库。"""
+    """规划输入与产出，随计划版本落库。分片数由调用方按实际分片计划写入，不在此重复。"""
 
     total_rows: int
     avg_row_bytes: int
     initial_interval_ms: int
-    planned_parts: int
 
 
 def split_thresholds(policy):
@@ -246,7 +245,7 @@ def build_parts(job, policy):
     interval = choose_interval(total, job.start_time, job.end_time, job.time_tick, policy)
     if not total:
         parts = [PartSpec(job.start_time, job.end_time, 0, 0)]
-        return parts, total, _plan_result(parts, total, policy.fallback_row_bytes, interval)
+        return parts, total, _plan_result(total, policy.fallback_row_bytes, interval)
 
     avg_bytes = policy.fallback_row_bytes
     sample = sample_rows(handler, job.start_time, job.end_time, policy.sample_rows)
@@ -271,16 +270,11 @@ def build_parts(job, policy):
     parts = merge_adjacent(parts, policy)
     if len(parts) > policy.max_parts:
         raise PlanError("PART_LIMIT_EXCEEDED", f"分片数量超过上限 {policy.max_parts}")
-    return parts, total, _plan_result(parts, total, avg_bytes, interval)
+    return parts, total, _plan_result(total, avg_bytes, interval)
 
 
-def _plan_result(parts, total, avg_bytes, interval):
-    return PlanResult(
-        total_rows=total,
-        avg_row_bytes=avg_bytes,
-        initial_interval_ms=interval,
-        planned_parts=len(parts),
-    )
+def _plan_result(total, avg_bytes, interval):
+    return PlanResult(total_rows=total, avg_row_bytes=avg_bytes, initial_interval_ms=interval)
 
 
 def run_planning(job_id):

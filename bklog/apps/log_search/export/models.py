@@ -56,6 +56,8 @@ class ExportJob(models.Model):
     estimated_total = models.PositiveBigIntegerField(_("预计总条数"), null=True, blank=True)
     # 叶子分片 actual_rows 的聚合快照，分片变更时整体重算
     actual_total = models.PositiveBigIntegerField(_("已导出条数"), default=0)
+    # 当前生效的计划版本。当前只有 0 -> 1：规划成功后任务进入 READY 就不允许再规划，
+    # 规划失败重试刻意复用同一版本号，因此版本递进依赖后续的"重新规划"入口。
     plan_version = models.PositiveIntegerField(_("当前生效计划版本"), default=0)
     requested_parallelism = models.PositiveSmallIntegerField(_("期望并行上限"), default=4)
     manifest_object_key = models.CharField(_("清单对象名"), max_length=1024, blank=True, default="")
@@ -108,7 +110,6 @@ class ExportPlan(models.Model):
         verbose_name = _("分片导出计划")
         verbose_name_plural = _("45_分片导出计划")
         unique_together = (("job", "plan_version"),)
-        indexes = [models.Index(fields=["status", "created_at"], name="export_plan_status")]
 
 
 class ExportPart(models.Model):

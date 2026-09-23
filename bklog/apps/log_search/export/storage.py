@@ -23,7 +23,6 @@ from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_search.constants import (
     ASYNC_APP_CODE,
-    ASYNC_EXPORT_EXPIRED,
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
@@ -50,14 +49,16 @@ def build_storage(external=False):
             f"分片导出仅支持 COS / BKREPO 存储，当前配置 {toggle_name}.{FEATURE_ASYNC_EXPORT_STORAGE_TYPE}={storage_type!r}"
         )
     storage = StorageType.get_instance(storage_type)
+    # 下载链接的有效期由 download_link 按产物剩余保留时间逐次签发，存储实例上的默认有效期
+    # 不会生效；CosStorage 的构造参数没有默认值，这里显式给 0 表示不设置默认有效期。
     if storage_type == RemoteStorageType.BKREPO.value:
-        return storage(expired=ASYNC_EXPORT_EXPIRED)
+        return storage()
     return storage(
         config.get("qcloud_secret_id"),
         config.get("qcloud_secret_key"),
         config.get("qcloud_cos_region"),
         config.get("qcloud_cos_bucket"),
-        ASYNC_EXPORT_EXPIRED,
+        0,
     )
 
 
