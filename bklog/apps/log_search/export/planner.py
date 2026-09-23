@@ -50,13 +50,10 @@ def build_handler(job, start=None, end=None):
     用任务创建时冻结的快照重建查询 Handler。
 
     这里直接复用 UnifyQueryHandler：路由、字段映射、脱敏与结果投影都由它负责，
-    分片只需要把时间范围收窄到自己的区间。base_dict 用冻结值覆盖，保证一个任务的
-    所有分片下发完全相同的查询条件。
+    分片只需要把时间范围收窄到自己的区间。时间范围只在下面覆盖 base_dict 一处：
+    构造器自己算出的 base_dict 会被整体替换，重复覆盖 search_params 的时间不会生效。
     """
-    params = copy.deepcopy(job.search_params)
-    if start is not None:
-        params["start_time"], params["end_time"] = start, end
-    handler = UnifyQueryHandler(params)
+    handler = UnifyQueryHandler(copy.deepcopy(job.search_params))
     base_dict = copy.deepcopy(job.base_dict)
     if start is not None:
         base_dict["start_time"], base_dict["end_time"] = str(start), str(end)
