@@ -19,7 +19,6 @@ from .django import DjangoConfig
 from .domains import DomainsConfig
 from .elasticsearch import ElasticsearchConfig
 from .metadata import MetadataConfig
-from .nodeman import NodeManConfig
 from .redis import RedisConfig
 from .storage import StorageConfig, StorageName
 
@@ -90,7 +89,6 @@ class Config(BaseSettings):
     )
 
     blueking: BlueKingConfig = Field(default_factory=BlueKingConfig)
-    nodeman: NodeManConfig = Field(default_factory=NodeManConfig)
     encryption: EncryptionConfig = Field(default_factory=EncryptionConfig)
     domains: DomainsConfig = Field(default_factory=DomainsConfig)
     metadata: MetadataConfig = Field(default_factory=MetadataConfig)

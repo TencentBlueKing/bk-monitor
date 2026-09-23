@@ -12,7 +12,6 @@ import pytest
 import requests
 from bk_monitor_base.config import Config
 from bk_monitor_base.config.blueking import BlueKingConfig
-from bk_monitor_base.config.nodeman import NodeManConfig
 from bk_monitor_base.infras import nodeman_control as base_nodeman_control
 from bk_monitor_base.infras.nodeman_control.v2 import V2HostQueries as BaseV2HostQueries
 from bk_monitor_base.infras.nodeman_control.v3 import V3HostQueries as BaseV3HostQueries
@@ -79,7 +78,6 @@ def test_base_and_saas_use_same_settings_in_monitor_process(enabled, override, e
         assert isinstance(base_nodeman_control.get_host_queries(), BaseV3HostQueries if enabled else BaseV2HostQueries)
         base_config = Config(
             blueking=BlueKingConfig(bk_component_api_url="https://wrong.example.com/"),
-            nodeman=NodeManConfig(v3_enabled=not enabled),
         )
         assert BaseInstallPlugin(config=base_config)._get_api_url({}) == expected_url
 

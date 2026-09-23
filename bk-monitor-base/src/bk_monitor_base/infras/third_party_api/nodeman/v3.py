@@ -29,7 +29,7 @@ class NodeManV3Client(BkApiClient, ABC):
     @override
     def _get_api_url(self, params: dict[str, Any]) -> str:
         """沿用现有蓝鲸 API 网关地址，路径在各 API 中完整定义。"""
-        return f"{nodeman_v3_base_url(self.config.nodeman, str(self.config.blueking.api_url))}{self.apigw_path}"
+        return f"{nodeman_v3_base_url(str(self.config.blueking.api_url))}{self.apigw_path}"
 
     @override
     def handle_response(self, response: requests.Response) -> Any:

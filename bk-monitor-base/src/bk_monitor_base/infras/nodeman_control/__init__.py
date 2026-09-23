@@ -4,7 +4,6 @@ from typing import Any
 
 from typing_extensions import override
 
-from bk_monitor_base.config import get_config
 from bk_monitor_base.infras.nodeman_runtime import nodeman_v3_enabled
 from bk_monitor_base.infras.third_party_api.nodeman import v3 as api_v3
 
@@ -24,12 +23,12 @@ _v2_plugins, _v3_plugins = V2OfficialPlugins(), V3OfficialPlugins(_request_v3)
 
 def get_host_queries() -> HostQueries:
     """由统一环境开关选择节点控制面。"""
-    return _v3_hosts if nodeman_v3_enabled(get_config().nodeman) else _v2_hosts
+    return _v3_hosts if nodeman_v3_enabled() else _v2_hosts
 
 
 def get_official_plugins() -> OfficialPlugins:
     """选择独立官方插件控制实现，与采集器安装的 V2 API 无关。"""
-    return _v3_plugins if nodeman_v3_enabled(get_config().nodeman) else _v2_plugins
+    return _v3_plugins if nodeman_v3_enabled() else _v2_plugins
 
 
 class HostQueryService(HostQueries):
