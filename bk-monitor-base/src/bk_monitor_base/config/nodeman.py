@@ -1,18 +1,26 @@
-"""NodeMan V3 控制面路由配置，供监控 SaaS 和 Base 共用。"""
+"""Base 的 NodeMan V3 控制面配置。"""
 
-import os
+from typing import ClassVar
+
+from pydantic import Field
+from pydantic_settings import SettingsConfigDict
+
+from .base import BaseConfigSettings
 
 NODEMAN_V3_GATEWAY_PATH = "api/bk-nodemgr/prod/"
 
 
-def is_nodeman_v3_enabled() -> bool:
-    """仅显式启用时切换控制面；未设置和 false 均保持 V2。"""
-    return os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
+class NodeManConfig(BaseConfigSettings):
+    """集中解析 NodeMan V3 开关和可选地址覆盖。"""
 
+    model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(extra="ignore", validate_by_name=True)
 
-def nodeman_v3_base_url(bk_api_url: str) -> str:
-    """优先使用可选的 V3 地址覆盖，否则从现有网关根地址推导。"""
-    override = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "").strip()
-    if override:
-        return f"{override.rstrip('/')}/"
-    return f"{bk_api_url.rstrip('/')}/{NODEMAN_V3_GATEWAY_PATH}"
+    v3_enabled: bool = Field(default=False, validation_alias="BKAPP_ENABLE_NODEMAN_V3")
+    v3_api_base_url: str = Field(default="", validation_alias="BKAPP_BKNODEMAN_V3_API_BASE_URL")
+
+    def resolved_v3_api_base_url(self, bk_api_url: str) -> str:
+        """优先使用可选的 V3 地址覆盖，否则从现有网关根地址推导。"""
+        override = self.v3_api_base_url.strip()
+        if override:
+            return f"{override.rstrip('/')}/"
+        return f"{bk_api_url.rstrip('/')}/{NODEMAN_V3_GATEWAY_PATH}"

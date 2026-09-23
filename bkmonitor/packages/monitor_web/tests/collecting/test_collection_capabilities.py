@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from django.test import override_settings
 
 from api.node_man.default import FetchSubscriptionStatistic
 from core.drf_resource import api
@@ -34,9 +35,9 @@ def config(config_id=1, tenant="tenant-a", subscription_id=10, plugin_type=Plugi
     )
 
 
-@pytest.mark.parametrize("enabled", ["false", "true"])
+@pytest.mark.parametrize("enabled", [False, True])
 def test_control_switch_does_not_change_collection_backend(enabled):
-    with mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": enabled}):
+    with override_settings(ENABLE_NODEMAN_V3=enabled):
         item = config()
         assert deploy.get_collect_installer_class(item) is NodeManInstaller
         assert isinstance(deploy.get_collect_installer(item), NodeManInstaller)
@@ -299,7 +300,7 @@ def test_v2_statistics_to_list_integration():
         mock.patch.object(FetchSubscriptionStatistic, "request", return_value=response) as query,
         mock.patch.object(backend.CollectorPluginMeta.objects, "filter") as plugins,
         mock.patch.object(backend.CollectConfigMeta.objects, "bulk_update") as update,
-        mock.patch.dict("os.environ", {"BKAPP_ENABLE_NODEMAN_V3": "true"}),
+        override_settings(ENABLE_NODEMAN_V3=True),
     ):
         plugins.return_value.values.return_value = []
         resource = backend.CollectConfigListResource()

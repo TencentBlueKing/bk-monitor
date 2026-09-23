@@ -6,7 +6,7 @@ from typing import Any, ClassVar
 import requests
 from typing_extensions import override
 
-from bk_monitor_base.config.nodeman import nodeman_v3_base_url
+from bk_monitor_base.infras.nodeman_runtime import nodeman_v3_base_url
 from bk_monitor_base.infras.third_party_api.api_client import BkApiClient, BkApiMode
 from bk_monitor_base.infras.third_party_api.errors import BkApiError
 
@@ -29,7 +29,7 @@ class NodeManV3Client(BkApiClient, ABC):
     @override
     def _get_api_url(self, params: dict[str, Any]) -> str:
         """沿用现有蓝鲸 API 网关地址，路径在各 API 中完整定义。"""
-        return f"{nodeman_v3_base_url(str(self.config.blueking.api_url))}{self.apigw_path}"
+        return f"{nodeman_v3_base_url(self.config.nodeman, str(self.config.blueking.api_url))}{self.apigw_path}"
 
     @override
     def handle_response(self, response: requests.Response) -> Any:

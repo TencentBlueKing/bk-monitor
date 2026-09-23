@@ -3,7 +3,6 @@
 from django.conf import settings
 from rest_framework import serializers
 
-from bk_monitor_base.config.nodeman import nodeman_v3_base_url
 from bkmonitor.utils.user import get_admin_username
 from core.drf_resource import APIResource
 from core.errors.api import BKAPIError
@@ -19,7 +18,7 @@ class NodeManV3Resource(APIResource):
 
     @property
     def base_url(self):
-        return nodeman_v3_base_url(settings.BK_COMPONENT_API_URL)
+        return settings.BKNODEMAN_V3_API_BASE_URL or f"{settings.BK_COMPONENT_API_URL.rstrip('/')}/api/bk-nodemgr/prod/"
 
     @property
     def label(self):
