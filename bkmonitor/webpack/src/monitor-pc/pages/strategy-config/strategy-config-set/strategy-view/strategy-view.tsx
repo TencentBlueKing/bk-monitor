@@ -657,9 +657,11 @@ export default class StrategyView extends tsc<IStrateViewProps> {
     if (this.editMode === 'Source') {
       const params = {
         ...timePrams,
-        ...(this.sourceData.queryConfigs?.length > 1 ? { promql_multi_expression: true } : {}),
-        expression: this.expression || 'a',
-        query_configs: (this.sourceData.queryConfigs?.length
+        ...(!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
+          ? { promql_multi_expression: true }
+          : {}),
+        expression: this.sourceData.legacyMultiQuery ? 'a' : this.expression || 'a',
+        query_configs: (!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length
           ? this.sourceData.queryConfigs
           : [{ alias: 'a', promql: this.sourceData.sourceCode }]
         ).map(item => ({

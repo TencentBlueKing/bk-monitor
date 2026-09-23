@@ -221,7 +221,8 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
     } else {
       if (
         this.editMode === 'Source' &&
-        (!this.sourceData.sourceCode || (this.sourceData.queryConfigs?.length > 1 && !this.expression.trim()))
+        (!this.sourceData.sourceCode ||
+          (!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1 && !this.expression.trim()))
       ) {
         this.panel = null;
         return;
@@ -399,7 +400,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
    */
   getQueryParams(isDetect = false, isMetric = true, metrics?) {
     const params = {
-      ...(this.editMode === 'Source' && this.sourceData.queryConfigs?.length > 1
+      ...(this.editMode === 'Source' && !this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
         ? { promql_multi_expression: true }
         : {}),
       expression: this.getExpression(),
@@ -407,7 +408,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       target: this.strategyTarget || [],
       query_configs:
         this.editMode === 'Source'
-          ? (this.sourceData.queryConfigs?.length
+          ? (!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length
               ? this.sourceData.queryConfigs
               : [{ alias: 'a', promql: this.sourceData.sourceCode }]
             ).map(item => ({
