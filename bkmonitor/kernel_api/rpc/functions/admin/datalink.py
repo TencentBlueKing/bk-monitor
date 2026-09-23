@@ -313,6 +313,7 @@ def _fetch_component_config_for_item(instance, item, warnings_list):
         "namespace": "可选，命名空间精确匹配",
         "namespaces": "可选，命名空间数组，最多 100 项；与 namespace 合并去重",
         "search": "可选，按 name 模糊匹配",
+        "vmstorage": "可选，VmQueryCluster 的 monitor_storage_clusters 数组成员精确匹配",
         "status": "可选，状态精确匹配",
         "statuses": "可选，状态数组，最多 100 项；与 status 合并去重",
         "bk_data_id": "可选，数据源 ID (DataId/Databus 类型)",
@@ -359,6 +360,9 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
             queryset = queryset.filter(namespace__in=namespaces)
         if params.get("search"):
             queryset = queryset.filter(name__contains=str(params["search"]).strip())
+        vmstorage = str(params.get("vmstorage") or "").strip()
+        if vmstorage:
+            queryset = queryset.filter(monitor_storage_clusters__contains=[vmstorage])
         statuses = normalize_string_list_filter(params, "status", "statuses")
         if statuses:
             queryset = queryset.filter(status__in=statuses)
