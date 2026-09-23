@@ -40,7 +40,14 @@ import {
   pickConversationId,
 } from '../utils/transform';
 
-import type { LlmExecutionFilter, LlmFlowTrace, LlmOverviewStats, LlmSpanRowView, LlmTraceView } from '../utils/typings';
+import type {
+  LlmExecutionFilter,
+  LlmFlowsResponse,
+  LlmFlowTrace,
+  LlmOverviewStats,
+  LlmSpanRowView,
+  LlmTraceView,
+} from '../utils/typings';
 
 /** 供 TraceLlmObservation 解构的 hook 返回值类型 */
 export type UseLlmObservationReturn = ReturnType<typeof useLlmObservation>;
@@ -74,6 +81,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   const { t } = useI18n();
   const loading = shallowRef(false);
   const traces = shallowRef<LlmFlowTrace[]>([]);
+  const hasTraces = computed(() => traces.value.length > 0);
   const overviewStats = shallowRef<LlmOverviewStats | null>(null);
   const conversationId = shallowRef('');
   const showSession = shallowRef(false);
@@ -154,7 +162,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     const requestId = overviewRequestId;
     markTraceLoading(traceId, true);
     try {
-      const data = await listFlows(
+      const data: LlmFlowsResponse = await listFlows(
         {
           bk_biz_id: bizId,
           app_name: appName,
@@ -187,8 +195,10 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     } catch {
       /* 失败保持未加载，允许再次展开重试 */
     } finally {
-      cancelDetailFetches.delete(traceId);
-      markTraceLoading(traceId, false);
+      if (requestId === overviewRequestId) {
+        cancelDetailFetches.delete(traceId);
+        markTraceLoading(traceId, false);
+      }
     }
   };
 
@@ -205,6 +215,9 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
 
   /** 拉 overview：单 Trace 模式一次带回 flow；会话模式仅 Trace 列表，flow 另走 loadTraceFlow */
   const fetchFlows = async () => {
+    cancelFetch();
+    cancelAllDetailFetches();
+    const requestId = ++overviewRequestId;
     const appName = get(options.appName);
     const traceId = get(options.traceId);
     const bizId = get(options.bizId);
@@ -212,16 +225,14 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       traces.value = [];
       overviewStats.value = null;
       flowLoadedTraceIds.value = new Set();
+      loading.value = false;
       return;
     }
 
-    cancelFetch();
-    cancelAllDetailFetches();
-    const requestId = ++overviewRequestId;
     loading.value = true;
     try {
       const useSession = showSession.value && Boolean(conversationId.value);
-      const data = await listFlows(
+      const data: LlmFlowsResponse = await listFlows(
         {
           bk_biz_id: bizId,
           app_name: appName,
@@ -335,6 +346,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   watch(
     () => [get(options.appName), get(options.traceId), get(options.bizId)] as const,
     () => {
+      traces.value = [];
       conversationId.value = '';
       showSession.value = false;
       filter.value = 'all';
@@ -348,19 +360,12 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   /** showSession 切换会改 group_field，需重新拉 overview；immediate 覆盖首屏进入 */
   watch(
     () => [get(options.appName), get(options.traceId), get(options.bizId), showSession.value] as const,
-    ([, traceId]) => {
-      if (!traceId) {
-        traces.value = [];
-        overviewStats.value = null;
-        flowLoadedTraceIds.value = new Set();
-        return;
-      }
-      fetchFlows();
-    },
+    fetchFlows,
     { immediate: true }
   );
 
   onScopeDispose(() => {
+    ++overviewRequestId;
     cancelFetch();
     cancelAllDetailFetches();
   });
@@ -374,6 +379,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     handleFilterChange,
     handleKeywordChange,
     handleSessionChange,
+    hasTraces,
     keyword,
     kindCounts,
     loading,

@@ -71,7 +71,7 @@ class FlowBuilder:
         return self.flow
 
     def _build_tree(self) -> list[dict[str, Any]]:
-        """按 Span 父子关系成树，标准化结果里缺失的中间 Span 不参与成树。"""
+        """按 Span 父子关系成树，仅展示支持的 Span 类型。"""
         nodes_by_span_id: dict[str, dict[str, Any]] = {
             span[OtlpKey.SPAN_ID]: {
                 **span,
@@ -80,7 +80,7 @@ class FlowBuilder:
                 "childs": [],
             }
             for span in self.spans
-            if span.get(OtlpKey.SPAN_ID)
+            if span.get(OtlpKey.SPAN_ID) and span.get("span_type") in (SpanType.AGENT, SpanType.LLM, SpanType.TOOL)
         }
         raw_span_ids = {span[OtlpKey.SPAN_ID] for span in self.raw_spans if span.get(OtlpKey.SPAN_ID)}
         children_by_parent_id: dict[str, list[dict[str, Any]]] = defaultdict(list)
