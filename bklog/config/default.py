@@ -1340,14 +1340,8 @@ INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
 USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
 
-# 节点管理集成模式：v2（现网订阅链路）| v3_fresh（只用 V3 接口）
-# 刻意不提供混合模式：允许混合会让 V3 的异常路径悄悄退回 V2，产生双写与状态分裂
-NODEMAN_INTEGRATION_MODE = os.getenv("BKAPP_NODEMAN_INTEGRATION_MODE", "v2").lower()
-# V3 灰度白名单（仅在 v3_fresh 下生效，留空表示该环境全部新采集项都走 V3）。
-# 这是**采集项级静态归属**而不是失败回退，判定口径见 nodeman_v3/mode.py:should_use_nodeman_v3
-NODEMAN_V3_COLLECTOR_WHITELIST = os.getenv("BKAPP_NODEMAN_V3_COLLECTOR_WHITELIST", "")
-NODEMAN_V3_BIZ_WHITELIST = os.getenv("BKAPP_NODEMAN_V3_BIZ_WHITELIST", "")
-# 节点管理 V3 网关地址。留空时按 APIGW 约定拼接，联调环境可直连指定地址
+# 节点管理 V3 网关地址。留空时按 APIGW 约定拼接，联调环境可直连指定地址。
+# V3 新采集项准入由数据库 FeatureToggle `nodeman_v3_collector` 控制
 BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
 
 # 预查询时间, 默认6h小时, 0代表禁用

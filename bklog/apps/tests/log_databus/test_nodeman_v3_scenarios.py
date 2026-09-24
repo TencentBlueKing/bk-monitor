@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum
 from apps.log_databus.handlers.collector_scenario import CollectorScenario
@@ -32,6 +32,7 @@ from apps.log_databus.nodeman_v3.constants import (
 )
 from apps.log_databus.nodeman_v3.identity import build_sub_config_name
 from apps.log_databus.nodeman_v3.policy import SubscriptionStepsTranslator, build_policy_payload
+from apps.tests.log_databus.nodeman_v3_test_utils import nodeman_v3_toggle
 from apps.log_search.constants import AgentStatusEnum, CollectorScenarioEnum
 
 PLUGIN_NAME = LogPluginInfo.NAME
@@ -178,7 +179,7 @@ class SameHostIsolationTest(TestCase):
         self.assertEqual(len(names), len(scenario_ids))
 
 
-@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+@nodeman_v3_toggle("on")
 class V2OutboundZeroGateTest(TestCase):
     """
     物理机采集路径的 V2 出站清零门禁。
@@ -337,7 +338,7 @@ class FakeHostListClient:
         return {"items": [item for item in self.items if item["bk_host_id"] in wanted]}
 
 
-@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+@nodeman_v3_toggle("on")
 class AgentStatusV3Test(TestCase):
     """V3 下 Agent 状态改走 topo/host/list，node_status 的映射口径不能有默认在线的口子"""
 

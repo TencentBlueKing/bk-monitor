@@ -608,9 +608,9 @@ def validate_task_id_value(value):
     放宽是按环境而不是按采集项：灰度期间两类采集项并存，序列化阶段判不出归属。
     放宽后的字符集仍然包含纯数字，所以 V2 的整数 ID 照样通得过，不会漏校验。
     """
-    from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
+    from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_available
 
-    if not is_nodeman_v3_only():
+    if not is_nodeman_v3_available():
         return validate_param_value(value)
 
     return all(TASK_ID_PATTERN.match(value_obj) for value_obj in value.split(","))
@@ -665,7 +665,7 @@ class TaskDetailSerializer(serializers.Serializer):
     task_id = serializers.CharField(label=_("任务ID"), required=False)
 
     def validate_task_id(self, value):
-        from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
+        from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_available
 
         # 纯数字一律按 V2 的整数任务 ID 处理。灰度期间两类采集项在同一环境并存，而序列化阶段
         # 拿不到采集项、判不出归属，只能按取值形态区分；V3 的 trigger_id / workflow_id 不是
@@ -673,7 +673,7 @@ class TaskDetailSerializer(serializers.Serializer):
         if value.isdigit():
             return int(value)
 
-        if is_nodeman_v3_only():
+        if is_nodeman_v3_available():
             # V3 的任务标识是字符串，转成整数会直接把 ID 破坏掉
             if not TASK_ID_PATTERN.match(value):
                 raise ValidationError(_("task_id不符合格式"))

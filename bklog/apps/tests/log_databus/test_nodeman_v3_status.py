@@ -23,7 +23,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, PropertyMock, patch
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.utils import timezone
 
 from apps.log_databus.constants import CollectStatus, LogPluginInfo, RunStatus, TargetNodeTypeEnum
@@ -49,6 +49,7 @@ from apps.log_databus.nodeman_v3.status import (
     iter_paged,
     summary_to_status,
 )
+from apps.tests.log_databus.nodeman_v3_test_utils import nodeman_v3_toggle
 
 PLUGIN_NAME = LogPluginInfo.NAME
 TEMPLATE_NAME = f"{PLUGIN_NAME}.conf"
@@ -175,7 +176,7 @@ class FakeStatusClient:
         return [name for name, _payload in self.calls]
 
 
-@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+@nodeman_v3_toggle("on")
 class StatusReaderTest(TestCase):
     def setUp(self):
         self.collector_config = SimpleNamespace(
@@ -869,7 +870,7 @@ class InstanceDataCompatTest(TestCase):
         self.assertEqual(data[0]["instance_info"]["host"]["bk_host_innerip"], "")
 
 
-@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+@nodeman_v3_toggle("on")
 class HostHandlerWiringTest(TestCase):
     """
     物理机 handler 的 V3 接线。

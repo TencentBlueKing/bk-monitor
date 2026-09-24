@@ -34,7 +34,6 @@ from apps.log_databus.nodeman_v3.constants import (
     RESOURCE_TYPE_COLLECTOR_PLUGIN,
     TARGET_RECONCILE_INTERVAL_MINUTES,
 )
-from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
 from apps.log_databus.nodeman_v3.models import (
     NodeManV3Binding,
     NodeManV3Operation,
@@ -70,11 +69,7 @@ def reconcile_nodeman_v3_targets():
     对应地本任务有两条触发线：目标变了就立刻收敛；目标没变也每 FULL_HEAL_INTERVAL_MINUTES
     兜底重放一次。
     """
-    # 这里刻意用环境级判定而不是 should_use_nodeman_v3：下面只遍历 NodeManV3Binding，
-    # 而 binding 只存在于 V3 归属的采集项，灰度白名单外的采集项天然不会进入这个循环
-    if not is_nodeman_v3_only():
-        return
-
+    # binding 是已确立的粘性归属。FeatureToggle 关闭只停止新准入，不能停止历史 V3 采集项收敛
     bindings = NodeManV3Binding.objects.filter(
         resource_type=RESOURCE_TYPE_COLLECTOR_CONFIG,
         is_enabled=True,
@@ -214,11 +209,7 @@ def recover_nodeman_v3_operations():
     期望态覆盖、execute 重复触发只是多跑一轮收敛。新增其它写操作时必须先确认幂等，
     否则不能挂到这条恢复路径上。
     """
-    # 这里刻意用环境级判定而不是 should_use_nodeman_v3：下面只遍历 NodeManV3Binding，
-    # 而 binding 只存在于 V3 归属的采集项，灰度白名单外的采集项天然不会进入这个循环
-    if not is_nodeman_v3_only():
-        return
-
+    # operation 是已发生过的 V3 事实；即使准入开关关闭，卡住的历史操作仍必须恢复
     threshold = timezone.now() - datetime.timedelta(minutes=STUCK_OPERATION_MINUTES)
     stuck = (
         NodeManV3Operation.objects.filter(

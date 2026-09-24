@@ -39,7 +39,7 @@ from apps.log_databus.serializers import (
     CollectorUpdateSerializer,
 )
 from apps.log_databus.nodeman_v3.exceptions import NodeManV3CapabilityBlocked
-from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only, should_use_nodeman_v3
+from apps.log_databus.nodeman_v3.mode import should_use_nodeman_v3
 from apps.log_databus.nodeman_v3.targets import collector_config_ids_by_host
 from apps.log_databus.tasks.bkdata import async_create_bkdata_data_id
 from apps.log_databus.constants import (
@@ -1772,11 +1772,11 @@ class HostCollectorHandler(CollectorHandler):
 
         # V3：没有「订阅」这个对象，query_host_subscriptions 无从对应；而 process/list 只到
         # 进程粒度，同机多采集项共用一个 bkunifylogbeat 进程，从节点管理侧根本查不出
-        # 这台机器上跑着哪几个采集项。改用本地目标快照（BKL-3 维护）反查
+        # 这台机器上跑着哪几个采集项。改用本地目标快照（BKL-3 维护）反查。开关关闭后已有
+        # binding 仍归 V3 管理，不能再用准入开关屏蔽这份事实源；表为空时只是一次空查询
         v3_collector_config_ids = set()
-        if is_nodeman_v3_only():
-            for ids in collector_config_ids_by_host(bk_biz_id, self._resolve_bk_host_ids(params)).values():
-                v3_collector_config_ids.update(ids)
+        for ids in collector_config_ids_by_host(bk_biz_id, self._resolve_bk_host_ids(params)).values():
+            v3_collector_config_ids.update(ids)
 
         if not subscription_ids and not v3_collector_config_ids:
             collectors = CollectorConfig.objects.none()

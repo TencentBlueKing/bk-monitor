@@ -85,7 +85,7 @@ from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
-from apps.log_databus.nodeman_v3.mode import should_use_nodeman_v3
+from apps.log_databus.nodeman_v3.mode import resolve_nodeman_v3_collector_ids, should_use_nodeman_v3
 from apps.log_databus.models import (
     ArchiveConfig,
     CleanStash,
@@ -1302,11 +1302,7 @@ class CollectorHandler:
 
         # 灰度期间同一个列表里会混着两类采集项：V3 归属的与存量 V2 的。必须按归属分流后各查各的，
         # 不能按环境模式一刀切 —— 那会让存量 V2 采集项在状态页集体失能（查不到 V3 binding 全变 UNKNOWN）
-        v3_collector_ids = {
-            collector_obj.collector_config_id
-            for collector_obj in collector_list
-            if should_use_nodeman_v3(collector_obj)
-        }
+        v3_collector_ids = resolve_nodeman_v3_collector_ids(collector_list)
         if v3_collector_ids:
             return_data += self._get_subscription_status_by_list_v3(
                 [obj for obj in collector_list if obj.collector_config_id in v3_collector_ids],

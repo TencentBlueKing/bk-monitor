@@ -22,11 +22,6 @@ the project delivered to anyone in the future.
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-# 节点管理集成模式
-NODEMAN_MODE_V2 = "v2"
-NODEMAN_MODE_V3_FRESH = "v3_fresh"
-NODEMAN_INTEGRATION_MODES = (NODEMAN_MODE_V2, NODEMAN_MODE_V3_FRESH)
-
 # 部署策略 spec 类型（契约见 NodeMan apigw/apidocs/zh/DeployPolicySvc_Create.md）
 SPEC_TYPE_SPECIFY_PLUGIN = "specify_plugin"
 SPEC_TYPE_SPECIFY_PLUGIN_SUB_CONFIG = "specify_plugin_sub_config"

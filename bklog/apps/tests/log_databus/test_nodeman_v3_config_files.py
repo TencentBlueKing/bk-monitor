@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 
 from unittest.mock import patch
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 
 from apps.log_databus.constants import LogPluginInfo
 from apps.log_databus.nodeman_v3.config_files import (
@@ -32,6 +32,7 @@ from apps.log_databus.nodeman_v3.config_files import (
 from apps.log_databus.nodeman_v3.constants import RESOURCE_TYPE_COLLECTOR_CONFIG
 from apps.log_databus.nodeman_v3.identity import build_policy_name, build_resource_key, build_sub_config_name
 from apps.log_databus.nodeman_v3.models import NodeManV3Binding, NodeManV3SubConfigTarget
+from apps.tests.log_databus.nodeman_v3_test_utils import nodeman_v3_toggle
 
 PLUGIN_NAME = LogPluginInfo.NAME
 TEMPLATE_NAME = f"{PLUGIN_NAME}.conf"
@@ -54,7 +55,7 @@ class FakeConfigFilesClient:
         return {"items": self.items}
 
 
-@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+@nodeman_v3_toggle("on")
 class HostConfigFactsTest(TestCase):
     def setUp(self):
         self.binding = NodeManV3Binding.objects.create(

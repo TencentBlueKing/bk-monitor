@@ -1079,9 +1079,9 @@ class BizHandler(APIModel):
         if not ip_info_list:
             return {}
 
-        from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only
+        from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
 
-        if is_nodeman_v3_only():
+        if is_nodeman_v3_admitted(self.bk_biz_id):
             return self._get_agent_status_v3([host["bk_host_id"] for host in host_list])
 
         # 添加no_request参数, 多线程调用时，保证用户信息不漏传

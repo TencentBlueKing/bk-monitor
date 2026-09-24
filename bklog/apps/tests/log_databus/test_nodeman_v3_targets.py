@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 import datetime
 from unittest.mock import patch
 
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.utils import timezone
 
 from apps.log_databus.constants import LogPluginInfo, TargetNodeTypeEnum
@@ -46,6 +46,7 @@ from apps.log_databus.nodeman_v3.targets import (
     purge_removed_targets,
     reconcile_binding_targets,
 )
+from apps.tests.log_databus.nodeman_v3_test_utils import nodeman_v3_toggle
 
 PLUGIN_NAME = LogPluginInfo.NAME
 TEMPLATE_NAME = f"{PLUGIN_NAME}.conf"
@@ -295,7 +296,7 @@ class HostReverseLookupTest(TestCase):
         self.assertEqual(collector_config_ids_by_host(BK_BIZ_ID + 1, [11]), {})
 
 
-@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+@nodeman_v3_toggle("on")
 class PeriodicReconcileTest(TestCase):
     """定时收敛与中断恢复"""
 
@@ -413,9 +414,19 @@ class PeriodicReconcileTest(TestCase):
 
         self.assertEqual(self.mock_installer.return_value.rerun.call_count, 2)
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="v2")
-    def test_task_is_noop_in_v2_mode(self):
+    @nodeman_v3_toggle("off")
+    def test_toggle_off_keeps_existing_binding_reconciled(self):
         self._run_targets_task()
+        self.mock_installer.return_value.rerun.assert_called_once()
+
+    @nodeman_v3_toggle("off")
+    def test_empty_v3_state_does_not_call_external_api(self):
+        NodeManV3Operation.objects.all().delete()
+        NodeManV3Binding.objects.all().delete()
+
+        self._run_targets_task()
+        self._run_recovery()
+
         self.mock_installer.assert_not_called()
 
     def test_stuck_operation_is_recovered(self):
@@ -502,8 +513,8 @@ class PeriodicReconcileTest(TestCase):
         self.assertEqual(operation.status, NodeManV3OperationStatus.FAILED)
         self.mock_installer.return_value.apply.assert_not_called()
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="v2")
-    def test_recovery_is_noop_in_v2_mode(self):
+    @nodeman_v3_toggle("off")
+    def test_toggle_off_keeps_stuck_history_recoverable(self):
         NodeManV3Operation.objects.create(
             binding=self.binding,
             operation_type=NodeManV3OperationType.RECONCILE,
@@ -513,7 +524,7 @@ class PeriodicReconcileTest(TestCase):
 
         self._run_recovery()
 
-        self.mock_installer.assert_not_called()
+        self.mock_installer.return_value.apply.assert_called_once()
 
 
 class CeleryRegistrationTest(TestCase):

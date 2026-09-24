@@ -36,7 +36,11 @@ from apps.log_databus.nodeman_v3.exceptions import (
     NodeManV3UnknownResultError,
 )
 from apps.log_databus.nodeman_v3.identity import build_policy_name, build_resource_key, build_sub_config_name
-from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_only, should_use_nodeman_v3
+from apps.log_databus.nodeman_v3.mode import (
+    is_nodeman_v3_admitted,
+    resolve_nodeman_v3_collector_ids,
+    should_use_nodeman_v3,
+)
 from apps.log_databus.nodeman_v3.policy import (
     SubscriptionStepsTranslator,
     build_plugin_install_payload,
@@ -47,6 +51,7 @@ from apps.log_databus.nodeman_v3.policy import (
 from apps.log_databus.nodeman_v3.models import NodeManV3Binding, NodeManV3SubConfigTarget
 from apps.log_databus.nodeman_v3.scopes import build_scopes
 from apps.log_databus.nodeman_v3.versions import resolve_plugin_version
+from apps.tests.log_databus.nodeman_v3_test_utils import nodeman_v3_toggle
 from apps.log_search.constants import CollectorScenarioEnum
 
 PLUGIN_NAME = LogPluginInfo.NAME
@@ -388,29 +393,34 @@ class ClientEnvelopeTest(TestCase):
 
 
 class IntegrationModeTest(TestCase):
-    @override_settings(NODEMAN_INTEGRATION_MODE="v2")
-    def test_default_mode_is_v2(self):
-        self.assertFalse(is_nodeman_v3_only())
+    @nodeman_v3_toggle("off")
+    def test_default_toggle_off_uses_v2(self):
+        self.assertFalse(is_nodeman_v3_admitted(2))
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
-    def test_v3_fresh_mode(self):
-        self.assertTrue(is_nodeman_v3_only())
+    @nodeman_v3_toggle("on")
+    def test_toggle_on_admits_v3(self):
+        self.assertTrue(is_nodeman_v3_admitted(2))
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="hybrid")
-    def test_hybrid_mode_is_rejected(self):
-        # 混合模式会让 V3 的异常路径悄悄退回 V2，产生双写与状态分裂
-        from django.core.exceptions import ImproperlyConfigured
+    def test_missing_toggle_fails_closed(self):
+        from apps.feature_toggle.models import FeatureToggle
+        from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
 
-        with self.assertRaises(ImproperlyConfigured):
-            is_nodeman_v3_only()
+        FeatureToggle.origin_objects.filter(name=NODEMAN_V3_COLLECTOR).delete()
+        self.assertFalse(is_nodeman_v3_admitted(2))
+
+    def test_toggle_database_error_fails_closed(self):
+        from apps.feature_toggle.models import FeatureToggle
+
+        with patch.object(FeatureToggle.objects, "filter", side_effect=RuntimeError("db unavailable")):
+            self.assertFalse(is_nodeman_v3_admitted(2))
 
 
-@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+@nodeman_v3_toggle("on")
 class GrayRolloutOwnershipTest(TestCase):
     """
     采集项级灰度归属。
 
-    存量环境装满了带 subscription_id 的 V2 采集项，整环境打开 v3_fresh 会把它们的状态页、
+    存量环境装满了带 subscription_id 的 V2 采集项，全量打开开关会把它们的状态页、
     启停、删除全部指向 V3，而它们没有 V3 binding —— 表现就是老采集项集体失能。所以归属必须
     按采集项判定。
 
@@ -425,37 +435,36 @@ class GrayRolloutOwnershipTest(TestCase):
             subscription_id=subscription_id,
         )
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="v2")
-    def test_v2_mode_never_uses_v3(self):
+    @nodeman_v3_toggle("off")
+    def test_toggle_off_never_admits_new_v3(self):
         self.assertFalse(should_use_nodeman_v3(self._config()))
 
-    def test_new_collector_uses_v3_when_whitelist_empty(self):
-        # 白名单留空等价于原来 v3_fresh 的全量语义，不改变全新环境的行为
+    def test_toggle_on_admits_new_collector(self):
         self.assertTrue(should_use_nodeman_v3(self._config()))
 
     def test_existing_v2_collector_stays_on_v2(self):
         # 判据是 subscription_id：V3 下发的采集项这个字段恒为空（IntegerField 存不下 workflow_id）
         self.assertFalse(should_use_nodeman_v3(self._config(subscription_id=12345)))
 
-    @override_settings(NODEMAN_V3_COLLECTOR_WHITELIST="9001,9002")
+    @nodeman_v3_toggle("debug", collector_ids=[9001, 9002])
     def test_collector_whitelist_selects_targets(self):
         self.assertTrue(should_use_nodeman_v3(self._config(collector_config_id=9002)))
         self.assertFalse(should_use_nodeman_v3(self._config(collector_config_id=9003)))
 
-    @override_settings(NODEMAN_V3_BIZ_WHITELIST="7")
+    @nodeman_v3_toggle("debug", biz_ids=[7])
     def test_biz_whitelist_selects_targets(self):
         self.assertTrue(should_use_nodeman_v3(self._config(bk_biz_id=7)))
         self.assertFalse(should_use_nodeman_v3(self._config(bk_biz_id=2)))
 
-    @override_settings(NODEMAN_V3_COLLECTOR_WHITELIST="not-an-id, 9001 ,")
+    @nodeman_v3_toggle("debug", collector_ids=["not-an-id", 9001, ""])
     def test_malformed_whitelist_entry_does_not_void_the_rest(self):
         # 一个笔误不能把整张白名单废掉，否则灰度会在无人察觉时退回全量
         self.assertTrue(should_use_nodeman_v3(self._config(collector_config_id=9001)))
         self.assertFalse(should_use_nodeman_v3(self._config(collector_config_id=9003)))
 
-    @override_settings(NODEMAN_V3_COLLECTOR_WHITELIST="9999")
+    @nodeman_v3_toggle("off")
     def test_existing_binding_outranks_whitelist_shrink(self):
-        # 白名单收窄不能把已经通过 V3 下发过的采集项踢回 V2：主机上那份 V3 子配置会失去控制面，
+        # 开关关闭不能把已经通过 V3 下发过的采集项踢回 V2：主机上那份 V3 子配置会失去控制面，
         # 既不会被更新也不会被删除，变成永久残留。归属只能前进
         from apps.log_databus.nodeman_v3.constants import RESOURCE_TYPE_COLLECTOR_CONFIG
         from apps.log_databus.nodeman_v3.models import NodeManV3Binding
@@ -470,6 +479,23 @@ class GrayRolloutOwnershipTest(TestCase):
             policy_name=build_policy_name(9001),
         )
         self.assertTrue(should_use_nodeman_v3(config))
+
+    @nodeman_v3_toggle("debug", biz_ids=[7])
+    def test_bulk_resolver_reads_toggle_and_bindings_once(self):
+        configs = [
+            self._config(collector_config_id=9001, bk_biz_id=7),
+            self._config(collector_config_id=9002, bk_biz_id=2),
+        ]
+        from apps.feature_toggle.handlers.toggle import FeatureToggleObject
+        from apps.log_databus.nodeman_v3.models import NodeManV3Binding
+
+        with (
+            patch.object(FeatureToggleObject, "toggle", wraps=FeatureToggleObject.toggle) as toggle,
+            patch.object(NodeManV3Binding.objects, "filter", wraps=NodeManV3Binding.objects.filter) as bindings,
+        ):
+            self.assertEqual(resolve_nodeman_v3_collector_ids(configs), {9001})
+        self.assertEqual(toggle.call_count, 1)
+        self.assertEqual(bindings.call_count, 1)
 
     def test_v2_owned_collector_takes_v2_path_not_v3_installer(self):
         # 反向门禁：BKL-5 的 V2OutboundZeroGateTest 证明「V3 归属不出 V2」，
@@ -554,7 +580,7 @@ class FakeNodeManV3Client:
         ]
 
 
-@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+@nodeman_v3_toggle("on")
 class ReconcileBehaviourTest(TestCase):
     def setUp(self):
         from types import SimpleNamespace
@@ -805,7 +831,7 @@ class ReconcileBehaviourTest(TestCase):
         self.assertEqual(kinds, ["collector", "collector", "plugin", "plugin"])
 
 
-@override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+@nodeman_v3_toggle("on")
 class InstallPolicyScopeTest(TestCase):
     """安装策略的目标范围是业务内所有启用中采集项的并集"""
 
@@ -867,20 +893,70 @@ class InstallPolicyScopeTest(TestCase):
 
 
 class MigrationStateTest(TestCase):
-    def test_log_databus_has_no_pending_migrations(self):
+    @staticmethod
+    def _toggle_migration():
+        from importlib import import_module
+
+        return import_module("apps.feature_toggle.migrations.0011_init_nodeman_v3_collector_toggle")
+
+    def test_nodeman_v3_apps_have_no_pending_migrations(self):
         # V3 控制面模型的迁移是手写的，这里防止模型与迁移文件长期漂移
         from io import StringIO
 
         from django.core.management import call_command
 
         out = StringIO()
-        call_command("makemigrations", "log_databus", check=True, dry_run=True, stdout=out, verbosity=1)
+        call_command(
+            "makemigrations", "log_databus", "feature_toggle", check=True, dry_run=True, stdout=out, verbosity=1
+        )
+
+    def test_toggle_migration_preserves_existing_record(self):
+        from django.apps import apps as django_apps
+
+        from apps.feature_toggle.models import FeatureToggle
+        from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
+
+        toggle, _ = FeatureToggle.objects.update_or_create(
+            name=NODEMAN_V3_COLLECTOR,
+            defaults={"status": "off", "biz_id_white_list": [2], "feature_config": {"custom": True}},
+        )
+
+        self._toggle_migration().forwards_func(django_apps, None)
+
+        toggle.refresh_from_db()
+        self.assertEqual(toggle.status, "off")
+        self.assertEqual(toggle.biz_id_white_list, [2])
+        self.assertEqual(toggle.feature_config, {"custom": True})
+
+    def test_toggle_migration_creates_missing_record_as_on(self):
+        from django.apps import apps as django_apps
+
+        from apps.feature_toggle.models import FeatureToggle
+        from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
+
+        FeatureToggle.origin_objects.filter(name=NODEMAN_V3_COLLECTOR).delete()
+        self._toggle_migration().forwards_func(django_apps, None)
+
+        toggle = FeatureToggle.objects.get(name=NODEMAN_V3_COLLECTOR)
+        self.assertEqual(toggle.status, "on")
+        self.assertEqual(toggle.feature_config, {"collector_config_ids": []})
+
+    def test_toggle_reverse_migration_preserves_record(self):
+        from django.apps import apps as django_apps
+
+        from apps.feature_toggle.models import FeatureToggle
+        from apps.feature_toggle.plugins.constants import NODEMAN_V3_COLLECTOR
+
+        FeatureToggle.objects.update_or_create(name=NODEMAN_V3_COLLECTOR, defaults={"status": "debug"})
+        self._toggle_migration().backwards_func(django_apps, None)
+
+        self.assertTrue(FeatureToggle.objects.filter(name=NODEMAN_V3_COLLECTOR, status="debug").exists())
 
 
 class V2ZeroImpactTest(TestCase):
     """V2 模式下不得出现任何 V3 出站调用"""
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="v2")
+    @nodeman_v3_toggle("off")
     def test_v2_mode_does_not_touch_v3_installer(self):
         from apps.log_databus.handlers.collector.host import HostCollectorHandler
 
@@ -895,14 +971,14 @@ class V2ZeroImpactTest(TestCase):
             self.assertIsNone(handler._pre_stop())
             self.assertIsNone(handler._pre_destroy())
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="v2")
+    @nodeman_v3_toggle("off")
     def test_task_id_validation_stays_numeric_in_v2(self):
         from apps.log_databus.serializers import validate_task_id_value
 
         self.assertTrue(validate_task_id_value("123,456"))
         self.assertFalse(validate_task_id_value("trigger-abc"))
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+    @nodeman_v3_toggle("on")
     def test_task_id_validation_accepts_string_ids_in_v3(self):
         from apps.log_databus.serializers import validate_task_id_value
 
@@ -1007,19 +1083,21 @@ class ListCollectorsByHostGrayTest(TestCase):
             rows = handler.list_collectors_by_host({"bk_biz_id": self.BK_BIZ_ID, "bk_host_id": self.BK_HOST_ID})
         return {row["collector_config_id"] for row in rows}
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
     def test_gray_env_returns_both_v2_and_v3_collectors(self):
         self.assertEqual(
             self._list(),
             {self.v2_collector.collector_config_id, self.v3_collector.collector_config_id},
         )
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="v2")
-    def test_v2_env_only_returns_v2_collectors(self):
-        # V3 快照表在 V2 环境下不该被读，否则会把 V3 采集项泄漏到 V2 环境的反查结果里
-        self.assertEqual(self._list(), {self.v2_collector.collector_config_id})
+    @nodeman_v3_toggle("off")
+    def test_toggle_off_keeps_existing_v3_collector_visible(self):
+        # toggle 只管新准入；已有 V3 binding 仍必须能从主机反查到，否则无法继续管理或删除
+        self.assertEqual(
+            self._list(),
+            {self.v2_collector.collector_config_id, self.v3_collector.collector_config_id},
+        )
 
-    @override_settings(NODEMAN_INTEGRATION_MODE="v3_fresh")
+    @nodeman_v3_toggle("on")
     def test_no_v2_subscription_means_no_v2_outbound_call(self):
         from apps.log_databus.handlers.collector.host import HostCollectorHandler
         from apps.log_databus.models import CollectorConfig
