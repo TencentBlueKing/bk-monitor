@@ -26,7 +26,7 @@ from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from blueapps.core.celery.celery import app
 from django.conf import settings
@@ -47,8 +47,14 @@ from apps.log_search.constants import (
     ExportPlanStatus,
     ExportPartStatus,
     ExportStage,
+    ExportStatus,
+    ExportType,
 )
-from apps.log_search.exceptions import PreCheckAsyncExportException
+from apps.log_search.exceptions import (
+    AsyncExportRequestBusyException,
+    ConcurrentExportLimitException,
+    PreCheckAsyncExportException,
+)
 from apps.log_search.export import state
 from apps.log_search.export.config import (
     CONTROL_QUEUE,
@@ -59,7 +65,7 @@ from apps.log_search.export.config import (
 )
 from apps.log_search.export.api import create_export_job, download_link, job_detail, job_results
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
-from apps.log_search.models import LogIndexSet, Scenario, Space
+from apps.log_search.models import AsyncTask, LogIndexSet, Scenario, Space
 from apps.log_search.views.export_views import ExportJobViewSet
 from apps.log_search.export.worker import _execute, _pack, _write_rows, run_part
 from apps.log_search.export.planner import (
@@ -1756,6 +1762,127 @@ class EmptyExportPreCheckTests(TestCase):
 
         self.assertEqual(job.status, ExportJobStatus.PENDING)
         self.assertEqual(job.index_set_id, self.index_set.pk)
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a", MAX_CONCURRENT_EXPORT_TASKS=3)
+class ExportJobAdmissionTests(TestCase):
+    """分片导出任务与旧 AsyncTask 共用同一个用户级准入额度，并在同一把锁内占额度。"""
+
+    SPACE_UID = "bkcc__12"
+
+    def setUp(self):
+        Space.objects.create(
+            space_uid=self.SPACE_UID,
+            bk_biz_id=12,
+            space_type_id="bkcc",
+            space_type_name="业务",
+            space_id="12",
+            space_name="biz-12",
+            bk_tenant_id="tenant-a",
+        )
+        self.index_set = LogIndexSet.objects.create(
+            index_set_id=758,
+            index_set_name="index-758",
+            space_uid=self.SPACE_UID,
+            category_id="application",
+            scenario_id=Scenario.LOG,
+        )
+
+    def create(self, username="tester"):
+        """走创建入口建任务；配额不足时由准入校验抛异常。"""
+        handler = MagicMock(base_dict={"query_list": []}, origin_order_by=[], is_desensitize=True)
+        with (
+            patch("apps.log_search.export.api.is_enabled", return_value=True),
+            patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
+            patch("apps.log_search.export.api.is_definitely_empty", return_value=False),
+            patch("apps.log_search.export.api.get_request_username", return_value=username),
+            patch("apps.log_search.export.api.get_request_external_username", return_value=""),
+            patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
+        ):
+            return create_export_job(
+                {
+                    "space_uid": self.SPACE_UID,
+                    "index_set_id": self.index_set.pk,
+                    "start_time": 0,
+                    "end_time": 2000,
+                    "keyword": "*",
+                    "addition": [],
+                    "ip_chooser": {},
+                    "sort_list": [],
+                    "export_fields": [],
+                }
+            )
+
+    def test_export_jobs_count_towards_the_user_limit(self):
+        for _ in range(3):
+            create_job(created_by="tester", status=ExportJobStatus.RUNNING)
+
+        with self.assertRaises(ConcurrentExportLimitException):
+            self.create()
+
+        self.assertEqual(ExportJob.objects.filter(created_by="tester").count(), 3)
+
+    def test_old_and_new_tasks_share_one_budget(self):
+        for _ in range(2):
+            AsyncTask.objects.create(
+                created_by="tester",
+                scenario_id=Scenario.LOG,
+                request_param={"index_set_ids": [1]},
+                export_type=ExportType.ASYNC,
+                export_status=ExportStatus.DOWNLOAD_LOG,
+            )
+        create_job(created_by="tester", status=ExportJobStatus.PLANNING)
+
+        with self.assertRaises(ConcurrentExportLimitException):
+            self.create()
+
+    def test_terminal_job_releases_the_quota(self):
+        for _ in range(3):
+            create_job(created_by="tester", status=ExportJobStatus.CANCELED)
+
+        self.assertEqual(self.create().status, ExportJobStatus.PENDING)
+
+    def test_other_user_quota_is_isolated(self):
+        for _ in range(3):
+            create_job(created_by="other", status=ExportJobStatus.RUNNING)
+
+        self.assertEqual(self.create().status, ExportJobStatus.PENDING)
+
+    @override_settings(USE_REDIS=True)
+    def test_create_occupies_the_shared_user_lock(self):
+        lock = Mock()
+        lock.acquire.return_value = True
+
+        with patch("apps.log_search.models.cache.lock", return_value=lock) as mock_cache_lock:
+            job = self.create()
+
+        lock.acquire.assert_called_once_with()
+        lock.release.assert_called_once_with()
+        self.assertEqual(mock_cache_lock.call_args.args[0], AsyncTask.export_create_lock_key("tester"))
+        self.assertEqual(job.created_by, "tester")
+
+    @override_settings(USE_REDIS=True)
+    def test_busy_lock_rejects_creation_without_persisting(self):
+        lock = Mock()
+        lock.acquire.return_value = False
+
+        with patch("apps.log_search.models.cache.lock", return_value=lock):
+            with self.assertRaises(AsyncExportRequestBusyException):
+                self.create()
+
+        lock.release.assert_not_called()
+        self.assertFalse(ExportJob.objects.exists())
+
+    @override_settings(USE_REDIS=True)
+    def test_redis_failure_falls_back_to_non_atomic_check(self):
+        lock = Mock()
+        lock.acquire.side_effect = RedisError("redis down")
+
+        with patch("apps.log_search.models.cache.lock", return_value=lock):
+            job = self.create()
+
+        lock.release.assert_not_called()
+        self.assertEqual(job.status, ExportJobStatus.PENDING)
 
 
 class DownloadLinkTests(TestCase):

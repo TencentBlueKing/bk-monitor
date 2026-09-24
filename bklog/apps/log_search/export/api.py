@@ -80,6 +80,7 @@ def create_export_job(data):
 
     index = LogIndexSet.objects.get(index_set_id=data["index_set_id"])
 
+    # 先按当前额度快速拒绝，避免为必然失败的任务发起查询；真正占额度在落库时锁内复检
     AsyncTask.check_running_count_by_user(username)
 
     params = {
@@ -109,21 +110,25 @@ def create_export_job(data):
     if is_definitely_empty(handler, data["start_time"], data["end_time"]):
         raise PreCheckAsyncExportException()
 
-    return ExportJob.objects.create(
-        space_uid=space.space_uid,
-        created_by=username,
-        source_app_code=get_request_app_code(),
-        is_external=bool(get_request_external_username()),
-        index_set_id=index.pk,
-        bk_biz_id=space.bk_biz_id,
-        search_params=params,
-        base_dict=copy.deepcopy(handler.base_dict),
-        policy=policy.snapshot(),
-        start_time=data["start_time"],
-        end_time=data["end_time"],
-        requested_parallelism=requested_parallelism,
-        status=ExportJobStatus.PENDING,
-    )
+    # 额度复检与落库必须在同一把用户级锁内：两个并发请求都通过上面的检查时，
+    # 只有一个能在锁内看到对方的任务并真正占住额度
+    with AsyncTask.export_create_lock(username):
+        AsyncTask.check_running_count_by_user(username)
+        return ExportJob.objects.create(
+            space_uid=space.space_uid,
+            created_by=username,
+            source_app_code=get_request_app_code(),
+            is_external=bool(get_request_external_username()),
+            index_set_id=index.pk,
+            bk_biz_id=space.bk_biz_id,
+            search_params=params,
+            base_dict=copy.deepcopy(handler.base_dict),
+            policy=policy.snapshot(),
+            start_time=data["start_time"],
+            end_time=data["end_time"],
+            requested_parallelism=requested_parallelism,
+            status=ExportJobStatus.PENDING,
+        )
 
 
 def _leaf_counts(job):
