@@ -2438,7 +2438,6 @@ class DataLink(models.Model):
         ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
         """
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
-        cmdb_table_id = f"{table_id}_cmdb"
         supports_cmdb_output = self.data_link_strategy in {
             self.BK_EXPORTER_TIME_SERIES,
             self.BK_STANDARD_TIME_SERIES,
@@ -2462,16 +2461,9 @@ class DataLink(models.Model):
         # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。
         # 存量链路里 table_id / bk_data_id 可能缺失，复用判断只依赖 datalink
         # 下同 kind 组件的一对一关系；同 kind 多条会留给 leftover 校验兜底。
-        if existing_context is not None:
-            if supports_cmdb_output:
-                existing_rt = existing_context.claim(
-                    ResultTableConfig,
-                    lambda c: c.table_id != cmdb_table_id and not c.name.endswith("_cmdb"),
-                )
-            else:
-                existing_rt = existing_context.claim(ResultTableConfig, lambda c: True)
-        else:
-            existing_rt = None
+        existing_rt = (
+            existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
+        )
         rt_name = bkbase_vmrt_name
         if existing_rt:
             rt_name = existing_rt.name
@@ -2485,25 +2477,6 @@ class DataLink(models.Model):
                 # 需要剔除业务ID前缀
                 vmrt_id = existing_vm_record.vm_result_table_id
                 rt_name = vmrt_id.split("_", 1)[-1]
-
-        cmdb_rt_name = f"{rt_name}_cmdb"
-        existing_cmdb_rt = None
-        if existing_context is not None and supports_cmdb_output:
-            existing_cmdb_rt = existing_context.claim(
-                ResultTableConfig,
-                lambda c: c.table_id == cmdb_table_id or c.name == cmdb_rt_name,
-            )
-            if existing_cmdb_rt is not None:
-                cmdb_rt_name = existing_cmdb_rt.name
-
-        should_compose_cmdb_rt = cmdb_output_enabled or existing_cmdb_rt is not None
-        if supports_cmdb_output and not should_compose_cmdb_rt:
-            should_compose_cmdb_rt = ResultTableConfig.objects.filter(
-                name=cmdb_rt_name,
-                data_link_name=self.data_link_name,
-                namespace=self.namespace,
-                bk_tenant_id=self.bk_tenant_id,
-            ).exists()
 
         existing_binding = (
             existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
@@ -2530,16 +2503,6 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={"table_id": table_id},
             )
-            vm_table_id_ins_cmdb = None
-            if should_compose_cmdb_rt:
-                vm_table_id_ins_cmdb, _ = ResultTableConfig.objects.update_or_create(
-                    name=cmdb_rt_name,
-                    data_link_name=self.data_link_name,
-                    namespace=self.namespace,
-                    bk_biz_id=bk_biz_id,
-                    bk_tenant_id=self.bk_tenant_id,
-                    defaults={"table_id": cmdb_table_id},
-                )
             vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=binding_name,
                 data_link_name=self.data_link_name,
@@ -2586,31 +2549,27 @@ class DataLink(models.Model):
 
         transform_format = self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy)
         transform_options = None
-        if cmdb_output_enabled and vm_table_id_ins_cmdb is not None:
-            bkbase_cmdb_table_id = vm_table_id_ins_cmdb.bkbase_table_id or (
-                f"{vm_table_id_ins_cmdb.datalink_biz_ids.data_biz_id}_{vm_table_id_ins_cmdb.name}"
+        if cmdb_output_enabled:
+            bkbase_table_id = vm_table_id_ins.bkbase_table_id or (
+                f"{vm_table_id_ins.datalink_biz_ids.data_biz_id}_{vm_table_id_ins.name}"
             )
             transform_options = {
                 "exporter_cmdb": True,
-                "exporter_cmdb_rt": bkbase_cmdb_table_id,
+                "exporter_cmdb_rt": f"{bkbase_table_id}_cmdb",
             }
 
-        configs = [vm_table_id_ins.compose_config()]
-        if vm_table_id_ins_cmdb is not None:
-            configs.append(vm_table_id_ins_cmdb.compose_config())
-        configs.extend(
-            [
-                # 显式透传 RT 的 name，避免 compose_bk_plugin 场景下开启复用后
-                # RT / Binding name 被独立 claim 成不同值时，binding payload 的
-                # spec.data.name 仍然指向 "binding.name" 这个并不存在的 RT。
-                vm_storage_ins.compose_config(whitelist=whitelist, rt_name=vm_table_id_ins.name),
-                data_bus_ins.compose_config(
-                    sinks=sinks,
-                    transform_format=transform_format,
-                    transform_options=transform_options,
-                ),
-            ]
-        )
+        configs = [
+            vm_table_id_ins.compose_config(),
+            # 显式透传 RT 的 name，避免 compose_bk_plugin 场景下开启复用后
+            # RT / Binding name 被独立 claim 成不同值时，binding payload 的
+            # spec.data.name 仍然指向 "binding.name" 这个并不存在的 RT。
+            vm_storage_ins.compose_config(whitelist=whitelist, rt_name=vm_table_id_ins.name),
+            data_bus_ins.compose_config(
+                sinks=sinks,
+                transform_format=transform_format,
+                transform_options=transform_options,
+            ),
+        ]
         return configs
 
     def _get_databus_monitor_label_table(self) -> "ResultTable | None":

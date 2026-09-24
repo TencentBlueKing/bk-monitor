@@ -6828,17 +6828,13 @@ def test_bk_exporter_cmdb_transform_options(
     if not expected_transform_options:
         assert "exporter_cmdb" not in transform
         assert "exporter_cmdb_rt" not in transform
-    expected_result_table_config_count = 2 if cmdb_levels else 1
-    assert (
-        ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count()
-        == expected_result_table_config_count
-    )
+    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
     cmdb_result_table_configs = [
         config
         for config in configs
         if config["kind"] == DataLinkKind.RESULTTABLE.value and config["metadata"]["name"].endswith("_cmdb")
     ]
-    assert len(cmdb_result_table_configs) == int(bool(cmdb_levels))
+    assert cmdb_result_table_configs == []
     assert VMStorageBindingConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
     assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
 
@@ -6867,16 +6863,7 @@ def test_bk_exporter_cmdb_transform_uses_persisted_bkbase_table_id(
         data_link_name=datalink.data_link_name,
         bk_biz_id=1001,
         table_id=rt.table_id,
-        bkbase_table_id="2_legacy_rt",
-    )
-    ResultTableConfig.objects.create(
-        name="legacy_rt_cmdb",
-        namespace=datalink.namespace,
-        bk_tenant_id=datalink.bk_tenant_id,
-        data_link_name=datalink.data_link_name,
-        bk_biz_id=1001,
-        table_id=f"{rt.table_id}_cmdb",
-        bkbase_table_id="9527_legacy_rt_cmdb",
+        bkbase_table_id="9527_legacy_rt",
     )
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
 
@@ -6891,17 +6878,18 @@ def test_bk_exporter_cmdb_transform_uses_persisted_bkbase_table_id(
     transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
     assert transform["exporter_cmdb"] is True
     assert transform["exporter_cmdb_rt"] == "9527_legacy_rt_cmdb"
+    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
     assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_bk_exporter_keeps_existing_cmdb_result_table_config_when_disabled(
+def test_bk_exporter_disables_cmdb_transform_without_extra_result_table_config(
     create_or_delete_records,
     bk_exporter_reuse_enabled,
     mocker,
     settings,
 ):
-    """关闭 CMDB 输出后保留已存在的 ResultTableConfig 定义，但移除 transformer 开关。"""
+    """CMDB 输出只修改 Databus；关闭配置后移除参数且始终只有主 ResultTableConfig。"""
     settings.ENABLE_MULTI_TENANT_MODE = False
     datalink, ds, rt = _prepare_bk_exporter_datalink()
     cmdb_option = models.ResultTableOption.create_option(
@@ -6920,6 +6908,7 @@ def test_bk_exporter_keeps_existing_cmdb_result_table_config_when_disabled(
     }
 
     datalink.compose_configs(**compose_kwargs)
+    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
     cmdb_option.delete()
     existing_context = ExistingComponentContext.from_datalink(datalink)
     configs = datalink.compose_configs(existing_context=existing_context, **compose_kwargs)
@@ -6927,10 +6916,7 @@ def test_bk_exporter_keeps_existing_cmdb_result_table_config_when_disabled(
     result_table_names = {
         config["metadata"]["name"] for config in configs if config["kind"] == DataLinkKind.RESULTTABLE.value
     }
-    assert result_table_names == {
-        "bkm_1001_bkmonitor_time_series_50011",
-        "bkm_1001_bkmonitor_time_series_50011_cmdb",
-    }
+    assert result_table_names == {"bkm_1001_bkmonitor_time_series_50011"}
     transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
     assert "exporter_cmdb" not in transform
     assert "exporter_cmdb_rt" not in transform
@@ -6974,9 +6960,7 @@ def test_bk_standard_cmdb_transform_options(create_or_delete_records, mocker, se
     else:
         assert "exporter_cmdb" not in transform
         assert "exporter_cmdb_rt" not in transform
-    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1 + int(
-        bool(cmdb_levels)
-    )
+    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
     assert VMStorageBindingConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
     assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
 
@@ -6987,7 +6971,7 @@ def test_bk_standard_cmdb_transform_uses_persisted_bkbase_table_id(
     mocker,
     settings,
 ):
-    """bk_standard 组件复用时也应区分主表与 CMDB 表，并优先使用已回填的 BKBase ID。"""
+    """bk_standard 组件复用时基于主表已回填的 BKBase ID 生成 CMDB 目标表名。"""
     settings.ENABLE_MULTI_TENANT_MODE = False
     ds = models.DataSource.objects.get(bk_data_id=50012)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50012.__default__")
@@ -7011,16 +6995,7 @@ def test_bk_standard_cmdb_transform_uses_persisted_bkbase_table_id(
         data_link_name=datalink.data_link_name,
         bk_biz_id=1001,
         table_id=rt.table_id,
-        bkbase_table_id="2_legacy_standard_rt",
-    )
-    ResultTableConfig.objects.create(
-        name="legacy_standard_rt_cmdb",
-        namespace=datalink.namespace,
-        bk_tenant_id=datalink.bk_tenant_id,
-        data_link_name=datalink.data_link_name,
-        bk_biz_id=1001,
-        table_id=f"{rt.table_id}_cmdb",
-        bkbase_table_id="9527_legacy_standard_rt_cmdb",
+        bkbase_table_id="9527_legacy_standard_rt",
     )
     mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
     existing_context = ExistingComponentContext.from_datalink(datalink)
@@ -7038,6 +7013,7 @@ def test_bk_standard_cmdb_transform_uses_persisted_bkbase_table_id(
     assert transform["exporter_cmdb"] is True
     assert transform["exporter_cmdb_rt"] == "9527_legacy_standard_rt_cmdb"
     assert existing_context.leftover() == {}
+    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
     assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
 
 
