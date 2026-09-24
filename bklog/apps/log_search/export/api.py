@@ -26,11 +26,13 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import APIException, ValidationError
 
-from apps.log_search.constants import ExportJobStatus, ExportPartStatus, ExportStage
+from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportPartStatus, ExportStage
 from apps.log_search.export import state
 from apps.log_search.export.config import current_policy, is_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
+from apps.log_search.export.planner import is_definitely_empty
 from apps.log_search.export.storage import build_storage
+from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.local import (
@@ -102,6 +104,10 @@ def create_export_job(data):
     if requested_parallelism > policy.max_parallelism:
         raise ValidationError({"requested_parallelism": f"并行度不能超过 {policy.max_parallelism}"})
 
+    # 空数据任务创建前快速拒绝；是否超过单任务上限由 Planner 的聚合 count 判定，不在这里做
+    if is_definitely_empty(handler, data["start_time"], data["end_time"]):
+        raise PreCheckAsyncExportException()
+
     return ExportJob.objects.create(
         space_uid=space.space_uid,
         created_by=username,
@@ -128,6 +134,17 @@ def _leaf_counts(job):
     return stats["total"], stats["success"]
 
 
+def _job_error_code(job, expired):
+    """用户可见的错误分类：失败取落库错误码，取消与产物过期给稳定的展示分类。"""
+    if job.status == ExportJobStatus.FAILED:
+        return job.error_code
+    if job.status == ExportJobStatus.CANCELED:
+        return ExportErrorCode.CANCELED
+    if expired:
+        return ExportErrorCode.FILE_EXPIRED
+    return ""
+
+
 def job_detail(job):
     """任务进度：预计条数与实际条数分开，完成度按已成功的叶子分片数计算。"""
     stages = list(ExportPart.objects.filter(job=job, status__in=INFLIGHT).values_list("stage", flat=True))
@@ -145,6 +162,7 @@ def job_detail(job):
         else:
             stage = next((value for value in reversed(STAGE_ORDER) if value in stages), "")
     expired = job.status == ExportJobStatus.SUCCESS and job.expires_at is not None and job.expires_at <= timezone.now()
+    error_code = _job_error_code(job, expired)
     return {
         "job_id": job.pk,
         "status": "EXPIRED" if expired else job.status,
@@ -156,7 +174,8 @@ def job_detail(job):
         "percent": percent,
         "plan_version": job.plan_version,
         "requested_parallelism": job.requested_parallelism,
-        "error_code": job.error_code,
+        "error_code": error_code,
+        "error_message": ExportErrorCode.label(error_code),
         "created_by": job.created_by,
         "created_at": job.created_at,
         "completed_at": job.completed_at,

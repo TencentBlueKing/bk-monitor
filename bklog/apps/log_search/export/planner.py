@@ -25,6 +25,7 @@ from dataclasses import dataclass, replace
 import ujson
 
 from apps.api import UnifyQueryApi
+from apps.log_search.constants import ExportErrorCode
 from apps.log_search.export import state
 from apps.log_search.export.config import policy_from_snapshot
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -80,7 +81,7 @@ def _series_points(result, label):
     """取出聚合结果的单序列点位；聚合只应返回一条序列，多于一条说明统计口径不成立。"""
     series = result["series"]
     if len(series) > 1:
-        raise PlanError("STATISTICS_FAILED", f"unify-query {label}返回了多条序列", retryable=True)
+        raise PlanError(ExportErrorCode.STATISTICS_FAILED, f"unify-query {label}返回了多条序列", retryable=True)
     return [(item[0], item[1]) for item in (series[0]["values"] if series else [])]
 
 
@@ -107,6 +108,27 @@ def sample_rows(handler, start, end, limit):
     result = UnifyQueryApi.query_ts_raw(params)
     # 复用 handler 的结果投影，保证采样口径与真实导出完全一致
     return [encode_export_row(row) for row in handler._deal_query_result(result)["origin_log_list"]]
+
+
+def is_definitely_empty(handler, start, end):
+    """
+    创建任务前的存在性预检查：只取一条，判断区间内是否完全没有数据。
+
+    只用于快速拒绝，查询失败、超时和返回结构异常都一律放行：预检查不是准入，
+    条数与配额最终由 Planner 使用相同 UnifyQuery 条件的聚合 count 判定，不能因为
+    一次预检查抖动就把用户的任务挡在门外。
+    """
+    params = _statistics_params(handler, start, end)
+    params["limit"] = 1
+    try:
+        result = UnifyQueryApi.query_ts_raw(params)
+    except Exception as error:  # pylint: disable=broad-except
+        logger.warning("[is_definitely_empty] existence pre-check skipped: %s", error)
+        return False
+    if "list" not in result:
+        logger.warning("[is_definitely_empty] unexpected response, existence pre-check skipped")
+        return False
+    return not result["list"]
 
 
 def histogram(handler, start, end, interval):
@@ -250,7 +272,7 @@ def build_parts(job, policy):
     handler = build_handler(job)
     total = count_rows(handler, job.start_time, job.end_time)
     if total > policy.max_rows:
-        raise PlanError("QUOTA_EXCEEDED", f"预计条数 {total} 超过单任务上限 {policy.max_rows}")
+        raise PlanError(ExportErrorCode.QUOTA_EXCEEDED, f"预计条数 {total} 超过单任务上限 {policy.max_rows}")
     step = policy.split_step_ms
     interval = choose_interval(total, job.start_time, job.end_time, step, policy)
     if not total:
@@ -265,7 +287,7 @@ def build_parts(job, policy):
     buckets = histogram(handler, job.start_time, job.end_time, interval)
     if not buckets:
         # 有总量却拿不到时间分布，说明统计链路异常；交给重试而不是猜一份没有密度依据的等分计划
-        raise PlanError("STATISTICS_FAILED", "unify-query 直方图未返回任何数据点", retryable=True)
+        raise PlanError(ExportErrorCode.STATISTICS_FAILED, "unify-query 直方图未返回任何数据点", retryable=True)
 
     parts = []
     cursor = job.start_time - (job.start_time - _bucket_origin(buckets, interval)) % interval
@@ -274,12 +296,12 @@ def build_parts(job, policy):
         right = min(cursor + interval, job.end_time)
         parts.extend(refine(handler, left, right, buckets.get(cursor, 0), step, policy, avg_bytes))
         if len(parts) > policy.max_parts:
-            raise PlanError("PART_LIMIT_EXCEEDED", f"分片数量超过上限 {policy.max_parts}")
+            raise PlanError(ExportErrorCode.PART_LIMIT_EXCEEDED, f"分片数量超过上限 {policy.max_parts}")
         cursor += interval
 
     parts = merge_adjacent(parts, policy)
     if len(parts) > policy.max_parts:
-        raise PlanError("PART_LIMIT_EXCEEDED", f"分片数量超过上限 {policy.max_parts}")
+        raise PlanError(ExportErrorCode.PART_LIMIT_EXCEEDED, f"分片数量超过上限 {policy.max_parts}")
     return parts, total, _plan_result(total, avg_bytes, interval)
 
 
@@ -302,4 +324,4 @@ def run_planning(job_id):
         state.fail_planning(job.pk, error.code, str(error), retryable=error.retryable)
     except Exception as error:  # pylint: disable=broad-except
         logger.exception("[run_planning] job=%s planning failed: %s", job.pk, error)
-        state.fail_planning(job.pk, "PLANNING_FAILED", type(error).__name__, retryable=True)
+        state.fail_planning(job.pk, ExportErrorCode.PLANNING_FAILED, type(error).__name__, retryable=True)
