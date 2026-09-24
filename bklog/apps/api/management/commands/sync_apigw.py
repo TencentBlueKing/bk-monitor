@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -45,6 +44,11 @@ class Command(BaseCommand):
             f"--file={definition_path}",
             "--safe-mode",
         )
-        call_command("create_version_and_release_apigw", f"--gateway-name={gateway_name}", f"--file={definition_path}")
+        call_command(
+            "create_version_and_release_apigw",
+            f"--gateway-name={gateway_name}",
+            f"--file={definition_path}",
+            f"--stage={settings.ENVIRONMENT}",
+        )
         call_command("grant_apigw_permissions", f"--gateway-name={gateway_name}", f"--file={definition_path}")
         call_command("fetch_apigw_public_key", f"--gateway-name={gateway_name}")

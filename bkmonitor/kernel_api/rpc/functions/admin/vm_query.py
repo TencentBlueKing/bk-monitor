@@ -95,8 +95,7 @@ def _query_url(domain, mode):
     except ValueError:
         _fail("INVALID_CLUSTER_CONFIG", "VM Query 配置只允许 HTTP(S) 域名及端口，不接受路径或凭据")
     host = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
-    # BKBase VmQueryCluster 的裸域名使用 vmselect 的 8481 端口；显式 scheme 遵循 HTTP(S) 默认端口。
-    port = port if port is not None else (None if has_scheme else 8481)
+    # 裸域名默认使用 HTTP 入口，仅保留配置中显式指定的端口。
     authority = f"{host}:{port}" if port is not None else host
     endpoint = "query_range" if mode == "range" else "query"
     return f"{parsed.scheme}://{authority}/select/0/prometheus/api/v1/{endpoint}"

@@ -61,7 +61,20 @@ def http(mocker):
     return factory, session, response
 
 
-def test_resolves_stored_domain_and_posts_unmodified_promql(cluster, http):
+@pytest.mark.parametrize(
+    "domain,base_url",
+    [
+        ("vm-a.svc.cluster.local", "http://vm-a.svc.cluster.local"),
+        ("vm-a.svc.cluster.local:8481", "http://vm-a.svc.cluster.local:8481"),
+        ("http://vm-a.svc.cluster.local", "http://vm-a.svc.cluster.local"),
+        ("https://query.example.com", "https://query.example.com"),
+        ("https://query.example.com:9443", "https://query.example.com:9443"),
+        ("[::1]", "http://[::1]"),
+    ],
+)
+def test_resolves_stored_domain_and_posts_unmodified_promql(cluster, http, domain, base_url):
+    cluster.cluster_domain = domain
+    cluster.save()
     _, session, _ = http
     result = vm_query.query(PARAMS)
     assert result["meta"]["safety_level"] == "read"
@@ -69,7 +82,7 @@ def test_resolves_stored_domain_and_posts_unmodified_promql(cluster, http):
     assert result["data"]["response"] == SUCCESS
     assert session.trust_env is False
     args, kwargs = session.post.call_args
-    assert args[0] == "http://vm-a.svc.cluster.local:8481/select/0/prometheus/api/v1/query_range"
+    assert args[0] == f"{base_url}/select/0/prometheus/api/v1/query_range"
     assert kwargs["data"] == {"query": PARAMS["query"], "start": 1000, "end": 1600, "step": 60, "timeout": "30s"}
     assert kwargs["allow_redirects"] is False
     assert kwargs["stream"] is True
