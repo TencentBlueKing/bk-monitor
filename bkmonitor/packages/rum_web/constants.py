@@ -165,7 +165,7 @@ class RumGroupName(CachedEnum):
 
     @cached_property
     def label(self) -> str:
-        return self.value
+        return {self.ORIGIN.value: _("原始字段")}.get(self.value, self.value)
 
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:

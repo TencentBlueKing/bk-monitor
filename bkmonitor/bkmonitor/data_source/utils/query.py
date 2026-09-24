@@ -550,7 +550,11 @@ class BaseQuery:
         expression: str = self._sum_expression(fields)
         if "time" in group_by:
             group_by = [field_name for field_name in group_by if field_name != "time"]
-            interval = interval or get_bar_interval_number(start_time, end_time)
+            if interval is None:
+                # 时间分桶间隔未显式指定时基于实际查询窗口计算；
+                # start_time / end_time 缺省时按保留期补齐，避免 None 进入运算导致 TypeError
+                resolved_start, resolved_end = self._get_time_range(start_time, end_time)
+                interval = get_bar_interval_number(resolved_start // 1000, resolved_end // 1000)
             queries = [q.interval(interval) for q in queries]
             time_agg = True
             instant = False
@@ -565,16 +569,36 @@ class BaseQuery:
         return list(self._add_query(qs, self._metric_queries(queries, fields, method, group_by)))
 
     @classmethod
+    def _format_statistics_value(cls, cal_type: str, value: Any) -> float | int:
+        """统一统计数值的展示形态（与 APM CalculateByRangeResource._merge 对齐）。
+
+        - count 类聚合结果必须为整型；
+        - 其余聚合结果保留 2 位小数，避免浮点精度噪声。
+        """
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            value = 0
+
+        if cal_type == AggregatedMethod.COUNT.value:
+            return int(value)
+        return round(value, 2)
+
+    @classmethod
     def _merge_statistics_records(
         cls,
         group_by: list[str],
         alias_records_map: dict[str, list[dict[str, Any]]],
+        cal_type: str,
     ) -> list[dict[str, Any]]:
         group_key_record_map: dict[tuple, dict[str, Any]] = {}
         # 多个对比时间维度数量可能存在差异，此处合并取维度数的交集
         for alias, records in alias_records_map.items():
+            # 各 time_shift 查询的是各自偏移后的窗口，需把绝对桶时间对齐回基准窗口，
+            # 否则同一相对桶位在不同偏移下落入不同 group_key，导致 growth_rates 静默为 None
+            offset_seconds: int = parse_time_compare_abbreviation(alias)
             for record in records:
-                record["time"] = record.get("_time_", 0) // 1000
+                record["time"] = (record.get("_time_", 0) // 1000) + offset_seconds
                 group_key: tuple = tuple((field, record.get(field) or "") for field in group_by)
                 group_key_record_map.setdefault(group_key, {})[alias] = record["_result_"]
 
@@ -592,6 +616,7 @@ class BaseQuery:
                 processed_record[alias] = record.get(alias)
                 if processed_record[alias] is None:
                     continue
+                processed_record[alias] = cls._format_statistics_value(cal_type, processed_record[alias])
             merged_records.append(processed_record)
         return merged_records
 
@@ -646,6 +671,7 @@ class BaseQuery:
         merged_records: list[dict[str, Any]] = self._merge_statistics_records(
             group_by,
             alias_records_map,
+            cal_type,
         )
         process_growth_rates(baseline, time_shifts, merged_records)
         if cal_type == AggregatedMethod.COUNT.value:
