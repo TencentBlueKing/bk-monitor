@@ -48,4 +48,9 @@ class ListResultTablesResource(Resource):
             ensure_storage_clusters_visible(
                 validated_request_data["bk_biz_id"], {validated_request_data["storage_cluster_id"]}
             )
-        return api.log_search.list_result_tables(**validated_request_data)
+        tables = api.log_search.list_result_tables(**validated_request_data)
+        keyword = validated_request_data.get("result_table_id", "").lower()
+        # BkData 忽略过滤参数；ES 已按索引表达式匹配，不能再按字面子串过滤通配符或别名。
+        if validated_request_data["scenario_id"] == "bkdata" and keyword:
+            return [table for table in tables if keyword in table["result_table_id"].lower()]
+        return tables

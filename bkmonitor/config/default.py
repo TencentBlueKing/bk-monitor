@@ -1588,7 +1588,7 @@ ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
 MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
 # Opt in by canonical unified-MCP tool name; applies to standalone routes too.
-# Native permissions first, legacy MCP action only after an explicit denial.
+# Independent MCP permission first; only explicit denial checks the SaaS permission.
 # Keep empty until target IAM permissions and application access have been verified.
 MCP_NATIVE_PERMISSION_TOOLS: list[str] = []
 # Native log MVP requires an explicitly confirmed V3 current-action model.
