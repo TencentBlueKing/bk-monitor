@@ -139,7 +139,7 @@ def _upload_with_retry(storage, path, name, part):
 
 
 def _discard_artifact(storage, name, part):
-    """本次执行没有被接受时清掉自己写的对象；清理失败只影响存储占用，不改变任务状态。"""
+    """本次执行没有被接受时清掉自己写的对象。"""
     try:
         delete_artifact(storage, name)
     except Exception as error:  # pylint: disable=broad-except
@@ -158,7 +158,6 @@ def _execute(job, part, fence):
         if not state.set_stage(part.pk, fence, ExportStage.UPLOAD):
             return
         checksum = _sha256(archive)
-        # 键取自本次投递的认领序号：一个键只会有一个执行在写，不会覆盖已发布的产物
         name = artifact_name(job, part, fence.attempts)
         _upload_with_retry(storage, archive, name, part)
         accepted = False
@@ -174,7 +173,7 @@ def _execute(job, part, fence):
             )
             accepted = result is not None and result.status == ExportPartStatus.SUCCESS
         finally:
-            # 提交被拒绝、任务已取消或提交异常时，本次对象没有任何引用
+            # 只有被接受的执行才留下产物
             if not accepted:
                 _discard_artifact(storage, name, part)
 
