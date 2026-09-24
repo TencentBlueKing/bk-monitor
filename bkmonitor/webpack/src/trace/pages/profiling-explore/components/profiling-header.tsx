@@ -114,7 +114,13 @@ export default defineComponent({
         >
           <Radio.Button label='application'>{this.t('应用服务')}</Radio.Button>
           <Radio.Button label='file'>{this.t('文件分析')}</Radio.Button>
-          <Radio.Button label='collection'>{this.t('主动采集')}</Radio.Button>
+          <Radio.Button
+            v-tippy={this.t('敬请期待')}
+            label='collection'
+            disabled
+          >
+            {this.t('主动采集')}
+          </Radio.Button>
         </Radio.Group>
         {this.tab === 'application' && (
           <>

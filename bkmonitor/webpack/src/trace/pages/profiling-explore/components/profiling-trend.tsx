@@ -93,6 +93,8 @@ export default defineComponent({
     const { t } = useI18n();
     const router = useRouter();
     const chart = shallowRef<InstanceType<typeof VueEcharts>>();
+    const chartContainer = shallowRef<HTMLDivElement>();
+    const chartWidth = shallowRef(300);
     const canReset = computed(
       () =>
         !!props.range && !!props.defaultRange && props.range.some((value, index) => value !== props.defaultRange[index])
@@ -107,6 +109,17 @@ export default defineComponent({
         })) as SeriesItem[]
       )
     );
+    const timeAxisLabelFormat = computed(() => {
+      if (!props.bounds) return 'HH:mm';
+      const duration = props.bounds[1] - props.bounds[0];
+      if (duration < 60 * 1000) return 'ss.SSS';
+      if (duration < 60 * 60 * 1000) return 'mm:ss';
+      if (duration < 24 * 60 * 60 * 1000) return 'HH:mm';
+      const [start, end] = props.bounds.map(value => dayjs(value).tz(props.timezone));
+      if (start.year() !== end.year()) return 'YYYY-MM';
+      if (duration <= 7 * 24 * 60 * 60 * 1000) return 'DD HH';
+      return 'MM-DD';
+    });
     const handleData = (range: null | SelectionRange) => range?.map(time => [time, 0]) || [];
     const formatTooltip: TooltipComponentOption['formatter'] = params => {
       const points = (Array.isArray(params) ? params : [params]).filter(item => item.seriesId !== 'selection-handles');
@@ -114,17 +127,19 @@ export default defineComponent({
       // 普通趋势是分类轴的标量值，时间对比是 [毫秒时间, 数值]；两种数据统一为同一提示。
       const first = points[0] as (typeof points)[number] & { axisValue: number | string };
       const time = Number(first.axisValue ?? (Array.isArray(first.value) ? first.value[0] : first.name));
-      const rows = points.map(item => {
-        const value = Array.isArray(item.value) ? item.value[1] : item.value;
-        if (value == null || !Number.isFinite(Number(value))) return '';
-        const formatted = formatProfileValue(Number(value), props.series[item.seriesIndex]?.unit);
-        // 系列名称来自接口，HTML 提示沿用公共样式时必须转义动态内容。
-        return `<li class="tooltips-content-item" style="font-weight:bold">
+      const rows = points
+        .map(item => {
+          const value = Array.isArray(item.value) ? item.value[1] : item.value;
+          if (value == null || !Number.isFinite(Number(value))) return '';
+          const formatted = formatProfileValue(Number(value), props.series[item.seriesIndex]?.unit);
+          // 系列名称来自接口，HTML 提示沿用公共样式时必须转义动态内容。
+          return `<li class="tooltips-content-item" style="font-weight:bold">
           <span class="item-series" style="background-color:${escape(String(item.color))}"></span>
           <span class="item-name">${escape(item.seriesName)}:</span>
           <span class="item-value">${escape(formatted)}</span>
         </li>`;
-      }).filter(Boolean);
+        })
+        .filter(Boolean);
       if (!rows.length) return '';
       const title = dayjs(time).tz(props.timezone).format('YYYY-MM-DD HH:mm:ssZZ');
       return `<div class="monitor-chart-tooltips">
@@ -134,6 +149,7 @@ export default defineComponent({
     };
     const options = computed(() => {
       const { seriesData, xAxis } = prepared.value;
+      const labelFormat = timeAxisLabelFormat.value;
       return {
         animation: false,
         color: [props.color, props.color === '#3a84ff' ? '#ff9c01' : '#3a84ff'],
@@ -165,12 +181,18 @@ export default defineComponent({
                 type: 'time',
                 min: props.bounds?.[0],
                 max: props.bounds?.[1],
+                splitNumber: getTimeAxisSplitNumber(),
                 axisLine: { lineStyle: { color: '#f0f1f5' } },
                 axisTick: { show: false },
                 splitLine: { show: false },
                 axisLabel: {
                   color: '#979ba5',
-                  formatter: (value: number) => dayjs(value).tz(props.timezone).format('HH:mm:ss'),
+                  hideOverlap: true,
+                  showMinLabel: true,
+                  showMaxLabel: true,
+                  alignMinLabel: 'left',
+                  alignMaxLabel: 'right',
+                  formatter: (value: number) => dayjs(value).tz(props.timezone).format(labelFormat),
                 },
               },
             ]
@@ -234,19 +256,37 @@ export default defineComponent({
       };
     });
 
+    function getTimeAxisSplitNumber() {
+      return Math.max(1, Math.min(5, Math.floor((chartWidth.value - 100) / 100)));
+    }
+
+    function handleChartResize() {
+      chartWidth.value = chartContainer.value?.clientWidth || 300;
+    }
+
+    watch(chartContainer, handleChartResize, { flush: 'post' });
+
     let selectionKey = '';
     function showSelection() {
       // 等 ECharts 安装 brush 后再恢复选区；去重避免 rendered → dispatchAction 循环。
-      if (!props.selection || !chart.value || !prepared.value.xAxis.length || !chart.value.getOption()?.brush) return;
+      const instance = chart.value?.chart;
+      if (
+        !props.selection ||
+        !instance ||
+        instance.isDisposed() ||
+        !prepared.value.xAxis.length ||
+        !instance.getOption()?.brush
+      )
+        return;
       const key = JSON.stringify([props.range, prepared.value.xAxis[0].data]);
       if (selectionKey === key) return;
       selectionKey = key;
-      chart.value.dispatchAction({
+      instance.dispatchAction({
         type: 'takeGlobalCursor',
         key: 'brush',
         brushOption: { brushType: 'lineX', brushMode: 'single' },
       });
-      chart.value.dispatchAction({
+      instance.dispatchAction({
         type: 'brush',
         areas: props.range ? [{ brushType: 'lineX', xAxisIndex: 0, coordRange: props.range }] : [],
       });
@@ -307,19 +347,22 @@ export default defineComponent({
       }).href;
     }
     watch(
-      () => [props.range, props.series, props.selection, chart.value],
+      () => [props.range, props.series, props.selection, chart.value, options.value],
       () => {
         traceItems.value = [];
         selectionKey = '';
         nextTick(showSelection);
-      }
+      },
+      { flush: 'post' }
     );
     return {
       t,
       chart,
+      chartContainer,
       canReset,
       traceItems,
       options,
+      autoresize: { onResize: handleChartResize },
       showSelection,
       handleBrush,
       handleBrushMove,
@@ -371,6 +414,7 @@ export default defineComponent({
         </div>
         {!this.collapsed && (
           <div
+            ref='chartContainer'
             class='profiling-trend-chart'
             aria-busy={this.loading}
           >
@@ -396,9 +440,9 @@ export default defineComponent({
             ) : (
               <VueEcharts
                 ref='chart'
+                autoresize={this.autoresize}
                 option={this.options}
                 updateOptions={{ notMerge: true }}
-                autoresize
                 onBrush={this.handleBrushMove}
                 onBrushEnd={this.handleBrush}
                 onClick={this.handlePoint}
