@@ -108,12 +108,12 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
         // TODO(2026-09-21): 有值时本应可点击跳转「链路上下文」tab，该 tab 本期未实现，暂按普通样式渲染
-        countCard({ label: t('触发请求数'), tone: RumCardToneEnum.DEFAULT }, 'resourceCount'),
-        countCard({ label: t('错误数'), tone: RumCardToneEnum.DEFAULT }, 'errorCount'),
-        countCard({ label: t('Long Tasks 数'), tone: RumCardToneEnum.DEFAULT }, 'longTaskCount'),
+        countCard({ label: t('触发请求数'), tone: RumCardToneEnum.LINK }, 'resourceCount'),
+        countCard({ label: t('错误数'), tone: RumCardToneEnum.DANGER }, 'errorCount'),
+        countCard({ label: t('Long Tasks 数'), tone: RumCardToneEnum.LINK }, 'longTaskCount'),
       ],
     },
-    loadRelated: (context, mode) => getActionRelated(context, mode),
+    loadRelated: (context, mode, detail) => getActionRelated(context, mode, detail),
   },
 
   long_task: {
@@ -197,9 +197,9 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
   view: {
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
-        countCard({ label: t('请求'), tone: 'link', cardCls: 'view-extra-card' }, 'resourceCount'),
-        countCard({ label: t('错误'), tone: 'danger', cardCls: 'view-extra-card' }, 'errorCount'),
-        countCard({ label: 'Span', tone: 'link', cardCls: 'view-extra-card' }, 'spanCount'),
+        countCard({ label: t('请求'), tone: RumCardToneEnum.LINK, cardCls: 'view-extra-card' }, 'resourceCount'),
+        countCard({ label: t('错误'), tone: RumCardToneEnum.DANGER, cardCls: 'view-extra-card' }, 'errorCount'),
+        countCard({ label: 'Span', tone: RumCardToneEnum.LINK, cardCls: 'view-extra-card' }, 'spanCount'),
       ],
     },
     loadRelated: (context, mode, detail) => {

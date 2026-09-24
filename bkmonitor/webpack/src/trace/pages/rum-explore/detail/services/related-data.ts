@@ -90,9 +90,10 @@ const baselineValue = (row?: IStatisticsRow) => Number(row?.[BASELINE] ?? 0) || 
  */
 export async function getActionRelated(
   context: IRumDetailContext,
-  mode: RumModeType
+  mode: RumModeType,
+  detail: IRumRecordDetail
 ): Promise<IRumActionRelated | null> {
-  const actionId = String(context.record_id || '');
+  const actionId = String(detail.origin_data?.attributes?.['action.id'] || '');
   const rows = await fetchStatistics(
     context,
     mode,
