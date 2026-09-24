@@ -2438,6 +2438,21 @@ class DataLink(models.Model):
         ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
         """
         bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
+        supports_cmdb_output = self.data_link_strategy in {
+            self.BK_EXPORTER_TIME_SERIES,
+            self.BK_STANDARD_TIME_SERIES,
+        }
+        cmdb_output_enabled = False
+        if supports_cmdb_output:
+            from metadata.models.result_table import ResultTableOption
+
+            cmdb_level_option = ResultTableOption.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=table_id,
+                name=ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+            ).first()
+            cmdb_levels = cmdb_level_option.get_value() if cmdb_level_option is not None else None
+            cmdb_output_enabled = isinstance(cmdb_levels, list) and bool(cmdb_levels)
 
         # 白名单配置
         whitelist = self._compose_time_series_field_whitelist(table_id)
@@ -2533,6 +2548,15 @@ class DataLink(models.Model):
             data_bus_ins.apply_consumer_group(consumer_group)
 
         transform_format = self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy)
+        transform_options = None
+        if cmdb_output_enabled:
+            bkbase_table_id = vm_table_id_ins.bkbase_table_id or (
+                f"{vm_table_id_ins.datalink_biz_ids.data_biz_id}_{vm_table_id_ins.name}"
+            )
+            transform_options = {
+                "exporter_cmdb": True,
+                "exporter_cmdb_rt": f"{bkbase_table_id}__cmdb",
+            }
 
         configs = [
             vm_table_id_ins.compose_config(),
@@ -2540,7 +2564,11 @@ class DataLink(models.Model):
             # RT / Binding name 被独立 claim 成不同值时，binding payload 的
             # spec.data.name 仍然指向 "binding.name" 这个并不存在的 RT。
             vm_storage_ins.compose_config(whitelist=whitelist, rt_name=vm_table_id_ins.name),
-            data_bus_ins.compose_config(sinks=sinks, transform_format=transform_format),
+            data_bus_ins.compose_config(
+                sinks=sinks,
+                transform_format=transform_format,
+                transform_options=transform_options,
+            ),
         ]
         return configs
 
