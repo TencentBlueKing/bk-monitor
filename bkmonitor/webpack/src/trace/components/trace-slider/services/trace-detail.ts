@@ -23,27 +23,37 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { CancelToken } from 'monitor-api/cancel';
+import { traceDetail } from 'monitor-api/modules/apm_trace';
+
+export interface FetchTraceSliderDetailParams {
+  app_name: string;
+  bk_biz_id: number;
+  displays?: string[];
+  query_trace_relation_app?: boolean;
+  trace_id: string;
+}
+
+export interface FetchTraceSliderDetailResult {
+  data: Record<string, unknown> | null;
+  isAborted: boolean;
+}
+
+const isRequestAborted = (err: unknown): boolean => {
+  const message = (err as Error)?.message;
+  return message === 'canceled' || message === 'aborted' || (err as Error)?.name === 'AbortError';
+};
 
 /**
- * `@blueking/apm-vue3-for-vue2` 的入口，构建配置见 scripts/build.apm-vue3-for-vue2.ts。
- *
- * 面向 APM 的 Vue2 宿主：用 mount* 在指定节点挂载整块 Vue3 子应用，
- * 应用实例（router / pinia / i18n）由包内自行创建，宿主只需给一个挂载节点。
- * Vue3 工程请改用 `@blueking/monitor-vue3-components`（入口 components.ts），
- * 那边导出的是可直接渲染的组件。
+ * 拉取 Trace 详情。取消与失败在这里拆开，调用方取消时不要关 loading。
  */
-import { applyRuntimeClassPrefix } from './common/class-prefix';
-
-import 'monitor-static/icons/monitor-icons.css';
-
-applyRuntimeClassPrefix();
-
-/** Trace 详情侧滑：只挂详情，不挂整页检索 */
-export { mount as mountTraceSlider, default as TraceSliderApm } from './components/trace-slider/trace-slider-apm-entry';
-/** 告警中心：mountAlarmCenter 返回 { update, unmount } 句柄，宿主销毁时必须调用 unmount */
-export { default as AlarmCenterApm, mount as mountAlarmCenter } from './pages/alarm-center/alarm-center-apm-entry';
-
-export type { BridgeEmit, BridgeProps, MountHandle, MountOptions } from './pages/alarm-center/alarm-center-apm-entry';
-
-/** Trace 检索：入参与句柄结构与告警中心一致 */
-export { mount as mountTraceExplore, default as TraceExploreApm } from './pages/trace-explore/trace-explore-apm-entry';
+export const fetchTraceSliderDetail = (
+  params: FetchTraceSliderDetailParams,
+  onCancel: (cancel: () => void) => void
+): Promise<FetchTraceSliderDetailResult> => {
+  return traceDetail(params, {
+    cancelToken: new CancelToken(onCancel),
+  })
+    .then((data: Record<string, unknown>) => ({ data, isAborted: false }))
+    .catch((err: unknown) => ({ data: null, isAborted: isRequestAborted(err) }));
+};

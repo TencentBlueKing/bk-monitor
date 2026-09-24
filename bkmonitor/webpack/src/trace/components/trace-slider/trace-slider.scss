@@ -1,7 +1,6 @@
-.explore-trace-slider {
+.trace-slider {
   .bk-modal-content {
-    // 组件库sideslider的bk-modal-content高度没有自动变化(组件库dialog的bk-modal-content高度是会变的)
-    // 52为sideslider的title高度
+    // 组件库 sideslider 的 bk-modal-content 高度不会随内容自适应，52 为标题栏高度
     height: calc(100% - 52px) !important;
 
     & > div {
@@ -14,18 +13,15 @@
     height: 100%;
   }
 
-  .explore-trace-slider-main {
+  .trace-slider-main {
     box-sizing: border-box;
     height: 100%;
     min-height: 100%;
-    background-color: #f5f7fa;
+    background-color: var(--color-bg-2, #f5f7fa);
 
     .full-screen-loading.is-active {
       position: absolute;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      left: 0;
+      inset: 0;
     }
 
     .toggle-full-screen {
@@ -57,7 +53,7 @@
       }
 
       &:hover {
-        color: #3a84ff;
+        color: var(--color-primary, #3a84ff);
       }
     }
 
@@ -67,7 +63,7 @@
       cursor: pointer;
 
       &:hover {
-        color: #3a84ff;
+        color: var(--color-primary, #3a84ff);
       }
 
       &.fullscreen-close {

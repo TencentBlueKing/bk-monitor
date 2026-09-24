@@ -26,3 +26,8 @@
 
 /** span详情基础信息展开项 */
 export const TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY = '__bk_monitor_trace_span_detail_basic_info_expand_key';
+
+/** Trace 详情侧滑。高于 Vue2 宿主常见侧滑，低于导航 3000 */
+export const TRACE_SLIDER_Z_INDEX = 2500;
+/** Span 详情侧滑，叠在 Trace 详情侧滑之上 */
+export const SPAN_DETAILS_Z_INDEX = TRACE_SLIDER_Z_INDEX + 100;
