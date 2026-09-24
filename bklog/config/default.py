@@ -232,6 +232,7 @@ CELERY_IMPORTS = (
     "apps.log_search.tasks.async_export",
     "apps.log_search.tasks.scene_async_export",
     "apps.log_search.tasks.unify_query_async_export",
+    "apps.log_search.tasks.sharded_export",
     "apps.log_search.tasks.project",
     "apps.log_search.tasks.space",
     "apps.log_search.tasks.cmdb",
@@ -1402,6 +1403,27 @@ TGPA_SDK_DOC_URL = os.getenv("BKAPP_TGPA_SDK_DOC_URL", "")
 
 # 异步下载最大并发任务数
 MAX_CONCURRENT_EXPORT_TASKS = int(os.getenv("BKAPP_MAX_CONCURRENT_EXPORT_TASKS", 3))
+
+# ===============================================================================
+# 分片异步导出（ExportJob / ExportPart）
+# ===============================================================================
+ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS", 10))
+
+# 调度轮次互斥锁租约，需覆盖一轮调度的最长执行时间
+ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT", 120))
+
+# coordinator 每轮处理的批次规模（候选 Job 扫描、规划、回收、清理）
+ASYNC_EXPORT_COORDINATE_BATCH = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_BATCH", 100))
+
+# 故障恢复超时和单次执行安全边界
+ASYNC_EXPORT_PLANNING_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PLANNING_TIMEOUT", 600))
+# 单分片执行超时：超过该时间仍未回填结果的分片会被回收重试
+ASYNC_EXPORT_PART_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PART_TIMEOUT", 1800))
+
+# 分片上传失败时在当前进程内做短重试（退避为 interval * 第几次尝试）：
+# 本地压缩文件此时仍然可用，一次上传抖动不应该让整个分片重新查询和重新压缩
+ASYNC_EXPORT_UPLOAD_ATTEMPTS = int(os.getenv("BKAPP_ASYNC_EXPORT_UPLOAD_ATTEMPTS", 3))
+ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS", 2))
 
 """
 以下为框架代码 请勿修改

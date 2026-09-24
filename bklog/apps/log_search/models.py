@@ -24,6 +24,7 @@ import hashlib
 import os
 import time
 from collections import defaultdict
+from contextlib import contextmanager
 from typing import Any
 
 from django.conf import settings
@@ -49,6 +50,7 @@ from apps.log_search.constants import (
     ASYNC_EXPORT_SCENE_ID,
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     DEFAULT_TIME_FIELD,
+    ExportJobStatus,
     ExportStatus,
     ExportType,
     INDEX_SET_NO_DATA_CHECK_INTERVAL,
@@ -93,6 +95,7 @@ from apps.log_search.exceptions import (
     SourceDuplicateException,
 )
 from apps.log_search.utils import fetch_request_username
+from apps.log_search.export.models import ExportJob  # noqa: F401
 from apps.models import (
     JsonField,
     MultiStrSplitByCommaField,
@@ -1780,21 +1783,62 @@ class AsyncTask(OperateRecordModel):
         else:
             qs = qs.exclude(scenario_id=ASYNC_EXPORT_SCENE_ID)
 
-        if (
-            qs.filter(Q(export_status__in=running_status) | Q(export_status__isnull=True)).count()
-            >= settings.MAX_CONCURRENT_EXPORT_TASKS
-        ):
+        running_count = qs.filter(Q(export_status__in=running_status) | Q(export_status__isnull=True)).count()
+        # 新旧链路共用同一个用户级并发额度：分片导出任务也计入未完成的导出数
+        running_count += ExportJob.objects.filter(created_by=username, status__in=ExportJobStatus.ACTIVE).count()
+        if running_count >= settings.MAX_CONCURRENT_EXPORT_TASKS:
             raise ConcurrentExportLimitException(
                 ConcurrentExportLimitException.MESSAGE.format(limit_count=settings.MAX_CONCURRENT_EXPORT_TASKS)
             )
+
+    @classmethod
+    def export_create_lock_key(cls, username: str, is_scene: bool = False) -> str:
+        """用户级导出创建锁的 key：新旧导出链路必须算出同一个 key 才能共用同一份用户额度。"""
+        task_group = ASYNC_EXPORT_SCENE_ID if is_scene else "default"
+        username_hash = hashlib.sha256(username.encode("utf-8")).hexdigest()[:32]
+        return f"async_export_create:{task_group}:{username_hash}"
+
+    @classmethod
+    @contextmanager
+    def export_create_lock(cls, username: str, is_scene: bool = False):
+        """
+        用户级导出创建锁：Redis 可用时在锁内复检并发数并创建任务，避免并发请求击穿限制；
+        Redis 禁用或连接异常时降级为非原子校验，极端并发下任务数可能短暂超过限制。
+        """
+        if not settings.USE_REDIS:
+            yield
+            return
+
+        lock_key = cls.export_create_lock_key(username, is_scene)
+        try:
+            lock = cache.lock(lock_key, timeout=30, blocking_timeout=5)
+            lock_acquired = lock.acquire()
+        except RedisError:
+            logger.exception(
+                "[AsyncTask.export_create_lock] Redis is unavailable, falling back to non-atomic validation, lock_key=%s",
+                lock_key,
+            )
+            yield
+            return
+
+        if not lock_acquired:
+            logger.warning("[AsyncTask.export_create_lock] failed to acquire lock, lock_key=%s", lock_key)
+            raise AsyncExportRequestBusyException()
+
+        try:
+            yield
+        finally:
+            try:
+                lock.release()
+            except RedisError:
+                logger.exception("[AsyncTask.export_create_lock] failed to release lock, lock_key=%s", lock_key)
 
     @classmethod
     def async_export_task_create_with_running_limit(cls, username: str, is_scene: bool = False, **task_params):
         """
         校验并创建异步导出任务
 
-        Redis 启用且可用时，在用户导出分组锁内完成并发数复检与任务创建，避免并发请求击穿限制；
-        Redis 禁用或连接异常时降级为非原子校验，极端并发下任务数可能短暂超过限制。
+        创建前需要拿到用户级创建锁，锁内复检并发数，避免并发请求击穿限制。
         """
 
         def check_and_create_task():
@@ -1803,42 +1847,9 @@ class AsyncTask(OperateRecordModel):
             task_params["export_type"] = ExportType.ASYNC
             return cls.objects.create(**task_params)
 
-        if not settings.USE_REDIS:
-            return check_and_create_task()
-
-        task_group = ASYNC_EXPORT_SCENE_ID if is_scene else "default"
-        username_hash = hashlib.sha256(username.encode("utf-8")).hexdigest()[:32]
-        lock_key = f"async_export_create:{task_group}:{username_hash}"
-
-        try:
-            lock = cache.lock(lock_key, timeout=30, blocking_timeout=5)
-            lock_acquired = lock.acquire()
-        except RedisError:
-            logger.exception(
-                "[AsyncTask.async_export_task_create_with_running_limit] Redis is unavailable, "
-                "falling back to non-atomic validation, lock_key=%s",
-                lock_key,
-            )
-            return check_and_create_task()
-
-        if not lock_acquired:
-            logger.warning(
-                "[AsyncTask.async_export_task_create_with_running_limit] failed to acquire lock, lock_key=%s",
-                lock_key,
-            )
-            raise AsyncExportRequestBusyException()
-
-        try:
+        with cls.export_create_lock(username, is_scene=is_scene):
             with atomic():
                 return check_and_create_task()
-        finally:
-            try:
-                lock.release()
-            except RedisError:
-                logger.exception(
-                    "[AsyncTask.async_export_task_create_with_running_limit] failed to release lock, lock_key=%s",
-                    lock_key,
-                )
 
     class Meta:
         db_table = "export_task"

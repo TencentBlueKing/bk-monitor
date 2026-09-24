@@ -54,9 +54,9 @@ class QcloudCos:
     def _init_config(self):
         self.expired = settings.EXTRACT_TRANSIT_EXPIRED
 
-    def get_download_url(self, file_name: str) -> str:
+    def get_download_url(self, file_name: str, expired: int = None) -> str:
         url: str = self._client.get_presigned_download_url(
-            Bucket=self._qcloud_cos_bucket.strip(), Key=file_name, Expired=self.expired
+            Bucket=self._qcloud_cos_bucket.strip(), Key=file_name, Expired=expired or self.expired
         )
         if self._has_accelerate():
             return url.replace(f"cos.{self._qcloud_cos_region.strip()}.myqcloud.com", settings.EXTRACT_COS_DOMAIN)
@@ -76,6 +76,10 @@ class QcloudCos:
     def head_object(self, file_name: str) -> dict:
         """Read object metadata without generating a download URL or reading object content."""
         return self._client.head_object(Bucket=self._qcloud_cos_bucket.strip(), Key=file_name)
+
+    def delete_object(self, file_name: str):
+        """删除对象；对象不存在时 COS 同样返回成功。"""
+        return self._client.delete_object(Bucket=self._qcloud_cos_bucket.strip(), Key=file_name)
 
     def _has_accelerate(self):
         return settings.EXTRACT_COS_DOMAIN is not None

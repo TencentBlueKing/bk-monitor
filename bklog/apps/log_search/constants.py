@@ -239,6 +239,156 @@ class MsgModel:
     ABNORMAL = "abnormal"
 
 
+# 分片异步导出任务状态
+class ExportJobStatus:
+    PENDING = "PENDING"
+    PLANNING = "PLANNING"
+    READY = "READY"
+    RUNNING = "RUNNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    CANCELED = "CANCELED"
+
+    CHOICES = (
+        (PENDING, "待规划"),
+        (PLANNING, "规划中"),
+        (READY, "待调度"),
+        (RUNNING, "执行中"),
+        (SUCCESS, "成功"),
+        (FAILED, "失败"),
+        (CANCELED, "已取消"),
+    )
+    # 仍会占用并发额度的状态
+    ACTIVE = [PENDING, PLANNING, READY, RUNNING]
+    TERMINAL = [SUCCESS, FAILED, CANCELED]
+
+
+# 分片状态
+class ExportPartStatus:
+    WAITING = "WAITING"
+    DISPATCHED = "DISPATCHED"
+    RUNNING = "RUNNING"
+    UPLOADING = "UPLOADING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+    SPLIT = "SPLIT"
+    CANCELED = "CANCELED"
+
+    CHOICES = (
+        (WAITING, "待投递"),
+        (DISPATCHED, "已投递"),
+        (RUNNING, "执行中"),
+        (UPLOADING, "上传中"),
+        (SUCCESS, "成功"),
+        (FAILED, "失败"),
+        (SPLIT, "已细分"),
+        (CANCELED, "已取消"),
+    )
+    # 已开始执行、允许回填结果或推进阶段的运行态
+    EXECUTING = [RUNNING, UPLOADING]
+    # 已占用 Worker 资源、需要计入侵占额度的状态
+    INFLIGHT = [DISPATCHED, RUNNING, UPLOADING]
+    # 已细分、由子分片接管的分片：不产出产物、不进清单
+    NON_LEAF = [SPLIT]
+
+
+# 导出计划状态
+class ExportPlanStatus:
+    PLANNING = "PLANNING"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+    CHOICES = (
+        (PLANNING, "规划中"),
+        (SUCCESS, "规划成功"),
+        (FAILED, "规划失败"),
+    )
+
+
+# 分片导出任务的稳定错误分类，文案直接用于前端展示
+class ExportErrorCode:
+    PLANNING_FAILED = "PLANNING_FAILED"
+    PLANNING_RETRIES_EXHAUSTED = "PLANNING_RETRIES_EXHAUSTED"
+    STATISTICS_FAILED = "STATISTICS_FAILED"
+    QUOTA_EXCEEDED = "QUOTA_EXCEEDED"
+    PART_LIMIT_EXCEEDED = "PART_LIMIT_EXCEEDED"
+    DISPATCH_FAILED = "DISPATCH_FAILED"
+    UNIFY_QUERY_FAILED = "UNIFY_QUERY_FAILED"
+    PART_EXECUTION_FAILED = "PART_EXECUTION_FAILED"
+    PART_RETRIES_EXHAUSTED = "PART_RETRIES_EXHAUSTED"
+    PART_TIMEOUT = "PART_TIMEOUT"
+    OVERSIZED_PART_FAILED = "OVERSIZED_PART_FAILED"
+    UPLOAD_FAILED = "UPLOAD_FAILED"
+    STORAGE_UNSUPPORTED = "STORAGE_UNSUPPORTED"
+    FINALIZATION_FAILED = "FINALIZATION_FAILED"
+    # 以下是任务终态对应的展示分类，只用于读取，不写回 error_code 字段
+    CANCELED = "CANCELED"
+    FILE_EXPIRED = "FILE_EXPIRED"
+
+    MESSAGES = {
+        PLANNING_FAILED: _("导出计划生成失败，请稍后重试"),
+        PLANNING_RETRIES_EXHAUSTED: _("导出计划多次生成失败，请稍后重试"),
+        STATISTICS_FAILED: _("导出数据量统计失败，请稍后重试"),
+        QUOTA_EXCEEDED: _("预计导出条数超过单任务上限，请缩小查询范围或增加过滤条件"),
+        PART_LIMIT_EXCEEDED: _("导出分片数量超过上限，请缩小查询范围或增加过滤条件"),
+        DISPATCH_FAILED: _("导出分片投递失败，请稍后重试"),
+        UNIFY_QUERY_FAILED: _("日志查询失败，请稍后重试"),
+        PART_EXECUTION_FAILED: _("导出分片执行失败，请稍后重试"),
+        PART_RETRIES_EXHAUSTED: _("导出分片多次重试后仍然失败"),
+        PART_TIMEOUT: _("导出分片执行超时，已重新调度"),
+        OVERSIZED_PART_FAILED: _("同一时间点日志密度过高，请增加过滤条件或缩小查询范围"),
+        UPLOAD_FAILED: _("导出文件上传失败，请稍后重试"),
+        STORAGE_UNSUPPORTED: _("导出产物存储配置不支持，请联系管理员"),
+        FINALIZATION_FAILED: _("导出清单生成失败"),
+        CANCELED: _("任务已取消"),
+        FILE_EXPIRED: _("导出文件已过期，请重新发起任务"),
+    }
+
+    @classmethod
+    def label(cls, code):
+        """取错误码对应的展示文案；未登记的码返回空串，避免把内部码直接抛给用户。"""
+        message = cls.MESSAGES.get(code)
+        return str(message) if message else ""
+
+
+# 与工作量无关的错误，重试耗尽也不做时间细分
+NON_SPLITTABLE_ERROR_CODES = frozenset(
+    {
+        ExportErrorCode.STORAGE_UNSUPPORTED,
+        ExportErrorCode.QUOTA_EXCEEDED,
+        ExportErrorCode.PLANNING_FAILED,
+        ExportErrorCode.UPLOAD_FAILED,
+    }
+)
+
+
+# 只有工作量相关的原因，缩小查询范围才可能让任务成功；存储、投递类原因重试就可能成功，
+# 不能被「密度过高请缩小范围」的文案覆盖
+WORKLOAD_ERROR_CODES = frozenset(
+    {
+        ExportErrorCode.PART_TIMEOUT,
+        ExportErrorCode.UNIFY_QUERY_FAILED,
+        ExportErrorCode.PART_RETRIES_EXHAUSTED,
+        ExportErrorCode.PART_EXECUTION_FAILED,
+    }
+)
+
+
+# 分片导出阶段（仅用于前端展示进度）
+class ExportStage:
+    DOWNLOAD_LOG = "DOWNLOAD_LOG"
+    PACKAGE = "PACKAGE"
+    UPLOAD = "UPLOAD"
+    FINALIZING = "FINALIZING"
+
+    CHOICES = (
+        (DOWNLOAD_LOG, "取数"),
+        (PACKAGE, "打包"),
+        (UPLOAD, "上传"),
+        (FINALIZING, "生成清单"),
+    )
+
+
 # 数据平台mapping返回错误
 class BkDataErrorCode:
     COULD_NOT_GET_METADATA_ERROR = 1532013
