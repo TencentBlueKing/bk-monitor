@@ -161,6 +161,22 @@ export default defineComponent({
       }
     };
 
+    const handleTableValidateError = (err: unknown) => {
+      const payload = err as { name?: string; rowIndex?: number; column?: string; message?: string };
+      const rowIndex = typeof payload?.rowIndex === 'number' ? payload.rowIndex : -1;
+      const detail = payload?.message || (err instanceof Error ? err.message : String(err || ''));
+      bkMessage({
+        theme: 'error',
+        message:
+          rowIndex >= 0
+            ? t('第 {n} 行填写不规范：{msg}', { n: rowIndex + 1, msg: detail })
+            : detail || t('请检查正则和占位符填写是否正确'),
+      });
+      if (rowIndex >= 0) {
+        tableRef.value?.focusCell?.(rowIndex, payload.column);
+      }
+    };
+
     const handleCancel = () => {
       isShowRuleDialog.value = false;
       emit('change', false);
@@ -192,7 +208,8 @@ export default defineComponent({
           }
         })
         .catch(e => {
-          console.error(e);
+          isConfirmLoading.value = false;
+          handleTableValidateError(e);
         });
     };
 
@@ -313,7 +330,7 @@ export default defineComponent({
           regexPreviewRef.value.onShow();
         })
         .catch(err => {
-          console.error(err);
+          handleTableValidateError(err);
         });
     };
 
@@ -433,7 +450,7 @@ export default defineComponent({
           }
         })
         .catch(e => {
-          console.error(e);
+          handleTableValidateError(e);
         });
     };
 

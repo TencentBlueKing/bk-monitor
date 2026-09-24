@@ -157,6 +157,9 @@ export default defineComponent({
 
     expose({
       getValue() {
+        if (props.disabled) {
+          return Promise.resolve(localValue.value);
+        }
         return validator(localValue.value).then(() => localValue.value);
       },
       focus() {
@@ -194,7 +197,7 @@ export default defineComponent({
             on-click={handleClear}
           />
         )}
-        {errorMessage.value && (
+        {errorMessage.value && !props.disabled && (
           <log-icon
             class='error-icon'
             v-bk-tooltips={errorMessage.value}
