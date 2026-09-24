@@ -151,21 +151,29 @@ def metric_series(keys: list[str], values: list[str], points: list[list[Any]]) -
     return {"group_keys": keys, "group_values": values, "columns": ["_time", "_value"], "values": points}
 
 
-def test_metric_heartbeat_keys_and_non_null_zero() -> None:
+def test_metric_heartbeat_uses_sample_times_for_all_service_keys() -> None:
     for name in ("demo", "demo-redis", "demo-kafka", "http:remote", "empty"):
         make_node(name)
     responses = [
-        {"series": [metric_series(["service_name"], ["demo"], [[150, 0], [190, None], [210, 1]])]},
-        {"series": [metric_series(["service_name", "db_system"], ["demo", "redis"], [[160, 1]])]},
-        {"series": [metric_series(["service_name", "messaging_system"], ["demo", "kafka"], [[170, 1]])]},
-        {"series": [metric_series(["peer_service"], ["remote"], [[180, 1]])]},
+        {
+            "series": [
+                metric_series(
+                    ["service_name"],
+                    ["demo"],
+                    [[150000, 140.9], [190000, 140.9], [195000, None], [200000, 0], [200000, 201]],
+                )
+            ]
+        },
+        {"series": [metric_series(["service_name", "db_system"], ["demo", "redis"], [[190000, 160]])]},
+        {"series": [metric_series(["service_name", "messaging_system"], ["demo", "kafka"], [[190000, 170]])]},
+        {"series": [metric_series(["peer_service"], ["remote"], [[190000, 180]])]},
     ]
     with mock.patch(
         "apm.core.discover.metric.service.api.unify_query.query_data_by_promql", side_effect=responses
     ) as query:
         MetricServiceDiscover(datasource()).discover_heartbeat(100, 200)
     assert {node.topo_key: node.heartbeat["metric"]["last_data_at"] for node in TopoNode.objects.all()} == {
-        "demo": 150,
+        "demo": 140,
         "demo-redis": 160,
         "demo-kafka": 170,
         "http:remote": 180,
@@ -188,7 +196,7 @@ def test_metric_partial_failure_keeps_old_heartbeat(response: Any) -> None:
     with mock.patch(
         "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
         side_effect=[
-            {"series": [metric_series(["service_name"], ["demo"], [[150, 1]])]},
+            {"series": [metric_series(["service_name"], ["demo"], [[150000, 140]])]},
             response,
         ],
     ):
@@ -338,9 +346,9 @@ def test_metric_splits_discovery_but_queries_heartbeat_once(settings: Any) -> No
 
 
 @pytest.mark.parametrize("timestamp", [1789530120, 1789530120000, "2026-09-16T03:42:00Z"])
-def test_metric_timestamp_units(timestamp: Any) -> None:
+def test_metric_evaluation_time_format_does_not_change_sample_time(timestamp: Any) -> None:
     node = make_node()
-    series = metric_series(["service_name"], ["demo"], [[timestamp, 0]])
+    series = metric_series(["service_name"], ["demo"], [[timestamp, 1789530120.875]])
     with mock.patch(
         "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
         side_effect=[{"series": [series]}, {"series": []}, {"series": []}, {"series": []}],
@@ -365,6 +373,7 @@ def test_metric_does_not_overwrite_concurrent_trace_classification() -> None:
         discover.discover_services(100, 200)
     node.refresh_from_db()
     assert node.extra_data == {"kind": "service", "category": "rpc"}
+    assert node.source == ["profiling", "trace", "metric"]
 
 
 def test_log_paginates_all_services_before_publishing() -> None:
@@ -565,3 +574,76 @@ def test_profile_later_sample_failure_keeps_existing_profile_and_heartbeat() -> 
     assert profile.is_large is False
     assert profile.last_check_time >= old_check_time
     assert node.heartbeat["profiling"]["last_data_at"] == 1789958112
+
+
+@pytest.mark.parametrize("sample_time", [90, 0, None, float("nan"), float("inf")])
+def test_metric_old_or_missing_samples_do_not_advance_data_time(sample_time: Any) -> None:
+    node = make_node(heartbeat={"metric": {"last_data_at": 90, "checked_at": 100}})
+    series = metric_series(["service_name"], ["demo"], [[150000, sample_time], [200000, sample_time]])
+    with mock.patch(
+        "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
+        side_effect=[{"series": [series]}, {"series": []}, {"series": []}, {"series": []}],
+    ):
+        MetricServiceDiscover(datasource()).discover_heartbeat(100, 200)
+    node.refresh_from_db()
+    assert node.heartbeat["metric"]["last_data_at"] == 90
+    assert node.heartbeat["metric"]["checked_at"] > 100
+
+
+def test_profile_sample_timeout_does_not_publish_partial_discovery(caplog: pytest.LogCaptureFixture) -> None:
+    node = make_node(source=["profiling"], heartbeat={"profiling": {"last_data_at": 90, "checked_at": 100}})
+    previous = node.heartbeat
+    groups = [
+        {"service_name": f"service-{index}", "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 1}
+        for index in range(3000)
+    ]
+    calls = 0
+
+    def query(**kwargs: Any) -> dict[str, Any]:
+        nonlocal calls
+        if json.loads(kwargs["sql"])["api_type"] == "select_aggregate":
+            return {"list": groups}
+        calls += 1
+        # 单次查询耗时 0.2 s 的容量模型：第 2700 次达到 540 s 软超时，不实际等待。
+        if calls == 2700:
+            raise SoftTimeLimitExceeded()
+        return {"list": [{"period": 10000000, "period_type": "cpu/nanoseconds", "type": "cpu", "value": 1}]}
+
+    with (
+        caplog.at_level("INFO", logger="apm"),
+        mock.patch("apm.core.handlers.profile.query.api.bkdata.query_profile_data", side_effect=query),
+        mock.patch("apm.core.discover.profile.service.EventReportHelper.report"),
+        pytest.raises(SoftTimeLimitExceeded),
+    ):
+        ProfileServiceDiscover(datasource()).discover(100000, 200000)
+    node.refresh_from_db()
+    assert node.heartbeat == previous
+    assert TopoNode.objects.count() == 1
+    assert ProfileService.objects.count() == 0
+    assert "combinations=3000 sample_queries=2700 samples_loaded=2699" in caplog.text
+
+
+def test_discovery_source_update_is_scoped_and_rolls_back_with_other_fields() -> None:
+    node = make_node(source=["trace"])
+    other = make_node("other", app_name="other", source=["log"])
+    node.system = [{"name": "trpc", "extra_data": {}}]
+    other.system = node.system
+    TopoNode.bulk_update_discovered_nodes(2, "app", [node, other], ["system"], "metric")
+    node.refresh_from_db()
+    other.refresh_from_db()
+    assert node.source == ["trace", "metric"]
+    assert node.system == [{"name": "trpc", "extra_data": {}}]
+    assert other.source == ["log"]
+    assert other.system is None
+    node.system = []
+    original = QuerySet.bulk_update
+
+    def fail_after_write(queryset: QuerySet, *args: Any, **kwargs: Any) -> None:
+        original(queryset, *args, **kwargs)
+        raise RuntimeError("write failed")
+
+    with mock.patch.object(QuerySet, "bulk_update", fail_after_write), pytest.raises(RuntimeError):
+        TopoNode.bulk_update_discovered_nodes(2, "app", [node], ["system"], "log")
+    node.refresh_from_db()
+    assert node.source == ["trace", "metric"]
+    assert node.system == [{"name": "trpc", "extra_data": {}}]

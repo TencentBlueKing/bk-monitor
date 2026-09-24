@@ -54,6 +54,16 @@ class FakeTopoNode:
     touch_heartbeat = mock.Mock()
     has_trace_or_metric_source = staticmethod(TopoNode.has_trace_or_metric_source)
 
+    @classmethod
+    def bulk_update_discovered_nodes(
+        cls, bk_biz_id: int, app_name: str, nodes: list["FakeTopoNode"], fields: list[str], data_type: str
+    ) -> None:
+        for node in nodes:
+            node.source = list(cls.objects.nodes[node.topo_key].get("source") or [])
+            if data_type not in node.source:
+                node.source.append(data_type)
+        cls.objects.bulk_update(nodes, [*fields, "source"])
+
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 

@@ -13,7 +13,6 @@ import math
 import time
 from typing import Any
 
-import arrow
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.utils import timezone
@@ -96,7 +95,8 @@ class ServiceDiscover(Discover):
         metric_table: str = self.result_table_id.replace(".", ":")
         for group in groups:
             promql: str = (
-                f'sum by ({", ".join(group)}) ({{__name__="custom:{metric_table}:{TraceMetric.BK_APM_COUNT}"}})'
+                f"max by ({', '.join(group)}) "
+                f'(timestamp({{__name__="custom:{metric_table}:{TraceMetric.BK_APM_COUNT}"}}))'
             )
             for series in self.query_series(promql, start_time, end_time):
                 dimensions: dict[str, str] = dict(zip(series["group_keys"], series["group_values"]))
@@ -112,20 +112,15 @@ class ServiceDiscover(Discover):
                     name = f"http:{name}"
 
                 columns: list[str] = series["columns"]
-                time_index: int = columns.index("_time")
                 value_index: int = columns.index("_value" if "_value" in columns else "_result")
                 for point in series["values"]:
-                    # 零值仍是有效数据；只采用查询窗口内的有效序列点时间。
-                    if point[value_index] is None or not math.isfinite(float(point[value_index])):
+                    # timestamp() 的值是秒级样本时间；_time 是求值时间，回溯旧样本时仍会推进。
+                    # 原始指标为零也有样本时间，空桶补零则会被查询窗口过滤。
+                    if point[value_index] is None:
                         continue
-                    raw_time: int | float | str = point[time_index]
-                    if isinstance(raw_time, int | float):
-                        # UQ 兼容秒级与毫秒级数值时间，字符串按其时区解析。
-                        timestamp: int = int(raw_time / 1000 if raw_time >= 100_000_000_000 else raw_time)
-                    else:
-                        timestamp = int(arrow.get(raw_time).float_timestamp)
-                    if start_time <= timestamp <= end_time:
-                        observed[name] = max(observed.get(name) or 0, timestamp)
+                    timestamp: float = float(point[value_index])
+                    if math.isfinite(timestamp) and start_time <= timestamp <= end_time:
+                        observed[name] = max(observed.get(name) or 0, int(timestamp))
 
         # 四路查询全部成功后，统一入口按应用检查全部现存节点，无需先枚举服务名。
         TopoNode.touch_heartbeat(
@@ -202,17 +197,12 @@ class ServiceDiscover(Discover):
                 existing: dict[str, Any] = exists_mapping[topo_key]
                 if not TopoNode.has_trace_or_metric_source(existing["source"]):
                     promoted_node_ids.append(existing["id"])
-                source: list[str] = existing["source"] or [TelemetryDataType.METRIC.value]
-                if TelemetryDataType.METRIC.value not in source:
-                    source.append(TelemetryDataType.METRIC.value)
-
                 to_be_updated_topo_nodes.append(
                     TopoNode(
                         bk_biz_id=self.bk_biz_id,
                         app_name=self.app_name,
                         **{
                             **exists_mapping[topo_key],
-                            "source": source,
                             "system": combine_list(exists_mapping[topo_key]["system"], system),
                         },
                         updated_at=timezone.now(),
@@ -239,8 +229,12 @@ class ServiceDiscover(Discover):
             )
 
         if to_be_updated_topo_nodes:
-            TopoNode.objects.bulk_update(
-                to_be_updated_topo_nodes, fields=["source", "system", "updated_at"], batch_size=200
+            TopoNode.bulk_update_discovered_nodes(
+                self.bk_biz_id,
+                self.app_name,
+                to_be_updated_topo_nodes,
+                fields=["system", "updated_at"],
+                data_type=TelemetryDataType.METRIC.value,
             )
             logger.info(
                 f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) "

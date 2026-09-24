@@ -326,14 +326,6 @@ def profile_handler(bk_biz_id: int, app_name: str) -> None:
     except LockError:
         logger.info("[profile_handler] already running: bk_biz_id=%s app_name=%s", bk_biz_id, app_name)
         return
-    except IncompleteDiscoveryError:
-        logger.warning(
-            "[profile_handler] incomplete query, heartbeat unchanged: bk_biz_id=%s app_name=%s",
-            bk_biz_id,
-            app_name,
-            exc_info=True,
-        )
-        return
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} end at {datetime.datetime.now()}")
 
 
@@ -347,7 +339,7 @@ def profile_discover_cron() -> None:
         for app_id, bk_biz_id, app_name in ApmApplication.objects.filter(
             is_enabled=True, is_enabled_profiling=True
         ).values_list("id", "bk_biz_id", "app_name")
-        if app_id % interval == slug
+        if (app_id + interval // 3) % interval == slug
     }
     for datasource in ProfileDataSource.objects.all():
         if (datasource.bk_biz_id, datasource.app_name) not in applications:
