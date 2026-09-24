@@ -110,7 +110,7 @@ export default defineComponent({
                 )}
                 <span
                   class='profiling-file-name'
-                  title={this.selected?.file_name || this.fileName}
+                  v-overflow-tips
                 >
                   {this.selected?.file_name || this.fileName || this.t('请选择文件')}
                 </span>
@@ -133,7 +133,7 @@ export default defineComponent({
                     </span>
                     <span
                       class='profiling-file-option-name'
-                      title={`${file.file_name} (${file.origin_file_name})`}
+                      v-overflow-tips
                     >
                       {file.file_name} <span>({file.origin_file_name})</span>
                     </span>

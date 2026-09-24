@@ -173,9 +173,11 @@ export default defineComponent({
               'div',
               {
                 class: ['profile-function-name', { selected: props.highlight === row.name }],
-                style: { direction: props.direction },
               },
-              [h('i', { style: { backgroundColor: props.compared ? '#dcdee5' : frameColor(row.name) } }), row.name]
+              [
+                h('i', { style: { backgroundColor: props.compared ? '#dcdee5' : frameColor(row.name) } }),
+                h('span', { class: 'profile-function-label', style: { direction: props.direction } }, row.name),
+              ]
             ),
         },
         ...(props.compared

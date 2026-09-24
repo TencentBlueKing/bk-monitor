@@ -190,7 +190,7 @@ export default defineComponent({
                             )}
                             <span
                               class='option-name'
-                              title={`${item.app_name}${item.app_alias ? ` (${item.app_alias})` : ''}`}
+                              v-overflow-tips
                             >
                               {item.app_name}
                               {item.app_alias && <span class='option-alias'>({item.app_alias})</span>}
@@ -216,7 +216,7 @@ export default defineComponent({
                                 <i class='icon-monitor icon-mokuai' />
                                 <span
                                   class='option-name'
-                                  title={service.name}
+                                  v-overflow-tips
                                 >
                                   {service.name}
                                 </span>
