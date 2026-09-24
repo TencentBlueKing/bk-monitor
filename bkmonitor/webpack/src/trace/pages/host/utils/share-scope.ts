@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import type { IHostTopoTreeNode } from '../types';
+
 export type HostScopeParams = {
   bk_biz_id?: number | string;
   bk_host_id?: number;
@@ -37,8 +39,9 @@ const parseInteger = (value: unknown) => {
   if (value === null || value === undefined || value === '' || Array.isArray(value)) {
     return null;
   }
+  if (typeof value !== 'number' && (typeof value !== 'string' || !/^\d+$/.test(value))) return null;
   const result = Number(value);
-  return Number.isInteger(result) ? result : null;
+  return Number.isSafeInteger(result) && result > 0 ? result : null;
 };
 
 export const parseHostShareScope = (query: Record<string, unknown>): HostScopeParams => {
@@ -75,4 +78,62 @@ export const resolveHostRequestScope = (
     return { bk_inst_id: selectedNode.bk_inst_id, bk_obj_id: selectedNode.bk_obj_id };
   }
   return {};
+};
+
+/** Resolve a request target before the topology is available. Unknown share scopes never widen to the business. */
+export const resolveInitialHostScope = (
+  readonly: boolean,
+  query: Record<string, unknown>,
+  nodeId: string,
+  bizId: number
+): HostScopeParams | null => {
+  if (readonly && query.shareTargetType !== undefined) {
+    const scope = parseHostShareScope(query);
+    if (scope.bk_obj_id === 'biz' && scope.bk_inst_id !== bizId) return null;
+    return Object.keys(scope).length ? scope : null;
+  }
+  if (!nodeId) return readonly ? null : { bk_obj_id: 'biz', bk_inst_id: bizId };
+  const hostId = /^\d+$/.test(nodeId) ? parseInteger(nodeId) : null;
+  if (hostId !== null) return { bk_host_id: hostId };
+  const match = /^([a-zA-Z][\w-]*)\|(\d+)$/.exec(nodeId);
+  const instId = match ? parseInteger(match[2]) : null;
+  if (!match || instId === null || (match[1] === 'biz' && instId !== bizId)) return null;
+  return { bk_obj_id: match[1], bk_inst_id: instId };
+};
+
+export const hostTargetKey = (node: HostScopeNode) =>
+  node?.bk_host_id !== undefined ? `host|${node.bk_host_id}` : `${node?.bk_obj_id || ''}|${node?.bk_inst_id ?? ''}`;
+
+/** Minimal target metadata; request identity is available before the tree labels arrive. */
+export const createHostTarget = (
+  scope: null | { bk_host_id?: number; bk_inst_id?: number; bk_obj_id?: string },
+  bizId: number
+): IHostTopoTreeNode | null => {
+  if (!scope) return null;
+  if (scope.bk_host_id !== undefined)
+    return {
+      bk_biz_id: bizId,
+      bk_host_id: scope.bk_host_id,
+      id: String(scope.bk_host_id),
+      alias_name: '',
+      bk_cloud_id: 0,
+      bk_host_innerip: '',
+      bk_host_innerip_v6: '',
+      bk_host_name: '',
+      display_name: '',
+      ip: '',
+      metadataPending: true,
+      name: '',
+      os_type: '',
+    };
+  return {
+    bk_biz_id: bizId,
+    bk_inst_id: scope.bk_inst_id,
+    bk_obj_id: scope.bk_obj_id,
+    id: `${scope.bk_obj_id}|${scope.bk_inst_id}`,
+    bk_inst_name: '',
+    bk_obj_name: '',
+    name: '',
+    children: [],
+  };
 };

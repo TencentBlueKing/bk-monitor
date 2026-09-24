@@ -1,5 +1,11 @@
 {
-  "include": ["./**/*.ts", "./**/*.vue", "./**/*.tsx", "./pages/host/workers/host-list.worker.raw.js"],
+  "include": [
+    "./**/*.ts",
+    "./**/*.vue",
+    "./**/*.tsx",
+    "./pages/host/workers/host-list.worker.raw.js",
+    "./pages/host/workers/host-topo-tree.worker.raw.js"
+  ],
   "exclude": ["node_modules"],
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {

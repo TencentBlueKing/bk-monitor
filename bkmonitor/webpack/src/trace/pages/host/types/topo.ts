@@ -36,6 +36,8 @@ export type IHostTopoHostNode = {
   display_name: string;
   id: string;
   ip: string;
+  /** 仅 URL 直达占位主机为 true；实际主机元数据不以 IPv4 是否为空判定。 */
+  metadataPending?: boolean;
   name: string;
   os_type: string;
 };

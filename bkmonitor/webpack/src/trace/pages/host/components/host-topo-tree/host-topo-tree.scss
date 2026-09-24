@@ -4,6 +4,8 @@
 }
 
 .host-topo-tree {
+  $host-topo: &;
+
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -109,12 +111,6 @@
 
     &:hover {
       background-color: #f5f7fa;
-
-      .topo-node {
-        .topo-node__compare {
-          display: flex;
-        }
-      }
     }
 
     &.is-selected {
@@ -224,15 +220,31 @@
       font-size: 12px;
       font-weight: 400;
       color: #3a84ff;
-      border-radius: 4px;
-      border: 1px solid #eaebf0;
       background: #fff;
-      box-shadow: 0 2px 4px 0 rgba(0, 0, 0, 0.1);
+      border: 1px solid #eaebf0;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px 0 rgb(0 0 0 / 10%);
+
+      #{$host-topo}__row:hover & {
+        display: flex;
+      }
     }
 
     .select-compare-host-icon {
       font-size: 20px;
       color: #979ba5;
     }
+  }
+
+  &__notice {
+    padding: 8px 12px;
+    font-size: 12px;
+    color: #979ba5;
+    background: #f5f7fa;
+  }
+
+  &__page-action {
+    display: flex;
+    align-items: center;
   }
 }

@@ -86,8 +86,6 @@ export const useProcessList = (options: {
       const data = await getHostProcessList(
         {
           bk_host_id: host.bk_host_id,
-          bk_target_ip: host.ip,
-          bk_target_cloud_id: String(host.bk_cloud_id ?? ''),
           start_time: timeRangeTimestamp.value.start_time,
           end_time: timeRangeTimestamp.value.end_time,
         },
@@ -144,7 +142,7 @@ export const useProcessList = (options: {
   };
 
   // 选中主机或时间范围变化时重新拉取
-  watch([() => options.host.value, timeRangeTimestamp], () => loadData(), { immediate: true });
+  watch([() => options.host.value?.bk_host_id, timeRangeTimestamp], () => loadData(), { immediate: true });
 
   // 组件卸载（effect scope 释放）时终止未完成的请求
   onScopeDispose(() => {

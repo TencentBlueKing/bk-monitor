@@ -23,7 +23,11 @@ from core.drf_resource.contrib.cache import CacheResource
 from core.drf_resource.exceptions import CustomException
 from core.errors.share import InvalidParamsError, ParamsPermissionDeniedError
 from monitor_web.constants import AGENT_STATUS
-from monitor_web.performance.host_metric_stats import HOST_STATS_METRICS, query_host_metric_stats
+from monitor_web.performance.host_metric_stats import (
+    HOST_STATS_METRICS,
+    query_business_host_metric_stats,
+    query_host_metric_stats,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -708,6 +712,10 @@ class SearchHostMetricStatsResource(ApiAuthResource):
             return attrs
 
     def perform_request(self, params):
+        if params.get("bk_host_id") is None and params.get("bk_obj_id") in (None, "biz"):
+            return query_business_host_metric_stats(
+                params["bk_biz_id"], params["category"], params.get("start_time"), params.get("end_time")
+            )
         host_params = {"bk_biz_id": params["bk_biz_id"]}
         if params.get("bk_host_id") is not None:
             host_params["bk_host_id"] = params["bk_host_id"]

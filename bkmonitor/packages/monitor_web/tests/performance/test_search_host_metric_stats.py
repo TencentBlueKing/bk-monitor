@@ -153,7 +153,6 @@ def test_stats_instant_request_satisfies_real_unify_query_serializer(mocker):
 @pytest.mark.parametrize(
     "scope,expected",
     [
-        ({}, {}),
         ({"bk_host_id": 1}, {"bk_host_id": 1}),
         ({"bk_obj_id": "module", "bk_inst_id": 8}, {"topo_nodes": {"module": [8]}}),
     ],
@@ -180,11 +179,13 @@ def test_stats_rejects_incomplete_scope_and_time(params):
 def test_stats_resolves_related_space_before_cmdb_and_metrics(mocker):
     validate = mocker.patch("monitor_web.performance.resources.validate_bk_biz_id", return_value=2)
     identities = mocker.patch("monitor_web.performance.resources.api.cmdb.get_host_identities", return_value=HOSTS)
-    query = mocker.patch("monitor_web.performance.resources.query_host_metric_stats", return_value={"value": 2})
+    query = mocker.patch(
+        "monitor_web.performance.resources.query_business_host_metric_stats", return_value={"value": 2}
+    )
     SearchHostMetricStatsResource().request({"bk_biz_id": -100, "category": "cpu", "start_time": 100, "end_time": 200})
     validate.assert_called_once_with(-100)
-    identities.assert_called_once_with(bk_biz_id=2)
-    query.assert_called_once_with(2, "cpu", HOSTS, 100, 200)
+    identities.assert_not_called()
+    query.assert_called_once_with(2, "cpu", 100, 200)
 
 
 def test_stats_rejects_arbitrary_metric_category(mocker):

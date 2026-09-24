@@ -16,8 +16,10 @@ import type { IHostTopoHostNode, IHostTopoInstNode, IHostTopoTreeNode } from '..
 export type IHostTopoViewRow = (IHostTopoHostNode | Omit<IHostTopoInstNode, 'children'>) & {
   depth: number;
   hasChildren: boolean;
-  hostCount: number;
+  hostCount: null | number;
   isExpanded: boolean;
+  loadParentId?: string;
+  loadState?: 'error' | 'idle' | 'loading' | 'more';
 };
 
 interface IWorkerViewResult {
@@ -26,11 +28,8 @@ interface IWorkerViewResult {
 }
 
 type WorkerResponse =
-  | (IWorkerViewResult & {
-      requestId: number;
-      type: 'COLLAPSE_ALL_DONE' | 'EXPAND_ALL_DONE' | 'GET_RANGE_DONE' | 'SET_FILTER_DONE' | 'TOGGLE_DONE';
-    })
   | {
+      anchorOffset: number;
       nodeCount: number;
       requestId: number;
       /** 选中的拓扑节点数据 */
@@ -39,7 +38,13 @@ type WorkerResponse =
       selectedNodeOffset: number;
       total: number;
       type: 'INIT_DONE';
-    };
+    }
+  | (IWorkerViewResult & {
+      requestId: number;
+      type: 'COLLAPSE_ALL_DONE' | 'EXPAND_ALL_DONE' | 'GET_RANGE_DONE' | 'SET_FILTER_DONE' | 'TOGGLE_DONE';
+    })
+  | { anchorOffset: number; requestId: number; type: 'UPSERT_CHILDREN_DONE' }
+  | { requestId: number; selectedNode: IHostTopoTreeNode | null; selectedNodeOffset: number; type: 'SELECT_DONE' };
 
 /** 创建 Blob Worker */
 const createBlobWorker = () => {
@@ -98,14 +103,40 @@ export const useHostTopoTreeWorker = () => {
   };
 
   /** 初始化 */
-  const init = (treeData: IHostTopoTreeNode[], hideEmptyNode: boolean, searchValue: string, selectedId: string) =>
+  const init = (
+    treeData: IHostTopoTreeNode[],
+    hideEmptyNode: boolean,
+    searchValue: string,
+    selectedId: string,
+    complete = true,
+    preserve = false,
+    anchorId = ''
+  ) =>
     postRequest<Extract<WorkerResponse, { type: 'INIT_DONE' }>>({
+      anchorId,
+      complete,
       hideEmptyNode,
       searchValue,
       selectedId,
       treeData: toRaw(treeData),
-      type: 'INIT',
+      type: preserve ? 'REPLACE' : 'INIT',
     });
+
+  const upsertChildren = (
+    parentId: string,
+    children: IHostTopoHostNode[],
+    page: { done?: boolean; status: 'error' | 'idle' | 'loading' | 'more'; total?: number },
+    anchorId = ''
+  ) =>
+    postRequest<Extract<WorkerResponse, { type: 'UPSERT_CHILDREN_DONE' }>>({
+      anchorId,
+      type: 'UPSERT_CHILDREN',
+      parentId,
+      children,
+      page,
+    });
+
+  const select = (id: string) => postRequest<Extract<WorkerResponse, { type: 'SELECT_DONE' }>>({ type: 'SELECT', id });
 
   /** 获取可视区切片 */
   const getRange = (start: number, end: number) =>
@@ -168,6 +199,8 @@ export const useHostTopoTreeWorker = () => {
     getRange,
     init,
     setFilter,
+    select,
+    upsertChildren,
     toggle,
   };
 };
