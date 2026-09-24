@@ -95,7 +95,7 @@ export default defineComponent({
         <div class='profiling-heading'>
           <Button
             aria-label={this.t('收藏夹')}
-            title={this.t('收藏夹')}
+            v-tippy={this.t('收藏夹')}
             text
             onClick={() => this.$emit('favoriteToggle')}
           >
@@ -131,7 +131,7 @@ export default defineComponent({
               <Button
                 aria-label={this.t('服务详情')}
                 disabled={!this.detail}
-                title={this.t('服务详情')}
+                v-tippy={this.t('服务详情')}
                 text
                 onClick={() => {
                   this.detailsVisible = true;

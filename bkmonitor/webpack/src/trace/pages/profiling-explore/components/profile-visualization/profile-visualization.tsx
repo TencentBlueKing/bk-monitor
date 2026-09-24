@@ -102,11 +102,11 @@ export default defineComponent({
               <Radio.Button
                 key={mode.id}
                 label={mode.id}
+                v-tippy={mode.label}
               >
                 <i
                   class={`icon-monitor icon-${mode.icon}`}
                   aria-label={mode.label}
-                  title={mode.label}
                 />
               </Radio.Button>
             ))}
@@ -130,16 +130,22 @@ export default defineComponent({
               this.$emit('viewChange', { direction: value });
             }}
           >
-            <Radio.Button label='ltr'>
+            <Radio.Button
+              label='ltr'
+              v-tippy={this.t('显示开头')}
+            >
               <i
                 class='icon-monitor icon-AB'
-                title={this.t('显示开头')}
+                aria-label={this.t('显示开头')}
               />
             </Radio.Button>
-            <Radio.Button label='rtl'>
+            <Radio.Button
+              label='rtl'
+              v-tippy={this.t('显示结尾')}
+            >
               <i
                 class='icon-monitor icon-YZ'
-                title={this.t('显示结尾')}
+                aria-label={this.t('显示结尾')}
               />
             </Radio.Button>
           </Radio.Group>
@@ -162,7 +168,7 @@ export default defineComponent({
             <Button
               class='profile-download'
               aria-label={this.t('下载')}
-              title={this.t('下载')}
+              v-tippy={this.t('下载')}
             >
               <i class='icon-monitor icon-xiazai1' />
             </Button>
