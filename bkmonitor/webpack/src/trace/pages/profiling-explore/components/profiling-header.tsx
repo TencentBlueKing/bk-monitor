@@ -57,6 +57,7 @@ export default defineComponent({
     const { t } = useI18n();
     const detailsVisible = shallowRef(false);
     const selector = shallowRef<HTMLElement>();
+    const serviceSelector = shallowRef<InstanceType<typeof ProfilingServiceSelect>>();
     const serviceValue = computed<string[]>(previous => {
       const { appName, serviceName } = props.state;
       const value = appName && serviceName ? [appName, serviceName] : [];
@@ -79,6 +80,8 @@ export default defineComponent({
       t,
       detailsVisible,
       selector,
+      serviceSelector,
+      createApplication: () => serviceSelector.value?.goToApplication(true),
       serviceValue,
       changeTime,
       formatTime: (time: null | number) =>
@@ -94,8 +97,8 @@ export default defineComponent({
       <header class='profiling-explore-header'>
         <div class='profiling-heading'>
           <Button
-            aria-label={this.t('收藏夹')}
             v-tippy={this.t('收藏夹')}
+            aria-label={this.t('收藏夹')}
             text
             onClick={() => this.$emit('favoriteToggle')}
           >
@@ -122,6 +125,7 @@ export default defineComponent({
                 class='profiling-service-select'
               >
                 <ProfilingServiceSelect
+                  ref='serviceSelector'
                   applications={this.serviceOptions}
                   loading={this.loading}
                   value={this.serviceValue}
@@ -129,9 +133,9 @@ export default defineComponent({
                 />
               </div>
               <Button
+                v-tippy={this.t('服务详情')}
                 aria-label={this.t('服务详情')}
                 disabled={!this.detail}
-                v-tippy={this.t('服务详情')}
                 text
                 onClick={() => {
                   this.detailsVisible = true;
@@ -162,23 +166,31 @@ export default defineComponent({
                 </label>
               )}
             </div>
-            <div class='profiling-time-tools'>
-              <TimeRangePicker
-                modelValue={this.state.timeRange}
-                timezone={this.state.timezone}
-                onUpdate:modelValue={this.changeTime}
-                onUpdate:timezone={timezone => {
-                  this.$emit('patch', { timezone });
-                  this.$emit('search');
-                }}
-              />
-              <RefreshRate
-                value={this.state.refreshInterval}
-                onImmediate={() => this.$emit('search')}
-                onSelect={refreshInterval => this.$emit('patch', { refreshInterval })}
-              />
-            </div>
           </>
+        )}
+        {this.tab === 'file' && (
+          <>
+            <span class='profiling-header-divider' />
+            {this.$slots.fileTools?.()}
+          </>
+        )}
+        {this.tab !== 'collection' && (
+          <div class='profiling-time-tools'>
+            <TimeRangePicker
+              modelValue={this.state.timeRange}
+              timezone={this.state.timezone}
+              onUpdate:modelValue={this.changeTime}
+              onUpdate:timezone={timezone => {
+                this.$emit('patch', { timezone });
+                this.$emit('search');
+              }}
+            />
+            <RefreshRate
+              value={this.state.refreshInterval}
+              onImmediate={() => this.$emit('search')}
+              onSelect={refreshInterval => this.$emit('patch', { refreshInterval })}
+            />
+          </div>
         )}
         <Sideslider
           width={560}

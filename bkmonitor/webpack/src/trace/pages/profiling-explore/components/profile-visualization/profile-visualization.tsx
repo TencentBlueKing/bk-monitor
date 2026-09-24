@@ -101,8 +101,8 @@ export default defineComponent({
             {this.modes.map(mode => (
               <Radio.Button
                 key={mode.id}
-                label={mode.id}
                 v-tippy={mode.label}
+                label={mode.id}
               >
                 <i
                   class={`icon-monitor icon-${mode.icon}`}
@@ -131,8 +131,8 @@ export default defineComponent({
             }}
           >
             <Radio.Button
-              label='ltr'
               v-tippy={this.t('显示开头')}
+              label='ltr'
             >
               <i
                 class='icon-monitor icon-AB'
@@ -140,8 +140,8 @@ export default defineComponent({
               />
             </Radio.Button>
             <Radio.Button
-              label='rtl'
               v-tippy={this.t('显示结尾')}
+              label='rtl'
             >
               <i
                 class='icon-monitor icon-YZ'
@@ -167,8 +167,8 @@ export default defineComponent({
           >
             <Button
               class='profile-download'
-              aria-label={this.t('下载')}
               v-tippy={this.t('下载')}
+              aria-label={this.t('下载')}
             >
               <i class='icon-monitor icon-xiazai1' />
             </Button>
@@ -213,11 +213,13 @@ export default defineComponent({
               </Button>
             </Exception>
           ) : this.empty ? (
-            <Exception
-              description={this.t('暂无数据')}
-              scene='part'
-              type='empty'
-            />
+            this.$slots.empty?.() || (
+              <Exception
+                description={this.t('暂无数据')}
+                scene='part'
+                type='empty'
+              />
+            )
           ) : (
             <>
               {showTable && (
