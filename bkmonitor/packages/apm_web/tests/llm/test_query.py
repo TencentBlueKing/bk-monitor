@@ -91,9 +91,36 @@ class LLMQueryTestCase(TestCase):
 
         self.assertEqual(group_ids, ["trace-1"])
         build_queries.assert_called_once_with([], None)
-        query_builder.filter.assert_called_once_with(AGENT_CANDIDATE_Q)
+        query_builder.filter.assert_called_once_with(Q(trace_id__exists=[""], trace_id__neq=[""]) & AGENT_CANDIDATE_Q)
         query_builder.distinct.assert_called_once_with(OtlpKey.TRACE_ID)
         query_list.assert_called_once_with([query_builder], 1, 2, 0, 20)
+
+    def test_group_pagination_excludes_empty_groups_before_collapse(self):
+        for group_field in (
+            "attributes.agent.session.session_code",
+            "attributes.gen_ai.conversation.id",
+            "attributes.session.id",
+            "trace_id",
+        ):
+            with self.subTest(group_field=group_field):
+                records = [{}, {group_field: None}, {group_field: ""}]
+                records.extend({group_field: value} for value in ("group-1", "group-1", "group-2", "group-3"))
+
+                def query_list(queries, start_time, end_time, offset, limit):
+                    # 执行实际序列化后的条件，再模拟存储侧 collapse 和分页。
+                    config = self.query._add_query(self.query.get_qs(None, None), queries).config
+                    predicate = dict_to_q(config["query_configs"][0]["filter_dict"])
+                    self.assertEqual(queries[0].query.distinct, group_field)
+                    self.assertEqual(queries[0].query.order_by, ["end_time desc"])
+                    collapsed = {}
+                    for record in records:
+                        if TracePreviewQueryTestCase.matches(record, predicate):
+                            collapsed.setdefault(record.get(group_field), record)
+                    return list(collapsed.values())[offset : offset + limit]
+
+                with mock.patch.object(self.query, "_query_list", side_effect=query_list):
+                    pages = [self.query.query_group_list(1, 2, group_field, offset, 2) for offset in (0, 2, 4)]
+                self.assertEqual(pages, [["group-1", "group-2"], ["group-3"], []])
 
     def test_query_by_group_ids(self):
         query_builder = mock.Mock()
@@ -246,7 +273,7 @@ class TracePreviewQueryTestCase(TestCase):
             return any(event["name"] in expected for event in record.get("events", []))
         value = LLMQuery.get_field_value(record, field)
         if operator == "exists":
-            return value is not None and value != ""
+            return value is not None
         matched = value in expected if isinstance(expected, list) else value == expected
         return not matched if operator == "neq" else matched
 

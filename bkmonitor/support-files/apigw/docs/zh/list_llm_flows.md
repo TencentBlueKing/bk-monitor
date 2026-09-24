@@ -106,22 +106,21 @@
 
 会话查询的 Token 统计来自全量 LLM Span 聚合，不受预览折叠影响。缓存字段沿用 `token_statistics` 的命名，表示缓存读取和写入量，不额外累加到 `total_tokens`。
 
-`flow` 及其递归 `childs` 节点包含 `list_llm_spans` 的完整 Span 字段，包括 `trace_id`、`span_id`、`parent_span_id`、`span_name`、`start_time`、`end_time`、`elapsed_time`、`status`、`resource` 和 `attributes`。
+`flow` 及其递归 `childs` 节点的字段与 `list_llm_spans` 的 `spans` 元素一致，包含后端识别的 `span_type`。
 
 ### 前端展示归类规则
 
-`flow` 节点与 `list_llm_spans` 的 `spans` 元素使用相同规则。节点类型和内容由 Span 字段决定，
-与树中位置无关。
+`flow` 节点与 `list_llm_spans` 的 `spans` 元素使用相同规则。前端通过节点顶层的 `span_type` 选择展示类型，通过 `attributes` 展示内容，与节点在树中的位置无关。
 
 #### Span 类型
 
-| 页面节点类型 | `attributes.gen_ai.operation.name` 取值 |
+| `span_type` | 页面节点类型 |
 |---|---|
-| Agent | `invoke_agent`、`invoke_workflow` |
-| 模型 | `chat`、`text_completion` |
-| Tool | `execute_tool` |
+| `AGENT` | Agent |
+| `LLM` | 模型 |
+| `TOOL` | Tool |
 
-其他操作值按通用 GenAI Span 展示，不归入上述三类。
+类型由后端统一归类，前端无需根据 `attributes.gen_ai.operation.name` 重新判断。未识别类型的节点不返回 `span_type`，按通用 GenAI Span 展示。
 
 #### 输入区块
 
@@ -229,6 +228,7 @@
                         "span_id": "30e66c2d28e1bfd8",
                         "parent_span_id": "a75a608f6c6bf9ee",
                         "span_name": "invoke_agent 标准排障",
+                        "span_type": "AGENT",
                         "start_time": 1787912684072035,
                         "end_time": 1787912699650734,
                         "elapsed_time": 15578699,
@@ -281,6 +281,7 @@
                                 "span_id": "89c0d0e71b37fa50",
                                 "parent_span_id": "30e66c2d28e1bfd8",
                                 "span_name": "chat k3",
+                                "span_type": "LLM",
                                 "start_time": 1787912684078297,
                                 "end_time": 1787912689487839,
                                 "elapsed_time": 5409542,
@@ -376,6 +377,7 @@
                                         "span_id": "55e489f22aa46592",
                                         "parent_span_id": "89c0d0e71b37fa50",
                                         "span_name": "execute_tool list_incident_events",
+                                        "span_type": "TOOL",
                                         "start_time": 1787912689507924,
                                         "end_time": 1787912689798924,
                                         "elapsed_time": 291000,
@@ -417,6 +419,7 @@
                                 "span_id": "6218ec01f35516ef",
                                 "parent_span_id": "30e66c2d28e1bfd8",
                                 "span_name": "chat k3",
+                                "span_type": "LLM",
                                 "start_time": 1787912689802118,
                                 "end_time": 1787912699639749,
                                 "elapsed_time": 9837631,
