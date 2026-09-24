@@ -29,6 +29,7 @@ import Vue2 from 'vue';
 
 import './common/import-magicbox-ui';
 
+import ExpressionPanel from './pages/query-template/components/expression-panel/expression-panel';
 import QueryPanel, { QueryPanelEmits } from './pages/query-template/components/query-panel/query-panel';
 
 import './static/css/global.scss';
@@ -36,4 +37,4 @@ import './static/css/reset.scss';
 import 'monitor-static/icons/monitor-icons.css';
 export * from './pages/query-template/typings';
 
-export { i18n, QueryPanel, QueryPanelEmits, Vue2 };
+export { ExpressionPanel, i18n, QueryPanel, QueryPanelEmits, Vue2 };

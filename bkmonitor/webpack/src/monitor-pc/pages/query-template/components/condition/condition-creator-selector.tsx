@@ -45,6 +45,7 @@ import './condition-creator-selector.scss';
 interface IProps {
   allVariables?: { name: string }[];
   clearKey?: string;
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   dimensionValueVariables?: { name: string }[];
   fields?: IFilterField[];
   hasVariableOperate?: boolean;
@@ -78,6 +79,8 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
   @Prop({ default: () => [] }) allVariables: { name: string }[];
   /** 是否展示条件标签 */
   @Prop({ default: false, type: Boolean }) showConditionTag: boolean;
+  /* 由外部接管变量创建（如宿主自带变量面板），传入时不再展开内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
   @Ref('selector') selectorRef: HTMLDivElement;
 
   /* 是否显示弹出层 */
@@ -131,6 +134,9 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
     this.showSelector = true;
   }
   destroyPopoverInstance() {
+    /* 确定/取消属于主动关闭，不该被变量创建状态挡住，
+       否则宿主的变量面板异常退出后这个弹层就再也关不掉了 */
+    this.showCreateVariablePop = false;
     this.popoverInstance?.hide?.();
     this.popoverInstance?.destroy?.();
     this.popoverInstance = null;
@@ -292,6 +298,7 @@ export default class ConditionCreatorSelector extends tsc<IProps> {
           <div ref='selector'>
             <ConditionCreatorOptions
               allVariables={this.allVariables}
+              createVariableFn={this.createVariableFn}
               dimensionValueVariables={this.dimensionValueVariables}
               fields={this.fields}
               getValueFn={this.getValueFn}

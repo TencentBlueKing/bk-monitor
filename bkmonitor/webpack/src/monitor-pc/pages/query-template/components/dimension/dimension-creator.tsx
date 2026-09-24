@@ -41,6 +41,7 @@ import './dimension-creator.scss';
 
 interface IProps {
   allVariables?: { name: string }[];
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   options?: IDimensionOptionsItem[];
   showLabel?: boolean;
   showVariables?: boolean;
@@ -63,6 +64,8 @@ export default class DimensionCreator extends tsc<IProps> {
   @Prop({ default: () => [] }) value: string[];
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
+  /* 由外部接管变量创建（如宿主自带变量面板），传入时不再展开内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
 
   @Ref('inputRef') inputRef: AutoWidthInput;
 
@@ -251,6 +254,7 @@ export default class DimensionCreator extends tsc<IProps> {
             {this.showVariables && (
               <AddVariableOption
                 allVariables={this.allVariables}
+                createVariableFn={this.createVariableFn}
                 onAdd={this.handleAddVar}
                 onOpenChange={this.handleAddVariableOpenChange}
               />

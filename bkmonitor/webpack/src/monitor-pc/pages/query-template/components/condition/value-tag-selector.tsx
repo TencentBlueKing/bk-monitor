@@ -47,6 +47,7 @@ export interface IValue {
 interface IProps {
   allVariables?: { name: string }[];
   autoFocus?: boolean;
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   fieldInfo?: IFieldItem;
   /* 获取数据 */
   getValueFn?: TGetValueFn;
@@ -80,6 +81,8 @@ export default class ValueTagSelector extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) hasVariableOperate: boolean;
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
+  /* 由外部接管变量创建（如宿主自带变量面板），传入时不再展开内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
 
   /* tag列表 */
   localValue: IValue[] = [];
@@ -377,6 +380,7 @@ export default class ValueTagSelector extends tsc<IProps> {
         {this.isShowDropDown && (
           <ValueOptions
             allVariables={this.allVariables}
+            createVariableFn={this.createVariableFn}
             fieldInfo={this.fieldInfo}
             getValueFn={this.getValueFn}
             hasVariableOperate={this.hasVariableOperate}
