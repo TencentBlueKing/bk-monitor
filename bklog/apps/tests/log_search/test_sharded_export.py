@@ -28,8 +28,11 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from blueapps.core.celery.celery import app
 from django.conf import settings
+from django.db import connection
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from redis.exceptions import RedisError
 
@@ -47,7 +50,13 @@ from apps.log_search.constants import (
 )
 from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.export import state
-from apps.log_search.export.config import PART_TASK_NAME, ExportPolicy
+from apps.log_search.export.config import (
+    CONTROL_QUEUE,
+    COORDINATOR_QUEUE,
+    PART_QUEUE,
+    PART_TASK_NAME,
+    ExportPolicy,
+)
 from apps.log_search.export.api import create_export_job, download_link, job_detail, job_results
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.models import LogIndexSet, Scenario, Space
@@ -74,7 +83,12 @@ from apps.log_search.export.scheduler import (
     finalize_export,
 )
 from apps.log_search.export.storage import UnsupportedExportStorage, artifact_name, build_storage, manifest_name
-from apps.log_search.tasks.sharded_export import coordinate_sharded_exports, execute_sharded_export_part
+from apps.log_search.tasks.sharded_export import (
+    PLANNING_SOFT_TIME_LIMIT,
+    coordinate_sharded_exports,
+    execute_sharded_export_part,
+    plan_sharded_export,
+)
 
 
 def build_policy(**overrides):
@@ -1237,6 +1251,113 @@ class CoordinateLockTests(SimpleTestCase):
         with patch("apps.utils.lock.cache", cache), self.assertRaises(RedisError):
             coordinate_sharded_exports.run()
         coordinate.assert_not_called()
+
+
+class ControlPipelineTests(SimpleTestCase):
+    """规划、调度轮次、分片三类消息各自独占队列：规划排队再久也不会推迟回收、投递和收尾。"""
+
+    def test_queues_are_distinct(self):
+        self.assertEqual(len({PART_QUEUE, CONTROL_QUEUE, COORDINATOR_QUEUE}), 3)
+
+    def test_coordinator_tick_has_its_own_queue(self):
+        self.assertEqual(coordinate_sharded_exports.options, {"queue": COORDINATOR_QUEUE})
+        self.assertEqual(
+            app.conf.beat_schedule[coordinate_sharded_exports.name]["options"], {"queue": COORDINATOR_QUEUE}
+        )
+
+    def test_planning_is_bounded_before_the_reclaim_window(self):
+        """规划软超时必须早于规划超时窗口，否则 Coordinator 会判定超时并重复投递同一份规划。"""
+        self.assertEqual(plan_sharded_export.soft_time_limit, PLANNING_SOFT_TIME_LIMIT)
+        self.assertLess(PLANNING_SOFT_TIME_LIMIT, settings.ASYNC_EXPORT_PLANNING_TIMEOUT)
+
+    def test_supervisord_consumes_every_queue(self):
+        """漏部署任一 worker 会让对应链路整体停摆，队列改动必须同步部署配置。"""
+        conf_path = Path(__file__).resolve().parents[3] / "support-files" / "supervisord.conf"
+        conf = conf_path.read_text(encoding="utf-8")
+        for queue in (PART_QUEUE, CONTROL_QUEUE, COORDINATOR_QUEUE):
+            with self.subTest(queue=queue):
+                self.assertIn(f"-Q {queue} ", conf)
+
+
+class JobFailureClassificationTests(TestCase):
+    """任务级错误码只表达原因；OVERSIZED 仅用于「已到最小时间精度 + 工作量类原因」。"""
+
+    FAILED_CASES = (
+        # 工作量类原因且已到最小精度：只有缩小范围才有意义
+        (ExportErrorCode.PART_TIMEOUT, 1000, 500, ExportErrorCode.OVERSIZED_PART_FAILED),
+        (ExportErrorCode.UNIFY_QUERY_FAILED, 1000, 500, ExportErrorCode.OVERSIZED_PART_FAILED),
+        (ExportErrorCode.PART_RETRIES_EXHAUSTED, 1000, 500, ExportErrorCode.OVERSIZED_PART_FAILED),
+        # 存储、投递类原因与数据密度无关，不能被密度文案覆盖
+        (ExportErrorCode.UPLOAD_FAILED, 1000, 500, ExportErrorCode.UPLOAD_FAILED),
+        (ExportErrorCode.STORAGE_UNSUPPORTED, 1000, 500, ExportErrorCode.STORAGE_UNSUPPORTED),
+        # 还能继续细分时保留原始原因，避免把「分片数到上限」误报成密度问题
+        (ExportErrorCode.PART_TIMEOUT, 4000, 1, ExportErrorCode.PART_TIMEOUT),
+        # 未登记的码不透给前端，否则前端只能拿到空文案
+        ("QUERY_FAILED", 1000, 500, ExportErrorCode.PART_EXECUTION_FAILED),
+    )
+
+    def fail_single_part_job(self, error_code, span, max_parts):
+        """造一个只含单个分片的任务并让它失败，返回刷新后的任务。"""
+        job = create_job(
+            end_time=span,
+            policy={**ExportPolicy().snapshot(), "part_max_attempts": 1, "max_parts": max_parts},
+        )
+        state.claim_planning(job.pk)
+        state.persist_plan(job.pk, parts=[PartSpec(0, span, 10, 10)], estimated_total=10)
+        part = ExportPart.objects.get(job=job)
+        state.dispatch_part(part.pk, "task")
+        part = state.claim_part(part.pk, "task")
+        state.fail_part(part.pk, fence_of(part), error_code=error_code, retryable=True)
+        job.refresh_from_db()
+        return job
+
+    def test_part_failure_is_classified_on_the_job(self):
+        for error_code, span, max_parts, expected in self.FAILED_CASES:
+            with self.subTest(error_code=error_code, span=span, max_parts=max_parts):
+                job = self.fail_single_part_job(error_code, span, max_parts)
+
+                self.assertEqual(job.status, ExportJobStatus.FAILED)
+                self.assertEqual(job.error_code, expected)
+                self.assertTrue(ExportErrorCode.label(job.error_code))
+
+    def test_underlying_part_error_stays_in_the_detail(self):
+        job = self.fail_single_part_job(ExportErrorCode.STORAGE_UNSUPPORTED, 1000, 500)
+
+        self.assertEqual(job.error_code, ExportErrorCode.STORAGE_UNSUPPORTED)
+        self.assertIn(ExportErrorCode.STORAGE_UNSUPPORTED, job.error_detail)
+
+    def test_job_detail_exposes_detail_and_failed_part(self):
+        job = self.fail_single_part_job(ExportErrorCode.PART_TIMEOUT, 1000, 500)
+
+        detail = job_detail(job)
+
+        self.assertEqual(detail["error_code"], ExportErrorCode.OVERSIZED_PART_FAILED)
+        self.assertTrue(detail["error_message"])
+        self.assertIn(ExportErrorCode.PART_TIMEOUT, detail["error_detail"])
+        self.assertEqual(
+            detail["failed_part"],
+            {
+                "part_no": 1,
+                "error_code": ExportErrorCode.PART_TIMEOUT,
+                "oversized": False,
+                "start_time": 0,
+                "end_time": 1000,
+            },
+        )
+
+    def test_successful_job_has_no_failed_part(self):
+        self.assertIsNone(job_detail(create_job())["failed_part"])
+
+    def test_list_progress_lookup_stays_a_single_query(self):
+        """列表页逐个任务取进度，进度查询必须只占一次查询（叶子计数走注解）。"""
+        job = self.fail_single_part_job(ExportErrorCode.PART_TIMEOUT, 1000, 500)
+        annotated = ExportJob.objects.annotate(**state.leaf_counts_annotation()).get(pk=job.pk)
+
+        with CaptureQueriesContext(connection) as captured:
+            job_detail(annotated)
+
+        part_queries = [query for query in captured.captured_queries if "log_export_part" in query["sql"]]
+        self.assertEqual(len(part_queries), 1)
 
 
 class ManifestChecksumTests(TestCase):

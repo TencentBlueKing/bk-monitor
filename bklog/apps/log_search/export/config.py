@@ -15,6 +15,8 @@ FINALIZE_TASK_NAME = "apps.log_search.tasks.sharded_export.finalize_sharded_expo
 # 队列名需与 support-files/supervisord.conf 的 -Q 保持一致
 PART_QUEUE = "sharded_export"
 CONTROL_QUEUE = "sharded_export_control"
+# Coordinator 的调度轮次单独占一个队列：规划任务再慢也不会把轮次堵在队列里
+COORDINATOR_QUEUE = "sharded_export_coordinator"
 
 
 @dataclass(frozen=True)

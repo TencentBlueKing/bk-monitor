@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 import copy
 from datetime import timedelta
 
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import APIException, ValidationError
@@ -145,9 +146,34 @@ def _job_error_code(job, expired):
     return ""
 
 
+def _progress_rows(job):
+    """一次取出进度展示需要的分片：在途分片的阶段，以及触发任务失败的分片。"""
+    return list(
+        ExportPart.objects.filter(job=job)
+        .filter(Q(status__in=INFLIGHT) | Q(status=ExportPartStatus.FAILED))
+        .order_by("part_no")
+        .values("status", "stage", "part_no", "oversized", "start_time", "end_time", "error_code")
+    )
+
+
+def _failed_part(row):
+    """触发任务失败的分片摘要，让前端能定位到具体区间，而不是只看到任务级分类。"""
+    if row is None:
+        return None
+    return {
+        "part_no": row["part_no"],
+        "error_code": row["error_code"],
+        "oversized": row["oversized"],
+        "start_time": row["start_time"],
+        "end_time": row["end_time"],
+    }
+
+
 def job_detail(job):
     """任务进度：预计条数与实际条数分开，完成度按已成功的叶子分片数计算。"""
-    stages = list(ExportPart.objects.filter(job=job, status__in=INFLIGHT).values_list("stage", flat=True))
+    progress = _progress_rows(job)
+    stages = [row["stage"] for row in progress if row["status"] in INFLIGHT]
+    failed_part = next((row for row in progress if row["status"] == ExportPartStatus.FAILED), None)
     total, success = _leaf_counts(job)
     if job.status == ExportJobStatus.SUCCESS:
         percent = 100
@@ -176,6 +202,8 @@ def job_detail(job):
         "requested_parallelism": job.requested_parallelism,
         "error_code": error_code,
         "error_message": ExportErrorCode.label(error_code),
+        "error_detail": job.error_detail,
+        "failed_part": _failed_part(failed_part),
         "created_by": job.created_by,
         "created_at": job.created_at,
         "completed_at": job.completed_at,

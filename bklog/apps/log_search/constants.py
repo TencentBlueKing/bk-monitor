@@ -362,6 +362,18 @@ NON_SPLITTABLE_ERROR_CODES = frozenset(
 )
 
 
+# 只有工作量相关的原因，缩小查询范围才可能让任务成功；存储、投递类原因重试就可能成功，
+# 不能被「密度过高请缩小范围」的文案覆盖
+WORKLOAD_ERROR_CODES = frozenset(
+    {
+        ExportErrorCode.PART_TIMEOUT,
+        ExportErrorCode.UNIFY_QUERY_FAILED,
+        ExportErrorCode.PART_RETRIES_EXHAUSTED,
+        ExportErrorCode.PART_EXECUTION_FAILED,
+    }
+)
+
+
 # 分片导出阶段（仅用于前端展示进度）
 class ExportStage:
     DOWNLOAD_LOG = "DOWNLOAD_LOG"

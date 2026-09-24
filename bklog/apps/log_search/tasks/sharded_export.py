@@ -28,11 +28,15 @@ from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from django.conf import settings
 
-from apps.log_search.export.config import CONTROL_QUEUE, PART_QUEUE
+from apps.log_search.export.config import CONTROL_QUEUE, COORDINATOR_QUEUE, PART_QUEUE
 from apps.log_search.export.worker import run_part
 from apps.log_search.export.planner import run_planning
 from apps.log_search.export.scheduler import coordinate, finalize_export
 from apps.utils.lock import share_lock
+
+
+# 规划软超时必须早于规划超时窗口结束：让规划自己先失败，而不是被 Coordinator 判定超时后重复投递
+PLANNING_SOFT_TIME_LIMIT = max(1, settings.ASYNC_EXPORT_PLANNING_TIMEOUT - 60)
 
 
 @app.task(
@@ -47,7 +51,7 @@ def execute_sharded_export_part(self, part_id):
     run_part(part_id, self.request.id)
 
 
-@app.task(ignore_result=True, queue=CONTROL_QUEUE)
+@app.task(ignore_result=True, queue=CONTROL_QUEUE, soft_time_limit=PLANNING_SOFT_TIME_LIMIT)
 def plan_sharded_export(job_id):
     run_planning(job_id)
 
@@ -59,7 +63,7 @@ def finalize_sharded_export(job_id):
 
 @periodic_task(
     run_every=settings.ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS,
-    options={"queue": CONTROL_QUEUE},
+    options={"queue": COORDINATOR_QUEUE},
 )
 @share_lock(ttl=settings.ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT)
 def coordinate_sharded_exports():

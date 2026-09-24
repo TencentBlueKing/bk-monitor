@@ -30,6 +30,7 @@ from django.utils import timezone
 
 from apps.log_search.constants import (
     NON_SPLITTABLE_ERROR_CODES,
+    WORKLOAD_ERROR_CODES,
     ExportErrorCode,
     ExportJobStatus,
     ExportPartStatus,
@@ -350,6 +351,22 @@ def fail_part(part_id, fence, *, error_code, error_detail="", retryable=True):
         return _fail_locked(job, part, error_code, error_detail, retryable=retryable)
 
 
+def _classify_failure(job, part, error_code):
+    """
+    任务级失败分类。
+
+    error_code 只表达原因；OVERSIZED_PART_FAILED 表示「已到最小时间精度且原因是工作量」，
+    只有这种组合才该建议用户缩小范围——存储、投递类原因重试就可能成功，不能被密度文案覆盖。
+    判断是否还能细分与 _can_split 用同一个口径，不依赖规划期写入的 oversized 标记。
+    """
+    if not ExportErrorCode.label(error_code):
+        # 未登记的码不透给前端，否则前端只能拿到空文案
+        return ExportErrorCode.PART_EXECUTION_FAILED
+    if error_code in WORKLOAD_ERROR_CODES and part.end_time - part.start_time <= _split_step(job):
+        return ExportErrorCode.OVERSIZED_PART_FAILED
+    return error_code
+
+
 def _fail_locked(job, part, error_code, error_detail, retryable=True):
     if part.status not in ExportPartStatus.INFLIGHT:
         return None
@@ -368,8 +385,12 @@ def _fail_locked(job, part, error_code, error_detail, retryable=True):
     # 不再重试：让任务明确失败，避免用户拿到不完整的清单
     _save(part, status=ExportPartStatus.FAILED, stage="", **changes)
     if job.status in (ExportJobStatus.READY, ExportJobStatus.RUNNING):
-        job_error = ExportErrorCode.OVERSIZED_PART_FAILED if part.oversized else ExportErrorCode.PART_EXECUTION_FAILED
-        _finish_job(job, ExportJobStatus.FAILED, job_error, f"分片 {part.part_no} 执行失败：{error_code}")
+        _finish_job(
+            job,
+            ExportJobStatus.FAILED,
+            _classify_failure(job, part, error_code),
+            f"分片 {part.part_no} 执行失败：{error_code}",
+        )
     return part
 
 
