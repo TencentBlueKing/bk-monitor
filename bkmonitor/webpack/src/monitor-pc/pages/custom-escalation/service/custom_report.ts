@@ -118,6 +118,20 @@ export interface ICustomTsFields {
     movable: boolean;
     type: string;
     update_time: number;
+    /** Prometheus 指标类型：待分类/Gauge/Counter/Histogram/Summary */
+    metric_type?: 'unclassified' | 'gauge' | 'counter' | 'histogram' | 'summary';
+    /** 类型来源：上报识别/人工确认/未识别 */
+    type_source?: 'reported' | 'manual' | 'unrecognized';
+    /** 时序性：累计/增量，默认 cumulative */
+    temporality?: 'cumulative' | 'delta';
+    /** 是否为指标族聚合父指标 */
+    is_family_parent?: boolean;
+    /** 指标族名称 */
+    metric_family?: string;
+    /** 真实成员列表 */
+    family_members?: { field_id: number; name: string; suffix?: string }[];
+    /** 人工确认与自动识别冲突 */
+    type_conflict?: boolean;
   }[];
 }
 

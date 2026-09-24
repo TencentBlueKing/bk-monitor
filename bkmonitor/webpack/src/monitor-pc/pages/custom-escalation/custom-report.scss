@@ -9,6 +9,7 @@
 
 .custom-report-page {
   position: relative;
+  background: #f5f7fa;
 
   @include layout-flex(row, stretch, flex-start);
 
@@ -131,7 +132,7 @@
 
   .content-left {
     flex-basis: 680px;
-    background: $whiteColor;
+    background: #f5f7fa;
     border-radius: 2px;
     .content-left-header {
       padding: 16px 24px;

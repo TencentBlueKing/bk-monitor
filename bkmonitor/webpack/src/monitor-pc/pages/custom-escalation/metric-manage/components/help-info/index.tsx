@@ -52,8 +52,8 @@ export default class HelpInfo extends tsc<IProps> {
   /** 用于复制Python Prometheus SDK代码的隐藏文本域引用 */
   @Ref('pythonCopy') readonly pythonCopy!: HTMLTextAreaElement;
 
-  /** 是否显示右侧帮助栏 */
-  isShowHelpPanel = true;
+  /** 是否显示右侧帮助栏（默认收起，由 isShow prop 同步） */
+  isShowHelpPanel = false;
   /** 云区域分类数据，包含各云区域的IP和ID信息 */
   proxyInfo: ServiceReturnType<typeof proxyHostInfo> = [];
   /** 数据上报格式样例（JSON协议） */
