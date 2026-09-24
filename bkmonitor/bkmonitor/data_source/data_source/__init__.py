@@ -809,13 +809,17 @@ class PrometheusTimeSeriesDataSource(DataSource):
             bk_biz_id=bk_biz_id,
             promql=query_config["promql"],
             interval=query_config["agg_interval"],
+            alias=query_config.get("alias", ""),
             filter_dict=query_config.get("filter_dict"),
         )
 
-    def __init__(self, bk_biz_id: int, promql: str, interval: int, filter_dict: dict = None, *args, **kwargs):
+    def __init__(
+        self, bk_biz_id: int, promql: str, interval: int, filter_dict: dict = None, alias: str = "", *args, **kwargs
+    ):
         self.bk_biz_id = bk_biz_id
         self.promql = promql
         self.interval = interval
+        self.alias = alias
         self.filter_dict = filter_dict or {}
         super().__init__()
 

@@ -24,7 +24,8 @@ from django.utils.functional import cached_property
 from opentelemetry import trace
 
 from bkm_space.utils import bk_biz_id_to_space_uid
-from bkmonitor.data_source.data_source import DataSource, TimeSeriesDataSource
+from bkmonitor.data_source.data_source import DataSource, PrometheusTimeSeriesDataSource, TimeSeriesDataSource
+from bkmonitor.data_source.promql_expression import compile_promql_expression
 from bkmonitor.data_source.unify_query.constants import REF_VALUES_RESERVED_FIELD
 from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
@@ -63,11 +64,41 @@ class UnifyQuery:
         functions: list | None = None,
         bk_tenant_id: str | None = None,
         query_output_config: dict | None = None,
+        promql_multi_expression: bool = False,
     ):
         self.is_partial = False
         self.functions = [] if functions is None else functions
         # 不传业务指标时传 0，为 None 时查询所有业务
         self.bk_biz_id = bk_biz_id
+        if promql_multi_expression:
+            if len(data_sources) < 2 or not all(
+                isinstance(source, PrometheusTimeSeriesDataSource) for source in data_sources
+            ):
+                raise ValueError("multiple Prometheus time-series queries are required")
+            filter_dict = data_sources[0].filter_dict
+            if any(source.filter_dict != filter_dict for source in data_sources[1:]):
+                raise ValueError("PromQL queries must use the same filters")
+            promql = compile_promql_expression(
+                [
+                    {
+                        "data_source_label": source.data_source_label,
+                        "data_type_label": source.data_type_label,
+                        "alias": source.alias,
+                        "promql": source.promql,
+                        "interval": source.interval,
+                    }
+                    for source in data_sources
+                ],
+                expression,
+            )
+            data_sources = [
+                PrometheusTimeSeriesDataSource(
+                    bk_biz_id=data_sources[0].bk_biz_id,
+                    promql=promql,
+                    interval=int(data_sources[0].interval),
+                    filter_dict=filter_dict,
+                )
+            ]
         self.data_sources = data_sources
 
         # 如果未传入租户ID，则根据业务ID获取租户ID

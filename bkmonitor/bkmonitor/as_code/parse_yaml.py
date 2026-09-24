@@ -220,6 +220,8 @@ class StrategyConfigParser(BaseConfigParser):
                 "unit": origin_config["unit"],
                 **metric_dict,
             }
+            if config["query"]["data_source"] == DataSourceLabel.PROMETHEUS and origin_config.get("expression_mode"):
+                query_config["expression_mode"] = origin_config["expression_mode"]
 
             query_configs.append(query_config)
 
@@ -790,11 +792,20 @@ class StrategyConfigParser(BaseConfigParser):
                 if query_config.get(field):
                     code_query_config[code_field] = query_config[field]
 
-            if (data_source, data_type) in (
-                (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
-                (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
-            ) or data_source == DataSourceLabel.BK_FTA:
+            if (
+                (data_source, data_type)
+                in (
+                    (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
+                    (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+                )
+                or data_source == DataSourceLabel.BK_FTA
+                or (data_source == DataSourceLabel.PROMETHEUS and query_config.get("expression_mode") == "promql")
+            ):
                 code_query_config["alias"] = query_config["alias"]
+
+            if data_source == DataSourceLabel.PROMETHEUS and query_config.get("expression_mode"):
+                code_query_config["expression_mode"] = query_config["expression_mode"]
+                code_config["version"] = MaxVersion.STRATEGY
 
             if query_config.get("functions"):
                 function_expressions = [
@@ -816,7 +827,7 @@ class StrategyConfigParser(BaseConfigParser):
         elif (data_source, data_type) in (
             (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
             (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
-        ):
+        ) or (data_source == DataSourceLabel.PROMETHEUS and query_configs[0].get("expression_mode") == "promql"):
             query["expression"] = item["expression"]
 
         # 表达式
