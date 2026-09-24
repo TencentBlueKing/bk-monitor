@@ -351,6 +351,7 @@ ACTIVE_VIEWS = {
         "alert_v2": "fta_web.alert_v2.views",
         "assign": "fta_web.assign.views",
         "home": "fta_web.home.views",
+        "issue": "fta_web.issue.views",
     },
     "calendar": {"calendar": "calendars.views"},
     "apm_web": {
@@ -431,6 +432,9 @@ AIOPS_BIZ_WHITE_LIST = []
 
 # 是否开启AIOPS根因故障定位功能，业务白名单
 AIOPS_INCIDENT_BIZ_WHITE_LIST = []
+
+# Issue AI 分析业务白名单：空名单关闭，-1 表示全量开启
+ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST = []
 
 # 是否由GSE分配dataid，默认是False，由监控自身来负责分配
 IS_ASSIGN_DATAID_BY_GSE = True
@@ -1347,6 +1351,8 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
 # 故障分析
 BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
+# BKFara 源码分析使用独立 APIGW；联调环境由 BKFara 提供具体地址。
+BKFARA_APIGW_BASE_URL = os.getenv("BKAPP_BKFARA_APIGW_BASE_URL") or os.getenv("BKFARA_APIGW_BASE_URL", "")
 # 是否开启故障分析功能，默认不开启
 ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
 # 是否打开故障通知
