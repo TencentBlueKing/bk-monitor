@@ -34,21 +34,40 @@ def test_compile_promql_expression_preserves_precedence_and_vector_matching():
         'label_replace((sum(rate(requests_total{status="ok"}[1m]))), "dst", "$1", "src", "(.*)") / '
         "(sum(rate(requests_total[1m])))"
     )
+    assert compile_promql_expression(configs, "label_replace(a, 'dst', 'ab', 'src', '(.*)') / ab") == (
+        "label_replace((sum(rate(requests_total{status=\"ok\"}[1m]))), 'dst', 'ab', 'src', '(.*)') / "
+        "(sum(rate(requests_total[1m])))"
+    )
+    assert compile_promql_expression(configs, "label_replace(a, `dst`, `ab`, `src`, `(.*)`) / ab") == (
+        'label_replace((sum(rate(requests_total{status="ok"}[1m]))), `dst`, `ab`, `src`, `(.*)`) / '
+        "(sum(rate(requests_total[1m])))"
+    )
     assert compile_promql_expression(configs, "sum by(job) (a / ab)") == (
         'sum by(job) ((sum(rate(requests_total{status="ok"}[1m]))) / (sum(rate(requests_total[1m]))))'
     )
+
+
+def test_compile_promql_expression_preserves_alias_case():
+    configs = [query("A", "up"), query("B", "down")]
+
+    assert compile_promql_expression(configs, "A / B * 100") == "(up) / (down) * 100"
+    with pytest.raises(ValueError, match="unknown PromQL query alias: a"):
+        compile_promql_expression(configs, "a / B * 100")
 
 
 @pytest.mark.parametrize(
     ("configs", "expression", "error"),
     [
         ([query("a", "up"), query("a", "down")], "a", "duplicate"),
+        ([query("offset", "up"), query("b", "down")], "offset / b", "invalid PromQL query alias"),
         ([query("a", "up"), query("b", "down", 30)], "a / b", "same interval"),
         ([query("a", "up"), query("b", "down")], "a / typo", "unknown"),
         ([query("a", "up"), query("b", "down")], "a", "unused"),
         ([query("a", "up"), query("b", "down")], "", "required"),
         ([query("a", "up"), query("b", "down")], "$a / b", "unsupported"),
         ([query("a", "up"), query("b", "down")], "a && b", "unsupported"),
+        ([query("a", "up"), query("b", "down")], "a offset 5m / b", "individual PromQL query"),
+        ([query("a", "up"), query("b", "down")], "a[5m] / b", "individual PromQL query"),
         ([query("sum", "up"), query("a", "down")], "sum(a)", "conflicts with a function"),
     ],
 )

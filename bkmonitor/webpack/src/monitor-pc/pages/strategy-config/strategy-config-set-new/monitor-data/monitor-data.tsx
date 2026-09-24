@@ -737,7 +737,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 ? this.sourceQueries.map(query => (
                     <div key={query.alias}>
                       <div>
-                        {this.$t('查询')} {query.alias.toUpperCase()}
+                        {this.$t('查询')} {query.alias}
                       </div>
                       <pre style='white-space: pre-wrap; overflow-wrap: anywhere;'>{query.promql}</pre>
                     </div>
@@ -760,7 +760,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                           class='source-query-title'
                         >
                           <span>
-                            {this.$t('查询')} {query.alias.toUpperCase()}
+                            {this.$t('查询')} {query.alias}
                           </span>
                           {!this.readonly && index > 0 && (
                             <bk-button
@@ -802,7 +802,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                       style='margin: 12px 0;'
                       class='source-expression'
                     >
-                      <div class='source-query-title'>{this.$t('计算表达式（PromQL 语法）')}</div>
+                      <div class='source-query-title'>{this.$t('计算表达式（查询别名的 PromQL 即时向量运算）')}</div>
                       <bk-input
                         readonly={this.readonly}
                         type='textarea'

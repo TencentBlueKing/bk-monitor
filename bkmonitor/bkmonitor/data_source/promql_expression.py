@@ -7,12 +7,12 @@ from typing import Any
 
 _ALIAS_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]*\Z")
 _TOKEN_RE = re.compile(
-    r'\s+|"(?:\\.|[^"\\])*"|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|'
+    r"""\s+|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`[^`]*`|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?|"""
     r"[A-Za-z_][A-Za-z0-9_]*|==|!=|<=|>=|[()+\-*/%^,<>]"
 )
 _OPERATORS = {"and", "or", "unless", "bool"}
 _LABEL_MODIFIERS = {"on", "ignoring", "group_left", "group_right", "by", "without"}
-_RESERVED = _OPERATORS | _LABEL_MODIFIERS
+_RESERVED = _OPERATORS | _LABEL_MODIFIERS | {"offset"}
 
 
 def compile_promql_expression(query_configs: list[Mapping[str, Any]], expression: str) -> str:
@@ -51,6 +51,8 @@ def compile_promql_expression(query_configs: list[Mapping[str, Any]], expression
     while position < len(expression):
         match = _TOKEN_RE.match(expression, position)
         if match is None:
+            if expression[position] == "[":
+                raise ValueError("range selectors must be specified in an individual PromQL query")
             raise ValueError(f"unsupported PromQL expression token at position {position + 1}")
         token = match.group()
         position = match.end()
@@ -80,6 +82,8 @@ def compile_promql_expression(query_configs: list[Mapping[str, Any]], expression
                 result.append(token)
             elif keyword in _OPERATORS:
                 result.append(token)
+            elif keyword == "offset":
+                raise ValueError("offset must be specified in an individual PromQL query")
             elif token in queries:
                 if re.match(r"\s*\(", expression[position:]):
                     raise ValueError(f"PromQL query alias conflicts with a function call: {token}")
