@@ -564,7 +564,7 @@ export default defineComponent({
           commonParams={props.commonParams}
           field={fieldOptions ? { ...fieldOptions, field_unit: selectFieldUnit } : null}
           isDuration={['us', 'ms', 'μs'].includes(selectFieldUnit)}
-          isInteger={['double', 'long', 'integer'].includes(fieldOptions?.name)}
+          isInteger={['double', 'long', 'integer'].includes(fieldOptions?.type)}
           isShow={showStatisticsPopover.value}
           onConditionChange={handleConditionChange}
           onContentRendered={handleStatisticsPopoverUpdate}
