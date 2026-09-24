@@ -26,6 +26,7 @@
 
 import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
 
+import { Button } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -54,6 +55,10 @@ export default defineComponent({
       type: Object as PropType<IHostTopoTreeNode | null>,
       default: null,
     },
+    hostMetadataError: {
+      type: Boolean,
+      default: false,
+    },
     /** 对比主机列表 */
     compareHostList: {
       type: Array as PropType<IHostTopoHostNode[]>,
@@ -65,6 +70,7 @@ export default defineComponent({
     },
   },
   emits: {
+    retryHostMetadata: () => true,
     selectIpCell: (_row: IHostListRow) => true,
   },
   setup(props, { emit }) {
@@ -76,6 +82,10 @@ export default defineComponent({
     /** 当前视角：选中主机叶子 → host 视角，否则 → topo 视角 */
     const perspective = computed<HostPerspective>(() =>
       props.selectedNode && isHostNode(props.selectedNode) ? 'host' : 'topo'
+    );
+
+    const hostMetadataPending = computed(
+      () => props.selectedNode && isHostNode(props.selectedNode) && props.selectedNode.metadataPending
     );
 
     /** 当前视角对应的 Tab 列表 */
@@ -179,6 +189,7 @@ export default defineComponent({
           );
         case 'metric':
         case 'system':
+          if (hostMetadataPending.value) return null;
           // 指标汇聚（topo）与系统指标（host）视觉一致，复用同一组件
           return (
             <HostMetric
@@ -235,6 +246,23 @@ export default defineComponent({
           aria-labelledby={`host-content-tab-${activeTab.value}`}
           role='tabpanel'
         >
+          {hostMetadataPending.value && (
+            <div
+              class='host-content-tabs__host-status'
+              role='status'
+            >
+              {props.hostMetadataError ? t('主机信息加载失败') : t('主机信息加载中...')}
+              {props.hostMetadataError && (
+                <Button
+                  theme='primary'
+                  text
+                  onClick={() => emit('retryHostMetadata')}
+                >
+                  {t('重试')}
+                </Button>
+              )}
+            </div>
+          )}
           {props.selectedNode && renderContent()}
         </div>
       </div>

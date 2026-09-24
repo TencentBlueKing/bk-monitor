@@ -46,6 +46,15 @@
     }
   }
 
+  &__host-status {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 16px;
+    color: #979ba5;
+    background: #fff;
+  }
+
   &__content {
     display: flex;
     flex: 1;

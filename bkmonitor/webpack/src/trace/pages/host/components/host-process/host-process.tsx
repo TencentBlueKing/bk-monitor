@@ -163,13 +163,15 @@ export default defineComponent({
           onRowClick={this.handleRowClick}
           onSortChange={this.handleSortChange}
         />
-        <ProcessDetail
-          compareHostList={this.compareHostList}
-          process={this.activeProcess}
-          selectedNode={this.host}
-          show={this.detailShow}
-          onUpdate:show={(v: boolean) => this.handleDetailShow(v)}
-        />
+        {!this.host?.metadataPending && (
+          <ProcessDetail
+            compareHostList={this.compareHostList}
+            process={this.activeProcess}
+            selectedNode={this.host}
+            show={this.detailShow}
+            onUpdate:show={(v: boolean) => this.handleDetailShow(v)}
+          />
+        )}
       </div>
     );
   },

@@ -66,7 +66,7 @@ test('full handoff removes only invalid selections from its snapshot and retains
     },
     '../constants/enum': load(`${root}/constants/enum.ts`),
     '../constants/host-list': { HOST_FILTER_FIELDS: [], HOST_LIST_COLUMNS: [], HOST_LIST_DEFAULT_PAGE_SIZE: 50 },
-    '../utils/share-scope': { resolveHostRequestScope: () => ({}) },
+    '../utils/share-scope': load(`${root}/utils/share-scope.ts`),
     './use-host-list-data': { useHostListData: () => data },
     './use-host-list-worker': {
       useHostListWorker: () => ({
