@@ -1,0 +1,389 @@
+.profiling-explore .profiling-file-tools {
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  align-items: center;
+  min-width: 230px;
+  max-width: 517px;
+
+  > .bk-button {
+    flex: none;
+  }
+
+  .profiling-file-select {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.profiling-file-trigger {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  height: 32px;
+  padding: 0 8px;
+  font: inherit;
+  color: #4d4f56;
+  cursor: pointer;
+  background: #f0f1f5;
+  border: 0;
+  border-radius: 2px;
+
+  > span:first-child {
+    flex: none;
+    color: #8f9fbd;
+  }
+
+  .profiling-file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+    white-space: nowrap;
+  }
+
+  kbd {
+    padding: 0 4px;
+    color: #8f9fbd;
+    white-space: nowrap;
+    background: #fff;
+    border-radius: 2px;
+  }
+}
+
+.profiling-file-status {
+  flex: none;
+  width: 6px;
+  height: 6px;
+  background: #f0f1f5;
+  border: 1px solid #979ba5;
+  border-radius: 50%;
+
+  &.store_succeed {
+    background: #e5f6ea;
+    border-color: #3fc06d;
+  }
+
+  &.parsing_failed,
+  &.store_failed {
+    background: #fdd;
+    border-color: #ea3636;
+  }
+
+  &.uploaded,
+  &.parsing_succeed {
+    background: #e1ecff;
+    border-color: #3a84ff;
+  }
+}
+
+.profiling-file-option {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+
+  .profiling-file-status-text {
+    flex: none;
+    width: 68px;
+  }
+
+  .profiling-file-option-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+
+    > span {
+      color: #979ba5;
+    }
+  }
+
+  .bk-button {
+    flex: none;
+  }
+}
+
+.profiling-file-upload {
+  padding: 4px 0 8px;
+
+  .bk-upload-trigger--draggable {
+    height: auto;
+    min-height: 208px;
+    transition:
+      border-color 0.2s,
+      background-color 0.2s;
+
+    &:hover,
+    &:focus-visible,
+    &.bk-upload-trigger--dragover {
+      background: #f0f5ff;
+      border-color: #3a84ff;
+    }
+
+    &:focus-visible {
+      outline: 2px solid #a3c5fd;
+      outline-offset: 2px;
+    }
+  }
+
+  .profiling-file-dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 208px;
+    padding: 24px;
+    color: #979ba5;
+
+    > i {
+      margin-bottom: 16px;
+      font-size: 40px;
+      line-height: 48px;
+      color: #3a84ff;
+    }
+  }
+
+  .profiling-file-dropzone-action {
+    font-size: 14px;
+    line-height: 22px;
+    color: #63656e;
+    text-align: center;
+
+    > span {
+      margin-left: 4px;
+      color: #3a84ff;
+    }
+  }
+
+  .profiling-file-dropzone-description {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-top: 8px;
+    font-size: 12px;
+    line-height: 20px;
+    text-align: center;
+  }
+
+  .bk-upload-list {
+    max-height: 280px;
+    overflow-y: auto;
+  }
+
+  .bk-upload-list__item {
+    max-height: none;
+    padding: 12px;
+    background: #fafbfd;
+    border-color: #eaebf0;
+  }
+
+  .profiling-upload-item {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .profiling-upload-file-icon {
+    flex: none;
+    font-size: 28px;
+    line-height: 32px;
+    color: #a3c5fd;
+  }
+
+  .profiling-upload-item-content {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .profiling-upload-item-meta {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-top: 4px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #979ba5;
+
+    .uploading {
+      color: #3a84ff;
+    }
+
+    .success {
+      color: #299e56;
+    }
+
+    .error {
+      color: #ea3636;
+    }
+  }
+
+  .profiling-upload-item-heading {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 20px;
+    line-height: 20px;
+    color: #313238;
+
+    > span:first-child {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    > .bk-button {
+      flex: none;
+    }
+  }
+
+  .profiling-upload-hint {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+    margin-top: 16px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #979ba5;
+
+    > i {
+      flex: none;
+      font-size: 14px;
+    }
+  }
+
+  .profiling-upload-error {
+    margin-top: 6px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #ea3636;
+    overflow-wrap: anywhere;
+  }
+}
+
+.profiling-upload-footer {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+
+  > span {
+    font-size: 12px;
+    line-height: 20px;
+    color: #979ba5;
+  }
+
+  > .bk-button {
+    flex: none;
+    margin-left: auto;
+  }
+}
+
+.profiling-file-guide {
+  padding: 16px 24px 0;
+  text-align: right;
+}
+
+.profiling-file-analysis .bk-exception-description {
+  overflow-wrap: anywhere;
+}
+
+.profiling-file-analysis {
+  .profiling-file-loading-toolbar {
+    display: flex;
+    flex: none;
+    gap: 12px;
+    height: 32px;
+    margin-bottom: 10px;
+
+    > i {
+      width: 136px;
+      border-radius: 4px;
+    }
+
+    > i:nth-child(2) {
+      flex: 1;
+    }
+
+    > i:last-child {
+      width: 72px;
+    }
+  }
+
+  .profiling-file-state {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 0;
+    padding: 32px 24px;
+    overflow: auto;
+    text-align: center;
+
+    > .bk-exception,
+    > .profiling-file-processing {
+      width: 100%;
+      max-width: 560px;
+      margin: auto;
+    }
+
+    .bk-exception-description {
+      margin-top: 8px;
+      font-size: 12px;
+      line-height: 20px;
+    }
+
+    .bk-exception-footer {
+      margin-top: 20px;
+    }
+  }
+
+  .profiling-file-state-card {
+    margin-bottom: 8px;
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px #1919290d;
+  }
+
+  .profiling-file-state-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+  }
+
+  .profiling-file-processing-indicator {
+    height: 64px;
+  }
+
+  .profiling-file-processing {
+    h3 {
+      margin: 16px 0 8px;
+      font-size: 16px;
+      font-weight: 400;
+      line-height: 24px;
+      color: #313238;
+    }
+
+    p {
+      margin: 8px 0 0;
+      font-size: 12px;
+      line-height: 20px;
+      color: #979ba5;
+    }
+
+    .profiling-file-processing-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      color: #63656e;
+      white-space: nowrap;
+    }
+  }
+}

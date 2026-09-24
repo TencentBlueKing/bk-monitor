@@ -23,17 +23,44 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
+import type { Aggregation, ProfileViewState, ServiceDetail } from './index';
+import type { IWhereItem } from '@/components/retrieval-filter/typing';
 
-export default [
-  {
-    path: '/profiling-explore',
-    name: 'profiling-explore',
-    component: () => import(/* webpackChunkName: "profiling-explore" */ '../../pages/profiling-explore/profiling-explore'),
-  },
-  {
-    path: '/profiling',
-    name: 'profiling',
-    component: () => import(/* webpackChunkName: "alarm-shield" */ '../../pages/profiling/profiling'),
-  },
-] as RouteRecordRaw[];
+export interface FileQueryState {
+  aggregation: Aggregation;
+  commonWhere: IWhereItem[];
+  dataType: string;
+  fileName: string;
+  pendingTimeRange: boolean;
+  profileId: string;
+  view: ProfileViewState;
+  where: IWhereItem[];
+}
+
+export interface ProfileFile {
+  content: string;
+  data_time: string;
+  data_types: ServiceDetail['data_types'];
+  file_md5: string;
+  file_name: string;
+  file_size: number;
+  file_type: string;
+  id: number;
+  operator: string;
+  origin_file_name: string;
+  profile_id: string;
+  query_end_time: null | number;
+  query_start_time: null | number;
+  status: ProfileFileStatus;
+  uploaded_time: string;
+}
+
+export type ProfileFileStatus = 'parsing_failed' | 'parsing_succeed' | 'store_failed' | 'store_succeed' | 'uploaded';
+
+export interface ProfileUploadItem {
+  error: string;
+  file: File;
+  id: number;
+  progress: number;
+  status: 'canceled' | 'error' | 'success' | 'uploading';
+}

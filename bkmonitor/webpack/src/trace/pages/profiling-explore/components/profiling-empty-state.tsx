@@ -23,17 +23,35 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
+import { defineComponent } from 'vue';
 
-export default [
-  {
-    path: '/profiling-explore',
-    name: 'profiling-explore',
-    component: () => import(/* webpackChunkName: "profiling-explore" */ '../../pages/profiling-explore/profiling-explore'),
+import './profiling-empty-state.scss';
+
+export default defineComponent({
+  name: 'ProfilingEmptyState',
+  props: {
+    icon: { type: String, required: true },
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    hint: { type: String, default: '' },
   },
-  {
-    path: '/profiling',
-    name: 'profiling',
-    component: () => import(/* webpackChunkName: "alarm-shield" */ '../../pages/profiling/profiling'),
+  render() {
+    return (
+      <section class='profiling-empty-state'>
+        <div class='profiling-empty-state-content'>
+          <div
+            class='profiling-empty-state-icon'
+            aria-hidden='true'
+          >
+            <i class={`icon-monitor icon-${this.icon}`} />
+          </div>
+          <h2>{this.title}</h2>
+          <p class='profiling-empty-state-description'>{this.description}</p>
+          <div class='profiling-empty-state-actions'>{this.$slots.default?.()}</div>
+          {this.hint && <p class='profiling-empty-state-hint'>{this.hint}</p>}
+          {this.$slots.footer && <div class='profiling-empty-state-footer'>{this.$slots.footer()}</div>}
+        </div>
+      </section>
+    );
   },
-] as RouteRecordRaw[];
+});

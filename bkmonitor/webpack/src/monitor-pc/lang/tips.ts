@@ -87,6 +87,7 @@ export default {
   '对该配置增/删目标,成功{0}个实例,失败{1}个实例':
     'adding/deleting targets to this configuration, {0} instances succeeded, failed{ 1} instances',
   '即将上线，敬请期待': 'Coming soon, stay tuned',
+  敬请期待: 'Coming soon',
   '组合策略功能暂未开放，敬请期待！': 'The combined rule function is not yet open, please look forward to it!',
   '邮件任务已生成，请一分钟后到邮箱查看': 'The email task has been generated, please check your mailbox in one minute',
   '迁移完成，请确认迁移结果': 'Migration completed, please confirm the migration result',

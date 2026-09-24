@@ -23,17 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
+import type { ProfileFileStatus } from '../types/file';
 
-export default [
-  {
-    path: '/profiling-explore',
-    name: 'profiling-explore',
-    component: () => import(/* webpackChunkName: "profiling-explore" */ '../../pages/profiling-explore/profiling-explore'),
-  },
-  {
-    path: '/profiling',
-    name: 'profiling',
-    component: () => import(/* webpackChunkName: "alarm-shield" */ '../../pages/profiling/profiling'),
-  },
-] as RouteRecordRaw[];
+export const fileStatusLabels: Record<ProfileFileStatus, string> = {
+  uploaded: '已上传',
+  parsing_succeed: '已解析',
+  parsing_failed: '解析失败',
+  store_succeed: '已存储',
+  store_failed: '存储失败',
+};

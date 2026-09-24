@@ -23,17 +23,28 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { RouteRecordRaw } from 'vue-router';
+import { listProfileUploadRecord, upload } from 'monitor-api/modules/apm_profile';
 
-export default [
-  {
-    path: '/profiling-explore',
-    name: 'profiling-explore',
-    component: () => import(/* webpackChunkName: "profiling-explore" */ '../../pages/profiling-explore/profiling-explore'),
-  },
-  {
-    path: '/profiling',
-    name: 'profiling',
-    component: () => import(/* webpackChunkName: "alarm-shield" */ '../../pages/profiling/profiling'),
-  },
-] as RouteRecordRaw[];
+import type { ProfileFile } from '../types/file';
+
+export function getProfileFiles(bizId: number, signal: AbortSignal): Promise<ProfileFile[]> {
+  return listProfileUploadRecord({ bk_biz_id: bizId }, { signal, needMessage: false });
+}
+
+export function uploadProfileFile(
+  bizId: number,
+  file: File,
+  signal: AbortSignal,
+  onProgress: (progress: number) => void
+): Promise<ProfileFile> {
+  return upload(
+    { bk_biz_id: bizId, file, file_type: 'pprof', global_query: 1 },
+    {
+      signal,
+      needMessage: false,
+      onUploadProgress: (event: { loaded: number; total?: number }) => {
+        if (event.total) onProgress(Math.min(99, Math.round((event.loaded / event.total) * 100)));
+      },
+    }
+  );
+}
