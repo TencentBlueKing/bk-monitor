@@ -4,4 +4,9 @@
   width: 100%;
   height: 100%;
   background-color: #f5f7fa;
+
+  .time-series-content .chart-legend .common-legend {
+    display: flex;
+    flex-wrap: wrap;
+  }
 }
