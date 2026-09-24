@@ -1609,9 +1609,9 @@ class ResultTable(models.Model):
             ):
                 force_update_datalink = True
 
-            # bk_exporter 会根据 cmdb_level_config 决定是否在 log_to_metric 中开启 CMDB 输出。
+            # bk_exporter / bk_standard 会根据 cmdb_level_config 决定是否在 log_to_metric 中开启 CMDB 输出。
             # option 是全量替换语义，因此缺少该 key 也等价于清空配置。
-            if related_data_source.etl_config == EtlConfigs.BK_EXPORTER.value:
+            if related_data_source.etl_config in {EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value}:
                 cmdb_level_option = ResultTableOption.objects.filter(
                     table_id=self.table_id,
                     bk_tenant_id=self.bk_tenant_id,

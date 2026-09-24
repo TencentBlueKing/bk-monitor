@@ -6938,8 +6938,9 @@ def test_bk_exporter_keeps_existing_cmdb_result_table_config_when_disabled(
 
 
 @pytest.mark.django_db(databases="__all__")
-def test_bk_standard_ignores_cmdb_transform_options(create_or_delete_records, mocker, settings):
-    """cmdb_level_config 不改变 bk_standard 的 transformer 配置。"""
+@pytest.mark.parametrize("cmdb_levels", [[], ["bk_set_id"]])
+def test_bk_standard_cmdb_transform_options(create_or_delete_records, mocker, settings, cmdb_levels):
+    """bk_standard 仅在 cmdb_level_config 非空时开启 CMDB 输出。"""
     settings.ENABLE_MULTI_TENANT_MODE = False
     ds = models.DataSource.objects.get(bk_data_id=50012)
     rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50012.__default__")
@@ -6952,7 +6953,7 @@ def test_bk_standard_ignores_cmdb_transform_options(create_or_delete_records, mo
     models.ResultTableOption.create_option(
         table_id=rt.table_id,
         name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
-        value=["bk_set_id"],
+        value=cmdb_levels,
         creator="pytest",
         bk_tenant_id=rt.bk_tenant_id,
     )
@@ -6966,9 +6967,78 @@ def test_bk_standard_ignores_cmdb_transform_options(create_or_delete_records, mo
     )
 
     transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
-    assert "exporter_cmdb" not in transform
-    assert "exporter_cmdb_rt" not in transform
-    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
+    assert transform["format"] == "bkmonitor_standard"
+    if cmdb_levels:
+        assert transform["exporter_cmdb"] is True
+        assert transform["exporter_cmdb_rt"] == "2_bkm_1001_bkmonitor_time_series_50012_cmdb"
+    else:
+        assert "exporter_cmdb" not in transform
+        assert "exporter_cmdb_rt" not in transform
+    assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1 + int(
+        bool(cmdb_levels)
+    )
+    assert VMStorageBindingConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
+    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
+
+
+@pytest.mark.django_db(databases="__all__")
+def test_bk_standard_cmdb_transform_uses_persisted_bkbase_table_id(
+    create_or_delete_records,
+    mocker,
+    settings,
+):
+    """bk_standard 组件复用时也应区分主表与 CMDB 表，并优先使用已回填的 BKBase ID。"""
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    ds = models.DataSource.objects.get(bk_data_id=50012)
+    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50012.__default__")
+    datalink = DataLink.objects.create(
+        data_link_name=utils.compose_bkdata_data_id_name(ds.data_name, DataLink.BK_STANDARD_TIME_SERIES),
+        namespace="bkmonitor",
+        bk_tenant_id="system",
+        data_link_strategy=DataLink.BK_STANDARD_TIME_SERIES,
+    )
+    models.ResultTableOption.create_option(
+        table_id=rt.table_id,
+        name=models.ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+        value=["bk_module_id"],
+        creator="pytest",
+        bk_tenant_id=rt.bk_tenant_id,
+    )
+    ResultTableConfig.objects.create(
+        name="legacy_standard_rt",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=rt.table_id,
+        bkbase_table_id="2_legacy_standard_rt",
+    )
+    ResultTableConfig.objects.create(
+        name="legacy_standard_rt_cmdb",
+        namespace=datalink.namespace,
+        bk_tenant_id=datalink.bk_tenant_id,
+        data_link_name=datalink.data_link_name,
+        bk_biz_id=1001,
+        table_id=f"{rt.table_id}_cmdb",
+        bkbase_table_id="9527_legacy_standard_rt_cmdb",
+    )
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+    existing_context = ExistingComponentContext.from_datalink(datalink)
+
+    configs = datalink.compose_configs(
+        bk_biz_id=1001,
+        data_source=ds,
+        table_id=rt.table_id,
+        storage_cluster_name="vm-plat",
+        existing_context=existing_context,
+    )
+
+    transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
+    assert transform["format"] == "bkmonitor_standard"
+    assert transform["exporter_cmdb"] is True
+    assert transform["exporter_cmdb_rt"] == "9527_legacy_standard_rt_cmdb"
+    assert existing_context.leftover() == {}
+    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -6980,15 +7050,17 @@ def test_bk_standard_ignores_cmdb_transform_options(create_or_delete_records, mo
         (["bk_set_id"], {}),
     ],
 )
-def test_modify_bk_exporter_cmdb_level_option_forces_datalink_update(
+@pytest.mark.parametrize("bk_data_id", [50011, 50012])
+def test_modify_plugin_cmdb_level_option_forces_datalink_update(
     create_or_delete_records,
     mocker,
     existing_cmdb_levels,
     new_option,
+    bk_data_id,
 ):
-    """bk_exporter 新增、清空或删除 cmdb_level_config 都必须强制更新链路。"""
-    ds = models.DataSource.objects.get(bk_data_id=50011)
-    rt = models.ResultTable.objects.get(table_id="1001_bkmonitor_time_series_50011.__default__")
+    """bk_exporter / bk_standard 新增、清空或删除 cmdb_level_config 都必须强制更新链路。"""
+    ds = models.DataSource.objects.get(bk_data_id=bk_data_id)
+    rt = models.ResultTable.objects.get(table_id=f"1001_bkmonitor_time_series_{bk_data_id}.__default__")
     if existing_cmdb_levels is not None:
         models.ResultTableOption.create_option(
             table_id=rt.table_id,
