@@ -29,7 +29,8 @@ from pathlib import Path
 from django.conf import settings
 
 from apps.api import UnifyQueryApi
-from apps.log_search.constants import ASYNC_EXPORT_SCROLL, MAX_RESULT_WINDOW, ExportStage
+from apps.api.exception import DataAPIException
+from apps.log_search.constants import ASYNC_EXPORT_SCROLL, MAX_RESULT_WINDOW, ExportErrorCode, ExportStage
 from apps.log_search.export import state
 from apps.log_search.export.planner import build_handler, encode_export_row
 from apps.log_search.export.storage import UnsupportedExportStorage, artifact_name, build_storage, upload
@@ -74,7 +75,7 @@ def _write_rows(handler, payload):
     with payload.open("wb") as stream:
         while True:
             if time.monotonic() >= deadline:
-                raise PartError("PART_TIMEOUT", "分片执行超过时间预算")
+                raise PartError(ExportErrorCode.PART_TIMEOUT, "分片执行超过时间预算")
             # 与旧异步导出链路一致：首轮清空缓存，后续滚动复用同一份查询上下文
             params["clear_cache"] = rows == 0
             result = UnifyQueryApi.query_ts_raw_with_scroll(params)
@@ -114,7 +115,7 @@ def _upload_with_retry(storage, path, name, part):
             return upload(storage, path, name)
         except Exception as error:  # pylint: disable=broad-except
             if attempt >= attempts:
-                raise PartError("UPLOAD_FAILED", f"上传重试 {attempts} 次仍失败：{error}") from error
+                raise PartError(ExportErrorCode.UPLOAD_FAILED, f"上传重试 {attempts} 次仍失败：{error}") from error
             logger.warning(
                 "[run_part] part=%s upload attempt %s/%s failed, retry with local artifact: %s",
                 part.pk,
@@ -161,16 +162,24 @@ def run_part(part_id, task_id):
     except UnsupportedExportStorage as error:
         # 存储配置问题重试也不会成功，直接给明确错误码
         logger.error("[run_part] part=%s storage unsupported: %s", part.pk, error)
-        state.fail_part(part.pk, fence, error_code="STORAGE_UNSUPPORTED", error_detail=str(error), retryable=False)
+        state.fail_part(
+            part.pk, fence, error_code=ExportErrorCode.STORAGE_UNSUPPORTED, error_detail=str(error), retryable=False
+        )
     except PartError as error:
         logger.warning("[run_part] part=%s code=%s detail=%s", part.pk, error.code, error)
         state.fail_part(part.pk, fence, error_code=error.code, error_detail=str(error), retryable=True)
+    except DataAPIException as error:
+        # 取数失败可能只是 UnifyQuery 抖动或查询过重，按可重试处理，重试耗尽仍允许按时间细分
+        logger.warning("[run_part] part=%s unify query failed: %s", part.pk, error)
+        state.fail_part(
+            part.pk, fence, error_code=ExportErrorCode.UNIFY_QUERY_FAILED, error_detail=str(error), retryable=True
+        )
     except Exception as error:  # pylint: disable=broad-except
         logger.exception("[run_part] part=%s unexpected failure: %s", part.pk, error)
         state.fail_part(
             part.pk,
             fence,
-            error_code="PART_EXECUTION_FAILED",
+            error_code=ExportErrorCode.PART_EXECUTION_FAILED,
             error_detail=type(error).__name__,
             retryable=True,
         )

@@ -33,18 +33,22 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 from redis.exceptions import RedisError
 
+from apps.api.exception import DataAPIException
 from apps.constants import RemoteStorageType
 from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
+    NON_SPLITTABLE_ERROR_CODES,
+    ExportErrorCode,
     ExportJobStatus,
     ExportPlanStatus,
     ExportPartStatus,
     ExportStage,
 )
+from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.export import state
 from apps.log_search.export.config import PART_TASK_NAME, ExportPolicy
-from apps.log_search.export.api import create_export_job, download_link, job_results
+from apps.log_search.export.api import create_export_job, download_link, job_detail, job_results
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.models import LogIndexSet, Scenario, Space
 from apps.log_search.views.export_views import ExportJobViewSet
@@ -56,6 +60,7 @@ from apps.log_search.export.planner import (
     build_handler,
     build_parts,
     choose_interval,
+    is_definitely_empty,
     merge_adjacent,
     refine,
     run_planning,
@@ -435,6 +440,29 @@ class PartRunnerTests(TestCase):
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.error_code, "UPLOAD_FAILED")
+
+    def test_unify_query_failure_gets_its_own_code(self):
+        """取数失败要能与其它执行异常区分开，并且仍然可重试。"""
+        job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        part = ExportPart.objects.create(
+            job=job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.DISPATCHED,
+            task_id="task-1",
+        )
+        with (
+            patch("apps.log_search.export.worker.build_storage"),
+            patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
+            patch("apps.log_search.export.worker.UnifyQueryApi") as api,
+        ):
+            api.query_ts_raw_with_scroll.side_effect = DataAPIException(None, "unify query 5xx")
+            run_part(part.pk, "task-1")
+
+        part.refresh_from_db()
+        self.assertEqual(part.error_code, ExportErrorCode.UNIFY_QUERY_FAILED)
+        self.assertEqual(part.status, ExportPartStatus.WAITING)
 
 
 class PartTaskContractTests(SimpleTestCase):
@@ -1261,6 +1289,28 @@ class ManifestChecksumTests(TestCase):
         self.assertEqual(results["manifest"]["checksum_algorithm"], "sha256")
 
 
+class ExportErrorCodeTests(SimpleTestCase):
+    """错误分类是给前端展示的稳定契约：新增错误码必须同时登记文案。"""
+
+    def test_every_declared_code_has_a_message(self):
+        codes = {value for name, value in vars(ExportErrorCode).items() if name.isupper() and isinstance(value, str)}
+
+        self.assertTrue(codes)
+        self.assertTrue(codes <= set(ExportErrorCode.MESSAGES))
+        self.assertTrue(all(ExportErrorCode.MESSAGES[code] for code in codes))
+
+    def test_non_splittable_codes_are_all_explained(self):
+        self.assertTrue(NON_SPLITTABLE_ERROR_CODES <= set(ExportErrorCode.MESSAGES))
+
+    def test_transient_query_failure_stays_retryable(self):
+        """查询失败可能只是链路抖动或分片过重，不能当成「与工作量无关」的错误禁掉时间细分。"""
+        self.assertNotIn(ExportErrorCode.UNIFY_QUERY_FAILED, NON_SPLITTABLE_ERROR_CODES)
+
+    def test_unknown_or_empty_code_has_no_message(self):
+        self.assertEqual(ExportErrorCode.label("NOT_A_CODE"), "")
+        self.assertEqual(ExportErrorCode.label(""), "")
+
+
 class JobDetailTests(TestCase):
     def test_expired_success_job_is_reported_as_expired(self):
         from apps.log_search.export.api import job_detail
@@ -1273,6 +1323,32 @@ class JobDetailTests(TestCase):
         detail = job_detail(job)
         self.assertEqual(detail["status"], "EXPIRED")
         self.assertEqual(detail["percent"], 100)
+        self.assertEqual(detail["error_code"], ExportErrorCode.FILE_EXPIRED)
+        self.assertTrue(detail["error_message"])
+
+    def test_failed_job_exposes_stable_code_and_message(self):
+        job = create_job(end_time=1000, status=ExportJobStatus.FAILED, error_code=ExportErrorCode.QUOTA_EXCEEDED)
+
+        detail = job_detail(job)
+
+        self.assertEqual(detail["error_code"], ExportErrorCode.QUOTA_EXCEEDED)
+        self.assertEqual(detail["error_message"], ExportErrorCode.label(ExportErrorCode.QUOTA_EXCEEDED))
+
+    def test_canceled_job_is_classified_as_canceled(self):
+        job = create_job(end_time=1000, status=ExportJobStatus.CANCELED)
+
+        detail = job_detail(job)
+
+        self.assertEqual(detail["error_code"], ExportErrorCode.CANCELED)
+        self.assertTrue(detail["error_message"])
+
+    def test_unfinished_job_has_no_error(self):
+        job = create_job(end_time=1000, status=ExportJobStatus.RUNNING)
+
+        detail = job_detail(job)
+
+        self.assertEqual(detail["error_code"], "")
+        self.assertEqual(detail["error_message"], "")
 
     def test_manifest_snapshot_lists_success_parts(self):
         from apps.log_search.export.scheduler import manifest_snapshot
@@ -1352,6 +1428,7 @@ class ExternalIdentityTests(TestCase):
         with (
             patch("apps.log_search.export.api.is_enabled", return_value=True),
             patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
+            patch("apps.log_search.export.api.is_definitely_empty", return_value=False),
             patch("apps.log_search.export.api.get_request_username", return_value="authorizer"),
             patch("apps.log_search.export.api.get_request_external_username", return_value=external_username),
             patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
@@ -1441,6 +1518,7 @@ class CreateJobRangeTests(TestCase):
         with (
             patch("apps.log_search.export.api.is_enabled", return_value=True),
             patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
+            patch("apps.log_search.export.api.is_definitely_empty", return_value=False),
             patch("apps.log_search.export.api.get_request_username", return_value="tester"),
             patch("apps.log_search.export.api.get_request_external_username", return_value=""),
             patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
@@ -1460,6 +1538,103 @@ class CreateJobRangeTests(TestCase):
             )
 
         self.assertEqual((job.start_time, job.end_time), (1500, 3700))
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
+class EmptyExportPreCheckTests(TestCase):
+    """创建前的存在性预检查：只拒绝确定为空的区间，查询异常一律放行。"""
+
+    SPACE_UID = "bkcc__3"
+
+    def setUp(self):
+        Space.objects.create(
+            space_uid=self.SPACE_UID,
+            bk_biz_id=3,
+            space_type_id="bkcc",
+            space_type_name="业务",
+            space_id="3",
+            space_name="biz-3",
+            bk_tenant_id="tenant-a",
+        )
+        self.index_set = LogIndexSet.objects.create(
+            index_set_id=757,
+            index_set_name="index-757",
+            space_uid=self.SPACE_UID,
+            category_id="application",
+            scenario_id=Scenario.LOG,
+        )
+
+    def probe(self, *, empty):
+        """按空/非空两种返回驱动 create_export_job，并返回是否成功建任务。"""
+        handler = MagicMock(base_dict={"query_list": []}, origin_order_by=[], is_desensitize=True)
+        with (
+            patch("apps.log_search.export.api.is_enabled", return_value=True),
+            patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
+            patch("apps.log_search.export.api.is_definitely_empty", return_value=empty),
+            patch("apps.log_search.export.api.get_request_username", return_value="tester"),
+            patch("apps.log_search.export.api.get_request_external_username", return_value=""),
+            patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
+        ):
+            return create_export_job(
+                {
+                    "space_uid": self.SPACE_UID,
+                    "index_set_id": self.index_set.pk,
+                    "start_time": 0,
+                    "end_time": 2000,
+                    "keyword": "*",
+                    "addition": [],
+                    "ip_chooser": {},
+                    "sort_list": [],
+                    "export_fields": [],
+                }
+            )
+
+    def test_empty_result_is_definitely_empty(self):
+        handler = MagicMock(base_dict={"query_list": []})
+
+        with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", return_value={"list": []}):
+            self.assertTrue(is_definitely_empty(handler, 0, 1000))
+
+    def test_non_empty_result_is_not_rejected(self):
+        handler = MagicMock(base_dict={"query_list": []})
+
+        with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", return_value={"list": [{"log": "x"}]}):
+            self.assertFalse(is_definitely_empty(handler, 0, 1000))
+
+    def test_query_failure_never_rejects(self):
+        """预检查不是准入：统计链路抖动时交给 Planner 判定，不能拦住用户。"""
+        handler = MagicMock(base_dict={"query_list": []})
+
+        with patch(
+            "apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", side_effect=Exception("unify query down")
+        ):
+            self.assertFalse(is_definitely_empty(handler, 0, 1000))
+
+    def test_unexpected_response_never_rejects(self):
+        handler = MagicMock(base_dict={"query_list": []})
+
+        with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", return_value={"message": "internal"}):
+            self.assertFalse(is_definitely_empty(handler, 0, 1000))
+
+    def test_probe_only_requests_one_row(self):
+        handler = MagicMock(base_dict={"query_list": []})
+
+        with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", return_value={"list": []}) as query:
+            is_definitely_empty(handler, 0, 1000)
+
+        self.assertEqual(query.call_args.args[0]["limit"], 1)
+
+    def test_empty_range_is_rejected_without_creating_a_job(self):
+        with self.assertRaises(PreCheckAsyncExportException):
+            self.probe(empty=True)
+
+        self.assertFalse(ExportJob.objects.exists())
+
+    def test_range_with_data_still_creates_the_job(self):
+        job = self.probe(empty=False)
+
+        self.assertEqual(job.status, ExportJobStatus.PENDING)
+        self.assertEqual(job.index_set_id, self.index_set.pk)
 
 
 class DownloadLinkTests(TestCase):

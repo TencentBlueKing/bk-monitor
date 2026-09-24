@@ -30,6 +30,7 @@ from django.utils import timezone
 
 from apps.log_search.constants import (
     NON_SPLITTABLE_ERROR_CODES,
+    ExportErrorCode,
     ExportJobStatus,
     ExportPartStatus,
     ExportPlanStatus,
@@ -179,7 +180,9 @@ def claim_planning(job_id):
         plan = _claim_plan_record(job, policy, now)
         if job.planning_attempts >= policy.planning_attempts:
             _save(plan, status=ExportPlanStatus.FAILED, finished_at=now)
-            return _finish_job(job, ExportJobStatus.FAILED, "PLANNING_RETRIES_EXHAUSTED", "规划重试次数已耗尽")
+            return _finish_job(
+                job, ExportJobStatus.FAILED, ExportErrorCode.PLANNING_RETRIES_EXHAUSTED, "规划重试次数已耗尽"
+            )
         return _save(
             job,
             status=ExportJobStatus.PLANNING,
@@ -365,7 +368,7 @@ def _fail_locked(job, part, error_code, error_detail, retryable=True):
     # 不再重试：让任务明确失败，避免用户拿到不完整的清单
     _save(part, status=ExportPartStatus.FAILED, stage="", **changes)
     if job.status in (ExportJobStatus.READY, ExportJobStatus.RUNNING):
-        job_error = "OVERSIZED_PART_FAILED" if part.oversized else "PART_EXECUTION_FAILED"
+        job_error = ExportErrorCode.OVERSIZED_PART_FAILED if part.oversized else ExportErrorCode.PART_EXECUTION_FAILED
         _finish_job(job, ExportJobStatus.FAILED, job_error, f"分片 {part.part_no} 执行失败：{error_code}")
     return part
 
@@ -450,7 +453,7 @@ def recover_part(part_id, cutoff=None):
         part = ExportPart.objects.select_for_update().get(pk=part_id)
         if not _is_stale(part, cutoff):
             return None
-        return _fail_locked(job, part, "PART_TIMEOUT", "分片执行超时，已重新调度", retryable=True)
+        return _fail_locked(job, part, ExportErrorCode.PART_TIMEOUT, "分片执行超时，已重新调度", retryable=True)
 
 
 def recover_stale_parts(limit=None):

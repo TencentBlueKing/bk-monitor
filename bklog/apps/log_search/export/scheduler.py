@@ -32,7 +32,7 @@ from django.conf import settings
 from django.db.models import Count, F, Q
 from django.utils import timezone
 
-from apps.log_search.constants import ExportJobStatus, ExportPartStatus
+from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportPartStatus
 from apps.log_search.export import state
 from apps.log_search.export.config import (
     CONTROL_QUEUE,
@@ -148,7 +148,7 @@ def dispatch_ready_parts():
                 state.fail_part(
                     part.pk,
                     state.PartFence.of(part),
-                    error_code="DISPATCH_FAILED",
+                    error_code=ExportErrorCode.DISPATCH_FAILED,
                     error_detail="投递到 Celery 失败",
                     retryable=True,
                 )
@@ -232,7 +232,7 @@ def finalize_export(job_id):
     except Exception as error:  # pylint: disable=broad-except
         # 分片产物都已成功，清单失败不能让调度器无限重投，直接给出明确错误
         logger.exception("[finalize_export] job=%s manifest failed: %s", job.pk, error)
-        state.fail_job(job_id, "FINALIZATION_FAILED", type(error).__name__)
+        state.fail_job(job_id, ExportErrorCode.FINALIZATION_FAILED, type(error).__name__)
         return None
 
 
