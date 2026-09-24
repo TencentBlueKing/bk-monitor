@@ -71,7 +71,12 @@ import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 import { useCandidateValue } from './hooks/use-candidate-value';
-import { type TraceExploreApmHooks, BRIDGE_PROPS_KEY, TRACE_EXPLORE_APM_HOOKS_KEY } from './trace-explore-apm';
+import {
+  type TraceExploreApmHooks,
+  type TraceExploreEmbedQuery,
+  BRIDGE_PROPS_KEY,
+  TRACE_EXPLORE_APM_HOOKS_KEY,
+} from './trace-explore-apm';
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, HideFeatures, IApplicationItem, ICommonParams } from './typing';
@@ -81,6 +86,17 @@ const APM_EMBED_HIDE_FEATURES: HideFeatures = ['application', 'dateRange', 'goto
 const TRACE_EXPLORE_DEFAULT_APPLICATION = 'TRACE_EXPLORE_DEFAULT_APPLICATION';
 /** 应用置顶列表 */
 const TRACE_EXPLORE_APPLICATION_ID_THUMBTACK = 'trace_explore_application_id_thumbtack';
+
+function createServiceNameWhere(serviceName: string): IWhereItem {
+  return {
+    key: 'resource.service.name',
+    operator: 'equal',
+    options: {
+      group_relation: 'OR',
+    },
+    value: [serviceName],
+  };
+}
 
 const TRACE_DEFAULT_RESIDENT_SETTING_KEY = [
   'trace_id',
@@ -264,7 +280,8 @@ export default defineComponent({
       mode: store.mode,
     });
 
-    const loading = shallowRef(false);
+    // 嵌入态先出骨架，等 view_config 回来再挂过滤栏，避免 fields=[] 时带 URL 条件把 UiSelector 打进递归更新
+    const loading = shallowRef(!!apmHooks);
     const queryString = shallowRef('');
     const queryStringInput = shallowRef('');
     /** 默认选择的收藏Id */
@@ -331,39 +348,70 @@ export default defineComponent({
     });
     useIsEnabledProfilingProvider(enableProfiling);
 
+    const cloneEmbedList = <T,>(val: T[]): T[] => JSON.parse(JSON.stringify(val || []));
+    const applyEmbedQueryFromBridge = () => {
+      try {
+        const embedQuery = bridgeProps?.exploreQuery as TraceExploreEmbedQuery | undefined;
+        if (!embedQuery?.hasUrlWhere) {
+          return false;
+        }
+        const nextWhere = Array.isArray(embedQuery.where) ? cloneEmbedList(embedQuery.where) : [];
+        const nextCommonWhere = Array.isArray(embedQuery.commonWhere) ? cloneEmbedList(embedQuery.commonWhere) : [];
+        const nextQueryString = typeof embedQuery.queryString === 'string' ? embedQuery.queryString : '';
+        const nextFilterMode = embedQuery.filterMode === EMode.queryString ? EMode.queryString : EMode.ui;
+        const nextSelectedType = Array.isArray(embedQuery.selectedType) ? cloneEmbedList(embedQuery.selectedType) : [];
+        where.value = nextWhere;
+        commonWhere.value = nextCommonWhere;
+        queryString.value = nextQueryString;
+        filterMode.value = nextFilterMode;
+        checkboxFilters.value = nextSelectedType;
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    // 只在挂载时从宿主 URL 恢复一次。继续 watch exploreQuery 会把自身回写当新输入，触发递归更新。
+    const embedRestoredFromUrl = shallowRef(apmHooks ? applyEmbedQueryFromBridge() : false);
+    let lastEmbedQueryKey = embedRestoredFromUrl.value
+      ? JSON.stringify({
+          where: where.value,
+          queryString: queryString.value,
+          filterMode: filterMode.value,
+          commonWhere: commonWhere.value,
+          selectedType: checkboxFilters.value,
+        })
+      : '';
+
     watch(
       () => [bridgeProps?.viewOptions?.filters?.service_name, appName.value],
-      ([serviceName, appName]) => {
-        if (!serviceName || !appName) {
+      ([serviceName, nextAppName], prev) => {
+        if (!serviceName || !nextAppName) {
           return;
         }
-        setTimeout(() => {
-          where.value = [
-            {
-              key: 'resource.service.name',
-              operator: 'equal',
-              options: {
-                group_relation: 'OR',
+        // URL 已恢复过滤条件时，不要用默认服务名覆盖 kind 等用户条件
+        if (embedRestoredFromUrl.value) {
+          return;
+        }
+        // 同名服务只换应用：应用名变化但服务名不变，保留用户已有过滤条件
+        if (prev?.[0] && prev[1] && prev[0] === serviceName) {
+          return;
+        }
+        where.value = [createServiceNameWhere(serviceName)];
+        cacheSceneQuery.set(
+          `trace_${nextAppName}`,
+          structuredClone({
+            where: [
+              {
+                key: 'collections.resource.service.name',
+                operator: 'equal',
+                options: { group_relation: 'OR' },
+                value: [serviceName],
               },
-              value: [serviceName],
-            },
-          ];
-          cacheSceneQuery.set(
-            `trace_${appName}`,
-            structuredClone({
-              where: [
-                {
-                  key: 'collections.resource.service.name',
-                  operator: 'equal',
-                  options: { group_relation: 'OR' },
-                  value: [serviceName],
-                },
-              ],
-              query_string: queryString.value,
-              commonWhere: commonWhere.value,
-            })
-          );
-        });
+            ],
+            query_string: queryString.value,
+            commonWhere: commonWhere.value,
+          })
+        );
       },
       {
         immediate: true,
@@ -420,7 +468,7 @@ export default defineComponent({
       applicationList.value = data;
       store.updateAppList(data);
       if (window.source_app === 'apm') {
-        store.updateAppName(bridgeProps.viewOptions.filters.app_name);
+        store.updateAppName(bridgeProps.viewOptions?.filters?.app_name);
         return;
       }
       if (!store.appName || !data.find(item => item.app_name === store.appName)) {
@@ -534,7 +582,10 @@ export default defineComponent({
     };
 
     async function getViewConfig() {
-      if (!store.appName) return;
+      if (!store.appName) {
+        loading.value = false;
+        return;
+      }
       loading.value = true;
       const { trace_config = [], span_config = [] } = await listTraceViewConfig({
         app_name: store.appName,
@@ -636,6 +687,22 @@ export default defineComponent({
     }
 
     function setUrlParams() {
+      if (apmHooks) {
+        const nextQuery = {
+          where: where.value,
+          queryString: queryString.value,
+          filterMode: filterMode.value,
+          commonWhere: commonWhere.value,
+          selectedType: checkboxFilters.value,
+        };
+        const nextKey = JSON.stringify(nextQuery);
+        if (nextKey === lastEmbedQueryKey) {
+          return;
+        }
+        lastEmbedQueryKey = nextKey;
+        apmHooks.onExploreQueryChange?.(nextQuery);
+        return;
+      }
       const { ...otherQuery } = route.query;
       const queryParams = {
         ...otherQuery,
