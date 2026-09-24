@@ -77,5 +77,8 @@ UNIFY_QUERY_SEARCH_CLUSTERING = "unify_query_search_clustering"
 # 场景化检索按业务灰度开关
 SCENE_SEARCH = "scene_search"
 
+# NodeMan V3 物理机采集准入开关
+NODEMAN_V3_COLLECTOR = "nodeman_v3_collector"
+
 # __ext_json 动态解析层级按业务灰度开关
 EXT_JSON_EXPAND_DEPTH = "ext_json_expand_depth"

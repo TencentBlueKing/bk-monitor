@@ -19,6 +19,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import copy
 import typing
 from collections import defaultdict, namedtuple
@@ -590,9 +591,9 @@ class BizHandler(APIModel):
         module_id_dict = {}
 
         for node in node_list:
-            module_id_dict[
-                self.Node(self.bk_biz_id, node["bk_obj_id"], node["bk_inst_id"], node["bk_inst_name"])
-            ] = self.get_module(node["bk_obj_id"], node["bk_inst_id"], instance_topo)
+            module_id_dict[self.Node(self.bk_biz_id, node["bk_obj_id"], node["bk_inst_id"], node["bk_inst_name"])] = (
+                self.get_module(node["bk_obj_id"], node["bk_inst_id"], instance_topo)
+            )
         node_service_instance = self._get_service_instance(module_id_dict)
 
         # 需要查询服务分类的集群
@@ -774,9 +775,9 @@ class BizHandler(APIModel):
             bk_obj_id = topo_tree.get("bk_obj_id")
             bk_inst_id = topo_tree.get("bk_inst_id")
             inst_key = (
-                f'{topo_tree["bk_obj_id"]}|{bk_inst_id}'
+                f"{topo_tree['bk_obj_id']}|{bk_inst_id}"
                 if bk_obj_id and bk_inst_id
-                else f'{topo_tree.get("ip")}|{topo_tree.get("bk_cloud_id")}'
+                else f"{topo_tree.get('ip')}|{topo_tree.get('bk_cloud_id')}"
             )
 
             if not topo_link or not isinstance(topo_link, list):
@@ -876,7 +877,9 @@ class BizHandler(APIModel):
                         "bk_inst_name": service_instance_list["bk_inst_name"],
                         "count": service_instance_list.get("count", 0),
                         "node_path": service_instance_list["node_path"],
-                        "agent_error_count": service_instance_list.get("agent_error_count", 0),  # 保留字段，暂不提供真实异常数据
+                        "agent_error_count": service_instance_list.get(
+                            "agent_error_count", 0
+                        ),  # 保留字段，暂不提供真实异常数据
                         "labels": labels,
                     }
                 )
@@ -1033,13 +1036,13 @@ class BizHandler(APIModel):
 
         while queue:
             node = queue.pop()
-            inst_obj_dict[f'{node["bk_obj_id"]}|{node["bk_inst_id"]}'] = node
+            inst_obj_dict[f"{node['bk_obj_id']}|{node['bk_inst_id']}"] = node
             if not node.get("topo_link"):
-                node["topo_link"] = [f'{node["bk_obj_id"]}|{node["bk_inst_id"]}']
+                node["topo_link"] = [f"{node['bk_obj_id']}|{node['bk_inst_id']}"]
                 node["topo_link_display"] = [node["bk_inst_name"]]
-            topo_link_dict[f'{node["bk_obj_id"]}|{node["bk_inst_id"]}'] = node["topo_link"]
+            topo_link_dict[f"{node['bk_obj_id']}|{node['bk_inst_id']}"] = node["topo_link"]
             for child in node["children"]:
-                child["topo_link"] = node["topo_link"] + [f'{child["bk_obj_id"]}|{child["bk_inst_id"]}']
+                child["topo_link"] = node["topo_link"] + [f"{child['bk_obj_id']}|{child['bk_inst_id']}"]
                 child["topo_link_display"] = node["topo_link_display"] + [child["bk_inst_name"]]
 
             queue = queue + node["children"]
@@ -1060,7 +1063,7 @@ class BizHandler(APIModel):
                     bk_obj_id, _ = inst_key.split("|")
                     if bk_obj_id not in topo_dict:
                         topo_dict[bk_obj_id] = []
-                    if inst_key not in [f'{x["bk_obj_id"]}|{x["bk_inst_id"]}' for x in topo_dict[bk_obj_id]]:
+                    if inst_key not in [f"{x['bk_obj_id']}|{x['bk_inst_id']}" for x in topo_dict[bk_obj_id]]:
                         topo_dict[bk_obj_id].append(inst_obj_dict[inst_key])
             for bk_obj_id in topo_dict:
                 host[bk_obj_id] = topo_dict[bk_obj_id]
@@ -1076,6 +1079,11 @@ class BizHandler(APIModel):
         if not ip_info_list:
             return {}
 
+        from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_admitted
+
+        if is_nodeman_v3_admitted(self.bk_biz_id):
+            return self._get_agent_status_v3([host["bk_host_id"] for host in host_list])
+
         # 添加no_request参数, 多线程调用时，保证用户信息不漏传
         scope_list = [{"scope_type": constants.ScopeType.BIZ.value, "scope_id": str(self.bk_biz_id)}]
         request_params = {"no_request": True, "host_list": ip_info_list, "scope_list": scope_list}
@@ -1083,6 +1091,51 @@ class BizHandler(APIModel):
         for info in status_list:
             host_id = info["host_id"]
             result[host_id] = AgentStatusEnum.ON.value if info["alive"] else AgentStatusEnum.NOT_EXIST.value
+        return result
+
+    def _get_agent_status_v3(self, bk_host_ids: list) -> dict:
+        """
+        V3 下的 Agent 状态。
+
+        V2 的 ipchooser_host_details 给的是布尔 alive，V3 的 topo/host/list 给的是
+        HostState.node_status（init/running/damaged/busy/starting/upgrade/stopping/uninit/unknown）。
+        这里只把 running 映射成在线，其余一律按不在线：把 starting / upgrade 当成在线会让
+        Agent 还没起来的机器显示正常，用户据此认为「配置下发失败」而反复重试。
+        """
+        from apps.log_databus.nodeman_v3.client import get_client
+        from apps.log_databus.nodeman_v3.constants import HOST_NODE_STATUS_RUNNING
+
+        if not bk_host_ids:
+            return {}
+
+        # 先把所有入参主机预置成「不存在」，再用返回值覆盖。不能依赖 defaultdict(int) 兜底：
+        # AgentStatusEnum.ON == 0，而 topo/host/list 按 bk_host_id 过滤，**没在节点管理注册过
+        # 的主机压根不会出现在返回里** —— 落到默认值就等于把没装 Agent 的机器报成在线，
+        # 调用方的 agent_error_count 会少算。V2 的 ipchooser_host_details 每台都回，碰不到这个坑
+        result = {bk_host_id: AgentStatusEnum.NOT_EXIST.value for bk_host_id in bk_host_ids}
+
+        client = get_client(self.bk_biz_id)
+        page_limit = 500
+        for chunk_start in range(0, len(bk_host_ids), page_limit):
+            chunk = bk_host_ids[chunk_start : chunk_start + page_limit]
+            data = client.list_hosts(
+                {
+                    # topo/host/list 的分页字段是 offset（Topo_HostList.md），
+                    # 不是 deploy_policy/list 那套 {count, start}
+                    "page": {"offset": 0, "limit": page_limit},
+                    "exact_include_conditions": {"bk_host_id": chunk, "bk_biz_id": [self.bk_biz_id]},
+                }
+            )
+            for item in (data or {}).get("items") or []:
+                bk_host_id = item.get("bk_host_id")
+                if not bk_host_id:
+                    continue
+                node_status = (item.get("state") or {}).get("node_status") or ""
+                result[bk_host_id] = (
+                    AgentStatusEnum.ON.value
+                    if node_status == HOST_NODE_STATUS_RUNNING
+                    else AgentStatusEnum.NOT_EXIST.value
+                )
         return result
 
     @staticmethod

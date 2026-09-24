@@ -238,6 +238,7 @@ CELERY_IMPORTS = (
     "apps.log_databus.tasks.itsm",
     "apps.log_databus.tasks.bkdata",
     "apps.log_databus.tasks.archive",
+    "apps.log_databus.tasks.nodeman_v3",
     "apps.log_measure.tasks.report",
     "apps.log_extract.tasks",
     "apps.log_clustering.tasks.msg",
@@ -1338,6 +1339,10 @@ INITIALIZED_TENANT_LIST = [BK_APP_TENANT_ID]
 # 兼容非多租户模式
 APIGW_ENABLED = not (ENABLE_MULTI_TENANT_MODE or "test" in sys.argv)
 USE_APIGW = os.getenv("BKAPP_USE_APIGW", "false").lower() == "true"
+
+# 节点管理 V3 网关地址。留空时按 APIGW 约定拼接，联调环境可直连指定地址。
+# V3 新采集项准入由数据库 FeatureToggle `nodeman_v3_collector` 控制
+BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
 
 # 预查询时间, 默认6h小时, 0代表禁用
 try:
