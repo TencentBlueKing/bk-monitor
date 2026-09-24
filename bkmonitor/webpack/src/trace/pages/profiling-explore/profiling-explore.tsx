@@ -25,10 +25,14 @@
  */
 import { computed, defineComponent, shallowRef, watch } from 'vue';
 
-import { Button, Exception, Radio } from 'bkui-vue';
+import { Button, Radio } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import ProfileVisualization from './components/profile-visualization/profile-visualization';
+import ProfilingEmptyState from './components/profiling-empty-state';
+import ProfilingFavoritePreview from './components/profiling-favorite-preview';
+import ProfilingFileAnalysis from './components/profiling-file-analysis';
+import ProfilingFileTools from './components/profiling-file-tools';
 import ProfilingFilter from './components/profiling-filter';
 import ProfilingHeader from './components/profiling-header';
 import ProfilingTrend from './components/profiling-trend';
@@ -36,10 +40,12 @@ import { useProfileResults } from './composables/use-profile-results';
 import { useProfilingFavorite } from './composables/use-profiling-favorite';
 import { useProfilingQuery } from './composables/use-profiling-query';
 import { getExportUrl } from './services/profiling';
+import { useDocumentLink } from '@/hooks/documentLink';
 import FavoriteBox, { EditFavorite } from '@/pages/trace-explore/components/favorite-box';
 
 import type { ProfilingFavorite, ProfilingTab } from './types';
 
+import './components/profiling-file-analysis.scss';
 import './profiling-explore.scss';
 
 export default defineComponent({
@@ -47,10 +53,15 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const query = useProfilingQuery();
+    const fileTools = shallowRef<InstanceType<typeof ProfilingFileTools>>();
+    const header = shallowRef<InstanceType<typeof ProfilingHeader>>();
+    const { handleGotoLink } = useDocumentLink();
     const active = query.active;
     const tab = computed({
       get: () => query.state.value.view.tab,
-      set: (tab: ProfilingTab) => query.patchView({ tab }),
+      set: (tab: ProfilingTab) => {
+        query.changeTab(tab);
+      },
     });
     const results = useProfileResults({
       query: query.submitted,
@@ -93,30 +104,7 @@ export default defineComponent({
     const renderFavoriteQuery = (item: ProfilingFavorite) => {
       const value = item.config?.profiling;
       if (!value) return <span>--</span>;
-      return (
-        <div class='profiling-favorite-preview'>
-          <strong>
-            {value.appName} / {value.serviceName}
-          </strong>
-          <span>
-            {value.dataType} · {value.aggregation}
-          </span>
-          <span>{t(value.mode === 'none' ? '不对比' : value.mode === 'time' ? '时间对比' : '条件对比')}</span>
-          <span>{value.timeRange.join(' ~ ')}</span>
-          <pre>
-            {JSON.stringify(
-              {
-                [t('查询项')]: [...value.where, ...(value.commonWhere || [])],
-                ...(value.mode !== 'none'
-                  ? { [t('对比项')]: [...value.comparisonWhere, ...(value.comparisonCommonWhere || [])] }
-                  : {}),
-              },
-              null,
-              2
-            )}
-          </pre>
-        </div>
-      );
+      return <ProfilingFavoritePreview value={value} />;
     };
     function exportProfile() {
       if (!query.submitted.value) return;
@@ -128,6 +116,9 @@ export default defineComponent({
       t,
       tab,
       query,
+      fileTools,
+      header,
+      handleGotoLink,
       results,
       favorite,
       favoriteBox,
@@ -144,6 +135,7 @@ export default defineComponent({
     const f = this.favorite;
     const state = q.state.value;
     const comparingTime = state.mode === 'time';
+    const applicationReady = !!q.detail.value?.data_types.length;
     return (
       <div class='profiling-explore'>
         <aside
@@ -163,6 +155,22 @@ export default defineComponent({
         </aside>
         <main class='profiling-main'>
           <ProfilingHeader
+            ref='header'
+            v-slots={{
+              fileTools: () => (
+                <ProfilingFileTools
+                  key={q.files.bizId.value}
+                  ref='fileTools'
+                  fileName={state.file.fileName}
+                  loading={q.files.loading.value}
+                  profileId={state.file.profileId}
+                  records={q.files.records.value}
+                  onRefresh={() => q.files.refreshRecords()}
+                  onSelect={q.files.selectFile}
+                  onUploaded={q.files.acceptUploaded}
+                />
+              ),
+            }}
             detail={q.detail.value}
             favoriteShow={f.visible.value}
             loading={q.loading.value}
@@ -182,21 +190,23 @@ export default defineComponent({
           />
           {this.tab === 'application' ? (
             <div class='profiling-application'>
-              <ProfilingFilter
-                commonWhere={state.commonWhere}
-                configKey={`profiling_${state.appName}_${state.serviceName}_baseline`}
-                fields={q.fields.value}
-                getValues={q.getFieldValues}
-                label={comparingTime ? this.t('查询项') : ''}
-                loading={q.loading.value}
-                selectedFavorite={f.selected.value}
-                where={state.where}
-                onChange={where => q.changeFilters({ where })}
-                onCommonChange={commonWhere => q.changeFilters({ commonWhere })}
-                onFavorite={this.saveFavorite}
-                onSearch={() => q.executeQuery()}
-              />
-              {state.mode !== 'none' && (
+              {(q.loading.value || applicationReady) && (
+                <ProfilingFilter
+                  commonWhere={state.commonWhere}
+                  configKey={`profiling_${state.appName}_${state.serviceName}_baseline`}
+                  fields={q.fields.value}
+                  getValues={q.getFieldValues}
+                  label={comparingTime ? this.t('查询项') : ''}
+                  loading={q.loading.value}
+                  selectedFavorite={f.selected.value}
+                  where={state.where}
+                  onChange={where => q.changeFilters({ where })}
+                  onCommonChange={commonWhere => q.changeFilters({ commonWhere })}
+                  onFavorite={this.saveFavorite}
+                  onSearch={() => q.executeQuery()}
+                />
+              )}
+              {(q.loading.value || applicationReady) && state.mode !== 'none' && (
                 <ProfilingFilter
                   commonWhere={state.comparisonCommonWhere}
                   configKey={`profiling_${state.appName}_${state.serviceName}_comparison`}
@@ -356,17 +366,67 @@ export default defineComponent({
                   </>
                 ) : (
                   !q.error.value && (
-                    <div class='profiling-initial-empty'>
-                      <Exception
-                        description={q.loading.value ? '' : this.t('暂无 Profiling 数据，请选择已上报数据的应用服务')}
-                        scene='part'
-                        type='empty'
-                      />
-                    </div>
+                    <ProfilingEmptyState
+                      title={this.t(
+                        q.serviceOptions.value.some(item => item.services.length)
+                          ? '当前服务暂无 Profiling 数据'
+                          : '暂无可分析的应用服务'
+                      )}
+                      description={this.t('接入 Profiling 并上报数据后，即可分析服务的性能热点')}
+                      hint={this.t('也可以上传本地文件，无需接入应用即可开始分析')}
+                      icon='mc-flame'
+                    >
+                      {{
+                        default: () => (
+                          <>
+                            <Button
+                              theme='primary'
+                              onClick={() => this.header?.createApplication()}
+                            >
+                              {this.t('新增接入')}
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                this.tab = 'file';
+                              }}
+                            >
+                              {this.t('分析本地文件')}
+                            </Button>
+                          </>
+                        ),
+                        footer: () => (
+                          <>
+                            <Button
+                              theme='primary'
+                              text
+                              onClick={() => this.handleGotoLink('profiling_docs')}
+                            >
+                              {this.t('查看接入指引')}
+                            </Button>
+                            <Button
+                              theme='primary'
+                              text
+                              onClick={q.initialize}
+                            >
+                              {this.t('已上报数据？刷新列表')}
+                            </Button>
+                          </>
+                        ),
+                      }}
+                    </ProfilingEmptyState>
                   )
                 )}
               </div>
             </div>
+          ) : this.tab === 'file' ? (
+            <ProfilingFileAnalysis
+              key={q.files.bizId.value}
+              query={q.files}
+              selectedFavorite={f.selected.value}
+              state={state.file}
+              onFavorite={this.saveFavorite}
+              onUpload={() => this.fileTools?.openUpload()}
+            />
           ) : (
             <div class={`profiling-${this.tab}-placeholder`} />
           )}

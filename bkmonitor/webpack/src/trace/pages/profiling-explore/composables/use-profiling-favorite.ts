@@ -55,8 +55,13 @@ export function useProfilingFavorite({
   const editData = shallowRef<IFavoriteGroup['favorites'][number] | null>(null);
   const saving = shallowRef(false);
   const selected = computed(() =>
-    current.value
-      ? { where: current.value.config.profiling.where, commonWhere: current.value.config.profiling.commonWhere || [] }
+    current.value?.config.profiling.view.tab === state.value.view.tab
+      ? state.value.view.tab === 'file'
+        ? {
+            where: current.value.config.profiling.file?.where || [],
+            commonWhere: current.value.config.profiling.file?.commonWhere || [],
+          }
+        : { where: current.value.config.profiling.where, commonWhere: current.value.config.profiling.commonWhere || [] }
       : null
   );
   watch(initial, value => {
@@ -73,7 +78,7 @@ export function useProfilingFavorite({
   }
 
   async function save(edit: boolean, onSaved: () => void) {
-    if (!edit || !current.value) {
+    if (!edit || current.value?.config.profiling.view.tab !== state.value.view.tab) {
       editData.value = {
         id: 0,
         name: '',

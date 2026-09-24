@@ -37,6 +37,7 @@ import {
   restoreQueryState,
   restoreSelection,
 } from '../utils/query';
+import { useProfilingFiles } from './use-profiling-files';
 import { type IFilterField, type IGetValueFnParams, EFieldType, EMethod } from '@/components/retrieval-filter/typing';
 import { getDefaultTimezone, updateTimezone } from '@/i18n/dayjs';
 import { useAppStore } from '@/store/modules/app';
@@ -47,6 +48,7 @@ import type {
   ProfileQuery,
   ProfileViewState,
   ProfilingFavorite,
+  ProfilingTab,
   QuerySide,
   QueryState,
   SelectionRange,
@@ -87,12 +89,16 @@ export function useProfilingQuery() {
   const valueCache = new Map<string, Promise<string[]>>();
 
   const serviceOptions = applications;
+  const files = useProfilingFiles({ state, bizId: computed(() => Number(app.bizId)), patch, resolveRange });
 
   function patch(value: Partial<QueryState>) {
     state.value = {
       ...state.value,
       // 改变全局时间后旧边界不再有效，URL 应使用新时间；单纯切视图沿用查询现场。
       ...(value.timeRange || value.timezone ? { resolvedTimeRange: null } : {}),
+      ...(value.timeRange && state.value.view.tab === 'file'
+        ? { file: { ...state.value.file, pendingTimeRange: false } }
+        : {}),
       ...value,
     };
   }
@@ -182,6 +188,12 @@ export function useProfilingQuery() {
   function executeQuery(refreshLabels = false, refreshTrends = true) {
     // 搜索按钮/快捷键已提交时，取消本轮条件变更排队的查询。
     filterQueryPending = false;
+    if (files.active.value) {
+      files.executeQuery(refreshLabels);
+      if (refreshLabels) files.refreshRecords();
+      return;
+    }
+    if (!active.value) return;
     if (!state.value.appName || !state.value.serviceName || !state.value.dataType || loading.value) return;
     try {
       // 框选沿用已提交的绝对时间边界；重新解析 now 会让两侧选区和趋势发生漂移。
@@ -264,6 +276,7 @@ export function useProfilingQuery() {
     const current = controller;
     loading.value = true;
     error.value = '';
+    files.reset();
     try {
       let next = createQueryState(getDefaultTimezone());
       // URL 中的完整查询优先于收藏 ID，保证用户修改收藏后的分享链接可准确恢复。
@@ -275,6 +288,16 @@ export function useProfilingQuery() {
         if (!favorite.config?.profiling) throw new Error(t('收藏配置无效'));
         initialFavorite.value = favorite;
         next = restoreQueryState(favorite.config.profiling, next.timezone);
+      }
+      state.value = next;
+      updateTimezone(next.timezone);
+      if (next.view.tab !== 'application') {
+        loading.value = false;
+        if (next.view.tab === 'file') await files.refreshRecords(true);
+        if (current.signal.aborted) return;
+        initialized = true;
+        syncUrl();
+        return;
       }
       const result = await getApplications(Number(app.bizId), current.signal);
       if (current.signal.aborted) return;
@@ -303,6 +326,44 @@ export function useProfilingQuery() {
         loading.value = false;
       }
     }
+  }
+
+  async function changeTab(tab: ProfilingTab) {
+    if (state.value.view.tab === tab) return;
+    controller?.abort();
+    labelController?.abort();
+    valueController.abort();
+    loading.value = false;
+    initialized = true;
+    patchView({ tab });
+    if (tab === 'file') {
+      await files.refreshRecords(true);
+    } else if (tab === 'application') {
+      await activateApplication();
+    }
+  }
+
+  async function activateApplication() {
+    if (!applications.value.length) {
+      controller = new AbortController();
+      const current = controller;
+      loading.value = true;
+      try {
+        const result = await getApplications(Number(app.bizId), current.signal);
+        if (current.signal.aborted) return;
+        applications.value = result;
+      } catch (e) {
+        if (!current.signal.aborted) error.value = (e as Error)?.message || t('应用服务加载失败，请重试');
+        return;
+      } finally {
+        if (!current.signal.aborted) loading.value = false;
+      }
+    }
+    if (!state.value.appName) {
+      const first = applications.value.find(item => item.services.length);
+      patch({ appName: first?.app_name || '', serviceName: first?.services[0]?.name || '' });
+    }
+    await loadService();
   }
 
   function selectService(value: string[]) {
@@ -349,7 +410,12 @@ export function useProfilingQuery() {
     try {
       state.value = restoreQueryState(value, getDefaultTimezone());
       updateTimezone(state.value.timezone);
-      await loadService();
+      controller?.abort();
+      labelController?.abort();
+      valueController.abort();
+      loading.value = false;
+      if (files.active.value) await files.refreshRecords(true);
+      else if (active.value) await activateApplication();
     } finally {
       restoring -= 1;
       syncUrl();
@@ -388,20 +454,27 @@ export function useProfilingQuery() {
 
   function scheduleRefresh() {
     clearTimeout(timer);
-    if (disposed || !active.value || state.value.refreshInterval < 60000) return;
+    if (disposed || (!active.value && !files.active.value) || state.value.refreshInterval < 60000) return;
     timer = setTimeout(() => {
-      if (!document.hidden && !refreshBusy.value) executeQuery();
+      if (
+        !document.hidden &&
+        !(files.active.value ? files.refreshBusy.value || files.loading.value : refreshBusy.value)
+      ) {
+        executeQuery();
+        if (files.active.value) files.refreshRecords();
+      }
       scheduleRefresh();
     }, state.value.refreshInterval);
   }
 
   // 展示状态与未提交的筛选条件同样可分享，但不驱动数据请求。
   watch([state, loading], syncUrl, { flush: 'post' });
-  watch(() => [state.value.refreshInterval, active.value], scheduleRefresh);
+  watch(() => [state.value.refreshInterval, state.value.view.tab], scheduleRefresh);
   watch(
     () => app.bizId,
     () => {
       submitted.value = null;
+      applications.value = [];
       initialFavorite.value = null;
       initialize();
     }
@@ -432,6 +505,8 @@ export function useProfilingQuery() {
 
   return {
     state,
+    files,
+    changeTab,
     active,
     submitted,
     applications,

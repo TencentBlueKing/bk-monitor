@@ -341,16 +341,3 @@
     overflow-wrap: anywhere;
   }
 }
-
-.profiling-favorite-preview {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow-wrap: anywhere;
-
-  pre {
-    max-height: 280px;
-    overflow: auto;
-    white-space: pre-wrap;
-  }
-}

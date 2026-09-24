@@ -39,6 +39,7 @@ export function useProfileResults({
   timeComparison,
   graphMode,
   traceMode,
+  trendsEnabled = true,
 }: {
   active: Ref<boolean>;
   graphMode: Ref<GraphMode>;
@@ -46,6 +47,7 @@ export function useProfileResults({
   revision: Ref<number>;
   timeComparison: Ref<boolean>;
   traceMode: Ref<boolean>;
+  trendsEnabled?: boolean;
 }) {
   const { t } = useI18n();
   const graph = shallowRef<ProfileResult>({});
@@ -126,7 +128,7 @@ export function useProfileResults({
     trends.value = [];
     trendError.value = '';
     trendLoading.value = false;
-    if (!query.value || !active.value) return;
+    if (!trendsEnabled || !query.value || !active.value) return;
     const params =
       timeComparison.value || (traceMode.value && query.value.is_compared)
         ? [getTrendQuery(query.value, 'baseline'), getTrendQuery(query.value, 'comparison')]
@@ -144,10 +146,14 @@ export function useProfileResults({
     }
   }
 
-  watch([query, active], () => {
-    if (query.value?.is_compared && graphMode.value === 'callgraph') graphMode.value = 'combined';
-    loadGraph();
-  });
+  watch(
+    [query, active],
+    () => {
+      if (query.value?.is_compared && graphMode.value === 'callgraph') graphMode.value = 'combined';
+      loadGraph();
+    },
+    { immediate: true }
+  );
   watch([trendKey, revision, active], loadTrends);
   watch(graphMode, () => {
     if (graphMode.value === 'callgraph' && !profileLoading.value) loadCallGraph();

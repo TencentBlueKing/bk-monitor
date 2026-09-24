@@ -152,7 +152,7 @@ export default defineComponent({
                   placeholder={this.t('请选择应用服务')}
                   readonly
                 />
-                <kbd>{/mac/i.test(navigator.platform) ? '⌘' : 'Ctrl'}+O</kbd>
+                <kbd>{/mac/i.test(navigator.platform) ? 'cmd' : 'ctrl'}+o</kbd>
               </div>
             ),
             content: () => (

@@ -25,7 +25,23 @@
  */
 
 import type { ProfileQuery, ProfileViewState, QueryState, SelectionRange } from '../types';
+import type { FileQueryState } from '../types/file';
 import type { IWhereItem } from '@/components/retrieval-filter/typing';
+
+export function buildFileQuery(state: QueryState, bizId: number, range: SelectionRange): ProfileQuery {
+  return {
+    bk_biz_id: bizId,
+    global_query: true,
+    profile_id: state.file.profileId,
+    data_type: state.file.dataType,
+    agg_method: state.file.aggregation,
+    start: range[0] * 1000,
+    end: range[1] * 1000,
+    filter_labels: toFilterLabels([...state.file.where, ...state.file.commonWhere]),
+    diff_filter_labels: {},
+    is_compared: false,
+  };
+}
 
 /** 页面时间统一为毫秒，查询 API 使用微秒；外层为全局范围，标签内 start/end 为两侧选区。 */
 export function buildProfileQuery(state: QueryState, bizId: number, range: SelectionRange): ProfileQuery {
@@ -54,8 +70,22 @@ export function clampSelection(range: SelectionRange, bounds: SelectionRange): n
   return Number.isFinite(start) && Number.isFinite(end) && end > start ? [start, end] : null;
 }
 
+export function createFileQueryState(): FileQueryState {
+  return {
+    profileId: '',
+    fileName: '',
+    pendingTimeRange: false,
+    dataType: '',
+    aggregation: 'AVG',
+    where: [],
+    commonWhere: [],
+    view: { ...createViewState(), tab: 'file' },
+  };
+}
+
 export function createQueryState(timezone: string): QueryState {
   return {
+    file: createFileQueryState(),
     appName: '',
     serviceName: '',
     dataType: '',
@@ -125,6 +155,19 @@ export function restoreQueryState(value: unknown, timezone: string): QueryState 
       : [];
   return {
     ...defaults,
+    file: {
+      ...defaults.file,
+      profileId: typeof input.file?.profileId === 'string' ? input.file.profileId : '',
+      fileName: typeof input.file?.fileName === 'string' ? input.file.fileName : '',
+      pendingTimeRange: input.file?.pendingTimeRange === true,
+      dataType: typeof input.file?.dataType === 'string' ? input.file.dataType : '',
+      aggregation: ['AVG', 'SUM', 'LAST'].includes(input.file?.aggregation)
+        ? input.file.aggregation
+        : defaults.file.aggregation,
+      where: where(input.file?.where),
+      commonWhere: where(input.file?.commonWhere),
+      view: { ...restoreViewState(input.file?.view), tab: 'file' },
+    },
     appName: typeof input.appName === 'string' ? input.appName : '',
     serviceName: typeof input.serviceName === 'string' ? input.serviceName : '',
     dataType: typeof input.dataType === 'string' ? input.dataType : '',

@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
+import type { FileQueryState } from './file';
 import type { IWhereItem } from '@/components/retrieval-filter/typing';
 
 export type Aggregation = 'AVG' | 'LAST' | 'SUM';
@@ -51,19 +53,11 @@ export interface FlameNode {
   value: number;
 }
 export type GraphMode = 'callgraph' | 'combined' | 'flame' | 'table';
-export interface ProfileQuery {
-  agg_method: Aggregation;
-  app_name: string;
-  bk_biz_id: number;
-  data_type: string;
-  diagram_types?: string[];
-  diff_filter_labels: Record<string, number | string | string[]>;
-  end: number;
-  filter_labels: Record<string, number | string | string[]>;
-  is_compared: boolean;
-  service_name: string;
-  start: number;
-}
+export type ProfileQuery = ProfileQueryBase &
+  (
+    | { app_name: string; global_query?: false; profile_id?: never; service_name: string }
+    | { app_name?: never; global_query: true; profile_id: string; service_name?: never }
+  );
 
 export interface ProfileResult {
   call_graph_data?: string;
@@ -130,6 +124,7 @@ export interface QueryState {
   comparisonRange: null | SelectionRange;
   comparisonWhere: IWhereItem[];
   dataType: string;
+  file: FileQueryState;
   mode: CompareMode;
   refreshInterval: number;
   /** 上次查询的绝对毫秒边界，用于固定 URL 现场及平移相对时间收藏中的选区。 */
@@ -155,4 +150,16 @@ export type TimeRange = [number | string, number | string];
 
 export interface TrendResult {
   series: ProfileSeries[];
+}
+
+interface ProfileQueryBase {
+  agg_method: Aggregation;
+  bk_biz_id: number;
+  data_type: string;
+  diagram_types?: string[];
+  diff_filter_labels: Record<string, number | string | string[]>;
+  end: number;
+  filter_labels: Record<string, number | string | string[]>;
+  is_compared: boolean;
+  start: number;
 }
