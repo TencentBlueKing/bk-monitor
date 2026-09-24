@@ -35,9 +35,11 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from redis.exceptions import RedisError
+from rest_framework.exceptions import PermissionDenied
 
 from apps.api.exception import DataAPIException
 from apps.constants import RemoteStorageType
+from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
@@ -66,7 +68,7 @@ from apps.log_search.export.config import (
 from apps.log_search.export.api import create_export_job, download_link, job_detail, job_results
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario, Space
-from apps.log_search.views.export_views import ExportJobViewSet
+from apps.log_search.views.export_views import ExportJobIndexSearchPermission, ExportJobViewSet
 from apps.log_search.export.worker import _execute, _pack, _write_rows, run_part
 from apps.log_search.export.planner import (
     INTERVAL_LADDER_MS,
@@ -1737,6 +1739,75 @@ class ExternalIdentityTests(TestCase):
 
         self.assertTrue(job_detail(own)["can_operate"])
         self.assertFalse(job_detail(other)["can_operate"])
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
+class ExportJobPermissionTests(TestCase):
+    """详情类接口按任务保存的索引集复核检索权限，不能只凭 Job ID 读到别人的产物。"""
+
+    SPACE_UID = "bkcc__21"
+
+    def setUp(self):
+        Space.objects.create(
+            space_uid=self.SPACE_UID,
+            bk_biz_id=21,
+            space_type_id="bkcc",
+            space_type_name="业务",
+            space_id="21",
+            space_name="biz-21",
+            bk_tenant_id="tenant-a",
+        )
+        self.index_set = LogIndexSet.objects.create(
+            index_set_id=759,
+            index_set_name="index-759",
+            space_uid=self.SPACE_UID,
+            category_id="application",
+            scenario_id=Scenario.LOG,
+        )
+
+    def build_view(self, action):
+        view = ExportJobViewSet()
+        view.action = action
+        view.request = SimpleNamespace(data={"space_uid": self.SPACE_UID}, query_params={}, method="GET")
+        return view
+
+    def build_request(self):
+        return SimpleNamespace(data={"space_uid": self.SPACE_UID}, query_params={}, headers={}, META={}, method="GET")
+
+    def test_detail_actions_require_the_index_set_permission(self):
+        """列表以外每个动作都要在空间校验之外再过一个索引集级检索权限。"""
+        for action in ("retrieve", "results", "download_link", "cancel"):
+            kinds = [type(permission) for permission in self.build_view(action).get_permissions()]
+            self.assertEqual(kinds, [ViewBusinessPermission, ExportJobIndexSearchPermission], action)
+
+    def test_object_permission_never_gates_admission(self):
+        """索引集要拿到对象才知道，准入阶段必须放行，否则列表接口会连空间校验一起失去。"""
+        permission = ExportJobIndexSearchPermission()
+
+        self.assertTrue(permission.has_permission(self.build_request(), self.build_view("list")))
+
+    @override_settings(IGNORE_IAM_PERMISSION=False)
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_instance_id_comes_from_the_job(self, mock_permission_cls):
+        """鉴权实例来自任务保存的索引集，而不是请求参数。"""
+        job = create_job(created_by="other_user", space_uid=self.SPACE_UID, index_set_id=self.index_set.pk)
+        permission = ExportJobIndexSearchPermission()
+
+        self.assertTrue(permission.has_object_permission(self.build_request(), self.build_view("results"), job))
+
+        called = mock_permission_cls.return_value.is_allowed.call_args
+        self.assertEqual(str(called.kwargs["resources"][0].id), str(self.index_set.pk))
+        self.assertTrue(called.kwargs["raise_exception"])
+
+    @override_settings(IGNORE_IAM_PERMISSION=False)
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_iam_denial_is_not_swallowed(self, mock_permission_cls):
+        mock_permission_cls.return_value.is_allowed.side_effect = PermissionDenied("没有该索引集的检索权限")
+        job = create_job(created_by="other_user", space_uid=self.SPACE_UID, index_set_id=self.index_set.pk)
+        permission = ExportJobIndexSearchPermission()
+
+        with self.assertRaises(PermissionDenied):
+            permission.has_object_permission(self.build_request(), self.build_view("download_link"), job)
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")

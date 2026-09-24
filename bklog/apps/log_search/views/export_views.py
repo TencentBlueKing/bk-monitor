@@ -39,6 +39,29 @@ from apps.utils.drf import detail_route
 from apps.utils.local import get_request_app_code, get_request_external_username
 
 
+class ExportJobIndexSearchPermission(PlatformAwareIndexSearchPermission):
+    """
+    详情类接口的索引集级检索鉴权：实例 ID 取自被访问的任务，而不是请求参数。
+
+    索引集要拿到任务之后才知道，准入阶段不拦截，空间级校验仍由 ViewBusinessPermission 负责；
+    平台级索引集与跨空间检索的判定口径全部复用父类，不另写一套。
+    """
+
+    def __init__(self):
+        super().__init__([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
+        self._instance_id = None
+
+    def has_permission(self, request, view):
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        self._instance_id = obj.index_set_id
+        return super().has_permission(request, view)
+
+    def get_instance_id(self, request, view):
+        return self._instance_id
+
+
 class ExportJobViewSet(APIViewSet):
     serializer_class = ExportScopeSerializer
     lookup_value_regex = "[0-9]+"
@@ -55,10 +78,16 @@ class ExportJobViewSet(APIViewSet):
                     [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES, iam_instance_id_key="index_set_id"
                 )
             ]
-        return [ViewBusinessPermission()]
+        # 详情类接口按任务保存的索引集复核检索权限，不能只凭 Job ID 读到别人的产物
+        return [ViewBusinessPermission(), ExportJobIndexSearchPermission()]
 
     def get_queryset(self):
-        """任务可见范围：请求空间 + 来源应用；外部用户只看自己创建的任务。"""
+        """
+        任务可见范围：请求空间 + 来源应用；外部用户只看自己创建的任务。
+
+        列表只给出任务元数据（状态、数量、时间），查询条件与产物读取都要过上面的
+        索引集级检索鉴权，因此同空间内看到任务不等于能读到别人的导出内容。
+        """
         space_uid = self.request.data.get("space_uid") or self.request.query_params.get("space_uid")
         queryset = ExportJob.objects.filter(space_uid=space_uid, source_app_code=get_request_app_code())
         external_username = get_request_external_username()
