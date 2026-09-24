@@ -656,13 +656,17 @@ class GetStrategyListV2Resource(Resource):
             filter_strategy_ids_set.intersection_update(set())
             return
 
-        or_condition = reduce(
-            operator.or_, (Q(**{"user_groups__contains": group_id}) for group_id in set(filter_user_group_ids))
-        )
-
-        user_group_strategy_ids = set(
-            StrategyActionConfigRelation.objects.filter(or_condition).values_list("strategy_id", flat=True).distinct()
-        )
+        # user_groups 是 JSON 数组，MySQL 5.7 既没有 JSON_OVERLAPS 也不支持多值索引，
+        # 把每个告警组拼成 JSON_CONTAINS 下推会得到上千个无法走索引的谓词，退化成准全表扫描。
+        # 这里改为按候选策略取回 user_groups，在内存里做集合交集。
+        target_group_ids = set(filter_user_group_ids)
+        user_group_strategy_ids = {
+            strategy_id
+            for strategy_id, user_groups in StrategyActionConfigRelation.objects.filter(
+                strategy_id__in=filter_strategy_ids_set
+            ).values_list("strategy_id", "user_groups")
+            if target_group_ids.intersection(user_groups or [])
+        }
         filter_strategy_ids_set.intersection_update(user_group_strategy_ids)
 
     @staticmethod
@@ -687,6 +691,7 @@ class GetStrategyListV2Resource(Resource):
             else:
                 strategy_ids = strategy_qs.values_list("id", flat=True)
                 strategy_ids_with_action = StrategyActionConfigRelation.objects.filter(
+                    strategy_id__in=filter_strategy_ids_set,
                     relate_type=StrategyActionConfigRelation.RelateType.ACTION,
                 ).values_list("strategy_id", flat=True)
             # 通过差集计算出没有关联处理动作的策略
@@ -716,18 +721,35 @@ class GetStrategyListV2Resource(Resource):
         filter_strategy_ids_set.intersection_update(
             filter_strategy_ids
             | set(
-                StrategyActionConfigRelation.objects.filter(config_id__in=list(action_ids))
+                StrategyActionConfigRelation.objects.filter(
+                    config_id__in=list(action_ids), strategy_id__in=filter_strategy_ids_set
+                )
                 .values_list("strategy_id", flat=True)
                 .distinct()
             )
         )
 
     @classmethod
-    def filter_by_status(cls, status: str, filter_strategy_ids: list = None, bk_biz_id: int = None):
+    def filter_by_status(
+        cls,
+        status: str,
+        filter_strategy_ids: list = None,
+        bk_biz_id: int = None,
+        shield_status_map: dict[bool, set[int]] | None = None,
+    ):
+        """按状态过滤策略。
+
+        shield_status_map 为 get_shield_status_strategy_ids 的结果，
+        调用方按状态多次调用时传入可避免重复聚合；不传则按需查询。
+        """
+
+        def get_shield_status_map():
+            return cls.get_shield_status_strategy_ids(bk_biz_id) if shield_status_map is None else shield_status_map
+
         strategy_ids = set()
         if status == "ALERT":
             # 告警中的策略
-            strategy_ids.update(cls.get_strategies_by_shield_status(bk_biz_id))
+            strategy_ids.update(get_shield_status_map()[False])
 
         elif status == "INVALID":
             invalid_qs = StrategyModel.objects.filter(is_invalid=True)
@@ -742,7 +764,7 @@ class GetStrategyListV2Resource(Resource):
                 if shield_manager.is_shielded(shield_obj, match_info):
                     strategy_ids.update(shield_obj.dimension_config["strategy_id"])
             # 屏蔽中的策略
-            strategy_ids.update(cls.get_strategies_by_shield_status(bk_biz_id, is_shielded=True))
+            strategy_ids.update(get_shield_status_map()[True])
         else:
             enabled_qs = StrategyModel.objects.filter(is_enabled=status == "ON")
             if bk_biz_id is not None:
@@ -754,26 +776,39 @@ class GetStrategyListV2Resource(Resource):
         return list(strategy_ids)
 
     @staticmethod
-    def get_strategies_by_shield_status(bk_biz_id, is_shielded=False):
-        # 告警中的策略
-        alert_qs = AlertDocument.search(all_indices=True).filter("term", status=EventStatus.ABNORMAL)
-        if is_shielded:
-            alert_qs = alert_qs.filter("term", is_shielded=True)
-        else:
-            # 屏蔽状态告警生成时未写入值，可能为null，用排除法比较好
-            alert_qs = alert_qs.exclude("term", is_shielded=True)
+    def get_shield_status_strategy_ids(bk_biz_id) -> dict[bool, set[int]]:
+        """一次聚合取回「告警中」与「屏蔽中」两组策略，返回 {is_shielded: 策略ID集合}。
 
+        原先按 is_shielded 各查一次 ES，两次查询串行执行，耗时翻倍。
+        这里在 strategy_id 分桶下再按 is_shielded 分桶，一次拿全。
+        """
+        alert_qs = AlertDocument.search(all_indices=True).filter("term", status=EventStatus.ABNORMAL)
         if bk_biz_id is not None:
             alert_qs = alert_qs.filter("term", **{"event.bk_biz_id": bk_biz_id})
 
         search_object = alert_qs[:0]
-        search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000)
+        # 屏蔽状态告警生成时未写入值，可能为 null，用 missing 归入未屏蔽，与原先的排除法语义一致
+        search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000).bucket(
+            "shield_status", "terms", field="is_shielded", size=10000, missing=False
+        )
         search_result = search_object.execute()
-        strategy_ids = []
-        if search_result.aggs:
-            for bucket in search_result.aggs.strategy_id.buckets:
-                strategy_ids.append(int(bucket.key))
+
+        strategy_ids: dict[bool, set[int]] = {False: set(), True: set()}
+        if not search_result.aggs:
+            return strategy_ids
+
+        for bucket in search_result.aggs.strategy_id.buckets:
+            strategy_id = int(bucket.key)
+            for shield_bucket in bucket.shield_status.buckets:
+                # 布尔字段分桶的 key 可能是 0/1，也可能是 "false"/"true"，统一归一化避免误判
+                raw_key = getattr(shield_bucket, "key_as_string", shield_bucket.key)
+                strategy_ids[str(raw_key).lower() in ("true", "1")].add(strategy_id)
         return strategy_ids
+
+    @classmethod
+    def get_strategies_by_shield_status(cls, bk_biz_id, is_shielded=False):
+        """保留原签名，内部复用合并后的聚合"""
+        return list(cls.get_shield_status_strategy_ids(bk_biz_id)[is_shielded])
 
     @staticmethod
     def get_shield_info(filter_strategy_ids: list = None, bk_biz_id: int = None):
@@ -958,8 +993,10 @@ class GetStrategyListV2Resource(Resource):
             {"id": "ON", "name": _("已启用"), "count": 0},
             {"id": "SHIELDED", "name": _("屏蔽中"), "count": 0},
         ]
+        # ALERT 与 SHIELDED 依赖同一份告警聚合，预取一次供整个循环复用，避免重复查询 ES
+        shield_status_map = self.get_shield_status_strategy_ids(bk_biz_id)
         for status in status_list:
-            data = self.filter_by_status(status["id"], strategy_ids, bk_biz_id)
+            data = self.filter_by_status(status["id"], strategy_ids, bk_biz_id, shield_status_map=shield_status_map)
             status["count"] = len(data)
         return status_list
 
