@@ -124,8 +124,14 @@
               </div>
             </template>
             <div class="add-group-btn">
-              <i v-if="!isAPM" class="bk-icon icon-plus-line" />
-              <i v-else class="icon-monitor icon-plus-line" />
+              <i
+                v-if="!isAPM"
+                class="bk-icon icon-plus-line"
+              />
+              <i
+                v-else
+                class="icon-monitor icon-plus-line"
+              />
             </div>
           </bk-popover>
 
@@ -438,6 +444,10 @@
   );
   const initData = async (val = true) => {
     if (val) {
+      curSelectGroup.value = 'all';
+      favoriteSearchValue.value = '';
+      selectFavoriteList.value = [];
+      curClickRow.value = null;
       await getGroupList();
       await getFavoriteList();
     }
@@ -481,7 +491,7 @@
   const { formatResponseListTimeZoneString } = useUtils();
 
   /** 获取收藏请求 */
-  const getFavoriteList = async () => {
+  const getFavoriteList = async (showAll = true) => {
     try {
       // this.tableLoading = true;
       const query = {
@@ -506,8 +516,9 @@
       });
 
       allGroupList.value = data;
-
-      searchResultFavorites.value = allGroupList.value;
+      if (showAll) {
+        searchResultFavorites.value = allGroupList.value;
+      }
     } catch {
       // this.emptyType = "500";
     } finally {
@@ -520,36 +531,40 @@
   const handleSelectGroupChange = id => {
     curSelectGroup.value = id;
     selectFavoriteList.value = [];
+    updateSearchResultFavorites();
+  };
+  /** 根据当前分组和搜索词生成表格数据 */
+  const updateSearchResultFavorites = () => {
     let curSelectGroupFavorites = [];
 
-    switch (id) {
+    switch (curSelectGroup.value) {
       case 'all':
         curSelectGroupFavorites = allGroupList.value;
         break;
       case 'noGroup':
-        curSelectGroupFavorites = noGroupList.value;
+        curSelectGroupFavorites = allGroupList.value.filter(favorite => favorite.group_name === '未分组');
         break;
       case 'private':
-        curSelectGroupFavorites = privateFavorite.value;
+        curSelectGroupFavorites = allGroupList.value.filter(favorite => favorite.group_name === '个人收藏');
         break;
       default:
-        curSelectGroupFavorites = otherGroupList.value.find(item => item.id === id)?.favorites || [];
+        curSelectGroupFavorites = allGroupList.value.filter(favorite => favorite.group_id === curSelectGroup.value);
     }
 
-    searchResultFavorites.value = curSelectGroupFavorites.map(favorite => ({
-      ...favorite,
-      editName: false,
-      editGroup: false,
-      groupName: localFavoriteList.value.find(item => item.id === favorite.group_id)?.name,
-    }));
+    searchResultFavorites.value = curSelectGroupFavorites
+      .filter(favorite => favorite.name.includes(favoriteSearchValue.value))
+      .map(favorite => ({
+        ...favorite,
+        editName: false,
+        editGroup: false,
+        groupName: localFavoriteList.value.find(item => item.id === favorite.group_id)?.name,
+      }));
   };
   /** 组搜索 */
   const handleGroupSearch = () => {};
   /** 收藏列表搜索 */
   const handleFavoriteSearch = () => {
-    searchResultFavorites.value = searchResultFavorites.value.filter(favorite =>
-      favorite.name.includes(favoriteSearchValue.value),
-    );
+    updateSearchResultFavorites();
   };
   /** 删除单个收藏 */
   const handleDelete = row => {
@@ -562,6 +577,11 @@
         });
         if (res.result) {
           allGroupList.value = allGroupList.value.filter(item => item.id !== row.id);
+          selectFavoriteList.value = selectFavoriteList.value.filter(item => item.id !== row.id);
+          if (curClickRow.value?.id === row.id) {
+            curClickRow.value = null;
+          }
+          updateSearchResultFavorites();
         }
       },
     });
@@ -645,6 +665,7 @@
         row.editName = false;
         row.name = val;
         curClickRow.value = row;
+        handleOperateChange(row);
       });
     } else {
       row.editName = false;
@@ -663,6 +684,7 @@
         row.group_id = JSON.parse(val);
         row.group_name = localFavoriteList.value.find(item => item.id === JSON.parse(val))?.name;
         curClickRow.value = row;
+        handleOperateChange(row);
       });
     }
   };
@@ -727,9 +749,11 @@
   };
   // 批量编辑分组
   const handleBatchUpdateGroup = async groupId => {
-    await initData();
-    curSelectGroup.value = 'all';
     const selectIds = selectFavoriteList.value.map(item => item.id);
+    selectFavoriteList.value = [];
+    curClickRow.value = null;
+    await getGroupList();
+    await getFavoriteList(false);
     if (!groupId) {
       const updateDataInList = list => {
         return list.filter(item => {
@@ -737,7 +761,6 @@
         });
       };
       allGroupList.value = updateDataInList(allGroupList.value);
-      searchResultFavorites.value = updateDataInList(searchResultFavorites.value);
     } else {
       const updateDataInList = list => {
         return list.map(item => {
@@ -752,8 +775,8 @@
         });
       };
       allGroupList.value = updateDataInList(allGroupList.value);
-      searchResultFavorites.value = updateDataInList(searchResultFavorites.value);
     }
+    updateSearchResultFavorites();
   };
   const sourceFilterMethod = (value, row, column) => {
     const property = column.property;
