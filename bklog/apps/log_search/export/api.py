@@ -30,7 +30,7 @@ from apps.log_search.constants import ExportJobStatus, ExportPartStatus, ExportS
 from apps.log_search.export import state
 from apps.log_search.export.config import current_policy, is_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
-from apps.log_search.export.storage import build_storage, download_url
+from apps.log_search.export.storage import build_storage
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.local import (
@@ -218,7 +218,7 @@ def download_link(job, artifact_id):
         raise ExportExpired()
     try:
         storage = build_storage(external=job.is_external)
-        url = download_url(storage, name, ttl)
+        url = storage.generate_download_url(file_name=name, expired=ttl)
     except Exception as error:  # pylint: disable=broad-except
         raise ExportStorageUnavailable() from error
     return {"url": url, "expires_at": timezone.now() + timedelta(seconds=ttl)}

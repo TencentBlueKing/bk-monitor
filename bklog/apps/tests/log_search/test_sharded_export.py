@@ -1483,23 +1483,23 @@ class DownloadLinkTests(TestCase):
         )
 
     def sign(self, artifact_id):
-        with (
-            patch("apps.log_search.export.api.build_storage") as build_storage,
-            patch("apps.log_search.export.api.download_url", return_value="https://cos.example/x") as download_url,
-        ):
-            return download_link(self.job, artifact_id), build_storage, download_url
+        with patch("apps.log_search.export.api.build_storage") as build_storage:
+            build_storage.return_value.generate_download_url.return_value = "https://cos.example/x"
+            return download_link(self.job, artifact_id), build_storage
 
     def test_manifest_link_uses_job_storage_config(self):
-        result, build_storage, download_url = self.sign("manifest")
+        result, build_storage = self.sign("manifest")
+        signed = build_storage.return_value.generate_download_url.call_args.kwargs
 
         self.assertEqual(result["url"], "https://cos.example/x")
         build_storage.assert_called_once_with(external=True)
-        self.assertEqual(download_url.call_args.args[1], "manifest.json")
-        self.assertGreater(download_url.call_args.args[2], 0)
+        self.assertEqual(signed["file_name"], "manifest.json")
+        self.assertGreater(signed["expired"], 0)
 
     def test_part_link_targets_the_part_object(self):
         part = ExportPart.objects.get(job=self.job)
 
-        _, _, download_url = self.sign(str(part.pk))
+        _, build_storage = self.sign(str(part.pk))
+        signed = build_storage.return_value.generate_download_url.call_args.kwargs
 
-        self.assertEqual(download_url.call_args.args[1], "part.tar.gz")
+        self.assertEqual(signed["file_name"], "part.tar.gz")

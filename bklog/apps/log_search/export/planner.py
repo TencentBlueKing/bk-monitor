@@ -144,22 +144,16 @@ class PlanResult:
     initial_interval_ms: int
 
 
-def split_thresholds(policy):
-    return int(policy.target_rows * policy.split_factor), int(policy.target_bytes * policy.split_factor)
-
-
-def merge_thresholds(policy):
-    return int(policy.target_rows * policy.merge_factor), int(policy.target_bytes * policy.merge_factor)
-
-
 def is_hot(rows, avg_bytes, policy):
-    split_rows, split_bytes = split_thresholds(policy)
-    return rows >= split_rows or rows * avg_bytes >= split_bytes
+    if rows >= int(policy.target_rows * policy.split_factor):
+        return True
+    return rows * avg_bytes >= int(policy.target_bytes * policy.split_factor)
 
 
 def can_merge(rows, size, policy):
-    merge_rows, merge_bytes = merge_thresholds(policy)
-    return rows <= merge_rows and size <= merge_bytes
+    if rows > int(policy.target_rows * policy.merge_factor):
+        return False
+    return size <= int(policy.target_bytes * policy.merge_factor)
 
 
 def _ceil_to(value, step):
