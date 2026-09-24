@@ -26,7 +26,7 @@
 
 import { type PropType, defineComponent, onBeforeUnmount, onMounted, shallowRef, watch } from 'vue';
 
-import { $bkPopover, Checkbox, Input } from 'bkui-vue';
+import { $bkPopover, Button, Checkbox, Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { isHostNode } from '../../utils/topo-tree';
@@ -156,7 +156,7 @@ export default defineComponent({
     const renderInstNode = (node: IHostTopoViewRow) => (
       <div class='topo-node topo-node--inst'>
         <span class='topo-node__label'>{node.name}</span>
-        <span class='topo-node__count'>{node.hostCount}</span>
+        <span class='topo-node__count'>{node.hostCount ?? '--'}</span>
       </div>
     );
 
@@ -195,6 +195,28 @@ export default defineComponent({
       'bk_host_id' in node ? renderHostNode(node as IHostTopoHostNode) : renderInstNode(node);
 
     const renderRow = (node: IHostTopoViewRow) => {
+      if (node.loadParentId)
+        return (
+          <div
+            key={node.id}
+            style={{ height: `${ctx.rowHeight}px`, paddingLeft: `${node.depth * 16 + 4}px` }}
+            class='host-topo-tree__page-action'
+          >
+            <Button
+              disabled={node.loadState === 'loading'}
+              text
+              onClick={() => ctx.loadModulePage(node.loadParentId)}
+            >
+              {node.loadState === 'loading'
+                ? t('加载中...')
+                : node.loadState === 'error'
+                  ? t('加载失败，点击重试')
+                  : node.loadState === 'more'
+                    ? t('加载更多')
+                    : t('加载主机')}
+            </Button>
+          </div>
+        );
       const isSelected = ctx.selectedIds.value.includes(node.id);
       return (
         <div
@@ -241,12 +263,16 @@ export default defineComponent({
           <Input
             class='host-topo-tree__search'
             v-model={ctx.searchValue.value}
+            disabled={!ctx.fullTreeReady.value}
             placeholder={t('搜索 IP / 主机名 / 节点名称')}
             type='search'
             clearable
           />
           <div class='host-topo-tree__tools'>
-            <Checkbox v-model={ctx.hideEmptyNode.value}>
+            <Checkbox
+              v-model={ctx.hideEmptyNode.value}
+              disabled={!ctx.fullTreeReady.value}
+            >
               <span class='host-topo-tree__tools-label'>{t('隐藏无主机节点')}</span>
             </Checkbox>
             <div class='host-topo-tree__tools-icons'>
@@ -266,6 +292,21 @@ export default defineComponent({
             </div>
           </div>
         </div>
+        {!ctx.fullTreeReady.value && !ctx.scopeError.value && (
+          <div class='host-topo-tree__notice'>
+            <span>
+              {ctx.fullTreeError.value ? t('完整拓扑加载失败') : t('正在补全拓扑，搜索和主机数量将在完成后显示')}
+            </span>
+            {ctx.fullTreeError.value && (
+              <Button
+                text
+                onClick={ctx.loadFullTree}
+              >
+                {t('重试')}
+              </Button>
+            )}
+          </div>
+        )}
         {ctx.loading.value ? (
           <div class='host-topo-tree__loading'>
             <div class='skeleton-row'>

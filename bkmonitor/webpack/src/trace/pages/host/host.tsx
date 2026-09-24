@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, provide, shallowRef } from 'vue';
+import { computed, defineComponent, provide, shallowRef } from 'vue';
 import { watch } from 'vue';
 
 import { ResizeLayout } from 'bkui-vue';
@@ -86,9 +86,17 @@ export default defineComponent({
     provide('handleDataZoomChange', handleDataZoomChange);
     provide('handleRestore', handleRestore);
 
+    const { urlParams, getUrlParams, setUrlParams, handleSelectNode } = useHostUrlParams();
+    getUrlParams();
+    watch(
+      () => route.query.nodeId || route.params.id || '',
+      value => {
+        if (nodeId.value !== value) nodeId.value = String(value);
+      }
+    );
+
     // 拓扑树控制器（Controller），由页面统一持有，向侧边栏与标题栏分发
     const topoTree = useHostTopoTree(nodeId, readonly);
-    const { urlParams, getUrlParams, setUrlParams, handleSelectNode } = useHostUrlParams();
     // 主机详情数据（基于选中节点动态生成）
     const { detailData, loading: detailLoading } = useHostDetail(topoTree.selectedNode);
     /** 主机详情侧栏是否折叠（默认折叠） */
@@ -110,17 +118,12 @@ export default defineComponent({
       }
     );
 
-    onMounted(() => {
-      getUrlParams();
-    });
-
     /** 点击主机列表 IP 单元格时，设置 nodeId 并触发拓扑树定位聚焦到对应主机节点 */
     const handleSelectIpCell = (row: IHostListRow) => {
       if (readonly) {
         return;
       }
       nodeId.value = String(row.bk_host_id);
-      topoTree.handleSelectNodeOfNodeId();
     };
 
     return {
@@ -204,6 +207,7 @@ export default defineComponent({
                       main: () => (
                         <div class='host-page-content-main'>
                           <HostContentTabs
+                            key={this.topoTree.scopeKey.value}
                             compareHostList={this.topoTree.compareHostList.value}
                             readonly={this.readonly}
                             selectedNode={this.topoTree.selectedNode.value}
