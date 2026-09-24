@@ -5,8 +5,8 @@
 
 原因：分隔符 / 正则在 V3 与 V4 两条链路上都没有丢弃失败记录的能力——
 V3 的 TransformMapBySeparator / TransformMapByRegexp 恒返回 nil error；
-V4 的 split_str / regex 算子没有 error_strategy（只有 json_de 有）。
-因此失败记录必然入库，若此时把 __parse_failure 一起抹掉，就会退化成
+V4 规则虽已预接入 split_str / regex 的 error_strategy，但执行引擎仍需同步实现。
+在引擎能力发布前失败记录仍会入库，若此时把 __parse_failure 一起抹掉，就会退化成
 「字段全空且无法判断失败原因」的数据，比保留标记更糟。
 """
 
@@ -51,8 +51,8 @@ class TestParseFailureV4KnownGap(TestCase):
     """锁定 V4 侧的已知缺口，避免被误当成本次改动引入的问题
 
     `_build_parse_failure_field_v4` 目前是死代码（全仓无调用点），且它的 assign 是从上游节点读
-    `__parse_failure` key，而 V4 的 split_str / regex 算子并不产出该 key。也就是说 V4 链路上
-    __parse_failure 既没有被写入、也无从写入，需要清洗引擎先支持失败标记 / drop 才能补齐。
+    `__parse_failure` key，而 V4 的 split_str / regex 算子仍不产出该 key。也就是说 V4 链路上
+    __parse_failure 既没有被写入、也无从写入，需要清洗引擎补充失败上下文后才能接线。
     这不是本次改动造成的（master 上同样如此），单独跟进。
     """
 
