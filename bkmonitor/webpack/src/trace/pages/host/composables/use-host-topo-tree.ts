@@ -213,7 +213,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     end: number,
     version: number
   ) => {
-    if (version !== viewRequestVersion) {
+    if (disposed || version !== viewRequestVersion) {
       return;
     }
     visibleRows.value = result.rows;
@@ -465,6 +465,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   watch(
     scopeKey,
     (_, previous) => {
+      viewRequestVersion += 1;
       const previousBiz = JSON.parse(previous)[0];
       if (!readonly && String(previousBiz) !== String(appStore.bizId)) nodeId.value = '';
       initialized = false;

@@ -44,7 +44,7 @@ function rawWorker(file) {
     return output;
   };
 }
-function treeClient() {
+function treeClient(rangeResponse = value => Promise.resolve(value)) {
   const send = rawWorker('host-topo-tree');
   return {
     init: (treeData, hideEmptyNode, searchValue, selectedId, complete = true, preserve = false, anchorId = '') =>
@@ -60,7 +60,7 @@ function treeClient() {
         })
       ),
     select: id => Promise.resolve(send({ type: 'SELECT', id })),
-    getRange: (start, end) => Promise.resolve(send({ type: 'GET_RANGE', start, end })),
+    getRange: (start, end) => rangeResponse(send({ type: 'GET_RANGE', start, end })),
     toggle: (id, expanded, start, end) => Promise.resolve(send({ type: 'TOGGLE', id, expanded, start, end })),
     setFilter: (hideEmptyNode, searchValue, start, end) =>
       Promise.resolve(send({ type: 'SET_FILTER', hideEmptyNode, searchValue, start, end })),
@@ -101,7 +101,7 @@ function renderer() {
   });
 }
 
-function harness(query = {}, readonly = false) {
+function harness(query = {}, readonly = false, rangeResponse) {
   global.window = { cc_biz_id: 1, timezone: 'UTC', i18n: { t: value => value } };
   global.ResizeObserver = class {
     observe() {}
@@ -231,7 +231,7 @@ function harness(query = {}, readonly = false) {
       if (id.endsWith('/provider')) return { useAppReadonlyInject: () => readonly };
       if (id.endsWith('/store/modules/host')) return { useHostStore: () => store };
       if (id.endsWith('/store/modules/app')) return { useAppStore: () => appStore };
-      if (id.endsWith('/use-host-topo-tree-worker')) return { useHostTopoTreeWorker: treeClient };
+      if (id.endsWith('/use-host-topo-tree-worker')) return { useHostTopoTreeWorker: () => treeClient(rangeResponse) };
       if (id.endsWith('/use-host-list-worker')) return { useHostListWorker: () => listWorker };
       if (id.endsWith('/host-service')) return services;
       if (id === 'monitor-api/modules/scene_view') return services;
@@ -759,3 +759,40 @@ test('late metadata cannot overwrite a different host, business, or complete IPv
   assert.equal(shared.pending('getHostInfoPage', ([p]) => p.bk_biz_id === 2).args[0].bk_host_id, 11);
   shared.app.unmount();
 });
+
+for (const transition of ['business', 'share', 'unmount']) {
+  test(`late Worker range cannot overwrite topology after ${transition}`, async () => {
+    let hold = false;
+    let release;
+    const shared = transition === 'share';
+    const h = harness(
+      shared ? { shareTargetType: 'topo', shareBkObjId: 'module', shareBkInstId: '3' } : {},
+      shared,
+      result =>
+        hold
+          ? new Promise(resolve => {
+              release = () => resolve(result);
+            })
+          : Promise.resolve(result)
+    );
+    await flush();
+    h.respond('getHostTopoTreeByBizId', skeleton(), args => args[2] === false);
+    await flush();
+    await flush();
+    hold = true;
+    h.topo.handleViewportChange(0, 3000, { scrollTop: 0 });
+    assert.ok(release, 'old Worker range is pending');
+    if (transition === 'business') h.appStore.bizId = 2;
+    else if (shared) h.route.query = { shareTargetType: 'topo', shareBkObjId: 'module', shareBkInstId: '4' };
+    else h.app.unmount();
+    await flush();
+    const rows = h.topo.visibleRows.value;
+    const total = h.topo.totalRows.value;
+    if (transition !== 'unmount') assert.equal(rows.length, 0);
+    release();
+    await flush();
+    assert.equal(h.topo.visibleRows.value, rows, 'stale response must not replace visible rows');
+    assert.equal(h.topo.totalRows.value, total);
+    if (transition !== 'unmount') h.app.unmount();
+  });
+}
