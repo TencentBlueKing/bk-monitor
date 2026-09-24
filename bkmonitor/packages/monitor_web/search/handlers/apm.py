@@ -1,6 +1,3 @@
-# -*- coding: utf-8 -*-
-from typing import List
-
 from django.db.models import Q
 from django.utils.translation import gettext as _
 
@@ -17,7 +14,7 @@ from monitor_web.search.handlers.base import (
 class ApmSearchHandler(BaseSearchHandler):
     SCENE = "apm"
 
-    def search_application(self, query: str, limit: int = 10) -> List[SearchResultItem]:
+    def search_application(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         # 搜索应用
         bk_tenant_id = get_request_tenant_id()
         apm_application_qs = ApmApplication.objects.filter(bk_tenant_id=bk_tenant_id).filter(
@@ -52,9 +49,9 @@ class ApmSearchHandler(BaseSearchHandler):
 
         return search_results
 
-    def search_service(self, query: str, limit: int = 10) -> List[SearchResultItem]:
+    def search_service(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         # 搜索服务
-        service_qs = TopoNode.objects.filter(topo_key__contains=query)
+        service_qs = TopoNode.get_service_queryset(topo_key__contains=query)
         if self.scope == SearchScope.BIZ:
             service_qs = service_qs.filter(bk_biz_id=self.bk_biz_id)
 
@@ -92,7 +89,7 @@ class ApmSearchHandler(BaseSearchHandler):
 
         return search_results
 
-    def search(self, query: str, limit: int = 10) -> List[SearchResultItem]:
+    def search(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         search_results = self.search_application(query, limit) + self.search_service(query, limit)
         self.add_permission_for_results(results=search_results, action=ActionEnum.VIEW_APM_APPLICATION)
         return search_results

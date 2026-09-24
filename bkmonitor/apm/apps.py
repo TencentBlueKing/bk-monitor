@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import sys
 
 from django.apps import AppConfig
@@ -56,6 +56,10 @@ class ApmApiConfig(AppConfig):
         )
 
         DiscoverContainer.register(TelemetryDataType.METRIC.value, MetricServiceDiscover)
+
+        from apm.core.discover.log.service import ServiceDiscover as LogServiceDiscover
+
+        DiscoverContainer.register(TelemetryDataType.LOG.value, LogServiceDiscover)
 
         # Profile 数据拓扑发现器 ↓
         from apm.core.discover.profile.service import (
