@@ -27,6 +27,11 @@ import type { RouteRecordRaw } from 'vue-router';
 
 export default [
   {
+    path: '/profiling-explore',
+    name: 'profiling-explore',
+    component: () => import(/* webpackChunkName: "profiling-explore" */ '../../pages/profiling-explore/profiling-explore'),
+  },
+  {
     path: '/profiling',
     name: 'profiling',
     component: () => import(/* webpackChunkName: "alarm-shield" */ '../../pages/profiling/profiling'),

@@ -1,0 +1,356 @@
+.profiling-explore {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  font-size: 12px;
+  color: #4d4f56;
+  background: #f0f4fa;
+
+  .profiling-favorites {
+    flex: 0 0 260px;
+    overflow: auto;
+    background: #fff;
+    border-right: 1px solid #dcdee5;
+  }
+
+  .profiling-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .profiling-explore-header {
+    display: flex;
+    flex: none;
+    gap: 16px;
+    align-items: center;
+    min-height: 52px;
+    padding: 0 16px 0 0;
+    background: #fff;
+    border-bottom: 1px solid #e4e9f2;
+
+    .profiling-heading {
+      display: flex;
+      flex: none;
+      gap: 16px;
+      align-items: center;
+
+      > .bk-button {
+        width: 32px;
+        height: 32px;
+        margin: 0 8px;
+        background: #f0f4fa;
+      }
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 400;
+      white-space: nowrap;
+    }
+
+    .active {
+      color: #3a84ff;
+    }
+
+    .profiling-tabs {
+      flex: none;
+      border-radius: 4px;
+
+      .bk-radio-button-label {
+        padding: 0 16px;
+      }
+
+      .bk-radio-button::before {
+        display: none;
+      }
+    }
+
+    .profiling-header-divider {
+      flex: none;
+      width: 1px;
+      height: 16px;
+      background: #c4c6cc;
+    }
+
+    .profiling-service-tools {
+      display: flex;
+      flex: 1;
+      gap: 8px;
+      align-items: center;
+      min-width: 220px;
+      max-width: 439px;
+
+      > .bk-button {
+        flex: none;
+        width: 28px;
+        height: 32px;
+        color: #3a84ff;
+        background: #f0f4fa;
+      }
+    }
+
+    .profiling-service-select {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      min-width: 0;
+      height: 32px;
+      background: #f0f1f5;
+      border-radius: 2px;
+    }
+
+    .profiling-compare-switches {
+      display: flex;
+      flex: none;
+      align-self: stretch;
+    }
+
+    .profiling-switch {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      align-items: center;
+      justify-content: center;
+      min-height: 51px;
+      padding: 2px 12px 0;
+      font-size: 10px;
+      white-space: nowrap;
+      border-left: 1px solid #e4e9f2;
+
+      &:last-child {
+        border-right: 1px solid #e4e9f2;
+      }
+    }
+
+    .profiling-time-tools {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-left: auto;
+    }
+  }
+
+  .profiling-application {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+    padding: 8px 8px 0;
+    overflow: hidden;
+  }
+
+  // 结果区域向下分配剩余视窗高度，min-height: 0 让表格和火焰图内部滚动而不撑开页面。
+  .profiling-results {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .profiling-filter-row {
+    display: flex;
+    flex: none;
+    gap: 8px;
+    margin-bottom: 8px;
+
+    .profiling-filter-label {
+      display: flex;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      width: 48px;
+      color: #fff;
+      background: #8f9fbd;
+      border-radius: 4px;
+    }
+
+    .vue3_retrieval-filter__component {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .profiling-ui-mode {
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      white-space: nowrap;
+      border-right: 1px solid #f0f1f5;
+    }
+  }
+
+  .profiling-data-options {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    gap: 16px 40px;
+    align-items: center;
+    padding: 0 12px 8px;
+
+    > div {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      max-width: 100%;
+    }
+
+    .bk-radio-group {
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .bk-radio-button-label {
+      background: #fff;
+    }
+
+    .bk-radio-button.is-checked .bk-radio-button-label {
+      background: #e1ecff;
+    }
+
+    > div:first-child .bk-radio-button-label {
+      padding: 0 24px;
+    }
+  }
+
+  .profiling-options-skeleton {
+    gap: 40px;
+    height: 34px;
+
+    i {
+      width: 40%;
+      height: 26px;
+      border-radius: 2px;
+    }
+
+    i + i {
+      width: 20%;
+    }
+  }
+
+  .profiling-trends {
+    display: flex;
+    flex: none;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .profiling-trend {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 4px;
+    box-shadow: 0 2px 4px #1919290d;
+
+    &-toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      height: 32px;
+
+      strong {
+        margin-right: auto;
+        font-size: 14px;
+        font-weight: 500;
+        color: #313238;
+      }
+
+      .bk-radio-capsule {
+        border-radius: 4px;
+      }
+
+      .bk-radio-button::before {
+        display: none;
+      }
+    }
+
+    &-chart {
+      height: 132px;
+
+      > .bk-exception {
+        height: 100%;
+
+        .bk-exception-img {
+          display: none;
+        }
+
+        .bk-exception-description {
+          display: flex;
+          flex: 1;
+          align-items: center;
+          margin-top: 0;
+        }
+      }
+    }
+
+    .profiling-trace-points {
+      position: absolute;
+      top: 55px;
+      right: 20px;
+      z-index: 4;
+      max-height: 270px;
+      padding: 12px;
+      overflow: auto;
+      background: #fff;
+      box-shadow: 0 2px 12px #0003;
+
+      > div {
+        display: flex;
+        gap: 16px;
+        padding: 6px;
+      }
+
+      a {
+        color: #3a84ff;
+      }
+    }
+  }
+
+  .profiling-inline-error {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 10px;
+    color: #ea3636;
+  }
+
+  .profiling-initial-empty {
+    min-height: 400px;
+    padding-top: 80px;
+  }
+}
+
+.profiling-service-detail {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 20px 12px;
+  padding: 24px;
+
+  dt {
+    color: #979ba5;
+    text-align: right;
+  }
+
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.profiling-favorite-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-wrap: anywhere;
+
+  pre {
+    max-height: 280px;
+    overflow: auto;
+    white-space: pre-wrap;
+  }
+}
