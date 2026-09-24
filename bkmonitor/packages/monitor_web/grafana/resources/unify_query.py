@@ -526,6 +526,7 @@ class UnifyQueryRawResource(ApiAuthResource):
                 label="数据类型", default="time_series", allow_null=True, allow_blank=True
             )
             data_source_label = serializers.CharField(label="数据来源")
+            alias = serializers.CharField(label="查询别名", required=False, allow_blank=True)
             table = serializers.CharField(label="结果表名", allow_blank=True, default="")
             data_label = serializers.CharField(label="数据标签", allow_blank=True, default="")
             metrics = serializers.ListField(label="查询指标", allow_empty=True, child=MetricSerializer(), default=[])
@@ -588,6 +589,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         query_configs = serializers.ListField(label="查询配置列表", allow_empty=False, child=QueryConfigSerializer())
         expression = serializers.CharField(label="查询表达式", allow_blank=True)
+        promql_multi_expression = serializers.BooleanField(required=False, default=False)
         stack = serializers.CharField(label="堆叠标识", required=False, allow_blank=True)
         function = serializers.DictField(label="功能函数", default={})
         # 表达式计算函数
@@ -929,6 +931,7 @@ class UnifyQueryRawResource(ApiAuthResource):
             data_sources=data_sources,
             expression=params["expression"],
             functions=params["functions"],
+            promql_multi_expression=params["promql_multi_expression"],
         )
         safe_push_to_gateway(registry=OPERATION_REGISTRY)
 

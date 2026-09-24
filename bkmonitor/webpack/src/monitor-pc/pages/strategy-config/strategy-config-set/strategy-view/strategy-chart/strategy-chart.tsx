@@ -178,7 +178,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   }
 
   get promqlStr() {
-    return this.sourceData.sourceCode;
+    return JSON.stringify(this.sourceData.queryConfigs || this.sourceData.sourceCode);
   }
   get promqlStep() {
     return this.sourceData.step;
@@ -186,6 +186,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
 
   @Watch('promqlStep')
   @Watch('promqlStr')
+  @Watch('expression')
   @Watch('metricData', { immediate: true })
   watchMetricDataChange(val: MetricDetail[]) {
     if (val?.length) {
@@ -218,7 +219,14 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
     if (this.hasTimeSeriesForecast) {
       panelData = await this.createTimeSeriesForecastPanelData();
     } else {
-      if (this.editMode === 'Source' && !this.sourceData.sourceCode) return;
+      if (
+        this.editMode === 'Source' &&
+        (!this.sourceData.sourceCode ||
+          (!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1 && !this.expression.trim()))
+      ) {
+        this.panel = null;
+        return;
+      }
       panelData = {
         id: random(10),
         title: '',
@@ -392,19 +400,26 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
    */
   getQueryParams(isDetect = false, isMetric = true, metrics?) {
     const params = {
+      ...(this.editMode === 'Source' && !this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
+        ? { promql_multi_expression: true }
+        : {}),
       expression: this.getExpression(),
       functions: this.expression ? this.expFunctions : [],
       target: this.strategyTarget || [],
       query_configs:
         this.editMode === 'Source'
-          ? [
-              {
-                data_source_label: 'prometheus',
-                data_type_label: 'time_series',
-                promql: this.sourceData.sourceCode.replace(/\n/g, ''),
-                interval: this.sourceData.step,
-              },
-            ]
+          ? (!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length
+              ? this.sourceData.queryConfigs
+              : [{ alias: 'a', promql: this.sourceData.sourceCode }]
+            ).map(item => ({
+              data_source_label: 'prometheus',
+              data_type_label: 'time_series',
+              promql: item.promql,
+              interval: this.sourceData.step,
+              ...(!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
+                ? { alias: item.alias }
+                : {}),
+            }))
           : this.metricData.map(
               ({
                 data_label,
