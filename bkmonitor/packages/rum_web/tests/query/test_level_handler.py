@@ -361,6 +361,7 @@ class TestSpanStatisticsMerge:
         merged = SpanQuery._merge_statistics_records(
             group_by=["service"],
             alias_records_map=alias_records_map,
+            cal_type="count",
         )
         by_service = {record["dimensions"]["service"]: record for record in merged}
         assert by_service["a"] == {"dimensions": {"service": "a"}, "0s": 10, "1d": 5}
@@ -368,21 +369,30 @@ class TestSpanStatisticsMerge:
         assert by_service["b"] == {"dimensions": {"service": "b"}, "0s": 20, "1d": None}
 
     def test_merge_time_bucket_records(self):
-        """时间分桶：维度合并键追加 time（秒级），且毫秒被转成秒"""
+        """时间分桶：各 time_shift 的桶时间对齐回基准窗口后按 (service, time) 合并。
+
+        基准窗口 "0s" 桶时间为 1737532800（秒），对比窗口 "1d" 查询时已整体
+        前移 86400 秒，故其原始 _time_ 比基准少 86400 秒；合并阶段把偏移加回后
+        两者落在同一相对桶位（1737532800），方可跨 shift 合并计算增长率。
+        """
         alias_records_map = {
             "0s": [{"service": "a", "_time_": 1737532800000, "_result_": 10}],
-            "1d": [{"service": "a", "_time_": 1737532800000, "_result_": 5}],
+            "1d": [{"service": "a", "_time_": 1737619200000, "_result_": 5}],
         }
+        # parse_time_compare_abbreviation("1d") = -86400；_collect 把查询窗口整体前移 86400 秒，
+        # 故 1d 桶的原始 _time_ 比基准多 86400 秒（1737532800 + 86400 = 1737619200）；
+        # 合并阶段按偏移加回（raw + (-86400)）后归一到基准窗口桶时间 1737532800
         merged = SpanQuery._merge_statistics_records(
             group_by=["service", "time"],
             alias_records_map=alias_records_map,
+            cal_type="avg",
         )
         assert len(merged) == 1
         record = merged[0]
-        # 毫秒 1737532800000 转成秒 1737532800
+        # 对齐后毫秒转秒且归一到基准窗口桶时间 1737532800
         assert record["dimensions"] == {"service": "a", "time": 1737532800}
-        assert record["0s"] == 10
-        assert record["1d"] == 5
+        assert record["0s"] == 10.0
+        assert record["1d"] == 5.0
 
 
 class TestSpanStatisticsGrowthRates:
@@ -459,6 +469,7 @@ class TestSpanStatistics:
             merged = BaseQuery._merge_statistics_records(
                 group_by or [],
                 {ts: group_map[ts] for ts in time_shifts},
+                cal_type,
             )
             return {"total": len(merged), "data": merged}
 
@@ -477,6 +488,8 @@ class TestSpanStatistics:
         by_service = {record["dimensions"]["service"]: record for record in result["data"]}
         # 缺数据的 "b" 在 1d 下为 None
         assert by_service["b"]["1d"] is None
+        # count 聚合结果应为整型
+        assert by_service["a"]["0s"] == 10
         # 业务层仅委托，不自行计算增长率/占比：返回原始合并结果
         assert "growth_rates" not in by_service["a"]
         assert "proportions" not in by_service["a"]
@@ -491,7 +504,9 @@ class TestSpanStatistics:
         def _fake_statistics(
             start_time, end_time, field, cal_type, baseline, time_shifts, group_by=None, interval=None, *args
         ):
-            merged = BaseQuery._merge_statistics_records(group_by or [], {ts: group_map[ts] for ts in time_shifts})
+            merged = BaseQuery._merge_statistics_records(
+                group_by or [], {ts: group_map[ts] for ts in time_shifts}, cal_type
+            )
             return {"total": len(merged), "data": merged}
 
         with patch.object(handler.query, "statistics", side_effect=_fake_statistics):
@@ -520,7 +535,7 @@ class TestSpanStatistics:
             return_value={
                 "total": len(bucket_records),
                 "data": BaseQuery._merge_statistics_records(
-                    ["service", "time"], {"0s": [dict(r, _time_=r["time"]) for r in bucket_records]}
+                    ["service", "time"], {"0s": [dict(r, _time_=r["time"]) for r in bucket_records]}, "avg"
                 ),
             },
         ):
