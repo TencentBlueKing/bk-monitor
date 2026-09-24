@@ -104,13 +104,14 @@ paths:
         about access or after a permission denial. Mutation, task and data-export tools require a target/effect
         preview, explicit user confirmation and confirm=true; permission preflight is recommended after resolving
         the target. The Server always revalidates JSON Schema, tenant/resource ownership and authorization.
-        Native denial alone may fall back to the original MCP action; errors never fall back. After execution,
-        verify both the transport envelope and the business result instead of treating HTTP 200 as success.
+        An explicit denial of the original MCP action alone may fall back to the SaaS permission; errors never
+        fall back. After execution, verify both the transport envelope and the business result instead of
+        treating HTTP 200 as success.
         本工具是精确底层工具的最终执行步骤。执行前读取当前 catalog_version 对应的 lookup_tool_schema，
         完成 prerequisites，并从 lookup_metadata 或前置工具结果取得真实业务／资源 ID；禁止猜测 ID 或权限点。
         普通只读查询在契约完整后可直接执行，用户询问权限或执行被拒时再调用 lookup_permissions。
         写入、任务和导出必须先展示目标与影响、获得明确确认并传 confirm=true，解析目标后建议先做权限预检。
-        服务端始终重验 Schema、租户／资源归属和权限；只有原生明确无权才回退旧 MCP 权限，异常不回退。
+        服务端始终重验 Schema、租户／资源归属和权限；只有原 MCP 权限明确无权才检查 SaaS 权限，异常不回退。
         执行后同时检查传输层结果和业务结果，不能把 HTTP 200 直接当作业务成功。
       tags: [unified_mcp]
       requestBody:
@@ -224,7 +225,7 @@ paths:
                 resource_context:
                   type: object
                   additionalProperties: false
-                  description: Optional target context for an exact native-first tool. 原生优先工具的目标资源上下文，提供时必须指定 tool_name。
+                  description: Optional target context for an exact MCP-first tool with a SaaS fallback. MCP 优先、SaaS 兜底工具的目标资源上下文，提供时必须指定 tool_name。
                   properties:
                     index_set_id:
                       type: integer
@@ -239,7 +240,7 @@ paths:
                       description: Time-series result table ID discovered from the metric catalog. 从指标目录取得的时序结果表 ID。
                     table:
                       type: string
-                      description: Event table ID discovered from the event catalog. 从事件目录取得的事件结果表 ID。
+                      description: Event table ID discovered from the event catalog. For APM app/service event queries, the fallback checks the APM application instance and the backend resolves event tables. 从事件目录取得的事件结果表 ID；APM 应用／服务分支的 SaaS 兜底校验应用实例，事件表由后端解析。
                     app_name:
                       type: string
                       description: APM application name discovered from the application catalog. 从 APM 应用目录取得的应用名称。

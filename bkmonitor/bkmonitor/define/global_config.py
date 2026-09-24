@@ -186,7 +186,7 @@ ADVANCED_OPTIONS = OrderedDict(
         # Do not add serializer instances to field kwargs: options are persisted as JSON.
         (
             "MCP_NATIVE_PERMISSION_TOOLS",
-            slz.ListField(label="启用原生权限优先的MCP工具列表（空列表使用旧权限）", default=[]),
+            slz.ListField(label="启用MCP权限优先、SaaS权限兜底的工具列表（空列表只查MCP权限）", default=[]),
         ),
         (
             "MCP_LOG_IAM_PROFILE",

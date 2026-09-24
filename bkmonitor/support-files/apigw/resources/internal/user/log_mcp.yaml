@@ -226,7 +226,7 @@ paths:
               properties:
                 path:
                   type: string
-                  description: Log file path. For BCS logs, use logfile field. Optional, can be omitted if not needed for positioning. 日志文件路径。对于BCS日志,使用logfile字段。可选,如果定位不需要可省略。
+                  description: Log file path as returned by search_logs, if needed for positioning. Do not substitute another field unless it represents this index set's path. 日志文件路径，需定位时使用 search_logs 返回的 path；不要凭 BCS 场景名称替换成其他字段。
                 size:
                   type: string
                   default: '50'
@@ -244,7 +244,7 @@ paths:
                   description: GSE packet sequence number for log positioning. For BKData logs, use gseindex field. Must be obtained from search_logs response. 用于日志定位的GSE发包序号。对于计算平台清洗日志,使用gseindex字段。必须从 search_logs 响应中获取。
                 serverIp:
                   type: string
-                  description: Server IP address of the log entry. For BCS logs, use container_id instead. Must be obtained from search_logs response. 日志条目的服务器IP。对于BCS日志,使用container_id代替。必须从 search_logs 响应中获取。
+                  description: Use the exact serverIp value returned by search_logs, including for BCS-collected logs. Do not replace it with container_id unless that value is actually stored in serverIp. 必须使用 search_logs 返回的 serverIp 原值；BCS 采集日志也不能仅凭场景改用 container_id。
                 bk_biz_id:
                   type: string
                   description: Business ID in BlueKing Monitor. 业务ID。
