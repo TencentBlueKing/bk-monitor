@@ -203,10 +203,7 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
       ],
     },
     loadRelated: (context, mode, detail) => {
-      const sessionId = String(
-        detail.overview?.items?.find(item => item.field_name === 'attributes.session.id')?.value ?? ''
-      );
-      return getViewRelated(context, mode, sessionId);
+      return getViewRelated(context, mode, detail);
     },
   },
 };
