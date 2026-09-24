@@ -122,6 +122,7 @@ export const createHostTarget = (
       bk_host_name: '',
       display_name: '',
       ip: '',
+      metadataPending: true,
       name: '',
       os_type: '',
     };

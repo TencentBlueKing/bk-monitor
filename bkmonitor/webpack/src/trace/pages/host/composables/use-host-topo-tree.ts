@@ -37,11 +37,27 @@ import { useHostTopoTreeWorker } from './use-host-topo-tree-worker';
 import { useAppStore } from '@/store/modules/app';
 import { useHostStore } from '@/store/modules/host';
 
-import type { IHostTopoHostNode, IHostTopoTreeNode } from '../types';
+import type { IHostBaseInfo, IHostTopoHostNode, IHostTopoTreeNode } from '../types';
 import type { IHostTopoViewRow } from './use-host-topo-tree-worker';
 
 const TOPO_ROW_HEIGHT = 32;
 const VIEW_OVERSCAN = 10;
+
+/** 分页基础信息已由后端按主机范围解析，可用于主机指标目标。 */
+const toHostNode = (host: IHostBaseInfo): IHostTopoHostNode => ({
+  bk_biz_id: host.bk_biz_id,
+  bk_cloud_id: host.bk_cloud_id,
+  bk_host_id: host.bk_host_id,
+  bk_host_innerip: host.bk_host_innerip,
+  bk_host_innerip_v6: '',
+  bk_host_name: host.bk_host_name,
+  alias_name: host.bk_host_name,
+  display_name: host.display_name,
+  id: String(host.bk_host_id),
+  ip: host.bk_host_innerip,
+  name: host.bk_host_name,
+  os_type: host.bk_os_type,
+});
 
 /**
  * @description 主机拓扑树业务编排：数据加载、搜索、隐藏无主机节点、展开收起、选中与对比来源。
@@ -70,6 +86,8 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   const selectedNode = shallowRef<IHostTopoTreeNode | null>(
     createHostTarget(initialScope.value, Number(appStore.bizId))
   );
+  const hostMetadataError = shallowRef(false);
+  let hostMetadataVersion = 0;
   const fullTreeReady = shallowRef(false);
   const fullTreeLoading = shallowRef(false);
   const fullTreeError = shallowRef(false);
@@ -104,6 +122,35 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
 
   const shareScope = computed(() => (readonly ? initialScope.value : {}));
   const scopeKey = computed(() => JSON.stringify([Number(appStore.bizId), shareScope.value]));
+
+  /** URL 主机直达无需等待完整拓扑，但图表仍需要真实 IP / 管控区域。 */
+  const loadHostMetadata = async () => {
+    const version = ++hostMetadataVersion;
+    hostMetadataError.value = false;
+    const target = selectedNode.value;
+    if (!target || !isHostNode(target) || !target.metadataPending) return;
+    const isCurrent = () => !disposed && version === hostMetadataVersion && selectedNode.value === target;
+    try {
+      const result = await getHostInfoPage({
+        bk_biz_id: target.bk_biz_id,
+        bk_host_id: target.bk_host_id,
+        page: 1,
+        page_size: 1,
+      });
+      if (!isCurrent()) return;
+      const host = result.items.find(item => item.bk_host_id === target.bk_host_id);
+      if (!host) throw new Error('Host metadata unavailable');
+      selectedNode.value = toHostNode(host);
+    } catch {
+      if (isCurrent()) hostMetadataError.value = true;
+    }
+  };
+
+  watch(
+    [scopeKey, () => (selectedNode.value && isHostNode(selectedNode.value) ? selectedNode.value.bk_host_id : null)],
+    loadHostMetadata,
+    { immediate: true }
+  );
 
   const updateFilter = useDebounceFn(async () => {
     if (!initialized || !fullTreeReady.value) {
@@ -350,20 +397,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
         page_size: 100,
       });
       if (!isCurrent()) return;
-      const children: IHostTopoHostNode[] = result.items.map(host => ({
-        bk_biz_id: host.bk_biz_id,
-        bk_cloud_id: host.bk_cloud_id,
-        bk_host_id: host.bk_host_id,
-        bk_host_innerip: host.bk_host_innerip,
-        bk_host_innerip_v6: '',
-        bk_host_name: host.bk_host_name,
-        alias_name: host.bk_host_name,
-        display_name: host.display_name,
-        id: String(host.bk_host_id),
-        ip: host.bk_host_innerip,
-        name: host.bk_host_name,
-        os_type: host.bk_os_type,
-      }));
+      const children = result.items.map(toHostNode);
       state.page = result.page;
       loadedHosts.value = [...new Map([...loadedHosts.value, ...children].map(host => [host.id, host])).values()];
       await updateModule(id, children, {
@@ -459,9 +493,12 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     disposed = true;
     loadRequestVersion += 1;
     fullRequestVersion += 1;
+    hostMetadataVersion += 1;
   });
 
   return {
+    hostMetadataError,
+    loadHostMetadata,
     scopeError,
     scopeKey,
     fullTreeReady,

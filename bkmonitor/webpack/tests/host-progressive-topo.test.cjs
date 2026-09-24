@@ -117,23 +117,32 @@ function harness(query = {}, readonly = false) {
     timezone: '',
     refreshInterval: -1,
     refreshGeneration: 0,
+    timeRangeTimestamp: { start_time: 100, end_time: 200 },
     refreshImmediate: false,
     where: [],
     keyword: '',
     filterExpanded: false,
     activeCategory: '',
     metricAggregationState: { compareType: 'target', compareTargets: [] },
-    processMetricAggregationState: {},
+    processMetricAggregationState: { compareType: 'none', compareTargets: [], columns: 2 },
     hostProcessName: '',
     hostProcessKeyword: '',
   });
   const calls = [];
   const services = Object.fromEntries(
-    ['getHostInfoPage', 'getHostInfoList', 'getHostMetricInfoList', 'getHostMetricStats', 'getHostTopoTreeByBizId'].map(
-      name => [name, (...args) => new Promise((resolve, reject) => calls.push({ name, args, resolve, reject }))]
-    )
+    [
+      'getHostInfoPage',
+      'getHostInfoList',
+      'getHostMetricInfoList',
+      'getHostMetricStats',
+      'getHostTopoTreeByBizId',
+      'getHostProcessList',
+      'getHostProcessUptime',
+    ].map(name => [name, (...args) => new Promise((resolve, reject) => calls.push({ name, args, resolve, reject }))])
   );
+  const chartTargets = [];
   let topo,
+    processTable,
     table,
     restores = 0;
   const listSend = rawWorker('host-list');
@@ -172,9 +181,31 @@ function harness(query = {}, readonly = false) {
         );
       },
   });
+  const ProcessTable = vue.defineComponent({
+    setup:
+      (_, { attrs }) =>
+      () => {
+        processTable = attrs;
+        return null;
+      },
+  });
+  const Sideslider = vue.defineComponent({
+    setup:
+      (_, { attrs, slots }) =>
+      () =>
+        attrs.isShow ? slots.default?.() : null,
+  });
+  const metricGroups = () => ({
+    load: async () => {},
+    settingShow: vue.shallowRef(false),
+    loadError: vue.shallowRef(false),
+    loading: vue.shallowRef(false),
+    rows: vue.shallowRef([]),
+    orderData: vue.shallowRef([]),
+  });
   const cache = new Map();
   const own =
-    /(?:host\.tsx|host-content-tabs\.tsx|host-list\.tsx|host-topo-tree\.tsx|use-host-topo-tree\.ts|use-host-url-params\.ts|use-host-list\.ts|use-host-list-data\.ts|host-list-core\.ts|share-scope\.ts|topo-tree\.ts|constants\/enum\.ts|constants\/constants\.ts)$/;
+    /(?:host\.tsx|host-content-tabs\.tsx|host-list\.tsx|host-topo-tree\.tsx|host-process\.tsx|host-metric\.tsx|process-detail\.tsx|use-process-list\.ts|process-service\.ts|use-metric-aggregation\.ts|constants\/process\.ts|utils\/process\.ts|variables\/resolve\.ts|use-host-topo-tree\.ts|use-host-url-params\.ts|use-host-list\.ts|use-host-list-data\.ts|host-list-core\.ts|share-scope\.ts|topo-tree\.ts|constants\/enum\.ts|constants\/constants\.ts)$/;
   const load = file => {
     if (cache.has(file)) return cache.get(file);
     const module = { exports: {} };
@@ -187,13 +218,54 @@ function harness(query = {}, readonly = false) {
       if (id === 'vue-i18n') return { useI18n: () => ({ t: value => value }) };
       if (id === '@vueuse/core') return { useDebounceFn: fn => fn };
       if (id === 'bkui-vue')
-        return { ResizeLayout: layout, Alert: empty, Button, Input, Checkbox: Input, Message() {} };
+        return {
+          ResizeLayout: layout,
+          Sideslider,
+          Exception: empty,
+          Alert: empty,
+          Button,
+          Input,
+          Checkbox: Input,
+          Message() {},
+        };
       if (id.endsWith('/provider')) return { useAppReadonlyInject: () => readonly };
       if (id.endsWith('/store/modules/host')) return { useHostStore: () => store };
       if (id.endsWith('/store/modules/app')) return { useAppStore: () => appStore };
       if (id.endsWith('/use-host-topo-tree-worker')) return { useHostTopoTreeWorker: treeClient };
       if (id.endsWith('/use-host-list-worker')) return { useHostListWorker: () => listWorker };
       if (id.endsWith('/host-service')) return services;
+      if (id === 'monitor-api/modules/scene_view') return services;
+      if (id.endsWith('/process-table')) return { default: ProcessTable };
+      if (id.endsWith('/use-metric-groups')) return { useMetricGroups: metricGroups };
+      if (id.endsWith('/use-process-metric')) return { useProcessMetric: metricGroups };
+      if (id.endsWith('/dashbords')) {
+        const variables = load(`${root}/components/dashbords/variables/resolve.ts`);
+        return {
+          ...variables,
+          DashboardPanel: vue.defineComponent({
+            setup:
+              (_, { attrs }) =>
+              () => {
+                chartTargets.push(
+                  variables.resolveVariables({ targets: ['$current_target', '$compare_targets'] }, attrs.scopedVars)
+                    .targets
+                );
+                return null;
+              },
+          }),
+        };
+      }
+      if (id === 'lodash') return { cloneDeep: structuredClone };
+      if (id === 'dayjs') return require('dayjs');
+      if (id.endsWith('/template-srv')) return { getTemplateSrv: () => ({ replace: value => value }) };
+      if (id === 'monitor-ui/chart-plugins/typings')
+        return {
+          PanelModel: class {
+            constructor(value) {
+              Object.assign(this, value);
+            }
+          },
+        };
       if (id.endsWith('/use-host-detail'))
         return { useHostDetail: () => ({ detailData: vue.shallowRef([]), loading: vue.shallowRef(false) }) };
       if (id.endsWith('/host-list-table')) return { default: Table };
@@ -287,6 +359,10 @@ function harness(query = {}, readonly = false) {
     app,
     calls,
     store,
+    chartTargets,
+    get processTable() {
+      return processTable;
+    },
     get topo() {
       return topo;
     },
@@ -574,4 +650,112 @@ test('same-route node query updates the list scope without reloading the complet
   assert.equal(h.pending('getHostInfoPage', ([p]) => p.bk_inst_id === 4).args[0].page, 1);
   assert.equal(h.calls.filter(call => call.name === 'getHostTopoTreeByBizId').length, 2);
   h.app.unmount();
+});
+
+test('actual host system/share chart waits for exact metadata, independently of topology', async () => {
+  for (const readonly of [false, true]) {
+    const h = harness(
+      { nodeId: '11', activeTab: 'system', ...(readonly ? { shareTargetType: 'host', shareBkHostId: '11' } : {}) },
+      readonly
+    );
+    await flush();
+    assert.equal(h.chartTargets.length, 0);
+    assert.deepEqual(h.pending('getHostInfoPage').args[0], { bk_biz_id: 1, bk_host_id: 11, page: 1, page_size: 1 });
+    assert.equal(h.topo.selectedNode.value.metadataPending, true);
+    h.respond('getHostInfoPage', { items: [{ ...host(11), bk_cloud_id: 7 }], page: 1, page_size: 1, total: 1 });
+    await flush();
+    assert.deepEqual(h.chartTargets.at(-1), [{ bk_host_id: 11, bk_target_ip: '127.0.0.11', bk_target_cloud_id: 7 }]);
+    assert.equal(h.topo.fullTreeReady.value, false);
+    assert.equal(h.restores, 1);
+    h.app.unmount();
+  }
+});
+
+test('actual HostProcess service requests ID before metadata, then mounts detail chart without refetching list', async () => {
+  const h = harness({ nodeId: '11', activeTab: 'process', hostProcessName: 'fixture-process', from: '100', to: '200' });
+  await flush();
+  const processCall = h.pending('getHostProcessList');
+  assert.deepEqual(processCall.args[0], { bk_host_id: 11, start_time: 100, end_time: 200 });
+  h.respond('getHostProcessList', [{ name: 'fixture-process', ports: [], hostIp: '127.0.0.11' }]);
+  await flush();
+  assert.equal(h.processTable.data.length, 1);
+  assert.equal(h.chartTargets.length, 0);
+  assert.equal(h.calls.filter(call => call.name === 'getHostProcessUptime').length, 0);
+  h.respond('getHostInfoPage', { items: [{ ...host(11), bk_cloud_id: 7 }], page: 1, page_size: 1, total: 1 });
+  await flush();
+  assert.deepEqual(h.chartTargets.at(-1), [{ bk_host_id: 11, bk_target_ip: '127.0.0.11', bk_target_cloud_id: 7 }]);
+  assert.equal(h.calls.filter(call => call.name === 'getHostProcessList').length, 1);
+  assert.equal(h.pending('getHostProcessUptime').args[0].bk_host_id, 11);
+  h.app.unmount();
+});
+
+const findElement = (element, predicate) =>
+  predicate(element) ? element : element.children?.map(child => findElement(child, predicate)).find(Boolean);
+
+test('metadata failure shows retry, retry loads charts, and full topology may recover an empty result', async () => {
+  const h = harness({ nodeId: '11', activeTab: 'system' });
+  await flush();
+  h.respond('getHostInfoPage', new Error('fixture'), undefined, true);
+  await flush();
+  assert.equal(h.topo.hostMetadataError.value, true);
+  assert.equal(h.chartTargets.length, 0);
+  const status = findElement(h.element, node => node.props?.role === 'status');
+  assert.ok(status);
+  const button = findElement(status, node => node.type === 'button');
+  assert.ok(button);
+  button.props.onClick();
+  await flush();
+  assert.equal(h.topo.hostMetadataError.value, false);
+  h.respond('getHostInfoPage', { items: [host(11)], page: 1, page_size: 1, total: 1 });
+  await flush();
+  assert.equal(h.chartTargets.at(-1)[0].bk_host_id, 11);
+  h.app.unmount();
+  const empty = harness({ nodeId: '11', activeTab: 'system' });
+  await flush();
+  empty.respond('getHostInfoPage', { items: [], page: 1, page_size: 1, total: 0 });
+  await flush();
+  assert.equal(empty.topo.hostMetadataError.value, true);
+  assert.equal(empty.chartTargets.length, 0);
+  empty.respond('getHostTopoTreeByBizId', fullTree(), args => args[2] !== false);
+  await flush();
+  assert.equal(empty.chartTargets.at(-1)[0].bk_host_id, 11);
+  assert.equal(
+    findElement(empty.element, node => node.props?.role === 'status'),
+    undefined
+  );
+  empty.app.unmount();
+});
+
+test('late metadata cannot overwrite a different host, business, or complete IPv6-only topology metadata', async () => {
+  const h = harness({ nodeId: '11', activeTab: 'system' });
+  await flush();
+  const first = h.pending('getHostInfoPage');
+  h.route.query.nodeId = '12';
+  await flush();
+  first.resolve({ items: [host(11)], page: 1, page_size: 1, total: 1 });
+  await flush();
+  assert.equal(h.topo.selectedNode.value.bk_host_id, 12);
+  assert.equal(h.chartTargets.length, 0);
+  const ipv6 = { ...leaf(12), ip: '', bk_host_innerip: '', bk_host_innerip_v6: '2001:db8::12', bk_cloud_id: 8 };
+  h.respond('getHostTopoTreeByBizId', [inst('biz|1', [ipv6])], args => args[2] !== false);
+  await flush();
+  assert.equal(h.chartTargets.at(-1)[0].bk_host_id, 12);
+  assert.equal(h.topo.selectedNode.value.bk_host_innerip_v6, '2001:db8::12');
+  h.respond('getHostInfoPage', { items: [host(12)], page: 1, page_size: 1, total: 1 }, ([p]) => p.bk_host_id === 12);
+  await flush();
+  assert.equal(h.topo.selectedNode.value.bk_host_innerip_v6, '2001:db8::12');
+  assert.equal(h.chartTargets.at(-1)[0].bk_target_cloud_id, 8);
+  h.app.unmount();
+  const shared = harness({ shareTargetType: 'host', shareBkHostId: '11', activeTab: 'system' }, true);
+  await flush();
+  const old = shared.pending('getHostInfoPage');
+  shared.appStore.bizId = 2;
+  await flush();
+  old.resolve({ items: [host(11)], page: 1, page_size: 1, total: 1 });
+  await flush();
+  assert.equal(shared.topo.selectedNode.value.bk_biz_id, 2);
+  assert.equal(shared.topo.selectedNode.value.metadataPending, true);
+  assert.equal(shared.chartTargets.length, 0);
+  assert.equal(shared.pending('getHostInfoPage', ([p]) => p.bk_biz_id === 2).args[0].bk_host_id, 11);
+  shared.app.unmount();
 });

@@ -209,8 +209,10 @@ export default defineComponent({
                           <HostContentTabs
                             key={this.topoTree.scopeKey.value}
                             compareHostList={this.topoTree.compareHostList.value}
+                            hostMetadataError={this.topoTree.hostMetadataError.value}
                             readonly={this.readonly}
                             selectedNode={this.topoTree.selectedNode.value}
+                            onRetryHostMetadata={this.topoTree.loadHostMetadata}
                             onSelectIpCell={this.handleSelectIpCell}
                           />
                         </div>
