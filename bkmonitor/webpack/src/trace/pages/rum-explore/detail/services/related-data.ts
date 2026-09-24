@@ -31,6 +31,7 @@ import type {
   IRumDetailContext,
   IRumErrorRelated,
   IRumLongTaskRelated,
+  IRumRecordDetail,
   IRumViewRelated,
 } from '../typings';
 
@@ -206,9 +207,12 @@ export async function getLongTaskRelated(
 export async function getViewRelated(
   context: IRumDetailContext,
   mode: RumModeType,
-  sessionId: string
+  detail: IRumRecordDetail
 ): Promise<IRumViewRelated | null> {
-  const viewId = String(context.record_id || '');
+  const viewId = String(detail.origin_data?.attributes?.['view.id'] || '');
+  const sessionId = String(
+    detail.overview?.items?.find(item => item.field_name === 'attributes.session.id')?.value ?? ''
+  );
   if (!viewId || !sessionId) return null;
   const timeRange = { start_time: context.end_time - 86400, end_time: context.end_time + 86400 };
   const baseFilters: IRumFilter[] = [
