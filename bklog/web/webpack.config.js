@@ -99,9 +99,12 @@ const logPluginConfig = {
     </script>`,
 };
 if (isE2eDevSettings()) {
-  const e2eSettingsPath = path.resolve(__dirname, './local.settings.e2e.js');
+  const e2eSettingsPath = path.resolve(
+    __dirname,
+    process.env.AAFE_E2E_DEV_URL ? './local.settings.e2e.aafe.cjs' : './local.settings.e2e.js',
+  );
   if (!fs.existsSync(e2eSettingsPath)) {
-    throw new Error('BKLOG_E2E_DEV is set but local.settings.e2e.js is missing');
+    throw new Error(`BKLOG_E2E_DEV is set but ${path.basename(e2eSettingsPath)} is missing`);
   }
   devConfig = Object.assign({}, devConfig, require(e2eSettingsPath));
 } else if (fs.existsSync(path.resolve(__dirname, './local.settings.js'))) {
