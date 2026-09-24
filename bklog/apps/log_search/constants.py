@@ -2148,4 +2148,7 @@ class CollectStatusEnum(ChoicesEnum):
         elif original_status == CollectStatus.TERMINATED:
             return cls.TERMINATED.value
         else:
+            # PREPARE（订阅未建）与 UNKNOWN（订阅统计尚未产出）都是下发链路上的瞬时态，
+            # 合并成 RUNNING 才能让前端继续轮询直至订阅出结果；
+            # 永久性异常需在 format_subscription_status 判成 FAILED，不要在这里加分支
             return cls.RUNNING.value
