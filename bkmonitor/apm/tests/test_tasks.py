@@ -113,7 +113,11 @@ def test_datasource_cron_dispatches_independent_module_switches(mocker) -> None:
 
 def test_profile_cron_filters_enabled_apps_and_dispatches_async(mocker) -> None:
     applications = mocker.patch("apm.task.tasks.ApmApplication.objects.filter")
-    applications.return_value.values_list.return_value = [(10, 2, "enabled"), (11, 2, "next_minute")]
+    applications.return_value.values_list.return_value = [
+        (7, 2, "enabled"),
+        (8, 2, "next_minute"),
+        (10, 2, "trace_shard"),
+    ]
     mocker.patch("apm.task.tasks.timezone.now", return_value=datetime.datetime(2026, 1, 1, tzinfo=datetime.UTC))
     mocker.patch(
         "apm.task.tasks.ProfileDataSource.objects.all",
@@ -189,7 +193,7 @@ def test_profile_sharding_covers_every_application_once_per_cycle(settings, mock
     for minute in range(10):
         clock.return_value = datetime.datetime(2026, 1, 1, 0, minute, tzinfo=datetime.UTC)
         tasks.profile_discover_cron()
-    assert dispatch.call_args_list == [mocker.call(2, f"app-{app_id}") for app_id in range(10)]
+    assert dispatch.call_args_list == [mocker.call(2, f"app-{app_id}") for app_id in [7, 8, 9, 0, 1, 2, 3, 4, 5, 6]]
     # 测试环境会覆盖 DEFAULT_CRONTAB，这里核对生产配置，避免只改分片而漏改 beat。
     config = ast.parse((Path(__file__).resolve().parents[2] / "config/role/worker.py").read_text())
     cron_node = next(
@@ -215,3 +219,15 @@ def test_metric_worker_soft_timeout_releases_execution_lock(settings, mocker) ->
         tasks.datasource_discover_handler(datasource, 10, 100)
     assert query.call_count == 1
     assert redis.keys() == []
+
+
+@pytest.mark.parametrize("failure", [ValueError("invalid profile response"), SoftTimeLimitExceeded()])
+def test_profile_worker_propagates_query_failure_and_releases_lock(settings, mocker, failure: Exception) -> None:
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    redis = fakeredis.FakeRedis(decode_responses=True)
+    mocker.patch("apm.task.tasks.ApmCacheHandler.get_redis_client", return_value=redis)
+    handler = mocker.patch("apm.task.tasks.ProfileDiscoverHandler")
+    handler.return_value.discover.side_effect = failure
+    with pytest.raises(type(failure)):
+        tasks.profile_handler(2, "app")
+    assert not redis.keys()

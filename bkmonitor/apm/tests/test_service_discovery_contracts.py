@@ -6,6 +6,7 @@ import pytest
 from django.utils import timezone
 from pytest_django.fixtures import SettingsWrapper
 
+from apm.constants import DiscoverRuleType
 from apm.core.discover.node import NodeDiscover
 from apm.core.discover.profile.service import ServiceDiscover as ProfileDiscover
 from apm.core.discover.relation import RelationDiscover
@@ -142,3 +143,38 @@ def test_profile_truncated_result_only_checks_observed_services() -> None:
     assert TopoNode.objects.get(topo_key="demo").heartbeat["profiling"]["last_data_at"] == 200
     unknown.refresh_from_db()
     assert unknown.heartbeat == {"profiling": {"last_data_at": 50, "checked_at": 60}}
+
+
+@pytest.mark.parametrize("initial_sources", [[], ["metric"], ["profiling"]])
+def test_trace_update_preserves_sources_added_after_discovery_snapshot(initial_sources: list[str]) -> None:
+    previous_heartbeat = {"log": {"last_data_at": 80, "checked_at": 90}}
+    node = make_node("demo", source=initial_sources, heartbeat=previous_heartbeat)
+    discover = object.__new__(NodeDiscover)
+    discover.bk_biz_id = 2
+    discover.app_name = "app"
+    old_mapping = discover.list_exists()
+    TopoNode.upsert_telemetry_nodes(2, "app", "log", {"demo"}, {})
+    TopoNode.upsert_telemetry_nodes(2, "app", "profiling", {"demo"}, {})
+    node.refresh_from_db()
+    expected_sources = [*node.source, "trace"]
+    batch_result = (
+        {"demo": {"extra_data": {"category": "other", "kind": "service"}, "platform": {}, "system": {}, "sdk": {}}},
+        {},
+        {"demo": 100},
+    )
+    with (
+        mock.patch.object(
+            discover, "get_rules", return_value=([SimpleNamespace(type=DiscoverRuleType.CATEGORY.value)], None)
+        ),
+        mock.patch("apm.core.discover.node.ThreadPool") as pool,
+        mock.patch.object(discover, "list_exists", return_value=old_mapping),
+        mock.patch.object(discover, "get_pod_workload_mapping", return_value={}),
+        mock.patch.object(discover, "clear_expired"),
+    ):
+        pool.return_value.map_ignore_exception.return_value = [batch_result]
+        discover.discover([])
+    node.refresh_from_db()
+    assert node.source == expected_sources
+    assert node.heartbeat["log"] == previous_heartbeat["log"]
+    assert node.heartbeat["trace"]["last_data_at"] == 100
+    assert TopoNode.get_service_queryset(bk_biz_id=2, app_name="app").filter(pk=node.pk).exists()

@@ -171,16 +171,12 @@ class NodeDiscover(DiscoverBase):
                             "extra_data": self.merge_other_extra_data_preserving_category(
                                 previous_extra, v["extra_data"]
                             ),
-                            "source": self.combine_sources(exists_instance["source"], TelemetryDataType.TRACE.value),
                         }
                     else:
                         create_instances[k] = {**v, "source": [TelemetryDataType.TRACE.value]}
                 else:
                     if exists_instance:
-                        update_instances[k] = {
-                            **v,
-                            "source": self.combine_sources(exists_instance["source"], TelemetryDataType.TRACE.value),
-                        }
+                        update_instances[k] = v.copy()
                     else:
                         create_instances[k] = {**v, "source": [TelemetryDataType.TRACE.value]}
 
@@ -205,13 +201,16 @@ class NodeDiscover(DiscoverBase):
                     ),
                     system=combine_list(exist_instance["system"], topo_value["system"]),
                     sdk=combine_list(exist_instance["sdk"], topo_value["sdk"]),
-                    source=topo_value["source"],
                     updated_at=timezone.now(),
                 )
             )
 
-        TopoNode.objects.bulk_update(
-            update_combine_instances, fields=["extra_data", "platform", "system", "sdk", "source", "updated_at"]
+        TopoNode.bulk_update_discovered_nodes(
+            self.bk_biz_id,
+            self.app_name,
+            update_combine_instances,
+            fields=["extra_data", "platform", "system", "sdk", "updated_at"],
+            data_type=TelemetryDataType.TRACE.value,
         )
 
         # create
@@ -236,13 +235,6 @@ class NodeDiscover(DiscoverBase):
 
         self.clear_if_overflow()
         self.clear_expired()
-
-    @staticmethod
-    def combine_sources(target: list[str] | None, source: str) -> list[str]:
-        sources: list[str] = list(target or [])
-        if source not in sources:
-            sources.append(source)
-        return sources
 
     @staticmethod
     def set_preferred_llm_product(products: dict[str, str], key: str, product: str | None) -> None:
@@ -270,7 +262,6 @@ class NodeDiscover(DiscoverBase):
         target["platform"] = cls.merge_platform(target.get("platform") or {}, source.get("platform") or {})
         target["system"] = combine_list(target.get("system"), source.get("system"))
         target["sdk"] = combine_list(target.get("sdk"), source.get("sdk"))
-        target["source"] = cls.combine_sources(target.get("source"), TelemetryDataType.TRACE.value)
 
     @staticmethod
     def merge_platform(target: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:

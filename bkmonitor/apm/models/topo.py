@@ -103,6 +103,37 @@ class TopoNode(TopoBase):
         )
 
     @classmethod
+    def bulk_update_discovered_nodes(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        nodes: list["TopoNode"],
+        fields: list[str],
+        data_type: str,
+    ) -> None:
+        """更新发现字段，并在行锁内追加来源，避免旧快照覆盖其他发现器的来源。"""
+        if not nodes:
+            return
+        database: str = router.db_for_write(cls)
+        nodes_by_id: dict[int, TopoNode] = {node.pk: node for node in nodes}
+        with transaction.atomic(using=database):
+            current_nodes = (
+                cls.objects.using(database)
+                .select_for_update()
+                .filter(bk_biz_id=bk_biz_id, app_name=app_name, id__in=nodes_by_id)
+                .only("id", "source")
+                .order_by("id")
+            )
+            updated_nodes: list[TopoNode] = []
+            for current in current_nodes:
+                node = nodes_by_id[current.pk]
+                node.source = list(current.source or [])
+                if data_type not in node.source:
+                    node.source.append(data_type)
+                updated_nodes.append(node)
+            cls.objects.using(database).bulk_update(updated_nodes, fields=[*fields, "source"], batch_size=200)
+
+    @classmethod
     def touch_heartbeat(
         cls,
         bk_biz_id: int,
