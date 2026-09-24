@@ -6792,7 +6792,7 @@ def _prepare_bk_exporter_datalink(bk_biz_id: int = 1001):
             ["bk_set_id"],
             {
                 "exporter_cmdb": True,
-                "exporter_cmdb_rt": "2_bkm_1001_bkmonitor_time_series_50011_cmdb",
+                "exporter_cmdb_rt": "2_bkm_1001_bkmonitor_time_series_50011__cmdb",
             },
         ),
     ],
@@ -6832,11 +6832,11 @@ def test_bk_exporter_cmdb_transform_options(
     cmdb_result_table_configs = [
         config
         for config in configs
-        if config["kind"] == DataLinkKind.RESULTTABLE.value and config["metadata"]["name"].endswith("_cmdb")
+        if config["kind"] == DataLinkKind.RESULTTABLE.value and config["metadata"]["name"].endswith("__cmdb")
     ]
     assert cmdb_result_table_configs == []
     assert VMStorageBindingConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
+    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}__cmdb").exists()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -6877,9 +6877,9 @@ def test_bk_exporter_cmdb_transform_uses_persisted_bkbase_table_id(
 
     transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
     assert transform["exporter_cmdb"] is True
-    assert transform["exporter_cmdb_rt"] == "9527_legacy_rt_cmdb"
+    assert transform["exporter_cmdb_rt"] == "9527_legacy_rt__cmdb"
     assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
+    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}__cmdb").exists()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -6956,13 +6956,13 @@ def test_bk_standard_cmdb_transform_options(create_or_delete_records, mocker, se
     assert transform["format"] == "bkmonitor_standard"
     if cmdb_levels:
         assert transform["exporter_cmdb"] is True
-        assert transform["exporter_cmdb_rt"] == "2_bkm_1001_bkmonitor_time_series_50012_cmdb"
+        assert transform["exporter_cmdb_rt"] == "2_bkm_1001_bkmonitor_time_series_50012__cmdb"
     else:
         assert "exporter_cmdb" not in transform
         assert "exporter_cmdb_rt" not in transform
     assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
     assert VMStorageBindingConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
+    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}__cmdb").exists()
 
 
 @pytest.mark.django_db(databases="__all__")
@@ -7011,10 +7011,10 @@ def test_bk_standard_cmdb_transform_uses_persisted_bkbase_table_id(
     transform = _get_databus_config_payload(configs)["spec"]["transforms"][0]
     assert transform["format"] == "bkmonitor_standard"
     assert transform["exporter_cmdb"] is True
-    assert transform["exporter_cmdb_rt"] == "9527_legacy_standard_rt_cmdb"
+    assert transform["exporter_cmdb_rt"] == "9527_legacy_standard_rt__cmdb"
     assert existing_context.leftover() == {}
     assert ResultTableConfig.objects.filter(data_link_name=datalink.data_link_name).count() == 1
-    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}_cmdb").exists()
+    assert not models.ResultTable.objects.filter(table_id=f"{rt.table_id}__cmdb").exists()
 
 
 @pytest.mark.django_db(databases="__all__")

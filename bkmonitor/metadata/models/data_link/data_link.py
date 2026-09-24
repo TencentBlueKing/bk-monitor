@@ -2555,7 +2555,7 @@ class DataLink(models.Model):
             )
             transform_options = {
                 "exporter_cmdb": True,
-                "exporter_cmdb_rt": f"{bkbase_table_id}_cmdb",
+                "exporter_cmdb_rt": f"{bkbase_table_id}__cmdb",
             }
 
         configs = [
