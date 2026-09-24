@@ -14,9 +14,13 @@
   }
 }
 
-.bk-popover.bk-pop2-content.table-field-setting-popover {
+.tippy-box[data-theme~='light'][data-theme~='table-field-setting-popover'] {
   padding: 0;
   box-shadow: 0 2px 6px 0 #0000001a;
+
+  .tippy-content {
+    padding: 0;
+  }
 
   .setting-container {
     display: flex;
