@@ -8,10 +8,13 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import datetime
 import logging
 from typing import Any
 
+from django.db.models import Q
 from django.db.transaction import atomic
+from django.utils import timezone
 from rest_framework import serializers
 
 from bkm_space.api import SpaceApi
@@ -21,7 +24,7 @@ from bkmonitor.utils.serializers import TenantIdField
 from bkmonitor.utils.user import get_request_username
 from core.drf_resource import Resource
 from metadata import config, models
-from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE
+from metadata.models.constants import BULK_CREATE_BATCH_SIZE, BULK_UPDATE_BATCH_SIZE, EsSourceType
 from metadata.service.space_redis import SpaceTableIDRedis
 
 logger = logging.getLogger(__name__)
@@ -109,6 +112,50 @@ def _save_changed_fields(storage, update_values: dict[str, Any]) -> None:
         storage.save(update_fields=update_fields)
 
 
+def _sync_external_es_cluster_record(storage: models.ESStorage) -> None:
+    """第三方独立 ES 查询路由仅保留一条覆盖全时间范围的有效集群记录。
+
+    调用方须持有 ResultTable 行锁，并与 Storage 更新共用 metadata DB 事务。
+    """
+
+    if storage.source_type != EsSourceType.ES.value or storage.need_create_index or storage.origin_table_id:
+        return
+    # 与路由组装保持一致：ES origin 缺失时可能仍沿用 Doris 配置中的实体表历史。
+    if (
+        models.DorisStorage.objects.filter(bk_tenant_id=storage.bk_tenant_id, table_id=storage.table_id)
+        .exclude(origin_table_id__isnull=True)
+        .exclude(origin_table_id="")
+        .exists()
+    ):
+        return
+    if not models.ClusterInfo.objects.filter(
+        bk_tenant_id=storage.bk_tenant_id,
+        cluster_id=storage.storage_cluster_id,
+        cluster_type=models.ClusterInfo.TYPE_ES,
+    ).exists():
+        raise ValueError(f"ES存储集群[{storage.storage_cluster_id}]不存在、租户不匹配或类型错误")
+
+    records = models.StorageClusterRecord.objects.using(config.DATABASE_CONNECTION_NAME).filter(
+        bk_tenant_id=storage.bk_tenant_id, table_id=storage.table_id
+    )
+    # 沿用 ESStorage.create_table 的初始时间基准；查询目标替换不能使用本次修改时间分段。
+    current_record, _ = records.get_or_create(
+        bk_tenant_id=storage.bk_tenant_id,
+        table_id=storage.table_id,
+        cluster_id=storage.storage_cluster_id,
+        enable_time=timezone.make_aware(datetime.datetime(1970, 1, 1)),
+        defaults={"creator": get_request_username() or "system", "is_current": True},
+    )
+    # 查询侧读取全部未删除记录，仅关闭 is_current 仍会查询到旧集群。
+    records.exclude(pk=current_record.pk).filter(Q(is_deleted=False) | Q(is_current=True)).update(
+        is_current=False, is_deleted=True, disable_time=timezone.now()
+    )
+    _save_changed_fields(
+        current_record,
+        {"is_current": True, "is_deleted": False, "disable_time": None, "delete_time": None},
+    )
+
+
 def _sync_es_route_storage(
     *,
     bk_tenant_id: str,
@@ -171,6 +218,8 @@ def _sync_es_route_storage(
     if result_table.default_storage != models.ClusterInfo.TYPE_ES:
         result_table.default_storage = models.ClusterInfo.TYPE_ES
         result_table.save(update_fields=["default_storage"])
+
+    _sync_external_es_cluster_record(storage)
 
 
 def _sync_doris_route_storage(
