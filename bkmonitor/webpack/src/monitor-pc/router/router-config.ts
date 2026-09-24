@@ -154,6 +154,17 @@ export const getRouteConfig = () => {
           canStore: true,
         },
         {
+          name: 'Profiling 检索',
+          navName: 'Profiling 检索',
+          icon: 'icon-monitor icon-Profiling menu-icon',
+          id: 'profiling-explore',
+          path: '/trace/profiling-explore',
+          href: '#/trace/profiling-explore',
+          usePath: true,
+          isBeta: true,
+          // hidden: true,
+        },
+        {
           name: 'RUM 检索',
           icon: 'icon-monitor icon-RUM menu-icon',
           navName: 'RUM 检索',

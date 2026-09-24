@@ -1,0 +1,193 @@
+.profiling-skeleton {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton-element::after,
+    .skeleton-line svg {
+      animation: none;
+    }
+  }
+
+  .skeleton-element {
+    flex-shrink: 0;
+    border-radius: 2px;
+  }
+
+  &-trend {
+    display: flex;
+    gap: 12px;
+    padding: 10px 4px 8px 0;
+  }
+
+  .skeleton-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 40px;
+    padding-bottom: 20px;
+
+    i {
+      height: 10px;
+    }
+  }
+
+  .skeleton-plot {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .skeleton-line {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    background: repeating-linear-gradient(to top, #f0f1f5 0 1px, transparent 1px 33%);
+    border-bottom: 1px solid #dcdee5;
+
+    svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      animation: profiling-skeleton-pulse 1.8s ease-in-out infinite;
+    }
+
+    polygon {
+      opacity: 0.7;
+      fill: #f0f1f5;
+    }
+
+    polyline {
+      fill: none;
+      stroke: #c4c6cc;
+      stroke-width: 2;
+      stroke-linejoin: round;
+    }
+  }
+
+  .skeleton-ticks {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 8px;
+
+    i {
+      width: 36px;
+      height: 8px;
+    }
+  }
+
+  &-table {
+    min-height: 0;
+    border: 1px solid #eaebf0;
+  }
+
+  .skeleton-table {
+    display: grid;
+  }
+
+  .skeleton-table-cell {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 12px;
+
+    i {
+      height: 12px;
+    }
+
+    &.heading {
+      background: #f0f1f5;
+    }
+  }
+
+  &-flame {
+    min-height: 0;
+    background: #f5f6f9;
+  }
+
+  .skeleton-legend {
+    height: 22px;
+    margin-bottom: 8px;
+  }
+
+  .skeleton-flame-rows {
+    position: relative;
+    height: 560px;
+  }
+
+  .skeleton-flame-frame {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    height: 19px;
+    border-radius: 0;
+
+    span {
+      height: 5px;
+      margin-left: 5px;
+      background: #fff;
+      border-radius: 1px;
+      opacity: 0.55;
+    }
+  }
+
+  &-filter {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
+    height: 48px;
+    padding: 8px 12px;
+    background: #fff;
+    border-radius: 4px;
+  }
+
+  .skeleton-filter-mode {
+    width: 64px;
+    height: 24px;
+  }
+
+  .skeleton-filter-value {
+    width: 30%;
+    height: 24px;
+  }
+
+  .skeleton-filter-action {
+    width: 32px;
+    height: 32px;
+    margin-left: auto;
+  }
+
+  &-callgraph {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+  }
+
+  .skeleton-callgraph {
+    width: 75%;
+  }
+
+  .skeleton-callgraph-row {
+    display: flex;
+    gap: 24px;
+    justify-content: center;
+    margin: 32px 0;
+
+    i {
+      width: 90px;
+      height: 32px;
+    }
+  }
+}
+
+@keyframes profiling-skeleton-pulse {
+  50% {
+    opacity: 0.4;
+  }
+}
