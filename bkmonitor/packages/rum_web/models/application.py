@@ -146,6 +146,28 @@ class Application(AbstractRecordModel):
         self.metric_result_table_id = metric_ds_info["result_table_id"]
         self.time_series_group_id = metric_ds_info["time_series_group_id"]
         self.save()
+        # 数据源同步成功后，确保预计算存储（session + view）已就绪
+        self.ensure_precalculate_storage()
+
+    def ensure_precalculate_storage(self) -> None:
+        """确保该 RUM 应用对应的 session / view 预计算 RT 已创建。
+
+        失败时（settings 默认集群未配置 / metadata API 异常）不抛异常，不影响上层流程。
+        """
+        from rum.core.discover.precalculation.storage import RumPrecalculateStorage
+
+        for table_kind in ("session", "view"):
+            try:
+                RumPrecalculateStorage(
+                    bk_biz_id=self.bk_biz_id, app_name=self.app_name, table_kind=table_kind, need_client=False
+                )
+            except Exception as e:  # noqa: BLE001
+                logger.warning(
+                    "[ensure_precalculate_storage] %s RT ensure failed for app(%s): %s",
+                    table_kind,
+                    self.application_id,
+                    e,
+                )
 
     @cached_property
     def no_data_period(self):

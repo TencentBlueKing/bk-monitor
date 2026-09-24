@@ -6,9 +6,12 @@ You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
+
+RUM 预计算 —— jobflow Flow 编排与生命周期管理（待实现）
+
 """
 
-from rum.models.datalink import *  # noqa
-from rum.models.application import *  # noqa
-from rum.models.config import *  # noqa
-from rum.models.datasource import *  # noqa
+raise NotImplementedError(
+    "rum_web.core.discover.precalculation.daemon 尚未实现："
+    "待 jobflow 接入，按本文件 docstring 中【接入 jobflow 时需要明确的设计点】实现 Flow 编排与生命周期。"
+)

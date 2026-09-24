@@ -172,6 +172,8 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.refresh_apm_platform_config", "*/30 * * * *", "global"),
     # apm 检测预计算表字段是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
+    # RUM 预计算表字段/集群变更检测 1小时执行检测一次
+    ("rum_web.tasks.check_rum_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
     # apm Trace 数据源域索引集兜底同步 每 3 小时触发
