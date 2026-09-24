@@ -31,4 +31,36 @@
     top: -9999px;
     visibility: hidden;
   }
+
+  /** 可见数已被压到 minVisibleCount 下界：可见项占满折叠标签之外的剩余空间，内容不足则省略显示 */
+  &.is-min-visible-ellipsis {
+    .item-tags {
+      /** 只允许收缩、不允许增长：增长会让容器撑满剩余宽度，
+       * 而数组列的 hover 下划线是 .item-tags 的 border-bottom，会跟着被拉长到整个单元格 */
+      flex: 0 1 auto;
+      min-width: 0;
+
+      > * {
+        min-width: 0;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /** 标签内部再套一层（如 bk-tag > .bk-tag-text > 文本容器）时同样要解除最小宽度并省略，
+       * 否则 nowrap 文本不会被压缩，只会被裁切而没有省略号 */
+      > * * {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+    }
+
+    /** 折叠标签优先完整展示，空间不足时让位的是唯一可见的标签 */
+    .collapse-tag {
+      flex-shrink: 0;
+    }
+  }
 }
