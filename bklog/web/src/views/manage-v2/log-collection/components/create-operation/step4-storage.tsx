@@ -34,6 +34,7 @@ import { useRoute } from 'vue-router/composables';
 import ClusterTypeTabs from '../../../es-cluster/cluster-manage/cluster-type-tabs.tsx';
 import { CLUSTER_TYPES, ClusterType, useClusterType } from '../../../es-cluster/cluster-manage/use-cluster-type';
 import { useOperation } from '../../hook/useOperation';
+import { showClusterSelectError } from '@/common/collector-api-error';
 import { showMessage } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
 import { deepEqual } from '@/common/util';
@@ -323,13 +324,13 @@ export default defineComponent({
 
       try {
         loading.value = true;
-        const res = await $http.request('collect/getStorage', { query: queryParams });
+        const res = await $http.request('collect/getStorage', { query: queryParams }, { catchIsShowMessage: false });
 
         if (res.data) {
           storageList.value = sortByPermission(res.data);
         }
       } catch (error) {
-        showMessage(error.message, 'error');
+        showClusterSelectError(error);
       } finally {
         loading.value = false;
       }
@@ -419,9 +420,13 @@ export default defineComponent({
       const isStorageEdit = isEditMode.value && !!route.query.step;
       if (isStorageEdit) {
         await $http
-          .request('collect/details', {
-            params: { collector_config_id: route.params.collectorId },
-          })
+          .request(
+            'collect/details',
+            {
+              params: { collector_config_id: route.params.collectorId },
+            },
+            { catchIsShowMessage: false },
+          )
           .then(res => {
             if (res?.data) {
               store.commit('collect/setCurCollect', res.data);
@@ -436,6 +441,9 @@ export default defineComponent({
               };
               clusterSelect.value = storageClusterId;
             }
+          })
+          .catch(error => {
+            showClusterSelectError(error);
           });
       }
       await handleTabClick(clusterType ?? activeTab.value, true);

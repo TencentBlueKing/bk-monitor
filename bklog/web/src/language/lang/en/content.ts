@@ -1463,4 +1463,14 @@ export default {
     'No collection items under this business. Please follow the guide to onboard, or contact the administrator to apply',
   'API无权限，请联系管理员申请': 'No API permission. Please contact the administrator to apply',
   '无权限，请联系管理员': 'No permission. Please contact the administrator',
+  '无法获取采集预览数据，Kafka 分区信息读取失败。':
+    'Failed to load collection preview data because Kafka partition information could not be retrieved.',
+  '你可以继续选择存储集群，预览数据可能暂不可用。请稍后重试，或检查采集配置是否已下发。如问题持续，请联系管理员。':
+    'You can continue selecting a storage cluster. Preview data may be unavailable. Please retry later, check whether the collection configuration has been issued, or contact the administrator if the issue persists.',
+  '获取存储集群列表失败，暂时无法展示可选集群。':
+    'Failed to load the storage cluster list, so available clusters cannot be displayed.',
+  '请稍后重试，或检查采集配置。如问题持续，请联系管理员。':
+    'Please retry later or check the collection configuration. Contact the administrator if the issue persists.',
+  '操作失败，系统返回了内部异常。': 'The operation failed because the system returned an internal error.',
+  '请求 ID：{n}': 'Request ID: {n}',
 };

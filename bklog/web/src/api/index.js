@@ -31,8 +31,9 @@
 
 import Vue from 'vue';
 
-import { messageError, messageWarn } from '@/common/bkmagic';
+import { messageWarn } from '@/common/bkmagic';
 import { bus } from '@/common/bus';
+import { showCaughtApiError } from '@/common/collector-api-error';
 import { makeMessage, readBlobRespToJson } from '@/common/util';
 import i18n from '@/language/i18n';
 import serviceList from '@/services/index.js';
@@ -314,9 +315,9 @@ function handleReject(error, config, reject) {
       nextError.message = data.message;
     }
 
-    const resMessage = makeMessage(nextError.message, traceparent);
-    config.catchIsShowMessage && messageError(resMessage);
-    console.error(nextError.message);
+    showCaughtApiError(nextError.message, traceparent, {
+      catchIsShowMessage: config.catchIsShowMessage,
+    });
   }
 
   // 捕获业务 code 错误
@@ -361,16 +362,17 @@ function handleReject(error, config, reject) {
           }, 3000);
         }
       } else {
-        const resMessage = makeMessage(message, traceparent);
-        config.catchIsShowMessage && messageError(resMessage);
+        showCaughtApiError(message, traceparent, {
+          catchIsShowMessage: config.catchIsShowMessage,
+        });
       }
     }
     return reject(message);
   }
 
-  const resMessage = makeMessage(error.response?.data?.message || error.message, traceparent);
-  config.catchIsShowMessage && messageError(resMessage);
-  console.error(error.message);
+  showCaughtApiError(error.response?.data?.message || error.message, traceparent, {
+    catchIsShowMessage: config.catchIsShowMessage,
+  });
   return reject(error);
 }
 
