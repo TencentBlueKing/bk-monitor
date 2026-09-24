@@ -78,7 +78,3 @@ def manifest_name(job):
 
 def upload(storage, file_path, file_name):
     return storage.export_upload(file_path=str(file_path), file_name=file_name)
-
-
-def download_url(storage, file_name, ttl):
-    return storage.generate_download_url(file_name=file_name, expired=ttl)
