@@ -656,13 +656,17 @@ class GetStrategyListV2Resource(Resource):
             filter_strategy_ids_set.intersection_update(set())
             return
 
-        or_condition = reduce(
-            operator.or_, (Q(**{"user_groups__contains": group_id}) for group_id in set(filter_user_group_ids))
-        )
-
-        user_group_strategy_ids = set(
-            StrategyActionConfigRelation.objects.filter(or_condition).values_list("strategy_id", flat=True).distinct()
-        )
+        # user_groups 是 JSON 数组，MySQL 5.7 既没有 JSON_OVERLAPS 也不支持多值索引，
+        # 把每个告警组拼成 JSON_CONTAINS 下推会得到上千个无法走索引的谓词，退化成准全表扫描。
+        # 这里改为按候选策略取回 user_groups，在内存里做集合交集。
+        target_group_ids = set(filter_user_group_ids)
+        user_group_strategy_ids = {
+            strategy_id
+            for strategy_id, user_groups in StrategyActionConfigRelation.objects.filter(
+                strategy_id__in=filter_strategy_ids_set
+            ).values_list("strategy_id", "user_groups")
+            if target_group_ids.intersection(user_groups or [])
+        }
         filter_strategy_ids_set.intersection_update(user_group_strategy_ids)
 
     @staticmethod
