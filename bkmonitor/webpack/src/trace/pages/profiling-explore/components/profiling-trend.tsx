@@ -38,6 +38,7 @@ import {
 } from 'echarts/components';
 import { use } from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
+import { escape } from 'lodash';
 import VueEcharts from 'vue-echarts';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
@@ -48,6 +49,7 @@ import { createSeries, createYAxis } from '@/pages/trace-explore/components/expl
 
 import type { ProfileSeries, SelectionRange } from '../types';
 import type { SeriesItem } from '@/pages/trace-explore/components/explore-chart/types';
+import type { TooltipComponentOption } from 'echarts';
 
 use([
   LineChart,
@@ -106,6 +108,30 @@ export default defineComponent({
       )
     );
     const handleData = (range: null | SelectionRange) => range?.map(time => [time, 0]) || [];
+    const formatTooltip: TooltipComponentOption['formatter'] = params => {
+      const points = (Array.isArray(params) ? params : [params]).filter(item => item.seriesId !== 'selection-handles');
+      if (!points.length) return '';
+      // 普通趋势是分类轴的标量值，时间对比是 [毫秒时间, 数值]；两种数据统一为同一提示。
+      const first = points[0] as (typeof points)[number] & { axisValue: number | string };
+      const time = Number(first.axisValue ?? (Array.isArray(first.value) ? first.value[0] : first.name));
+      const rows = points.map(item => {
+        const value = Array.isArray(item.value) ? item.value[1] : item.value;
+        if (value == null || !Number.isFinite(Number(value))) return '';
+        const formatted = formatProfileValue(Number(value), props.series[item.seriesIndex]?.unit);
+        // 系列名称来自接口，HTML 提示沿用公共样式时必须转义动态内容。
+        return `<li class="tooltips-content-item" style="font-weight:bold">
+          <span class="item-series" style="background-color:${escape(String(item.color))}"></span>
+          <span class="item-name">${escape(item.seriesName)}:</span>
+          <span class="item-value">${escape(formatted)}</span>
+        </li>`;
+      }).filter(Boolean);
+      if (!rows.length) return '';
+      const title = dayjs(time).tz(props.timezone).format('YYYY-MM-DD HH:mm:ssZZ');
+      return `<div class="monitor-chart-tooltips">
+        <p class="tooltips-header">${title}</p>
+        <ul class="tooltips-content">${rows.join('')}</ul>
+      </div>`;
+    };
     const options = computed(() => {
       const { seriesData, xAxis } = prepared.value;
       return {
@@ -114,12 +140,13 @@ export default defineComponent({
         grid: { left: 10, right: 16, top: 10, bottom: props.selection ? 10 : 28, containLabel: true },
         tooltip: {
           trigger: 'axis',
-          renderMode: 'richText',
+          renderMode: 'html',
           confine: true,
           backgroundColor: 'rgba(54,58,67,.88)',
           borderWidth: 0,
           textStyle: { color: '#fff', fontSize: 12 },
-          valueFormatter: value => formatProfileValue(Number(value), props.series[0]?.unit),
+          extraCssText: 'border-radius: 4px',
+          formatter: formatTooltip,
         },
         legend: {
           selected: props.legend,
