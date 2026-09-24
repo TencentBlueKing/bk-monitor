@@ -30,10 +30,22 @@ from django.conf import settings
 
 from apps.api import UnifyQueryApi
 from apps.api.exception import DataAPIException
-from apps.log_search.constants import ASYNC_EXPORT_SCROLL, MAX_RESULT_WINDOW, ExportErrorCode, ExportStage
+from apps.log_search.constants import (
+    ASYNC_EXPORT_SCROLL,
+    MAX_RESULT_WINDOW,
+    ExportErrorCode,
+    ExportPartStatus,
+    ExportStage,
+)
 from apps.log_search.export import state
 from apps.log_search.export.planner import build_handler, encode_export_row
-from apps.log_search.export.storage import UnsupportedExportStorage, artifact_name, build_storage, upload
+from apps.log_search.export.storage import (
+    UnsupportedExportStorage,
+    artifact_name,
+    build_storage,
+    delete_artifact,
+    upload,
+)
 from apps.utils.log import logger
 
 
@@ -126,6 +138,14 @@ def _upload_with_retry(storage, path, name, part):
             time.sleep(interval * attempt)
 
 
+def _discard_artifact(storage, name, part):
+    """本次执行没有被接受时清掉自己写的对象；清理失败只影响存储占用，不改变任务状态。"""
+    try:
+        delete_artifact(storage, name)
+    except Exception as error:  # pylint: disable=broad-except
+        logger.warning("[run_part] part=%s discard artifact %s failed: %s", part.pk, name, error)
+
+
 def _execute(job, part, fence):
     storage = build_storage(external=job.is_external)
     with tempfile.TemporaryDirectory(prefix=f"bklog-export-{job.pk}-") as directory:
@@ -138,17 +158,25 @@ def _execute(job, part, fence):
         if not state.set_stage(part.pk, fence, ExportStage.UPLOAD):
             return
         checksum = _sha256(archive)
-        name = artifact_name(job, part.part_no)
+        # 键取自本次投递的认领序号：一个键只会有一个执行在写，不会覆盖已发布的产物
+        name = artifact_name(job, part, fence.attempts)
         _upload_with_retry(storage, archive, name, part)
-        state.complete_part(
-            part.pk,
-            fence,
-            actual_rows=rows,
-            actual_bytes=size,
-            compressed_bytes=archive.stat().st_size,
-            object_key=name,
-            checksum=checksum,
-        )
+        accepted = False
+        try:
+            result = state.complete_part(
+                part.pk,
+                fence,
+                actual_rows=rows,
+                actual_bytes=size,
+                compressed_bytes=archive.stat().st_size,
+                object_key=name,
+                checksum=checksum,
+            )
+            accepted = result is not None and result.status == ExportPartStatus.SUCCESS
+        finally:
+            # 提交被拒绝、任务已取消或提交异常时，本次对象没有任何引用
+            if not accepted:
+                _discard_artifact(storage, name, part)
 
 
 def run_part(part_id, task_id):

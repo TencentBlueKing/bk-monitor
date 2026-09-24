@@ -40,6 +40,10 @@ class Storage(ABC):
     def generate_download_url(self, *args, **kwargs):
         pass
 
+    @abstractmethod
+    def delete_file(self, *args, **kwargs):
+        pass
+
 
 class CosStorage(Storage):
     def __init__(
@@ -65,6 +69,9 @@ class CosStorage(Storage):
     def generate_download_url(self, file_name, expired=None, **kwargs):
         return self.qcloud_cos.get_download_url(file_name, expired=expired)
 
+    def delete_file(self, file_name, **kwargs):
+        return self.qcloud_cos.delete_object(file_name)
+
 
 class NfsStorage(Storage):
     def __init__(self, nfs_path):
@@ -79,6 +86,12 @@ class NfsStorage(Storage):
         url_params = urlencode(url_params)
         return f"{url_path}?{url_params}"
 
+    def delete_file(self, file_name, **kwargs):
+        """分片导出不使用 NFS，这里仅为满足存储接口。"""
+        target_file_dir = os.path.join(self.nfs_path, file_name)
+        if os.path.exists(target_file_dir):
+            os.remove(target_file_dir)
+
 
 class BKREPOStorage(Storage):
     def __init__(self, expired: int = 0):
@@ -90,6 +103,9 @@ class BKREPOStorage(Storage):
 
     def generate_download_url(self, file_name: str, expired=None, **kwargs):
         return self.bk_repo_storage.client.generate_presigned_url(key=file_name, expires_in=expired or self.expired)
+
+    def delete_file(self, file_name, **kwargs):
+        return self.bk_repo_storage.client.delete_file(key=file_name)
 
 
 class StorageType:

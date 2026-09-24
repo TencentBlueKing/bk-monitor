@@ -22,7 +22,6 @@ the project delivered to anyone in the future.
 from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_search.constants import (
-    ASYNC_APP_CODE,
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
@@ -62,19 +61,35 @@ def build_storage(external=False):
     )
 
 
-def artifact_name(job, part_no):
+# 分片导出产物统一放在该前缀下：桶生命周期规则和任务级清理都按这个前缀匹配
+OBJECT_PREFIX = "exports"
+
+
+def job_object_prefix(job_id):
+    """任务产物前缀：包含该任务的全部分片对象与清单。"""
+    return f"{OBJECT_PREFIX}/{job_id}/"
+
+
+def artifact_name(job, part, attempts):
     """
     分片产物名；同时作为对象存储里的对象键。
 
-    必须是 (job, part_no) 的纯函数：重试、重复投递和超时回收都会重新执行同一个分片，
-    确定性命名让后一次执行覆盖同一个对象，而不是留下没有任何引用的孤儿产物。
+    键必须包含认领序号 attempts：同一个分片的每次认领（重复投递、超时回收、重试）都会递增
+    attempts，因此一个键只会有一个执行在写。后一次执行写自己的键，不会覆盖已经被 fence
+    接受并发布的产物；提交被拒绝的执行由 Worker 清掉自己的键，进程崩溃残留的对象交给
+    前缀生命周期兜底。
     """
-    return f"{ASYNC_APP_CODE}_{job.index_set_id}_{job.pk}_{part_no}.tar.gz"
+    return f"{job_object_prefix(job.pk)}parts/{part.pk}/attempt-{attempts}.tar.gz"
 
 
 def manifest_name(job):
-    return f"{ASYNC_APP_CODE}_{job.index_set_id}_{job.pk}_manifest.json"
+    return f"{job_object_prefix(job.pk)}manifest.json"
 
 
 def upload(storage, file_path, file_name):
     return storage.export_upload(file_path=str(file_path), file_name=file_name)
+
+
+def delete_artifact(storage, file_name):
+    """删除产物对象；对象不存在时视为已清理。"""
+    return storage.delete_file(file_name)

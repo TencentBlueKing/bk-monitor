@@ -88,7 +88,13 @@ from apps.log_search.export.scheduler import (
     enqueue_planning,
     finalize_export,
 )
-from apps.log_search.export.storage import UnsupportedExportStorage, artifact_name, build_storage, manifest_name
+from apps.log_search.export.storage import (
+    UnsupportedExportStorage,
+    artifact_name,
+    build_storage,
+    job_object_prefix,
+    manifest_name,
+)
 from apps.log_search.tasks.sharded_export import (
     PLANNING_SOFT_TIME_LIMIT,
     coordinate_sharded_exports,
@@ -400,7 +406,7 @@ class PartRunnerTests(TestCase):
         build_storage.assert_called_once_with(external=True)
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.SUCCESS)
-        self.assertEqual(part.object_key, artifact_name(job, 1))
+        self.assertEqual(part.object_key, artifact_name(job, part, 1))
 
     @override_settings(ASYNC_EXPORT_UPLOAD_ATTEMPTS=3, ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS=1)
     def test_execute_retries_upload_without_requerying(self):
@@ -483,6 +489,115 @@ class PartRunnerTests(TestCase):
         part.refresh_from_db()
         self.assertEqual(part.error_code, ExportErrorCode.UNIFY_QUERY_FAILED)
         self.assertEqual(part.status, ExportPartStatus.WAITING)
+
+
+class PartArtifactLifecycleTests(TestCase):
+    """
+    产物归属由 fence 裁决：每个执行只写 (part, 认领序号) 决定的键，
+    只有被接受为 SUCCESS 的执行留下对象，其余执行清掉自己的键。
+    """
+
+    def setUp(self):
+        self.job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        self.part = ExportPart.objects.create(
+            job=self.job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.WAITING,
+        )
+        self.objects = {}
+        self.uploaded = []
+        self.deleted = []
+
+    def claim(self, task_id):
+        state.dispatch_part(self.part.pk, task_id)
+        return state.claim_part(self.part.pk, task_id)
+
+    def execute(self, part, fence, before_upload=None, discard_error=None):
+        """执行一次分片，用一个 dict 充当对象存储。"""
+
+        def upload_artifact(_storage, path, name):
+            if before_upload is not None:
+                before_upload()
+            self.objects[name] = path.read_bytes()
+            self.uploaded.append(name)
+
+        def delete_artifact_file(_storage, name):
+            if discard_error is not None:
+                raise discard_error
+            self.deleted.append(name)
+            self.objects.pop(name, None)
+
+        with (
+            patch("apps.log_search.export.worker.build_storage"),
+            patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
+            patch("apps.log_search.export.worker.UnifyQueryApi") as api,
+            patch("apps.log_search.export.worker.upload", side_effect=upload_artifact),
+            patch("apps.log_search.export.worker.delete_artifact", side_effect=delete_artifact_file),
+            patch("apps.log_search.export.worker._sha256", return_value="checksum"),
+        ):
+            api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
+            _execute(self.job, part, fence)
+
+    def test_accepted_execution_keeps_its_artifact(self):
+        part = self.claim("task-1")
+
+        self.execute(part, fence_of(part))
+
+        key = artifact_name(self.job, part, 1)
+        self.assertEqual(self.uploaded, [key])
+        self.assertEqual(self.deleted, [])
+        self.assertEqual(list(self.objects), [key])
+        self.part.refresh_from_db()
+        self.assertEqual(self.part.status, ExportPartStatus.SUCCESS)
+        self.assertEqual(self.part.object_key, key)
+
+    def test_late_upload_never_overwrites_the_published_artifact(self):
+        """旧执行的上传晚于新执行成功时，只写自己的键，并在被判出局后清掉它。"""
+        late = self.claim("task-1")
+
+        def publish_new_attempt():
+            """旧执行还在上传的期间，新一次投递已经跑完并发布了产物。"""
+            state.recover_part(self.part.pk, cutoff=timezone.now() + timedelta(seconds=1))
+            winner = self.claim("task-2")
+            self.execute(winner, fence_of(winner))
+
+        self.execute(late, fence_of(late), before_upload=publish_new_attempt)
+
+        late_key = artifact_name(self.job, late, 1)
+        winner_key = artifact_name(self.job, self.part, 2)
+        self.assertNotEqual(late_key, winner_key)
+        self.assertEqual(self.uploaded, [winner_key, late_key])
+        self.assertEqual(self.deleted, [late_key])
+        self.assertEqual(list(self.objects), [winner_key])
+        self.part.refresh_from_db()
+        self.assertEqual(self.part.status, ExportPartStatus.SUCCESS)
+        self.assertEqual(self.part.object_key, winner_key)
+
+    def test_artifact_is_discarded_when_the_job_is_canceled(self):
+        part = self.claim("task-1")
+        state.cancel_job(self.job.pk)
+
+        self.execute(part, fence_of(part))
+
+        key = artifact_name(self.job, part, 1)
+        self.assertEqual(self.uploaded, [key])
+        self.assertEqual(self.deleted, [key])
+        self.assertEqual(self.objects, {})
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.CANCELED)
+
+    def test_discard_failure_does_not_change_the_commit_result(self):
+        """清理失败只影响存储占用，不能反过来影响分片状态。"""
+        part = self.claim("task-1")
+        state.cancel_job(self.job.pk)
+
+        self.execute(part, fence_of(part), discard_error=RuntimeError("cos down"))
+
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.CANCELED)
+        self.assertEqual(list(self.objects), [artifact_name(self.job, part, 1)])
 
 
 class PartTaskContractTests(SimpleTestCase):
@@ -999,21 +1114,25 @@ class SplitTests(TestCase):
 
 
 class ArtifactNameTests(SimpleTestCase):
-    """产物名必须是 (job, part_no) 的纯函数，否则重试会留下无人引用的孤儿对象。"""
+    """产物键包含认领序号：一个键只有一个执行在写，重复投递不会互相覆盖。"""
 
-    def test_artifact_name_is_deterministic_per_job_and_part(self):
-        job = SimpleNamespace(index_set_id=7, pk=11)
+    def test_artifact_name_is_unique_per_attempt(self):
+        job = SimpleNamespace(pk=11)
+        part = SimpleNamespace(pk=3)
 
-        first = artifact_name(job, 3)
+        self.assertEqual(artifact_name(job, part, 1), artifact_name(job, part, 1))
+        self.assertEqual(artifact_name(job, part, 1), "exports/11/parts/3/attempt-1.tar.gz")
+        self.assertNotEqual(artifact_name(job, part, 1), artifact_name(job, part, 2))
+        self.assertNotEqual(artifact_name(job, part, 1), artifact_name(job, SimpleNamespace(pk=4), 1))
 
-        self.assertEqual(first, artifact_name(job, 3))
-        self.assertTrue(first.endswith("_11_3.tar.gz"))
-        self.assertNotEqual(first, artifact_name(job, 4))
+    def test_names_live_under_the_job_prefix(self):
+        """分片对象与清单共用一个任务前缀，桶生命周期和任务级清理才能按前缀匹配。"""
+        job = SimpleNamespace(pk=11)
+        part = SimpleNamespace(pk=3)
 
-    def test_manifest_name_is_deterministic(self):
-        job = SimpleNamespace(index_set_id=7, pk=11)
-
-        self.assertEqual(manifest_name(job), manifest_name(job))
+        self.assertTrue(artifact_name(job, part, 2).startswith(job_object_prefix(11)))
+        self.assertTrue(manifest_name(job).startswith(job_object_prefix(11)))
+        self.assertEqual(manifest_name(job), "exports/11/manifest.json")
 
 
 class BuildStorageTests(SimpleTestCase):
