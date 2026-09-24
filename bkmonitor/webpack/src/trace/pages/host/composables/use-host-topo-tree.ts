@@ -278,6 +278,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     } else if (!preserve && currentId) {
       await handleSelectNodeOfNodeId();
     }
+    if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
     viewportScrollTop = Math.min(viewportScrollTop, Math.max(0, result.total * TOPO_ROW_HEIGHT - viewportHeight));
     if (scrollEl) scrollEl.scrollTop = viewportScrollTop;
     loading.value = false;
@@ -344,13 +345,14 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   };
 
   const handleSelectNodeOfNodeId = async () => {
+    const version = loadRequestVersion;
     const target = resolveInitialHostScope(readonly, route.query, nodeId.value, Number(appStore.bizId));
     if (!target) return;
     const requested = createHostTarget(target, Number(appStore.bizId));
     if (selectedNode.value?.id !== requested.id) selectedNode.value = requested;
     if (!initialized) return;
     const result = await topoTreeWorker.select(requested.id);
-    if (disposed || selectedNode.value?.id !== requested.id) return;
+    if (disposed || version !== loadRequestVersion || selectedNode.value?.id !== requested.id) return;
     if (result.selectedNode) selectedNode.value = result.selectedNode;
     if (result.selectedNodeOffset >= 0) {
       viewportScrollTop = result.selectedNodeOffset * TOPO_ROW_HEIGHT;

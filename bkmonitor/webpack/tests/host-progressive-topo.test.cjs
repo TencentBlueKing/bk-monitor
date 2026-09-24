@@ -44,7 +44,7 @@ function rawWorker(file) {
     return output;
   };
 }
-function treeClient(rangeResponse = value => Promise.resolve(value)) {
+function treeClient(workerResponse = value => Promise.resolve(value)) {
   const send = rawWorker('host-topo-tree');
   return {
     init: (treeData, hideEmptyNode, searchValue, selectedId, complete = true, preserve = false, anchorId = '') =>
@@ -59,8 +59,8 @@ function treeClient(rangeResponse = value => Promise.resolve(value)) {
           anchorId,
         })
       ),
-    select: id => Promise.resolve(send({ type: 'SELECT', id })),
-    getRange: (start, end) => rangeResponse(send({ type: 'GET_RANGE', start, end })),
+    select: id => workerResponse(send({ type: 'SELECT', id })),
+    getRange: (start, end) => workerResponse(send({ type: 'GET_RANGE', start, end })),
     toggle: (id, expanded, start, end) => Promise.resolve(send({ type: 'TOGGLE', id, expanded, start, end })),
     setFilter: (hideEmptyNode, searchValue, start, end) =>
       Promise.resolve(send({ type: 'SET_FILTER', hideEmptyNode, searchValue, start, end })),
@@ -101,7 +101,7 @@ function renderer() {
   });
 }
 
-function harness(query = {}, readonly = false, rangeResponse) {
+function harness(query = {}, readonly = false, workerResponse) {
   global.window = { cc_biz_id: 1, timezone: 'UTC', i18n: { t: value => value } };
   global.ResizeObserver = class {
     observe() {}
@@ -231,7 +231,7 @@ function harness(query = {}, readonly = false, rangeResponse) {
       if (id.endsWith('/provider')) return { useAppReadonlyInject: () => readonly };
       if (id.endsWith('/store/modules/host')) return { useHostStore: () => store };
       if (id.endsWith('/store/modules/app')) return { useAppStore: () => appStore };
-      if (id.endsWith('/use-host-topo-tree-worker')) return { useHostTopoTreeWorker: () => treeClient(rangeResponse) };
+      if (id.endsWith('/use-host-topo-tree-worker')) return { useHostTopoTreeWorker: () => treeClient(workerResponse) };
       if (id.endsWith('/use-host-list-worker')) return { useHostListWorker: () => listWorker };
       if (id.endsWith('/host-service')) return services;
       if (id === 'monitor-api/modules/scene_view') return services;
@@ -794,5 +794,35 @@ for (const transition of ['business', 'share', 'unmount']) {
     assert.equal(h.topo.visibleRows.value, rows, 'stale response must not replace visible rows');
     assert.equal(h.topo.totalRows.value, total);
     if (transition !== 'unmount') h.app.unmount();
+  });
+}
+
+for (const shared of [false, true]) {
+  test(`late Worker selection cannot complete the new ${shared ? 'shared host' : 'business'} tree`, async () => {
+    let release;
+    const h = harness(
+      shared ? { shareTargetType: 'host', shareBkHostId: '11' } : {},
+      shared,
+      result =>
+        result.type === 'SELECT_DONE'
+          ? new Promise(resolve => {
+              release = () => resolve(result);
+            })
+          : Promise.resolve(result)
+    );
+    await flush();
+    h.respond('getHostTopoTreeByBizId', shared ? fullTree() : skeleton(), args => shared || args[2] === false);
+    await flush();
+    assert.ok(release, 'old tree initialization is waiting for selection');
+    h.appStore.bizId = 2;
+    await flush();
+    assert.equal(h.topo.loading.value, true);
+    assert.equal(h.topo.selectedNode.value.bk_biz_id, 2);
+    release();
+    await flush();
+    assert.equal(h.topo.selectedNode.value.bk_biz_id, 2, 'old selected node must not overwrite the new scope');
+    assert.equal(h.topo.loading.value, true, 'old initialization must not finish the new load');
+    assert.equal(h.topo.visibleRows.value.length, 0);
+    h.app.unmount();
   });
 }
