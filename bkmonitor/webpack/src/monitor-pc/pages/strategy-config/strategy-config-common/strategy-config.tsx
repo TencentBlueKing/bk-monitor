@@ -1216,7 +1216,14 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         }
         this.strategyStatusOptions = strategy_status_list;
       })
-      .catch(() => {});
+      .catch(err => {
+        // 超时、网络异常与 5xx 不触发全局提示，需在此提示，否则行上缺少告警标记会被误读为无告警；
+        // 被新列表取消时表格已替换，不提示
+        const silentFailure = !err || err.status >= 500;
+        if (silentFailure && this.table.data === data) {
+          this.$bkMessage({ theme: 'error', message: this.$t('获取策略告警数量失败') });
+        }
+      });
   }
   /**
    * @description: 获取list data
