@@ -1,3 +1,4 @@
+import copy
 from types import SimpleNamespace
 
 import fakeredis
@@ -91,3 +92,86 @@ def test_wide_window_keeps_old_buckets_deduplicated_and_accepts_late_series():
             assert client.ttl(cache_key) == 600
             # 模拟接近到期，下一轮必须重新续期。
             client.expire(cache_key, 1)
+
+
+LOG_COUNT_QUERY = {
+    "data_source_label": DataSourceLabel.BK_LOG_SEARCH,
+    "data_type_label": DataTypeLabel.LOG,
+    "alias": "a",
+    "index_set_id": 1,
+    "result_table_id": "1",
+    "query_string": "error",
+    "agg_interval": 60,
+    "agg_dimension": [],
+    "agg_condition": [],
+    "time_field": "dtEventTimeStamp",
+}
+TIME_SERIES_COUNT_QUERY = {
+    "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+    "data_type_label": DataTypeLabel.TIME_SERIES,
+    "alias": "a",
+    "result_table_id": "system.cpu_summary",
+    "metric_field": "usage",
+    "agg_method": "COUNT",
+    "agg_interval": 60,
+    "agg_dimension": [],
+    "agg_condition": [],
+}
+GTE_1 = [[{"method": "gte", "threshold": 1}]]
+LT_1 = [[{"method": "lt", "threshold": 1}]]
+
+
+@pytest.mark.parametrize(
+    "query_config,thresholds,late_value_detected",
+    [
+        (LOG_COUNT_QUERY, [GTE_1], True),
+        # 0 本身判为异常时仍需去重，否则同一时间点会重复产生异常
+        (LOG_COUNT_QUERY, [LT_1], False),
+        # 同一拉取组共用去重缓存，任一监控项不满足都需去重
+        (LOG_COUNT_QUERY, [GTE_1, LT_1], False),
+        (TIME_SERIES_COUNT_QUERY, [GTE_1], False),
+    ],
+)
+def test_log_count_zero_point_stays_retryable_within_lookback(mocker, query_config, thresholds, late_value_detected):
+    client = redis.StrictRedis(
+        connection_pool=redis.ConnectionPool(
+            connection_class=fakeredis.FakeConnection, server=fakeredis.FakeServer(), decode_responses=True
+        )
+    )
+
+    def new_duplicate(*args, **kwargs):
+        duplicate = Duplicate(*args, **kwargs)
+        duplicate.client = client
+        return duplicate
+
+    mocker.patch("alarm_backends.service.access.data.processor.Duplicate", side_effect=new_duplicate)
+    strategy = SimpleNamespace(
+        id=1, bk_biz_id=2, bk_tenant_id="system", config={}, priority=None, priority_group_key=None, scenario="os"
+    )
+    items = [
+        Item(
+            {
+                "id": item_id,
+                "name": "COUNT",
+                "expression": "a",
+                "query_configs": [copy.deepcopy(query_config)],
+                "algorithms": [{"type": "Threshold", "level": 2, "config": threshold, "unit_prefix": ""}],
+            },
+            strategy,
+        )
+        for item_id, threshold in enumerate(thresholds, start=1)
+    ]
+
+    def pull(value):
+        process = AccessDataProcess("log-count-group")
+        process.items = items
+        process.from_timestamp = process.until_timestamp = 0
+        process.filter_duplicates([{"_time_": 3600, "_result_": value}])
+        process.dup_obj.refresh_cache()
+        return len(process.record_list)
+
+    # 首读时日志尚未可见
+    assert pull(0) == 1
+    # 下一轮回看读到迟到的日志
+    assert pull(1) == int(late_value_detected)
+    assert pull(1) == 0

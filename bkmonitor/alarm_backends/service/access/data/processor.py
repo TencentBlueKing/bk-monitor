@@ -750,6 +750,9 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 用于在去重后 record_list 为空时，仍然能够更新 checkpoint，避免死循环
         max_queried_data_time = 0
 
+        # 日志计数的 0 只表示暂未查到日志，不写入去重缓存；日志入库延迟时，回看窗口内再次读到的计数仍会被检测
+        keep_zero_pending = all(self._is_zero_normal_log_count(item) for item in self.items)
+
         non_duplicate_records = []
 
         for record in reversed(points):
@@ -778,7 +781,8 @@ class AccessDataProcess(BaseAccessDataProcess):
                 # 非重复数据创建 DataRecord
                 point = DataRecord(self.items, record)
                 records.append(point)
-                non_duplicate_records.append(point)
+                if not (keep_zero_pending and value == 0):
+                    non_duplicate_records.append(point)
 
                 # 只观察非重复数据
                 if point.time > max_data_time:
@@ -915,6 +919,31 @@ class AccessDataProcess(BaseAccessDataProcess):
             if algorithm.get("type") != "Threshold":
                 return False
         return True
+
+    def _is_zero_normal_log_count(self, item: Item) -> bool:
+        """
+        判断 Item 是否为日志计数，且各级别静态阈值都不会把 0 判为异常。
+        0 被判为异常的策略（如日志量 < 1）若不去重，同一时间点会被重复检测并重复产生异常。
+        """
+        if item.data_type_labels != {DataTypeLabel.LOG} or not item.algorithms or len(item.data_sources) != 1:
+            return False
+        if [(metric.get("method") or "").upper() for metric in item.data_sources[0].metrics] != ["COUNT"]:
+            return False
+        if not self._is_all_static_threshold(item):
+            return False
+
+        from alarm_backends.service.detect import DataPoint
+        from alarm_backends.service.detect.strategy.threshold import Threshold
+
+        zero_point = DataPoint({"value": 0, "time": 0, "record_id": ""}, item)
+        try:
+            return not any(
+                Threshold(algorithm["config"], algorithm.get("unit_prefix", "")).detect(zero_point)
+                for algorithm in item.algorithms
+            )
+        except Exception as e:
+            logger.warning(f"strategy({item.strategy.id}) item({item.id}) zero threshold check failed: {e}")
+            return False
 
     def _can_merge_access_detect(self) -> bool:
         """
