@@ -35,6 +35,7 @@ import { disableShield } from 'monitor-api/modules/shield';
 import {
   deleteStrategyV2,
   getScenarioList,
+  getStrategyAlertSummaryV2,
   getStrategyListV2,
   getTargetDetail,
   updatePartialStrategyV2,
@@ -290,6 +291,7 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
   selectKey = 1;
   firstRequest = true; // 第一次请求
   cancelFn = () => {}; // 取消监控目标接口方法
+  alertSummaryCancelFn = () => {}; // 取消策略告警统计接口方法
 
   get bizList() {
     return this.$store.getters.bizList;
@@ -324,7 +326,8 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       name: this.$t('状态'),
       data: this.strategyStatusOptions.map(item => ({
         ...item,
-        count: item.count || 0,
+        // 告警中、屏蔽中的数量由告警统计接口异步返回，返回前为 null
+        count: item.count ?? '--',
         icon: iconMap[item.id],
       })),
     };
@@ -1191,6 +1194,32 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
     );
   }
   /**
+   * @description: 获取策略告警数量及状态统计
+   * @param {*} data
+   * @param {*} conditions
+   * @return {*}
+   */
+  getAlertSummary(data, conditions) {
+    this.alertSummaryCancelFn(); // 取消上一次策略告警统计的请求
+    getStrategyAlertSummaryV2(
+      { conditions, strategy_ids: data.map(item => item.id) },
+      {
+        cancelToken: new CancelToken(c => {
+          this.alertSummaryCancelFn = c;
+        }),
+      }
+    )
+      .then(({ strategy_status_list, strategy_alert_counts }) => {
+        for (const item of data) {
+          const alertCounts = strategy_alert_counts[item.id];
+          item.abnormalAlertCount = alertCounts?.alert_count || 0;
+          item.shieldAlertCount = alertCounts?.shield_alert_count || 0;
+        }
+        this.strategyStatusOptions = strategy_status_list;
+      })
+      .catch(() => {});
+  }
+  /**
    * @description: 获取list data
    * @param {*} needLoading
    * @param {*} defPage
@@ -1215,10 +1244,12 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
       // data_source_list: this.label.selectedLabels || [],
       order_by: '-update_time',
       with_user_group: true,
+      with_alert_summary: false,
       // service_category: this.label.serviceCategory
     };
     this.emptyType = this.header.condition.length > 0 ? 'search-empty' : 'empty';
     this.cancelFn(); // 取消上一次监控目标的请求
+    this.alertSummaryCancelFn(); // 取消上一次策略告警统计的请求
     getStrategyListV2(params)
       .then(async data => {
         this.noticeGroupList = data.user_group_list;
@@ -1229,9 +1260,10 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         const tableData = this.tableInstance.getTableData();
         this.table.data = tableData;
         this.getTargetDetail(tableData);
+        this.strategyStatusOptions = data.strategy_status_list || [];
+        this.getAlertSummary(tableData, params.conditions);
         this.handleTableDataChange(this.table.data);
         this.pageCount = await this.handelScenarioList(data, this.table.data);
-        this.strategyStatusOptions = data.strategy_status_list || [];
         this.sourceList = data.data_source_list
           .map(item => {
             const { type, name, count } = item;
