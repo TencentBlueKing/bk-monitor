@@ -39,7 +39,7 @@ from alarm_backends.core.storage.redis import Cache
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.management.hashring import HashRing
 from alarm_backends.service.access import base
-from alarm_backends.service.access.data.duplicate import Duplicate
+from alarm_backends.service.access.data.duplicate import ZERO_VALUE_RECORD_SUFFIX, Duplicate
 from alarm_backends.service.access.data.filters import (
     ExpireFilter,
     HostStatusFilter,
@@ -750,6 +750,13 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 用于在去重后 record_list 为空时，仍然能够更新 checkpoint，避免死循环
         max_queried_data_time = 0
 
+        # 日志关键字计数的 0 只表示暂未查到日志：在静态阈值下判为正常时，去重缓存只记“该点读到过 0”，
+        # 回看窗口内迟到的日志使计数变为非零后仍会被检测。非零值照常按 record_id 去重：
+        # 检测结果缓存按成员条数裁剪，同一时间点多次写入不同的值会挤掉恢复判断仍需要的旧点
+        log_count_detectors = self._build_log_count_threshold_detectors()
+        mark_zero = log_count_detectors is not None and self._is_threshold_normal(log_count_detectors, 0)
+        zero_record_ids = defaultdict(list)
+
         non_duplicate_records = []
 
         for record in reversed(points):
@@ -766,8 +773,12 @@ class AccessDataProcess(BaseAccessDataProcess):
             if record_time > max_queried_data_time:
                 max_queried_data_time = record_time
 
+            zero_record_id = f"{record_id}{ZERO_VALUE_RECORD_SUFFIX}" if mark_zero and value == 0 else None
+
             # 去重判断
-            if dup_obj.is_duplicate_by_id(record_id, record_time):
+            if dup_obj.is_duplicate_by_id(record_id, record_time) or (
+                zero_record_id and dup_obj.is_duplicate_by_id(zero_record_id, record_time)
+            ):
                 duplicate_counts += 1
                 # 有优先级的策略，重复数据需要保留，后续再过滤
                 if have_priority:
@@ -778,7 +789,10 @@ class AccessDataProcess(BaseAccessDataProcess):
                 # 非重复数据创建 DataRecord
                 point = DataRecord(self.items, record)
                 records.append(point)
-                non_duplicate_records.append(point)
+                if zero_record_id:
+                    zero_record_ids[record_time].append(zero_record_id)
+                else:
+                    non_duplicate_records.append(point)
 
                 # 只观察非重复数据
                 if point.time > max_data_time:
@@ -787,6 +801,8 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 批量添加非重复记录到去重缓存
         if non_duplicate_records:
             dup_obj.add_records_batch(non_duplicate_records)
+        if zero_record_ids:
+            dup_obj.add_record_ids_batch(zero_record_ids)
 
         # 保存到实例变量，供 push 方法使用
         self.max_queried_data_time = max_queried_data_time
@@ -914,6 +930,61 @@ class AccessDataProcess(BaseAccessDataProcess):
             # Threshold 算法类型
             if algorithm.get("type") != "Threshold":
                 return False
+        return True
+
+    def _build_log_count_threshold_detectors(self) -> list | None:
+        """
+        拉取组内的 Item 均为日志关键字计数且只用静态阈值时，返回每个 Item 按级别分组的 Threshold 检测器；否则返回 None。
+        去重缓存由拉取组内的 Item 共用，任一 Item 不满足都需按原逻辑去重。
+        """
+        from alarm_backends.service.detect.strategy.threshold import Threshold
+
+        log_keyword_sources = {
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+        }
+        item_detectors = []
+        for item in self.items:
+            if len(item.data_sources) != 1 or not item.algorithms or not item.data_source_types <= log_keyword_sources:
+                return None
+            metrics = item.data_sources[0].metrics
+            if len(metrics) != 1:
+                return None
+            method = (metrics[0].get("method") or "").upper()
+            # 采集器日志关键字的 COUNT 在数据源构造时被改写为 SUM(event.count)，同样是命中次数
+            if not (method == "COUNT" or (method == "SUM" and metrics[0].get("field") == "event.count")):
+                return None
+            if not self._is_all_static_threshold(item):
+                return None
+
+            level_detectors = defaultdict(list)
+            try:
+                for algorithm in item.algorithms:
+                    detector = Threshold(algorithm["config"], algorithm.get("unit_prefix", ""))
+                    level_detectors[int(algorithm["level"])].append(detector)
+            except Exception as e:
+                logger.warning(f"strategy({item.strategy.id}) item({item.id}) build threshold detectors failed: {e}")
+                return None
+            item_detectors.append((item, level_detectors))
+        return item_detectors
+
+    def _is_threshold_normal(self, item_detectors: list, value) -> bool:
+        """
+        判断值在各 Item 各级别的静态阈值下是否都正常。
+        与检测一致：同级别多个算法按连接符组合，未配置或非 or 时按 and。
+        """
+        from alarm_backends.service.detect import DataPoint
+
+        try:
+            for item, level_detectors in item_detectors:
+                data_point = DataPoint({"value": value, "time": 0, "record_id": ""}, item)
+                for level, detectors in level_detectors.items():
+                    results = [bool(detector.detect(data_point)) for detector in detectors]
+                    if any(results) if item.algorithm_connectors[level] == "or" else all(results):
+                        return False
+        except Exception as e:
+            logger.warning(f"strategy_group_key({self.strategy_group_key}) threshold check failed: {e}")
+            return False
         return True
 
     def _can_merge_access_detect(self) -> bool:
