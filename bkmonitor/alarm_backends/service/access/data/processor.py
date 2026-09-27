@@ -39,7 +39,7 @@ from alarm_backends.core.storage.redis import Cache
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.management.hashring import HashRing
 from alarm_backends.service.access import base
-from alarm_backends.service.access.data.duplicate import Duplicate
+from alarm_backends.service.access.data.duplicate import ZERO_VALUE_RECORD_SUFFIX, Duplicate
 from alarm_backends.service.access.data.filters import (
     ExpireFilter,
     HostStatusFilter,
@@ -750,10 +750,12 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 用于在去重后 record_list 为空时，仍然能够更新 checkpoint，避免死循环
         max_queried_data_time = 0
 
-        # 日志关键字计数在静态阈值下判为正常的点可能只是日志尚未全部入库，不写入去重缓存，
-        # 回看窗口内再次读到的计数仍会被检测；异常点照常去重，避免同一时间点重复产生异常
+        # 日志关键字计数的 0 只表示暂未查到日志：在静态阈值下判为正常时，去重缓存只记“该点读到过 0”，
+        # 回看窗口内迟到的日志使计数变为非零后仍会被检测。非零值照常按 record_id 去重：
+        # 检测结果缓存按成员条数裁剪，同一时间点多次写入不同的值会挤掉恢复判断仍需要的旧点
         log_count_detectors = self._build_log_count_threshold_detectors()
-        normal_values = {}
+        mark_zero = log_count_detectors is not None and self._is_threshold_normal(log_count_detectors, 0)
+        zero_record_ids = defaultdict(list)
 
         non_duplicate_records = []
 
@@ -771,8 +773,12 @@ class AccessDataProcess(BaseAccessDataProcess):
             if record_time > max_queried_data_time:
                 max_queried_data_time = record_time
 
+            zero_record_id = f"{record_id}{ZERO_VALUE_RECORD_SUFFIX}" if mark_zero and value == 0 else None
+
             # 去重判断
-            if dup_obj.is_duplicate_by_id(record_id, record_time):
+            if dup_obj.is_duplicate_by_id(record_id, record_time) or (
+                zero_record_id and dup_obj.is_duplicate_by_id(zero_record_id, record_time)
+            ):
                 duplicate_counts += 1
                 # 有优先级的策略，重复数据需要保留，后续再过滤
                 if have_priority:
@@ -783,9 +789,9 @@ class AccessDataProcess(BaseAccessDataProcess):
                 # 非重复数据创建 DataRecord
                 point = DataRecord(self.items, record)
                 records.append(point)
-                if log_count_detectors is not None and point.value not in normal_values:
-                    normal_values[point.value] = self._is_threshold_normal(log_count_detectors, point.value)
-                if log_count_detectors is None or not normal_values[point.value]:
+                if zero_record_id:
+                    zero_record_ids[record_time].append(zero_record_id)
+                else:
                     non_duplicate_records.append(point)
 
                 # 只观察非重复数据
@@ -795,6 +801,8 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 批量添加非重复记录到去重缓存
         if non_duplicate_records:
             dup_obj.add_records_batch(non_duplicate_records)
+        if zero_record_ids:
+            dup_obj.add_record_ids_batch(zero_record_ids)
 
         # 保存到实例变量，供 push 方法使用
         self.max_queried_data_time = max_queried_data_time

@@ -132,7 +132,8 @@ GTE_0 = [[{"method": "gte", "threshold": 0}]]
 GTE_1 = [[{"method": "gte", "threshold": 1}]]
 GTE_5 = [[{"method": "gte", "threshold": 5}]]
 LT_1 = [[{"method": "lt", "threshold": 1}]]
-LATE = ([0, 1, 1], [1, 1, 0])
+# 重复读到的 0 不再送检，迟到日志使计数变为非零后仍会被检测
+LATE = ([0, 0, 1, 1], [1, 0, 1, 0])
 DEDUPED = ([0, 1, 1], [1, 0, 0])
 
 
@@ -140,8 +141,8 @@ DEDUPED = ([0, 1, 1], [1, 0, 0])
     "query_config,item_thresholds,connector,reads",
     [
         (LOG_COUNT_QUERY, [[GTE_1]], "and", LATE),
-        # 部分日志先可见、计数未达阈值时也不去重
-        (LOG_COUNT_QUERY, [[GTE_5]], "and", ([0, 2, 7, 7], [1, 1, 1, 0])),
+        # 非零值照常去重，同一时间点最多写入两条检测结果
+        (LOG_COUNT_QUERY, [[GTE_5]], "and", ([0, 2, 7, 7], [1, 1, 0, 0])),
         # 异常点照常去重，否则同一时间点会重复产生异常
         (LOG_COUNT_QUERY, [[LT_1]], "and", DEDUPED),
         # 同一拉取组共用去重缓存，任一监控项判为异常都需去重
@@ -154,9 +155,7 @@ DEDUPED = ([0, 1, 1], [1, 0, 0])
         (TIME_SERIES_COUNT_QUERY, [[GTE_1]], "and", DEDUPED),
     ],
 )
-def test_log_count_normal_point_stays_retryable_within_lookback(
-    mocker, query_config, item_thresholds, connector, reads
-):
+def test_log_count_zero_point_stays_retryable_within_lookback(mocker, query_config, item_thresholds, connector, reads):
     client = redis.StrictRedis(
         connection_pool=redis.ConnectionPool(
             connection_class=fakeredis.FakeConnection, server=fakeredis.FakeServer(), decode_responses=True
