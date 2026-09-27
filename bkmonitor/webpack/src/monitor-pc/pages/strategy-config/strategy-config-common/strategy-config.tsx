@@ -1200,7 +1200,6 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
    * @return {*}
    */
   getAlertSummary(data, conditions) {
-    this.alertSummaryCancelFn(); // 取消上一次策略告警统计的请求
     getStrategyAlertSummaryV2(
       { conditions, strategy_ids: data.map(item => item.id) },
       {
@@ -1261,7 +1260,11 @@ class StrategyConfig extends Mixins(UserConfigMixin, authorityMixinCreate(strate
         this.table.data = tableData;
         this.getTargetDetail(tableData);
         this.strategyStatusOptions = data.strategy_status_list || [];
-        this.getAlertSummary(tableData, params.conditions);
+        this.alertSummaryCancelFn(); // 取消上一次策略告警统计的请求
+        // 按告警中、屏蔽中过滤时列表已带回告警统计，无需再请求
+        if (this.strategyStatusOptions.some(item => item.count === null)) {
+          this.getAlertSummary(tableData, params.conditions);
+        }
         this.handleTableDataChange(this.table.data);
         this.pageCount = await this.handelScenarioList(data, this.table.data);
         this.sourceList = data.data_source_list

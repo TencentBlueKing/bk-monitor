@@ -100,6 +100,57 @@ def test_alert_statuses_reuse_alert_summary():
     search.assert_not_called()
 
 
+def test_status_filter_shares_one_alert_summary():
+    alert_summary = {
+        1: {"alert_count": 2, "shield_alert_count": 0},
+        2: {"alert_count": 0, "shield_alert_count": 1},
+    }
+    summary_calls = []
+
+    def get_alert_summary(bk_biz_id, strategy_ids):
+        summary_calls.append((bk_biz_id, set(strategy_ids)))
+        return alert_summary
+
+    candidates = {1, 2, 3}
+    context = {}
+    with (
+        mock.patch.object(GetStrategyListV2Resource, "get_alert_summary", side_effect=get_alert_summary),
+        mock.patch("monitor_web.strategies.resources.v2.ShieldDetectManager") as shield_manager,
+    ):
+        shield_manager.return_value.shield_list = []
+        GetStrategyListV2Resource.filter_strategy_ids_by_status(
+            {"strategy_status": ["ALERT", "SHIELDED"]}, candidates, 2, context
+        )
+
+    # 两个状态只按过滤前的候选策略统计一次
+    assert summary_calls == [(2, {1, 2, 3})]
+    assert candidates == {1, 2}
+    assert context == {"alert_summary": alert_summary}
+
+
+def test_summary_resource_reuses_status_filter_summary():
+    alert_summary = {1: {"alert_count": 1, "shield_alert_count": 0}, 5: {"alert_count": 3, "shield_alert_count": 0}}
+
+    def filter_by_conditions(conditions, strategies, bk_biz_id, context):
+        context["alert_summary"] = alert_summary
+        return strategies
+
+    with (
+        mock.patch("monitor_web.strategies.resources.v2.StrategyModel") as strategy_model,
+        mock.patch.object(GetStrategyListV2Resource, "filter_by_conditions", side_effect=filter_by_conditions),
+        mock.patch.object(GetStrategyListV2Resource, "get_alert_summary") as get_summary,
+        mock.patch.object(GetStrategyListV2Resource, "get_strategy_status_list", return_value=[]) as get_status_list,
+    ):
+        strategy_model.objects.filter.return_value.values_list.return_value.distinct.return_value = [1]
+        result = GetStrategyAlertSummaryV2Resource().request(
+            bk_biz_id=2, conditions=[{"key": "strategy_status", "value": ["ALERT"]}], strategy_ids=[1]
+        )
+
+    get_summary.assert_not_called()
+    get_status_list.assert_called_once_with([1], 2, alert_summary)
+    assert result["strategy_alert_counts"] == {1: {"alert_count": 1, "shield_alert_count": 0}}
+
+
 def test_status_list_leaves_alert_statuses_unknown_without_summary():
     with mock.patch.object(GetStrategyListV2Resource, "filter_by_status", return_value=[1]) as filter_by_status:
         status_list = GetStrategyListV2Resource().get_strategy_status_list([1], 2)
