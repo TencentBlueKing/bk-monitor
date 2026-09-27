@@ -106,6 +106,17 @@ LOG_COUNT_QUERY = {
     "agg_condition": [],
     "time_field": "dtEventTimeStamp",
 }
+COLLECTOR_LOG_COUNT_QUERY = {
+    "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
+    "data_type_label": DataTypeLabel.LOG,
+    "alias": "a",
+    "result_table_id": "2_bkmonitor_event_1",
+    "metric_field": "event.count",
+    "agg_method": "COUNT",
+    "agg_interval": 60,
+    "agg_dimension": [],
+    "agg_condition": [],
+}
 TIME_SERIES_COUNT_QUERY = {
     "data_source_label": DataSourceLabel.BK_MONITOR_COLLECTOR,
     "data_type_label": DataTypeLabel.TIME_SERIES,
@@ -117,22 +128,35 @@ TIME_SERIES_COUNT_QUERY = {
     "agg_dimension": [],
     "agg_condition": [],
 }
+GTE_0 = [[{"method": "gte", "threshold": 0}]]
 GTE_1 = [[{"method": "gte", "threshold": 1}]]
+GTE_5 = [[{"method": "gte", "threshold": 5}]]
 LT_1 = [[{"method": "lt", "threshold": 1}]]
+LATE = ([0, 1, 1], [1, 1, 0])
+DEDUPED = ([0, 1, 1], [1, 0, 0])
 
 
 @pytest.mark.parametrize(
-    "query_config,thresholds,late_value_detected",
+    "query_config,item_thresholds,connector,reads",
     [
-        (LOG_COUNT_QUERY, [GTE_1], True),
-        # 0 本身判为异常时仍需去重，否则同一时间点会重复产生异常
-        (LOG_COUNT_QUERY, [LT_1], False),
-        # 同一拉取组共用去重缓存，任一监控项不满足都需去重
-        (LOG_COUNT_QUERY, [GTE_1, LT_1], False),
-        (TIME_SERIES_COUNT_QUERY, [GTE_1], False),
+        (LOG_COUNT_QUERY, [[GTE_1]], "and", LATE),
+        # 部分日志先可见、计数未达阈值时也不去重
+        (LOG_COUNT_QUERY, [[GTE_5]], "and", ([0, 2, 7, 7], [1, 1, 1, 0])),
+        # 异常点照常去重，否则同一时间点会重复产生异常
+        (LOG_COUNT_QUERY, [[LT_1]], "and", DEDUPED),
+        # 同一拉取组共用去重缓存，任一监控项判为异常都需去重
+        (LOG_COUNT_QUERY, [[GTE_1], [LT_1]], "and", DEDUPED),
+        # 同级别多个算法按连接符组合后判断是否异常
+        (LOG_COUNT_QUERY, [[GTE_0, GTE_1]], "and", LATE),
+        (LOG_COUNT_QUERY, [[GTE_0, GTE_1]], "or", DEDUPED),
+        (COLLECTOR_LOG_COUNT_QUERY, [[GTE_1]], "and", LATE),
+        ({**COLLECTOR_LOG_COUNT_QUERY, "agg_method": "AVG"}, [[GTE_1]], "and", DEDUPED),
+        (TIME_SERIES_COUNT_QUERY, [[GTE_1]], "and", DEDUPED),
     ],
 )
-def test_log_count_zero_point_stays_retryable_within_lookback(mocker, query_config, thresholds, late_value_detected):
+def test_log_count_normal_point_stays_retryable_within_lookback(
+    mocker, query_config, item_thresholds, connector, reads
+):
     client = redis.StrictRedis(
         connection_pool=redis.ConnectionPool(
             connection_class=fakeredis.FakeConnection, server=fakeredis.FakeServer(), decode_responses=True
@@ -146,7 +170,13 @@ def test_log_count_zero_point_stays_retryable_within_lookback(mocker, query_conf
 
     mocker.patch("alarm_backends.service.access.data.processor.Duplicate", side_effect=new_duplicate)
     strategy = SimpleNamespace(
-        id=1, bk_biz_id=2, bk_tenant_id="system", config={}, priority=None, priority_group_key=None, scenario="os"
+        id=1,
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        config={"detects": [{"level": 2, "connector": connector}]},
+        priority=None,
+        priority_group_key=None,
+        scenario="os",
     )
     items = [
         Item(
@@ -155,11 +185,14 @@ def test_log_count_zero_point_stays_retryable_within_lookback(mocker, query_conf
                 "name": "COUNT",
                 "expression": "a",
                 "query_configs": [copy.deepcopy(query_config)],
-                "algorithms": [{"type": "Threshold", "level": 2, "config": threshold, "unit_prefix": ""}],
+                "algorithms": [
+                    {"type": "Threshold", "level": 2, "config": threshold, "unit_prefix": ""}
+                    for threshold in thresholds
+                ],
             },
             strategy,
         )
-        for item_id, threshold in enumerate(thresholds, start=1)
+        for item_id, thresholds in enumerate(item_thresholds, start=1)
     ]
 
     def pull(value):
@@ -170,8 +203,6 @@ def test_log_count_zero_point_stays_retryable_within_lookback(mocker, query_conf
         process.dup_obj.refresh_cache()
         return len(process.record_list)
 
-    # 首读时日志尚未可见
-    assert pull(0) == 1
-    # 下一轮回看读到迟到的日志
-    assert pull(1) == int(late_value_detected)
-    assert pull(1) == 0
+    # 同一时间点在回看窗口内依次读到的计数，及每轮进入检测的点数
+    values, detected = reads
+    assert [pull(value) for value in values] == detected
