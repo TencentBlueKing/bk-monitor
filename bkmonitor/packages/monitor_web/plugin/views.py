@@ -253,21 +253,7 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         """
 
         instance = self.get_object()
-        bk_biz_id = instance.bk_biz_id
-        new_bk_biz_id = int(request.data.get("bk_biz_id", 0))
-        is_changed_biz = bk_biz_id != new_bk_biz_id
-        # 不支持单业务之间的切换
-        if bk_biz_id and new_bk_biz_id and is_changed_biz:
-            raise BizChangedError
-        # 涉及全业务插件编辑时,判断当前请求用户是否有权限
-        if not (bk_biz_id and new_bk_biz_id):
-            assert_manage_pub_plugin_permission()
-
-            # 全业务插件 》 单业务插件，判断是否有关联项
-            if not bk_biz_id and new_bk_biz_id:
-                collect_config = CollectConfigMeta.objects.filter(plugin__plugin_id=instance.plugin_id)
-                if collect_config and [x for x in collect_config if x.bk_biz_id != new_bk_biz_id]:
-                    raise RelatedItemsExist({"msg": _("存在其余业务的关联项")})
+        self.check_biz_change(instance, request.data)
 
         current_config_version = instance.current_version.config_version
         current_info_version = instance.current_version.info_version
@@ -310,15 +296,20 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         param = request.data
         plugin_ids = param["plugin_ids"]
         # TODO: 检查是否存在关联项
-        plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_ids)
+        # 无业务或业务 0 时只处理全业务插件，避免公共插件管理动作落到其他业务插件
+        biz_filter = {"bk_biz_id__in": [0, request.biz_id] if request.biz_id else [0]}
+        plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_ids, **biz_filter)
         for plugin in plugins:
             # 检查插件的删除权限
             if not plugin.delete_allowed:
                 raise DeletePermissionDenied({"plugin_id": plugin.plugin_id})
+            # 全业务插件与 edit 保持一致，需公共插件管理权限
+            if not plugin.bk_biz_id:
+                assert_manage_pub_plugin_permission()
 
         with transaction.atomic():
             for plugin_id in plugin_ids:
-                plugin = CollectorPluginMeta.origin_objects.filter(plugin_id=plugin_id)
+                plugin = CollectorPluginMeta.origin_objects.filter(plugin_id=plugin_id, **biz_filter)
                 if plugin.first():
                     PluginVersionHistory.origin_objects.filter(plugin=plugin.first()).delete()
                     plugin.delete()
@@ -344,9 +335,32 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         plugin_data = resource.plugin.plugin_import(request.data)
         return Response(plugin_data)
 
+    @staticmethod
+    def check_biz_change(instance, request_data):
+        """
+        不支持单业务之间的切换；涉及全业务插件时校验公共插件管理权限及关联项
+        """
+        bk_biz_id = instance.bk_biz_id
+        new_bk_biz_id = int(request_data.get("bk_biz_id", 0))
+        if bk_biz_id and new_bk_biz_id and bk_biz_id != new_bk_biz_id:
+            raise BizChangedError
+        if not (bk_biz_id and new_bk_biz_id):
+            assert_manage_pub_plugin_permission()
+
+            # 全业务插件 》 单业务插件，判断是否有关联项
+            if not bk_biz_id and new_bk_biz_id:
+                collect_config = CollectConfigMeta.objects.filter(plugin__plugin_id=instance.plugin_id)
+                if collect_config and [x for x in collect_config if x.bk_biz_id != new_bk_biz_id]:
+                    raise RelatedItemsExist({"msg": _("存在其余业务的关联项")})
+
     @action(methods=["POST"], detail=False)
     def replace_plugin(self, request, *args, **kwargs):
-        instance = CollectorPluginMeta.objects.get(plugin_id=request.data["plugin_id"])
+        # 无业务或业务 0 时只处理全业务插件，避免公共插件管理动作落到其他业务插件
+        biz_filter = {"bk_biz_id__in": [0, request.biz_id] if request.biz_id else [0]}
+        instance = CollectorPluginMeta.objects.filter(plugin_id=request.data["plugin_id"], **biz_filter).first()
+        if not instance:
+            raise PluginIDNotExist
+        self.check_biz_change(instance, request.data)
         current_config_version = instance.current_version.config_version
         current_info_version = instance.current_version.info_version
         plugin_manager = PluginManagerFactory.get_manager(plugin=instance)

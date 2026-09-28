@@ -15,16 +15,35 @@ import datetime
 import json
 import logging
 import os
+import re
 import shutil
 import tarfile
 import uuid
 from uuid import uuid4
-import re
 
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.utils.translation import ugettext as _
+from rest_framework.exceptions import ValidationError
+
+from api.grafana.exporter import DashboardExporter
+from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
+from bkmonitor.utils.request import get_request
+from bkmonitor.utils.text import convert_filename
+from bkmonitor.utils.time_tools import now
+from bkmonitor.views import serializers
+from constants.data_source import DataSourceLabel
+from constants.strategy import TargetFieldType
+from core.drf_resource import Resource, api, resource
+from core.drf_resource.tasks import step
+from core.errors.export_import import (
+    AddTargetError,
+    ImportConfigError,
+    ImportHistoryNotExistError,
+    UploadPackageError,
+)
 from monitor_web.collecting.constant import OperationResult, OperationType
 from monitor_web.commons.cc.utils import CmdbUtil
 from monitor_web.commons.file_manager import ExportImportManager
@@ -54,24 +73,6 @@ from monitor_web.models import (
 from monitor_web.plugin.manager import PluginManagerFactory
 from monitor_web.strategies.serializers import handle_target, is_validate_target
 from monitor_web.tasks import import_config, remove_file
-from rest_framework.exceptions import ValidationError
-
-from api.grafana.exporter import DashboardExporter
-from bkmonitor.models import ItemModel, QueryConfigModel, StrategyModel
-from bkmonitor.utils.request import get_request
-from bkmonitor.utils.text import convert_filename
-from bkmonitor.utils.time_tools import now
-from bkmonitor.views import serializers
-from constants.strategy import TargetFieldType
-from constants.data_source import DataSourceLabel
-from core.drf_resource import Resource, api, resource
-from core.drf_resource.tasks import step
-from core.errors.export_import import (
-    AddTargetError,
-    ImportConfigError,
-    ImportHistoryNotExistError,
-    UploadPackageError,
-)
 
 logger = logging.getLogger("monitor_web")
 
@@ -251,8 +252,9 @@ class ExportPackageRequestSerializer(serializers.Serializer):
     list_data = serializers.ListField(required=False, allow_empty=True, label="需转为csv的列表数据")
 
     def validate(self, attrs):
-        # 如果不是需要列表转csv，则必须传业务ID
-        if not attrs.get("list_data") and not attrs.get("bk_biz_id"):
+        # 仅做列表转csv时可不传业务ID，导出采集、策略、视图配置必须传业务ID
+        has_config = any(attrs.get(key) for key in ("collect_config_ids", "strategy_config_ids", "view_config_ids"))
+        if not attrs.get("bk_biz_id") and (has_config or not attrs.get("list_data")):
             raise ValidationError(_("业务ID不可为空"))
         return attrs
 
@@ -288,6 +290,9 @@ class ExportPackageResource(Resource):
         self.list_data = validated_request_data.get("list_data", [])
         if not any([self.collect_config_ids, self.strategy_config_ids, self.view_config_ids, self.list_data]):
             raise ValidationError(_("未选择任何配置"))
+        # 导出内容按该业务过滤，需校验该业务的导出权限
+        if self.bk_biz_id:
+            Permission().is_allowed_by_biz(self.bk_biz_id, ActionEnum.EXPORT_CONFIG, raise_exception=True)
 
         self.file_msg = self.prepare_file()
         filename = self.make_package()
@@ -315,7 +320,7 @@ class ExportPackageResource(Resource):
         strategy_config_file = len(self.strategy_config_ids)
         view_config_file = len(self.view_config_ids)
 
-        strategy_config_list = StrategyModel.objects.filter(id__in=self.strategy_config_ids)
+        strategy_config_list = StrategyModel.objects.filter(id__in=self.strategy_config_ids, bk_biz_id=self.bk_biz_id)
         for strategy_config in strategy_config_list:
             item_instances = ItemModel.objects.filter(strategy_id=strategy_config.id)
             query_configs = QueryConfigModel.objects.filter(item_id__in=list({item.id for item in item_instances}))
@@ -333,7 +338,10 @@ class ExportPackageResource(Resource):
 
         all_collect_ids = list(set(self.collect_config_ids + self.associated_collect_config_list))
         self.associated_plugin_list = list(
-            {config.plugin_id for config in CollectConfigMeta.objects.filter(id__in=all_collect_ids)}
+            {
+                config.plugin_id
+                for config in CollectConfigMeta.objects.filter(id__in=all_collect_ids, bk_biz_id=self.bk_biz_id)
+            }
         )
         associated_plugin = len(self.associated_plugin_list)
         return {
@@ -351,10 +359,9 @@ class ExportPackageResource(Resource):
             return
 
         os.makedirs(os.path.join(self.package_path, "collect_config_directory"))
-        for collect_config_id in all_collect_config_ids:
-            collect_config_meta = CollectConfigMeta.objects.select_related("deployment_config").get(
-                id=collect_config_id
-            )
+        for collect_config_meta in CollectConfigMeta.objects.select_related("deployment_config").filter(
+            id__in=all_collect_config_ids, bk_biz_id=self.bk_biz_id
+        ):
             collect_config_detail = {
                 "id": collect_config_meta.id,
                 "name": collect_config_meta.name,
@@ -375,7 +382,7 @@ class ExportPackageResource(Resource):
                 os.path.join(
                     self.package_path,
                     "collect_config_directory",
-                    "{}_{}.json".format(convert_filename(collect_config_file_name), collect_config_id),
+                    "{}_{}.json".format(convert_filename(collect_config_file_name), collect_config_meta.id),
                 ),
                 "w",
             ) as fs:
@@ -475,13 +482,16 @@ class ExportPackageResource(Resource):
 
                     # 如果需要的话，自定义上报和插件采集类指标导出时将结果表ID替换为 data_label
                     data_label = query_config.get("data_label", None)
-                    if settings.ENABLE_DATA_LABEL_EXPORT and data_label and \
-                            (query_config.get("data_source_label", None)
-                             in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]):
+                    if (
+                        settings.ENABLE_DATA_LABEL_EXPORT
+                        and data_label
+                        and (
+                            query_config.get("data_source_label", None)
+                            in [DataSourceLabel.BK_MONITOR_COLLECTOR, DataSourceLabel.CUSTOM]
+                        )
+                    ):
                         query_config["metric_id"] = re.sub(
-                            rf"\b{query_config['result_table_id']}\b",
-                            data_label,
-                            query_config["metric_id"]
+                            rf"\b{query_config['result_table_id']}\b", data_label, query_config["metric_id"]
                         )
                         query_config["result_table_id"] = data_label
 
@@ -1009,7 +1019,9 @@ class AddMonitorTargetResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         history_id = validated_request_data["import_history_id"]
         target = validated_request_data["target"]
-        history_instance = ImportHistory.objects.filter(id=history_id).first()
+        # 导入历史按该业务过滤，需校验该业务的导入权限
+        Permission().is_allowed_by_biz(bk_biz_id, ActionEnum.IMPORT_CONFIG, raise_exception=True)
+        history_instance = ImportHistory.objects.filter(id=history_id, bk_biz_id=bk_biz_id).first()
         if not history_instance:
             raise ImportHistoryNotExistError
 
@@ -1046,8 +1058,8 @@ class AddMonitorTargetResource(Resource):
                 history_id=history_id, type=ConfigType.COLLECT, import_status=ImportDetailStatus.SUCCESS
             )
         ]
-        # 添加采集配置目标
-        for instance in CollectConfigMeta.objects.filter(id__in=collect_config_ids):
+        # 添加采集配置目标，仅处理该业务下的采集
+        for instance in CollectConfigMeta.objects.filter(id__in=collect_config_ids, bk_biz_id=bk_biz_id):
             deploy_config = DeploymentConfigVersion.objects.get(id=instance.deployment_config_id)
             deployment_config_params = {
                 "plugin_version": instance.plugin.packaged_release_version,
@@ -1078,6 +1090,6 @@ class AddMonitorTargetResource(Resource):
         resource.strategies.bulk_edit_strategy(
             bk_biz_id=bk_biz_id, id_list=strategy_config_ids, edit_data={"target": target}
         )
-        StrategyModel.objects.filter(id__in=strategy_config_ids).update(is_enabled=True)
+        StrategyModel.objects.filter(id__in=strategy_config_ids, bk_biz_id=bk_biz_id).update(is_enabled=True)
 
         return "success"

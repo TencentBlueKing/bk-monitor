@@ -20,6 +20,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import Event, Shield
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.time_tools import (
@@ -183,6 +184,7 @@ class ShieldDetailResource(Resource):
             shield = Shield.objects.get(id=data["id"])
         except Shield.DoesNotExist:
             raise ShieldNotExist({"msg": data["id"]})
+        Permission().is_allowed_by_biz(shield.bk_biz_id, ActionEnum.VIEW_DOWNTIME, raise_exception=True)
 
         shield_detail = {
             "id": shield.id,
@@ -438,6 +440,7 @@ class EditShieldResource(Resource):
             shield = Shield.objects.get(id=data["id"])
         except Shield.DoesNotExist:
             raise ShieldNotExist({"msg": data["id"]})
+        Permission().is_allowed_by_biz(shield.bk_biz_id, ActionEnum.MANAGE_DOWNTIME, raise_exception=True)
 
         # 处理时间数据
         time_result = handle_shield_time(data["begin_time"], data["end_time"], data["cycle_config"])
@@ -477,6 +480,7 @@ class DisableShieldResource(Resource):
             shield = Shield.objects.get(id=data["id"])
         except Shield.DoesNotExist:
             raise ShieldNotExist({"msg": data["id"]})
+        Permission().is_allowed_by_biz(shield.bk_biz_id, ActionEnum.MANAGE_DOWNTIME, raise_exception=True)
 
         if shield.is_enabled:
             shield.is_enabled = False

@@ -17,8 +17,16 @@ from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from bkmonitor.models import ActionPlugin
 from bkmonitor.utils.template import AlarmNoticeTemplate
-from constants.action import ConvergeType, DEFAULT_TEMPLATE, NoticeWay
+from constants.action import DEFAULT_TEMPLATE, ConvergeType, NoticeWay
 from fta_web.action.constant import BK_PLUGIN_INITIAL_TEMPLATE
+
+
+def filter_alerts_by_biz(alerts, bk_biz_id):
+    """
+    仅保留指定业务下的告警
+    """
+    bk_biz_id = str(bk_biz_id)
+    return [alert for alert in alerts if str(getattr(alert.event, "bk_biz_id", "")) == bk_biz_id]
 
 
 def parse_bk_plugin_deployed_info(data):
@@ -68,7 +76,13 @@ def parse_bk_plugin_deployed_info(data):
         "plugin_apigw_host": plugin_apigw_host,
     }
 
-    plugin_template = Environment(undefined=DebugUndefined).from_string(source=BK_PLUGIN_INITIAL_TEMPLATE, ).render(**init_params)
+    plugin_template = (
+        Environment(undefined=DebugUndefined)
+        .from_string(
+            source=BK_PLUGIN_INITIAL_TEMPLATE,
+        )
+        .render(**init_params)
+    )
     plugin_info = json.loads(plugin_template)
 
     # 8.description 中的信息 在json.loads时容易出错，因此先 loads 后再为 description 赋值

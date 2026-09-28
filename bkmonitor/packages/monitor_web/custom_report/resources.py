@@ -30,6 +30,7 @@ from rest_framework.exceptions import ValidationError
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.data_source import load_data_source
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.time_tools import date_convert, parse_time_range
@@ -75,6 +76,15 @@ def get_label_display_dict():
     except Exception:
         pass
     return label_display_dict
+
+
+def check_biz_permission(obj, action, allow_public=False):
+    """
+    按对象所属业务校验权限，allow_public 时平台级及全局业务的对象不做校验
+    """
+    if allow_public and (obj.is_platform or not obj.bk_biz_id):
+        return
+    Permission().is_allowed_by_biz(obj.bk_biz_id, action, raise_exception=True)
 
 
 class ValidateCustomEventGroupName(Resource):
@@ -314,6 +324,7 @@ class GetCustomEventGroup(Resource):
         # 用户页面主动请求相关逻辑，不应该插入耗时过长的逻辑。
         # append_event_metric_list_cache(event_group_id)
         config = CustomEventGroup.objects.prefetch_related("event_info_list").get(pk=event_group_id)
+        check_biz_permission(config, ActionEnum.VIEW_CUSTOM_EVENT, allow_public=True)
         serializer = CustomEventGroupDetailSerializer(
             config, context={"request_bk_biz_id": validated_request_data["bk_biz_id"]}
         )
@@ -421,6 +432,7 @@ class QueryCustomEventTarget(Resource):
 
     def perform_request(self, params):
         group = CustomEventGroup.objects.get(bk_event_group_id=params["bk_event_group_id"])
+        check_biz_permission(group, ActionEnum.VIEW_CUSTOM_EVENT, allow_public=True)
         return list(set(group.query_target()))
 
 
@@ -576,6 +588,7 @@ class DeleteCustomEventGroup(Resource):
     def perform_request(self, validated_request_data):
         operator = get_request_username()
         group = CustomEventGroup.objects.get(bk_event_group_id=validated_request_data["bk_event_group_id"])
+        check_biz_permission(group, ActionEnum.MANAGE_CUSTOM_EVENT)
         # 1. 调用接口删除 event_group
         api.metadata.delete_event_group(event_group_id=group.bk_event_group_id, operator=operator)
         # 2. 结果回写数据库
@@ -825,6 +838,7 @@ class DeleteCustomTimeSeries(Resource):
     @atomic()
     def perform_request(self, validated_request_data):
         table = CustomTSTable.objects.get(time_series_group_id=validated_request_data["time_series_group_id"])
+        check_biz_permission(table, ActionEnum.MANAGE_CUSTOM_METRIC)
         operator = get_request_username()
         params = {"operator": operator, "time_series_group_id": table.time_series_group_id}
         api.metadata.delete_time_series_group(params)
@@ -931,6 +945,7 @@ class CustomTimeSeriesDetail(Resource):
 
     def perform_request(self, params):
         config = CustomTSTable.objects.get(pk=params["time_series_group_id"])
+        check_biz_permission(config, ActionEnum.VIEW_CUSTOM_METRIC, allow_public=True)
         serializer = CustomTSTableSerializer(config, context={"request_bk_biz_id": params["bk_biz_id"]})
         data = serializer.data
         if params.get("model_only"):
@@ -1027,6 +1042,11 @@ class CustomTsGroupingRuleList(Resource):
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
 
     def perform_request(self, validated_request_data):
+        check_biz_permission(
+            CustomTSTable.objects.get(pk=validated_request_data["time_series_group_id"]),
+            ActionEnum.VIEW_CUSTOM_METRIC,
+            allow_public=True,
+        )
         grouping_rules = CustomTSGroupingRule.objects.filter(
             time_series_group_id=validated_request_data["time_series_group_id"]
         )
@@ -1044,6 +1064,10 @@ class ModifyCustomTsGroupingRuleList(Resource):
         group_list = serializers.ListField(label="分组列表", child=CustomTSGroupingRuleSerializer(), default=[])
 
     def perform_request(self, validated_request_data):
+        check_biz_permission(
+            CustomTSTable.objects.get(pk=validated_request_data["time_series_group_id"]),
+            ActionEnum.MANAGE_CUSTOM_METRIC,
+        )
         # 校验分组名称唯一
         group_names = {}
         for group in validated_request_data["group_list"]:
@@ -1095,6 +1119,10 @@ class CreateOrUpdateGroupingRule(Resource):
         auto_rules = serializers.ListField(required=False, label="自动分组的匹配规则列表")
 
     def perform_request(self, validated_request_data):
+        check_biz_permission(
+            CustomTSTable.objects.get(pk=validated_request_data["time_series_group_id"]),
+            ActionEnum.MANAGE_CUSTOM_METRIC,
+        )
         # 校验分组名称
         group_names = CustomTSGroupingRule.objects.filter(
             time_series_group_id=validated_request_data["time_series_group_id"]
@@ -1123,6 +1151,10 @@ class GroupCustomTSItem(Resource):
         time_series_group_id = serializers.IntegerField(required=True, label="自定义时序ID")
 
     def perform_request(self, validated_request_data):
+        check_biz_permission(
+            CustomTSTable.objects.get(pk=validated_request_data["time_series_group_id"]),
+            ActionEnum.MANAGE_CUSTOM_METRIC,
+        )
         # 分组匹配现存指标
         groups = CustomTSGroupingRule.objects.filter(
             time_series_group_id=validated_request_data["time_series_group_id"]
