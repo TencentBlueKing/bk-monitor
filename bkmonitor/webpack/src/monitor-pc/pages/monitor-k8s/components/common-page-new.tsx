@@ -45,6 +45,7 @@ import bus from 'monitor-common/utils/event-bus';
 import { deepClone, isObject, random } from 'monitor-common/utils/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { DEFAULT_INTERVAL, DEFAULT_METHOD } from 'monitor-ui/chart-plugins/constants/dashbord';
+import { APM_TRACE_ROUTER_QUERY_KEYS } from 'monitor-ui/chart-plugins/plugins/apm-trace-explore/constants';
 import { APM_LOG_ROUTER_QUERY_KEYS } from 'monitor-ui/chart-plugins/plugins/monitor-retrieve/monitor-retrieve';
 import {
   type DashboardMode,
@@ -174,6 +175,7 @@ const customRouterQueryKeys = [
   ...APM_ALARM_TEMPLATE_ROUTER_QUERY_KEYS,
   // log-retrieve图所需的路由参数
   ...APM_LOG_ROUTER_QUERY_KEYS,
+  ...APM_TRACE_ROUTER_QUERY_KEYS,
   ...Event_EXPORT_QUERY_KEYS,
   ...ALARM_TEMPLATE_QUERY_KEYS,
   ...CUSTOM_GRAPH_V2_QUERY_KEYS,
@@ -715,7 +717,8 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
   handleRouteQueryChange(val = {}) {
     for (const key in val) {
       if (customRouterQueryKeys.includes(key)) {
-        this.customRouteQuery[key] = val[key];
+        const value = val[key];
+        this.customRouteQuery[key] = typeof value === 'string' ? value : JSON.stringify(value);
       }
     }
   }
@@ -759,7 +762,11 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
           v = val;
         } else {
           if (/^(\[|\{)/.test(val)) {
-            v = JSON.parse(val);
+            try {
+              v = JSON.parse(val);
+            } catch {
+              v = val;
+            }
           } else if (/^-?[1-9]?[0-9]*[1-9]+$/.test(val)) {
             v = +val;
           } else {
@@ -791,7 +798,7 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         this.groups = Array.isArray(val) ? val : [val];
       } else if (!['key'].includes(key)) {
         if (customRouterQueryKeys.includes(key)) {
-          this.customRouteQuery[key] = val;
+          this.customRouteQuery[key] = typeof val === 'string' ? val : JSON.stringify(val);
           // 优先匹配时间范围
         } else if (['from', 'to'].includes(key)) {
           // this[key] = Array.isArray(val) ? val : isNaN(+val) ? val : +val;
@@ -1503,9 +1510,17 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
         groupByVariables: JSON.stringify(this.groupByVariables),
       };
     }
+    const customRouteQuery: Record<string, number | string> = {};
+    for (const [key, value] of Object.entries(this.customRouteQuery || {})) {
+      if (value === undefined || value === null) {
+        customRouteQuery[key] = value as never;
+        continue;
+      }
+      customRouteQuery[key] = typeof value === 'string' || typeof value === 'number' ? value : JSON.stringify(value);
+    }
     const query = {
       ...filters,
-      ...this.customRouteQuery,
+      ...customRouteQuery,
       ...groupByVariables,
       method: this.method,
       interval: this.interval.toString(),
@@ -1689,6 +1704,9 @@ export default class CommonPageNew extends tsc<ICommonPageProps, ICommonPageEven
     this.localSceneType = item.type as SceneType;
     // 清除 log-retrieve 图所需的路由参数
     for (const key of APM_LOG_ROUTER_QUERY_KEYS) {
+      this.customRouteQuery[key] = undefined;
+    }
+    for (const key of APM_TRACE_ROUTER_QUERY_KEYS) {
       this.customRouteQuery[key] = undefined;
     }
     if (this.tab2SceneType && item.type === 'detail') {
