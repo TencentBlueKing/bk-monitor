@@ -113,7 +113,8 @@ def load_condition_instance(conditions_config, default_value_if_not_exists=True)
                 method = cond_item.get("_origin_method", "eq")
 
             field_value = cond_item.get("value")
-            if not all([field_name, method, field_value]):
+            # 空列表是解析结果（动态分组无主机），不能当未配置跳过，否则 AND 真空真、规则全匹配。
+            if not field_name or not method or (not field_value and field_value != []):
                 continue
 
             cond_field = load_field_instance(field_name, field_value)
