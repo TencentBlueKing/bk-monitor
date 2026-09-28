@@ -18,10 +18,10 @@ DRF 插件
 from functools import wraps
 from typing import Callable, List, Optional
 
+from iam import Resource
 from rest_framework import permissions
 
 from core.errors.iam import PermissionDeniedError
-from iam import Resource
 
 from . import Permission
 from .action import ActionEnum, ActionMeta
@@ -77,6 +77,12 @@ class BusinessActionPermission(IAMPermission):
     def has_permission(self, request, view):
         if not request.biz_id:
             return True
+        # request.biz_id 可能取自 URL、query 或业务 ID 别名字段，而资源按 bk_biz_id 读取（读请求取 query，其余取 body），
+        # 两者需保持一致
+        params = request.query_params if request.method in permissions.SAFE_METHODS else getattr(request, "data", None)
+        param_biz_id = params.get("bk_biz_id") if hasattr(params, "get") else None
+        if param_biz_id not in (None, "") and str(param_biz_id) != str(request.biz_id):
+            return False
         self.resources = [ResourceEnum.BUSINESS.create_instance(request.biz_id)]
         return super(BusinessActionPermission, self).has_permission(request, view)
 
