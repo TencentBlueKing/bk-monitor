@@ -1,0 +1,314 @@
+.alarm-skeleton-block {
+  display: inline-block;
+  flex-shrink: 0;
+  max-width: 100%;
+  height: 12px;
+  overflow: hidden;
+  vertical-align: middle;
+  background: linear-gradient(100deg, #e9edf3 25%, #f4f6f9 45%, #e9edf3 65%);
+  background-size: 240% 100%;
+  border-radius: 3px;
+  animation: alarm-skeleton-shimmer 2.4s ease-in-out infinite;
+
+  &.secondary {
+    height: 10px;
+    opacity: 0.65;
+  }
+
+  &.checkbox {
+    height: 14px;
+    background: transparent;
+    border: 1px solid #dce2eb;
+    border-radius: 2px;
+    animation: none;
+  }
+
+  &.dot {
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  &.avatar {
+    height: 20px;
+    border-radius: 50%;
+  }
+
+  &.tag {
+    height: 20px;
+    border-radius: 4px;
+  }
+
+  &.severity,
+  &.filter-marker {
+    height: 12px;
+    border-radius: 2px;
+  }
+}
+
+.alarm-skeleton-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  height: 20px;
+  overflow: hidden;
+
+  .text-lines {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    justify-content: center;
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+  }
+
+  &--incident {
+    height: 40px;
+  }
+
+  &--issues {
+    height: 44px;
+  }
+
+  .alarm-trend-skeleton.is-compact {
+    height: 36px;
+  }
+}
+
+.alarm-filter-skeleton {
+  height: calc(100% - 40px);
+  padding: 0 12px;
+  overflow: hidden;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 32px), transparent);
+
+  .filter-group + .filter-group {
+    margin-top: 10px;
+  }
+
+  .group-heading {
+    display: flex;
+    align-items: center;
+    height: 24px;
+    padding: 0 8px;
+    margin-bottom: 4px;
+    background: #e6eaf2;
+    border-radius: 2px;
+
+    .group-title {
+      height: 10px;
+    }
+
+    .group-chevron {
+      width: 5px;
+      height: 5px;
+      margin-left: auto;
+      border-right: 1px solid #c3cbd8;
+      border-bottom: 1px solid #c3cbd8;
+      transform: translateY(-2px) rotate(45deg);
+    }
+  }
+
+  .filter-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    height: 26px;
+    padding: 0 8px;
+  }
+
+  .filter-label {
+    flex: 1;
+    min-width: 0;
+    padding-right: 12px;
+    line-height: 12px;
+
+    .alarm-skeleton-block {
+      height: 10px;
+    }
+  }
+
+  .count {
+    height: 9px;
+    margin-left: auto;
+    opacity: 0.6;
+  }
+}
+
+.alarm-analysis-comp .alarm-analysis-skeleton {
+  .panel-item {
+    cursor: default;
+  }
+
+  .header-left {
+    gap: 8px;
+  }
+
+  .analysis-row {
+    height: 26px;
+    padding-right: 48px;
+    margin-top: 8px;
+  }
+
+  .analysis-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 20px;
+  }
+
+  .analysis-track {
+    display: flex;
+    height: 4px;
+    background: #e9edf3;
+    border-radius: 2px;
+
+    .alarm-skeleton-block {
+      height: 4px;
+      background: #dce3ed;
+    }
+  }
+}
+
+.alarm-analysis-comp {
+  &.skip-collapse-animation {
+    .chart-collapse-wrapper,
+    .chart-collapse-wrapper .chart-collapse-header .chart-collapse-header-trigger .header-trigger-default .chart-icon {
+      transition: none;
+    }
+  }
+
+
+}
+
+.alarm-trend-skeleton {
+  display: grid;
+  flex: 1;
+  grid-template-rows: minmax(0, 1fr) 24px;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 8px 12px;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 12px 16px 0;
+
+  .axis-labels {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-bottom: 20px;
+  }
+
+  .plot {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+
+  .bars {
+    position: relative;
+    display: flex;
+    flex: 1;
+    gap: 1.2%;
+    align-items: flex-end;
+    min-height: 0;
+    padding: 6px 8px 0;
+    overflow: hidden;
+    background:
+      repeating-linear-gradient(to top, #edf0f4 0 1px, transparent 1px 33.33%), linear-gradient(to top, #fafbfd, #fff);
+    border-bottom: 1px solid #e6e9ef;
+
+    &::after {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      content: '';
+      background: linear-gradient(105deg, transparent 30%, rgb(255 255 255 / 55%) 50%, transparent 70%);
+      animation: alarm-trend-sweep 2.6s ease-in-out infinite;
+    }
+
+    .alarm-skeleton-block {
+      flex: 1;
+      background: linear-gradient(to top, rgb(255 255 255 / 70%), rgb(255 255 255 / 30%)), var(--trend-color);
+      border-radius: 3px 3px 0 0;
+      animation: none;
+    }
+  }
+
+  .time-labels {
+    display: flex;
+    justify-content: space-between;
+    height: 20px;
+    padding-top: 8px;
+
+    .alarm-skeleton-block {
+      height: 8px;
+    }
+  }
+
+  .legend {
+    display: flex;
+    grid-column: 2;
+    gap: 20px;
+    justify-content: center;
+
+    > span {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+
+      .dot {
+        background: var(--trend-color);
+        opacity: 0.7;
+        animation: none;
+      }
+    }
+  }
+
+  &.is-compact {
+    display: flex;
+    height: 40px;
+    padding: 0;
+
+    .plot {
+      width: 100%;
+    }
+
+    .bars {
+      gap: 3px;
+      padding: 0;
+      background: none;
+    }
+  }
+}
+
+@keyframes alarm-skeleton-shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@keyframes alarm-trend-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .alarm-skeleton-block {
+    animation: none;
+  }
+
+  .alarm-trend-skeleton .bars::after {
+    display: none;
+    animation: none;
+  }
+}

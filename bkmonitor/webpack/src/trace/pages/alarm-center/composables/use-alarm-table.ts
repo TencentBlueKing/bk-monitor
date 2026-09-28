@@ -46,13 +46,15 @@ export function useAlarmTable() {
   /** 排序字段 */
   const ordering = shallowRef('');
   /** 是否加载中 */
-  const loading = shallowRef(false);
+  const loading = shallowRef(true);
+  const hasLoaded = shallowRef(false);
   /** 已开启故障分析功能的空间 bizId 列表（incident 场景专用） */
   const enabledSpaces = deepRef<number[]>([]);
   /** BK助手链接 */
   const wxCsLink = shallowRef('');
   /** 请求中止控制器 */
   let abortController: AbortController | null = null;
+  let dataContext = '';
 
   const effectFunc = async () => {
     // 中止上一次未完成的请求
@@ -64,35 +66,47 @@ export function useAlarmTable() {
     const { signal } = abortController;
 
     loading.value = true;
-    data.value = [];
+    const context = JSON.stringify([alarmStore.alarmType, alarmStore.bizIds]);
+    if (context !== dataContext) {
+      dataContext = context;
+      data.value = [];
+      total.value = 0;
+      enabledSpaces.value = [];
+      hasLoaded.value = false;
+    }
+    const service = alarmStore.alarmService;
     const params = {
       ...alarmStore.commonFilterParams,
       page_size: pageSize.value,
       page: page.value,
       ordering: ordering.value ? [ordering.value] : [],
     };
-    const res = await alarmStore.alarmService.getFilterTableList(params, { signal });
-    // 检查请求是否已被中止，确保不会更新过期数据
-    if (signal.aborted) return;
-    for (const item of res.data as AlertTableItem[]) {
-      item.followerDisabled = getOperatorDisabled(item.follower, item.assignee);
-    }
-    total.value = res.total;
-    data.value = res.data;
-    enabledSpaces.value = (res.enabled_spaces ?? []).map(Number);
-    wxCsLink.value = res.wx_cs_link ?? '';
-    loading.value = false;
-    const currentData = data.value as (ActionTableItem | AlertTableItem | IncidentTableItem)[];
-    // 获取告警关联事件数和关联告警信息，异步回填且不阻塞列表展示
-    void alarmStore.alarmService.getAlterRelevance(currentData, { signal }).then(result => {
-      if (!result || signal.aborted) return;
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      const { event_count, extend_info } = result;
-      for (const item of currentData as AlertTableItem[]) {
-        item.event_count = event_count?.[item.id];
-        item.extend_info = extend_info?.[item.id];
+    try {
+      const res = await service.getFilterTableList(params, { signal });
+      // 检查请求是否已被中止，确保不会更新过期数据
+      if (signal.aborted) return;
+      for (const item of res.data as AlertTableItem[]) {
+        item.followerDisabled = getOperatorDisabled(item.follower, item.assignee);
       }
-    });
+      total.value = res.total;
+      data.value = res.data;
+      enabledSpaces.value = (res.enabled_spaces ?? []).map(Number);
+      wxCsLink.value = res.wx_cs_link ?? '';
+      hasLoaded.value = true;
+      const currentData = data.value as (ActionTableItem | AlertTableItem | IncidentTableItem)[];
+      // 获取告警关联事件数和关联告警信息，异步回填且不阻塞列表展示
+      void service.getAlterRelevance(currentData, { signal }).then(result => {
+        if (!result || signal.aborted) return;
+        // eslint-disable-next-line @typescript-eslint/naming-convention
+        const { event_count, extend_info } = result;
+        for (const item of currentData as AlertTableItem[]) {
+          item.event_count = event_count?.[item.id];
+          item.extend_info = extend_info?.[item.id];
+        }
+      });
+    } finally {
+      if (!signal.aborted) loading.value = false;
+    }
   };
 
   // 由于在 setup(create) | BeforeMount 时机可能需要获取路由参数对变量进行初始化
@@ -122,6 +136,7 @@ export function useAlarmTable() {
     total,
     data,
     loading,
+    hasLoaded,
     ordering,
     enabledSpaces,
     wxCsLink,
