@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 """
 import logging
 
-from bkmonitor.utils.common_utils import fetch_biz_id_from_dict
 from bkmonitor.utils.thread_backend import ThreadPool
 
 """
@@ -78,11 +77,12 @@ class BusinessActionPermission(IAMPermission):
     def has_permission(self, request, view):
         if not request.biz_id:
             return True
-        # request.biz_id 可能取自 URL/query，而非 GET 请求的资源按 body 读取业务 ID，两处需保持一致
-        if request.method != "GET":
-            body_biz_id = fetch_biz_id_from_dict(getattr(request, "data", None) or {})
-            if body_biz_id and str(body_biz_id) != str(request.biz_id):
-                return False
+        # request.biz_id 可能取自 URL、query 或业务 ID 别名字段，而资源按 bk_biz_id 读取（读请求取 query，其余取 body），
+        # 两者需保持一致
+        params = request.query_params if request.method in permissions.SAFE_METHODS else getattr(request, "data", None)
+        param_biz_id = params.get("bk_biz_id") if hasattr(params, "get") else None
+        if param_biz_id not in (None, "") and str(param_biz_id) != str(request.biz_id):
+            return False
         self.resources = [ResourceEnum.BUSINESS.create_instance(request.biz_id)]
         return super(BusinessActionPermission, self).has_permission(request, view)
 

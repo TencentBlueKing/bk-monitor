@@ -18,8 +18,8 @@ from bkmonitor.iam.drf import BusinessActionPermission
 class TestBusinessActionPermissionBizId(TestCase):
     """请求参数中的业务 ID 与解析出的业务 ID 需保持一致"""
 
-    def _request(self, method, biz_id, data=None):
-        return SimpleNamespace(method=method, biz_id=biz_id, data=data or {}, query_params={})
+    def _request(self, method, biz_id, data=None, query=None):
+        return SimpleNamespace(method=method, biz_id=biz_id, data=data or {}, query_params=query or {})
 
     @mock.patch("bkmonitor.iam.drf.ResourceEnum.BUSINESS.create_instance")
     @mock.patch("bkmonitor.iam.drf.Permission")
@@ -43,8 +43,8 @@ class TestBusinessActionPermissionBizId(TestCase):
         perm_cls.return_value.is_allowed.assert_not_called()
 
     def test_mismatched_alias_biz_id_is_rejected(self):
-        # 业务 ID 取自别名字段时同样需要与 body 一致
-        allowed, _ = self._check(self._request("POST", "2", {"biz_id": 3}))
+        # 业务 ID 取自别名字段时，同一份参数中的 bk_biz_id 也需与之一致
+        allowed, _ = self._check(self._request("POST", "2", {"biz_id": 2, "bk_biz_id": 3}))
         self.assertFalse(allowed)
 
     def test_body_without_biz_id_is_checked_by_iam(self):
@@ -52,6 +52,12 @@ class TestBusinessActionPermissionBizId(TestCase):
         self.assertTrue(allowed)
         perm_cls.return_value.is_allowed.assert_called_once()
 
-    def test_get_request_is_not_compared_with_body(self):
-        allowed, _ = self._check(self._request("GET", "2", {"bk_biz_id": 3}))
+    def test_get_request_compares_query_params(self):
+        allowed, _ = self._check(self._request("GET", "2", query={"bk_biz_id": "2"}))
+        self.assertTrue(allowed)
+        allowed, _ = self._check(self._request("GET", "2", query={"biz_id": "2", "bk_biz_id": "3"}))
+        self.assertFalse(allowed)
+
+    def test_get_request_ignores_body(self):
+        allowed, _ = self._check(self._request("GET", "2", data={"bk_biz_id": 3}))
         self.assertTrue(allowed)
