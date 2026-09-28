@@ -31,6 +31,15 @@ class PermissionMixin:
             return [BusinessActionPermission([ActionEnum.VIEW_NOTIFY_TEAM])]
         return [BusinessActionPermission([ActionEnum.MANAGE_NOTIFY_TEAM])]
 
+    def get_queryset(self):
+        """
+        列表仅返回请求业务下的数据，详情等接口由对象权限按对象所属业务校验
+        """
+        queryset = super().get_queryset()
+        if self.action == "list":
+            queryset = queryset.filter(bk_biz_id=self.request.biz_id)
+        return queryset
+
 
 class UserGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
     """用户组配置视图"""
@@ -102,14 +111,10 @@ class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
         enabled = request_data.pop("enabled")
         # 过滤出来有效的数据
         rule_ids = list(
-            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=request_data["bk_biz_id"]).values_list(
-                "id", flat=True
-            )
+            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=request.biz_id).values_list("id", flat=True)
         )
         if rule_ids:
-            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=request_data["bk_biz_id"]).update(
-                enabled=enabled
-            )
+            DutyRule.objects.filter(id__in=rule_ids).update(enabled=enabled)
             if enabled is False:
                 # 关闭掉之后，直接关闭掉对应的计划
                 DutyRuleSnap.objects.filter(duty_rule_id__in=rule_ids).update(enabled=False)

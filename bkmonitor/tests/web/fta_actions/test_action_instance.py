@@ -74,6 +74,7 @@ class TestBatchCreateResource(TestCase):
         event = EventDocument(
             **{
                 "event_id": int(time.time()),
+                "bk_biz_id": 2,
                 "plugin_id": "fta-test",
                 "alert_name": "test context-{}".format(event_time),
                 "time": int(time.time()),

@@ -47,7 +47,7 @@ from constants.action import (
 )
 from core.drf_resource import Resource, api
 from fta_web.action.tasks import notify_to_appointee, scheduled_register_bk_plugin
-from fta_web.action.utils import parse_bk_plugin_deployed_info
+from fta_web.action.utils import filter_alerts_by_biz, parse_bk_plugin_deployed_info
 
 logger = logging.getLogger(__name__)
 
@@ -623,7 +623,11 @@ class AssignAlertResource(Resource):
         appointees = validated_request_data["appointees"]
         appointees_set = set(appointees)
         assign_reason = validated_request_data["reason"]
-        alert_ids = validated_request_data["alert_ids"]
+        # 仅处理请求业务下的告警，后续通知任务沿用过滤后的告警
+        alerts = filter_alerts_by_biz(
+            AlertDocument.mget(validated_request_data["alert_ids"]), validated_request_data["bk_biz_id"]
+        )
+        alert_ids = validated_request_data["alert_ids"] = [alert.id for alert in alerts]
         current_time = int(time.time())
         alert_log = AlertLog(
             **dict(
@@ -637,7 +641,6 @@ class AssignAlertResource(Resource):
                 event_id=current_time,
             )
         )
-        alerts = AlertDocument.mget(alert_ids)
         alert_assignees = {alert.id: set(list(alert.appointee) + list(alert.assignee)) for alert in alerts}
         all_diff_assignees = []
         for alert in alerts:
