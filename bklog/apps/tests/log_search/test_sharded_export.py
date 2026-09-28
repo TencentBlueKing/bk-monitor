@@ -337,7 +337,8 @@ class BuildHandlerTests(TestCase):
         with patch("apps.log_search.export.planner.UnifyQueryHandler") as handler_cls:
             handler = build_handler(job, 1000, 2000)
 
-        self.assertEqual((handler.base_dict["start_time"], handler.base_dict["end_time"]), ("1000", "2000"))
+        # 查询侧右端点收窄 1 毫秒
+        self.assertEqual((handler.base_dict["start_time"], handler.base_dict["end_time"]), ("1000", "1999"))
         self.assertEqual(handler_cls.call_args.args[0]["start_time"], 0)
 
     def test_union_part_keeps_all_routes_when_time_is_narrowed(self):
@@ -356,7 +357,8 @@ class BuildHandlerTests(TestCase):
         self.assertEqual(handler_cls.call_args.args[0]["index_set_ids"], [11, 12])
         self.assertEqual(len(handler.base_dict["query_list"]), 2)
         self.assertEqual(handler.base_dict["metric_merge"], "a + b")
-        self.assertEqual((handler.base_dict["start_time"], handler.base_dict["end_time"]), ("1000", "2000"))
+        # 查询侧右端点收窄 1 毫秒
+        self.assertEqual((handler.base_dict["start_time"], handler.base_dict["end_time"]), ("1000", "1999"))
 
 
 class RunPlanningTests(TestCase):

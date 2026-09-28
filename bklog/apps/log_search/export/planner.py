@@ -47,6 +47,15 @@ def encode_export_row(row):
     return (ujson.dumps(row, ensure_ascii=False) + "\n").encode("utf-8")
 
 
+def query_range(start, end):
+    """
+    把左闭右开的分片区间映射成查询区间。
+
+    unify-query 的时间过滤是闭区间，相邻分片又共享边界，右端点收窄 1 毫秒才不会重复取边界日志。
+    """
+    return start, max(start, end - 1)
+
+
 def build_handler(job, start=None, end=None):
     """
     用任务创建时冻结的快照重建查询 Handler。
@@ -58,12 +67,13 @@ def build_handler(job, start=None, end=None):
     handler = UnifyQueryHandler(copy.deepcopy(job.search_params))
     base_dict = copy.deepcopy(job.base_dict)
     if start is not None:
-        base_dict["start_time"], base_dict["end_time"] = str(start), str(end)
+        base_dict["start_time"], base_dict["end_time"] = (str(value) for value in query_range(start, end))
     handler.base_dict = base_dict
     return handler
 
 
 def _statistics_params(handler, start, end):
+    start, end = query_range(start, end)
     params = copy.deepcopy(handler.base_dict)
     params.update(
         {
@@ -127,6 +137,7 @@ def is_definitely_empty(handler, start, end):
 def histogram(handler, start, end, interval):
     """按 interval 统计时间密度，用于定位热点区间。返回 {桶起始毫秒: 条数}。"""
     window = f"{interval}ms"
+    start, end = query_range(start, end)
     params = copy.deepcopy(handler.base_dict)
     for query in params.get("query_list", []):
         query["function"] = [{"method": "count"}, {"method": "date_histogram", "window": window}]
