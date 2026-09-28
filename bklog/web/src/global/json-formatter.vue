@@ -11,6 +11,7 @@
         'is-hidden': !isRowIntersecting && isResolved,
         'show-all-word': showAllWords,
         'is-original-mode': isOriginalMode,
+        'has-original-value-expanded': hasExpandedOriginalValue,
         'is-overflow-y': isShowOverflowY,
         'is-lazy-paint': canLazyPaint,
         'is-lazy-paint-active': isLazyPaintActive,
@@ -57,6 +58,16 @@
         >
           {{ getOriginalValueActionText(item.name) }}
         </button>
+        <button
+          v-if="shouldShowOriginalViewFull(item.name)"
+          class="btn-original-value-action"
+          type="button"
+          @click="handleOriginalViewFullClick($event)"
+          @mousedown="stopOriginalValueActionEvent"
+          @mouseup="stopOriginalValueActionEvent"
+        >
+          {{ $t('全量') }}
+        </button>
       </span>
     </template>
     <template v-if="showMoreAction">
@@ -86,7 +97,6 @@
   import JSONBig from 'json-bigint';
   import { debounce, isEmpty } from 'lodash-es';
   import {
-    ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH,
     ORIGINAL_VALUE_PREVIEW_TEXT_LENGTH,
     splitRenderText,
     stripMark,
@@ -100,7 +110,7 @@
   import { buildHighlightHtml, pageHighlightState } from '../views/retrieve-core/page-highlight';
   import { parseMarkedJson, type PrimitiveMarkMap } from '../views/retrieve-core/marked-json';
 
-  const emit = defineEmits(['menu-click']);
+  const emit = defineEmits(['menu-click', 'view-full']);
   const store = useStore();
   const { $t } = useLocale();
 
@@ -328,6 +338,15 @@
 
   const isOriginalValueExpanded = (fieldName: string) => !!expandedOriginalValueFields.value[fieldName];
 
+  const hasExpandedOriginalValue = computed(() => Object.values(expandedOriginalValueFields.value).some(Boolean));
+
+  /** 与 Table hover「全量」一致：字段被 32KB 截断时，展开后提供侧栏入口 */
+  const shouldShowOriginalViewFull = (fieldName: string) => {
+    if (!isOriginalMode.value || !isOriginalValueExpanded(fieldName)) return false;
+    const truncatedFields = props.renderMeta?.truncatedFields;
+    return Array.isArray(truncatedFields) && truncatedFields.includes(fieldName);
+  };
+
   const getOriginalValueActionText = (fieldName: string) => {
     return isOriginalValueExpanded(fieldName) ? $t('收起') : $t('更多');
   };
@@ -445,12 +464,11 @@
 
   const getOriginalValueExpandedText = (fieldName: string) => {
     if (!expandedOriginalValueTexts.value[fieldName]) {
+      // 展开后展示与 Table 单元格同源的完整可用文本（renderMeta 最多约 32KB），
+      // 不再硬截 16KB。超出 32KB 的真全文通过「全量」打开 FullRowViewer（内部 16KB 分块续载）。
       expandedOriginalValueTexts.value = {
         ...expandedOriginalValueTexts.value,
-        [fieldName]: truncateMarkedTextByChars(
-          getOriginalValueRenderText(fieldName),
-          ORIGINAL_VALUE_EXPANDED_TEXT_LENGTH,
-        ),
+        [fieldName]: getOriginalValueRenderText(fieldName),
       };
     }
 
@@ -505,10 +523,9 @@
 
     if (expandedOriginalValueFields.value[fieldName]) {
       if (!expandedOriginalValueSegments.value[fieldName]) {
-        const expandedText = getOriginalValueExpandedText(fieldName);
         expandedOriginalValueSegments.value = {
           ...expandedOriginalValueSegments.value,
-          [fieldName]: splitRenderText(expandedText, field),
+          [fieldName]: splitRenderText(getOriginalValueExpandedText(fieldName), field),
         };
       }
 
@@ -588,10 +605,20 @@
   const handleOriginalValueActionClick = (e: MouseEvent, fieldName: string) => {
     stopOriginalValueActionEvent(e);
     RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
+    const nextExpanded = !expandedOriginalValueFields.value[fieldName];
     expandedOriginalValueFields.value = {
       ...expandedOriginalValueFields.value,
-      [fieldName]: !expandedOriginalValueFields.value[fieldName],
+      [fieldName]: nextExpanded,
     };
+    if (!nextExpanded) {
+      const nextTexts = { ...expandedOriginalValueTexts.value };
+      const nextSegments = { ...expandedOriginalValueSegments.value };
+      delete nextTexts[fieldName];
+      delete nextSegments[fieldName];
+      expandedOriginalValueTexts.value = nextTexts;
+      expandedOriginalValueSegments.value = nextSegments;
+      resetExpandScrollTop();
+    }
     persistOriginalValueExpandedFields();
     nextTick(() => {
       resetOriginalValueRenderedFlag(fieldName);
@@ -599,6 +626,12 @@
       scheduleSetIsOverflowY();
       RetrieveHelper.fire(RetrieveEvent.RESULT_ROW_BOX_RESIZE);
     });
+  };
+
+  const handleOriginalViewFullClick = (e: MouseEvent) => {
+    stopOriginalValueActionEvent(e);
+    RetrieveHelper.jsonFormatter.setIsExpandNodeClick(true);
+    emit('view-full');
   };
 
   /** 收起后必须清零纵向滚动，否则 overflow:hidden 仍保留旧 scrollTop，导致「更多」错位 */
@@ -1119,6 +1152,9 @@
   });
 </script>
 <style lang="scss">
+  /* 展开态需要覆盖既有 !important，且本段选择器顺序早于后续规则 */
+
+  /* stylelint-disable no-descending-specificity, declaration-no-important */
   @import '../global/json-view/index.scss';
 
   .bklog-json-formatter-root {
@@ -1163,11 +1199,11 @@
         z-index: 2;
         display: block;
         width: fit-content;
+        padding: 0 4px;
 
         /* --bklog-collapse-shift 由展开态的横向滚动订阅写入，把按钮推回可视区右边缘 */
         margin-right: var(--bklog-collapse-shift, 0px);
         margin-left: auto;
-        padding: 0 4px;
         border-radius: 2px;
         box-shadow: 0 0 6px 0 rgb(0 0 0 / 12%);
       }
@@ -1201,8 +1237,8 @@
     }
 
     mark {
-      border-radius: 2px;
       padding: 1px 0px;
+      border-radius: 2px;
     }
 
     mark.result-highlight {
@@ -1227,16 +1263,23 @@
     }
 
     &.is-original-mode {
-      overflow: visible;
       max-height: none !important;
+      overflow: visible;
       white-space: normal;
+
+      /* 展开后限制高度，避免超长字段撑爆页面；完整可用文本已在单元格内，可滚动查看 */
+      &.has-original-value-expanded {
+        max-height: 50vh !important;
+        overflow-x: hidden !important;
+        overflow-y: auto !important;
+      }
 
       > .bklog-root-field {
         display: inline !important;
         max-width: none;
         margin-right: 8px;
-        white-space: normal;
         word-break: break-all;
+        white-space: normal;
         vertical-align: baseline;
       }
 
@@ -1284,10 +1327,10 @@
         line-height: inherit;
         color: #3a84ff;
         vertical-align: baseline;
+        appearance: none;
         cursor: pointer;
         background: transparent;
         border: 0;
-        appearance: none;
       }
     }
 
@@ -1300,10 +1343,10 @@
       line-height: inherit;
       color: #3a84ff;
       vertical-align: baseline;
+      appearance: none;
       cursor: pointer;
       background: transparent;
       border: 0;
-      appearance: none;
     }
 
     .bklog-root-field {

@@ -672,7 +672,7 @@ export default defineComponent({
           minWidth: '100%',
           width: '100%',
           resize: false,
-          renderBodyCell: ({ row }) => {
+          renderBodyCell: ({ row, rowIndex }) => {
             return (
               <JsonFormatter
                 class='bklog-column-wrapper'
@@ -688,6 +688,7 @@ export default defineComponent({
                     field: getFieldByName(option.fieldName),
                   })
                 }
+                onView-full={() => openFullRowViewer(row, rowIndex)}
               />
             );
           },
