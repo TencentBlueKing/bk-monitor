@@ -201,9 +201,14 @@ def dispatch_ready_parts(deadline=None):
 
 
 def finalizing_jobs(limit):
-    """叶子分片全部成功的任务。"""
+    """叶子分片全部成功、尚未收尾或收尾超时的任务。"""
+    cutoff = timezone.now() - timedelta(seconds=settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT)
     return list(
-        ExportJob.objects.filter(status=ExportJobStatus.RUNNING, plan_version__gt=0)
+        ExportJob.objects.filter(
+            Q(status=ExportJobStatus.RUNNING)
+            | Q(status=ExportJobStatus.FINALIZING, finalization_started_at__lt=cutoff),
+            plan_version__gt=0,
+        )
         .annotate(**state.leaf_counts_annotation())
         .filter(leaf_total__gt=0, leaf_success=F("leaf_total"))
         .order_by("pk")
@@ -249,13 +254,13 @@ def manifest_snapshot(job, parts):
 
 def finalize_export(job_id):
     """任务的叶子分片都成功后，生成清单并让任务进入成功态。"""
-    job = ExportJob.objects.filter(pk=job_id).first()
-    if job is None or job.status != ExportJobStatus.RUNNING:
-        return None
-    parts = list(state.leaf_parts(job).order_by("start_time", "part_no"))
-    if not parts or any(part.status != ExportPartStatus.SUCCESS for part in parts):
+    job = state.claim_finalization(job_id)
+    if job is None:
         return None
     try:
+        parts = list(state.leaf_parts(job).order_by("start_time", "part_no"))
+        if not parts or any(part.status != ExportPartStatus.SUCCESS for part in parts):
+            raise ValueError("分片尚未全部成功")
         content = json.dumps(
             manifest_snapshot(job, parts), ensure_ascii=False, sort_keys=True, separators=(",", ":")
         ).encode("utf-8")
@@ -265,14 +270,14 @@ def finalize_export(job_id):
             upload(build_storage(external=job.is_external), path, manifest_name(job))
         return state.finalize_job(
             job_id,
+            job.finalization_attempts,
             manifest_object_key=manifest_name(job),
             manifest_bytes=len(content),
             manifest_checksum=hashlib.sha256(content).hexdigest(),
         )
     except Exception as error:  # pylint: disable=broad-except
-        # 分片产物都已成功，清单失败不能让调度器无限重投，直接给出明确错误
         logger.exception("[finalize_export] job=%s manifest failed: %s", job.pk, error)
-        state.fail_job(job_id, ExportErrorCode.FINALIZATION_FAILED, type(error).__name__)
+        state.fail_finalization(job_id, job.finalization_attempts, type(error).__name__)
         return None
 
 

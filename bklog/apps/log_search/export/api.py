@@ -194,9 +194,10 @@ def job_detail(job):
             stage = next((value for value in reversed(STAGE_ORDER) if value in stages), "")
     expired = job.status == ExportJobStatus.SUCCESS and job.expires_at is not None and job.expires_at <= timezone.now()
     error_code = _job_error_code(job, expired)
+    visible_status = ExportJobStatus.RUNNING if job.status == ExportJobStatus.FINALIZING else job.status
     return {
         "job_id": job.pk,
-        "status": "EXPIRED" if expired else job.status,
+        "status": "EXPIRED" if expired else visible_status,
         "stage": stage,
         "estimated_total": job.estimated_total,
         "actual_total": job.actual_total,

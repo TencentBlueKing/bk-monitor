@@ -245,6 +245,7 @@ class ExportJobStatus:
     PLANNING = "PLANNING"
     READY = "READY"
     RUNNING = "RUNNING"
+    FINALIZING = "FINALIZING"
     SUCCESS = "SUCCESS"
     FAILED = "FAILED"
     CANCELED = "CANCELED"
@@ -254,12 +255,13 @@ class ExportJobStatus:
         (PLANNING, "规划中"),
         (READY, "待调度"),
         (RUNNING, "执行中"),
+        (FINALIZING, "生成清单中"),
         (SUCCESS, "成功"),
         (FAILED, "失败"),
         (CANCELED, "已取消"),
     )
     # 仍会占用并发额度的状态
-    ACTIVE = [PENDING, PLANNING, READY, RUNNING]
+    ACTIVE = [PENDING, PLANNING, READY, RUNNING, FINALIZING]
     TERMINAL = [SUCCESS, FAILED, CANCELED]
 
 

@@ -27,6 +27,7 @@ DEFAULT_CONFIG = {
     "oversized_global_parallelism": 2,
     "part_max_attempts": 3,
     "planning_attempts": 3,
+    "finalization_attempts": 3,
     "artifact_retention_seconds": 86400,
     "signed_url_seconds": 600,
 }

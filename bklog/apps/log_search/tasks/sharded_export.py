@@ -56,7 +56,11 @@ def plan_sharded_export(job_id):
     run_planning(job_id)
 
 
-@app.task(ignore_result=True, queue=CONTROL_QUEUE)
+@app.task(
+    ignore_result=True,
+    queue=CONTROL_QUEUE,
+    soft_time_limit=max(1, settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT - 60),
+)
 def finalize_sharded_export(job_id):
     finalize_export(job_id)
 

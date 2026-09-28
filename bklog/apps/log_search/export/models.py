@@ -67,6 +67,8 @@ class ExportJob(models.Model):
     error_detail = models.TextField(_("错误详情"), blank=True, default="")
     planning_started_at = models.DateTimeField(_("规划开始时间"), null=True, blank=True)
     planning_attempts = models.PositiveIntegerField(_("规划尝试次数"), default=0)
+    finalization_started_at = models.DateTimeField(_("清单生成开始时间"), null=True, blank=True)
+    finalization_attempts = models.PositiveIntegerField(_("清单生成尝试次数"), default=0)
     last_dispatched_at = models.DateTimeField(_("最近投递时间"), null=True, blank=True)
     started_at = models.DateTimeField(_("开始执行时间"), null=True, blank=True)
     completed_at = models.DateTimeField(_("完成时间"), null=True, blank=True)

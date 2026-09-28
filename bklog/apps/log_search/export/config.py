@@ -46,6 +46,7 @@ class ExportPolicy:
     oversized_global_parallelism: int = 2
     part_max_attempts: int = 3
     planning_attempts: int = 3
+    finalization_attempts: int = 3
     artifact_retention_seconds: int = 86_400
     signed_url_seconds: int = 600
 
@@ -77,6 +78,7 @@ _BOUNDS = {
     "oversized_global_parallelism": (int, 1, 64),
     "part_max_attempts": (int, 1, 20),
     "planning_attempts": (int, 1, 20),
+    "finalization_attempts": (int, 1, 20),
     "artifact_retention_seconds": (int, 1, 365 * 86_400),
     "signed_url_seconds": (int, 1, 86_400),
 }

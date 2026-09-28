@@ -92,6 +92,7 @@ from apps.log_search.export.scheduler import (
     enqueue_finalization,
     enqueue_planning,
     finalize_export,
+    finalizing_jobs,
 )
 from apps.log_search.export.storage import (
     UnsupportedExportStorage,
@@ -104,6 +105,7 @@ from apps.log_search.tasks.sharded_export import (
     PLANNING_SOFT_TIME_LIMIT,
     coordinate_sharded_exports,
     execute_sharded_export_part,
+    finalize_sharded_export,
     plan_sharded_export,
 )
 
@@ -727,9 +729,14 @@ class ExportStateTestCase(TestCase):
         self.assertEqual(job.status, ExportJobStatus.RUNNING)
         self.assertEqual(state.leaf_stats(job)["success"], 4)
         self.assertEqual(job.actual_total, 40)
+        claimed = state.claim_finalization(job.pk)
         self.assertIsNotNone(
             state.finalize_job(
-                job.pk, manifest_object_key="manifest", manifest_bytes=10, manifest_checksum="manifest-checksum"
+                job.pk,
+                claimed.finalization_attempts,
+                manifest_object_key="manifest",
+                manifest_bytes=10,
+                manifest_checksum="manifest-checksum",
             )
         )
         job.refresh_from_db()
@@ -740,9 +747,14 @@ class ExportStateTestCase(TestCase):
         self.plan()
         self.complete_parts(4)
         ExportPart.objects.filter(job=self.job, part_no=3).update(start_time=2500)
+        claimed = state.claim_finalization(self.job.pk)
         with self.assertRaises(ValueError):
             state.finalize_job(
-                self.job.pk, manifest_object_key="manifest", manifest_bytes=10, manifest_checksum="manifest-checksum"
+                self.job.pk,
+                claimed.finalization_attempts,
+                manifest_object_key="manifest",
+                manifest_bytes=10,
+                manifest_checksum="manifest-checksum",
             )
 
     def test_failed_part_is_requeued_before_exhausting_attempts(self):
@@ -899,11 +911,7 @@ class ExportStateTestCase(TestCase):
     def test_finalize_requires_every_part_success(self):
         self.plan()
         self.complete_parts(3)
-        self.assertIsNone(
-            state.finalize_job(
-                self.job.pk, manifest_object_key="manifest", manifest_bytes=1, manifest_checksum="manifest-checksum"
-            )
-        )
+        self.assertIsNone(state.claim_finalization(self.job.pk))
 
     def test_cancel_job_cancels_waiting_parts(self):
         self.plan()
@@ -1155,9 +1163,14 @@ class SplitTests(TestCase):
         job = ExportJob.objects.get(pk=self.job.pk)
         self.assertEqual(job.actual_total, 40)
         self.assertEqual(state.leaf_stats(job)["success"], 2)
+        claimed = state.claim_finalization(job.pk)
         self.assertIsNotNone(
             state.finalize_job(
-                job.pk, manifest_object_key="manifest", manifest_bytes=1, manifest_checksum="manifest-checksum"
+                job.pk,
+                claimed.finalization_attempts,
+                manifest_object_key="manifest",
+                manifest_bytes=1,
+                manifest_checksum="manifest-checksum",
             )
         )
         job.refresh_from_db()
@@ -1603,6 +1616,12 @@ class ControlPipelineTests(SimpleTestCase):
         self.assertEqual(plan_sharded_export.soft_time_limit, PLANNING_SOFT_TIME_LIMIT)
         self.assertLess(PLANNING_SOFT_TIME_LIMIT, settings.ASYNC_EXPORT_PLANNING_TIMEOUT)
 
+    def test_finalization_is_bounded_before_the_reclaim_window(self):
+        """清单生成软超时必须早于协调器重认领窗口。"""
+        timeout = settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT
+        self.assertEqual(finalize_sharded_export.soft_time_limit, max(1, timeout - 60))
+        self.assertLess(finalize_sharded_export.soft_time_limit, timeout)
+
     def test_round_budget_is_bounded_before_the_lock_lease(self):
         """轮次必须先于调度锁租约结束，否则锁过期后旧轮次会与下一轮重叠发放额度。"""
         self.assertEqual(coordinate_sharded_exports.soft_time_limit, settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT)
@@ -1739,9 +1758,89 @@ class ManifestChecksumTests(TestCase):
         self.assertEqual(self.job.manifest_checksum, hashlib.sha256(content).hexdigest())
         self.assertEqual(self.job.manifest_object_key, manifest_name(self.job))
 
+    def test_transient_upload_failure_retries_without_rerunning_parts(self):
+        with (
+            patch("apps.log_search.export.scheduler.build_storage"),
+            patch("apps.log_search.export.scheduler.upload", side_effect=[OSError("temporary"), None]) as upload,
+        ):
+            self.assertIsNone(finalize_export(self.job.pk))
+            self.job.refresh_from_db()
+            self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
+            self.assertEqual(self.job.finalization_attempts, 1)
+            self.assertEqual(finalizing_jobs(10), [self.job.pk])
+            self.assertEqual(finalize_export(self.job.pk).status, ExportJobStatus.SUCCESS)
+
+        self.assertEqual(upload.call_count, 2)
+        self.assertEqual(ExportPart.objects.get(job=self.job).status, ExportPartStatus.SUCCESS)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.finalization_attempts, 2)
+
+    def test_upload_failure_fails_job_after_retry_budget(self):
+        self.job.policy = {**self.job.policy, "finalization_attempts": 2}
+        self.job.save(update_fields=["policy"])
+        with (
+            patch("apps.log_search.export.scheduler.build_storage"),
+            patch("apps.log_search.export.scheduler.upload", side_effect=OSError("temporary")) as upload,
+        ):
+            finalize_export(self.job.pk)
+            self.job.refresh_from_db()
+            self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
+            finalize_export(self.job.pk)
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.FAILED)
+        self.assertEqual(self.job.error_code, ExportErrorCode.FINALIZATION_FAILED)
+        self.assertEqual(self.job.finalization_attempts, 2)
+        self.assertEqual(upload.call_count, 2)
+        self.assertFalse(finalizing_jobs(10))
+
+    @override_settings(ASYNC_EXPORT_FINALIZATION_TIMEOUT=1)
+    def test_stale_finalization_attempt_cannot_commit_or_fail(self):
+        old_claim = state.claim_finalization(self.job.pk)
+        self.assertIsNone(state.claim_finalization(self.job.pk))
+        ExportJob.objects.filter(pk=self.job.pk).update(finalization_started_at=timezone.now() - timedelta(seconds=10))
+        self.assertEqual(finalizing_jobs(10), [self.job.pk])
+        new_claim = state.claim_finalization(self.job.pk)
+
+        self.assertIsNone(
+            state.finalize_job(
+                self.job.pk,
+                old_claim.finalization_attempts,
+                manifest_object_key="old-manifest",
+                manifest_bytes=1,
+                manifest_checksum="old-checksum",
+            )
+        )
+        self.assertIsNone(state.fail_finalization(self.job.pk, old_claim.finalization_attempts, "late error"))
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.FINALIZING)
+        self.assertEqual(self.job.finalization_attempts, new_claim.finalization_attempts)
+        self.assertEqual(job_detail(self.job)["status"], ExportJobStatus.RUNNING)
+        self.assertEqual(job_detail(self.job)["stage"], ExportStage.FINALIZING)
+
+    def test_cancel_during_finalization_keeps_the_job_canceled(self):
+        def cancel_during_upload(_storage, _path, _name):
+            self.assertEqual(ExportJob.objects.get(pk=self.job.pk).status, ExportJobStatus.FINALIZING)
+            state.cancel_job(self.job.pk)
+
+        with (
+            patch("apps.log_search.export.scheduler.build_storage"),
+            patch("apps.log_search.export.scheduler.upload", side_effect=cancel_during_upload),
+        ):
+            self.assertIsNone(finalize_export(self.job.pk))
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.CANCELED)
+        self.assertEqual(self.job.finalization_attempts, 1)
+        self.assertEqual(self.job.manifest_object_key, "")
+        self.assertEqual(ExportPart.objects.get(job=self.job).status, ExportPartStatus.SUCCESS)
+        self.assertEqual(finalizing_jobs(10), [])
+
     def test_manifest_checksum_is_exposed_with_the_download_manifest(self):
+        claimed = state.claim_finalization(self.job.pk)
         state.finalize_job(
             self.job.pk,
+            claimed.finalization_attempts,
             manifest_object_key="manifest.json",
             manifest_bytes=10,
             manifest_checksum="manifest-checksum",
@@ -2226,6 +2325,14 @@ class ExportJobAdmissionTests(TestCase):
             self.create()
 
         self.assertEqual(ExportJob.objects.filter(created_by="tester").count(), 3)
+
+    def test_finalizing_job_still_occupies_the_user_limit(self):
+        for _ in range(2):
+            create_job(created_by="tester", status=ExportJobStatus.RUNNING)
+        create_job(created_by="tester", status=ExportJobStatus.FINALIZING)
+
+        with self.assertRaises(ConcurrentExportLimitException):
+            self.create()
 
     def test_old_and_new_tasks_share_one_budget(self):
         for _ in range(2):
