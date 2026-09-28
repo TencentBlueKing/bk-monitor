@@ -31,6 +31,7 @@ from bkmonitor.action.serializers import (
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.documents.action import ActionInstanceDocument
 from bkmonitor.documents.base import BulkActionType
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import GlobalConfig
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
 from bkmonitor.utils.request import get_request, get_request_username
@@ -797,6 +798,11 @@ class PreviewDemoActionContextResource(Resource):
         authorized_bizs = resource.space.get_bk_biz_ids_by_user(req.user)
         if bk_biz_id not in authorized_bizs:
             raise PermissionDenied(_("当前用户无该业务({})的访问权限").format(bk_biz_id))
+
+        # 按实际传给后台的业务鉴权，避免 URL/query 中的业务覆盖请求体的权限范围。
+        Permission(request=req).is_allowed_by_biz(
+            bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_RULE, raise_exception=True
+        )
 
         result = api.monitor.get_demo_action_context_backend(**validated_request_data)
 
