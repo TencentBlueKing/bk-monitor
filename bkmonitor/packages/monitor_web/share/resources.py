@@ -14,6 +14,8 @@ from datetime import datetime
 from functools import partial
 from secrets import token_hex
 
+from django.utils.translation import ugettext as _
+
 from bkmonitor.iam.permission import ActionIdMap, Permission
 from bkmonitor.models import ApiAuthToken, TokenAccessRecord
 from bkmonitor.utils.request import get_request
@@ -39,7 +41,20 @@ def get_token_type(token_type):
     for prefix, new_prefix in type_prefix_map.items():
         if token_type.startswith(prefix):
             token_type = new_prefix
+    if token_type not in ActionIdMap:
+        raise serializers.ValidationError(_("不支持的分享类型: {}").format(token_type))
     return token_type
+
+
+def check_share_permission(bk_biz_id, token_type):
+    """
+    分享需具备对应场景的查看权限。
+    仅校验关联业务空间的动作；APM 应用、单仪表盘等实例级动作按实例授权，无法以业务资源校验，由页面准入保证
+    """
+    permission = Permission()
+    for action in ActionIdMap.get(token_type, []):
+        if all(resource_type["id"] == "space" for resource_type in action.related_resource_types):
+            permission.is_allowed_by_biz(bk_biz_id=bk_biz_id, action=action, raise_exception=True)
 
 
 class CreateShareTokenResource(Resource):
@@ -67,6 +82,7 @@ class CreateShareTokenResource(Resource):
         # 自定义场景、apm、采集视图 类型解析处理
         name = validated_request_data["type"]
         token_type = get_token_type(validated_request_data["type"])
+        check_share_permission(validated_request_data["bk_biz_id"], token_type)
         create_params = {
             "namespaces": [f"biz#{validated_request_data['bk_biz_id']}"],
             "name": str(f"{name}_" + str(datetime.now())),
@@ -112,6 +128,10 @@ class UpdateShareTokenResource(Resource):
                 raise TokenExpiredError
         except ApiAuthToken.DoesNotExist:
             raise TokenValidatedError
+        biz_ids = [namespace[4:] for namespace in token_obj.namespaces if namespace.startswith("biz#")]
+        if token_obj.type not in ActionIdMap or not biz_ids:
+            raise TokenValidatedError
+        check_share_permission(biz_ids[0], token_obj.type)
         if validated_request_data.get("expire_time") and validated_request_data.get("expire_period"):
             token_obj.expire_time = datetime.fromtimestamp(validated_request_data["expire_time"])
             token_obj.params["expire_period"] = validated_request_data["expire_period"]
@@ -216,6 +236,7 @@ class GetShareTokenListResource(Resource):
 
     def perform_request(self, validated_request_data):
         token_type = get_token_type(validated_request_data["type"])
+        check_share_permission(validated_request_data["bk_biz_id"], token_type)
         token_list = []
         tokens = ApiAuthToken.origin_objects.filter(
             namespaces=[f"biz#{validated_request_data['bk_biz_id']}"], type=token_type
@@ -258,6 +279,7 @@ class DeleteShareTokenResource(Resource):
 
     def perform_request(self, validated_request_data):
         token_type = get_token_type(validated_request_data["type"])
+        check_share_permission(validated_request_data["bk_biz_id"], token_type)
         username = get_global_user() or "unknown"
         if token_type.startswith("scene_"):
             token_types = [

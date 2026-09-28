@@ -8,12 +8,11 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from monitor_web.grafana.permissions import GrafanaWritePermission
-
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.grafana.permissions import GrafanaWritePermission
 
 
 class TokenManagerViewSet(ResourceViewSet):
@@ -22,9 +21,11 @@ class TokenManagerViewSet(ResourceViewSet):
     """
 
     def get_permissions(self):
-        return [
-            GrafanaWritePermission(BusinessActionPermission([ActionEnum.MANAGE_RULE, ActionEnum.VIEW_BUSINESS])),
-        ]
+        manage_rule = BusinessActionPermission([ActionEnum.MANAGE_RULE])
+        # grafana 类型可由仪表盘编辑者获取；as_code（默认类型）用于配置导入，仅限规则管理
+        if self.request.query_params.get("type") == "grafana":
+            return [GrafanaWritePermission(manage_rule)]
+        return [manage_rule]
 
     resource_routes = [
         ResourceRoute("GET", resource.commons.get_api_token, endpoint="get_api_token"),
