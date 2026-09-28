@@ -119,7 +119,15 @@ class TestReportReadAccess(TestCase):
 
 class TestCancelOrResubscribe(TestCase):
     def setUp(self):
-        _, self.channel_get, self.report_get, self.resource = _start_patches(
+        (
+            _,
+            self.channel_get,
+            self.report_get,
+            self.resource,
+            _,
+            self.channel_filter,
+            self.check_permission,
+        ) = _start_patches(
             self,
             [
                 mock.patch(
@@ -129,14 +137,19 @@ class TestCancelOrResubscribe(TestCase):
                 mock.patch("monitor_web.new_report.resources.ReportChannel.objects.get"),
                 mock.patch("monitor_web.new_report.resources.Report.objects.get"),
                 mock.patch("monitor_web.new_report.resources.resource"),
+                mock.patch("monitor_web.new_report.resources.get_request_username", return_value="alice"),
+                mock.patch("monitor_web.new_report.resources.ReportChannel.objects.filter"),
+                mock.patch("monitor_web.new_report.resources.GetReportListResource.check_permission"),
             ],
         )
-        self.report_get.return_value = SimpleNamespace(id=8, bk_biz_id=2)
+        self.report_get.return_value = SimpleNamespace(id=8, bk_biz_id=2, create_user="bob")
         self.resource.report.group_list.return_value = [{"id": GROUP_ID, "children": ["alice"]}]
+        self.check_permission.side_effect = CustomException("denied")
 
     def set_channel(self, subscribers):
         self.channel = SimpleNamespace(report_id=8, subscribers=subscribers, save=mock.Mock())
         self.channel_get.return_value = self.channel
+        self.channel_filter.return_value.first.return_value = self.channel
 
     def change(self, is_enabled):
         return CancelOrResubscribeReportResource().perform_request({"report_id": 8, "is_enabled": is_enabled})
@@ -170,6 +183,22 @@ class TestCancelOrResubscribe(TestCase):
             self.change(True)
         self.assertEqual(len(self.channel.subscribers), 2)
         self.channel.save.assert_not_called()
+        self.check_permission.assert_called_once_with(2, raise_exception=True)
+
+    def test_creator_not_in_list_appends_own_entry(self):
+        self.report_get.return_value.create_user = "alice"
+        self.set_channel([{"id": "bob", "type": "user", "is_enabled": True}])
+        self.assertEqual(self.change(False), "success")
+        self.assertEqual(self.channel.subscribers[-1], {"id": "alice", "type": "user", "is_enabled": False})
+        self.check_permission.assert_not_called()
+        self.channel_filter.assert_not_called()
+
+    def test_manager_not_in_list_appends_own_entry(self):
+        self.check_permission.side_effect = None
+        self.set_channel([{"id": "bob", "type": "user", "is_enabled": True}])
+        self.assertEqual(self.change(True), "success")
+        self.assertEqual(self.channel.subscribers[-1], {"id": "alice", "type": "user", "is_enabled": True})
+        self.check_permission.assert_called_once_with(2, raise_exception=True)
 
 
 class TestSendReportAccess(TestCase):

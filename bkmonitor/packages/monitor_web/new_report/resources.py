@@ -586,10 +586,9 @@ class CancelOrResubscribeReportResource(Resource):
                 subscriber["is_enabled"] = is_enabled
                 channel.save()
                 return "success"
-        # 未单列的用户只有经订阅组覆盖时才能追加本人条目
+        # 未单列的用户：创建人、订阅人、组成员或订阅管理者可追加本人条目
         report = Report.objects.get(id=channel.report_id)
-        if not _in_subscribed_group(channel.subscribers, report.bk_biz_id, username):
-            raise CustomException(f"[report] report id: {channel.report_id} current user is not a subscriber.")
+        _assert_report_access(report.id, report.bk_biz_id, report.create_user)
         channel.subscribers.append({"id": username, "type": StaffEnum.USER.value, "is_enabled": is_enabled})
         channel.save()
         return "success"
