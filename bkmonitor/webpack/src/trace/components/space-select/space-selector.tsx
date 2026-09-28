@@ -595,7 +595,6 @@ export default defineComponent({
     }
 
     function setPaginationData(isInit = false) {
-      const showData = [];
       const prevArr = [];
       const nextArr = [];
 
@@ -609,7 +608,7 @@ export default defineComponent({
         }
       }
 
-      showData.push(...prevArr, ...nextArr);
+      const showData = prevArr.concat(nextArr);
       pagination.count = showData.length;
       if (isInit) {
         pagination.current = 1;
