@@ -363,6 +363,22 @@ class RunPlanningTests(TestCase):
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.estimated_rows, 40)
 
+    @override_settings(ASYNC_EXPORT_PLANNING_TIMEOUT=1)
+    def test_run_planning_skips_a_job_that_exhausted_its_attempts(self):
+        """认领次数耗尽时任务已被判失败，规划不应再白跑一遍统计查询。"""
+        job = create_job(policy={**ExportPolicy().snapshot(), "planning_attempts": 1})
+        state.claim_planning(job.pk)
+        ExportJob.objects.filter(pk=job.pk).update(planning_started_at=timezone.now() - timedelta(seconds=10))
+
+        with patch("apps.log_search.export.planner.build_parts") as build_parts_mock:
+            run_planning(job.pk)
+
+        build_parts_mock.assert_not_called()
+        job.refresh_from_db()
+        self.assertEqual(job.status, ExportJobStatus.FAILED)
+        self.assertEqual(job.error_code, ExportErrorCode.PLANNING_RETRIES_EXHAUSTED)
+        self.assertFalse(ExportPart.objects.filter(job=job).exists())
+
 
 class PartRunnerTests(TestCase):
     def test_write_rows_streams_until_done(self):
@@ -644,8 +660,9 @@ class ExportStateTestCase(TestCase):
             PartSpec(2000, 3000, 10, 10),
             PartSpec(3000, 4000, 10, 10),
         ]
-        self.assertIsNotNone(state.claim_planning(self.job.pk))
-        return state.persist_plan(self.job.pk, parts=parts, estimated_total=40)
+        claimed = state.claim_planning(self.job.pk)
+        self.assertIsNotNone(claimed)
+        return state.persist_plan(self.job.pk, claimed.planning_attempts, parts=parts, estimated_total=40)
 
     def complete_parts(self, count):
         for part in ExportPart.objects.filter(job=self.job).order_by("part_no")[:count]:
@@ -948,8 +965,9 @@ class ExportStateTestCase(TestCase):
     def test_planning_attempt_budget_is_taken_from_job_policy(self):
         self.job.policy = {**ExportPolicy().snapshot(), "planning_attempts": 1}
         self.job.save(update_fields=["policy"])
-        self.assertIsNotNone(state.claim_planning(self.job.pk))
-        state.fail_planning(self.job.pk, "STATISTICS_FAILED", retryable=True)
+        claimed = state.claim_planning(self.job.pk)
+        self.assertIsNotNone(claimed)
+        state.fail_planning(self.job.pk, claimed.planning_attempts, "STATISTICS_FAILED", retryable=True)
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, ExportJobStatus.FAILED)
 
@@ -970,8 +988,8 @@ class PlanRecordTests(TestCase):
         self.assertIsNotNone(plan.started_at)
 
     def test_retryable_failure_reuses_the_same_version(self):
-        state.claim_planning(self.job.pk)
-        state.fail_planning(self.job.pk, "STATISTICS_FAILED", "统计失败", retryable=True)
+        claimed = state.claim_planning(self.job.pk)
+        state.fail_planning(self.job.pk, claimed.planning_attempts, "STATISTICS_FAILED", "统计失败", retryable=True)
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, ExportJobStatus.PENDING)
 
@@ -982,9 +1000,39 @@ class PlanRecordTests(TestCase):
         self.assertEqual(plan.plan_version, 1)
         self.assertEqual(plan.status, ExportPlanStatus.PLANNING)
 
+    @override_settings(ASYNC_EXPORT_PLANNING_TIMEOUT=1)
+    def test_stale_attempt_cannot_persist_after_reclaim(self):
+        old_claim = state.claim_planning(self.job.pk)
+        ExportJob.objects.filter(pk=self.job.pk).update(planning_started_at=timezone.now() - timedelta(seconds=10))
+        new_claim = state.claim_planning(self.job.pk)
+
+        parts = [PartSpec(0, 4000, 40, 4000)]
+        self.assertIsNone(state.persist_plan(self.job.pk, old_claim.planning_attempts, parts=parts, estimated_total=40))
+        self.assertFalse(ExportPart.objects.filter(job=self.job).exists())
+        self.assertEqual(ExportPlan.objects.get(job=self.job).status, ExportPlanStatus.PLANNING)
+
+        self.assertEqual(
+            state.persist_plan(self.job.pk, new_claim.planning_attempts, parts=parts, estimated_total=40).status,
+            ExportJobStatus.READY,
+        )
+
+    @override_settings(ASYNC_EXPORT_PLANNING_TIMEOUT=1)
+    def test_stale_attempt_cannot_fail_after_reclaim(self):
+        old_claim = state.claim_planning(self.job.pk)
+        ExportJob.objects.filter(pk=self.job.pk).update(planning_started_at=timezone.now() - timedelta(seconds=10))
+        new_claim = state.claim_planning(self.job.pk)
+
+        self.assertIsNone(
+            state.fail_planning(self.job.pk, old_claim.planning_attempts, "STATISTICS_FAILED", retryable=False)
+        )
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.PLANNING)
+        self.assertEqual(self.job.planning_attempts, new_claim.planning_attempts)
+        self.assertEqual(ExportPlan.objects.get(job=self.job).status, ExportPlanStatus.PLANNING)
+
     def test_failed_planning_marks_the_plan_row_failed(self):
-        state.claim_planning(self.job.pk)
-        state.fail_planning(self.job.pk, "QUOTA_EXCEEDED", "超过单任务上限")
+        claimed = state.claim_planning(self.job.pk)
+        state.fail_planning(self.job.pk, claimed.planning_attempts, "QUOTA_EXCEEDED", "超过单任务上限")
 
         self.job.refresh_from_db()
         plan = ExportPlan.objects.get(job=self.job, plan_version=1)
@@ -1012,8 +1060,11 @@ class SplitTests(TestCase):
 
     def setUp(self):
         self.job = create_job(policy={**ExportPolicy().snapshot(), "part_max_attempts": 1})
-        self.assertIsNotNone(state.claim_planning(self.job.pk))
-        state.persist_plan(self.job.pk, parts=[PartSpec(0, 4000, 40, 4000)], estimated_total=40)
+        claimed = state.claim_planning(self.job.pk)
+        self.assertIsNotNone(claimed)
+        state.persist_plan(
+            self.job.pk, claimed.planning_attempts, parts=[PartSpec(0, 4000, 40, 4000)], estimated_total=40
+        )
 
     def fail_first_part(self, error_code="PART_TIMEOUT"):
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
@@ -1042,8 +1093,10 @@ class SplitTests(TestCase):
 
     def test_part_at_split_step_fails_the_job_with_oversized_error(self):
         job = create_job(end_time=1000, policy={**ExportPolicy().snapshot(), "part_max_attempts": 1})
-        state.claim_planning(job.pk)
-        state.persist_plan(job.pk, parts=[PartSpec(0, 1000, 40, 4000, oversized=True)], estimated_total=40)
+        claimed = state.claim_planning(job.pk)
+        state.persist_plan(
+            job.pk, claimed.planning_attempts, parts=[PartSpec(0, 1000, 40, 4000, oversized=True)], estimated_total=40
+        )
         part = ExportPart.objects.get(job=job)
         state.dispatch_part(part.pk, "task")
         part = state.claim_part(part.pk, "task")
@@ -1074,8 +1127,8 @@ class SplitTests(TestCase):
 
     def test_part_limit_stops_splitting(self):
         job = create_job(policy={**ExportPolicy().snapshot(), "part_max_attempts": 1, "max_parts": 1})
-        state.claim_planning(job.pk)
-        state.persist_plan(job.pk, parts=[PartSpec(0, 4000, 40, 4000)], estimated_total=40)
+        claimed = state.claim_planning(job.pk)
+        state.persist_plan(job.pk, claimed.planning_attempts, parts=[PartSpec(0, 4000, 40, 4000)], estimated_total=40)
         part = ExportPart.objects.get(job=job)
         state.dispatch_part(part.pk, "task")
         part = state.claim_part(part.pk, "task")
@@ -1591,8 +1644,8 @@ class JobFailureClassificationTests(TestCase):
             end_time=span,
             policy={**ExportPolicy().snapshot(), "part_max_attempts": 1, "max_parts": max_parts},
         )
-        state.claim_planning(job.pk)
-        state.persist_plan(job.pk, parts=[PartSpec(0, span, 10, 10)], estimated_total=10)
+        claimed = state.claim_planning(job.pk)
+        state.persist_plan(job.pk, claimed.planning_attempts, parts=[PartSpec(0, span, 10, 10)], estimated_total=10)
         part = ExportPart.objects.get(job=job)
         state.dispatch_part(part.pk, "task")
         part = state.claim_part(part.pk, "task")

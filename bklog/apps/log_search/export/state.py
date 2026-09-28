@@ -165,6 +165,8 @@ def claim_planning(job_id):
     认领初始规划。
 
     规划一次只会进行一个：未超时的 PLANNING 由其他实例持有，超时后允许重新认领。
+    递增后的 planning_attempts 是本次认领的栅栏，要原样传给 persist_plan / fail_planning：
+    规划软超时不保证阻塞中的查询及时退出，旧执行可能在新执行认领之后才返回，其结果必须作废。
     """
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
@@ -192,11 +194,11 @@ def claim_planning(job_id):
         )
 
 
-def persist_plan(job_id, *, parts, estimated_total, plan_result=None):
-    """把完整计划落库，并把任务推进到可调度状态。"""
+def persist_plan(job_id, planning_attempt, *, parts, estimated_total, plan_result=None):
+    """把完整计划落库，并把任务推进到可调度状态；planning_attempt 是认领栅栏，过期执行直接作废。"""
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
-        if job.status != ExportJobStatus.PLANNING:
+        if job.status != ExportJobStatus.PLANNING or job.planning_attempts != planning_attempt:
             return None
         _validate_parts(job, parts)
         version = job.plan_version + 1
@@ -228,10 +230,11 @@ def persist_plan(job_id, *, parts, estimated_total, plan_result=None):
         return sync_actual_total(job)
 
 
-def fail_planning(job_id, code, detail="", retryable=False):
+def fail_planning(job_id, planning_attempt, code, detail="", retryable=False):
+    """规划失败的提交入口；planning_attempt 是认领栅栏，过期执行不能改动任务状态。"""
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
-        if job.status != ExportJobStatus.PLANNING:
+        if job.status != ExportJobStatus.PLANNING or job.planning_attempts != planning_attempt:
             return None
         now = timezone.now()
         ExportPlan.objects.filter(job=job, plan_version=job.plan_version + 1, status=ExportPlanStatus.PLANNING).update(

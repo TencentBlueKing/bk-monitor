@@ -25,7 +25,7 @@ from dataclasses import dataclass, replace
 import ujson
 
 from apps.api import UnifyQueryApi
-from apps.log_search.constants import ExportErrorCode
+from apps.log_search.constants import ExportErrorCode, ExportJobStatus
 from apps.log_search.export import state
 from apps.log_search.export.config import policy_from_snapshot
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -312,16 +312,19 @@ def _plan_result(total, avg_bytes, interval):
 def run_planning(job_id):
     """规划一个任务的完整分片计划；重复投递由状态流转保证幂等。"""
     job = state.claim_planning(job_id)
-    if job is None:
+    # 认领失败、或次数耗尽（此时返回的是刚被判失败的任务）时不再发起规划查询，结果会被栅栏作废
+    if job is None or job.status != ExportJobStatus.PLANNING:
         return
     try:
         # 使用任务创建时冻结的策略，避免灰度调整影响已准入的任务
         policy = policy_from_snapshot(job.policy)
         parts, total, result = build_parts(job, policy)
-        state.persist_plan(job.pk, parts=parts, estimated_total=total, plan_result=result)
+        state.persist_plan(job.pk, job.planning_attempts, parts=parts, estimated_total=total, plan_result=result)
     except PlanError as error:
         logger.warning("[run_planning] job=%s code=%s detail=%s", job.pk, error.code, error)
-        state.fail_planning(job.pk, error.code, str(error), retryable=error.retryable)
+        state.fail_planning(job.pk, job.planning_attempts, error.code, str(error), retryable=error.retryable)
     except Exception as error:  # pylint: disable=broad-except
         logger.exception("[run_planning] job=%s planning failed: %s", job.pk, error)
-        state.fail_planning(job.pk, ExportErrorCode.PLANNING_FAILED, type(error).__name__, retryable=True)
+        state.fail_planning(
+            job.pk, job.planning_attempts, ExportErrorCode.PLANNING_FAILED, type(error).__name__, retryable=True
+        )
