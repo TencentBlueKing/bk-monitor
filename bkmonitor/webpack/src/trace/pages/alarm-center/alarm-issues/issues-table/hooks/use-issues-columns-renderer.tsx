@@ -48,6 +48,7 @@ import {
   IssueStatusEnum,
   TrendRangeEnum,
 } from '../../constant';
+import { getIssueExceptionText, getIssueLogDatetimePrefix } from '../../utils/issue-log-content';
 import IssueNameCell from '../components/issue-name-cell/issue-name-cell';
 import { ALARM_CENTER_PANEL_TAB_MAP } from '@/pages/alarm-center/utils/constant';
 
@@ -59,9 +60,6 @@ import type { SlotReturnValue } from 'tdesign-vue-next';
 import type { TippyOptions } from 'vue-tippy';
 
 import 'vue-json-pretty/lib/styles.css';
-
-/** 匹配开头的日期时间格式字符串（如 2026-07-24 21:08:17.684 或 2026-07-24 21:08:00+0800），用于移除以释放有限的展示空间 */
-const DATETIME_PREFIX_REGEX = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(\.\d+)?([+-]\d{4})?\s*/;
 
 /** useIssuesColumnsRenderer 入参：useIssuesHandlers 返回的交互处理函数 + clickPopoverTools 弹出框工具 */
 export type IssuesColumnsRendererCtx = {
@@ -95,7 +93,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
    * @returns {JSX.Element} Popover 内容 JSX
    */
   const createJsonLogPopoverContent = (row: IssueItem) => {
-    const text = row.log_content?.replace(DATETIME_PREFIX_REGEX, '') || row.anomaly_message || '--';
+    const text = getIssueExceptionText(row);
     // biome-ignore lint/suspicious/noExplicitAny: VueJsonPretty third-party data prop
     const data = JSON.parse(text) as any;
     return (
@@ -130,8 +128,8 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
    * @returns {JSX.Element} Popover 内容 JSX
    */
   const createStringLogPopoverContent = (row: IssueItem) => {
-    const text = row.log_content?.replace(DATETIME_PREFIX_REGEX, '') || row.anomaly_message || '--';
-    const datetimePrefix = row.log_content?.match(DATETIME_PREFIX_REGEX)?.[0]?.trimEnd();
+    const text = getIssueExceptionText(row);
+    const datetimePrefix = getIssueLogDatetimePrefix(row.log_content);
     return (
       <div class='issues-log-popover-wrapper'>
         <div class='issues-log-popover-header'>
@@ -169,7 +167,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
     renderCtx: TableCellRenderContext
   ): SlotReturnValue => {
     const regressionConfig = ISSUES_REGRESSION_MAP[String(row.is_regression)];
-    const exceptionText = row.log_content?.replace(DATETIME_PREFIX_REGEX, '') || row.anomaly_message || '--';
+    const exceptionText = getIssueExceptionText(row);
 
     return (
       <div class='issues-name-col'>
@@ -226,6 +224,9 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
             <i class='icon-monitor icon-alert-line' />
             <span class='issues-alert-count-number'>{row.alert_count}</span>
           </span>
+          {row.log_content_loaded === false ? (
+            <span class='skeleton-element issues-log-skeleton' />
+          ) : (
           <span
             class='issues-name-exception-text'
             onMouseenter={e => {
@@ -258,6 +259,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           >
             {exceptionText}
           </span>
+          )}
         </div>
       </div>
     ) as unknown as SlotReturnValue;

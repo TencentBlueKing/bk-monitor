@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { issueLogContent, issueSearch, issueTopN, issueTrend } from 'monitor-api/modules/issue';
+import { issueSearch, issueTopN, issueTrend } from 'monitor-api/modules/issue';
 import { type IFilterField, EFieldType } from 'trace/components/retrieval-filter/typing';
 
 import {
@@ -34,11 +34,11 @@ import {
   TREND_RANGE_SECONDS_MAP,
   TrendRangeEnum,
 } from '../alarm-issues/constant';
+import { requestIssueLogContent } from '../alarm-issues/utils/issue-log-content';
 import { type RequestOptions, AlarmService } from './base';
 
 import type {
   IssueItem,
-  IssueLogContentParams,
   IssueLogContentResponse,
   IssueSearchParams,
   IssueSearchResponse,
@@ -583,12 +583,7 @@ export class IssuesService extends AlarmService<AlarmType.ISSUES> {
     return data as FilterTableResponse<T>;
   }
   async getIssueLogContent(issues: IssueItem[], options?: RequestOptions): Promise<IssueLogContentResponse> {
-    if (!issues.length) return {};
-    const params: IssueLogContentParams = {
-      bk_biz_ids: [...new Set(issues.map(issue => issue.bk_biz_id))],
-      issue_ids: issues.map(issue => issue.id),
-    };
-    return issueLogContent<IssueLogContentParams, IssueLogContentResponse>(params, options).catch(() => ({}));
+    return requestIssueLogContent(issues, options);
   }
   async getIssueTrend(
     issues: IssueItem[],
