@@ -42,6 +42,10 @@ import './rum-explore-header.scss';
 export default defineComponent({
   name: 'RumExploreHeader',
   props: {
+    loading: {
+      type: Boolean,
+      default: false,
+    },
     applicationList: {
       type: Array as PropType<IRumApplication[]>,
       default: () => [],
@@ -108,6 +112,7 @@ export default defineComponent({
 
     /** 全局 Cmd/Ctrl + O 唤起应用选择器 */
     function handleShortcutKeydown(event: KeyboardEvent) {
+      if (props.loading) return;
       if (event.key?.toLowerCase() !== 'o' || !(event.ctrlKey || event.metaKey)) return;
       event.preventDefault();
       applicationSelectRef.value?.showPopover();
@@ -186,6 +191,7 @@ export default defineComponent({
             ref='applicationSelectRef'
             class='application-select'
             clearable={false}
+            disabled={this.loading}
             filterOption={this.applicationFilter}
             modelValue={this.store.appName}
             popoverOptions={{ extCls: 'rum-explore-application-select-popover' }}
@@ -198,7 +204,13 @@ export default defineComponent({
               trigger: () => (
                 <div class='application-select-trigger'>
                   <span class='data-prefix'>{this.t('应用')}：</span>
-                  {this.store.currentApp && (
+                  {this.loading && (
+                    <span
+                      style={{ width: '120px' }}
+                      class='rum-skeleton-line'
+                    />
+                  )}
+                  {!this.loading && this.store.currentApp && (
                     <span
                       class='application-name'
                       v-overflow-tips
