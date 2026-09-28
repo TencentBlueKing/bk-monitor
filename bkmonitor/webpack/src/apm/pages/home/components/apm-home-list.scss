@@ -370,3 +370,15 @@
     }
   }
 }
+
+.apm-home-list .apm-home-placeholder {
+  background: #e9edf2;
+  border-radius: 3px;
+  animation: apm-skeleton-breathe 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apm-home-list .apm-home-placeholder {
+    animation: none;
+  }
+}
