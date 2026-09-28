@@ -39,23 +39,49 @@ from apps.utils.drf import detail_route
 from apps.utils.local import get_request_app_code, get_request_external_username
 
 
-class ExportJobIndexSearchPermission(PlatformAwareIndexSearchPermission):
-    """详情类接口的索引集级检索鉴权：实例 ID 取自被访问的任务，而不是请求参数。"""
+class ExportIndexSearchPermission(PlatformAwareIndexSearchPermission):
+    """逐个校验任务涉及的索引集，保留平台级索引集的额外鉴权规则。"""
 
     def __init__(self):
         super().__init__([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
         self._instance_id = None
+
+    def check_index_sets(self, request, view, index_set_ids):
+        for index_set_id in index_set_ids:
+            self._instance_id = index_set_id
+            super().has_permission(request, view)
+        return True
+
+    def get_instance_id(self, request, view):
+        return self._instance_id
+
+
+class ExportCreateIndexSearchPermission(ExportIndexSearchPermission):
+    def has_permission(self, request, view):
+        ids = request.data.get("index_set_ids")
+        if ids is None:
+            ids = [request.data.get("index_set_id")]
+        if (
+            not isinstance(ids, list)
+            or not ids
+            or any(
+                isinstance(index_set_id, bool) or not str(index_set_id).isdigit() or int(index_set_id) < 1
+                for index_set_id in ids
+            )
+        ):
+            return True  # 非法参数交给序列化器返回具体错误
+        return self.check_index_sets(request, view, dict.fromkeys(int(index_set_id) for index_set_id in ids))
+
+
+class ExportJobIndexSearchPermission(ExportIndexSearchPermission):
+    """详情类接口的索引集列表取自任务快照，而不是请求参数。"""
 
     def has_permission(self, request, view):
         # 索引集要拿到任务之后才知道，准入阶段交给空间级校验
         return True
 
     def has_object_permission(self, request, view, obj):
-        self._instance_id = obj.index_set_id
-        return super().has_permission(request, view)
-
-    def get_instance_id(self, request, view):
-        return self._instance_id
+        return self.check_index_sets(request, view, obj.index_set_ids)
 
 
 class ExportJobViewSet(APIViewSet):
@@ -64,16 +90,7 @@ class ExportJobViewSet(APIViewSet):
 
     def get_permissions(self):
         if self.action == "create":
-            # 创建任务需要索引集级检索权限，实例ID由请求体传入；非法入参交给序列化器报错
-            try:
-                int(self.request.data.get("index_set_id"))
-            except (TypeError, ValueError):
-                return []
-            return [
-                PlatformAwareIndexSearchPermission(
-                    [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES, iam_instance_id_key="index_set_id"
-                )
-            ]
+            return [ExportCreateIndexSearchPermission()]
         # 详情类接口按任务保存的索引集复核检索权限，不能只凭 Job ID 读到别人的产物
         return [ViewBusinessPermission(), ExportJobIndexSearchPermission()]
 

@@ -32,7 +32,10 @@ class ExportAdditionSerializer(serializers.Serializer):
 
 class ExportCreateSerializer(serializers.Serializer):
     space_uid = serializers.CharField(max_length=256)
-    index_set_id = serializers.IntegerField(min_value=1)
+    index_set_id = serializers.IntegerField(min_value=1, required=False)
+    index_set_ids = serializers.ListField(
+        child=serializers.IntegerField(min_value=1), allow_empty=False, required=False
+    )
     start_time = serializers.IntegerField(label="起始时间（毫秒时间戳）", min_value=0)
     end_time = serializers.IntegerField(label="结束时间（毫秒时间戳）", min_value=1)
     keyword = serializers.CharField(default="*", allow_blank=True)
@@ -48,6 +51,9 @@ class ExportCreateSerializer(serializers.Serializer):
         return value
 
     def validate(self, attrs):
+        if ("index_set_id" in attrs) == ("index_set_ids" in attrs):
+            raise serializers.ValidationError("index_set_id 与 index_set_ids 必须且只能传一个")
+        attrs["index_set_ids"] = sorted(set(attrs.get("index_set_ids", [attrs.get("index_set_id")])))
         if attrs["end_time"] <= attrs["start_time"]:
             raise serializers.ValidationError("导出时间范围不合法")
         return attrs

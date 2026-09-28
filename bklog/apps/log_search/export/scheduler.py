@@ -72,12 +72,15 @@ def enqueue_planning(limit):
 
 
 def _inflight_by_index_set():
-    rows = (
-        ExportPart.objects.filter(status__in=ExportPartStatus.INFLIGHT)
-        .values("job__index_set_id")
-        .annotate(total=Count("pk"))
+    rows = list(
+        ExportPart.objects.filter(status__in=ExportPartStatus.INFLIGHT).values("job_id").annotate(total=Count("pk"))
     )
-    return {row["job__index_set_id"]: row["total"] for row in rows}
+    jobs = ExportJob.objects.in_bulk(row["job_id"] for row in rows)
+    counts = {}
+    for row in rows:
+        for index_set_id in jobs[row["job_id"]].index_set_ids:
+            counts[index_set_id] = counts.get(index_set_id, 0) + row["total"]
+    return counts
 
 
 def dispatch_ready_parts(deadline=None):
@@ -112,7 +115,7 @@ def dispatch_ready_parts(deadline=None):
 
     index_limit, global_limit = policy.index_parallelism, policy.global_parallelism
     index_inflight = _inflight_by_index_set()
-    global_inflight = sum(index_inflight.values())
+    global_inflight = ExportPart.objects.filter(status__in=ExportPartStatus.INFLIGHT).count()
     oversized_limit = policy.oversized_global_parallelism
     oversized_inflight = ExportPart.objects.filter(oversized=True, status__in=ExportPartStatus.INFLIGHT).count()
     # 本轮还有待投递分片的任务；份额按剩余额度动态切分，空出的额度当轮就让给后面的任务
@@ -142,7 +145,7 @@ def dispatch_ready_parts(deadline=None):
         )
         job_inflight = job_inflight_counts["total"]
         job_oversized_inflight = job_inflight_counts["oversized"]
-        index_used = index_inflight.get(job.index_set_id, 0)
+        index_set_ids = job.index_set_ids
         # 任务自身的期望并行度仍是上限，切分只用于在任务之间分配全局额度
         job_limit = min(job.requested_parallelism, shared_limit)
         while True:
@@ -150,11 +153,8 @@ def dispatch_ready_parts(deadline=None):
                 # 只在两次写库之间收尾：不会留下已占额度但没投出去的分片
                 deadline_reached = True
                 break
-            capacity = min(
-                job_limit - job_inflight,
-                index_limit - index_used,
-                global_limit - global_inflight,
-            )
+            index_capacity = min(index_limit - index_inflight.get(index_set_id, 0) for index_set_id in index_set_ids)
+            capacity = min(job_limit - job_inflight, index_capacity, global_limit - global_inflight)
             if capacity <= 0:
                 break
             waiting_parts = ExportPart.objects.filter(job=job, status=ExportPartStatus.WAITING)
@@ -184,7 +184,8 @@ def dispatch_ready_parts(deadline=None):
                 break
             dispatched.append(part.pk)
             job_inflight += 1
-            index_used += 1
+            for index_set_id in index_set_ids:
+                index_inflight[index_set_id] = index_inflight.get(index_set_id, 0) + 1
             global_inflight += 1
             oversized_inflight += int(part.oversized)
             job_oversized_inflight += int(part.oversized)
@@ -228,6 +229,7 @@ def manifest_snapshot(job, parts):
     return {
         "schema_version": 1,
         "job_id": job.pk,
+        "index_set_ids": job.index_set_ids,
         "consistency": "weak_snapshot",
         "interval": "[start_time, end_time)",
         "estimated_total": job.estimated_total,

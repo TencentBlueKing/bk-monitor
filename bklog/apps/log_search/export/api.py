@@ -78,7 +78,12 @@ def create_export_job(data):
     if not is_enabled(space.bk_biz_id):
         raise ValidationError({"detail": "分片导出未启用"})
 
-    index = LogIndexSet.objects.get(index_set_id=data["index_set_id"])
+    index_set_ids = sorted(set(data.get("index_set_ids") or [data["index_set_id"]]))
+    indexes = list(LogIndexSet.objects.filter(index_set_id__in=index_set_ids))
+    if len(indexes) != len(index_set_ids):
+        raise ValidationError({"index_set_ids": "索引集不存在"})
+    if len(index_set_ids) > 1 and any(index.is_platform_index for index in indexes):
+        raise ValidationError({"index_set_ids": "联合检索暂不支持平台级索引集"})
 
     # 先按当前额度快速拒绝，避免为必然失败的任务发起查询；真正占额度在落库时锁内复检
     AsyncTask.check_running_count_by_user(username)
@@ -89,14 +94,12 @@ def create_export_job(data):
     params.update(
         start_time=data["start_time"],
         end_time=data["end_time"],
-        index_set_ids=[index.pk],
+        index_set_ids=index_set_ids,
         bk_biz_id=space.bk_biz_id,
         is_desensitize=True,
         interval="30s",
     )
     handler = UnifyQueryHandler(params)
-    if data["sort_list"]:
-        handler.check_sort_list(handler.fields()["fields"], data["sort_list"])
     # 冻结解析后的排序与脱敏结论，保证后续所有分片重建出完全一致的查询条件
     params["sort_list"] = copy.deepcopy(handler.origin_order_by)
     params["is_desensitize"] = handler.is_desensitize
@@ -119,7 +122,7 @@ def create_export_job(data):
             created_by=username,
             source_app_code=get_request_app_code(),
             is_external=bool(get_request_external_username()),
-            index_set_id=index.pk,
+            index_set_ids=index_set_ids,
             bk_biz_id=space.bk_biz_id,
             search_params=params,
             base_dict=copy.deepcopy(handler.base_dict),
@@ -197,6 +200,7 @@ def job_detail(job):
     visible_status = ExportJobStatus.RUNNING if job.status == ExportJobStatus.FINALIZING else job.status
     return {
         "job_id": job.pk,
+        "index_set_ids": job.index_set_ids,
         "status": "EXPIRED" if expired else visible_status,
         "stage": stage,
         "estimated_total": job.estimated_total,
@@ -228,6 +232,7 @@ def job_results(job):
         raise ExportConflict("导出产物不完整")
     return {
         "job_id": job.pk,
+        "index_set_ids": job.index_set_ids,
         "estimated_total": job.estimated_total,
         "actual_total": job.actual_total,
         "expires_at": job.expires_at,

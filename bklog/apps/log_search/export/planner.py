@@ -28,6 +28,7 @@ from apps.api import UnifyQueryApi
 from apps.log_search.constants import ExportErrorCode, ExportJobStatus
 from apps.log_search.export import state
 from apps.log_search.export.config import policy_from_snapshot
+from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.utils.log import logger
 
@@ -111,23 +112,15 @@ def sample_rows(handler, start, end, limit):
 
 
 def is_definitely_empty(handler, start, end):
-    """
-    创建任务前的存在性预检查：只取一条，判断区间内是否完全没有数据。
-
-    只用于快速拒绝，查询失败、超时和返回结构异常都一律放行：预检查不是准入，
-    条数与配额最终由 Planner 使用相同 UnifyQuery 条件的聚合 count 判定，不能因为
-    一次预检查抖动就把用户的任务挡在门外。
-    """
+    """创建前只取一条；查询失败时拒绝创建，避免把无效查询交给异步任务。"""
     params = _statistics_params(handler, start, end)
     params["limit"] = 1
     try:
         result = UnifyQueryApi.query_ts_raw(params)
     except Exception as error:  # pylint: disable=broad-except
-        logger.warning("[is_definitely_empty] existence pre-check skipped: %s", error)
-        return False
-    if "list" not in result:
-        logger.warning("[is_definitely_empty] unexpected response, existence pre-check skipped")
-        return False
+        raise PreCheckAsyncExportException(f"导出预检查查询失败：{error}") from error
+    if not isinstance(result, dict) or not isinstance(result.get("list"), list):
+        raise PreCheckAsyncExportException("导出预检查返回格式异常")
     return not result["list"]
 
 
