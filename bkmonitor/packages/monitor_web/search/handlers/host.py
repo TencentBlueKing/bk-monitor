@@ -7,6 +7,7 @@ from django.conf import settings
 from django.utils.translation import ugettext as _
 
 from api.cmdb.define import Host
+from bkmonitor.iam import ActionEnum, Permission
 from core.drf_resource import api, resource
 from monitor_web.search.handlers.base import (
     BaseSearchHandler,
@@ -102,10 +103,18 @@ class HostSearchHandler(BaseSearchHandler):
 
         hosts: Host = api.cmdb.get_host_without_biz(params)["hosts"]
 
+        # 仅为具备主机查看权限的业务生成分享链接；filter_biz_ids_by_action 会把空列表视为全部业务，需单独处理
+        host_biz_ids = list({host.bk_biz_id for host in hosts})
+        share_biz_ids = (
+            set(Permission(username=self.username).filter_biz_ids_by_action(ActionEnum.VIEW_HOST, host_biz_ids))
+            if host_biz_ids
+            else set()
+        )
+
         search_results = []
 
         for host in hosts:
-            enabled_token = self.get_enabled_token(host)
+            enabled_token = self.get_enabled_token(host) if host.bk_biz_id in share_biz_ids else None
 
             search_results.append(
                 SearchResultItem(

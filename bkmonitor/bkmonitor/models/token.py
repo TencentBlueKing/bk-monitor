@@ -73,13 +73,23 @@ class ApiAuthToken(AbstractRecordModel):
         verbose_name_plural = "API鉴权令牌"
         db_table = "api_auth_token"
 
+    # 观测/告警场景令牌仅用于查看，以下视图与动作不在其适用范围：分享令牌管理、场景视图写入、主机列表查询
+    SCENE_TOKEN_DENIED_VIEWS = frozenset({"ShareViewSet", "SearchHostInfoViewSet", "SearchHostMetricViewSet"})
+    SCENE_TOKEN_DENIED_ACTIONS = frozenset({"update_scene_view", "delete_scene_view"})
+
     def is_allowed_view(self, view):
         """
         判断view是否合法
         """
-        if self.type not in [AuthType.Grafana, AuthType.AsCode]:
-            return True
         view_cls = getattr(view, "cls", None)
+        if self.type not in [AuthType.Grafana, AuthType.AsCode]:
+            if view_cls is not None:
+                if view_cls.__name__ in self.SCENE_TOKEN_DENIED_VIEWS:
+                    return False
+                actions = set((getattr(view, "actions", None) or {}).values())
+                if actions & self.SCENE_TOKEN_DENIED_ACTIONS:
+                    return False
+            return True
         if not view_cls:
             return False
 

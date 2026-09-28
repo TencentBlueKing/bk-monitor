@@ -310,11 +310,12 @@ class Permission(object):
             else:
                 action_id = action
             # 业务查看权限校验/操作对应类型action/graph_unify_query跳过，在auth中间件中已校验
+            # 未命中时交由下方权限中心校验
+            token_actions = ActionIdMap.get(record.type, []) if record else []
             if (
                 action_id == ActionEnum.VIEW_BUSINESS.id
-                or (record and action in ActionIdMap[record.type])
-                or path in request.path
-                for path in api_paths
+                or any(action_id == token_action.id for token_action in token_actions)
+                or (request and any(path in request.path for path in api_paths))
             ):
                 return True
 
@@ -400,7 +401,7 @@ class Permission(object):
                 for resource in resources:
                     resource_id = resource[0].id
                     action_id = action.id
-                    if action_id == "view_business" or (record and action in ActionIdMap[record.type]):
+                    if action_id == "view_business" or action in ActionIdMap.get(record.type, []):
                         result[resource_id][action_id] = True
                     else:
                         result[resource_id][action_id] = False
