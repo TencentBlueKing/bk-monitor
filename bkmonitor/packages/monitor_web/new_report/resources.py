@@ -231,8 +231,8 @@ class GetReportListResource(Resource):
 
         # 根据角色过滤
         if validated_request_data["create_type"]:
-            # 管理员视角需校验当前用户的订阅管理权限
-            if validated_request_data["create_type"] == ReportCreateTypeEnum.MANAGER.value:
+            # 非本人视角均按业务列出订阅，需校验当前用户的订阅管理权限
+            if validated_request_data["create_type"] != ReportCreateTypeEnum.SELF.value:
                 self.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
             # 用户视角获取全业务下的订阅
             if validated_request_data["create_type"] != ReportCreateTypeEnum.SELF.value:
@@ -283,6 +283,49 @@ class GetReportListResource(Resource):
         return {"report_list": reports, "total": total}
 
 
+def _in_subscribed_group(subscribers, bk_biz_id, username):
+    group_ids = {subscriber["id"] for subscriber in subscribers if subscriber.get("type") == StaffEnum.GROUP.value}
+    if not group_ids:
+        return False
+    # 按报表所属业务解析组成员，与发送时的解析口径一致
+    return any(
+        group["id"] in group_ids and username in group["children"]
+        for group in resource.report.group_list(bk_biz_id=bk_biz_id)
+    )
+
+
+def _assert_report_access(report_id, bk_biz_id, create_user):
+    username = get_request_username()
+    if create_user == username:
+        return
+    channel = ReportChannel.objects.filter(report_id=report_id, channel_name=ChannelEnum.USER.value).first()
+    subscribers = channel.subscribers if channel else []
+    if any(s["id"] == username and s.get("type") == StaffEnum.USER.value for s in subscribers):
+        return
+    if _in_subscribed_group(subscribers, bk_biz_id, username):
+        return
+    GetReportListResource.check_permission(bk_biz_id, raise_exception=True)
+
+
+def _assert_resend_subscribers(report_id, channels):
+    if not channels:
+        raise CustomException("channels is required when resending report %s" % report_id)
+    for channel in channels:
+        # 与 GetSendRecordsResource 返回给前端的发送记录范围一致
+        send_results_list = (
+            ReportSendRecord.objects.filter(report_id=report_id, channel_name=channel["channel_name"])
+            .exclude(send_status=SendStatusEnum.NO_STATUS.value)
+            .order_by("-send_time")
+            .values_list("send_results", flat=True)[:100]
+        )
+        sent_ids = {result["id"] for send_results in send_results_list for result in send_results}
+        unknown_ids = {subscriber["id"] for subscriber in channel["subscribers"]} - sent_ids
+        if unknown_ids:
+            raise CustomException(
+                "subscribers {} are not in the send records of report {}".format(sorted(unknown_ids), report_id)
+            )
+
+
 class GetReportResource(Resource):
     """
     获取订阅
@@ -293,6 +336,7 @@ class GetReportResource(Resource):
 
     def perform_request(self, validated_request_data):
         report = Report.objects.values().get(id=validated_request_data["report_id"])
+        _assert_report_access(report["id"], report["bk_biz_id"], report["create_user"])
         report["channels"] = list(
             ReportChannel.objects.filter(report_id=report["id"]).values(
                 "channel_name", "is_enabled", "subscribers", "send_text"
@@ -406,6 +450,13 @@ class CreateOrUpdateReportResource(Resource):
         if stored_index_set_id and request_index_set_id and stored_index_set_id != request_index_set_id:
             raise CustomException("report does not belong to the requested index set")
 
+    @staticmethod
+    def _assert_report_editable(report, is_manager):
+        # 编辑他人创建的订阅需订阅管理权限；跳过权限中心校验时（API 进程）由调用方完成鉴权
+        if is_manager or report.create_user == get_request_username() or Permission().skip_check:
+            return
+        raise CustomException("current user is not allowed to edit report {}".format(report.id))
+
     def perform_request(self, validated_request_data):
         params = copy.deepcopy(validated_request_data)
         is_manager_created = GetReportListResource.check_permission(validated_request_data["bk_biz_id"])
@@ -419,6 +470,7 @@ class CreateOrUpdateReportResource(Resource):
             except Report.DoesNotExist:
                 raise Exception("report_id: %s not found", params["id"])
             self._assert_report_ownership(report, params)
+            self._assert_report_editable(report, is_manager_created)
             report.__dict__.update(params)
             report.save()
         else:
@@ -494,13 +546,13 @@ class SendReportResource(Resource):
                 report = Report.objects.get(id=report_id)
             except Report.DoesNotExist:
                 raise CustomException("report_id: %s not found" % report_id)
-            bk_biz_id = validated_request_data.get("bk_biz_id")
-            if bk_biz_id is not None and report.bk_biz_id != bk_biz_id:
-                raise CustomException("report does not belong to the requested business")
             stored_index_set_id = (report.scenario_config or {}).get("index_set_id")
             request_index_set_id = (validated_request_data.get("scenario_config") or {}).get("index_set_id")
             if stored_index_set_id and request_index_set_id and stored_index_set_id != request_index_set_id:
                 raise CustomException("report does not belong to the requested index set")
+            _assert_report_access(report.id, report.bk_biz_id, report.create_user)
+            if not GetReportListResource.check_permission(report.bk_biz_id):
+                _assert_resend_subscribers(report.id, validated_request_data.get("channels"))
         try:
             api.monitor.send_report(**validated_request_data)
         except Exception as e:  # pylint: disable=broad-except
@@ -534,6 +586,10 @@ class CancelOrResubscribeReportResource(Resource):
                 subscriber["is_enabled"] = is_enabled
                 channel.save()
                 return "success"
+        # 未单列的用户只有经订阅组覆盖时才能追加本人条目
+        report = Report.objects.get(id=channel.report_id)
+        if not _in_subscribed_group(channel.subscribers, report.bk_biz_id, username):
+            raise CustomException(f"[report] report id: {channel.report_id} current user is not a subscriber.")
         channel.subscribers.append({"id": username, "type": StaffEnum.USER.value, "is_enabled": is_enabled})
         channel.save()
         return "success"
@@ -549,6 +605,10 @@ class GetSendRecordsResource(Resource):
         channel_name = serializers.CharField(required=False)
 
     def perform_request(self, validated_request_data):
+        report = Report.objects.filter(id=validated_request_data["report_id"]).first()
+        if not report:
+            return []
+        _assert_report_access(report.id, report.bk_biz_id, report.create_user)
         qs = ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"]).exclude(
             send_status=SendStatusEnum.NO_STATUS.value
         )
