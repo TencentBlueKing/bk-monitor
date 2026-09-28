@@ -85,6 +85,10 @@ def dispatch_ready_parts():
     按公平顺序投递分片。
 
     并行额度只来自 FeatureConfig：单 Job 上限、单索引集上限、环境全局上限三者取小。
+    oversized 分片（递归到时间最小精度仍超量）同样占用这套额度，另外还受
+    单 Job 和环境的 oversized 在途上限约束：达到任一上限时把 oversized 分片从候选集合里
+    剔除，让同一个任务后面的普通分片照常投递，等额度释放后再按原时间顺序补投。在途数
+    统计的是全表，包含不在本轮的候选任务。
     多个任务同时等待时，环境全局额度按剩余任务数依次切分（两个任务即 2+2），先到的大
     任务不会在一个调度周期内占满全局槽位；某个任务没分片可发或用不完自己的份额时，
     空出的额度当轮就让给后面的任务。在途分片本身就是预算账本，直接按数据库计数判断
@@ -107,18 +111,31 @@ def dispatch_ready_parts():
     index_limit, global_limit = policy.index_parallelism, policy.global_parallelism
     index_inflight = _inflight_by_index_set()
     global_inflight = sum(index_inflight.values())
+    oversized_limit = policy.oversized_global_parallelism
+    oversized_inflight = ExportPart.objects.filter(oversized=True, status__in=ExportPartStatus.INFLIGHT).count()
     # 本轮还有待投递分片的任务；份额按剩余额度动态切分，空出的额度当轮就让给后面的任务
-    waiting_jobs = set(
-        ExportPart.objects.filter(status=ExportPartStatus.WAITING, job__in=jobs).values_list("job_id", flat=True)
+    waiting_rows = (
+        ExportPart.objects.filter(status=ExportPartStatus.WAITING, job__in=jobs)
+        .values("job_id", "oversized")
+        .annotate(total=Count("pk"))
     )
+    waiting_jobs = {row["job_id"] for row in waiting_rows}
+    # 有 oversized 分片在排队的任务，供额度不足时判断谁被挡下
+    oversized_waiting_jobs = {row["job_id"] for row in waiting_rows if row["oversized"]}
     remaining_jobs = len(waiting_jobs)
+    # 本轮因 oversized 额度不足而没投出超大分片的任务，按轮汇总告警
+    held_oversized_jobs = set()
     dispatched = []
     for job in jobs:
         if job.pk not in waiting_jobs:
             continue
         shared_limit = max(1, (global_limit - global_inflight) // max(1, remaining_jobs))
         remaining_jobs -= 1
-        job_inflight = ExportPart.objects.filter(job=job, status__in=ExportPartStatus.INFLIGHT).count()
+        job_inflight_counts = ExportPart.objects.filter(job=job, status__in=ExportPartStatus.INFLIGHT).aggregate(
+            total=Count("pk"), oversized=Count("pk", filter=Q(oversized=True))
+        )
+        job_inflight = job_inflight_counts["total"]
+        job_oversized_inflight = job_inflight_counts["oversized"]
         index_used = index_inflight.get(job.index_set_id, 0)
         # 任务自身的期望并行度仍是上限，切分只用于在任务之间分配全局额度
         job_limit = min(job.requested_parallelism, shared_limit)
@@ -130,11 +147,13 @@ def dispatch_ready_parts():
             )
             if capacity <= 0:
                 break
-            part = (
-                ExportPart.objects.filter(job=job, status=ExportPartStatus.WAITING)
-                .order_by("start_time", "part_no")
-                .first()
-            )
+            waiting_parts = ExportPart.objects.filter(job=job, status=ExportPartStatus.WAITING)
+            if oversized_inflight >= oversized_limit or job_oversized_inflight >= policy.oversized_parallelism:
+                # 额度不足：把 oversized 分片从候选里剔除，先投递同一个任务后面的普通分片
+                waiting_parts = waiting_parts.filter(oversized=False)
+                if job.pk in oversized_waiting_jobs:
+                    held_oversized_jobs.add(job.pk)
+            part = waiting_parts.order_by("start_time", "part_no").first()
             if part is None:
                 break
             part = state.dispatch_part(part.pk, uuid4().hex)
@@ -157,6 +176,15 @@ def dispatch_ready_parts():
             job_inflight += 1
             index_used += 1
             global_inflight += 1
+            oversized_inflight += int(part.oversized)
+            job_oversized_inflight += int(part.oversized)
+    if held_oversized_jobs:
+        logger.info(
+            "[dispatch_ready_parts] oversized 额度不足（单 Job %s / 环境 %s），%s 个任务的 oversized 分片本轮未投递",
+            policy.oversized_parallelism,
+            oversized_limit,
+            len(held_oversized_jobs),
+        )
     return dispatched
 
 

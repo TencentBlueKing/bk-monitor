@@ -40,6 +40,10 @@ class ExportPolicy:
     index_parallelism: int = 4
     # 0 表示环境容量未配置：调度器会拒绝投递并告警，必须由运维按真实容量显式配置
     global_parallelism: int = 0
+    # oversized 分片（递归到时间最小精度仍超量）注定比普通分片重，单独占一份在途额度：
+    # 单 Job 与环境的在途上限，避免几个重片同时占满 Worker 槽位
+    oversized_parallelism: int = 1
+    oversized_global_parallelism: int = 2
     part_max_attempts: int = 3
     planning_attempts: int = 3
     artifact_retention_seconds: int = 86_400
@@ -68,6 +72,9 @@ _BOUNDS = {
     "index_parallelism": (int, 1, 10_000),
     # 0 是「未配置」的哨兵值，调度器据此拒绝投递
     "global_parallelism": (int, 0, 10_000),
+    # oversized 不能像 global_parallelism 那样用 0 表示未配置：0 会让 oversized 分片永远投不出去
+    "oversized_parallelism": (int, 1, 64),
+    "oversized_global_parallelism": (int, 1, 64),
     "part_max_attempts": (int, 1, 20),
     "planning_attempts": (int, 1, 20),
     "artifact_retention_seconds": (int, 1, 365 * 86_400),

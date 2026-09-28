@@ -151,6 +151,17 @@ class PolicyBoundsTests(SimpleTestCase):
 
         self.assertEqual(set(ExportPolicy().snapshot()), set(config._BOUNDS))
 
+    def test_oversized_limit_rejects_an_unusable_value(self):
+        """0 会让 oversized 分片永远投不出去，非法值必须回落到默认额度。"""
+        from apps.log_search.export import config
+
+        for field in ("oversized_parallelism", "oversized_global_parallelism"):
+            default = getattr(ExportPolicy(), field)
+            for invalid in (0, "many"):
+                policy = config._validated_policy({field: invalid})
+                self.assertEqual(getattr(policy, field), default)
+            self.assertEqual(getattr(config._validated_policy({field: 3}), field), 3)
+
 
 class ChooseIntervalTests(SimpleTestCase):
     def test_density_based_interval_matches_sample_expectation(self):
@@ -1232,6 +1243,108 @@ class SchedulerTests(TestCase):
     def test_global_capacity_bounds_total_dispatch(self, send, _policy):
         self.assertEqual(len(dispatch_ready_parts()), 3)
         self.assertEqual(send.call_count, 3)
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(
+            index_parallelism=4,
+            global_parallelism=3,
+            oversized_parallelism=1,
+            oversized_global_parallelism=2,
+        ),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_oversized_slot_limits_dispatch_and_reopens_after_completion(self, send, _policy):
+        """同轮只投递一个超大分片；它结束后，后续轮次可以继续投递。"""
+        ExportPart.objects.filter(job=self.job, part_no__in=[1, 3]).update(oversized=True)
+
+        self.assertEqual(len(dispatch_ready_parts()), 2)
+        self.assertEqual(
+            list(
+                ExportPart.objects.filter(job=self.job, status=ExportPartStatus.DISPATCHED)
+                .order_by("part_no")
+                .values_list("part_no", flat=True)
+            ),
+            [1, 2],
+        )
+        self.assertEqual(ExportPart.objects.get(job=self.job, part_no=3).status, ExportPartStatus.WAITING)
+
+        ExportPart.objects.filter(job=self.job, part_no=1).update(status=ExportPartStatus.SUCCESS)
+        self.assertEqual(len(dispatch_ready_parts()), 1)
+        self.assertEqual(ExportPart.objects.get(job=self.job, part_no=3).status, ExportPartStatus.DISPATCHED)
+        self.assertEqual(send.call_count, 3)
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(
+            index_parallelism=4,
+            global_parallelism=4,
+            oversized_parallelism=1,
+            oversized_global_parallelism=2,
+        ),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_oversized_slot_is_global_and_does_not_block_normal_parts(self, send, _policy):
+        """环境超大额度已满时，本任务仍可投递普通分片。"""
+        ExportPart.objects.filter(job=self.job, part_no=1).update(oversized=True)
+        for index_set_id in (12, 13):
+            other = create_job(
+                index_set_id=index_set_id, base_dict={}, end_time=1000, status=ExportJobStatus.RUNNING, plan_version=1
+            )
+            ExportPart.objects.create(
+                job=other,
+                part_no=1,
+                plan_version=1,
+                start_time=0,
+                end_time=1000,
+                oversized=True,
+                status=ExportPartStatus.UPLOADING,
+            )
+
+        self.assertEqual(len(dispatch_ready_parts()), 2)
+        self.assertEqual(ExportPart.objects.get(job=self.job, part_no=1).status, ExportPartStatus.WAITING)
+        self.assertEqual(ExportPart.objects.filter(job=self.job, status=ExportPartStatus.DISPATCHED).count(), 2)
+        self.assertEqual(send.call_count, 2)
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(
+            index_parallelism=4,
+            global_parallelism=4,
+            oversized_parallelism=1,
+            oversized_global_parallelism=2,
+        ),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_oversized_limit_allows_one_part_from_each_of_two_jobs(self, send, _policy):
+        """不同任务各占一个超大槽位，环境上限为两个。"""
+        ExportPart.objects.filter(job=self.job, part_no=1).update(oversized=True)
+        second = create_job(index_set_id=12, base_dict={}, end_time=1000, status=ExportJobStatus.READY, plan_version=1)
+        ExportPart.objects.create(job=second, part_no=1, plan_version=1, start_time=0, end_time=1000, oversized=True)
+
+        dispatch_ready_parts()
+
+        self.assertEqual(ExportPart.objects.filter(oversized=True, status=ExportPartStatus.DISPATCHED).count(), 2)
+        self.assertEqual(send.call_count, 3)
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(
+            index_parallelism=4,
+            global_parallelism=4,
+            oversized_parallelism=2,
+            oversized_global_parallelism=2,
+        ),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_oversized_job_limit_allows_two_parts_in_one_round(self, send, _policy):
+        """单 Job 额度调大后，同一个任务可以在同一轮并行投递两个超大分片。"""
+        ExportPart.objects.filter(job=self.job, part_no__in=[1, 3]).update(oversized=True)
+
+        self.assertEqual(len(dispatch_ready_parts()), 3)
+        self.assertEqual(
+            ExportPart.objects.filter(job=self.job, oversized=True, status=ExportPartStatus.DISPATCHED).count(), 2
+        )
 
     @patch(
         "apps.log_search.export.scheduler.current_policy",
