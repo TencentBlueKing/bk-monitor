@@ -489,14 +489,13 @@ export const useEcharts = ({
     intersectionObserver.value = new IntersectionObserver(async entries => {
       for (const entry of entries) {
         if (intersectionObserver.value && entry.intersectionRatio > 0) {
-          options.value = await getEchartOptions();
-          chartId.value = random(8);
+          await refreshChart();
         }
       }
     });
     // 临时使用此方法解决，自定义指标直接全选分组时，偶现前两个图表不会请求数据
     setTimeout(() => {
-      intersectionObserver.value.observe(el);
+      intersectionObserver.value?.observe(el);
     }, 50);
   };
 
@@ -725,6 +724,19 @@ export const useEcharts = ({
     }
     return buildOptions(syncSeriesList);
   };
+  const refreshChart = async () => {
+    const request = getEchartOptions();
+    const requestId = currentRequestId;
+    try {
+      const nextOptions = await request;
+      if (requestId !== currentRequestId) return;
+      options.value = nextOptions;
+      chartId.value = random(8);
+    } finally {
+      if (requestId === currentRequestId) loading.value = false;
+    }
+  };
+
   watch(
     [
       () => toValue(timeRange),
@@ -734,12 +746,7 @@ export const useEcharts = ({
       () => toValue(params),
       () => toValue(timeOffset),
     ],
-    async () => {
-      loading.value = true;
-      options.value = await getEchartOptions();
-      chartId.value = random(8);
-      loading.value = false;
-    },
+    refreshChart,
     {
       immediate: true,
     }
@@ -759,6 +766,8 @@ export const useEcharts = ({
   });
 
   onBeforeUnmount(() => {
+    currentRequestId += 1;
+    for (const cancel of cancelTokens) cancel?.();
     if (intersectionObserver.value) {
       unregisterObserver(viewportRequest.el.value);
     }

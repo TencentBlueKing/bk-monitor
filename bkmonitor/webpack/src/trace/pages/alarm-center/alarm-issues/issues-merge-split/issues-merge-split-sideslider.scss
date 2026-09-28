@@ -1,11 +1,13 @@
 .issues-merge-split-sideslider {
   .header-title {
-    flex: 0 0 120px;
+    // flex: 0 0 120px;
     font-size: 16px;
     color: #313238;
   }
 
   .header-desc {
+    flex: 1;
+    min-width: 0;
     max-width: calc(100% - 180px);
     overflow: hidden;
     text-overflow: ellipsis;

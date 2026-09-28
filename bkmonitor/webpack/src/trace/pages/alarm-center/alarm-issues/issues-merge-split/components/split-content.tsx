@@ -30,7 +30,9 @@ import { Button, Checkbox, Input } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
+import { usePopover } from '../../../components/alarm-table/hooks/use-popover';
 import { fetchMergeSources } from '../../services/issues-operations';
+import { getMergeDetailPopoverOptions, showIssueExceptionPopover } from '../../utils/issue-exception-popover';
 import { fetchIssueLogContentInBatches, getIssueExceptionText } from '../../utils/issue-log-content';
 import IssueInfoItem from './issue-info-item';
 import IssuesSplitDialog from './issues-split-dialog';
@@ -58,9 +60,10 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['success', 'logContentChange'],
+  emits: ['success', 'logContentChange', 'showDetail'],
   setup(props, { emit }) {
     const { t } = useI18n();
+    const hoverPopoverTools = usePopover();
     const loading = shallowRef(false);
     const searchKey = shallowRef('');
 
@@ -167,6 +170,23 @@ export default defineComponent({
       });
     };
 
+    const showLogOverflowTip = (event: MouseEvent, issue: MergeSourceActiveMember) => {
+      const el = event.currentTarget as HTMLElement;
+      showIssueExceptionPopover(event, hoverPopoverTools, {
+        onViewMore: () => emit('showDetail', issue.member_issue_id),
+        popoverOptions: el ? getMergeDetailPopoverOptions(el) : undefined,
+        source: {
+          anomaly_message: issue.anomaly_message,
+          log_content: logContentMap.value[issue.member_issue_id]?.log_content,
+        },
+        t,
+      });
+    };
+
+    const hideLogOverflowTip = () => {
+      hoverPopoverTools.clearPopoverTimer();
+    };
+
     const handleOperation = (type: EmptyStatusOperationType) => {
       if (type === 'clear-filter') {
         searchKey.value = '';
@@ -263,7 +283,8 @@ export default defineComponent({
                   {logContentReadyIds.value.has(issue.member_issue_id) ? (
                     <span
                       class='issues-name-exception-text'
-                      v-overflow-tips
+                      onMouseenter={event => showLogOverflowTip(event, issue)}
+                      onMouseleave={hideLogOverflowTip}
                     >
                       {getIssueExceptionText({
                         log_content: logContentMap.value[issue.member_issue_id]?.log_content,

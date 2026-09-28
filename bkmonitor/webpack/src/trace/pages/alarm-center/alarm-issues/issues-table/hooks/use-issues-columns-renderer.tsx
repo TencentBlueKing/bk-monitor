@@ -27,18 +27,17 @@
 import type { MaybeRef } from 'vue';
 
 import { get } from '@vueuse/core';
-import { Button, Loading, Radio } from 'bkui-vue';
+import { Radio } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
-import VueJsonPretty from 'vue-json-pretty';
 
 import { formatTraceTableDate } from '../../../../../components/trace-view/utils/date';
-import { isEllipsisActiveLine } from '../../../../../utils/dom-helper';
 import {
   type BaseTableColumn,
   type TableCellRenderContext,
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
+import { AlarmTrendSkeleton } from '../../../components/alarm-skeleton';
 import MiniBarChart from '../../components/mini-bar-chart/mini-bar-chart';
 import {
   IMPACT_SCOPE_SORT_ORDER_MAP,
@@ -48,7 +47,8 @@ import {
   IssueStatusEnum,
   TrendRangeEnum,
 } from '../../constant';
-import { getIssueExceptionText, getIssueLogDatetimePrefix } from '../../utils/issue-log-content';
+import { showIssueExceptionPopover } from '../../utils/issue-exception-popover';
+import { getIssueExceptionText } from '../../utils/issue-log-content';
 import IssueNameCell from '../components/issue-name-cell/issue-name-cell';
 import { ALARM_CENTER_PANEL_TAB_MAP } from '@/pages/alarm-center/utils/constant';
 
@@ -57,9 +57,6 @@ import type { TableColumnItem } from '../../../typings';
 import type { ImpactScopeResource, ImpactScopeResourceKeyType, IssueItem, TrendRangeType } from '../../typing';
 import type { UseIssuesHandlersReturnType } from './use-issues-handlers';
 import type { SlotReturnValue } from 'tdesign-vue-next';
-import type { TippyOptions } from 'vue-tippy';
-
-import 'vue-json-pretty/lib/styles.css';
 
 /** useIssuesColumnsRenderer 入参：useIssuesHandlers 返回的交互处理函数 + clickPopoverTools 弹出框工具 */
 export type IssuesColumnsRendererCtx = {
@@ -86,73 +83,6 @@ export type IssuesColumnsRendererCtx = {
  */
 export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) => {
   const { t } = useI18n();
-
-  /**
-   * @description 构造 JSON 日志 Popover 内容（wrapper > header + content + footer 骨架）
-   * @param {IssueItem} row - 当前行 Issue 数据，内部提取并解析 log_content
-   * @returns {JSX.Element} Popover 内容 JSX
-   */
-  const createJsonLogPopoverContent = (row: IssueItem) => {
-    const text = getIssueExceptionText(row);
-    // biome-ignore lint/suspicious/noExplicitAny: VueJsonPretty third-party data prop
-    const data = JSON.parse(text) as any;
-    return (
-      <div class='issues-log-popover-wrapper'>
-        <div class='issues-log-popover-header' />
-        <div class='issues-log-popover-content'>
-          <VueJsonPretty
-            data={data}
-            showDoubleQuotes={false}
-            showLine={false}
-          />
-        </div>
-        <div class='issues-log-popover-footer'>
-          <Button
-            theme='primary'
-            text
-            onClick={() => {
-              rendererCtx.hoverPopoverTools.hidePopover();
-              rendererCtx.handleShowDetail(row, ALARM_CENTER_PANEL_TAB_MAP.LOG);
-            }}
-          >
-            {t('查看更多')}
-          </Button>
-        </div>
-      </div>
-    );
-  };
-
-  /**
-   * @description 构造字符串日志 Popover 内容（wrapper > header + content + footer 骨架）
-   * @param {IssueItem} row - 当前行 Issue 数据，内部提取 log_content 及日期前缀
-   * @returns {JSX.Element} Popover 内容 JSX
-   */
-  const createStringLogPopoverContent = (row: IssueItem) => {
-    const text = getIssueExceptionText(row);
-    const datetimePrefix = getIssueLogDatetimePrefix(row.log_content);
-    return (
-      <div class='issues-log-popover-wrapper'>
-        <div class='issues-log-popover-header'>
-          {datetimePrefix && <span class='issues-log-popover-header-text'>{datetimePrefix}</span>}
-        </div>
-        <div class='issues-log-popover-content'>
-          <pre class='issues-string-popover-pre'>{text}</pre>
-        </div>
-        <div class='issues-log-popover-footer'>
-          <Button
-            theme='primary'
-            text
-            onClick={() => {
-              rendererCtx.hoverPopoverTools.hidePopover();
-              rendererCtx.handleShowDetail(row, ALARM_CENTER_PANEL_TAB_MAP.LOG);
-            }}
-          >
-            {t('查看更多')}
-          </Button>
-        </div>
-      </div>
-    );
-  };
 
   /**
    * @description Issues 名称列渲染（三行结构：标题 + 异常消息 + 元信息行（回归类型图标 + 告警数量））
@@ -227,38 +157,19 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           {row.log_content_loaded === false ? (
             <span class='skeleton-element issues-log-skeleton' />
           ) : (
-          <span
-            class='issues-name-exception-text'
-            onMouseenter={e => {
-              const el = e.target as HTMLElement;
-              const { isEllipsisActive, content } = isEllipsisActiveLine(el);
-              if (isEllipsisActive) {
-                let popoverConfigs: TippyOptions = {
-                  content: content,
-                  theme: 'dart',
-                };
-
-                if (row.log_content) {
-                  let logContent: Element;
-                  try {
-                    logContent = createJsonLogPopoverContent(row) as unknown as Element;
-                  } catch {
-                    logContent = createStringLogPopoverContent(row) as unknown as Element;
-                  }
-                  popoverConfigs = {
-                    content: logContent,
-                    theme: 'light padding-0',
-                  };
-                }
-                rendererCtx.hoverPopoverTools.showPopover(e, popoverConfigs.content, {
-                  theme: `${popoverConfigs.theme} issues-json-popover max-width-50vw text-wrap`,
-                });
+            <span
+              class='issues-name-exception-text'
+              onMouseenter={e =>
+                showIssueExceptionPopover(e, rendererCtx.hoverPopoverTools, {
+                  onViewMore: () => rendererCtx.handleShowDetail(row, ALARM_CENTER_PANEL_TAB_MAP.LOG),
+                  source: row,
+                  t,
+                })
               }
-            }}
-            onMouseleave={() => rendererCtx.hoverPopoverTools.clearPopoverTimer()}
-          >
-            {exceptionText}
-          </span>
+              onMouseleave={() => rendererCtx.hoverPopoverTools.clearPopoverTimer()}
+            >
+              {exceptionText}
+            </span>
           )}
         </div>
       </div>
@@ -294,15 +205,10 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
    * @returns {SlotReturnValue} 趋势列 JSX
    */
   const renderTrendCell = (row: IssueItem): SlotReturnValue => {
-    if (get(rendererCtx.trendLoading)) {
+    if (get(rendererCtx.trendLoading) && !row.trend?.length) {
       return (
         <div class='issues-trend-col is-loading'>
-          <Loading
-            loading={true}
-            mode='spin'
-            size='mini'
-            theme='primary'
-          />
+          <AlarmTrendSkeleton compact />
         </div>
       ) as unknown as SlotReturnValue;
     }
@@ -324,7 +230,10 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
       },
     ];
     return (
-      <div class='issues-trend-col'>
+      <div
+        class={['issues-trend-col', { 'is-refreshing': get(rendererCtx.trendLoading) }]}
+        aria-busy={get(rendererCtx.trendLoading)}
+      >
         <MiniBarChart
           group={get(rendererCtx.chartGroupId)}
           seriesList={seriesList}

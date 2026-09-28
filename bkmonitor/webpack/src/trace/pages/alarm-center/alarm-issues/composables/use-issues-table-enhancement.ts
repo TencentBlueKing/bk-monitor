@@ -95,22 +95,26 @@ export function useIssuesTableEnhancement(options: UseIssuesTableEnhancementOpti
     if (trendAbortController) trendAbortController.abort();
 
     const trendEndTime = get(endTime);
-    if (!shouldFetchIssues(issues) || !trendEndTime) return;
+    if (!shouldFetchIssues(issues) || !trendEndTime) {
+      trendLoading.value = false;
+      return;
+    }
 
     const controller = new AbortController();
     trendAbortController = controller;
     const { signal: trendSignal } = controller;
 
     trendLoading.value = true;
-    const trendMap = await get(serviceInstance).getIssueTrend(issues, trendEndTime, trendRange.value, {
-      signal: trendSignal,
-    });
-    if (trendSignal.aborted) return;
-    for (const issue of issues) {
-      issue.trend = trendMap[issue.id] || [];
-    }
-    if (trendAbortController === controller) {
-      trendLoading.value = false;
+    try {
+      const trendMap = await get(serviceInstance).getIssueTrend(issues, trendEndTime, trendRange.value, {
+        signal: trendSignal,
+      });
+      if (trendSignal.aborted) return;
+      for (const issue of issues) {
+        issue.trend = trendMap[issue.id] || [];
+      }
+    } finally {
+      if (!trendSignal.aborted) trendLoading.value = false;
     }
   };
 
