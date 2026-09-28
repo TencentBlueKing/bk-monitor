@@ -1058,8 +1058,8 @@ class AddMonitorTargetResource(Resource):
                 history_id=history_id, type=ConfigType.COLLECT, import_status=ImportDetailStatus.SUCCESS
             )
         ]
-        # 添加采集配置目标
-        for instance in CollectConfigMeta.objects.filter(id__in=collect_config_ids):
+        # 添加采集配置目标，仅处理该业务下的采集
+        for instance in CollectConfigMeta.objects.filter(id__in=collect_config_ids, bk_biz_id=bk_biz_id):
             deploy_config = DeploymentConfigVersion.objects.get(id=instance.deployment_config_id)
             deployment_config_params = {
                 "plugin_version": instance.plugin.packaged_release_version,

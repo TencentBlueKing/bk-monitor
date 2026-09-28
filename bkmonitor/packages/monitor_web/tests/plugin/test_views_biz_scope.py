@@ -41,13 +41,21 @@ class TestDeletePluginBizScope(TestCase):
         origin_objects.filter.assert_called_once_with(plugin_id="p1", bk_biz_id__in=[0, 2])
         assert_pub.assert_not_called()
 
-    def test_without_request_biz_not_filtered(self, assert_pub, plugin_objects, origin_objects, *_):
+    def test_without_request_biz_only_global(self, assert_pub, plugin_objects, origin_objects, *_):
         plugin_objects.filter.return_value = []
 
         CollectorPluginViewSet().delete(SimpleNamespace(data={"plugin_ids": ["p1"]}, biz_id=None))
 
-        plugin_objects.filter.assert_called_once_with(plugin_id__in=["p1"])
-        origin_objects.filter.assert_called_once_with(plugin_id="p1")
+        plugin_objects.filter.assert_called_once_with(plugin_id__in=["p1"], bk_biz_id__in=[0])
+        origin_objects.filter.assert_called_once_with(plugin_id="p1", bk_biz_id__in=[0])
+
+    def test_request_biz_zero_only_global(self, assert_pub, plugin_objects, origin_objects, *_):
+        plugin_objects.filter.return_value = []
+
+        CollectorPluginViewSet().delete(SimpleNamespace(data={"plugin_ids": ["p1"]}, biz_id=0))
+
+        plugin_objects.filter.assert_called_once_with(plugin_id__in=["p1"], bk_biz_id__in=[0])
+        origin_objects.filter.assert_called_once_with(plugin_id="p1", bk_biz_id__in=[0])
 
     def test_global_plugin_requires_public_permission(self, assert_pub, plugin_objects, origin_objects, *_):
         plugin_objects.filter.return_value = [_plugin(0)]
@@ -110,9 +118,17 @@ class TestReplacePluginBizScope(TestCase):
         check_biz_change.assert_called_once_with(instance, request.data)
         manager_factory.get_manager.assert_not_called()
 
-    def test_without_request_biz_not_filtered(self, plugin_objects, check_biz_change, manager_factory):
+    def test_without_request_biz_only_global(self, plugin_objects, check_biz_change, manager_factory):
         plugin_objects.filter.return_value.first.return_value = None
 
         with self.assertRaises(PluginIDNotExist):
             CollectorPluginViewSet().replace_plugin(SimpleNamespace(data={"plugin_id": "p1"}, biz_id=None))
-        plugin_objects.filter.assert_called_once_with(plugin_id="p1")
+        plugin_objects.filter.assert_called_once_with(plugin_id="p1", bk_biz_id__in=[0])
+        check_biz_change.assert_not_called()
+
+    def test_request_biz_zero_only_global(self, plugin_objects, check_biz_change, manager_factory):
+        plugin_objects.filter.return_value.first.return_value = None
+
+        with self.assertRaises(PluginIDNotExist):
+            CollectorPluginViewSet().replace_plugin(SimpleNamespace(data={"plugin_id": "p1"}, biz_id=0))
+        plugin_objects.filter.assert_called_once_with(plugin_id="p1", bk_biz_id__in=[0])

@@ -184,3 +184,4 @@ class TestAddMonitorTargetBizScope(TestCase):
         )
         strategy_objects.filter.assert_called_once_with(id__in=[11], bk_biz_id=2)
         strategy_objects.filter.return_value.update.assert_called_once_with(is_enabled=True)
+        collect_objects.filter.assert_called_once_with(id__in=[], bk_biz_id=2)

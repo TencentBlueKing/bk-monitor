@@ -296,8 +296,8 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         param = request.data
         plugin_ids = param["plugin_ids"]
         # TODO: 检查是否存在关联项
-        # 带业务 ID 时仅处理该业务及全业务插件
-        biz_filter = {"bk_biz_id__in": [0, request.biz_id]} if request.biz_id else {}
+        # 无业务或业务 0 时只处理全业务插件，避免公共插件管理动作落到其他业务插件
+        biz_filter = {"bk_biz_id__in": [0, request.biz_id] if request.biz_id else [0]}
         plugins = CollectorPluginMeta.objects.filter(plugin_id__in=plugin_ids, **biz_filter)
         for plugin in plugins:
             # 检查插件的删除权限
@@ -355,8 +355,8 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
 
     @action(methods=["POST"], detail=False)
     def replace_plugin(self, request, *args, **kwargs):
-        # 带业务 ID 时仅处理该业务及全业务插件
-        biz_filter = {"bk_biz_id__in": [0, request.biz_id]} if request.biz_id else {}
+        # 无业务或业务 0 时只处理全业务插件，避免公共插件管理动作落到其他业务插件
+        biz_filter = {"bk_biz_id__in": [0, request.biz_id] if request.biz_id else [0]}
         instance = CollectorPluginMeta.objects.filter(plugin_id=request.data["plugin_id"], **biz_filter).first()
         if not instance:
             raise PluginIDNotExist
