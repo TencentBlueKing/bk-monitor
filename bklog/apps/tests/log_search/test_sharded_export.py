@@ -20,8 +20,10 @@ the project delivered to anyone in the future.
 """
 
 import hashlib
+import itertools
 import json
 import tempfile
+import time
 from dataclasses import replace
 from datetime import timedelta
 from pathlib import Path
@@ -85,6 +87,7 @@ from apps.log_search.export.planner import (
 from apps.log_search.export.scheduler import (
     _inflight_by_index_set,
     _send,
+    coordinate,
     dispatch_ready_parts,
     enqueue_finalization,
     enqueue_planning,
@@ -1237,6 +1240,43 @@ class SchedulerTests(TestCase):
 
     @patch(
         "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=4, global_parallelism=4),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_dispatch_stops_when_the_round_budget_is_exhausted(self, send, _policy):
+        """预算已用尽时一个分片都不投，分片保持 WAITING 等下一个调度周期。"""
+        self.assertEqual(dispatch_ready_parts(deadline=time.monotonic() - 1), [])
+        send.assert_not_called()
+        self.assertEqual(ExportPart.objects.filter(status=ExportPartStatus.WAITING).count(), 3)
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=4, global_parallelism=4),
+    )
+    @patch("apps.log_search.export.scheduler.time.monotonic")
+    @patch("apps.log_search.export.scheduler._send")
+    def test_dispatch_stops_between_two_dispatches_when_the_budget_runs_out(self, send, monotonic, _policy):
+        """预算在投递中间用尽：已投出的分片保留，不会留下占了额度却没发布的分片。"""
+        # 第一次检查（100）还没到预算，之后都超过 deadline=150
+        monotonic.side_effect = itertools.chain([100.0], itertools.repeat(200.0))
+
+        self.assertEqual(len(dispatch_ready_parts(deadline=150.0)), 1)
+        self.assertEqual(send.call_count, 1)
+        self.assertEqual(ExportPart.objects.filter(status=ExportPartStatus.WAITING).count(), 2)
+
+    @override_settings(ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS=0)
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=4, global_parallelism=4),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_coordinate_gives_the_round_budget_to_the_dispatch_stage(self, send, _policy):
+        """轮次入口把时间预算交给投递阶段：预算为 0 时本轮不投递，但仍走完回收与收尾。"""
+        self.assertEqual(coordinate()["dispatched"], 0)
+        send.assert_not_called()
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
         return_value=build_policy(index_parallelism=4, global_parallelism=3),
     )
     @patch("apps.log_search.export.scheduler._send")
@@ -1509,6 +1549,15 @@ class ControlPipelineTests(SimpleTestCase):
         """规划软超时必须早于规划超时窗口，否则 Coordinator 会判定超时并重复投递同一份规划。"""
         self.assertEqual(plan_sharded_export.soft_time_limit, PLANNING_SOFT_TIME_LIMIT)
         self.assertLess(PLANNING_SOFT_TIME_LIMIT, settings.ASYNC_EXPORT_PLANNING_TIMEOUT)
+
+    def test_round_budget_is_bounded_before_the_lock_lease(self):
+        """轮次必须先于调度锁租约结束，否则锁过期后旧轮次会与下一轮重叠发放额度。"""
+        self.assertEqual(coordinate_sharded_exports.soft_time_limit, settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT)
+        self.assertGreater(settings.ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS, 0)
+        self.assertLess(
+            settings.ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS, settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT
+        )
+        self.assertLess(settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT, settings.ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT)
 
     def test_supervisord_consumes_every_queue(self):
         """漏部署任一 worker 会让对应链路整体停摆，队列改动必须同步部署配置。"""

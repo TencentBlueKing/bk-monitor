@@ -80,7 +80,7 @@ def _inflight_by_index_set():
     return {row["job__index_set_id"]: row["total"] for row in rows}
 
 
-def dispatch_ready_parts():
+def dispatch_ready_parts(deadline=None):
     """
     按公平顺序投递分片。
 
@@ -93,6 +93,8 @@ def dispatch_ready_parts():
     任务不会在一个调度周期内占满全局槽位；某个任务没分片可发或用不完自己的份额时，
     空出的额度当轮就让给后面的任务。在途分片本身就是预算账本，直接按数据库计数判断
     额度；同一个分片不会被重复投递，轮次之间由调度任务的共享锁保证不会同时算出两份额度。
+    轮次有明确的时间预算（deadline，单调时钟）：预算用尽后在两次写库之间收尾，未投递的分片
+    交给下一个调度周期，避免单轮活过调度锁的租约后与下一轮重叠放量。
     """
     jobs = list(
         ExportJob.objects.filter(status__in=[ExportJobStatus.READY, ExportJobStatus.RUNNING]).order_by(
@@ -125,8 +127,12 @@ def dispatch_ready_parts():
     remaining_jobs = len(waiting_jobs)
     # 本轮因 oversized 额度不足而没投出超大分片的任务，按轮汇总告警
     held_oversized_jobs = set()
+    # 轮次时间预算用尽：不再开始新的投递，剩余分片等下一个调度周期
+    deadline_reached = False
     dispatched = []
     for job in jobs:
+        if deadline_reached:
+            break
         if job.pk not in waiting_jobs:
             continue
         shared_limit = max(1, (global_limit - global_inflight) // max(1, remaining_jobs))
@@ -140,6 +146,10 @@ def dispatch_ready_parts():
         # 任务自身的期望并行度仍是上限，切分只用于在任务之间分配全局额度
         job_limit = min(job.requested_parallelism, shared_limit)
         while True:
+            if deadline is not None and time.monotonic() >= deadline:
+                # 只在两次写库之间收尾：不会留下已占额度但没投出去的分片
+                deadline_reached = True
+                break
             capacity = min(
                 job_limit - job_inflight,
                 index_limit - index_used,
@@ -178,6 +188,8 @@ def dispatch_ready_parts():
             global_inflight += 1
             oversized_inflight += int(part.oversized)
             job_oversized_inflight += int(part.oversized)
+    if deadline_reached:
+        logger.warning("[dispatch_ready_parts] 轮次时间预算用尽，剩余分片交由下一个调度周期投递")
     if held_oversized_jobs:
         logger.info(
             "[dispatch_ready_parts] oversized 额度不足（单 Job %s / 环境 %s），%s 个任务的 oversized 分片本轮未投递",
@@ -268,9 +280,11 @@ def coordinate(limit=None):
     """周期控制入口：回收超时分片、补投规划/收尾消息、按额度投递分片。"""
     limit = limit or settings.ASYNC_EXPORT_COORDINATE_BATCH
     started = time.monotonic()
+    # 轮次时间预算必须早于调度锁租约到期：超时的轮次会和下一轮重叠，按旧快照重复发放额度
+    deadline = started + settings.ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS
     recovered = state.recover_stale_parts(limit)
     planned = enqueue_planning(limit)
-    dispatched = dispatch_ready_parts()
+    dispatched = dispatch_ready_parts(deadline)
     finalized = enqueue_finalization(limit)
     result = {
         "recovered": len(recovered),

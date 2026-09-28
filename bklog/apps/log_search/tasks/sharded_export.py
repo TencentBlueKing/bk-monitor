@@ -64,6 +64,8 @@ def finalize_sharded_export(job_id):
 @periodic_task(
     run_every=settings.ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS,
     options={"queue": COORDINATOR_QUEUE},
+    # 软超时兜底：正常情况下由轮次自己的时间预算在安全点收尾，这里只兜住卡在不可打断调用里的轮次
+    soft_time_limit=settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT,
 )
 @share_lock(ttl=settings.ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT)
 def coordinate_sharded_exports():
