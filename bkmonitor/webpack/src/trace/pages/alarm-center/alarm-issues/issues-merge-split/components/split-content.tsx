@@ -24,19 +24,26 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onMounted, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, onMounted, onScopeDispose, shallowRef } from 'vue';
 
 import { Button, Checkbox, Input } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
 import { fetchMergeSources } from '../../services/issues-operations';
+import { fetchIssueLogContentInBatches, getIssueExceptionText } from '../../utils/issue-log-content';
 import IssueInfoItem from './issue-info-item';
 import IssuesSplitDialog from './issues-split-dialog';
 import EmptyStatus, { type EmptyStatusOperationType } from '@/components/empty-status/empty-status';
 import MergedIssueIcon from '@/static/img/merged-Issue.svg';
 
-import type { IssueItem, ListMergeSourcesResponse, MergeSourceActiveMember } from '../../typing';
+import type {
+  IssueItem,
+  IssueLogContentResponse,
+  ListMergeSourcesResponse,
+  MergeSourceActiveMember,
+} from '../../typing';
+import type { IssueLogContentTarget } from '../../utils/issue-log-content';
 
 import './split-content.scss';
 
@@ -51,13 +58,17 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['success'],
+  emits: ['success', 'logContentChange'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const loading = shallowRef(false);
     const searchKey = shallowRef('');
 
     const mergeSources = shallowRef<ListMergeSourcesResponse | null>(null);
+    /** 主 Issue 与成员的关联日志，key 为 issue id */
+    const logContentMap = shallowRef<IssueLogContentResponse>({});
+    let logAbortController: AbortController | null = null;
+    let disposed = false;
 
     /** 弹窗显示状态 */
     const dialogVisible = shallowRef(false);
@@ -104,6 +115,19 @@ export default defineComponent({
     const formatAlertTime = (timestamp?: number) =>
       timestamp ? dayjs(timestamp * 1000).format('YYYY-MM-DD HH:mm') : '--';
 
+    const buildLogContentTargets = (mainIssue: IssueItem, members: MergeSourceActiveMember[]) => {
+      const targets: IssueLogContentTarget[] = [];
+      const seen = new Set<string>();
+      const append = (id?: string) => {
+        if (!id || seen.has(id)) return;
+        seen.add(id);
+        targets.push({ id, bk_biz_id: mainIssue.bk_biz_id });
+      };
+      append(mainIssue.id);
+      for (const member of members) append(member.member_issue_id);
+      return targets;
+    };
+
     const getIssueMergeSources = async () => {
       const issue = props.issues[0];
       if (!issue) return;
@@ -113,7 +137,27 @@ export default defineComponent({
         main_issue_id: issue.id,
       });
       loading.value = false;
+      if (disposed) return;
       mergeSources.value = data;
+      if (!data) return;
+      void fetchMemberLogContent(issue, data.active_members || []);
+    };
+
+    /** 主 Issue 与成员一起分批拉关联日志，失败时保留 anomaly_message */
+    const fetchMemberLogContent = async (mainIssue: IssueItem, members: MergeSourceActiveMember[]) => {
+      logAbortController?.abort();
+      const controller = new AbortController();
+      logAbortController = controller;
+      const targets = buildLogContentTargets(mainIssue, members);
+      logContentMap.value = {};
+      emit('logContentChange', {});
+      await fetchIssueLogContentInBatches(targets, {
+        signal: controller.signal,
+        onBatch: (_batch, dataMap) => {
+          logContentMap.value = { ...logContentMap.value, ...dataMap };
+          emit('logContentChange', logContentMap.value);
+        },
+      });
     };
 
     const handleOperation = (type: EmptyStatusOperationType) => {
@@ -213,7 +257,10 @@ export default defineComponent({
                     class='issues-name-exception-text'
                     v-overflow-tips
                   >
-                    {issue.anomaly_message}
+                    {getIssueExceptionText({
+                      log_content: logContentMap.value[issue.member_issue_id]?.log_content,
+                      anomaly_message: issue.anomaly_message,
+                    })}
                   </span>
                 </div>
               ),
@@ -253,11 +300,20 @@ export default defineComponent({
     };
 
     onMounted(() => {
+      logContentMap.value = {};
+      emit('logContentChange', {});
       getIssueMergeSources();
+    });
+
+    onScopeDispose(() => {
+      disposed = true;
+      logAbortController?.abort();
+      logAbortController = null;
     });
 
     return {
       searchKey,
+      logContentMap,
       targetIssues,
       dialogVisible,
       splitTargets,
@@ -324,6 +380,7 @@ export default defineComponent({
           bizId={this.issues[0]?.bk_biz_id}
           isShow={this.dialogVisible}
           issues={this.splitTargets}
+          logContentMap={this.logContentMap}
           onSuccess={this.handleDialogSuccess}
           onUpdate:isShow={this.handleDialogShowChange}
         />

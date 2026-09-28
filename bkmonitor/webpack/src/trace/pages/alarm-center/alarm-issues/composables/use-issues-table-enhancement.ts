@@ -30,6 +30,7 @@ import { get } from '@vueuse/core';
 
 import { AlarmType } from '../../typings';
 import { TrendRangeEnum } from '../constant';
+import { fetchIssueLogContentInBatches } from '../utils/issue-log-content';
 
 import type { IssuesService } from '../../services/issues-services';
 import type { IssueItem, TrendRangeType } from '../typing';
@@ -126,26 +127,18 @@ export function useIssuesTableEnhancement(options: UseIssuesTableEnhancementOpti
     const controller = new AbortController();
     logAbortController = controller;
     const { signal: logSignal } = controller;
+    const issueById = new Map(issues.map(issue => [issue.id, issue]));
 
-    const batchSize = 10;
-    const batches: IssueItem[][] = [];
-    for (let i = 0; i < issues.length; i += batchSize) {
-      batches.push(issues.slice(i, i + batchSize));
-    }
-
-    for (const batch of batches) {
-      if (logSignal.aborted) return;
-
-      const dataMap = await get(serviceInstance).getIssueLogContent(batch, {
-        signal: logSignal,
-      });
-
-      if (logSignal.aborted) return;
-
-      for (const issue of batch) {
-        issue.log_content = dataMap[issue.id]?.log_content || '';
-      }
-    }
+    await fetchIssueLogContentInBatches(issues, {
+      signal: logSignal,
+      onBatch: (batch, dataMap) => {
+        for (const item of batch) {
+          const issue = issueById.get(item.id);
+          if (!issue) continue;
+          issue.log_content = dataMap[item.id]?.log_content || '';
+        }
+      },
+    });
   };
 
   const onTrendRangeChange = (range: TrendRangeType) => {

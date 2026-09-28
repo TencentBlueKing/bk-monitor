@@ -24,14 +24,15 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
 
+import { getIssueExceptionText } from '../utils/issue-log-content';
 import MergeContent from './components/merge-content';
 import SplitContent from './components/split-content';
 
-import type { IssueItem } from '../typing';
+import type { IssueItem, IssueLogContentResponse } from '../typing';
 
 import './issues-merge-split-sideslider.scss';
 
@@ -58,7 +59,10 @@ export default defineComponent({
     },
   },
   emits: ['update:show', 'mergeSuccess', 'splitSuccess'],
-  setup(_, { emit }) {
+  setup(props, { emit }) {
+    /** 合并明细里按 issue id 回填的关联日志 */
+    const logContentByIssueId = shallowRef<IssueLogContentResponse>({});
+
     /** 处理侧栏显示状态变更 */
     const handleShowChange = (isShow: boolean) => {
       emit('update:show', isShow);
@@ -74,10 +78,23 @@ export default defineComponent({
       emit('splitSuccess', memberIssueIds);
     };
 
+    const handleLogContentChange = (map: IssueLogContentResponse) => {
+      logContentByIssueId.value = map;
+    };
+
+    watch(
+      () => props.show,
+      show => {
+        if (!show) logContentByIssueId.value = {};
+      }
+    );
+
     return {
+      logContentByIssueId,
       handleShowChange,
       handleMergeSuccess,
       handleSplitSuccess,
+      handleLogContentChange,
     };
   },
   render() {
@@ -93,11 +110,19 @@ export default defineComponent({
         {{
           header: () => {
             if (this.type === 'merge') return <span class='header-title'>{this.$t('合并 Issue')}</span>;
+            const mainIssue = this.issues[0];
             return (
               <div class='split-slider-header'>
                 <span class='header-title'>{this.$t('合并明细')}</span>
                 <span class='divider' />
-                <span class='header-desc'>{this.issues[0]?.anomaly_message}</span>
+                {mainIssue && (
+                  <span class='header-desc'>
+                    {getIssueExceptionText({
+                      log_content: this.logContentByIssueId[mainIssue.id]?.log_content ?? mainIssue.log_content,
+                      anomaly_message: mainIssue.anomaly_message,
+                    })}
+                  </span>
+                )}
               </div>
             );
           },
@@ -113,6 +138,7 @@ export default defineComponent({
             ) : (
               <SplitContent
                 issues={this.issues}
+                onLogContentChange={this.handleLogContentChange}
                 onSuccess={(memberIssueIds: string[]) => {
                   this.handleShowChange(false);
                   this.handleSplitSuccess(memberIssueIds);
