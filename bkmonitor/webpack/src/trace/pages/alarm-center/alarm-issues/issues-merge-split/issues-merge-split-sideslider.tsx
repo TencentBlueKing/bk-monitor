@@ -62,6 +62,8 @@ export default defineComponent({
   setup(props, { emit }) {
     /** 合并明细里按 issue id 回填的关联日志 */
     const logContentByIssueId = shallowRef<IssueLogContentResponse>({});
+    /** 合并明细里已完成关联日志请求的 issue id */
+    const logContentReadyIds = shallowRef<ReadonlySet<string>>(new Set());
 
     /** 处理侧栏显示状态变更 */
     const handleShowChange = (isShow: boolean) => {
@@ -78,19 +80,24 @@ export default defineComponent({
       emit('splitSuccess', memberIssueIds);
     };
 
-    const handleLogContentChange = (map: IssueLogContentResponse) => {
-      logContentByIssueId.value = map;
+    const handleLogContentChange = (payload: { map: IssueLogContentResponse; readyIds: ReadonlySet<string> }) => {
+      logContentByIssueId.value = payload.map;
+      logContentReadyIds.value = payload.readyIds;
     };
 
     watch(
       () => props.show,
       show => {
-        if (!show) logContentByIssueId.value = {};
+        if (!show) {
+          logContentByIssueId.value = {};
+          logContentReadyIds.value = new Set();
+        }
       }
     );
 
     return {
       logContentByIssueId,
+      logContentReadyIds,
       handleShowChange,
       handleMergeSuccess,
       handleSplitSuccess,
@@ -115,14 +122,19 @@ export default defineComponent({
               <div class='split-slider-header'>
                 <span class='header-title'>{this.$t('合并明细')}</span>
                 <span class='divider' />
-                {mainIssue && (
-                  <span class='header-desc'>
-                    {getIssueExceptionText({
-                      log_content: this.logContentByIssueId[mainIssue.id]?.log_content ?? mainIssue.log_content,
-                      anomaly_message: mainIssue.anomaly_message,
-                    })}
-                  </span>
-                )}
+                {mainIssue &&
+                  (this.logContentReadyIds.has(mainIssue.id) || mainIssue.log_content_loaded ? (
+                    <span class='header-desc'>
+                      {getIssueExceptionText({
+                        log_content: this.logContentReadyIds.has(mainIssue.id)
+                          ? this.logContentByIssueId[mainIssue.id]?.log_content
+                          : mainIssue.log_content,
+                        anomaly_message: mainIssue.anomaly_message,
+                      })}
+                    </span>
+                  ) : (
+                    <span class='skeleton-element header-desc-skeleton' />
+                  ))}
               </div>
             );
           },

@@ -67,6 +67,8 @@ export default defineComponent({
     const mergeSources = shallowRef<ListMergeSourcesResponse | null>(null);
     /** 主 Issue 与成员的关联日志，key 为 issue id */
     const logContentMap = shallowRef<IssueLogContentResponse>({});
+    /** 已完成关联日志请求的 issue id；未完成前展示骨架 */
+    const logContentReadyIds = shallowRef<ReadonlySet<string>>(new Set());
     let logAbortController: AbortController | null = null;
     let disposed = false;
 
@@ -143,19 +145,24 @@ export default defineComponent({
       void fetchMemberLogContent(issue, data.active_members || []);
     };
 
-    /** 主 Issue 与成员一起分批拉关联日志，失败时保留 anomaly_message */
+    /** 主 Issue 与成员一起分批拉关联日志，未返回前不先展示 anomaly_message */
     const fetchMemberLogContent = async (mainIssue: IssueItem, members: MergeSourceActiveMember[]) => {
       logAbortController?.abort();
       const controller = new AbortController();
       logAbortController = controller;
       const targets = buildLogContentTargets(mainIssue, members);
       logContentMap.value = {};
-      emit('logContentChange', {});
+      logContentReadyIds.value = new Set();
+      emit('logContentChange', { map: {}, readyIds: logContentReadyIds.value });
       await fetchIssueLogContentInBatches(targets, {
         signal: controller.signal,
-        onBatch: (_batch, dataMap) => {
+        onBatch: (batch, dataMap) => {
+          if (controller.signal.aborted) return;
           logContentMap.value = { ...logContentMap.value, ...dataMap };
-          emit('logContentChange', logContentMap.value);
+          const readyIds = new Set(logContentReadyIds.value);
+          for (const item of batch) readyIds.add(item.id);
+          logContentReadyIds.value = readyIds;
+          emit('logContentChange', { map: logContentMap.value, readyIds });
         },
       });
     };
@@ -253,15 +260,19 @@ export default defineComponent({
                     <i class='icon-monitor icon-alert-line' />
                     <span class='issues-alert-count-number'>{issue.alert_count ?? '--'}</span>
                   </span>
-                  <span
-                    class='issues-name-exception-text'
-                    v-overflow-tips
-                  >
-                    {getIssueExceptionText({
-                      log_content: logContentMap.value[issue.member_issue_id]?.log_content,
-                      anomaly_message: issue.anomaly_message,
-                    })}
-                  </span>
+                  {logContentReadyIds.value.has(issue.member_issue_id) ? (
+                    <span
+                      class='issues-name-exception-text'
+                      v-overflow-tips
+                    >
+                      {getIssueExceptionText({
+                        log_content: logContentMap.value[issue.member_issue_id]?.log_content,
+                        anomaly_message: issue.anomaly_message,
+                      })}
+                    </span>
+                  ) : (
+                    <span class='skeleton-element issues-log-skeleton' />
+                  )}
                 </div>
               ),
             }}
@@ -301,7 +312,8 @@ export default defineComponent({
 
     onMounted(() => {
       logContentMap.value = {};
-      emit('logContentChange', {});
+      logContentReadyIds.value = new Set();
+      emit('logContentChange', { map: {}, readyIds: logContentReadyIds.value });
       getIssueMergeSources();
     });
 
@@ -314,6 +326,7 @@ export default defineComponent({
     return {
       searchKey,
       logContentMap,
+      logContentReadyIds,
       targetIssues,
       dialogVisible,
       splitTargets,
@@ -381,6 +394,7 @@ export default defineComponent({
           isShow={this.dialogVisible}
           issues={this.splitTargets}
           logContentMap={this.logContentMap}
+          logContentReadyIds={this.logContentReadyIds}
           onSuccess={this.handleDialogSuccess}
           onUpdate:isShow={this.handleDialogShowChange}
         />

@@ -164,6 +164,14 @@
           text-overflow: ellipsis;
           white-space: nowrap;
         }
+
+        .issues-log-skeleton {
+          flex: 1;
+          height: 12px;
+          max-width: 280px;
+          background: #f0f1f5;
+          border-radius: 2px;
+        }
       }
 
       &:last-child {

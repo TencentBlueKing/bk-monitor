@@ -61,6 +61,11 @@ export default defineComponent({
       type: Object as PropType<IssueLogContentResponse>,
       default: () => ({}),
     },
+    /** 已完成关联日志请求的 issue id */
+    logContentReadyIds: {
+      type: Object as PropType<ReadonlySet<string>>,
+      default: () => new Set<string>(),
+    },
   },
   emits: ['update:isShow', 'success'],
   setup(props, { emit }) {
@@ -180,6 +185,7 @@ export default defineComponent({
               log_content: props.logContentMap[issue.member_issue_id]?.log_content,
               anomaly_message: issue.anomaly_message,
             })}
+            descLoading={!props.logContentReadyIds.has(issue.member_issue_id)}
             list={getMetricList(issue)}
             name={issue.member_name}
           />

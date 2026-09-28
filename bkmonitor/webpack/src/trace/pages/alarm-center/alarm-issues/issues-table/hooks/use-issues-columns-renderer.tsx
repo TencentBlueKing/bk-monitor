@@ -224,6 +224,9 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
             <i class='icon-monitor icon-alert-line' />
             <span class='issues-alert-count-number'>{row.alert_count}</span>
           </span>
+          {row.log_content_loaded === false ? (
+            <span class='skeleton-element issues-log-skeleton' />
+          ) : (
           <span
             class='issues-name-exception-text'
             onMouseenter={e => {
@@ -256,6 +259,7 @@ export const useIssuesColumnsRenderer = (rendererCtx: IssuesColumnsRendererCtx) 
           >
             {exceptionText}
           </span>
+          )}
         </div>
       </div>
     ) as unknown as SlotReturnValue;

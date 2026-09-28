@@ -118,8 +118,8 @@ export function useIssuesTableEnhancement(options: UseIssuesTableEnhancementOpti
    * @description 按批串行获取 Issue 关联日志内容并回填
    * - 每批最多 10 条
    * - 串行执行，避免并发超限
-   * - 单批失败静默处理，不影响其他批次
-   * - 无 loading 状态
+   * - 单批失败按空日志处理，回退 anomaly_message
+   * - 未回填前保持 log_content_loaded=false，列表展示骨架而不是先闪兜底文案
    */
   const fetchLogContent = async (issues: IssueItem[]) => {
     if (logAbortController) logAbortController.abort();
@@ -128,14 +128,19 @@ export function useIssuesTableEnhancement(options: UseIssuesTableEnhancementOpti
     logAbortController = controller;
     const { signal: logSignal } = controller;
     const issueById = new Map(issues.map(issue => [issue.id, issue]));
+    for (const issue of issues) {
+      issue.log_content_loaded = false;
+    }
 
     await fetchIssueLogContentInBatches(issues, {
       signal: logSignal,
       onBatch: (batch, dataMap) => {
+        if (logSignal.aborted) return;
         for (const item of batch) {
           const issue = issueById.get(item.id);
           if (!issue) continue;
-          issue.log_content = dataMap[item.id]?.log_content || '';
+          issue.log_content = dataMap?.[item.id]?.log_content || '';
+          issue.log_content_loaded = true;
         }
       },
     });

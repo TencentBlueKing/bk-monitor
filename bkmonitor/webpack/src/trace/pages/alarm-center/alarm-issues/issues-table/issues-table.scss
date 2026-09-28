@@ -114,6 +114,14 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
+
+      .issues-log-skeleton {
+        flex: 1;
+        max-width: 280px;
+        height: 12px;
+        background: #f0f1f5;
+        border-radius: 2px;
+      }
     }
   }
 
@@ -336,12 +344,12 @@
     $ended-opacity: 0.8;
 
     // TDesign 单元格 background-color: inherit，必须写到 td 上底色才会画出来
-    &:not(.is-split-highlighted):not(.t-table__row--active) > td {
+    &:not(.is-split-highlighted, .t-table__row--active) > td {
       background-color: #f5f7fa;
     }
 
     // 单元格内容统一 80%；勾选列 / 操作列保持 100%
-    & > td:not(.t-table__cell-check):not(:has(.issues-operation-col)) > * {
+    & > td:not(.t-table__cell-check, :has(.issues-operation-col)) > * {
       opacity: $ended-opacity;
     }
 
