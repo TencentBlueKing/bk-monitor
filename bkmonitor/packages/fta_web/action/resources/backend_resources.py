@@ -35,6 +35,7 @@ from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
 from constants.action import ActionSignal
 from core.drf_resource import Resource
+from core.errors.alert import AlertNotFoundError
 
 try:
     # 后台接口，需要引用后台代码
@@ -370,8 +371,8 @@ class GetDemoActionContextResource(Resource):
         variables = validated_request_data.get("variables", {})
 
         alerts = AlertDocument.mget(ids=[alert_id])
-        if not alerts:
-            raise ValueError(_("告警不存在或已过期: {}").format(alert_id))
+        if not alerts or str(getattr(alerts[0].event, "bk_biz_id", None)) != str(bk_biz_id):
+            raise AlertNotFoundError({"alert_id": alert_id})
 
         alert = alerts[0]
         fake_action = self.build_fake_action(alert, bk_biz_id)
