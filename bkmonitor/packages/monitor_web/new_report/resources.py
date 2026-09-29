@@ -309,6 +309,30 @@ def _assert_report_access(report_id, bk_biz_id, create_user):
     GetReportListResource.check_permission(bk_biz_id, raise_exception=True)
 
 
+def _assert_report_editable(report, is_manager):
+    if is_manager or report.create_user == get_request_username() or Permission().skip_check:
+        return
+    raise CustomException("current user is not allowed to edit report {}".format(report.id))
+
+
+def _assert_resend_subscribers(report_id, channels):
+    if not channels:
+        raise CustomException("channels is required when resending report %s" % report_id)
+    for channel in channels:
+        send_results_list = (
+            ReportSendRecord.objects.filter(report_id=report_id, channel_name=channel["channel_name"])
+            .exclude(send_status=SendStatusEnum.NO_STATUS.value)
+            .order_by("-send_time")
+            .values_list("send_results", flat=True)[:100]
+        )
+        sent_ids = {result["id"] for send_results in send_results_list for result in send_results}
+        unknown_ids = {subscriber["id"] for subscriber in channel["subscribers"]} - sent_ids
+        if unknown_ids:
+            raise CustomException(
+                "subscribers {} are not in the send records of report {}".format(sorted(unknown_ids), report_id)
+            )
+
+
 class GetReportResource(Resource):
     """
     获取订阅
@@ -452,6 +476,7 @@ class CreateOrUpdateReportResource(Resource):
             except Report.DoesNotExist:
                 raise Exception("report_id: %s not found", params["id"])
             self._assert_report_ownership(report, params)
+            _assert_report_editable(report, is_manager_created)
             report.__dict__.update(params)
             report.save()
         else:
@@ -542,6 +567,8 @@ class SendReportResource(Resource):
             except Report.DoesNotExist:
                 raise CustomException("report_id: %s not found" % report_id)
             self._assert_report_send_access(report, validated_request_data)
+            if not GetReportListResource.check_permission(report.bk_biz_id):
+                _assert_resend_subscribers(report.id, validated_request_data.get("channels"))
         try:
             api.monitor.send_report(**validated_request_data)
         except Exception as e:  # pylint: disable=broad-except

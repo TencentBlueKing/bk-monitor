@@ -627,8 +627,9 @@ class CustomTimeSeriesList(Resource):
             queryset = queryset.filter(is_platform=True)
 
         elif validated_request_data.get("bk_biz_id"):
-            # 非全平台，查当前业务(0表示全部业务)
             queryset = queryset.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        else:
+            raise ValidationError(_("业务 ID 不能为空"))
 
         if validated_request_data.get("search_key"):
             search_key = validated_request_data["search_key"]
