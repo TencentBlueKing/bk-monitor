@@ -161,6 +161,12 @@ def test_invalid_host_id_error_identifies_shape_without_value():
     assert "private-invalid-id" not in error["message"]
 
 
+def test_empty_cloud_id_is_not_a_documented_cmdb_integer():
+    call = handler()
+    call.return_value = {"count": 1, "info": [{**host(), "bk_cloud_id": ""}]}
+    assert "info[0].bk_cloud_id 格式无效" in invoke({"bk_biz_id": 2})["error"]["message"]
+
+
 @pytest.mark.parametrize("field", cmdb.HOST_FIELDS[2:])
 def test_nested_objects_cannot_escape_in_fixed_text_fields(field):
     call = handler()
