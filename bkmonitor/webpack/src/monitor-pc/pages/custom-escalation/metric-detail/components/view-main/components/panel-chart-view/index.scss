@@ -1,3 +1,5 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
 .panel-metric-chart-view {
   min-width: 1000px;
   height: 100%;
@@ -149,9 +151,6 @@
       margin-bottom: 13px;
       border-radius: 2px;
 
-      &::after {
-        background: linear-gradient(90deg, rgba(0, 0, 0, 0.03) 25%, rgba(0, 0, 0, 0.06) 37%, rgba(0, 0, 0, 0.03) 63%);
-      }
     }
 
     .skeleton-element-row {
@@ -167,7 +166,7 @@
         width: 33%;
         height: 100%;
         margin-right: 24px;
-        background: rgba(0, 0, 0, 0.03);
+        @include skeleton.surface;
         border-radius: 2px;
         box-shadow: 0 2px 6px 0 #19192914;
 

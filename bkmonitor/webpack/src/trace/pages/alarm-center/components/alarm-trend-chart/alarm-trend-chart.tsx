@@ -193,7 +193,7 @@ export default defineComponent({
       interval,
       duration,
       chartLoading,
-      skeletonColors: computed(() => Object.values(seriesColorMap.value)),
+      skeletonSeriesCount: computed(() => Object.keys(seriesColorMap.value).length),
       handleDurationChange,
       formatterData,
       customSeries,
@@ -216,7 +216,7 @@ export default defineComponent({
             default: () => (
               <div class='alarm-trend-chart-container'>
                 <ExploreChart
-                  v-slots={{ skeleton: () => <AlarmTrendSkeleton colors={this.skeletonColors} /> }}
+                  v-slots={{ skeleton: () => <AlarmTrendSkeleton seriesCount={this.skeletonSeriesCount} /> }}
                   customOptions={{
                     formatterData: this.formatterData,
                     series: this.customSeries,

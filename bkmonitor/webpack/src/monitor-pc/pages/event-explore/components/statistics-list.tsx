@@ -28,7 +28,7 @@ import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decor
 import { Component as tsc } from 'vue-tsx-support';
 
 import { CancelToken } from 'monitor-api/cancel';
-import { Debounce, downloadFile } from 'monitor-common/utils';
+import { downloadFile } from 'monitor-common/utils';
 import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
 
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -72,6 +72,7 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
 
   localField = '';
   infoLoading = true;
+  infoError = false;
   getStatisticsListCount = 0;
   statisticsInfo: IStatisticsInfo = {
     field: '',
@@ -99,9 +100,22 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   sliderListPage = 1;
 
   popoverLoading = true;
+  popoverError = false;
+  sliderError = false;
   downloadLoading = false;
 
   topKCancel = null;
+  sliderCancel = null;
+  sliderRequestId = 0;
+
+  beforeDestroy() {
+    this.getStatisticsListCount += 1;
+    this.sliderRequestId += 1;
+    this.topKCancel?.();
+    this.sliderCancel?.();
+    this.topKInfoCancelFn?.();
+    this.topKChartCancelFn?.();
+  }
 
   /** 渲染TopK字段行 */
   renderTopKField(list: ITopKField['list'], type: 'list' | 'slider') {
@@ -174,8 +188,13 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   @Watch('isShow')
   watchSelectFieldChange(val) {
     if (!val) {
+      this.getStatisticsListCount += 1;
+      this.topKCancel?.();
+      this.topKInfoCancelFn?.();
+      this.topKChartCancelFn?.();
       this.statisticsList = { distinct_count: 0, field: '', list: [] };
-      this.infoLoading = true;
+      this.infoLoading = false;
+      this.popoverLoading = false;
     } else {
       this.localField = this.selectField;
       this.timeRangeText = handleTransformTime(this.timeRange);
@@ -183,25 +202,36 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     }
   }
 
-  @Debounce(200)
   async getStatisticsList() {
+    if (!this.isShow) return;
     this.infoLoading = true;
+    this.infoError = false;
     this.getStatisticsListCount += 1;
     const count = this.getStatisticsListCount;
     this.popoverLoading = true;
-    this.statisticsList = await this.getFieldTopK({
+    this.popoverError = false;
+    const list = await this.getFieldTopK({
       limit: 5,
       fields: [this.localField],
     });
     if (count !== this.getStatisticsListCount) return;
+    if (!list) {
+      this.popoverError = true;
+      this.popoverLoading = false;
+      this.infoLoading = false;
+      return;
+    }
+    this.statisticsList = list;
     this.popoverLoading = false;
     this.popoverInstance?.popperInstance?.update();
-    await this.getStatisticsGraphData();
+    await this.getStatisticsGraphData(count);
   }
 
-  @Debounce(200)
-  async getStatisticsGraphData() {
-    if (!this.isShowChart) return;
+  async getStatisticsGraphData(requestId: number) {
+    if (!this.isShowChart) {
+      this.infoLoading = false;
+      return;
+    }
     this.topKInfoCancelFn?.();
     const info: IStatisticsInfo = await getTopKStatisticInfo(
       {
@@ -220,7 +250,12 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     ).catch(() => {
       return null;
     });
-    if (!info) return;
+    if (requestId !== this.getStatisticsListCount) return;
+    if (!info) {
+      this.infoError = true;
+      this.infoLoading = false;
+      return;
+    }
 
     this.statisticsInfo = info;
 
@@ -260,7 +295,13 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
           this.topKChartCancelFn = c;
         }),
       }
-    ).catch(() => ({ series: [] }));
+    ).catch(() => null);
+    if (requestId !== this.getStatisticsListCount) return;
+    if (!data) {
+      this.infoError = true;
+      this.infoLoading = false;
+      return;
+    }
     const series = data.series || [];
     this.chartData = series.map(item => {
       const name = item.dimensions?.[this.localField];
@@ -282,17 +323,30 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     this.sliderShowChange();
     this.$emit('showMore');
     await this.loadMore();
-    this.sliderLoading = false;
   }
 
   /** 加载更多 */
   async loadMore() {
+    if (this.sliderLoadMoreLoading) return;
+    const requestId = ++this.sliderRequestId;
     this.sliderLoadMoreLoading = true;
-    this.sliderDimensionList = await this.getFieldTopK({
-      limit: this.sliderListPage * 100,
-      fields: [this.localField],
-    });
+    this.sliderLoading = !this.sliderDimensionList.list.length;
+    this.sliderError = false;
+    const list = await this.getFieldTopK(
+      {
+        limit: this.sliderListPage * 100,
+        fields: [this.localField],
+      },
+      'slider'
+    );
+    if (requestId !== this.sliderRequestId) return;
     this.sliderLoadMoreLoading = false;
+    this.sliderLoading = false;
+    if (!list) {
+      this.sliderError = true;
+      return;
+    }
+    this.sliderDimensionList = list;
     this.sliderListPage += 1;
   }
 
@@ -300,6 +354,11 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     this.sliderShow = show;
     this.sliderShowChange();
     if (!show) {
+      this.sliderRequestId += 1;
+      this.sliderCancel?.();
+      this.sliderLoadMoreLoading = false;
+      this.sliderLoading = false;
+      this.sliderError = false;
       this.sliderDimensionList = { distinct_count: 0, field: '', list: [] };
       this.sliderListPage = 1;
     }
@@ -324,8 +383,9 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
     }
   }
 
-  async getFieldTopK(params) {
-    this.topKCancel?.();
+  async getFieldTopK(params, channel: 'popover' | 'slider' = 'popover') {
+    const cancelKey = channel === 'slider' ? 'sliderCancel' : 'topKCancel';
+    this[cancelKey]?.();
     return getEventTopK(
       {
         ...this.commonParams,
@@ -333,13 +393,14 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
       },
       this.source,
       {
+        throwOnError: true,
         cancelToken: new CancelToken(c => {
-          this.topKCancel = c;
+          this[cancelKey] = c;
         }),
       }
     )
       .then(data => data[0] || { distinct_count: 0, field: '', list: [] })
-      .catch(() => ({ distinct_count: 0, field: '', list: [] }));
+      .catch(() => null);
   }
 
   topKItemMouseenter(e: MouseEvent, content: string) {
@@ -361,7 +422,22 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
   }
 
   renderStatisticsInfo() {
-    if (!this.isShowChart) return;
+    if (!this.isShowChart || this.popoverError) return;
+    if (this.infoError)
+      return (
+        <div
+          class='event-load-error'
+          role='status'
+        >
+          {this.$t('数据加载失败，请重试')}
+          <bk-button
+            text
+            onClick={this.getStatisticsList}
+          >
+            {this.$t('重试')}
+          </bk-button>
+        </div>
+      );
     if (this.infoLoading)
       return (
         <div class='info-skeleton'>
@@ -470,7 +546,8 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
               </span>
               <span class='divider' />
               <span class='desc'>
-                {this.$t('去重后的字段统计')} ({this.statisticsList?.distinct_count || 0})
+                {this.$t('去重后的字段统计')} (
+                {this.popoverLoading || this.popoverError ? '--' : this.statisticsList?.distinct_count || 0})
               </span>
             </div>
             {this.downloadLoading || this.popoverLoading ? (
@@ -489,19 +566,34 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
               </div>
             )}
           </div>
-          {this.popoverLoading
-            ? this.renderSkeleton()
-            : [
-                this.renderTopKField(this.statisticsList?.list, 'list'),
-                this.statisticsList?.distinct_count > 5 && (
-                  <div
-                    class='load-more'
-                    onClick={this.showMore}
-                  >
-                    {this.$t('更多')}
-                  </div>
-                ),
-              ]}
+          {this.popoverLoading ? (
+            this.renderSkeleton()
+          ) : this.popoverError ? (
+            <div
+              class='event-load-error'
+              role='status'
+            >
+              {this.$t('数据加载失败，请重试')}
+              <bk-button
+                text
+                onClick={this.getStatisticsList}
+              >
+                {this.$t('重试')}
+              </bk-button>
+            </div>
+          ) : (
+            [
+              this.renderTopKField(this.statisticsList?.list, 'list'),
+              this.statisticsList?.distinct_count > 5 && (
+                <div
+                  class='load-more'
+                  onClick={this.showMore}
+                >
+                  {this.$t('更多')}
+                </div>
+              ),
+            ]
+          )}
         </div>
 
         <bk-sideslider
@@ -526,7 +618,8 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
               </span>
               <span class='divider' />
               <span class='desc'>
-                {this.$t('去重后的字段统计')} ({this.sliderDimensionList.distinct_count || 0})
+                {this.$t('去重后的字段统计')} (
+                {this.sliderLoading || this.sliderError ? '--' : this.sliderDimensionList.distinct_count || 0})
               </span>
             </div>
             {this.downloadLoading || this.sliderLoading ? (
@@ -549,8 +642,25 @@ export default class StatisticsList extends tsc<StatisticsListProps, StatisticsL
             class='dimension-slider-content'
             slot='content'
           >
-            {this.sliderLoading ? this.renderSkeleton() : this.renderTopKField(this.sliderDimensionList.list, 'slider')}
-            {this.sliderDimensionList.distinct_count > this.sliderDimensionList.list.length && (
+            {this.sliderLoading
+              ? this.renderSkeleton()
+              : (!this.sliderError || this.sliderDimensionList.list.length > 0) &&
+                this.renderTopKField(this.sliderDimensionList.list, 'slider')}
+            {this.sliderError && (
+              <div
+                class='event-load-error'
+                role='status'
+              >
+                {this.$t('数据加载失败，请重试')}
+                <bk-button
+                  text
+                  onClick={this.loadMore}
+                >
+                  {this.$t('重试')}
+                </bk-button>
+              </div>
+            )}
+            {!this.sliderError && this.sliderDimensionList.distinct_count > this.sliderDimensionList.list.length && (
               <div
                 class={['slider-load-more', { 'is-loading': this.sliderLoadMoreLoading }]}
                 onClick={this.loadMore}

@@ -35,6 +35,7 @@
 import { applyRuntimeClassPrefix } from './common/class-prefix';
 
 import 'monitor-static/icons/monitor-icons.css';
+import 'monitor-static/styles/skeleton.scss';
 
 applyRuntimeClassPrefix();
 

@@ -68,10 +68,14 @@ export enum EventTimeSeriesApiEnum {
 export const getEventTopK = (
   params: ITopKRequestParams,
   type = APIType.MONITOR,
-  config = {}
+  config: { [key: string]: any; throwOnError?: boolean } = {}
 ): Promise<ITopKField[]> => {
   const apiFunc = type === APIType.APM ? apmEventTopK : eventTopK;
-  return apiFunc(params, { needMessage: false, ...config }).catch(() => []);
+  const { throwOnError, ...requestConfig } = config;
+  return apiFunc(params, { needMessage: false, ...requestConfig }).catch(error => {
+    if (throwOnError) throw error;
+    return [];
+  });
 };
 
 /** 获取topk统计信息 */
@@ -86,9 +90,9 @@ export const getTopKStatisticGraph = (params: any, type = APIType.MONITOR, confi
   return apiFunc(params, { needMessage: false, ...config });
 };
 
-export const getEventViewConfig = (params: any, type = APIType.MONITOR) => {
+export const getEventViewConfig = (params: any, type = APIType.MONITOR, requestConfig = {}) => {
   const apiFunc = type === APIType.APM ? apmEventViewConfig : eventViewConfig;
-  return apiFunc(params, { isDataParams: true }).catch(() => ({ display_fields: [], entities: [], field: [] }));
+  return apiFunc(params, { isDataParams: true, ...requestConfig });
 };
 
 export const getDownloadTopK = (params, type = APIType.MONITOR) => {
@@ -109,6 +113,7 @@ export const getEventTotal = (params: ExploreTotalRequestParams, type = APIType.
     return {
       total: 0,
       isAborted,
+      isError: !isAborted,
     };
   });
 };
@@ -123,7 +128,7 @@ export const getEventLogs = (params: ExploreTableRequestParams, type = APIType.M
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
     const isAborted = requestErrorMessage(err);
-    return { list: [], isAborted };
+    return { list: [], isAborted, isError: !isAborted };
   });
 };
 

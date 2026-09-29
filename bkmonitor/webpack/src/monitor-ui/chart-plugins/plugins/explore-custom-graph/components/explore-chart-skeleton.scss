@@ -1,56 +1,73 @@
 .explore-chart-skeleton {
   position: absolute;
-  display: flex;
-  flex-direction: column;
-  width: 100%;
-  height: 100%;
-  background-color: #fff;
+  inset: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) 18px 18px;
+  grid-template-columns: 32px 1fr;
+  gap: 0 8px;
+  padding: 8px 16px 4px 8px;
+  overflow: hidden;
+  background: #fff;
 
-  &-header {
-    padding: 7px 0;
-    padding-right: 14px;
-    padding-left: 8px;
+  &-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding-bottom: 2px;
 
-    .skeleton-header-container {
-      display: flex;
-      height: 22px;
-
-      .header-trigger {
-        display: flex;
-        column-gap: 8px;
-      }
-
-      .header-custom {
-        display: flex;
-        flex: 1;
-        justify-content: space-between;
-        min-width: 0;
-        margin-left: 14px;
-      }
+    span {
+      width: 24px;
+      height: 8px;
     }
   }
 
   &-content {
     display: flex;
-    flex: 1;
+    gap: 1.2%;
     align-items: flex-end;
-    width: 100%;
     min-height: 0;
-    padding-bottom: 14px;
+    background: repeating-linear-gradient(to top, transparent 0, transparent calc(50% - 1px), #f5f6fa 50%);
+    border-bottom: 1px solid #eaebf0;
+  }
 
-    .explore-chart-skeleton-item {
-      flex: 1;
+  &-item {
+    flex: 1;
+    border-radius: 2px 2px 0 0;
+  }
 
-      &:nth-child(odd) {
-        background: none;
-      }
+  &-ticks {
+    display: flex;
+    grid-column: 2;
+    align-items: center;
+    justify-content: space-between;
+
+    span {
+      width: 38px;
+      height: 7px;
     }
   }
 
   &-bottom {
     display: flex;
+    grid-column: 2;
+    gap: 16px;
     align-items: center;
     justify-content: center;
-    height: 4px;
+
+    span {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+
+    i {
+      width: 8px;
+      height: 8px;
+    }
+
+    b {
+      width: 36px;
+      height: 8px;
+    }
   }
 }
