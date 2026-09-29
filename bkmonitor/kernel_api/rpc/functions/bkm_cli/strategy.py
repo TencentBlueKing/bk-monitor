@@ -14,10 +14,13 @@ import json
 from typing import Any
 
 from bkmonitor.models.strategy import StrategyModel
+from bkmonitor.iam import ActionEnum
 from bkmonitor.strategy.new_strategy import Strategy
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
+from kernel_api.resource.alert import get_strategy_config_version
+from kernel_api.rpc.functions.bkm_cli.strategy_management import EDITABLE_FIELDS, authorize_strategy_business
 
 OPERATION_DETAIL = "detail"
 OPERATION_LIST_BY_PRIORITY_GROUP = "list_by_priority_group"
@@ -401,11 +404,14 @@ def _inspect_strategy_detail(params: dict[str, Any]) -> dict[str, Any]:
             detail = f"bk_biz_id={bk_biz_id}, {detail}"
         raise CustomException(message=f"策略不存在: {detail}") from error
 
+    authorize_strategy_business({**params, "bk_biz_id": strategy_model.bk_biz_id}, ActionEnum.VIEW_RULE)
     strategy_config = _build_strategy_config(strategy_model, include_user_groups=include_user_groups)
     return {
         "operation": OPERATION_DETAIL,
         "bk_biz_id": strategy_model.bk_biz_id,
         "strategy_id": strategy_id,
+        "config_version": strategy_config["config_version"],
+        "editable_fields": EDITABLE_FIELDS,
         "strategy": _select_strategy_config(strategy_config, include_raw_model_ids=include_raw_model_ids),
     }
 
@@ -440,7 +446,8 @@ def _build_strategy_config(strategy_model: StrategyModel, *, include_user_groups
     try:
         strategy_obj = Strategy.from_models([strategy_model])[0]
         strategy_obj.restore()
-        config = strategy_obj.to_dict()
+        config = strategy_obj.to_dict(convert_dashboard=False)
+        config["config_version"] = get_strategy_config_version(config)
     except Exception as error:
         raise CustomException(message=f"策略配置解析失败: strategy_id={strategy_model.id}, 原因: {error}") from error
 
