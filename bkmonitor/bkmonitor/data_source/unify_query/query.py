@@ -68,6 +68,7 @@ class UnifyQuery:
     ):
         self.is_partial = False
         self.functions = [] if functions is None else functions
+        self.query_output_config = query_output_config
         # 不传业务指标时传 0，为 None 时查询所有业务
         self.bk_biz_id = bk_biz_id
         # alias -> 原始 promql 映射，用于把命名输出的 expression（alias）翻译成完整 PromQL。
@@ -126,7 +127,6 @@ class UnifyQuery:
             data_source.set_bk_tenant_id(bk_tenant_id)
 
         self.expression = expression
-        self.query_output_config = query_output_config
 
     @cached_property
     def space_uid(self):

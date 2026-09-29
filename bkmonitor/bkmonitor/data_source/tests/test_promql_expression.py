@@ -132,6 +132,55 @@ def test_unify_query_keeps_existing_multi_promql_behavior_without_opt_in():
     assert query.data_sources == sources
 
 
+def test_unify_query_constructs_without_named_output_config():
+    """回归：无 query_output_config 时构造 UnifyQuery 不应抛 AttributeError。"""
+    source = PrometheusTimeSeriesDataSource(bk_biz_id=2, promql="requests_ok", interval=60, alias="a")
+
+    query = UnifyQuery(bk_biz_id=2, bk_tenant_id="test", data_sources=[source], expression="a")
+
+    assert query.query_output_config is None
+    assert query.data_sources == [source]
+
+
+def test_unify_query_translates_promql_named_output_config():
+    """回归：PromQL 命名输出的 expression（alias）应被翻译为完整 PromQL。"""
+    sources = [
+        PrometheusTimeSeriesDataSource(bk_biz_id=2, promql="requests_ok", interval=60, alias="a"),
+        PrometheusTimeSeriesDataSource(bk_biz_id=2, promql="requests_total", interval=60, alias="b"),
+    ]
+    query_output_config = {
+        "response_contract": "named_outputs/v1",
+        "legacy_output_ref": "C",
+        "output_list": [
+            {"reference_name": "A", "expression": "a"},
+            {"reference_name": "B", "expression": "b"},
+            {"reference_name": "C", "expression": "a / b * 100"},
+        ],
+    }
+
+    query = UnifyQuery(
+        bk_biz_id=2,
+        bk_tenant_id="test",
+        data_sources=sources,
+        expression="100 * a / b",
+        query_output_config=query_output_config,
+        promql_multi_expression=True,
+    )
+
+    # 编译后只剩一条 data_source，promql 为检测表达式
+    assert query.data_sources[0].promql == "100 * (requests_ok) / (requests_total)"
+
+    # 命名输出已把 alias 翻译为完整 PromQL（legacy 输出取编译结果）
+    translated = query.data_sources[0].query_output_config
+    assert translated["response_contract"] == "named_outputs/v1"
+    assert translated["legacy_output_ref"] == "C"
+    assert translated["output_list"] == [
+        {"reference_name": "A", "expression": "requests_ok"},
+        {"reference_name": "B", "expression": "requests_total"},
+        {"reference_name": "C", "expression": "100 * (requests_ok) / (requests_total)"},
+    ]
+
+
 def test_legacy_multi_promql_item_can_still_be_read_and_saved():
     configs = [query("a", "up"), query("b", "down")]
     item = Item(strategy_id=1, name="legacy", no_data_config={}, query_configs=configs, algorithms=[], expression="")

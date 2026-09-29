@@ -905,11 +905,13 @@ class PrometheusTimeSeriesDataSource(DataSource):
             return records
 
         records = UnifyQuery.process_unify_query_data(params, data, end_time=end_time_ms)
+        self.is_partial = bool(data.get("is_partial", False))
+        state = "PARTIAL" if self.is_partial else "SUCCESS"
         for record in records:
             ref_values = {
                 output["reference_name"]: {"state": "UNSUPPORTED"} for output in self.query_output_config["output_list"]
             }
-            ref_values[legacy_output_ref] = {"value": record.get("_result_"), "state": "SUCCESS"}
+            ref_values[legacy_output_ref] = {"value": record.get("_result_"), "state": state}
             record[REF_VALUES_RESERVED_FIELD] = ref_values
         return records
 
@@ -940,11 +942,13 @@ class PrometheusTimeSeriesDataSource(DataSource):
 
         series_stat = UnifyQuery.process_unify_query_series_stat(params, data)
         records = UnifyQuery.process_unify_query_data(params, data, end_time=end_time_ms)
+        self.is_partial = bool(data.get("is_partial", False))
+        state = "PARTIAL" if self.is_partial else "SUCCESS"
         for record in records:
             ref_values = {
                 output["reference_name"]: {"state": "UNSUPPORTED"} for output in self.query_output_config["output_list"]
             }
-            ref_values[legacy_output_ref] = {"value": record.get("_result_"), "state": "SUCCESS"}
+            ref_values[legacy_output_ref] = {"value": record.get("_result_"), "state": state}
             record[REF_VALUES_RESERVED_FIELD] = ref_values
         return records, series_stat
 
