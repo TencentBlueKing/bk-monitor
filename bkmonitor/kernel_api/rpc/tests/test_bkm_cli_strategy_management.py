@@ -10,6 +10,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from bkmonitor.iam import ActionEnum
 from bkmonitor.strategy.new_strategy import AbstractConfig, BaseActionRelation, Item, QueryConfig, Strategy
 from core.drf_resource.exceptions import CustomException
+from kernel_api.resource import alert
 from kernel_api.resource.alert import get_strategy_config_version
 from kernel_api.resource.bkm_cli import BkmCliOpCallResource
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
@@ -98,13 +99,45 @@ def request_data(config):
 
 @pytest.fixture
 def api(monkeypatch, config):
-    read = Mock(return_value=config)
+    model = SimpleNamespace(id=config["id"], bk_biz_id=config["bk_biz_id"])
+
+    def load_target(**lookup):
+        if lookup != {"id": config["id"], "bk_biz_id": config["bk_biz_id"]}:
+            raise LookupError
+        return model
+
+    load = Mock(side_effect=load_target)
+    snapshot = Mock(side_effect=lambda *, convert_dashboard: deepcopy(config))
+    current = SimpleNamespace(restore=Mock(), to_dict=snapshot)
+    read = Mock(return_value=[current])
     save = Mock(return_value={"id": 1})
     authorize = Mock()
-    monkeypatch.setattr(management.GetAlarmStrategyResource, "request", read)
-    monkeypatch.setattr(management.UpdateAlarmStrategyResource, "request", save)
+    normalize = Mock(wraps=alert.normalize_strategy_metric_ids)
+    relations = Mock()
+    preflight = Mock(wraps=alert._validate_strategy_before_write)
+    monkeypatch.setattr(
+        alert, "StrategyModel", SimpleNamespace(objects=SimpleNamespace(get=load), DoesNotExist=LookupError)
+    )
+    monkeypatch.setattr(alert.Strategy, "from_models", read)
+    monkeypatch.setattr(
+        alert, "resource", SimpleNamespace(strategies=SimpleNamespace(save_strategy_v2=SimpleNamespace(request=save)))
+    )
+    monkeypatch.setattr(alert, "normalize_strategy_metric_ids", normalize)
+    monkeypatch.setattr(alert, "ensure_strategy_relations_belong_to_biz", relations)
+    monkeypatch.setattr(alert, "_validate_strategy_before_write", preflight)
     monkeypatch.setattr(management, "authorize_strategy_business", authorize)
-    return SimpleNamespace(read=read, save=save, authorize=authorize)
+    return SimpleNamespace(
+        load=load,
+        model=model,
+        read=read,
+        snapshot=snapshot,
+        current=current,
+        save=save,
+        authorize=authorize,
+        normalize=normalize,
+        relations=relations,
+        preflight=preflight,
+    )
 
 
 def test_registry_and_successful_bridge_audit(monkeypatch, request_data, api):
@@ -117,12 +150,10 @@ def test_registry_and_successful_bridge_audit(monkeypatch, request_data, api):
     assert result["audit"]["declared_operator"] == "alice"
     assert result["audit"]["request_caller"] == "gateway-user"
     assert result["result"]["requested_operator"] == "alice"
-    api.read.assert_called_once_with(
-        bk_biz_id=2,
-        conditions=[{"key": "strategy_id", "value": ["1"]}],
-        with_user_group=False,
-        convert_dashboard=False,
-    )
+    api.load.assert_called_once_with(bk_biz_id=2, id=1)
+    api.read.assert_called_once_with([api.model])
+    api.current.restore.assert_called_once_with()
+    api.snapshot.assert_called_once_with(convert_dashboard=False)
 
 
 def test_three_supported_changes_preserve_every_other_field(config, request_data, api):
@@ -149,7 +180,10 @@ def test_three_supported_changes_preserve_every_other_field(config, request_data
     item["expression"] = patches[0]["expression"]
     item["query_configs"][0].update(patches[0]["query_configs"][0])
     item["algorithms"][0]["config"] = patches[0]["algorithms"][0]["config"]
-    api.save.assert_called_once_with(**expected, confirm=True)
+    api.save.assert_called_once_with(**expected)
+    api.normalize.assert_called_once_with(expected, original)
+    api.relations.assert_called_once_with(2, expected)
+    api.preflight.assert_called_once_with(expected)
     assert config == original
 
 
@@ -195,6 +229,7 @@ def test_invalid_patch_rejected_before_permission_or_api(request_data, api, upda
     with pytest.raises(CustomException):
         management.manage_strategy_config(request_data)
     api.authorize.assert_not_called()
+    api.load.assert_not_called()
     api.read.assert_not_called()
     api.save.assert_not_called()
 
@@ -216,11 +251,11 @@ def test_foreign_objects_rejected(request_data, api, items):
 
 def test_stale_version_and_wrong_business_rejected(request_data, config, api):
     request_data["config_version"] = "f" * 64
-    with pytest.raises(ValidationError, match="策略已更新"):
+    with pytest.raises(ValidationError, match="重新调用 get_alarm_strategy"):
         management.manage_strategy_config(request_data)
     request_data["config_version"] = config["config_version"]
     config["bk_biz_id"] = 3
-    with pytest.raises(CustomException, match="不存在"):
+    with pytest.raises(ValidationError, match="不存在"):
         management.manage_strategy_config(request_data)
     api.save.assert_not_called()
 
@@ -228,6 +263,7 @@ def test_stale_version_and_wrong_business_rejected(request_data, config, api):
 def test_query_field_not_supported_by_current_source_is_rejected(config, request_data, api):
     query = config["items"][0]["query_configs"][0]
     query.update(data_source_label="prometheus", data_type_label="time_series")
+    request_data["config_version"] = get_strategy_config_version(config)
     request_data["items"] = [{"id": 10, "query_configs": [{"id": 20, "query_string": "error"}]}]
     with pytest.raises(CustomException, match="不支持修改 query_string"):
         management.manage_strategy_config(request_data)
@@ -236,6 +272,7 @@ def test_query_field_not_supported_by_current_source_is_rejected(config, request
 
 def test_non_threshold_algorithm_rejected(config, request_data, api):
     config["items"][0]["algorithms"][0]["type"] = "NewSeries"
+    request_data["config_version"] = get_strategy_config_version(config)
     request_data["items"] = [{"id": 10, "algorithms": [{"id": 30, "config": [[{"method": "gt", "threshold": 1}]]}]}]
     with pytest.raises(CustomException, match="已有 Threshold"):
         management.manage_strategy_config(request_data)
@@ -244,6 +281,7 @@ def test_non_threshold_algorithm_rejected(config, request_data, api):
 
 def test_non_editable_strategy_rejected(config, request_data, api):
     config["edit_allowed"] = False
+    request_data["config_version"] = get_strategy_config_version(config)
     with pytest.raises(CustomException, match="不允许编辑"):
         management.manage_strategy_config(request_data)
     api.save.assert_not_called()
@@ -402,47 +440,71 @@ def test_detail_version_is_canonical_before_diagnostic_enrichment(monkeypatch, c
     assert enriched["items"][0]["algorithms"][0] == canonical["items"][0]["algorithms"][0]
 
 
-@pytest.mark.parametrize("changed_after_read", [False, True])
-def test_original_update_path_keeps_full_snapshot_and_rechecks_version(
-    monkeypatch, config, request_data, changed_after_read
-):
-    from kernel_api.resource import alert
-
-    original = deepcopy(config)
-    current = deepcopy(config)
-    if changed_after_read:
-        current["name"] = "concurrent edit"
-    current_obj = SimpleNamespace(restore=lambda: None, to_dict=lambda *, convert_dashboard: deepcopy(current))
-    monkeypatch.setattr(alert.Strategy, "from_models", lambda _: [current_obj])
-    monkeypatch.setattr(
-        alert,
-        "StrategyModel",
-        SimpleNamespace(
-            objects=SimpleNamespace(get=lambda **_: SimpleNamespace(id=1)),
-            DoesNotExist=LookupError,
-        ),
-    )
-    monkeypatch.setattr(alert, "ensure_strategy_relations_belong_to_biz", lambda *_: None)
-    save = Mock(return_value={"id": 1})
-    monkeypatch.setattr(
-        alert, "resource", SimpleNamespace(strategies=SimpleNamespace(save_strategy_v2=SimpleNamespace(request=save)))
-    )
-    monkeypatch.setattr(management, "authorize_strategy_business", lambda _: None)
-    monkeypatch.setattr(management.GetAlarmStrategyResource, "request", lambda _self, **_: deepcopy(original))
-
-    def update(_self, **params):
-        validated = alert.UpdateAlarmStrategyResource.RequestSerializer().run_validation(params)
-        return alert.UpdateAlarmStrategyResource().perform_request(validated)
-
-    monkeypatch.setattr(management.UpdateAlarmStrategyResource, "request", update)
-    if changed_after_read:
+@pytest.mark.parametrize("stale", [False, True])
+def test_original_full_update_uses_one_snapshot_and_keeps_complete_request(config, api, stale):
+    request = deepcopy(config)
+    request.update(name="full API edit", confirm=True)
+    if stale:
+        config["name"] = "concurrent edit"
+    serializer = alert.UpdateAlarmStrategyResource.RequestSerializer(data=request)
+    serializer.is_valid(raise_exception=True)
+    if stale:
         with pytest.raises(ValidationError, match="重新调用 get_alarm_strategy"):
-            management.manage_strategy_config(request_data)
-        save.assert_not_called()
+            alert.UpdateAlarmStrategyResource().perform_request(serializer.validated_data)
+        api.save.assert_not_called()
     else:
+        result = alert.UpdateAlarmStrategyResource().perform_request(serializer.validated_data)
+        assert result == {"id": 1}
+        request.pop("confirm")
+        api.save.assert_called_once_with(**request)
+        api.normalize.assert_called_once_with(request, config)
+        api.relations.assert_called_once_with(2, request)
+        api.preflight.assert_called_once_with(request)
+    api.load.assert_called_once_with(bk_biz_id=2, id=1)
+    api.read.assert_called_once_with([api.model])
+    api.snapshot.assert_called_once_with(convert_dashboard=False)
+
+
+def test_management_version_conflict_does_not_prepare_or_save(monkeypatch, request_data, api):
+    prepare = Mock()
+    monkeypatch.setattr(management, "_merge_items", prepare)
+    request_data["config_version"] = "f" * 64
+    with pytest.raises(ValidationError, match="config_version"):
         management.manage_strategy_config(request_data)
-        original["items"][0]["expression"] = "0<a<30"
-        save.assert_called_once_with(**original)
+    prepare.assert_not_called()
+    api.read.assert_called_once_with([api.model])
+    api.save.assert_not_called()
+
+
+def test_management_authorization_failure_does_not_load_or_save(request_data, api):
+    api.authorize.side_effect = PermissionDenied("denied")
+    with pytest.raises(PermissionDenied):
+        management.manage_strategy_config(request_data)
+    api.load.assert_not_called()
+    api.read.assert_not_called()
+    api.save.assert_not_called()
+
+
+def test_management_prepared_configuration_uses_complete_request_serializer(config, request_data, api):
+    config.pop("notice")
+    request_data["config_version"] = get_strategy_config_version(config)
+    with pytest.raises(ValidationError, match="notice"):
+        management.manage_strategy_config(request_data)
+    api.read.assert_called_once_with([api.model])
+    api.normalize.assert_not_called()
+    api.save.assert_not_called()
+
+
+def test_internal_prepare_cannot_replace_identity_or_version(config, api):
+    def prepare(current):
+        current.update(id=999, bk_biz_id=999, config_version="replacement", confirm=False)
+
+    alert.UpdateAlarmStrategyResource()._update_config(
+        {"bk_biz_id": 2, "id": 1, "config_version": config["config_version"]},
+        prepare_config=prepare,
+    )
+    api.save.assert_called_once_with(**config)
+    api.normalize.assert_called_once_with(config, config)
 
 
 def test_blank_expression_uses_existing_default_readback_semantics(config):

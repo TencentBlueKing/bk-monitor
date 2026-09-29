@@ -7,14 +7,14 @@ import re
 from copy import deepcopy
 from typing import Any
 
-from rest_framework.exceptions import PermissionDenied, ValidationError
+from rest_framework.exceptions import PermissionDenied
 
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.strategy.new_strategy import QueryConfig
 from bkmonitor.strategy.serializers import allowed_threshold_method
 from bkmonitor.utils.request import get_request
 from core.drf_resource.exceptions import CustomException
-from kernel_api.resource.alert import GetAlarmStrategyResource, UpdateAlarmStrategyResource
+from kernel_api.resource.alert import UpdateAlarmStrategyResource
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 from kernel_api.rpc.functions.bkm_cli.management import validate_management_request
@@ -200,22 +200,16 @@ def manage_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
         raise CustomException(message="config_version 必须为读取详情时返回的 SHA-256 版本")
     _validate_items(params.get("items"))
     authorize_strategy_business(params)
-    config = GetAlarmStrategyResource().request(
-        bk_biz_id=params["bk_biz_id"],
-        conditions=[{"key": "strategy_id", "value": [str(params["strategy_id"])]}],
-        with_user_group=False,
-        convert_dashboard=False,
+
+    def prepare_config(config):
+        if config.get("edit_allowed") is False:
+            raise CustomException(message="该策略不允许编辑")
+        _merge_items(config, params["items"])
+
+    result = UpdateAlarmStrategyResource()._update_config(
+        {"bk_biz_id": params["bk_biz_id"], "id": params["strategy_id"], "config_version": version},
+        prepare_config=prepare_config,
     )
-    if config.get("id") != params["strategy_id"] or config.get("bk_biz_id") != params["bk_biz_id"]:
-        raise CustomException(message="目标业务下不存在该策略")
-    if config.get("edit_allowed") is False:
-        raise CustomException(message="该策略不允许编辑")
-    if config["config_version"] != version:
-        raise ValidationError({"config_version": "策略已更新，请重新读取详情、展示差异并确认"})
-    config = deepcopy(config)
-    _merge_items(config, params["items"])
-    # Existing optimistic version precondition is checked again by the shared update API.
-    result = UpdateAlarmStrategyResource().request(**config, confirm=True)
     return {
         "operation": "update",
         "bk_biz_id": params["bk_biz_id"],
