@@ -832,9 +832,7 @@ class GetDemoActionDetailResource(Resource):
         demo_action = ActionInstance.objects.get(id=validated_request_data["action_id"])
         if not demo_action.bk_biz_id:
             raise PermissionDenied(_("调试任务不存在"))
-        Permission().is_allowed_by_biz(
-            demo_action.bk_biz_id, ActionEnum.MANAGE_RULE, raise_exception=True
-        )
+        Permission().is_allowed_by_biz(demo_action.bk_biz_id, ActionEnum.MANAGE_RULE, raise_exception=True)
         return {
             "status": demo_action.status,
             "is_finished": demo_action.status in ActionStatus.END_STATUS,

@@ -73,7 +73,7 @@ class GetApiTokenResource(Resource):
         if token_type == "grafana":
             request = get_request(peaceful=True)
             if request is not None:
-                ok, role, _permissions = DashboardPermission.has_permission(request, None, request.biz_id or bk_biz_id)
+                ok, role, _permissions = DashboardPermission.has_permission(request, None, bk_biz_id)
                 if ok and role >= GrafanaRole.Editor:
                     return
         if token_type in ("as_code", "grafana"):

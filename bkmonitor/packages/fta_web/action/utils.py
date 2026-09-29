@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 
 from django.conf import settings
@@ -74,7 +74,13 @@ def parse_bk_plugin_deployed_info(data):
         "plugin_apigw_host": plugin_apigw_host,
     }
 
-    plugin_template = Environment(undefined=DebugUndefined).from_string(source=BK_PLUGIN_INITIAL_TEMPLATE, ).render(**init_params)
+    plugin_template = (
+        Environment(undefined=DebugUndefined)
+        .from_string(
+            source=BK_PLUGIN_INITIAL_TEMPLATE,
+        )
+        .render(**init_params)
+    )
     plugin_info = json.loads(plugin_template)
 
     # 8.description 中的信息 在json.loads时容易出错，因此先 loads 后再为 description 赋值

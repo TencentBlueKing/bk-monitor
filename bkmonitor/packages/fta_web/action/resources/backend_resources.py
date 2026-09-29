@@ -97,20 +97,24 @@ class BatchCreateActionResource(Resource):
     def perform_request(self, validated_request_data):
         operate_data_list = validated_request_data["operate_data_list"]
         creator = validated_request_data["creator"]
-        generate_uuid = count_md5([json.dumps(operate_data_list), int(datetime.now().timestamp())])
+        batch_uuid = count_md5([json.dumps(operate_data_list), int(datetime.now().timestamp())])
         action_plugins = {
             str(plugin["id"]): plugin for plugin in ActionPluginSlz(instance=ActionPlugin.objects.all(), many=True).data
         }
         action_logs = []
-        handled_alerts = []
-        alert_ids = []
-        for operate_data in operate_data_list:
+        all_alerts = {}
+        action_alerts = {}
+        for index, operate_data in enumerate(operate_data_list):
             alerts = filter_alerts_by_biz(
                 AlertDocument.mget(ids=operate_data["alert_ids"]), validated_request_data["bk_biz_id"]
             )
             alert_ids = [alert.id for alert in alerts]
             if not alerts:
                 continue
+            all_alerts.update((alert.id, alert) for alert in alerts)
+            # 下游按创建批次取告警快照，每组需要独立批次，避免套餐使用其他组的告警上下文。
+            generate_uuid = count_md5([batch_uuid, index])
+            action_alerts[generate_uuid] = alerts
             for action_config in operate_data["action_configs"]:
                 action = ActionInstance.objects.create(
                     signal=ActionSignal.MANUAL,
@@ -144,18 +148,22 @@ class BatchCreateActionResource(Resource):
                     )
                 )
 
-            handled_alerts = [
-                AlertDocument(
-                    id=alert.id, is_handled=True, assignee=list(set([man for man in alert.assignee] + [creator]))
-                )
-                for alert in alerts
-            ]
-        actions = PushActionProcessor.push_actions_to_queue(generate_uuid, alerts)
+        if not all_alerts:
+            return {"actions": [], "alert_ids": []}
+
+        alerts = list(all_alerts.values())
+        handled_alerts = [
+            AlertDocument(id=alert.id, is_handled=True, assignee=list(set([man for man in alert.assignee] + [creator])))
+            for alert in alerts
+        ]
+        actions = []
+        for generate_uuid, group_alerts in action_alerts.items():
+            actions.extend(PushActionProcessor.push_actions_to_queue(generate_uuid, group_alerts))
         # 更新告警状态和流转日志
         AlertLog.bulk_create(action_logs)
         AlertDocument.bulk_create(handled_alerts, action=BulkActionType.UPDATE)
 
-        return {"actions": list(actions), "alert_ids": alert_ids}
+        return {"actions": list(actions), "alert_ids": list(all_alerts)}
 
 
 class GetActionParamsByConfigResource(Resource):

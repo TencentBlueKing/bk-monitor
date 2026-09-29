@@ -14,7 +14,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext as _
 
-from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.iam import ActionEnum
 from bkmonitor.models import Action, ActionNoticeMapping, StrategyModel
 from bkmonitor.utils.request import get_request
 from bkmonitor.views import serializers
@@ -22,17 +22,13 @@ from core.drf_resource import api, resource
 from core.drf_resource.base import Resource
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from core.errors.notice_group import NoticeGroupNotExist
+from monitor_web.permissions import check_notification_group_permission, require_business_id
 
 logger = logging.getLogger(__name__)
 
 
 def _assert_notice_group_action(bk_biz_id, action):
-    if not bk_biz_id:
-        request = get_request(peaceful=True)
-        bk_biz_id = getattr(request, "biz_id", None) if request else None
-    if not bk_biz_id:
-        raise serializers.ValidationError(_("缺少业务 ID"))
-    Permission().is_allowed_by_biz(bk_biz_id, action, raise_exception=True)
+    check_notification_group_permission(get_request(peaceful=True), bk_biz_id, action)
 
 
 def normalize_members(members) -> list[str]:
@@ -159,6 +155,7 @@ class NoticeGroupDetailResource(Resource):
         return user_info_dict
 
     def perform_request(self, params):
+        require_business_id(get_request(peaceful=True))
         instance = resource.notice_group.backend_search_notice_group(ids=[params["id"]])
         if not instance:
             raise NoticeGroupNotExist({"msg": _("获取详情失败")})
@@ -204,12 +201,9 @@ class NoticeGroupListResource(NoticeGroupDetailResource):
         bk_biz_id = serializers.IntegerField(required=False, default=0, label="业务ID")
 
     def perform_request(self, validated_request_data):
-        bk_biz_id = validated_request_data.get("bk_biz_id")
-
-        if bk_biz_id:
-            bk_biz_ids = [0, bk_biz_id]
-        else:
-            bk_biz_ids: list[int] = resource.space.get_bk_biz_ids_by_user(get_request().user)
+        bk_biz_id = require_business_id(get_request(peaceful=True))
+        _assert_notice_group_action(bk_biz_id, ActionEnum.VIEW_NOTIFY_TEAM)
+        bk_biz_ids = [0, bk_biz_id]
 
         notice_groups = resource.notice_group.backend_search_notice_group(bk_biz_ids=bk_biz_ids)
         strategy_ids = StrategyModel.objects.filter(bk_biz_id__in=bk_biz_ids).values_list("id", flat=True)
@@ -267,7 +261,14 @@ class NoticeGroupConfigResource(Resource):
     """
 
     def perform_request(self, params):
-        _assert_notice_group_action(params.get("bk_biz_id"), ActionEnum.MANAGE_NOTIFY_TEAM)
+        bk_biz_id = require_business_id(get_request(peaceful=True))
+        if params.get("id"):
+            groups = resource.notice_group.backend_search_notice_group(ids=[params["id"]])
+            if not groups:
+                raise NoticeGroupNotExist({"msg": _("修改通知组失败")})
+            bk_biz_id = groups[0]["bk_biz_id"]
+        _assert_notice_group_action(bk_biz_id, ActionEnum.MANAGE_NOTIFY_TEAM)
+        params = {**params, "bk_biz_id": bk_biz_id}
         return resource.notice_group.backend_save_notice_group(**params)
 
 
@@ -280,6 +281,7 @@ class DeleteNoticeGroupResource(Resource):
         id_list = serializers.ListField(required=True, label="通知组ID")
 
     def perform_request(self, params):
+        require_business_id(get_request(peaceful=True))
         groups = resource.notice_group.backend_search_notice_group(ids=params["id_list"])
         for group in groups:
             _assert_notice_group_action(group["bk_biz_id"], ActionEnum.MANAGE_NOTIFY_TEAM)

@@ -236,7 +236,7 @@ class GetReportListResource(Resource):
             self.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
             report_qs = report_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
         elif create_type != ReportCreateTypeEnum.SELF.value:
-            raise CustomException("unsupported create_type {}".format(create_type))
+            raise CustomException(f"unsupported create_type {create_type}")
         report_qs = self.filter_by_create_type(create_type, report_qs)
 
         # 根据搜索关键字过滤
@@ -310,12 +310,12 @@ def _assert_report_access(report_id, bk_biz_id, create_user):
 def _assert_report_editable(report, is_manager):
     if is_manager or report.create_user == get_request_username() or Permission().skip_check:
         return
-    raise CustomException("current user is not allowed to edit report {}".format(report.id))
+    raise CustomException(f"current user is not allowed to edit report {report.id}")
 
 
 def _assert_resend_subscribers(report_id, channels):
     if not channels:
-        raise CustomException("channels is required when resending report %s" % report_id)
+        raise CustomException(f"channels is required when resending report {report_id}")
     for channel in channels:
         send_results_list = (
             ReportSendRecord.objects.filter(report_id=report_id, channel_name=channel["channel_name"])
@@ -327,7 +327,7 @@ def _assert_resend_subscribers(report_id, channels):
         unknown_ids = {subscriber["id"] for subscriber in channel["subscribers"]} - sent_ids
         if unknown_ids:
             raise CustomException(
-                "subscribers {} are not in the send records of report {}".format(sorted(unknown_ids), report_id)
+                f"subscribers {sorted(unknown_ids)} are not in the send records of report {report_id}"
             )
 
 
@@ -563,7 +563,7 @@ class SendReportResource(Resource):
             try:
                 report = Report.objects.get(id=report_id)
             except Report.DoesNotExist:
-                raise CustomException("report_id: %s not found" % report_id)
+                raise CustomException(f"report_id: {report_id} not found")
             self._assert_report_send_access(report, validated_request_data)
             if not GetReportListResource.check_permission(report.bk_biz_id):
                 _assert_resend_subscribers(report.id, validated_request_data.get("channels"))
@@ -649,7 +649,7 @@ class GetApplyRecordsResource(Resource):
             GetReportListResource.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
             qs = qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
         else:
-            raise CustomException("unsupported query_type {}".format(query_type))
+            raise CustomException(f"unsupported query_type {query_type}")
 
         if validated_request_data.get("status"):
             qs = qs.filter(status=validated_request_data["status"])

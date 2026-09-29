@@ -403,9 +403,7 @@ class Permission:
                 for resource in resources:
                     resource_id = resource[0].id
                     action_id = action.id
-                    if action_id == "view_business" or (
-                        record and action in ActionIdMap.get(record.type, [])
-                    ):
+                    if action_id == "view_business" or (record and action in ActionIdMap.get(record.type, [])):
                         result[resource_id][action_id] = True
                     else:
                         result[resource_id][action_id] = False

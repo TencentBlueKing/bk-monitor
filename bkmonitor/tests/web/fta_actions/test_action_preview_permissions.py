@@ -31,7 +31,13 @@ def test_preview_requires_manage_rule(mocker, allowed_action):
     mocker.patch("bkmonitor.iam.drf.Permission").return_value.is_allowed.side_effect = is_allowed
     view = ActionInstanceViewSet()
     view.action = "preview_demo_action_context"
-    request = SimpleNamespace(biz_id=2, user=SimpleNamespace(tenant_id="default"))
+    request = SimpleNamespace(
+        biz_id=2,
+        user=SimpleNamespace(tenant_id="default"),
+        method="POST",
+        query_params={},
+        data={"bk_biz_id": 2},
+    )
 
     if allowed_action == ActionEnum.MANAGE_RULE:
         view.check_permissions(request)
@@ -86,7 +92,8 @@ def test_preview_renders_alert_in_requested_business(mocker, bk_biz_id):
     alert = AlertDocument(id="alert-1", event=EventDocument(bk_biz_id=bk_biz_id))
     mocker.patch.object(AlertDocument, "mget", return_value=[alert])
     build_action = mocker.patch.object(backend_resources.GetDemoActionContextResource, "build_fake_action")
-    context = mocker.patch.object(backend_resources, "ActionContext")
+    # Web 配置可能不加载后台依赖，预览测试只验证业务过滤与传入的告警上下文。
+    context = mocker.patch.object(backend_resources, "ActionContext", create=True)
     context.return_value.get_dictionary.return_value = {"alert": {"alert_name": "test alert"}}
 
     result = backend_resources.GetDemoActionContextResource().perform_request(
