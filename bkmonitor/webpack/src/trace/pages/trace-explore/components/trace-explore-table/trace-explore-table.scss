@@ -6,6 +6,22 @@
   flex-direction: column;
   height: 100%;
 
+  @keyframes trace-table-refresh-progress {
+    from {
+      transform: translateX(-100%);
+    }
+
+    to {
+      transform: translateX(357.143%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .trace-table-refresh {
+      --trace-table-refresh-animation: none;
+    }
+  }
+
   .explore-table {
     height: 100%;
 
@@ -171,37 +187,37 @@
     }
   }
 
-  .explore-table-hidden-all {
-    display: none;
+  &.is-loading .t-table__body {
+    pointer-events: none;
   }
 
-  .explore-table-hidden-body {
-    .t-table__body tr {
-      display: none;
-    }
+  &.is-refreshing .t-table__body {
+    pointer-events: none;
+    opacity: 0.65;
   }
 
-  .explore-table-skeleton {
-    position: absolute;
-    top: 38px;
-    z-index: 9;
-    visibility: hidden;
-    padding: 10px 8px;
-    background: #fff;
+  .trace-table-refresh {
+    position: sticky;
+    top: 0;
 
-    &.explore-skeleton-show-all,
-    &.explore-skeleton-show-body {
-      visibility: visible;
-    }
+    // 表格吸顶容器的层级为 500，刷新条需显示在其上方。
+    z-index: 501;
+    flex-shrink: 0;
+    height: 1px;
+    margin-bottom: -1px;
+    overflow: hidden;
+    pointer-events: none;
+    background: #e1ecff;
 
-    &.explore-skeleton-show-body {
-      .common-table-skeleton-row:nth-child(1) {
-        display: none;
-      }
-    }
-
-    .common-table-skeleton-row {
-      margin-bottom: 10px;
+    &::after {
+      display: block;
+      width: 28%;
+      height: 100%;
+      content: '';
+      background: linear-gradient(90deg, transparent 0%, rgb(56 113 220) 80.75%, transparent 100%);
+      transform: translateX(-100%);
+      animation: var(--trace-table-refresh-animation, trace-table-refresh-progress 3624ms linear infinite);
+      will-change: transform;
     }
   }
 

@@ -38,6 +38,7 @@ import EmptyStatus, {
 import { convertToTree, getTraceFieldUnit } from '../utils';
 import DimensionFieldTree from './dimension-field-tree';
 import StatisticsList from './statistics-list/statistics-list';
+import TraceExploreSkeleton from './trace-explore-skeleton';
 
 import type { ConditionChangeEvent, ICommonParams, IDimensionField, IDimensionFieldTreeItem } from '../typing';
 
@@ -171,18 +172,7 @@ export default defineComponent({
     }
 
     function renderSkeleton() {
-      return (
-        <div class='dimension-filter-panel-skeleton'>
-          <div class='skeleton-element title' />
-          <div class='skeleton-element search-input' />
-          {new Array(10).fill(null).map((_, index) => (
-            <div
-              key={index}
-              class='skeleton-element list-item'
-            />
-          ))}
-        </div>
-      );
+      return <TraceExploreSkeleton type='fields' />;
     }
 
     function emptyOperation(type: EmptyStatusOperationType) {

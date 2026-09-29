@@ -111,7 +111,7 @@ export default defineComponent({
       <div class='vue3_resident-setting__setting-kv-input-component'>
         <Input
           v-model={this.localValue}
-          autoWidth={true}
+          autoWidth={false}
           clearable={true}
           onBlur={this.handleChange}
           onClear={this.handleChange}

@@ -489,7 +489,7 @@ export const useEcharts = ({
     intersectionObserver.value = new IntersectionObserver(async entries => {
       for (const entry of entries) {
         if (intersectionObserver.value && entry.intersectionRatio > 0) {
-          await refreshChart();
+          await getEchartOptions();
         }
       }
     });
@@ -591,7 +591,7 @@ export const useEcharts = ({
     };
   };
 
-  const getEchartOptions = async () => {
+  const fetchEchartOptions = async () => {
     const requestId = ++currentRequestId;
     loadError.value = false;
     for (const cb of cancelTokens) {
@@ -687,11 +687,7 @@ export const useEcharts = ({
     const syncPromiseList = timeShiftList.flatMap(time_shift =>
       syncTargets.map(target => queryTarget(target, time_shift))
     );
-    const syncResList = await Promise.allSettled(syncPromiseList).finally(() => {
-      if (requestId === currentRequestId) {
-        loading.value = false;
-      }
-    });
+    const syncResList = await Promise.allSettled(syncPromiseList);
     if (requestId !== currentRequestId) return options.value;
     const hasSyncSuccess = syncResList.some(item => item.status === 'fulfilled');
     const hasSyncFailure = syncResList.some(item => item.status === 'rejected');
@@ -724,14 +720,15 @@ export const useEcharts = ({
     }
     return buildOptions(syncSeriesList);
   };
-  const refreshChart = async () => {
-    const request = getEchartOptions();
+  const getEchartOptions = async () => {
+    const request = fetchEchartOptions();
     const requestId = currentRequestId;
     try {
       const nextOptions = await request;
-      if (requestId !== currentRequestId) return;
+      if (requestId !== currentRequestId) return options.value;
       options.value = nextOptions;
       chartId.value = random(8);
+      return nextOptions;
     } finally {
       if (requestId === currentRequestId) loading.value = false;
     }
@@ -746,7 +743,7 @@ export const useEcharts = ({
       () => toValue(params),
       () => toValue(timeOffset),
     ],
-    refreshChart,
+    getEchartOptions,
     {
       immediate: true,
     }

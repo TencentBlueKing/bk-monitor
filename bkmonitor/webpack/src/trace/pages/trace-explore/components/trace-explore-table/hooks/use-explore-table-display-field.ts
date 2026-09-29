@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, computed, shallowRef, watch } from 'vue';
+import { type MaybeRef, computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 
@@ -51,6 +51,11 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
   const customDisplayFields = shallowRef<string[]>([]);
   /** 用户自定义配置 table 列宽度 */
   const customFieldsWidthConfig = shallowRef<{ [colKey: string]: number }>({});
+  const fieldsLoading = shallowRef(true);
+  let requestId = 0;
+  onBeforeUnmount(() => {
+    requestId += 1;
+  });
 
   const store = useTraceExploreStore();
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
@@ -95,9 +100,14 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
    * @description 从用户配置/收藏配置中获取 table 表格列配置
    */
   const getCustomFieldsConfig = async () => {
+    const currentRequest = ++requestId;
+    fieldsLoading.value = true;
     customDisplayFields.value = [];
     customFieldsWidthConfig.value = {};
-    if (!get(options.appName) || !get(options.mode)) return;
+    if (!get(options.appName) || !get(options.mode)) {
+      fieldsLoading.value = false;
+      return;
+    }
     let customCacheConfig: any = {
       displayFields: [],
       fieldsWidth: {},
@@ -106,11 +116,15 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
       // 优先取收藏配置
       customCacheConfig = favoriteTableConfig.value;
     } else {
-      customCacheConfig = (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value)) || {
+      customCacheConfig = (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value).catch(
+        () => null
+      )) || {
         displayFields: [],
         fieldsWidth: {},
       };
     }
+    if (currentRequest !== requestId) return;
+    fieldsLoading.value = false;
     // 原来只缓存了展示字段，且是数组结构，目前改为对象结构需向前兼容
     if (Array.isArray(customCacheConfig)) {
       customDisplayFields.value = customCacheConfig;
@@ -165,6 +179,7 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
   );
 
   return {
+    fieldsLoading,
     displayColumnFields,
     defaultDisplayFields,
     fieldsWidthConfig: customFieldsWidthConfig,
