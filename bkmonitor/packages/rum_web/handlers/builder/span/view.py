@@ -339,6 +339,25 @@ class ViewLoadingTimingSection(BaseSection):
             )
         return markers
 
+    def _build_milestones(self) -> list[dict[str, Any]]:
+        return [
+            {
+                "key": "dom_complete",
+                "field_name": "attributes.view.dom_complete",
+                "value": self.numeric_or_none("attributes.view.dom_complete"),
+            },
+            {
+                "key": "load_event",
+                "field_name": "attributes.view.load_event",
+                "value": self.numeric_or_none("attributes.view.load_event"),
+            },
+            {
+                "key": "page_stable",
+                "field_name": "attributes.view.loading_time",
+                "value": self.numeric_or_none("attributes.view.loading_time"),
+            },
+        ]
+
     def _fill_data(self):
         # 非首次加载没有导航时间原点，不产生 TTFB / FCP / LCP，整段加载时序省略。
         if self.flatten_data.get("attributes.view.loading_type") != ViewLoadingType.INITIAL_LOAD.value:
@@ -346,6 +365,7 @@ class ViewLoadingTimingSection(BaseSection):
 
         phases = self._build_phases()
         markers = self._build_markers()
+        milestones = self._build_milestones()
 
         # 整段时序都拿不到（既无 phase 又无 marker）时省略 ``data``，
         # 前端可据此区分「没有时序数据」与「耗时为 0」。
@@ -358,6 +378,7 @@ class ViewLoadingTimingSection(BaseSection):
             "unit": FieldUnit.MS.value,
             "phases": phases,
             "markers": markers,
+            "milestones": milestones,
         }
         # total_duration 等于有效的 view.loading_time；缺失或非法（负）时省略该键，不伪造 0。
         # 标记超出总耗时仅扩展横轴，不修改各 phase。
