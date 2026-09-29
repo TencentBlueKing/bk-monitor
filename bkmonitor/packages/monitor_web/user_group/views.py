@@ -46,6 +46,8 @@ class UserGroupViewSet(PermissionMixin, viewsets.ModelViewSet):
         增加对轮值规则的过滤
         """
         queryset = super().get_queryset()
+        if self.request.biz_id:
+            queryset = queryset.filter(bk_biz_id=self.request.biz_id)
         if self.request.query_params.get("duty_rules"):
             queryset = queryset.filter(duty_rules__contains=self.request.query_params["duty_rules"])
         return queryset
@@ -93,6 +95,8 @@ class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
         增加对轮值标签的过滤
         """
         queryset = super().get_queryset()
+        if self.request.biz_id:
+            queryset = queryset.filter(bk_biz_id=self.request.biz_id)
         if self.request.query_params.get("labels"):
             queryset = queryset.filter(labels__contains=self.request.query_params["labels"])
         return queryset
@@ -107,15 +111,12 @@ class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
         request_data = serializer.data
         enabled = request_data.pop("enabled")
         # 过滤出来有效的数据
+        biz_id = request.biz_id or request_data["bk_biz_id"]
         rule_ids = list(
-            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=request_data["bk_biz_id"]).values_list(
-                "id", flat=True
-            )
+            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=biz_id).values_list("id", flat=True)
         )
         if rule_ids:
-            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=request_data["bk_biz_id"]).update(
-                enabled=enabled
-            )
+            DutyRule.objects.filter(id__in=request_data["ids"], bk_biz_id=biz_id).update(enabled=enabled)
             if enabled is False:
                 # 关闭掉之后，直接关闭掉对应的计划
                 DutyRuleSnap.objects.filter(duty_rule_id__in=rule_ids).update(enabled=False)

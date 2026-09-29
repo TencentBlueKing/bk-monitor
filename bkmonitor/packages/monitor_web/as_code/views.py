@@ -35,7 +35,7 @@ class AsCodeViewSet(ResourceViewSet):
         return authenticators
 
     def get_permissions(self):
-        if self.action == "import_config":
+        if self.action in ("import_config", "import_config_file"):
             return [BusinessActionPermission([ActionEnum.MANAGE_RULE, ActionEnum.MANAGE_NOTIFY_TEAM])]
         else:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE, ActionEnum.VIEW_NOTIFY_TEAM])]

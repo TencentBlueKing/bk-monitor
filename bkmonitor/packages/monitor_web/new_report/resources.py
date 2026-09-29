@@ -284,6 +284,31 @@ class GetReportListResource(Resource):
         return {"report_list": reports, "total": total}
 
 
+def _in_subscribed_group(subscribers, bk_biz_id, username):
+    group_ids = {subscriber["id"] for subscriber in subscribers if subscriber.get("type") == StaffEnum.GROUP.value}
+    if not group_ids:
+        return False
+    return any(
+        group["id"] in group_ids and username in group.get("children", [])
+        for group in resource.report.group_list(bk_biz_id=bk_biz_id)
+    )
+
+
+def _assert_report_access(report_id, bk_biz_id, create_user):
+    username = get_request_username()
+    if create_user == username:
+        return
+    channel = ReportChannel.objects.filter(report_id=report_id, channel_name=ChannelEnum.USER.value).first()
+    subscribers = channel.subscribers if channel else []
+    if any(
+        subscriber["id"] == username and subscriber.get("type") == StaffEnum.USER.value for subscriber in subscribers
+    ):
+        return
+    if _in_subscribed_group(subscribers, bk_biz_id, username):
+        return
+    GetReportListResource.check_permission(bk_biz_id, raise_exception=True)
+
+
 class GetReportResource(Resource):
     """
     获取订阅
@@ -294,6 +319,7 @@ class GetReportResource(Resource):
 
     def perform_request(self, validated_request_data):
         report = Report.objects.values().get(id=validated_request_data["report_id"])
+        _assert_report_access(report["id"], report["bk_biz_id"], report["create_user"])
         report["channels"] = list(
             ReportChannel.objects.filter(report_id=report["id"]).values(
                 "channel_name", "is_enabled", "subscribers", "send_text"
@@ -547,6 +573,8 @@ class CancelOrResubscribeReportResource(Resource):
                 subscriber["is_enabled"] = is_enabled
                 channel.save()
                 return "success"
+        report = Report.objects.get(id=channel.report_id)
+        _assert_report_access(report.id, report.bk_biz_id, report.create_user)
         channel.subscribers.append({"id": username, "type": StaffEnum.USER.value, "is_enabled": is_enabled})
         channel.save()
         return "success"
@@ -562,6 +590,10 @@ class GetSendRecordsResource(Resource):
         channel_name = serializers.CharField(required=False)
 
     def perform_request(self, validated_request_data):
+        report = Report.objects.filter(id=validated_request_data["report_id"]).first()
+        if not report:
+            return []
+        _assert_report_access(report.id, report.bk_biz_id, report.create_user)
         qs = ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"]).exclude(
             send_status=SendStatusEnum.NO_STATUS.value
         )

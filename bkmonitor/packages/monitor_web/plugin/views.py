@@ -436,23 +436,27 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
         param = request.data
         plugin_ids = param["plugin_ids"]
         # TODO: 检查是否存在关联项
-        plugins = self.get_queryset().filter(plugin_id__in=plugin_ids)
+        # 无业务或业务 0 时只处理全业务插件
+        biz_ids = [0, request.biz_id] if request.biz_id else [0]
+        plugins = self.get_queryset().filter(plugin_id__in=plugin_ids, bk_biz_id__in=biz_ids)
         for plugin in plugins:
             # 检查插件的删除权限
             if not plugin.delete_allowed:
                 raise DeletePermissionDenied({"plugin_id": plugin.plugin_id})
+            if not plugin.bk_biz_id:
+                assert_manage_pub_plugin_permission()
 
         with transaction.atomic():
             for plugin_id in plugin_ids:
+                plugin = CollectorPluginMeta.origin_objects.filter(
+                    bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id, bk_biz_id__in=biz_ids
+                ).first()
+                if not plugin:
+                    continue
                 PluginVersionHistory.origin_objects.filter(
                     bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id
                 ).delete()
-
-                plugin = CollectorPluginMeta.origin_objects.filter(
-                    bk_tenant_id=get_request_tenant_id(), plugin_id=plugin_id
-                ).first()
-                if plugin:
-                    plugin.delete()
+                plugin.delete()
 
                 try:
                     api.node_man.delete_plugin(name=plugin.plugin_id)
@@ -478,7 +482,10 @@ class CollectorPluginViewSet(PermissionMixin, viewsets.ModelViewSet):
 
     @action(methods=["POST"], detail=False)
     def replace_plugin(self, request, *args, **kwargs):
-        instance = self.get_queryset().get(plugin_id=request.data["plugin_id"])
+        biz_ids = [0, request.biz_id] if request.biz_id else [0]
+        instance = self.get_queryset().filter(plugin_id=request.data["plugin_id"], bk_biz_id__in=biz_ids).first()
+        if not instance:
+            raise PluginIDNotExist
         current_config_version = instance.current_version.config_version
         current_info_version = instance.current_version.info_version
         plugin_manager = PluginManagerFactory.get_manager(plugin=instance)

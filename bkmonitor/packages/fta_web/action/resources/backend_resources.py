@@ -33,9 +33,10 @@ from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.template import CustomTemplateRenderer, Jinja2Renderer, jinja_render
 from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
-from constants.action import ActionSignal
+from constants.action import GLOBAL_BIZ_ID, ActionSignal
 from core.drf_resource import Resource
 from core.errors.alert import AlertNotFoundError
+from fta_web.action.utils import filter_alerts_by_biz
 
 try:
     # 后台接口，需要引用后台代码
@@ -104,8 +105,10 @@ class BatchCreateActionResource(Resource):
         handled_alerts = []
         alert_ids = []
         for operate_data in operate_data_list:
-            alert_ids = operate_data["alert_ids"]
-            alerts = AlertDocument.mget(ids=alert_ids)
+            alerts = filter_alerts_by_biz(
+                AlertDocument.mget(ids=operate_data["alert_ids"]), validated_request_data["bk_biz_id"]
+            )
+            alert_ids = [alert.id for alert in alerts]
             if not alerts:
                 continue
             for action_config in operate_data["action_configs"]:
@@ -185,14 +188,17 @@ class GetActionParamsByConfigResource(Resource):
         action_configs = validated_request_data.get("action_configs", [])
         action_id = validated_request_data.get("action_id")
 
+        bk_biz_id = str(validated_request_data["bk_biz_id"])
         if config_ids:
-            action_configs = ActionConfigDetailSlz(ActionConfig.objects.filter(id__in=config_ids), many=True).data
+            action_configs = ActionConfigDetailSlz(
+                ActionConfig.objects.filter(id__in=config_ids, bk_biz_id__in=[GLOBAL_BIZ_ID, bk_biz_id]), many=True
+            ).data
 
-        alerts = AlertDocument.mget(validated_request_data["alert_ids"])
+        alerts = filter_alerts_by_biz(AlertDocument.mget(validated_request_data["alert_ids"]), bk_biz_id)
         action = None
         if action_id:
             try:
-                action = ActionInstance.objects.get(id=action_id)
+                action = ActionInstance.objects.get(id=action_id, bk_biz_id=bk_biz_id)
             except ActionInstance.DoesNotExist:
                 logger.info("action(%s) not exist", action_id)
 

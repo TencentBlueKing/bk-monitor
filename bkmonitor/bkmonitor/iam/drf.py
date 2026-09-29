@@ -79,7 +79,14 @@ class BusinessActionPermission(IAMPermission):
     def has_permission(self, request, view):
         if not request.biz_id:
             return True
-        if not is_biz_in_tenant(request.biz_id, getattr(request.user, "tenant_id", None)):
+        user = getattr(request, "user", None)
+        if not is_biz_in_tenant(request.biz_id, getattr(user, "tenant_id", None)):
+            return False
+        # request.biz_id 可能取自 URL、query 或业务 ID 别名字段，而资源按 bk_biz_id 读取（读请求取 query，其余取 body），
+        # 两者需保持一致
+        params = request.query_params if request.method in permissions.SAFE_METHODS else getattr(request, "data", None)
+        param_biz_id = params.get("bk_biz_id") if hasattr(params, "get") else None
+        if param_biz_id not in (None, "") and str(param_biz_id) != str(request.biz_id):
             return False
         self.resources = [ResourceEnum.BUSINESS.create_instance(request.biz_id)]
         return super().has_permission(request, view)

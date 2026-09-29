@@ -14,6 +14,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import gettext as _
 
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models import Action, ActionNoticeMapping, StrategyModel
 from bkmonitor.utils.request import get_request
 from bkmonitor.views import serializers
@@ -154,6 +155,8 @@ class NoticeGroupDetailResource(Resource):
             raise NoticeGroupNotExist({"msg": _("获取详情失败")})
         else:
             instance = instance[0]
+        if instance["bk_biz_id"]:
+            Permission().is_allowed_by_biz(instance["bk_biz_id"], ActionEnum.VIEW_NOTIFY_TEAM, raise_exception=True)
 
         usernames = [receiver["id"] for receiver in instance["notice_receiver"] if receiver["type"] == "user"]
         users_info = self.get_users_info(usernames)
@@ -268,4 +271,8 @@ class DeleteNoticeGroupResource(Resource):
         id_list = serializers.ListField(required=True, label="通知组ID")
 
     def perform_request(self, params):
+        groups = resource.notice_group.backend_search_notice_group(ids=params["id_list"])
+        for group in groups:
+            if group["bk_biz_id"]:
+                Permission().is_allowed_by_biz(group["bk_biz_id"], ActionEnum.MANAGE_NOTIFY_TEAM, raise_exception=True)
         return resource.notice_group.backend_delete_notice_group(ids=params["id_list"])

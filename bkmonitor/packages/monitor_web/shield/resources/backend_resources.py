@@ -196,7 +196,7 @@ class ShieldDetailResource(Resource):
 
     def perform_request(self, data):
         try:
-            shield = Shield.objects.get(id=data["id"])
+            shield = Shield.objects.get(id=data["id"], bk_biz_id=data["bk_biz_id"])
         except Shield.DoesNotExist:
             raise ShieldNotExist({"msg": data["id"]})
 
@@ -553,7 +553,7 @@ class EditShieldResource(Resource):
 
     def perform_request(self, data):
         try:
-            shield = Shield.objects.get(id=data["id"])
+            shield = Shield.objects.get(id=data["id"], bk_biz_id=data["bk_biz_id"])
         except Shield.DoesNotExist:
             raise ShieldNotExist({"msg": data["id"]})
 
