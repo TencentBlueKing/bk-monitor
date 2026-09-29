@@ -87,8 +87,17 @@ class GetReportListResource(Resource):
         order = serializers.CharField(required=False, label="排序", default="", allow_null=True, allow_blank=True)
 
     @staticmethod
-    def check_permission(bk_biz_id, raise_exception=False):
-        permission_obj = Permission()
+    def check_permission(bk_biz_id, raise_exception=False, request=None):
+        if not bk_biz_id:
+            raise CustomException("bk_biz_id must be a non-zero business or space ID")
+        request = request or get_request(peaceful=True)
+        user = getattr(request, "user", None)
+        tenant_id = getattr(user, "tenant_id", None) if request else get_request_tenant_id()
+        if not is_biz_in_tenant(bk_biz_id, tenant_id):
+            raise CustomException("report does not belong to the current tenant")
+        if getattr(user, "is_superuser", False):
+            return True
+        permission_obj = Permission(request=request)
         permission_obj.skip_check = False
         return permission_obj.is_allowed(
             ActionEnum.MANAGE_REPORT,

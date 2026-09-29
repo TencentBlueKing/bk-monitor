@@ -121,3 +121,53 @@ def test_cross_business_resend_preserves_tenant_boundary(resend_report, mocker, 
 
     tenant_lookup.assert_called_once_with(3)
     permission.is_allowed_by_biz.assert_not_called()
+
+
+@pytest.mark.parametrize("report_tenant", ["tenant-a", "tenant-b"])
+def test_superuser_resend_uses_management_rights_within_tenant(resend_report, mocker, settings, report_tenant):
+    params, username, check_management, permission, send = resend_report
+    mocker.stop(check_management)
+    username.return_value = "superuser"
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    mocker.patch.object(resources, "get_request_tenant_id", return_value="tenant-a")
+    mocker.patch("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id", return_value=report_tenant)
+    mocker.patch.object(
+        resources,
+        "get_request",
+        return_value=SimpleNamespace(
+            user=SimpleNamespace(username="superuser", tenant_id="tenant-a", is_superuser=True),
+            skip_check=False,
+        ),
+    )
+    params["channels"][0]["subscribers"] = [{"id": "new-receiver", "type": "user", "is_enabled": True}]
+    history_check = mocker.patch.object(resources, "_assert_resend_subscribers")
+
+    if report_tenant == "tenant-a":
+        assert SendReportResource().request(params) == "success"
+        send.assert_called_once()
+    else:
+        with pytest.raises(CustomException, match="current tenant"):
+            SendReportResource().request(params)
+        send.assert_not_called()
+
+    permission.is_allowed.assert_not_called()
+    history_check.assert_not_called()
+
+
+@pytest.mark.parametrize("report_id", [None, 8])
+@pytest.mark.parametrize("bk_biz_id", [0, 3])
+def test_superuser_write_rejects_invalid_business_before_personal_fallback(mocker, settings, report_id, bk_biz_id):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    mocker.patch("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id", return_value="tenant-b")
+    mocker.patch.object(
+        resources,
+        "get_request",
+        return_value=SimpleNamespace(user=SimpleNamespace(tenant_id="tenant-a", is_superuser=True), skip_check=True),
+    )
+    report_model = mocker.patch.object(resources, "Report")
+
+    with pytest.raises(CustomException, match="non-zero|current tenant"):
+        CreateOrUpdateReportResource().perform_request({"id": report_id, "bk_biz_id": bk_biz_id})
+
+    report_model.assert_not_called()
+    report_model.objects.get.assert_not_called()

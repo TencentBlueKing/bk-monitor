@@ -13,6 +13,7 @@ from bkmonitor.iam.drf import IAMPermission
 from bkmonitor.models import Report
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.new_report.resources import GetReportListResource
 
 
 class ReportManagePermission(IAMPermission):
@@ -29,12 +30,11 @@ class ReportManagePermission(IAMPermission):
         bk_biz_id = Report.objects.filter(id=report_id).values_list("bk_biz_id", flat=True).first()
         if bk_biz_id is None:
             return False
-        self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
-        return super().has_permission(request, view)
+        return GetReportListResource.check_permission(bk_biz_id, raise_exception=True, request=request)
 
 
 class ReportSendPermission(IAMPermission):
-    """已有订阅由资源校验访问权限；草稿发送要求对应业务的 VIEW_BUSINESS。"""
+    """已有订阅由资源校验访问权限；草稿要求同租户超级用户或对应业务的查看权限。"""
 
     def __init__(self):
         super().__init__([ActionEnum.VIEW_BUSINESS])
@@ -54,8 +54,10 @@ class ReportSendPermission(IAMPermission):
                 bk_biz_id = int(data.get("bk_biz_id") or 0)
             except (TypeError, ValueError):
                 bk_biz_id = 0
-            if bk_biz_id <= 0:
+            if bk_biz_id == 0:
                 return False
+        if getattr(getattr(request, "user", None), "is_superuser", False):
+            return GetReportListResource.check_permission(bk_biz_id, raise_exception=True, request=request)
         self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
         return super().has_permission(request, view)
 

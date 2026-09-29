@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from types import SimpleNamespace
+
 import pytest
 
 from bkmonitor.iam import ActionEnum
@@ -84,3 +86,35 @@ def test_report_list_rejects_unknown_create_type(report_list):
 
     permission.is_allowed.assert_not_called()
     all_reports.filter.assert_not_called()
+
+
+@pytest.mark.parametrize("is_superuser", [False, True])
+def test_management_permission_distinguishes_superuser_from_skip_check(mocker, is_superuser):
+    request = SimpleNamespace(
+        user=SimpleNamespace(username="operator", tenant_id="default", is_superuser=is_superuser),
+        skip_check=True,
+    )
+    permission = mocker.patch.object(resources, "Permission")
+    permission.return_value.is_allowed.return_value = False
+    mocker.patch.object(resources.ResourceEnum.BUSINESS, "create_instance")
+
+    assert resources.GetReportListResource.check_permission(2, request=request) is is_superuser
+
+    if is_superuser:
+        permission.assert_not_called()
+    else:
+        assert permission.return_value.skip_check is False
+        permission.return_value.is_allowed.assert_called_once()
+
+
+@pytest.mark.parametrize("raise_exception", [False, True])
+def test_superuser_management_cannot_cross_tenant(mocker, settings, raise_exception):
+    settings.ENABLE_MULTI_TENANT_MODE = True
+    mocker.patch("bkmonitor.utils.tenant.bk_biz_id_to_bk_tenant_id", return_value="tenant-b")
+    permission = mocker.patch.object(resources, "Permission")
+    request = SimpleNamespace(user=SimpleNamespace(tenant_id="tenant-a", is_superuser=True))
+
+    with pytest.raises(CustomException, match="current tenant"):
+        resources.GetReportListResource.check_permission(2, raise_exception=raise_exception, request=request)
+
+    permission.assert_not_called()
