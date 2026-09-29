@@ -97,7 +97,8 @@ class BusinessActionPermission(IAMPermission):
         if hasattr(obj, "bk_biz_id"):
             bk_biz_id = obj.bk_biz_id
         if bk_biz_id:
-            if not is_biz_in_tenant(bk_biz_id, getattr(request.user, "tenant_id", None)):
+            user = getattr(request, "user", None)
+            if not is_biz_in_tenant(bk_biz_id, getattr(user, "tenant_id", None)):
                 return False
             self.resources = [ResourceEnum.BUSINESS.create_instance(bk_biz_id)]
             return super().has_object_permission(request, view, obj)
