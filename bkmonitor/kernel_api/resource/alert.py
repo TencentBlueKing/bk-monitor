@@ -687,7 +687,14 @@ class UpdateAlarmStrategyResource(Resource):
         config_version = serializers.CharField(required=True, label="策略并发版本")
 
     def perform_request(self, validated_request_data):
-        request_data = remove_confirm(validated_request_data)
+        return self._update_config(remove_confirm(validated_request_data))
+
+    def _update_config(self, request_data, *, prepare_config=None):
+        """Load once, check the version, then prepare and save the complete configuration.
+
+        prepare_config is an internal callback, never a request parameter. It edits a
+        copy so metric normalization still receives the unmodified current snapshot.
+        """
         # 并发控制只用 config_version 乐观锁，不用 select_for_update。
         # kernel_api 启用 BackendRouter 后 StrategyModel 常落在 monitor_api 库，
         # 而 transaction.atomic() 默认作用 default 库；二者不一致时会触发
@@ -704,6 +711,18 @@ class UpdateAlarmStrategyResource(Resource):
         current_config = current_strategy_obj.to_dict(convert_dashboard=False)
         if request_data["config_version"] != get_strategy_config_version(current_config):
             raise ValidationError({"config_version": "策略已被其他操作更新，请重新调用 get_alarm_strategy 后再修改"})
+        if prepare_config is not None:
+            prepared_config = deepcopy(current_config)
+            prepare_config(prepared_config)
+            prepared_config.update(
+                bk_biz_id=request_data["bk_biz_id"],
+                id=request_data["id"],
+                config_version=request_data["config_version"],
+                confirm=True,
+            )
+            serializer = self.RequestSerializer(data=prepared_config)
+            serializer.is_valid(raise_exception=True)
+            request_data = remove_confirm(serializer.validated_data)
         normalize_strategy_metric_ids(request_data, current_config)
         ensure_strategy_relations_belong_to_biz(request_data["bk_biz_id"], request_data)
         _validate_strategy_before_write(request_data)

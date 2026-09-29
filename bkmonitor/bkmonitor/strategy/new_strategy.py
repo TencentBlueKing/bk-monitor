@@ -307,16 +307,20 @@ class AbstractConfig(metaclass=abc.ABCMeta):
         :param configs: 配置对象
         :param config_cls: 配置处理类
         """
-        for config, obj in zip(configs, objs):
-            config.id = obj.id
-        # fmt: off
-        for config in configs[len(objs):]:
-            config.id = 0
-        if objs[len(configs):]:
-            obj_ids = [obj.id for obj in objs[len(configs):]]
+        # Keep explicitly identified records even when the read and save order differ.
+        # Legacy callers without IDs still reuse the remaining records by position.
+        obj_ids = [obj.id for obj in objs]
+        reserved_ids = {config.id for config in configs} & set(obj_ids)
+        available_ids = iter(obj_id for obj_id in obj_ids if obj_id not in reserved_ids)
+        used_ids = set()
+        for config in configs:
+            if config.id not in reserved_ids or config.id in used_ids:
+                config.id = next(available_ids, 0)
+            used_ids.add(config.id)
+        obj_ids = [obj_id for obj_id in obj_ids if obj_id not in used_ids]
+        if obj_ids:
             model.objects.filter(id__in=obj_ids).delete()
             config_cls.delete_useless(obj_ids)
-        # fmt: on
 
     @staticmethod
     def _get_username():
@@ -501,7 +505,9 @@ class BaseActionRelation(AbstractConfig):
             end_time = serializers.CharField(label="生效结束时间", default="23:59:59")
             chart_image_enabled = serializers.BooleanField(label="是否附带图片", default=True)
 
+        id = serializers.IntegerField(required=False, allow_null=True)
         config_id = serializers.IntegerField(required=False, label="套餐ID")
+        user_type = serializers.ChoiceField(required=False, choices=UserGroupType.CHOICE)
         user_groups = serializers.ListField(required=False, child=serializers.IntegerField(), label="通知组ID列表")
         signal = serializers.MultipleChoiceField(
             required=True,
