@@ -28,6 +28,7 @@ from pathlib import Path
 from uuid import uuid4
 
 from blueapps.core.celery.celery import app
+from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.db.models import Count, F, Q
 from django.utils import timezone
@@ -53,22 +54,56 @@ def _send(task_name, *args, **kwargs):
     return app.send_task(task_name, args=list(args), queue=queue, retry=False, **kwargs)
 
 
+def _lease_expired(field, now):
+    """还没入队，或上次入队已经超过一个租约窗口。"""
+    lease = timedelta(seconds=settings.ASYNC_EXPORT_ENQUEUE_LEASE_SECONDS)
+    return Q(**{f"{field}__isnull": True}) | Q(**{f"{field}__lt": now - lease})
+
+
+def _enqueue(job_ids, field, statuses, task_name):
+    """条件更新抢占入队租约以防重复发布；发布失败释放租约，崩溃或消息丢失由租约到期恢复。"""
+    sent = []
+    for job_id in job_ids:
+        now = timezone.now()
+        claimed = (
+            ExportJob.objects.filter(pk=job_id, status__in=statuses)
+            .filter(_lease_expired(field, now))
+            .update(**{field: now})
+        )
+        if not claimed:
+            continue
+        try:
+            _send(task_name, job_id)
+        except SoftTimeLimitExceeded:
+            raise
+        except Exception as error:  # pylint: disable=broad-except
+            logger.exception("[%s] job=%s publish failed: %s", task_name, job_id, error)
+            ExportJob.objects.filter(pk=job_id).update(**{field: None})
+            continue
+        sent.append(job_id)
+    return sent
+
+
 def planning_jobs(limit):
-    """待规划的任务：新建的，或规划超时的；尝试次数由 claim_planning 按任务策略判定。"""
+    """待规划且未入队的任务：新建的，或规划超时的；尝试次数由 claim_planning 按任务策略判定。"""
+    now = timezone.now()
     timeout = timedelta(seconds=settings.ASYNC_EXPORT_PLANNING_TIMEOUT)
     return list(
         ExportJob.objects.filter(status__in=[ExportJobStatus.PENDING, ExportJobStatus.PLANNING])
-        .filter(Q(status=ExportJobStatus.PENDING) | Q(planning_started_at__lt=timezone.now() - timeout))
+        .filter(Q(status=ExportJobStatus.PENDING) | Q(planning_started_at__lt=now - timeout))
+        .filter(_lease_expired("planning_enqueued_at", now))
         .order_by("pk")
         .values_list("pk", flat=True)[:limit]
     )
 
 
 def enqueue_planning(limit):
-    job_ids = planning_jobs(limit)
-    for job_id in job_ids:
-        _send(PLAN_TASK_NAME, job_id)
-    return job_ids
+    return _enqueue(
+        planning_jobs(limit),
+        "planning_enqueued_at",
+        [ExportJobStatus.PENDING, ExportJobStatus.PLANNING],
+        PLAN_TASK_NAME,
+    )
 
 
 def _inflight_by_index_set():
@@ -196,14 +231,16 @@ def dispatch_ready_parts(deadline=None):
 
 
 def finalizing_jobs(limit):
-    """叶子分片全部成功、尚未收尾或收尾超时的任务。"""
-    cutoff = timezone.now() - timedelta(seconds=settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT)
+    """叶子分片全部成功、且尚未入队收尾（或入队租约已过期）的任务。"""
+    now = timezone.now()
+    cutoff = now - timedelta(seconds=settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT)
     return list(
         ExportJob.objects.filter(
             Q(status=ExportJobStatus.RUNNING)
             | Q(status=ExportJobStatus.FINALIZING, finalization_started_at__lt=cutoff),
             plan_version__gt=0,
         )
+        .filter(_lease_expired("finalization_enqueued_at", now))
         .annotate(**state.leaf_counts_annotation())
         .filter(leaf_total__gt=0, leaf_success=F("leaf_total"))
         .order_by("pk")
@@ -212,10 +249,12 @@ def finalizing_jobs(limit):
 
 
 def enqueue_finalization(limit):
-    job_ids = finalizing_jobs(limit)
-    for job_id in job_ids:
-        _send(FINALIZE_TASK_NAME, job_id)
-    return job_ids
+    return _enqueue(
+        finalizing_jobs(limit),
+        "finalization_enqueued_at",
+        [ExportJobStatus.RUNNING, ExportJobStatus.FINALIZING],
+        FINALIZE_TASK_NAME,
+    )
 
 
 def manifest_snapshot(job, parts):

@@ -235,8 +235,14 @@ def fail_planning(job_id, planning_attempt, code, detail="", retryable=False):
             status=ExportPlanStatus.FAILED, finished_at=now, updated_at=now
         )
         if retryable and job.planning_attempts < policy_from_snapshot(job.policy).planning_attempts:
-            # 交回调度器重新规划，保留失败原因便于排查
-            return _save(job, status=ExportJobStatus.PENDING, error_code=code, error_detail=(detail or "")[:2000])
+            # 交回调度器重新规划，保留失败原因便于排查；清掉入队标记，下一轮立即重发
+            return _save(
+                job,
+                status=ExportJobStatus.PENDING,
+                planning_enqueued_at=None,
+                error_code=code,
+                error_detail=(detail or "")[:2000],
+            )
         return _finish_job(job, ExportJobStatus.FAILED, code, (detail or "")[:2000])
 
 
@@ -529,6 +535,7 @@ def fail_finalization(job_id, finalization_attempt, detail=""):
             job,
             status=ExportJobStatus.RUNNING,
             finalization_started_at=None,
+            finalization_enqueued_at=None,
             error_code=ExportErrorCode.FINALIZATION_FAILED,
             error_detail=detail,
         )

@@ -1297,6 +1297,17 @@ class PlanRecordTests(TestCase):
         self.assertEqual(plan.status, ExportPlanStatus.FAILED)
         self.assertIsNotNone(plan.finished_at)
 
+    def test_retryable_planning_failure_releases_the_enqueue_lease(self):
+        """规划失败交回调度器时清掉入队标记，重试不用干等租约到期。"""
+        ExportJob.objects.filter(pk=self.job.pk).update(planning_enqueued_at=timezone.now())
+        claimed = state.claim_planning(self.job.pk)
+
+        state.fail_planning(self.job.pk, claimed.planning_attempts, "STATISTICS_FAILED", "统计失败", retryable=True)
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.PENDING)
+        self.assertIsNone(self.job.planning_enqueued_at)
+
     def test_new_version_never_overwrites_effective_history(self):
         self.job.plan_version = 1
         self.job.save(update_fields=["plan_version"])
@@ -1770,8 +1781,31 @@ class SchedulerTests(TestCase):
     @patch("apps.log_search.export.scheduler._send")
     def test_enqueue_planning_only_picks_unplanned_jobs(self, send):
         self.assertEqual(enqueue_planning(10), [])
-        create_job(index_set_id=12, status=ExportJobStatus.PENDING)
-        self.assertEqual(len(enqueue_planning(10)), 1)
+        job = create_job(index_set_id=12, status=ExportJobStatus.PENDING)
+        self.assertEqual(enqueue_planning(10), [job.pk])
+        # 入队租约内不再重复发布：队列积压时消息量不会被周期重扫放大
+        self.assertEqual(enqueue_planning(10), [])
+        self.assertEqual(send.call_count, 1)
+
+    @patch("apps.log_search.export.scheduler._send")
+    def test_enqueue_planning_republishes_after_the_lease_expires(self, send):
+        job = create_job(index_set_id=12, status=ExportJobStatus.PENDING)
+        self.assertEqual(enqueue_planning(10), [job.pk])
+
+        ExportJob.objects.filter(pk=job.pk).update(
+            planning_enqueued_at=timezone.now() - timedelta(seconds=settings.ASYNC_EXPORT_ENQUEUE_LEASE_SECONDS + 1)
+        )
+
+        self.assertEqual(enqueue_planning(10), [job.pk])
+        self.assertEqual(send.call_count, 2)
+
+    @patch("apps.log_search.export.scheduler._send", side_effect=RuntimeError("broker down"))
+    def test_publish_failure_releases_the_enqueue_lease(self, send):
+        job = create_job(index_set_id=12, status=ExportJobStatus.PENDING)
+
+        self.assertEqual(enqueue_planning(10), [])
+
+        self.assertIsNone(ExportJob.objects.get(pk=job.pk).planning_enqueued_at)
 
     @patch("apps.log_search.export.scheduler._send")
     def test_enqueue_finalization_waits_for_all_parts(self, send):
@@ -1780,6 +1814,9 @@ class SchedulerTests(TestCase):
         self.job.status = ExportJobStatus.RUNNING
         self.job.save(update_fields=["status"])
         self.assertEqual(enqueue_finalization(10), [self.job.pk])
+        # 收尾同样受入队租约约束，不会每轮重复发布
+        self.assertEqual(enqueue_finalization(10), [])
+        self.assertEqual(send.call_count, 1)
 
     @patch("apps.log_search.export.scheduler._send")
     def test_enqueue_finalization_ignores_split_parents(self, send):
@@ -2054,6 +2091,17 @@ class ManifestChecksumTests(TestCase):
         self.assertEqual(self.job.finalization_attempts, 2)
         self.assertEqual(upload.call_count, 2)
         self.assertFalse(finalizing_jobs(10))
+
+    def test_finalization_failure_releases_the_enqueue_lease(self):
+        """收尾失败交回调度器时清掉入队标记，重试不用干等租约到期。"""
+        ExportJob.objects.filter(pk=self.job.pk).update(finalization_enqueued_at=timezone.now())
+        claimed = state.claim_finalization(self.job.pk)
+
+        state.fail_finalization(self.job.pk, claimed.finalization_attempts, "upload failed")
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
+        self.assertIsNone(self.job.finalization_enqueued_at)
 
     @override_settings(ASYNC_EXPORT_FINALIZATION_TIMEOUT=1)
     def test_stale_finalization_attempt_cannot_commit_or_fail(self):

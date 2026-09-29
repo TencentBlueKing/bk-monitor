@@ -58,8 +58,13 @@ class Migration(migrations.Migration):
                 ),
                 ("error_code", models.CharField(blank=True, default="", max_length=64, verbose_name="错误分类")),
                 ("error_detail", models.TextField(blank=True, default="", verbose_name="错误详情")),
+                ("planning_enqueued_at", models.DateTimeField(blank=True, null=True, verbose_name="规划入队时间")),
                 ("planning_started_at", models.DateTimeField(blank=True, null=True, verbose_name="规划开始时间")),
                 ("planning_attempts", models.PositiveIntegerField(default=0, verbose_name="规划尝试次数")),
+                (
+                    "finalization_enqueued_at",
+                    models.DateTimeField(blank=True, null=True, verbose_name="清单生成入队时间"),
+                ),
                 (
                     "finalization_started_at",
                     models.DateTimeField(blank=True, null=True, verbose_name="清单生成开始时间"),
