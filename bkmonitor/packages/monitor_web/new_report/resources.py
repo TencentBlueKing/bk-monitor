@@ -31,7 +31,8 @@ from bkmonitor.report.serializers import (
 )
 from bkmonitor.report.utils import get_last_send_record_map
 from bkmonitor.utils.itsm import ApprovalStatusEnum
-from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
+from bkmonitor.utils.tenant import is_biz_in_tenant
 from bkmonitor.utils.user import get_local_username
 from constants.new_report import (
     SUBSCRIPTION_VARIABLES_MAP,
@@ -293,6 +294,8 @@ def _in_subscribed_group(subscribers, bk_biz_id, username):
 
 
 def _assert_report_access(report_id, bk_biz_id, create_user):
+    if not is_biz_in_tenant(bk_biz_id, get_request_tenant_id()):
+        raise CustomException("report does not belong to the current tenant")
     username = get_request_username()
     if create_user == username:
         return
@@ -547,15 +550,12 @@ class SendReportResource(Resource):
         is_enabled = serializers.BooleanField(required=False, default=True)
 
     def _assert_report_send_access(self, report, params):
-        requested_biz_id = params.get("bk_biz_id")
-        if requested_biz_id is not None and report.bk_biz_id != requested_biz_id:
-            raise CustomException("report does not belong to the requested business")
+        # 补发使用库存订阅配置，页面当前业务不限制已授予的跨业务订阅访问。
         stored_index_set_id = (report.scenario_config or {}).get("index_set_id")
         request_index_set_id = (params.get("scenario_config") or {}).get("index_set_id")
         if stored_index_set_id and request_index_set_id and stored_index_set_id != request_index_set_id:
             raise CustomException("report does not belong to the requested index set")
-        if not Permission().is_allowed_by_biz(report.bk_biz_id, ActionEnum.VIEW_BUSINESS):
-            raise CustomException("permission denied")
+        _assert_report_access(report.id, report.bk_biz_id, report.create_user)
 
     def perform_request(self, validated_request_data):
         report_id = validated_request_data.get("report_id") or validated_request_data.get("id")
@@ -567,6 +567,8 @@ class SendReportResource(Resource):
             self._assert_report_send_access(report, validated_request_data)
             if not GetReportListResource.check_permission(report.bk_biz_id):
                 _assert_resend_subscribers(report.id, validated_request_data.get("channels"))
+            validated_request_data["report_id"] = report.id
+            validated_request_data.pop("id", None)
         try:
             api.monitor.send_report(**validated_request_data)
         except Exception as e:  # pylint: disable=broad-except

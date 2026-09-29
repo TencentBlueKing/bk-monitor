@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import IAMPermission
 from bkmonitor.models import Report
@@ -34,7 +34,7 @@ class ReportManagePermission(IAMPermission):
 
 
 class ReportSendPermission(IAMPermission):
-    """发送订阅：有订阅 ID 时按库存业务做 VIEW_BUSINESS；否则要求请求带业务 ID。"""
+    """已有订阅由资源校验访问权限；草稿发送要求对应业务的 VIEW_BUSINESS。"""
 
     def __init__(self):
         super().__init__([ActionEnum.VIEW_BUSINESS])
@@ -48,8 +48,7 @@ class ReportSendPermission(IAMPermission):
             report_id = 0
         if report_id > 0:
             bk_biz_id = Report.objects.filter(id=report_id).values_list("bk_biz_id", flat=True).first()
-            if not bk_biz_id:
-                return False
+            return bool(bk_biz_id)
         else:
             try:
                 bk_biz_id = int(data.get("bk_biz_id") or 0)
