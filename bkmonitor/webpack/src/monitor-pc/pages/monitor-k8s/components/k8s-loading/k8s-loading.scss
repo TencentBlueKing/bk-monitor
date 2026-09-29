@@ -1,0 +1,198 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
+.k8s-loading {
+  width: 100%;
+  overflow: hidden;
+
+  .skeleton-element {
+    display: inline-block;
+    flex-shrink: 0;
+    height: 12px;
+    vertical-align: middle;
+  }
+
+  &.is-chart {
+    flex: 1;
+    min-height: 0;
+    padding: 0 16px 16px;
+  }
+
+  &.is-table {
+    height: 100%;
+    padding: 16px;
+    background: #fff;
+  }
+
+  .loading-table-row {
+    display: flex;
+    height: 42px;
+    border-bottom: 1px solid #f0f1f5;
+
+    &.is-header {
+      height: 60px;
+      background: #fafbfd;
+      border-bottom-color: #dcdee5;
+    }
+  }
+
+  .loading-table-cell {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: flex-end;
+    min-width: 100px;
+    padding: 0 20px;
+
+    &:first-child {
+      flex: 2;
+      justify-content: flex-start;
+      min-width: 180px;
+    }
+  }
+
+  .loading-sidebar-group + .loading-sidebar-group {
+    margin-top: 16px;
+  }
+
+  .loading-sidebar-heading,
+  .loading-sidebar-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    height: 32px;
+
+    i {
+      width: 12px;
+    }
+  }
+
+  .loading-sidebar-heading {
+    span {
+      width: 36%;
+    }
+
+    b {
+      width: 24px;
+      margin-left: auto;
+    }
+  }
+
+  .loading-sidebar-row {
+    padding-left: 24px;
+  }
+
+  &.is-charts {
+    padding: 16px 0;
+  }
+
+  .loading-group-title {
+    display: flex;
+    align-items: center;
+    height: 32px;
+
+    i {
+      width: 100px;
+    }
+  }
+
+  .loading-chart-group + .loading-chart-group {
+    margin-top: 16px;
+  }
+
+  .loading-chart-card {
+    display: flex;
+    flex-direction: column;
+    height: 182px;
+    background: #fff;
+    border: 1px solid #eaebf0;
+    border-radius: 3px;
+  }
+
+  .loading-chart-title {
+    display: flex;
+    flex: 0 0 46px;
+    align-items: center;
+    padding: 0 16px;
+
+    i {
+      width: 140px;
+    }
+  }
+
+  .loading-chart-content {
+    flex: 1;
+    min-height: 0;
+    padding: 0 16px 16px;
+  }
+
+  .loading-chart-placeholder {
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    height: 100%;
+    padding: 10px 4px 8px 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: #fff;
+
+    .skeleton-element {
+      border-radius: 2px;
+    }
+  }
+
+  .loading-chart-axis {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 40px;
+    padding-bottom: 20px;
+
+    i {
+      height: 10px;
+    }
+  }
+
+  .loading-chart-plot {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .loading-chart-line {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    background: repeating-linear-gradient(to top, #f0f1f5 0 1px, transparent 1px 33%);
+    border-bottom: 1px solid #dcdee5;
+
+    svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    polygon {
+      fill: skeleton.$color;
+    }
+
+    polyline {
+      fill: none;
+      stroke: skeleton.$highlight-color;
+      stroke-width: 2;
+      stroke-linejoin: round;
+    }
+  }
+
+  .loading-chart-ticks {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 8px;
+
+    i {
+      width: 36px;
+      height: 8px;
+    }
+  }
+}

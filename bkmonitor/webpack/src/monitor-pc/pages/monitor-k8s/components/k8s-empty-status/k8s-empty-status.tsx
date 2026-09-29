@@ -23,14 +23,42 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-// declare module '*.vue';
-declare module '*.svg';
-declare module '*.png';
-declare module '*.css';
-declare module '*.scss';
-declare module '*.store';
-declare module '*.vue' {
-  import Vue from 'vue';
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-  export default Vue;
+import EmptyStatus, { defaultTextMap } from '../../../../components/empty-status/empty-status';
+
+import type { EmptyStatusOperationType } from '../../../../components/empty-status/types';
+
+import './k8s-empty-status.scss';
+
+interface K8sEmptyStatusProps {
+  compact?: boolean;
+  showOperation?: boolean;
+  type?: '500' | 'empty' | 'search-empty';
+}
+
+@Component
+export default class K8sEmptyStatus extends tsc<
+  K8sEmptyStatusProps,
+  {
+    onOperation?: (type: EmptyStatusOperationType) => void;
+  }
+> {
+  @Prop({ default: 'empty' }) type: K8sEmptyStatusProps['type'];
+  @Prop({ default: true }) showOperation: boolean;
+  @Prop({ default: false }) compact: boolean;
+
+  render() {
+    return (
+      <EmptyStatus
+        class={['k8s-empty-status', { 'is-compact': this.compact }]}
+        scene='part'
+        showOperation={this.showOperation}
+        textMap={{ ...defaultTextMap, empty: this.$t('暂无数据') }}
+        type={this.type}
+        onOperation={type => this.$emit('operation', type)}
+      />
+    );
+  }
 }

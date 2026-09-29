@@ -23,9 +23,11 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component, Emit, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import K8sLoading from '../k8s-loading/k8s-loading';
 import GroupItem from './group-item';
 
 import type { GroupListItem } from '../../typings/k8s-new';
@@ -63,36 +65,27 @@ export default class K8sMetricList extends tsc<K8sMetricListProps, K8sMetricList
     return id;
   }
 
-  renderGroupSkeleton() {
-    return (
-      <div class='skeleton-element-group'>
-        <div class='skeleton-element group-title' />
-        <div class='skeleton-element group-content' />
-        <div class='skeleton-element group-content' />
-        <div class='skeleton-element group-content' />
-      </div>
-    );
-  }
-
   render() {
     return (
       <div class='k8s-metric-list'>
         <div class='panel-title'>{this.$t('指标')}</div>
-        {this.loading
-          ? [this.renderGroupSkeleton(), this.renderGroupSkeleton()]
-          : this.metricList.map(group => (
-              <GroupItem
-                key={group.id}
-                activeMetric={this.activeMetric}
-                defaultExpand={true}
-                disabledList={this.disabledMetricList}
-                hiddenList={this.hideMetrics}
-                list={group}
-                tools={['view']}
-                onHandleHiddenChange={this.handleMetricHiddenChange}
-                onHandleItemClick={this.handleItemClick}
-              />
-            ))}
+        {this.loading ? (
+          <K8sLoading type='sidebar' />
+        ) : (
+          this.metricList.map(group => (
+            <GroupItem
+              key={group.id}
+              activeMetric={this.activeMetric}
+              defaultExpand={true}
+              disabledList={this.disabledMetricList}
+              hiddenList={this.hideMetrics}
+              list={group}
+              tools={['view']}
+              onHandleHiddenChange={this.handleMetricHiddenChange}
+              onHandleItemClick={this.handleItemClick}
+            />
+          ))
+        )}
       </div>
     );
   }

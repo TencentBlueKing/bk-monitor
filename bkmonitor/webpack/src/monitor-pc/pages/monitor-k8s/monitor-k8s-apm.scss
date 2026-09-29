@@ -131,6 +131,20 @@
     line-height: 48px;
     color: #313238;
 
+    &.target-list-skeleton {
+      align-items: center;
+
+      .target-name-skeleton {
+        width: 78%;
+        height: 12px;
+      }
+
+      .target-arrow-skeleton {
+        width: 10px;
+        height: 10px;
+      }
+    }
+
     .target-list-name {
       overflow: hidden;
       text-overflow: ellipsis;
