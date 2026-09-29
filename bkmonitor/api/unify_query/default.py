@@ -320,6 +320,11 @@ class QueryDataByPromqlResource(UnifyQueryAPIResource):
         # 在日志场景，如果希望保证数据准确性，且保留最新数据点，设置 reference=True 取消对数据的时序对齐，配合 SaaS 侧提供的
         # time_alignment=False 参数。
         reference = serializers.BooleanField(default=False, required=False)
+        # 命名输出契约（UQ /query/ts/promql 支持后透传）：
+        # response_contract / legacy_output_ref / output_list，与 /query/ts 的命名输出契约一致。
+        response_contract = serializers.CharField(required=False)
+        legacy_output_ref = serializers.CharField(required=False)
+        output_list = serializers.ListField(child=serializers.DictField(), required=False)
 
         def validate(self, attrs):
             logger.info(f"PROMQL_QUERY: {json.dumps(attrs)}")

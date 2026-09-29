@@ -1684,6 +1684,16 @@ class Item(AbstractConfig):
         raw_output_list = config.get("output_list")
         if not isinstance(raw_output_list, list):
             raise ValidationError(detail="query_output_config.output_list 必须为数组")
+        max_outputs = int(getattr(settings, "NAMED_OUTPUT_MAX_COUNT", 4))
+        if len(raw_output_list) > max_outputs:
+            raise ValidationError(
+                detail=(
+                    f"命名输出最多支持 {max_outputs} 个，当前配置了 {len(raw_output_list)} 个。"
+                    "如需支持更多输出，请同步调整两侧配置："
+                    "1) 平台侧：配置环境变量 BKAPP_SETTINGS_NAMED_OUTPUT_MAX_COUNT（对应 settings.NAMED_OUTPUT_MAX_COUNT）；"
+                    "2) UQ 侧：调大 defaultNamedOutputSettings 的 MaxOutputs（默认 4），并保证两侧取值一致。"
+                )
+            )
         output_list = []
         references = set()
         for output in raw_output_list:
