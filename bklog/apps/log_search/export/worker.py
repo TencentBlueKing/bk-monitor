@@ -69,8 +69,7 @@ def _write_rows(handler, payload):
     """
     把分片区间内的日志流式写成 JSONL。
 
-    沿用旧异步导出链路的滚动查询方式（query_ts_raw_with_scroll + _deal_query_result），
-    区别是显式读到 EOF 为止、不受 max_async_count 截断，并且有明确的时间预算。
+    沿用旧链路的滚动查询，区别是读到 EOF 为止、不受 max_async_count 截断，并且有明确的时间预算。
     """
     index_set = handler.index_info_list[0]["index_set_obj"]
     params = copy.deepcopy(handler.base_dict)
@@ -114,11 +113,9 @@ def _pack(directory, part):
 
 def _upload_with_retry(storage, path, name, part):
     """
-    上传失败只在当前进程内重试上传本身。
+    上传失败只在当前进程内重试上传本身：本地压缩文件仍然可用，不会重新查询和压缩。
 
-    本地压缩文件在分片执行期间一直可用，重试不会重新查询和重新压缩（取数与转换约占
-    单分片成本的 80%）。重试耗尽后按 UPLOAD_FAILED 上抛：上传失败与分片工作量无关，
-    只让当前分片回到 WAITING，重试次数用尽后整片失败，不做时间细分。
+    重试耗尽后按 UPLOAD_FAILED 上抛，上传失败与工作量无关，不做时间细分。
     """
     attempts = settings.ASYNC_EXPORT_UPLOAD_ATTEMPTS
     interval = settings.ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS

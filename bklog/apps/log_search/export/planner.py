@@ -48,21 +48,15 @@ def encode_export_row(row):
 
 
 def query_range(start, end):
-    """
-    把左闭右开的分片区间映射成查询区间。
-
-    unify-query 的时间过滤是闭区间，相邻分片又共享边界，右端点收窄 1 毫秒才不会重复取边界日志。
-    """
+    """把左闭右开的分片区间映射成查询区间：unify-query 的时间过滤是闭区间，右端点必须收窄 1 毫秒。"""
     return start, max(start, end - 1)
 
 
 def build_handler(job, start=None, end=None):
     """
-    用任务创建时冻结的快照重建查询 Handler。
+    用任务创建时冻结的快照重建查询 Handler；路由、字段映射、脱敏与结果投影都复用 UnifyQueryHandler。
 
-    这里直接复用 UnifyQueryHandler：路由、字段映射、脱敏与结果投影都由它负责，
-    分片只需要把时间范围收窄到自己的区间。时间范围只在下面覆盖 base_dict 一处：
-    构造器自己算出的 base_dict 会被整体替换，重复覆盖 search_params 的时间不会生效。
+    时间范围只覆盖 job.base_dict：它整体替换构造器算出的 base_dict，改 search_params 的时间不会生效。
     """
     handler = UnifyQueryHandler(copy.deepcopy(job.search_params))
     base_dict = copy.deepcopy(job.base_dict)
@@ -100,9 +94,8 @@ def count_rows(handler, start, end):
     """
     区间内的总条数，用于配额校验和分片收益估算。
 
-    不能用 query/ts/raw 的 total：它取自 ES 的 hits.total.value，而 unify-query 没有设置
-    track_total_hits，超过 1 万的区间会被 ES 默认截断（多路由时还按路由数成倍截断），
-    拿它做配额校验和密度估算都会失真。这里改用聚合 count，聚合结果不受 result window 限制。
+    不能用 query/ts/raw 的 total：unify-query 未设置 track_total_hits，超过 1 万会被 ES 截断
+    （多路由成倍截断），配额和密度估算都会失真；聚合 count 不受 result window 限制。
     """
     params = _statistics_params(handler, start, end)
     for query in params.get("query_list", []):
@@ -211,12 +204,7 @@ def _bucket_origin(buckets, interval):
 
 
 def choose_interval(total, start, end, tick, policy):
-    """
-    选择初始统计桶宽。
-
-    按当前区间的数据密度反推：让每个桶的期望条数接近单分片目标，这样桶数只和
-    数据量有关，不会因为查询范围很长而爆炸；同时用 max_buckets 兜住桶数上限。
-    """
+    """按数据密度反推初始统计桶宽，让桶数只和数据量有关，并用 max_buckets 兜住上限。"""
     span = max(tick, end - start)
     if total <= 0:
         return _canonical_interval(policy.bucket_seconds * 1000, span)

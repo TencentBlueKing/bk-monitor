@@ -19,10 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-"""分片异步导出任务；旧 async_export 队列与入口保持不变。
-
-开关只决定新请求是否进入分片链路，已经准入的任务必须继续收尾，因此任务本身不做开关判断。
-"""
+"""分片异步导出任务；开关只决定新请求是否进入分片链路，任务本身不做开关判断，已准入的任务必须继续收尾。"""
 
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app

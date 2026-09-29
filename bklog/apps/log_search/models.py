@@ -1835,11 +1835,7 @@ class AsyncTask(OperateRecordModel):
 
     @classmethod
     def async_export_task_create_with_running_limit(cls, username: str, is_scene: bool = False, **task_params):
-        """
-        校验并创建异步导出任务
-
-        创建前需要拿到用户级创建锁，锁内复检并发数，避免并发请求击穿限制。
-        """
+        """校验并创建异步导出任务：在用户级创建锁内复检并发数，避免并发请求击穿限制。"""
 
         def check_and_create_task():
             cls.check_running_count_by_user(username, is_scene=is_scene)

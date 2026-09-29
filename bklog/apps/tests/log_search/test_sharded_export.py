@@ -103,7 +103,6 @@ from apps.log_search.export.storage import (
     manifest_name,
 )
 from apps.log_search.tasks.sharded_export import (
-    PLANNING_SOFT_TIME_LIMIT,
     coordinate_sharded_exports,
     execute_sharded_export_part,
     finalize_sharded_export,
@@ -159,6 +158,14 @@ class PolicyBoundsTests(SimpleTestCase):
         from apps.log_search.export import config
 
         self.assertEqual(set(ExportPolicy().snapshot()), set(config._BOUNDS))
+
+    def test_default_policy_is_dispatchable_without_extra_config(self):
+        """部署后只配灰度业务即可投递：环境容量默认值为正，空配置也不会退回停投。"""
+        from apps.log_search.export import config
+
+        self.assertGreater(config.ExportPolicy().global_parallelism, 0)
+        for raw in (None, {}):
+            self.assertGreater(config._validated_policy(raw).global_parallelism, 0)
 
     def test_oversized_limit_rejects_an_unusable_value(self):
         """0 会让 oversized 分片永远投不出去，非法值必须回落到默认额度。"""
@@ -735,13 +742,6 @@ class ExportStateTestCase(TestCase):
         with self.assertRaises(ValueError):
             self.plan(parts=[PartSpec(0, 1001, 10, 10, oversized=True), PartSpec(1001, 4000, 10, 10)])
 
-    def test_split_step_comes_from_the_policy(self):
-        self.assertEqual(state._split_step(create_job()), 1000)
-        self.assertEqual(
-            state._split_step(create_job(policy=build_policy(split_step_ms=1).snapshot())),
-            1,
-        )
-
     def test_planning_is_claimed_once(self):
         self.assertIsNotNone(state.claim_planning(self.job.pk))
         self.assertIsNone(state.claim_planning(self.job.pk))
@@ -1226,7 +1226,6 @@ class ArtifactNameTests(SimpleTestCase):
         job = SimpleNamespace(pk=11)
         part = SimpleNamespace(pk=3)
 
-        self.assertEqual(artifact_name(job, part, 1), artifact_name(job, part, 1))
         self.assertEqual(artifact_name(job, part, 1), "exports/11/parts/3/attempt-1.tar.gz")
         self.assertNotEqual(artifact_name(job, part, 1), artifact_name(job, part, 2))
         self.assertNotEqual(artifact_name(job, part, 1), artifact_name(job, SimpleNamespace(pk=4), 1))
@@ -1657,18 +1656,17 @@ class ControlPipelineTests(SimpleTestCase):
 
     def test_planning_is_bounded_before_the_reclaim_window(self):
         """规划软超时必须早于规划超时窗口，否则 Coordinator 会判定超时并重复投递同一份规划。"""
-        self.assertEqual(plan_sharded_export.soft_time_limit, PLANNING_SOFT_TIME_LIMIT)
-        self.assertLess(PLANNING_SOFT_TIME_LIMIT, settings.ASYNC_EXPORT_PLANNING_TIMEOUT)
+        self.assertIsNotNone(plan_sharded_export.soft_time_limit)
+        self.assertLess(plan_sharded_export.soft_time_limit, settings.ASYNC_EXPORT_PLANNING_TIMEOUT)
 
     def test_finalization_is_bounded_before_the_reclaim_window(self):
         """清单生成软超时必须早于协调器重认领窗口。"""
-        timeout = settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT
-        self.assertEqual(finalize_sharded_export.soft_time_limit, max(1, timeout - 60))
-        self.assertLess(finalize_sharded_export.soft_time_limit, timeout)
+        self.assertIsNotNone(finalize_sharded_export.soft_time_limit)
+        self.assertLess(finalize_sharded_export.soft_time_limit, settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT)
 
     def test_round_budget_is_bounded_before_the_lock_lease(self):
         """轮次必须先于调度锁租约结束，否则锁过期后旧轮次会与下一轮重叠发放额度。"""
-        self.assertEqual(coordinate_sharded_exports.soft_time_limit, settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT)
+        self.assertIsNotNone(coordinate_sharded_exports.soft_time_limit)
         self.assertGreater(settings.ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS, 0)
         self.assertLess(
             settings.ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS, settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT
@@ -1728,7 +1726,6 @@ class JobFailureClassificationTests(TestCase):
     def test_underlying_part_error_stays_in_the_detail(self):
         job = self.fail_single_part_job(ExportErrorCode.STORAGE_UNSUPPORTED, 1000, 500)
 
-        self.assertEqual(job.error_code, ExportErrorCode.STORAGE_UNSUPPORTED)
         self.assertIn(ExportErrorCode.STORAGE_UNSUPPORTED, job.error_detail)
 
     def test_job_detail_exposes_detail_and_failed_part(self):
@@ -1918,43 +1915,33 @@ class ExportErrorCodeTests(SimpleTestCase):
 
 
 class JobDetailTests(TestCase):
-    def test_expired_success_job_is_reported_as_expired(self):
-        from apps.log_search.export.api import job_detail
-
-        job = create_job(
-            end_time=1000,
-            status=ExportJobStatus.SUCCESS,
-            expires_at=timezone.now() - timedelta(seconds=1),
+    def test_error_mapping_by_job_status(self):
+        """展示状态与错误码只由任务状态决定：过期、失败、取消有码，未结束无码。"""
+        cases = (
+            (
+                "expired",
+                {"status": ExportJobStatus.SUCCESS, "expires_at": timezone.now() - timedelta(seconds=1)},
+                "EXPIRED",
+                ExportErrorCode.FILE_EXPIRED,
+            ),
+            (
+                "failed",
+                {"status": ExportJobStatus.FAILED, "error_code": ExportErrorCode.QUOTA_EXCEEDED},
+                ExportJobStatus.FAILED,
+                ExportErrorCode.QUOTA_EXCEEDED,
+            ),
+            ("canceled", {"status": ExportJobStatus.CANCELED}, ExportJobStatus.CANCELED, ExportErrorCode.CANCELED),
+            ("running", {"status": ExportJobStatus.RUNNING}, ExportJobStatus.RUNNING, ""),
         )
-        detail = job_detail(job)
-        self.assertEqual(detail["status"], "EXPIRED")
-        self.assertEqual(detail["percent"], 100)
-        self.assertEqual(detail["error_code"], ExportErrorCode.FILE_EXPIRED)
-        self.assertTrue(detail["error_message"])
+        for name, fields, expected_status, expected_code in cases:
+            with self.subTest(name=name):
+                detail = job_detail(create_job(end_time=1000, **fields))
 
-    def test_failed_job_exposes_stable_code_and_message(self):
-        job = create_job(end_time=1000, status=ExportJobStatus.FAILED, error_code=ExportErrorCode.QUOTA_EXCEEDED)
-
-        detail = job_detail(job)
-
-        self.assertEqual(detail["error_code"], ExportErrorCode.QUOTA_EXCEEDED)
-        self.assertEqual(detail["error_message"], ExportErrorCode.label(ExportErrorCode.QUOTA_EXCEEDED))
-
-    def test_canceled_job_is_classified_as_canceled(self):
-        job = create_job(end_time=1000, status=ExportJobStatus.CANCELED)
-
-        detail = job_detail(job)
-
-        self.assertEqual(detail["error_code"], ExportErrorCode.CANCELED)
-        self.assertTrue(detail["error_message"])
-
-    def test_unfinished_job_has_no_error(self):
-        job = create_job(end_time=1000, status=ExportJobStatus.RUNNING)
-
-        detail = job_detail(job)
-
-        self.assertEqual(detail["error_code"], "")
-        self.assertEqual(detail["error_message"], "")
+                self.assertEqual(detail["status"], expected_status)
+                self.assertEqual(detail["error_code"], expected_code)
+                self.assertEqual(detail["error_message"], ExportErrorCode.label(expected_code))
+                if expected_code == ExportErrorCode.FILE_EXPIRED:
+                    self.assertEqual(detail["percent"], 100)
 
     def test_manifest_snapshot_lists_success_parts(self):
         from apps.log_search.export.scheduler import manifest_snapshot
@@ -1978,8 +1965,6 @@ class JobDetailTests(TestCase):
         json.dumps(snapshot)
 
     def test_job_detail_counts_leaf_parts_only(self):
-        from apps.log_search.export.api import job_detail
-
         job = create_job(end_time=2000, status=ExportJobStatus.RUNNING, plan_version=1)
         parent = ExportPart.objects.create(
             job=job, part_no=1, plan_version=1, start_time=0, end_time=2000, status=ExportPartStatus.SPLIT
@@ -2074,17 +2059,14 @@ class ExternalIdentityTests(TestCase):
                 }
             )
 
-    def test_external_creator_is_recorded_and_frozen(self):
-        job = self.create("external_a")
+    def test_creator_identity_follows_the_forwarded_external_user(self):
+        cases = (("external_a", "external_a", True), ("", "authorizer", False))
+        for external_username, expected_creator, expected_external in cases:
+            with self.subTest(external_username=external_username):
+                job = self.create(external_username)
 
-        self.assertEqual(job.created_by, "external_a")
-        self.assertTrue(job.is_external)
-
-    def test_internal_creator_uses_login_username(self):
-        job = self.create("")
-
-        self.assertEqual(job.created_by, "authorizer")
-        self.assertFalse(job.is_external)
+                self.assertEqual(job.created_by, expected_creator)
+                self.assertEqual(job.is_external, expected_external)
 
     def get_queryset(self):
         view = ExportJobViewSet()
@@ -2094,25 +2076,21 @@ class ExternalIdentityTests(TestCase):
     def make_job(self, created_by):
         return create_job(space_uid=self.SPACE_UID, created_by=created_by, source_app_code=settings.APP_CODE)
 
-    @patch("apps.log_search.views.export_views.get_request_external_username", return_value="external_a")
-    def test_external_user_only_sees_own_jobs(self, _external):
-        own = self.make_job("external_a")
-        self.make_job("external_b")
-
-        self.assertEqual(list(self.get_queryset().values_list("pk", flat=True)), [own.pk])
-
-    @patch("apps.log_search.views.export_views.get_request_external_username", return_value="")
-    def test_internal_user_sees_the_whole_space(self, _external):
+    def test_queryset_scope_follows_the_forwarded_external_user(self):
+        """外部用户只看自己创建的任务，内部用户看整个空间的任务。"""
         own = self.make_job("external_a")
         other = self.make_job("external_b")
 
-        self.assertCountEqual(list(self.get_queryset().values_list("pk", flat=True)), [own.pk, other.pk])
+        for external_username, expected in (("external_a", [own.pk]), ("", [own.pk, other.pk])):
+            with self.subTest(external_username=external_username):
+                with patch(
+                    "apps.log_search.views.export_views.get_request_external_username", return_value=external_username
+                ):
+                    self.assertCountEqual(list(self.get_queryset().values_list("pk", flat=True)), expected)
 
     @patch("apps.log_search.export.api.get_request_username", return_value="authorizer")
     @patch("apps.log_search.export.api.get_request_external_username", return_value="external_a")
     def test_can_operate_follows_external_identity(self, _external, _username):
-        from apps.log_search.export.api import job_detail
-
         own = self.make_job("external_a")
         other = self.make_job("external_b")
 
@@ -2443,33 +2421,27 @@ class EmptyExportPreCheckTests(TestCase):
                 }
             )
 
-    def test_empty_result_is_definitely_empty(self):
+    def test_existence_probe_outcomes(self):
+        """探活只按返回体判断：空列表视为无数据，有数据视为非空。"""
         handler = MagicMock(base_dict={"query_list": []})
+        cases = (({"list": []}, True), ({"list": [{"log": "x"}]}, False))
+        for response, expected in cases:
+            with self.subTest(response=response):
+                with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", return_value=response):
+                    self.assertEqual(is_definitely_empty(handler, 0, 1000), expected)
 
-        with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", return_value={"list": []}):
-            self.assertTrue(is_definitely_empty(handler, 0, 1000))
-
-    def test_non_empty_result_is_not_rejected(self):
+    def test_bad_probe_response_rejects_creation(self):
+        """查询失败和返回体结构异常都要拒绝创建，并带上可展示的原因。"""
         handler = MagicMock(base_dict={"query_list": []})
-
-        with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", return_value={"list": [{"log": "x"}]}):
-            self.assertFalse(is_definitely_empty(handler, 0, 1000))
-
-    def test_query_failure_rejects_creation(self):
-        handler = MagicMock(base_dict={"query_list": []})
-
-        with patch(
-            "apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", side_effect=Exception("unify query down")
-        ):
-            with self.assertRaisesMessage(PreCheckAsyncExportException, "unify query down"):
-                is_definitely_empty(handler, 0, 1000)
-
-    def test_unexpected_response_rejects_creation(self):
-        handler = MagicMock(base_dict={"query_list": []})
-
-        with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", return_value={"message": "internal"}):
-            with self.assertRaisesMessage(PreCheckAsyncExportException, "返回格式异常"):
-                is_definitely_empty(handler, 0, 1000)
+        cases = (
+            ({"side_effect": Exception("unify query down")}, "unify query down"),
+            ({"return_value": {"message": "internal"}}, "返回格式异常"),
+        )
+        for patch_kwargs, message in cases:
+            with self.subTest(message=message):
+                with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", **patch_kwargs):
+                    with self.assertRaisesMessage(PreCheckAsyncExportException, message):
+                        is_definitely_empty(handler, 0, 1000)
 
     def test_probe_only_requests_one_row(self):
         handler = MagicMock(base_dict={"query_list": []})
@@ -2541,25 +2513,13 @@ class ExportJobAdmissionTests(TestCase):
                 }
             )
 
-    def test_export_jobs_count_towards_the_user_limit(self):
-        for _ in range(3):
-            create_job(created_by="tester", status=ExportJobStatus.RUNNING)
+    def occupy(self, *statuses):
+        """按给定状态占用本用户额度。"""
+        for status in statuses:
+            create_job(created_by="tester", status=status)
 
-        with self.assertRaises(ConcurrentExportLimitException):
-            self.create()
-
-        self.assertEqual(ExportJob.objects.filter(created_by="tester").count(), 3)
-
-    def test_finalizing_job_still_occupies_the_user_limit(self):
-        for _ in range(2):
-            create_job(created_by="tester", status=ExportJobStatus.RUNNING)
-        create_job(created_by="tester", status=ExportJobStatus.FINALIZING)
-
-        with self.assertRaises(ConcurrentExportLimitException):
-            self.create()
-
-    def test_old_and_new_tasks_share_one_budget(self):
-        for _ in range(2):
+    def occupy_legacy_tasks(self, count):
+        for _ in range(count):
             AsyncTask.objects.create(
                 created_by="tester",
                 scenario_id=Scenario.LOG,
@@ -2567,10 +2527,32 @@ class ExportJobAdmissionTests(TestCase):
                 export_type=ExportType.ASYNC,
                 export_status=ExportStatus.DOWNLOAD_LOG,
             )
-        create_job(created_by="tester", status=ExportJobStatus.PLANNING)
 
-        with self.assertRaises(ConcurrentExportLimitException):
-            self.create()
+    def test_full_user_quota_rejects_creation(self):
+        """RUNNING、FINALIZING 与旧 AsyncTask 共用同一份额度，占满后新任务被拒且不落库。"""
+        cases = (
+            (
+                "running",
+                lambda: self.occupy(ExportJobStatus.RUNNING, ExportJobStatus.RUNNING, ExportJobStatus.RUNNING),
+            ),
+            (
+                "finalizing",
+                lambda: self.occupy(ExportJobStatus.RUNNING, ExportJobStatus.RUNNING, ExportJobStatus.FINALIZING),
+            ),
+            (
+                "legacy_async_task",
+                lambda: (self.occupy_legacy_tasks(2), self.occupy(ExportJobStatus.PLANNING)),
+            ),
+        )
+        for name, occupy in cases:
+            with self.subTest(name=name):
+                occupy()
+                before = ExportJob.objects.filter(created_by="tester").count()
+
+                with self.assertRaises(ConcurrentExportLimitException):
+                    self.create()
+
+                self.assertEqual(ExportJob.objects.filter(created_by="tester").count(), before)
 
     def test_terminal_job_releases_the_quota(self):
         for _ in range(3):

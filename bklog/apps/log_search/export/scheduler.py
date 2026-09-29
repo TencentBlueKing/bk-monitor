@@ -87,17 +87,11 @@ def dispatch_ready_parts(deadline=None):
     """
     按公平顺序投递分片。
 
-    并行额度只来自 FeatureConfig：单 Job 上限、单索引集上限、环境全局上限三者取小。
-    oversized 分片（递归到时间最小精度仍超量）同样占用这套额度，另外还受
-    单 Job 和环境的 oversized 在途上限约束：达到任一上限时把 oversized 分片从候选集合里
-    剔除，让同一个任务后面的普通分片照常投递，等额度释放后再按原时间顺序补投。在途数
-    统计的是全表，包含不在本轮的候选任务。
-    多个任务同时等待时，环境全局额度按剩余任务数依次切分（两个任务即 2+2），先到的大
-    任务不会在一个调度周期内占满全局槽位；某个任务没分片可发或用不完自己的份额时，
-    空出的额度当轮就让给后面的任务。在途分片本身就是预算账本，直接按数据库计数判断
-    额度；同一个分片不会被重复投递，轮次之间由调度任务的共享锁保证不会同时算出两份额度。
-    轮次有明确的时间预算（deadline，单调时钟）：预算用尽后在两次写库之间收尾，未投递的分片
-    交给下一个调度周期，避免单轮活过调度锁的租约后与下一轮重叠放量。
+    额度取单 Job、单索引集、环境全局三者取小；在途分片按数据库全表计数，本身就是预算账本，
+    轮次之间由调度任务的共享锁保证不会同时算出两份额度。多任务同时等待时按剩余任务数依次切分
+    （两个任务即 2+2），用不完的份额当轮让给后面的任务。
+    oversized 分片另受单 Job 和环境上限约束，额度不足时先投同一个任务的普通分片。
+    轮次有单调时钟预算：用尽后在两次写库之间收尾，避免单轮活过调度锁租约后与下一轮重叠放量。
     """
     jobs = list(
         ExportJob.objects.filter(status__in=[ExportJobStatus.READY, ExportJobStatus.RUNNING]).order_by(
@@ -109,8 +103,8 @@ def dispatch_ready_parts(deadline=None):
 
     policy = current_policy()
     if policy.global_parallelism <= 0:
-        # 环境容量没有配置就不投递：宁可任务停在 READY，也不要多 Pod 各自按本地预算相乘
-        logger.warning("[dispatch_ready_parts] 环境全局并行度未配置，%s 个任务已跳过投递", len(jobs))
+        # 显式配成 0 表示停投：宁可任务停在 READY，也不要绕过环境容量约束继续放量
+        logger.warning("[dispatch_ready_parts] 环境全局并行度已停投，%s 个任务已跳过投递", len(jobs))
         return []
 
     index_limit, global_limit = policy.index_parallelism, policy.global_parallelism

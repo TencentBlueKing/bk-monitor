@@ -1408,31 +1408,17 @@ MAX_CONCURRENT_EXPORT_TASKS = int(os.getenv("BKAPP_MAX_CONCURRENT_EXPORT_TASKS",
 # 分片异步导出（ExportJob / ExportPart）
 # ===============================================================================
 ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS", 10))
-
-# 调度轮次互斥锁租约，需覆盖一轮调度的最长执行时间
 ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT", 120))
-
-# 轮次软超时兜底：必须在锁租约到期前结束，否则锁过期后旧轮次仍会按旧快照放量
 ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT = int(
     os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT", max(1, ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT - 30))
 )
-# 协作式轮次截止时间：比软超时再早一步，让轮次在两次写库之间主动收尾，而不是被信号打断
 ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS = int(
     os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS", max(1, ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT - 15))
 )
-
-# coordinator 每轮处理的批次规模（候选 Job 扫描、规划、回收、清理）
 ASYNC_EXPORT_COORDINATE_BATCH = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_BATCH", 100))
-
-# 故障恢复超时和单次执行安全边界
 ASYNC_EXPORT_PLANNING_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PLANNING_TIMEOUT", 600))
-# 清单生成卡住后由协调器重新认领；旧执行的结果由尝试次数栅栏拦截
 ASYNC_EXPORT_FINALIZATION_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_FINALIZATION_TIMEOUT", 300))
-# 单分片执行超时：超过该时间仍未回填结果的分片会被回收重试
 ASYNC_EXPORT_PART_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PART_TIMEOUT", 1800))
-
-# 分片上传失败时在当前进程内做短重试（退避为 interval * 第几次尝试）：
-# 本地压缩文件此时仍然可用，一次上传抖动不应该让整个分片重新查询和重新压缩
 ASYNC_EXPORT_UPLOAD_ATTEMPTS = int(os.getenv("BKAPP_ASYNC_EXPORT_UPLOAD_ATTEMPTS", 3))
 ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS", 2))
 

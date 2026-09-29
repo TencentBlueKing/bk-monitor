@@ -12,10 +12,8 @@ PLAN_TASK_NAME = "apps.log_search.tasks.sharded_export.plan_sharded_export"
 PART_TASK_NAME = "apps.log_search.tasks.sharded_export.execute_sharded_export_part"
 FINALIZE_TASK_NAME = "apps.log_search.tasks.sharded_export.finalize_sharded_export"
 
-# 队列名需与 support-files/supervisord.conf 的 -Q 保持一致
 PART_QUEUE = "sharded_export"
 CONTROL_QUEUE = "sharded_export_control"
-# Coordinator 的调度轮次单独占一个队列：规划任务再慢也不会把轮次堵在队列里
 COORDINATOR_QUEUE = "sharded_export_coordinator"
 
 
@@ -38,10 +36,7 @@ class ExportPolicy:
     default_parallelism: int = 4
     max_parallelism: int = 8
     index_parallelism: int = 4
-    # 0 表示环境容量未配置：调度器会拒绝投递并告警，必须由运维按真实容量显式配置
-    global_parallelism: int = 0
-    # oversized 分片（递归到时间最小精度仍超量）注定比普通分片重，单独占一份在途额度：
-    # 单 Job 与环境的在途上限，避免几个重片同时占满 Worker 槽位
+    global_parallelism: int = 4
     oversized_parallelism: int = 1
     oversized_global_parallelism: int = 2
     part_max_attempts: int = 3
@@ -71,9 +66,9 @@ _BOUNDS = {
     "default_parallelism": (int, 1, 64),
     "max_parallelism": (int, 1, 64),
     "index_parallelism": (int, 1, 10_000),
-    # 0 是「未配置」的哨兵值，调度器据此拒绝投递
+    # 0 表示显式停投；默认值保证部署后开箱可用
     "global_parallelism": (int, 0, 10_000),
-    # oversized 不能像 global_parallelism 那样用 0 表示未配置：0 会让 oversized 分片永远投不出去
+    # oversized 不能像 global_parallelism 那样用 0 表示停投：0 会让 oversized 分片永远投不出去
     "oversized_parallelism": (int, 1, 64),
     "oversized_global_parallelism": (int, 1, 64),
     "part_max_attempts": (int, 1, 20),
@@ -106,11 +101,8 @@ def _validated_policy(raw):
     return ExportPolicy(**values)
 
 
-# 策略分两类用途，读入口不同，改动时注意不要混用：
-# - 任务行为（重试次数、产物保留时间等）读任务创建时的快照 policy_from_snapshot，
-#   灰度期调参不会改变已准入任务的行为；
-# - 环境容量（单索引集并行上限、环境全局并行度）读实时 current_policy，
-#   运维改配置后下一轮调度即生效。
+# 策略分两类读入口：任务行为读创建时的快照（灰度调参不影响已准入任务），
+# 环境容量读实时配置（改完下一轮调度即生效）。
 def current_policy():
     """读取当前动态策略；开关关闭时仍供存量任务和调度器读取。"""
     toggle = FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_SHARDED)

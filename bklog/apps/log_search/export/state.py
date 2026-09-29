@@ -130,12 +130,7 @@ def _finish_job(job, status, error_code="", error_detail=""):
 
 
 def _claim_plan_record(job, policy, now):
-    """
-    认领当前计划版本行；失败的尝试复用同一版本，不虚增版本号。
-
-    当前只有 0 -> 1 一条路径（规划成功后任务进入 READY 即不再规划），ExportPlan 的多版本
-    能力是给后续"重新规划"入口预留的，不要据此认为已经有重规划流程。
-    """
+    """认领当前计划版本行；失败的尝试复用同一版本，不虚增版本号。"""
     plan, _ = ExportPlan.objects.update_or_create(
         job=job,
         plan_version=job.plan_version + 1,
@@ -162,11 +157,10 @@ def _finish_plan(job, version, plan_result, planned_parts):
 
 def claim_planning(job_id):
     """
-    认领初始规划。
+    认领初始规划：未超时的 PLANNING 由其他实例持有，超时后允许重新认领。
 
-    规划一次只会进行一个：未超时的 PLANNING 由其他实例持有，超时后允许重新认领。
-    递增后的 planning_attempts 是本次认领的栅栏，要原样传给 persist_plan / fail_planning：
-    规划软超时不保证阻塞中的查询及时退出，旧执行可能在新执行认领之后才返回，其结果必须作废。
+    递增后的 planning_attempts 是本次认领的栅栏，必须原样传给 persist_plan / fail_planning：
+    规划软超时不保证阻塞中的查询及时退出，旧执行的结果必须作废。
     """
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
@@ -278,8 +272,7 @@ def claim_part(part_id, task_id):
     """
     Worker 开始执行时占分片；已取消、已细分或属于其它投递的消息不会发起查询。
 
-    同一次投递被重发（worker 崩溃后由 broker 重投递）时允许重新认领，不必干等分片超时回收：
-    投递身份未变不会串投递，旧执行会被递增后的 attempts 挡在门外。
+    同一次投递被重发时允许重新认领，不必等分片超时回收；旧执行会被递增后的 attempts 挡在门外。
     """
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=_job_id_of(part_id))
@@ -356,11 +349,8 @@ def fail_part(part_id, fence, *, error_code, error_detail="", retryable=True):
 
 def _classify_failure(job, part, error_code):
     """
-    任务级失败分类。
-
-    error_code 只表达原因；OVERSIZED_PART_FAILED 表示「已到最小时间精度且原因是工作量」，
-    只有这种组合才该建议用户缩小范围——存储、投递类原因重试就可能成功，不能被密度文案覆盖。
-    判断是否还能细分与 _can_split 用同一个口径，不依赖规划期写入的 oversized 标记。
+    任务级失败分类：error_code 只表达原因，OVERSIZED_PART_FAILED 表示「已到最小时间精度且原因是工作量」，
+    只有这种组合才建议用户缩小范围。是否还能细分与 _can_split 用同一口径，不依赖 oversized 标记。
     """
     if not ExportErrorCode.label(error_code):
         # 未登记的码不透给前端，否则前端只能拿到空文案
@@ -481,12 +471,7 @@ def recover_part(part_id, cutoff=None):
 
 
 def recover_stale_parts(limit=None):
-    """
-    回收超时未完成的分片。
-
-    一期不做租约心跳：Worker 有明确的分片超时（ASYNC_EXPORT_PART_TIMEOUT），
-    超过这个时间仍未回填结果的分片一律交回调度器重试。
-    """
+    """回收超时未完成的分片：一期不做租约心跳，超时未回填结果的一律交回调度器重试。"""
     limit = limit or settings.ASYNC_EXPORT_COORDINATE_BATCH
     cutoff = timezone.now() - timedelta(seconds=settings.ASYNC_EXPORT_PART_TIMEOUT)
     candidates = (

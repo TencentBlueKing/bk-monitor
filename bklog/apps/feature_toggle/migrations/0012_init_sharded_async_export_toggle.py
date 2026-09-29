@@ -20,9 +20,7 @@ DEFAULT_CONFIG = {
     "default_parallelism": 4,
     "max_parallelism": 8,
     "index_parallelism": 4,
-    # 0 表示环境容量未配置：调度器会拒绝投递并告警，避免多 Pod 下预算被按 Pod 相乘
-    "global_parallelism": 0,
-    # oversized 分片（递归到时间最小精度仍超量）的在途上限：单 Job 与环境各一份
+    "global_parallelism": 4,
     "oversized_parallelism": 1,
     "oversized_global_parallelism": 2,
     "part_max_attempts": 3,
