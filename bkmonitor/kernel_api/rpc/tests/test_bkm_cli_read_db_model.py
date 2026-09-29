@@ -236,6 +236,69 @@ def test_read_db_model_filters_limits_and_returns_allowed_fields(monkeypatch):
     assert queryset.slice_value == slice(None, 1, None)
 
 
+@pytest.mark.parametrize(
+    ("model", "subscription_field", "private_fields"),
+    [
+        ("bkmonitor.models.base.ReportItems", "id", {"mail_title", "receivers", "managers", "channels"}),
+        ("bkmonitor.models.base.ReportContents", "report_item", {"content_title", "content_details", "graphs"}),
+        ("bkmonitor.models.base.ReportStatus", "report_item", {"mail_title", "details"}),
+        ("bkmonitor.models.report.Report", "id", {"name", "content_config", "scenario_config"}),
+        ("bkmonitor.models.report.ReportChannel", "report_id", {"subscribers", "send_text"}),
+        ("bkmonitor.models.report.ReportSendRecord", "report_id", {"send_results"}),
+    ],
+)
+def test_report_models_require_exact_subscription_and_hide_private_fields(
+    monkeypatch, model, subscription_field, private_fields
+):
+    """发送记录只能按单个订阅读取，显式请求也不能带出私密内容。"""
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    queryset = FakeQuerySet([SimpleNamespace(id=7, report_id=7, report_item=7)])
+    FakeModel.objects = FakeManager(queryset)
+    FakeModel.origin_objects = FakeManager(queryset)
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+
+    spec = db.ALLOWED_MODEL_SPECS[model]
+    discovery = next(item for item in db.list_db_models({})["items"] if item["model"] == model)
+    assert discovery["required_exact_filter"] == subscription_field
+    assert private_fields.isdisjoint(discovery["allowed_fields"])
+    assert private_fields.isdisjoint(discovery["allowed_filter_fields"])
+    assert private_fields.isdisjoint(discovery["allowed_order_by"])
+
+    for unsafe_filter in ({}, {f"{subscription_field}__in": [7]}, {subscription_field: 0}):
+        with pytest.raises(CustomException, match="精确条件"):
+            db.read_db_model({"model": model, "filter": unsafe_filter})
+
+    private_field = sorted(private_fields)[0]
+    with pytest.raises(CustomException, match="不在 read-db-model 允许列表"):
+        db.read_db_model({"model": model, "filter": {subscription_field: 7, private_field: "x"}})
+
+    result = db.read_db_model({"model": model, "filter": {subscription_field: 7}, "fields": ["id", private_field]})
+    assert result["items"] == [{"id": 7}]
+    assert queryset.filter_kwargs == {subscription_field: 7}
+    assert spec.required_exact_filter == subscription_field
+
+
+def test_report_model_projection_fields_exist():
+    """固定投影使用真实 ORM 字段，模型迁移时能直接报出漂移。"""
+    from django.utils.module_loading import import_string
+
+    from kernel_api.rpc.functions.bkm_cli.db import ALLOWED_MODEL_SPECS
+
+    for model_path, spec in ALLOWED_MODEL_SPECS.items():
+        if model_path not in {
+            "bkmonitor.models.base.ReportItems",
+            "bkmonitor.models.base.ReportContents",
+            "bkmonitor.models.base.ReportStatus",
+            "bkmonitor.models.report.Report",
+            "bkmonitor.models.report.ReportChannel",
+            "bkmonitor.models.report.ReportSendRecord",
+        }:
+            continue
+        model_fields = {field.name for field in import_string(model_path)._meta.get_fields()}
+        assert spec.fields <= model_fields
+
+
 def test_bcs_cluster_info_allowlist_has_diagnostic_fields():
     from kernel_api.rpc.functions.bkm_cli.db import ALLOWED_MODEL_SPECS
 
@@ -248,13 +311,10 @@ def test_bcs_cluster_info_allowlist_has_diagnostic_fields():
     assert not (stale & spec.fields), f"Stale field names still present: {stale & spec.fields}"
 
 
-def test_allowlist_excludes_deprecated_and_low_value_models():
+def test_allowlist_excludes_raw_action_execution_models():
     from kernel_api.rpc.functions.bkm_cli.db import ALLOWED_MODEL_SPECS
 
     removed = {
-        "bkmonitor.models.base.ReportItems",
-        "bkmonitor.models.base.ReportContents",
-        "bkmonitor.models.base.ReportStatus",
         "bkmonitor.models.fta.action.ActionInstance",
         "bkmonitor.models.fta.action.ActionInstanceLog",
     }

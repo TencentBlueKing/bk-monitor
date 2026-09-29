@@ -65,6 +65,8 @@ class ModelSpec:
     # 以读到 is_deleted=True 的行——「配置真删/真禁」类排障必须能看到软删行，否则 .objects
     # （RecordModelManager）会过滤掉 is_deleted 的行，缺失正是要看的证据。
     manager_name: str = "objects"
+    # 含订阅发送信息的模型只允许指定一个订阅 ID，避免空 filter 或宽范围枚举。
+    required_exact_filter: str = ""
 
 
 MASKED_VALUE = "***masked***"
@@ -215,6 +217,81 @@ def _mask_deployment_config_row(item: dict[str, Any], instance: Any) -> dict[str
 
 
 ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
+    "bkmonitor.models.base.ReportItems": ModelSpec(
+        model_path="bkmonitor.models.base.ReportItems",
+        fields={
+            "id",
+            "bk_tenant_id",
+            "frequency",
+            "last_send_time",
+            "is_enabled",
+            "is_deleted",
+            "is_link_enabled",
+            "create_time",
+            "update_time",
+        },
+        sensitive_fields={"mail_title", "receivers", "managers", "channels", "create_user", "update_user"},
+        manager_name="origin_objects",
+        required_exact_filter="id",
+        note="旧邮件订阅；必须按正整数 id 精确读取，含软删行。接收人、管理员和渠道详情不透出。",
+        examples=[{"filter": {"id": 1}, "limit": 1}],
+    ),
+    "bkmonitor.models.base.ReportContents": ModelSpec(
+        model_path="bkmonitor.models.base.ReportContents",
+        fields={"id", "bk_tenant_id", "report_item", "row_pictures_num", "width", "height"},
+        sensitive_fields={"content_title", "content_details", "graphs"},
+        required_exact_filter="report_item",
+        note="旧邮件订阅内容结构；必须按正整数 report_item 精确读取，不返回图表配置和正文。",
+        examples=[{"filter": {"report_item": 1}, "limit": 20}],
+    ),
+    "bkmonitor.models.base.ReportStatus": ModelSpec(
+        model_path="bkmonitor.models.base.ReportStatus",
+        fields={"id", "bk_tenant_id", "report_item", "create_time", "is_success"},
+        sensitive_fields={"mail_title", "details"},
+        required_exact_filter="report_item",
+        note="旧邮件订阅发送状态；必须按正整数 report_item 精确读取，不返回发送详情。",
+        examples=[{"filter": {"report_item": 1}, "order_by": ["-create_time"], "limit": 20}],
+    ),
+    "bkmonitor.models.report.Report": ModelSpec(
+        model_path="bkmonitor.models.report.Report",
+        fields={
+            "id",
+            "bk_biz_id",
+            "scenario",
+            "frequency",
+            "start_time",
+            "end_time",
+            "send_mode",
+            "subscriber_type",
+            "send_round",
+            "is_manager_created",
+            "is_enabled",
+            "is_deleted",
+            "create_time",
+            "update_time",
+        },
+        sensitive_fields={"name", "content_config", "scenario_config", "create_user", "update_user"},
+        manager_name="origin_objects",
+        required_exact_filter="id",
+        note="新邮件订阅；必须按正整数 id 精确读取，含软删行。不返回内容或场景配置。",
+        examples=[{"filter": {"id": 1}, "limit": 1}],
+    ),
+    "bkmonitor.models.report.ReportChannel": ModelSpec(
+        model_path="bkmonitor.models.report.ReportChannel",
+        fields={"id", "report_id", "channel_name", "is_enabled"},
+        sensitive_fields={"subscribers", "send_text"},
+        required_exact_filter="report_id",
+        note="新邮件订阅渠道状态；必须按正整数 report_id 精确读取，不返回订阅人。",
+        examples=[{"filter": {"report_id": 1}, "limit": 20}],
+    ),
+    "bkmonitor.models.report.ReportSendRecord": ModelSpec(
+        model_path="bkmonitor.models.report.ReportSendRecord",
+        fields={"id", "report_id", "channel_name", "send_status", "send_time", "send_round"},
+        sensitive_fields={"send_results"},
+        required_exact_filter="report_id",
+        note="新邮件订阅发送记录；必须按正整数 report_id 精确读取，不返回逐人发送结果。",
+        examples=[{"filter": {"report_id": 1}, "order_by": ["-send_time"], "limit": 20}],
+    ),
     "metadata.models.bcs.cluster.BCSClusterInfo": ModelSpec(
         model_path="metadata.models.bcs.cluster.BCSClusterInfo",
         fields={
@@ -1115,6 +1192,8 @@ def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
     # 仅非默认 manager 才回显，避免改动既有模型自描述（默认 objects 的模型输出保持不变）。
     if spec.manager_name != "objects":
         serialized["manager"] = spec.manager_name
+    if spec.required_exact_filter:
+        serialized["required_exact_filter"] = spec.required_exact_filter
     return serialized
 
 
@@ -1171,6 +1250,10 @@ def _normalize_filter(raw_filter: dict[str, Any], spec: ModelSpec) -> dict[str, 
             if lookup != "exact" or value != fixed_value:
                 _raise_discovery_error(f"filter 与模型固定条件冲突: {fixed_field}")
         normalized_filter[fixed_field] = fixed_value
+    if spec.required_exact_filter:
+        value = normalized_filter.get(spec.required_exact_filter)
+        if type(value) is not int or value <= 0:
+            _raise_discovery_error(f"filter 必须包含正整数 {spec.required_exact_filter} 的精确条件")
     return normalized_filter
 
 
