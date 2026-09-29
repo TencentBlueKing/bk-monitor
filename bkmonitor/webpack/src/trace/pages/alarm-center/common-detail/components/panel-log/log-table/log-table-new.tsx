@@ -38,7 +38,7 @@ import {
 
 import { type TableSort, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { debounce } from 'lodash';
-import TableSkeleton from 'trace/components/skeleton/table-skeleton';
+import { DetailTableSkeleton, DetailLoadStatus } from '@/pages/alarm-center/common-detail/detail-loading';
 import { useI18n } from 'vue-i18n';
 
 import { useTable } from './hooks/use-table';
@@ -80,7 +80,10 @@ export default defineComponent({
     const { t } = useI18n();
     const wrapRef = useTemplateRef<HTMLDivElement>('wrap');
     const wrapWidth = shallowRef(800);
-    const loading = shallowRef(false);
+    const loading = shallowRef(true);
+    const error = shallowRef(false);
+    let requestId = 0;
+    let fieldsRequestId = 0;
     const {
       tableData,
       tableColumns,
@@ -112,27 +115,19 @@ export default defineComponent({
     const resizeObserver = shallowRef<ResizeObserver>();
 
     watch(
-      () => props.refreshKey,
-      async val => {
-        loading.value = true;
-        if (val) {
-          handleScroll(true);
-        }
-      },
-      { immediate: true }
-    );
-
-    watch(
       () => props.displayFields,
       val => {
         if (val.length) {
-          setTableColumns();
+          setTableColumns().catch(() => { error.value = true; });
         }
       }
     );
 
     const setTableColumns = async () => {
-      fieldsData.value = await getFieldsData();
+      const current = ++fieldsRequestId;
+      const data = await getFieldsData();
+      if (current !== fieldsRequestId) return;
+      fieldsData.value = data;
       setFieldsData(fieldsData.value);
       fieldsDataToColumns(fieldsData.value?.fields || [], props.displayFields);
     };
@@ -161,6 +156,9 @@ export default defineComponent({
 
     const handleScroll = async (isInit = false) => {
       if (isInit) {
+        ++requestId;
+        error.value = false;
+        expandedRowKeys.value = [];
         offset.value = 0;
         tableData.value = [];
         originLogData.value = [];
@@ -168,35 +166,48 @@ export default defineComponent({
         scrollLoading.value = false;
         loading.value = false;
       }
-      if (isEnd.value || scrollLoading.value) {
+      if (error.value || isEnd.value || scrollLoading.value || loading.value) {
         return;
       }
+      const current = ++requestId;
       if (offset.value) {
         scrollLoading.value = true;
       } else {
         loading.value = true;
       }
-      if (isInit) {
-        await setTableColumns();
-      }
+      try {
+      if (isInit) await setTableColumns();
+      if (current !== requestId) return;
       const data = await getTableData();
+      if (current !== requestId) return;
       tableData.value = [...tableData.value, ...(data?.list || [])];
       originLogData.value = [...originLogData.value, ...(data?.origin_log_list || [])];
       isEnd.value = tableData.value.length < limit.value + offset.value;
-      scrollLoading.value = false;
-      loading.value = false;
       offset.value = tableData.value.length;
       nextTick(() => {
+        if (current !== requestId) return;
         if (isInit) {
           setDefaultFieldWidth();
         }
-        const loadingEl = wrapRef.value.querySelector('.scroll-loading___observer');
+        const loadingEl = wrapRef.value?.querySelector('.scroll-loading___observer');
         if (loadingEl) {
           observer.value?.unobserve?.(loadingEl);
-          observer.value.observe(loadingEl);
+          observer.value?.observe(loadingEl);
         }
       });
+      } catch {
+        if (current === requestId) error.value = true;
+      } finally {
+        if (current === requestId) {
+          loading.value = false;
+          scrollLoading.value = false;
+        }
+      }
     };
+    const retry = () => { error.value = false; handleScroll(!tableData.value.length); };
+    watch(() => props.refreshKey, val => {
+      if (val) handleScroll(true);
+    }, { immediate: true });
 
     const handleSortChange = (sort: TableSort) => {
       sortInfo.value = sort;
@@ -207,6 +218,7 @@ export default defineComponent({
       if (wrapRef.value) {
         wrapWidth.value = wrapRef.value.offsetWidth;
         const debounceSetWrapWidth = debounce(() => {
+          if (!wrapRef.value) return;
           wrapWidth.value = wrapRef.value.offsetWidth;
           setWrapWidth(wrapWidth.value);
         }, 200);
@@ -226,14 +238,17 @@ export default defineComponent({
     });
 
     onUnmounted(() => {
-      observer.value.disconnect();
-      resizeObserver.value.disconnect();
+      ++requestId;
+      ++fieldsRequestId;
+      observer.value?.disconnect();
+      resizeObserver.value?.disconnect();
     });
     onDeactivated(() => {
       expandedRowKeys.value = [];
     });
 
     return {
+      error, retry, scrollLoading,
       tableData,
       fieldsData,
       tableColumns,
@@ -262,7 +277,7 @@ export default defineComponent({
           }}
           class='scroll-loading scroll-loading___observer'
         >
-          <span>{this.isEnd ? this.t('到底了') : this.t('正加载更多内容…')}</span>
+          <span>{this.isEnd ? this.t('到底了') : this.scrollLoading ? this.t('正加载更多内容…') : ''}</span>
         </div>
       );
     };
@@ -271,8 +286,9 @@ export default defineComponent({
         ref='wrap'
         class='alarm-detail-log-table-new'
       >
+        <DetailLoadStatus error={this.error} onRetry={this.retry} />
         {this.loading ? (
-          <TableSkeleton />
+          <DetailTableSkeleton columns={this.tableColumns.length ? this.tableColumns : this.displayFields.length ? this.displayFields.map(colKey => ({ colKey, title: colKey })) : [{ colKey: 'time', title: this.t('时间'), width: 200 }, { colKey: 'log', title: this.t('日志内容') }]} />
         ) : this.tableData.length ? (
           <PrimaryTable
             class={'panel-log-log-table'}
@@ -296,7 +312,7 @@ export default defineComponent({
                 colspan: colIndex === this.tableColumns.length ? 2 : 1,
               };
             }}
-            asyncLoading={(this.tableData.length ? customAsyncLoadingFn : false) as any}
+            asyncLoading={(this.tableData.length && !this.error ? customAsyncLoadingFn : false) as any}
             data={this.tableData}
             expandedRow={this.expandedRow}
             expandedRowKeys={this.expandedRowKeys}
@@ -315,7 +331,7 @@ export default defineComponent({
             onSortChange={this.handleSortChange}
           />
         ) : (
-          this.$slots?.empty?.()
+          !this.error && this.$slots?.empty?.()
         )}
       </div>
     );

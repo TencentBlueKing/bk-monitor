@@ -23,14 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, onScopeDispose, shallowRef, watch } from 'vue';
 
 import dayjs from 'dayjs';
 import { listIssueHistory } from 'monitor-api/modules/issue';
 
+import IssuesLoading from '../issues-loading';
+import { DetailLoadStatus } from '../../../../common-detail/detail-loading';
+
 import BasicCard from '../basic-card/basic-card';
 import EmptyStatus from '@/components/empty-status/empty-status';
-import useRequestAbort from '@/hooks/useRequestAbort';
+
 
 import type { IssueDetail, IssueHistoryItem } from '../../../typing';
 
@@ -39,6 +42,7 @@ import './issues-history.scss';
 export default defineComponent({
   name: 'IssuesHistory',
   props: {
+    refreshKey: { type: String, default: '' },
     detail: {
       type: Object as PropType<IssueDetail>,
       default: () => ({}),
@@ -48,19 +52,30 @@ export default defineComponent({
   setup(props) {
     const historyList = shallowRef<IssueHistoryItem[]>([]);
     const loading = shallowRef(false);
+    const loaded = shallowRef(false);
+    const error = shallowRef(false);
+    let controller: AbortController;
+    onScopeDispose(() => controller?.abort());
 
-    const { run, signal } = useRequestAbort<IssueHistoryItem[]>(listIssueHistory);
 
     /** 获取 Issue 历史列表*/
     const getIssuesHistoryList = async () => {
+      controller?.abort();
+      controller = new AbortController();
+      const { signal } = controller;
+      if (!props.detail?.id || !props.detail?.bk_biz_id) return;
       loading.value = true;
-      const res = await run({
-        bk_biz_id: props.detail.bk_biz_id,
-        issue_id: props.detail.id,
-      });
-      if (signal?.aborted) return;
-      historyList.value = res;
-      loading.value = false;
+      error.value = false;
+      try {
+        const res = await listIssueHistory({ bk_biz_id: props.detail.bk_biz_id, issue_id: props.detail.id }, { signal });
+        if (signal.aborted) return;
+        historyList.value = Array.isArray(res) ? res : [];
+        loaded.value = true;
+      } catch {
+        if (!signal.aborted) error.value = true;
+      } finally {
+        if (!signal.aborted) loading.value = false;
+      }
     };
 
     /** 新开页展示issues详情 */
@@ -70,31 +85,20 @@ export default defineComponent({
       window.open(url, '_blank');
     };
 
-    const renderSkeleton = () => {
-      return new Array(5).fill(0).map((_, index) => (
-        <div
-          key={index}
-          class='issues-history-item skeleton-element'
-        />
-      ));
-    };
-
     watch(
-      () => props.detail?.id,
-      id => {
-        if (id) {
-          getIssuesHistoryList();
-        }
-      }
+      [() => props.detail?.id, () => props.detail?.bk_biz_id, () => props.refreshKey],
+      getIssuesHistoryList,
+      { immediate: true }
     );
 
-    getIssuesHistoryList();
 
     return {
       historyList,
       loading,
       handleClick,
-      renderSkeleton,
+      loaded,
+      error,
+      retry: getIssuesHistoryList,
     };
   },
 
@@ -105,9 +109,10 @@ export default defineComponent({
         title={this.$t('历史 Issue')}
       >
         <div class='issues-history-list'>
-          {this.loading ? (
-            this.renderSkeleton()
-          ) : this.historyList.length ? (
+          <DetailLoadStatus loading={this.loading && this.loaded} error={this.error} onRetry={this.retry} />
+          {this.loading && !this.loaded ? (
+            <IssuesLoading variant='history' />
+          ) : !this.loaded ? null : this.historyList.length ? (
             this.historyList.map(item => (
               <div
                 key={item.issue_id}

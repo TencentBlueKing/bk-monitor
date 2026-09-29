@@ -47,6 +47,6 @@ export const getTapdRelations = (
   },
   options?: RequestOptions
 ): Promise<TapdRelationItem[]> => {
-  const data = listIssueTapdRelations(params, options).catch(() => []);
+  const data = listIssueTapdRelations(params, options);
   return data;
 };

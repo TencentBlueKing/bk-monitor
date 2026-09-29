@@ -36,6 +36,7 @@ test('full handoff removes only invalid selections from its snapshot and retains
   let finishValidation;
   const data = {
     fullDataReady: vue.shallowRef(false),
+    snapshotVersion: vue.shallowRef(0),
     pagedRows: vue.shallowRef([]),
     total: vue.shallowRef(100),
   };
@@ -100,6 +101,11 @@ test('full handoff removes only invalid selections from its snapshot and retains
   finishValidation({ rows: [{ id: '1' }] });
   await flush();
   assert.deepEqual([...controller.selectedRowKeys.value], ['1', '2']);
+  data.snapshotVersion.value++;
+  await vue.nextTick();
+  finishValidation({ rows: [{ id: '2' }] });
+  await flush();
+  assert.deepEqual([...controller.selectedRowKeys.value], ['2'], 'background snapshot also validates selections without toggling readiness');
   effect.stop();
 });
 
@@ -470,5 +476,76 @@ test('Worker failure keeps the page path and full retry reinitializes the succes
   await h.data.retryFullData();
   assert.equal(h.data.fullDataReady.value, true);
   assert.equal(h.calls.filter(c => c.name === 'getHostInfoList').length, 1);
+  h.effect.stop();
+});
+
+test('same-query refresh retains rows, statistics and filtering until the new snapshot is ready', async () => {
+  const h = harness();
+  void h.data.loadData();
+  await h.completeFull([1, 2], { 1: { cpu_usage: 90 }, 2: { cpu_usage: 10 } });
+  const snapshot = h.data.pagedRows.value;
+  const stats = h.data.categoryStats.value;
+  const pageCalls = h.calls.filter(c => c.name === 'getHostInfoPage').length;
+  void h.data.loadData(true);
+  assert.equal(h.data.loading.value, false);
+  assert.equal(h.data.fullLoading.value, true);
+  assert.equal(h.data.fullDataReady.value, true);
+  assert.equal(h.data.retainingData.value, true);
+  assert.equal(h.data.pagedRows.value, snapshot);
+  assert.equal(h.data.categoryStats.value, stats);
+  assert.equal(h.calls.filter(c => c.name === 'getHostInfoPage').length, pageCalls);
+  h.filters.keyword = '127.0.0.1';
+  h.data.invalidateView();
+  await h.data.refreshList();
+  assert.deepEqual(h.data.pagedRows.value.map(row => row.id), ['1']);
+  assert.equal(h.data.fullLoading.value, true, 'local filtering must not finish the background refresh');
+  await h.completeFull([1, 2, 3], { 1: { cpu_usage: 42 } });
+  assert.equal(h.data.fullLoading.value, false);
+  assert.equal(h.data.retainingData.value, false);
+  assert.equal(h.data.pagedRows.value[0].cpu_usage, 42);
+  h.effect.stop();
+});
+
+test('failed background refresh preserves usable data and retry replaces it without page fallback', async () => {
+  const h = harness();
+  void h.data.loadData();
+  await h.completeFull([1], { 1: { cpu_usage: 80 } });
+  void h.data.loadData(true);
+  h.respond('getHostInfoList', [host(1)]);
+  h.respond('getHostMetricInfoList', new Error('refresh failed'), p => !p.bk_host_ids, true);
+  await flush();
+  assert.equal(h.data.fullLoadError.value, true);
+  assert.equal(h.data.fullLoading.value, false);
+  assert.equal(h.data.fullDataReady.value, true);
+  assert.equal(h.data.loading.value, false);
+  assert.equal(h.data.pagedRows.value[0].cpu_usage, 80);
+  void h.data.retryFullData();
+  h.respond('getHostMetricInfoList', { 1: { cpu_usage: 20 } }, p => !p.bk_host_ids);
+  await flush();
+  assert.equal(h.data.fullLoadError.value, false);
+  assert.equal(h.data.pagedRows.value[0].cpu_usage, 20);
+  assert.equal(h.data.retainingData.value, false);
+  h.effect.stop();
+});
+
+test('query change discards refresh presentation and late refresh cannot finish the new loading state', async () => {
+  const h = harness();
+  void h.data.loadData();
+  await h.completeFull([1]);
+  void h.data.loadData(true);
+  const oldBase = h.pending('getHostInfoList');
+  const oldMetrics = h.pending('getHostMetricInfoList', p => !p.bk_host_ids);
+  h.setAnchor(2000);
+  void h.data.loadData();
+  assert.equal(h.data.loading.value, true);
+  assert.equal(h.data.retainingData.value, false);
+  assert.equal(h.data.fullDataReady.value, false);
+  oldBase.done = oldMetrics.done = true;
+  oldBase.resolve([host(99)]);
+  oldMetrics.resolve({});
+  await flush();
+  assert.equal(h.data.loading.value, true);
+  await h.completeFull([2]);
+  assert.deepEqual(h.data.pagedRows.value.map(row => row.id), ['2']);
   h.effect.stop();
 });

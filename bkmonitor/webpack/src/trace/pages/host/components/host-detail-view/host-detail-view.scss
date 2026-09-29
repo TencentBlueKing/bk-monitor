@@ -1,4 +1,5 @@
 .host-detail-view-wrapper {
+  position: relative;
   width: 100%;
   height: 100%;
   padding: 0 16px;
@@ -19,16 +20,4 @@
     white-space: nowrap;
   }
 
-  .host-detail-view-skeleton {
-    display: flex;
-    flex-direction: column;
-    padding: 8px 0;
-
-    .host-detail-view-skeleton-row {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      margin-top: 12px;
-    }
-  }
 }

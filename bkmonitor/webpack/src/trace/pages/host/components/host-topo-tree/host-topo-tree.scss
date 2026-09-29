@@ -64,17 +64,6 @@
     overflow: hidden;
   }
 
-  &__loading {
-    .skeleton-row {
-      height: 32px;
-      padding: 6px 4px;
-
-      .skeleton-element {
-        width: 100%;
-        height: 20px;
-      }
-    }
-  }
 
   &__scroller {
     position: relative;
@@ -237,8 +226,13 @@
   }
 
   &__notice {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    align-items: center;
     padding: 8px 12px;
     font-size: 12px;
+    line-height: 20px;
     color: #979ba5;
     background: #f5f7fa;
   }

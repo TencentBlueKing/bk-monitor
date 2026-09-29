@@ -53,6 +53,8 @@ import type { IFilterField } from '@/components/retrieval-filter/typing';
 export interface RequestOptions {
   /** 中止信号 */
   signal?: AbortSignal;
+  /** 告警列表查询失败时透传错误，供调用方展示失败和重试。 */
+  throwOnError?: boolean;
 }
 
 export abstract class AlarmService<S = AlarmType> {

@@ -30,6 +30,7 @@ import { K8sNewTabEnum, K8sTableColumnKeysEnum } from 'monitor-pc/pages/monitor-
 import { storeToRefs } from 'pinia';
 
 import { handleTransformToTimestampMs } from '../../../../../components/time-range/utils';
+import DetailLoading, { DetailLoadStatus } from '../../detail-loading';
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 // import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
@@ -77,14 +78,17 @@ export default defineComponent({
     >('traceSpanInfo');
     const { timeRange, bizId } = traceSpanInfo?.value ? traceSpanInfo.value : storeToRefs(useAlarmCenterDetailStore());
     // TODO: 当 span 详情时使用专用的hook，返回的内容要保持一致
-    const { scene, currentTarget, sceneList, targetList, groupBy, loading } = traceSpanInfo?.value
+    const targetState = traceSpanInfo?.value
       ? useTraceSpanK8s(traceSpanInfo.value)
       : useAlertK8s({
           alertId: toRef(props, 'alertId'),
           bizId,
         });
+    const { scene, currentTarget, sceneList, targetList, groupBy, loading } = targetState;
+    const targetError = 'error' in targetState ? targetState.error : shallowRef(false);
+    const retryTarget = () => { if ('retry' in targetState) targetState.retry(); };
     /** 需要渲染的仪表盘面板配置数组 */
-    const { dashboards, loading: k8sDashboardLoading } = useK8sChartPanel({
+    const { dashboards, loading: k8sDashboardLoading, error: dashboardError, retry: retryDashboard } = useK8sChartPanel({
       scene,
       groupBy,
       currentTarget,
@@ -174,6 +178,8 @@ export default defineComponent({
       groupBy,
       loading,
       k8sDashboardLoading,
+      dashboardError, retryDashboard,
+      targetError, retryTarget,
       dashboards,
       canLinkTok8s,
       dataZoomTimeRange,
@@ -187,7 +193,7 @@ export default defineComponent({
   render() {
     return (
       <div class={['alarm-center-detail-panel-k8s', this.loading ? 'is-loading' : '']}>
-        {this.canLinkTok8s || this.loading ? (
+        {this.targetError ? <DetailLoadStatus error onRetry={this.retryTarget} /> : this.canLinkTok8s || this.loading ? (
           <>
             <div class='panel-k8s-white-bg-container'>
               <div class='k8s-selector-wrap'>
@@ -238,7 +244,7 @@ export default defineComponent({
               </div>
             </div>
             <div class='panel-k8s-chart-wrap'>
-              <AlarmDashboardGroup
+              {this.loading ? <DetailLoading variant='dashboard' /> : this.dashboardError ? <DetailLoadStatus error onRetry={this.retryDashboard} /> : <AlarmDashboardGroup
                 params={{
                   bk_biz_id: this.bizId,
                 }}
@@ -263,7 +269,7 @@ export default defineComponent({
                     />
                   ),
                 }}
-              </AlarmDashboardGroup>
+              </AlarmDashboardGroup>}
             </div>
           </>
         ) : (

@@ -23,13 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, watch } from 'vue';
+import { defineComponent, onScopeDispose, shallowRef, watch } from 'vue';
 import type { PropType } from 'vue';
 
-import { Alert, Button, Dialog, Input, Loading, Message } from 'bkui-vue';
+import { Alert, Button, Dialog, Input, Message } from 'bkui-vue';
 import { getActionConfigByAlerts } from 'monitor-api/modules/action';
 import { ackAlert } from 'monitor-api/modules/alert_v2';
 import { useI18n } from 'vue-i18n';
+
+import DetailLoading, { DetailLoadStatus } from '../../detail-loading';
 
 import './alarm-confirm-dialog.scss';
 
@@ -55,28 +57,26 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const loading = shallowRef(false);
+    const submitting = shallowRef(false);
+    const loadError = shallowRef(false);
+    let requestId = 0;
+    onScopeDispose(() => { ++requestId; });
     /** 备注信息 */
     const content = shallowRef('');
     /** 关联套餐信息 */
     const infoContent = shallowRef([]);
 
-    watch(
-      () => props.show,
-      val => {
-        if (val) {
-          getInfoData();
-        }
-      }
-    );
-
     // 获取关联的套餐信息
     const getInfoData = () => {
+      const current = ++requestId;
+      loadError.value = false;
       loading.value = true;
       getActionConfigByAlerts({
         alert_ids: props.alarmIds,
         bk_biz_id: props.alarmBizId,
       })
         .then(data => {
+          if (current !== requestId) return;
           infoContent.value = data
             .reduce((total, item) => {
               if (item.action_configs?.length) {
@@ -86,22 +86,26 @@ export default defineComponent({
             }, [])
             .filter((item, index, arr) => arr.map(a => a.id).indexOf(item.id, 0) === index); // 去重
         })
+        .catch(() => { if (current === requestId) loadError.value = true; })
         .finally(() => {
-          loading.value = false;
+          if (current === requestId) loading.value = false;
         });
     };
 
     // 确认告警
     const handleAlarmConfirm = async () => {
-      loading.value = true;
+      if (loading.value || loadError.value || submitting.value) return;
+      const current = requestId;
+      submitting.value = true;
       const params = {
         ids: props.alarmIds,
         bk_biz_id: props.alarmBizId,
         message: content.value,
       };
-      const res = await ackAlert(params).finally(() => {
-        loading.value = false;
+      const res = await ackAlert(params).catch(() => null).finally(() => {
+        if (current === requestId) submitting.value = false;
       });
+      if (current !== requestId) return;
       if (res) {
         let msg = {
           theme: 'success',
@@ -136,9 +140,18 @@ export default defineComponent({
       emit('update:show', val);
     };
 
+    watch(() => [props.show, props.alarmBizId, props.alarmIds.join(',')], () => {
+      ++requestId;
+      submitting.value = false;
+      infoContent.value = [];
+      if (props.show) getInfoData();
+      else loading.value = false;
+    }, { immediate: true });
+
     return {
       t,
       loading,
+      submitting, loadError, retry: getInfoData,
       content,
       infoContent,
       handleShowChange,
@@ -152,7 +165,7 @@ export default defineComponent({
         width={480}
         v-slots={{
           default: () => (
-            <Loading loading={this.loading}>
+            <div>
               <div class='alarm-confirm-dialog'>
                 <Alert
                   class='info-tips'
@@ -170,7 +183,7 @@ export default defineComponent({
                   }}
                   theme='info'
                 />
-                {this.infoContent.length
+                {this.loading ? <DetailLoading variant='list' /> : this.loadError ? <DetailLoadStatus error onRetry={this.retry} /> : this.infoContent.length
                   ? [
                       <div
                         key='title'
@@ -208,13 +221,14 @@ export default defineComponent({
                   type='textarea'
                 />
               </div>
-            </Loading>
+            </div>
           ),
           footer: () => (
             <div class='footer-btns'>
               <Button
                 style='margin-right: 10px'
-                disabled={this.loading}
+                disabled={this.loading || this.loadError}
+                loading={this.submitting}
                 theme='primary'
                 onClick={this.handleAlarmConfirm}
               >
