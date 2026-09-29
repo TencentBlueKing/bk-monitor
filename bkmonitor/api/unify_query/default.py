@@ -582,6 +582,13 @@ class QueryMultiResource(UnifyQueryAPIResource):
         query_list = serializers.ListField(child=QueryListSerializer(), min_length=1)
 
 
+class QueryMultiResourceV1Beta3(QueryMultiResource):
+    """Explicit v1beta3 probe, independent of the business rollout switch."""
+
+    path = RELATION_MULTI_RESOURCE_V1BETA3_PATH
+    v1beta3_path = ""
+
+
 class QueryInfoFieldMapResource(UnifyQueryAPIResource):
     method = "POST"
     path = "/query/ts/info/field_map"
