@@ -790,6 +790,15 @@ export default class ApmServiceList extends tsc<
                           {!(this.loading && !this.listLoaded) ? (
                             <CommonTable
                               class='apm-index-table'
+                              scopedSlots={{
+                                asyncLoading: () => (
+                                  <span
+                                    class='apm-home-placeholder apm-async-cell-skeleton'
+                                    aria-label={this.$t('加载中')}
+                                    role='status'
+                                  />
+                                ),
+                              }}
                               checkable={false}
                               columns={this.tableColumns}
                               data={this.tableData}

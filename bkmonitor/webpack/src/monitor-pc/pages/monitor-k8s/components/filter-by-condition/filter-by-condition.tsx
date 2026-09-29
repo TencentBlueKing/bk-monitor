@@ -32,7 +32,6 @@ import { debounce, throttle } from 'throttle-debounce';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { type ICommonParams, EDimensionKey } from '../../typings/k8s-new';
 import KvTag from './big-kv-tag';
-
 import {
   type IFilterByItem,
   type IGroupOptionsItem,
@@ -55,7 +54,7 @@ type TFilterByDict = Record<EDimensionKey | string, string[]>;
 
 @Component
 export default class FilterByCondition extends tsc<IProps> {
-  @InjectReactive('refleshImmediate') refreshImmediate;
+  @InjectReactive('refreshImmediate') refreshImmediate;
   @InjectReactive({ from: 'isApmMonitor', default: false }) isApmMonitor!: boolean;
   @InjectReactive({ from: 'apmResourceType', default: '' }) apmResourceType!: '' | IK8sTargetList['resource_type'];
 
@@ -101,6 +100,8 @@ export default class FilterByCondition extends tsc<IProps> {
   valueLoading = false;
   rightValueLoading = false;
   filterByOptions: FilterByOptions;
+  disposed = false;
+  countRequestId = 0;
 
   resizeObserver = null;
   overflowCountRenderDebounce = null;
@@ -111,7 +112,7 @@ export default class FilterByCondition extends tsc<IProps> {
   cursorIndex = -1;
   cursorLeftIndex = -1;
 
-  handleValueOptionsScrollThrottle = _v => {};
+  handleValueOptionsScrollThrottle: ReturnType<typeof throttle> = null;
 
   get hasAdd() {
     const ids = this.allOptions.reduce((acc, item) => {
@@ -165,9 +166,13 @@ export default class FilterByCondition extends tsc<IProps> {
     this.initData();
   }
 
-  @Debounce(200)
-  async initData() {
+  initData() {
+    this.countRequestId++;
+    if (this.disposed) return;
     if (!this.commonParams?.bcs_cluster_id) {
+      this.filterByOptions = null;
+      this.allOptions = [];
+      this.loading = false;
       return;
     }
     this.loading = true;
@@ -185,10 +190,23 @@ export default class FilterByCondition extends tsc<IProps> {
       with_history: false,
       query_string: this.searchValue,
     });
-    await this.filterByOptions.init();
-    this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
-    await this.initNextPage();
-    this.loading = false;
+    this.valueLoading = false;
+    this.rightValueLoading = false;
+    this.scrollLoading = false;
+    this.loadOptions();
+  }
+
+  @Debounce(200)
+  async loadOptions() {
+    if (this.disposed || !this.filterByOptions) return;
+    const source = this.filterByOptions;
+    try {
+      await source.init();
+      if (source !== this.filterByOptions || this.disposed) return;
+      await this.initNextPage(undefined, undefined, source);
+    } finally {
+      if (source === this.filterByOptions && !this.disposed) this.loading = false;
+    }
   }
 
   mounted() {
@@ -203,6 +221,11 @@ export default class FilterByCondition extends tsc<IProps> {
   }
 
   destroyed() {
+    this.disposed = true;
+    this.filterByOptions = null;
+    this.overflowCountRenderDebounce?.cancel?.();
+    this.handleValueOptionsScrollThrottle?.cancel?.();
+    this.destroyPopoverInstance();
     this.resizeObserver.disconnect();
   }
 
@@ -370,7 +393,7 @@ export default class FilterByCondition extends tsc<IProps> {
       onHidden: () => {
         this.destroyPopoverInstance();
         this.setTagList();
-        this.filterByOptions.setIsUpdate(false);
+        this.filterByOptions?.setIsUpdate(false);
         this.updateActive = '';
         this.addValueSelected = new Map();
         this.workloadValueSelected = '';
@@ -448,26 +471,39 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param value
    * @returns
    */
+  forkOptions() {
+    const source = this.filterByOptions;
+    const next = new FilterByOptions(JSON.parse(JSON.stringify(source.commonParams)));
+    next.dimensionData = JSON.parse(JSON.stringify(source.dimensionData));
+    next.pageMap = { ...source.pageMap };
+    next.isUpdate = source.isUpdate;
+    this.filterByOptions = next;
+    this.valueLoading = false;
+    this.rightValueLoading = false;
+    this.scrollLoading = false;
+    return next;
+  }
+
   async handleSearchChange(value: string) {
+    if (this.loading || !this.filterByOptions || this.disposed) return;
     this.customOptionChecked = !!this.addValueSelected.get(this.groupSelected)?.has?.(value);
     this.searchValue = value;
+    const source = this.forkOptions();
+    const group = this.groupSelected as EDimensionKey;
+    const category = group === EDimensionKey.workload ? this.valueCategorySelected : '';
     this.valueLoading = true;
-    const params = {
-      0: this.groupSelected as EDimensionKey,
-      1: this.groupSelected === EDimensionKey.workload ? this.valueCategorySelected : '',
-    };
-    await this.filterByOptions.search(value, params[0], params[1]);
-    this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
-    for (const item of this.groupOptions) {
-      if (item.id === this.groupSelected) {
-        const count = this.allOptions.find(o => o.id === item.id)?.count || 0;
-        item.count = count;
-        break;
+    try {
+      await source.search(value, group, category);
+      if (source !== this.filterByOptions || this.disposed) return;
+      await this.initNextPage(group, category, source);
+      if (source !== this.filterByOptions || this.disposed) return;
+      for (const item of this.groupOptions) {
+        if (item.id === group) item.count = this.allOptions.find(o => o.id === group)?.count || 0;
       }
+      this.handleSelectGroup(group, true);
+    } finally {
+      if (source === this.filterByOptions && !this.disposed) this.valueLoading = false;
     }
-    await this.initNextPage(params[0], params[1]);
-    this.handleSelectGroup(this.groupSelected, true);
-    this.valueLoading = false;
   }
 
   /**
@@ -642,6 +678,7 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param event
    */
   async handleAddTag(event: MouseEvent) {
+    if (this.loading || !this.filterByOptions) return;
     this.searchValue = '';
     this.setGroupOptions();
     this.setCountData();
@@ -654,6 +691,7 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param item
    */
   async handleUpdateTag(target: any, item: ITagListItem) {
+    if (this.loading || !this.filterByOptions) return;
     this.searchValue = '';
     this.updateActive = item.key;
     if (item.id === EDimensionKey.workload) {
@@ -675,13 +713,20 @@ export default class FilterByCondition extends tsc<IProps> {
 
   // 切换workload 分类
   async handleSelectCategory(item: IValueItem) {
+    if (this.loading || !this.filterByOptions || this.disposed) return;
     this.valueCategorySelected = item.id;
     this.cursorLeftIndex = -1;
+    const source = this.forkOptions();
+    const group = this.groupSelected as EDimensionKey;
     this.rightValueLoading = true;
-    await this.filterByOptions.initOfType(this.groupSelected as EDimensionKey, item.id);
-    this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
-    this.handleSelectGroup(this.groupSelected, true);
-    this.rightValueLoading = false;
+    try {
+      await source.initOfType(group, item.id);
+      if (source !== this.filterByOptions || this.disposed) return;
+      this.allOptions = this.getGroupList(source.dimensionData);
+      this.handleSelectGroup(group, true);
+    } finally {
+      if (source === this.filterByOptions && !this.disposed) this.rightValueLoading = false;
+    }
   }
 
   // 计算溢出个数
@@ -771,6 +816,7 @@ export default class FilterByCondition extends tsc<IProps> {
    * @param e
    */
   async handleValueOptionsScroll(e: any) {
+    if (this.loading || this.valueLoading || this.rightValueLoading || !this.filterByOptions || this.disposed) return;
     const { scrollTop, clientHeight, scrollHeight } = e.target;
     const isEnd = Math.abs(scrollTop + clientHeight - scrollHeight) <= 1;
     const pageEnd = this.filterByOptions.getPageEnd(this.groupSelected as EDimensionKey, this.valueCategorySelected);
@@ -779,10 +825,16 @@ export default class FilterByCondition extends tsc<IProps> {
       this.$nextTick(() => {
         this.valueItemsRef.scrollTop = this.valueItemsRef.scrollHeight - clientHeight;
       });
-      await this.filterByOptions.getNextPageData(this.groupSelected as EDimensionKey, this.valueCategorySelected);
-      this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
-      this.handleSelectGroup(this.groupSelected, true);
-      this.scrollLoading = false;
+      const source = this.filterByOptions;
+      const group = this.groupSelected as EDimensionKey;
+      try {
+        await source.getNextPageData(group, this.valueCategorySelected);
+        if (source !== this.filterByOptions || this.disposed) return;
+        this.allOptions = this.getGroupList(source.dimensionData);
+        this.handleSelectGroup(group, true);
+      } finally {
+        if (source === this.filterByOptions && !this.disposed) this.scrollLoading = false;
+      }
     }
   }
 
@@ -791,19 +843,19 @@ export default class FilterByCondition extends tsc<IProps> {
   }
 
   // 去重后发现数据过少，需立即加载下一页
-  async initNextPage(type?: EDimensionKey, categoryDim?: string) {
+  async initNextPage(type?: EDimensionKey, categoryDim?: string, source = this.filterByOptions) {
     const promiseList = [];
     const nextPage = async (dimension: EDimensionKey, categoryDim?: string) => {
-      const pageEnd = this.filterByOptions.getPageEnd(this.groupSelected as EDimensionKey, this.valueCategorySelected);
+      const pageEnd = source.getPageEnd(dimension, categoryDim);
       if (!pageEnd) {
-        await this.filterByOptions.getNextPageData(dimension, categoryDim);
+        await source.getNextPageData(dimension, categoryDim);
       }
     };
-    for (const item of this.allOptions) {
+    for (const item of this.getGroupList(source.dimensionData)) {
       if (type && item.id !== type) continue;
       if (item.id === EDimensionKey.workload) {
         for (const child of item.children) {
-          if (child && child.id !== categoryDim) continue;
+          if (categoryDim && child.id !== categoryDim) continue;
           if (child.children.length < 10 && child.count >= 10) {
             promiseList.push(nextPage(item.id, child.id));
           }
@@ -815,7 +867,7 @@ export default class FilterByCondition extends tsc<IProps> {
       }
     }
     await Promise.all(promiseList);
-    this.allOptions = this.getGroupList(this.filterByOptions.dimensionData);
+    if (source === this.filterByOptions && !this.disposed) this.allOptions = this.getGroupList(source.dimensionData);
   }
 
   async handleSelectGroupProxy(id: string) {
@@ -912,7 +964,18 @@ export default class FilterByCondition extends tsc<IProps> {
    */
   setCountData() {
     const dimensions = this.groupOptions.map(item => item.id).filter(id => id !== this.groupSelected);
-    this.filterByOptions.getCountData(dimensions as EDimensionKey[], this.searchValue, v => {
+    const source = this.filterByOptions;
+    const search = this.searchValue;
+    const requestId = ++this.countRequestId;
+    source.getCountData(dimensions as EDimensionKey[], search, v => {
+      if (
+        this.disposed ||
+        requestId !== this.countRequestId ||
+        source.commonParams.bcs_cluster_id !== this.commonParams.bcs_cluster_id ||
+        source.scenario !== this.commonParams.scenario ||
+        search !== this.searchValue
+      )
+        return;
       for (const item of this.groupOptions) {
         const count = v.get(item.id as EDimensionKey);
         if (typeof count === 'number') {
@@ -1042,6 +1105,39 @@ export default class FilterByCondition extends tsc<IProps> {
       this.handleSelectCategoryProxy(item);
       this.cursorLeftIndex = -1;
     }
+  }
+
+  renderValueSkeleton(category = false) {
+    return (
+      <div
+        class={['filter-menu-skeleton-list', { 'is-category': category }]}
+        aria-hidden='true'
+      >
+        {[62, 78, 46, 70, 54, 84, 58, 72].map((width, index) => (
+          <div
+            key={index}
+            class='filter-menu-skeleton-row'
+          >
+            <i
+              style={{ width: `${width}%` }}
+              class='skeleton-element filter-menu-skeleton-text'
+            />
+            {category && <i class='skeleton-element filter-menu-skeleton-count' />}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  renderMenuSkeleton() {
+    return this.isSelectedWorkload ? (
+      <div class='value-items-wrap'>
+        <div class='left-wrap'>{this.renderValueSkeleton(true)}</div>
+        {this.renderValueSkeleton()}
+      </div>
+    ) : (
+      this.renderValueSkeleton()
+    );
   }
 
   valuesWrap() {
@@ -1251,7 +1347,16 @@ export default class FilterByCondition extends tsc<IProps> {
   render() {
     return (
       <div class={['filter-by-condition-component', { 'expand-tags': this.isExpand }]}>
-        <div class='tag-list-wrap'>{this.tagsWrap()}</div>
+        <div
+          class='tag-list-wrap'
+          aria-busy={this.loading}
+        >
+          {this.loading && !this.tagList.length ? (
+            <span class='skeleton-element filter-tags-skeleton' />
+          ) : (
+            this.tagsWrap()
+          )}
+        </div>
         <div class='tag-list-wrap-hidden'>{this.tagsWrap(true)}</div>
         <div
           style={{
@@ -1261,25 +1366,35 @@ export default class FilterByCondition extends tsc<IProps> {
           <div
             ref='selector'
             class='filter-by-condition-component-popover'
+            aria-busy={this.loading || this.valueLoading || this.rightValueLoading}
           >
             {this.loading ? (
               <div class='filter-by-condition-skeleton'>
-                <div class='header-skeleton'>
-                  <div class='skeleton-element skeleton-item' />
+                <div
+                  class='filter-by-condition-component-popover-header'
+                  aria-hidden='true'
+                >
+                  {Array.from({ length: this.groupOptions.length || 4 }, (_, index) => (
+                    <div
+                      key={index}
+                      class='group-item skeleton-group'
+                    >
+                      <i class='skeleton-element skeleton-group-name' />
+                      <i class='skeleton-element skeleton-group-count' />
+                    </div>
+                  ))}
                 </div>
-                <div class='content-skeleton'>
-                  <div class='skeleton-loading-wrap'>
-                    {new Array(8).fill(null).map((_item, index) => {
-                      return (
-                        <div
-                          key={index}
-                          class='loading-item'
-                        >
-                          <div class='skeleton-element skeleton-item' />
-                        </div>
-                      );
-                    })}
+                <div class='filter-by-condition-component-popover-content'>
+                  <div
+                    class='values-search'
+                    aria-hidden='true'
+                  >
+                    <div class='filter-menu-skeleton-search'>
+                      <i class='bk-icon icon-search skeleton-search-icon' />
+                      <i class='skeleton-element skeleton-search-text' />
+                    </div>
                   </div>
+                  {this.renderMenuSkeleton()}
                 </div>
               </div>
             ) : (
@@ -1314,20 +1429,7 @@ export default class FilterByCondition extends tsc<IProps> {
                       onEnter={this.handleSearchEnter}
                     />
                   </div>
-                  {this.valueLoading ? (
-                    <div class='skeleton-loading-wrap'>
-                      {new Array(8).fill(null).map((_item, index) => {
-                        return (
-                          <div
-                            key={index}
-                            class='loading-item'
-                          >
-                            <div class='skeleton-element skeleton-item' />
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : this.valueCategoryOptions.length ? (
+                  {this.isSelectedWorkload && this.valueCategoryOptions.length ? (
                     <div class='value-items-wrap'>
                       <div class='left-wrap'>
                         {this.valueCategoryOptions.map((item, index) => (
@@ -1354,23 +1456,10 @@ export default class FilterByCondition extends tsc<IProps> {
                           </div>
                         ))}
                       </div>
-                      {this.rightValueLoading ? (
-                        <div class='skeleton-loading-wrap'>
-                          {new Array(8).fill(null).map((_item, index) => {
-                            return (
-                              <div
-                                key={index}
-                                class='loading-item'
-                              >
-                                <div class='skeleton-element skeleton-item' />
-                              </div>
-                            );
-                          })}
-                        </div>
-                      ) : (
-                        this.valuesWrap()
-                      )}
+                      {this.valueLoading || this.rightValueLoading ? this.renderValueSkeleton() : this.valuesWrap()}
                     </div>
+                  ) : this.valueLoading ? (
+                    this.renderMenuSkeleton()
                   ) : (
                     this.valuesWrap()
                   )}
