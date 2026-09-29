@@ -144,11 +144,31 @@ def test_null_cmdb_text_fields_are_preserved():
     assert invoke({"bk_biz_id": 2})["result"]["info"] == [item]
 
 
+def test_sparse_cmdb_host_identity_normalizes_ids_and_keeps_optional_fields():
+    call = handler()
+    call.return_value = {"count": 1, "info": [{"bk_host_id": "17", "bk_cloud_id": None, "bk_host_innerip": ""}]}
+    assert invoke({"bk_biz_id": 2})["result"]["info"] == [
+        {"bk_host_id": 17, "bk_cloud_id": 0, "bk_host_innerip": "", "bk_host_innerip_v6": None, "bk_host_name": None}
+    ]
+
+
+def test_invalid_host_id_error_identifies_shape_without_value():
+    call = handler()
+    call.return_value = {"count": 1, "info": [{**host(), "bk_host_id": "private-invalid-id"}]}
+    error = invoke({"bk_biz_id": 2})["error"]
+    assert error["code"] == "provider_unavailable"
+    assert "info[0].bk_host_id 格式无效" in error["message"]
+    assert "private-invalid-id" not in error["message"]
+
+
 @pytest.mark.parametrize("field", cmdb.HOST_FIELDS[2:])
 def test_nested_objects_cannot_escape_in_fixed_text_fields(field):
     call = handler()
     call.return_value = {"count": 1, "info": [{**host(), field: {"private": "value"}}]}
-    assert invoke({"bk_biz_id": 2})["error"]["code"] == "provider_unavailable"
+    error = invoke({"bk_biz_id": 2})["error"]
+    assert error["code"] == "provider_unavailable"
+    assert f"info[0].{field} 类型无效（dict）" in error["message"]
+    assert "private" not in error["message"]
 
 
 @pytest.mark.parametrize(
@@ -309,7 +329,7 @@ def test_permission_storage_failure_fails_closed(mocker):
         {"count": -1, "info": []},
         {"count": 0},
         {"count": 2, "info": []},
-        {"count": 1, "info": [{"bk_host_id": 1}]},
+        {"count": 1, "info": [{"bk_cloud_id": 0}]},
         {"count": 1, "info": [{**host(), "bk_host_id": True}]},
         {"count": 1, "info": [host()], "is_partial": True},
         {"count": 2, "info": [host(), host()]},

@@ -86,18 +86,33 @@ def project_list_biz_hosts(raw: Any, _fields: list[str] | None, params: dict[str
     if not isinstance(hosts, list) or len(hosts) != expected_count or raw.get("is_partial"):
         raise ProviderResponseRejected("CMDB 分页响应 info 无效")
     result = []
-    for host in hosts:
-        if (
-            not isinstance(host, dict)
-            or not set(HOST_FIELDS).issubset(host)
-            or type(host["bk_host_id"]) is not int
-            or host["bk_host_id"] <= 0
-            or type(host["bk_cloud_id"]) is not int
-            or host["bk_cloud_id"] < 0
-            or any(host[field] is not None and not isinstance(host[field], str) for field in HOST_FIELDS[2:])
-        ):
-            raise ProviderResponseRejected("CMDB 分页响应包含无效主机身份")
-        result.append({field: host[field] for field in HOST_FIELDS})
+    for index, host in enumerate(hosts):
+        if not isinstance(host, dict):
+            raise ProviderResponseRejected(f"CMDB 分页响应 info[{index}] 不是对象")
+        identity = {}
+        for field, minimum in (("bk_host_id", 1), ("bk_cloud_id", 0)):
+            value = host.get(field)
+            if field == "bk_cloud_id" and value is None:
+                value = 0
+            if type(value) not in (int, str):
+                raise ProviderResponseRejected(
+                    f"CMDB 分页响应 info[{index}].{field} 类型无效（{type(value).__name__}）"
+                )
+            try:
+                value = int(value)
+            except ValueError as error:
+                raise ProviderResponseRejected(f"CMDB 分页响应 info[{index}].{field} 格式无效") from error
+            if value < minimum:
+                raise ProviderResponseRejected(f"CMDB 分页响应 info[{index}].{field} 范围无效")
+            identity[field] = value
+        for field in HOST_FIELDS[2:]:
+            value = host.get(field)
+            if value is not None and not isinstance(value, str):
+                raise ProviderResponseRejected(
+                    f"CMDB 分页响应 info[{index}].{field} 类型无效（{type(value).__name__}）"
+                )
+            identity[field] = value
+        result.append(identity)
     if any(left["bk_host_id"] >= right["bk_host_id"] for left, right in zip(result, result[1:])):
         raise ProviderResponseRejected("CMDB 分页响应主机 ID 重复或未按要求排序")
     return {
@@ -141,7 +156,8 @@ def register() -> None:
                 notes=(
                     "每次只调用一次 CMDB list_biz_hosts；固定按 bk_host_id 升序，字段固定，不接受任意过滤。"
                     "count 为 CMDB 返回的匹配总数，info 为本页；分页不是一致性快照，主机增删可能导致跨页漂移。"
-                    "返回原始 CMDB 身份（IP 可能含逗号），不等同 SaaS 主机列表的有效 IP 过滤或指标统计。"
+                    "返回 CMDB 主机身份（IP 可能含逗号）；数字身份按 Host 适配器归一，缺失的可选文本字段为 null。"
+                    "不等同 SaaS 主机列表的有效 IP 过滤或指标统计。"
                     "需要已认证应用或 API Token、当前请求租户及目标业务授权；不支持负数关联空间。"
                 ),
             )
