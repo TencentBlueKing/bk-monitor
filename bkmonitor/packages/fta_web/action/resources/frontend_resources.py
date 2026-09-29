@@ -716,7 +716,10 @@ class GetActionConfigByAlerts(Resource):
         )
 
     def perform_request(self, validated_request_data):
-        alert_ids = validated_request_data["alert_ids"]
+        alerts = filter_alerts_by_biz(
+            AlertDocument.mget(validated_request_data["alert_ids"]), validated_request_data["bk_biz_id"]
+        )
+        alert_ids = [alert.id for alert in alerts]
         hit_results = ActionInstanceDocument.mget_by_alert(alert_ids=alert_ids, fields=["action_config_id", "alert_id"])
         alert_groups = {}
         all_configs = []
@@ -758,7 +761,13 @@ class CreateDemoActionResource(Resource):
 
         # 支持传入 alert_id，关联真实告警
         alert_id = validated_request_data.get("alert_id")
-        alerts = [alert_id] if alert_id else []
+        if alert_id:
+            matched = filter_alerts_by_biz(AlertDocument.mget([alert_id]), action_config["bk_biz_id"])
+            if not matched:
+                raise PermissionDenied(_("告警不存在"))
+            alerts = [alert.id for alert in matched]
+        else:
+            alerts = []
         # 获取 source 参数，如果前端未传则使用默认值 "bk_monitor_debug"
         # 注意：这是调试任务，需要明确标记为调试来源
         source = validated_request_data.get("source", "bk_monitor_debug")
@@ -821,6 +830,11 @@ class GetDemoActionDetailResource(Resource):
 
     def perform_request(self, validated_request_data):
         demo_action = ActionInstance.objects.get(id=validated_request_data["action_id"])
+        if not demo_action.bk_biz_id:
+            raise PermissionDenied(_("调试任务不存在"))
+        Permission().is_allowed_by_biz(
+            demo_action.bk_biz_id, ActionEnum.MANAGE_RULE, raise_exception=True
+        )
         return {
             "status": demo_action.status,
             "is_finished": demo_action.status in ActionStatus.END_STATUS,

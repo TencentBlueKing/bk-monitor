@@ -231,15 +231,13 @@ class GetReportListResource(Resource):
     def perform_request(self, validated_request_data):
         report_qs = Report.objects.all().order_by("-update_time")
 
-        # 根据角色过滤
-        if validated_request_data["create_type"]:
-            # 管理员视角需校验当前用户的订阅管理权限
-            if validated_request_data["create_type"] == ReportCreateTypeEnum.MANAGER.value:
-                self.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
-            # 用户视角获取全业务下的订阅
-            if validated_request_data["create_type"] != ReportCreateTypeEnum.SELF.value:
-                report_qs = report_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
-            report_qs = self.filter_by_create_type(validated_request_data["create_type"], report_qs)
+        create_type = validated_request_data["create_type"] or ReportCreateTypeEnum.SELF.value
+        if create_type == ReportCreateTypeEnum.MANAGER.value:
+            self.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
+            report_qs = report_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        elif create_type != ReportCreateTypeEnum.SELF.value:
+            raise CustomException("unsupported create_type {}".format(create_type))
+        report_qs = self.filter_by_create_type(create_type, report_qs)
 
         # 根据搜索关键字过滤
         if validated_request_data["search_key"]:
@@ -643,13 +641,15 @@ class GetApplyRecordsResource(Resource):
 
     def perform_request(self, validated_request_data):
         qs = ReportApplyRecord.objects.all()
-        if validated_request_data["query_type"] == ApplyRecordQueryTypeEnum.USER.value:
-            # 根据用户获取
+        query_type = validated_request_data["query_type"]
+        if query_type == ApplyRecordQueryTypeEnum.USER.value:
             username = get_request().user.username
             qs = qs.filter(create_user=username)
-        else:
-            # 根据业务获取
+        elif query_type == ApplyRecordQueryTypeEnum.BIZ.value:
+            GetReportListResource.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
             qs = qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        else:
+            raise CustomException("unsupported query_type {}".format(query_type))
 
         if validated_request_data.get("status"):
             qs = qs.filter(status=validated_request_data["status"])
@@ -710,6 +710,8 @@ class GetExistReportsResource(Resource):
         qs = Report.objects.filter(
             bk_biz_id=validated_request_data["bk_biz_id"], scenario=validated_request_data["scenario"]
         )
+        if not GetReportListResource.check_permission(validated_request_data["bk_biz_id"]):
+            qs = GetReportListResource.filter_by_user(qs)
         if validated_request_data.get("create_type"):
             qs = GetReportListResource.filter_by_create_type(validated_request_data["create_type"], qs)
         reports = list(qs.values())

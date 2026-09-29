@@ -26,6 +26,15 @@ from core.errors.notice_group import NoticeGroupNotExist
 logger = logging.getLogger(__name__)
 
 
+def _assert_notice_group_action(bk_biz_id, action):
+    if not bk_biz_id:
+        request = get_request(peaceful=True)
+        bk_biz_id = getattr(request, "biz_id", None) if request else None
+    if not bk_biz_id:
+        raise serializers.ValidationError(_("缺少业务 ID"))
+    Permission().is_allowed_by_biz(bk_biz_id, action, raise_exception=True)
+
+
 def normalize_members(members) -> list[str]:
     """
     兼容 CMDB 人员字段为空、字符串或列表的不同返回格式。
@@ -155,8 +164,7 @@ class NoticeGroupDetailResource(Resource):
             raise NoticeGroupNotExist({"msg": _("获取详情失败")})
         else:
             instance = instance[0]
-        if instance["bk_biz_id"]:
-            Permission().is_allowed_by_biz(instance["bk_biz_id"], ActionEnum.VIEW_NOTIFY_TEAM, raise_exception=True)
+        _assert_notice_group_action(instance["bk_biz_id"], ActionEnum.VIEW_NOTIFY_TEAM)
 
         usernames = [receiver["id"] for receiver in instance["notice_receiver"] if receiver["type"] == "user"]
         users_info = self.get_users_info(usernames)
@@ -259,6 +267,7 @@ class NoticeGroupConfigResource(Resource):
     """
 
     def perform_request(self, params):
+        _assert_notice_group_action(params.get("bk_biz_id"), ActionEnum.MANAGE_NOTIFY_TEAM)
         return resource.notice_group.backend_save_notice_group(**params)
 
 
@@ -273,6 +282,5 @@ class DeleteNoticeGroupResource(Resource):
     def perform_request(self, params):
         groups = resource.notice_group.backend_search_notice_group(ids=params["id_list"])
         for group in groups:
-            if group["bk_biz_id"]:
-                Permission().is_allowed_by_biz(group["bk_biz_id"], ActionEnum.MANAGE_NOTIFY_TEAM, raise_exception=True)
+            _assert_notice_group_action(group["bk_biz_id"], ActionEnum.MANAGE_NOTIFY_TEAM)
         return resource.notice_group.backend_delete_notice_group(ids=params["id_list"])
