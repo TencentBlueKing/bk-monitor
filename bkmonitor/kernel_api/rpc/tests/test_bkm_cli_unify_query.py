@@ -99,6 +99,7 @@ def test_discover_lists_only_server_allowlisted_uq_operations():
         "discover_query_ts_metrics",
         "query_relation_range_v1",
         "query_relation_v1",
+        "query_relation_v1beta3",
         "query_ts",
         "query_ts_raw",
         "query_ts_reference",
@@ -438,6 +439,55 @@ def test_invoke_relation_range_derives_biz_scope(monkeypatch):
 
     assert out["status"] == "ok"
     query_relation_range.assert_called_once_with(bk_biz_ids=["2"], query_list=query_list)
+
+
+def test_invoke_relation_v1beta3_uses_dedicated_caller_and_keeps_uq_evidence(monkeypatch):
+    raw = {"trace_id": "uq-v1beta3", "data": [{"code": 200}, {"code": 400, "message": "binding missing"}]}
+    query_relation = Mock(return_value=raw)
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi_resource_v1_beta3",
+        query_relation,
+    )
+    query_list = [
+        {
+            "timestamp": 1725066000,
+            "target_type": "pod",
+            "source_type": "service",
+            "source_info": {"service_name": "api"},
+        }
+    ]
+
+    out = query_unify_query(
+        {"mode": "invoke", "operation": "query_relation_v1beta3", "bk_biz_id": 2, "params": {"query_list": query_list}}
+    )
+
+    assert out["status"] == "ok"
+    assert out["partial"] is True
+    assert out["result"] == raw
+    query_relation.assert_called_once_with(bk_biz_ids=["2"], query_list=query_list)
+
+
+def test_invoke_relation_v1beta3_rejects_unexpected_item_fields(monkeypatch):
+    query_relation = Mock()
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi_resource_v1_beta3",
+        query_relation,
+    )
+    out = query_unify_query(
+        {
+            "mode": "invoke",
+            "operation": "query_relation_v1beta3",
+            "bk_biz_id": 2,
+            "params": {
+                "query_list": [
+                    {"timestamp": 1725066000, "target_type": "pod", "source_info": {}, "space_uid": "bkcc__3"}
+                ]
+            },
+        }
+    )
+
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    query_relation.assert_not_called()
 
 
 def test_describe_relation_schema_includes_expand_and_lookback_fields():
