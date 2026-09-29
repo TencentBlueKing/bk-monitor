@@ -145,14 +145,12 @@ export default defineComponent({
           {{
             default: () => (
               <div class={['profiling-service-trigger', { active: this.opened }]}>
-                <span class='select-label'>{this.t('应用服务')}:</span>
-                <Input
-                  v-slots={{ suffix: () => <i class='icon-monitor icon-arrow-down' /> }}
-                  modelValue={this.inputText}
-                  placeholder={this.t('请选择应用服务')}
-                  readonly
-                />
-                <kbd>{/mac/i.test(navigator.platform) ? 'cmd' : 'ctrl'}+o</kbd>
+                <span class='select-label'>{this.t('应用服务')}：</span>
+                <span class={['select-value', { 'is-empty': !this.inputText }]}>
+                  {this.inputText || this.t('请选择应用服务')}
+                </span>
+                <kbd>{/mac/i.test(navigator.platform) ? 'Cmd' : 'Ctrl'}+O</kbd>
+                <i class={['icon-monitor icon-mc-arrow-down', { expand: this.opened }]} />
               </div>
             ),
             content: () => (

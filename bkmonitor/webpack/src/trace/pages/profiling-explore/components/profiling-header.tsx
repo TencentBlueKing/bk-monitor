@@ -96,15 +96,20 @@ export default defineComponent({
     return (
       <header class='profiling-explore-header'>
         <div class='profiling-heading'>
-          <Button
-            v-tippy={this.t('收藏夹')}
-            aria-label={this.t('收藏夹')}
-            text
-            onClick={() => this.$emit('favoriteToggle')}
-          >
-            <i class={['icon-monitor icon-mc-search-favorites', { active: this.favoriteShow }]} />
-          </Button>
-          <h1>{this.t('Profiling 检索')}</h1>
+          <div class='favorite-container'>
+            <button
+              class={['favorite-btn', { active: this.favoriteShow }]}
+              aria-label={this.t('收藏夹')}
+              type='button'
+              onClick={() => this.$emit('favoriteToggle')}
+            >
+              <i
+                class='icon-monitor icon-shoucangjia'
+                v-bk-tooltips={{ content: this.t(this.favoriteShow ? '收起收藏夹' : '展开收藏夹') }}
+              />
+            </button>
+          </div>
+          <h1>{this.t('route-Profiling 检索')}</h1>
         </div>
         <Radio.Group
           class='profiling-tabs'
