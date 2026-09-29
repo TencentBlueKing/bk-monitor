@@ -21,6 +21,7 @@ the project delivered to anyone in the future.
 
 import copy
 from dataclasses import dataclass, replace
+from itertools import groupby
 
 import ujson
 
@@ -232,6 +233,46 @@ def refine(handler, start, end, rows, tick, policy, avg_bytes):
     return parts
 
 
+def _walk_buckets(buckets, interval, start, end):
+    """按 unify-query 的桶网格遍历区间，产出 (左端, 右端, 桶键)。"""
+    cursor = start - (start - _bucket_origin(buckets, interval)) % interval
+    while cursor < end:
+        yield max(cursor, start), min(cursor + interval, end), cursor
+        cursor += interval
+
+
+def choose_refine_interval(rows, span, avg_bytes, tick, policy):
+    """细化粒度：按段内密度反推，受最小步长与桶数上限约束，一次统计即可铺满该段。"""
+    floor = max(tick, _ceil_to(span / policy.max_buckets, tick))
+    by_rows = policy.target_rows * span / rows
+    by_bytes = policy.target_bytes * span / (rows * avg_bytes)
+    return _canonical_interval(max(int(min(by_rows, by_bytes)), floor), span)
+
+
+def plan_hot_segment(handler, segment, avg_bytes, policy, parent_interval):
+    """将连续原桶 (左端, 右端, 条数) 细化一次，仍超标的细桶交回二分。"""
+    start, end = segment[0][0], segment[-1][1]
+    tick = policy.split_step_ms
+    interval = parent_interval
+    if end - start > tick:
+        rows = sum(count for _, _, count in segment)
+        interval = choose_refine_interval(rows, end - start, avg_bytes, tick, policy)
+    if interval < parent_interval:
+        buckets = histogram(handler, start, end, interval)
+        if not buckets:
+            # 首轮能拿到分布而这里拿不到，说明统计链路异常；交给重试而不是猜一份计划
+            raise PlanError(ExportErrorCode.STATISTICS_FAILED, "unify-query 直方图未返回任何数据点", retryable=True)
+        segment = [
+            (left, right, buckets.get(cursor, 0))
+            for left, right, cursor in _walk_buckets(buckets, interval, start, end)
+        ]
+    # 无法细化时保留首轮桶及其计数，避免对合并区间重新二分统计。
+    parts = []
+    for left, right, count in segment:
+        parts.extend(refine(handler, left, right, count, tick, policy, avg_bytes))
+    return parts
+
+
 def merge_adjacent(parts, policy):
     """相邻小分片合并，减少低密度区间产生的大量碎片。"""
     merged = []
@@ -282,18 +323,18 @@ def build_parts(job, policy):
         raise PlanError(ExportErrorCode.STATISTICS_FAILED, "unify-query 直方图未返回任何数据点", retryable=True)
 
     parts = []
-    cursor = job.start_time - (job.start_time - _bucket_origin(buckets, interval)) % interval
-    while cursor < job.end_time:
-        left = max(cursor, job.start_time)
-        right = min(cursor + interval, job.end_time)
-        parts.extend(refine(handler, left, right, buckets.get(cursor, 0), step, policy, avg_bytes))
+    coarse = (
+        (left, right, buckets.get(cursor, 0))
+        for left, right, cursor in _walk_buckets(buckets, interval, job.start_time, job.end_time)
+    )
+    for hot, segment in groupby(coarse, key=lambda bucket: is_hot(bucket[2], avg_bytes, policy)):
+        if hot:
+            parts.extend(plan_hot_segment(handler, list(segment), avg_bytes, policy, interval))
+        else:
+            parts.extend(PartSpec(left, right, rows, rows * avg_bytes) for left, right, rows in segment)
+        parts = merge_adjacent(parts, policy)
         if len(parts) > policy.max_parts:
             raise PlanError(ExportErrorCode.PART_LIMIT_EXCEEDED, f"分片数量超过上限 {policy.max_parts}")
-        cursor += interval
-
-    parts = merge_adjacent(parts, policy)
-    if len(parts) > policy.max_parts:
-        raise PlanError(ExportErrorCode.PART_LIMIT_EXCEEDED, f"分片数量超过上限 {policy.max_parts}")
     return parts, total, _plan_result(total, avg_bytes, interval)
 
 

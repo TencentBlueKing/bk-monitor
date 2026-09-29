@@ -80,8 +80,10 @@ from apps.log_search.export.planner import (
     build_handler,
     build_parts,
     choose_interval,
+    choose_refine_interval,
     is_definitely_empty,
     merge_adjacent,
+    plan_hot_segment,
     refine,
     run_planning,
 )
@@ -212,6 +214,200 @@ class ChooseIntervalTests(SimpleTestCase):
         self.assertLessEqual(choose_interval(1, 0, 40 * 1000, 1000, policy), 40 * 1000)
 
 
+class HotSegmentTests(SimpleTestCase):
+    def test_refine_interval_follows_the_density_of_the_segment(self):
+        policy = build_policy(target_rows=1000, max_buckets=500)
+
+        # 段内 5000 条、跨度 100 秒：按每片目标 1000 条反推，约 20 秒一个桶
+        interval = choose_refine_interval(5000, 100_000, 1, 1000, policy)
+
+        self.assertEqual(interval, 20_000)
+
+    def test_refine_interval_is_bounded_by_the_bucket_limit(self):
+        policy = build_policy(target_rows=1000, max_buckets=10)
+
+        interval = choose_refine_interval(1_000_000, 100_000, 1, 1000, policy)
+
+        self.assertEqual(interval, 10_000)
+        self.assertLessEqual(100_000 // interval, policy.max_buckets)
+
+    def test_refine_interval_uses_the_stricter_byte_target(self):
+        policy = build_policy(target_rows=1000, target_bytes=1000)
+
+        self.assertEqual(choose_refine_interval(1000, 100_000, 10, 1000, policy), 10_000)
+
+    def test_segment_at_the_step_is_handed_to_binary_split(self):
+        """段宽已到最小步长时没有更细的粒度可统计，直接交给二分而不是发出非法统计窗口。"""
+        policy = build_policy(target_rows=100, split_factor=2.0)
+
+        parts = plan_hot_segment(None, [(0, 1000, 1000)], 1, policy, 1000)
+
+        self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 1000)])
+        self.assertTrue(parts[0].oversized)
+
+    def test_unsupported_finer_window_uses_binary_split_directly(self):
+        policy = build_policy(target_rows=100, split_factor=2.0, split_step_ms=100)
+        with (
+            patch("apps.log_search.export.planner.histogram") as histogram,
+            patch("apps.log_search.export.planner.count_rows", side_effect=[100, 100]) as count_rows_mock,
+        ):
+            parts = plan_hot_segment(None, [(0, 1000, 200)], 1, policy, 1000)
+
+        histogram.assert_not_called()
+        self.assertEqual(count_rows_mock.call_count, 2)
+        self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 500), (500, 1000)])
+
+    def test_consecutive_buckets_at_the_step_reuse_initial_counts(self):
+        policy = build_policy(target_rows=100, target_bytes=10**9)
+        segment = [(start, start + 1000, 200) for start in range(0, 4000, 1000)]
+        with (
+            patch("apps.log_search.export.planner.histogram") as histogram_mock,
+            patch("apps.log_search.export.planner.count_rows") as count_rows_mock,
+        ):
+            parts = plan_hot_segment(None, segment, 1, policy, 1000)
+
+        histogram_mock.assert_not_called()
+        count_rows_mock.assert_not_called()
+        self.assertEqual([(part.start_time, part.end_time, part.estimated_rows) for part in parts], segment)
+        self.assertTrue(all(part.oversized for part in parts))
+
+    def test_bucket_limit_falls_back_to_each_initial_bucket(self):
+        policy = build_policy(target_rows=100, target_bytes=10**9, max_buckets=2)
+        with (
+            patch("apps.log_search.export.planner.histogram") as histogram_mock,
+            patch("apps.log_search.export.planner.count_rows", return_value=100) as count_rows_mock,
+        ):
+            parts = plan_hot_segment(None, [(0, 2000, 200), (2000, 4000, 200)], 1, policy, 2000)
+
+        histogram_mock.assert_not_called()
+        self.assertCountEqual(
+            [call.args[1:] for call in count_rows_mock.call_args_list],
+            [(1000, 2000), (0, 1000), (3000, 4000), (2000, 3000)],
+        )
+        self.assertEqual(
+            [(part.start_time, part.end_time) for part in parts],
+            [(0, 1000), (1000, 2000), (2000, 3000), (3000, 4000)],
+        )
+
+    def test_empty_refined_histogram_is_retryable(self):
+        policy = build_policy(target_rows=100)
+        with patch("apps.log_search.export.planner.histogram", return_value={}):
+            with self.assertRaises(PlanError) as context:
+                plan_hot_segment(None, [(0, 4000, 400)], 1, policy, 4000)
+
+        self.assertEqual(context.exception.code, "STATISTICS_FAILED")
+        self.assertTrue(context.exception.retryable)
+
+    def test_residual_hot_bucket_returns_to_binary_split(self):
+        policy = build_policy(target_rows=100, target_bytes=10**9)
+        with patch("apps.log_search.export.planner.histogram", return_value={0: 300}):
+            parts = plan_hot_segment(None, [(0, 3000, 300)], 1, policy, 3000)
+
+        self.assertEqual((parts[0].start_time, parts[0].end_time), (0, 1000))
+        self.assertTrue(parts[0].oversized)
+        self.assertEqual(parts[-1].end_time, 3000)
+
+    def test_residual_hot_bucket_queries_binary_halves(self):
+        policy = build_policy(target_rows=100, target_bytes=10**9)
+        with (
+            patch("apps.log_search.export.planner.histogram", return_value={0: 250, 2000: 50}) as histogram_mock,
+            patch("apps.log_search.export.planner.count_rows", return_value=125) as count_rows_mock,
+        ):
+            parts = plan_hot_segment(None, [(0, 6000, 300)], 1, policy, 6000)
+
+        histogram_mock.assert_called_once_with(None, 0, 6000, 2000)
+        self.assertCountEqual([call.args[1:] for call in count_rows_mock.call_args_list], [(1000, 2000), (0, 1000)])
+        self.assertEqual(
+            [(part.start_time, part.end_time, part.estimated_rows) for part in parts],
+            [(0, 1000, 125), (1000, 2000, 125), (2000, 4000, 50), (4000, 6000, 0)],
+        )
+        self.assertTrue(all(not part.oversized for part in parts))
+
+
+class PlannerFlowTests(SimpleTestCase):
+    def plan(self, initial, refined, policy, *, interval, end, total):
+        job = SimpleNamespace(start_time=0, end_time=end)
+        with (
+            patch("apps.log_search.export.planner.build_handler"),
+            patch("apps.log_search.export.planner.count_rows", return_value=total),
+            patch("apps.log_search.export.planner.sample_rows", return_value=[b"x"]),
+            patch("apps.log_search.export.planner.choose_interval", return_value=interval),
+            patch("apps.log_search.export.planner.histogram", side_effect=[initial, *refined]) as histogram_mock,
+        ):
+            parts, _, _ = build_parts(job, policy)
+        return parts, histogram_mock
+
+    def test_consecutive_hot_buckets_use_one_refined_histogram(self):
+        policy = build_policy(target_rows=100, target_bytes=10**9)
+        parts, histogram_mock = self.plan(
+            {0: 10, 2000: 200, 4000: 200, 6000: 10},
+            [{2000: 100, 3000: 100, 4000: 100, 5000: 100}],
+            policy,
+            interval=2000,
+            end=8000,
+            total=420,
+        )
+
+        self.assertEqual(histogram_mock.call_count, 2)
+        self.assertEqual(histogram_mock.call_args.args[1:3], (2000, 6000))
+        self.assertEqual(sum(part.estimated_rows for part in parts), 420)
+        self.assertEqual(parts[0].start_time, 0)
+        self.assertEqual(parts[-1].end_time, 8000)
+        self.assertTrue(all(left.end_time == right.start_time for left, right in zip(parts, parts[1:])))
+
+    def test_normal_bucket_between_hot_runs_is_not_queried_twice(self):
+        policy = build_policy(target_rows=100, target_bytes=10**9)
+        parts, histogram_mock = self.plan(
+            {0: 200, 2000: 10, 4000: 200},
+            [{0: 100, 1000: 100}, {4000: 100, 5000: 100}],
+            policy,
+            interval=2000,
+            end=6000,
+            total=410,
+        )
+
+        self.assertEqual(
+            [call.args[1:3] for call in histogram_mock.call_args_list], [(0, 6000), (0, 2000), (4000, 6000)]
+        )
+        self.assertEqual(sum(part.estimated_rows for part in parts), 410)
+        self.assertTrue(all(left.end_time == right.start_time for left, right in zip(parts, parts[1:])))
+
+    def test_part_limit_is_checked_after_adjacent_merge(self):
+        policy = build_policy(target_rows=100, target_bytes=10**9, max_parts=2)
+        parts, _ = self.plan(
+            {0: 10, 2000: 200},
+            [{2000: 100, 3000: 100}],
+            policy,
+            interval=2000,
+            end=4000,
+            total=210,
+        )
+
+        self.assertEqual(len(parts), 2)
+        self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 3000), (3000, 4000)])
+
+    def test_part_limit_stops_before_querying_later_hot_segments(self):
+        policy = build_policy(target_rows=100, target_bytes=10**9, max_parts=2)
+        with (
+            patch("apps.log_search.export.planner.build_handler"),
+            patch("apps.log_search.export.planner.count_rows", return_value=610),
+            patch("apps.log_search.export.planner.sample_rows", return_value=[b"x"]),
+            patch("apps.log_search.export.planner.choose_interval", return_value=2000),
+            patch(
+                "apps.log_search.export.planner.histogram",
+                side_effect=[
+                    {0: 200, 2000: 200, 4000: 10, 6000: 200},
+                    {0: 100, 1000: 100, 2000: 100, 3000: 100},
+                ],
+            ) as histogram_mock,
+        ):
+            with self.assertRaises(PlanError) as context:
+                build_parts(SimpleNamespace(start_time=0, end_time=8000), policy)
+
+        self.assertEqual(context.exception.code, "PART_LIMIT_EXCEEDED")
+        self.assertEqual([call.args[1:3] for call in histogram_mock.call_args_list], [(0, 8000), (0, 4000)])
+
+
 class RefineTests(SimpleTestCase):
     def test_hot_range_is_split_until_it_reaches_target(self):
         policy = build_policy(target_rows=100, split_factor=2.0)
@@ -297,21 +493,49 @@ class BuildPartsTests(TestCase):
         self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 4000)])
         self.assertEqual(sum(part.estimated_rows for part in parts), 300)
 
-    def test_build_parts_uses_split_step_from_policy(self):
-        """切分步长完全由策略决定，refine 应收到配置的步长。"""
-        policy = build_policy(target_rows=100, split_step_ms=5000)
+    def test_hot_segment_is_covered_by_a_single_refined_histogram(self):
+        """首轮热点桶合并成一段后只再统计一次，段内时间既不被跳过也不被重复切分。"""
+        policy = build_policy(target_rows=100, target_bytes=10**9, split_factor=2.0)
         job = create_job(policy=policy.snapshot())
         with (
             patch("apps.log_search.export.planner.build_handler"),
-            patch("apps.log_search.export.planner.count_rows", return_value=100),
+            patch("apps.log_search.export.planner.count_rows", return_value=400),
             patch("apps.log_search.export.planner.sample_rows", return_value=[]),
-            patch("apps.log_search.export.planner.histogram", return_value={0: 100}),
-            patch("apps.log_search.export.planner.refine", return_value=[]) as refine_mock,
+            patch("apps.log_search.export.planner.choose_interval", return_value=2000),
+            patch(
+                "apps.log_search.export.planner.histogram",
+                side_effect=[{0: 200, 2000: 200}, {0: 100, 1000: 100, 2000: 100, 3000: 100}],
+            ) as histogram_mock,
         ):
-            build_parts(job, policy)
+            parts, total, _ = build_parts(job, policy)
+
+        self.assertEqual(histogram_mock.call_count, 2)
+        self.assertEqual(
+            [(part.start_time, part.end_time) for part in parts], [(0, 1000), (1000, 2000), (2000, 3000), (3000, 4000)]
+        )
+        self.assertEqual(total, 400)
+
+    def test_residual_hot_part_falls_back_to_binary_split(self):
+        """细化后仍超标的桶交回二分，并带上策略配置的切分步长。"""
+        policy = build_policy(target_rows=100, split_factor=2.0, split_step_ms=1000)
+        job = create_job(policy=policy.snapshot())
+        with (
+            patch("apps.log_search.export.planner.build_handler"),
+            patch("apps.log_search.export.planner.count_rows", return_value=300),
+            patch("apps.log_search.export.planner.sample_rows", return_value=[]),
+            patch("apps.log_search.export.planner.choose_interval", return_value=3000),
+            patch("apps.log_search.export.planner.histogram", side_effect=[{0: 300}, {0: 300}]),
+            patch(
+                "apps.log_search.export.planner.refine",
+                wraps=refine,
+            ) as refine_mock,
+        ):
+            parts, _, _ = build_parts(job, policy)
 
         self.assertTrue(refine_mock.call_args_list)
-        self.assertTrue(all(call.args[4] == 5000 for call in refine_mock.call_args_list))
+        self.assertTrue(all(call.args[4] == 1000 for call in refine_mock.call_args_list))
+        self.assertEqual([(part.start_time, part.end_time) for part in parts], [(0, 1000), (1000, 4000)])
+        self.assertTrue(parts[0].oversized)
 
     def test_rows_over_quota_fail_before_any_density_query(self):
         with (
