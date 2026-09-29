@@ -63,4 +63,11 @@
     flex: 1;
     width: 33.33333333333333%;
   }
+
+  .trace-chart-placeholder {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    padding-top: 26px;
+  }
 }

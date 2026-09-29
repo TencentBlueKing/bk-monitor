@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, inject, provide, shallowRef, watch } from 'vue';
+import { computed, defineComponent, inject, onBeforeUnmount, provide, shallowRef, watch } from 'vue';
 
 import { traceChats } from 'monitor-api/modules/apm_trace';
 import { random } from 'monitor-common/utils';
@@ -32,6 +32,7 @@ import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 import { storeToRefs } from 'pinia';
 
 import { BRIDGE_PROPS_KEY } from '../../trace-explore-apm';
+import TraceExploreSkeleton, { TRACE_CHART_SKELETON_TYPES } from '../trace-explore-skeleton';
 import ChartCollapse from './chart-collapse';
 import ExploreChart from './explore-chart';
 import { useTraceExploreStore } from '@/store/modules/explore';
@@ -39,6 +40,16 @@ import { useTraceExploreStore } from '@/store/modules/explore';
 import type { IViewOptions } from './types';
 
 import './chart-wrapper.scss';
+
+const getChartSkeletonType = (panel: PanelModel, index: number): 'bar' | 'line' => {
+  const type = panel.options?.time_series?.type || TRACE_CHART_SKELETON_TYPES[index] || 'line';
+  // 混合图以柱状主体占位；target 的类型优先级与实际 series 一致。
+  const hasBar = panel.targets?.length
+    ? panel.targets.some(target => (target.chart_type || type) === 'bar')
+    : type === 'bar';
+  return hasBar ? 'bar' : 'line';
+};
+
 export default defineComponent({
   name: 'ChartWrapper',
   props: {
@@ -71,6 +82,9 @@ export default defineComponent({
     const store = useTraceExploreStore();
     const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, any>);
     const panelModels = shallowRef<PanelModel[]>([]);
+    const panelsLoading = shallowRef(true);
+    let controller: AbortController;
+    let requestId = 0;
     const dashboardId = random(10);
     const params = computed<IViewOptions>(() => {
       return {
@@ -87,6 +101,11 @@ export default defineComponent({
     const handleExploreChartZoomChange = inject('handleExploreChartZoomChange', (_: [number, number]) => {});
 
     const getChartPanels = async () => {
+      const currentRequest = ++requestId;
+      controller?.abort();
+      controller = new AbortController();
+      panelsLoading.value = true;
+      panelModels.value = [];
       const params = {
         app_name: store.appName,
         bk_biz_id: window.bk_biz_id || window.cc_biz_id,
@@ -96,7 +115,9 @@ export default defineComponent({
           service_name: bridgeProps.viewOptions.filters.service_name,
         });
       }
-      const list = store.appName && store.mode ? await traceChats(params).catch(() => []) : [];
+      const list =
+        store.appName && store.mode ? await traceChats(params, { signal: controller.signal }).catch(() => []) : [];
+      if (currentRequest !== requestId) return;
       panelModels.value = list.map(
         item =>
           new PanelModel({
@@ -104,6 +125,7 @@ export default defineComponent({
             dashboardId,
           })
       );
+      panelsLoading.value = false;
 
       echartsConnect(dashboardId);
     };
@@ -120,7 +142,12 @@ export default defineComponent({
       },
       { immediate: true }
     );
+    onBeforeUnmount(() => {
+      requestId += 1;
+      controller?.abort();
+    });
     return {
+      panelsLoading,
       panelModels,
       params,
       handleDataZoomChange,
@@ -139,9 +166,29 @@ export default defineComponent({
           title={collapseTitle}
         >
           <div class='explore-chart-container'>
-            {this.panelModels.map(panel => (
+            {this.panelsLoading &&
+              TRACE_CHART_SKELETON_TYPES.map((type, index) => (
+                <div
+                  key={index}
+                  class='trace-chart-placeholder'
+                >
+                  <TraceExploreSkeleton
+                    chartType={type}
+                    type='chart'
+                  />
+                </div>
+              ))}
+            {this.panelModels.map((panel, index) => (
               <ExploreChart
                 key={panel.id}
+                v-slots={{
+                  skeleton: () => (
+                    <TraceExploreSkeleton
+                      chartType={getChartSkeletonType(panel, index)}
+                      type='chart'
+                    />
+                  ),
+                }}
                 hoverAllTooltips={true}
                 panel={panel}
                 params={this.params}

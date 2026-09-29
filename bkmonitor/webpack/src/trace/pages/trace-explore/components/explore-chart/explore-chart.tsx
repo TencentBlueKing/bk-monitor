@@ -258,8 +258,12 @@ export default defineComponent({
               onSelectLegend={this.handleSelectLegend}
             />
             {this.retainOnRefresh && this.loading && (
-              <div class='explore-chart-refresh' role='status' aria-label={this.t('加载中...')}>
-                {this.$slots.skeleton?.() || <ChartSkeleton />}
+              <div
+                class='explore-chart-refresh'
+                aria-label={this.t('加载中...')}
+                role='status'
+              >
+                {this.$slots.refresh?.() || this.$slots.skeleton?.() || <ChartSkeleton />}
               </div>
             )}
           </>

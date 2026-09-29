@@ -25,7 +25,7 @@
  */
 import { type ComputedRef, type MaybeRef, type Ref, computed, onBeforeUnmount, reactive, shallowRef, watch } from 'vue';
 
-import { get, useDebounceFn } from '@vueuse/core';
+import { get } from '@vueuse/core';
 import { storeToRefs } from 'pinia';
 
 import { handleTransformToTimestamp } from '../../../../../components/time-range/utils';
@@ -40,6 +40,7 @@ import type { SortInfo, TableSort } from '@blueking/tdesign-ui';
 export interface UseExploreTableDataOptions {
   /** 接口请求配置参数 */
   commonParams: MaybeRef<ICommonParams>;
+  ready: MaybeRef<boolean>;
   /** 表格所有列字段配置数组(接口原始结构) */
   sourceFieldConfigs: MaybeRef<IDimensionField[]>;
   /** 回到顶部回调 */
@@ -51,6 +52,7 @@ export interface UseExploreTableDataReturn {
   sortContainer: Ref<SortInfo>;
   /** 判断当前数据是否需要触底加载更多 */
   tableHasScrollLoading: ComputedRef<boolean>;
+  tableRefreshing: ComputedRef<boolean>;
   /** 当前表格需要渲染的数据(根据图标耗时统计面板过滤后的数据) */
   tableViewData: ComputedRef<ISpanListItem[] | ITraceListItem[]>;
   /** 获取表格数据 */
@@ -71,7 +73,7 @@ export interface UseExploreTableDataReturn {
  * @param options 配置选项
  */
 export const useExploreTableData = (options: UseExploreTableDataOptions): UseExploreTableDataReturn => {
-  const { commonParams, sourceFieldConfigs, onBackTop } = options;
+  const { commonParams, sourceFieldConfigs, ready, onBackTop } = options;
 
   const store = useTraceExploreStore();
   const {
@@ -89,6 +91,10 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
   const limit = 30;
   /** 表格logs数据请求中止控制器 */
   let abortController: AbortController = null;
+  let requestId = 0;
+  let disposed = false;
+  let queryTimer: ReturnType<typeof setTimeout>;
+  const pending = shallowRef(false);
 
   /** 判断table数据是否还有数据可以获取 */
   const tableHasMoreData = shallowRef(false);
@@ -113,6 +119,20 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
   const tableViewData = computed(() => (isLocalFilterMode.value ? get(filterTableList) : tableData.value));
   /** 判断当前数据是否需要触底加载更多 */
   const tableHasScrollLoading = computed(() => !isLocalFilterMode.value && tableHasMoreData.value);
+  const tableRefreshing = computed(
+    () =>
+      pending.value &&
+      !tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] &&
+      !tableLoading[ExploreTableLoadingEnum.SCROLL]
+  );
+
+  const finishLoading = () => {
+    pending.value = false;
+    store.updateTableLoading(false);
+    tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = false;
+    tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
+    tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
+  };
 
   /** 请求参数 */
   const queryParams = computed(() => {
@@ -153,10 +173,12 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
    * @description: 获取 table 表格数据
    */
   const getExploreList = async (loadingType = ExploreTableLoadingEnum.BODY_SKELETON) => {
-    // 触底加载进行中时忽略重复触发
-    if (loadingType === ExploreTableLoadingEnum.SCROLL && tableLoading[ExploreTableLoadingEnum.SCROLL]) {
+    if (disposed || !get(ready)) return;
+    const isScroll = loadingType === ExploreTableLoadingEnum.SCROLL;
+    if (isScroll && (pending.value || !tableHasScrollLoading.value)) {
       return;
     }
+    const currentRequest = ++requestId;
     if (abortController) {
       abortController.abort();
       abortController = null;
@@ -165,9 +187,8 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
     const { app_name, start_time, end_time } = queryParams.value;
     if (!app_name || !start_time || !end_time) {
       store.updateTableList([]);
-      tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
-      tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = false;
-      tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
+      tableHasMoreData.value = false;
+      finishLoading();
       return;
     }
 
@@ -186,30 +207,28 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
       handleSortChange({ sortBy: '', descending: null });
       return;
     }
-    if (loadingType === ExploreTableLoadingEnum.BODY_SKELETON) {
-      store.updateTableList([]);
-    }
-
-    tableLoading[loadingType] = true;
+    tableLoading[ExploreTableLoadingEnum.SCROLL] = isScroll;
+    tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = !isScroll && !tableData.value.length;
+    pending.value = true;
     store.updateTableLoading(true);
     const requestParam = {
       ...queryParams.value,
       limit: limit,
-      offset: tableData.value?.length || 0,
+      offset: isScroll ? tableData.value.length : 0,
     };
     abortController = new AbortController();
     const res = await getTableList(requestParam, isSpanVisual.value, {
       signal: abortController.signal,
     });
-    store.updateTableLoading(false);
+    if (disposed || currentRequest !== requestId) return;
+    finishLoading();
     if (res?.isAborted) {
-      tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
       return;
     }
-    tableLoading[loadingType] = false;
-    tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = false;
+    if (res.isError) return;
     // 更新表格数据
-    if (loadingType === ExploreTableLoadingEnum.BODY_SKELETON) {
+    if (!isScroll) {
+      store.updateFilterTableList([]);
       store.updateTableList(res.data);
     } else {
       store.updateTableList([...tableData.value, ...res.data]);
@@ -217,40 +236,45 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
     tableHasMoreData.value = res.data?.length >= limit;
   };
 
-  const debouncedGetExploreList = useDebounceFn(getExploreList, 200);
+  const searchKey = computed(() =>
+    JSON.stringify([get(commonParams), get(timeRange), get(timezone), get(sortContainer), get(mode), get(appName)])
+  );
+
+  watch([() => get(mode), () => get(appName)], () => {
+    handleSortChange({ sortBy: '', descending: null });
+  });
 
   // 监听参数变化，自动刷新数据
   watch(
-    [
-      () => isSpanVisual.value,
-      () => get(appName),
-      () => get(timeRange),
-      () => get(timezone),
-      () => get(refreshImmediate),
-      () => get(sortContainer).sortBy,
-      () => get(sortContainer).descending,
-      () => get(commonParams)?.filters,
-      () => get(commonParams)?.query_string,
-    ],
+    [() => searchKey.value, () => get(ready), () => get(commonParams), () => get(refreshImmediate)],
     (nVal, oVal) => {
-      onBackTop?.();
-      tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
-      tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = true;
-      store.updateTableList([]);
-
-      if (nVal[0] !== oVal[0] || nVal[1] !== oVal[1]) {
-        handleSortChange({
-          sortBy: '',
-          descending: null,
-        });
+      requestId += 1;
+      abortController?.abort();
+      clearTimeout(queryTimer);
+      const changed = nVal[0] !== oVal?.[0];
+      if (changed) {
+        onBackTop?.();
+        store.updateTableList([]);
+        store.updateFilterTableList([]);
+        tableHasMoreData.value = false;
       }
-      debouncedGetExploreList();
-    }
+      pending.value = true;
+      store.updateTableLoading(true);
+      tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = !tableData.value.length;
+      tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] = !get(ready);
+      tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
+      if (get(ready)) queryTimer = setTimeout(() => getExploreList(), 200);
+    },
+    { immediate: true }
   );
 
   onBeforeUnmount(() => {
+    disposed = true;
+    requestId += 1;
+    clearTimeout(queryTimer);
     abortController?.abort?.();
     abortController = null;
+    finishLoading();
     store.updateTableList([]);
     store.updateTableSortContainer({ sortBy: '', descending: null });
   });
@@ -260,6 +284,7 @@ export const useExploreTableData = (options: UseExploreTableDataOptions): UseExp
     handleSortChange,
     sortContainer,
     tableHasScrollLoading,
+    tableRefreshing,
     tableLoading,
     tableViewData,
   };

@@ -35,6 +35,7 @@ import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
 import TimeRange from '../../../components/time-range/time-range';
 import { useTraceExploreStore } from '../../../store/modules/explore';
+import TraceExploreSkeleton from './trace-explore-skeleton';
 
 import type { TimeRangeType } from '../../../components/time-range/utils';
 import type { HideFeatures, IApplicationItem } from '../typing';
@@ -44,6 +45,10 @@ import './trace-explore-header.scss';
 export default defineComponent({
   name: 'TraceExploreHeader',
   props: {
+    applicationLoading: {
+      type: Boolean,
+      default: false,
+    },
     list: {
       type: Array as PropType<IApplicationItem[]>,
       default: () => [],
@@ -154,7 +159,7 @@ export default defineComponent({
       const isCtrlOrMeta = e.ctrlKey || e.metaKey;
       if (isKeyO && isCtrlOrMeta) {
         e.preventDefault();
-        applicationSelectRef.value.showPopover();
+        if (!props.applicationLoading) applicationSelectRef.value?.showPopover();
       }
     }
 
@@ -256,6 +261,7 @@ export default defineComponent({
                 extCls: 'trace-explore-application-select-popover',
               }}
               clearable={false}
+              disabled={this.applicationLoading}
               filterOption={this.applicationFilter}
               modelValue={this.store.appName}
               search-placeholder={this.t('请输入 关键字')}
@@ -267,16 +273,20 @@ export default defineComponent({
                 trigger: () => (
                   <div class='application-select-trigger'>
                     <span class='data-prefix'>{this.t('应用')}：</span>
-                    {this.store.currentApp && (
-                      <span
-                        class='application-name'
-                        v-overflow-tips
-                      >
-                        {this.store.currentApp.app_alias}({this.store.currentApp.app_name})
-                      </span>
+                    {this.applicationLoading ? (
+                      <TraceExploreSkeleton type='application' />
+                    ) : (
+                      this.store.currentApp && (
+                        <span
+                          class='application-name'
+                          v-overflow-tips
+                        >
+                          {this.store.currentApp.app_alias}({this.store.currentApp.app_name})
+                        </span>
+                      )
                     )}
 
-                    {!this.applicationToggle && (
+                    {!this.applicationLoading && !this.applicationToggle && (
                       <div class='select-shortcut-keys'>{detectOS() === 'Windows' ? 'Ctrl+O' : 'Cmd+O'}</div>
                     )}
                     <span class={`icon-monitor icon-mc-arrow-down ${this.applicationToggle ? 'expand' : ''}`} />
