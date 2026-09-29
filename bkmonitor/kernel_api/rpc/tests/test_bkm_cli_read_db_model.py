@@ -22,6 +22,7 @@ class FakeQuerySet:
     def __init__(self, rows):
         self.rows = rows
         self.filter_kwargs = None
+        self.filter_calls = []
         self.order_by_args = None
         self.slice_value = None
         self.select_related_args = None
@@ -32,6 +33,7 @@ class FakeQuerySet:
 
     def filter(self, **kwargs):
         self.filter_kwargs = kwargs
+        self.filter_calls.append(kwargs)
         return self
 
     def order_by(self, *args):
@@ -252,31 +254,105 @@ def test_report_models_require_exact_subscription_and_hide_private_fields(
 ):
     """发送记录只能按单个订阅读取，显式请求也不能带出私密内容。"""
     from kernel_api.rpc.functions.bkm_cli import db
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import cmdb
 
     queryset = FakeQuerySet([SimpleNamespace(id=7, report_id=7, report_item=7)])
     FakeModel.objects = FakeManager(queryset)
     FakeModel.origin_objects = FakeManager(queryset)
     monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+    monkeypatch.setattr(cmdb, "_authorize_business", lambda _bk_biz_id: "tenant-a")
+    if model in {"bkmonitor.models.report.ReportChannel", "bkmonitor.models.report.ReportSendRecord"}:
+        from bkmonitor.models.report import Report
+
+        monkeypatch.setattr(Report.origin_objects, "filter", lambda **_kwargs: SimpleNamespace(exists=lambda: True))
 
     spec = db.ALLOWED_MODEL_SPECS[model]
     discovery = next(item for item in db.list_db_models({})["items"] if item["model"] == model)
     assert discovery["required_exact_filter"] == subscription_field
+    assert discovery["examples"][0]["bk_biz_id"] == 2
     assert private_fields.isdisjoint(discovery["allowed_fields"])
     assert private_fields.isdisjoint(discovery["allowed_filter_fields"])
     assert private_fields.isdisjoint(discovery["allowed_order_by"])
 
     for unsafe_filter in ({}, {f"{subscription_field}__in": [7]}, {subscription_field: 0}):
         with pytest.raises(CustomException, match="精确条件"):
-            db.read_db_model({"model": model, "filter": unsafe_filter})
+            db.read_db_model({"model": model, "bk_biz_id": 2, "filter": unsafe_filter})
+
+    with pytest.raises(CustomException, match="bk_biz_id"):
+        db.read_db_model({"model": model, "filter": {subscription_field: 7}})
 
     private_field = sorted(private_fields)[0]
     with pytest.raises(CustomException, match="不在 read-db-model 允许列表"):
-        db.read_db_model({"model": model, "filter": {subscription_field: 7, private_field: "x"}})
+        db.read_db_model({"model": model, "bk_biz_id": 2, "filter": {subscription_field: 7, private_field: "x"}})
 
-    result = db.read_db_model({"model": model, "filter": {subscription_field: 7}, "fields": ["id", private_field]})
+    result = db.read_db_model(
+        {"model": model, "bk_biz_id": 2, "filter": {subscription_field: 7}, "fields": ["id", private_field]}
+    )
     assert result["items"] == [{"id": 7}]
     assert queryset.filter_kwargs == {subscription_field: 7}
+    if model.startswith("bkmonitor.models.base."):
+        assert queryset.filter_calls == [{"bk_tenant_id": "tenant-a"}, {subscription_field: 7}]
+    elif model == "bkmonitor.models.report.Report":
+        assert queryset.filter_calls == [{"bk_biz_id": 2}, {subscription_field: 7}]
     assert spec.required_exact_filter == subscription_field
+
+
+def test_report_scope_rejects_unapproved_business_before_read(monkeypatch):
+    """关联表的订阅 ID 不能绕过目标业务授权。"""
+    from kernel_api.rpc.functions.bkm_cli import db
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import cmdb
+
+    queryset = FakeQuerySet([])
+    FakeModel.objects = FakeManager(queryset)
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+
+    def deny(_bk_biz_id):
+        raise cmdb.ParamsGuardRejected("目标业务未授权")
+
+    monkeypatch.setattr(cmdb, "_authorize_business", deny)
+    with pytest.raises(CustomException, match="目标业务未授权"):
+        db.read_db_model(
+            {"model": "bkmonitor.models.report.ReportSendRecord", "bk_biz_id": 2, "filter": {"report_id": 7}}
+        )
+    assert queryset.filter_calls == []
+
+
+def test_report_scope_requires_authenticated_request(monkeypatch):
+    """直调服务桥函数时没有请求身份也不能按已知订阅 ID 读出数据。"""
+    from kernel_api.rpc.functions.bkm_cli import db
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import cmdb
+
+    queryset = FakeQuerySet([])
+    FakeModel.origin_objects = FakeManager(queryset)
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+    monkeypatch.setattr(cmdb, "get_request", lambda peaceful=True: None)
+
+    with pytest.raises(CustomException, match="已认证"):
+        db.read_db_model({"model": "bkmonitor.models.base.ReportItems", "bk_biz_id": 2, "filter": {"id": 7}})
+    assert queryset.filter_calls == []
+
+
+def test_report_child_rejects_subscription_owned_by_other_business(monkeypatch):
+    """子表没有业务字段，必须先核对父订阅归属。"""
+    from bkmonitor.models.report import Report
+    from kernel_api.rpc.functions.bkm_cli import db
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import cmdb
+
+    queryset = FakeQuerySet([])
+    FakeModel.objects = FakeManager(queryset)
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+    monkeypatch.setattr(cmdb, "_authorize_business", lambda _bk_biz_id: "tenant-a")
+    checked = []
+
+    def other_business(**kwargs):
+        checked.append(kwargs)
+        return SimpleNamespace(exists=lambda: False)
+
+    monkeypatch.setattr(Report.origin_objects, "filter", other_business)
+    with pytest.raises(CustomException, match="不属于已授权业务"):
+        db.read_db_model({"model": "bkmonitor.models.report.ReportChannel", "bk_biz_id": 2, "filter": {"report_id": 7}})
+    assert checked == [{"id": 7, "bk_biz_id": 2}]
+    assert queryset.filter_calls == []
 
 
 def test_report_model_projection_fields_exist():
