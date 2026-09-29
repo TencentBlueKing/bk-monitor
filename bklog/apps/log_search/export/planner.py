@@ -283,10 +283,15 @@ def merge_adjacent(parts, policy):
             and not previous.oversized
             and not part.oversized
             and previous.end_time == part.start_time
-            and can_merge(
-                previous.estimated_rows + part.estimated_rows,
-                previous.estimated_bytes + part.estimated_bytes,
-                policy,
+            and (
+                # 空片不增加预估负载，可豁免容量阈值，但仍保留 oversized 和时间相邻约束。
+                previous.estimated_rows == previous.estimated_bytes == 0
+                or part.estimated_rows == part.estimated_bytes == 0
+                or can_merge(
+                    previous.estimated_rows + part.estimated_rows,
+                    previous.estimated_bytes + part.estimated_bytes,
+                    policy,
+                )
             )
         ):
             merged[-1] = replace(
