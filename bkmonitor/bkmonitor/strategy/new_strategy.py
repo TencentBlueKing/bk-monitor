@@ -3010,10 +3010,11 @@ class Strategy(AbstractConfig):
 
         return content
 
-    def save(self, rollback=False):
+    def save(self, rollback=False, *, audit_operator=None):
         """
         保存策略配置
 
+        audit_operator 仅供内部传入已校验的审计名称，不替换请求的认证用户。
         策略本体写入放在独立 atomic 中。history 的创建/失败记录必须在事务外，
         否则 MySQL DataError 会把连接标脏，except 里再 history.save() 会变成
         TransactionManagementError，把原始异常盖掉。
@@ -3035,7 +3036,7 @@ class Strategy(AbstractConfig):
 
         if not rollback:
             history = StrategyHistoryModel.objects.create(
-                create_user=self._get_username(),
+                create_user=audit_operator or self._get_username(),
                 strategy_id=self.id,
                 operate="create" if self.id == 0 else "update",
                 content=self.get_history_content(),
@@ -3061,7 +3062,7 @@ class Strategy(AbstractConfig):
                     strategy.is_enabled = self.is_enabled
                     strategy.is_invalid = self.is_invalid
                     strategy.invalid_type = self.invalid_type
-                    strategy.update_user = self._get_username()
+                    strategy.update_user = audit_operator or self._get_username()
                     strategy.priority = self.priority
                     strategy.priority_group_key = (
                         self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)

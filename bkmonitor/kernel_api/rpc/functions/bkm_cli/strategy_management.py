@@ -190,7 +190,7 @@ def _merge_items(config, patches):
 
 
 def manage_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
-    operator = validate_management_request(params, allowed_fields=ALLOWED_FIELDS, max_operator_length=128)
+    operator = validate_management_request(params, allowed_fields=ALLOWED_FIELDS, max_operator_length=32)
     if params.get("operation") != "update":
         raise CustomException(message="operation 仅支持 update")
     _integer(params.get("bk_biz_id"), "bk_biz_id", business=True)
@@ -209,6 +209,7 @@ def manage_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
     result = UpdateAlarmStrategyResource()._update_config(
         {"bk_biz_id": params["bk_biz_id"], "id": params["strategy_id"], "config_version": version},
         prepare_config=prepare_config,
+        audit_operator=operator,
     )
     return {
         "operation": "update",
@@ -226,7 +227,7 @@ _PARAMS_SCHEMA = {
     "config_version": "必填，inspect-strategy-config detail 返回的原 SHA-256 版本",
     "items": "按已有 ID 匹配的补丁数组；仅 expression、query_configs 和 Threshold algorithms.config",
     "confirmed": "必须为 true，先取得对精确变更的人工确认",
-    "operator": "实际执行人，最长 128 字符；不是认证身份",
+    "operator": "审计执行人，最长 32 字符；无需已注册用户，不作为认证身份",
 }
 _EXAMPLE = {
     "operation": "update",
