@@ -10,14 +10,24 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+import time
+from types import SimpleNamespace
 from unittest.mock import Mock
 
+import pytest
 from jsonschema import Draft7Validator
 
+from kernel_api.middlewares import authentication
 from kernel_api.resource.bkm_cli import BkmCliOpCallResource
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
+from kernel_api.rpc.functions.bkm_cli.platform_catalog import cmdb
 from kernel_api.rpc.functions.bkm_cli.unify_query import query_unify_query
+
+
+@pytest.fixture(autouse=True)
+def authorized_business(monkeypatch):
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query._authorize_business", lambda bk_biz_id: "system")
 
 
 def _query_ts_params(**overrides):
@@ -490,6 +500,57 @@ def test_invoke_relation_v1beta3_rejects_unexpected_item_fields(monkeypatch):
     query_relation.assert_not_called()
 
 
+def test_invoke_rechecks_nested_business_authorization(monkeypatch):
+    request = SimpleNamespace(
+        user=SimpleNamespace(tenant_id="tenant-a", is_authenticated=True),
+        biz_id=None,
+        META={"HTTP_BK_APP_CODE": "test-app"},
+    )
+    monkeypatch.setattr(cmdb, "get_request", lambda peaceful=True: request)
+    monkeypatch.setattr(cmdb, "bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "tenant-a")
+    monkeypatch.setattr(authentication, "APP_CODE_TOKENS", {"tenant-a": {"test-app": ["biz#2"]}})
+    monkeypatch.setattr(authentication, "APP_CODE_UPDATE_TIME", {"tenant-a": time.time()})
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query._authorize_business", cmdb._authorize_business)
+    query_relation = Mock()
+    query_ts = Mock()
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi_resource_v1_beta3", query_relation
+    )
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_data", query_ts)
+
+    for operation, params in (
+        (
+            "query_relation_v1beta3",
+            {
+                "query_list": [
+                    {"timestamp": 1725066000, "target_type": "pod", "source_type": "service", "source_info": {}}
+                ]
+            },
+        ),
+        ("query_ts", _query_ts_params()),
+    ):
+        out = query_unify_query({"mode": "invoke", "operation": operation, "bk_biz_id": 3, "params": params})
+        assert out["error"]["code"] == "unsafe_action_blocked"
+    query_relation.assert_not_called()
+    query_ts.assert_not_called()
+
+    query_relation.return_value = {"trace_id": "uq-authorized", "data": []}
+    allowed = query_unify_query(
+        {
+            "mode": "invoke",
+            "operation": "query_relation_v1beta3",
+            "bk_biz_id": 2,
+            "params": {
+                "query_list": [
+                    {"timestamp": 1725066000, "target_type": "pod", "source_type": "service", "source_info": {}}
+                ]
+            },
+        }
+    )
+    assert allowed["status"] == "ok"
+    query_relation.assert_called_once()
+
+
 def test_describe_relation_schema_includes_expand_and_lookback_fields():
     for operation in ("query_relation_v1", "query_relation_range_v1"):
         out = query_unify_query({"mode": "describe", "operation": operation})
@@ -654,9 +715,7 @@ def test_invoke_rejects_incomplete_named_output_contract(monkeypatch):
 def test_service_bridge_rejects_tenant_override(monkeypatch):
     metric_resource = Mock()
     monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request", metric_resource)
-    monkeypatch.setattr(
-        "kernel_api.rpc.functions.bkm_cli.unify_query.bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "system"
-    )
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query._authorize_business", lambda bk_biz_id: "system")
 
     result = BkmCliOpCallResource().perform_request(
         {
@@ -682,7 +741,7 @@ def test_discover_query_ts_metrics_rejects_request_tenant_conflict(monkeypatch):
     request_tenant = Mock(return_value="tenant-b")
     monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request", metric_resource)
     monkeypatch.setattr(
-        "kernel_api.rpc.functions.bkm_cli.unify_query.bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "tenant-a"
+        "kernel_api.rpc.functions.bkm_cli.unify_query._authorize_business", lambda bk_biz_id: "tenant-a"
     )
     monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.get_request_tenant_id", request_tenant)
 
@@ -700,7 +759,7 @@ def test_discover_query_ts_metrics_rejects_missing_request_tenant(monkeypatch):
     request_tenant = Mock(return_value=None)
     monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.GetMetricListV2Resource.request", metric_resource)
     monkeypatch.setattr(
-        "kernel_api.rpc.functions.bkm_cli.unify_query.bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "tenant-a"
+        "kernel_api.rpc.functions.bkm_cli.unify_query._authorize_business", lambda bk_biz_id: "tenant-a"
     )
     monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.get_request_tenant_id", request_tenant)
 

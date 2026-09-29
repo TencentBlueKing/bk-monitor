@@ -26,12 +26,13 @@ import requests
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.utils.metric_id import PROMQL_DATA_SOURCE_PREFIXES
 from bkmonitor.utils.request import get_request_tenant_id
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.data_source import DataTypeLabel
 from core.drf_resource import api
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 from monitor_web.strategies.resources.v2 import GetMetricListV2Resource
+
+from .platform_catalog.cmdb import _authorize_business
 
 logger = logging.getLogger("bkmonitor")
 
@@ -817,7 +818,7 @@ def _invoke(spec: UQOperationSpec, request_params: dict[str, Any]) -> dict[str, 
         return _error("invalid_argument", "invoke 需要 params object", next_call=describe_call)
 
     try:
-        derived_bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        derived_bk_tenant_id = _authorize_business(bk_biz_id)
         if spec.scope_style == "bk_biz_id":
             request_bk_tenant_id = get_request_tenant_id(peaceful=True)
             if not request_bk_tenant_id:
