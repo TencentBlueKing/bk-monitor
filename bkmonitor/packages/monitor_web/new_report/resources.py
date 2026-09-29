@@ -232,7 +232,7 @@ class GetReportListResource(Resource):
         report_qs = Report.objects.all().order_by("-update_time")
 
         create_type = validated_request_data["create_type"] or ReportCreateTypeEnum.SELF.value
-        if create_type == ReportCreateTypeEnum.MANAGER.value:
+        if create_type in (ReportCreateTypeEnum.MANAGER.value, "user"):
             self.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
             report_qs = report_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
         elif create_type != ReportCreateTypeEnum.SELF.value:

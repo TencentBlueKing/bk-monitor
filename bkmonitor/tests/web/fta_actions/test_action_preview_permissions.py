@@ -11,9 +11,11 @@ specific language governing permissions and limitations under the License.
 from types import SimpleNamespace
 
 import pytest
+from rest_framework.exceptions import PermissionDenied
 
 from bkmonitor.documents import AlertDocument, EventDocument
 from bkmonitor.iam import ActionEnum
+from constants.action import ActionStatus
 from core.errors.alert import AlertNotFoundError
 from core.errors.iam import PermissionDeniedError
 from fta_web.action.resources import backend_resources, frontend_resources
@@ -102,3 +104,62 @@ def test_preview_renders_alert_in_requested_business(mocker, bk_biz_id):
 
     assert result == {"variables": {"title": "test alert"}}
     build_action.assert_called_once_with(alert, int(bk_biz_id))
+
+
+def test_event_operator_can_read_manual_action_result(mocker):
+    allowed_actions = (ActionEnum.VIEW_RULE, ActionEnum.MANAGE_EVENT)
+
+    def is_allowed(action, **kwargs):
+        if action not in allowed_actions:
+            raise PermissionDeniedError(action_name=action.name)
+        return True
+
+    mocker.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True)
+    mocker.patch("bkmonitor.iam.drf.Permission").return_value.is_allowed.side_effect = is_allowed
+    permission = mocker.patch.object(frontend_resources, "Permission").return_value.is_allowed_by_biz
+    permission.side_effect = lambda bk_biz_id, action, **kwargs: is_allowed(action)
+    action = SimpleNamespace(bk_biz_id=2, status=ActionStatus.SUCCESS, get_content=lambda: {"result": "done"})
+    mocker.patch.object(frontend_resources.ActionInstance.objects, "get", return_value=action)
+    request = SimpleNamespace(
+        biz_id=2,
+        user=SimpleNamespace(tenant_id="default"),
+        method="POST",
+        data={"bk_biz_id": 2},
+        query_params={},
+    )
+    view = ActionInstanceViewSet()
+    view.action = "batch_create"
+    view.check_permissions(request)
+    view.action = "get_demo_action_detail"
+    request.method = "GET"
+    request.query_params = {"bk_biz_id": 2}
+    view.check_permissions(request)
+
+    result = frontend_resources.GetDemoActionDetailResource().perform_request({"action_id": 100})
+
+    assert result == {"status": ActionStatus.SUCCESS, "is_finished": True, "content": {"result": "done"}}
+    permission.assert_called_once_with(2, ActionEnum.VIEW_RULE, raise_exception=True)
+
+
+@pytest.mark.parametrize("bk_biz_id", [3, -3])
+def test_action_result_requires_permission_on_stored_business(mocker, bk_biz_id):
+    action = SimpleNamespace(bk_biz_id=bk_biz_id, get_content=mocker.Mock())
+    mocker.patch.object(frontend_resources.ActionInstance.objects, "get", return_value=action)
+    permission = mocker.patch.object(frontend_resources, "Permission").return_value.is_allowed_by_biz
+    permission.side_effect = PermissionDeniedError(action_name=ActionEnum.VIEW_RULE.name)
+
+    with pytest.raises(PermissionDeniedError):
+        frontend_resources.GetDemoActionDetailResource().perform_request({"action_id": 100})
+
+    permission.assert_called_once_with(bk_biz_id, ActionEnum.VIEW_RULE, raise_exception=True)
+    action.get_content.assert_not_called()
+
+
+def test_action_result_rejects_zero_business(mocker):
+    mocker.patch.object(frontend_resources.ActionInstance.objects, "get", return_value=SimpleNamespace(bk_biz_id=0))
+    permission = mocker.patch.object(frontend_resources, "Permission")
+
+    with pytest.raises(PermissionDenied):
+        frontend_resources.GetDemoActionDetailResource().perform_request({"action_id": 100})
+
+    permission.assert_not_called()
