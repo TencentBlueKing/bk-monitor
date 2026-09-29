@@ -52,11 +52,6 @@ export default defineComponent({
         offset: params.offset,
         // sort: params.sort,
         sources: params.sources,
-      }).catch(() => {
-        return {
-          list: [],
-          total: 0,
-        };
       });
       eventQueryConfig.value = res?.query_config || null;
       return {
@@ -72,11 +67,6 @@ export default defineComponent({
       const data = await alertEventTotal({
         bk_biz_id: props.detail.bk_biz_id,
         alert_id: props.detail.id,
-      }).catch(() => {
-        return {
-          total: 0,
-          list: [],
-        };
       });
       return data;
     };

@@ -101,7 +101,6 @@ export default defineComponent({
             <button
               class='host-stat-cards__content'
               disabled={!props.fullDataReady}
-              title={!props.fullDataReady ? t('全量数据加载完成后可点击筛选') : ''}
               type='button'
               onClick={() => props.fullDataReady && emit('cardClick', card.key)}
             >
@@ -112,14 +111,7 @@ export default defineComponent({
               />
               <span class='host-stat-cards__desc'>
                 <span class='host-stat-cards__name'>{t(card.name)}</span>
-                {!props.fullDataReady && card.key === 'alarm' ? (
-                  <span
-                    class='host-stat-cards__num'
-                    title={t('等待全量数据')}
-                  >
-                    --
-                  </span>
-                ) : props.states[card.key].loading ? (
+                {props.states[card.key].loading ? (
                   <span
                     class='host-stat-cards__loading skeleton-element'
                     aria-label={t('加载中')}
