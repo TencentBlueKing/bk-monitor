@@ -23,55 +23,50 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
-import { Component } from 'vue-property-decorator';
+import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
-import './explore-chart-skeleton.scss';
+import type { EventExploreTableColumn } from '../typing';
+
+import './event-table-skeleton.scss';
 
 @Component
-export default class ExploreChartSkeleton extends tsc<object> {
-  itemPercentList = [22, 35, 29, 48, 62, 45, 38, 55, 74, 64, 47, 31, 42, 56, 68, 51, 36, 24, 39, 48, 33, 27, 41, 30];
+export default class EventTableSkeleton extends tsc<{ columns: EventExploreTableColumn[] }> {
+  @Prop({ type: Array, default: () => [] }) columns: EventExploreTableColumn[];
 
   render() {
+    const widths = [72, 56, 86, 64, 80, 48];
+    const gridTemplateColumns = [
+      '24px',
+      ...this.columns.map(column => (column.width ? `${column.width}px` : `minmax(${column.min_width || 100}px, 1fr)`)),
+    ].join(' ');
     return (
       <div
-        class='explore-chart-skeleton'
+        class='event-table-skeleton'
         aria-hidden='true'
       >
-        <div class='explore-chart-skeleton-axis'>
-          {[0, 1, 2].map(index => (
-            <span
-              key={index}
-              class='skeleton-element'
-            />
-          ))}
-        </div>
-        <div class='explore-chart-skeleton-content'>
-          {this.itemPercentList.map((height, index) => (
-            <span
-              key={index}
-              style={{ height: `${height}%` }}
-              class='skeleton-element explore-chart-skeleton-item'
-            />
-          ))}
-        </div>
-        <div class='explore-chart-skeleton-ticks'>
-          {[0, 1, 2, 3, 4].map(index => (
-            <span
-              key={index}
-              class='skeleton-element'
-            />
-          ))}
-        </div>
-        <div class='explore-chart-skeleton-bottom'>
-          {[0, 1, 2].map(index => (
-            <span key={index}>
+        {Array.from({ length: 12 }, (_, row) => (
+          <div
+            key={row}
+            style={{ gridTemplateColumns }}
+            class='event-skeleton-row'
+          >
+            <span class='event-skeleton-expand'>
               <i class='skeleton-element' />
-              <b class='skeleton-element' />
             </span>
-          ))}
-        </div>
+            {this.columns.map((column, index) => (
+              <span
+                key={column.id}
+                class={['event-skeleton-cell', { 'is-target': column.id === 'target' }]}
+              >
+                <i
+                  style={{ width: `${widths[(row + index) % widths.length]}%` }}
+                  class='skeleton-element'
+                />
+              </span>
+            ))}
+          </div>
+        ))}
       </div>
     );
   }

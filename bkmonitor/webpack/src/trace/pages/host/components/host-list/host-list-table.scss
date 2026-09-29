@@ -1,3 +1,5 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
 /* stylelint-disable selector-class-pattern */
 .host-list-table {
   display: flex;
@@ -385,18 +387,7 @@
 .host-table-skeleton {
   width: 60%;
   height: 14px;
-  background: linear-gradient(90deg, #f0f1f5 25%, #e1e3e8 37%, #f0f1f5 63%);
-  background-size: 400% 100%;
   border-radius: 2px;
-  animation: host-table-skeleton-loading 1.4s ease infinite;
-}
 
-@keyframes host-table-skeleton-loading {
-  0% {
-    background-position: 100% 50%;
-  }
-
-  100% {
-    background-position: 0 50%;
-  }
+  @include skeleton.surface;
 }

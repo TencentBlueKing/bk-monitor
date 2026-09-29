@@ -1,3 +1,5 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
 .rum-skeleton-line {
   position: relative;
   display: inline-block;
@@ -6,17 +8,8 @@
   height: 12px;
   overflow: hidden;
   vertical-align: middle;
-  background: #edf0f5;
-  border-radius: 3px;
 
-  &::after {
-    position: absolute;
-    inset: 0;
-    content: '';
-    background: linear-gradient(100deg, transparent 10%, #ffffffb3 50%, transparent 90%);
-    transform: translateX(-100%);
-    animation: rum-skeleton-shimmer 1.8s ease-in-out infinite;
-  }
+  @include skeleton.surface;
 
   &.rum-skeleton-icon {
     height: 14px;
@@ -207,17 +200,5 @@
 
   .rum-skeleton-table-row {
     height: 42px;
-  }
-}
-
-@keyframes rum-skeleton-shimmer {
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rum-skeleton-line::after {
-    animation: none;
   }
 }

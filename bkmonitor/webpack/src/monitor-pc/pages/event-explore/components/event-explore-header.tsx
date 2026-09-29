@@ -53,6 +53,7 @@ interface EventRetrievalNavBarProps {
   dataSourceLabel: string;
   dataTypeLabel: string;
   isShowFavorite?: boolean;
+  loading?: boolean;
   refreshInterval?: number;
   timeRange?: TimeRangeType;
   timezone?: string;
@@ -63,6 +64,7 @@ const EVENT_RETRIEVAL_DATA_ID_THUMBTACK = 'event_retrieval_data_id_thumbtack';
 
 @Component
 class EventRetrievalHeader extends Mixins(UserConfigMixin) {
+  @Prop({ default: false }) loading: boolean;
   @InjectReactive('hideFeatures') hideFeatures: HideFeatures;
   @InjectReactive('needMenu') needMenu: boolean;
   @Prop({ default: () => [] }) dataIdList: IDataIdItem[];
@@ -229,6 +231,7 @@ class EventRetrievalHeader extends Mixins(UserConfigMixin) {
               class='data-id-select'
               clearable={false}
               ext-popover-cls={'new-event-retrieval-data-id-select-popover'}
+              loading={this.loading}
               search-placeholder={this.$t('请输入 关键字')}
               value={this.dataId}
               searchable

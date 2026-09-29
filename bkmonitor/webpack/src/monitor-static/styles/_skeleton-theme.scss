@@ -1,0 +1,31 @@
+$color: rgb(0 0 0 / 6%);
+$highlight-color: rgb(0 0 0 / 15%);
+
+@mixin motion {
+  background: linear-gradient(90deg, $color 25%, $highlight-color 37%, $color 63%);
+  background-size: 400% 100%;
+  animation: monitor-skeleton-loading 1.4s ease infinite;
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@mixin surface($animated: true) {
+  background: $color;
+  border-radius: 3px;
+
+  @if $animated {
+    @include motion;
+  }
+}
+
+@keyframes monitor-skeleton-loading {
+  0% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0 50%;
+  }
+}

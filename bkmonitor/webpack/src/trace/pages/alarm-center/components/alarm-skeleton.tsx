@@ -41,7 +41,7 @@ export const AlarmTrendSkeleton = defineComponent({
   name: 'AlarmTrendSkeleton',
   props: {
     compact: Boolean,
-    colors: { type: Array as PropType<string[]>, default: () => ['#8F9FBD'] },
+    seriesCount: { type: Number, default: 1 },
   },
   render() {
     return (
@@ -61,7 +61,7 @@ export const AlarmTrendSkeleton = defineComponent({
             {barHeights.map((height, index) => (
               <span
                 key={index}
-                style={{ height: `${height}%`, '--trend-color': this.colors[index % this.colors.length] }}
+                style={{ height: `${height}%` }}
                 class='alarm-skeleton-block'
               />
             ))}
@@ -76,11 +76,8 @@ export const AlarmTrendSkeleton = defineComponent({
         </div>
         {!this.compact && (
           <div class='legend'>
-            {this.colors.map((color, i) => (
-              <span
-                key={i}
-                style={{ '--trend-color': color }}
-              >
+            {Array.from({ length: this.seriesCount }, (_, i) => (
+              <span key={i}>
                 {block(8, 'dot')}
                 {block(40)}
               </span>

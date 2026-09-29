@@ -1,0 +1,32 @@
+.event-table-skeleton {
+  width: 100%;
+  overflow: hidden;
+
+  .event-skeleton-row {
+    display: grid;
+    height: 33px;
+    border-bottom: 1px solid #f0f1f5;
+  }
+
+  .event-skeleton-cell,
+  .event-skeleton-expand {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0 15px;
+
+    .skeleton-element {
+      display: block;
+      height: 12px;
+    }
+  }
+
+  .event-skeleton-expand {
+    padding: 0 8px;
+
+    .skeleton-element {
+      width: 8px;
+      height: 8px;
+    }
+  }
+}
