@@ -19,8 +19,6 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-"""分片异步导出任务；开关只决定新请求是否进入分片链路，任务本身不做开关判断，已准入的任务必须继续收尾。"""
-
 from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from django.conf import settings
@@ -32,10 +30,6 @@ from apps.log_search.export.scheduler import coordinate, finalize_export
 from apps.utils.lock import share_lock
 
 
-# 规划软超时必须早于规划超时窗口结束：让规划自己先失败，而不是被 Coordinator 判定超时后重复投递
-PLANNING_SOFT_TIME_LIMIT = max(1, settings.ASYNC_EXPORT_PLANNING_TIMEOUT - 60)
-
-
 @app.task(
     bind=True,
     ignore_result=True,
@@ -44,11 +38,10 @@ PLANNING_SOFT_TIME_LIMIT = max(1, settings.ASYNC_EXPORT_PLANNING_TIMEOUT - 60)
     reject_on_worker_lost=True,
 )
 def execute_sharded_export_part(self, part_id):
-    """投递身份取自 Celery 消息 id，与 dispatch_part 写入分片的 task_id 同值。"""
     run_part(part_id, self.request.id)
 
 
-@app.task(ignore_result=True, queue=CONTROL_QUEUE, soft_time_limit=PLANNING_SOFT_TIME_LIMIT)
+@app.task(ignore_result=True, queue=CONTROL_QUEUE, soft_time_limit=max(1, settings.ASYNC_EXPORT_PLANNING_TIMEOUT - 60))
 def plan_sharded_export(job_id):
     run_planning(job_id)
 
@@ -65,10 +58,8 @@ def finalize_sharded_export(job_id):
 @periodic_task(
     run_every=settings.ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS,
     options={"queue": COORDINATOR_QUEUE},
-    # 软超时兜底：正常情况下由轮次自己的时间预算在安全点收尾，这里只兜住卡在不可打断调用里的轮次
     soft_time_limit=settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT,
 )
 @share_lock(ttl=settings.ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT)
 def coordinate_sharded_exports():
-    """补回缺失的规划与收尾消息，按额度投递分片，并回收超时分片。"""
     coordinate()

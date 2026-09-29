@@ -44,7 +44,7 @@ from apps.log_search.export.config import (
     policy_from_snapshot,
 )
 from apps.log_search.export.models import ExportJob, ExportPart
-from apps.log_search.export.storage import build_storage, manifest_name, upload
+from apps.log_search.export.storage import build_storage, manifest_name
 from apps.utils.log import logger
 
 
@@ -263,7 +263,7 @@ def finalize_export(job_id):
         with tempfile.TemporaryDirectory(prefix=f"bklog-export-manifest-{job.pk}-") as directory:
             path = Path(directory) / "manifest.json"
             path.write_bytes(content)
-            upload(build_storage(external=job.is_external), path, manifest_name(job))
+            build_storage(external=job.is_external).export_upload(file_path=str(path), file_name=manifest_name(job))
         return state.finalize_job(
             job_id,
             job.finalization_attempts,

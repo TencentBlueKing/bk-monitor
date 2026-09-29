@@ -43,8 +43,6 @@ from apps.log_search.export.storage import (
     UnsupportedExportStorage,
     artifact_name,
     build_storage,
-    delete_artifact,
-    upload,
 )
 from apps.utils.log import logger
 
@@ -121,7 +119,7 @@ def _upload_with_retry(storage, path, name, part):
     interval = settings.ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS
     for attempt in range(1, attempts + 1):
         try:
-            return upload(storage, path, name)
+            return storage.export_upload(file_path=str(path), file_name=name)
         except Exception as error:  # pylint: disable=broad-except
             if attempt >= attempts:
                 raise PartError(ExportErrorCode.UPLOAD_FAILED, f"上传重试 {attempts} 次仍失败：{error}") from error
@@ -138,7 +136,7 @@ def _upload_with_retry(storage, path, name, part):
 def _discard_artifact(storage, name, part):
     """本次执行没有被接受时清掉自己写的对象。"""
     try:
-        delete_artifact(storage, name)
+        storage.delete_file(name)
     except Exception as error:  # pylint: disable=broad-except
         logger.warning("[run_part] part=%s discard artifact %s failed: %s", part.pk, name, error)
 

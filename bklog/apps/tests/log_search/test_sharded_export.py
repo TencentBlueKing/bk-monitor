@@ -462,7 +462,6 @@ class PartRunnerTests(TestCase):
             patch("apps.log_search.export.worker.build_storage") as build_storage,
             patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
             patch("apps.log_search.export.worker.UnifyQueryApi") as api,
-            patch("apps.log_search.export.worker.upload"),
             patch("apps.log_search.export.worker._sha256", return_value="checksum"),
         ):
             api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
@@ -487,13 +486,13 @@ class PartRunnerTests(TestCase):
             attempts=1,
         )
         with (
-            patch("apps.log_search.export.worker.build_storage"),
+            patch("apps.log_search.export.worker.build_storage") as build_storage,
             patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
             patch("apps.log_search.export.worker.UnifyQueryApi") as api,
-            patch("apps.log_search.export.worker.upload") as upload,
             patch("apps.log_search.export.worker._sha256", return_value="checksum"),
             patch("apps.log_search.export.worker.time.sleep") as sleep,
         ):
+            upload = build_storage.return_value.export_upload
             upload.side_effect = [RuntimeError("cos 5xx"), RuntimeError("cos 5xx"), "etag"]
             api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
             _execute(job, part, fence_of(part))
@@ -517,13 +516,14 @@ class PartRunnerTests(TestCase):
             task_id="task-1",
         )
         with (
-            patch("apps.log_search.export.worker.build_storage"),
+            patch("apps.log_search.export.worker.build_storage") as build_storage,
             patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
             patch("apps.log_search.export.worker.UnifyQueryApi") as api,
-            patch("apps.log_search.export.worker.upload", side_effect=RuntimeError("cos down")) as upload,
             patch("apps.log_search.export.worker._sha256", return_value="checksum"),
             patch("apps.log_search.export.worker.time.sleep"),
         ):
+            upload = build_storage.return_value.export_upload
+            upload.side_effect = RuntimeError("cos down")
             api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
             run_part(part.pk, "task-1")
 
@@ -582,24 +582,25 @@ class PartArtifactLifecycleTests(TestCase):
     def execute(self, part, fence, before_upload=None, discard_error=None):
         """执行一次分片，用一个 dict 充当对象存储。"""
 
-        def upload_artifact(_storage, path, name):
+        def upload_artifact(file_path, file_name):
             if before_upload is not None:
                 before_upload()
-            self.objects[name] = path.read_bytes()
-            self.uploaded.append(name)
+            self.objects[file_name] = Path(file_path).read_bytes()
+            self.uploaded.append(file_name)
 
-        def delete_artifact_file(_storage, name):
+        def delete_file(name):
             if discard_error is not None:
                 raise discard_error
             self.deleted.append(name)
             self.objects.pop(name, None)
 
         with (
-            patch("apps.log_search.export.worker.build_storage"),
+            patch(
+                "apps.log_search.export.worker.build_storage",
+                return_value=MagicMock(export_upload=upload_artifact, delete_file=delete_file),
+            ),
             patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
             patch("apps.log_search.export.worker.UnifyQueryApi") as api,
-            patch("apps.log_search.export.worker.upload", side_effect=upload_artifact),
-            patch("apps.log_search.export.worker.delete_artifact", side_effect=delete_artifact_file),
             patch("apps.log_search.export.worker._sha256", return_value="checksum"),
         ):
             api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
@@ -1783,13 +1784,10 @@ class ManifestChecksumTests(TestCase):
 
     def test_manifest_checksum_matches_the_uploaded_content(self):
         captured = []
-        with (
-            patch("apps.log_search.export.scheduler.build_storage"),
-            patch(
-                "apps.log_search.export.scheduler.upload",
-                side_effect=lambda _storage, path, _name: captured.append(path.read_bytes()),
-            ),
-        ):
+        with patch("apps.log_search.export.scheduler.build_storage") as build_storage:
+            build_storage.return_value.export_upload.side_effect = lambda file_path, file_name: captured.append(
+                Path(file_path).read_bytes()
+            )
             finalize_export(self.job.pk)
 
         self.job.refresh_from_db()
@@ -1800,10 +1798,9 @@ class ManifestChecksumTests(TestCase):
         self.assertEqual(self.job.manifest_object_key, manifest_name(self.job))
 
     def test_transient_upload_failure_retries_without_rerunning_parts(self):
-        with (
-            patch("apps.log_search.export.scheduler.build_storage"),
-            patch("apps.log_search.export.scheduler.upload", side_effect=[OSError("temporary"), None]) as upload,
-        ):
+        with patch("apps.log_search.export.scheduler.build_storage") as build_storage:
+            upload = build_storage.return_value.export_upload
+            upload.side_effect = [OSError("temporary"), None]
             self.assertIsNone(finalize_export(self.job.pk))
             self.job.refresh_from_db()
             self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
@@ -1819,10 +1816,9 @@ class ManifestChecksumTests(TestCase):
     def test_upload_failure_fails_job_after_retry_budget(self):
         self.job.policy = {**self.job.policy, "finalization_attempts": 2}
         self.job.save(update_fields=["policy"])
-        with (
-            patch("apps.log_search.export.scheduler.build_storage"),
-            patch("apps.log_search.export.scheduler.upload", side_effect=OSError("temporary")) as upload,
-        ):
+        with patch("apps.log_search.export.scheduler.build_storage") as build_storage:
+            upload = build_storage.return_value.export_upload
+            upload.side_effect = OSError("temporary")
             finalize_export(self.job.pk)
             self.job.refresh_from_db()
             self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
@@ -1860,14 +1856,12 @@ class ManifestChecksumTests(TestCase):
         self.assertEqual(job_detail(self.job)["stage"], ExportStage.FINALIZING)
 
     def test_cancel_during_finalization_keeps_the_job_canceled(self):
-        def cancel_during_upload(_storage, _path, _name):
+        def cancel_during_upload(file_path, file_name):
             self.assertEqual(ExportJob.objects.get(pk=self.job.pk).status, ExportJobStatus.FINALIZING)
             state.cancel_job(self.job.pk)
 
-        with (
-            patch("apps.log_search.export.scheduler.build_storage"),
-            patch("apps.log_search.export.scheduler.upload", side_effect=cancel_during_upload),
-        ):
+        with patch("apps.log_search.export.scheduler.build_storage") as build_storage:
+            build_storage.return_value.export_upload.side_effect = cancel_during_upload
             self.assertIsNone(finalize_export(self.job.pk))
 
         self.job.refresh_from_db()

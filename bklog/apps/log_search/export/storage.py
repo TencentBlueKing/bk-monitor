@@ -33,9 +33,8 @@ class UnsupportedExportStorage(Exception):
     """分片导出只支持对象存储。"""
 
 
-# NFS 的下载链接是应用内下载接口加固定密文：没有签名有效期，也无法按需刷新，
-# 与分片导出按需签发临时链接的契约不符，因此只接受对象存储。
 SUPPORTED_STORAGE_TYPES = (RemoteStorageType.COS.value, RemoteStorageType.BKREPO.value)
+OBJECT_PREFIX = "exports"
 
 
 def build_storage(external=False):
@@ -44,12 +43,8 @@ def build_storage(external=False):
     config = FeatureToggleObject.toggle(toggle_name).feature_config
     storage_type = config.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
     if storage_type not in SUPPORTED_STORAGE_TYPES:
-        raise UnsupportedExportStorage(
-            f"分片导出仅支持 COS / BKREPO 存储，当前配置 {toggle_name}.{FEATURE_ASYNC_EXPORT_STORAGE_TYPE}={storage_type!r}"
-        )
+        raise UnsupportedExportStorage(f"分片导出不支持当前存储类型 {storage_type}")
     storage = StorageType.get_instance(storage_type)
-    # 下载链接的有效期由 download_link 按产物剩余保留时间逐次签发，存储实例上的默认有效期
-    # 不会生效；CosStorage 的构造参数没有默认值，这里显式给 0 表示不设置默认有效期。
     if storage_type == RemoteStorageType.BKREPO.value:
         return storage()
     return storage(
@@ -59,10 +54,6 @@ def build_storage(external=False):
         config.get("qcloud_cos_bucket"),
         0,
     )
-
-
-# 产物统一放在该前缀下，便于按前缀配置存储侧的生命周期清理
-OBJECT_PREFIX = "exports"
 
 
 def job_object_prefix(job_id):
@@ -76,12 +67,3 @@ def artifact_name(job, part, attempts):
 
 def manifest_name(job):
     return f"{job_object_prefix(job.pk)}manifest.json"
-
-
-def upload(storage, file_path, file_name):
-    return storage.export_upload(file_path=str(file_path), file_name=file_name)
-
-
-def delete_artifact(storage, file_name):
-    """删除产物对象。"""
-    return storage.delete_file(file_name)
