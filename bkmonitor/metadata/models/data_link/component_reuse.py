@@ -59,8 +59,9 @@ ALL_DATA_LINK_COMPONENT_KINDS: list[type[DataLinkResourceConfigBase]] = [
 # - REUSE_ENABLED_STRATEGIES：代码侧的实现声明，列出 compose_*_configs 已经改造
 #   完成、可以安全接收 existing_context 参数的 strategy。
 #
-# 只有代码能力命中，且 strategy 灰度或单表开关任一命中，才会构造 ExistingComponentContext 并下传到
-# compose 分支。这样当运维在 settings 里误配了一个尚未接入复用的 strategy 时，
+# 灰度或单表开关控制可选复用及 leftover 校验；RANDOM_NAME_STRATEGIES 中的策略
+# 无论开关是否开启都构造上下文，保证已分配名称不变，图谱还强制执行 leftover 策略。
+# 当运维在 settings 里误配了一个尚未接入复用的 strategy 时，
 # compose 层不会因为多出一个不认识的关键字参数而直接 ``TypeError``，而是带一条
 # warning 日志回退到原有新建路径，保证"只会影响复用能力，不会把链路 apply 打挂"。
 #
@@ -216,6 +217,8 @@ class ExistingComponentContext:
         self,
         kind: type[T],
         predicate: Callable[[T], bool],
+        *,
+        require_unique: bool = False,
     ) -> T | None:
         """按 predicate 从 pool 中认领一条既有组件。
 
@@ -236,6 +239,8 @@ class ExistingComponentContext:
 
         pool = self._components_by_kind[kind]
         matched = [item for item in pool if predicate(item)]
+        if require_unique and len(matched) > 1:
+            raise ComponentReuseError(self._data_link_name, "name allocation", {kind: matched})
         if len(matched) != 1:
             logger.info(
                 "ExistingComponentContext.claim: data_link_name=%s kind=%s matched=%d -> no reuse",

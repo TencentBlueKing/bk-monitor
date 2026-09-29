@@ -36,7 +36,11 @@ from metadata.models.bcs.resource import PodMonitorInfo, ServiceMonitorInfo
 from metadata.models.bkdata.result_table import BkBaseResultTable
 from metadata.models.constants import DataIdCreatedFromSystem
 from metadata.models.data_link.data_link import DataLink
-from metadata.models.data_link.utils import compose_bkdata_table_id, find_registered_bkdata_data_id_name
+from metadata.models.data_link.utils import (
+    RANDOM_NAME_STRATEGIES,
+    compose_bkdata_table_id,
+    find_registered_bkdata_data_id_name,
+)
 from metadata.models.data_source import DataSource
 from metadata.models.influxdb_cluster import InfluxDBClusterInfo, InfluxDBHostInfo
 from metadata.models.result_table import (
@@ -2706,6 +2710,15 @@ class Command(BaseCommand):
                         data_link = data_link_candidates.filter(
                             data_link_name=configured_bk_base_result_table.data_link_name
                         ).first()
+                    elif data_link_strategy in RANDOM_NAME_STRATEGIES:
+                        matches = [
+                            candidate
+                            for candidate in data_link_candidates.filter(bk_data_id=data_source.bk_data_id)
+                            if ds_rt.table_id in candidate.table_ids
+                        ]
+                        if len(matches) > 1:
+                            raise ValueError(f"结果表 {ds_rt.table_id} 存在多条匹配的 DataLink")
+                        data_link = matches[0] if matches else None
                     else:
                         data_link = (
                             data_link_candidates.filter(bk_data_id=data_source.bk_data_id)
@@ -2757,62 +2770,99 @@ class Command(BaseCommand):
                             f"未找到对应的BkBaseResultTable记录"
                         )
 
-                    # 11. 组装bkbase_vmrt_name并检查相关配置（参考compose_configs流程）
-                    bkbase_vmrt_name = compose_bkdata_table_id(table_id=ds_rt.table_id, strategy=data_link_strategy)
-
-                    # 12. 检查ResultTableConfig（compose_configs中创建的第一个配置）
-                    vm_table_id_ins = ResultTableConfig.objects.filter(
-                        name=bkbase_vmrt_name,
-                        data_link_name=data_link.data_link_name,
-                        namespace=data_link.namespace,
-                        bk_tenant_id=self.bk_tenant_id,
-                    ).first()
-
-                    if not vm_table_id_ins:
-                        result["issues"].append(
-                            f"[ResultTableConfig] [name={bkbase_vmrt_name}] "
-                            f"[data_link_name={data_link.data_link_name}] 未找到对应的结果表配置"
+                    if data_link_strategy in RANDOM_NAME_STRATEGIES:
+                        scope = dict(
+                            bk_tenant_id=self.bk_tenant_id,
+                            namespace=data_link.namespace,
+                            data_link_name=data_link.data_link_name,
                         )
-                    elif vm_table_id_ins.status != "Ok":
-                        result["issues"].append(
-                            f"[ResultTableConfig] [name={bkbase_vmrt_name}] 状态异常: {vm_table_id_ins.status}"
-                        )
+                        components = {}
+                        for model in (ResultTableConfig, VMStorageBindingConfig, DataBusConfig):
+                            candidates = list(model.objects.filter(**scope))
+                            if model is ResultTableConfig:
+                                candidates = [item for item in candidates if item.data_type != "graph"]
+                            elif model is DataBusConfig:
+                                candidates = [
+                                    item
+                                    for item in candidates
+                                    if not any(sink.startswith("SurrealDBBinding:") for sink in item.sink_names)
+                                ]
+                            if len(candidates) != 1:
+                                result["issues"].append(
+                                    f"[{model.__name__}] [data_link_name={data_link.pk}] "
+                                    f"预期唯一组件，实际找到 {len(candidates)} 个"
+                                )
+                                continue
+                            instance = candidates[0]
+                            components[model] = instance
+                            if instance.status != "Ok":
+                                result["issues"].append(
+                                    f"[{model.__name__}] [name={instance.name}] 状态异常: {instance.status}"
+                                )
+                        rt_config = components.get(ResultTableConfig)
+                        binding = components.get(VMStorageBindingConfig)
+                        databus = components.get(DataBusConfig)
+                        if rt_config and binding and binding.bkbase_result_table_name != rt_config.name:
+                            result["issues"].append(f"[VMStorageBindingConfig] [name={binding.name}] 结果表引用不一致")
+                        if databus and binding and f"VmStorageBinding:{binding.name}" not in databus.sink_names:
+                            result["issues"].append(f"[DataBusConfig] [name={databus.name}] 存储绑定引用不一致")
+                    else:
+                        # 11. 组装bkbase_vmrt_name并检查相关配置（参考compose_configs流程）
+                        bkbase_vmrt_name = compose_bkdata_table_id(table_id=ds_rt.table_id, strategy=data_link_strategy)
 
-                    # 13. 检查VMStorageBindingConfig（compose_configs中创建的第二个配置）
-                    vm_storage_ins = VMStorageBindingConfig.objects.filter(
-                        name=bkbase_vmrt_name,
-                        data_link_name=data_link.data_link_name,
-                        namespace=data_link.namespace,
-                        bk_tenant_id=self.bk_tenant_id,
-                    ).first()
+                        # 12. 检查ResultTableConfig（compose_configs中创建的第一个配置）
+                        vm_table_id_ins = ResultTableConfig.objects.filter(
+                            name=bkbase_vmrt_name,
+                            data_link_name=data_link.data_link_name,
+                            namespace=data_link.namespace,
+                            bk_tenant_id=self.bk_tenant_id,
+                        ).first()
 
-                    if not vm_storage_ins:
-                        result["issues"].append(
-                            f"[VMStorageBindingConfig] [name={bkbase_vmrt_name}] "
-                            f"[data_link_name={data_link.data_link_name}] 未找到对应的VM存储绑定配置"
-                        )
-                    elif vm_storage_ins.status != "Ok":
-                        result["issues"].append(
-                            f"[VMStorageBindingConfig] [name={bkbase_vmrt_name}] 状态异常: {vm_storage_ins.status}"
-                        )
+                        if not vm_table_id_ins:
+                            result["issues"].append(
+                                f"[ResultTableConfig] [name={bkbase_vmrt_name}] "
+                                f"[data_link_name={data_link.data_link_name}] 未找到对应的结果表配置"
+                            )
+                        elif vm_table_id_ins.status != "Ok":
+                            result["issues"].append(
+                                f"[ResultTableConfig] [name={bkbase_vmrt_name}] 状态异常: {vm_table_id_ins.status}"
+                            )
 
-                    # 14. 检查DataBusConfig（compose_configs中创建的第三个配置）
-                    data_bus_ins = DataBusConfig.objects.filter(
-                        name=bkbase_vmrt_name,
-                        data_link_name=data_link.data_link_name,
-                        namespace=data_link.namespace,
-                        bk_tenant_id=self.bk_tenant_id,
-                    ).first()
+                        # 13. 检查VMStorageBindingConfig（compose_configs中创建的第二个配置）
+                        vm_storage_ins = VMStorageBindingConfig.objects.filter(
+                            name=bkbase_vmrt_name,
+                            data_link_name=data_link.data_link_name,
+                            namespace=data_link.namespace,
+                            bk_tenant_id=self.bk_tenant_id,
+                        ).first()
 
-                    if not data_bus_ins:
-                        result["issues"].append(
-                            f"[DataBusConfig] [name={bkbase_vmrt_name}] "
-                            f"[data_link_name={data_link.data_link_name}] 未找到对应的DataBus配置"
-                        )
-                    elif data_bus_ins.status != "Ok":
-                        result["issues"].append(
-                            f"[DataBusConfig] [name={bkbase_vmrt_name}] 状态异常: {data_bus_ins.status}"
-                        )
+                        if not vm_storage_ins:
+                            result["issues"].append(
+                                f"[VMStorageBindingConfig] [name={bkbase_vmrt_name}] "
+                                f"[data_link_name={data_link.data_link_name}] 未找到对应的VM存储绑定配置"
+                            )
+                        elif vm_storage_ins.status != "Ok":
+                            result["issues"].append(
+                                f"[VMStorageBindingConfig] [name={bkbase_vmrt_name}] 状态异常: {vm_storage_ins.status}"
+                            )
+
+                        # 14. 检查DataBusConfig（compose_configs中创建的第三个配置）
+                        data_bus_ins = DataBusConfig.objects.filter(
+                            name=bkbase_vmrt_name,
+                            data_link_name=data_link.data_link_name,
+                            namespace=data_link.namespace,
+                            bk_tenant_id=self.bk_tenant_id,
+                        ).first()
+
+                        if not data_bus_ins:
+                            result["issues"].append(
+                                f"[DataBusConfig] [name={bkbase_vmrt_name}] "
+                                f"[data_link_name={data_link.data_link_name}] 未找到对应的DataBus配置"
+                            )
+                        elif data_bus_ins.status != "Ok":
+                            result["issues"].append(
+                                f"[DataBusConfig] [name={bkbase_vmrt_name}] 状态异常: {data_bus_ins.status}"
+                            )
 
                     vm_cluster = ClusterInfo.objects.filter(
                         cluster_id=vm_record.vm_cluster_id, bk_tenant_id=self.bk_tenant_id

@@ -382,7 +382,7 @@ def assert_output_then_flow(external_api) -> None:
 
 
 def set_output_status(rule: RecordRuleV4, status: str) -> None:
-    config_name = RecordRuleV4OutputResources.compose_result_table_config_name(rule.table_id)
+    config_name = RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
     models.ResultTableConfig.objects.filter(
         bk_tenant_id=TENANT_ID,
         namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
@@ -490,7 +490,7 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
     ]
     assert models.ResultTable.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).exists()
     output_config = models.ResultTableConfig.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
-    assert output_config.name == RecordRuleV4OutputResources.compose_result_table_config_name(rule.table_id)
+    assert output_config.name == RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
     assert rule.dst_vm_table_id == f"{output_config.datalink_biz_ids.data_biz_id}_{output_config.name}"
     assert output_config.bkbase_table_id == rule.dst_vm_table_id
     output_table = models.ResultTable.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
@@ -749,7 +749,7 @@ def test_create_prepares_output_metadata_before_apply(v4_base_data, external_api
 
     assert models.ResultTable.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).exists()
     output_config = models.ResultTableConfig.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
-    assert output_config.name == RecordRuleV4OutputResources.compose_result_table_config_name(rule.table_id)
+    assert output_config.name == RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
     assert output_config.data_link_name == output_config.name
     assert output_config.bkbase_table_id == rule.dst_vm_table_id
     assert rule.dst_vm_table_id == f"{output_config.datalink_biz_ids.data_biz_id}_{output_config.name}"
@@ -819,7 +819,7 @@ def test_reconcile_retries_output_apply_when_failed_and_configs_exist(v4_base_da
 
     # FAILED 说明上一次 output 下发失败，后台调谐应自动重试，而非永久跳过。
     assert_output_apply_only(external_api)
-    config_name = RecordRuleV4OutputResources.compose_result_table_config_name(rule.table_id)
+    config_name = RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
     for config_model in (models.ResultTableConfig, models.VMStorageBindingConfig):
         config_instance = config_model.objects.get(
             bk_tenant_id=TENANT_ID,
@@ -831,7 +831,7 @@ def test_reconcile_retries_output_apply_when_failed_and_configs_exist(v4_base_da
 
 def test_execute_skips_output_apply_when_configs_exist_even_if_local_fields_drift(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
-    config_name = RecordRuleV4OutputResources.compose_result_table_config_name(rule.table_id)
+    config_name = RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
     models.VMStorageBindingConfig.objects.filter(
         bk_tenant_id=TENANT_ID,
         namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
@@ -1525,3 +1525,24 @@ def test_duplicate_metric_name_is_allowed(v4_base_data, external_api):
     records = list(rule.current_spec.records.order_by("source_index"))
     assert [record.metric_name for record in records] == ["cpu_usage_avg", "cpu_usage_avg"]
     assert records[0].record_key != records[1].record_key
+
+
+def test_output_identity_survives_missing_configs(v4_base_data, external_api, mocker):
+    rule = declare_rule()
+    saved_vmrt = rule.dst_vm_table_id
+    assert "_bkm_rr_" in saved_vmrt
+    generator = mocker.patch(
+        "metadata.models.data_link.utils.generate_bkdata_resource_name",
+        side_effect=AssertionError("output identity regenerated"),
+    )
+    RecordRuleV4OutputResources.ensure_group_output(rule)
+    saved_name = models.ResultTableConfig.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID).name
+    models.ResultTableConfig.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).delete()
+    models.VMStorageBindingConfig.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).delete()
+    RecordRuleV4OutputResources.ensure_group_output(rule)
+    restored = models.ResultTableConfig.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
+    assert restored.name == saved_name
+    assert restored.bkbase_table_id == saved_vmrt
+    rule.refresh_from_db()
+    assert rule.dst_vm_table_id == saved_vmrt
+    generator.assert_not_called()

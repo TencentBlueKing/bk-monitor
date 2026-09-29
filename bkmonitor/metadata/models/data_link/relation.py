@@ -260,8 +260,7 @@ DATA_LINK_COMPONENT_NAME_MAX_LENGTH = cast(int, DataBusConfig._meta.get_field("d
 
 
 def _compose_rebuilt_graph_data_link_name(databus: DataBusConfig) -> str:
-    raw_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}__{databus.namespace}__{databus.name}"
-    return f"{REBUILT_DATA_LINK_NAME_PREFIX}{utils.compose_bkdata_table_id(raw_name)}"
+    return REBUILT_DATA_LINK_NAME_PREFIX + utils.generate_bkdata_resource_name("gr", databus.pk)
 
 
 def _compose_rebuilt_simple_data_link_name(databus: DataBusConfig) -> str:
@@ -1357,7 +1356,8 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
 
     # Step 8: graph rebuild 使用短 data_link_name，避免写入 64 字符的组件外键时超长。
     if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
-        data_link_name = _compose_rebuilt_graph_data_link_name(databus)
+        source_databus = min(databus_instances, key=lambda instance: instance.pk)
+        data_link_name = _compose_rebuilt_graph_data_link_name(source_databus) if dry_run else ""
     else:
         data_link_name = f"{REBUILT_DATA_LINK_NAME_PREFIX}{databus.bk_tenant_id}__{databus.namespace}__{databus_name}"
 
@@ -1437,18 +1437,59 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
                 )
                 return None
 
-        # 先创建/更新 DataLink 记录，确保主记录存在后再关联组件
-        data_link, created = DataLink.objects.update_or_create(
-            bk_tenant_id=databus.bk_tenant_id,
-            namespace=databus.namespace,
-            data_link_name=data_link_name,
-            defaults={
-                # 这里需要关联监控平台真正的dataid，而不是bkdata的dataid
-                "bk_data_id": data_source.bk_data_id,
-                "table_ids": table_ids,
-                "data_link_strategy": strategy,
-            },
-        )
+        if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
+            # Lock and recheck every component after parsing, since another rebuild
+            # may have claimed a sibling DataBus while this invocation was waiting.
+            components_by_model = {}
+            for instance in [*databus_instances, *sink_instances, *rt_instances]:
+                components_by_model.setdefault(type(instance), []).append(instance)
+            for model in sorted(components_by_model, key=lambda model: model._meta.label):
+                instances = components_by_model[model]
+                expected = {instance.pk: instance for instance in instances}
+                locked = list(
+                    model.objects.using(DATABASE_CONNECTION_NAME)
+                    .select_for_update()
+                    .filter(
+                        pk__in=expected,
+                        bk_tenant_id=databus.bk_tenant_id,
+                        namespace=databus.namespace,
+                    )
+                    .order_by("pk")
+                )
+                if len(locked) != len(expected) or any(instance.data_link_name for instance in locked):
+                    return None
+                for instance in locked:
+                    before = expected[instance.pk]
+                    for field in ("sink_names", "data_id_name", "bkbase_result_table_name"):
+                        if hasattr(instance, field) and getattr(instance, field) != getattr(before, field):
+                            return None
+            data_link = utils.create_resource_with_random_name(
+                DataLink,
+                "gr",
+                source_databus.pk,
+                name_field="data_link_name",
+                prefix=REBUILT_DATA_LINK_NAME_PREFIX,
+                bk_tenant_id=databus.bk_tenant_id,
+                namespace=databus.namespace,
+                bk_data_id=data_source.bk_data_id,
+                table_ids=table_ids,
+                data_link_strategy=strategy,
+            )
+            data_link_name, created = data_link.data_link_name, True
+            graph_bkbase_result_table["data_link_name"] = data_link_name
+        else:
+            # 先创建/更新 DataLink 记录，确保主记录存在后再关联组件
+            data_link, created = DataLink.objects.update_or_create(
+                bk_tenant_id=databus.bk_tenant_id,
+                namespace=databus.namespace,
+                data_link_name=data_link_name,
+                defaults={
+                    # 这里需要关联监控平台真正的dataid，而不是bkdata的dataid
+                    "bk_data_id": data_source.bk_data_id,
+                    "table_ids": table_ids,
+                    "data_link_strategy": strategy,
+                },
+            )
 
         # 更新 DataBusConfig 自身；graph dual-write rebuild 会同时认领 VM/SurrealDB 两条 sibling Databus。
         for databus_instance in databus_instances:

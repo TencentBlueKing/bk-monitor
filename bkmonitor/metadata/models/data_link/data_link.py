@@ -57,6 +57,7 @@ from metadata.models.data_link.data_link_configs import (
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
 )
+from metadata.models.data_link.naming import resolve_component_names
 from metadata.models.data_link.utils import generate_result_table_field_list, get_bkbase_raw_data_id_name
 from metadata.models.space.constants import EtlConfigs, SpaceTypes, SYSTEM_BASE_DATA_ETL_CONFIGS
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, SurrealDBStorage
@@ -642,7 +643,7 @@ class DataLink(models.Model):
         """
         生成对应套餐的链路完整配置
 
-        ``existing_context`` 由上层根据 strategy 灰度开关或 RT option 单表开关决定是否构造。
+        随机命名策略始终复用名称；其他策略由上层根据灰度或单表开关决定是否构造上下文。
         本层只负责确认当前 compose 分支已经接入 ``existing_context`` 形参，避免把该参数
         透传给尚未改造的 strategy。
         """
@@ -1062,13 +1063,6 @@ class DataLink(models.Model):
             name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
         )
         option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
-        default_vm_name = self.resolve_graph_relation_vm_result_table_name(
-            bk_tenant_id=self.bk_tenant_id,
-            table_id=table_id,
-            default_name=utils.compose_bkdata_table_id(table_id),
-        )
-        surrealdb_name = self.compose_surrealdb_table_name(table_id)
-
         configs: list[dict[str, Any]] = []
         if option.should_write_vm:
             if not storage_cluster_name:
@@ -1086,34 +1080,13 @@ class DataLink(models.Model):
             if not storage_cluster_name:
                 raise ValueError("compose_graph_relation_v4_time_series_configs: vm cluster name is empty")
 
-            existing_vm_rt = (
-                existing_context.claim(ResultTableConfig, lambda component: component.data_type != "graph")
-                if existing_context is not None
-                else None
-            )
-            existing_vm_binding = (
-                existing_context.claim(VMStorageBindingConfig, lambda component: True)
-                if existing_context is not None
-                else None
-            )
-            existing_vm_databus = (
-                existing_context.claim(
-                    DataBusConfig,
-                    lambda component: any(
-                        sink_name.startswith(f"{DataLinkKind.VMSTORAGEBINDING.value}:")
-                        for sink_name in component.sink_names
-                    ),
-                )
-                if existing_context is not None
-                else None
-            )
-            vm_rt_name = existing_vm_rt.name if existing_vm_rt is not None else default_vm_name
-            vm_binding_name = existing_vm_binding.name if existing_vm_binding is not None else vm_rt_name
-            vm_databus_name = existing_vm_databus.name if existing_vm_databus is not None else vm_rt_name
-            vm_data_id_name = (
-                existing_vm_databus.data_id_name
-                if existing_vm_databus is not None
-                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+            vm_rt_name, vm_binding_name, vm_databus_name, vm_data_id_name = resolve_component_names(
+                self,
+                bk_biz_id=bk_biz_id,
+                data_source=data_source,
+                table_id=table_id,
+                scene="gvm",
+                context=existing_context,
             )
 
             result_table_option = ResultTableOption.objects.filter(
@@ -1147,38 +1120,14 @@ class DataLink(models.Model):
                     f"compose_graph_relation_v4_time_series_configs: surrealdb storage not found, table_id={table_id}"
                 )
 
-            existing_surrealdb_rt = (
-                existing_context.claim(ResultTableConfig, lambda component: component.data_type == "graph")
-                if existing_context is not None
-                else None
-            )
-            existing_surrealdb_binding = (
-                existing_context.claim(SurrealDBBindingConfig, lambda component: True)
-                if existing_context is not None
-                else None
-            )
-            existing_surrealdb_databus = (
-                existing_context.claim(
-                    DataBusConfig,
-                    lambda component: any(
-                        sink_name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:")
-                        for sink_name in component.sink_names
-                    ),
-                )
-                if existing_context is not None
-                else None
-            )
-            graph_rt_name = existing_surrealdb_rt.name if existing_surrealdb_rt is not None else surrealdb_name
-            graph_binding_name = (
-                existing_surrealdb_binding.name if existing_surrealdb_binding is not None else graph_rt_name
-            )
-            graph_databus_name = (
-                existing_surrealdb_databus.name if existing_surrealdb_databus is not None else graph_rt_name
-            )
-            graph_data_id_name = (
-                existing_surrealdb_databus.data_id_name
-                if existing_surrealdb_databus is not None
-                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+            graph_rt_name, graph_binding_name, graph_databus_name, graph_data_id_name = resolve_component_names(
+                self,
+                bk_biz_id=bk_biz_id,
+                data_source=data_source,
+                table_id=table_id,
+                scene="gdb",
+                context=existing_context,
+                graph=True,
             )
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 graph_rt, _ = ResultTableConfig.objects.update_or_create(
@@ -2213,15 +2162,8 @@ class DataLink(models.Model):
         @param data_source: 数据源
         @param table_id: 监控平台结果表ID（Metadata中的）
         @param storage_cluster_name: VM集群名称
-        @param existing_context: 已有组件复用上下文；由灰度开关控制，仅当当前
-            strategy 同时出现在 ``settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES``
-            与 ``component_reuse.REUSE_ENABLED_STRATEGIES`` 时由上层注入。非 None 时
-            compose 会尝试按 ``table_id`` / ``data_id_name`` 从已有组件池中认领名称，
-            避免迁移/改名场景下重复创建组件。未认领到时回退到 ``bkbase_vmrt_name``
-            新建语义。
-
-        注意：``vm_cluster_name`` 放在 defaults 中，允许复用既有 binding 时同步更新 VM 集群名称；
-        ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
+        @param existing_context: 当前链路已有组件；未传入时仍按持久化关系复用名称。
+            只有没有已有资源或保存引用的组件才分配随机名称。
         """
 
         from metadata.models import ResultTableOption
@@ -2234,62 +2176,13 @@ class DataLink(models.Model):
             table_id,
             storage_cluster_name,
         )
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
-
-        # 解析 compose 所需的 name：优先复用既有组件的 name（若同 kind 恰好只有
-        # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。
-        # 存量链路里 table_id / bk_data_id 可能缺失，复用判断只依赖 datalink
-        # 下同 kind 组件的一对一关系；同 kind 多条会留给 leftover 校验兜底。
-        existing_rt = (
-            existing_context.claim(ResultTableConfig, lambda component: component.data_type != "graph")
-            if existing_context is not None
-            else None
-        )
-        rt_name = bkbase_vmrt_name
-        if existing_rt:
-            rt_name = existing_rt.name
-        else:
-            # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
-            existing_vm_record = AccessVMRecord.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                result_table_id=table_id,
-            ).last()
-            if existing_vm_record:
-                # 需要剔除业务ID前缀
-                vmrt_id = existing_vm_record.vm_result_table_id
-                rt_name = vmrt_id.split("_", 1)[-1]
-
-        existing_binding = (
-            existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
-        )
-        binding_name = existing_binding.name if existing_binding is not None else bkbase_vmrt_name
-
-        existing_databus = (
-            existing_context.claim(
-                DataBusConfig,
-                lambda component: (
-                    not any(
-                        sink_name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:")
-                        for sink_name in component.sink_names
-                    )
-                ),
-            )
-            if existing_context is not None
-            else None
-        )
-
-        databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
-        bkbase_data_name = (
-            existing_databus.data_id_name
-            if existing_databus is not None
-            else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
-        )
-        logger.info(
-            "compose_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] bkbase_vmrt_name->[%s]to "
-            "compose configs",
-            self.data_link_name,
-            bkbase_data_name,
-            bkbase_vmrt_name,
+        rt_name, binding_name, databus_name, bkbase_data_name = resolve_component_names(
+            self,
+            bk_biz_id=bk_biz_id,
+            data_source=data_source,
+            table_id=table_id,
+            scene="ts",
+            context=existing_context,
         )
 
         # 获取指标组维度配置
@@ -2430,14 +2323,8 @@ class DataLink(models.Model):
         """
         生成采集插件时序数据链路配置 -- bk_standard & bk_exporter
 
-        当 ``existing_context`` 非 None 时（由灰度开关控制），会尝试基于
-        ``table_id`` / ``data_id_name`` 从已有组件池中认领名称，用于复用历史组件避免
-        重复创建。未认领到时回退到 ``bkbase_vmrt_name`` 新建语义。
-
-        注意：``vm_cluster_name`` 放在 defaults 中，允许复用既有 binding 时同步更新 VM 集群名称；
-        ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
+        已有名称始终复用，不受灰度开关影响；只有首次创建才分配随机名称。
         """
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
         supports_cmdb_output = self.data_link_strategy in {
             self.BK_EXPORTER_TIME_SERIES,
             self.BK_STANDARD_TIME_SERIES,
@@ -2457,40 +2344,13 @@ class DataLink(models.Model):
         # 白名单配置
         whitelist = self._compose_time_series_field_whitelist(table_id)
 
-        # 解析 compose 所需的 name：优先复用既有组件的 name（若同 kind 恰好只有
-        # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。
-        # 存量链路里 table_id / bk_data_id 可能缺失，复用判断只依赖 datalink
-        # 下同 kind 组件的一对一关系；同 kind 多条会留给 leftover 校验兜底。
-        existing_rt = (
-            existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
-        )
-        rt_name = bkbase_vmrt_name
-        if existing_rt:
-            rt_name = existing_rt.name
-        else:
-            # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
-            existing_vm_record = AccessVMRecord.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                result_table_id=table_id,
-            ).last()
-            if existing_vm_record:
-                # 需要剔除业务ID前缀
-                vmrt_id = existing_vm_record.vm_result_table_id
-                rt_name = vmrt_id.split("_", 1)[-1]
-
-        existing_binding = (
-            existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
-        )
-        binding_name = existing_binding.name if existing_binding is not None else bkbase_vmrt_name
-
-        existing_databus = (
-            existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
-        )
-        databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
-        bkbase_data_name = (
-            existing_databus.data_id_name
-            if existing_databus is not None
-            else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+        rt_name, binding_name, databus_name, bkbase_data_name = resolve_component_names(
+            self,
+            bk_biz_id=bk_biz_id,
+            data_source=data_source,
+            table_id=table_id,
+            scene=utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
+            context=existing_context,
         )
 
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
@@ -2725,7 +2585,7 @@ class DataLink(models.Model):
                 )
 
         try:
-            # NOTE:新链路下，data_link_name和bkbase_data_name一致
+            # 随机命名链路的主名称与 DataId 名独立，source 由 sync_metadata 按真实 DataBus 回填。
             monitor_table_id: str | None = (
                 table_id if self.data_link_strategy != self.BASEREPORT_TIME_SERIES_V1 else self.data_link_name
             )
@@ -2734,7 +2594,9 @@ class DataLink(models.Model):
                 data_link_name=self.data_link_name,
                 defaults={
                     "monitor_table_id": monitor_table_id,
-                    "bkbase_data_name": self.data_link_name,
+                    "bkbase_data_name": ""
+                    if self.data_link_strategy in utils.RANDOM_NAME_STRATEGIES
+                    else self.data_link_name,
                     "storage_type": storage_type,
                     "status": DataLinkResourceStatus.INITIALIZING.value,
                 },
@@ -2749,20 +2611,14 @@ class DataLink(models.Model):
             )
             raise e
 
-        # 组件复用开关：strategy 级灰度或 RT option 单表开关任一命中，且代码侧已接入时，
-        # 才会构造 existing_context 并交给 compose 分支；table_id 为空时不查 RT option。
+        # 开关继续控制可选复用和 leftover 校验；随机命名策略始终读取已保存的组件身份。
         enable_reuse = is_reuse_enabled_for(
             self.data_link_strategy,
             table_id=table_id,
             bk_tenant_id=self.bk_tenant_id,
         )
-        existing_context: ExistingComponentContext | None = (
-            ExistingComponentContext.from_datalink(self)
-            if enable_reuse
-            or self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
-            or force_cleanup_absent_components
-            else None
-        )
+        require_name_reuse = self.data_link_strategy in utils.RANDOM_NAME_STRATEGIES
+        validate_leftovers = enable_reuse or self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
 
         # 把 compose（含内部 update_or_create）和 leftover 校验放进同一个外层事务：
         #
@@ -2777,13 +2633,20 @@ class DataLink(models.Model):
         # savepoint，外层异常触发时连带一起回滚，保证 "apply 不通过 -> 本地无副作用"。
         try:
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+                if require_name_reuse:
+                    type(self).objects.select_for_update().get(pk=self.pk)
+                existing_context = (
+                    ExistingComponentContext.from_datalink(self)
+                    if require_name_reuse or enable_reuse or force_cleanup_absent_components
+                    else None
+                )
                 configs: list[dict[str, Any]] = self.compose_configs(
                     *args,
                     existing_context=existing_context,
                     consumer_group=consumer_group,
                     **kwargs,
                 )
-                if existing_context is not None and not force_cleanup_absent_components:
+                if validate_leftovers and existing_context is not None and not force_cleanup_absent_components:
                     # compose 已跑完，本次 apply 的所有既有组件认领都已完成；
                     # 此时 pool 中剩下的就是"未被 compose 消费的既有组件"，按策略决定是否放行。
                     # 一旦 strict 策略不通过会抛 ComponentReuseError，连带上面的 compose

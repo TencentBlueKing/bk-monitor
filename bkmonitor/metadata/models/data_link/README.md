@@ -291,6 +291,23 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - 结果名整体受 BKBase 40 长度限制，超长时截断并追加哈希；
 - 联邦子集群策略会加 `_fed` 后缀。
 
+### 8.4 随机名称与持久化身份
+
+`compose_bkdata_data_id_name` / `compose_bkdata_table_id` 保留旧规则，DataId 申请与联邦链路仍使用它们。
+已有 DataId 注册、普通时序/插件/图谱链路和预计算输出的新身份使用
+`generate_bkdata_resource_name(scene, source_id)`：`bkm_<场景>_<来源ID>_<12位随机串>`，最长 40 字符。
+场景为 `did`、`ts`、`std`、`exp`、`gr`、`gvm`、`gdb`、`rr`；来源是 DataId 或规则主键。
+图谱关系重建以最小 DataBus 主键为来源，额外保留 `rebuilt__` 前缀。
+
+- 名称先在本地事务保存，再下发 BKBase；重试不会重新随机生成。
+- DataLink 主名称与 DataId 名独立，通过 BkBaseResultTable、DataBusConfig 保存关联。
+- 普通时序/插件/图谱始终复用已有组件身份，不受组件复用灰度开关关闭影响；歧义直接报错。
+- RT、Binding 和 DataBus 可以不同名，所有引用必须读取实际实例及保存的引用。
+- 预计算在规则声明时将输出身份保存于 dst_vm_table_id，后续 output / Flow 均复用。
+- 健康检查、采样和路由回填只读取已登记身份，不用生成函数推测资源。
+- 图谱重建 dry-run 只生成候选名，不保存；实际执行名称以最终持久化结果为准。
+- 不重命名存量资源，不修改 DataId 申请/轮询、联邦及其 V3 raw data 兜底。
+
 ---
 
 ## 9. 扩展指南

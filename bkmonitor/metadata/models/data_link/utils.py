@@ -12,15 +12,19 @@ import hashlib
 import json
 import logging
 import re
+import secrets
+import string
 from typing import TYPE_CHECKING, Any
 
 from django.conf import settings
+from django.db import IntegrityError, transaction
 from jinja2.sandbox import SandboxedEnvironment as Environment
 from pypinyin import lazy_pinyin
 from tenacity import retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
 from metadata import models
+from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN
 
 logger = logging.getLogger("metadata")
@@ -32,6 +36,41 @@ BKBASE_RESULT_TABLE_FIELD_TYPE_MAP = {
     # flattened 是 ES mapping 类型，BKBase V4 ResultTable 字段类型使用 string 表达。
     "flattened": "string",
 }
+
+RANDOM_NAME_SCENES = frozenset({"did", "ts", "std", "exp", "gr", "gvm", "gdb", "rr"})
+RANDOM_NAME_STRATEGIES = {
+    "bk_standard_v2_time_series": "ts",
+    "bk_standard_time_series": "std",
+    "bk_exporter_time_series": "exp",
+    "graph_relation_time_series": "gr",
+}
+
+
+def generate_bkdata_resource_name(scene: str, source_id: int) -> str:
+    """仅为首次创建生成候选名；已分配的身份必须从持久化关系读取。"""
+    if scene not in RANDOM_NAME_SCENES or type(source_id) is not int or not 0 < source_id <= 2**63 - 1:
+        raise ValueError(f"invalid resource name source: scene={scene!r}, source_id={source_id!r}")
+    suffix = "".join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(12))
+    return f"bkm_{scene}_{source_id}_{suffix}"
+
+
+def create_resource_with_random_name(model, scene: str, source_id: int, *, name_field="name", prefix="", **fields):
+    """通过唯一约束分配名称；只重试确定的同名冲突，其他数据库异常原样抛出。"""
+    manager = model.objects.using(DATABASE_CONNECTION_NAME)
+    for _ in range(5):
+        name = prefix + generate_bkdata_resource_name(scene, source_id)
+        identity = {name_field: name}
+        if name_field != "data_link_name":
+            identity.update(bk_tenant_id=fields["bk_tenant_id"], namespace=fields["namespace"])
+        if manager.filter(**identity).exists():
+            continue
+        try:
+            with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+                return manager.create(**{name_field: name}, **fields)
+        except IntegrityError:
+            if not manager.filter(**identity).exists():
+                raise
+    raise ValueError(f"unable to allocate resource name: {model.__name__}, scene={scene}, source_id={source_id}")
 
 
 def clean_redundant_underscores(table_id: str) -> str:

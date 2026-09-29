@@ -360,19 +360,29 @@ class DataSource(models.Model):
         from metadata.models.data_link import DataIdConfig, utils
         from metadata.models.data_link.service import apply_data_source_config
 
-        # 如果未指定计算平台数据源名称，优先复用当前 Data ID 已登记的资源名。
-        if not bkbase_data_name:
-            bkbase_data_name = utils.find_registered_bkdata_data_id_name(self, namespace=namespace)
-        if not bkbase_data_name:
-            bkbase_data_name = utils.compose_bkdata_data_id_name(self.data_name)
-
-        logger.info("register_to_bkbase: bkbase_data_name: %s", bkbase_data_name)
-        data_id_config_ins, _ = DataIdConfig.objects.update_or_create(
-            bk_tenant_id=self.bk_tenant_id,
-            namespace=namespace,
-            name=bkbase_data_name,
-            defaults={"bk_data_id": self.bk_data_id, "bk_biz_id": bk_biz_id},
-        )
+        # 名称先落库再下发；远端失败及并发注册都复用同一资源。
+        with atomic(config.DATABASE_CONNECTION_NAME):
+            type(self).objects.select_for_update().get(pk=self.pk)
+            if not bkbase_data_name:
+                bkbase_data_name = utils.find_registered_bkdata_data_id_name(self, namespace=namespace)
+            if bkbase_data_name:
+                data_id_config_ins, _ = DataIdConfig.objects.update_or_create(
+                    bk_tenant_id=self.bk_tenant_id,
+                    namespace=namespace,
+                    name=bkbase_data_name,
+                    defaults={"bk_data_id": self.bk_data_id, "bk_biz_id": bk_biz_id},
+                )
+            else:
+                data_id_config_ins = utils.create_resource_with_random_name(
+                    DataIdConfig,
+                    "did",
+                    self.bk_data_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    namespace=namespace,
+                    bk_data_id=self.bk_data_id,
+                    bk_biz_id=bk_biz_id,
+                )
+        logger.info("register_to_bkbase: bkbase_data_name: %s", data_id_config_ins.name)
         data_id_config = data_id_config_ins.compose_predefined_config(data_source=self)
         data_source_config = data_id_config_ins.compose_data_source_config(
             data_source_alias=self.data_name,

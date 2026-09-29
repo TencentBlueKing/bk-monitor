@@ -14,6 +14,7 @@ import random
 from typing import Any
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Q
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
@@ -30,10 +31,10 @@ from metadata.models import (
     DataSource,
     DataSourceOption,
 )
-from metadata.models.data_link import DataLink
+from metadata.config import DATABASE_CONNECTION_NAME
+from metadata.models.data_link import DataLink, utils as data_link_utils
 from metadata.models.data_link.constants import DataLinkResourceStatus
 from metadata.models.data_link.utils import (
-    compose_bkdata_data_id_name,
     compose_bkdata_table_id,
     get_registered_bkdata_data_id_name,
 )
@@ -741,6 +742,125 @@ def access_v2_bkdata_vm(
         logger.exception("delete datasource consul config failed, data_id: %s, error: %s", data_id, e)
 
 
+def _ensure_named_data_link(data_source, table_id, strategy, namespace):
+    """Persist a DataLink and its RT identity before attempting the remote apply."""
+    from metadata.models import ResultTable
+    from metadata.models.data_link.data_link_configs import DataBusConfig
+
+    tenant = data_source.bk_tenant_id
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        ResultTable.objects.select_for_update().get(bk_tenant_id=tenant, table_id=table_id)
+        compatible = {
+            DataLink.BK_STANDARD_V2_TIME_SERIES: DataLink.GRAPH_RELATION_TIME_SERIES,
+            DataLink.GRAPH_RELATION_TIME_SERIES: DataLink.BK_STANDARD_V2_TIME_SERIES,
+        }.get(strategy)
+        relations = list(
+            BkBaseResultTable.objects.filter(
+                bk_tenant_id=tenant,
+                monitor_table_id=table_id,
+            ).exclude(data_link_name="")
+        )
+        related_links = {
+            link.pk: link
+            for link in DataLink.objects.filter(
+                data_link_name__in=[relation.data_link_name for relation in relations],
+            )
+        }
+        relation = None
+        for candidate_strategy in (strategy, compatible):
+            if not candidate_strategy:
+                continue
+            matches = [
+                candidate
+                for candidate in relations
+                if (existing := related_links.get(candidate.data_link_name)) is not None
+                and existing.bk_tenant_id == tenant
+                and existing.namespace == namespace
+                and existing.data_link_strategy == candidate_strategy
+            ]
+            if len(matches) > 1:
+                raise ValueError(f"ambiguous configured DataLinks for ResultTable({table_id})")
+            if matches:
+                relation = matches[0]
+                break
+        if relation is None:
+            orphans = [candidate for candidate in relations if candidate.data_link_name not in related_links]
+            if len(orphans) > 1:
+                raise ValueError(f"ambiguous orphan DataLinks for ResultTable({table_id})")
+            relation = orphans[0] if orphans else None
+        link = None
+        if relation:
+            link = DataLink.objects.filter(bk_tenant_id=tenant, data_link_name=relation.data_link_name).first()
+            if link and link.namespace != namespace:
+                raise ValueError("configured DataLink belongs to a different namespace")
+        else:
+            candidates = [
+                candidate
+                for candidate in DataLink.objects.filter(
+                    bk_tenant_id=tenant,
+                    namespace=namespace,
+                    bk_data_id=data_source.bk_data_id,
+                    data_link_strategy__in=[strategy, *([compatible] if compatible else [])],
+                )
+                if table_id in candidate.table_ids
+            ]
+            if len(candidates) > 1:
+                raise ValueError(f"ambiguous DataLinks for ResultTable({table_id})")
+            link = candidates[0] if candidates else None
+        previous_strategy = link.data_link_strategy if link else None
+        # A migrated DataBus may reference the V3 source instead of the registered V4 DataId.
+        sources = (
+            set(
+                DataBusConfig.objects.filter(
+                    bk_tenant_id=tenant,
+                    namespace=namespace,
+                    data_link_name=link.data_link_name,
+                )
+                .exclude(data_id_name="")
+                .values_list("data_id_name", flat=True)
+            )
+            if link
+            else set()
+        )
+        if len(sources) > 1:
+            raise ValueError(f"ambiguous DataId references for DataLink({link.pk})")
+        data_name = (relation.bkbase_data_name if relation else "") or next(iter(sources), "")
+        data_name = data_name or get_registered_bkdata_data_id_name(data_source, namespace)
+        fields = dict(
+            bk_tenant_id=tenant,
+            namespace=namespace,
+            data_link_strategy=strategy,
+            bk_data_id=data_source.bk_data_id,
+            table_ids=[table_id],
+        )
+        if link is None:
+            if relation:
+                link = DataLink.objects.create(data_link_name=relation.data_link_name, **fields)
+            else:
+                link = data_link_utils.create_resource_with_random_name(
+                    DataLink,
+                    data_link_utils.RANDOM_NAME_STRATEGIES[strategy],
+                    data_source.bk_data_id,
+                    name_field="data_link_name",
+                    **fields,
+                )
+        else:
+            for key, value in fields.items():
+                setattr(link, key, value)
+            link.save(update_fields=[*fields, "last_modify_time"])
+        BkBaseResultTable.objects.get_or_create(
+            bk_tenant_id=tenant,
+            data_link_name=link.data_link_name,
+            defaults={
+                "monitor_table_id": table_id,
+                "bkbase_data_name": data_name,
+                "storage_type": ClusterInfo.TYPE_VM,
+                "status": DataLinkResourceStatus.INITIALIZING.value,
+            },
+        )
+        return link, data_name, previous_strategy
+
+
 def create_bkbase_data_link(
     bk_biz_id: int,
     data_source: DataSource,
@@ -778,75 +898,80 @@ def create_bkbase_data_link(
         data_link_strategy,
         namespace,
     )
-    # 组装计算平台侧的 data_name，作为新链路场景下的默认 DataLink / AccessVMRecord 查询键。
-    bkbase_data_name = compose_bkdata_data_id_name(data_name=data_source.data_name, strategy=data_link_strategy)
-    data_link_name = bkbase_data_name
-    configured_bkbase_rt = _get_configured_bkbase_result_table(
-        bk_tenant_id=data_source.bk_tenant_id,
-        monitor_table_id=monitor_table_id,
-        data_link_strategy=data_link_strategy,
-    )
-    if configured_bkbase_rt:
-        data_link_name = configured_bkbase_rt.data_link_name
-        bkbase_data_name = configured_bkbase_rt.bkbase_data_name
-        if not bkbase_data_name:
-            from metadata.models.data_link.data_link_configs import DataBusConfig
-
-            existing_databus = (
-                DataBusConfig.objects.filter(
-                    bk_tenant_id=data_source.bk_tenant_id,
-                    namespace=namespace,
-                    data_link_name=data_link_name,
-                )
-                .order_by("-last_modify_time", "-create_time")
-                .first()
-            )
-            bkbase_data_name = (
-                existing_databus.data_id_name
-                if existing_databus is not None
-                else get_registered_bkdata_data_id_name(data_source, namespace=namespace)
-            )
-        logger.info(
-            "create_bkbase_data_link: use configured BkBaseResultTable relation, data_id->[%s],"
-            "monitor_table_id->[%s],data_link_name->[%s],bkbase_data_name->[%s]",
-            data_source.bk_data_id,
+    if data_link_strategy in data_link_utils.RANDOM_NAME_STRATEGIES:
+        data_link_ins, bkbase_data_name, previous_data_link_strategy = _ensure_named_data_link(
+            data_source,
             monitor_table_id,
-            data_link_name,
-            bkbase_data_name,
+            data_link_strategy,
+            namespace,
         )
     else:
-        # 新建 DataLink 只能依赖已经注册完成的 DataId，缺失配置时直接中止创建流程。
-        bkbase_data_name = get_registered_bkdata_data_id_name(data_source, namespace=namespace)
-        data_link_name = bkbase_data_name
-        logger.info(
-            "create_bkbase_data_link:try to access bkbase, data_id->[%s],bkbase_data_name->[%s]",
-            data_source.bk_data_id,
-            bkbase_data_name,
+        configured_bkbase_rt = _get_configured_bkbase_result_table(
+            bk_tenant_id=data_source.bk_tenant_id,
+            monitor_table_id=monitor_table_id,
+            data_link_strategy=data_link_strategy,
         )
+        if configured_bkbase_rt:
+            data_link_name = configured_bkbase_rt.data_link_name
+            bkbase_data_name = configured_bkbase_rt.bkbase_data_name
+            if not bkbase_data_name:
+                from metadata.models.data_link.data_link_configs import DataBusConfig
 
-    # 2. 创建链路资源对象
-    data_link_ins = DataLink.objects.filter(
-        bk_tenant_id=data_source.bk_tenant_id,
-        data_link_name=data_link_name,
-    ).first()
-    previous_data_link_strategy = data_link_ins.data_link_strategy if data_link_ins else None
-    if data_link_ins is None:
-        data_link_ins = DataLink.objects.create(
+                existing_databus = (
+                    DataBusConfig.objects.filter(
+                        bk_tenant_id=data_source.bk_tenant_id,
+                        namespace=namespace,
+                        data_link_name=data_link_name,
+                    )
+                    .order_by("-last_modify_time", "-create_time")
+                    .first()
+                )
+                bkbase_data_name = (
+                    existing_databus.data_id_name
+                    if existing_databus is not None
+                    else get_registered_bkdata_data_id_name(data_source, namespace=namespace)
+                )
+            logger.info(
+                "create_bkbase_data_link: use configured BkBaseResultTable relation, data_id->[%s],"
+                "monitor_table_id->[%s],data_link_name->[%s],bkbase_data_name->[%s]",
+                data_source.bk_data_id,
+                monitor_table_id,
+                data_link_name,
+                bkbase_data_name,
+            )
+        else:
+            # 新建 DataLink 只能依赖已经注册完成的 DataId，缺失配置时直接中止创建流程。
+            bkbase_data_name = get_registered_bkdata_data_id_name(data_source, namespace=namespace)
+            data_link_name = bkbase_data_name
+            logger.info(
+                "create_bkbase_data_link:try to access bkbase, data_id->[%s],bkbase_data_name->[%s]",
+                data_source.bk_data_id,
+                bkbase_data_name,
+            )
+
+        # 2. 创建链路资源对象
+        data_link_ins = DataLink.objects.filter(
             bk_tenant_id=data_source.bk_tenant_id,
             data_link_name=data_link_name,
-            namespace=namespace,
-            data_link_strategy=data_link_strategy,
-            bk_data_id=data_source.bk_data_id,
-            table_ids=[monitor_table_id],
-        )
-    else:
-        data_link_ins.namespace = namespace
-        data_link_ins.data_link_strategy = data_link_strategy
-        data_link_ins.bk_data_id = data_source.bk_data_id
-        data_link_ins.table_ids = [monitor_table_id]
-        data_link_ins.save(
-            update_fields=["namespace", "data_link_strategy", "bk_data_id", "table_ids", "last_modify_time"]
-        )
+        ).first()
+        previous_data_link_strategy = data_link_ins.data_link_strategy if data_link_ins else None
+        if data_link_ins is None:
+            data_link_ins = DataLink.objects.create(
+                bk_tenant_id=data_source.bk_tenant_id,
+                data_link_name=data_link_name,
+                namespace=namespace,
+                data_link_strategy=data_link_strategy,
+                bk_data_id=data_source.bk_data_id,
+                table_ids=[monitor_table_id],
+            )
+        else:
+            data_link_ins.namespace = namespace
+            data_link_ins.data_link_strategy = data_link_strategy
+            data_link_ins.bk_data_id = data_source.bk_data_id
+            data_link_ins.table_ids = [monitor_table_id]
+            data_link_ins.save(
+                update_fields=["namespace", "data_link_strategy", "bk_data_id", "table_ids", "last_modify_time"]
+            )
     try:
         # 2. 尝试根据套餐，申请创建链路
         logger.info(
@@ -924,8 +1049,22 @@ def create_bkbase_data_link(
             raise BkBaseResultTable.DoesNotExist
     except BkBaseResultTable.DoesNotExist:
         datalink_biz_id = get_tenant_datalink_biz_id(bk_tenant_id=data_source.bk_tenant_id, bk_biz_id=bk_biz_id)
-        fallback_rt_name = compose_bkdata_table_id(table_id=monitor_table_id, strategy=data_link_strategy)
-        vm_result_table_id = f"{datalink_biz_id.data_biz_id}_{fallback_rt_name}"
+        if data_link_strategy in data_link_utils.RANDOM_NAME_STRATEGIES:
+            from metadata.models.data_link.data_link_configs import ResultTableConfig
+
+            actual_rt = (
+                ResultTableConfig.objects.filter(
+                    bk_tenant_id=data_source.bk_tenant_id,
+                    namespace=namespace,
+                    data_link_name=data_link_ins.data_link_name,
+                )
+                .exclude(data_type="graph")
+                .get()
+            )
+            vm_result_table_id = actual_rt.bkbase_table_id or f"{datalink_biz_id.data_biz_id}_{actual_rt.name}"
+        else:
+            fallback_rt_name = compose_bkdata_table_id(table_id=monitor_table_id, strategy=data_link_strategy)
+            vm_result_table_id = f"{datalink_biz_id.data_biz_id}_{fallback_rt_name}"
         logger.error(
             "create_bkbase_data_link: BkBaseResultTable for data_link_name->[%s] not found after sync_metadata, "
             "fallback vm_result_table_id->[%s]",

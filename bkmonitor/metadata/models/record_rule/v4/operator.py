@@ -222,7 +222,7 @@ class RecordRuleV4Operator:
             )
             table_id = RecordRuleV4.compose_table_id(pk=rule.pk, name=name)
             flow_name = RecordRuleV4.compose_group_flow_name(pk=rule.pk, name=name, table_id=table_id)
-            result_table_config_name = RecordRuleV4OutputResources.compose_result_table_config_name(table_id)
+            result_table_config_name = RecordRuleV4OutputResources.generate_result_table_config_name(rule.pk)
             dst_vm_table_id = RecordRuleV4OutputResources.compose_vm_result_table_id(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=RecordRuleV4.resolve_bk_biz_id(space_type, space_id),
