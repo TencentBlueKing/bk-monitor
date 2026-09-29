@@ -473,20 +473,20 @@ def test_invoke_relation_v1beta3_rejects_unexpected_item_fields(monkeypatch):
         "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi_resource_v1_beta3",
         query_relation,
     )
-    out = query_unify_query(
-        {
-            "mode": "invoke",
-            "operation": "query_relation_v1beta3",
-            "bk_biz_id": 2,
-            "params": {
-                "query_list": [
-                    {"timestamp": 1725066000, "target_type": "pod", "source_info": {}, "space_uid": "bkcc__3"}
-                ]
-            },
-        }
-    )
-
-    assert out["error"]["code"] == "unsafe_action_blocked"
+    query = {"timestamp": 1725066000, "target_type": "pod", "source_type": "service", "source_info": {}}
+    for invalid_item in (
+        {**query, "space_uid": "bkcc__3"},
+        {key: value for key, value in query.items() if key != "source_type"},
+    ):
+        out = query_unify_query(
+            {
+                "mode": "invoke",
+                "operation": "query_relation_v1beta3",
+                "bk_biz_id": 2,
+                "params": {"query_list": [invalid_item]},
+            }
+        )
+        assert out["error"]["code"] == "unsafe_action_blocked"
     query_relation.assert_not_called()
 
 
