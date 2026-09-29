@@ -111,6 +111,8 @@ def api(monkeypatch, config):
     current = SimpleNamespace(restore=Mock(), to_dict=snapshot)
     read = Mock(return_value=[current])
     save = Mock(return_value={"id": 1})
+    validate_save = Mock(side_effect=deepcopy)
+    save_with_audit = Mock(side_effect=lambda params, **_kwargs: save(**params))
     authorize = Mock()
     normalize = Mock(wraps=alert.normalize_strategy_metric_ids)
     relations = Mock()
@@ -120,7 +122,15 @@ def api(monkeypatch, config):
     )
     monkeypatch.setattr(alert.Strategy, "from_models", read)
     monkeypatch.setattr(
-        alert, "resource", SimpleNamespace(strategies=SimpleNamespace(save_strategy_v2=SimpleNamespace(request=save)))
+        alert,
+        "resource",
+        SimpleNamespace(
+            strategies=SimpleNamespace(
+                save_strategy_v2=SimpleNamespace(
+                    request=save, validate_request_data=validate_save, perform_request=save_with_audit
+                )
+            )
+        ),
     )
     monkeypatch.setattr(alert, "normalize_strategy_metric_ids", normalize)
     monkeypatch.setattr(alert, "ensure_strategy_relations_belong_to_biz", relations)
@@ -133,6 +143,8 @@ def api(monkeypatch, config):
         snapshot=snapshot,
         current=current,
         save=save,
+        validate_save=validate_save,
+        save_with_audit=save_with_audit,
         authorize=authorize,
         normalize=normalize,
         relations=relations,
@@ -150,6 +162,8 @@ def test_registry_and_successful_bridge_audit(monkeypatch, request_data, api):
     assert result["audit"]["declared_operator"] == "alice"
     assert result["audit"]["request_caller"] == "gateway-user"
     assert result["result"]["requested_operator"] == "alice"
+    assert api.save_with_audit.call_args.kwargs == {"audit_operator": "alice"}
+    api.validate_save.assert_called_once()
     api.load.assert_called_once_with(bk_biz_id=2, id=1)
     api.read.assert_called_once_with([api.model])
     api.current.restore.assert_called_once_with()
@@ -194,6 +208,7 @@ def test_three_supported_changes_preserve_every_other_field(config, request_data
         {"confirmed": 1},
         {"operator": ""},
         {"operator": "<operator>"},
+        {"operator": "a" * 33},
         {"operator": "a" * 129},
         {"unknown": None},
         {"is_enabled": True},
@@ -231,6 +246,21 @@ def test_invalid_patch_rejected_before_permission_or_api(request_data, api, upda
     api.authorize.assert_not_called()
     api.load.assert_not_called()
     api.read.assert_not_called()
+    api.save.assert_not_called()
+
+
+def test_audit_operator_accepts_storage_length_boundary(request_data, api):
+    request_data["operator"] = "a" * 32
+    result = management.manage_strategy_config(request_data)
+    assert result["requested_operator"] == request_data["operator"]
+    assert api.save_with_audit.call_args.kwargs == {"audit_operator": request_data["operator"]}
+
+
+def test_audit_save_still_validates_before_persistence(request_data, api):
+    api.validate_save.side_effect = ValidationError("invalid strategy")
+    with pytest.raises(ValidationError, match="invalid strategy"):
+        management.manage_strategy_config(request_data)
+    api.save_with_audit.assert_not_called()
     api.save.assert_not_called()
 
 
@@ -443,7 +473,7 @@ def test_detail_version_is_canonical_before_diagnostic_enrichment(monkeypatch, c
 @pytest.mark.parametrize("stale", [False, True])
 def test_original_full_update_uses_one_snapshot_and_keeps_complete_request(config, api, stale):
     request = deepcopy(config)
-    request.update(name="full API edit", confirm=True)
+    request.update(name="full API edit", confirm=True, audit_operator="untrusted-user")
     if stale:
         config["name"] = "concurrent edit"
     serializer = alert.UpdateAlarmStrategyResource.RequestSerializer(data=request)
@@ -457,6 +487,7 @@ def test_original_full_update_uses_one_snapshot_and_keeps_complete_request(confi
         assert result == {"id": 1}
         request.pop("confirm")
         api.save.assert_called_once_with(**request)
+        api.save_with_audit.assert_not_called()
         api.normalize.assert_called_once_with(request, config)
         api.relations.assert_called_once_with(2, request)
         api.preflight.assert_called_once_with(request)

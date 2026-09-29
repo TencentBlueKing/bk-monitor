@@ -689,7 +689,7 @@ class UpdateAlarmStrategyResource(Resource):
     def perform_request(self, validated_request_data):
         return self._update_config(remove_confirm(validated_request_data))
 
-    def _update_config(self, request_data, *, prepare_config=None):
+    def _update_config(self, request_data, *, prepare_config=None, audit_operator=None):
         """Load once, check the version, then prepare and save the complete configuration.
 
         prepare_config is an internal callback, never a request parameter. It edits a
@@ -726,6 +726,12 @@ class UpdateAlarmStrategyResource(Resource):
         normalize_strategy_metric_ids(request_data, current_config)
         ensure_strategy_relations_belong_to_biz(request_data["bk_biz_id"], request_data)
         _validate_strategy_before_write(request_data)
+        if audit_operator is not None:
+            # Internal audit attribution only; never accept it from the public serializer
+            # or replace the authenticated request user used by permission checks.
+            save_resource = resource.strategies.save_strategy_v2
+            validated_data = save_resource.validate_request_data(request_data)
+            return save_resource.perform_request(validated_data, audit_operator=audit_operator)
         return resource.strategies.save_strategy_v2.request(**request_data)
 
 
