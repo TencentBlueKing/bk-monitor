@@ -358,6 +358,7 @@ class DataSource(models.Model):
         """
 
         from metadata.models.data_link import DataIdConfig, utils
+        from metadata.models.data_link.constants import DataLinkNameScene
         from metadata.models.data_link.service import apply_data_source_config
 
         # 名称先落库再下发；远端失败及并发注册都复用同一资源。
@@ -377,7 +378,7 @@ class DataSource(models.Model):
             else:
                 data_id_config_ins = utils.create_resource_with_random_name(
                     DataIdConfig,
-                    "did",
+                    DataLinkNameScene.DATA_ID,
                     self.bk_data_id,
                     bk_tenant_id=self.bk_tenant_id,
                     namespace=namespace,

@@ -13,6 +13,7 @@ from metadata import models
 from metadata.models.data_link import DataLink
 from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models.data_link import utils as data_link_utils
+from metadata.models.data_link.constants import DataLinkNameScene
 from metadata.models.space.constants import SpaceTypes
 from metadata.models.vm.constants import ACCESS_DATA_LINK_FAILURE_STATUS, ACCESS_DATA_LINK_SUCCESS_STATUS
 from metadata.models.vm.utils import (
@@ -266,7 +267,7 @@ def ensure_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> N
         if data_link is None:
             data_link = data_link_utils.create_resource_with_random_name(
                 DataLink,
-                "fs",
+                DataLinkNameScene.FEDERAL_SUBSET,
                 context.data_source.bk_data_id,
                 name_field="data_link_name",
                 bk_tenant_id=bk_tenant_id,

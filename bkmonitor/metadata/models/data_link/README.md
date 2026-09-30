@@ -296,7 +296,21 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 `compose_bkdata_data_id_name` / `compose_bkdata_table_id` 保留旧规则，DataId 申请与轮询仍使用它们。
 已有 DataId 注册、普通时序/插件/图谱/联邦链路和预计算输出的新身份使用
 `generate_bkdata_resource_name(scene, source_id)`：`bkm_<场景>_<来源ID>_<12位随机串>`，最长 40 字符。
-场景为 `did`、`ts`、`std`、`exp`、`gr`、`gvm`、`gdb`、`rr`、`fp`、`fs`；来源是 DataId 或规则主键。
+调用时使用 `DataLinkNameScene` 枚举，例如 `DataLinkNameScene.FEDERAL_PROXY`，不直接传短码。
+来源是 DataId 或规则主键；为容纳最长 19 位来源 ID 和 12 位随机串，资源名中的场景值保留为 2–3 位短码。
+
+| 枚举成员 | 资源名短码 | 场景 |
+| --- | --- | --- |
+| `DATA_ID` | `did` | 已有 DataId 注册 |
+| `STANDARD_V2_TIME_SERIES` | `ts` | 标准 V2 时序 |
+| `STANDARD_PLUGIN` | `std` | 标准插件 |
+| `EXPORTER_PLUGIN` | `exp` | Exporter 插件 |
+| `GRAPH` | `gr` | 图谱链路 |
+| `GRAPH_VM` | `gvm` | 图谱 VM 输出 |
+| `GRAPH_SURREALDB` | `gdb` | 图谱 SurrealDB 输出 |
+| `RECORD_RULE` | `rr` | 预计算输出 |
+| `FEDERAL_PROXY` | `fp` | 联邦父集群 |
+| `FEDERAL_SUBSET` | `fs` | 联邦子集群 |
 
 - 沿用 compose 中的组件查询及创建/更新流程，首次创建时分配随机名称并一次写入完整配置，再下发 BKBase；重试复用已保存名称。
 - DataLink 主名称与 DataId 名独立，通过 BkBaseResultTable、DataBusConfig 保存关联。

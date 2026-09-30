@@ -19,6 +19,7 @@ from metadata.config import DATABASE_CONNECTION_NAME
 from core.drf_resource import api
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from metadata.models.data_link import utils as data_link_utils
+from metadata.models.data_link.constants import DataLinkNameScene
 from metadata.models.record_rule.constants import RECORD_RULE_V4_BKMONITOR_NAMESPACE
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
@@ -67,7 +68,7 @@ class RecordRuleV4OutputResources:
         from metadata import models as metadata_models
 
         for _ in range(5):
-            name = data_link_utils.generate_bkdata_resource_name("rr", rule_id)
+            name = data_link_utils.generate_bkdata_resource_name(DataLinkNameScene.RECORD_RULE, rule_id)
             if not any(
                 model.objects.filter(name=name, namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE).exists()
                 for model in (metadata_models.ResultTableConfig, metadata_models.VMStorageBindingConfig)

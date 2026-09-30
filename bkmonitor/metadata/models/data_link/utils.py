@@ -25,7 +25,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from core.drf_resource import api
 from metadata import models
 from metadata.config import DATABASE_CONNECTION_NAME
-from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN
+from metadata.models.data_link.constants import MATCH_DATA_NAME_PATTERN, DataLinkNameScene
 
 logger = logging.getLogger("metadata")
 
@@ -37,29 +37,28 @@ BKBASE_RESULT_TABLE_FIELD_TYPE_MAP = {
     "flattened": "string",
 }
 
-RANDOM_NAME_SCENES = frozenset({"did", "ts", "std", "exp", "gr", "gvm", "gdb", "rr", "fp", "fs"})
 RANDOM_NAME_STRATEGIES = {
-    "bk_standard_v2_time_series": "ts",
-    "bk_standard_time_series": "std",
-    "bk_exporter_time_series": "exp",
-    "graph_relation_time_series": "gr",
-    "bcs_federal_proxy_time_series": "fp",
-    "bcs_federal_subset_time_series": "fs",
+    "bk_standard_v2_time_series": DataLinkNameScene.STANDARD_V2_TIME_SERIES,
+    "bk_standard_time_series": DataLinkNameScene.STANDARD_PLUGIN,
+    "bk_exporter_time_series": DataLinkNameScene.EXPORTER_PLUGIN,
+    "graph_relation_time_series": DataLinkNameScene.GRAPH,
+    "bcs_federal_proxy_time_series": DataLinkNameScene.FEDERAL_PROXY,
+    "bcs_federal_subset_time_series": DataLinkNameScene.FEDERAL_SUBSET,
 }
 
 
-def generate_bkdata_resource_name(scene: str, source_id: int) -> str:
+def generate_bkdata_resource_name(scene: DataLinkNameScene, source_id: int) -> str:
     """仅为首次创建生成候选名；已分配的身份必须从持久化关系读取。"""
     # 场景和数值 ID 用于辨识来源，随机串区分同一来源的不同资源；调用方负责保存和复用。
     # 限定场景码与 ID 范围，使最长名称也满足 BKBase 的 40 字符限制。
-    if scene not in RANDOM_NAME_SCENES or type(source_id) is not int or not 0 < source_id <= 2**63 - 1:
+    if not isinstance(scene, DataLinkNameScene) or type(source_id) is not int or not 0 < source_id <= 2**63 - 1:
         raise ValueError(f"invalid resource name source: scene={scene!r}, source_id={source_id!r}")
     suffix = "".join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(12))
-    return f"bkm_{scene}_{source_id}_{suffix}"
+    return f"bkm_{scene.value}_{source_id}_{suffix}"
 
 
 def create_resource_with_random_name(
-    model, scene: str, source_id: int, *, name_field="name", conflict_models=(), **fields
+    model, scene: DataLinkNameScene, source_id: int, *, name_field="name", conflict_models=(), **fields
 ):
     """通过唯一约束分配名称；只重试确定的同名冲突，其他数据库异常原样抛出。"""
     manager = model.objects.using(DATABASE_CONNECTION_NAME)

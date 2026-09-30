@@ -10,6 +10,7 @@ from django.db import IntegrityError, close_old_connections
 
 from metadata import models
 from metadata.models.data_link import utils
+from metadata.models.data_link.constants import DataLinkNameScene
 from metadata.models.data_link.component_reuse import ComponentReuseError
 from metadata.models.vm.utils import create_bkbase_data_link
 
@@ -84,16 +85,24 @@ def compose(link, source, table_id="random_name.metric"):
     return rt.name, binding.name, databus.name, databus.data_id_name
 
 
-@pytest.mark.parametrize("scene", sorted(utils.RANDOM_NAME_SCENES))
+@pytest.mark.parametrize("scene", list(DataLinkNameScene), ids=lambda scene: scene.name)
 def test_random_name_format_and_length(scene):
     name = utils.generate_bkdata_resource_name(scene, 2**63 - 1)
     assert len(name) <= 40
-    assert re.fullmatch(rf"bkm_{scene}_{2**63 - 1}_[a-z0-9]{{12}}", name)
+    assert re.fullmatch(rf"bkm_{scene.value}_{2**63 - 1}_[a-z0-9]{{12}}", name)
     assert name != utils.generate_bkdata_resource_name(scene, 2**63 - 1)
 
 
 @pytest.mark.parametrize(
-    "scene,source_id", [("bad", 1), ("ts", 0), ("ts", -1), ("ts", True), ("ts", "1"), ("ts", 2**63)]
+    "scene,source_id",
+    [
+        ("bad", 1),
+        (DataLinkNameScene.STANDARD_V2_TIME_SERIES, 0),
+        (DataLinkNameScene.STANDARD_V2_TIME_SERIES, -1),
+        (DataLinkNameScene.STANDARD_V2_TIME_SERIES, True),
+        (DataLinkNameScene.STANDARD_V2_TIME_SERIES, "1"),
+        (DataLinkNameScene.STANDARD_V2_TIME_SERIES, 2**63),
+    ],
 )
 def test_reject_invalid_name_sources(scene, source_id):
     with pytest.raises(ValueError):
@@ -183,7 +192,7 @@ def test_name_collision_retries_without_overwriting_existing(source, mocker):
     mocker.patch.object(utils, "generate_bkdata_resource_name", side_effect=["occupied", "available"])
     created = utils.create_resource_with_random_name(
         models.DataIdConfig,
-        "did",
+        DataLinkNameScene.DATA_ID,
         source.bk_data_id,
         bk_tenant_id="system",
         namespace="bkmonitor",
@@ -201,7 +210,7 @@ def test_non_name_database_error_is_not_retried(source, mocker):
     with pytest.raises(IntegrityError, match="unrelated constraint"):
         utils.create_resource_with_random_name(
             models.DataIdConfig,
-            "did",
+            DataLinkNameScene.DATA_ID,
             source.bk_data_id,
             bk_tenant_id="system",
             namespace="bkmonitor",

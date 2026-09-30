@@ -25,6 +25,7 @@ from metadata.models.data_link.constants import (
     BKBASE_NAMESPACE_BK_LOG,
     BKBASE_NAMESPACE_BK_MONITOR,
     DataLinkKind,
+    DataLinkNameScene,
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link import DataLink
@@ -359,7 +360,7 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
             # 仅新建时分配主名称；已有映射指向缺失主记录时仍按保存的原名补建。
             data_link_name=configured_rt.data_link_name
             if configured_rt
-            else generate_bkdata_resource_name("gr", data_source.bk_data_id),
+            else generate_bkdata_resource_name(DataLinkNameScene.GRAPH, data_source.bk_data_id),
             namespace="bkmonitor",
             data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
             bk_data_id=data_source.bk_data_id,

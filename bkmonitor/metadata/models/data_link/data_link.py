@@ -44,6 +44,7 @@ from metadata.models.data_link.constants import (
     SYSTEM_PROC_PORT_DATABUS_FORMAT,
     DataLinkImmutableField,
     DataLinkKind,
+    DataLinkNameScene,
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link_configs import (
@@ -1207,7 +1208,7 @@ class DataLink(models.Model):
             else:
                 graph_rt = utils.create_resource_with_random_name(
                     ResultTableConfig,
-                    "gdb",
+                    DataLinkNameScene.GRAPH_SURREALDB,
                     data_source.bk_data_id,
                     conflict_models=(SurrealDBBindingConfig, DataBusConfig),
                     data_link_name=self.data_link_name,
@@ -2070,7 +2071,7 @@ class DataLink(models.Model):
         else:
             vm_table_id_ins = utils.create_resource_with_random_name(
                 ResultTableConfig,
-                "fp",
+                DataLinkNameScene.FEDERAL_PROXY,
                 data_source.bk_data_id,
                 conflict_models=(VMStorageBindingConfig,),
                 namespace=self.namespace,
@@ -2298,7 +2299,7 @@ class DataLink(models.Model):
         else:
             vm_conditional_ins = utils.create_resource_with_random_name(
                 ConditionalSinkConfig,
-                "fs",
+                DataLinkNameScene.FEDERAL_SUBSET,
                 data_source.bk_data_id,
                 conflict_models=(DataBusConfig,),
                 namespace=self.namespace,
@@ -2368,7 +2369,7 @@ class DataLink(models.Model):
         else:
             vm_table_id_ins = utils.create_resource_with_random_name(
                 ResultTableConfig,
-                "gvm"
+                DataLinkNameScene.GRAPH_VM
                 if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
                 else utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
                 data_source.bk_data_id,
