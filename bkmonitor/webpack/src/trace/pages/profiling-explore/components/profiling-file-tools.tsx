@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, onScopeDispose, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Button, Select } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
@@ -31,6 +31,7 @@ import { useI18n } from 'vue-i18n';
 import { fileStatusLabels } from '../utils/file';
 import ProfilingFileDetail from './profiling-file-detail';
 import ProfilingFileUpload from './profiling-file-upload';
+import SelectorShortcut, { useSelectorShortcut } from '@/components/selector-shortcut/selector-shortcut';
 
 import type { ProfileFile } from '../types/file';
 
@@ -54,17 +55,13 @@ export default defineComponent({
     const selector = shallowRef<{ hidePopover: () => void; showPopover: () => void }>();
     const selected = computed(() => props.records.find(item => item.profile_id === props.profileId));
     const detail = computed(() => props.records.find(item => item.profile_id === detailId.value));
-    function shortcut(event: KeyboardEvent) {
-      if (uploadShow.value || detailId.value || !(event.metaKey || event.ctrlKey) || event.key.toLowerCase() !== 'o')
-        return;
-      event.preventDefault();
-      selector.value?.showPopover();
-    }
+    useSelectorShortcut(
+      () => selector.value?.showPopover(),
+      () => !uploadShow.value && !detailId.value
+    );
     function openUpload() {
       uploadShow.value = true;
     }
-    onMounted(() => window.addEventListener('keydown', shortcut));
-    onScopeDispose(() => window.removeEventListener('keydown', shortcut));
     return { t, uploadShow, detailId, selector, selected, detail, fileStatusLabels, openUpload };
   },
   render() {
@@ -114,7 +111,7 @@ export default defineComponent({
                 >
                   {this.selected?.file_name || this.fileName || this.t('请选择文件')}
                 </span>
-                <kbd>cmd+o</kbd>
+                <SelectorShortcut />
                 <i class='icon-monitor icon-mc-triangle-down' />
               </button>
             ),

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, onScopeDispose, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { dayjs } from '@blueking/date-picker';
 import { Button, Radio, Sideslider, Switcher } from 'bkui-vue';
@@ -31,6 +31,7 @@ import { useI18n } from 'vue-i18n';
 
 import ProfilingServiceSelect from './profiling-service-select';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
+import { useSelectorShortcut } from '@/components/selector-shortcut/selector-shortcut';
 import TimeRangePicker from '@/components/time-range/time-range';
 
 import type { Application, CompareMode, ProfilingTab, QueryState, ServiceDetail } from '../types';
@@ -63,19 +64,18 @@ export default defineComponent({
       const value = appName && serviceName ? [appName, serviceName] : [];
       return value.length === previous?.length && value.every((id, index) => id === previous[index]) ? previous : value;
     });
-    function handleShortcut(event: KeyboardEvent) {
-      if (props.tab !== 'application' || event.key.toLowerCase() !== 'o' || !(event.metaKey || event.ctrlKey)) return;
-      event.preventDefault();
-      const input = selector.value?.querySelector('input');
-      input?.focus();
-      input?.click();
-    }
+    useSelectorShortcut(
+      () => {
+        // 选择器触发器是 Popover 的 click reference，菜单里的搜索框在打开前不在页面上。
+        const trigger = selector.value?.querySelector<HTMLElement>('.profiling-service-trigger');
+        if (!trigger?.classList.contains('active')) trigger?.click();
+      },
+      () => props.tab === 'application'
+    );
     function changeTime(value: (number | string)[]) {
       emit('patch', { timeRange: value as QueryState['timeRange'], baselineRange: null, comparisonRange: null });
       emit('search');
     }
-    onMounted(() => window.addEventListener('keydown', handleShortcut));
-    onScopeDispose(() => window.removeEventListener('keydown', handleShortcut));
     return {
       t,
       detailsVisible,
