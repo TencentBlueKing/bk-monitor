@@ -52,7 +52,7 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 显隐机制：v-if 每次挂载重置内部状态，v-show 保留 DOM 与内部状态 */
+    /** 显隐机制：v-if 每次挂载重建内容 DOM 与插槽组件状态，v-show 保留 DOM；两者均保留抽屉自身的拖拽高度 */
     displayMode: {
       type: String as PropType<VerticalDrawerDisplayMode>,
       default: 'v-if',
@@ -125,8 +125,10 @@ export default defineComponent({
       'vertical-drawer': true,
     }));
 
+    /** 上限同时用 max-height 约束：容器变矮（窗口缩放等）时默认高度 / 已拖出的高度不会把头部与关闭按钮顶出可视区 */
     const rootStyle = computed(() => ({
       height: `${height.value}px`,
+      maxHeight: props.maxHeight !== undefined ? `${props.maxHeight}px` : `calc(100% - ${props.reserveHeight}px)`,
       zIndex: props.zIndex,
     }));
 

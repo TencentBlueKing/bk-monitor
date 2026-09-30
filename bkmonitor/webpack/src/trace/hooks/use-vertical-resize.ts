@@ -63,6 +63,8 @@ export function useVerticalResize(options: IUseVerticalResizeOptions) {
    * @param {VerticalResizeDirection} direction 拖拽方向，缺省为 down
    */
   function startResize(e: MouseEvent, direction: VerticalResizeDirection = 'down') {
+    /** 仅响应主键（左键），右键 / 中键按下不进入拖拽 */
+    if (e.button !== 0) return;
     e.preventDefault();
     stopResize();
     isResizing.value = true;
