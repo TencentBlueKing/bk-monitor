@@ -57,7 +57,6 @@ from metadata.models.data_link.data_link_configs import (
     SurrealDBBindingConfig,
     VMStorageBindingConfig,
 )
-from metadata.models.data_link.naming import resolve_component_names
 from metadata.models.data_link.utils import generate_result_table_field_list, get_bkbase_raw_data_id_name
 from metadata.models.space.constants import EtlConfigs, SpaceTypes, SYSTEM_BASE_DATA_ETL_CONFIGS
 from metadata.models.storage import ClusterInfo, DorisStorage, ESStorage, SurrealDBStorage
@@ -1044,6 +1043,7 @@ class DataLink(models.Model):
             return cls._strip_bkbase_biz_prefix(existing_vm_record.vm_result_table_id)
         return default_name
 
+    @transaction.atomic(using=DATABASE_CONNECTION_NAME)
     def compose_graph_relation_v4_time_series_configs(
         self,
         bk_biz_id: int,
@@ -1054,6 +1054,10 @@ class DataLink(models.Model):
         consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """根据 ResultTableOption 一次性组装 Graph Relation V4 的完整期望状态。"""
+        if existing_context is None:
+            type(self).objects.select_for_update().get(pk=self.pk)
+            existing_context = ExistingComponentContext.from_datalink(self)
+
         from metadata.models import ResultTableOption
         from metadata.models.result_table import GraphRelationV4DataLinkOption
 
@@ -1080,13 +1084,43 @@ class DataLink(models.Model):
             if not storage_cluster_name:
                 raise ValueError("compose_graph_relation_v4_time_series_configs: vm cluster name is empty")
 
-            vm_rt_name, vm_binding_name, vm_databus_name, vm_data_id_name = resolve_component_names(
-                self,
-                bk_biz_id=bk_biz_id,
-                data_source=data_source,
-                table_id=table_id,
-                scene="gvm",
-                context=existing_context,
+            existing_rt = existing_context.claim(
+                ResultTableConfig, lambda c: c.data_type != "graph", require_unique=True
+            )
+            existing_binding = existing_context.claim(VMStorageBindingConfig, lambda c: True, require_unique=True)
+            existing_databus = existing_context.claim(
+                DataBusConfig,
+                lambda c: not any(name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:") for name in c.sink_names),
+                require_unique=True,
+            )
+            # 保存的引用也属于已有身份；只有没有组件和引用时才分配新名称。
+            vm_rt_name = (
+                existing_rt.name
+                if existing_rt
+                else (existing_binding.bkbase_result_table_name if existing_binding else "")
+            )
+            if not vm_rt_name:
+                vm_rt_name = self.resolve_graph_relation_vm_result_table_name(
+                    self.bk_tenant_id, table_id, default_name=""
+                )
+            saved_bindings = (
+                {
+                    name.split(":", 1)[1]
+                    for name in existing_databus.sink_names
+                    if name.startswith(f"{DataLinkKind.VMSTORAGEBINDING.value}:")
+                }
+                if existing_databus
+                else set()
+            )
+            if len(saved_bindings) > 1:
+                raise ValueError(f"ambiguous VMStorageBindingConfig references: {sorted(saved_bindings)}")
+            vm_binding_name = existing_binding.name if existing_binding else next(iter(saved_bindings), "")
+            vm_databus_name = existing_databus.name if existing_databus else ""
+            vm_data_id_name = (
+                existing_databus.data_id_name if existing_databus else ""
+            ) or utils.get_registered_bkdata_data_id_name(
+                data_source,
+                namespace=self.namespace,
             )
 
             result_table_option = ResultTableOption.objects.filter(
@@ -1120,24 +1154,65 @@ class DataLink(models.Model):
                     f"compose_graph_relation_v4_time_series_configs: surrealdb storage not found, table_id={table_id}"
                 )
 
-            graph_rt_name, graph_binding_name, graph_databus_name, graph_data_id_name = resolve_component_names(
-                self,
-                bk_biz_id=bk_biz_id,
-                data_source=data_source,
-                table_id=table_id,
-                scene="gdb",
-                context=existing_context,
-                graph=True,
+            existing_rt = existing_context.claim(
+                ResultTableConfig, lambda c: c.data_type == "graph", require_unique=True
+            )
+            existing_binding = existing_context.claim(SurrealDBBindingConfig, lambda c: True, require_unique=True)
+            existing_databus = existing_context.claim(
+                DataBusConfig,
+                lambda c: any(name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:") for name in c.sink_names),
+                require_unique=True,
+            )
+            # 保存的引用也属于已有身份；只有没有组件和引用时才分配新名称。
+            graph_rt_name = (
+                existing_rt.name
+                if existing_rt
+                else (existing_binding.bkbase_result_table_name if existing_binding else "")
+            )
+            saved_bindings = (
+                {
+                    name.split(":", 1)[1]
+                    for name in existing_databus.sink_names
+                    if name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:")
+                }
+                if existing_databus
+                else set()
+            )
+            if len(saved_bindings) > 1:
+                raise ValueError(f"ambiguous SurrealDBBindingConfig references: {sorted(saved_bindings)}")
+            graph_binding_name = existing_binding.name if existing_binding else next(iter(saved_bindings), "")
+            graph_databus_name = existing_databus.name if existing_databus else ""
+            graph_data_id_name = (
+                existing_databus.data_id_name if existing_databus else ""
+            ) or utils.get_registered_bkdata_data_id_name(
+                data_source,
+                namespace=self.namespace,
             )
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-                graph_rt, _ = ResultTableConfig.objects.update_or_create(
-                    name=graph_rt_name,
-                    data_link_name=self.data_link_name,
-                    namespace=self.namespace,
-                    bk_biz_id=bk_biz_id,
-                    bk_tenant_id=self.bk_tenant_id,
-                    defaults={"table_id": table_id, "data_type": "graph"},
-                )
+                if graph_rt_name:
+                    graph_rt, _ = ResultTableConfig.objects.update_or_create(
+                        name=graph_rt_name,
+                        data_link_name=self.data_link_name,
+                        namespace=self.namespace,
+                        bk_biz_id=bk_biz_id,
+                        bk_tenant_id=self.bk_tenant_id,
+                        defaults={"table_id": table_id, "data_type": "graph"},
+                    )
+                else:
+                    graph_rt = utils.create_resource_with_random_name(
+                        ResultTableConfig,
+                        "gdb",
+                        data_source.bk_data_id,
+                        conflict_models=(SurrealDBBindingConfig, DataBusConfig),
+                        data_link_name=self.data_link_name,
+                        namespace=self.namespace,
+                        bk_biz_id=bk_biz_id,
+                        bk_tenant_id=self.bk_tenant_id,
+                        table_id=table_id,
+                        data_type="graph",
+                    )
+                graph_binding_name = graph_binding_name or graph_rt.name
+                graph_databus_name = graph_databus_name or graph_rt.name
                 graph_binding, _ = SurrealDBBindingConfig.objects.update_or_create(
                     name=graph_binding_name,
                     data_link_name=self.data_link_name,
@@ -2093,16 +2168,34 @@ class DataLink(models.Model):
         metric_group_dimensions: list[dict[str, Any]] | None = None,
         consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
-        """按已解析的稳定名称创建普通 VM 组件。"""
+        """复用已有名称，首次创建 RT 时分配名称并写入完整的 VM 组件配置。"""
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
-                name=rt_name,
-                data_link_name=self.data_link_name,
-                namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
-                bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id, "data_type": "metric"},
-            )
+            if rt_name:
+                vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
+                    name=rt_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    defaults={"table_id": table_id, "data_type": "metric"},
+                )
+            else:
+                vm_table_id_ins = utils.create_resource_with_random_name(
+                    ResultTableConfig,
+                    "gvm"
+                    if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
+                    else utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
+                    data_source.bk_data_id,
+                    conflict_models=(VMStorageBindingConfig, DataBusConfig),
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    table_id=table_id,
+                    data_type="metric",
+                )
+            binding_name = binding_name or vm_table_id_ins.name
+            databus_name = databus_name or vm_table_id_ins.name
             vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=binding_name,
                 data_link_name=self.data_link_name,
@@ -2147,6 +2240,7 @@ class DataLink(models.Model):
             data_bus_ins.compose_config(sinks),
         ]
 
+    @transaction.atomic(using=DATABASE_CONNECTION_NAME)
     def compose_standard_time_series_configs(
         self,
         bk_biz_id: int,
@@ -2165,6 +2259,9 @@ class DataLink(models.Model):
         @param existing_context: 当前链路已有组件；未传入时仍按持久化关系复用名称。
             只有没有已有资源或保存引用的组件才分配随机名称。
         """
+        if existing_context is None:
+            type(self).objects.select_for_update().get(pk=self.pk)
+            existing_context = ExistingComponentContext.from_datalink(self)
 
         from metadata.models import ResultTableOption
 
@@ -2176,13 +2273,37 @@ class DataLink(models.Model):
             table_id,
             storage_cluster_name,
         )
-        rt_name, binding_name, databus_name, bkbase_data_name = resolve_component_names(
-            self,
-            bk_biz_id=bk_biz_id,
-            data_source=data_source,
-            table_id=table_id,
-            scene="ts",
-            context=existing_context,
+        existing_rt = existing_context.claim(ResultTableConfig, lambda c: c.data_type != "graph", require_unique=True)
+        existing_binding = existing_context.claim(VMStorageBindingConfig, lambda c: True, require_unique=True)
+        existing_databus = existing_context.claim(
+            DataBusConfig,
+            lambda c: not any(name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:") for name in c.sink_names),
+            require_unique=True,
+        )
+        # 保存的引用也属于已有身份；只有没有组件和引用时才分配新名称。
+        rt_name = (
+            existing_rt.name if existing_rt else (existing_binding.bkbase_result_table_name if existing_binding else "")
+        )
+        if not rt_name:
+            rt_name = self.resolve_graph_relation_vm_result_table_name(self.bk_tenant_id, table_id, default_name="")
+        saved_bindings = (
+            {
+                name.split(":", 1)[1]
+                for name in existing_databus.sink_names
+                if name.startswith(f"{DataLinkKind.VMSTORAGEBINDING.value}:")
+            }
+            if existing_databus
+            else set()
+        )
+        if len(saved_bindings) > 1:
+            raise ValueError(f"ambiguous VMStorageBindingConfig references: {sorted(saved_bindings)}")
+        binding_name = existing_binding.name if existing_binding else next(iter(saved_bindings), "")
+        databus_name = existing_databus.name if existing_databus else ""
+        bkbase_data_name = (
+            existing_databus.data_id_name if existing_databus else ""
+        ) or utils.get_registered_bkdata_data_id_name(
+            data_source,
+            namespace=self.namespace,
         )
 
         # 获取指标组维度配置
@@ -2311,6 +2432,7 @@ class DataLink(models.Model):
             raise ValueError(f"自定义格式固定指标 ResultTable({table_id}) 缺少有效指标字段")
         return whitelist
 
+    @transaction.atomic(using=DATABASE_CONNECTION_NAME)
     def compose_bk_plugin_time_series_config(
         self,
         bk_biz_id: int,
@@ -2325,6 +2447,10 @@ class DataLink(models.Model):
 
         已有名称始终复用，不受灰度开关影响；只有首次创建才分配随机名称。
         """
+        if existing_context is None:
+            type(self).objects.select_for_update().get(pk=self.pk)
+            existing_context = ExistingComponentContext.from_datalink(self)
+
         supports_cmdb_output = self.data_link_strategy in {
             self.BK_EXPORTER_TIME_SERIES,
             self.BK_STANDARD_TIME_SERIES,
@@ -2344,25 +2470,65 @@ class DataLink(models.Model):
         # 白名单配置
         whitelist = self._compose_time_series_field_whitelist(table_id)
 
-        rt_name, binding_name, databus_name, bkbase_data_name = resolve_component_names(
-            self,
-            bk_biz_id=bk_biz_id,
-            data_source=data_source,
-            table_id=table_id,
-            scene=utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
-            context=existing_context,
+        existing_rt = existing_context.claim(ResultTableConfig, lambda c: c.data_type != "graph", require_unique=True)
+        existing_binding = existing_context.claim(VMStorageBindingConfig, lambda c: True, require_unique=True)
+        existing_databus = existing_context.claim(
+            DataBusConfig,
+            lambda c: not any(name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:") for name in c.sink_names),
+            require_unique=True,
+        )
+        # 保存的引用也属于已有身份；只有没有组件和引用时才分配新名称。
+        rt_name = (
+            existing_rt.name if existing_rt else (existing_binding.bkbase_result_table_name if existing_binding else "")
+        )
+        if not rt_name:
+            rt_name = self.resolve_graph_relation_vm_result_table_name(self.bk_tenant_id, table_id, default_name="")
+        saved_bindings = (
+            {
+                name.split(":", 1)[1]
+                for name in existing_databus.sink_names
+                if name.startswith(f"{DataLinkKind.VMSTORAGEBINDING.value}:")
+            }
+            if existing_databus
+            else set()
+        )
+        if len(saved_bindings) > 1:
+            raise ValueError(f"ambiguous VMStorageBindingConfig references: {sorted(saved_bindings)}")
+        binding_name = existing_binding.name if existing_binding else next(iter(saved_bindings), "")
+        databus_name = existing_databus.name if existing_databus else ""
+        bkbase_data_name = (
+            existing_databus.data_id_name if existing_databus else ""
+        ) or utils.get_registered_bkdata_data_id_name(
+            data_source,
+            namespace=self.namespace,
         )
 
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             # 渲染所需的资源配置
-            vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
-                name=rt_name,
-                data_link_name=self.data_link_name,
-                namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
-                bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id},
-            )
+            if rt_name:
+                vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
+                    name=rt_name,
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    defaults={"table_id": table_id},
+                )
+            else:
+                vm_table_id_ins = utils.create_resource_with_random_name(
+                    ResultTableConfig,
+                    utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
+                    data_source.bk_data_id,
+                    conflict_models=(VMStorageBindingConfig, DataBusConfig),
+                    data_link_name=self.data_link_name,
+                    namespace=self.namespace,
+                    bk_biz_id=bk_biz_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    table_id=table_id,
+                    data_type="metric",
+                )
+            binding_name = binding_name or vm_table_id_ins.name
+            databus_name = databus_name or vm_table_id_ins.name
             vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
                 name=binding_name,
                 data_link_name=self.data_link_name,

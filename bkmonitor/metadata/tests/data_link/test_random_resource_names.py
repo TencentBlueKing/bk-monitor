@@ -10,7 +10,6 @@ from django.db import IntegrityError, close_old_connections
 from metadata import models
 from metadata.models.data_link import utils
 from metadata.models.data_link.component_reuse import ComponentReuseError
-from metadata.models.data_link.naming import resolve_component_names
 from metadata.models.vm.utils import _ensure_named_data_link
 
 pytestmark = pytest.mark.django_db(databases="__all__")
@@ -55,8 +54,17 @@ def make_link(source):
     )[0]
 
 
-def resolve(link, source):
-    return resolve_component_names(link, bk_biz_id=2, data_source=source, table_id="random_name.metric", scene="ts")
+@pytest.fixture(autouse=True)
+def mock_tenant_default_biz_id(mocker):
+    mocker.patch("bkmonitor.utils.tenant.get_tenant_default_biz_id", return_value=2)
+
+
+def compose(link, source, table_id="random_name.metric"):
+    link.compose_configs(bk_biz_id=2, data_source=source, table_id=table_id, storage_cluster_name="name-test-vm")
+    rt = models.ResultTableConfig.objects.get(data_link_name=link.pk)
+    binding = models.VMStorageBindingConfig.objects.get(data_link_name=link.pk)
+    databus = models.DataBusConfig.objects.get(data_link_name=link.pk)
+    return rt.name, binding.name, databus.name, databus.data_id_name
 
 
 @pytest.mark.parametrize("scene", sorted(utils.RANDOM_NAME_SCENES))
@@ -104,11 +112,11 @@ def test_link_and_components_reuse_with_switch_off(source, mocker, settings):
     link = make_link(source)
     assert link.data_link_name.startswith("bkm_ts_960001_")
     assert link.data_link_name != "existing_source"
-    names = resolve(link, source)
+    names = compose(link, source)
     generator = mocker.patch.object(utils, "generate_bkdata_resource_name", side_effect=AssertionError("regenerated"))
     again, _, _ = _ensure_named_data_link(source, "random_name.metric", link.data_link_strategy, "bkmonitor")
     assert again.pk == link.pk
-    assert resolve(again, source) == names
+    assert compose(again, source) == names
     generator.assert_not_called()
 
 
@@ -124,21 +132,21 @@ def test_missing_mapping_recovers_link_by_source_and_table(source, mocker):
 
 def test_missing_components_restore_saved_references(source, mocker):
     link = make_link(source)
-    names = resolve(link, source)
+    names = compose(link, source)
     rt_name, binding_name, _, _ = names
     generator = mocker.patch.object(utils, "generate_bkdata_resource_name", side_effect=AssertionError("regenerated"))
     models.ResultTableConfig.objects.filter(data_link_name=link.pk).delete()
-    assert resolve(link, source) == names
+    assert compose(link, source) == names
     assert models.ResultTableConfig.objects.get(data_link_name=link.pk).name == rt_name
     models.VMStorageBindingConfig.objects.filter(data_link_name=link.pk).delete()
-    assert resolve(link, source) == names
+    assert compose(link, source) == names
     assert models.VMStorageBindingConfig.objects.get(data_link_name=link.pk).name == binding_name
     generator.assert_not_called()
 
 
 def test_ambiguous_components_never_allocate_replacements(source, mocker):
     link = make_link(source)
-    resolve(link, source)
+    compose(link, source)
     models.ResultTableConfig.objects.create(
         bk_tenant_id="system",
         namespace="bkmonitor",
@@ -149,7 +157,7 @@ def test_ambiguous_components_never_allocate_replacements(source, mocker):
     )
     generator = mocker.patch.object(utils, "generate_bkdata_resource_name")
     with pytest.raises(ComponentReuseError):
-        resolve(link, source)
+        compose(link, source)
     generator.assert_not_called()
 
 
@@ -246,7 +254,7 @@ def test_same_normalized_table_names_get_distinct_identities(source):
             creator="system",
         )
         link = _ensure_named_data_link(source, table_id, models.DataLink.BK_STANDARD_V2_TIME_SERIES, "bkmonitor")[0]
-        output_names = resolve_component_names(link, bk_biz_id=2, data_source=source, table_id=table_id, scene="ts")
+        output_names = compose(link, source, table_id)
         names.append((link.pk, output_names[0]))
     assert utils.compose_bkdata_table_id("random-a.metric") == utils.compose_bkdata_table_id("random_a.metric")
     assert names[0][0] != names[1][0]
@@ -301,7 +309,7 @@ def test_concurrent_component_creation_allocates_one_chain(source):
             ds = models.DataSource.objects.get(pk=source.pk)
             current_link = models.DataLink.objects.get(pk=link.pk)
             barrier.wait(timeout=10)
-            return resolve(current_link, ds)
+            return compose(current_link, ds)
         finally:
             close_old_connections()
 
@@ -441,7 +449,71 @@ def test_multiple_orphan_relations_do_not_create_a_new_identity(source, mocker):
 
 def test_empty_databus_source_is_repaired_from_registered_identity(source, mocker):
     link = make_link(source)
-    names = resolve(link, source)
+    names = compose(link, source)
     models.DataBusConfig.objects.filter(data_link_name=link.pk).update(data_id_name="")
     mocker.patch.object(utils, "generate_bkdata_resource_name", side_effect=AssertionError("regenerated"))
-    assert resolve(link, source) == names
+    assert compose(link, source) == names
+
+
+@pytest.mark.parametrize(
+    "strategy",
+    [
+        models.DataLink.BK_STANDARD_V2_TIME_SERIES,
+        models.DataLink.BK_STANDARD_TIME_SERIES,
+        models.DataLink.BK_EXPORTER_TIME_SERIES,
+    ],
+)
+def test_compose_creates_complete_components_once(source, strategy):
+    from django.db.models.signals import post_save
+
+    link = make_link(source)
+    link.data_link_strategy = strategy
+    link.save(update_fields=["data_link_strategy"])
+    writes = []
+
+    def capture(sender, instance, created, **kwargs):
+        writes.append((sender, created))
+        if sender is models.VMStorageBindingConfig:
+            assert instance.vm_cluster_name == "name-test-vm"
+            assert instance.bkbase_result_table_name
+        elif sender is models.DataBusConfig:
+            assert instance.data_id_name == "existing_source"
+            assert instance.sink_names
+
+    components = (models.ResultTableConfig, models.VMStorageBindingConfig, models.DataBusConfig)
+    for model in components:
+        post_save.connect(capture, sender=model)
+    try:
+        compose(link, source)
+    finally:
+        for model in components:
+            post_save.disconnect(capture, sender=model)
+    assert writes == [(model, True) for model in components]
+
+
+def test_direct_compose_failure_rolls_back_component_creation(source, mocker):
+    link = make_link(source)
+    mocker.patch.object(models.VMStorageBindingConfig, "compose_config", side_effect=RuntimeError("render failed"))
+    with pytest.raises(RuntimeError, match="render failed"):
+        compose(link, source)
+    for model in (models.ResultTableConfig, models.VMStorageBindingConfig, models.DataBusConfig):
+        assert not model.objects.filter(data_link_name=link.pk).exists()
+
+
+def test_first_compose_avoids_names_occupied_by_other_components(source, mocker):
+    link = make_link(source)
+    existing = models.VMStorageBindingConfig.objects.create(
+        bk_tenant_id=source.bk_tenant_id,
+        namespace=link.namespace,
+        name="occupied_binding",
+        data_link_name="unrelated_link",
+        bk_biz_id=2,
+        vm_cluster_name="other-vm",
+    )
+    generate = mocker.patch.object(utils, "generate_bkdata_resource_name", side_effect=["occupied_binding", "new_name"])
+    rt_name, binding_name, databus_name, _ = compose(link, source)
+    assert (rt_name, binding_name, databus_name) == ("new_name", "new_name", "new_name")
+    assert generate.call_count == 2
+    existing.refresh_from_db()
+    assert existing.data_link_name == "unrelated_link"
+    assert existing.vm_cluster_name == "other-vm"

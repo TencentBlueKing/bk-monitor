@@ -54,7 +54,9 @@ def generate_bkdata_resource_name(scene: str, source_id: int) -> str:
     return f"bkm_{scene}_{source_id}_{suffix}"
 
 
-def create_resource_with_random_name(model, scene: str, source_id: int, *, name_field="name", prefix="", **fields):
+def create_resource_with_random_name(
+    model, scene: str, source_id: int, *, name_field="name", prefix="", conflict_models=(), **fields
+):
     """通过唯一约束分配名称；只重试确定的同名冲突，其他数据库异常原样抛出。"""
     manager = model.objects.using(DATABASE_CONNECTION_NAME)
     for _ in range(5):
@@ -62,7 +64,9 @@ def create_resource_with_random_name(model, scene: str, source_id: int, *, name_
         identity = {name_field: name}
         if name_field != "data_link_name":
             identity.update(bk_tenant_id=fields["bk_tenant_id"], namespace=fields["namespace"])
-        if manager.filter(**identity).exists():
+        if manager.filter(**identity).exists() or any(
+            other.objects.using(DATABASE_CONNECTION_NAME).filter(**identity).exists() for other in conflict_models
+        ):
             continue
         try:
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):

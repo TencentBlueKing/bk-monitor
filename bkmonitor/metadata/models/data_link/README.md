@@ -299,7 +299,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 场景为 `did`、`ts`、`std`、`exp`、`gr`、`gvm`、`gdb`、`rr`；来源是 DataId 或规则主键。
 图谱关系重建以最小 DataBus 主键为来源，额外保留 `rebuilt__` 前缀。
 
-- 名称先在本地事务保存，再下发 BKBase；重试不会重新随机生成。
+- 沿用 compose 中的组件查询及创建/更新流程，首次创建时分配随机名称并一次写入完整配置，再下发 BKBase；重试复用已保存名称。
 - DataLink 主名称与 DataId 名独立，通过 BkBaseResultTable、DataBusConfig 保存关联。
 - 普通时序/插件/图谱始终复用已有组件身份，不受组件复用灰度开关关闭影响；歧义直接报错。
 - RT、Binding 和 DataBus 可以不同名，所有引用必须读取实际实例及保存的引用。
