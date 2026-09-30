@@ -23,16 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type PropType,
-  computed,
-  defineComponent,
-  getCurrentInstance,
-  nextTick,
-  onMounted,
-  toRef,
-  useTemplateRef,
-} from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onMounted, toRef, useTemplateRef } from 'vue';
 
 import {
   type BkUiSettings,
@@ -156,8 +147,8 @@ export default defineComponent({
       default: 'single',
     },
     /**
-     * 受控高亮行 keys（与 PrimaryTable activeRowKeys 语义一致）：父级传了该 prop 即受控（以 vnode.props 是否携带 key 判定，
-     * 显式传 undefined 同样算受控，调用方需保证值为数组），行点击 / 键盘高亮只触发 activeChange 事件，由调用方决定是否更新
+     * 受控高亮行 keys（与 PrimaryTable activeRowKeys 语义一致）：挂载时传入数组即受控，传 undefined 视为未传（非受控），
+     * 行点击 / 键盘高亮只触发 activeChange 事件，由调用方决定是否更新
      */
     activeRowKeys: {
       type: Array as PropType<(number | string)[]>,
@@ -227,13 +218,11 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     /**
-     * activeRowKeys 是否受控：与 TDesign useDefaultValue 的判定一致，以父级 vnode.props 是否携带该 key 为准
-     * （prop 默认值 undefined 使 props 值无法区分「未传」与「显式传 undefined」，显式传 undefined 按 TDesign 语义同样算受控）。
+     * activeRowKeys 是否受控：挂载时传入数组才算受控。中间封装层（如 AlarmTable）会把未传的 prop 以 undefined 透传，
+     * 若按 vnode.props 是否携带 key 判定，会被 TDesign 当作值为 undefined 的受控模式，行点击时读取 undefined.includes 报错。
      * 与 TDesign 相同，该判定在挂载时确定，不支持运行期切换受控 / 非受控模式。
      */
-    const vProps = getCurrentInstance().vnode.props || {};
-    const isControlledActiveRowKeys =
-      Object.hasOwn(vProps, 'activeRowKeys') || Object.hasOwn(vProps, 'active-row-keys');
+    const isControlledActiveRowKeys = Array.isArray(props.activeRowKeys);
     const wrapperRef = useTemplateRef<HTMLElement>('wrapperRef');
     /** 表格单元格渲染逻辑 */
     const { tableCellRender, renderContext } = useTableCell({
@@ -475,12 +464,12 @@ export default defineComponent({
               empty: this.tableEmptyRender,
             }}
             /**
-             * 受控高亮行透传：仅父级传了 activeRowKeys（含显式 undefined，判定见 setup）才把 key 透传给 PrimaryTable，
-             * 与 TDesign 受控判定保持一致；非受控时携带该 key 会被 PrimaryTable 误判为受控，故用条件展开。
+             * 受控高亮行透传：仅受控（判定见 setup）才把 key 透传给 PrimaryTable；非受控时携带该 key 会被 PrimaryTable
+             * 误判为受控，故用条件展开。受控期间值变为 undefined 时兜底为空数组，避免 TDesign 内部读取 undefined。
              * 受控时骨架态强制清空（骨架行为假数据 key，真实高亮 key 本就不会命中，此处仅与历史行为保持一致）
              */
             {...(this.isControlledActiveRowKeys
-              ? { activeRowKeys: this.showLoadingRows ? [] : this.activeRowKeys }
+              ? { activeRowKeys: this.showLoadingRows ? [] : (this.activeRowKeys ?? []) }
               : {})}
             activeRowType={this.activeRowType || undefined}
             bkUiSettings={this.tableSettings}

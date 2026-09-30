@@ -78,6 +78,22 @@ export const ALL_SPAN_TYPE = '';
 /** span 类型对应的字段名，快捷筛选与按类型切列都基于它 */
 export const SPAN_TYPE_FIELD = 'attributes.span_type';
 
+/**
+ * events 字段前缀。该前缀下的属性值可能是数组（一条 span 携带多个同名事件属性），
+ * 需按「值 , 值 +N」的数组样式渲染而非 JSON 序列化。
+ * 字段元数据未提供数组标识，故只作为前缀筛选，实际是否为数组仍需运行时判定。
+ */
+export const EVENTS_FIELD_PREFIX = 'events.';
+
+/** events 抽屉中命中主表当前列的整列高亮类名，表头与单元格同时高亮 */
+export const RUM_EVENTS_ACTIVE_COLUMN_CLASS = 'events-col-active';
+
+/** events 抽屉的列宽，与单元格文本省略宽度一致 */
+export const RUM_EVENTS_COLUMN_WIDTH = 200;
+
+/** events 抽屉骨架屏最短展示时长（ms），避免一闪而过 */
+export const RUM_EVENTS_MIN_SKELETON_DURATION = 300;
+
 /** 表格滚动加载每页条数 */
 export const RUM_TABLE_PAGE_LIMIT = 30;
 

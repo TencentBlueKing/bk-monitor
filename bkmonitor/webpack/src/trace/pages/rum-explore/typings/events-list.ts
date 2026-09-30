@@ -24,6 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-export * from './array-field-formatter';
-export * from './events-list';
-export * from './unit-formatter';
+import type { ArrayItemFormatter } from '../utils/array-field-formatter';
+
+/** events 列表的一列：字段元数据 + 由字段语义推导出的格式化方法 */
+export interface IEventsListColumn {
+  alias: string;
+  formatter: ArrayItemFormatter;
+  /** 字段名，同时作为列键与行数据键。字段名含 .，依赖 CommonTable 默认取值按字面键读取（row[colKey]），不做嵌套路径解析 */
+  name: string;
+}
