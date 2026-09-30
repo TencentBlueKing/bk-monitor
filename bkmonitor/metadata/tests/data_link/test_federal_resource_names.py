@@ -507,3 +507,44 @@ def test_subset_rejects_wrong_parent_vm_cluster(source):
     binding.save(update_fields=["vm_cluster_name"])
     with pytest.raises(ValueError, match="VM binding"):
         compose_subset(make_subset(source), source)
+
+
+@pytest.mark.parametrize("reuse", [False, True])
+def test_complete_federation_relations_do_not_scan_stale_vmrt_history(source, mocker, settings, reuse):
+    settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = (
+        {models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES, models.DataLink.BCS_FEDERAL_SUBSET_TIME_SERIES}
+        if reuse
+        else set()
+    )
+    parent = proxy_link(source)
+    rt, binding = historical_components(source)
+    compose_proxy(parent, source)
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id="system",
+        result_table_id=TABLE,
+        bk_base_data_id=source.pk,
+        vm_result_table_id="2_obsolete_vmrt",
+        vm_cluster_id=1,
+    )
+    fallback = mocker.patch.object(
+        utils, "get_federal_vm_table_id", side_effect=AssertionError("unnecessary historical lookup")
+    )
+    assert compose_proxy(parent, source)[0]["metadata"]["name"] == rt.name
+    configs = compose_subset(make_subset(source), source)
+    assert configs[0]["spec"]["conditions"][0]["sinks"][0]["name"] == binding.name
+    fallback.assert_not_called()
+
+
+@pytest.mark.parametrize("data_type", ["metric", "log", "graph"])
+def test_result_table_preserves_legacy_business_label(source, data_type):
+    rt = models.ResultTableConfig(
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        name="existing_rt",
+        bkbase_table_id="42_existing_rt",
+        bk_biz_id=2,
+        data_type=data_type,
+    )
+    config = rt.compose_config()
+    assert config["metadata"]["labels"]["bk_biz_id"] == "42"
+    assert config["spec"]["bizId"] == 42

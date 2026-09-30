@@ -76,27 +76,6 @@ class RecordRuleV4OutputResources:
         raise ValueError(f"unable to allocate recording rule output name: {rule_id}")
 
     @staticmethod
-    def resolve_result_table_config_name(rule: RecordRuleV4) -> str:
-        """恢复持久化输出名，同时支持旧规则和仅声明尚未 apply 的规则。"""
-        from metadata import models as metadata_models
-
-        configs = list(
-            metadata_models.ResultTableConfig.objects.filter(
-                bk_tenant_id=rule.bk_tenant_id,
-                namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
-                table_id=rule.table_id,
-            )[:2]
-        )
-        if len(configs) > 1:
-            raise ValueError(f"ambiguous recording rule output: {rule.pk}")
-        if configs:
-            return configs[0].name
-        prefix, sep, name = rule.dst_vm_table_id.partition("_")
-        if not sep or not prefix.isdigit() or not name:
-            raise ValueError(f"recording rule has no persisted output identity: {rule.pk}")
-        return name
-
-    @staticmethod
     def compose_vm_result_table_id(bk_tenant_id: str, bk_biz_id: int, result_table_config_name: str) -> str:
         """根据 ResultTableConfig.name 生成真实 VMRT。"""
 
@@ -187,49 +166,37 @@ class RecordRuleV4OutputResources:
 
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             type(rule).objects.select_for_update().get(pk=rule.pk)
-            result_table_config_name = RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
-            result_table_defaults = {
-                "table_id": rule.table_id,
-                "bkbase_table_id": rule.dst_vm_table_id,
-                "data_link_name": result_table_config_name,
-                "bk_biz_id": rule.bk_biz_id,
-            }
-            vm_binding_defaults = {
-                "table_id": rule.table_id,
-                "bkbase_result_table_name": result_table_config_name,
-                "vm_cluster_name": rule.dst_vm_storage_name,
-                "data_link_name": result_table_config_name,
-                "bk_biz_id": rule.bk_biz_id,
-            }
-            result_table_config = metadata_models.ResultTableConfig.objects.filter(
-                bk_tenant_id=rule.bk_tenant_id,
-                namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
-                name=result_table_config_name,
-            ).first()
+            scope = dict(bk_tenant_id=rule.bk_tenant_id, namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE)
+            rt_candidates = list(metadata_models.ResultTableConfig.objects.filter(**scope, table_id=rule.table_id)[:2])
+            if len(rt_candidates) > 1:
+                raise ValueError(f"ambiguous recording rule output: {rule.pk}")
+            result_table_config = rt_candidates[0] if rt_candidates else None
+            if result_table_config:
+                result_table_config_name = result_table_config.name
+            else:
+                prefix, sep, result_table_config_name = rule.dst_vm_table_id.partition("_")
+                if not sep or not prefix.isdigit() or not result_table_config_name:
+                    raise ValueError(f"recording rule has no persisted output identity: {rule.pk}")
+                result_table_config = metadata_models.ResultTableConfig.objects.filter(
+                    **scope, name=result_table_config_name
+                ).first()
             binding_candidates = list(
-                metadata_models.VMStorageBindingConfig.objects.filter(
-                    bk_tenant_id=rule.bk_tenant_id,
-                    namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
-                    table_id=rule.table_id,
-                )[:2]
+                metadata_models.VMStorageBindingConfig.objects.filter(**scope, table_id=rule.table_id)[:2]
             )
             if len(binding_candidates) > 1:
                 raise ValueError(f"ambiguous recording rule binding: {rule.pk}")
-            vm_storage_binding = binding_candidates[0] if binding_candidates else None
-            binding_name = vm_storage_binding.name if vm_storage_binding else result_table_config_name
-            # Refuse to overwrite another rule's resource when restoring a missing local config.
-            for model, name in (
-                (metadata_models.ResultTableConfig, result_table_config_name),
-                (metadata_models.VMStorageBindingConfig, binding_name),
-            ):
-                if (
-                    model.objects.filter(
-                        bk_tenant_id=rule.bk_tenant_id, namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE, name=name
-                    )
-                    .exclude(table_id=rule.table_id)
-                    .exists()
-                ):
-                    raise ValueError(f"recording rule output name belongs to another table: {name}")
+            vm_storage_binding = (
+                binding_candidates[0]
+                if binding_candidates
+                else (
+                    metadata_models.VMStorageBindingConfig.objects.filter(
+                        **scope, name=result_table_config_name
+                    ).first()
+                )
+            )
+            for instance in (result_table_config, vm_storage_binding):
+                if instance is not None and instance.table_id != rule.table_id:
+                    raise ValueError(f"recording rule output name belongs to another table: {instance.name}")
             output_config_exists = bool(result_table_config and vm_storage_binding)
             # 任一本地配置处于 FAILED 时说明上一次下发未成功，后台调谐应自动重试，
             # 避免 output 资源永久卡在失败态、只能靠人工 force_apply 才能恢复。
@@ -239,21 +206,30 @@ class RecordRuleV4OutputResources:
             )
             should_apply = force_apply or not output_config_exists or output_apply_failed
 
-            result_table_config, _ = metadata_models.ResultTableConfig.objects.update_or_create(
-                bk_tenant_id=rule.bk_tenant_id,
-                namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
-                name=result_table_config_name,
-                defaults=result_table_defaults,
+            result_table_config = result_table_config or metadata_models.ResultTableConfig(
+                **scope, name=result_table_config_name
             )
-            # binding 与 RT 同名，绑定输出 RT 到 group 的目标 VM 存储。
-            # Flow 中 RecordingRuleNode.output 引用的是 rule.dst_vm_table_id，
-            # 这里的绑定负责让该 VMRT 在 bkbase 侧可写入。
-            vm_storage_binding, _ = metadata_models.VMStorageBindingConfig.objects.update_or_create(
-                bk_tenant_id=rule.bk_tenant_id,
-                namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
-                name=binding_name,
-                defaults=vm_binding_defaults,
+            vm_storage_binding = vm_storage_binding or metadata_models.VMStorageBindingConfig(
+                **scope, name=result_table_config_name
             )
+            # 已找到的实例直接更新；缺失组件使用保存的输出身份补建。
+            common_fields = dict(
+                table_id=rule.table_id, data_link_name=result_table_config_name, bk_biz_id=rule.bk_biz_id
+            )
+            for instance, fields in (
+                (result_table_config, dict(common_fields, bkbase_table_id=rule.dst_vm_table_id)),
+                (
+                    vm_storage_binding,
+                    dict(
+                        common_fields,
+                        bkbase_result_table_name=result_table_config_name,
+                        vm_cluster_name=rule.dst_vm_storage_name,
+                    ),
+                ),
+            ):
+                for field, value in fields.items():
+                    setattr(instance, field, value)
+                instance.save(update_fields=[*fields, "last_modify_time"] if instance.pk else None)
 
         if not should_apply:
             logger.info(

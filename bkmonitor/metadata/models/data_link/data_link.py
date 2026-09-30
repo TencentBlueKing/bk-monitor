@@ -1193,69 +1193,68 @@ class DataLink(models.Model):
                 data_source,
                 namespace=self.namespace,
             )
-            with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-                if graph_rt_name:
-                    graph_rt, _ = ResultTableConfig.objects.update_or_create(
-                        name=graph_rt_name,
-                        data_link_name=self.data_link_name,
-                        namespace=self.namespace,
-                        bk_biz_id=bk_biz_id,
-                        bk_tenant_id=self.bk_tenant_id,
-                        defaults={"table_id": table_id, "data_type": "graph"},
-                    )
-                else:
-                    graph_rt = utils.create_resource_with_random_name(
-                        ResultTableConfig,
-                        "gdb",
-                        data_source.bk_data_id,
-                        conflict_models=(SurrealDBBindingConfig, DataBusConfig),
-                        data_link_name=self.data_link_name,
-                        namespace=self.namespace,
-                        bk_biz_id=bk_biz_id,
-                        bk_tenant_id=self.bk_tenant_id,
-                        table_id=table_id,
-                        data_type="graph",
-                    )
-                graph_binding_name = graph_binding_name or graph_rt.name
-                graph_databus_name = graph_databus_name or graph_rt.name
-                graph_binding, _ = SurrealDBBindingConfig.objects.update_or_create(
-                    name=graph_binding_name,
+            if graph_rt_name:
+                graph_rt, _ = ResultTableConfig.objects.update_or_create(
+                    name=graph_rt_name,
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
-                    defaults={
-                        "surrealdb_cluster_name": surrealdb_storage.storage_cluster.cluster_name,
-                        "table_id": table_id,
-                        "bkbase_result_table_name": graph_rt.name,
-                        "table_type": surrealdb_storage.table_type,
-                        "vertices": surrealdb_storage.vertices,
-                        "relations": surrealdb_storage.relations,
-                    },
+                    defaults={"table_id": table_id, "data_type": "graph"},
                 )
-                graph_sink = {
-                    "kind": DataLinkKind.SURREALDBBINDING.value,
-                    "name": graph_binding.name,
-                    "namespace": self.namespace,
-                }
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    graph_sink["tenant"] = self.bk_tenant_id
-                graph_databus, _ = DataBusConfig.objects.update_or_create(
-                    name=graph_databus_name,
+            else:
+                graph_rt = utils.create_resource_with_random_name(
+                    ResultTableConfig,
+                    "gdb",
+                    data_source.bk_data_id,
+                    conflict_models=(SurrealDBBindingConfig, DataBusConfig),
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
-                    defaults={
-                        "data_id_name": graph_data_id_name,
-                        "bk_data_id": data_source.bk_data_id,
-                        "sink_names": [f"{graph_sink['kind']}:{graph_sink['name']}"],
-                        # Transfer consumer group 只用于 VM 分支承接原消费位点。
-                        # SurrealDB 分支必须使用独立消费组，避免与 VM Databus
-                        # 竞争同一 Kafka 分区；同时清理早期错误写入的共享值。
-                        "consumer_group": "",
-                    },
+                    table_id=table_id,
+                    data_type="graph",
                 )
+            graph_binding_name = graph_binding_name or graph_rt.name
+            graph_databus_name = graph_databus_name or graph_rt.name
+            graph_binding, _ = SurrealDBBindingConfig.objects.update_or_create(
+                name=graph_binding_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "surrealdb_cluster_name": surrealdb_storage.storage_cluster.cluster_name,
+                    "table_id": table_id,
+                    "bkbase_result_table_name": graph_rt.name,
+                    "table_type": surrealdb_storage.table_type,
+                    "vertices": surrealdb_storage.vertices,
+                    "relations": surrealdb_storage.relations,
+                },
+            )
+            graph_sink = {
+                "kind": DataLinkKind.SURREALDBBINDING.value,
+                "name": graph_binding.name,
+                "namespace": self.namespace,
+            }
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                graph_sink["tenant"] = self.bk_tenant_id
+            graph_databus, _ = DataBusConfig.objects.update_or_create(
+                name=graph_databus_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "data_id_name": graph_data_id_name,
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{graph_sink['kind']}:{graph_sink['name']}"],
+                    # Transfer consumer group 只用于 VM 分支承接原消费位点。
+                    # SurrealDB 分支必须使用独立消费组，避免与 VM Databus
+                    # 竞争同一 Kafka 分区；同时清理早期错误写入的共享值。
+                    "consumer_group": "",
+                },
+            )
 
             configs.extend(
                 [
@@ -2007,7 +2006,6 @@ class DataLink(models.Model):
             existing_context = ExistingComponentContext.from_datalink(self)
         existing_rt = existing_context.claim(ResultTableConfig, lambda c: c.data_type != "graph", require_unique=True)
         existing_binding = existing_context.claim(VMStorageBindingConfig, lambda c: True, require_unique=True)
-        saved_vmrt = utils.get_federal_vm_table_id(self.bk_tenant_id, self.namespace, table_id)
         rt_query = ResultTableConfig.objects.select_for_update().filter(
             bk_tenant_id=self.bk_tenant_id, namespace=self.namespace
         )
@@ -2016,7 +2014,10 @@ class DataLink(models.Model):
         )
         if rt_name:
             existing_rt = rt_query.filter(name=rt_name).first()
-        elif saved_vmrt:
+        saved_vmrt = existing_rt.bkbase_table_id if existing_rt else ""
+        if not saved_vmrt:
+            saved_vmrt = utils.get_federal_vm_table_id(self.bk_tenant_id, self.namespace, table_id)
+        if not rt_name and saved_vmrt:
             try:
                 existing_rt = rt_query.get(bkbase_table_id=saved_vmrt)
             except ResultTableConfig.DoesNotExist:
@@ -2025,8 +2026,6 @@ class DataLink(models.Model):
             rt_name = existing_rt.name
             if existing_rt.data_link_name not in ("", self.pk) or existing_rt.table_id not in ("", table_id):
                 raise ValueError(f"federation ResultTable belongs to another link or table: name={rt_name}")
-            if saved_vmrt and existing_rt.bkbase_table_id and saved_vmrt != existing_rt.bkbase_table_id:
-                raise ValueError(f"conflicting federation VMRTs: name={rt_name}, vmrt={saved_vmrt}")
             if existing_rt.data_type != "metric":
                 raise ValueError(f"federation ResultTable is not metric: name={rt_name}")
         if saved_vmrt and rt_name and self._strip_bkbase_biz_prefix(saved_vmrt) != rt_name:
@@ -2169,7 +2168,6 @@ class DataLink(models.Model):
         for route in federation_routes:
             # 正常关联优先；历史共享组件可仅凭完整 VMRT 和实际 RT 引用找到。
             target_table_id = route["target_metric_table_id"]
-            saved_vmrt = utils.get_federal_vm_table_id(self.bk_tenant_id, self.namespace, target_table_id)
             proxy_links = (
                 type(self)
                 .objects.filter(
@@ -2187,48 +2185,49 @@ class DataLink(models.Model):
             )
             rt_query = ResultTableConfig.objects.filter(bk_tenant_id=self.bk_tenant_id, namespace=self.namespace)
             candidates = list(rt_query.filter(table_id=target_table_id, data_link_name__in=proxy_links))
-            if not candidates and saved_vmrt:
-                candidates = list(rt_query.filter(bkbase_table_id=saved_vmrt))
+            if not candidates:
+                saved_vmrt = utils.get_federal_vm_table_id(self.bk_tenant_id, self.namespace, target_table_id)
+                if saved_vmrt:
+                    candidates = list(rt_query.filter(bkbase_table_id=saved_vmrt))
             if len(candidates) != 1:
                 raise ValueError(f"missing or ambiguous federation ResultTable: table={target_table_id}")
             proxy_rt = candidates[0]
             owners = set(proxy_links.values_list("data_link_name", flat=True))
             if proxy_rt.table_id not in ("", target_table_id) or proxy_rt.data_link_name not in {"", *owners}:
                 raise ValueError(f"federation ResultTable belongs to another link or table: name={proxy_rt.name}")
-            if saved_vmrt and proxy_rt.bkbase_table_id and saved_vmrt != proxy_rt.bkbase_table_id:
-                raise ValueError(f"conflicting federation VMRTs: table={target_table_id}")
             binding_query = VMStorageBindingConfig.objects.filter(
                 bk_tenant_id=self.bk_tenant_id,
                 namespace=self.namespace,
             )
             bindings = list(binding_query.filter(table_id=target_table_id, data_link_name__in=proxy_links))
-            if not bindings:
-                bindings = list(binding_query.filter(bkbase_result_table_name=proxy_rt.name))
-            cluster_ids = set(
-                AccessVMRecord.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id,
-                    result_table_id=target_table_id,
-                    vm_result_table_id=saved_vmrt or proxy_rt.bkbase_table_id,
-                ).values_list("vm_cluster_id", flat=True)
-            )
-            from metadata.models import BkBaseResultTable
+            if len(bindings) != 1:
+                if not bindings:
+                    bindings = list(binding_query.filter(bkbase_result_table_name=proxy_rt.name))
+                cluster_ids = set(
+                    AccessVMRecord.objects.filter(
+                        bk_tenant_id=self.bk_tenant_id,
+                        result_table_id=target_table_id,
+                        vm_result_table_id=proxy_rt.bkbase_table_id,
+                    ).values_list("vm_cluster_id", flat=True)
+                )
+                from metadata.models import BkBaseResultTable
 
-            cluster_ids.update(
-                BkBaseResultTable.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id,
-                    monitor_table_id=target_table_id,
-                    data_link_name__in=proxy_links,
-                    bkbase_table_id=saved_vmrt or proxy_rt.bkbase_table_id,
-                    storage_type=ClusterInfo.TYPE_VM,
-                ).values_list("storage_cluster_id", flat=True)
-            )
-            cluster_names = set(
-                ClusterInfo.objects.filter(
-                    bk_tenant_id=self.bk_tenant_id, cluster_id__in=cluster_ids, cluster_type=ClusterInfo.TYPE_VM
-                ).values_list("cluster_name", flat=True)
-            )
-            if cluster_names:
-                bindings = [binding for binding in bindings if binding.vm_cluster_name in cluster_names]
+                cluster_ids.update(
+                    BkBaseResultTable.objects.filter(
+                        bk_tenant_id=self.bk_tenant_id,
+                        monitor_table_id=target_table_id,
+                        data_link_name__in=proxy_links,
+                        bkbase_table_id=proxy_rt.bkbase_table_id,
+                        storage_type=ClusterInfo.TYPE_VM,
+                    ).values_list("storage_cluster_id", flat=True)
+                )
+                cluster_names = set(
+                    ClusterInfo.objects.filter(
+                        bk_tenant_id=self.bk_tenant_id, cluster_id__in=cluster_ids, cluster_type=ClusterInfo.TYPE_VM
+                    ).values_list("cluster_name", flat=True)
+                )
+                if cluster_names:
+                    bindings = [binding for binding in bindings if binding.vm_cluster_name in cluster_names]
             if len(bindings) != 1:
                 raise ValueError(f"missing or ambiguous federation VM binding: rt={proxy_rt.name}")
             proxy_binding = bindings[0]
@@ -2271,41 +2270,40 @@ class DataLink(models.Model):
             conditions,
         )
 
-        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            if sink_name:
-                vm_conditional_ins, _ = ConditionalSinkConfig.objects.update_or_create(
-                    name=sink_name,
-                    namespace=self.namespace,
-                    bk_tenant_id=self.bk_tenant_id,
-                    data_link_name=self.data_link_name,
-                    defaults={"bk_biz_id": bk_biz_id},
-                )
-            else:
-                vm_conditional_ins = utils.create_resource_with_random_name(
-                    ConditionalSinkConfig,
-                    "fs",
-                    data_source.bk_data_id,
-                    conflict_models=(DataBusConfig,),
-                    namespace=self.namespace,
-                    bk_tenant_id=self.bk_tenant_id,
-                    data_link_name=self.data_link_name,
-                    bk_biz_id=bk_biz_id,
-                )
-            databus_name = existing_databus.name if existing_databus else vm_conditional_ins.name
-            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=databus_name,
+        if sink_name:
+            vm_conditional_ins, _ = ConditionalSinkConfig.objects.update_or_create(
+                name=sink_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
                 data_link_name=self.data_link_name,
-                defaults={
-                    "data_id_name": bkbase_raw_data_name,
-                    "data_link_name": self.data_link_name,
-                    "bk_biz_id": bk_biz_id,
-                    "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{vm_conditional_ins.name}"],
-                },
+                defaults={"bk_biz_id": bk_biz_id},
             )
-            data_bus_ins.apply_consumer_group(consumer_group)
+        else:
+            vm_conditional_ins = utils.create_resource_with_random_name(
+                ConditionalSinkConfig,
+                "fs",
+                data_source.bk_data_id,
+                conflict_models=(DataBusConfig,),
+                namespace=self.namespace,
+                bk_tenant_id=self.bk_tenant_id,
+                data_link_name=self.data_link_name,
+                bk_biz_id=bk_biz_id,
+            )
+        databus_name = existing_databus.name if existing_databus else vm_conditional_ins.name
+        data_bus_ins, _ = DataBusConfig.objects.update_or_create(
+            name=databus_name,
+            namespace=self.namespace,
+            bk_tenant_id=self.bk_tenant_id,
+            data_link_name=self.data_link_name,
+            defaults={
+                "data_id_name": bkbase_raw_data_name,
+                "data_link_name": self.data_link_name,
+                "bk_biz_id": bk_biz_id,
+                "bk_data_id": data_source.bk_data_id,
+                "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{vm_conditional_ins.name}"],
+            },
+        )
+        data_bus_ins.apply_consumer_group(consumer_group)
 
         vm_conditional_sink_config = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
         conditional_sink = [
@@ -2337,67 +2335,66 @@ class DataLink(models.Model):
         consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """复用已有名称，首次创建 RT 时分配名称并写入完整的 VM 组件配置。"""
-        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            if rt_name:
-                vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
-                    name=rt_name,
-                    data_link_name=self.data_link_name,
-                    namespace=self.namespace,
-                    bk_biz_id=bk_biz_id,
-                    bk_tenant_id=self.bk_tenant_id,
-                    defaults={"table_id": table_id, "data_type": "metric"},
-                )
-            else:
-                vm_table_id_ins = utils.create_resource_with_random_name(
-                    ResultTableConfig,
-                    "gvm"
-                    if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
-                    else utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
-                    data_source.bk_data_id,
-                    conflict_models=(VMStorageBindingConfig, DataBusConfig),
-                    data_link_name=self.data_link_name,
-                    namespace=self.namespace,
-                    bk_biz_id=bk_biz_id,
-                    bk_tenant_id=self.bk_tenant_id,
-                    table_id=table_id,
-                    data_type="metric",
-                )
-            binding_name = binding_name or vm_table_id_ins.name
-            databus_name = databus_name or vm_table_id_ins.name
-            vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
-                name=binding_name,
+        if rt_name:
+            vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
+                name=rt_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={
-                    "table_id": table_id,
-                    "bkbase_result_table_name": vm_table_id_ins.name,
-                    "vm_cluster_name": storage_cluster_name,
-                },
+                defaults={"table_id": table_id, "data_type": "metric"},
             )
-            sink_item = {
-                "kind": DataLinkKind.VMSTORAGEBINDING.value,
-                "name": vm_storage_ins.name,
-                "namespace": self.namespace,
-            }
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                sink_item["tenant"] = self.bk_tenant_id
-            sinks = [sink_item]
+        else:
+            vm_table_id_ins = utils.create_resource_with_random_name(
+                ResultTableConfig,
+                "gvm"
+                if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
+                else utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
+                data_source.bk_data_id,
+                conflict_models=(VMStorageBindingConfig, DataBusConfig),
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                table_id=table_id,
+                data_type="metric",
+            )
+        binding_name = binding_name or vm_table_id_ins.name
+        databus_name = databus_name or vm_table_id_ins.name
+        vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
+            name=binding_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+            defaults={
+                "table_id": table_id,
+                "bkbase_result_table_name": vm_table_id_ins.name,
+                "vm_cluster_name": storage_cluster_name,
+            },
+        )
+        sink_item = {
+            "kind": DataLinkKind.VMSTORAGEBINDING.value,
+            "name": vm_storage_ins.name,
+            "namespace": self.namespace,
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            sink_item["tenant"] = self.bk_tenant_id
+        sinks = [sink_item]
 
-            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=databus_name,
-                data_link_name=self.data_link_name,
-                namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
-                bk_tenant_id=self.bk_tenant_id,
-                defaults={
-                    "data_id_name": bkbase_data_name,
-                    "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
-                },
-            )
-            data_bus_ins.apply_consumer_group(consumer_group)
+        data_bus_ins, _ = DataBusConfig.objects.update_or_create(
+            name=databus_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+            defaults={
+                "data_id_name": bkbase_data_name,
+                "bk_data_id": data_source.bk_data_id,
+                "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
+            },
+        )
+        data_bus_ins.apply_consumer_group(consumer_group)
 
         return [
             vm_table_id_ins.compose_config(),
@@ -2671,75 +2668,74 @@ class DataLink(models.Model):
             namespace=self.namespace,
         )
 
-        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            # 渲染所需的资源配置
-            if rt_name:
-                vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
-                    name=rt_name,
-                    data_link_name=self.data_link_name,
-                    namespace=self.namespace,
-                    bk_biz_id=bk_biz_id,
-                    bk_tenant_id=self.bk_tenant_id,
-                    defaults={"table_id": table_id},
-                )
-            else:
-                vm_table_id_ins = utils.create_resource_with_random_name(
-                    ResultTableConfig,
-                    utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
-                    data_source.bk_data_id,
-                    conflict_models=(VMStorageBindingConfig, DataBusConfig),
-                    data_link_name=self.data_link_name,
-                    namespace=self.namespace,
-                    bk_biz_id=bk_biz_id,
-                    bk_tenant_id=self.bk_tenant_id,
-                    table_id=table_id,
-                    data_type="metric",
-                )
-            binding_name = binding_name or vm_table_id_ins.name
-            databus_name = databus_name or vm_table_id_ins.name
-            vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
-                name=binding_name,
+        # 渲染所需的资源配置
+        if rt_name:
+            vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
+                name=rt_name,
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                # bkbase_result_table_name 必须与最终实际引用的 RT 保持一致：
-                # 下发给 BKBase 的 payload 里 spec.data.name 是 vm_table_id_ins.name，
-                # 本地 ORM 里这个字段也是 metadata/models/data_link/relation.py 用来按
-                # name 回查 ResultTableConfig 的指针。复用场景下 RT 被 claim 成
-                # legacy_rt 而 binding 被 claim 成 legacy_binding 时，如果继续写成
-                # bkbase_vmrt_name（生成名），本地关系就会指向一张不存在的 RT。
-                defaults={
-                    "table_id": table_id,
-                    "bkbase_result_table_name": vm_table_id_ins.name,
-                    "vm_cluster_name": storage_cluster_name,
-                },
+                defaults={"table_id": table_id},
             )
-            sink_item = {
-                "kind": DataLinkKind.VMSTORAGEBINDING.value,
-                # sink 必须指向实际存在的 VMStorageBinding，因此这里联动 binding_name
-                # 而非 bkbase_vmrt_name，以便在复用 legacy binding 时 databus 能正确引用。
-                "name": binding_name,
-                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-            }
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                sink_item["tenant"] = self.bk_tenant_id
-
-            sinks = [sink_item]
-
-            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=databus_name,
+        else:
+            vm_table_id_ins = utils.create_resource_with_random_name(
+                ResultTableConfig,
+                utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
+                data_source.bk_data_id,
+                conflict_models=(VMStorageBindingConfig, DataBusConfig),
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={
-                    "data_id_name": bkbase_data_name,
-                    "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
-                },
+                table_id=table_id,
+                data_type="metric",
             )
-            data_bus_ins.apply_consumer_group(consumer_group)
+        binding_name = binding_name or vm_table_id_ins.name
+        databus_name = databus_name or vm_table_id_ins.name
+        vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
+            name=binding_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+            # bkbase_result_table_name 必须与最终实际引用的 RT 保持一致：
+            # 下发给 BKBase 的 payload 里 spec.data.name 是 vm_table_id_ins.name，
+            # 本地 ORM 里这个字段也是 metadata/models/data_link/relation.py 用来按
+            # name 回查 ResultTableConfig 的指针。复用场景下 RT 被 claim 成
+            # legacy_rt 而 binding 被 claim 成 legacy_binding 时，如果继续写成
+            # bkbase_vmrt_name（生成名），本地关系就会指向一张不存在的 RT。
+            defaults={
+                "table_id": table_id,
+                "bkbase_result_table_name": vm_table_id_ins.name,
+                "vm_cluster_name": storage_cluster_name,
+            },
+        )
+        sink_item = {
+            "kind": DataLinkKind.VMSTORAGEBINDING.value,
+            # sink 必须指向实际存在的 VMStorageBinding，因此这里联动 binding_name
+            # 而非 bkbase_vmrt_name，以便在复用 legacy binding 时 databus 能正确引用。
+            "name": binding_name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            sink_item["tenant"] = self.bk_tenant_id
+
+        sinks = [sink_item]
+
+        data_bus_ins, _ = DataBusConfig.objects.update_or_create(
+            name=databus_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+            defaults={
+                "data_id_name": bkbase_data_name,
+                "bk_data_id": data_source.bk_data_id,
+                "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
+            },
+        )
+        data_bus_ins.apply_consumer_group(consumer_group)
 
         transform_format = self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy)
         transform_options = None

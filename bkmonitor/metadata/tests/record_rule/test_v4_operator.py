@@ -382,7 +382,7 @@ def assert_output_then_flow(external_api) -> None:
 
 
 def set_output_status(rule: RecordRuleV4, status: str) -> None:
-    config_name = RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
+    config_name = rule.dst_vm_table_id.split("_", 1)[1]
     models.ResultTableConfig.objects.filter(
         bk_tenant_id=TENANT_ID,
         namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
@@ -490,7 +490,7 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
     ]
     assert models.ResultTable.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).exists()
     output_config = models.ResultTableConfig.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
-    assert output_config.name == RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
+    assert output_config.name == rule.dst_vm_table_id.split("_", 1)[1]
     assert rule.dst_vm_table_id == f"{output_config.datalink_biz_ids.data_biz_id}_{output_config.name}"
     assert output_config.bkbase_table_id == rule.dst_vm_table_id
     output_table = models.ResultTable.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
@@ -749,7 +749,7 @@ def test_create_prepares_output_metadata_before_apply(v4_base_data, external_api
 
     assert models.ResultTable.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).exists()
     output_config = models.ResultTableConfig.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
-    assert output_config.name == RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
+    assert output_config.name == rule.dst_vm_table_id.split("_", 1)[1]
     assert output_config.data_link_name == output_config.name
     assert output_config.bkbase_table_id == rule.dst_vm_table_id
     assert rule.dst_vm_table_id == f"{output_config.datalink_biz_ids.data_biz_id}_{output_config.name}"
@@ -819,7 +819,7 @@ def test_reconcile_retries_output_apply_when_failed_and_configs_exist(v4_base_da
 
     # FAILED 说明上一次 output 下发失败，后台调谐应自动重试，而非永久跳过。
     assert_output_apply_only(external_api)
-    config_name = RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
+    config_name = rule.dst_vm_table_id.split("_", 1)[1]
     for config_model in (models.ResultTableConfig, models.VMStorageBindingConfig):
         config_instance = config_model.objects.get(
             bk_tenant_id=TENANT_ID,
@@ -831,7 +831,7 @@ def test_reconcile_retries_output_apply_when_failed_and_configs_exist(v4_base_da
 
 def test_execute_skips_output_apply_when_configs_exist_even_if_local_fields_drift(v4_base_data, external_api):
     rule = create_rule(apply_immediately=False)
-    config_name = RecordRuleV4OutputResources.resolve_result_table_config_name(rule)
+    config_name = rule.dst_vm_table_id.split("_", 1)[1]
     models.VMStorageBindingConfig.objects.filter(
         bk_tenant_id=TENANT_ID,
         namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
@@ -1546,3 +1546,39 @@ def test_output_identity_survives_missing_configs(v4_base_data, external_api, mo
     rule.refresh_from_db()
     assert rule.dst_vm_table_id == saved_vmrt
     generator.assert_not_called()
+
+
+@pytest.mark.parametrize("model", [models.ResultTableConfig, models.VMStorageBindingConfig])
+def test_output_restore_rejects_foreign_resource(v4_base_data, external_api, model):
+    rule = declare_rule()
+    fields = {"vm_cluster_name": "monitor-opsystem"} if model is models.VMStorageBindingConfig else {}
+    foreign = model.objects.create(
+        bk_tenant_id=TENANT_ID,
+        namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+        name=rule.dst_vm_table_id.split("_", 1)[1],
+        table_id="foreign.output",
+        data_link_name="foreign",
+        bk_biz_id=2,
+        **fields,
+    )
+    with pytest.raises(ValueError, match="belongs to another table"):
+        RecordRuleV4OutputResources.ensure_group_output(rule)
+    foreign.refresh_from_db()
+    assert foreign.table_id == "foreign.output"
+    assert foreign.data_link_name == "foreign"
+    external_api.apply_data_link.assert_not_called()
+
+
+def test_output_reuses_distinct_binding_name(v4_base_data, external_api):
+    rule = create_rule(apply_immediately=False)
+    rt = models.ResultTableConfig.objects.get(bk_tenant_id=TENANT_ID, table_id=rule.table_id)
+    binding = models.VMStorageBindingConfig.objects.get(bk_tenant_id=TENANT_ID, table_id=rule.table_id)
+    binding.name = "legacy_output_binding"
+    binding.save(update_fields=["name"])
+    external_api.apply_data_link.reset_mock()
+    RecordRuleV4OutputResources.ensure_result_table_config(rule, force_apply=True)
+    payload = external_api.apply_data_link.call_args.kwargs["config"]
+    assert payload[0]["metadata"]["name"] == rt.name
+    assert payload[1]["metadata"]["name"] == binding.name
+    assert payload[1]["spec"]["data"]["name"] == rt.name
+    assert models.VMStorageBindingConfig.objects.filter(bk_tenant_id=TENANT_ID, table_id=rule.table_id).count() == 1

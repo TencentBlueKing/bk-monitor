@@ -358,7 +358,7 @@ class ResultTableConfig(DataLinkResourceConfigBase):
         render_params = {
             "name": self.name,
             "namespace": self.namespace,
-            "bk_biz_id": self.datalink_biz_ids.label_biz_id,  # 监控业务归属，不改变远端 RT 身份
+            "bk_biz_id": data_biz_id if self.bkbase_table_id else self.datalink_biz_ids.label_biz_id,  # 保持原标签规则
             "monitor_biz_id": data_biz_id,  # 完整 BKBase RT ID 的业务前缀
             "data_type": self.data_type,
             "maintainers": json.dumps(maintainer),
