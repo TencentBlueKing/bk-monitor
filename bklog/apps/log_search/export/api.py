@@ -200,6 +200,7 @@ def job_detail(job):
     visible_status = ExportJobStatus.RUNNING if job.status == ExportJobStatus.FINALIZING else job.status
     return {
         "job_id": job.pk,
+        "search_type": job.search_type,
         "index_set_ids": job.index_set_ids,
         "status": "EXPIRED" if expired else visible_status,
         "stage": stage,
@@ -232,6 +233,7 @@ def job_results(job):
         raise ExportConflict("导出产物不完整")
     return {
         "job_id": job.pk,
+        "search_type": job.search_type,
         "index_set_ids": job.index_set_ids,
         "estimated_total": job.estimated_total,
         "actual_total": job.actual_total,

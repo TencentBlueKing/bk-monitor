@@ -239,6 +239,17 @@ class MsgModel:
     ABNORMAL = "abnormal"
 
 
+# 分片异步导出的检索方式
+class ExportSearchType:
+    INDEX_SET = "index_set"
+    SCENE = "scene"
+
+    CHOICES = (
+        (INDEX_SET, "索引集检索"),
+        (SCENE, "场景化检索"),
+    )
+
+
 # 分片异步导出任务状态
 class ExportJobStatus:
     PENDING = "PENDING"

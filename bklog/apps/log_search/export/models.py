@@ -26,6 +26,7 @@ from apps.log_search.constants import (
     ExportJobStatus,
     ExportPartStatus,
     ExportPlanStatus,
+    ExportSearchType,
     ExportStage,
 )
 
@@ -37,7 +38,10 @@ class ExportJob(models.Model):
     created_by = models.CharField(_("创建者"), max_length=64)
     source_app_code = models.CharField(_("来源系统"), max_length=32, blank=True, default="")
     is_external = models.BooleanField(_("外部版任务"), default=False)
-    index_set_ids = models.JSONField(_("索引集ID列表"))
+    search_type = models.CharField(
+        _("检索类型"), max_length=16, choices=ExportSearchType.CHOICES, default=ExportSearchType.INDEX_SET
+    )
+    index_set_ids = models.JSONField(_("索引集ID列表"), null=True, blank=True, default=list)
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, blank=True)
     search_params = models.JSONField(_("冻结查询参数"))
     base_dict = models.JSONField(_("冻结查询体"))

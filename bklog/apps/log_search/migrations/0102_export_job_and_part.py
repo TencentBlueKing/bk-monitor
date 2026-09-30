@@ -18,7 +18,16 @@ class Migration(migrations.Migration):
                 ("created_by", models.CharField(max_length=64, verbose_name="创建者")),
                 ("source_app_code", models.CharField(blank=True, default="", max_length=32, verbose_name="来源系统")),
                 ("is_external", models.BooleanField(default=False, verbose_name="外部版任务")),
-                ("index_set_ids", models.JSONField(verbose_name="索引集ID列表")),
+                (
+                    "search_type",
+                    models.CharField(
+                        choices=[("index_set", "索引集检索"), ("scene", "场景化检索")],
+                        default="index_set",
+                        max_length=16,
+                        verbose_name="检索类型",
+                    ),
+                ),
+                ("index_set_ids", models.JSONField(blank=True, default=list, null=True, verbose_name="索引集ID列表")),
                 ("bk_biz_id", models.IntegerField(blank=True, null=True, verbose_name="业务ID")),
                 ("search_params", models.JSONField(verbose_name="冻结查询参数")),
                 ("base_dict", models.JSONField(verbose_name="冻结查询体")),

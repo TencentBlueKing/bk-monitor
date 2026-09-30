@@ -33,7 +33,7 @@ from django.conf import settings
 from django.db.models import Count, F, Q
 from django.utils import timezone
 
-from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportPartStatus
+from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportPartStatus, ExportSearchType
 from apps.log_search.export import state
 from apps.log_search.export.config import (
     CONTROL_QUEUE,
@@ -106,6 +106,11 @@ def enqueue_planning(limit):
     )
 
 
+def _quota_keys(job):
+    """额度维度键：索引集检索按索引集，场景化检索退化为按空间（无固定索引集）。"""
+    return job.index_set_ids or [f"scene:{job.space_uid}"]
+
+
 def _inflight_by_index_set():
     rows = list(
         ExportPart.objects.filter(status__in=ExportPartStatus.INFLIGHT).values("job_id").annotate(total=Count("pk"))
@@ -113,8 +118,8 @@ def _inflight_by_index_set():
     jobs = ExportJob.objects.in_bulk(row["job_id"] for row in rows)
     counts = {}
     for row in rows:
-        for index_set_id in jobs[row["job_id"]].index_set_ids:
-            counts[index_set_id] = counts.get(index_set_id, 0) + row["total"]
+        for key in _quota_keys(jobs[row["job_id"]]):
+            counts[key] = counts.get(key, 0) + row["total"]
     return counts
 
 
@@ -174,7 +179,7 @@ def dispatch_ready_parts(deadline=None):
         )
         job_inflight = job_inflight_counts["total"]
         job_oversized_inflight = job_inflight_counts["oversized"]
-        index_set_ids = job.index_set_ids
+        index_set_ids = _quota_keys(job)
         # 任务自身的期望并行度仍是上限，切分只用于在任务之间分配全局额度
         job_limit = min(job.requested_parallelism, shared_limit)
         while True:
@@ -259,9 +264,10 @@ def enqueue_finalization(limit):
 
 def manifest_snapshot(job, parts):
     """清单只汇总成功叶子分片，边界与条数在提交时再次校验。"""
-    return {
+    snapshot = {
         "schema_version": 1,
         "job_id": job.pk,
+        "search_type": job.search_type,
         "index_set_ids": job.index_set_ids,
         "consistency": "weak_snapshot",
         "interval": "[start_time, end_time)",
@@ -285,6 +291,9 @@ def manifest_snapshot(job, parts):
             for part in parts
         ],
     }
+    if job.search_type == ExportSearchType.SCENE:
+        snapshot["table_id_conditions"] = job.search_params.get("table_id_conditions")
+    return snapshot
 
 
 def finalize_export(job_id):

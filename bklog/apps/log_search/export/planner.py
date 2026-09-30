@@ -26,11 +26,12 @@ from itertools import groupby
 import ujson
 
 from apps.api import UnifyQueryApi
-from apps.log_search.constants import ExportErrorCode, ExportJobStatus
+from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportSearchType
 from apps.log_search.export import state
 from apps.log_search.export.config import policy_from_snapshot
 from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.utils.log import logger
 
 
@@ -55,11 +56,12 @@ def query_range(start, end):
 
 def build_handler(job, start=None, end=None):
     """
-    用任务创建时冻结的快照重建查询 Handler；路由、字段映射、脱敏与结果投影都复用 UnifyQueryHandler。
-
-    时间范围只覆盖 job.base_dict：它整体替换构造器算出的 base_dict，改 search_params 的时间不会生效。
+    用任务创建时冻结的快照重建查询 Handler
     """
-    handler = UnifyQueryHandler(copy.deepcopy(job.search_params))
+    if job.search_type == ExportSearchType.SCENE:
+        handler = SceneUnifyQueryHandler(copy.deepcopy(job.search_params))
+    else:
+        handler = UnifyQueryHandler(copy.deepcopy(job.search_params))
     base_dict = copy.deepcopy(job.base_dict)
     if start is not None:
         base_dict["start_time"], base_dict["end_time"] = (str(value) for value in query_range(start, end))
