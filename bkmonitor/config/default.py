@@ -278,6 +278,10 @@ DISK_FILTER_CONDITION_LIST_V1 = [
 # SQL最大查询条数
 SQL_MAX_LIMIT = 500000
 
+# 命名输出（query_output_config.output_list）最多支持的输出个数
+# 与 UQ 侧 defaultNamedOutputSettings 的 MaxOutputs 对齐，可通过环境变量 BKAPP_SETTINGS_NAMED_OUTPUT_MAX_COUNT 覆盖
+NAMED_OUTPUT_MAX_COUNT = 4
+
 FILE_SYSTEM_TYPE_RT_ID = "system.disk"
 FILE_SYSTEM_TYPE_FIELD_NAME = "device_type"
 FILE_SYSTEM_TYPE_IGNORE = ["iso9660", "tmpfs", "udf"]

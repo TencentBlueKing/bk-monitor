@@ -814,13 +814,25 @@ class PrometheusTimeSeriesDataSource(DataSource):
         )
 
     def __init__(
-        self, bk_biz_id: int, promql: str, interval: int, filter_dict: dict = None, alias: str = "", *args, **kwargs
+        self,
+        bk_biz_id: int,
+        promql: str,
+        interval: int,
+        filter_dict: dict = None,
+        alias: str = "",
+        query_output_config: dict = None,
+        *args,
+        **kwargs,
     ):
         self.bk_biz_id = bk_biz_id
         self.promql = promql
         self.interval = interval
         self.alias = alias
         self.filter_dict = filter_dict or {}
+        # 命名输出配置（expression 已翻译为完整 PromQL），透传给 /query/ts/promql
+        self.query_output_config = query_output_config
+        # 命名输出查询是否部分失败，由 UnifyQuery 汇总到顶层 is_partial
+        self.is_partial = False
         super().__init__()
 
     @staticmethod
@@ -863,6 +875,10 @@ class PrometheusTimeSeriesDataSource(DataSource):
             timezone=timezone.get_current_timezone_name(),
         )
 
+        # 命名输出：将 response_contract / legacy_output_ref / output_list 透传给 UQ
+        if self.query_output_config:
+            params.update(self.query_output_config)
+
         data = api.unify_query.query_data_by_promql(**params)
         return data, end_time * 1000
 
@@ -870,15 +886,70 @@ class PrometheusTimeSeriesDataSource(DataSource):
         from bkmonitor.data_source.unify_query.query import UnifyQuery
 
         data, end_time_ms = self._execute_promql(start_time, end_time)
-        return UnifyQuery.process_unify_query_data({}, data, end_time=end_time_ms)
+
+        # 无命名输出配置：走普通解析
+        if not self.query_output_config:
+            return UnifyQuery.process_unify_query_data({}, data, end_time=end_time_ms)
+
+        # 命名输出：UQ /query/ts/promql 支持后，响应带 contract_version + outputs，
+        # 复用 UnifyQuery.process_named_outputs_data 解析；若 UQ 未升级（无 contract_version），
+        # 降级为普通解析并标记命名输出 UNSUPPORTED，避免检测失败。
+        from bkmonitor.data_source.unify_query.constants import REF_VALUES_RESERVED_FIELD
+
+        legacy_output_ref = self.query_output_config["legacy_output_ref"]
+        params = {"query_list": [{"reference_name": legacy_output_ref}], "legacy_output_ref": legacy_output_ref}
+
+        if "contract_version" in data:
+            records, is_partial, _ = UnifyQuery.process_named_outputs_data(params, data, end_time=end_time_ms)
+            self.is_partial = is_partial
+            return records
+
+        records = UnifyQuery.process_unify_query_data(params, data, end_time=end_time_ms)
+        self.is_partial = bool(data.get("is_partial", False))
+        state = "PARTIAL" if self.is_partial else "SUCCESS"
+        for record in records:
+            ref_values = {
+                output["reference_name"]: {"state": "UNSUPPORTED"} for output in self.query_output_config["output_list"]
+            }
+            ref_values[legacy_output_ref] = {"value": record.get("_result_"), "state": state}
+            record[REF_VALUES_RESERVED_FIELD] = ref_values
+        return records
 
     def query_data_with_stat(self, start_time: int, end_time: int, *args, **kwargs) -> tuple[list, dict]:
         from bkmonitor.data_source.unify_query.query import UnifyQuery
 
         data, end_time_ms = self._execute_promql(start_time, end_time)
-        # 先提取 stat 再处理 data，因为 process_unify_query_data 会消费 series 内容
-        series_stat = UnifyQuery.process_unify_query_series_stat({}, data)
-        records = UnifyQuery.process_unify_query_data({}, data, end_time=end_time_ms)
+
+        # 无命名输出配置：走普通解析
+        if not self.query_output_config:
+            # 先提取 stat 再处理 data，因为 process_unify_query_data 会消费 series 内容
+            series_stat = UnifyQuery.process_unify_query_series_stat({}, data)
+            records = UnifyQuery.process_unify_query_data({}, data, end_time=end_time_ms)
+            return records, series_stat
+
+        # 命名输出：UQ /query/ts/promql 支持后，响应带 contract_version + outputs，
+        # 复用 UnifyQuery.process_named_outputs_data 解析；若 UQ 未升级（无 contract_version），
+        # 降级为普通解析并标记命名输出 UNSUPPORTED，避免检测失败。
+        from bkmonitor.data_source.unify_query.constants import REF_VALUES_RESERVED_FIELD
+
+        legacy_output_ref = self.query_output_config["legacy_output_ref"]
+        params = {"query_list": [{"reference_name": legacy_output_ref}], "legacy_output_ref": legacy_output_ref}
+
+        if "contract_version" in data:
+            records, is_partial, series_stat = UnifyQuery.process_named_outputs_data(params, data, end_time=end_time_ms)
+            self.is_partial = is_partial
+            return records, series_stat
+
+        series_stat = UnifyQuery.process_unify_query_series_stat(params, data)
+        records = UnifyQuery.process_unify_query_data(params, data, end_time=end_time_ms)
+        self.is_partial = bool(data.get("is_partial", False))
+        state = "PARTIAL" if self.is_partial else "SUCCESS"
+        for record in records:
+            ref_values = {
+                output["reference_name"]: {"state": "UNSUPPORTED"} for output in self.query_output_config["output_list"]
+            }
+            ref_values[legacy_output_ref] = {"value": record.get("_result_"), "state": state}
+            record[REF_VALUES_RESERVED_FIELD] = ref_values
         return records, series_stat
 
 
