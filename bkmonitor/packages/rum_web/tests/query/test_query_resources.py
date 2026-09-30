@@ -21,6 +21,7 @@ from rum_web.query.resources import (
     RumFieldsOptionValuesResource,
     RumFieldsTopKResource,
     RumGenerateQueryStringResource,
+    RumRecordDetailResource,
     RumRecordsResource,
     RumViewConfigResource,
 )
@@ -54,6 +55,7 @@ EXPECTED_ROUTES = [
     ("fields_topk", "POST", RumFieldsTopKResource, "field_topk"),
     ("field_statistics_info", "POST", RumFieldStatisticsInfoResource, "field_statistics_info"),
     ("field_statistics_graph", "POST", RumFieldStatisticsGraphResource, "field_statistics_graph"),
+    ("record_detail", "POST", RumRecordDetailResource, "record_detail"),
 ]
 
 
