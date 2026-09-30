@@ -154,12 +154,10 @@ export default {
   '也可以上传本地文件，无需接入应用即可开始分析':
     'You can also upload a local file and start analysis without integrating an application',
   选择应用服务: 'Select Application Service',
-  查看接入指引: 'View Integration Guide',
   分析本地文件: 'Analyze Local Files',
   '已上报数据？刷新列表': 'Already reporting data? Refresh the list',
   '上传 pprof 或 perf_script 文件，查看函数耗时与调用关系':
     'Upload a pprof or perf_script file to explore function timings and call relationships',
-  文件解析中: 'Parsing file',
   '解析完成后自动展示分析结果，也可在上方选择其他文件':
     'Results will appear automatically after parsing. You can also select another file above.',
   文件分析暂不可用: 'File analysis is temporarily unavailable',
