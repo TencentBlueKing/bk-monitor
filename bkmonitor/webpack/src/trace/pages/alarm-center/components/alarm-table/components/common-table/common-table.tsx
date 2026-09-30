@@ -27,12 +27,11 @@ import {
   type PropType,
   computed,
   defineComponent,
+  getCurrentInstance,
   nextTick,
   onMounted,
-  shallowRef,
   toRef,
   useTemplateRef,
-  watch,
 } from 'vue';
 
 import {
@@ -151,7 +150,20 @@ export default defineComponent({
     ellipsisPosition: {
       type: String as PropType<EllipsisPosition>,
     },
-    /** 表格默认选中高亮的行 */
+    /** 行高亮类型：single 高亮一行、multiple 高亮多行，'' 关闭（官方类型未声明，运行时默认值） */
+    activeRowType: {
+      type: String as PropType<'' | TdBaseTableProps['activeRowType']>,
+      default: 'single',
+    },
+    /**
+     * 受控高亮行 keys（与 PrimaryTable activeRowKeys 语义一致）：父级传了该 prop 即受控（以 vnode.props 是否携带 key 判定，
+     * 显式传 undefined 同样算受控，调用方需保证值为数组），行点击 / 键盘高亮只触发 activeChange 事件，由调用方决定是否更新
+     */
+    activeRowKeys: {
+      type: Array as PropType<(number | string)[]>,
+      default: undefined,
+    },
+    /** 非受控高亮行 keys（与 PrimaryTable defaultActiveRowKeys 语义一致）：仅初始化时读取，后续变化不生效 */
     defaultActiveRowKeys: {
       type: Array as PropType<(number | string)[]>,
       default: () => [],
@@ -178,6 +190,16 @@ export default defineComponent({
     maxHeight: {
       type: [String, Number] as PropType<number | string>,
     },
+    /** 是否显示表格边框 */
+    bordered: {
+      type: Boolean,
+      default: false,
+    },
+    /** 是否允许拖拽调整列宽 */
+    resizable: {
+      type: Boolean,
+      default: true,
+    },
     /** 刷新 key，值变化时强制重新渲染 PrimaryTable */
     refreshKey: {
       type: [Number, String] as PropType<number | string>,
@@ -197,11 +219,21 @@ export default defineComponent({
     selectChange: (selectedRowKeys: (number | string)[], options: SelectOptions<unknown>) =>
       Array.isArray(selectedRowKeys) && options,
     filterChange: (filterValue: FilterValue) => filterValue != null,
+    /** 高亮行变化回调（透传 PrimaryTable onActiveChange，参数语义一致） */
+    activeChange: (rowKeys: Array<number | string>, _context?: unknown) => Array.isArray(rowKeys),
     /** 列宽拖拽变化回调 */
     columnResizeChange: (context: ColumnResizeContext) => context && typeof context.columnsWidth === 'object',
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    /**
+     * activeRowKeys 是否受控：与 TDesign useDefaultValue 的判定一致，以父级 vnode.props 是否携带该 key 为准
+     * （prop 默认值 undefined 使 props 值无法区分「未传」与「显式传 undefined」，显式传 undefined 按 TDesign 语义同样算受控）。
+     * 与 TDesign 相同，该判定在挂载时确定，不支持运行期切换受控 / 非受控模式。
+     */
+    const vProps = getCurrentInstance().vnode.props || {};
+    const isControlledActiveRowKeys =
+      Object.hasOwn(vProps, 'activeRowKeys') || Object.hasOwn(vProps, 'active-row-keys');
     const wrapperRef = useTemplateRef<HTMLElement>('wrapperRef');
     /** 表格单元格渲染逻辑 */
     const { tableCellRender, renderContext } = useTableCell({
@@ -217,7 +249,6 @@ export default defineComponent({
         selector: `.${COMMON_TABLE_ELLIPSIS_CLASS_NAME}`,
       },
     });
-    const activeRowKeys = shallowRef([]);
     const showLoadingRows = computed(() => !!props.loadingCell && props.loading);
     const displayedData = computed(() =>
       showLoadingRows.value && !props.data.length
@@ -346,11 +377,13 @@ export default defineComponent({
       emit('filterChange', value);
     };
     /**
-     * @description 表格高亮行发生变化时的回调
-     * @param {Array<string | number>} activeRowKeys 高亮行
+     * @description 表格高亮行变化回调：不写内部状态，原样透传 PrimaryTable onActiveChange 的参数，
+     *              受控 / 非受控的状态归集由调用方自行处理
+     * @param {Array<string | number>} rowKeys 高亮行 keys
+     * @param {unknown} context 高亮上下文（activeRowList / currentRowData / type）
      */
-    const handleActiveChange = (rowKeys: Array<number | string>) => {
-      activeRowKeys.value = rowKeys;
+    const handleActiveChange = (rowKeys: Array<number | string>, context?: unknown) => {
+      emit('activeChange', rowKeys, context);
     };
     /**
      * @description 表格列宽拖拽变化时的回调
@@ -390,13 +423,6 @@ export default defineComponent({
       ) as unknown as SlotReturnValue;
     };
 
-    watch(
-      () => props.defaultActiveRowKeys,
-      val => {
-        activeRowKeys.value = val;
-      }
-    );
-
     /** 初始化表格省略号事件监听器（绑定到包裹层，表格重建时无需重新初始化） */
     onMounted(() => {
       nextTick(() => initEllipsisListeners());
@@ -409,7 +435,7 @@ export default defineComponent({
       tableSort,
       showPagination,
       tableSkeletonConfig,
-      activeRowKeys,
+      isControlledActiveRowKeys,
       tableCellRender,
       handleSortChange,
       handleCurrentPageChange,
@@ -448,11 +474,20 @@ export default defineComponent({
             v-slots={{
               empty: this.tableEmptyRender,
             }}
-            activeRowKeys={this.showLoadingRows ? [] : this.activeRowKeys}
-            activeRowType='single'
+            /**
+             * 受控高亮行透传：仅父级传了 activeRowKeys（含显式 undefined，判定见 setup）才把 key 透传给 PrimaryTable，
+             * 与 TDesign 受控判定保持一致；非受控时携带该 key 会被 PrimaryTable 误判为受控，故用条件展开。
+             * 受控时骨架态强制清空（骨架行为假数据 key，真实高亮 key 本就不会命中，此处仅与历史行为保持一致）
+             */
+            {...(this.isControlledActiveRowKeys
+              ? { activeRowKeys: this.showLoadingRows ? [] : this.activeRowKeys }
+              : {})}
+            activeRowType={this.activeRowType || undefined}
             bkUiSettings={this.tableSettings}
+            bordered={this.bordered}
             columns={this.tableColumns}
             data={this.displayedData}
+            defaultActiveRowKeys={this.defaultActiveRowKeys}
             disableDataPage={true}
             filterValue={this.filterValue}
             firstFullRow={this.showLoadingRows ? null : this.firstFullRow}
@@ -463,7 +498,7 @@ export default defineComponent({
             maxHeight={this.maxHeight}
             needCustomScroll={false}
             reserveSelectedRowOnPaginate={false}
-            resizable={true}
+            resizable={this.resizable}
             rowClassName={this.showLoadingRows ? 'alarm-loading-row' : this.rowClassName}
             rowKey={this.rowKey}
             scroll={this.scroll}
