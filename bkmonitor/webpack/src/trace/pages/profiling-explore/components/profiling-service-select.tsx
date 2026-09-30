@@ -29,6 +29,7 @@ import { Button, Input, Message, Popover } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { getApplicationToken } from '../services/profiling';
+import SelectorShortcut from '@/components/selector-shortcut/selector-shortcut';
 import { useDocumentLink } from '@/hooks/documentLink';
 
 import type { Application } from '../types';
@@ -149,7 +150,7 @@ export default defineComponent({
                 <span class={['select-value', { 'is-empty': !this.inputText }]}>
                   {this.inputText || this.t('请选择应用服务')}
                 </span>
-                <kbd>{/mac/i.test(navigator.platform) ? 'Cmd' : 'Ctrl'}+O</kbd>
+                <SelectorShortcut />
                 <i class={['icon-monitor icon-mc-arrow-down', { expand: this.opened }]} />
               </div>
             ),
