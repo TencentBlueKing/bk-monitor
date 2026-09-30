@@ -376,7 +376,7 @@ def test_graph_rebuild_preview_is_read_only_and_repeated_execution_skips(source,
 
 
 @pytest.mark.django_db(databases="__all__", transaction=True)
-def test_graph_rebuild_concurrent_claim_is_atomic(source):
+def test_graph_rebuild_concurrent_execution_reuses_link(source):
     from metadata.models.data_link.relation import rebuild_databus_relation
 
     databus = prepare_graph_rebuild(source)
@@ -395,11 +395,37 @@ def test_graph_rebuild_concurrent_claim_is_atomic(source):
     with ThreadPoolExecutor(max_workers=2) as pool:
         futures = [pool.submit(rebuild) for _ in range(2)]
         names = [future.result(timeout=20) for future in futures]
-    assert len([name for name in names if name]) == 1
     link = models.DataLink.objects.get(bk_data_id=source.bk_data_id)
+    assert {name for name in names if name} == {link.pk}
     databus.refresh_from_db()
     assert databus.data_link_name == link.pk
     assert models.VMStorageBindingConfig.objects.get(name="saved_graph_binding").data_link_name == link.pk
+
+
+def test_graph_rebuild_reuses_link_with_missing_component_relations(source, mocker):
+    from metadata.models.data_link.relation import rebuild_databus_relation
+
+    databus = prepare_graph_rebuild(source)
+    existing_link = models.DataLink.objects.create(
+        bk_tenant_id=source.bk_tenant_id,
+        namespace=databus.namespace,
+        data_link_name="saved_graph_link",
+        bk_data_id=source.bk_data_id,
+        table_ids=["random_name.metric"],
+        data_link_strategy=models.DataLink.GRAPH_RELATION_TIME_SERIES,
+    )
+    generator = mocker.patch.object(utils, "generate_bkdata_resource_name", side_effect=AssertionError("regenerated"))
+
+    link = rebuild_databus_relation(databus, dry_run=False)
+
+    assert link.pk == existing_link.pk
+    assert models.DataLink.objects.filter(bk_data_id=source.bk_data_id).count() == 1
+    for model in (models.DataBusConfig, models.VMStorageBindingConfig, models.ResultTableConfig):
+        assert model.objects.get(namespace=databus.namespace).data_link_name == existing_link.pk
+    assert (
+        models.BkBaseResultTable.objects.get(monitor_table_id="random_name.metric").data_link_name == existing_link.pk
+    )
+    generator.assert_not_called()
 
 
 def test_partial_vm_mapping_uses_persisted_rt_instead_of_generating_route(source, mocker):

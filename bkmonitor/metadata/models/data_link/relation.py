@@ -1438,44 +1438,31 @@ def rebuild_databus_relation(databus: DataBusConfig, dry_run: bool = True) -> Da
                 return None
 
         if strategy == DataLink.GRAPH_RELATION_TIME_SERIES:
-            # Lock and recheck every component after parsing, since another rebuild
-            # may have claimed a sibling DataBus while this invocation was waiting.
-            components_by_model = {}
-            for instance in [*databus_instances, *sink_instances, *rt_instances]:
-                components_by_model.setdefault(type(instance), []).append(instance)
-            for model in sorted(components_by_model, key=lambda model: model._meta.label):
-                instances = components_by_model[model]
-                expected = {instance.pk: instance for instance in instances}
-                locked = list(
-                    model.objects.using(DATABASE_CONNECTION_NAME)
-                    .select_for_update()
-                    .filter(
-                        pk__in=expected,
-                        bk_tenant_id=databus.bk_tenant_id,
-                        namespace=databus.namespace,
-                    )
-                    .order_by("pk")
+            # 按已有来源和监控 RT 关联复用链路，仅首次重建时生成名称。
+            try:
+                data_link = DataLink.objects.get(
+                    bk_tenant_id=databus.bk_tenant_id,
+                    namespace=databus.namespace,
+                    bk_data_id=data_source.bk_data_id,
+                    table_ids=table_ids,
+                    data_link_strategy=strategy,
                 )
-                if len(locked) != len(expected) or any(instance.data_link_name for instance in locked):
-                    return None
-                for instance in locked:
-                    before = expected[instance.pk]
-                    for field in ("sink_names", "data_id_name", "bkbase_result_table_name"):
-                        if hasattr(instance, field) and getattr(instance, field) != getattr(before, field):
-                            return None
-            data_link = utils.create_resource_with_random_name(
-                DataLink,
-                "gr",
-                source_databus.pk,
-                name_field="data_link_name",
-                prefix=REBUILT_DATA_LINK_NAME_PREFIX,
-                bk_tenant_id=databus.bk_tenant_id,
-                namespace=databus.namespace,
-                bk_data_id=data_source.bk_data_id,
-                table_ids=table_ids,
-                data_link_strategy=strategy,
-            )
-            data_link_name, created = data_link.data_link_name, True
+                created = False
+            except DataLink.DoesNotExist:
+                data_link = utils.create_resource_with_random_name(
+                    DataLink,
+                    "gr",
+                    source_databus.pk,
+                    name_field="data_link_name",
+                    prefix=REBUILT_DATA_LINK_NAME_PREFIX,
+                    bk_tenant_id=databus.bk_tenant_id,
+                    namespace=databus.namespace,
+                    bk_data_id=data_source.bk_data_id,
+                    table_ids=table_ids,
+                    data_link_strategy=strategy,
+                )
+                created = True
+            data_link_name = data_link.data_link_name
             graph_bkbase_result_table["data_link_name"] = data_link_name
         else:
             # 先创建/更新 DataLink 记录，确保主记录存在后再关联组件
