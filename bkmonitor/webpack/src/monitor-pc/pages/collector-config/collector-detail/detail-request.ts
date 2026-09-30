@@ -23,43 +23,41 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+export default class DetailRequest {
+  private controller: AbortController = null;
+  private version = 0;
+  error = false;
+  loaded = false;
+  loading = false;
 
-/**
- * @enum {('configuration' | 'DataLink' | 'fieldDetails' | 'StorageState' | 'targetDetail')} 采集详情tab枚举类型
- */
-export enum TabEnum {
-  /**
-   * @description 配置信息tab
-   */
-  Configuration = 'configuration',
-  /**
-   * @description 链路状态tab
-   */
-  DataLink = 'DataLink',
-  /**
-   * @description 指标/维度tab
-   */
-  FieldDetails = 'fieldDetails',
-  /**
-   * @description 存储状态tab
-   */
-  StorageState = 'StorageState',
-  /**
-   * @description 采集状态tab
-   */
-  TargetDetail = 'targetDetail',
-}
+  cancel() {
+    this.version += 1;
+    this.controller?.abort();
+    this.controller = null;
+    this.loading = false;
+  }
 
-export enum TCollectorAlertStage {
-  collecting = 'collecting',
-  storage = 'storage',
-  transfer = 'transfer',
-}
-
-export interface DetailData {
-  basic_info: Record<string, any>;
-  extend_info: Record<string, any>;
-  metric_list: Record<string, any>[];
-  runtime_params: Record<string, any>[];
-  subscription_id: number;
+  async run<T>(fetch: (signal: AbortSignal) => Promise<T>, apply: (data: T) => void): Promise<boolean> {
+    this.cancel();
+    const version = this.version;
+    const controller = new AbortController();
+    this.controller = controller;
+    this.loading = true;
+    this.error = false;
+    try {
+      const data = await fetch(controller.signal);
+      if (version !== this.version) return false;
+      apply(data);
+      this.loaded = true;
+      return true;
+    } catch {
+      if (version === this.version && !controller.signal.aborted) this.error = true;
+      return false;
+    } finally {
+      if (version === this.version) {
+        this.loading = false;
+        this.controller = null;
+      }
+    }
+  }
 }

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Inject, Prop, Watch } from 'vue-property-decorator';
+import { Component, Inject, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { renameCollectConfig } from 'monitor-api/modules/collecting';
@@ -33,7 +33,8 @@ import { copyText } from 'monitor-common/utils/utils.js';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import { allSpaceRegex, emojiRegex } from '../../../utils/index';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';
-import { type ChangeConfig, type TabProperty, type TabValue, TabEnum } from './typings/detail';
+import DetailLoadError from './components/detail-load-error';
+import DetailSkeleton from './components/detail-skeleton';
 
 import './collector-configuration.scss';
 
@@ -48,17 +49,25 @@ enum ETargetColumn {
 
 interface IProps {
   collectConfigData?: any;
+  configLoading?: boolean;
   detailData?: any;
   id: number | string;
+  loadError?: boolean;
   loading: boolean;
   show: boolean;
   tableLoading: boolean;
+  targetError?: boolean;
   targetInfo?: any;
-  onHandleAllDataChange: <T extends TabEnum, K extends TabProperty<T>>(changeConfig: ChangeConfig<T, K>) => void;
+  onRetryDetail?: () => void;
+  onRetryTargets?: () => void;
 }
 
 @Component
 export default class CollectorConfiguration extends tsc<IProps> {
+  @Prop({ type: Boolean, default: false }) configLoading: boolean;
+  @Prop({ type: Boolean, default: false }) loadError: boolean;
+  @Prop({ type: Boolean, default: false }) targetError: boolean;
+  renameLoading = false;
   @Prop({ type: [String, Number], default: '' }) id: number | string;
   @Prop({ type: Boolean, default: false }) show: boolean;
   @Prop({ type: Object, default: () => null }) collectConfigData: any;
@@ -118,11 +127,6 @@ export default class CollectorConfiguration extends tsc<IProps> {
     ];
   }
 
-  @Emit('handleAllDataChange')
-  handleAllDataChange<T extends TabEnum, K extends TabProperty<T>>(tab: T, property: K, v: TabValue<T, K>) {
-    return { tab, property, data: v };
-  }
-
   @Watch('show', { immediate: true })
   handleShow(v: boolean) {
     if (v) {
@@ -130,13 +134,10 @@ export default class CollectorConfiguration extends tsc<IProps> {
     }
   }
 
-  handleLoadingChange(v: boolean) {
-    this.handleAllDataChange(TabEnum.Configuration, 'loading', v);
-  }
-
   /**
    * @description 获取详情数据
    */
+  @Watch('detailData', { immediate: true })
   getDetailData() {
     const data = this.detailData;
     this.basicInfo = { ...data.basic_info, id: this.id };
@@ -197,7 +198,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @description 隐藏输入框
    */
   handleTagClickout() {
-    if (allSpaceRegex(this.input.copyName) && !!this.input.copyName) {
+    if (allSpaceRegex(this.input.copyName) && this.input.copyName) {
       this.errMsg.name = this.$tc('配置名称不能为空');
       return;
     }
@@ -221,7 +222,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @param copyName
    */
   handleUpdateConfigName(data, copyName) {
-    this.handleLoadingChange(true);
+    if (this.renameLoading) return;
+    this.renameLoading = true;
     renameCollectConfig({ id: data.id, name: copyName }, { needMessage: false })
       .then(() => {
         this.basicInfo.name = copyName;
@@ -241,7 +243,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
       .finally(() => {
         this.input.show = false;
         this.errMsg.name = '';
-        this.handleLoadingChange(false);
+        this.renameLoading = false;
       });
   }
   /**
@@ -249,6 +251,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @param key
    */
   handleEditLabel(key) {
+    if (this.renameLoading) return;
     this.input.copyName = this.basicInfo?.[key] || '';
     this.input.show = true;
     this.$nextTick().then(() => {
@@ -332,6 +335,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
           <bk-button
             class='width-88 mr-8'
             v-authority={{ active: !this.authority.MANAGE_AUTH && this.collectConfigData?.status !== 'STOPPED' }}
+            disabled={this.loading || this.loadError || this.configLoading || !this.collectConfigData}
             theme='primary'
             outline
             onClick={() =>
@@ -342,152 +346,158 @@ export default class CollectorConfiguration extends tsc<IProps> {
           >
             {this.$t('编辑')}
           </bk-button>
-          <HistoryDialog list={this.historyList} />
+          {!this.loading && !this.loadError && <HistoryDialog list={this.historyList} />}
         </div>
-        <div
-          class='detail-wrap-item'
-          v-bkloading={{
-            isLoading: this.loading,
-            zIndex: 0,
-          }}
-        >
-          <div class='wrap-item-title'>{this.$t('基本信息')}</div>
-          <div class='wrap-item-content'>
-            {Object.keys(this.basicInfoMap).map(key =>
-              formItem(
-                this.basicInfoMap?.[key],
-                (() => {
-                  if (key === 'name') {
-                    return [
-                      <span key={1}>
-                        {this.input.show ? (
-                          <bk-input
-                            ref={`input${key}`}
-                            class='edit-input width-150'
-                            v-model={this.input.copyName}
-                            maxlength={50}
-                            onBlur={this.handleTagClickout}
-                            onKeydown={this.handleLabelKey}
-                          />
-                        ) : (
-                          <span
-                            class='edit-span'
-                            onClick={() => this.handleEditLabel(key)}
-                          >
-                            <span>{this.basicInfo?.[key] || '--'}</span>
-                            <span class='icon-monitor icon-bianji' />
-                          </span>
-                        )}
-                      </span>,
-                      !!this.errMsg.name && <div class='err-msg'>{this.errMsg.name}</div>,
-                    ];
-                  }
-                  if (key === 'plugin_display_name' && this.basicInfo?.collect_type !== 'Log') {
-                    return (
-                      <span class='edit-span'>
-                        <span>{this.basicInfo?.[key]}</span>
-                        <span
-                          class='icon-monitor icon-bianji'
-                          onClick={this.handleToEditPlugin}
-                        />
-                      </span>
-                    );
-                  }
-                  if (key === 'period') {
-                    return this.basicInfo?.[key] ? `${this.basicInfo?.[key]}s` : '--';
-                  }
-                  if (key === 'bk_biz_id') {
-                    return this.basicInfo?.[key] ? this.getBizInfo(this.basicInfo?.[key]) : '--';
-                  }
-                  if (key === 'log_path' || key === 'filter_patterns') {
-                    if (this.basicInfo?.[key]?.length) {
-                      return this.basicInfo[key].map((word, wordIndex) => <span key={wordIndex}>{word}</span>);
+        {this.loading ? (
+          <DetailSkeleton section='configuration' />
+        ) : this.loadError ? (
+          <DetailLoadError onRetry={() => this.$emit('retryDetail')} />
+        ) : (
+          <div
+            class='detail-wrap-item'
+          >
+            <div class='wrap-item-title'>{this.$t('基本信息')}</div>
+            <div class='wrap-item-content'>
+              {Object.keys(this.basicInfoMap).map(key =>
+                formItem(
+                  this.basicInfoMap?.[key],
+                  (() => {
+                    if (key === 'name') {
+                      return [
+                        <span key={1} aria-busy={this.renameLoading ? 'true' : 'false'}>
+                          {this.input.show ? (
+                            <bk-input
+                              ref={`input${key}`}
+                              class='edit-input width-150'
+                              v-model={this.input.copyName}
+                              disabled={this.renameLoading}
+                              maxlength={50}
+                              onBlur={this.handleTagClickout}
+                              onKeydown={this.handleLabelKey}
+                            />
+                          ) : (
+                            <span
+                              class='edit-span'
+                              onClick={() => this.handleEditLabel(key)}
+                            >
+                              <span>{this.basicInfo?.[key] || '--'}</span>
+                              <span class='icon-monitor icon-bianji' />
+                            </span>
+                          )}
+                          {this.renameLoading && (
+                            <span class='collector-detail-loading-indicator' role='status' aria-label={this.$t('加载中')} />
+                          )}
+                        </span>,
+                        !!this.errMsg.name && <div class='err-msg'>{this.errMsg.name}</div>,
+                      ];
                     }
-                    return '--';
-                  }
-                  if (key === 'rules') {
-                    return this.basicInfo?.[key]?.map((word, wordIndex) => (
-                      <span key={wordIndex}>{`${word.name}=${word.pattern}`}</span>
-                    ));
-                  }
-                  if (key === 'update_user') {
-                    return this.basicInfo?.[key] ? <bk-user-display-name user-id={this.basicInfo?.[key]} /> : '--';
-                  }
-                  if (this.basicInfo?.collect_type === 'Process' && key === 'match') {
-                    return (
-                      <span class='detail-item-val process'>
-                        {this.basicInfo?.[key] === 'command'
-                          ? [
-                              <div
-                                key={'match-title'}
-                                class='match-title'
-                              >
-                                {this.matchType?.[this.basicInfo?.[key]]}
-                              </div>,
-                              <ul
-                                key={'param-list'}
-                                class='param-list'
-                              >
-                                <li class='param-list-item'>
-                                  <span class='item-name'>{this.$t('包含')}</span>
-                                  <span class='item-content'>{this.basicInfo?.match_pattern}</span>
-                                </li>
-                                <li class='param-list-item'>
-                                  <span class='item-name'>{this.$t('排除')}</span>
-                                  <span class='item-content'>{this.basicInfo?.exclude_pattern}</span>
-                                </li>
-                                <li class='param-list-item'>
-                                  <span class='item-name'>{this.$t('维度提取')}</span>
-                                  <span class='item-content'>{this.basicInfo?.extract_pattern}</span>
-                                </li>
-                              </ul>,
-                            ]
-                          : [
-                              <div
-                                key={'match-title'}
-                                class='match-title'
-                              >
-                                {this.matchType?.[this.basicInfo?.[key]]}
-                              </div>,
-                              <div
-                                key={'param-list'}
-                              >{`${this.$t('PID的绝对路径')}：${this.basicInfo?.pid_path}`}</div>,
-                            ]}
-                      </span>
-                    );
-                  }
-                  return key === 'update_time'
-                    ? formatWithTimezone(this.basicInfo?.[key])
-                    : this.basicInfo?.[key] || '--';
-                })()
-              )
-            )}
-            {this.runtimeParams.length
-              ? formItem(
-                  this.$t('运行参数'),
-                  <ul class='param-list mt--6'>
-                    {this.runtimeParams.map((item, index) => (
-                      <li
-                        key={index}
-                        class='param-list-item'
-                      >
-                        <span class='item-name'>
-                          <span class={{ 'name-text': true, required: item.required }}>{item.name}</span>
+                    if (key === 'plugin_display_name' && this.basicInfo?.collect_type !== 'Log') {
+                      return (
+                        <span class='edit-span'>
+                          <span>{this.basicInfo?.[key]}</span>
+                          <span
+                            class='icon-monitor icon-bianji'
+                            onClick={this.handleToEditPlugin}
+                          />
                         </span>
-                        {['password', 'encrypt'].includes(item.type) ? (
-                          <span class='item-content'>******</span>
-                        ) : (
-                          <span class='item-content'>
-                            {(item.type === 'file' ? item.value.filename : stringContent(item.value)) || '--'}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                      );
+                    }
+                    if (key === 'period') {
+                      return this.basicInfo?.[key] ? `${this.basicInfo?.[key]}s` : '--';
+                    }
+                    if (key === 'bk_biz_id') {
+                      return this.basicInfo?.[key] ? this.getBizInfo(this.basicInfo?.[key]) : '--';
+                    }
+                    if (key === 'log_path' || key === 'filter_patterns') {
+                      if (this.basicInfo?.[key]?.length) {
+                        return this.basicInfo[key].map((word, wordIndex) => <span key={wordIndex}>{word}</span>);
+                      }
+                      return '--';
+                    }
+                    if (key === 'rules') {
+                      return this.basicInfo?.[key]?.map((word, wordIndex) => (
+                        <span key={wordIndex}>{`${word.name}=${word.pattern}`}</span>
+                      ));
+                    }
+                    if (key === 'update_user') {
+                      return this.basicInfo?.[key] ? <bk-user-display-name user-id={this.basicInfo?.[key]} /> : '--';
+                    }
+                    if (this.basicInfo?.collect_type === 'Process' && key === 'match') {
+                      return (
+                        <span class='detail-item-val process'>
+                          {this.basicInfo?.[key] === 'command'
+                            ? [
+                                <div
+                                  key={'match-title'}
+                                  class='match-title'
+                                >
+                                  {this.matchType?.[this.basicInfo?.[key]]}
+                                </div>,
+                                <ul
+                                  key={'param-list'}
+                                  class='param-list'
+                                >
+                                  <li class='param-list-item'>
+                                    <span class='item-name'>{this.$t('包含')}</span>
+                                    <span class='item-content'>{this.basicInfo?.match_pattern}</span>
+                                  </li>
+                                  <li class='param-list-item'>
+                                    <span class='item-name'>{this.$t('排除')}</span>
+                                    <span class='item-content'>{this.basicInfo?.exclude_pattern}</span>
+                                  </li>
+                                  <li class='param-list-item'>
+                                    <span class='item-name'>{this.$t('维度提取')}</span>
+                                    <span class='item-content'>{this.basicInfo?.extract_pattern}</span>
+                                  </li>
+                                </ul>,
+                              ]
+                            : [
+                                <div
+                                  key={'match-title'}
+                                  class='match-title'
+                                >
+                                  {this.matchType?.[this.basicInfo?.[key]]}
+                                </div>,
+                                <div
+                                  key={'param-list'}
+                                >{`${this.$t('PID的绝对路径')}：${this.basicInfo?.pid_path}`}</div>,
+                              ]}
+                        </span>
+                      );
+                    }
+                    return key === 'update_time'
+                      ? formatWithTimezone(this.basicInfo?.[key])
+                      : this.basicInfo?.[key] || '--';
+                  })()
                 )
-              : undefined}
+              )}
+              {this.runtimeParams.length
+                ? formItem(
+                    this.$t('运行参数'),
+                    <ul class='param-list mt--6'>
+                      {this.runtimeParams.map((item, index) => (
+                        <li
+                          key={index}
+                          class='param-list-item'
+                        >
+                          <span class='item-name'>
+                            <span class={{ 'name-text': true, required: item.required }}>{item.name}</span>
+                          </span>
+                          {['password', 'encrypt'].includes(item.type) ? (
+                            <span class='item-content'>******</span>
+                          ) : (
+                            <span class='item-content'>
+                              {(item.type === 'file' ? item.value.filename : stringContent(item.value)) || '--'}
+                            </span>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                : undefined}
+            </div>
           </div>
-        </div>
+        )}
         {[
           <div
             key={1}
@@ -510,13 +520,14 @@ export default class CollectorConfiguration extends tsc<IProps> {
               </bk-button>
             )}
             <div class='wrap-item-content mt-12'>
-              {['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE', 'DYNAMIC_GROUP'].includes(
-                this.targetInfo?.target_node_type
-              ) ? (
+              {this.tableLoading ? (
+                <DetailSkeleton section='targets' />
+              ) : this.targetError ? (
+                <DetailLoadError onRetry={() => this.$emit('retryTargets')} />
+              ) : ['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE', 'DYNAMIC_GROUP'].includes(
+                  this.targetInfo?.target_node_type
+                ) ? (
                 <bk-table
-                  v-bkloading={{
-                    isLoading: this.tableLoading,
-                  }}
                   {...{
                     props: {
                       data: this.targetInfo?.table_data || [],
@@ -571,9 +582,6 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 </bk-table>
               ) : (
                 <bk-table
-                  v-bkloading={{
-                    isLoading: this.tableLoading,
-                  }}
                   {...{
                     props: {
                       data: this.targetInfo.table_data,

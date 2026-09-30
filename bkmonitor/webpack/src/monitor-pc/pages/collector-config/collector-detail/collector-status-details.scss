@@ -163,6 +163,11 @@
     color: #fff;
     background: #000;
 
+    &.is-loading {
+      color: #63656e;
+      background: #fff;
+    }
+
     &-code {
       word-break: break-all;
       white-space: pre-wrap;
