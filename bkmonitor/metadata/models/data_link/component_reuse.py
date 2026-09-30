@@ -76,6 +76,8 @@ REUSE_ENABLED_STRATEGIES: set[str] = {
     "bk_standard_v2_event",
     "bk_log",
     "graph_relation_time_series",
+    "bcs_federal_proxy_time_series",
+    "bcs_federal_subset_time_series",
 }
 
 

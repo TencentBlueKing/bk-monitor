@@ -2777,7 +2777,10 @@ class Command(BaseCommand):
                             data_link_name=data_link.data_link_name,
                         )
                         components = {}
-                        for model in (ResultTableConfig, VMStorageBindingConfig, DataBusConfig):
+                        component_models = [ResultTableConfig, VMStorageBindingConfig]
+                        if data_link_strategy != DataLink.BCS_FEDERAL_PROXY_TIME_SERIES:
+                            component_models.append(DataBusConfig)
+                        for model in component_models:
                             candidates = list(model.objects.filter(**scope))
                             if model is ResultTableConfig:
                                 candidates = [item for item in candidates if item.data_type != "graph"]

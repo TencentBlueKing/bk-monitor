@@ -37,12 +37,14 @@ BKBASE_RESULT_TABLE_FIELD_TYPE_MAP = {
     "flattened": "string",
 }
 
-RANDOM_NAME_SCENES = frozenset({"did", "ts", "std", "exp", "gr", "gvm", "gdb", "rr"})
+RANDOM_NAME_SCENES = frozenset({"did", "ts", "std", "exp", "gr", "gvm", "gdb", "rr", "fp", "fs"})
 RANDOM_NAME_STRATEGIES = {
     "bk_standard_v2_time_series": "ts",
     "bk_standard_time_series": "std",
     "bk_exporter_time_series": "exp",
     "graph_relation_time_series": "gr",
+    "bcs_federal_proxy_time_series": "fp",
+    "bcs_federal_subset_time_series": "fs",
 }
 
 
@@ -267,33 +269,72 @@ def compose_transfer_consumer_group(data_source: "DataSource") -> str:
     return f"{settings.TRANSFER_CONSUMER_GROUP_ID}{topic}"
 
 
-def get_bkbase_raw_data_id_name(data_source, table_id):
-    """
-    获取计算平台对应的data_id_name，适配V3迁移V4场景
-    @param data_source: 数据源
-    @param table_id: 监控平台结果表ID
-    """
-    try:
-        bkbase_data_id = models.AccessVMRecord.objects.filter(result_table_id=table_id).first().bk_base_data_id
-        raw_data_name = api.bkdata.get_bkbase_raw_data_with_data_id(bkbase_data_id=bkbase_data_id).get("raw_data_name")
-    except Exception as e:  # pylint: disable=broad-except
-        logger.info(
-            "get_bkbase_raw_data_id_name: data_source->[%s] table_id->[%s] error->[%s],use new rule to "
-            "generate data_id_name",
-            data_source,
-            table_id,
-            e,
+def get_federal_vm_table_id(bk_tenant_id: str, namespace: str, table_id: str) -> str:
+    """读取联邦目标的完整 VMRT；Subset 的 ConditionalSink 映射不是结果表。"""
+    links = {
+        link.pk: link
+        for link in models.DataLink.objects.filter(
+            data_link_name__in=models.BkBaseResultTable.objects.filter(
+                bk_tenant_id=bk_tenant_id, monitor_table_id=table_id
+            ).values("data_link_name")
         )
-        raw_data_name = compose_bkdata_data_id_name(data_source.data_name)
-
-    logger.info(
-        "get_bkbase_raw_data_id_name: data_source->[%s] table_id->[%s] raw_data_name->[%s]",
-        data_source,
-        table_id,
-        raw_data_name,
+    }
+    table_ids = set()
+    for record in models.BkBaseResultTable.objects.filter(
+        bk_tenant_id=bk_tenant_id, monitor_table_id=table_id, storage_type=models.ClusterInfo.TYPE_VM
+    ).exclude(bkbase_table_id__in=["", None]):
+        link = links.get(record.data_link_name)
+        if link is not None:
+            if (link.bk_tenant_id, link.namespace) != (bk_tenant_id, namespace) or link.data_link_strategy not in {
+                models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
+                models.DataLink.BK_STANDARD_V2_TIME_SERIES,
+            }:
+                continue
+        elif not models.ResultTableConfig.objects.filter(
+            bk_tenant_id=bk_tenant_id, namespace=namespace, bkbase_table_id=record.bkbase_table_id
+        ).exists():
+            # 没有链路时，通过实际 RT 确认 namespace，避免拿到另一 namespace 的映射。
+            continue
+        if record.bkbase_table_id:
+            table_ids.add(record.bkbase_table_id)
+    table_ids.update(
+        models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id)
+        .exclude(vm_result_table_id="")
+        .values_list("vm_result_table_id", flat=True)
     )
+    if len(table_ids) > 1:
+        raise ValueError(f"conflicting federation VMRTs: table={table_id}, vmrts={sorted(table_ids)}")
+    return next(iter(table_ids), "")
 
-    return raw_data_name
+
+def get_bkbase_raw_data_id_name(data_source, table_id, namespace=settings.DEFAULT_VM_DATA_LINK_NAMESPACE):
+    """读取联邦 source 的真实身份，兼容 V3 独立申请的额外 DataId。"""
+    record = models.AccessVMRecord.objects.filter(
+        bk_tenant_id=data_source.bk_tenant_id,
+        result_table_id=table_id,
+    ).last()
+    source_data_id = record.bk_base_data_id if record and record.bk_base_data_id > 0 else data_source.bk_data_id
+    registered_names = set(
+        models.DataIdConfig.objects.filter(
+            bk_tenant_id=data_source.bk_tenant_id,
+            namespace=namespace,
+            bk_data_id=source_data_id,
+        )
+        .exclude(name="")
+        .values_list("name", flat=True)
+    )
+    if len(registered_names) > 1:
+        raise ValueError(f"ambiguous federation DataId names: data_id={source_data_id}")
+    if registered_names:
+        return registered_names.pop()
+    # V3 额外 DataId 可能尚未镜像到本地；查询真实来源，失败时不能猜测另一个资源名。
+    if record and record.bk_base_data_id > 0:
+        raw_name = get_bkbase_raw_data_name_for_v3_datalink(data_source.bk_tenant_id, source_data_id)
+        if raw_name:
+            return raw_name
+    raise models.DataIdConfig.DoesNotExist(
+        f"federation DataId not found: tenant={data_source.bk_tenant_id}, namespace={namespace}, data_id={source_data_id}"
+    )
 
 
 @retry(stop=stop_after_attempt(4), wait=wait_exponential(multiplier=1, min=1, max=10))
