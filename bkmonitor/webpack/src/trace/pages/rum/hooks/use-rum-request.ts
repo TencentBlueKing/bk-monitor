@@ -23,80 +23,37 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { onScopeDispose, shallowRef } from 'vue';
 
-.alert-info-card {
-  box-sizing: border-box;
-  width: 100%;
-  height: 56px;
-  background-color: #f5f7fa;
-  border-radius: 2px;
+/** RUM 独立数据区域：保留上次结果，只允许最后一次请求更新数据和状态。 */
+export function useRumRequest<T>(request: (signal: AbortSignal) => Promise<T>, initialData: T) {
+  const data = shallowRef<T>(initialData);
+  const loading = shallowRef(false);
+  const error = shallowRef(false);
+  let controller: AbortController | null = null;
+  let disposed = false;
 
-  [aria-hidden='true'] {
-    gap: 14px;
-  }
-
-  .alert-info-card-main {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    height: 100%;
-    padding: 0 14px 0 24px;
-  }
-
-  // 左侧区域：无数据告警开关
-  .alert-info-card-left {
-    display: flex;
-    align-items: center;
-    height: 22px;
-
-    .alert-label {
-      margin-right: 14px;
-      font-size: 14px;
-      font-weight: 400;
-      color: #313238;
-      text-decoration: underline dashed #979ba5;
-      text-underline-offset: 6px;
-    }
-
-    .switch-wrapper {
-      display: flex;
-      align-items: center;
-      margin-top: 4px;
+  async function run() {
+    if (disposed) return;
+    controller?.abort();
+    controller = new AbortController();
+    const { signal } = controller;
+    loading.value = true;
+    error.value = false;
+    try {
+      const result = await request(signal);
+      if (!signal.aborted) data.value = result;
+    } catch {
+      if (!signal.aborted) error.value = true;
+    } finally {
+      if (!signal.aborted) loading.value = false;
     }
   }
 
-  // 右侧区域：告警历史与操作链接
-  .alert-info-card-right {
-    display: flex;
-    align-items: center;
-    height: 22px;
+  onScopeDispose(() => {
+    disposed = true;
+    controller?.abort();
+  });
 
-    .alert-history {
-      display: flex;
-      align-items: center;
-      margin-right: 12px;
-
-      .history-label {
-        margin-right: 2px;
-        color: #979ba5;
-      }
-    }
-
-    .action-link {
-      // 编辑告警策略链接，与"更多"链接保持 16px 间距
-      &.action-link-edit {
-        margin-left: 32px;
-      }
-
-      .bk-button-text {
-        line-height: 16px;
-      }
-
-      .link-icon {
-        margin-left: 4px;
-        font-size: 11px;
-      }
-    }
-  }
+  return { data, loading, error, run };
 }

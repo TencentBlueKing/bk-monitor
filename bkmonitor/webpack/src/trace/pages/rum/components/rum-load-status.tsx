@@ -23,80 +23,43 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { defineComponent } from 'vue';
 
-.alert-info-card {
-  box-sizing: border-box;
-  width: 100%;
-  height: 56px;
-  background-color: #f5f7fa;
-  border-radius: 2px;
+import { Button } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
-  [aria-hidden='true'] {
-    gap: 14px;
-  }
+import './rum-load-status.scss';
 
-  .alert-info-card-main {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    height: 100%;
-    padding: 0 14px 0 24px;
-  }
-
-  // 左侧区域：无数据告警开关
-  .alert-info-card-left {
-    display: flex;
-    align-items: center;
-    height: 22px;
-
-    .alert-label {
-      margin-right: 14px;
-      font-size: 14px;
-      font-weight: 400;
-      color: #313238;
-      text-decoration: underline dashed #979ba5;
-      text-underline-offset: 6px;
-    }
-
-    .switch-wrapper {
-      display: flex;
-      align-items: center;
-      margin-top: 4px;
-    }
-  }
-
-  // 右侧区域：告警历史与操作链接
-  .alert-info-card-right {
-    display: flex;
-    align-items: center;
-    height: 22px;
-
-    .alert-history {
-      display: flex;
-      align-items: center;
-      margin-right: 12px;
-
-      .history-label {
-        margin-right: 2px;
-        color: #979ba5;
-      }
-    }
-
-    .action-link {
-      // 编辑告警策略链接，与"更多"链接保持 16px 间距
-      &.action-link-edit {
-        margin-left: 32px;
-      }
-
-      .bk-button-text {
-        line-height: 16px;
-      }
-
-      .link-icon {
-        margin-left: 4px;
-        font-size: 11px;
-      }
-    }
-  }
-}
+export default defineComponent({
+  name: 'RumLoadStatus',
+  props: {
+    loading: Boolean,
+    error: Boolean,
+  },
+  emits: { retry: () => true },
+  setup() {
+    const { t } = useI18n();
+    return { t };
+  },
+  render() {
+    if (!this.loading && !this.error) return null;
+    return (
+      <div
+        class={['rum-load-status', { 'is-error': this.error }]}
+        aria-live='polite'
+        role='status'
+      >
+        <span>{this.t(this.loading ? '加载中...' : '加载失败')}</span>
+        {this.error && !this.loading && (
+          <Button
+            theme='primary'
+            text
+            onClick={() => this.$emit('retry')}
+          >
+            {this.t('重试')}
+          </Button>
+        )}
+      </div>
+    );
+  },
+});

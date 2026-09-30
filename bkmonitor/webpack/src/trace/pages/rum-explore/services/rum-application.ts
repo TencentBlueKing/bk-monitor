@@ -32,6 +32,6 @@ import type { IRumApplication } from '../typings';
  * 接口已按数据状态排序：有数据的应用在前，其余按名称升序。
  */
 export async function getApplicationList(): Promise<IRumApplication[]> {
-  const res = await listApplication({}, { needMessage: false }).catch(() => null);
+  const res = await listApplication({}, { needMessage: false });
   return res?.data || [];
 }

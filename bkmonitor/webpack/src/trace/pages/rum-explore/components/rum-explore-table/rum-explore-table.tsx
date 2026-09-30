@@ -87,7 +87,7 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
-    /** 首次加载和刷新统一展示列骨架 */
+    /** 首次加载展示列骨架，同一查询刷新时保留已有行 */
     loading: {
       type: Boolean,
       default: false,
@@ -299,6 +299,13 @@ export default defineComponent({
     });
 
     watch(
+      () => props.scrollLoading,
+      loading => {
+        if (!loading) isRequestingLock = false;
+      }
+    );
+
+    watch(
       () => props.loading,
       loading => {
         if (!loading) return;
@@ -328,7 +335,7 @@ export default defineComponent({
     };
   },
   render() {
-    const showSkeleton = this.loading;
+    const showSkeleton = this.loading && !this.data.length;
     return (
       <div
         class='rum-explore-table-wrap'
@@ -336,7 +343,7 @@ export default defineComponent({
       >
         <div
           class='rum-table-content'
-          inert={showSkeleton ? true : undefined}
+          inert={this.loading ? true : undefined}
         >
           <CommonTable
             ref='tableRef'

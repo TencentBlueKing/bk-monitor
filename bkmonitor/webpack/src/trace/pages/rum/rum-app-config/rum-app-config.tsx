@@ -23,14 +23,17 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, defineComponent, onMounted, shallowRef } from 'vue';
+import { computed, defineComponent, shallowRef, watch } from 'vue';
 
 import { Tab } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
+import RumContentSkeleton from '../components/rum-content-skeleton';
+import RumLoadStatus from '../components/rum-load-status';
 import SDKReport from '../components/sdk-report/sdk-report';
 import { RUM_APP_CONFIG_TAB_ENUM, RUM_APP_CONFIG_TAB_MAP } from '../constants';
+import { useRumRequest } from '../hooks/use-rum-request';
 import AppBasicInfo from './components/app-basic-info';
 import BasicConfig from './components/basic-config';
 import DataState from './components/data-state/data-state';
@@ -66,8 +69,11 @@ export default defineComponent({
     /**
      * 应用基本信息数据
      */
-    const appInfo = shallowRef<IRumAppConfig>(undefined);
-    const loading = shallowRef(false);
+    const appRequest = useRumRequest<IRumAppConfig | undefined>(
+      signal => getAppConfigByAppName(route.params.appName as string, signal),
+      undefined
+    );
+    const { data: appInfo, loading, error } = appRequest;
 
     /** 当前选中的 Tab 面板 */
     const currentPanel = shallowRef<RumAppConfigTabType>(RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG);
@@ -76,26 +82,13 @@ export default defineComponent({
     const sdkGuideShow = shallowRef(false);
 
     /** ES 集群列表 */
-    const clusterList = shallowRef([]);
+    const clusterRequest = useRumRequest(signal => getEsClusterList(signal), []);
+    const clusterList = clusterRequest.data;
 
     /** 切换 Tab 面板 */
     const handleCurrentPanelChange = (v: RumAppConfigTabType) => {
       if (!appInfo.value) return;
       currentPanel.value = v;
-    };
-
-    /** 获取应用配置信息 */
-    const getRumAppConfig = async () => {
-      loading.value = true;
-      appInfo.value = await getAppConfigByAppName(decodeURIComponent(route.params.appName as string));
-      loading.value = false;
-    };
-
-    /**
-     * @desc 获取es集群列表
-     */
-    const getEsCluster = async () => {
-      clusterList.value = await getEsClusterList();
     };
 
     /** 处理应用信息变更，合并更新后的字段 */
@@ -121,25 +114,26 @@ export default defineComponent({
       sdkGuideShow.value = show;
     };
 
-    onMounted(() => {
-      getRumAppConfig();
-      getEsCluster();
-    });
+    watch(
+      () => route.params.appName,
+      () => {
+        appInfo.value = undefined;
+        appRequest.run();
+        clusterRequest.run();
+      },
+      { immediate: true }
+    );
 
     /** 根据当前 Tab 获取对应的面板组件 */
     const getPanelComponent = () => {
-      if (loading.value)
-        return (
-          <div class='skeleton-panel'>
-            <div class='skeleton-element' />
-            <div class='skeleton-element' />
-          </div>
-        );
+      if (loading.value && !appInfo.value) return <RumContentSkeleton />;
+      if (!appInfo.value) return null;
 
       switch (currentPanel.value) {
         case RUM_APP_CONFIG_TAB_ENUM.BASIC_CONFIG:
           return (
             <BasicConfig
+              key={appInfo.value.app_name}
               detail={appInfo.value}
               onApplicationInfoChange={handleAppInfoChange}
             />
@@ -147,12 +141,19 @@ export default defineComponent({
         case RUM_APP_CONFIG_TAB_ENUM.STORAGE_STATUS:
           return (
             <StorageStatus
+              key={appInfo.value.app_name}
               clusterList={clusterList.value}
+              clusterLoading={clusterRequest.loading.value || clusterRequest.error.value}
               detail={appInfo.value}
             />
           );
         case RUM_APP_CONFIG_TAB_ENUM.DATA_STATUS:
-          return <DataState detail={appInfo.value} />;
+          return (
+            <DataState
+              key={appInfo.value.app_name}
+              detail={appInfo.value}
+            />
+          );
       }
     };
 
@@ -160,6 +161,9 @@ export default defineComponent({
       navList,
       appInfo,
       loading,
+      error,
+      appRequest,
+      clusterRequest,
       currentPanel,
       sdkGuideShow,
       handleCurrentPanelChange,
@@ -182,12 +186,18 @@ export default defineComponent({
         />
         {/* 应用基本信息头部区域 */}
         <div class='rum-app-config-page__header'>
-          <AppBasicInfo
-            data={this.appInfo}
-            loading={this.loading}
-            onApplicationInfoChange={this.handleAppInfoChange}
-            onApplicationOperation={this.handleAppOperation}
-            onShowSdkGuide={() => this.handleShowSdkGuide(true)}
+          {this.error && !this.appInfo ? null : (
+            <AppBasicInfo
+              data={this.appInfo}
+              loading={this.loading}
+              onApplicationInfoChange={this.handleAppInfoChange}
+              onApplicationOperation={this.handleAppOperation}
+              onShowSdkGuide={() => this.handleShowSdkGuide(true)}
+            />
+          )}
+          <RumLoadStatus
+            error={this.error}
+            onRetry={this.appRequest.run}
           />
         </div>
 
@@ -206,7 +216,15 @@ export default defineComponent({
               />
             ))}
           </Tab>
-          <div class='panel-tab-body'>{this.getPanelComponent()}</div>
+          <div class='panel-tab-body'>
+            {this.currentPanel === RUM_APP_CONFIG_TAB_ENUM.STORAGE_STATUS && (
+              <RumLoadStatus
+                error={this.clusterRequest.error.value}
+                onRetry={this.clusterRequest.run}
+              />
+            )}
+            {this.getPanelComponent()}
+          </div>
         </div>
         <SDKReport
           appInfo={this.appInfo}

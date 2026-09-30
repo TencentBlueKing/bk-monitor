@@ -1,0 +1,71 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
+.rum-content-line {
+  display: inline-block;
+  flex-shrink: 0;
+  max-width: 100%;
+  height: 12px;
+  vertical-align: middle;
+
+  @include skeleton.surface;
+
+  &.is-icon {
+    height: 24px;
+  }
+
+  &.is-tag {
+    height: 20px;
+  }
+
+  &.is-title {
+    height: 16px;
+    margin-bottom: 20px;
+  }
+
+  &.is-value {
+    height: 16px;
+  }
+}
+
+.rum-content-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 20px;
+  overflow: hidden;
+}
+
+.rum-content-skeleton {
+  width: 100%;
+
+  .rum-content-section {
+    padding: 24px 0;
+  }
+
+  .rum-content-section:first-child {
+    padding-top: 0;
+  }
+
+  .rum-content-section + .rum-content-section {
+    border-top: 1px solid #e4e9f2;
+  }
+
+  .rum-content-description {
+    display: grid;
+    gap: 10px;
+    max-width: 720px;
+    margin-bottom: 24px;
+  }
+
+  .rum-content-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 24px 64px;
+  }
+
+  .rum-content-field {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+  }
+}

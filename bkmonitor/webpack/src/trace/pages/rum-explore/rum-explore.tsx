@@ -61,6 +61,7 @@ import {
 } from './constants';
 import { getApplicationList } from './services/rum-application';
 import EmptyStatus from '@/components/empty-status/empty-status';
+import RumLoadStatus from '../rum/components/rum-load-status';
 
 import type { ConditionChangeEvent } from '../trace-explore/typing';
 import type { IRumApplication, IRumColumnLayoutPreset } from './typings';
@@ -84,12 +85,13 @@ export default defineComponent({
 
     const isCollapsed = shallowRef(false);
     const applicationLoading = shallowRef(true);
+    const applicationError = shallowRef(false);
     let disposed = false;
     const applicationList = shallowRef<IRumApplication[]>([]);
     const thumbtackList = shallowRef<string[]>([]);
     const defaultApplication = shallowRef('');
 
-    const viewConfigCtx = useRumViewConfig(computed(() => !applicationLoading.value));
+    const viewConfigCtx = useRumViewConfig(computed(() => !applicationLoading.value && !applicationError.value));
     const spanTypeCtx = useRumSpanType(viewConfigCtx.viewConfig);
     const queryCtx = useRumQuery({ extraFilters: spanTypeCtx.spanTypeFilters });
     // 先恢复 URL，再初始化依赖应用的配置，避免沿用上一次进入页面的应用。
@@ -216,7 +218,7 @@ export default defineComponent({
     );
 
     async function fetchApplicationList() {
-      const list = await getApplicationList().catch(() => []);
+      const [list] = await Promise.all([getApplicationList(), fetchUserConfig()]);
       if (disposed) return;
       applicationList.value = list;
       store.appList = list;
@@ -332,17 +334,23 @@ export default defineComponent({
       return viewConfigCtx.viewConfig.value?.resident_fields || [];
     }
 
-    onMounted(async () => {
-      updateTimezone(store.timezone);
+    async function initialize() {
+      applicationLoading.value = true;
+      applicationError.value = false;
       try {
-        await fetchUserConfig();
-        if (disposed) return;
         await fetchApplicationList();
         if (disposed) return;
         queryCtx.handleQuery();
+      } catch {
+        if (!disposed) applicationError.value = true;
       } finally {
         if (!disposed) applicationLoading.value = false;
       }
+    }
+
+    onMounted(() => {
+      updateTimezone(store.timezone);
+      initialize();
     });
 
     onBeforeUnmount(() => {
@@ -356,6 +364,8 @@ export default defineComponent({
       store,
       applicationList,
       applicationLoading,
+      applicationError,
+      initialize,
       configLoading,
       columnConfig,
       emptyType,
@@ -425,7 +435,11 @@ export default defineComponent({
           />
 
           <div class='rum-explore-content'>
-            {this.configLoading ? (
+            <RumLoadStatus
+              error={this.applicationError || viewConfigCtx.error.value}
+              onRetry={() => this.applicationError ? this.initialize() : viewConfigCtx.fetchViewConfig()}
+            />
+            {this.applicationError || viewConfigCtx.error.value ? null : this.configLoading ? (
               <RumExploreSkeleton
                 kind='filter'
                 showResident={queryCtx.showResidentBtn.value && queryCtx.filterMode.value !== EMode.queryString}
@@ -472,7 +486,7 @@ export default defineComponent({
                 onWhereChange={queryCtx.whereChange}
               />
             )}
-            {!this.applicationLoading && !this.applicationList.length && (
+            {!this.applicationLoading && !this.applicationError && !this.applicationList.length && (
               <div class='create-app-guide'>
                 <EmptyStatus
                   textMap={{ 'empty-app': this.t('暂无应用') }}
@@ -486,7 +500,7 @@ export default defineComponent({
                 </EmptyStatus>
               </div>
             )}
-            {(this.applicationLoading || !!this.applicationList.length) && (
+            {!this.applicationError && !viewConfigCtx.error.value && (this.applicationLoading || !!this.applicationList.length) && (
               <TraceExploreLayout
                 isCollapsed={this.isCollapsed}
                 onUpdate:isCollapsed={value => {
@@ -509,6 +523,11 @@ export default defineComponent({
                   ),
                   default: () => (
                     <div class='result-panel'>
+                      <RumLoadStatus
+                        loading={tableCtx.loading.value && !!tableCtx.tableData.value.length}
+                        error={tableCtx.error.value}
+                        onRetry={tableCtx.retry}
+                      />
                       <RumExploreView
                         ref='rumExploreViewRef'
                         v-slots={{
@@ -523,7 +542,7 @@ export default defineComponent({
                           default: () =>
                             this.configLoading ? (
                               <RumExploreSkeleton kind='table' />
-                            ) : (
+                            ) : tableCtx.error.value && !tableCtx.tableData.value.length ? null : (
                               <RumExploreTable
                                 headerAffixedTop={{
                                   container: () => this.rumExploreViewRef?.$el,
