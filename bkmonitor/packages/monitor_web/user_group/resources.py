@@ -11,13 +11,16 @@ from bkmonitor.action.serializers import (
     DutyRuleDetailSlz,
     PreviewSerializer,
 )
-from bkmonitor.models import DutyRule, DutyRuleSnap, DutyArrange
+from bkmonitor.iam import ActionEnum
+from bkmonitor.models import DutyRule, DutyRuleSnap, DutyArrange, UserGroup
+from bkmonitor.utils.request import get_request
 from bkmonitor.utils import time_tools
 from common.log import logger
 from constants.action import BKCHAT_TRIGGER_TYPE_MAPPING
 from core.drf_resource import Resource
 from core.drf_resource.management.root import resource, api
 from bkmonitor.utils.common_utils import count_md5
+from monitor_web.permissions import check_notification_group_permission, require_business_id
 
 
 class GetBkchatGroupResource(Resource):
@@ -91,7 +94,10 @@ class PreviewUserGroupPlanResource(DutyPlanUserTranslaterResource):
             duty_rule_ids = request_data["config"]["duty_rules"]
         if not duty_rule_ids:
             raise ValidationError(detail="duty_rules is empty")
-        duty_rules = DutyRuleDetailSlz(instance=DutyRule.objects.filter(id__in=duty_rule_ids), many=True).data
+        rules = DutyRule.objects.filter(id__in=duty_rule_ids)
+        if rules.exclude(bk_biz_id__in=[0, request_data["bk_biz_id"]]).exists():
+            raise ValidationError(detail="duty_rules contains rules from another business")
+        duty_rules = DutyRuleDetailSlz(instance=rules, many=True).data
         request_data["duty_rules"] = duty_rules
         request_data["duty_rule_ids"] = duty_rule_ids
         request_data["user_group"] = user_group
@@ -251,11 +257,15 @@ class UserGroupBulkUpdateResource(Resource):
 
     def perform_request(self, validated_data):
         self.ids = validated_data["ids"]
-        self.bk_biz_id = validated_data["bk_biz_id"]
+        request = get_request(peaceful=True)
+        self.bk_biz_id = require_business_id(request)
         self.edit_data = validated_data["edit_data"]
 
         if not self.ids:
             return []
+
+        for biz_id in UserGroup.objects.filter(id__in=self.ids).values_list("bk_biz_id", flat=True).distinct():
+            check_notification_group_permission(request, biz_id, ActionEnum.MANAGE_NOTIFY_TEAM)
 
         append_keys = self.edit_data.get("append_keys", [])
         if append_keys:
