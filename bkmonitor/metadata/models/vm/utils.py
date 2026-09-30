@@ -674,12 +674,18 @@ def access_v2_bkdata_vm(
 
 
 def _ensure_named_data_link(data_source, table_id, strategy, namespace):
-    """Persist a DataLink and its RT identity before attempting the remote apply."""
+    """先保存链路身份和监控 RT 映射，供后续 apply 及失败重试复用。
+
+    查找顺序为 RT 映射中的同策略链路、兼容策略链路、来源 DataId 和 RT 指向的链路。
+    映射已保存名称但主记录缺失时按原名补建；完全没有持久化身份时才随机命名。
+    多个候选无法确定归属时直接报错，避免新建链路掩盖历史关系冲突。
+    """
     from metadata.models import ResultTable
     from metadata.models.data_link.data_link_configs import DataBusConfig
 
     tenant = data_source.bk_tenant_id
     with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        # 首次创建时还没有 DataLink 可锁，以目标监控 RT 串行化名称分配及映射写入。
         ResultTable.objects.select_for_update().get(bk_tenant_id=tenant, table_id=table_id)
         compatible = {
             DataLink.BK_STANDARD_V2_TIME_SERIES: (
@@ -702,6 +708,7 @@ def _ensure_named_data_link(data_source, table_id, strategy, namespace):
             )
         }
         relation = None
+        # 同策略优先；兼容策略只用于承接已有身份，切换时不重新创建 RT/Binding。
         for candidate_strategies in ((strategy,), compatible):
             if not candidate_strategies:
                 continue
@@ -719,6 +726,7 @@ def _ensure_named_data_link(data_source, table_id, strategy, namespace):
                 relation = matches[0]
                 break
         if relation is None:
+            # 孤立映射中的名称仍是已分配身份，主记录丢失不能成为重新随机命名的理由。
             orphans = [candidate for candidate in relations if candidate.data_link_name not in related_links]
             if len(orphans) > 1:
                 raise ValueError(f"ambiguous orphan DataLinks for ResultTable({table_id})")
@@ -729,6 +737,7 @@ def _ensure_named_data_link(data_source, table_id, strategy, namespace):
             if link and link.namespace != namespace:
                 raise ValueError("configured DataLink belongs to a different namespace")
         else:
+            # 映射缺失不等于首次创建，先通过 DataLink 自身保存的来源和 RT 关系兜底。
             candidates = [
                 candidate
                 for candidate in DataLink.objects.filter(
@@ -743,7 +752,7 @@ def _ensure_named_data_link(data_source, table_id, strategy, namespace):
                 raise ValueError(f"ambiguous DataLinks for ResultTable({table_id})")
             link = candidates[0] if candidates else None
         previous_strategy = link.data_link_strategy if link else None
-        # A migrated DataBus may reference the V3 source instead of the registered V4 DataId.
+        # 已迁移的 DataBus 可能消费 V3 额外 DataId，不能把链路主名当作 source 名称。
         sources = (
             set(
                 DataBusConfig.objects.filter(
@@ -759,6 +768,7 @@ def _ensure_named_data_link(data_source, table_id, strategy, namespace):
         )
         if len(sources) > 1:
             raise ValueError(f"ambiguous DataId references for DataLink({link.pk})")
+        # 优先沿用 RT 映射或 DataBus 保存的实际来源，均缺失时才读取当前 DataId 的登记名。
         data_name = (relation.bkbase_data_name if relation else "") or next(iter(sources), "")
         data_name = data_name or get_registered_bkdata_data_id_name(data_source, namespace)
         fields = dict(
@@ -783,6 +793,7 @@ def _ensure_named_data_link(data_source, table_id, strategy, namespace):
             for key, value in fields.items():
                 setattr(link, key, value)
             link.save(update_fields=[*fields, "last_modify_time"])
+        # 与主记录同事务保存；远端 apply 失败也保留身份，下一次调用能够找回原链路。
         BkBaseResultTable.objects.get_or_create(
             bk_tenant_id=tenant,
             data_link_name=link.data_link_name,
@@ -833,6 +844,7 @@ def create_bkbase_data_link(
         data_link_strategy,
         namespace,
     )
+    # 先确定并持久化身份，再下发组件；保存旧策略用于判断是否清理策略切换后的多余组件。
     data_link_ins, bkbase_data_name, previous_data_link_strategy = _ensure_named_data_link(
         data_source,
         monitor_table_id,

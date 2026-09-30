@@ -50,6 +50,8 @@ RANDOM_NAME_STRATEGIES = {
 
 def generate_bkdata_resource_name(scene: str, source_id: int) -> str:
     """仅为首次创建生成候选名；已分配的身份必须从持久化关系读取。"""
+    # 场景和数值 ID 用于辨识来源，随机串区分同一来源的不同资源；调用方负责保存和复用。
+    # 限定场景码与 ID 范围，使最长名称也满足 BKBase 的 40 字符限制。
     if scene not in RANDOM_NAME_SCENES or type(source_id) is not int or not 0 < source_id <= 2**63 - 1:
         raise ValueError(f"invalid resource name source: scene={scene!r}, source_id={source_id!r}")
     suffix = "".join(secrets.choice(string.ascii_lowercase + string.digits) for _ in range(12))
@@ -64,8 +66,10 @@ def create_resource_with_random_name(
     for _ in range(5):
         name = generate_bkdata_resource_name(scene, source_id)
         identity = {name_field: name}
+        # DataLink 名称是全局主键，组件名称则在租户和 namespace 内唯一。
         if name_field != "data_link_name":
             identity.update(bk_tenant_id=fields["bk_tenant_id"], namespace=fields["namespace"])
+        # 新建的 Binding/Databus 可能沿用 RT 候选名，需同时避开这些组件种类中已占用的名称。
         if manager.filter(**identity).exists() or any(
             other.objects.using(DATABASE_CONNECTION_NAME).filter(**identity).exists() for other in conflict_models
         ):
@@ -74,6 +78,7 @@ def create_resource_with_random_name(
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
                 return manager.create(**{name_field: name}, **fields)
         except IntegrityError:
+            # 预查后仍可能被并发占名；只对该名称确实已存在的情况重试，其他约束错误原样抛出。
             if not manager.filter(**identity).exists():
                 raise
     raise ValueError(f"unable to allocate resource name: {model.__name__}, scene={scene}, source_id={source_id}")
@@ -271,6 +276,7 @@ def compose_transfer_consumer_group(data_source: "DataSource") -> str:
 
 def get_federal_vm_table_id(bk_tenant_id: str, namespace: str, table_id: str) -> str:
     """读取联邦目标的完整 VMRT；Subset 的 ConditionalSink 映射不是结果表。"""
+    # BkBaseResultTable 不含 namespace，需要借助关联链路或实际 RT 判断映射的作用域。
     links = {
         link.pk: link
         for link in models.DataLink.objects.filter(
@@ -285,6 +291,7 @@ def get_federal_vm_table_id(bk_tenant_id: str, namespace: str, table_id: str) ->
     ).exclude(bkbase_table_id__in=["", None]):
         link = links.get(record.data_link_name)
         if link is not None:
+            # Subset 的映射可能借用 ConditionalSink 名称，只接受普通或 Proxy 的真实 VMRT。
             if (link.bk_tenant_id, link.namespace) != (bk_tenant_id, namespace) or link.data_link_strategy not in {
                 models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
                 models.DataLink.BK_STANDARD_V2_TIME_SERIES,
@@ -297,6 +304,7 @@ def get_federal_vm_table_id(bk_tenant_id: str, namespace: str, table_id: str) ->
             continue
         if record.bkbase_table_id:
             table_ids.add(record.bkbase_table_id)
+    # V3 路由也保存完整 VMRT；两个持久化来源必须一致，不能任选一个来认领历史组件。
     table_ids.update(
         models.AccessVMRecord.objects.filter(bk_tenant_id=bk_tenant_id, result_table_id=table_id)
         .exclude(vm_result_table_id="")
@@ -313,6 +321,7 @@ def get_bkbase_raw_data_id_name(data_source, table_id, namespace=settings.DEFAUL
         bk_tenant_id=data_source.bk_tenant_id,
         result_table_id=table_id,
     ).last()
+    # 先确定实际消费的 DataId，再查它的登记名；V3 额外 DataId 与监控 DataId 不能互换。
     source_data_id = record.bk_base_data_id if record and record.bk_base_data_id > 0 else data_source.bk_data_id
     registered_names = set(
         models.DataIdConfig.objects.filter(

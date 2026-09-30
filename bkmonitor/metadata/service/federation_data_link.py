@@ -230,6 +230,7 @@ def _build_federation_routes(bk_tenant_id: str, sub_cluster_id: str) -> list[dic
 def _get_subset_data_link(context: FederationMetricContext) -> DataLink | None:
     """按联邦子链路的业务关系定位，兼容存量名字以及尚未完成 sync_metadata 的链路。"""
     tenant = context.data_source.bk_tenant_id
+    # 名称不再能由 DataId 推导；先收集 RT 映射，同时兼容只写入主记录的未完成申请。
     related_names = set(
         models.BkBaseResultTable.objects.filter(
             bk_tenant_id=tenant,
@@ -258,6 +259,7 @@ def ensure_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> N
         delete_federal_subset_data_link(bk_tenant_id=bk_tenant_id, sub_cluster_id=sub_cluster_id)
         return
 
+    # 首次名称分配和 RT 映射在本地一起提交，后续 apply 失败时按此关系继续重试。
     with transaction.atomic(using=DATABASE_CONNECTION_NAME):
         models.ResultTable.objects.select_for_update().get(bk_tenant_id=bk_tenant_id, table_id=context.table_id)
         data_link = _get_subset_data_link(context)
@@ -309,6 +311,7 @@ def ensure_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> N
 
 def delete_federal_subset_data_link(bk_tenant_id: str, sub_cluster_id: str) -> None:
     context = _get_metric_context(bk_tenant_id=bk_tenant_id, cluster_id=sub_cluster_id)
+    # 创建和删除使用同一套关联查询；Subset 的删除策略只清理自身路由组件，保留共享 RT/Binding。
     with transaction.atomic(using=DATABASE_CONNECTION_NAME):
         models.ResultTable.objects.select_for_update().get(bk_tenant_id=bk_tenant_id, table_id=context.table_id)
         data_link = _get_subset_data_link(context)
@@ -371,6 +374,7 @@ def reconcile_federation_data_links(bk_tenant_id: str, plan: FederationReconcile
     failures: list[str] = []
     failed_proxy_cluster_ids: set[str] = set()
 
+    # 先确保 Proxy 修复好共享组件，再更新 Subset 引用；父链路失败时阻止依赖它的子链路下发。
     for fed_cluster_id in plan.active_proxy_cluster_ids:
         try:
             ensure_federal_proxy_data_link(bk_tenant_id=bk_tenant_id, fed_cluster_id=fed_cluster_id)

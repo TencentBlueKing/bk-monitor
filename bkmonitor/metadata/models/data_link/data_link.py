@@ -1073,6 +1073,7 @@ class DataLink(models.Model):
         )
         option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
         configs: list[dict[str, Any]] = []
+        # 双写的两组组件通过 RT 类型和实际 sink 种类区分，各自复用名称，不从名称后缀推断归属。
         if option.should_write_vm:
             if not storage_cluster_name:
                 access_vm_record = AccessVMRecord.objects.filter(
@@ -1105,6 +1106,7 @@ class DataLink(models.Model):
                 else (existing_binding.bkbase_result_table_name if existing_binding else "")
             )
             if not vm_rt_name:
+                # 老链路可能只保留了 AccessVMRecord，使用完整 VMRT 中的原名恢复 VM 输出。
                 vm_rt_name = self.resolve_graph_relation_vm_result_table_name(
                     self.bk_tenant_id, table_id, default_name=""
                 )
@@ -1986,6 +1988,9 @@ class DataLink(models.Model):
     ) -> list[dict[str, Any]]:
         """
         生成联邦代理集群（父集群）时序数据链路配置
+
+        优先复用本链路关联的 RT/Binding；关联缺失时，通过完整 VMRT 和 Binding 的 RT 引用
+        定位历史组件。Proxy 负责原地补齐归属，保留名称和完整 VMRT，供多个 Subset 共享。
         """
 
         logger.info(
@@ -2004,6 +2009,7 @@ class DataLink(models.Model):
             ResultTable.objects.select_for_update().get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
             type(self).objects.select_for_update().get(pk=self.pk)
             existing_context = ExistingComponentContext.from_datalink(self)
+        # 先使用正常归属，再沿 Binding 的实际 RT 引用补齐缺失组件，不要求二者同名。
         existing_rt = existing_context.claim(ResultTableConfig, lambda c: c.data_type != "graph", require_unique=True)
         existing_binding = existing_context.claim(VMStorageBindingConfig, lambda c: True, require_unique=True)
         rt_query = ResultTableConfig.objects.select_for_update().filter(
@@ -2017,6 +2023,8 @@ class DataLink(models.Model):
         saved_vmrt = existing_rt.bkbase_table_id if existing_rt else ""
         if not saved_vmrt:
             saved_vmrt = utils.get_federal_vm_table_id(self.bk_tenant_id, self.namespace, table_id)
+        # 老流程可能未保存 data_link_name/table_id，只能按 bkbase_table_id 找回原 RT。
+        # 已有 VMRT 却找不到组件时不能另起随机名，否则会把同一目标当成新资源。
         if not rt_name and saved_vmrt:
             try:
                 existing_rt = rt_query.get(bkbase_table_id=saved_vmrt)
@@ -2037,6 +2045,7 @@ class DataLink(models.Model):
         if existing_binding:
             existing_binding = binding_query.get(pk=existing_binding.pk)
         elif rt_name:
+            # 同一 RT 可能绑定多个存储，历史认领必须精确匹配当前父集群的 VM 集群。
             candidates = list(binding_query.filter(bkbase_result_table_name=rt_name))
             matches = [binding for binding in candidates if binding.vm_cluster_name == storage_cluster_name]
             if candidates and len(matches) != 1:
@@ -2050,6 +2059,7 @@ class DataLink(models.Model):
             if not existing_binding.data_link_name and existing_binding.vm_cluster_name != storage_cluster_name:
                 raise ValueError(f"federation binding VM cluster mismatch: name={existing_binding.name}")
 
+        # 只修复本地归属；完整 VMRT 中的历史业务前缀属于远端身份，不能随 bk_biz_id 改写。
         rt_fields = dict(data_link_name=self.pk, bk_biz_id=bk_biz_id, table_id=table_id, data_type="metric")
         if saved_vmrt:
             rt_fields["bkbase_table_id"] = saved_vmrt
@@ -2069,6 +2079,7 @@ class DataLink(models.Model):
             )
         binding_name = existing_binding.name if existing_binding else vm_table_id_ins.name
         if existing_binding is None:
+            # 普通链路切换到 Proxy 时，残留 DataBus 中的引用可用于按原名补建 Binding。
             saved_names = {
                 sink.split(":", 1)[1]
                 for sinks in DataBusConfig.objects.filter(
@@ -2120,6 +2131,9 @@ class DataLink(models.Model):
         @param storage_cluster_name: 存储集群名称
         @param federation_routes: 已由联邦领域服务完成租户过滤、冲突检查和排序的路由列表
         @return: config_list 配置列表
+
+        每条路由读取父集群的共享 RT/Binding，允许引用尚未修复归属的历史组件。
+        本方法只保存子链路自己的 ConditionalSink/Databus，不把共享组件认领到 Subset。
         """
         logger.info(
             "compose_federal_sub_configs: data_link_name->[%s],bk_biz_id->[%s],bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s]"
@@ -2139,6 +2153,7 @@ class DataLink(models.Model):
             existing_context = ExistingComponentContext.from_datalink(self)
         existing_sink = existing_context.claim(ConditionalSinkConfig, lambda c: True, require_unique=True)
         existing_databus = existing_context.claim(DataBusConfig, lambda c: True, require_unique=True)
+        # 已有 DataBus 的 source 是实际消费来源；缺失时再读取登记或 V3 查询结果。
         bkbase_raw_data_name = (
             existing_databus.data_id_name if existing_databus else ""
         ) or get_bkbase_raw_data_id_name(
@@ -2201,6 +2216,7 @@ class DataLink(models.Model):
             )
             bindings = list(binding_query.filter(table_id=target_table_id, data_link_name__in=proxy_links))
             if len(bindings) != 1:
+                # 正常归属未找到唯一 Binding 时，再通过 RT 引用和父集群存储缩小候选范围。
                 if not bindings:
                     bindings = list(binding_query.filter(bkbase_result_table_name=proxy_rt.name))
                 cluster_ids = set(
@@ -2270,6 +2286,7 @@ class DataLink(models.Model):
             conditions,
         )
 
+        # 下游只写共享 Binding 的真实引用；子链路自身组件缺失时优先使用保存的引用名补建。
         if sink_name:
             vm_conditional_ins, _ = ConditionalSinkConfig.objects.update_or_create(
                 name=sink_name,
@@ -2334,7 +2351,11 @@ class DataLink(models.Model):
         metric_group_dimensions: list[dict[str, Any]] | None = None,
         consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
-        """复用已有名称，首次创建 RT 时分配名称并写入完整的 VM 组件配置。"""
+        """复用调用方查出的名称，首次创建 RT 时分配名称并写入完整的 VM 组件配置。
+
+        传入名称可以来自已有组件或持久化引用。Binding/Databus 只有没有保存名称时
+        才沿用 RT 名称；所有引用均使用最终实例名，已有的不同名组件不会被重命名。
+        """
         if rt_name:
             vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=rt_name,
@@ -2445,7 +2466,8 @@ class DataLink(models.Model):
             lambda c: not any(name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:") for name in c.sink_names),
             require_unique=True,
         )
-        # 保存的引用也属于已有身份；只有没有组件和引用时才分配新名称。
+        # RT 缺失时沿 Binding 引用恢复，再用 AccessVMRecord 的历史 VMRT 兜底。
+        # Binding 缺失时沿 DataBus.sink_names 恢复，不能重新命名后留下悬空引用。
         rt_name = (
             existing_rt.name if existing_rt else (existing_binding.bkbase_result_table_name if existing_binding else "")
         )
@@ -2642,7 +2664,7 @@ class DataLink(models.Model):
             lambda c: not any(name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:") for name in c.sink_names),
             require_unique=True,
         )
-        # 保存的引用也属于已有身份；只有没有组件和引用时才分配新名称。
+        # 与普通时序保持一致：先取组件名，再取保存的 RT/Binding 引用，最后才允许随机新建。
         rt_name = (
             existing_rt.name if existing_rt else (existing_binding.bkbase_result_table_name if existing_binding else "")
         )
@@ -2998,6 +3020,7 @@ class DataLink(models.Model):
             logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", self.data_link_name, e)
             raise e
 
+        # 本地组件及引用已提交；后续合并远端配置或下发失败时，重试仍读取同一组资源名称。
         configs = self.merge_existing_component_configs(configs)
         if databus_prefer_cluster is not None:
             for config in configs:

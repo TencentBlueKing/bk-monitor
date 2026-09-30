@@ -167,6 +167,7 @@ class RecordRuleV4OutputResources:
         with transaction.atomic(using=DATABASE_CONNECTION_NAME):
             type(rule).objects.select_for_update().get(pk=rule.pk)
             scope = dict(bk_tenant_id=rule.bk_tenant_id, namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE)
+            # 先按输出监控 RT 找现有组件；缺失时仅从已保存 VMRT 拆出原名，不重新生成随机名。
             rt_candidates = list(metadata_models.ResultTableConfig.objects.filter(**scope, table_id=rule.table_id)[:2])
             if len(rt_candidates) > 1:
                 raise ValueError(f"ambiguous recording rule output: {rule.pk}")
@@ -180,6 +181,7 @@ class RecordRuleV4OutputResources:
                 result_table_config = metadata_models.ResultTableConfig.objects.filter(
                     **scope, name=result_table_config_name
                 ).first()
+            # Binding 可能与 RT 不同名，先按 table_id 复用；同名兜底也必须检查其实际归属。
             binding_candidates = list(
                 metadata_models.VMStorageBindingConfig.objects.filter(**scope, table_id=rule.table_id)[:2]
             )
@@ -231,6 +233,7 @@ class RecordRuleV4OutputResources:
                     setattr(instance, field, value)
                 instance.save(update_fields=[*fields, "last_modify_time"] if instance.pk else None)
 
+        # 两个组件的名称及引用先一起落库；远端失败仅标记状态，下次重试不会分配新输出。
         if not should_apply:
             logger.info(
                 "RecordRuleV4 ensure_result_table_config skip apply: rule_id->[%s], name->[%s], status->[%s/%s]",

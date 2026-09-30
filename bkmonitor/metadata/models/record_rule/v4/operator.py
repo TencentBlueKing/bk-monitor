@@ -222,6 +222,7 @@ class RecordRuleV4Operator:
             )
             table_id = RecordRuleV4.compose_table_id(pk=rule.pk, name=name)
             flow_name = RecordRuleV4.compose_group_flow_name(pk=rule.pk, name=name, table_id=table_id)
+            # 规则首次创建时分配一次输出身份，并保存完整 VMRT；后续 ensure 和 Flow 均读取该值。
             result_table_config_name = RecordRuleV4OutputResources.generate_result_table_config_name(rule.pk)
             dst_vm_table_id = RecordRuleV4OutputResources.compose_vm_result_table_id(
                 bk_tenant_id=bk_tenant_id,
