@@ -23,43 +23,39 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { Component, Prop } from 'vue-property-decorator';
+import { Component as tsc } from 'vue-tsx-support';
 
-/**
- * @enum {('configuration' | 'DataLink' | 'fieldDetails' | 'StorageState' | 'targetDetail')} 采集详情tab枚举类型
- */
-export enum TabEnum {
-  /**
-   * @description 配置信息tab
-   */
-  Configuration = 'configuration',
-  /**
-   * @description 链路状态tab
-   */
-  DataLink = 'DataLink',
-  /**
-   * @description 指标/维度tab
-   */
-  FieldDetails = 'fieldDetails',
-  /**
-   * @description 存储状态tab
-   */
-  StorageState = 'StorageState',
-  /**
-   * @description 采集状态tab
-   */
-  TargetDetail = 'targetDetail',
+import EmptyStatus from '../../../../components/empty-status/empty-status';
+
+interface IProps {
+  compact?: boolean;
+  onRetry?: () => void;
 }
 
-export enum TCollectorAlertStage {
-  collecting = 'collecting',
-  storage = 'storage',
-  transfer = 'transfer',
-}
+@Component
+export default class DetailLoadError extends tsc<IProps> {
+  @Prop({ type: Boolean, default: false }) compact: boolean;
 
-export interface DetailData {
-  basic_info: Record<string, any>;
-  extend_info: Record<string, any>;
-  metric_list: Record<string, any>[];
-  runtime_params: Record<string, any>[];
-  subscription_id: number;
+  render() {
+    return this.compact ? (
+      <div
+        class='collector-detail-load-error'
+        role='status'
+      >
+        <span>{this.$t('数据获取异常')}</span>
+        <bk-button
+          text
+          onClick={() => this.$emit('retry')}
+        >
+          {this.$t('刷新')}
+        </bk-button>
+      </div>
+    ) : (
+      <EmptyStatus
+        type='500'
+        onOperation={() => this.$emit('retry')}
+      />
+    );
+  }
 }

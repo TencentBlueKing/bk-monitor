@@ -42,8 +42,20 @@
       doc-link="collectorConfigMd"
     />
     <div>
+      <collector-config-skeleton
+        v-if="statsLoading"
+        section="stats"
+        :tab-count="filterTabList.length || 4"
+      />
       <div
-        v-if="filterTabList.length"
+        v-else-if="statsError"
+        class="collector-config-stat-error"
+      >
+        <span>{{ $t('数据获取异常') }}</span>
+        <bk-button text @click="fetchCollectConfigStat">{{ $t('刷新') }}</bk-button>
+      </div>
+      <div
+        v-else-if="filterTabList.length"
         class="collector-config-panel"
       >
         <bk-tab
@@ -117,14 +129,20 @@
       <div
         ref="tableWrapper"
         class="collector-config-table"
+        :aria-busy="listLoading ? 'true' : 'false'"
       >
-        <table-skeleton
-          v-if="delayLoading"
-          :type="2"
+        <collector-config-skeleton
+          v-if="showTableSkeleton"
+          :columns="selectedColumns"
+          :size="table.size"
+          :row-count="skeletonRowCount"
+          :operation-width="$store.getters.lang === 'en' ? 300 : 260"
         />
         <div
-          v-else
+          v-show="!showTableSkeleton"
           class="table-wrap"
+          :class="{ 'is-loading': listLoading }"
+          :inert="listLoading ? '' : null"
         >
           <bk-table
             ref="table"
@@ -414,10 +432,10 @@ import introduce from '../../common/introduce';
 import EmptyStatus from '../../components/empty-status/empty-status.tsx';
 import GuidePage from '../../components/guide-page/guide-page';
 import pageTips from '../../components/pageTips/pageTips';
-import TableSkeleton from '../../components/skeleton/table-skeleton.tsx';
 import authorityMixinCreate from '../../mixins/authorityMixin';
 import { SET_ADD_DATA, SET_ADD_MODE, SET_OBJECT_TYPE } from '../../store/modules/collector-config';
 import * as collectAuth from './authority-map';
+import CollectorConfigSkeleton from './collector-config-skeleton';
 import CollectorConfigDetail from './collector-config-detail/collector-config-detail';
 import CollectorConfigUpdate from './collector-config-update/collector-config-update';
 import DeleteCollector from './collector-dialog-delete/collector-dialog-delete';
@@ -433,7 +451,7 @@ export default {
     pageTips,
     EmptyStatus,
     GuidePage,
-    TableSkeleton,
+    CollectorConfigSkeleton,
   },
   mixins: [authorityMixinCreate(collectAuth)],
   provide() {
@@ -445,7 +463,6 @@ export default {
   beforeRouteEnter(to, from, next) {
     next(vm => {
       if (vm.showGuidePage) {
-        vm.loading = false;
         return;
       }
       if (
@@ -476,19 +493,25 @@ export default {
           vm.tableInstance.keyword = vm.panel.keword;
         }
       }
-      if (!vm.loading) {
-        vm.initPageData();
-      }
+      vm.initPageData();
     });
   },
   beforeRouteLeave(_to, _fromm, next) {
-    typeof this.cancelFetch === 'function' && this.cancelFetch();
     this.side.show = false;
     next();
   },
   data() {
     return {
-      loading: false,
+      listLoading: true,
+      listLoaded: false,
+      statsLoading: true,
+      statsError: false,
+      listRequestId: 0,
+      statsRequestId: 0,
+      listController: null,
+      statsController: null,
+      loadingTimer: null,
+      debouncedSearch: null,
       tableInstance: {},
       panel: {
         active: 0,
@@ -574,7 +597,6 @@ export default {
       },
       isLeave: false,
       filterEnterRouter: ['service-classify', 'plugin-manager', 'plugin-edit', 'export-configuration'],
-      cancelFetch: null,
       delDialogShow: false,
       collectorTaskData: {
         status: 'STARTED',
@@ -589,7 +611,7 @@ export default {
       // 头部筛选卡片数据
       filterTabList: [],
       // 页面出现loading延时
-      delayLoading: false,
+      delayLoading: true,
       // 空状态
       emptyType: 'empty',
     };
@@ -598,6 +620,12 @@ export default {
     selectedColumns() {
       return this.table.columns.filter(item => item.show);
     },
+    showTableSkeleton() {
+      return this.listLoading && (!this.listLoaded || this.delayLoading);
+    },
+    skeletonRowCount() {
+      return this.table.data.length || Math.min(this.pagination.pageSize, 10);
+    },
     bizId() {
       return this.$store.getters.bizId;
     },
@@ -605,7 +633,12 @@ export default {
       return this.filterTabList[this.panel.active] || {};
     },
     tabItemMap() {
-      return this.tableInstance.tabItemMap || {};
+      return {
+        startedNum: this.$t('已启用配置'),
+        stoppedNum: this.$t('已停用配置'),
+        errTargetNum: this.$t('异常采集目标'),
+        needUpdateNum: this.$t('待升级目标'),
+      };
     },
     retrievalUrl() {
       if (process.env.NODE_ENV === 'development') {
@@ -623,7 +656,7 @@ export default {
       const search = {};
       /** 采集分类 */
       if (this.filterTabList.length) {
-        const collectType = this.filterTabList[this.panel.active];
+        const collectType = this.activeTabItem;
         collectType.key !== 'All' && (search.collect_type = collectType.key);
       }
       /** 采集状态
@@ -686,32 +719,23 @@ export default {
         this.getCollectionConfigList(false, true);
       }
     },
-    loading(val) {
-      setTimeout(() => (this.delayLoading = val ? this.loading : false), 200);
-    },
   },
   created() {
-    this.handleSearch = debounce(300, this.handleKeywordChange);
+    this.debouncedSearch = debounce(300, this.handleKeywordChange);
     this.lisenResize = debounce(100, this.handleTableWrapperChange);
   },
   activated() {
     this.isLeave = false;
-    setTimeout(() => {
-      !this.loading && this.initPageData();
-    }, 50);
   },
   deactivated() {
-    this.isLeave = true;
-    this.timer && window.clearTimeout(this.timer);
-    this.timer = 0;
+    this.stopLoading();
   },
   mounted() {
     this.$refs.tableWrapper && addListener(this.$refs.tableWrapper, this.lisenResize);
   },
   beforeDestroy() {
-    this.isLeave = true;
+    this.stopLoading();
     this.$refs.tableWrapper && removeListener(this.$refs.tableWrapper, this.lisenResize);
-    this.timer && window.clearTimeout(this.timer);
   },
   errorCaptured() {
     this.timer && window.clearTimeout(this.timer);
@@ -719,103 +743,150 @@ export default {
   methods: {
     ...mapMutations([SET_ADD_DATA, SET_ADD_MODE, SET_OBJECT_TYPE]),
     /**
-     * @description: 初始化页面数据
-     * 切换采集类型和采集状态时也需要初始化数据
-     * 更新筛选的统计数据和列表数据
+     * @description: 进入页面时并行加载统计和列表，分别管理完成状态
      */
     initPageData() {
+      if (this.showGuidePage) return;
+      this.isLeave = false;
       this.pagination.page = 1;
-      const promiseList = [
-        /** 统计数据 */
-        this.fetchCollectConfigStat(),
-        /** 当前分页数据 */
-        this.getCollectionConfigListProxy(),
-      ];
-      this.loading = true;
-      Promise.all(promiseList).finally(() => {
-        this.loading = false;
-        /** 带采集id进入页面打开详情侧栏 */
-        if (this.$route.query.id && this.table.data.length) {
-          const [{ id, name, status }] = this.table.data;
+      this.fetchCollectConfigStat();
+      const detailId = this.$route.query.id;
+      this.getCollectionConfigList(false, true, 1000).then(data => {
+        if (data && !this.isLeave && detailId && this.$route.query.id === detailId) {
+          const row = this.table.data.find(item => String(item.id) === String(detailId));
+          if (!row) return;
+          const { id, name, status } = row;
           const params = { id, name, status };
           this.$router.replace({ name: 'collect-config' });
           this.handleShowDetail(params);
         }
       });
     },
-    /**
-     * @description: 初始化页面数据时更新状态轮询间隔为1s，只执行一次
-     */
-    getCollectionConfigListProxy() {
-      return this.getCollectionConfigList(false, false, false).then(() => {
-        const timer = setTimeout(() => {
-          this.getCollectionConfigList(true);
-          clearTimeout(timer);
-        }, 1000);
-      });
+    cancelListRequest() {
+      this.listRequestId += 1;
+      this.listController?.abort();
+      this.listController = null;
+      clearTimeout(this.timer);
+      clearTimeout(this.loadingTimer);
+      this.timer = null;
+      this.loadingTimer = null;
+    },
+    startListLoading() {
+      this.listLoading = true;
+      this.popover.instance?.hide();
+      if (!this.listLoaded || this.delayLoading) return;
+      this.loadingTimer = setTimeout(() => {
+        this.delayLoading = true;
+        this.loadingTimer = null;
+      }, 200);
+    },
+    stopLoading() {
+      this.isLeave = true;
+      this.cancelListRequest();
+      this.statsRequestId += 1;
+      this.statsController?.abort();
+      this.statsController = null;
+      this.debouncedSearch.cancel({ upcomingOnly: true });
+      this.lisenResize.cancel({ upcomingOnly: true });
+      this.listLoading = false;
+      this.delayLoading = false;
+      this.statsLoading = false;
     },
     /**
      * @description: 获取采集列表头部过滤筛选操作栏的统计信息
      */
-    fetchCollectConfigStat() {
-      return fetchCollectConfigStat().then(res => {
-        this.filterTabList = [];
+    async fetchCollectConfigStat() {
+      if (this.isLeave || this.showGuidePage) return;
+      const requestId = ++this.statsRequestId;
+      this.statsController?.abort();
+      this.statsController = new AbortController();
+      this.statsLoading = true;
+      this.statsError = false;
+      try {
+        const res = await fetchCollectConfigStat({}, { signal: this.statsController.signal, needMessage: false });
+        if (requestId !== this.statsRequestId || this.isLeave) return;
+        const activeKey = this.activeTabItem.key || 'All';
         this.filterTabList = this.getFilterTabList(res);
-      });
+        const activeIndex = this.filterTabList.findIndex(item => item.key === activeKey);
+        this.panel.active = Math.max(0, activeIndex);
+        if (activeIndex < 0) this.getCollectionConfigList(false, true);
+      } catch {
+        if (requestId === this.statsRequestId && !this.isLeave) this.statsError = true;
+      } finally {
+        if (requestId === this.statsRequestId) {
+          this.statsLoading = false;
+          this.statsController = null;
+        }
+      }
     },
     /**
      * @description: 获取采集列表分页数据
      * @param {*} status 是否为刷新数据状态
-     * @param {*} needLoading 是否需要页面loading
-     * @param {*} needPolling 成功执行后是否继续轮询
+     * @param {*} needLoading 是否展示列表加载状态
+     * @param {*} pollingDelay 下一次状态轮询间隔
      * @return {*}
      */
-    getCollectionConfigList(status = false, needLoading = false, needPolling = true) {
+    async getCollectionConfigList(status = false, needLoading = false, pollingDelay = 5000) {
+      if (this.isLeave || this.showGuidePage || (status && this.listLoading)) return;
+      this.debouncedSearch.cancel({ upcomingOnly: true });
+      this.cancelListRequest();
+      const requestId = this.listRequestId;
+      const controller = new AbortController();
+      this.listController = controller;
       const params = {
         search: this.getSearchOfParams,
         page: this.pagination.page,
         limit: this.pagination.pageSize,
       };
-      this.emptyType = this.getSearchOfParams?.fuzzy ? 'search-empty' : 'empty';
-      needLoading && (this.loading = true);
-      /** 取消pendding的请求 */
-      typeof this.cancelFetch === 'function' && this.cancelFetch();
-      if (this.timer) {
-        clearTimeout(this.timer);
-        this.timer = null;
-      }
-      return collectConfigList(
-        {
-          bk_biz_id: this.bizId,
-          refresh_status: status,
-          order: '-create_time',
-          ...params,
-        },
-        {
-          needRes: true,
-          needMessage: false,
-          needCancel: true,
-          cancelFn: c => (this.cancelFetch = c.bind(this, 'cancelFetch')),
-        }
-      )
-        .then(res => {
-          const data = res.data || { config_list: [], total: 0, type_list: [] };
-          this.pagination.total = data.total;
-          this.tableInstance = new TableStore(data, this.$store.getters.bizList);
-          const tableData = this.tableInstance.getTableAllData();
-          this.table.data = this.getTargetString(tableData);
-          if (!this.isLeave && needPolling) {
-            this.timer = setTimeout(() => {
-              this.getCollectionConfigList(true);
-            }, 5000);
+      if (needLoading) this.startListLoading();
+      let succeeded = false;
+      try {
+        const res = await collectConfigList(
+          {
+            bk_biz_id: this.bizId,
+            refresh_status: status,
+            order: '-create_time',
+            ...params,
+          },
+          {
+            needRes: true,
+            needMessage: false,
+            signal: controller.signal,
           }
-          return data;
-        })
-        .catch(err => {
-          console.error(err);
+        );
+        if (requestId !== this.listRequestId || this.isLeave) return;
+        const data = res.data || { config_list: [], total: 0, type_list: [] };
+        const tableInstance = new TableStore(data, this.$store.getters.bizList);
+        tableInstance.sortOrder = this.tableInstance.sortOrder;
+        tableInstance.sortProp = this.tableInstance.sortProp;
+        this.tableInstance = tableInstance;
+        const tableData = this.tableInstance.getTableAllData();
+        this.table.data = this.getTargetString(tableData);
+        this.pagination.total = data.total;
+        this.emptyType = Object.keys(params.search).length ? 'search-empty' : 'empty';
+        succeeded = true;
+        return data;
+      } catch {
+        if (requestId !== this.listRequestId || this.isLeave || controller.signal.aborted) return;
+        if (!status) {
+          this.table.data = [];
+          this.pagination.total = 0;
           this.emptyType = '500';
-        })
-        .finally(() => (this.loading = false));
+        }
+      } finally {
+        if (requestId === this.listRequestId && !this.isLeave) {
+          this.listController = null;
+          this.listLoading = false;
+          this.listLoaded = true;
+          this.delayLoading = false;
+          clearTimeout(this.loadingTimer);
+          this.loadingTimer = null;
+          if (needLoading) this.$nextTick(() => this.$refs.table?.doLayout());
+          if (succeeded || status) {
+            this.timer = setTimeout(() => this.getCollectionConfigList(true), pollingDelay);
+          }
+        }
+      }
     },
     /**
      * @description: 处理头部筛选tab的展示数据
@@ -911,13 +982,7 @@ export default {
       }
       this.panel.itemActive = key === this.panel.itemActive ? '' : key;
       this.pagination.page = 1;
-      const tempIndex = this.panel.active;
-      const tempPage = this.pagination.page;
-      this.getCollectionConfigList(false, true).catch(err => {
-        this.panel.active = tempIndex;
-        this.pagination.page = tempPage;
-        console.log(err);
-      });
+      this.getCollectionConfigList(false, true);
     },
     handleTableDataChange(v, needLoading = true) {
       this.table.loading = needLoading;
@@ -1050,7 +1115,7 @@ export default {
       curCollect && (curCollect.name = name);
     },
     handleShowAdd(mode, data) {
-      if (mode === 'edit' && !!data) this.popover.data = data;
+      if (mode === 'edit' && data) this.popover.data = data;
       this[SET_ADD_MODE](mode);
       if (mode === 'edit' && this.popover.data.needUpdate) {
         this.updataInfo(this.popover.data);
@@ -1081,29 +1146,18 @@ export default {
      * @param {*} page 当前页
      */
     handlePageChange(page) {
-      const temp = this.pagination.page;
       this.pagination.page = page;
-      this.getCollectionConfigList(false, true).catch(err => {
-        if (err.message !== 'cancelFetch') {
-          this.pagination.page = temp;
-        }
-      });
+      this.getCollectionConfigList(false, true);
     },
     /**
      * @description: 切换分页数量
      * @param {*} limit 每页数量
      */
     handleLimitChange(limit) {
-      const tempPage = this.pagination.page;
-      const tempPageSize = this.pagination.pageSize;
       this.pagination.page = 1;
       this.pagination.pageSize = limit;
       commonPageSizeSet(limit);
-      this.getCollectionConfigList(false, true).catch(() => {
-        this.pagination.page = tempPage;
-        this.pagination.pageSize = tempPageSize;
-        commonPageSizeSet(tempPageSize);
-      });
+      this.getCollectionConfigList(false, true);
     },
     /**
      * @description: tab切换采集类型
@@ -1115,17 +1169,17 @@ export default {
       }
       this.panel.active = index;
       this.pagination.page = 1;
-      const tempIndex = this.panel.active;
-      const tempPage = this.pagination.page;
-      this.getCollectionConfigList(false, true).catch(err => {
-        this.panel.active = tempIndex;
-        this.pagination.page = tempPage;
-        console.log(err);
-      });
+      this.getCollectionConfigList(false, true);
     },
     /**
      * @description: 发起搜索请求
      */
+    handleSearch() {
+      if (this.isLeave || this.showGuidePage) return;
+      this.cancelListRequest();
+      this.startListLoading();
+      this.debouncedSearch();
+    },
     handleKeywordChange() {
       this.pagination.page = 1;
       this.getCollectionConfigList(false, true);
@@ -1300,6 +1354,9 @@ export default {
       }
       if (type === 'clear-filter') {
         this.panel.keyword = '';
+        this.panel.active = 0;
+        this.panel.itemActive = '';
+        this.pagination.page = 1;
         this.getCollectionConfigList(false, true);
         return;
       }
@@ -1325,6 +1382,17 @@ export default {
 .collector-config {
   margin: 24px;
   font-size: 12px;
+
+  &-stat-error {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    height: 170px;
+    color: #979ba5;
+    background: #fff;
+    border: 1px solid #dcdee5;
+  }
 
   &-panel {
     height: 170px;
@@ -1515,6 +1583,11 @@ export default {
     .table-wrap {
       flex: 1;
       width: calc(100% - 240px);
+
+      &.is-loading {
+        pointer-events: none;
+        opacity: .6;
+      }
 
       .config-table {
         overflow: visible;

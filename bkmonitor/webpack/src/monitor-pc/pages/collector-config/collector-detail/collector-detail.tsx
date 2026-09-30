@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Mixins } from 'vue-property-decorator';
+import { Component, Mixins, Watch } from 'vue-property-decorator';
 
 import {
   collectConfigList,
@@ -42,10 +42,13 @@ import { STATUS_LIST } from '../collector-host-detail/utils';
 import CollectorConfiguration from './collector-configuration';
 import CollectorStatusDetails from './collector-status-details';
 import AlertTopic from './components/alert-topic';
+import DetailLoadError from './components/detail-load-error';
+import DetailSkeleton from './components/detail-skeleton';
 import FieldDetails from './components/field-details';
 import LinkStatus from './components/link-status';
 import StorageState from './components/storage-state';
-import { type ChangeConfig, type DetailData, type TabProperty, TabEnum, TCollectorAlertStage } from './typings/detail';
+import DetailRequest from './detail-request';
+import { type DetailData, TabEnum, TCollectorAlertStage } from './typings/detail';
 
 import type { IAlarmGroupList } from './components/alarm-group';
 import type { NavigationGuardNext, Route } from 'vue-router';
@@ -70,21 +73,15 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     [TabEnum.TargetDetail]: {
       data: null,
       updateKey: random(8),
-      pollingCount: 1,
       needPolling: true,
       timer: null,
       topicKey: '',
     },
     [TabEnum.StorageState]: {
-      loading: false,
       data: null,
       topicKey: '',
     },
-    [TabEnum.Configuration]: {
-      renderKey: random(8),
-      loading: false,
-      tableLoading: false,
-    },
+    [TabEnum.Configuration]: {},
     [TabEnum.DataLink]: {
       topicKey: '',
     },
@@ -98,8 +95,51 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   /* 从采集列表获取当前采集数据 */
   collectConfigData = null;
 
-  alarmGroupListLoading = false;
-  targetDetailLoading = false;
+  requests = {
+    config: new DetailRequest(),
+    detail: new DetailRequest(),
+    targets: new DetailRequest(),
+    hosts: new DetailRequest(),
+    storage: new DetailRequest(),
+    groups: new DetailRequest(),
+  };
+  disposed = false;
+  pollingPaused = false;
+
+  beforeDestroy() {
+    this.disposed = true;
+    this.cancelRequests();
+  }
+
+  cancelRequests() {
+    window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
+    Object.values(this.requests).forEach(request => request.cancel());
+  }
+
+  @Watch('$route.params.id')
+  handleCollectIdChange(value: string) {
+    if (this.$route.name !== 'collect-config-detail' || Number(value) === this.collectId) return;
+    this.cancelRequests();
+    this.collectId = Number(value);
+    Object.values(this.requests).forEach(request => {
+      request.loaded = false;
+      request.error = false;
+    });
+    this.collectConfigData = null;
+    this.detailData = {
+      basic_info: {},
+      extend_info: {},
+      metric_list: [],
+      runtime_params: [],
+      subscription_id: undefined,
+    };
+    this.targetInfo = {};
+    this.allData[TabEnum.TargetDetail].data = null;
+    this.allData[TabEnum.StorageState].data = null;
+    this.getCollectConfigListItem();
+    const tab = this.$route.query.tab as TabEnum;
+    this.handleTabChange(Object.values(TabEnum).includes(tab) ? tab : TabEnum.Configuration, true);
+  }
 
   public beforeRouteEnter(to: Route, from: Route, next: NavigationGuardNext) {
     const { params } = to;
@@ -108,30 +148,27 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     });
   }
 
-  /* 切换allData数据状态 */
-  handleAllDataChange<T extends TabEnum, K extends TabProperty<T>>(changeConfig: ChangeConfig<T, K>) {
-    const { tab, property, data } = changeConfig;
-    this.$set(this.allData[tab], property, data);
-  }
-
   created() {
     this.collectId = Number(this.$route.params.id);
     this.$store.commit('app/SET_NAV_ROUTE_LIST', [
       { name: this.$t('route-数据采集'), id: 'collect-config' },
       { name: this.$t('route-采集详情'), id: 'collect-config-detail' },
     ]);
+    this.getCollectConfigListItem();
     const tab = String(this.$route.query?.tab || this.active) as TabEnum;
-    if (!!tab && Object.values(TabEnum).includes(tab)) {
-      this.handleTabChange(tab, true);
-    }
+    this.handleTabChange(Object.values(TabEnum).includes(tab) ? tab : TabEnum.Configuration, true);
   }
   async handleTabChange(v: TabEnum, init = false) {
+    if (this.disposed || (!init && v === this.active)) return;
+    this.requests.hosts.cancel();
+    this.requests.storage.cancel();
     this.active = v;
+    this.pollingPaused = false;
     window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
     switch (v) {
       case TabEnum.Configuration:
         {
-          this.getCollectConfigListItem();
+          if (!this.requests.config.loaded) this.getCollectConfigListItem();
           this.getDetails();
           this.getTargetInfoData();
         }
@@ -139,7 +176,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       case TabEnum.TargetDetail:
         {
           this.getAlarmGroupList();
-          this.getHosts(this.allData[this.active].pollingCount);
+          this.getHosts();
         }
         break;
       case TabEnum.StorageState:
@@ -166,78 +203,63 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
       this.$router.replace({
         name: this.$route.name,
         query: {
+          ...this.$route.query,
           tab: v,
         },
       });
     }
   }
 
-  /**
-   * @description 从采集列表接口获取采集数据
-   */
   getCollectConfigListItem() {
-    const params = {
-      refresh_status: false,
-      order: '-create_time',
-      search: {
-        fuzzy: this.collectId,
-      },
-      page: 1,
-      limit: 10,
-    };
-    collectConfigList(params).then(data => {
-      if (data.config_list?.length) {
-        this.collectConfigData = data.config_list[0];
+    if (this.disposed || this.requests.config.loading || this.requests.config.loaded) return;
+    return this.requests.config.run(
+      signal =>
+        collectConfigList(
+          { refresh_status: false, search: { id: this.collectId }, page: 1, limit: 1 },
+          { signal, needMessage: false }
+        ),
+      data => {
+        this.collectConfigData = data.config_list?.find(item => Number(item.id) === this.collectId) || null;
       }
-    });
+    );
   }
 
-  /**
-   * @description 获取配置信息
-   */
   getDetails() {
-    if (!this.collectId || this.detailData.basic_info?.name) return;
-    this.allData[TabEnum.Configuration].loading = true;
-    frontendCollectConfigDetail({ id: this.collectId, with_target_info: false })
-      .then(res => {
-        this.detailData = res;
-        this.allData[TabEnum.Configuration].renderKey = random(8);
-      })
-      .finally(() => {
-        this.allData[TabEnum.Configuration].loading = false;
-      });
+    if (this.disposed || !this.collectId || this.requests.detail.loaded || this.requests.detail.loading) return;
+    return this.requests.detail.run(
+      signal =>
+        frontendCollectConfigDetail({ id: this.collectId, with_target_info: false }, { signal, needMessage: false }),
+      data => {
+        this.detailData = data;
+      }
+    );
   }
 
-  /**
-   * @description 获取采集目标列表
-   */
   getTargetInfoData() {
-    if (!this.collectId || this.targetInfo?.table_data?.length) return;
-    this.allData[TabEnum.Configuration].tableLoading = true;
-    frontendCollectConfigTargetInfo({ id: this.collectId })
-      .then(res => {
-        this.targetInfo = res;
-      })
-      .finally(() => {
-        this.allData[TabEnum.Configuration].tableLoading = false;
-      });
+    if (this.disposed || !this.collectId || this.requests.targets.loaded || this.requests.targets.loading) return;
+    return this.requests.targets.run(
+      signal => frontendCollectConfigTargetInfo({ id: this.collectId }, { signal, needMessage: false }),
+      data => {
+        this.targetInfo = data;
+      }
+    );
   }
 
   getStorageStateData() {
-    this.allData[TabEnum.StorageState].loading = true;
-    storageStatus({ collect_config_id: this.collectId })
-      .then(res => {
-        this.allData[TabEnum.StorageState].data = res;
-      })
-      .finally(() => {
-        this.allData[TabEnum.StorageState].loading = false;
-      });
+    if (this.disposed) return;
+    return this.requests.storage.run(
+      signal => storageStatus({ collect_config_id: this.collectId }, { signal, needMessage: false }),
+      data => {
+        this.allData[TabEnum.StorageState].data = data;
+      }
+    );
   }
 
-  getAlarmGroupList() {
-    if (this.alarmGroupList.length) return;
-    return listUserGroup({ exclude_detail_info: 1 })
-      .then(data => {
+  getAlarmGroupList(force = false) {
+    if (this.disposed || this.requests.groups.loading || (!force && this.requests.groups.loaded)) return;
+    return this.requests.groups.run(
+      signal => listUserGroup({ exclude_detail_info: 1 }, { signal, needMessage: false }),
+      data => {
         this.alarmGroupList = data.map(item => ({
           id: item.id,
           name: item.name,
@@ -245,64 +267,54 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           receiver:
             item?.users?.map(rec => rec.display_name).filter((item, index, arr) => arr.indexOf(item) === index) || [],
         }));
-      })
-      .catch(e => {
-        console.log(e);
-      });
+      }
+    );
   }
 
-  getHosts(count) {
-    this.targetDetailLoading = true;
-    return collectingTargetStatus({ collect_config_id: this.collectId })
-      .then(data => {
-        if (count !== this.allData[TabEnum.TargetDetail].pollingCount) return;
-        this.allData[TabEnum.TargetDetail].data = data;
-        this.allData[TabEnum.TargetDetail].needPolling = data.contents.some(item =>
-          item.child.some(set => STATUS_LIST.includes(set.status))
-        );
-        if (!this.allData[TabEnum.TargetDetail].needPolling) {
-          window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
-        } else if (count === 1) {
-          this.handlePolling();
-        }
-        this.allData[TabEnum.TargetDetail].updateKey = random(8);
-      })
-      .catch(() => {})
-      .finally(() => {
-        this.targetDetailLoading = false;
-      });
-  }
-  handlePolling(v = true) {
-    if (v) {
-      this.allData[TabEnum.TargetDetail].timer = setTimeout(() => {
-        clearTimeout(this.allData[TabEnum.TargetDetail].timer);
-        this.allData[TabEnum.TargetDetail].pollingCount += 1;
-        this.getHosts(this.allData[TabEnum.TargetDetail].pollingCount).finally(() => {
-          if (!this.allData[TabEnum.TargetDetail].needPolling) return;
-          this.handlePolling();
-        });
-      }, 10000);
-    } else {
-      window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
-    }
+  async getHosts() {
+    if (this.disposed || this.active !== TabEnum.TargetDetail) return;
+    const target = this.allData[TabEnum.TargetDetail];
+    window.clearTimeout(target.timer);
+    const success = await this.requests.hosts.run(
+      signal => collectingTargetStatus({ collect_config_id: this.collectId }, { signal, needMessage: false }),
+      data => {
+        target.data = data;
+        target.needPolling = data.contents.some(item => item.child.some(set => STATUS_LIST.includes(set.status)));
+        target.updateKey = random(8);
+      }
+    );
+    if (this.disposed || this.active !== TabEnum.TargetDetail || this.pollingPaused || this.requests.hosts.loading)
+      return;
+    if ((success || this.requests.hosts.error) && this.requests.hosts.loaded && target.needPolling)
+      this.schedulePolling();
   }
 
-  /**
-   * @description 刷新采集详情状态
-   */
+  schedulePolling() {
+    const target = this.allData[TabEnum.TargetDetail];
+    window.clearTimeout(target.timer);
+    if (this.disposed || this.active !== TabEnum.TargetDetail || this.pollingPaused) return;
+    target.timer = window.setTimeout(() => this.getHosts(), 10000);
+  }
+
+  handlePolling(enabled = true) {
+    this.pollingPaused = !enabled;
+    window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
+    if (enabled) this.schedulePolling();
+    else this.requests.hosts.cancel();
+  }
+
   handleRefreshData() {
-    collectingTargetStatus({ collect_config_id: this.collectId })
-      .then(data => {
-        this.allData[TabEnum.TargetDetail].data = data;
-        this.allData[TabEnum.TargetDetail].updateKey = random(8);
-      })
-      .catch(() => {});
+    return this.getHosts();
   }
 
   /**
    * @description 跳转到采集视图
    */
   handleToRetrieval() {
+    if (!this.collectConfigData) {
+      this.getCollectConfigListItem();
+      return;
+    }
     const url = this.$router.resolve({
       name: 'collect-config-view',
       params: {
@@ -321,15 +333,21 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
   }
 
   async handleAlarmGroupListRefresh() {
-    this.alarmGroupListLoading = true;
-    await this.getAlarmGroupList();
-    this.alarmGroupListLoading = false;
+    await this.getAlarmGroupList(true);
   }
 
   render() {
     return (
       <div class='collector-detail-page'>
+        {this.requests.groups.error &&
+          [TabEnum.TargetDetail, TabEnum.DataLink, TabEnum.StorageState].includes(this.active) && (
+            <DetailLoadError
+              compact
+              onRetry={this.handleAlarmGroupListRefresh}
+            />
+          )}
         <MonitorTab
+          key={this.collectId}
           active={this.active}
           on-tab-change={v => this.handleTabChange(v)}
         >
@@ -341,14 +359,25 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             {!!this.collectId && (
               <CollectorConfiguration
                 id={this.collectId as any}
-                key={this.allData[TabEnum.Configuration].renderKey}
                 collectConfigData={this.collectConfigData}
+                configLoading={this.requests.config.loading}
                 detailData={this.detailData}
-                loading={this.allData[TabEnum.Configuration].loading}
+                loadError={this.requests.detail.error}
+                loading={this.requests.detail.loading}
                 show={this.active === TabEnum.Configuration}
-                tableLoading={this.allData[TabEnum.Configuration].tableLoading}
+                tableLoading={this.requests.targets.loading}
+                targetError={this.requests.targets.error}
                 targetInfo={this.targetInfo}
-                onHandleAllDataChange={this.handleAllDataChange}
+                onRetryDetail={this.getDetails}
+                onRetryTargets={this.getTargetInfoData}
+                {...{
+                  on: {
+                    'update-name': (_id, name) => {
+                      this.detailData.basic_info.name = name;
+                      if (this.collectConfigData) this.collectConfigData.name = name;
+                    },
+                  },
+                }}
               />
             )}
           </bk-tab-panel>
@@ -357,30 +386,40 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
             name={TabEnum.TargetDetail}
             renderDirective='if'
           >
-            {this.alarmGroupList?.length > 0 && (
+            {
               <AlertTopic
                 id={this.collectId as any}
                 class='mb-24'
                 alarmGroupList={this.alarmGroupList}
-                alarmGroupListLoading={this.alarmGroupListLoading}
+                alarmGroupListLoading={this.requests.groups.loading}
                 stage={TCollectorAlertStage.collecting}
                 updateKey={this.allData[TabEnum.TargetDetail].topicKey}
                 onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
               />
-            )}
-            {
-              <CollectorStatusDetails
-                data={
-                  this.allData[TabEnum.TargetDetail]?.data || {
-                    contents: [],
-                  }
-                }
-                tableLoading={this.targetDetailLoading}
-                updateKey={this.allData[TabEnum.TargetDetail].updateKey}
-                onCanPolling={this.handlePolling}
-                onRefresh={this.handleRefreshData}
-              />
             }
+            {this.requests.hosts.error && (
+              <DetailLoadError
+                compact={this.requests.hosts.loaded}
+                onRetry={this.handleRefreshData}
+              />
+            )}
+            {this.requests.hosts.loading && !this.requests.hosts.loaded ? (
+              <DetailSkeleton section='status' />
+            ) : (
+              this.requests.hosts.loaded && (
+                <CollectorStatusDetails
+                  data={
+                    this.allData[TabEnum.TargetDetail]?.data || {
+                      contents: [],
+                    }
+                  }
+                  tableLoading={false}
+                  updateKey={this.allData[TabEnum.TargetDetail].updateKey}
+                  onCanPolling={this.handlePolling}
+                  onRefresh={this.handleRefreshData}
+                />
+              )
+            )}
           </bk-tab-panel>
           <bk-tab-panel
             label={this.$t('链路状态')}
@@ -391,7 +430,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               id={this.collectId as any}
               class='mb-24'
               alarmGroupList={this.alarmGroupList}
-              alarmGroupListLoading={this.alarmGroupListLoading}
+              alarmGroupListLoading={this.requests.groups.loading}
               stage={TCollectorAlertStage.transfer}
               updateKey={this.allData[TabEnum.DataLink].topicKey}
               onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
@@ -410,26 +449,42 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
               id={this.collectId as any}
               class='mb-24'
               alarmGroupList={this.alarmGroupList}
-              alarmGroupListLoading={this.alarmGroupListLoading}
+              alarmGroupListLoading={this.requests.groups.loading}
               stage={TCollectorAlertStage.storage}
               updateKey={this.allData[TabEnum.StorageState].topicKey}
               onAlarmGroupListRefresh={this.handleAlarmGroupListRefresh}
             />
-            <StorageState
-              collectId={this.collectId}
-              data={this.allData[TabEnum.StorageState].data}
-              loading={this.allData[TabEnum.StorageState].loading}
-            />
+            {this.requests.storage.error && (
+              <DetailLoadError
+                compact={this.requests.storage.loaded}
+                onRetry={this.getStorageStateData}
+              />
+            )}
+            {this.requests.storage.loading && !this.requests.storage.loaded ? (
+              <DetailSkeleton section='storage' />
+            ) : (
+              this.requests.storage.loaded && (
+                <StorageState
+                  collectId={this.collectId}
+                  data={this.allData[TabEnum.StorageState].data}
+                  loading={this.requests.storage.loading}
+                />
+              )
+            )}
           </bk-tab-panel>
           <bk-tab-panel
             label={this.$t('指标/维度')}
             name={TabEnum.FieldDetails}
             renderDirective='if'
           >
-            <FieldDetails
-              detailData={this.detailData}
-              loading={this.allData[TabEnum.Configuration].loading}
-            />
+            {this.requests.detail.error ? (
+              <DetailLoadError onRetry={this.getDetails} />
+            ) : (
+              <FieldDetails
+                detailData={this.detailData}
+                loading={this.requests.detail.loading}
+              />
+            )}
           </bk-tab-panel>
           <span
             class='tab-right-tip'
@@ -437,15 +492,24 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
           >
             <span class='icon-monitor icon-tishi' />
             <i18n path='数据采集好了，去 {0}'>
-              <span
+              <bk-button
                 class='link-btn'
+                disabled={!this.collectConfigData}
+                loading={this.requests.config.loading}
+                text
                 onClick={() => this.handleToRetrieval()}
               >
                 {this.$t('查看数据')}
-              </span>
+              </bk-button>
             </i18n>
           </span>
         </MonitorTab>
+        {this.requests.config.error && (
+          <DetailLoadError
+            compact
+            onRetry={this.getCollectConfigListItem}
+          />
+        )}
       </div>
     );
   }
