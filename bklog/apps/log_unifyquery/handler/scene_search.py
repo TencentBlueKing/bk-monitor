@@ -855,6 +855,15 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # Export overrides — bypass index_set_obj / scenario_id dependencies
     # ------------------------------------------------------------------
 
+    @property
+    def export_result_window(self):
+        return MAX_RESULT_WINDOW
+
+    def project_export_rows(self, result):
+        # 场景化脱敏规则按命中结果表懒加载，必须在投影前就绪（幂等）
+        self._init_scene_desensitize(result.get("result_table_id"))
+        return super().project_export_rows(result)
+
     def pre_get_result(self, sorted_fields: list, size: int, scroll=None):
         search_dict = copy.deepcopy(self.base_dict)
         # Scene mode always uses bklog data_source; always apply order_by

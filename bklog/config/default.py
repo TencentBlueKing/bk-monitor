@@ -232,6 +232,7 @@ CELERY_IMPORTS = (
     "apps.log_search.tasks.async_export",
     "apps.log_search.tasks.scene_async_export",
     "apps.log_search.tasks.unify_query_async_export",
+    "apps.log_search.tasks.sharded_export",
     "apps.log_search.tasks.project",
     "apps.log_search.tasks.space",
     "apps.log_search.tasks.cmdb",
@@ -1402,6 +1403,25 @@ TGPA_SDK_DOC_URL = os.getenv("BKAPP_TGPA_SDK_DOC_URL", "")
 
 # 异步下载最大并发任务数
 MAX_CONCURRENT_EXPORT_TASKS = int(os.getenv("BKAPP_MAX_CONCURRENT_EXPORT_TASKS", 3))
+
+# ===============================================================================
+# 分片异步导出（ExportJob / ExportPart）
+# ===============================================================================
+ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS", 10))
+ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT", 120))
+ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT = int(
+    os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT", max(1, ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT - 30))
+)
+ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS = int(
+    os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS", max(1, ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT - 15))
+)
+ASYNC_EXPORT_COORDINATE_BATCH = int(os.getenv("BKAPP_ASYNC_EXPORT_COORDINATE_BATCH", 100))
+ASYNC_EXPORT_ENQUEUE_LEASE_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_ENQUEUE_LEASE_SECONDS", 60))
+ASYNC_EXPORT_PLANNING_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PLANNING_TIMEOUT", 600))
+ASYNC_EXPORT_FINALIZATION_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_FINALIZATION_TIMEOUT", 300))
+ASYNC_EXPORT_PART_TIMEOUT = int(os.getenv("BKAPP_ASYNC_EXPORT_PART_TIMEOUT", 1800))
+ASYNC_EXPORT_UPLOAD_ATTEMPTS = int(os.getenv("BKAPP_ASYNC_EXPORT_UPLOAD_ATTEMPTS", 3))
+ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS = int(os.getenv("BKAPP_ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS", 2))
 
 """
 以下为框架代码 请勿修改
