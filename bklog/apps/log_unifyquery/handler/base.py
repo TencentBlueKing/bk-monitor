@@ -74,7 +74,6 @@ from apps.api import MonitorApi
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_search.constants import ASYNC_SORTED
-from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 def fields_config(name: str, is_active: bool = False):
@@ -262,6 +261,23 @@ class UnifyQueryHandler:
             if raise_exception:
                 raise e
             return {"list": []}
+
+    @property
+    def export_result_window(self):
+        index_set = self.index_info_list[0]["index_set_obj"]
+        return index_set.result_window or MAX_RESULT_WINDOW
+
+    def project_export_rows(self, result):
+        """把查询结果投影成待写出的导出行。"""
+        return self._deal_query_result(result)["origin_log_list"]
+
+    def export_scroll_batch(self, search_dict):
+        """滚动取一批并投影成导出行，返回 (本批导出行, 是否已到末尾)。
+
+        取数不走子类重写的滚动原语：场景化在其上挂了后置鉴权，导出已在创建入口鉴权。
+        """
+        result = UnifyQueryHandler.query_ts_raw_with_scroll(search_dict)
+        return self.project_export_rows(result), bool(result.get("done"))
 
     def _enhance(self):
         """

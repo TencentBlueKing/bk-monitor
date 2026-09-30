@@ -114,7 +114,7 @@ def sample_rows(handler, start, end, limit):
     params["limit"] = limit
     result = UnifyQueryApi.query_ts_raw(params)
     # 复用 handler 的结果投影，保证采样口径与真实导出完全一致
-    return [encode_export_row(row) for row in handler._deal_query_result(result)["origin_log_list"]]
+    return [encode_export_row(row) for row in handler.project_export_rows(result)]
 
 
 def is_definitely_empty(handler, start, end):

@@ -71,6 +71,7 @@ from apps.log_search.export.api import create_export_job, download_link, job_det
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.export.serializers import ExportCreateSerializer
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario, Space
+from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_search.views.export_views import ExportJobIndexSearchPermission, ExportJobViewSet
 from apps.log_search.export.worker import _execute, _pack, _write_rows, run_part
 from apps.log_search.export.planner import (
@@ -147,6 +148,11 @@ class FakeHandler:
     def __init__(self, result_window=100):
         self.index_info_list = [{"index_set_obj": SimpleNamespace(result_window=result_window)}]
         self.base_dict = {"query_list": [], "start_time": "0", "end_time": "1"}
+
+    # 复用真实 Handler 的导出原语，让 mock 目标与生产调用路径保持一致
+    export_result_window = UnifyQueryHandler.export_result_window
+    project_export_rows = UnifyQueryHandler.project_export_rows
+    export_scroll_batch = UnifyQueryHandler.export_scroll_batch
 
     def _deal_query_result(self, result):
         return {"origin_log_list": [{"value": row} for row in result["list"]]}
@@ -646,7 +652,7 @@ class PartRunnerTests(TestCase):
         ]
         with tempfile.TemporaryDirectory() as directory:
             payload = Path(directory) / "logs.jsonl"
-            with patch("apps.log_search.export.worker.UnifyQueryApi") as api:
+            with patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api:
                 api.query_ts_raw_with_scroll.side_effect = responses
                 rows, size = _write_rows(FakeHandler(), payload)
             lines = payload.read_text(encoding="utf-8").strip().split("\n")
@@ -657,7 +663,7 @@ class PartRunnerTests(TestCase):
 
     def test_write_rows_stops_on_empty_batch(self):
         with tempfile.TemporaryDirectory() as directory:
-            with patch("apps.log_search.export.worker.UnifyQueryApi") as api:
+            with patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api:
                 api.query_ts_raw_with_scroll.side_effect = [{"list": [], "done": False}]
                 rows, size = _write_rows(FakeHandler(), Path(directory) / "logs.jsonl")
         self.assertEqual((rows, size), (0, 0))
@@ -685,7 +691,7 @@ class PartRunnerTests(TestCase):
         with (
             patch("apps.log_search.export.worker.build_storage") as build_storage,
             patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
-            patch("apps.log_search.export.worker.UnifyQueryApi") as api,
+            patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
             patch("apps.log_search.export.worker._sha256", return_value="checksum"),
         ):
             api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
@@ -712,7 +718,7 @@ class PartRunnerTests(TestCase):
         with (
             patch("apps.log_search.export.worker.build_storage") as build_storage,
             patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
-            patch("apps.log_search.export.worker.UnifyQueryApi") as api,
+            patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
             patch("apps.log_search.export.worker._sha256", return_value="checksum"),
             patch("apps.log_search.export.worker.time.sleep") as sleep,
         ):
@@ -742,7 +748,7 @@ class PartRunnerTests(TestCase):
         with (
             patch("apps.log_search.export.worker.build_storage") as build_storage,
             patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
-            patch("apps.log_search.export.worker.UnifyQueryApi") as api,
+            patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
             patch("apps.log_search.export.worker._sha256", return_value="checksum"),
             patch("apps.log_search.export.worker.time.sleep"),
         ):
@@ -770,7 +776,7 @@ class PartRunnerTests(TestCase):
         with (
             patch("apps.log_search.export.worker.build_storage"),
             patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
-            patch("apps.log_search.export.worker.UnifyQueryApi") as api,
+            patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
         ):
             api.query_ts_raw_with_scroll.side_effect = DataAPIException(None, "unify query 5xx")
             run_part(part.pk, "task-1")
@@ -824,7 +830,7 @@ class PartArtifactLifecycleTests(TestCase):
                 return_value=MagicMock(export_upload=upload_artifact, delete_file=delete_file),
             ),
             patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
-            patch("apps.log_search.export.worker.UnifyQueryApi") as api,
+            patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
             patch("apps.log_search.export.worker._sha256", return_value="checksum"),
         ):
             api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]

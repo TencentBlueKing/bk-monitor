@@ -28,11 +28,9 @@ from pathlib import Path
 
 from django.conf import settings
 
-from apps.api import UnifyQueryApi
 from apps.api.exception import DataAPIException
 from apps.log_search.constants import (
     ASYNC_EXPORT_SCROLL,
-    MAX_RESULT_WINDOW,
     ExportErrorCode,
     ExportPartStatus,
     ExportStage,
@@ -69,20 +67,15 @@ def _write_rows(handler, payload):
 
     沿用旧链路的滚动查询，区别是读到 EOF 为止、不受 max_async_count 截断，并且有明确的时间预算。
     """
-    # 场景化 Handler 无 index_info_list，result_window 回退到默认值
-    index_set = handler.index_info_list[0]["index_set_obj"] if getattr(handler, "index_info_list", None) else None
-    result_window = index_set.result_window if index_set and index_set.result_window else MAX_RESULT_WINDOW
     params = copy.deepcopy(handler.base_dict)
     params.update(
         {
-            "limit": result_window,
+            "limit": handler.export_result_window,
             "scroll": ASYNC_EXPORT_SCROLL,
             "slice_max": 0,
             "highlight": {"enable": False},
         }
     )
-    # 场景化脱敏是懒加载的，依赖取数后返回的 result_table_id，每批取数后需补齐
-    init_scene_desensitize = getattr(handler, "_init_scene_desensitize", None)
     deadline = time.monotonic() + settings.ASYNC_EXPORT_PART_TIMEOUT
     rows = size = 0
     with payload.open("wb") as stream:
@@ -91,18 +84,15 @@ def _write_rows(handler, payload):
                 raise PartError(ExportErrorCode.PART_TIMEOUT, "分片执行超过时间预算")
             # 与旧异步导出链路一致：首轮清空缓存，后续滚动复用同一份查询上下文
             params["clear_cache"] = rows == 0
-            result = UnifyQueryApi.query_ts_raw_with_scroll(params)
-            if init_scene_desensitize is not None:
-                init_scene_desensitize(result.get("result_table_id"))
-            batch = result["list"]
+            batch, done = handler.export_scroll_batch(params)
             if not batch:
                 break
-            for row in handler._deal_query_result(result)["origin_log_list"]:
+            for row in batch:
                 data = encode_export_row(row)
                 stream.write(data)
                 size += len(data)
             rows += len(batch)
-            if result.get("done"):
+            if done:
                 break
     return rows, size
 
