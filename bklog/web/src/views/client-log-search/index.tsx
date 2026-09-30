@@ -30,7 +30,9 @@ import { useRoute, useRouter } from 'vue-router/composables';
 import SearchBar from './search-bar';
 import UserInfoCard from './user-info-card';
 import TaskListPanel from './task-list-panel';
+import BatchDownloadDialog from './task-list-panel/batch-download-dialog';
 import LogDetailPanel from './log-detail-panel';
+import { MAX_BATCH_DOWNLOAD_TASKS } from './types';
 import type { SearchParams, LogItem, UserReportStats, ProcessStatus, DataSource, UrlState } from './types';
 import useUrlSync from './use-url-sync';
 import useStore from '@/hooks/use-store';
@@ -40,6 +42,7 @@ import { t } from '@/hooks/use-locale';
 import * as authorityMap from '@/common/authority-map';
 import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
 import { getExternalDefaultRoute } from '@/router/helper';
+import { useDownloadFile } from '../manage-v2/client-log/hooks/use-download-file';
 
 import './index.scss';
 
@@ -49,6 +52,7 @@ export default defineComponent({
     SearchBar,
     UserInfoCard,
     TaskListPanel,
+    BatchDownloadDialog,
     LogDetailPanel,
   },
   setup() {
@@ -116,6 +120,73 @@ export default defineComponent({
 
     /** 任务列表数据 */
     const taskList = ref<LogItem[]>([]);
+
+    /** 批量选择使用稳定标识，避免轮询替换对象后丢失勾选 */
+    const selectedTaskKeys = ref<string[]>([]);
+    const isBatchDownloadDialogVisible = ref(false);
+
+    /** 按来源生成稳定勾选标识，避免轮询替换对象后丢失选中状态 */
+    const getTaskSelectionKey = (item: LogItem) =>
+      item.source === 'task' ? `task:${item.id ?? item.task_id ?? item.file_name}` : `report:${item.file_name}`;
+
+    /** 将选中标识映射为当前列表里仍已采集的任务 */
+    const selectedTaskItems = computed(() => {
+      const keys = new Set(selectedTaskKeys.value);
+      return taskList.value.filter(item => item.process_status === 'success' && keys.has(getTaskSelectionKey(item)));
+    });
+
+    /** 判断卡片是否已勾选 */
+    const isTaskSelected = (item: LogItem) => selectedTaskKeys.value.includes(getTaskSelectionKey(item));
+
+    /** 清空批量选择并关闭确认弹窗 */
+    const clearBatchSelection = () => {
+      selectedTaskKeys.value = [];
+      isBatchDownloadDialogVisible.value = false;
+    };
+
+    /** 列表或处理状态更新后剔除已失效的勾选 */
+    const reconcileBatchSelection = () => {
+      const validKeys = new Set(
+        taskList.value.filter(item => item.process_status === 'success').map(getTaskSelectionKey),
+      );
+      selectedTaskKeys.value = selectedTaskKeys.value.filter(key => validKeys.has(key));
+      if (selectedTaskKeys.value.length === 0) isBatchDownloadDialogVisible.value = false;
+    };
+
+    /** 处理单张任务卡片或浮层移出时的勾选变化 */
+    const handleTaskSelectionChange = (item: LogItem, checked: boolean) => {
+      if (item.process_status !== 'success') return;
+      const key = getTaskSelectionKey(item);
+      if (checked) {
+        selectedTaskKeys.value = [...new Set([...selectedTaskKeys.value, key])];
+      } else {
+        selectedTaskKeys.value = selectedTaskKeys.value.filter(selectedKey => selectedKey !== key);
+      }
+      if (selectedTaskKeys.value.length === 0) isBatchDownloadDialogVisible.value = false;
+    };
+
+    /** 合并当前已加载列表中全部已采集的任务 */
+    const handleSelectAllCollected = () => {
+      const loadedKeys = taskList.value.filter(item => item.process_status === 'success').map(getTaskSelectionKey);
+      selectedTaskKeys.value = [...new Set([...selectedTaskKeys.value, ...loadedKeys])];
+    };
+
+    /** 已选任务不超过 20 个时打开下载确认弹窗 */
+    const handleOpenBatchDownloadDialog = () => {
+      if (selectedTaskItems.value.length > 0 && selectedTaskItems.value.length <= MAX_BATCH_DOWNLOAD_TASKS) {
+        isBatchDownloadDialogVisible.value = true;
+      }
+    };
+
+    const { downloadFiles } = useDownloadFile();
+
+    /** 确认批量下载：快照文件名后立即清空勾选并关闭弹窗，再并行发起下载 */
+    const handleConfirmBatchDownload = () => {
+      const fileNames = selectedTaskItems.value.map(item => item.file_name).filter(Boolean);
+      clearBatchSelection();
+      if (!fileNames.length) return;
+      downloadFiles(fileNames, isAllowedDownload.value, { useResponseFileName: true });
+    };
 
     /** 轮询定时器 */
     const pollingTimer = ref<number | null>(null);
@@ -249,6 +320,7 @@ export default defineComponent({
               syncSelectedFileName(selectedLogItem.value.file_name);
             }
           }
+          reconcileBatchSelection();
           hasMore.value = taskList.value.length < total;
           // 加载完成后检查是否有 running 任务，决定是否启动轮询
           const hasRunning = taskList.value.some(item => item.process_status === 'running');
@@ -260,6 +332,7 @@ export default defineComponent({
           if (!isLoadMore) {
             taskList.value = [];
             selectedLogItem.value = null;
+            clearBatchSelection();
           }
         })
         .finally(() => {
@@ -271,6 +344,7 @@ export default defineComponent({
     /** 搜索回调 */
     const handleSearch = (params: SearchParams) => {
       stopPolling();
+      clearBatchSelection();
       const [startTime, endTime] = params.timeRange;
       const [startTs, endTs] = handleTransformToTimestamp([String(startTime), String(endTime)]);
       lastSearchParams.value = { ...params, timeRange: [startTs, endTs] };
@@ -310,6 +384,7 @@ export default defineComponent({
 
     /** 任务列表来源切换 */
     const handleSourceChange = (source: string) => {
+      clearBatchSelection();
       taskSource.value = source;
       fetchTaskList(lastSearchParams.value, false);
       if (taskListPanelRef.value?.resetScroll) {
@@ -390,7 +465,12 @@ export default defineComponent({
     };
 
     /** 更新 taskList 中指定任务的状态 */
-    const updateTaskStatus = (source: DataSource, id: number | string, status: ProcessStatus, processedAt?: string) => {
+    const updateTaskStatus = (
+      source: DataSource,
+      id: number | string,
+      status: ProcessStatus,
+      processedAt?: string | null,
+    ) => {
       const index = taskList.value.findIndex(item => {
         if (source === 'task') {
           return item.source === 'task' && String(item.task_id) === String(id);
@@ -400,10 +480,11 @@ export default defineComponent({
       if (index !== -1) {
         const updatedItem = { ...taskList.value[index] };
         updatedItem.process_status = status;
-        if (processedAt !== undefined) {
+        if (processedAt !== null && processedAt !== undefined) {
           updatedItem.processed_at = processedAt;
         }
         taskList.value.splice(index, 1, updatedItem);
+        reconcileBatchSelection();
         // 同步更新 selectedLogItem
         if (
           selectedLogItem.value &&
@@ -471,7 +552,12 @@ export default defineComponent({
               if (res?.data && Array.isArray(res.data)) {
                 res.data.forEach((statusItem: any) => {
                   if (statusItem.status !== 'pending' && statusItem.status !== 'running') {
-                    updateTaskStatus('report', statusItem.file_name, statusItem.status as ProcessStatus);
+                    updateTaskStatus(
+                      'report',
+                      statusItem.file_name,
+                      statusItem.status as ProcessStatus,
+                      statusItem.processed_at,
+                    );
                   }
                 });
               }
@@ -514,6 +600,7 @@ export default defineComponent({
       if (index !== -1) {
         const updatedItem = { ...taskList.value[index], process_status: 'running' as ProcessStatus };
         taskList.value.splice(index, 1, updatedItem);
+        reconcileBatchSelection();
         // 如果当前选中项就是该项，同步更新选中状态
         if (
           selectedLogItem.value &&
@@ -599,6 +686,7 @@ export default defineComponent({
           stopPolling();
           taskList.value = [];
           selectedLogItem.value = null;
+          clearBatchSelection();
           userReportStats.value = null;
           hasMore.value = true;
           page.value = 1;
@@ -737,10 +825,18 @@ export default defineComponent({
           isLoading={isTaskListLoading.value}
           selectedLogItem={selectedLogItem.value}
           activeSource={taskSource.value}
+          selectedItems={selectedTaskItems.value}
+          timezone={lastSearchParams.value.timezone}
+          isTaskSelected={isTaskSelected}
           on-toggle={handleToggleTaskList}
           on-log-item-select={handleLogItemSelect}
           on-load-more={handleLoadMore}
           on-source-change={handleSourceChange}
+          on-selection-change={handleTaskSelectionChange}
+          on-select-all-collected={handleSelectAllCollected}
+          on-clear-selection={clearBatchSelection}
+          on-remove-selected={(item: LogItem) => handleTaskSelectionChange(item, false)}
+          on-download-selected={handleOpenBatchDownloadDialog}
         />
         {/* 右侧：日志详情 */}
         <LogDetailPanel
@@ -778,6 +874,13 @@ export default defineComponent({
         >
           {isEmptyState.value ? renderEmptyState() : renderContent()}
         </div>
+        <BatchDownloadDialog
+          visible={isBatchDownloadDialogVisible.value}
+          selectedItems={selectedTaskItems.value}
+          timezone={lastSearchParams.value.timezone}
+          on-close={() => (isBatchDownloadDialogVisible.value = false)}
+          on-confirm={handleConfirmBatchDownload}
+        />
       </div>
     );
   },

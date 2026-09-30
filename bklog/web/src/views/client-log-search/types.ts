@@ -31,6 +31,9 @@
 /** 数据来源类型 */
 export type DataSource = 'task' | 'report';
 
+/** 单次批量下载允许选择的最多任务数 */
+export const MAX_BATCH_DOWNLOAD_TASKS = 20;
+
 /** 任务处理状态 */
 export type ProcessStatus = 'init' | 'pending' | 'running' | 'success' | 'failed';
 
