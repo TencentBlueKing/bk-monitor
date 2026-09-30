@@ -2486,11 +2486,17 @@ class DataLink(models.Model):
             raise ValueError(f"ambiguous VMStorageBindingConfig references: {sorted(saved_bindings)}")
         binding_name = existing_binding.name if existing_binding else next(iter(saved_bindings), "")
         databus_name = existing_databus.name if existing_databus else ""
+        # Proxy 切回普通链路时 DataBus 已被清理，来源仍以保存的 RT 映射为准。
+        from metadata.models.bkdata.result_table import BkBaseResultTable
+
         bkbase_data_name = (
-            existing_databus.data_id_name if existing_databus else ""
-        ) or utils.get_registered_bkdata_data_id_name(
-            data_source,
-            namespace=self.namespace,
+            (existing_databus.data_id_name if existing_databus else "")
+            or (
+                BkBaseResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, data_link_name=self.pk)
+                .values_list("bkbase_data_name", flat=True)
+                .first()
+            )
+            or utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
         )
 
         # 获取指标组维度配置

@@ -2,13 +2,14 @@
 
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
+from unittest.mock import patch
 
 import pytest
 from django.db import close_old_connections
 
 from metadata import models
 from metadata.models.data_link import utils
-from metadata.models.vm.utils import _ensure_named_data_link, create_bkbase_data_link
+from metadata.models.vm.utils import create_bkbase_data_link
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 TABLE = "federal.proxy"
@@ -58,7 +59,13 @@ def source(mocker):
 
 
 def proxy_link(source):
-    return _ensure_named_data_link(source, TABLE, models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES, "bkmonitor")[0]
+    # 只在下发处中断，保留正式入口创建的主记录和映射，随后可准备待复用的历史组件。
+    with patch.object(models.DataLink, "apply_data_link", side_effect=RuntimeError("apply unavailable")):
+        with pytest.raises(RuntimeError, match="apply unavailable"):
+            create_bkbase_data_link(2, source, TABLE, VM, models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES)
+    return models.DataLink.objects.get(
+        bk_data_id=source.pk, data_link_strategy=models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES
+    )
 
 
 def historical_components(source, *, record=True):
@@ -414,18 +421,27 @@ def test_concurrent_proxy_compose_creates_or_adopts_once(source, legacy):
     assert models.ResultTableConfig.objects.count() == models.VMStorageBindingConfig.objects.count() == 1
 
 
-def test_standard_proxy_round_trip_preserves_components(source, mocker):
+@pytest.mark.parametrize("v3_source", [False, True])
+def test_standard_proxy_round_trip_preserves_components(source, mocker, v3_source):
     delete = mocker.patch("metadata.models.data_link.data_link_configs.api.bkdata.delete_data_link")
     kwargs = dict(bk_biz_id=2, data_source=source, monitor_table_id=TABLE, storage_cluster_name=VM)
     create_bkbase_data_link(**kwargs)
     link = models.DataLink.objects.get(bk_data_id=source.pk)
     rt = models.ResultTableConfig.objects.get(data_link_name=link.pk)
     binding = models.VMStorageBindingConfig.objects.get(data_link_name=link.pk)
+    source_name = "v3_extra_dataid" if v3_source else "saved_source"
+    if v3_source:
+        models.DataBusConfig.objects.filter(data_link_name=link.pk).update(data_id_name=source_name)
+        models.BkBaseResultTable.objects.filter(data_link_name=link.pk).update(bkbase_data_name=source_name)
+        models.AccessVMRecord.objects.filter(result_table_id=TABLE).update(
+            bk_base_data_id=970099, bk_base_data_name=source_name
+        )
     for strategy in [models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES, models.DataLink.BK_STANDARD_V2_TIME_SERIES]:
         create_bkbase_data_link(**kwargs, data_link_strategy=strategy)
         assert models.DataLink.objects.get(bk_data_id=source.pk).pk == link.pk
         assert models.ResultTableConfig.objects.get(data_link_name=link.pk).pk == rt.pk
         assert models.VMStorageBindingConfig.objects.get(data_link_name=link.pk).pk == binding.pk
+    assert models.DataBusConfig.objects.get(data_link_name=link.pk).data_id_name == source_name
     assert len(delete.call_args_list) == 1
     assert delete.call_args.kwargs["kind"] == "databuses"
 
@@ -484,14 +500,18 @@ def test_subset_service_retry_and_delete_reuse_persisted_identity(source, mocker
 
 
 @pytest.mark.django_db(databases="__all__", transaction=True)
-def test_concurrent_proxy_identity_allocation(source):
+def test_concurrent_proxy_identity_allocation(source, mocker):
+    mocker.patch.object(models.DataLink, "apply_data_link", side_effect=RuntimeError("apply unavailable"))
     barrier = Barrier(2)
 
     def create():
         close_old_connections()
         try:
             barrier.wait(timeout=10)
-            return proxy_link(models.DataSource.objects.get(pk=source.pk)).pk
+            ds = models.DataSource.objects.get(pk=source.pk)
+            with pytest.raises(RuntimeError, match="apply unavailable"):
+                create_bkbase_data_link(2, ds, TABLE, VM, models.DataLink.BCS_FEDERAL_PROXY_TIME_SERIES)
+            return models.DataLink.objects.get(bk_data_id=source.pk).pk
         finally:
             close_old_connections()
 

@@ -36,6 +36,7 @@ from metadata.models.data_link.service import get_data_link_component_config
 from metadata.models.data_link.utils import (
     compose_transfer_consumer_group,
     find_registered_bkdata_data_id_name,
+    generate_bkdata_resource_name,
     get_registered_bkdata_data_id_name,
 )
 from metadata.models.result_table import (
@@ -342,19 +343,23 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
             configured_rt = candidate
             break
 
-    data_link_name = (
-        configured_rt.data_link_name
-        if configured_rt
-        else get_registered_bkdata_data_id_name(data_source, namespace="bkmonitor")
-    )
-    datalink = DataLink.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        data_link_name=data_link_name,
-    ).first()
+    datalink_query = DataLink.objects.filter(bk_tenant_id=bk_tenant_id, namespace="bkmonitor")
+    if configured_rt:
+        datalink = datalink_query.filter(data_link_name=configured_rt.data_link_name).first()
+    else:
+        get_registered_bkdata_data_id_name(data_source, namespace="bkmonitor")
+        datalink = datalink_query.filter(
+            bk_data_id=data_source.bk_data_id,
+            table_ids__contains=[table_id],
+            data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+        ).first()
     if datalink is None:
         datalink = DataLink.objects.create(
             bk_tenant_id=bk_tenant_id,
-            data_link_name=data_link_name,
+            # 仅新建时分配主名称；已有映射指向缺失主记录时仍按保存的原名补建。
+            data_link_name=configured_rt.data_link_name
+            if configured_rt
+            else generate_bkdata_resource_name("gr", data_source.bk_data_id),
             namespace="bkmonitor",
             data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
             bk_data_id=data_source.bk_data_id,

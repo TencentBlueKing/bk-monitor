@@ -50,6 +50,81 @@ from metadata.models.vm.constants import (
 logger = logging.getLogger("metadata")
 
 
+def _get_configured_bkbase_result_table(
+    bk_tenant_id: str,
+    monitor_table_id: str,
+    data_link_strategy: str,
+    namespace: str = settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+) -> BkBaseResultTable | None:
+    """
+    从 BkBaseResultTable 查找当前 RT 已配置的 DataLink 关联。
+
+    同一个 monitor_table_id 可能同时存在标准链路和联邦链路记录，因此优先选择
+    DataLink 策略匹配的记录；若只有孤立 BkBaseResultTable 记录，则允许上层复用
+    该 data_link_name 补齐 DataLink。
+    """
+    candidates = list(
+        BkBaseResultTable.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            monitor_table_id=monitor_table_id,
+        )
+        .exclude(data_link_name="")
+        .order_by("-last_modify_time", "-create_time")
+    )
+    if not candidates:
+        return None
+
+    data_link_names = [candidate.data_link_name for candidate in candidates]
+    data_link_strategies = {
+        data_link_name: strategy if (tenant, ns) == (bk_tenant_id, namespace) else None
+        for data_link_name, tenant, ns, strategy in DataLink.objects.filter(
+            data_link_name__in=data_link_names,
+        ).values_list("data_link_name", "bk_tenant_id", "namespace", "data_link_strategy")
+    }
+    for candidate in candidates:
+        if data_link_strategies.get(candidate.data_link_name) == data_link_strategy:
+            return candidate
+
+    # 普通时序与 Proxy 切换也沿用已有链路，不重新分配 RT/Binding 身份。
+    compatible_strategies = {
+        DataLink.BK_STANDARD_V2_TIME_SERIES: (
+            DataLink.GRAPH_RELATION_TIME_SERIES,
+            DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
+        ),
+        DataLink.GRAPH_RELATION_TIME_SERIES: (DataLink.BK_STANDARD_V2_TIME_SERIES,),
+        DataLink.BCS_FEDERAL_PROXY_TIME_SERIES: (DataLink.BK_STANDARD_V2_TIME_SERIES,),
+    }.get(data_link_strategy, ())
+    if compatible_strategies:
+        compatible_candidates = [
+            candidate
+            for candidate in candidates
+            if data_link_strategies.get(candidate.data_link_name) in compatible_strategies
+        ]
+        if len(compatible_candidates) == 1:
+            return compatible_candidates[0]
+
+    orphan_candidates = [candidate for candidate in candidates if candidate.data_link_name not in data_link_strategies]
+    if len(orphan_candidates) > 1:
+        raise ValueError(f"ambiguous orphan DataLinks for ResultTable({monitor_table_id})")
+    if len(orphan_candidates) == 1:
+        return orphan_candidates[0]
+
+    logger.warning(
+        "get_configured_bkbase_result_table: table_id->[%s] has BkBaseResultTable records but no safe "
+        "data_link_strategy match, strategy->[%s], candidates->[%s]",
+        monitor_table_id,
+        data_link_strategy,
+        [
+            {
+                "data_link_name": candidate.data_link_name,
+                "data_link_strategy": data_link_strategies.get(candidate.data_link_name),
+            }
+            for candidate in candidates
+        ],
+    )
+    return None
+
+
 def refine_bkdata_kafka_info(bk_tenant_id: str):
     from metadata.models import ClusterInfo
 
@@ -673,140 +748,6 @@ def access_v2_bkdata_vm(
         logger.exception("delete datasource consul config failed, data_id: %s, error: %s", data_id, e)
 
 
-def _ensure_named_data_link(data_source, table_id, strategy, namespace):
-    """先保存链路身份和监控 RT 映射，供后续 apply 及失败重试复用。
-
-    查找顺序为 RT 映射中的同策略链路、兼容策略链路、来源 DataId 和 RT 指向的链路。
-    映射已保存名称但主记录缺失时按原名补建；完全没有持久化身份时才随机命名。
-    多个候选无法确定归属时直接报错，避免新建链路掩盖历史关系冲突。
-    """
-    from metadata.models import ResultTable
-    from metadata.models.data_link.data_link_configs import DataBusConfig
-
-    tenant = data_source.bk_tenant_id
-    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-        # 首次创建时还没有 DataLink 可锁，以目标监控 RT 串行化名称分配及映射写入。
-        ResultTable.objects.select_for_update().get(bk_tenant_id=tenant, table_id=table_id)
-        compatible = {
-            DataLink.BK_STANDARD_V2_TIME_SERIES: (
-                DataLink.GRAPH_RELATION_TIME_SERIES,
-                DataLink.BCS_FEDERAL_PROXY_TIME_SERIES,
-            ),
-            DataLink.GRAPH_RELATION_TIME_SERIES: (DataLink.BK_STANDARD_V2_TIME_SERIES,),
-            DataLink.BCS_FEDERAL_PROXY_TIME_SERIES: (DataLink.BK_STANDARD_V2_TIME_SERIES,),
-        }.get(strategy, ())
-        relations = list(
-            BkBaseResultTable.objects.filter(
-                bk_tenant_id=tenant,
-                monitor_table_id=table_id,
-            ).exclude(data_link_name="")
-        )
-        related_links = {
-            link.pk: link
-            for link in DataLink.objects.filter(
-                data_link_name__in=[relation.data_link_name for relation in relations],
-            )
-        }
-        relation = None
-        # 同策略优先；兼容策略只用于承接已有身份，切换时不重新创建 RT/Binding。
-        for candidate_strategies in ((strategy,), compatible):
-            if not candidate_strategies:
-                continue
-            matches = [
-                candidate
-                for candidate in relations
-                if (existing := related_links.get(candidate.data_link_name)) is not None
-                and existing.bk_tenant_id == tenant
-                and existing.namespace == namespace
-                and existing.data_link_strategy in candidate_strategies
-            ]
-            if len(matches) > 1:
-                raise ValueError(f"ambiguous configured DataLinks for ResultTable({table_id})")
-            if matches:
-                relation = matches[0]
-                break
-        if relation is None:
-            # 孤立映射中的名称仍是已分配身份，主记录丢失不能成为重新随机命名的理由。
-            orphans = [candidate for candidate in relations if candidate.data_link_name not in related_links]
-            if len(orphans) > 1:
-                raise ValueError(f"ambiguous orphan DataLinks for ResultTable({table_id})")
-            relation = orphans[0] if orphans else None
-        link = None
-        if relation:
-            link = DataLink.objects.filter(bk_tenant_id=tenant, data_link_name=relation.data_link_name).first()
-            if link and link.namespace != namespace:
-                raise ValueError("configured DataLink belongs to a different namespace")
-        else:
-            # 映射缺失不等于首次创建，先通过 DataLink 自身保存的来源和 RT 关系兜底。
-            candidates = [
-                candidate
-                for candidate in DataLink.objects.filter(
-                    bk_tenant_id=tenant,
-                    namespace=namespace,
-                    bk_data_id=data_source.bk_data_id,
-                    data_link_strategy__in=[strategy, *compatible],
-                )
-                if table_id in candidate.table_ids
-            ]
-            if len(candidates) > 1:
-                raise ValueError(f"ambiguous DataLinks for ResultTable({table_id})")
-            link = candidates[0] if candidates else None
-        previous_strategy = link.data_link_strategy if link else None
-        # 已迁移的 DataBus 可能消费 V3 额外 DataId，不能把链路主名当作 source 名称。
-        sources = (
-            set(
-                DataBusConfig.objects.filter(
-                    bk_tenant_id=tenant,
-                    namespace=namespace,
-                    data_link_name=link.data_link_name,
-                )
-                .exclude(data_id_name="")
-                .values_list("data_id_name", flat=True)
-            )
-            if link
-            else set()
-        )
-        if len(sources) > 1:
-            raise ValueError(f"ambiguous DataId references for DataLink({link.pk})")
-        # 优先沿用 RT 映射或 DataBus 保存的实际来源，均缺失时才读取当前 DataId 的登记名。
-        data_name = (relation.bkbase_data_name if relation else "") or next(iter(sources), "")
-        data_name = data_name or get_registered_bkdata_data_id_name(data_source, namespace)
-        fields = dict(
-            bk_tenant_id=tenant,
-            namespace=namespace,
-            data_link_strategy=strategy,
-            bk_data_id=data_source.bk_data_id,
-            table_ids=[table_id],
-        )
-        if link is None:
-            if relation:
-                link = DataLink.objects.create(data_link_name=relation.data_link_name, **fields)
-            else:
-                link = data_link_utils.create_resource_with_random_name(
-                    DataLink,
-                    data_link_utils.RANDOM_NAME_STRATEGIES[strategy],
-                    data_source.bk_data_id,
-                    name_field="data_link_name",
-                    **fields,
-                )
-        else:
-            for key, value in fields.items():
-                setattr(link, key, value)
-            link.save(update_fields=[*fields, "last_modify_time"])
-        # 与主记录同事务保存；远端 apply 失败也保留身份，下一次调用能够找回原链路。
-        BkBaseResultTable.objects.get_or_create(
-            bk_tenant_id=tenant,
-            data_link_name=link.data_link_name,
-            defaults={
-                "monitor_table_id": table_id,
-                "bkbase_data_name": data_name,
-                "storage_type": ClusterInfo.TYPE_VM,
-                "status": DataLinkResourceStatus.INITIALIZING.value,
-            },
-        )
-        return link, data_name, previous_strategy
-
-
 def create_bkbase_data_link(
     bk_biz_id: int,
     data_source: DataSource,
@@ -844,13 +785,101 @@ def create_bkbase_data_link(
         data_link_strategy,
         namespace,
     )
-    # 先确定并持久化身份，再下发组件；保存旧策略用于判断是否清理策略切换后的多余组件。
-    data_link_ins, bkbase_data_name, previous_data_link_strategy = _ensure_named_data_link(
-        data_source,
-        monitor_table_id,
-        data_link_strategy,
-        namespace,
-    )
+    from metadata.models import ResultTable
+
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        ResultTable.objects.select_for_update().get(bk_tenant_id=data_source.bk_tenant_id, table_id=monitor_table_id)
+        configured_bkbase_rt = _get_configured_bkbase_result_table(
+            bk_tenant_id=data_source.bk_tenant_id,
+            monitor_table_id=monitor_table_id,
+            data_link_strategy=data_link_strategy,
+            namespace=namespace,
+        )
+        if configured_bkbase_rt:
+            data_link_name = configured_bkbase_rt.data_link_name
+            bkbase_data_name = configured_bkbase_rt.bkbase_data_name
+            if not bkbase_data_name:
+                from metadata.models.data_link.data_link_configs import DataBusConfig
+
+                existing_databus = (
+                    DataBusConfig.objects.filter(
+                        bk_tenant_id=data_source.bk_tenant_id,
+                        namespace=namespace,
+                        data_link_name=data_link_name,
+                    )
+                    .order_by("-last_modify_time", "-create_time")
+                    .first()
+                )
+                bkbase_data_name = (
+                    existing_databus.data_id_name
+                    if existing_databus is not None
+                    else get_registered_bkdata_data_id_name(data_source, namespace=namespace)
+                )
+            logger.info(
+                "create_bkbase_data_link: use configured BkBaseResultTable relation, data_id->[%s],"
+                "monitor_table_id->[%s],data_link_name->[%s],bkbase_data_name->[%s]",
+                data_source.bk_data_id,
+                monitor_table_id,
+                data_link_name,
+                bkbase_data_name,
+            )
+        else:
+            # 新建 DataLink 只能依赖已经注册完成的 DataId，缺失配置时直接中止创建流程。
+            bkbase_data_name = get_registered_bkdata_data_id_name(data_source, namespace=namespace)
+            # 映射尚未建立时，先找已保存的同来源、同 RT 链路；首次创建才生成新名称。
+            try:
+                existing_link = DataLink.objects.get(
+                    bk_tenant_id=data_source.bk_tenant_id,
+                    namespace=namespace,
+                    bk_data_id=data_source.bk_data_id,
+                    table_ids__contains=[monitor_table_id],
+                    data_link_strategy=data_link_strategy,
+                )
+                data_link_name = existing_link.data_link_name
+            except DataLink.DoesNotExist:
+                data_link_name = data_link_utils.generate_bkdata_resource_name(
+                    data_link_utils.RANDOM_NAME_STRATEGIES[data_link_strategy], data_source.bk_data_id
+                )
+            logger.info(
+                "create_bkbase_data_link:try to access bkbase, data_id->[%s],bkbase_data_name->[%s]",
+                data_source.bk_data_id,
+                bkbase_data_name,
+            )
+
+        # 2. 创建链路资源对象
+        data_link_ins = DataLink.objects.filter(
+            bk_tenant_id=data_source.bk_tenant_id,
+            data_link_name=data_link_name,
+        ).first()
+        previous_data_link_strategy = data_link_ins.data_link_strategy if data_link_ins else None
+        if data_link_ins is None:
+            data_link_ins = DataLink.objects.create(
+                bk_tenant_id=data_source.bk_tenant_id,
+                data_link_name=data_link_name,
+                namespace=namespace,
+                data_link_strategy=data_link_strategy,
+                bk_data_id=data_source.bk_data_id,
+                table_ids=[monitor_table_id],
+            )
+        else:
+            data_link_ins.namespace = namespace
+            data_link_ins.data_link_strategy = data_link_strategy
+            data_link_ins.bk_data_id = data_source.bk_data_id
+            data_link_ins.table_ids = [monitor_table_id]
+            data_link_ins.save(
+                update_fields=["namespace", "data_link_strategy", "bk_data_id", "table_ids", "last_modify_time"]
+            )
+        # 主记录和映射一起保存；后续下发失败时按此关联找回名称，不再次随机生成。
+        BkBaseResultTable.objects.get_or_create(
+            bk_tenant_id=data_source.bk_tenant_id,
+            data_link_name=data_link_name,
+            defaults={
+                "monitor_table_id": monitor_table_id,
+                "bkbase_data_name": bkbase_data_name,
+                "storage_type": ClusterInfo.TYPE_VM,
+                "status": DataLinkResourceStatus.INITIALIZING.value,
+            },
+        )
     try:
         # 2. 尝试根据套餐，申请创建链路
         logger.info(

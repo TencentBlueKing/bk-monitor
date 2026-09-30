@@ -3,6 +3,7 @@
 import re
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
+from unittest.mock import patch
 
 import pytest
 from django.db import IntegrityError, close_old_connections
@@ -10,7 +11,7 @@ from django.db import IntegrityError, close_old_connections
 from metadata import models
 from metadata.models.data_link import utils
 from metadata.models.data_link.component_reuse import ComponentReuseError
-from metadata.models.vm.utils import _ensure_named_data_link
+from metadata.models.vm.utils import create_bkbase_data_link
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
@@ -47,11 +48,27 @@ def register(source, namespace="bkmonitor", name="existing_source"):
     )
 
 
+def create_link_before_apply(
+    source, table_id="random_name.metric", strategy=models.DataLink.BK_STANDARD_V2_TIME_SERIES
+):
+    # 在下发处模拟失败，通过正式入口验证本地身份已保存且重试可复用。
+    with patch.object(models.DataLink, "apply_data_link", side_effect=RuntimeError("apply unavailable")):
+        with pytest.raises(RuntimeError, match="apply unavailable"):
+            create_bkbase_data_link(
+                bk_biz_id=2,
+                data_source=source,
+                monitor_table_id=table_id,
+                storage_cluster_name="name-test-vm",
+                data_link_strategy=strategy,
+            )
+    return models.DataLink.objects.get(
+        bk_data_id=source.pk, table_ids__contains=[table_id], data_link_strategy=strategy
+    )
+
+
 def make_link(source):
     register(source)
-    return _ensure_named_data_link(
-        source, "random_name.metric", models.DataLink.BK_STANDARD_V2_TIME_SERIES, "bkmonitor"
-    )[0]
+    return create_link_before_apply(source)
 
 
 @pytest.fixture(autouse=True)
@@ -114,7 +131,7 @@ def test_link_and_components_reuse_with_switch_off(source, mocker, settings):
     assert link.data_link_name != "existing_source"
     names = compose(link, source)
     generator = mocker.patch.object(utils, "generate_bkdata_resource_name", side_effect=AssertionError("regenerated"))
-    again, _, _ = _ensure_named_data_link(source, "random_name.metric", link.data_link_strategy, "bkmonitor")
+    again = create_link_before_apply(source, strategy=link.data_link_strategy)
     assert again.pk == link.pk
     assert compose(again, source) == names
     generator.assert_not_called()
@@ -124,7 +141,7 @@ def test_missing_mapping_recovers_link_by_source_and_table(source, mocker):
     link = make_link(source)
     models.BkBaseResultTable.objects.filter(data_link_name=link.pk).delete()
     generator = mocker.patch.object(utils, "generate_bkdata_resource_name", side_effect=AssertionError("regenerated"))
-    restored, _, _ = _ensure_named_data_link(source, "random_name.metric", link.data_link_strategy, "bkmonitor")
+    restored = create_link_before_apply(source, strategy=link.data_link_strategy)
     assert restored.pk == link.pk
     assert models.BkBaseResultTable.objects.get(data_link_name=link.pk).monitor_table_id == "random_name.metric"
     generator.assert_not_called()
@@ -194,8 +211,9 @@ def test_non_name_database_error_is_not_retried(source, mocker):
 
 
 @pytest.mark.django_db(databases="__all__", transaction=True)
-def test_concurrent_first_link_creation_has_one_identity(source):
+def test_concurrent_first_link_creation_has_one_identity(source, mocker):
     register(source)
+    mocker.patch.object(models.DataLink, "apply_data_link", side_effect=RuntimeError("apply unavailable"))
     barrier = Barrier(2)
 
     def allocate():
@@ -203,9 +221,9 @@ def test_concurrent_first_link_creation_has_one_identity(source):
         try:
             ds = models.DataSource.objects.get(pk=source.pk)
             barrier.wait(timeout=10)
-            return _ensure_named_data_link(
-                ds, "random_name.metric", models.DataLink.BK_STANDARD_V2_TIME_SERIES, "bkmonitor"
-            )[0].pk
+            with pytest.raises(RuntimeError, match="apply unavailable"):
+                create_bkbase_data_link(2, ds, "random_name.metric", "name-test-vm")
+            return models.DataLink.objects.get(bk_data_id=ds.pk).pk
         finally:
             close_old_connections()
 
@@ -253,7 +271,7 @@ def test_same_normalized_table_names_get_distinct_identities(source):
             bk_biz_id=2,
             creator="system",
         )
-        link = _ensure_named_data_link(source, table_id, models.DataLink.BK_STANDARD_V2_TIME_SERIES, "bkmonitor")[0]
+        link = create_link_before_apply(source, table_id)
         output_names = compose(link, source, table_id)
         names.append((link.pk, output_names[0]))
     assert utils.compose_bkdata_table_id("random-a.metric") == utils.compose_bkdata_table_id("random_a.metric")
@@ -361,7 +379,7 @@ def test_multiple_orphan_relations_do_not_create_a_new_identity(source, mocker):
         )
     generator = mocker.patch.object(utils, "generate_bkdata_resource_name")
     with pytest.raises(ValueError, match="ambiguous orphan"):
-        _ensure_named_data_link(source, "random_name.metric", models.DataLink.BK_STANDARD_V2_TIME_SERIES, "bkmonitor")
+        create_link_before_apply(source)
     generator.assert_not_called()
     assert not models.DataLink.objects.filter(bk_data_id=source.bk_data_id).exists()
 
