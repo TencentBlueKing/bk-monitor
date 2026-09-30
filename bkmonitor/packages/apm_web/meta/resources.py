@@ -58,11 +58,11 @@ from apm_web.db.db_utils import build_filter_params, get_service_from_params
 from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.backend_data_handler import telemetry_handler_registry
 from apm_web.handlers.component_handler import ComponentHandler
-from apm_web.handlers.query import get_query
 from apm_web.handlers.config_handler.code import CodeRemarkHandler
 from apm_web.handlers.db_handler import DbComponentHandler
 from apm_web.handlers.endpoint_handler import EndpointHandler
 from apm_web.handlers.instance_handler import InstanceHandler
+from apm_web.handlers.query import get_query
 from apm_web.handlers.service_handler import ServiceHandler
 from apm_web.handlers.span_handler import SpanHandler
 from apm_web.icon import get_icon
@@ -91,6 +91,7 @@ from apm_web.models import (
     ApplicationCustomService,
     ApplicationRelationInfo,
     LogServiceRelation,
+    StrategyTemplate,
     UriServiceRelation,
 )
 from apm_web.resources import AsyncColumnsListResource
@@ -103,12 +104,11 @@ from apm_web.serializers import (
 from apm_web.service.serializers import (
     LogServiceRelationOutputSerializer,
 )
+from apm_web.strategy.constants import StrategyTemplateSystem, StrategyTemplateType
+from apm_web.strategy.handler import StrategyTemplateHandler
 from apm_web.topo.handle.relation.relation_metric import RelationMetricHandler
 from apm_web.trace.service_color import ServiceColorClassifier
 from apm_web.utils import get_interval_number, span_time_strft
-from apm_web.strategy.handler import StrategyTemplateHandler
-from apm_web.models import StrategyTemplate
-from apm_web.strategy.constants import StrategyTemplateSystem, StrategyTemplateType
 from bkm_space.api import SpaceApi
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
@@ -116,6 +116,7 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.custom_report_endpoint import get_valid_custom_report_endpoints
 from bkmonitor.utils.ip import is_v6
+from bkmonitor.utils.nodeman import host_queries
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, run_threads
 from bkmonitor.utils.user import (
@@ -1742,7 +1743,7 @@ class PushUrlResource(Resource):
         # 业务下的 Proxy 上报地址
         proxy_host_infos = []
         try:
-            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+            proxy_hosts = host_queries.business_proxies(bk_biz_id=bk_biz_id)
             for host in proxy_hosts:
                 try:
                     proxy_host_info = {
