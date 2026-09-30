@@ -25,6 +25,7 @@
  */
 export * from './common';
 export * from './enum';
+export * from './events-list';
 export * from './favorite';
 export * from './record';
 export * from './statistics';

@@ -62,11 +62,6 @@ export default defineComponent({
       type: Array as PropType<IRumSpanRecord[]>,
       default: () => [],
     },
-    /** 表格默认选中高亮的行：详情抽屉打开时跟随当前 span_id，抽屉关闭时清空 */
-    defaultActiveRowKeys: {
-      type: Array as PropType<(number | string)[]>,
-      default: () => [],
-    },
     /** 基础列配置（含列宽覆盖），由上层 useRumColumnConfig 提供 */
     baseColumns: {
       type: Array as PropType<BaseTableColumn[]>,
@@ -149,8 +144,20 @@ export default defineComponent({
     horizontalScrollAffixedBottom: {
       type: [Boolean, Object] as PropType<boolean | TdAffixProps>,
     },
+    /** 激活行 key（当前为 events 抽屉打开时的行 span_id）：整行高亮，空串表示无激活行 */
+    activeRowKey: {
+      type: String,
+      default: '',
+    },
+    /** 激活的 events 列键：与 activeRowKey 成对传入，命中单元格中蓝高亮 */
+    activeColKey: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
+    /** 点击 events.* 列单元格，回传该行数据与列键，供上层打开 events 数组列表抽屉 */
+    eventsCellClick: (_target: { colKey: string; row: IRumSpanRecord }) => true,
     /** 点击单元格筛选值或统计列表触发，回传检索条件 */
     conditionChange: (_condition: ConditionChangeEvent) => true,
     /** 字段设置变更，回传新的展示字段列表 */
@@ -165,6 +172,8 @@ export default defineComponent({
     clearFilter: () => true,
     /** 点击 Span 名称，打开该行的详情抽屉 */
     openDetail: (_row: Record<string, unknown>) => true,
+    /** 高亮行变化回调（透传 CommonTable activeChange）：行点击 / 键盘高亮时回传，高亮状态由上层维护 */
+    activeChange: (rowKeys: Array<number | string>) => Array.isArray(rowKeys),
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -202,6 +211,10 @@ export default defineComponent({
       {
         fieldMap,
         hoverPopoverTools,
+        /** 传 toRef 引用而非裸值：场景实例按 mode 缓存，裸值会在构造时冻结；渲染时由场景内 get() 解包取最新值 */
+        activeRowKey: toRef(props, 'activeRowKey'),
+        activeColKey: toRef(props, 'activeColKey'),
+        onEventsCellClick: (row, colKey) => emit('eventsCellClick', { colKey, row }),
         onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
         onOpenDetail: row => emit('openDetail', row),
         onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
@@ -230,6 +243,9 @@ export default defineComponent({
 
     /** 当前展示列的字段 key 列表，供字段设置组件使用 */
     const displayFieldKeys = computed(() => props.baseColumns.map(col => col.colKey));
+
+    /** 受控高亮行 keys：行点击 / 键盘高亮与 events / span 详情抽屉共用（activeRowKey）；computed 保持引用稳定，避免重复触发 CommonTable 同步 */
+    const activeRowKeys = computed(() => (props.activeRowKey ? [props.activeRowKey] : []));
 
     /**
      * @description 滚动触底加载更多
@@ -328,6 +344,7 @@ export default defineComponent({
       t,
       activeConditionMenuTarget,
       activeFieldName,
+      activeRowKeys,
       closeMenu,
       columns,
       defaultGetCellValue,
@@ -436,14 +453,16 @@ export default defineComponent({
             loadingCell={(column, rowIndex) =>
               renderRumLoadingCell(column.colKey, rowIndex) as unknown as SlotReturnValue
             }
+            activeRowKeys={this.activeRowKeys}
+            activeRowType='single'
             autoFillSpace={!this.data.length && !this.loading}
             customDefaultGetRenderValue={this.defaultGetCellValue}
             headerAffixedTop={this.headerAffixedTop}
             horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
             loading={showSkeleton}
             rowKey={this.tableRowKey}
-            defaultActiveRowKeys={this.defaultActiveRowKeys}
             sort={this.sort}
+            onActiveChange={(rowKeys: Array<number | string>) => this.$emit('activeChange', rowKeys)}
             onColumnResizeChange={(ctx: { columnsWidth: Record<string, number> }) =>
               this.$emit('columnResizeChange', ctx.columnsWidth)
             }
