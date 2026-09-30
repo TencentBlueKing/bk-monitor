@@ -62,7 +62,6 @@ def test_compile_promql_expression_preserves_alias_case():
         ([query("offset", "up"), query("b", "down")], "offset / b", "invalid PromQL query alias"),
         ([query("a", "up"), query("b", "down", 30)], "a / b", "same interval"),
         ([query("a", "up"), query("b", "down")], "a / typo", "unknown"),
-        ([query("a", "up"), query("b", "down")], "a", "unused"),
         ([query("a", "up"), query("b", "down")], "", "required"),
         ([query("a", "up"), query("b", "down")], "$a / b", "unsupported"),
         ([query("a", "up"), query("b", "down")], "a && b", "unsupported"),
@@ -74,6 +73,12 @@ def test_compile_promql_expression_preserves_alias_case():
 def test_compile_promql_expression_rejects_invalid_config(configs, expression, error):
     with pytest.raises(ValueError, match=error):
         compile_promql_expression(configs, expression)
+
+
+def test_compile_promql_expression_allows_unused_aliases():
+    # 未被表达式引用的查询直接忽略，不再强制要求每条查询都被引用
+    configs = [query("a", "up"), query("b", "down")]
+    assert compile_promql_expression(configs, "a") == "(up)"
 
 
 def test_unify_query_uses_one_final_promql_for_multiple_queries():
