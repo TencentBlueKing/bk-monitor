@@ -22,7 +22,7 @@ class BkBaseResultTable(models.Model):
     """
     计算平台结果表
     data_link_name作为唯一主键，
-    Note：新接入的链路，data_link_name和bkbase_data_name相同，都是根据数据源的data_name拼接而成，V3->V4迁移场景下不同
+    data_link_name 为链路身份，bkbase_data_name 为实际 DataId 资源名，不能假定二者相同。
     除bkbase_table_id外，其余均为声明式字段，bkbase_table_id相当于链路status的一部分
     """
 
