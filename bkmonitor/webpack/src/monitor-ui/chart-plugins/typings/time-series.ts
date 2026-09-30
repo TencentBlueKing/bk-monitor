@@ -58,6 +58,8 @@ export interface ITimeSeriesItem extends MonitorEchartOptions {
   name: string;
   // 数据堆叠，同个类目轴上系列配置相同的stack值可以堆叠放置。
   stack?: string;
+  /** graphUnifyQuery 返回的 series 级统计；各字段多为 [首位, 值]，首位 0 仅取值，非 0 为时间戳并展示 @HH:mm */
+  stat?: Record<string, unknown>;
   timeOffset?: number | string;
   traceData?: Record<number, IProfilingTraceInfo[]>;
   // 图表显示类型 bar | line
