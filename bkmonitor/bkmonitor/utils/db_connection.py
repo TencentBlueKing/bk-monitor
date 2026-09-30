@@ -25,8 +25,9 @@ def install_discard_dead_db_connection():
 
     Django 对这类错误只设置 errors_occurred，要等请求或任务边界上的
     close_old_connections() 才真正关闭。调用方接住异常并继续查库时，会复用
-    同一条坏连接。这里包住所有后端共用的 DatabaseErrorWrapper，事务中的失败
-    仍交给 Django 的 close() 标成需要回滚，避免中途换连接把半成品事务写完。
+    同一条坏连接。这里包住所有后端共用的 DatabaseErrorWrapper。事务内不关闭：
+    close() 会置 closed_in_transaction，atomic 退出时跳过提交且不再抛错，
+    已回滚的写入会被调用方当成成功。
     """
     global _installed
     if _installed:
@@ -63,6 +64,9 @@ def _is_dead_connection_error(wrapper, exc_type, exc_value):
 def _discard_dead_connection(wrapper):
     if getattr(wrapper, "_discarding_dead_connection", False) or wrapper.connection is None:
         return
+    # 事务内留给 atomic 做提交或回滚。此处关闭会让已捕获的断连在退出时被静默吞掉。
+    if wrapper.in_atomic_block:
+        return
     wrapper._discarding_dead_connection = True
     try:
         connection = wrapper.connection
@@ -76,7 +80,7 @@ def _discard_dead_connection(wrapper):
         try:
             wrapper.close()
         except Exception:
-            if not wrapper.in_atomic_block and wrapper.connection is connection:
+            if wrapper.connection is connection:
                 wrapper.connection = None
     finally:
         wrapper._discarding_dead_connection = False
