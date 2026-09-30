@@ -1,0 +1,16 @@
+.rum-load-status {
+  display: flex;
+  flex-shrink: 0;
+  gap: 12px;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 12px;
+  color: #63656e;
+  background: #f5f7fa;
+
+  &.is-error {
+    color: #c87800;
+    background: #fff8e8;
+  }
+}

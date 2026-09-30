@@ -33,6 +33,7 @@ import { useI18n } from 'vue-i18n';
 
 import TimeRange from '../../../../../components/time-range/time-range';
 import { type TimeRangeType, DEFAULT_TIME_RANGE } from '../../../../../components/time-range/utils';
+import RumLoadStatus from '../../../components/rum-load-status';
 import { useDataSampling } from '../../hooks/use-data-sampling';
 import { useDataVolumeTrend } from '../../hooks/use-data-volume-trend';
 import { useNoDataStrategy } from '../../hooks/use-no-data-strategy';
@@ -65,18 +66,30 @@ export default defineComponent({
       strategyInfo,
       handleEnabledChange,
       loading: strategyLoading,
+      error: strategyError,
+      handleRefresh: retryStrategy,
     } = useNoDataStrategy({
       applicationId: toRef(props.detail.application_id),
       bizId: toRef(props.detail.bk_biz_id),
       appName: toRef(props.detail.app_name),
     });
     /** 数据量趋势图表数据与加载状态 */
-    const { dashboardPanels, loading: dashboardLoading } = useDataVolumeTrend({
+    const {
+      dashboardPanels,
+      loading: dashboardLoading,
+      error: dashboardError,
+      handleRefresh: retryDashboard,
+    } = useDataVolumeTrend({
       bizId: toRef(props.detail.bk_biz_id),
       appName: toRef(props.detail.app_name),
     });
     /** 数据采样状态与处理 */
-    const { samplingList, loading: samplingLoading } = useDataSampling({
+    const {
+      samplingList,
+      loading: samplingLoading,
+      error: samplingError,
+      handleRefresh: retrySampling,
+    } = useDataSampling({
       bizId: toRef(props.detail.bk_biz_id),
       appName: toRef(props.detail.app_name),
     });
@@ -162,6 +175,12 @@ export default defineComponent({
       sidesliderShow,
       strategyInfo,
       strategyLoading,
+      strategyError,
+      dashboardError,
+      samplingError,
+      retryStrategy,
+      retryDashboard,
+      retrySampling,
     };
   },
   render() {
@@ -176,24 +195,36 @@ export default defineComponent({
             onUpdate:timezone={this.handleTimezoneChange}
           />
         </div>
-        <AlertInfoCard
-          class='run-config-data-state-card'
-          loading={this.strategyLoading}
-          strategyInfo={this.strategyInfo}
-          timeRange={this.timeRange}
-          onEnabledChange={this.handleEnabledChange}
+        <RumLoadStatus
+          error={this.strategyError}
+          onRetry={this.retryStrategy}
         />
+        {!this.strategyError && (
+          <AlertInfoCard
+            class='run-config-data-state-card'
+            loading={this.strategyLoading}
+            strategyInfo={this.strategyInfo}
+            timeRange={this.timeRange}
+            onEnabledChange={this.handleEnabledChange}
+          />
+        )}
         <div class='run-config-data-state-chart-container'>
           <div class='run-config-data-state-chart-header'>
             <span class='run-config-data-state-chart-title'>{this.$t('数据量趋势')}</span>
           </div>
           <div class='run-config-data-state-chart-content'>
-            <DataVolumeTrend
-              class='run-config-data-state-chart'
-              dashboardPanels={this.dashboardPanels}
-              loading={this.dashboardLoading}
-              timeRange={this.timeRange}
+            <RumLoadStatus
+              error={this.dashboardError}
+              onRetry={this.retryDashboard}
             />
+            {!this.dashboardError && (
+              <DataVolumeTrend
+                class='run-config-data-state-chart'
+                dashboardPanels={this.dashboardPanels}
+                loading={this.dashboardLoading}
+                timeRange={this.timeRange}
+              />
+            )}
           </div>
         </div>
         <div class='run-config-data-state-sampling-container'>
@@ -201,12 +232,18 @@ export default defineComponent({
             <span class='run-config-data-state-sampling-title'>{this.$t('数据采样')}</span>
           </div>
           <div class='run-config-data-state-sampling-content'>
-            <DataSamplingTable
-              loading={this.samplingLoading}
-              samplingList={this.samplingList}
-              onCopy={this.handleCopyLog}
-              onViewDetail={this.handleViewDetail}
+            <RumLoadStatus
+              error={this.samplingError}
+              onRetry={this.retrySampling}
             />
+            {!this.samplingError && (
+              <DataSamplingTable
+                loading={this.samplingLoading}
+                samplingList={this.samplingList}
+                onCopy={this.handleCopyLog}
+                onViewDetail={this.handleViewDetail}
+              />
+            )}
           </div>
         </div>
         <LogDetailSideslider
