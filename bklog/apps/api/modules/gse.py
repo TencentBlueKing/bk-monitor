@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,12 +18,13 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 
 from apps.api.base import DataAPI
 from apps.api.modules.utils import add_esb_info_before_request
-from config.domains import GSE_APIGATEWAY_ROOT_V2
+from config import domains
 
 
 def get_agent_status_before(params):
@@ -52,19 +52,20 @@ class _GseApi:
     MODULE = _("GSE管控平台")
 
     def __init__(self):
+        root = getattr(domains, "GSE_APIGATEWAY_ROOT_V3")
         self.query_route = DataAPI(
             method="POST",
-            url=GSE_APIGATEWAY_ROOT_V2 + ("api/v2/data/query_route", "config_query_route"),
+            url=root + "api/v2/data/query_route",
             module=self.MODULE,
-            description=_("查询数据路由配置信息"),
+            description=str(_("查询数据路由配置信息")),
             before_request=add_esb_info_before_request,
             after_request=None,
         )
         self.query_stream_to = DataAPI(
             method="POST",
-            url=GSE_APIGATEWAY_ROOT_V2 + ("api/v2/data/query_streamto", "config_query_streamto"),
+            url=root + "api/v2/data/query_streamto",
             module=self.MODULE,
-            description=_("查询数据入库消息队列或第三方平台的配置"),
+            description=str(_("查询数据入库消息队列或第三方平台的配置")),
             before_request=add_esb_info_before_request,
             after_request=None,
         )

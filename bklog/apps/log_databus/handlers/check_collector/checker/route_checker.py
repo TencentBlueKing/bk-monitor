@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 import logging
 
 from django.utils.translation import gettext as _
@@ -66,8 +66,10 @@ class RouteChecker(Checker):
         }
         try:
             data = GseApi.query_route(params)
-            if data[0].get("metadata", {}).get("channel_id", 0):
-                self.route = data[0]["route"]
+            for item in data:
+                channel_id = item.get("metadata", {}).get("channel_id", item.get("channel_id"))
+                if str(channel_id) == str(self.bk_data_id):
+                    self.route.extend(item.get("route") or [])
         except Exception as e:
             message = _("[请求GseAPI] [query_route] 获取route[bk_data_id: {bk_data_id}]失败, err: {e}").format(
                 bk_data_id=self.bk_data_id, e=e
@@ -83,15 +85,18 @@ class RouteChecker(Checker):
         }
         try:
             data = GseApi.query_stream_to(params)
-            if data[0].get("metadata", {}).get("stream_to_id", 0) == stream_id:
-                stream_to = data[0].get("stream_to", {})
+            for item in data:
+                stream_to = item.get("stream_to") or item
+                actual_id = stream_to.get("stream_to_id", item.get("metadata", {}).get("stream_to_id"))
+                if str(actual_id) != str(stream_id):
+                    continue
                 stream_name = stream_to["name"]
                 report_mode = stream_to["report_mode"]
                 if report_mode != "kafka":
-                    return
+                    continue
                 addrs = stream_to.get(report_mode, {}).get("storage_address", [])
                 if not addrs:
-                    return
+                    continue
                 for addr in addrs:
                     kafka_info = {
                         "route_name": route_info["name"],
@@ -100,9 +105,10 @@ class RouteChecker(Checker):
                         "ip": addr["ip"],
                         "port": addr["port"],
                     }
-                    for item in KAFKA_SSL_CONFIG_ITEMS:
-                        if data[0].get(item):
-                            kafka_info[item] = data[0][item]
+                    for config_key in KAFKA_SSL_CONFIG_ITEMS:
+                        config_value = stream_to.get(config_key) or item.get(config_key)
+                        if config_value:
+                            kafka_info[config_key] = config_value
                     self.kafka.append(kafka_info)
         except Exception as e:
             message = _("[请求GseAPI] [query_stream_to] 获取stream[{stream_id}]失败, err: {e}").format(
