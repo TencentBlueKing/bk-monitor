@@ -97,10 +97,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 表格默认选中高亮的行 */
-    defaultActiveRowKeys: {
+    /** 受控高亮行 keys（透传 CommonTable activeRowKeys）：行高亮状态由调用方维护，点击 / 键盘高亮经 activeChange 回传 */
+    activeRowKeys: {
       type: Array as PropType<(number | string)[]>,
-      default: () => [],
+      default: undefined,
     },
     /** 时间范围 [from, to] */
     timeRange: {
@@ -125,6 +125,8 @@ export default defineComponent({
     sortChange: (sort: string | string[]) => typeof sort === 'string' || Array.isArray(sort),
     showAlertDetail: (row: AlertTableItem, _defaultTab?: AlarmCenterPanelTabType) => row,
     showActionDetail: (row: ActionTableItem) => row,
+    /** 高亮行变化回调（透传 CommonTable activeChange） */
+    activeChange: (rowKeys: Array<number | string>) => Array.isArray(rowKeys),
     selectionChange: (selectedRowKeys: string[], options?: SelectOptions<any>) =>
       Array.isArray(selectedRowKeys) && options,
     openAlertDialog: (
@@ -258,10 +260,10 @@ export default defineComponent({
               />
             ) as unknown as SlotReturnValue
           }
+          activeRowKeys={this.activeRowKeys}
           autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}
           data={this.data}
-          defaultActiveRowKeys={this.defaultActiveRowKeys}
           empty={this.tableEmpty}
           headerAffixedTop={this.headerAffixedTop}
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
@@ -271,6 +273,7 @@ export default defineComponent({
           selectedRowKeys={this.selectedRowKeys}
           sort={this.sort}
           tableSettings={this.settings}
+          onActiveChange={(rowKeys: Array<number | string>) => this.$emit('activeChange', rowKeys)}
           onColumnResizeChange={context => this.$emit('columnResizeChange', context)}
           onCurrentPageChange={page => this.$emit('currentPageChange', page)}
           onDisplayColFieldsChange={displayColFields => this.$emit('displayColFieldsChange', displayColFields)}
