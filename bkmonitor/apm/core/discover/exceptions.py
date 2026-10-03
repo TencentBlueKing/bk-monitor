@@ -8,16 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from unittest import mock
 
-import fakeredis
-import pytest
-
-pytestmark = pytest.mark.django_db
-
-
-def pytest_configure():
-    mock.patch(
-        "apm.core.handlers.apm_cache_handler.ApmCacheHandler.get_redis_client",
-        return_value=fakeredis.FakeRedis(decode_responses=True),
-    ).start()
+class IncompleteDiscoveryError(Exception):
+    """数据源查询没有提供完整结果，不能发布完整检查心跳。"""

@@ -8,16 +8,16 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from unittest import mock
-
-import fakeredis
-import pytest
-
-pytestmark = pytest.mark.django_db
+from django.db import migrations, models
 
 
-def pytest_configure():
-    mock.patch(
-        "apm.core.handlers.apm_cache_handler.ApmCacheHandler.get_redis_client",
-        return_value=fakeredis.FakeRedis(decode_responses=True),
-    ).start()
+class Migration(migrations.Migration):
+    dependencies = [("apm", "0056_tracescopeindexset")]
+
+    operations = [
+        migrations.AddField(
+            model_name="toponode",
+            name="heartbeat",
+            field=models.JSONField(default=dict, verbose_name="服务数据心跳"),
+        ),
+    ]

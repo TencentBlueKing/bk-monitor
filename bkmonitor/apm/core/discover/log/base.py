@@ -8,16 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from unittest import mock
-
-import fakeredis
-import pytest
-
-pytestmark = pytest.mark.django_db
+from apm.models import LogDataSource
 
 
-def pytest_configure():
-    mock.patch(
-        "apm.core.handlers.apm_cache_handler.ApmCacheHandler.get_redis_client",
-        return_value=fakeredis.FakeRedis(decode_responses=True),
-    ).start()
+class Discover:
+    def __init__(self, datasource: LogDataSource) -> None:
+        self.datasource = datasource
+        self.bk_biz_id: int = datasource.bk_biz_id
+        self.app_name: str = datasource.app_name
+        self.result_table_id: str = datasource.result_table_id

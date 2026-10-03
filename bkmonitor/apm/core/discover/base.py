@@ -224,12 +224,14 @@ class DiscoverBase(ABC):
 
         return res if res else other_rule
 
-    def clear_if_overflow(self):
-        count = self.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name).count()
-        if count > self.MAX_COUNT:
-            delete_count = count - self.MAX_COUNT
-            delete_pks = self.model.objects.order_by("updated_at").values_list("pk", flat=True)[:delete_count]
-            self.model.objects.filter(pk__in=list(delete_pks)).delete()
+    def clear_if_overflow(self) -> None:
+        queryset = self.model.objects.filter(bk_biz_id=self.bk_biz_id, app_name=self.app_name)
+        delete_count: int = queryset.count() - self.MAX_COUNT
+        if delete_count > 0:
+            delete_pks: list[int] = list(
+                queryset.order_by("updated_at", "pk").values_list("pk", flat=True)[:delete_count]
+            )
+            queryset.filter(pk__in=delete_pks).delete()
 
     def clear_expired(self):
         # clean expired topo data based on expiration
