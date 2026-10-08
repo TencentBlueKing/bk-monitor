@@ -11,6 +11,7 @@ specific language permissions and limitations under the License.
 import pytest
 
 from rum_web.handlers.builder.span import build
+from rum_web.handlers.builder.utils import phase
 from rum_web.handlers.builder.span.view import (
     build_vital_source_key,
     ViewSpanBuilder,
@@ -390,6 +391,49 @@ class TestVitalSpanBuilder:
         assert config[-1]["rating"] == "poor"
         assert "value" not in config[-1]
 
+    def test_vital_badge_outputs_rating_level_not_threshold(self):
+        """概览徽标 value 为评级标识（如 needs_improvement），而非命中档位的阈值。"""
+        span = {
+            "span_id": "ea1ae6490e17fd9d",
+            "span_name": "LCP",
+            "app_name": "test-app",
+            "elapsed_time": 1,
+            "attributes": {
+                "span_type": "vital",
+                "vital": {"metric": "lcp", "value": 2840},  # 落在 needs_improvement 档
+                "view": {"id": "view-001"},
+                "resource": {"deployment": {"environment": {"name": "prod"}}},
+            },
+        }
+        result = build(span, [])
+        badges = {b["field_name"]: b for b in result["overview"]["badges"]}
+        badge = badges["display.rating_level"]
+        # 期望输出评级标识而非阈值 4000
+        assert badge["value"] == "needs_improvement"
+        assert badge["alias"] == "需改进"
+
+    def test_vital_badge_no_value_not_rated(self):
+        """指标值缺失时按不评级处理，输出 EMPTY_VALUE（避免误判良好）。"""
+        from rum_web.handlers.builder.base import EMPTY_VALUE
+
+        span = {
+            "span_id": "ea1ae6490e17fd9d",
+            "span_name": "LCP",
+            "app_name": "test-app",
+            "elapsed_time": 1,
+            "attributes": {
+                "span_type": "vital",
+                "vital": {"metric": "lcp"},  # 无 value
+                "view": {"id": "view-001"},
+                "resource": {"deployment": {"environment": {"name": "prod"}}},
+            },
+        }
+        result = build(span, [])
+        badges = {b["field_name"]: b for b in result["overview"]["badges"]}
+        badge = badges["display.rating_level"]
+        assert badge["value"] == EMPTY_VALUE
+        assert badge["alias"] == EMPTY_VALUE
+
     def test_vital_cls_has_no_unit_in_config(self):
         """CLS 评级配置不携带 field_unit，下游按无单位处理。"""
         span = {
@@ -440,6 +484,27 @@ class TestViewSpanBuilder:
         assert result["attributes.view.first_byte"] == 120
         # VIEW_SNAPSHOT_FIELDS 之外字段不被快照覆盖
         assert result["span_name"] == "view-001"
+
+    def test_view_start_time_uses_navigation_start(self):
+        """导航开始时间取最新快照的 attributes.view.started_at（毫秒→微秒），不随瞬时快照变化。"""
+        span = _base_view_span()
+        # 瞬时快照 start_time == end_time，且未携带 started_at
+        snapshot = _view_snapshot(version=3, loading_time=333)
+        started_at_ms = 1788451000000  # 早于主记录 start_time 的导航开始
+        snapshot["attributes"]["view"]["started_at"] = started_at_ms
+        result = ViewSpanBuilder._prepare_flatten_data(span, [span, snapshot])
+        # 期望以导航开始时间覆盖，而非快照上报时刻（避免停留时长恒为 0）
+        assert result["start_time"] == started_at_ms * 1000
+        assert result["start_time"] != snapshot["end_time"]
+
+    def test_view_duration_missing_start_time_not_fabricated(self):
+        """start_time / end_time 任一缺失时停留时长返回 EMPTY_VALUE，不伪造 0。"""
+        from rum_web.handlers.builder.base import EMPTY_VALUE
+        from rum_web.handlers.builder.span.view import DisplayViewDurationItem
+
+        item = DisplayViewDurationItem()
+        assert item.render({"end_time": 1000})["display.view.duration"] == EMPTY_VALUE
+        assert item.render({"start_time": 0})["display.view.duration"] == EMPTY_VALUE
 
     def test_view_web_vitals_filled_from_latest_snapshot(self):
         """Web Vitals 五项由最新快照填充，TTFB 含四段耗时与评分配置。"""
@@ -559,7 +624,29 @@ class TestViewSpanBuilder:
         timing = _section(result, "loading_timing")["data"]
         assert timing["total_duration"] == 0
 
-    def test_view_vital_missing_metric_not_fabricated(self):
+    def test_view_milestones_omits_missing_and_manual_page_stable(self):
+        """里程碑缺失字段整项省略；page_stable 仅自动计时来源输出。"""
+        span = _base_view_span()
+        # 手动来源 + dom_complete 缺失
+        snapshot = _view_snapshot(version=3, loading_time_source="manual", loading_time=200, dom_complete=None)
+        result = build(span, [span, snapshot])
+        timing = _section(result, "loading_timing")["data"]
+        milestones = {m["key"]: m.get("value") for m in timing["milestones"]}
+        # dom_complete 缺失 → 整项省略
+        assert "dom_complete" not in milestones
+        # load_event 存在
+        assert milestones["load_event"] == snapshot["attributes"]["view"]["load_event"]
+        # 手动来源 → page_stable 不输出
+        assert "page_stable" not in milestones
+
+    def test_view_milestones_includes_page_stable_when_auto(self):
+        """自动计时来源输出 page_stable 里程碑。"""
+        span = _base_view_span()
+        snapshot = _view_snapshot(version=3, loading_time_source="auto", loading_time=200)
+        result = build(span, [span, snapshot])
+        timing = _section(result, "loading_timing")["data"]
+        milestones = {m["key"]: m.get("value") for m in timing["milestones"]}
+        assert milestones["page_stable"] == 200
         """缺失某个 Web Vitals 指标时，该指标段不补造（markers 仅含存在的）。"""
         span = _base_view_span()
         ttfb = _vital_span(
@@ -608,7 +695,7 @@ class TestViewSpanBuilder:
         assert "total_duration" not in timing
 
     def test_view_loading_timing_marker_exceeds_total_expands_axis(self):
-        """标记超出总耗时时仅扩展横轴，不改各 phase 时长。"""
+        """标记超出总耗时时仅扩展横轴，total_duration 仍等于有效 loading_time。"""
         span = _base_view_span()
         view = span["attributes"]["view"]
         loading_time = view["loading_time"]  # 200
@@ -617,8 +704,9 @@ class TestViewSpanBuilder:
         )
         result = build(span, [span, _view_snapshot(), ttfb])
         timing = _section(result, "loading_timing")["data"]
-        # 标记值（500）超出 loading_time（200），横轴扩展为两者较大值
-        assert timing["total_duration"] == max(loading_time, ttfb["attributes"]["vital"]["value"])
+        # 标记值（500）超出 loading_time（200），但 total_duration 仅取有效 loading_time
+        assert timing["total_duration"] == loading_time
+        assert timing["total_duration"] != max(loading_time, ttfb["attributes"]["vital"]["value"])
         # 各 phase 按真实边界计算，不被标记拉伸
         first_byte = view["first_byte"]
         phases = {p["key"]: p for p in timing["phases"]}
@@ -684,3 +772,49 @@ class TestBuildVitalSourceKey:
 
     def test_metric_case_insensitive(self):
         assert build_vital_source_key("TTFB", "x") == build_vital_source_key("ttfb", "x")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 共享 phase（评论 4130729347：合并 View / Resource 两处重复实现）
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class TestPhase:
+    ALIASES = {"dns": "DNS 查询", "tls": "TLS"}
+
+    def _alias(self, key: str) -> str:
+        """模拟调用方从别名表取值并以 key 兜底的通用约定。"""
+        return self.ALIASES.get(key, key)
+
+    def test_valid_phase_returns_dict_with_alias(self):
+        """有效起点与时长返回 phase 字典，并取调用方传入的展示名。"""
+        result = phase("dns", self._alias("dns"), 10, 5)
+        assert result == {"key": "dns", "alias": "DNS 查询", "start": 10, "duration": 5}
+
+    def test_missing_start_or_duration_omits(self):
+        """起点或时长缺失整段不输出。"""
+        assert phase("dns", self._alias("dns"), None, 5) is None
+        assert phase("dns", self._alias("dns"), 10, None) is None
+
+    def test_negative_duration_omits(self):
+        """时长为负整段不输出，避免伪造 0 段。"""
+        assert phase("dns", self._alias("dns"), 10, -1) is None
+
+    def test_default_allows_negative_start(self):
+        """默认（Resource 侧）不传 min_start，不校验负起点，负起点仍输出。"""
+        result = phase("tls", self._alias("tls"), -3, 8)
+        assert result == {"key": "tls", "alias": "TLS", "start": -3, "duration": 8}
+
+    def test_min_start_zero_rejects_negative_start(self):
+        """View 侧 min_start=0：负起点整段不输出，非负起点正常输出。"""
+        assert phase("dns", self._alias("dns"), -3, 8, min_start=0) is None
+        assert phase("dns", self._alias("dns"), 0, 8, min_start=0) == {
+            "key": "dns",
+            "alias": "DNS 查询",
+            "start": 0,
+            "duration": 8,
+        }
+
+    def test_alias_fallback_to_key(self):
+        """调用方以 key 兜底时，别名回退到 key 本身。"""
+        assert phase("connect", self._alias("connect"), 1, 2)["alias"] == "connect"

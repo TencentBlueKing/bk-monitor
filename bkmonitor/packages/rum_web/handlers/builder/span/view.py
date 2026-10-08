@@ -15,32 +15,24 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.data_source.format import flatten_dict_data
-from constants.otel_query import RatingLevel
-from semconv.constants import FieldUnit
 from semconv.rum.constants import RumSpanType, ViewLoadingTimeSource, ViewLoadingType
 
 from rum_web.handlers.builder.base import (
     BaseSection,
     DictItem,
+    EMPTY_VALUE,
     KeyValueItem,
+    NamedKeyValueItem,
 )
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.span.base import (
-    OVERVIEW_APP_NAME,
-    OVERVIEW_ATTRIBUTES_SESSION_ID,
-    OVERVIEW_ATTRIBUTES_USER_ID,
-    OVERVIEW_ATTRIBUTES_VIEW_ID,
-    OVERVIEW_ATTRIBUTES_VIEW_PREVIOUS_URL_TEMPLATE,
-    OVERVIEW_ATTRIBUTES_VIEW_URL_TEMPLATE,
-    OVERVIEW_ELAPSED_TIME,
-    OVERVIEW_END_TIME,
-    OVERVIEW_RESOURCE_DEPLOYMENT_ENVIRONMENT_NAME,
-    OVERVIEW_START_TIME,
+    RatingConfigItem,
     SpanBuilder,
     SpanOverview,
     SpanTypeItem,
+    named,
 )
-from rum_web.handlers.builder.utils import get_safe_number
+from rum_web.handlers.builder.utils import build_rating_config, get_safe_number, phase, safe_diff, waterfall
 
 
 #: Web Vitals 五项指标，作为 :class:`ViewWebVitalsSection` 与 Marker 构造的单一事实源。
@@ -61,6 +53,7 @@ VIEW_SNAPSHOT_FIELDS: tuple[str, ...] = (
     "attributes.view.first_byte",
     "attributes.view.dom_content_loaded",
     "attributes.view.load_event",
+    "attributes.view.dom_complete",
 )
 
 
@@ -73,49 +66,79 @@ def build_vital_source_key(metric: str, sub: str) -> str:
     return f"{VITAL_METRIC_KEYS[metric.lower()]}.{sub}"
 
 
-class ViewSpanOverview(SpanOverview):
-    """View 类型 Span 的概览区。"""
+def _compute_view_duration_ms(flatten_data: dict[str, Any]) -> float | None:
+    """计算 View 停留时长（毫秒）：由最新 View 快照的 ``end_time - start_time`` 换算而来。
 
-    BADGES = [OVERVIEW_ELAPSED_TIME]
-    ITEMS = [
+    - ``start_time`` / ``end_time`` 单位为微秒，相减后除以 1000 换算为毫秒。
+    - 任一端缺失则返回 ``None``，调用方据此输出 :data:`EMPTY_VALUE`，
+      前端可区分「无数据」与「耗时为 0」，不能伪造 0。
+    - ``start_time`` 由 :meth:`ViewSpanBuilder._prepare_flatten_data` 用导航开始时间
+      （``attributes.view.started_at``）回填，不随被点开的快照上报时刻变化。
+    """
+    start_time = get_safe_number(flatten_data.get("start_time"), None)
+    end_time = get_safe_number(flatten_data.get("end_time"), None)
+    if start_time is None or end_time is None:
+        return None
+    return (end_time - start_time) / 1000
+
+
+@dataclass(frozen=True, slots=True)
+class DisplayViewDurationBadgeItem(NamedKeyValueItem):
+    """Overview 徽章：展示 View 的停留时长（毫秒）。
+
+    取代恒为 0 的 ``elapsed_time`` 徽标；``start_time`` / ``end_time`` 任一缺失时输出
+    :data:`EMPTY_VALUE`，不伪造 0。响应结构与其他徽标一致（``field_name`` + ``value``）。
+    """
+
+    field_name: str = "display.view.duration"
+
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        duration = _compute_view_duration_ms(flatten_data)
+        return {
+            "field_name": self.field_name,
+            "value": duration if duration is not None else EMPTY_VALUE,
+        }
+
+
+class ViewSpanOverview(SpanOverview):
+    """View 类型 Span 的概览区。
+
+    - ``BADGES``：徽标用停留时长（``display.view.duration``）取代恒为 0 的 ``elapsed_time``，
+      由 :class:`DisplayViewDurationBadgeItem` 实时从 ``start_time`` / ``end_time`` 计算。
+    - ``ITEMS``：相对父类 :attr:`SpanOverview.ITEMS` 额外插入 ``attributes.view.previous_url_template``，
+      紧随 ``attributes.view.url_template`` 之后。
+    """
+
+    BADGES = (DisplayViewDurationBadgeItem(),)
+    ITEMS = (
         SpanTypeItem(),
-        OVERVIEW_APP_NAME,
-        OVERVIEW_ATTRIBUTES_VIEW_URL_TEMPLATE,
-        OVERVIEW_ATTRIBUTES_VIEW_PREVIOUS_URL_TEMPLATE,
-        OVERVIEW_ATTRIBUTES_SESSION_ID,
-        OVERVIEW_ATTRIBUTES_VIEW_ID,
-        OVERVIEW_START_TIME,
-        OVERVIEW_END_TIME,
-        OVERVIEW_ATTRIBUTES_USER_ID,
-        OVERVIEW_RESOURCE_DEPLOYMENT_ENVIRONMENT_NAME,
-    ]
+        *named(
+            "app_name",
+            "attributes.view.url_template",
+            "attributes.view.previous_url_template",
+            "attributes.session.id",
+            "attributes.view.id",
+            "start_time",
+            "end_time",
+            "attributes.user.id",
+            "resource.deployment.environment.name",
+        ),
+    )
 
 
 @dataclass(frozen=True, slots=True)
 class DisplayViewDurationItem(KeyValueItem):
-    """View 停留时长：由最新 View 快照的 end_time - start_time 换算为毫秒。"""
+    """View 停留时长：由最新 View 快照的 ``end_time - start_time`` 换算为毫秒。
+
+    与 :class:`DisplayViewDurationBadgeItem` 共用 :func:`_compute_view_duration_ms` 算法，
+    避免徽标与卡片两处对「停留时长」计算分叉；响应结构沿用 :class:`KeyValueItem` 的 ``{key: value}`` 形态。
+    """
 
     key: str = "display.view.duration"
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
-        # start_time / end_time 为微秒级，相减后除以 1000 换算为毫秒。
-        start_time = get_safe_number(flatten_data.get("start_time"), None)
-        end_time = get_safe_number(flatten_data.get("end_time"), None)
-        if start_time is None or end_time is None:
-            return {self.key: 0}
-        return {self.key: (end_time - start_time) / 1000}
-
-
-@dataclass(frozen=True, slots=True)
-class DisplayRatingConfigItem(KeyValueItem):
-    """Web Vitals 指标评分阈值配置：``source`` 指明指标名（ttfb / fcp / ...）。"""
-
-    key: str = "display.rating_config"
-
-    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
-        if self.source is None:
-            raise ValueError("source is required")
-        return {self.key: RatingLevel.get_rating_config(self.source)}
+        duration = _compute_view_duration_ms(flatten_data)
+        return {self.key: duration if duration is not None else EMPTY_VALUE}
 
 
 class ViewKeyInfoSection(BaseSection):
@@ -142,93 +165,38 @@ class ViewKeyInfoSection(BaseSection):
     ]
 
 
+def _vital_group_items(metric: str) -> list[KeyValueItem]:
+    """构造单个 Web Vitals 指标卡片的 Item 列表：``metric`` / ``value`` 从同指标快照读取。
+
+    TTFB 额外补充 ``waiting`` / ``dns`` / ``connection`` / ``request`` 四段耗时。
+    评级阈值配置复用 :class:`RatingConfigItem`，全指标共用同一生成逻辑。
+    """
+    items = [
+        KeyValueItem(key="attributes.vital.metric", source=build_vital_source_key(metric, "attributes.vital.metric")),
+        KeyValueItem(key="attributes.vital.value", source=build_vital_source_key(metric, "attributes.vital.value")),
+    ]
+    if metric == "ttfb":
+        for sub in ("ttfb.waiting_duration", "ttfb.dns_duration", "ttfb.connection_duration", "ttfb.request_duration"):
+            items.append(
+                KeyValueItem(
+                    key=f"attributes.vital.{sub}",
+                    source=build_vital_source_key(metric, f"attributes.vital.{sub}"),
+                )
+            )
+    items.append(RatingConfigItem(source=metric))
+    return items
+
+
 class ViewWebVitalsSection(BaseSection):
     """Web Vitals 指标区：TTFB / FCP / LCP / INP / CLS 五项。
 
     TTFB 额外包含 ``waiting`` / ``dns`` / ``connection`` / ``request`` 四段耗时；
-    其他四项仅暴露主 ``value`` 与评分阈值配置。
+    其他四项仅暴露主 ``value`` 与评分阈值配置。各项由 :func:`_vital_group_items` 统一生成。
     """
 
     KEY = "web_vitals"
     TYPE = SectionType.SUMMARY_CARDS.value
-    DATA = [
-        DictItem(
-            key="ttfb",
-            items=[
-                KeyValueItem(
-                    key="attributes.vital.metric", source=build_vital_source_key("ttfb", "attributes.vital.metric")
-                ),
-                KeyValueItem(
-                    key="attributes.vital.value", source=build_vital_source_key("ttfb", "attributes.vital.value")
-                ),
-                KeyValueItem(
-                    key="attributes.vital.ttfb.waiting_duration",
-                    source=build_vital_source_key("ttfb", "attributes.vital.ttfb.waiting_duration"),
-                ),
-                KeyValueItem(
-                    key="attributes.vital.ttfb.dns_duration",
-                    source=build_vital_source_key("ttfb", "attributes.vital.ttfb.dns_duration"),
-                ),
-                KeyValueItem(
-                    key="attributes.vital.ttfb.connection_duration",
-                    source=build_vital_source_key("ttfb", "attributes.vital.ttfb.connection_duration"),
-                ),
-                KeyValueItem(
-                    key="attributes.vital.ttfb.request_duration",
-                    source=build_vital_source_key("ttfb", "attributes.vital.ttfb.request_duration"),
-                ),
-                DisplayRatingConfigItem(source="ttfb"),
-            ],
-        ),
-        DictItem(
-            key="fcp",
-            items=[
-                KeyValueItem(
-                    key="attributes.vital.metric", source=build_vital_source_key("fcp", "attributes.vital.metric")
-                ),
-                KeyValueItem(
-                    key="attributes.vital.value", source=build_vital_source_key("fcp", "attributes.vital.value")
-                ),
-                DisplayRatingConfigItem(source="fcp"),
-            ],
-        ),
-        DictItem(
-            key="lcp",
-            items=[
-                KeyValueItem(
-                    key="attributes.vital.metric", source=build_vital_source_key("lcp", "attributes.vital.metric")
-                ),
-                KeyValueItem(
-                    key="attributes.vital.value", source=build_vital_source_key("lcp", "attributes.vital.value")
-                ),
-                DisplayRatingConfigItem(source="lcp"),
-            ],
-        ),
-        DictItem(
-            key="inp",
-            items=[
-                KeyValueItem(
-                    key="attributes.vital.metric", source=build_vital_source_key("inp", "attributes.vital.metric")
-                ),
-                KeyValueItem(
-                    key="attributes.vital.value", source=build_vital_source_key("inp", "attributes.vital.value")
-                ),
-                DisplayRatingConfigItem(source="inp"),
-            ],
-        ),
-        DictItem(
-            key="cls",
-            items=[
-                KeyValueItem(
-                    key="attributes.vital.metric", source=build_vital_source_key("cls", "attributes.vital.metric")
-                ),
-                KeyValueItem(
-                    key="attributes.vital.value", source=build_vital_source_key("cls", "attributes.vital.value")
-                ),
-                DisplayRatingConfigItem(source="cls"),
-            ],
-        ),
-    ]
+    DATA = [DictItem(key=metric, items=_vital_group_items(metric)) for metric in VITAL_METRICS]
 
 
 class ViewLoadingTimingSection(BaseSection):
@@ -256,28 +224,10 @@ class ViewLoadingTimingSection(BaseSection):
 
     MARKER_FIELDS: tuple[str, ...] = ("TTFB", "FCP", "LCP")
 
-    def _phase(
-        self,
-        key: str,
-        start: int | float | None,
-        duration: int | float | None,
-    ) -> dict[str, Any] | None:
-        """构造单个 phase；起点或时长缺失、起点为负或时长为负则整段不输出。"""
-        if start is None or duration is None or start < 0 or duration < 0:
-            return None
-        return {
-            "key": key,
-            "alias": self.PHASE_ALIASES[key],
-            "start": start,
-            "duration": duration,
-        }
-
     @classmethod
     def _diff(cls, minuend: int | float | None, subtrahend: int | float | None) -> int | float | None:
         """空安全减法：任一操作数缺失直接返回 ``None``，避免 ``None - int`` 抛错。"""
-        if minuend is None or subtrahend is None:
-            return None
-        return minuend - subtrahend
+        return safe_diff(minuend, subtrahend)
 
     def _build_phases(self) -> list[dict[str, Any]]:
         # ── TTFB 四段：全部来自 vital 快照，快照缺失时四段均不出段 ──
@@ -306,18 +256,51 @@ class ViewLoadingTimingSection(BaseSection):
         page_stable_start = self.numeric_or_none("attributes.view.load_event")
         resource_load_duration = self._diff(page_stable_start, resource_load_start)
         loading_time = self.numeric_or_none("attributes.view.loading_time")
-        page_stable_duration = self._diff(loading_time, page_stable_start)
+        # 自动计时时浮点误差可能使 page_stable 为负，按零处理（线上最常见情形）。
+        page_stable_duration = (
+            max(0, loading_time - page_stable_start)
+            if loading_time is not None and page_stable_start is not None
+            else None
+        )
 
+        # phase 构造：起点或时长缺失、起点为负或时长为负则整段不输出（min_start=0）
+        aliases = self.PHASE_ALIASES
         phases_candidates = [
-            self._phase("prepare", 0, prepare_duration),
-            self._phase("dns", dns_start, dns_duration),
-            self._phase("connect", connect_start, connect_duration),
-            self._phase("first_byte", first_byte_start, first_byte_duration),
-            self._phase("dom_processing", dom_processing_start, dom_processing_duration),
-            self._phase("resource_load", resource_load_start, resource_load_duration),
+            phase("prepare", aliases.get("prepare", "prepare"), 0, prepare_duration, min_start=0),
+            phase("dns", aliases.get("dns", "dns"), dns_start, dns_duration, min_start=0),
+            phase("connect", aliases.get("connect", "connect"), connect_start, connect_duration, min_start=0),
+            phase(
+                "first_byte",
+                aliases.get("first_byte", "first_byte"),
+                first_byte_start,
+                first_byte_duration,
+                min_start=0,
+            ),
+            phase(
+                "dom_processing",
+                aliases.get("dom_processing", "dom_processing"),
+                dom_processing_start,
+                dom_processing_duration,
+                min_start=0,
+            ),
+            phase(
+                "resource_load",
+                aliases.get("resource_load", "resource_load"),
+                resource_load_start,
+                resource_load_duration,
+                min_start=0,
+            ),
         ]
         if self.flatten_data.get("attributes.view.loading_time_source") == ViewLoadingTimeSource.AUTO.value:
-            phases_candidates.append(self._phase("page_stable", page_stable_start, page_stable_duration))
+            phases_candidates.append(
+                phase(
+                    "page_stable",
+                    aliases.get("page_stable", "page_stable"),
+                    page_stable_start,
+                    page_stable_duration,
+                    min_start=0,
+                )
+            )
         return [p for p in phases_candidates if p is not None]
 
     def _build_markers(self) -> list[dict[str, Any]]:
@@ -334,29 +317,28 @@ class ViewLoadingTimingSection(BaseSection):
                     "key": name,
                     "field_name": name,
                     "value": value,
-                    "display.rating_config": RatingLevel.get_rating_config(metric),
+                    "display.rating_config": build_rating_config(metric),
                 }
             )
         return markers
 
+    # ── 里程碑：字段缺失时整项省略；page_stable 仅自动计时来源才输出 ──
+    MILESTONES: tuple[tuple[str, str], ...] = (
+        ("dom_complete", "attributes.view.dom_complete"),
+        ("load_event", "attributes.view.load_event"),
+        ("page_stable", "attributes.view.loading_time"),
+    )
+
     def _build_milestones(self) -> list[dict[str, Any]]:
-        return [
-            {
-                "key": "dom_complete",
-                "field_name": "attributes.view.dom_complete",
-                "value": self.numeric_or_none("attributes.view.dom_complete"),
-            },
-            {
-                "key": "load_event",
-                "field_name": "attributes.view.load_event",
-                "value": self.numeric_or_none("attributes.view.load_event"),
-            },
-            {
-                "key": "page_stable",
-                "field_name": "attributes.view.loading_time",
-                "value": self.numeric_or_none("attributes.view.loading_time"),
-            },
-        ]
+        is_auto = self.flatten_data.get("attributes.view.loading_time_source") == ViewLoadingTimeSource.AUTO.value
+        milestones: list[dict[str, Any]] = []
+        for key, field in self.MILESTONES:
+            value = self.numeric_or_none(field)
+            # 字段缺失整项省略；page_stable 仅自动计时来源标记为「页面稳定」。
+            if value is None or (key == "page_stable" and not is_auto):
+                continue
+            milestones.append({"key": key, "field_name": field, "value": value})
+        return milestones
 
     def _fill_data(self):
         # 非首次加载没有导航时间原点，不产生 TTFB / FCP / LCP，整段加载时序省略。
@@ -367,26 +349,17 @@ class ViewLoadingTimingSection(BaseSection):
         markers = self._build_markers()
         milestones = self._build_milestones()
 
-        # 整段时序都拿不到（既无 phase 又无 marker）时省略 ``data``，
-        # 前端可据此区分「没有时序数据」与「耗时为 0」。
-        if not phases and not markers:
-            return
-
         # 横轴基准：有效 loading_time；缺失或非法（负）时省略（None），有效零值保留 0。
+        # 标记超出总耗时仅扩展横轴，不并入 total_duration（验收项 [e]）。
         loading_time = self.numeric_or_none("attributes.view.loading_time")
-        data = {
-            "unit": FieldUnit.MS.value,
-            "phases": phases,
-            "markers": markers,
-            "milestones": milestones,
-        }
-        # total_duration 等于有效的 view.loading_time；缺失或非法（负）时省略该键，不伪造 0。
-        # 标记超出总耗时仅扩展横轴，不修改各 phase。
-        if loading_time is not None and loading_time >= 0:
-            total_duration = loading_time
-            if markers:
-                total_duration = max(total_duration, max(m["value"] for m in markers))
-            data["total_duration"] = total_duration
+        total = loading_time if loading_time is not None and loading_time >= 0 else None
+
+        # phases / markers 均空时 waterfall 返回 None，调用方省略 ``data``；
+        # milestones 不参与判空（与原语义一致），在 data 存在时固定写入该键（即使为空列表）。
+        data = waterfall(phases, total=total, markers=markers)
+        if data is None:
+            return
+        data["milestones"] = milestones
         self.component_dict["data"] = data
 
 
@@ -415,8 +388,14 @@ class ViewSpanBuilder(SpanBuilder):
         latest_view = cls._latest_view_snapshot(related_spans)
         if latest_view:
             # 用最新 View 快照覆盖头部时间及加载字段，主记录仍保留在响应的 origin_data。
-            # start_time 取导航开始时间，不随快照更新，故只补齐 VIEW_SNAPSHOT_FIELDS 内的字段。
+            # start_time 取导航开始时间（attributes.view.started_at），不随快照更新，
+            # 故只补齐 VIEW_SNAPSHOT_FIELDS 内的字段，并单独处理导航开始时间。
             flatten_data.update({field: latest_view[field] for field in VIEW_SNAPSHOT_FIELDS if field in latest_view})
+            # 导航开始时间统一取 attributes.view.started_at（毫秒），转换为微秒写入 start_time，
+            # 避免点开瞬时快照（start_time == end_time）导致停留时长为 0。
+            started_at = get_safe_number(latest_view.get("attributes.view.started_at"), None)
+            if started_at is not None:
+                flatten_data["start_time"] = int(started_at * 1000)
         vital_map = cls._build_vital_map(related_spans)
         for metric, key in VITAL_METRIC_KEYS.items():
             snapshot = vital_map.get(metric)
@@ -428,9 +407,9 @@ class ViewSpanBuilder(SpanBuilder):
     def _latest_view_snapshot(related_spans: Sequence[dict[str, Any]]) -> dict[str, Any] | None:
         """从关联记录中挑选最新 View 快照：按 ``attributes.view.version`` 降序取首条。"""
         candidates = [
-            flatten_dict_data(item)
+            flat
             for item in related_spans
-            if flatten_dict_data(item).get("attributes.span_type") == RumSpanType.VIEW.value
+            if (flat := flatten_dict_data(item)).get("attributes.span_type") == RumSpanType.VIEW.value
         ]
         if not candidates:
             return None

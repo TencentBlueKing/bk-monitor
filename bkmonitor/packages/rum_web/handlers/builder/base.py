@@ -15,7 +15,7 @@ from typing import Any, Protocol
 from rum_web.handlers.builder.utils import get_safe_number
 
 
-EMPTY_VALUE: str = "--"
+EMPTY_VALUE = None
 
 
 class ItemProtocol(Protocol):
@@ -26,16 +26,12 @@ class ItemProtocol(Protocol):
 class NamedKeyValueItem:
     field_name: str
     field_alias: str | None = None
-    alias: str | None = None
-    value: str | float | int | bool | None = None
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
         result: dict[str, Any] = {"field_name": self.field_name}
         if self.field_alias is not None:
             result["field_alias"] = self.field_alias
-        if self.alias is not None:
-            result["alias"] = self.alias
-        result["value"] = self.value if self.value is not None else flatten_data.get(self.field_name, EMPTY_VALUE)
+        result["value"] = flatten_data.get(self.field_name, EMPTY_VALUE)
         return result
 
 
@@ -54,26 +50,10 @@ class DictItem:
 @dataclass(frozen=True, slots=True)
 class KeyValueItem:
     key: str
-    value: str | float | int | bool | list[dict | ItemProtocol] | None = None
     source: str | None = None
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
-        # source 优先：从 flatten_data 中按 source 取值
-        if self.source is not None:
-            return {self.key: flatten_data.get(self.source, EMPTY_VALUE)}
-        if isinstance(self.value, list):
-            value_list = []
-            for child in self.value:
-                if hasattr(child, "render"):
-                    value_list.append(child.render(flatten_data))
-                else:
-                    value_list.append(child)
-            return {self.key: value_list}
-        if self.value is not None:
-            # 静态值 → 直接使用
-            return {self.key: self.value}
-        # 无值 → 从 flatten_data 按 key 动态取
-        return {self.key: flatten_data.get(self.key, EMPTY_VALUE)}
+        return {self.key: flatten_data.get(self.source or self.key, EMPTY_VALUE)}
 
 
 class BaseComponent(ABC):
@@ -87,8 +67,8 @@ class BaseComponent(ABC):
 
 
 class BaseOverview(BaseComponent):
-    BADGES: list[NamedKeyValueItem] = []
-    ITEMS: list[NamedKeyValueItem] = []
+    BADGES: tuple[NamedKeyValueItem, ...] = ()
+    ITEMS: tuple[NamedKeyValueItem, ...] = ()
 
     def _fill_title(self):
         self.component_dict["title"] = self.flatten_data.get("span_name", EMPTY_VALUE)

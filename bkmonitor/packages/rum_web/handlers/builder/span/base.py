@@ -15,30 +15,36 @@ from typing import Any
 from bkmonitor.data_source.format import flatten_dict_data
 from django.utils.translation import gettext_lazy as _
 
-from rum_web.handlers.builder.base import BaseOverview, BaseSection, NamedKeyValueItem
+from rum_web.handlers.builder.base import BaseOverview, BaseSection, KeyValueItem, NamedKeyValueItem
+from rum_web.handlers.builder.utils import build_rating_config
 from semconv.rum.constants import RumSpanType
 
 
-# ── Badge 字段 ────────────────────────────────────────────────────────────
-OVERVIEW_ELAPSED_TIME = NamedKeyValueItem(field_name="elapsed_time")
-OVERVIEW_ATTRIBUTES_OUTCOME_TYPE = NamedKeyValueItem(field_name="attributes.outcome.type")
-# resource
-OVERVIEW_ATTRIBUTES_RESOURCE_TYPE = NamedKeyValueItem(field_name="attributes.resource.type")
-OVERVIEW_ATTRIBUTES_HTTP_RESPONSE_STATUS_CODE = NamedKeyValueItem(field_name="attributes.http.response.status_code")
-# action
-OVERVIEW_ATTRIBUTES_ACTION_TYPE = NamedKeyValueItem(field_name="attributes.action.type")
+def named(*field_names: str) -> tuple[NamedKeyValueItem, ...]:
+    """按 ``field_names`` 批量构造按名透传取值的概览 Item 元组。
 
-# ── 通用 Item 字段 ─────────────────────────────────────────────────────────────
-OVERVIEW_APP_NAME = NamedKeyValueItem(field_name="app_name")
-OVERVIEW_ATTRIBUTES_VIEW_URL_TEMPLATE = NamedKeyValueItem(field_name="attributes.view.url_template")
-OVERVIEW_ATTRIBUTES_SESSION_ID = NamedKeyValueItem(field_name="attributes.session.id")
-OVERVIEW_ATTRIBUTES_VIEW_ID = NamedKeyValueItem(field_name="attributes.view.id")
-OVERVIEW_START_TIME = NamedKeyValueItem(field_name="start_time")
-OVERVIEW_END_TIME = NamedKeyValueItem(field_name="end_time")
-OVERVIEW_ATTRIBUTES_USER_ID = NamedKeyValueItem(field_name="attributes.user.id")
-OVERVIEW_RESOURCE_DEPLOYMENT_ENVIRONMENT_NAME = NamedKeyValueItem(field_name="resource.deployment.environment.name")
-# view
-OVERVIEW_ATTRIBUTES_VIEW_PREVIOUS_URL_TEMPLATE = NamedKeyValueItem(field_name="attributes.view.previous_url_template")
+    用于子类拼装 ``BADGES`` / ``ITEMS``，典型用法：
+
+        BADGES = named("elapsed_time", "attributes.outcome.type")
+        ITEMS = (SpanTypeItem(), *named("app_name", "attributes.view.url_template"))
+
+    返回元组而非列表，匹配 ``BADGES`` / ``ITEMS`` 的不可变类级配置语义。
+    """
+    return tuple(NamedKeyValueItem(field_name=name) for name in field_names)
+
+
+@dataclass(frozen=True, slots=True)
+class RatingConfigItem(KeyValueItem):
+    """Web Vitals 评级阈值配置：``source`` 优先，缺失时回退到 flatten_data 中的 ``attributes.vital.metric``。
+
+    列表侧（View 的 Web Vitals 区块）与详情侧（Vital 的 rating 区块）共用，避免两份等价实现分叉。
+    """
+
+    key: str = "display.rating_config"
+
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        source = self.source or flatten_data.get("attributes.vital.metric", "")
+        return {self.key: build_rating_config(source)}
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,18 +78,20 @@ class SpanTypeItem(NamedKeyValueItem):
 
 
 class SpanOverview(BaseOverview):
-    BADGES: list[NamedKeyValueItem] = []
-    ITEMS: list[NamedKeyValueItem] = [
+    BADGES: tuple[NamedKeyValueItem, ...] = ()
+    ITEMS: tuple[NamedKeyValueItem, ...] = (
         SpanTypeItem(),
-        OVERVIEW_APP_NAME,
-        OVERVIEW_ATTRIBUTES_VIEW_URL_TEMPLATE,
-        OVERVIEW_ATTRIBUTES_SESSION_ID,
-        OVERVIEW_ATTRIBUTES_VIEW_ID,
-        OVERVIEW_START_TIME,
-        OVERVIEW_END_TIME,
-        OVERVIEW_ATTRIBUTES_USER_ID,
-        OVERVIEW_RESOURCE_DEPLOYMENT_ENVIRONMENT_NAME,
-    ]
+        *named(
+            "app_name",
+            "attributes.view.url_template",
+            "attributes.session.id",
+            "attributes.view.id",
+            "start_time",
+            "end_time",
+            "attributes.user.id",
+            "resource.deployment.environment.name",
+        ),
+    )
 
 
 class SpanBuilder:
@@ -139,4 +147,6 @@ __all__ = [
     "SpanBuilder",
     "SpanOverview",
     "SpanTypeItem",
+    "named",
+    "RatingConfigItem",
 ]

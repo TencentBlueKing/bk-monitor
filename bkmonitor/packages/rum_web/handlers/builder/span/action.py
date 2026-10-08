@@ -11,20 +11,15 @@ specific language governing permissions and limitations under the License.
 from rum_web.handlers.builder.base import BaseSection, DictItem, KeyValueItem
 from rum_web.handlers.builder.span.base import SpanBuilder
 from rum_web.handlers.builder.constants import SectionType
-from rum_web.handlers.builder.span.base import (
-    OVERVIEW_ATTRIBUTES_ACTION_TYPE,
-    OVERVIEW_ATTRIBUTES_OUTCOME_TYPE,
-    OVERVIEW_ELAPSED_TIME,
-    SpanOverview,
-)
+from rum_web.handlers.builder.span.base import SpanOverview, named
 
 
 class ActionSpanOverview(SpanOverview):
-    BADGES = [
-        OVERVIEW_ELAPSED_TIME,
-        OVERVIEW_ATTRIBUTES_ACTION_TYPE,
-        OVERVIEW_ATTRIBUTES_OUTCOME_TYPE,
-    ]
+    BADGES = named(
+        "elapsed_time",
+        "attributes.action.type",
+        "attributes.outcome.type",
+    )
 
 
 class ActionKeyInfoSection(BaseSection):

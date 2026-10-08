@@ -14,7 +14,6 @@ from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
-from semconv.constants import FieldUnit
 from semconv.rum.constants import ResourceType
 
 from rum_web.handlers.builder.base import (
@@ -25,14 +24,8 @@ from rum_web.handlers.builder.base import (
     NamedKeyValueItem,
 )
 from rum_web.handlers.builder.constants import SectionType
-from rum_web.handlers.builder.span.base import (
-    OVERVIEW_ATTRIBUTES_HTTP_RESPONSE_STATUS_CODE,
-    OVERVIEW_ATTRIBUTES_RESOURCE_TYPE,
-    OVERVIEW_ELAPSED_TIME,
-    SpanBuilder,
-    SpanOverview,
-)
-from rum_web.handlers.builder.utils import get_safe_number
+from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
+from rum_web.handlers.builder.utils import get_safe_number, phase, safe_diff, waterfall
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,11 +49,11 @@ class CompressionRatioItem(KeyValueItem):
 
 
 class ResourceSpanOverview(SpanOverview):
-    BADGES = [
-        OVERVIEW_ELAPSED_TIME,
-        OVERVIEW_ATTRIBUTES_RESOURCE_TYPE,
-        OVERVIEW_ATTRIBUTES_HTTP_RESPONSE_STATUS_CODE,
-    ]
+    BADGES = named(
+        "elapsed_time",
+        "attributes.resource.type",
+        "attributes.http.response.status_code",
+    )
 
 
 class ResourceXhrAndFetchKeyInfoSection(BaseSection):
@@ -121,70 +114,49 @@ class LoadingTimingSection(BaseSection):
         "download": _("内容下载"),
     }
 
-    def _numeric_or_none(self, key: str) -> int | float | None:
-        """字段缺失或非数值返回 ``None``，用于「缺失 → 不出段」判定。"""
-        return get_safe_number(self.flatten_data.get(key), None)
-
-    def _phase(
-        self,
-        key: str,
-        start: int | float | None,
-        duration: int | float | None,
-    ) -> dict[str, Any] | None:
-        """构造单个 phase；起点或时长缺失、时长为负则整段不输出。"""
-        if start is None or duration is None or duration < 0:
-            return None
-        return {
-            "key": key,
-            "alias": self.PHASE_ALIASES[key],
-            "start": start,
-            "duration": duration,
-        }
-
     def _fill_data(self):
-        redirect_start = self._numeric_or_none("attributes.resource.redirect.start")
-        dns_start = self._numeric_or_none("attributes.resource.dns.start")
-        dns_duration = self._numeric_or_none("attributes.resource.dns.duration")
-        connect_start = self._numeric_or_none("attributes.resource.connect.start")
-        connect_duration = self._numeric_or_none("attributes.resource.connect.duration")
-        ssl_start = self._numeric_or_none("attributes.resource.ssl.start")
-        ssl_duration = self._numeric_or_none("attributes.resource.ssl.duration")
-        first_byte_start = self._numeric_or_none("attributes.resource.first_byte.start")
-        first_byte_duration = self._numeric_or_none("attributes.resource.first_byte.duration")
-        download_start = self._numeric_or_none("attributes.resource.download.start")
-        download_duration = self._numeric_or_none("attributes.resource.download.duration")
+        redirect_start = self.numeric_or_none("attributes.resource.redirect.start")
+        dns_start = self.numeric_or_none("attributes.resource.dns.start")
+        dns_duration = self.numeric_or_none("attributes.resource.dns.duration")
+        connect_start = self.numeric_or_none("attributes.resource.connect.start")
+        connect_duration = self.numeric_or_none("attributes.resource.connect.duration")
+        ssl_start = self.numeric_or_none("attributes.resource.ssl.start")
+        ssl_duration = self.numeric_or_none("attributes.resource.ssl.duration")
+        first_byte_start = self.numeric_or_none("attributes.resource.first_byte.start")
+        first_byte_duration = self.numeric_or_none("attributes.resource.first_byte.duration")
+        download_start = self.numeric_or_none("attributes.resource.download.start")
+        download_duration = self.numeric_or_none("attributes.resource.download.duration")
 
         # prepare 段：redirect_start 与 dns_start 均需存在，duration 收敛非负
-        prepare_duration = dns_start - redirect_start if redirect_start is not None and dns_start is not None else None
+        prepare_duration = safe_diff(dns_start, redirect_start)
         # connect 仅在 TLS 分段有效时扣除 ssl_duration，其他情况保持原值
         adjusted_connect_duration = connect_duration
         if connect_duration is not None and ssl_duration is not None:
             adjusted_connect_duration = connect_duration - ssl_duration
 
+        # phase 构造：起点或时长缺失、时长为负则整段不输出（Resource 侧不校验负起点）
+        aliases = self.PHASE_ALIASES
         phases_candidates = [
-            self._phase("prepare", redirect_start, prepare_duration),
-            self._phase("dns", dns_start, dns_duration),
-            self._phase("connect", connect_start, adjusted_connect_duration),
+            phase("prepare", aliases.get("prepare", "prepare"), redirect_start, prepare_duration),
+            phase("dns", aliases.get("dns", "dns"), dns_start, dns_duration),
+            phase("connect", aliases.get("connect", "connect"), connect_start, adjusted_connect_duration),
             # TLS 段任一字段缺失整段省略：不能在时间轴原点渲染 duration=0 的假段
-            self._phase("tls", ssl_start, ssl_duration),
-            self._phase("first_byte", first_byte_start, first_byte_duration),
-            self._phase("download", download_start, download_duration),
+            phase("tls", aliases.get("tls", "tls"), ssl_start, ssl_duration),
+            phase("first_byte", aliases.get("first_byte", "first_byte"), first_byte_start, first_byte_duration),
+            phase("download", aliases.get("download", "download"), download_start, download_duration),
         ]
-        phases = [p for p in phases_candidates if p is not None]
 
-        # 整段时序都拿不到时省略 ``data``，前端可据此区分「没有时序数据」与「耗时为 0」
-        if not phases:
-            return
-
-        total_duration = 0
+        # total_duration 以 download_start + download_duration 为准；算不出沿用 0 兜底，前端据以展示坐标轴总长。
         if download_start is not None and download_duration is not None and download_duration >= 0:
             total_duration = download_start + download_duration
+        else:
+            total_duration = 0
 
-        self.component_dict["data"] = {
-            "unit": FieldUnit.MS.value,
-            "total_duration": total_duration,
-            "phases": phases,
-        }
+        # 整段时序都拿不到时 waterfall 返回 None，调用方省略 ``data``，
+        # 前端可据此区分「没有时序数据」与「耗时为 0」。
+        data = waterfall(phases_candidates, total=total_duration)
+        if data is not None:
+            self.component_dict["data"] = data
 
 
 class ResourceOthersKeyInfoSection(BaseSection):

@@ -504,7 +504,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
     def _query_related_spans(self, span: dict[str, Any]) -> list[dict[str, Any]]:
         """仅对 View 类型补查关联 Span：同 View ID 下 span_type=view / vital 的记录。
 
-        - 应用与 Session 沿用主记录范围。
+        - 按 ``attributes.view.id`` + ``span_type`` 过滤；``view.id`` 为 UUID 全局唯一，不追加 Session 条件。
         - 不限定时间窗：关联查询覆盖整个保留期，由查询层基于 retention 自动补齐
           （``query_list(None, None, ...)``），避免遗漏生命周期后段（如 Web Vitals 快照）。
         - 其他类型返回空列表，避免不必要的存储查询。

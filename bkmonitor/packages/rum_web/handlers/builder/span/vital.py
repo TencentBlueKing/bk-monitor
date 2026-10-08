@@ -13,60 +13,44 @@ from typing import Any
 
 from constants.otel_query import RatingLevel
 
-from rum_web.handlers.builder.base import BaseSection, KeyValueItem, NamedKeyValueItem
-from rum_web.handlers.builder.span.base import SpanBuilder
+from rum_web.handlers.builder.base import BaseSection, EMPTY_VALUE, KeyValueItem, NamedKeyValueItem
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.span.base import (
-    OVERVIEW_ELAPSED_TIME,
+    RatingConfigItem,
+    SpanBuilder,
     SpanOverview,
+    named,
 )
-from rum_web.handlers.builder.utils import get_safe_number
+from rum_web.handlers.builder.utils import get_safe_number, match_rating
 
 
 @dataclass(frozen=True, slots=True)
 class RatingLevelBadgeItem(NamedKeyValueItem):
-    """Overview 徽章：根据 metric 与 value 匹配评级，输出 rating 值与中文别名。"""
+    """Overview 徽章：根据 metric 与 value 匹配评级，输出 rating 值与中文别名。
+
+    - ``value``：评级标识（``good`` / ``needs_improvement`` / ``poor``），不是档位阈值。
+    - 指标值缺失时不评级，``value`` 与 ``alias`` 一律输出 :data:`EMPTY_VALUE`，
+      避免 ``get_safe_number`` 的 0 默认值被误评为「良好」。
+    """
 
     field_name: str = "display.rating_level"
 
-    @classmethod
-    def _match_rating(cls, metric: str, value: float | int) -> dict[str, Any] | None:
-        """按包含性上界匹配 Web Vitals 指标的评级，未设置 value 的末项承接剩余值。"""
-        if not metric:
-            return None
-        for item in RatingLevel.get_rating_config(metric):
-            threshold = item.get("value")
-            if threshold is None or value <= threshold:
-                return item
-        return None
-
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
         metric = flatten_data.get("attributes.vital.metric", "")
-        value = get_safe_number(flatten_data.get("attributes.vital.value"))
-        matched: dict[str, Any] = self._match_rating(metric, value) or {}
+        value = get_safe_number(flatten_data.get("attributes.vital.value"), None)
+        matched = match_rating(metric, value) if value is not None else None
         return {
             "field_name": self.field_name,
-            "value": matched.get("value", ""),
-            "alias": matched.get("alias", ""),
+            "value": matched.rating if matched else EMPTY_VALUE,
+            "alias": RatingLevel(matched.rating).label if matched else EMPTY_VALUE,
         }
 
 
-@dataclass(frozen=True, slots=True)
-class RatingConfigItem(KeyValueItem):
-    """`vital_rating` 区块的评级配置：按 metric 从内置阈值表读取。"""
-
-    key: str = "display.rating_config"
-
-    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
-        metric = flatten_data.get("attributes.vital.metric", "")
-        return {self.key: RatingLevel.get_rating_config(metric) if metric else []}
-
-
 class VitalSpanOverview(SpanOverview):
-    BADGES = [
-        OVERVIEW_ELAPSED_TIME,
+    BADGES = (
+        *named("elapsed_time"),
         RatingLevelBadgeItem(),
-    ]
+    )
 
 
 class VitalRatingSection(BaseSection):

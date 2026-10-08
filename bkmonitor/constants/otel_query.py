@@ -8,7 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from typing import Any
 from django.utils.translation import gettext_lazy as _
 from django.utils.functional import cached_property
 
@@ -303,7 +302,7 @@ class StatisticsProperty(CachedEnum):
 
 
 class RatingLevel(CachedEnum):
-    """评分等级枚举"""
+    """评分等级枚举：仅提供评级名称与别名，阈值由 ``SpanSpec`` 下发统一管理。"""
 
     GOOD = "good"
     NEEDS_IMPROVEMENT = "needs_improvement"
@@ -320,33 +319,3 @@ class RatingLevel(CachedEnum):
     @classmethod
     def choices(cls) -> list[tuple[str, str]]:
         return [(member.value, member.label) for member in cls]
-
-    @classmethod
-    def get_rating_config(cls, field_name: str) -> list[dict[str, Any]]:
-        return {
-            "cls": [
-                {"rating": cls.GOOD.value, "value": 0.1, "alias": cls.GOOD.label},
-                {"rating": cls.NEEDS_IMPROVEMENT.value, "value": 0.25, "alias": cls.NEEDS_IMPROVEMENT.label},
-                {"rating": cls.POOR.value, "alias": cls.POOR.label},
-            ],
-            "inp": [
-                {"rating": cls.GOOD.value, "value": 200, "alias": cls.GOOD.label},
-                {"rating": cls.NEEDS_IMPROVEMENT.value, "value": 500, "alias": cls.NEEDS_IMPROVEMENT.label},
-                {"rating": cls.POOR.value, "alias": cls.POOR.label},
-            ],
-            "lcp": [
-                {"rating": cls.GOOD.value, "value": 2500, "alias": cls.GOOD.label},
-                {"rating": cls.NEEDS_IMPROVEMENT.value, "value": 4000, "alias": cls.NEEDS_IMPROVEMENT.label},
-                {"rating": cls.POOR.value, "alias": cls.POOR.label},
-            ],
-            "fcp": [
-                {"rating": cls.GOOD.value, "value": 1800, "alias": cls.GOOD.label},
-                {"rating": cls.NEEDS_IMPROVEMENT.value, "value": 3000, "alias": cls.NEEDS_IMPROVEMENT.label},
-                {"rating": cls.POOR.value, "alias": cls.POOR.label},
-            ],
-            "ttfb": [
-                {"rating": cls.GOOD.value, "value": 800, "alias": cls.GOOD.label},
-                {"rating": cls.NEEDS_IMPROVEMENT.value, "value": 1800, "alias": cls.NEEDS_IMPROVEMENT.label},
-                {"rating": cls.POOR.value, "alias": cls.POOR.label},
-            ],
-        }.get(field_name.lower(), [])
