@@ -116,6 +116,7 @@ class ShieldStatusChecker(BaseChecker):
                 else:
                     # 2.1.2 推送解除屏蔽通知
                     self.add_unshield_action(alert, notice_relation)
+                    alert.extra_info.pop("need_unshield_notice", False)
             else:
                 # 2.2 告警处于未屏蔽状态
                 if alert.get_extra_info("need_unshield_notice"):

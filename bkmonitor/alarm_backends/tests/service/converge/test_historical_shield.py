@@ -374,10 +374,12 @@ def test_manager_holds_old_notice_then_unshields_new_anomaly(monkeypatch):
     checker.check(alert)
     assert not checker.unshielded_actions and not alert.is_shielded
     alert.update_extra_info("latest_abnormal_event_time", OUTSIDE)
+    alert.extra_info["need_unshield_notice"] = True
     shielder.match_historical.return_value = []
     checker.check(alert)
     assert len(checker.unshielded_actions) == 1
     assert not alert.cycle_handle_record["7"]["is_shielded"]
+    assert not alert.get_extra_info("need_unshield_notice")
     checker.check(alert)
     assert len(checker.unshielded_actions) == 1
 
