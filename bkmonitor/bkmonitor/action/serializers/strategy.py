@@ -316,8 +316,8 @@ class DutyBaseInfoSlz(serializers.ModelSerializer):
 
 class DutyArrangeSlz(DutyBaseInfoSlz):
     id = serializers.IntegerField(required=False, read_only=True)
-    user_group_id = serializers.IntegerField(required=False, allow_null=True)
-    duty_rule_id = serializers.IntegerField(required=False, allow_null=True)
+    user_group_id = serializers.IntegerField(read_only=True, allow_null=True)
+    duty_rule_id = serializers.IntegerField(read_only=True, allow_null=True)
     need_rotation = serializers.BooleanField(required=False, default=False)
 
     users = serializers.ListField(required=False, child=UserSerializer())
@@ -644,6 +644,11 @@ class PreviewSerializer(serializers.Serializer):
             raise ValidationError(detail="field(id) is required when preview config is from DB")
         return value
 
+    def validate_bk_biz_id(self, value):
+        if not value:
+            raise ValidationError(detail="bk_biz_id must be a nonzero business or space ID")
+        return value
+
     def get_instance(self, internal_data):
         """
         获取预览的DB对象
@@ -655,7 +660,7 @@ class PreviewSerializer(serializers.Serializer):
             raise CustomException("field(id) is required where source-type is db or default")
 
         try:
-            instance = instance_model.objects.get(id=internal_data["id"], bk_biz_id=internal_data["bk_biz_id"])
+            instance = instance_model.objects.get(id=internal_data["id"], bk_biz_id__in=[0, internal_data["bk_biz_id"]])
         except (DutyRule.DoesNotExist, UserGroup.DoesNotExist):
             raise CustomException(f"resource({internal_data['resource_type']}) not existed")
         return instance
@@ -901,6 +906,18 @@ class UserGroupDetailSlz(UserGroupSlz):
         except pytz.exceptions.UnknownTimeZoneError:
             raise ValidationError(detail="timezone is invalid")
         return value
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        duty_rule_ids = set(attrs.get("duty_rules", []))
+        if duty_rule_ids:
+            bk_biz_id = self.instance.bk_biz_id if self.instance is not None else attrs["bk_biz_id"]
+            allowed_rule_ids = set(
+                DutyRule.objects.filter(id__in=duty_rule_ids, bk_biz_id__in=[0, bk_biz_id]).values_list("id", flat=True)
+            )
+            if duty_rule_ids - allowed_rule_ids:
+                raise ValidationError({"duty_rules": _("轮值规则不存在或不属于当前业务")})
+        return attrs
 
     def __init__(self, instance=None, data=empty, **kwargs):
         self.duty_arranges_mapping = kwargs.pop("duty_arranges_mapping", {})
