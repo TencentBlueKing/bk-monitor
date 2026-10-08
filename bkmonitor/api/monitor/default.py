@@ -130,6 +130,17 @@ class BatchCreateActionBackendResource(MonitorAPIGWResource):
     method = "POST"
 
 
+class CreateChatGroupActionBackendResource(MonitorAPIGWResource):
+    """使用当前登录用户创建跨业务告警群。"""
+
+    action = "/create_chat_group_action/"
+    method = "POST"
+
+    def full_request_data(self, validated_request_data):
+        # 保留 get_headers 的登录凭据分支，不提前缓存用户名成为应用态调用。
+        return validated_request_data
+
+
 class GetActionParamsBackendResource(MonitorAPIGWResource):
     """
     批量获取处理任务参数

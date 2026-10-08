@@ -26,6 +26,7 @@ class ActionInstanceViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("POST", resource.action.itsm_callback, endpoint="itsm_callback"),
         ResourceRoute("POST", resource.action.batch_create_action, endpoint="batch_create_action"),
+        ResourceRoute("POST", resource.action.create_chat_group_action, endpoint="create_chat_group_action"),
         ResourceRoute("POST", resource.action.get_action_params_by_config, endpoint="get_action_params_by_config"),
     ]
 

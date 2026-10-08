@@ -97,8 +97,7 @@ paths:"""
           timeout: 0
           upstreams: {{}}
           transformHeaders: {{}}
-        authConfig:
-          userVerifiedRequired: false
+        authConfig: {auth_config}
         disabledStages: []"""
 
         output = open(os.path.join(target, "{}.{}".format(name, format)), "w")
@@ -113,6 +112,11 @@ paths:"""
                     resource_request_method=str(api.get("method") or api.get("suggest_method")).lower(),
                     resource_backend_request_method=str(api["dest_http_method"]).lower(),
                     resource_request_dest_path=api["dest_path"],
+                    auth_config=json.dumps(
+                        {"userVerifiedRequired": True, "appVerifiedRequired": True, "resourcePermissionRequired": True}
+                        if api.get("user_verified_required", False)
+                        else {"userVerifiedRequired": False}
+                    ),
                     tag_name="meta",  # 暂时固定meta，有需要那就改一下这里
                 )
                 # print(resource)

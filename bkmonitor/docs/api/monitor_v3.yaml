@@ -1558,6 +1558,18 @@
 - api_type: operate
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: POST
+  dest_path: /api/v4/action_instance/create_chat_group_action/
+  is_hidden: true
+  user_verified_required: true
+  label: 创建跨业务告警群
+  label_en: Create an alert chat group
+  name: create_chat_group_action
+  path: /v2/monitor_v3/create_chat_group_action/
+  method: POST
+
+- api_type: operate
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: POST
   dest_path: /api/v4/action_instance/batch_create_action/
   is_hidden: true
   label: 批量创建处理事件
