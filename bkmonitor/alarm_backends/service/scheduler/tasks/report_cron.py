@@ -62,30 +62,28 @@ def _build_metadata_schema_redis_options() -> dict[str, Any] | None:
     """使用 Metadata 实体定义缓存的 Redis 配置，而非告警 CMDB 缓存。"""
     prefix = os.environ.get("METADATA_REDIS_CONFIG_PREFIX", "BK_MONITOR_TRANSFER")
     mode = os.environ.get(f"{prefix}_REDIS_MODE", "sentinel")
-    if mode == "standalone":
+    if mode != "sentinel":
         host = os.environ.get(f"{prefix}_REDIS_HOST")
         if not host:
             return None
         return {
-            "mode": mode,
+            "mode": "standalone",
             "addrs": [f"{host}:{os.environ[f'{prefix}_REDIS_PORT']}"],
             "password": os.environ[f"{prefix}_REDIS_PASSWORD"],
             "db": int(os.environ.get(f"{prefix}_REDIS_DB", 0)),
         }
-    if mode == "sentinel":
-        hosts = os.environ.get(f"{prefix}_REDIS_SENTINEL_HOST")
-        if not hosts:
-            return None
-        port = os.environ[f"{prefix}_REDIS_SENTINEL_PORT"]
-        return {
-            "mode": mode,
-            "addrs": [f"{host}:{port}" for host in hosts.split(";") if host],
-            "master_name": os.environ[f"{prefix}_REDIS_SENTINEL_MASTER_NAME"],
-            "sentinel_password": os.environ[f"{prefix}_REDIS_SENTINEL_PASSWORD"],
-            "password": os.environ[f"{prefix}_REDIS_PASSWORD"],
-            "db": 0,
-        }
-    raise ValueError(f"unsupported Metadata Redis mode: {mode}")
+    hosts = os.environ.get(f"{prefix}_REDIS_SENTINEL_HOST")
+    if not hosts:
+        return None
+    port = os.environ[f"{prefix}_REDIS_SENTINEL_PORT"]
+    return {
+        "mode": "sentinel",
+        "addrs": [f"{host}:{port}" for host in hosts.split(";") if host],
+        "master_name": os.environ[f"{prefix}_REDIS_SENTINEL_MASTER_NAME"],
+        "sentinel_password": os.environ[f"{prefix}_REDIS_SENTINEL_PASSWORD"],
+        "password": os.environ[f"{prefix}_REDIS_PASSWORD"],
+        "db": 0,
+    }
 
 
 @share_lock()
