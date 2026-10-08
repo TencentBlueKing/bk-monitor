@@ -24,7 +24,7 @@ from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
-from metadata.config import PERIODIC_TASK_DEFAULT_TTL
+from metadata.config import DATABASE_CONNECTION_NAME, PERIODIC_TASK_DEFAULT_TTL
 from metadata.models.bcs.resource import (
     BCSClusterInfo,
     PodMonitorInfo,
@@ -86,7 +86,8 @@ def schedule_federation_reconcile(bk_tenant_id: str, plan: FederationReconcilePl
             active_sub_cluster_ids=plan.active_sub_cluster_ids,
             removed_proxy_cluster_ids=plan.removed_proxy_cluster_ids,
             removed_sub_cluster_ids=plan.removed_sub_cluster_ids,
-        )
+        ),
+        using=DATABASE_CONNECTION_NAME,
     )
 
 
@@ -723,7 +724,7 @@ def sync_federation_clusters(
         sorted(fed_clusters),
     )
     desired_pairs: set[tuple[str, str]] = set()
-    with transaction.atomic():
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
         existing_active_records = list(
             models.BcsFederalClusterInfo.objects.select_for_update().filter(
                 bk_tenant_id=bk_tenant_id,
