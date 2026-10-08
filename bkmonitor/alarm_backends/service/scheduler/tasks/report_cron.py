@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import copy
 import json
 import logging
+import os
 import urllib.parse
 from typing import Any
 
@@ -57,6 +58,36 @@ def _build_alarm_cache_redis_options() -> dict[str, Any]:
     }
 
 
+def _build_metadata_schema_redis_options() -> dict[str, Any] | None:
+    """使用 Metadata 实体定义缓存的 Redis 配置，而非告警 CMDB 缓存。"""
+    prefix = os.environ.get("METADATA_REDIS_CONFIG_PREFIX", "BK_MONITOR_TRANSFER")
+    mode = os.environ.get(f"{prefix}_REDIS_MODE", "sentinel")
+    if mode == "standalone":
+        host = os.environ.get(f"{prefix}_REDIS_HOST")
+        if not host:
+            return None
+        return {
+            "mode": mode,
+            "addrs": [f"{host}:{os.environ[f'{prefix}_REDIS_PORT']}"],
+            "password": os.environ[f"{prefix}_REDIS_PASSWORD"],
+            "db": int(os.environ.get(f"{prefix}_REDIS_DB", 0)),
+        }
+    if mode == "sentinel":
+        hosts = os.environ.get(f"{prefix}_REDIS_SENTINEL_HOST")
+        if not hosts:
+            return None
+        port = os.environ[f"{prefix}_REDIS_SENTINEL_PORT"]
+        return {
+            "mode": mode,
+            "addrs": [f"{host}:{port}" for host in hosts.split(";") if host],
+            "master_name": os.environ[f"{prefix}_REDIS_SENTINEL_MASTER_NAME"],
+            "sentinel_password": os.environ[f"{prefix}_REDIS_SENTINEL_PASSWORD"],
+            "password": os.environ[f"{prefix}_REDIS_PASSWORD"],
+            "db": 0,
+        }
+    raise ValueError(f"unsupported Metadata Redis mode: {mode}")
+
+
 @share_lock()
 def register_report_task_cron():
     """注册聚合网关上报任务"""
@@ -74,6 +105,7 @@ def register_alarm_cache_bmw_task():
         return
 
     redis_options = _build_alarm_cache_redis_options()
+    schema_redis_options = _build_metadata_schema_redis_options()
 
     # 参数准备
     task_kind_params: dict[str, Any] = {
@@ -90,6 +122,7 @@ def register_alarm_cache_bmw_task():
             "payload": {
                 "prefix": CacheManager.CACHE_KEY_PREFIX,
                 "redis": redis_options,
+                **({"schema_redis": schema_redis_options} if schema_redis_options else {}),
                 "full_refresh_intervals": {
                     # 1.5–2 小时区间内的错峰周期（尽量选质数，减少对齐）
                     "business": 5671,  # ~94.5 min
