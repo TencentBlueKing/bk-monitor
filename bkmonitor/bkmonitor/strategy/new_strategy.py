@@ -2837,7 +2837,8 @@ class Strategy(AbstractConfig):
         strategy = Strategy(**strategy_config)
         return strategy.to_dict_v1()
 
-    def _create(self):
+    def _create(self, *, audit_operator=None):
+        username = audit_operator or self._get_username()
         strategy = StrategyModel.objects.create(
             name=self.name,
             scenario=self.scenario,
@@ -2847,8 +2848,8 @@ class Strategy(AbstractConfig):
             is_enabled=self.is_enabled,
             is_invalid=self.is_invalid,
             invalid_type=self.invalid_type,
-            create_user=self._get_username(),
-            update_user=self._get_username(),
+            create_user=username,
+            update_user=username,
             priority=self.priority,
             priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
             if self.priority is not None
@@ -3081,7 +3082,7 @@ class Strategy(AbstractConfig):
                     )
                     strategy.save()
                 else:
-                    self._create()
+                    self._create(audit_operator=audit_operator)
 
                 # 复用当前存在的记录
                 self.reuse_exists_records(
