@@ -30,12 +30,16 @@ from apps.log_search.export.scheduler import coordinate, finalize_export
 from apps.utils.lock import share_lock
 
 
+# 硬超时不晚于回收超时：分片被回收重投时旧执行已经退出，不会绕过额度继续占用查询资源；
+# 硬超时由 Celery 确认消息（acks_on_failure_or_timeout），不会触发 reject_on_worker_lost 重新入队
 @app.task(
     bind=True,
     ignore_result=True,
     queue=PART_QUEUE,
     acks_late=True,
     reject_on_worker_lost=True,
+    soft_time_limit=max(1, settings.ASYNC_EXPORT_PART_TIMEOUT - 60),
+    time_limit=settings.ASYNC_EXPORT_PART_TIMEOUT,
 )
 def execute_sharded_export_part(self, part_id):
     run_part(part_id, self.request.id)

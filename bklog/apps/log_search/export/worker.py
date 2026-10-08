@@ -26,6 +26,7 @@ import tempfile
 import time
 from pathlib import Path
 
+from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 
 from apps.api.exception import DataAPIException
@@ -76,7 +77,7 @@ def _write_rows(handler, payload):
             "highlight": {"enable": False},
         }
     )
-    deadline = time.monotonic() + settings.ASYNC_EXPORT_PART_TIMEOUT
+    deadline = time.monotonic() + settings.ASYNC_EXPORT_PART_FETCH_TIMEOUT
     rows = size = 0
     with payload.open("wb") as stream:
         while True:
@@ -116,6 +117,8 @@ def _upload_with_retry(storage, path, name, part):
     for attempt in range(1, attempts + 1):
         try:
             return storage.export_upload(file_path=str(path), file_name=name)
+        except SoftTimeLimitExceeded:
+            raise
         except Exception as error:  # pylint: disable=broad-except
             if attempt >= attempts:
                 raise PartError(ExportErrorCode.UPLOAD_FAILED, f"上传重试 {attempts} 次仍失败：{error}") from error
@@ -182,6 +185,12 @@ def run_part(part_id, task_id):
         logger.error("[run_part] part=%s storage unsupported: %s", part.pk, error)
         state.fail_part(
             part.pk, fence, error_code=ExportErrorCode.STORAGE_UNSUPPORTED, error_detail=str(error), retryable=False
+        )
+    except SoftTimeLimitExceeded:
+        # 软超时早于回收窗口，本次执行仍持有栅栏，可以自己把分片交回调度器
+        logger.warning("[run_part] part=%s soft time limit exceeded", part.pk)
+        state.fail_part(
+            part.pk, fence, error_code=ExportErrorCode.PART_TIMEOUT, error_detail="分片执行超过软超时", retryable=True
         )
     except PartError as error:
         logger.warning("[run_part] part=%s code=%s detail=%s", part.pk, error.code, error)

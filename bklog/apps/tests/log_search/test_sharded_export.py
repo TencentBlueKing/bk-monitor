@@ -31,6 +31,7 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, Mock, patch
 
 from blueapps.core.celery.celery import app
+from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.db import connection
 from django.test import SimpleTestCase, TestCase, override_settings
@@ -73,7 +74,7 @@ from apps.log_search.export.serializers import ExportCreateSerializer
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_search.views.export_views import ExportJobIndexSearchPermission, ExportJobViewSet
-from apps.log_search.export.worker import _execute, _pack, _write_rows, run_part
+from apps.log_search.export.worker import PartError, _execute, _pack, _write_rows, run_part
 from apps.log_search.export.planner import (
     INTERVAL_LADDER_MS,
     PlanError,
@@ -784,6 +785,46 @@ class PartRunnerTests(TestCase):
         part.refresh_from_db()
         self.assertEqual(part.error_code, ExportErrorCode.UNIFY_QUERY_FAILED)
         self.assertEqual(part.status, ExportPartStatus.WAITING)
+
+    @override_settings(ASYNC_EXPORT_PART_FETCH_TIMEOUT=10)
+    def test_write_rows_uses_the_fetch_budget(self):
+        """取数只用取数预算，超出后自己按 PART_TIMEOUT 退出，而不是拖到回收窗口。"""
+        with tempfile.TemporaryDirectory() as directory:
+            with (
+                patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
+                patch("apps.log_search.export.worker.time.monotonic", side_effect=[100.0, 100.0, 111.0]),
+            ):
+                api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": False}]
+                with self.assertRaises(PartError) as raised:
+                    _write_rows(FakeHandler(), Path(directory) / "logs.jsonl")
+        self.assertEqual(raised.exception.code, ExportErrorCode.PART_TIMEOUT)
+        self.assertEqual(api.query_ts_raw_with_scroll.call_count, 1)
+
+    def test_soft_time_limit_hands_the_part_back(self):
+        """软超时时本次执行仍持有栅栏，应自己把分片交回调度器，而不是等回收。"""
+        job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        part = ExportPart.objects.create(
+            job=job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.DISPATCHED,
+            task_id="task-1",
+        )
+        with (
+            patch("apps.log_search.export.worker.build_storage") as build_storage,
+            patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
+            patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
+            patch("apps.log_search.export.worker._sha256", return_value="checksum"),
+        ):
+            build_storage.return_value.export_upload.side_effect = SoftTimeLimitExceeded()
+            api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
+            run_part(part.pk, "task-1")
+
+        self.assertEqual(build_storage.return_value.export_upload.call_count, 1)
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.WAITING)
+        self.assertEqual(part.error_code, ExportErrorCode.PART_TIMEOUT)
 
 
 class PartArtifactLifecycleTests(TestCase):
@@ -1926,6 +1967,19 @@ class ControlPipelineTests(SimpleTestCase):
         """规划软超时必须早于规划超时窗口，否则 Coordinator 会判定超时并重复投递同一份规划。"""
         self.assertIsNotNone(plan_sharded_export.soft_time_limit)
         self.assertLess(plan_sharded_export.soft_time_limit, settings.ASYNC_EXPORT_PLANNING_TIMEOUT)
+
+    def test_part_execution_is_bounded_by_the_reclaim_window(self):
+        """
+        分片被回收重投时旧执行必须已经退出，否则它不计入在途数却仍在查询，实际并发会超出额度；
+        取数预算还要给打包与上传留出余量。
+        """
+        soft_limit = execute_sharded_export_part.soft_time_limit
+        hard_limit = execute_sharded_export_part.time_limit
+        self.assertIsNotNone(soft_limit)
+        self.assertIsNotNone(hard_limit)
+        self.assertLess(soft_limit, hard_limit)
+        self.assertLessEqual(hard_limit, settings.ASYNC_EXPORT_PART_TIMEOUT)
+        self.assertLess(settings.ASYNC_EXPORT_PART_FETCH_TIMEOUT, soft_limit)
 
     def test_finalization_is_bounded_before_the_reclaim_window(self):
         """清单生成软超时必须早于协调器重认领窗口。"""
