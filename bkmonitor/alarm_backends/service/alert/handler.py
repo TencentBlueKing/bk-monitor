@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import signal
+import threading
 import time
 from collections import defaultdict
 
@@ -51,22 +52,73 @@ def always_retry(wait):
     return decorator
 
 
+class KafkaConsumerWorker:
+    """一个 bootstrap 的 consumer 只由本线程操作，阻塞不扩散到其他集群。"""
+
+    def __init__(self, handler, bootstrap_server, assignment):
+        self.handler = handler
+        self.bootstrap_server = bootstrap_server
+        self.assignment = assignment
+        self.stop_event = threading.Event()
+        self.thread = InheritParentThread(target=self.run, name=f"alert-kafka-{bootstrap_server}", daemon=True)
+
+    def stopping(self):
+        return self.stop_event.is_set() or self.handler._stop_signal
+
+    def run(self):
+        consumer = None
+        try:
+            while not self.stopping():
+                # 配置整体替换；本批次使用拉取前的分区及 DataID 映射快照。
+                partitions, topic_data_id = self.assignment
+                try:
+                    if consumer is None:
+                        consumer = self.handler.create_consumer(self.bootstrap_server, partitions, topic_data_id)
+                    elif consumer.assignment() != partitions:
+                        consumer.assign(partitions=list(partitions))
+                    if self.stopping():
+                        break
+                    data = consumer.poll(500, max_records=self.handler.MAX_RETRIEVE_NUMBER)
+                    if self.stopping():
+                        break
+                    if data:
+                        events = [record for records in data.values() for record in records]
+                        self.handler.push_handle_task(self.bootstrap_server, events, topic_data_id=topic_data_id)
+                        logger.info(
+                            "[run_poller] alert event poller poll %s: count(%s)", self.bootstrap_server, len(events)
+                        )
+                except Exception:
+                    logger.exception("[run_poller] consumer failed for %s", self.bootstrap_server)
+                    if not self.handler.run_once:
+                        self.stop_event.wait(10)
+                if self.handler.run_once:
+                    break
+        finally:
+            if consumer is not None:
+                try:
+                    # 不同步提交：coordinator 重试无总时限，且不能确认分发失败的批次。
+                    consumer.close(autocommit=False)
+                except Exception:
+                    logger.exception("[run_poller] close consumer failed for %s", self.bootstrap_server)
+
+
 class AlertHandler(base.BaseHandler):
     # 内置 topic
     INTERNAL_TOPICS = (settings.MONITOR_EVENT_KAFKA_TOPIC,)  # 蓝鲸监控专用
     MAX_RETRIEVE_NUMBER = 5000
     MAX_EVENT_NUMBER = 500
     MAX_POLLER_THREAD = 20
-    _kafka_queues = {}
+    THREAD_JOIN_TIMEOUT = 5
 
     def __init__(self, service, *args, **kwargs):
         super().__init__()
         self.service = service
         self.run_once = True
         self._stop_signal = False
+        self._stop_event = threading.Event()
         self.topic_data_id = {}
         self.max_event_number = getattr(settings, "MAX_BUILD_EVENT_NUMBER", 0) or self.MAX_EVENT_NUMBER
-        self.consumers: dict[str, KafkaConsumer] = {}
+        self.consumer_workers: dict[str, KafkaConsumerWorker] = {}
         self.ip = get_host_addr()
         self.redis_client = ALERT_DATA_POLLER_LEADER_KEY.client
         self.data_id_cache_key = ALERT_HOST_DATA_ID_KEY.get_key()
@@ -74,6 +126,16 @@ class AlertHandler(base.BaseHandler):
 
     def _stop(self, *args, **kwargs):
         self._stop_signal = True
+        self._stop_event.set()
+        for worker in list(self.consumer_workers.values()):
+            worker.stop_event.set()
+
+    def join_threads(self, threads):
+        deadline = time.monotonic() + self.THREAD_JOIN_TIMEOUT
+        for thread in threads:
+            thread.join(timeout=max(0, deadline - time.monotonic()))
+            if thread.is_alive():
+                logger.warning("[run_poller] thread still stopping: %s", thread.name)
 
     @staticmethod
     def get_all_hosts():
@@ -97,8 +159,8 @@ class AlertHandler(base.BaseHandler):
         # 2. 自定义topic，通过常规事件源接入
         signal.signal(signal.SIGTERM, self._stop)
         signal.signal(signal.SIGINT, self._stop)
-        leader = InheritParentThread(target=self.run_leader)
-        poller = InheritParentThread(target=self.run_poller)
+        leader = InheritParentThread(target=self.run_leader, daemon=True)
+        poller = InheritParentThread(target=self.run_poller, daemon=True)
         leader.start()
         poller.start()
 
@@ -113,13 +175,12 @@ class AlertHandler(base.BaseHandler):
                 if self._stop_signal:
                     break
 
-                time.sleep(15)
+                self._stop_event.wait(15)
         except Exception as e:
             logger.exception("Do event poller task in host(%s) failed %s", self.ip, str(e))
         finally:
             self._stop()
-            leader.join()
-            poller.join()
+            self.join_threads([leader, poller])
             self.service.unregister()
 
     @always_retry(10)
@@ -252,117 +313,93 @@ class AlertHandler(base.BaseHandler):
 
     def run_consumer_manager(self):
         """
-        在消费线程内更新 Kafka 消费者，避免 assign/close 与 poll 并发。
+        只刷新目标配置；所有 Kafka 调用留在各 bootstrap 的 owner 线程。
         """
         kfk_confs = json.loads(self.redis_client.hget(self.data_id_cache_key, self.ip) or "[]")
         bootstrap_servers_topics = defaultdict(set)
+        topic_data_id = {}
         for kfk_conf in kfk_confs:
             bootstrap_server = kfk_conf.get("bootstrap_server")
             topic = kfk_conf.get("topic")
             if bootstrap_server and topic:
-                self.topic_data_id[f"{bootstrap_server}|{topic}"] = kfk_conf.get("data_id")
+                topic_data_id[f"{bootstrap_server}|{topic}"] = kfk_conf.get("data_id")
                 bootstrap_servers_topics[bootstrap_server].add(
                     TopicPartition(topic=topic, partition=kfk_conf.get("partition", 0))
                 )
 
-        for bootstrap_server in set(self.consumers) - bootstrap_servers_topics.keys():
-            logger.info("[run_consumer_manager] delete %s", bootstrap_server)
-            self.close_consumer(self.consumers.pop(bootstrap_server))
+        self.topic_data_id = topic_data_id
+        for bootstrap_server, worker in list(self.consumer_workers.items()):
+            if not worker.thread.is_alive():
+                del self.consumer_workers[bootstrap_server]
+            elif bootstrap_server not in bootstrap_servers_topics:
+                worker.stop_event.set()
 
         for bootstrap_server, partitions in bootstrap_servers_topics.items():
-            if bootstrap_server in self.consumers:
-                consumer = self.consumers[bootstrap_server]
-                if consumer.assignment() != partitions:
-                    logger.info("[run_consumer_manager] update %s", bootstrap_server)
-                    consumer.assign(partitions=list(partitions))
-                continue
-
-            logger.info("[run_consumer_manager] create %s", bootstrap_server)
-            consumer = KafkaConsumer(
-                bootstrap_servers=bootstrap_server,
-                group_id=f"{settings.APP_CODE}.alert.builder",
-                # 每个分区单次获取大小最大值为5M
-                max_partition_fetch_bytes=1024 * 1024 * 5,
-                request_timeout_ms=30000,
+            if self._stop_signal:
+                break
+            assignment = (
+                frozenset(partitions),
+                {key: value for key, value in topic_data_id.items() if key.startswith(f"{bootstrap_server}|")},
             )
+            if bootstrap_server in self.consumer_workers:
+                self.consumer_workers[bootstrap_server].assignment = assignment
+                continue
+            # ponytail: 退出阻塞的 owner 仍占配额；需进程重启释放，不能无限补线程。
+            if len(self.consumer_workers) >= max(self.MAX_POLLER_THREAD, len(bootstrap_servers_topics)):
+                logger.warning("[run_consumer_manager] worker limit reached, waiting to start %s", bootstrap_server)
+                continue
+            worker = KafkaConsumerWorker(self, bootstrap_server, assignment)
+            self.consumer_workers[bootstrap_server] = worker
             try:
-                consumer.assign(partitions=list(partitions))
-                for tp in partitions:
-                    data_id = self.topic_data_id.get(f"{bootstrap_server}|{tp.topic}")
-                    if not data_id or tp.partition != 0:
-                        # 兼容历史的处理记录，以前默认的 partition 都为 0
-                        continue
-                    redis_offset = self.get_kafka_redis_offset(data_id=data_id, topic=tp.topic)
-                    if redis_offset:
-                        consumer.seek(tp, redis_offset)
+                worker.thread.start()
             except Exception:
-                consumer.close(autocommit=False)
+                del self.consumer_workers[bootstrap_server]
                 raise
-            self.consumers[bootstrap_server] = consumer
 
-    @staticmethod
-    def close_consumer(consumer):
+    def create_consumer(self, bootstrap_server, partitions, topic_data_id):
+        consumer = KafkaConsumer(
+            bootstrap_servers=bootstrap_server,
+            group_id=f"{settings.APP_CODE}.alert.builder",
+            max_partition_fetch_bytes=1024 * 1024 * 5,
+            request_timeout_ms=30000,
+            api_version_auto_timeout_ms=2000,
+        )
         try:
-            consumer.commit()
-        finally:
+            consumer.assign(partitions=list(partitions))
+            for tp in partitions:
+                data_id = topic_data_id.get(f"{bootstrap_server}|{tp.topic}")
+                if not data_id or tp.partition != 0:
+                    continue
+                redis_offset = self.get_kafka_redis_offset(data_id=data_id, topic=tp.topic)
+                if redis_offset:
+                    consumer.seek(tp, int(redis_offset))
+        except Exception:
             consumer.close(autocommit=False)
+            raise
+        return consumer
 
     @always_retry(10)
     def run_poller(self):
         """
-        通过批量拉取数据
-        :return:
+        调度独立的消费线程；刷新结束后再等待，失败不会形成连续刷新。
         """
-        next_refresh = 0
         try:
             while not self._stop_signal:
-                if time.monotonic() >= next_refresh:
-                    next_refresh = time.monotonic() + 15
-                    try:
-                        self.run_consumer_manager()
-                    except Exception:
-                        # 刷新失败时继续消费已有实例，下个周期重试。
-                        logger.exception("[run_consumer_manager] refresh failed")
-
-                has_record = False
-                for bootstrap_server, consumer in self.consumers.items():
-                    try:
-                        data = consumer.poll(500, max_records=self.MAX_RETRIEVE_NUMBER)
-                    except Exception as e:
-                        logger.warning("[run_poller] poll error for %s, skip: %s", bootstrap_server, e)
-                        continue
-                    if not data:
-                        continue
-
-                    has_record = True
-                    events = []
-                    for records in data.values():
-                        events.extend(records)
-                    self.push_handle_task(consumer.config["bootstrap_servers"], events)
-                    logger.info(
-                        "[run_poller]  alert event poller poll %s: count(%s)",
-                        consumer.config["bootstrap_servers"],
-                        len(events),
-                    )
-
-                if self.run_once or self._stop_signal:
-                    logger.info("[run_poller] alert event poller got stop signal")
+                interval = 15
+                try:
+                    self.run_consumer_manager()
+                except Exception:
+                    logger.exception("[run_consumer_manager] refresh failed")
+                    interval = 30
+                if self.run_once:
+                    self.join_threads([worker.thread for worker in self.consumer_workers.values()])
                     break
-
-                if not has_record and self.consumers:
-                    logger.info("[run_poller] alert event poller get no data from %s", ",".join(self.consumers))
-                if not self.consumers:
-                    time.sleep(5)
-                    logger.info("[run_poller] sleep(5 seconds) because of no consumer")
+                self._stop_event.wait(interval)
         finally:
             if self._stop_signal:
-                for consumer in self.consumers.values():
-                    try:
-                        # 沿用最近的自动提交位点，避免在分发异常退出时确认未分发批次。
-                        consumer.close(autocommit=False)
-                    except Exception:
-                        logger.exception("[run_poller] close consumer failed")
-                self.consumers = {}
+                for worker in list(self.consumer_workers.values()):
+                    worker.stop_event.set()
+                self.join_threads([worker.thread for worker in list(self.consumer_workers.values())])
 
     def get_kafka_redis_offset(self, data_id, topic):
         """
@@ -376,13 +413,13 @@ class AlertHandler(base.BaseHandler):
         self.redis_client.delete(offset_key)
         return offset
 
-    def push_handle_task(self, bootstrap_server, events):
+    def push_handle_task(self, bootstrap_server, events, topic_data_id=None):
         # 分批次推送至告警生成任务
         for event_index in range(0, len(events), self.max_event_number):
             # 分发处理任务
             self.send_handler_task(
                 event_kwargs={
-                    "topic_data_id": self.topic_data_id,
+                    "topic_data_id": self.topic_data_id if topic_data_id is None else topic_data_id,
                     "bootstrap_server": bootstrap_server,
                     "events": events[event_index : event_index + self.max_event_number],
                 }
