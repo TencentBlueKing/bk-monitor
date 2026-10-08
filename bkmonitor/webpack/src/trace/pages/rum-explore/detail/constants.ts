@@ -205,8 +205,14 @@ export const CARDS_PER_ROW = 5;
  */
 export const CARD_GROUP_TITLE_MAP: Record<string, string> = {
   [`view.${SectionKeyEnum.KEY_INFO}`]: window.i18n.t('核心结果'),
-  [`view.${SectionKeyEnum.WEB_VITALS}`]: window.i18n.t('Web Vitals'),
+  [`view.${SectionKeyEnum.WEB_VITALS}`]: 'Web Vitals',
 };
 
 /** origin_data 中不参与 Span 折叠块展示的嵌套字段（各自已有独立折叠块） */
 export const ORIGIN_NESTED_KEYS = new Set(['attributes', 'resource', 'events', 'links']);
+
+export const MILESTONES_KEY_MAP = {
+  dom_complete: 'DOM Complete',
+  load_event: window.i18n.t('Load 完成'),
+  page_stable: window.i18n.t('页面稳定'),
+};
