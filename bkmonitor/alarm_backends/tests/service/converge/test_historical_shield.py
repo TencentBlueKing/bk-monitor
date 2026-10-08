@@ -92,6 +92,35 @@ def install_history(monkeypatch, rule, generated_at=NOW):
     return load
 
 
+@pytest.mark.parametrize("time_zone", ["UTC", "Asia/Shanghai"])
+def test_serialized_history_keeps_utc_window(monkeypatch, time_zone):
+    config = {
+        "id": 10,
+        "bk_biz_id": 2,
+        "end_policy": "notify_once",
+        "category": "dimension",
+        "dimension_config": {},
+        "cycle_config": {},
+        "begin_time": arrow.get("2026-10-08T06:00:00Z").datetime,
+        "end_time": arrow.get("2026-10-08T07:00:00Z").datetime,
+        "create_time": arrow.get("2026-10-07T00:00:00Z").datetime,
+        "update_time": arrow.get("2026-10-07T00:00:00Z").datetime,
+    }
+    payload = extended_json.dumps({"generated_at": NOW, "configs": [config]})
+    cache = Mock()
+    cache.get.return_value = payload
+    monkeypatch.setattr(ShieldCacheManager, "cache", cache)
+    monkeypatch.setattr(saas_config, "time", SimpleNamespace(time=lambda: NOW))
+    monkeypatch.setattr(AlertShieldObj, "get_dimension", lambda self, alert: {})
+    doc = make_alert().to_document()
+    with timezone.override(time_zone):
+        assert saas_config.AlertShieldConfigShielder.match_historical(doc, INSIDE) == ["10"]
+        assert saas_config.AlertShieldConfigShielder.match_historical(doc, OUTSIDE) == []
+        shifted = arrow.get("2026-10-07T22:10:00Z").timestamp
+        assert saas_config.AlertShieldConfigShielder.match_historical(doc, shifted) == []
+    cache.get.assert_called_once_with(ShieldCacheManager.HISTORY_KEY_TEMPLATE.format(2))
+
+
 @pytest.mark.parametrize("periodic", [False, True])
 def test_replay_uses_existing_time_and_dimension_matcher(monkeypatch, periodic):
     rule = historical_rule(periodic)

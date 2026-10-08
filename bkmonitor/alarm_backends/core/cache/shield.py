@@ -43,7 +43,14 @@ class ShieldCacheManager(CacheManager):
     @classmethod
     def get_history_by_biz_id(cls, bk_biz_id):
         data = cls.cache.get(cls.HISTORY_KEY_TEMPLATE.format(bk_biz_id))
-        return extended_json.loads(data) if data else None
+        if not data:
+            return None
+        payload = extended_json.loads(data)
+        for shield in payload["configs"]:
+            # 与当前缓存一致，恢复 extended_json 丢失的数据库 UTC 时区。
+            for field in ("begin_time", "end_time", "create_time", "update_time"):
+                shield[field] = shield[field].replace(tzinfo=pytz.UTC)
+        return payload
 
     @classmethod
     def publish_failure(cls, module: str, target: str, duration: int):
