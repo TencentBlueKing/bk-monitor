@@ -293,6 +293,7 @@ export const useExploreColumnConfig = ({
       return {
         span_id: {
           renderType: ExploreTableColumnTypeEnum.CLICK,
+          className: 'explore-click-link-column',
           colKey: 'span_id',
           title: t('Span ID'),
           width: 160,
@@ -379,6 +380,7 @@ export const useExploreColumnConfig = ({
         },
         trace_id: {
           renderType: ExploreTableColumnTypeEnum.CLICK,
+          className: 'explore-click-link-column',
           colKey: 'trace_id',
           title: t('所属 Trace'),
           width: 240,
@@ -394,6 +396,7 @@ export const useExploreColumnConfig = ({
     return {
       trace_id: {
         renderType: ExploreTableColumnTypeEnum.CLICK,
+        className: 'explore-click-link-column',
         colKey: 'trace_id',
         title: 'Trace ID',
         width: 240,
