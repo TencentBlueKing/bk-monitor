@@ -83,7 +83,7 @@ import { downFile } from '../../utils';
 import { toUnixMilliseconds } from '../../utils/date';
 import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
-import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
+import { SPAN_DETAILS_Z_INDEX, TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import K8sContainer from './k8s-container';
@@ -2145,6 +2145,7 @@ export default defineComponent({
         transfer={(document.querySelector('.trace-list-wrapper') as HTMLDivElement) ?? true}
         quick-close
         show-mask
+        zIndex={SPAN_DETAILS_Z_INDEX}
         onHidden={handleHiddenChange}
       >
         {detailsMain()}

@@ -1,0 +1,19 @@
+@use './skeleton-theme' as skeleton;
+
+.skeleton-element {
+  position: relative;
+  display: flex;
+  width: 100%;
+  overflow: hidden;
+
+  @include skeleton.surface;
+
+  &::after {
+    content: none;
+    animation: none;
+  }
+
+  &.skeleton-element-lg {
+    border-radius: 50%;
+  }
+}

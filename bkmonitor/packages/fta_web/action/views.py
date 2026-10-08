@@ -168,8 +168,10 @@ class ActionInstanceViewSet(ResourceViewSet):
     def get_permissions(self):
         if self.action in ["get_action_config_by_alerts", "create_chat_group"]:
             return [BusinessActionPermission([ActionEnum.VIEW_EVENT])]
-        if self.action in ["create_demo_action", "get_demo_action_detail", "preview_demo_action_context"]:
+        if self.action in ["create_demo_action", "get_demo_action_detail"]:
             return [BusinessActionPermission([ActionEnum.VIEW_RULE])]
+        if self.action == "preview_demo_action_context":
+            return [BusinessActionPermission([ActionEnum.MANAGE_RULE])]
         if self.action in ["get_action_params", "batch_create", "assign_alert"]:
             return [BusinessActionPermission([ActionEnum.MANAGE_RULE, ActionEnum.MANAGE_EVENT])]
         return [BusinessActionPermission([ActionEnum.MANAGE_EVENT])]

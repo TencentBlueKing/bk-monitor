@@ -6,6 +6,12 @@
   display: flex;
   flex-direction: column;
 
+  &.is-loading-rows {
+    .alarm-loading-row {
+      pointer-events: none;
+    }
+  }
+
   // 最小高度应为骨架屏高度避免出现空白
   // min-height: 370px;
 

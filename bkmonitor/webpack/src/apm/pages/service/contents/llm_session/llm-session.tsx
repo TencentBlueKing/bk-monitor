@@ -30,7 +30,7 @@ import axios from 'axios';
 import { Debounce } from 'monitor-common/utils/utils';
 import EmptyStatus from 'monitor-pc/components/empty-status/empty-status';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
-import ApmTraceExplore from 'monitor-ui/chart-plugins/plugins/apm-trace-explore';
+import ApmTraceSlider from 'monitor-ui/chart-plugins/plugins/apm-trace-slider';
 
 import LlmTable from './components/llm-table';
 import { LLM_SESSION_TAB_QUERY_KEY, PAGE_LIMIT } from './constants';
@@ -95,7 +95,7 @@ export default class LlmSession extends tsc<object> {
   noMoreData = false;
 
   tableMaxHeight = 0;
-  /** 打开 ApmTraceExplore Trace 详情侧边窗 */
+  /** 打开 Trace 详情侧滑 */
   slideDetail: null | { appName: string; bizId?: number; traceId: string } = null;
 
   /** 请求序号，只接受最新一次请求的响应，避免快速切换视角时旧响应覆盖新数据 */
@@ -361,13 +361,10 @@ export default class LlmSession extends tsc<object> {
             />
           </LlmTable>
         </div>
-        {/* 关联 trace 详情侧边窗。隐藏宿主页，仅保留侧滑详情 */}
-        <div style='height: 1px;width: 1px;overflow: hidden;'>
-          <ApmTraceExplore
-            slideDetail={this.slideDetail}
-            onSliderClose={this.handleSliderClose}
-          />
-        </div>
+        <ApmTraceSlider
+          slideDetail={this.slideDetail}
+          onSliderClose={this.handleSliderClose}
+        />
       </div>
     );
   }

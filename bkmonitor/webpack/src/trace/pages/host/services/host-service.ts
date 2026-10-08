@@ -87,13 +87,14 @@ export const getHostMetricInfoList = async (
  */
 export const getHostTopoTreeByBizId = async (
   bizId: number | string = window.cc_biz_id,
-  scope: HostScopeParams = {}
+  scope: HostScopeParams = {},
+  includeHosts = true
 ) => {
   const data: IHostTopoTree[] = await getTopoTree({
     bk_biz_id: bizId,
     ...scope,
     condition_list: [],
-    instance_type: 'host',
+    ...(includeHosts ? { instance_type: 'host' } : {}),
     remove_empty_nodes: false,
   });
   return data;

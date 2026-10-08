@@ -103,7 +103,7 @@ export const getHostTargetList = async (params: { alertId: string; bizId: number
   const data = await alertHostTarget<{ alert_id: string; bk_biz_id: number }, AlertHostTargetItem[]>({
     alert_id: alertId,
     bk_biz_id: bizId,
-  }).catch(() => [] as AlertHostTargetItem[]);
+  });
   return data;
 };
 
@@ -119,7 +119,7 @@ export const getDetailSceneView = async (bizId: number, id: string) => {
     scene_id: 'host',
     type: 'detail',
     id,
-  }).catch(() => ({ id: '', panels: [], name: '' }));
+  });
 
   const transformData = new BookMarkModel(sceneData || { id: '', panels: [], name: '' });
   const unGroupKey = '__UNGROUP__';
@@ -164,7 +164,7 @@ export const getAlertK8sScenarioMetricList = async (
   const data = await scenarioMetricList<{ bk_biz_id: number; scenario: SceneEnum }, AlertK8SMetricItem[]>(
     { bk_biz_id: bizId, scenario },
     options
-  ).catch(() => [] as AlertK8SMetricItem[]);
+  );
   return data.reduce((prev, curr) => {
     // show_chart 为 true 的指标才展示
     const children = curr?.children?.filter?.(e => e.show_chart) ?? [];
@@ -187,13 +187,7 @@ export const getAlertK8sTarget = async (params: { alertId: string; bizId: number
   const data = await alertK8sTarget<{ alert_id: string; bk_biz_id: number }, AlertK8sTargetResult>({
     alert_id: alertId,
     bk_biz_id: bizId,
-  }).catch(
-    () =>
-      ({
-        resource_type: '',
-        target_list: [],
-      }) as unknown as AlertK8sTargetResult
-  );
+  });
   return data;
 };
 
@@ -225,7 +219,6 @@ export const fetchWorkloadPodList = async (
     },
     options
   )
-    .then(res => res?.items ?? [])
-    .catch(() => []);
+    .then(res => res?.items ?? []);
 };
 // ==============================end 详情-容器-相关接口 end==============================

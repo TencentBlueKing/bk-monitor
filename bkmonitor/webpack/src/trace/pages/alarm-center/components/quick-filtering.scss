@@ -69,7 +69,7 @@
 
       .filter-group-children {
         padding: 0 0 0 8px;
-        margin: 4px 0 8px 0;
+        margin: 4px 0 8px;
 
         .t-tree {
           &.no-multi-level {
@@ -104,9 +104,9 @@
             }
 
             .t-tree__label {
+              height: 100%;
               padding: 0;
               margin-left: 0;
-              height: 100%;
 
               &.t-is-checked {
                 background-color: inherit;
@@ -129,8 +129,8 @@
             }
 
             .item-icon {
-              line-height: normal;
               font-size: 13px;
+              line-height: normal;
             }
 
             .icon-mc-email {
@@ -184,8 +184,8 @@
 
             &.priority {
               .item-name {
-                padding: 0 6px;
                 height: 20px;
+                padding: 0 6px;
                 border-radius: 4px;
               }
             }
@@ -195,43 +195,19 @@
                 background-color: #e54040;
               }
             }
+
             &.priority-P1 {
               .item-name {
                 background-color: #faa41e;
               }
             }
+
             &.priority-P2 {
               .item-name {
                 background-color: #8f9fbd;
               }
             }
           }
-        }
-      }
-    }
-  }
-
-  .skeleton-wrap {
-    padding: 0 12px;
-
-    .skeleton-group {
-      & + .skeleton-group {
-        margin-top: 12px;
-      }
-
-      .skeleton-element {
-        & + .skeleton-element {
-          margin-top: 9px;
-        }
-
-        &.title {
-          height: 24px;
-        }
-
-        &.item {
-          width: calc(100% - 16px);
-          height: 17px;
-          margin-left: 8px;
         }
       }
     }

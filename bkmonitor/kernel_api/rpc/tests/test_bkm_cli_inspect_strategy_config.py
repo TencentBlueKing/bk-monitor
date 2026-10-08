@@ -60,8 +60,14 @@ class FakeStrategyObject:
     def restore(self):
         self.restored = True
 
-    def to_dict(self):
+    def to_dict(self, *, convert_dashboard=False):
+        assert convert_dashboard is False
         return dict(self.config)
+
+
+@pytest.fixture(autouse=True)
+def authorize_detail(monkeypatch):
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.strategy.authorize_strategy_business", lambda *_args: None)
 
 
 def test_inspect_strategy_config_registered_as_bkm_cli_op():

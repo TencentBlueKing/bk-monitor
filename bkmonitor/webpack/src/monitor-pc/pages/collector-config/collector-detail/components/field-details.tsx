@@ -27,6 +27,8 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import Collapse from '../../../../components/collapse/collapse';
+import EmptyStatus from '../../../../components/empty-status/empty-status';
+import DetailSkeleton from './detail-skeleton';
 
 import type { DetailData } from '../typings/detail';
 
@@ -47,13 +49,7 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
   @Watch('detailData', { immediate: true })
   handleDetailDataChange(val: DetailData) {
     if (val) {
-      this.metricList = [];
-      for (const item of val.metric_list) {
-        setTimeout(() => {
-          this.metricList.push({ ...item, collapse: true });
-        }, 17);
-      }
-      // this.metricList = val.metric_list.map(item => ({ ...item, collapse: true }));
+      this.metricList = val.metric_list.map(item => ({ ...item, collapse: true }));
     }
   }
 
@@ -65,14 +61,13 @@ export default class FieldDetails extends tsc<FieldDetailsProps> {
   }
 
   render() {
+    if (this.loading) return <DetailSkeleton section='fields' />;
+    if (!this.metricList.length) return <EmptyStatus />;
     return (
       <div class='field-details-component'>
         <div class='metric-dimension'>
           <div
             class='table-wrap'
-            v-bkloading={{
-              isLoading: this.loading,
-            }}
           >
             {this.metricList.map((item, index) => (
               <div

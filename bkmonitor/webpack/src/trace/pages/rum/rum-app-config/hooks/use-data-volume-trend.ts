@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, onScopeDispose, shallowRef, watchEffect } from 'vue';
+import { type MaybeRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 
+import { useRumRequest } from '../../hooks/use-rum-request';
 import { fetchDataViewConfig } from '../services/data-state';
 
 import type { IRumAppBaseParams } from '../../typings';
@@ -48,53 +49,23 @@ interface UseDataVolumeTrendOptions {
  */
 export const useDataVolumeTrend = (options: UseDataVolumeTrendOptions) => {
   const { bizId, appName } = options;
-  /** 图表面板配置列表 */
-  const dashboardPanels = shallowRef<IPanelModel[]>([]);
-  /** 数据加载状态 */
-  const loading = shallowRef(false);
-  /** 请求中止控制器 */
-  let abortController: AbortController | null = null;
+  const request = useRumRequest<IPanelModel[]>(async signal => {
+    const data = await fetchDataViewConfig({ bk_biz_id: get(bizId), app_name: get(appName) }, { signal });
+    return data || [];
+  }, []);
 
-  /**
-   * @description 获取数据视图配置
-   * @description 通过 Service 层获取数据，Hook 只负责状态管理
-   * @returns {Promise<void>}
-   */
-  const fetchDashboardConfig = async (): Promise<void> => {
-    if (!get(bizId) || !get(appName)) return;
-    if (abortController) {
-      abortController.abort();
-    }
-    loading.value = true;
-    abortController = new AbortController();
-    const { signal } = abortController;
-
-    const { data, isAborted } = await fetchDataViewConfig(
-      {
-        bk_biz_id: get(bizId),
-        app_name: get(appName),
-      },
-      { signal }
-    );
-
-    if (isAborted) return;
-    loading.value = false;
-    dashboardPanels.value = data;
-  };
-
-  watchEffect(() => {
-    fetchDashboardConfig();
-  });
-
-  onScopeDispose(() => {
-    if (abortController) {
-      abortController.abort();
-      abortController = null;
-    }
-  });
+  watch(
+    () => [get(bizId), get(appName)],
+    () => {
+      if (get(bizId) && get(appName)) request.run();
+    },
+    { immediate: true }
+  );
 
   return {
-    dashboardPanels,
-    loading,
+    dashboardPanels: request.data,
+    loading: request.loading,
+    error: request.error,
+    handleRefresh: request.run,
   };
 };

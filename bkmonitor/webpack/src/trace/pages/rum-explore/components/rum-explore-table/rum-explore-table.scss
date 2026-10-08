@@ -9,6 +9,11 @@
   flex-direction: column;
   min-height: 0;
   background: #fff;
+
+  .rum-table-content {
+    display: contents;
+  }
+
 }
 
 /* 组件根（与场景类名复合于同一元素）：跨场景公共样式 */
@@ -64,26 +69,21 @@
     }
   }
 
-  .t-table__body {
-    /* 表尾：滚动触底提示 / 清空筛选 */
-    .scroll-end-loading {
-      position: sticky;
-      left: 50%;
-      display: inline-flex;
-      align-items: center;
-      padding: 12px 0 4px;
-      transform: translateX(-50%);
+  .rum-table-append-row {
+    display: flex;
+    height: 42px;
+    border-bottom: 1px solid #f0f1f5;
+  }
 
-      .bk-loading-size-mini {
-        flex-direction: row;
-        column-gap: 8px;
-        align-items: center;
+  .rum-table-append-cell {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0 16px;
+  }
 
-        .bk-loading-title {
-          margin-top: 0;
-        }
-      }
-    }
+  .rum-table-append-settings {
+    flex: 0 0 32px;
   }
 
   /* 可点击唤起检索条件菜单的单元格（与 trace 检索保持一致） */

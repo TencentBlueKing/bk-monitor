@@ -193,13 +193,6 @@ export default class BasicInfo extends tsc<IProps> {
         trigger: 'blur',
       },
     ],
-    owners: [
-      {
-        required: true,
-        message: window.i18n.tc('必填项'),
-        trigger: 'change',
-      },
-    ],
     sampler_percentage: [
       {
         required: true,
@@ -1322,7 +1315,6 @@ export default class BasicInfo extends tsc<IProps> {
                   error-display-type='normal'
                   label={this.$t('负责人')}
                   property='owners'
-                  required
                 >
                   <UserSelector
                     class='owners-user-selector'

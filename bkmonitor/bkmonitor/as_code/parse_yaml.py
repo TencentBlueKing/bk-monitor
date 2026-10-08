@@ -1287,11 +1287,11 @@ class AssignGroupRuleParser(BaseConfigParser):
                 if action["action_type"] == "notice":
                     if not action.get("is_enabled"):
                         rule["notice_enabled"] = False
-                    rule["upgrade_config"] = action["upgrade_config"]
+                    rule["upgrade_config"] = action.get("upgrade_config") or {}
                     rule["upgrade_config"]["enabled"] = rule["upgrade_config"].pop("is_enabled", False)
                     rule["upgrade_config"]["interval"] = rule["upgrade_config"].pop("upgrade_interval", 1440)
                     rule["upgrade_config"]["user_groups"] = self.get_notice_group_names(
-                        rule["upgrade_config"]["user_groups"]
+                        rule["upgrade_config"].get("user_groups", [])
                     )
                 else:
                     action["enabled"] = action.pop("is_enabled", False)

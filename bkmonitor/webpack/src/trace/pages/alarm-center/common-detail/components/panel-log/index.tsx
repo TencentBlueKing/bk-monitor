@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, watch } from 'vue';
+import { type PropType, computed, defineComponent, onScopeDispose, watch } from 'vue';
 import { shallowRef } from 'vue';
 
 import { Button, Exception, Message } from 'bkui-vue';
@@ -32,6 +32,7 @@ import { copyText, random } from 'monitor-common/utils';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 import { useI18n } from 'vue-i18n';
 
+import { DetailLoadStatus, DetailTableSkeleton } from '../../detail-loading';
 import RetrievalFilter from '../../../../../components/retrieval-filter/retrieval-filter';
 import IndexSetSelector from './index-set-selector/index-set-selector';
 import LogTableNew from './log-table/log-table-new';
@@ -75,7 +76,11 @@ export default defineComponent({
   setup(props) {
     const { t } = useI18n();
     const { getFieldsOptionValuesProxy, setParams: setLogFilterParams } = useLogFilter();
-    const selectLoading = shallowRef(false);
+    const selectLoading = shallowRef(true);
+    const selectError = shallowRef(false);
+    let requestId = 0;
+    let fieldsRevision = 0;
+    onScopeDispose(() => { ++requestId; ++fieldsRevision; });
     /** 索引集列表 */
     const indexSetList = shallowRef([]);
     const relatedBkBizId = shallowRef(-1);
@@ -90,9 +95,9 @@ export default defineComponent({
     const tableColumnsSetting = shallowRef([]);
 
     watch(
-      () => props.detail,
-      val => {
-        if (val) {
+      () => [props.detail?.id, props.detail?.bk_biz_id],
+      () => {
+        if (props.detail) {
           init();
         }
       },
@@ -100,17 +105,25 @@ export default defineComponent({
     );
 
     async function init() {
+      const current = ++requestId;
+      selectError.value = false;
       selectLoading.value = true;
+      try {
       const data = await alertLogRelationList({
         alert_id: props.detail.id,
         bk_biz_id: props.detail.bk_biz_id,
-      }).catch(() => []);
+      });
+      if (current !== requestId) return;
       indexSetList.value = data;
       // 优先选择列表里第一个有数据的索引集
       const dataValidItem = data.find(item => item.tags?.every(tag => tag.tag_id !== 4));
       const indexSetId = dataValidItem ? dataValidItem.index_set_id : data?.[0]?.index_set_id || '';
       handleChangeIndexSet(indexSetId);
-      selectLoading.value = false;
+      } catch {
+        if (current === requestId) selectError.value = true;
+      } finally {
+        if (current === requestId) selectLoading.value = false;
+      }
     }
 
     const timeParams = () => {
@@ -160,13 +173,14 @@ export default defineComponent({
             .then(res => {
               return res;
             })
-            .catch(() => null)
+
         : null;
       return data;
     }
 
     const fieldsData = shallowRef(null);
     const getFieldsData = async () => {
+      const current = fieldsRevision;
       if (fieldsData.value) {
         return fieldsData.value;
       }
@@ -177,8 +191,9 @@ export default defineComponent({
             ...timeParams(),
           })
             .then(res => res)
-            .catch(() => null)
+
         : null;
+      if (current !== fieldsRevision) return null;
       setLogFilterParams({
         index_set_id: selectIndexSet.value,
         ...bizIdParams(),
@@ -196,7 +211,7 @@ export default defineComponent({
       /** 优先使用user_custom_config配置，如果没有再使用display_fields配置 */
       displayColumnFields.value = data?.user_custom_config?.displayFields?.length
         ? data.user_custom_config.displayFields
-        : data?.display_fields;
+        : data?.display_fields || [];
       return data;
     };
 
@@ -274,6 +289,7 @@ export default defineComponent({
           index_set_type: 'single',
         });
       }
+      ++fieldsRevision;
       fieldsData.value = null;
       tableRefreshKey.value = random(6);
     };
@@ -296,6 +312,7 @@ export default defineComponent({
       } else {
         keyword.value = item?.keyword || '';
       }
+      ++fieldsRevision;
       fieldsData.value = null;
       tableRefreshKey.value = random(8);
     }
@@ -445,6 +462,7 @@ export default defineComponent({
       tableRefreshKey,
       selectIndexSet,
       selectLoading,
+      selectError, retryIndexSets: init,
       keyword,
       filterMode,
       displayColumnFields,
@@ -507,7 +525,7 @@ export default defineComponent({
             onWhereChange={this.handleWhereChange}
           />
         </div>
-        <LogTableNew
+        {this.selectError ? <DetailLoadStatus error onRetry={this.retryIndexSets} /> : this.selectLoading ? <DetailTableSkeleton columns={[{ colKey: 'time', title: this.t('时间'), width: 200 }, { colKey: 'log', title: this.t('日志内容') }]} /> : <LogTableNew
           displayFields={this.displayColumnFields}
           getFieldsData={this.getFieldsData}
           getTableData={this.getTableData}
@@ -541,7 +559,7 @@ export default defineComponent({
               return <LogException />;
             },
           }}
-        </LogTableNew>
+        </LogTableNew>}
       </div>
     );
   },

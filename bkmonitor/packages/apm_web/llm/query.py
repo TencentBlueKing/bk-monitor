@@ -178,10 +178,15 @@ class LLMQuery(SpanQuery):
         extra_filter: Q | None = None,
     ) -> list[Any]:
         builders = self.build_queries(filters, query_string)
+        # 空分组会占用 collapse 的分页名额，必须在分页前排除缺失值和空字符串。
+        group_filter = Q(**{f"{group_field}__exists": [""], f"{group_field}__neq": [""]})
         if extra_filter:
-            builders = [query.filter(extra_filter) for query in builders]
+            group_filter &= extra_filter
         queries = [
-            query.distinct(group_field).values(group_field).order_by(f"{self.DEFAULT_TIME_FIELD} desc")
+            query.filter(group_filter)
+            .distinct(group_field)
+            .values(group_field)
+            .order_by(f"{self.DEFAULT_TIME_FIELD} desc")
             for query in builders
         ]
         records = self._query_list(queries, start_time, end_time, offset, limit)

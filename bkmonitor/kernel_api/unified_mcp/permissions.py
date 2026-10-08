@@ -1,7 +1,7 @@
-"""Unified MCP 可选的原生权限实现，不新增第二套路由。
+"""Unified MCP 可选的双权限实现，不新增第二套路由。
 
-先检查原生权限，只有原生明确拒绝才检查旧 MCP Action；身份、资源、配置和 IAM 异常
-都必须失败关闭，不能转换成旧权限放行。
+先检查独立 MCP 权限，只有明确拒绝才检查 SaaS 原生权限；身份、资源、配置和 IAM 异常
+都必须失败关闭，不能转换成另一项权限放行。
 """
 
 from __future__ import annotations
@@ -244,9 +244,25 @@ def _validate_native_target(tool, spec, bk_biz_id, context):
         if tool.name == "execute_sql_query" and "sql" in context:
             ensure_sql_reads_declared_table(context["sql"], context[spec["target_arg"]])
     elif target_kind == "event_table" and spec.get("target_arg") in context:
-        from kernel_api.unified_mcp.dispatcher import _ensure_event_table_belongs_to_biz
+        if "data_source_label" in context and "data_type_label" in context:
+            from kernel_api.unified_mcp.dispatcher import _ensure_event_table_belongs_to_biz
 
-        _ensure_event_table_belongs_to_biz(context)
+            _ensure_event_table_belongs_to_biz({**context, "bk_biz_id": bk_biz_id})
+        else:
+            # 权限探测仅提供 table，不包含数据源标签；按可用事件目录校验归属。
+            from kernel_api.resource.event import ListEventsResource
+
+            table = serializers.CharField(allow_blank=False).run_validation(context[spec["target_arg"]])
+            for source, data_type in (("custom", "event"), ("bk_monitor", "log")):
+                events = ListEventsResource().request(
+                    bk_biz_id=bk_biz_id,
+                    data_source_label=source,
+                    data_type_label=data_type,
+                    return_dimensions=False,
+                )
+                if table in {str(item.get("id")) for item in events if isinstance(item, dict)}:
+                    return
+            raise PermissionDenied("The event table does not belong to the requested business.")
 
 
 def _principal(request, bk_biz_id=None):
@@ -444,7 +460,7 @@ def _apply_guide(client, spec, resource, request):
 
 
 def permission_state(tool: ToolDefinition, request, bk_biz_id=None, resource_context=None, include_apply_guide=False):
-    """权限探测与执行共用同一个 native-first 判定，并返回实际回退结果。"""
+    """权限探测与执行共用同一个 MCP 优先判定，并返回实际放行来源。"""
     try:
         _audit(tool, request, "scope", "started", bk_biz_id=bk_biz_id)
         return _permission_state(tool, request, bk_biz_id, resource_context, include_apply_guide)
@@ -454,11 +470,11 @@ def permission_state(tool: ToolDefinition, request, bk_biz_id=None, resource_con
 
 
 def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
-    """执行资源解析、原生权限和旧 MCP 权限的严格顺序判定。"""
+    """先校验资源，再按 MCP 独立权限、SaaS 原生权限顺序严格判定。"""
     context = context or {}
     spec = tool.resolve_native_permission(context)
     if not spec:
-        raise ImproperlyConfigured("Tool is not enabled for native-first permissions")
+        raise ImproperlyConfigured("Tool is not enabled for MCP-first permissions")
     if bk_biz_id is not None:
         bk_biz_id = serializers.IntegerField().run_validation(bk_biz_id)
         if not bk_biz_id or (tool.category == "alert" and bk_biz_id == -1):
@@ -467,14 +483,9 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
             )
 
     user = _principal(request, bk_biz_id)
-    permission_contract = tool.permission_payload()
-    selected_payload = tool._public_native_permission(spec)
-    runtime_payload = {
-        key: value for key, value in permission_contract.items() if key == "mode" or key.startswith("fallback_")
-    }
     result = {
-        **runtime_payload,
-        **selected_payload,
+        **tool.permission_payload(),
+        "fallback_permission": tool._public_native_permission(spec),
         "tool_name": tool.name,
         "resource": {},
         "native_authorized": None,
@@ -494,14 +505,14 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         _audit(tool, request, "final", "requires_resource", bk_biz_id=bk_biz_id)
         return {**result, "state": "requires_resource", "authorized": False}
 
-    monitor = None
+    monitor = _monitor_permission(user)
+    legacy_resource = _business_resource(bk_biz_id)
+    legacy_query = monitor.make_request(tool.iam_action, [legacy_resource])
     native_resource = None
     if spec["system_id"] == "bk_monitorv3":
-        monitor = _monitor_permission(user)
-        native_client = monitor.iam_client
         if spec["resource_type"] == "space":
             _validate_native_target(tool, spec, bk_biz_id, context)
-            native_resource = _business_resource(bk_biz_id)
+            native_resource = legacy_resource
         elif spec["resource_type"] == "apm_application":
             native_resource = _apm_application_resource(bk_biz_id, context)
         elif spec["resource_type"] == "grafana_dashboard":
@@ -510,8 +521,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
             raise ImproperlyConfigured(f"Unsupported monitor MCP resource type: {spec['resource_type']}")
         native_query = monitor.make_request(spec["action_id"], [native_resource])
     elif spec["system_id"] == "bk_log_search":
-        native_client = _log_iam(user)
-        # 资源范围先于 N/L 判定；归属校验失败不能触发旧权限回退。
+        # 资源归属必须先于两种 IAM 判定；旧 MCP 权限不能绕过实例边界。
         native_resource = _log_resource(spec, user, bk_biz_id, context)
         if native_resource.type == "indices":
             result["resource"]["index_set_id"] = native_resource.id
@@ -530,10 +540,40 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         "scope",
         "resolved",
         bk_biz_id=bk_biz_id,
-        system_id=native_query.system,
-        action_id=native_query.action.id,
-        resource=native_resource,
+        system_id=legacy_query.system,
+        action_id=legacy_query.action.id,
+        resource=legacy_resource,
     )
+    legacy_allowed = _checked_permission(tool, request, "legacy", monitor.iam_client, legacy_query, bk_biz_id)
+    result["legacy_authorized"] = legacy_allowed
+    result["legacy_permission"] = {
+        "system_id": legacy_query.system,
+        "action_id": tool.iam_action,
+        "resource_type": "space",
+        "resource_arg": "bk_biz_id",
+    }
+    if legacy_allowed:
+        _audit(
+            tool,
+            request,
+            "final",
+            "allowed",
+            bk_biz_id=bk_biz_id,
+            source="legacy",
+            system_id=legacy_query.system,
+            action_id=tool.iam_action,
+            resource=legacy_resource,
+        )
+        return {
+            **result,
+            "state": "granted",
+            "authorized": True,
+            "authorization_source": "legacy",
+            "matched_action_id": tool.iam_action,
+        }
+
+    # 仅 MCP 明确拒绝才查 SaaS 原生权限；IAM／资源错误绝不能被当成 False。
+    native_client = monitor.iam_client if spec["system_id"] == "bk_monitorv3" else _log_iam(user)
     native_allowed = _checked_permission(tool, request, "native", native_client, native_query, bk_biz_id)
     result["native_authorized"] = native_allowed
     if native_allowed:
@@ -556,47 +596,27 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
             "matched_action_id": spec["action_id"],
         }
 
-    # 只有严格 False 才能触发回退；资源或 IAM 异常不能被捕获并伪装成无权限。
-    monitor = monitor or _monitor_permission(user)
-    legacy_resource = _business_resource(bk_biz_id)
-    legacy_query = monitor.make_request(tool.iam_action, [legacy_resource])
-    legacy_allowed = _checked_permission(tool, request, "legacy", monitor.iam_client, legacy_query, bk_biz_id)
-    result["legacy_authorized"] = legacy_allowed
-    result["legacy_permission"] = {
-        "system_id": legacy_query.system,
-        "action_id": tool.iam_action,
-        "resource_type": "space",
-        "resource_arg": "bk_biz_id",
-    }
-    source = "legacy" if legacy_allowed else "none"
     _audit(
         tool,
         request,
         "final",
-        "allowed" if legacy_allowed else "denied",
+        "denied",
         bk_biz_id=bk_biz_id,
-        source=source,
-        system_id=legacy_query.system,
-        action_id=tool.iam_action,
-        resource=legacy_resource,
+        system_id=native_query.system,
+        action_id=spec["action_id"],
+        resource=native_resource,
     )
-    if not legacy_allowed and include_apply_guide:
-        result.update(_apply_guide(native_client, spec, native_resource, request))
-        result["legacy_permission"].update(
-            _apply_guide(
-                monitor.iam_client,
-                {"system_id": legacy_query.system, "action_id": tool.iam_action},
-                legacy_resource,
-                request,
-            )
+    if include_apply_guide:
+        primary_guide = _apply_guide(
+            monitor.iam_client,
+            {"system_id": legacy_query.system, "action_id": tool.iam_action},
+            legacy_resource,
+            request,
         )
-    return {
-        **result,
-        "state": "granted" if legacy_allowed else "missing",
-        "authorized": legacy_allowed,
-        "authorization_source": source,
-        "matched_action_id": tool.iam_action if legacy_allowed else "",
-    }
+        result.update(primary_guide)
+        result["legacy_permission"].update(primary_guide)
+        result["fallback_permission"].update(_apply_guide(native_client, spec, native_resource, request))
+    return {**result, "state": "missing", "authorized": False, "matched_action_id": ""}
 
 
 def execute_native_tool(tool: ToolDefinition, tool_args: dict, request):
@@ -671,9 +691,7 @@ def _execute_native_tool(tool, tool_args, request):
     request.mcp_permission_source = state["authorization_source"]
     checked_action_id = state.get("matched_action_id")
     if not checked_action_id:
-        checked_action_id = (
-            tool.iam_action if state.get("legacy_authorized") is not None else state.get("action_id", "")
-        )
+        checked_action_id = spec["action_id"] if state.get("native_authorized") is not None else tool.iam_action
     request.mcp_permission_action = checked_action_id
     if state["state"] != "granted":
         # 权限状态是保留 bool/null 的结构化数据，不是 ValidationError 消息树。

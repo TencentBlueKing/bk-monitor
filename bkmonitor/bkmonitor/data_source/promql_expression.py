@@ -44,7 +44,6 @@ def compile_promql_expression(query_configs: list[Mapping[str, Any]], expression
         raise ValueError("PromQL queries must use the same interval")
 
     result: list[str] = []
-    used_aliases: set[str] = set()
     label_list = False
     pending_modifier = ""
     position = 0
@@ -87,7 +86,6 @@ def compile_promql_expression(query_configs: list[Mapping[str, Any]], expression
             elif token in queries:
                 if re.match(r"\s*\(", expression[position:]):
                     raise ValueError(f"PromQL query alias conflicts with a function call: {token}")
-                used_aliases.add(token)
                 result.append(f"({queries[token]})")
             elif re.match(r"\s*(?:\(|(?:by|without)\b)", expression[position:]):
                 # Functions and aggregators are part of PromQL; bare metrics must be declared aliases.
@@ -98,6 +96,4 @@ def compile_promql_expression(query_configs: list[Mapping[str, Any]], expression
             result.append(token)
     if pending_modifier or label_list:
         raise ValueError("incomplete vector matching modifier")
-    if used_aliases != queries.keys():
-        raise ValueError(f"unused PromQL query aliases: {', '.join(sorted(queries.keys() - used_aliases))}")
     return "".join(result)

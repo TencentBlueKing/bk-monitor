@@ -24,7 +24,7 @@ from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import api
 from core.prometheus import metrics
 from metadata import models
-from metadata.config import PERIODIC_TASK_DEFAULT_TTL
+from metadata.config import DATABASE_CONNECTION_NAME, PERIODIC_TASK_DEFAULT_TTL
 from metadata.models.bcs.resource import (
     BCSClusterInfo,
     PodMonitorInfo,
@@ -86,7 +86,8 @@ def schedule_federation_reconcile(bk_tenant_id: str, plan: FederationReconcilePl
             active_sub_cluster_ids=plan.active_sub_cluster_ids,
             removed_proxy_cluster_ids=plan.removed_proxy_cluster_ids,
             removed_sub_cluster_ids=plan.removed_sub_cluster_ids,
-        )
+        ),
+        using=DATABASE_CONNECTION_NAME,
     )
 
 
@@ -621,16 +622,16 @@ def update_bcs_cluster_cloud_id_config(bk_biz_id=None, cluster_id=None):
     clusters = BCSClusterInfo.objects.filter(**filter_kwargs).values("bk_tenant_id", "bk_biz_id", "cluster_id")
     for start in range(0, len(clusters), BCS_SYNC_SYNC_CONCURRENCY):
         cluster_chunk = clusters[start : start + BCS_SYNC_SYNC_CONCURRENCY]
-        # 从BCS获取集群的节点IP
+        # 云区域查询与投票使用同一批有界 IP 样本，不加载全量节点详情。
         params: dict[str, tuple[str, int]] = {
             cluster["cluster_id"]: (cluster["bk_tenant_id"], cluster["bk_biz_id"]) for cluster in cluster_chunk
         }
         bulk_request_params = [
-            {"bcs_cluster_id": bcs_cluster_id, "bk_tenant_id": bk_tenant_id}
+            {"bcs_cluster_id": bcs_cluster_id, "bk_tenant_id": bk_tenant_id, "limit": CMDB_IP_SEARCH_MAX_SIZE}
             for bcs_cluster_id, (bk_tenant_id, _) in params.items()
         ]
         try:
-            api_nodes = api.kubernetes.fetch_k8s_node_list_by_cluster.bulk_request(
+            api_nodes = api.kubernetes.fetch_k8s_node_ip_list_by_cluster.bulk_request(
                 bulk_request_params, ignore_exceptions=True
             )
         except Exception as exc_info:  # noqa
@@ -723,7 +724,7 @@ def sync_federation_clusters(
         sorted(fed_clusters),
     )
     desired_pairs: set[tuple[str, str]] = set()
-    with transaction.atomic():
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
         existing_active_records = list(
             models.BcsFederalClusterInfo.objects.select_for_update().filter(
                 bk_tenant_id=bk_tenant_id,

@@ -109,7 +109,7 @@ export default defineComponent({
         {props.disabled ? (
           <Input
             modelValue={pausedSummary.value}
-            placeholder={t('筛选将在全量数据加载完成后生效')}
+            placeholder={t('/ 快速唤起，请输入')}
             disabled
           />
         ) : (

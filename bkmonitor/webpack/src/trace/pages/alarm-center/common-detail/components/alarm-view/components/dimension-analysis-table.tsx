@@ -28,7 +28,7 @@ import { type PropType, computed, defineComponent, shallowRef, useTemplateRef } 
 
 import { type SortInfo, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import EmptyStatus from 'trace/components/empty-status/empty-status';
-import TableSkeleton from 'trace/components/skeleton/table-skeleton';
+import { DetailTableSkeleton } from '@/pages/alarm-center/common-detail/detail-loading';
 import OverflowTips from 'trace/directive/overflow-tips';
 import { useI18n } from 'vue-i18n';
 import { useTippy } from 'vue-tippy';
@@ -240,7 +240,7 @@ export default defineComponent({
     return (
       <>
         {this.loading ? (
-          <TableSkeleton type={1} />
+          <DetailTableSkeleton columns={this.columns} />
         ) : (
           <PrimaryTable
             class='dimension-analysis-data-table'

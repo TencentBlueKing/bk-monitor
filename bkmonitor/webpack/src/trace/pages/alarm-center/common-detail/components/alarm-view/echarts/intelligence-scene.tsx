@@ -24,9 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, defineComponent, onMounted, shallowRef } from 'vue';
+import { type PropType, defineComponent, onMounted, onScopeDispose, shallowRef } from 'vue';
 
-import { Loading } from 'bkui-vue';
+import DetailLoading, { DetailLoadStatus } from '../../../detail-loading';
 import { multiAnomalyDetectGraph } from 'monitor-api/modules/alert_v2';
 import { random } from 'monitor-common/utils';
 
@@ -48,7 +48,7 @@ export default defineComponent({
     },
   },
   setup(props) {
-    const loading = shallowRef(false);
+    const loading = shallowRef(true);
     const dashboardId = random(10);
     const panels = shallowRef<PanelModel[]>([]);
     const viewOptions = shallowRef({});
@@ -96,12 +96,19 @@ export default defineComponent({
       timeRange.value = [startTime, endTime];
     };
 
-    onMounted(async () => {
+    const error = shallowRef(false);
+    let requestId = 0;
+    onScopeDispose(() => { ++requestId; });
+    const load = async () => {
+      const current = ++requestId;
+      error.value = false;
+      try {
       loading.value = true;
       const data = await multiAnomalyDetectGraph({
         alert_id: props.detail.id,
         bk_biz_id: props.detail.bk_biz_id,
-      }).catch(() => []);
+      });
+      if (current !== requestId) return;
       timeRangeInit();
       const result = data.map(item => {
         return {
@@ -129,11 +136,17 @@ export default defineComponent({
         };
       });
       panels.value = result.map(item => new PanelModel(item));
-      loading.value = false;
-    });
+      } catch {
+        if (current === requestId) error.value = true;
+      } finally {
+        if (current === requestId) loading.value = false;
+      }
+    };
+    onMounted(load);
 
     return {
       loading,
+      error, retry: load,
       showRestore,
       panels,
       handleDataZoomChange,
@@ -141,8 +154,10 @@ export default defineComponent({
     };
   },
   render() {
+    if (this.loading) return <DetailLoading variant="dashboard" />;
+    if (this.error) return <DetailLoadStatus error onRetry={this.retry} />;
     return (
-      <Loading loading={this.loading}>
+      <>
         <div class='intelligence-scene-view-component'>
           {this.panels.map((panel, index) => (
             <div
@@ -158,7 +173,7 @@ export default defineComponent({
             </div>
           ))}
         </div>
-      </Loading>
+      </>
     );
   },
 });

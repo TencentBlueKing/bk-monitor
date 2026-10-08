@@ -276,8 +276,9 @@
         },
       })
       .then(() => {
-        emit('operateChange', id);
+        operationMenuRef.value?.hideHandler();
         batchOperatePopoverRef.value?.hideHandler();
+        emit('operateChange', id);
       })
       .catch(error => {
         console.error('Batch update failed', error);

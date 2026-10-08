@@ -203,7 +203,7 @@ def _event_resource_executor(resource_class) -> ToolExecutor:
 
 
 def _ensure_apm_application_permission(tool_args: dict[str, Any]) -> None:
-    """把应用名解析为当前业务 APM 实例，并在非 native-first 路径执行实例权限校验。"""
+    """把应用名解析为当前业务 APM 实例，并在未完成双权限判定时检查实例权限。"""
     application_id = (
         Application.objects.filter(bk_biz_id=tool_args["bk_biz_id"], app_name=tool_args["app_name"])
         .values_list("application_id", flat=True)
@@ -221,7 +221,7 @@ def _ensure_apm_application_permission(tool_args: dict[str, Any]) -> None:
         except KeyError:
             native_spec = None
         # native_mcp_tool 本身不是 grant；只有同一目录确认该工具已按 APM 实例完成
-        # native-first 判定后，才跳过此处对同一 Action 的重复检查。
+        # MCP 优先／SaaS 兜底判定后，才跳过此处对同一 Action 的重复检查。
         if native_spec and native_spec["resource_type"] == "apm_application":
             return
     Permission().is_allowed(

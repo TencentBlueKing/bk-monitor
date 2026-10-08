@@ -31,23 +31,12 @@ import { useI18n } from 'vue-i18n';
 
 import HostDetailView from '../../../../components/common-detail/host-detail-view';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
+import HostLoading, { HostRefreshStatus } from '../host-loading/host-loading';
 import { HOST_DETAIL_STATE_KEY } from '../../composables/use-host-detail';
 
 import type { IDetailItem } from '../../../../components/common-detail/typing';
 
 import './host-detail-view.scss';
-
-/** 骨架屏行配置 */
-const SKELETON_ROWS = [
-  { labelWidth: 80, valueWidth: 100 },
-  { labelWidth: 80, valueWidth: 140 },
-  { labelWidth: 80, valueWidth: 120 },
-  { labelWidth: 80, valueWidth: 160 },
-  { labelWidth: 80, valueWidth: 100 },
-  { labelWidth: 80, valueWidth: 80 },
-  { labelWidth: 80, valueWidth: 90 },
-  { labelWidth: 80, valueWidth: 110 },
-];
 
 export default defineComponent({
   name: 'HostDetailViewWrapper',
@@ -76,25 +65,10 @@ export default defineComponent({
     return (
       <div class='host-detail-view-wrapper'>
         <div class='host-detail-view-title'>{this.t('详情')}</div>
-        {this.loading ? (
-          <div class='host-detail-view-skeleton'>
-            {SKELETON_ROWS.map((row, index) => (
-              <div
-                key={index}
-                class='host-detail-view-skeleton-row'
-              >
-                <div
-                  style={{ width: `${row.labelWidth}px`, height: '20px' }}
-                  class='skeleton-element'
-                />
-                <div
-                  style={{ width: `${row.valueWidth}px`, height: '20px' }}
-                  class='skeleton-element'
-                />
-              </div>
-            ))}
-          </div>
-        ) : this.detailError ? (
+        <HostRefreshStatus loading={this.loading && this.data.length > 0} error={this.detailError && this.data.length > 0} onRetry={this.handleRetry} />
+        {this.loading && !this.data.length ? (
+          <HostLoading variant='detail' />
+        ) : this.detailError && !this.data.length ? (
           <EmptyStatus
             scene='part'
             type='500'

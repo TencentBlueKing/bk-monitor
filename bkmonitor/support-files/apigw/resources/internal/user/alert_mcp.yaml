@@ -218,7 +218,7 @@ paths:
   /mcp/get_strategy_snapshot/:
     post:
       operationId: get_strategy_snapshot
-      description: Get the corresponding strategy configuration snapshot by alert event ID. The alert event ID can be obtained from list_alerts or get_alert_info, and should be passed as id. Use this tool when you need the strategy configuration snapshot associated with a specific alert event. 根据告警事件ID获取对应的策略配置快照。告警事件ID可通过 list_alerts 或 get_alert_info 获取,并作为 id 传入。用于查看某个告警事件对应的策略配置快照。
+      description: Get the strategy configuration snapshot associated with an alert. Pass the numeric alert ID from list_alerts[].id or get_alert_info.id as id, not the event_id string. 获取告警关联的策略配置快照。id 必须是 list_alerts[].id 或 get_alert_info.id 返回的数字告警 ID，不能传 event_id 字符串。
       tags:
       - alert_mcp
       requestBody:
@@ -235,7 +235,7 @@ paths:
                   description: Business ID in BlueKing Monitor. Required by MCP authentication mechanism. 业务ID。MCP 鉴权机制要求,所有 MCP 工具都必须传递此参数。
                 id:
                   type: string
-                  description: Alert event ID. Must be obtained from list_alerts or get_alert_info. 告警事件ID。必须从 list_alerts 或 get_alert_info 获取。
+                  description: Numeric alert ID from list_alerts[].id or get_alert_info.id; do not use event_id. 来自 list_alerts[].id 或 get_alert_info.id 的数字告警 ID，不能传 event_id。
         required: false
         description: ''
       x-bk-apigateway-resource:

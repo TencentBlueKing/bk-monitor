@@ -385,9 +385,46 @@ class GetHostIdentities(Resource):
         bk_biz_id = serializers.IntegerField()
         bk_host_id = serializers.IntegerField(required=False)
         topo_nodes = serializers.DictField(child=serializers.ListField(), required=False)
+        bk_host_ids = serializers.ListField(child=serializers.IntegerField(), required=False)
+
+        def validate(self, attrs):
+            if "bk_host_ids" in attrs and ("bk_host_id" in attrs or "topo_nodes" in attrs):
+                raise serializers.ValidationError("bk_host_ids cannot be combined with host or topology scope")
+            return attrs
 
     def perform_request(self, params):
         fields = ["bk_host_id", "bk_host_innerip", "bk_host_innerip_v6", "bk_cloud_id"]
+        if "bk_host_ids" in params:
+            # 此分支仅供 ID 身份已确定无歧义的统计查询使用，不推断全业务 IP 重复标志。
+            # 按候选分批查询，避免全业务缓存解码与 Host 对象构造。
+            host_ids = list(dict.fromkeys(params["bk_host_ids"]))
+            identities = []
+            for offset in range(0, len(host_ids), 500):
+                request_params = {
+                    "bk_biz_id": params["bk_biz_id"],
+                    "fields": fields,
+                    "host_property_filter": {
+                        "condition": "AND",
+                        "rules": [{"field": "bk_host_id", "operator": "in", "value": host_ids[offset : offset + 500]}],
+                    },
+                }
+                result = client.list_biz_hosts_topo({**request_params, "page": {"start": 0, "limit": 500}})
+                records = result["info"] if result else []
+                if result and result["count"] is not None and result["count"] > len(records):
+                    records = batch_request(client.list_biz_hosts_topo, request_params)
+                for record in records:
+                    host = record["host"]
+                    ip = split_inner_host(host.get("bk_host_innerip"))
+                    ipv6 = split_inner_host(host.get("bk_host_innerip_v6"))
+                    if ip or ipv6:
+                        identities.append(
+                            {
+                                **{field: host.get(field) for field in fields},
+                                "bk_host_innerip": ip,
+                                "bk_host_innerip_v6": ipv6,
+                            }
+                        )
+            return identities
         # 与 cmdb_api_list 的预热位置参数完全一致；缓存命中后仍需解码并遍历全业务主机。
         hosts = get_host_dict_by_biz(params["bk_biz_id"], Host.Fields)
         ip_counts = Counter((host["bk_host_innerip"], int(host.get("bk_cloud_id") or 0)) for host in hosts)

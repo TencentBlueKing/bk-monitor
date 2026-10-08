@@ -307,16 +307,20 @@ class AbstractConfig(metaclass=abc.ABCMeta):
         :param configs: 配置对象
         :param config_cls: 配置处理类
         """
-        for config, obj in zip(configs, objs):
-            config.id = obj.id
-        # fmt: off
-        for config in configs[len(objs):]:
-            config.id = 0
-        if objs[len(configs):]:
-            obj_ids = [obj.id for obj in objs[len(configs):]]
+        # Keep explicitly identified records even when the read and save order differ.
+        # Legacy callers without IDs still reuse the remaining records by position.
+        obj_ids = [obj.id for obj in objs]
+        reserved_ids = {config.id for config in configs} & set(obj_ids)
+        available_ids = iter(obj_id for obj_id in obj_ids if obj_id not in reserved_ids)
+        used_ids = set()
+        for config in configs:
+            if config.id not in reserved_ids or config.id in used_ids:
+                config.id = next(available_ids, 0)
+            used_ids.add(config.id)
+        obj_ids = [obj_id for obj_id in obj_ids if obj_id not in used_ids]
+        if obj_ids:
             model.objects.filter(id__in=obj_ids).delete()
             config_cls.delete_useless(obj_ids)
-        # fmt: on
 
     @staticmethod
     def _get_username():
@@ -501,7 +505,9 @@ class BaseActionRelation(AbstractConfig):
             end_time = serializers.CharField(label="生效结束时间", default="23:59:59")
             chart_image_enabled = serializers.BooleanField(label="是否附带图片", default=True)
 
+        id = serializers.IntegerField(required=False, allow_null=True)
         config_id = serializers.IntegerField(required=False, label="套餐ID")
+        user_type = serializers.ChoiceField(required=False, choices=UserGroupType.CHOICE)
         user_groups = serializers.ListField(required=False, child=serializers.IntegerField(), label="通知组ID列表")
         signal = serializers.MultipleChoiceField(
             required=True,
@@ -1678,6 +1684,16 @@ class Item(AbstractConfig):
         raw_output_list = config.get("output_list")
         if not isinstance(raw_output_list, list):
             raise ValidationError(detail="query_output_config.output_list 必须为数组")
+        max_outputs = int(getattr(settings, "NAMED_OUTPUT_MAX_COUNT", 4))
+        if len(raw_output_list) > max_outputs:
+            raise ValidationError(
+                detail=(
+                    f"命名输出最多支持 {max_outputs} 个，当前配置了 {len(raw_output_list)} 个。"
+                    "如需支持更多输出，请同步调整两侧配置："
+                    "1) 平台侧：配置环境变量 BKAPP_SETTINGS_NAMED_OUTPUT_MAX_COUNT（对应 settings.NAMED_OUTPUT_MAX_COUNT）；"
+                    "2) UQ 侧：调大 defaultNamedOutputSettings 的 MaxOutputs（默认 4），并保证两侧取值一致。"
+                )
+            )
         output_list = []
         references = set()
         for output in raw_output_list:
@@ -3004,10 +3020,11 @@ class Strategy(AbstractConfig):
 
         return content
 
-    def save(self, rollback=False):
+    def save(self, rollback=False, *, audit_operator=None):
         """
         保存策略配置
 
+        audit_operator 仅供内部传入已校验的审计名称，不替换请求的认证用户。
         策略本体写入放在独立 atomic 中。history 的创建/失败记录必须在事务外，
         否则 MySQL DataError 会把连接标脏，except 里再 history.save() 会变成
         TransactionManagementError，把原始异常盖掉。
@@ -3029,7 +3046,7 @@ class Strategy(AbstractConfig):
 
         if not rollback:
             history = StrategyHistoryModel.objects.create(
-                create_user=self._get_username(),
+                create_user=audit_operator or self._get_username(),
                 strategy_id=self.id,
                 operate="create" if self.id == 0 else "update",
                 content=self.get_history_content(),
@@ -3055,7 +3072,7 @@ class Strategy(AbstractConfig):
                     strategy.is_enabled = self.is_enabled
                     strategy.is_invalid = self.is_invalid
                     strategy.invalid_type = self.invalid_type
-                    strategy.update_user = self._get_username()
+                    strategy.update_user = audit_operator or self._get_username()
                     strategy.priority = self.priority
                     strategy.priority_group_key = (
                         self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
