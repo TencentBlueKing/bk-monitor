@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
@@ -16,11 +16,18 @@ from calendars import resources
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
+class CalendarManagePermission(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if not getattr(request, "biz_id", None):
+            return False
+        return BusinessActionPermission([ActionEnum.MANAGE_CALENDAR]).has_permission(request, view)
+
+
 class CalendarsViewSet(ResourceViewSet):
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS or self.action in ["item_detail", "item_list"]:
             return []
-        return [BusinessActionPermission([ActionEnum.MANAGE_CALENDAR])]
+        return [CalendarManagePermission()]
 
     resource_routes = [
         # 保存日历

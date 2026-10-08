@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -15,7 +14,6 @@ from datetime import datetime
 from functools import partial
 from secrets import token_hex
 
-from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.permission import ActionIdMap, Permission
 from bkmonitor.models import REGISTERED_SCENE_AUTH_TYPES, ApiAuthToken, AuthType, TokenAccessRecord
 from bkmonitor.share.handler import validate_host_share_scope
@@ -51,16 +49,22 @@ def validate_registered_scene_token_type(token_type):
 
 
 def check_host_share_permission(token_type, bk_biz_id):
-    if token_type != AuthType.Host:
+    if token_type not in ActionIdMap:
+        raise TokenValidatedError
+    actions = [
+        action
+        for action in ActionIdMap[token_type]
+        if action.related_resource_types
+        and all(resource_type["id"] == "space" for resource_type in action.related_resource_types)
+    ]
+    if not actions:
         return
-    Permission(
+    permission = Permission(
         username=get_global_user() or "unknown",
         bk_tenant_id=get_request_tenant_id(),
-    ).is_allowed_by_biz(
-        bk_biz_id=bk_biz_id,
-        action=ActionEnum.VIEW_HOST,
-        raise_exception=True,
     )
+    for action in actions:
+        permission.is_allowed_by_biz(bk_biz_id=bk_biz_id, action=action, raise_exception=True)
 
 
 def validate_host_share_target(token_type, bk_biz_id, data):
@@ -223,9 +227,10 @@ class GetShareParamsResource(Resource):
             # 绕过token鉴权,获取该用户是否有相关权限
             request = get_request(peaceful=True)
             if request:
-                has_permission = True
                 request.token = None
-                for action in ActionIdMap[token_obj.type]:
+                actions = ActionIdMap.get(token_obj.type, [])
+                has_permission = bool(actions)
+                for action in actions:
                     if not Permission().is_allowed_by_biz(bk_biz_id=bk_biz_id, action=action):
                         has_permission = False
                         TokenAccessRecord.objects.update_or_create(

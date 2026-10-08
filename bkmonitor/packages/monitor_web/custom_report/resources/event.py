@@ -156,8 +156,9 @@ class QueryCustomEventGroup(Resource):
             # 2）只查全平台, 不关注业务
             queryset = queryset.filter(is_platform=True)
         elif params.get("bk_biz_id"):
-            # 3）非全平台，查当前业务(0表示全部业务)
             queryset = queryset.filter(bk_biz_id=params["bk_biz_id"])
+        else:
+            raise ValidationError(_("业务 ID 不能为空"))
 
         if params.get("search_key"):
             search_key = params["search_key"]

@@ -14,6 +14,7 @@ from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.permissions import require_business_id
 
 
 class CustomEventReportViewSet(ResourceViewSet):
@@ -24,6 +25,7 @@ class CustomEventReportViewSet(ResourceViewSet):
     def get_permissions(self):
         if self.action == "proxy_host_info":
             return []
+        require_business_id(self.request)
         if self.request.method in permissions.SAFE_METHODS:
             return [BusinessActionPermission([ActionEnum.VIEW_CUSTOM_EVENT])]
         return [BusinessActionPermission([ActionEnum.MANAGE_CUSTOM_EVENT])]
@@ -51,6 +53,7 @@ class CustomMetricReportViewSet(ResourceViewSet):
     query_post_actions = ["get_custom_report_dashboard_config", "get_custom_ts_fields"]
 
     def get_permissions(self):
+        require_business_id(self.request)
         if self.request.method in permissions.SAFE_METHODS or self.action in self.query_post_actions:
             return [BusinessActionPermission([ActionEnum.VIEW_CUSTOM_METRIC])]
         return [BusinessActionPermission([ActionEnum.MANAGE_CUSTOM_METRIC])]
