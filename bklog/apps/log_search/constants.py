@@ -371,6 +371,8 @@ NON_SPLITTABLE_ERROR_CODES = frozenset(
         ExportErrorCode.QUOTA_EXCEEDED,
         ExportErrorCode.PLANNING_FAILED,
         ExportErrorCode.UPLOAD_FAILED,
+        # 未预期异常的兜底码，多为代码或配置问题，细分只会成倍放大失败次数
+        ExportErrorCode.PART_EXECUTION_FAILED,
     }
 )
 
@@ -382,7 +384,6 @@ WORKLOAD_ERROR_CODES = frozenset(
         ExportErrorCode.PART_TIMEOUT,
         ExportErrorCode.UNIFY_QUERY_FAILED,
         ExportErrorCode.PART_RETRIES_EXHAUSTED,
-        ExportErrorCode.PART_EXECUTION_FAILED,
     }
 )
 

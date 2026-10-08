@@ -40,7 +40,10 @@ OBJECT_PREFIX = "exports"
 def build_storage(external=False):
     """构建产物存储实例；外部版任务读 feature_async_export_external，内部任务读 feature_async_export。"""
     toggle_name = FEATURE_ASYNC_EXPORT_EXTERNAL if external else FEATURE_ASYNC_EXPORT_COMMON
-    config = FeatureToggleObject.toggle(toggle_name).feature_config
+    toggle = FeatureToggleObject.toggle(toggle_name)
+    config = toggle.feature_config if toggle else None
+    if not isinstance(config, dict):
+        raise UnsupportedExportStorage(f"分片导出缺少存储配置 {toggle_name}")
     storage_type = config.get(FEATURE_ASYNC_EXPORT_STORAGE_TYPE)
     if storage_type not in SUPPORTED_STORAGE_TYPES:
         raise UnsupportedExportStorage(f"分片导出不支持当前存储类型 {storage_type}")

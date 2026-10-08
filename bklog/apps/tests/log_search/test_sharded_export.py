@@ -1565,6 +1565,16 @@ class BuildStorageTests(SimpleTestCase):
         with self.assertRaises(UnsupportedExportStorage):
             self._build(external=True, config={"storage_type": RemoteStorageType.NFS.value})
 
+    def test_missing_toggle_is_reported_as_unsupported_storage(self):
+        """开关缺失是配置问题：必须给出不可重试的存储错误码，而不是落到兜底异常。"""
+        with patch("apps.log_search.export.storage.FeatureToggleObject.toggle", return_value=None):
+            with self.assertRaises(UnsupportedExportStorage):
+                build_storage(external=False)
+
+    def test_empty_feature_config_is_reported_as_unsupported_storage(self):
+        with self.assertRaises(UnsupportedExportStorage):
+            self._build(external=False, config=None)
+
 
 @override_settings(ASYNC_EXPORT_COORDINATE_BATCH=10)
 class SchedulerTests(TestCase):
@@ -2015,6 +2025,8 @@ class JobFailureClassificationTests(TestCase):
         # 存储、投递类原因与数据密度无关，不能被密度文案覆盖
         (ExportErrorCode.UPLOAD_FAILED, 1000, 500, ExportErrorCode.UPLOAD_FAILED),
         (ExportErrorCode.STORAGE_UNSUPPORTED, 1000, 500, ExportErrorCode.STORAGE_UNSUPPORTED),
+        # 未预期异常多为代码或配置问题，已到最小精度也不能报成密度过高
+        (ExportErrorCode.PART_EXECUTION_FAILED, 1000, 500, ExportErrorCode.PART_EXECUTION_FAILED),
         # 还能继续细分时保留原始原因，避免把「分片数到上限」误报成密度问题
         (ExportErrorCode.PART_TIMEOUT, 4000, 1, ExportErrorCode.PART_TIMEOUT),
         # 未登记的码不透给前端，否则前端只能拿到空文案
@@ -2044,6 +2056,14 @@ class JobFailureClassificationTests(TestCase):
                 self.assertEqual(job.status, ExportJobStatus.FAILED)
                 self.assertEqual(job.error_code, expected)
                 self.assertTrue(ExportErrorCode.label(job.error_code))
+
+    def test_unexpected_failure_fails_the_job_without_splitting(self):
+        """兜底错误每次必然复现，重试耗尽后直接失败，不再一路细分到最小精度。"""
+        job = self.fail_single_part_job(ExportErrorCode.PART_EXECUTION_FAILED, 4000, 500)
+
+        self.assertEqual(job.status, ExportJobStatus.FAILED)
+        self.assertEqual(job.error_code, ExportErrorCode.PART_EXECUTION_FAILED)
+        self.assertEqual(list(ExportPart.objects.filter(job=job).values_list("status", flat=True)), ["FAILED"])
 
     def test_underlying_part_error_stays_in_the_detail(self):
         job = self.fail_single_part_job(ExportErrorCode.STORAGE_UNSUPPORTED, 1000, 500)
