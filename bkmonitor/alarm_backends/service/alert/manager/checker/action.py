@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import logging
 import math
 import time
@@ -15,8 +15,9 @@ import time
 from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.action_config import ActionConfigCacheManager
 from alarm_backends.service.alert.manager.checker.base import BaseChecker
+from alarm_backends.service.converge.shield.shielder import AlertShieldConfigShielder
 from alarm_backends.service.fta_action.tasks import create_interval_actions
-from constants.action import ActionSignal, IntervalNotifyMode
+from constants.action import ActionPluginType, ActionSignal, IntervalNotifyMode
 
 logger = logging.getLogger("alert.manager")
 
@@ -55,11 +56,18 @@ class ActionHandleChecker(BaseChecker):
                 continue
 
             action_config = ActionConfigCacheManager.get_action_config_by_id(action["config_id"])
-            if not self.check_interval_matched_actions(relation_record, action_config, alert):
+            is_notice = action is notice_relation or (action_config or {}).get("plugin_type") == ActionPluginType.NOTICE
+            source_time = (alert.latest_abnormal_event_time or alert.latest_time) if is_notice else alert.latest_time
+            if not self.check_interval_matched_actions(relation_record, action_config, alert, source_time):
                 continue
 
             # 如果处理的最近异常点与当前告警异常点不一致并且满足周期调用的的场景，则创建周期任务
             execute_times = relation_record["execute_times"]
+            is_shielded = alert.is_shielded
+            if is_notice and not is_shielded:
+                is_shielded = bool(
+                    AlertShieldConfigShielder.match_historical(alert.to_document(), alert.latest_abnormal_event_time)
+                )
             create_interval_actions.delay(
                 alert.strategy_id,
                 signal,
@@ -74,15 +82,15 @@ class ActionHandleChecker(BaseChecker):
                 {
                     str(relation_id): {
                         "last_time": int(time.time()),
-                        "is_shielded": alert.is_shielded,
-                        "latest_anomaly_time": alert.latest_time,
+                        "is_shielded": is_shielded,
+                        "latest_anomaly_time": source_time,
                         "execute_times": execute_times + 1,
                     }
                 }
             )
             alert.update_extra_info("cycle_handle_record", cycle_handle_record)
 
-    def check_interval_matched_actions(self, last_execute_info, action_config, alert):
+    def check_interval_matched_actions(self, last_execute_info, action_config, alert, source_time=None):
         """
         判断周期间隔是否已经达到
         """
@@ -101,7 +109,9 @@ class ActionHandleChecker(BaseChecker):
         if notify_interval <= 0 or last_execute_info["last_time"] + notify_interval > int(time.time()):
             # 不满足创建周期任务条件的时候，直接返回
             return False
-        if last_execute_info.get("latest_anomaly_time", 0) >= alert.latest_time:
+        if last_execute_info.get("latest_anomaly_time", 0) >= (
+            source_time if source_time is not None else alert.latest_time
+        ):
             # 满足了周期条件之后，如果最近的异常点与上一次发送通知的异常点一致，则忽略
             return False
         logger.info(
