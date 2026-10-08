@@ -35,9 +35,9 @@ def named(*field_names: str) -> tuple[NamedKeyValueItem, ...]:
 
 @dataclass(frozen=True, slots=True)
 class RatingConfigItem(KeyValueItem):
-    """Web Vitals 评级阈值配置：``source`` 优先，缺失时回退到 flatten_data 中的 ``attributes.vital.metric``。
+    """Web Vitals 评级阈值配置：``source`` 指定指标名，为空时读取 ``attributes.vital.metric``。
 
-    列表侧（View 的 Web Vitals 区块）与详情侧（Vital 的 rating 区块）共用，避免两份等价实现分叉。
+    View 详情的 Web Vitals 区块与 Vital 详情的 rating 区块共用，避免两份等价实现分叉。
     """
 
     key: str = "display.rating_config"

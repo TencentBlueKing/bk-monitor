@@ -34,7 +34,7 @@ class CompressionRatioItem(KeyValueItem):
 
     - 分子 ``encoded_body_size``：压缩后正文大小（不含协议头）。
     - 分母 ``decoded_body_size``：解压后正文大小。
-    - 缺失或分母为 0 时返回 :data:`BaseComponent.EMPTY_VALUE`，避免与「真实压缩率为 0」混淆；
+    - 缺失或分母为 0 时返回 :data:`rum_web.handlers.builder.base.EMPTY_VALUE`，避免与「真实压缩率为 0」混淆；
       也避免使用 ``transfer_size`` 导致缓存命中（transfer=0）时压缩率恒为 100%。
     """
 
@@ -97,9 +97,9 @@ class ResourceXhrAndFetchKeyInfoSection(BaseSection):
 class LoadingTimingSection(BaseSection):
     """加载时序瀑布：按「字段缺失 → 不出段」组装，避免伪造全零瀑布。
 
-    - 跨域资源无 ``Timing-Allow-Origin`` 时时序字段全为空，应返回空 ``phases``。
+    - 时序字段全部缺失时，省略整个 ``loading_timing`` 区块。
     - ``tls`` 段缺失整段不输出，不能在时间轴原点渲染一条 duration=0 的假 TLS 段。
-    - 各段 ``duration`` 收敛负值，避免 ``connect - ssl`` 之类的相减产生负数。
+    - 各段 ``duration`` 为负时省略该段，不将负时长归零。
     """
 
     KEY = "loading_timing"
@@ -127,9 +127,9 @@ class LoadingTimingSection(BaseSection):
         download_start = self.numeric_or_none("attributes.resource.download.start")
         download_duration = self.numeric_or_none("attributes.resource.download.duration")
 
-        # prepare 段：redirect_start 与 dns_start 均需存在，duration 收敛非负
+        # prepare 段：redirect_start 与 dns_start 均需存在，负时长由后续 phase 校验过滤。
         prepare_duration = safe_diff(dns_start, redirect_start)
-        # connect 仅在 TLS 分段有效时扣除 ssl_duration，其他情况保持原值
+        # connect_duration 与 ssl_duration 均有数值时扣减；TLS 段是否有效由后续 phase 单独校验。
         adjusted_connect_duration = connect_duration
         if connect_duration is not None and ssl_duration is not None:
             adjusted_connect_duration = connect_duration - ssl_duration

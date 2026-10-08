@@ -43,7 +43,7 @@ VITAL_METRICS: tuple[str, ...] = ("ttfb", "fcp", "lcp", "inp", "cls")
 VITAL_METRIC_KEYS: dict[str, str] = {metric: f"display.vitals.{metric}" for metric in VITAL_METRICS}
 
 #: View 快照从关联记录补齐的展示字段：头部时间（end_time / elapsed_time）与加载字段（attributes.view.*）。
-#: ``start_time`` 取导航开始时间，不随快照更新，故不在此列。
+#: ``start_time`` 不在此列；最新快照的 ``attributes.view.started_at`` 有数值时另行回填。
 VIEW_SNAPSHOT_FIELDS: tuple[str, ...] = (
     "end_time",
     "elapsed_time",
@@ -67,13 +67,14 @@ def build_vital_source_key(metric: str, sub: str) -> str:
 
 
 def _compute_view_duration_ms(flatten_data: dict[str, Any]) -> float | None:
-    """计算 View 停留时长（毫秒）：由最新 View 快照的 ``end_time - start_time`` 换算而来。
+    """计算 View 停留时长（毫秒）：由准备后的 ``end_time - start_time`` 换算而来。
 
     - ``start_time`` / ``end_time`` 单位为微秒，相减后除以 1000 换算为毫秒。
     - 任一端缺失则返回 ``None``，调用方据此输出 :data:`EMPTY_VALUE`，
       前端可区分「无数据」与「耗时为 0」，不能伪造 0。
-    - ``start_time`` 由 :meth:`ViewSpanBuilder._prepare_flatten_data` 用导航开始时间
-      （``attributes.view.started_at``）回填，不随被点开的快照上报时刻变化。
+    - :meth:`ViewSpanBuilder._prepare_flatten_data` 仅在最新 View 快照携带有效的
+      ``attributes.view.started_at`` 时回填 ``start_time``，否则保留主记录的 ``start_time``。
+      ``end_time`` 使用最新快照中的值；无对应字段或无快照时保留主记录的值。
     """
     start_time = get_safe_number(flatten_data.get("start_time"), None)
     end_time = get_safe_number(flatten_data.get("end_time"), None)
@@ -105,8 +106,8 @@ class ViewSpanOverview(SpanOverview):
 
     - ``BADGES``：徽标用停留时长（``display.view.duration``）取代恒为 0 的 ``elapsed_time``，
       由 :class:`DisplayViewDurationBadgeItem` 实时从 ``start_time`` / ``end_time`` 计算。
-    - ``ITEMS``：相对父类 :attr:`SpanOverview.ITEMS` 额外插入 ``attributes.view.previous_url_template``，
-      紧随 ``attributes.view.url_template`` 之后。
+    - ``ITEMS``：独立声明公共概览字段，并在 ``attributes.view.url_template`` 后增加
+      ``attributes.view.previous_url_template``，不自动跟随父类 :attr:`SpanOverview.ITEMS` 更新。
     """
 
     BADGES = (DisplayViewDurationBadgeItem(),)
@@ -128,7 +129,7 @@ class ViewSpanOverview(SpanOverview):
 
 @dataclass(frozen=True, slots=True)
 class DisplayViewDurationItem(KeyValueItem):
-    """View 停留时长：由最新 View 快照的 ``end_time - start_time`` 换算为毫秒。
+    """View 停留时长：由准备后的 ``end_time - start_time`` 换算为毫秒。
 
     与 :class:`DisplayViewDurationBadgeItem` 共用 :func:`_compute_view_duration_ms` 算法，
     避免徽标与卡片两处对「停留时长」计算分叉；响应结构沿用 :class:`KeyValueItem` 的 ``{key: value}`` 形态。
@@ -205,7 +206,8 @@ class ViewLoadingTimingSection(BaseSection):
     - TTFB 四段（prepare / dns / connect / first_byte）依赖同 View 的 Vital 快照，
       快照缺失时对应段整段不输出。
     - View 三段（dom_processing / resource_load / page_stable）依赖 ``attributes.view.*`` 字段，
-      任意起终点缺失或时长为负则整段省略。
+      起终点缺失时省略对应段；``dom_processing`` / ``resource_load`` 时长为负也省略。
+      ``page_stable`` 仅自动计时来源输出，其起终点差值为负时归零，不设置误差阈值。
     - ``markers`` 从注入到 flatten_data 的 vital 快照中派生，缺失自动跳过。
     """
 
@@ -249,7 +251,7 @@ class ViewLoadingTimingSection(BaseSection):
         dns_duration = self.numeric_or_none(build_vital_source_key("ttfb", "attributes.vital.ttfb.dns_duration"))
         dns_start = self._diff(connect_start, dns_duration)
 
-        # ── View 三段：起终点均需存在，duration 收敛非负 ──
+        # ── View 三段：起终点均需存在；前两段负时长过滤，page_stable 的负差归零 ──
         dom_processing_start = self.numeric_or_none("attributes.view.first_byte")
         resource_load_start = self.numeric_or_none("attributes.view.dom_content_loaded")
         dom_processing_duration = self._diff(resource_load_start, dom_processing_start)
@@ -388,11 +390,10 @@ class ViewSpanBuilder(SpanBuilder):
         latest_view = cls._latest_view_snapshot(related_spans)
         if latest_view:
             # 用最新 View 快照覆盖头部时间及加载字段，主记录仍保留在响应的 origin_data。
-            # start_time 取导航开始时间（attributes.view.started_at），不随快照更新，
-            # 故只补齐 VIEW_SNAPSHOT_FIELDS 内的字段，并单独处理导航开始时间。
+            # start_time 不在 VIEW_SNAPSHOT_FIELDS 中，另从最新快照的导航开始字段尝试回填。
             flatten_data.update({field: latest_view[field] for field in VIEW_SNAPSHOT_FIELDS if field in latest_view})
-            # 导航开始时间统一取 attributes.view.started_at（毫秒），转换为微秒写入 start_time，
-            # 避免点开瞬时快照（start_time == end_time）导致停留时长为 0。
+            # 最新快照的 started_at 有数值时，按毫秒转换为微秒写入 start_time；
+            # 字段缺失或转换失败时保留主记录的 start_time，不读取其他快照的 started_at。
             started_at = get_safe_number(latest_view.get("attributes.view.started_at"), None)
             if started_at is not None:
                 flatten_data["start_time"] = int(started_at * 1000)
