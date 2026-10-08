@@ -11,23 +11,16 @@ specific language governing permissions and limitations under the License.
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.drf import IAMPermission
 from calendars import resources
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
-
-
-class CalendarManagePermission(permissions.BasePermission):
-    def has_permission(self, request, view):
-        if not getattr(request, "biz_id", None):
-            return False
-        return BusinessActionPermission([ActionEnum.MANAGE_CALENDAR]).has_permission(request, view)
 
 
 class CalendarsViewSet(ResourceViewSet):
     def get_permissions(self):
         if self.request.method in permissions.SAFE_METHODS or self.action in ["item_detail", "item_list"]:
             return []
-        return [CalendarManagePermission()]
+        return [IAMPermission([ActionEnum.MANAGE_CALENDAR])]
 
     resource_routes = [
         # 保存日历
