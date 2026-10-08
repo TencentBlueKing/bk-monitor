@@ -330,6 +330,8 @@ class ExportErrorCode:
     PART_EXECUTION_FAILED = "PART_EXECUTION_FAILED"
     PART_RETRIES_EXHAUSTED = "PART_RETRIES_EXHAUSTED"
     PART_TIMEOUT = "PART_TIMEOUT"
+    FETCH_TIMEOUT = "FETCH_TIMEOUT"
+    SOFT_TIME_LIMIT_EXCEEDED = "SOFT_TIME_LIMIT_EXCEEDED"
     OVERSIZED_PART_FAILED = "OVERSIZED_PART_FAILED"
     UPLOAD_FAILED = "UPLOAD_FAILED"
     STORAGE_UNSUPPORTED = "STORAGE_UNSUPPORTED"
@@ -349,6 +351,8 @@ class ExportErrorCode:
         PART_EXECUTION_FAILED: _("导出分片执行失败，请稍后重试"),
         PART_RETRIES_EXHAUSTED: _("导出分片多次重试后仍然失败"),
         PART_TIMEOUT: _("导出分片执行超时，已重新调度"),
+        FETCH_TIMEOUT: _("导出分片取数超过时间预算，请稍后重试"),
+        SOFT_TIME_LIMIT_EXCEEDED: _("导出分片执行超时，请稍后重试"),
         OVERSIZED_PART_FAILED: _("同一时间点日志密度过高，请增加过滤条件或缩小查询范围"),
         UPLOAD_FAILED: _("导出文件上传失败，请稍后重试"),
         STORAGE_UNSUPPORTED: _("导出产物存储配置不支持，请联系管理员"),
@@ -364,26 +368,10 @@ class ExportErrorCode:
         return str(message) if message else ""
 
 
-# 与工作量无关的错误，重试耗尽也不做时间细分
-NON_SPLITTABLE_ERROR_CODES = frozenset(
-    {
-        ExportErrorCode.STORAGE_UNSUPPORTED,
-        ExportErrorCode.QUOTA_EXCEEDED,
-        ExportErrorCode.PLANNING_FAILED,
-        ExportErrorCode.UPLOAD_FAILED,
-        # 未预期异常的兜底码，多为代码或配置问题，细分只会成倍放大失败次数
-        ExportErrorCode.PART_EXECUTION_FAILED,
-    }
-)
-
-
-# 只有工作量相关的原因，缩小查询范围才可能让任务成功；存储、投递类原因重试就可能成功，
-# 不能被「密度过高请缩小范围」的文案覆盖
+# 只有「取数超时」才允许失败后按时间细分。
 WORKLOAD_ERROR_CODES = frozenset(
     {
-        ExportErrorCode.PART_TIMEOUT,
-        ExportErrorCode.UNIFY_QUERY_FAILED,
-        ExportErrorCode.PART_RETRIES_EXHAUSTED,
+        ExportErrorCode.FETCH_TIMEOUT,
     }
 )
 

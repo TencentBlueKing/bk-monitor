@@ -46,7 +46,7 @@ from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
-    NON_SPLITTABLE_ERROR_CODES,
+    WORKLOAD_ERROR_CODES,
     ExportErrorCode,
     ExportJobStatus,
     ExportPlanStatus,
@@ -788,7 +788,7 @@ class PartRunnerTests(TestCase):
 
     @override_settings(ASYNC_EXPORT_PART_FETCH_TIMEOUT=10)
     def test_write_rows_uses_the_fetch_budget(self):
-        """取数只用取数预算，超出后自己按 PART_TIMEOUT 退出，而不是拖到回收窗口。"""
+        """取数只用取数预算，超出后自己按 FETCH_TIMEOUT 退出，而不是拖到回收窗口。"""
         with tempfile.TemporaryDirectory() as directory:
             with (
                 patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
@@ -797,7 +797,7 @@ class PartRunnerTests(TestCase):
                 api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": False}]
                 with self.assertRaises(PartError) as raised:
                     _write_rows(FakeHandler(), Path(directory) / "logs.jsonl")
-        self.assertEqual(raised.exception.code, ExportErrorCode.PART_TIMEOUT)
+        self.assertEqual(raised.exception.code, ExportErrorCode.FETCH_TIMEOUT)
         self.assertEqual(api.query_ts_raw_with_scroll.call_count, 1)
 
     def test_soft_time_limit_hands_the_part_back(self):
@@ -824,7 +824,7 @@ class PartRunnerTests(TestCase):
         self.assertEqual(build_storage.return_value.export_upload.call_count, 1)
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.WAITING)
-        self.assertEqual(part.error_code, ExportErrorCode.PART_TIMEOUT)
+        self.assertEqual(part.error_code, ExportErrorCode.SOFT_TIME_LIMIT_EXCEEDED)
 
 
 class PartArtifactLifecycleTests(TestCase):
@@ -1381,7 +1381,7 @@ class SplitTests(TestCase):
             self.job.pk, claimed.planning_attempts, parts=[PartSpec(0, 4000, 40, 4000)], estimated_total=40
         )
 
-    def fail_first_part(self, error_code="PART_TIMEOUT"):
+    def fail_first_part(self, error_code="FETCH_TIMEOUT"):
         part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
         state.dispatch_part(part.pk, "task")
         part = state.claim_part(part.pk, "task")
@@ -1415,7 +1415,7 @@ class SplitTests(TestCase):
         part = ExportPart.objects.get(job=job)
         state.dispatch_part(part.pk, "task")
         part = state.claim_part(part.pk, "task")
-        state.fail_part(part.pk, fence_of(part), error_code="PART_TIMEOUT", retryable=True)
+        state.fail_part(part.pk, fence_of(part), error_code="FETCH_TIMEOUT", retryable=True)
 
         job.refresh_from_db()
         part.refresh_from_db()
@@ -1447,7 +1447,7 @@ class SplitTests(TestCase):
         part = ExportPart.objects.get(job=job)
         state.dispatch_part(part.pk, "task")
         part = state.claim_part(part.pk, "task")
-        state.fail_part(part.pk, fence_of(part), error_code="PART_TIMEOUT", retryable=True)
+        state.fail_part(part.pk, fence_of(part), error_code="FETCH_TIMEOUT", retryable=True)
 
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.FAILED)
@@ -2019,16 +2019,16 @@ class JobFailureClassificationTests(TestCase):
 
     FAILED_CASES = (
         # 工作量类原因且已到最小精度：只有缩小范围才有意义
-        (ExportErrorCode.PART_TIMEOUT, 1000, 500, ExportErrorCode.OVERSIZED_PART_FAILED),
-        (ExportErrorCode.UNIFY_QUERY_FAILED, 1000, 500, ExportErrorCode.OVERSIZED_PART_FAILED),
-        (ExportErrorCode.PART_RETRIES_EXHAUSTED, 1000, 500, ExportErrorCode.OVERSIZED_PART_FAILED),
-        # 存储、投递类原因与数据密度无关，不能被密度文案覆盖
+        (ExportErrorCode.FETCH_TIMEOUT, 1000, 500, ExportErrorCode.OVERSIZED_PART_FAILED),
+        # 查询失败、重试耗尽、上传/存储等与数据密度无关，不能被密度文案覆盖
+        (ExportErrorCode.UNIFY_QUERY_FAILED, 1000, 500, ExportErrorCode.UNIFY_QUERY_FAILED),
+        (ExportErrorCode.PART_RETRIES_EXHAUSTED, 1000, 500, ExportErrorCode.PART_RETRIES_EXHAUSTED),
         (ExportErrorCode.UPLOAD_FAILED, 1000, 500, ExportErrorCode.UPLOAD_FAILED),
         (ExportErrorCode.STORAGE_UNSUPPORTED, 1000, 500, ExportErrorCode.STORAGE_UNSUPPORTED),
         # 未预期异常多为代码或配置问题，已到最小精度也不能报成密度过高
         (ExportErrorCode.PART_EXECUTION_FAILED, 1000, 500, ExportErrorCode.PART_EXECUTION_FAILED),
         # 还能继续细分时保留原始原因，避免把「分片数到上限」误报成密度问题
-        (ExportErrorCode.PART_TIMEOUT, 4000, 1, ExportErrorCode.PART_TIMEOUT),
+        (ExportErrorCode.FETCH_TIMEOUT, 4000, 1, ExportErrorCode.FETCH_TIMEOUT),
         # 未登记的码不透给前端，否则前端只能拿到空文案
         ("QUERY_FAILED", 1000, 500, ExportErrorCode.PART_EXECUTION_FAILED),
     )
@@ -2071,18 +2071,18 @@ class JobFailureClassificationTests(TestCase):
         self.assertIn(ExportErrorCode.STORAGE_UNSUPPORTED, job.error_detail)
 
     def test_job_detail_exposes_detail_and_failed_part(self):
-        job = self.fail_single_part_job(ExportErrorCode.PART_TIMEOUT, 1000, 500)
+        job = self.fail_single_part_job(ExportErrorCode.FETCH_TIMEOUT, 1000, 500)
 
         detail = job_detail(job)
 
         self.assertEqual(detail["error_code"], ExportErrorCode.OVERSIZED_PART_FAILED)
         self.assertTrue(detail["error_message"])
-        self.assertIn(ExportErrorCode.PART_TIMEOUT, detail["error_detail"])
+        self.assertIn(ExportErrorCode.FETCH_TIMEOUT, detail["error_detail"])
         self.assertEqual(
             detail["failed_part"],
             {
                 "part_no": 1,
-                "error_code": ExportErrorCode.PART_TIMEOUT,
+                "error_code": ExportErrorCode.FETCH_TIMEOUT,
                 "oversized": False,
                 "start_time": 0,
                 "end_time": 1000,
@@ -2248,12 +2248,13 @@ class ExportErrorCodeTests(SimpleTestCase):
         self.assertTrue(codes <= set(ExportErrorCode.MESSAGES))
         self.assertTrue(all(ExportErrorCode.MESSAGES[code] for code in codes))
 
-    def test_non_splittable_codes_are_all_explained(self):
-        self.assertTrue(NON_SPLITTABLE_ERROR_CODES <= set(ExportErrorCode.MESSAGES))
+    def test_only_fetch_timeout_is_splittable(self):
+        """只有取数超时才有足够证据说明是读不完，允许时间细分；其余错误码不再细分。"""
+        self.assertEqual(WORKLOAD_ERROR_CODES, {ExportErrorCode.FETCH_TIMEOUT})
 
-    def test_transient_query_failure_stays_retryable(self):
-        """查询失败可能只是链路抖动或分片过重，不能当成「与工作量无关」的错误禁掉时间细分。"""
-        self.assertNotIn(ExportErrorCode.UNIFY_QUERY_FAILED, NON_SPLITTABLE_ERROR_CODES)
+    def test_query_failure_is_not_split(self):
+        """查询失败可能是链路抖动，不应被当作「工作量过大」去时间细分；但仍保留可重试。"""
+        self.assertNotIn(ExportErrorCode.UNIFY_QUERY_FAILED, WORKLOAD_ERROR_CODES)
 
     def test_unknown_or_empty_code_has_no_message(self):
         self.assertEqual(ExportErrorCode.label("NOT_A_CODE"), "")

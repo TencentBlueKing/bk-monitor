@@ -82,7 +82,7 @@ def _write_rows(handler, payload):
     with payload.open("wb") as stream:
         while True:
             if time.monotonic() >= deadline:
-                raise PartError(ExportErrorCode.PART_TIMEOUT, "分片执行超过时间预算")
+                raise PartError(ExportErrorCode.FETCH_TIMEOUT, "分片执行超过时间预算")
             # 与旧异步导出链路一致：首轮清空缓存，后续滚动复用同一份查询上下文
             params["clear_cache"] = rows == 0
             batch, done = handler.export_scroll_batch(params)
@@ -190,13 +190,17 @@ def run_part(part_id, task_id):
         # 软超时早于回收窗口，本次执行仍持有栅栏，可以自己把分片交回调度器
         logger.warning("[run_part] part=%s soft time limit exceeded", part.pk)
         state.fail_part(
-            part.pk, fence, error_code=ExportErrorCode.PART_TIMEOUT, error_detail="分片执行超过软超时", retryable=True
+            part.pk,
+            fence,
+            error_code=ExportErrorCode.SOFT_TIME_LIMIT_EXCEEDED,
+            error_detail="分片执行超过软超时",
+            retryable=True,
         )
     except PartError as error:
         logger.warning("[run_part] part=%s code=%s detail=%s", part.pk, error.code, error)
         state.fail_part(part.pk, fence, error_code=error.code, error_detail=str(error), retryable=True)
     except DataAPIException as error:
-        # 取数失败可能只是 UnifyQuery 抖动或查询过重，按可重试处理，重试耗尽仍允许按时间细分
+        # 取数失败可能只是 UnifyQuery 抖动，按可重试处理；与数据密度无关，不做时间细分
         logger.warning("[run_part] part=%s unify query failed: %s", part.pk, error)
         state.fail_part(
             part.pk, fence, error_code=ExportErrorCode.UNIFY_QUERY_FAILED, error_detail=str(error), retryable=True

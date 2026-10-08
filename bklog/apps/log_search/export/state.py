@@ -29,7 +29,6 @@ from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from apps.log_search.constants import (
-    NON_SPLITTABLE_ERROR_CODES,
     WORKLOAD_ERROR_CODES,
     ExportErrorCode,
     ExportJobStatus,
@@ -394,11 +393,11 @@ def _fail_locked(job, part, error_code, error_detail, retryable=True):
 
 
 def _can_split(job, part, error_code):
-    """重试耗尽后是否能按时间继续细分。"""
+    """重试耗尽后是否能按时间继续细分；只有取数超时这类工作量证据才值得细分。"""
     policy = policy_from_snapshot(job.policy)
     if job.status not in (ExportJobStatus.READY, ExportJobStatus.RUNNING):
         return False
-    if error_code in NON_SPLITTABLE_ERROR_CODES:
+    if error_code not in WORKLOAD_ERROR_CODES:
         return False
     if part.end_time - part.start_time <= _split_step(job):
         return False
