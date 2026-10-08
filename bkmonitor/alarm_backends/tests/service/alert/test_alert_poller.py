@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,17 +7,20 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
+import threading
 import time
 from collections import namedtuple
 
-import mock
+from unittest import mock
 import pytest
 from django.conf import settings
 
 from alarm_backends.core.alert.alert import AlertUIDManager
 from alarm_backends.core.cache.key import ALERT_DATA_POLLER_LEADER_KEY
 from alarm_backends.service.alert.handler import AlertHandler
+from alarm_backends.service.alert import handler
 from bkmonitor.documents import AlertDocument, EventDocument
 
 leader_key = ALERT_DATA_POLLER_LEADER_KEY.get_key()
@@ -60,7 +62,7 @@ def clear_index():
 
 class FakeKafkaConsumer(mock.MagicMock):
     def __init__(self, *args, **kwargs):
-        super(FakeKafkaConsumer, self).__init__()
+        super().__init__()
         self.partitions = set()
         self.assign_call_count = 0
         self.assignment_call_count = 0
@@ -74,7 +76,134 @@ class FakeKafkaConsumer(mock.MagicMock):
         self.partitions = set(partitions)
 
 
-class TestAlertPollerHandler(object):
+class TestAlertPollerHandler:
+    def test_leader_publishes_assignment_atomically(self, mocker, mock_alert_kafka_consumer):
+        p = AlertHandler(mock.Mock())
+        mock_alert_kafka_consumer.side_effect = lambda **kwargs: mock.Mock(partitions_for_topic=lambda topic: {0})
+        p.redis_client.set(p.leader_key, p.ip)
+        p.redis_client.hset(p.data_id_cache_key, p.ip, "[]")
+        mocker.patch.object(p, "get_all_hosts", return_value=[p.ip])
+        mocker.patch.object(handler, "get_cluster", return_value=mock.Mock(is_default=lambda: False, name="test"))
+        mocker.patch.object(handler.time, "sleep")
+        pipeline = p.redis_client.pipeline(transaction=True)
+        execute = pipeline.execute
+        snapshots = []
+
+        def publish():
+            # execute 前旧分配仍可读，不能暴露 DEL 与 HMSET 之间的空窗。
+            snapshots.append((p.redis_client.hget(p.data_id_cache_key, p.ip), len(pipeline.command_stack)))
+            return execute()
+
+        mocker.patch.object(pipeline, "execute", side_effect=publish)
+        mocker.patch.object(p.redis_client, "pipeline", return_value=pipeline)
+        p.run_leader()
+        assert snapshots == [("[]", 4)]
+        assert json.loads(p.redis_client.hget(p.data_id_cache_key, p.ip))
+        assert p.redis_client.ttl(p.data_id_cache_key) > 0
+
+    def test_poller_owns_consumer_lifecycle(self, mocker, mock_alert_kafka_consumer):
+        p = AlertHandler(mock.Mock())
+        p.run_once = False
+        clock = [0]
+        operations = []
+        consumer = FakeKafkaConsumer()
+        conf = {"data_id": 0, "topic": "events", "bootstrap_server": "kafka.example:9092"}
+        p.redis_client.hset(p.data_id_cache_key, p.ip, json.dumps([conf]))
+        mocker.patch.object(handler.time, "monotonic", side_effect=lambda: clock[0])
+        mocker.patch.object(handler.time, "sleep", side_effect=lambda _: p._stop())
+
+        def record(operation):
+            operations.append((operation, threading.get_ident()))
+
+        def poll(*args, **kwargs):
+            record("poll")
+            # 拉取期间发生分配变更，应先完成本批分发，再关闭 consumer。
+            p.redis_client.hset(p.data_id_cache_key, p.ip, "[]")
+            clock[0] = 16
+            return {"events": [b"event"]}
+
+        mock_alert_kafka_consumer.side_effect = lambda **kwargs: record("create") or consumer
+        mocker.patch.object(consumer, "assign", side_effect=lambda **kwargs: record("assign"))
+        consumer.poll.side_effect = poll
+        consumer.commit.side_effect = lambda: record("commit")
+        consumer.close.side_effect = lambda **kwargs: record("close")
+        mocker.patch.object(p, "push_handle_task", side_effect=lambda *args: record("push"))
+        worker = threading.Thread(target=p.run_poller, daemon=True)
+        worker.start()
+        worker.join(timeout=2)
+        assert not worker.is_alive()
+        assert [operation for operation, _ in operations] == ["create", "assign", "poll", "push", "commit", "close"]
+        assert {thread_id for _, thread_id in operations} == {worker.ident}
+        assert p.consumers == {}
+
+    @pytest.mark.parametrize("failure", ["create", "assign", "seek"])
+    def test_refresh_failure_keeps_healthy_consumer(self, mocker, mock_alert_kafka_consumer, failure):
+        p = AlertHandler(mock.Mock())
+        healthy = FakeKafkaConsumer()
+        new_consumer = FakeKafkaConsumer()
+        healthy.poll.return_value = {}
+        p.consumers["healthy.example:9092"] = healthy
+        confs = [
+            {"data_id": 1, "topic": "healthy", "bootstrap_server": "healthy.example:9092"},
+            {"data_id": 2, "topic": "new", "bootstrap_server": "new.example:9092"},
+        ]
+        p.redis_client.hset(p.data_id_cache_key, p.ip, json.dumps(confs))
+        mocker.patch.object(p, "get_kafka_redis_offset", return_value=123)
+        mock_alert_kafka_consumer.side_effect = RuntimeError("unavailable") if failure == "create" else None
+        mock_alert_kafka_consumer.return_value = new_consumer
+        if failure != "create":
+            mocker.patch.object(new_consumer, failure, side_effect=RuntimeError("unavailable"))
+        p.run_poller()
+        healthy.poll.assert_called_once()
+        assert "new.example:9092" not in p.consumers
+        if failure != "create":
+            new_consumer.close.assert_called_once_with(autocommit=False)
+        new_consumer.commit.assert_not_called()
+
+        mock_alert_kafka_consumer.side_effect = None
+        mock_alert_kafka_consumer.return_value = FakeKafkaConsumer()
+        p.run_consumer_manager()
+        assert "new.example:9092" in p.consumers
+
+    def test_stop_closes_all_consumers_even_if_close_fails(self):
+        p = AlertHandler(mock.Mock())
+        consumers = [FakeKafkaConsumer(), FakeKafkaConsumer()]
+        consumers[0].close.side_effect = RuntimeError("unavailable")
+        p.consumers = dict(zip(["first", "second"], consumers))
+        p._stop()
+        p.run_poller()
+        for consumer in consumers:
+            consumer.poll.assert_not_called()
+            consumer.commit.assert_not_called()
+            consumer.close.assert_called_once_with(autocommit=False)
+        assert p.consumers == {}
+
+    def test_stop_after_dispatch_failure_does_not_commit(self, mocker):
+        p = AlertHandler(mock.Mock())
+        consumer = FakeKafkaConsumer()
+        consumer.poll.return_value = {"events": [b"event"]}
+        p.consumers["kafka.example:9092"] = consumer
+        mocker.patch.object(p, "run_consumer_manager")
+
+        def fail_dispatch(*args):
+            p._stop()
+            raise RuntimeError("dispatch failed")
+
+        mocker.patch.object(p, "push_handle_task", side_effect=fail_dispatch)
+        p.run_poller()
+        consumer.commit.assert_not_called()
+        consumer.close.assert_called_once_with(autocommit=False)
+
+    def test_removed_consumer_is_not_reused_if_commit_fails(self, mocker):
+        p = AlertHandler(mock.Mock())
+        consumer = FakeKafkaConsumer()
+        consumer.commit.side_effect = RuntimeError("unavailable")
+        p.consumers["kafka.example:9092"] = consumer
+        with pytest.raises(RuntimeError, match="unavailable"):
+            p.run_consumer_manager()
+        consumer.close.assert_called_once_with(autocommit=False)
+        assert p.consumers == {}
+
     def test_leader(self):
         service = mock.Mock()
         p = AlertHandler(service)
