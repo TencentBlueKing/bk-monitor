@@ -201,6 +201,147 @@ def test_three_supported_changes_preserve_every_other_field(config, request_data
     assert config == original
 
 
+@pytest.fixture
+def create_request():
+    return {
+        "operation": "create",
+        "bk_biz_id": 2,
+        "confirmed": True,
+        "operator": "alice",
+        "config": {
+            "name": "demo log strategy",
+            "scenario": "os",
+            "is_enabled": True,
+            "items": [
+                {
+                    "name": "errors",
+                    "expression": "a",
+                    "functions": [],
+                    "target": [],
+                    "no_data_config": {"is_enabled": False},
+                    "query_configs": [
+                        {
+                            "data_source_label": "bk_log_search",
+                            "data_type_label": "log",
+                            "alias": "a",
+                            "index_set_id": 1,
+                            "result_table_id": "",
+                            "query_string": "example error",
+                            "agg_interval": 60,
+                            "agg_dimension": ["pod"],
+                            "agg_condition": [],
+                        }
+                    ],
+                    "algorithms": [{"type": "Threshold", "level": 2, "config": [[{"method": "gte", "threshold": 10}]]}],
+                }
+            ],
+            "detects": [
+                {"level": 2, "trigger_config": {"count": 2, "check_window": 3}, "recovery_config": {"check_window": 3}}
+            ],
+            "notice": {
+                "user_groups": [1],
+                "signal": ["abnormal", "recovered"],
+                "options": {"converge_config": {"need_biz_converge": True}},
+                "config": {
+                    "need_poll": True,
+                    "notify_interval": 600,
+                    "interval_notify_mode": "standard",
+                    "template": [
+                        {"signal": "abnormal", "message_tmpl": "", "title_tmpl": ""},
+                        {"signal": "recovered", "message_tmpl": "", "title_tmpl": ""},
+                    ],
+                },
+            },
+        },
+    }
+
+
+def test_create_reuses_platform_validation_relations_and_audit(create_request, api):
+    original = deepcopy(create_request)
+    api.save.return_value = {"id": 42, "name": create_request["config"]["name"]}
+    result = management.manage_strategy_config(create_request)
+    assert result["strategy_id"] == 42
+    assert result["requested_operator"] == "alice"
+    api.authorize.assert_called_once_with(create_request)
+    api.relations.assert_called_once()
+    api.validate_save.assert_called_once()
+    api.save_with_audit.assert_called_once()
+    assert api.save_with_audit.call_args.kwargs == {"audit_operator": "alice"}
+    assert api.save_with_audit.call_args.args[0]["actions"] == []
+    assert "confirm" not in api.save_with_audit.call_args.args[0]
+    assert create_request == original
+
+
+def test_create_accepts_function_identifiers_without_accepting_existing_record_ids(create_request, api):
+    create_request["config"]["items"][0]["functions"] = [{"id": "abs", "params": []}]
+    api.save.return_value = {"id": 42, "name": create_request["config"]["name"]}
+    management.manage_strategy_config(create_request)
+    assert api.save.call_args.kwargs["items"][0]["functions"] == [{"id": "abs", "params": []}]
+
+
+@pytest.mark.parametrize(
+    "path,value",
+    [
+        (("strategy_id",), 1),
+        (("config", "id"), 0),
+        (("config", "actions"), []),
+        (("config", "bk_biz_id"), 3),
+        (("config", "is_enabled"), None),
+        (("config", "items", 0, "id"), 0),
+        (("config", "items", 0, "query_configs", 0, "id"), 0),
+        (("config", "items", 0, "query_configs", 0, "data_source_label"), "custom"),
+        (("config", "items", 0, "query_configs", 0, "agg_interval"), 0),
+        (("config", "items", 0, "algorithms", 0, "id"), 0),
+        (("config", "items", 0, "algorithms", 0, "type"), "IntelligentDetect"),
+        (("config", "detects", 0, "id"), 0),
+        (("config", "detects", 0, "trigger_config", "typo"), None),
+        (("config", "notice", "config_id"), 1),
+        (("config", "notice", "user_groups"), []),
+        (("config", "notice", "config", "typo"), None),
+    ],
+)
+def test_invalid_creates_do_not_reach_save(create_request, api, path, value):
+    target = create_request
+    for part in path[:-1]:
+        target = target[part]
+    target[path[-1]] = value
+    with pytest.raises(CustomException):
+        management.manage_strategy_config(create_request)
+    api.save.assert_not_called()
+
+
+def test_create_checks_real_platform_serializer(create_request):
+    config = {**create_request["config"], "bk_biz_id": 2, "actions": []}
+    serializer = Strategy.Serializer(data=config)
+    serializer.is_valid(raise_exception=True)
+    assert serializer.validated_data["detects"][0]["trigger_config"] == {"count": 2, "check_window": 3}
+    assert serializer.validated_data["notice"]["config"]["notify_interval"] == 600
+
+
+def test_create_does_not_save_without_business_permission(monkeypatch, create_request, api):
+    monkeypatch.setattr(management, "authorize_strategy_business", Mock(side_effect=PermissionDenied))
+    with pytest.raises(PermissionDenied):
+        management.manage_strategy_config(create_request)
+    api.save.assert_not_called()
+
+
+def test_create_audit_path_validates_before_persistence(create_request, api):
+    api.validate_save.side_effect = ValidationError("invalid strategy")
+    with pytest.raises(ValidationError, match="invalid strategy"):
+        management.manage_strategy_config(create_request)
+    api.save_with_audit.assert_not_called()
+    api.save.assert_not_called()
+
+
+def test_existing_create_resource_keeps_its_default_save_path(create_request, api):
+    creator = alert.CreateAlarmStrategyResource()
+    config = creator.validate_request_data({**create_request["config"], "bk_biz_id": 2, "confirm": True})
+    creator.perform_request(config)
+    api.save.assert_called_once()
+    api.validate_save.assert_not_called()
+    api.save_with_audit.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "update",
     [

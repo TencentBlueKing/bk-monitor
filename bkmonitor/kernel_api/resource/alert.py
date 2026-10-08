@@ -623,7 +623,7 @@ class CreateAlarmStrategyResource(Resource):
             label="处理套餐ID列表",
         )
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data, *, audit_operator=None):
         request_data = remove_confirm(validated_request_data)
         if request_data.get("id"):
             raise ValidationError({"id": "create_alarm_strategy 不允许传入策略 ID"})
@@ -633,6 +633,10 @@ class CreateAlarmStrategyResource(Resource):
             request_data = build_strategy_from_simplified_request(request_data)
         request_data.setdefault("actions", [])
         ensure_strategy_relations_belong_to_biz(request_data["bk_biz_id"], request_data)
+        if audit_operator is not None:
+            save_resource = resource.strategies.save_strategy_v2
+            validated_data = save_resource.validate_request_data(request_data)
+            return save_resource.perform_request(validated_data, audit_operator=audit_operator)
         return resource.strategies.save_strategy_v2.request(**request_data)
 
 

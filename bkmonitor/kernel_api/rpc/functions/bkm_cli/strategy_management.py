@@ -1,4 +1,4 @@
-"""Single-strategy query and detection edits through the existing full-save API."""
+"""Create log strategies and edit existing strategies through the existing save API."""
 
 from __future__ import annotations
 
@@ -7,14 +7,15 @@ import re
 from copy import deepcopy
 from typing import Any
 
+from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from bkmonitor.strategy.new_strategy import QueryConfig
+from bkmonitor.strategy.new_strategy import Algorithm, Detect, Item, NoticeRelation, QueryConfig, Strategy
 from bkmonitor.strategy.serializers import allowed_threshold_method
 from bkmonitor.utils.request import get_request
 from core.drf_resource.exceptions import CustomException
-from kernel_api.resource.alert import UpdateAlarmStrategyResource
+from kernel_api.resource.alert import CreateAlarmStrategyResource, UpdateAlarmStrategyResource
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 from kernel_api.rpc.functions.bkm_cli.management import validate_management_request
@@ -35,6 +36,8 @@ ALLOWED_FIELDS = {
     "confirmed",
     "operator",
 }
+CREATE_ALLOWED_FIELDS = {"operation", "bk_tenant_id", "bk_biz_id", "config", "confirmed", "operator"}
+CREATE_CONFIG_FIELDS = {"name", "scenario", "is_enabled", "items", "detects", "notice", "labels"}
 
 
 def _strict_object(value, allowed_fields, path):
@@ -189,11 +192,90 @@ def _merge_items(config, patches):
             algorithm["config"] = deepcopy(algorithm_patch["config"])
 
 
+def _check_serializer_fields(value, field, path):
+    """Reject fields the platform serializer would silently discard during creation."""
+    if isinstance(field, serializers.ListSerializer | serializers.ListField) and isinstance(value, list):
+        for entry in value:
+            _check_serializer_fields(entry, field.child, path)
+    elif isinstance(field, serializers.Serializer) and isinstance(value, dict):
+        _strict_object(value, set(field.fields), path)
+        for key, entry in value.items():
+            _check_serializer_fields(entry, field.fields[key], f"{path}.{key}")
+
+
+def _validate_create_config(config):
+    _strict_object(config, CREATE_CONFIG_FIELDS, "config")
+    _text(config.get("name"), "config.name")
+    if len(config["name"].strip()) > 128:
+        raise CustomException(message="config.name 最长 128 字符")
+    if type(config.get("is_enabled")) is not bool:
+        raise CustomException(message="config.is_enabled 必须显式提供布尔值")
+    _check_serializer_fields(config, Strategy.Serializer(), "config")
+    items = config.get("items")
+    if not isinstance(items, list) or not items:
+        raise CustomException(message="config.items 必须为非空数组")
+    for item in items:
+        _strict_object(item, set(Item.Serializer().fields) - {"id"}, "config.items")
+        queries = item.get("query_configs")
+        if not isinstance(queries, list) or not queries:
+            raise CustomException(message="query_configs 必须为非空数组")
+        for query in queries:
+            if not isinstance(query, dict) or (query.get("data_source_label"), query.get("data_type_label")) != (
+                "bk_log_search",
+                "log",
+            ):
+                raise CustomException(message="create 暂仅支持 bk_log_search/log 日志关键字策略")
+            fields = QueryConfig.get_serializer_class("bk_log_search", "log").get_config_field_names()
+            _strict_object(
+                query,
+                (set(fields) - {"intelligent_detect"}) | {"data_source_label", "data_type_label", "alias"},
+                "query_configs",
+            )
+            _integer(query.get("index_set_id"), "index_set_id")
+            _integer(query.get("agg_interval"), "agg_interval")
+            _validate_query_patch(query)
+        algorithms = item.get("algorithms")
+        if not isinstance(algorithms, list) or not algorithms:
+            raise CustomException(message="algorithms 必须为非空数组")
+        for algorithm in algorithms:
+            _strict_object(algorithm, set(Algorithm.Serializer().fields) - {"id"}, "algorithms")
+            if algorithm.get("type") != "Threshold":
+                raise CustomException(message="create 暂仅支持 Threshold 算法")
+            _validate_threshold(algorithm.get("config"))
+    detects = config.get("detects")
+    if not isinstance(detects, list) or not detects:
+        raise CustomException(message="config.detects 必须为非空数组")
+    for detect in detects:
+        _strict_object(detect, set(Detect.Serializer().fields) - {"id"}, "detects")
+    notice = config.get("notice")
+    _strict_object(notice, set(NoticeRelation.Serializer().fields) - {"id", "config_id"}, "notice")
+    if not notice.get("user_groups"):
+        raise CustomException(message="notice.user_groups 必须指定已有通知组")
+
+
 def manage_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
-    operator = validate_management_request(params, allowed_fields=ALLOWED_FIELDS, max_operator_length=32)
-    if params.get("operation") != "update":
-        raise CustomException(message="operation 仅支持 update")
+    operation = params.get("operation")
+    if operation not in ("create", "update"):
+        raise CustomException(message="operation 仅支持 create/update")
+    fields = CREATE_ALLOWED_FIELDS if operation == "create" else ALLOWED_FIELDS
+    operator = validate_management_request(params, allowed_fields=fields, max_operator_length=32)
     _integer(params.get("bk_biz_id"), "bk_biz_id", business=True)
+    if operation == "create":
+        _validate_create_config(params.get("config"))
+        authorize_strategy_business(params)
+        creator = CreateAlarmStrategyResource()
+        config = creator.validate_request_data(
+            {**deepcopy(params["config"]), "bk_biz_id": params["bk_biz_id"], "confirm": True}
+        )
+        result = creator.perform_request(config, audit_operator=operator)
+        return {
+            "operation": "create",
+            "bk_biz_id": params["bk_biz_id"],
+            "strategy_id": result["id"],
+            "name": result["name"],
+            "requested_operator": operator,
+            "result": result,
+        }
     _integer(params.get("strategy_id"), "strategy_id")
     version = params.get("config_version")
     if not isinstance(version, str) or not re.fullmatch(r"[0-9a-f]{64}", version):
@@ -221,11 +303,12 @@ def manage_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
 
 
 _PARAMS_SCHEMA = {
-    "operation": "update",
+    "operation": "create | update",
     "bk_biz_id": "必填，非零业务或空间 ID",
-    "strategy_id": "必填，单个策略 ID",
-    "config_version": "必填，inspect-strategy-config detail 返回的原 SHA-256 版本",
-    "items": "按已有 ID 匹配的补丁数组；仅 expression、query_configs 和 Threshold algorithms.config",
+    "strategy_id": "update 必填，单个策略 ID",
+    "config_version": "update 必填，inspect-strategy-config detail 返回的原 SHA-256 版本",
+    "items": "update 必填，按已有 ID 匹配的补丁数组；仅 expression、query_configs 和 Threshold algorithms.config",
+    "config": "create 必填，V2 完整日志关键字策略；name/scenario/is_enabled/items/detects/notice，labels 可选；不接受旧记录 ID 或处理套餐",
     "confirmed": "必须为 true，先取得对精确变更的人工确认",
     "operator": "审计执行人，最长 32 字符；无需已注册用户，不作为认证身份",
 }
@@ -240,8 +323,8 @@ _EXAMPLE = {
 }
 KernelRPCRegistry.register_function(
     func_name="bkm_cli.manage_strategy_config",
-    summary="修改单策略的查询检测配置",
-    description="通过原策略保存 API 修改指定字段；保存结果须独立回读，超时禁止自动重发。",
+    summary="创建日志关键字策略或修改单策略查询检测配置",
+    description="通过原策略保存 API 创建日志关键字策略或修改指定字段；保存结果须独立回读，超时禁止自动重发。",
     handler=manage_strategy_config,
     params_schema=_PARAMS_SCHEMA,
     example_params=_EXAMPLE,
@@ -249,8 +332,8 @@ KernelRPCRegistry.register_function(
 BkmCliOpRegistry.register(
     op_id="manage-strategy-config",
     func_name="bkm_cli.manage_strategy_config",
-    summary="修改单策略的查询检测配置",
-    description="只支持已有对象的查询、表达式和静态阈值；先确认精确变更并提供原版本。",
+    summary="创建日志关键字策略或修改单策略查询检测配置",
+    description="create 复用平台创建接口；update 按原版本修改已有查询、表达式和静态阈值；结果未知禁止重发。",
     capability_level="admin",
     risk_level="mutation",
     requires_confirmation=True,
