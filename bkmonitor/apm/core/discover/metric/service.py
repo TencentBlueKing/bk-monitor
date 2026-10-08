@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 class ServiceDiscover(Discover):
-    """从指标中发现服务"""
+    """从指标维度发现服务，并通过样本时间维护指标及组件、远程服务的 Trace 心跳。"""
 
     def list_exists_mapping(self) -> dict[str, dict[str, Any]]:
         return {
@@ -40,6 +40,7 @@ class ServiceDiscover(Discover):
         }
 
     def query_series(self, promql: str, start_time: int, end_time: int) -> list[dict[str, Any]]:
+        """按秒级窗口查询序列；部分结果及序列截断视为失败，异常交由调用方处理。"""
         response: dict[str, Any] = api.unify_query.query_data_by_promql(
             {
                 "bk_biz_ids": [self.bk_biz_id],
@@ -50,11 +51,16 @@ class ServiceDiscover(Discover):
             }
         )
         status: dict[str, Any] = response.get("status") or {}
-        if response.get("is_partial") or status.get("is_partial") or status.get("series_limit_reached"):
+        if response.get("is_partial") or status.get("code") in {
+            "QUERY_TS_PARTIAL",
+            "EXCEEDS_MAXIMUM_LIMIT",
+            "EXCEEDS_MAXIMUM_SLIMIT",
+        }:
             raise IncompleteDiscoveryError("incomplete metric discovery result")
         return response["series"]
 
     def query_dimensions(self, promql: str, start_time: int, end_time: int) -> list[dict[str, str | None]]:
+        """提取服务发现所需的维度；普通查询失败记日志并返回空列表，软超时继续上抛。"""
         try:
             series: list[dict[str, Any]] = self.query_series(promql, start_time, end_time)
         except SoftTimeLimitExceeded:
@@ -85,51 +91,46 @@ class ServiceDiscover(Discover):
             )
 
     def discover_heartbeat(self, start_time: int, end_time: int) -> None:
-        observed: dict[str, int | None] = {}
-        groups: tuple[tuple[str, ...], ...] = (
-            ("service_name",),
-            ("service_name", "db_system"),
-            ("service_name", "messaging_system"),
-            ("peer_service",),
-        )
+        """一次查询四个维度，按服务键合并窗口内最大的秒级样本时间。
+
+        timestamp() 的返回值是样本时间，_time 是求值时间，不用于心跳。
+        查询成功后检查全部现存节点的指标心跳，仅为命中的组件、远程服务补写 Trace 心跳。
+        """
+        observed: dict[str, int] = {}
+        trace_observed: dict[str, int] = {}
         metric_table: str = self.result_table_id.replace(".", ":")
-        for group in groups:
-            promql: str = (
-                f"max by ({', '.join(group)}) "
-                f'(timestamp({{__name__="custom:{metric_table}:{TraceMetric.BK_APM_COUNT}"}}))'
-            )
-            for series in self.query_series(promql, start_time, end_time):
-                dimensions: dict[str, str] = dict(zip(series["group_keys"], series["group_values"]))
-                name: str = dimensions.get(group[0]) or ""
-                if not name:
-                    continue
-                if len(group) == 2:
-                    component: str = dimensions.get(group[1]) or ""
-                    if not component:
-                        continue
-                    name = f"{name}-{component}"
-                elif group == ("peer_service",):
-                    name = f"http:{name}"
-
-                columns: list[str] = series["columns"]
-                value_index: int = columns.index("_value" if "_value" in columns else "_result")
-                for point in series["values"]:
-                    # timestamp() 的值是秒级样本时间；_time 是求值时间，回溯旧样本时仍会推进。
-                    # 原始指标为零也有样本时间，空桶补零则会被查询窗口过滤。
-                    if point[value_index] is None:
-                        continue
-                    timestamp: float = float(point[value_index])
-                    if math.isfinite(timestamp) and start_time <= timestamp <= end_time:
-                        observed[name] = max(observed.get(name) or 0, int(timestamp))
-
-        # 四路查询全部成功后，统一入口按应用检查全部现存节点，无需先枚举服务名。
+        promql = (
+            "max by (service_name, db_system, messaging_system, peer_service) "
+            f'(timestamp({{__name__="custom:{metric_table}:{TraceMetric.BK_APM_COUNT}"}}))'
+        )
+        for series in self.query_series(promql, start_time, end_time):
+            dimensions = dict(zip(series["group_keys"], series["group_values"]))
+            columns = series["columns"]
+            value_index = columns.index("_value" if "_value" in columns else "_result")
+            timestamps = [float(point[value_index]) for point in series["values"] if point[value_index] is not None]
+            timestamps = [value for value in timestamps if math.isfinite(value) and start_time <= value <= end_time]
+            if not timestamps:
+                continue
+            timestamp: int = int(max(timestamps))
+            service_name = dimensions.get("service_name")
+            if service_name:
+                observed[service_name] = max(observed.get(service_name, 0), timestamp)
+                for field in ("db_system", "messaging_system"):
+                    if component := dimensions.get(field):
+                        key = f"{service_name}-{component}"
+                        trace_observed[key] = max(trace_observed.get(key, 0), timestamp)
+            if peer := dimensions.get("peer_service"):
+                key = f"http:{peer}"
+                trace_observed[key] = max(trace_observed.get(key, 0), timestamp)
+        for key, timestamp in trace_observed.items():
+            observed[key] = max(observed.get(key, 0), timestamp)
+        checked_at: int = int(time.time())
         TopoNode.touch_heartbeat(
-            self.bk_biz_id,
-            self.app_name,
-            TelemetryDataType.METRIC.value,
-            observed,
-            int(time.time()),
-            check_all_services=True,
+            self.bk_biz_id, self.app_name, TelemetryDataType.METRIC.value, observed, checked_at, check_all_services=True
+        )
+        # 组件及远程服务的 bk_apm_count 来自 Span，只补写这些节点的 Trace 心跳。
+        TopoNode.touch_heartbeat(
+            self.bk_biz_id, self.app_name, TelemetryDataType.TRACE.value, trace_observed, checked_at
         )
 
     @classmethod
@@ -224,7 +225,7 @@ class ServiceDiscover(Discover):
 
         if promoted_node_ids:
             # 只提升仍属于新来源的节点，避免覆盖期间由 Trace 写入的分类。
-            TopoNode.objects.filter(TopoNode.new_source_filter(), id__in=promoted_node_ids).update(
+            TopoNode.objects.filter(TopoNode.unclassified_source_filter(), id__in=promoted_node_ids).update(
                 extra_data=TopoNode.get_empty_extra_data()
             )
 

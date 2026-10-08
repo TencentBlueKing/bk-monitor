@@ -45,6 +45,7 @@ from apm.models import (
     QpsConfig,
 )
 from apm.utils.report_event import EventReportHelper
+from bkmonitor.data_source.exceptions import IncompleteQueryResultError
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from bkmonitor.utils.user import get_user_display_name
 from constants.apm import TelemetryDataType
@@ -123,6 +124,11 @@ def datasource_discover_handler(
     start_time: int,
     data_type: str = TelemetryDataType.METRIC.value,
 ) -> None:
+    """按应用与数据类型互斥执行发现；不完整查询保留旧心跳，其他异常继续上抛。
+
+    :param interval: 发现窗口长度，单位为分钟。
+    :param start_time: 队列任务的秒级窗口起点；执行时将窗口结束时间限制到当前时间。
+    """
     cur: datetime.datetime = timezone.now()
     if settings.ENABLE_MULTI_TENANT_MODE:
         set_local_tenant_id(bk_biz_id_to_bk_tenant_id(datasource.bk_biz_id))
@@ -148,7 +154,7 @@ def datasource_discover_handler(
             data_type,
         )
         return
-    except IncompleteDiscoveryError:
+    except (IncompleteDiscoveryError, IncompleteQueryResultError):
         logger.warning(
             "[datasource_discover_handler] incomplete query, heartbeat unchanged: bk_biz_id=%s app_name=%s data_type=%s",
             datasource.bk_biz_id,
@@ -310,6 +316,7 @@ def check_apm_consul_config():
     time_limit=DISCOVERY_TASK_TIME_LIMIT,
 )
 def profile_handler(bk_biz_id: int, app_name: str) -> None:
+    """按应用互斥执行 Profiling 发现；锁冲突跳过，查询或写入异常保留任务失败信号。"""
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} start at {datetime.datetime.now()}")
     if settings.ENABLE_MULTI_TENANT_MODE:
         set_local_tenant_id(bk_biz_id_to_bk_tenant_id(bk_biz_id))
@@ -330,7 +337,7 @@ def profile_handler(bk_biz_id: int, app_name: str) -> None:
 
 
 def profile_discover_cron() -> None:
-    """定时发现profile服务"""
+    """每分钟分片派发已开启 Profiling 的应用，十分钟一轮，并相对 Trace/Metric 错峰三分钟。"""
     logger.info(f"[profile_discover_cron] start at {datetime.datetime.now()}")
     interval: int = 10
     slug: int = timezone.now().minute % interval

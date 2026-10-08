@@ -26,6 +26,7 @@ from django.utils import timezone, tree
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
 
+from bkmonitor.data_source.exceptions import IncompleteQueryResultError
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 import constants.event
@@ -2119,8 +2120,14 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         return [record[dimension_field] for record in records][:limit]
 
     def query_log(
-        self, start_time: int = None, end_time: int = None, limit: int = None, offset: int = None, *args, **kwargs
-    ) -> tuple[list, int]:
+        self,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        limit: int | None = None,
+        offset: int | None = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> tuple[list[dict[str, Any]], int]:
         q = self._get_queryset(
             bk_tenant_id=self.bk_tenant_id,
             table=self.table,
@@ -2142,6 +2149,8 @@ class BaseBkMonitorLogDataSource(DataSource, ABC):
         q = self._process_log_queryset(q)
 
         data = q.original_data
+        if self.distinct and (data.get("timed_out") or data.get("_shards", {}).get("failed", 0)):
+            raise IncompleteQueryResultError("incomplete collapsed log query result")
         total = data["hits"]["total"]
         if isinstance(total, dict):
             total = total["value"]
@@ -2362,9 +2371,19 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
 
     DEFAULT_TIME_FIELD = "dtEventTimeStamp"
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
-        self.metrics = self.metrics or [{"field": "_index", "method": "COUNT"}]
+        # 折叠原始日志时不补默认 COUNT，否则配置会走聚合分支而丢失 collapse。
+        if not self.metrics and not self.distinct:
+            self.metrics = [{"field": "_index", "method": "COUNT"}]
+
+    def switch_unify_query(self, bk_biz_id: int) -> bool:
+        """遵循日志查询路由；折叠查询不支持旧后端，命中黑名单时明确失败。"""
+        use_unify_query = super().switch_unify_query(bk_biz_id)
+        if self.distinct and not use_unify_query:
+            # 黑名单仍由原路由规则控制，不允许折叠查询静默退化为未排序的普通日志查询。
+            raise IncompleteQueryResultError("collapsed log query requires unify-query but business is excluded")
+        return use_unify_query
 
     @property
     def metric_display(self):

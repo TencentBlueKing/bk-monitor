@@ -25,12 +25,17 @@ logger = logging.getLogger("apm")
 
 
 class ServiceDiscover(Discover):
-    """Profile 服务 + 采样类型发现"""
+    """发现 Profile 服务及采样类型，同时维护 ProfileService、拓扑节点与 Profiling 心跳。"""
 
     MAX_DIMENSION_COMBINATION_LIMIT = 3000
     LARGE_SERVICE_SIZE = 10000
 
     def discover(self, start_time: int, end_time: int) -> None:
+        """按毫秒级窗口聚合采样组合，并逐组合取样；查询全部成功后才开始写入。
+
+        仅实际取到样本的服务生成节点，心跳的数据时间使用窗口结束时间（转为秒）。
+        聚合未截断时检查全部现存节点，截断时仅检查已取到样本的服务。
+        """
         started_at = time.monotonic()
         check_time = timezone.now()
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")
@@ -113,7 +118,7 @@ class ServiceDiscover(Discover):
                 time.monotonic() - started_at,
             )
 
-        # Final: 保存到数据库
+        # 聚合和样本查询完成后，依次保存服务、拓扑节点与心跳。
         self._upsert(instances, check_time)
         service_names: set[str] = {instance.name for instance in instances if instance.name}
         TopoNode.upsert_telemetry_nodes(

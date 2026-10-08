@@ -32,7 +32,7 @@ class APMCollector(BaseCollector):
     @cached_property
     def top_node_biz_map(self) -> dict:
         biz_map = defaultdict(list)
-        for node in TopoNode.get_service_queryset(bk_biz_id__in=list(self.biz_info.keys())):
+        for node in TopoNode.objects.filter(bk_biz_id__in=list(self.biz_info.keys())):
             biz_map[node.bk_biz_id].append(node)
 
         return biz_map

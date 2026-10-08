@@ -81,21 +81,21 @@ def test_relation_discovery_does_not_consume_new_only_classification(sources: li
     assert relation.to_topo_key_category == ("rpc" if sources == ["metric"] else "http")
 
 
-def test_service_counts_and_search_share_legacy_visibility() -> None:
+def test_service_counts_and_search_include_all_sources() -> None:
     make_node("old", source=["trace"])
     make_node("new-log", source=["log"])
     make_node("new-profile", source=["profiling"])
-    assert _load_service_count_map([SimpleNamespace(bk_biz_id=2, app_name="app")]) == {(2, "app"): 1}
-    assert apm_service_count(2) == 1
+    assert _load_service_count_map([SimpleNamespace(bk_biz_id=2, app_name="app")]) == {(2, "app"): 3}
+    assert apm_service_count(2) == 3
     collector = object.__new__(APMCollector)
     collector.__dict__["biz_info"] = {2: {}}
-    assert [node.topo_key for node in collector.top_node_biz_map[2]] == ["old"]
+    assert {node.topo_key for node in collector.top_node_biz_map[2]} == {"old", "new-log", "new-profile"}
     search = object.__new__(ApmSearchHandler)
     search.scope = SearchScope.BIZ
     search.bk_biz_id = 2
     with mock.patch.object(search, "collect_results_by_biz", side_effect=lambda results, **kwargs: results):
         results = search.search_service("")
-    assert [result.title for result in results] == ["old"]
+    assert {result.title for result in results} == {"old", "new-log", "new-profile"}
     # 诊断用途的原始节点读取保留全部数据。
     assert TopoNode.objects.count() == 3
 
@@ -160,7 +160,6 @@ def test_trace_update_preserves_sources_added_after_discovery_snapshot(initial_s
     batch_result = (
         {"demo": {"extra_data": {"category": "other", "kind": "service"}, "platform": {}, "system": {}, "sdk": {}}},
         {},
-        {"demo": 100},
     )
     with (
         mock.patch.object(
@@ -176,5 +175,5 @@ def test_trace_update_preserves_sources_added_after_discovery_snapshot(initial_s
     node.refresh_from_db()
     assert node.source == expected_sources
     assert node.heartbeat["log"] == previous_heartbeat["log"]
-    assert node.heartbeat["trace"]["last_data_at"] == 100
-    assert TopoNode.get_service_queryset(bk_biz_id=2, app_name="app").filter(pk=node.pk).exists()
+    assert "trace" not in node.heartbeat
+    assert TopoNode.objects.filter(bk_biz_id=2, app_name="app").filter(pk=node.pk).exists()

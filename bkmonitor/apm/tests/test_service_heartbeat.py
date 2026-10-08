@@ -30,7 +30,7 @@ def make_node(name: str = "demo", **kwargs: Any) -> TopoNode:
 
 
 def datasource() -> SimpleNamespace:
-    return SimpleNamespace(bk_biz_id=2, app_name="app", result_table_id="2_apm.app", retention=7)
+    return SimpleNamespace(bk_biz_id=2, app_name="app", result_table_id="2_apm.app", retention=7, index_set_id=123)
 
 
 def test_heartbeat_monotonic_and_preserves_unrequested_fields() -> None:
@@ -91,23 +91,15 @@ def test_heartbeat_locks_and_rolls_back_on_routed_database() -> None:
     assert node.heartbeat == {}
 
 
-def log_response(name: str = "demo", timestamp: int = 150000) -> dict[str, Any]:
-    return {
-        "aggregations": {
-            "service_names": {
-                "buckets": [{"key": {"service_name": name}, "last_data_at": {"value": timestamp}}],
-            }
-        },
-        "_shards": {"failed": 0},
-        "timed_out": False,
-    }
+def log_response(name: str = "demo", timestamp: int = 150000) -> list[dict[str, Any]]:
+    return [{"resource": {"service": {"name": name}, "server": name}, "time": timestamp}]
 
 
 def test_log_discover_creates_nodes_and_merges_fields() -> None:
     existing = make_node("existing", source=["trace"], heartbeat={"trace": {"last_data_at": 80, "checked_at": 90}})
     with (
         mock.patch(
-            "apm.core.discover.log.service.api.log_search.es_query_dsl",
+            "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
             side_effect=[log_response(timestamp=150000), log_response(timestamp=190000)],
         ) as query,
         mock.patch.object(TopoNode, "get_empty_extra_data", return_value={"kind": "service", "category": "other"}),
@@ -117,31 +109,22 @@ def test_log_discover_creates_nodes_and_merges_fields() -> None:
     assert created.source == ["log"]
     assert created.heartbeat["log"]["last_data_at"] == 190
     assert query.call_count == 2
-    for call in query.call_args_list:
-        assert call.kwargs["indices"] == "2_apm_app*"
-        aggregation = call.kwargs["body"]["aggs"]["service_names"]
-        assert aggregation["composite"]["size"] == 1000
-        assert aggregation["aggs"]["last_data_at"] == {"max": {"field": "time"}}
     existing.refresh_from_db()
     assert existing.heartbeat["log"]["last_data_at"] is None
     assert existing.heartbeat["trace"] == {"last_data_at": 80, "checked_at": 90}
 
 
-@pytest.mark.parametrize("failure", ["exception", "shard", "timeout"])
-def test_log_failure_does_not_write_or_renew(failure: str) -> None:
+def test_log_failure_does_not_write_or_renew() -> None:
     previous = {"log": {"last_data_at": 90, "checked_at": 100}}
     node = make_node(heartbeat=previous)
-    response = log_response()
-    if failure == "shard":
-        response["_shards"]["failed"] = 1
-    elif failure == "timeout":
-        response["timed_out"] = True
-    with mock.patch(
-        "apm.core.discover.log.service.api.log_search.es_query_dsl",
-        side_effect=[log_response("new"), RuntimeError("failed") if failure == "exception" else response],
+    with (
+        mock.patch(
+            "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
+            side_effect=[log_response("new"), RuntimeError("failed")],
+        ),
+        pytest.raises(RuntimeError),
     ):
-        with pytest.raises((RuntimeError, IncompleteDiscoveryError)):
-            LogServiceDiscover(datasource()).discover(100, 200)
+        LogServiceDiscover(datasource()).discover(100, 200)
     node.refresh_from_db()
     assert node.heartbeat == previous
     assert TopoNode.objects.count() == 1
@@ -169,16 +152,21 @@ def test_metric_heartbeat_uses_sample_times_for_all_service_keys() -> None:
         {"series": [metric_series(["peer_service"], ["remote"], [[190000, 180]])]},
     ]
     with mock.patch(
-        "apm.core.discover.metric.service.api.unify_query.query_data_by_promql", side_effect=responses
+        "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
+        return_value={"series": [series for response in responses for series in response["series"]]},
     ) as query:
         MetricServiceDiscover(datasource()).discover_heartbeat(100, 200)
     assert {node.topo_key: node.heartbeat["metric"]["last_data_at"] for node in TopoNode.objects.all()} == {
-        "demo": 140,
+        "demo": 170,
         "demo-redis": 160,
         "demo-kafka": 170,
         "http:remote": 180,
         "empty": None,
     }
+    assert "trace" not in TopoNode.objects.get(topo_key="demo").heartbeat
+    for name, timestamp in (("demo-redis", 160), ("demo-kafka", 170), ("http:remote", 180)):
+        assert TopoNode.objects.get(topo_key=name).heartbeat["trace"]["last_data_at"] == timestamp
+    assert query.call_count == 1
     assert all(call.args[0]["step"] == "60s" for call in query.call_args_list)
     assert all('__name__="custom:2_apm:app:bk_apm_count"' in call.args[0]["promql"] for call in query.call_args_list)
 
@@ -188,17 +176,17 @@ def test_metric_heartbeat_uses_sample_times_for_all_service_keys() -> None:
     [
         RuntimeError("failed"),
         {"series": [], "is_partial": True},
-        {"series": [], "status": {"series_limit_reached": True}},
+        {"series": [], "status": {"code": "QUERY_TS_PARTIAL"}},
+        {"series": [], "status": {"code": "EXCEEDS_MAXIMUM_LIMIT"}},
+        {"series": [], "status": {"code": "EXCEEDS_MAXIMUM_SLIMIT"}},
     ],
 )
 def test_metric_partial_failure_keeps_old_heartbeat(response: Any) -> None:
     node = make_node(heartbeat={"metric": {"last_data_at": 90, "checked_at": 100}})
     with mock.patch(
         "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
-        side_effect=[
-            {"series": [metric_series(["service_name"], ["demo"], [[150000, 140]])]},
-            response,
-        ],
+        side_effect=response if isinstance(response, Exception) else None,
+        return_value=response,
     ):
         with pytest.raises((RuntimeError, IncompleteDiscoveryError)):
             MetricServiceDiscover(datasource()).discover_heartbeat(100, 200)
@@ -206,7 +194,7 @@ def test_metric_partial_failure_keeps_old_heartbeat(response: Any) -> None:
     assert node.heartbeat == {"metric": {"last_data_at": 90, "checked_at": 100}}
 
 
-def test_legacy_topology_filters_only_new_source_nodes() -> None:
+def test_topology_includes_all_discovery_sources() -> None:
     for name, sources in (
         ("legacy", []),
         ("trace", ["trace"]),
@@ -222,7 +210,16 @@ def test_legacy_topology_filters_only_new_source_nodes() -> None:
         "apm.resources.DiscoverHandler.get_retention_filter_params", return_value={"bk_biz_id": 2, "app_name": "app"}
     ):
         nodes = QueryTopoNodeResource().perform_request({"bk_biz_id": 2, "app_name": "app"})
-    assert {node["topo_key"] for node in nodes} == {"legacy", "trace", "metric", "mixed"}
+    assert {node["topo_key"] for node in nodes} == {
+        "legacy",
+        "trace",
+        "metric",
+        "mixed",
+        "log",
+        "profile",
+        "both",
+        "reverse",
+    }
     assert all("heartbeat" not in node and "source" not in node for node in nodes)
 
 
@@ -240,10 +237,9 @@ def test_upsert_preserves_metadata_and_legacy_empty_source() -> None:
 
 def test_successful_empty_log_check_keeps_data_time() -> None:
     node = make_node(heartbeat={"log": {"last_data_at": 90, "checked_at": 100}})
-    response = log_response()
-    response["aggregations"]["service_names"]["buckets"] = []
+    response = []
     with (
-        mock.patch("apm.core.discover.log.service.api.log_search.es_query_dsl", return_value=response),
+        mock.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", return_value=response),
         mock.patch.object(TopoNode, "get_empty_extra_data", return_value={}),
     ):
         LogServiceDiscover(datasource()).discover(100, 200)
@@ -376,49 +372,28 @@ def test_metric_does_not_overwrite_concurrent_trace_classification() -> None:
     assert node.source == ["profiling", "trace", "metric"]
 
 
-def test_log_paginates_all_services_before_publishing() -> None:
-    page = log_response()
-    page["aggregations"]["service_names"]["buckets"] = [
-        {"key": {"service_name": f"svc-{number}"}, "last_data_at": {"value": 150000}} for number in range(1000)
-    ]
-    page["aggregations"]["service_names"]["after_key"] = {"service_name": "svc-999"}
-    second_page = log_response("svc-1000", 180000)
+def test_log_truncated_query_only_checks_observed_services() -> None:
+    unknown = make_node("unknown", heartbeat={"log": {"last_data_at": 90, "checked_at": 100}})
     with (
-        mock.patch(
-            "apm.core.discover.log.service.api.log_search.es_query_dsl",
-            side_effect=[
-                page,
-                second_page,
-                log_response("svc-1000", 190000),
-            ],
-        ) as query,
+        mock.patch.object(LogServiceDiscover, "QUERY_MAX_LIMIT", 1),
+        mock.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=[log_response(), []]),
         mock.patch.object(TopoNode, "get_empty_extra_data", return_value={"kind": "service"}),
     ):
         LogServiceDiscover(datasource()).discover(100, 200)
-    assert TopoNode.objects.count() == 1001
-    assert query.call_count == 3
-    assert query.call_args_list[1].kwargs["body"]["aggs"]["service_names"]["composite"]["after"] == {
-        "service_name": "svc-999"
-    }
-    assert "after" not in query.call_args_list[2].kwargs["body"]["aggs"]["service_names"]["composite"]
-    assert TopoNode.objects.get(topo_key="svc-1000").heartbeat["log"]["last_data_at"] == 190
+    unknown.refresh_from_db()
+    assert unknown.heartbeat == {"log": {"last_data_at": 90, "checked_at": 100}}
+    assert TopoNode.objects.get(topo_key="demo").heartbeat["log"]["last_data_at"] == 150
 
 
-def test_log_failed_later_page_does_not_publish_partial_coverage() -> None:
+def test_log_without_index_set_does_not_query_or_renew() -> None:
+    source = datasource()
+    source.index_set_id = None
     node = make_node(heartbeat={"log": {"last_data_at": 90, "checked_at": 100}})
-    page = log_response("new")
-    page["aggregations"]["service_names"]["after_key"] = {"service_name": "new"}
-    with (
-        mock.patch(
-            "apm.core.discover.log.service.api.log_search.es_query_dsl",
-            side_effect=[page, RuntimeError("next page failed")],
-        ),
-        pytest.raises(RuntimeError),
-    ):
-        LogServiceDiscover(datasource()).discover(100, 200)
+    with mock.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query") as query:
+        LogServiceDiscover(source).discover(100, 200)
+    query.assert_not_called()
     node.refresh_from_db()
     assert node.heartbeat == {"log": {"last_data_at": 90, "checked_at": 100}}
-    assert TopoNode.objects.count() == 1
 
 
 def test_complete_empty_check_and_partial_observation_have_different_coverage() -> None:
@@ -647,3 +622,15 @@ def test_discovery_source_update_is_scoped_and_rolls_back_with_other_fields() ->
     node.refresh_from_db()
     assert node.source == ["trace", "metric"]
     assert node.system == [{"name": "trpc", "extra_data": {}}]
+
+
+@pytest.mark.parametrize("status", [None, {"code": "SPACE_TABLE_ID_FIELD_MISSING_FALLBACK"}])
+def test_metric_non_failure_status_allows_heartbeat(status: Any) -> None:
+    node = make_node(heartbeat={"metric": {"last_data_at": 90, "checked_at": 100}})
+    with mock.patch(
+        "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
+        return_value={"series": [metric_series(["service_name"], ["demo"], [[180000, 150]])], "status": status},
+    ):
+        MetricServiceDiscover(datasource()).discover_heartbeat(100, 200)
+    node.refresh_from_db()
+    assert node.heartbeat["metric"]["last_data_at"] == 150

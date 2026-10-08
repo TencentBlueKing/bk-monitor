@@ -187,6 +187,18 @@ class BaseQuery:
         qs = self.get_qs(start_time, end_time).offset(offset).limit(limit)
         return list(self._add_query(qs, queries))
 
+    def _query_group_list(
+        self,
+        queries: list[QueryConfigBuilder],
+        start_time: int | None,
+        end_time: int | None,
+        group_field: str,
+        offset: int = 0,
+        limit: int = QUERY_MAX_LIMIT,
+    ) -> list[dict[str, Any]]:
+        """按字段折叠，返回调用方排序下每组的第一条完整记录。"""
+        return self._query_list([query.distinct(group_field) for query in queries], start_time, end_time, offset, limit)
+
     def _query_total(
         self,
         queries: list[QueryConfigBuilder],

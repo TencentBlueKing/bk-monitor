@@ -164,7 +164,7 @@ def apm_service_count(bk_biz_id: int, end_time: int | None = None) -> int:
     """APM 服务数（拓扑节点数）。"""
     from apm.models import TopoNode
 
-    return TopoNode.get_service_queryset().count()
+    return TopoNode.objects.count()
 
 
 def apm_profiling_application_count(bk_biz_id: int, end_time: int | None = None):

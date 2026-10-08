@@ -72,28 +72,19 @@ class TopoNode(TopoBase):
     system = models.JSONField("系统类型", null=True)
     platform = models.JSONField("部署平台", null=True)
     sdk = models.JSONField("上报sdk", null=True)
-    # source: 说明这个服务是由哪个数据源发现的，值为 TelemetryData，存储格式: ["trace", "metric"]
+    # 发现来源使用 TelemetryDataType 值；空列表保留历史节点的分类语义。
     source = models.JSONField("服务发现来源", default=list)
+    # 按数据类型保存秒级 last_data_at / checked_at，独立于节点生命周期 updated_at。
     heartbeat = models.JSONField("服务数据心跳", default=dict)
     is_permanent = models.BooleanField("是否永久保存", default=False)
 
     @classmethod
-    def new_source_filter(cls) -> Q:
-        """仅由日志或性能分析发现的节点，尚无 Trace／Metric 分类。"""
+    def unclassified_source_filter(cls) -> Q:
+        """定位尚无 Trace/Metric 分类的节点，仅供分类提升和关系识别，不限制服务可见性。"""
         # JSON 精确匹配会在 MySQL 侧转换参数类型；JSON 列的 IN 查找没有这一步。
         log: str = TelemetryDataType.LOG.value
         profiling: str = TelemetryDataType.PROFILING.value
         return Q(source=[log]) | Q(source=[profiling]) | Q(source=[log, profiling]) | Q(source=[profiling, log])
-
-    @classmethod
-    def legacy_source_filter(cls) -> Q:
-        """第一阶段的服务可见范围；第二阶段切换时移除查询入口的此限制。"""
-        return ~cls.new_source_filter()
-
-    @classmethod
-    def get_service_queryset(cls, **filters: Any) -> models.QuerySet:
-        """服务列表、计数与搜索共用过渡期过滤，原始拓扑诊断仍可读取 objects。"""
-        return cls.objects.filter(cls.legacy_source_filter(), **filters)
 
     @staticmethod
     def has_trace_or_metric_source(sources: list[str] | None) -> bool:
@@ -111,7 +102,12 @@ class TopoNode(TopoBase):
         fields: list[str],
         data_type: str,
     ) -> None:
-        """更新发现字段，并在行锁内追加来源，避免旧快照覆盖其他发现器的来源。"""
+        """更新本应用已存在的节点，并在行锁内合并最新来源。
+
+        :param nodes: 携带主键和本轮发现字段的节点；已删除或不属于本应用的行不更新。
+        :param fields: 除 source 外需要保存的字段，使用传入节点的值。
+        :param data_type: 追加到最新 source 的发现来源，不使用传入节点的来源快照。
+        """
         if not nodes:
             return
         database: str = router.db_for_write(cls)
@@ -146,8 +142,14 @@ class TopoNode(TopoBase):
     ) -> bool:
         """合并单类心跳，不改变节点存活时间。
 
-        :param check_all_services: 仅在完整应用查询成功时使用；未命中节点保持数据时间，仅推进检查时间。
-        :return: 是否成功提交；锁超时或死锁时保留旧心跳，交由下一轮发现恢复。
+        在模型路由对应的事务内锁行、重读并合并，只更新 heartbeat 列。
+        last_data_at 和 checked_at 均单调前进，其他数据类型的子键保持不变。
+
+        :param last_data_at_mapping: 服务键到秒级数据时间的映射；None 表示本轮未观测到数据。
+        :param checked_at: 本轮成功检查的秒级时间戳。
+        :param check_all_services: True 检查本应用全部现存节点；False 仅检查映射命中的节点。
+            未观测到数据的节点保留原数据时间。此入口不创建节点。
+        :return: 正常完成（包括无须更新）返回 True；锁超时或死锁回滚后返回 False，其他异常上抛。
         """
         if data_type not in {item.value for item in TelemetryDataType}:
             raise ValueError(f"unsupported telemetry data type: {data_type}")
@@ -197,6 +199,7 @@ class TopoNode(TopoBase):
     ) -> None:
         """日志和性能分析只补充节点与来源，不覆盖已有拓扑分类。
 
+        已有节点追加来源并刷新 updated_at，历史空来源保持为空；extra_data 仅用于新节点。
         节点表没有服务键唯一约束，首建并发仍可能产生同名行；心跳入口覆盖全部同名行。
         """
         if not service_names:
@@ -211,7 +214,7 @@ class TopoNode(TopoBase):
             )
             existing_names: set[str] = {node.topo_key for node in nodes}
             for node in nodes:
-                # 空来源是历史节点，不能改成新增来源独有节点，否则第一阶段会隐藏它。
+                # 空来源保留历史分类语义，避免后续 Trace/Metric 将既有分类当作占位分类覆盖。
                 if node.source and data_type not in node.source:
                     node.source = [*node.source, data_type]
                 node.updated_at = timezone.now()

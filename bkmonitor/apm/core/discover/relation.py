@@ -147,7 +147,7 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
                     )
                 elif kind in [SpanKind.SPAN_KIND_SERVER, SpanKind.SPAN_KIND_CONSUMER]:
                     topo_node = TopoNode.objects.filter(
-                        ~TopoNode.new_source_filter(),
+                        ~TopoNode.unclassified_source_filter(),
                         bk_biz_id=self.bk_biz_id,
                         app_name=self.app_name,
                         topo_key=self.get_service_name(from_span),
@@ -226,7 +226,7 @@ class RelationDiscover(CachedDiscoverMixin, DiscoverBase):
                 messaging_service_kind = ApmTopoDiscoverRule.TOPO_SERVICE
                 messaging_service_category = ApmTopoDiscoverRule.APM_TOPO_CATEGORY_HTTP
                 topo_node = TopoNode.objects.filter(
-                    ~TopoNode.new_source_filter(),
+                    ~TopoNode.unclassified_source_filter(),
                     bk_biz_id=self.bk_biz_id,
                     app_name=self.app_name,
                     topo_key=messaging_service_name,

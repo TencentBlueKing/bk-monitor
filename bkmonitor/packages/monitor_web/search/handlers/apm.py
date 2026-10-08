@@ -51,7 +51,7 @@ class ApmSearchHandler(BaseSearchHandler):
 
     def search_service(self, query: str, limit: int = 10) -> list[SearchResultItem]:
         # 搜索服务
-        service_qs = TopoNode.get_service_queryset(topo_key__contains=query)
+        service_qs = TopoNode.objects.filter(topo_key__contains=query)
         if self.scope == SearchScope.BIZ:
             service_qs = service_qs.filter(bk_biz_id=self.bk_biz_id)
 

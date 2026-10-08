@@ -12,60 +12,77 @@ import logging
 import time
 from typing import Any
 
+import arrow
+from arrow.parser import ParserError
+
 from apm.core.discover.log.base import Discover
-from apm.core.discover.exceptions import IncompleteDiscoveryError
+from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import TopoNode
+from bkmonitor.data_source.utils.query import BaseQuery
+from bkmonitor.data_source.exceptions import IncompleteQueryResultError
 from constants.apm import TelemetryDataType
-from core.drf_resource import api
+from constants.data_source import DataSourceLabel, DataTypeLabel
 
 logger = logging.getLogger("apm")
 
 
 class ServiceDiscover(Discover):
-    """从应用日志表发现服务及最新日志时间，不查询关联索引。"""
+    """按 APM 日志索引集折叠查询每个服务的最新日志，维护日志节点与心跳。"""
 
-    SERVICE_MAX_SIZE = 1000
+    QUERY_MAX_LIMIT = BaseQuery.QUERY_MAX_LIMIT
 
     def discover(self, start_time: int, end_time: int) -> None:
+        """分别查询两个服务名字段，全部查询及时间校验成功后再写入。
+
+        查询窗口以秒传入，QueryBuilder 使用毫秒；索引集未配置时跳过。
+        任一查询达到条数上限时，仅检查已观测节点；查询不完整或时间异常时保留旧心跳。
+        """
+        if not self.datasource.index_set_id:
+            return
         observed: dict[str, int] = {}
-        table_id: str = self.result_table_id.replace("-", "_").replace(".", "_")
+        complete: bool = True
         for field in ("resource.service.name", "resource.server"):
-            after_key: dict[str, str] | None = None
-            while True:
-                composite: dict[str, Any] = {
-                    "size": self.SERVICE_MAX_SIZE,
-                    "sources": [{"service_name": {"terms": {"field": field}}}],
-                }
-                if after_key is not None:
-                    composite["after"] = after_key
-                response: dict[str, Any] = api.log_search.es_query_dsl(
-                    indices=f"{table_id}*",
-                    body={
-                        "size": 0,
-                        "query": {"range": {"time": {"format": "epoch_second", "gte": start_time, "lte": end_time}}},
-                        "aggs": {
-                            "service_names": {
-                                "composite": composite,
-                                "aggs": {"last_data_at": {"max": {"field": "time"}}},
-                            }
-                        },
-                    },
-                )
-                if response.get("timed_out") or response.get("_shards", {}).get("failed", 0):
-                    raise IncompleteDiscoveryError("incomplete log discovery result")
-                aggregation: dict[str, Any] = response["aggregations"]["service_names"]
-                for bucket in aggregation["buckets"]:
-                    name: str = bucket["key"]["service_name"]
-                    timestamp: float | None = bucket["last_data_at"]["value"]
-                    if name and timestamp is not None:
-                        # ES date 字段的 max 聚合值为毫秒。
-                        observed[name] = max(observed.get(name, 0), int(timestamp) // 1000)
-                next_key: dict[str, str] | None = aggregation.get("after_key")
-                if not aggregation["buckets"] or not next_key:
-                    break
-                if next_key == after_key:
-                    raise IncompleteDiscoveryError("log discovery pagination did not advance")
-                after_key = next_key
+            query = (
+                QueryConfigBuilder((DataTypeLabel.LOG, DataSourceLabel.BK_LOG_SEARCH))
+                .table(str(self.datasource.index_set_id))
+                .index_set_id(self.datasource.index_set_id)
+                .time_field("time")
+                .distinct(field)
+                .order_by("time desc")
+            )
+            logs: list[dict[str, Any]] = list(
+                UnifyQuerySet()
+                .scope(self.bk_biz_id)
+                .start_time(start_time * 1000)
+                .end_time(end_time * 1000)
+                .time_align(False)
+                .add_query(query)
+                .limit(self.QUERY_MAX_LIMIT)
+            )
+            complete = complete and len(logs) < self.QUERY_MAX_LIMIT
+            for log in logs:
+                resource = log.get("resource") or {}
+                if field == "resource.service.name":
+                    # 兼容日志记录中嵌套的 service.name 和保留点号的字段名。
+                    name = resource.get("service.name") or (resource.get("service") or {}).get("name")
+                else:
+                    name = resource.get("server")
+                if not name:
+                    continue
+                raw_time = log.get("time")
+                try:
+                    if raw_time is None:
+                        raise ValueError("missing log time")
+                    # ES date 的原始值允许毫秒数值、数字字符串或带时区的日期字符串。
+                    if isinstance(raw_time, int | float) or (isinstance(raw_time, str) and raw_time.isdigit()):
+                        timestamp = float(raw_time) / 1000
+                    else:
+                        timestamp = arrow.get(raw_time).float_timestamp
+                except (ValueError, TypeError, OverflowError, ParserError) as error:
+                    raise IncompleteQueryResultError("invalid log time in collapsed query result") from error
+                if not start_time <= timestamp <= end_time:
+                    raise IncompleteQueryResultError("log time is outside the requested discovery window")
+                observed[name] = max(observed.get(name, 0), int(timestamp))
 
         TopoNode.upsert_telemetry_nodes(
             self.bk_biz_id,
@@ -80,7 +97,7 @@ class ServiceDiscover(Discover):
             TelemetryDataType.LOG.value,
             observed,
             int(time.time()),
-            check_all_services=True,
+            check_all_services=complete,
         )
         logger.info(
             "[LogServiceDiscover] bk_biz_id=%s app_name=%s services=%s", self.bk_biz_id, self.app_name, len(observed)

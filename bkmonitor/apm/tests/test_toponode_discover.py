@@ -457,21 +457,6 @@ def test_llm_metadata_survives_component_span_in_same_batch():
     assert topo_node["extra_data"]["llm"]["product"] == "agentlens"
 
 
-def test_trace_heartbeat_uses_latest_span_time_for_service_component_and_remote() -> None:
-    existing = build_topo_node({"kind": "service", "category": "other"})
-    earlier = build_component_span()
-    earlier["attributes"]["peer.service"] = "remote"
-    later = build_component_span()
-    later["end_time"] += 10_000_000
-    FakeTopoNode.touch_heartbeat.reset_mock()
-    run_discover(existing, [later, earlier], discover_cls=OneSpanPerBatchNodeDiscover)
-    call = FakeTopoNode.touch_heartbeat.call_args
-    times = call.args[3]
-    assert times[SERVICE_NAME] == later["end_time"] // 1_000_000
-    assert times[f"{SERVICE_NAME}-redis"] == later["end_time"] // 1_000_000
-    assert any(name.endswith(":remote") and value == earlier["end_time"] // 1_000_000 for name, value in times.items())
-
-
 def test_trace_promotes_profiling_only_node() -> None:
     existing = build_topo_node({"kind": "profiling", "category": "profiling"}, source=["profiling"])
     node, _ = run_discover(existing, build_other_span_without_platform())

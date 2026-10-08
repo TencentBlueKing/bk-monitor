@@ -138,7 +138,7 @@ def _load_service_count_map(applications: list[Any]) -> dict[tuple[int, str], in
     bk_biz_ids = sorted({application.bk_biz_id for application in applications})
     app_names = sorted({application.app_name for application in applications})
     items = (
-        apm_models.TopoNode.get_service_queryset(bk_biz_id__in=bk_biz_ids, app_name__in=app_names)
+        apm_models.TopoNode.objects.filter(bk_biz_id__in=bk_biz_ids, app_name__in=app_names)
         .values("bk_biz_id", "app_name")
         .annotate(total=Count("id"))
     )
@@ -604,9 +604,9 @@ def get_apm_application_detail(params: dict[str, Any]) -> dict[str, Any]:
             custom_reports.append(_serialize_custom_metric_group(group, metric_count))
 
     service_nodes = list(
-        apm_models.TopoNode.get_service_queryset(
-            bk_biz_id=application.bk_biz_id, app_name=application.app_name
-        ).order_by("-updated_at", "topo_key")[:10]
+        apm_models.TopoNode.objects.filter(bk_biz_id=application.bk_biz_id, app_name=application.app_name).order_by(
+            "-updated_at", "topo_key"
+        )[:10]
     )
     instance_count_map = _load_instance_count_map(application, [node.topo_key for node in service_nodes])
     relation_preview = list(
@@ -657,7 +657,7 @@ def list_apm_services(params: dict[str, Any]) -> dict[str, Any]:
     application = _get_application(params.get("application_id"), bk_tenant_id)
     page, page_size = normalize_pagination(params)
 
-    queryset = apm_models.TopoNode.get_service_queryset(bk_biz_id=application.bk_biz_id, app_name=application.app_name)
+    queryset = apm_models.TopoNode.objects.filter(bk_biz_id=application.bk_biz_id, app_name=application.app_name)
     service_name = str(params.get("service_name") or "").strip()
     if service_name:
         queryset = queryset.filter(topo_key__icontains=service_name)

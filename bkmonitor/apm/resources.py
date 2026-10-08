@@ -777,6 +777,8 @@ class AppConfigResource(Resource):
 
 
 class QueryTopoNodeResource(Resource):
+    """返回有效期内的服务拓扑；关闭 Profiling 时仅隐藏纯 Profiling 来源节点。"""
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
@@ -801,7 +803,11 @@ class QueryTopoNodeResource(Resource):
             filter_params["topo_key"] = data["topo_key"]
 
         res = []
-        nodes = TopoNode.get_service_queryset(**filter_params)
+        nodes = TopoNode.objects.filter(**filter_params)
+        if ApmApplication.objects.filter(
+            bk_biz_id=data["bk_biz_id"], app_name=data["app_name"], is_enabled_profiling=False
+        ).exists():
+            nodes = nodes.exclude(source=[TelemetryDataType.PROFILING.value])
         for n in nodes:
             extra = n.extra_data
             if (
@@ -839,7 +845,7 @@ class SearchServiceNamesResource(Resource):
         limit = data.get("limit", 20)
         services = {}
         nodes = (
-            TopoNode.get_service_queryset(
+            TopoNode.objects.filter(
                 **scope,
                 topo_key__icontains=data["query"],
                 updated_at__gte=datetime.datetime.now() - datetime.timedelta(days=TopoNode.EXPIRED_DAYS),

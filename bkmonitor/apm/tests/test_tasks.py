@@ -11,6 +11,7 @@ from celery.exceptions import SoftTimeLimitExceeded
 from apm.core.discover.metric.service import ServiceDiscover as MetricServiceDiscover
 
 from apm.core.discover.exceptions import IncompleteDiscoveryError
+from bkmonitor.data_source.exceptions import IncompleteQueryResultError
 
 from apm.task import tasks
 
@@ -230,4 +231,20 @@ def test_profile_worker_propagates_query_failure_and_releases_lock(settings, moc
     handler.return_value.discover.side_effect = failure
     with pytest.raises(type(failure)):
         tasks.profile_handler(2, "app")
+    assert not redis.keys()
+
+
+@pytest.mark.parametrize("failure", [IncompleteQueryResultError("partial"), ValueError("unexpected format")])
+def test_datasource_worker_handles_only_incomplete_query_errors(settings, mocker, failure: Exception) -> None:
+    settings.ENABLE_MULTI_TENANT_MODE = False
+    redis = fakeredis.FakeRedis(decode_responses=True)
+    mocker.patch("apm.task.tasks.ApmCacheHandler.get_redis_client", return_value=redis)
+    discover = mocker.Mock()
+    discover.return_value.discover.side_effect = failure
+    mocker.patch("apm.task.tasks.DiscoverContainer.list_discovers", return_value=[discover])
+    if isinstance(failure, IncompleteQueryResultError):
+        tasks.datasource_discover_handler(make_app(2, "app"), 10, 100, "log")
+    else:
+        with pytest.raises(ValueError):
+            tasks.datasource_discover_handler(make_app(2, "app"), 10, 100, "log")
     assert not redis.keys()
