@@ -27,6 +27,7 @@ from constants.action import (
     ALL_CONVERGE_DIMENSION,
     CONVERGE_FUNCTION,
     ActionSignal,
+    ChatMessageType,
     IntervalNotifyMode,
     NoticeChannel,
     NotifyStep,
@@ -486,6 +487,17 @@ class CreateActionDataSerializer(serializers.Serializer):
 
     alert_ids = serializers.ListField(required=True, child=serializers.CharField(), label="告警id列表")
     action_configs = serializers.ListField(required=True, child=CreateManualActionDataSlz(), label="执行的动作信息")
+
+
+class CreateChatGroupSerializer(serializers.Serializer):
+    chat_members = serializers.ListField(child=serializers.CharField(), label="群成员")
+    alert_ids = serializers.ListField(child=serializers.CharField(), allow_empty=False, label="告警ID列表")
+    content_type = serializers.ListField(
+        child=serializers.ChoiceField(
+            choices=[(ChatMessageType.DETAIL_URL, _("告警链接")), (ChatMessageType.ALARM_CONTENT, _("告警内容"))]
+        ),
+        label="发送通知内容",
+    )
 
 
 class BatchCreateDataSerializer(serializers.Serializer):
