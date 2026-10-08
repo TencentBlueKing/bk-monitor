@@ -397,6 +397,110 @@ def test_audit_operator_accepts_storage_length_boundary(request_data, api):
     assert api.save_with_audit.call_args.kwargs == {"audit_operator": request_data["operator"]}
 
 
+def test_creation_scope_update_preserves_ids_and_unedited_configuration(config, request_data, api):
+    request_data.pop("items")
+    request_data["config"] = {
+        "name": "log backlog",
+        "is_enabled": True,
+        "items": [
+            {"id": 10, "query_configs": [{"id": 20, "agg_interval": 600}], "algorithms": [{"id": 30, "level": 1}]}
+        ],
+        "detects": [
+            {
+                "id": 40,
+                "level": 1,
+                "trigger_config": {"count": 3, "check_window": 3},
+                "recovery_config": {"check_window": 2},
+            }
+        ],
+        "notice": {"config": {"notify_interval": 7200}},
+    }
+    original = deepcopy(config)
+    management.manage_strategy_config(request_data)
+    saved = api.save.call_args.kwargs
+    assert saved["is_enabled"] is True
+    assert saved["name"] == "log backlog"
+    assert saved["items"][0]["query_configs"][0]["agg_interval"] == 600
+    assert saved["items"][0]["algorithms"][0]["level"] == saved["detects"][0]["level"] == 1
+    assert saved["detects"][0]["trigger_config"] == {"count": 3, "check_window": 3}
+    assert saved["detects"][0]["recovery_config"]["check_window"] == 2
+    assert saved["notice"]["config"]["notify_interval"] == 7200
+    for field in ("actions", "labels", "priority_group_key"):
+        assert saved[field] == original[field]
+    for field in ("id", "time_delay", "access_lookback_periods", "no_data_config"):
+        assert saved["items"][0][field] == original["items"][0][field]
+    assert saved["notice"]["id"] == original["notice"]["id"]
+    assert saved["notice"]["user_groups"] == original["notice"]["user_groups"]
+    assert config == original
+    api.save.assert_called_once()
+
+
+def test_disable_only_preserves_every_other_field(config, request_data, api):
+    request_data.pop("items")
+    config["is_enabled"] = True
+    request_data["config_version"] = get_strategy_config_version(config)
+    request_data["config"] = {"is_enabled": False}
+    management.manage_strategy_config(request_data)
+    saved = api.save.call_args.kwargs
+    assert saved["is_enabled"] is False
+    for field in ("items", "detects", "notice", "actions"):
+        assert saved[field] == config[field]
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {},
+        {"is_enabled": "false"},
+        {"actions": []},
+        {"items": [{"id": 10, "query_configs": [{"id": 20, "agg_interval": 0}]}]},
+        {"items": [{"id": 10, "query_configs": [{"agg_interval": 600}]}]},
+        {"detects": [{"id": 40, "trigger_config": {"unexpected": 3}}]},
+        {"detects": [{"id": 40, "level": 1}, {"id": 40, "level": 2}]},
+        {"notice": {"config_id": 60}},
+    ],
+)
+def test_invalid_config_patch_fails_before_authorization(request_data, api, patch):
+    request_data.pop("items")
+    request_data["config"] = patch
+    with pytest.raises(CustomException):
+        management.manage_strategy_config(request_data)
+    api.authorize.assert_not_called()
+    api.save.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "patch",
+    [
+        {"items": [{"id": 999, "name": "foreign"}]},
+        {"items": [{"id": 10, "query_configs": [{"id": 999, "agg_interval": 600}]}]},
+        {"items": [{"id": 10, "algorithms": [{"id": 999, "level": 1}]}]},
+        {"detects": [{"id": 999, "level": 1}]},
+    ],
+)
+def test_config_patch_rejects_foreign_nested_records(request_data, api, patch):
+    request_data.pop("items")
+    request_data["config"] = patch
+    with pytest.raises(CustomException, match="ID 不属于"):
+        management.manage_strategy_config(request_data)
+    api.save.assert_not_called()
+
+
+def test_creation_scope_update_keeps_version_check_and_single_write(request_data, api):
+    request_data.pop("items")
+    request_data["config"] = {"is_enabled": False}
+    version = request_data["config_version"]
+    request_data["config_version"] = "f" * 64
+    with pytest.raises(ValidationError):
+        management.manage_strategy_config(request_data)
+    api.save.assert_not_called()
+    request_data["config_version"] = version
+    api.save.side_effect = TimeoutError("unknown write outcome")
+    with pytest.raises(TimeoutError):
+        management.manage_strategy_config(request_data)
+    api.save.assert_called_once()
+
+
 def test_audit_save_still_validates_before_persistence(request_data, api):
     api.validate_save.side_effect = ValidationError("invalid strategy")
     with pytest.raises(ValidationError, match="invalid strategy"):
