@@ -73,6 +73,8 @@ class PushActionProcessor:
         else:
             # 如果没有屏蔽，才创建子任务
             for action_instance in ActionInstance.objects.filter(generate_uuid=generate_uuid, is_parent_action=True):
+                if action_instance.inputs.get("historical_shield_ids"):
+                    continue
                 # 有父任务的事件，先需要创建对应的子任务
                 sub_actions = action_instance.create_sub_actions()
                 logger.info(

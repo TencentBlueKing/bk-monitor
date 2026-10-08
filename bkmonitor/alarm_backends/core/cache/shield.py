@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import time
 
 """
@@ -35,6 +35,15 @@ class ShieldCacheManager(CacheManager):
     CACHE_KEY_TEMPLATE = CacheManager.CACHE_KEY_PREFIX + ".shield.biz_{}"
 
     FAILURE_KEY_TEMPLATE = CacheManager.CACHE_KEY_PREFIX + ".shield.failure.{}"
+
+    HISTORY_KEY_TEMPLATE = CacheManager.CACHE_KEY_PREFIX + ".shield.history.biz_{}"
+    HISTORY_WINDOW = 24 * 60 * 60
+    HISTORY_CACHE_TIMEOUT = 120
+
+    @classmethod
+    def get_history_by_biz_id(cls, bk_biz_id):
+        data = cls.cache.get(cls.HISTORY_KEY_TEMPLATE.format(bk_biz_id))
+        return extended_json.loads(data) if data else None
 
     @classmethod
     def publish_failure(cls, module: str, target: str, duration: int):
@@ -116,24 +125,33 @@ class ShieldCacheManager(CacheManager):
         now = time_tools.now()
         biz_list = BusinessManager.all()
 
-        # 拉取生效的屏蔽配置，因为是缓存，把未来十分钟内会生效的屏蔽配置也拉进来
+        # 同次查询覆盖当前配置和最近自然到期的配置，并预取未来十分钟内生效的配置。
         shields = list(
             Shield.objects.filter(
                 bk_biz_id__in=[biz.bk_biz_id for biz in biz_list],
                 begin_time__lte=now + timedelta(minutes=10),
-                end_time__gte=now,
+                end_time__gte=now - timedelta(seconds=cls.HISTORY_WINDOW),
                 is_enabled=True,
             ).values()
         )
 
         # 按业务缓存
         shield_configs = defaultdict(list)
+        history_configs = defaultdict(list)
         for shield in shields:
-            shield_configs[shield["bk_biz_id"]].append(shield)
+            if shield["end_time"] >= now:
+                shield_configs[shield["bk_biz_id"]].append(shield)
+            if shield.get("end_policy", "notify_once") == "notify_once":
+                history_configs[shield["bk_biz_id"]].append(shield)
 
         pipeline = cls.cache.pipeline()
         for biz in biz_list:
             bk_biz_id = biz.bk_biz_id
+            pipeline.set(
+                cls.HISTORY_KEY_TEMPLATE.format(bk_biz_id),
+                extended_json.dumps({"generated_at": now.timestamp(), "configs": history_configs[bk_biz_id]}),
+                cls.HISTORY_CACHE_TIMEOUT,
+            )
             if bk_biz_id in shield_configs:
                 pipeline.set(
                     cls.CACHE_KEY_TEMPLATE.format(bk_biz_id),

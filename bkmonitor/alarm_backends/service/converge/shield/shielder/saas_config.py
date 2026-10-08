@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import logging
+import time
 from datetime import datetime
 
 import arrow
@@ -26,6 +27,7 @@ from alarm_backends.service.converge.shield.shield_obj import AlertShieldObj
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.models import ActionInstance, time_tools
 from bkmonitor.utils import extended_json
+from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.common_utils import safe_int
 from constants.shield import ShieldType
 
@@ -40,6 +42,55 @@ class AlertShieldConfigShielder(BaseShielder):
     """
 
     type = ShieldType.SAAS_CONFIG
+
+    @staticmethod
+    @lru_cache_with_ttl(maxsize=128, ttl=60)
+    def _load_history(bk_biz_id, bk_tenant_id):
+        # ponytail: 复用业务级有界缓存；仅在实际出现容量抖动时调整容量。
+        try:
+            payload = ShieldCacheManager.get_history_by_biz_id(bk_biz_id)
+            if payload is None:
+                return None
+            shields = [AlertShieldObj(config) for config in payload["configs"]]
+            for shield in shields:
+                shield.history_valid_since = max(
+                    arrow.get(shield.config[field]).timestamp for field in ("create_time", "update_time")
+                )
+            return payload["generated_at"], shields
+        except Exception:
+            # 失败结果也缓存，避免回放时逐告警重试或重复打印错误。
+            logger.exception("load historical shield cache failed for business(%s)", bk_biz_id)
+            return None
+
+    @classmethod
+    def match_historical(cls, alert: AlertDocument, source_time: int) -> list[str] | None:
+        now = time.time()
+        if not source_time or not now - ShieldCacheManager.HISTORY_WINDOW <= source_time <= now:
+            return None
+        payload = cls._load_history(alert.event.bk_biz_id, alert.event.bk_tenant_id)
+        if payload is None:
+            return None
+        generated_at, shields = payload
+        # LRU 命中也检查原快照年龄，迟到的 SET 不延长有效期。
+        if not 0 <= now - generated_at <= ShieldCacheManager.HISTORY_CACHE_TIMEOUT:
+            return None
+        at = arrow.get(source_time)
+        matched = []
+        for shield in shields:
+            try:
+                config = shield.config
+                if config.get("end_policy", "notify_once") != "notify_once":
+                    continue
+                # 当前行不能代表编辑前的历史版本。
+                if shield.history_valid_since > source_time:
+                    continue
+                if shield.is_match(alert, source_time=at):
+                    matched.append(str(shield.id))
+            except Exception:
+                # 策略/拓扑等依赖不可用时保留当前判定，不阻断同批其他处理动作。
+                logger.debug("historical shield matching unavailable for alert(%s)", alert.id, exc_info=True)
+                return None
+        return matched
 
     def get_shield_objs_from_cache(self):
         # 从缓存获取alert近期命中的屏蔽配置ID列表

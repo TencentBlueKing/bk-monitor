@@ -255,11 +255,12 @@ class CreateIntervalActionProcessor:
             # 当上一次任务结束时间已经满足了轮转，则需要创建任务
             alert = polled_alert_docs.get(action_instance.alerts[0], None)
             alert_latest_time = alert.latest_time if alert else 0
+            previous_time = action_instance.inputs.get("alert_latest_time", 0)
+            if alert and action_instance.is_parent_action and action_instance.inputs.get("shield_source_time"):
+                alert_latest_time = getattr(alert.extra_info, "latest_abnormal_event_time", 0) or alert_latest_time
+                previous_time = action_instance.inputs["shield_source_time"]
 
-            if (
-                action_instance.inputs.get("alert_latest_time", 0) < alert_latest_time
-                and alert.status_detail == EventStatus.ABNORMAL
-            ):
+            if previous_time < alert_latest_time and alert.status_detail == EventStatus.ABNORMAL:
                 # 当前周期通知的最近异常点一定要大于历史异常点
                 # 当前告警的具体状态一定， 存在恢复中状态的周期通知不需要发送
                 create_interval_actions.delay(
@@ -360,6 +361,7 @@ class CreateActionProcessor:
             if not alert.shield_end_close and alert.is_valid_handle(execute_times, relation_id)
         ]
         self.is_alert_shielded = False
+        self.historical_shield_ids = {}
         self.shield_detail = ""
         self.alert_ids = [alert.id for alert in self.alerts]
         self.severity = severity or (self.alerts[0].severity if self.alerts else None)
@@ -1023,6 +1025,8 @@ class CreateActionProcessor:
         cached_alerts = [Alert(data=alert.to_dict()) for alert in self.alerts]
         AlertCache.update_alert_to_cache(cached_alerts)
         AlertCache.save_alert_snapshot(cached_alerts)
+        for alert_doc, cached_alert in zip(update_alerts, cached_alerts):
+            alert_doc.extra_info = cached_alert.extra_info
         retry_times = 0
         while retry_times < 3:
             # 更新alert 的时候，可能会有版本冲突，所以需要做重试处理，最多3次
@@ -1191,6 +1195,19 @@ class CreateActionProcessor:
         if action_plugin["plugin_type"] == ActionPluginType.NOTICE:
             # 通知套餐，父 action_instance 创建
             is_parent_action = True
+            if self.signal in ActionSignal.ABNORMAL_SIGNAL:
+                if not self.is_alert_shielded and alert.id not in self.historical_shield_ids:
+                    self.historical_shield_ids[alert.id] = AlertShieldConfigShielder.match_historical(
+                        alert, getattr(alert.extra_info, "latest_abnormal_event_time", 0)
+                    )
+                historical_ids = self.historical_shield_ids.get(alert.id)
+                inputs["shield_source_time"] = getattr(alert.extra_info, "latest_abnormal_event_time", 0)
+                # None 表示未检查/不可用，[] 表示已检查且未命中，便于回放对账。
+                inputs["historical_shield_ids"] = historical_ids
+                if historical_ids:
+                    inputs["is_alert_shielded"] = True
+                    inputs["shield_ids"] = historical_ids
+                    inputs["shield_detail"] = _("异常事件发生时命中屏蔽配置({})").format(",".join(historical_ids))
             notify_info, follow_notify_info = notice_info or self.get_merged_notice_info(assignee_manager)
             inputs["notify_info"] = notify_info
             inputs["follow_notify_info"] = follow_notify_info
@@ -1213,13 +1230,19 @@ class CreateActionProcessor:
             # 如果处理的时候，记录第一次一次通知时间和通知次数，用来作为记录当前告警是否已经产生通知
             handle_record = {
                 "last_time": int(time.time()),
-                "is_shielded": self.is_alert_shielded,
-                "latest_anomaly_time": alert.latest_time,
+                "is_shielded": inputs["is_alert_shielded"],
+                "latest_anomaly_time": inputs.get("shield_source_time") or alert.latest_time,
                 "execute_times": self.execute_times + 1,
             }
             if alert.cycle_handle_record:
                 history_record = alert.cycle_handle_record.get(str(relation_id))
-                if not history_record or (
+                if is_parent_action and history_record:
+                    if handle_record["latest_anomaly_time"] >= history_record.get("latest_anomaly_time", 0):
+                        handle_record["execute_times"] = max(
+                            handle_record["execute_times"], history_record["execute_times"]
+                        )
+                        alert.extra_info["cycle_handle_record"][str(relation_id)] = handle_record
+                elif not history_record or (
                     history_record and history_record["execute_times"] < handle_record["execute_times"]
                 ):
                     # 如果曾经没有对应的周期记录，则直接赋值
