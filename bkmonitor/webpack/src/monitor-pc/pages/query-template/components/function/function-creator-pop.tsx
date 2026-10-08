@@ -36,6 +36,7 @@ import './function-creator-pop.scss';
 
 interface IProps {
   allVariables?: { name: string }[];
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   hasCreateVariable?: boolean;
   isExpSupport?: boolean;
   options?: IFunctionOptionsItem[];
@@ -59,6 +60,8 @@ export default class FunctionCreatorPop extends tsc<IProps> {
   @Prop({ default: () => [] }) selected: IFunctionOptionsItem[];
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
+  /* 由外部接管变量创建（如宿主自带变量面板），传入时不再展开内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
 
   /* 搜索关键词 */
   keyword = '';
@@ -109,6 +112,12 @@ export default class FunctionCreatorPop extends tsc<IProps> {
   }
 
   handleClickCreateVar() {
+    if (this.createVariableFn) {
+      this.createVariableFn((name: string) => {
+        if (name) this.$emit('addVar', name);
+      });
+      return;
+    }
     this.isCreateVar = true;
     this.activeFuncType = '';
     this.activeFuncId = '';

@@ -40,6 +40,7 @@ import './function-creator.scss';
 
 interface IProps {
   allVariables?: { name: string }[];
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   isExpSupport?: boolean;
   needClear?: boolean;
   options?: IFunctionOptionsItem[];
@@ -68,6 +69,8 @@ export default class FunctionCreator extends tsc<IProps> {
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
   @Prop({ default: true }) needClear: boolean;
+  /* 由外部接管变量创建（如宿主自带变量面板），传入时不再展开内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
 
   showSelect = false;
   popClickHide = true;
@@ -243,6 +246,7 @@ export default class FunctionCreator extends tsc<IProps> {
           <FunctionCreatorPop
             slot='popover'
             allVariables={this.allVariables}
+            createVariableFn={this.createVariableFn}
             hasCreateVariable={this.showVariables}
             isExpSupport={this.isExpSupport}
             options={this.options}
