@@ -14,6 +14,7 @@ import time
 from datetime import datetime
 
 import arrow
+import pytz
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -51,11 +52,19 @@ class AlertShieldConfigShielder(BaseShielder):
             payload = ShieldCacheManager.get_history_by_biz_id(bk_biz_id)
             if payload is None:
                 return None
-            shields = [AlertShieldObj(config) for config in payload["configs"]]
-            for shield in shields:
-                shield.history_valid_since = max(
-                    arrow.get(shield.config[field]).timestamp for field in ("create_time", "update_time")
-                )
+            shields = []
+            for config in payload["configs"]:
+                try:
+                    # 恢复序列化丢失的 UTC；坏规则不能影响同业务的其他历史规则。
+                    for field in ("begin_time", "end_time", "create_time", "update_time"):
+                        config[field] = config[field].replace(tzinfo=pytz.UTC)
+                    shield = AlertShieldObj(config)
+                    shield.history_valid_since = max(
+                        arrow.get(config[field]).timestamp for field in ("create_time", "update_time")
+                    )
+                    shields.append(shield)
+                except Exception:
+                    logger.exception("load historical shield config failed for business(%s)", bk_biz_id)
             return payload["generated_at"], shields
         except Exception:
             # 失败结果也缓存，避免回放时逐告警重试或重复打印错误。
@@ -87,9 +96,9 @@ class AlertShieldConfigShielder(BaseShielder):
                 if shield.is_match(alert, source_time=at):
                     matched.append(str(shield.id))
             except Exception:
-                # 策略/拓扑等依赖不可用时保留当前判定，不阻断同批其他处理动作。
+                # 本条规则不可用时跳过，保留此前命中并继续检查后续规则。
                 logger.debug("historical shield matching unavailable for alert(%s)", alert.id, exc_info=True)
-                return None
+                continue
         return matched
 
     def get_shield_objs_from_cache(self):

@@ -67,6 +67,8 @@ def historical_rule(periodic=False):
     rule.config = {
         "id": 10,
         "end_policy": "notify_once",
+        "begin_time": arrow.get("2026-10-08T06:00:00Z").datetime,
+        "end_time": arrow.get("2026-10-08T07:00:00Z").datetime,
         "create_time": arrow.get("2026-10-07T00:00:00Z").datetime,
         "update_time": arrow.get("2026-10-07T00:00:00Z").datetime,
     }
@@ -92,9 +94,8 @@ def install_history(monkeypatch, rule, generated_at=NOW):
     return load
 
 
-@pytest.mark.parametrize("time_zone", ["UTC", "Asia/Shanghai"])
-def test_serialized_history_keeps_utc_window(monkeypatch, time_zone):
-    config = {
+def history_config():
+    return {
         "id": 10,
         "bk_biz_id": 2,
         "end_policy": "notify_once",
@@ -106,6 +107,11 @@ def test_serialized_history_keeps_utc_window(monkeypatch, time_zone):
         "create_time": arrow.get("2026-10-07T00:00:00Z").datetime,
         "update_time": arrow.get("2026-10-07T00:00:00Z").datetime,
     }
+
+
+@pytest.mark.parametrize("time_zone", ["UTC", "Asia/Shanghai"])
+def test_serialized_history_keeps_utc_window(monkeypatch, time_zone):
+    config = history_config()
     payload = extended_json.dumps({"generated_at": NOW, "configs": [config]})
     cache = Mock()
     cache.get.return_value = payload
@@ -119,6 +125,34 @@ def test_serialized_history_keeps_utc_window(monkeypatch, time_zone):
         shifted = arrow.get("2026-10-07T22:10:00Z").timestamp
         assert saas_config.AlertShieldConfigShielder.match_historical(doc, shifted) == []
     cache.get.assert_called_once_with(ShieldCacheManager.HISTORY_KEY_TEMPLATE.format(2))
+
+
+@pytest.mark.parametrize("failure", ["cycle", "utc", "match"])
+@pytest.mark.parametrize("bad_first", [False, True])
+def test_bad_rule_does_not_discard_healthy_history(monkeypatch, failure, bad_first):
+    good, bad, another = history_config(), history_config(), history_config()
+    bad["id"] = 11
+    another["id"] = 12
+    if failure == "cycle":
+        bad["cycle_config"] = None
+    elif failure == "utc":
+        bad["begin_time"] = None
+
+    def get_dimension(self, alert):
+        if failure == "match" and self.id == 11:
+            raise RuntimeError("bad rule fixture")
+        return {}
+
+    configs = [bad, good, another] if bad_first else [good, bad, another]
+    cache = Mock()
+    cache.get.return_value = extended_json.dumps({"generated_at": NOW, "configs": configs})
+    monkeypatch.setattr(ShieldCacheManager, "cache", cache)
+    monkeypatch.setattr(saas_config, "time", SimpleNamespace(time=lambda: NOW))
+    monkeypatch.setattr(AlertShieldObj, "get_dimension", get_dimension)
+    doc = make_alert().to_document()
+    for _ in range(1000):
+        assert saas_config.AlertShieldConfigShielder.match_historical(doc, INSIDE) == ["10", "12"]
+    cache.get.assert_called_once()
 
 
 @pytest.mark.parametrize("periodic", [False, True])
@@ -195,7 +229,7 @@ def test_match_dependency_failure_falls_back_to_current(monkeypatch):
     rule = historical_rule()
     rule.get_dimension = Mock(side_effect=RuntimeError("missing strategy fixture"))
     install_history(monkeypatch, rule)
-    assert saas_config.AlertShieldConfigShielder.match_historical(make_alert().to_document(), INSIDE) is None
+    assert saas_config.AlertShieldConfigShielder.match_historical(make_alert().to_document(), INSIDE) == []
 
 
 def test_refresh_queries_once_and_separates_current_and_history(monkeypatch):
@@ -387,7 +421,8 @@ def test_parent_gate_is_per_alert_and_covers_all_channels(monkeypatch):
     push.assert_called_once()
 
 
-def test_manager_holds_old_notice_then_unshields_new_anomaly(monkeypatch):
+@pytest.mark.parametrize("history_expired", [False, True])
+def test_manager_unshields_after_new_anomaly_or_expired_history(monkeypatch, history_expired):
     alert = make_alert()
     alert.extra_info["cycle_handle_record"] = {
         "7": {"latest_anomaly_time": INSIDE, "execute_times": 8, "is_shielded": True}
@@ -397,14 +432,21 @@ def test_manager_holds_old_notice_then_unshields_new_anomaly(monkeypatch):
     current.get_shield_left_time.return_value = 0
     current.list_shield_ids.return_value = []
     shielder = Mock(return_value=current)
-    shielder.match_historical.return_value = ["10"]
+    rule = historical_rule()
+    load_history = install_history(monkeypatch, rule)
+    shielder.match_historical.side_effect = saas_config.AlertShieldConfigShielder.match_historical
     monkeypatch.setattr(shield_checker, "AlertShieldConfigShielder", shielder)
     checker = shield_checker.ShieldStatusChecker([alert])
     checker.check(alert)
     assert not checker.unshielded_actions and not alert.is_shielded
-    alert.update_extra_info("latest_abnormal_event_time", OUTSIDE)
-    alert.extra_info["need_unshield_notice"] = True
-    shielder.match_historical.return_value = []
+    if history_expired:
+        now = INSIDE + 86401
+        monkeypatch.setattr(saas_config, "time", SimpleNamespace(time=lambda: now))
+        load_history.return_value = (now, [rule])
+        assert alert.latest_abnormal_event_time == INSIDE
+    else:
+        alert.update_extra_info("latest_abnormal_event_time", OUTSIDE)
+        alert.extra_info["need_unshield_notice"] = True
     checker.check(alert)
     assert len(checker.unshielded_actions) == 1
     assert not alert.cycle_handle_record["7"]["is_shielded"]

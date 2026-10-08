@@ -1202,7 +1202,7 @@ class CreateActionProcessor:
                     )
                 historical_ids = self.historical_shield_ids.get(alert.id)
                 inputs["shield_source_time"] = getattr(alert.extra_info, "latest_abnormal_event_time", 0)
-                # None 表示未检查/不可用，[] 表示已检查且未命中，便于回放对账。
+                # None 表示未检查/不可用，[] 表示可用规则均未命中，便于回放对账。
                 inputs["historical_shield_ids"] = historical_ids
                 if historical_ids:
                     inputs["is_alert_shielded"] = True
