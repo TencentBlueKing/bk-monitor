@@ -54,6 +54,56 @@ class BaseAllowlistTests(unittest.TestCase):
         )
         self.assertEqual(self.check_address(path, "\x00new address 192.0.2.254\x00"), 1)
 
+    def test_snmp_scan_fragments(self):
+        """精确覆盖不同 grep 实现提取的 OID 片段，不放行其他文件。"""
+        doc_path = "bk-monitor-base/src/bk_monitor_base/domains/metric_plugin/docs/snmp_plugin_doc.md"
+        binary_path = (
+            "bk-monitor-base/src/bk_monitor_base/domains/metric_plugin/manager/node_man/"
+            "templates/snmp/external_plugins_linux_x86_64/plugin_name/snmp_exporter"
+        )
+        cases = [(doc_path, "76.1.1.1")]
+        cases.extend(
+            (binary_path, value)
+            for value in (
+                "72.5.4.102",
+                "5.4.112.5",
+                "2.1.1.3",
+                "6.3.15.1",
+                "1.1.0.1",
+                "3.6.1.6",
+                "3.15.1.1",
+                "2.0.1.3",
+                "6.1.6.3",
+                "15.1.1.3",
+                "0.1.3.6",
+                "1.5.0.1",
+            )
+        )
+        for path, value in cases:
+            with self.subTest(path=path, value=value):
+                # 使用提取后的值，避免本机 grep 的匹配差异掩盖遗漏。
+                self.assertEqual(self.check_address(path, value), 0)
+                self.assertEqual(self.check_address("bk-monitor-base/other.txt", value), 1)
+
+    def test_base_tracked_files(self):
+        """用真实 IP 检查扫描全部迁入文件，而非只验证少量夹具。"""
+        repository = Path(__file__).resolve().parents[3]
+        files = subprocess.check_output(["git", "ls-files", "-z", "bk-monitor-base"], cwd=repository, text=True).split(
+            "\0"
+        )
+        files = [path for path in files if path]
+        self.assertTrue(files, "未找到 Base 跟踪文件，不能视为扫描通过")
+        env = {key: value for key, value in os.environ.items() if key != "BK_IP_WHITELIST_FILES"}
+        result = subprocess.run(
+            ["scripts/sensitive_info_check/ip.sh", *files],
+            cwd=repository,
+            env=env,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()
