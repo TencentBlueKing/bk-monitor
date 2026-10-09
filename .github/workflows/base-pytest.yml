@@ -11,6 +11,7 @@ on:
       - main
       - master
       - develop
+      - refactor/base-localization
     paths:
       - 'bk-monitor-base/**'
       - '.github/workflows/base-pytest.yml'
