@@ -23,15 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import {
-  type PropType,
-  type ShallowRef,
-  computed,
-  defineComponent,
-  onScopeDispose,
-  shallowRef,
-  watch,
-} from 'vue';
+import { type PropType, type ShallowRef, computed, defineComponent, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { Message } from 'bkui-vue';
 import { EMode } from 'trace/components/retrieval-filter/typing';
@@ -39,7 +31,6 @@ import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
 
 import { DetailLoadStatus } from '../../../../common-detail/detail-loading';
-
 import AlarmTable from '../../../../components/alarm-table/alarm-table';
 import AlertOperationDialogs from '../../../../components/alert-operation-dialogs/alert-operation-dialogs';
 import { useAlertDialogs } from '../../../../composables/use-alert-dialogs';
@@ -171,8 +162,12 @@ export default defineComponent({
       return newValue;
     });
 
-    const queryKey = computed(() => JSON.stringify([props.detail.bk_biz_id, props.detail.id, commonParams.value, props.timeRange]));
-    watch(queryKey, () => { page.value = 1; });
+    const queryKey = computed(() =>
+      JSON.stringify([props.detail.bk_biz_id, props.detail.id, commonParams.value, props.timeRange])
+    );
+    watch(queryKey, () => {
+      page.value = 1;
+    });
 
     // 获取数据
     const fetchData = async () => {
@@ -357,32 +352,37 @@ export default defineComponent({
   render() {
     return (
       <div class='issues-detail-alarm-table'>
-        <DetailLoadStatus loading={this.loading && this.loaded} error={this.error} onRetry={this.retry} />
-        {(!this.error || this.loaded) && <AlarmTable
-          columns={this.tableSourceColumns}
-          data={this.data}
-          defaultActiveRowKeys={[]}
-          headerAffixedTop={this.headerAffixedTop}
-          horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
-          isSelectedFollower={this.isSelectedFollower}
-          loading={this.loading && !this.loaded}
-          pagination={this.loading ? undefined : this.pagination}
-          scrollContainerSelector={this.scrollContainerSelector}
-          selectedRowKeys={this.selectedRowKeys}
-          sort={this.ordering}
-          tableSettings={this.tableSettings}
-          timeRange={this.timeRange}
-          onCurrentPageChange={this.handleCurrentPageChange}
-          onDisplayColFieldsChange={(displayColFields: string[]) => {
-            this.storageColumns = displayColFields;
-          }}
-          onOpenAlertDialog={this.handleAlertDialogShow}
-          onPageSizeChange={this.handlePageSizeChange}
-          onSaveAlertContentName={this.handleSaveAlertContentName}
-          onSelectionChange={this.handleSelectionChange}
-          onShowAlertDetail={this.handleShowAlertDetail}
-          onSortChange={this.handleSortChange}
-        />}
+        <DetailLoadStatus
+          error={this.error}
+          loading={this.loading && this.loaded}
+          onRetry={this.retry}
+        />
+        {(!this.error || this.loaded) && (
+          <AlarmTable
+            columns={this.tableSourceColumns}
+            data={this.data}
+            headerAffixedTop={this.headerAffixedTop}
+            horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
+            isSelectedFollower={this.isSelectedFollower}
+            loading={this.loading && !this.loaded}
+            pagination={this.loading ? undefined : this.pagination}
+            scrollContainerSelector={this.scrollContainerSelector}
+            selectedRowKeys={this.selectedRowKeys}
+            sort={this.ordering}
+            tableSettings={this.tableSettings}
+            timeRange={this.timeRange}
+            onCurrentPageChange={this.handleCurrentPageChange}
+            onDisplayColFieldsChange={(displayColFields: string[]) => {
+              this.storageColumns = displayColFields;
+            }}
+            onOpenAlertDialog={this.handleAlertDialogShow}
+            onPageSizeChange={this.handlePageSizeChange}
+            onSaveAlertContentName={this.handleSaveAlertContentName}
+            onSelectionChange={this.handleSelectionChange}
+            onShowAlertDetail={this.handleShowAlertDetail}
+            onSortChange={this.handleSortChange}
+          />
+        )}
         <AlertOperationDialogs
           alarmBizId={this.alertDialogBizId}
           alarmIds={this.alertDialogIds}

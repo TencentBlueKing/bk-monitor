@@ -7,6 +7,64 @@
     }
   }
 
+  /* ===== 折叠数组列：可点击容器 + 命中区 + hover 下划线（同一组交互，以容器为根嵌套） ===== */
+  .rum-array-col-trigger {
+    display: flex;
+    align-items: center;
+
+    /* 撑满单元格宽度、保持内部布局不变，避免多包一层影响 CollapseTags 基于父元素宽度的溢出测量。
+     * 不设 height：td 为表格单元格，百分比高度解析不到，垂直居中由单元格自身承担（实测与普通文本列同一中线）
+     */
+    width: 100%;
+    cursor: pointer;
+
+    /* 只有内容区（值行与 [+N]，宽度均贴合内容）可点：容器放弃命中后再由内容区恢复。
+     * 不能改用 fit-content 收窄容器：CollapseTags 溢出测量取 .item-tags 的 parentNode 宽度，
+     * 容器退化为内容宽度后 +N 永不出现。
+     */
+    &:has(.rum-collapse-array-col) {
+      pointer-events: none;
+
+      .item-tags,
+      .collapse-tag-visible {
+        pointer-events: auto;
+        cursor: pointer;
+      }
+    }
+
+    /* hover 值行与 [+N] 时才显示下划线（组件内只放了透明 border 占位，避免 hover 时行高抖动）；
+     * 抽屉打开期间的激活单元格 hover 用主蓝（设计稿 Brand/2 #3a84ff），其余单元格用常规灰 #4d4f56 */
+    .rum-collapse-array-col {
+      &:has(.item-tags:hover),
+      &:has(.collapse-tag:hover) {
+        .item-tags,
+        .collapse-tag {
+          border-bottom-color: #4d4f56;
+        }
+      }
+    }
+
+    &.is-active .rum-collapse-array-col {
+      &:has(.item-tags:hover),
+      &:has(.collapse-tag:hover) {
+        .item-tags,
+        .collapse-tag {
+          border-bottom-color: #3a84ff;
+        }
+      }
+    }
+  }
+
+  /* ===== events 抽屉联动的行 / 单元格选中态 ===== */
+
+  /* 激活行底色走 TDesign 内置规则（activeRowType='single' 根类 t-table__row--active-single + tr.t-table__row--active，
+   * 取值同为 --td-brand-color-light / -hover），此处只补充内置规则没有的单元格态 */
+
+  /* 激活的 events 单元格整格中蓝（设计稿 Brand/5 蓝白 #cddffe），盖过所在行的浅蓝底 */
+  td:has(.rum-array-col-trigger.is-active) {
+    background-color: #cddffe;
+  }
+
   .explore-col {
     &.explore-prefix-icon-col {
       &:has([data-col-id='attributes.span_type']) {
@@ -81,10 +139,6 @@
       }
 
       &:has([data-col-id='attributes.http.response.status_code']) {
-        @extend %condition-menu-inherit-color;
-      }
-
-      &:has([data-col-id='events.attributes.exception.type']) {
         @extend %condition-menu-inherit-color;
       }
     }

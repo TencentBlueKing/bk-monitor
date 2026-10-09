@@ -24,8 +24,9 @@
  * THE SOFTWARE.
  */
 
+import type { MaybeRef } from 'vue';
+
 import { get } from '@vueuse/core';
-import { hexToRgba } from 'monitor-common/utils/colorHelpers';
 
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
 import {
@@ -34,6 +35,7 @@ import {
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import {
+  EVENTS_FIELD_PREFIX,
   RUM_HTTP_STATUS_CODE_MAP,
   RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
@@ -42,7 +44,13 @@ import {
   SPAN_TYPE_FIELD,
   SPAN_TYPE_META,
 } from '../../../constants';
-import { formatUnitValue } from '../../../utils';
+import {
+  ARRAY_ITEM_EMPTY_PLACEHOLDER,
+  formatArrayItem,
+  formatUnitValue,
+  resolveArrayItemFormatter,
+} from '../../../utils';
+import CollapseArrayCell from '../components/collapse-array-cell/collapse-array-cell';
 import { BaseScenario } from './base-scenario';
 
 import type { IUsePopoverTools } from '../../../../alarm-center/components/alarm-table/hooks/use-popover';
@@ -96,11 +104,6 @@ export class SpanScenario extends BaseScenario {
       renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
       getRenderValue: row => this.getCacheHitRenderValue(row['attributes.resource.cache.hit']),
     },
-    /** events.attributes.exception.type 列：异常类型（图标 + 异常类型） */
-    'events.attributes.exception.type': {
-      renderType: ExploreTableColumnTypeEnum.TAGS,
-      getRenderValue: row => this.getExceptionTypeRenderValue(row['events.attributes.exception.type']),
-    },
     /** attributes.outcome.type 列：结果状态（图标 + 状态文案） */
     'attributes.outcome.type': {
       renderType: ExploreTableColumnTypeEnum.PREFIX_ICON,
@@ -110,22 +113,32 @@ export class SpanScenario extends BaseScenario {
 
   constructor(
     protected readonly context: {
+      /** 当前激活的 events 列键（响应式引用，与 activeRowKey 成对，空串表示无激活单元格） */
+      activeColKey: MaybeRef<string>;
+      /** 当前激活行 key（响应式引用，events 抽屉打开时为其行 span_id），空串表示无激活行 */
+      activeRowKey: MaybeRef<string>;
       /** span_name 列 hover 展示详情信息的 popover 工具 */
       hoverPopoverTools: IUsePopoverTools;
       /** 点击链接类单元格，把值加为检索条件 */
       onCellFilter: (colKey: string, value: string) => void;
+      /** 点击 events.* 列单元格，打开该行的 events 数组列表抽屉 */
+      onEventsCellClick: (row: IRumSpanRecord, colKey: string) => void;
     } & BaseScenario['context']
   ) {
     super(context);
   }
 
   /**
-   * @description 场景元数据推导：根据 field_display_type / field_unit 派发对应渲染类型
+   * @description 场景元数据推导：按列键与字段元数据（field_display_type / field_unit）派发渲染语义
+   * - events.* → 折叠数组单元格（非数组值按单项处理）
    * - datetime → 时间列
    * - duration → 耗时列（透传原始单位供 formatDuration 量纲换算）
    * - 其余带 field_unit 的字段 → 按单位自适应换算展示（复用图表的 getValueFormat 量纲表）
    */
   protected buildBaseline(colKey: string): Partial<BaseTableColumn> {
+    /** 仅 events.* 下的属性可能是数组，统一走数组单元格；非数组值按「单项数组」处理，同列展示形态保持一致 */
+    if (colKey.startsWith(EVENTS_FIELD_PREFIX)) return this.withEventsCellRenderer(colKey);
+
     const field = get(this.context.fieldMap).get(colKey);
     /**
      * 指标值列（attributes.vital.value）特殊处理。
@@ -166,6 +179,51 @@ export class SpanScenario extends BaseScenario {
   }
 
   // ----------------- Span 场景私有逻辑方法 -----------------
+
+  /**
+   * @description events.* 列的折叠单元格渲染：值统一按数组处理（非数组值视为单项），按「值 , 值 +N」展示，
+   *              超出列宽的项折叠为 +N，hover +N 以换行列表展示剩余值。
+   *              「是否数组」只能按行运行时判定（字段元数据未提供数组标识），而列配置解析是列级一次性的，
+   *              故统一声明 cellRenderer 在渲染时取值；cellRenderer 优先级高于 renderType，无需显式清空后者。
+   *              该列不挂单元格条件菜单类名：events.* 列「加为检索条件」由点击打开数组列表抽屉替代。
+   * @param {string} colKey 列键
+   * @returns {Partial<BaseTableColumn>} 数组单元格列配置
+   */
+  private withEventsCellRenderer(colKey: string): Partial<BaseTableColumn> {
+    /** 与主表单元格共用同一套格式化实现，避免抽屉与单元格展示漂移 */
+    const formatter = resolveArrayItemFormatter(get(this.context.fieldMap).get(colKey));
+    return {
+      cellRenderer: (row, column, renderCtx) => {
+        const value = row?.[colKey];
+        /** 非数组值按单项处理，使同一列内单值行与数组行的展示形态一致 */
+        const list = Array.isArray(value) ? value : [value];
+        /** 空数组 / 空值统一展示空占位符：CollapseTags 无数据时不渲染任何节点，会留下空白单元格 */
+        const values = list.length
+          ? list.map(item => formatArrayItem(item, formatter))
+          : [ARRAY_ITEM_EMPTY_PLACEHOLDER];
+        /** 抽屉打开期间命中单元格挂 is-active 态类：需行 key 与列键同时命中（空串表示无激活单元格） */
+        const activeRowKey = get(this.context.activeRowKey);
+        const isActive =
+          !!activeRowKey && row?.[this.rowKey] === activeRowKey && colKey === get(this.context.activeColKey);
+        /** 整格（仅内容区，命中区与 hover 下划线见 theme/span-table-theme.scss）点击打开该行的 events 数组列表抽屉 */
+        return (
+          <div
+            class={['rum-array-col-trigger', { 'is-active': isActive }]}
+            onClick={() => this.context.onEventsCellClick(row, colKey)}
+          >
+            <CollapseArrayCell
+              class='rum-collapse-array-col'
+              column={column}
+              minVisibleCount={1}
+              renderCtx={renderCtx}
+              rowId={renderCtx.getRowId?.(row)}
+              values={values}
+            />
+          </div>
+        ) as unknown as SlotReturnValue;
+      },
+    };
+  }
 
   /**
    * @description span_name 列单元格渲染：保留 CLICK 列「点击加为检索条件」的结构与交互（含右键条件菜单），
@@ -348,23 +406,5 @@ export class SpanScenario extends BaseScenario {
     /** 后台字段元数据声明了枚举别名时优先取后台映射值，兜底用本地枚举文案 */
     const alias = this.getFieldOptionAlias('attributes.outcome.type', value);
     return { alias: alias || meta.label, prefixIcon: meta.icon };
-  }
-
-  /**
-   * @description 错误类型列渲染值：红色主题 Tag（无映射，原始字符串直接展示）
-   * @param {unknown} value 当前行错误类型值（如 'TypeError'）
-   */
-  private getExceptionTypeRenderValue(value: unknown) {
-    return value
-      ? [
-          {
-            alias: String(value),
-            tagBgColor: '#FDE7E7',
-            tagColor: '#EA3636',
-            tagHoverBgColor: hexToRgba('#FDE7E7', 0.8),
-            tagHoverColor: hexToRgba('#EA3636', 0.8),
-          },
-        ]
-      : [];
   }
 }
