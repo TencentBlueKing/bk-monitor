@@ -20,7 +20,6 @@ from opentelemetry.semconv.trace import SpanAttributes
 from apm.constants import DiscoverRuleType
 from apm.core.discover.base import (
     DiscoverBase,
-    ApmTopoDiscoverRuleCls,
     exists_field,
     extract_field_value,
     get_topo_instance_key,
@@ -304,12 +303,7 @@ class NodeDiscover(DiscoverBase):
         source["workloads"] = list(merged_workload_mapping.values())
         return source
 
-    def batch_execute(
-        self,
-        origin_data: list[dict[str, Any]],
-        category_rules: tuple[list[ApmTopoDiscoverRuleCls], ApmTopoDiscoverRuleCls],
-        rules: list[tuple[str, list[ApmTopoDiscoverRuleCls]]],
-    ) -> tuple[dict[str, Any], dict[str, str]]:
+    def batch_execute(self, origin_data, category_rules, rules) -> tuple[dict[str, Any], dict[str, str]]:
         instance_mapping = self.extra_data_factory
         # LLM 产品单独收集：extra_data 归类别发现所有，发现组件时会被整体重写，标记放进去会被丢掉
         llm_products: dict[str, str] = {}
@@ -342,6 +336,7 @@ class NodeDiscover(DiscoverBase):
 
             if not topo_key:
                 continue
+
             self.set_preferred_llm_product(llm_products, topo_key, self.get_llm_product(span))
 
             # 后续的规则基于上一步发现的 topo_key 来补充数据
@@ -399,13 +394,7 @@ class NodeDiscover(DiscoverBase):
             return LLMProduct.DEFAULT.value
         return None
 
-    def find_category(
-        self,
-        instance_mapping: dict[str, Any],
-        match_rule: ApmTopoDiscoverRuleCls,
-        other_rule: ApmTopoDiscoverRuleCls,
-        span: dict[str, Any],
-    ) -> str | None:
+    def find_category(self, instance_mapping, match_rule, other_rule, span):
         self.find_remote_service(span, match_rule, instance_mapping)
 
         topo_key = get_topo_instance_key(
@@ -498,12 +487,7 @@ class NodeDiscover(DiscoverBase):
             )
         }
 
-    def find_remote_service(
-        self,
-        span: dict[str, Any],
-        rule: ApmTopoDiscoverRuleCls,
-        instance_map: dict[str, Any],
-    ) -> None:
+    def find_remote_service(self, span, rule, instance_map):
         predicate_key = (OtlpKey.ATTRIBUTES, SpanAttributes.PEER_SERVICE)
 
         if exists_field(predicate_key, span):

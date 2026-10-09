@@ -838,7 +838,7 @@ class SearchServiceNamesResource(Resource):
         query = serializers.CharField(label="服务名称关键字")
         limit = serializers.IntegerField(label="返回数量", min_value=1, max_value=100, default=20)
 
-    def perform_request(self, data: dict[str, Any]) -> list[dict[str, Any]]:
+    def perform_request(self, data):
         scope = {"bk_biz_id__in": data["bk_biz_ids"]} if data["bk_biz_ids"] else {}
         if data.get("app_names"):
             scope["app_name__in"] = data["app_names"]

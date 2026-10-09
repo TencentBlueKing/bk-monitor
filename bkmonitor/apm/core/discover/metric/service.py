@@ -30,7 +30,7 @@ logger = logging.getLogger(__name__)
 class ServiceDiscover(Discover):
     """从指标维度发现服务，并通过样本时间维护指标及组件、远程服务的 Trace 心跳。"""
 
-    def list_exists_mapping(self) -> dict[str, dict[str, Any]]:
+    def list_exists_mapping(self):
         return {
             i["topo_key"]: i
             for i in TopoNode.objects.filter(
@@ -40,7 +40,7 @@ class ServiceDiscover(Discover):
         }
 
     def query_series(self, promql: str, start_time: int, end_time: int) -> list[dict[str, Any]]:
-        """按秒级窗口查询序列；部分结果及序列截断视为失败，异常交由调用方处理。"""
+        """按秒级窗口查询序列；路由缺失、部分结果及序列截断视为失败，异常交由调用方处理。"""
         response: dict[str, Any] = api.unify_query.query_data_by_promql(
             {
                 "bk_biz_ids": [self.bk_biz_id],
@@ -53,6 +53,7 @@ class ServiceDiscover(Discover):
         status: dict[str, Any] = response.get("status") or {}
         if response.get("is_partial") or status.get("code") in {
             "QUERY_TS_PARTIAL",
+            "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS",
             "EXCEEDS_MAXIMUM_LIMIT",
             "EXCEEDS_MAXIMUM_SLIMIT",
         }:

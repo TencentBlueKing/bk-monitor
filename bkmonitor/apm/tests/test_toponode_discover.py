@@ -51,7 +51,6 @@ class FakeQuerySet:
 class FakeTopoNode:
     EXPIRED_DAYS = NodeDiscover.model.EXPIRED_DAYS
     objects = None
-    touch_heartbeat = mock.Mock()
     has_trace_or_metric_source = staticmethod(TopoNode.has_trace_or_metric_source)
 
     @classmethod

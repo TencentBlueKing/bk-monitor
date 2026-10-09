@@ -45,8 +45,9 @@ def test_log_query_uses_index_set_collapse_and_descending_time() -> None:
         assert body["limit"] == BaseQuery.QUERY_MAX_LIMIT
 
 
+@pytest.mark.parametrize("code", ["QUERY_RAW_PARTIAL", "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"])
 @pytest.mark.parametrize("rows", [[], [{"resource.service.name": "demo", "time": 150000}]])
-def test_collapsed_raw_query_rejects_partial_routes(rows: list[dict[str, Any]]) -> None:
+def test_collapsed_raw_query_rejects_failed_routes(rows: list[dict[str, Any]], code: str) -> None:
     query = UnifyQuery(2, [], "a", bk_tenant_id="system")
     with (
         mock.patch.object(
@@ -54,7 +55,7 @@ def test_collapsed_raw_query_rejects_partial_routes(rows: list[dict[str, Any]]) 
         ),
         mock.patch(
             "bkmonitor.data_source.unify_query.query.api.unify_query.query_raw",
-            return_value={"list": rows, "status": {"code": "QUERY_RAW_PARTIAL", "message": "one route failed"}},
+            return_value={"list": rows, "status": {"code": code, "message": "route unavailable"}},
         ),
         pytest.raises(IncompleteQueryResultError),
     ):
@@ -77,14 +78,15 @@ def test_collapsed_raw_query_accepts_empty_results_and_non_failure_status(status
         assert query._query_log_using_unify_query(100000, 200000, limit=10000) == []
 
 
-def test_noncollapsed_raw_query_keeps_partial_result_behavior() -> None:
+@pytest.mark.parametrize("code", ["QUERY_RAW_PARTIAL", "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"])
+def test_noncollapsed_raw_query_keeps_status_behavior(code: str) -> None:
     query = UnifyQuery(2, [], "a", bk_tenant_id="system")
     with (
         mock.patch.object(query, "get_unify_query_params", return_value={"query_list": [{}]}),
         mock.patch.object(query, "process_log_by_datasource", side_effect=lambda rows: rows),
         mock.patch(
             "bkmonitor.data_source.unify_query.query.api.unify_query.query_raw",
-            return_value={"list": [{"service": "demo"}], "status": {"code": "QUERY_RAW_PARTIAL"}},
+            return_value={"list": [{"service": "demo"}], "status": {"code": code}},
         ),
     ):
         assert query._query_log_using_unify_query(100000, 200000)[0]["service"] == "demo"
@@ -171,7 +173,12 @@ def test_log_discovery_consumes_flat_uq_records_and_sends_collapse() -> None:
 
 
 @pytest.mark.parametrize(
-    "failure", [RuntimeError("query failed"), {"list": [], "status": {"code": "QUERY_RAW_PARTIAL"}}]
+    "failure",
+    [
+        RuntimeError("query failed"),
+        {"list": [], "status": {"code": "QUERY_RAW_PARTIAL"}},
+        {"list": [], "status": {"code": "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"}},
+    ],
 )
 def test_log_second_uq_failure_does_not_publish_first_field(failure: Any) -> None:
     old = make_node(heartbeat={"log": {"last_data_at": 80, "checked_at": 90}})

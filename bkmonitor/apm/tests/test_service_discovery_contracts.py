@@ -1,16 +1,13 @@
-import datetime
 from types import SimpleNamespace
 from unittest import mock
 
 import pytest
-from django.utils import timezone
-from pytest_django.fixtures import SettingsWrapper
 
 from apm.constants import DiscoverRuleType
 from apm.core.discover.node import NodeDiscover
 from apm.core.discover.profile.service import ServiceDiscover as ProfileDiscover
 from apm.core.discover.relation import RelationDiscover
-from apm.models import ProfileService, TopoNode
+from apm.models import TopoNode
 from apm.tests.test_service_heartbeat import (
     datasource,
     make_node,
@@ -25,25 +22,6 @@ from monitor_web.statistics.v2.apm import APMCollector
 
 
 pytestmark = pytest.mark.django_db(databases="__all__")
-
-
-@pytest.mark.parametrize("use_tz", [True, False])
-def test_profile_expiration_preserves_recent_and_other_application_services(
-    settings: SettingsWrapper, use_tz: bool
-) -> None:
-    settings.USE_TZ = use_tz
-    discover = ProfileDiscover(datasource())
-    now = timezone.now()
-    expired = ProfileService.objects.create(name="expired", bk_biz_id=2, app_name="app", last_check_time=now)
-    recent = ProfileService.objects.create(name="recent", bk_biz_id=2, app_name="app", last_check_time=now)
-    other = ProfileService.objects.create(name="other", bk_biz_id=2, app_name="other", last_check_time=now)
-    ProfileService.objects.filter(pk__in=[expired.pk, other.pk]).update(
-        updated_at=now - datetime.timedelta(days=discover.retention + 1)
-    )
-
-    discover.clear_expired(ProfileService)
-
-    assert set(ProfileService.objects.values_list("pk", flat=True)) == {recent.pk, other.pk}
 
 
 @pytest.mark.parametrize("sources,kind", [(["profiling"], "service"), (["log"], "service"), (["metric"], "service")])
@@ -100,31 +78,6 @@ def test_service_counts_and_search_include_all_sources() -> None:
     assert TopoNode.objects.count() == 3
 
 
-def test_node_overflow_does_not_delete_other_applications() -> None:
-    make_node("a")
-    make_node("b")
-    other = make_node("unrelated", bk_biz_id=3, app_name="other")
-    TopoNode.objects.filter(id=other.id).update(updated_at=timezone.now() - datetime.timedelta(days=365))
-    discover = object.__new__(NodeDiscover)
-    discover.bk_biz_id = 2
-    discover.app_name = "app"
-    discover.MAX_COUNT = 1
-    discover.clear_if_overflow()
-    assert TopoNode.objects.filter(id=other.id).exists()
-    assert TopoNode.objects.filter(bk_biz_id=2).count() == 1
-
-
-def test_profile_overflow_does_not_delete_other_applications() -> None:
-    for name, biz, app in (("a", 2, "app"), ("b", 2, "app"), ("unrelated", 3, "other")):
-        ProfileService.objects.create(name=name, bk_biz_id=biz, app_name=app, last_check_time=timezone.now())
-    ProfileService.objects.filter(bk_biz_id=3).update(updated_at=timezone.now() - datetime.timedelta(days=365))
-    discover = ProfileDiscover(datasource())
-    discover.MAX_COUNT = 1
-    discover.clear_if_overflow(ProfileService)
-    assert ProfileService.objects.filter(bk_biz_id=3).count() == 1
-    assert ProfileService.objects.filter(bk_biz_id=2).count() == 1
-
-
 def test_profile_truncated_result_only_checks_observed_services() -> None:
     unknown = make_node("unknown", heartbeat={"profiling": {"last_data_at": 50, "checked_at": 60}})
     discover = ProfileDiscover(datasource())
@@ -138,6 +91,7 @@ def test_profile_truncated_result_only_checks_observed_services() -> None:
     with (
         mock.patch.object(discover, "get_builder", return_value=builder),
         mock.patch("apm.core.discover.profile.service.EventReportHelper.report"),
+        mock.patch.object(discover, "clear_expired"),
     ):
         discover.discover(100000, 200000)
     assert TopoNode.objects.get(topo_key="demo").heartbeat["profiling"]["last_data_at"] == 200

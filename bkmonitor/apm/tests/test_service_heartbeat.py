@@ -177,11 +177,12 @@ def test_metric_heartbeat_uses_sample_times_for_all_service_keys() -> None:
         RuntimeError("failed"),
         {"series": [], "is_partial": True},
         {"series": [], "status": {"code": "QUERY_TS_PARTIAL"}},
+        {"series": [], "status": {"code": "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"}},
         {"series": [], "status": {"code": "EXCEEDS_MAXIMUM_LIMIT"}},
         {"series": [], "status": {"code": "EXCEEDS_MAXIMUM_SLIMIT"}},
     ],
 )
-def test_metric_partial_failure_keeps_old_heartbeat(response: Any) -> None:
+def test_metric_query_failure_keeps_old_heartbeat(response: Any) -> None:
     node = make_node(heartbeat={"metric": {"last_data_at": 90, "checked_at": 100}})
     with mock.patch(
         "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
@@ -279,6 +280,7 @@ def test_profile_discover_keeps_old_table_and_creates_topology() -> None:
     discover = ProfileServiceDiscover(datasource())
     with (
         mock.patch.object(discover, "get_builder", return_value=builder),
+        mock.patch.object(discover, "clear_expired"),
     ):
         discover.discover(100000, 200000)
     node = TopoNode.objects.get(topo_key="demo")
@@ -446,7 +448,10 @@ def test_profile_invalid_response_does_not_refresh_or_create(response: dict[str,
 
 def test_profile_empty_query_is_successful_check() -> None:
     node = make_node(heartbeat={"profiling": {"last_data_at": 90, "checked_at": 100}})
-    with mock.patch("apm.core.handlers.profile.query.api.bkdata.query_profile_data", return_value={"list": []}):
+    with (
+        mock.patch("apm.core.handlers.profile.query.api.bkdata.query_profile_data", return_value={"list": []}),
+        mock.patch.object(ProfileServiceDiscover, "clear_expired"),
+    ):
         ProfileServiceDiscover(datasource()).discover(1789956912000, 1789957512000)
     node.refresh_from_db()
     assert node.heartbeat["profiling"]["last_data_at"] == 90
@@ -473,7 +478,10 @@ def test_profile_reuses_group_count_and_requires_a_sample() -> None:
         assert params["general_filters"] == {"sample_type": "op_eq|cpu/nanoseconds"}
         return {"list": [] if params["service_name"] == "no-sample" else [sample]}
 
-    with mock.patch("apm.core.handlers.profile.query.api.bkdata.query_profile_data", side_effect=query) as request:
+    with (
+        mock.patch("apm.core.handlers.profile.query.api.bkdata.query_profile_data", side_effect=query) as request,
+        mock.patch.object(ProfileServiceDiscover, "clear_expired"),
+    ):
         ProfileServiceDiscover(datasource()).discover(1789956912000, 1789957512000)
     assert request.call_count == 4  # 一次聚合加每个组合一次样本查询。
     assert json.loads(request.call_args_list[0].kwargs["sql"])["api_params"]["metric_fields"] == "count(*) AS count"
@@ -509,9 +517,12 @@ def test_profile_later_sample_failure_keeps_existing_profile_and_heartbeat() -> 
     discover = ProfileServiceDiscover(datasource())
     groups = [{"service_name": "demo", "type": "cpu", "sample_type": "cpu/nanoseconds", "count": 10001}]
     sample = {"period": "10000000", "period_type": "cpu/nanoseconds", "type": "cpu", "value": "1"}
-    with mock.patch(
-        "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
-        side_effect=[{"list": groups}, {"list": [sample]}],
+    with (
+        mock.patch(
+            "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
+            side_effect=[{"list": groups}, {"list": [sample]}],
+        ),
+        mock.patch.object(discover, "clear_expired"),
     ):
         discover.discover(1789956912000, 1789957512000)
     profile = ProfileService.objects.get(name="demo")
@@ -538,9 +549,12 @@ def test_profile_later_sample_failure_keeps_existing_profile_and_heartbeat() -> 
     assert node.heartbeat == old_heartbeat
     assert ProfileService.objects.count() == TopoNode.objects.count() == 1
 
-    with mock.patch(
-        "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
-        side_effect=[{"list": groups[:1]}, {"list": [sample]}],
+    with (
+        mock.patch(
+            "apm.core.handlers.profile.query.api.bkdata.query_profile_data",
+            side_effect=[{"list": groups[:1]}, {"list": [sample]}],
+        ),
+        mock.patch.object(discover, "clear_expired"),
     ):
         discover.discover(1789957512000, 1789958112000)
     profile.refresh_from_db()

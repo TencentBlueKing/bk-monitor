@@ -721,9 +721,9 @@ class UnifyQuery:
             span.set_attribute("bk.unify_query.api", "query_raw")
             span.set_attribute("bk.unify_query.statement", params_json)
             data = api.unify_query.query_raw(**params)
-            # 原始查询部分路由失败仍返回 HTTP 200，折叠读取不能据此发布完整检查心跳。
+            # 路由缺失或部分路由失败仍可能返回 HTTP 200，折叠读取不能据此发布检查心跳。
             if any(query.get("collapse") for query in params["query_list"]) and (
-                (data.get("status") or {}).get("code") == "QUERY_RAW_PARTIAL"
+                (data.get("status") or {}).get("code") in {"QUERY_RAW_PARTIAL", "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"}
             ):
                 raise IncompleteQueryResultError("incomplete collapsed log query result")
             records: list[dict[str, Any]] = self.process_unify_query_log(params, data)
