@@ -15,8 +15,6 @@ import pytest
 
 from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
-from bkmonitor.data_source.utils.query import BaseQuery
-from bkmonitor.data_source.utils.statistics import process_growth_rates, process_proportions
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.level.span import SpanLevelHandler
 from rum_web.handlers.query.span import SpanQuery
@@ -86,8 +84,8 @@ class TestBaseRumLevelHandler:
                 self,
                 start_time,
                 end_time,
-                cal_type,
                 field,
+                cal_type,
                 baseline,
                 time_shifts,
                 group_by=None,
@@ -349,210 +347,29 @@ class TestSpanLevelHandlerMethods:
         assert abs(field_percent_val - 70.0) < 0.1, f"field_percent 应约为 70%，实际为 {field_percent_val}"
 
 
-class TestSpanStatisticsMerge:
-    """BaseQuery._merge_statistics_records：按维度合并各时间偏移的聚合结果"""
-
-    def test_merge_group_records(self):
-        """无时间分桶：仅按维度合并，缺失的时间偏移记为 None"""
-        alias_records_map = {
-            "0s": [{"service": "a", "_result_": 10}, {"service": "b", "_result_": 20}],
-            "1d": [{"service": "a", "_result_": 5}],
-        }
-        merged = SpanQuery._merge_statistics_records(
-            group_by=["service"],
-            alias_records_map=alias_records_map,
-            cal_type="count",
-        )
-        by_service = {record["dimensions"]["service"]: record for record in merged}
-        assert by_service["a"] == {"dimensions": {"service": "a"}, "0s": 10, "1d": 5}
-        # "b" 在 1d 中缺失，应为 None
-        assert by_service["b"] == {"dimensions": {"service": "b"}, "0s": 20, "1d": None}
-
-    def test_merge_time_bucket_records(self):
-        """时间分桶：各 time_shift 的桶时间对齐回基准窗口后按 (service, time) 合并。
-
-        基准窗口 "0s" 桶时间为 1737532800（秒），对比窗口 "1d" 查询时已整体
-        前移 86400 秒，故其原始 _time_ 比基准少 86400 秒；合并阶段把偏移加回后
-        两者落在同一相对桶位（1737532800），方可跨 shift 合并计算增长率。
-        """
-        alias_records_map = {
-            "0s": [{"service": "a", "_time_": 1737532800000, "_result_": 10}],
-            "1d": [{"service": "a", "_time_": 1737619200000, "_result_": 5}],
-        }
-        # parse_time_compare_abbreviation("1d") = -86400；_collect 把查询窗口整体前移 86400 秒，
-        # 故 1d 桶的原始 _time_ 比基准多 86400 秒（1737532800 + 86400 = 1737619200）；
-        # 合并阶段按偏移加回（raw + (-86400)）后归一到基准窗口桶时间 1737532800
-        merged = SpanQuery._merge_statistics_records(
-            group_by=["service", "time"],
-            alias_records_map=alias_records_map,
-            cal_type="avg",
-        )
-        assert len(merged) == 1
-        record = merged[0]
-        # 对齐后毫秒转秒且归一到基准窗口桶时间 1737532800
-        assert record["dimensions"] == {"service": "a", "time": 1737532800}
-        assert record["0s"] == 10.0
-        assert record["1d"] == 5.0
-
-
-class TestSpanStatisticsGrowthRates:
-    """process_growth_rates：基于 baseline 计算各时间偏移增长率（statistics 模块纯函数）"""
-
-    @pytest.mark.parametrize(
-        "base_value,shift_value,expected",
-        [
-            # 重构后：缺数据按 falsy 处理，当前无数据视作负增长 100%
-            (None, 10, -100),
-            (10, None, 100),
-            (None, None, None),
-            # 两个都为 0 时增长率为 0
-            (0, 0, 0),
-            # 一端为 0 且另一端非 0 时视作 100%（正负号取决于方向）
-            (5, 0, 100),
-            (0, 5, -100),
-        ],
-    )
-    def test_growth_rates_edge_cases(self, base_value, shift_value, expected):
-        records = [{"baseline": base_value, "shift": shift_value}]
-        process_growth_rates("baseline", ["shift"], records)
-        assert records[0]["growth_rates"]["shift"] == expected
-
-    def test_growth_rates_normal(self):
-        """普通场景按 (baseline - shift) / shift * 100 计算"""
-        records = [{"baseline": 150, "shift": 80}]
-        process_growth_rates("baseline", ["shift"], records)
-        # (150 - 80) / 80 * 100 = 87.5
-        assert records[0]["growth_rates"]["shift"] == 87.5
-
-
-class TestSpanStatisticsProportions:
-    """process_proportions：cal_type=count 时按每个时间偏移总量计算占比（statistics 模块纯函数）"""
-
-    def test_proportions_normal(self):
-        records = [{"0s": 25}, {"0s": 75}]
-        process_proportions(["0s"], records)
-        assert records[0]["proportions"]["0s"] == 25.0
-        assert records[1]["proportions"]["0s"] == 75.0
-
-    def test_proportions_total_zero(self):
-        """总量为 0 时占比记为 None"""
-        records = [{"0s": 0}, {"0s": 0}]
-        process_proportions(["0s"], records)
-        assert records[0]["proportions"]["0s"] is None
-
-    def test_proportions_value_none(self):
-        """单条记录值为 None 时占比记为 None，其余记录正常计算"""
-        records = [{"0s": None}, {"0s": 100}]
-        process_proportions(["0s"], records)
-        assert records[0]["proportions"]["0s"] is None
-        assert records[1]["proportions"]["0s"] == 100.0
-
-
 class TestSpanStatistics:
-    """SpanLevelHandler.statistics：多时间偏移聚合查询编排（委托 SpanQuery.statistics）"""
+    """Level 层只负责统计参数透传。"""
 
-    @pytest.fixture
-    def handler(self):
-        return SpanLevelHandler([_make_target()])
-
-    def test_statistics_group_count(self, handler):
-        """分组 + count：业务层委托查询层合并，缺数据的时间偏移记为 None"""
-        group_map = {
-            "0s": [{"service": "a", "_result_": 10}, {"service": "b", "_result_": 20}],
-            "1d": [{"service": "a", "_result_": 5}],
+    @pytest.mark.parametrize("group_by,interval", [([], None), (["service"], None), (["time"], 3600)])
+    def test_statistics_forwards_parameters(self, group_by, interval):
+        handler = SpanLevelHandler([_make_target()])
+        params = {
+            "start_time": 1000,
+            "end_time": 2000,
+            "field": "attributes.user.id",
+            "cal_type": "distinct",
+            "baseline": "0s",
+            "time_shifts": ["0s", "1d"],
+            "group_by": group_by,
+            "interval": interval,
+            "filters": [{"key": "attributes.span_type", "operator": "equal", "value": ["error"]}],
+            "query_string": "attributes.error.name: TypeError",
         }
-
-        def _fake_statistics(
-            start_time, end_time, field, cal_type, baseline, time_shifts, group_by=None, interval=None, *args
-        ):
-            # 按 time_shift 反查对应结果（0s => group_map["0s"]，1d => group_map["1d"]）
-            merged = BaseQuery._merge_statistics_records(
-                group_by or [],
-                {ts: group_map[ts] for ts in time_shifts},
-                cal_type,
-            )
-            return {"total": len(merged), "data": merged}
-
-        with patch.object(handler.query, "statistics", side_effect=_fake_statistics):
-            result = handler.statistics(
-                start_time=1000,
-                end_time=2000,
-                field="duration",
-                cal_type="count",
-                baseline="0s",
-                time_shifts=["0s", "1d"],
-                group_by=["service"],
-            )
-
-        assert result["total"] == 2
-        by_service = {record["dimensions"]["service"]: record for record in result["data"]}
-        # 缺数据的 "b" 在 1d 下为 None
-        assert by_service["b"]["1d"] is None
-        # count 聚合结果应为整型
-        assert by_service["a"]["0s"] == 10
-        # 业务层仅委托，不自行计算增长率/占比：返回原始合并结果
-        assert "growth_rates" not in by_service["a"]
-        assert "proportions" not in by_service["a"]
-
-    def test_statistics_group_not_count_skips_proportions(self, handler):
-        """非 count 聚合同样交由查询层处理，业务层不直接参与占比计算"""
-        group_map = {
-            "0s": [{"service": "a", "_result_": 10}],
-            "1d": [{"service": "a", "_result_": 5}],
-        }
-
-        def _fake_statistics(
-            start_time, end_time, field, cal_type, baseline, time_shifts, group_by=None, interval=None, *args
-        ):
-            merged = BaseQuery._merge_statistics_records(
-                group_by or [], {ts: group_map[ts] for ts in time_shifts}, cal_type
-            )
-            return {"total": len(merged), "data": merged}
-
-        with patch.object(handler.query, "statistics", side_effect=_fake_statistics):
-            result = handler.statistics(
-                start_time=1000,
-                end_time=2000,
-                field="duration",
-                cal_type="avg",
-                baseline="0s",
-                time_shifts=["0s", "1d"],
-                group_by=["service"],
-            )
-
-        assert "growth_rates" not in result["data"][0]
-        assert "proportions" not in result["data"][0]
-
-    def test_statistics_time_bucket(self, handler):
-        """时间分桶：statistics 委托查询层，返回合并结果并按基线时间偏移分组"""
-        bucket_records = [
-            {"service": "a", "time": 1737532860000, "_result_": 10},
-            {"service": "a", "time": 1737532920000, "_result_": 5},
-        ]
-        with patch.object(
-            handler.query,
-            "statistics",
-            return_value={
-                "total": len(bucket_records),
-                "data": BaseQuery._merge_statistics_records(
-                    ["service", "time"], {"0s": [dict(r, _time_=r["time"]) for r in bucket_records]}, "avg"
-                ),
-            },
-        ):
-            result = handler.statistics(
-                start_time=1000,
-                end_time=2000,
-                field="duration",
-                cal_type="avg",
-                baseline="0s",
-                time_shifts=["0s"],
-                interval=60,
-                group_by=["service", "time"],
-            )
-
-        assert result["total"] == 2
-        for record in result["data"]:
-            assert record["dimensions"]["time"] in {1737532860, 1737532920}
+        expected = {"total": 0, "data": []}
+        with patch.object(handler.query, "statistics", return_value=expected) as statistics:
+            result = handler.statistics(**params)
+        statistics.assert_called_once_with(**params)
+        assert result is expected
 
 
 class TestSpanRecordDetail:

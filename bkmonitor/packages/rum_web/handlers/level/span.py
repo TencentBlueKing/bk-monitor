@@ -96,8 +96,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
     VIEW_RELATED_SPAN_LIMIT = 1000
 
     VIEW_RELATED_SPAN_TYPES: tuple[str, ...] = (RumSpanType.VIEW.value, RumSpanType.VITAL.value)
-    #: 分组维度里表示时间分桶的 key，由 interval 触发
-    STATISTICS_TIME_BUCKET_KEY: str = "time"
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         super().__init__(data_sources)
@@ -407,6 +405,33 @@ class SpanLevelHandler(BaseRumLevelHandler):
         related_spans = self._query_related_spans(span)
         return build_span_detail(span, related_spans)
 
+    def statistics(
+        self,
+        start_time: int | None,
+        end_time: int | None,
+        field: str,
+        cal_type: str,
+        baseline: str,
+        time_shifts: list[str],
+        group_by: list[str] | None = None,
+        interval: int | None = None,
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
+        extra_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return self.query.statistics(
+            start_time=start_time,
+            end_time=end_time,
+            field=field,
+            cal_type=cal_type,
+            baseline=baseline,
+            time_shifts=time_shifts,
+            group_by=group_by,
+            interval=interval,
+            filters=filters,
+            query_string=query_string,
+        )
+
     # ---- 内部工具方法 ----
 
     def _query_related_spans(self, span: dict[str, Any]) -> list[dict[str, Any]]:
@@ -435,24 +460,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
         ]
         return self.query.query_list(
             start_time=None, end_time=None, offset=0, limit=self.VIEW_RELATED_SPAN_LIMIT, filters=filters
-        )
-
-    def statistics(
-        self,
-        start_time: int | None,
-        end_time: int | None,
-        field: str,
-        cal_type: str,
-        baseline: str,
-        time_shifts: list[str],
-        group_by: list[str] | None = None,
-        interval: int | None = None,
-        filters: list[types.Filter] | None = None,
-        query_string: str = "",
-        extra_config: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        return self.query.statistics(
-            start_time, end_time, field, cal_type, baseline, time_shifts, group_by, interval, filters, query_string
         )
 
     @staticmethod

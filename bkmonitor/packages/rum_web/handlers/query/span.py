@@ -147,17 +147,17 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
         interval: int | None = None,
         filters: list[types.Filter] | None = None,
         query_string: str = "",
-    ):
-        return super()._statistics(
-            self.get_queries(filters, query_string),
-            start_time,
-            end_time,
-            field,
-            cal_type,
-            baseline,
-            time_shifts,
-            group_by,
-            interval,
+    ) -> dict[str, Any]:
+        return self._statistics(
+            queries=self.get_queries(filters, query_string),
+            start_time=start_time,
+            end_time=end_time,
+            field=field,
+            cal_type=cal_type,
+            baseline=baseline,
+            time_shifts=time_shifts,
+            group_by=group_by,
+            interval=interval,
         )
 
     @classmethod

@@ -12,6 +12,8 @@ from typing import Any
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from bkmonitor.data_source.utils.query import BaseQuery
+from bkmonitor.utils.time_tools import TIME_ABBREVIATION_MATCH
 from rum_web.constants import RumQueryMode, RumGroupName
 from constants.apm import OperatorGroupRelation
 from constants.otel_query import EnabledStatisticsDimension, AggregatedMethod
@@ -189,6 +191,16 @@ class RumStatisticsRequestSerializer(BaseRumSearchSerializer):
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         attrs = super().validate(attrs)
+        for time_shift in [attrs["baseline"], *attrs["time_shifts"]]:
+            if not TIME_ABBREVIATION_MATCH.fullmatch(time_shift):
+                raise serializers.ValidationError(str(_("不支持的时间偏移：{}")).format(time_shift))
+        if (
+            BaseQuery.TIME_BUCKET_FIELD in attrs["group_by"]
+            and attrs.get("interval") is not None
+            and "start_time" in attrs
+            and "end_time" in attrs
+        ):
+            BaseQuery.validate_statistics_interval(attrs["start_time"], attrs["end_time"], attrs["interval"])
         # 保序去重并保证 baseline 一定在 time_shifts 中
         time_shifts: list[str] = list(dict.fromkeys([attrs["baseline"], *attrs["time_shifts"]]))
         if len(time_shifts) > self.MAX_TIME_SHIFTS:
