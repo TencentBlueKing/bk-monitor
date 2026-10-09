@@ -495,6 +495,11 @@ def recover_stale_parts(limit=None):
     return recovered
 
 
+def finalization_window():
+    """收尾（合并 + 清单生成）的重认领窗口：任务软超时必须早于它，避免旧执行未退出就重认领。"""
+    return timedelta(seconds=settings.ASYNC_EXPORT_MERGE_TIMEOUT + settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT)
+
+
 def claim_finalization(job_id):
     """认领清单生成；超时的执行可重认领，旧尝试不能回填结果。"""
     with transaction.atomic():
@@ -503,8 +508,7 @@ def claim_finalization(job_id):
             return None
         now = timezone.now()
         if job.status == ExportJobStatus.FINALIZING and (
-            job.finalization_started_at is None
-            or now - job.finalization_started_at < timedelta(seconds=settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT)
+            job.finalization_started_at is None or now - job.finalization_started_at < finalization_window()
         ):
             return None
         stats = leaf_stats(job)
@@ -521,7 +525,7 @@ def claim_finalization(job_id):
         )
 
 
-def fail_finalization(job_id, finalization_attempt, detail=""):
+def fail_finalization(job_id, finalization_attempt, detail="", code=ExportErrorCode.FINALIZATION_FAILED):
     """本次清单生成失败后交回调度器；达到预算时才让整单失败。"""
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
@@ -529,18 +533,28 @@ def fail_finalization(job_id, finalization_attempt, detail=""):
             return None
         detail = (detail or "")[:2000]
         if finalization_attempt >= policy_from_snapshot(job.policy).finalization_attempts:
-            return _finish_job(job, ExportJobStatus.FAILED, ExportErrorCode.FINALIZATION_FAILED, detail)
+            return _finish_job(job, ExportJobStatus.FAILED, code, detail)
         return _save(
             job,
             status=ExportJobStatus.RUNNING,
             finalization_started_at=None,
             finalization_enqueued_at=None,
-            error_code=ExportErrorCode.FINALIZATION_FAILED,
+            error_code=code,
             error_detail=detail,
         )
 
 
-def finalize_job(job_id, finalization_attempt, *, manifest_object_key, manifest_bytes, manifest_checksum):
+def finalize_job(
+    job_id,
+    finalization_attempt,
+    *,
+    manifest_object_key,
+    manifest_bytes,
+    manifest_checksum,
+    merged_object_key="",
+    merged_bytes=None,
+    merged_checksum="",
+):
     """只有全部叶子分片成功、边界连续且数量自洽时才允许任务成功。"""
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
@@ -567,6 +581,9 @@ def finalize_job(job_id, finalization_attempt, *, manifest_object_key, manifest_
             manifest_object_key=manifest_object_key,
             manifest_bytes=manifest_bytes,
             manifest_checksum=manifest_checksum,
+            merged_object_key=merged_object_key,
+            merged_bytes=merged_bytes,
+            merged_checksum=merged_checksum,
             completed_at=now,
             expires_at=now + timedelta(seconds=policy_from_snapshot(job.policy).artifact_retention_seconds),
             error_code="",

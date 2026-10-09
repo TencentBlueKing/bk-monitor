@@ -19,7 +19,9 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import gzip
 import hashlib
+import io
 import itertools
 import json
 import tempfile
@@ -37,11 +39,13 @@ from django.db import connection
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
+from qcloud_cos.streambody import StreamBody
 from redis.exceptions import RedisError
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from apps.api.exception import DataAPIException
 from apps.constants import RemoteStorageType
+from apps.utils.cos import QcloudCos
 from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
@@ -62,10 +66,11 @@ from apps.log_search.exceptions import (
 )
 from apps.log_search.export import state
 from apps.log_search.export.config import (
-    CONTROL_QUEUE,
     COORDINATOR_QUEUE,
+    FINALIZE_QUEUE,
     PART_QUEUE,
     PART_TASK_NAME,
+    PLAN_QUEUE,
     ExportPolicy,
 )
 from apps.log_search.export.api import create_export_job, download_link, job_detail, job_results
@@ -99,12 +104,14 @@ from apps.log_search.export.scheduler import (
     finalize_export,
     finalizing_jobs,
 )
+from apps.log_search.export.merger import merge_export_parts
 from apps.log_search.export.storage import (
     UnsupportedExportStorage,
     artifact_name,
     build_storage,
     job_object_prefix,
     manifest_name,
+    merged_name,
 )
 from apps.log_search.tasks.sharded_export import (
     coordinate_sharded_exports,
@@ -674,8 +681,11 @@ class PartRunnerTests(TestCase):
             directory = Path(directory)
             (directory / "logs.jsonl").write_bytes(b"{}\n")
             archive = _pack(directory, SimpleNamespace(part_no=7))
-            self.assertEqual(archive.name, "part-7.tar.gz")
+            self.assertEqual(archive.name, "part-7.jsonl.gz")
             self.assertGreater(archive.stat().st_size, 0)
+            # 分片产物必须是裸 gzip：gzip 多 member 可拼接，是服务端流式合并的前提
+            with gzip.open(archive, "rb") as stream:
+                self.assertEqual(stream.read(), b"{}\n")
 
     def test_execute_uses_job_frozen_external_flag(self):
         """Worker 没有请求上下文，必须按任务冻结的外部标识上传到外部版的桶"""
@@ -703,10 +713,13 @@ class PartRunnerTests(TestCase):
         self.assertEqual(part.status, ExportPartStatus.SUCCESS)
         self.assertEqual(part.object_key, artifact_name(job, part, 1))
 
-    @override_settings(ASYNC_EXPORT_UPLOAD_ATTEMPTS=3, ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS=1)
     def test_execute_retries_upload_without_requerying(self):
         """上传抖动只重试上传本身：不重新查询、不重新压缩，退避按尝试次数递增。"""
-        job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        job = create_job(
+            policy={**ExportPolicy().snapshot(), "upload_attempts": 3, "upload_retry_interval_seconds": 1},
+            status=ExportJobStatus.RUNNING,
+            end_time=1000,
+        )
         part = ExportPart.objects.create(
             job=job,
             part_no=1,
@@ -734,10 +747,13 @@ class PartRunnerTests(TestCase):
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.SUCCESS)
 
-    @override_settings(ASYNC_EXPORT_UPLOAD_ATTEMPTS=2, ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS=0)
     def test_run_part_returns_to_waiting_after_upload_attempts_exhausted(self):
         """上传重试耗尽后整片交回调度器，等待下一轮重新执行。"""
-        job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        job = create_job(
+            policy={**ExportPolicy().snapshot(), "upload_attempts": 2, "upload_retry_interval_seconds": 0},
+            status=ExportJobStatus.RUNNING,
+            end_time=1000,
+        )
         part = ExportPart.objects.create(
             job=job,
             part_no=1,
@@ -1509,7 +1525,7 @@ class ArtifactNameTests(SimpleTestCase):
         job = SimpleNamespace(pk=11)
         part = SimpleNamespace(pk=3)
 
-        self.assertEqual(artifact_name(job, part, 1), "exports/11/parts/3/attempt-1.tar.gz")
+        self.assertEqual(artifact_name(job, part, 1), "exports/11/parts/3/attempt-1.jsonl.gz")
         self.assertNotEqual(artifact_name(job, part, 1), artifact_name(job, part, 2))
         self.assertNotEqual(artifact_name(job, part, 1), artifact_name(job, SimpleNamespace(pk=4), 1))
 
@@ -1962,10 +1978,10 @@ class CoordinateLockTests(SimpleTestCase):
 
 
 class ControlPipelineTests(SimpleTestCase):
-    """规划、调度轮次、分片三类消息各自独占队列：规划排队再久也不会推迟回收、投递和收尾。"""
+    """规划、收尾、调度轮次、分片四类消息各自独占队列：大合并不阻塞规划，排队再久也不推迟回收投递。"""
 
     def test_queues_are_distinct(self):
-        self.assertEqual(len({PART_QUEUE, CONTROL_QUEUE, COORDINATOR_QUEUE}), 3)
+        self.assertEqual(len({PART_QUEUE, PLAN_QUEUE, FINALIZE_QUEUE, COORDINATOR_QUEUE}), 4)
 
     def test_coordinator_tick_has_its_own_queue(self):
         self.assertEqual(coordinate_sharded_exports.options, {"queue": COORDINATOR_QUEUE})
@@ -1992,9 +2008,10 @@ class ControlPipelineTests(SimpleTestCase):
         self.assertLess(settings.ASYNC_EXPORT_PART_FETCH_TIMEOUT, soft_limit)
 
     def test_finalization_is_bounded_before_the_reclaim_window(self):
-        """清单生成软超时必须早于协调器重认领窗口。"""
+        """合并+清单生成软超时必须早于协调器重认领窗口。"""
         self.assertIsNotNone(finalize_sharded_export.soft_time_limit)
-        self.assertLess(finalize_sharded_export.soft_time_limit, settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT)
+        window = settings.ASYNC_EXPORT_MERGE_TIMEOUT + settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT
+        self.assertLess(finalize_sharded_export.soft_time_limit, window)
 
     def test_round_budget_is_bounded_before_the_lock_lease(self):
         """轮次必须先于调度锁租约结束，否则锁过期后旧轮次会与下一轮重叠发放额度。"""
@@ -2009,7 +2026,7 @@ class ControlPipelineTests(SimpleTestCase):
         """漏部署任一 worker 会让对应链路整体停摆，队列改动必须同步部署配置。"""
         conf_path = Path(__file__).resolve().parents[3] / "support-files" / "supervisord.conf"
         conf = conf_path.read_text(encoding="utf-8")
-        for queue in (PART_QUEUE, CONTROL_QUEUE, COORDINATOR_QUEUE):
+        for queue in (PART_QUEUE, PLAN_QUEUE, FINALIZE_QUEUE, COORDINATOR_QUEUE):
             with self.subTest(queue=queue):
                 self.assertIn(f"-Q {queue} ", conf)
 
@@ -2125,7 +2142,11 @@ class ManifestChecksumTests(TestCase):
 
     def test_manifest_checksum_matches_the_uploaded_content(self):
         captured = []
-        with patch("apps.log_search.export.scheduler.build_storage") as build_storage:
+        with (
+            patch("apps.log_search.export.scheduler.build_storage") as build_storage,
+            patch("apps.log_search.export.merger.build_storage") as merge_storage,
+        ):
+            merge_storage.return_value.download_fileobj.side_effect = lambda key, fh: fh.write(b"part-bytes")
             build_storage.return_value.export_upload.side_effect = lambda file_path, file_name: captured.append(
                 Path(file_path).read_bytes()
             )
@@ -2137,9 +2158,17 @@ class ManifestChecksumTests(TestCase):
         self.assertEqual(self.job.manifest_bytes, len(content))
         self.assertEqual(self.job.manifest_checksum, hashlib.sha256(content).hexdigest())
         self.assertEqual(self.job.manifest_object_key, manifest_name(self.job))
+        # 合并产物也随任务落库
+        self.assertEqual(self.job.merged_object_key, merged_name(self.job))
+        self.assertEqual(self.job.merged_bytes, len(b"part-bytes"))
+        self.assertEqual(self.job.merged_checksum, hashlib.sha256(b"part-bytes").hexdigest())
 
     def test_transient_upload_failure_retries_without_rerunning_parts(self):
-        with patch("apps.log_search.export.scheduler.build_storage") as build_storage:
+        with (
+            patch("apps.log_search.export.scheduler.build_storage") as build_storage,
+            patch("apps.log_search.export.merger.build_storage") as merge_storage,
+        ):
+            merge_storage.return_value.download_fileobj.side_effect = lambda key, fh: fh.write(b"part-bytes")
             upload = build_storage.return_value.export_upload
             upload.side_effect = [OSError("temporary"), None]
             self.assertIsNone(finalize_export(self.job.pk))
@@ -2157,7 +2186,11 @@ class ManifestChecksumTests(TestCase):
     def test_upload_failure_fails_job_after_retry_budget(self):
         self.job.policy = {**self.job.policy, "finalization_attempts": 2}
         self.job.save(update_fields=["policy"])
-        with patch("apps.log_search.export.scheduler.build_storage") as build_storage:
+        with (
+            patch("apps.log_search.export.scheduler.build_storage") as build_storage,
+            patch("apps.log_search.export.merger.build_storage") as merge_storage,
+        ):
+            merge_storage.return_value.download_fileobj.side_effect = lambda key, fh: fh.write(b"part-bytes")
             upload = build_storage.return_value.export_upload
             upload.side_effect = OSError("temporary")
             finalize_export(self.job.pk)
@@ -2183,7 +2216,7 @@ class ManifestChecksumTests(TestCase):
         self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
         self.assertIsNone(self.job.finalization_enqueued_at)
 
-    @override_settings(ASYNC_EXPORT_FINALIZATION_TIMEOUT=1)
+    @override_settings(ASYNC_EXPORT_FINALIZATION_TIMEOUT=1, ASYNC_EXPORT_MERGE_TIMEOUT=1)
     def test_stale_finalization_attempt_cannot_commit_or_fail(self):
         old_claim = state.claim_finalization(self.job.pk)
         self.assertIsNone(state.claim_finalization(self.job.pk))
@@ -2212,7 +2245,11 @@ class ManifestChecksumTests(TestCase):
             self.assertEqual(ExportJob.objects.get(pk=self.job.pk).status, ExportJobStatus.FINALIZING)
             state.cancel_job(self.job.pk)
 
-        with patch("apps.log_search.export.scheduler.build_storage") as build_storage:
+        with (
+            patch("apps.log_search.export.scheduler.build_storage") as build_storage,
+            patch("apps.log_search.export.merger.build_storage") as merge_storage,
+        ):
+            merge_storage.return_value.download_fileobj.side_effect = lambda key, fh: fh.write(b"part-bytes")
             build_storage.return_value.export_upload.side_effect = cancel_during_upload
             self.assertIsNone(finalize_export(self.job.pk))
 
@@ -2236,6 +2273,74 @@ class ManifestChecksumTests(TestCase):
         results = job_results(ExportJob.objects.get(pk=self.job.pk))
         self.assertEqual(results["manifest"]["checksum"], "manifest-checksum")
         self.assertEqual(results["manifest"]["checksum_algorithm"], "sha256")
+
+
+class MergedArtifactTests(TestCase):
+    """整包合并：分片按序字节拼接成单个多 member gzip，并暴露为单文件下载入口。"""
+
+    def setUp(self):
+        self.job = create_job(status=ExportJobStatus.RUNNING, plan_version=1, end_time=1000)
+
+    def _add_part(self, part_no, start_time, end_time, content):
+        ExportPart.objects.create(
+            job=self.job,
+            part_no=part_no,
+            plan_version=1,
+            start_time=start_time,
+            end_time=end_time,
+            status=ExportPartStatus.SUCCESS,
+            actual_rows=1,
+            actual_bytes=len(content),
+            object_key=f"part-{part_no}.jsonl.gz",
+            checksum="ignored",
+        )
+
+    def test_merge_concatenates_gzip_members_in_order(self):
+        """合并就是按序字节拼接 gzip member，解压后是各分片内容的顺序拼接。"""
+        payload = {"part-1.jsonl.gz": gzip.compress(b'{"a":1}\n'), "part-2.jsonl.gz": gzip.compress(b'{"b":2}\n')}
+        self._add_part(1, 0, 500, payload["part-1.jsonl.gz"])
+        self._add_part(2, 500, 1000, payload["part-2.jsonl.gz"])
+        parts = list(state.leaf_parts(self.job).order_by("start_time", "part_no"))
+
+        with patch("apps.log_search.export.merger.build_storage") as build_storage:
+            contents = {}
+            build_storage.return_value.download_fileobj.side_effect = lambda key, fh: fh.write(payload[key])
+            build_storage.return_value.export_upload.side_effect = lambda file_path, file_name: contents.update(
+                {file_name: Path(file_path).read_bytes()}
+            )
+            key, size, checksum = merge_export_parts(self.job, parts)
+
+        self.assertEqual(key, merged_name(self.job))
+        self.assertEqual(size, len(payload["part-1.jsonl.gz"]) + len(payload["part-2.jsonl.gz"]))
+        self.assertEqual(checksum, hashlib.sha256(payload["part-1.jsonl.gz"] + payload["part-2.jsonl.gz"]).hexdigest())
+        self.assertEqual(contents[key], payload["part-1.jsonl.gz"] + payload["part-2.jsonl.gz"])
+        # gzip 多 member 拼接后解压仍是合法内容
+        self.assertEqual(gzip.decompress(contents[key]), b'{"a":1}\n{"b":2}\n')
+
+    def test_job_results_exposes_merged_and_full_download_link(self):
+        self._add_part(1, 0, 1000, gzip.compress(b'{"a":1}\n'))
+        self.job.status = ExportJobStatus.SUCCESS
+        self.job.manifest_object_key = "manifest.json"
+        self.job.manifest_bytes = 10
+        self.job.manifest_checksum = "m"
+        self.job.merged_object_key = merged_name(self.job)
+        self.job.merged_bytes = 100
+        self.job.merged_checksum = "checksum"
+        self.job.expires_at = timezone.now() + timedelta(seconds=600)
+        self.job.save()
+
+        results = job_results(self.job)
+        self.assertEqual(results["merged"]["artifact_id"], "full")
+        self.assertEqual(results["merged"]["checksum"], "checksum")
+        self.assertEqual(results["merged"]["checksum_algorithm"], "sha256")
+
+        with patch("apps.log_search.export.api.build_storage") as build_storage:
+            build_storage.return_value.generate_download_url.return_value = "https://full-url"
+            link = download_link(self.job, "full")
+        self.assertEqual(link["url"], "https://full-url")
+        self.assertEqual(
+            build_storage.return_value.generate_download_url.call_args.kwargs["file_name"], merged_name(self.job)
+        )
 
 
 class ExportErrorCodeTests(SimpleTestCase):
@@ -2991,3 +3096,50 @@ class DownloadLinkTests(TestCase):
         signed = build_storage.return_value.generate_download_url.call_args.kwargs
 
         self.assertEqual(signed["file_name"], "part.tar.gz")
+
+
+class _FakeRawStream:
+    """模拟 urllib3 底层流：read/close，记录是否被关闭。"""
+
+    def __init__(self, data):
+        self._data = io.BytesIO(data)
+        self.closed = False
+
+    def read(self, size=-1):
+        return self._data.read(size)
+
+    def close(self):
+        self.closed = True
+
+
+class _FakeHttpResponse:
+    """模拟 requests.Response，只暴露 StreamBody 依赖的 headers/raw/iter_content。"""
+
+    def __init__(self, data):
+        self.headers = {"Content-Length": str(len(data))}
+        self.raw = _FakeRawStream(data)
+
+    def iter_content(self, chunk_size):
+        while True:
+            chunk = self.raw.read(chunk_size)
+            if not chunk:
+                break
+            yield chunk
+
+
+class CosDownloadFileobjTests(SimpleTestCase):
+    """用真实 StreamBody 类型验证 COS 流式下载：SDK 的 StreamBody 没有 close()，必须关闭底层流。"""
+
+    def test_download_fileobj_reads_content_and_closes_raw_stream(self):
+        payload = b'{"a":1}\n{"b":2}\n'
+        body = StreamBody(_FakeHttpResponse(payload))
+
+        with patch("apps.utils.cos.CosS3Client") as client_cls:
+            client = client_cls.return_value
+            client.get_object.return_value = {"Body": body}
+            cos = QcloudCos("id", "key", "region", "bucket")
+            out = io.BytesIO()
+            cos.download_fileobj("exports/1/full.jsonl.gz", out)
+
+        self.assertEqual(out.getvalue(), payload)
+        self.assertTrue(body.get_raw_stream().closed)

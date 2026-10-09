@@ -26,6 +26,8 @@ DEFAULT_CONFIG = {
     "part_max_attempts": 3,
     "planning_attempts": 3,
     "finalization_attempts": 3,
+    "upload_attempts": 3,
+    "upload_retry_interval_seconds": 2,
     "artifact_retention_seconds": 86400,
     "signed_url_seconds": 600,
 }

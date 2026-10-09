@@ -68,14 +68,31 @@ class QcloudCos:
         @param file_path 本地路径
         @param file_name 上传文件名
         """
-        response = self._client.put_object_from_local_file(
-            Bucket=self._qcloud_cos_bucket.strip(), LocalFilePath=file_path, Key=file_name
+        # 用分块上传：合并产物可能超过 5GB，put_object_from_local_file 简单上传最大 5GB；
+        # PartSize 单位 MB，10MB 分块在分块数（最多 10000）与上传并发间取平衡，小文件仍走单次 PUT
+        response = self._client.upload_file(
+            Bucket=self._qcloud_cos_bucket.strip(), Key=file_name, LocalFilePath=file_path, PartSize=10
         )
         return response["ETag"]
 
     def head_object(self, file_name: str) -> dict:
         """Read object metadata without generating a download URL or reading object content."""
         return self._client.head_object(Bucket=self._qcloud_cos_bucket.strip(), Key=file_name)
+
+    def download_fileobj(self, file_name: str, fh, chunk_size: int = 1024 * 1024):
+        """把对象按块流式写入文件句柄，避免整对象读入内存。"""
+        response = self._client.get_object(Bucket=self._qcloud_cos_bucket.strip(), Key=file_name)
+        body = response["Body"]
+        # StreamBody 没有 close()，需关闭 get_raw_stream() 返回的底层流以释放连接
+        raw_stream = body.get_raw_stream()
+        try:
+            while True:
+                chunk = body.read(chunk_size)
+                if not chunk:
+                    break
+                fh.write(chunk)
+        finally:
+            raw_stream.close()
 
     def delete_object(self, file_name: str):
         """删除对象；对象不存在时 COS 同样返回成功。"""

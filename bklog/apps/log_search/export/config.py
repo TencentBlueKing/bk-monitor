@@ -13,7 +13,8 @@ PART_TASK_NAME = "apps.log_search.tasks.sharded_export.execute_sharded_export_pa
 FINALIZE_TASK_NAME = "apps.log_search.tasks.sharded_export.finalize_sharded_export"
 
 PART_QUEUE = "sharded_export"
-CONTROL_QUEUE = "sharded_export_control"
+PLAN_QUEUE = "sharded_export_plan"
+FINALIZE_QUEUE = "sharded_export_finalize"
 COORDINATOR_QUEUE = "sharded_export_coordinator"
 
 
@@ -42,6 +43,8 @@ class ExportPolicy:
     part_max_attempts: int = 3
     planning_attempts: int = 3
     finalization_attempts: int = 3
+    upload_attempts: int = 3
+    upload_retry_interval_seconds: int = 2
     artifact_retention_seconds: int = 86_400
     signed_url_seconds: int = 600
 
@@ -74,6 +77,8 @@ _BOUNDS = {
     "part_max_attempts": (int, 1, 20),
     "planning_attempts": (int, 1, 20),
     "finalization_attempts": (int, 1, 20),
+    "upload_attempts": (int, 1, 20),
+    "upload_retry_interval_seconds": (int, 0, 3600),
     "artifact_retention_seconds": (int, 1, 365 * 86_400),
     "signed_url_seconds": (int, 1, 86_400),
 }

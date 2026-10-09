@@ -23,7 +23,7 @@ from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from django.conf import settings
 
-from apps.log_search.export.config import CONTROL_QUEUE, COORDINATOR_QUEUE, PART_QUEUE
+from apps.log_search.export.config import COORDINATOR_QUEUE, FINALIZE_QUEUE, PART_QUEUE, PLAN_QUEUE
 from apps.log_search.export.worker import run_part
 from apps.log_search.export.planner import run_planning
 from apps.log_search.export.scheduler import coordinate, finalize_export
@@ -45,15 +45,16 @@ def execute_sharded_export_part(self, part_id):
     run_part(part_id, self.request.id)
 
 
-@app.task(ignore_result=True, queue=CONTROL_QUEUE, soft_time_limit=max(1, settings.ASYNC_EXPORT_PLANNING_TIMEOUT - 60))
+@app.task(ignore_result=True, queue=PLAN_QUEUE, soft_time_limit=max(1, settings.ASYNC_EXPORT_PLANNING_TIMEOUT - 60))
 def plan_sharded_export(job_id):
     run_planning(job_id)
 
 
 @app.task(
     ignore_result=True,
-    queue=CONTROL_QUEUE,
-    soft_time_limit=max(1, settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT - 60),
+    queue=FINALIZE_QUEUE,
+    # 软超时覆盖合并 + 清单生成总预算，并留 60 秒余量，确保早于协调器重认领窗口
+    soft_time_limit=max(1, settings.ASYNC_EXPORT_MERGE_TIMEOUT + settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT - 60),
 )
 def finalize_sharded_export(job_id):
     finalize_export(job_id)

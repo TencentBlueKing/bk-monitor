@@ -231,7 +231,7 @@ def job_results(job):
     parts = list(ExportPart.objects.filter(job=job, status=ExportPartStatus.SUCCESS).order_by("start_time", "part_no"))
     if not parts or not job.manifest_object_key:
         raise ExportConflict("导出产物不完整")
-    return {
+    result = {
         "job_id": job.pk,
         "search_type": job.search_type,
         "index_set_ids": job.index_set_ids,
@@ -260,6 +260,14 @@ def job_results(job):
             for part in parts
         ],
     }
+    if job.merged_object_key:
+        result["merged"] = {
+            "artifact_id": "full",
+            "compressed_bytes": job.merged_bytes,
+            "checksum": job.merged_checksum,
+            "checksum_algorithm": "sha256",
+        }
+    return result
 
 
 def download_link(job, artifact_id):
@@ -267,6 +275,8 @@ def download_link(job, artifact_id):
     job_results(job)
     if artifact_id == "manifest":
         name = job.manifest_object_key
+    elif artifact_id == "full":
+        name = job.merged_object_key
     else:
         part = get_object_or_404(ExportPart, pk=int(artifact_id), job=job, status=ExportPartStatus.SUCCESS)
         name = part.object_key

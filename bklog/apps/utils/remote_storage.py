@@ -21,7 +21,7 @@ the project delivered to anyone in the future.
 
 import os
 from abc import ABC, abstractmethod
-from shutil import copyfile
+from shutil import copyfile, copyfileobj
 
 from django.utils.http import urlencode
 
@@ -43,6 +43,10 @@ class Storage(ABC):
     @abstractmethod
     def delete_file(self, *args, **kwargs):
         pass
+
+    @abstractmethod
+    def download_fileobj(self, file_name, fh, *args, **kwargs):
+        """把对象流式写入文件句柄，供合并等场景按块读取而不整对象进内存。"""
 
 
 class CosStorage(Storage):
@@ -72,6 +76,9 @@ class CosStorage(Storage):
     def delete_file(self, file_name, **kwargs):
         return self.qcloud_cos.delete_object(file_name)
 
+    def download_fileobj(self, file_name, fh, **kwargs):
+        return self.qcloud_cos.download_fileobj(file_name, fh)
+
 
 class NfsStorage(Storage):
     def __init__(self, nfs_path):
@@ -92,6 +99,11 @@ class NfsStorage(Storage):
         if os.path.exists(target_file_dir):
             os.remove(target_file_dir)
 
+    def download_fileobj(self, file_name, fh, **kwargs):
+        target_file_dir = os.path.join(self.nfs_path, file_name)
+        with open(target_file_dir, "rb") as source:
+            copyfileobj(source, fh)
+
 
 class BKREPOStorage(Storage):
     def __init__(self, expired: int = 0):
@@ -106,6 +118,9 @@ class BKREPOStorage(Storage):
 
     def delete_file(self, file_name, **kwargs):
         return self.bk_repo_storage.client.delete_file(key=file_name)
+
+    def download_fileobj(self, file_name, fh, **kwargs):
+        return self.bk_repo_storage.client.download_fileobj(key=file_name, fh=fh)
 
 
 class StorageType:

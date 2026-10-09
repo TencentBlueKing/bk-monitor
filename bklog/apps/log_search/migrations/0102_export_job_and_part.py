@@ -65,6 +65,15 @@ class Migration(migrations.Migration):
                     "manifest_checksum",
                     models.CharField(blank=True, default="", max_length=64, verbose_name="清单SHA256"),
                 ),
+                (
+                    "merged_object_key",
+                    models.CharField(blank=True, default="", max_length=1024, verbose_name="合并产物对象名"),
+                ),
+                ("merged_bytes", models.PositiveBigIntegerField(blank=True, null=True, verbose_name="合并产物字节数")),
+                (
+                    "merged_checksum",
+                    models.CharField(blank=True, default="", max_length=64, verbose_name="合并产物SHA256"),
+                ),
                 ("error_code", models.CharField(blank=True, default="", max_length=64, verbose_name="错误分类")),
                 ("error_detail", models.TextField(blank=True, default="", verbose_name="错误详情")),
                 ("planning_enqueued_at", models.DateTimeField(blank=True, null=True, verbose_name="规划入队时间")),

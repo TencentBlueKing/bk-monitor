@@ -36,21 +36,23 @@ from django.utils import timezone
 from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportPartStatus, ExportSearchType
 from apps.log_search.export import state
 from apps.log_search.export.config import (
-    CONTROL_QUEUE,
+    FINALIZE_QUEUE,
     FINALIZE_TASK_NAME,
     PART_QUEUE,
     PART_TASK_NAME,
+    PLAN_QUEUE,
     PLAN_TASK_NAME,
     current_policy,
     policy_from_snapshot,
 )
+from apps.log_search.export.merger import merge_export_parts
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.log_search.export.storage import build_storage, manifest_name
 from apps.utils.log import logger
 
 
 def _send(task_name, *args, **kwargs):
-    queue = kwargs.pop("queue", CONTROL_QUEUE)
+    queue = kwargs.pop("queue", PLAN_QUEUE)
     return app.send_task(task_name, args=list(args), queue=queue, retry=False, **kwargs)
 
 
@@ -60,7 +62,7 @@ def _lease_expired(field, now):
     return Q(**{f"{field}__isnull": True}) | Q(**{f"{field}__lt": now - lease})
 
 
-def _enqueue(job_ids, field, statuses, task_name):
+def _enqueue(job_ids, field, statuses, task_name, queue=PLAN_QUEUE):
     """条件更新抢占入队租约以防重复发布；发布失败释放租约，崩溃或消息丢失由租约到期恢复。"""
     sent = []
     for job_id in job_ids:
@@ -73,7 +75,7 @@ def _enqueue(job_ids, field, statuses, task_name):
         if not claimed:
             continue
         try:
-            _send(task_name, job_id)
+            _send(task_name, job_id, queue=queue)
         except SoftTimeLimitExceeded:
             raise
         except Exception as error:  # pylint: disable=broad-except
@@ -238,7 +240,7 @@ def dispatch_ready_parts(deadline=None):
 def finalizing_jobs(limit):
     """叶子分片全部成功、且尚未入队收尾（或入队租约已过期）的任务。"""
     now = timezone.now()
-    cutoff = now - timedelta(seconds=settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT)
+    cutoff = now - state.finalization_window()
     return list(
         ExportJob.objects.filter(
             Q(status=ExportJobStatus.RUNNING)
@@ -259,10 +261,11 @@ def enqueue_finalization(limit):
         "finalization_enqueued_at",
         [ExportJobStatus.RUNNING, ExportJobStatus.FINALIZING],
         FINALIZE_TASK_NAME,
+        queue=FINALIZE_QUEUE,
     )
 
 
-def manifest_snapshot(job, parts):
+def manifest_snapshot(job, parts, *, merged_object_key="", merged_bytes=None, merged_checksum=""):
     """清单只汇总成功叶子分片，边界与条数在提交时再次校验。"""
     snapshot = {
         "schema_version": 1,
@@ -291,22 +294,43 @@ def manifest_snapshot(job, parts):
             for part in parts
         ],
     }
+    if merged_object_key:
+        snapshot["merged"] = {
+            "object_key": merged_object_key,
+            "compressed_bytes": merged_bytes,
+            "checksum": merged_checksum,
+            "checksum_algorithm": "sha256",
+        }
     if job.search_type == ExportSearchType.SCENE:
         snapshot["table_id_conditions"] = job.search_params.get("table_id_conditions")
     return snapshot
 
 
 def finalize_export(job_id):
-    """任务的叶子分片都成功后，生成清单并让任务进入成功态。"""
+    """任务的叶子分片都成功后，合并成整包并生成清单，再让任务进入成功态。"""
     job = state.claim_finalization(job_id)
     if job is None:
         return None
+    parts = list(state.leaf_parts(job).order_by("start_time", "part_no"))
+    if not parts or any(part.status != ExportPartStatus.SUCCESS for part in parts):
+        state.fail_finalization(job_id, job.finalization_attempts, "分片尚未全部成功")
+        return None
     try:
-        parts = list(state.leaf_parts(job).order_by("start_time", "part_no"))
-        if not parts or any(part.status != ExportPartStatus.SUCCESS for part in parts):
-            raise ValueError("分片尚未全部成功")
+        merged_key, merged_bytes, merged_checksum = merge_export_parts(job, parts)
+    except Exception as error:  # pylint: disable=broad-except
+        logger.exception("[finalize_export] job=%s merge failed: %s", job.pk, error)
+        state.fail_finalization(
+            job_id, job.finalization_attempts, type(error).__name__, code=ExportErrorCode.MERGE_FAILED
+        )
+        return None
+    try:
         content = json.dumps(
-            manifest_snapshot(job, parts), ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            manifest_snapshot(
+                job, parts, merged_object_key=merged_key, merged_bytes=merged_bytes, merged_checksum=merged_checksum
+            ),
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
         ).encode("utf-8")
         with tempfile.TemporaryDirectory(prefix=f"bklog-export-manifest-{job.pk}-") as directory:
             path = Path(directory) / "manifest.json"
@@ -318,6 +342,9 @@ def finalize_export(job_id):
             manifest_object_key=manifest_name(job),
             manifest_bytes=len(content),
             manifest_checksum=hashlib.sha256(content).hexdigest(),
+            merged_object_key=merged_key,
+            merged_bytes=merged_bytes,
+            merged_checksum=merged_checksum,
         )
     except Exception as error:  # pylint: disable=broad-except
         logger.exception("[finalize_export] job=%s manifest failed: %s", job.pk, error)

@@ -61,6 +61,10 @@ class ExportJob(models.Model):
     manifest_bytes = models.PositiveBigIntegerField(_("清单字节数"), null=True, blank=True)
     # 清单文件自身的 sha256，下载方可以据此校验清单没有被截断或篡改
     manifest_checksum = models.CharField(_("清单SHA256"), max_length=64, blank=True, default="")
+    # 整包合并产物：所有分片按序拼接成的单个 jsonl.gz，单文件下载入口
+    merged_object_key = models.CharField(_("合并产物对象名"), max_length=1024, blank=True, default="")
+    merged_bytes = models.PositiveBigIntegerField(_("合并产物字节数"), null=True, blank=True)
+    merged_checksum = models.CharField(_("合并产物SHA256"), max_length=64, blank=True, default="")
     error_code = models.CharField(_("错误分类"), max_length=64, blank=True, default="")
     error_detail = models.TextField(_("错误详情"), blank=True, default="")
     planning_enqueued_at = models.DateTimeField(_("规划入队时间"), null=True, blank=True)

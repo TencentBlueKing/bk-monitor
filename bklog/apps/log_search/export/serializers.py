@@ -72,6 +72,6 @@ class ExportLinkSerializer(ExportScopeSerializer):
     artifact_id = serializers.CharField(max_length=32)
 
     def validate_artifact_id(self, value):
-        if value != "manifest" and (not value.isdecimal() or int(value) < 1):
+        if value not in ("manifest", "full") and (not value.isdecimal() or int(value) < 1):
             raise serializers.ValidationError("产物标识不合法")
         return value

@@ -65,7 +65,12 @@ def job_object_prefix(job_id):
 
 def artifact_name(job, part, attempts):
     """分片产物名，同时作为对象键。必须含认领序号：一个键只能有一个执行在写。"""
-    return f"{job_object_prefix(job.pk)}parts/{part.pk}/attempt-{attempts}.tar.gz"
+    return f"{job_object_prefix(job.pk)}parts/{part.pk}/attempt-{attempts}.jsonl.gz"
+
+
+def merged_name(job):
+    """整包合并产物名，是单文件下载的入口对象。"""
+    return f"{job_object_prefix(job.pk)}full.jsonl.gz"
 
 
 def manifest_name(job):

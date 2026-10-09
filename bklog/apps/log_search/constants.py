@@ -336,6 +336,7 @@ class ExportErrorCode:
     UPLOAD_FAILED = "UPLOAD_FAILED"
     STORAGE_UNSUPPORTED = "STORAGE_UNSUPPORTED"
     FINALIZATION_FAILED = "FINALIZATION_FAILED"
+    MERGE_FAILED = "MERGE_FAILED"
     # 以下是任务终态对应的展示分类，只用于读取，不写回 error_code 字段
     CANCELED = "CANCELED"
     FILE_EXPIRED = "FILE_EXPIRED"
@@ -357,6 +358,7 @@ class ExportErrorCode:
         UPLOAD_FAILED: _("导出文件上传失败，请稍后重试"),
         STORAGE_UNSUPPORTED: _("导出产物存储配置不支持，请联系管理员"),
         FINALIZATION_FAILED: _("导出清单生成失败"),
+        MERGE_FAILED: _("导出文件合并失败，请稍后重试"),
         CANCELED: _("任务已取消"),
         FILE_EXPIRED: _("导出文件已过期，请重新发起任务"),
     }

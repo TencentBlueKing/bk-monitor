@@ -20,8 +20,9 @@ the project delivered to anyone in the future.
 """
 
 import copy
+import gzip
 import hashlib
-import tarfile
+import shutil
 import tempfile
 import time
 from pathlib import Path
@@ -37,6 +38,7 @@ from apps.log_search.constants import (
     ExportStage,
 )
 from apps.log_search.export import state
+from apps.log_search.export.config import policy_from_snapshot
 from apps.log_search.export.planner import build_handler, encode_export_row
 from apps.log_search.export.storage import (
     UnsupportedExportStorage,
@@ -99,21 +101,21 @@ def _write_rows(handler, payload):
 
 
 def _pack(directory, part):
-    """每个分片独立压缩，避免 Worker 内合并大文件。"""
-    archive = directory / f"part-{part.part_no}.tar.gz"
-    with tarfile.open(archive, "w:gz") as tar:
-        tar.add(directory / "logs.jsonl", arcname="logs.log")
+    """每个分片独立压缩成裸 jsonl.gz：gzip 多 member 可拼接，便于服务端按序流式合并。"""
+    archive = directory / f"part-{part.part_no}.jsonl.gz"
+    with (directory / "logs.jsonl").open("rb") as source, gzip.open(archive, "wb") as target:
+        shutil.copyfileobj(source, target, length=1024 * 1024)
     return archive
 
 
-def _upload_with_retry(storage, path, name, part):
+def _upload_with_retry(storage, path, name, part, policy):
     """
     上传失败只在当前进程内重试上传本身：本地压缩文件仍然可用，不会重新查询和压缩。
 
     重试耗尽后按 UPLOAD_FAILED 上抛，上传失败与工作量无关，不做时间细分。
     """
-    attempts = settings.ASYNC_EXPORT_UPLOAD_ATTEMPTS
-    interval = settings.ASYNC_EXPORT_UPLOAD_RETRY_INTERVAL_SECONDS
+    attempts = policy.upload_attempts
+    interval = policy.upload_retry_interval_seconds
     for attempt in range(1, attempts + 1):
         try:
             return storage.export_upload(file_path=str(path), file_name=name)
@@ -142,6 +144,7 @@ def _discard_artifact(storage, name, part):
 
 def _execute(job, part, fence):
     storage = build_storage(external=job.is_external)
+    policy = policy_from_snapshot(job.policy)
     with tempfile.TemporaryDirectory(prefix=f"bklog-export-{job.pk}-") as directory:
         directory = Path(directory)
         handler = build_handler(job, part.start_time, part.end_time)
@@ -153,7 +156,7 @@ def _execute(job, part, fence):
             return
         checksum = _sha256(archive)
         name = artifact_name(job, part, fence.attempts)
-        _upload_with_retry(storage, archive, name, part)
+        _upload_with_retry(storage, archive, name, part, policy)
         accepted = False
         try:
             result = state.complete_part(
