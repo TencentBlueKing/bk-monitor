@@ -555,6 +555,7 @@ export default {
     return {
       active: 0,
       renameLoading: false,
+      renameRequestId: 0,
       configId: null,
       requests: {
         detail: new DetailRequest(),
@@ -625,6 +626,9 @@ export default {
   methods: {
     cancelRequests() {
       Object.values(this.requests).forEach(request => request.cancel());
+      this.renameRequestId += 1;
+      this.renameLoading = false;
+      this.input.show = false;
     },
     loadConfig() {
       if (!this.sideShow || !this.sideData.id) return;
@@ -650,7 +654,7 @@ export default {
       return item ? `${item.text}(${item.type_name})` : '--';
     },
     getDetailData() {
-      if (!this.sideShow || !this.sideData.id || this.requests.detail.loading) return;
+      if (!this.sideShow || !this.sideData.id || this.requests.detail.loading || this.renameLoading) return;
       const id = this.sideData.id;
       return this.requests.detail.run(
         signal => frontendCollectConfigDetail({ id, with_target_info: false }, { signal, needMessage: false }),
@@ -739,6 +743,7 @@ export default {
       }
     },
     handleTagClickout() {
+      if (this.requests.detail.loading) return;
       const data = this.basicInfo;
       const { copyName } = this.input;
       if (copyName.length && copyName !== data.name) {
@@ -749,30 +754,38 @@ export default {
       }
     },
     handleEditLabel(key) {
+      if (this.requests.detail.loading) return;
       this.input.show = true;
       this.$nextTick().then(() => {
         this.$refs[`input${key}`][0].focus();
       });
     },
     handleUpdateConfigName(data, copyName) {
+      if (this.requests.detail.loading) return;
+      const id = data.id;
+      const requestId = ++this.renameRequestId;
+      const isCurrent = () => requestId === this.renameRequestId && this.sideShow && this.sideData.id === id;
       this.renameLoading = true;
-      renameCollectConfig({ id: data.id, name: copyName }, { needMessage: false })
+      return renameCollectConfig({ id, name: copyName }, { needMessage: false })
         .then(() => {
+          this.$emit('update-name', id, copyName);
+          if (!isCurrent()) return;
           this.basicInfo.name = copyName;
           this.name = copyName;
-          this.$emit('update-name', data.id, copyName);
           this.$bkMessage({
             theme: 'success',
             message: this.$t('修改成功'),
           });
         })
         .catch(err => {
+          if (!isCurrent()) return;
           this.$bkMessage({
             theme: 'error',
             message: err.message || this.$t('发生错误了'),
           });
         })
         .finally(() => {
+          if (!isCurrent()) return;
           this.input.show = false;
           this.renameLoading = false;
         });

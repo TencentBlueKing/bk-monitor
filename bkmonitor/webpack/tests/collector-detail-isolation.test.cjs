@@ -95,7 +95,7 @@ function pageClass(fileName, globals = {}) {
 }
 
 function api() {
-  const calls = { detail: [], targets: [] };
+  const calls = { detail: [], targets: [], rename: [] };
   const request = type => (params, options) => {
     let resolve;
     let reject;
@@ -110,6 +110,7 @@ function api() {
     calls,
     frontendCollectConfigDetail: request('detail'),
     frontendCollectConfigTargetInfo: request('targets'),
+    renameCollectConfig: request('rename'),
   };
 }
 
@@ -182,6 +183,8 @@ function sidePanel() {
     return { default: name ? dependencies[name] : named('Stub') };
   }).default;
   const events = [];
+  const renameEvents = [];
+  const messages = [];
   const subject = new Vue({
     ...options,
     ...sideRender,
@@ -191,10 +194,12 @@ function sidePanel() {
       this.$t = translate;
       this.$store = { getters: { bizId: 0, bizList: [] } };
       this.authority = { MANAGE_AUTH: true };
+      this.$bkMessage = value => messages.push(value);
     },
   });
   subject.$on('set-hide', value => events.push(value));
-  return { subject, events, ...service };
+  subject.$on('update-name', (id, name) => renameEvents.push({ id, name }));
+  return { subject, events, renameEvents, messages, ...service };
 }
 
 test('detail: target failure leaves basic data visible and retry calls only targets', async () => {
@@ -341,5 +346,128 @@ test('side: configuration switches and closing ignore delayed responses', async 
   await flush();
   assert.equal(subject.basicInfo, null);
   assert.equal(subject.requests.targets.loaded, false);
+  subject.$destroy();
+});
+
+test('side: an old rename cannot overwrite the new configuration or finish its active rename', async () => {
+  const { subject, calls, renameEvents, messages } = sidePanel();
+  calls.detail[0].resolve(detailData('first-config'));
+  calls.targets[0].resolve(targetData([row]));
+  await flush();
+  subject.input.show = true;
+  subject.handleUpdateConfigName(subject.basicInfo, 'first-renamed');
+  subject.sideData = { id: 102 };
+  await Vue.nextTick();
+  assert.equal(subject.renameLoading, false);
+  calls.detail[1].resolve(detailData('second-config'));
+  calls.targets[1].resolve(targetData([row]));
+  await flush();
+  subject.input.show = true;
+  subject.input.copyName = 'second-renamed';
+  subject.handleUpdateConfigName(subject.basicInfo, 'second-renamed');
+  calls.rename[0].resolve({});
+  await flush();
+  assert.equal(subject.basicInfo.name, 'second-config');
+  assert.equal(subject.name, 'second-config');
+  assert.equal(subject.input.show, true);
+  assert.equal(subject.input.copyName, 'second-renamed');
+  assert.equal(subject.renameLoading, true);
+  assert.deepEqual(renameEvents, [{ id: 101, name: 'first-renamed' }]);
+  assert.equal(messages.length, 0);
+  calls.rename[1].resolve({});
+  await flush();
+  assert.equal(subject.basicInfo.name, 'second-renamed');
+  assert.equal(subject.renameLoading, false);
+  assert.equal(subject.input.show, false);
+  assert.deepEqual(renameEvents[1], { id: 102, name: 'second-renamed' });
+  subject.$destroy();
+});
+
+for (const succeeds of [true, false]) {
+  test(`side: closed panel ignores delayed rename ${succeeds ? 'success' : 'failure'}`, async () => {
+    const { subject, calls, renameEvents, messages } = sidePanel();
+    calls.detail[0].resolve(detailData('closed-config'));
+    calls.targets[0].resolve(targetData([row]));
+    await flush();
+    subject.input.show = true;
+    subject.handleUpdateConfigName(subject.basicInfo, 'closed-renamed');
+    assert.equal(calls.rename[0].options.signal, undefined);
+    subject.sideShow = false;
+    await Vue.nextTick();
+    assert.equal(subject.renameLoading, false);
+    const snapshot = {
+      name: subject.name,
+      basicName: subject.basicInfo.name,
+      inputShow: subject.input.show,
+      copyName: subject.input.copyName,
+    };
+    if (succeeds) calls.rename[0].resolve({});
+    else calls.rename[0].reject(new Error('unavailable'));
+    await flush();
+    assert.deepEqual(
+      {
+        name: subject.name,
+        basicName: subject.basicInfo.name,
+        inputShow: subject.input.show,
+        copyName: subject.input.copyName,
+      },
+      snapshot
+    );
+    assert.equal(subject.renameLoading, false);
+    assert.equal(messages.length, 0);
+    assert.deepEqual(renameEvents, succeeds ? [{ id: 101, name: 'closed-renamed' }] : []);
+    subject.$destroy();
+  });
+}
+
+test('side: retained basic refresh and rename are serialized', async () => {
+  const { subject, calls } = sidePanel();
+  calls.detail[0].resolve(detailData('retained-config'));
+  calls.targets[0].resolve(targetData([row]));
+  await flush();
+  subject.sideShow = false;
+  await Vue.nextTick();
+  subject.sideShow = true;
+  await Vue.nextTick();
+  subject.handleEditLabel('name');
+  assert.equal(subject.input.show, false);
+  subject.handleUpdateConfigName(subject.basicInfo, 'renamed-config');
+  subject.input.copyName = 'renamed-config';
+  subject.handleTagClickout();
+  assert.equal(calls.rename.length, 0);
+  calls.detail[1].resolve(detailData('refreshed-config'));
+  calls.targets[1].resolve(targetData([row]));
+  await flush();
+  subject.input.copyName = 'renamed-config';
+  subject.handleTagClickout();
+  subject.getDetailData();
+  assert.equal(calls.detail.length, 2);
+  calls.rename[0].resolve({});
+  await flush();
+  assert.equal(subject.basicInfo.name, 'renamed-config');
+  assert.equal(subject.name, 'renamed-config');
+  subject.$destroy();
+});
+
+test('side: reopening the same configuration invalidates the earlier rename context', async () => {
+  const { subject, calls } = sidePanel();
+  calls.detail[0].resolve(detailData('retained-config'));
+  calls.targets[0].resolve(targetData([row]));
+  await flush();
+  subject.handleUpdateConfigName(subject.basicInfo, 'old-renamed');
+  subject.sideShow = false;
+  await Vue.nextTick();
+  subject.sideShow = true;
+  await Vue.nextTick();
+  calls.rename[0].resolve({});
+  await flush();
+  assert.equal(subject.basicInfo.name, 'retained-config');
+  assert.equal(subject.name, 'retained-config');
+  assert.equal(subject.requests.detail.loading, true);
+  assert.equal(subject.renameLoading, false);
+  calls.detail[1].resolve(detailData('refreshed-config'));
+  calls.targets[1].resolve(targetData([row]));
+  await flush();
+  assert.equal(subject.basicInfo.name, 'refreshed-config');
   subject.$destroy();
 });
