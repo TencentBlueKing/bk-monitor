@@ -115,11 +115,14 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         }
         self.cluster.return_value = [
             {
-                "cluster_id": 106,
-                "cluster_name": "test-kafka",
                 "cluster_type": "kafka",
-                "gse_stream_to_id": 203,
-                "cluster_config": {"domain_name": "kafka.example.test", "port": 9092, "password": "hidden"},
+                "cluster_config": {
+                    "cluster_id": 106,
+                    "cluster_name": "test-kafka",
+                    "domain_name": "kafka.example.test",
+                    "port": 9092,
+                    "password": "hidden",
+                },
             }
         ]
         self.route.return_value = [
@@ -157,6 +160,11 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         branch = result["v4_branches"][0]
         self.assertEqual(branch["association_status"], "verified")
         self.assertEqual(result["metadata"]["data"]["mq_cluster_id"], 106)
+        self.assertEqual(result["kafka_cluster"]["probe_status"], "success")
+        self.assertEqual(result["kafka_cluster"]["data"]["cluster_id"], 106)
+        self.assertEqual(result["kafka_cluster"]["data"]["cluster_name"], "test-kafka")
+        self.assertEqual(result["kafka_cluster"]["data"]["host"], "kafka.example.test")
+        self.assertIsNone(result["kafka_cluster"]["data"]["gse_stream_to_id"])
         self.assertEqual(result["gse_route"]["data"]["routes"][0]["stream_to_id"], 203)
         self.assertEqual(result["gse_stream_to"][0]["probe"]["data"]["items"][0]["kafka_addresses"][0]["port"], 9092)
         self.assertEqual(branch["resources"]["kafka_channel"]["data"]["spec"]["streamToId"], 203)
@@ -170,6 +178,20 @@ class DataLinkControlPlaneTest(SimpleTestCase):
             self.assertFalse(call.kwargs["request_cookies"])
             self.assertEqual(call.kwargs["params"]["tenant"], "system")
         self.biz_check.assert_not_called()
+
+    def test_cluster_accepts_legacy_top_level_identity(self):
+        self.cluster.return_value[0]["cluster_id"] = 106
+        self.cluster.return_value[0]["cluster_name"] = "test-kafka"
+        self.cluster.return_value[0]["gse_stream_to_id"] = 203
+        result = get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
+        self.assertEqual(result["kafka_cluster"]["probe_status"], "success")
+        self.assertEqual(result["kafka_cluster"]["data"]["gse_stream_to_id"], 203)
+
+    def test_cluster_rejects_conflicting_identity(self):
+        self.cluster.return_value[0]["cluster_id"] = 999
+        result = get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
+        self.assertEqual(result["kafka_cluster"]["probe_status"], "failed")
+        self.assertEqual(result["v4_branches"][0]["association_status"], "verified")
 
     def test_read_only_api_routes(self):
         gse = _GseApi()

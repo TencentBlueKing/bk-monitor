@@ -205,19 +205,33 @@ def _metadata(data):
 def _cluster(rows, cluster_id):
     if not isinstance(rows, list):
         raise ValueError("cluster list is invalid")
-    item = next((row for row in rows if isinstance(row, dict) and str(row.get("cluster_id")) == str(cluster_id)), None)
-    if item is None:
+    matches = []
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("cluster_config"), dict):
+            continue
+        config = row["cluster_config"]
+        returned_ids = [value for value in (row.get("cluster_id"), config.get("cluster_id")) if value is not None]
+        if returned_ids and all(str(value) == str(cluster_id) for value in returned_ids):
+            matches.append((row, config))
+    if not matches:
         raise ValueError("requested Kafka cluster is missing from response")
-    config = item.get("cluster_config") or {}
+    if len(matches) > 1:
+        raise ValueError("requested Kafka cluster is ambiguous in response")
+    item, config = matches[0]
+    nested_id = config.get("cluster_id")
+    actual_id = nested_id if nested_id is not None else item.get("cluster_id")
+    stream_id = item.get("gse_stream_to_id")
+    if stream_id is None:
+        stream_id = config.get("gse_stream_to_id")
     return {
-        "cluster_id": item["cluster_id"],
-        "cluster_name": item.get("cluster_name"),
+        "cluster_id": actual_id,
+        "cluster_name": config.get("cluster_name") or item.get("cluster_name"),
         "cluster_type": item.get("cluster_type"),
         "host": config.get("domain_name"),
         "port": config.get("port"),
         "extranet_host": config.get("extranet_domain_name"),
         "extranet_port": config.get("extranet_port"),
-        "gse_stream_to_id": item.get("gse_stream_to_id"),
+        "gse_stream_to_id": stream_id,
     }
 
 
