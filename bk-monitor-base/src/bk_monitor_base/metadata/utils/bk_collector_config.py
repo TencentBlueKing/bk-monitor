@@ -216,7 +216,7 @@ class BkCollectorClusterConfig:
                 for secret in secrets_list.items:
                     existing_secrets[secret.metadata.name] = secret
         except Exception as e:
-            logger.warning(f"Failed to list secrets in namespace {namespace}: {e}")
+            logger.warning("Failed to list secrets in namespace %s, error_type=%s", namespace, type(e).__name__)
             existing_secrets = {}
 
         for secret_name, group_info in secret_groups.items():
@@ -227,9 +227,7 @@ class BkCollectorClusterConfig:
 
             if sec is None:
                 # 不存在，则创建
-                logger.info(
-                    f"{cluster_id} {protocol} secret({secret_name}) not exists, create it with {len(configs)} configs."
-                )
+                logger.info(f"{cluster_id} {protocol} secret not exists, create it with {len(configs)} configs.")
 
                 secret_data = {}
                 for filename, config_info in configs.items():
@@ -250,12 +248,10 @@ class BkCollectorClusterConfig:
                     namespace=namespace,
                     body=sec,
                 )
-                logger.info(
-                    f"{cluster_id} {protocol} secret({secret_name}) create successful with {len(configs)} configs."
-                )
+                logger.info(f"{cluster_id} {protocol} secret created with {len(configs)} configs.")
             else:
                 # 存在，检查是否需要更新
-                logger.info(f"{cluster_id} {protocol} secret({secret_name}) already exists, checking for updates.")
+                logger.info(f"{cluster_id} {protocol} secret exists, checking for updates.")
                 need_update = False
 
                 if not isinstance(sec.data, dict):
@@ -264,12 +260,11 @@ class BkCollectorClusterConfig:
 
                 # 检查每个配置是否需要更新
                 for filename, config_info in configs.items():
-                    config_id = config_info["config_id"]
                     new_content = config_info["content"]
                     raw_content = config_info["raw_content"]
 
                     if filename not in sec.data:
-                        logger.info(f"{cluster_id} {protocol} config({config_id}) not exists in secret, adding it.")
+                        logger.info(f"{cluster_id} {protocol} configuration missing in secret, adding it.")
                         sec.data[filename] = new_content
                         need_update = True
                     else:
@@ -278,11 +273,13 @@ class BkCollectorClusterConfig:
                             old_content = sec.data.get(filename, "")
                             old_raw_content = gzip.decompress(base64.b64decode(old_content)).decode()
                             if old_raw_content != raw_content:
-                                logger.info(f"{cluster_id} {protocol} config({config_id}) has changed, updating it.")
+                                logger.info(f"{cluster_id} {protocol} configuration changed, updating it.")
                                 sec.data[filename] = new_content
                                 need_update = True
                         except Exception as e:
-                            logger.warning(f"failed to decode old content for config({config_id}): {e}, updating it.")
+                            logger.warning(
+                                "Failed to decode old configuration, error_type=%s, updating it", type(e).__name__
+                            )
                             sec.data[filename] = new_content
                             need_update = True
 
@@ -293,9 +290,9 @@ class BkCollectorClusterConfig:
                         namespace=namespace,
                         body=sec,
                     )
-                    logger.info(f"{cluster_id} {protocol} secret({secret_name}) update successful.")
+                    logger.info(f"{cluster_id} {protocol} secret updated.")
                 else:
-                    logger.info(f"{cluster_id} {protocol} secret({secret_name}) has not been modified.")
+                    logger.info(f"{cluster_id} {protocol} secret unchanged.")
 
         logger.info(
             f"cluster({cluster_id}) batch deployment completed, processed {len(secret_groups)} secrets with total {len(config_map)} configs."
@@ -331,7 +328,9 @@ class BkCollectorClusterConfig:
                 label_selector=secret_label_selector,
             )
         except Exception as e:
-            logger.warning(f"[clean dup secrets] failed to list secrets in namespace {namespace}: {e}")
+            logger.warning(
+                "[clean dup secrets] failed to list secrets in namespace %s, error_type=%s", namespace, type(e).__name__
+            )
             return
 
         if not exists_secrets_obj or not exists_secrets_obj.items:
@@ -376,14 +375,14 @@ class BkCollectorClusterConfig:
             secret = secret_file_to_secret[need_update_sec_file]
             if not secret.data:
                 # delete secret
-                logger.info(f"[clean dup secrets] cluster_id {cluster_id} delete secret {need_update_sec_file} start")
+                logger.info(f"[clean dup secrets] cluster_id {cluster_id} delete duplicate secret start")
                 bcs_client.client_request(
                     bcs_client.core_api.delete_namespaced_secret,
                     name=secret.metadata.name,
                     namespace=namespace,
                     body=secret,
                 )
-                logger.info(f"[clean dup secrets] cluster_id {cluster_id} delete secret {need_update_sec_file} ok")
+                logger.info(f"[clean dup secrets] cluster_id {cluster_id} delete duplicate secret ok")
             else:
                 # update secret
                 bcs_client.client_request(
@@ -392,7 +391,7 @@ class BkCollectorClusterConfig:
                     namespace=namespace,
                     body=secret,
                 )
-                logger.info(f"[clean dup secrets] cluster_id {cluster_id} update secret {need_update_sec_file}")
+                logger.info(f"[clean dup secrets] cluster_id {cluster_id} update duplicate secret")
 
     @classmethod
     def bk_collector_namespace(cls, cluster_id):

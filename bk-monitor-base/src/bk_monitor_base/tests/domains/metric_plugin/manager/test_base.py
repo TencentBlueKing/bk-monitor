@@ -925,6 +925,21 @@ class TestSafeTarExtract:
         assert (extract_dir / "plugin" / "VERSION").read_text() == "1.0.0"
         assert (extract_dir / "plugin" / "info" / "meta.yaml").read_text() == "plugin_id: test"
 
+    def test_rechecks_links_created_by_earlier_members(self, tmp_path: Path) -> None:
+        """前序链接改变父目录后，后续链接也不得逃逸出解压目录。"""
+        tar_bytes = _make_tar_bytes_with_symlink(
+            members=[("link/escaped.txt", b"payload")],
+            symlinks=[("parent", "."), ("parent/link", "..")],
+        )
+        tar_file = tmp_path / "ordered-links.tar.gz"
+        tar_file.write_bytes(tar_bytes)
+        extract_dir = tmp_path / "extract"
+        extract_dir.mkdir()
+        with tarfile.open(tar_file, "r:gz") as tar:
+            with pytest.raises(tarfile.FilterError):
+                BaseMetricPluginManager._safe_tar_extract(tar, extract_dir)
+        assert not (tmp_path / "escaped.txt").exists()
+
     @pytest.mark.parametrize(
         "malicious_name, description",
         [

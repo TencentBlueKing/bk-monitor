@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from bk_monitor_base.domains.uptime_check.constants import (
     DEFAULT_UPTIMECHECK_OUTPUT_FIELDS,
@@ -102,7 +103,8 @@ class TestCollectorScriptGeneration:
         assert "bk_biz_id: 0" in rendered
         assert "period: 60s" in rendered
         assert "steps:" in rendered
-        assert "https://www.baidu.com" in rendered
+        http_task = yaml.safe_load(rendered)["bkmonitorbeat"]["http_task"]["tasks"][0]
+        assert http_task["steps"][0]["url_list"] == ["https://www.baidu.com"]
 
 
 class TestCollectorHostGrouping:

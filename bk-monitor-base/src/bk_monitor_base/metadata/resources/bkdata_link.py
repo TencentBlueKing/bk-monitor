@@ -631,7 +631,7 @@ class QueryDataLinkMetadataResource(Resource):
                 bk_data_id,
                 str(e),
             )
-            raise ValidationError(f"Failed to query metadata: {str(e)}")
+            raise ValidationError("Failed to query metadata. 查询元数据失败，请联系管理员查看日志。") from e
 
     def _resolve_bk_data_id(
         self,
@@ -665,9 +665,10 @@ class QueryDataLinkMetadataResource(Resource):
             except ValidationError:
                 raise
             except Exception as e:
+                logger.exception("Failed to resolve bk_data_id from result_table_id %s", result_table_id)
                 raise ValidationError(
-                    f"Failed to resolve bk_data_id from result_table_id '{result_table_id}': {str(e)}. 通过 result_table_id '{result_table_id}' 解析 bk_data_id 失败: {str(e)}。"
-                )
+                    f"Failed to resolve bk_data_id from result_table_id '{result_table_id}'. 通过 result_table_id '{result_table_id}' 解析 bk_data_id 失败。"
+                ) from e
 
         # 通过vm_result_table_id查找bk_data_id
         if vm_result_table_id:
@@ -697,9 +698,10 @@ class QueryDataLinkMetadataResource(Resource):
             except ValidationError:
                 raise
             except Exception as e:
+                logger.exception("Failed to resolve bk_data_id from vm_result_table_id %s", vm_result_table_id)
                 raise ValidationError(
-                    f"Failed to resolve bk_data_id from vm_result_table_id '{vm_result_table_id}': {str(e)}. 通过 vm_result_table_id '{vm_result_table_id}' 解析 bk_data_id 失败: {str(e)}。"
-                )
+                    f"Failed to resolve bk_data_id from vm_result_table_id '{vm_result_table_id}'. 通过 vm_result_table_id '{vm_result_table_id}' 解析 bk_data_id 失败。"
+                ) from e
 
         # 不应该到达这里，因为validate已经检查过
         raise ValidationError(

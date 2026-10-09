@@ -1013,7 +1013,8 @@ class Detect(AbstractConfig):
             try:
                 parse_expression(value)
             except Exception as e:
-                raise ValidationError(str(e)) from e
+                logger.exception("Failed to parse alert expression")
+                raise ValidationError(_("告警表达式格式错误，请检查语法")) from e
             return value
 
     def __init__(

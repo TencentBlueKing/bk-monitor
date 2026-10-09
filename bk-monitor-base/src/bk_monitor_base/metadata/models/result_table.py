@@ -795,9 +795,7 @@ class ResultTable(models.Model):
             logger.info(f"table_id->[{table_id}] is search failed, because it not belong split measurement.")
 
         # 如果找不到，那么就使用新的结果表判断方式进行判断
-        re_new_style_result = re.match(
-            r"((?P<bk_biz_id>\d+)_)?(?P<database>(\w|_)+?)(\.)(?P<table_id>(\w)+)", query_table_id
-        )
+        re_new_style_result = re.match(r"((?P<bk_biz_id>\d+)_)?(?P<database>\w+?)(\.)(?P<table_id>\w+)", query_table_id)
         if re_new_style_result is not None:
             result_group = re_new_style_result.groupdict()
             table_id = "{}.{}".format(result_group["database"], result_group["table_id"])

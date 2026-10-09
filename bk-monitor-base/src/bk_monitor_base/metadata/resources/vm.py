@@ -256,7 +256,7 @@ class ModifyClusterByVmrts(Resource):
             raise ValidationError(f"can't find vm cluster name [{cluster_name}]")
         except Exception as e:  # pylint: disable=broad-except
             logger.error("ModifyClusterByVmrts: get vm cluster name [%s] error: %s", cluster_name, e)
-            raise ValidationError(f"get vm cluster name [{cluster_name}] error: {e}")
+            raise ValidationError(f"get vm cluster name [{cluster_name}] failed") from e
 
         # 查找关联的VM接入记录
         vm_queryset = models.AccessVMRecord.objects.filter(vm_result_table_id__in=vmrts, bk_tenant_id=bk_tenant_id)

@@ -437,6 +437,11 @@ class TestJinjaRender:
         assert _jinja_render(template, {"show": True}) == "visible"
         assert _jinja_render(template, {"show": False}) == ""
 
+    def test_yaml_values_are_not_html_escaped(self) -> None:
+        """YAML 中的 URL 与配置值必须原样保留，不能使用 HTML 实体转义。"""
+        value = 'https://example.com/?a=1&b=<value>"'
+        assert _jinja_render("value: {{ value }}", {"value": value}) == f"value: {value}"
+
 
 @pytest.mark.django_db(databases=["default"])
 class TestK8sInstallerRegistration:

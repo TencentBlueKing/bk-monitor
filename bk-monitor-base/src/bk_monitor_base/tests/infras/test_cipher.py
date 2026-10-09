@@ -12,7 +12,7 @@ pytestmark = pytest.mark.django_db(transaction=False)
 @pytest.fixture(scope="module")
 def rsa_key_pair():
     """自动生成RSA密钥对（模块级别共享）"""
-    key = RSA.generate(1024)
+    key = RSA.generate(2048)
     private_key = key.export_key()
     return private_key.decode("utf-8")
 
@@ -233,7 +233,7 @@ class TestCipherIntegration:
     def test_rsa_aes_combined_encryption(self):
         """测试RSA和AES组合加密场景"""
         # 生成密钥
-        rsa_key = RSA.generate(1024).export_key().decode("utf-8")
+        rsa_key = RSA.generate(2048).export_key().decode("utf-8")
         aes_key = get_random_bytes(32).hex()
 
         # 创建加密器
