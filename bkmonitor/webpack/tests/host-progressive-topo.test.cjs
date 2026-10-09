@@ -234,7 +234,11 @@ function harness(query = {}, readonly = false, workerResponse) {
       if (id.endsWith('/store/modules/app')) return { useAppStore: () => appStore };
       if (id.endsWith('/use-host-topo-tree-worker')) return { useHostTopoTreeWorker: () => treeClient(workerResponse) };
       if (id.endsWith('/use-host-list-worker')) return { useHostListWorker: () => listWorker };
-      if (id.endsWith('/host-service')) return services;
+      if (id.endsWith('/host-service')) return {
+        ...services,
+        getHostListQuery: () => null,
+        clearHostListQueryCache: () => {},
+      };
       if (id === 'monitor-api/modules/scene_view') return services;
       if (id.endsWith('/process-table')) return { default: ProcessTable };
       if (id.endsWith('/use-metric-groups')) return { useMetricGroups: metricGroups };
