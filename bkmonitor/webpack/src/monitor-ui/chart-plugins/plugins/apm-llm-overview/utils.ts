@@ -269,8 +269,7 @@ export function formatDuration(value: number) {
 }
 
 export function formatGrowthRate(rate: null | number | undefined) {
-  if (typeof rate !== 'number' || Number.isNaN(rate)) return '--';
-  if (rate === 0) return '0%';
+  if (typeof rate !== 'number' || Number.isNaN(rate) || rate === 0) return '--';
   const sign = rate > 0 ? '+ ' : '- ';
   return `${sign}${Math.abs(rate)}%`;
 }
