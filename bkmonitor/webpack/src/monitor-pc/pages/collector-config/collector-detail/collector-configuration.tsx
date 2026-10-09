@@ -30,6 +30,7 @@ import { renameCollectConfig } from 'monitor-api/modules/collecting';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { copyText } from 'monitor-common/utils/utils.js';
 
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import { allSpaceRegex, emojiRegex } from '../../../utils/index';
 import { PLUGIN_MANAGE_AUTH } from '../authority-map';
@@ -51,6 +52,7 @@ interface IProps {
   collectConfigData?: any;
   configLoading?: boolean;
   detailData?: any;
+  detailLoaded?: boolean;
   id: number | string;
   loadError?: boolean;
   loading: boolean;
@@ -58,6 +60,7 @@ interface IProps {
   tableLoading: boolean;
   targetError?: boolean;
   targetInfo?: any;
+  targetLoaded?: boolean;
   onRetryDetail?: () => void;
   onRetryTargets?: () => void;
 }
@@ -67,6 +70,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
   @Prop({ type: Boolean, default: false }) configLoading: boolean;
   @Prop({ type: Boolean, default: false }) loadError: boolean;
   @Prop({ type: Boolean, default: false }) targetError: boolean;
+  @Prop({ type: Boolean, default: false }) detailLoaded: boolean;
+  @Prop({ type: Boolean, default: false }) targetLoaded: boolean;
   renameLoading = false;
   @Prop({ type: [String, Number], default: '' }) id: number | string;
   @Prop({ type: Boolean, default: false }) show: boolean;
@@ -143,7 +148,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
     this.basicInfo = { ...data.basic_info, id: this.id };
     if (data.extend_info.log) {
       this.basicInfo = { ...this.basicInfo, ...data.extend_info.log };
-      !this.basicInfo.filter_patterns && (this.basicInfo.filter_patterns = []);
+      if (!this.basicInfo.filter_patterns) this.basicInfo.filter_patterns = [];
       this.basicInfoMap = {
         ...this.basicInfoMap,
         log_path: this.$t('日志路径'),
@@ -188,7 +193,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
    * @param v
    * @param e
    */
-  handleLabelKey(v, e) {
+  handleLabelKey(_v, e) {
     this.errMsg.name = '';
     if (e.code === 'Enter' || e.code === 'NumpadEnter') {
       this.handleTagClickout();
@@ -348,14 +353,16 @@ export default class CollectorConfiguration extends tsc<IProps> {
           </bk-button>
           {!this.loading && !this.loadError && <HistoryDialog list={this.historyList} />}
         </div>
-        {this.loading ? (
+        {this.loadError && (
+          <DetailLoadError
+            compact={this.detailLoaded}
+            onRetry={() => this.$emit('retryDetail')}
+          />
+        )}
+        {this.loading && !this.detailLoaded ? (
           <DetailSkeleton section='configuration' />
-        ) : this.loadError ? (
-          <DetailLoadError onRetry={() => this.$emit('retryDetail')} />
-        ) : (
-          <div
-            class='detail-wrap-item'
-          >
+        ) : this.detailLoaded ? (
+          <div class='detail-wrap-item'>
             <div class='wrap-item-title'>{this.$t('基本信息')}</div>
             <div class='wrap-item-content'>
               {Object.keys(this.basicInfoMap).map(key =>
@@ -364,7 +371,10 @@ export default class CollectorConfiguration extends tsc<IProps> {
                   (() => {
                     if (key === 'name') {
                       return [
-                        <span key={1} aria-busy={this.renameLoading ? 'true' : 'false'}>
+                        <span
+                          key={1}
+                          aria-busy={this.renameLoading ? 'true' : 'false'}
+                        >
                           {this.input.show ? (
                             <bk-input
                               ref={`input${key}`}
@@ -385,7 +395,11 @@ export default class CollectorConfiguration extends tsc<IProps> {
                             </span>
                           )}
                           {this.renameLoading && (
-                            <span class='collector-detail-loading-indicator' role='status' aria-label={this.$t('加载中')} />
+                            <span
+                              class='collector-detail-loading-indicator'
+                              aria-label={this.$t('加载中')}
+                              role='status'
+                            />
                           )}
                         </span>,
                         !!this.errMsg.name && <div class='err-msg'>{this.errMsg.name}</div>,
@@ -497,7 +511,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 : undefined}
             </div>
           </div>
-        )}
+        ) : undefined}
         {[
           <div
             key={1}
@@ -508,7 +522,7 @@ export default class CollectorConfiguration extends tsc<IProps> {
             class='detail-wrap-item'
           >
             <div class='wrap-item-title mt-24'>{this.$t('采集目标')}</div>
-            {!!this.targetInfo?.table_data?.length && (
+            {!this.tableLoading && !this.targetError && !!this.targetInfo?.table_data?.length && (
               <bk-button
                 class='mt-10'
                 size='small'
@@ -524,6 +538,8 @@ export default class CollectorConfiguration extends tsc<IProps> {
                 <DetailSkeleton section='targets' />
               ) : this.targetError ? (
                 <DetailLoadError onRetry={() => this.$emit('retryTargets')} />
+              ) : !this.targetLoaded ? undefined : !this.targetInfo?.table_data?.length ? (
+                <EmptyStatus type='empty' />
               ) : ['TOPO', 'SET_TEMPLATE', 'SERVICE_TEMPLATE', 'DYNAMIC_GROUP'].includes(
                   this.targetInfo?.target_node_type
                 ) ? (
@@ -571,7 +587,9 @@ export default class CollectorConfiguration extends tsc<IProps> {
                           if (column.id === ETargetColumn.objectType) {
                             return this.basicInfo?.target_object_type === 'SERVICE'
                               ? this.$t('实例数')
-                              : this.$t('主机数');
+                              : this.basicInfo?.target_object_type === 'HOST'
+                                ? this.$t('主机数')
+                                : this.$t('数量');
                           }
                           return column.name;
                         })()}
