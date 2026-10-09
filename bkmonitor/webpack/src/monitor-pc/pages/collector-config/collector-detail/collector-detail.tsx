@@ -113,7 +113,9 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
 
   cancelRequests() {
     window.clearTimeout(this.allData[TabEnum.TargetDetail].timer);
-    Object.values(this.requests).forEach(request => request.cancel());
+    Object.values(this.requests).forEach(request => {
+      request.cancel();
+    });
   }
 
   @Watch('$route.params.id')
@@ -141,7 +143,7 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
     this.handleTabChange(Object.values(TabEnum).includes(tab) ? tab : TabEnum.Configuration, true);
   }
 
-  public beforeRouteEnter(to: Route, from: Route, next: NavigationGuardNext) {
+  public beforeRouteEnter(to: Route, _from: Route, next: NavigationGuardNext) {
     const { params } = to;
     next((vm: CollectorDetail) => {
       vm.collectId = Number(params.id);
@@ -362,12 +364,14 @@ export default class CollectorDetail extends Mixins(authorityMixinCreate(collect
                 collectConfigData={this.collectConfigData}
                 configLoading={this.requests.config.loading}
                 detailData={this.detailData}
+                detailLoaded={this.requests.detail.loaded}
                 loadError={this.requests.detail.error}
                 loading={this.requests.detail.loading}
                 show={this.active === TabEnum.Configuration}
                 tableLoading={this.requests.targets.loading}
                 targetError={this.requests.targets.error}
                 targetInfo={this.targetInfo}
+                targetLoaded={this.requests.targets.loaded}
                 onRetryDetail={this.getDetails}
                 onRetryTargets={this.getTargetInfoData}
                 {...{
