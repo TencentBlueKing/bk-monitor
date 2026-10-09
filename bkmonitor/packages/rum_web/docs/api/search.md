@@ -1250,7 +1250,6 @@ POST /rum/search/record_detail/
   "overview": {
     "title": "TypeError: Cannot read properties of undefined (reading 'name')",
     "badges": [
-      {"field_name": "elapsed_time", "value": 123500},
       {"field_name": "attributes.outcome.type", "value": "error"}
     ]
     // items 结构同示例 1，字段值取当前 Span。

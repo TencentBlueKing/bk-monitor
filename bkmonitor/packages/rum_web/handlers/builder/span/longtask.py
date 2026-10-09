@@ -8,48 +8,22 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.builder.base import BaseSection, DictItem, KeyValueItem
-from rum_web.handlers.builder.span.base import SpanBuilder
-from rum_web.handlers.builder.constants import SectionType
-from rum_web.handlers.builder.span.base import SpanOverview, named
+from rum_web.handlers.builder.base import KeyInfoSection, group
+from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
 
 
 class LongTaskSpanOverview(SpanOverview):
-    BADGES = named(
-        "elapsed_time",
-        "attributes.outcome.type",
+    BADGES = named("elapsed_time", "attributes.outcome.type")
+
+
+class LongTaskKeyInfoSection(KeyInfoSection):
+    DATA = (
+        group("duration", "elapsed_time", "attributes.long_task.blocking_duration"),
+        group("action", "attributes.action.id"),
+        group("attribution", "attributes.long_task.entry_type", "attributes.long_task.name"),
     )
-
-
-class LongTaskKeyInfoSection(BaseSection):
-    KEY = "key_info"
-    TYPE = SectionType.SUMMARY_CARDS.value
-    DATA = [
-        DictItem(
-            key="duration",
-            items=[
-                KeyValueItem(key="elapsed_time"),
-                KeyValueItem(key="attributes.long_task.blocking_duration"),
-            ],
-        ),
-        DictItem(
-            key="action",
-            items=[
-                KeyValueItem(key="attributes.action.id"),
-            ],
-        ),
-        DictItem(
-            key="attribution",
-            items=[
-                KeyValueItem(key="attributes.long_task.entry_type"),
-                KeyValueItem(key="attributes.long_task.name"),
-            ],
-        ),
-    ]
 
 
 class LongTaskSpanBuilder(SpanBuilder):
     OVERVIEW = LongTaskSpanOverview
-    SECTIONS = [
-        LongTaskKeyInfoSection,
-    ]
+    SECTIONS = (LongTaskKeyInfoSection,)

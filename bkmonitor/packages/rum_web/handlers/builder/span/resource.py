@@ -14,97 +14,58 @@ from typing import Any
 
 from django.utils.translation import gettext_lazy as _
 
+from bkmonitor.data_source.format import flatten_dict_data
 from semconv.rum.constants import ResourceType
-
-from rum_web.handlers.builder.base import (
-    BaseSection,
-    DictItem,
-    EMPTY_VALUE,
-    KeyValueItem,
-    NamedKeyValueItem,
-)
+from rum_web.handlers.builder.base import BaseSection, KeyInfoSection, KeyValueItem, WaterfallSection, group
 from rum_web.handlers.builder.constants import SectionType
 from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
-from rum_web.handlers.builder.utils import get_safe_number, phase, safe_diff, waterfall
+from rum_web.handlers.builder.utils import get_safe_number, safe_diff, waterfall
 
 
 @dataclass(frozen=True, slots=True)
 class CompressionRatioItem(KeyValueItem):
-    """压缩率 = 1 - encoded_body_size / decoded_body_size。
-
-    - 分子 ``encoded_body_size``：压缩后正文大小（不含协议头）。
-    - 分母 ``decoded_body_size``：解压后正文大小。
-    - 缺失或分母为 0 时返回 :data:`rum_web.handlers.builder.base.EMPTY_VALUE`，避免与「真实压缩率为 0」混淆；
-      也避免使用 ``transfer_size`` 导致缓存命中（transfer=0）时压缩率恒为 100%。
-    """
+    """正文压缩率不含协议头；缺失或分母为零时返回 None。"""
 
     key: str = "display.compression_ratio"
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
         encoded = get_safe_number(flatten_data.get("attributes.resource.encoded_body_size"), None)
         decoded = get_safe_number(flatten_data.get("attributes.resource.decoded_body_size"), None)
-        if encoded is None or not decoded:
-            return {self.key: EMPTY_VALUE}
-        return {self.key: 1 - encoded / decoded}
+        return {self.key: None if encoded is None or not decoded else 1 - encoded / decoded}
 
 
 class ResourceSpanOverview(SpanOverview):
-    BADGES = named(
-        "elapsed_time",
-        "attributes.resource.type",
-        "attributes.http.response.status_code",
+    BADGES = named("elapsed_time", "attributes.resource.type", "attributes.http.response.status_code")
+
+
+DURATION = group("duration", "elapsed_time")
+HTTP_RESULT = group("http_result", "attributes.http.response.status_code", "attributes.outcome.type")
+TRANSFER = group(
+    "transfer",
+    CompressionRatioItem(),
+    "attributes.resource.transfer_size",
+    "attributes.resource.encoded_body_size",
+    "attributes.resource.decoded_body_size",
+)
+
+
+class ResourceXhrAndFetchKeyInfoSection(KeyInfoSection):
+    DATA = (
+        group(
+            "request",
+            "attributes.http.request.method",
+            "attributes.url.template",
+            "attributes.url.full",
+            "attributes.server.address",
+        ),
+        DURATION,
+        HTTP_RESULT,
+        TRANSFER,
     )
 
 
-class ResourceXhrAndFetchKeyInfoSection(BaseSection):
-    KEY = "key_info"
-    TYPE = SectionType.SUMMARY_CARDS.value
-    DATA = [
-        DictItem(
-            key="request",
-            items=[
-                KeyValueItem(key="attributes.http.request.method"),
-                KeyValueItem(key="attributes.url.template"),
-                KeyValueItem(key="attributes.url.full"),
-                KeyValueItem(key="attributes.server.address"),
-            ],
-        ),
-        DictItem(
-            key="duration",
-            items=[
-                KeyValueItem(key="elapsed_time"),
-            ],
-        ),
-        DictItem(
-            key="http_result",
-            items=[
-                KeyValueItem(key="attributes.http.response.status_code"),
-                KeyValueItem(key="attributes.outcome.type"),
-            ],
-        ),
-        DictItem(
-            key="transfer",
-            items=[
-                CompressionRatioItem(),
-                KeyValueItem(key="attributes.resource.transfer_size"),
-                KeyValueItem(key="attributes.resource.encoded_body_size"),
-                KeyValueItem(key="attributes.resource.decoded_body_size"),
-            ],
-        ),
-    ]
-
-
-class LoadingTimingSection(BaseSection):
-    """加载时序瀑布：按「字段缺失 → 不出段」组装，避免伪造全零瀑布。
-
-    - 时序字段全部缺失时，省略整个 ``loading_timing`` 区块。
-    - ``tls`` 段缺失整段不输出，不能在时间轴原点渲染一条 duration=0 的假 TLS 段。
-    - 各段 ``duration`` 为负时省略该段，不将负时长归零。
-    """
-
+class LoadingTimingSection(WaterfallSection):
     KEY = "loading_timing"
-    TYPE = SectionType.WATERFALL.value
-
     PHASE_ALIASES = {
         "prepare": _("浏览器准备"),
         "dns": _("DNS"),
@@ -113,149 +74,78 @@ class LoadingTimingSection(BaseSection):
         "first_byte": _("等待首字节"),
         "download": _("内容下载"),
     }
+    PHASE_FIELDS = (
+        ("dns", "dns"),
+        ("connect", "connect"),
+        ("tls", "ssl"),
+        ("first_byte", "first_byte"),
+        ("download", "download"),
+    )
 
-    def _fill_data(self):
+    def get_data(self) -> dict[str, Any] | None:
         redirect_start = self.numeric_or_none("attributes.resource.redirect.start")
         dns_start = self.numeric_or_none("attributes.resource.dns.start")
-        dns_duration = self.numeric_or_none("attributes.resource.dns.duration")
-        connect_start = self.numeric_or_none("attributes.resource.connect.start")
-        connect_duration = self.numeric_or_none("attributes.resource.connect.duration")
-        ssl_start = self.numeric_or_none("attributes.resource.ssl.start")
-        ssl_duration = self.numeric_or_none("attributes.resource.ssl.duration")
-        first_byte_start = self.numeric_or_none("attributes.resource.first_byte.start")
-        first_byte_duration = self.numeric_or_none("attributes.resource.first_byte.duration")
-        download_start = self.numeric_or_none("attributes.resource.download.start")
-        download_duration = self.numeric_or_none("attributes.resource.download.duration")
-
-        # prepare 段：redirect_start 与 dns_start 均需存在，负时长由后续 phase 校验过滤。
-        prepare_duration = safe_diff(dns_start, redirect_start)
-        # connect_duration 与 ssl_duration 均有数值时扣减；TLS 段是否有效由后续 phase 单独校验。
-        adjusted_connect_duration = connect_duration
-        if connect_duration is not None and ssl_duration is not None:
-            adjusted_connect_duration = connect_duration - ssl_duration
-
-        # phase 构造：起点或时长缺失、时长为负则整段不输出（Resource 侧不校验负起点）
-        aliases = self.PHASE_ALIASES
-        phases_candidates = [
-            phase("prepare", aliases.get("prepare", "prepare"), redirect_start, prepare_duration),
-            phase("dns", aliases.get("dns", "dns"), dns_start, dns_duration),
-            phase("connect", aliases.get("connect", "connect"), connect_start, adjusted_connect_duration),
-            # TLS 段任一字段缺失整段省略：不能在时间轴原点渲染 duration=0 的假段
-            phase("tls", aliases.get("tls", "tls"), ssl_start, ssl_duration),
-            phase("first_byte", aliases.get("first_byte", "first_byte"), first_byte_start, first_byte_duration),
-            phase("download", aliases.get("download", "download"), download_start, download_duration),
-        ]
-
-        # total_duration 以 download_start + download_duration 为准；算不出沿用 0 兜底，前端据以展示坐标轴总长。
-        if download_start is not None and download_duration is not None and download_duration >= 0:
-            total_duration = download_start + download_duration
-        else:
-            total_duration = 0
-
-        # 整段时序都拿不到时 waterfall 返回 None，调用方省略 ``data``，
-        # 前端可据此区分「没有时序数据」与「耗时为 0」。
-        data = waterfall(phases_candidates, total=total_duration)
-        if data is not None:
-            self.component_dict["data"] = data
+        timings = {
+            "prepare": (redirect_start, safe_diff(dns_start, redirect_start)),
+            **{
+                key: (
+                    self.numeric_or_none(f"attributes.resource.{field}.start"),
+                    self.numeric_or_none(f"attributes.resource.{field}.duration"),
+                )
+                for key, field in self.PHASE_FIELDS
+            },
+        }
+        tls_start, tls_duration = timings["tls"]
+        connect_start, connect_duration = timings["connect"]
+        # TLS 段有效时才扣除握手耗时，缺少字段不能视为发生或未发生握手。
+        if tls_start is not None and tls_duration is not None and tls_duration >= 0 and connect_duration is not None:
+            timings["connect"] = (connect_start, connect_duration - tls_duration)
+        download_start, download_duration = timings["download"]
+        total = (
+            download_start + download_duration
+            if download_start is not None and download_duration is not None and download_duration >= 0
+            else 0
+        )
+        return waterfall(self.phases((key, start, duration) for key, (start, duration) in timings.items()), total=total)
 
 
-class ResourceOthersKeyInfoSection(BaseSection):
-    KEY = "key_info"
-    TYPE = SectionType.SUMMARY_CARDS.value
-    DATA = [
-        DictItem(
-            key="http_result",
-            items=[
-                KeyValueItem(key="attributes.http.response.status_code"),
-                KeyValueItem(key="attributes.outcome.type"),
-            ],
-        ),
-        DictItem(
-            key="duration",
-            items=[
-                KeyValueItem(key="elapsed_time"),
-            ],
-        ),
-        DictItem(
-            key="transfer",
-            items=[
-                CompressionRatioItem(),
-                KeyValueItem(key="attributes.resource.transfer_size"),
-                KeyValueItem(key="attributes.resource.encoded_body_size"),
-                KeyValueItem(key="attributes.resource.decoded_body_size"),
-            ],
-        ),
-        DictItem(
-            key="delivery",
-            items=[
-                KeyValueItem(key="attributes.resource.delivery_type"),
-                KeyValueItem(key="attributes.resource.cache.hit"),
-            ],
-        ),
-        DictItem(
-            key="blocking",
-            items=[
-                KeyValueItem(key="attributes.resource.render_blocking_status"),
-            ],
-        ),
-    ]
+class ResourceOthersKeyInfoSection(KeyInfoSection):
+    DATA = (
+        HTTP_RESULT,
+        DURATION,
+        TRANSFER,
+        group("delivery", "attributes.resource.delivery_type", "attributes.resource.cache.hit"),
+        group("blocking", "attributes.resource.render_blocking_status"),
+    )
 
 
 class ResourceOthersResourceInfoSection(BaseSection):
     KEY = "resource_info"
     TYPE = SectionType.SUMMARY_CARDS.value
-    ITEMS = [
-        NamedKeyValueItem("attributes.resource.type"),
-        NamedKeyValueItem("attributes.url.template"),
-        NamedKeyValueItem("attributes.server.address"),
-        NamedKeyValueItem("attributes.http.request.method"),
-        NamedKeyValueItem("attributes.resource.protocol"),
-    ]
+    ITEMS = named(
+        "attributes.resource.type",
+        "attributes.url.template",
+        "attributes.server.address",
+        "attributes.http.request.method",
+        "attributes.resource.protocol",
+    )
 
 
 class ResourceXhrAndFetchSpanBuilder(SpanBuilder):
-    """Resource(xhr / fetch) 子协议：请求 → 耗时 → HTTP 结果 → 传输 + 加载瀑布。"""
-
     OVERVIEW = ResourceSpanOverview
-    SECTIONS: list[type[BaseSection]] = [
-        ResourceXhrAndFetchKeyInfoSection,
-        LoadingTimingSection,
-    ]
+    SECTIONS = (ResourceXhrAndFetchKeyInfoSection, LoadingTimingSection)
 
 
 class ResourceOthersSpanBuilder(SpanBuilder):
-    """Resource(其它类型，img / css / js / ...) 子协议：
-    结果 → 耗时 → 传输 → 投递 → 阻塞 + 资源信息 + 加载瀑布。
-    """
-
     OVERVIEW = ResourceSpanOverview
-    SECTIONS: list[type[BaseSection]] = [
-        ResourceOthersKeyInfoSection,
-        ResourceOthersResourceInfoSection,
-        LoadingTimingSection,
-    ]
+    SECTIONS = (ResourceOthersKeyInfoSection, ResourceOthersResourceInfoSection, LoadingTimingSection)
 
 
 class ResourceSpanBuilder(SpanBuilder):
-    """Resource 类型 Span 详情 Builder 入口：仅负责按 ``attributes.resource.type`` 分派子 Builder。
-
-    - XHR / Fetch → :class:`ResourceXhrAndFetchSpanBuilder`
-    - 其它资源  → :class:`ResourceOthersSpanBuilder`
-
-    子 Builder 各自声明 ``OVERVIEW`` / ``SECTIONS``，复用 :class:`SpanBuilder.process` 的
-    公共装配流程（``origin_data`` / ``span_id`` / ``overview`` / ``sections``）。
-    """
-
-    XHR_FETCH_TYPES: frozenset[str] = frozenset({ResourceType.XHR.value, ResourceType.FETCH.value})
+    XHR_FETCH_TYPES = frozenset({ResourceType.XHR.value, ResourceType.FETCH.value})
 
     @classmethod
-    def process(
-        cls,
-        span: dict[str, Any],
-        related_spans: Sequence[dict[str, Any]] = (),
-    ) -> dict[str, Any]:
-        resource_type: str = span.get("attributes", {}).get("resource.type", "")
-        sub_builder: type[SpanBuilder] = (
-            ResourceXhrAndFetchSpanBuilder if resource_type in cls.XHR_FETCH_TYPES else ResourceOthersSpanBuilder
-        )
-        return sub_builder.process(span, related_spans)
+    def process(cls, span: dict[str, Any], related_spans: Sequence[dict[str, Any]] = ()) -> dict[str, Any]:
+        resource_type = flatten_dict_data(span).get("attributes.resource.type")
+        builder = ResourceXhrAndFetchSpanBuilder if resource_type in cls.XHR_FETCH_TYPES else ResourceOthersSpanBuilder
+        return builder.process(span, related_spans)

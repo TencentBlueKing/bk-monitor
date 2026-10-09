@@ -8,14 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from abc import ABC, abstractmethod
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-from rum_web.handlers.builder.utils import get_safe_number
+from django.utils.functional import Promise
 
-
-EMPTY_VALUE = None
+from rum_web.handlers.builder.constants import SectionType
+from rum_web.handlers.builder.utils import get_safe_number, phase
 
 
 class ItemProtocol(Protocol):
@@ -25,26 +25,22 @@ class ItemProtocol(Protocol):
 @dataclass(frozen=True, slots=True)
 class NamedKeyValueItem:
     field_name: str
-    field_alias: str | None = None
+    field_alias: str | Promise | None = None
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
-        result: dict[str, Any] = {"field_name": self.field_name}
+        result: dict[str, Any] = {"field_name": self.field_name, "value": flatten_data.get(self.field_name)}
         if self.field_alias is not None:
             result["field_alias"] = self.field_alias
-        result["value"] = flatten_data.get(self.field_name, EMPTY_VALUE)
         return result
 
 
 @dataclass(frozen=True, slots=True)
 class DictItem:
     key: str
-    items: list[ItemProtocol]
+    items: Sequence[ItemProtocol]
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
-        merge_dict: dict[str, Any] = {}
-        for child in self.items:
-            merge_dict.update(child.render(flatten_data))
-        return {self.key: merge_dict}
+        return {self.key: {key: value for item in self.items for key, value in item.render(flatten_data).items()}}
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,86 +49,66 @@ class KeyValueItem:
     source: str | None = None
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
-        return {self.key: flatten_data.get(self.source or self.key, EMPTY_VALUE)}
+        return {self.key: flatten_data.get(self.source or self.key)}
 
 
-class BaseComponent(ABC):
+def group(key: str, *fields: str | ItemProtocol) -> DictItem:
+    return DictItem(key, tuple(KeyValueItem(field) if isinstance(field, str) else field for field in fields))
+
+
+class BaseComponent:
     def __init__(self, flatten_data: dict[str, Any]):
-        self.flatten_data: dict[str, Any] = flatten_data
-        self.component_dict: dict[str, Any] = {}
-
-    @abstractmethod
-    def render(self) -> dict[str, Any]:
-        return self.component_dict
+        self.flatten_data = flatten_data
 
 
 class BaseOverview(BaseComponent):
     BADGES: tuple[NamedKeyValueItem, ...] = ()
     ITEMS: tuple[NamedKeyValueItem, ...] = ()
 
-    def _fill_title(self):
-        self.component_dict["title"] = self.flatten_data.get("span_name", EMPTY_VALUE)
-
-    def _fill_badges(self):
-        self.component_dict["badges"] = []
-        for item in self.BADGES:
-            self.component_dict["badges"].append(item.render(self.flatten_data))
-
-    def _fill_items(self):
-        self.component_dict["items"] = []
-        for item in self.ITEMS:
-            self.component_dict["items"].append(item.render(self.flatten_data))
-
     def render(self) -> dict[str, Any]:
-        self._fill_title()
-        self._fill_badges()
-        self._fill_items()
-        return self.component_dict
+        return {
+            "title": self.flatten_data.get("span_name"),
+            "badges": [item.render(self.flatten_data) for item in self.BADGES],
+            "items": [item.render(self.flatten_data) for item in self.ITEMS],
+        }
 
 
 class BaseSection(BaseComponent):
     KEY: str
     TYPE: str
-    DATA: list[ItemProtocol] | None = None
-    ITEMS: list[ItemProtocol] | None = None
+    DATA: tuple[ItemProtocol, ...] | None = None
+    ITEMS: tuple[NamedKeyValueItem, ...] | None = None
 
     def numeric_or_none(self, key: str) -> int | float | None:
         return get_safe_number(self.flatten_data.get(key), None)
 
-    def _fill_data(self):
-        if self.DATA is None:
-            return
-        self.component_dict["data"] = {}
-        for item in self.DATA:
-            self.component_dict["data"].update(item.render(self.flatten_data))
-
-    def _fill_items(self):
-        if self.ITEMS is None:
-            return
-        self.component_dict["items"] = []
-        for item in self.ITEMS:
-            self.component_dict["items"].append(item.render(self.flatten_data))
+    def get_data(self) -> dict[str, Any] | None:
+        if self.DATA is not None:
+            return {key: value for item in self.DATA for key, value in item.render(self.flatten_data).items()}
 
     def render(self) -> dict[str, Any] | None:
-        self.component_dict.update(
-            {
-                "key": self.KEY,
-                "type": self.TYPE,
-            }
-        )
-        self._fill_data()
-        self._fill_items()
-        if not self.component_dict.get("data") and not self.component_dict.get("items"):
-            return None
-        return self.component_dict
+        result: dict[str, Any] = {"key": self.KEY, "type": self.TYPE}
+        if (data := self.get_data()) is not None:
+            result["data"] = data
+        if self.ITEMS is not None:
+            result["items"] = [item.render(self.flatten_data) for item in self.ITEMS]
+        return result if result.get("data") or result.get("items") else None
 
 
-__all__ = [
-    "BaseSection",
-    "BaseComponent",
-    "BaseOverview",
-    "NamedKeyValueItem",
-    "KeyValueItem",
-    "DictItem",
-    "EMPTY_VALUE",
-]
+class KeyInfoSection(BaseSection):
+    KEY = "key_info"
+    TYPE = SectionType.SUMMARY_CARDS.value
+
+
+class WaterfallSection(BaseSection):
+    TYPE = SectionType.WATERFALL.value
+    PHASE_ALIASES: dict[str, Any]
+    MIN_START: int | None = None
+
+    def phases(
+        self, specs: Iterable[tuple[str, int | float | None, int | float | None]]
+    ) -> list[dict[str, Any] | None]:
+        return [
+            phase(key, self.PHASE_ALIASES[key], start, duration, min_start=self.MIN_START)
+            for key, start, duration in specs
+        ]

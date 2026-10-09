@@ -11,9 +11,10 @@ specific language governing permissions and limitations under the License.
 from collections.abc import Sequence
 from typing import Any
 
+from bkmonitor.data_source.format import flatten_dict_data
 from semconv.rum.constants import RumSpanType
 
-from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview
+from rum_web.handlers.builder.span.base import SpanBuilder
 
 from .action import ActionSpanBuilder
 from .error import ErrorSpanBuilder
@@ -23,20 +24,6 @@ from .view import ViewSpanBuilder
 from .vital import VitalSpanBuilder
 
 
-class DefaultSpanBuilder(SpanBuilder):
-    """未命中具体类型时的兜底 Builder：保留公共 ``overview`` 与空 ``sections``。
-
-    方案 0x03.h 约定默认实现「返回公共头部和空 sections」。若 fallback 到裸
-    :class:`SpanBuilder`，``OVERVIEW`` 为 ``None`` 会导致响应缺失公共头部
-    （``display.span_type``、``app_name``、时间、用户、环境等），点开非明确
-    实现的类型详情基本是空白，因此这里强制挂上 :class:`SpanOverview`。
-    """
-
-    OVERVIEW = SpanOverview
-    SECTIONS: list = []
-
-
-#: ``attributes.span_type`` 到对应 Builder 的分派表，未命中时回落到 :class:`DefaultSpanBuilder`。
 BUILDERS: dict[str, type[SpanBuilder]] = {
     RumSpanType.RESOURCE.value: ResourceSpanBuilder,
     RumSpanType.ACTION.value: ActionSpanBuilder,
@@ -51,13 +38,7 @@ def build(
     span: dict[str, Any],
     related_spans: Sequence[dict[str, Any]] = (),
 ) -> dict[str, Any]:
-    """根据 ``attributes.span_type`` 分派到对应 Builder 并返回组装结果。
-
-    未命中类型时回落到 :class:`DefaultSpanBuilder`，保证响应仍包含公共 ``overview``。
-    """
-    span_type = span.get("attributes", {}).get("span_type", "")
-    builder = BUILDERS.get(span_type, DefaultSpanBuilder)
+    """按 Span 类型分派，未命中时保留公共概览和空 sections。"""
+    span_type = flatten_dict_data(span).get("attributes.span_type") or ""
+    builder = BUILDERS.get(span_type, SpanBuilder)
     return builder.process(span, related_spans)
-
-
-__all__ = ["build"]

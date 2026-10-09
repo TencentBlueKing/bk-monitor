@@ -8,42 +8,21 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.builder.base import BaseSection, DictItem, KeyValueItem
-from rum_web.handlers.builder.span.base import SpanBuilder
-from rum_web.handlers.builder.constants import SectionType
-from rum_web.handlers.builder.span.base import SpanOverview, named
+from rum_web.handlers.builder.base import KeyInfoSection, group
+from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
 
 
 class ActionSpanOverview(SpanOverview):
-    BADGES = named(
-        "elapsed_time",
-        "attributes.action.type",
-        "attributes.outcome.type",
+    BADGES = named("elapsed_time", "attributes.action.type", "attributes.outcome.type")
+
+
+class ActionKeyInfoSection(KeyInfoSection):
+    DATA = (
+        group("interaction", "attributes.action.type"),
+        group("target", "attributes.action.target.name", "attributes.action.target.tag"),
     )
-
-
-class ActionKeyInfoSection(BaseSection):
-    KEY = "key_info"
-    TYPE = SectionType.SUMMARY_CARDS.value
-    DATA = [
-        DictItem(
-            key="interaction",
-            items=[
-                KeyValueItem(key="attributes.action.type"),
-            ],
-        ),
-        DictItem(
-            key="target",
-            items=[
-                KeyValueItem(key="attributes.action.target.name"),
-                KeyValueItem(key="attributes.action.target.tag"),
-            ],
-        ),
-    ]
 
 
 class ActionSpanBuilder(SpanBuilder):
     OVERVIEW = ActionSpanOverview
-    SECTIONS = [
-        ActionKeyInfoSection,
-    ]
+    SECTIONS = (ActionKeyInfoSection,)

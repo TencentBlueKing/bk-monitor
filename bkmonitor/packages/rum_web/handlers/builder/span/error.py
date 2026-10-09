@@ -8,42 +8,33 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from rum_web.handlers.builder.base import BaseSection, DictItem, KeyValueItem
-from rum_web.handlers.builder.span.base import SpanBuilder
-from rum_web.handlers.builder.constants import SectionType
-from rum_web.handlers.builder.span.base import SpanOverview, named
+from dataclasses import dataclass
+from typing import Any
+
+from rum_web.handlers.builder.base import KeyInfoSection, KeyValueItem, group
+from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
+
+
+@dataclass(frozen=True, slots=True)
+class ExceptionTypeItem(KeyValueItem):
+    key: str = "events.attributes.exception.type"
+
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        value = flatten_data.get(self.key)
+        return {self.key: (value[0] if value else None) if isinstance(value, list) else value}
 
 
 class ErrorSpanOverview(SpanOverview):
-    BADGES = named(
-        "elapsed_time",
-        "attributes.outcome.type",
+    BADGES = named("attributes.outcome.type")
+
+
+class ErrorKeyInfoSection(KeyInfoSection):
+    DATA = (
+        group("error_type", ExceptionTypeItem()),
+        group("source", "attributes.code.filepath", "attributes.code.lineno", "attributes.code.column"),
     )
-
-
-class ErrorKeyInfoSection(BaseSection):
-    KEY = "key_info"
-    TYPE = SectionType.SUMMARY_CARDS.value
-    DATA = [
-        DictItem(
-            key="error_type",
-            items=[
-                KeyValueItem(key="events.attributes.exception.type"),
-            ],
-        ),
-        DictItem(
-            key="source",
-            items=[
-                KeyValueItem(key="attributes.code.filepath"),
-                KeyValueItem(key="attributes.code.lineno"),
-                KeyValueItem(key="attributes.code.column"),
-            ],
-        ),
-    ]
 
 
 class ErrorSpanBuilder(SpanBuilder):
     OVERVIEW = ErrorSpanOverview
-    SECTIONS = [
-        ErrorKeyInfoSection,
-    ]
+    SECTIONS = (ErrorKeyInfoSection,)

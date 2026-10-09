@@ -14,7 +14,7 @@ from decimal import ROUND_CEILING, ROUND_FLOOR, Decimal
 from typing import Any
 
 from django.utils.translation import gettext_lazy as _
-from rest_framework import serializers
+from rest_framework.exceptions import ValidationError
 
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
 from bkmonitor.data_source.utils import types
@@ -31,7 +31,6 @@ from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
 from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS
-
 from semconv.rum.trace import SpanSpec
 from constants.otel_query import FieldTypeEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
@@ -94,6 +93,8 @@ class SpanLevelHandler(BaseRumLevelHandler):
     }
 
     #: View 详情需要补查的关联 Span 类型，用于生命周期快照与 Web Vitals 最新值。
+    VIEW_RELATED_SPAN_LIMIT = 1000
+
     VIEW_RELATED_SPAN_TYPES: tuple[str, ...] = (RumSpanType.VIEW.value, RumSpanType.VITAL.value)
 
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
@@ -387,6 +388,53 @@ class SpanLevelHandler(BaseRumLevelHandler):
             self._calculate_interval_buckets(start_time, end_time, field_name, filters, query_string, intervals)
         )
 
+    def record_detail(
+        self,
+        record_id: str,
+        extra_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """查询单条 Span 记录详情。
+
+        通过 span_id 查询原始记录，并根据 span_type 分派到对应 SpanBuilder。
+        View 类型额外补查关联 Span（生命周期 + Web Vitals）供 Builder 装配最新快照。
+        """
+        span = self.query.query_detail(record_id)
+        if not span:
+            raise ValidationError(str(_("span_id = {} 记录不存在")).format(record_id))
+
+        related_spans = self._query_related_spans(span)
+        return build_span_detail(span, related_spans)
+
+    # ---- 内部工具方法 ----
+
+    def _query_related_spans(self, span: dict[str, Any]) -> list[dict[str, Any]]:
+        """仅对 View 类型补查关联 Span：同 View ID 下 span_type=view / vital 的记录。
+
+        - 按 ``attributes.view.id`` + ``span_type`` 过滤；``view.id`` 为 UUID 全局唯一，不追加 Session 条件。
+        - 不指定时间边界，由查询层基于 retention 补齐保留期窗口（``query_list(None, None, ...)``）。
+        - 单次最多返回 1000 条 View / Vital 记录，不分页；Builder 仅在这些记录中挑选最新快照。
+        - 其他类型返回空列表，避免不必要的存储查询。
+        """
+        flat = flatten_dict_data(span)
+        if flat.get("attributes.span_type") != RumSpanType.VIEW.value:
+            return []
+
+        view_id = flat.get("attributes.view.id")
+        if not view_id:
+            return []
+
+        filters: list[types.Filter] = [
+            {"key": "attributes.view.id", "value": [view_id], "operator": FilterOperator.EQUAL},
+            {
+                "key": "attributes.span_type",
+                "value": list(self.VIEW_RELATED_SPAN_TYPES),
+                "operator": FilterOperator.EQUAL,
+            },
+        ]
+        return self.query.query_list(
+            start_time=None, end_time=None, offset=0, limit=self.VIEW_RELATED_SPAN_LIMIT, filters=filters
+        )
+
     @staticmethod
     def _process_graph_info(datapoints: list[list[Any]]) -> dict[str, Any]:
         """处理数值趋势图格式，和时序趋势图保持一致。
@@ -483,46 +531,3 @@ class SpanLevelHandler(BaseRumLevelHandler):
                 f.get("options", {}).get("group_relation", OperatorGroupRelation.OR),
             )
         return generator.to_query_string()
-
-    def record_detail(
-        self,
-        record_id: str,
-        extra_config: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
-        """查询单条 Span 记录详情。
-
-        通过 span_id 查询原始记录，并根据 span_type 分派到对应 SpanBuilder。
-        View 类型额外补查关联 Span（生命周期 + Web Vitals）供 Builder 装配最新快照。
-        """
-        span = self.query.query_detail(record_id)
-        if not span:
-            raise serializers.ValidationError(_("span_id = {} 记录不存在").format(record_id))
-
-        related_spans = self._query_related_spans(span)
-        return build_span_detail(span, related_spans)
-
-    def _query_related_spans(self, span: dict[str, Any]) -> list[dict[str, Any]]:
-        """仅对 View 类型补查关联 Span：同 View ID 下 span_type=view / vital 的记录。
-
-        - 按 ``attributes.view.id`` + ``span_type`` 过滤；``view.id`` 为 UUID 全局唯一，不追加 Session 条件。
-        - 不指定时间边界，由查询层基于 retention 补齐保留期窗口（``query_list(None, None, ...)``）。
-        - 单次最多返回 1000 条 View / Vital 记录，不分页；Builder 仅在这些记录中挑选最新快照。
-        - 其他类型返回空列表，避免不必要的存储查询。
-        """
-        flat = flatten_dict_data(span)
-        if flat.get("attributes.span_type") != RumSpanType.VIEW.value:
-            return []
-
-        view_id = flat.get("attributes.view.id")
-        if not view_id:
-            return []
-
-        filters: list[types.Filter] = [
-            {"key": "attributes.view.id", "value": [view_id], "operator": FilterOperator.EQUAL},
-            {
-                "key": "attributes.span_type",
-                "value": list(self.VIEW_RELATED_SPAN_TYPES),
-                "operator": FilterOperator.EQUAL,
-            },
-        ]
-        return self.query.query_list(None, None, offset=0, limit=1000, filters=filters)

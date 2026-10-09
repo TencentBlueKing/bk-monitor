@@ -27,30 +27,30 @@ from semconv.rum.attributes import (
     virtual_attributes,
     http_attributes,
 )
-from semconv.rum.field import FieldSpec, RatingLevel
+from semconv.rum.field import FieldSpec, RatingThreshold
 from semconv.rum.registry import FieldRegistry
 from semconv.rum.trace import SpanSpec
 from semconv.rum.trace.status import Status
 
 
-class TestRatingLevel:
-    """RatingLevel 基础行为测试。"""
+class TestRatingThreshold:
+    """RatingThreshold 基础行为测试。"""
 
     def test_frozen_immutable(self):
-        """RatingLevel 为 frozen dataclass，不可修改。"""
-        level = RatingLevel(rating="good", value=2500)
+        """RatingThreshold 为 frozen dataclass，不可修改。"""
+        level = RatingThreshold(rating="good", value=2500)
         with pytest.raises((AttributeError, TypeError)):
             level.rating = "poor"  # type: ignore[misc]
 
     def test_poor_level_no_value(self):
         """末项省略 value 并兜底。"""
-        level = RatingLevel(rating="poor")
+        level = RatingThreshold(rating="poor")
         assert level.value is None
 
     def test_equality(self):
-        """相同参数的 RatingLevel 相等。"""
-        a = RatingLevel(rating="good", value=2500)
-        b = RatingLevel(rating="good", value=2500)
+        """相同参数的 RatingThreshold 相等。"""
+        a = RatingThreshold(rating="good", value=2500)
+        b = RatingThreshold(rating="good", value=2500)
         assert a == b
 
 
@@ -303,18 +303,18 @@ class TestSpanSpec:
         """LCP 评级阈值使用字段单位（ms），末项省略 value 并兜底。"""
         lcp = SpanSpec.from_field("LCP")
         assert len(lcp.rating_config) == 3
-        assert lcp.rating_config[0] == RatingLevel(rating="good", value=2500)
-        assert lcp.rating_config[1] == RatingLevel(rating="needs_improvement", value=4000)
-        assert lcp.rating_config[2] == RatingLevel(rating="poor")
+        assert lcp.rating_config[0] == RatingThreshold(rating="good", value=2500)
+        assert lcp.rating_config[1] == RatingThreshold(rating="needs_improvement", value=4000)
+        assert lcp.rating_config[2] == RatingThreshold(rating="poor")
         assert lcp.rating_config[2].value is None
 
     def test_cls_rating_config(self):
         """CLS 评级阈值无单位，数值为小数。"""
         cls_spec = SpanSpec.from_field("CLS")
         assert len(cls_spec.rating_config) == 3
-        assert cls_spec.rating_config[0] == RatingLevel(rating="good", value=0.1)
-        assert cls_spec.rating_config[1] == RatingLevel(rating="needs_improvement", value=0.25)
-        assert cls_spec.rating_config[2] == RatingLevel(rating="poor")
+        assert cls_spec.rating_config[0] == RatingThreshold(rating="good", value=0.1)
+        assert cls_spec.rating_config[1] == RatingThreshold(rating="needs_improvement", value=0.25)
+        assert cls_spec.rating_config[2] == RatingThreshold(rating="poor")
 
     # ------------------------------------------------------------------
     # 未注册字段

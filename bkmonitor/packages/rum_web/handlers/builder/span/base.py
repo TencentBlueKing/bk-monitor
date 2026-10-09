@@ -13,44 +13,32 @@ from dataclasses import dataclass
 from typing import Any
 
 from bkmonitor.data_source.format import flatten_dict_data
+from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 
-from rum_web.handlers.builder.base import BaseOverview, BaseSection, KeyValueItem, NamedKeyValueItem
+from rum_web.handlers.builder.base import BaseOverview, BaseSection, NamedKeyValueItem
 from rum_web.handlers.builder.utils import build_rating_config
 from semconv.rum.constants import RumSpanType
 
 
 def named(*field_names: str) -> tuple[NamedKeyValueItem, ...]:
-    """按 ``field_names`` 批量构造按名透传取值的概览 Item 元组。
-
-    用于子类拼装 ``BADGES`` / ``ITEMS``，典型用法：
-
-        BADGES = named("elapsed_time", "attributes.outcome.type")
-        ITEMS = (SpanTypeItem(), *named("app_name", "attributes.view.url_template"))
-
-    返回元组而非列表，匹配 ``BADGES`` / ``ITEMS`` 的不可变类级配置语义。
-    """
     return tuple(NamedKeyValueItem(field_name=name) for name in field_names)
 
 
 @dataclass(frozen=True, slots=True)
-class RatingConfigItem(KeyValueItem):
-    """Web Vitals 评级阈值配置：``source`` 指定指标名，为空时读取 ``attributes.vital.metric``。
-
-    View 详情的 Web Vitals 区块与 Vital 详情的 rating 区块共用，避免两份等价实现分叉。
-    """
-
+class RatingConfigItem:
+    metric: str | None = None
     key: str = "display.rating_config"
 
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
-        source = self.source or flatten_data.get("attributes.vital.metric", "")
-        return {self.key: build_rating_config(source)}
+        metric = self.metric or flatten_data.get("attributes.vital.metric", "")
+        return {self.key: build_rating_config(metric)}
 
 
 @dataclass(frozen=True, slots=True)
 class SpanTypeItem(NamedKeyValueItem):
     field_name: str = "display.span_type"
-    field_alias: str = _("类型")
+    field_alias: str | Promise = _("类型")
 
     SPAN_TYPE_MAP = {
         RumSpanType.VIEW.value: "View",
@@ -66,7 +54,7 @@ class SpanTypeItem(NamedKeyValueItem):
     def render(self, flatten_data: dict[str, Any]) -> Any:
         result: dict[str, Any] = {"field_name": self.field_name, "field_alias": self.field_alias}
         span_type: str = flatten_data.get("attributes.span_type", "")
-        span_type_display: str = self.SPAN_TYPE_MAP.get(span_type, "")
+        span_type_display: str = self.SPAN_TYPE_MAP.get(span_type, span_type)
         if span_type == RumSpanType.RESOURCE.value:
             resource_type: str = flatten_data.get("attributes.resource.type", "")
             result["alias"] = result["value"] = (
@@ -102,8 +90,8 @@ class SpanBuilder:
     公共头部 ``origin_data``、``span_id`` 与空 ``sections`` 在此统一处理。
     """
 
-    OVERVIEW: type[BaseOverview] | None = None
-    SECTIONS: list[type[BaseSection]] | None = None
+    OVERVIEW: type[BaseOverview] = SpanOverview
+    SECTIONS: tuple[type[BaseSection], ...] = ()
 
     @classmethod
     def process(
@@ -111,28 +99,14 @@ class SpanBuilder:
         span: dict[str, Any],
         related_spans: Sequence[dict[str, Any]] = (),
     ) -> dict[str, Any]:
-        """组装 Span 详情响应。
-
-        - ``span``：主 Span 的原始记录（未打平），用于回填 ``origin_data``、``span_id``。
-        - ``related_spans``：关联 Span 列表（仅 View 会传入生命周期与 Vital 快照）。
-
-        默认按 ``OVERVIEW``、``SECTIONS`` 顺序渲染；未声明 ``OVERVIEW`` 时省略该键。
-        ``sections`` 始终为列表，未声明 ``SECTIONS`` 或各 Section 均返回 ``None`` 时为空。
-        """
+        """保留主记录，在准备后的展示数据上按声明渲染概览与区块。"""
         flatten_data = cls._prepare_flatten_data(span, related_spans)
-        result: dict[str, Any] = {
+        return {
             "origin_data": span,
             "span_id": span.get("span_id", ""),
-            "sections": [],
+            "overview": cls.OVERVIEW(flatten_data).render(),
+            "sections": [result for section in cls.SECTIONS if (result := section(flatten_data).render()) is not None],
         }
-        if cls.OVERVIEW is not None:
-            result["overview"] = cls.OVERVIEW(flatten_data).render()
-        if cls.SECTIONS is not None:
-            for section_cls in cls.SECTIONS:
-                section_render = section_cls(flatten_data).render()
-                if section_render is not None:
-                    result["sections"].append(section_render)
-        return result
 
     @classmethod
     def _prepare_flatten_data(

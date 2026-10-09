@@ -2,10 +2,10 @@
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You obtain a copy of the License at http://opensource.org/licenses/MIT
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
 Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
-specific language permissions and limitations under the License.
+specific language governing permissions and limitations under the License.
 """
 
 from copy import deepcopy
@@ -13,189 +13,154 @@ from copy import deepcopy
 import pytest
 
 from rum_web.handlers.builder.span import build
-from rum_web.handlers.builder.utils import phase
-from rum_web.handlers.builder.span.view import (
-    build_vital_source_key,
-    ViewSpanBuilder,
-    VITAL_METRICS,
-    VITAL_METRIC_KEYS,
-)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 公共构造器
-# ─────────────────────────────────────────────────────────────────────────────
+REPORT_TIME = 1788451565500000
+NAVIGATION_TIME = 1788451565200
 
 
-def _base_view_span(span_id: str = "34e3b6ff1943346c") -> dict:
-    """模拟 SDK 瞬时 View 快照：根级时间为上报时刻，导航开始时间单独以毫秒保存。"""
+def _span(span_type, attrs=None, **root):
     return {
-        "span_id": span_id,
-        "span_name": "view-001",
+        "span_id": "span-001",
+        "span_name": span_type,
         "app_name": "test-app",
-        "start_time": 1788451565500000,
-        "end_time": 1788451565500000,
+        "start_time": REPORT_TIME,
+        "end_time": REPORT_TIME,
         "elapsed_time": 0,
-        "attributes": {
-            "span_type": "view",
-            "view": {
-                "id": "view-001",
-                "started_at": 1788451565200,
-                "url_template": "/order/submit",
-                "previous_url_template": "/product/:id/",
-                "loading_time": 200,
-                "loading_time_source": "auto",
-                "loading_type": "initial_load",
-                "first_byte": 101.7,
-                "dom_content_loaded": 140,
-                "load_event": 175,
-                "version": 1,
-            },
-            "session": {"id": "sess-001"},
-            "user": {"id": "user-001"},
-        },
         "resource": {"deployment": {"environment": {"name": "prod"}}},
-    }
-
-
-def _view_snapshot(
-    span_id: str = "vs",
-    version: int = 3,
-    *,
-    end_time: int = 1788451565999999,
-    started_at: int | float | None = 1788451565200,
-    **view_overrides,
-) -> dict:
-    """构造同 View ID 的瞬时快照，显式区分根级上报时间与 View 属性覆盖项。"""
-    attributes = {
-        "span_type": "view",
-        "view": {
-            "id": "view-001",
-            "first_byte": 101.7,
-            "dom_content_loaded": 140,
-            "load_event": 175,
-            "loading_time": 200,
-            "loading_time_source": "auto",
-            "loading_type": "initial_load",
-            "version": version,
+        **root,
+        "attributes": {
+            "span_type": span_type,
+            "session.id": "sess-001",
+            "view.id": "view-001",
+            "view.url_template": "/order/submit",
+            "user.id": "user-001",
+            **(attrs or {}),
         },
     }
-    if started_at is not None:
-        attributes["view"]["started_at"] = started_at
-    attributes["view"].update(view_overrides)
-    return {
-        "span_id": span_id,
-        "start_time": end_time,
-        "end_time": end_time,
-        "elapsed_time": 0,
-        "attributes": attributes,
-    }
 
 
-def _vital_span(metric: str, value: float, end_time: int = 1788451565328000, **ttfb) -> dict:
-    """单个 Web Vitals 快照，metric 大小写不敏感。"""
-    vital: dict = {"metric": metric, "value": value}
-    if ttfb:
-        vital["ttfb"] = ttfb
-    return {
-        "span_id": f"vital-{metric.lower()}",
-        "end_time": end_time,
-        "attributes": {"span_type": "vital", "vital": vital},
-    }
+def _base_view_span(**attrs):
+    return _span(
+        "view",
+        {
+            "view.started_at": NAVIGATION_TIME,
+            "view.previous_url_template": "/product/:id/",
+            "view.loading_time": 200,
+            "view.loading_time_source": "auto",
+            "view.loading_type": "initial_load",
+            "view.first_byte": 101.7,
+            "view.dom_content_loaded": 140,
+            "view.load_event": 175,
+            "view.version": 1,
+            **attrs,
+        },
+    )
 
 
-def _resource_span(resource_type: str = "xhr") -> dict:
-    return {
-        "span_id": "7d2f09b6f8bc31aa",
-        "span_name": "POST /api/orders",
-        "app_name": "test-app",
-        "start_time": 1788451565200000,
-        "end_time": 1788451565328000,
-        "elapsed_time": 128000,
-        "attributes": {
-            "span_type": "resource",
+def _view_snapshot(version=3, end_time=1788451565999999, started_at=NAVIGATION_TIME, **attrs):
+    return _span(
+        "view",
+        {"view.version": version, "view.started_at": started_at, **attrs},
+        span_id=f"view-{version}",
+        start_time=end_time,
+        end_time=end_time,
+    )
+
+
+def _vital_span(metric, value, end_time=1788451565328000, **ttfb):
+    return _span(
+        "vital",
+        {"vital.metric": metric, "vital.value": value, **{f"vital.ttfb.{key}": value for key, value in ttfb.items()}},
+        span_id=f"vital-{metric}",
+        start_time=end_time,
+        end_time=end_time,
+    )
+
+
+def _resource_span(resource_type="xhr"):
+    return _span(
+        "resource",
+        {
             "resource.type": resource_type,
-            "resource.deployment.environment.name": "prod",
             "http.request.method": "POST",
             "http.response.status_code": 200,
             "url.template": "/api/orders",
             "url.full": "https://example.com/api/orders",
             "server.address": "example.com",
             "outcome.type": "success",
-            "view.id": "view-001",
-            "view.url_template": "/order/submit",
-            "session.id": "sess-001",
-            "user.id": "user-001",
         },
-    }
+        span_name="POST /api/orders",
+        start_time=1788451565200000,
+        end_time=1788451565328000,
+        elapsed_time=128000,
+    )
 
 
-def _section(result: dict, key: str) -> dict | None:
-    for section in result.get("sections", []):
-        if section.get("key") == key:
-            return section
-    return None
+def _section(result, key):
+    return next((section for section in result["sections"] if section["key"] == key), None)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 分派与通用头部
-# ─────────────────────────────────────────────────────────────────────────────
+def _items(result, name="items"):
+    return {item["field_name"]: item["value"] for item in result["overview"][name]}
 
 
 class TestSpanBuilderDispatch:
-    """分派表与公共头部（方案 0x03.h）"""
-
-    def test_build_preserves_origin_data_and_span_id(self):
-        span = _base_view_span()
-        result = build(span, [])
-        assert result["origin_data"] is span
-        assert result["span_id"] == span["span_id"]
-
     @pytest.mark.parametrize(
-        "span_type,section_keys",
+        "span_type,display,sections",
         [
-            ("resource", ["key_info", "resource_info"]),
-            ("action", ["key_info"]),
-            ("long_task", ["key_info"]),
-            ("error", ["key_info"]),
-            ("vital", ["vital_rating"]),
-            ("view", ["key_info", "web_vitals"]),
+            ("resource", "Resource", ["key_info", "resource_info"]),
+            ("action", "Action", ["key_info"]),
+            ("long_task", "Long Task", ["key_info"]),
+            ("error", "Error", ["key_info"]),
+            ("vital", "Web Vital", ["vital_rating"]),
+            ("view", "View", ["key_info", "web_vitals"]),
+            ("websocket", "WebSocket", []),
+            ("unknown", "unknown", []),
         ],
     )
-    def test_build_dispatches_to_registered_builder(self, span_type, section_keys):
-        span = {"span_id": "x", "attributes": {"span_type": span_type}}
-        result = build(span, [])
-        assert "overview" in result
-        # 每种已注册类型还应产出自己的区块，不能全部回落到只有公共头部的默认 Builder。
-        assert [section["key"] for section in result["sections"]] == section_keys
+    def test_dispatch_and_common_overview(self, span_type, display, sections):
+        span = _span(span_type)
+        before = deepcopy(span)
+        result = build(span)
+        items = _items(result)
+        assert result["span_id"] == "span-001"
+        assert result["origin_data"] is span
+        assert span == before
+        assert items["display.span_type"] == display
+        assert items["app_name"] == "test-app"
+        assert items["attributes.session.id"] == "sess-001"
+        assert items["attributes.view.id"] == "view-001"
+        assert items["attributes.user.id"] == "user-001"
+        assert items["resource.deployment.environment.name"] == "prod"
+        assert [section["key"] for section in result["sections"]] == sections
 
-    def test_unknown_span_type_falls_back_to_overview(self):
-        """未知类型回落到 DefaultSpanBuilder，仍保留公共头部（方案 0x03.h 兜底）。"""
-        span = {"span_id": "unknown", "span_name": "n/a", "attributes": {"span_type": "websocket"}}
-        result = build(span, [])
-        assert result["overview"]["title"] == "n/a"
+    @pytest.mark.parametrize("span", [{}, {"attributes": None}, {"attributes": {}}])
+    def test_missing_attributes_keeps_default_overview(self, span):
+        result = build(span)
         assert result["sections"] == []
+        assert _items(result)["display.span_type"] == ""
 
-    def test_view_overview_contains_common_items(self):
-        span = _base_view_span()
-        result = build(span, [span])
-        items = {it["field_name"]: it["value"] for it in result["overview"]["items"]}
-        view = span["attributes"]["view"]
-        # 身份字段直接透传，start_time 则按导航开始时间换算，引用构造对象避免重复硬编码。
-        assert items["app_name"] == span["app_name"]
-        assert items["attributes.view.url_template"] == view["url_template"]
-        assert items["attributes.view.previous_url_template"] == view["previous_url_template"]
-        assert items["attributes.session.id"] == span["attributes"]["session"]["id"]
-        assert items["attributes.view.id"] == view["id"]
-        assert items["start_time"] == view["started_at"] * 1000
-        assert items["end_time"] == span["end_time"]
-        assert items["attributes.user.id"] == span["attributes"]["user"]["id"]
-        assert items["resource.deployment.environment.name"] == span["resource"]["deployment"]["environment"]["name"]
+    @pytest.mark.parametrize(
+        "attributes",
+        [
+            {"span_type": "resource", "resource.type": "fetch"},
+            {"span_type": "resource", "resource": {"type": "fetch"}},
+        ],
+    )
+    def test_resource_dispatch_accepts_both_attribute_shapes(self, attributes):
+        result = build({"span_id": "fetch", "attributes": attributes})
+        assert _items(result)["display.span_type"] == "Resource(fetch)"
+        assert "request" in _section(result, "key_info")["data"]
+        assert _section(result, "resource_info") is None
 
+    def test_dispatch_accepts_flat_record(self):
+        result = build({"attributes.span_type": "resource", "attributes.resource.type": "xhr"})
+        assert "request" in _section(result, "key_info")["data"]
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Resource（方案 0x04.b）
-# ─────────────────────────────────────────────────────────────────────────────
+    def test_view_overview_includes_previous_url(self):
+        result = build(_base_view_span())
+        assert _items(result)["attributes.view.previous_url_template"] == "/product/:id/"
 
 
 class TestResourceSpanBuilder:
@@ -302,718 +267,328 @@ class TestResourceSpanBuilder:
         assert "tls" not in phases
         assert phases["connect"]["duration"] == 10
 
+    @pytest.mark.parametrize(
+        "tls",
+        [
+            {},
+            {"resource.ssl.duration": 5},
+            {"resource.ssl.start": 9},
+            {"resource.ssl.start": 9, "resource.ssl.duration": -5},
+        ],
+    )
+    def test_invalid_tls_does_not_reduce_connect_duration(self, tls):
+        span = _resource_span()
+        span["attributes"].update({"resource.connect.start": 5, "resource.connect.duration": 10, **tls})
+        timing = _section(build(span), "loading_timing")["data"]
+        phases = {phase["key"]: phase for phase in timing["phases"]}
+        assert "tls" not in phases
+        assert phases["connect"]["duration"] == 10
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Action（方案 0x04.c）
-# ─────────────────────────────────────────────────────────────────────────────
+    @pytest.mark.parametrize(
+        "attrs", [{}, {"resource.dns.start": 2}, {"resource.dns.start": 2, "resource.dns.duration": -1}]
+    )
+    def test_missing_or_invalid_timings_are_omitted(self, attrs):
+        span = _resource_span()
+        span["attributes"].update(attrs)
+        assert _section(build(span), "loading_timing") is None
 
-
-class TestActionSpanBuilder:
-    def test_action_key_info(self):
-        span = {
-            "span_id": "e121536e5ae785a0",
-            "span_name": "click .submit-btn",
-            "app_name": "test-app",
-            "start_time": 1788451565200000,
-            "end_time": 1788451565632000,
-            "elapsed_time": 432000,
-            "attributes": {
-                "span_type": "action",
-                "action": {
-                    "type": "click",
-                    "target": {"name": ".submit-btn", "tag": "button"},
-                },
-                "outcome": {"type": "warning"},
-                "view": {"id": "view-001"},
-                "session": {"id": "sess-001"},
-                "user": {"id": "user-001"},
-                "resource": {"deployment": {"environment": {"name": "prod"}}},
-            },
-        }
-        result = build(span, [])
-        key_info = _section(result, "key_info")["data"]
-        action = span["attributes"]["action"]
-        # 各字段均为源数据直接透传，引用构造对象避免与入参重复硬编码
-        assert key_info["interaction"]["attributes.action.type"] == action["type"]
-        assert key_info["target"]["attributes.action.target.name"] == action["target"]["name"]
-        assert key_info["target"]["attributes.action.target.tag"] == action["target"]["tag"]
-        badges = {b["field_name"]: b["value"] for b in result["overview"]["badges"]}
-        assert badges["elapsed_time"] == span["elapsed_time"]
-        assert badges["attributes.action.type"] == action["type"]
-        assert badges["attributes.outcome.type"] == span["attributes"]["outcome"]["type"]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# LongTask（方案 0x04.d）— 保留上报的阻塞贡献
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class TestLongTaskSpanBuilder:
-    def test_longtask_preserves_blocking_duration(self):
-        span = {
-            "span_id": "c49ddfc2ac5214d7",
-            "span_name": "longTask",
-            "app_name": "test-app",
-            "start_time": 1788451565200000,
-            "end_time": 1788451565323500,
-            "elapsed_time": 123500,
-            "attributes": {
-                "span_type": "long_task",
-                "long_task": {
-                    "blocking_duration": 42.5,
-                    "entry_type": "long-animation-frame",
-                    "name": "long-animation-frame",
-                },
-                "action": {"id": "act-001"},
-                "outcome": {"type": "warning"},
-                "view": {"id": "view-001"},
-                "session": {"id": "sess-001"},
-                "user": {"id": "user-001"},
-                "resource": {"deployment": {"environment": {"name": "prod"}}},
-            },
-        }
-        result = build(span, [])
-        key_info = _section(result, "key_info")["data"]
-        long_task = span["attributes"]["long_task"]
-        # 各字段均为源数据直接透传，引用构造对象避免与入参重复硬编码
-        # LongTask 耗时沿用上报 elapsed_time，同时保留上报的阻塞时长。
-        assert key_info["duration"]["elapsed_time"] == span["elapsed_time"]
-        assert key_info["duration"]["attributes.long_task.blocking_duration"] == long_task["blocking_duration"]
-        assert key_info["action"]["attributes.action.id"] == span["attributes"]["action"]["id"]
-        assert key_info["attribution"]["attributes.long_task.entry_type"] == long_task["entry_type"]
-        assert key_info["attribution"]["attributes.long_task.name"] == long_task["name"]
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Error（方案 0x04.e）
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class TestErrorSpanBuilder:
-    def test_error_key_info(self):
-        span = {
-            "span_id": "9d199175096474e4",
-            "span_name": "TypeError: Cannot read properties of undefined (reading 'name')",
-            "app_name": "test-app",
-            "start_time": 1788451565200000,
-            "end_time": 1788451565323500,
-            "elapsed_time": 123500,
-            "attributes": {
-                "span_type": "error",
-                "outcome": {"type": "error"},
-                "code": {"filepath": "https://example.com/static/js/app.js", "lineno": 9, "column": 654249},
-                "view": {"id": "view-001"},
-                "session": {"id": "sess-001"},
-                "user": {"id": "user-001"},
-                "resource": {"deployment": {"environment": {"name": "prod"}}},
-            },
-            "events": [
-                {"name": "exception", "attributes": {"exception": {"type": "TypeError"}}},
-            ],
-        }
-        result = build(span, [])
-        key_info = _section(result, "key_info")["data"]
-        code = span["attributes"]["code"]
-        # 各字段均为源数据直接透传，引用构造对象避免与入参重复硬编码
-        assert (
-            key_info["error_type"]["events.attributes.exception.type"]
-            == span["events"][0]["attributes"]["exception"]["type"]
+    def test_reversed_boundaries_omit_invalid_phases(self):
+        span = _resource_span()
+        span["attributes"].update(
+            {
+                "resource.redirect.start": 10,
+                "resource.dns.start": 5,
+                "resource.dns.duration": 2,
+                "resource.connect.start": 7,
+                "resource.connect.duration": 1,
+                "resource.ssl.start": 7,
+                "resource.ssl.duration": 3,
+            }
         )
-        assert key_info["source"]["attributes.code.filepath"] == code["filepath"]
-        assert key_info["source"]["attributes.code.lineno"] == code["lineno"]
-        assert key_info["source"]["attributes.code.column"] == code["column"]
+        phases = {item["key"] for item in _section(build(span), "loading_timing")["data"]["phases"]}
+        assert phases == {"dns", "tls"}
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Vital（方案 0x04.f）— 评级使用指标值而非 Span 耗时，CLS 无单位
-# ─────────────────────────────────────────────────────────────────────────────
+class TestInteractionBuilders:
+    def test_action_key_info(self):
+        result = build(
+            _span(
+                "action",
+                {
+                    "action.type": "click",
+                    "action.target.name": ".submit-btn",
+                    "action.target.tag": "button",
+                    "outcome.type": "success",
+                },
+                elapsed_time=432000,
+            )
+        )
+        assert _section(result, "key_info")["data"] == {
+            "interaction": {"attributes.action.type": "click"},
+            "target": {"attributes.action.target.name": ".submit-btn", "attributes.action.target.tag": "button"},
+        }
+        assert _items(result, "badges")["elapsed_time"] == 432000
+
+    def test_longtask_key_info(self):
+        result = build(
+            _span(
+                "long_task",
+                {
+                    "long_task.blocking_duration": 42.5,
+                    "action.id": "act-1",
+                    "long_task.entry_type": "longtask",
+                    "long_task.name": "self",
+                },
+                elapsed_time=123500,
+            )
+        )
+        assert _section(result, "key_info")["data"] == {
+            "duration": {"elapsed_time": 123500, "attributes.long_task.blocking_duration": 42.5},
+            "action": {"attributes.action.id": "act-1"},
+            "attribution": {"attributes.long_task.entry_type": "longtask", "attributes.long_task.name": "self"},
+        }
+
+    @pytest.mark.parametrize(
+        "types,expected", [([], None), (["TypeError"], "TypeError"), (["TypeError", "RangeError"], "TypeError")]
+    )
+    def test_error_exception_type_and_badges(self, types, expected):
+        span = _span(
+            "error",
+            {"outcome.type": "failure", "code.filepath": "app.js", "code.lineno": 9, "code.column": 12},
+            events=[{"name": "exception", "attributes": {"exception.type": value}} for value in types],
+        )
+        result = build(span)
+        assert _items(result, "badges") == {"attributes.outcome.type": "failure"}
+        assert _section(result, "key_info")["data"] == {
+            "error_type": {"events.attributes.exception.type": expected},
+            "source": {"attributes.code.filepath": "app.js", "attributes.code.lineno": 9, "attributes.code.column": 12},
+        }
+        assert result["origin_data"]["events"] == span["events"]
 
 
 class TestVitalSpanBuilder:
-    def test_vital_rating_not_uses_span_elapsed_time(self):
-        """Vital 的评级来自 attributes.vital.value，而非 Span 的 elapsed_time。"""
-        span = {
-            "span_id": "ea1ae6490e17fd9d",
-            "span_name": "LCP",
-            "app_name": "test-app",
-            "start_time": 1788451565327840,
-            "end_time": 1788451565327840,
-            "elapsed_time": 0,
-            "attributes": {
-                "span_type": "vital",
-                "vital": {"metric": "lcp", "value": 2840},
-                "view": {"id": "view-001"},
-                "session": {"id": "sess-001"},
-                "user": {"id": "user-001"},
-                "resource": {"deployment": {"environment": {"name": "prod"}}},
-            },
-        }
-        result = build(span, [])
-        rating = _section(result, "vital_rating")["data"]
-        vital = span["attributes"]["vital"]
-        # 各字段均为源数据直接透传，引用构造对象避免与入参重复硬编码
-        assert rating["attributes.vital.metric"] == vital["metric"]
-        # 瞬时 Vital 的 elapsed_time 为 0，而指标为 2840ms，二者必须明确区分。
-        assert rating["attributes.vital.value"] == vital["value"]
-        badges = {badge["field_name"]: badge["value"] for badge in result["overview"]["badges"]}
-        assert badges["display.rating_level"] == "needs_improvement"
-        # 评级配置末项省略 value（领域约定，保留字）
-        config = rating["display.rating_config"]
-        assert config[-1]["rating"] == "poor"
-        assert "value" not in config[-1]
-
     @pytest.mark.parametrize(
-        "value,expected_rating,expected_alias",
-        [(0, "good", "良好"), (2840, "needs_improvement", "需改进"), (9000, "poor", "差")],
+        "metric,value,rating,alias,threshold",
+        [
+            ("LCP", 2500, "good", "良好", 2500),
+            ("LCP", 2840, "needs_improvement", "需改进", 2500),
+            ("LCP", 9000, "poor", "差", 2500),
+            ("LCP", None, None, None, 2500),
+            ("LCP", "invalid", None, None, 2500),
+            ("cls", 0.2, "needs_improvement", "需改进", 0.1),
+            ("unknown", 1, None, None, None),
+        ],
     )
-    def test_vital_badge_outputs_rating_level_not_threshold(self, value, expected_rating, expected_alias):
-        """概览徽标 value 为评级标识（如 needs_improvement），而非命中档位的阈值。"""
-        span = {
-            "span_id": "ea1ae6490e17fd9d",
-            "span_name": "LCP",
-            "app_name": "test-app",
-            "elapsed_time": 1,
-            "attributes": {
-                "span_type": "vital",
-                "vital": {"metric": "lcp", "value": value},
-                "view": {"id": "view-001"},
-                "resource": {"deployment": {"environment": {"name": "prod"}}},
-            },
-        }
-        result = build(span, [])
-        badges = {b["field_name"]: b for b in result["overview"]["badges"]}
-        badge = badges["display.rating_level"]
-        assert badge["value"] == expected_rating
-        assert badge["alias"] == expected_alias
-
-    def test_vital_badge_no_value_not_rated(self):
-        """指标值缺失时按不评级处理，输出 EMPTY_VALUE（避免误判良好）。"""
-        from rum_web.handlers.builder.base import EMPTY_VALUE
-
-        span = {
-            "span_id": "ea1ae6490e17fd9d",
-            "span_name": "LCP",
-            "app_name": "test-app",
-            "elapsed_time": 1,
-            "attributes": {
-                "span_type": "vital",
-                "vital": {"metric": "lcp"},  # 无 value
-                "view": {"id": "view-001"},
-                "resource": {"deployment": {"environment": {"name": "prod"}}},
-            },
-        }
-        result = build(span, [])
-        badges = {b["field_name"]: b for b in result["overview"]["badges"]}
-        badge = badges["display.rating_level"]
-        assert badge["value"] == EMPTY_VALUE
-        assert badge["alias"] == EMPTY_VALUE
-
-    def test_vital_cls_has_no_unit_in_config(self):
-        """CLS 评级配置不携带 field_unit，阈值保持纯小数。"""
-        span = {
-            "span_id": "cls-1",
-            "span_name": "CLS",
-            "app_name": "test-app",
-            "elapsed_time": 1,
-            "attributes": {
-                "span_type": "vital",
-                "vital": {"metric": "cls", "value": 0.023},
-                "view": {"id": "view-001"},
-                "session": {"id": "sess-001"},
-                "user": {"id": "user-001"},
-                "resource": {"deployment": {"environment": {"name": "prod"}}},
-            },
-        }
-        result = build(span, [])
-        rating = _section(result, "vital_rating")["data"]
-        # 源数据直接透传，引用构造对象避免与入参重复硬编码
-        assert rating["attributes.vital.value"] == span["attributes"]["vital"]["value"]
-        # 评级阈值沿用字段单位；CLS 阈值为纯小数（领域约定，保留字）
-        assert rating["display.rating_config"][0]["value"] == 0.1
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# View 详情（方案 0x04.g）
-# ─────────────────────────────────────────────────────────────────────────────
+    def test_badges_show_metric_value_and_rating(self, metric, value, rating, alias, threshold):
+        result = build(_vital_span(metric, value))
+        badges = result["overview"]["badges"]
+        assert badges == [
+            {"field_name": "attributes.vital.value", "value": value},
+            {"field_name": "display.rating_level", "value": rating, "alias": alias},
+        ]
+        data = _section(result, "vital_rating")["data"]
+        assert data["attributes.vital.metric"] == metric
+        assert data["attributes.vital.value"] == value
+        config = data["display.rating_config"]
+        if threshold is None:
+            assert config == []
+        else:
+            assert config[0]["value"] == threshold
+            assert config[-1] == {"rating": "poor", "alias": "差"}
 
 
 class TestViewSpanBuilder:
-    @pytest.mark.parametrize("selected_phase", ["start", "update", "end"])
-    def test_view_stay_duration_uses_navigation_start(self, selected_phase):
-        """点开同一 View 的任意瞬时快照，概览和卡片都展示完整生命周期的停留时长。"""
-        navigation_start_us = 1788451565200000
-        snapshots = {
-            "start": _view_snapshot("start", version=1, end_time=navigation_start_us, phase="start"),
-            "update": _view_snapshot("update", version=2, end_time=navigation_start_us + 709200, phase="update"),
-            "end": _view_snapshot("end", version=3, end_time=navigation_start_us + 11448200, phase="end"),
-        }
-        # start 上报时尚无加载耗时，详情应从最新快照补齐这些字段。
-        for field in ("first_byte", "dom_content_loaded", "load_event", "loading_time", "loading_time_source"):
-            snapshots["start"]["attributes"]["view"].pop(field)
-        span = snapshots[selected_phase]
-        original_snapshots = deepcopy(snapshots)
-        # 关联结果故意乱序，展示时间仍应来自导航开始与最新版本的结束快照。
-        result = build(span, [snapshots["end"], snapshots["start"], snapshots["update"]])
-        duration = _section(result, "key_info")["data"]["duration"]["display.view.duration"]
-        badges = {item["field_name"]: item["value"] for item in result["overview"]["badges"]}
-        items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
-        assert duration == pytest.approx(11448.2)
-        assert badges["display.view.duration"] == pytest.approx(11448.2)
-        assert "elapsed_time" not in badges
-        assert items["start_time"] == navigation_start_us
-        assert items["end_time"] == snapshots["end"]["end_time"]
-        assert result["span_id"] == span["span_id"]
-        assert result["origin_data"] is span
-        assert snapshots == original_snapshots
+    @pytest.mark.parametrize("selected", [0, 1, 2], ids=["start", "update", "end"])
+    def test_stay_duration_is_independent_of_selected_snapshot(self, selected):
+        snapshots = [
+            _view_snapshot(version=1, end_time=1788451565200000, **{"view.phase": "start"}),
+            _view_snapshot(version=2, end_time=1788451565909200, **{"view.phase": "update"}),
+            _view_snapshot(version=3, end_time=1788451576648200, **{"view.phase": "end"}),
+        ]
+        before = deepcopy(snapshots)
+        main = snapshots[selected]
+        result = build(main, [snapshots[2], snapshots[0], snapshots[1]])
+        assert _items(result)["start_time"] == 1788451565200000
+        assert _items(result)["end_time"] == 1788451576648200
+        assert _items(result, "badges") == {"display.view.duration": pytest.approx(11448.2)}
+        assert _section(result, "key_info")["data"]["duration"]["display.view.duration"] == pytest.approx(11448.2)
+        assert result["origin_data"] is main
+        assert snapshots == before
 
-    def test_view_snapshot_overrides_loading_and_report_time_fields(self):
-        """补齐最新快照的加载与结束时间，概览开始时间取导航开始，其他主记录字段不变。"""
-        span = _base_view_span()
-        snapshot = _view_snapshot(version=3, loading_time=333, first_byte=120, dom_content_loaded=160, load_event=200)
-        result = ViewSpanBuilder._prepare_flatten_data(span, [span, snapshot])
-        assert snapshot["end_time"] != span["end_time"]
-        assert "end_time" not in snapshot["attributes"]["view"]
-        assert result["start_time"] == span["attributes"]["view"]["started_at"] * 1000
-        assert result["end_time"] == snapshot["end_time"]
-        assert result["elapsed_time"] == 0
-        assert result["attributes.view.loading_time"] == 333
-        assert result["attributes.view.first_byte"] == 120
-        # 主记录的标题不被关联快照覆盖。
-        assert result["span_name"] == "view-001"
-
-    def test_view_start_time_uses_navigation_start(self):
-        """导航开始时间取最新快照的 attributes.view.started_at（毫秒→微秒），不随瞬时快照变化。"""
-        span = _base_view_span()
-        started_at_ms = 1788451565200.125
-        snapshot = _view_snapshot(version=3, loading_time=333, started_at=started_at_ms)
-        result = ViewSpanBuilder._prepare_flatten_data(span, [span, snapshot])
-        # 期望以导航开始时间覆盖，而非快照上报时刻（避免停留时长恒为 0）
-        assert result["start_time"] == 1788451565200125
-        assert result["start_time"] != snapshot["end_time"]
-
-    @pytest.mark.parametrize("started_at", [None, "invalid"])
-    def test_view_latest_snapshot_without_navigation_start_uses_main_record(self, started_at):
-        """最新快照的导航时间缺失或无法转换为数值时，使用主记录的导航时间与最新快照结束时间。"""
-        span = _base_view_span()
-        snapshot = _view_snapshot(started_at=started_at)
-        result = build(span, [span, snapshot])
-        items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
-        badges = {item["field_name"]: item["value"] for item in result["overview"]["badges"]}
-        duration = _section(result, "key_info")["data"]["duration"]["display.view.duration"]
-        assert items["start_time"] == 1788451565200000
-        assert items["end_time"] == snapshot["end_time"]
-        assert duration == pytest.approx(799.999)
-        assert badges["display.view.duration"] == pytest.approx(799.999)
-        assert result["origin_data"] is span
-        assert span["start_time"] == span["end_time"]
-
-    def test_view_without_related_results_uses_main_navigation_start(self):
-        """没有关联结果时，仍读取主记录的导航开始时间，保留主记录的结束时间。"""
-        span = _base_view_span()
-        result = build(span, [])
-        items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
-        badges = {item["field_name"]: item["value"] for item in result["overview"]["badges"]}
-        duration = _section(result, "key_info")["data"]["duration"]["display.view.duration"]
-        assert items["start_time"] == 1788451565200000
-        assert items["end_time"] == span["end_time"]
-        assert duration == 300
-        assert badges["display.view.duration"] == 300
-        assert result["origin_data"] is span
-        assert span["start_time"] == span["end_time"]
-
-    @pytest.mark.parametrize("with_related_snapshot", [False, True])
-    @pytest.mark.parametrize("started_at", [None, "invalid"])
-    def test_view_without_navigation_start_preserves_report_time(self, with_related_snapshot, started_at):
-        """两处导航时间均缺失或无法转换时，保留主记录上报时间并使用可用的结束时间。"""
-        span = _base_view_span()
-        if started_at is None:
-            span["attributes"]["view"].pop("started_at")
-        else:
-            span["attributes"]["view"]["started_at"] = started_at
-        snapshot = _view_snapshot(started_at=started_at)
-        related_spans = [span, snapshot] if with_related_snapshot else []
-        result = build(span, related_spans)
-        items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
-        badges = {item["field_name"]: item["value"] for item in result["overview"]["badges"]}
-        duration = _section(result, "key_info")["data"]["duration"]["display.view.duration"]
-        expected_end_time = snapshot["end_time"] if with_related_snapshot else span["end_time"]
-        expected_duration = 499.999 if with_related_snapshot else 0
-        assert items["start_time"] == span["start_time"]
-        assert items["end_time"] == expected_end_time
-        assert duration == pytest.approx(expected_duration)
-        assert badges["display.view.duration"] == pytest.approx(expected_duration)
-        assert result["origin_data"] is span
-        assert span["start_time"] == span["end_time"]
-
-    def test_view_latest_snapshot_zero_navigation_start_uses_main_record(self):
-        """最新快照的零值按当前回退规则读取主记录的导航开始时间。"""
-        span = _view_snapshot("main", version=1, end_time=500000, started_at=100)
-        snapshot = _view_snapshot("latest", version=2, end_time=1000000, started_at=0)
-        result = build(span, [span, snapshot])
-        items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
-        badges = {item["field_name"]: item["value"] for item in result["overview"]["badges"]}
-        duration = _section(result, "key_info")["data"]["duration"]["display.view.duration"]
-        assert items["start_time"] == 100000
-        assert duration == 900
-        assert badges["display.view.duration"] == 900
-
-    @pytest.mark.parametrize("source", ["latest_snapshot", "main_record", "main_with_related_snapshot"])
     @pytest.mark.parametrize(
-        "started_at,exception_type",
-        [(float("nan"), ValueError), (float("inf"), OverflowError), (float("-inf"), OverflowError)],
-        ids=["nan", "inf", "negative-inf"],
+        "snapshot_start,main_start,expected",
+        [
+            (100, 50, 100000),
+            (100.125, 50, 100125),
+            (None, 50, 50000),
+            (0, 50, 50000),
+            ("invalid", 50, 50000),
+            ("NaN", 50, 50000),
+            ("Infinity", 50, 50000),
+            ("-Infinity", 50, 50000),
+            (None, None, REPORT_TIME),
+            ("NaN", "NaN", REPORT_TIME),
+            (None, "Infinity", REPORT_TIME),
+            (None, "-Infinity", REPORT_TIME),
+        ],
     )
-    def test_view_nonfinite_navigation_start_raises_on_integer_conversion(self, source, started_at, exception_type):
-        """非有限值未被数值转换过滤，回填微秒整数时抛出相应异常。"""
-        span = _base_view_span()
-        if source == "latest_snapshot":
-            related_spans = [span, _view_snapshot(started_at=started_at)]
-        else:
-            span["attributes"]["view"]["started_at"] = started_at
-            related_spans = [span, _view_snapshot(started_at=None)] if source == "main_with_related_snapshot" else []
-        with pytest.raises(exception_type):
-            build(span, related_spans)
+    def test_navigation_start_fallback(self, snapshot_start, main_start, expected):
+        main = _base_view_span(**{"view.started_at": main_start})
+        result = build(main, [_view_snapshot(started_at=snapshot_start)])
+        assert _items(result)["start_time"] == expected
+        duration = (1788451565999999 - expected) / 1000
+        assert _items(result, "badges")["display.view.duration"] == pytest.approx(duration)
+        assert _section(result, "key_info")["data"]["duration"]["display.view.duration"] == pytest.approx(duration)
 
-    def test_view_duration_missing_start_time_not_fabricated(self):
-        """start_time / end_time 任一缺失时停留时长返回 EMPTY_VALUE，不伪造 0。"""
-        from rum_web.handlers.builder.base import EMPTY_VALUE
-        from rum_web.handlers.builder.span.view import DisplayViewDurationItem
+    @pytest.mark.parametrize("started_at,expected", [(NAVIGATION_TIME, 300), (None, 0), ("NaN", 0), ("Infinity", 0)])
+    def test_duration_without_related_results(self, started_at, expected):
+        result = build(_base_view_span(**{"view.started_at": started_at}))
+        assert _items(result, "badges")["display.view.duration"] == expected
 
-        item = DisplayViewDurationItem()
-        assert item.render({"end_time": 1000})["display.view.duration"] == EMPTY_VALUE
-        assert item.render({"start_time": 0})["display.view.duration"] == EMPTY_VALUE
+    def test_missing_root_start_does_not_fabricate_duration(self):
+        span = _base_view_span(**{"view.started_at": None})
+        del span["start_time"]
+        result = build(span)
+        assert _items(result, "badges")["display.view.duration"] is None
+        assert _section(result, "key_info")["data"]["duration"]["display.view.duration"] is None
 
-    def test_view_web_vitals_filled_from_latest_snapshot(self):
-        """Web Vitals 五项由最新快照填充，TTFB 含四段耗时与评分配置。"""
-        span = _base_view_span()
-        ttfb = _vital_span(
+    def test_latest_view_version_overrides_display_fields(self):
+        main = _base_view_span()
+        old = _view_snapshot(version=1, end_time=REPORT_TIME + 1000, **{"view.loading_time": 300})
+        newest = _view_snapshot(
+            version=5,
+            end_time=REPORT_TIME + 2000,
+            **{
+                "view.loading_time": 333,
+                "view.first_byte": 120,
+                "view.dom_content_loaded": 160,
+                "view.load_event": 200,
+                "view.dom_complete": 180,
+            },
+        )
+        result = build(main, [newest, old])
+        assert result["overview"]["title"] == "view"
+        assert _items(result)["end_time"] == REPORT_TIME + 2000
+        loading = _section(result, "key_info")["data"]["loading"]
+        assert loading["attributes.view.loading_time"] == 333
+        assert loading["attributes.view.first_byte"] == 120
+        timing = _section(result, "loading_timing")["data"]
+        assert timing["milestones"][0] == {
+            "key": "dom_complete",
+            "field_name": "attributes.view.dom_complete",
+            "value": 180,
+        }
+
+    def test_latest_vitals_are_selected_case_insensitively(self):
+        related = [
+            _vital_span("LCP", 1000, end_time=1),
+            _vital_span("lcp", 2840, end_time=2),
+            _vital_span(
+                "TTFB", 101.7, waiting_duration=1.2, dns_duration=3.8, connection_duration=10, request_duration=83.7
+            ),
+            _vital_span("FCP", 180),
+            _vital_span("INP", 230),
+            _vital_span("CLS", 0.2),
+        ]
+        data = _section(build(_base_view_span(), related), "web_vitals")["data"]
+        assert list(data) == ["ttfb", "fcp", "lcp", "inp", "cls"]
+        assert data["lcp"]["attributes.vital.value"] == 2840
+        assert data["ttfb"]["attributes.vital.ttfb.waiting_duration"] == 1.2
+        assert data["cls"]["attributes.vital.value"] == 0.2
+        assert data["ttfb"]["display.rating_config"][-1] == {"rating": "poor", "alias": "差"}
+
+    def test_related_spans_are_flattened_once(self, mocker):
+        from bkmonitor.data_source.format import flatten_dict_data
+
+        flatten = mocker.patch("rum_web.handlers.builder.span.view.flatten_dict_data", wraps=flatten_dict_data)
+        related = [_view_snapshot(), _vital_span("LCP", 2500)]
+        build(_base_view_span(), related)
+        for span in related:
+            assert sum(call.args[0] is span for call in flatten.call_args_list) == 1
+
+    def test_loading_waterfall_phases_and_markers(self):
+        vital = _vital_span(
             "TTFB", 101.7, waiting_duration=1.2, dns_duration=3.8, connection_duration=10, request_duration=83.7
         )
-        fcp = _vital_span("FCP", 120)
-        lcp = _vital_span("LCP", 250)
-        inp = _vital_span("INP", 86)
-        cls = _vital_span("CLS", 0.023)
-        result = build(span, [span, _view_snapshot(), ttfb, fcp, lcp, inp, cls])
-        web_vitals = _section(result, "web_vitals")["data"]
-        # 各指标 value 直接引用构造入参，改样例无需逐个同步字面量
-        assert web_vitals["ttfb"]["attributes.vital.value"] == ttfb["attributes"]["vital"]["value"]
-        assert (
-            web_vitals["ttfb"]["attributes.vital.ttfb.waiting_duration"]
-            == ttfb["attributes"]["vital"]["ttfb"]["waiting_duration"]
-        )
-        assert (
-            web_vitals["ttfb"]["attributes.vital.ttfb.dns_duration"]
-            == ttfb["attributes"]["vital"]["ttfb"]["dns_duration"]
-        )
-        assert (
-            web_vitals["ttfb"]["attributes.vital.ttfb.connection_duration"]
-            == ttfb["attributes"]["vital"]["ttfb"]["connection_duration"]
-        )
-        assert (
-            web_vitals["ttfb"]["attributes.vital.ttfb.request_duration"]
-            == ttfb["attributes"]["vital"]["ttfb"]["request_duration"]
-        )
-        assert web_vitals["fcp"]["attributes.vital.value"] == fcp["attributes"]["vital"]["value"]
-        assert web_vitals["lcp"]["attributes.vital.value"] == lcp["attributes"]["vital"]["value"]
-        assert web_vitals["inp"]["attributes.vital.value"] == inp["attributes"]["vital"]["value"]
-        assert web_vitals["cls"]["attributes.vital.value"] == cls["attributes"]["vital"]["value"]
-        # 评分配置末项省略 value（领域约定，保留字）
-        assert "value" not in web_vitals["ttfb"]["display.rating_config"][-1]
-
-    def test_view_loading_timing_full_waterfall(self):
-        """initial_load + auto：完整 7 段 phases + 3 markers，total_duration = loading_time。"""
-        span = _base_view_span()
-        view = span["attributes"]["view"]
-        loading_time = view["loading_time"]
-        first_byte = view["first_byte"]
-        dom_content_loaded = view["dom_content_loaded"]
-        load_event = view["load_event"]
-        ttfb = _vital_span(
-            "TTFB", 101.7, waiting_duration=1.2, dns_duration=3.8, connection_duration=10, request_duration=83.7
-        )
-        vital = ttfb["attributes"]["vital"]
-        ttfb_value = vital["value"]
-        waiting = vital["ttfb"]["waiting_duration"]
-        dns = vital["ttfb"]["dns_duration"]
-        connect = vital["ttfb"]["connection_duration"]
-        request = vital["ttfb"]["request_duration"]
-
-        fcp = _vital_span("FCP", 120)
-        lcp = _vital_span("LCP", 250)
-        result = build(span, [span, _view_snapshot(), ttfb, fcp, lcp])
+        result = build(_base_view_span(), [vital, _vital_span("FCP", 180), _vital_span("LCP", 250)])
         timing = _section(result, "loading_timing")["data"]
         assert timing["unit"] == "ms"
-        # total_duration 来自当前快照 loading_time
-        assert timing["total_duration"] == loading_time
+        assert timing["total_duration"] == 200
+        expected = [
+            ("prepare", 0, 1.2),
+            ("dns", 4.2, 3.8),
+            ("connect", 8, 10),
+            ("first_byte", 18, 83.7),
+            ("dom_processing", 101.7, 38.3),
+            ("resource_load", 140, 35),
+            ("page_stable", 175, 25),
+        ]
+        assert [item["key"] for item in timing["phases"]] == [key for key, _, _ in expected]
+        for item, (_, start, duration) in zip(timing["phases"], expected):
+            assert item["start"] == pytest.approx(start)
+            assert item["duration"] == pytest.approx(duration)
+            assert item["alias"]
+        assert [(marker["key"], marker["value"]) for marker in timing["markers"]] == [
+            ("TTFB", 101.7),
+            ("FCP", 180),
+            ("LCP", 250),
+        ]
 
-        phases = {p["key"]: p for p in timing["phases"]}
-        # phases 起点由 TTFB 各段耗时反推，全部引用构造入参，改样例自动跟随
-        first_byte_start = ttfb_value - request
-        connect_start = first_byte_start - connect
-        dns_start = connect_start - dns
-        assert phases["prepare"]["start"] == 0
-        assert phases["prepare"]["duration"] == pytest.approx(waiting)
-        assert phases["dns"]["start"] == pytest.approx(dns_start)
-        assert phases["dns"]["duration"] == pytest.approx(dns)
-        assert phases["connect"]["start"] == pytest.approx(connect_start)
-        assert phases["connect"]["duration"] == pytest.approx(connect)
-        assert phases["first_byte"]["start"] == pytest.approx(first_byte_start)
-        assert phases["first_byte"]["duration"] == pytest.approx(request)
-        assert phases["dom_processing"]["start"] == pytest.approx(first_byte)
-        assert phases["dom_processing"]["duration"] == pytest.approx(dom_content_loaded - first_byte)
-        assert phases["resource_load"]["start"] == pytest.approx(dom_content_loaded)
-        assert phases["resource_load"]["duration"] == pytest.approx(load_event - dom_content_loaded)
-        assert phases["page_stable"]["start"] == pytest.approx(load_event)
-        assert phases["page_stable"]["duration"] == pytest.approx(loading_time - load_event)
-        markers = {m["key"]: m["value"] for m in timing["markers"]}
-        assert markers == {"TTFB": ttfb_value, "FCP": 120, "LCP": 250}
-
-    def test_view_auto_stable_rounding_error_keeps_zero_duration_phase(self):
-        """自动来源的负浮点误差归零，页面稳定阶段仍应保留。"""
-        span = _base_view_span()
-        snapshot = _view_snapshot(loading_time=608.7999999523163, load_event=608.800048828125)
-        result = build(span, [span, snapshot])
-        timing = _section(result, "loading_timing")["data"]
-        phases = {p["key"]: p for p in timing["phases"]}
-        assert phases["page_stable"]["duration"] == 0
-
-    def test_view_loading_timing_manual_source_skips_page_stable(self):
-        """手动来源不生成 page_stable 段（方案 0x04.g 约束 [2]）。"""
-        span = _base_view_span()
-        snapshot = _view_snapshot(version=3, loading_time_source="manual")
-        result = build(span, [span, snapshot])
-        timing = _section(result, "loading_timing")["data"]
-        keys = [p["key"] for p in timing["phases"]]
-        assert "page_stable" not in keys
-        assert "dom_processing" in keys
-
-    def test_view_loading_timing_non_initial_load_omitted(self):
-        """非 initial_load 类型省略加载时序区块，不构造 phases、markers 或 milestones。"""
-        span = _base_view_span()
-        snapshot = _view_snapshot(version=3, loading_type="route_change", loading_time_source="manual")
-        result = build(span, [span, snapshot])
-        # 非 initial_load → loading_timing section 整体不输出
-        assert _section(result, "loading_timing") is None
-
-    def test_view_loading_timing_missing_loading_time_omits_total_duration(self):
-        """loading_time 缺失时 total_duration 键省略（不输出，而非伪造 0）。"""
-        span = _base_view_span()
-        snapshot = _view_snapshot(version=3, loading_time=None)
-        result = build(span, [span, snapshot])
-        timing = _section(result, "loading_timing")["data"]
-        assert "total_duration" not in timing
-
-    def test_view_loading_timing_zero_loading_time_keeps_zero(self):
-        """loading_time 为有效零值应保留 0（与缺失区分）。"""
-        span = _base_view_span()
-        snapshot = _view_snapshot(version=3, loading_time=0)
-        result = build(span, [span, snapshot])
-        timing = _section(result, "loading_timing")["data"]
-        assert timing["total_duration"] == 0
-
-    def test_view_milestones_omits_missing_and_manual_page_stable(self):
-        """里程碑缺失字段整项省略；page_stable 仅自动计时来源输出。"""
-        span = _base_view_span()
-        # 手动来源 + dom_complete 缺失
-        snapshot = _view_snapshot(version=3, loading_time_source="manual", loading_time=200, dom_complete=None)
-        result = build(span, [span, snapshot])
-        timing = _section(result, "loading_timing")["data"]
-        milestones = {m["key"]: m.get("value") for m in timing["milestones"]}
-        # dom_complete 缺失 → 整项省略
-        assert "dom_complete" not in milestones
-        # load_event 存在
-        assert milestones["load_event"] == snapshot["attributes"]["view"]["load_event"]
-        # 手动来源 → page_stable 不输出
-        assert "page_stable" not in milestones
-
-    def test_view_milestones_includes_page_stable_when_auto(self):
-        """自动计时来源输出 page_stable 里程碑。"""
-        span = _base_view_span()
-        snapshot = _view_snapshot(version=3, loading_time_source="auto", loading_time=200)
-        result = build(span, [span, snapshot])
-        timing = _section(result, "loading_timing")["data"]
-        milestones = {m["key"]: m.get("value") for m in timing["milestones"]}
-        assert milestones["page_stable"] == 200
-
-    def test_view_milestones_use_latest_dom_complete(self):
-        """早期快照没有 DOM Complete 时，从最新 View 快照补齐里程碑。"""
-        span = _base_view_span()
-        snapshot = _view_snapshot(dom_complete=166)
-        assert "dom_complete" not in span["attributes"]["view"]
-        result = build(span, [span, snapshot])
-        timing = _section(result, "loading_timing")["data"]
-        milestones = {m["key"]: m["value"] for m in timing["milestones"]}
-        assert milestones["dom_complete"] == 166
-
-    def test_view_loading_timing_omits_missing_vital_markers(self):
-        """缺失某个 Web Vitals 指标时，该指标段不补造（markers 仅含存在的）。"""
-        span = _base_view_span()
-        ttfb = _vital_span(
-            "TTFB", 101.7, waiting_duration=1.2, dns_duration=3.8, connection_duration=10, request_duration=83.7
-        )
-        # 仅注入 TTFB，FCP/LCP 缺失
-        result = build(span, [span, _view_snapshot(), ttfb])
-        timing = _section(result, "loading_timing")["data"]
-        marker_keys = [m["key"] for m in timing["markers"]]
-        assert marker_keys == ["TTFB"]
-
-    def test_view_loading_timing_reversed_boundary_omits_segment(self):
-        """倒序边界（dom_content_loaded < first_byte）产生负时长，对应 phase 省略不组装伪时序。"""
-        span = _base_view_span()
-        view = span["attributes"]["view"]
-        # 重写边界使内容传输段时长为负：dom_content_loaded 早于 first_byte
-        view.update({"first_byte": 140, "dom_content_loaded": 100, "load_event": 175, "loading_time": 200})
-        result = build(span, [span])
-        timing = _section(result, "loading_timing")["data"]
-        keys = [p["key"] for p in timing["phases"]]
-        # 仅耗时为负的一段省略，后续有效段（resource_load / page_stable）仍保留
-        assert "dom_processing" not in keys
-        assert "resource_load" in keys
-        assert "page_stable" in keys
-
-    def test_view_loading_timing_first_byte_missing_omits_dom_processing(self):
-        """first_byte 缺失使内容传输段无起点，仅 dom_processing 省略，不阻断后续 DOM 段。"""
-        span = _base_view_span()
-        view = span["attributes"]["view"]
-        # 移除 first_byte，保留后续边界字段
-        view.pop("first_byte")
-        view.update({"dom_content_loaded": 100, "load_event": 175, "loading_time": 200})
-        result = build(span, [span])
-        timing = _section(result, "loading_timing")["data"]
-        keys = [p["key"] for p in timing["phases"]]
-        assert "dom_processing" not in keys
-        assert "resource_load" in keys
-        assert "page_stable" in keys
-
-    def test_view_loading_timing_negative_loading_time_omits_total(self):
-        """loading_time 为非法负值与缺失同口径，total_duration 键省略（不输出）。"""
-        span = _base_view_span()
-        snapshot = _view_snapshot(version=3, loading_time=-5)
-        result = build(span, [span, snapshot])
-        timing = _section(result, "loading_timing")["data"]
-        assert "total_duration" not in timing
-
-    def test_view_loading_timing_marker_exceeds_total_expands_axis(self):
-        """标记超出总耗时时，total_duration 仍等于 loading_time，不合并标记值。"""
-        span = _base_view_span()
-        view = span["attributes"]["view"]
-        loading_time = view["loading_time"]  # 200
-        ttfb = _vital_span(
-            "TTFB", 500, waiting_duration=1.2, dns_duration=3.8, connection_duration=10, request_duration=83.7
-        )
-        result = build(span, [span, _view_snapshot(), ttfb])
-        timing = _section(result, "loading_timing")["data"]
-        # 标记值（500）超出 loading_time（200），但 total_duration 仅取有效 loading_time
-        assert timing["total_duration"] == loading_time
-        assert timing["total_duration"] != max(loading_time, ttfb["attributes"]["vital"]["value"])
-        # 各 phase 按真实边界计算，不被标记拉伸
-        first_byte = view["first_byte"]
-        phases = {p["key"]: p for p in timing["phases"]}
-        assert phases["dom_processing"]["start"] == pytest.approx(first_byte)
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# View 快照工具方法（方案 0x03.h：关联查询选取规则）
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class TestViewRelatedSpanSelection:
-    def test_latest_view_snapshot_by_version_desc(self):
-        """View 生命周期按 version 降序取最新一条。"""
-        v1 = _view_snapshot(span_id="v1", version=1, loading_time=100)
-        v3 = _view_snapshot(span_id="v3", version=3, loading_time=300)
-        v2 = _view_snapshot(span_id="v2", version=2, loading_time=200)
-        latest = ViewSpanBuilder._latest_view_snapshot([v1, v3, v2])
-        assert latest["span_id"] == v3["span_id"]
-        assert latest["attributes.view.loading_time"] == v3["attributes"]["view"]["loading_time"]
-
-    def test_build_vital_map_takes_latest_by_end_time(self):
-        """每个指标按 end_time 降序取最新一条，大小写不敏感。"""
-        old = _vital_span("TTFB", 50, end_time=100)
-        new = _vital_span("TTFB", 101.7, end_time=200, waiting_duration=1.2, request_duration=83.7)
-        upper = _vital_span("LCP", 250, end_time=150)
-        vital_map = ViewSpanBuilder._build_vital_map([old, new, upper])
-        # 期望直接引用构造入参，最新 TTFB 为 new
-        assert vital_map["ttfb"]["end_time"] == new["end_time"]
-        assert vital_map["ttfb"]["attributes.vital.value"] == new["attributes"]["vital"]["value"]
-        assert vital_map["lcp"]["end_time"] == upper["end_time"]
-
-    def test_build_vital_map_case_insensitive_metric(self):
-        snap = _vital_span("Cls", 0.05)  # 混合大小写的 metric
-        vital_map = ViewSpanBuilder._build_vital_map([snap])
-        assert "cls" in vital_map
-        assert vital_map["cls"]["attributes.vital.value"] == snap["attributes"]["vital"]["value"]
-
-    def test_prepare_flatten_data_mounts_vital_under_display_prefix(self):
-        """vital 快照应挂到 display.vitals.{metric}，子字段带 attributes.vital 前缀。"""
-        span = _base_view_span()
-        ttfb = _vital_span("TTFB", 101.7, waiting_duration=1.2)
-        flatten = ViewSpanBuilder._prepare_flatten_data(span, [span, _view_snapshot(), ttfb])
-        # 期望引用构造入参，改样例无需同步字面量
-        assert flatten[build_vital_source_key("ttfb", "attributes.vital.value")] == ttfb["attributes"]["vital"]["value"]
-        assert (
-            flatten[build_vital_source_key("ttfb", "attributes.vital.ttfb.waiting_duration")]
-            == ttfb["attributes"]["vital"]["ttfb"]["waiting_duration"]
-        )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 公共函数 build_vital_source_key
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class TestBuildVitalSourceKey:
-    def test_key_matches_prefix_and_metric(self):
-        for metric in VITAL_METRICS:
-            assert build_vital_source_key(metric, "attributes.vital.value") == (
-                f"{VITAL_METRIC_KEYS[metric]}.attributes.vital.value"
+    @pytest.mark.parametrize(
+        "source,loading,load_event,stable",
+        [
+            ("auto", 608.800048828125, 608.7999999523163, pytest.approx(0, abs=0.001)),
+            ("auto", 608.7999999523163, 608.800048828125, 0),
+            ("auto", 200, 175, 25),
+            ("manual", 200, 175, None),
+        ],
+    )
+    def test_page_stable_handles_source_and_rounding(self, source, loading, load_event, stable):
+        result = build(
+            _base_view_span(
+                **{"view.loading_time_source": source, "view.loading_time": loading, "view.load_event": load_event}
             )
+        )
+        data = _section(result, "loading_timing")["data"]
+        phases = {phase["key"]: phase for phase in data["phases"]}
+        if stable is None:
+            assert "page_stable" not in phases
+            assert "page_stable" not in [item["key"] for item in data["milestones"]]
+        else:
+            assert phases["page_stable"]["duration"] == stable
+            assert data["milestones"][-1]["key"] == "page_stable"
 
-    def test_metric_case_insensitive(self):
-        assert build_vital_source_key("TTFB", "x") == build_vital_source_key("ttfb", "x")
+    @pytest.mark.parametrize("loading", [None, "invalid", -5, 0, 200])
+    def test_total_duration_depends_only_on_loading_time(self, loading):
+        result = build(_base_view_span(**{"view.loading_time": loading}), [_vital_span("LCP", 500)])
+        timing = _section(result, "loading_timing")["data"]
+        if loading is None or loading == "invalid" or loading < 0:
+            assert "total_duration" not in timing
+        else:
+            assert timing["total_duration"] == loading
+        assert timing["markers"][0]["value"] == 500
 
+    @pytest.mark.parametrize(
+        "attrs,omitted",
+        [
+            ({"view.first_byte": 140, "view.dom_content_loaded": 100}, "dom_processing"),
+            ({"view.first_byte": None}, "dom_processing"),
+            ({"view.first_byte": -1}, "dom_processing"),
+            ({"view.dom_content_loaded": 200, "view.load_event": 175}, "resource_load"),
+        ],
+    )
+    def test_invalid_phase_boundaries_are_omitted(self, attrs, omitted):
+        data = _section(build(_base_view_span(**attrs)), "loading_timing")["data"]
+        assert omitted not in [phase["key"] for phase in data["phases"]]
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 共享 phase（评论 4130729347：合并 View / Resource 两处重复实现）
-# ─────────────────────────────────────────────────────────────────────────────
+    @pytest.mark.parametrize("loading_type", ["route_change", "activity", None])
+    def test_non_initial_load_omits_waterfall(self, loading_type):
+        assert _section(build(_base_view_span(**{"view.loading_type": loading_type})), "loading_timing") is None
 
-
-class TestPhase:
-    ALIASES = {"dns": "DNS 查询", "tls": "TLS"}
-
-    def _alias(self, key: str) -> str:
-        """模拟调用方从别名表取值并以 key 兜底的通用约定。"""
-        return self.ALIASES.get(key, key)
-
-    def test_valid_phase_returns_dict_with_alias(self):
-        """有效起点与时长返回 phase 字典，并取调用方传入的展示名。"""
-        result = phase("dns", self._alias("dns"), 10, 5)
-        assert result == {"key": "dns", "alias": "DNS 查询", "start": 10, "duration": 5}
-
-    def test_missing_start_or_duration_omits(self):
-        """起点或时长缺失整段不输出。"""
-        assert phase("dns", self._alias("dns"), None, 5) is None
-        assert phase("dns", self._alias("dns"), 10, None) is None
-
-    def test_negative_duration_omits(self):
-        """时长为负整段不输出，避免伪造 0 段。"""
-        assert phase("dns", self._alias("dns"), 10, -1) is None
-
-    def test_default_allows_negative_start(self):
-        """默认（Resource 侧）不传 min_start，不校验负起点，负起点仍输出。"""
-        result = phase("tls", self._alias("tls"), -3, 8)
-        assert result == {"key": "tls", "alias": "TLS", "start": -3, "duration": 8}
-
-    def test_min_start_zero_rejects_negative_start(self):
-        """View 侧 min_start=0：负起点整段不输出，非负起点正常输出。"""
-        assert phase("dns", self._alias("dns"), -3, 8, min_start=0) is None
-        assert phase("dns", self._alias("dns"), 0, 8, min_start=0) == {
-            "key": "dns",
-            "alias": "DNS 查询",
-            "start": 0,
-            "duration": 8,
-        }
-
-    def test_alias_fallback_to_key(self):
-        """调用方以 key 兜底时，别名回退到 key 本身。"""
-        assert phase("connect", self._alias("connect"), 1, 2)["alias"] == "connect"
+    def test_missing_milestones_and_vitals_are_not_fabricated(self):
+        result = build(_base_view_span(**{"view.load_event": None, "view.loading_time": None}))
+        data = _section(result, "loading_timing")["data"]
+        assert data["markers"] == []
+        assert data["milestones"] == []
+        assert [phase["key"] for phase in data["phases"]] == ["dom_processing"]
+        assert _section(result, "web_vitals")["data"]["lcp"]["attributes.vital.value"] is None
