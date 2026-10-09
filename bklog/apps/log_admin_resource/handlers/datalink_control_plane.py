@@ -4,9 +4,7 @@ from __future__ import annotations
 
 import re
 
-from apps.api import TransferApi
-from apps.api.modules.bkdata_datalink import BkDataDataLinkApi
-from apps.api.modules.gse import GseApi
+from apps.api import BkDataAccessApi, BkDataMetaApi, GseApi, TransferApi
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.log_admin_resource.handlers.inspection import (
     call_bkdata,
@@ -144,7 +142,9 @@ def get_datalink_control_plane_snapshot(params):
                 {"code": "GSE_STREAM_LIMIT", "message": "Additional stream_to IDs were not queried"}
             )
 
-    v4_meta = _call(BkDataDataLinkApi.metadata, {"bk_data_id": data_id, "no_request": True}, tenant, _v4_metadata)
+    v4_meta = _call(
+        BkDataMetaApi.get_datalink_metadata, {"bk_data_id": data_id, "no_request": True}, tenant, _v4_metadata
+    )
     result["v4_metadata"] = v4_meta
     if v4_meta["probe_status"] == "success":
         branches = v4_meta["data"]["branches"]
@@ -317,7 +317,7 @@ def _resource(kind, name, tenant, namespace="bklog"):
     if namespace != "bklog":
         return probe_skipped("UNSUPPORTED_NAMESPACE", "Resource reference is outside the BKLog namespace")
     return _call(
-        BkDataDataLinkApi.resource,
+        BkDataAccessApi.get_datalink_resource,
         {"tenant": tenant, "namespace": namespace, "kind": RESOURCE_PATHS[kind], "name": name, "no_request": True},
         tenant,
         lambda value: _project_resource(value, kind, name, namespace, tenant),

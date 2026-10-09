@@ -3,7 +3,8 @@ from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
 
-from apps.api.modules.bkdata_datalink import _BkDataDataLinkApi
+from apps.api.modules.bkdata_access import _BkDataAccessApi
+from apps.api.modules.bkdata_meta import _BkDataMetaApi
 from apps.api.modules.gse import _GseApi
 from apps.exceptions import ApiResultError, PermissionError as BklogPermissionError, ValidationError
 from apps.log_admin_resource.handlers.datalink_control_plane import (
@@ -93,8 +94,8 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.cluster = self.enterContext(patch(f"{MODULE}.TransferApi.get_cluster_info"))
         self.route = self.enterContext(patch(f"{MODULE}.GseApi.query_route"))
         self.stream = self.enterContext(patch(f"{MODULE}.GseApi.query_stream_to"))
-        self.v4_metadata = self.enterContext(patch(f"{MODULE}.BkDataDataLinkApi.metadata"))
-        self.v4_resource = self.enterContext(patch(f"{MODULE}.BkDataDataLinkApi.resource"))
+        self.v4_metadata = self.enterContext(patch(f"{MODULE}.BkDataMetaApi.get_datalink_metadata"))
+        self.v4_resource = self.enterContext(patch(f"{MODULE}.BkDataAccessApi.get_datalink_resource"))
 
         self.metadata.return_value = {
             "bk_data_id": DATA_ID,
@@ -177,12 +178,13 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.assertIn("/api/bk-gse/", gse.query_route.url)
         for enabled in (True, False):
             with self.subTest(multi_tenant=enabled), override_settings(ENABLE_MULTI_TENANT_MODE=enabled):
-                v4 = _BkDataDataLinkApi()
-                self.assertEqual(v4.metadata.method, "GET")
-                self.assertTrue(v4.metadata.url.endswith("v4/meta/datalink/metadata/"))
-                self.assertEqual(v4.resource.method, "GET")
+                meta = _BkDataMetaApi()
+                access = _BkDataAccessApi()
+                self.assertEqual(meta.get_datalink_metadata.method, "GET")
+                self.assertTrue(meta.get_datalink_metadata.url.endswith("v4/meta/datalink/metadata/"))
+                self.assertEqual(access.get_datalink_resource.method, "GET")
                 self.assertEqual(
-                    v4.resource.url_keys,
+                    access.get_datalink_resource.url_keys,
                     ["tenant", "namespace", "kind", "name"] if enabled else ["namespace", "kind", "name"],
                 )
 
