@@ -180,11 +180,15 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.biz_check.assert_not_called()
 
     def test_cluster_accepts_legacy_top_level_identity(self):
+        self.cluster.return_value[0]["cluster_config"].pop("cluster_id")
+        self.cluster.return_value[0]["cluster_config"].pop("cluster_name")
         self.cluster.return_value[0]["cluster_id"] = 106
         self.cluster.return_value[0]["cluster_name"] = "test-kafka"
         self.cluster.return_value[0]["gse_stream_to_id"] = 203
         result = get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
         self.assertEqual(result["kafka_cluster"]["probe_status"], "success")
+        self.assertEqual(result["kafka_cluster"]["data"]["cluster_id"], 106)
+        self.assertEqual(result["kafka_cluster"]["data"]["cluster_name"], "test-kafka")
         self.assertEqual(result["kafka_cluster"]["data"]["gse_stream_to_id"], 203)
 
     def test_cluster_rejects_conflicting_identity(self):
