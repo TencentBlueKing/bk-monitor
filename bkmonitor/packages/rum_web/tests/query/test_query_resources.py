@@ -579,6 +579,48 @@ class TestRumStatisticsSerializer:
         )
         assert not s.is_valid()
 
+    @pytest.mark.parametrize("key", ["baseline", "time_shifts"])
+    @pytest.mark.parametrize("shift", ["invalid", "1dextra", "1d\\n", "1ms", "1", "d"])
+    def test_invalid_time_shift(self, key, shift):
+        data = {"bk_biz_id": 2, "app_name": "my_app", "field": "f", "cal_type": "count", "group_name": "origin"}
+        data[key] = shift if key == "baseline" else [shift]
+        serializer = RumStatisticsRequestSerializer(data=data)
+        assert not serializer.is_valid()
+        assert "不支持的时间偏移" in str(serializer.errors)
+
+    @pytest.mark.parametrize("shift", ["0s", "3600s", "0.5h", "1d", "7d", "1M", "1y", "-1h", "+1h"])
+    def test_valid_time_shift(self, shift):
+        serializer = RumStatisticsRequestSerializer(
+            data={
+                "bk_biz_id": 2,
+                "app_name": "my_app",
+                "field": "f",
+                "cal_type": "count",
+                "group_name": "origin",
+                "time_shifts": [shift],
+            }
+        )
+        assert serializer.is_valid(), serializer.errors
+
+    @pytest.mark.parametrize(
+        "group_by,window,valid", [(["time"], 10000, True), (["time"], 10001, False), ([], 86400, True)]
+    )
+    def test_bucket_count_limit(self, group_by, window, valid):
+        serializer = RumStatisticsRequestSerializer(
+            data={
+                "bk_biz_id": 2,
+                "app_name": "my_app",
+                "field": "f",
+                "cal_type": "count",
+                "group_name": "origin",
+                "start_time": 1737532800,
+                "end_time": 1737532800 + window,
+                "group_by": group_by,
+                "interval": 1,
+            }
+        )
+        assert serializer.is_valid() is valid, serializer.errors
+
 
 class TestRumStatisticsResource:
     """RumStatisticsResource 路由与服务调用"""

@@ -8,9 +8,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from copy import deepcopy
+
 import pytest
 
-from bkmonitor.data_source.utils.statistics import process_growth_rates, process_proportions
+from bkmonitor.data_source.utils.statistics import merge_records, process_growth_rates, process_proportions
 
 
 def _make_records(records: list[dict]) -> list[dict]:
@@ -155,3 +157,35 @@ class TestStatisticsIntegration:
         assert records[0]["growth_rates"]["0s"] == pytest.approx(66.66, abs=0.01)
         assert records[0]["proportions"]["0s"] == 60
         assert records[1]["proportions"]["0s"] == 40
+
+
+class TestMergeRecords:
+    def test_dimension_union_and_missing_aliases(self):
+        records = {
+            "0s": [{"service": "a", "_result_": 10}, {"service": "b", "_result_": 20}],
+            "1d": [{"service": "a", "_result_": 5}, {"service": "c", "_result_": 15}],
+            "7d": [],
+        }
+        original = deepcopy(records)
+        assert merge_records(["service"], records, int) == [
+            {"dimensions": {"service": "a"}, "0s": 10, "1d": 5, "7d": None},
+            {"dimensions": {"service": "b"}, "0s": 20, "1d": None, "7d": None},
+            {"dimensions": {"service": "c"}, "0s": None, "1d": 15, "7d": None},
+        ]
+        assert records == original
+
+    def test_aligned_buckets_and_custom_formatter(self):
+        records = {
+            "0s": [{"service": "a", "_time_": 1737532800000, "_result_": 1000}],
+            "1d": [{"service": "a", "_time_": 1737532800000, "_result_": 500}],
+        }
+        # LLM 等调用方的单位换算由传入的 formatter 保留。
+        assert merge_records(["time", "service"], records, lambda value: value / 1000) == [
+            {"dimensions": {"time": 1737532800, "service": "a"}, "0s": 1, "1d": 0.5}
+        ]
+
+    @pytest.mark.parametrize("baseline,alias,expected", [(None, 10, -100), (10, None, 100), (None, None, None)])
+    def test_missing_values_growth_rates(self, baseline, alias, expected):
+        records = [{"0s": baseline, "1d": alias}]
+        process_growth_rates("0s", ["0s", "1d"], records)
+        assert records[0]["growth_rates"]["1d"] == expected

@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections.abc import Callable
 from typing import Any
 from collections import defaultdict
 
@@ -55,3 +56,33 @@ def process_proportions(aliases: list[str], records: list[dict[str, Any]]):
             record.setdefault("proportions", {})[alias] = format_percent(
                 (record[alias] / alias_total_map[alias]) * 100, precision=2, sig_fig_cnt=1, readable_precision=4
             )
+
+
+def merge_records(
+    group_fields: list[str],
+    alias_records_map: dict[str, list[dict[str, Any]]],
+    format_value: Callable[[Any], int | float],
+) -> list[dict[str, Any]]:
+    """按维度合并各别名的聚合结果，缺失值补 None。
+
+    :param group_fields: 分组字段，time 使用已对齐的 _time_（毫秒）转换为秒
+    :param alias_records_map: 各别名对应的聚合记录
+    :param format_value: 数值格式化函数，保留调用方的精度和单位约定
+    :return: 包含 dimensions 和各别名数值的记录列表
+    """
+    group_key_record_map: dict[tuple, dict[str, Any]] = {}
+    # 取各时间窗口维度的并集，缺失窗口保留为 None。
+    for alias, records in alias_records_map.items():
+        for record in records:
+            dimensions = {**record, "time": record.get("_time_", 0) // 1000}
+            group_key = tuple((field, dimensions.get(field) or "") for field in group_fields)
+            group_key_record_map.setdefault(group_key, {})[alias] = record["_result_"]
+
+    merged_records: list[dict[str, Any]] = []
+    for group_key, record in group_key_record_map.items():
+        processed_record: dict[str, Any] = {"dimensions": dict(group_key)}
+        for alias in alias_records_map:
+            value = record.get(alias)
+            processed_record[alias] = None if value is None else format_value(value)
+        merged_records.append(processed_record)
+    return merged_records
