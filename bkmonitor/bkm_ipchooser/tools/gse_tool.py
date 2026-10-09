@@ -1,8 +1,8 @@
 import logging
 
 from bkm_ipchooser.constants import ScopeType
+from bkmonitor.utils.nodeman import host_queries
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from core.drf_resource import api
 
 logger = logging.getLogger("bkm_ipchooser")
 
@@ -28,7 +28,7 @@ def fill_agent_status(cc_hosts: list[dict], bk_biz_id: int) -> list[dict]:
         "agent_realtime_state": True,
     }
     try:
-        host_info = api.node_man.ipchooser_host_detail(request_params)
+        host_info = host_queries.details(request_params)
     except Exception as e:
         logger.error("获取主机agent状态失败: %s", e)
         return cc_hosts
