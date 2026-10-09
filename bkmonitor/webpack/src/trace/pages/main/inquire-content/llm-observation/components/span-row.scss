@@ -69,8 +69,17 @@ $tree-step: 16px;
   }
 
   &.is-token {
-    width: 170px;
+    justify-content: flex-end;
+    width: 200px;
     padding: 0 12px;
+
+    .llm-span-tokens {
+      margin-right: auto;
+    }
+
+    .bk-button {
+      flex-shrink: 0;
+    }
   }
 
   &.is-action {
@@ -250,9 +259,21 @@ $tree-step: 16px;
   border-radius: 4px;
 }
 
-.llm-span-io-text,
+.llm-span-io-pieces,
 .llm-span-io-empty {
   flex: 1;
+  min-width: 0;
+}
+
+.llm-span-io-pieces {
+  gap: 8px;
+  overflow: hidden;
+
+  @include flex-align(center);
+}
+
+.llm-span-io-text,
+.llm-span-io-empty {
   min-width: 0;
   font-family: 'Microsoft YaHei', sans-serif;
   font-size: $font-size-base;
@@ -263,9 +284,29 @@ $tree-step: 16px;
   @include ellipsis;
 }
 
+.llm-span-io-text {
+  flex: 1;
+}
+
+.llm-span-io-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 46%;
+  padding: 0 3px;
+  font-family: menlo, monaco, monospace;
+  font-size: $font-size-base;
+  font-weight: 700;
+  line-height: 20px;
+  color: #313238;
+  background: #e9edf5;
+  border-radius: 4px;
+
+  @include ellipsis;
+}
+
 .llm-span-io-kvs {
   flex: 1;
-  gap: 4px;
+  gap: 8px;
   min-width: 0;
   overflow: hidden;
 
@@ -273,9 +314,8 @@ $tree-step: 16px;
 }
 
 .llm-span-io-kv {
-  flex-shrink: 0;
+  flex: 1;
   gap: 2px;
-  width: 100%;
   min-width: 0;
   overflow: hidden;
   font-size: $font-size-base;

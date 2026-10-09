@@ -154,10 +154,14 @@ export const useHostList = (options: IUseHostListOptions) => {
     selectedRowKeys.value = new Set();
     excludedRowKeys.value = new Set();
   };
+  let lastQueryKey = '';
   const loadData = () => {
     if (!selectedNode.value) return;
+    const queryKey = JSON.stringify([timeRange.value, timezone.value, getRequestScope()]);
+    const preserve = queryKey === lastQueryKey;
+    lastQueryKey = queryKey;
     resetSelection();
-    return data.loadData();
+    return data.loadData(preserve);
   };
   watch(
     [timeRange, timezone, refreshGeneration, () => JSON.stringify(getRequestScope())],
@@ -197,7 +201,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     { deep: true, flush: 'sync' }
   );
 
-  watch(fullDataReady, async ready => {
+  watch([fullDataReady, data.snapshotVersion], async ([ready]) => {
     if (!ready || !selectedRowKeys.value.size) return;
     const requestGeneration = ++selectionRequestGeneration;
     const requestedKeys = [...selectedRowKeys.value];

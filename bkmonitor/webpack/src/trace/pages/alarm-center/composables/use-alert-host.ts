@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, shallowRef, watchEffect } from 'vue';
+import { type MaybeRef, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 
@@ -50,42 +50,35 @@ interface UseAlertHostOptions {
 export const useAlertHost = (options: UseAlertHostOptions) => {
   const { alertId, bizId } = options;
   /** 当前选中的主机对象 */
-  const currentTarget = shallowRef<AlertHostTargetItem | null>({
-    bk_target_ip: '0.0.0.0',
-    bk_cloud_id: 0,
-  });
+  const currentTarget = shallowRef<AlertHostTargetItem | null>(null);
   /** 告警关联主机对象列表 */
   const targetList = shallowRef<AlertHostTargetItem[]>([]);
   /** 数据请求加载状态 */
   const loading = shallowRef(false);
 
-  /**
-   * @method hasTarget 判断是否已经存在目标
-   * @param target 目标
-   * @returns {boolean} 是否已经存在目标
-   */
-  const hasTarget = (target: AlertHostTargetItem) => {
-    if (!target) {
-      return false;
-    }
-    return targetList.value.some(item => item?.bk_host_id === target?.bk_host_id);
-  };
-
-  /**
-   * @method getHostList 获取可选择的关联主机对象列表
-   * @returns {Promise<void>}
-   */
-  const getHostList = async () => {
+  const error = shallowRef(false);
+  const revision = shallowRef(0);
+  watch([() => get(alertId), () => get(bizId), revision], async ([id, biz], _, onCleanup) => {
+    let active = true;
+    onCleanup(() => { active = false; });
     loading.value = true;
-    targetList.value = await getHostTargetList({ alertId: get(alertId), bizId: get(bizId) });
-    if (targetList.value?.length && !hasTarget(currentTarget.value)) {
-      currentTarget.value = targetList.value[0];
+    error.value = false;
+    currentTarget.value = null;
+    targetList.value = [];
+    try {
+      const list = await getHostTargetList({ alertId: id as string, bizId: biz as number });
+      if (!active) return;
+      targetList.value = list;
+      currentTarget.value = list[0] || null;
+    } catch {
+      if (active) error.value = true;
+    } finally {
+      if (active) loading.value = false;
     }
-    loading.value = false;
-  };
-
-  watchEffect(getHostList);
+  }, { immediate: true });
   return {
+    error,
+    retry: () => { revision.value++; },
     targetList,
     loading,
     currentTarget,

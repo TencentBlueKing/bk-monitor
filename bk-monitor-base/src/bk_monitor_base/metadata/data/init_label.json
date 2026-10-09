@@ -1,0 +1,200 @@
+[
+  {
+    "label_id": "apm",
+    "label_name": "APM",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": "applications",
+    "level": 2,
+    "index": 3
+  },
+  {
+    "label_id": "applications",
+    "label_name": "用户体验",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": 1,
+    "index": 1
+  },
+  {
+    "label_id": "application_check",
+    "label_name": "业务应用",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": "applications",
+    "level": 2,
+    "index": 2
+  },
+  {
+    "label_id": "bk_data",
+    "label_name": "蓝鲸计算平台",
+    "label_type": "source_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": null,
+    "index": null
+  },
+  {
+    "label_id": "bk_monitor",
+    "label_name": "蓝鲸监控",
+    "label_type": "source_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": null,
+    "index": null
+  },
+  {
+    "label_id": "component",
+    "label_name": "组件",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": "services",
+    "level": 2,
+    "index": 2
+  },
+  {
+    "label_id": "custom",
+    "label_name": "用户自定义",
+    "label_type": "source_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": null,
+    "index": null
+  },
+  {
+    "label_id": "data_center",
+    "label_name": "数据中心",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": 1,
+    "index": 4
+  },
+  {
+    "label_id": "event",
+    "label_name": "内置事件类型",
+    "label_type": "type_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": null,
+    "index": null
+  },
+  {
+    "label_id": "hardware_device",
+    "label_name": "硬件设备",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": "data_center",
+    "level": 2,
+    "index": 1
+  },
+  {
+    "label_id": "hosts",
+    "label_name": "主机&云平台",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": 1,
+    "index": 3
+  },
+  {
+    "label_id": "host_device",
+    "label_name": "主机设备",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": "hosts",
+    "level": 2,
+    "index": 3
+  },
+  {
+    "label_id": "host_process",
+    "label_name": "进程",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": "hosts",
+    "level": 2,
+    "index": 1
+  },
+  {
+    "label_id": "kubernetes",
+    "label_name": "kubernetes",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": "hosts",
+    "level": 2,
+    "index": 4
+  },
+  {
+    "label_id": "log",
+    "label_name": "日志类型",
+    "label_type": "type_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": null,
+    "index": null
+  },
+  {
+    "label_id": "os",
+    "label_name": "操作系统",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": "hosts",
+    "level": 2,
+    "index": 2
+  },
+  {
+    "label_id": "others",
+    "label_name": "其他",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": 1,
+    "index": 5
+  },
+  {
+    "label_id": "other_rt",
+    "label_name": "其他",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": "others",
+    "level": 2,
+    "index": 2
+  },
+  {
+    "label_id": "services",
+    "label_name": "服务",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": 1,
+    "index": 2
+  },
+  {
+    "label_id": "service_module",
+    "label_name": "服务模块",
+    "label_type": "result_table_label",
+    "is_admin_only": false,
+    "parent_label": "services",
+    "level": 2,
+    "index": 1
+  },
+  {
+    "label_id": "time_series",
+    "label_name": "时序数据",
+    "label_type": "type_label",
+    "is_admin_only": false,
+    "parent_label": null,
+    "level": null,
+    "index": null
+  },
+  {
+    "label_id": "uptimecheck",
+    "label_name": "服务拨测",
+    "label_type": "result_table_label",
+    "is_admin_only": true,
+    "parent_label": "applications",
+    "level": 2,
+    "index": 1
+  }
+]

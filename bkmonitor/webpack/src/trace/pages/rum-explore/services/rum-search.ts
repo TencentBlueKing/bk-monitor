@@ -155,7 +155,7 @@ export async function getRecordList(
   params: IRecordListParams,
   requestConfig?: RequestConfig
 ): Promise<IRumSpanRecord[]> {
-  const res = await rumRecords(params, { ...SILENT, ...requestConfig }).catch(() => null);
+  const res = await rumRecords(params, { ...SILENT, ...requestConfig });
   return res?.list || [];
 }
 
@@ -164,7 +164,7 @@ export async function getViewConfig(
   params: Omit<IRumQueryParams, 'filters' | 'query_string'>,
   requestConfig?: RequestConfig
 ): Promise<IRumViewConfig> {
-  const raw = await rumViewConfig(params, { ...SILENT, ...requestConfig }).catch(() => null);
+  const raw = await rumViewConfig(params, { ...SILENT, ...requestConfig });
   return raw ? normalizeViewConfig(raw) : EMPTY_VIEW_CONFIG;
 }
 

@@ -24,15 +24,16 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onMounted, onUnmounted, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Badge, Select } from 'bkui-vue';
-import { deepClone, detectOS, random } from 'monitor-common/utils';
+import { deepClone, random } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import RefreshRate from '../../../components/refresh-rate/refresh-rate';
 import SelectMenu, { type ISelectMenuOption } from '../../../components/select-menu/select-menu';
+import SelectorShortcut, { useSelectorShortcut } from '../../../components/selector-shortcut/selector-shortcut';
 import TimeRange from '../../../components/time-range/time-range';
 import { useTraceExploreStore } from '../../../store/modules/explore';
 import TraceExploreSkeleton from './trace-explore-skeleton';
@@ -153,15 +154,9 @@ export default defineComponent({
       emit('appNameChange', val);
     }
 
-    function handleDocumentClick(e: KeyboardEvent) {
-      const isKeyO = e.key.toLowerCase() === 'o';
-      // 检测是否按下 Ctrl 或 Command 键（跨平台兼容）
-      const isCtrlOrMeta = e.ctrlKey || e.metaKey;
-      if (isKeyO && isCtrlOrMeta) {
-        e.preventDefault();
-        if (!props.applicationLoading) applicationSelectRef.value?.showPopover();
-      }
-    }
+    useSelectorShortcut(() => {
+      if (!props.applicationLoading) applicationSelectRef.value?.showPopover();
+    });
 
     async function handleThumbtack(e: Event, item: IApplicationItem) {
       e.stopPropagation();
@@ -180,14 +175,6 @@ export default defineComponent({
       store.updateMode(mode);
       emit('sceneModeChange', mode, oldMode);
     }
-
-    onMounted(() => {
-      window.addEventListener('keydown', handleDocumentClick);
-    });
-
-    onUnmounted(() => {
-      window.removeEventListener('keydown', handleDocumentClick);
-    });
 
     function handleGotoOld() {
       router.push({
@@ -286,9 +273,7 @@ export default defineComponent({
                       )
                     )}
 
-                    {!this.applicationLoading && !this.applicationToggle && (
-                      <div class='select-shortcut-keys'>{detectOS() === 'Windows' ? 'Ctrl+O' : 'Cmd+O'}</div>
-                    )}
+                    {!this.applicationLoading && !this.applicationToggle && <SelectorShortcut />}
                     <span class={`icon-monitor icon-mc-arrow-down ${this.applicationToggle ? 'expand' : ''}`} />
                   </div>
                 ),

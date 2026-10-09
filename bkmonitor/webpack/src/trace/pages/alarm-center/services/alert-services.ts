@@ -827,6 +827,7 @@ export class AlertService extends AlarmService {
     params: Partial<CommonFilterParams>,
     options?: RequestOptions
   ): Promise<FilterTableResponse<T>> {
+    const { throwOnError, ...requestOptions } = options || {};
     const paramsClone = withEmbedQuery(_.cloneDeep(params));
     const data = await searchAlert(
       {
@@ -834,7 +835,7 @@ export class AlertService extends AlarmService {
         show_overview: false, // 是否展示概览
         show_aggs: false, // 是否展示聚合
       },
-      options
+      requestOptions
     )
       .then(({ alerts, total }) => {
         // 将后端queryConfig相关数转换组装为前端定义统一的 QueryConfig 格式
@@ -875,10 +876,10 @@ export class AlertService extends AlarmService {
           data: alerts || [],
         };
       })
-      .catch(() => ({
-        total: 0,
-        data: [],
-      }));
+      .catch(error => {
+        if (throwOnError) throw error;
+        return { total: 0, data: [] };
+      });
     return data;
   }
 

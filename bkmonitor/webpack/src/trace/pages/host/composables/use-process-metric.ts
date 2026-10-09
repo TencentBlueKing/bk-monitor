@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRefOrGetter, computed, toValue } from 'vue';
+import { type MaybeRefOrGetter, computed, onScopeDispose, toValue } from 'vue';
 import { shallowRef } from 'vue';
 
 import { updateSceneView } from 'monitor-api/modules/scene_view';
@@ -51,6 +51,10 @@ export function useProcessMetric(options: UseProcessMetricOptions) {
   const { t } = useI18n();
   /** 进程详情视图配置请求加载loading状态 */
   const loading = shallowRef(false);
+  const submitting = shallowRef(false);
+  let disposed = false;
+  const loadError = shallowRef(false);
+  let latestLoadId = 0;
   /** 视图分组管理弹窗显隐 */
   const settingShow = shallowRef(false);
   /** 后端返回的原始面板分组数据（getProcessViewsPanelsApi） */
@@ -65,23 +69,33 @@ export function useProcessMetric(options: UseProcessMetricOptions) {
    * - true：忽略缓存，强制重新拉取最新排序配置（保存/重置后使用）
    */
   const load = async (forceRefresh = false) => {
+    if (disposed) return false;
+    const loadId = ++latestLoadId;
     loading.value = true;
+    loadError.value = false;
     try {
       const [panelsRes, orderRes] = await Promise.all([
         getProcessViewsPanelsApi(forceRefresh),
         getProcessMetricGroupPanelOrderApi(forceRefresh),
       ]);
+      if (disposed || loadId !== latestLoadId) return false;
       panels.value = panelsRes;
       orderData.value = orderRes;
+      return true;
+    } catch {
+      if (disposed || loadId !== latestLoadId) return false;
+      loadError.value = true;
+      return false;
     } finally {
-      loading.value = false;
+      if (!disposed && loadId === latestLoadId) loading.value = false;
     }
   };
 
   /** 保存 */
   const handleSave = async (value: MetricGroupPanelOrder[]) => {
+    if (submitting.value || disposed) return;
     try {
-      loading.value = true;
+      submitting.value = true;
       await updateSceneView({
         scene_id: 'host',
         type: 'detail',
@@ -91,17 +105,17 @@ export function useProcessMetric(options: UseProcessMetricOptions) {
           order: value,
         },
       });
-      await load(true);
-      settingShow.value = false;
+      if (await load(true)) settingShow.value = false;
     } finally {
-      loading.value = false;
+      submitting.value = false;
     }
   };
 
   /** 恢复默认 */
   const handleReset = async () => {
+    if (submitting.value || disposed) return;
     try {
-      loading.value = true;
+      submitting.value = true;
       await updateSceneView({
         scene_id: 'host',
         type: 'detail',
@@ -111,10 +125,9 @@ export function useProcessMetric(options: UseProcessMetricOptions) {
           order: [],
         },
       });
-      await load(true);
-      settingShow.value = false;
+      if (await load(true)) settingShow.value = false;
     } finally {
-      loading.value = false;
+      submitting.value = false;
     }
   };
 
@@ -140,8 +153,12 @@ export function useProcessMetric(options: UseProcessMetricOptions) {
     return result;
   });
 
+  onScopeDispose(() => { disposed = true; latestLoadId += 1; });
+
   return {
     rows,
+    submitting,
+    loadError,
     orderData,
     loading,
     settingShow,

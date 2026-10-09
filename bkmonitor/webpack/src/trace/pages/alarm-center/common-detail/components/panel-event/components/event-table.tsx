@@ -37,7 +37,7 @@ import type { PropType } from 'vue';
 import { type SortInfo, type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
 import { Button, Checkbox } from 'bkui-vue';
 import EmptyStatus, { type EmptyStatusOperationType } from 'trace/components/empty-status/empty-status';
-import TableSkeleton from 'trace/components/skeleton/table-skeleton';
+import { DetailTableSkeleton, DetailLoadStatus } from '@/pages/alarm-center/common-detail/detail-loading';
 import { formatTime } from 'trace/utils/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -109,7 +109,12 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
     const loadingRef = useTemplateRef('scrollRef');
-    const loading = shallowRef(false);
+    const loading = shallowRef(true);
+    const error = shallowRef(false);
+    const countLoading = shallowRef(true);
+    const countError = shallowRef(false);
+    let requestId = 0;
+    let disposed = false;
     const scrollLoading = shallowRef(false);
     const columns = shallowRef<TdPrimaryTableProps['columns']>([
       {
@@ -341,35 +346,52 @@ export default defineComponent({
     };
 
     const resetData = () => {
+      ++requestId;
+      loading.value = false;
+      scrollLoading.value = false;
+      error.value = false;
+      expandedRowKeys.value = [];
       tableData.offset = 0;
       tableData.data = [];
       isEnd.value = false;
     };
 
     const handleLoad = async () => {
-      if (isEnd.value || loading.value || scrollLoading.value) {
+      if (error.value || isEnd.value || loading.value || scrollLoading.value) {
         return;
       }
+      const current = ++requestId;
       tableData.offset = tableData.data.length;
       if (tableData.offset) {
         scrollLoading.value = true;
       } else {
         loading.value = true;
       }
+      try {
       const res = await props.getTableData({
         offset: tableData.offset,
         limit: tableData.limit,
         sources: sourceType.value,
         sort: sort.value ? [`${sort.value.descending ? '-' : ''}${sort.value.sortBy}`] : [],
       });
+      if (current !== requestId) return;
       tableData.data = [...tableData.data, ...res.data];
       isEnd.value = res.data.length < tableData.limit;
-      scrollLoading.value = false;
-      loading.value = false;
+      } catch {
+        if (current === requestId) error.value = true;
+      } finally {
+        if (current === requestId) {
+          scrollLoading.value = false;
+          loading.value = false;
+        }
+      }
     };
+    const retry = () => { error.value = false; handleLoad(); };
     const init = async () => {
+      loading.value = false;
       await handleLoad();
       await nextTick();
+      if (disposed) return;
       observer.value = new IntersectionObserver(entries => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
@@ -379,7 +401,7 @@ export default defineComponent({
           }
         }
       });
-      observer.value.observe(loadingRef.value as HTMLElement);
+      if (loadingRef.value) observer.value.observe(loadingRef.value as HTMLElement);
     };
 
     const handleSortChange = (value: SortInfo) => {
@@ -418,13 +440,15 @@ export default defineComponent({
       }
     };
 
-    onMounted(() => {
-      init();
-      props
+    const loadCounts = async () => {
+      countLoading.value = true;
+      countError.value = false;
+      await props
         .getDataCount({
           sources: sourceTypeOptions.value.map(item => item.value).filter(item => item !== SourceTypeEnum.ALL),
         })
         .then(res => {
+          if (disposed) return;
           const result = [];
           for (const option of sourceTypeOptions.value) {
             if (option.value === SourceTypeEnum.ALL) {
@@ -436,13 +460,20 @@ export default defineComponent({
             result.push(option);
           }
           sourceTypeOptions.value = result;
-        });
-    });
+        })
+        .catch(() => { if (!disposed) countError.value = true; })
+        .finally(() => { if (!disposed) countLoading.value = false; });
+    };
+    onMounted(() => { init(); loadCounts(); });
     onBeforeUnmount(() => {
+      disposed = true;
+      ++requestId;
       observer.value?.disconnect();
     });
 
     return {
+      scrollLoading,
+      error, retry, countLoading, countError, retryCounts: loadCounts,
       columns,
       sourceType,
       sourceTypeOptions,
@@ -477,7 +508,7 @@ export default defineComponent({
             <span class='source-item'>
               {allItem.icon ? <span class={`source-icon icon-monitor ${allItem.icon}`} /> : undefined}
               <span>{allItem.label}</span>
-              <span>&nbsp;({allItem.count})</span>
+              {this.countLoading ? <span class='skeleton-element' style={{ width: '20px', height: '12px', marginLeft: '4px' }} /> : <span>&nbsp;({this.countError ? '--' : allItem.count})</span>}
             </span>
           </Checkbox>
           <Checkbox.Group
@@ -523,7 +554,7 @@ export default defineComponent({
                             ) : undefined
                         } */}
                         <span>{item.label}</span>
-                        <span>&nbsp;({item.count})</span>
+                        {this.countLoading ? <span class='skeleton-element' style={{ width: '20px', height: '12px', marginLeft: '4px' }} /> : <span>&nbsp;({this.countError ? '--' : item.count})</span>}
                       </span>
                     </Checkbox>
                   ));
@@ -543,8 +574,10 @@ export default defineComponent({
             />
           </Button>
         </div>
+        <DetailLoadStatus error={this.countError} onRetry={this.retryCounts} />
+        <DetailLoadStatus error={this.error} onRetry={this.retry} />
         {this.loading ? (
-          <TableSkeleton type={1} />
+          <DetailTableSkeleton columns={this.columns} />
         ) : (
           <PrimaryTable
             class='relation-event-table'
@@ -567,7 +600,7 @@ export default defineComponent({
             onSortChange={this.handleSortChange as any}
           >
             {{
-              empty: () => (
+              empty: () => !this.error && (
                 <EmptyStatus
                   type={this.sourceType.length ? 'search-empty' : 'empty'}
                   onOperation={this.handleOperation}
@@ -578,10 +611,10 @@ export default defineComponent({
         )}
         <div
           ref='scrollRef'
-          style={{ display: this.tableData.data.length ? 'flex' : 'none' }}
+          style={{ display: this.tableData.data.length && !this.error ? 'flex' : 'none' }}
           class='panel-event-table-scroll-loading'
         >
-          <span>{this.isEnd ? this.$t('到底了') : this.$t('正加载更多内容…')}</span>
+          <span>{this.isEnd ? this.$t('到底了') : this.scrollLoading ? this.$t('正加载更多内容…') : ''}</span>
         </div>
       </div>
     );

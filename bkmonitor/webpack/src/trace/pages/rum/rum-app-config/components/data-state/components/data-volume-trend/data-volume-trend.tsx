@@ -28,7 +28,10 @@ import { type PropType, defineComponent, provide, toRef } from 'vue';
 
 import EmptyStatus from '../../../../../../../components/empty-status/empty-status';
 import { DEFAULT_TIME_RANGE } from '../../../../../../../components/time-range/utils';
+import ChartTitle from '../../../../../../../plugins/components/chart-title';
+import DetailLoading from '../../../../../../alarm-center/common-detail/detail-loading';
 import AlarmMetricsDashboard from '../../../../../../alarm-center/components/alarm-metrics-dashboard/alarm-metrics-dashboard';
+import { rumSkeletonLine } from '../../../../../components/rum-content-skeleton';
 
 import type { TimeRangeType } from '../../../../../../../components/time-range/utils';
 import type { IDataQuery } from '../../../../../../../plugins/typings';
@@ -92,12 +95,20 @@ export default defineComponent({
 
     /** 渲染骨架屏 */
     const renderSkeleton = () => (
-      <div class='data-volume-trend-skeleton'>
-        {['minute-data', 'daily-data'].map(key => (
+      <div class='data-volume-trend-content data-volume-trend-initial'>
+        {[0, 1].map(index => (
           <div
-            key={key}
-            class='data-volume-trend-skeleton-item skeleton-element'
-          />
+            key={index}
+            class='alarm-lazy-chart'
+          >
+            <div class='base-chart alarm-lazy-chart-placeholder'>
+              <ChartTitle
+                v-slots={{ title: () => rumSkeletonLine(112) }}
+                showMore={false}
+              />
+              <DetailLoading showTitle={false} />
+            </div>
+          </div>
         ))}
       </div>
     );
@@ -128,7 +139,7 @@ export default defineComponent({
   render() {
     return (
       <div class='data-volume-trend'>
-        {this.loading
+        {this.loading && !this.dashboardPanels.length
           ? this.renderSkeleton()
           : this.dashboardPanels.length === 0
             ? this.renderEmpty()

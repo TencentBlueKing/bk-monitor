@@ -26,12 +26,13 @@ import requests
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.utils.metric_id import PROMQL_DATA_SOURCE_PREFIXES
 from bkmonitor.utils.request import get_request_tenant_id
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.data_source import DataTypeLabel
 from core.drf_resource import api
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 from monitor_web.strategies.resources.v2 import GetMetricListV2Resource
+
+from .platform_catalog.cmdb import _authorize_business
 
 logger = logging.getLogger("bkmonitor")
 
@@ -227,7 +228,7 @@ def _query_ts_schema(*, raw: bool = False, reference: bool = False, check: bool 
     return schema
 
 
-def _relation_schema(*, ranged: bool) -> dict[str, Any]:
+def _relation_schema(*, ranged: bool, v1beta3: bool = False) -> dict[str, Any]:
     item_properties: dict[str, Any] = {
         "target_type": {"type": "string"},
         "source_type": {"type": "string"},
@@ -243,6 +244,8 @@ def _relation_schema(*, ranged: bool) -> dict[str, Any]:
         },
     }
     required = ["target_type", "source_info"]
+    if v1beta3:
+        required.append("source_type")
     if ranged:
         item_properties.update(
             {
@@ -262,7 +265,12 @@ def _relation_schema(*, ranged: bool) -> dict[str, Any]:
             "query_list": {
                 "type": "array",
                 "maxItems": MAX_QUERY_REFS,
-                "items": {"type": "object", "required": required, "properties": item_properties},
+                "items": {
+                    "type": "object",
+                    "required": required,
+                    "properties": item_properties,
+                    "additionalProperties": not v1beta3,
+                },
             }
         },
         "additionalProperties": False,
@@ -352,6 +360,10 @@ def _call_discover_query_ts_metrics(params: dict[str, Any]) -> Any:
 
 def _call_query_relation(params: dict[str, Any]) -> Any:
     return api.unify_query.query_multi(**params)
+
+
+def _call_query_relation_v1beta3(params: dict[str, Any]) -> Any:
+    return api.unify_query.query_multi_resource_v1_beta3(**params)
 
 
 def _call_query_relation_range(params: dict[str, Any]) -> Any:
@@ -452,6 +464,24 @@ OPERATIONS = {
                         "source_type": "service",
                         "source_info": {"service_name": "api"},
                         "target_info_show": True,
+                    }
+                ]
+            },
+            scope_style="bk_biz_ids",
+            time_range_style="none",
+        ),
+        UQOperationSpec(
+            id="query_relation_v1beta3",
+            summary="直接查询 UQ Relation v1beta3 指定时间点的资源关联关系",
+            handler=_call_query_relation_v1beta3,
+            params_schema=_relation_schema(ranged=False, v1beta3=True),
+            example_params={
+                "query_list": [
+                    {
+                        "timestamp": 1725066000,
+                        "target_type": "pod",
+                        "source_type": "service",
+                        "source_info": {"service_name": "api"},
                     }
                 ]
             },
@@ -594,6 +624,15 @@ def _guard_params(spec: UQOperationSpec, params: dict[str, Any]) -> dict[str, An
             raise ValueError("query_list 必须是非空数组")
         if len(query_list) > MAX_QUERY_REFS:
             raise ValueError(f"query_list 最多允许 {MAX_QUERY_REFS} 项")
+        if spec.id == "query_relation_v1beta3":
+            item_schema = spec.params_schema["properties"]["query_list"]["items"]
+            for index, query in enumerate(query_list):
+                if not isinstance(query, dict):
+                    raise ValueError(f"query_list[{index}] 必须是 object")
+                missing = sorted(set(item_schema["required"]) - query.keys())
+                unknown = sorted(query.keys() - item_schema["properties"].keys())
+                if missing or unknown:
+                    raise ValueError(f"query_list[{index}] 缺少 {missing} 或包含合同外字段 {unknown}")
 
     if spec.id == "discover_query_ts_metrics":
         query = params.get("query")
@@ -779,7 +818,7 @@ def _invoke(spec: UQOperationSpec, request_params: dict[str, Any]) -> dict[str, 
         return _error("invalid_argument", "invoke 需要 params object", next_call=describe_call)
 
     try:
-        derived_bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
+        derived_bk_tenant_id = _authorize_business(bk_biz_id)
         if spec.scope_style == "bk_biz_id":
             request_bk_tenant_id = get_request_tenant_id(peaceful=True)
             if not request_bk_tenant_id:

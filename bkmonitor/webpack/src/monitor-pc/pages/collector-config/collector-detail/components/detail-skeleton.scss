@@ -1,0 +1,172 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
+.collector-detail-skeleton {
+  width: 100%;
+  overflow: hidden;
+
+  .skeleton-element {
+    flex: none;
+    max-width: 100%;
+  }
+
+  .detail-skeleton-field {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+  }
+
+  .detail-skeleton-form { margin-top: 6px; }
+  .detail-skeleton-label {
+    display: flex;
+    flex: 0 0 92px;
+    justify-content: flex-end;
+  }
+
+  .detail-skeleton-params { margin: 12px 0 0 100px; }
+  .detail-skeleton-table {
+    overflow-x: auto;
+    border: 1px solid #dcdee5;
+  }
+
+  .detail-skeleton-row {
+    display: grid;
+    height: 43px;
+    border-bottom: 1px solid #eaebf0;
+
+    &.is-header { background: #fafbfd; }
+    &:last-child { border-bottom: 0; }
+  }
+
+  .detail-skeleton-cell {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    padding: 0 15px;
+  }
+
+  .detail-skeleton-group {
+    display: flex;
+    align-items: center;
+    height: 44px;
+    padding: 0 16px;
+    background: #fafbfd;
+  }
+
+  .detail-skeleton-metric + .detail-skeleton-metric { margin-top: 16px; }
+  .detail-skeleton-counts {
+    display: flex;
+    align-items: center;
+    height: 32px;
+    padding: 0 4px;
+    background: #f0f1f5;
+    border-radius: 2px;
+
+    > div { display: flex; gap: 6px; padding: 0 12px; }
+  }
+
+  .detail-skeleton-actions { display: flex; gap: 10px; }
+  .detail-skeleton-status { display: flex; align-items: center; gap: 8px; }
+  .detail-skeleton-dot { width: 8px; height: 8px; border-radius: 50%; }
+  &.is-status .detail-skeleton-table,
+  &.is-status-table .detail-skeleton-table { height: 600px; overflow-y: hidden; }
+  &.is-fields .detail-skeleton-group { height: 40px; }
+
+  .detail-skeleton-toolbar,
+  .detail-skeleton-alert {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    > :last-child { margin-left: auto; }
+  }
+
+  .detail-skeleton-alert {
+    height: 52px;
+    padding: 0 16px;
+    margin-bottom: 0;
+    border: 1px solid #eaebf0;
+    background: #f5f7fa;
+  }
+
+  &.is-storage .detail-skeleton-form {
+    display: grid;
+    grid-template-columns: repeat(2, 408px);
+    gap: 12px 0;
+    margin: 24px 0;
+
+    .detail-skeleton-field { gap: 24px; height: 20px; }
+    .detail-skeleton-label { flex-basis: 84px; }
+  }
+  .detail-skeleton-log-line { display: flex; align-items: center; height: 26px; }
+  &.is-log { padding: 10px 0; }
+  .detail-skeleton-plot { display: flex; gap: 12px; box-sizing: border-box; height: 200px; padding: 10px 40px 30px 50px; }
+  .detail-skeleton-axis { display: flex; flex-direction: column; justify-content: space-between; }
+  .detail-skeleton-grid {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    border-bottom: 1px solid #dcdee5;
+    background: repeating-linear-gradient(to top, #f0f1f5 0 1px, transparent 1px 33%);
+  }
+
+  .detail-skeleton-trend {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+
+    svg { width: 100%; height: 100%; }
+    polygon { fill: skeleton.$color; }
+    polyline { fill: none; stroke: skeleton.$highlight-color; stroke-width: 2; stroke-linejoin: round; }
+  }
+
+  .detail-skeleton-bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+    gap: 8px;
+    height: 100%;
+    padding: 0 8px;
+
+    .skeleton-element { flex: 1; max-width: 30px; border-radius: 2px 2px 0 0; }
+  }
+
+  .detail-skeleton-ticks {
+    position: absolute;
+    right: 0;
+    bottom: -20px;
+    left: 0;
+    display: flex;
+    justify-content: space-between;
+  }
+}
+
+.collector-detail-loading-indicator {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  box-sizing: border-box;
+  margin-left: 8px;
+  vertical-align: middle;
+  border: 2px solid #dcdee5;
+  border-top-color: #3a84ff;
+  border-radius: 50%;
+  animation: collector-detail-spin 1s linear infinite;
+}
+
+@keyframes collector-detail-spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collector-detail-loading-indicator { animation: none; }
+}
+
+.collector-detail-load-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 40px;
+  color: #979ba5;
+}

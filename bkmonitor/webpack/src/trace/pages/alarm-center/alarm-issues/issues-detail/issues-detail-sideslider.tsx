@@ -35,6 +35,8 @@ import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing
 import IssuesImpactScopeDrawer from '../components/issues-impact-scope-drawer/issues-impact-scope-drawer';
 import IssuesSliderHeader from './components/issues-slider-header';
 import IssuesSliderWrapper from './components/issues-slider-wrapper';
+import IssuesLoading from './components/issues-loading';
+import { DetailLoadStatus } from '../../common-detail/detail-loading';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import { mergeWhereList } from '@/components/retrieval-filter/utils';
 import TimeRange from '@/components/time-range/time-range';
@@ -77,9 +79,10 @@ export default defineComponent({
   emits: ['update:show', 'next', 'previous', 'createTapd'],
   setup(props, { emit }) {
     const issuesDetailStore = useIssuesDetailStore();
-    const { bizId, issueId, detail, loading, timeRange, timezone, refreshInterval } = storeToRefs(issuesDetailStore);
+    const { bizId, issueId, detail, loading, error, timeRange, timezone, refreshInterval } = storeToRefs(issuesDetailStore);
     const isFullscreen = shallowRef(false);
     let timer = null;
+    const refreshKey = shallowRef(0);
     // 筛选条件状态
     const conditions = shallowRef<IWhereItem[]>([]);
     const queryString = shallowRef('');
@@ -92,11 +95,19 @@ export default defineComponent({
     // 注意：TAPD 首次授权回调场景中，alarm-center 打开本侧滑后，此处同步会触发 store.fetchDetail，
     // detail 数据到达后反过来驱动 IssuesTapd 的弹窗显示（show = createTapdSliderShow && !!detail）。
     watch(
-      () => [props.issueBizId, props.issueId],
+      () => [props.show, props.issueBizId, props.issueId],
       () => {
+        if (timer) clearInterval(timer);
+        timer = null;
+        refreshInterval.value = -1;
+        impactScopeDrawerShow.value = false;
+        impactScopeResource.value = null;
+        impactScopeResourceKey.value = '';
         if (props.show) {
           bizId.value = props.issueBizId;
           issueId.value = props.issueId;
+        } else {
+          issuesDetailStore.reset();
         }
       },
       { immediate: true }
@@ -105,6 +116,8 @@ export default defineComponent({
       // 关闭侧滑时主动重置 Store，避免 detail 残留污染下次打开（也切断 IssuesTapd 的 !!detail 条件）
       // alarm-center 所有运行时关闭均经此函数（无外部直接置 alarmDetailShow=false 的运行时路径）
       if (!isShow) {
+        if (timer) clearInterval(timer);
+        timer = null;
         issuesDetailStore.reset();
       }
       emit('update:show', isShow);
@@ -112,7 +125,8 @@ export default defineComponent({
 
     // 组件被 v-if 卸载时兜底重置（如 alarmType 切换离开 ISSUES，show 来不及变 false）
     onUnmounted(() => {
-      issuesDetailStore.reset();
+      if (timer) clearInterval(timer);
+      if (issueId.value === props.issueId && bizId.value === props.issueBizId) issuesDetailStore.reset();
     });
 
     /** 下一个 */
@@ -135,11 +149,14 @@ export default defineComponent({
       timezone.value = value;
       window.timezone = value;
       updateTimezone(value);
+      timeRange.value = [...timeRange.value];
+      refreshKey.value += 1;
     };
 
     /** 强制刷新 */
     const handleImmediateRefresh = () => {
       timeRange.value = [...timeRange.value];
+      refreshKey.value += 1;
       issuesDetailStore.refresh();
     };
 
@@ -242,6 +259,9 @@ export default defineComponent({
       refreshInterval,
       detail,
       loading,
+      error,
+      refreshKey,
+      retry: issuesDetailStore.fetchDetail,
       conditions,
       queryString,
       filterMode,
@@ -276,6 +296,7 @@ export default defineComponent({
         v-slots={{
           header: () => (
             <IssuesSliderHeader
+              key={`${this.issueBizId}:${this.issueId}`}
               v-slots={{
                 tools: () => [
                   <TimeRange
@@ -295,7 +316,7 @@ export default defineComponent({
               }}
               detail={this.detail}
               isFullscreen={this.isFullscreen}
-              loading={this.loading}
+              loading={this.loading && !this.detail}
               showStepBtn={this.showStepBtn}
               onCreateTapdSliderShowChange={this.handleCreateTapd}
               onNameChange={this.handleNameChange}
@@ -306,8 +327,12 @@ export default defineComponent({
           ),
           default: () => (
             <div class='issues-detail-side-slider-content'>
+              <DetailLoadStatus loading={this.loading && !!this.detail} error={this.error} onRetry={this.retry} />
+              {!this.detail && !this.error && <IssuesLoading />}
               {this.detail && (
                 <IssuesSliderWrapper
+                  key={`${this.issueBizId}:${this.issueId}`}
+                  refreshKey={String(this.refreshKey)}
                   conditions={this.conditions}
                   defaultInnerTab={this.defaultInnerTab}
                   detail={this.detail}

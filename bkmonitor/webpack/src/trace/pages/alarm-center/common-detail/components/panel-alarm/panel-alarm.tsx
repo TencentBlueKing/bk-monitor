@@ -23,12 +23,13 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, onActivated, shallowRef, watch } from 'vue';
+import { type PropType, defineComponent, onActivated, onScopeDispose, shallowRef, watch } from 'vue';
 import { reactive } from 'vue';
 
 import { Input, Pagination } from 'bkui-vue';
 import { searchEvent } from 'monitor-api/modules/alert_v2';
 
+import { DetailLoadStatus } from '../../detail-loading';
 import PanelAlarmTable from './panel-alarm-table';
 import EmptyStatus, {
   type EmptyStatusOperationType,
@@ -65,7 +66,12 @@ export default defineComponent({
       current: 1,
       limit: 10,
     });
-    const isLoading = shallowRef(false);
+    const isLoading = shallowRef(true);
+    const retaining = shallowRef(false);
+    const error = shallowRef(false);
+    let requestId = 0;
+    let resultKey = '';
+    onScopeDispose(() => { ++requestId; });
     const tableSort = shallowRef<string[]>([]);
 
     watch(
@@ -84,6 +90,7 @@ export default defineComponent({
      * @return {*}
      */
     const getData = async () => {
+      const current = ++requestId;
       emptyType.value = queryString.value ? 'search-empty' : 'empty';
       isLoading.value = true;
       const params = {
@@ -97,29 +104,27 @@ export default defineComponent({
         record_history: true,
         ordering: tableSort.value,
       };
-      data.value = await searchEvent(params, { needRes: true })
-        .then(res => {
-          return (
-            res.data || {
-              events: [],
-              total: 0,
-            }
-          );
-        })
-        .catch(() => {
-          return {
-            events: [],
-            total: 0,
-          };
-        })
-        .finally(() => {
-          isLoading.value = false;
-        });
-      pagination.count = data.value.total;
-      isLoading.value = false;
+      const key = JSON.stringify(params);
+      retaining.value = resultKey === key && !!data.value.events.length;
+      error.value = false;
+      try {
+        const res = await searchEvent(params, { needRes: true });
+        if (current !== requestId) return;
+        data.value = res.data || { events: [], total: 0 };
+        pagination.count = data.value.total;
+        resultKey = key;
+      } catch {
+        if (current !== requestId) return;
+        error.value = true;
+        emptyType.value = '500';
+        if (!retaining.value) data.value = { events: [], total: 0 };
+      } finally {
+        if (current === requestId) isLoading.value = false;
+      }
     };
 
     const handleQueryStringChange = () => {
+      pagination.current = 1;
       getData();
     };
 
@@ -158,6 +163,7 @@ export default defineComponent({
       data,
       emptyType,
       isLoading,
+      retaining, error, retry: getData,
       pagination,
       queryString,
       handleEmptyOperation,
@@ -170,7 +176,8 @@ export default defineComponent({
 
   render() {
     return (
-      <div class='alarm-center-detail-panel-convergent-alarm'>
+      <div class='alarm-center-detail-panel-convergent-alarm' style={{ position: 'relative' }}>
+        <DetailLoadStatus loading={this.isLoading && this.retaining} error={this.error} onRetry={this.retry} />
         <Input
           class='search-input'
           v-model={this.queryString}
@@ -191,11 +198,11 @@ export default defineComponent({
             ),
           }}
           data={this.data.events}
-          loading={this.isLoading}
+          loading={this.isLoading && !this.retaining}
           onSortChange={this.handleTableSort}
         />
 
-        <Pagination
+        {!this.isLoading && !!this.data.events.length && <Pagination
           v-model={this.pagination.current}
           align='right'
           count={this.pagination.count}
@@ -204,7 +211,7 @@ export default defineComponent({
           location='right'
           onChange={this.handlePageChange}
           onLimitChange={this.handleLimitChange}
-        />
+        />}
       </div>
     );
   },

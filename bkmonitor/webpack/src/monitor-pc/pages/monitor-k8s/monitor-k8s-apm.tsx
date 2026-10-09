@@ -23,11 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component, Inject, InjectReactive, Mixins, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 
 import { listServiceK8sTargets } from 'monitor-api/modules/apm_container';
-import bus from 'monitor-common/utils/event-bus';
 import { scenarioMetricList } from 'monitor-api/modules/k8s';
+import bus from 'monitor-common/utils/event-bus';
 
 import introduce from '../../common/introduce';
 import GuidePage from '../../components/guide-page/guide-page';
@@ -35,6 +36,7 @@ import NewUserConfigMixin from '../../mixins/newUserStoreConfig';
 import FilterByCondition from './components/filter-by-condition/filter-by-condition';
 import GroupByCondition from './components/group-by-condition/group-by-condition';
 import K8SCharts from './components/k8s-charts/k8s-charts';
+import K8sEmptyStatus from './components/k8s-empty-status/k8s-empty-status';
 import K8sTableNew, {
   type K8sTableColumnResourceKey,
   type K8sTableGroupByEvent,
@@ -147,6 +149,11 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   activeMetricId = '';
 
   metricLoading = true;
+  initializing = true;
+  initializationError = false;
+  initializationId = 0;
+  initializationController: AbortController = null;
+  disposed = false;
   /** 自动刷新定时器 */
   timer = null;
   /** 各维度数据总和 */
@@ -329,31 +336,70 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
     }
   }
 
-  async created() {
+  created() {
     this.groupInstance = K8sGroupDimension.createInstance(SceneEnum.Performance, this.isApmMonitor);
-    const apmK8sParams = this.customRouteQuery?.apmK8sParams ? JSON.parse(this.customRouteQuery?.apmK8sParams) : {};
-    await this.getApmK8sData().catch(() => {});
-    /** URL没有参数且存在缓存查询条件，使用缓存查询条件 */
-    if (!Object.keys(apmK8sParams).length) {
-      // 从接口获取缓存的数据
-      const cacheRes = await this.handleGetUserConfig<Record<string, { target: string }>>(
-        `${CACHE_APM_SEARCH_QUERY}_${this.bizId}_${this.appName}`
-      ).catch(() => {});
-      this.cacheData = cacheRes ? cacheRes : {};
-      if (cacheRes?.[this.serviceName]) {
-        this.getRouteParams(cacheRes[this.serviceName]);
-      } else {
-        this.getRouteParams({
-          ...this.selectTargetItem,
-          target: this.selectTargetItem.cacheId,
-        });
+    this.initialize();
+  }
+
+  get targetContext() {
+    return JSON.stringify([this.bizId, this.appName, this.serviceName]);
+  }
+
+  @Watch('targetContext')
+  async initialize() {
+    if (this.disposed) return;
+    const requestId = ++this.initializationId;
+    this.initializationController?.abort();
+    this.initializing = true;
+    this.metricLoading = true;
+    this.initializationError = false;
+    this.isUserManualSwitch = false;
+    this.cluster = '';
+    this.targetList = [];
+    this.selectTarget = '';
+    this.metricList = [];
+    this.initGroupBy();
+    this.initFilterBy();
+    if (!this.appName || !this.serviceName) return;
+    const controller = new AbortController();
+    this.initializationController = controller;
+    try {
+      const apmK8sParams = this.customRouteQuery?.apmK8sParams ? JSON.parse(this.customRouteQuery.apmK8sParams) : {};
+      const [targets, metrics, cache, hiddenMetrics] = await Promise.all([
+        listServiceK8sTargets(
+          { app_name: this.appName, service_name: this.serviceName },
+          { signal: controller.signal }
+        ),
+        scenarioMetricList({ scenario: this.scene }, { signal: controller.signal }),
+        Object.keys(apmK8sParams).length
+          ? Promise.resolve(null)
+          : this.handleGetUserConfig<Record<string, { target: string }>>(
+              `${CACHE_APM_SEARCH_QUERY}_${this.bizId}_${this.appName}`
+            ).catch(() => null),
+        this.handleGetUserConfig<string[]>(`${HIDE_METRICS_KEY}_${this.scene}`).catch(() => null),
+      ]);
+      if (requestId !== this.initializationId || this.disposed) return;
+      this.targetList = (targets.target_list || []).map(item => ({
+        ...item,
+        cacheId: `${item.bcs_cluster_id}-${item.namespace}-${item.pod || item.workload}`,
+      }));
+      this.metricList = metrics.map(item => ({ ...item, count: item.children.length }));
+      this.hideMetrics = hiddenMetrics || (this.scene === SceneEnum.Network ? [...networkDefaultHideMetrics] : []);
+      this.cacheData = cache || {};
+      this.getRouteParams(
+        Object.keys(apmK8sParams).length ? apmK8sParams.selectTarget : this.cacheData[this.serviceName]
+      );
+    } catch {
+      if (requestId !== this.initializationId || this.disposed) return;
+      this.initializationError = true;
+      controller.abort();
+    } finally {
+      if (requestId === this.initializationId && !this.disposed) {
+        this.initializing = false;
+        this.metricLoading = false;
+        if (!this.initializationError && this.selectTarget) this.setRouteParams();
       }
-    } else {
-      this.getRouteParams(apmK8sParams.selectTarget);
     }
-    this.getScenarioMetricList();
-    this.getHideMetrics();
-    this.setRouteParams();
   }
 
   mounted() {
@@ -380,6 +426,9 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   beforeDestroy() {
+    this.disposed = true;
+    this.initializationId++;
+    this.initializationController?.abort();
     bus.$off(APM_K8S_CACHE_FLUSH_EVENT, this.saveNewTargetValueToUserConfig);
     this.saveNewTargetValueToUserConfig();
   }
@@ -426,48 +475,6 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   handleRestoreEvent() {
     this.handleApmK8sNewEventChange('apmK8sNewTimeRangeChange', JSON.parse(JSON.stringify(this.cacheTimeRange)));
     this.showRestore = false;
-  }
-
-  async getApmK8sData() {
-    const res = await listServiceK8sTargets({
-      app_name: this.appName,
-      service_name: this.serviceName,
-    }).catch(() => {});
-    if (res.target_list?.length) {
-      this.targetList = res.target_list.map(item => ({
-        ...item,
-        cacheId: `${item.bcs_cluster_id}-${item.namespace}-${item.pod || item.workload}`,
-      }));
-      this.cluster = res.target_list[0]?.bcs_cluster_id || '';
-    }
-    return;
-  }
-
-  /**
-   * @description 获取场景指标列表
-   */
-  async getScenarioMetricList() {
-    this.metricList = [];
-    if (this.scene === SceneEnum.Event) return;
-    this.metricLoading = true;
-    const data = await scenarioMetricList({ scenario: this.scene }).catch(() => []);
-    this.metricLoading = false;
-    this.metricList = data.map(item => ({
-      ...item,
-      count: item.children.length,
-    }));
-  }
-
-  /** 获取隐藏的指标项 */
-  getHideMetrics() {
-    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
-      if (this.scene === SceneEnum.Network && !res) {
-        /** 网络场景初始化，默认隐藏丢包量指标 */
-        this.hideMetrics = [...networkDefaultHideMetrics];
-      } else {
-        this.hideMetrics = res || [];
-      }
-    });
   }
 
   /**
@@ -557,8 +564,10 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   // 切换apm容器targetList
-  handleTargetListChange(value: string, oldValue?: string) {
-    // if (!oldValue || !Object.keys(this.selectTargetItem).length) return;
+  handleTargetListChange(value: string) {
+    const target = this.targetList.find(item => item.cacheId === value);
+    if (!target || (this.selectTarget === value && this.cluster === target.bcs_cluster_id)) return;
+    const manualSwitch = !this.initializing && this.selectTarget !== value;
     this.selectTarget = value;
     const {
       resource_type: resourceType = '',
@@ -566,7 +575,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
       workload = '',
       pod = '',
       bcs_cluster_id: cluster = '',
-    } = this.selectTargetItem;
+    } = target;
     this.filterBy = {
       [EDimensionKey.namespace]: [namespace],
       ...(workload ? { [EDimensionKey.workload]: [workload] } : {}),
@@ -581,7 +590,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
       this.groupInstance.addGroupFilter(K8sTableColumnKeysEnum.WORKLOAD, { single: true });
       this.groupInstance.addGroupFilter(K8sTableColumnKeysEnum.POD);
     }
-    this.isUserManualSwitch = !!oldValue;
+    if (manualSwitch) this.isUserManualSwitch = true;
   }
 
   handleTargetListToggle(toggle: boolean) {
@@ -591,17 +600,14 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   // apm容器首版：只需要缓存targetList选中的那一项，暂时不需要过滤条件和聚合维度等其他参数
   getRouteParams(query: Record<string, string | string[]> = {}) {
     const { target = '' } = query;
-    const res = this.targetList.find(item => item.cacheId === target) || '';
-    if (!target || !res) {
-      this.selectTarget = this.targetList[0].cacheId;
-    } else {
-      this.selectTarget = res.cacheId;
-    }
+    const selected = this.targetList.find(item => item.cacheId === target) || this.targetList[0];
     this.initGroupBy();
     this.initFilterBy();
+    if (selected) this.handleTargetListChange(selected.cacheId);
   }
 
   setRouteParams(otherQuery = {}) {
+    if (this.initializing || this.initializationError || this.disposed || !this.selectTarget) return;
     const apmK8sParams = {
       selectTarget: {
         target: this.selectTarget,
@@ -613,6 +619,14 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   tabContentRender() {
+    if (!this.initializing && this.initializationError)
+      return (
+        <K8sEmptyStatus
+          type='500'
+          onOperation={this.initialize}
+        />
+      );
+    if (!this.initializing && !this.cluster) return <K8sEmptyStatus type='empty' />;
     switch (this.activeTab) {
       case K8sNewTabEnum.CHART:
         return (
@@ -622,6 +636,8 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
             groupBy={this.groupFilters}
             hideMetrics={this.resultHideMetrics}
             metricList={this.metricList}
+            metricLoading={this.initializing || this.metricLoading}
+            onClearSearch={this.handleTableClearSearch}
           />
         );
       default:
@@ -632,6 +648,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
             groupInstance={this.groupInstance}
             hideMetrics={this.resultHideMetrics}
             metricList={this.metricList}
+            metricLoading={this.initializing || this.metricLoading}
             onClearSearch={this.handleTableClearSearch}
             onRouterParamChange={this.handleTableRouterParamChange}
           />
@@ -640,6 +657,23 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
   }
 
   renderTargetListSelect() {
+    if (this.initializing) {
+      return (
+        <div
+          class='target-list-select'
+          aria-busy='true'
+          aria-label={this.$t('加载中')}
+        >
+          <div
+            class='target-list-trigger target-list-skeleton'
+            aria-hidden='true'
+          >
+            <span class='skeleton-element target-name-skeleton' />
+            <i class='skeleton-element target-arrow-skeleton' />
+          </div>
+        </div>
+      );
+    }
     return (
       <bk-select
         class='target-list-select'
@@ -761,7 +795,7 @@ export default class MonitorK8sNew extends Mixins(NewUserConfigMixin) {
                 }}
                 class='content-main-wrap'
               >
-                {this.cluster && this.tabContentRender()}
+                {this.tabContentRender()}
               </div>
             </div>
           </div>,

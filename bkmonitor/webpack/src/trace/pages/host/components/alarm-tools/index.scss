@@ -1,3 +1,5 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
 @mixin tool-btn($color: #3a84ff) {
   display: flex;
   align-items: center;
@@ -52,5 +54,19 @@
         cursor: default;
       }
     }
+  }
+
+  &-strategy.is-loading,
+  &-alarm.is-loading {
+    color: #979ba5;
+    cursor: default;
+    background-color: #f0f1f5;
+  }
+
+  &-count-skeleton {
+    @include skeleton.surface;
+    display: inline-block;
+    width: 16px;
+    height: 12px;
   }
 }

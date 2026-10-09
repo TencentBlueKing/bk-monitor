@@ -1,0 +1,272 @@
+import logging
+import multiprocessing
+from typing import Any, final
+from urllib.parse import urljoin
+
+from django.db import transaction
+from django.db.models import Q
+from django.db.models.query import QuerySet
+from django.utils.functional import cached_property
+from kubernetes import client
+
+from bk_monitor_base.metadata.config import settings
+from bk_monitor_base.metadata.models import DataSource, ResultTable
+from bk_monitor_base.metadata.models.bcs import BCSClusterInfo, PodMonitorInfo, ServiceMonitorInfo
+from bk_monitor_base.metadata.models.space import Space, SpaceDataSource, SpaceResource, constants
+from bk_monitor_base.metadata.models.space.constants import SpaceTypes
+
+logger = logging.getLogger("metadata")
+
+
+def change_cluster_router(cluster: BCSClusterInfo, new_bk_biz_id: int, old_bk_biz_id: int, is_fed_cluster: bool):
+    """
+    当集群发生迁移时，需要同步更新对应路由元信息
+    :param cluster: 集群实例 BCSClusterInfo
+    :param new_bk_biz_id: 新的bk_biz_id
+    :param old_bk_biz_id: 旧的bk_biz_id
+    :param is_fed_cluster: 是否属于联邦集群
+    :return:
+    """
+    from bk_monitor_base.metadata.models import EventGroup
+
+    logger.info(
+        "change_cluster_router: try to update cluster data router,cluster_id->[%s],new_bk_biz_id->[%s],old_bk_bz_id->[%s]",
+        cluster.cluster_id,
+        new_bk_biz_id,
+        old_bk_biz_id,
+    )
+
+    try:
+        with transaction.atomic():
+            # 使用filter过滤符合条件的ResultTable对象，并批量更新bk_biz_id字段
+            ResultTable.objects.filter(table_name_zh__contains=cluster.cluster_id).update(bk_biz_id=new_bk_biz_id)
+
+            # 更新DataSource中的space_uid
+            space_uid = f"{SpaceTypes.BKCC.value}__{new_bk_biz_id}"
+            DataSource.objects.filter(data_name__contains=cluster.cluster_id).update(space_uid=space_uid)
+
+            # 获取符合条件的DataSource的bk_data_id
+            data_ids = DataSource.objects.filter(data_name__contains=cluster.cluster_id).values_list(
+                "bk_data_id", flat=True
+            )
+
+            # 删除旧的SpaceDataSource信息
+            SpaceDataSource.objects.filter(
+                space_type_id=SpaceTypes.BKCC.value, space_id=old_bk_biz_id, bk_data_id__in=data_ids
+            ).delete()
+
+            # 创建新的SpaceDataSource信息
+            for data_id in data_ids:
+                logger.info(
+                    "change_cluster_router: try to create SpaceDataSource record,bk_data_id->[%s],new_bk_biz_id->[%s]",
+                    data_id,
+                    new_bk_biz_id,
+                )
+                SpaceDataSource.objects.get_or_create(
+                    space_type_id=SpaceTypes.BKCC.value, space_id=new_bk_biz_id, bk_data_id=data_id
+                )
+
+            # 针对K8S Event，单独处理
+            k8s_event_data_id = cluster.K8sEventDataID
+            EventGroup.objects.filter(bk_data_id=k8s_event_data_id).update(bk_biz_id=new_bk_biz_id)
+
+            # 再次下发DataId，进行Update
+            cluster.init_resource(is_fed_cluster=is_fed_cluster)
+
+        logger.info(
+            "change_cluster_router: Successfully updated cluster data router,cluster_id->[%s], new_bk_biz_id->[%s],old_bk_biz_id->[%s]",
+            cluster.cluster_id,
+            new_bk_biz_id,
+            old_bk_biz_id,
+        )
+
+    except Exception as e:  # pylint: disable=broad-except
+        logger.error(
+            "change_cluster_router: Failed to change cluster data router,cluster_id->[%s],new_bk_biz_id->[%s],old_bk_bz_id->[%s],error->[%s]",
+            cluster.cluster_id,
+            new_bk_biz_id,
+            old_bk_biz_id,
+            e,
+        )
+
+
+def get_bcs_dataids(
+    bk_biz_ids: list[int] | None = None, cluster_ids: list[str] | None = None, mode: str = "both"
+) -> tuple[set[Any], dict[str, Any]]:
+    """获取 bcs 下的数据源 ID
+    NOTE: 升级空间后，bk_biz_id, 可能为负数，需要转换到空间属性
+    """
+
+    def _filter_cluster(bk_biz_ids: list[int], clusters: QuerySet[BCSClusterInfo]) -> QuerySet[BCSClusterInfo]:
+        # 获取 bcs 空间信息
+        bcs_spaces = get_bcs_space_by_biz(bk_biz_ids)
+        # 过滤需要的参数
+        bcs_project_id_list = []
+        query_filter_params = Q()
+        for sc in bcs_spaces:
+            bcs_project_id_list.append(sc["space_code"])
+            query_filter_params |= Q(space_type_id=sc["space_type_id"], space_id=sc["space_id"])
+
+        # NOTE: 需要再通过空间获取关联资源的数据
+        cluster_id_list = []
+        if query_filter_params:
+            dimension_list = []
+            for obj in SpaceResource.objects.filter(query_filter_params, resource_type=constants.SpaceTypes.BCS.value):
+                dimension_list.extend(obj.dimension_values)
+            # 过滤使用的共享集群
+            cluster_id_list = [
+                d["cluster_id"] for d in dimension_list if d["cluster_type"] == "shared" and d["namespace"]
+            ]
+
+        # 过滤记录
+        cluster_infos = clusters.filter(
+            Q(bk_biz_id__in=(bk_biz_ids or []))
+            | Q(project_id__in=bcs_project_id_list)
+            | Q(cluster_id__in=cluster_id_list)
+        )
+
+        return cluster_infos
+
+    # 基于BCS集群信息获取dataid列表，用于过滤
+    clusters = BCSClusterInfo.objects.all().only("cluster_id", "K8sMetricDataID", "CustomMetricDataID")
+
+    # 判定获取bcs_data_id的类型
+    need_k8s_metric = mode == "both" or mode == "k8s"
+    need_custom_metric = mode == "both" or mode == "custom"
+    data_id_to_cluster = {}
+
+    # 根据查询模式，组装{data_id:cluster_id} 的映射关系,此处考虑到跨空间和共享集群场景
+    if need_custom_metric:  # 过滤CustomMetric
+        data_id_to_cluster.update({cluster.CustomMetricDataID: cluster.cluster_id for cluster in clusters})
+    if need_k8s_metric:  # 过滤K8SMetric
+        data_id_to_cluster.update({cluster.K8sMetricDataID: cluster.cluster_id for cluster in clusters})
+
+    # 如果集群 id 存在，则以集群 ID 为准
+    if cluster_ids:
+        clusters = clusters.filter(cluster_id__in=cluster_ids)
+    elif bk_biz_ids:
+        clusters = _filter_cluster(bk_biz_ids, clusters)
+
+    result_cluster_ids = []
+    # dataid集合
+    data_ids: set[Any] = set()
+    # dataid与集群映射关系
+    data_id_cluster_map = {"built_in_metric_data_id_list": []}
+    for cluster in clusters:
+        result_cluster_ids.append(cluster.cluster_id)
+        if need_k8s_metric and cluster.K8sMetricDataID not in data_ids:
+            data_ids.add(cluster.K8sMetricDataID)
+            data_id_cluster_map[cluster.K8sMetricDataID] = cluster.cluster_id
+            data_id_cluster_map["built_in_metric_data_id_list"].append(cluster.K8sMetricDataID)
+        if need_custom_metric and cluster.CustomMetricDataID not in data_ids:
+            data_ids.add(cluster.CustomMetricDataID)
+            data_id_cluster_map[cluster.CustomMetricDataID] = cluster.cluster_id
+    for resource in (
+        ServiceMonitorInfo.objects.filter(cluster_id__in=result_cluster_ids, is_common_data_id=False)
+        .values("bk_data_id", "cluster_id")
+        .distinct()
+    ):
+        if resource["bk_data_id"] not in data_ids:
+            data_ids.add(resource["bk_data_id"])
+            data_id_cluster_map[resource["bk_data_id"]] = resource["cluster_id"]
+    for resource in (
+        PodMonitorInfo.objects.filter(cluster_id__in=result_cluster_ids, is_common_data_id=False)
+        .values("bk_data_id", "cluster_id")
+        .distinct()
+    ):
+        if resource["bk_data_id"] not in data_ids:
+            data_ids.add(resource["bk_data_id"])
+            data_id_cluster_map[resource["bk_data_id"]] = resource["cluster_id"]
+
+    # 若查询业务关联的data_id，需考虑集群跨空间授权场景
+    if bk_biz_ids:
+        # 筛选业务允许访问的data_id
+        space_data_ids = set(
+            SpaceDataSource.objects.filter(space_type_id=SpaceTypes.BKCC.value, space_id__in=bk_biz_ids).values_list(
+                "bk_data_id", flat=True
+            )
+        )
+        for data_id in (
+            space_data_ids
+        ):  # 对于空间被授权访问的data_id，若其在集群DS映射表（K8S指标&自定义指标）中，则将其添加并返回
+            if (data_id not in data_ids) and (data_id in data_id_to_cluster):
+                data_ids.add(data_id)
+                data_id_cluster_map[data_id] = data_id_to_cluster[data_id]
+
+    return data_ids, data_id_cluster_map
+
+
+def get_bcs_space_by_biz(bk_biz_ids: list[int] | None = None) -> list[dict[str, Any]]:
+    """通过业务获取到 BCS 空间信息"""
+    # 如果传递的业务 ID 为空，则直接返回
+    if not bk_biz_ids:
+        return []
+    # 针对业务 ID 为负数的，返回相应的空间信息
+    id_list = [abs(bid) for bid in bk_biz_ids if bid < 0]
+    # 过滤对应的空间 code
+    spaces = Space.objects.filter(id__in=id_list).values("space_type_id", "space_id", "space_code")
+    return [sc for sc in spaces if sc["space_code"]]
+
+
+@final
+class BcsKubeClient:
+    """
+    通过 BCS 集群 ID，构造一个类似 k8s 的 client
+    """
+
+    # 请求超时时间
+    _REQUEST_TIMEOUT = 10
+
+    def __init__(self, cluster_id: str):
+        self.cluster_id = cluster_id
+
+    @property
+    def auth(self):
+        host = urljoin(
+            f"{settings.metadata.bcs_api_gateway_schema}://{settings.metadata.bcs_api_gateway_host}:{settings.metadata.bcs_api_gateway_port}",
+            f"/clusters/{self.cluster_id}",
+        )
+        return client.Configuration(
+            host=host,
+            api_key={"authorization": settings.metadata.bcs_api_gateway_token},
+            api_key_prefix={"authorization": "Bearer"},
+        )
+
+    @cached_property
+    def api(self):
+        return client.AppsV1Api(client.ApiClient(self.auth))
+
+    @cached_property
+    def core_api(self):
+        return client.CoreV1Api(client.ApiClient(self.auth))
+
+    def client_request(self, client_api, **kwargs):
+        """
+        带超时时间的请求
+        """
+        try:
+            default_params = {
+                "async_req": True,
+                "_request_timeout": self._REQUEST_TIMEOUT,
+            }
+            default_params.update(kwargs)
+            t = client_api(**default_params)
+            return t.get(self._REQUEST_TIMEOUT)
+        except multiprocessing.TimeoutError:
+            logger.warning(
+                f"[BcsKubeClient] {client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}) timeout"
+            )
+        except client.ApiException as e:
+            status = e.status
+            if status == 404:
+                logger.warning(
+                    f"[BcsKubeClient] {client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}) 404"
+                )
+            elif status == 403:
+                logger.warning(
+                    f"[BcsKubeClient] {client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}) forbidden"
+                )
+            else:
+                logger.error(
+                    f"[BcsKubeClient] failed to {client_api.__name__} of cluster_id: {self.cluster_id}(params: {kwargs}), error: {e}"
+                )

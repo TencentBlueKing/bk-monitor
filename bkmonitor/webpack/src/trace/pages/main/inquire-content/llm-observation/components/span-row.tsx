@@ -27,12 +27,12 @@
 import { type PropType, defineComponent } from 'vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
-
+import { Button } from 'bkui-vue';
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
 import { formatCompactToken, LLM_KIND_CLASS } from '../utils/transform';
 import SpanExpandPanel from './span-expand-panel';
 
-import type { LlmIoPreview, LlmSpanRowView } from '../utils/typings';
+import type { LlmIoPiece, LlmSpanRowView } from '../utils/typings';
 
 import './span-row.scss';
 
@@ -81,14 +81,25 @@ export default defineComponent({
       return content.length > 200 ? `${content.substring(0, 200)}...` : content;
     };
 
-    /** Tool 行展示 KV 对；LLM/Agent 展示单行文本预览 */
-    const renderIoSide = (preview: LlmIoPreview, side: 'input' | 'output') => {
-      if (preview.type === 'kv') {
-        const pairs = preview[side];
-        if (!pairs.length) return <span class='llm-span-io-empty'>—</span>;
+    const renderIoPiece = (piece: LlmIoPiece, index: number) => {
+      if (piece.type === 'name') {
         return (
-          <div class='llm-span-io-kvs'>
-            {pairs.map(item => (
+          <span
+            key={`name-${index}`}
+            class='llm-span-io-name'
+            v-overflow-tips={{ content: sliceTooltipContent(piece.text), placement: 'top' }}
+          >
+            {piece.text}
+          </span>
+        );
+      }
+      if (piece.type === 'kv') {
+        return (
+          <div
+            key={`kv-${index}`}
+            class='llm-span-io-kvs'
+          >
+            {piece.pairs.map(item => (
               <span
                 key={item.key}
                 class='llm-span-io-kv'
@@ -111,16 +122,21 @@ export default defineComponent({
           </div>
         );
       }
-      const text = preview[side];
-      if (!text) return <span class='llm-span-io-empty'>—</span>;
       return (
         <span
+          key={`text-${index}`}
           class='llm-span-io-text'
-          v-overflow-tips={{ content: sliceTooltipContent(text), placement: 'top' }}
+          v-overflow-tips={{ content: sliceTooltipContent(piece.text), placement: 'top' }}
         >
-          {text}
+          {piece.text}
         </span>
       );
+    };
+
+    /** 同一侧并列展示消息文本、工具名和 KV，空侧仍用占位符 */
+    const renderIoSide = (pieces: LlmIoPiece[]) => {
+      if (!pieces.length) return <span class='llm-span-io-empty'>—</span>;
+      return <div class='llm-span-io-pieces'>{pieces.map(renderIoPiece)}</div>;
     };
 
     return () => {
@@ -139,7 +155,11 @@ export default defineComponent({
         <div class={['llm-span-item', { 'is-open': props.detailExpanded }]}>
           <div
             class={['llm-span-row', { 'is-error': row.isError }]}
-            onClick={() => emit('toggle-detail', row.spanId)}
+            onClick={() => {
+              emit('toggle-detail', row.spanId);
+              // 关系列 +/- 只跟 expanded 走；点行时一并切换，图标才与行展开同步
+              if (toggleLevel !== null) emit('toggle-expand', row.spanId);
+            }}
           >
             <div class='llm-span-col is-time'>
               <span>{time.format('HH:mm:ss')}</span>
@@ -205,9 +225,9 @@ export default defineComponent({
               {row.kind === 'AGENT' && row.childCount > 0 ? <span class='llm-span-count'>{row.childCount}</span> : null}
             </div>
             <div class='llm-span-col is-io'>
-              {renderIoSide(row.io, 'input')}
+              {renderIoSide(row.io.input)}
               <i class='icon-monitor icon-next-one llm-span-io-arrow' />
-              {renderIoSide(row.io, 'output')}
+              {renderIoSide(row.io.output)}
             </div>
             <div class='llm-span-col is-duration'>
               <span class='llm-span-duration'>
@@ -225,16 +245,20 @@ export default defineComponent({
                   <span class='is-output'>{formatCompactToken(row.outputTokens)}</span>
                 </span>
               ) : null}
-            </div>
-            <div class='llm-span-col is-action'>
-              <span
-                class='llm-span-detail-btn'
-                v-bk-tooltips={{ content: t('查看详情'), placement: 'top' }}
+              <Button
+                theme='primary'
+                size='small'
+                text={true}
                 onClick={e => {
                   e.stopPropagation();
                   emit('view-detail', row.spanId);
                 }}
               >
+                {t('详情')}
+              </Button>
+            </div>
+            <div class='llm-span-col is-action'>
+              <span class='llm-span-detail-btn'>
                 <i class='icon-monitor icon-arrow-right' />
               </span>
             </div>

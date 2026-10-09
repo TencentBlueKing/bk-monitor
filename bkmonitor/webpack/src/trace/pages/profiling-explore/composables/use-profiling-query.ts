@@ -71,6 +71,7 @@ export function useProfilingQuery() {
   const loading = shallowRef(false);
   const error = shallowRef('');
   const labelError = shallowRef('');
+  const labelsLoading = shallowRef(false);
   const initialFavorite = shallowRef<null | ProfilingFavorite>(null);
   const revision = shallowRef(0);
   const refreshBusy = shallowRef(false);
@@ -167,7 +168,9 @@ export function useProfilingQuery() {
     labelController = new AbortController();
     const current = labelController;
     labelError.value = '';
+    labelsLoading.value = false;
     if (!submitted.value) return;
+    labelsLoading.value = true;
     try {
       const keys = await getLabelKeys(submitted.value, current.signal);
       if (current.signal.aborted) return;
@@ -182,6 +185,8 @@ export function useProfilingQuery() {
         }));
     } catch (e) {
       if (!current.signal.aborted) labelError.value = t('标签加载失败，请重试');
+    } finally {
+      if (!current.signal.aborted) labelsLoading.value = false;
     }
   }
 
@@ -233,6 +238,7 @@ export function useProfilingQuery() {
     submitted.value = null;
     detail.value = null;
     fields.value = [];
+    labelsLoading.value = false;
     error.value = '';
     loading.value = false;
     if (!state.value.appName || !state.value.serviceName) return;
@@ -516,6 +522,7 @@ export function useProfilingQuery() {
     loading,
     error,
     labelError,
+    labelsLoading,
     initialFavorite,
     revision,
     refreshBusy,

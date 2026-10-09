@@ -196,6 +196,7 @@ function harness(query = {}, readonly = false, workerResponse) {
         attrs.isShow ? slots.default?.() : null,
   });
   const metricGroups = () => ({
+    submitting: vue.shallowRef(false),
     load: async () => {},
     settingShow: vue.shallowRef(false),
     loadError: vue.shallowRef(false),
@@ -826,3 +827,37 @@ for (const shared of [false, true]) {
     h.app.unmount();
   });
 }
+
+test('topology skeleton stays visible until Worker viewport rows are ready', async () => {
+  const releases = [];
+  const h = harness({}, false, result => result.type === 'GET_RANGE_DONE'
+    ? new Promise(resolve => releases.push(() => resolve(result)))
+    : Promise.resolve(result));
+  await flush();
+  assert.equal(h.topo.loading.value, true);
+  h.respond('getHostTopoTreeByBizId', skeleton(), args => args[2] === false);
+  await flush();
+  assert.ok(releases.length);
+  assert.equal(h.topo.loading.value, true);
+  for (let step = 0; step < 4 && releases.length; step++) {
+    releases.splice(0).forEach(release => release());
+    await flush();
+  }
+  assert.equal(h.topo.loading.value, false);
+  assert.ok(h.topo.visibleRows.value.length);
+  h.app.unmount();
+});
+
+test('topology Worker viewport failure ends loading and shows an error instead of an endless skeleton', async () => {
+  const h = harness({}, false, result => result.type === 'GET_RANGE_DONE'
+    ? Promise.reject(new Error('viewport failed')) : Promise.resolve(result));
+  await flush();
+  h.respond('getHostTopoTreeByBizId', new Error('skeleton unavailable'), args => args[2] === false, true);
+  h.respond('getHostTopoTreeByBizId', fullTree(), args => args.length === 2);
+  await flush();
+  await flush();
+  assert.equal(h.topo.loading.value, false);
+  assert.equal(h.topo.loadError.value, true);
+  assert.equal(h.topo.fullTreeLoading.value, false);
+  h.app.unmount();
+});

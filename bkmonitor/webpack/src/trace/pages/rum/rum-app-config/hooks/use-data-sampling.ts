@@ -24,11 +24,12 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, onScopeDispose, shallowRef, watchEffect } from 'vue';
+import { type MaybeRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 import dayjs from 'dayjs';
 
+import { useRumRequest } from '../../hooks/use-rum-request';
 import { fetchDataSampling } from '../services/data-state';
 
 import type { IDataSamplingItem, IRumAppBaseParams } from '../../typings';
@@ -50,68 +51,26 @@ interface UseDataSamplingOptions {
  */
 export const useDataSampling = (options: UseDataSamplingOptions) => {
   const { bizId, appName } = options;
-  /** 采样数据列表 */
-  const samplingList = shallowRef<IDataSamplingItem[]>([]);
-  /** 数据加载状态 */
-  const loading = shallowRef(false);
-  /** 请求中止控制器 */
-  let abortController: AbortController | null = null;
-
-  /**
-   * @description 获取数据采样
-   * @description 通过 Service 层获取数据，Hook 只负责状态管理与时间格式化
-   * @returns {Promise<void>}
-   */
-  const fetchSamplingData = async (): Promise<void> => {
-    if (!get(bizId) || !get(appName)) return;
-    if (abortController) {
-      abortController.abort();
-    }
-    loading.value = true;
-    abortController = new AbortController();
-    const { signal } = abortController;
-
-    const { data, isAborted } = await fetchDataSampling(
-      {
-        bk_biz_id: get(bizId),
-        app_name: get(appName),
-      },
-      { signal }
-    );
-
-    if (isAborted) return;
-    loading.value = false;
-    samplingList.value = (data || []).map(item => {
+  const request = useRumRequest<IDataSamplingItem[]>(async signal => {
+    const data = await fetchDataSampling({ bk_biz_id: get(bizId), app_name: get(appName) }, { signal });
+    return (data || []).map(item => {
       const date = dayjs.tz(dayjs(item.sampling_time));
-      return {
-        ...item,
-        sampling_time: date.isValid() ? date.format('YYYY-MM-DD HH:mm:ssZ') : '--',
-      };
+      return { ...item, sampling_time: date.isValid() ? date.format('YYYY-MM-DD HH:mm:ssZ') : '--' };
     });
-  };
+  }, []);
 
-  watchEffect(() => {
-    fetchSamplingData();
-  });
-
-  onScopeDispose(() => {
-    if (abortController) {
-      abortController.abort();
-      abortController = null;
-    }
-  });
-
-  /**
-   * @description 刷新采样数据
-   * @returns {Promise<void>}
-   */
-  const handleRefresh = async (): Promise<void> => {
-    await fetchSamplingData();
-  };
+  watch(
+    () => [get(bizId), get(appName)],
+    () => {
+      if (get(bizId) && get(appName)) request.run();
+    },
+    { immediate: true }
+  );
 
   return {
-    handleRefresh,
-    loading,
-    samplingList,
+    samplingList: request.data,
+    loading: request.loading,
+    error: request.error,
+    handleRefresh: request.run,
   };
 };

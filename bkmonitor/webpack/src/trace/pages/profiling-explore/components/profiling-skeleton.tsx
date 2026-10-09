@@ -25,6 +25,8 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
+import { useI18n } from 'vue-i18n';
+
 import './profiling-skeleton.scss';
 
 const flameBranches = [
@@ -56,10 +58,45 @@ const trendPoints =
 export default defineComponent({
   name: 'ProfilingSkeleton',
   props: {
-    variant: { type: String as PropType<'callgraph' | 'filter' | 'flame' | 'table' | 'trend'>, required: true },
+    variant: {
+      type: String as PropType<'callgraph' | 'filter' | 'flame' | 'resident' | 'table' | 'trend'>,
+      required: true,
+    },
     compared: Boolean,
   },
+  setup() {
+    const { t } = useI18n();
+    return { t };
+  },
   render() {
+    if (this.variant === 'resident') {
+      return (
+        <div
+          class='profiling-skeleton profiling-skeleton-resident'
+          aria-hidden='true'
+        >
+          <span class='resident-setting-btn'>
+            <span class='icon-monitor icon-shezhi1' />
+            <span>{this.t('设置筛选')}</span>
+          </span>
+          <div class='resident-fields'>
+            {[48, 36, 60, 48].map((width, index) => (
+              <div
+                key={index}
+                class='resident-control'
+              >
+                <i
+                  style={{ width: `${width}px` }}
+                  class='skeleton-element'
+                />
+                <span class='resident-divider' />
+                <i class='skeleton-element resident-value' />
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+    }
     return (
       <div
         class={['profiling-skeleton', `profiling-skeleton-${this.variant}`]}

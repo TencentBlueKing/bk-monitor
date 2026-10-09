@@ -48,6 +48,9 @@ export function useRumTableData(commonParams: MaybeRef<IRumCommonParams>, enable
   const loading = shallowRef(false);
   /** 触底追加时的 loading */
   const scrollLoading = shallowRef(false);
+  const error = shallowRef(false);
+  let failedLoadMore = false;
+  let requestKey = '';
   /** 是否还有下一页数据 */
   const hasMore = shallowRef(false);
   /** 回到顶部信号。查询条件、排序、时间范围或手动刷新变化时重新生成随机串，由外层视图组件监听并触发滚动复位；使用信号而非回调，避免父组件通过 ref 直接调用子组件方法，保持数据流单向 */
@@ -70,13 +73,19 @@ export function useRumTableData(commonParams: MaybeRef<IRumCommonParams>, enable
       hasMore.value = false;
       loading.value = false;
       scrollLoading.value = false;
+      error.value = false;
+      requestKey = '';
       return;
     }
     if (isLoadMore && (loading.value || scrollLoading.value || !hasMore.value)) return;
-    if (!isLoadMore) {
+    const nextKey = JSON.stringify([get(commonParams), sortParams.value, store.timeRange, store.spanType]);
+    if (!isLoadMore && nextKey !== requestKey) {
       tableData.value = [];
       hasMore.value = false;
+      backTopSignal.value = random(8);
     }
+    requestKey = nextKey;
+    error.value = false;
     // 中止上一次未完成的请求，确保只有最后一次请求的结果生效
     abortController?.abort();
     abortController = new AbortController();
@@ -104,6 +113,11 @@ export function useRumTableData(commonParams: MaybeRef<IRumCommonParams>, enable
 
       tableData.value = isLoadMore ? [...tableData.value, ...list] : list;
       hasMore.value = list.length >= RUM_TABLE_PAGE_LIMIT;
+    } catch {
+      if (!signal.aborted) {
+        error.value = true;
+        failedLoadMore = isLoadMore;
+      }
     } finally {
       if (!signal.aborted) {
         loading.value = false;
@@ -116,7 +130,7 @@ export function useRumTableData(commonParams: MaybeRef<IRumCommonParams>, enable
    * @description 表格触底回调。加载中或无更多数据时忽略，否则追加下一页
    */
   function handleScrollToEnd() {
-    if (loading.value || scrollLoading.value || !hasMore.value) return;
+    if (error.value || loading.value || scrollLoading.value || !hasMore.value) return;
     fetchList(true);
   }
 
@@ -131,8 +145,6 @@ export function useRumTableData(commonParams: MaybeRef<IRumCommonParams>, enable
   watch(
     () => [get(enabled), get(commonParams), sortParams.value, store.timeRange, store.refreshImmediate, store.spanType],
     () => {
-      // 触发回到顶部信号，由外层 RumExploreView 监听并滚动到顶部
-      backTopSignal.value = random(8);
       fetchList();
     },
     { immediate: true }
@@ -150,6 +162,8 @@ export function useRumTableData(commonParams: MaybeRef<IRumCommonParams>, enable
     tableData,
     loading,
     scrollLoading,
+    error,
+    retry: () => fetchList(failedLoadMore),
     hasMore,
     sortParams,
     backTopSignal,
