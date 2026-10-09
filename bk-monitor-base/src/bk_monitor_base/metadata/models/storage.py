@@ -554,10 +554,9 @@ class ClusterInfo(models.Model):
                 setattr(self, attribute_name, value)
                 # 由于已经有更新了，所以需要更新最后更新者
                 self.last_modify_user = operator
-                logger.info(f"cluster->[{self.cluster_name}] attribute->[{attribute_name}] updated by->[{operator}]")
 
         self.save()
-        logger.info(f"cluster->[{self.cluster_name}] update success.")
+        logger.info(f"cluster->[{self.cluster_name}] updated by->[{operator}] success.")
 
         # 同步集群配置到bkbase（目前仅支持ES集群）
         if self.cluster_type == ClusterInfo.TYPE_ES:

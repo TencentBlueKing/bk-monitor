@@ -16,7 +16,7 @@ from bk_monitor_base.metadata.utils.bk_collector_config import BkCollectorCluste
 
 
 def test_cluster_modify_does_not_log_credentials(mocker: MockerFixture, caplog: Any) -> None:
-    """修改仍保存凭证，但日志只记录字段名和操作者。"""
+    """修改仍保存凭证，但日志只记录集群和操作者，不访问包含凭证的字典。"""
     cluster = ClusterInfo(cluster_name="test-cluster", cluster_type=ClusterInfo.TYPE_INFLUXDB)
     save = mocker.patch.object(cluster, "save")
     with caplog.at_level(logging.INFO):
@@ -26,6 +26,7 @@ def test_cluster_modify_does_not_log_credentials(mocker: MockerFixture, caplog: 
     assert cluster.ssl_certificate_key == "private-key"
     assert "private-value" not in caplog.text
     assert "private-key" not in caplog.text
+    assert "updated by->[tester] success" in caplog.text
 
 
 def test_duplicate_cluster_does_not_log_password(mocker: MockerFixture, caplog: Any) -> None:
