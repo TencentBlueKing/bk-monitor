@@ -96,6 +96,7 @@ export type IRumSummaryCardsData = Record<string, Record<string, unknown>>;
 
 export interface IRumWaterfallData {
   markers?: IRumWaterfallMarker[];
+  milestones?: IRumWaterfallMilestone[];
   phases: IRumWaterfallPhase[];
   /** 总耗时，缺失时由各阶段推导 */
   total_duration?: number;
@@ -105,6 +106,13 @@ export interface IRumWaterfallData {
 /** 瀑布图上的时间点标记（如 TTFB / FCP / LCP） */
 export interface IRumWaterfallMarker {
   'display.rating_config': IRumRatingConfig[];
+  field_name: string;
+  key: string;
+  value: number;
+}
+
+/** 瀑布图的累计里程碑 */
+export interface IRumWaterfallMilestone {
   field_name: string;
   key: string;
   value: number;

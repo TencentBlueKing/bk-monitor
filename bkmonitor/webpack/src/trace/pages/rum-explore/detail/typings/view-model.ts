@@ -253,6 +253,8 @@ export interface IRumWaterfallVM {
   markers?: Array<IRumWaterfallMarkerVM>;
   /** 被合并掉的阶段名（如 DNS、TCP、TLS），由瀑布图组件拼装成说明文案 */
   mergedNames?: string[];
+  /** 累计里程碑 */
+  milestones?: { key: string; name: string; value: string }[];
   rows: IRumWaterfallRowVM[];
   /** TTFB 分解说明，后端缺少 TTFB 时间点或子项时为空 */
   ttfbBreakdown?: IRumTtfbBreakdownVM;

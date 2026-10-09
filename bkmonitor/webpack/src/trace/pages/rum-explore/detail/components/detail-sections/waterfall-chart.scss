@@ -192,13 +192,45 @@
         }
       }
     }
+
+    &:has(+b) {
+      padding-bottom: 16px;
+    }
+  }
+
+  .milestones-wrap {
+    padding-top: 16px;
+    border-top: 1px solid #E4E9F2;
+
+    .milestones-wrap-title {
+      font-size: 12px;
+      line-height: 20px;
+      color: #111214;
+    }
+
+    .milestones-list {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+      margin-top: 8px;
+
+      .milestone-tag {
+        height: 24px;
+        padding: 0 8px;
+        line-height: 24px;
+        color: #FFF;
+        background-color: #8F9FBD;
+        border-radius: 999px;
+      }
+
+    }
   }
 
   &.complex-behavior {
     padding: 16px 24px;
     background-color: #fff;
 
-    .rum-waterfall-wrap {
+    .rum-waterfall-card {
       padding: 16px;
       background-color: #f7f9fc;
       border-radius: 8px;
@@ -206,7 +238,7 @@
   }
 
   &.has-marker {
-    .rum-waterfall-wrap {
+    .rum-waterfall-card {
       padding-top: 0;
     }
   }

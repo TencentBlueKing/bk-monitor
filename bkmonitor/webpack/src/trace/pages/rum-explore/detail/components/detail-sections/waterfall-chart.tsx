@@ -139,99 +139,125 @@ export default defineComponent({
       const { data } = props;
       const { columns, maxRowCount } = markerColumns.value;
       return (
-        <div class='rum-waterfall-wrap'>
-          {columns.length ? (
-            <div
-              style={{ height: `${maxRowCount * MARKER_ROW_HEIGHT}px` }}
-              class='waterfall-markers'
-            >
-              <div class='waterfall-markers-wrap'>
-                <div
-                  ref='markerColumns'
-                  class='marker-columns'
-                >
-                  {columns.map(column => (
-                    <span
-                      key={column.percent}
-                      style={{ left: `${column.percent}%`, '--marker-color': column.color }}
-                      class='marker-column'
-                    >
-                      <div class='marker-line' />
-                      <div
-                        style={{ top: `${column.row * MARKER_ROW_HEIGHT}px` }}
-                        class={['marker-list', column.alignRight ? 'align-right' : 'align-left']}
+        <div class='rum-waterfall-card'>
+          <div class='rum-waterfall-wrap'>
+            {columns.length ? (
+              <div
+                style={{ height: `${maxRowCount * MARKER_ROW_HEIGHT}px` }}
+                class='waterfall-markers'
+              >
+                <div class='waterfall-markers-wrap'>
+                  <div
+                    ref='markerColumns'
+                    class='marker-columns'
+                  >
+                    {columns.map(column => (
+                      <span
+                        key={column.percent}
+                        style={{ left: `${column.percent}%`, '--marker-color': column.color }}
+                        class='marker-column'
                       >
-                        {column.markers.map(marker => (
-                          <div
-                            key={marker.key}
-                            class='marker-item'
-                          >
-                            <span class='marker-label'>{marker.label}</span>
-                            <span class='marker-duration'>{marker.valueText}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </span>
-                  ))}
+                        <div class='marker-line' />
+                        <div
+                          style={{ top: `${column.row * MARKER_ROW_HEIGHT}px` }}
+                          class={['marker-list', column.alignRight ? 'align-right' : 'align-left']}
+                        >
+                          {column.markers.map(marker => (
+                            <div
+                              key={marker.key}
+                              class='marker-item'
+                            >
+                              <span class='marker-label'>{marker.label}</span>
+                              <span class='marker-duration'>{marker.valueText}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </span>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-          ) : null}
-          <div class='waterfall-row timestamp-row'>
-            <span class='row-label'>{t('时间轴')}</span>
-            <span class='row-duration'>{data.durationTotalText}</span>
-            <div class='row-track'>
-              {data.rows.map(row => (
-                <span
-                  key={row.key}
-                  style={{ left: `${row.startPercent}%`, width: `${row.durationPercent}%`, backgroundColor: row.color }}
-                  class='row-block'
-                />
-              ))}
-            </div>
-          </div>
-          {data.ttfbBreakdown ? (
-            <div class='waterfall-ttfb-breakdown'>
-              {`${t('TTFB 分解（RUM 协议）')} · ${t('子项合计')} ${data.ttfbBreakdown.itemsTotalText} · ${t('与 TTFB 相差')} ${data.ttfbBreakdown.diffText}`}
-            </div>
-          ) : null}
-          {data.rows.map((row, index) => [
-            <div
-              key={row.key}
-              class='waterfall-row'
-            >
-              <span class='row-label'>{row.label}</span>
-              <span class='row-duration'>{row.durationText}</span>
+            ) : null}
+            <div class='waterfall-row timestamp-row'>
+              <span class='row-label'>{t('时间轴')}</span>
+              <span class='row-duration'>{data.durationTotalText}</span>
               <div class='row-track'>
-                <span
-                  style={{ left: `${row.startPercent}%`, width: `${row.durationPercent}%`, backgroundColor: row.color }}
-                  class='row-block'
-                />
+                {data.rows.map(row => (
+                  <span
+                    key={row.key}
+                    style={{
+                      left: `${row.startPercent}%`,
+                      width: `${row.durationPercent}%`,
+                      backgroundColor: row.color,
+                    }}
+                    class='row-block'
+                  />
+                ))}
               </div>
-            </div>,
-            /** 合并说明紧跟在首行之后，对应「浏览器准备」与「等待 TTFB」之间的连接复用提示 */
-            index === 0 && data.mergedNames?.length ? (
+            </div>
+            {data.ttfbBreakdown ? (
+              <div class='waterfall-ttfb-breakdown'>
+                {`${t('TTFB 分解（RUM 协议）')} · ${t('子项合计')} ${data.ttfbBreakdown.itemsTotalText} · ${t('与 TTFB 相差')} ${data.ttfbBreakdown.diffText}`}
+              </div>
+            ) : null}
+            {data.rows.map((row, index) => [
               <div
-                key='merged-tip'
-                class='waterfall-merged-tip'
+                key={row.key}
+                class='waterfall-row'
               >
-                <span class='tip-line' />
-                <span class='tip-text'>{`${t('连接复用')}：`}</span>
-                <span class='tip-names'>
-                  {data.mergedNames.map((name, index) => [
-                    index > 0 && <span key={`、${name}`}>、</span>,
-                    <span
-                      key={`name_${name}`}
-                      class='tip-name'
-                    >
-                      {name}
-                    </span>,
-                  ])}
-                </span>
-                <span class='tip-line' />
+                <span class='row-label'>{row.label}</span>
+                <span class='row-duration'>{row.durationText}</span>
+                <div class='row-track'>
+                  <span
+                    style={{
+                      left: `${row.startPercent}%`,
+                      width: `${row.durationPercent}%`,
+                      backgroundColor: row.color,
+                    }}
+                    class='row-block'
+                  />
+                </div>
+              </div>,
+              /** 合并说明紧跟在首行之后，对应「浏览器准备」与「等待 TTFB」之间的连接复用提示 */
+              index === 0 && data.mergedNames?.length ? (
+                <div
+                  key='merged-tip'
+                  class='waterfall-merged-tip'
+                >
+                  <span class='tip-line' />
+                  <span class='tip-text'>{`${t('连接复用')}：`}</span>
+                  <span class='tip-names'>
+                    {data.mergedNames.map((name, index) => [
+                      index > 0 && <span key={`、${name}`}>、</span>,
+                      <span
+                        key={`name_${name}`}
+                        class='tip-name'
+                      >
+                        {name}
+                      </span>,
+                    ])}
+                  </span>
+                  <span class='tip-line' />
+                </div>
+              ) : null,
+            ])}
+          </div>
+
+          {data.milestones?.length && (
+            <div class='milestones-wrap'>
+              <div class='milestones-wrap-title'>{t('累计里程碑')}</div>
+              <div class='milestones-list'>
+                {data.milestones.map(item => (
+                  <div
+                    key={item.key}
+                    class='milestone-tag'
+                  >
+                    {`${item.name} ${item.value}`}
+                  </div>
+                ))}
               </div>
-            ) : null,
-          ])}
+            </div>
+          )}
         </div>
       );
     };

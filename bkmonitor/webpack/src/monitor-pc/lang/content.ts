@@ -556,4 +556,6 @@ export default {
   'TTFB 分解（RUM 协议）': 'TTFB Decomposition (RUM Protocol)',
   子项合计: 'Subtotal',
   '与 TTFB 相差': 'Difference from TTFB',
+  'Load 完成': 'Load complete',
+  页面稳定: 'Page stability',
 };

@@ -29,6 +29,7 @@ import type { MaybeRef } from 'vue';
 import {
   CARD_GROUP_TITLE_MAP,
   CARDS_PER_ROW,
+  MILESTONES_KEY_MAP,
   RATING_FALLBACK_META,
   RATING_META,
   SECTION_TITLE_MAP,
@@ -322,6 +323,13 @@ function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfal
       color: RATING_META[matchRating(marker.value, marker['display.rating_config'])].color,
       valueText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
     })),
+    milestones: data.milestones
+      ?.filter(item => item.value)
+      .map(item => ({
+        key: item.key,
+        name: MILESTONES_KEY_MAP[item.key],
+        value: formatDuration(item.value, '', 3, data.unit || 'us').replace(/ /g, ''),
+      })),
   };
 }
 
