@@ -116,7 +116,8 @@ class SpanBuilder:
         - ``span``：主 Span 的原始记录（未打平），用于回填 ``origin_data``、``span_id``。
         - ``related_spans``：关联 Span 列表（仅 View 会传入生命周期与 Vital 快照）。
 
-        默认按 ``OVERVIEW``、``SECTIONS`` 顺序渲染，未声明则返回空区块。
+        默认按 ``OVERVIEW``、``SECTIONS`` 顺序渲染；未声明 ``OVERVIEW`` 时省略该键。
+        ``sections`` 始终为列表，未声明 ``SECTIONS`` 或各 Section 均返回 ``None`` 时为空。
         """
         flatten_data = cls._prepare_flatten_data(span, related_spans)
         result: dict[str, Any] = {
@@ -141,12 +142,3 @@ class SpanBuilder:
     ) -> dict[str, Any]:
         """默认返回主 Span 打平后的字典；子类可注入关联 Span 附加信息。"""
         return flatten_dict_data(span)
-
-
-__all__ = [
-    "SpanBuilder",
-    "SpanOverview",
-    "SpanTypeItem",
-    "named",
-    "RatingConfigItem",
-]

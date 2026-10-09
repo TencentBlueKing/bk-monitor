@@ -41,7 +41,7 @@ def get_safe_number(
 def safe_diff(minuend: int | float | None, subtrahend: int | float | None) -> int | float | None:
     """空安全减法：任一操作数为 ``None`` 时返回 ``None``，避免 ``None - int`` 抛错。
 
-    用于瀑布图各段起点/时长计算，缺失任一时序字段时整段不输出。
+    用于瀑布图各段起点/时长计算，调用方可将返回的 ``None`` 交给 ``phase`` 以省略对应段。
     """
     if minuend is None or subtrahend is None:
         return None
@@ -75,14 +75,13 @@ def waterfall(
     total: int | float | None = None,
     **extras: Any,
 ) -> dict[str, Any] | None:
-    """组装瀑布图 ``data``；``phases`` 与所有 ``extras`` 均为空则返回 ``None``。
+    """组装瀑布图 ``data``；无 phase 且所有 ``extras`` 值均为假值时返回 ``None``。
 
     - 过滤 ``phases`` 中的空值（``None`` 或空 dict），只保留有效段。
-    - ``phases`` 为空且 ``extras`` 中无任何非空值时返回 ``None``，调用方据此省略 ``data``，
-      前端可区分「没有时序数据」与「耗时为 0」。
-    - ``total`` 为 ``None`` 时省略 ``total_duration`` 键，传入 ``0`` 会显式写出 ``0``。
+    - 过滤后无 phase 且 ``extras`` 中无任何真值时返回 ``None``；``total`` 不参与该判断。
+    - 保留 ``data`` 时，``total`` 为 ``None`` 则省略 ``total_duration`` 键，传入 ``0`` 会显式写出 ``0``。
     - ``extras`` 透传为 ``data`` 的附加字段（如 ``markers`` / ``milestones``），
-      是否为空由调用方自行判断是否传入。
+      包含空列表、``None`` 等假值，不单独过滤。
     """
     phases = [p for p in phases if p]
     if not phases and not any(extras.values()):

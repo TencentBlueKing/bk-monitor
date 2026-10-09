@@ -181,7 +181,7 @@ class TestSpanBuilderDispatch:
         result = build(span, [span])
         items = {it["field_name"]: it["value"] for it in result["overview"]["items"]}
         view = span["attributes"]["view"]
-        # 各字段均为源数据直接透传，引用构造对象避免与 fixture 重复硬编码
+        # 身份字段直接透传，start_time 则按导航开始时间换算，引用构造对象避免重复硬编码。
         assert items["app_name"] == span["app_name"]
         assert items["attributes.view.url_template"] == view["url_template"]
         assert items["attributes.view.previous_url_template"] == view["previous_url_template"]
@@ -376,7 +376,7 @@ class TestLongTaskSpanBuilder:
         key_info = _section(result, "key_info")["data"]
         long_task = span["attributes"]["long_task"]
         # 各字段均为源数据直接透传，引用构造对象避免与入参重复硬编码
-        # 停留时长沿用上报 elapsed_time，不丢弃上报的阻塞贡献
+        # LongTask 耗时沿用上报 elapsed_time，同时保留上报的阻塞时长。
         assert key_info["duration"]["elapsed_time"] == span["elapsed_time"]
         assert key_info["duration"]["attributes.long_task.blocking_duration"] == long_task["blocking_duration"]
         assert key_info["action"]["attributes.action.id"] == span["attributes"]["action"]["id"]
@@ -425,7 +425,7 @@ class TestErrorSpanBuilder:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Vital（方案 0x04.f）— 不使用 Span 耗时，CLS 无单位
+# Vital（方案 0x04.f）— 评级使用指标值而非 Span 耗时，CLS 无单位
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -509,7 +509,7 @@ class TestVitalSpanBuilder:
         assert badge["alias"] == EMPTY_VALUE
 
     def test_vital_cls_has_no_unit_in_config(self):
-        """CLS 评级配置不携带 field_unit，下游按无单位处理。"""
+        """CLS 评级配置不携带 field_unit，阈值保持纯小数。"""
         span = {
             "span_id": "cls-1",
             "span_name": "CLS",
@@ -593,7 +593,7 @@ class TestViewSpanBuilder:
 
     @pytest.mark.parametrize("started_at", [None, "invalid"])
     def test_view_latest_snapshot_without_navigation_start_uses_main_record(self, started_at):
-        """最新快照的导航时间不可用时，使用主记录的导航时间与最新快照结束时间。"""
+        """最新快照的导航时间缺失或无法转换为数值时，使用主记录的导航时间与最新快照结束时间。"""
         span = _base_view_span()
         snapshot = _view_snapshot(started_at=started_at)
         result = build(span, [span, snapshot])
@@ -788,7 +788,7 @@ class TestViewSpanBuilder:
         assert "dom_processing" in keys
 
     def test_view_loading_timing_non_initial_load_omitted(self):
-        """非首次加载无导航原点，整段加载时序省略（phases/markers 均不构造）。"""
+        """非 initial_load 类型省略加载时序区块，不构造 phases、markers 或 milestones。"""
         span = _base_view_span()
         snapshot = _view_snapshot(version=3, loading_type="route_change", loading_time_source="manual")
         result = build(span, [span, snapshot])
@@ -894,7 +894,7 @@ class TestViewSpanBuilder:
         assert "total_duration" not in timing
 
     def test_view_loading_timing_marker_exceeds_total_expands_axis(self):
-        """标记超出总耗时时仅扩展横轴，total_duration 仍等于有效 loading_time。"""
+        """标记超出总耗时时，total_duration 仍等于 loading_time，不合并标记值。"""
         span = _base_view_span()
         view = span["attributes"]["view"]
         loading_time = view["loading_time"]  # 200
@@ -939,7 +939,7 @@ class TestViewRelatedSpanSelection:
         assert vital_map["lcp"]["end_time"] == upper["end_time"]
 
     def test_build_vital_map_case_insensitive_metric(self):
-        snap = _vital_span("Cls", 0.05)  # 大写 metric
+        snap = _vital_span("Cls", 0.05)  # 混合大小写的 metric
         vital_map = ViewSpanBuilder._build_vital_map([snap])
         assert "cls" in vital_map
         assert vital_map["cls"]["attributes.vital.value"] == snap["attributes"]["vital"]["value"]

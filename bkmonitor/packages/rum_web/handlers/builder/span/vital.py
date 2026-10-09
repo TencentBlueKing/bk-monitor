@@ -26,10 +26,10 @@ from rum_web.handlers.builder.utils import get_safe_number, match_rating
 
 @dataclass(frozen=True, slots=True)
 class RatingLevelBadgeItem(NamedKeyValueItem):
-    """Overview 徽章：根据 metric 与 value 匹配评级，输出 rating 值与中文别名。
+    """Overview 徽章：根据 metric 与 value 匹配评级，输出评级标识与本地化别名。
 
     - ``value``：评级标识（``good`` / ``needs_improvement`` / ``poor``），不是档位阈值。
-    - 指标值缺失时不评级，``value`` 与 ``alias`` 一律输出 :data:`EMPTY_VALUE`，
+    - 指标值缺失、无法转换为数值或指标无评级配置时，``value`` 与 ``alias`` 输出 :data:`EMPTY_VALUE`，
       避免 ``get_safe_number`` 的 0 默认值被误评为「良好」。
     """
 
