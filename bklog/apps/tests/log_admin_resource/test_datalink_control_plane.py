@@ -353,6 +353,13 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.assertEqual(result["gse_stream_to"][0]["probe"]["probe_status"], "skipped")
         self.assertEqual(result["gse_stream_to"][0]["probe"]["error"]["code"], "GSE_STREAM_CONFIG_UNAVAILABLE")
 
+    def test_mismatched_monitor_stream_config_is_failure(self):
+        route = self.monitor.return_value["result"]["data"]["route_groups"][0]["routes"][0]
+        route["stream_to_config"]["stream_to_id"] = 204
+        result = get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
+        self.assertEqual(result["gse_stream_to"][0]["probe"]["probe_status"], "failed")
+        self.assertIn("GSE_STREAM_CONFIG_MISMATCH", [warning["code"] for warning in result["warnings"]])
+
     def test_registry_schema_blocks_identity_and_extra_params(self):
         self.assertTrue(FUNCTIONS[FUNC_NAME]["validate_params"])
         self.assertEqual(FUNCTIONS[FUNC_NAME]["safety_level"], "inspect")

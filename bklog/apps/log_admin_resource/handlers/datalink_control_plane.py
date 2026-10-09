@@ -300,7 +300,14 @@ def _monitor_gse_response(response, data_id, tenant):
         if config is None:
             stream_probe = probe_skipped("GSE_STREAM_CONFIG_UNAVAILABLE", "Monitor did not return stream_to config")
         else:
-            stream_probe = probe_success(sanitize_json(_stream_to([config], stream_id), redact_text=True))
+            projected = _stream_to([config], stream_id)
+            if not projected["items"]:
+                stream_probe = probe_failure(ValueError("Monitor stream_to config ID differs from route"))
+                warnings.append(
+                    {"code": "GSE_STREAM_CONFIG_MISMATCH", "message": "Route and stream_to config IDs differ"}
+                )
+            else:
+                stream_probe = probe_success(sanitize_json(projected, redact_text=True))
         streams.append({"stream_to_id": stream_id, "probe": stream_probe})
     if len(stream_ids) > MAX_BRANCHES:
         warnings.append({"code": "GSE_STREAM_LIMIT", "message": "Additional stream_to IDs were not projected"})
