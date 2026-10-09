@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import base64
+import re
 
 from django.conf import settings
 from django.utils.translation import gettext
@@ -595,6 +596,26 @@ def validate_param_value(value):
     return True
 
 
+# 节点管理 V3 的任务标识（trigger_id / workflow_id）是字符串而非自增整数，
+# 形如 trigger-xxxx。这里限定可见字符集，避免放开校验后把任意内容透传给下游接口。
+TASK_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,128}$")
+
+
+def validate_task_id_value(value):
+    """
+    校验任务 ID 列表。V2 只接受整数 ID；环境启用 V3 后额外接受字符串形态的任务标识。
+
+    放宽是按环境而不是按采集项：灰度期间两类采集项并存，序列化阶段判不出归属。
+    放宽后的字符集仍然包含纯数字，所以 V2 的整数 ID 照样通得过，不会漏校验。
+    """
+    from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_available
+
+    if not is_nodeman_v3_available():
+        return validate_param_value(value)
+
+    return all(TASK_ID_PATTERN.match(value_obj) for value_obj in value.split(","))
+
+
 class RunSubscriptionSerializer(serializers.Serializer):
     """
     任务重试序列化
@@ -630,15 +651,13 @@ class TaskStatusSerializer(serializers.Serializer):
         # 当task_is_list为空的情况不需要做相关验证
         if not attrs["task_id_list"]:
             return attrs
-        if not validate_param_value(attrs["task_id_list"]):
+        if not validate_task_id_value(attrs["task_id_list"]):
             raise ValidationError(_("task_id_list不符合格式，部署任务ID（多个ID用半角,分隔）"))
         return attrs
 
 
 class SubscriptionStatusSerializer(serializers.Serializer):
-    include_plugin_status = serializers.BooleanField(
-        label=_("是否查询插件版本信息"), required=False, default=True
-    )
+    include_plugin_status = serializers.BooleanField(label=_("是否查询插件版本信息"), required=False, default=True)
 
 
 class TaskDetailSerializer(serializers.Serializer):
@@ -646,9 +665,21 @@ class TaskDetailSerializer(serializers.Serializer):
     task_id = serializers.CharField(label=_("任务ID"), required=False)
 
     def validate_task_id(self, value):
-        if not value.isdigit():
-            raise ValidationError(_("task_id请填写合法的整数值"))
-        return int(value)
+        from apps.log_databus.nodeman_v3.mode import is_nodeman_v3_available
+
+        # 纯数字一律按 V2 的整数任务 ID 处理。灰度期间两类采集项在同一环境并存，而序列化阶段
+        # 拿不到采集项、判不出归属，只能按取值形态区分；V3 的 trigger_id / workflow_id 不是
+        # 纯数字，两者不会混淆。按环境模式分支会把 V2 采集项的整数 ID 也变成字符串传给下游
+        if value.isdigit():
+            return int(value)
+
+        if is_nodeman_v3_available():
+            # V3 的任务标识是字符串，转成整数会直接把 ID 破坏掉
+            if not TASK_ID_PATTERN.match(value):
+                raise ValidationError(_("task_id不符合格式"))
+            return value
+
+        raise ValidationError(_("task_id请填写合法的整数值"))
 
 
 class CollectorListSerializer(DataModelSerializer):
@@ -1886,9 +1917,7 @@ class FastCollectorUpdateSerializer(
     target_node_type = serializers.CharField(label=_("节点类型"), required=False)
     target_nodes = TargetNodeSerializer(label=_("目标节点"), required=False, many=True)
     params = PartialPluginParamSerializer(required=False)
-    data_encoding = serializers.ChoiceField(
-        label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False
-    )
+    data_encoding = serializers.ChoiceField(label=_("日志字符集"), choices=EncodingsEnum.get_choices(), required=False)
     etl_config = serializers.CharField(label=_("清洗类型"), required=False)
     storage_cluster_id = serializers.IntegerField(label=_("集群ID"), required=False)
     retention = serializers.IntegerField(label=_("有效时间"), required=False)

@@ -85,6 +85,7 @@ from apps.log_databus.handlers.collector_scenario import CollectorScenario
 from apps.log_databus.handlers.collector_scenario.custom_define import get_custom
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.storage import StorageHandler
+from apps.log_databus.nodeman_v3.mode import resolve_nodeman_v3_collector_ids, should_use_nodeman_v3
 from apps.log_databus.models import (
     ArchiveConfig,
     CleanStash,
@@ -336,6 +337,14 @@ class CollectorHandler:
         @return:
         """
         result = context
+        if should_use_nodeman_v3(self.data):
+            # V3 没有订阅对象，详情回显的事实源就是 CollectorConfig.params 本身。
+            # 这里显式返回而不是靠「subscription_id 恰好为空」兜住：后者是隐式依赖，
+            # 一旦有人给 V3 模式回填了 subscription_id，就会去调 get_subscription_info 并报错。
+            #
+            # 注意两侧口径并不完全相同：V2 走 collector_scenario.parse_steps 从订阅步骤反解，
+            # 会做一轮归一化；V3 直接用库里的 params。字段差异需要在 BKL-5 联调时按六种场景对齐。
+            return collector_config
         if self.data.subscription_id and "subscription_config" in result:
             if not result["subscription_config"]:
                 raise SubscriptionInfoNotFoundException()
@@ -1221,6 +1230,59 @@ class CollectorHandler:
         )
         return return_data, subscription_id_list, subscription_collector_map
 
+    @staticmethod
+    def _get_subscription_status_by_list_v3(collector_list, container_collector_mapping) -> list:
+        """
+        V3 下的采集项状态汇总，替代 V2 的 subscription_statistic。
+
+        输出字段与 V2 的 format_subscription_status 保持一致（前端不改），差别只有两处：
+
+        - `subscription_id` 恒为 None：V3 没有订阅对象，任务标识是字符串 trigger_id/workflow_id，
+          写不进 IntegerField，也不该硬塞给前端当订阅用
+        - 「已生效但旧版」计入 success：它确实在出数，翻红会让用户去重试一个正在正常采集的采集项
+        """
+        from apps.log_databus.nodeman_v3.status import CollectorStatusReader, summary_to_status
+
+        return_data: list = []
+        for collector_obj in collector_list:
+            if collector_obj.is_container_environment:
+                # 容器采集不在 V3 本期范围（BKL-5 的 Out 明确排除 K8s/BCS），沿用原路径
+                collector_handler = import_string("apps.log_databus.handlers.collector.K8sCollectorHandler")
+                return_data = collector_handler.get_container_return_data(
+                    collector_obj, container_collector_mapping, return_data
+                )
+                continue
+
+            try:
+                summary = CollectorStatusReader(collector_obj).summary()
+            except Exception:  # pylint: disable=broad-except
+                # 单个采集项查不到状态不能让整个列表页 500，降级成 UNKNOWN
+                logger.exception(
+                    "get nodeman v3 status failed, collector_config_id: %s", collector_obj.collector_config_id
+                )
+                return_data.append(
+                    {
+                        "collector_id": collector_obj.collector_config_id,
+                        "subscription_id": None,
+                        "status": CollectStatus.UNKNOWN,
+                        "status_name": RunStatus.UNKNOWN,
+                        "total": 0,
+                        "success": 0,
+                        "failed": 0,
+                        "pending": 0,
+                    }
+                )
+                continue
+
+            return_data.append(
+                {
+                    "collector_id": collector_obj.collector_config_id,
+                    "subscription_id": None,
+                    **summary_to_status(summary, collector_obj),
+                }
+            )
+        return return_data
+
     def get_subscription_status_by_list(self, collector_id_list: list) -> list:
         """
         批量获取采集项订阅状态
@@ -1237,6 +1299,18 @@ class CollectorHandler:
         container_collector_mapping = defaultdict(list)
         for config in ContainerCollectorConfig.objects.filter(collector_config_id__in=collector_id_list):
             container_collector_mapping[config.collector_config_id].append(config)
+
+        # 灰度期间同一个列表里会混着两类采集项：V3 归属的与存量 V2 的。必须按归属分流后各查各的，
+        # 不能按环境模式一刀切 —— 那会让存量 V2 采集项在状态页集体失能（查不到 V3 binding 全变 UNKNOWN）
+        v3_collector_ids = resolve_nodeman_v3_collector_ids(collector_list)
+        if v3_collector_ids:
+            return_data += self._get_subscription_status_by_list_v3(
+                [obj for obj in collector_list if obj.collector_config_id in v3_collector_ids],
+                container_collector_mapping,
+            )
+            collector_list = [obj for obj in collector_list if obj.collector_config_id not in v3_collector_ids]
+            if not collector_list:
+                return self._clean_terminated(return_data)
 
         for collector_obj in collector_list:
             return_data, subscription_id_list, subscription_collector_map = self._pre_get_subscription_status_by_list(
