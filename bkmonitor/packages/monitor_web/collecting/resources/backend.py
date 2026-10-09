@@ -457,6 +457,8 @@ class CollectConfigDetailResource(Resource):
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务ID")
         id = serializers.IntegerField(label="采集配置ID")
+        resolve_target = serializers.BooleanField(label="是否解析采集目标", default=True)
+        with_agent_status = serializers.BooleanField(label="是否查询Agent状态", default=True)
 
     @staticmethod
     def password_convert(collect_config_meta):
@@ -485,8 +487,8 @@ class CollectConfigDetailResource(Resource):
         except CollectConfigMeta.DoesNotExist:
             raise CollectConfigNotExist({"msg": config_id})
 
-        if not collect_config_meta.deployment_config.target_nodes:
-            # 如果没有目标节点，直接返回空列表
+        if not validated_request_data["resolve_target"] or not collect_config_meta.deployment_config.target_nodes:
+            # 基础信息读取无需访问目标依赖。
             target_result = []
         else:
             # 请求IP选择器接口，获取采集目标
@@ -510,7 +512,11 @@ class CollectConfigDetailResource(Resource):
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     node_list.append(item)
                 target_result = resource.commons.get_host_instance_by_node(
-                    {"bk_biz_id": collect_config_meta.bk_biz_id, "node_list": node_list}
+                    {
+                        "bk_biz_id": collect_config_meta.bk_biz_id,
+                        "node_list": node_list,
+                        "with_agent_status": validated_request_data["with_agent_status"],
+                    }
                 )
             elif collect_config_meta.target_object_type in [
                 TargetObjectType.HOST,
@@ -554,7 +560,11 @@ class CollectConfigDetailResource(Resource):
                     item.update({"bk_biz_id": collect_config_meta.bk_biz_id})
                     node_list.append(item)
                 target_result = resource.commons.get_service_instance_by_node(
-                    {"bk_biz_id": collect_config_meta.bk_biz_id, "node_list": node_list}
+                    {
+                        "bk_biz_id": collect_config_meta.bk_biz_id,
+                        "node_list": node_list,
+                        "with_agent_status": validated_request_data["with_agent_status"],
+                    }
                 )
         config_version = collect_config_meta.deployment_config.plugin_version.config_version
         release_version = collect_config_meta.plugin.get_release_ver_by_config_ver(config_version)
