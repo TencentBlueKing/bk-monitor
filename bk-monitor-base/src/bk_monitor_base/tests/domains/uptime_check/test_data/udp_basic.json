@@ -1,0 +1,66 @@
+{
+  "description": "UDP场景 - DNS查询测试，多节点",
+  "task_config": {
+    "bk_biz_id": 2,
+    "name": "UDP DNS拨测任务",
+    "protocol": "udp",
+    "labels": {
+      "env": "prod",
+      "service": "dns"
+    },
+    "config": {
+      "ip_list": [
+        "8.8.8.8",
+        "1.1.1.1"
+      ],
+      "port": 53,
+      "timeout": 3000,
+      "period": 60,
+      "request": "example.com",
+      "response": "example.com",
+      "response_format": "in"
+    }
+  },
+  "nodes": [
+    {
+      "bk_biz_id": 2,
+      "name": "北京DNS检测节点-CMDB",
+      "bk_host_id": 10001,
+      "ip": "192.168.1.1",
+      "plat_id": 0,
+      "location": {
+        "country": "中国",
+        "city": "北京"
+      },
+      "carrieroperator": "联通"
+    },
+    {
+      "bk_biz_id": 2,
+      "name": "上海DNS检测节点-CMDB多云",
+      "bk_host_id": 10002,
+      "ip": "10.0.0.1",
+      "plat_id": 1,
+      "location": {
+        "country": "中国",
+        "city": "上海"
+      },
+      "carrieroperator": "电信"
+    }
+  ],
+  "expected_deployment": {
+    "subscription_created": true,
+    "task_status": "STARTING",
+    "node_count": 2,
+    "protocol": "udp",
+    "verify_fields": {
+      "port": 53,
+      "request": "example.com",
+      "response": "example.com",
+      "response_format": "in",
+      "timeout": "3000ms",
+      "period": "60s",
+      "ip_list_count": 2
+    },
+    "notes": "UDP协议用于DNS服务可用性检测，验证多节点和多目标IP的合并"
+  }
+}
