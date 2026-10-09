@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import re
 
-from apps.api import BkDataAccessApi, BkDataMetaApi, GseApi, TransferApi
+from apps.api import BkDataAccessApi, BkDataMetaApi, MonitorApi, TransferApi
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.log_admin_resource.handlers.inspection import (
     call_bkdata,
     probe_failure,
     probe_skipped,
+    probe_success,
     reject_identity_params,
     require_biz_in_request_tenant,
     require_positive_int,
@@ -17,8 +18,6 @@ from apps.log_admin_resource.handlers.inspection import (
     sanitize_json,
     sanitize_sensitive_text,
 )
-from apps.log_databus.constants import DEFAULT_BK_USERNAME, DEFAULT_GSE_API_PLAT_NAME
-
 
 FUNC_NAME = "bklog.datalink.control_plane.snapshot"
 MAX_BRANCHES = 5
@@ -108,38 +107,15 @@ def get_datalink_control_plane_snapshot(params):
         else probe_skipped("RESOURCE_NOT_CONFIGURED", "Metadata has no Kafka cluster ID")
     )
 
-    route = _call(
-        GseApi.query_route,
-        {"condition": {"channel_id": data_id}, "operation": {"operator_name": DEFAULT_BK_USERNAME}, "no_request": True},
-        tenant,
-        lambda rows: _routes(rows, data_id),
-    )
+    route, result["gse_stream_to"], monitor_warnings = _monitor_gse_evidence(data_id, tenant)
     result["gse_route"] = route
+    result["warnings"].extend(monitor_warnings)
     if route["probe_status"] == "success":
         if route["data"]["truncated"]:
             result["warnings"].append({"code": "GSE_ROUTE_LIMIT", "message": "Additional GSE routes were not returned"})
         if not route["data"]["routes"]:
             result["warnings"].append(
                 {"code": "GSE_ROUTE_EMPTY", "message": "No matching route was returned for this Data ID"}
-            )
-        stream_ids = sorted({item["stream_to_id"] for item in route["data"]["routes"] if item["stream_to_id"]})
-        for stream_id in stream_ids[:MAX_BRANCHES]:
-            stream = _call(
-                GseApi.query_stream_to,
-                {
-                    "condition": {"stream_to_id": stream_id, "plat_name": DEFAULT_GSE_API_PLAT_NAME},
-                    "operation": {"operator_name": DEFAULT_BK_USERNAME},
-                    "no_request": True,
-                },
-                tenant,
-                lambda rows, expected=stream_id: _stream_to(rows, expected),
-            )
-            result["gse_stream_to"].append({"stream_to_id": stream_id, "probe": stream})
-            if stream["probe_status"] == "success" and not stream["data"]["items"]:
-                result["warnings"].append({"code": "GSE_STREAM_EMPTY", "message": "No matching stream_to was returned"})
-        if len(stream_ids) > MAX_BRANCHES:
-            result["warnings"].append(
-                {"code": "GSE_STREAM_LIMIT", "message": "Additional stream_to IDs were not queried"}
             )
 
     v4_meta = _call(
@@ -235,31 +211,105 @@ def _cluster(rows, cluster_id):
     }
 
 
-def _routes(rows, data_id):
-    if not isinstance(rows, list):
-        raise ValueError("route list is invalid")
+def _monitor_gse_evidence(data_id, tenant):
+    probe = call_bkdata(
+        MonitorApi.kernel_rpc_call,
+        {
+            "func_name": "admin.datasource.gse_route",
+            "params": {"bk_tenant_id": tenant, "bk_data_id": data_id},
+            "no_request": True,
+            "bk_tenant_id": tenant,
+        },
+    )
+    if probe["probe_status"] != "success":
+        return probe, [], []
+    try:
+        routes, streams, warnings = _monitor_gse_response(probe["data"], data_id, tenant)
+    except (TypeError, ValueError, KeyError, AttributeError) as error:
+        return probe_failure(ValueError(f"invalid Monitor GSE response: {error}")), [], []
+    return {**probe, "data": routes}, streams, warnings
+
+
+def _monitor_gse_response(response, data_id, tenant):
+    if not isinstance(response, dict) or response.get("func_name") != "admin.datasource.gse_route":
+        raise ValueError("Monitor returned a different function")
+    if response.get("protocol") != "call":
+        raise ValueError("Monitor returned a non-call response")
+    result = response.get("result")
+    if not isinstance(result, dict) or not isinstance(result.get("data"), dict):
+        raise ValueError("Monitor GSE result is invalid")
+    meta = result.get("meta") or {}
+    if not isinstance(meta, dict) or meta.get("effective_bk_tenant_id", tenant) != tenant:
+        raise ValueError("Monitor GSE result tenant scope differs from request")
+    data = result["data"]
+    if str(data.get("bk_tenant_id")) != tenant or str(data.get("bk_data_id")) != str(data_id):
+        raise ValueError("Monitor GSE result identity differs from requested Data ID or tenant")
+    groups = data.get("route_groups")
+    if not isinstance(groups, list):
+        raise ValueError("Monitor GSE route_groups is invalid")
+
     routes = []
     truncated = False
-    for item in rows:
-        if not isinstance(item, dict):
-            raise ValueError("route item is invalid")
-        channel_id = (item.get("metadata") or {}).get("channel_id", item.get("channel_id"))
-        if str(channel_id) != str(data_id):
-            continue
-        for route in item.get("route") or []:
+    stream_configs = {}
+    for group in groups:
+        if not isinstance(group, dict) or not isinstance(group.get("routes"), list):
+            raise ValueError("Monitor GSE route group is invalid")
+        metadata = group.get("metadata") or {}
+        if not isinstance(metadata, dict):
+            raise ValueError("Monitor GSE route metadata is invalid")
+        channel_id = metadata.get("channel_id")
+        if channel_id is not None and str(channel_id) != str(data_id):
+            raise ValueError("Monitor GSE route group belongs to another Data ID")
+        for route in group["routes"]:
+            if not isinstance(route, dict):
+                raise ValueError("Monitor GSE route is invalid")
             if len(routes) >= MAX_GSE_ROUTES:
                 truncated = True
                 break
-            stream = route.get("stream_to") or {}
+            raw_stream_id = route.get("stream_to_id")
+            try:
+                stream_id = int(raw_stream_id) if raw_stream_id is not None else None
+            except (TypeError, ValueError) as error:
+                raise ValueError("Monitor GSE stream_to_id is invalid") from error
+            if stream_id is not None and stream_id < 1:
+                raise ValueError("Monitor GSE stream_to_id is invalid")
             routes.append(
                 {
-                    "channel_id": channel_id,
+                    "channel_id": data_id,
                     "name": route.get("name"),
-                    "stream_to_id": stream.get("stream_to_id"),
-                    "topic": (stream.get("kafka") or {}).get("topic_name"),
+                    "stream_to_id": stream_id,
+                    "topic": route.get("stream_to_topic_name"),
                 }
             )
-    return {"channel_id": data_id, "routes": routes, "truncated": truncated}
+            if stream_id is not None and route.get("stream_to_config") is not None:
+                stream_configs[stream_id] = route["stream_to_config"]
+
+    warnings = []
+    for warning in (result.get("warnings") or []) + (data.get("warnings") or []):
+        if isinstance(warning, dict):
+            code = str(warning.get("code") or "MONITOR_GSE_WARNING")[:64]
+            message = warning.get("message")
+        else:
+            code, message = "MONITOR_GSE_WARNING", warning
+        warnings.append({"code": code, "message": sanitize_sensitive_text(str(message))[:1024]})
+
+    stream_ids = sorted({route["stream_to_id"] for route in routes if route["stream_to_id"] is not None})
+    streams = []
+    for stream_id in stream_ids[:MAX_BRANCHES]:
+        config = stream_configs.get(stream_id)
+        if config is None:
+            stream_probe = probe_skipped("GSE_STREAM_CONFIG_UNAVAILABLE", "Monitor did not return stream_to config")
+        else:
+            stream_probe = probe_success(sanitize_json(_stream_to([config], stream_id), redact_text=True))
+        streams.append({"stream_to_id": stream_id, "probe": stream_probe})
+    if len(stream_ids) > MAX_BRANCHES:
+        warnings.append({"code": "GSE_STREAM_LIMIT", "message": "Additional stream_to IDs were not projected"})
+
+    return (
+        {"channel_id": data_id, "routes": routes, "truncated": truncated, "source": "bkmonitor.kernel_rpc_call"},
+        streams,
+        warnings,
+    )
 
 
 def _stream_to(rows, stream_id):
@@ -287,7 +337,8 @@ def _stream_to(rows, stream_id):
                 ],
                 "security_protocol": kafka.get("security_protocol"),
                 "sasl_mechanisms": kafka.get("sasl_mechanisms"),
-                "sasl_configured": bool(kafka.get("sasl_username") and kafka.get("sasl_passwd")),
+                # Monitor masks sasl_passwd even when it is empty; its presence cannot prove configuration.
+                "sasl_configured": None,
                 "ssl_configured": bool(kafka.get("ssl_ca") or kafka.get("ssl_cert") or kafka.get("ssl_key")),
                 "compression": kafka.get("compression"),
                 "req_acks": kafka.get("req_acks"),

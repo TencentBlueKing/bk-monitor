@@ -5,7 +5,7 @@ from django.test import SimpleTestCase, override_settings
 
 from apps.api.modules.bkdata_access import _BkDataAccessApi
 from apps.api.modules.bkdata_meta import _BkDataMetaApi
-from apps.api.modules.gse import _GseApi
+from apps.api.modules.monitor import _MonitorApi
 from apps.exceptions import ApiResultError, PermissionError as BklogPermissionError, ValidationError
 from apps.log_admin_resource.handlers.datalink_control_plane import (
     FUNC_NAME,
@@ -92,8 +92,7 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.biz_check = self.enterContext(patch(f"{MODULE}.require_biz_in_request_tenant"))
         self.metadata = self.enterContext(patch(f"{MODULE}.TransferApi.get_data_id"))
         self.cluster = self.enterContext(patch(f"{MODULE}.TransferApi.get_cluster_info"))
-        self.route = self.enterContext(patch(f"{MODULE}.GseApi.query_route"))
-        self.stream = self.enterContext(patch(f"{MODULE}.GseApi.query_stream_to"))
+        self.monitor = self.enterContext(patch(f"{MODULE}.MonitorApi.kernel_rpc_call"))
         self.v4_metadata = self.enterContext(patch(f"{MODULE}.BkDataMetaApi.get_datalink_metadata"))
         self.v4_resource = self.enterContext(patch(f"{MODULE}.BkDataAccessApi.get_datalink_resource"))
 
@@ -125,33 +124,46 @@ class DataLinkControlPlaneTest(SimpleTestCase):
                 },
             }
         ]
-        self.route.return_value = [
-            {
-                "metadata": {"channel_id": DATA_ID},
-                "route": [
-                    {
-                        "name": "stream_to_test_topic",
-                        "stream_to": {"stream_to_id": 203, "kafka": {"topic_name": "test_topic"}},
-                    }
-                ],
-            }
-        ]
-        self.stream.return_value = [
-            {
-                "stream_to_id": 203,
-                "name": "mq_stream_to_106",
-                "report_mode": "kafka",
-                "kafka": {
-                    "storage_address": [{"ip": "kafka.example.test", "port": 9092}],
-                    "sasl_username": "hidden",
-                    "sasl_passwd": "hidden",
-                    "security_protocol": "SASL_PLAINTEXT",
-                    "sasl_mechanisms": "SCRAM-SHA-512",
-                    "compression": 0,
-                    "req_acks": 1,
+        stream_config = {
+            "stream_to_id": 203,
+            "name": "mq_stream_to_106",
+            "report_mode": "kafka",
+            "kafka": {
+                "storage_address": [{"ip": "kafka.example.test", "port": 9092}],
+                "sasl_username": "hidden",
+                "sasl_passwd": "hidden",
+                "security_protocol": "SASL_PLAINTEXT",
+                "sasl_mechanisms": "SCRAM-SHA-512",
+                "compression": 0,
+                "req_acks": 1,
+            },
+        }
+        self.monitor.return_value = {
+            "func_name": "admin.datasource.gse_route",
+            "protocol": "call",
+            "result": {
+                "data": {
+                    "bk_tenant_id": "system",
+                    "bk_data_id": DATA_ID,
+                    "route_groups": [
+                        {
+                            "metadata": {"channel_id": DATA_ID},
+                            "routes": [
+                                {
+                                    "name": "stream_to_test_topic",
+                                    "stream_to_id": 203,
+                                    "stream_to_topic_name": "test_topic",
+                                    "stream_to_config": stream_config,
+                                }
+                            ],
+                        }
+                    ],
+                    "warnings": [],
                 },
-            }
-        ]
+                "warnings": [],
+                "meta": {"effective_bk_tenant_id": "system"},
+            },
+        }
         self.v4_metadata.return_value = {"branches": [{"result_table_id": RT_ID, "kafka_host": "kafka.example.test"}]}
         self.v4_resource.side_effect = lambda **kwargs: RESOURCES[(kwargs["params"]["kind"], kwargs["params"]["name"])]
 
@@ -166,7 +178,20 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.assertEqual(result["kafka_cluster"]["data"]["host"], "kafka.example.test")
         self.assertIsNone(result["kafka_cluster"]["data"]["gse_stream_to_id"])
         self.assertEqual(result["gse_route"]["data"]["routes"][0]["stream_to_id"], 203)
+        self.assertEqual(result["gse_route"]["data"]["source"], "bkmonitor.kernel_rpc_call")
         self.assertEqual(result["gse_stream_to"][0]["probe"]["data"]["items"][0]["kafka_addresses"][0]["port"], 9092)
+        self.assertIsNone(result["gse_stream_to"][0]["probe"]["data"]["items"][0]["sasl_configured"])
+        self.monitor.assert_called_once()
+        self.assertEqual(
+            self.monitor.call_args.kwargs["params"],
+            {
+                "func_name": "admin.datasource.gse_route",
+                "params": {"bk_tenant_id": "system", "bk_data_id": DATA_ID},
+                "no_request": True,
+            },
+        )
+        self.assertEqual(self.monitor.call_args.kwargs["bk_tenant_id"], "system")
+        self.assertFalse(self.monitor.call_args.kwargs["request_cookies"])
         self.assertEqual(branch["resources"]["kafka_channel"]["data"]["spec"]["streamToId"], 203)
         self.assertIsNone(branch["resources"]["kafka_channel"]["data"]["spec"]["v3ChannelId"])
         self.assertEqual(branch["resources"]["storage"]["data"]["spec"]["host"], "es.example.test")
@@ -198,10 +223,10 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.assertEqual(result["v4_branches"][0]["association_status"], "verified")
 
     def test_read_only_api_routes(self):
-        gse = _GseApi()
-        self.assertEqual(gse.query_route.method, "POST")
-        self.assertTrue(gse.query_route.url.endswith("api/v2/data/query_route"))
-        self.assertIn("/api/bk-gse/", gse.query_route.url)
+        monitor = _MonitorApi()
+        self.assertEqual(monitor.kernel_rpc_call.method, "POST")
+        self.assertTrue(monitor.kernel_rpc_call.url.endswith("app/kernel_rpc/call/"))
+        self.assertIn("/api/bk-monitor/", monitor.kernel_rpc_call.url)
         for enabled in (True, False):
             with self.subTest(multi_tenant=enabled), override_settings(ENABLE_MULTI_TENANT_MODE=enabled):
                 meta = _BkDataMetaApi()
@@ -220,20 +245,20 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         with self.assertRaises(BklogPermissionError):
             get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
         self.biz_check.assert_called_once_with(42)
-        self.route.assert_not_called()
+        self.monitor.assert_not_called()
 
     def test_wrong_metadata_data_id_stops_before_other_providers(self):
         self.metadata.return_value["bk_data_id"] = DATA_ID + 1
         with self.assertRaises(ValueError):
             get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
-        self.route.assert_not_called()
+        self.monitor.assert_not_called()
 
     def test_tenant_mismatch_stops_before_other_providers(self):
         self.metadata.return_value["bk_tenant_id"] = "other"
         with self.assertRaises(BklogPermissionError):
             get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
         self.cluster.assert_not_called()
-        self.route.assert_not_called()
+        self.monitor.assert_not_called()
         self.v4_metadata.assert_not_called()
 
     def test_metadata_failure_does_not_claim_data_absent(self):
@@ -242,7 +267,7 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.assertEqual(result["metadata"]["probe_status"], "failed")
         self.assertIsNone(result["metadata"]["exists"])
         self.assertEqual(result["gse_route"]["probe_status"], "skipped")
-        self.route.assert_not_called()
+        self.monitor.assert_not_called()
 
     def test_v4_reference_mismatch_is_explicit_and_does_not_follow_storage(self):
         resources = dict(RESOURCES)
@@ -296,7 +321,7 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.assertEqual(source["error"]["code"], "CROSS_TENANT_REFERENCE")
         self.assertEqual(result["v4_branches"][0]["association_status"], "unknown")
 
-    def test_gse_flat_stream_response_and_resource_phase(self):
+    def test_monitor_stream_response_and_resource_phase(self):
         resources = dict(RESOURCES)
         resources[("databuses", RT_NAME)] = resource(
             "Databus", RT_NAME, RESOURCES[("databuses", RT_NAME)]["spec"], phase="Failed"
@@ -305,6 +330,28 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         result = get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
         self.assertEqual(result["gse_stream_to"][0]["probe"]["data"]["items"][0]["name"], "mq_stream_to_106")
         self.assertIn("V4_RESOURCE_NOT_OK", [item["code"] for item in result["warnings"]])
+
+    def test_monitor_permission_failure_does_not_claim_route_absent(self):
+        self.monitor.side_effect = ApiResultError("permission denied", code=1511001)
+        result = get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
+        self.assertEqual(result["gse_route"]["probe_status"], "failed")
+        self.assertIsNone(result["gse_route"]["exists"])
+        self.assertEqual(result["gse_stream_to"], [])
+        self.assertEqual(result["v4_branches"][0]["association_status"], "verified")
+
+    def test_monitor_identity_mismatch_rejects_gse_evidence(self):
+        self.monitor.return_value["result"]["data"]["bk_data_id"] = DATA_ID + 1
+        result = get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
+        self.assertEqual(result["gse_route"]["probe_status"], "failed")
+        self.assertEqual(result["gse_stream_to"], [])
+
+    def test_missing_monitor_stream_config_is_unverified(self):
+        route = self.monitor.return_value["result"]["data"]["route_groups"][0]["routes"][0]
+        route["stream_to_config"] = None
+        result = get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})
+        self.assertEqual(result["gse_route"]["probe_status"], "success")
+        self.assertEqual(result["gse_stream_to"][0]["probe"]["probe_status"], "skipped")
+        self.assertEqual(result["gse_stream_to"][0]["probe"]["error"]["code"], "GSE_STREAM_CONFIG_UNAVAILABLE")
 
     def test_registry_schema_blocks_identity_and_extra_params(self):
         self.assertTrue(FUNCTIONS[FUNC_NAME]["validate_params"])
