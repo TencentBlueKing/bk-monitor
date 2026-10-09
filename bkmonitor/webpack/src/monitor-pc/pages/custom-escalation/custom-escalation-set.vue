@@ -145,34 +145,44 @@
               :show-validate.sync="rule.protocol"
               :validator="{ content: $t('必填项') }"
             >
-              <div class="bk-button-group">
-                <bk-button
+              <div class="protocol-block-group">
+                <div
                   v-for="(protocol, index) in protocolList"
                   :key="index"
+                  class="protocol-block"
                   :class="{ 'is-selected': protocol.id === formData.protocol }"
                   @click="handleProtocolChange(protocol.id)"
                 >
-                  {{ protocol.name }}
-                </bk-button>
+                  <span class="protocol-block-icon-wrap">
+                    <i
+                      class="protocol-block-icon icon-monitor"
+                      :class="protocol.icon"
+                    />
+                  </span>
+                  <div class="protocol-block-content">
+                    <div class="protocol-block-title">{{ protocol.name }}</div>
+                    <div class="protocol-block-desc">{{ protocol.desc }}</div>
+                  </div>
+                </div>
               </div>
             </verify-input>
-            <span
-              v-if="protocolDes"
-              class="description"
-            >
-              {{ protocolDes }}
-            </span>
+            <bk-alert
+              v-if="formData.protocol === 'prometheus'"
+              class="protocol-alert"
+              type="info"
+              :title="$t('创建后将自动读取 Prometheus TYPE。未携带 TYPE 的指标仍进入“待分类”，不会根据名称自动确认类型。')"
+            />
           </bk-form-item>
           <!--ID-->
           <bk-form-item
-            ext-cls="content-basic"
+            ext-cls="content-basic content-scope"
             :label="type === 'customEvent' ? $t('是否为平台事件') : $t('作用范围')"
           >
             <bk-checkbox
               v-if="type === 'customEvent'"
               v-model="formData.isPlatform"
             />
-            <div v-else>
+            <template v-else>
               <bk-radio-group
                 v-model="formData.isPlatform"
                 class="bk-radio-group"
@@ -184,16 +194,16 @@
                   >{{ $t(scope.name) }}</bk-radio
                 >
               </bk-radio-group>
-            </div>
-            <div
-              v-if="type !== 'customEvent' && !!formData.isPlatform"
-              class="platform-tips"
-            >
-              <span class="icon-monitor icon-tixing" />
-              <span>{{
-                $t('开启全业务作用范围，全部业务都可见属于自身业务的数据，有平台特定的数据格式要求，请联系平台管理员。')
-              }}</span>
-            </div>
+              <div
+                v-if="!!formData.isPlatform"
+                class="platform-tips"
+              >
+                <span class="icon-monitor icon-tixing" />
+                <span>{{
+                  $t('开启全业务作用范围，全部业务都可见属于自身业务的数据，有平台特定的数据格式要求，请联系平台管理员。')
+                }}</span>
+              </div>
+            </template>
           </bk-form-item>
           <bk-form-item
             v-if="type !== 'customEvent'"
@@ -281,9 +291,9 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
   private currentItemIdName = 'bkEventGroupId'; // 当前 ID 字段
   private disableSubmit = false; // 是否禁用提交按钮（防止重复点击）
   private btnLoadingIcon = ''; // 提交时显示按钮loading效果
-  private protocolList: Array<{ id: string; name: string }> = [
-    { id: 'json', name: 'JSON' },
-    { id: 'prometheus', name: 'Prometheus' },
+  private protocolList: Array<{ id: string; name: string; desc: string; icon: string }> = [
+    { id: 'json', name: 'JSON', desc: '首次发现后进入待分类', icon: 'icon-code' },
+    { id: 'prometheus', name: 'Prometheus', desc: '自动读取 TYPE 元数据', icon: 'icon-profiling' },
   ]; // 上报协议字典
   private scopeList: Array<{ id: boolean; name: string }> = [
     { id: false, name: '本业务' },
@@ -298,7 +308,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
     token: '',
     dataLabel: '',
     isPlatform: false,
-    protocol: '',
+    protocol: 'json',
     desc: '',
   };
 
@@ -332,15 +342,6 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
       return this.$t('创建中...');
     }
     return this.$t('提交');
-  }
-
-  /** 上报协议提示 */
-  get protocolDes() {
-    const des = {
-      json: this.$t('蓝鲸监控自有的JSON数据格式，创建完后有具体的格式说明'),
-      prometheus: this.$t('支持Prometheus的标准输出格式'),
-    };
-    return des[this.formData.protocol];
   }
 
   get type() {
@@ -599,15 +600,92 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
     padding: 23px 20px 4px 37px;
     font-size: 12px;
     background: $whiteColor;
-    border-radius: 2px;
+    border-radius: 4px;
     box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.1);
-
-    @include border-1px($color: $defaultBorderColor);
 
     .bk-button-group {
       .bk-button {
         width: 134px;
       }
+    }
+
+    .protocol-block-group {
+      display: flex;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .protocol-block {
+      display: flex;
+      flex: 1;
+      gap: 10px;
+      align-items: center;
+      box-sizing: border-box;
+      min-width: 0;
+      padding: 12px 16px;
+      cursor: pointer;
+      background: #fff;
+      border: 1px solid #dcdee5;
+      border-radius: 4px;
+      transition: all 0.15s ease;
+
+      &.is-selected {
+        background: #f0f5ff;
+        border-color: #3a84ff;
+
+        .protocol-block-icon-wrap {
+          color: #fff;
+          background: #3a84ff;
+        }
+
+        .protocol-block-title {
+          color: #3a84ff;
+        }
+
+        .protocol-block-desc {
+          color: #699df4;
+        }
+      }
+
+      .protocol-block-icon-wrap {
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        color: #4d4f56;
+        background: #f0f1f5;
+        border-radius: 4px;
+      }
+
+      .protocol-block-icon {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .protocol-block-content {
+        min-width: 0;
+      }
+
+      .protocol-block-title {
+        font-size: 14px;
+        font-weight: 700;
+        line-height: 22px;
+        color: #111214;
+      }
+
+      .protocol-block-desc {
+        margin-top: 2px;
+        font-size: 12px;
+        line-height: 20px;
+        color: #979ba5;
+      }
+    }
+
+    .protocol-alert {
+      width: 100%;
+      margin-top: 12px;
     }
 
     .description {
@@ -618,27 +696,62 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
     }
 
     .bk-radio-group {
-      padding-top: 6px;
+      display: flex;
+      align-items: center;
+      height: 32px;
+      padding-top: 0;
+      line-height: 32px;
 
       .bk-form-radio {
+        display: inline-flex;
+        align-items: center;
+        height: 32px;
         margin-right: 24px;
+        margin-top: 0;
+        font-size: 12px;
+        line-height: 32px;
+
+        :deep(.bk-radio-text) {
+          font-size: 12px;
+          line-height: 32px;
+        }
       }
     }
 
     &-title {
-      font-weight: bold;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 22px;
+      color: #111214;
     }
 
     &-content {
       margin-top: 25px;
 
+      :deep(.bk-label),
+      :deep(.bk-form-item > label),
+      :deep(.bk-label-text) {
+        font-size: 12px;
+      }
+
       .content-basic {
         width: 576px;
         margin-bottom: 20px;
 
+        &.content-scope {
+          :deep(.bk-label) {
+            line-height: 32px;
+          }
+
+          :deep(.bk-form-content) {
+            line-height: 32px;
+          }
+        }
+
         .platform-tips {
           display: flex;
-          width: max-content;
+          width: 100%;
+          box-sizing: border-box;
           padding: 6px 9px;
           margin-top: 6px;
           line-height: 20px;
@@ -647,9 +760,17 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
           border-radius: 2px;
 
           .icon-tixing {
+            flex-shrink: 0;
             margin-right: 9px;
             font-size: 16px;
             color: #ff9c01;
+          }
+
+          > span:last-child {
+            flex: 1;
+            min-width: 0;
+            word-break: break-word;
+            white-space: normal;
           }
         }
       }
@@ -660,7 +781,7 @@ export default class CustomEscalationSet extends Vue<MonitorVue> {
       }
 
       .form-content-select {
-        width: 240px;
+        width: 100%;
       }
     }
   }
