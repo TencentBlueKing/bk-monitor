@@ -1,0 +1,19 @@
+paths:
+  /app/incident/topology_availability/:
+    get:
+      operationId: incident_topology_availability
+      description: 查询已同步 BKFARA 故障拓扑是否可展示
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/incident/topology_availability/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: Check synchronized BKFARA incident topology availability

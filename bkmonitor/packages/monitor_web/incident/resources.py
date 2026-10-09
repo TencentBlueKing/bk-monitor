@@ -19,6 +19,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
+from api.bk_incident.default import GetIncidentDiagnosisResource
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.aiops.incident.models import (
     IncidentGraphEdgeType,
@@ -34,7 +35,8 @@ from bkmonitor.documents.incident import (
     IncidentOperationDocument,
     IncidentSnapshotDocument,
 )
-from bkmonitor.utils.request import get_request_username
+from bkmonitor.utils.request import get_request_tenant_id, get_request_username
+from bkmonitor.utils.tenant import is_biz_in_tenant
 from bkmonitor.views import serializers
 from bkm_space.scope import MONITOR_SCOPE_QUERY_SENTINELS, bk_biz_id_to_scope_id, scope_id_to_bk_biz_id
 from constants.alert import EVENT_STATUS_DICT, EventStatus
@@ -709,6 +711,178 @@ class IncidentDetailResource(IncidentBaseResource):
         for entity_info in snapshot.incident_graph_entities.values():
             if entity_info.is_root:
                 return entity_info.to_src_dict()
+
+
+class IncidentTopologyAvailabilityResource(IncidentBaseResource):
+    """查询监控已同步且当前拓扑 Tab 能够展示的 BKFARA 故障图。"""
+
+    LOOKUP_LIMIT = 20
+    LOOKUP_TIMEOUT = 3
+    EMPTY_PANEL_REASONS = {
+        "feature_disabled",
+        "insufficient_data",
+        "not_scheduled",
+        "execution_failed",
+        "running",
+        "no_result",
+    }
+
+    class RequestSerializer(serializers.Serializer):
+        incident_id = serializers.IntegerField(required=True, min_value=1, max_value=9999999999)
+        bk_biz_id = serializers.IntegerField(required=True, min_value=1)
+
+    def perform_request(self, validated_request_data: dict) -> dict:
+        incident_id = validated_request_data["incident_id"]
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        result = {
+            "incident_id": incident_id,
+            "bk_biz_id": bk_biz_id,
+            "incident_doc_id": "",
+            "has_incident_topology": False,
+            "topology_status": "unknown",
+        }
+        try:
+            # IncidentDocument 尚无租户字段，先通过权威业务归属验证可信请求租户。
+            tenant_id = get_request_tenant_id(peaceful=True)
+            if not tenant_id or not is_biz_in_tenant(bk_biz_id, tenant_id):
+                result["topology_status"] = "unavailable"
+                return result
+
+            incident = self._find_incident(incident_id, bk_biz_id)
+            if incident is None:
+                result["topology_status"] = "empty"
+                return result
+            result["incident_doc_id"] = str(incident.id)
+            snapshot = self._find_snapshot(incident, bk_biz_id)
+            if snapshot is None:
+                result["topology_status"] = "empty"
+                return result
+
+            # 复用页面的节点/combos 转换，不查询仅用于装饰的 CMDB 名称和告警详情。
+            snapshot.aggregate_graph(incident, aggregate_dependency=True, aggregate_cluster=True)
+            topology = self.generate_topology_data_from_snapshot(incident, snapshot)
+            if not topology["nodes"] or not topology["combos"]:
+                result["topology_status"] = "empty"
+                return result
+
+            # 与 incident_results 的 BKFARA 门槛一致；独立实例限制超时，不修改全局 API 对象。
+            diagnosis_api = GetIncidentDiagnosisResource()
+            diagnosis_api.TIMEOUT = self.LOOKUP_TIMEOUT
+            diagnosis = diagnosis_api.request(incident_id=incident_id, bk_biz_id=bk_biz_id)
+            panel = diagnosis.get("incident_topology") if isinstance(diagnosis, dict) else None
+            if not isinstance(panel, dict) or type(panel.get("enabled")) is not bool:
+                return result
+            if (
+                panel["enabled"] is not True
+                or panel.get("status") != "finished"
+                or panel.get("reason") in self.EMPTY_PANEL_REASONS
+            ):
+                result["topology_status"] = "unavailable"
+                return result
+            result.update(has_incident_topology=True, topology_status="available")
+        except Exception:
+            # 查询异常与确认无图分开，避免把超时当成可长期缓存的空态。
+            logger.warning(
+                "Unable to determine incident topology availability: incident_id=%s bk_biz_id=%s",
+                incident_id,
+                bk_biz_id,
+                exc_info=True,
+            )
+        return result
+
+    def _find_incident(self, incident_id: int, bk_biz_id: int):
+        hits = (
+            IncidentDocument.search(all_indices=True)
+            .filter("term", incident_id=str(incident_id))
+            .filter("term", bk_biz_id=str(bk_biz_id))
+            .source(["id", "incident_id", "bk_biz_id", "extra_info", "create_time", "update_time", "feedback"])
+            .sort("-create_time", "-update_time")
+            .params(size=self.LOOKUP_LIMIT + 1, request_timeout=self.LOOKUP_TIMEOUT)
+            .execute()
+            .hits
+        )
+        if len(hits) > self.LOOKUP_LIMIT:
+            raise ValueError("incident lookup is incomplete")
+        candidates = []
+        for hit in hits:
+            data = hit.to_dict()
+            if str(data.get("incident_id")) != str(incident_id) or str(data.get("bk_biz_id")) != str(bk_biz_id):
+                raise ValueError("incident scope mismatch")
+            # extra_info.enabled=False，不可用于 ES term 过滤，必须核验 _source。
+            if (data.get("extra_info") or {}).get("notice_source") != self.BKFARA_NOTICE_SOURCE:
+                continue
+            doc_id = str(data.get("id") or "")
+            if not doc_id.isdigit() or doc_id[10:] != str(incident_id) or len(doc_id[:10]) != 10:
+                raise ValueError("invalid incident document id")
+            candidates.append(data)
+        if not candidates:
+            return None
+        if len(candidates) != len(hits):
+            # 快照尚无来源字段；同业务同号混有其他来源时，不能证明历史快照归属。
+            raise ValueError("ambiguous incident snapshot source")
+        return IncidentDocument(**candidates[0])
+
+    def _find_snapshot(self, incident, bk_biz_id: int):
+        snapshots = (
+            IncidentSnapshotDocument.search(start_time=int(str(incident.id)[:10]))
+            .filter("term", incident_id=str(incident.incident_id))
+            .exclude("term", fpp_snapshot_id="fpp:None")
+            .exclude("wildcard", fpp_snapshot_id="*:llm_summary")
+        )
+        # 旧拓扑页按短 ID 取整段历史；若存在其他业务的同号图，不能声称链接会展示本故障。
+        foreign_snapshots = (
+            snapshots.exclude("term", bk_biz_ids=str(bk_biz_id))
+            .source(["id"])
+            .params(size=1, request_timeout=self.LOOKUP_TIMEOUT)
+            .execute()
+            .hits
+        )
+        if foreign_snapshots:
+            raise ValueError("ambiguous incident snapshot business")
+        hits = (
+            snapshots.filter("term", bk_biz_ids=str(bk_biz_id))
+            .sort("-create_time", "-update_time")
+            .params(size=1, request_timeout=self.LOOKUP_TIMEOUT)
+            .execute()
+            .hits
+        )
+        if not hits:
+            return None
+        data = hits[0].to_dict()
+        if int(data.get("create_time") or 0) < int(str(incident.id)[:10]):
+            raise ValueError("snapshot predates incident")
+        if str(data.get("incident_id")) != str(incident.incident_id) or str(bk_biz_id) not in {
+            str(value) for value in data.get("bk_biz_ids", [])
+        }:
+            raise ValueError("snapshot scope mismatch")
+        snapshot_id = data.get("fpp_snapshot_id")
+        if (
+            not isinstance(snapshot_id, str)
+            or not snapshot_id
+            or snapshot_id == "fpp:None"
+            or snapshot_id.endswith(":llm_summary")
+        ):
+            raise ValueError("invalid topology snapshot")
+        content = data.get("content")
+        if not isinstance(content, dict):
+            raise ValueError("invalid topology content")
+        if not content.get("incident_propagation_graph", {}).get("entities"):
+            return None
+        if str(content.get("bk_biz_id")) != str(bk_biz_id):
+            raise ValueError("snapshot content scope mismatch")
+        return IncidentSnapshot(copy.deepcopy(content))
+
+    def generate_entity_node_info(self, incident, snapshot, entity) -> dict:
+        alert_ids = snapshot.entity_alerts(entity.entity_id)
+        return {
+            "entity": {key: value for key, value in entity.to_src_dict().items() if key != "aggregated_entities"},
+            "is_on_alert": entity.is_on_alert,
+            "alert_all_recorved": bool(alert_ids)
+            and all(
+                snapshot.alert_entity_mapping[alert_id].alert_status in (EventStatus.RECOVERED, EventStatus.CLOSED)
+                for alert_id in alert_ids
+            ),
+        }
 
 
 class IncidentTopologyResource(IncidentBaseResource):
