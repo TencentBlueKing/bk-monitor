@@ -8,19 +8,33 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from collections import defaultdict
+
 from monitor_web.models.collecting import CollectConfigMeta
 from monitor_web.plugin.constant import PluginType
 
-from .base import BaseInstaller
+from .base import BaseInstaller, CollectionStatistics
 from .k8s import K8sInstaller
 from .node_man import NodeManInstaller
 
 
+def get_collect_installer_class(collect_config: CollectConfigMeta) -> type[BaseInstaller]:
+    """统一选择生命周期和结果查询实现；本期非 K8s 采集保持 V2。"""
+    if collect_config.collect_type == PluginType.K8S:
+        return K8sInstaller
+    return NodeManInstaller
+
+
 def get_collect_installer(collect_config: CollectConfigMeta, *args, **kwargs) -> BaseInstaller:
-    """
-    获取插件采集安装器
-    """
-    if collect_config.plugin.plugin_type == PluginType.K8S:
-        return K8sInstaller(collect_config, *args, **kwargs)
-    else:
-        return NodeManInstaller(collect_config, *args, **kwargs)
+    return get_collect_installer_class(collect_config)(collect_config, *args, **kwargs)
+
+
+def fetch_collection_statistics(config_data_list: list[CollectConfigMeta]) -> dict[int, CollectionStatistics]:
+    """按安装器分组查询，业务调用方不再处理远端订阅身份。"""
+    groups = defaultdict(list)
+    for config in config_data_list:
+        groups[get_collect_installer_class(config)].append(config)
+    result = {}
+    for installer_class, configs in groups.items():
+        result.update(installer_class.statistics(configs))
+    return result

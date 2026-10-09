@@ -9,11 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-import time
 import re
+import time
 from collections import defaultdict
-from typing import Any
 from dataclasses import asdict
+from typing import Any
 
 import arrow
 from django.conf import settings
@@ -27,6 +27,7 @@ from rest_framework.exceptions import ValidationError
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.errors import NoRelatedResourceError
 from bkmonitor.models import MetricListCache, QueryConfigModel, StrategyModel
+from bkmonitor.utils.nodeman import host_queries
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.user import get_admin_username
 from constants.data_source import DataSourceLabel, DataTypeLabel
@@ -37,38 +38,37 @@ from core.errors.custom_report import (
     CustomValidationLabelError,
     CustomValidationNameError,
 )
-from monitor_web.custom_report.handlers.metric.query import MetricQueryConverter
 from monitor_web.constants import ETL_CONFIG
-from monitor_web.custom_report.constants import UNGROUP_SCOPE_NAME, CustomTSMetricType, DEFAULT_FIELD_SCOPE
+from monitor_web.custom_report.constants import DEFAULT_FIELD_SCOPE, UNGROUP_SCOPE_NAME, CustomTSMetricType
+from monitor_web.custom_report.handlers.metric.query import (
+    MetricQueryConverter,
+    ScopeCURequestDTO,
+    ScopeQueryConverter,
+    ScopeQueryMetricResponseDTO,
+    ScopeQueryResponseDTO,
+)
+from monitor_web.custom_report.handlers.metric.service import (
+    FieldsModifyService,
+    ModifyDimension,
+    ModifyDimensionConfig,
+    ModifyMetric,
+    ModifyMetricConfig,
+)
 from monitor_web.custom_report.serializers.metric import (
     BaseCustomTSSerializer,
-    CustomTSTableSerializer,
+    BaseCustomTSTableSerializer,
     BasicMetricRequestSerializer,
     BasicScopeSerializer,
-    DimensionConfigRequestSerializer,
-    MetricConfigRequestSerializer,
-    ImportExportScopeSerializer,
     CustomTSGroupingRuleResponseSerializer,
-    BaseCustomTSTableSerializer,
+    CustomTSTableSerializer,
+    DimensionConfigRequestSerializer,
+    ImportExportScopeSerializer,
+    MetricConfigRequestSerializer,
 )
 from monitor_web.models.custom_report import (
     CustomTSTable,
 )
-from monitor_web.custom_report.handlers.metric.query import (
-    ScopeQueryConverter,
-    ScopeQueryResponseDTO,
-    ScopeCURequestDTO,
-    ScopeQueryMetricResponseDTO,
-)
-from monitor_web.custom_report.handlers.metric.service import (
-    FieldsModifyService,
-    ModifyMetric,
-    ModifyDimension,
-    ModifyDimensionConfig,
-    ModifyMetricConfig,
-)
 from monitor_web.strategies.resources import GetMetricListV2Resource
-
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +173,7 @@ class ProxyHostInfo(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         proxy_hosts = []
         try:
-            proxy_hosts = api.node_man.get_proxies_by_biz(bk_biz_id=bk_biz_id)
+            proxy_hosts = host_queries.business_proxies(bk_biz_id=bk_biz_id)
         except NoRelatedResourceError:
             logger.warning("bk_biz_id: %s not found related resource", bk_biz_id)
         except Exception as e:

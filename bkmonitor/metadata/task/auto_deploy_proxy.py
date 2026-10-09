@@ -13,6 +13,7 @@ import re
 
 from django.conf import settings
 
+from bkmonitor.utils.nodeman import host_queries
 from bkmonitor.utils.version import get_max_version
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -96,7 +97,7 @@ class AutoDeployProxy:
         :return: 代理主机列表
         """
         bk_host_ids = []
-        proxies = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+        proxies = host_queries.proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         logger.info("bk_cloud_id->[%d] has %d proxies", bk_cloud_id, len(proxies))
         # 获取全体proxy主机列表
         for proxy in proxies:

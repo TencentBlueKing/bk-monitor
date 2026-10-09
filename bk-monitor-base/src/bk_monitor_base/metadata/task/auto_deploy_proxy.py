@@ -3,6 +3,7 @@ import re
 
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
+from bk_monitor_base.infras.nodeman_control import host_queries
 from bk_monitor_base.infras.third_party_api.cmdb.api import HostPropertyFilter, format_ip_filter_rule
 from bk_monitor_base.infras.third_party_api.nodeman.api import PluginOperateParams, PluginSearchParams
 from bk_monitor_base.infras.third_party_api.user.api import list_tenant
@@ -93,7 +94,7 @@ class AutoDeployProxy:
         :return: 代理主机列表
         """
         bk_host_ids: list[int] = []
-        proxies = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+        proxies = host_queries.proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         logger.info("bk_cloud_id->[%d] has %d proxies", bk_cloud_id, len(proxies))
         # 获取全体proxy主机列表
         for proxy in proxies:
