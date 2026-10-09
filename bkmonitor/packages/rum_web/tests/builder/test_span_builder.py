@@ -591,6 +591,89 @@ class TestViewSpanBuilder:
         assert result["start_time"] == 1788451565200125
         assert result["start_time"] != snapshot["end_time"]
 
+    @pytest.mark.parametrize("started_at", [None, "invalid"])
+    def test_view_latest_snapshot_without_navigation_start_uses_main_record(self, started_at):
+        """最新快照的导航时间不可用时，使用主记录的导航时间与最新快照结束时间。"""
+        span = _base_view_span()
+        snapshot = _view_snapshot(started_at=started_at)
+        result = build(span, [span, snapshot])
+        items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
+        badges = {item["field_name"]: item["value"] for item in result["overview"]["badges"]}
+        duration = _section(result, "key_info")["data"]["duration"]["display.view.duration"]
+        assert items["start_time"] == 1788451565200000
+        assert items["end_time"] == snapshot["end_time"]
+        assert duration == pytest.approx(799.999)
+        assert badges["display.view.duration"] == pytest.approx(799.999)
+        assert result["origin_data"] is span
+        assert span["start_time"] == span["end_time"]
+
+    def test_view_without_related_results_uses_main_navigation_start(self):
+        """没有关联结果时，仍读取主记录的导航开始时间，保留主记录的结束时间。"""
+        span = _base_view_span()
+        result = build(span, [])
+        items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
+        badges = {item["field_name"]: item["value"] for item in result["overview"]["badges"]}
+        duration = _section(result, "key_info")["data"]["duration"]["display.view.duration"]
+        assert items["start_time"] == 1788451565200000
+        assert items["end_time"] == span["end_time"]
+        assert duration == 300
+        assert badges["display.view.duration"] == 300
+        assert result["origin_data"] is span
+        assert span["start_time"] == span["end_time"]
+
+    @pytest.mark.parametrize("with_related_snapshot", [False, True])
+    @pytest.mark.parametrize("started_at", [None, "invalid"])
+    def test_view_without_navigation_start_preserves_report_time(self, with_related_snapshot, started_at):
+        """两处导航时间均缺失或无法转换时，保留主记录上报时间并使用可用的结束时间。"""
+        span = _base_view_span()
+        if started_at is None:
+            span["attributes"]["view"].pop("started_at")
+        else:
+            span["attributes"]["view"]["started_at"] = started_at
+        snapshot = _view_snapshot(started_at=started_at)
+        related_spans = [span, snapshot] if with_related_snapshot else []
+        result = build(span, related_spans)
+        items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
+        badges = {item["field_name"]: item["value"] for item in result["overview"]["badges"]}
+        duration = _section(result, "key_info")["data"]["duration"]["display.view.duration"]
+        expected_end_time = snapshot["end_time"] if with_related_snapshot else span["end_time"]
+        expected_duration = 499.999 if with_related_snapshot else 0
+        assert items["start_time"] == span["start_time"]
+        assert items["end_time"] == expected_end_time
+        assert duration == pytest.approx(expected_duration)
+        assert badges["display.view.duration"] == pytest.approx(expected_duration)
+        assert result["origin_data"] is span
+        assert span["start_time"] == span["end_time"]
+
+    def test_view_latest_snapshot_zero_navigation_start_uses_main_record(self):
+        """最新快照的零值按当前回退规则读取主记录的导航开始时间。"""
+        span = _view_snapshot("main", version=1, end_time=500000, started_at=100)
+        snapshot = _view_snapshot("latest", version=2, end_time=1000000, started_at=0)
+        result = build(span, [span, snapshot])
+        items = {item["field_name"]: item["value"] for item in result["overview"]["items"]}
+        badges = {item["field_name"]: item["value"] for item in result["overview"]["badges"]}
+        duration = _section(result, "key_info")["data"]["duration"]["display.view.duration"]
+        assert items["start_time"] == 100000
+        assert duration == 900
+        assert badges["display.view.duration"] == 900
+
+    @pytest.mark.parametrize("source", ["latest_snapshot", "main_record", "main_with_related_snapshot"])
+    @pytest.mark.parametrize(
+        "started_at,exception_type",
+        [(float("nan"), ValueError), (float("inf"), OverflowError), (float("-inf"), OverflowError)],
+        ids=["nan", "inf", "negative-inf"],
+    )
+    def test_view_nonfinite_navigation_start_raises_on_integer_conversion(self, source, started_at, exception_type):
+        """非有限值未被数值转换过滤，回填微秒整数时抛出相应异常。"""
+        span = _base_view_span()
+        if source == "latest_snapshot":
+            related_spans = [span, _view_snapshot(started_at=started_at)]
+        else:
+            span["attributes"]["view"]["started_at"] = started_at
+            related_spans = [span, _view_snapshot(started_at=None)] if source == "main_with_related_snapshot" else []
+        with pytest.raises(exception_type):
+            build(span, related_spans)
+
     def test_view_duration_missing_start_time_not_fabricated(self):
         """start_time / end_time 任一缺失时停留时长返回 EMPTY_VALUE，不伪造 0。"""
         from rum_web.handlers.builder.base import EMPTY_VALUE

@@ -43,7 +43,7 @@ VITAL_METRICS: tuple[str, ...] = ("ttfb", "fcp", "lcp", "inp", "cls")
 VITAL_METRIC_KEYS: dict[str, str] = {metric: f"display.vitals.{metric}" for metric in VITAL_METRICS}
 
 #: View 快照从关联记录补齐的展示字段：头部时间（end_time / elapsed_time）与加载字段（attributes.view.*）。
-#: ``start_time`` 不在此列；最新快照的 ``attributes.view.started_at`` 有数值时另行回填。
+#: ``start_time`` 不在此列；另从最新快照或主记录的 ``attributes.view.started_at`` 回填。
 VIEW_SNAPSHOT_FIELDS: tuple[str, ...] = (
     "end_time",
     "elapsed_time",
@@ -72,8 +72,8 @@ def _compute_view_duration_ms(flatten_data: dict[str, Any]) -> float | None:
     - ``start_time`` / ``end_time`` 单位为微秒，相减后除以 1000 换算为毫秒。
     - 任一端缺失则返回 ``None``，调用方据此输出 :data:`EMPTY_VALUE`，
       前端可区分「无数据」与「耗时为 0」，不能伪造 0。
-    - :meth:`ViewSpanBuilder._prepare_flatten_data` 仅在最新 View 快照携带有效的
-      ``attributes.view.started_at`` 时回填 ``start_time``，否则保留主记录的 ``start_time``。
+    - :meth:`ViewSpanBuilder._prepare_flatten_data` 优先读取最新 View 快照的
+      ``attributes.view.started_at``，不可用时回退到主记录
       ``end_time`` 使用最新快照中的值；无对应字段或无快照时保留主记录的值。
     """
     start_time = get_safe_number(flatten_data.get("start_time"), None)
@@ -390,13 +390,16 @@ class ViewSpanBuilder(SpanBuilder):
         latest_view = cls._latest_view_snapshot(related_spans)
         if latest_view:
             # 用最新 View 快照覆盖头部时间及加载字段，主记录仍保留在响应的 origin_data。
-            # start_time 不在 VIEW_SNAPSHOT_FIELDS 中，另从最新快照的导航开始字段尝试回填。
+            # start_time 不在 VIEW_SNAPSHOT_FIELDS 中，另按导航开始字段回填。
             flatten_data.update({field: latest_view[field] for field in VIEW_SNAPSHOT_FIELDS if field in latest_view})
-            # 最新快照的 started_at 有数值时，按毫秒转换为微秒写入 start_time；
-            # 字段缺失或转换失败时保留主记录的 start_time，不读取其他快照的 started_at。
-            started_at = get_safe_number(latest_view.get("attributes.view.started_at"), None)
-            if started_at is not None:
-                flatten_data["start_time"] = int(started_at * 1000)
+
+        # 导航开始时间优先取最新快照，其次取主记录
+        started_at = get_safe_number((latest_view or {}).get("attributes.view.started_at"), None) or get_safe_number(
+            flatten_data.get("attributes.view.started_at"), None
+        )
+        if started_at is not None:
+            flatten_data["start_time"] = int(started_at * 1000)  # 导航开始，µs
+
         vital_map = cls._build_vital_map(related_spans)
         for metric, key in VITAL_METRIC_KEYS.items():
             snapshot = vital_map.get(metric)
