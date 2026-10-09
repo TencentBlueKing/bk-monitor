@@ -22,6 +22,7 @@ from kernel_api.rpc.functions.bkm_cli.management import validate_management_requ
 from kernel_api.rpc.functions.bkm_cli.platform_catalog.cmdb import _authorize_business
 
 EDITABLE_FIELDS = {
+    "config": ["name", "scenario", "is_enabled", "items", "detects", "notice", "labels"],
     "items": ["expression"],
     "query_configs": ["query_string", "agg_dimension", "agg_condition"],
     "algorithms": {"type": "Threshold", "fields": ["config"]},
@@ -33,6 +34,7 @@ ALLOWED_FIELDS = {
     "strategy_id",
     "config_version",
     "items",
+    "config",
     "confirmed",
     "operator",
 }
@@ -203,6 +205,66 @@ def _check_serializer_fields(value, field, path):
             _check_serializer_fields(entry, field.fields[key], f"{path}.{key}")
 
 
+def _validate_config_patch(config):
+    """Use the creation field scope; the platform validates the merged V2 values."""
+    _strict_object(config, CREATE_CONFIG_FIELDS, "config")
+    if not config:
+        raise CustomException(message="config 不能为空")
+    _check_serializer_fields(config, Strategy.Serializer(), "config")
+    if "is_enabled" in config and type(config["is_enabled"]) is not bool:
+        raise CustomException(message="config.is_enabled 必须为布尔值")
+    if "name" in config:
+        _text(config["name"], "config.name")
+    query_fields = set(QueryConfig.get_serializer_class("bk_log_search", "log").get_config_field_names())
+    query_fields = (query_fields - {"intelligent_detect"}) | {"data_source_label", "data_type_label", "alias"}
+    if "items" in config:
+        for item in _patches(config["items"], set(Item.Serializer().fields) - {"id"}, "config.items"):
+            if "query_configs" in item:
+                for query in _patches(item["query_configs"], query_fields, "query_configs"):
+                    _validate_query_patch(query)
+                    for field, expected in (("data_source_label", "bk_log_search"), ("data_type_label", "log")):
+                        if field in query and query[field] != expected:
+                            raise CustomException(message="config.items 仅支持 bk_log_search/log")
+                    for field in ("agg_interval", "index_set_id"):
+                        if field in query:
+                            _integer(query[field], field)
+            if "algorithms" in item:
+                for algorithm in _patches(
+                    item["algorithms"], set(Algorithm.Serializer().fields) - {"id"}, "algorithms"
+                ):
+                    if "type" in algorithm and algorithm["type"] != "Threshold":
+                        raise CustomException(message="仅支持 Threshold 算法")
+                    if "config" in algorithm:
+                        _validate_threshold(algorithm["config"])
+    if "detects" in config:
+        _patches(config["detects"], set(Detect.Serializer().fields) - {"id"}, "detects")
+    if "notice" in config:
+        _strict_object(config["notice"], set(NoticeRelation.Serializer().fields) - {"id", "config_id"}, "notice")
+        if "user_groups" in config["notice"] and not config["notice"]["user_groups"]:
+            raise CustomException(message="notice.user_groups 必须指定已有通知组")
+
+
+def _merge_config_patch(current, patch, records=("items", "detects")):
+    """Patch owned records by ID; merge dictionaries and replace ordinary arrays."""
+    for field, value in patch.items():
+        if field in records:
+            for record in value:
+                target = _target(current[field], record["id"], field)
+                if field == "items" and any(
+                    (query["data_source_label"], query["data_type_label"]) != ("bk_log_search", "log")
+                    for query in target["query_configs"]
+                ):
+                    raise CustomException(message="config.items 仅支持已有日志监控项")
+                if field == "algorithms" and target["type"] != "Threshold":
+                    raise CustomException(message="仅支持修改已有 Threshold 算法配置")
+                nested = ("query_configs", "algorithms") if field == "items" else ()
+                _merge_config_patch(target, {key: part for key, part in record.items() if key != "id"}, nested)
+        elif isinstance(value, dict) and isinstance(current.get(field), dict):
+            _merge_config_patch(current[field], value, ())
+        else:
+            current[field] = deepcopy(value)
+
+
 def _validate_create_config(config):
     _strict_object(config, CREATE_CONFIG_FIELDS, "config")
     _text(config.get("name"), "config.name")
@@ -280,13 +342,23 @@ def manage_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
     version = params.get("config_version")
     if not isinstance(version, str) or not re.fullmatch(r"[0-9a-f]{64}", version):
         raise CustomException(message="config_version 必须为读取详情时返回的 SHA-256 版本")
-    _validate_items(params.get("items"))
+    if "items" not in params and "config" not in params:
+        raise CustomException(message="update 必须提供 items 或 config")
+    if "items" in params:
+        _validate_items(params["items"])
+    if "config" in params:
+        _validate_config_patch(params["config"])
+        if "items" in params and "items" in params["config"]:
+            raise CustomException(message="items 与 config.items 不能同时提供")
     authorize_strategy_business(params)
 
     def prepare_config(config):
         if config.get("edit_allowed") is False:
             raise CustomException(message="该策略不允许编辑")
-        _merge_items(config, params["items"])
+        if "config" in params:
+            _merge_config_patch(config, params["config"])
+        if "items" in params:
+            _merge_items(config, params["items"])
 
     result = UpdateAlarmStrategyResource()._update_config(
         {"bk_biz_id": params["bk_biz_id"], "id": params["strategy_id"], "config_version": version},
@@ -307,8 +379,8 @@ _PARAMS_SCHEMA = {
     "bk_biz_id": "必填，非零业务或空间 ID",
     "strategy_id": "update 必填，单个策略 ID",
     "config_version": "update 必填，inspect-strategy-config detail 返回的原 SHA-256 版本",
-    "items": "update 必填，按已有 ID 匹配的补丁数组；仅 expression、query_configs 和 Threshold algorithms.config",
-    "config": "create 必填，V2 完整日志关键字策略；name/scenario/is_enabled/items/detects/notice，labels 可选；不接受旧记录 ID 或处理套餐",
+    "items": "update 兼容原查询与阈值补丁；与 config 至少提供一项，不得同时提供 config.items",
+    "config": "create 为完整 V2 日志阈值配置；update 为同范围字段补丁，含周期、检测窗口、级别、通知和启停；子记录按已有 ID 修改，未提供字段保留",
     "confirmed": "必须为 true，先取得对精确变更的人工确认",
     "operator": "审计执行人，最长 32 字符；无需已注册用户，不作为认证身份",
 }
@@ -323,7 +395,7 @@ _EXAMPLE = {
 }
 KernelRPCRegistry.register_function(
     func_name="bkm_cli.manage_strategy_config",
-    summary="创建日志关键字策略或修改单策略查询检测配置",
+    summary="创建或修改日志阈值策略配置，包括周期、检测窗口、通知和启停",
     description="通过原策略保存 API 创建日志关键字策略或修改指定字段；保存结果须独立回读，超时禁止自动重发。",
     handler=manage_strategy_config,
     params_schema=_PARAMS_SCHEMA,
@@ -333,7 +405,7 @@ BkmCliOpRegistry.register(
     op_id="manage-strategy-config",
     func_name="bkm_cli.manage_strategy_config",
     summary="创建日志关键字策略或修改单策略查询检测配置",
-    description="create 复用平台创建接口；update 按原版本修改已有查询、表达式和静态阈值；结果未知禁止重发。",
+    description="create/update 对齐日志阈值配置范围，update 按原版本修改已有子记录，复用平台保存校验；结果未知禁止重发。",
     capability_level="admin",
     risk_level="mutation",
     requires_confirmation=True,
