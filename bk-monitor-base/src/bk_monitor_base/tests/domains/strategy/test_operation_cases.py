@@ -36,7 +36,7 @@ from bk_monitor_base.domains.strategy.operation import (
     update_partial_strategy,
     update_strategy_query_config,
 )
-from bk_monitor_base.domains.strategy.strategy import Item, Strategy
+from bk_monitor_base.domains.strategy.strategy import Item, QueryConfig, Strategy
 
 
 @dataclass(frozen=True)
@@ -292,6 +292,75 @@ def test_list_strategy_restores_query_output_config_from_item_meta(
         assert "query_output_config" not in item_config
     else:
         assert item_config["query_output_config"] == expected_config
+
+
+@pytest.mark.django_db(databases=["default"])
+@pytest.mark.parametrize("promql_mode", [False, True], ids=["legacy", "promql_expression"])
+@pytest.mark.parametrize("named_outputs", [False, True])
+def test_list_strategy_preserves_promql_mode_after_query_config_save(promql_mode: bool, named_outputs: bool) -> None:
+    """真实保存、更新及列表加载保留执行模式；历史查询不注入默认模式。"""
+    strategy_model = StrategyModel.objects.create(
+        bk_biz_id=2,
+        name=f"test_promql_mode_{uuid4().hex}",
+        scenario="os",
+        type=StrategyModel.StrategyType.Monitor,
+    )
+    output_config = {
+        "response_contract": "named_outputs/v1",
+        "legacy_output_ref": "RESULT",
+        "output_list": [{"reference_name": alias.upper(), "expression": alias} for alias in ("a", "b", "c")]
+        + [{"reference_name": "RESULT", "expression": "a + b"}],
+    }
+    item_model = ItemModel.objects.create(
+        strategy_id=strategy_model.id,
+        name="promql-mode-item",
+        expression="a + b",
+        functions=[],
+        no_data_config={"is_enabled": False},
+        target=[[]],
+        meta={"query_output_config": output_config} if named_outputs else [],
+        metric_type="time_series",
+    )
+    for alias in ("a", "b", "c"):
+        config: dict[str, Any] = {"promql": f"metric_{alias}", "agg_interval": 60}
+        if promql_mode:
+            config["expression_mode"] = "promql"
+        query_config = QueryConfig(
+            strategy_id=strategy_model.id,
+            item_id=item_model.id,
+            data_source_label="prometheus",
+            data_type_label="time_series",
+            alias=alias,
+            **config,
+        )
+        query_config.save()
+
+    # 更新也走同一份序列化器，确保重新保存不会静默删除已持久化的模式。
+    models = list(QueryConfigModel.objects.filter(item_id=item_model.id).order_by("id"))
+    for query_config in QueryConfig.from_models(models):
+        query_config.save()
+    for model in QueryConfigModel.objects.filter(item_id=item_model.id):
+        assert model.config.get("expression_mode") == ("promql" if promql_mode else None)
+        if not promql_mode:
+            assert "expression_mode" not in model.config
+
+    result = list_strategy(
+        bk_biz_id=2,
+        apply_converters=False,
+        conditions=[{"key": "id", "values": [strategy_model.id], "operator": "eq"}],
+    )
+    item_config = result["data"][0]["items"][0]
+    queries = {query["alias"]: query for query in item_config["query_configs"]}
+    assert set(queries) == {"a", "b", "c"}
+    assert item_config["expression"] == "a + b"
+    assert item_config["functions"] == []
+    assert item_config.get("query_output_config") == (output_config if named_outputs else None)
+    for alias, query in queries.items():
+        assert query["promql"] == f"metric_{alias}"
+        if promql_mode:
+            assert query["expression_mode"] == "promql"
+        else:
+            assert "expression_mode" not in query
 
 
 @pytest.mark.django_db(databases=["default"])
