@@ -142,6 +142,23 @@ def _discard_artifact(storage, name, part):
         logger.warning("[run_part] part=%s discard artifact %s failed: %s", part.pk, name, error)
 
 
+def _set_stage(part, fence, stage):
+    updated = state.set_stage(part.pk, fence, stage)
+    event = "part_stage" if updated else "part_stage_rejected"
+    logger.info(
+        "[sharded_export_%s] job_id=%s part_id=%s part_no=%s plan_version=%s attempts=%s task_id=%s stage=%s",
+        event,
+        part.job_id,
+        part.pk,
+        part.part_no,
+        part.plan_version,
+        fence.attempts,
+        fence.task_id,
+        stage,
+    )
+    return updated
+
+
 def _execute(job, part, fence):
     storage = build_storage(external=job.is_external)
     policy = policy_from_snapshot(job.policy)
@@ -149,10 +166,10 @@ def _execute(job, part, fence):
         directory = Path(directory)
         handler = build_handler(job, part.start_time, part.end_time)
         rows, size = _write_rows(handler, directory / "logs.jsonl")
-        if not state.set_stage(part.pk, fence, ExportStage.PACKAGE):
+        if not _set_stage(part, fence, ExportStage.PACKAGE):
             return
         archive = _pack(directory, part)
-        if not state.set_stage(part.pk, fence, ExportStage.UPLOAD):
+        if not _set_stage(part, fence, ExportStage.UPLOAD):
             return
         checksum = _sha256(archive)
         name = artifact_name(job, part, fence.attempts)

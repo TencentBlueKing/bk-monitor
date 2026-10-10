@@ -148,7 +148,7 @@ class TestExportJobViewSetExternalContract(SimpleTestCase):
 
     LOG_SEARCH = ExternalPermissionActionEnum.LOG_SEARCH.value
     # view_action 是 ViewSet 的方法名，不是 url_path
-    VIEW_ACTIONS = ["download_link"]
+    VIEW_ACTIONS = ["retrieve", "download_link"]
 
     def test_all_view_actions_are_valid_for_log_search(self):
         for view_action in self.VIEW_ACTIONS:
@@ -170,15 +170,20 @@ class TestExportJobViewSetExternalContract(SimpleTestCase):
     def test_registered_view_actions_match_route_actions(self):
         """登记项必须与路由实际反查出的 view_set/view_action 一致，否则代理层仍然 403"""
         for path, method, view_action in [
+            ("/api/v1/search/export_jobs/1/", "get", "retrieve"),
             ("/api/v1/search/export_jobs/1/download_link/", "get", "download_link"),
         ]:
             with self.subTest(path=path, method=method):
                 view_func = resolve(path).func
                 self.assertEqual(view_func.cls.__name__, "ExportJobViewSet")
                 self.assertEqual(view_func.actions.get(method), view_action)
+                self.assertNotIn("post", view_func.actions)
+                self.assertNotIn("put", view_func.actions)
+                self.assertNotIn("patch", view_func.actions)
+                self.assertNotIn("delete", view_func.actions)
 
     def test_unregistered_view_action_is_rejected(self):
-        for view_action in ["create", "list", "retrieve", "results", "cancel", "partial_update"]:
+        for view_action in ["create", "list", "diagnostics", "results", "cancel", "partial_update"]:
             with self.subTest(view_action=view_action):
                 self.assertFalse(
                     ExternalPermission.is_action_valid(
@@ -189,7 +194,7 @@ class TestExportJobViewSetExternalContract(SimpleTestCase):
     def test_removed_routes_are_not_exposed(self):
         for path in [
             "/api/v1/search/export_jobs/",
-            "/api/v1/search/export_jobs/1/",
+            "/api/v1/search/export_jobs/1/detail/",
             "/api/v1/search/export_jobs/1/results/",
             "/api/v1/search/export_jobs/1/cancel/",
         ]:

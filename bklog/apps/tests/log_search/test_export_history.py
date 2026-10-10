@@ -3,16 +3,30 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.db import connection
+from django.http import Http404
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
+from rest_framework.request import Request
+from rest_framework.test import APIRequestFactory
 
-from apps.log_search.constants import ASYNC_EXPORT_SCENE_ID, ExportSearchType, ExportStatus, ExportType, IndexSetType
-from apps.log_search.export.history import paginate_export_history
-from apps.log_search.export.models import ExportJob
+from apps.log_search.constants import (
+    ASYNC_EXPORT_SCENE_ID,
+    ExportJobStatus,
+    ExportPartStatus,
+    ExportPlanStatus,
+    ExportSearchType,
+    ExportStage,
+    ExportStatus,
+    ExportType,
+    IndexSetType,
+)
+from apps.log_search.export.history import load_export_progress, paginate_export_history, sharded_job_history_item
+from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.handlers.search.async_export_handlers import AsyncExportHandlers
 from apps.log_search.models import AsyncTask, Scenario
+from apps.log_search.views.export_views import ExportJobViewSet
 from apps.log_unifyquery.handler.scene_async_export import SceneAsyncExportHandler
 
 
@@ -126,6 +140,13 @@ class ExportHistoryPaginationTests(TestCase):
             )
             retention.assert_called_once_with(index_set_ids=[3])
             self.assertEqual(formatter.call_count, 3)
+            for item in response.data["list"]:
+                if item.get("engine") == "sharded":
+                    self.assertEqual(item["progress"]["job_status"], ExportJobStatus.PENDING)
+                    self.assertEqual(item["progress"]["parts_total"], 0)
+                    self.assertIsNone(item["progress"]["planned_parts"])
+                else:
+                    self.assertNotIn("progress", item)
 
     @patch("apps.log_search.export.history.get_request_external_username", return_value="")
     @patch("apps.log_search.export.history.get_request_app_code", return_value="bk_log")
@@ -147,3 +168,159 @@ class ExportHistoryPaginationTests(TestCase):
         self.assertEqual(
             [(item.get("engine", "legacy"), item["id"]) for item in response.data["list"]], self.expected[1:6]
         )
+        self.assertTrue(all("progress" in item for item in response.data["list"] if item.get("engine") == "sharded"))
+
+    def test_progress_queries_are_limited_to_current_page_jobs(self):
+        with CaptureQueriesContext(connection) as queries:
+            _, records = paginate_export_history(AsyncTask.objects.all(), ExportJob.objects.all(), self.request(), None)
+        job_ids = [record.pk for record in records if isinstance(record, ExportJob)]
+        progress_queries = [
+            query["sql"] for query in queries if "log_export_part" in query["sql"] or "log_export_plan" in query["sql"]
+        ]
+        self.assertEqual(len(progress_queries), 2)
+        for sql in progress_queries:
+            ids = sql.split(" IN (")[1].split(")")[0]
+            self.assertCountEqual([int(value.strip()) for value in ids.split(",")], job_ids)
+
+
+class ExportJobDetailTests(TestCase):
+    def setUp(self):
+        self.job = ExportJob.objects.create(
+            space_uid="bkcc__2",
+            created_by="tester",
+            source_app_code="bk_log",
+            bk_biz_id=2,
+            search_params={},
+            base_dict={},
+            policy={},
+            start_time=0,
+            end_time=1000,
+            plan_version=1,
+            status=ExportJobStatus.RUNNING,
+        )
+
+    def part(self, part_no, **kwargs):
+        return ExportPart.objects.create(
+            job=self.job,
+            part_no=part_no,
+            plan_version=1,
+            start_time=(part_no - 1) * 100,
+            end_time=part_no * 100,
+            **kwargs,
+        )
+
+    def detail(self, pk=None, external_username="", **params):
+        request = Request(APIRequestFactory().get("/api/v1/search/export_jobs/1/", {"space_uid": "bkcc__2", **params}))
+        view = ExportJobViewSet()
+        view.request = request
+        view.kwargs = {"pk": self.job.pk if pk is None else pk}
+        view.action = "retrieve"
+        with (
+            patch("apps.log_search.views.export_views.get_request_app_code", return_value="bk_log"),
+            patch("apps.log_search.views.export_views.get_request_external_username", return_value=external_username),
+            patch(
+                "apps.log_search.views.export_views.ExportJobIndexSearchPermission.check_index_sets", return_value=True
+            ),
+        ):
+            return view.retrieve(request).data
+
+    def test_summary_counts_leaves_and_concurrent_stages(self):
+        ExportPlan.objects.create(job=self.job, plan_version=1, planned_parts=5, status=ExportPlanStatus.SUCCESS)
+        parent = self.part(1, status=ExportPartStatus.SPLIT)
+        self.part(2, status=ExportPartStatus.RUNNING, stage=ExportStage.DOWNLOAD_LOG, parent_part=parent)
+        self.part(3, status=ExportPartStatus.RUNNING, stage=ExportStage.PACKAGE, parent_part=parent)
+        self.part(4, status=ExportPartStatus.UPLOADING, stage=ExportStage.UPLOAD)
+        self.part(5, status=ExportPartStatus.SUCCESS, stage=ExportStage.UPLOAD)
+        self.part(6, status=ExportPartStatus.FAILED)
+        self.part(7, status=ExportPartStatus.WAITING)
+        other = ExportJob.objects.create(
+            space_uid="bkcc__2",
+            created_by="tester",
+            search_params={},
+            base_dict={},
+            policy={},
+            start_time=0,
+            end_time=1000,
+        )
+        with self.assertNumQueries(2):
+            load_export_progress([self.job, other])
+        with self.assertNumQueries(0):
+            item = sharded_job_history_item(self.job)
+        progress = item["progress"]
+        self.assertEqual(item["export_status"], ExportStatus.DOWNLOAD_LOG)
+        self.assertEqual(progress["planned_parts"], 5)
+        self.assertEqual(progress["parts_total"], 6)
+        self.assertEqual(progress["parts_success"], 1)
+        self.assertEqual(progress["parts_failed"], 1)
+        self.assertEqual(progress["status_counts"][ExportPartStatus.SPLIT], 1)
+        self.assertEqual(progress["status_counts"][ExportPartStatus.WAITING], 1)
+        self.assertEqual(
+            progress["stage_counts"],
+            {
+                ExportStage.DOWNLOAD_LOG: 1,
+                ExportStage.PACKAGE: 1,
+                ExportStage.UPLOAD: 1,
+            },
+        )
+        self.assertEqual(other.export_progress["parts_total"], 0)
+        self.assertIsNone(other.export_progress["planned_parts"])
+
+    def test_detail_includes_split_lineage_and_export_results(self):
+        parent = self.part(1, status=ExportPartStatus.SPLIT, error_code="FETCH_TIMEOUT")
+        child = self.part(
+            2,
+            status=ExportPartStatus.SUCCESS,
+            parent_part=parent,
+            attempts=2,
+            actual_rows=42,
+            actual_bytes=420,
+            compressed_bytes=100,
+            checksum="abc",
+            object_key="private-object",
+        )
+        failed = self.part(3, status=ExportPartStatus.FAILED, error_code="QUERY_FAILED", error_detail="查询失败")
+        with patch("apps.log_search.export.api.build_storage") as storage:
+            detail = self.detail()
+        storage.assert_not_called()
+        self.assertEqual([part["id"] for part in detail["parts"]], [parent.pk, child.pk, failed.pk])
+        result = detail["parts"][1]
+        self.assertEqual(result["parent_part_id"], parent.pk)
+        self.assertEqual(result["artifact_id"], str(child.pk))
+        self.assertEqual((result["attempts"], result["actual_rows"], result["compressed_bytes"]), (2, 42, 100))
+        self.assertEqual(result["checksum"], "abc")
+        self.assertNotIn("object_key", result)
+        result = detail["parts"][2]
+        self.assertEqual(result["id"], failed.pk)
+        self.assertIsNone(result["artifact_id"])
+        self.assertEqual(result["error_detail"], "查询失败")
+        self.assertEqual(detail["progress"]["parts_total"], 2)
+
+    def test_detail_returns_all_parts_without_pagination(self):
+        ExportPart.objects.bulk_create(
+            [
+                ExportPart(job=self.job, part_no=number, plan_version=1, start_time=0, end_time=1)
+                for number in range(1, 102)
+            ]
+        )
+        with CaptureQueriesContext(connection) as queries:
+            detail = self.detail()
+        self.assertEqual(len(detail["parts"]), 101)
+        self.assertEqual([part["part_no"] for part in detail["parts"]], list(range(1, 102)))
+        part_queries = [query["sql"] for query in queries if "parent_part_id" in query["sql"]]
+        self.assertEqual(len(part_queries), 1)
+        self.assertNotIn("LIMIT", part_queries[0])
+
+    def test_detail_validates_scope_and_handles_empty_parts(self):
+        self.assertEqual(self.detail()["parts"], [])
+        with self.assertRaises(ValidationError):
+            self.detail(space_uid="")
+
+    def test_detail_enforces_space_app_and_external_owner_scope(self):
+        self.assertEqual(self.detail(external_username="tester")["id"], self.job.pk)
+        for params in ({"space_uid": "bkcc__3"}, {"external_username": "another"}, {"pk": self.job.pk + 1}):
+            with self.subTest(params=params), self.assertRaises(Http404):
+                self.detail(**params)
+        self.job.source_app_code = "other_app"
+        self.job.save(update_fields=["source_app_code"])
+        with self.assertRaises(Http404):
+            self.detail()

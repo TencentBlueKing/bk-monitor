@@ -1081,6 +1081,35 @@ class ExportStateTestCase(TestCase):
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.task_id, "")
 
+    @patch("apps.log_search.export.state.logger")
+    def test_failure_log_preserves_stage_and_execution_identity_before_requeue(self, mock_logger):
+        self.plan()
+        part = ExportPart.objects.filter(job=self.job).order_by("part_no").first()
+        state.dispatch_part(part.pk, "upload-task")
+        part = state.claim_part(part.pk, "upload-task")
+        state.set_stage(part.pk, fence_of(part), ExportStage.UPLOAD)
+
+        state.fail_part(part.pk, fence_of(part), error_code="UPLOAD_FAILED", error_detail="上传失败")
+
+        message, *args = mock_logger.warning.call_args.args
+        message %= tuple(args)
+        for context in (
+            f"job_id={self.job.pk}",
+            f"part_id={part.pk}",
+            "part_no=1",
+            "plan_version=1",
+            "attempts=1",
+            "task_id=upload-task",
+            "stage=UPLOAD",
+            "error_code=UPLOAD_FAILED",
+            "error_detail=上传失败",
+        ):
+            self.assertIn(context, message)
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.WAITING)
+        self.assertEqual(part.stage, "")
+        self.assertEqual(part.task_id, "")
+
     def test_exhausted_part_fails_the_job(self):
         self.job.policy = {**ExportPolicy().snapshot(), "part_max_attempts": 1}
         self.job.save(update_fields=["policy"])
@@ -2465,9 +2494,24 @@ class ExportJobPermissionTests(TestCase):
 
     def test_detail_actions_require_the_index_set_permission(self):
         """列表以外每个动作都要在空间校验之外再过一个索引集级检索权限。"""
-        for action in ("download_link",):
+        for action in ("retrieve", "download_link"):
             kinds = [type(permission) for permission in self.build_view(action).get_permissions()]
             self.assertEqual(kinds, [ViewBusinessPermission, ExportJobIndexSearchPermission], action)
+
+    @override_settings(IGNORE_IAM_PERMISSION=False)
+    @patch("apps.iam.handlers.drf.Permission")
+    def test_retrieve_checks_business_permission_from_space(self, mock_permission_cls):
+        mock_permission_cls.return_value.is_allowed.side_effect = PermissionDenied("没有业务访问权限")
+        request = self.build_request()
+        view = self.build_view("retrieve")
+
+        with self.assertRaisesMessage(PermissionDenied, "没有业务访问权限"):
+            view.check_permissions(request)
+
+        called = mock_permission_cls.return_value.is_allowed.call_args
+        self.assertEqual(called.kwargs["action"], ActionEnum.VIEW_BUSINESS)
+        self.assertEqual(str(called.kwargs["resources"][0].id), "21")
+        self.assertTrue(called.kwargs["raise_exception"])
 
     def test_object_permission_never_gates_admission(self):
         """索引集要拿到对象才知道，准入阶段必须放行，否则列表接口会连空间校验一起失去。"""
@@ -2482,7 +2526,7 @@ class ExportJobPermissionTests(TestCase):
         job = create_job(created_by="other_user", space_uid=self.SPACE_UID, index_set_id=self.index_set.pk)
         permission = ExportJobIndexSearchPermission()
 
-        self.assertTrue(permission.has_object_permission(self.build_request(), self.build_view("results"), job))
+        self.assertTrue(permission.has_object_permission(self.build_request(), self.build_view("retrieve"), job))
 
         called = mock_permission_cls.return_value.is_allowed.call_args
         self.assertEqual(str(called.kwargs["resources"][0].id), str(self.index_set.pk))

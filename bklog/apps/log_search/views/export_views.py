@@ -25,6 +25,7 @@ from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission, ViewBusinessPermission
 from apps.log_search.export import api
+from apps.log_search.export.history import sharded_job_detail
 from apps.log_search.export.models import ExportJob
 from apps.log_search.export.serializers import (
     ExportLinkSerializer,
@@ -59,6 +60,8 @@ class ExportJobIndexSearchPermission(ExportIndexSearchPermission):
         return True
 
     def has_object_permission(self, request, view, obj):
+        # 场景任务的 index_set_ids 为空，检索及创建时已按命中结果表校验 SEARCH_LOG。
+        # 下载阶段与旧版一致，仅保留业务及任务范围校验，不再次复核索引集权限。
         return self.check_index_sets(request, view, obj.index_set_ids)
 
 
@@ -67,16 +70,26 @@ class ExportJobViewSet(APIViewSet):
     lookup_value_regex = "[0-9]+"
 
     def get_permissions(self):
-        return [ViewBusinessPermission(), ExportJobIndexSearchPermission()]
+        business_permission = ViewBusinessPermission()
+        if self.action == "retrieve":
+            # 详情仅需传空间，显式绑定业务权限范围，避免因缺少 bk_biz_id 跳过校验。
+            business_permission.space_uid = self.request.data.get("space_uid") or self.request.query_params.get(
+                "space_uid"
+            )
+        return [business_permission, ExportJobIndexSearchPermission()]
 
     def get_queryset(self):
-        """任务可见范围：请求空间 + 来源应用；外部用户只看自己创建的任务。产物读取另过索引集鉴权。"""
+        """任务按空间和来源应用隔离；外部用户仅看自己的任务，普通/联合任务另过索引集鉴权。"""
         space_uid = self.request.data.get("space_uid") or self.request.query_params.get("space_uid")
         queryset = ExportJob.objects.filter(space_uid=space_uid, source_app_code=get_request_app_code())
         external_username = get_request_external_username()
         if external_username:
             queryset = queryset.filter(created_by=external_username)
         return queryset
+
+    def retrieve(self, request, pk=None):
+        self.valid_serializer(ExportScopeSerializer)
+        return Response(sharded_job_detail(self.get_object()))
 
     @detail_route(methods=["GET"])
     def download_link(self, request, pk=None):

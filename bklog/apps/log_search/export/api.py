@@ -32,10 +32,10 @@ from apps.log_search.constants import (
     ExportSearchType,
     IndexSetType,
 )
+from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.export.config import current_policy, is_sharded_export_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.log_search.export.storage import build_storage
-from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
@@ -45,6 +45,7 @@ from apps.utils.local import (
     get_request_external_username,
     get_request_username,
 )
+from apps.utils.log import logger
 
 
 class ExportConflict(APIException):
@@ -151,6 +152,12 @@ def create_export_job(data, raw_params=None):
     try:
         result = handler.pre_get_result(sorted_fields=handler.origin_order_by, size=pre_check_size)
     except Exception as error:  # pylint: disable=broad-except
+        logger.exception(
+            "[sharded_export_precheck_failure] space_uid=%s search_type=%s index_set_ids=%s",
+            space.space_uid,
+            search_type,
+            index_set_ids,
+        )
         raise PreCheckAsyncExportException(f"导出预检查查询失败：{error}") from error
     if not result.get("list"):
         raise PreCheckAsyncExportException()
@@ -159,7 +166,7 @@ def create_export_job(data, raw_params=None):
     # 只有一个能在锁内看到对方的任务并真正占住额度
     with AsyncTask.export_create_lock(username, is_scene=is_scene):
         AsyncTask.check_running_count_by_user(username, is_scene=is_scene)
-        return ExportJob.objects.create(
+        job = ExportJob.objects.create(
             space_uid=space.space_uid,
             created_by=username,
             source_app_code=get_request_app_code(),
@@ -177,6 +184,18 @@ def create_export_job(data, raw_params=None):
             requested_parallelism=requested_parallelism,
             status=ExportJobStatus.PENDING,
         )
+    logger.info(
+        "[sharded_export_job_created] job_id=%s space_uid=%s search_type=%s index_set_ids=%s "
+        "start_time=%s end_time=%s requested_parallelism=%s",
+        job.pk,
+        job.space_uid,
+        job.search_type,
+        job.index_set_ids,
+        job.start_time,
+        job.end_time,
+        job.requested_parallelism,
+    )
+    return job
 
 
 def download_link(job, artifact_id):
@@ -202,5 +221,11 @@ def download_link(job, artifact_id):
         storage = build_storage(external=job.is_external)
         url = storage.generate_download_url(file_name=name, expired=ttl)
     except Exception as error:  # pylint: disable=broad-except
+        logger.exception(
+            "[sharded_export_download_failure] job_id=%s artifact_id=%s is_external=%s",
+            job.pk,
+            artifact_id,
+            job.is_external,
+        )
         raise ExportStorageUnavailable() from error
     return {"url": url, "expires_at": timezone.now() + timedelta(seconds=ttl)}

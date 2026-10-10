@@ -20,20 +20,58 @@ the project delivered to anyone in the future.
 """
 
 import arrow
-from django.db.models import CharField, Value
+from django.db.models import CharField, Count, Value
 from django.utils import timezone
 
 from apps.log_search.constants import (
     ExportErrorCode,
     ExportJobStatus,
+    ExportPartStatus,
     ExportSearchType,
+    ExportStage,
     ExportStatus,
     ExportType,
     IndexSetType,
 )
-from apps.log_search.export.models import ExportJob
+from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.utils.drf import DataPageNumberPagination
 from apps.utils.local import get_request_app_code, get_request_external_username
+
+
+def load_export_progress(jobs):
+    """批量加载任务进度，历史分页后调用，避免逐个查询分片。"""
+    jobs = {job.pk: job for job in jobs}
+    if not jobs:
+        return
+    for job in jobs.values():
+        job.export_progress = {
+            "job_status": job.status,
+            "plan_version": job.plan_version,
+            "planned_parts": None,
+            "parts_total": 0,
+            "parts_success": 0,
+            "parts_failed": 0,
+            "status_counts": dict.fromkeys((status for status, _ in ExportPartStatus.CHOICES), 0),
+            "stage_counts": dict.fromkeys((ExportStage.DOWNLOAD_LOG, ExportStage.PACKAGE, ExportStage.UPLOAD), 0),
+        }
+    for plan in ExportPlan.objects.filter(job_id__in=jobs).values("job_id", "plan_version", "planned_parts"):
+        job = jobs[plan["job_id"]]
+        if plan["plan_version"] == job.plan_version:
+            job.export_progress["planned_parts"] = plan["planned_parts"]
+    counts = ExportPart.objects.filter(job_id__in=jobs).values("job_id", "status", "stage").annotate(count=Count("pk"))
+    for row in counts:
+        progress = jobs[row["job_id"]].export_progress
+        status, stage, count = row["status"], row["stage"], row["count"]
+        progress["status_counts"][status] = progress["status_counts"].get(status, 0) + count
+        # 细分父片只保留状态计数，不计入有效分片总数；阶段只统计正在执行的分片。
+        if status not in ExportPartStatus.NON_LEAF:
+            progress["parts_total"] += count
+        if status == ExportPartStatus.SUCCESS:
+            progress["parts_success"] += count
+        elif status == ExportPartStatus.FAILED:
+            progress["parts_failed"] += count
+        if status in ExportPartStatus.EXECUTING and stage in progress["stage_counts"]:
+            progress["stage_counts"][stage] += count
 
 
 def sharded_job_history_item(job):
@@ -60,10 +98,14 @@ def sharded_job_history_item(job):
         export_status = ExportStatus.FAILED
 
     index_set_type = job.index_set_type or IndexSetType.SINGLE.value
+    if not hasattr(job, "export_progress"):
+        load_export_progress([job])
 
     item = {
         "id": job.pk,
         "engine": "sharded",
+        "progress": job.export_progress,
+        "error_code": job.error_code,
         "search_dict": job.raw_params or job.search_params,
         "start_time": job.start_time,
         "end_time": job.end_time,
@@ -88,6 +130,52 @@ def sharded_job_history_item(job):
         item["log_index_set_ids"] = job.index_set_ids
     elif index_set_type == IndexSetType.SINGLE.value:
         item["log_index_set_id"] = (job.index_set_ids or [None])[0]
+    return item
+
+
+def sharded_job_detail(job):
+    """返回任务详情及全部分片的当前执行结果，包含细分父片。"""
+    item = sharded_job_history_item(job)
+    item.update(
+        space_uid=job.space_uid,
+        search_type=job.search_type,
+        requested_parallelism=job.requested_parallelism,
+        started_at=job.started_at,
+        expires_at=job.expires_at,
+        planning_enqueued_at=job.planning_enqueued_at,
+        planning_started_at=job.planning_started_at,
+        planning_attempts=job.planning_attempts,
+        finalization_enqueued_at=job.finalization_enqueued_at,
+        finalization_started_at=job.finalization_started_at,
+        finalization_attempts=job.finalization_attempts,
+    )
+    parts = job.parts.order_by("plan_version", "part_no", "id").values(
+        "id",
+        "part_no",
+        "plan_version",
+        "parent_part_id",
+        "start_time",
+        "end_time",
+        "oversized",
+        "status",
+        "stage",
+        "attempts",
+        "task_id",
+        "estimated_rows",
+        "actual_rows",
+        "actual_bytes",
+        "compressed_bytes",
+        "checksum",
+        "started_at",
+        "finished_at",
+        "updated_at",
+        "error_code",
+        "error_detail",
+    )
+    part_items = list(parts)
+    for part in part_items:
+        part["artifact_id"] = str(part["id"]) if part["status"] == ExportPartStatus.SUCCESS else None
+    item["parts"] = part_items
     return item
 
 
@@ -150,6 +238,7 @@ def paginate_export_history(query_set, job_query_set, request, view):
     page_rows = pg.paginate_queryset(queryset=rows, request=request, view=view)
     tasks = query_set.in_bulk([row["id"] for row in page_rows if row["history_engine"] == "legacy"])
     jobs = job_query_set.in_bulk([row["id"] for row in page_rows if row["history_engine"] == "sharded"])
+    load_export_progress(jobs.values())
     records = {"legacy": tasks, "sharded": jobs}
     history = [records[row["history_engine"]][row["id"]] for row in page_rows]
     return pg, history

@@ -75,7 +75,7 @@ def _enqueue(job_ids, field, statuses, task_name, queue=PLAN_QUEUE):
         if not claimed:
             continue
         try:
-            _send(task_name, job_id, queue=queue)
+            message = _send(task_name, job_id, queue=queue)
         except SoftTimeLimitExceeded:
             raise
         except Exception as error:  # pylint: disable=broad-except
@@ -83,6 +83,13 @@ def _enqueue(job_ids, field, statuses, task_name, queue=PLAN_QUEUE):
             ExportJob.objects.filter(pk=job_id).update(**{field: None})
             continue
         sent.append(job_id)
+        logger.info(
+            "[sharded_export_job_enqueued] job_id=%s task_name=%s task_id=%s queue=%s",
+            job_id,
+            task_name,
+            getattr(message, "id", None),
+            queue,
+        )
     return sent
 
 
@@ -219,6 +226,15 @@ def dispatch_ready_parts(deadline=None):
                 )
                 break
             dispatched.append(part.pk)
+            logger.info(
+                "[sharded_export_part_enqueued] job_id=%s part_id=%s part_no=%s plan_version=%s task_id=%s queue=%s",
+                job.pk,
+                part.pk,
+                part.part_no,
+                part.plan_version,
+                part.task_id,
+                PART_QUEUE,
+            )
             job_inflight += 1
             for index_set_id in index_set_ids:
                 index_inflight[index_set_id] = index_inflight.get(index_set_id, 0) + 1
@@ -323,6 +339,12 @@ def finalize_export(job_id):
             job_id, job.finalization_attempts, type(error).__name__, code=ExportErrorCode.MERGE_FAILED
         )
         return None
+    logger.info(
+        "[sharded_export_merge_completed] job_id=%s finalization_attempts=%s merged_bytes=%s",
+        job.pk,
+        job.finalization_attempts,
+        merged_bytes,
+    )
     try:
         content = json.dumps(
             manifest_snapshot(
@@ -335,6 +357,12 @@ def finalize_export(job_id):
         with tempfile.TemporaryDirectory(prefix=f"bklog-export-manifest-{job.pk}-") as directory:
             path = Path(directory) / "manifest.json"
             path.write_bytes(content)
+            logger.info(
+                "[sharded_export_manifest_upload] job_id=%s finalization_attempts=%s manifest_bytes=%s",
+                job.pk,
+                job.finalization_attempts,
+                len(content),
+            )
             build_storage(external=job.is_external).export_upload(file_path=str(path), file_name=manifest_name(job))
         return state.finalize_job(
             job_id,

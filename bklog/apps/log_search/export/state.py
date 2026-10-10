@@ -38,6 +38,7 @@ from apps.log_search.constants import (
 )
 from apps.log_search.export.config import policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
+from apps.utils.log import logger
 
 
 @dataclass(frozen=True)
@@ -115,6 +116,18 @@ def _save(record, **changes):
 def _finish_job(job, status, error_code="", error_detail=""):
     """任务进入终态后，未投递和已投递但尚未开始的分片直接作废。"""
     now = timezone.now()
+    if status == ExportJobStatus.FAILED:
+        logger.warning(
+            "[sharded_export_job_failure] job_id=%s plan_version=%s status=%s "
+            "planning_attempts=%s finalization_attempts=%s error_code=%s error_detail=%s",
+            job.pk,
+            job.plan_version,
+            job.status,
+            job.planning_attempts,
+            job.finalization_attempts,
+            error_code,
+            (error_detail or "")[:2000],
+        )
     _save(
         job,
         status=status,
@@ -179,12 +192,19 @@ def claim_planning(job_id):
             return _finish_job(
                 job, ExportJobStatus.FAILED, ExportErrorCode.PLANNING_RETRIES_EXHAUSTED, "规划重试次数已耗尽"
             )
-        return _save(
+        job = _save(
             job,
             status=ExportJobStatus.PLANNING,
             planning_started_at=now,
             planning_attempts=job.planning_attempts + 1,
         )
+        logger.info(
+            "[sharded_export_planning_started] job_id=%s plan_version=%s planning_attempts=%s",
+            job.pk,
+            job.plan_version + 1,
+            job.planning_attempts,
+        )
+        return job
 
 
 def persist_plan(job_id, planning_attempt, *, parts, estimated_total, plan_result=None):
@@ -192,6 +212,13 @@ def persist_plan(job_id, planning_attempt, *, parts, estimated_total, plan_resul
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
         if job.status != ExportJobStatus.PLANNING or job.planning_attempts != planning_attempt:
+            logger.info(
+                "[sharded_export_plan_discarded] job_id=%s planning_attempts=%s current_planning_attempts=%s status=%s",
+                job.pk,
+                planning_attempt,
+                job.planning_attempts,
+                job.status,
+            )
             return None
         _validate_parts(job, parts)
         version = job.plan_version + 1
@@ -220,7 +247,17 @@ def persist_plan(job_id, planning_attempt, *, parts, estimated_total, plan_resul
             error_code="",
             error_detail="",
         )
-        return sync_actual_total(job)
+        sync_actual_total(job)
+        logger.info(
+            "[sharded_export_plan_completed] job_id=%s plan_version=%s planning_attempts=%s "
+            "planned_parts=%s estimated_total=%s",
+            job.pk,
+            job.plan_version,
+            job.planning_attempts,
+            len(parts),
+            estimated_total,
+        )
+        return job
 
 
 def fail_planning(job_id, planning_attempt, code, detail="", retryable=False):
@@ -234,6 +271,15 @@ def fail_planning(job_id, planning_attempt, code, detail="", retryable=False):
             status=ExportPlanStatus.FAILED, finished_at=now, updated_at=now
         )
         if retryable and job.planning_attempts < policy_from_snapshot(job.policy).planning_attempts:
+            logger.warning(
+                "[sharded_export_planning_retry] job_id=%s plan_version=%s planning_attempts=%s "
+                "error_code=%s error_detail=%s",
+                job.pk,
+                job.plan_version + 1,
+                job.planning_attempts,
+                code,
+                (detail or "")[:2000],
+            )
             # 交回调度器重新规划，保留失败原因便于排查；清掉入队标记，下一轮立即重发
             return _save(
                 job,
@@ -291,13 +337,26 @@ def claim_part(part_id, task_id):
         if part.attempts >= policy_from_snapshot(job.policy).part_max_attempts:
             _fail_locked(job, part, "PART_RETRIES_EXHAUSTED", "执行次数已耗尽", retryable=False)
             return None
-        return _save(
+        part = _save(
             part,
             status=ExportPartStatus.RUNNING,
             stage=ExportStage.DOWNLOAD_LOG,
             attempts=part.attempts + 1,
             started_at=timezone.now(),
         )
+        logger.info(
+            "[sharded_export_part_started] job_id=%s part_id=%s part_no=%s plan_version=%s "
+            "attempts=%s task_id=%s start_time=%s end_time=%s",
+            job.pk,
+            part.pk,
+            part.part_no,
+            part.plan_version,
+            part.attempts,
+            part.task_id,
+            part.start_time,
+            part.end_time,
+        )
+        return part
 
 
 def set_stage(part_id, fence, stage):
@@ -321,10 +380,30 @@ def complete_part(part_id, fence, *, actual_rows, actual_bytes, compressed_bytes
         job = ExportJob.objects.select_for_update().get(pk=_job_id_of(part_id))
         part = ExportPart.objects.select_for_update().get(pk=part_id)
         if part.status not in ExportPartStatus.EXECUTING or not _fenced(part, fence):
+            logger.info(
+                "[sharded_export_part_result_discarded] job_id=%s part_id=%s attempts=%s task_id=%s "
+                "current_attempts=%s current_task_id=%s status=%s job_status=%s",
+                job.pk,
+                part.pk,
+                fence.attempts,
+                fence.task_id,
+                part.attempts,
+                part.task_id,
+                part.status,
+                job.status,
+            )
             # 已被超时回收并重新投递，本次结果作废
             return None
         now = timezone.now()
         if job.status != ExportJobStatus.RUNNING:
+            logger.info(
+                "[sharded_export_part_result_discarded] job_id=%s part_id=%s attempts=%s task_id=%s job_status=%s",
+                job.pk,
+                part.pk,
+                fence.attempts,
+                fence.task_id,
+                job.status,
+            )
             return _save(part, status=ExportPartStatus.CANCELED, stage="", finished_at=now)
         _save(
             part,
@@ -340,6 +419,19 @@ def complete_part(part_id, fence, *, actual_rows, actual_bytes, compressed_bytes
             error_detail="",
         )
         sync_actual_total(job)
+        logger.info(
+            "[sharded_export_part_completed] job_id=%s part_id=%s part_no=%s plan_version=%s "
+            "attempts=%s task_id=%s actual_rows=%s actual_bytes=%s compressed_bytes=%s",
+            job.pk,
+            part.pk,
+            part.part_no,
+            part.plan_version,
+            part.attempts,
+            part.task_id,
+            actual_rows,
+            actual_bytes,
+            compressed_bytes,
+        )
         return part
 
 
@@ -368,6 +460,25 @@ def _classify_failure(job, part, error_code):
 def _fail_locked(job, part, error_code, error_detail, retryable=True):
     if part.status not in ExportPartStatus.INFLIGHT:
         return None
+    # 阶段和投递身份随后可能被重置，先记录失败时的上下文以便追踪重试及超时回收。
+    logger.warning(
+        "[sharded_export_part_failure] job_id=%s part_id=%s part_no=%s plan_version=%s "
+        "attempts=%s task_id=%s status=%s stage=%s start_time=%s end_time=%s "
+        "retryable=%s error_code=%s error_detail=%s",
+        job.pk,
+        part.pk,
+        part.part_no,
+        part.plan_version,
+        part.attempts,
+        part.task_id,
+        part.status,
+        part.stage,
+        part.start_time,
+        part.end_time,
+        retryable,
+        error_code,
+        (error_detail or "")[:2000],
+    )
     now = timezone.now()
     changes = {"error_code": error_code, "error_detail": (error_detail or "")[:2000], "finished_at": now}
     if job.status == ExportJobStatus.CANCELED:
@@ -377,6 +488,14 @@ def _fail_locked(job, part, error_code, error_detail, retryable=True):
         and job.status in (ExportJobStatus.READY, ExportJobStatus.RUNNING)
         and part.attempts < policy_from_snapshot(job.policy).part_max_attempts
     ):
+        logger.info(
+            "[sharded_export_part_retry] job_id=%s part_id=%s attempts=%s task_id=%s error_code=%s",
+            job.pk,
+            part.pk,
+            part.attempts,
+            part.task_id,
+            error_code,
+        )
         return _save(part, status=ExportPartStatus.WAITING, stage="", task_id="", **changes)
     if _can_split(job, part, error_code):
         return _split_locked(job, part, error_code, error_detail)
@@ -413,6 +532,19 @@ def _split_locked(job, part, error_code, error_detail):
 
     next_no = (ExportPart.objects.filter(job=job).aggregate(Max("part_no"))["part_no__max"] or 0) + 1
     estimated_rows = part.estimated_rows or 0
+    logger.info(
+        "[sharded_export_part_split] job_id=%s part_id=%s plan_version=%s "
+        "child_part_nos=%s,%s start_time=%s split_time=%s end_time=%s error_code=%s",
+        job.pk,
+        part.pk,
+        part.plan_version,
+        next_no,
+        next_no + 1,
+        part.start_time,
+        middle,
+        part.end_time,
+        error_code,
+    )
     estimated_bytes = part.estimated_bytes or 0
     left_rows = estimated_rows * (middle - part.start_time) // span
     left_bytes = estimated_bytes * (middle - part.start_time) // span
@@ -517,12 +649,22 @@ def claim_finalization(job_id):
         if job.finalization_attempts >= policy_from_snapshot(job.policy).finalization_attempts:
             _finish_job(job, ExportJobStatus.FAILED, ExportErrorCode.FINALIZATION_FAILED, "清单生成重试次数已耗尽")
             return None
-        return _save(
+        job = _save(
             job,
             status=ExportJobStatus.FINALIZING,
             finalization_started_at=now,
             finalization_attempts=job.finalization_attempts + 1,
         )
+        logger.info(
+            "[sharded_export_finalization_started] job_id=%s plan_version=%s finalization_attempts=%s "
+            "parts_total=%s actual_total=%s",
+            job.pk,
+            job.plan_version,
+            job.finalization_attempts,
+            stats["total"],
+            job.actual_total,
+        )
+        return job
 
 
 def fail_finalization(job_id, finalization_attempt, detail="", code=ExportErrorCode.FINALIZATION_FAILED):
@@ -534,6 +676,15 @@ def fail_finalization(job_id, finalization_attempt, detail="", code=ExportErrorC
         detail = (detail or "")[:2000]
         if finalization_attempt >= policy_from_snapshot(job.policy).finalization_attempts:
             return _finish_job(job, ExportJobStatus.FAILED, code, detail)
+        logger.warning(
+            "[sharded_export_finalization_retry] job_id=%s plan_version=%s finalization_attempts=%s "
+            "error_code=%s error_detail=%s",
+            job.pk,
+            job.plan_version,
+            finalization_attempt,
+            code,
+            detail,
+        )
         return _save(
             job,
             status=ExportJobStatus.RUNNING,
@@ -559,6 +710,14 @@ def finalize_job(
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)
         if job.status != ExportJobStatus.FINALIZING or job.finalization_attempts != finalization_attempt:
+            logger.info(
+                "[sharded_export_finalization_discarded] job_id=%s finalization_attempts=%s "
+                "current_finalization_attempts=%s status=%s",
+                job.pk,
+                finalization_attempt,
+                job.finalization_attempts,
+                job.status,
+            )
             return None
         parts = list(leaf_parts(job).order_by("start_time", "part_no"))
         if not parts or any(part.status != ExportPartStatus.SUCCESS for part in parts):
@@ -575,7 +734,7 @@ def finalize_job(
         if total != job.actual_total:
             raise ValueError(f"分片实际条数 {job.actual_total} 与清单条数 {total} 不一致")
         now = timezone.now()
-        return _save(
+        job = _save(
             job,
             status=ExportJobStatus.SUCCESS,
             manifest_object_key=manifest_object_key,
@@ -589,6 +748,18 @@ def finalize_job(
             error_code="",
             error_detail="",
         )
+        logger.info(
+            "[sharded_export_job_completed] job_id=%s plan_version=%s finalization_attempts=%s "
+            "parts_total=%s actual_total=%s merged_bytes=%s manifest_bytes=%s",
+            job.pk,
+            job.plan_version,
+            finalization_attempt,
+            len(parts),
+            total,
+            merged_bytes,
+            manifest_bytes,
+        )
+        return job
 
 
 def cancel_job(job_id):
