@@ -320,12 +320,12 @@ def test_report_scope_rejects_unapproved_business_before_read(monkeypatch):
 def test_report_scope_requires_authenticated_request(monkeypatch):
     """直调服务桥函数时没有请求身份也不能按已知订阅 ID 读出数据。"""
     from kernel_api.rpc.functions.bkm_cli import db
-    from kernel_api.rpc.functions.bkm_cli.platform_catalog import cmdb
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import _authorization
 
     queryset = FakeQuerySet([])
     FakeModel.origin_objects = FakeManager(queryset)
     monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
-    monkeypatch.setattr(cmdb, "get_request", lambda peaceful=True: None)
+    monkeypatch.setattr(_authorization, "get_request", lambda peaceful=True: None)
 
     with pytest.raises(CustomException, match="已认证"):
         db.read_db_model({"model": "bkmonitor.models.base.ReportItems", "bk_biz_id": 2, "filter": {"id": 7}})

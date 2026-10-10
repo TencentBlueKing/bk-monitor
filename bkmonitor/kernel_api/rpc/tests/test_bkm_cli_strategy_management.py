@@ -15,7 +15,7 @@ from kernel_api.resource.alert import get_strategy_config_version
 from kernel_api.resource.bkm_cli import BkmCliOpCallResource
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 from kernel_api.rpc.functions.bkm_cli import strategy_management as management
-from kernel_api.rpc.functions.bkm_cli.platform_catalog import cmdb
+from kernel_api.rpc.functions.bkm_cli.platform_catalog import _authorization
 from kernel_api.rpc.functions.bkm_cli.platform_catalog._catalog import ParamsGuardRejected
 
 
@@ -577,9 +577,9 @@ def principal(monkeypatch):
         jwt=SimpleNamespace(app=SimpleNamespace(app_code="demo-app")),
     )
     monkeypatch.setattr(management, "get_request", lambda **_kwargs: request)
-    monkeypatch.setattr(cmdb, "get_request", lambda **_kwargs: request)
-    monkeypatch.setattr(cmdb, "bk_biz_id_to_bk_tenant_id", lambda _value: "system")
-    monkeypatch.setattr(cmdb, "is_match_api_token", lambda *_args: True)
+    monkeypatch.setattr(_authorization, "get_request", lambda **_kwargs: request)
+    monkeypatch.setattr(_authorization, "bk_biz_id_to_bk_tenant_id", lambda _value: "system")
+    monkeypatch.setattr(_authorization, "is_match_api_token", lambda *_args: True)
     permission = Mock(skip_check=True)
     permission.is_allowed.return_value = True
     factory = Mock(return_value=permission)
@@ -612,11 +612,13 @@ def test_business_authorization_fail_closed(monkeypatch, principal, kind):
             assert (scoped_request.biz_id, tenant, app_code) == (2, "system", "demo-app")
             return False
 
-        monkeypatch.setattr(cmdb, "is_match_api_token", deny_target)
+        monkeypatch.setattr(_authorization, "is_match_api_token", deny_target)
     elif kind in ("token", "expired"):
         request.META["HTTP_AUTHORIZATION"] = "Bearer synthetic-token"
         record = SimpleNamespace(is_expired=lambda: kind == "expired", is_allowed_namespace=lambda _: False)
-        monkeypatch.setattr(cmdb.ApiAuthToken.objects, "filter", lambda **_: SimpleNamespace(first=lambda: record))
+        monkeypatch.setattr(
+            _authorization.ApiAuthToken.objects, "filter", lambda **_: SimpleNamespace(first=lambda: record)
+        )
     else:
         request.user.is_authenticated = False
     with pytest.raises((PermissionDenied, ParamsGuardRejected)):
