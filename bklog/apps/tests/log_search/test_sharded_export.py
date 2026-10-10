@@ -19,6 +19,7 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import copy
 import gzip
 import hashlib
 import io
@@ -35,9 +36,7 @@ from unittest.mock import MagicMock, Mock, patch
 from blueapps.core.celery.celery import app
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
-from django.db import connection
 from django.test import SimpleTestCase, TestCase, override_settings
-from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from qcloud_cos.streambody import StreamBody
 from redis.exceptions import RedisError
@@ -46,6 +45,7 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from apps.api.exception import DataAPIException
 from apps.constants import RemoteStorageType
 from apps.utils.cos import QcloudCos
+from apps.iam import ActionEnum
 from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_search.constants import (
     FEATURE_ASYNC_EXPORT_COMMON,
@@ -56,8 +56,10 @@ from apps.log_search.constants import (
     ExportPlanStatus,
     ExportPartStatus,
     ExportStage,
+    ExportSearchType,
     ExportStatus,
     ExportType,
+    IndexSetType,
 )
 from apps.log_search.exceptions import (
     AsyncExportRequestBusyException,
@@ -73,12 +75,13 @@ from apps.log_search.export.config import (
     PLAN_QUEUE,
     ExportPolicy,
 )
-from apps.log_search.export.api import create_export_job, download_link, job_detail, job_results
+from apps.log_search.export.api import create_export_job, download_link
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
-from apps.log_search.export.serializers import ExportCreateSerializer
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_search.views.export_views import ExportJobIndexSearchPermission, ExportJobViewSet
+from apps.log_search.views.search_views import SearchViewSet
+from apps.log_search.views.scene_search_views import SceneSearchViewSet
 from apps.log_search.export.worker import PartError, _execute, _pack, _write_rows, run_part
 from apps.log_search.export.planner import (
     INTERVAL_LADDER_MS,
@@ -88,7 +91,6 @@ from apps.log_search.export.planner import (
     build_parts,
     choose_interval,
     choose_refine_interval,
-    is_definitely_empty,
     merge_adjacent,
     plan_hot_segment,
     refine,
@@ -2087,39 +2089,6 @@ class JobFailureClassificationTests(TestCase):
 
         self.assertIn(ExportErrorCode.STORAGE_UNSUPPORTED, job.error_detail)
 
-    def test_job_detail_exposes_detail_and_failed_part(self):
-        job = self.fail_single_part_job(ExportErrorCode.FETCH_TIMEOUT, 1000, 500)
-
-        detail = job_detail(job)
-
-        self.assertEqual(detail["error_code"], ExportErrorCode.OVERSIZED_PART_FAILED)
-        self.assertTrue(detail["error_message"])
-        self.assertIn(ExportErrorCode.FETCH_TIMEOUT, detail["error_detail"])
-        self.assertEqual(
-            detail["failed_part"],
-            {
-                "part_no": 1,
-                "error_code": ExportErrorCode.FETCH_TIMEOUT,
-                "oversized": False,
-                "start_time": 0,
-                "end_time": 1000,
-            },
-        )
-
-    def test_successful_job_has_no_failed_part(self):
-        self.assertIsNone(job_detail(create_job())["failed_part"])
-
-    def test_list_progress_lookup_stays_a_single_query(self):
-        """列表页逐个任务取进度，进度查询必须只占一次查询（叶子计数走注解）。"""
-        job = self.fail_single_part_job(ExportErrorCode.PART_TIMEOUT, 1000, 500)
-        annotated = ExportJob.objects.annotate(**state.leaf_counts_annotation()).get(pk=job.pk)
-
-        with CaptureQueriesContext(connection) as captured:
-            job_detail(annotated)
-
-        part_queries = [query for query in captured.captured_queries if "log_export_part" in query["sql"]]
-        self.assertEqual(len(part_queries), 1)
-
 
 class ManifestChecksumTests(TestCase):
     """清单上传后落库自身 checksum，下载方可以据此校验清单完整性。"""
@@ -2237,8 +2206,6 @@ class ManifestChecksumTests(TestCase):
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, ExportJobStatus.FINALIZING)
         self.assertEqual(self.job.finalization_attempts, new_claim.finalization_attempts)
-        self.assertEqual(job_detail(self.job)["status"], ExportJobStatus.RUNNING)
-        self.assertEqual(job_detail(self.job)["stage"], ExportStage.FINALIZING)
 
     def test_cancel_during_finalization_keeps_the_job_canceled(self):
         def cancel_during_upload(file_path, file_name):
@@ -2260,7 +2227,7 @@ class ManifestChecksumTests(TestCase):
         self.assertEqual(ExportPart.objects.get(job=self.job).status, ExportPartStatus.SUCCESS)
         self.assertEqual(finalizing_jobs(10), [])
 
-    def test_manifest_checksum_is_exposed_with_the_download_manifest(self):
+    def test_manifest_checksum_is_written_after_finalization(self):
         claimed = state.claim_finalization(self.job.pk)
         state.finalize_job(
             self.job.pk,
@@ -2270,9 +2237,7 @@ class ManifestChecksumTests(TestCase):
             manifest_checksum="manifest-checksum",
         )
 
-        results = job_results(ExportJob.objects.get(pk=self.job.pk))
-        self.assertEqual(results["manifest"]["checksum"], "manifest-checksum")
-        self.assertEqual(results["manifest"]["checksum_algorithm"], "sha256")
+        self.assertEqual(ExportJob.objects.get(pk=self.job.pk).manifest_checksum, "manifest-checksum")
 
 
 class MergedArtifactTests(TestCase):
@@ -2317,7 +2282,7 @@ class MergedArtifactTests(TestCase):
         # gzip 多 member 拼接后解压仍是合法内容
         self.assertEqual(gzip.decompress(contents[key]), b'{"a":1}\n{"b":2}\n')
 
-    def test_job_results_exposes_merged_and_full_download_link(self):
+    def test_download_link_exposes_full_artifact(self):
         self._add_part(1, 0, 1000, gzip.compress(b'{"a":1}\n'))
         self.job.status = ExportJobStatus.SUCCESS
         self.job.manifest_object_key = "manifest.json"
@@ -2328,11 +2293,6 @@ class MergedArtifactTests(TestCase):
         self.job.merged_checksum = "checksum"
         self.job.expires_at = timezone.now() + timedelta(seconds=600)
         self.job.save()
-
-        results = job_results(self.job)
-        self.assertEqual(results["merged"]["artifact_id"], "full")
-        self.assertEqual(results["merged"]["checksum"], "checksum")
-        self.assertEqual(results["merged"]["checksum_algorithm"], "sha256")
 
         with patch("apps.log_search.export.api.build_storage") as build_storage:
             build_storage.return_value.generate_download_url.return_value = "https://full-url"
@@ -2366,35 +2326,7 @@ class ExportErrorCodeTests(SimpleTestCase):
         self.assertEqual(ExportErrorCode.label(""), "")
 
 
-class JobDetailTests(TestCase):
-    def test_error_mapping_by_job_status(self):
-        """展示状态与错误码只由任务状态决定：过期、失败、取消有码，未结束无码。"""
-        cases = (
-            (
-                "expired",
-                {"status": ExportJobStatus.SUCCESS, "expires_at": timezone.now() - timedelta(seconds=1)},
-                "EXPIRED",
-                ExportErrorCode.FILE_EXPIRED,
-            ),
-            (
-                "failed",
-                {"status": ExportJobStatus.FAILED, "error_code": ExportErrorCode.QUOTA_EXCEEDED},
-                ExportJobStatus.FAILED,
-                ExportErrorCode.QUOTA_EXCEEDED,
-            ),
-            ("canceled", {"status": ExportJobStatus.CANCELED}, ExportJobStatus.CANCELED, ExportErrorCode.CANCELED),
-            ("running", {"status": ExportJobStatus.RUNNING}, ExportJobStatus.RUNNING, ""),
-        )
-        for name, fields, expected_status, expected_code in cases:
-            with self.subTest(name=name):
-                detail = job_detail(create_job(end_time=1000, **fields))
-
-                self.assertEqual(detail["status"], expected_status)
-                self.assertEqual(detail["error_code"], expected_code)
-                self.assertEqual(detail["error_message"], ExportErrorCode.label(expected_code))
-                if expected_code == ExportErrorCode.FILE_EXPIRED:
-                    self.assertEqual(detail["percent"], 100)
-
+class ManifestSnapshotTests(TestCase):
     def test_manifest_snapshot_lists_success_parts(self):
         from apps.log_search.export.scheduler import manifest_snapshot
 
@@ -2415,48 +2347,6 @@ class JobDetailTests(TestCase):
         self.assertEqual(snapshot["consistency"], "weak_snapshot")
         self.assertEqual(snapshot["parts"][0]["object_key"], "object")
         json.dumps(snapshot)
-
-    def test_job_detail_counts_leaf_parts_only(self):
-        job = create_job(end_time=2000, status=ExportJobStatus.RUNNING, plan_version=1)
-        parent = ExportPart.objects.create(
-            job=job, part_no=1, plan_version=1, start_time=0, end_time=2000, status=ExportPartStatus.SPLIT
-        )
-        for part_no, (start, end) in enumerate([(0, 1000), (1000, 2000)], start=2):
-            ExportPart.objects.create(
-                job=job,
-                part_no=part_no,
-                plan_version=1,
-                start_time=start,
-                end_time=end,
-                parent_part=parent,
-                status=ExportPartStatus.SUCCESS,
-                actual_rows=10,
-            )
-        detail = job_detail(job)
-        self.assertEqual(detail["parts_total"], 2)
-        self.assertEqual(detail["parts_completed"], 2)
-        self.assertEqual(detail["plan_version"], 1)
-
-
-class ExportCreateSerializerTests(SimpleTestCase):
-    def test_accepts_single_id_and_normalizes_union_ids(self):
-        single = ExportCreateSerializer(
-            data={"space_uid": "bkcc__2", "index_set_id": 11, "start_time": 0, "end_time": 1}
-        )
-        union = ExportCreateSerializer(
-            data={"space_uid": "bkcc__2", "index_set_ids": [12, 11, 12], "start_time": 0, "end_time": 1}
-        )
-
-        self.assertTrue(single.is_valid(), single.errors)
-        self.assertTrue(union.is_valid(), union.errors)
-        self.assertEqual(single.validated_data["index_set_ids"], [11])
-        self.assertEqual(union.validated_data["index_set_ids"], [11, 12])
-
-    def test_requires_exactly_one_index_set_input(self):
-        base = {"space_uid": "bkcc__2", "start_time": 0, "end_time": 1}
-        for data in (base, dict(base, index_set_id=11, index_set_ids=[12]), dict(base, index_set_ids=[])):
-            serializer = ExportCreateSerializer(data=data)
-            self.assertFalse(serializer.is_valid())
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
@@ -2490,9 +2380,8 @@ class ExternalIdentityTests(TestCase):
             is_desensitize=True,
         )
         with (
-            patch("apps.log_search.export.api.is_enabled", return_value=True),
+            patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True),
             patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
-            patch("apps.log_search.export.api.is_definitely_empty", return_value=False),
             patch("apps.log_search.export.api.get_request_username", return_value="authorizer"),
             patch("apps.log_search.export.api.get_request_external_username", return_value=external_username),
             patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
@@ -2540,15 +2429,6 @@ class ExternalIdentityTests(TestCase):
                 ):
                     self.assertCountEqual(list(self.get_queryset().values_list("pk", flat=True)), expected)
 
-    @patch("apps.log_search.export.api.get_request_username", return_value="authorizer")
-    @patch("apps.log_search.export.api.get_request_external_username", return_value="external_a")
-    def test_can_operate_follows_external_identity(self, _external, _username):
-        own = self.make_job("external_a")
-        other = self.make_job("external_b")
-
-        self.assertTrue(job_detail(own)["can_operate"])
-        self.assertFalse(job_detail(other)["can_operate"])
-
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
 class ExportJobPermissionTests(TestCase):
@@ -2585,7 +2465,7 @@ class ExportJobPermissionTests(TestCase):
 
     def test_detail_actions_require_the_index_set_permission(self):
         """列表以外每个动作都要在空间校验之外再过一个索引集级检索权限。"""
-        for action in ("retrieve", "results", "download_link", "cancel"):
+        for action in ("download_link",):
             kinds = [type(permission) for permission in self.build_view(action).get_permissions()]
             self.assertEqual(kinds, [ViewBusinessPermission, ExportJobIndexSearchPermission], action)
 
@@ -2641,9 +2521,9 @@ class ExportJobPermissionTests(TestCase):
         ]
         self.assertEqual(checked, [str(self.index_set.pk), str(second.pk)])
 
-    @override_settings(IGNORE_IAM_PERMISSION=False)
+    @override_settings(IGNORE_IAM_PERMISSION=False, BKAPP_IS_BKLOG_API=False)
     @patch("apps.iam.handlers.drf.Permission")
-    def test_union_create_checks_every_index_set(self, mock_permission_cls):
+    def test_union_create_requires_business_permission_at_legacy_entry(self, mock_permission_cls):
         second = LogIndexSet.objects.create(
             index_set_id=760,
             index_set_name="index-760",
@@ -2651,16 +2531,25 @@ class ExportJobPermissionTests(TestCase):
             category_id="application",
             scenario_id=Scenario.LOG,
         )
-        view = self.build_view("create")
+        view = SearchViewSet()
+        view.action = "union_async_export"
         request = self.build_request()
         request.method = "POST"
-        request.data["index_set_ids"] = [self.index_set.pk, second.pk, self.index_set.pk]
+        request.data.update(
+            bk_biz_id=21,
+            union_configs=[{"index_set_id": self.index_set.pk}, {"index_set_id": second.pk}],
+        )
+        view.request = request
+        mock_permission_cls.return_value.is_allowed.side_effect = PermissionDenied("没有业务访问权限")
 
-        self.assertTrue(view.get_permissions()[0].has_permission(request, view))
-        checked = [
-            str(call.kwargs["resources"][0].id) for call in mock_permission_cls.return_value.is_allowed.call_args_list
-        ]
-        self.assertEqual(checked, [str(self.index_set.pk), str(second.pk)])
+        with self.assertRaisesMessage(PermissionDenied, "没有业务访问权限"):
+            view.check_permissions(request)
+
+        mock_permission_cls.return_value.is_allowed.assert_called_once()
+        called = mock_permission_cls.return_value.is_allowed.call_args
+        self.assertEqual(called.kwargs["action"], ActionEnum.VIEW_BUSINESS)
+        self.assertEqual(str(called.kwargs["resources"][0].id), "21")
+        self.assertTrue(called.kwargs["raise_exception"])
 
     @override_settings(IGNORE_IAM_PERMISSION=False)
     @patch("apps.iam.handlers.drf.Permission")
@@ -2681,11 +2570,70 @@ class ExportJobPermissionTests(TestCase):
             )
 
 
+class LegacyExportRoutingTests(SimpleTestCase):
+    def test_custom_indices_and_quick_exports_keep_the_original_chain(self):
+        request = SimpleNamespace(user=SimpleNamespace(is_superuser=False))
+        module = "apps.log_search.views.search_views"
+        with (
+            patch(f"{module}.is_sharded_export_enabled", return_value=True),
+            patch(f"{module}.FeatureToggleObject.switch", return_value=False),
+            patch(f"{module}.FeatureToggleObject.toggle", return_value=SimpleNamespace(feature_config={})),
+            patch(f"{module}._apply_index_set_search_bk_biz_id"),
+            patch(f"{module}._reject_platform_index_sets"),
+            patch(f"{module}.Permission.get_auth_info", return_value=None),
+        ):
+            for is_union, custom_indices, is_quick in itertools.product(
+                (False, True), ("", "2_bklog.0001"), (False, True)
+            ):
+                with self.subTest(is_union=is_union, custom_indices=custom_indices, is_quick=is_quick):
+                    data = {
+                        "bk_biz_id": 2,
+                        "export_fields": [],
+                        "file_type": "txt",
+                    }
+                    if is_union:
+                        data.update(
+                            index_set_ids=[3, 4],
+                            union_configs=[
+                                {"index_set_id": 3, "custom_indices": ""},
+                                {"index_set_id": 4, "custom_indices": custom_indices},
+                            ],
+                            is_quick_export=is_quick,
+                        )
+                    else:
+                        data["custom_indices"] = custom_indices
+                    view = SearchViewSet()
+                    view.request = request
+                    view.params_valid = Mock(return_value=data)
+                    view.get_object = Mock()
+                    view._sharded_export_from_data = Mock(return_value=SimpleNamespace(data={"task_id": 19}))
+                    handler_name = "UnionAsyncExportHandlers" if is_union else "AsyncExportHandlers"
+                    with patch(f"{module}.{handler_name}") as legacy_handler:
+                        legacy_handler.return_value.async_export.return_value = (7, 1)
+                        if is_union:
+                            response = view.union_async_export(request)
+                        else:
+                            response = view._export(request, index_set_id=3, is_quick_export=is_quick)
+                    if custom_indices or is_quick:
+                        self.assertEqual(response.data["task_id"], 7)
+                        view._sharded_export_from_data.assert_not_called()
+                        legacy_handler.return_value.async_export.assert_called_once_with(is_quick_export=is_quick)
+                        forwarded = legacy_handler.call_args.kwargs["search_dict"]
+                        actual_indices = (
+                            forwarded["union_configs"][1]["custom_indices"] if is_union else forwarded["custom_indices"]
+                        )
+                        self.assertEqual(actual_indices, custom_indices)
+                    else:
+                        self.assertEqual(response.data["task_id"], 19)
+                        view._sharded_export_from_data.assert_called_once()
+                        legacy_handler.assert_not_called()
+
+
 @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
 class CreateJobRangeTests(TestCase):
     """导出时间区间不再要求对齐索引集时间精度，与旧异步导出链路保持一致。"""
 
-    def test_range_need_not_align_to_time_precision(self):
+    def setUp(self):
         Space.objects.create(
             space_uid="bkcc__2",
             bk_biz_id=2,
@@ -2695,18 +2643,19 @@ class CreateJobRangeTests(TestCase):
             space_name="biz-2",
             bk_tenant_id="tenant-a",
         )
-        index_set = LogIndexSet.objects.create(
+        self.index_set = LogIndexSet.objects.create(
             index_set_id=756,
             index_set_name="index-756",
             space_uid="bkcc__2",
             category_id="application",
             scenario_id=Scenario.LOG,
         )
+
+    def test_range_need_not_align_to_time_precision(self):
         handler = MagicMock(base_dict={"query_list": []}, origin_order_by=[], is_desensitize=True)
         with (
-            patch("apps.log_search.export.api.is_enabled", return_value=True),
+            patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True),
             patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
-            patch("apps.log_search.export.api.is_definitely_empty", return_value=False),
             patch("apps.log_search.export.api.get_request_username", return_value="tester"),
             patch("apps.log_search.export.api.get_request_external_username", return_value=""),
             patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
@@ -2714,7 +2663,7 @@ class CreateJobRangeTests(TestCase):
             job = create_export_job(
                 {
                     "space_uid": "bkcc__2",
-                    "index_set_id": index_set.pk,
+                    "index_set_id": self.index_set.pk,
                     "start_time": 1500,
                     "end_time": 3700,
                     "keyword": "*",
@@ -2726,6 +2675,73 @@ class CreateJobRangeTests(TestCase):
             )
 
         self.assertEqual((job.start_time, job.end_time), (1500, 3700))
+
+    def test_legacy_routes_preserve_query_scope_time_range_and_retry_params(self):
+        conditions = [[{"field_name": "scene", "value": ["host"], "op": "eq"}]]
+        cases = (
+            (IndexSetType.SINGLE.value, 1500, 3700),
+            (IndexSetType.UNION.value, "1970-01-01T00:00:01.500Z", "1970-01-01T00:00:03.700Z"),
+            (ExportSearchType.SCENE, "1500", "3700"),
+        )
+        for index_type, start_time, end_time in cases:
+            with self.subTest(index_type=index_type):
+                is_scene = index_type == ExportSearchType.SCENE
+                data = {
+                    "bk_biz_id": 2,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "keyword": "",
+                    "addition": None,
+                    "sort_list": None,
+                    "export_fields": ["message"],
+                    "is_desensitize": False,
+                }
+                if is_scene:
+                    data.update(space_uid="bkcc__2", table_id_conditions=conditions)
+                raw_params = copy.deepcopy(data)
+                handler = MagicMock(
+                    base_dict={"query_list": []},
+                    origin_order_by=[["dtEventTimeStamp", "desc"]],
+                    is_desensitize=False,
+                )
+                handler.pre_get_result.return_value = {"list": [{"message": "log"}]}
+                handler_name = "SceneUnifyQueryHandler" if is_scene else "UnifyQueryHandler"
+                with (
+                    patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True),
+                    patch(f"apps.log_search.export.api.{handler_name}", return_value=handler),
+                    patch("apps.log_search.export.api.get_request_username", return_value="tester"),
+                    patch("apps.log_search.export.api.get_request_external_username", return_value=""),
+                    patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
+                ):
+                    if is_scene:
+                        response = SceneSearchViewSet()._sharded_scene_export(data)
+                    elif index_type == IndexSetType.UNION.value:
+                        response = SearchViewSet()._sharded_export_from_data(data, index_set_ids=[self.index_set.pk])
+                    else:
+                        response = SearchViewSet()._sharded_export_from_data(data, index_set_id=self.index_set.pk)
+
+                job = ExportJob.objects.get(pk=response.data["task_id"])
+                self.assertEqual(response.data["engine"], "sharded")
+                self.assertEqual((job.start_time, job.end_time), (1500, 3701))
+                self.assertEqual((job.search_params["start_time"], job.search_params["end_time"]), (1500, 3701))
+                self.assertEqual(job.index_set_type, index_type)
+                self.assertEqual(job.index_set_ids, [] if is_scene else [self.index_set.pk])
+                self.assertEqual(job.raw_params, raw_params)
+                self.assertEqual(data, raw_params)
+                self.assertEqual(job.search_params["keyword"], "*")
+                self.assertEqual(job.search_params["addition"], [])
+                self.assertEqual(job.search_params["ip_chooser"], {})
+                self.assertEqual(job.search_params["sort_list"], handler.origin_order_by)
+                self.assertEqual(job.search_params["export_fields"], ["message"])
+                self.assertFalse(job.search_params["is_desensitize"])
+                if is_scene:
+                    self.assertEqual(job.search_params["space_uid"], "bkcc__2")
+                    self.assertEqual(job.search_params["table_id_conditions"], conditions)
+                else:
+                    self.assertEqual(job.search_params["index_set_ids"], [self.index_set.pk])
+                handler.pre_get_result.assert_called_once_with(
+                    sorted_fields=handler.origin_order_by, size=1000 if is_scene else 1
+                )
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
@@ -2756,9 +2772,8 @@ class UnionExportCreateTests(TestCase):
             is_desensitize=True,
         )
         with (
-            patch("apps.log_search.export.api.is_enabled", return_value=True),
+            patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True),
             patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler) as handler_cls,
-            patch("apps.log_search.export.api.is_definitely_empty", return_value=False),
             patch("apps.log_search.export.api.get_request_username", return_value="tester"),
             patch("apps.log_search.export.api.get_request_external_username", return_value=""),
             patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
@@ -2781,9 +2796,8 @@ class UnionExportCreateTests(TestCase):
         self.assertEqual(job.index_set_ids, [756, 757])
         self.assertEqual(job.search_params["index_set_ids"], [756, 757])
         self.assertEqual(len(job.base_dict["query_list"]), 2)
-        self.assertEqual(job_detail(job)["index_set_ids"], [756, 757])
 
-    @patch("apps.log_search.export.api.is_enabled", return_value=True)
+    @patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True)
     def test_union_rejects_platform_index_set(self, _enabled):
         LogIndexSet.objects.filter(index_set_id=757).update(is_platform_index=True)
 
@@ -2796,14 +2810,13 @@ class UnionExportCreateTests(TestCase):
             origin_order_by=[["request_time", "desc"]],
             is_desensitize=True,
         )
+        handler.pre_get_result.side_effect = DataAPIException(None, "request_time unsupported")
         with (
-            patch("apps.log_search.export.api.is_enabled", return_value=True),
+            patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True),
             patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
-            patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw") as query,
             patch("apps.log_search.export.api.get_request_username", return_value="tester"),
             patch("apps.log_search.export.api.get_request_external_username", return_value=""),
         ):
-            query.side_effect = DataAPIException(None, "request_time unsupported")
             with self.assertRaisesMessage(PreCheckAsyncExportException, "request_time unsupported"):
                 create_export_job(
                     {
@@ -2818,7 +2831,7 @@ class UnionExportCreateTests(TestCase):
                         "export_fields": [],
                     }
                 )
-        self.assertEqual(query.call_args.args[0]["order_by"], [["request_time", "desc"]])
+        handler.pre_get_result.assert_called_once_with(sorted_fields=[["request_time", "desc"]], size=1)
         handler.fields.assert_not_called()
         handler.check_sort_list.assert_not_called()
         self.assertFalse(ExportJob.objects.exists())
@@ -2851,10 +2864,10 @@ class EmptyExportPreCheckTests(TestCase):
     def probe(self, *, empty):
         """按空/非空两种返回驱动 create_export_job，并返回是否成功建任务。"""
         handler = MagicMock(base_dict={"query_list": []}, origin_order_by=[], is_desensitize=True)
+        handler.pre_get_result.return_value = {"list": [] if empty else [{"log": "x"}]}
         with (
-            patch("apps.log_search.export.api.is_enabled", return_value=True),
+            patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True),
             patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
-            patch("apps.log_search.export.api.is_definitely_empty", return_value=empty),
             patch("apps.log_search.export.api.get_request_username", return_value="tester"),
             patch("apps.log_search.export.api.get_request_external_username", return_value=""),
             patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
@@ -2872,36 +2885,6 @@ class EmptyExportPreCheckTests(TestCase):
                     "export_fields": [],
                 }
             )
-
-    def test_existence_probe_outcomes(self):
-        """探活只按返回体判断：空列表视为无数据，有数据视为非空。"""
-        handler = MagicMock(base_dict={"query_list": []})
-        cases = (({"list": []}, True), ({"list": [{"log": "x"}]}, False))
-        for response, expected in cases:
-            with self.subTest(response=response):
-                with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", return_value=response):
-                    self.assertEqual(is_definitely_empty(handler, 0, 1000), expected)
-
-    def test_bad_probe_response_rejects_creation(self):
-        """查询失败和返回体结构异常都要拒绝创建，并带上可展示的原因。"""
-        handler = MagicMock(base_dict={"query_list": []})
-        cases = (
-            ({"side_effect": Exception("unify query down")}, "unify query down"),
-            ({"return_value": {"message": "internal"}}, "返回格式异常"),
-        )
-        for patch_kwargs, message in cases:
-            with self.subTest(message=message):
-                with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", **patch_kwargs):
-                    with self.assertRaisesMessage(PreCheckAsyncExportException, message):
-                        is_definitely_empty(handler, 0, 1000)
-
-    def test_probe_only_requests_one_row(self):
-        handler = MagicMock(base_dict={"query_list": []})
-
-        with patch("apps.log_search.export.planner.UnifyQueryApi.query_ts_raw", return_value={"list": []}) as query:
-            is_definitely_empty(handler, 0, 1000)
-
-        self.assertEqual(query.call_args.args[0]["limit"], 1)
 
     def test_empty_range_is_rejected_without_creating_a_job(self):
         with self.assertRaises(PreCheckAsyncExportException):
@@ -2944,9 +2927,8 @@ class ExportJobAdmissionTests(TestCase):
         """走创建入口建任务；配额不足时由准入校验抛异常。"""
         handler = MagicMock(base_dict={"query_list": []}, origin_order_by=[], is_desensitize=True)
         with (
-            patch("apps.log_search.export.api.is_enabled", return_value=True),
+            patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True),
             patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
-            patch("apps.log_search.export.api.is_definitely_empty", return_value=False),
             patch("apps.log_search.export.api.get_request_username", return_value=username),
             patch("apps.log_search.export.api.get_request_external_username", return_value=""),
             patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),

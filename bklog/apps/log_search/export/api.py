@@ -22,30 +22,29 @@ the project delivered to anyone in the future.
 import copy
 from datetime import timedelta
 
-from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework.exceptions import APIException, ValidationError
 
-from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportPartStatus, ExportStage
-from apps.log_search.export import state
-from apps.log_search.export.config import current_policy, is_enabled, policy_from_snapshot
+from apps.log_search.constants import (
+    ExportJobStatus,
+    ExportPartStatus,
+    ExportSearchType,
+    IndexSetType,
+)
+from apps.log_search.export.config import current_policy, is_sharded_export_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
-from apps.log_search.export.planner import is_definitely_empty
 from apps.log_search.export.storage import build_storage
 from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
+from apps.log_unifyquery.utils import deal_time_format
 from apps.utils.local import (
     get_request_app_code,
     get_request_external_username,
     get_request_username,
 )
-
-
-TERMINAL = ExportJobStatus.TERMINAL
-INFLIGHT = ExportPartStatus.INFLIGHT
-STAGE_ORDER = [ExportStage.DOWNLOAD_LOG, ExportStage.PACKAGE, ExportStage.UPLOAD]
 
 
 class ExportConflict(APIException):
@@ -66,66 +65,112 @@ class ExportStorageUnavailable(APIException):
     default_code = "EXPORT_STORAGE_UNAVAILABLE"
 
 
-def current_username():
-    """当前请求用户：外部版经代理转发时是外部用户，而不是被替换的空间授权人。"""
-    return get_request_external_username() or get_request_username(default="")
+def normalize_legacy_export_params(data, *, search_type=ExportSearchType.INDEX_SET):
+    """将旧入口的公共参数转换为分片任务参数。"""
+    start_time, end_time = data["start_time"], data["end_time"]
+    if search_type == ExportSearchType.SCENE:
+        # 场景化时间兼容毫秒数字字符串，与 SceneUnifyQueryHandler 保持一致。
+        if isinstance(start_time, str) and start_time.isdigit():
+            start_time = int(start_time)
+        if isinstance(end_time, str) and end_time.isdigit():
+            end_time = int(end_time)
+    start_ms, end_ms = deal_time_format(start_time, end_time)
+    return {
+        "search_type": search_type,
+        "start_time": start_ms,
+        # 旧入口使用闭区间，分片任务使用左闭右开区间。
+        "end_time": end_ms + 1,
+        "keyword": data.get("keyword") or "*",
+        "addition": data.get("addition") or [],
+        "ip_chooser": data.get("ip_chooser", {}),
+        "sort_list": data.get("sort_list") or [],
+        "export_fields": data.get("export_fields", []),
+        "is_desensitize": data.get("is_desensitize", True),
+    }
 
 
-def create_export_job(data):
-    """创建分片导出任务。"""
-    username = current_username()
+def create_export_job(data, raw_params=None):
+    """创建分片导出任务；raw_params 为创建时的原始请求参数，未传时回退用 data 本身。"""
+    username = get_request_external_username() or get_request_username(default="")
     space = Space.objects.get(space_uid=data["space_uid"])
-    if not is_enabled(space.bk_biz_id):
+    if not is_sharded_export_enabled(space.bk_biz_id):
         raise ValidationError({"detail": "分片导出未启用"})
 
-    index_set_ids = sorted(set(data.get("index_set_ids") or [data["index_set_id"]]))
-    indexes = list(LogIndexSet.objects.filter(index_set_id__in=index_set_ids))
-    if len(indexes) != len(index_set_ids):
-        raise ValidationError({"index_set_ids": "索引集不存在"})
-    if len(index_set_ids) > 1 and any(index.is_platform_index for index in indexes):
-        raise ValidationError({"index_set_ids": "联合检索暂不支持平台级索引集"})
+    search_type = data.get("search_type", ExportSearchType.INDEX_SET)
+    is_scene = search_type == ExportSearchType.SCENE
+    if is_scene:
+        index_set_ids = []
+        index_set_type = ExportSearchType.SCENE
+    else:
+        index_set_ids = sorted(set(data.get("index_set_ids") or [data["index_set_id"]]))
+        indexes = list(LogIndexSet.objects.filter(index_set_id__in=index_set_ids))
+        if len(indexes) != len(index_set_ids):
+            raise ValidationError({"index_set_ids": "索引集不存在"})
+        if len(index_set_ids) > 1 and any(index.is_platform_index for index in indexes):
+            raise ValidationError({"index_set_ids": "联合检索暂不支持平台级索引集"})
 
-    # 先按当前额度快速拒绝，避免为必然失败的任务发起查询；真正占额度在落库时锁内复检
-    AsyncTask.check_running_count_by_user(username)
+        # 单索引集／联合检索类型由入口明确传递，避免按去重后的 ID 数量误判（联合入口允许只有一项）
+        index_set_type = data.get("index_set_type") or (
+            IndexSetType.UNION.value if len(index_set_ids) > 1 else IndexSetType.SINGLE.value
+        )
 
-    params = {
-        key: copy.deepcopy(data[key]) for key in ("keyword", "addition", "ip_chooser", "sort_list", "export_fields")
-    }
-    params.update(
-        start_time=data["start_time"],
-        end_time=data["end_time"],
-        index_set_ids=index_set_ids,
-        bk_biz_id=space.bk_biz_id,
-        is_desensitize=True,
-        interval="30s",
+    params = copy.deepcopy(
+        {
+            "keyword": data.get("keyword", "*"),
+            "addition": data.get("addition", []),
+            "ip_chooser": data.get("ip_chooser", {}),
+            "sort_list": data.get("sort_list", []),
+            "export_fields": data.get("export_fields", []),
+            "bk_biz_id": space.bk_biz_id,
+            "is_desensitize": data.get("is_desensitize", True),
+            "interval": "30s",
+            "start_time": data["start_time"],
+            "end_time": data["end_time"],
+        }
     )
-    handler = UnifyQueryHandler(params)
+    if is_scene:
+        params.update(space_uid=data["space_uid"], table_id_conditions=data["table_id_conditions"])
+        handler = SceneUnifyQueryHandler(params)
+    else:
+        params.update(index_set_ids=index_set_ids, begin=data.get("begin", 0))
+        handler = UnifyQueryHandler(params)
+
     # 冻结解析后的排序与脱敏结论，保证后续所有分片重建出完全一致的查询条件
     params["sort_list"] = copy.deepcopy(handler.origin_order_by)
     params["is_desensitize"] = handler.is_desensitize
+
+    # 先按当前额度快速拒绝，避免为必然失败的任务发起查询；真正占额度在落库时锁内复检
+    AsyncTask.check_running_count_by_user(username, is_scene=is_scene)
 
     policy = current_policy()
     requested_parallelism = data.get("requested_parallelism", policy.default_parallelism)
     if requested_parallelism > policy.max_parallelism:
         raise ValidationError({"requested_parallelism": f"并行度不能超过 {policy.max_parallelism}"})
 
-    # 空数据任务创建前快速拒绝；是否超过单任务上限由 Planner 的聚合 count 判定，不在这里做
-    if is_definitely_empty(handler, data["start_time"], data["end_time"]):
+    pre_check_size = 1000 if search_type == ExportSearchType.SCENE else 1
+    try:
+        result = handler.pre_get_result(sorted_fields=handler.origin_order_by, size=pre_check_size)
+    except Exception as error:  # pylint: disable=broad-except
+        raise PreCheckAsyncExportException(f"导出预检查查询失败：{error}") from error
+    if not result.get("list"):
         raise PreCheckAsyncExportException()
 
     # 额度复检与落库必须在同一把用户级锁内：两个并发请求都通过上面的检查时，
     # 只有一个能在锁内看到对方的任务并真正占住额度
-    with AsyncTask.export_create_lock(username):
-        AsyncTask.check_running_count_by_user(username)
+    with AsyncTask.export_create_lock(username, is_scene=is_scene):
+        AsyncTask.check_running_count_by_user(username, is_scene=is_scene)
         return ExportJob.objects.create(
             space_uid=space.space_uid,
             created_by=username,
             source_app_code=get_request_app_code(),
             is_external=bool(get_request_external_username()),
+            search_type=search_type,
             index_set_ids=index_set_ids,
+            index_set_type=index_set_type,
             bk_biz_id=space.bk_biz_id,
             search_params=params,
             base_dict=copy.deepcopy(handler.base_dict),
+            raw_params=raw_params if raw_params is not None else data,
             policy=policy.snapshot(),
             start_time=data["start_time"],
             end_time=data["end_time"],
@@ -134,145 +179,12 @@ def create_export_job(data):
         )
 
 
-def _leaf_counts(job):
-    """叶子分片计数：列表页由注解带出，详情回退到聚合查询。"""
-    annotated = (getattr(job, "leaf_total", None), getattr(job, "leaf_success", None))
-    if None not in annotated:
-        return annotated
-    stats = state.leaf_stats(job)
-    return stats["total"], stats["success"]
-
-
-def _job_error_code(job, expired):
-    """用户可见的错误分类：失败取落库错误码，取消与产物过期给稳定的展示分类。"""
-    if job.status == ExportJobStatus.FAILED:
-        return job.error_code
-    if job.status == ExportJobStatus.CANCELED:
-        return ExportErrorCode.CANCELED
-    if expired:
-        return ExportErrorCode.FILE_EXPIRED
-    return ""
-
-
-def _progress_rows(job):
-    """一次取出进度展示需要的分片：在途分片的阶段，以及触发任务失败的分片。"""
-    return list(
-        ExportPart.objects.filter(job=job)
-        .filter(Q(status__in=INFLIGHT) | Q(status=ExportPartStatus.FAILED))
-        .order_by("part_no")
-        .values("status", "stage", "part_no", "oversized", "start_time", "end_time", "error_code")
-    )
-
-
-def _failed_part(row):
-    """触发任务失败的分片摘要，让前端能定位到具体区间，而不是只看到任务级分类。"""
-    if row is None:
-        return None
-    return {
-        "part_no": row["part_no"],
-        "error_code": row["error_code"],
-        "oversized": row["oversized"],
-        "start_time": row["start_time"],
-        "end_time": row["end_time"],
-    }
-
-
-def job_detail(job):
-    """任务进度：预计条数与实际条数分开，完成度按已成功的叶子分片数计算。"""
-    progress = _progress_rows(job)
-    stages = [row["stage"] for row in progress if row["status"] in INFLIGHT]
-    failed_part = next((row for row in progress if row["status"] == ExportPartStatus.FAILED), None)
-    total, success = _leaf_counts(job)
-    if job.status == ExportJobStatus.SUCCESS:
-        percent = 100
-    elif not total:
-        percent = 0
-    else:
-        percent = min(99, success * 100 // total)
-    stage = ""
-    if job.status not in TERMINAL:
-        if total and success >= total:
-            stage = ExportStage.FINALIZING
-        else:
-            stage = next((value for value in reversed(STAGE_ORDER) if value in stages), "")
-    expired = job.status == ExportJobStatus.SUCCESS and job.expires_at is not None and job.expires_at <= timezone.now()
-    error_code = _job_error_code(job, expired)
-    visible_status = ExportJobStatus.RUNNING if job.status == ExportJobStatus.FINALIZING else job.status
-    return {
-        "job_id": job.pk,
-        "search_type": job.search_type,
-        "index_set_ids": job.index_set_ids,
-        "status": "EXPIRED" if expired else visible_status,
-        "stage": stage,
-        "estimated_total": job.estimated_total,
-        "actual_total": job.actual_total,
-        "parts_total": total,
-        "parts_completed": success,
-        "percent": percent,
-        "plan_version": job.plan_version,
-        "requested_parallelism": job.requested_parallelism,
-        "error_code": error_code,
-        "error_message": ExportErrorCode.label(error_code),
-        "error_detail": job.error_detail,
-        "failed_part": _failed_part(failed_part),
-        "created_by": job.created_by,
-        "created_at": job.created_at,
-        "completed_at": job.completed_at,
-        "expires_at": job.expires_at,
-        "can_operate": job.created_by == current_username() and job.status not in TERMINAL,
-    }
-
-
-def job_results(job):
+def download_link(job, artifact_id):
+    """按需签发下载链接，有效期不超过产物的剩余保留时间。"""
     if job.status != ExportJobStatus.SUCCESS:
         raise ExportConflict("导出尚未完成")
     if job.expires_at is None or job.expires_at <= timezone.now():
         raise ExportExpired()
-    parts = list(ExportPart.objects.filter(job=job, status=ExportPartStatus.SUCCESS).order_by("start_time", "part_no"))
-    if not parts or not job.manifest_object_key:
-        raise ExportConflict("导出产物不完整")
-    result = {
-        "job_id": job.pk,
-        "search_type": job.search_type,
-        "index_set_ids": job.index_set_ids,
-        "estimated_total": job.estimated_total,
-        "actual_total": job.actual_total,
-        "expires_at": job.expires_at,
-        "manifest": {
-            "artifact_id": "manifest",
-            "compressed_bytes": job.manifest_bytes,
-            "checksum": job.manifest_checksum,
-            "checksum_algorithm": "sha256",
-        },
-        "parts": [
-            {
-                "artifact_id": str(part.pk),
-                "part_id": part.pk,
-                "part_no": part.part_no,
-                "start_time": part.start_time,
-                "end_time": part.end_time,
-                "oversized": part.oversized,
-                "actual_rows": part.actual_rows,
-                "actual_bytes": part.actual_bytes,
-                "compressed_bytes": part.compressed_bytes,
-                "checksum": part.checksum,
-            }
-            for part in parts
-        ],
-    }
-    if job.merged_object_key:
-        result["merged"] = {
-            "artifact_id": "full",
-            "compressed_bytes": job.merged_bytes,
-            "checksum": job.merged_checksum,
-            "checksum_algorithm": "sha256",
-        }
-    return result
-
-
-def download_link(job, artifact_id):
-    """按需签发下载链接，有效期不超过产物的剩余保留时间。"""
-    job_results(job)
     if artifact_id == "manifest":
         name = job.manifest_object_key
     elif artifact_id == "full":
@@ -292,7 +204,3 @@ def download_link(job, artifact_id):
     except Exception as error:  # pylint: disable=broad-except
         raise ExportStorageUnavailable() from error
     return {"url": url, "expires_at": timezone.now() + timedelta(seconds=ttl)}
-
-
-def cancel_job(job_id):
-    return job_detail(state.cancel_job(job_id))

@@ -440,25 +440,10 @@ class ViewSetActionEnum(ChoicesEnum):
     )
     # ============================= 分片异步导出-ExportJobViewSet =============================
     # 逐 action 显式指定 action_id: 缺省值会让整个 ViewSet 默认放行
-    EXPORT_JOB_VIEWSET_CREATE = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="ExportJobViewSet", view_action="create"
-    )
-    EXPORT_JOB_VIEWSET_LIST = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="ExportJobViewSet", view_action="list"
-    )
-    EXPORT_JOB_VIEWSET_RETRIEVE = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="ExportJobViewSet", view_action="retrieve"
-    )
-    EXPORT_JOB_VIEWSET_RESULTS = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="ExportJobViewSet", view_action="results"
-    )
     EXPORT_JOB_VIEWSET_DOWNLOAD_LINK = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
         view_set="ExportJobViewSet",
         view_action="download_link",
-    )
-    EXPORT_JOB_VIEWSET_CANCEL = ViewSetAction(
-        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="ExportJobViewSet", view_action="cancel"
     )
     # ======================================= 聚合-AggsViewSet =======================================
     AGGS_VIEWSET_TERMS = ViewSetAction(
@@ -732,12 +717,7 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_DELETE_CONFIG,
         SEARCH_VIEWSET_USER_CUSTOM_CONFIG,
         # ============================= 分片异步导出-ExportJobViewSet =============================
-        EXPORT_JOB_VIEWSET_CREATE,
-        EXPORT_JOB_VIEWSET_LIST,
-        EXPORT_JOB_VIEWSET_RETRIEVE,
-        EXPORT_JOB_VIEWSET_RESULTS,
         EXPORT_JOB_VIEWSET_DOWNLOAD_LINK,
-        EXPORT_JOB_VIEWSET_CANCEL,
         # ======================================= 聚合-AggsViewSet =======================================
         AGGS_VIEWSET_TERMS,
         AGGS_VIEWSET_DATE_HISTOGRAM,

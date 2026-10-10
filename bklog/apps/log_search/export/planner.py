@@ -29,7 +29,6 @@ from apps.api import UnifyQueryApi
 from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportSearchType
 from apps.log_search.export import state
 from apps.log_search.export.config import policy_from_snapshot
-from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.utils.log import logger
@@ -115,19 +114,6 @@ def sample_rows(handler, start, end, limit):
     result = UnifyQueryApi.query_ts_raw(params)
     # 复用 handler 的结果投影，保证采样口径与真实导出完全一致
     return [encode_export_row(row) for row in handler.project_export_rows(result)]
-
-
-def is_definitely_empty(handler, start, end):
-    """创建前只取一条；查询失败时拒绝创建，避免把无效查询交给异步任务。"""
-    params = _statistics_params(handler, start, end)
-    params["limit"] = 1
-    try:
-        result = UnifyQueryApi.query_ts_raw(params)
-    except Exception as error:  # pylint: disable=broad-except
-        raise PreCheckAsyncExportException(f"导出预检查查询失败：{error}") from error
-    if not isinstance(result, dict) or not isinstance(result.get("list"), list):
-        raise PreCheckAsyncExportException("导出预检查返回格式异常")
-    return not result["list"]
 
 
 def histogram(handler, start, end, interval):

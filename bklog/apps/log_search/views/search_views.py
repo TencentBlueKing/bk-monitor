@@ -67,6 +67,8 @@ from apps.log_search.exceptions import (
     BaseSearchIndexSetException,
     IndexSetDorisQueryException,
 )
+from apps.log_search.export import api as sharded_export_api
+from apps.log_search.export.config import is_sharded_export_enabled
 from apps.log_search.handlers.es.querystring_builder import QueryStringBuilder
 from apps.log_search.handlers.index_set import (
     IndexSetCustomConfigHandler,
@@ -126,7 +128,7 @@ from apps.log_unifyquery.handler.chart import UnifyQueryChartHandler
 from apps.log_unifyquery.handler.tail import UnifyQueryTailHandler
 from apps.utils.drf import detail_route, list_route
 from apps.utils.local import get_request_app_code, get_request_external_username, get_request_username
-from bkm_space.utils import space_uid_to_bk_biz_id
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 
 def _apply_index_set_search_bk_biz_id(index_set_obj, data, request=None):
@@ -857,6 +859,11 @@ class SearchViewSet(APIViewSet):
             data["is_desensitize"] = False
         else:
             data["is_desensitize"] = True
+
+        # 分片查询尚不支持自定义物理索引，指定 custom_indices 的请求沿用原链路。
+        if not is_quick_export and not data.get("custom_indices") and is_sharded_export_enabled(data.get("bk_biz_id")):
+            return self._sharded_export_from_data(data, index_set_id=index_set_id)
+
         notify_type_name = NotifyType.get_choice_label(
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
@@ -888,6 +895,19 @@ class SearchViewSet(APIViewSet):
                 ),
             }
         )
+
+    def _sharded_export_from_data(self, data, index_set_id=None, index_set_ids=None):
+        """把旧导出参数归一为标准分片导出参数并创建任务，返回带引擎标记的分流响应。"""
+        params = sharded_export_api.normalize_legacy_export_params(data)
+        params["space_uid"] = bk_biz_id_to_space_uid(data["bk_biz_id"])
+        if index_set_ids:
+            params["index_set_ids"] = index_set_ids
+            params["index_set_type"] = IndexSetType.UNION.value
+        else:
+            params["index_set_id"] = int(index_set_id)
+            params["index_set_type"] = IndexSetType.SINGLE.value
+        job = sharded_export_api.create_export_job(params, raw_params=data)
+        return Response({"task_id": job.pk, "engine": "sharded"})
 
     @list_route(methods=["POST"], url_path="union_async_export")
     def union_async_export(self, request, *args, **kwargs):
@@ -954,6 +974,13 @@ class SearchViewSet(APIViewSet):
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
         )
         is_quick_export = data.pop("is_quick_export")
+        # 联合检索任一索引集指定物理索引时，保留原链路的索引范围限制。
+        if (
+            not is_quick_export
+            and not any(config.get("custom_indices") for config in data.get("union_configs", []))
+            and is_sharded_export_enabled(data.get("bk_biz_id"))
+        ):
+            return self._sharded_export_from_data(data, index_set_ids=data["index_set_ids"])
         if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, data.get("bk_biz_id")):
             task_id, size = UnifyQueryUnionAsyncExportHandlers(
                 index_set_ids=data["index_set_ids"],

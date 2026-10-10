@@ -119,6 +119,6 @@ def policy_from_snapshot(snapshot):
     return _validated_policy(snapshot)
 
 
-def is_enabled(bk_biz_id=None):
+def is_sharded_export_enabled(bk_biz_id=None):
     """仅用于决定新请求是否进入分片导出链路。"""
     return FeatureToggleObject.switch(FEATURE_ASYNC_EXPORT_SHARDED, biz_id=bk_biz_id, default=False)

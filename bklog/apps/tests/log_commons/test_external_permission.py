@@ -2,6 +2,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from django.test import SimpleTestCase, TestCase
+from django.urls import Resolver404, resolve
 from django.utils import timezone
 
 from apps.constants import ExternalPermissionActionEnum, TokenStatusEnum
@@ -147,7 +148,7 @@ class TestExportJobViewSetExternalContract(SimpleTestCase):
 
     LOG_SEARCH = ExternalPermissionActionEnum.LOG_SEARCH.value
     # view_action 是 ViewSet 的方法名，不是 url_path
-    VIEW_ACTIONS = ["create", "list", "retrieve", "results", "download_link", "cancel"]
+    VIEW_ACTIONS = ["download_link"]
 
     def test_all_view_actions_are_valid_for_log_search(self):
         for view_action in self.VIEW_ACTIONS:
@@ -168,15 +169,8 @@ class TestExportJobViewSetExternalContract(SimpleTestCase):
 
     def test_registered_view_actions_match_route_actions(self):
         """登记项必须与路由实际反查出的 view_set/view_action 一致，否则代理层仍然 403"""
-        from django.urls import resolve
-
         for path, method, view_action in [
-            ("/api/v1/search/export_jobs/", "post", "create"),
-            ("/api/v1/search/export_jobs/", "get", "list"),
-            ("/api/v1/search/export_jobs/1/", "get", "retrieve"),
-            ("/api/v1/search/export_jobs/1/results/", "get", "results"),
             ("/api/v1/search/export_jobs/1/download_link/", "get", "download_link"),
-            ("/api/v1/search/export_jobs/1/cancel/", "post", "cancel"),
         ]:
             with self.subTest(path=path, method=method):
                 view_func = resolve(path).func
@@ -184,24 +178,24 @@ class TestExportJobViewSetExternalContract(SimpleTestCase):
                 self.assertEqual(view_func.actions.get(method), view_action)
 
     def test_unregistered_view_action_is_rejected(self):
-        self.assertFalse(
-            ExternalPermission.is_action_valid(
-                view_set="ExportJobViewSet", view_action="partial_update", action_id=self.LOG_SEARCH
-            )
-        )
+        for view_action in ["create", "list", "retrieve", "results", "cancel", "partial_update"]:
+            with self.subTest(view_action=view_action):
+                self.assertFalse(
+                    ExternalPermission.is_action_valid(
+                        view_set="ExportJobViewSet", view_action=view_action, action_id=self.LOG_SEARCH
+                    )
+                )
 
-    def test_create_resolves_index_set_from_body(self):
-        """创建任务时转发入口能从 body 解析出索引集，实例级校验不会被跳过"""
-        from log_adapter.home.views import RequestProcessor
-
-        self.assertEqual(
-            RequestProcessor.get_resource(
-                action_id=self.LOG_SEARCH,
-                kwargs={},
-                json_data_str='{"space_uid": "bkcc__2", "index_set_id": 1001}',
-            ),
-            1001,
-        )
+    def test_removed_routes_are_not_exposed(self):
+        for path in [
+            "/api/v1/search/export_jobs/",
+            "/api/v1/search/export_jobs/1/",
+            "/api/v1/search/export_jobs/1/results/",
+            "/api/v1/search/export_jobs/1/cancel/",
+        ]:
+            with self.subTest(path=path):
+                with self.assertRaises(Resolver404):
+                    resolve(path)
 
     def test_detail_route_cannot_resolve_index_set(self):
         """详情类路由的 pk 是任务ID，转发入口解析不出索引集，收敛只能依赖视图内的创建者过滤"""

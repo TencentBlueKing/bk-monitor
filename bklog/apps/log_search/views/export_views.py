@@ -19,20 +19,15 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-"""分片异步导出的 Web 接口；既有 AsyncTask 导出路由保持原契约。"""
-
-from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.generic import APIViewSet
 from apps.iam import ActionEnum, ResourceEnum
 from apps.iam.handlers.drf import PlatformAwareIndexSearchPermission, ViewBusinessPermission
-from apps.log_search.export import api, state
+from apps.log_search.export import api
 from apps.log_search.export.models import ExportJob
 from apps.log_search.export.serializers import (
-    ExportCreateSerializer,
     ExportLinkSerializer,
-    ExportListSerializer,
     ExportScopeSerializer,
 )
 from apps.utils.drf import detail_route
@@ -56,23 +51,6 @@ class ExportIndexSearchPermission(PlatformAwareIndexSearchPermission):
         return self._instance_id
 
 
-class ExportCreateIndexSearchPermission(ExportIndexSearchPermission):
-    def has_permission(self, request, view):
-        ids = request.data.get("index_set_ids")
-        if ids is None:
-            ids = [request.data.get("index_set_id")]
-        if (
-            not isinstance(ids, list)
-            or not ids
-            or any(
-                isinstance(index_set_id, bool) or not str(index_set_id).isdigit() or int(index_set_id) < 1
-                for index_set_id in ids
-            )
-        ):
-            return True  # 非法参数交给序列化器返回具体错误
-        return self.check_index_sets(request, view, dict.fromkeys(int(index_set_id) for index_set_id in ids))
-
-
 class ExportJobIndexSearchPermission(ExportIndexSearchPermission):
     """详情类接口的索引集列表取自任务快照，而不是请求参数。"""
 
@@ -89,9 +67,6 @@ class ExportJobViewSet(APIViewSet):
     lookup_value_regex = "[0-9]+"
 
     def get_permissions(self):
-        if self.action == "create":
-            return [ExportCreateIndexSearchPermission()]
-        # 详情类接口按任务保存的索引集复核检索权限，不能只凭 Job ID 读到别人的产物
         return [ViewBusinessPermission(), ExportJobIndexSearchPermission()]
 
     def get_queryset(self):
@@ -103,35 +78,7 @@ class ExportJobViewSet(APIViewSet):
             queryset = queryset.filter(created_by=external_username)
         return queryset
 
-    def list(self, request):
-        data = self.valid_serializer(ExportListSerializer).validated_data
-        queryset = self.get_queryset().annotate(**state.leaf_counts_annotation()).order_by("-created_at", "-pk")
-        offset = (data["page"] - 1) * data["limit"]
-        results = [api.job_detail(job) for job in queryset[offset : offset + data["limit"]]]
-        return Response({"page": data["page"], "limit": data["limit"], "results": results})
-
-    def create(self, request):
-        data = self.valid_serializer(ExportCreateSerializer).validated_data
-        return Response(api.job_detail(api.create_export_job(data)))
-
-    def retrieve(self, request, pk=None):
-        self.valid_serializer(ExportScopeSerializer)
-        return Response(api.job_detail(self.get_object()))
-
-    @detail_route(methods=["GET"])
-    def results(self, request, pk=None):
-        self.valid_serializer(ExportScopeSerializer)
-        return Response(api.job_results(self.get_object()))
-
     @detail_route(methods=["GET"])
     def download_link(self, request, pk=None):
         data = self.valid_serializer(ExportLinkSerializer).validated_data
         return Response(api.download_link(self.get_object(), data["artifact_id"]))
-
-    @detail_route(methods=["POST"])
-    def cancel(self, request, pk=None):
-        self.valid_serializer(ExportScopeSerializer)
-        job = self.get_object()
-        if job.created_by != api.current_username():
-            raise PermissionDenied("只有任务创建者可以操作该任务")
-        return Response(api.cancel_job(job.pk))

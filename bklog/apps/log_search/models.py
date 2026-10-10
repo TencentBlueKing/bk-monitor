@@ -51,6 +51,7 @@ from apps.log_search.constants import (
     DEFAULT_INDEX_SET_FIELDS_CONFIG_NAME,
     DEFAULT_TIME_FIELD,
     ExportJobStatus,
+    ExportSearchType,
     ExportStatus,
     ExportType,
     INDEX_SET_NO_DATA_CHECK_INTERVAL,
@@ -1784,8 +1785,13 @@ class AsyncTask(OperateRecordModel):
             qs = qs.exclude(scenario_id=ASYNC_EXPORT_SCENE_ID)
 
         running_count = qs.filter(Q(export_status__in=running_status) | Q(export_status__isnull=True)).count()
-        # 新旧链路共用同一个用户级并发额度：分片导出任务也计入未完成的导出数
-        running_count += ExportJob.objects.filter(created_by=username, status__in=ExportJobStatus.ACTIVE).count()
+
+        export_job_qs = ExportJob.objects.filter(created_by=username, status__in=ExportJobStatus.ACTIVE)
+        if is_scene:
+            export_job_qs = export_job_qs.filter(search_type=ExportSearchType.SCENE)
+        else:
+            export_job_qs = export_job_qs.exclude(search_type=ExportSearchType.SCENE)
+        running_count += export_job_qs.count()
         if running_count >= settings.MAX_CONCURRENT_EXPORT_TASKS:
             raise ConcurrentExportLimitException(
                 ConcurrentExportLimitException.MESSAGE.format(limit_count=settings.MAX_CONCURRENT_EXPORT_TASKS)

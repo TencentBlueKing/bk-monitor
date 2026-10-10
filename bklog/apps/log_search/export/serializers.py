@@ -22,50 +22,8 @@ the project delivered to anyone in the future.
 from rest_framework import serializers
 
 
-class ExportAdditionSerializer(serializers.Serializer):
-    """搜索条件字段：与旧导出链路保持一致的宽松契约，不对取值的具体类型做额外限制。"""
-
-    field = serializers.CharField()
-    operator = serializers.CharField()
-    value = serializers.JSONField()
-
-
-class ExportCreateSerializer(serializers.Serializer):
-    space_uid = serializers.CharField(max_length=256)
-    index_set_id = serializers.IntegerField(min_value=1, required=False)
-    index_set_ids = serializers.ListField(
-        child=serializers.IntegerField(min_value=1), allow_empty=False, required=False
-    )
-    start_time = serializers.IntegerField(label="起始时间（毫秒时间戳）", min_value=0)
-    end_time = serializers.IntegerField(label="结束时间（毫秒时间戳）", min_value=1)
-    keyword = serializers.CharField(default="*", allow_blank=True)
-    addition = ExportAdditionSerializer(many=True, default=list)
-    ip_chooser = serializers.DictField(default=dict)
-    sort_list = serializers.ListField(child=serializers.ListField(child=serializers.CharField()), default=list)
-    export_fields = serializers.ListField(child=serializers.CharField(), default=list)
-    requested_parallelism = serializers.IntegerField(min_value=1, required=False)
-
-    def validate_sort_list(self, value):
-        if any(len(item) != 2 or item[1] not in {"asc", "desc"} for item in value):
-            raise serializers.ValidationError("排序字段格式应为 [字段, asc|desc]")
-        return value
-
-    def validate(self, attrs):
-        if ("index_set_id" in attrs) == ("index_set_ids" in attrs):
-            raise serializers.ValidationError("index_set_id 与 index_set_ids 必须且只能传一个")
-        attrs["index_set_ids"] = sorted(set(attrs.get("index_set_ids", [attrs.get("index_set_id")])))
-        if attrs["end_time"] <= attrs["start_time"]:
-            raise serializers.ValidationError("导出时间范围不合法")
-        return attrs
-
-
 class ExportScopeSerializer(serializers.Serializer):
     space_uid = serializers.CharField(max_length=256)
-
-
-class ExportListSerializer(ExportScopeSerializer):
-    page = serializers.IntegerField(min_value=1, default=1)
-    limit = serializers.IntegerField(min_value=1, max_value=100, default=20)
 
 
 class ExportLinkSerializer(ExportScopeSerializer):
