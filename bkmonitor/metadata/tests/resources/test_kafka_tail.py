@@ -129,13 +129,15 @@ def test_kafka_python_tail_does_not_use_sample_size_as_poll_timeout(mocker, kafk
 
 
 @pytest.mark.parametrize("namespace", ["bkmonitor", "bklog"])
-def test_custom_format_tail_uses_registered_data_id_config(mocker, namespace):
+@pytest.mark.parametrize("etl_config", [EtlConfigs.BK_CUSTOM_FORMAT.value, EtlConfigs.BK_STANDARD_V2_EVENT.value])
+def test_custom_format_tail_uses_registered_data_id_config(mocker, namespace, etl_config):
     datasource = SimpleNamespace(
         bk_data_id=BK_DATA_ID,
         mq_cluster_id=1,
         datalink_version=DATA_LINK_V4_VERSION_NAME,
-        etl_config=EtlConfigs.BK_CUSTOM_FORMAT.value,
+        etl_config=etl_config,
     )
+    namespace = "bklog" if etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value else namespace
     result_table = SimpleNamespace(table_id="custom_format.result_table")
     dsrt_queryset = mocker.MagicMock()
     dsrt_queryset.first.return_value = SimpleNamespace(table_id=result_table.table_id)

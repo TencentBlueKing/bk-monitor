@@ -127,7 +127,7 @@ def test_compose_names_keep_hint_random_suffix_and_short_length():
         name="cpu-usage.with/slashes-and-very-long-name",
         random_suffix="abcdef12",
     )
-    result_table_config_name = RecordRuleV4OutputResources.compose_result_table_config_name(table_id)
+    result_table_config_name = RecordRuleV4OutputResources.generate_result_table_config_name(123)
     flow_name = RecordRuleV4.compose_flow_name(
         pk=123,
         name="cpu-usage.with/slashes-and-very-long-name",
@@ -146,7 +146,7 @@ def test_compose_names_keep_hint_random_suffix_and_short_length():
     assert len(group_flow_name) <= 50
     assert table_base_name.startswith("bkm_rr_123_cpu_usage")
     assert table_id.endswith("_abcdef12.__default__")
-    assert result_table_config_name.startswith("bkm_bkm_rr_123_cpu_usage")
+    assert result_table_config_name.startswith("bkm_rr_123_")
     assert "abcdef12" in flow_name
     assert "abcdef12" in group_flow_name
 
