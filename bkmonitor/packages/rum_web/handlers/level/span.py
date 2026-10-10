@@ -405,6 +405,33 @@ class SpanLevelHandler(BaseRumLevelHandler):
         related_spans = self._query_related_spans(span)
         return build_span_detail(span, related_spans)
 
+    def statistics(
+        self,
+        start_time: int | None,
+        end_time: int | None,
+        field: str,
+        cal_type: str,
+        baseline: str,
+        time_shifts: list[str],
+        group_by: list[str] | None = None,
+        interval: int | None = None,
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
+        extra_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        return self.query.statistics(
+            start_time=start_time,
+            end_time=end_time,
+            field=field,
+            cal_type=cal_type,
+            baseline=baseline,
+            time_shifts=time_shifts,
+            group_by=group_by,
+            interval=interval,
+            filters=filters,
+            query_string=query_string,
+        )
+
     # ---- 内部工具方法 ----
 
     def _query_related_spans(self, span: dict[str, Any]) -> list[dict[str, Any]]:

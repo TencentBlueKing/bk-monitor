@@ -932,19 +932,19 @@ POST /rum/search/statistics/
 | app_name     | string        | 是   | 应用名称                                                                                                                         |
 | mode | String | 否 | 查询层级模式，可选 `span`、`view`、`session`，默认 `span` |
 | group_name   | string        | 是   | 计算组，可选 `origin`（原始字段）。                                                                                              |
-| cal_type     | string        | 是   | 指标计算类型，可选 `count`（计数）、`sum`（求和）、`distinct`（取重计数）、`max`（最大值）、`min`（最小值）、`avg`（平均值）     |
-| field        | Field         | 是   | 计算字段，例如 `attributes.user.id`。                                                                                            |
+| cal_type     | string        | 是   | 指标计算类型，可选 `count`（计数）、`sum`（求和）、`distinct`（去重计数）、`max`（最大值）、`min`（最小值）、`avg`（平均值）     |
+| field        | string         | 是   | 计算字段，例如 `attributes.user.id`。                                                                                            |
 | start_time   | int           | 否   | 开始时间（Unix 时间戳，秒）                                                                                                      |
 | end_time     | int           | 否   | 结束时间（Unix 时间戳，秒）                                                                                                      |
-| baseline     | string        | 否   | 对比基准时间偏移，默认 `0s`，表示当前时间                                                                                        |
-| time_shifts  | List[string]  | 否   | 时间偏移列表，支持 `1d`（1 天前）、`1w`（1 周前）、`1d`（1 天前）、`1w`（一周前）、`1M`（一月前）等格式，最多支持 2 个对比时间点 |
+| baseline     | string        | 否   | 对比基准时间偏移，默认 `0s`，表示当前查询窗口                                                                                        |
+| time_shifts  | List[string]  | 否   | 时间偏移列表，支持 `1h`（1 小时前）、`1d`（1 天前）、`1w`（1 周前）、`1M`（一月前）等格式，最多支持 2 个对比时间点 |
 | filters      | Array[Filter] | 否   | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                                                                    |
 | query_string | String        | 否   | 查询字符串，默认 `""`                                                                                                            |
-| group_by     | List[string]  | 否   | 分组字段列表，用于维度聚合                                                                                                       |
-| interval | Integer | 否 | 时间分桶间隔（秒），正整数，与 `group_by` 中的 `time` 配合使用，不传时统计整个范围 |
+| group_by     | List[string]  | 否   | 分组字段；包含 `time` 时按 `interval` 分桶（`time` 为虚拟字段）                                                                                                       |
+| interval | Integer | 否 | 分桶间隔（秒），正整数，仅在 `group_by` 含 `time` 时生效，缺省时按查询窗口自动计算；每个窗口最多 10000 个桶 |
 
 
-例如，查询某个错误影响用户数，并返回比：
+例如，查询某个错误影响用户数，并返回相对前一个窗口的环比：
 
 ```json
 {
@@ -952,7 +952,7 @@ POST /rum/search/statistics/
     "app_name": "trpc-cluster-access-demo",
     "mode": "span",
     "group_name": "origin",
-    "cal_type": "count",
+    "cal_type": "distinct",
     "field": "attributes.user.id",
     "baseline": "0s",
     "filters": [
@@ -996,10 +996,6 @@ POST /rum/search/statistics/
       "growth_rates": {
         "0s": 0,
         "1h": 20
-      },
-      "proportions": {
-        "0s": 100,
-        "1h": 100
       }
     }
   ]

@@ -9,15 +9,21 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
+from functools import partial
 from typing import Any
+
+from django.utils.translation import gettext_lazy as _
+from rest_framework.exceptions import ValidationError
 
 from core.drf_resource import api
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.utils.base import get_bar_interval_number, DataSourceTarget
-from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.data_source.utils.statistics import merge_records, process_growth_rates, process_proportions
+from bkmonitor.utils.thread_backend import ThreadPool, InheritParentThread, run_threads
+from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
 from bkmonitor.data_source.utils import types
-from constants.otel_query import FieldTypeEnum
+from constants.otel_query import FieldTypeEnum, AggregatedMethod
 
 
 class BaseQuery:
@@ -28,6 +34,10 @@ class BaseQuery:
 
     # 枚举查询上限
     QUERY_MAX_LIMIT = 10000
+
+    # group_by 中的虚拟字段，表示按 interval 分桶。
+    TIME_BUCKET_FIELD = "time"
+    MAX_TIME_BUCKETS = 10000
 
     # 时间字段精度，用于时间字段查询时做乘法（秒 -> 毫秒）
     TIME_FIELD_ACCURACY = 1000
@@ -40,6 +50,12 @@ class BaseQuery:
 
     # 字段操作符映射，{field_type: operations}
     FIELD_OPERATIONS: dict[str, list[dict[str, Any]]] = {}
+
+    # 参与求和的每个字段占一个引用别名。
+    METRIC_ALIASES: tuple[str, ...] = tuple(f"q{index}" for index in range(8))
+
+    # 时序图展示的曲线数上限
+    SERIES_LIMIT = 20
 
     def __init__(self, data_sources: list[DataSourceTarget]):
         self.data_sources = data_sources
@@ -494,3 +510,154 @@ class BaseQuery:
                 "end_time": end_time,
             }
         ).get("data", [])
+
+    @classmethod
+    def _metric_queries(
+        cls,
+        queries: list[QueryConfigBuilder],
+        fields: list[str],
+        method: str,
+        group_by: list[str],
+    ) -> list[QueryConfigBuilder]:
+        """一个字段一个引用；应用配置了多个结果表时，每个结果表各出一个。"""
+        return [
+            query.alias(alias).metric(field=field, method=method, alias=alias).group_by(*group_by)
+            for alias, field in zip(cls.METRIC_ALIASES, fields)
+            for query in queries
+        ]
+
+    @classmethod
+    def _sum_expression(cls, fields: list[str]) -> str:
+        aliases: tuple[str, ...] = cls.METRIC_ALIASES[: len(fields)]
+        if len(aliases) == 1:
+            return aliases[0]
+        return " + ".join(
+            "({} or {})".format(alias, " or ".join(f"{other} * 0" for other in aliases if other != alias))
+            for alias in aliases
+        )
+
+    def _query_fields_aggregated_group(
+        self,
+        queries: list[QueryConfigBuilder],
+        start_time: int | None,
+        end_time: int | None,
+        fields: list[str],
+        method: str,
+        group_by: list[str] | None = None,
+        interval: int | None = None,
+    ) -> list[dict[str, Any]]:
+        group_by = group_by or []
+        if not group_by and len(fields) == 1:
+            # 无维度的单字段聚合直接用标量查询：它额外处理了多结果表下
+            # DISTINCT 需枚举合并去重的情况，分组查询替代不了。
+            value = self._query_field_aggregated_value(queries, start_time, end_time, fields[0], method)
+            return [{"_result_": value or 0}]
+
+        time_agg = False
+        instant = True
+        expression: str = self._sum_expression(fields)
+        if self.TIME_BUCKET_FIELD in group_by:
+            group_by = [field_name for field_name in group_by if field_name != self.TIME_BUCKET_FIELD]
+            if interval is None:
+                # 时间分桶间隔未显式指定时基于实际查询窗口计算；
+                # start_time / end_time 缺省时按保留期补齐，避免 None 进入运算导致 TypeError
+                resolved_start, resolved_end = self._get_time_range(start_time, end_time)
+                interval = get_bar_interval_number(resolved_start // 1000, resolved_end // 1000)
+            queries = [q.interval(interval) for q in queries]
+            time_agg = True
+            instant = False
+
+        qs = (
+            self.get_qs(start_time, end_time)
+            .expression(f"topk({self.SERIES_LIMIT}, {expression})" if not instant and group_by else expression)
+            .time_agg(time_agg)
+            .instant(instant)
+            .limit(1 if instant and not group_by else self.QUERY_MAX_LIMIT)
+        )
+        return list(self._add_query(qs, self._metric_queries(queries, fields, method, group_by)))
+
+    @classmethod
+    def _format_statistics_value(cls, cal_type: str, value: Any) -> float | int:
+        """统一统计数值的展示形态（与 APM CalculateByRangeResource._merge 对齐）。
+
+        - count 类聚合结果必须为整型；
+        - 其余聚合结果保留 2 位小数，避免浮点精度噪声。
+        """
+        try:
+            value = float(value)
+        except (TypeError, ValueError):
+            value = 0
+
+        if cal_type == AggregatedMethod.COUNT.value:
+            return int(value)
+        return round(value, 2)
+
+    @classmethod
+    def validate_statistics_interval(cls, start_time: int, end_time: int, interval: int) -> None:
+        """限制单个统计窗口的时间桶数量，时间参数为秒。"""
+        if interval < 1 or (end_time - start_time + interval - 1) // interval > cls.MAX_TIME_BUCKETS:
+            raise ValidationError(_("时间分桶过多，请调大 interval"))
+
+    def _statistics(
+        self,
+        queries: list[QueryConfigBuilder],
+        start_time: int | None,
+        end_time: int | None,
+        field: str,
+        cal_type: str,
+        baseline: str,
+        time_shifts: list[str],
+        group_by: list[str] | None = None,
+        interval: int | None = None,
+    ) -> dict[str, Any]:
+        """数据统计：查询各偏移窗口并对齐时间桶，再合并维度计算增长率和占比。
+
+        先按保留期补齐基准窗口，再整体平移各偏移窗口。group_by 含 time 时启用时间分桶，
+        interval 缺省时按基准窗口自动计算；count 聚合额外计算各时间偏移下的分组占比。
+        """
+        group_by = group_by or []
+        start_ms, end_ms = self._get_time_range(start_time, end_time)
+        start_seconds, end_seconds = start_ms // 1000, end_ms // 1000
+        if self.TIME_BUCKET_FIELD in group_by:
+            if interval is None:
+                interval = get_bar_interval_number(start_seconds, end_seconds)
+            self.validate_statistics_interval(start_seconds, end_seconds, interval)
+        # 预先登记所有别名，某个窗口查询失败时仍保留缺失值，避免增长率计算抛 KeyError。
+        alias_records_map: dict[str, list[dict[str, Any]]] = {time_shift: [] for time_shift in time_shifts}
+
+        def _collect(time_shift: str) -> None:
+            # 1d 解析为 -86400，查询窗口整体回退到前一天。
+            offset_seconds = parse_time_compare_abbreviation(time_shift)
+            records = self._query_fields_aggregated_group(
+                queries,
+                start_seconds + offset_seconds,
+                end_seconds + offset_seconds,
+                [field],
+                cal_type,
+                group_by=group_by,
+                interval=interval,
+            )
+            for record in records:
+                if "_time_" in record:
+                    # 桶时间对齐回基准窗口，合并逻辑无需感知时间偏移。
+                    record["_time_"] -= offset_seconds * 1000
+            alias_records_map[time_shift] = records
+
+        run_threads(
+            [
+                InheritParentThread(
+                    target=_collect,
+                    args=(time_shift,),
+                )
+                for time_shift in time_shifts
+            ]
+        )
+
+        merged_records: list[dict[str, Any]] = merge_records(
+            group_by, alias_records_map, partial(self._format_statistics_value, cal_type)
+        )
+        process_growth_rates(baseline, time_shifts, merged_records)
+        if cal_type == AggregatedMethod.COUNT.value:
+            process_proportions(time_shifts, merged_records)
+
+        return {"total": len(merged_records), "data": merged_records}

@@ -80,6 +80,22 @@ class TestBaseRumLevelHandler:
             def generate_query_string(self, filters, extra_config=None):
                 return ""
 
+            def statistics(
+                self,
+                start_time,
+                end_time,
+                field,
+                cal_type,
+                baseline,
+                time_shifts,
+                group_by=None,
+                interval=None,
+                filters=None,
+                query_string="",
+                extra_config=None,
+            ):
+                return {}
+
         handler = _MinimalHandler(data_sources)
         assert handler.data_sources is data_sources
 
@@ -329,6 +345,31 @@ class TestSpanLevelHandlerMethods:
         field_percent_val = result["field_percent"]
         assert field_percent_val < 100, f"field_percent 应 < 100，实际为 {field_percent_val}"
         assert abs(field_percent_val - 70.0) < 0.1, f"field_percent 应约为 70%，实际为 {field_percent_val}"
+
+
+class TestSpanStatistics:
+    """Level 层只负责统计参数透传。"""
+
+    @pytest.mark.parametrize("group_by,interval", [([], None), (["service"], None), (["time"], 3600)])
+    def test_statistics_forwards_parameters(self, group_by, interval):
+        handler = SpanLevelHandler([_make_target()])
+        params = {
+            "start_time": 1000,
+            "end_time": 2000,
+            "field": "attributes.user.id",
+            "cal_type": "distinct",
+            "baseline": "0s",
+            "time_shifts": ["0s", "1d"],
+            "group_by": group_by,
+            "interval": interval,
+            "filters": [{"key": "attributes.span_type", "operator": "equal", "value": ["error"]}],
+            "query_string": "attributes.error.name: TypeError",
+        }
+        expected = {"total": 0, "data": []}
+        with patch.object(handler.query, "statistics", return_value=expected) as statistics:
+            result = handler.statistics(**params)
+        statistics.assert_called_once_with(**params)
+        assert result is expected
 
 
 class TestSpanRecordDetail:
