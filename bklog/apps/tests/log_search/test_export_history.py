@@ -222,6 +222,12 @@ class ExportJobDetailTests(TestCase):
                 "apps.log_search.views.export_views.ExportJobIndexSearchPermission.has_object_permission",
                 return_value=True,
             ),
+            # 业务访问权限与索引集检索权限都是对象级校验；本地 .env 的 IGNORE_IAM_PERMISSION 会跳过它们，
+            # CI 未开启该开关时会真实调用 IAM 后端，这里同样 mock 掉以聚焦详情接口本身的逻辑。
+            patch(
+                "apps.log_search.views.export_views.ViewBusinessPermission.has_object_permission",
+                return_value=True,
+            ),
         ):
             return view.retrieve(request).data
 
