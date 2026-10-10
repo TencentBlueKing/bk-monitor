@@ -31,11 +31,15 @@
 /** 数据来源类型 */
 export type DataSource = 'task' | 'report';
 
+/** 单次批量下载允许选择的最多任务数 */
+export const MAX_BATCH_DOWNLOAD_TASKS = 20;
+
 /** 任务处理状态 */
 export type ProcessStatus = 'init' | 'pending' | 'running' | 'success' | 'failed';
 
 /** 单个日志条目类型 */
 export interface LogItem {
+  selectionKey: string; // 前端入列时生成的唯一标识，用于勾选和列表渲染
   source: DataSource; // 数据来源：task 表示日志捞取任务，report 表示用户上报
   id: number | null; // 任务实例 ID，仅 source=task 时有值
   task_id: string | null; // 后台任务 ID，仅 source=task 时有值
