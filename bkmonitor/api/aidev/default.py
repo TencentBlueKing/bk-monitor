@@ -13,9 +13,12 @@ from json import JSONDecodeError
 
 from django.conf import settings
 from django.http import StreamingHttpResponse
+from django.utils.translation import gettext as _
+from requests.exceptions import RequestException
 from rest_framework import serializers
 
 from core.drf_resource import APIResource
+from core.errors.api import BKAPIError
 
 
 class AidevAPIGWResource(APIResource):
@@ -36,6 +39,74 @@ class AidevAPIGWResource(APIResource):
         headers["x-bkapi-authorization"] = json.dumps(authorization)
 
         return headers
+
+
+class AidevPrivateAPIGWResource(APIResource):
+    """使用 BKM 应用凭据和当前用户登录态调用 AIDEV 用户态接口。"""
+
+    base_url = settings.AIDEV_API_BASE_URL
+    module_name = "aidev"
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    def perform_request(self, validated_request_data):
+        try:
+            return super().perform_request(validated_request_data)
+        except RequestException as error:
+            # 基类只处理了 ReadTimeout，连接失败一类的网络异常仍会裸抛。
+            self.report_api_failure_metric(error_code=getattr(error, "code", 0), exception_type=type(error).__name__)
+            raise BKAPIError(
+                system_name=self.module_name,
+                url=self.action,
+                result=_("AIDEV 接口请求失败"),
+            ) from error
+
+
+class ListAgentsResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV Agent。"""
+
+    action = "/openapi/aidev/private/v1/agents/"
+    method = "GET"
+
+    class RequestSerializer(serializers.Serializer):
+        space_id = serializers.CharField(required=False, default="all")
+        fuzzy = serializers.CharField(required=False, allow_blank=True)
+        page = serializers.IntegerField(required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=200)
+
+
+class ListSpacesResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV 空间。"""
+
+    action = "/openapi/aidev/private/v1/spaces/"
+    method = "GET"
+
+
+class ListSkillsResource(AidevPrivateAPIGWResource):
+    """获取当前用户有权限的 AIDEV Skill。"""
+
+    action = "/openapi/aidev/private/v1/skills/"
+    method = "GET"
+
+    class RequestSerializer(ListAgentsResource.RequestSerializer):
+        pass
+
+
+class ListKnowledgeBasesResource(AidevPrivateAPIGWResource):
+    """获取当前用户在指定 AIDEV 空间内有权限的知识库。"""
+
+    action = "/openapi/aidev/private/v1/knowledgebase/list/"
+    method = "POST"
+
+    class RequestSerializer(serializers.Serializer):
+        # 上游要求 space_id 必填，聚合调用方会传入当前用户可见的具体空间 ID。
+        space_id = serializers.CharField(required=True, allow_blank=False)
+        fuzzy = serializers.CharField(required=False, allow_blank=True)
+        name = serializers.CharField(required=False, allow_blank=True)
+        knowledgebase_code = serializers.CharField(required=False, allow_blank=True)
+        page = serializers.IntegerField(required=False, default=1, min_value=1)
+        page_size = serializers.IntegerField(required=False, default=20, min_value=1, max_value=200)
+        order_by = serializers.CharField(required=False, default="name", allow_blank=False)
+        with_private = serializers.BooleanField(required=False, default=True)
 
 
 class ChatCompletionResource(AidevAPIGWResource):

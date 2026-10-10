@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 import time
-import uuid
 
 from django_elasticsearch_dsl.registries import registry
 from elasticsearch_dsl import MetaField, field
@@ -19,6 +18,8 @@ from elasticsearch_dsl import MetaField, field
 from bkmonitor.documents.base import BaseDocument, BulkActionType, Date, Flattened
 from bkmonitor.documents.constants import ES_INDEX_SETTINGS
 from bkmonitor.issue_merge import IssueMergeResolver
+from bkmonitor.utils.issue_id import generate_issue_style_id
+from bkmonitor.utils.issue_id import parse_timestamp_by_id as _parse_timestamp_by_id
 from constants.issue import IssueActivityType, IssueStatus
 
 logger = logging.getLogger("fta_action.issue")
@@ -93,12 +94,11 @@ class IssueDocument(BaseDocument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.id is None:
-            now = int(time.time()) if self.create_time is None else int(self.create_time)
-            self.id = f"{now}{uuid.uuid4().hex[:8]}"
+            self.id = generate_issue_style_id(self.create_time)
 
     @classmethod
     def parse_timestamp_by_id(cls, issue_id: str) -> int:
-        return int(str(issue_id)[:10])
+        return _parse_timestamp_by_id(issue_id)
 
     def get_index_time(self):
         if self.create_time:
@@ -1003,13 +1003,12 @@ class IssueActivityDocument(BaseDocument):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.id is None:
-            now = int(time.time()) if self.create_time is None else int(self.create_time)
-            self.id = f"{now}{uuid.uuid4().hex[:8]}"
+            self.id = generate_issue_style_id(self.create_time)
 
     def get_index_time(self):
         if self.create_time:
             return int(self.create_time)
-        return int(str(self.id)[:10])
+        return _parse_timestamp_by_id(self.id)
 
 
 class IssueMigrationError(Exception):

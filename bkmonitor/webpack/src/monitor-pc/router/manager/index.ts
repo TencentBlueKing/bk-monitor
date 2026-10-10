@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import aiConfigRoutes from './ai-config';
 import aiSettingsRoutes from './ai-settings';
 import alarmDispath from './alarm-dispath';
 import alarmGroupRoutes from './alarm-group';
@@ -41,6 +42,7 @@ export default [
   ...metricsManagerRoutes,
   ...alarmDispath,
   ...aiSettingsRoutes,
+  ...aiConfigRoutes,
   ...rotationRoutes,
   ...newReportRoutes,
 ];

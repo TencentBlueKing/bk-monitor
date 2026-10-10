@@ -32,11 +32,12 @@ import { storeToRefs } from 'pinia';
 import { appendQueryStringCondition } from 'trace/components/retrieval-filter/query-string-utils';
 import { type IWhereItem, EMode } from 'trace/components/retrieval-filter/typing';
 
+import { DetailLoadStatus } from '../../common-detail/detail-loading';
 import IssuesImpactScopeDrawer from '../components/issues-impact-scope-drawer/issues-impact-scope-drawer';
+import { useIssuesAiAnalysis } from '../composables/use-issues-ai-analysis';
+import IssuesLoading from './components/issues-loading';
 import IssuesSliderHeader from './components/issues-slider-header';
 import IssuesSliderWrapper from './components/issues-slider-wrapper';
-import IssuesLoading from './components/issues-loading';
-import { DetailLoadStatus } from '../../common-detail/detail-loading';
 import RefreshRate from '@/components/refresh-rate/refresh-rate';
 import { mergeWhereList } from '@/components/retrieval-filter/utils';
 import TimeRange from '@/components/time-range/time-range';
@@ -79,7 +80,9 @@ export default defineComponent({
   emits: ['update:show', 'next', 'previous', 'createTapd'],
   setup(props, { emit }) {
     const issuesDetailStore = useIssuesDetailStore();
-    const { bizId, issueId, detail, loading, error, timeRange, timezone, refreshInterval } = storeToRefs(issuesDetailStore);
+    const { clearSetTimeout } = useIssuesAiAnalysis();
+    const { bizId, issueId, detail, loading, error, timeRange, timezone, refreshInterval } =
+      storeToRefs(issuesDetailStore);
     const isFullscreen = shallowRef(false);
     let timer = null;
     const refreshKey = shallowRef(0);
@@ -119,6 +122,7 @@ export default defineComponent({
         if (timer) clearInterval(timer);
         timer = null;
         issuesDetailStore.reset();
+        clearSetTimeout();
       }
       emit('update:show', isShow);
     };
@@ -327,17 +331,21 @@ export default defineComponent({
           ),
           default: () => (
             <div class='issues-detail-side-slider-content'>
-              <DetailLoadStatus loading={this.loading && !!this.detail} error={this.error} onRetry={this.retry} />
+              <DetailLoadStatus
+                error={this.error}
+                loading={this.loading && !!this.detail}
+                onRetry={this.retry}
+              />
               {!this.detail && !this.error && <IssuesLoading />}
               {this.detail && (
                 <IssuesSliderWrapper
                   key={`${this.issueBizId}:${this.issueId}`}
-                  refreshKey={String(this.refreshKey)}
                   conditions={this.conditions}
                   defaultInnerTab={this.defaultInnerTab}
                   detail={this.detail}
                   filterMode={this.filterMode}
                   queryString={this.queryString}
+                  refreshKey={String(this.refreshKey)}
                   timeRange={this.timeRange}
                   onAssigneeChange={this.handleAssigneeChange}
                   onConditionChange={this.handleConditionChange}

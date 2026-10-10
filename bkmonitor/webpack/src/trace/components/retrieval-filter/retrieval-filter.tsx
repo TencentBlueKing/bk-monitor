@@ -511,10 +511,12 @@ export default defineComponent({
                 fields={this.localFields}
                 fieldSearchAutoFocus={this.fieldSearchAutoFocus}
                 getValueFn={this.getValueFn}
+                hasShortcutKey={this.hasShortcutKey}
                 limit={this.limit}
                 loadDelay={this.loadDelay}
                 noValueOfMethods={this.noValueOfMethods}
                 placeholder={this.placeholder}
+                readonly={this.uiModeReadonly}
                 tagValueDisplayFormatter={this.tagValueDisplayFormatter}
                 value={this.uiValue}
                 zIndex={this.zIndex}

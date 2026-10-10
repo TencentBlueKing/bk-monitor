@@ -1,0 +1,17 @@
+.issues-detail-issues-ai-analysis {
+  .ai-analysis-tab {
+    .bk-tab-content {
+      padding: 16px;
+    }
+
+    .ai-config-tab-label {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+
+      i {
+        font-size: 16px;
+      }
+    }
+  }
+}

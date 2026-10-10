@@ -40,21 +40,25 @@ import {
 } from 'trace/pages/alarm-center/typings';
 import { useI18n } from 'vue-i18n';
 
+import { DetailLoadStatus } from '../../../common-detail/detail-loading';
 import { IssueDetailTabEnum } from '../../constant';
 import { useTapdIssueActivities } from '../../issues-tapd/composables/use-tapd-issue-activities';
 import { conditionAlertQueryFieldReplace } from '../utils';
 import DimensionStats from './dimension-stats/dimension-stats';
 import IssuesActivity from './issues-activity/issues-activity';
+import IssuesAiAnalysis from './issues-ai-analysis/issues-ai-analysis';
+import IssuesAiAnalysisOverview from './issues-ai-analysis/issues-ai-analysis-overview';
 import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
 import IssuesDetailAlarmPanel from './issues-detail-alarm-panel/issues-detail-alarm-panel';
 import IssuesDetailAlarmTable from './issues-detail-alarm-table/issues-detail-alarm-table';
 import IssuesHistory from './issues-history/issues-history';
+import IssuesLoading from './issues-loading';
 import IssuesRelationTapd from './issues-relation-tapd/issues-relation-tapd';
 import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-filter';
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
 import { type TimeRangeType, DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
-import DetailLoading, { DetailLoadStatus } from '../../../common-detail/detail-loading';
-import IssuesLoading from './issues-loading';
+import useRequestAbort from '@/hooks/useRequestAbort';
+import aiAnalysisIcon from '@/static/img/issues/ai-analysis.svg';
 
 import type { ImpactScopeEvent, ImpactScopeResource, IssueActivityItem, IssueDetail } from '../../typing';
 import type {
@@ -74,6 +78,7 @@ const TAB_LIST: { label: string; name: IssueDetailTabType }[] = [
   { label: window.i18n.t('最近的告警'), name: IssueDetailTabEnum.LATEST },
   { label: window.i18n.t('最早的告警'), name: IssueDetailTabEnum.EARLIEST },
   { label: window.i18n.t('告警列表'), name: IssueDetailTabEnum.LIST },
+  { label: window.i18n.t('AI 分析'), name: IssueDetailTabEnum.AI_ANALYSIS },
 ];
 
 export default defineComponent({
@@ -127,6 +132,9 @@ export default defineComponent({
     const { t } = useI18n();
     let disposed = false;
     const currentTab = shallowRef<IssueDetailTabType>(IssueDetailTabEnum.LATEST);
+    const tabList = computed(() =>
+      TAB_LIST.filter(item => item.name !== IssueDetailTabEnum.AI_ANALYSIS || window.enable_issue_ai_analysis)
+    );
 
     /** 告警详情页签（视图/日志/调用链等）默认选中项（Sideslider 使用 v-if，每次打开为新实例） */
     const controllableDefaultInnerTab = shallowRef<'' | AlarmCenterPanelTabType>(props.defaultInnerTab);
@@ -225,7 +233,10 @@ export default defineComponent({
         loading.value = true;
         error.value = false;
         try {
-          const res = await alarmService.getFilterTableList({ ...params, ordering: [latest ? '-create_time' : 'create_time'] }, { signal, throwOnError: true });
+          const res = await alarmService.getFilterTableList(
+            { ...params, ordering: [latest ? '-create_time' : 'create_time'] },
+            { signal, throwOnError: true }
+          );
           if (signal.aborted) return;
           id.value = res?.data?.[0]?.id || '';
           if (latest) alertCount.value = res?.total || 0;
@@ -249,14 +260,16 @@ export default defineComponent({
       dimensionLoading.value = true;
       dimensionError.value = false;
       try {
-      const data = await alertTopN({
-        ...commonParams.value,
-        start_time: startTime,
-        end_time: endTime,
-        fields: props.detail?.aggregate_config?.aggregate_dimensions?.map(item => item.field),
-        size: 5,
-      }, { signal })
-        .then((data: AnalysisTopNDataResponse<AnalysisFieldAggItem>) => {
+        const data = await alertTopN(
+          {
+            ...commonParams.value,
+            start_time: startTime,
+            end_time: endTime,
+            fields: props.detail?.aggregate_config?.aggregate_dimensions?.map(item => item.field),
+            size: 5,
+          },
+          { signal }
+        ).then((data: AnalysisTopNDataResponse<AnalysisFieldAggItem>) => {
           return {
             doc_count: data.doc_count,
             fields: data.fields.map(item => {
@@ -287,9 +300,9 @@ export default defineComponent({
             }),
           };
         });
-      if (signal.aborted) return;
-      dimensionStatsData.value = data;
-      dimensionLoaded.value = true;
+        if (signal.aborted) return;
+        dimensionStatsData.value = data;
+        dimensionLoaded.value = true;
       } catch {
         if (!signal.aborted) dimensionError.value = true;
       } finally {
@@ -310,7 +323,10 @@ export default defineComponent({
       activityLoading.value = true;
       activityError.value = false;
       try {
-        const data = await listIssueActivities({ bk_biz_id: props.detail.bk_biz_id, issue_id: props.detail.id }, { signal });
+        const data = await listIssueActivities(
+          { bk_biz_id: props.detail.bk_biz_id, issue_id: props.detail.id },
+          { signal }
+        );
         if (signal.aborted) return;
         activities.value = data;
         activityLoaded.value = true;
@@ -339,6 +355,7 @@ export default defineComponent({
     });
 
     const handleTabChange = (tab: IssueDetailTabType) => {
+      if (tab === IssueDetailTabEnum.AI_ANALYSIS && !window.enable_issue_ai_analysis) return;
       controllableDefaultInnerTab.value = '';
       currentTab.value = tab;
     };
@@ -434,7 +451,6 @@ export default defineComponent({
           ) : latestAlertId.value ? (
             <IssuesDetailAlarmPanel
               key={latestAlertId.value}
-              refreshKey={`${searchRefreshKey.value}:${props.refreshKey}`}
               headerAffixedTop={{
                 container: `.${leftPanelClass}`,
                 offsetTop: 151,
@@ -442,6 +458,7 @@ export default defineComponent({
               alarmId={latestAlertId.value || ''}
               bizId={props.detail.bk_biz_id}
               defaultTab={controllableDefaultInnerTab.value}
+              refreshKey={`${searchRefreshKey.value}:${props.refreshKey}`}
             />
           ) : (
             !latestAlertError.value && emptyRender()
@@ -452,13 +469,13 @@ export default defineComponent({
           ) : earliestAlertId.value ? (
             <IssuesDetailAlarmPanel
               key={earliestAlertId.value}
-              refreshKey={`${searchRefreshKey.value}:${props.refreshKey}`}
               headerAffixedTop={{
                 container: `.${leftPanelClass}`,
                 offsetTop: 151,
               }}
               alarmId={earliestAlertId.value}
               bizId={props.detail.bk_biz_id}
+              refreshKey={`${searchRefreshKey.value}:${props.refreshKey}`}
             />
           ) : (
             !earliestAlertError.value && emptyRender()
@@ -483,6 +500,17 @@ export default defineComponent({
               onShowAlertDetail={handleShowAlertDetail}
             />
           );
+        case IssueDetailTabEnum.AI_ANALYSIS:
+          if (!window.enable_issue_ai_analysis) return null;
+          return (
+            <IssuesAiAnalysis
+              detail={props.detail}
+              onAssigneeChange={handleAssigneeChange}
+              onBackToIssue={() => {
+                handleTabChange(IssueDetailTabEnum.LATEST);
+              }}
+            />
+          );
         default:
           return null;
       }
@@ -490,6 +518,7 @@ export default defineComponent({
 
     return {
       currentTab,
+      tabList,
       alertCount,
       commonParams,
       dimensionStatsData,
@@ -504,8 +533,16 @@ export default defineComponent({
       dimensionError,
       latestAlertIdLoading,
       latestAlertError,
-      panelLoading: computed(() => currentTab.value === IssueDetailTabEnum.LATEST ? latestAlertIdLoading.value && !!latestAlertId.value : currentTab.value === IssueDetailTabEnum.EARLIEST && earliestAlertIdLoading.value && !!earliestAlertId.value),
-      panelError: computed(() => currentTab.value === IssueDetailTabEnum.LATEST ? latestAlertError.value : currentTab.value === IssueDetailTabEnum.EARLIEST && earliestAlertError.value),
+      panelLoading: computed(() =>
+        currentTab.value === IssueDetailTabEnum.LATEST
+          ? latestAlertIdLoading.value && !!latestAlertId.value
+          : currentTab.value === IssueDetailTabEnum.EARLIEST && earliestAlertIdLoading.value && !!earliestAlertId.value
+      ),
+      panelError: computed(() =>
+        currentTab.value === IssueDetailTabEnum.LATEST
+          ? latestAlertError.value
+          : currentTab.value === IssueDetailTabEnum.EARLIEST && earliestAlertError.value
+      ),
       getDimensionStatsData,
       getActiveList,
       getAllAlertId,
@@ -542,13 +579,19 @@ export default defineComponent({
           <div class='issues-chart-wrapper'>
             <IssuesTrendChart
               alertCount={this.alertCount}
-              countLoading={this.latestAlertIdLoading}
-              countError={this.latestAlertError}
               commonParams={this.commonParams}
+              countError={this.latestAlertError}
+              countLoading={this.latestAlertIdLoading}
               refreshKey={`${this.searchRefreshKey}:${this.refreshKey}`}
               timeRange={this.timeRange}
             />
-            <DimensionStats data={this.dimensionStatsData.fields} loading={this.dimensionLoading} loaded={this.dimensionLoaded} error={this.dimensionError} onRetry={this.getDimensionStatsData} />
+            <DimensionStats
+              data={this.dimensionStatsData.fields}
+              error={this.dimensionError}
+              loaded={this.dimensionLoaded}
+              loading={this.dimensionLoading}
+              onRetry={this.getDimensionStatsData}
+            />
           </div>
           <Tab
             class='issues-alarm-tab'
@@ -556,16 +599,49 @@ export default defineComponent({
             type='unborder-card'
             onUpdate:active={this.handleTabChange}
           >
-            {TAB_LIST.map(item => (
+            {this.tabList.map(item => (
               <Tab.TabPanel
                 key={item.name}
-                label={item.name === IssueDetailTabEnum.LIST ? () => <span>{item.label} ({this.latestAlertIdLoading ? <IssuesLoading variant='count' /> : this.latestAlertError ? '--' : this.alertCount})</span> : item.label}
+                v-slots={{
+                  label: () => (
+                    <div class='issues-alarm-tab-label'>
+                      {item.name === IssueDetailTabEnum.AI_ANALYSIS && (
+                        <img
+                          class='ai-analysis-tab-icon'
+                          alt=''
+                          src={aiAnalysisIcon}
+                        />
+                      )}
+                      <span>
+                        {item.name === IssueDetailTabEnum.LIST ? (
+                          <>
+                            {item.label} (
+                            {this.latestAlertIdLoading ? (
+                              <IssuesLoading variant='count' />
+                            ) : this.latestAlertError ? (
+                              '--'
+                            ) : (
+                              this.alertCount
+                            )}
+                            )
+                          </>
+                        ) : (
+                          item.label
+                        )}
+                      </span>
+                    </div>
+                  ),
+                }}
                 name={item.name}
               />
             ))}
           </Tab>
           <div class='issues-alarm-panel-content'>
-            <DetailLoadStatus loading={this.panelLoading} error={this.panelError} onRetry={this.getAllAlertId} />
+            <DetailLoadStatus
+              error={this.panelError}
+              loading={this.panelLoading}
+              onRetry={this.getAllAlertId}
+            />
             <KeepAlive key={this.currentTab}>{this.getPanelComponent()}</KeepAlive>
           </div>
         </div>
@@ -577,16 +653,30 @@ export default defineComponent({
             onImpactScopeClick={this.handleImpactScopeClick}
             onPriorityChange={this.handlePriorityChange}
           />
-          <IssuesRelationTapd detail={this.detail} refreshKey={this.refreshKey} />
-          <IssuesHistory detail={this.detail} refreshKey={this.refreshKey} />
+          {window.enable_issue_ai_analysis && (
+            <IssuesAiAnalysisOverview
+              detail={this.detail}
+              onViewReport={() => {
+                this.handleTabChange(IssueDetailTabEnum.AI_ANALYSIS);
+              }}
+            />
+          )}
+          <IssuesRelationTapd
+            detail={this.detail}
+            refreshKey={this.refreshKey}
+          />
+          <IssuesHistory
+            detail={this.detail}
+            refreshKey={this.refreshKey}
+          />
           <IssuesActivity
             detail={this.detail}
-            list={this.activities}
-            loading={this.activityLoading}
-            loaded={this.activityLoaded}
             error={this.activityError}
-            onRetry={this.getActiveList}
+            list={this.activities}
+            loaded={this.activityLoaded}
+            loading={this.activityLoading}
             onCommentChange={this.handleActivitiesChange}
+            onRetry={this.getActiveList}
           />
         </div>
       </div>

@@ -190,8 +190,8 @@ export default defineComponent({
                     class='value-name'
                   >
                     {['string', 'number', 'boolean'].includes(typeof item.name)
-                      // tag 展示场景：isTips=false，集群模块字段会被还原为可读名称路径
-                      ? this.tagValueDisplayFormatter(item.name, {
+                      ? // tag 展示场景：isTips=false，集群模块字段会被还原为可读名称路径
+                        this.tagValueDisplayFormatter(item.name, {
                           key: this.localValue.key.id,
                           value: item,
                           isTips: false,
@@ -217,12 +217,14 @@ export default defineComponent({
               </div>
             )}
 
-            <div
-              class='delete-btn'
-              onClick={this.handleDelete}
-            >
-              <span class='icon-monitor icon-mc-close-fill' />
-            </div>
+            {this.hasTagDelete && (
+              <div
+                class='delete-btn'
+                onClick={this.handleDelete}
+              >
+                <span class='icon-monitor icon-mc-close-fill' />
+              </div>
+            )}
           </div>
         </div>
       </div>

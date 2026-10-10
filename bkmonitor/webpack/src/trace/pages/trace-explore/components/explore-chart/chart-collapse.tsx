@@ -43,7 +43,7 @@ export default defineComponent({
     description: {
       type: String,
     },
-    /** 默认高度（初始化时 container 区域的高度） */
+    /** 默认高度（初始化时 container 区域的高度）, 为 0 时，容器高度为 'auto' */
     defaultHeight: {
       type: Number,
       default: 166,

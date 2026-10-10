@@ -1,0 +1,79 @@
+.scheme-select {
+  display: flex;
+  flex-direction: column;
+
+  .scheme-select-main {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  /* 定宽保证多个表单项的控件左边界对齐 */
+  .scheme-select-label {
+    position: relative;
+    flex-shrink: 0;
+    width: 62px;
+    padding-right: 14px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #4d4f56;
+    text-align: right;
+
+    &::after {
+      position: absolute;
+      top: 2px;
+      right: 4px;
+      color: #ea3636;
+      content: '*';
+    }
+  }
+
+  .scheme-select-input,
+  .scheme-select-skeleton {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .scheme-select-skeleton {
+    height: 32px;
+  }
+
+  .scheme-select-input.is-error .bk-input {
+    border-color: #ea3636;
+  }
+
+  .scheme-select-error {
+    margin: 4px 0 0 70px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #ea3636;
+  }
+}
+
+/* 下拉选项内的方案名需要撑满整行，悬浮才能触发方案详情 */
+.scheme-option-name {
+  width: 100%;
+}
+
+.scheme-detail-popover {
+  .scheme-detail {
+    max-width: 320px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+  }
+
+  .detail-item {
+    display: flex;
+  }
+
+  .detail-label {
+    flex-shrink: 0;
+    margin-right: 4px;
+    color: #979ba5;
+  }
+
+  .detail-desc {
+    word-break: break-all;
+  }
+}

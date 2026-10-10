@@ -28,6 +28,7 @@ from common.log import logger
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource
 from core.errors.api import BKAPIError
+from fta_web.issue.source_analysis import is_issue_ai_analysis_enabled_for_biz
 
 
 class Platform:
@@ -257,6 +258,9 @@ def get_basic_context(request, space_list: list[dict[str, Any]], bk_biz_id: int)
             context["ENABLE_AIOPS"] = "true"
     except Exception as e:
         logger.error(f"Get AIOPS_BIZ_WHITE_LIST Failed: {e}")
+
+    # Issue AI 分析按独立业务白名单灰度
+    context["ENABLE_ISSUE_AI_ANALYSIS"] = is_issue_ai_analysis_enabled_for_biz(context["BK_BIZ_ID"])
 
     # 根因故障定位页面渲染
     context["ENABLE_AIOPS_INCIDENT"] = "false"
