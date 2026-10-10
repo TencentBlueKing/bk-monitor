@@ -62,6 +62,7 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
             "serving_config": {
                 # 从 extra_config 中获取控制参数
                 "service_name": self.extra_config.get("service_name") or "default",
+                "serving_resource_name": self.extra_config.get("serving_resource_name"),
                 "grey_to_bkfara": self.extra_config.get("grey_to_bkfara", False),
                 "enable_week_compare": self.extra_config.get("enable_week_compare", False),
             },
