@@ -410,6 +410,7 @@ class BkMonitorAlertSerializer(QueryConfigSerializer):
 class PrometheusTimeSeriesSerializer(QueryConfigSerializer):
     promql = serializers.CharField(label="查询表达式")
     agg_interval = serializers.IntegerField(label="聚合周期", min_value=0)
+    expression_mode = serializers.ChoiceField(choices=("promql",), required=False)
 
 
 @final

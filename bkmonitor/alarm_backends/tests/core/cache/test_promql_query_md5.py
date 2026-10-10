@@ -1,8 +1,14 @@
 import copy
+from types import SimpleNamespace
+from unittest import mock
 
 import pytest
+from bk_monitor_base.domains.strategy.models import QueryConfigModel
+from bk_monitor_base.domains.strategy.strategy import QueryConfig
 
 from alarm_backends.core.cache.strategy import StrategyCacheManager
+from alarm_backends.core.control.item import Item
+from bkmonitor.data_source.unify_query.query import UnifyQuery
 
 
 BASE_ITEM = {
@@ -37,6 +43,27 @@ def make_item(named=False, lookback=None, mode="omitted"):
     if mode != "omitted":
         for index, query_config in enumerate(item["query_configs"]):
             query_config["expression_mode"] = ("promql" if index == 0 else None) if mode == "partial" else mode
+    return item
+
+
+def load_query_configs(item):
+    """经 Base 实际模型转换与序列化加载，不能直接把页面请求当作后台配置。"""
+    item = copy.deepcopy(item)
+    models = []
+    for index, query in enumerate(item["query_configs"], 1):
+        config = copy.deepcopy(query)
+        models.append(
+            QueryConfigModel(
+                id=index,
+                strategy_id=1,
+                item_id=1,
+                alias=config.pop("alias"),
+                data_source_label=config.pop("data_source_label"),
+                data_type_label=config.pop("data_type_label"),
+                config=config,
+            )
+        )
+    item["query_configs"] = [query.to_dict() for query in QueryConfig.from_models(models)]
     return item
 
 
@@ -100,3 +127,70 @@ def test_non_prometheus_queries_keep_legacy_identity(mode):
     for query_config in item["query_configs"]:
         query_config["data_source_label"] = "bk_monitor"
     assert StrategyCacheManager.get_query_md5(2, item) == "0771046f64acc47e1aadfce8d1e65fea"
+
+
+@pytest.mark.parametrize(
+    "named,lookback,legacy_md5",
+    [
+        (False, None, "b0ed3ba59eaaec5d144ebf3c38e5f59a"),
+        (False, 3, "9877e8e10d02194e1f42b3d904034369"),
+        (True, None, "2fda897fe168a8b1656b5cae278e212d"),
+        (True, 3, "219adfea91be9e82f98f94d79a87a922"),
+    ],
+)
+def test_base_loaded_promql_query_identity(named, lookback, legacy_md5):
+    """后台消费 Base 加载结果后，旧哈希不变，新模式与别名绑定均生效。"""
+    legacy = load_query_configs(make_item(named, lookback))
+    current = load_query_configs(make_item(named, lookback, "promql"))
+    swapped = make_item(named, lookback, "promql")
+    swapped["query_configs"][0]["alias"] = "b"
+    swapped["query_configs"][1]["alias"] = "a"
+    assert all("expression_mode" not in config for config in legacy["query_configs"])
+    assert all(config["expression_mode"] == "promql" for config in current["query_configs"])
+    assert StrategyCacheManager.get_query_md5(2, legacy) == legacy_md5
+    assert StrategyCacheManager.get_query_md5(2, current) != legacy_md5
+    assert StrategyCacheManager.get_query_md5(2, current) != StrategyCacheManager.get_query_md5(
+        2, load_query_configs(swapped)
+    )
+
+
+@pytest.mark.parametrize(
+    "mode,query_count,enabled",
+    [("omitted", 3, False), ("promql", 3, True), ("partial", 3, False), ("promql", 1, False)],
+)
+def test_base_loaded_promql_item_execution(mode, query_count, enabled):
+    """真实 Item 使用加载后的模式；a+b 计算时保留仅用于通知的 c。"""
+    item = make_item()
+    item["expression"] = "a + b" if query_count > 1 else "a"
+    item["query_configs"].append(dict(item["query_configs"][0], alias="c", promql="metric_c"))
+    item["query_configs"] = item["query_configs"][:query_count]
+    for index, config in enumerate(item["query_configs"]):
+        if mode == "promql" or (mode == "partial" and index == 0):
+            config["expression_mode"] = "promql"
+    if enabled:
+        item["query_output_config"] = {
+            "response_contract": "named_outputs/v1",
+            "legacy_output_ref": "RESULT",
+            "output_list": [
+                {"reference_name": "C", "expression": "c"},
+                {"reference_name": "RESULT", "expression": item["expression"]},
+            ],
+        }
+    strategy = SimpleNamespace(bk_biz_id=2, bk_tenant_id="test", config={"detects": []})
+    # 只隔离租户缓存查询；Item、数据源构造、UnifyQuery 和表达式编译均使用实际实现。
+    with (
+        mock.patch("bkmonitor.data_source.data_source.bk_biz_id_to_bk_tenant_id", return_value="test"),
+        mock.patch("bkmonitor.data_source.unify_query.query.bk_biz_id_to_bk_tenant_id", return_value="test"),
+        mock.patch("alarm_backends.core.control.item.UnifyQuery", wraps=UnifyQuery) as query,
+    ):
+        runtime_item = Item(load_query_configs(item), strategy)
+    assert query.call_args.kwargs["promql_multi_expression"] is enabled
+    if enabled:
+        assert len(runtime_item.query.data_sources) == 1
+        assert runtime_item.query.data_sources[0].promql == "(metric_a) + (metric_b)"
+        assert runtime_item.query.data_sources[0].query_output_config["output_list"] == [
+            {"reference_name": "C", "expression": "metric_c"},
+            {"reference_name": "RESULT", "expression": "(metric_a) + (metric_b)"},
+        ]
+    else:
+        assert len(runtime_item.query.data_sources) == query_count
