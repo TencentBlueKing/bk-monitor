@@ -27,6 +27,7 @@ from rum_web.query.serializers import (
     RumFieldsTopKRequestSerializer,
     RumFieldStatisticsInfoRequestSerializer,
     RumFieldStatisticsGraphRequestSerializer,
+    RumRecordDetailRequestSerializer,
 )
 
 
@@ -175,3 +176,14 @@ class RumFieldStatisticsGraphResource(Resource):
             filters=data["filters"],
             query_string=data["query_string"],
         )
+
+
+class RumRecordDetailResource(Resource):
+    """POST /rum/search/record_detail/ — 查询单条记录详情"""
+
+    RequestSerializer = RumRecordDetailRequestSerializer
+
+    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(data["bk_biz_id"], data["app_name"])
+        handler = RumLevelHandlerFactory.create(data["mode"], _build_data_sources([application]))
+        return handler.record_detail(record_id=data["record_id"])

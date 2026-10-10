@@ -21,6 +21,7 @@ from rum_web.query.resources import (
     RumFieldsOptionValuesResource,
     RumFieldsTopKResource,
     RumGenerateQueryStringResource,
+    RumRecordDetailResource,
     RumRecordsResource,
     RumViewConfigResource,
 )
@@ -54,6 +55,7 @@ EXPECTED_ROUTES = [
     ("fields_topk", "POST", RumFieldsTopKResource, "field_topk"),
     ("field_statistics_info", "POST", RumFieldStatisticsInfoResource, "field_statistics_info"),
     ("field_statistics_graph", "POST", RumFieldStatisticsGraphResource, "field_statistics_graph"),
+    ("record_detail", "POST", RumRecordDetailResource, "record_detail"),
 ]
 
 
@@ -450,3 +452,35 @@ class TestSerializerInheritance:
         filters_field = s.fields["filters"]
         child_serializer = filters_field.child
         assert isinstance(child_serializer, QueryStringFilterSerializer)
+
+
+class TestRumRecordDetailResource:
+    def test_request_serializer_requires_record_id(self):
+        from rum_web.query.serializers import RumRecordDetailRequestSerializer
+
+        serializer = RumRecordDetailRequestSerializer(data={"bk_biz_id": 2, "app_name": "my_app"})
+        assert not serializer.is_valid()
+        assert "record_id" in serializer.errors
+        assert set(serializer.fields) == {"bk_biz_id", "app_name", "mode", "record_id"}
+
+    def test_resource_preserves_original_record(self, mocker):
+        from types import SimpleNamespace
+        from rum_web.handlers.query.span import SpanQuery
+
+        application = SimpleNamespace(
+            bk_biz_id=2, app_name="my_app", span_result_table_id="bk_rum.default.span", retention_days=7
+        )
+        get_application = mocker.patch("rum_web.query.resources._get_application", return_value=application)
+        span = {
+            "span_id": "id",
+            "attributes": {"span_type": "error"},
+            "events": [{"name": "exception", "attributes": {"exception.type": "TypeError"}}],
+        }
+        query_detail = mocker.patch.object(SpanQuery, "query_detail", return_value=span)
+        result = RumRecordDetailResource().perform_request(
+            {"bk_biz_id": 2, "app_name": "my_app", "mode": "span", "record_id": "id"}
+        )
+        get_application.assert_called_once_with(2, "my_app")
+        query_detail.assert_called_once_with("id")
+        assert result["origin_data"] is span
+        assert result["sections"][0]["data"]["error_type"] == {"events.attributes.exception.type": "TypeError"}
