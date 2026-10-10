@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 """
 API请求错误
 """
@@ -26,13 +26,25 @@ class BKAPIError(Error):
     code = 3301001
     name = _lazy("API请求错误")
 
-    def __init__(self, system_name: str = "", url: str = "", result=None):
+    def __init__(
+        self,
+        system_name: str = "",
+        url: str = "",
+        result=None,
+        *,
+        status_code: int = 500,
+        third_api_error_code: str | None = None,
+    ):
         """
         :param result: 错误消息
         """
         message_tpl = _("请求系统'{system_name}'错误，")
         if not isinstance(result, dict):
             result = {"message": result}
+        self.status_code = status_code
+        self._third_api_error_code = third_api_error_code
+        if self._third_api_error_code is None and result.get("code") is not None:
+            self._third_api_error_code = str(result["code"])
         if result.get("code") is not None:
             message_tpl += _("返回错误码: {code}，")
         message_tpl += _("返回消息: {message}，")
@@ -47,9 +59,14 @@ class BKAPIError(Error):
             exc_type=type(self).__name__,
             exc_code=result.get("code") or self.code,
             overview=_("请求系统'{system_name}'错误，").format(system_name=system_name),
-            detail=result.get('message'),
+            detail=result.get("message"),
             popup_message="warning",
         )
+
+    @property
+    def third_api_error_code(self) -> str:
+        """获取第三方 API 错误码；未返回错误码时使用空字符串。"""
+        return self._third_api_error_code or ""
 
 
 class DevopsNotDeployedError(BKAPIError):
