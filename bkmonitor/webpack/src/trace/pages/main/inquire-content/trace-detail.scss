@@ -6,6 +6,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 .trace-detail-wrapper {
   position: relative;
   box-sizing: border-box !important;
+  display: flex;
+  flex-direction: column;
   height: 100%;
 
   // padding: 0 16px 12px;
@@ -38,24 +40,27 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
   .base-message {
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    max-width: 734px;
-    padding-right: 24px;
-    padding-left: 16px;
-    margin-top: 8px;
+    flex-wrap: nowrap;
+    padding-right: 40px;
+    padding-left: 40px;
+    margin-top: 12px;
 
     .message-item {
       display: flex;
       align-items: center;
-      margin-right: 8px;
+      margin-right: 32px;
       font-size: 12px;
       line-height: 1;
+      color: #4d4f56;
       white-space: nowrap;
 
       span:first-child {
         margin-right: 6px;
-        color: #979ba5;
+        color: #8f9fbd;
+
+        &::after {
+          content: '：';
+        }
       }
 
       .icon-tips {
@@ -79,71 +84,74 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
   .overview-content {
     display: inline-block;
-    padding-left: 16px;
+    padding-left: 40px;
     margin-top: 8px;
 
     .item-card {
       position: relative;
-      float: left;
-      box-sizing: content-box;
+      box-sizing: border-box;
       display: flex;
+      float: left;
+      gap: 4px;
       align-items: center;
       height: 28px;
-      padding: 0 8px;
+      padding: 4px 8px;
       margin: 0 8px 6px 0;
+      overflow: hidden;
       font-size: 12px;
+      line-height: 20px;
+      color: #4e5e7a;
       cursor: pointer;
       background: #fff;
-      border: 1px solid #eaebf0;
-      border-radius: 2px;
-
-      &:hover {
-        border-color: #c4c6cc;
-      }
-
-      &:last-child {
-        padding-right: 12px;
-      }
+      border: 0;
+      border-radius: 4px;
+      box-shadow: 0 1px 2px 0 rgb(0 0 0 / 8%);
 
       .card-count {
+        box-sizing: border-box;
+        min-width: 20px;
+        height: 20px;
         padding: 0 4px;
-        margin-left: 4px;
-        color: #979ba5;
-        background-color: #f5f5f5;
-        border-radius: 12px;
+        font-weight: 700;
+        line-height: 20px;
+        color: #8f9fbd;
+        text-align: center;
+        background-color: #f0f4fa;
+        border-radius: 999px;
       }
 
       .card-icon {
-        margin: 0 8px 0 6px;
-        font-size: 14px;
-        color: #979ba5;
+        font-size: 16px;
+        color: #4e5e7a;
 
         &.icon-mind-fill {
-          margin-left: 4px;
           color: #ea3636;
         }
       }
 
       .service-mark {
         position: absolute;
-        top: -1px;
-        left: -1px;
-        width: 4px;
-        height: 30px;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
       }
 
       .service-icon {
-        width: 14px;
-        height: 14px;
-        margin: 0 8px 0 4px;
+        width: 16px;
+        height: 16px;
+      }
+
+      &.is-service {
+        padding-left: 6px;
       }
 
       &.is-selected {
         color: #fff;
         background-color: #979ba5;
-        border-color: #979ba5;
 
         .card-count {
+          color: #979ba5;
           background-color: #dcdee5;
         }
 
@@ -160,19 +168,27 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
   .trace-main {
     position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
     margin-top: 4px;
     background-color: #fff;
 
-    .bk-tab {
+    .bk-tab,
+    .bkmv3-tab {
       position: sticky;
       top: 0;
       z-index: 90;
-      background-color: #f5f6fa;
+      box-sizing: border-box;
+      padding: 0 40px;
+      background-color: #f2f6fc;
 
       .tab-label {
         display: flex;
         align-items: center;
         font-size: 12px;
+        color: inherit;
 
         &:hover {
           color: #3a84ff;
@@ -181,6 +197,20 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
         .icon-monitor {
           margin-right: 4px;
           font-size: 14px;
+          color: inherit;
+        }
+      }
+
+      .bk-tab-header-item,
+      .bkmv3-tab-header-item {
+        color: #4e5e7a;
+        background-color: #e4e9f2;
+        border-radius: 6px 6px 0 0;
+
+        &.bk-tab-header--active,
+        &.bkmv3-tab-header--active {
+          color: #3a84ff;
+          background-color: #fff;
         }
       }
 
@@ -192,7 +222,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
     .tab-panel-content {
       position: relative;
       box-sizing: border-box;
-      padding: 24px 16px 16px;
+      flex: 1;
+      padding: 0 40px;
       background-color: #fff;
 
       .bklog-result-container.has-scroll-x .bklog-row-box .bklog-row-container .expand-view-wrapper::after {
@@ -243,11 +274,11 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
       align-items: center;
       justify-content: space-between;
       max-height: 48px;
-      padding: 16px; // 16px 第三期不显示工具栏 暂时改为 8px
+      padding: 16px 40px; // 16px 第三期不显示工具栏 暂时改为 8px
       background-color: #fff;
 
       &.hide-tools {
-        padding: 8px;
+        padding: 8px 40px;
       }
 
       .span-kind-filters {
@@ -357,8 +388,8 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 
   &.is-fix {
     .virtualized-trace-view-spans {
-      padding-left: 16px;
-      margin-left: -16px;
+      padding-left: 0;
+      margin-left: 0;
     }
   }
 
@@ -429,7 +460,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
   }
 
   .trace-main-tab {
-    padding: 0 16px;
+    padding: 0;
 
     .bk-tab-header {
       .bk-tab-header-nav {
@@ -469,7 +500,7 @@ $rateColor: #30b897 #55c2a9 #7bccbb #9fd7cc #c5e1de #dddfe3 #e9d3d7 #e8bbbe #e8a
 .trace-graph-resize {
   position: fixed;
   top: 1000px;
-  right: 20px;
+  right: 24px;
   bottom: 0;
   z-index: 99;
   visibility: hidden;

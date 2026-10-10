@@ -558,7 +558,7 @@ export default defineComponent({
         const isHaveHeight = ['topo', 'statistics', 'flame', 'sequence', 'llm'].includes(state.activePanel);
         state.traceMainStyle = `width:${viewWidth};min-height: ${viewHeight}px${
           isHaveHeight ? `; height: ${viewHeight}px` : '; height: 100%'
-        };padding-right:${showSpanList.value ? '0' : '16px'}`;
+        };padding-right:${showSpanList.value ? '0' : '40px'}`;
         if (baseMessageRect && baseMessageRect.height > 18) {
           // 基本信息是否换行 样式处理
           isbaseMessageWrap.value = true;

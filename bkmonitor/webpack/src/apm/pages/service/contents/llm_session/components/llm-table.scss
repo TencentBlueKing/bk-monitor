@@ -38,6 +38,11 @@
     td {
       background-color: transparent !important;
     }
+
+    tr.hover-row > td,
+    tr:hover > td {
+      background-color: #e9edf5 !important;
+    }
   }
 }
 

@@ -14,9 +14,11 @@
   }
 
   .bk-tag-input {
-    .bk-tag-input-trigger {
+    .bk-tag-input-trigger,
+    .bkmv3-tag-input-trigger {
       box-sizing: border-box;
       min-height: 32px;
+      border-radius: 4px;
 
       .tag-list {
         max-height: 35px;
