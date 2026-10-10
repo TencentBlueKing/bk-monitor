@@ -33,6 +33,7 @@ from bkmonitor.data_source import (
     Functions,
     GrafanaFunctions,
     PrometheusTimeSeriesDataSource,
+    filter_dict_to_conditions,
     get_auto_interval,
     load_data_source,
 )
@@ -756,7 +757,7 @@ class UnifyQueryRawResource(ApiAuthResource):
         if not target_instances:
             return target_instances is not None
 
-        # 如果主机过滤模式为query或模式为auto且目标实例数量小于100，则将目标实例作为查询条件
+        # query 模式或 auto 且解析条件组数小于 100 时，在查询前过滤。
         if params["target_filter_type"] == "query" or (
             params["target_filter_type"] == "auto" and len(target_instances) < 100
         ):
@@ -937,13 +938,15 @@ class UnifyQueryRawResource(ApiAuthResource):
 
         points, series_stat = self._query_time_series_data(query, params, time_alignment, query_method_name)
 
-        # 如果存在数据后过滤条件，则进行过滤
-        if params.get("post_query_filter_dict"):
-            condition_filter = load_agg_condition_instance(params["post_query_filter_dict"])
-            points = [point for point in points if condition_filter.is_match(point)]
-
         # 数据预处理（传入 series_stat 以便时间对比查询也收集 stat）
         points = TimeCompareProcessor.process_origin_data(params, points, series_stat)
+
+        # 当前与时间对比数据共用后置条件，缺少过滤字段的结果不匹配。
+        if params.get("post_query_filter_dict"):
+            condition_filter = load_agg_condition_instance(
+                filter_dict_to_conditions(params["post_query_filter_dict"], []), default_value_if_not_exists=False
+            )
+            points = [point for point in points if condition_filter.is_match(point)]
         metrics = metrics if params["with_metric"] else []
         return {
             "series": points,
