@@ -35,25 +35,15 @@ from apps.utils.drf import detail_route
 from apps.utils.local import get_request_app_code, get_request_external_username
 
 
-class ExportIndexSearchPermission(PlatformAwareIndexSearchPermission):
-    """逐个校验任务涉及的索引集，保留平台级索引集的额外鉴权规则。"""
+class ExportJobIndexSearchPermission(PlatformAwareIndexSearchPermission):
+    """从任务快照逐个校验索引集，复用项目统一的检索鉴权。"""
 
     def __init__(self):
         super().__init__([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)
         self._instance_id = None
 
-    def check_index_sets(self, request, view, index_set_ids):
-        for index_set_id in index_set_ids:
-            self._instance_id = index_set_id
-            super().has_permission(request, view)
-        return True
-
     def get_instance_id(self, request, view):
         return self._instance_id
-
-
-class ExportJobIndexSearchPermission(ExportIndexSearchPermission):
-    """详情类接口的索引集列表取自任务快照，而不是请求参数。"""
 
     def has_permission(self, request, view):
         # 索引集要拿到任务之后才知道，准入阶段交给空间级校验
@@ -62,7 +52,10 @@ class ExportJobIndexSearchPermission(ExportIndexSearchPermission):
     def has_object_permission(self, request, view, obj):
         # 场景任务的 index_set_ids 为空，检索及创建时已按命中结果表校验 SEARCH_LOG。
         # 下载阶段与旧版一致，仅保留业务及任务范围校验，不再次复核索引集权限。
-        return self.check_index_sets(request, view, obj.index_set_ids)
+        for index_set_id in obj.index_set_ids:
+            self._instance_id = index_set_id
+            super().has_permission(request, view)
+        return True
 
 
 class ExportJobViewSet(APIViewSet):

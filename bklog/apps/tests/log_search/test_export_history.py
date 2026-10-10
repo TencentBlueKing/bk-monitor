@@ -219,7 +219,8 @@ class ExportJobDetailTests(TestCase):
             patch("apps.log_search.views.export_views.get_request_app_code", return_value="bk_log"),
             patch("apps.log_search.views.export_views.get_request_external_username", return_value=external_username),
             patch(
-                "apps.log_search.views.export_views.ExportJobIndexSearchPermission.check_index_sets", return_value=True
+                "apps.log_search.views.export_views.ExportJobIndexSearchPermission.has_object_permission",
+                return_value=True,
             ),
         ):
             return view.retrieve(request).data

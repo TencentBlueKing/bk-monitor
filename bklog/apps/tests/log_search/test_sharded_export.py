@@ -2493,7 +2493,7 @@ class ExportJobPermissionTests(TestCase):
         return SimpleNamespace(data={"space_uid": self.SPACE_UID}, query_params={}, headers={}, META={}, method="GET")
 
     def test_detail_actions_require_the_index_set_permission(self):
-        """列表以外每个动作都要在空间校验之外再过一个索引集级检索权限。"""
+        """详情和下载都要在空间校验之外再过一个索引集级检索权限。"""
         for action in ("retrieve", "download_link"):
             kinds = [type(permission) for permission in self.build_view(action).get_permissions()]
             self.assertEqual(kinds, [ViewBusinessPermission, ExportJobIndexSearchPermission], action)
@@ -2514,10 +2514,11 @@ class ExportJobPermissionTests(TestCase):
         self.assertTrue(called.kwargs["raise_exception"])
 
     def test_object_permission_never_gates_admission(self):
-        """索引集要拿到对象才知道，准入阶段必须放行，否则列表接口会连空间校验一起失去。"""
+        """索引集取自任务对象，准入阶段交给业务权限校验。"""
         permission = ExportJobIndexSearchPermission()
 
-        self.assertTrue(permission.has_permission(self.build_request(), self.build_view("list")))
+        for action in ("retrieve", "download_link"):
+            self.assertTrue(permission.has_permission(self.build_request(), self.build_view(action)))
 
     @override_settings(IGNORE_IAM_PERMISSION=False)
     @patch("apps.iam.handlers.drf.Permission")
