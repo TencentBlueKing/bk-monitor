@@ -38,9 +38,17 @@ VALID_CACHE_BYPASS_METHODS = ("refresh", "cacheless")
 class ParamsGuardRejected(ValueError):
     """params_guard 拒绝本次调用：属策略拦截（映射 unsafe_action_blocked），不是 provider 故障。"""
 
+    def __init__(self, message: str, *, code: str = "unsafe_action_blocked") -> None:
+        super().__init__(message)
+        self.code = code
+
 
 class ProviderResponseRejected(ValueError):
     """上游响应不符合已注册的只读结果契约，不得投影为完整空结果。"""
+
+    def __init__(self, message: str, *, code: str = "provider_unavailable") -> None:
+        super().__init__(message)
+        self.code = code
 
 
 @dataclass
