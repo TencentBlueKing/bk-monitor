@@ -8,6 +8,10 @@ packages:
 
 modulesDir: node_modules
 
+patchedDependencies:
+  bkui-vue@2.0.2-beta.97: patches/bkui-vue-2.0.2-beta.97.patch
+  '@blueking/tdesign-ui@0.0.4': patches/blueking-tdesign-ui-0.0.4.patch
+
 onlyBuiltDependencies:
   - '@biomejs/biome'
   - simple-git-hooks

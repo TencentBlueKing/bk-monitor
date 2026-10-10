@@ -1,0 +1,12 @@
+diff --git a/vue3/index.es.min.js b/vue3/index.es.min.js
+--- a/vue3/index.es.min.js
++++ b/vue3/index.es.min.js
+@@ -22649,7 +22649,7 @@ var getClickPosition = function getClickPosition(e) {
+ 		mousePosition = null;
+ 	}, 100);
+ };
+-if (typeof window !== "undefined" && window.document && window.document.documentElement) document.documentElement.addEventListener("click", getClickPosition, true);
++if (typeof window !== "undefined" && window.document && window.document.documentElement) document.addEventListener("click", getClickPosition, true);
+ var key = 1;
+ var _Dialog = defineComponent({
+ 	name: "TDialog",
