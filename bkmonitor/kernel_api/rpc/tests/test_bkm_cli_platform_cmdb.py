@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ast
 import time
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -59,6 +61,35 @@ def handler():
     op = PlatformSourceCatalog.get_domain("cmdb").operations["list_biz_hosts"]
     op.handler = Mock(return_value={"count": 0, "info": []})
     return op.handler
+
+
+@pytest.mark.parametrize("consumer", ["unify_query.py", "strategy_management.py", "db.py"])
+def test_existing_consumers_import_business_authorization(consumer, catalog):
+    """Execute the consumers' real import statements without their unrelated dependencies."""
+    source_path = Path(__file__).resolve().parents[1] / "functions" / "bkm_cli" / consumer
+    source = ast.parse(source_path.read_text(encoding="utf-8"))
+    imports = [
+        node
+        for node in ast.walk(source)
+        if isinstance(node, ast.ImportFrom) and any(alias.name == "_authorize_business" for alias in node.names)
+    ]
+    assert len(imports) == 1
+    namespace = {"__package__": "kernel_api.rpc.functions.bkm_cli"}
+    exec(compile(ast.Module(body=imports, type_ignores=[]), str(source_path), "exec"), namespace)
+    assert namespace["_authorize_business"] is cmdb._authorize_business
+    assert namespace["_authorize_business"](2) == "tenant-a"
+    assert catalog.biz_id is None
+
+
+def test_compatible_authorization_preserves_business_denial():
+    with pytest.raises(ParamsGuardRejected, match="当前应用未获目标业务授权"):
+        cmdb._authorize_business(3)
+
+
+def test_compatible_authorization_requires_authenticated_request(mocker):
+    mocker.patch.object(_authorization, "get_request", return_value=None)
+    with pytest.raises(ParamsGuardRejected, match="CMDB 查询需要已认证"):
+        cmdb._authorize_business(2)
 
 
 def test_registration_binds_native_resource_and_fixed_contract():

@@ -14,6 +14,11 @@ MAX_PAGE_SIZE = 500
 ALLOWED_KEYS = frozenset({"bk_biz_id", "page", "page_size"})
 
 
+def _authorize_business(bk_biz_id: int) -> str:
+    """Keep the authorization import contract used by UQ, strategy management and DB reads."""
+    return authorize_business(bk_biz_id, query_name="CMDB")
+
+
 def _positive_integer(value: Any, name: str, maximum: int | None = None) -> int:
     if type(value) is not int or value <= 0 or (maximum is not None and value > maximum):
         raise ParamsGuardRejected(f"{name} 必须是正整数" + (f"，且不超过 {maximum}" if maximum else ""))

@@ -21,7 +21,7 @@ from kernel_api.middlewares import authentication
 from kernel_api.resource.bkm_cli import BkmCliOpCallResource
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
-from kernel_api.rpc.functions.bkm_cli.platform_catalog import cmdb
+from kernel_api.rpc.functions.bkm_cli.platform_catalog import _authorization, cmdb
 from kernel_api.rpc.functions.bkm_cli.unify_query import query_unify_query
 
 
@@ -506,8 +506,8 @@ def test_invoke_rechecks_nested_business_authorization(monkeypatch):
         biz_id=None,
         META={"HTTP_BK_APP_CODE": "test-app"},
     )
-    monkeypatch.setattr(cmdb, "get_request", lambda peaceful=True: request)
-    monkeypatch.setattr(cmdb, "bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "tenant-a")
+    monkeypatch.setattr(_authorization, "get_request", lambda peaceful=True: request)
+    monkeypatch.setattr(_authorization, "bk_biz_id_to_bk_tenant_id", lambda bk_biz_id: "tenant-a")
     monkeypatch.setattr(authentication, "APP_CODE_TOKENS", {"tenant-a": {"test-app": ["biz#2"]}})
     monkeypatch.setattr(authentication, "APP_CODE_UPDATE_TIME", {"tenant-a": time.time()})
     monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query._authorize_business", cmdb._authorize_business)
