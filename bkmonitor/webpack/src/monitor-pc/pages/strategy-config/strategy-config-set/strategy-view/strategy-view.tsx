@@ -169,6 +169,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   @Prop({ default: null, type: Object }) multivariateAnomalyDetectionParams: IMultivariateAnomalyDetectionParams;
 
   @Ref('tool') toolRef!: StrategyViewTool;
+  @Ref('strategyChart') strategyChartRef!: StrategyChart;
 
   private tools: { refreshInterval: number; timeRange: TimeRangeType } = {
     timeRange: ['now-3h', 'now'],
@@ -895,6 +896,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         alert_name: metricField,
       };
     }
+    const chart = this.strategyChartRef;
+    const queryConfigs = chart
+      ? chart.getQueryParams(chart.hasTimeSeriesForecast || chart.hasIntelligentDetect).query_configs
+      : this.getQueryParams(startTime, endTime).query_configs;
     this.isLoading = true;
     const data = await logQuery({
       data_source_label: dataSourceLabel,
@@ -907,6 +912,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       end_time: endTime,
       limit: this.limit,
       filter_dict: filterDict,
+      target: this.strategyTarget || [],
+      group_by: [...new Set(queryConfigs.flatMap(item => item.group_by || []))],
       ...extendData,
     }).catch(() => []);
     this.isLoading = false;
@@ -1040,6 +1047,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   [
                     <StrategyChart
                       key={'chart'}
+                      ref='strategyChart'
                       aiopsChartType={this.aiopsChartType}
                       chartType={this.chartType}
                       detectionConfig={this.detectionConfig}
