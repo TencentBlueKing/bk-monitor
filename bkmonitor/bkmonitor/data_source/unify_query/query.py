@@ -26,7 +26,6 @@ from opentelemetry import trace
 from bkm_space.utils import bk_biz_id_to_space_uid
 from bkmonitor.data_source.data_source import DataSource, PrometheusTimeSeriesDataSource, TimeSeriesDataSource
 from bkmonitor.data_source.promql_expression import compile_promql_expression
-from bkmonitor.data_source.exceptions import IncompleteQueryResultError
 from bkmonitor.data_source.unify_query.constants import REF_VALUES_RESERVED_FIELD
 from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
@@ -721,11 +720,6 @@ class UnifyQuery:
             span.set_attribute("bk.unify_query.api", "query_raw")
             span.set_attribute("bk.unify_query.statement", params_json)
             data = api.unify_query.query_raw(**params)
-            # 路由缺失或部分路由失败仍可能返回 HTTP 200，折叠读取不能据此发布检查心跳。
-            if any(query.get("collapse") for query in params["query_list"]) and (
-                (data.get("status") or {}).get("code") in {"QUERY_RAW_PARTIAL", "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"}
-            ):
-                raise IncompleteQueryResultError("incomplete collapsed log query result")
             records: list[dict[str, Any]] = self.process_unify_query_log(params, data)
             records = self.process_log_by_datasource(records)
         return records

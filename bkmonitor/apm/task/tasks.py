@@ -25,7 +25,6 @@ from alarm_backends.service.scheduler.app import app
 from apm.core.application_config import ApplicationConfig
 from apm.core.cluster_config import BkCollectorInstaller
 from apm.core.discover.base import DiscoverContainer, TopoHandler
-from apm.core.discover.exceptions import IncompleteDiscoveryError
 from apm.core.discover.precalculation.check import PreCalculateCheck
 from apm.core.discover.precalculation.consul_handler import ConsulHandler
 from apm.core.discover.precalculation.storage import PrecalculateStorage
@@ -45,7 +44,6 @@ from apm.models import (
     QpsConfig,
 )
 from apm.utils.report_event import EventReportHelper
-from bkmonitor.data_source.exceptions import IncompleteQueryResultError
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from bkmonitor.utils.user import get_user_display_name
 from constants.apm import TelemetryDataType
@@ -54,11 +52,6 @@ from core.drf_resource import api
 from core.errors.alarm_backends import LockError
 
 logger = logging.getLogger("apm")
-
-# 单轮发现应在十分钟周期内完成；锁租期覆盖硬超时，避免任务仍运行时锁先过期。
-DISCOVERY_TASK_SOFT_TIME_LIMIT = 540
-DISCOVERY_TASK_TIME_LIMIT = 600
-DISCOVERY_TASK_LOCK_TTL = 660
 
 
 @app.task(ignore_result=True, queue="celery_cron")
@@ -112,63 +105,23 @@ def topo_discover_cron():
             continue
 
 
-@app.task(
-    ignore_result=True,
-    queue="celery_cron",
-    soft_time_limit=DISCOVERY_TASK_SOFT_TIME_LIMIT,
-    time_limit=DISCOVERY_TASK_TIME_LIMIT,
-)
+@app.task(ignore_result=True, queue="celery_cron")
 def datasource_discover_handler(
     datasource: MetricDataSource | LogDataSource,
     interval: int,
     start_time: int,
     data_type: str = TelemetryDataType.METRIC.value,
 ) -> None:
-    """按应用与数据类型互斥执行发现；不完整查询保留旧心跳，其他异常继续上抛。
-
-    :param interval: 发现窗口长度，单位为分钟。
-    :param start_time: 队列任务的秒级窗口起点；执行时将窗口结束时间限制到当前时间。
-    """
     cur: datetime.datetime = timezone.now()
-    if settings.ENABLE_MULTI_TENANT_MODE:
-        set_local_tenant_id(bk_biz_id_to_bk_tenant_id(datasource.bk_biz_id))
-    # 兼容发布前已入队、以当前时间为起点的旧任务，禁止检查未来窗口。
-    end_time: int = min(start_time + interval * 60, int(cur.timestamp()))
-    start_time = end_time - interval * 60
-    try:
-        with ApmCacheHandler().distributed_lock(
-            "service_discovery",
-            ttl=DISCOVERY_TASK_LOCK_TTL,
-            wait_time=0.1,
-            bk_biz_id=datasource.bk_biz_id,
-            app_name=datasource.app_name,
-            data_type=data_type,
-        ):
-            for discover in DiscoverContainer.list_discovers(data_type):
-                discover(datasource).discover(start_time, end_time)
-    except LockError:
-        logger.info(
-            "[datasource_discover_handler] already running: bk_biz_id=%s app_name=%s data_type=%s",
-            datasource.bk_biz_id,
-            datasource.app_name,
-            data_type,
-        )
-        return
-    except (IncompleteDiscoveryError, IncompleteQueryResultError):
-        logger.warning(
-            "[datasource_discover_handler] incomplete query, heartbeat unchanged: bk_biz_id=%s app_name=%s data_type=%s",
-            datasource.bk_biz_id,
-            datasource.app_name,
-            data_type,
-            exc_info=True,
-        )
-        return
+    all_seconds: int = interval * 60
+    for discover_cls in DiscoverContainer.list_discovers(data_type):
+        split_seconds: int = discover_cls.SPLIT_SECONDS or all_seconds
+        for offset in range(0, all_seconds, split_seconds):
+            discover_cls(datasource).discover(start_time + offset, start_time + offset + split_seconds)
+
     logger.info(
-        "[datasource_discover_handler] bk_biz_id=%s app_name=%s data_type=%s elapsed=%s",
-        datasource.bk_biz_id,
-        datasource.app_name,
-        data_type,
-        (timezone.now() - cur).total_seconds(),
+        f"[datasource_discover_handler] finished datasource discover, "
+        f"({datasource.bk_biz_id}){datasource.app_name} elapsed: {(timezone.now() - cur).seconds}s"
     )
 
 
@@ -190,24 +143,9 @@ def datasource_discover_cron() -> None:
     ):
         for datasource in model.objects.filter(~Q(result_table_id="") & ~Q(bk_data_id=-1)):
             application = applications.get((datasource.bk_biz_id, datasource.app_name))
-            offset: int = interval // 2 if data_type == TelemetryDataType.LOG.value else 0
-            if (
-                not application
-                or not application[f"is_enabled_{data_type}"]
-                or (application["id"] + offset) % interval != slug
-            ):
+            if not application or not application[f"is_enabled_{data_type}"] or application["id"] % interval != slug:
                 continue
-            try:
-                with ApmCacheHandler().distributed_lock(f"datasource_discover_{data_type}", app_id=application["id"]):
-                    datasource_discover_handler.delay(datasource, interval, start_time, data_type)
-            except LockError:
-                logger.info(
-                    "[datasource_discover_cron] already running: app_id=%s data_type=%s", application["id"], data_type
-                )
-            except Exception:
-                logger.exception(
-                    "[datasource_discover_cron] dispatch failed: app_id=%s data_type=%s", application["id"], data_type
-                )
+            datasource_discover_handler.delay(datasource, interval, start_time, data_type)
 
 
 def refresh_apm_config():
@@ -309,61 +247,29 @@ def check_apm_consul_config():
     logger.info(f"[check_apm_consul_config] end {datetime.datetime.now()}")
 
 
-@app.task(
-    ignore_result=True,
-    queue="celery_cron",
-    soft_time_limit=DISCOVERY_TASK_SOFT_TIME_LIMIT,
-    time_limit=DISCOVERY_TASK_TIME_LIMIT,
-)
-def profile_handler(bk_biz_id: int, app_name: str) -> None:
-    """按应用互斥执行 Profiling 发现；锁冲突跳过，查询或写入异常保留任务失败信号。"""
+@app.task(ignore_result=True, queue="celery_cron")
+def profile_handler(bk_biz_id: int, app_name: str):
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} start at {datetime.datetime.now()}")
-    if settings.ENABLE_MULTI_TENANT_MODE:
-        set_local_tenant_id(bk_biz_id_to_bk_tenant_id(bk_biz_id))
     try:
-        with ApmCacheHandler().distributed_lock(
-            "service_discovery",
-            ttl=DISCOVERY_TASK_LOCK_TTL,
-            wait_time=0.1,
-            bk_biz_id=bk_biz_id,
-            app_name=app_name,
-            data_type=TelemetryDataType.PROFILING.value,
-        ):
-            ProfileDiscoverHandler(bk_biz_id, app_name).discover()
-    except LockError:
-        logger.info("[profile_handler] already running: bk_biz_id=%s app_name=%s", bk_biz_id, app_name)
-        return
+        ProfileDiscoverHandler(bk_biz_id, app_name).discover()
+    except Exception as e:  # noqa
+        logger.error(f"[profile_handler] occur exception of {bk_biz_id}-{app_name}: {e}")
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} end at {datetime.datetime.now()}")
 
 
 def profile_discover_cron() -> None:
-    """每分钟分片派发已开启 Profiling 的应用，十分钟一轮，并相对 Trace/Metric 错峰三分钟。"""
+    """每 10 分钟为启用性能分析的应用异步派发发现任务。"""
     logger.info(f"[profile_discover_cron] start at {datetime.datetime.now()}")
-    interval: int = 10
-    slug: int = timezone.now().minute % interval
-    applications: set[tuple[int, str]] = {
-        (bk_biz_id, app_name)
-        for app_id, bk_biz_id, app_name in ApmApplication.objects.filter(
-            is_enabled=True, is_enabled_profiling=True
-        ).values_list("id", "bk_biz_id", "app_name")
-        if (app_id + interval // 3) % interval == slug
-    }
-    for datasource in ProfileDataSource.objects.all():
-        if (datasource.bk_biz_id, datasource.app_name) not in applications:
-            continue
-        try:
-            profile_handler.delay(datasource.bk_biz_id, datasource.app_name)
-            logger.info(
-                "[profile_discover_cron] dispatched: bk_biz_id=%s app_name=%s",
-                datasource.bk_biz_id,
-                datasource.app_name,
-            )
-        except Exception:
-            logger.exception(
-                "[profile_discover_cron] dispatch failed: bk_biz_id=%s app_name=%s",
-                datasource.bk_biz_id,
-                datasource.app_name,
-            )
+    apps = [
+        (i["bk_biz_id"], i["app_name"])
+        for i in ApmApplication.objects.filter(is_enabled=True, is_enabled_profiling=True).values("bk_biz_id", "app_name")
+    ]
+    apps = [i for i in ProfileDataSource.objects.all() if (i.bk_biz_id, i.app_name) in apps]
+
+    for item in apps:
+        logger.info(f"[profile_discover_cron] dispatching. ({item.bk_biz_id}){item.app_name}")
+        profile_handler.delay(item.bk_biz_id, item.app_name)
+        logger.info(f"[profile_discover_cron] dispatched. ({item.bk_biz_id}){item.app_name}")
 
     logger.info(f"[profile_discover_cron] end at {datetime.datetime.now()}")
 

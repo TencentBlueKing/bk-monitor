@@ -13,7 +13,6 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Any
 
-from django.utils import timezone
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
 
@@ -39,8 +38,6 @@ logger = logging.getLogger(__name__)
 
 
 class NodeDiscover(DiscoverBase):
-    """从 Span 维护服务、组件和远程节点的分类与属性；服务心跳由 TopoHandler 统一发布。"""
-
     DISCOVERY_ALL_SPANS = True
     MAX_COUNT = 100000
     model = TopoNode
@@ -107,7 +104,7 @@ class NodeDiscover(DiscoverBase):
 
         return pod_workload_mapping
 
-    def discover(self, origin_data: list[dict[str, Any]], remain_data: Any = None) -> None:
+    def discover(self, origin_data, remain_data=None):
         rules_map = defaultdict(list)
 
         all_rules, other_rule = self.get_rules(_type="all")
@@ -149,9 +146,6 @@ class NodeDiscover(DiscoverBase):
                     continue
 
                 exists_instance = exists_instances.get(k)
-                previous_extra: dict[str, Any] = exists_instance["extra_data"] if exists_instance else {}
-                if exists_instance and not TopoNode.has_trace_or_metric_source(exists_instance["source"]):
-                    previous_extra = {}
                 if v["extra_data"].get("kind") == ApmTopoDiscoverRule.TOPO_SERVICE:
                     if product := llm_products.get(k):
                         v["extra_data"]["llm"] = {"product": product, "updated_at": llm_updated_at}
@@ -167,14 +161,18 @@ class NodeDiscover(DiscoverBase):
                         update_instances[k] = {
                             **v,
                             "extra_data": self.merge_other_extra_data_preserving_category(
-                                previous_extra, v["extra_data"]
+                                exists_instance["extra_data"], v["extra_data"]
                             ),
+                            "source": self.combine_sources(exists_instance["source"], TelemetryDataType.TRACE.value),
                         }
                     else:
                         create_instances[k] = {**v, "source": [TelemetryDataType.TRACE.value]}
                 else:
                     if exists_instance:
-                        update_instances[k] = v.copy()
+                        update_instances[k] = {
+                            **v,
+                            "source": self.combine_sources(exists_instance["source"], TelemetryDataType.TRACE.value),
+                        }
                     else:
                         create_instances[k] = {**v, "source": [TelemetryDataType.TRACE.value]}
 
@@ -199,16 +197,13 @@ class NodeDiscover(DiscoverBase):
                     ),
                     system=combine_list(exist_instance["system"], topo_value["system"]),
                     sdk=combine_list(exist_instance["sdk"], topo_value["sdk"]),
-                    updated_at=timezone.now(),
+                    source=topo_value["source"],
+                    updated_at=datetime.now(),
                 )
             )
 
-        TopoNode.bulk_update_discovered_nodes(
-            self.bk_biz_id,
-            self.app_name,
-            update_combine_instances,
-            fields=["extra_data", "platform", "system", "sdk", "updated_at"],
-            data_type=TelemetryDataType.TRACE.value,
+        TopoNode.objects.bulk_update(
+            update_combine_instances, fields=["extra_data", "platform", "system", "sdk", "source", "updated_at"]
         )
 
         # create
@@ -225,6 +220,13 @@ class NodeDiscover(DiscoverBase):
 
         self.clear_if_overflow()
         self.clear_expired()
+
+    @staticmethod
+    def combine_sources(target: list[str] | None, source: str) -> list[str]:
+        sources: list[str] = list(target or [])
+        if source not in sources:
+            sources.append(source)
+        return sources
 
     @staticmethod
     def set_preferred_llm_product(products: dict[str, str], key: str, product: str | None) -> None:
@@ -252,6 +254,7 @@ class NodeDiscover(DiscoverBase):
         target["platform"] = cls.merge_platform(target.get("platform") or {}, source.get("platform") or {})
         target["system"] = combine_list(target.get("system"), source.get("system"))
         target["sdk"] = combine_list(target.get("sdk"), source.get("sdk"))
+        target["source"] = cls.combine_sources(target.get("source"), TelemetryDataType.TRACE.value)
 
     @staticmethod
     def merge_platform(target: dict[str, Any], source: dict[str, Any]) -> dict[str, Any]:

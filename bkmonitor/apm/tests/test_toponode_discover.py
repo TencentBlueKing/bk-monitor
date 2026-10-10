@@ -13,7 +13,7 @@ from unittest import mock
 import pytest
 
 from apm.core.discover.node import NodeDiscover
-from apm.models import ApmTopoDiscoverRule, TopoNode
+from apm.models import ApmTopoDiscoverRule
 from constants.apm import TelemetryDataType
 
 BK_BIZ_ID = 2
@@ -51,17 +51,6 @@ class FakeQuerySet:
 class FakeTopoNode:
     EXPIRED_DAYS = NodeDiscover.model.EXPIRED_DAYS
     objects = None
-    has_trace_or_metric_source = staticmethod(TopoNode.has_trace_or_metric_source)
-
-    @classmethod
-    def bulk_update_discovered_nodes(
-        cls, bk_biz_id: int, app_name: str, nodes: list["FakeTopoNode"], fields: list[str], data_type: str
-    ) -> None:
-        for node in nodes:
-            node.source = list(cls.objects.nodes[node.topo_key].get("source") or [])
-            if data_type not in node.source:
-                node.source.append(data_type)
-        cls.objects.bulk_update(nodes, [*fields, "source"])
 
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -454,10 +443,3 @@ def test_llm_metadata_survives_component_span_in_same_batch():
     topo_node, _ = run_discover(existing_node, [build_llm_span({"gen_ai.span.kind": "AGENT"}), build_component_span()])
 
     assert topo_node["extra_data"]["llm"]["product"] == "agentlens"
-
-
-def test_trace_promotes_profiling_only_node() -> None:
-    existing = build_topo_node({"kind": "profiling", "category": "profiling"}, source=["profiling"])
-    node, _ = run_discover(existing, build_other_span_without_platform())
-    assert node["extra_data"]["kind"] == "service"
-    assert node["source"] == ["profiling", "trace"]

@@ -154,7 +154,7 @@ class ProfileQueryBuilder:
     def copy(self):
         return copy.deepcopy(self)
 
-    def execute(self) -> list[dict[str, typing.Any]]:
+    def execute(self):
         params = {
             "sql": json.dumps(
                 {
@@ -168,8 +168,4 @@ class ProfileQueryBuilder:
         }
         logger.info(f"[ProfileQuery] origin_params: \n-----\n{json.dumps(params)}\n-----\n")
         response = api.bkdata.query_profile_data(**params)
-        # 只有显式空列表才表示查询成功但无数据，异常响应不能被用来续期心跳。
-        rows = response.get("list")
-        if not isinstance(rows, list):
-            raise ValueError("invalid profiling query response: list must be an array")
-        return rows
+        return response.get("list", [])

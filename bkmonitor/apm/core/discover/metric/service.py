@@ -9,17 +9,14 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-import math
 import time
+from datetime import datetime
 from typing import Any
 
-from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
-from django.utils import timezone
 
 from apm.core.discover.base import combine_list
 from apm.core.discover.metric.base import Discover
-from apm.core.discover.exceptions import IncompleteDiscoveryError
 from apm.models import TopoNode
 from constants.apm import TelemetryDataType, CUSTOM_METRICS_PROMQL_FILTER, TraceMetric
 from core.drf_resource import api
@@ -28,7 +25,10 @@ logger = logging.getLogger(__name__)
 
 
 class ServiceDiscover(Discover):
-    """从指标维度发现服务，并通过样本时间维护指标及组件、远程服务的 Trace 心跳。"""
+    """从指标中发现服务"""
+
+    # 由任务入口按此粒度切分查询窗口（秒）。
+    SPLIT_SECONDS: int = settings.APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA
 
     def list_exists_mapping(self):
         return {
@@ -39,63 +39,50 @@ class ServiceDiscover(Discover):
             ).values("id", "topo_key", "source", "system")
         }
 
-    def query_series(self, promql: str, start_time: int, end_time: int) -> list[dict[str, Any]]:
-        """按秒级窗口查询序列；路由缺失、部分结果及序列截断视为失败，异常交由调用方处理。"""
-        response: dict[str, Any] = api.unify_query.query_data_by_promql(
-            {
-                "bk_biz_ids": [self.bk_biz_id],
-                "start": start_time,
-                "end": end_time,
-                "promql": promql,
-                "step": "60s",
-            }
+    def query_dimensions(
+        self, promql: str, start_time: int, end_time: int, with_last_data_at: bool = False
+    ) -> list[dict[str, Any]]:
+        query_params: dict[str, Any] = {
+            "bk_biz_ids": [self.bk_biz_id],
+            "start": start_time,
+            "end": end_time,
+            "promql": promql,
+            "step": f"{end_time - start_time}s",
+        }
+        logger.info(
+            f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) query series with params: {query_params}"
         )
-        status: dict[str, Any] = response.get("status") or {}
-        if response.get("is_partial") or status.get("code") in {
-            "QUERY_TS_PARTIAL",
-            "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS",
-            "EXCEEDS_MAXIMUM_LIMIT",
-            "EXCEEDS_MAXIMUM_SLIMIT",
-        }:
-            raise IncompleteDiscoveryError("incomplete metric discovery result")
-        return response["series"]
 
-    def query_dimensions(self, promql: str, start_time: int, end_time: int) -> list[dict[str, str | None]]:
-        """提取服务发现所需的维度；普通查询失败记日志并返回空列表，软超时继续上抛。"""
         try:
-            series: list[dict[str, Any]] = self.query_series(promql, start_time, end_time)
-        except SoftTimeLimitExceeded:
-            raise
-        except Exception:
-            logger.exception(
-                "[MetricServiceDiscover] query failed: bk_biz_id=%s app_name=%s", self.bk_biz_id, self.app_name
+            response: dict[str, Any] = api.unify_query.query_data_by_promql(query_params)
+        except Exception as e:  # pylint: disable=broad-except
+            logger.error(
+                f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) query dimensions failed: "
+                f"error -> {e}, promql -> {promql}"
             )
             return []
-        return [dict(zip(item["group_keys"], item["group_values"])) for item in series if item.get("group_keys")]
+
+        dimensions: list[dict[str, Any]] = []
+        for item in response.get("series", []):
+            if not item.get("group_keys"):
+                continue
+            dimension: dict[str, Any] = dict(zip(item["group_keys"], item["group_values"]))
+            if with_last_data_at:
+                value_index: int = item["columns"].index("_value")
+                points: list[float] = [point[value_index] for point in item["values"] if point[value_index] is not None]
+                dimension["last_data_at"] = int(max(points)) if points else None
+            dimensions.append(dimension)
+        return dimensions
 
     def discover(self, start_time: int, end_time: int) -> None:
-        split_seconds: int = settings.APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA
-        for start in range(start_time, end_time, split_seconds):
-            end: int = min(start + split_seconds, end_time)
-            self.discover_services(start, end)
-        try:
-            self.discover_heartbeat(start_time, end_time)
-        except SoftTimeLimitExceeded:
-            raise
-        except Exception:
-            logger.exception(
-                "[MetricServiceDiscover] heartbeat unchanged: bk_biz_id=%s app_name=%s start=%s end=%s",
-                self.bk_biz_id,
-                self.app_name,
-                start_time,
-                end_time,
-            )
+        self.discover_services(start_time, end_time)
+        self.discover_heartbeat(start_time, end_time)
 
     def discover_heartbeat(self, start_time: int, end_time: int) -> None:
-        """一次查询四个维度，按服务键合并窗口内最大的秒级样本时间。
+        """一次查询四个维度，按服务键合并最大的秒级样本时间。
 
         timestamp() 的返回值是样本时间，_time 是求值时间，不用于心跳。
-        查询成功后检查全部现存节点的指标心跳，仅为命中的组件、远程服务补写 Trace 心跳。
+        仅更新观测节点的指标心跳，并为组件、远程服务补写 Trace 心跳。
         """
         observed: dict[str, int] = {}
         trace_observed: dict[str, int] = {}
@@ -104,16 +91,11 @@ class ServiceDiscover(Discover):
             "max by (service_name, db_system, messaging_system, peer_service) "
             f'(timestamp({{__name__="custom:{metric_table}:{TraceMetric.BK_APM_COUNT}"}}))'
         )
-        for series in self.query_series(promql, start_time, end_time):
-            dimensions = dict(zip(series["group_keys"], series["group_values"]))
-            columns = series["columns"]
-            value_index = columns.index("_value" if "_value" in columns else "_result")
-            timestamps = [float(point[value_index]) for point in series["values"] if point[value_index] is not None]
-            timestamps = [value for value in timestamps if math.isfinite(value) and start_time <= value <= end_time]
-            if not timestamps:
+        for dimensions in self.query_dimensions(promql, start_time, end_time, with_last_data_at=True):
+            timestamp: int | None = dimensions["last_data_at"]
+            if timestamp is None:
                 continue
-            timestamp: int = int(max(timestamps))
-            service_name = dimensions.get("service_name")
+            service_name: str | None = dimensions.get("service_name")
             if service_name:
                 observed[service_name] = max(observed.get(service_name, 0), timestamp)
                 for field in ("db_system", "messaging_system"):
@@ -126,9 +108,7 @@ class ServiceDiscover(Discover):
         for key, timestamp in trace_observed.items():
             observed[key] = max(observed.get(key, 0), timestamp)
         checked_at: int = int(time.time())
-        TopoNode.touch_heartbeat(
-            self.bk_biz_id, self.app_name, TelemetryDataType.METRIC.value, observed, checked_at, check_all_services=True
-        )
+        TopoNode.touch_heartbeat(self.bk_biz_id, self.app_name, TelemetryDataType.METRIC.value, observed, checked_at)
         # 组件及远程服务的 bk_apm_count 来自 Span，只补写这些节点的 Trace 心跳。
         TopoNode.touch_heartbeat(
             self.bk_biz_id, self.app_name, TelemetryDataType.TRACE.value, trace_observed, checked_at
@@ -175,7 +155,6 @@ class ServiceDiscover(Discover):
         found_topo_keys: set[str] = set()
         to_be_created_topo_nodes: list[TopoNode] = []
         to_be_updated_topo_nodes: list[TopoNode] = []
-        promoted_node_ids: list[int] = []
         exists_mapping: dict[str, dict[str, Any]] = self.list_exists_mapping()
         for service in services:
             topo_key: str | None = service.get("service_name")
@@ -196,18 +175,20 @@ class ServiceDiscover(Discover):
                 system[0]["extra_data"]["rpc_system"] = rpc_system
 
             if topo_key in exists_mapping:
-                existing: dict[str, Any] = exists_mapping[topo_key]
-                if not TopoNode.has_trace_or_metric_source(existing["source"]):
-                    promoted_node_ids.append(existing["id"])
+                source: list[str] = exists_mapping[topo_key]["source"] or [TelemetryDataType.METRIC.value]
+                if TelemetryDataType.METRIC.value not in source:
+                    source.append(TelemetryDataType.METRIC.value)
+
                 to_be_updated_topo_nodes.append(
                     TopoNode(
                         bk_biz_id=self.bk_biz_id,
                         app_name=self.app_name,
                         **{
                             **exists_mapping[topo_key],
+                            "source": source,
                             "system": combine_list(exists_mapping[topo_key]["system"], system),
                         },
-                        updated_at=timezone.now(),
+                        updated_at=datetime.now(),
                     )
                 )
             else:
@@ -224,19 +205,9 @@ class ServiceDiscover(Discover):
 
             found_topo_keys.add(topo_key)
 
-        if promoted_node_ids:
-            # 只提升仍属于新来源的节点，避免覆盖期间由 Trace 写入的分类。
-            TopoNode.objects.filter(TopoNode.unclassified_source_filter(), id__in=promoted_node_ids).update(
-                extra_data=TopoNode.get_empty_extra_data()
-            )
-
         if to_be_updated_topo_nodes:
-            TopoNode.bulk_update_discovered_nodes(
-                self.bk_biz_id,
-                self.app_name,
-                to_be_updated_topo_nodes,
-                fields=["system", "updated_at"],
-                data_type=TelemetryDataType.METRIC.value,
+            TopoNode.objects.bulk_update(
+                to_be_updated_topo_nodes, fields=["source", "system", "updated_at"], batch_size=200
             )
             logger.info(
                 f"[MetricServiceDiscover] ({self.bk_biz_id}:{self.app_name}) "

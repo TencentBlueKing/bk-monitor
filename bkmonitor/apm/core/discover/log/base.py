@@ -16,4 +16,3 @@ class Discover:
         self.datasource = datasource
         self.bk_biz_id: int = datasource.bk_biz_id
         self.app_name: str = datasource.app_name
-        self.result_table_id: str = datasource.result_table_id

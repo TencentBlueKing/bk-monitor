@@ -14,13 +14,14 @@ from apm.tests.test_service_heartbeat import make_node
 pytestmark = pytest.mark.django_db(databases="__all__", transaction=True)
 
 
-def test_mysql_concurrent_heartbeat_merges_preserve_both_sources() -> None:
+def test_mysql_concurrent_heartbeat_merges_preserve_both_data_types() -> None:
     database = router.db_for_write(TopoNode)
     assert connections[database].vendor == "mysql", "并发与锁超时测试必须使用 MySQL"
     node = make_node()
     initial_updated_at = node.updated_at
     locked = Event()
     release = Event()
+    writer_connections: list[int] = []
 
     def first_writer() -> None:
         try:
@@ -34,6 +35,9 @@ def test_mysql_concurrent_heartbeat_merges_preserve_both_sources() -> None:
     def second_writer() -> bool:
         try:
             assert locked.wait(5)
+            with connections[database].cursor() as cursor:
+                cursor.execute("SELECT CONNECTION_ID()")
+                writer_connections.append(cursor.fetchone()[0])
             return TopoNode.touch_heartbeat(2, "app", "metric", {"demo": 120}, 130)
         finally:
             connections[database].close()
@@ -47,7 +51,12 @@ def test_mysql_concurrent_heartbeat_merges_preserve_both_sources() -> None:
             waiting = False
             while time.monotonic() < deadline:
                 with connections[database].cursor() as cursor:
-                    cursor.execute("SELECT COUNT(*) FROM performance_schema.data_lock_waits")
+                    cursor.execute(
+                        "SELECT COUNT(*) FROM performance_schema.data_lock_waits w "
+                        "JOIN performance_schema.threads t ON t.THREAD_ID = w.REQUESTING_THREAD_ID "
+                        "WHERE t.PROCESSLIST_ID = %s",
+                        [writer_connections[0] if writer_connections else 0],
+                    )
                     waiting = cursor.fetchone()[0] > 0
                 if waiting:
                     break
@@ -86,6 +95,9 @@ def test_mysql_lock_timeout_keeps_previous_heartbeat() -> None:
             assert pool.submit(blocked_writer).result(timeout=5) is False
     node.refresh_from_db()
     assert node.heartbeat == previous
+    assert TopoNode.touch_heartbeat(2, "app", "log", {"demo": 200}, 210)
+    node.refresh_from_db()
+    assert node.heartbeat["log"] == {"last_data_at": 200, "checked_at": 210}
 
 
 def test_mysql_deadlock_keeps_victims_previous_heartbeat(caplog: pytest.LogCaptureFixture) -> None:
@@ -119,40 +131,3 @@ def test_mysql_deadlock_keeps_victims_previous_heartbeat(caplog: pytest.LogCaptu
         if succeeded:
             expected["trace"] = {"last_data_at": 100, "checked_at": 110}
         assert target.heartbeat == expected
-
-
-@pytest.mark.parametrize("data_type", ["trace", "metric"])
-def test_mysql_discovery_waits_for_source_append_and_preserves_it(data_type: str) -> None:
-    database = router.db_for_write(TopoNode)
-    assert connections[database].vendor == "mysql"
-    node = make_node(source=["trace"], heartbeat={"trace": {"last_data_at": 100, "checked_at": 110}})
-    initial_heartbeat = node.heartbeat
-    started = Event()
-
-    def stale_writer() -> None:
-        try:
-            started.set()
-            TopoNode.bulk_update_discovered_nodes(2, "app", [node], ["system"], data_type)
-        finally:
-            connections[database].close()
-
-    with ThreadPoolExecutor(max_workers=1) as pool:
-        with transaction.atomic(using=database):
-            TopoNode.upsert_telemetry_nodes(2, "app", "profiling", {"demo"}, {})
-            pending = pool.submit(stale_writer)
-            assert started.wait(5)
-            deadline = time.monotonic() + 5
-            waiting = False
-            while time.monotonic() < deadline:
-                with connections[database].cursor() as cursor:
-                    cursor.execute("SELECT COUNT(*) FROM performance_schema.data_lock_waits")
-                    waiting = cursor.fetchone()[0] > 0
-                if waiting:
-                    break
-                time.sleep(0.02)
-            assert waiting, "发现更新必须等待来源追加事务提交后再读取 source"
-            assert not pending.done()
-        pending.result(timeout=5)
-    node.refresh_from_db()
-    assert node.source == (["trace", "profiling"] if data_type == "trace" else ["trace", "profiling", "metric"])
-    assert node.heartbeat == initial_heartbeat

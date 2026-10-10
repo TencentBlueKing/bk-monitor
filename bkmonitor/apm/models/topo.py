@@ -13,14 +13,13 @@ import logging
 from typing import Any
 
 from django.db import OperationalError, models, router, transaction
-from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apm.constants import DiscoverRuleType
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.db import JsonField
-from constants.apm import SpanKind, TelemetryDataType
+from constants.apm import SpanKind
 from core.drf_resource.exceptions import CustomException
 
 
@@ -73,62 +72,11 @@ class TopoNode(TopoBase):
     system = models.JSONField("系统类型", null=True)
     platform = models.JSONField("部署平台", null=True)
     sdk = models.JSONField("上报sdk", null=True)
-    # 发现来源使用 TelemetryDataType 值；空列表保留历史节点的分类语义。
+    # source: 说明这个服务是由哪个数据源发现的，值为 TelemetryData，存储格式: ["trace", "metric"]
     source = models.JSONField("服务发现来源", default=list)
     # 按数据类型保存秒级 last_data_at / checked_at，独立于节点生命周期 updated_at。
     heartbeat = models.JSONField("服务数据心跳", default=dict)
     is_permanent = models.BooleanField("是否永久保存", default=False)
-
-    @classmethod
-    def unclassified_source_filter(cls) -> Q:
-        """定位尚无 Trace/Metric 分类的节点，仅供分类提升和关系识别，不限制服务可见性。"""
-        # JSON 精确匹配会在 MySQL 侧转换参数类型；JSON 列的 IN 查找没有这一步。
-        log: str = TelemetryDataType.LOG.value
-        profiling: str = TelemetryDataType.PROFILING.value
-        return Q(source=[log]) | Q(source=[profiling]) | Q(source=[log, profiling]) | Q(source=[profiling, log])
-
-    @staticmethod
-    def has_trace_or_metric_source(sources: list[str] | None) -> bool:
-        """空来源属于历史节点，其余节点须已被 Trace 或 Metric 发现。"""
-        return not sources or bool(
-            {TelemetryDataType.TRACE.value, TelemetryDataType.METRIC.value}.intersection(sources)
-        )
-
-    @classmethod
-    def bulk_update_discovered_nodes(
-        cls,
-        bk_biz_id: int,
-        app_name: str,
-        nodes: list["TopoNode"],
-        fields: list[str],
-        data_type: str,
-    ) -> None:
-        """更新本应用已存在的节点，并在行锁内合并最新来源。
-
-        :param nodes: 携带主键和本轮发现字段的节点；已删除或不属于本应用的行不更新。
-        :param fields: 除 source 外需要保存的字段，使用传入节点的值。
-        :param data_type: 追加到最新 source 的发现来源，不使用传入节点的来源快照。
-        """
-        if not nodes:
-            return
-        database: str = router.db_for_write(cls)
-        nodes_by_id: dict[int, TopoNode] = {node.pk: node for node in nodes}
-        with transaction.atomic(using=database):
-            current_nodes = (
-                cls.objects.using(database)
-                .select_for_update()
-                .filter(bk_biz_id=bk_biz_id, app_name=app_name, id__in=nodes_by_id)
-                .only("id", "source")
-                .order_by("id")
-            )
-            updated_nodes: list[TopoNode] = []
-            for current in current_nodes:
-                node = nodes_by_id[current.pk]
-                node.source = list(current.source or [])
-                if data_type not in node.source:
-                    node.source.append(data_type)
-                updated_nodes.append(node)
-            cls.objects.using(database).bulk_update(updated_nodes, fields=[*fields, "source"], batch_size=200)
 
     @classmethod
     def touch_heartbeat(
@@ -138,47 +86,37 @@ class TopoNode(TopoBase):
         data_type: str,
         last_data_at_mapping: dict[str, int | None],
         checked_at: int,
-        *,
-        check_all_services: bool = False,
     ) -> bool:
         """合并单类心跳，不改变节点存活时间。
 
         在模型路由对应的事务内锁行、重读并合并，只更新 heartbeat 列。
         last_data_at 和 checked_at 均单调前进，其他数据类型的子键保持不变。
 
-        :param last_data_at_mapping: 服务键到秒级数据时间的映射；None 表示本轮未观测到数据。
-        :param checked_at: 本轮成功检查的秒级时间戳。
-        :param check_all_services: True 检查本应用全部现存节点；False 仅检查映射命中的节点。
-            未观测到数据的节点保留原数据时间。此入口不创建节点。
+        :param last_data_at_mapping: 服务键到秒级数据时间的映射；显式 None 仅推进该服务的 checked_at，保留数据时间。
+            未包含的服务不更新，不存在的节点不创建。
+        :param checked_at: 本次输入覆盖服务的检查完成时间（秒），不代表应用全部服务已检查。
         :return: 正常完成（包括无须更新）返回 True；锁超时或死锁回滚后返回 False，其他异常上抛。
         """
-        if data_type not in {item.value for item in TelemetryDataType}:
-            raise ValueError(f"unsupported telemetry data type: {data_type}")
-        if not last_data_at_mapping and not check_all_services:
+        if not last_data_at_mapping:
             return True
 
         database: str = router.db_for_write(cls)
         try:
             with transaction.atomic(using=database):
-                queryset = (
-                    cls.objects.using(database).select_for_update().filter(bk_biz_id=bk_biz_id, app_name=app_name)
+                nodes: list[TopoNode] = list(
+                    cls.objects.using(database)
+                    .select_for_update()
+                    .filter(bk_biz_id=bk_biz_id, app_name=app_name, topo_key__in=last_data_at_mapping)
+                    .only("id", "topo_key", "heartbeat")
+                    .order_by("id")
                 )
-                if not check_all_services:
-                    queryset = queryset.filter(topo_key__in=last_data_at_mapping)
-                nodes: list[TopoNode] = list(queryset.only("id", "topo_key", "heartbeat").order_by("id"))
                 for node in nodes:
-                    heartbeat: dict[str, Any] = dict(node.heartbeat)
-                    previous: dict[str, int | None] = heartbeat.get(data_type, {})
-                    times: list[int] = [
-                        value
-                        for value in (previous.get("last_data_at"), last_data_at_mapping.get(node.topo_key))
-                        if value is not None
-                    ]
-                    heartbeat[data_type] = {
-                        "last_data_at": max(times) if times else None,
-                        "checked_at": max(previous.get("checked_at") or 0, checked_at),
-                    }
-                    node.heartbeat = heartbeat
+                    prev: dict[str, int | None] = node.heartbeat.get(data_type) or {}
+                    new_last_data_at: int | None = last_data_at_mapping[node.topo_key]
+                    if new_last_data_at is not None:
+                        prev["last_data_at"] = max(prev.get("last_data_at") or 0, new_last_data_at)
+                    prev["checked_at"] = max(prev.get("checked_at") or 0, checked_at)
+                    node.heartbeat[data_type] = prev
                 cls.objects.using(database).bulk_update(nodes, fields=["heartbeat"], batch_size=200)
         except OperationalError as error:
             # 在事务退出并回滚后处理可恢复的行锁失败，其他数据库异常继续上抛。
@@ -205,30 +143,20 @@ class TopoNode(TopoBase):
         """
         if not service_names:
             return
-        database: str = router.db_for_write(cls)
-        with transaction.atomic(using=database):
-            nodes: list[TopoNode] = list(
-                cls.objects.using(database)
-                .select_for_update()
-                .filter(bk_biz_id=bk_biz_id, app_name=app_name, topo_key__in=service_names)
-                .order_by("id")
-            )
-            existing_names: set[str] = {node.topo_key for node in nodes}
-            for node in nodes:
-                # 空来源保留历史分类语义，避免后续 Trace/Metric 将既有分类当作占位分类覆盖。
-                if node.source and data_type not in node.source:
-                    node.source = [*node.source, data_type]
-                node.updated_at = timezone.now()
-            cls.objects.using(database).bulk_update(nodes, fields=["source", "updated_at"], batch_size=200)
-            cls.objects.using(database).bulk_create(
-                [
-                    cls(
-                        bk_biz_id=bk_biz_id, app_name=app_name, topo_key=name, source=[data_type], extra_data=extra_data
-                    )
-                    for name in sorted(service_names - existing_names)
-                ],
-                batch_size=200,
-            )
+        nodes: list[TopoNode] = list(cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, topo_key__in=service_names))
+        existing_names: set[str] = {node.topo_key for node in nodes}
+        for node in nodes:
+            if node.source and data_type not in node.source:
+                node.source.append(data_type)
+            node.updated_at = timezone.now()
+        cls.objects.bulk_update(nodes, fields=["source", "updated_at"], batch_size=200)
+        cls.objects.bulk_create(
+            [
+                cls(bk_biz_id=bk_biz_id, app_name=app_name, topo_key=name, source=[data_type], extra_data=extra_data)
+                for name in sorted(service_names - existing_names)
+            ],
+            batch_size=200,
+        )
 
     @classmethod
     @using_cache(CacheType.APM(60 * 10))

@@ -25,7 +25,6 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from apm import constants
 from apm.constants import DiscoverRuleType
 from apm.core.discover.instance_data import BaseInstanceData
-from apm.core.discover.exceptions import IncompleteDiscoveryError
 from apm.core.handlers.query.span_query import SpanQuery
 from apm.models import ApmApplication, ApmTopoDiscoverRule, TopoNode, TraceDataSource
 from apm.utils.base import divide_biscuit
@@ -372,12 +371,10 @@ class TopoHandler:
 
         return True
 
-    def _get_after_key_body(self, after_key: dict[str, str] | None = None) -> dict[str, Any]:
+    def _get_after_key_body(self, after_key=None):
         body = {
             "size": 0,
-            "query": {
-                "bool": {"must": {"range": {"time": {"gte": f"now-{constants.DISCOVER_TIME_RANGE}", "lt": "now"}}}}
-            },
+            "query": {"bool": {"must": {"range": {"time": {"gte": "now-10m", "lt": "now"}}}}},
             "aggs": {
                 "unique_trace_id": {
                     "composite": {
@@ -455,11 +452,7 @@ class TopoHandler:
             self.datasource.es_client.clear_scroll(scroll_id=scroll_id)
             return res
 
-    def _discover_handle(
-        self, discover: type[DiscoverBase], spans: list[dict[str, Any]], handle_type: str, remain_data: Any
-    ) -> bool:
-        """执行单个发现器，记录异常并返回结果，供兜底轮判断节点发现是否成功。"""
-
+    def _discover_handle(self, discover, spans, handle_type, remain_data):
         def _topo_handle():
             instance = discover(self.bk_biz_id, self.app_name)
             instance.discover(spans, remain_data)
@@ -477,7 +470,6 @@ class TopoHandler:
                 f"discover: {str(discover)} handle_type: {handle_type}"
                 f"error: {e} exception: {traceback.format_exc()}"
             )
-            return False
 
         duration = (datetime.datetime.now() - start).seconds
         logger.info(
@@ -486,8 +478,6 @@ class TopoHandler:
             f"discover: {str(discover)} handle_type: {handle_type} "
             f"span count: {len(spans)} duration: {duration}ms"
         )
-
-        return True
 
     def _get_trace_task_splits(self):
         """根据此索引最大的结果返回数量判断每个子任务需要传递多少个traceId"""
@@ -526,33 +516,22 @@ class TopoHandler:
         return 1 if not per_trace_size else per_trace_size
 
     def _discover_spans(
-        self, spans: list[dict[str, Any]], template: list[tuple[type[DiscoverBase], Any, str, Any]]
-    ) -> bool:
-        """按发现器的 Span kind 要求分发数据，并等待本轮任务结束。
-
-        :return: 空输入或 TopoNode 发现成功时返回 True；其他发现器失败独立记录，
-            不影响此返回值。该结果不代表整轮所有拓扑对象均已更新。
-        """
-        if not spans:
-            return True
-        filtered = [span for span in spans if span[OtlpKey.KIND] in self.FILTER_KIND]
-        params = [
-            (cls, spans if cls.DISCOVERY_ALL_SPANS else filtered, kind, remaining)
-            for cls, _, kind, remaining in template
-        ]
-        with ThreadPool() as pool:
-            results = pool.map_ignore_exception(self._discover_handle, params, return_exception=True)
-        return any(
-            getattr(cls, "model", None) is TopoNode and result is True
-            for (cls, _, _, _), result in zip(params, results)
-        )
+        self, spans: list[dict[str, Any]], template: list[tuple[type[DiscoverBase], None, str, Any]]
+    ) -> None:
+        """按发现器所需的 Span kind 分发数据，并等待发现完成。"""
+        # endpoint、relation、remote_service_relation、root_endpoint 只处理指定 kind。
+        filter_spans: list[dict[str, Any]] = [span for span in spans if span[OtlpKey.KIND] in self.FILTER_KIND]
+        topo_params: list[tuple[type[DiscoverBase], list[dict[str, Any]], str, Any]] = []
+        for cls, unused_spans, handle_type, remain_data in template:
+            if cls.DISCOVERY_ALL_SPANS:
+                topo_params.append((cls, spans, handle_type, remain_data))
+            else:
+                topo_params.append((cls, filter_spans, handle_type, remain_data))
+        pool = ThreadPool()
+        pool.map_ignore_exception(self._discover_handle, topo_params)
 
     def discover(self) -> bool | None:
-        """先按 Trace ID 分批发现，再以每服务最新完整 Span 补齐稀疏服务。
-
-        兜底查询失败或节点发现失败时不发布本轮 Trace 心跳；成功时仅更新观测到的服务，
-        数据时间取 Span.end_time（微秒转秒），不以任务运行时间代替。
-        """
+        """常规发现后用每服务最新完整 Span 补齐稀疏服务，并记录 Trace 心跳。"""
         start = datetime.datetime.now()
         trace_id_count = 0
         span_count = 0
@@ -577,9 +556,9 @@ class TopoHandler:
 
             trace_id_count += len(trace_ids)
 
+            pool = ThreadPool()
             get_spans_params = [(i, max_result_count, index_name) for i in divide_biscuit(trace_ids, per_trace_size)]
-            with ThreadPool() as pool:
-                results = pool.map_ignore_exception(self.list_span_by_trace_ids, get_spans_params)
+            results = pool.map_ignore_exception(self.list_span_by_trace_ids, get_spans_params)
             all_spans_group = [i for i in results if i]
             all_spans = list(itertools.chain(*all_spans_group))
             avg_group_span_count = len(all_spans) / len(get_spans_params)
@@ -601,20 +580,19 @@ class TopoHandler:
 
         # 按服务取完整的最后一条 Span，补齐 Trace 抽样和轮次截断遗漏的稀疏服务。
         end_time: int = int(start.timestamp())
-        span_query = SpanQuery([self._trace_target])
-        last_spans = span_query.query_group_list(
+        span_query: SpanQuery = SpanQuery([self._trace_target])
+        last_spans: list[dict[str, Any]] = span_query.query_group_list(
             end_time + parse_time_compare_abbreviation(constants.DISCOVER_TIME_RANGE),
             end_time,
             group_field=OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
             limit=SpanQuery.QUERY_MAX_LIMIT,
         )
-        if not self._discover_spans(last_spans, topo_params_template):
-            raise IncompleteDiscoveryError("fallback node discovery failed")
+        self._discover_spans(last_spans, topo_params_template)
         observed: dict[str, int] = {}
         for span in last_spans:
             name = extract_field_value((OtlpKey.RESOURCE, ResourceAttributes.SERVICE_NAME), span)
-            if name and span.get(OtlpKey.END_TIME) is not None:
-                observed[name] = max(observed.get(name, 0), int(span[OtlpKey.END_TIME]) // 1_000_000)
+            if name:
+                observed[name] = int(span[OtlpKey.END_TIME]) // 1_000_000
         TopoNode.touch_heartbeat(
             self.bk_biz_id,
             self.app_name,

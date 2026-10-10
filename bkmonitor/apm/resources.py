@@ -777,8 +777,6 @@ class AppConfigResource(Resource):
 
 
 class QueryTopoNodeResource(Resource):
-    """返回有效期内的服务拓扑；关闭 Profiling 时仅隐藏纯 Profiling 来源节点。"""
-
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务id")
         app_name = serializers.CharField(label="应用名称", max_length=50)
@@ -787,14 +785,14 @@ class QueryTopoNodeResource(Resource):
     class NodeResponseSerializer(serializers.ModelSerializer):
         class Meta:
             model = TopoNode
-            fields = ("extra_data", "system", "platform", "sdk", "topo_key", "created_at", "updated_at")
+            fields = ("extra_data", "system", "platform", "sdk", "source", "heartbeat", "topo_key", "created_at", "updated_at")
 
         def to_representation(self, instance):
             data = super().to_representation(instance)
             data["extra_data"] = instance.extra_data
             return data
 
-    def perform_request(self, data: dict[str, Any]) -> list[dict[str, Any]]:
+    def perform_request(self, data):
         filter_params = DiscoverHandler.get_retention_filter_params(
             data["bk_biz_id"], data["app_name"], TopoNode.EXPIRED_DAYS
         )
@@ -804,10 +802,6 @@ class QueryTopoNodeResource(Resource):
 
         res = []
         nodes = TopoNode.objects.filter(**filter_params)
-        if ApmApplication.objects.filter(
-            bk_biz_id=data["bk_biz_id"], app_name=data["app_name"], is_enabled_profiling=False
-        ).exists():
-            nodes = nodes.exclude(source=[TelemetryDataType.PROFILING.value])
         for n in nodes:
             extra = n.extra_data
             if (
