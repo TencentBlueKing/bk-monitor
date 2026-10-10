@@ -377,14 +377,17 @@ $levelColor: #ea3636 #ff9c01 #699df4;
 
                 .user-notice-item {
                   display: flex;
-                  height: 30px;
+                  align-items: flex-start;
+                  min-height: 30px;
                   line-height: 30px;
                 }
 
                 .groups-title-warp {
                   display: inline-block;
+                  flex-shrink: 0;
                   min-width: 60px;
                   text-align: right;
+                  white-space: nowrap;
                 }
               }
 

@@ -11,19 +11,20 @@ const flush = () => new Promise(resolve => setImmediate(resolve));
 const host = id => ({ bk_host_id: id, bk_cloud_id: 0, bk_host_innerip: `127.0.0.${id}`, module: [] });
 const pageResult = (ids, page = 1, total = 150) => ({ items: ids.map(host), page, page_size: 50, total });
 
-function load(file, dependencies = {}) {
+function load(file, dependencies = {}, globals = {}) {
   const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', code)(
+  new Function('require', 'module', 'exports', ...Object.keys(globals), code)(
     id => {
       if (id in dependencies) return dependencies[id];
       if (id === 'vue') return vue;
       throw new Error(`Unexpected dependency: ${id}`);
     },
     module,
-    module.exports
+    module.exports,
+    ...Object.values(globals)
   );
   return module.exports;
 }
@@ -32,8 +33,16 @@ const { createHostListRow } = load(`${root}/utils/host-list-core.ts`, {
   'monitor-common/utils': { isObject: value => value !== null && typeof value === 'object' },
 });
 
-test('full handoff removes only invalid selections from its snapshot and retains new selections', async () => {
+test('controller isolates reusable contexts and full handoff retains newly selected rows', async () => {
   let finishValidation;
+  let dataOptions;
+  const appStore = { bizId: 1, userName: 'test-user', siteUrl: '/' };
+  const hostStore = {
+    timeRange: vue.shallowRef(['now-1h', 'now']),
+    timezone: vue.shallowRef('UTC'),
+    refreshGeneration: vue.shallowRef(0),
+    refreshInterval: vue.shallowRef(0),
+  };
   const data = {
     fullDataReady: vue.shallowRef(false),
     snapshotVersion: vue.shallowRef(0),
@@ -56,19 +65,14 @@ test('full handoff removes only invalid selections from its snapshot and retains
       useTableColumnsCache: () => ({ storageColumns: vue.shallowRef([]), fieldsWidthConfig: {} }),
     },
     '../../../hooks/useUserConfig': { default: () => ({}) },
-    '../../../store/modules/app': { useAppStore: () => ({ bizId: 1 }) },
+    '../../../store/modules/app': { useAppStore: () => appStore },
     '../../../store/modules/host': {
-      useHostStore: () => ({
-        timeRange: vue.shallowRef(['now-1h', 'now']),
-        timezone: vue.shallowRef('UTC'),
-        refreshGeneration: vue.shallowRef(0),
-        refreshInterval: vue.shallowRef(0),
-      }),
+      useHostStore: () => hostStore,
     },
     '../constants/enum': load(`${root}/constants/enum.ts`),
     '../constants/host-list': { HOST_FILTER_FIELDS: [], HOST_LIST_COLUMNS: [], HOST_LIST_DEFAULT_PAGE_SIZE: 50 },
     '../utils/share-scope': load(`${root}/utils/share-scope.ts`),
-    './use-host-list-data': { useHostListData: () => data },
+    './use-host-list-data': { useHostListData: options => { dataOptions = options; return data; } },
     './use-host-list-worker': {
       useHostListWorker: () => ({
         getSelectedRows: keys => {
@@ -92,6 +96,23 @@ test('full handoff removes only invalid selections from its snapshot and retains
       where: vue.shallowRef([]),
     })
   );
+  const originalKey = dataOptions.getQueryKey();
+  for (const [object, key, value] of [
+    [appStore, 'userName', 'other-user'],
+    [appStore, 'siteUrl', '/other/'],
+    [appStore, 'bizId', 2],
+    [hostStore.timeRange, 'value', ['now-2h', 'now']],
+    [hostStore.timezone, 'value', 'Asia/Shanghai'],
+  ]) {
+    const original = object[key];
+    object[key] = value;
+    assert.notEqual(dataOptions.getQueryKey(), originalKey, key);
+    object[key] = original;
+  }
+  assert.equal(dataOptions.getQueryKey(), originalKey);
+  appStore.userName = '';
+  assert.equal(dataOptions.getQueryKey(), null);
+  appStore.userName = 'test-user';
   controller.handleRowCheck('1', true);
   controller.handleRowCheck('missing', true);
   data.fullDataReady.value = true;
@@ -109,7 +130,7 @@ test('full handoff removes only invalid selections from its snapshot and retains
   effect.stop();
 });
 
-function harness(scope = {}) {
+function harness(scope = {}, cacheWindow = null, getQueryKey = () => null) {
   const calls = [];
   const services = Object.fromEntries(
     ['getHostInfoList', 'getHostInfoPage', 'getHostMetricInfoList', 'getHostMetricStats'].map(name => [
@@ -143,8 +164,20 @@ function harness(scope = {}) {
     mergeMetrics: metricListMap => send({ type: 'MERGE_METRICS', metricListMap }),
     compute: params => send({ type: 'COMPUTE', params }),
   };
+  const queryServices = load(`${root}/services/host-service.ts`, {
+    'monitor-api/base': { request: () => () => {} },
+    'monitor-api/modules/commons': {},
+    'monitor-api/modules/performance': {
+      searchHostInfo: services.getHostInfoList,
+      searchHostMetric: services.getHostMetricInfoList,
+    },
+  }, { window: cacheWindow });
   const { useHostListData } = load(`${root}/composables/use-host-list-data.ts`, {
-    '../services/host-service': services,
+    '../services/host-service': {
+      ...services,
+      clearHostListQueryCache: queryServices.clearHostListQueryCache,
+      getHostListQuery: queryServices.getHostListQuery,
+    },
     '../utils/host-list-core': { createHostListRow },
   });
   const page = vue.shallowRef(1);
@@ -156,6 +189,7 @@ function harness(scope = {}) {
   const effect = vue.effectScope();
   const data = effect.run(() =>
     useHostListData({
+      getQueryKey,
       getScope: () => ({ ...scope }),
       getPageScope: () => (currentNode.value ? { bk_obj_id: 'module', bk_inst_id: 10 } : { ...scope }),
       getTimeParams: () => {
@@ -549,3 +583,133 @@ test('query change discards refresh presentation and late refresh cannot finish 
   assert.deepEqual(h.data.pagedRows.value.map(row => row.id), ['2']);
   h.effect.stop();
 });
+
+const cacheOwner = () => ({
+  setTimeout: (...args) => setTimeout(...args).unref(),
+  clearTimeout,
+});
+
+test('remount during loading reuses full requests and their anchor across fresh module instances', async () => {
+  const owner = cacheOwner();
+  const first = harness({}, { rawWindow: owner }, () => 'same-query');
+  void first.data.loadData(false, false);
+  first.effect.stop();
+  const second = harness({}, { rawWindow: owner }, () => 'same-query');
+  second.setAnchor(2000);
+  void second.data.loadData(false, false);
+  assert.equal(second.getAnchorCalls(), 0);
+  assert.equal(second.calls.filter(c => c.name === 'getHostInfoList').length, 0);
+  assert.equal(second.calls.filter(c => c.name === 'getHostMetricInfoList').length, 0);
+  assert.ok(second.calls.filter(c => c.name === 'getHostMetricStats').every(c => c.params.end_time === 1000));
+  second.respond('getHostInfoPage', pageResult([1]));
+  await flush();
+  assert.equal(second.pending('getHostMetricInfoList').params.end_time, 1000);
+  await first.completeFull([1], { 1: { cpu_usage: 42 } });
+  assert.equal(first.data.fullDataReady.value, false);
+  assert.equal(second.data.fullDataReady.value, true);
+  assert.equal(second.data.pagedRows.value[0].cpu_usage, 42);
+  second.effect.stop();
+  owner.clearTimeout(owner.__MONITOR_HOST_LIST_QUERY__.timer);
+});
+
+test('successful remount skips fallback page and statistics, recomputing the current view', async () => {
+  const owner = cacheOwner();
+  const first = harness({}, owner, () => 'same-query');
+  void first.data.loadData(false, false);
+  await first.completeFull([1, 2], { 2: { cpu_usage: 95 } });
+  first.effect.stop();
+  const second = harness({}, owner, () => 'same-query');
+  second.filters.keyword = '127.0.0.2';
+  await second.data.loadData(false, false);
+  assert.equal(second.calls.length, 0);
+  assert.equal(second.data.fullDataReady.value, true);
+  assert.deepEqual(second.data.pagedRows.value.map(row => row.id), ['2']);
+  assert.equal(second.data.pagedRows.value[0].cpu_usage, 95);
+  second.effect.stop();
+  owner.clearTimeout(owner.__MONITOR_HOST_LIST_QUERY__.timer);
+});
+
+test('manual or automatic refresh bypasses a recent successful query and advances its anchor', async () => {
+  const owner = cacheOwner();
+  const h = harness({}, owner, () => 'same-query');
+  void h.data.loadData(false, false);
+  await h.completeFull([1], { 1: { cpu_usage: 90 } });
+  h.setAnchor(2000);
+  void h.data.loadData(true);
+  assert.equal(h.pending('getHostMetricInfoList', p => !p.bk_host_ids).params.end_time, 2000);
+  assert.equal(h.calls.filter(c => c.name === 'getHostInfoList').length, 2);
+  assert.equal(h.data.pagedRows.value[0].cpu_usage, 90);
+  await h.completeFull([1], { 1: { cpu_usage: 20 } });
+  assert.equal(h.data.pagedRows.value[0].cpu_usage, 20);
+  h.effect.stop();
+  owner.clearTimeout(owner.__MONITOR_HOST_LIST_QUERY__.timer);
+});
+
+test('a full HTTP failure after disposal is not reused on return', async () => {
+  const owner = cacheOwner();
+  const first = harness({}, owner, () => 'same-query');
+  void first.data.loadData(false, false);
+  first.effect.stop();
+  first.respond('getHostMetricInfoList', new Error('failed'), p => !p.bk_host_ids, true);
+  await flush();
+  assert.equal(owner.__MONITOR_HOST_LIST_QUERY__, undefined);
+  const second = harness({}, owner, () => 'same-query');
+  second.setAnchor(2000);
+  void second.data.loadData(false, false);
+  assert.equal(second.pending('getHostMetricInfoList', p => !p.bk_host_ids).params.end_time, 2000);
+  await second.completeFull([2]);
+  assert.deepEqual(second.data.pagedRows.value.map(row => row.id), ['2']);
+  second.effect.stop();
+  owner.clearTimeout(owner.__MONITOR_HOST_LIST_QUERY__.timer);
+});
+
+for (const method of ['initBaseData', 'mergeMetrics', 'compute']) {
+  test(`cached return keeps the skeleton until Worker ${method} completes`, async () => {
+    const owner = cacheOwner();
+    const first = harness({}, owner, () => 'same-query');
+    void first.data.loadData(false, false);
+    await first.completeFull([1]);
+    first.effect.stop();
+    const second = harness({}, owner, () => 'same-query');
+    let finish;
+    const original = second.worker[method];
+    second.worker[method] = (...args) => new Promise(resolve => { finish = () => original(...args).then(resolve); });
+    const restoring = second.data.loadData(false, false);
+    await flush();
+    assert.equal(second.data.loading.value, true);
+    assert.equal(second.data.fullLoading.value, true);
+    assert.equal(second.data.fullDataReady.value, false);
+    assert.equal(second.data.pagedRows.value.length, 0);
+    assert.equal(second.calls.length, 0);
+    await finish();
+    await restoring;
+    assert.equal(second.data.loading.value, false);
+    assert.equal(second.data.fullDataReady.value, true);
+    assert.deepEqual(second.data.pagedRows.value.map(row => row.id), ['1']);
+    second.effect.stop();
+    owner.clearTimeout(owner.__MONITOR_HOST_LIST_QUERY__.timer);
+  });
+
+  test(`cached return recovers pagination when Worker ${method} fails`, async () => {
+    const owner = cacheOwner();
+    const first = harness({}, owner, () => 'same-query');
+    void first.data.loadData(false, false);
+    await first.completeFull([1]);
+    first.effect.stop();
+    const second = harness({}, owner, () => 'same-query');
+    second.worker[method] = () => Promise.reject(new Error('worker failed'));
+    await second.data.loadData(false, false);
+    assert.equal(second.data.fullLoadError.value, true);
+    assert.equal(second.data.fullLoading.value, false);
+    assert.equal(second.data.fullDataReady.value, false);
+    assert.equal(owner.__MONITOR_HOST_LIST_QUERY__, undefined);
+    second.respond('getHostInfoPage', pageResult([2]));
+    await flush();
+    second.respond('getHostMetricInfoList', { 2: { cpu_usage: 42 } }, p => p.bk_host_ids);
+    await flush();
+    assert.equal(second.data.loading.value, false);
+    assert.equal(second.data.pagedRows.value[0].cpu_usage, 42);
+    assert.equal(second.calls.filter(c => c.name === 'getHostMetricStats').length, 3);
+    second.effect.stop();
+  });
+}

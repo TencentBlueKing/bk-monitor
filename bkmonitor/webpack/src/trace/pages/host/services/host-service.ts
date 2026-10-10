@@ -99,3 +99,61 @@ export const getHostTopoTreeByBizId = async (
   });
   return data;
 };
+
+export interface HostListQuery {
+  basePromise: Promise<IHostBaseInfo[]>;
+  expiresAt: number;
+  key: string;
+  metricPromise: Promise<Record<string, IHostMetricInfo>>;
+  resolved: boolean;
+  timeParams: TimeParams;
+  timer?: number;
+}
+
+type CacheWindow = Window & { __MONITOR_HOST_LIST_QUERY__?: HostListQuery };
+type TimeParams = { end_time: number; start_time: number };
+
+const getCacheWindow = () => (window.rawWindow || window) as CacheWindow;
+
+export const clearHostListQueryCache = (query: HostListQuery | null) => {
+  if (!query) return;
+  const owner = getCacheWindow();
+  if (owner.__MONITOR_HOST_LIST_QUERY__ !== query) return;
+  owner.clearTimeout(query.timer);
+  delete owner.__MONITOR_HOST_LIST_QUERY__;
+};
+
+export const getHostListQuery = (
+  key: null | string,
+  scope: HostScopeParams,
+  getTimeParams: () => TimeParams,
+  forceRefresh: boolean
+): HostListQuery | null => {
+  if (!key || scope.bk_host_id != null || (scope.bk_obj_id && scope.bk_inst_id != null)) return null;
+  const owner = getCacheWindow();
+  const cached = owner.__MONITOR_HOST_LIST_QUERY__;
+  const now = Date.now();
+  if (!forceRefresh && cached?.key === key && cached.expiresAt > now) return cached;
+  clearHostListQueryCache(cached);
+
+  const timeParams = getTimeParams();
+  const query: HostListQuery = {
+    key,
+    // 从查询发起计时，命中不续期，避免相对时间窗口不断变旧。
+    expiresAt: now + 60_000,
+    timeParams,
+    basePromise: getHostInfoList(scope),
+    metricPromise: getHostMetricInfoList({ ...scope, ...timeParams }),
+    resolved: false,
+  };
+  // 宿主 window 保留一份查询，子应用及 Worker 仍按原生命周期销毁。
+  owner.__MONITOR_HOST_LIST_QUERY__ = query;
+  query.timer = owner.setTimeout(() => clearHostListQueryCache(query), query.expiresAt - now);
+  void Promise.all([query.basePromise, query.metricPromise]).then(
+    () => {
+      query.resolved = true;
+    },
+    () => clearHostListQueryCache(query)
+  );
+  return query;
+};

@@ -88,17 +88,6 @@ const TRACE_EXPLORE_DEFAULT_APPLICATION = 'TRACE_EXPLORE_DEFAULT_APPLICATION';
 /** 应用置顶列表 */
 const TRACE_EXPLORE_APPLICATION_ID_THUMBTACK = 'trace_explore_application_id_thumbtack';
 
-function createServiceNameWhere(serviceName: string): IWhereItem {
-  return {
-    key: 'resource.service.name',
-    operator: 'equal',
-    options: {
-      group_relation: 'OR',
-    },
-    value: [serviceName],
-  };
-}
-
 const TRACE_DEFAULT_RESIDENT_SETTING_KEY = [
   'trace_id',
   'trace_duration',
@@ -407,8 +396,8 @@ export default defineComponent({
       }
     };
     // 只在挂载时从宿主 URL 恢复一次。继续 watch exploreQuery 会把自身回写当新输入，触发递归更新。
-    const embedRestoredFromUrl = shallowRef(apmHooks ? applyEmbedQueryFromBridge() : false);
-    let lastEmbedQueryKey = embedRestoredFromUrl.value
+    const embedRestoredFromUrl = apmHooks ? applyEmbedQueryFromBridge() : false;
+    let lastEmbedQueryKey = embedRestoredFromUrl
       ? JSON.stringify({
           where: where.value,
           queryString: queryString.value,
@@ -425,14 +414,25 @@ export default defineComponent({
           return;
         }
         // URL 已恢复过滤条件时，不要用默认服务名覆盖 kind 等用户条件
-        if (embedRestoredFromUrl.value) {
-          return;
-        }
+        // if (embedRestoredFromUrl) {
+        //   return;
+        // }
         // 同名服务只换应用：应用名变化但服务名不变，保留用户已有过滤条件
         if (prev?.[0] && prev[1] && prev[0] === serviceName) {
           return;
         }
-        where.value = [createServiceNameWhere(serviceName)];
+        if (where.value.length === 0) {
+          where.value = [
+            {
+              key: 'resource.service.name',
+              operator: 'equal',
+              options: {
+                group_relation: 'OR',
+              },
+              value: [serviceName],
+            },
+          ];
+        }
         cacheSceneQuery.set(
           `trace_${nextAppName}`,
           structuredClone({
