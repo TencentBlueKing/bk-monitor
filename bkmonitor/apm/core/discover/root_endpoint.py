@@ -29,6 +29,7 @@ class RootEndpointDiscover(CachedDiscoverMixin, DiscoverBase):
     """
 
     DISCOVERY_ALL_SPANS = False
+    DISCOVERY_REQUIRES_TRACE_CONTEXT: bool = True
     MAX_COUNT = 100000
     CACHE_KEY_SPLIT = ":"
     model = RootEndpoint

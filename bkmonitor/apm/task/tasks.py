@@ -14,6 +14,7 @@ import datetime
 import logging
 import time
 import traceback
+from typing import Any
 
 from django.conf import settings
 from django.db.models import Q, Value
@@ -37,6 +38,7 @@ from apm.models import (
     ApmApplication,
     AppConfigBase,
     EbpfApplicationConfig,
+    LogDataSource,
     MetricDataSource,
     ProfileDataSource,
     QpsConfig,
@@ -104,51 +106,46 @@ def topo_discover_cron():
 
 
 @app.task(ignore_result=True, queue="celery_cron")
-def datasource_discover_handler(metric_datasource, interval, start_time):
-    cur = timezone.now()
-    all_seconds = interval * 60
-    split_seconds = settings.APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA
-    for start in range(0, all_seconds, split_seconds):
-        end = start + split_seconds
-        for d in DiscoverContainer.list_discovers(TelemetryDataType.METRIC.value):
-            d(metric_datasource).discover(start_time + start, start_time + end)
+def datasource_discover_handler(
+    datasource: MetricDataSource | LogDataSource,
+    interval: int,
+    start_time: int,
+    data_type: str = TelemetryDataType.METRIC.value,
+) -> None:
+    cur: datetime.datetime = timezone.now()
+    all_seconds: int = interval * 60
+    for discover_cls in DiscoverContainer.list_discovers(data_type):
+        split_seconds: int = discover_cls.SPLIT_SECONDS or all_seconds
+        for offset in range(0, all_seconds, split_seconds):
+            discover_cls(datasource).discover(start_time + offset, start_time + offset + split_seconds)
 
     logger.info(
         f"[datasource_discover_handler] finished datasource discover, "
-        f"({metric_datasource.bk_biz_id}){metric_datasource.app_name} elapsed: {(timezone.now() - cur).seconds}s"
+        f"({datasource.bk_biz_id}){datasource.app_name} elapsed: {(timezone.now() - cur).seconds}s"
     )
 
 
-def datasource_discover_cron():
-    """Metric|Log 数据源数据发现"""
-
-    interval = 10
-    current_time = timezone.now()
-    current_timestamp = int(current_time.timestamp())
-    slug = current_time.minute % interval
-
-    valid_application_mapping = {
-        (i["bk_biz_id"], i["app_name"]): i
-        for i in ApmApplication.objects.filter(is_enabled=Value(1), is_enabled_metric=Value(1)).values(
-            "id", "bk_biz_id", "app_name"
+def datasource_discover_cron() -> None:
+    """按启用的数据源独立派发 Metric、Log 发现任务。"""
+    interval: int = 10
+    current_time: datetime.datetime = timezone.now()
+    start_time: int = int(current_time.timestamp()) - interval * 60
+    slug: int = current_time.minute % interval
+    applications: dict[tuple[int, str], dict[str, Any]] = {
+        (item["bk_biz_id"], item["app_name"]): item
+        for item in ApmApplication.objects.filter(is_enabled=Value(1)).values(
+            "id", "bk_biz_id", "app_name", "is_enabled_metric", "is_enabled_log"
         )
     }
-    datasource_mapping = {
-        (i.bk_biz_id, i.app_name): i
-        for i in MetricDataSource.objects.filter(~Q(result_table_id="") & ~Q(bk_data_id=-1))
-        if (i.bk_biz_id, i.app_name) in valid_application_mapping
-    }
-    for k, v in datasource_mapping.items():
-        app_id = valid_application_mapping[k]["id"]
-        try:
-            apm_cache_handler = ApmCacheHandler()
-            with apm_cache_handler.distributed_lock("datasource_discover", app_id=app_id):
-                if app_id % interval == slug:
-                    logger.info(f"[datasource_discover_cron] delay task for app_id: {app_id}")
-                    datasource_discover_handler.delay(v, interval, current_timestamp)
-        except LockError:
-            logger.info(f"skipped: [datasource_discover_cron] already running. app_id: {app_id}")
-            continue
+    for data_type, model in (
+        (TelemetryDataType.METRIC.value, MetricDataSource),
+        (TelemetryDataType.LOG.value, LogDataSource),
+    ):
+        for datasource in model.objects.filter(~Q(result_table_id="") & ~Q(bk_data_id=-1)):
+            application = applications.get((datasource.bk_biz_id, datasource.app_name))
+            if not application or not application[f"is_enabled_{data_type}"] or application["id"] % interval != slug:
+                continue
+            datasource_discover_handler.delay(datasource, interval, start_time, data_type)
 
 
 def refresh_apm_config():
@@ -260,19 +257,19 @@ def profile_handler(bk_biz_id: int, app_name: str):
     logger.info(f"[profile_handler] ({bk_biz_id}){app_name} end at {datetime.datetime.now()}")
 
 
-def profile_discover_cron():
-    """定时发现profile服务"""
+def profile_discover_cron() -> None:
+    """每 10 分钟为启用性能分析的应用异步派发发现任务。"""
     logger.info(f"[profile_discover_cron] start at {datetime.datetime.now()}")
     apps = [
         (i["bk_biz_id"], i["app_name"])
-        for i in ApmApplication.objects.filter(is_enabled=True).values("bk_biz_id", "app_name")
+        for i in ApmApplication.objects.filter(is_enabled=True, is_enabled_profiling=True).values("bk_biz_id", "app_name")
     ]
     apps = [i for i in ProfileDataSource.objects.all() if (i.bk_biz_id, i.app_name) in apps]
 
     for item in apps:
-        logger.info(f"[profile_discover_cron] start handle. ({item.bk_biz_id}){item.app_name}")
-        profile_handler(item.bk_biz_id, item.app_name)
-        logger.info(f"[profile_discover_cron] finished handle. ({item.bk_biz_id}){item.app_name}")
+        logger.info(f"[profile_discover_cron] dispatching. ({item.bk_biz_id}){item.app_name}")
+        profile_handler.delay(item.bk_biz_id, item.app_name)
+        logger.info(f"[profile_discover_cron] dispatched. ({item.bk_biz_id}){item.app_name}")
 
     logger.info(f"[profile_discover_cron] end at {datetime.datetime.now()}")
 

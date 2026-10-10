@@ -11,13 +11,16 @@ specific language governing permissions and limitations under the License.
 import datetime
 import logging
 import re
+import time
 
 from django.utils import timezone
 
 from apm.constants import ProfileApiType
 from apm.core.discover.profile.base import Discover
 from apm.models.profile import ProfileService
+from apm.models.topo import TopoNode
 from apm.utils.report_event import EventReportHelper
+from constants.apm import TelemetryDataType
 
 logger = logging.getLogger("apm")
 
@@ -28,7 +31,7 @@ class ServiceDiscover(Discover):
     MAX_DIMENSION_COMBINATION_LIMIT = 3000
     LARGE_SERVICE_SIZE = 10000
 
-    def discover(self, start_time: int, end_time: int):
+    def discover(self, start_time: int, end_time: int) -> None:
         check_time = timezone.now()
         logger.info(f"[ProfileServiceDiscover] start at {check_time}")
 
@@ -102,6 +105,21 @@ class ServiceDiscover(Discover):
 
         # Final: 保存到数据库
         self._upsert(instances, check_time)
+        service_names: set[str] = {instance.name for instance in instances if instance.name}
+        TopoNode.upsert_telemetry_nodes(
+            self.bk_biz_id,
+            self.app_name,
+            TelemetryDataType.PROFILING.value,
+            service_names,
+            TopoNode.get_empty_extra_data(),
+        )
+        TopoNode.touch_heartbeat(
+            self.bk_biz_id,
+            self.app_name,
+            TelemetryDataType.PROFILING.value,
+            {name: int(check_time.timestamp()) for name in service_names},
+            int(time.time()),
+        )
 
     def _upsert(self, instances, check_time):
         """创建/更新到数据库"""

@@ -57,6 +57,10 @@ class ApmApiConfig(AppConfig):
 
         DiscoverContainer.register(TelemetryDataType.METRIC.value, MetricServiceDiscover)
 
+        from apm.core.discover.log.service import ServiceDiscover as LogServiceDiscover
+
+        DiscoverContainer.register(TelemetryDataType.LOG.value, LogServiceDiscover)
+
         # Profile 数据拓扑发现器 ↓
         from apm.core.discover.profile.service import (
             ServiceDiscover as ProfileServiceDiscover,
