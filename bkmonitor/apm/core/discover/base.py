@@ -158,6 +158,8 @@ class DiscoverBase(ABC):
     model = None
     # 定义此发现器根据 span 列表发现时 span 列表是否为过滤后的 span 列表
     DISCOVERY_ALL_SPANS = False
+    # 依赖 Trace 上下文的发现器不能使用按服务折叠后的独立 Span。
+    DISCOVERY_REQUIRES_TRACE_CONTEXT: bool = False
 
     def __init__(self, bk_biz_id, app_name):
         self.bk_biz_id = bk_biz_id
@@ -516,13 +518,20 @@ class TopoHandler:
         return 1 if not per_trace_size else per_trace_size
 
     def _discover_spans(
-        self, spans: list[dict[str, Any]], template: list[tuple[type[DiscoverBase], None, str, Any]]
+        self,
+        spans: list[dict[str, Any]],
+        template: list[tuple[type[DiscoverBase], None, str, Any]],
+        is_fallback: bool = False,
     ) -> None:
-        """按发现器所需的 Span kind 分发数据，并等待发现完成。"""
-        # endpoint、relation、remote_service_relation、root_endpoint 只处理指定 kind。
+        """按 Span kind 分发；兜底轮重读已有对象，并跳过依赖 Trace 上下文的发现器。"""
         filter_spans: list[dict[str, Any]] = [span for span in spans if span[OtlpKey.KIND] in self.FILTER_KIND]
         topo_params: list[tuple[type[DiscoverBase], list[dict[str, Any]], str, Any]] = []
         for cls, unused_spans, handle_type, remain_data in template:
+            if is_fallback and cls.DISCOVERY_REQUIRES_TRACE_CONTEXT:
+                continue
+            if is_fallback:
+                # 常规轮已完成写入，不能继续用轮次开始前的快照判断是否需要创建。
+                remain_data = cls(self.bk_biz_id, self.app_name).get_remain_data()
             if cls.DISCOVERY_ALL_SPANS:
                 topo_params.append((cls, spans, handle_type, remain_data))
             else:
@@ -587,7 +596,7 @@ class TopoHandler:
             group_field=OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
             limit=SpanQuery.QUERY_MAX_LIMIT,
         )
-        self._discover_spans(last_spans, topo_params_template)
+        self._discover_spans(last_spans, topo_params_template, is_fallback=True)
         observed: dict[str, int] = {}
         for span in last_spans:
             name = extract_field_value((OtlpKey.RESOURCE, ResourceAttributes.SERVICE_NAME), span)
