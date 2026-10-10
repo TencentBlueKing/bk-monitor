@@ -149,21 +149,23 @@ export default defineComponent({
                 <span class='is-token'>Token</span>
                 <span class='is-action' />
               </div>
-              {props.flowLoading ? (
-                <LlmSpanTableSkeleton />
-              ) : (
-                props.rows.map(row => (
-                  <SpanRow
-                    key={row.spanId}
-                    detailExpanded={props.detailExpandedSpanIds.has(row.spanId)}
-                    expanded={props.expandedSpanIds.has(row.spanId)}
-                    row={row}
-                    onToggle-detail={spanId => emit('toggle-detail', spanId)}
-                    onToggle-expand={spanId => emit('toggle-span', spanId)}
-                    onView-detail={spanId => emit('view-detail', spanId)}
-                  />
-                ))
-              )}
+              <div class='llm-trace-table-body'>
+                {props.flowLoading ? (
+                  <LlmSpanTableSkeleton />
+                ) : (
+                  props.rows.map(row => (
+                    <SpanRow
+                      key={row.spanId}
+                      detailExpanded={props.detailExpandedSpanIds.has(row.spanId)}
+                      expanded={props.expandedSpanIds.has(row.spanId)}
+                      row={row}
+                      onToggle-detail={spanId => emit('toggle-detail', spanId)}
+                      onToggle-expand={spanId => emit('toggle-span', spanId)}
+                      onView-detail={spanId => emit('view-detail', spanId)}
+                    />
+                  ))
+                )}
+              </div>
             </div>
           ) : null}
         </div>

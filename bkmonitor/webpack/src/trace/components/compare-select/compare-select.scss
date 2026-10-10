@@ -14,7 +14,7 @@
     background: #fafbfd;
     border: 1px solid #c4c6cc;
     border-right: 0;
-    border-radius: 2px 0 0 2px;
+    border-radius: 4px 0 0 4px;
 
     @include flex-align;
   }
@@ -29,7 +29,7 @@
     cursor: pointer;
     background: #fff;
     border: 1px solid #c4c6cc;
-    border-radius: 0 2px 2px 0;
+    border-radius: 0 4px 4px 0;
 
     &.active {
       border-color: #3a84ff;

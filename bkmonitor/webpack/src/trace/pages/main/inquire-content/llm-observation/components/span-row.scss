@@ -7,6 +7,7 @@ $tree-step: 16px;
 .llm-span-row {
   height: 42px;
   cursor: pointer;
+  background: #fff;
   border-bottom: 1px solid #e4e9f2;
 
   @include flex-align(center);
@@ -266,7 +267,6 @@ $tree-step: 16px;
 }
 
 .llm-span-io-pieces {
-  gap: 8px;
   overflow: hidden;
 
   @include flex-align(center);
@@ -291,7 +291,7 @@ $tree-step: 16px;
 .llm-span-io-name {
   flex: 0 1 auto;
   min-width: 0;
-  max-width: 46%;
+  max-width: 120px;
   padding: 0 3px;
   font-family: menlo, monaco, monospace;
   font-size: $font-size-base;
@@ -304,9 +304,9 @@ $tree-step: 16px;
   @include ellipsis;
 }
 
-.llm-span-io-kvs {
+.llm-span-io-kvs,
+.llm-span-io-kv {
   flex: 1;
-  gap: 8px;
   min-width: 0;
   overflow: hidden;
 
@@ -314,17 +314,14 @@ $tree-step: 16px;
 }
 
 .llm-span-io-kv {
-  flex: 1;
   gap: 2px;
-  min-width: 0;
-  overflow: hidden;
   font-size: $font-size-base;
   line-height: 20px;
   white-space: nowrap;
 
-  @include flex-align(center);
-
   &-key {
+    flex: 0 1 auto;
+    min-width: 0;
     max-width: 120px;
     padding: 0 3px;
     font-weight: 500;
@@ -335,8 +332,15 @@ $tree-step: 16px;
     @include ellipsis;
   }
 
+  &-colon {
+    flex-shrink: 0;
+    margin: 0 2px;
+    color: #4e5e7a;
+  }
+
   &-value {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     color: #4e5e7a;
 
     @include ellipsis;

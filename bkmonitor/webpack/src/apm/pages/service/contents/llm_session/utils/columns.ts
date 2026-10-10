@@ -33,7 +33,7 @@ const TOKENS_WIDTH = 200;
 const STATUS_WIDTH = 80;
 /** 展开区右侧 16px 内边距，父表状态列补上这段宽度，耗时 / Tokens / 状态才能与子表对齐 */
 const SESSION_STATUS_WIDTH = STATUS_WIDTH + 16;
-/** 展开子表左边距等于展开列宽，Trace ID 覆盖「会话 ID + User ID」，与父表最近活动时间对齐 */
+/** 展开子表左边距等于展开列宽，Trace ID 覆盖「会话 ID + 用户 ID」，与父表最近活动时间对齐 */
 const SESSION_TRACE_ID_WIDTH = SESSION_ID_WIDTH + USER_ID_WIDTH;
 
 /**
@@ -53,7 +53,7 @@ export function getSessionColumns(): ILlmColumn[] {
       className: 'is-no-padding-left',
       width: SESSION_ID_WIDTH,
     },
-    { id: 'userId', label: 'User ID', cellType: 'text', width: USER_ID_WIDTH },
+    { id: 'userId', label: window.i18n.tc('用户 ID'), cellType: 'text', width: USER_ID_WIDTH },
     { id: 'lastActiveText', label: window.i18n.tc('最近活动时间'), cellType: 'text', width: 190 },
     { id: 'ioSummary', label: window.i18n.tc('输入 / 输出摘要'), cellType: 'ioSummary', minWidth: 120 },
     { id: 'traceCountText', label: window.i18n.tc('Trace 数'), cellType: 'countLink', width: 100 },
@@ -86,7 +86,7 @@ export function getTraceColumns(): ILlmColumn[] {
   return [
     { id: 'traceId', label: 'Trace ID', cellType: 'link', width: ID_WIDTH },
     { id: 'sessionId', label: window.i18n.tc('会话 ID'), cellType: 'text', width: SESSION_ID_WIDTH },
-    { id: 'userId', label: 'User ID', cellType: 'text', width: USER_ID_WIDTH },
+    { id: 'userId', label: window.i18n.tc('用户 ID'), cellType: 'text', width: USER_ID_WIDTH },
     { id: 'lastActiveText', label: window.i18n.tc('最近活动时间'), cellType: 'text', width: 190 },
     { id: 'ioSummary', label: window.i18n.tc('输入 / 输出摘要'), cellType: 'ioSummary', minWidth: 120 },
     { id: 'elapsedText', label: window.i18n.tc('耗时'), cellType: 'duration', width: 100, sortField: 'elapsed_time' },

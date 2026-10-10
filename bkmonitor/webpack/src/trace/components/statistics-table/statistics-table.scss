@@ -13,6 +13,11 @@
     height: 100%;
     border-top: 0;
 
+    .t-table__header,
+    .t-table__header th {
+      background-color: #fafbfd;
+    }
+
     .bk-table-body.__is-empty {
       .bk-table-body-content {
         padding: 0;

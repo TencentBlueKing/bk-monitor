@@ -81,62 +81,72 @@ export default defineComponent({
       return content.length > 200 ? `${content.substring(0, 200)}...` : content;
     };
 
-    const renderIoPiece = (piece: LlmIoPiece, index: number) => {
+    /** 行内只展示 1 个 Tag：优先 KV，其次工具名，最后文本 */
+    const pickPreviewPiece = (pieces: LlmIoPiece[]): LlmIoPiece | null => {
+      const kv = pieces.find(piece => piece.type === 'kv' && piece.pairs.length);
+      if (kv?.type === 'kv') {
+        return { pairs: [kv.pairs[0]], type: 'kv' };
+      }
+      return pieces.find(piece => piece.type === 'name') || pieces.find(piece => piece.type === 'text') || null;
+    };
+
+    const formatPiecesTooltip = (pieces: LlmIoPiece[]): string => {
+      const parts = pieces.flatMap(piece => {
+        if (piece.type === 'kv') {
+          return piece.pairs.map(item => `${item.key}: ${item.value}`);
+        }
+        return piece.text ? [piece.text] : [];
+      });
+      return sliceTooltipContent(parts.join(' · '));
+    };
+
+    const renderIoPiece = (piece: LlmIoPiece, tooltip: string) => {
+      const tips = { content: tooltip, placement: 'top' as const };
       if (piece.type === 'name') {
         return (
           <span
-            key={`name-${index}`}
             class='llm-span-io-name'
-            v-overflow-tips={{ content: sliceTooltipContent(piece.text), placement: 'top' }}
+            v-overflow-tips={tips}
           >
             {piece.text}
           </span>
         );
       }
       if (piece.type === 'kv') {
+        const item = piece.pairs[0];
         return (
-          <div
-            key={`kv-${index}`}
-            class='llm-span-io-kvs'
-          >
-            {piece.pairs.map(item => (
-              <span
-                key={item.key}
-                class='llm-span-io-kv'
-              >
-                <span
-                  class='llm-span-io-kv-key'
-                  v-overflow-tips={{ content: sliceTooltipContent(item.key), placement: 'top' }}
-                >
-                  {item.key}
-                </span>
-                <span style='margin: 0 2px;'>:</span>
-                <span
-                  class='llm-span-io-kv-value'
-                  v-overflow-tips={{ content: sliceTooltipContent(item.value), placement: 'top' }}
-                >
-                  {item.value}
-                </span>
-              </span>
-            ))}
+          <div class='llm-span-io-kvs'>
+            <span class='llm-span-io-kv'>
+              <span class='llm-span-io-kv-key'>{item.key}</span>
+              <span class='llm-span-io-kv-colon'>:</span>
+              <span class='llm-span-io-kv-value'>{item.value}</span>
+            </span>
           </div>
         );
       }
       return (
         <span
-          key={`text-${index}`}
           class='llm-span-io-text'
-          v-overflow-tips={{ content: sliceTooltipContent(piece.text), placement: 'top' }}
+          v-overflow-tips={tips}
         >
           {piece.text}
         </span>
       );
     };
 
-    /** 同一侧并列展示消息文本、工具名和 KV，空侧仍用占位符 */
+    /** 位置不够时只留 1 个 Tag 省略，不把所有字段挤进同一行 */
     const renderIoSide = (pieces: LlmIoPiece[]) => {
-      if (!pieces.length) return <span class='llm-span-io-empty'>—</span>;
-      return <div class='llm-span-io-pieces'>{pieces.map(renderIoPiece)}</div>;
+      const preview = pickPreviewPiece(pieces);
+      if (!preview) return <span class='llm-span-io-empty'>—</span>;
+      const tooltip = formatPiecesTooltip(pieces);
+      return (
+        <div
+          class='llm-span-io-pieces'
+          v-overflow-tips={{ content: tooltip, placement: 'top' }}
+        >
+          {renderIoPiece(preview, tooltip)}
+        </div>
+      );
     };
 
     return () => {

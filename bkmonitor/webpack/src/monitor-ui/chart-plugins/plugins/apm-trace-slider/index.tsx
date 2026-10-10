@@ -27,6 +27,7 @@ import { Component, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import '@blueking/apm-vue3-for-vue2/index.css';
+import './apm-trace-slider.scss';
 
 interface ApmTraceSliderEvents {
   onSliderClose: () => void;
