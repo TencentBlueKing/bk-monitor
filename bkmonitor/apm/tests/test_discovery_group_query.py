@@ -185,13 +185,7 @@ def test_log_discovery_consumes_flat_uq_records_and_sends_collapse() -> None:
         assert params["query_list"][0]["table_id"] == "bklog_index_set_123"
 
 
-@pytest.mark.parametrize(
-    "failure",
-    [
-        RuntimeError("query failed"),
-    ],
-)
-def test_log_second_uq_failure_does_not_publish_first_field(failure: Any) -> None:
+def test_log_second_uq_failure_does_not_publish_first_field() -> None:
     old = make_node(heartbeat={"log": {"last_data_at": 80, "checked_at": 90}})
     with (
         mock.patch.object(UnifyQuery, "use_unify_query", return_value=True),
@@ -199,10 +193,10 @@ def test_log_second_uq_failure_does_not_publish_first_field(failure: Any) -> Non
             "bkmonitor.data_source.unify_query.query.api.unify_query.query_raw",
             side_effect=[
                 {"list": [{"resource.service.name": "new", "time": 150000}]},
-                failure,
+                RuntimeError("query failed"),
             ],
         ),
-        pytest.raises((ValueError, RuntimeError)),
+        pytest.raises(RuntimeError),
     ):
         LogDiscover(datasource()).discover(100, 200)
     old.refresh_from_db()
@@ -384,7 +378,8 @@ def test_fallback_reuses_objects_created_in_regular_round(
         for model, count in expected_counts.items():
             assert model.objects.count() == count
             ids = set(model.objects.values_list("id", flat=True))
-            assert ids == discovered_ids.setdefault(model, ids)
+            discovered_ids.setdefault(model, ids)
+            assert ids == discovered_ids[model]
         return [client, server]
 
     query.query_group_list.side_effect = last_spans

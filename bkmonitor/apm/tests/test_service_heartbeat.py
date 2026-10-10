@@ -12,6 +12,7 @@ from apm.core.discover.metric.service import ServiceDiscover as MetricServiceDis
 from apm.core.discover.profile.service import ServiceDiscover as ProfileServiceDiscover
 from apm.models import ProfileService, TopoNode
 from apm.resources import QueryTopoNodeResource
+from bkmonitor.data_source.utils.query import BaseQuery
 
 
 pytestmark = pytest.mark.django_db(databases="__all__")
@@ -135,23 +136,19 @@ def metric_series(keys: list[str], values: list[str], points: list[list[Any]]) -
 def test_metric_heartbeat_uses_sample_times_for_all_service_keys() -> None:
     for name in ("demo", "demo-redis", "demo-kafka", "http:remote", "empty"):
         make_node(name)
-    responses = [
-        {
-            "series": [
-                metric_series(
-                    ["service_name"],
-                    ["demo"],
-                    [[150000, 140.9], [190000, 140.9], [195000, None], [200000, 0], [200000, 140]],
-                )
-            ]
-        },
-        {"series": [metric_series(["service_name", "db_system"], ["demo", "redis"], [[190000, 160]])]},
-        {"series": [metric_series(["service_name", "messaging_system"], ["demo", "kafka"], [[190000, 170]])]},
-        {"series": [metric_series(["peer_service"], ["remote"], [[190000, 180]])]},
+    series = [
+        metric_series(
+            ["service_name"],
+            ["demo"],
+            [[150000, 140.9], [190000, 140.9], [195000, None], [200000, 0], [200000, 140]],
+        ),
+        metric_series(["service_name", "db_system"], ["demo", "redis"], [[190000, 160]]),
+        metric_series(["service_name", "messaging_system"], ["demo", "kafka"], [[190000, 170]]),
+        metric_series(["peer_service"], ["remote"], [[190000, 180]]),
     ]
     with mock.patch(
         "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
-        return_value={"series": [series for response in responses for series in response["series"]]},
+        return_value={"series": series},
     ) as query:
         MetricServiceDiscover(datasource()).discover_heartbeat(100, 200)
     assert {
@@ -166,9 +163,10 @@ def test_metric_heartbeat_uses_sample_times_for_all_service_keys() -> None:
     assert "trace" not in TopoNode.objects.get(topo_key="demo").heartbeat
     for name, timestamp in (("demo-redis", 160), ("demo-kafka", 170), ("http:remote", 180)):
         assert TopoNode.objects.get(topo_key=name).heartbeat["trace"]["last_data_at"] == timestamp
-    assert query.call_count == 1
-    assert all(call.args[0]["step"] == "100s" for call in query.call_args_list)
-    assert all('__name__="custom:2_apm:app:bk_apm_count"' in call.args[0]["promql"] for call in query.call_args_list)
+    query.assert_called_once()
+    query_params = query.call_args.args[0]
+    assert query_params["step"] == "100s"
+    assert '__name__="custom:2_apm:app:bk_apm_count"' in query_params["promql"]
 
 
 @pytest.mark.parametrize(
@@ -335,7 +333,7 @@ def test_profile_failed_sample_query_does_not_touch_heartbeat() -> None:
 def test_log_limit_result_only_updates_observed_services() -> None:
     unknown = make_node("unknown", heartbeat={"log": {"last_data_at": 90, "checked_at": 100}})
     with (
-        mock.patch.object(LogServiceDiscover, "QUERY_MAX_LIMIT", 1),
+        mock.patch.object(BaseQuery, "QUERY_MAX_LIMIT", 1),
         mock.patch("bkmonitor.data_source.unify_query.builder.QueryHelper.query", side_effect=[log_response(), []]),
         mock.patch.object(TopoNode, "get_empty_extra_data", return_value={"kind": "service"}),
     ):
@@ -446,7 +444,7 @@ def test_metric_old_or_missing_samples_do_not_advance_data_time(sample_time: Any
     series = metric_series(["service_name"], ["demo"], [[150000, sample_time], [200000, sample_time]])
     with mock.patch(
         "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
-        side_effect=[{"series": [series]}, {"series": []}, {"series": []}, {"series": []}],
+        return_value={"series": [series]},
     ):
         MetricServiceDiscover(datasource()).discover_heartbeat(100, 200)
     node.refresh_from_db()

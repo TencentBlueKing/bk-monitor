@@ -27,7 +27,6 @@ class ServiceDiscover(Discover):
 
     # 日志查询使用完整调度窗口，不切分。
     SPLIT_SECONDS: int | None = None
-    QUERY_MAX_LIMIT: int = BaseQuery.QUERY_MAX_LIMIT
 
     def discover(self, start_time: int, end_time: int) -> None:
         """查询两个服务名字段的最新日志，合并后写入节点及心跳。"""
@@ -50,7 +49,7 @@ class ServiceDiscover(Discover):
                 .end_time(end_time * 1000)
                 .time_align(False)
                 .add_query(query)
-                .limit(self.QUERY_MAX_LIMIT)
+                .limit(BaseQuery.QUERY_MAX_LIMIT)
             )
             for log in logs:
                 resource: dict[str, Any] = log.get("resource") or {}

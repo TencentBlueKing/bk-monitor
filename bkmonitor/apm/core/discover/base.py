@@ -520,22 +520,20 @@ class TopoHandler:
     def _discover_spans(
         self,
         spans: list[dict[str, Any]],
-        template: list[tuple[type[DiscoverBase], None, str, Any]],
+        template: list[tuple[type[DiscoverBase], Any]],
         is_fallback: bool = False,
     ) -> None:
         """按 Span kind 分发；兜底轮重读已有对象，并跳过依赖 Trace 上下文的发现器。"""
         filter_spans: list[dict[str, Any]] = [span for span in spans if span[OtlpKey.KIND] in self.FILTER_KIND]
         topo_params: list[tuple[type[DiscoverBase], list[dict[str, Any]], str, Any]] = []
-        for cls, unused_spans, handle_type, remain_data in template:
+        for cls, remain_data in template:
             if is_fallback and cls.DISCOVERY_REQUIRES_TRACE_CONTEXT:
                 continue
             if is_fallback:
                 # 常规轮已完成写入，不能继续用轮次开始前的快照判断是否需要创建。
                 remain_data = cls(self.bk_biz_id, self.app_name).get_remain_data()
-            if cls.DISCOVERY_ALL_SPANS:
-                topo_params.append((cls, spans, handle_type, remain_data))
-            else:
-                topo_params.append((cls, filter_spans, handle_type, remain_data))
+            selected_spans = spans if cls.DISCOVERY_ALL_SPANS else filter_spans
+            topo_params.append((cls, selected_spans, "topo", remain_data))
         pool = ThreadPool()
         pool.map_ignore_exception(self._discover_handle, topo_params)
 
@@ -554,10 +552,11 @@ class TopoHandler:
             )
             return
 
-        # 提前构造topo_params结构
-        topo_params_template = []
-        for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
-            topo_params_template.append((c, None, "topo", c(self.bk_biz_id, self.app_name).get_remain_data()))
+        # 提前读取各发现器的已有对象。
+        topo_params_template: list[tuple[type[DiscoverBase], Any]] = [
+            (discover_cls, discover_cls(self.bk_biz_id, self.app_name).get_remain_data())
+            for discover_cls in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value)
+        ]
 
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
