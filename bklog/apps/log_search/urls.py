@@ -27,6 +27,7 @@ from apps.log_search.views import (
     aggs_views,
     alert_strategy_view,
     bizs_views,
+    export_views,
     favorite_search_views,
     field_views,
     index_set_views,
@@ -60,6 +61,7 @@ router.register(r"search/favorite_group", favorite_search_views.FavoriteGroupVie
 router.register(r"search/favorite_union", favorite_search_views.FavoriteUnionSearchViewSet, basename="favorite_union")
 
 router.register(r"search/scene", scene_search_views.SceneSearchViewSet, basename="scene_search")
+router.register(r"search/export_jobs", export_views.ExportJobViewSet, basename="export_jobs")
 
 router.register(r"result_table", result_table_views.ResultTablesViewSet, basename="result_table")
 

@@ -1,0 +1,70 @@
+"""
+Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
+Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+BK-LOG 蓝鲸日志平台 is licensed under the MIT License.
+License for BK-LOG 蓝鲸日志平台:
+--------------------------------------------------------------------
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software,
+and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial
+portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+We undertake not to change the open source license (MIT license) applicable to the current version of
+the project delivered to anyone in the future.
+"""
+
+from blueapps.contrib.celery_tools.periodic import periodic_task
+from blueapps.core.celery.celery import app
+from django.conf import settings
+
+from apps.log_search.export.config import COORDINATOR_QUEUE, FINALIZE_QUEUE, PART_QUEUE, PLAN_QUEUE
+from apps.log_search.export.worker import run_part
+from apps.log_search.export.planner import run_planning
+from apps.log_search.export.scheduler import coordinate, finalize_export
+from apps.utils.lock import share_lock
+
+
+# 硬超时不晚于回收超时：分片被回收重投时旧执行已经退出，不会绕过额度继续占用查询资源；
+# 硬超时由 Celery 确认消息（acks_on_failure_or_timeout），不会触发 reject_on_worker_lost 重新入队
+@app.task(
+    bind=True,
+    ignore_result=True,
+    queue=PART_QUEUE,
+    acks_late=True,
+    reject_on_worker_lost=True,
+    soft_time_limit=max(1, settings.ASYNC_EXPORT_PART_TIMEOUT - 60),
+    time_limit=settings.ASYNC_EXPORT_PART_TIMEOUT,
+)
+def execute_sharded_export_part(self, part_id):
+    run_part(part_id, self.request.id)
+
+
+@app.task(ignore_result=True, queue=PLAN_QUEUE, soft_time_limit=max(1, settings.ASYNC_EXPORT_PLANNING_TIMEOUT - 60))
+def plan_sharded_export(job_id):
+    run_planning(job_id)
+
+
+@app.task(
+    ignore_result=True,
+    queue=FINALIZE_QUEUE,
+    # 软超时覆盖合并 + 清单生成总预算，并留 60 秒余量，确保早于协调器重认领窗口
+    soft_time_limit=max(1, settings.ASYNC_EXPORT_MERGE_TIMEOUT + settings.ASYNC_EXPORT_FINALIZATION_TIMEOUT - 60),
+)
+def finalize_sharded_export(job_id):
+    finalize_export(job_id)
+
+
+@periodic_task(
+    run_every=settings.ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS,
+    options={"queue": COORDINATOR_QUEUE},
+    soft_time_limit=settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT,
+)
+@share_lock(ttl=settings.ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT)
+def coordinate_sharded_exports():
+    coordinate()
