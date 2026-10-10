@@ -1,38 +1,121 @@
-/* stylelint-disable declaration-no-important */
-.app-list-skeleton {
-  display: flex;
-  flex-direction: column;
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
 
-  .expand-header {
+.apm-home-skeleton {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+
+  .apm-skeleton-block {
+    display: inline-block;
+    flex-shrink: 0;
+    max-width: 100%;
+    height: 12px;
+
+    @include skeleton.surface;
+
+    &.is-icon {
+      height: 20px;
+      border-radius: 4px;
+    }
+
+    &.is-checkbox {
+      height: 14px;
+      border-radius: 2px;
+    }
+
+    &.is-count {
+      margin-left: auto;
+    }
+  }
+
+  .apm-skeleton-app,
+  .apm-skeleton-filter {
     display: flex;
+    gap: 10px;
     align-items: center;
     height: 36px;
-    margin-bottom: 16px;
-    border-radius: 2px;
+    padding: 0 16px;
 
-    .header-left {
-      display: flex;
-      flex: 1;
-      align-items: center;
-
-      .skeleton-01{
-        max-width: 24px;
-        height: 24px;
-        margin-right: 8px;
-        margin-left: 16px;
-      }
-
-      .skeleton-02{
-        flex: 1;
-        height: 24px;
-        margin-right: 8px;
-      }
-
-      .skeleton-03{
-        max-width: 20px;
-        height: 24px;
-        margin-right: 16px;
-      }
+    > :not(.is-icon, .is-checkbox, .is-count) {
+      flex-shrink: 1;
+      min-width: 0;
     }
+  }
+
+  .apm-skeleton-filter-group {
+    padding: 8px 0 16px;
+
+    .is-filter-title {
+      margin: 8px 16px;
+    }
+
+    .apm-skeleton-filter {
+      height: 32px;
+    }
+  }
+
+  .apm-skeleton-table {
+    background: #fff;
+  }
+
+  .apm-skeleton-row {
+    display: grid;
+    grid-template-columns: minmax(140px, 1.8fr) repeat(5, minmax(64px, 1fr));
+    height: 42px;
+    border-bottom: 1px solid #f0f1f5;
+
+    &.is-header {
+      background: #fafbfd;
+    }
+  }
+
+  .apm-skeleton-cell {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    min-width: 0;
+    padding: 0 12px;
+  }
+
+  .apm-skeleton-pagination {
+    display: flex;
+    gap: 16px;
+    justify-content: space-between;
+    padding: 20px 16px;
+  }
+}
+
+.apm-home-wrap-page .apm-loading-region {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+
+  &.is-refreshing::after {
+    position: absolute;
+    top: 0;
+    right: 0;
+    left: 0;
+    z-index: 5;
+    height: 2px;
+    pointer-events: none;
+    content: '';
+    background: linear-gradient(90deg, transparent, #3a84ff, transparent) 0 0 / 35% 100% no-repeat;
+    animation: apm-refresh-progress 1.4s ease-in-out infinite;
+  }
+}
+
+@keyframes apm-refresh-progress {
+  from {
+    background-position: -55% 0;
+  }
+
+  to {
+    background-position: 155% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apm-home-wrap-page .apm-loading-region.is-refreshing::after {
+    animation: none;
   }
 }

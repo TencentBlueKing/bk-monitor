@@ -35,6 +35,7 @@ import { useHostList } from '../../composables/use-host-list';
 import HostListFilter from './host-list-filter';
 import HostListTable from './host-list-table';
 import HostListToolbar from './host-list-toolbar';
+import { HostRefreshStatus } from '../host-loading/host-loading';
 import HostStatCards from './host-stat-cards';
 
 import type { EHostQuickCategory, IHostListRow } from '../../types/host-list';
@@ -72,18 +73,6 @@ export default defineComponent({
     });
 
     const hasSelection = computed(() => ctx.selectedRowKeys.value.size > 0);
-    const hasPausedConditions = computed(
-      () =>
-        !ctx.fullDataReady.value &&
-        !!(
-          ctx.keyword.value ||
-          ctx.where.value.length ||
-          ctx.queryString.value ||
-          ctx.activeCategory.value ||
-          ctx.sortInfo.value ||
-          Object.keys(ctx.stickyValue.value).length
-        )
-    );
 
     /** 点击主机列表 IP 单元格时，向上冒泡到页面层处理拓扑树聚焦 */
     const handleSelectIpCell = row => {
@@ -92,6 +81,7 @@ export default defineComponent({
 
     return () => (
       <div class='host-list'>
+        <HostRefreshStatus loading={ctx.retainingData.value && ctx.fullLoading.value} error={ctx.retainingData.value && ctx.fullLoadError.value} onRetry={ctx.retryFullData} />
         <div class='host-list-content'>
           <HostStatCards
             activeKey={ctx.activeCategory.value}
@@ -101,32 +91,23 @@ export default defineComponent({
             onCardClick={(key: EHostQuickCategory) => ctx.handleCategoryClick(key)}
             onRetry={ctx.retryCategory}
           />
-          {!ctx.fullDataReady.value && (
+          {!ctx.fullDataReady.value && ctx.fullLoadError.value && (
             <Alert
               class='host-list__full-status'
-              theme={ctx.fullLoadError.value ? 'warning' : 'info'}
+              theme='warning'
             >
               {{
                 title: () => (
                   <div>
-                    <span>
-                      {ctx.fullLoadError.value
-                        ? t('全量数据加载失败，可继续按页浏览')
-                        : t('全量数据加载中，可继续翻页；排序和筛选暂不可用')}
-                    </span>
-                    {ctx.fullLoadError.value && (
-                      <Button
-                        class='host-list__full-retry'
-                        disabled={ctx.fullLoading.value}
-                        text
-                        onClick={ctx.retryFullData}
-                      >
-                        {t('重新加载')}
-                      </Button>
-                    )}
-                    {hasPausedConditions.value && (
-                      <div>{t('已保存的筛选、排序和置顶条件暂未应用，将在全量数据加载完成后生效')}</div>
-                    )}
+                    <span>{t('全量数据加载失败，可继续按页浏览')}</span>
+                    <Button
+                      class='host-list__full-retry'
+                      disabled={ctx.fullLoading.value}
+                      text
+                      onClick={ctx.retryFullData}
+                    >
+                      {t('重新加载')}
+                    </Button>
                   </div>
                 ),
               }}

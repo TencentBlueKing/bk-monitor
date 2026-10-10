@@ -1,4 +1,13 @@
 .filter-panel {
+  &-count-loading { display: inline-block; width: 24px; height: 12px; }
+
+  &-group-loading {
+    > div { display: flex; gap: 8px; align-items: center; height: 32px; }
+    i { flex: 0 0 12px; height: 12px; }
+    span { height: 12px; }
+    b { flex: 0 0 20px; height: 10px; margin-left: auto; }
+  }
+
   &-header {
     display: flex;
     justify-content: space-between;

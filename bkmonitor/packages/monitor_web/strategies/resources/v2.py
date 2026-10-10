@@ -102,6 +102,11 @@ class GetStrategyListV2Resource(Resource):
     获取策略列表
     """
 
+    # ponytail: 经验阈值，未经线上压测。ES 耗时主要由全索引扇出决定，候选策略超过阈值时按业务聚合后在内存求交，
+    # 避免超大 terms 请求；需对比阈值两侧的 ES took 后调整
+    ALERT_SUMMARY_TERMS_LIMIT = 1000
+    ALERT_SUMMARY_PAGE_SIZE = 10000
+
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         scenario = serializers.CharField(required=False, label="监控场景")
@@ -111,6 +116,7 @@ class GetStrategyListV2Resource(Resource):
         with_user_group = serializers.BooleanField(default=False, label="是否补充告警组信息")
         with_user_group_detail = serializers.BooleanField(required=False, default=False, label="补充告警组详细信息")
         convert_dashboard = serializers.BooleanField(required=False, default=True, label="是否转换仪表盘格式")
+        with_alert_summary = serializers.BooleanField(required=False, default=True, label="是否统计策略告警数量")
 
     @classmethod
     def filter_by_ip(cls, ips: list[dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
@@ -269,17 +275,20 @@ class GetStrategyListV2Resource(Resource):
 
     @classmethod
     def filter_strategy_ids_by_status(
-        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: str | None = None
+        cls, filter_dict: dict, filter_strategy_ids_set: set, bk_biz_id: str | None = None, context: dict | None = None
     ):
-        """策略状态过滤"""
+        """策略状态过滤，告警中、屏蔽中共用一次告警统计，并写入 context 供调用方复用"""
         if filter_dict["strategy_status"]:
+            alert_summary = None
+            if {"ALERT", "SHIELDED"} & set(filter_dict["strategy_status"]):
+                alert_summary = cls.get_alert_summary(bk_biz_id, filter_strategy_ids_set)
+                if context is not None:
+                    context["alert_summary"] = alert_summary
             strategy_status_ids = []
             for status in filter_dict["strategy_status"]:
-                filter_status_params = {"status": status}
-                if bk_biz_id is not None:
-                    filter_status_params["bk_biz_id"] = bk_biz_id
-
-                strategy_status_ids.extend(cls.filter_by_status(**filter_status_params))
+                strategy_status_ids.extend(
+                    cls.filter_by_status(status, filter_strategy_ids_set, bk_biz_id, alert_summary)
+                )
             filter_strategy_ids_set.intersection_update(set(strategy_status_ids))
 
     @classmethod
@@ -467,9 +476,11 @@ class GetStrategyListV2Resource(Resource):
         filter_strategy_ids_set.intersection_update(set(source_strategy_ids.values_list("id", flat=True).distinct()))
 
     @classmethod
-    def filter_by_conditions(cls, conditions: list[dict], strategies: QuerySet, bk_biz_id: int = None) -> QuerySet:
+    def filter_by_conditions(
+        cls, conditions: list[dict], strategies: QuerySet, bk_biz_id: int = None, context: dict | None = None
+    ) -> QuerySet:
         """
-        按条件进行过滤
+        按条件进行过滤，按告警中、屏蔽中过滤时，候选策略的告警统计写入 context["alert_summary"]
         - id: 策略ID
         - name: 策略名称
         - user_group_id: 通知组ID
@@ -523,7 +534,7 @@ class GetStrategyListV2Resource(Resource):
             (cls.filter_strategy_ids_by_label, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
             (cls.filter_strategy_ids_by_data_source, (filter_dict, filter_strategy_ids_set)),
             (cls.filter_strategy_ids_by_result_table, (filter_dict, filter_strategy_ids_set)),
-            (cls.filter_strategy_ids_by_status, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
+            (cls.filter_strategy_ids_by_status, (filter_dict, filter_strategy_ids_set, bk_biz_id, context)),
             (cls.filter_strategy_ids_by_algo_type, (filter_dict, filter_strategy_ids_set)),
             (cls.filter_strategy_ids_by_invalid_type, (filter_dict, filter_strategy_ids_set)),
             (cls.filter_by_user_groups, (filter_dict, filter_strategy_ids_set, bk_biz_id)),
@@ -656,13 +667,17 @@ class GetStrategyListV2Resource(Resource):
             filter_strategy_ids_set.intersection_update(set())
             return
 
-        or_condition = reduce(
-            operator.or_, (Q(**{"user_groups__contains": group_id}) for group_id in set(filter_user_group_ids))
-        )
-
-        user_group_strategy_ids = set(
-            StrategyActionConfigRelation.objects.filter(or_condition).values_list("strategy_id", flat=True).distinct()
-        )
+        # user_groups 是 JSON 数组，MySQL 5.7 既没有 JSON_OVERLAPS 也不支持多值索引，
+        # 把每个告警组拼成 JSON_CONTAINS 下推会得到上千个无法走索引的谓词，退化成准全表扫描。
+        # 这里改为按候选策略取回 user_groups，在内存里做集合交集。
+        target_group_ids = set(filter_user_group_ids)
+        user_group_strategy_ids = {
+            strategy_id
+            for strategy_id, user_groups in StrategyActionConfigRelation.objects.filter(
+                strategy_id__in=filter_strategy_ids_set
+            ).values_list("strategy_id", "user_groups")
+            if target_group_ids.intersection(user_groups or [])
+        }
         filter_strategy_ids_set.intersection_update(user_group_strategy_ids)
 
     @staticmethod
@@ -723,11 +738,16 @@ class GetStrategyListV2Resource(Resource):
         )
 
     @classmethod
-    def filter_by_status(cls, status: str, filter_strategy_ids: list = None, bk_biz_id: int = None):
+    def filter_by_status(
+        cls, status: str, filter_strategy_ids: list = None, bk_biz_id: int = None, alert_summary: dict = None
+    ):
+        if status in ("ALERT", "SHIELDED") and alert_summary is None:
+            alert_summary = cls.get_alert_summary(bk_biz_id, filter_strategy_ids)
+
         strategy_ids = set()
         if status == "ALERT":
             # 告警中的策略
-            strategy_ids.update(cls.get_strategies_by_shield_status(bk_biz_id))
+            strategy_ids.update(strategy_id for strategy_id, counts in alert_summary.items() if counts["alert_count"])
 
         elif status == "INVALID":
             invalid_qs = StrategyModel.objects.filter(is_invalid=True)
@@ -742,7 +762,9 @@ class GetStrategyListV2Resource(Resource):
                 if shield_manager.is_shielded(shield_obj, match_info):
                     strategy_ids.update(shield_obj.dimension_config["strategy_id"])
             # 屏蔽中的策略
-            strategy_ids.update(cls.get_strategies_by_shield_status(bk_biz_id, is_shielded=True))
+            strategy_ids.update(
+                strategy_id for strategy_id, counts in alert_summary.items() if counts["shield_alert_count"]
+            )
         else:
             enabled_qs = StrategyModel.objects.filter(is_enabled=status == "ON")
             if bk_biz_id is not None:
@@ -753,27 +775,47 @@ class GetStrategyListV2Resource(Resource):
             return list(set(filter_strategy_ids) & strategy_ids)
         return list(strategy_ids)
 
-    @staticmethod
-    def get_strategies_by_shield_status(bk_biz_id, is_shielded=False):
-        # 告警中的策略
-        alert_qs = AlertDocument.search(all_indices=True).filter("term", status=EventStatus.ABNORMAL)
-        if is_shielded:
-            alert_qs = alert_qs.filter("term", is_shielded=True)
-        else:
-            # 屏蔽状态告警生成时未写入值，可能为null，用排除法比较好
-            alert_qs = alert_qs.exclude("term", is_shielded=True)
-
+    @classmethod
+    def get_alert_summary(cls, bk_biz_id: int | None, strategy_ids: list[int] | set[int] | None = None) -> dict:
+        """
+        按策略统计未恢复告警数量，屏蔽状态告警生成时未写入值，可能为null，按未屏蔽统计
+        :return: {strategy_id: {"alert_count": 未屏蔽告警数, "shield_alert_count": 已屏蔽告警数}}
+        """
+        search = AlertDocument.search(all_indices=True).filter("term", status=EventStatus.ABNORMAL)
         if bk_biz_id is not None:
-            alert_qs = alert_qs.filter("term", **{"event.bk_biz_id": bk_biz_id})
+            search = search.filter("term", **{"event.bk_biz_id": bk_biz_id})
+        if strategy_ids is not None:
+            strategy_ids = set(strategy_ids)
+            if not strategy_ids:
+                return {}
+            if len(strategy_ids) <= cls.ALERT_SUMMARY_TERMS_LIMIT:
+                search = search.filter("terms", strategy_id=list(strategy_ids))
 
-        search_object = alert_qs[:0]
-        search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000)
-        search_result = search_object.execute()
-        strategy_ids = []
-        if search_result.aggs:
-            for bucket in search_result.aggs.strategy_id.buckets:
-                strategy_ids.append(int(bucket.key))
-        return strategy_ids
+        search = search.params(track_total_hits=False).extra(size=0)
+        composite = search.aggs.bucket(
+            "strategy_id",
+            "composite",
+            size=cls.ALERT_SUMMARY_PAGE_SIZE,
+            sources=[{"strategy_id": {"terms": {"field": "strategy_id"}}}],
+        )
+        composite.bucket("shielded", "filter", term={"is_shielded": True})
+
+        alert_summary = {}
+        while True:
+            result = search.execute(ignore_cache=True).to_dict().get("aggregations", {}).get("strategy_id", {})
+            buckets = result.get("buckets", [])
+            for bucket in buckets:
+                strategy_id = int(bucket["key"]["strategy_id"])
+                if strategy_ids is not None and strategy_id not in strategy_ids:
+                    continue
+                shield_alert_count = bucket["shielded"]["doc_count"]
+                alert_summary[strategy_id] = {
+                    "alert_count": bucket["doc_count"] - shield_alert_count,
+                    "shield_alert_count": shield_alert_count,
+                }
+            if len(buckets) < cls.ALERT_SUMMARY_PAGE_SIZE or "after_key" not in result:
+                return alert_summary
+            composite.after = result["after_key"]
 
     @staticmethod
     def get_shield_info(filter_strategy_ids: list = None, bk_biz_id: int = None):
@@ -804,23 +846,6 @@ class GetStrategyListV2Resource(Resource):
                 }
             )
         return user_group_list
-
-    @staticmethod
-    def get_alert_search_result(bk_biz_id, strategy_ids):
-        search_object = (
-            AlertDocument.search(all_indices=True)
-            .filter("term", **{"event.bk_biz_id": bk_biz_id})
-            .filter("term", status=EventStatus.ABNORMAL)
-            .filter("terms", strategy_id=strategy_ids)[:0]
-        )
-        # 构建ES聚合查询
-        # 按strategy_id分桶,size=10000表示最多返回10000个桶
-        # 每个strategy_id桶下再按is_shielded字段分桶,统计屏蔽和未屏蔽的告警数量
-        search_object.aggs.bucket("strategy_id", "terms", field="strategy_id", size=10000).bucket(
-            "shield_status", "terms", field="is_shielded", size=10000
-        )
-        search_result = search_object.execute()
-        return search_result
 
     @staticmethod
     def get_action_config_list(strategy_ids: list[int], bk_biz_id: int):
@@ -939,9 +964,9 @@ class GetStrategyListV2Resource(Resource):
                 )
         return scenario_list
 
-    def get_strategy_status_list(self, strategy_ids: list[int], bk_biz_id: int):
+    def get_strategy_status_list(self, strategy_ids: list[int], bk_biz_id: int, alert_summary: dict | None = None):
         """
-        按策略状态统计策略数量
+        按策略状态统计策略数量，未提供告警统计时，告警中和屏蔽中的数量为 None
         """
         status_list = [
             {
@@ -959,7 +984,10 @@ class GetStrategyListV2Resource(Resource):
             {"id": "SHIELDED", "name": _("屏蔽中"), "count": 0},
         ]
         for status in status_list:
-            data = self.filter_by_status(status["id"], strategy_ids, bk_biz_id)
+            if alert_summary is None and status["id"] in ("ALERT", "SHIELDED"):
+                status["count"] = None
+                continue
+            data = self.filter_by_status(status["id"], strategy_ids, bk_biz_id, alert_summary)
             status["count"] = len(data)
         return status_list
 
@@ -1188,18 +1216,11 @@ class GetStrategyListV2Resource(Resource):
 
         return target_strategy_mapping
 
-    def perform_request(self, params):
-        bk_biz_id = params["bk_biz_id"]
-        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
-
-        # 按条件过滤策略
-        if params["conditions"]:
-            strategies = self.filter_by_conditions(params["conditions"], strategies, bk_biz_id)
-
-        # 在过滤监控对象前统计数量
-        scenario_list = self.get_scenario_list(strategies)
-
-        # 按当前选择的监控对象过滤
+    @staticmethod
+    def filter_by_scenario(strategies: QuerySet, params: dict) -> QuerySet:
+        """
+        按当前选择的监控对象过滤
+        """
         scenarios = set(params.get("scenario", []))
         for condition in params["conditions"]:
             if condition["key"] != "scenario":
@@ -1212,6 +1233,21 @@ class GetStrategyListV2Resource(Resource):
 
         if scenarios:
             strategies = strategies.filter(scenario__in=scenarios)
+        return strategies
+
+    def perform_request(self, params):
+        bk_biz_id = params["bk_biz_id"]
+        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+
+        # 按条件过滤策略
+        context = {}
+        if params["conditions"]:
+            strategies = self.filter_by_conditions(params["conditions"], strategies, bk_biz_id, context)
+
+        # 在过滤监控对象前统计数量
+        scenario_list = self.get_scenario_list(strategies)
+
+        strategies = self.filter_by_scenario(strategies, params)
 
         # 统计其他分类数量
         strategy_ids = list(strategies.values_list("id", flat=True).distinct())
@@ -1225,9 +1261,11 @@ class GetStrategyListV2Resource(Resource):
         strategy_label_list_future = executor.submit(
             db_safe_wrapper(self.get_strategy_label_list), strategy_ids, bk_biz_id
         )
-        strategy_status_list_future = executor.submit(
-            db_safe_wrapper(self.get_strategy_status_list), strategy_ids, bk_biz_id
-        )
+        # 查询ES，统计策略告警数量，状态统计与当前页告警数量共用；按告警状态过滤时已统计过，直接复用
+        alert_summary = context.get("alert_summary")
+        alert_summary_future = None
+        if alert_summary is None and params["with_alert_summary"]:
+            alert_summary_future = executor.submit(db_safe_wrapper(self.get_alert_summary), bk_biz_id, strategy_ids)
         alert_level_list_future = executor.submit(db_safe_wrapper(self.get_alert_level_list), strategy_ids)
         invalid_type_list_future = executor.submit(db_safe_wrapper(self.get_invalid_type_list), strategy_ids)
         algorithm_type_list_future = executor.submit(db_safe_wrapper(self.get_algorithm_type_list), strategy_ids)
@@ -1259,24 +1297,19 @@ class GetStrategyListV2Resource(Resource):
             else:
                 strategy_config["config_source"] = "UI"
 
-        strategy_ids = [strategy_config["id"] for strategy_config in strategy_configs]
+        page_strategy_ids = [strategy_config["id"] for strategy_config in strategy_configs]
 
-        # 查询ES，统计策略告警数量
-        search_result_future = executor.submit(db_safe_wrapper(self.get_alert_search_result), bk_biz_id, strategy_ids)
         metric_info_future = executor.submit(db_safe_wrapper(self.get_metric_info), bk_biz_id, strategy_configs)
         target_strategy_mapping_future = executor.submit(
             db_safe_wrapper(self.get_target_strategy_mapping), strategy_configs
         )
-        strategy_shield_info_future = executor.submit(db_safe_wrapper(self.get_shield_info), strategy_ids, bk_biz_id)
+        strategy_shield_info_future = executor.submit(
+            db_safe_wrapper(self.get_shield_info), page_strategy_ids, bk_biz_id
+        )
 
-        # 获取到ES查询结果
-        search_result = search_result_future.result()
-        strategy_alert_counts = defaultdict(dict)
-        if search_result.aggs:
-            for strategy_bucket in search_result.aggs.strategy_id.buckets:
-                strategy_alert_counts[strategy_bucket.key]["alert_count"] = strategy_bucket.doc_count
-                for shield_bucket in strategy_bucket.shield_status:
-                    strategy_alert_counts[strategy_bucket.key][shield_bucket.key_as_string] = shield_bucket.doc_count
+        if alert_summary_future:
+            alert_summary = alert_summary_future.result()
+        strategy_status_list = self.get_strategy_status_list(strategy_ids, bk_biz_id, alert_summary)
         data_source_names = {
             (category["data_source_label"], category["data_type_label"]): category["name"] for category in DATA_CATEGORY
         }
@@ -1286,12 +1319,11 @@ class GetStrategyListV2Resource(Resource):
         strategy_shield_info = strategy_shield_info_future.result()
 
         for strategy_config in strategy_configs:
-            # 补充告警数量
-            strategy_config["alert_count"] = strategy_alert_counts.get(str(strategy_config["id"]), {}).get("false", 0)
-            # 补充屏蔽告警数量
-            strategy_config["shield_alert_count"] = strategy_alert_counts.get(str(strategy_config["id"]), {}).get(
-                "true", 0
-            )
+            # 补充告警数量及屏蔽告警数量
+            if alert_summary is not None:
+                strategy_config.update(
+                    alert_summary.get(strategy_config["id"], {"alert_count": 0, "shield_alert_count": 0})
+                )
             # 补充策略屏蔽状态
             strategy_config["shield_info"] = strategy_shield_info.get(strategy_config["id"])
             self.fill_metric_info(strategy_config, metric_info)
@@ -1302,7 +1334,6 @@ class GetStrategyListV2Resource(Resource):
         action_config_list = action_config_list_future.result()
         data_source_list = data_source_list_future.result()
         strategy_label_list = strategy_label_list_future.result()
-        strategy_status_list = strategy_status_list_future.result()
         alert_level_list = alert_level_list_future.result()
         invalid_type_list = invalid_type_list_future.result()
         algorithm_type_list = algorithm_type_list_future.result()
@@ -1321,6 +1352,40 @@ class GetStrategyListV2Resource(Resource):
             "invalid_type_list": invalid_type_list,
             "algorithm_type_list": algorithm_type_list,
             "total": total,
+        }
+
+
+class GetStrategyAlertSummaryV2Resource(GetStrategyListV2Resource):
+    """
+    获取策略告警统计，与策略列表使用相同的过滤条件
+    """
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
+        scenario = serializers.CharField(required=False, label="监控场景")
+        conditions = serializers.ListField(required=False, child=serializers.DictField(), default=[], label="条件")
+        strategy_ids = serializers.ListField(
+            required=False, child=serializers.IntegerField(), default=[], label="需要返回告警数量的策略ID"
+        )
+
+    def perform_request(self, params):
+        bk_biz_id = params["bk_biz_id"]
+        strategies = StrategyModel.objects.filter(bk_biz_id=bk_biz_id)
+        context = {}
+        if params["conditions"]:
+            strategies = self.filter_by_conditions(params["conditions"], strategies, bk_biz_id, context)
+        strategy_ids = list(self.filter_by_scenario(strategies, params).values_list("id", flat=True).distinct())
+
+        # 按告警状态过滤时已统计过候选策略，结果覆盖最终策略，直接复用
+        alert_summary = context.get("alert_summary")
+        if alert_summary is None:
+            alert_summary = self.get_alert_summary(bk_biz_id, strategy_ids)
+        return {
+            "strategy_status_list": self.get_strategy_status_list(strategy_ids, bk_biz_id, alert_summary),
+            "strategy_alert_counts": {
+                strategy_id: alert_summary.get(strategy_id, {"alert_count": 0, "shield_alert_count": 0})
+                for strategy_id in set(params["strategy_ids"]).intersection(strategy_ids)
+            },
         }
 
 
@@ -2149,7 +2214,7 @@ class SaveStrategyV2Resource(Resource):
         if set(upgrade_config["user_groups"]) & set(notice_info.user_groups):
             raise ValidationError(detail=_("通知升级的用户组不能包含第一次接收告警的用户组"))
 
-    def perform_request(self, params):
+    def perform_request(self, params, *, audit_operator=None):
         strategy = Strategy(**params)
         strategy.convert()
         self.validate_realtime_kafka(strategy)
@@ -2160,7 +2225,7 @@ class SaveStrategyV2Resource(Resource):
         # - Strategy.__init__ 通过 ISSUE_CONFIG_EMPTY sentinel 区分"字段未传"与"显式 null"，
         #   自动设置 _issue_config_in_request 与 self.issue_config
         # - strategy.save() → save_issue_config() 在落库前调用 IssueConfig.validate(self)
-        strategy.save()
+        strategy.save(audit_operator=audit_operator)
 
         # 编辑后需要重置AsCode相关配置
         StrategyModel.objects.filter(id=strategy.id).update(hash="", snippet="")

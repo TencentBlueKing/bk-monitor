@@ -47,7 +47,7 @@ import AcrossPageSelection, {
   SelectType,
 } from '../../../../components/across-page-selection/across-page-selection';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
-import TableSkeleton from '../../../../components/skeleton/table-skeleton';
+import { HostLoadingCell } from '../host-loading/host-loading';
 import TagOverflow from '../../../../components/tag-overflow/tag-overflow';
 import { useTableEllipsis } from '../../../../hooks/use-table-popover';
 import { usePopover } from '../../../alarm-center/components/alarm-table/hooks/use-popover';
@@ -607,13 +607,14 @@ export default defineComponent({
 
     /** 渲染 checkbox 头 */
     const renderCheckboxHeader = () => {
+      if (props.loading) return <Checkbox class='host-list-table__page-selection' disabled />;
       if (!props.fullDataReady) {
         const selectedCount = props.data.filter(row => props.selectedRowKeys.has(String(row.id))).length;
         return (
           <Checkbox
             class='host-list-table__page-selection'
             v-bk-tooltips={{ content: t('本页全选') }}
-            disabled={!props.data.length}
+            disabled={props.loading || !props.data.length}
             indeterminate={selectedCount > 0 && selectedCount < props.data.length}
             modelValue={props.data.length > 0 && selectedCount === props.data.length}
             onChange={(checked: boolean) =>
@@ -659,10 +660,11 @@ export default defineComponent({
         ellipsis: false,
         fixed: config.fixed,
       };
-      base.cell = (_: unknown, { row }: { row: IHostListRow }) => {
+      base.cell = (_: unknown, { row, rowIndex }: { row: IHostListRow; rowIndex: number }) => {
+        if (props.loading) return <HostLoadingCell kind={config.type} index={rowIndex} />;
         if (HOST_METRIC_DATA_COLUMN_IDS.has(config.id)) {
           if (props.metricLoading) {
-            return <div class='host-table-skeleton' />;
+            return <HostLoadingCell kind={config.type} index={rowIndex} />;
           }
           if (props.metricLoadError) {
             return <span class='host-table-metric-error'>{t('加载失败')}</span>;
@@ -703,7 +705,7 @@ export default defineComponent({
     });
 
     const handleSortChange = (sortEvent: TableSort) => {
-      if (!props.fullDataReady) return;
+      if (!props.fullDataReady || props.loading) return;
       const target = Array.isArray(sortEvent) ? sortEvent[0] : sortEvent;
       emit('sortChange', target?.sortBy ? `${target.descending ? '-' : ''}${target.sortBy}` : '');
     };
@@ -712,6 +714,7 @@ export default defineComponent({
       <div
         ref='table'
         class='host-list-table'
+        aria-busy={props.loading || props.metricLoading}
       >
         {!props.loading && !props.loadError && props.metricLoadError && (
           <div class='host-list-table__metric-error'>
@@ -732,11 +735,6 @@ export default defineComponent({
             !props.data.length || props.loading || props.loadError ? 'host-list-table__body--empty' : '',
           ]}
         >
-          {props.loading && (
-            <div class='host-list-table__skeleton'>
-              <TableSkeleton />
-            </div>
-          )}
           {!props.loading && props.loadError && (
             <EmptyStatus
               class='host-list-table__error'
@@ -745,8 +743,8 @@ export default defineComponent({
             />
           )}
           <PrimaryTable
-            style={{ display: props.loading || props.loadError ? 'none' : '' }}
-            class={props.data.length === 0 ? 'host-list-table--empty' : ''}
+            style={{ display: !props.loading && props.loadError ? 'none' : '' }}
+            class={!props.loading && props.data.length === 0 ? 'host-list-table--empty' : ''}
             v-slots={{
               empty: () => (
                 <ExploreTableEmpty
@@ -757,7 +755,7 @@ export default defineComponent({
               ),
             }}
             firstFullRow={
-              props.selectedRowKeys.size
+              !props.loading && props.selectedRowKeys.size
                 ? () =>
                     (
                       <HostListSelectionTips
@@ -769,7 +767,7 @@ export default defineComponent({
             }
             bkUiSettings={tableSettings.value}
             columns={tableColumns.value}
-            data={props.data}
+            data={props.loading ? Array.from({ length: Math.min(props.pageSize, Math.max(3, Math.floor((bodyHeight.value - 36) / 36))) }, (_, index) => ({ id: `loading-${index}` })) : props.data}
             disableDataPage={true}
             hover={true}
             maxHeight={bodyHeight.value}
@@ -789,17 +787,19 @@ export default defineComponent({
             onSortChange={handleSortChange}
           />
         </div>
-        <Pagination
-          class='host-list-table__pagination'
-          align='left'
-          count={props.total}
-          layout={['total', 'limit', 'list']}
-          limit={props.pageSize}
-          limitList={HOST_LIST_PAGE_SIZE_LIST}
-          modelValue={props.page}
-          onChange={(v: number) => emit('pageChange', v)}
-          onLimitChange={(v: number) => emit('pageSizeChange', v)}
-        />
+        {!props.loading && (
+          <Pagination
+            class='host-list-table__pagination'
+            align='left'
+            count={props.total}
+            layout={['total', 'limit', 'list']}
+            limit={props.pageSize}
+            limitList={HOST_LIST_PAGE_SIZE_LIST}
+            modelValue={props.page}
+            onChange={(v: number) => emit('pageChange', v)}
+            onLimitChange={(v: number) => emit('pageSizeChange', v)}
+          />
+        )}
         <div v-show={false}>
           <div ref='tipsContent'>
             <AbnormalTips

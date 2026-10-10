@@ -42,7 +42,7 @@ import { useAppStore } from '../../../store/modules/app';
 import { useHostStore } from '../../../store/modules/host';
 import { HostSelectAllModeEnum } from '../constants/enum';
 import { HOST_FILTER_FIELDS, HOST_LIST_COLUMNS, HOST_LIST_DEFAULT_PAGE_SIZE } from '../constants/host-list';
-import { resolveHostRequestScope } from '../utils/share-scope';
+import { hostTargetKey, resolveHostRequestScope } from '../utils/share-scope';
 import { useHostListData } from './use-host-list-data';
 import { useHostListWorker } from './use-host-list-worker';
 import { useHostUrlParams } from './use-host-url-params';
@@ -108,9 +108,10 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   const filterFields = HOST_FILTER_FIELDS;
   let selectionRequestGeneration = 0;
+  const authorizedScope = resolveHostRequestScope(options.readonly, route.query, selectedNode.value);
   const getRequestScope = () => ({
-    ...resolveHostRequestScope(options.readonly, route.query, selectedNode.value),
-    bk_biz_id: appStore.bizId,
+    ...authorizedScope,
+    bk_biz_id: selectedNode.value?.bk_biz_id ?? appStore.bizId,
   });
   const getPageScope = () => {
     const scope = getRequestScope();
@@ -153,9 +154,14 @@ export const useHostList = (options: IUseHostListOptions) => {
     selectedRowKeys.value = new Set();
     excludedRowKeys.value = new Set();
   };
+  let lastQueryKey = '';
   const loadData = () => {
+    if (!selectedNode.value) return;
+    const queryKey = JSON.stringify([timeRange.value, timezone.value, getRequestScope()]);
+    const preserve = queryKey === lastQueryKey;
+    lastQueryKey = queryKey;
     resetSelection();
-    return data.loadData();
+    return data.loadData(preserve);
   };
   watch(
     [timeRange, timezone, refreshGeneration, () => JSON.stringify(getRequestScope())],
@@ -167,9 +173,11 @@ export const useHostList = (options: IUseHostListOptions) => {
   );
   watch(refreshInterval, () => setUrlParams());
 
+  const targetKey = computed(() => hostTargetKey(selectedNode.value));
+
   // 节点变化先重置页码与选择，下面的单次视图更新使用最新上下文。
   watch(
-    selectedNode,
+    targetKey,
     () => {
       resetPage();
       resetSelection();
@@ -178,8 +186,9 @@ export const useHostList = (options: IUseHostListOptions) => {
     { flush: 'sync' }
   );
 
-  watch([selectedNode, page, pageSize], () => data.invalidatePage(), { flush: 'sync' });
-  watch([selectedNode, page, pageSize], () => {
+  watch([targetKey, page, pageSize], () => data.invalidatePage(), { flush: 'sync' });
+  watch([targetKey, page, pageSize], () => {
+    if (!selectedNode.value) return;
     if (!fullDataReady.value) void loadPageData();
     void data.refreshList();
   });
@@ -192,7 +201,7 @@ export const useHostList = (options: IUseHostListOptions) => {
     { deep: true, flush: 'sync' }
   );
 
-  watch(fullDataReady, async ready => {
+  watch([fullDataReady, data.snapshotVersion], async ([ready]) => {
     if (!ready || !selectedRowKeys.value.size) return;
     const requestGeneration = ++selectionRequestGeneration;
     const requestedKeys = [...selectedRowKeys.value];

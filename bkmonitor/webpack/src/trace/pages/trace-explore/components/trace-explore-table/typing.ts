@@ -97,6 +97,8 @@ export interface BaseTableCellSpecificPropsMap {
     ellipsisTip?: (ellipsisList: any[] | string[]) => SlotReturnValue;
     /** 标签溢出时溢出标签hover显示的提示popover配置选项 */
     ellipsisTippyOptions?: TippyOptions;
+    /** 最少保持可见的标签数量（0 或不配置表示可折叠到只剩折叠标签） */
+    minVisibleCount?: number;
   };
   // 其他类型公共列有需求可以按需添加
 }

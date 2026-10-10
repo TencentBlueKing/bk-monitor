@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, nextTick, shallowRef, useTemplateRef } from 'vue';
+import { type PropType, computed, defineComponent, nextTick, onScopeDispose, shallowRef, useTemplateRef } from 'vue';
 
 import { Button, Input, Loading, Popover } from 'bkui-vue';
 import { EditLine } from 'bkui-vue/lib/icon';
@@ -71,6 +71,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    let disposed = false;
+    onScopeDispose(() => { disposed = true; });
 
     /** 问题回归状态图标映射配置 */
     const iconMap = computed(() => {
@@ -110,6 +112,7 @@ export default defineComponent({
      * 如果名称有变化则调用API重命名，否则取消编辑
      */
     const handleNameBlur = () => {
+      if (editNameLoading.value) return;
       if (editName.value === props.detail.name || !editName.value.trim()) {
         isEdit.value = false;
         return;
@@ -121,6 +124,7 @@ export default defineComponent({
         new_name: editName.value,
       })
         .then(data => {
+          if (disposed) return;
           isEdit.value = false;
           emit('nameChange', data.name);
         })
@@ -201,6 +205,7 @@ export default defineComponent({
           </div>
         </div>
       );
+    if (!this.detail?.id) return <div class='issues-detail-head-main'>{this.$t('问题详情')}</div>;
     return (
       <div class='issues-detail-head-main'>
         <div

@@ -39,6 +39,7 @@ import TraceExploreLayout from '../trace-explore/components/trace-explore-layout
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import RumDimensionPanel from './components/rum-dimension-panel';
 import RumExploreHeader from './components/rum-explore-header';
+import RumExploreSkeleton from './components/rum-explore-skeleton/rum-explore-skeleton';
 import RumExploreTable from './components/rum-explore-table';
 import RumExploreView from './components/rum-explore-view/rum-explore-view';
 import RumSpanTypeFilter from './components/rum-span-type-filter';
@@ -60,6 +61,7 @@ import {
 } from './constants';
 import { getApplicationList } from './services/rum-application';
 import EmptyStatus from '@/components/empty-status/empty-status';
+import RumLoadStatus from '../rum/components/rum-load-status';
 
 import type { ConditionChangeEvent } from '../trace-explore/typing';
 import type { IRumApplication, IRumColumnLayoutPreset } from './typings';
@@ -82,17 +84,28 @@ export default defineComponent({
     const { handleGetUserConfig: getResidentConfig, handleSetUserConfig: setResidentConfig } = useUserConfig();
 
     const isCollapsed = shallowRef(false);
-    const applicationLoading = shallowRef(false);
+    const applicationLoading = shallowRef(true);
+    const applicationError = shallowRef(false);
+    let disposed = false;
     const applicationList = shallowRef<IRumApplication[]>([]);
     const thumbtackList = shallowRef<string[]>([]);
     const defaultApplication = shallowRef('');
 
-    const viewConfigCtx = useRumViewConfig();
+    const viewConfigCtx = useRumViewConfig(computed(() => !applicationLoading.value && !applicationError.value));
     const spanTypeCtx = useRumSpanType(viewConfigCtx.viewConfig);
     const queryCtx = useRumQuery({ extraFilters: spanTypeCtx.spanTypeFilters });
     // 先恢复 URL，再初始化依赖应用的配置，避免沿用上一次进入页面的应用。
     queryCtx.initFromUrl();
-    const tableCtx = useRumTableData(queryCtx.commonParams);
+    const tableCtx = useRumTableData(
+      queryCtx.commonParams,
+      computed(
+        () =>
+          viewConfigCtx.ready.value &&
+          queryCtx.commonParams.value.app_name === store.appName &&
+          queryCtx.commonParams.value.mode === store.mode
+      )
+    );
+    const configLoading = computed(() => applicationLoading.value || viewConfigCtx.loading.value);
     // tagValueDisplayFormatter 用于让已选条件 tag 按字段单位与枚举别名展示
     const { getFieldValues, tagValueDisplayFormatter } = useRumFieldValues(
       computed(() => viewConfigCtx.viewConfig.value.fields)
@@ -195,15 +208,18 @@ export default defineComponent({
       interval => {
         window.clearInterval(autoRefreshTimer);
         if (!(interval > 0)) return;
-        autoRefreshTimer = window.setInterval(() => tableCtx.fetchList(), interval);
+        autoRefreshTimer = window.setInterval(() => {
+          if (viewConfigCtx.ready.value && !tableCtx.loading.value && !tableCtx.scrollLoading.value) {
+            tableCtx.fetchList();
+          }
+        }, interval);
       },
       { immediate: true }
     );
 
     async function fetchApplicationList() {
-      applicationLoading.value = true;
-      const list = await getApplicationList().catch(() => []);
-      applicationLoading.value = false;
+      const [list] = await Promise.all([getApplicationList(), fetchUserConfig()]);
+      if (disposed) return;
       applicationList.value = list;
       store.appList = list;
       if (store.appName && list.some(item => item.app_name === store.appName)) return;
@@ -212,7 +228,7 @@ export default defineComponent({
     }
 
     async function fetchUserConfig() {
-      await Promise.all([
+      await Promise.allSettled([
         getDefaultAppConfig<string>(RUM_EXPLORE_DEFAULT_APPLICATION).then(res => {
           defaultApplication.value = res || '';
         }),
@@ -318,14 +334,27 @@ export default defineComponent({
       return viewConfigCtx.viewConfig.value?.resident_fields || [];
     }
 
-    onMounted(async () => {
+    async function initialize() {
+      applicationLoading.value = true;
+      applicationError.value = false;
+      try {
+        await fetchApplicationList();
+        if (disposed) return;
+        queryCtx.handleQuery();
+      } catch {
+        if (!disposed) applicationError.value = true;
+      } finally {
+        if (!disposed) applicationLoading.value = false;
+      }
+    }
+
+    onMounted(() => {
       updateTimezone(store.timezone);
-      await fetchUserConfig();
-      await fetchApplicationList();
-      queryCtx.handleQuery();
+      initialize();
     });
 
     onBeforeUnmount(() => {
+      disposed = true;
       window.clearInterval(autoRefreshTimer);
     });
 
@@ -335,6 +364,9 @@ export default defineComponent({
       store,
       applicationList,
       applicationLoading,
+      applicationError,
+      initialize,
+      configLoading,
       columnConfig,
       emptyType,
       layoutPreset,
@@ -391,6 +423,7 @@ export default defineComponent({
           <RumExploreHeader
             applicationList={this.applicationList}
             favoriteShow={favoriteCtx.favoriteShow.value}
+            loading={this.applicationLoading}
             thumbtackList={this.thumbtackList}
             onAppNameChange={this.handleAppNameChange}
             onFavoriteShowChange={show => {
@@ -402,8 +435,15 @@ export default defineComponent({
           />
 
           <div class='rum-explore-content'>
-            {viewConfigCtx.loading.value ? (
-              <div class='skeleton-element filter-skeleton' />
+            <RumLoadStatus
+              error={this.applicationError || viewConfigCtx.error.value}
+              onRetry={() => this.applicationError ? this.initialize() : viewConfigCtx.fetchViewConfig()}
+            />
+            {this.applicationError || viewConfigCtx.error.value ? null : this.configLoading ? (
+              <RumExploreSkeleton
+                kind='filter'
+                showResident={queryCtx.showResidentBtn.value && queryCtx.filterMode.value !== EMode.queryString}
+              />
             ) : (
               <RetrievalFilter
                 key={`__${this.store.timezone}__`}
@@ -446,7 +486,7 @@ export default defineComponent({
                 onWhereChange={queryCtx.whereChange}
               />
             )}
-            {!this.applicationLoading && !this.applicationList.length && (
+            {!this.applicationLoading && !this.applicationError && !this.applicationList.length && (
               <div class='create-app-guide'>
                 <EmptyStatus
                   textMap={{ 'empty-app': this.t('暂无应用') }}
@@ -460,7 +500,7 @@ export default defineComponent({
                 </EmptyStatus>
               </div>
             )}
-            {!this.applicationLoading && !!this.applicationList.length && (
+            {!this.applicationError && !viewConfigCtx.error.value && (this.applicationLoading || !!this.applicationList.length) && (
               <TraceExploreLayout
                 isCollapsed={this.isCollapsed}
                 onUpdate:isCollapsed={value => {
@@ -473,7 +513,7 @@ export default defineComponent({
                       activeSpanType={spanTypeCtx.activeSpanType.value}
                       commonParams={queryCtx.commonParams.value}
                       groups={viewConfigCtx.fieldGroups.value}
-                      loading={viewConfigCtx.loading.value}
+                      loading={this.configLoading}
                       timeRange={this.store.timeRange}
                       onClose={() => {
                         this.isCollapsed = true;
@@ -483,49 +523,57 @@ export default defineComponent({
                   ),
                   default: () => (
                     <div class='result-panel'>
+                      <RumLoadStatus
+                        loading={tableCtx.loading.value && !!tableCtx.tableData.value.length}
+                        error={tableCtx.error.value}
+                        onRetry={tableCtx.retry}
+                      />
                       <RumExploreView
                         ref='rumExploreViewRef'
                         v-slots={{
                           affixedTop: () => (
                             <RumSpanTypeFilter
                               list={spanTypeCtx.chipList.value}
-                              loading={viewConfigCtx.loading.value}
+                              loading={this.configLoading}
                               value={spanTypeCtx.activeSpanType.value}
                               onChange={this.handleSpanTypeChange}
                             />
                           ),
-                          default: () => (
-                            <RumExploreTable
-                              headerAffixedTop={{
-                                container: () => this.rumExploreViewRef?.$el,
-                                // span 模式下表格上方有 RumSpanTypeFilter 吸顶区域（高度 56px：padding 12 + chip 32 + padding 12）
-                                offsetTop: this.isSpanMode ? 56 : 0,
-                              }}
-                              baseColumns={this.columnConfig.baseColumns.value}
-                              commonParams={queryCtx.commonParams.value}
-                              data={tableCtx.tableData.value}
-                              defaultFieldKeys={this.columnConfig.defaultDisplayFields.value}
-                              displayableFields={this.columnConfig.displayableFields.value}
-                              emptyType={this.emptyType}
-                              fieldMap={this.columnConfig.fieldMap.value}
-                              fixedDisplayList={this.layoutPreset.leftFixedColumns}
-                              hasMore={tableCtx.hasMore.value}
-                              horizontalScrollAffixedBottom={{ container: () => this.rumExploreViewRef?.$el }}
-                              loading={tableCtx.loading.value}
-                              mode={this.store.mode}
-                              scrollLoading={tableCtx.scrollLoading.value}
-                              showSettings={!this.isSpanSpecialPerspective}
-                              sort={tableCtx.sortParams.value}
-                              timeRange={this.store.timeRange}
-                              timezone={this.store.timezone}
-                              onClearFilter={queryCtx.clearQuery}
-                              onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
-                              onConditionChange={this.handleConditionChange}
-                              onDisplayFieldChange={fields => this.columnConfig.updateDisplayFields(fields)}
-                              onScrollToEnd={tableCtx.handleScrollToEnd}
-                              onSortChange={this.handleSortChange}
-                            />
-                          ),
+                          default: () =>
+                            this.configLoading ? (
+                              <RumExploreSkeleton kind='table' />
+                            ) : tableCtx.error.value && !tableCtx.tableData.value.length ? null : (
+                              <RumExploreTable
+                                headerAffixedTop={{
+                                  container: () => this.rumExploreViewRef?.$el,
+                                  // span 模式下表格上方有 RumSpanTypeFilter 吸顶区域（高度 56px：padding 12 + chip 32 + padding 12）
+                                  offsetTop: this.isSpanMode ? 56 : 0,
+                                }}
+                                baseColumns={this.columnConfig.baseColumns.value}
+                                commonParams={queryCtx.commonParams.value}
+                                data={tableCtx.tableData.value}
+                                defaultFieldKeys={this.columnConfig.defaultDisplayFields.value}
+                                displayableFields={this.columnConfig.displayableFields.value}
+                                emptyType={this.emptyType}
+                                fieldMap={this.columnConfig.fieldMap.value}
+                                fixedDisplayList={this.layoutPreset.leftFixedColumns}
+                                hasMore={tableCtx.hasMore.value}
+                                horizontalScrollAffixedBottom={{ container: () => this.rumExploreViewRef?.$el }}
+                                loading={tableCtx.loading.value}
+                                mode={this.store.mode}
+                                scrollLoading={tableCtx.scrollLoading.value}
+                                showSettings={!this.isSpanSpecialPerspective}
+                                sort={tableCtx.sortParams.value}
+                                timeRange={this.store.timeRange}
+                                timezone={this.store.timezone}
+                                onClearFilter={queryCtx.clearQuery}
+                                onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
+                                onConditionChange={this.handleConditionChange}
+                                onDisplayFieldChange={fields => this.columnConfig.updateDisplayFields(fields)}
+                                onScrollToEnd={tableCtx.handleScrollToEnd}
+                                onSortChange={this.handleSortChange}
+                              />
+                            ),
                         }}
                         backTopSignal={tableCtx.backTopSignal.value}
                         syncAffixOnResize={true}

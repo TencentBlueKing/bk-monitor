@@ -23,9 +23,9 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, KeepAlive, onMounted, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, KeepAlive, onScopeDispose, shallowRef, watch } from 'vue';
 
-import { Loading, Tab } from 'bkui-vue';
+import { Tab } from 'bkui-vue';
 import { alertTopN } from 'monitor-api/modules/alert_v2';
 import { listIssueActivities } from 'monitor-api/modules/issue';
 import { random } from 'monitor-common/utils';
@@ -40,6 +40,7 @@ import {
 } from 'trace/pages/alarm-center/typings';
 import { useI18n } from 'vue-i18n';
 
+import { DetailLoadStatus } from '../../../common-detail/detail-loading';
 import { IssueDetailTabEnum } from '../../constant';
 import { useTapdIssueActivities } from '../../issues-tapd/composables/use-tapd-issue-activities';
 import { conditionAlertQueryFieldReplace } from '../utils';
@@ -51,6 +52,7 @@ import IssuesBasicInfo from './issues-basic-info/issues-basic-info';
 import IssuesDetailAlarmPanel from './issues-detail-alarm-panel/issues-detail-alarm-panel';
 import IssuesDetailAlarmTable from './issues-detail-alarm-table/issues-detail-alarm-table';
 import IssuesHistory from './issues-history/issues-history';
+import IssuesLoading from './issues-loading';
 import IssuesRelationTapd from './issues-relation-tapd/issues-relation-tapd';
 import IssuesRetrievalFilter from './issues-retrieval-filter/issues-retrieval-filter';
 import IssuesTrendChart from './issues-trend-chart/issues-trend-chart';
@@ -82,6 +84,7 @@ const TAB_LIST: { label: string; name: IssueDetailTabType }[] = [
 export default defineComponent({
   name: 'IssuesSliderWrapper',
   props: {
+    refreshKey: { type: String, default: '' },
     detail: {
       type: Object as PropType<IssueDetail>,
       default: () => ({}),
@@ -127,6 +130,7 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    let disposed = false;
     const currentTab = shallowRef<IssueDetailTabType>(IssueDetailTabEnum.LATEST);
     const tabList = computed(() =>
       TAB_LIST.filter(item => item.name !== IssueDetailTabEnum.AI_ANALYSIS || window.enable_issue_ai_analysis)
@@ -144,6 +148,13 @@ export default defineComponent({
     const searchRefreshKey = shallowRef(random(8));
     /** 告警事件数量 */
     const alertCount = shallowRef(0);
+    const latestAlertError = shallowRef(false);
+    const earliestAlertError = shallowRef(false);
+    const dimensionLoading = shallowRef(false);
+    const dimensionLoaded = shallowRef(false);
+    const dimensionError = shallowRef(false);
+    let dimensionController: AbortController;
+    let activityController: AbortController;
     /** 公共参数 */
     const commonParams = computed<Record<string, unknown>>(oldValue => {
       const issueIdCondition = { key: 'issue_id', value: [props.detail.id], method: 'eq' };
@@ -196,16 +207,8 @@ export default defineComponent({
       }
     );
 
-    const getAllAlertId = async () => {
-      if (!props.detail?.id) {
-        return;
-      }
-      latestAlertAbortController.value?.abort();
-      earliestAlertAbortController.value?.abort();
-      latestAlertAbortController.value = null;
-      earliestAlertAbortController.value = null;
-      latestAlertIdLoading.value = true;
-      earliestAlertIdLoading.value = true;
+    const getAllAlertId = () => {
+      if (!props.detail?.id) return;
       const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
       const alarmService = AlarmServiceFactory(AlarmType.ALERT);
       const params = {
@@ -218,60 +221,55 @@ export default defineComponent({
         show_overview: false,
         show_aggs: false,
       };
-      latestAlertAbortController.value = new AbortController();
-      earliestAlertAbortController.value = new AbortController();
-      const latestResFn = async () => {
-        return await alarmService.getFilterTableList(
-          {
-            ...params,
-            ordering: ['-create_time'],
-          },
-          {
-            signal: latestAlertAbortController.value.signal,
-          }
-        );
+      const fetchAlert = async (latest: boolean) => {
+        const controllerRef = latest ? latestAlertAbortController : earliestAlertAbortController;
+        const loading = latest ? latestAlertIdLoading : earliestAlertIdLoading;
+        const error = latest ? latestAlertError : earliestAlertError;
+        const id = latest ? latestAlertId : earliestAlertId;
+        controllerRef.value?.abort();
+        const controller = new AbortController();
+        controllerRef.value = controller;
+        const { signal } = controller;
+        loading.value = true;
+        error.value = false;
+        try {
+          const res = await alarmService.getFilterTableList(
+            { ...params, ordering: [latest ? '-create_time' : 'create_time'] },
+            { signal, throwOnError: true }
+          );
+          if (signal.aborted) return;
+          id.value = res?.data?.[0]?.id || '';
+          if (latest) alertCount.value = res?.total || 0;
+        } catch {
+          if (!signal.aborted) error.value = true;
+        } finally {
+          if (!signal.aborted) loading.value = false;
+        }
       };
-      const earliestResFn = async () => {
-        return await alarmService.getFilterTableList(
-          {
-            ...params,
-            ordering: ['create_time'],
-          },
-          {
-            signal: earliestAlertAbortController.value.signal,
-          }
-        );
-      };
-      latestResFn()
-        .then(res => {
-          latestAlertId.value = res?.data?.[0]?.id || '';
-          alertCount.value = res?.total || 0;
-        })
-        .finally(() => {
-          latestAlertIdLoading.value = false;
-        });
-      earliestResFn()
-        .then(res => {
-          earliestAlertId.value = res?.data?.[0]?.id || '';
-        })
-        .finally(() => {
-          earliestAlertIdLoading.value = false;
-        });
+      fetchAlert(true);
+      fetchAlert(false);
     };
 
-    const { run, signal } = useRequestAbort<AnalysisTopNDataResponse<AnalysisListItem>>(alertTopN);
     /** 获取维度统计数据 */
     const getDimensionStatsData = async () => {
       if (!props.detail.id) return;
       const [startTime, endTime] = handleTransformToTimestamp(props.timeRange);
-      const data = await run({
-        ...commonParams.value,
-        start_time: startTime,
-        end_time: endTime,
-        fields: props.detail?.aggregate_config?.aggregate_dimensions?.map(item => item.field),
-        size: 5,
-      })
-        .then((data: AnalysisTopNDataResponse<AnalysisFieldAggItem>) => {
+      dimensionController?.abort();
+      dimensionController = new AbortController();
+      const { signal } = dimensionController;
+      dimensionLoading.value = true;
+      dimensionError.value = false;
+      try {
+        const data = await alertTopN(
+          {
+            ...commonParams.value,
+            start_time: startTime,
+            end_time: endTime,
+            fields: props.detail?.aggregate_config?.aggregate_dimensions?.map(item => item.field),
+            size: 5,
+          },
+          { signal }
+        ).then((data: AnalysisTopNDataResponse<AnalysisFieldAggItem>) => {
           return {
             doc_count: data.doc_count,
             fields: data.fields.map(item => {
@@ -301,55 +299,59 @@ export default defineComponent({
               };
             }),
           };
-        })
-        .catch(() => ({
-          doc_count: 0,
-          fields: [],
-        }));
-
-      if (signal?.aborted) return;
-      dimensionStatsData.value = data;
+        });
+        if (signal.aborted) return;
+        dimensionStatsData.value = data;
+        dimensionLoaded.value = true;
+      } catch {
+        if (!signal.aborted) dimensionError.value = true;
+      } finally {
+        if (!signal.aborted) dimensionLoading.value = false;
+      }
     };
 
     /** 活动列表 */
     const activities = shallowRef<IssueActivityItem[]>([]);
     const activityLoading = shallowRef(false);
-    const { run: getActiveListRun, signal: getActiveListSignal } =
-      useRequestAbort<IssueActivityItem[]>(listIssueActivities);
+    const activityError = shallowRef(false);
+    const activityLoaded = shallowRef(false);
     const getActiveList = async () => {
       if (!props.detail?.id) return;
+      activityController?.abort();
+      activityController = new AbortController();
+      const { signal } = activityController;
       activityLoading.value = true;
-      const data = await getActiveListRun({
-        bk_biz_id: props.detail?.bk_biz_id,
-        issue_id: props.detail?.id,
-      });
-      if (getActiveListSignal?.aborted) return;
-      activities.value = data;
-      activityLoading.value = false;
+      activityError.value = false;
+      try {
+        const data = await listIssueActivities(
+          { bk_biz_id: props.detail.bk_biz_id, issue_id: props.detail.id },
+          { signal }
+        );
+        if (signal.aborted) return;
+        activities.value = data;
+        activityLoaded.value = true;
+      } catch {
+        if (!signal.aborted) activityError.value = true;
+      } finally {
+        if (!signal.aborted) activityLoading.value = false;
+      }
     };
 
+    watch(() => props.refreshKey, getActiveList, { immediate: true });
     watch(
-      () => props.detail?.id,
-      id => {
-        if (id) {
-          getActiveList();
-        }
-      }
-    );
-
-    watch(
-      [() => props.detail?.id, () => commonParams.value, () => props.timeRange, () => searchRefreshKey.value],
+      [commonParams, () => props.timeRange, searchRefreshKey, () => props.refreshKey],
       () => {
         getDimensionStatsData();
         getAllAlertId();
       },
-      { deep: true }
+      { immediate: true }
     );
-
-    onMounted(() => {
-      getDimensionStatsData();
-      getAllAlertId();
-      getActiveList();
+    onScopeDispose(() => {
+      disposed = true;
+      latestAlertAbortController.value?.abort();
+      earliestAlertAbortController.value?.abort();
+      dimensionController?.abort();
+      activityController?.abort();
     });
 
     const handleTabChange = (tab: IssueDetailTabType) => {
@@ -379,23 +381,31 @@ export default defineComponent({
 
     /** 负责人变更 */
     const handleAssigneeChange = (users: string[], list: IssueActivityItem[]) => {
+      if (disposed) return;
       handleActivitiesChange(list);
       emit('assigneeChange', users);
     };
 
     /** 优先级变更 */
     const handlePriorityChange = (priority: IssuePriorityType, list: IssueActivityItem[]) => {
+      if (disposed) return;
       handleActivitiesChange(list);
       emit('priorityChange', priority);
     };
 
     /** 状态变更 */
     const handleStatusAction = (status: IssueStatusType, list: IssueActivityItem[]) => {
+      if (disposed) return;
       handleActivitiesChange(list);
       emit('statusAction', status);
     };
 
     const handleActivitiesChange = (list: IssueActivityItem[]) => {
+      if (disposed) return;
+      activityController?.abort();
+      activityLoading.value = false;
+      activityError.value = false;
+      activityLoaded.value = true;
       activities.value = list;
     };
 
@@ -414,14 +424,6 @@ export default defineComponent({
     const handleSearch = () => {
       searchRefreshKey.value = random(8);
       emit('search');
-    };
-
-    const loadingRender = () => {
-      return (
-        <div class='panel-loading'>
-          <Loading loading />
-        </div>
-      );
     };
 
     const emptyRender = () => {
@@ -444,8 +446,8 @@ export default defineComponent({
     const getPanelComponent = () => {
       switch (currentTab.value) {
         case IssueDetailTabEnum.LATEST:
-          return latestAlertIdLoading.value ? (
-            loadingRender()
+          return latestAlertIdLoading.value && !latestAlertId.value ? (
+            <DetailLoading variant='detail' />
           ) : latestAlertId.value ? (
             <IssuesDetailAlarmPanel
               key={latestAlertId.value}
@@ -456,13 +458,14 @@ export default defineComponent({
               alarmId={latestAlertId.value || ''}
               bizId={props.detail.bk_biz_id}
               defaultTab={controllableDefaultInnerTab.value}
+              refreshKey={`${searchRefreshKey.value}:${props.refreshKey}`}
             />
           ) : (
-            emptyRender()
+            !latestAlertError.value && emptyRender()
           );
         case IssueDetailTabEnum.EARLIEST:
-          return earliestAlertIdLoading.value ? (
-            loadingRender()
+          return earliestAlertIdLoading.value && !earliestAlertId.value ? (
+            <DetailLoading variant='detail' />
           ) : earliestAlertId.value ? (
             <IssuesDetailAlarmPanel
               key={earliestAlertId.value}
@@ -472,9 +475,10 @@ export default defineComponent({
               }}
               alarmId={earliestAlertId.value}
               bizId={props.detail.bk_biz_id}
+              refreshKey={`${searchRefreshKey.value}:${props.refreshKey}`}
             />
           ) : (
-            emptyRender()
+            !earliestAlertError.value && emptyRender()
           );
         case IssueDetailTabEnum.LIST:
           return (
@@ -490,7 +494,7 @@ export default defineComponent({
               detail={props.detail}
               filterMode={props.filterMode}
               queryString={props.queryString}
-              refreshKey={searchRefreshKey.value}
+              refreshKey={`${searchRefreshKey.value}:${props.refreshKey}`}
               scrollContainerSelector={`.${leftPanelClass}`}
               timeRange={props.timeRange}
               onShowAlertDetail={handleShowAlertDetail}
@@ -522,6 +526,26 @@ export default defineComponent({
       latestAlertId,
       activities,
       activityLoading,
+      activityLoaded,
+      activityError,
+      dimensionLoading,
+      dimensionLoaded,
+      dimensionError,
+      latestAlertIdLoading,
+      latestAlertError,
+      panelLoading: computed(() =>
+        currentTab.value === IssueDetailTabEnum.LATEST
+          ? latestAlertIdLoading.value && !!latestAlertId.value
+          : currentTab.value === IssueDetailTabEnum.EARLIEST && earliestAlertIdLoading.value && !!earliestAlertId.value
+      ),
+      panelError: computed(() =>
+        currentTab.value === IssueDetailTabEnum.LATEST
+          ? latestAlertError.value
+          : currentTab.value === IssueDetailTabEnum.EARLIEST && earliestAlertError.value
+      ),
+      getDimensionStatsData,
+      getActiveList,
+      getAllAlertId,
       handleTabChange,
       getPanelComponent,
       handleConditionChange,
@@ -541,6 +565,7 @@ export default defineComponent({
       <div class='issues-slider-wrapper'>
         <div class={leftPanelClass}>
           <IssuesRetrievalFilter
+            bizIds={[this.detail.bk_biz_id]}
             conditions={this.conditions}
             filterMode={this.filterMode}
             issueId={this.detail.id}
@@ -555,10 +580,18 @@ export default defineComponent({
             <IssuesTrendChart
               alertCount={this.alertCount}
               commonParams={this.commonParams}
-              refreshKey={this.searchRefreshKey}
+              countError={this.latestAlertError}
+              countLoading={this.latestAlertIdLoading}
+              refreshKey={`${this.searchRefreshKey}:${this.refreshKey}`}
               timeRange={this.timeRange}
             />
-            <DimensionStats data={this.dimensionStatsData.fields} />
+            <DimensionStats
+              data={this.dimensionStatsData.fields}
+              error={this.dimensionError}
+              loaded={this.dimensionLoaded}
+              loading={this.dimensionLoading}
+              onRetry={this.getDimensionStatsData}
+            />
           </div>
           <Tab
             class='issues-alarm-tab'
@@ -580,7 +613,21 @@ export default defineComponent({
                         />
                       )}
                       <span>
-                        {item.name === IssueDetailTabEnum.LIST ? `${item.label} (${this.alertCount})` : item.label}
+                        {item.name === IssueDetailTabEnum.LIST ? (
+                          <>
+                            {item.label} (
+                            {this.latestAlertIdLoading ? (
+                              <IssuesLoading variant='count' />
+                            ) : this.latestAlertError ? (
+                              '--'
+                            ) : (
+                              this.alertCount
+                            )}
+                            )
+                          </>
+                        ) : (
+                          item.label
+                        )}
                       </span>
                     </div>
                   ),
@@ -589,7 +636,14 @@ export default defineComponent({
               />
             ))}
           </Tab>
-          <KeepAlive key={this.currentTab}>{this.getPanelComponent()}</KeepAlive>
+          <div class='issues-alarm-panel-content'>
+            <DetailLoadStatus
+              error={this.panelError}
+              loading={this.panelLoading}
+              onRetry={this.getAllAlertId}
+            />
+            <KeepAlive key={this.currentTab}>{this.getPanelComponent()}</KeepAlive>
+          </div>
         </div>
         <div class='issues-slider-right-panel'>
           <IssuesBasicInfo
@@ -607,13 +661,22 @@ export default defineComponent({
               }}
             />
           )}
-          <IssuesRelationTapd detail={this.detail} />
-          <IssuesHistory detail={this.detail} />
+          <IssuesRelationTapd
+            detail={this.detail}
+            refreshKey={this.refreshKey}
+          />
+          <IssuesHistory
+            detail={this.detail}
+            refreshKey={this.refreshKey}
+          />
           <IssuesActivity
             detail={this.detail}
+            error={this.activityError}
             list={this.activities}
+            loaded={this.activityLoaded}
             loading={this.activityLoading}
             onCommentChange={this.handleActivitiesChange}
+            onRetry={this.getActiveList}
           />
         </div>
       </div>

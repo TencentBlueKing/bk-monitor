@@ -1,0 +1,79 @@
+.trace-slider {
+  .bk-modal-content {
+    // 组件库 sideslider 的 bk-modal-content 高度不会随内容自适应，52 为标题栏高度
+    height: calc(100% - 52px) !important;
+
+    & > div {
+      height: 100%;
+      vertical-align: middle;
+    }
+  }
+
+  .bk-sideslider-content {
+    height: 100%;
+  }
+
+  .trace-slider-main {
+    box-sizing: border-box;
+    height: 100%;
+    min-height: 100%;
+    background-color: var(--color-bg-2, #f5f7fa);
+
+    .full-screen-loading.is-active {
+      position: absolute;
+      inset: 0;
+    }
+
+    .toggle-full-screen {
+      position: fixed;
+      top: 0;
+      right: 0;
+      z-index: 9999;
+      width: 48px;
+      height: 48px;
+      color: #fff;
+      cursor: pointer;
+
+      .circle {
+        position: absolute;
+        top: -48px;
+        right: -48px;
+        width: 96px;
+        height: 96px;
+        overflow: hidden;
+        background: #979ba5;
+        border-radius: 50%;
+      }
+
+      .icon-monitor {
+        position: relative;
+        top: -2px;
+        left: 8px;
+        font-size: 30px;
+      }
+
+      &:hover {
+        color: var(--color-primary, #3a84ff);
+      }
+    }
+
+    .icon-page-close {
+      font-size: 116px;
+      color: #fff;
+      cursor: pointer;
+
+      &:hover {
+        color: var(--color-primary, #3a84ff);
+      }
+
+      &.fullscreen-close {
+        top: 0;
+        right: 28px;
+      }
+    }
+
+    .trace-detail-wrapper {
+      flex: 1;
+    }
+  }
+}

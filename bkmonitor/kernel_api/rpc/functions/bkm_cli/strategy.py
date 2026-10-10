@@ -14,20 +14,25 @@ import json
 from typing import Any
 
 from bkmonitor.models.strategy import StrategyModel
+from bkmonitor.iam import ActionEnum
 from bkmonitor.strategy.new_strategy import Strategy
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
+from kernel_api.resource.alert import get_strategy_config_version
+from kernel_api.rpc.functions.bkm_cli.strategy_management import EDITABLE_FIELDS, authorize_strategy_business
 
 OPERATION_DETAIL = "detail"
 OPERATION_LIST_BY_PRIORITY_GROUP = "list_by_priority_group"
 OPERATION_SHARED_GROUP = "shared_group"
 OPERATION_LIST_ENABLED = "list_enabled"
+OPERATION_BY_NAME = "by_name"
 ALLOWED_OPERATIONS = {
     OPERATION_DETAIL,
     OPERATION_LIST_BY_PRIORITY_GROUP,
     OPERATION_SHARED_GROUP,
     OPERATION_LIST_ENABLED,
+    OPERATION_BY_NAME,
 }
 
 DEFAULT_PAGE_SIZE = 500
@@ -52,7 +57,29 @@ def inspect_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
         return _inspect_shared_group(params)
     if operation == OPERATION_LIST_ENABLED:
         return _list_enabled(params)
+    if operation == OPERATION_BY_NAME:
+        return _inspect_by_name(params)
     return _list_by_priority_group(params)
+
+
+def _inspect_by_name(params: dict[str, Any]) -> dict[str, Any]:
+    bk_biz_id = params.get("bk_biz_id")
+    name = params.get("name")
+    if type(bk_biz_id) is not int or bk_biz_id == 0:
+        raise CustomException(message="by_name 必须提供非零整数 bk_biz_id")
+    if not isinstance(name, str) or not name.strip():
+        raise CustomException(message="by_name 必须提供非空策略 name")
+    authorize_strategy_business(params, ActionEnum.VIEW_RULE)
+    queryset = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, name=name.strip()).order_by("id")
+    count = queryset.count()
+    return {
+        "operation": OPERATION_BY_NAME,
+        "bk_biz_id": bk_biz_id,
+        "name": name.strip(),
+        "count": count,
+        "truncated": count > 10,
+        "strategies": [_summarize_strategy_model(strategy) for strategy in queryset[:10]],
+    }
 
 
 def _inspect_shared_group(params: dict[str, Any]) -> dict[str, Any]:
@@ -401,11 +428,14 @@ def _inspect_strategy_detail(params: dict[str, Any]) -> dict[str, Any]:
             detail = f"bk_biz_id={bk_biz_id}, {detail}"
         raise CustomException(message=f"策略不存在: {detail}") from error
 
+    authorize_strategy_business({**params, "bk_biz_id": strategy_model.bk_biz_id}, ActionEnum.VIEW_RULE)
     strategy_config = _build_strategy_config(strategy_model, include_user_groups=include_user_groups)
     return {
         "operation": OPERATION_DETAIL,
         "bk_biz_id": strategy_model.bk_biz_id,
         "strategy_id": strategy_id,
+        "config_version": strategy_config["config_version"],
+        "editable_fields": EDITABLE_FIELDS,
         "strategy": _select_strategy_config(strategy_config, include_raw_model_ids=include_raw_model_ids),
     }
 
@@ -440,7 +470,8 @@ def _build_strategy_config(strategy_model: StrategyModel, *, include_user_groups
     try:
         strategy_obj = Strategy.from_models([strategy_model])[0]
         strategy_obj.restore()
-        config = strategy_obj.to_dict()
+        config = strategy_obj.to_dict(convert_dashboard=False)
+        config["config_version"] = get_strategy_config_version(config)
     except Exception as error:
         raise CustomException(message=f"策略配置解析失败: strategy_id={strategy_model.id}, 原因: {error}") from error
 
@@ -624,8 +655,9 @@ KernelRPCRegistry.register_function(
     ),
     handler=inspect_strategy_config,
     params_schema={
-        "operation": "detail | list_by_priority_group | shared_group | list_enabled",
+        "operation": "detail | by_name | list_by_priority_group | shared_group | list_enabled",
         "bk_biz_id": "integer",
+        "name": "operation=by_name 必填，业务内精确名称查询，包含已停用和无效策略",
         "strategy_id": "operation=detail 必填",
         "priority_group_key": "operation=list_by_priority_group 必填",
         "strategy_group_key": "operation=shared_group 必填",
@@ -656,8 +688,9 @@ BkmCliOpRegistry.register(
     requires_confirmation=False,
     audit_tags=["db", "strategy", "inspect"],
     params_schema={
-        "operation": "detail | list_by_priority_group | shared_group | list_enabled",
+        "operation": "detail | by_name | list_by_priority_group | shared_group | list_enabled",
         "bk_biz_id": "integer",
+        "name": "operation=by_name 必填，业务内精确名称查询，包含已停用和无效策略",
         "strategy_id": "integer",
         "priority_group_key": "string",
         "strategy_group_key": "string",

@@ -15,7 +15,11 @@
     gap: 12px;
 
     .panel-process-skeleton-item {
-      min-height: 200px;
+      display: flex;
+      height: 247px;
+      background: #fff;
+      border: 1px solid #e4e9f2;
+      border-radius: 8px;
     }
   }
 }

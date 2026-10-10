@@ -41,13 +41,13 @@ import { type SortInfo, type TableSort, PrimaryTable } from '@blueking/tdesign-u
 import { Loading } from 'bkui-vue';
 import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 
-import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { useTableEllipsis, useTablePopover } from '../../../../hooks/use-table-popover';
 import { isEllipsisActiveSingleLine } from '../../../../utils/dom-helper';
 import { getTraceFieldUnit } from '../../utils';
 import ExploreFieldSetting from '../explore-field-setting/explore-field-setting';
 import FieldTypeIcon from '../field-type-icon';
 import StatisticsList from '../statistics-list/statistics-list';
+import { TraceCellSkeleton } from '../trace-explore-skeleton';
 import ExploreConditionMenu from './components/explore-condition-menu';
 import ExploreTableEmpty from './components/explore-table-empty';
 import {
@@ -127,6 +127,7 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    refreshing: { type: Boolean, default: false },
     /** table loading 配置 */
     tableLoading: {
       type: Object as PropType<{
@@ -313,15 +314,8 @@ export default defineComponent({
       handleSortChange: (sortInfo: TableSort) => handleSortChange(sortInfo),
     });
 
-    const tableSkeletonConfig = computed(() => {
-      const loading = props.tableLoading[ExploreTableLoadingEnum.BODY_SKELETON];
-      if (!loading) return null;
-      const config = {
-        tableClass: 'explore-table-hidden-body',
-        skeletonClass: 'explore-skeleton-show-body',
-      };
-      return config;
-    });
+    const showSkeleton = computed(() => props.tableLoading[ExploreTableLoadingEnum.BODY_SKELETON]);
+    const skeletonRows = Array.from({ length: 10 }, (_, index) => ({ __trace_loading_row__: index }));
 
     /**
      * @description 滚动触底加载更多
@@ -340,7 +334,8 @@ export default defineComponent({
         !(
           props.tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ||
           props.tableLoading[ExploreTableLoadingEnum.HEADER_SKELETON] ||
-          props.tableLoading[ExploreTableLoadingEnum.SCROLL]
+          props.tableLoading[ExploreTableLoadingEnum.SCROLL] ||
+          props.refreshing
         )
       ) {
         // 记录触底前的滚动位置，请求完成后还原
@@ -564,7 +559,7 @@ export default defineComponent({
           commonParams={props.commonParams}
           field={fieldOptions ? { ...fieldOptions, field_unit: selectFieldUnit } : null}
           isDuration={['us', 'ms', 'μs'].includes(selectFieldUnit)}
-          isInteger={['double', 'long', 'integer'].includes(fieldOptions?.name)}
+          isInteger={['double', 'long', 'integer'].includes(fieldOptions?.type)}
           isShow={showStatisticsPopover.value}
           onConditionChange={handleConditionChange}
           onContentRendered={handleStatisticsPopoverUpdate}
@@ -616,8 +611,9 @@ export default defineComponent({
 
     // 监听 tableData 变化，更新缓存并触发触底加载逻辑兼容
     watch(
-      () => props.tableData,
-      (newData, oldData, onCleanup) => {
+      [() => props.tableData, () => props.tableLoading[ExploreTableLoadingEnum.SCROLL]],
+      ([newData, scrollLoading], [oldData], onCleanup) => {
+        if (scrollLoading) return;
         let active = true;
         let frameId = 0;
         onCleanup(() => {
@@ -648,12 +644,12 @@ export default defineComponent({
               // 保持保护到下一帧，让恢复位置产生的 scroll 事件先处理完。
               frameId = requestAnimationFrame(() => {
                 scrollTopBeforeLoad = null;
-                handleScrollToEnd(container, true);
+                if (newData !== oldData) handleScrollToEnd(container, true);
               });
               return;
             }
             // 仅无滚动条时自动补全，兼容屏幕过大或 dpr 很小的场景
-            handleScrollToEnd(container, true);
+            if (newData !== oldData) handleScrollToEnd(container, true);
           });
         });
       },
@@ -679,7 +675,8 @@ export default defineComponent({
       tableRowKeyField,
       tableColumns,
       tableDisplayColumns,
-      tableSkeletonConfig,
+      showSkeleton,
+      skeletonRows,
       activeConditionMenuTarget,
       handleSortChange,
       handleDataSourceConfigClick,
@@ -696,11 +693,19 @@ export default defineComponent({
           // 消除表格组件实现吸底效果时候吸底虚拟滚动条组件marginTop 多处理了 1px 的副作用
           marginTop: this.tableData?.length ? 0 : '-1px',
         }}
-        class='trace-explore-table'
+        class={['trace-explore-table', { 'is-loading': this.showSkeleton, 'is-refreshing': this.refreshing }]}
+        aria-busy={this.showSkeleton || this.refreshing || this.tableLoading[ExploreTableLoadingEnum.SCROLL]}
       >
+        {this.refreshing && (
+          <div
+            class='trace-table-refresh'
+            aria-label={this.$t('加载中...')}
+            role='status'
+          />
+        )}
         <PrimaryTable
           ref='tableRef'
-          class={`explore-table ${this.tableSkeletonConfig?.tableClass}`}
+          class='explore-table'
           v-slots={{
             empty: () => (
               <ExploreTableEmpty
@@ -712,7 +717,19 @@ export default defineComponent({
           }}
           // @ts-expect-error
           columns={[
-            ...this.tableDisplayColumns,
+            ...this.tableDisplayColumns.map(column =>
+              this.showSkeleton
+                ? {
+                    ...column,
+                    cell: (_, { rowIndex }) => (
+                      <TraceCellSkeleton
+                        field={column.colKey}
+                        index={rowIndex}
+                      />
+                    ),
+                  }
+                : column
+            ),
             ...(this.enabledDisplayFieldSetting
               ? [
                   {
@@ -755,7 +772,7 @@ export default defineComponent({
             this.tableData.length
               ? () => (
                   <Loading
-                    style={{ display: this.tableHasScrollLoading ? 'inline-flex' : 'none' }}
+                    style={{ display: this.tableLoading[ExploreTableLoadingEnum.SCROLL] ? 'inline-flex' : 'none' }}
                     class='scroll-end-loading'
                     loading={true}
                     mode='spin'
@@ -777,11 +794,11 @@ export default defineComponent({
               : undefined
           }
           activeRowType='single'
-          data={this.tableData}
-          hover={true}
+          data={this.showSkeleton ? this.skeletonRows : this.tableData}
+          hover={!this.showSkeleton}
           needCustomScroll={false}
           resizable={true}
-          rowKey={this.tableRowKeyField}
+          rowKey={this.showSkeleton ? '__trace_loading_row__' : this.tableRowKeyField}
           showSortColumnBgColor={true}
           size='small'
           sort={this.sortContainer}
@@ -790,8 +807,6 @@ export default defineComponent({
           onColumnResizeChange={context => this.$emit('columnResize', context)}
           onSortChange={this.handleSortChange}
         />
-
-        <TableSkeleton class={`explore-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
 
         <div style='display: none'>
           <ExploreConditionMenu

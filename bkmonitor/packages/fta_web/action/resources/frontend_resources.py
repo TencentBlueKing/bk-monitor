@@ -14,24 +14,25 @@ import time
 from collections import defaultdict
 
 from django.conf import settings
-from django.template import TemplateDoesNotExist
 from django.utils import translation
 from django.utils.translation import gettext as _
 from rest_framework.exceptions import PermissionDenied
 
 from api.monitor.default import (
     BatchCreateActionBackendResource,
+    CreateChatGroupActionBackendResource,
     GetActionParamsBackendResource,
 )
 from bkmonitor.action.serializers import (
     ActionPluginSlz,
     BatchCreateDataSerializer,
+    CreateChatGroupSerializer,
     GetCreateParamsSerializer,
 )
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.documents.action import ActionInstanceDocument
 from bkmonitor.documents.base import BulkActionType
-from bkmonitor.models import GlobalConfig
+from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.template import AlarmNoticeTemplate, NoticeRowRenderer
@@ -44,12 +45,11 @@ from constants.action import (
     VARIABLES,
     ActionPluginType,
     ActionStatus,
-    ChatMessageType,
     ConvergeFunction,
 )
 from core.drf_resource import Resource, api, resource
 from fta_web.action.tasks import notify_to_appointee, scheduled_register_bk_plugin
-from fta_web.action.utils import parse_bk_plugin_deployed_info
+from fta_web.action.utils import filter_alerts_by_biz, parse_bk_plugin_deployed_info
 
 logger = logging.getLogger(__name__)
 
@@ -532,82 +532,14 @@ class BatchCreateResource(Resource):
 
 
 class CreateChatGroupResource(Resource):
-    """
-    一键拉群接口
-    """
+    """一键拉群，由后台按实际告警范围授权并创建内置任务。"""
 
-    class RequestSerializer(serializers.Serializer):
-        chat_members = serializers.ListField(child=serializers.CharField(), required=True, label="群成员")
-        alert_ids = serializers.ListField(child=serializers.CharField(), required=True, label="告警ID列表")
-        content_type = serializers.ListField(
-            child=serializers.ChoiceField(
-                choices=[(ChatMessageType.DETAIL_URL, _("告警链接")), (ChatMessageType.ALARM_CONTENT, _("告警内容"))]
-            ),
-            required=True,
-            label="发送通知内容",
-        )
-        bk_biz_id = serializers.CharField(required=True, label="业务ID")
-
-    @staticmethod
-    def convert_action_data(validated_request_data):
-        try:
-            action_config = ActionConfig.objects.get(name=_("「快捷」一键拉群"), is_builtin=True)
-        except ActionConfig.DoesNotExist:
-            logger.info("config of builtin create-chat-group is not existed")
-            raise
-
-        alert_ids = validated_request_data["alert_ids"]
-        message_template = "{{content.detail}}"
-        if ChatMessageType.ALARM_CONTENT in validated_request_data["content_type"]:
-            template_path = "notice/abnormal/action/default_content.jinja"
-            if len(alert_ids) > 1:
-                template_path = "notice/abnormal/converge/default_content.jinja"
-            try:
-                message_template = AlarmNoticeTemplate.get_template_source(template_path)
-            except TemplateDoesNotExist:
-                # 不存在直接用告警模板
-                logger.debug("notice template does not exist， use user content")
-                message_template = "{{user_content}}"
-
-        notice_title = _(GlobalConfig.get("NOTICE_TITLE", "蓝鲸监控"))
-        chat_name_template = notice_title + " - {{alarm.name}}[{{alarm.id}}]"
-        if len(validated_request_data["alert_ids"]) > 1:
-            chat_name_template = notice_title + _(" - 【{}】等{}个告警").format("{{alarm.name}}", len(alert_ids))
-
-        operator = get_request_username()
-        action_data = {
-            "operate_data_list": [
-                {
-                    "alert_ids": validated_request_data["alert_ids"],
-                    "action_configs": [
-                        {
-                            "execute_config": {
-                                "template_detail": {
-                                    "chat_owner": operator,
-                                    "chat_name": chat_name_template,
-                                    "chat_members": ",".join(validated_request_data["chat_members"]),
-                                    "message": message_template,
-                                },
-                                "template_id": action_config.execute_config["template_id"],
-                                "timeout": action_config.execute_config["timeout"],
-                            },
-                            "plugin_id": action_config.plugin_id,
-                            "name": action_config.name,
-                            "is_enabled": action_config.is_enabled,
-                            "bk_biz_id": action_config.bk_biz_id,
-                            "config_id": action_config.id,
-                        }
-                    ],
-                }
-            ],
-            "bk_biz_id": validated_request_data["bk_biz_id"],
-            "creator": operator,
-        }
-        return action_data
+    RequestSerializer = CreateChatGroupSerializer
 
     def perform_request(self, validated_request_data):
-        action_data = self.convert_action_data(validated_request_data)
-        return BatchCreateActionBackendResource().request(**action_data)
+        if getattr(get_request(), "token", None):
+            raise PermissionDenied()
+        return CreateChatGroupActionBackendResource().request(**validated_request_data)
 
 
 class AssignAlertResource(Resource):
@@ -629,7 +561,10 @@ class AssignAlertResource(Resource):
         appointees_display_names = [get_user_display_name(appointee) for appointee in appointees]
         appointees_set = set(appointees)
         assign_reason = validated_request_data["reason"]
-        alert_ids = validated_request_data["alert_ids"]
+        alerts = filter_alerts_by_biz(
+            AlertDocument.mget(validated_request_data["alert_ids"]), validated_request_data["bk_biz_id"]
+        )
+        alert_ids = validated_request_data["alert_ids"] = [alert.id for alert in alerts]
         current_time = int(time.time())
         alert_log = AlertLog(
             **dict(
@@ -644,7 +579,6 @@ class AssignAlertResource(Resource):
                 operator=operator,
             )
         )
-        alerts = AlertDocument.mget(alert_ids)
         alert_assignees = {alert.id: set(list(alert.appointee) + list(alert.assignee)) for alert in alerts}
         all_diff_assignees = []
         for alert in alerts:
@@ -713,7 +647,10 @@ class GetActionConfigByAlerts(Resource):
         )
 
     def perform_request(self, validated_request_data):
-        alert_ids = validated_request_data["alert_ids"]
+        alerts = filter_alerts_by_biz(
+            AlertDocument.mget(validated_request_data["alert_ids"]), validated_request_data["bk_biz_id"]
+        )
+        alert_ids = [alert.id for alert in alerts]
         hit_results = ActionInstanceDocument.mget_by_alert(alert_ids=alert_ids, fields=["action_config_id", "alert_id"])
         alert_groups = {}
         all_configs = []
@@ -755,7 +692,13 @@ class CreateDemoActionResource(Resource):
 
         # 支持传入 alert_id，关联真实告警
         alert_id = validated_request_data.get("alert_id")
-        alerts = [alert_id] if alert_id else []
+        if alert_id:
+            matched = filter_alerts_by_biz(AlertDocument.mget([alert_id]), action_config["bk_biz_id"])
+            if not matched:
+                raise PermissionDenied(_("告警不存在"))
+            alerts = [alert.id for alert in matched]
+        else:
+            alerts = []
         # 获取 source 参数，如果前端未传则使用默认值 "bk_monitor_debug"
         # 注意：这是调试任务，需要明确标记为调试来源
         source = validated_request_data.get("source", "bk_monitor_debug")
@@ -798,6 +741,11 @@ class PreviewDemoActionContextResource(Resource):
         if bk_biz_id not in authorized_bizs:
             raise PermissionDenied(_("当前用户无该业务({})的访问权限").format(bk_biz_id))
 
+        # 按实际传给后台的业务鉴权，避免 URL/query 中的业务覆盖请求体的权限范围。
+        Permission(request=req).is_allowed_by_biz(
+            bk_biz_id=bk_biz_id, action=ActionEnum.MANAGE_RULE, raise_exception=True
+        )
+
         result = api.monitor.get_demo_action_context_backend(**validated_request_data)
 
         return result
@@ -813,6 +761,9 @@ class GetDemoActionDetailResource(Resource):
 
     def perform_request(self, validated_request_data):
         demo_action = ActionInstance.objects.get(id=validated_request_data["action_id"])
+        if not demo_action.bk_biz_id:
+            raise PermissionDenied(_("调试任务不存在"))
+        Permission().is_allowed_by_biz(demo_action.bk_biz_id, ActionEnum.VIEW_RULE, raise_exception=True)
         return {
             "status": demo_action.status,
             "is_finished": demo_action.status in ActionStatus.END_STATUS,

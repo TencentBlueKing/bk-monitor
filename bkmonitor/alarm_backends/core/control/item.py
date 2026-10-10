@@ -104,6 +104,8 @@ class Item(DetectMixin, CheckMixin, DoubleCheckMixin):
             expression=self.expression,
             functions=self.functions,
             query_output_config=self.query_output_config,
+            promql_multi_expression=len(self.query_configs) > 1
+            and all(query_config.get("expression_mode") == "promql" for query_config in self.query_configs),
         )
 
     def get_detect_result_expire_ttl(self):

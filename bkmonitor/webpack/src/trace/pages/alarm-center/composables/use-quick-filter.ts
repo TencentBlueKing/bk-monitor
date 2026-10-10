@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { onScopeDispose, shallowRef, watchEffect } from 'vue';
+import { onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
@@ -41,11 +41,12 @@ export function useQuickFilter() {
    */
   const isFirstInit = shallowRef(true);
 
-  const quickFilterLoading = shallowRef(false);
+  const quickFilterLoading = shallowRef(true);
   const quickFilterEmptyStatusType = shallowRef<EmptyStatusType>('empty');
 
   // 请求中止控制器
   let abortController: AbortController | null = null;
+  let dataContext = '';
   const effectFunc = async () => {
     // 中止上一次未完成的请求
     if (abortController) {
@@ -55,21 +56,34 @@ export function useQuickFilter() {
     abortController = new AbortController();
     const { signal } = abortController;
 
+    const context = JSON.stringify([alarmStore.alarmType, alarmStore.bizIds]);
+    if (context !== dataContext) {
+      dataContext = context;
+      quickFilterList.value = [];
+      isFirstInit.value = true;
+    }
     quickFilterLoading.value = true;
     quickFilterEmptyStatusType.value = 'empty';
-    const quickFilter = await alarmStore.alarmService.getQuickFilterList(alarmStore.commonFilterParams, { signal });
-    // 检查请求是否已被中止，确保不会更新过期数据
-    if (signal.aborted) return;
-    /** 最后一次操作的分类不同步最新数量 */
-    const index = quickFilter.findIndex(item => item.id === alarmStore.lastQuickFilterOperationCategory);
-    if (index !== -1 && alarmStore.lastQuickFilterOperationCategoryData) {
-      quickFilter[index] = alarmStore.lastQuickFilterOperationCategoryData;
+    try {
+      const quickFilter = await alarmStore.alarmService.getQuickFilterList(alarmStore.commonFilterParams, { signal });
+      // 检查请求是否已被中止，确保不会更新过期数据
+      if (signal.aborted) return;
+      /** 最后一次操作的分类不同步最新数量 */
+      const index = quickFilter.findIndex(item => item.id === alarmStore.lastQuickFilterOperationCategory);
+      if (index !== -1 && alarmStore.lastQuickFilterOperationCategoryData) {
+        quickFilter[index] = alarmStore.lastQuickFilterOperationCategoryData;
+      }
+      quickFilterList.value = quickFilter;
+    } catch {
+      if (!signal.aborted) quickFilterEmptyStatusType.value = '500';
+    } finally {
+      if (!signal.aborted) {
+        isFirstInit.value = false;
+        quickFilterLoading.value = false;
+      }
     }
-    quickFilterList.value = quickFilter;
-    isFirstInit.value = false;
-    quickFilterLoading.value = false;
   };
-  watchEffect(effectFunc, { flush: 'post' });
+  onMounted(() => watchEffect(effectFunc));
 
   const updateQuickFilterValue = (value: CommonCondition[]) => {
     alarmStore.quickFilterValue = value;
@@ -87,6 +101,7 @@ export function useQuickFilter() {
   };
 
   onScopeDispose(() => {
+    abortController?.abort();
     quickFilterList.value = [];
     quickFilterLoading.value = false;
   });

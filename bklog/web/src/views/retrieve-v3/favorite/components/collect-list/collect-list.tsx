@@ -108,7 +108,7 @@ export default defineComponent({
     const isShowEdit = ref(false);
 
     const childMenu = computed(() => {
-      const list =  [
+      const list = [
         {
           key: 'share',
           label: t('分享'),
@@ -168,10 +168,10 @@ export default defineComponent({
       },
 
       /* 解散分组 */
-      'dismiss-group': item => handleDeleteApi('dismiss-group', item.group_id, () => handleRefreshMenu(item)),
+      'dismiss-group': item => handleDeleteConfirm('dismiss-group', item.group_id, item),
 
       /* 删除收藏 */
-      delete: item => handleDeleteApi('delete', item.id, () => handleRefreshMenu(item)),
+      delete: item => handleDeleteConfirm('delete', item.id, item),
 
       /* 移动分组 */
       'move-group': item => {
@@ -332,6 +332,11 @@ export default defineComponent({
         </div>
       );
     };
+    /** 关闭删除操作弹框，并清空待删除数据 */
+    const closeDelDialog = () => {
+      delDialogShow.value = false;
+      delData.value = {};
+    };
     /** 显示删除操作弹框 */
     const handleDelClick = (type: string, item: IFavoriteItem) => {
       delData.value = {
@@ -339,6 +344,22 @@ export default defineComponent({
         item,
       };
       delDialogShow.value = true;
+    };
+    /** 弹框显隐同步：遮罩、Esc、右上角关闭都会触发，避免标志位停留在 true 导致弹框无法再次打开 */
+    const handleDelDialogChange = (value: boolean) => {
+      if (value) {
+        delDialogShow.value = true;
+      } else {
+        closeDelDialog();
+      }
+    };
+    /** 确认删除 / 解散：无论接口成功或失败，都关闭弹框并复位标志位 */
+    const handleDeleteConfirm = async (type: string, id: number, item: IFavoriteItem) => {
+      try {
+        await handleDeleteApi(type, id, () => handleRefreshMenu(item));
+      } finally {
+        closeDelDialog();
+      }
     };
 
     /** 移动至分组Render */
@@ -574,6 +595,7 @@ export default defineComponent({
           show-footer={false}
           theme='primary'
           value={delDialogShow.value}
+          on-value-change={handleDelDialogChange}
         >
           {delDialogShow.value && delRender(delData.value.key, delData.value.item)}
         </bk-dialog>

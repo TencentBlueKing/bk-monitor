@@ -67,6 +67,7 @@ function loadComponent(name, overrides = {}) {
         HOST_STATUS_MAP: {},
       };
     }
+    if (id.endsWith('/host-loading')) return { default: component('HostLoading'), HostLoadingCell: component('HostLoadingCell'), HostRefreshStatus: component('HostRefreshStatus') };
     if (id.startsWith('.') || id.startsWith('@/')) return { default: component(id.split('/').at(-1)) };
     throw new Error(`Unexpected import: ${id}`);
   };
@@ -208,7 +209,12 @@ test('page mode keeps pagination, page selection and drilldown but suppresses gl
   for (const state of [{ loading: true }, { loading: false, loadError: true }]) {
     Object.assign(view.props, state);
     const rendered = view.render();
-    assert.equal(find(rendered, PrimaryTable).props.style.display, 'none');
+    assert.equal(find(rendered, PrimaryTable).props.style.display, state.loading ? '' : 'none');
+    if (state.loading) {
+      const placeholderTable = find(rendered, PrimaryTable);
+      assert.ok(placeholderTable.props.data.every(row => row.id.startsWith('loading-')));
+      assert.equal(placeholderTable.props.columns[0].title().props.disabled, true);
+    }
     const pagination = find(rendered, Pagination);
     assert.equal(pagination.props.count, 100);
     pagination.props.onChange(3);
@@ -233,6 +239,7 @@ test('page loading and errors leave card data visible, preserve saved state and 
   const ctx = Object.fromEntries(
     Object.entries({
       selectedRowKeys: new Set(),
+      retainingData: false,
       fullDataReady: false,
       fullLoading: false,
       fullLoadError: true,

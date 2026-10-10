@@ -29,6 +29,7 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useTableScrollOptimize } from '../../../../hooks/use-table-scroll-optimize';
 import { ALERT_STORAGE_KEY } from '../../services/alert-services';
+import { AlarmTableSkeletonCell } from '../alarm-skeleton';
 import AlertSelectionToolbar from './components/alert-selection-toolbar/alert-selection-toolbar';
 import CommonTable from './components/common-table/common-table';
 import { useActionHandlers } from './hooks/use-action-handlers';
@@ -247,6 +248,15 @@ export default defineComponent({
                     />
                   ) as unknown as SlotReturnValue
               : null
+          }
+          loadingCell={(column, rowIndex) =>
+            (
+              <AlarmTableSkeletonCell
+                columnKey={column.colKey}
+                rowIndex={rowIndex}
+                variant={this.tableScenarioClassName === 'incident-table' ? 'incident' : 'default'}
+              />
+            ) as unknown as SlotReturnValue
           }
           autoFillSpace={!this.data?.length}
           columns={this.transformedColumns}

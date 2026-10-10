@@ -1,3 +1,5 @@
+@use 'monitor-static/styles/skeleton';
+
 .bk-monitor-drag {
   position: fixed;
   top: 50%;
@@ -192,38 +194,4 @@
 .markdown-viewer.md-veiwer-flowchart-wrap .toastui-editor-contents ol li::before {
   /* stylelint-disable-next-line declaration-no-important */
   content: counter(li) !important;
-}
-
-.skeleton-element {
-  position: relative;
-  display: flex;
-  width: 100%;
-  overflow: hidden;
-
-  &::after {
-    position: absolute;
-    inset-inline: -150%;
-    top: 0;
-    bottom: 0;
-    content: '';
-    background: linear-gradient(90deg, rgb(0 0 0 / 6%) 25%, rgb(0 0 0 / 15%) 37%, rgb(0 0 0 / 6%) 63%);
-    animation-name: skeleton-loading;
-    animation-duration: 1.4s;
-    animation-timing-function: ease;
-    animation-iteration-count: infinite;
-  }
-
-  &.skeleton-element-lg {
-    border-radius: 50%;
-  }
-}
-
-@keyframes skeleton-loading {
-  0% {
-    transform: translateX(-37.5%);
-  }
-
-  100% {
-    transform: translateX(37.5%);
-  }
 }

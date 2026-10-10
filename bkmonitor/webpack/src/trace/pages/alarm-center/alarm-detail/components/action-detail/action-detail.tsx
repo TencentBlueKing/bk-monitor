@@ -27,6 +27,7 @@ import { defineComponent } from 'vue';
 
 import { storeToRefs } from 'pinia';
 
+import DetailLoading, { DetailLoadStatus } from '../../../common-detail/detail-loading';
 import ActionDetailContent from './action-detail-content';
 import ActionDetailInfo from './action-detail-info';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
@@ -37,14 +38,17 @@ export default defineComponent({
   name: 'ActionDetail',
   setup() {
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { actionDetail, loading } = storeToRefs(alarmCenterDetailStore);
+    const { actionDetail, loading, actionError } = storeToRefs(alarmCenterDetailStore);
 
     return {
       actionDetail,
+      actionError,
+      retry: alarmCenterDetailStore.getActionDetailData,
       loading,
     };
   },
   render() {
+    if (!this.actionDetail) return <div class='action-detail-wrapper'>{this.actionError ? <DetailLoadStatus error onRetry={this.retry} /> : <DetailLoading variant='detail' />}</div>;
     return (
       <div class='action-detail-wrapper'>
         <ActionDetailInfo

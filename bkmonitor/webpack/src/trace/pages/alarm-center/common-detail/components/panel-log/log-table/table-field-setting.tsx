@@ -37,8 +37,9 @@ import {
 import { computed } from 'vue';
 
 import { useThrottleFn } from '@vueuse/core';
-import { $bkPopover, Button, Exception, Input } from 'bkui-vue';
+import { Button, Exception, Input } from 'bkui-vue';
 import { ArrowsRight, Close, Transfer } from 'bkui-vue/lib/icon';
+import tippy, { type Instance, type SingleTarget } from 'tippy.js';
 import { fieldTypeMap } from 'trace/pages/trace-explore/utils';
 import { useI18n } from 'vue-i18n';
 
@@ -91,7 +92,7 @@ export default defineComponent({
     let dragContainer = null;
 
     /** popover 弹窗实例 */
-    const popoverInstance = shallowRef(null);
+    const popoverInstance = shallowRef<Instance | null>(null);
     /** popover 弹出显示内容容器 */
     const containerRef = useTemplateRef<HTMLElement | null>('containerRef');
     /** input搜索框输入的值 */
@@ -164,6 +165,7 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       removeDragListener();
+      handlePopoverHide();
     });
 
     /** 添加监听事件(消除拖拽元素拖拽时鼠标图标变为黑色的禁止图标的默认行为) */
@@ -201,48 +203,39 @@ export default defineComponent({
         handlePopoverHide();
         return;
       }
-      popoverInstance.value = $bkPopover({
-        target: e.currentTarget as HTMLElement,
-        content: containerRef.value,
-        trigger: 'click',
+      const contentEl = containerRef.value;
+      if (!contentEl) return;
+      // manual + interactive：点待选字段只改选中项，不把弹层当成外部点击关掉
+      const tippyInst = tippy(e.currentTarget as SingleTarget, {
+        content: contentEl,
+        trigger: 'manual',
         placement: 'bottom-end',
         theme: 'light table-field-setting-popover',
         arrow: true,
-        boundary: 'viewport',
-        popoverDelay: 0,
-        isShow: false,
-        always: false,
-        disabled: false,
-        clickContentAutoHide: false,
-        height: '',
-        maxWidth: '',
-        maxHeight: '',
-        renderDirective: 'if',
-        allowHtml: false,
-        renderType: 'auto',
-        padding: 0,
-        offset: 0,
-        zIndex: 0,
-        disableTeleport: false,
-        autoPlacement: false,
-        autoVisibility: false,
-        disableOutsideClick: false,
-        disableTransform: false,
-        modifiers: [],
-        extCls: '',
-        referenceCls: '',
-        hideIgnoreReference: true,
-        componentEventDelay: 0,
-        forceClickoutside: false,
-        immediate: false,
-        // @ts-expect-error
-        onHide: () => {
-          handlePopoverHide();
+        interactive: true,
+        maxWidth: 'none',
+        offset: [0, -2],
+        appendTo: () => document.body,
+        popperOptions: {
+          modifiers: [
+            {
+              name: 'preventOverflow',
+              options: {
+                boundary: 'viewport',
+              },
+            },
+          ],
+        },
+        onHidden(instance) {
+          if (popoverInstance.value !== instance) return;
+          popoverInstance.value = null;
+          instance.destroy();
         },
       });
-      popoverInstance.value.install();
+      popoverInstance.value = tippyInst;
       setTimeout(() => {
-        popoverInstance.value?.vm?.show();
+        if (popoverInstance.value !== tippyInst) return;
+        tippyInst.show();
       }, 100);
     }
 
@@ -251,9 +244,11 @@ export default defineComponent({
      *
      */
     function handlePopoverHide() {
-      popoverInstance.value?.hide?.();
-      popoverInstance.value?.close?.();
-      popoverInstance.value = null;
+      const inst = popoverInstance.value;
+      if (inst) {
+        popoverInstance.value = null;
+        inst.destroy();
+      }
     }
 
     /**

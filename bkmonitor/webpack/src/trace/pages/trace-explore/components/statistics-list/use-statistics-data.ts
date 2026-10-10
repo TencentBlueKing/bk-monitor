@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, reactive, shallowRef, watch } from 'vue';
+import { computed, onBeforeUnmount, reactive, shallowRef, watch } from 'vue';
 
 import { CancelToken } from 'monitor-api/cancel';
 import { downloadFile } from 'monitor-common/utils';
@@ -190,7 +190,9 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
       return;
     }
     popoverLoading.value = true;
+    const requestId = getStatisticsInfoCount.value + 1;
     await getStatisticsGraphData();
+    if (requestId !== getStatisticsInfoCount.value) return;
     popoverLoading.value = false;
     getDurationTopkList();
     rangeText.value = [
@@ -211,6 +213,8 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
     topKCancelFn?.();
     topKInfoCancelFn?.();
     topKChartCancelFn?.();
+    infoLoading.value = false;
+    popoverLoading.value = false;
     setTopKData(statisticsList);
     statisticsInfo.value = { ...EMPTY_STATISTICS_INFO };
     chartData.value = [];
@@ -311,6 +315,8 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
       )
       .catch(() => ({ series: [] }));
 
+    if (count !== getStatisticsInfoCount.value) return;
+
     const series = data.series || [];
     chartData.value = series.map(item => {
       if (mode.value !== 'text') {
@@ -334,6 +340,8 @@ export function useStatisticsData(props: IStatisticsDataProps, callbacks: IStati
     });
     infoLoading.value = false;
   }
+
+  onBeforeUnmount(resetStatisticsState);
 
   /** 展示侧栏 */
   async function showMore() {

@@ -69,31 +69,30 @@ from apps.utils.task import high_priority_task
 @high_priority_task(ignore_result=True)
 def shutdown_collector_warm_storage_config(cluster_id):
     """异步关闭冷热集群的采集项"""
-    result_table_list = []
-    for collector in CollectorConfig.objects.all():
-        if not collector.table_id:
-            continue
-        result_table_list.append(collector.table_id)
 
-    if not result_table_list:
+    collectors = list(
+        CollectorConfig.objects.exclude(table_id__isnull=True).exclude(table_id="").values("table_id", "bk_biz_id")
+    )
+
+    if not collectors:
         return
 
+    result_table_list = [collector["table_id"] for collector in collectors]
     cluster_infos = CollectorHandler.bulk_cluster_infos(result_table_list=result_table_list)
-    for collector in CollectorConfig.objects.all():
+
+    for collector in collectors:
         try:
-            if not collector.table_id:
-                continue
-            cluster_info = cluster_infos.get(collector.table_id)
+            cluster_info = cluster_infos.get(collector["table_id"])
             if not cluster_info:
                 continue
             if cluster_info["cluster_config"]["cluster_id"] != cluster_id:
                 continue
             TransferApi.modify_result_table(
                 {
-                    "table_id": collector.table_id,
+                    "table_id": collector["table_id"],
                     "default_storage": "elasticsearch",
                     "default_storage_config": {"warm_phase_days": 0},
-                    "bk_biz_id": collector.bk_biz_id,
+                    "bk_biz_id": collector["bk_biz_id"],
                 }
             )
         except Exception as e:  # pylint: disable=broad-except

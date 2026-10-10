@@ -317,13 +317,29 @@ class GetHostInstanceByNodeResource(CacheResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         with_count = serializers.BooleanField(required=False, label="是否需要主机/实例的统计信息", default=True)
         with_service_category = serializers.BooleanField(required=False, label="是否需要主机信息", default=True)
+        with_agent_status = serializers.BooleanField(label="是否查询Agent状态", default=True)
 
-    def get_instance_count(self):
-        # 查询业务下的主机
-        host_list = api.cmdb.get_host_by_topo_node(bk_biz_id=self.bk_biz_id)
+    def get_instance_count(self, with_agent_status=True):
+        if with_agent_status:
+            host_list = api.cmdb.get_host_by_topo_node(bk_biz_id=self.bk_biz_id)
+        else:
+            host_list = []
+            if self.need_search_module_ids:
+                page = 1
+                while True:
+                    result = api.cmdb.get_host_page(
+                        bk_biz_id=self.bk_biz_id,
+                        topo_nodes={"module": sorted(self.need_search_module_ids)},
+                        page=page,
+                        page_size=500,
+                    )
+                    host_list.extend(result["items"])
+                    if page * 500 >= result["total"]:
+                        break
+                    page += 1
 
         # 查询主机的agent状态
-        agent_status_dict = resource.cc.get_agent_status(self.bk_biz_id, host_list)
+        agent_status_dict = resource.cc.get_agent_status(self.bk_biz_id, host_list) if with_agent_status else {}
 
         # 每个节点下的主机
         node_host = defaultdict(set)
@@ -334,7 +350,7 @@ class GetHostInstanceByNodeResource(CacheResource):
                 node_host[bk_module_id].add(host.bk_host_id)
 
                 # agent状态
-                if agent_status_dict.get(host.bk_host_id, -1) != 0:
+                if with_agent_status and agent_status_dict.get(host.bk_host_id, -1) != 0:
                     node_agent_error_count[bk_module_id].add(host.bk_host_id)
 
         for node in self.node_list:
@@ -349,7 +365,8 @@ class GetHostInstanceByNodeResource(CacheResource):
 
             node["all_host"] = list(all_host)
             node["count"] = len(all_host)
-            node["agent_error_count"] = len(agent_error_count)
+            if with_agent_status:
+                node["agent_error_count"] = len(agent_error_count)
 
         del node_host
         del node_agent_error_count
@@ -358,6 +375,7 @@ class GetHostInstanceByNodeResource(CacheResource):
         # 查询拓扑数和节点映射
         self.bk_biz_id = validated_request_data["bk_biz_id"]
         self.node_list = validated_request_data["node_list"]
+        self.need_search_module_ids = set()
         topo_tree = resource.cc.topo_tree(self.bk_biz_id)
         node_mapping = topo_tree_tools.get_node_mapping(topo_tree)
 
@@ -374,7 +392,7 @@ class GetHostInstanceByNodeResource(CacheResource):
 
         # 统计主机信息
         if validated_request_data["with_count"]:
-            self.get_instance_count()
+            self.get_instance_count(with_agent_status=validated_request_data["with_agent_status"])
 
         if validated_request_data["with_service_category"]:
             # 查询服务分类
@@ -420,7 +438,7 @@ class GetServiceInstanceByNodeResource(GetHostInstanceByNodeResource):
     获取节点服务实例状态
     """
 
-    def get_instance_count(self):
+    def get_instance_count(self, with_agent_status=True):
         # 查询业务下的主机
         host_list = api.cmdb.get_host_by_topo_node(bk_biz_id=self.bk_biz_id)
 
@@ -438,8 +456,12 @@ class GetServiceInstanceByNodeResource(GetHostInstanceByNodeResource):
         }
 
         # 查询主机的agent状态
-        agent_status_dict = resource.cc.get_agent_status(
-            self.bk_biz_id, [host for host in host_list if host.bk_host_id in need_search_host_ids]
+        agent_status_dict = (
+            resource.cc.get_agent_status(
+                self.bk_biz_id, [host for host in host_list if host.bk_host_id in need_search_host_ids]
+            )
+            if with_agent_status
+            else {}
         )
 
         # 每个节点下的实例
@@ -454,7 +476,7 @@ class GetServiceInstanceByNodeResource(GetHostInstanceByNodeResource):
             node_service[service.bk_module_id].add(service.service_instance_id)
             node_host[service.bk_module_id].add(host.bk_host_id)
             # agent状态
-            if agent_status_dict.get(host.bk_host_id, -1) != 0:
+            if with_agent_status and agent_status_dict.get(host.bk_host_id, -1) != 0:
                 node_agent_error_count[service.bk_module_id].add(host.bk_host_id)
 
         # 统计每个节点的实例数，异常数
@@ -471,7 +493,8 @@ class GetServiceInstanceByNodeResource(GetHostInstanceByNodeResource):
 
             node["all_host"] = list(all_host)
             node["count"] = len(all_service)
-            node["agent_error_count"] = len(agent_error_count)
+            if with_agent_status:
+                node["agent_error_count"] = len(agent_error_count)
 
         del node_service
         del node_host
@@ -604,6 +627,7 @@ class GetNodesByTemplate(CacheResource):
         bk_inst_type = serializers.ChoiceField(
             required=True, choices=[TargetObjectType.HOST, TargetObjectType.SERVICE], label="查询对象下实例的类型"
         )
+        with_agent_status = serializers.BooleanField(label="是否查询Agent状态", default=True)
 
     def perform_request(self, data):
         bk_inst_ids = data["bk_inst_ids"]
@@ -625,6 +649,7 @@ class GetNodesByTemplate(CacheResource):
 
         args = {
             "bk_biz_id": bk_biz_id,
+            "with_agent_status": data["with_agent_status"],
             "node_list": [
                 {
                     "bk_biz_id": bk_biz_id,

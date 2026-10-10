@@ -75,6 +75,8 @@ interface IMonitorDataEvent {
   onShowExpress: boolean;
   onSouceStepChange: number;
   onSourceChange: string;
+  onSourceExpressionChange: string;
+  onSourceQueriesChange: { alias: string; promql: string }[];
   onTargetChange: any;
   onTargetTypeChange: string;
   onDelete: () => void;
@@ -91,6 +93,7 @@ interface IMonitorDataProps {
   hasAIntelligentDetect: boolean;
   hasAiOpsDetect?: boolean;
   isKpiAnomalySdkEnabled?: boolean;
+  legacyMultiQuery?: boolean;
   loading: boolean;
   metricData: MetricDetail[];
   metricTipType: string;
@@ -98,6 +101,7 @@ interface IMonitorDataProps {
   readonly: boolean;
   showRealtimeStrategy?: boolean;
   source: string;
+  sourceQueries: { alias: string; promql: string }[];
   sourceStep: number | string;
 }
 
@@ -118,8 +122,10 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   })
   readonly metricData: MetricDetail[];
   @Prop({ default: '', type: String }) source: string;
+  @Prop({ default: () => [], type: Array }) sourceQueries: { alias: string; promql: string }[];
   @Prop({ default: false, type: Boolean }) readonly: boolean;
   @Prop({ default: false, type: Boolean }) loading: boolean;
+  @Prop({ default: false, type: Boolean }) legacyMultiQuery: boolean;
   @Prop({ default: false, type: Boolean }) promqlError: boolean;
   @Prop({ default: '', type: String }) expression: string;
   @Prop({ default: () => ({ target_detail: [] }), type: Object }) defaultCheckedTarget: any;
@@ -274,7 +280,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         .filter(item => !!item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
-    return true;
+    return !this.legacyMultiQuery && this.sourceQueries.length <= 1;
   }
   get targetDesc() {
     return this.handleSetTargetDesc(this.targetList, this.target?.targetType || this.metricData?.[0]?.targetType);
@@ -327,7 +333,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   }
   handleEditModeChange() {
     if (this.dataMode === 'converge') {
-      if (this.editMode === 'Edit' && !this.canToPromql) return;
+      if (!this.canToPromql) return;
       const mode = this.editMode === 'Source' ? 'Edit' : 'Source';
       const error = mode === 'Edit' ? this.promqlEditorRef.getLinterStatus() : false;
       this.$emit('editModeChange', {
@@ -387,7 +393,32 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
    * @param {string} value
    */
   handlePromsqlChange(value: string) {
-    this.handleSourceChange(value);
+    this.handleSourceQueryChange(this.sourceQueries[0]?.alias || 'a', value);
+  }
+  handleSourceQueryChange(alias: string, promql: string) {
+    if (this.legacyMultiQuery) return;
+    this.$emit(
+      'sourceQueriesChange',
+      this.sourceQueries.map(item => (item.alias === alias ? { ...item, promql } : item))
+    );
+  }
+  handleAddSourceQuery() {
+    if (this.legacyMultiQuery) return;
+    const alias = 'abcdefghijklmnopqrstuvwxyz'
+      .split('')
+      .find(value => !this.sourceQueries.some(item => item.alias.toLowerCase() === value));
+    if (!alias) return;
+    this.$emit('sourceQueriesChange', [...this.sourceQueries, { alias, promql: '' }]);
+    if (this.sourceQueries.length === 1 && this.expression === this.sourceQueries[0].alias) {
+      this.$emit('sourceExpressionChange', '');
+    }
+  }
+  handleDeleteSourceQuery(alias: string) {
+    if (this.legacyMultiQuery) return;
+    if (this.sourceQueries.length <= 1 || alias === this.sourceQueries[0].alias) return;
+    const remainingQueries = this.sourceQueries.filter(item => item.alias !== alias);
+    this.$emit('sourceQueriesChange', remainingQueries);
+    this.$emit('sourceExpressionChange', remainingQueries.length === 1 ? remainingQueries[0].alias : '');
   }
   /* source step 更新 */
   @Emit('souceStepChange')
@@ -697,55 +728,115 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             </div>
           ) : (
             <div class='metric-source-wrap'>
-              {this.loading ? undefined : (
-                // <PromqlEditor
-                //   ref='promql-editor'
-                //   class='promql-editor'
-                //   value={this.source}
-                //   onFocus={this.handlePromqlFocus}
-                //   executeQuery={this.handlePromqlEnter}
-                //   // onBlur={(val, hasError: boolean) => this.handlePromqlBlur(hasError)}
-                //   onChange={this.handlePromsqlChange}
-                // />
-                <promql-monaco-editor
-                  ref='promql-editor'
-                  class='mt-16'
-                  executeQuery={this.handlePromqlEnter}
-                  isError={this.promqlError}
-                  minHeight={80}
-                  value={this.source}
-                  onChange={this.handlePromsqlChange}
-                  onFocus={this.handlePromqlFocus}
-                />
+              {this.legacyMultiQuery && (
+                <div class='monitor-err-msg'>
+                  {this.$t('历史多 PromQL 查询配置仅可查看；其他策略设置可正常保存。查询请通过 API 或 as-code 修改。')}
+                </div>
               )}
+              {this.legacyMultiQuery
+                ? this.sourceQueries.map(query => (
+                    <div key={query.alias}>
+                      <div>
+                        {this.$t('查询')} {query.alias}
+                      </div>
+                      <pre style='white-space: pre-wrap; overflow-wrap: anywhere;'>{query.promql}</pre>
+                    </div>
+                  ))
+                : this.loading
+                  ? undefined
+                  : this.sourceQueries.map((query, index) => (
+                      <div
+                        key={query.alias}
+                        style={{ marginTop: index > 0 ? '16px' : undefined }}
+                        class='source-query'
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            fontSize: '12px',
+                          }}
+                          class='source-query-title'
+                        >
+                          <span>
+                            {this.$t('查询')} {query.alias}
+                          </span>
+                          {!this.readonly && index > 0 && (
+                            <bk-button
+                              text
+                              onClick={() => this.handleDeleteSourceQuery(query.alias)}
+                            >
+                              {this.$t('删除')}
+                            </bk-button>
+                          )}
+                        </div>
+                        <promql-monaco-editor
+                          ref={index === 0 ? 'promql-editor' : `promql-editor-${index}`}
+                          class='mt-16'
+                          executeQuery={this.handlePromqlEnter}
+                          isError={this.promqlError}
+                          minHeight={80}
+                          value={query.promql}
+                          onChange={(value: string) => this.handleSourceQueryChange(query.alias, value)}
+                          onFocus={this.handlePromqlFocus}
+                        />
+                      </div>
+                    ))}
               {/* <div class={['metric-source', { 'is-error': this.promqlError }]}>
 
               </div> */}
-              <div class='source-options-wrap'>
-                <bk-input
-                  class='step-input'
-                  min={10}
-                  precision={0}
-                  type='number'
-                  value={this.sourceStep}
-                  onChange={this.handleSourceStepChange}
-                >
-                  <div
-                    class='step-input-prepend'
-                    slot='prepend'
+              {!this.legacyMultiQuery && (
+                <div class='source-options-wrap'>
+                  {!this.readonly && (
+                    <bk-button
+                      disabled={this.sourceQueries.length >= 26}
+                      text
+                      onClick={this.handleAddSourceQuery}
+                    >
+                      {this.$t('添加 PromQL 查询')}
+                    </bk-button>
+                  )}
+                  {this.sourceQueries.length > 1 && (
+                    <div
+                      style='margin: 12px 0;'
+                      class='source-expression'
+                    >
+                      <div class='source-query-title'>{this.$t('计算表达式（查询别名的 PromQL 即时向量运算）')}</div>
+                      <bk-input
+                        readonly={this.readonly}
+                        type='textarea'
+                        value={this.expression}
+                        onBlur={this.handleExpressionBlur}
+                        onChange={(value: string) => this.$emit('sourceExpressionChange', value)}
+                      />
+                    </div>
+                  )}
+                  <bk-input
+                    class='step-input'
+                    min={10}
+                    precision={0}
+                    type='number'
+                    value={this.sourceStep}
+                    onChange={this.handleSourceStepChange}
                   >
-                    <span>{'Step'}</span>
-                    <AIWhaleIcon
-                      content='Step'
-                      tip={this.$t('数据步长').toString()}
-                      type='explanation'
-                    />
-                  </div>
-                </bk-input>
-              </div>
+                    <div
+                      class='step-input-prepend'
+                      slot='prepend'
+                    >
+                      <span>{'Step'}</span>
+                      <AIWhaleIcon
+                        content='Step'
+                        tip={this.$t('数据步长').toString()}
+                        type='explanation'
+                      />
+                    </div>
+                  </bk-input>
+                </div>
+              )}
             </div>
           )}
-          {this.supportSource && !!this.errMsg ? <div class='monitor-err-msg'>{this.errMsg}</div> : undefined}
+          {this.supportSource && this.errMsg ? <div class='monitor-err-msg'>{this.errMsg}</div> : undefined}
           {this.canSetTarget &&
             ((this.targetList.length && this.targetDesc.message.length && this.editMode === 'Edit') ||
               this.metricData.some(item => item.canSetTarget)) && (

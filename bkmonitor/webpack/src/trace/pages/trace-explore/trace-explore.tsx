@@ -69,9 +69,15 @@ import DimensionFilterPanel from './components/dimension-filter-panel';
 import FavoriteBox, { type IFavoriteGroup, EditFavorite } from './components/favorite-box';
 import TraceExploreHeader from './components/trace-explore-header';
 import TraceExploreLayout from './components/trace-explore-layout';
+import TraceExploreSkeleton from './components/trace-explore-skeleton';
 import TraceExploreView from './components/trace-explore-view/trace-explore-view';
 import { useCandidateValue } from './hooks/use-candidate-value';
-import { type TraceExploreApmHooks, BRIDGE_PROPS_KEY, TRACE_EXPLORE_APM_HOOKS_KEY } from './trace-explore-apm';
+import {
+  type TraceExploreApmHooks,
+  type TraceExploreEmbedQuery,
+  BRIDGE_PROPS_KEY,
+  TRACE_EXPLORE_APM_HOOKS_KEY,
+} from './trace-explore-apm';
 import { getFilterByCheckboxFilter, safeParseJsonValueForWhere, tryURLDecodeParse } from './utils';
 
 import type { ConditionChangeEvent, ExploreFieldList, HideFeatures, IApplicationItem, ICommonParams } from './typing';
@@ -110,10 +116,8 @@ export default defineComponent({
     const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
     const { handleGetUserConfig: handleGetThumbtackUserConfig, handleSetUserConfig: handleSetThumbtackUserConfig } =
       useUserConfig();
-    const {
-      handleGetUserConfig: handleGetResidentSettingUserConfig,
-      handleSetUserConfig: handleSetResidentSettingUserConfig,
-    } = useUserConfig();
+    const { handleGetUserConfig: getResidentSettingUserConfig, handleSetUserConfig: setResidentSettingUserConfig } =
+      useUserConfig();
     const {
       saveKey: saveTableFieldsKey,
       config: tableFieldsConfig,
@@ -135,7 +139,12 @@ export default defineComponent({
     });
     /** 自动查询定时器 */
     let autoQueryTimer = null;
-    const applicationLoading = shallowRef(false);
+    const applicationLoading = shallowRef(true);
+    const initializing = shallowRef(true);
+    const queryPending = shallowRef(false);
+    let disposed = false;
+    let viewConfigRequest = 0;
+    let queryRequest = 0;
     /** 默认选择的应用列表 */
     const defaultApplication = shallowRef('');
     /** 应用列表 */
@@ -264,7 +273,8 @@ export default defineComponent({
       mode: store.mode,
     });
 
-    const loading = shallowRef(false);
+    // 字段配置就绪后再挂过滤栏，避免空字段参与 URL 条件恢复。
+    const loading = shallowRef(true);
     const queryString = shallowRef('');
     const queryStringInput = shallowRef('');
     /** 默认选择的收藏Id */
@@ -287,6 +297,38 @@ export default defineComponent({
         ? store.currentApp?.view_config?.span_config?.resident_setting || SPAN_DEFAULT_RESIDENT_SETTING_KEY
         : store.currentApp?.view_config?.trace_config?.resident_setting || TRACE_DEFAULT_RESIDENT_SETTING_KEY;
     });
+    const residentConfig = shallowRef<{ fields: string[]; key: string }>();
+
+    watch(
+      () =>
+        !applicationLoading.value && store.appName && showResidentBtn.value && filterMode.value !== EMode.queryString
+          ? residentSettingOnlyId.value
+          : '',
+      async (key, _, onCleanup) => {
+        let active = true;
+        onCleanup(() => {
+          active = false;
+        });
+        if (!key || residentConfig.value?.key === key) return;
+        const fields = await getResidentSettingUserConfig<string[]>(key).catch(() => []);
+        if (!active) return;
+        residentConfig.value = { key, fields: fields || [] };
+      },
+      { immediate: true }
+    );
+
+    function handleGetResidentSettingUserConfig(key: string) {
+      return residentConfig.value?.key === key
+        ? Promise.resolve(residentConfig.value.fields)
+        : getResidentSettingUserConfig<string[]>(key);
+    }
+
+    async function handleSetResidentSettingUserConfig(value: string) {
+      const key = residentSettingOnlyId.value;
+      const saved = await setResidentSettingUserConfig(value);
+      if (saved && key === residentSettingOnlyId.value) residentConfig.value = { key, fields: JSON.parse(value) };
+      return saved;
+    }
     const appName = computed(() => store.appName);
     /** 当前应用是否开启 profiling 功能 */
     const enableProfiling = computed(() => !!store?.currentApp?.is_enabled_profiling);
@@ -331,13 +373,55 @@ export default defineComponent({
     });
     useIsEnabledProfilingProvider(enableProfiling);
 
+    const cloneEmbedList = <T,>(val: T[]): T[] => JSON.parse(JSON.stringify(val || []));
+    const applyEmbedQueryFromBridge = () => {
+      try {
+        const embedQuery = bridgeProps?.exploreQuery as TraceExploreEmbedQuery | undefined;
+        if (!embedQuery?.hasUrlWhere) {
+          return false;
+        }
+        const nextWhere = Array.isArray(embedQuery.where) ? cloneEmbedList(embedQuery.where) : [];
+        const nextCommonWhere = Array.isArray(embedQuery.commonWhere) ? cloneEmbedList(embedQuery.commonWhere) : [];
+        const nextQueryString = typeof embedQuery.queryString === 'string' ? embedQuery.queryString : '';
+        const nextFilterMode = embedQuery.filterMode === EMode.queryString ? EMode.queryString : EMode.ui;
+        const nextSelectedType = Array.isArray(embedQuery.selectedType) ? cloneEmbedList(embedQuery.selectedType) : [];
+        where.value = nextWhere;
+        commonWhere.value = nextCommonWhere;
+        queryString.value = nextQueryString;
+        filterMode.value = nextFilterMode;
+        checkboxFilters.value = nextSelectedType;
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    // 只在挂载时从宿主 URL 恢复一次。继续 watch exploreQuery 会把自身回写当新输入，触发递归更新。
+    const embedRestoredFromUrl = apmHooks ? applyEmbedQueryFromBridge() : false;
+    let lastEmbedQueryKey = embedRestoredFromUrl
+      ? JSON.stringify({
+          where: where.value,
+          queryString: queryString.value,
+          filterMode: filterMode.value,
+          commonWhere: commonWhere.value,
+          selectedType: checkboxFilters.value,
+        })
+      : '';
+
     watch(
       () => [bridgeProps?.viewOptions?.filters?.service_name, appName.value],
-      ([serviceName, appName]) => {
-        if (!serviceName || !appName) {
+      ([serviceName, nextAppName], prev) => {
+        if (!serviceName || !nextAppName) {
           return;
         }
-        setTimeout(() => {
+        // URL 已恢复过滤条件时，不要用默认服务名覆盖 kind 等用户条件
+        // if (embedRestoredFromUrl) {
+        //   return;
+        // }
+        // 同名服务只换应用：应用名变化但服务名不变，保留用户已有过滤条件
+        if (prev?.[0] && prev[1] && prev[0] === serviceName) {
+          return;
+        }
+        if (where.value.length === 0) {
           where.value = [
             {
               key: 'resource.service.name',
@@ -348,22 +432,22 @@ export default defineComponent({
               value: [serviceName],
             },
           ];
-          cacheSceneQuery.set(
-            `trace_${appName}`,
-            structuredClone({
-              where: [
-                {
-                  key: 'collections.resource.service.name',
-                  operator: 'equal',
-                  options: { group_relation: 'OR' },
-                  value: [serviceName],
-                },
-              ],
-              query_string: queryString.value,
-              commonWhere: commonWhere.value,
-            })
-          );
-        });
+        }
+        cacheSceneQuery.set(
+          `trace_${nextAppName}`,
+          structuredClone({
+            where: [
+              {
+                key: 'collections.resource.service.name',
+                operator: 'equal',
+                options: { group_relation: 'OR' },
+                value: [serviceName],
+              },
+            ],
+            query_string: queryString.value,
+            commonWhere: commonWhere.value,
+          })
+        );
       },
       {
         immediate: true,
@@ -407,7 +491,6 @@ export default defineComponent({
     function handleAppNameChange() {
       where.value = [];
       commonWhere.value = [];
-      getViewConfig();
       handleSetUserConfig(JSON.stringify(store.appName));
       handleQuery();
     }
@@ -415,12 +498,13 @@ export default defineComponent({
     /** 获取应用列表 */
     async function getApplicationList() {
       applicationLoading.value = true;
-      const data = await listApplicationInfo().catch(() => []);
+      const [data] = await Promise.all([listApplicationInfo().catch(() => []), getAllUserConfig()]);
+      if (disposed) return;
       applicationLoading.value = false;
       applicationList.value = data;
       store.updateAppList(data);
       if (window.source_app === 'apm') {
-        store.updateAppName(bridgeProps.viewOptions.filters.app_name);
+        store.updateAppName(bridgeProps.viewOptions?.filters?.app_name);
         return;
       }
       if (!store.appName || !data.find(item => item.app_name === store.appName)) {
@@ -476,6 +560,11 @@ export default defineComponent({
     }
 
     const handleQuery = async () => {
+      if (initializing.value || disposed) return;
+      const requestId = ++queryRequest;
+      queryPending.value = true;
+      axiosController.abort();
+      axiosController = new AbortController();
       let query_string = '';
       let filters = mergeWhereList(where.value || [], commonWhere.value || []);
       if (filterMode.value === EMode.ui) {
@@ -490,8 +579,6 @@ export default defineComponent({
           }));
         if (fullFilters.length) {
           if (fullFilters.length > 1) {
-            axiosController.abort();
-            axiosController = new AbortController();
             const str = await traceGenerateQueryString(
               {
                 filters: fullFilters,
@@ -514,6 +601,7 @@ export default defineComponent({
         filters = [];
       }
 
+      if (disposed || requestId !== queryRequest) return;
       filters = [...filters, ...checkboxFilters.value.map(v => getFilterByCheckboxFilter(store.mode, v))];
       commonParams.value = {
         app_name: store.appName,
@@ -521,6 +609,7 @@ export default defineComponent({
         query_string,
         filters,
       };
+      queryPending.value = false;
 
       /** 携带traceId检索，展开详情侧栏 */
       const hasIdFilter = filters.find(item => item.key === 'trace_id');
@@ -534,11 +623,19 @@ export default defineComponent({
     };
 
     async function getViewConfig() {
-      if (!store.appName) return;
+      const requestId = ++viewConfigRequest;
+      if (!store.appName) {
+        fieldListMap.value = { trace: [], span: [] };
+        loading.value = false;
+        return true;
+      }
       loading.value = true;
+      const requestAppName = store.appName;
       const { trace_config = [], span_config = [] } = await listTraceViewConfig({
-        app_name: store.appName,
+        app_name: requestAppName,
       }).catch(() => ({ trace_config: [], span_config: [] }));
+      if (disposed || requestId !== viewConfigRequest) return;
+      if (requestAppName !== store.appName) return getViewConfig();
 
       fieldListMap.value = {
         trace: trace_config.map(item => ({
@@ -551,11 +648,12 @@ export default defineComponent({
         })),
       };
       loading.value = false;
+      return true;
     }
 
     /** 获取所有的用户相关配置（默认应用，收藏栏显隐，应用置顶列表） */
     async function getAllUserConfig() {
-      await Promise.all([
+      await Promise.allSettled([
         handleGetUserConfig<string>(TRACE_EXPLORE_DEFAULT_APPLICATION).then(res => {
           defaultApplication.value = res;
         }),
@@ -569,13 +667,24 @@ export default defineComponent({
       if (!apmHooks) {
         getUrlParams();
       }
-      await getAllUserConfig();
       await getApplicationList();
+      if (disposed) return;
       await getViewConfig();
+      if (disposed) return;
+      initializing.value = false;
       handleQuery();
     });
 
+    watch(appName, async () => {
+      if (initializing.value) return;
+      if (await getViewConfig()) handleQuery();
+    });
+
     onUnmounted(() => {
+      disposed = true;
+      viewConfigRequest += 1;
+      queryRequest += 1;
+      axiosController.abort();
       autoQueryTimer && clearInterval(autoQueryTimer);
     });
 
@@ -636,6 +745,22 @@ export default defineComponent({
     }
 
     function setUrlParams() {
+      if (apmHooks) {
+        const nextQuery = {
+          where: where.value,
+          queryString: queryString.value,
+          filterMode: filterMode.value,
+          commonWhere: commonWhere.value,
+          selectedType: checkboxFilters.value,
+        };
+        const nextKey = JSON.stringify(nextQuery);
+        if (nextKey === lastEmbedQueryKey) {
+          return;
+        }
+        lastEmbedQueryKey = nextKey;
+        apmHooks.onExploreQueryChange?.(nextQuery);
+        return;
+      }
       const { ...otherQuery } = route.query;
       const queryParams = {
         ...otherQuery,
@@ -816,7 +941,6 @@ export default defineComponent({
         commonWhere.value = [];
       }
       handleQuery();
-      getViewConfig();
     }
 
     /** 收藏夹新开标签页 */
@@ -963,6 +1087,9 @@ export default defineComponent({
       isCollapsed,
       defaultApplication,
       applicationLoading,
+      initializing,
+      isQueryStringMode: computed(() => filterMode.value === EMode.queryString),
+      queryPending,
       applicationList,
       thumbtackList,
       isShowFavorite,
@@ -1040,6 +1167,7 @@ export default defineComponent({
         <div class='main-panel'>
           <div class={['header-panel', { 'is-apm-trace': window.source_app === 'apm' }]}>
             <TraceExploreHeader
+              applicationLoading={this.applicationLoading}
               hideFeatures={this.apmHooks ? APM_EMBED_HIDE_FEATURES : []}
               isShowFavorite={this.isShowFavorite}
               list={this.applicationList}
@@ -1051,10 +1179,14 @@ export default defineComponent({
             />
           </div>
           <div class={['trace-explore-content', { 'is-apm-trace': window.source_app === 'apm' }]}>
-            {this.loading ? (
-              <div class='skeleton-element filter-skeleton' />
+            {this.initializing || this.loading ? (
+              <TraceExploreSkeleton
+                showResident={this.showResidentBtn && !this.isQueryStringMode}
+                type='filter'
+              />
             ) : (
               <RetrievalFilter
+                v-slots={{ residentSkeleton: () => <TraceExploreSkeleton type='resident' /> }}
                 changeWhereFormatter={traceWhereChangeFormatter}
                 commonWhere={this.commonWhere}
                 defaultResidentSetting={this.defaultResidentSetting}
@@ -1089,7 +1221,7 @@ export default defineComponent({
                 onWhereChange={this.handleWhereChange}
               />
             )}
-            {!this.applicationLoading && !this.applicationList.length && (
+            {!this.initializing && !this.applicationLoading && !this.applicationList.length && (
               <div class='create-app-guide'>
                 <EmptyStatus
                   textMap={{ 'empty-app': this.t('暂无应用') }}
@@ -1103,7 +1235,7 @@ export default defineComponent({
                 </EmptyStatus>
               </div>
             )}
-            {!this.applicationLoading && !!this.applicationList.length && (
+            {(this.initializing || !!this.applicationList.length) && (
               <TraceExploreLayout
                 class='content-container'
                 isCollapsed={this.isCollapsed}
@@ -1114,7 +1246,7 @@ export default defineComponent({
                     <div class='dimension-filter-panel'>
                       <DimensionFilterPanel
                         list={this.fieldList}
-                        listLoading={this.loading}
+                        listLoading={this.initializing || this.loading}
                         params={this.commonParams}
                         onClose={() => this.updateIsCollapsed(true)}
                         onConditionChange={this.handleConditionChange}
@@ -1123,17 +1255,26 @@ export default defineComponent({
                   ),
                   default: () => (
                     <div class='result-content-panel'>
-                      <TraceExploreView
-                        checkboxFilters={this.checkboxFilters}
-                        commonParams={this.commonParams}
-                        fieldListMap={this.fieldListMap}
-                        showSlideDetail={this.showSlideDetail}
-                        onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
-                        onClearRetrievalFilter={this.handleClearRetrievalFilter}
-                        onConditionChange={this.handleConditionChange}
-                        onSetUrlParams={this.setUrlParams}
-                        onSliderClose={this.handleSliderClose}
-                      />
+                      {this.applicationLoading || !this.appName ? (
+                        <TraceExploreSkeleton
+                          mode={this.commonParams.mode}
+                          type='results'
+                        />
+                      ) : (
+                        <TraceExploreView
+                          checkboxFilters={this.checkboxFilters}
+                          commonParams={this.commonParams}
+                          configLoading={this.initializing || this.loading}
+                          fieldListMap={this.fieldListMap}
+                          queryPending={this.queryPending}
+                          showSlideDetail={this.showSlideDetail}
+                          onCheckboxFiltersChange={this.handleCheckboxFiltersChange}
+                          onClearRetrievalFilter={this.handleClearRetrievalFilter}
+                          onConditionChange={this.handleConditionChange}
+                          onSetUrlParams={this.setUrlParams}
+                          onSliderClose={this.handleSliderClose}
+                        />
+                      )}
                     </div>
                   ),
                 }}

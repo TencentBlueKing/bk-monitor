@@ -239,7 +239,12 @@ export interface ISceneConfig {
 /* source模式下 sourceData */
 export interface ISourceData {
   errorMsg?: string;
+  legacyExpression?: string;
+  legacyMultiQuery?: boolean;
+  legacyOriginSql?: string;
+  legacyQueryConfigs?: Record<string, unknown>[];
   promqlError?: boolean;
+  queryConfigs?: { alias: string; promql: string }[];
   sourceCode: string;
   sourceCodeCache?: string;
   step: number | string;

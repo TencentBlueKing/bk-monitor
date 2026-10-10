@@ -49,7 +49,7 @@ def _permission_state_by_action(
 
 
 def _legacy_tool_state(tool, action_states, action_spaces=None):
-    """合并旧 MCP 与附加 Action，只有同一空间全部满足才视为可用。"""
+    """合并未启用双权限工具的 MCP 与附加 Action，要求同一空间全部满足。"""
     if tool.permission_exempt:
         return "exempt"
     if not tool.legacy_action_ids:
@@ -73,7 +73,7 @@ def _mixed_permission_scopes(tools, params, permission):
     legacy_actions = {action_id for tool in tools if not tool.native_permission for action_id in tool.legacy_action_ids}
     legacy_states = _permission_state_by_action(permission, legacy_actions, bk_biz_id) if bk_biz_id is not None else {}
     for tool in tools:
-        # 原生工具复用执行阶段同一 permission_state，避免探测与执行口径分叉。
+        # 启用双权限的工具复用执行阶段同一 permission_state，避免探测与执行口径分叉。
         if tool.native_permission:
             scope = permission_state(
                 tool, request, bk_biz_id, params.get("resource_context"), params["include_apply_guide"]
@@ -149,7 +149,7 @@ def _mixed_permission_scopes(tools, params, permission):
         "missing_permissions": missing,
         "next_step": "补充目标业务或资源上下文后重查"
         if unresolved
-        else "申请原生权限或旧 MCP 权限后重试"
+        else "申请 MCP 独立权限或 SaaS 原生权限后重试"
         if missing
         else "",
     }
@@ -372,7 +372,7 @@ class LookupPermissionsResource(Resource):
                     {
                         "resource_context": (
                             f"{tool.name} is using legacy MCP permissions ({tool.iam_action}); "
-                            "resource-level permission checks require native mode. "
+                            "resource-level permission checks require the SaaS fallback mode. "
                             "For supported tools, enable MCP_NATIVE_PERMISSION_TOOLS; "
                             "omit resource_context to check legacy space permissions only."
                         )
@@ -478,7 +478,7 @@ class ExecuteToolResource(Resource):
             raise ValidationError({"tool_name": str(exc)}) from exc
         request = get_request(peaceful=True)
         if tool.native_permission:
-            # standalone 与 Unified 共用同一套 Schema、native-first 判定和执行函数；
+            # standalone 与 Unified 共用同一套 Schema、MCP 优先判定和执行函数；
             # 历史 checked 标记不能作为新权限凭据。
             data = execute_native_tool(tool, tool_args, request)
         else:

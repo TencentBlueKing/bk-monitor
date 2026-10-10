@@ -34,6 +34,7 @@ let hideEmptyNode = true;
 let searchValue = '';
 /** 范围缓存 */
 let rangeCache = null;
+let complete = true;
 
 /** 判断是否为主机节点 */
 const isHostNode = node => node.bk_host_id !== undefined;
@@ -50,14 +51,16 @@ const getSearchText = node => {
 };
 
 /** 构建索引 */
-const buildIndex = treeData => {
+const buildIndex = (treeData, preserve = false) => {
   nodes = [];
   roots = [];
   nodeIndexById = new Map();
-  expandedIds = new Set();
-  searchCollapsedIds = new Set();
-  searchExpandedIds = new Set();
-  searchCollapseAll = false;
+  if (!preserve) {
+    expandedIds = new Set();
+    searchCollapsedIds = new Set();
+    searchExpandedIds = new Set();
+    searchCollapseAll = false;
+  }
 
   const stack = [];
   for (let index = treeData.length - 1; index >= 0; index -= 1) {
@@ -88,7 +91,7 @@ const buildIndex = treeData => {
     nodes.push(entry);
     nodeIndexById.set(String(source.id), nodeIndex);
 
-    if (source.isOpen) {
+    if (!preserve && source.isOpen) {
       expandedIds.add(String(source.id));
     }
     if (current.parentIndex === -1) {
@@ -106,12 +109,65 @@ const buildIndex = treeData => {
     }
   }
 
+  if (!complete) {
+    for (const entry of [...nodes]) {
+      if (entry.data.bk_obj_id === 'module') upsertChildren(entry.data.id, [], { status: 'idle' });
+    }
+  }
+
   for (let index = nodes.length - 1; index >= 0; index -= 1) {
     const entry = nodes[index];
     if (!entry.isHost) {
       for (const childIndex of entry.children || []) {
         entry.hostCount += nodes[childIndex].hostCount;
       }
+    }
+  }
+};
+
+/** A module owns its page action and leaves; repeated pages only update that module. */
+const upsertChildren = (parentId, children, page) => {
+  const parentIndex = nodeIndexById.get(String(parentId));
+  if (parentIndex === undefined || complete) return;
+  const parent = nodes[parentIndex];
+  parent.children ||= [];
+  const actionId = `load:${parentId}`;
+  parent.children = parent.children.filter(index => nodes[index].data.id !== actionId);
+  const existing = new Map(parent.children.map(index => [String(nodes[index].data.id), index]));
+  const append = data => {
+    const oldIndex = existing.get(String(data.id));
+    if (oldIndex !== undefined) {
+      nodes[oldIndex].data = data;
+      nodes[oldIndex].searchText = getSearchText(data);
+      return;
+    }
+    const index = nodes.length;
+    nodes.push({
+      children: null,
+      data,
+      depth: parent.depth + 1,
+      directMatch: false,
+      hasMatchingDescendant: false,
+      hostCount: isHostNode(data) ? 1 : 0,
+      included: true,
+      isHost: isHostNode(data),
+      parentIndex,
+      searchText: getSearchText(data),
+      visibleCount: 1,
+    });
+    parent.children.push(index);
+    existing.set(String(data.id), index);
+    nodeIndexById.set(String(data.id), index);
+  };
+  for (const child of children) append(child);
+  if (page.total !== undefined) parent.knownHostCount = page.total;
+  if (!page.done) {
+    const action = { id: actionId, name: '', loadParentId: parentId, loadState: page.status };
+    const actionIndex = nodeIndexById.get(actionId);
+    if (actionIndex === undefined) append(action);
+    else {
+      nodes[actionIndex].data = action;
+      parent.children.push(actionIndex);
     }
   }
 };
@@ -150,7 +206,7 @@ const recomputeVisibility = () => {
   const keyword = searchValue.trim().toLowerCase();
   for (let index = nodes.length - 1; index >= 0; index -= 1) {
     const entry = nodes[index];
-    const baseVisible = !hideEmptyNode || entry.isHost || entry.hostCount > 0;
+    const baseVisible = !complete || !hideEmptyNode || entry.isHost || entry.hostCount > 0;
     entry.directMatch = !!keyword && baseVisible && entry.searchText.includes(keyword);
     entry.hasMatchingDescendant = entry.directMatch;
     if (baseVisible) {
@@ -163,7 +219,7 @@ const recomputeVisibility = () => {
   while (stack.length) {
     const { ancestorMatched, index } = stack.pop();
     const entry = nodes[index];
-    const baseVisible = !hideEmptyNode || entry.isHost || entry.hostCount > 0;
+    const baseVisible = !complete || !hideEmptyNode || entry.isHost || entry.hostCount > 0;
     entry.included = baseVisible && (!keyword || ancestorMatched || entry.hasMatchingDescendant);
     const childAncestorMatched = ancestorMatched || entry.directMatch;
     const children = entry.children || [];
@@ -184,7 +240,7 @@ const toViewRow = entry => ({
   ...entry.data,
   depth: entry.depth,
   hasChildren: !!entry.children?.length,
-  hostCount: entry.hostCount,
+  hostCount: complete ? entry.hostCount : (entry.knownHostCount ?? null),
   isExpanded: isBranchExpanded(entry),
 });
 
@@ -348,23 +404,55 @@ const getNodeOffset = targetId => {
 self.onmessage = event => {
   const message = event.data;
   switch (message.type) {
+    case 'REPLACE':
     case 'INIT': {
+      complete = message.complete !== false;
       hideEmptyNode = message.hideEmptyNode;
       searchValue = message.searchValue || '';
-      buildIndex(message.treeData || []);
+      buildIndex(message.treeData || [], message.type === 'REPLACE');
       recomputeVisibility();
       invalidateRangeCache();
       const selectedIndex = nodeIndexById.get(String(message.selectedId || ''));
       const fallbackIndex = roots[0];
-      const targetIndex = selectedIndex === undefined ? fallbackIndex : selectedIndex;
+      const targetIndex = message.selectedId ? selectedIndex : fallbackIndex;
       const selectedNodeOffset = getNodeOffset(message.selectedId);
       self.postMessage({
+        anchorOffset: getNodeOffset(message.anchorId),
         nodeCount: nodes.length,
         requestId: message.requestId,
         selectedNode: targetIndex === undefined ? null : nodes[targetIndex].data,
         selectedNodeOffset,
         total: getTotal(),
         type: 'INIT_DONE',
+      });
+      break;
+    }
+    case 'UPSERT_CHILDREN':
+      upsertChildren(message.parentId, message.children, message.page);
+      recomputeVisibility();
+      invalidateRangeCache();
+      self.postMessage({
+        requestId: message.requestId,
+        anchorOffset: getNodeOffset(message.anchorId),
+        type: 'UPSERT_CHILDREN_DONE',
+      });
+      break;
+    case 'SELECT': {
+      const index = nodeIndexById.get(String(message.id));
+      if (index !== undefined) {
+        let parent = nodes[index].parentIndex;
+        while (parent >= 0) {
+          expandedIds.add(String(nodes[parent].data.id));
+          parent = nodes[parent].parentIndex;
+        }
+        recomputeVisibility();
+        invalidateRangeCache();
+      }
+      self.postMessage({
+        requestId: message.requestId,
+        type: 'SELECT_DONE',
+        selectedNode: index === undefined ? null : nodes[index].data,
+        selectedNodeOffset: getNodeOffset(message.id),
       });
       break;
     }

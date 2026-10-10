@@ -24,6 +24,7 @@ from . import (  # noqa
     platform_source,
     space_router,
     strategy,
+    strategy_management,
     unify_query,
 )
 
@@ -43,5 +44,6 @@ __all__ = [
     "platform_source",
     "space_router",
     "strategy",
+    "strategy_management",
     "unify_query",
 ]

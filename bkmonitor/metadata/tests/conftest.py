@@ -20,7 +20,7 @@ from mockredis import MockRedis
 from api.bcs_cluster_manager.default import FetchClustersResource
 from api.cmdb.default import GetHostByIP
 from api.cmdb.define import Host
-from api.kubernetes.default import FetchK8sNodeListByClusterResource
+from api.kubernetes.default import FetchK8sNodeIpListByClusterResource, FetchK8sNodeListByClusterResource
 from kubernetes.dynamic.exceptions import NotFoundError, ResourceNotFoundError
 from metadata.models.bcs import BCSClusterInfo
 from kubernetes import client as k8s_client
@@ -225,6 +225,11 @@ def monkeypatch_k8s_node_list_by_cluster(monkeypatch):
     """返回一个集群的node信息 ."""
     monkeypatch.setattr(
         FetchK8sNodeListByClusterResource, "bulk_request", lambda self, params, **kwargs: MOCK_K8S_NODE_LIST_BY_CLUSTER
+    )
+    monkeypatch.setattr(
+        FetchK8sNodeIpListByClusterResource,
+        "bulk_request",
+        lambda self, params, **kwargs: MOCK_K8S_NODE_LIST_BY_CLUSTER,
     )
 
 

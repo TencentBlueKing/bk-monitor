@@ -60,6 +60,9 @@ KAFKA_TOPIC_PREFIX_STORAGE = f"0{settings.APP_CODE}_storage_"
 # 配置理由，同KAFKA_TOPIC_PREFIX_STORAGE
 REDIS_KEY_PREFIX = settings.APP_CODE
 
+# 与 unify-query 的 redis.kv_base_path 保持一致，不能使用后台 APP_CODE。
+UNIFY_QUERY_REDIS_KV_BASE_PATH = os.environ.get("UNIFY_QUERY_REDIS_KV_BASE_PATH", "bkmonitorv3:unify-query")
+
 # GSE DATA_ID最大值和最小值的判断
 MIN_DATA_ID = 1500000  # 3.2版本将该值增大20w，防止与3.1版本冲突
 MAX_DATA_ID = 2097151

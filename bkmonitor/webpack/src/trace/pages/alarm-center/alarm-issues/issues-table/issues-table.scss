@@ -29,6 +29,10 @@
     }
   }
 
+  .issues-trend-col.is-refreshing {
+    opacity: 0.5;
+  }
+
   // ===================== Issues 名称列 =====================
   .issues-name-col {
     min-width: 0;
@@ -113,6 +117,13 @@
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .issues-log-skeleton {
+        flex: 1;
+        max-width: 280px;
+        height: 12px;
+        border-radius: 2px;
       }
     }
   }
@@ -336,112 +347,17 @@
     $ended-opacity: 0.8;
 
     // TDesign 单元格 background-color: inherit，必须写到 td 上底色才会画出来
-    &:not(.is-split-highlighted):not(.t-table__row--active) > td {
+    &:not(.is-split-highlighted, .t-table__row--active) > td {
       background-color: #f5f7fa;
     }
 
     // 单元格内容统一 80%；勾选列 / 操作列保持 100%
-    & > td:not(.t-table__cell-check):not(:has(.issues-operation-col)) > * {
+    & > td:not(.t-table__cell-check, :has(.issues-operation-col)) > * {
       opacity: $ended-opacity;
     }
 
     .issues-trend-col.is-loading {
       opacity: 1;
-    }
-  }
-}
-
-// ===================== JSON 查看器 Popover 样式 =====================
-.tippy-box[data-theme~='issues-json-popover'] {
-  border: 1px solid #dcdee5;
-
-  .issues-log-popover-wrapper {
-    max-height: 48vh;
-    overflow-y: hidden;
-    scrollbar-gutter: stable;
-
-    &:hover {
-      overflow-y: auto;
-    }
-
-    .issues-log-popover-header {
-      position: sticky;
-      top: 0;
-      background: #fff;
-
-      .issues-log-popover-header-text {
-        display: block;
-        padding: 8px 12px;
-        font-weight: 700;
-        line-height: 20px;
-        color: #313238;
-        border-bottom: 1px solid #eaebf0;
-      }
-    }
-
-    .issues-log-popover-content {
-      padding: 8px 12px;
-
-      .vjs-tree-node {
-        font-size: 12px;
-        line-height: 22px;
-
-        &:not(:has(.vjs-carets-open)) {
-          padding-left: 9px;
-        }
-
-        &:has(.vjs-carets-open) {
-          padding-left: 20px;
-        }
-
-        .vjs-carets-open {
-          right: 5px;
-          display: flex;
-          align-items: center;
-          height: 100%;
-          color: #1f6d89;
-        }
-
-        .vjs-indent-unit.has-line {
-          width: 2em;
-          border-left-style: solid;
-        }
-
-        .vjs-key {
-          flex-shrink: 0;
-          color: #9d694c;
-        }
-
-        .vjs-value {
-          &.vjs-value-string {
-            color: #1f6d89;
-            white-space: pre-wrap;
-          }
-
-          &.vjs-value-number {
-            color: #2caf5e;
-          }
-        }
-      }
-
-      .issues-string-popover-pre {
-        padding: 0;
-        margin: 0;
-        line-height: 22px;
-        color: #1f6d89;
-        word-break: break-all;
-        white-space: pre-wrap;
-      }
-    }
-
-    .issues-log-popover-footer {
-      position: sticky;
-      bottom: 0;
-      display: flex;
-      justify-content: flex-end;
-      padding: 8px 12px;
-      background: #fff;
-      border-top: 1px solid #eaebf0;
     }
   }
 }

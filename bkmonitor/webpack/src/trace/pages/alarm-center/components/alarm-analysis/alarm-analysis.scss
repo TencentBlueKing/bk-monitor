@@ -52,9 +52,9 @@
             height: 16px;
             padding: 0 4.5px;
             margin: 0 6.5px 0 4px;
-            color: #8e9bb3;
             font-weight: 700;
             line-height: 16px;
+            color: #8e9bb3;
             background: #e6eaf2;
             border-radius: 2px;
           }
@@ -85,26 +85,6 @@
           .header-right {
             display: block;
           }
-        }
-      }
-    }
-  }
-
-  .skeleton-wrap {
-    display: flex;
-    flex-wrap: wrap;
-
-    .skeleton-panel-item {
-      flex: 0 0 20%;
-      height: 208px;
-      padding: 6px 8px 4px 12px;
-
-      .skeleton-element {
-        height: 26px;
-        margin-bottom: 8px;
-
-        &.title {
-          width: 80px;
         }
       }
     }

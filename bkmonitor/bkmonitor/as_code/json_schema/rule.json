@@ -245,6 +245,10 @@
                 "description": "别名(a-z)，用于多指标计算",
                 "minLength": 1
               },
+              "expression_mode": {
+                "enum": ["promql"],
+                "description": "Prometheus 多查询表达式执行模式"
+              },
               "time_field": {
                 "type": "string",
                 "description": "时间字段"
@@ -718,6 +722,31 @@
         "required": [
           "version"
         ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "query": {
+            "properties": {
+              "query_configs": {
+                "contains": {
+                  "required": ["expression_mode"]
+                }
+              }
+            },
+            "required": ["query_configs"]
+          }
+        },
+        "required": ["query"]
+      },
+      "then": {
+        "properties": {
+          "version": {
+            "const": "1.1"
+          }
+        },
+        "required": ["version"]
       }
     }
   ],
