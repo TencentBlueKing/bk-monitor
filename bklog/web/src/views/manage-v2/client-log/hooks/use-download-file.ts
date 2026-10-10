@@ -143,19 +143,22 @@ export const useDownloadFile = () => {
   };
 
   /**
-   * 并行批量下载文件，单个失败不影响其他文件；无权限时仅申请一次
+   * 按文件名去重后按首次出现顺序串行下载，单个失败不影响后续文件；无权限时仅申请一次
    * @param fileNames 文件名列表
    * @param isAllowedDownload 是否有下载权限
    * @param options 下载参数
    */
   const downloadFiles = async (fileNames: string[], isAllowedDownload: boolean, options: DownloadFileOptions = {}) => {
-    if (!fileNames.length) return;
+    const uniqueFileNames = [...new Set(fileNames.filter(Boolean))];
+    if (!uniqueFileNames.length) return;
     if (!isAllowedDownload) {
       await requestApplyPermission();
       return;
     }
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
-    await Promise.allSettled(fileNames.map(fileName => requestFileDownload(fileName, bkBizId, options)));
+    for (const fileName of uniqueFileNames) {
+      await requestFileDownload(fileName, bkBizId, options);
+    }
   };
 
   return {

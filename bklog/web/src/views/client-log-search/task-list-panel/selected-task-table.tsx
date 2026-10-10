@@ -73,6 +73,7 @@ export default defineComponent({
         class='selected-task-table'
         data={props.items}
         max-height={320}
+        row-key='selectionKey'
       >
         <bk-table-column
           label={t('采集时间')}

@@ -266,9 +266,9 @@ export default defineComponent({
             ref={scrollContainerRef}
             onScroll={handleScroll}
           >
-            {props.taskList.map((item, index) => (
+            {props.taskList.map(item => (
               <div
-                key={`${item.file_name}_${index}`}
+                key={item.selectionKey}
                 class={['task-item', { active: props.selectedLogItem === item }]}
                 onClick={() => handleLogItemSelect(item)}
               >

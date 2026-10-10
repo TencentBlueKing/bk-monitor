@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, nextTick, ref } from 'vue';
+import { defineComponent, nextTick, onBeforeUnmount, ref } from 'vue';
 
 import SelectedTaskTable from './selected-task-table';
 import { MAX_BATCH_DOWNLOAD_TASKS } from '../types';
@@ -63,9 +63,12 @@ export default defineComponent({
     };
 
     const handleRemove = (item: LogItem) => {
-      if (props.selectedItems.length === 1) popoverRef.value?.hide();
       emit('remove', item);
     };
+
+    onBeforeUnmount(() => {
+      popoverRef.value?.hide();
+    });
 
     /** 渲染悬停浮层中的已选任务列表 */
     const renderPopoverContent = () => (
