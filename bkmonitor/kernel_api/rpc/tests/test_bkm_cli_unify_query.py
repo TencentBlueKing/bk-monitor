@@ -15,6 +15,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
+import requests
 from jsonschema import Draft7Validator
 
 from kernel_api.middlewares import authentication
@@ -22,6 +23,7 @@ from kernel_api.resource.bkm_cli import BkmCliOpCallResource
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
 from kernel_api.rpc.functions.bkm_cli.platform_catalog import _authorization, cmdb
+from kernel_api.rpc.functions.bkm_cli import unify_query
 from kernel_api.rpc.functions.bkm_cli.unify_query import query_unify_query
 
 
@@ -76,6 +78,35 @@ def _query_raw_params(**overrides):
     return params
 
 
+def _query_promql_params(**overrides):
+    params = {
+        "promql": "(vector(1)) + (vector(2))",
+        "start": "1725062400",
+        "end": "1725066000",
+        "step": "60s",
+    }
+    params.update(overrides)
+    return params
+
+
+def _promql_outputs(count=4):
+    outputs = [
+        {"reference_name": "A", "expression": "vector(1)"},
+        {"reference_name": "B", "expression": "vector(2)"},
+        {"reference_name": "C", "expression": "vector(9)"},
+        {"reference_name": "RESULT", "expression": "(vector(1)) + (vector(2))"},
+    ]
+    if count == 3:
+        return [outputs[0], outputs[1], outputs[3]]
+    return outputs[:count]
+
+
+def _invoke_query_promql(**overrides):
+    return query_unify_query(
+        {"mode": "invoke", "operation": "query_ts_promql", "bk_biz_id": 2, "params": _query_promql_params(**overrides)}
+    )
+
+
 def _invoke_discovery(**overrides):
     params = {"query": "CPU", "page": 1, "page_size": 20}
     params.update(overrides)
@@ -111,6 +142,7 @@ def test_discover_lists_only_server_allowlisted_uq_operations():
         "query_relation_v1",
         "query_relation_v1beta3",
         "query_ts",
+        "query_ts_promql",
         "query_ts_raw",
         "query_ts_reference",
     ]
@@ -513,10 +545,14 @@ def test_invoke_rechecks_nested_business_authorization(monkeypatch):
     monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query._authorize_business", cmdb._authorize_business)
     query_relation = Mock()
     query_ts = Mock()
+    query_promql = Mock()
     monkeypatch.setattr(
         "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_multi_resource_v1_beta3", query_relation
     )
     monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_data", query_ts)
+    monkeypatch.setattr(
+        "kernel_api.rpc.functions.bkm_cli.unify_query.api.unify_query.query_data_by_promql", query_promql
+    )
 
     for operation, params in (
         (
@@ -528,11 +564,13 @@ def test_invoke_rechecks_nested_business_authorization(monkeypatch):
             },
         ),
         ("query_ts", _query_ts_params()),
+        ("query_ts_promql", _query_promql_params()),
     ):
         out = query_unify_query({"mode": "invoke", "operation": operation, "bk_biz_id": 3, "params": params})
         assert out["error"]["code"] == "unsafe_action_blocked"
     query_relation.assert_not_called()
     query_ts.assert_not_called()
+    query_promql.assert_not_called()
 
     query_relation.return_value = {"trace_id": "uq-authorized", "data": []}
     allowed = query_unify_query(
@@ -855,3 +893,261 @@ def test_query_unify_query_is_registered_for_bkm_cli_service_bridge():
 
     detail = KernelRPCRegistry.get_function_detail("bkm_cli.query_unify_query")
     assert detail["func_name"] == "bkm_cli.query_unify_query"
+
+
+def test_describe_promql_matches_standard_resource_fields_and_named_contract():
+    from api.unify_query.default import QueryDataByPromqlResource
+
+    out = query_unify_query({"mode": "describe", "operation": "query_ts_promql"})
+    schema = out["params_schema"]
+    serializer = QueryDataByPromqlResource.RequestSerializer()
+    assert set(schema["properties"]) == serializer.fields.keys() - {"bk_biz_ids"}
+    assert set(schema["required"]) == {name for name, field in serializer.fields.items() if field.required}
+    assert out["derived_params"] == ["bk_biz_ids", "bk_tenant_id"]
+    assert out["limits"]["max_time_range_seconds"] == 86400
+    assert out["limits"]["max_outputs"] == 4
+    validator = Draft7Validator(schema)
+    assert not list(validator.iter_errors(_query_promql_params()))
+    assert not list(validator.iter_errors(out["example_params"]["params"]))
+    assert out["example_params"]["params"]["output_list"] == _promql_outputs()
+    for field in ("legacy_output_ref", "output_list"):
+        incomplete = dict(out["example_params"]["params"])
+        incomplete.pop(field)
+        assert list(validator.iter_errors(incomplete))
+        assert list(validator.iter_errors(_query_promql_params(**{field: out["example_params"]["params"][field]})))
+
+
+def test_invoke_legacy_promql_keeps_parameters_and_derives_business(monkeypatch):
+    raw = {"series": [], "trace_id": "legacy-promql"}
+    provider = Mock(return_value=raw)
+    authorization = Mock(return_value="system")
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
+    monkeypatch.setattr(unify_query, "_authorize_business", authorization)
+
+    out = _invoke_query_promql(match='{job="api"}', reference=True, is_verify_dimensions=True)
+
+    assert out["status"] == "ok"
+    assert out["result"] is raw
+    assert out["partial"] is False
+    authorization.assert_called_once_with(2)
+    provider.assert_called_once_with(
+        **_query_promql_params(match='{job="api"}', reference=True, is_verify_dimensions=True), bk_biz_ids=["2"]
+    )
+
+
+@pytest.mark.parametrize("count", [3, 4])
+def test_invoke_named_promql_keeps_output_order_and_raw_response(monkeypatch, count):
+    outputs = _promql_outputs(count)
+    assert outputs[-1]["reference_name"] == "RESULT"
+    assert outputs[-1]["expression"] == _query_promql_params()["promql"]
+    raw = {"outputs": [{"reference_name": output["reference_name"], "state": "SUCCESS"} for output in outputs]}
+    provider = Mock(return_value=raw)
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
+    params = {
+        "response_contract": "named_outputs/v1",
+        "legacy_output_ref": "RESULT",
+        "output_list": outputs,
+    }
+
+    out = _invoke_query_promql(**params)
+
+    assert out["status"] == "ok"
+    assert out["result"] is raw
+    provider.assert_called_once_with(**_query_promql_params(**params), bk_biz_ids=["2"])
+
+
+@pytest.mark.parametrize("count", [0, 3, 4])
+def test_promql_real_resource_posts_standard_fields_to_promql_path(monkeypatch, count):
+    from api.unify_query import default
+    from django.conf import settings
+
+    raw = {"series": [], "trace_id": "actual-resource-promql"}
+    response = Mock(status_code=200)
+    response.json.return_value = raw
+    http = Mock(return_value=response)
+    derive_space = Mock(return_value="bkcc__2")
+    monkeypatch.setattr(default.requests, "request", http)
+    monkeypatch.setattr(default, "get_request", lambda peaceful=True: None)
+    monkeypatch.setattr(default, "bk_biz_id_to_space_uid", derive_space)
+    monkeypatch.setattr(default, "space_uid_to_bk_tenant_id", lambda space_uid: "system")
+    monkeypatch.setattr(
+        default.SpaceApi, "get_space_detail", lambda **kwargs: SimpleNamespace(is_global=False, bk_biz_id=2)
+    )
+    monkeypatch.setattr(settings, "UNIFY_QUERY_URL", "http://unify-query.test")
+    monkeypatch.setattr(settings, "UNIFY_QUERY_ROUTING_RULES", [])
+    monkeypatch.setattr(settings, "ENABLE_RESOURCE_DATA_COLLECT", False)
+    params = _query_promql_params(timezone="Asia/Shanghai", down_sample_range="", reference=True)
+    if count:
+        outputs = _promql_outputs(count)
+        params.update(response_contract="named_outputs/v1", legacy_output_ref="RESULT", output_list=outputs)
+
+    out = query_unify_query({"mode": "invoke", "operation": "query_ts_promql", "bk_biz_id": 2, "params": params})
+
+    assert out["status"] == "ok", out
+    assert out["result"] is raw
+    derive_space.assert_called_once_with("2")
+    http.assert_called_once_with(
+        timeout=60,
+        method="POST",
+        url="http://unify-query.test/query/ts/promql",
+        headers={"Bk-Query-Source": "backend", "X-Bk-Scope-Space-Uid": "bkcc__2", "X-Bk-Tenant-Id": "system"},
+        json=params | {"match": "", "is_verify_dimensions": False},
+    )
+
+
+@pytest.mark.parametrize("field", ["space_uid", "bk_biz_ids", "bk_tenant_id", "bk_biz_id", "start_time", "func_name"])
+def test_promql_rejects_scope_override_and_unknown_fields_before_provider(monkeypatch, field):
+    provider = Mock()
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
+
+    out = _invoke_query_promql(**{field: "caller-supplied"})
+
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    assert field in out["error"]["message"]
+    assert out["next_call"] == {"mode": "describe", "operation": "query_ts_promql"}
+    provider.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("promql", []),
+        ("promql", {}),
+        ("promql", ""),
+        ("match", {}),
+        ("step", "60"),
+        ("step", "1.5m"),
+        ("reference", []),
+        ("is_verify_dimensions", {}),
+    ],
+)
+def test_promql_uses_standard_serializer_for_field_validation(monkeypatch, field, value):
+    provider = Mock()
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
+
+    out = _invoke_query_promql(**{field: value})
+
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    assert field in out["error"]["message"]
+    provider.assert_not_called()
+
+
+@pytest.mark.parametrize("field", ["promql", "start", "end"])
+def test_promql_rejects_missing_required_parameters(monkeypatch, field):
+    provider = Mock()
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
+    params = _query_promql_params()
+    params.pop(field)
+
+    out = query_unify_query({"mode": "invoke", "operation": "query_ts_promql", "bk_biz_id": 2, "params": params})
+
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    assert field in out["error"]["message"]
+    provider.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"end": "1725148801"},
+        {"start": "1725066001"},
+        {"start": "nan"},
+        {"end": "inf"},
+        {"start": "1725062400000", "end": "1725148801000"},
+    ],
+)
+def test_promql_time_range_guard_uses_start_and_end(monkeypatch, overrides):
+    provider = Mock()
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
+
+    out = _invoke_query_promql(**overrides)
+
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    provider.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "overrides,named",
+    [
+        ({"response_contract": "unsupported"}, True),
+        ({"legacy_output_ref": "A"}, False),
+        ({"output_list": _promql_outputs()}, False),
+        ({"legacy_output_ref": "unknown"}, True),
+        ({"output_list": []}, True),
+        ({"output_list": _promql_outputs() + [{"reference_name": "D", "expression": "vector(4)"}]}, True),
+        ({"output_list": [{"reference_name": "A", "expression": "vector(1)"}] * 2}, True),
+        ({"output_list": [{"reference_name": "RESULT"}]}, True),
+        ({"output_list": [{"reference_name": "RESULT", "expression": "vector(3)", "space_uid": "override"}]}, True),
+    ],
+)
+def test_promql_named_output_contract_is_bounded_and_strict(monkeypatch, overrides, named):
+    provider = Mock()
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
+    params = (
+        {"response_contract": "named_outputs/v1", "legacy_output_ref": "RESULT", "output_list": _promql_outputs()}
+        if named
+        else {}
+    )
+    params.update(overrides)
+
+    out = _invoke_query_promql(**params)
+
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    provider.assert_not_called()
+
+
+def test_promql_request_byte_limit_rejects_before_provider(monkeypatch):
+    provider = Mock()
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
+
+    out = _invoke_query_promql(promql="x" * unify_query.MAX_REQUEST_BYTES)
+
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    assert "字节" in out["error"]["message"]
+    provider.assert_not_called()
+
+
+def test_promql_response_byte_limit_rejects_after_single_provider_call(monkeypatch):
+    provider = Mock(return_value={"series": ["x" * 100]})
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
+    monkeypatch.setattr(unify_query, "MAX_RESPONSE_BYTES", 100)
+
+    out = _invoke_query_promql()
+
+    assert out["error"]["code"] == "unsafe_action_blocked"
+    assert "响应" in out["error"]["message"]
+    provider.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "error,code",
+    [
+        (TimeoutError("timeout"), "provider_timeout"),
+        (requests.Timeout("timeout"), "provider_timeout"),
+        (RuntimeError("unavailable"), "provider_unavailable"),
+    ],
+)
+def test_promql_provider_failures_keep_existing_classification_without_retry(monkeypatch, error, code):
+    provider = Mock(side_effect=error)
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", provider)
+
+    out = _invoke_query_promql()
+
+    assert out["error"]["code"] == code
+    provider.assert_called_once()
+
+
+def test_promql_partial_named_response_is_preserved(monkeypatch):
+    raw = {
+        "trace_id": "promql-partial",
+        "outputs": [{"reference_name": "C", "state": "ERROR", "status": {"code": "QUERY_ERROR"}}],
+    }
+    monkeypatch.setattr(unify_query.api.unify_query, "query_data_by_promql", Mock(return_value=raw))
+
+    out = _invoke_query_promql(
+        response_contract="named_outputs/v1", legacy_output_ref="RESULT", output_list=_promql_outputs()
+    )
+
+    assert out["status"] == "ok"
+    assert out["partial"] is True
+    assert out["result"] is raw

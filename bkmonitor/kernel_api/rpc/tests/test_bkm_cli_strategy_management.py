@@ -34,6 +34,7 @@ def config():
         "agg_dimension": ["service", "Stack"],
         "agg_condition": [],
         "time_field": "timestamp",
+        "functions": [],
     }
     item = {
         "id": 10,
@@ -290,7 +291,7 @@ def test_create_accepts_function_identifiers_without_accepting_existing_record_i
         (("config", "items", 0, "id"), 0),
         (("config", "items", 0, "query_configs", 0, "id"), 0),
         (("config", "items", 0, "query_configs", 0, "data_source_label"), "custom"),
-        (("config", "items", 0, "query_configs", 0, "agg_interval"), 0),
+        (("config", "items", 0, "query_configs", 0, "agg_interval"), -1),
         (("config", "items", 0, "algorithms", 0, "id"), 0),
         (("config", "items", 0, "algorithms", 0, "type"), "IntelligentDetect"),
         (("config", "detects", 0, "id"), 0),
@@ -305,7 +306,7 @@ def test_invalid_creates_do_not_reach_save(create_request, api, path, value):
     for part in path[:-1]:
         target = target[part]
     target[path[-1]] = value
-    with pytest.raises(CustomException):
+    with pytest.raises((CustomException, ValidationError)):
         management.manage_strategy_config(create_request)
     api.save.assert_not_called()
 
@@ -370,12 +371,6 @@ def test_existing_create_resource_keeps_its_default_save_path(create_request, ap
                     "id": 10,
                     "query_configs": [{"id": 20, "agg_condition": [{"key": "x", "method": "eq", "value": [None]}]}],
                 }
-            ]
-        },
-        {"items": [{"id": 10, "algorithms": [{"id": 30, "config": [[{"method": "gt", "threshold": True}]]}]}]},
-        {
-            "items": [
-                {"id": 10, "algorithms": [{"id": 30, "config": [[{"method": "gt", "threshold": 1, "extra": None}]]}]}
             ]
         },
     ],
@@ -453,7 +448,6 @@ def test_disable_only_preserves_every_other_field(config, request_data, api):
         {},
         {"is_enabled": "false"},
         {"actions": []},
-        {"items": [{"id": 10, "query_configs": [{"id": 20, "agg_interval": 0}]}]},
         {"items": [{"id": 10, "query_configs": [{"agg_interval": 600}]}]},
         {"detects": [{"id": 40, "trigger_config": {"unexpected": 3}}]},
         {"detects": [{"id": 40, "level": 1}, {"id": 40, "level": 2}]},
@@ -540,16 +534,27 @@ def test_query_field_not_supported_by_current_source_is_rejected(config, request
     query.update(data_source_label="prometheus", data_type_label="time_series")
     request_data["config_version"] = get_strategy_config_version(config)
     request_data["items"] = [{"id": 10, "query_configs": [{"id": 20, "query_string": "error"}]}]
-    with pytest.raises(CustomException, match="不支持修改 query_string"):
+    with pytest.raises(CustomException, match="不支持的参数.*query_string"):
         management.manage_strategy_config(request_data)
     api.save.assert_not_called()
 
 
-def test_non_threshold_algorithm_rejected(config, request_data, api):
+def test_legacy_patch_validates_the_existing_non_threshold_algorithm(config, request_data, api):
     config["items"][0]["algorithms"][0]["type"] = "NewSeries"
+    config["items"][0]["algorithms"][0]["config"] = {"detect_range": 600}
     request_data["config_version"] = get_strategy_config_version(config)
-    request_data["items"] = [{"id": 10, "algorithms": [{"id": 30, "config": [[{"method": "gt", "threshold": 1}]]}]}]
-    with pytest.raises(CustomException, match="已有 Threshold"):
+    request_data["items"] = [{"id": 10, "algorithms": [{"id": 30, "config": {"detect_range": 900}}]}]
+    management.manage_strategy_config(request_data)
+    algorithm = api.save.call_args.kwargs["items"][0]["algorithms"][0]
+    assert algorithm["type"] == "NewSeries"
+    assert algorithm["config"]["detect_range"] == algorithm["config"]["effective_delay"] == 900
+
+
+def test_legacy_algorithm_unknown_config_fields_are_rejected(config, request_data, api):
+    request_data["items"] = [
+        {"id": 10, "algorithms": [{"id": 30, "config": [[{"method": "gt", "threshold": 1, "extra": None}]]}]}
+    ]
+    with pytest.raises(CustomException, match="extra"):
         management.manage_strategy_config(request_data)
     api.save.assert_not_called()
 
@@ -790,3 +795,209 @@ def test_blank_expression_uses_existing_default_readback_semantics(config):
     config["detects"][0].update(trigger_config={"count": 1, "check_window": 1}, recovery_config={"check_window": 1})
     restored = Strategy(**config).to_dict(convert_dashboard=False)
     assert restored["items"][0]["expression"] == "a"
+
+
+@pytest.fixture
+def standard_item(config):
+    item = config["items"][0]
+    item["metric_type"] = "time_series"
+    item["expression"] = "a+b"
+    item["query_configs"] = [
+        {
+            "id": 20 + index,
+            "alias": alias,
+            "data_source_label": "bk_monitor",
+            "data_type_label": "time_series",
+            "metric_id": f"bk_monitor.system.cpu_{alias}",
+            "result_table_id": "system.cpu",
+            "metric_field": f"cpu_{alias}",
+            "agg_method": "AVG",
+            "agg_interval": 60,
+            "agg_dimension": ["bk_target_ip"],
+            "agg_condition": [],
+            "unit": "%",
+            "functions": [],
+            "origin_config": {"metric": alias},
+        }
+        for index, alias in enumerate("abc")
+    ]
+    return item
+
+
+@pytest.fixture
+def promql_patch(standard_item):
+    return {
+        "id": standard_item["id"],
+        "expression": "a+b",
+        "query_configs": [
+            {
+                "id": query["id"],
+                "data_source_label": "prometheus",
+                "data_type_label": "time_series",
+                "promql": f"vector({value})",
+                "expression_mode": "promql",
+            }
+            for query, value in zip(standard_item["query_configs"], (1, 2, 9))
+        ],
+        "query_output_config": {
+            "response_contract": "named_outputs/v1",
+            "legacy_output_ref": "RESULT",
+            "output_list": [
+                {"reference_name": "A", "expression": "a"},
+                {"reference_name": "B", "expression": "b"},
+                {"reference_name": "C", "expression": "c"},
+                {"reference_name": "RESULT", "expression": "a+b"},
+            ],
+        },
+    }
+
+
+def test_standard_source_switch_uses_target_serializer_and_restores_ids(config, standard_item, promql_patch):
+    original = deepcopy(standard_item)
+    management._validate_config_patch({"items": [promql_patch]})
+    management._merge_config_patch(config, {"items": [promql_patch]})
+    validated = Item.Serializer().run_validation(standard_item)
+    restored = Item(strategy_id=config["id"], **validated).to_dict()
+    assert restored["query_output_config"] == promql_patch["query_output_config"]
+    for original_query, query in zip(original["query_configs"], restored["query_configs"]):
+        assert query["id"] == original_query["id"]
+        assert query["alias"] == original_query["alias"]
+        assert query["agg_interval"] == 60
+        assert set(query) == {
+            "id",
+            "alias",
+            "metric_id",
+            "data_source_label",
+            "data_type_label",
+            "functions",
+            "promql",
+            "agg_interval",
+            "expression_mode",
+        }
+    back = {
+        "id": original["id"],
+        "query_configs": [{k: v for k, v in q.items() if k != "metric_id"} for q in original["query_configs"]],
+        "query_output_config": None,
+    }
+    management._merge_config_patch(config, {"items": [back]})
+    alert.normalize_strategy_metric_ids(config, {"items": [restored]})
+    for query in standard_item["query_configs"]:
+        assert "promql" not in query
+        assert "expression_mode" not in query
+        assert query["data_source_label"] == "bk_monitor"
+    assert [q["id"] for q in standard_item["query_configs"]] == [20, 21, 22]
+    assert standard_item["algorithms"] == original["algorithms"]
+    assert standard_item["no_data_config"] == original["no_data_config"]
+
+
+@pytest.mark.parametrize("field,value", [("query_string", "typo"), ("agg_method", "AVG"), ("origin_config", {})])
+def test_source_switch_rejects_inapplicable_submitted_fields(config, promql_patch, field, value):
+    promql_patch["query_configs"][0][field] = value
+    with pytest.raises(CustomException, match=field):
+        management._merge_config_patch(config, {"items": [promql_patch]})
+
+
+@pytest.mark.parametrize(
+    "kind", ["mixed_mode", "mixed_source", "duplicate_alias", "different_period", "output_mismatch"]
+)
+def test_standard_promql_patch_reuses_item_validation(config, standard_item, promql_patch, kind):
+    if kind == "mixed_mode":
+        promql_patch["query_configs"][1].pop("expression_mode")
+    elif kind == "mixed_source":
+        promql_patch["query_configs"][1] = {"id": 21, "metric_field": "cpu_b"}
+    elif kind == "duplicate_alias":
+        promql_patch["query_configs"][1]["alias"] = "a"
+    elif kind == "different_period":
+        promql_patch["query_configs"][1]["agg_interval"] = 120
+    else:
+        promql_patch["query_output_config"]["output_list"][-1]["expression"] = "a+b+c"
+    management._merge_config_patch(config, {"items": [promql_patch]})
+    with pytest.raises(ValidationError):
+        validated = Item.Serializer().run_validation(standard_item)
+        Item(strategy_id=config["id"], **validated)
+
+
+def test_query_output_patch_replaces_clears_and_preserves(config, standard_item, promql_patch):
+    management._merge_config_patch(config, {"items": [promql_patch]})
+    current = deepcopy(standard_item["query_output_config"])
+    management._merge_config_patch(config, {"items": [{"id": 10, "name": "renamed"}]})
+    assert standard_item["query_output_config"] == current
+    replacement = {**current, "output_list": current["output_list"][-1:]}
+    management._merge_config_patch(config, {"items": [{"id": 10, "query_output_config": replacement}]})
+    assert standard_item["query_output_config"] == replacement
+    management._merge_config_patch(config, {"items": [{"id": 10, "query_output_config": None}]})
+    assert standard_item["query_output_config"] is None
+
+
+def test_standard_create_accepts_promql_and_non_threshold_algorithm(create_request, api):
+    item = create_request["config"]["items"][0]
+    item["query_configs"] = [
+        {
+            "data_source_label": "prometheus",
+            "data_type_label": "time_series",
+            "alias": "a",
+            "promql": "up",
+            "agg_interval": 60,
+        }
+    ]
+    item["algorithms"] = [{"type": "NewSeries", "level": 2, "config": {"detect_range": 600}}]
+    api.save.return_value = {"id": 42, "name": create_request["config"]["name"]}
+    management.manage_strategy_config(create_request)
+    assert api.save.call_args.kwargs["items"][0]["algorithms"][0]["type"] == "NewSeries"
+
+
+def test_standard_algorithm_patch_uses_selected_type(config, request_data, api):
+    request_data.pop("items")
+    request_data["config"] = {
+        "items": [{"id": 10, "algorithms": [{"id": 30, "type": "NewSeries", "config": {"detect_range": 600}}]}]
+    }
+    management.manage_strategy_config(request_data)
+    algorithm = api.save.call_args.kwargs["items"][0]["algorithms"][0]
+    assert algorithm["type"] == "NewSeries"
+    assert algorithm["config"]["effective_delay"] == 600
+    assert algorithm["id"] == 30
+
+
+def test_editable_query_fields_cover_every_current_platform_serializer():
+    union = {field for serializer in QueryConfig.QueryConfigSerializerMapping.values() for field in serializer().fields}
+    assert union | management.QUERY_IDENTITY_FIELDS == set(management.EDITABLE_FIELDS["query_configs"])
+
+
+@pytest.mark.parametrize("field", ["origin_config", "intelligent_detect"])
+def test_same_source_query_dictionary_patch_preserves_unedited_keys(standard_item, field):
+    query = standard_item["query_configs"][0]
+    query[field] = {"keep": {"first": 1, "second": 2}, "untouched": "preserved"}
+    management._merge_query_config(query, {"id": query["id"], field: {"keep": {"first": 3}}})
+    assert query[field] == {"keep": {"first": 3, "second": 2}, "untouched": "preserved"}
+
+
+def test_grafana_variables_patch_preserves_other_variables():
+    query = {
+        "id": 20,
+        "alias": "a",
+        "data_source_label": "dashboard",
+        "data_type_label": "time_series",
+        "dashboard_uid": "synthetic",
+        "panel_id": 1,
+        "ref_id": "A",
+        "variables": {"pod": ["first"], "cluster": ["synthetic"]},
+    }
+    management._merge_query_config(query, {"id": 20, "variables": {"pod": ["second"]}})
+    assert query["variables"] == {"pod": ["second"], "cluster": ["synthetic"]}
+
+
+@pytest.mark.parametrize("algorithm_type", [[], {}])
+def test_standard_algorithm_invalid_type_uses_serializer_error(algorithm_type, config, request_data, api):
+    request_data.pop("items")
+    request_data["config"] = {"items": [{"id": 10, "algorithms": [{"id": 30, "type": algorithm_type, "config": {}}]}]}
+    with pytest.raises(ValidationError):
+        management.manage_strategy_config(request_data)
+    api.save.assert_not_called()
+
+
+def test_standard_create_accepts_the_platform_empty_algorithm_array(create_request, api):
+    assert Item.Serializer().fields["algorithms"].run_validation([]) == []
+    create_request["config"]["items"][0]["algorithms"] = []
+    api.save.return_value = {"id": 42, "name": create_request["config"]["name"]}
+    management.manage_strategy_config(create_request)
+    assert api.save.call_args.kwargs["items"][0]["algorithms"] == []
