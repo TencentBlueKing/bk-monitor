@@ -68,7 +68,8 @@ export default class Host extends tsc<object> {
     return buildHostAppUrl(baseUrl, this.$store.getters.bizId, this.$route.fullPath);
   }
   get hostData(): Vue3WewebData {
-    const data = createHostData(this.hostHost);
+    // SDK data outlives Host; keep its getters and AI callback outside this getter's closure.
+    const data = /* #__NOINLINE__*/ createHostData(this.hostHost);
     data.setUnmountCallback = (callback: () => void) => {
       this.unmountCallback = callback;
     };
