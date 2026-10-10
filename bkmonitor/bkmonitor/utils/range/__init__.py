@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from constants.common import DutyType
 
 from . import conditions, fields, period
@@ -70,11 +70,12 @@ def load_field_instance(field_name, field_value):
     return cond_field_class(field_name, field_value)
 
 
-def load_agg_condition_instance(agg_condition):
+def load_agg_condition_instance(agg_condition, default_value_if_not_exists=True):
     """
     Load Condition instance by condition model
     :param agg_condition:
             [{"field":"ip", "method":"eq", "value":"111"}, {"field":"ip", "method":"eq", "value":"111", "method": "eq"}]
+    :param default_value_if_not_exists: 是否匹配缺少条件字段的数据，默认保持兼容行为。
     :return: condition object
     """
     conditions_config = []
@@ -89,7 +90,7 @@ def load_agg_condition_instance(agg_condition):
 
     if condition:
         conditions_config.append(condition)
-    return load_condition_instance(conditions_config)
+    return load_condition_instance(conditions_config, default_value_if_not_exists)
 
 
 def load_condition_instance(conditions_config, default_value_if_not_exists=True):
