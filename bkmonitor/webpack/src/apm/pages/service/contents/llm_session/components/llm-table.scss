@@ -1,15 +1,40 @@
 @import '../../../../../theme';
 
 .llm-table-expand {
-  padding: 16px;
+  padding: 16px 16px 16px 30px;
+  overflow: visible;
   background-color: #f5f7fa;
+
+  /* 子表无独立滚动，打通 overflow 才能把 thead 吸到主表 body 的滚动口 */
+  .llm-table-expand-table.bk-table,
+  .bk-table {
+    overflow: visible !important;
+  }
+
+  .bk-table-header-wrapper {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background-color: #f5f7fa;
+  }
+
+  .bk-table-body-wrapper {
+    overflow: visible !important;
+  }
 
   .bk-table {
     tr {
       background-color: transparent !important;
     }
 
-    th,
+    th {
+      background-color: #fafbfd !important;
+
+      &:hover {
+        background-color: #f0f1f5 !important;
+      }
+    }
+
     td {
       background-color: transparent !important;
     }
@@ -31,6 +56,18 @@
     th {
       background-color: #fafbfd;
 
+      > .cell {
+        margin: 0;
+      }
+
+      :hover {
+        background-color: transparent;
+      }
+
+      &:hover {
+        background-color: #f0f1f5;
+      }
+
       .cell {
         height: 36px !important;
 
@@ -48,6 +85,11 @@
       &.is-expanded-row {
         td {
           padding: 0 !important;
+          overflow: visible !important;
+
+          > .cell {
+            overflow: visible !important;
+          }
         }
       }
     }

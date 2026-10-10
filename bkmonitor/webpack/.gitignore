@@ -87,6 +87,8 @@ src/bk-weweb
 report.**.json
 packages/self-healing
 local.settings.js
+cookie.txt
+.proxy-cookie
 packages/eslint-fix
 webpack/monitor-static/icons/iconfont/*
 
