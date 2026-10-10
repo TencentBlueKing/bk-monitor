@@ -40,12 +40,25 @@ import type { Route } from 'vue-router';
 
 import './host.scss';
 const hostAppId = 'host-app';
+function createHostData(host: string): Vue3WewebData {
+  return {
+    host,
+    parentRoute: '/trace/',
+    get enableAiAssistant() {
+      return aiWhaleStore.enableAiAssistant;
+    },
+    handleAIBluekingShortcut: (shortcut: AIBluekingShortcut) => {
+      aiWhaleStore.setCustomFallbackShortcut(shortcut);
+    },
+  };
+}
 Component.registerHooks(['beforeRouteLeave']);
 @Component
 export default class Host extends tsc<object> {
   @Prop() a: number;
   @Ref('hostApp') hostApp: HTMLElement;
   unmountCallback: () => void;
+  private microAppData?: Vue3WewebData;
   get hostHost() {
     return process.env.NODE_ENV === 'development' ? `http://${process.env.devHost}:7002` : location.origin;
   }
@@ -55,19 +68,11 @@ export default class Host extends tsc<object> {
     return buildHostAppUrl(baseUrl, this.$store.getters.bizId, this.$route.fullPath);
   }
   get hostData(): Vue3WewebData {
-    return {
-      host: this.hostHost,
-      parentRoute: '/trace/',
-      get enableAiAssistant() {
-        return aiWhaleStore.enableAiAssistant;
-      },
-      setUnmountCallback: (callback: () => void) => {
-        this.unmountCallback = callback;
-      },
-      handleAIBluekingShortcut: (shortcut: AIBluekingShortcut) => {
-        aiWhaleStore.setCustomFallbackShortcut(shortcut);
-      },
+    const data = createHostData(this.hostHost);
+    data.setUnmountCallback = (callback: () => void) => {
+      this.unmountCallback = callback;
     };
+    return data;
   }
   // 是否显示引导页（navId 为 host 时，getShowGuidePageByRoute 内部复用 performance）
   get showGuidePage() {
@@ -88,17 +93,23 @@ export default class Host extends tsc<object> {
   }
   beforeDestroy() {
     if (this.showGuidePage) return;
-    this.unmountCallback?.();
-    unmount(hostAppId);
-    this.unmountCallback = undefined;
+    try {
+      this.unmountCallback?.();
+    } finally {
+      this.unmountCallback = undefined;
+      if (this.microAppData) this.microAppData.setUnmountCallback = undefined;
+      this.microAppData = undefined;
+      unmount(hostAppId);
+    }
   }
   async mounted() {
     if (this.showGuidePage) return;
+    this.microAppData = this.hostData;
     await loadApp({
       url: this.hostUrl,
       id: hostAppId,
       container: this.hostApp.shadowRoot,
-      data: this.hostData,
+      data: this.microAppData,
       showSourceCode: true,
       scopeCss: true,
       scopeJs: true,
