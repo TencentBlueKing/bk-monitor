@@ -77,7 +77,14 @@ def fake_hits(*, message="plain message", log="plain log"):
     }
 
 
-@override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+@override_settings(
+    ESQUERY_WHITE_LIST=["bk_log"],
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        }
+    },
+)
 class TestSearchHandlerDesensitize(TestCase):
     """
     SearchHandler desensitize with scenario_id='es'.
