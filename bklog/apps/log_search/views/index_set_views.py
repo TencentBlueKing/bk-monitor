@@ -102,7 +102,13 @@ class IndexSetViewSet(ModelViewSet):
             return []
         if self.action in ["create", "replace"]:
             return [BusinessActionPermission([ActionEnum.CREATE_INDICES])]
-        if self.action in ["update", "destroy"]:
+        if self.action in [
+            "update",
+            "destroy",
+            "desensitize_config_create",
+            "desensitize_config_update",
+            "desensitize_config_delete",
+        ]:
             return [InstanceActionPermission([ActionEnum.MANAGE_INDICES], ResourceEnum.INDICES)]
         return [ViewBusinessPermission()]
 
