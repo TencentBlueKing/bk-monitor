@@ -106,3 +106,18 @@ def refresh_rum_config_to_k8s():
 def refresh_rum_application_config(bk_biz_id, app_name):
     _app = RumApplication.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
     RumApplicationConfig.refresh_k8s([_app])
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def check_rum_pre_calculate_fields_update():
+    """每小时检查 RUM 预计算表（session / view）字段/集群变更并自动更新"""
+    logger.info("[check_rum_pre_calculate_fields_update] start")
+    from rum.core.discover.precalculation.storage import RumPrecalculateStorage
+
+    for table_kind in ("session", "view"):
+        try:
+            RumPrecalculateStorage.handle_fields_update(table_kind)
+        except Exception as e:  # noqa: BLE001
+            logger.warning("[check_rum_pre_calculate_fields_update] %s failed: %s", table_kind, e)
+
+    logger.info("[check_rum_pre_calculate_fields_update] end")
