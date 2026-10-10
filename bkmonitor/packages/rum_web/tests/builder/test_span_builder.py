@@ -161,6 +161,8 @@ class TestSpanBuilderDispatch:
     def test_view_overview_includes_previous_url(self):
         result = build(_base_view_span())
         assert _items(result)["attributes.view.previous_url_template"] == "/product/:id/"
+        fields = [item["field_name"] for item in result["overview"]["items"]]
+        assert fields[fields.index("attributes.view.url_template") + 1] == "attributes.view.previous_url_template"
 
 
 class TestResourceSpanBuilder:

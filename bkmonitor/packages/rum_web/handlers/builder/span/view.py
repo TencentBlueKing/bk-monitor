@@ -18,7 +18,7 @@ from bkmonitor.data_source.format import flatten_dict_data
 from semconv.rum.constants import RumSpanType, ViewLoadingTimeSource, ViewLoadingType
 from rum_web.handlers.builder.base import BaseSection, DictItem, KeyInfoSection, KeyValueItem, WaterfallSection, group
 from rum_web.handlers.builder.constants import SectionType
-from rum_web.handlers.builder.span.base import RatingConfigItem, SpanBuilder, SpanOverview, named
+from rum_web.handlers.builder.span.base import RatingConfigItem, SpanBuilder, SpanOverview, insert_after, named
 from rum_web.handlers.builder.utils import build_rating_config, get_safe_number, safe_diff, waterfall
 
 
@@ -51,7 +51,9 @@ def _finite(value: Any) -> int | float | None:
 
 class ViewSpanOverview(SpanOverview):
     BADGES = named("display.view.duration")
-    ITEMS = (*SpanOverview.ITEMS[:3], *named("attributes.view.previous_url_template"), *SpanOverview.ITEMS[3:])
+    ITEMS = insert_after(
+        SpanOverview.ITEMS, "attributes.view.url_template", *named("attributes.view.previous_url_template")
+    )
 
 
 class ViewKeyInfoSection(KeyInfoSection):

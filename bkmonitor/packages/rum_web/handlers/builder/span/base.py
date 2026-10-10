@@ -25,6 +25,13 @@ def named(*field_names: str) -> tuple[NamedKeyValueItem, ...]:
     return tuple(NamedKeyValueItem(field_name=name) for name in field_names)
 
 
+def insert_after(
+    items: tuple[NamedKeyValueItem, ...], field_name: str, *extra: NamedKeyValueItem
+) -> tuple[NamedKeyValueItem, ...]:
+    index = next(i for i, item in enumerate(items) if item.field_name == field_name) + 1
+    return (*items[:index], *extra, *items[index:])
+
+
 @dataclass(frozen=True, slots=True)
 class RatingConfigItem:
     metric: str | None = None
