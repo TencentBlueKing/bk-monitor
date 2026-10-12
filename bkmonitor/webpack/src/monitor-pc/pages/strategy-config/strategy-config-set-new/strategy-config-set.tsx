@@ -61,6 +61,7 @@ import { getDefaultTimezone, updateTimezone } from '../../../i18n/dayjs';
 import IntelligentModelsStore, { type IntelligentModelsType } from '../../../store/modules/intelligent-models';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
+import { getUnknownExpressionAliases } from '../common';
 import { transformLogMetricId } from '../strategy-config-detail/utils';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } from './alarm-handling/alarm-handling';
@@ -163,6 +164,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   @Ref('judgingCondition') readonly judgingConditionEl: InstanceType<typeof JudgingCondition>;
   @Ref('base-config') readonly baseConfigEl: InstanceType<typeof BaseConfig>;
   @Ref('detection-rules') readonly detectionRulesEl: InstanceType<typeof DetectionRules>;
+  @Ref('monitorData') readonly monitorDataEl: InstanceType<typeof MonitorData>;
   // @Ref('alarmHandling') readonly alarmHandlingRef: AlarmHandling;
   @Ref('noticeConfigNew') noticeConfigRef: InstanceType<typeof NoticeConfigNew>;
   @Ref('alarmHandlingList') alarmHandlingListRef: InstanceType<typeof AlarmHandlingList>;
@@ -1803,6 +1805,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       return false;
     }
     if (this.monitorDataEditMode === 'Source' && !this.sourceData.legacyMultiQuery) {
+      // 提交时同步展示监控数据区的行内校验错误
+      this.monitorDataEl?.handleShowValidateError();
       if (this.sourceQueries.some(item => !item.promql.trim())) {
         this.$bkMessage({
           message: this.$t('promql不能为空'),
@@ -1826,6 +1830,23 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           delay: 3000,
         });
         validate = false;
+      }
+      if (this.expression.trim()) {
+        const unknownAliases = getUnknownExpressionAliases(
+          this.expression,
+          this.sourceQueries.map(item => item.alias)
+        );
+        if (unknownAliases.length) {
+          this.$bkMessage({
+            message: this.$t('表达式引用了不存在的查询 {0}，请选择 {1} 或添加查询。', [
+              unknownAliases.join('、'),
+              this.sourceQueries.map(item => item.alias).join('、'),
+            ]),
+            theme: 'error',
+            delay: 3000,
+          });
+          validate = false;
+        }
       }
     }
     if (
@@ -1897,7 +1918,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (validate) {
       const { noDataConfig } = this.analyzingConditions;
       const itemsParams = [];
-      const queryOutputConfig = this.queryOutputConfig === undefined ? undefined : deepClone(this.queryOutputConfig);
+      const queryOutputConfig = this.handleQueryOutputConfig();
       /* 无数据配置 */
       const noDataConfigParams = {
         // 监控项名称
@@ -1941,7 +1962,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                 : this.expression || this.sourceQueries[0].alias
               : this.expression?.toLocaleLowerCase?.() || LETTERS.at(0), // 表达式
           functions: this.localExpFunctions, // 表达式函数
-          origin_sql: this.sourceData.legacyMultiQuery ? this.sourceData.legacyOriginSql : this.sourceData.sourceCode, // source
+          origin_sql: this.sourceData.legacyMultiQuery
+            ? this.sourceData.legacyOriginSql
+            : this.monitorDataEditMode === 'Source' && this.sourceQueries.length > 1
+              ? '' // 多 PromQL：origin_sql 约定传空字符串
+              : this.sourceData.sourceCode, // source
           // 指标信息
           query_configs:
             this.monitorDataEditMode === 'Source' ? this.handlePromsqlQueryConfig() : this.handleQueryConfig(),
@@ -2094,6 +2119,42 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     });
   }
 
+  /**
+   * @description: 保存时的命名输出配置
+   * 多 PromQL 场景按当前查询与表达式重新生成（覆盖回显值，保证表达式变更后命名输出同步），
+   * 其余场景透传策略原有配置（编辑回显）。
+   */
+  handleQueryOutputConfig() {
+    if (this.monitorDataEditMode === 'Source' && !this.sourceData.legacyMultiQuery && this.sourceQueries.length > 1) {
+      return this.buildPromqlNamedOutputConfig();
+    }
+    return this.queryOutputConfig === undefined ? undefined : deepClone(this.queryOutputConfig);
+  }
+  /**
+   * @description: 构造多 PromQL 的 UQ 命名式输出配置（/query/ts/promql 一次返回多个值）
+   * output_list：每条查询别名一个 identity 输出 + 检测表达式作为 legacy 输出；
+   * 别名不是合法标识符时不生成。命名输出数量不在前端限制，由平台侧 NAMED_OUTPUT_MAX_COUNT 校验兜底。
+   */
+  buildPromqlNamedOutputConfig() {
+    const aliases = this.sourceQueries.map(item => item.alias);
+    const expression = (this.expression || '').trim();
+    const IDENTIFIER_RE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+    if (!expression || !aliases.every(alias => IDENTIFIER_RE.test(alias))) {
+      return undefined;
+    }
+    let legacyRef = '__result__';
+    while (aliases.includes(legacyRef)) {
+      legacyRef = `_${legacyRef}`;
+    }
+    return {
+      response_contract: 'named_outputs/v1',
+      legacy_output_ref: legacyRef,
+      output_list: [
+        ...aliases.map(alias => ({ reference_name: alias, expression: alias })),
+        { reference_name: legacyRef, expression },
+      ],
+    };
+  }
   /* promsql模式下query_config提交参数 */
   handlePromsqlQueryConfig() {
     if (this.sourceData.legacyMultiQuery) return deepClone(this.sourceData.legacyQueryConfigs);
@@ -2752,6 +2813,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     }
     return (
       <MonitorData
+        ref='monitorData'
         dataMode={this.dataMode}
         dataTypeLabel={this.metricSelector.dataTypeLabel}
         defaultCheckedTarget={this.defaultCheckedTarget}

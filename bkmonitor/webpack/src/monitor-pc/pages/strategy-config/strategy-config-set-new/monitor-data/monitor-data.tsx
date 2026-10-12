@@ -39,7 +39,7 @@ import MonitorDialog from 'monitor-ui/monitor-dialog/monitor-dialog.vue';
 import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
-import { handleSetTargetDesc as getTargetDesc } from '../../common';
+import { getUnknownExpressionAliases, handleSetTargetDesc as getTargetDesc } from '../../common';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
 import { type dataModeType, type EditModeType, type MetricDetail, MetricType } from '../typings';
@@ -173,6 +173,13 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   /* 指标选择器 */
   metricSelectorShow = false;
 
+  /** 是否已触发校验（空查询、表达式为空的错误在失焦/提交后才展示） */
+  validated = false;
+  /** 最近一次新增的查询别名 */
+  lastAddedAlias = '';
+  /** 多 PromQL 查询无法无损切换为表单的提示弹窗 */
+  showLosslessDialog = false;
+
   // promqlError = false
   // 指标标示名称
   get metricNameLabel() {
@@ -280,7 +287,42 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         .filter(item => !!item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
-    return !this.legacyMultiQuery && this.sourceQueries.length <= 1;
+    return !this.legacyMultiQuery;
+  }
+  /* 表达式输入框展示值：单查询时只读展示默认别名 */
+  get expressionDisplay() {
+    if (this.sourceQueries.length > 1) return this.expression;
+    return this.expression || this.sourceQueries[0]?.alias || 'a';
+  }
+  /* 多查询且已触发校验时的空查询别名列表 */
+  get emptyQueryAliases() {
+    if (this.legacyMultiQuery || this.sourceQueries.length <= 1 || !this.validated) return [];
+    return this.sourceQueries.filter(item => !item.promql.trim()).map(item => item.alias);
+  }
+  /* 表达式行内校验错误 */
+  get sourceExpressionError() {
+    if (this.legacyMultiQuery) return '';
+    const expression = String(this.expression || '').trim();
+    if (!expression) {
+      return this.validated && this.sourceQueries.length > 1 ? this.$t('请填写计算表达式').toString() : '';
+    }
+    const unknownAliases = getUnknownExpressionAliases(expression, this.sourceQueries.map(item => item.alias));
+    if (!unknownAliases.length) return '';
+    return this.$t('表达式引用了不存在的查询 {0}，请选择 {1} 或添加查询。', [
+      unknownAliases.join('、'),
+      this.sourceQueries.map(item => item.alias).join('、'),
+    ]).toString();
+  }
+  /* 表达式行下方的辅助文案 */
+  get sourceHelperText() {
+    if (this.sourceQueries.length <= 1) {
+      return this.$t('单查询默认使用 {0} 的结果；可继续添加查询并设置表达式。', [this.sourceQueries[0]?.alias || 'a']).toString();
+    }
+    const addedQuery = this.lastAddedAlias ? this.sourceQueries.find(item => item.alias === this.lastAddedAlias) : null;
+    if (addedQuery && !addedQuery.promql.trim()) {
+      return this.$t('新增查询 {0}；填写后可在表达式中引用，原表达式保持不变。', [this.lastAddedAlias]).toString();
+    }
+    return this.$t('已添加 {0} 条查询，可继续添加；表达式可引用所需查询的别名。', [this.sourceQueries.length]).toString();
   }
   get targetDesc() {
     return this.handleSetTargetDesc(this.targetList, this.target?.targetType || this.metricData?.[0]?.targetType);
@@ -333,6 +375,11 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   }
   handleEditModeChange() {
     if (this.dataMode === 'converge') {
+      // 多 PromQL 查询无法无损切换为表单，弹窗提示后保留当前模式
+      if (this.editMode === 'Source' && this.sourceQueries.length > 1 && !this.legacyMultiQuery) {
+        this.showLosslessDialog = true;
+        return;
+      }
       if (!this.canToPromql) return;
       const mode = this.editMode === 'Source' ? 'Edit' : 'Source';
       const error = mode === 'Edit' ? this.promqlEditorRef.getLinterStatus() : false;
@@ -403,22 +450,44 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     );
   }
   handleAddSourceQuery() {
-    if (this.legacyMultiQuery) return;
+    if (this.legacyMultiQuery || this.readonly) return;
     const alias = 'abcdefghijklmnopqrstuvwxyz'
       .split('')
       .find(value => !this.sourceQueries.some(item => item.alias.toLowerCase() === value));
     if (!alias) return;
+    this.lastAddedAlias = alias;
     this.$emit('sourceQueriesChange', [...this.sourceQueries, { alias, promql: '' }]);
-    if (this.sourceQueries.length === 1 && this.expression === this.sourceQueries[0].alias) {
-      this.$emit('sourceExpressionChange', '');
+  }
+  /** 删除按钮禁用状态：仅剩一条查询或被表达式引用时不可删除（与数据探索-指标检索多指标行为一致） */
+  handleDeleteDisabled(alias: string) {
+    const result = {
+      disabled: false,
+      tips: '',
+    };
+    if (this.sourceQueries.length <= 1) {
+      result.disabled = true;
+    } else {
+      const expression = String(this.expression || '').trim();
+      const referenced =
+        !!expression && new RegExp(`\\b${alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(expression);
+      result.disabled = referenced;
+      result.tips = referenced ? this.$t('存在表达式依赖，不能删除').toString() : '';
     }
+    return result;
   }
   handleDeleteSourceQuery(alias: string) {
-    if (this.legacyMultiQuery) return;
-    if (this.sourceQueries.length <= 1 || alias === this.sourceQueries[0].alias) return;
-    const remainingQueries = this.sourceQueries.filter(item => item.alias !== alias);
-    this.$emit('sourceQueriesChange', remainingQueries);
-    this.$emit('sourceExpressionChange', remainingQueries.length === 1 ? remainingQueries[0].alias : '');
+    if (this.legacyMultiQuery || this.readonly) return;
+    if (this.handleDeleteDisabled(alias).disabled) return;
+    this.$emit('sourceQueriesChange', this.sourceQueries.filter(item => item.alias !== alias));
+  }
+  /* 表达式输入变更：立即触发校验并同步 */
+  handleSourceExpressionInputChange(value: string) {
+    this.validated = true;
+    this.$emit('sourceExpressionChange', value);
+  }
+  /* 供父组件在提交校验时强制展示行内错误 */
+  handleShowValidateError() {
+    this.validated = true;
   }
   /* source step 更新 */
   @Emit('souceStepChange')
@@ -469,6 +538,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   }
   @Emit('expressionBlur')
   handleExpressionBlur(v: string) {
+    this.validated = true;
     return v;
   }
   @Emit('expFunctionsChange')
@@ -744,72 +814,79 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                   ))
                 : this.loading
                   ? undefined
-                  : this.sourceQueries.map((query, index) => (
+                  : this.sourceQueries.map((query, index) => {
+                    const deleteStatus = this.handleDeleteDisabled(query.alias);
+                    return (
                       <div
                         key={query.alias}
                         style={{ marginTop: index > 0 ? '16px' : undefined }}
                         class='source-query'
                       >
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            fontSize: '12px',
-                          }}
-                          class='source-query-title'
-                        >
-                          <span>
-                            {this.$t('查询')} {query.alias}
-                          </span>
-                          {!this.readonly && index > 0 && (
-                            <bk-button
-                              text
-                              onClick={() => this.handleDeleteSourceQuery(query.alias)}
+                        <div class='source-query-title'>
+                          <span>{query.alias} PromQL</span>
+                          {!this.readonly && (
+                            <span
+                              v-bk-tooltips={{
+                                content: deleteStatus.tips,
+                                disabled: !deleteStatus.tips,
+                              }}
                             >
-                              {this.$t('删除')}
-                            </bk-button>
+                              <bk-button
+                                text
+                                disabled={deleteStatus.disabled}
+                                onClick={() => this.handleDeleteSourceQuery(query.alias)}
+                              >
+                                {this.$t('删除')}
+                              </bk-button>
+                            </span>
                           )}
                         </div>
                         <promql-monaco-editor
                           ref={index === 0 ? 'promql-editor' : `promql-editor-${index}`}
                           class='mt-16'
                           executeQuery={this.handlePromqlEnter}
-                          isError={this.promqlError}
+                          isError={this.promqlError || this.emptyQueryAliases.includes(query.alias)}
                           minHeight={80}
                           value={query.promql}
                           onChange={(value: string) => this.handleSourceQueryChange(query.alias, value)}
                           onFocus={this.handlePromqlFocus}
+                          onBlur={() => (this.validated = true)}
                         />
                       </div>
-                    ))}
+                    );
+                  })}
               {/* <div class={['metric-source', { 'is-error': this.promqlError }]}>
 
               </div> */}
               {!this.legacyMultiQuery && (
                 <div class='source-options-wrap'>
-                  {!this.readonly && (
-                    <bk-button
-                      disabled={this.sourceQueries.length >= 26}
-                      text
-                      onClick={this.handleAddSourceQuery}
-                    >
-                      {this.$t('添加 PromQL 查询')}
-                    </bk-button>
+                  <div class='source-expression-row'>
+                    <span class='source-expression-label'>{this.$t('表达式')}</span>
+                    <bk-input
+                      class='source-expression-input'
+                      readonly={this.readonly || (this.sourceQueries.length <= 1 && !this.sourceExpressionError)}
+                      value={this.expressionDisplay}
+                      onBlur={this.handleExpressionBlur}
+                      onChange={this.handleSourceExpressionInputChange}
+                    />
+                    {!this.readonly && (
+                      <bk-button
+                        class='source-add-query-btn'
+                        disabled={this.sourceQueries.length >= 26}
+                        onClick={this.handleAddSourceQuery}
+                      >
+                        {this.$t('添加查询')}
+                      </bk-button>
+                    )}
+                  </div>
+                  {this.sourceExpressionError ? (
+                    <div class='source-validate-error'>{this.sourceExpressionError}</div>
+                  ) : (
+                    <div class='source-helper-text'>{this.sourceHelperText}</div>
                   )}
-                  {this.sourceQueries.length > 1 && (
-                    <div
-                      style='margin: 12px 0;'
-                      class='source-expression'
-                    >
-                      <div class='source-query-title'>{this.$t('计算表达式（查询别名的 PromQL 即时向量运算）')}</div>
-                      <bk-input
-                        readonly={this.readonly}
-                        type='textarea'
-                        value={this.expression}
-                        onBlur={this.handleExpressionBlur}
-                        onChange={(value: string) => this.$emit('sourceExpressionChange', value)}
-                      />
+                  {this.emptyQueryAliases.length > 0 && (
+                    <div class='source-validate-error'>
+                      {this.$t('查询 {0} 不能为空，请填写 PromQL 或删除该查询。', [this.emptyQueryAliases.join('、')])}
                     </div>
                   )}
                   <bk-input
@@ -836,6 +913,24 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
               )}
             </div>
           )}
+          <monitor-dialog
+            v-model={this.showLosslessDialog}
+            width={560}
+            zIndex={1002}
+            title={this.$t('无法无损切换为表单').toString()}
+            on-change={(v: boolean) => (this.showLosslessDialog = v)}
+          >
+            <p>{this.$t('当前查询包含表单无法完整表达的内容。')}</p>
+            <p>{this.$t('已保留全部 PromQL 与表达式，请继续在当前模式编辑。')}</p>
+            <div slot='footer'>
+              <bk-button
+                theme='primary'
+                onClick={() => (this.showLosslessDialog = false)}
+              >
+                {this.$t('继续编辑 PromQL')}
+              </bk-button>
+            </div>
+          </monitor-dialog>
           {this.supportSource && this.errMsg ? <div class='monitor-err-msg'>{this.errMsg}</div> : undefined}
           {this.canSetTarget &&
             ((this.targetList.length && this.targetDesc.message.length && this.editMode === 'Edit') ||

@@ -81,3 +81,57 @@ export const isRecoveryDisable = (metricData: MetricDetail[]) => {
 export const isStatusSetterNoData = (v: RecoveryConfigStatusSetter) => {
   return v === RecoveryConfigStatusSetter.RECOVERY_NODATA;
 };
+
+/* 多 PromQL 计算表达式的运算关键字与向量匹配修饰符（与后端 compile_promql_expression 保持一致） */
+const EXPRESSION_OPERATORS = new Set(['and', 'or', 'unless', 'bool', 'offset']);
+const EXPRESSION_LABEL_MODIFIERS = new Set(['on', 'ignoring', 'group_left', 'group_right', 'by', 'without']);
+
+/**
+ * @description 提取计算表达式中未被声明为查询别名的标识符
+ * 词法规则与后端 bkmonitor.data_source.promql_expression.compile_promql_expression 保持一致，
+ * 用于前端在保存前给出与后端一致的行内校验提示。
+ */
+export const getUnknownExpressionAliases = (expression: string, aliases: string[]): string[] => {
+  const cleaned = expression.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`[^`]*`/g, ' ');
+  const aliasSet = new Set(aliases);
+  const tokenRe = /\s+|\d+(?:\.\d*)?(?:[eE][+-]?\d+)?|\.\d+|[A-Za-z_][A-Za-z0-9_]*|==|!=|<=|>=|[()+\-*/%^,<>]/g;
+  const unknownSet = new Set<string>();
+  let labelList = false;
+  let pendingModifier = '';
+  let match = tokenRe.exec(cleaned);
+  while (match) {
+    const token = match[0];
+    const tokenEnd = tokenRe.lastIndex;
+    match = tokenRe.exec(cleaned);
+    if (!token.trim()) continue;
+    if (pendingModifier) {
+      if (token === '(') {
+        pendingModifier = '';
+        labelList = true;
+        continue;
+      }
+      // on/ignoring/by/without 缺少标签列表属于语法错误，交由后端校验，这里宽松处理
+      pendingModifier = '';
+    }
+    if (labelList) {
+      // 标签列表内（如 on(service, code)）的标识符是标签名而非查询别名
+      if (token === ')') {
+        labelList = false;
+      }
+      continue;
+    }
+    if (!/[A-Za-z_]/.test(token[0])) continue;
+    const keyword = token.toLowerCase();
+    if (EXPRESSION_OPERATORS.has(keyword)) continue;
+    if (EXPRESSION_LABEL_MODIFIERS.has(keyword)) {
+      pendingModifier = keyword;
+      continue;
+    }
+    if (aliasSet.has(token)) continue;
+    const rest = cleaned.slice(tokenEnd);
+    // 函数调用（如 clamp_min(...)）与聚合器（如 sum by(...)）不属于查询别名
+    if (/^\s*\(/.test(rest) || /^\s*(?:by|without)\b/.test(rest)) continue;
+    unknownSet.add(token);
+  }
+  return [...unknownSet];
+};

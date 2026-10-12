@@ -367,8 +367,11 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
     }
   }
   destroyMonaco() {
+    const model = this.editor?.getModel?.();
     this.editor?.dispose?.();
-    monaco.editor.getModels().forEach(model => model.dispose());
+    // 仅销毁当前编辑器自身的 model；不能清空全局所有 model，
+    // 否则同页其他编辑器实例（如多 PromQL 查询）的内容会被清空且不可编辑
+    model?.dispose?.();
     this.roInstance?.disconnect?.();
   }
 
