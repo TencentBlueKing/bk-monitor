@@ -436,7 +436,7 @@ class ClusterInfo(models.Model):
         ).exists():
             logger.error(
                 f"reg_system->[{registered_system}] try to add cluster->[{cluster_type}] with domain->[{domain_name}] port->[{port}] username->[{username}] "
-                f"pass->[{password}] which already has the same cluster config , nothing will do."
+                "which already has the same cluster config , nothing will do."
             )
             raise ValueError(_("存在同样配置集群，请确认后重试"))
 
@@ -554,12 +554,9 @@ class ClusterInfo(models.Model):
                 setattr(self, attribute_name, value)
                 # 由于已经有更新了，所以需要更新最后更新者
                 self.last_modify_user = operator
-                logger.info(
-                    f"cluster->[{self.cluster_name}] attribute->[{attribute_name}] is set to->[{value}] by->[{operator}]"
-                )
 
         self.save()
-        logger.info(f"cluster->[{self.cluster_name}] update success.")
+        logger.info(f"cluster->[{self.cluster_name}] updated by->[{operator}] success.")
 
         # 同步集群配置到bkbase（目前仅支持ES集群）
         if self.cluster_type == ClusterInfo.TYPE_ES:
@@ -4867,7 +4864,7 @@ class BkDataStorage(models.Model, StorageResultTable):
             self.raw_data_id = result["raw_data_id"]
             self.save()
         except Exception:  # noqa
-            logger.exception("access to bkdata failed, params:%s", params)
+            logger.exception("access to bkdata failed, raw_data_id:%s", self.raw_data_id)
             raise  # 这里继续往外抛出去
 
     def get_etl_status(self, processing_id):

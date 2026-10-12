@@ -793,8 +793,9 @@ class BaseQueryHandler:
 
                 buckets = []
                 for bucket in getattr(search_result.aggs, field).buckets:
-                    if bucket_count_suffix and not bucket.key:
-                        bucket_count -= 1
+                    if not bucket.key:
+                        if bucket_count_suffix:
+                            bucket_count -= 1
                     else:
                         buckets.append({"id": bucket.key, "name": bucket.key, "count": bucket.doc_count})
 

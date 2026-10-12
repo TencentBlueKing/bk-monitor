@@ -203,17 +203,17 @@ export default defineComponent({
     });
 
     return () => (
-      <div class="bklog-edit-input-wrapper">
+      <div class='bklog-edit-input-wrapper'>
         <div
           ref={containerRef}
           class={['edit-input-item', { 'is-edit-mode': isEditMode.value }]}
           style={{ maxWidth: `${props.maxWidth}px` }}
           onDblclick={enterEditMode}
         >
-          <span class="edit-input-text">{props.value}</span>
+          <span class='edit-input-text'>{props.value}</span>
           {props.showDelete && (
             <i
-              class="bklog-icon bklog-close"
+              class='bklog-icon bklog-close'
               onClick={handleDelete}
             ></i>
           )}
@@ -222,16 +222,16 @@ export default defineComponent({
         {isEditMode.value && (
           <div
             ref={editContainerRef}
-            class="edit-input-edit-container"
-            onClick={(e) => e.stopPropagation()}
+            class='edit-input-edit-container'
+            onClick={e => e.stopPropagation()}
           >
             <textarea
               ref={textareaRef}
               class='edit-input-textarea'
               data-resize={props.resize}
-              style={{ "--resize": props.resize }}
+              style={{ '--resize': props.resize }}
               value={editValue.value}
-              onInput={(e) => {
+              onInput={e => {
                 const target = e.target as HTMLTextAreaElement;
                 editValue.value = target.value;
                 // 自动调整高度
@@ -271,4 +271,3 @@ export default defineComponent({
     );
   },
 });
-

@@ -112,14 +112,14 @@ class UpdateRegisteredCluster(Resource):
         bk_tenant_id = TenantIdField(label="租户ID")
         cluster_id = serializers.IntegerField(label="集群 ID")
         operator = serializers.CharField(label="创建者")
-        description = serializers.CharField(label="描述", required=False, default="", allow_blank=True)
-        username = serializers.CharField(label="访问集群的用户名", required=False, default="", allow_blank=True)
-        password = serializers.CharField(label="访问集群的密码", required=False, default="", allow_blank=True)
-        version = serializers.CharField(label="集群版本", required=False, default="", allow_blank=True)
-        schema = serializers.CharField(label="访问协议", required=False, default="", allow_blank=True)
-        is_ssl_verify = serializers.BooleanField(label="是否 ssl 验证", required=False, default=False)
-        label = serializers.CharField(label="标签", default="", required=False, allow_blank=True)
-        default_settings = serializers.JSONField(required=False, label="默认集群配置", default={})
+        description = serializers.CharField(label="描述", required=False, allow_blank=True)
+        username = serializers.CharField(label="访问集群的用户名", required=False, allow_blank=True)
+        password = serializers.CharField(label="访问集群的密码", required=False, allow_blank=True)
+        version = serializers.CharField(label="集群版本", required=False, allow_blank=True)
+        schema = serializers.CharField(label="访问协议", required=False, allow_blank=True)
+        is_ssl_verify = serializers.BooleanField(label="是否 ssl 验证", required=False)
+        label = serializers.CharField(label="标签", required=False, allow_blank=True)
+        default_settings = serializers.JSONField(required=False, label="默认集群配置")
 
     def perform_request(self, validated_request_data: OrderedDict):
         cluster_id = validated_request_data.pop("cluster_id")
@@ -146,6 +146,7 @@ class CreateClusterInfoResource(Resource):
         auth_info = serializers.JSONField(required=False, label="身份认证信息", default={})
         version = serializers.CharField(required=False, label="版本信息", default="")
         custom_option = serializers.CharField(required=False, label="自定义标签", default="")
+        default_settings = serializers.JSONField(required=False, label="默认集群配置")
         schema = serializers.CharField(required=False, label="链接协议", default="")
         is_ssl_verify = serializers.BooleanField(required=False, label="是否需要SSL验证", default=False)
         ssl_verification_mode = serializers.CharField(required=False, label="校验模式", default="")
@@ -193,7 +194,9 @@ class ModifyClusterInfoResource(Resource):
         description = serializers.CharField(required=False, label="存储集群描述", default=None, allow_blank=True)
         auth_info = serializers.JSONField(required=False, label="身份认证信息", default=None)
         custom_option = serializers.CharField(required=False, label="集群自定义标签", default=None)
+        default_settings = serializers.JSONField(required=False, label="默认集群配置")
         schema = serializers.CharField(required=False, label="集群链接协议", default=None)
+        version = serializers.CharField(required=False, label="版本信息", allow_blank=True)
         is_ssl_verify = serializers.BooleanField(required=False, label="是否需要强制SSL/TLS认证", default=None)
         ssl_verification_mode = serializers.CharField(required=False, label="校验模式", default=None)
         ssl_certificate_authorities = serializers.CharField(required=False, label="CA 证书内容", default=None)
@@ -241,11 +244,14 @@ class ModifyClusterInfoResource(Resource):
         except models.ClusterInfo.MultipleObjectsReturned:
             raise ValueError(_("找到多个符合条件的集群配置，可能是不同类型的集群名相同，请提供集群类型后重试"))
 
-        # 如果集群名不符合规范，则自动修正为合法名称并记录警告日志
+        # ES 名称修正延迟到模型层需要同步时执行；Doris 保留历史名称。
         if not cluster_info.display_name:
             cluster_info.display_name = cluster_info.cluster_name
 
-        if not re.match(models.ClusterInfo.CLUSTER_NAME_REGEX, cluster_info.cluster_name):
+        if cluster_info.cluster_type not in (
+            models.ClusterInfo.TYPE_ES,
+            models.ClusterInfo.TYPE_DORIS,
+        ) and not re.match(models.ClusterInfo.CLUSTER_NAME_REGEX, cluster_info.cluster_name):
             original_cluster_name = cluster_info.cluster_name
             cluster_name = f"auto_cluster_name_{cluster_info.cluster_id}"
             cluster_info.cluster_name = cluster_name
@@ -257,8 +263,9 @@ class ModifyClusterInfoResource(Resource):
         if validated_request_data.get("auth_info") is not None:
             auth_info = validated_request_data["auth_info"]
             # NOTE: 因为模型中字段没有设置允许为 null，所以不能赋值 None
-            validated_request_data["username"] = auth_info.get("username", "")
-            validated_request_data["password"] = auth_info.get("password", "")
+            for field in ("username", "password"):
+                if field in auth_info:
+                    validated_request_data[field] = auth_info[field]
 
         # 4. 触发修改内容
         cluster_info.modify(**validated_request_data)

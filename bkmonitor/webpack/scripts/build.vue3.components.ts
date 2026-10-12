@@ -23,73 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import vueTsx from '@vitejs/plugin-vue-jsx';
+
+/**
+ * `@blueking/monitor-vue3-components` 的构建配置：给 **Vue3 工程**用的组件与组合式函数。
+ *
+ * 构建选项与 `@blueking/apm-vue3-for-vue2` 完全共用，见 vue3-lib/create-config.ts；
+ * 这里只声明入口、产物目录与随包发布的元数据。
+ */
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
-import { analyzer } from 'vite-bundle-analyzer';
-import { viteStaticCopy } from 'vite-plugin-static-copy';
 
-const outputDir = resolve(__dirname, '../monitor-vue3-components');
-export default defineConfig({
-  resolve: {
-    alias: [
-      {
-        find: '@',
-        replacement: resolve(__dirname, '../src/trace'),
-      },
-    ],
-  },
-  define: {
-    'process.env.NODE_ENV': JSON.stringify(process.env.NODE_ENV),
-    'process.env.APP': JSON.stringify(''),
-  },
-  plugins: [
-    vueTsx({}),
-    viteStaticCopy({
-      targets: [
-        {
-          src: resolve(__dirname, './package.json'),
-          dest: outputDir,
-        },
-        {
-          src: resolve(__dirname, '../src/trace/components.md'),
-          dest: outputDir,
-          rename: 'readme.md',
-        },
-      ],
-    }),
-    analyzer(),
-  ],
-  build: {
-    copyPublicDir: false,
-    emptyOutDir: true,
-    outDir: outputDir,
-    minify: false,
-    lib: {
-      entry: resolve(__dirname, '../src/trace/components.ts'),
-      name: 'monitor-vue3-components',
-      fileName: 'index',
-      formats: ['es'],
-    },
-    rollupOptions: {
-      external: [
-        'vue',
-        /^bkui-vue[/]?\w*/,
-        '@blueking/tdesign-ui',
-        'tdesign-vue-next',
-        'vue-i18n',
-        /^dayjs[/]?\w*/,
-        'vue-tippy',
-        '@prometheus-io/lezer-promql',
-        /^monaco-editor[/]?\w*/,
-        /^echarts[/]?\w*/,
-        /^@blueking[/]?\w*/,
-      ],
-      output: {
-        globals: {
-          vue: 'Vue',
-        },
-      },
-    },
-  },
-});
+import { createVue3LibConfig } from './vue3-lib/create-config';
+
+export default defineConfig(
+  createVue3LibConfig({
+    entry: resolve(__dirname, '../src/trace/components.ts'),
+    outputDir: resolve(__dirname, '../monitor-vue3-components'),
+    packageJsonFile: resolve(__dirname, './package.json'),
+    readmeFile: resolve(__dirname, '../src/trace/components.md'),
+  })
+);

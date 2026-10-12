@@ -4,8 +4,11 @@
       class="bklog-v3 field-setting-wrap"
       @click="handleOpenSidebar"
     >
-      <span class="bklog-icon bklog-setting" v-bk-tooltips.top="t('索引配置')"></span> 
-      <span class='field-settin-text'>{{ t('索引配置') }}</span>
+      <span
+        v-bk-tooltips.top="t('索引配置')"
+        class="bklog-icon bklog-setting"
+      ></span>
+      <span class="field-settin-text">{{ t('索引配置') }}</span>
     </div>
     <bk-sideslider
       :is-show.sync="showSlider"
@@ -31,8 +34,8 @@
       </template>
       <template #content>
         <div
-          class="bklog-v3 field-slider-content"
           v-bkloading="{ isLoading: sliderLoading }"
+          class="bklog-v3 field-slider-content"
         >
           <bk-form
             v-if="!sliderLoading"
@@ -55,8 +58,8 @@
               <div @click.stop="() => ({})">
                 <bk-input
                   v-if="isEdit || isEditConfigName"
-                  class="w520"
                   v-model="formData.collector_config_name"
+                  class="w520"
                   maxlength="50"
                   show-word-limit
                 >
@@ -81,8 +84,8 @@
               <div class="en-name-box">
                 <bk-input
                   v-if="isEdit"
-                  class="w520"
                   v-model="formData.collector_config_name_en"
+                  class="w520"
                   disabled
                   show-word-limit
                 >
@@ -99,8 +102,8 @@
             >
               <bk-input
                 v-if="isEdit"
-                class="form-input"
                 v-model="formData.bk_data_id"
+                class="form-input"
                 disabled
               >
               </bk-input>
@@ -127,7 +130,7 @@
                 >
                 </bk-option>
               </bk-select>
-              <div v-else>{{ formData.storage_display_name || '--' }} </div>
+              <div v-else>{{ formData.storage_display_name || '--' }}</div>
             </bk-form-item>
             <bk-form-item
               ext-cls="en-bk-form"
@@ -174,8 +177,10 @@
               :extract-method="cleanType"
               :fields="originBuiltFields"
               :is-preview-mode="!isEdit"
+              :is-template-bound="formData.clean_template_id != null"
               :original-text-tokenize-on-chars="defaultParticipleStr"
               :table-type="'originLog'"
+              @unbind-template="handleUnbindTemplate"
             >
             </setting-table>
             <div
@@ -198,8 +203,10 @@
               :extract-method="cleanType"
               :fields="tableField"
               :is-preview-mode="!isEdit"
+              :is-template-bound="formData.clean_template_id != null"
               :original-text-tokenize-on-chars="defaultParticipleStr"
               :table-type="'indexLog'"
+              @unbind-template="handleUnbindTemplate"
             >
             </setting-table>
             <div
@@ -250,7 +257,7 @@
   import * as authorityMap from '../common/authority-map';
   import settingTable from './setting-table.vue';
   import http from '@/api';
-  import { RetrieveEvent } from '@/views/retrieve-helper'
+  import { RetrieveEvent } from '@/views/retrieve-helper';
   import useRetrieveEvent from '@/hooks/use-retrieve-event';
 
   const { t } = useLocale();
@@ -274,6 +281,7 @@
     storage_display_name: '',
     storage_cluster_id: '',
     retention: '',
+    clean_template_id: null,
     etl_params: {
       retain_original_text: false,
       original_text_tokenize_on_chars: '',
@@ -397,7 +405,7 @@
             return val <= maxRetention.value;
           }
         },
-        message: function () {
+        message() {
           return t(`超出集群最大可保存天数，当前最大可保存{n}天`, { n: maxRetention.value });
         },
         trigger: 'blur',
@@ -409,8 +417,8 @@
     return cleanType.value === 'bk_log_json';
   });
   const labelWidth = computed(() => {
-      return store.state.isEnLanguage ?  130 : 94;
-    });
+    return store.state.isEnLanguage ? 130 : 94;
+  });
   const indexfieldTable = ref(null);
   const addNewField = () => {
     const fields = structuredClone(indexfieldTable.value.getData());
@@ -427,10 +435,10 @@
     hideSingleConfigInput();
     handleOpenSidebar();
     nextTick(() => {
-      handleEdit()
+      handleEdit();
     });
   });
-  
+
   function formLableFormatter(label) {
     return `${label} :`;
   }
@@ -441,12 +449,16 @@
     isEdit.value = true;
   };
 
-  const handleCancel = async() => {
+  const handleCancel = async () => {
     formData.value = structuredClone(formDataCopy.value);
     tableField.value = structuredClone(fieldsCopy.value);
     nextTick(() => {
       isEdit.value = false;
     });
+  };
+
+  const handleUnbindTemplate = () => {
+    formData.value.clean_template_id = null;
   };
 
   const handleOpenSidebar = async () => {
@@ -569,6 +581,7 @@
             const originfieldTableData = originfieldTable.value?.getData();
             const data = {
               collector_config_name: formData.value.collector_config_name,
+              clean_template_id: formData.value.clean_template_id ?? null,
               storage_cluster_id: formData.value.storage_cluster_id,
               retention: formData.value.retention,
               etl_params: {

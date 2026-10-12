@@ -4,6 +4,7 @@ import logging
 from datetime import datetime
 from typing import Any, cast
 
+from bk_monitor_base.infras.nodeman_control import host_queries
 from bk_monitor_base.infras.third_party_api.nodeman.api import (
     IpchooserHostDetail,
     IpchooserHostDetailsHost,
@@ -33,8 +34,6 @@ def get_host_agent_status_map(
     """
     if not hosts:
         return {}
-
-    from bk_monitor_base.infras.third_party_api import node_man
 
     query_hosts: list[IpchooserHostDetailsHost] = []
     scope_list: list[IpchooserHostDetailsScope] = []
@@ -100,12 +99,12 @@ def get_host_agent_status_map(
                 "scope_list": scope_list,
                 "agent_realtime_state": True,
             }
-            response = node_man.get_ipchooser_host_details(
+            response = host_queries.details(
                 bk_tenant_id=bk_tenant_id,
-                params=params,
+                params=dict(params),
             )
             for host_detail in response:
-                status_map[str(host_detail["bk_host_id"])] = host_detail
+                status_map[str(host_detail["bk_host_id"])] = cast(IpchooserHostDetail, cast(object, host_detail))
         return status_map
     except Exception as error:
         logger.warning("get_host_agent_status_map failed: %s", error)

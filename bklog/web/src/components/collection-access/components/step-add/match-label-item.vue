@@ -47,8 +47,8 @@
             </bk-form-item>
           </bk-form>
           <bk-select
-            ext-cls="fill-operate"
             v-model="matchOperator"
+            ext-cls="fill-operate"
             :clearable="false"
             :popover-min-width="116"
             @selected="() => handleOperateChange(false)"
@@ -64,15 +64,15 @@
         </div>
         <div class="customize-right justify-sb">
           <bk-input
-            v-model.trim="matchValue"
             v-show="!expressInputIsDisabled && !isHaveCompared"
+            v-model.trim="matchValue"
             :ext-cls="`fill-value ${isValueError && 'input-error'}`"
             clearable
           >
           </bk-input>
           <bk-tag-input
-            v-model="matchValueArr"
             v-show="isHaveCompared"
+            v-model="matchValueArr"
             :ext-cls="`fill-value ${isValueError && 'tag-input-error'}`"
             allow-create
             free-paste
@@ -95,31 +95,31 @@
     </template>
     <template v-if="!onlyShowSelectEdit">
       <div
-        class="specify-main match-container justify-sb"
         v-show="!isEdit"
+        class="specify-main match-container justify-sb"
       >
         <div :class="['specify-box', { 'is-edit': showEdit }]">
           <div class="specify-container">
             <span
-              class="title-overflow"
               v-bk-overflow-tips
+              class="title-overflow"
               >{{ matchItem.key }}</span
             >
           </div>
           <div class="specify-container">
             <bk-select
               v-if="!isDialogItem"
-              ext-cls="select-operator"
               v-model="matchOperator"
+              ext-cls="select-operator"
               :clearable="false"
               :popover-min-width="116"
               @selected="() => handleOperateChange(true)"
             >
               <bk-option
                 v-for="item of expressOperatorList"
-                :disabled="checkOperatorDisabled(item.id)"
                 :id="item.id"
                 :key="item.id"
+                :disabled="checkOperatorDisabled(item.id)"
                 :name="item.name"
               >
               </bk-option>
@@ -131,8 +131,8 @@
               {{ matchItem.operator }}
             </div>
             <span
-              class="title-overflow"
               v-bk-overflow-tips
+              class="title-overflow"
               >{{ matchItem.value || '-' }}</span
             >
           </div>
@@ -259,7 +259,6 @@
           const matchValueError = this.isHaveCompared ? !this.matchValueArr.length : !this.matchValue;
           // key value 不能为空
           if (matchValueError) {
-            // eslint-disable-next-line vue/no-side-effects-in-computed-properties
             matchValueError && (this.isValueError = true);
             return false;
           }
@@ -351,7 +350,7 @@
       checkName() {
         if (this.verifyData.matchKey === '') return true;
 
-        return /^([A-Za-z0-9][-A-Za-z0-9_.\/]*)?[A-Za-z0-9]$/.test(this.verifyData.matchKey);
+        return /^([A-Za-z0-9][-A-Za-z0-9_./]*)?[A-Za-z0-9]$/.test(this.verifyData.matchKey);
       },
       resetStatus() {
         this.isEdit = false;
@@ -368,7 +367,7 @@
           const { key, value } = this.matchItem;
           if (this.isHaveCompared) {
             const splitValue = value.split(',');
-            this.matchValueArr = !!splitValue[0] ? splitValue : [];
+            this.matchValueArr = splitValue[0] ? splitValue : [];
           } else {
             this.matchValue = value;
           }
@@ -382,7 +381,7 @@
           if (this.isHaveCompared) {
             if (!this.matchValueArr.length && !!this.matchValue) {
               const splitValue = this.matchValue.split(',');
-              this.matchValueArr = !!splitValue ? splitValue : [];
+              this.matchValueArr = splitValue ? splitValue : [];
             }
           } else {
             if (!!this.matchValueArr.length && !this.matchValue) {

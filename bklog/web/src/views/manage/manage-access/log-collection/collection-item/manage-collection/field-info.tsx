@@ -220,7 +220,6 @@ export default class FieldInfo extends tsc<IProps> {
       }
     } catch {
       return '';
-    } finally {
     }
   }
 
@@ -359,7 +358,7 @@ export default class FieldInfo extends tsc<IProps> {
         backRoute: 'manage-collection',
         type: 'fieldInfo',
         step: '2',
-        typeKey: (this.collectorData as any).collector_scenario_id,
+        typeKey: (this.collectorData as any).log_access_type,
         indexSetId: this.$route.query.indexSetId,
       },
     });

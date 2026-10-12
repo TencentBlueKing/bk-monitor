@@ -46,7 +46,6 @@
           data-test-id="storehouseContainer_input_searchTableItem"
           @change="handleSearchChange"
           @enter="handleSearch"
-
         >
         </bk-input>
       </div>
@@ -57,8 +56,8 @@
     >
       <bk-table
         ref="repositoryTable"
-        class="repository-table"
         v-bkloading="{ isLoading: isTableLoading }"
+        class="repository-table"
         :data="tableDataPaged"
         :limit-list="pagination.limitList"
         :pagination="pagination"
@@ -151,10 +150,10 @@
             </bk-button> -->
               <!-- 删除 -->
               <bk-button
-                class="mr10 king-button"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_ES_SOURCE_AUTH]),
                 }"
+                class="mr10 king-button"
                 theme="primary"
                 text
                 @click.stop="operateHandler(props.row, 'delete')"
@@ -299,7 +298,11 @@
             if (!data.length) {
               return;
             }
-            const formattedData = formatResponseListTimeZoneString(data || [], {}, ['create_time', 'created_at', 'updated_at']);
+            const formattedData = formatResponseListTimeZoneString(data || [], {}, [
+              'create_time',
+              'created_at',
+              'updated_at',
+            ]);
             this.tableDataOrigin = formattedData;
             this.tableDataSearched = formattedData;
             this.pagination.count = formattedData.length;
@@ -425,7 +428,7 @@
         try {
           this.isTableLoading = true;
           const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateState', {'authDialogData': res.data});
+          this.$store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {

@@ -119,7 +119,7 @@ export default defineComponent({
      */
     const handleDel = (item: IEventFilterItem): void => {
       const data = props.data.filter(val => val.type !== item.type);
-      emit('change', data);
+      emit('change', data.length > 0 ? data : [{ type: 'winlog_event_id', list: [], isCorrect: true }]);
     };
     const renderItem = (item: IEventFilterItem) => (
       <div class='event-filter-item'>

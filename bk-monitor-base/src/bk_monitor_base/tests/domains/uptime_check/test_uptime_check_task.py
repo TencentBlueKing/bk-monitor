@@ -66,7 +66,7 @@ class TestPrepareNodes:
         node2 = UptimeCheckNodeModel.objects.create(
             bk_biz_id=3,
             name="节点2",
-            ip="8.142.255.129",
+            ip="192.0.2.22",
             bk_host_id=200,
             plat_id=1,
         )
@@ -278,8 +278,8 @@ class TestDeploy:
         task.nodes.add(node)
         return task
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.switch_subscription")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.create_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.switch_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.create_subscription")
     @patch("bk_monitor_base.domains.uptime_check.services.data_access.DataAccessService.get_or_create_data_id")
     def test_deploy_render_subscription_from_task(
         self,
@@ -333,7 +333,7 @@ class TestStart:
             status=UptimeCheckTaskStatus.STOPED.value,
         )
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.batch_get_subscription_task_result")
     @patch.object(TaskManager, "deploy")
     @patch.object(TaskManager, "_get_existing_subscriptions")
     def test_start_without_subscriptions(
@@ -355,10 +355,10 @@ class TestStart:
         assert result == "success"
         mock_deploy.assert_called_once_with()
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.batch_get_subscription_task_result")
     @patch.object(TaskManager, "_get_existing_subscriptions")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.run_subscription")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.switch_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.run_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.switch_subscription")
     def test_start_with_subscriptions(
         self,
         mock_switch,
@@ -382,7 +382,7 @@ class TestStart:
         start_task.refresh_from_db()
         assert start_task.status == UptimeCheckTaskStatus.RUNNING.value
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.batch_get_subscription_task_result")
     @patch.object(TaskManager, "_get_existing_subscriptions")
     def test_start_with_running_task(self, mock_get_subs, mock_batch_result, start_task):
         """测试有运行中任务时启动失败"""
@@ -408,7 +408,7 @@ class TestStop:
             status=UptimeCheckTaskStatus.RUNNING.value,
         )
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.batch_get_subscription_task_result")
     @patch.object(TaskManager, "_get_existing_subscriptions")
     def test_stop_without_subscriptions(self, mock_get_subs, mock_batch_result, stop_task):
         """测试无订阅时停止失败"""
@@ -419,10 +419,10 @@ class TestStop:
         with pytest.raises(Exception, match="订阅信息不存在"):
             manager.stop(operator="test_user")
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.batch_get_subscription_task_result")
     @patch.object(TaskManager, "_get_existing_subscriptions")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.run_subscription")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.switch_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.run_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.switch_subscription")
     def test_stop_success(
         self,
         mock_switch,
@@ -467,8 +467,8 @@ class TestDelete:
 
         return task
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.run_subscription")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.switch_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.run_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.switch_subscription")
     def test_delete_task(self, mock_switch, mock_run, delete_task):
         """测试删除任务"""
         manager = TaskManager(task=delete_task)
@@ -496,8 +496,8 @@ class TestHandleCreateSubscriptions:
             protocol=UptimeCheckTaskModel.Protocol.HTTP,
         )
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.switch_subscription")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.create_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.switch_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.create_subscription")
     def test_handle_create_subscriptions(self, mock_create, mock_switch, create_sub_task):
         """测试创建订阅"""
         mock_create.return_value = {"subscription_id": 333}
@@ -538,8 +538,8 @@ class TestHandleUpdateSubscriptions:
 
         return task
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.switch_subscription")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.update_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.switch_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.update_subscription")
     def test_handle_update_existing_subscription(
         self,
         mock_update,
@@ -576,7 +576,7 @@ class TestCheckSingleTaskStatus:
     """测试单个任务状态检查"""
 
     @patch("bk_monitor_base.domains.uptime_check.tasks.time.sleep")
-    @patch("bk_monitor_base.domains.uptime_check.tasks.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.tasks.batch_get_subscription_task_result")
     def test_check_status_starting(self, mock_batch_result, mock_sleep):
         """测试任务正在启动中"""
         mock_batch_result.return_value = ([], 0)
@@ -591,7 +591,7 @@ class TestCheckSingleTaskStatus:
         assert task_id == 0
 
     @patch("bk_monitor_base.domains.uptime_check.tasks.time.sleep")
-    @patch("bk_monitor_base.domains.uptime_check.tasks.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.tasks.batch_get_subscription_task_result")
     def test_check_status_running(self, mock_batch_result, mock_sleep):
         """测试任务运行中"""
         mock_batch_result.return_value = (
@@ -610,8 +610,8 @@ class TestCheckSingleTaskStatus:
         assert log == []
 
     @patch("bk_monitor_base.domains.uptime_check.tasks.time.sleep")
-    @patch("bk_monitor_base.domains.uptime_check.tasks.node_man_v2_api.get_subscription_task_result_detail")
-    @patch("bk_monitor_base.domains.uptime_check.tasks.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.tasks.get_subscription_task_result_detail")
+    @patch("bk_monitor_base.domains.uptime_check.tasks.batch_get_subscription_task_result")
     def test_check_status_failed(self, mock_batch_result, mock_detail, mock_sleep):
         """测试任务启动失败"""
         mock_batch_result.return_value = (
@@ -647,7 +647,7 @@ class TestCheckSingleTaskStatus:
         assert task_id == 123
 
     @patch("bk_monitor_base.domains.uptime_check.tasks.time.sleep")
-    @patch("bk_monitor_base.domains.uptime_check.tasks.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.tasks.batch_get_subscription_task_result")
     def test_check_status_api_error(self, mock_batch_result, mock_sleep):
         """测试API调用失败"""
         from bk_monitor_base.infras.exception import BaseError as BKAPIError

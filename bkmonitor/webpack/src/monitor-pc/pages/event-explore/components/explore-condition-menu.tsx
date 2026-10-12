@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Ref } from 'vue-property-decorator';
+import { Component, Emit, Inject, Prop, Ref } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils';
@@ -55,6 +55,10 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
 
   /** 场景下拉菜单 dom 实例 */
   @Ref('sceneRef') sceneRef: any;
+
+  /** 容器监控就地侧滑打开，由表格层提供；返回 false 表示需保持原有新开页行为 */
+  @Inject({ from: 'openK8sSlider', default: null })
+  readonly openK8sSlider: (url: string, subTitle?: string) => boolean;
 
   allMenuMap = {
     [KVValueMenuEnum.COPY]: {
@@ -164,12 +168,14 @@ export default class ExploreConditionMenu extends tsc<ExploreConditionMenuProps,
   }
 
   /**
-   * @description 切换场景(新开页跳转至k8s容器监控实现)
+   * @description 切换场景(优先就地侧滑打开容器监控，否则新开页跳转)
    * @param  targetScene 想要切换到的目标场景
    *
    */
   handleNewK8sPage(targetScene: IExploreSceneUrlItem) {
-    window.open(targetScene.url, '_blank');
+    if (!this.openK8sSlider?.(targetScene.url, targetScene.scene)) {
+      window.open(targetScene.url, '_blank');
+    }
     this.handleScenePopoverHide();
     this.menuClick();
   }

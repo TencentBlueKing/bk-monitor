@@ -8,16 +8,22 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import re
 from functools import lru_cache
 
 from django.conf import settings
 from django.utils.translation import gettext as _
 
+from bkmonitor.utils.common_utils import chunks
 from bkmonitor.utils.local import local
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.errors.api import BKAPIError
 from core.errors.common import UserInfoMissing
+
+
+LOGIN_NAME_WITH_DISPLAY_NAME_PATTERN = re.compile(r"^([A-Za-z][A-Za-z0-9._-]*)\(")
+LOGIN_NAME_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9._-]*$")
 
 
 def get_request_user():
@@ -108,6 +114,51 @@ def make_userinfo(bk_tenant_id: str = DEFAULT_TENANT_ID):
         return {"bk_username": username}
 
     raise ValueError(_("make_userinfo: 获取用户信息失败"))
+
+
+def extract_login_name_from_display_name(display_name: str) -> str | None:
+    """从用户展示名中提取可用于企业微信提醒的英文登录名。"""
+
+    if not display_name:
+        return None
+
+    matched = LOGIN_NAME_WITH_DISPLAY_NAME_PATTERN.match(display_name)
+    if matched:
+        return matched.group(1)
+
+    if LOGIN_NAME_PATTERN.fullmatch(display_name):
+        return display_name
+
+    return None
+
+
+def get_wxwork_mention_names(usernames: list[str]) -> dict[str, str]:
+    """将多租户用户 ID 转换为企业微信提醒使用的英文登录名。"""
+
+    if not settings.ENABLE_MULTI_TENANT_MODE:
+        return {username: username for username in usernames}
+
+    unique_usernames = [username for username in dict.fromkeys(usernames) if username and username != "all"]
+    if not unique_usernames:
+        return {}
+
+    from core.drf_resource import api
+
+    user_display_info = []
+    try:
+        for username_chunk in chunks(unique_usernames, 100):
+            user_display_info.extend(api.bk_login.batch_query_user_display_info(bk_usernames=username_chunk) or [])
+    except BKAPIError:
+        return {}
+
+    mention_names: dict[str, str] = {}
+    for user_info in user_display_info or []:
+        username = user_info.get("bk_username")
+        mention_name = extract_login_name_from_display_name(user_info.get("display_name"))
+        if username and mention_name:
+            mention_names[username] = mention_name
+
+    return mention_names
 
 
 def get_user_display_name(username: str):

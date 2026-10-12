@@ -27,10 +27,24 @@ import { computed, shallowRef } from 'vue';
 
 import { createUserConfig, listUserConfig, partialUpdateUserConfig } from 'monitor-api/modules/model';
 
+interface IUserConfig {
+  id: number | string;
+  value?: string;
+}
+
 export default function useUserConfig() {
   // 配置存储id
-  const storeId = shallowRef('');
+  const storeId = shallowRef<number | string>('');
   const hasBusinessAuth = computed(() => window.space_list.some(item => +item.id === +window.cc_biz_id));
+  const pendingConfigs = new Map<string, Promise<IUserConfig>>();
+  let currentKey = '';
+
+  async function loadUserConfig(key: string, config: Record<string, any>): Promise<IUserConfig> {
+    const userConfig = await listUserConfig({ key }, config);
+    if (userConfig?.[0]?.id) return userConfig[0];
+    const { id } = await createUserConfig({ key, value: '""' }, config);
+    return { id };
+  }
 
   /**
    * @description: 获取用户个性化配置
@@ -41,16 +55,25 @@ export default function useUserConfig() {
     key: string,
     config: Record<string, any> = { reject403: true }
   ): Promise<T | undefined> {
-    if (!hasBusinessAuth.value) return undefined;
-    const userConfig = await listUserConfig({ key }, config).catch(() => false);
-    if (!userConfig?.[0]?.id) {
-      const { id } = await createUserConfig({ key, value: '""' }, config);
-      storeId.value = id;
-      return undefined;
+    if (key !== currentKey) {
+      currentKey = key;
+      storeId.value = '';
     }
-    storeId.value = userConfig[0].id;
+    if (!key || !hasBusinessAuth.value) return undefined;
+    // 同一 key 的并发初始化共用请求，避免先查后建的竞态。
+    if (!pendingConfigs.has(key)) {
+      pendingConfigs.set(
+        key,
+        loadUserConfig(key, config).finally(() => pendingConfigs.delete(key))
+      );
+    }
+    const userConfig = await pendingConfigs.get(key).catch(() => undefined);
+    // 读取失败不代表配置不存在；旧应用的响应也不能覆盖当前配置 ID。
+    if (!userConfig || key !== currentKey) return undefined;
+    storeId.value = userConfig.id;
+    if (!userConfig.value) return undefined;
     try {
-      return JSON.parse(userConfig[0].value);
+      return JSON.parse(userConfig.value);
     } catch {
       console.error('parse user stiky note error');
     }
@@ -63,8 +86,9 @@ export default function useUserConfig() {
    * @return {*}
    */
   async function handleSetUserConfig(value: string, configId?: string): Promise<boolean> {
-    if (!hasBusinessAuth.value) return false;
-    return await partialUpdateUserConfig(storeId.value || configId, { value }, { reject403: true })
+    const id = storeId.value || configId;
+    if (!id || !hasBusinessAuth.value) return false;
+    return await partialUpdateUserConfig(id, { value }, { reject403: true })
       .then(() => true)
       .catch(() => false);
   }

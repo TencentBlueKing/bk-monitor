@@ -1,6 +1,3 @@
-from bk_monitor_base.metadata.dataflow.node.source import RelationSourceNode, StreamSourceNode
-from bk_monitor_base.metadata.dataflow.node.storage import create_tspider_or_druid_node
-from bk_monitor_base.metadata.dataflow.task.base import BaseTask
 from django.conf import settings
 from django.utils.translation import gettext as _
 
@@ -8,6 +5,9 @@ from bk_monitor_base.metadata.dataflow.node.processor import (
     CMDBPrepareAggregateFullNode,
     CMDBPrepareAggregateSplitNode,
 )
+from bk_monitor_base.metadata.dataflow.node.source import RelationSourceNode, StreamSourceNode
+from bk_monitor_base.metadata.dataflow.node.storage import create_tspider_or_druid_node
+from bk_monitor_base.metadata.dataflow.task.base import BaseTask
 
 
 class CMDBPrepareAggregateTask(BaseTask):
@@ -21,7 +21,7 @@ class CMDBPrepareAggregateTask(BaseTask):
     MUST_HAVE_FIELDS = {"bk_target_ip", "bk_target_cloud_id"}
 
     def __init__(self, rt_id, agg_interval, agg_method, metric_field, dimension_fields):
-        super(CMDBPrepareAggregateTask, self).__init__()
+        super().__init__()
         if self.MUST_HAVE_FIELDS - set(dimension_fields):
             raise ValueError("bk_target_ip && bk_target_cloud_id must in dimension fields.")
 

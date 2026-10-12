@@ -56,6 +56,7 @@ def run_access_data(strategy_group_key, interval=60):
         - 令牌桶限流：控制任务执行频率，避免过度消耗资源
         - 快速任务优化：500ms 内的请求不计令牌消耗
     """
+    processor = None
     # 获取服务锁：确保同一策略组在同一时间只有一个任务在执行
     with service_lock(key.SERVICE_LOCK_ACCESS, strategy_group_key=strategy_group_key):
         # 令牌桶限流：控制任务执行频率，避免过度消耗资源
@@ -64,16 +65,19 @@ def run_access_data(strategy_group_key, interval=60):
             # 执行数据处理：调用 AccessDataProcess.process() 执行完整的数据处理流程
             processor = AccessDataProcess(strategy_group_key)
             processor.process()
-            metrics.report_all()
 
             # 快速任务优化：500ms 内的请求不计令牌消耗
             if processor.pull_duration <= 0.5:
                 task_tb.release(0)
-                return
+            else:
+                # 释放令牌：根据拉取耗时释放令牌
+                # 令牌数量 = max([int(processor.pull_duration), 1])
+                task_tb.release(max([int(processor.pull_duration), 1]))
 
-            # 释放令牌：根据拉取耗时释放令牌
-            # 令牌数量 = max([int(processor.pull_duration), 1])
-            task_tb.release(max([int(processor.pull_duration), 1]))
+    if processor is not None:
+        processor.run_inline_trigger()
+        processor.schedule_check_result_opportunity_trim()
+        metrics.report_all()
 
 
 @app.task(queue="celery_service_batch", ignore_result=True)

@@ -48,8 +48,8 @@
           required
         >
           <bk-input
-            class="king-input"
             v-model.trim="formData.resultTableId"
+            class="king-input"
             placeholder="log_search_*"
             @enter="handleSearch"
             @focus="handleFocus"
@@ -67,8 +67,8 @@
             class="error-tips-container"
           >
             <span
-              class="bklog-icon bklog-info-fill"
               v-bk-tooltips="{ width: 440, content: indexErrorText }"
+              class="bklog-icon bklog-info-fill"
             ></span>
           </div>
           <div class="input-tips">{{ $t('支持“*”匹配，不支持其他特殊符号') }}</div>
@@ -152,8 +152,8 @@
         </template>
       </bk-form>
       <div
-        class="button-footer"
         slot="footer"
+        class="button-footer"
       >
         <bk-button
           class="king-button"
@@ -335,7 +335,7 @@
         try {
           const res = await this.$http.request(
             '/resultTables/info',
-            !!foreignParams
+            foreignParams
               ? foreignParams
               : {
                   params: {

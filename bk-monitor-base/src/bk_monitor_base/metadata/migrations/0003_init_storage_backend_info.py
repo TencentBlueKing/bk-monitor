@@ -61,7 +61,6 @@ def init_influxdb_backend_info():
         cluster.save()
 
 
-
 def init_es_storage_backend_info():
     """增加ES存储集群的初始化数据"""
     es_host = os.environ.get("BK_MONITOR_ES7_HOST", "")

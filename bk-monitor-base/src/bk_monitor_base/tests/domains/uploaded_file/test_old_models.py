@@ -8,9 +8,9 @@ import pytest
 from django.core.files.base import ContentFile
 from pytest_mock import MockerFixture
 
+from bk_monitor_base.config.storage import StorageName
 from bk_monitor_base.domains.uploaded_file.models import FileModel
 from bk_monitor_base.infras.storage import get_storage_func
-from bk_monitor_base.config.storage import StorageName
 
 
 def _create_fake_old_files(*old_files: object, max_pk: int):

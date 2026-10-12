@@ -24,8 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-/* eslint-disable no-unused-vars */
-
 // 任务状态枚举
 export enum TaskStatus {
   PENDING_APPROVAL = -3, // 待审批

@@ -24,4 +24,11 @@
  * IN THE SOFTWARE.
  */
 declare module '*.svg';
+declare module '*.svg?raw' {
+  const content: string;
+  export default content;
+}
 declare module '*.png';
+declare module '*.css';
+declare module '*.scss';
+declare module 'monitor-static/icons/monitor-icons.css';

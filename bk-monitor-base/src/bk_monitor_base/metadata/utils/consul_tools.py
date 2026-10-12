@@ -83,13 +83,13 @@ class HashConsul:
         # 0. 是否有强行刷新的要求
         if self.default_force or is_force_update:
             logger.debug(f"key->[{key}] now is force update, will update consul.")
-            return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+            return consul_client.kv.put(*args, key=key, value=json.dumps(value), **kwargs)
 
         # 1. 先获取consul上的配置内容，计算对应的哈希值
         old_value = consul_client.kv.get(key)[1]
         if old_value is None:
             logger.info("old_value is missing, will refresh consul.")
-            return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+            return consul_client.kv.put(*args, key=key, value=json.dumps(value), **kwargs)
 
         # 2. 判断本地的更暖心内容及其哈希值
         old_hash = hash_util.object_md5(json.loads(old_value["Value"]))
@@ -117,7 +117,7 @@ class HashConsul:
                 old_hash,
             )
         try:
-            return consul_client.kv.put(key=key, value=json.dumps(value), *args, **kwargs)
+            return consul_client.kv.put(*args, key=key, value=json.dumps(value), **kwargs)
         except ConsulException as e:
             logger.error("put consul key error, data_id: %s, error: %s", bk_data_id, e)
             raise

@@ -1,6 +1,7 @@
 import json
 import textwrap
 from argparse import RawTextHelpFormatter
+from typing import Any
 
 from django.core.management.base import BaseCommand
 
@@ -31,13 +32,13 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        filter = options.get("filter")
+        filter_mode: Any = options.get("filter")
         transfer_id_list = get_transfer_cluster()
         transfer_data_id_map = filter_data_id_and_transfer()
-        if filter == "all":
+        if filter_mode == "all":
             self.stdout.write(json.dumps(transfer_data_id_map))
             return
-        elif filter == "not_exist":
+        elif filter_mode == "not_exist":
             transfer_id_list.append("bk-null")
             diff = set(transfer_data_id_map.keys()) - set(transfer_id_list)
             ret_data = {}
@@ -46,4 +47,4 @@ class Command(BaseCommand):
             self.stdout.write(json.dumps(ret_data))
             return
 
-        self.stdout.write(json.dumps(transfer_data_id_map.get(filter, [])))
+        self.stdout.write(json.dumps(transfer_data_id_map.get(filter_mode, [])))

@@ -22,8 +22,8 @@
 | 字段                              | 说明                                                         | 默认值                           |
 | --------------------------------- | ------------------------------------------------------------ | -------------------------------- |
 | BKM_SPACE_INJECT_REQUEST_ENABLED  | 请求参数是否需要注入空间属性                                 | `True`                           |
+| BKM_SPACE_INJECT_REQUEST_EXCLUDED_PATHS | 不执行请求参数注入的完整路径集合                       | `()`                             |
 | BKM_SPACE_INJECT_RESPONSE_ENABLED | 返回参数是否需要注入空间属性                                 | `False`                          |
 | BKM_SPACE_API_CLASS               | 项目空间API类模块路径，使用方需要基于抽象类 `bkm_space.api.AbstractSpaceApi` 实现 | `bkm_space.api.AbstractSpaceApi` |
-
 
 

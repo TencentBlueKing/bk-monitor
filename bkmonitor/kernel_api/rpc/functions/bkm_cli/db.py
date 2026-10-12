@@ -65,6 +65,8 @@ class ModelSpec:
     # 以读到 is_deleted=True 的行——「配置真删/真禁」类排障必须能看到软删行，否则 .objects
     # （RecordModelManager）会过滤掉 is_deleted 的行，缺失正是要看的证据。
     manager_name: str = "objects"
+    # 含订阅发送信息的模型只允许指定一个订阅 ID，避免空 filter 或宽范围枚举。
+    required_exact_filter: str = ""
 
 
 MASKED_VALUE = "***masked***"
@@ -215,6 +217,81 @@ def _mask_deployment_config_row(item: dict[str, Any], instance: Any) -> dict[str
 
 
 ALLOWED_MODEL_SPECS: dict[str, ModelSpec] = {
+    "bkmonitor.models.base.ReportItems": ModelSpec(
+        model_path="bkmonitor.models.base.ReportItems",
+        fields={
+            "id",
+            "bk_tenant_id",
+            "frequency",
+            "last_send_time",
+            "is_enabled",
+            "is_deleted",
+            "is_link_enabled",
+            "create_time",
+            "update_time",
+        },
+        sensitive_fields={"mail_title", "receivers", "managers", "channels", "create_user", "update_user"},
+        manager_name="origin_objects",
+        required_exact_filter="id",
+        note="旧邮件订阅；必须传已授权业务 bk_biz_id 并按正整数 id 精确读取，仅返回同租户记录，含软删行。",
+        examples=[{"bk_biz_id": 2, "filter": {"id": 1}, "limit": 1}],
+    ),
+    "bkmonitor.models.base.ReportContents": ModelSpec(
+        model_path="bkmonitor.models.base.ReportContents",
+        fields={"id", "bk_tenant_id", "report_item", "row_pictures_num", "width", "height"},
+        sensitive_fields={"content_title", "content_details", "graphs"},
+        required_exact_filter="report_item",
+        note="旧邮件订阅内容结构；必须传已授权业务 bk_biz_id 并按正整数 report_item 精确读取，仅返回同租户记录。",
+        examples=[{"bk_biz_id": 2, "filter": {"report_item": 1}, "limit": 20}],
+    ),
+    "bkmonitor.models.base.ReportStatus": ModelSpec(
+        model_path="bkmonitor.models.base.ReportStatus",
+        fields={"id", "bk_tenant_id", "report_item", "create_time", "is_success"},
+        sensitive_fields={"mail_title", "details"},
+        required_exact_filter="report_item",
+        note="旧邮件订阅发送状态；必须传已授权业务 bk_biz_id 并按正整数 report_item 精确读取，仅返回同租户记录。",
+        examples=[{"bk_biz_id": 2, "filter": {"report_item": 1}, "order_by": ["-create_time"], "limit": 20}],
+    ),
+    "bkmonitor.models.report.Report": ModelSpec(
+        model_path="bkmonitor.models.report.Report",
+        fields={
+            "id",
+            "bk_biz_id",
+            "scenario",
+            "frequency",
+            "start_time",
+            "end_time",
+            "send_mode",
+            "subscriber_type",
+            "send_round",
+            "is_manager_created",
+            "is_enabled",
+            "is_deleted",
+            "create_time",
+            "update_time",
+        },
+        sensitive_fields={"name", "content_config", "scenario_config", "create_user", "update_user"},
+        manager_name="origin_objects",
+        required_exact_filter="id",
+        note="新邮件订阅；必须传已授权业务 bk_biz_id 并按正整数 id 精确读取，仅返回该业务记录，含软删行。",
+        examples=[{"bk_biz_id": 2, "filter": {"id": 1}, "limit": 1}],
+    ),
+    "bkmonitor.models.report.ReportChannel": ModelSpec(
+        model_path="bkmonitor.models.report.ReportChannel",
+        fields={"id", "report_id", "channel_name", "is_enabled"},
+        sensitive_fields={"subscribers", "send_text"},
+        required_exact_filter="report_id",
+        note="新邮件订阅渠道状态；必须传已授权业务 bk_biz_id 并按正整数 report_id 精确读取，校验父订阅业务归属。",
+        examples=[{"bk_biz_id": 2, "filter": {"report_id": 1}, "limit": 20}],
+    ),
+    "bkmonitor.models.report.ReportSendRecord": ModelSpec(
+        model_path="bkmonitor.models.report.ReportSendRecord",
+        fields={"id", "report_id", "channel_name", "send_status", "send_time", "send_round"},
+        sensitive_fields={"send_results"},
+        required_exact_filter="report_id",
+        note="新邮件订阅发送记录；必须传已授权业务 bk_biz_id 并按正整数 report_id 精确读取，校验父订阅业务归属。",
+        examples=[{"bk_biz_id": 2, "filter": {"report_id": 1}, "order_by": ["-send_time"], "limit": 20}],
+    ),
     "metadata.models.bcs.cluster.BCSClusterInfo": ModelSpec(
         model_path="metadata.models.bcs.cluster.BCSClusterInfo",
         fields={
@@ -1049,6 +1126,8 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
     selected_fields = _normalize_selected_fields(params.get("fields"), params.get("exclude_fields"), spec)
 
     queryset = getattr(model_cls, spec.manager_name).all()
+    if model_name in REPORT_MODELS:
+        queryset = _scope_report_queryset(queryset, model_name, params, normalized_filter)
     if spec.queryset_scope is not None:
         queryset = spec.queryset_scope(queryset)
     if spec.select_related:
@@ -1073,6 +1152,39 @@ def read_db_model(params: dict[str, Any]) -> dict[str, Any]:
         "fields": sorted(selected_fields),
         "items": items,
     }
+
+
+REPORT_LEGACY_MODELS = frozenset(
+    {"bkmonitor.models.base.ReportItems", "bkmonitor.models.base.ReportContents", "bkmonitor.models.base.ReportStatus"}
+)
+REPORT_MODELS = REPORT_LEGACY_MODELS | {
+    "bkmonitor.models.report.Report",
+    "bkmonitor.models.report.ReportChannel",
+    "bkmonitor.models.report.ReportSendRecord",
+}
+
+
+def _scope_report_queryset(queryset: Any, model_name: str, params: dict[str, Any], filters: dict[str, Any]) -> Any:
+    from bkmonitor.models.report import Report
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog.cmdb import ParamsGuardRejected, _authorize_business
+
+    bk_biz_id = params.get("bk_biz_id")
+    if type(bk_biz_id) is not int or bk_biz_id <= 0:
+        _raise_discovery_error("邮件订阅读取必须传正整数 bk_biz_id")
+    try:
+        tenant = _authorize_business(bk_biz_id)
+    except ParamsGuardRejected as error:
+        raise CustomException(message=str(error)) from error
+
+    if model_name in REPORT_LEGACY_MODELS:
+        # 旧三表没有业务字段，只能在已授权业务所属租户内读取。
+        return queryset.filter(bk_tenant_id=tenant)
+    if model_name == "bkmonitor.models.report.Report":
+        return queryset.filter(bk_biz_id=bk_biz_id)
+    # 子表没有业务字段，先验证父订阅归属，软删父订阅也能回溯历史发送状态。
+    if not Report.origin_objects.filter(id=filters["report_id"], bk_biz_id=bk_biz_id).exists():
+        _raise_discovery_error("订阅不存在或不属于已授权业务")
+    return queryset
 
 
 def list_db_models(params: dict[str, Any]) -> dict[str, Any]:
@@ -1115,6 +1227,8 @@ def _serialize_model_spec(model_name: str, spec: ModelSpec) -> dict[str, Any]:
     # 仅非默认 manager 才回显，避免改动既有模型自描述（默认 objects 的模型输出保持不变）。
     if spec.manager_name != "objects":
         serialized["manager"] = spec.manager_name
+    if spec.required_exact_filter:
+        serialized["required_exact_filter"] = spec.required_exact_filter
     return serialized
 
 
@@ -1171,6 +1285,10 @@ def _normalize_filter(raw_filter: dict[str, Any], spec: ModelSpec) -> dict[str, 
             if lookup != "exact" or value != fixed_value:
                 _raise_discovery_error(f"filter 与模型固定条件冲突: {fixed_field}")
         normalized_filter[fixed_field] = fixed_value
+    if spec.required_exact_filter:
+        value = normalized_filter.get(spec.required_exact_filter)
+        if type(value) is not int or value <= 0:
+            _raise_discovery_error(f"filter 必须包含正整数 {spec.required_exact_filter} 的精确条件")
     return normalized_filter
 
 
@@ -1260,6 +1378,7 @@ KernelRPCRegistry.register_function(
     handler=read_db_model,
     params_schema={
         "model": "白名单模型路径",
+        "bk_biz_id": "邮件订阅模型必填：当前调用身份已获授权的业务 ID",
         "filter": "安全 ORM lookup 对象",
         "fields": "可选字段数组，必须在模型字段白名单内",
         "exclude_fields": "可选排除字段数组",
@@ -1298,6 +1417,7 @@ BkmCliOpRegistry.register(
     audit_tags=["db", "readonly"],
     params_schema={
         "model": "string",
+        "bk_biz_id": "integer；邮件订阅模型必填，目标授权业务",
         "filter": "object",
         "fields": "string[]",
         "exclude_fields": "string[]",

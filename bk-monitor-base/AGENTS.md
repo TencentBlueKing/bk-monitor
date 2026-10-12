@@ -1,6 +1,7 @@
 # AGENTS
 
 ## Project At A Glance
+- This directory is a regular module of the `bk-monitor` repository, not a Git submodule. Use the main repository's branch, hooks, commits, and PRs; do not initialize or push a separate Base repository.
 - `bk-monitor-base` is the foundational capability layer of BlueKing Monitor, exposing space management, data collection, and metadata services to upstream SaaS apps.
 - This is a Python 3.11 project.
 - Source lives under `src/bk_monitor_base`; Typer CLI (`bk-monitor-base-cli`) launches operational scripts, while Django + Celery supply APIs and background jobs backed by Kafka/Redis/Elasticsearch.
@@ -37,7 +38,7 @@
 - Before touching a domain module, skim `docs/architecture/overview.md` and `src/bk_monitor_base/domains/README.md`, then extend the relevant `domains/` subdirectory to avoid cross-layer coupling.
 
 ## Testing Instructions
-- Entry point: `pytest.ini` restricts discovery to `src/bk_monitor_base/tests`; execute `uv run pytest --cov --cov-branch` to collect coverage (source = `src/bk_monitor_base`, excluding tests/migrations).
+- Entry point: `pyproject.toml` restricts discovery to `src/bk_monitor_base/tests`; from `bk-monitor-base/`, execute `uv run pytest --cov --cov-branch` to collect coverage (source = `src/bk_monitor_base`, excluding tests/migrations).
 - Targeted runs: `uv run pytest src/bk_monitor_base/tests/domains/test_space.py -k create_space`, optionally adding `-vv --maxfail=1` when iterating on failures.
 - Django scenarios must invoke `django_setup()` (or dedicated fixtures) before accessing ORM objects; Celery coupling can rely on `CELERY_TASK_ALWAYS_EAGER=true` during tests.
 - Static checks carry equal weight: `uv run ruff check src` plus `uv run basedpyright` must pass alongside pytest; introduce new APIs only with matching `docs/` and `tests/`.
@@ -51,4 +52,4 @@
 - Before committing, run `uv run ruff check src`, `uv run basedpyright`, and `uv run pytest --cov --cov-branch`; add `uv run ruff format` when needed to keep style consistent.
 - Reflect any configuration change in `docs/development/setup.md` or a new ADR; when touching scripts/CLI/domains, include corresponding tests and documentation.
 - Whenever GitHub CLI (`gh`) is available, prefer it for repository interactions (e.g., creating PRs, viewing checks) instead of raw HTTP or manual browser steps.
-- CI follows the upstream BlueKing templates (even if this repo lacks `.github/workflows`); ensure local checks are green before requesting review, and highlight error handling, logging context, and rollback strategy for reviewers.
+- CI is maintained in the main repository's `.github/workflows/base-pytest.yml`; ensure local checks are green before requesting review, and highlight error handling, logging context, and rollback strategy for reviewers.

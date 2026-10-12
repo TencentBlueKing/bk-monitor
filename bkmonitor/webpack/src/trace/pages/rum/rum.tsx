@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, onMounted, shallowRef, watch } from 'vue';
+import { computed, defineComponent, onMounted, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { Button, SearchSelect } from 'bkui-vue';
 import { listApplication, listApplicationAsync } from 'monitor-api/modules/rum_meta';
@@ -38,6 +38,8 @@ import { type TimeRangeType, handleTransformToTimestamp } from '../../components
 import { getDefaultTimezone, updateTimezone } from '../../i18n/dayjs';
 import CommonTable from '../alarm-center/components/alarm-table/components/common-table/common-table';
 import CreateApp from './components/create-app/create-app';
+import { renderRumTableSkeletonCell } from './components/rum-content-skeleton';
+import RumLoadStatus from './components/rum-load-status';
 import SDKReport from './components/sdk-report/sdk-report';
 import { type MetricMap, buildRumAppRows } from './rum-controller';
 import { METRIC_COLUMN_TIPS, METRIC_COLUMN_TITLES, SORTABLE_METRIC_KEYS } from './typings/home';
@@ -159,7 +161,13 @@ export default defineComponent({
     const showCreateApp = shallowRef(false);
     const showSdkReport = shallowRef(false);
     const sdkReportAppInfo = shallowRef<Partial<IRumAppConfig>>(null);
-    const loading = shallowRef(false);
+    const loading = shallowRef(true);
+    const listError = shallowRef(false);
+    const metricLoading = shallowRef<Record<string, boolean>>({});
+    const metricError = shallowRef<Record<string, boolean>>({});
+    let listController: AbortController | null = null;
+    let metricController: AbortController | null = null;
+    let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
     const emptyType = shallowRef<EmptyStatusType>('empty');
 
@@ -259,35 +267,73 @@ export default defineComponent({
     // });
 
     const getRumList = async () => {
+      listController?.abort();
+      metricController?.abort();
+      metricLoading.value = {};
+      metricError.value = {};
+      listController = new AbortController();
+      const { signal } = listController;
       loading.value = true;
-      const { data } = await listApplication().catch(() => ({ columns: [], total: 0, data: [] }));
-      appListResource.value = data;
-      loading.value = false;
-      getRumAsyncResource();
+      listError.value = false;
+      try {
+        const { data } = await listApplication({}, { signal, needMessage: false });
+        if (signal.aborted) return;
+        appListResource.value = data;
+        getRumAsyncResource();
+      } catch {
+        if (!signal.aborted) listError.value = true;
+      } finally {
+        if (!signal.aborted) loading.value = false;
+      }
     };
 
     const getRumAsyncResource = () => {
+      metricController?.abort();
+      metricController = new AbortController();
+      const { signal } = metricController;
+      appAsyncResource.value = {};
+      metricError.value = {};
+      metricLoading.value = {};
+      if (!appListResource.value.length) return;
       const [start, end] = handleTransformToTimestamp(timeRange.value);
-      const apis = ['lcp_p75', 'js_error_rate', 'api_fail_rate'].map(key => {
-        return listApplicationAsync({
-          column: key,
-          application_ids: appListResource.value.map(item => item.application_id),
-          start_time: start,
-          end_time: end,
-        }).then((data: RumApplicationAsyncItem[]) => {
-          return {
-            data,
-            key,
-          };
-        });
-      });
-      Promise.all(apis).then(res => {
-        appAsyncResource.value = res.reduce((pre, cur) => {
-          pre[cur.key] = cur.data;
-          return pre;
-        }, {});
-      });
+      const keys = ['lcp_p75', 'js_error_rate', 'api_fail_rate'] as const;
+      metricLoading.value = Object.fromEntries(keys.map(key => [key, true]));
+      for (const key of keys) {
+        listApplicationAsync(
+          {
+            column: key,
+            application_ids: appListResource.value.map(item => item.application_id),
+            start_time: start,
+            end_time: end,
+          },
+          { signal, needMessage: false }
+        )
+          .then((data: RumApplicationAsyncItem[]) => {
+            if (!signal.aborted) appAsyncResource.value = { ...appAsyncResource.value, [key]: data };
+          })
+          .catch(() => {
+            if (!signal.aborted) metricError.value = { ...metricError.value, [key]: true };
+          })
+          .finally(() => {
+            if (!signal.aborted) metricLoading.value = { ...metricLoading.value, [key]: false };
+          });
+      }
     };
+
+    onScopeDispose(() => {
+      listController?.abort();
+      metricController?.abort();
+      clearInterval(refreshTimer);
+    });
+
+    watch(refreshInterval, interval => {
+      clearInterval(refreshTimer);
+      if (interval > 0) {
+        refreshTimer = setInterval(() => {
+          if (!loading.value && !Object.values(metricLoading.value).some(Boolean)) getRumList();
+        }, interval);
+      }
+    });
 
     onMounted(() => {
       getRumList();
@@ -298,7 +344,7 @@ export default defineComponent({
         router.push({
           name: 'rumAppConfig',
           params: {
-            appName: encodeURIComponent(row.appName),
+            appName: row.appName,
           },
         });
     };
@@ -456,6 +502,8 @@ export default defineComponent({
           cellRenderer: (row => {
             const r = row as RumAppRow;
             const metric = r[key];
+            const apiKey = { lcpP75: 'lcp_p75', jsErrorRate: 'js_error_rate', apiFailRate: 'api_fail_rate' }[key];
+            if (metricLoading.value[apiKey]) return renderRumTableSkeletonCell(key, 0);
             return <span class={metricClass(metric.tier)}>{metric.display}</span>;
           }) as unknown as BaseTableColumn['cellRenderer'],
         })),
@@ -545,7 +593,7 @@ export default defineComponent({
 
     const handleTimeRangeChange = (value: TimeRangeType) => {
       timeRange.value = value;
-      getRumList();
+      if (!loading.value) getRumAsyncResource();
     };
 
     const handleTimezoneChange = (value: string) => {
@@ -643,18 +691,26 @@ export default defineComponent({
             </div>
 
             <div class='rum-table-wrap'>
+              <RumLoadStatus
+                error={listError.value || Object.values(metricError.value).some(Boolean)}
+                loading={loading.value && !!appListResource.value.length}
+                onRetry={getRumList}
+              />
               <CommonTable
-                empty={() => (
-                  <EmptyStatus
-                    type={emptyType.value}
-                    onOperation={handleEmptyOperation}
-                  />
-                )}
+                empty={() =>
+                  listError.value ? null : (
+                    <EmptyStatus
+                      type={emptyType.value}
+                      onOperation={handleEmptyOperation}
+                    />
+                  )
+                }
                 columns={columns.value}
                 // data={tablePageData.value.rows as unknown as Record<string, unknown>[]}
                 data={filteredTableData.value as unknown as Record<string, unknown>[]}
                 filterValue={criteriaToFilterValue(rumCriteria.value)}
-                loading={loading.value}
+                loading={loading.value && !appListResource.value.length}
+                loadingCell={(column, index) => renderRumTableSkeletonCell(column.colKey, index)}
                 // pagination={tablePageData.value.pagination}
                 rowKey='id'
                 sort={tableSort.value}

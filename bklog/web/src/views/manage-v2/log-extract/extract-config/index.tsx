@@ -395,7 +395,7 @@ export default defineComponent({
           <bk-table-column
             scopedSlots={{
               default: ({ row }: any) => (
-                <div class='table-ceil-container'>                  
+                <div class='table-ceil-container'>
                   <bk-user-display-name user-id={row.operator || '--'}></bk-user-display-name>
                 </div>
               ),
@@ -419,7 +419,9 @@ export default defineComponent({
             min-width='80'
             prop='created_by'
             renderHeader={renderHeader}
-            scopedSlots={{ default: (props: any) => <bk-user-display-name user-id={props.row.created_by}></bk-user-display-name> }}
+            scopedSlots={{
+              default: (props: any) => <bk-user-display-name user-id={props.row.created_by}></bk-user-display-name>,
+            }}
           />
 
           {/* 操作列 */}

@@ -100,7 +100,7 @@ def test_fetch_statistics_graph():
                             "columns": ["_time", "_value"],
                             "types": ["float", "float"],
                             "group_keys": ["serverIp"],
-                            "group_values": ["10.10.28.20"],
+                            "group_values": ["192.0.2.23"],
                             "values": [[1769097600000, 44], [1769184000000, 0]],
                         },
                     ],

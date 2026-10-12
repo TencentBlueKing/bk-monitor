@@ -41,7 +41,7 @@ export default defineComponent({
     DebugTool,
   },
   props: {
-    max_log_length: {
+    maxLogLength: {
       type: Number,
       default: 10_000,
     },
@@ -52,6 +52,14 @@ export default defineComponent({
     collectorConfigId: {
       type: String,
       default: '',
+    },
+    indexSetId: {
+      type: [String, Number],
+      default: '',
+    },
+    isExternal: {
+      type: Boolean,
+      default: false,
     },
   },
   setup(props, { emit, expose }) {
@@ -101,7 +109,9 @@ export default defineComponent({
         {showDebug.value && (
           <debug-tool
             collectorConfigId={props.collectorConfigId}
-            maxLogLength={props.max_log_length}
+            indexSetId={props.indexSetId}
+            isExternal={props.isExternal}
+            maxLogLength={props.maxLogLength}
             ruleList={props.ruleList}
           />
         )}

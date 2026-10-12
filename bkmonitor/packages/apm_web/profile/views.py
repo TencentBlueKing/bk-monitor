@@ -74,9 +74,30 @@ logger = logging.getLogger("root")
 class ProfileBaseViewSet(ViewSet):
     INSTANCE_ID = "app_name"
 
+    @staticmethod
+    def _is_global_query(value) -> bool:
+        """global_query 可能来自 query string，需要兼容字符串形式的布尔值。"""
+        if isinstance(value, str):
+            return value.strip().lower() in ("true", "1")
+        return bool(value)
+
+    def _can_authorize_by_application(self) -> bool:
+        """判断本次请求能否落到某个 APM 应用上鉴权。
+
+        以下几类请求拿不到对应的 Application 记录，只能按业务鉴权，
+        否则 `Application.get_application_id_by_app_name` 会直接抛错：
+        - 文件上传与上传记录：写入/读取的是内置应用，请求里没有 app_name；
+        - global_query 查询：数据来自全平台共用的内置数据源，app_name 不参与查询；
+        - ebpf- 开头的应用：数据来自 DeepFlow，并非 APM 应用。
+        """
+        data = self.request.query_params if self.request.method == "GET" else self.request.data
+        app_name = data.get(self.INSTANCE_ID)
+        if not app_name or self._is_global_query(data.get("global_query")):
+            return False
+        return not str(app_name).startswith(EBPF_PROFILING_APP_PREFIX)
+
     def get_permissions(self):
-        # put auth here, but left empty for debugging
-        if self.action in []:
+        if self._can_authorize_by_application():
             return [
                 InstanceActionForDataPermission(
                     self.INSTANCE_ID,
@@ -85,7 +106,7 @@ class ProfileBaseViewSet(ViewSet):
                     get_instance_id=Application.get_application_id_by_app_name,
                 )
             ]
-        return []
+        return [ViewBusinessPermission()]
 
 
 class ProfileUploadViewSet(ProfileBaseViewSet):
@@ -148,9 +169,8 @@ class ProfileUploadViewSet(ProfileBaseViewSet):
         serializer = ProfileListFileSerializer(data=request.query_params)
         serializer.is_valid(raise_exception=True)
         validated_data = serializer.validated_data
-        filter_params = {}
-        if validated_data.get("bk_biz_id"):
-            filter_params["bk_biz_id"] = validated_data.get("bk_biz_id")
+        # bk_biz_id 必传且无条件参与过滤，避免不带业务时列出全平台的上传记录
+        filter_params = {"bk_biz_id": validated_data["bk_biz_id"]}
         if validated_data.get("app_name"):
             filter_params["app_name"] = validated_data.get("app_name")
         if validated_data.get("origin_file_name"):
@@ -315,6 +335,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         # - global storage, bk_biz_id/space_id level
         # - application storage, application level
         if validated_data["global_query"]:
+            cls._examine_global_query_scope(validated_data)
             builtin_datasource = api.apm_api.query_builtin_profile_datasource()
             app_name = BUILTIN_APP_NAME
             service_name = app_name
@@ -651,6 +672,30 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
         return start, end
 
     @staticmethod
+    def _examine_global_query_scope(validated_data: dict) -> None:
+        """
+        检查全局查询限定在当前业务上传的 Profile 内
+
+        内置数据源由全平台共用，全局查询只能靠 profile_id 定位数据：
+        profile_id 为空时查询不会带上过滤条件，会读到其他业务上传的数据，因此必须给定且归属当前业务。
+        """
+        bk_biz_id = validated_data["bk_biz_id"]
+        if validated_data.get("is_compared") and not validated_data.get("diff_profile_id"):
+            raise ValueError(_("全局对比查询需要指定 diff_profile_id"))
+
+        for key in ("profile_id", "diff_profile_id"):
+            if key not in validated_data:
+                continue
+            profile_id = validated_data[key]
+            if not profile_id:
+                # 未开启对比时 diff_profile_id 本就为空
+                if key == "diff_profile_id":
+                    continue
+                raise ValueError(_("全局查询需要指定 profile_id"))
+            if not ProfileUploadRecord.objects.filter(bk_biz_id=bk_biz_id, profile_id=profile_id).exists():
+                raise ValueError(_("上传记录({}) 不存在").format(profile_id))
+
+    @staticmethod
     def _examine_application(bk_biz_id: int, app_name: str) -> dict:
         """
         检查应用的 Profiling 功能是否可用
@@ -699,6 +744,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=result_table_id,
             start=start,
             end=end,
+            profile_id=validated_data.get("profile_id"),
             extra_params={"limit": {"rows": limit}},
         )
 
@@ -735,6 +781,7 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
             result_table_id=result_table_id,
             start=start,
             end=end,
+            profile_id=validated_data.get("profile_id"),
         )
 
         return Response(

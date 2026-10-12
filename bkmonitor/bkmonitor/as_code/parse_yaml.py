@@ -18,7 +18,7 @@ from typing import Any
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.action.serializers import DutyRuleDetailSlz
-from bkmonitor.as_code.constants import MaxVersion
+from bkmonitor.as_code.constants import MaxVersion, MinVersion
 from bkmonitor.as_code.ply.error import ParseError
 from bkmonitor.as_code.ply.expression import expression_lexer, expression_parser
 from bkmonitor.as_code.schema import (
@@ -220,6 +220,8 @@ class StrategyConfigParser(BaseConfigParser):
                 "unit": origin_config["unit"],
                 **metric_dict,
             }
+            if config["query"]["data_source"] == DataSourceLabel.PROMETHEUS and origin_config.get("expression_mode"):
+                query_config["expression_mode"] = origin_config["expression_mode"]
 
             query_configs.append(query_config)
 
@@ -393,6 +395,8 @@ class StrategyConfigParser(BaseConfigParser):
             "functions": [parse_function(function) for function in config["query"].get("functions", [])],
             "target": target,
         }
+        if "query_output_config" in config["query"]:
+            item["query_output_config"] = config["query"]["query_output_config"]
 
         # 通知配置
         signal = set(config["notice"]["signal"])
@@ -729,7 +733,7 @@ class StrategyConfigParser(BaseConfigParser):
 
     def unparse(self, config: dict) -> dict:
         # config --> yaml
-        code_config = {"name": config["name"], "version": MaxVersion.STRATEGY}
+        code_config = {"name": config["name"], "version": MinVersion.STRATEGY}
 
         if config["priority"] is not None:
             code_config["priority"] = config["priority"]
@@ -788,11 +792,20 @@ class StrategyConfigParser(BaseConfigParser):
                 if query_config.get(field):
                     code_query_config[code_field] = query_config[field]
 
-            if (data_source, data_type) in (
-                (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
-                (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
-            ) or data_source == DataSourceLabel.BK_FTA:
+            if (
+                (data_source, data_type)
+                in (
+                    (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
+                    (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
+                )
+                or data_source == DataSourceLabel.BK_FTA
+                or (data_source == DataSourceLabel.PROMETHEUS and query_config.get("expression_mode") == "promql")
+            ):
                 code_query_config["alias"] = query_config["alias"]
+
+            if data_source == DataSourceLabel.PROMETHEUS and query_config.get("expression_mode"):
+                code_query_config["expression_mode"] = query_config["expression_mode"]
+                code_config["version"] = MaxVersion.STRATEGY
 
             if query_config.get("functions"):
                 function_expressions = [
@@ -814,7 +827,7 @@ class StrategyConfigParser(BaseConfigParser):
         elif (data_source, data_type) in (
             (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.TIME_SERIES),
             (DataSourceLabel.CUSTOM, DataTypeLabel.TIME_SERIES),
-        ):
+        ) or (data_source == DataSourceLabel.PROMETHEUS and query_configs[0].get("expression_mode") == "promql"):
             query["expression"] = item["expression"]
 
         # 表达式
@@ -828,6 +841,9 @@ class StrategyConfigParser(BaseConfigParser):
                 query["functions"] = function_expressions
 
         self.update_target(item, query)
+        if isinstance(item.get("query_output_config"), dict):
+            query["query_output_config"] = item["query_output_config"]
+            code_config["version"] = MaxVersion.STRATEGY
         code_config["query"] = query
 
         # 检测配置
@@ -1271,11 +1287,11 @@ class AssignGroupRuleParser(BaseConfigParser):
                 if action["action_type"] == "notice":
                     if not action.get("is_enabled"):
                         rule["notice_enabled"] = False
-                    rule["upgrade_config"] = action["upgrade_config"]
+                    rule["upgrade_config"] = action.get("upgrade_config") or {}
                     rule["upgrade_config"]["enabled"] = rule["upgrade_config"].pop("is_enabled", False)
                     rule["upgrade_config"]["interval"] = rule["upgrade_config"].pop("upgrade_interval", 1440)
                     rule["upgrade_config"]["user_groups"] = self.get_notice_group_names(
-                        rule["upgrade_config"]["user_groups"]
+                        rule["upgrade_config"].get("user_groups", [])
                     )
                 else:
                     action["enabled"] = action.pop("is_enabled", False)

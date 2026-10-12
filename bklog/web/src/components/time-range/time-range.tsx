@@ -54,7 +54,7 @@ interface IEvents {
 export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
   @Prop({ default: 'simplicity', type: String }) type: TimeRangeDisplayType; // 组件回显值
-  @Prop({ default: window.timezone, type: String }) timezone: TimeRangeDisplayType; // 组件回显值
+  @Prop({ default: window.timezone, type: String }) timezone: string; // 组件回显值
   @Prop({ default: true, type: Boolean }) needTimezone: boolean; // 是否显示时区选择
   @Prop({ type: Number }) maxDuration?: number; // 最大可选时间跨度（毫秒），默认不限制
   @Emit('change')
@@ -72,6 +72,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
   @Emit('format-change')
   handleFormatChange(v: string) {
+    this.formatStr = v;
     localStorage.setItem('SEARCH_DEFAULT_TIME_FORMAT', v);
     return v;
   }

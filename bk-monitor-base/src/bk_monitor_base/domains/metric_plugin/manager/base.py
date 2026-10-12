@@ -238,7 +238,8 @@ class BaseMetricPluginManager(ABC):
                 if not _is_within_dest(link_target):
                     raise ValueError(f"检测到路径穿越，拒绝解压恶意链接成员: {member.name} -> {member.linkname}")
 
-        tar.extractall(dest)  # nosec
+        # 解压时再校验一次，阻止归档前序成员创建的链接改变后续成员的实际路径。
+        tar.extractall(dest, filter="data")
 
     @classmethod
     def _extract_package(cls, package_file: Path) -> Path:

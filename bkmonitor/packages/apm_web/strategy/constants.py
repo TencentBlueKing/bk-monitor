@@ -23,6 +23,14 @@ DEFAULT_DETECT_TYPE: str = "default"
 
 BUILTIN_USER_GROUP_ID: int = -9999
 
+APM_MANAGED_LABEL_PREFIXES: tuple[str, ...] = (
+    "APM-APP(",
+    "APM-SERVICE(",
+    "APM-SYSTEM(",
+    "APM-CATEGORY(",
+    "APM-TEMPLATE(",
+)
+
 
 class ThresholdLevel(CachedEnum):
     """告警级别"""

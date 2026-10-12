@@ -81,7 +81,11 @@ export const useStandaloneRelatedPage = () => {
     const fieldNames = store.getters?.filteredFieldList?.map?.(field => field.field_name) ?? [];
     const renderMetas = originList.map((row, index) => createRetrieveRowRenderMeta(row, renderList[index]));
     const rowKeys = originList.length
-      ? await retrieveRowCacheService.replaceRows(rowQueryKey, originList, { fieldNames, renderRows: renderList, renderMetas })
+      ? await retrieveRowCacheService.replaceRows(rowQueryKey, originList, {
+          fieldNames,
+          renderRows: renderList,
+          renderMetas,
+        })
       : [];
     storageHealthService.markActiveQuery(rowQueryKey);
 
@@ -122,9 +126,17 @@ export const useStandaloneRelatedPage = () => {
   };
 
   const renderError = () => (
-    <bk-exception scene='part' type='500'>
+    <bk-exception
+      scene='part'
+      type='500'
+    >
       <div>{error.value}</div>
-      <bk-button theme='primary' onClick={() => router.replace({ name: 'retrieve' })}>{t('返回检索')}</bk-button>
+      <bk-button
+        theme='primary'
+        onClick={() => router.replace({ name: 'retrieve' })}
+      >
+        {t('返回检索')}
+      </bk-button>
     </bk-exception>
   );
 

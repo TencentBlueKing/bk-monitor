@@ -267,3 +267,71 @@ class TestStrategy(TestCase):
         result, message = strategy.in_alarm_time(datetime.strptime("2022-01-01 01:00:00", "%Y-%m-%d %H:%M:%S"))
         self.assertFalse(result)  # 配置了生效日历但未命中，应该返回False
         self.assertIn("未命中告警日历事项", message)
+
+
+class TestStrategySnapshotNodeFallback(TestCase):
+    """写入方按策略路由落节点，读取方常常只有一个普通字符串 key。
+
+    分片环境下这两个落点不是同一个节点：CacheRouter 对没有 strategy_id 的
+    key 直接返回默认节点。读取因此要先按路由读，取不到再读默认节点。
+    """
+
+    def setUp(self):
+        self.reads = []
+
+    def _client(self, present_on):
+        client = mock.MagicMock()
+
+        def get(snapshot_key):
+            routed = getattr(snapshot_key, "strategy_id", 0)
+            self.reads.append(routed)
+            return '{"id": 1}' if routed == present_on else None
+
+        client.get.side_effect = get
+        return client
+
+    def test_reads_the_routed_node_first(self):
+        with mock.patch("alarm_backends.core.control.strategy.key") as cache_key:
+            cache_key.SimilarStr = _SimilarStrStub
+            cache_key.STRATEGY_SNAPSHOT_KEY.client = self._client(present_on=1001)
+            snapshot = Strategy.get_strategy_snapshot_by_key("snapshot-key", 1001)
+        self.assertEqual(snapshot, {"id": 1})
+        self.assertEqual(self.reads, [1001])
+
+    def test_falls_back_to_the_default_node(self):
+        with mock.patch("alarm_backends.core.control.strategy.key") as cache_key:
+            cache_key.SimilarStr = _SimilarStrStub
+            cache_key.STRATEGY_SNAPSHOT_KEY.client = self._client(present_on=0)
+            snapshot = Strategy.get_strategy_snapshot_by_key("snapshot-key", 1001)
+        self.assertEqual(snapshot, {"id": 1})
+        self.assertEqual(self.reads, [1001, 0])
+
+    def test_absent_everywhere_returns_none(self):
+        with mock.patch("alarm_backends.core.control.strategy.key") as cache_key:
+            cache_key.SimilarStr = _SimilarStrStub
+            cache_key.STRATEGY_SNAPSHOT_KEY.client = self._client(present_on=-1)
+            snapshot = Strategy.get_strategy_snapshot_by_key("snapshot-key", 1001)
+        self.assertIsNone(snapshot)
+        self.assertEqual(self.reads, [1001, 0])
+
+    def test_without_a_strategy_id_only_the_default_node_is_read(self):
+        with mock.patch("alarm_backends.core.control.strategy.key") as cache_key:
+            cache_key.SimilarStr = _SimilarStrStub
+            cache_key.STRATEGY_SNAPSHOT_KEY.client = self._client(present_on=0)
+            snapshot = Strategy.get_strategy_snapshot_by_key("snapshot-key")
+        self.assertEqual(snapshot, {"id": 1})
+        self.assertEqual(self.reads, [0])
+
+
+class _SimilarStrStub(str):
+    """复刻 cache.key.SimilarStr：带 strategy_id 属性的字符串。"""
+
+    _strategy_id = 0
+
+    @property
+    def strategy_id(self):
+        return self._strategy_id
+
+    @strategy_id.setter
+    def strategy_id(self, value):
+        self._strategy_id = int(value)

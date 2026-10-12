@@ -57,12 +57,12 @@ type GetHostInfoListResult = IHostBaseInfo[];
 ```json
 [
   {
-    "display_name": "11.147.2.124",
+    "display_name": "192.0.0.1",
     "bk_host_id": 10001,
     "bk_biz_id": 2,
     "bk_cloud_id": 0,
     "bk_cloud_name": "默认管控区域",
-    "bk_host_innerip": "11.147.2.124",
+    "bk_host_innerip": "192.0.0.1",
     "bk_host_outerip": "",
     "bk_os_type": "1",
     "bk_os_name": "linux(centos)",
@@ -148,12 +148,12 @@ type GetHostMetricInfoListResult = IHostMetricInfo[];
 ```json
 [
   {
-    "display_name": "11.147.2.124",
+    "display_name": "192.0.0.1",
     "bk_host_id": 10001,
     "bk_biz_id": 2,
     "bk_cloud_id": 0,
     "bk_cloud_name": "默认管控区域",
-    "bk_host_innerip": "11.147.2.124",
+    "bk_host_innerip": "192.0.0.1",
     "bk_host_outerip": "",
     "bk_host_innerip_v6": "",
     "bk_host_outerip_v6": "",
@@ -287,13 +287,13 @@ type GetHostTopoTreeByBizIdResult = IHostTopoTree[];
             "bk_biz_id": 2,
             "bk_cloud_id": 0,
             "bk_host_id": 10001,
-            "bk_host_innerip": "11.147.2.124",
+            "bk_host_innerip": "192.0.0.1",
             "bk_host_innerip_v6": "",
             "bk_host_name": "VM-2-124-tencentos",
-            "display_name": "11.147.2.124",
+            "display_name": "192.0.0.1",
             "id": "10001",
-            "ip": "11.147.2.124",
-            "name": "11.147.2.124",
+            "ip": "192.0.0.1",
+            "name": "192.0.0.1",
             "os_type": "linux"
           }
         ]
@@ -374,7 +374,7 @@ type GetHostProcessListResult = ProcessItem[];
 ```json
 [
   {
-    "id": "bash@123.234.34.34",
+    "id": "bash@192.0.0.1",
     "name": "bash",
     "pid": 10086,
     "protocol": "TCP",
@@ -382,7 +382,7 @@ type GetHostProcessListResult = ProcessItem[];
     "port": 18000,
     "portStatus": 1,
     "user": "root",
-    "hostIp": "123.234.34.34",
+    "hostIp": "192.0.0.1",
     "cpuUsage": 19,
     "memRss": 96468992,
     "memUsage": 23,
@@ -392,7 +392,7 @@ type GetHostProcessListResult = ProcessItem[];
     "startCommand": "agent run p/opt/datadog-agent/run/agent.pid"
   },
   {
-    "id": "mysqld@43.84.75.498",
+    "id": "mysqld@192.0.0.1",
     "name": "mysqld",
     "pid": 10088,
     "protocol": "TCP",
@@ -400,7 +400,7 @@ type GetHostProcessListResult = ProcessItem[];
     "port": 3306,
     "portStatus": 0,
     "user": "user01",
-    "hostIp": "43.84.75.498",
+    "hostIp": "192.0.0.1",
     "cpuUsage": 12,
     "memRss": 134217728,
     "memUsage": 35,

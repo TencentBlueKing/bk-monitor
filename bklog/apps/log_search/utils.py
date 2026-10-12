@@ -39,6 +39,28 @@ LOG_STREAM_ACCEPT = "application/x-ndjson"
 LOG_STREAM_QUERY_PARAM = "stream"
 
 
+def get_search_request_scope(request, data=None) -> tuple:
+    """按「显式业务 -> 显式空间 -> 请求头空间」提取检索请求方上下文。"""
+    data = data or {}
+    request_data = getattr(request, "data", None) or {}
+    query_params = getattr(request, "query_params", None) or {}
+
+    bk_biz_id = data.get("bk_biz_id")
+    if bk_biz_id in (None, ""):
+        bk_biz_id = request_data.get("bk_biz_id") or query_params.get("bk_biz_id")
+
+    space_uid = data.get("space_uid")
+    if not space_uid:
+        space_uid = request_data.get("space_uid") or query_params.get("space_uid")
+    if not space_uid:
+        headers = getattr(request, "headers", None) or {}
+        space_uid = headers.get("X-Bk-Space-Uid")
+    if not space_uid:
+        space_uid = (getattr(request, "META", None) or {}).get("HTTP_X_BK_SPACE_UID")
+
+    return bk_biz_id, space_uid
+
+
 def sort_func(data: list[dict[str, Any]], sort_list: list[list[str]], key_func=lambda x: x) -> list[dict[str, Any]]:
     """
     排序函数 提供复杂嵌套的数据结构排序能力

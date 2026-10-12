@@ -76,36 +76,6 @@ export default defineComponent({
     const { handleNewLink, handleDeleteApi, handleCreateCopy, handleUpdateFavorite } = useFavorite();
     /** 删除操作相关key list */
     const deleteKey = ['dismiss-group', 'delete'];
-    const childMenu = ref([
-      {
-        key: 'share',
-        label: t('分享'),
-      },
-      {
-        key: 'edit',
-        label: t('编辑'),
-      },
-      {
-        key: 'create-copy',
-        label: t('克隆'),
-      },
-      {
-        key: 'move-group',
-        label: t('移动至分组'),
-      },
-      {
-        key: 'remove-group',
-        label: t('从该组移除'),
-      },
-      {
-        key: 'new-link',
-        label: t('新开标签页'),
-      },
-      {
-        key: 'delete',
-        label: t('删除'),
-      },
-    ]);
     const groupMenu = ref([
       {
         key: 'reset-group-name',
@@ -136,6 +106,44 @@ export default defineComponent({
       },
     };
     const isShowEdit = ref(false);
+
+    const childMenu = computed(() => {
+      const list = [
+        {
+          key: 'share',
+          label: t('分享'),
+        },
+        {
+          key: 'edit',
+          label: t('编辑'),
+        },
+        {
+          key: 'create-copy',
+          label: t('克隆'),
+        },
+        {
+          key: 'move-group',
+          label: t('移动至分组'),
+        },
+        {
+          key: 'remove-group',
+          label: t('从该组移除'),
+        },
+        {
+          key: 'new-link',
+          label: t('新开标签页'),
+        },
+        {
+          key: 'delete',
+          label: t('删除'),
+        },
+      ];
+      if (window.__IS_MONITOR_APM__) {
+        return list.filter(item => item.key !== 'new-link');
+      }
+      return list;
+    });
+
     // 用户信息
     const userMeta = computed(() => store.state.userMeta);
     // 去掉个人收藏的组列表
@@ -160,18 +168,18 @@ export default defineComponent({
       },
 
       /* 解散分组 */
-      'dismiss-group': item => handleDeleteApi('dismiss-group', item.group_id, () => handleRefreshMenu(item)),
+      'dismiss-group': item => handleDeleteConfirm('dismiss-group', item.group_id, item),
 
       /* 删除收藏 */
-      delete: item => handleDeleteApi('delete', item.id, () => handleRefreshMenu(item)),
+      delete: item => handleDeleteConfirm('delete', item.id, item),
 
       /* 移动分组 */
       'move-group': item => {
-        const visible_type = item.group_id === privateGroupID.value ? 'private' : 'public';
+        const visibleType = item.group_id === privateGroupID.value ? 'private' : 'public';
         updateFavorite(
           {
             ...item,
-            visible_type,
+            visible_type: visibleType,
           },
           t('收藏项移动成功。'),
         );
@@ -324,6 +332,11 @@ export default defineComponent({
         </div>
       );
     };
+    /** 关闭删除操作弹框，并清空待删除数据 */
+    const closeDelDialog = () => {
+      delDialogShow.value = false;
+      delData.value = {};
+    };
     /** 显示删除操作弹框 */
     const handleDelClick = (type: string, item: IFavoriteItem) => {
       delData.value = {
@@ -331,6 +344,22 @@ export default defineComponent({
         item,
       };
       delDialogShow.value = true;
+    };
+    /** 弹框显隐同步：遮罩、Esc、右上角关闭都会触发，避免标志位停留在 true 导致弹框无法再次打开 */
+    const handleDelDialogChange = (value: boolean) => {
+      if (value) {
+        delDialogShow.value = true;
+      } else {
+        closeDelDialog();
+      }
+    };
+    /** 确认删除 / 解散：无论接口成功或失败，都关闭弹框并复位标志位 */
+    const handleDeleteConfirm = async (type: string, id: number, item: IFavoriteItem) => {
+      try {
+        await handleDeleteApi(type, id, () => handleRefreshMenu(item));
+      } finally {
+        closeDelDialog();
+      }
     };
 
     /** 移动至分组Render */
@@ -425,17 +454,17 @@ export default defineComponent({
         {
           title: t('创建人'),
           value: item.created_by || '--',
-          isUserAccount: true
+          isUserAccount: true,
         },
         {
           title: t('更新人'),
           value: item.updated_by || '--',
-          isUserAccount: true
+          isUserAccount: true,
         },
         {
           title: t('创建时间'),
           value: utcFormatDate(item.created_at, true) || '--',
-          isUserAccount: false
+          isUserAccount: false,
         },
       ];
 
@@ -513,7 +542,15 @@ export default defineComponent({
                 {item.favorites.map(child => (
                   <BklogPopover
                     class='child-item-name'
-                    options={{ offset: [10, 12], placement: 'right', appendTo: document.body, theme: 'dark', allowHTML: true } as any}
+                    options={
+                      {
+                        offset: [10, 12],
+                        placement: 'right',
+                        appendTo: document.body,
+                        theme: 'dark',
+                        allowHTML: true,
+                      } as any
+                    }
                     trigger='hover'
                     {...{
                       scopedSlots: { content: () => renderTips(child) },
@@ -558,6 +595,7 @@ export default defineComponent({
           show-footer={false}
           theme='primary'
           value={delDialogShow.value}
+          on-value-change={handleDelDialogChange}
         >
           {delDialogShow.value && delRender(delData.value.key, delData.value.item)}
         </bk-dialog>

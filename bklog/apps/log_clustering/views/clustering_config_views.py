@@ -354,6 +354,16 @@ class ClusteringConfigViewSet(APIViewSet):
             )
         )
 
+    @detail_route(methods=["GET"], url_path="sample_log")
+    def sample_log(self, request, *args, index_set_id=None, **kwargs):
+        """
+        @api {get} /clustering_config/$index_set_id/sample_log/ 聚类设置-采集日志抽样
+        @apiName sample_clustering_log
+        @apiGroup log_clustering
+        @apiDescription 按索引集反查采集项后抽样清洗前原始日志，供调试面板填充日志源
+        """
+        return Response(ClusteringConfigHandler(index_set_id=index_set_id).sample_log())
+
     @list_route(methods=["POST"], url_path="check_regexp")
     def check(self, request, *args, **kwargs):
         """

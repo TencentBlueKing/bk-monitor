@@ -11,8 +11,9 @@ specific language governing permissions and limitations under the License.
 from rest_framework import serializers
 from django.utils.translation import gettext as _
 
-from apm.constants import EnabledStatisticsDimension, QueryMode, StatisticsProperty
+from apm.constants import QueryMode
 from constants.apm import OperatorGroupRelation
+from constants.otel_query import EnabledStatisticsDimension, StatisticsProperty
 
 
 class FilterSerializer(serializers.Serializer):
@@ -70,7 +71,7 @@ class TraceFieldStatisticsGraphRequestSerializer(BaseTraceRequestSerializer, Bas
         time_alignment: bool = attrs.get("time_alignment", False)
         attrs["query_method"] = ("query_reference", "query_data")[time_alignment]
         field = attrs["field"]
-        if field["field_type"] != EnabledStatisticsDimension.INTEGER.value:
+        if not EnabledStatisticsDimension.from_value(field["field_type"]).is_numeric():
             return attrs
         if len(field["values"]) < 4:
             raise ValueError(_("数值类型查询条件不足"))

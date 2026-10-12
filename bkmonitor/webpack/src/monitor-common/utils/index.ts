@@ -82,11 +82,13 @@ export const getBizRouteHref = (hashPath: string, bizId: null | number | string 
     // 无效业务ID时保留目标路由，避免因强制重定向导致路由循环。
     return `${baseHref}#${normalizedHashPath || '/'}`;
   }
+  // Hash 模式必须是 `?bizId=2#/path`。写成 `?bizId=2/#/path` 时，search 是 `bizId=2/`，
+  // URLSearchParams / Number() 得到 NaN，拦截器不再注入 bk_biz_id。
   return `${baseHref}?bizId=${parsedBizId}#${normalizedHashPath}`;
 };
 // 设置全局业务ID
 export const setGlobalBizId = () => {
-  let bizId: number | string = +getUrlParam('bizId')?.replace(/\//gim, '');
+  let bizId: number | string = parseBizId(getUrlParam('bizId'));
   const hasRouteHash = getUrlParam('routeHash');
   const isEmailSubscriptions = location.hash.indexOf('email-subscriptions') > -1;
   const isNoBusiness = location.hash.indexOf('no-business') > -1;
@@ -112,9 +114,10 @@ export const setGlobalBizId = () => {
     !!window.__BK_WEWEB_DATA__?.token;
   const hasBizId = () => !(!bizId || bizId === -1);
   const setBizId = (id: number | string) => {
-    window.cc_biz_id = +id;
-    window.bk_biz_id = +id;
-    !isDemo(id) && localStorage.setItem(LOCAL_BIZ_STORE_KEY, id.toString());
+    const parsed = parseBizId(id);
+    window.cc_biz_id = parsed;
+    window.bk_biz_id = parsed;
+    !isDemo(id) && Number.isFinite(parsed) && localStorage.setItem(LOCAL_BIZ_STORE_KEY, parsed.toString());
   };
   const setLocationSearch = (bizId: number | string) => {
     if (location.search.match(/(space_uid|bizId)=([^#&/]+)/gim)) {

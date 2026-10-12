@@ -12,7 +12,6 @@ from base64 import b64encode
 from collections import defaultdict
 from typing import Any, TypedDict, cast, final
 
-from bkmonitor.nodeman_integration.backend import node_man_backend
 from jinja2.sandbox import SandboxedEnvironment as JinjaEnvironment
 
 from bk_monitor_base.config import get_config
@@ -43,7 +42,7 @@ from bk_monitor_base.infras.third_party_api.job.api import (
     fast_execute_script,
     get_job_instance_status,
 )
-from bk_monitor_base.infras.third_party_api.nodeman import api as node_man_v2_api
+from bk_monitor_base.infras.third_party_api.nodeman.api import PluginSearchParams, plugin_search
 
 logger = logging.getLogger(__name__)
 
@@ -618,43 +617,22 @@ bkmonitorbeat.exe -T  -c {{ test_config_file_path }} || exit 1
 
         host_info: list[dict[str, Any]] = []
         if bk_host_ids:
-            if node_man_backend.is_v3:
-                host_info = cast(
-                    list[dict[str, Any]],
-                    node_man_backend.v3.plugin_search_host_status(
-                        bk_tenant_id=bk_tenant_id,
-                        bk_host_ids=list(set(bk_host_ids)),
-                        plugin_names=["bkmonitorbeat"],
-                    ),
-                )
-            else:
-                host_info = cast(
-                    list[dict[str, Any]],
-                    node_man_v2_api.plugin_search(
-                        bk_tenant_id=bk_tenant_id,
-                        params=node_man_v2_api.PluginSearchParams(
-                            page=1,
-                            pagesize=max(len(bk_host_ids), 1),
-                            conditions=[],
-                            bk_host_id=list(set(bk_host_ids)),
-                        ),
-                    ).get("list", []),
-                )
+            host_info = plugin_search(
+                bk_tenant_id=bk_tenant_id,
+                params=PluginSearchParams(
+                    page=1,
+                    pagesize=max(len(bk_host_ids), 1),
+                    conditions=[],
+                    bk_host_id=list(set(bk_host_ids)),
+                ),
+            ).get("list", [])
         host_path_dict: dict[int | str, str] = {}
         for host in host_info:
             setup_path = host.get("setup_path")
             if not setup_path:
-                plugin_statuses = cast(list[dict[str, Any]], host.get("plugin_status") or [])
-                beat_status: dict[str, Any] = next(
-                    (status for status in plugin_statuses if status.get("name") == "bkmonitorbeat"),
-                    cast(dict[str, Any], {}),
-                )
-                setup_path = beat_status.get("setup_path")
-            if not setup_path:
                 continue
-            setup_path_str = str(setup_path)
-            host_path_dict[int(host["bk_host_id"])] = setup_path_str
-            host_path_dict[f"{host.get('inner_ip', '')}|{host.get('bk_cloud_id', 0)}"] = setup_path_str
+            host_path_dict[int(host["bk_host_id"])] = setup_path
+            host_path_dict[f"{host.get('inner_ip', '')}|{host.get('bk_cloud_id', 0)}"] = setup_path
 
         grouped: defaultdict[tuple[str, str], list[dict[str, Any]]] = defaultdict(list)
         error_hosts: list[dict[str, Any]] = []

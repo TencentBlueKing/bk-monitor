@@ -50,7 +50,13 @@ export type OldFilterAdditionStorageItem = {
   value: Record<string, any>[];
 };
 
+const isExternalEnv = () => (window.IS_EXTERNAL ? JSON.parse(`${window.IS_EXTERNAL}`) : false);
+
 export const isAiAssistantActive = (val: string[]) => {
+  // PO 环境（外部版）关闭 AI 入口，与场景化检索同一识别方式
+  if (isExternalEnv()) {
+    return false;
+  }
   return isFeatureToggleOn('ai_assistant', val);
 };
 

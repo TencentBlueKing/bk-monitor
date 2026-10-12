@@ -111,12 +111,13 @@ export default defineComponent({
     const isValidated = ref(isEditMode);
 
     const isValidatedComputed = () => {
-      isValidated.value =        manageStrategyData.value.strategy_name
-        && manageStrategyData.value.user_list.length
-        && manageStrategyData.value.visible_dir.every((item: ListItem) => Boolean(validateVisibleDir(item.value)))
-        && manageStrategyData.value.file_type.every((item: ListItem) => Boolean(validateFileExtension(item.value)))
-        && manageStrategyData.value.modules.length
-        && manageStrategyData.value?.operator;
+      isValidated.value =
+        manageStrategyData.value.strategy_name &&
+        manageStrategyData.value.user_list.length &&
+        manageStrategyData.value.visible_dir.every((item: ListItem) => Boolean(validateVisibleDir(item.value))) &&
+        manageStrategyData.value.file_type.every((item: ListItem) => Boolean(validateFileExtension(item.value))) &&
+        manageStrategyData.value.modules.length &&
+        manageStrategyData.value?.operator;
     };
 
     // 校验授权目录
@@ -140,7 +141,6 @@ export default defineComponent({
       nextTick(() => {
         const inputList = document.querySelectorAll('.visible-dir input');
         if (inputList.length > 0) {
-          // biome-ignore lint/style/useAtIndex: reason
           (inputList[inputList.length - 1] as HTMLInputElement).focus();
         }
       });
@@ -153,7 +153,6 @@ export default defineComponent({
       nextTick(() => {
         const inputList = document.querySelectorAll('.file-type input');
         if (inputList.length > 0) {
-          // biome-ignore lint/style/useAtIndex: reason
           (inputList[inputList.length - 1] as HTMLInputElement).focus();
         }
       });

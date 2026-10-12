@@ -2,9 +2,11 @@
 .monitor-trace-log {
   width: 100%;
   height: 100%;
+
   // display: flex;
   margin-top: -1px;
-  --table-fount-family: Menlo, Monaco, Consolas, Courier, 'PingFang SC', 'Microsoft Yahei', monospace;
+
+  --table-fount-family: menlo, monaco, consolas, courier, 'PingFang SC', 'Microsoft Yahei', monospace;
   --table-fount-size: 13px;
   --table-fount-color: #313238;
 
@@ -14,9 +16,9 @@
     left: 242px;
     z-index: 100;
     display: none;
+
     // display: flex;
-    align-items: center;
-    justify-items: center;
+    place-items: center center;
     width: 6px;
     height: 100px;
     background-color: #dcdee5;
@@ -43,8 +45,7 @@
     right: -3px;
     z-index: 100;
     display: flex;
-    align-items: center;
-    justify-items: center;
+    place-items: center center;
     width: 6px;
     height: 22px;
     border-radius: 3px;
@@ -113,9 +114,7 @@
   }
 }
 
-// #if !IS_APM_MONITOR
-.tippy-popper {
-  position: fixed !important;
-}
-
-// #endif
+// /* 嵌入宿主时弹层定位由宿主页面的滚动容器决定，不能强制 fixed */
+// body:not(.is-monitor-embed) .tippy-popper {
+//   position: fixed !important;
+// }

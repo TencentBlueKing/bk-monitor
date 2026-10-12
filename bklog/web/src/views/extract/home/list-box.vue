@@ -36,8 +36,8 @@
     <ul class="list-box">
       <li
         v-for="item in listData"
-        class="list-item"
         :key="item"
+        class="list-item"
       >
         {{ item }}
       </li>

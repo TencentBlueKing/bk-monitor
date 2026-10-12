@@ -162,6 +162,7 @@ class EtlHandler:
         etl_params=None,
         fields=None,
         username="",
+        labels=None,
         is_platform_index=None,
         platform_index_visibility=None,
         platform_index_filter=None,
@@ -222,6 +223,7 @@ class EtlHandler:
             etl_params=etl_params,
             es_version=cluster_info["cluster_config"]["version"],
             hot_warm_config=cluster_info["cluster_config"].get("custom_option", {}).get("hot_warm_config"),
+            labels=labels,
         )
 
         if not view_roles:

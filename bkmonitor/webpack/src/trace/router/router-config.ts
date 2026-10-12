@@ -56,6 +56,11 @@ export const allRouteConfig: IRouteConfig[] = [
     route: 'incident-detail',
   },
   {
+    id: 'profiling-explore',
+    name: 'Profiling 检索',
+    route: 'profiling-explore',
+  },
+  {
     id: 'profiling',
     name: 'Profiling',
     route: 'profiling',
@@ -64,6 +69,11 @@ export const allRouteConfig: IRouteConfig[] = [
     id: 'rum',
     name: 'RUM',
     route: 'rum',
+  },
+  {
+    id: 'rum-explore',
+    name: 'RUM 检索',
+    route: 'rumExplore',
   },
   {
     id: 'report',
@@ -75,12 +85,11 @@ export const allRouteConfig: IRouteConfig[] = [
     name: 'route-告警中心',
     route: 'alarm-center',
   },
-  // TODO(story=137075720): 临时隐藏新版主机监控导航（路由仍保留可访问），恢复上线时取消注释
-  // {
-  //   id: 'host',
-  //   name: 'route-主机监控',
-  //   route: 'host',
-  // },
+  {
+    id: 'host',
+    name: 'route-主机监控',
+    route: 'host',
+  },
   {
     id: 'rum',
     name: 'route-RUM',

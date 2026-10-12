@@ -426,7 +426,8 @@ class IntelligentDetect(SDKPreDetectMixin, RangeRatioAlgorithmsCollection):
                         "predict_args": {"predict_start_time": min(point["timestamp"] for point in data)},
                         "interval": int(item.query_configs[0]["agg_interval"]),
                         "extra_data": {},
-                        "serving_config": {"pre_service_name": "default", "serving_with_ts_depend": True},
+                        # 当前请求仅包含 KPI 异常点，不携带历史数据；由 SDK 自动准备、缓存并校验时序历史依赖。
+                        "serving_config": {"pre_service_name": "default", "serving_with_ts_depend": False},
                         "bk_tenant_id": item.bk_tenant_id,
                     },
                 )

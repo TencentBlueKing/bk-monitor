@@ -24,10 +24,10 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, shallowRef, watch } from 'vue';
+import { computed } from 'vue';
 
 import { type TableColumnItem, AlarmType, MY_ALARM_BIZ_ID, MY_AUTH_BIZ_ID } from '../typings';
-import { useReactiveStorage } from '@/hooks/use-reactive-storage';
+import { useTableColumnsCache } from '@/hooks/use-table-columns-cache';
 import { useAlarmCenterStore } from '@/store/modules/alarm-center';
 
 import type { BkUiSettings } from '@blueking/tdesign-ui';
@@ -35,111 +35,30 @@ import type { BkUiSettings } from '@blueking/tdesign-ui';
 /** 业务名称/空间名称 字段 */
 const BK_BIZ_NAME_FIELD = 'bk_biz_name';
 
-/** 与表格渲染一致：单空间（非「与我相关」聚合）不展示空间名列，默认勾选也不应包含 */
-function shouldOmitBkBizNameColumn(bizIds: number[]) {
-  return bizIds.length < 2 && ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(bizIds[0]);
-}
-
-/** 表格列配置存储版本号 */
-const TABLE_STORAGE_VERSION = '1.0.0';
-
-/** 表格列配置存储结构 */
-export interface AlarmTableStorageConfig {
-  /** 显示列字段列表 */
-  displayFields: string[];
-  /** 列宽映射，key 为 colKey，value 为像素宽度 */
-  fieldsWidth: Record<string, number>;
-  /** 配置版本号，用于清除过期缓存 */
-  version?: string;
-}
-
 export function useAlarmTableColumns() {
   const alarmStore = useAlarmCenterStore();
-  /** 存储键（响应式），随 alarmService 切换动态更新 */
-  const storageKey = shallowRef<string>('');
-  /** 当前有效的列 colKey 集合，随 alarmService 变化更新 */
-  let validColumnKeys = new Set<string>();
 
-  /** 默认列配置（响应式），随 alarmService 变化动态更新 */
-  const defaultTableStorageConfig = shallowRef<AlarmTableStorageConfig>({
-    displayFields: [],
-    fieldsWidth: {},
-    version: TABLE_STORAGE_VERSION,
+  /** 列显示与列宽持久化（公共能力，存储 key 随 alarmService 切换动态变更） */
+  const { storageColumns: cachedStorageColumns, fieldsWidthConfig } = useTableColumnsCache({
+    storageKey: () => alarmStore.alarmService.storageKey,
+    defaultColumns: () =>
+      alarmStore.alarmService.allTableColumns.filter(item => item.is_default).map(item => item.colKey),
+    validColumnKeys: () => alarmStore.alarmService.allTableColumns.map(col => col.colKey),
   });
 
-  watch(
-    () => alarmStore.alarmService.storageKey,
-    () => {
-      validColumnKeys = new Set(alarmStore.alarmService.allTableColumns.map(col => col.colKey));
-      const displayFields = alarmStore.alarmService.allTableColumns
-        .filter(item => item.is_default)
-        .map(item => item.colKey);
-      defaultTableStorageConfig.value = {
-        displayFields,
-        fieldsWidth: {},
-        version: TABLE_STORAGE_VERSION,
-      };
-      const key = alarmStore.alarmService.storageKey;
-      storageKey.value = key;
-    },
-    { immediate: true }
-  );
-
-  /** 缓存配置对象（原始值，可能为旧版 string[] 或新版 AlarmTableStorageConfig） */
-  const rawStorageConfig = useReactiveStorage<Partial<AlarmTableStorageConfig>>(storageKey, defaultTableStorageConfig);
-
-  /** 规范化后的缓存配置（始终为 AlarmTableStorageConfig，兼容旧版 string[] 格式） */
-  const tableStorageConfig = computed<AlarmTableStorageConfig>({
-    get: () => {
-      const raw = rawStorageConfig.value;
-      const defaultFields = defaultTableStorageConfig.value.displayFields;
-      // 旧版格式：string[]（纯数组）→ 自动迁移为新版结构
-      if (Array.isArray(raw)) {
-        return { displayFields: raw, fieldsWidth: {}, version: TABLE_STORAGE_VERSION };
-      }
-      // 统一返回逻辑：版本不匹配时清空列宽缓存
-      const isVersionValid = raw?.version === TABLE_STORAGE_VERSION;
-      return {
-        displayFields: Array.isArray(raw?.displayFields) ? raw.displayFields : defaultFields,
-        fieldsWidth: isVersionValid ? (raw.fieldsWidth ?? {}) : {},
-        version: TABLE_STORAGE_VERSION,
-      };
-    },
-    set: (val: AlarmTableStorageConfig) => {
-      rawStorageConfig.value = val;
-    },
-  });
-
-  /** 显示列列表（从统一存储结构中读取 displayFields） */
+  /** 显示列列表（叠加业务规则：单空间场景隐藏空间名称列） */
   const storageColumns = computed<string[]>({
     get: () => {
-      const stored = tableStorageConfig.value?.displayFields;
-      const defaults = defaultTableStorageConfig.value.displayFields;
-      const result = stored?.length ? stored : defaults;
+      const result = cachedStorageColumns.value;
       if (shouldOmitBkBizNameColumn(alarmStore.bizIds)) {
         return result.filter(f => f !== BK_BIZ_NAME_FIELD);
       }
       return result;
     },
     set: (val: string[]) => {
-      tableStorageConfig.value = {
-        ...tableStorageConfig.value,
-        displayFields: shouldOmitBkBizNameColumn(alarmStore.bizIds) ? val.filter(f => f !== BK_BIZ_NAME_FIELD) : val,
-      };
-    },
-  });
-
-  /** 列宽配置（从统一存储结构中读取 fieldsWidth，过滤已不存在的列） */
-  const fieldsWidthConfig = computed<Record<string, number>>({
-    get: () => {
-      const stored = tableStorageConfig.value?.fieldsWidth ?? {};
-      return Object.fromEntries(Object.entries(stored).filter(([key]) => validColumnKeys.has(key)));
-    },
-    set: (val: Record<string, number>) => {
-      tableStorageConfig.value = {
-        ...tableStorageConfig.value,
-        fieldsWidth: { ...fieldsWidthConfig.value, ...val },
-      };
+      cachedStorageColumns.value = shouldOmitBkBizNameColumn(alarmStore.bizIds)
+        ? val.filter(f => f !== BK_BIZ_NAME_FIELD)
+        : val;
     },
   });
 
@@ -193,4 +112,9 @@ export function useAlarmTableColumns() {
     allTableFields,
     lockedTableFields,
   };
+}
+
+/** 与表格渲染一致：单空间（非「与我相关」聚合）不展示空间名列，默认勾选也不应包含 */
+function shouldOmitBkBizNameColumn(bizIds: number[]) {
+  return bizIds.length < 2 && ![MY_AUTH_BIZ_ID, MY_ALARM_BIZ_ID].includes(bizIds[0]);
 }

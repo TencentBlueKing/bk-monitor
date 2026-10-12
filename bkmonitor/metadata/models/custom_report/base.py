@@ -13,16 +13,15 @@ import uuid
 
 from typing import Any, ClassVar, Self
 
-from django.conf import settings
 from django.db import models
 from django.db.transaction import atomic
 from django.utils.translation import gettext as _
 
-from bkmonitor.utils.request import get_request_username
 from metadata import config
 from metadata.models.common import Label
-from metadata.models.data_source import DataSourceOption, DataSourceResultTable
+from metadata.models.data_source import DataSource, DataSourceOption, DataSourceResultTable
 from metadata.models.result_table import ResultTable, ResultTableOption
+from metadata.models.space.constants import EtlConfigs
 
 """
 base is base class of:
@@ -100,9 +99,10 @@ class CustomGroupBase(models.Model):
         """
         # 如果结果表存在，则先修改结果表的启用状态
         for table in ResultTable.objects.filter(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id):
-            table.modify(operator=get_request_username(settings.COMMON_USERNAME), is_enable=False)
+            table.modify(operator=self.last_modify_user, is_enable=False)
+            table.is_enable = False
             table.is_deleted = True
-            table.save()
+            table.save(update_fields=["is_enable", "is_deleted", "last_modify_time"])
         logger.info("group->[%s] table->[%s] is disabled now.", self.custom_group_name, self.table_id)
 
     @classmethod
@@ -142,6 +142,28 @@ class CustomGroupBase(models.Model):
             raise ValueError(_("自定义组名称已存在，请确认后重试"))
 
         return filter_kwargs
+
+    @classmethod
+    def _validate_datasource_result_table_relation(cls, bk_data_id: int, table_id: str, bk_tenant_id: str) -> None:
+        """校验自定义组待创建的 DataSourceResultTable 关系，不自动删除已有关系。"""
+
+        data_source = DataSource.objects.get(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id)
+        table_relations = DataSourceResultTable.objects.filter(table_id=table_id, bk_tenant_id=bk_tenant_id)
+        if table_relations.exists():
+            raise ValueError(_("结果表[{}]已经关联数据源，请更换结果表").format(table_id))
+
+        if data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value:
+            return
+
+        existing_table_ids = list(
+            DataSourceResultTable.objects.filter(bk_data_id=bk_data_id, bk_tenant_id=bk_tenant_id).values_list(
+                "table_id", flat=True
+            )
+        )
+        if existing_table_ids:
+            raise ValueError(
+                _("数据源[{}]已经关联结果表[{}]，不能创建新的自定义组").format(bk_data_id, ",".join(existing_table_ids))
+            )
 
     @classmethod
     def _create(
@@ -256,6 +278,18 @@ class CustomGroupBase(models.Model):
             bk_tenant_id=bk_tenant_id,
         )
 
+        table_id = table_id or cls.make_table_id(
+            bk_biz_id,
+            bk_data_id,
+            bk_tenant_id=bk_tenant_id,
+            table_name=custom_group_name,
+        )
+        cls._validate_datasource_result_table_relation(
+            bk_data_id=bk_data_id,
+            table_id=table_id,
+            bk_tenant_id=bk_tenant_id,
+        )
+
         # 2. 创建group
         table_id, custom_group = cls._create(
             table_id=table_id,
@@ -284,20 +318,13 @@ class CustomGroupBase(models.Model):
         # 如果是自动分表逻辑，则该表为默认路由表，
         # 如果是旧版自定义上报逻辑，则该表作为该dataid的唯一写入表
 
-        if default_storage_config is not None:
-            default_storage_config.update(cls.DEFAULT_STORAGE_CONFIG)
-        else:
-            default_storage_config = cls.DEFAULT_STORAGE_CONFIG
+        default_storage_config = dict(default_storage_config or {})
+        default_storage_config.update(cls.DEFAULT_STORAGE_CONFIG)
 
         cls.process_default_storage_config(custom_group, default_storage_config)
 
         option = {"is_split_measurement": is_split_measurement}
         option.update(additional_options or {})
-
-        # 4. 清除历史 DataSourceResultTable 数据
-        # 这里无需添加租户过滤条件,因为bk_data_id全局唯一,除1001外不存在跨租户场景
-        if DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).exists():
-            DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).delete()
 
         ResultTable.create_result_table(
             bk_data_id=custom_group.bk_data_id,

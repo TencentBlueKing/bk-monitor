@@ -105,6 +105,11 @@ import {
 } from 'bk-magic-vue';
 
 import i18n from '@/language/i18n';
+import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
+import useStore from '@/hooks/use-store';
+import { performanceMonitorService } from '@/storage';
+
+import MonitorTraceLog from './monitor';
 
 if (!window.mainComponent?.$t) {
   window.mainComponent = {
@@ -112,15 +117,10 @@ if (!window.mainComponent?.$t) {
     $i18n: i18n,
   };
 }
-import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
-import useStore from '@/hooks/use-store';
-import { performanceMonitorService } from '@/storage';
-
-import MonitorTraceLog from './monitor';
 
 const logStore = useStore();
 
-const initMonitorState = (payload) => {
+const initMonitorState = payload => {
   logStore.commit('initMonitorState', payload);
 };
 const initGlobalComponents = () => {
@@ -211,12 +211,4 @@ const initWindowState = () => {
   performanceMonitorService.init();
 };
 const Vue2 = Vue;
-export {
-  MonitorTraceLog,
-  logStore,
-  i18n,
-  Vue2,
-  initMonitorState,
-  initWindowState,
-  initGlobalComponents,
-};
+export { MonitorTraceLog, logStore, i18n, Vue2, initMonitorState, initWindowState, initGlobalComponents };

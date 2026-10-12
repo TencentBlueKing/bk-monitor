@@ -38,6 +38,7 @@ import { strategyLabelList } from 'monitor-api/modules/strategies';
 import { deepClone, transformDataKey } from 'monitor-common/utils/utils';
 import { debounce } from 'throttle-debounce';
 
+import { splitHighlightFragments } from '../../pages/text-display-utils';
 import LabelTree from './label-tree/label-tree';
 import { labelListToTreeData } from './utils';
 
@@ -511,20 +512,8 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
     // this.localTreeListChange()
   }
 
-  /**
-   * 处理搜索高亮
-   * @param str
-   */
-  searchHighlight(str: string) {
-    const value = this.removeSpacesInputValue;
-    const reg = new RegExp(`${value}`, 'g');
-    let res = str.replace(reg, `<span class="hl">${value}</span>`);
-    try {
-      res = res.replace(/([^<])(\/)([^>])/g, '$1&nbsp;/&nbsp;$3');
-    } catch (error) {
-      console.log(error);
-    }
-    return res;
+  formatLabelPath(text: string) {
+    return text.replace(/\//g, '\u00a0/\u00a0');
   }
 
   /**
@@ -708,10 +697,20 @@ export default class MultiLabelSelect extends tsc<IContainerProps, IEvent> {
                             {item.children.map(id => (
                               <li
                                 class='res-item'
-                                domPropsInnerHTML={this.searchHighlight(id)}
                                 onClick={() => this.selectSearchRes(id)}
                               >
-                                {id}
+                                {splitHighlightFragments(id, this.removeSpacesInputValue).map(fragment =>
+                                  fragment.highlight ? (
+                                    <span
+                                      key={fragment.start}
+                                      class='hl'
+                                    >
+                                      {this.formatLabelPath(fragment.text)}
+                                    </span>
+                                  ) : (
+                                    this.formatLabelPath(fragment.text)
+                                  )
+                                )}
                               </li>
                             ))}
                           </ul>

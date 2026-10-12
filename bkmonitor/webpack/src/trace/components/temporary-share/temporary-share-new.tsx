@@ -84,7 +84,7 @@ export default defineComponent({
     const timeRange: Ref<TimeRangeType> = ref([]);
     // 分享链接
     const shareUrl = computed(
-      () => `${location.origin}${location.pathname}?bizId=${store.bizId}/#/share/${token.value || ''}`
+      () => `${location.origin}${location.pathname}?bizId=${store.bizId}#/share/${token.value || ''}`
     );
 
     async function handleShowDialog() {
@@ -183,16 +183,14 @@ export default defineComponent({
       // 最大有效期90天
       const num = Number(v.replace(/(m|h|d|w|M|y)$/, '') || 0);
       const unit = v.replace(/^([1-9][0-9]*)+/, '');
-      if (
-        !(
-          (unit === 'm' && num <= 129600) ||
-          (unit === 'h' && num <= 2160) ||
-          (unit === 'd' && num <= 90) ||
-          (unit === 'w' && num < 13) ||
-          (unit === 'M' && num <= 3) ||
-          (unit === 'y' && num <= 0.25)
-        )
-      ) {
+      if (!(
+        (unit === 'm' && num <= 129600) ||
+        (unit === 'h' && num <= 2160) ||
+        (unit === 'd' && num <= 90) ||
+        (unit === 'w' && num < 13) ||
+        (unit === 'M' && num <= 3) ||
+        (unit === 'y' && num <= 0.25)
+      )) {
         validityPeriodErr.value = true;
         return;
       }

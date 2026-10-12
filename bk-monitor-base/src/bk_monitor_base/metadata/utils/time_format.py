@@ -15,7 +15,7 @@ def duration_string(i: int = 0) -> str:
     :param i:
     :return:
     """
-    if i == 0 or type(i) != int:
+    if i == 0 or type(i) is not int:
         return "0s"
 
     nec = False

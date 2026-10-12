@@ -19,6 +19,7 @@
 | notice_config | dict   | 否   | 通知配置                                                  |
 | id            | int    | 是   | 屏蔽配置ID                                                |
 | level         | int    | 否   | 屏蔽策略的等级（如果屏蔽类型是策略屏蔽，则level需要传入） |
+| end_policy    | string | 否   | 屏蔽结束处理方式。省略则保留原值；显式传入必须与创建时一致，传入不同值整次编辑被拒绝。如需另一种方式，请新建屏蔽 |
 
 #### 屏蔽配置(cycle_config)
 

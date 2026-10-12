@@ -98,7 +98,8 @@ def get_client(bk_tenant_id: str, cluster_id: int):
     return get_client_by_datasource_info(datasource_info)
 
 
-def get_cluster_disk_size(es_client, kind="total", bytes="b"):
+# 保留 bytes 关键字，兼容既有调用以及 Elasticsearch 同名参数。
+def get_cluster_disk_size(es_client, kind="total", bytes="b"):  # noqa: A002
     allocations = es_client.cat.allocation(format="json", bytes=bytes, params={"request_timeout": 10})
     return sum([int(get_value_if_not_none(node.get(f"disk.{kind}"), 0)) for node in allocations])
 

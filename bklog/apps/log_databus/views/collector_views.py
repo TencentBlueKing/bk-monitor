@@ -1354,6 +1354,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {String} fields.option.time_format 时间格式
         @apiParam {Int} storage_cluster_id 存储集群ID
         @apiParam {Int} retention 保留时间
+        @apiParam {Int} [clean_template_id] 清洗模板ID；传入ID则应用模板，显式传null则解除关联，不传则继续应用当前关联模板
         @apiParam {Int} [storage_replies] 副本数量
         @apiParam {Int} es_shards es分片数量
         @apiParam {list} view_roles 查看权限
@@ -1419,12 +1420,18 @@ class CollectorViewSet(ModelViewSet):
         """
         data = self.params_valid(CollectorEtlStorageSerializer)
         etl_handler = EtlHandler.get_instance(collector_config_id)
+        collector_handler = CollectorHandler.get_instance(collector_config_id)
+        labels = collector_handler.build_scene_labels()
+        data["labels"] = labels
         data, can_apply = etl_handler.itsm_pre_hook(data, collector_config_id)
         if not can_apply:
             return Response(data)
         for key in ["need_assessment", "assessment_config"]:
             data.pop(key, None)
-        return Response(etl_handler.update_or_create(**data))
+        result = etl_handler.update_or_create(**data)
+        index_set_id = result.get("index_set_id") or collector_handler.data.index_set_id
+        CollectorHandler.sync_scene_tags_to_index_set(index_set_id, labels)
+        return Response(result)
 
     @detail_route(methods=["GET"], url_path="get_data_link_list")
     def get_data_link_list(self, request):
@@ -1755,6 +1762,7 @@ class CollectorViewSet(ModelViewSet):
             "result":true,
             "data":{
                 "collector_config_id":1,
+                "clean_template_id": 1,
                 "clean_type":"bk_log_text",
                 "bk_biz_id": 0,
                 "etl_params":{
@@ -1808,9 +1816,11 @@ class CollectorViewSet(ModelViewSet):
         @api {POST} /databus/collectors/$collector_config_id/create_clean_stash 更新采集项清洗缓存
         @apiName databus_collectors_create_clean_stash
         @apiGroup 10_Collector
+        @apiParam {Int} [clean_template_id] 清洗模板ID；未应用模板时传null或不传
         @apiParamExample {json} 成功请求
         {
             "bk_biz_id": 0,
+            "clean_template_id": 1,
             "clean_type":"bk_log_text",
             "etl_params":{
                 "retain_original_text":true,
@@ -2002,7 +2012,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} [storage_replies] 副本数量
         @apiParam {String} category_id 数据分类 GlobalsConfig.category读取
         @apiParam {String} description 备注说明
-        @apiParam {List} [owners] 授权用户列表，为其授予采集项与索引集的新建关联权限
+        @apiParam {List} [owners] 授权用户列表，为其授予采集项、索引集权限与所属业务的业务访问权限
         @apiParamExample {json} 请求样例:
         {
             "bk_biz_id": 2,
@@ -2055,7 +2065,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {Int} allocation_min_days 冷热数据时间
         @apiParam {Int} es_shards es分片数量
         @apiParam {Int} [storage_replies] 副本数量
-        @apiParam {List} [owners] 授权用户列表，为其授予采集项与索引集的新建关联权限，仅新增不回收
+        @apiParam {List} [owners] 授权用户列表，为其授予采集项、索引集权限与所属业务的业务访问权限，仅新增不回收
         @apiParamExample {json} 请求样例:
         {
             "collector_config_name": "xxxxx",
@@ -2466,6 +2476,7 @@ class CollectorViewSet(ModelViewSet):
         @apiParam {String} etl_params.separator 分隔符，当etl_config=="bk_log_delimiter"时需要传递
         @apiParam {String} etl_params.separator_regexp 正则表达式，当etl_config=="bk_log_regexp"时需要传递
         @apiParam {Bool} etl_params.retain_original_text 是否保留原文
+        @apiParam {Int} [clean_template_id] 清洗模板ID；传入ID则应用模板，显式传null则解除关联，不传则继续应用当前关联模板
         @apiParam {list} fields 字段列表
         @apiParam {String} fields.field_name 字段名称
         @apiParam {String} [fields.alias_name] 别名

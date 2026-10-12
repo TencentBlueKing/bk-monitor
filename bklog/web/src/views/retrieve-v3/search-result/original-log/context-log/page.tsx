@@ -33,11 +33,7 @@ export default defineComponent({
           <RelatedLogLoading
             title='Loading...'
             text={page.loadingText.value}
-            steps={[
-              'Resolve URL',
-              'Run search',
-              'Load context',
-            ]}
+            steps={['Resolve URL', 'Run search', 'Load context']}
           />
         ) : page.error.value ? (
           page.renderError()

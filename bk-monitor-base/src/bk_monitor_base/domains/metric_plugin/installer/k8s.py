@@ -5,7 +5,7 @@ from typing import Any, final
 from urllib.parse import urljoin
 
 import yaml
-from jinja2 import BaseLoader, Environment
+from jinja2 import BaseLoader, Environment, select_autoescape
 from kubernetes import client as k8s_client
 from kubernetes import dynamic as k8s_dynamic
 from kubernetes.client.exceptions import ApiException as K8sApiException
@@ -93,7 +93,8 @@ spec:
     name: {{ plugin_release_name }}
 """
 
-_jinja_env = Environment(loader=BaseLoader(), autoescape=False)
+# 此处渲染 Kubernetes YAML 而非 HTML，字符串中的 URL 和配置值不能被 HTML 转义。
+_jinja_env = Environment(loader=BaseLoader(), autoescape=select_autoescape(default_for_string=False))
 
 
 def _jinja_render(template_str: str, context: dict[str, Any]) -> str:

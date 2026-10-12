@@ -30,12 +30,15 @@ def _build_installer(label: str = "os") -> tuple[NodemanInstaller, MagicMock]:
         self.deployment_version = None
         self.plugin = plugin
 
-    with patch(
-        "bk_monitor_base.domains.metric_plugin.installer.base.BaseInstaller.__init__",
-        new=_fake_base_installer_init,
-    ), patch(
-        "bk_monitor_base.domains.metric_plugin.installer.nodeman.get_nodeman_deploy_plugin_manager",
-        return_value=plugin_manager,
+    with (
+        patch(
+            "bk_monitor_base.domains.metric_plugin.installer.base.BaseInstaller.__init__",
+            new=_fake_base_installer_init,
+        ),
+        patch(
+            "bk_monitor_base.domains.metric_plugin.installer.nodeman.get_nodeman_deploy_plugin_manager",
+            return_value=plugin_manager,
+        ),
     ):
         installer = NodemanInstaller(deployment=deployment, operator="tester")
 
@@ -97,10 +100,13 @@ class TestNodemanInstaller:
             "scope": {"bk_biz_id": 2},
         }
 
-        with patch.object(installer, "_get_deploy_params", return_value=expected_params) as mock_get_params, patch(
-            "bk_monitor_base.domains.metric_plugin.installer.nodeman.create_subscription",
-            return_value={"subscription_id": 9527, "task_id": 1001},
-        ) as mock_create:
+        with (
+            patch.object(installer, "_get_deploy_params", return_value=expected_params) as mock_get_params,
+            patch(
+                "bk_monitor_base.domains.metric_plugin.installer.nodeman.create_subscription",
+                return_value={"subscription_id": 9527, "task_id": 1001},
+            ) as mock_create,
+        ):
             result = installer._create_subscription(deployment_version)
 
         mock_get_params.assert_called_once_with(deployment_version)
@@ -165,22 +171,25 @@ class TestNodemanInstaller:
         filter_result = MagicMock()
         filter_result.exclude.return_value.update.return_value = None
 
-        with patch.object(installer, "_get_current_deployment_version", return_value=None), patch.object(
-            installer, "get_version_diff", return_value=(True, {"changed": True})
-        ), patch.object(
-            installer, "_create_subscription", return_value={"subscription_id": 9527, "task_id": 1001}
-        ) as mock_create, patch.object(
-            installer, "_update_subscription"
-        ) as mock_update, patch.object(
-            installer, "_save"
-        ) as mock_save, patch(
-            "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentModel.objects.get",
-            return_value=deployment_model,
-        ), patch(
-            "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.update_or_create"
-        ), patch(
-            "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.filter",
-            return_value=filter_result,
+        with (
+            patch.object(installer, "_get_current_deployment_version", return_value=None),
+            patch.object(installer, "get_version_diff", return_value=(True, {"changed": True})),
+            patch.object(
+                installer, "_create_subscription", return_value={"subscription_id": 9527, "task_id": 1001}
+            ) as mock_create,
+            patch.object(installer, "_update_subscription") as mock_update,
+            patch.object(installer, "_save") as mock_save,
+            patch(
+                "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentModel.objects.get",
+                return_value=deployment_model,
+            ),
+            patch(
+                "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.update_or_create"
+            ),
+            patch(
+                "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.filter",
+                return_value=filter_result,
+            ),
         ):
             result = installer.install(deployment_version)
 
@@ -209,22 +218,23 @@ class TestNodemanInstaller:
         filter_result.exclude.return_value.update.return_value = None
         installer.subscription_id = 9527
 
-        with patch.object(installer, "_get_current_deployment_version", return_value=current_version), patch.object(
-            installer, "get_version_diff", return_value=(True, {"changed": True})
-        ), patch.object(
-            installer, "_create_subscription"
-        ) as mock_create, patch.object(
-            installer, "_update_subscription", return_value={"task_id": 1002}
-        ) as mock_update, patch.object(
-            installer, "_save"
-        ) as mock_save, patch(
-            "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentModel.objects.get",
-            return_value=deployment_model,
-        ), patch(
-            "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.update_or_create"
-        ), patch(
-            "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.filter",
-            return_value=filter_result,
+        with (
+            patch.object(installer, "_get_current_deployment_version", return_value=current_version),
+            patch.object(installer, "get_version_diff", return_value=(True, {"changed": True})),
+            patch.object(installer, "_create_subscription") as mock_create,
+            patch.object(installer, "_update_subscription", return_value={"task_id": 1002}) as mock_update,
+            patch.object(installer, "_save") as mock_save,
+            patch(
+                "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentModel.objects.get",
+                return_value=deployment_model,
+            ),
+            patch(
+                "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.update_or_create"
+            ),
+            patch(
+                "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.filter",
+                return_value=filter_result,
+            ),
         ):
             result = installer.install(deployment_version)
 
@@ -254,20 +264,22 @@ class TestNodemanInstaller:
         filter_result = MagicMock()
         filter_result.exclude.return_value.update.return_value = None
 
-        with patch.object(installer, "_get_current_deployment_version", return_value=None), patch.object(
-            installer, "get_version_diff", return_value=(True, {"changed": True})
-        ), patch.object(
-            installer, "_create_subscription", return_value={"subscription_id": 9527}
-        ), patch.object(
-            installer, "_save"
-        ) as mock_save, patch(
-            "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentModel.objects.get",
-            return_value=deployment_model,
-        ), patch(
-            "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.update_or_create"
-        ), patch(
-            "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.filter",
-            return_value=filter_result,
+        with (
+            patch.object(installer, "_get_current_deployment_version", return_value=None),
+            patch.object(installer, "get_version_diff", return_value=(True, {"changed": True})),
+            patch.object(installer, "_create_subscription", return_value={"subscription_id": 9527}),
+            patch.object(installer, "_save") as mock_save,
+            patch(
+                "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentModel.objects.get",
+                return_value=deployment_model,
+            ),
+            patch(
+                "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.update_or_create"
+            ),
+            patch(
+                "bk_monitor_base.domains.metric_plugin.installer.nodeman.MetricPluginDeploymentVersionModel.objects.filter",
+                return_value=filter_result,
+            ),
         ):
             with pytest.raises(KeyError, match="task_id"):
                 installer.install(deployment_version)

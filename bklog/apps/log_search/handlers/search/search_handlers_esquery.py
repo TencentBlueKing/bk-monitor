@@ -166,6 +166,8 @@ def fields_config(name: str, is_active: bool = False):
 
 
 class SearchHandler:
+    mapping_handler_class = MappingHandlers
+
     def __init__(
         self,
         index_set_id: int,
@@ -399,7 +401,7 @@ class SearchHandler:
         index_set_data_obj_list: list = self.index_set.get_indexes(has_applied=True)
         for index_set_data in index_set_data_obj_list:
             _result_table_id = index_set_data["result_table_id"]
-            _mapping_handlers = MappingHandlers(
+            _mapping_handlers = self.mapping_handler_class(
                 _result_table_id,
                 self.index_set_id,
                 index_set_data["scenario_id"] or self.origin_scenario_id,
@@ -1639,7 +1641,7 @@ class SearchHandler:
 
     def verify_sort_list_item(self, sort_list):
         # field_result, _ = self._get_all_fields_by_index_id()
-        mapping_handlers = MappingHandlers(
+        mapping_handlers = self.mapping_handler_class(
             self.origin_indices,
             self.index_set_id,
             self.origin_scenario_id,
@@ -2049,7 +2051,7 @@ class SearchHandler:
     @property
     def mapping_handlers(self) -> MappingHandlers:
         if self._mapping_handlers is None:
-            self._mapping_handlers = MappingHandlers(
+            self._mapping_handlers = self.mapping_handler_class(
                 index_set_id=self.index_set_id,
                 indices=self.origin_indices,
                 scenario_id=self.origin_scenario_id,

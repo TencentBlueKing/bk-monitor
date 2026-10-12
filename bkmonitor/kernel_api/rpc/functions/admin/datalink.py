@@ -32,6 +32,7 @@ from kernel_api.rpc.functions.admin.common import (
 )
 from metadata import models
 from metadata.models.data_link.data_link_configs import ClusterConfig, COMPONENT_CLASS_MAP
+from metadata.models.data_link.vm_query_cluster import VmQueryClusterConfig
 
 FUNC_COMPONENT_LIST = "admin.datalink.component_list"
 FUNC_COMPONENT_DETAIL = "admin.datalink.component_detail"
@@ -57,11 +58,20 @@ DRLRB_COMMON_FIELDS = [
 KIND_EXTRA_FIELDS = {
     "DataId": ["bk_data_id"],
     "ResultTable": ["table_id", "data_type", "bkbase_table_id"],
+    "ChannelBinding": ["bkbase_result_table_name", "channel_name"],
     "VmStorageBinding": ["vm_cluster_name", "bkbase_result_table_name", "table_id"],
     "ElasticSearchBinding": ["es_cluster_name", "table_id", "bkbase_result_table_name", "timezone"],
     "DorisBinding": ["table_id", "bkbase_result_table_name", "doris_cluster_name"],
     "SurrealDBBinding": ["table_id", "bkbase_result_table_name", "surrealdb_cluster_name"],
-    "Databus": ["data_id_name", "bk_data_id", "sink_names", "consumer_group"],
+    "Databus": [
+        "data_id_name",
+        "bk_data_id",
+        "source_kind",
+        "source_name",
+        "role",
+        "sink_names",
+        "consumer_group",
+    ],
     "ConditionalSink": [],
     "BasereportSink": ["vm_storage_binding_names", "result_table_ids"],
 }
@@ -74,6 +84,24 @@ CLUSTER_CONFIG_FIELDS = [
     "origin_config",
     "create_time",
     "update_time",
+]
+
+VM_QUERY_CLUSTER_FIELDS = [
+    "bk_tenant_id",
+    "namespace",
+    "name",
+    "cluster_name",
+    "cluster_domain",
+    "num_replicas",
+    "monitor_storage_clusters",
+    "k8s_cluster",
+    "k8s_namespace",
+    "version",
+    "status",
+    "last_synced_at",
+    "origin_config",
+    "create_time",
+    "last_modify_time",
 ]
 
 DATALINK_FIELDS = [
@@ -99,10 +127,22 @@ DATALINK_ORDERING_FIELDS = {
 }
 INCLUDE_VALUES = {"component_config"}
 
+DATALINK_DETAIL_KIND_ORDER = [
+    "DataId",
+    "ResultTable",
+    "ChannelBinding",
+    "VmStorageBinding",
+    "ElasticSearchBinding",
+    "DorisBinding",
+    "BasereportSink",
+    "Databus",
+    "ConditionalSink",
+]
+
 DRLRB_KINDS = set(COMPONENT_CLASS_MAP.keys())
 CLUSTER_CONFIG_KINDS = set(ClusterConfig.KIND_TO_NAMESPACES_MAP.keys())
-VALID_KINDS_FOR_LIST = DRLRB_KINDS | CLUSTER_CONFIG_KINDS
-VALID_KINDS_FOR_COMPONENT_CONFIG = DRLRB_KINDS | CLUSTER_CONFIG_KINDS
+VALID_KINDS_FOR_LIST = DRLRB_KINDS | CLUSTER_CONFIG_KINDS | {VmQueryClusterConfig.kind}
+VALID_KINDS_FOR_COMPONENT_CONFIG = VALID_KINDS_FOR_LIST
 
 KIND_FILTER_MAP: dict[str, list[str]] = {
     "DataId": ["bk_data_id"],
@@ -129,6 +169,12 @@ def _valid_kind_message(kinds: set[str]) -> str:
 
 
 def _get_component_config_instance(kind: str, bk_tenant_id: str, namespace: str, name: str):
+    if kind == VmQueryClusterConfig.kind:
+        try:
+            return VmQueryClusterConfig.objects.get(bk_tenant_id=bk_tenant_id, namespace=namespace, name=name)
+        except VmQueryClusterConfig.DoesNotExist as error:
+            raise CustomException(message=f"未找到组件: kind={kind}, namespace={namespace}, name={name}") from error
+
     if kind in COMPONENT_CLASS_MAP:
         model_class = COMPONENT_CLASS_MAP[kind]
         try:
@@ -160,6 +206,16 @@ def _serialize_component(instance, kind: str) -> dict[str, Any]:
     item["created_at"] = item.pop("create_time", None)
     item["updated_at"] = item.pop("last_modify_time", None)
     item["kind"] = kind
+    return item
+
+
+def _serialize_vm_query_cluster(instance: VmQueryClusterConfig) -> dict[str, Any]:
+    """序列化独立的 VM Query 镜像，不添加链路或业务归属字段。"""
+    item = serialize_model(instance, VM_QUERY_CLUSTER_FIELDS)
+    item["kind"] = instance.kind
+    item["created_at"] = item.pop("create_time", None)
+    item["updated_at"] = item.pop("last_modify_time", None)
+    item["origin_config"] = _mask_sensitive_fields(item["origin_config"])
     return item
 
 
@@ -250,13 +306,14 @@ def _fetch_component_config_for_item(instance, item, warnings_list):
 @KernelRPCRegistry.register(
     FUNC_COMPONENT_LIST,
     summary="Admin 查询 DataLink 组件列表",
-    description="按 kind 查询指定类型的 DataLink 组件或 ClusterConfig 组件，支持条件过滤和分页。",
+    description="按 kind 查询 DataLink 组件、ClusterConfig 或 VmQueryCluster 镜像，支持条件过滤和分页。",
     params_schema={
         "bk_tenant_id": PAGE_LIST_TENANT_SCHEMA,
         "kind": "必填，组件类型: " + _valid_kind_message(VALID_KINDS_FOR_LIST),
         "namespace": "可选，命名空间精确匹配",
         "namespaces": "可选，命名空间数组，最多 100 项；与 namespace 合并去重",
         "search": "可选，按 name 模糊匹配",
+        "vmstorage": "可选，VmQueryCluster 的 monitor_storage_clusters 数组成员精确匹配",
         "status": "可选，状态精确匹配",
         "statuses": "可选，状态数组，最多 100 项；与 status 合并去重",
         "bk_data_id": "可选，数据源 ID (DataId/Databus 类型)",
@@ -296,7 +353,23 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
             message=f"未知的组件类型 (kind={kind})，有效值: {_valid_kind_message(VALID_KINDS_FOR_LIST)}"
         )
 
-    if kind in CLUSTER_CONFIG_KINDS:
+    if kind == VmQueryClusterConfig.kind:
+        queryset = filter_by_bk_tenant_id(VmQueryClusterConfig.objects.all(), bk_tenant_id)
+        namespaces = normalize_string_list_filter(params, "namespace", "namespaces")
+        if namespaces:
+            queryset = queryset.filter(namespace__in=namespaces)
+        if params.get("search"):
+            queryset = queryset.filter(name__contains=str(params["search"]).strip())
+        vmstorage = str(params.get("vmstorage") or "").strip()
+        if vmstorage:
+            queryset = queryset.filter(monitor_storage_clusters__contains=[vmstorage])
+        statuses = normalize_string_list_filter(params, "status", "statuses")
+        if statuses:
+            queryset = queryset.filter(status__in=statuses)
+        queryset = queryset.order_by("-create_time")
+        items_raw, total = paginate_queryset(queryset, page=page, page_size=page_size)
+        items = [_serialize_vm_query_cluster(item) for item in items_raw]
+    elif kind in CLUSTER_CONFIG_KINDS:
         queryset = ClusterConfig.objects.filter(kind=kind, **tenant_filter_kwargs(bk_tenant_id))
 
         namespaces = normalize_string_list_filter(params, "namespace", "namespaces")
@@ -357,7 +430,7 @@ def list_components(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_COMPONENT_DETAIL,
     summary="Admin 查询 DataLink 组件详情",
-    description="按 kind、namespace、name 查询单个 DataLink 组件或 ClusterConfig 组件详情。",
+    description="按 kind、namespace、name 查询 DataLink 组件、ClusterConfig 或 VmQueryCluster 镜像详情。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "kind": "必填，组件类型: " + _valid_kind_message(VALID_KINDS_FOR_LIST),
@@ -391,7 +464,10 @@ def get_component_detail(params: dict[str, Any]) -> dict[str, Any]:
     if not name:
         raise CustomException(message="name 为必填项")
 
-    if kind in CLUSTER_CONFIG_KINDS:
+    if kind == VmQueryClusterConfig.kind:
+        instance = _get_component_config_instance(kind, bk_tenant_id, namespace, name)
+        item = _serialize_vm_query_cluster(instance)
+    elif kind in CLUSTER_CONFIG_KINDS:
         try:
             instance = ClusterConfig.objects.get(bk_tenant_id=bk_tenant_id, kind=kind, namespace=namespace, name=name)
         except ClusterConfig.DoesNotExist as error:
@@ -716,19 +792,8 @@ def get_datalink_detail(params: dict[str, Any]) -> dict[str, Any]:
 
     data = _serialize_datalink_for_detail(datalink)
 
-    kind_order = [
-        "DataId",
-        "ResultTable",
-        "VmStorageBinding",
-        "ElasticSearchBinding",
-        "DorisBinding",
-        "BasereportSink",
-        "Databus",
-        "ConditionalSink",
-    ]
-
     components: dict[str, list[dict[str, Any]]] = {}
-    for kind in kind_order:
+    for kind in DATALINK_DETAIL_KIND_ORDER:
         if kind not in DRLRB_KINDS:
             continue
         model_class = COMPONENT_CLASS_MAP[kind]

@@ -75,8 +75,7 @@ def create_test_tar_gz(
             os.makedirs(info_dir, exist_ok=True)
             if meta_yaml_content is None:
                 meta_content = (
-                    'datadog_check_name: test_check\n'
-                    'config_yaml: "init_config:\\n  min_collection_interval: 30\\n"\n'
+                    'datadog_check_name: test_check\nconfig_yaml: "init_config:\\n  min_collection_interval: 30\\n"\n'
                 )
             else:
                 meta_content = meta_yaml_content

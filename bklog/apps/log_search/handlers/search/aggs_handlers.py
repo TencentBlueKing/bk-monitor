@@ -54,6 +54,8 @@ class AggsBase(abc.ABC):
 
 
 class AggsHandlers(AggsBase):
+    search_handler_class = SearchHandlerEsquery
+
     AGGS_BUCKET_SIZE = 100
     DEFAULT_ORDER = {"_count": "desc"}
     TIME_FORMAT = "yyyy-MM-dd HH:mm:ss"
@@ -89,7 +91,7 @@ class AggsHandlers(AggsBase):
         )
         s = s.extra(size=0)
         query_data.update(s.to_dict())
-        return SearchHandlerEsquery(index_set_id, query_data, only_for_agg=True).search(search_type=None)
+        return cls.search_handler_class(index_set_id, query_data, only_for_agg=True).search(search_type=None)
 
     @classmethod
     def _build_terms_aggs(cls, s: Search, fields: list, size: int, order: dict) -> Search:
@@ -227,7 +229,7 @@ class AggsHandlers(AggsBase):
         query_data.update(s.to_dict())
         logger.info(query_data)
 
-        result = SearchHandlerEsquery(index_set_id, query_data, only_for_agg=True).search(search_type=None)
+        result = cls.search_handler_class(index_set_id, query_data, only_for_agg=True).search(search_type=None)
         if time_field_type != TimeFieldTypeEnum.DATE.value:
             buckets = result.get("aggregations", {}).get("group_by_histogram", {}).get("buckets", [])
             time_multiplicator = 1 / (10**3)

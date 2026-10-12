@@ -6,7 +6,7 @@ from django.db.models import Q
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
 from bk_monitor_base.infras.third_party_api.errors import BkApiError
-from bk_monitor_base.metadata import models, config
+from bk_monitor_base.metadata import config, models
 from bk_monitor_base.metadata.config import settings
 from bk_monitor_base.metadata.utils import consul
 

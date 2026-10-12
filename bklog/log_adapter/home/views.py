@@ -28,6 +28,8 @@ from rest_framework.fields import BooleanField
 from rest_framework.response import Response
 
 from apps.constants import (
+    ACTIONS_IMPLYING_LOG_SEARCH,
+    INDEX_SET_SCOPED_EXTERNAL_ACTIONS,
     ExternalPermissionActionEnum,
     ViewSetAction,
     ViewSetActionEnum,
@@ -127,7 +129,7 @@ class RequestProcessor:
     @classmethod
     def get_resource(cls, action_id: str, kwargs: dict[str, Any], json_data_str: str):
         """获取请求中的资源"""
-        if action_id == ExternalPermissionActionEnum.LOG_SEARCH.value:
+        if action_id in INDEX_SET_SCOPED_EXTERNAL_ACTIONS:
             if "index_set_id" in kwargs:
                 return int(kwargs.get("index_set_id", ""))
             try:
@@ -174,14 +176,41 @@ class RequestProcessor:
     def filter_log_search_response_resource(
         cls, response: Response, action_id: str, view_set: str, view_action: str, allow_resources_result: dict[str, Any]
     ):
-        allow_resources = allow_resources_result["resources"]
+        allow_resources = set(allow_resources_result["resources"])
         view_set_class: ViewSetAction = ViewSetAction(action_id=action_id, view_set=view_set, view_action=view_action)
         if view_set_class.is_one_of(
             [ViewSetActionEnum.SEARCH_VIEWSET_LIST.value, ViewSetActionEnum.FAVORITE_VIEWSET_LIST.value]
         ):
             data = response.data
             if isinstance(data, dict) and "data" in data:
-                data["data"] = [d for d in data["data"] if d["index_set_id"] in allow_resources]
+                # 先收集所有已授权父索引组中的子项，避免依赖列表顺序：同一个子项
+                # 即使先在未授权组中出现，也不应在随后可见的已授权组之外再上提一次。
+                visible_child_ids = {
+                    child["index_set_id"]
+                    for index_set in data["data"]
+                    if index_set["index_set_id"] in allow_resources
+                    for child in index_set.get("children", [])
+                }
+                filtered_index_sets = []
+                promoted_ids = set()
+                for index_set in data["data"]:
+                    if index_set["index_set_id"] in allow_resources:
+                        filtered_index_sets.append(index_set)
+                        continue
+
+                    # 分组展示时，未授权的父索引集会将已授权子索引一并过滤掉。
+                    # 子索引上提为顶层项，避免为展示而授权整个索引组导致越权。
+                    for child in index_set.get("children", []):
+                        child_index_set_id = child["index_set_id"]
+                        if (
+                            child_index_set_id not in allow_resources
+                            or child_index_set_id in visible_child_ids
+                            or child_index_set_id in promoted_ids
+                        ):
+                            continue
+                        promoted_ids.add(child_index_set_id)
+                        filtered_index_sets.append(child)
+                data["data"] = filtered_index_sets
                 response.data = data
                 return response
         if view_set_class.eq(ViewSetActionEnum.FAVORITE_VIEWSET_LIST_BY_GROUP.value):
@@ -375,10 +404,10 @@ def dispatch_external_proxy(request):
             external_user_allowed_action_id_list = ExternalPermission.get_authorizer_permission(
                 space_uid=space_uid, authorizer=external_user
             ).get(space_uid, [])
-            # 拥有客户端日志权限的用户，自动拥有客户端日志索引集的日志检索权限
-            if (
-                ExternalPermissionActionEnum.CLIENT_LOG.value in external_user_allowed_action_id_list
-                and ExternalPermissionActionEnum.LOG_SEARCH.value not in external_user_allowed_action_id_list
+            # 仅 client_log 这类特例会隐式放通 log_search；log_clustering 不合成检索权限
+            if ExternalPermissionActionEnum.LOG_SEARCH.value not in external_user_allowed_action_id_list and any(
+                implying_action_id in external_user_allowed_action_id_list
+                for implying_action_id in ACTIONS_IMPLYING_LOG_SEARCH
             ):
                 external_user_allowed_action_id_list.append(ExternalPermissionActionEnum.LOG_SEARCH.value)
             # 判断接口是否在管理范围内
@@ -408,6 +437,20 @@ def dispatch_external_proxy(request):
                 audit_recorder.resource = resource
                 if resource and resource not in allow_resources:
                     message = f"external_user:{external_user} cannot access resource(ID:{resource})."
+                    audit_recorder.set_result(403, message)
+                    return JsonResponse({"result": False, "message": message}, status=403)
+                # 聚类设置写入链路必须同时具备该索引集的日志检索权限，避免只授聚类配置即可改配置
+                if (
+                    action_id == ExternalPermissionActionEnum.LOG_CLUSTERING.value
+                    and resource
+                    and not ExternalPermission.can_access_clustering_settings(
+                        space_uid=space_uid, authorized_user=external_user, index_set_id=resource
+                    )
+                ):
+                    message = (
+                        f"external_user:{external_user} cannot access clustering settings "
+                        f"without log_search on resource(ID:{resource})."
+                    )
                     audit_recorder.set_result(403, message)
                     return JsonResponse({"result": False, "message": message}, status=403)
         setattr(fake_request, "space_uid", space_uid)

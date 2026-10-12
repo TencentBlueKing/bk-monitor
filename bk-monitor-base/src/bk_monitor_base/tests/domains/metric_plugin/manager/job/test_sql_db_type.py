@@ -50,7 +50,7 @@ def test_generate_config_yaml_content_uses_manager_db_type(manager_cls, expected
     config = manager.generate_config_yaml_content(
         plugin_params={
             "db_type": "wrong_db_type",
-            "host": "10.10.28.200",
+            "host": "192.0.2.20",
             "name": "test_db",
             "password": "secret",
             "port": "3306",

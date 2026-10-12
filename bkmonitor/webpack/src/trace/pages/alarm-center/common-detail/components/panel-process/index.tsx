@@ -30,7 +30,7 @@ import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 import { storeToRefs } from 'pinia';
 
-import ChartSkeleton from '../../../../../components/skeleton/chart-skeleton';
+import DetailLoading, { DetailLoadStatus } from '@/pages/alarm-center/common-detail/detail-loading';
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 import AlarmMetricsDashboard from '../../../components/alarm-metrics-dashboard/alarm-metrics-dashboard';
 import { useSceneView } from '../../../composables/use-scene-view';
@@ -45,7 +45,7 @@ export default defineComponent({
   name: 'PanelProcess',
   setup() {
     const { bizId, interval, timeRange, alarmDetail } = storeToRefs(useAlarmCenterDetailStore());
-    const { dashboards: processDashboards, loading: sceneViewLoading } = useSceneView(bizId, 'process');
+    const { dashboards: processDashboards, loading: sceneViewLoading, error: sceneError, retry: retryScene } = useSceneView(bizId, 'process');
     /** 图表联动Id */
     const dashboardId = shallowRef(random(10));
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
@@ -163,6 +163,7 @@ export default defineComponent({
     return {
       bizId,
       sceneViewLoading,
+      sceneError, retryScene,
       flatPanels,
       dashboardId,
       dataZoomTimeRange,
@@ -173,6 +174,7 @@ export default defineComponent({
     };
   },
   render() {
+    if (this.sceneError) return <DetailLoadStatus error onRetry={this.retryScene} />;
     if (this.sceneViewLoading) {
       return (
         <div class='alarm-center-detail-panel-process'>
@@ -183,7 +185,7 @@ export default defineComponent({
                   key={index}
                   class='panel-process-skeleton-item'
                 >
-                  <ChartSkeleton />
+                  <DetailLoading />
                 </div>
               ))}
             </div>

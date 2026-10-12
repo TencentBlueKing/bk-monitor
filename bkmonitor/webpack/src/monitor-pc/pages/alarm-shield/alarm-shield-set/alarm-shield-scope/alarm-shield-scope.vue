@@ -133,6 +133,11 @@
       v-model="commonDateData"
       :is-clone="isClone"
     />
+    <alarm-shield-end-policy
+      ref="endPolicyRef"
+      v-model="endPolicy"
+      :readonly="isEdit"
+    />
     <div class="set-shield-config-item">
       <div class="item-label cause-label">
         {{ $t('屏蔽原因') }}
@@ -172,6 +177,7 @@ import { deepClone } from 'monitor-common/utils';
 
 import { transformMonitorToValue, transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import ShieldDateConfig from '../../alarm-shield-components/alarm-shield-date';
+import AlarmShieldEndPolicy from '../../alarm-shield-components/alarm-shield-end-policy.vue';
 import ShiledNotice from '../../alarm-shield-components/alarm-shield-notice';
 import AlarmShieldIpv6, {
   Ipv6FieldMap,
@@ -182,6 +188,7 @@ import AlarmShieldIpv6, {
 export default {
   name: 'AlarmShieldScope',
   components: {
+    AlarmShieldEndPolicy,
     ShieldDateConfig,
     ShiledNotice,
     AlarmShieldIpv6,
@@ -205,6 +212,7 @@ export default {
     const defaultData = this.generationDefaultData();
     return {
       isEdit: false,
+      endPolicy: 'notify_once',
       isClone: false,
       isCreate: false,
       tips: {
@@ -327,6 +335,7 @@ export default {
       }
       this.biz.value = data.bk_biz_id;
       this.shieldDesc = data.description;
+      this.endPolicy = data.end_policy || 'notify_once';
       this.bkGroup.value = data.scope_type;
       if (this.bkGroup.value !== 'biz') {
         this.tableData = data.dimension_config.target.map(item => ({ name: item }));
@@ -381,6 +390,7 @@ export default {
         shield_notice: typeof noticeData !== 'boolean',
         notice_config: {},
         description: this.shieldDesc,
+        end_policy: this.endPolicy,
       };
       if (params.shield_notice) {
         params.notice_config = {
@@ -399,6 +409,7 @@ export default {
       return params;
     },
     handleSubmit() {
+      if (!this.isEdit && !this.$refs.endPolicyRef.validate()) return;
       const params = this.handleParams();
       if (!params) return;
       this.$emit('update:loading', true);
@@ -510,7 +521,7 @@ export default {
       }
 
       :deep(.bk-textarea-wrapper .bk-form-textarea.textarea-maxlength) {
-        margin-bottom: 0px;
+        margin-bottom: 0;
       }
 
       :deep(.bk-form-textarea) {
@@ -528,7 +539,7 @@ export default {
           padding-left: 30px;
         }
 
-        &:before {
+        &::before {
           height: 1px;
         }
       }

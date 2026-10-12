@@ -1,10 +1,12 @@
 from unittest.mock import Mock, call, patch
 
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
-from apps.log_clustering.constants import StorageTypeEnum
+from apps.log_clustering.constants import RegexRuleTypeEnum, StorageTypeEnum
+from apps.log_clustering.exceptions import RegexTemplateNotExistException
 from apps.log_clustering.handlers.clustering_config import ClusteringConfigHandler
-from apps.log_clustering.models import ClusteringConfig
+from apps.log_clustering.models import ClusteringConfig, RegexTemplate
+from apps.log_search.models import LogIndexSet
 
 TEST_INDEX_SET_ID = 1
 TEST_BK_BIZ_ID = 2
@@ -108,3 +110,78 @@ class TestClusteringConfigHandler(SimpleTestCase):
         result = ClusteringConfigHandler(index_set_id=TEST_INDEX_SET_ID).retrieve()
 
         self.assertTrue(result["placeholder_analysis_supported"])
+
+
+class TestSynchronousUpdateRegexTemplateSpace(TestCase):
+    """更新聚类配置时，正则模板必须属于目标索引集所在空间"""
+
+    SPACE_UID = "bkcc__2"
+    OTHER_SPACE_UID = "bkcc__99"
+
+    def setUp(self):
+        self.index_set = LogIndexSet.objects.create(
+            index_set_name="regex_template_space_index", space_uid=self.SPACE_UID, scenario_id="es"
+        )
+        ClusteringConfig.objects.create(
+            index_set_id=self.index_set.index_set_id,
+            bk_biz_id=TEST_BK_BIZ_ID,
+            min_members=1,
+            max_dist_list="0.1",
+            predefined_varibles="origin",
+            delimeter=" ",
+            max_log_length=1024,
+            clustering_fields="log",
+        )
+        self.local_template = RegexTemplate.objects.create(
+            space_uid=self.SPACE_UID,
+            template_name="local_template",
+            predefined_varibles="local_vars",
+        )
+        self.foreign_template = RegexTemplate.objects.create(
+            space_uid=self.OTHER_SPACE_UID,
+            template_name="foreign_template",
+            predefined_varibles="foreign_vars",
+        )
+
+    def _handler(self):
+        return ClusteringConfigHandler(index_set_id=self.index_set.index_set_id)
+
+    def test_same_space_template_copies_predefined_varibles(self):
+        handler = self._handler()
+        params = {
+            "regex_rule_type": RegexRuleTypeEnum.TEMPLATE.value,
+            "regex_template_id": self.local_template.id,
+        }
+
+        with patch.object(handler, "update", return_value="pipeline-1") as mock_update:
+            result = handler.synchronous_update(params)
+
+        self.assertEqual(result, ["pipeline-1"])
+        mock_update.assert_called_once_with(params)
+        self.assertEqual(params["predefined_varibles"], "local_vars")
+
+    def test_cross_space_template_id_is_rejected(self):
+        handler = self._handler()
+        params = {
+            "regex_rule_type": RegexRuleTypeEnum.TEMPLATE.value,
+            "regex_template_id": self.foreign_template.id,
+        }
+
+        with patch.object(handler, "update") as mock_update:
+            with self.assertRaises(RegexTemplateNotExistException):
+                handler.synchronous_update(params)
+
+        mock_update.assert_not_called()
+
+    def test_unknown_template_id_is_rejected(self):
+        handler = self._handler()
+        params = {
+            "regex_rule_type": RegexRuleTypeEnum.TEMPLATE.value,
+            "regex_template_id": self.foreign_template.id + 1000,
+        }
+
+        with patch.object(handler, "update") as mock_update:
+            with self.assertRaises(RegexTemplateNotExistException):
+                handler.synchronous_update(params)
+
+        mock_update.assert_not_called()

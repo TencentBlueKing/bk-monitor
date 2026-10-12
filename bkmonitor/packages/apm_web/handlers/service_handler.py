@@ -21,7 +21,7 @@ from django.utils.translation import gettext_lazy as _
 from apm_web.handlers import metric_group
 from opentelemetry.semconv.resource import ResourceAttributes
 from opentelemetry.semconv.trace import SpanAttributes
-from constants.apm import MetricTemporality, TelemetryDataType, Vendor
+from constants.apm import LLMProduct, MetricTemporality, OtlpKey, TelemetryDataType, Vendor
 
 from apm_web.constants import (
     APM_APPLICATION_DEFAULT_METRIC,
@@ -41,7 +41,6 @@ from bkmonitor.utils import group_by
 from bkmonitor.utils.cache import CacheType, lru_cache_with_ttl, using_cache
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.time_tools import get_datetime_range
-from constants.apm import OtlpKey
 from core.drf_resource import api
 from core.errors.api import BKAPIError
 
@@ -669,10 +668,16 @@ class ServiceHandler:
         """
         从节点提取系统信息
         :param node: 节点信息
-        :return: 无 system 返回 {}，否则 {name, sdk, temporality}
+        :return: 无 system 且不支持 LLM 返回 {}
         """
         systems: list[dict[str, Any]] = node.get("system") or []
-        if not systems:
+        llm: dict[str, Any] = (node.get("extra_data") or {}).get("llm") or {}
+        product: str = llm.get("product") or ""
+        is_support_llm: bool = bool(product)
+        if is_support_llm and Vendor.has_sdk(node.get("sdk"), Vendor.G):
+            product = LLMProduct.GALILEO.value
+
+        if not systems and not is_support_llm:
             return {}
 
         name: str = ""
@@ -699,6 +704,8 @@ class ServiceHandler:
             "name": name,
             "rpc_system": rpc_system,
             "is_support_call_analysis": name == metric_group.GroupEnum.TRPC.value,
+            "is_support_llm": is_support_llm,
+            "product": product,
             "sdk": sdk_name or "",
             "temporality": temporality,
         }

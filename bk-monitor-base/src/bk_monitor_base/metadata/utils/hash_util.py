@@ -34,16 +34,16 @@ def object_md5(info: Any) -> str:
     return m.hexdigest()
 
 
-def _trans_list_to_str(l: list[Any]) -> str:
+def _trans_list_to_str(items: list[Any]) -> str:
     """
     将一个列表序列化为字符串
-    :param l: 需要序列化的列表
+    :param items: 需要序列化的列表
     :return: str
     """
 
     temp_list = []
 
-    for list_obj in l:
+    for list_obj in items:
         # 判断是否还是字典
         if isinstance(list_obj, dict):
             temp_list.append(_trans_dict_to_str(list_obj))

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
 from django import forms
 from django.contrib import admin
 
@@ -127,7 +127,15 @@ class CleanTemplateAdmin(AppModelAdmin):
 
 @admin.register(CleanStash)
 class CleanStashAdmin(AppModelAdmin):
-    list_display = ["clean_stash_id", "clean_type", "etl_params", "etl_fields", "collector_config_id", "bk_biz_id"]
+    list_display = [
+        "clean_stash_id",
+        "clean_template_id",
+        "clean_type",
+        "etl_params",
+        "etl_fields",
+        "collector_config_id",
+        "bk_biz_id",
+    ]
     search_fields = ["collector_config_id", "clean_type"]
 
 
@@ -140,7 +148,7 @@ class FieldDateFormatForm(forms.ModelForm):
         cleaned_data = super().clean()
         for key, value in cleaned_data.items():
             if isinstance(value, str):
-                cleaned_data[key] = value.replace('&nbsp;', ' ')
+                cleaned_data[key] = value.replace("&nbsp;", " ")
         return cleaned_data
 
 

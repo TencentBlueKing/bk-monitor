@@ -10,6 +10,8 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from django.conf import settings
+
 from alarm_backends.constants import LATEST_NO_DATA_CHECK_POINT
 from alarm_backends.core.cache import key
 from alarm_backends.core.cache.key import (
@@ -18,6 +20,7 @@ from alarm_backends.core.cache.key import (
 )
 from alarm_backends.core.control.item import detect_result_point_required
 from alarm_backends.core.control.strategy import StrategyCacheManager
+from alarm_backends.core.detect_result_retention import rank_trim_stop
 from bkmonitor.models import AlgorithmModel
 
 DUMMY_DIMENSIONS_MD5 = "dummy_dimensions_md5"
@@ -28,10 +31,111 @@ logger = logging.getLogger("core.detect_result")
 
 class CleanResult:
     @staticmethod
+    def scan_last_checkpoint_page(client, last_checkpoints_cache_key, *, cursor, count, max_fields):
+        """Read one bounded HSCAN page without interpreting the opaque cursor."""
+        next_cursor, page = client.hscan(last_checkpoints_cache_key, cursor=cursor, count=count)
+        raw_fields = tuple(page)
+        if len(raw_fields) > max_fields:
+            raise ValueError(f"HSCAN page with {len(raw_fields)} fields exceeds hard limit {max_fields}")
+        return next_cursor, tuple(dict.fromkeys(raw_fields))
+
+    @staticmethod
+    def chunk_fields(fields, *, command_limit):
+        """Split a scanned page into bounded command groups."""
+        for start in range(0, len(fields), command_limit):
+            yield tuple(fields[start : start + command_limit])
+
+    @staticmethod
+    def clean_expired_detect_result_page(
+        pipeline,
+        last_checkpoints_cache_key,
+        strategy_id,
+        item_id,
+        point_remain,
+        all_hkeys,
+        command_limit,
+    ):
+        check_result_cache_keys = []
+        for hkey in all_hkeys:
+            *_, dimension_md5, level = hkey.split(".")
+            check_result_cache_keys.append(
+                key.CHECK_RESULT_CACHE_KEY.get_key(
+                    strategy_id=strategy_id, item_id=item_id, dimensions_md5=dimension_md5, level=level
+                )
+            )
+
+        for cache_key_chunk in CleanResult.chunk_fields(check_result_cache_keys, command_limit=command_limit):
+            for check_result_cache_key in cache_key_chunk:
+                pipeline.zremrangebyrank(check_result_cache_key, 0, rank_trim_stop(point_remain))
+            pipeline.execute()
+
+        check_result_lengths = []
+        for cache_key_chunk in CleanResult.chunk_fields(check_result_cache_keys, command_limit=command_limit):
+            for check_result_cache_key in cache_key_chunk:
+                pipeline.zcard(check_result_cache_key)
+            check_result_lengths.extend(pipeline.execute())
+
+        last_checkpoint_fields = []
+        for check_result_cache_key, check_result_length in zip(check_result_cache_keys, check_result_lengths):
+            if check_result_length > 0:
+                continue
+            *_, dimension_md5, level = check_result_cache_key.split(".")
+            if dimension_md5 == LATEST_NO_DATA_CHECK_POINT:
+                continue
+            last_checkpoint_fields.append(
+                key.LAST_CHECKPOINTS_CACHE_KEY.get_field(dimensions_md5=dimension_md5, level=level)
+            )
+
+        for field_chunk in CleanResult.chunk_fields(last_checkpoint_fields, command_limit=command_limit):
+            for last_checkpoint_field in field_chunk:
+                pipeline.hdel(last_checkpoints_cache_key, last_checkpoint_field)
+            pipeline.execute()
+
+    @staticmethod
+    def clean_expired_detect_result_hscan(strategy_range=None):
+        strategy_ids = StrategyCacheManager.get_strategy_ids()
+        if strategy_range is not None:
+            strategy_ids = [s_id for s_id in strategy_ids if s_id in range(*strategy_range)]
+
+        strategies = StrategyCacheManager.get_strategy_by_ids(strategy_ids)
+        client = key.LAST_CHECKPOINTS_CACHE_KEY.client
+        pipeline = client.pipeline()
+        for strategy in strategies:
+            point_remain = detect_result_point_required(strategy)
+            for item in strategy["items"]:
+                last_checkpoints_cache_key = key.LAST_CHECKPOINTS_CACHE_KEY.get_key(
+                    strategy_id=strategy["id"], item_id=item["id"]
+                )
+                cursor = 0
+                while True:
+                    next_cursor, all_hkeys = CleanResult.scan_last_checkpoint_page(
+                        client,
+                        last_checkpoints_cache_key,
+                        cursor=cursor,
+                        count=settings.CHECK_RESULT_CLEAN_HSCAN_COUNT,
+                        max_fields=settings.CHECK_RESULT_CLEAN_HSCAN_MAX_FIELDS,
+                    )
+                    CleanResult.clean_expired_detect_result_page(
+                        pipeline,
+                        last_checkpoints_cache_key,
+                        strategy["id"],
+                        item["id"],
+                        point_remain,
+                        all_hkeys,
+                        settings.CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT,
+                    )
+                    if next_cursor == 0:
+                        break
+                    cursor = next_cursor
+
+    @staticmethod
     def clean_expired_detect_result(strategy_range=None):
         """
         清理检测结果及最近拉取结果的缓存
         """
+        if settings.ENABLE_CHECK_RESULT_CLEAN_HSCAN:
+            return CleanResult.clean_expired_detect_result_hscan(strategy_range)
+
         strategy_ids = StrategyCacheManager.get_strategy_ids()
         # 分片处理
         if strategy_range is not None:
@@ -66,7 +170,7 @@ class CleanResult:
 
                 # 按保留点数清理检测结果缓存
                 for index, check_result_cache_key in enumerate(check_result_cache_keys):
-                    pipeline.zremrangebyrank(check_result_cache_key, 0, -point_remain)
+                    pipeline.zremrangebyrank(check_result_cache_key, 0, rank_trim_stop(point_remain))
                     # 一次最多清理5000个维度的检测结果
                     if index % 5000 == 4999:
                         pipeline.execute()

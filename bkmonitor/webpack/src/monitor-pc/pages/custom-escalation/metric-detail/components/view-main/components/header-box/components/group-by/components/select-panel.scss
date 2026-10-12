@@ -85,6 +85,7 @@
       top: 0;
       right: 0;
       left: 0;
+      pointer-events: none;
       content: '';
       border-top: 1px solid #eaebf0;
     }
@@ -112,7 +113,10 @@
     font-size: 12px;
 
     .dimension-input {
+      position: relative;
+      z-index: 0;
       flex: 1;
+      min-width: 0;
 
       .bk-form-input {
         height: 22px;
@@ -122,12 +126,15 @@
     }
   
     .icon-wrap {
+      position: relative;
+      z-index: 1;
       flex-shrink: 0;
       width: 22px;
       height: 22px;
       margin-left: 6px;
       line-height: 20px;
       text-align: center;
+      pointer-events: auto;
       cursor: pointer;
       border: 1px solid #caccd1;
       border-radius: 2px;

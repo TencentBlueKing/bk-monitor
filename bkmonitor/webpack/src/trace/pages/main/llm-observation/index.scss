@@ -1,0 +1,198 @@
+@import '../../../theme/theme';
+@import '../../../theme/mixin';
+
+.llm-observation {
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  padding-right: 40px;
+
+  @include flex-column;
+
+  &-main {
+    flex: none;
+    min-height: auto;
+
+    @include flex-column;
+  }
+
+  &-agent-bar {
+    margin-top: 16px;
+  }
+
+  &-stats {
+    flex-shrink: 0;
+    gap: 8px;
+    padding: 16px 0 0;
+
+    @include flex-align(center);
+  }
+
+  &-stat-card {
+    flex: 1 0 0;
+    gap: 2px;
+    align-items: flex-start;
+    min-width: 0;
+    padding: 6px 8px;
+    background: #fff;
+    border: 1px solid $border-color-base;
+    border-radius: 4px;
+
+    @include flex-column;
+  }
+
+  &-stat-head,
+  &-stat-value-row {
+    align-self: stretch;
+    min-width: 0;
+  }
+
+  &-stat-head {
+    gap: 8px;
+    justify-content: space-between;
+
+    @include flex-align(flex-start);
+  }
+
+  &-stat-label {
+    flex-shrink: 0;
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: $font-size-base;
+    line-height: 20px;
+    color: #4d4f56;
+    white-space: nowrap;
+  }
+
+  &-stat-extra {
+    min-width: 0;
+    font-family: arial, sans-serif;
+    font-size: $font-size-base;
+    font-weight: 400;
+    line-height: 20px;
+    color: #8f9fbd;
+
+    @include ellipsis;
+  }
+
+  &-stat-value-row {
+    gap: 4px;
+
+    @include flex-align(flex-end);
+  }
+
+  &-stat-value {
+    min-width: 0;
+    font-family: arial, sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 32px;
+    color: #313238;
+
+    @include ellipsis;
+
+    &.is-success {
+      color: #21a380;
+    }
+  }
+
+  &-stat-unit {
+    flex-shrink: 0;
+    padding-bottom: 3px;
+    font-family: 'Microsoft YaHei', sans-serif;
+    font-size: $font-size-large;
+    line-height: 24px;
+    color: #313238;
+  }
+
+  &-io {
+    flex: none;
+    min-height: calc(100vh - 98px);
+    margin-top: 16px;
+    margin-bottom: 16px;
+
+    @include flex-column;
+  }
+
+  &-toolbar {
+    position: sticky;
+    top: calc(var(--span-info-tab-sticky-height, 46px) + var(--llm-tab-sticky-gap, 4px));
+    z-index: 2;
+    flex-shrink: 0;
+    width: 100%;
+    height: 40px;
+    overflow: visible;
+    background: #fff;
+    /* 吸顶后仍保留 Tab 下方与内容区的顶边线 */
+    border-bottom: 1px solid #c1cde5;
+
+    @include flex-align(flex-end);
+  }
+
+  &-io-tabs {
+    gap: 8px;
+
+    @include flex-align(flex-end);
+  }
+
+  &-io-tab {
+    position: relative;
+    gap: 6px;
+    justify-content: center;
+    height: 40px;
+    padding: 10px 24px;
+    font-size: $font-size-medium;
+    font-weight: 500;
+    line-height: 22px;
+    color: #4e5e7a;
+    white-space: nowrap;
+    cursor: pointer;
+    background: #e4e9f2;
+    border: 1px solid transparent;
+    border-radius: 8px 8px 0 0;
+
+    @include flex-align(center);
+
+    &-icon {
+      flex-shrink: 0;
+      font-size: $font-size-large;
+    }
+
+    &.is-active {
+      z-index: 1;
+      margin-bottom: -1px;
+      color: $primary-color;
+      background: #fff;
+      border-color: #c1cde5;
+      border-bottom-color: transparent;
+      box-shadow: 0 -1px 1px rgb(25 25 41 / 4%);
+
+      &::after {
+        position: absolute;
+        right: 1px;
+        bottom: -1px;
+        left: 1px;
+        height: 2px;
+        pointer-events: none;
+        content: '';
+        background: #fff;
+      }
+    }
+  }
+
+  &-io-content {
+    position: relative;
+    z-index: 0;
+    min-height: 120px;
+    overflow: visible;
+    background: #fff;
+    border: 1px solid #c1cde5;
+    border-top: 0;
+    border-radius: 0 6px 6px;
+  }
+
+  &-io-pane {
+    &.is-hidden {
+      display: none;
+    }
+  }
+}

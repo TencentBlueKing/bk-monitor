@@ -9,8 +9,12 @@
         color: #63656e; /// apm下此处样式受到污染，此处手动设置颜色覆盖
 
         .count {
-          color: #E71818;
+          color: #e71818;
         }
+      }
+
+      .trend-summary-skeleton {
+        width: 180px;
       }
 
       .interval-select {
@@ -29,4 +33,4 @@
       width: 100%;
     }
   }
-}  
+}

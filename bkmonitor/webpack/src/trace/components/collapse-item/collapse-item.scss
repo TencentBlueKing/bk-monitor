@@ -3,11 +3,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-		cursor: pointer;
+
+    &.has-content {
+      cursor: pointer;
+    }
 
     .title-container {
       flex: 1;
-			overflow: hidden;
+      overflow: hidden;
     }
 
     .arrow {
@@ -26,7 +29,7 @@
 
   .item-content {
     margin-top: 10px;
-    transition: height 0.2s ease-in-out
+    transition: height 0.2s ease-in-out;
   }
 }
 

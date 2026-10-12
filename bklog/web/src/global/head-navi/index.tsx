@@ -77,7 +77,7 @@ export default defineComponent({
       const matchedList = route.matched;
       const menuList = store.state.menuList;
       return (
-        menuList.find((item) => {
+        menuList.find(item => {
           return matchedList.some(record => record.name === item.id);
         }) || {}
       );
@@ -169,7 +169,7 @@ export default defineComponent({
     function jumpToHome() {
       store.commit('updateState', { isShowGlobalDialog: false });
       if ((window as any).IS_EXTERNAL) {
-        const externalMenu = store.state.externalMenu as string[] || [];
+        const externalMenu = (store.state.externalMenu as string[]) || [];
         // 外部版优先跳转管理，无管理权限再考虑检索或客户端日志检索
         let defaultRoute = 'manage';
         if (externalMenu.includes('manage')) defaultRoute = 'manage';
@@ -265,9 +265,7 @@ export default defineComponent({
       jsCookie.set('blueking_language', value, {
         expires: 3600,
         domain:
-          envConfig.value.bkDomain || location.host.split('.').slice(-2)
-            .join('.')
-            .replace(`:${location.port}`, ''),
+          envConfig.value.bkDomain || location.host.split('.').slice(-2).join('.').replace(`:${location.port}`, ''),
       });
 
       if (state.bk_tenant_id) {
@@ -275,8 +273,13 @@ export default defineComponent({
           (window as any).BK_PAAS_API_HOST,
           '/api/bk-user-web/prod/api/v3/open-web/tenant/current-user/language/',
         );
-        requestJson({ url, params: { language: value }, method: 'PUT', headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id } })
-          .catch((err) => {
+        requestJson({
+          url,
+          params: { language: value },
+          method: 'PUT',
+          headers: { 'X-Bk-Tenant-Id': state.bk_tenant_id },
+        })
+          .catch(err => {
             bkMessage({
               message: err.message,
               theme: 'error',
@@ -335,9 +338,10 @@ export default defineComponent({
      */
     function handleGoToMyApplication() {
       state.showGlobalDialog = false;
-      const host =        process.env.NODE_ENV === 'development'
-        ? `http://${(process as any).env.devHost}:7001`
-        : (window as any).MONITOR_URL;
+      const host =
+        process.env.NODE_ENV === 'development'
+          ? `http://${(process as any).env.devHost}:7001`
+          : (window as any).MONITOR_URL;
       const targetSrc = `${host}/?bizId=${bkBizId.value}&needMenu=false#/trace/report/my-applied-report`;
       state.globalDialogTitle = t('我申请的');
       state.showGlobalDialog = true;
@@ -349,9 +353,10 @@ export default defineComponent({
      */
     function handleGoToMyReport() {
       state.showGlobalDialog = false;
-      const host =        process.env.NODE_ENV === 'development'
-        ? `http://${(process as any).env.devHost}:7001`
-        : (window as any).MONITOR_URL;
+      const host =
+        process.env.NODE_ENV === 'development'
+          ? `http://${(process as any).env.devHost}:7001`
+          : (window as any).MONITOR_URL;
       const targetSrc = `${host}/?bizId=${bkBizId.value}&needMenu=false#/trace/report/my-report`;
       state.globalDialogTitle = t('我的订阅');
       state.showGlobalDialog = true;
@@ -430,12 +435,12 @@ export default defineComponent({
       },
       ...(showPersonalSettings.value
         ? [
-          {
-            text: t('个人设置'),
-            icon: 'bklog-icon bklog-yonghu',
-            handle: handleGoToPersonalCenter,
-          },
-        ]
+            {
+              text: t('个人设置'),
+              icon: 'bklog-icon bklog-yonghu',
+              handle: handleGoToPersonalCenter,
+            },
+          ]
         : []),
       {
         text: t('退出登录'),
@@ -469,7 +474,8 @@ export default defineComponent({
     const menuList = computed(() => {
       const list =
         (navMenu.topMenu as any).value?.filter((menu: any) => {
-          const baseFilter = menu.feature === 'on' && (isExternal.value ? store.state.externalMenu.includes(menu.id) : true);
+          const baseFilter =
+            menu.feature === 'on' && (isExternal.value ? store.state.externalMenu.includes(menu.id) : true);
           if (!baseFilter) return false;
           // 客户端日志菜单项需要检查 tgpa_task 功能开关
           if (menu.id === 'client-log-search') {
@@ -617,8 +623,8 @@ export default defineComponent({
                 <ul class='bk-dropdown-list'>
                   <li>
                     {renderDropdownLink(t('产品文档'), () => dropdownHelpTriggerHandler('docCenter'))}
-                    {!isExternal.value
-                      && renderDropdownLink(t('版本日志'), () => dropdownHelpTriggerHandler('logVersion'))}
+                    {!isExternal.value &&
+                      renderDropdownLink(t('版本日志'), () => dropdownHelpTriggerHandler('logVersion'))}
                     {renderDropdownLink(t('问题反馈'), () => dropdownHelpTriggerHandler('feedback'))}
                   </li>
                 </ul>
@@ -645,8 +651,7 @@ export default defineComponent({
             offset={[0, 20]}
             renderSlot={renderSlot}
             actionList={actionList.value}
-          >
-          </BkLoginUserinfo>
+          ></BkLoginUserinfo>
         </div>
 
         <GlobalDialog

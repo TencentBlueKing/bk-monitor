@@ -108,4 +108,9 @@ def mysetting(request):
         "BK_IAM_URL": settings.BK_IAM_SAAS_HOST,
         "SHOW_PERSONAL_SETTINGS": "true" if settings.SHOW_PERSONAL_SETTINGS else "false",
         "TGPA_SDK_DOC_URL": settings.TGPA_SDK_DOC_URL,
+        # RUM 配置
+        "BKLOG_RUM_SDK": settings.BKLOG_RUM_SDK,
+        "BKLOG_RUM_ENDPOINT": settings.BKLOG_RUM_ENDPOINT,
+        "BKLOG_RUM_TOKEN": settings.BKLOG_RUM_TOKEN,
+        "BKLOG_RUM_ENABLED": str(settings.BKLOG_RUM_ENABLED).lower(),
     }

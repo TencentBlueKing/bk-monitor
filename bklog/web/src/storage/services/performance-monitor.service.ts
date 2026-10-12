@@ -1,7 +1,23 @@
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
+
 import type VueRouter from 'vue-router';
 
 import db from '../core/db';
@@ -25,9 +41,13 @@ const ACTIVE_TAB_TTL = 30 * 1000;
 const WINDOW_API_NAME = '__BKLOG_PERF_MONITOR__';
 const MAX_RESOURCE_SAMPLES = 80;
 const MAX_API_SAMPLES = 120;
-const MAX_EXPORT_RECORDS = 50000;
-const AI_EXPORT_MAX_RECORDS = 12000;
-const COMPACT_EXPORT_MAX_RECORDS = 20000;
+const MAX_EXPORT_RECORDS = 3000;
+const AI_EXPORT_MAX_RECORDS = 1500;
+const COMPACT_EXPORT_MAX_RECORDS = 2000;
+const HARD_MAX_EXPORT_RECORDS = 4000;
+const DEFAULT_EXPORT_WINDOW_MS = 30 * 60 * 1000;
+const HIGH_HEAP_BYTES = 1.2 * 1024 * 1024 * 1024;
+const nextIdle = () => new Promise<void>(resolve => window.setTimeout(resolve, 0));
 const MAX_AI_TIMELINE_POINTS = 120;
 const MAX_COMPACT_TIMELINE_POINTS = 300;
 
@@ -84,7 +104,7 @@ type PerformanceExportOptions = {
   mode?: ExportMode;
   /** full 模式默认保留堆栈；compact / ai 默认移除堆栈，显著降低体积 */
   includeStacks?: boolean;
-  /** full 模式默认保留 records；compact / ai 默认不保留原始 records */
+  /** 默认不带回原始 records，避免导出把页面打崩；需要 mark 明细时显式打开 */
   includeRecords?: boolean;
   /** 只导出指定 record type，适用于精准排查 */
   recordTypes?: string[];
@@ -92,8 +112,18 @@ type PerformanceExportOptions = {
   sampleEvery?: number;
   /** records 二次限制，优先级高于 limit */
   maxRecords?: number;
-  /** 是否格式化 JSON；compact / ai 默认 false */
+  /** 是否格式化 JSON；默认 false，pretty 会额外复制一份大字符串 */
   pretty?: boolean;
+  /** 只导出该时间之后的记录，默认近 30 分钟 */
+  since?: number;
+  /** 相对现在的时间窗，毫秒；与 since 二选一 */
+  sinceMs?: number;
+  /** 只导出指定 tab；默认当前 tab */
+  tabId?: string;
+  /** 默认 true：只导出当前 tab，避免把 7 天历史一次读进内存 */
+  currentTabOnly?: boolean;
+  /** 默认 false：控制台不要接住整包 payload，否则会再占一份堆 */
+  returnPayload?: boolean;
 };
 
 type ExportSanitizeOptions = {
@@ -151,41 +181,47 @@ const getContentLength = (headers: Headers | null | undefined) => {
   return Number.isFinite(size) ? size : null;
 };
 
-const getPerformanceResourceSize = (entry: PerformanceResourceTiming | undefined) => entry
-  ? {
-      transferSize: entry.transferSize,
-      encodedBodySize: entry.encodedBodySize,
-      decodedBodySize: entry.decodedBodySize,
-      duration: entry.duration,
-      initiatorType: entry.initiatorType,
-      name: entry.name,
-    }
-  : null;
+const getPerformanceResourceSize = (entry: PerformanceResourceTiming | undefined) =>
+  entry
+    ? {
+        transferSize: entry.transferSize,
+        encodedBodySize: entry.encodedBodySize,
+        decodedBodySize: entry.decodedBodySize,
+        duration: entry.duration,
+        initiatorType: entry.initiatorType,
+        name: entry.name,
+      }
+    : null;
 
-const bytesToMB = (value: number | undefined | null) => Number.isFinite(Number(value))
-  ? Math.round((Number(value) / 1024 / 1024) * 10) / 10
-  : undefined;
+const bytesToMB = (value: number | undefined | null) =>
+  Number.isFinite(Number(value)) ? Math.round((Number(value) / 1024 / 1024) * 10) / 10 : undefined;
 
-const compactRoute = (value = '') => String(value).replace(/([?&](?:keyword|addition|where|query|sql)=[^&]*)/g, (match) => {
-  const [key, rawValue = ''] = match.split('=');
-  return `${key}=${rawValue.length > 80 ? `${rawValue.slice(0, 80)}...` : rawValue}`;
-});
+const compactRoute = (value = '') =>
+  String(value).replace(/([?&](?:keyword|addition|where|query|sql)=[^&]*)/g, match => {
+    const [key, rawValue = ''] = match.split('=');
+    return `${key}=${rawValue.length > 80 ? `${rawValue.slice(0, 80)}...` : rawValue}`;
+  });
 
 const sanitizeForExport = (value: any, options: ExportSanitizeOptions, depth = 0): any => {
   if (value === null || value === undefined) return value;
-  if (typeof value === 'string') return value.length > options.maxStringLength ? `${value.slice(0, options.maxStringLength)}...<truncated:${value.length}>` : value;
+  if (typeof value === 'string')
+    return value.length > options.maxStringLength
+      ? `${value.slice(0, options.maxStringLength)}...<truncated:${value.length}>`
+      : value;
   if (typeof value !== 'object') return value;
   if (depth >= options.maxDepth) return Array.isArray(value) ? `[array:${value.length}]` : '[object]';
   if (Array.isArray(value)) {
     return value.slice(0, options.maxArrayLength).map(item => sanitizeForExport(item, options, depth + 1));
   }
-  return Object.keys(value).reduce((out, key) => {
-    if (!options.includeStacks && /stack|lastStack/i.test(key)) return out;
-    out[key] = sanitizeForExport(value[key], options, depth + 1);
-    return out;
-  }, {} as Record<string, any>);
+  return Object.keys(value).reduce(
+    (out, key) => {
+      if (!options.includeStacks && /stack|lastStack/i.test(key)) return out;
+      out[key] = sanitizeForExport(value[key], options, depth + 1);
+      return out;
+    },
+    {} as Record<string, any>,
+  );
 };
-
 
 const serializeLongTaskAttribution = (attribution: any) => {
   if (!attribution) return [];
@@ -211,7 +247,6 @@ const pickEvery = <T>(list: T[], maxPoints: number) => {
   return list.filter((_, index) => index % step === 0 || index === list.length - 1);
 };
 
-
 class PerformanceMonitorService {
   private enabled = false;
   private tabId = this.getOrCreateTabId();
@@ -224,7 +259,13 @@ class PerformanceMonitorService {
   private eventCounters = new Map<string, EventCounter>();
   private timerCounters = new Map<number, TimerCounter>();
   private apiSamples: ApiRequestSample[] = [];
-  private windowOpenHistory: Array<{ timestamp: number; url: string; target?: string; normalizedUrl: string; stack?: string }> = [];
+  private windowOpenHistory: Array<{
+    timestamp: number;
+    url: string;
+    target?: string;
+    normalizedUrl: string;
+    stack?: string;
+  }> = [];
   private exportState: ExportState = { exporting: false };
   private eventPatchRestore: null | (() => void) = null;
   private timerPatchRestore: null | (() => void) = null;
@@ -264,7 +305,7 @@ class PerformanceMonitorService {
   bindRouter(router: VueRouter) {
     if (this.routerInstalled) return;
     this.routerInstalled = true;
-    router.afterEach((to) => {
+    router.afterEach(to => {
       this.setRouteContext(to);
       this.updateActiveTab('route');
       this.record('route', {
@@ -293,6 +334,7 @@ class PerformanceMonitorService {
     this.updateActiveTab('enable');
     this.startSampling(options.sampleInterval || DEFAULT_SAMPLE_INTERVAL);
     this.record('monitor-start', { reason: options.reason || 'manual' });
+    void performanceRecordRepository.gc();
     console.info('[bklog-performance-monitor] enabled', this.status());
     return this.status();
   }
@@ -309,6 +351,10 @@ class PerformanceMonitorService {
     this.flush();
     console.info('[bklog-performance-monitor] disabled');
     return this.status();
+  }
+
+  isEnabled() {
+    return this.enabled;
   }
 
   status() {
@@ -351,27 +397,58 @@ class PerformanceMonitorService {
   }
 
   async export(options: PerformanceExportOptions = {}) {
-    const mode: ExportMode = options.mode || 'full';
+    const mode: ExportMode = options.mode || 'ai';
     const sessionId = options.sessionId || this.sessionId;
-    const defaultLimit = mode === 'ai' ? AI_EXPORT_MAX_RECORDS : mode === 'compact' ? COMPACT_EXPORT_MAX_RECORDS : MAX_EXPORT_RECORDS;
-    const limit = Math.min(options.limit || defaultLimit, options.maxRecords || options.limit || defaultLimit);
-    const includeStacks = options.includeStacks ?? mode === 'full';
-    const includeRecords = options.includeRecords ?? mode === 'full';
-    const pretty = options.pretty ?? mode === 'full';
+    const defaultLimit =
+      mode === 'ai' ? AI_EXPORT_MAX_RECORDS : mode === 'compact' ? COMPACT_EXPORT_MAX_RECORDS : MAX_EXPORT_RECORDS;
+    const limit = Math.min(options.maxRecords || options.limit || defaultLimit, HARD_MAX_EXPORT_RECORDS);
+    const includeStacks = options.includeStacks ?? false;
+    const includeRecords = options.includeRecords ?? false;
+    const pretty = options.pretty ?? false;
+    const sinceMs = options.sinceMs || DEFAULT_EXPORT_WINDOW_MS;
+    const since = options.since || Date.now() - sinceMs;
+    const currentTabOnly = options.currentTabOnly !== false;
+    const tabId = options.tabId || (currentTabOnly ? this.tabId : undefined);
+    const download = options.download !== false;
+    const returnPayload = options.returnPayload === true;
+    const usedHeap = (performance as any).memory?.usedJSHeapSize || 0;
     this.exportState = { exporting: true, startedAt: Date.now(), stage: 'collect-before-export' };
-    console.info('[bklog-performance-monitor] export started', { sessionId, limit, mode, download: options.download !== false });
-    this.record('export-start', { sessionId, limit, mode });
+    console.info('[bklog-performance-monitor] export started', {
+      sessionId,
+      tabId,
+      limit,
+      mode,
+      since,
+      currentTabOnly,
+      download,
+      returnPayload,
+    });
+    this.record('export-start', { sessionId, tabId, limit, mode, since });
     try {
-      await this.collectAsyncSample('before-export');
-      this.collectSample('before-export-sync');
+      if (usedHeap < HIGH_HEAP_BYTES) {
+        await this.collectAsyncSample('before-export');
+        this.collectSample('before-export-sync');
+      } else {
+        this.exportState.stage = 'skip-pre-export-sample:high-heap';
+      }
       this.exportState.stage = 'flush-records';
       await this.flush();
+      await nextIdle();
       this.exportState.stage = 'read-records';
-      const rawRecords = [
-        ...await performanceRecordRepository.list(sessionId, limit),
-        ...this.memoryFallbackRecords,
-      ];
-      const records = this.filterExportRecords(rawRecords, options);
+      const storedCount = await performanceRecordRepository.count(sessionId);
+      const recentRecords = await performanceRecordRepository.listRecent({
+        sessionId,
+        tabId,
+        since,
+        limit,
+        types: options.recordTypes,
+      });
+      const fallbackRecords = this.memoryFallbackRecords.filter(record => {
+        if (record.timestamp < since) return false;
+        if (tabId && record.tabId !== tabId) return false;
+        return true;
+      });
+      const records = this.filterExportRecords([...recentRecords, ...fallbackRecords], options);
       this.exportState.stage = `build-payload:${mode}`;
       const payload = this.buildExportPayload(records, {
         ...options,
@@ -382,6 +459,15 @@ class PerformanceMonitorService {
         includeRecords,
         pretty,
       });
+      payload.exportScope = {
+        since,
+        sinceMs,
+        tabId,
+        currentTabOnly,
+        storedCount,
+        exportedCount: records.length,
+        truncated: storedCount > records.length,
+      };
       const filename = `bklog-performance-${mode}-${sessionId}-${Date.now()}.json`;
       this.exportState = {
         exporting: true,
@@ -390,18 +476,50 @@ class PerformanceMonitorService {
         records: records.length,
         filename,
       };
+      await nextIdle();
       const content = JSON.stringify(payload, null, pretty ? 2 : 0);
-      if (options.download !== false) {
+      if (download) {
         this.exportState.stage = 'download';
         this.downloadFile(content, filename);
       }
-      this.exportState = { exporting: false, startedAt: this.exportState.startedAt, finishedAt: Date.now(), stage: 'done', records: records.length, filename };
-      this.record('export-end', { sessionId, records: records.length, filename, mode, bytes: content.length, download: options.download !== false });
+      this.exportState = {
+        exporting: false,
+        startedAt: this.exportState.startedAt,
+        finishedAt: Date.now(),
+        stage: 'done',
+        records: records.length,
+        filename,
+      };
+      this.record('export-end', {
+        sessionId,
+        records: records.length,
+        storedCount,
+        filename,
+        mode,
+        bytes: content.length,
+        download,
+      });
       await this.flush();
-      console.info('[bklog-performance-monitor] export finished', { ...this.exportState, mode, bytes: content.length });
-      return payload;
+      const summary = {
+        filename,
+        bytes: content.length,
+        records: records.length,
+        storedCount,
+        mode,
+        since,
+        tabId,
+        downloaded: download,
+      };
+      console.info('[bklog-performance-monitor] export finished', { ...this.exportState, ...summary });
+      return returnPayload ? payload : summary;
     } catch (error) {
-      this.exportState = { exporting: false, startedAt: this.exportState.startedAt, finishedAt: Date.now(), stage: 'failed', error: String(error) };
+      this.exportState = {
+        exporting: false,
+        startedAt: this.exportState.startedAt,
+        finishedAt: Date.now(),
+        stage: 'failed',
+        error: String(error),
+      };
       this.record('export-failed', { sessionId, mode, error: String(error) });
       console.error('[bklog-performance-monitor] export failed', error);
       throw error;
@@ -412,7 +530,7 @@ class PerformanceMonitorService {
     const typeSet = options.recordTypes?.length ? new Set(options.recordTypes) : null;
     const sampleEvery = Math.max(1, Number(options.sampleEvery || 1));
     let sampleIndex = 0;
-    const filtered = records.filter((record) => {
+    const filtered = records.filter(record => {
       if (typeSet && !typeSet.has(record.type)) return false;
       if ((record.type === 'sample' || record.type === 'sample-detail') && sampleEvery > 1) {
         sampleIndex += 1;
@@ -423,7 +541,11 @@ class PerformanceMonitorService {
     return typeof options.maxRecords === 'number' ? filtered.slice(-options.maxRecords) : filtered;
   }
 
-  private buildExportPayload(records: PerformanceRecordEntity[], options: Required<Pick<PerformanceExportOptions, 'mode' | 'includeStacks' | 'includeRecords' | 'pretty'>> & PerformanceExportOptions) {
+  private buildExportPayload(
+    records: PerformanceRecordEntity[],
+    options: Required<Pick<PerformanceExportOptions, 'mode' | 'includeStacks' | 'includeRecords' | 'pretty'>> &
+      PerformanceExportOptions,
+  ) {
     const base = {
       exportedAt: new Date().toISOString(),
       exportMode: options.mode,
@@ -445,14 +567,34 @@ class PerformanceMonitorService {
         ...base,
         activeTabs: this.getActiveTabsSnapshot(),
         tabAggregate: this.getTabAggregateSnapshot(),
-        windowOpenSummary: sanitizeForExport(this.getWindowOpenSnapshot(), { includeStacks: options.includeStacks, maxStringLength: 500, maxArrayLength: 80, maxDepth: 5 }),
-        resourceSummary: sanitizeForExport(this.getResourceSnapshot(), { includeStacks: false, maxStringLength: 500, maxArrayLength: 80, maxDepth: 5 }),
-        apiSummary: sanitizeForExport(this.getApiSnapshot(), { includeStacks: options.includeStacks, maxStringLength: 500, maxArrayLength: 80, maxDepth: 5 }),
+        windowOpenSummary: sanitizeForExport(this.getWindowOpenSnapshot(), {
+          includeStacks: options.includeStacks,
+          maxStringLength: 500,
+          maxArrayLength: 80,
+          maxDepth: 5,
+        }),
+        resourceSummary: sanitizeForExport(this.getResourceSnapshot(), {
+          includeStacks: false,
+          maxStringLength: 500,
+          maxArrayLength: 80,
+          maxDepth: 5,
+        }),
+        apiSummary: sanitizeForExport(this.getApiSnapshot(), {
+          includeStacks: options.includeStacks,
+          maxStringLength: 500,
+          maxArrayLength: 80,
+          maxDepth: 5,
+        }),
         records: options.includeRecords ? this.compactRecords(records, options) : undefined,
       };
     }
 
-    const sanitizeOptions = { includeStacks: options.includeStacks, maxStringLength: 4000, maxArrayLength: 500, maxDepth: 8 };
+    const sanitizeOptions = {
+      includeStacks: options.includeStacks,
+      maxStringLength: 4000,
+      maxArrayLength: 500,
+      maxDepth: 8,
+    };
     return {
       ...base,
       activeTabs: this.getActiveTabsSnapshot(),
@@ -460,19 +602,32 @@ class PerformanceMonitorService {
       windowOpenSummary: this.getWindowOpenSnapshot(),
       resourceSummary: this.getResourceSnapshot(),
       apiSummary: this.getApiSnapshot(),
-      records: this.compactRecords(records, { ...options, includeStacks: true }).map(record => sanitizeForExport(record, sanitizeOptions)),
+      records: this.compactRecords(records, { ...options, includeStacks: true }).map(record =>
+        sanitizeForExport(record, sanitizeOptions),
+      ),
     };
   }
 
-  private buildAIExportPayload(base: Record<string, any>, records: PerformanceRecordEntity[], options: PerformanceExportOptions) {
+  private buildAIExportPayload(
+    base: Record<string, any>,
+    records: PerformanceRecordEntity[],
+    options: PerformanceExportOptions,
+  ) {
     const summaries = this.buildRecordSummaries(records);
     const memoryTrend = pickEvery(summaries.memoryTrend, MAX_AI_TIMELINE_POINTS);
     const windowOpenRecords = records
       .filter(record => record.type === 'window-open')
       .map(record => this.toAIWindowOpen(record, Boolean(options.includeStacks)));
     const apiHotspots = Object.entries(summaries.apiByUrl)
-      .map(([url, stats]: any) => ({ url, ...stats, avgDuration: stats.count ? Math.round(stats.totalDuration / stats.count) : 0 }))
-      .sort((a: any, b: any) => (b.contentLength || 0) - (a.contentLength || 0) || (b.totalDuration || 0) - (a.totalDuration || 0))
+      .map(([url, stats]: any) => ({
+        url,
+        ...stats,
+        avgDuration: stats.count ? Math.round(stats.totalDuration / stats.count) : 0,
+      }))
+      .sort(
+        (a: any, b: any) =>
+          (b.contentLength || 0) - (a.contentLength || 0) || (b.totalDuration || 0) - (a.totalDuration || 0),
+      )
       .slice(0, 30);
     const routeStats = Object.entries(summaries.routeStats)
       .map(([route, stats]: any) => ({ route, ...stats }))
@@ -483,7 +638,8 @@ class PerformanceMonitorService {
       guide: {
         unit: 'memory values are MB when field name ends with MB',
         note: 'This compact AI export removes raw stacks by default and keeps trend, duplicate windows, API/resource hotspots, and evidence records.',
-        recommendedPrompt: 'Analyze this BKLog performance export. Focus on memory stair-step, duplicate tabs/window.open, heavy APIs/resources, route changes, and likely source modules.',
+        recommendedPrompt:
+          'Analyze this BKLog performance export. Focus on memory stair-step, duplicate tabs/window.open, heavy APIs/resources, route changes, and likely source modules.',
       },
       conclusionHints: this.buildConclusionHints(summaries),
       timeline: memoryTrend,
@@ -498,7 +654,12 @@ class PerformanceMonitorService {
       errors: summaries.errors.slice(0, 50),
       longTasks: summaries.longTasks.slice(0, 50),
       latestSnapshots: summaries.latestSnapshots,
-      evidenceRecords: options.includeRecords ? this.compactRecords(records, { ...options, includeStacks: Boolean(options.includeStacks) }).slice(-300) : undefined,
+      evidenceRecords: this.compactRecords(
+        options.includeRecords
+          ? records
+          : records.filter(record => ['mark', 'api-request', 'long-task', 'window-open'].includes(record.type)),
+        { ...options, includeStacks: Boolean(options.includeStacks) },
+      ).slice(-300),
     };
   }
 
@@ -518,17 +679,22 @@ class PerformanceMonitorService {
       maxArrayLength: 80,
       maxDepth: 6,
     };
-    return records.map(record => sanitizeForExport({
-      id: record.id,
-      type: record.type,
-      timestamp: record.timestamp,
-      route: compactRoute(record.routeFullPath || ''),
-      routeName: record.routeName,
-      componentPath: record.componentPath,
-      tabId: record.tabId,
-      pageId: record.pageId,
-      data: record.data,
-    }, sanitizeOptions));
+    return records.map(record =>
+      sanitizeForExport(
+        {
+          id: record.id,
+          type: record.type,
+          timestamp: record.timestamp,
+          route: compactRoute(record.routeFullPath || ''),
+          routeName: record.routeName,
+          componentPath: record.componentPath,
+          tabId: record.tabId,
+          pageId: record.pageId,
+          data: record.data,
+        },
+        sanitizeOptions,
+      ),
+    );
   }
 
   private buildRecordSummaries(records: PerformanceRecordEntity[]) {
@@ -544,14 +710,20 @@ class PerformanceMonitorService {
     const timeRange = { start: records[0]?.timestamp, end: records[records.length - 1]?.timestamp, durationMs: 0 };
     if (timeRange.start && timeRange.end) timeRange.durationMs = timeRange.end - timeRange.start;
 
-    records.forEach((record) => {
+    records.forEach(record => {
       typeCounts[record.type] = (typeCounts[record.type] || 0) + 1;
       const data: any = record.data || {};
       const memory = data.memory || {};
       const usedHeapMB = bytesToMB(memory.usedJSHeapSize);
       const totalHeapMB = bytesToMB(memory.totalJSHeapSize);
       const route = compactRoute(record.routeFullPath || data.route || data.href || 'unknown');
-      const routeItem = routeStats[route] || { count: 0, maxHeapMB: 0, firstAt: record.timestamp, lastAt: record.timestamp, componentPath: record.componentPath };
+      const routeItem = routeStats[route] || {
+        count: 0,
+        maxHeapMB: 0,
+        firstAt: record.timestamp,
+        lastAt: record.timestamp,
+        componentPath: record.componentPath,
+      };
       routeItem.count += 1;
       routeItem.firstAt = Math.min(routeItem.firstAt, record.timestamp);
       routeItem.lastAt = Math.max(routeItem.lastAt, record.timestamp);
@@ -586,7 +758,14 @@ class PerformanceMonitorService {
 
       if (record.type === 'api-request') {
         const key = normalizeUrlForStats(data.url || '');
-        const stats = apiByUrl[key] || { count: 0, errors: 0, totalDuration: 0, maxDuration: 0, contentLength: 0, methods: {} as Record<string, number> };
+        const stats = apiByUrl[key] || {
+          count: 0,
+          errors: 0,
+          totalDuration: 0,
+          maxDuration: 0,
+          contentLength: 0,
+          methods: {} as Record<string, number>,
+        };
         stats.count += 1;
         if (data.error || Number(data.status || 0) >= 400) stats.errors += 1;
         stats.totalDuration += Number(data.duration || 0);
@@ -599,7 +778,13 @@ class PerformanceMonitorService {
 
       if (record.type === 'window-open') {
         const target = data.normalizedUrl || normalizeUrlForStats(data.url || '');
-        const item = windowTargetMap[target] || { count: 0, firstAt: record.timestamp, lastAt: record.timestamp, targets: {} as Record<string, number>, recommendation: data.recommendation };
+        const item = windowTargetMap[target] || {
+          count: 0,
+          firstAt: record.timestamp,
+          lastAt: record.timestamp,
+          targets: {} as Record<string, number>,
+          recommendation: data.recommendation,
+        };
         item.count += 1;
         item.firstAt = Math.min(item.firstAt, record.timestamp);
         item.lastAt = Math.max(item.lastAt, record.timestamp);
@@ -609,17 +794,35 @@ class PerformanceMonitorService {
       }
 
       if (record.type === 'window-error' || record.type === 'unhandled-rejection' || record.type === 'export-failed') {
-        errors.push({ timestamp: record.timestamp, type: record.type, route, message: data.message || data.reason || data.error, stack: data.stack });
+        errors.push({
+          timestamp: record.timestamp,
+          type: record.type,
+          route,
+          message: data.message || data.reason || data.error,
+          stack: data.stack,
+        });
       }
       if (record.type === 'long-task') {
-        longTasks.push({ timestamp: record.timestamp, route, duration: data.duration, name: data.name, attribution: data.attribution });
+        longTasks.push({
+          timestamp: record.timestamp,
+          route,
+          duration: data.duration,
+          name: data.name,
+          attribution: data.attribution,
+        });
       }
 
       const resourceTop = data.resources?.topByDecodedSize || data.resourceSummary?.topByDecodedSize || [];
       resourceTop.forEach((item: any) => {
         const key = item.name || item.shortName;
         if (!key) return;
-        const existed = resourceHotspotsMap[key] || { name: key, initiatorType: item.initiatorType, decodedBodySize: 0, transferSize: 0, duration: 0 };
+        const existed = resourceHotspotsMap[key] || {
+          name: key,
+          initiatorType: item.initiatorType,
+          decodedBodySize: 0,
+          transferSize: 0,
+          duration: 0,
+        };
         existed.decodedBodySize = Math.max(existed.decodedBodySize, Number(item.decodedBodySize || 0));
         existed.transferSize = Math.max(existed.transferSize, Number(item.transferSize || 0));
         existed.duration = Math.max(existed.duration, Number(item.duration || 0));
@@ -627,14 +830,19 @@ class PerformanceMonitorService {
       });
     });
 
-    const memoryValues = memoryTrend.map(item => item.usedHeapMB).filter((item): item is number => typeof item === 'number');
+    const memoryValues = memoryTrend
+      .map(item => item.usedHeapMB)
+      .filter((item): item is number => typeof item === 'number');
     const maxHeapMB = memoryValues.length ? Math.max(...memoryValues) : undefined;
     const minHeapMB = memoryValues.length ? Math.min(...memoryValues) : undefined;
     const duplicateWindowTargets = Object.entries(windowTargetMap)
       .filter(([, item]: any) => item.count > 1)
       .map(([url, item]: any) => ({ url, ...item }));
     const resourceHotspots = Object.values(resourceHotspotsMap)
-      .sort((a: any, b: any) => Number(b.decodedBodySize || b.transferSize || 0) - Number(a.decodedBodySize || a.transferSize || 0))
+      .sort(
+        (a: any, b: any) =>
+          Number(b.decodedBodySize || b.transferSize || 0) - Number(a.decodedBodySize || a.transferSize || 0),
+      )
       .slice(0, 30);
 
     return {
@@ -644,7 +852,10 @@ class PerformanceMonitorService {
       memory: {
         minHeapMB,
         maxHeapMB,
-        deltaHeapMB: maxHeapMB !== undefined && minHeapMB !== undefined ? Math.round((maxHeapMB - minHeapMB) * 10) / 10 : undefined,
+        deltaHeapMB:
+          maxHeapMB !== undefined && minHeapMB !== undefined
+            ? Math.round((maxHeapMB - minHeapMB) * 10) / 10
+            : undefined,
         firstHeapMB: memoryTrend[0]?.usedHeapMB,
         lastHeapMB: memoryTrend[memoryTrend.length - 1]?.usedHeapMB,
       },
@@ -660,30 +871,37 @@ class PerformanceMonitorService {
 
   private toAIWindowOpen(record: PerformanceRecordEntity, includeStacks: boolean) {
     const data: any = record.data || {};
-    return sanitizeForExport({
-      timestamp: record.timestamp,
-      route: compactRoute(record.routeFullPath || ''),
-      url: data.url,
-      normalizedUrl: data.normalizedUrl,
-      target: data.target,
-      duplicateTabsCount: Array.isArray(data.duplicateTabs) ? data.duplicateTabs.length : undefined,
-      sameUrlOpenCountBefore: data.sameUrlOpenCountBefore,
-      recommendation: data.recommendation,
-      stack: data.stack,
-    }, { includeStacks, maxStringLength: includeStacks ? 1200 : 500, maxArrayLength: 20, maxDepth: 4 });
+    return sanitizeForExport(
+      {
+        timestamp: record.timestamp,
+        route: compactRoute(record.routeFullPath || ''),
+        url: data.url,
+        normalizedUrl: data.normalizedUrl,
+        target: data.target,
+        duplicateTabsCount: Array.isArray(data.duplicateTabs) ? data.duplicateTabs.length : undefined,
+        sameUrlOpenCountBefore: data.sameUrlOpenCountBefore,
+        recommendation: data.recommendation,
+        stack: data.stack,
+      },
+      { includeStacks, maxStringLength: includeStacks ? 1200 : 500, maxArrayLength: 20, maxDepth: 4 },
+    );
   }
 
   private buildConclusionHints(summaries: any) {
     const hints: string[] = [];
-    if (summaries.memory?.deltaHeapMB > 500) hints.push(`JS heap changed by about ${summaries.memory.deltaHeapMB}MB during this session.`);
-    if (summaries.duplicateWindowTargets?.length) hints.push('Repeated window.open targets were detected; check duplicate Tab creation or stable window name reuse.');
+    if (summaries.memory?.deltaHeapMB > 500)
+      hints.push(`JS heap changed by about ${summaries.memory.deltaHeapMB}MB during this session.`);
+    if (summaries.duplicateWindowTargets?.length)
+      hints.push(
+        'Repeated window.open targets were detected; check duplicate Tab creation or stable window name reuse.',
+      );
     const apiErrors = Object.entries(summaries.apiByUrl).filter(([, item]: any) => (item as any).errors > 0).length;
     if (apiErrors) hints.push(`${apiErrors} API groups contain failed requests.`);
-    if (summaries.resourceHotspots?.length) hints.push('Large resource entries were captured; inspect resourceHotspots for heavy JS chunks/assets.');
+    if (summaries.resourceHotspots?.length)
+      hints.push('Large resource entries were captured; inspect resourceHotspots for heavy JS chunks/assets.');
     if (summaries.longTasks?.length) hints.push(`${summaries.longTasks.length} long task records were captured.`);
     return hints;
   }
-
 
   async clear(options: { sessionId?: string } = {}) {
     await performanceRecordRepository.clear(options.sessionId);
@@ -698,6 +916,7 @@ class PerformanceMonitorService {
     const api = {
       enable: (options?: { sampleInterval?: number }) => this.enable({ ...options, reason: 'manual' }),
       disable: () => this.disable(),
+      isEnabled: () => this.isEnabled(),
       status: () => this.status(),
       sample: (reason?: string) => this.sample(reason),
       mark: (name: string, data?: any) => this.mark(name, data),
@@ -709,6 +928,7 @@ class PerformanceMonitorService {
       work: () => workerManagerService.list(),
       help: () => ({
         enable: `${WINDOW_API_NAME}.enable({ sampleInterval: 1000 })`,
+        isEnabled: `${WINDOW_API_NAME}.isEnabled()`,
         worker: `${WINDOW_API_NAME}.worker() // ping 检索结果解析 WebWorker，检查 worker chunk 是否可加载`,
         workerStatus: `${WINDOW_API_NAME}.workerStatus() // 查看检索解析 WebWorker 状态`,
         workers: 'window.__BKLOG_WORKERS__.list() // 统一查看当前分支内所有 Work / Worker 状态',
@@ -717,10 +937,11 @@ class PerformanceMonitorService {
         status: `${WINDOW_API_NAME}.status()`,
         sample: `${WINDOW_API_NAME}.sample('manual')`,
         mark: `${WINDOW_API_NAME}.mark('before-search')`,
-        export: `${WINDOW_API_NAME}.export()`,
+        export: `${WINDOW_API_NAME}.export() // 默认 ai + 当前 tab + 近 30 分钟；控制台只回摘要，避免 stringify 整包把页面打崩`,
+        exportCluster: `${WINDOW_API_NAME}.export({ mode: 'ai', includeRecords: true, recordTypes: ['mark', 'sample', 'sample-detail', 'api-request', 'long-task'] })`,
         exportCompact: `${WINDOW_API_NAME}.export({ mode: 'compact' })`,
-        exportAI: `${WINDOW_API_NAME}.export({ mode: 'ai' })`,
-        exportNoDownload: `${WINDOW_API_NAME}.export({ mode: 'ai', download: false })`,
+        exportFull: `${WINDOW_API_NAME}.export({ mode: 'full', includeRecords: true, pretty: false, limit: 2000 })`,
+        exportReturnPayload: `${WINDOW_API_NAME}.export({ returnPayload: true }) // 会把整包 JSON 留在控制台，堆高时可能崩`,
         clear: `${WINDOW_API_NAME}.clear()`,
         legacyTimer: 'window.__BKLOG_LEGACY_PERF_MONITOR__',
       }),
@@ -812,7 +1033,9 @@ class PerformanceMonitorService {
       tippyBoxes: document.querySelectorAll('.tippy-box').length,
       popovers: document.querySelectorAll('.bk-popover,.bk-popover-reference').length,
       logRows: document.querySelectorAll('.bklog-list-row,.bklog-row-container').length,
-      collectionDetailLinks: document.querySelectorAll('a[href*="collection-item/manage"],a[href*="collection-item/detail"]').length,
+      collectionDetailLinks: document.querySelectorAll(
+        'a[href*="collection-item/manage"],a[href*="collection-item/detail"]',
+      ).length,
       openWindowCount: this.getOpenWindowCount(),
     };
   }
@@ -834,21 +1057,29 @@ class PerformanceMonitorService {
   }
 
   private getEventSummary() {
-    return Array.from(this.eventCounters.entries()).reduce((out, [key, value]) => {
-      out[key] = value.count;
-      return out;
-    }, {} as Record<string, number>);
+    return Array.from(this.eventCounters.entries()).reduce(
+      (out, [key, value]) => {
+        out[key] = value.count;
+        return out;
+      },
+      {} as Record<string, number>,
+    );
   }
 
   private getTimerSnapshot() {
-    const summary = Array.from(this.timerCounters.values()).reduce((out, item) => {
-      const key = item.type;
-      out[key] = (out[key] || 0) + 1;
-      return out;
-    }, {} as Record<string, number>);
+    const summary = Array.from(this.timerCounters.values()).reduce(
+      (out, item) => {
+        const key = item.type;
+        out[key] = (out[key] || 0) + 1;
+        return out;
+      },
+      {} as Record<string, number>,
+    );
     return {
       summary,
-      samples: Array.from(this.timerCounters.entries()).slice(-30).map(([id, item]) => ({ id, ...item })),
+      samples: Array.from(this.timerCounters.entries())
+        .slice(-30)
+        .map(([id, item]) => ({ id, ...item })),
     };
   }
 
@@ -865,19 +1096,24 @@ class PerformanceMonitorService {
         decodedBodySize: entry.decodedBodySize,
         startTime: entry.startTime,
       }));
-      const byType = resources.reduce((out, entry) => {
-        const key = entry.initiatorType || 'unknown';
-        const item = out[key] || { count: 0, transferSize: 0, encodedBodySize: 0, decodedBodySize: 0 };
-        item.count += 1;
-        item.transferSize += Number(entry.transferSize || 0);
-        item.encodedBodySize += Number(entry.encodedBodySize || 0);
-        item.decodedBodySize += Number(entry.decodedBodySize || 0);
-        out[key] = item;
-        return out;
-      }, {} as Record<string, { count: number; transferSize: number; encodedBodySize: number; decodedBodySize: number }>);
+      const byType = resources.reduce(
+        (out, entry) => {
+          const key = entry.initiatorType || 'unknown';
+          const item = out[key] || { count: 0, transferSize: 0, encodedBodySize: 0, decodedBodySize: 0 };
+          item.count += 1;
+          item.transferSize += Number(entry.transferSize || 0);
+          item.encodedBodySize += Number(entry.encodedBodySize || 0);
+          item.decodedBodySize += Number(entry.decodedBodySize || 0);
+          out[key] = item;
+          return out;
+        },
+        {} as Record<string, { count: number; transferSize: number; encodedBodySize: number; decodedBodySize: number }>,
+      );
       const topByDecodedSize = resources
         .filter(entry => Number(entry.decodedBodySize || entry.transferSize || 0) > 0)
-        .sort((a, b) => Number(b.decodedBodySize || b.transferSize || 0) - Number(a.decodedBodySize || a.transferSize || 0))
+        .sort(
+          (a, b) => Number(b.decodedBodySize || b.transferSize || 0) - Number(a.decodedBodySize || a.transferSize || 0),
+        )
         .slice(0, 20)
         .map(entry => ({
           name: entry.name,
@@ -895,33 +1131,61 @@ class PerformanceMonitorService {
 
   private getApiSnapshot() {
     const recent = this.apiSamples.slice(-MAX_API_SAMPLES);
-    const byUrl = recent.reduce((out, item) => {
-      const key = normalizeUrlForStats(item.url);
-      const stats = out[key] || { count: 0, errors: 0, totalDuration: 0, maxDuration: 0, contentLength: 0, methods: {} as Record<string, number> };
-      stats.count += 1;
-      if (item.error || (item.status && item.status >= 400)) stats.errors += 1;
-      stats.totalDuration += Number(item.duration || 0);
-      stats.maxDuration = Math.max(stats.maxDuration, Number(item.duration || 0));
-      stats.contentLength += Number(item.contentLength || 0);
-      const method = item.method || 'GET';
-      stats.methods[method] = (stats.methods[method] || 0) + 1;
-      out[key] = stats;
-      return out;
-    }, {} as Record<string, { count: number; errors: number; totalDuration: number; maxDuration: number; contentLength: number; methods: Record<string, number> }>);
+    const byUrl = recent.reduce(
+      (out, item) => {
+        const key = normalizeUrlForStats(item.url);
+        const stats = out[key] || {
+          count: 0,
+          errors: 0,
+          totalDuration: 0,
+          maxDuration: 0,
+          contentLength: 0,
+          methods: {} as Record<string, number>,
+        };
+        stats.count += 1;
+        if (item.error || (item.status && item.status >= 400)) stats.errors += 1;
+        stats.totalDuration += Number(item.duration || 0);
+        stats.maxDuration = Math.max(stats.maxDuration, Number(item.duration || 0));
+        stats.contentLength += Number(item.contentLength || 0);
+        const method = item.method || 'GET';
+        stats.methods[method] = (stats.methods[method] || 0) + 1;
+        out[key] = stats;
+        return out;
+      },
+      {} as Record<
+        string,
+        {
+          count: number;
+          errors: number;
+          totalDuration: number;
+          maxDuration: number;
+          contentLength: number;
+          methods: Record<string, number>;
+        }
+      >,
+    );
     return { count: this.apiSamples.length, recent, byUrl };
   }
 
   private getWindowOpenSnapshot() {
     const recent = this.windowOpenHistory.slice(-50);
-    const byUrl = recent.reduce((out, item) => {
-      const current = out[item.normalizedUrl] || { count: 0, targets: {} as Record<string, number>, firstAt: item.timestamp, lastAt: item.timestamp };
-      current.count += 1;
-      current.targets[item.target || '_blank/empty'] = (current.targets[item.target || '_blank/empty'] || 0) + 1;
-      current.firstAt = Math.min(current.firstAt, item.timestamp);
-      current.lastAt = Math.max(current.lastAt, item.timestamp);
-      out[item.normalizedUrl] = current;
-      return out;
-    }, {} as Record<string, { count: number; targets: Record<string, number>; firstAt: number; lastAt: number }>);
+    const byUrl = recent.reduce(
+      (out, item) => {
+        const current = out[item.normalizedUrl] || {
+          count: 0,
+          targets: {} as Record<string, number>,
+          firstAt: item.timestamp,
+          lastAt: item.timestamp,
+        };
+        current.count += 1;
+        current.targets[item.target || '_blank/empty'] = (current.targets[item.target || '_blank/empty'] || 0) + 1;
+        current.firstAt = Math.min(current.firstAt, item.timestamp);
+        current.lastAt = Math.max(current.lastAt, item.timestamp);
+        out[item.normalizedUrl] = current;
+        return out;
+      },
+      {} as Record<string, { count: number; targets: Record<string, number>; firstAt: number; lastAt: number }>,
+    );
     return { count: this.windowOpenHistory.length, recent, byUrl };
   }
 
@@ -949,7 +1213,12 @@ class PerformanceMonitorService {
     const duplicates = Object.entries(byNormalizedHref)
       .filter(([, value]: any) => value.count > 1)
       .map(([href, value]: any) => ({ href, ...value }));
-    return { count: tabs.length, byRoute, duplicates, note: 'performance.memory is process-level in Chromium; identical heap across tabs may represent the same renderer process.' };
+    return {
+      count: tabs.length,
+      byRoute,
+      duplicates,
+      note: 'performance.memory is process-level in Chromium; identical heap across tabs may represent the same renderer process.',
+    };
   }
 
   private patchEvents() {
@@ -1060,12 +1329,15 @@ class PerformanceMonitorService {
         const start = performance.now();
         const id = `fetch:${Date.now()}:${Math.random().toString(16).slice(2)}`;
         const url = typeof input === 'string' || input instanceof URL ? String(input) : input.url;
-        const method = init?.method || (typeof input !== 'string' && !(input instanceof URL) ? input.method : 'GET') || 'GET';
+        const method =
+          init?.method || (typeof input !== 'string' && !(input instanceof URL) ? input.method : 'GET') || 'GET';
         const stack = getStack();
         try {
           const response = await originalFetch(input as any, init);
           const duration = performance.now() - start;
-          const resource = getPerformanceResourceSize(performance.getEntriesByName(url).slice(-1)[0] as PerformanceResourceTiming | undefined);
+          const resource = getPerformanceResourceSize(
+            performance.getEntriesByName(url).slice(-1)[0] as PerformanceResourceTiming | undefined,
+          );
           recordApi({
             id,
             type: 'fetch',
@@ -1075,13 +1347,24 @@ class PerformanceMonitorService {
             duration,
             startTime: Date.now() - duration,
             endTime: Date.now(),
-            contentLength: getContentLength(response.headers) || resource?.decodedBodySize || resource?.transferSize || null,
+            contentLength:
+              getContentLength(response.headers) || resource?.decodedBodySize || resource?.transferSize || null,
             stack,
           });
           return response;
         } catch (error) {
           const duration = performance.now() - start;
-          recordApi({ id, type: 'fetch', method, url, duration, startTime: Date.now() - duration, endTime: Date.now(), stack, error: String(error) });
+          recordApi({
+            id,
+            type: 'fetch',
+            method,
+            url,
+            duration,
+            startTime: Date.now() - duration,
+            endTime: Date.now(),
+            stack,
+            error: String(error),
+          });
           throw error;
         }
       }) as typeof window.fetch;
@@ -1094,7 +1377,7 @@ class PerformanceMonitorService {
         url: String(url),
         stack: getStack(),
       };
-      return originalXhrOpen.call(this, method, url as any, ...args as any);
+      return originalXhrOpen.call(this, method, url as any, ...(args as any));
     } as typeof XMLHttpRequest.prototype.open;
 
     XMLHttpRequest.prototype.send = function patchedSend(...args: any[]) {
@@ -1113,7 +1396,9 @@ class PerformanceMonitorService {
         } catch {
           contentLength = null;
         }
-        const resource = getPerformanceResourceSize(performance.getEntriesByName(meta.url).slice(-1)[0] as PerformanceResourceTiming | undefined);
+        const resource = getPerformanceResourceSize(
+          performance.getEntriesByName(meta.url).slice(-1)[0] as PerformanceResourceTiming | undefined,
+        );
         recordApi({
           id: meta.id || `xhr:${startedAt}`,
           type: 'xhr',
@@ -1163,7 +1448,7 @@ class PerformanceMonitorService {
     let observer: PerformanceObserver | null = null;
     try {
       if (typeof PerformanceObserver !== 'undefined') {
-        observer = new PerformanceObserver((list) => {
+        observer = new PerformanceObserver(list => {
           list.getEntries().forEach((entry: any) => {
             this.record('long-task', {
               name: entry.name,
@@ -1207,7 +1492,10 @@ class PerformanceMonitorService {
         beforeTabs,
         duplicateTabs,
         sameUrlOpenCountBefore: sameUrlOpenCount,
-        recommendation: duplicateTabs.length || sameUrlOpenCount ? 'same target URL opened repeatedly; consider stable window name or de-dup guard' : undefined,
+        recommendation:
+          duplicateTabs.length || sameUrlOpenCount
+            ? 'same target URL opened repeatedly; consider stable window name or de-dup guard'
+            : undefined,
       });
       this.collectSample('before-window-open');
       const opened = originalOpen.call(window, url as any, target, features);
@@ -1299,10 +1587,7 @@ class PerformanceMonitorService {
 
   private async collectAsyncSample(reason: string) {
     if (!this.enabled) return;
-    const [storage, indexedDB] = await Promise.all([
-      this.getStorageEstimateSnapshot(),
-      this.getIndexedDBSnapshot(),
-    ]);
+    const [storage, indexedDB] = await Promise.all([this.getStorageEstimateSnapshot(), this.getIndexedDBSnapshot()]);
     this.record('sample-detail', {
       reason,
       memory: this.getMemorySnapshot(),
@@ -1431,7 +1716,11 @@ class PerformanceMonitorService {
       sessionStorage.setItem(TAB_BIRTH_KEY, String(Date.now()));
       sessionStorage.setItem(TAB_INSTANCE_KEY, this.instanceId);
       if (previousTabId && previousTabId !== tabId) {
-        this.record('tab-id-renewed', { previousTabId, tabId, reason: storedInstance ? 'cloned-sessionStorage' : 'new-instance' });
+        this.record('tab-id-renewed', {
+          previousTabId,
+          tabId,
+          reason: storedInstance ? 'cloned-sessionStorage' : 'new-instance',
+        });
       }
     } catch (error) {
       this.tabId = `${this.createTabId()}:${String(error).slice(0, 24)}`;
@@ -1474,7 +1763,7 @@ class PerformanceMonitorService {
     try {
       const now = Date.now();
       const raw = JSON.parse(localStorage.getItem(ACTIVE_TABS_KEY) || '{}');
-      Object.keys(raw).forEach((tabId) => {
+      Object.keys(raw).forEach(tabId => {
         if (now - Number(raw[tabId]?.updatedAt || 0) >= ACTIVE_TAB_TTL) delete raw[tabId];
       });
       raw[this.tabId] = {
@@ -1504,9 +1793,8 @@ class PerformanceMonitorService {
   }
 
   private createSessionId() {
-    const suffix = typeof crypto !== 'undefined' && crypto.randomUUID
-      ? crypto.randomUUID()
-      : Math.random().toString(16).slice(2);
+    const suffix =
+      typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2);
     return `perf:${Date.now()}:${suffix}`;
   }
 

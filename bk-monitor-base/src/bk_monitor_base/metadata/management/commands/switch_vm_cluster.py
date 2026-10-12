@@ -59,8 +59,8 @@ class Command(BaseCommand):
             return models.AccessVMRecord.objects.filter(result_table_id__in=table_id_list)
 
         if src_vm_ids:
-            src_vm_ids = [int(id) for id in src_vm_ids.split(",")]
-            return models.AccessVMRecord.objects.filter(vm_cluster_id__in=src_vm_ids)
+            parsed_vm_ids = [int(vm_id) for vm_id in src_vm_ids.split(",")]
+            return models.AccessVMRecord.objects.filter(vm_cluster_id__in=parsed_vm_ids)
 
         src_vm_names = src_vm_names.split(",")
         cluster_id_list = models.ClusterInfo.objects.filter(cluster_name__in=src_vm_names).values_list(

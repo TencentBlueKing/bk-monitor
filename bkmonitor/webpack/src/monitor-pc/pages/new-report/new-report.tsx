@@ -37,8 +37,8 @@ export default class TraceNewReport extends tsc<object> {
   }
   get newReportUrl() {
     return process.env.NODE_ENV === 'development'
-      ? `${this.newReportHost}/?bizId=${this.$store.getters.bizId}/#/trace/report`
-      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/report`;
+      ? `${this.newReportHost}/?bizId=${this.$store.getters.bizId}#/trace/report`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}#/trace/report`;
   }
   get newReportData() {
     return JSON.stringify({

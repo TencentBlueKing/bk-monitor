@@ -73,10 +73,19 @@ class BaseMetricGroup(abc.ABC, metaclass=MetricGroupMeta):
         pre_calculate_helper: PreCalculateHelper | None = None,
         **kwargs,
     ):
+        self.bk_biz_id: int = bk_biz_id
+        self.app_name: str = app_name
         self.group_by: list[str] = copy.deepcopy(group_by or [])
         self.filter_dict: dict[str, Any] = copy.deepcopy(filter_dict or {})
-        self.metric_helper: MetricHelper = metric_helper or MetricHelper(bk_biz_id, app_name)
         self.pre_calculate_helper: PreCalculateHelper | None = pre_calculate_helper
+        self._metric_helper: MetricHelper | None = metric_helper
+
+    @property
+    def metric_helper(self) -> MetricHelper:
+        """按需构造：数据源不是指标结果表的指标组（如 LLM 读 Trace 原始表）不应为此付出一次结果表查询。"""
+        if self._metric_helper is None:
+            self._metric_helper = MetricHelper(self.bk_biz_id, self.app_name)
+        return self._metric_helper
 
     @abc.abstractmethod
     def handle(self, calculation_type: str, **kwargs) -> list[dict[str, Any]]:

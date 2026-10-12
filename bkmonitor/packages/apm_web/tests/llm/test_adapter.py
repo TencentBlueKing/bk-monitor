@@ -1,0 +1,1727 @@
+"""LLM Adapter 的协议与产品转换回归测试。"""
+
+from __future__ import annotations
+
+import json
+import time
+from unittest import TestCase
+
+from django.db.models import Q
+
+from apm_web.handlers.service_handler import ServiceHandler
+from apm_web.llm.adapter import adapt_spans as adapt_spans_with_entity_set
+from apm_web.llm.adapter.adapter_bkaidev import parse_nested
+from apm_web.llm.adapter.fields import (
+    AGENT_CANDIDATE_FIELDS,
+    AGENT_CANDIDATE_Q,
+    resolve_operation_name,
+    resolve_product,
+    resolve_query_field,
+)
+
+TRACE_ID = "a" * 32
+SPAN_ID = "b" * 16
+NOW = int(time.time())
+
+
+class FakeEntitySet:
+    def __init__(self, product: str, *, is_support_llm: bool = True):
+        extra_data = {}
+        if is_support_llm:
+            extra_data["llm"] = {"product": "default" if product == "galileo" else product}
+        node = {
+            "extra_data": extra_data,
+            "sdk": [{"name": "galileo"}] if product == "galileo" else [],
+        }
+        self.service_names = ["demo"]
+        self.system = ServiceHandler.get_system(node)
+
+    def get_system(self, service_name: str) -> dict:
+        return self.system if service_name == "demo" else {}
+
+
+def adapt_spans(raw_spans: list[dict], product: str = "agentlens") -> list[dict]:
+    for span in raw_spans:
+        span["resource"].setdefault("service.name", "demo")
+    return adapt_spans_with_entity_set(raw_spans, FakeEntitySet(product))
+
+
+def agentlens_span(span_id: str = SPAN_ID, *, start_time: int = NOW - 60) -> dict:
+    """构造一个最小 AgentLens LLM Span，供多组契约测试复用。"""
+    return {
+        "trace_id": TRACE_ID,
+        "span_id": span_id,
+        "parent_span_id": "",
+        "span_name": "openai.chat.LLM",
+        "start_time": start_time * 1_000_000,
+        "end_time": (start_time + 1) * 1_000_000,
+        "elapsed_time": 1_000_000,
+        "status": {"code": 1, "message": ""},
+        "resource": {"service.name": "demo"},
+        "attributes": {
+            "gen_ai.span.kind": "LLM",
+            "gen_ai.operation.name": "CHAT",
+            "gen_ai.request.model": "demo-model",
+            "gen_ai.response.model": "demo-model",
+            "gen_ai.usage.input_tokens": 10,
+            "gen_ai.usage.output_tokens": 3,
+            "gen_ai.prompts.0.role": "user",
+            "gen_ai.prompts.0.content": "secret prompt",
+            "gen_ai.completion.0.role": "assistant",
+            "gen_ai.completion.0.content": "secret response",
+            "gen_ai.completion.0.finish_reason": "stop",
+        },
+        "events": [],
+    }
+
+
+def seedance_poll_span(span_id: str = "d" * 16, *, trace_id: str = "e" * 32) -> dict:
+    """构造一个 Seedance 异步任务轮询 Span。"""
+    span = agentlens_span(span_id)
+    span.update(
+        {
+            "trace_id": trace_id,
+            "span_name": "mcp.seedance_query_task/cgt-20260813153725-2zmxv",
+            "resource": {
+                "service.name": "gemini-for-claude-code",
+                "telemetry.sdk.name": "opentelemetry",
+            },
+            "attributes": {
+                "gen_ai.operation.name": "execute_tool",
+                "gen_ai.system": "gemini-for-claude-code",
+                "http.path": "/v1/mcp/seedance_query_task/cgt-20260813153725-2zmxv",
+            },
+            "events": [],
+        }
+    )
+    return span
+
+
+def langfuse_span(span_id: str = SPAN_ID, *, observation_type: str = "generation") -> dict:
+    span = agentlens_span(span_id)
+    span["span_name"] = f"langfuse-{observation_type}"
+    span["attributes"] = {"langfuse.observation.type": observation_type}
+    return span
+
+
+class AdapterTests(TestCase):
+    def test_product_routing_uses_entity_set(self) -> None:
+        for product in ("agentlens", "galileo", "aidev", "langfuse", "default"):
+            with self.subTest(product=product):
+                self.assertEqual(resolve_product(FakeEntitySet(product), "demo"), product)
+
+    def test_galileo_routing_requires_llm_service(self) -> None:
+        entity_set = FakeEntitySet("galileo", is_support_llm=False)
+
+        self.assertEqual(resolve_product(entity_set, "demo"), "")
+
+    def test_product_is_empty_for_service_outside_entity_set(self) -> None:
+        self.assertEqual(resolve_product(FakeEntitySet("agentlens"), "other"), "")
+
+    def test_resolve_query_field(self) -> None:
+        conversation_field = "attributes.gen_ai.conversation.id"
+        self.assertEqual(resolve_query_field("aidev", conversation_field), "attributes.agent.session.session_code")
+        self.assertEqual(resolve_query_field("agentlens", conversation_field), "attributes.gen_ai.session.id")
+        self.assertEqual(resolve_query_field("galileo", conversation_field), conversation_field)
+        self.assertEqual(resolve_query_field("langfuse", conversation_field), "attributes.session.id")
+        self.assertEqual(resolve_query_field("default", conversation_field), conversation_field)
+        # 非 LLM 服务或未命中映射表的字段原样透传
+        self.assertEqual(resolve_query_field("", conversation_field), conversation_field)
+        self.assertEqual(resolve_query_field("aidev", "trace_id"), "trace_id")
+
+    def test_candidate_q_is_a_unified_exists_or(self) -> None:
+        self.assertEqual(
+            AGENT_CANDIDATE_Q,
+            Q(*(Q(**{f"{field}__exists": [""]}) for field in AGENT_CANDIDATE_FIELDS), _connector=Q.OR),
+        )
+
+    def test_resolve_operation_name(self) -> None:
+        self.assertEqual(resolve_operation_name("aidev", "completion"), "text_completion")
+        self.assertEqual(resolve_operation_name("agentlens", "LLM"), "chat")
+        self.assertEqual(resolve_operation_name("langfuse", "generation"), "chat")
+        self.assertEqual(resolve_operation_name("default", "CHAT"), "chat")
+        self.assertEqual(resolve_operation_name("default", ""), "")
+        self.assertEqual(resolve_operation_name("aidev", None), "")
+        self.assertEqual(resolve_operation_name("default", "vendor.magic"), "vendor.magic")
+
+    def test_default_adapter_keeps_only_standard_fields(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat demo-model"
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "openai",
+            "gen_ai.request.model": "demo-model",
+            "gen_ai.input.messages": '[{"role":"user","parts":[{"type":"text","content":"hello"}]}]',
+            "gen_ai.system": "legacy-provider",
+            "gen_ai.session_id": "legacy-session",
+            "gen_ai.usage.prompt_tokens": 99,
+            "vendor.debug": "drop-me",
+        }
+
+        attributes = adapt_spans([span], "default")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.provider.name"], "openai")
+        self.assertEqual(
+            attributes["gen_ai.input.messages"][0]["parts"][0]["content"],
+            "hello",
+        )
+        self.assertNotIn("gen_ai.system", attributes)
+        self.assertNotIn("gen_ai.conversation.id", attributes)
+        self.assertNotIn("gen_ai.usage.input_tokens", attributes)
+        self.assertNotIn("gen_ai.usage.output_tokens", attributes)
+        self.assertNotIn("vendor.debug", attributes)
+
+    def test_langfuse_root_maps_conversation_and_content(self) -> None:
+        span = langfuse_span(observation_type="span")
+        span["attributes"].update(
+            {
+                "langfuse.internal.is_app_root": True,
+                "session.id": "session-1",
+                "user.id": "user-1",
+                "langfuse.observation.input": json.dumps("user question"),
+                "langfuse.observation.output": json.dumps("assistant answer"),
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.conversation.id"], "session-1")
+        self.assertEqual(attributes["user.id"], "user-1")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "user question")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "assistant answer")
+        self.assertEqual(attributes["gen_ai.operation.name"], "invoke_agent")
+
+    def test_langfuse_generation_maps_messages_tools_and_usage(self) -> None:
+        span = langfuse_span()
+        span["attributes"].update(
+            {
+                "langfuse.observation.model.name": "model-a",
+                "langfuse.observation.metadata.temperature": "0.7",
+                "langfuse.observation.metadata.reasoningEffort": "high",
+                "langfuse.observation.usage_details": json.dumps(
+                    {
+                        "input": 60,
+                        "output": 5,
+                        "cache_read_input_tokens": 40,
+                        "cache_creation_input_tokens": 10,
+                    }
+                ),
+                "langfuse.observation.input": json.dumps(
+                    {
+                        "systemPrompt": "system prompt",
+                        "messages": [
+                            {"role": "user", "content": [{"type": "text", "text": "question"}]},
+                            {
+                                "role": "assistant",
+                                "content": [
+                                    {
+                                        "type": "tool_use",
+                                        "id": "call-1",
+                                        "name": "search",
+                                        "input": {"query": "demo"},
+                                    }
+                                ],
+                            },
+                            {
+                                "role": "user",
+                                "content": [
+                                    {
+                                        "type": "tool_result",
+                                        "tool_use_id": "call-1",
+                                        "content": {"result": "ok"},
+                                    }
+                                ],
+                            },
+                        ],
+                        "tools": [
+                            {
+                                "type": "function",
+                                "function": {
+                                    "name": "search",
+                                    "description": "search data",
+                                    "parameters": {"type": "OBJECT"},
+                                    "strict": True,
+                                },
+                            }
+                        ],
+                    }
+                ),
+                "langfuse.observation.output": json.dumps(
+                    [
+                        {"type": "text", "text": "working"},
+                        {"type": "tool_use", "id": "call-2", "name": "read", "input": {"path": "/tmp/a"}},
+                    ]
+                ),
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.request.model"], "model-a")
+        self.assertEqual(attributes["gen_ai.request.temperature"], 0.7)
+        self.assertEqual(attributes["gen_ai.request.reasoning.level"], "high")
+        self.assertEqual(attributes["gen_ai.usage.input_tokens"], 110)
+        self.assertEqual(attributes["gen_ai.usage.output_tokens"], 5)
+        self.assertEqual(attributes["gen_ai.usage.cache_read.input_tokens"], 40)
+        self.assertEqual(attributes["gen_ai.usage.cache_write.input_tokens"], 10)
+        self.assertEqual(attributes["gen_ai.system_instructions"][0]["content"], "system prompt")
+        self.assertEqual(
+            [message["role"] for message in attributes["gen_ai.input.messages"]], ["user", "assistant", "tool"]
+        )
+        self.assertEqual(attributes["gen_ai.input.messages"][1]["parts"][0]["id"], "call-1")
+        self.assertEqual(attributes["gen_ai.input.messages"][2]["parts"][0]["id"], "call-1")
+        self.assertEqual(attributes["gen_ai.tool.definitions"][0]["parameters"]["type"], "object")
+        self.assertEqual(
+            [part["type"] for part in attributes["gen_ai.output.messages"][0]["parts"]],
+            ["text", "tool_call"],
+        )
+
+    def test_langfuse_plain_generation_maps_to_text_completion(self) -> None:
+        span = langfuse_span()
+        span["attributes"].update(
+            {
+                "langfuse.observation.input": "plain prompt",
+                "langfuse.observation.output": "plain answer",
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "text_completion")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "plain prompt")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "plain answer")
+
+    def test_langfuse_generation_maps_openai_tool_messages(self) -> None:
+        span = langfuse_span()
+        span["attributes"]["langfuse.observation.input"] = json.dumps(
+            [
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": "call-1",
+                            "type": "function",
+                            "function": {"name": "search", "arguments": '{"query":"blueking"}'},
+                        }
+                    ],
+                },
+                {"role": "tool", "tool_call_id": "call-1", "content": '{"result":"ok"}'},
+            ]
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        messages = attributes["gen_ai.input.messages"]
+        self.assertEqual(
+            messages[0]["parts"][0],
+            {
+                "type": "tool_call",
+                "name": "search",
+                "arguments": {"query": "blueking"},
+                "id": "call-1",
+            },
+        )
+        self.assertEqual(messages[1]["role"], "tool")
+        self.assertEqual(
+            messages[1]["parts"][0],
+            {
+                "type": "tool_call_response",
+                "response": {"result": "ok"},
+                "id": "call-1",
+            },
+        )
+
+    def test_langfuse_root_preserves_structured_content(self) -> None:
+        for observation_type in ("agent", "chain"):
+            with self.subTest(observation_type=observation_type):
+                span = langfuse_span(observation_type=observation_type)
+                span["attributes"].update(
+                    {
+                        "langfuse.observation.input": json.dumps({"query": "hello"}),
+                        "langfuse.observation.output": json.dumps({"answer": "world"}),
+                    }
+                )
+
+                attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+                self.assertEqual(
+                    attributes["gen_ai.operation.name"],
+                    "invoke_agent" if observation_type == "agent" else "invoke_workflow",
+                )
+                self.assertEqual(
+                    json.loads(attributes["gen_ai.input.messages"][0]["parts"][0]["content"]), {"query": "hello"}
+                )
+                self.assertEqual(
+                    json.loads(attributes["gen_ai.output.messages"][0]["parts"][0]["content"]), {"answer": "world"}
+                )
+
+    def test_langfuse_direct_message_list_maps_to_chat(self) -> None:
+        span = langfuse_span()
+        span["attributes"]["langfuse.observation.input"] = json.dumps([{"role": "user", "content": "hello"}])
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "hello")
+
+    def test_langfuse_tool_maps_name_arguments_and_result(self) -> None:
+        span = langfuse_span(observation_type="tool")
+        span["span_name"] = "tool-use_mcp_tool"
+        span["attributes"].update(
+            {
+                "langfuse.observation.input": json.dumps(
+                    {"server_name": "demo", "tool_name": "search", "arguments": '{"query":"blueking"}'}
+                ),
+                "langfuse.observation.output": '{"result":"ok"}',
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "execute_tool")
+        self.assertEqual(attributes["gen_ai.tool.name"], "use_mcp_tool")
+        self.assertEqual(attributes["gen_ai.tool.call.arguments"]["arguments"], {"query": "blueking"})
+        self.assertEqual(attributes["gen_ai.tool.call.result"], {"result": "ok"})
+        self.assertNotIn("gen_ai.tool.type", attributes)
+
+    def test_langfuse_standard_fields_take_precedence(self) -> None:
+        span = langfuse_span()
+        span["attributes"].update(
+            {
+                "gen_ai.operation.name": "generate_content",
+                "gen_ai.request.model": "standard-model",
+                "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "standard"}]}],
+                "langfuse.observation.model.name": "vendor-model",
+                "langfuse.observation.input": "vendor input",
+            }
+        )
+
+        attributes = adapt_spans([span], "langfuse")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "generate_content")
+        self.assertEqual(attributes["gen_ai.request.model"], "standard-model")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "standard")
+
+    def test_default_adapter_keeps_standard_fields_without_operation(self) -> None:
+        cases = {
+            "gen_ai.agent.id": "agent-1",
+            "gen_ai.agent.name": "math-agent",
+            "gen_ai.provider.name": "openai",
+            "gen_ai.request.model": "model-a",
+            "gen_ai.response.model": "model-a",
+            "gen_ai.tool.name": "add",
+        }
+        for index, (field, value) in enumerate(cases.items(), 1):
+            with self.subTest(field=field):
+                span = agentlens_span(f"{index:016x}")
+                span["span_name"] = "generic-span"
+                span["attributes"] = {field: value}
+                spans = adapt_spans([span], "default")
+                self.assertEqual(len(spans), 1)
+                self.assertEqual(spans[0]["attributes"], {field: value})
+
+    def test_adapters_do_not_invent_tool_type(self) -> None:
+        default = agentlens_span("1" * 16)
+        default["span_name"] = "execute add"
+        default["attributes"] = {
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "add",
+        }
+
+        agentlens = agentlens_span("2" * 16)
+        agentlens["span_name"] = "add.TOOL"
+        agentlens["attributes"] = {
+            "gen_ai.span.kind": "TOOL",
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "add",
+        }
+
+        galileo = agentlens_span("3" * 16)
+        galileo["span_name"] = "execute_tool"
+        galileo["resource"]["telemetry.sdk.name"] = "galileo"
+        galileo["attributes"] = {
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "add",
+        }
+
+        for product, span in (("default", default), ("agentlens", agentlens), ("galileo", galileo)):
+            with self.subTest(product=product):
+                self.assertNotIn("gen_ai.tool.type", adapt_spans([span], product)[0]["attributes"])
+
+    def test_explicit_tool_type_is_preserved(self) -> None:
+        span = agentlens_span()
+        span["attributes"].update(
+            {
+                "gen_ai.span.kind": "TOOL",
+                "gen_ai.operation.name": "execute_tool",
+                "gen_ai.tool.name": "knowledge",
+                "gen_ai.tool.type": "datastore",
+            }
+        )
+
+        self.assertEqual(adapt_spans([span])[0]["attributes"]["gen_ai.tool.type"], "datastore")
+
+    def test_empty_tool_arguments_are_preserved(self) -> None:
+        span = agentlens_span()
+        span["attributes"].update(
+            {
+                "gen_ai.span.kind": "TOOL",
+                "gen_ai.tool.call.arguments": {},
+            }
+        )
+
+        self.assertEqual(adapt_spans([span])[0]["attributes"]["gen_ai.tool.call.arguments"], {})
+
+    def test_open_operation_is_preserved_and_status_is_not_inferred(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "vendor.operation"
+        span["attributes"] = {"gen_ai.operation.name": "vendor.magic"}
+        span["status"] = {"code": 1, "message": ""}
+
+        attributes = adapt_spans([span], "default")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "vendor.magic")
+        self.assertNotIn("gen_ai.response.status", attributes)
+
+    def test_explicit_response_status_is_preserved(self) -> None:
+        span = agentlens_span()
+        span["attributes"]["gen_ai.response.status"] = "in_progress"
+        attributes = adapt_spans([span])[0]["attributes"]
+        self.assertEqual(attributes["gen_ai.response.status"], "in_progress")
+
+    def test_standard_span_does_not_expose_adapter_metadata(self) -> None:
+        span = adapt_spans([agentlens_span()])[0]
+        self.assertEqual(
+            set(span),
+            {
+                "trace_id",
+                "span_id",
+                "parent_span_id",
+                "span_name",
+                "start_time",
+                "end_time",
+                "elapsed_time",
+                "status",
+                "resource",
+                "attributes",
+                "span_type",
+            },
+        )
+
+    def test_span_type_is_resolved_from_operation_name(self) -> None:
+        # 该产品的 operation.name 上报为大写，归类时不能漏掉
+        cases = {"invoke_agent": "AGENT", "plan": "AGENT", "execute_tool": "TOOL", "CHAT": "LLM", "embeddings": "LLM"}
+        for operation_name, span_type in cases.items():
+            with self.subTest(operation_name=operation_name):
+                span = agentlens_span()
+                span["attributes"]["gen_ai.operation.name"] = operation_name
+                self.assertEqual(adapt_spans([span])[0]["span_type"], span_type)
+
+    def test_unclassified_span_carries_no_span_type(self) -> None:
+        # 检索、任务等暂不支持的层级不默认取值，调用方据此决定是否展示 LLM 观测
+        span = agentlens_span()
+        span["attributes"]["gen_ai.operation.name"] = "retrieval"
+        self.assertNotIn("span_type", adapt_spans([span])[0])
+
+    def test_spans_are_converted_per_service_product(self) -> None:
+        """同一条 Trace 跨多个产品的服务时，各自走自己的转换器。"""
+
+        class MultiProductEntitySet:
+            service_names = ["demo", "aidev-service"]
+
+            @staticmethod
+            def get_system(service_name: str) -> dict:
+                product = "aidev" if service_name == "aidev-service" else "agentlens"
+                return ServiceHandler.get_system({"extra_data": {"llm": {"product": product}}, "sdk": []})
+
+        agentlens = agentlens_span("1" * 16)
+        aidev = agentlens_span("2" * 16, start_time=NOW - 30)
+        aidev["resource"] = {"service.name": "aidev-service"}
+        aidev["attributes"] = {"llm.request.type": "embedding", "gen_ai.usage.prompt_tokens": 7}
+
+        spans = adapt_spans_with_entity_set([aidev, agentlens], MultiProductEntitySet())
+
+        # 按 start_time 排序，AgentLens 的 Span 在前
+        self.assertEqual([span["span_id"] for span in spans], ["1" * 16, "2" * 16])
+        self.assertEqual([span["span_type"] for span in spans], ["LLM", "LLM"])
+        # 只有该产品的转换器认识 prompt_tokens 与 llm.request.type
+        self.assertEqual(spans[1]["attributes"]["gen_ai.usage.input_tokens"], 7)
+        self.assertEqual(spans[1]["attributes"]["gen_ai.operation.name"], "embeddings")
+
+    def test_unrecognized_service_does_not_use_a_guessed_product(self) -> None:
+        """拓扑未识别的服务不应由调用方指定产品。"""
+
+        class MultiProductEntitySet:
+            service_names = ["demo"]
+
+            @staticmethod
+            def get_system(service_name: str) -> dict:
+                return ServiceHandler.get_system({"extra_data": {"llm": {"product": "agentlens"}}, "sdk": []})
+
+        span = agentlens_span()
+        span["resource"] = {"service.name": "unrecognized-service"}
+        span["attributes"] = {"llm.request.type": "embedding", "gen_ai.usage.prompt_tokens": 7}
+
+        converted = adapt_spans_with_entity_set([span], MultiProductEntitySet())
+
+        self.assertEqual(converted, [])
+
+    def test_galileo_runtime_does_not_make_ordinary_rpc_an_ai_step(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "trpc.call"
+        span["resource"]["telemetry.sdk.name"] = "galileo"
+        span["attributes"] = {"rpc.system": "trpc"}
+        span["events"] = [{"name": "SENT", "attributes": {"message.detail": "opaque-rpc-body"}}]
+
+        self.assertEqual(adapt_spans([span], "galileo"), [])
+
+    def test_non_ai_span_is_dropped(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "GET /healthz"
+        span["attributes"] = {"http.request.method": "GET"}
+        self.assertEqual(adapt_spans([span], "default"), [])
+
+    def test_async_tool_poll_is_kept_as_tool(self) -> None:
+        step = adapt_spans([seedance_poll_span()], "default")[0]
+        self.assertEqual(step["attributes"]["gen_ai.operation.name"], "execute_tool")
+        self.assertNotIn("correlation", step)
+
+    def test_standard_span_uses_standard_envelope_and_full_resource(self) -> None:
+        span = agentlens_span()
+        span["parent_span_id"] = "c" * 16
+        span["resource"].update(
+            {
+                "host.name": "agent-host",
+                "safe.resource": "visible",
+                "api_key": "resource-secret",
+            }
+        )
+        span["events"] = [
+            {
+                "name": "source-only-event",
+                "timestamp": span["start_time"],
+                "attributes": {"debug": "value"},
+            }
+        ]
+
+        step = adapt_spans([span])[0]
+
+        self.assertEqual(step["span_id"], SPAN_ID)
+        self.assertEqual(step["parent_span_id"], "c" * 16)
+        self.assertEqual(step["trace_id"], TRACE_ID)
+        self.assertEqual(step["resource"]["host.name"], "agent-host")
+        self.assertEqual(step["resource"]["safe.resource"], "visible")
+        self.assertEqual(step["resource"]["api_key"], "resource-secret")
+        self.assertNotIn("events", step)
+
+    def test_filtered_parent_does_not_change_original_span_relationship(self) -> None:
+        parent = agentlens_span("1" * 16)
+        parent["span_name"] = "GET /healthz"
+        parent["attributes"] = {"http.request.method": "GET"}
+        child = agentlens_span("2" * 16)
+        child["span_name"] = "chat"
+        child["parent_span_id"] = parent["span_id"]
+        child["attributes"] = {"gen_ai.operation.name": "chat"}
+
+        spans = adapt_spans([parent, child], "default")
+
+        self.assertEqual(len(spans), 1)
+        self.assertEqual(spans[0]["span_id"], child["span_id"])
+        self.assertEqual(spans[0]["parent_span_id"], parent["span_id"])
+
+    def test_galileo_events_without_detail_do_not_fabricate_standard_content(
+        self,
+    ) -> None:
+        span = agentlens_span()
+        span["span_name"] = "call_llm"
+        span["resource"] = {"telemetry.sdk.name": "galileo"}
+        span["attributes"] = {"gen_ai.operation.name": "chat"}
+        span["events"] = [
+            {"name": "gen_ai.user.message", "timestamp": 1, "attributes": {}},
+            {"name": "gen_ai.choice", "timestamp": 2, "attributes": {}},
+            {"name": "gen_ai.tool_call_args", "timestamp": 3, "attributes": {}},
+            {"name": "gen_ai.tool_response", "timestamp": 4, "attributes": {}},
+        ]
+
+        step = adapt_spans([span], "galileo")[0]
+
+        self.assertEqual(step["attributes"]["gen_ai.operation.name"], "chat")
+        self.assertNotIn("gen_ai.input.messages", step["attributes"])
+        self.assertNotIn("gen_ai.output.messages", step["attributes"])
+        self.assertNotIn("gen_ai.tool.call.arguments", step["attributes"])
+        self.assertNotIn("gen_ai.tool.call.result", step["attributes"])
+
+    def test_galileo_event_handlers_cover_all_supported_content(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "invocation"
+        span["resource"] = {"telemetry.sdk.name": "galileo"}
+        span["attributes"] = {"gen_ai.operation.name": "invoke_agent"}
+        span["events"] = [
+            {
+                "name": "gen_ai.system.message",
+                "attributes": {"message.detail": '"system prompt"'},
+            },
+            {
+                "name": "gen_ai.user.message",
+                "attributes": {"message.detail": json.dumps({"role": "user", "content": "user message"})},
+            },
+            {
+                "name": "gen_ai.assistant.message",
+                "attributes": {"message.detail": json.dumps({"role": "assistant", "content": "assistant message"})},
+            },
+            {
+                "name": "gen_ai.tool.message",
+                "attributes": {
+                    "message.detail": json.dumps(
+                        {
+                            "role": "tool",
+                            "content": {"result": 3},
+                            "tool_call_id": "call-1",
+                        }
+                    )
+                },
+            },
+            {
+                "name": "gen_ai.invoke_agent_request",
+                "attributes": {"message.detail": json.dumps([{"role": "user", "content": "agent request"}])},
+            },
+            {
+                "name": "gen_ai.invoke_agent_response",
+                "attributes": {"message.detail": json.dumps({"role": "assistant", "content": "agent response"})},
+            },
+            {
+                "name": "gen_ai.tools",
+                "attributes": {"message.detail": json.dumps([{"name": "add", "parameters": {"type": "OBJECT"}}])},
+            },
+            {
+                "name": "gen_ai.tool_call_args",
+                "attributes": {"message.detail": '{"a":1,"b":2}'},
+            },
+            {
+                "name": "gen_ai.tool_response",
+                "attributes": {"message.detail": '{"result":3}'},
+            },
+            {
+                "name": "gen_ai.choice",
+                "attributes": {
+                    "message.detail": json.dumps(
+                        {
+                            "role": "assistant",
+                            "parts": [{"type": "text", "content": "choice response"}],
+                        }
+                    )
+                },
+            },
+            {
+                "name": "gen_ai.unknown",
+                "attributes": {"message.detail": '{"ignored":true}'},
+            },
+        ]
+
+        attributes = adapt_spans([span], "galileo")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.system_instructions"],
+            [{"type": "text", "content": "system prompt"}],
+        )
+        self.assertEqual(
+            [message["role"] for message in attributes["gen_ai.input.messages"]],
+            ["user", "assistant", "tool", "user"],
+        )
+        self.assertEqual(
+            [message["parts"][0]["content"] for message in attributes["gen_ai.output.messages"]],
+            ["agent response", "choice response"],
+        )
+        self.assertEqual(attributes["gen_ai.tool.definitions"][0]["name"], "add")
+        self.assertEqual(
+            attributes["gen_ai.tool.definitions"][0]["parameters"]["type"],
+            "object",
+        )
+        self.assertEqual(attributes["gen_ai.tool.call.arguments"], {"a": 1, "b": 2})
+        self.assertEqual(attributes["gen_ai.tool.call.result"], {"result": 3})
+
+    def test_normalized_content_preserves_values(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "add.TOOL"
+        span["attributes"] = {
+            "gen_ai.span.kind": "TOOL",
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "add",
+            "tool.input": json.dumps(
+                {
+                    "password": "normalized-leak",
+                    "access_token": "token-leak",
+                    "input_tokens": 42,
+                }
+            ),
+            "tool.output": json.dumps({"secret_key": "result-leak", "value": "visible-result"}),
+        }
+
+        step = adapt_spans([span])[0]
+        arguments = step["attributes"]["gen_ai.tool.call.arguments"]
+        result = step["attributes"]["gen_ai.tool.call.result"]
+
+        self.assertEqual(arguments["password"], "normalized-leak")
+        self.assertEqual(arguments["access_token"], "token-leak")
+        self.assertEqual(arguments["input_tokens"], 42)
+        self.assertEqual(result["secret_key"], "result-leak")
+        self.assertEqual(result["value"], "visible-result")
+        self.assertNotIn("content_state", step)
+        serialized = json.dumps(step)
+        for value in ("normalized-leak", "token-leak", "result-leak"):
+            self.assertIn(value, serialized)
+
+    def test_agent_root_content_and_standard_ttfc_are_available_to_pages(self) -> None:
+        root = agentlens_span()
+        root["span_name"] = "math_agent.AGENT"
+        root["attributes"] = {
+            "gen_ai.span.kind": "AGENT",
+            "input.value": "plain user question",
+            "output.value": '"plain assistant answer"',
+        }
+        attributes = adapt_spans([root])[0]["attributes"]
+        self.assertEqual(
+            attributes["gen_ai.input.messages"][0]["parts"][0]["content"],
+            "plain user question",
+        )
+        self.assertEqual(
+            attributes["gen_ai.output.messages"][0]["parts"][0]["content"],
+            "plain assistant answer",
+        )
+        llm = agentlens_span()
+        llm["attributes"]["gen_ai.response.time_to_first_chunk"] = 0.125
+        converted_llm = adapt_spans([llm])[0]
+        self.assertEqual(
+            converted_llm["attributes"]["gen_ai.response.time_to_first_chunk"],
+            0.125,
+        )
+
+    def test_galileo_keeps_nested_agent_spans_and_normalizes_events(self) -> None:
+        current_spans = (
+            ("invocation", "invoke_agent", "invoke_agent"),
+            ("agent_run [math_agent]", "invoke_agent", "invoke_agent"),
+            ("call_llm", "chat", "chat"),
+        )
+        # invocation 与 agent_run 即使有真实父子关系也分别保留。
+        spans = []
+        for index, (span_name, operation, _) in enumerate(current_spans, 1):
+            span = {
+                "trace_id": TRACE_ID,
+                "span_id": f"{index:016x}",
+                "parent_span_id": "",
+                "span_name": span_name,
+                "start_time": (NOW - 60) * 1_000_000 + index,
+                "end_time": (NOW - 59) * 1_000_000 + index,
+                "elapsed_time": 1_000_000,
+                "status": {"code": 1, "message": ""},
+                "resource": {"telemetry.sdk.name": "galileo"},
+                "attributes": {"gen_ai.operation.name": operation},
+                "events": [],
+            }
+            if span_name.startswith("agent_run"):
+                span["parent_span_id"] = f"{1:016x}"
+            elif span_name == "call_llm":
+                span["parent_span_id"] = f"{2:016x}"
+            if span_name == "call_llm":
+                span["attributes"].update(
+                    {
+                        "gen_ai.usage.input_tokens": 5,
+                        "gen_ai.usage.output_tokens": 2,
+                        "gen_ai.usage.cache_read_input_tokens": 3,
+                        "gen_ai.usage.cache_creation_input_tokens": 2,
+                    }
+                )
+                span["events"] = [
+                    {
+                        "name": "gen_ai.user.message",
+                        "timestamp": 1,
+                        "attributes": {"message.detail": '{"role":"user","content":"hello"}'},
+                    },
+                    {
+                        "name": "gen_ai.choice",
+                        "timestamp": 2,
+                        "attributes": {
+                            "message.detail": ('{"finish_reason":"stop","message":{"role":"assistant","content":"hi"}}')
+                        },
+                    },
+                ]
+            spans.append(span)
+        converted = adapt_spans(spans, "galileo")
+        operations = {step["span_name"]: step["attributes"]["gen_ai.operation.name"] for step in converted}
+        self.assertEqual(
+            operations,
+            {span_name: expected for span_name, _, expected in current_spans},
+        )
+        by_name = {step["span_name"]: step for step in converted}
+        self.assertEqual(len(converted), 3)
+        self.assertEqual(by_name["agent_run [math_agent]"]["parent_span_id"], f"{1:016x}")
+        self.assertEqual(by_name["call_llm"]["parent_span_id"], f"{2:016x}")
+        llm = next(step for step in converted if step["attributes"]["gen_ai.operation.name"] == "chat")
+        self.assertEqual(llm["attributes"]["gen_ai.usage.cache_read.input_tokens"], 3)
+        self.assertEqual(llm["attributes"]["gen_ai.usage.cache_write.input_tokens"], 2)
+        output = llm["attributes"]["gen_ai.output.messages"][0]
+        self.assertEqual(output["role"], "assistant")
+        self.assertEqual(output["parts"], [{"type": "text", "content": "hi"}])
+        self.assertEqual(output["finish_reason"], "stop")
+        self.assertEqual(llm["attributes"]["gen_ai.response.finish_reasons"], ["stop"])
+
+    def test_galileo_maps_stream_ttft_and_cached_alias(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "call_llm"
+        span["resource"] = {"telemetry.sdk.name": "galileo"}
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.system": "trpc.go.agent",
+            "gen_ai.request.is_stream": True,
+            "gen_ai.server.time_to_first_token": 0.2,
+            "gen_ai.usage.cached.input_tokens": 12,
+            "gen_ai.usage.reasoning_tokens": 3,
+        }
+
+        attributes = adapt_spans([span], "galileo")[0]["attributes"]
+
+        self.assertNotIn("gen_ai.provider.name", attributes)
+        self.assertNotIn("gen_ai.system", attributes)
+        self.assertIs(attributes["gen_ai.request.stream"], True)
+        self.assertEqual(attributes["gen_ai.response.time_to_first_chunk"], 0.2)
+        self.assertEqual(attributes["gen_ai.usage.cache_read.input_tokens"], 12)
+        self.assertNotIn("gen_ai.usage.cached.input_tokens", attributes)
+        self.assertEqual(attributes["gen_ai.usage.reasoning.output_tokens"], 3)
+
+    def test_galileo_aliases_preserve_standard_values_and_zero(self) -> None:
+        for stream_field in ("gen_ai.request.is_stream", "gen_ai.is_stream"):
+            with self.subTest(stream_field=stream_field):
+                span = agentlens_span()
+                span["attributes"] = {
+                    "gen_ai.operation.name": "chat",
+                    stream_field: False,
+                    "gen_ai.server.time_to_first_token": 0,
+                    "gen_ai.system": "trpc.go.agent",
+                }
+                attributes = adapt_spans([span], "galileo")[0]["attributes"]
+                self.assertIs(attributes["gen_ai.request.stream"], False)
+                self.assertEqual(attributes["gen_ai.response.time_to_first_chunk"], 0)
+                span["attributes"].update(
+                    {
+                        "gen_ai.request.stream": True,
+                        "gen_ai.response.time_to_first_chunk": 0.125,
+                        "gen_ai.provider.name": "standard-provider",
+                    }
+                )
+                attributes = adapt_spans([span], "galileo")[0]["attributes"]
+                self.assertIs(attributes["gen_ai.request.stream"], True)
+                self.assertEqual(attributes["gen_ai.response.time_to_first_chunk"], 0.125)
+                self.assertEqual(attributes["gen_ai.provider.name"], "standard-provider")
+
+    def test_only_documented_standard_fields_are_preserved(self) -> None:
+        excluded_fields = {
+            "gen_ai.request.choice.count": 1,
+            "gen_ai.request.encoding_formats": ["float"],
+            "gen_ai.request.frequency_penalty": 0,
+            "gen_ai.request.max_tokens": 100000,
+            "gen_ai.request.presence_penalty": 0.1,
+            "gen_ai.request.seed": 0,
+            "gen_ai.request.stop_sequences": ["stop"],
+            "gen_ai.request.top_k": 40,
+            "gen_ai.request.top_p": 0.9,
+            "gen_ai.output.type": "json",
+            "gen_ai.workflow.name": "support",
+            "gen_ai.retrieval.query.text": "demo",
+            "gen_ai.retrieval.top_k": 5,
+            "gen_ai.retrieval.documents": [{"id": "doc-1"}],
+            "gen_ai.data_source.id": "source-1",
+            "vendor.debug": "ignored",
+        }
+        fields = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.request.model": "test-model",
+            "gen_ai.request.temperature": 0,
+            "gen_ai.request.stream": False,
+            "gen_ai.request.reasoning.level": "high",
+        }
+        for product in ("galileo", "default", "agentlens", "aidev", "langfuse"):
+            with self.subTest(product=product):
+                span = agentlens_span()
+                span["attributes"] = {**fields, **excluded_fields}
+                self.assertEqual(adapt_spans([span], product)[0]["attributes"], fields)
+
+    def test_galileo_tool_definitions_keep_mcp_input_schema(self) -> None:
+        from apm_web.llm.adapter.adapter_galileo import parse_event_definitions
+
+        schema = {"type": "OBJECT", "properties": {"count": {"type": "INTEGER"}}, "required": ["count"]}
+        definitions = parse_event_definitions(
+            json.dumps(
+                [
+                    {"name": "mcp-tool", "inputSchema": schema},
+                    {"type": "function", "function": {"name": "openai-tool", "parameters": schema}},
+                    {"name": "standard-tool", "parameters": {"type": "STRING"}, "inputSchema": schema},
+                ]
+            )
+        )
+        self.assertEqual(
+            definitions[0]["parameters"],
+            {
+                "type": "object",
+                "properties": {"count": {"type": "integer"}},
+                "required": ["count"],
+            },
+        )
+        self.assertEqual(definitions[1]["parameters"], definitions[0]["parameters"])
+        self.assertEqual(definitions[2]["parameters"], {"type": "string"})
+
+    def test_galileo_legacy_message_content_is_preserved_without_duplicate_parts(self) -> None:
+        from apm_web.llm.adapter.adapter_galileo import parse_choice_message, parse_event_message
+
+        call = {"id": "call-1", "function": {"name": "lookup", "arguments": '{"query":"demo"}'}}
+        message = {"role": "assistant", "content": "checking", "reasoning_content": "need lookup", "tool_calls": [call]}
+        expected_parts = [
+            {"type": "reasoning", "content": "need lookup"},
+            {"type": "text", "content": "checking"},
+            {"type": "tool_call", "id": "call-1", "name": "lookup", "arguments": {"query": "demo"}},
+        ]
+        result = parse_choice_message(json.dumps({"finish_reason": "tool_calls", "message": message}))
+        self.assertEqual(result, {"role": "assistant", "parts": expected_parts, "finish_reason": "tool_call"})
+        message["parts"] = expected_parts
+        self.assertEqual(parse_event_message(message, "assistant")["parts"], expected_parts)
+        self.assertEqual(
+            parse_event_message({"content": "found", "id": "call-1"}, "tool"),
+            {"role": "tool", "parts": [{"type": "tool_call_response", "response": "found", "id": "call-1"}]},
+        )
+
+    def test_galileo_legacy_cache_write_spellings_map_to_the_standard_field(self) -> None:
+        for legacy in ("gen_ai.usage.cache_creation.input_tokens", "gen_ai.usage.cache_creation_input_tokens"):
+            with self.subTest(legacy=legacy):
+                span = agentlens_span()
+                span["span_name"] = "call_llm"
+                span["resource"] = {"telemetry.sdk.name": "galileo"}
+                span["attributes"] = {"gen_ai.operation.name": "chat", legacy: 7}
+
+                attributes = adapt_spans([span], "galileo")[0]["attributes"]
+
+                self.assertEqual(attributes["gen_ai.usage.cache_write.input_tokens"], 7)
+                self.assertNotIn(legacy, attributes)
+
+    def test_galileo_does_not_copy_request_model_to_response_model(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "call_llm"
+        span["resource"] = {"telemetry.sdk.name": "galileo"}
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.request.model": "requested-model",
+        }
+
+        attributes = adapt_spans([span], "galileo")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.request.model"], "requested-model")
+        self.assertNotIn("gen_ai.response.model", attributes)
+
+        span["attributes"]["gen_ai.response.model"] = "actual-model"
+        attributes = adapt_spans([span], "galileo")[0]["attributes"]
+        self.assertEqual(attributes["gen_ai.response.model"], "actual-model")
+
+    def test_trace_does_not_copy_agent_context_between_spans(self) -> None:
+        parent = agentlens_span("1" * 16)
+        parent["span_name"] = "invoke_agent"
+        parent["resource"] = {"telemetry.sdk.name": "galileo"}
+        parent["attributes"] = {
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.conversation.id": "conversation-1",
+            "user.id": "user-1",
+        }
+        chat = agentlens_span("2" * 16)
+        chat["parent_span_id"] = parent["span_id"]
+        chat["span_name"] = "chat"
+        chat["attributes"] = {"gen_ai.operation.name": "chat"}
+        tool = agentlens_span("3" * 16)
+        tool["parent_span_id"] = parent["span_id"]
+        tool["span_name"] = "execute_tool"
+        tool["attributes"] = {
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "add",
+        }
+
+        spans = {span["span_id"]: span for span in adapt_spans([parent, chat, tool], "galileo")}
+
+        self.assertNotIn("gen_ai.conversation.id", spans[chat["span_id"]]["attributes"])
+        self.assertNotIn("user.id", spans[chat["span_id"]]["attributes"])
+        self.assertNotIn("gen_ai.conversation.id", spans[tool["span_id"]]["attributes"])
+        self.assertNotIn("user.id", spans[tool["span_id"]]["attributes"])
+
+    def test_trace_does_not_backfill_tool_call_id(self) -> None:
+        llm = agentlens_span("1" * 16)
+        llm["span_name"] = "chat"
+        llm["parent_span_id"] = "f" * 16
+        llm["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.output.messages": [
+                {
+                    "role": "assistant",
+                    "parts": [
+                        {
+                            "type": "tool_call",
+                            "id": "call-1",
+                            "name": "add",
+                            "arguments": {"a": 1, "b": 2},
+                        }
+                    ],
+                }
+            ],
+        }
+        tool = agentlens_span("2" * 16)
+        tool["span_name"] = "tool"
+        tool["parent_span_id"] = "f" * 16
+        tool["start_time"] = llm["start_time"] + 1
+        tool["attributes"] = {
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "add",
+        }
+
+        converted = adapt_spans([llm, tool], "default")
+        converted_tool = next(span for span in converted if span["span_id"] == tool["span_id"])
+
+        self.assertNotIn("gen_ai.tool.call.id", converted_tool["attributes"])
+
+    def test_standard_message_parts_win_over_legacy_fields(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat"
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.output.messages": [
+                {
+                    "role": "assistant",
+                    "content": "legacy text",
+                    "parts": [
+                        {
+                            "type": "tool_call",
+                            "id": "canonical-call",
+                            "name": "canonical",
+                            "arguments": {},
+                        }
+                    ],
+                    "tool_calls": [
+                        {
+                            "id": "legacy-call",
+                            "name": "legacy",
+                            "arguments": {},
+                        }
+                    ],
+                }
+            ],
+        }
+
+        attributes = adapt_spans([span], "default")[0]["attributes"]
+        parts = attributes["gen_ai.output.messages"][0]["parts"]
+
+        self.assertEqual(parts, [{"type": "tool_call", "id": "canonical-call", "name": "canonical", "arguments": {}}])
+
+    def test_standard_system_instructions_win_over_dialect_sources(self) -> None:
+        standard = [{"type": "text", "content": "standard"}]
+
+        default = agentlens_span("1" * 16)
+        default["span_name"] = "chat"
+        default["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.system_instructions": standard,
+            "gen_ai.input.messages": [{"role": "system", "parts": [{"type": "text", "content": "history"}]}],
+        }
+
+        agentlens = agentlens_span("2" * 16)
+        agentlens["attributes"] = {
+            "gen_ai.span.kind": "LLM",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.system_instructions": standard,
+            "gen_ai.prompts.0.role": "system",
+            "gen_ai.prompts.0.content": "agentlens",
+        }
+
+        bkaidev = agentlens_span("3" * 16)
+        bkaidev["span_name"] = "chat_model.generate"
+        bkaidev["attributes"] = {
+            "gen_ai.system_instructions": standard,
+            "llm.input": '[{"type":"system","data":{"content":"bkaidev"}}]',
+        }
+
+        galileo = agentlens_span("4" * 16)
+        galileo["span_name"] = "call_llm"
+        galileo["resource"] = {"telemetry.sdk.name": "galileo"}
+        galileo["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.system_instructions": standard,
+        }
+        galileo["events"] = [
+            {
+                "name": "gen_ai.system.message",
+                "timestamp": 1,
+                "attributes": {"message.detail": '"galileo"'},
+            }
+        ]
+
+        for product, source in (
+            ("default", default),
+            ("agentlens", agentlens),
+            ("aidev", bkaidev),
+            ("galileo", galileo),
+        ):
+            with self.subTest(span_name=source["span_name"]):
+                attributes = adapt_spans([source], product)[0]["attributes"]
+                self.assertEqual(attributes["gen_ai.system_instructions"], standard)
+
+    def test_bkaidev_llm_spans_are_not_deduplicated(self) -> None:
+        base = agentlens_span()
+        business = {
+            **base,
+            "span_id": "1" * 16,
+            "span_name": "chat_model.generate",
+            "attributes": {
+                "agent.info.name": "DevOpsAgent",
+                "gen_ai.request.model": "model-a",
+                "llm.input": '[{"role":"user","content":"hello"}]',
+                "llm.output": '{"role":"assistant","content":"hi"}',
+            },
+        }
+        traceloop = {
+            **base,
+            "span_id": "2" * 16,
+            "span_name": "ChatModel.chat",
+            "start_time": business["start_time"] + 1,
+            "end_time": business["end_time"] + 1,
+            "attributes": {
+                "traceloop.span.kind": "LLM",
+                "gen_ai.request.model": "model-a",
+                "gen_ai.usage.prompt_tokens": 8,
+                "gen_ai.usage.completion_tokens": 2,
+            },
+        }
+        wrapper = {
+            **base,
+            "span_id": "3" * 16,
+            "span_name": "model.task",
+            "attributes": {"traceloop.span.kind": "TASK"},
+        }
+        spans = adapt_spans([business, traceloop, wrapper], "aidev")
+        self.assertEqual(len(spans), 2)
+        self.assertEqual(
+            {span["span_id"] for span in spans},
+            {"1" * 16, "2" * 16},
+        )
+        self.assertEqual({span["attributes"]["gen_ai.operation.name"] for span in spans}, {"chat"})
+        self.assertEqual({span["span_type"] for span in spans}, {"LLM"})
+
+    def test_bkaidev_normalizes_traceloop_usage_details(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "ChatModel.chat"
+        span["attributes"] = {
+            "llm.request.type": "chat",
+            "gen_ai.usage.prompt_tokens": 100,
+            "gen_ai.usage.completion_tokens": 20,
+            "gen_ai.usage.cache_read_input_tokens": 30,
+            "gen_ai.usage.cache_creation.input_tokens": 40,
+            "gen_ai.usage.reasoning_tokens": 5,
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.usage.input_tokens"], 100)
+        self.assertEqual(attributes["gen_ai.usage.output_tokens"], 20)
+        self.assertEqual(attributes["gen_ai.usage.cache_read.input_tokens"], 30)
+        self.assertEqual(attributes["gen_ai.usage.cache_write.input_tokens"], 40)
+        self.assertEqual(attributes["gen_ai.usage.reasoning.output_tokens"], 5)
+
+    def test_bkaidev_classifies_workflow_and_tool_spans(self) -> None:
+        base = agentlens_span()
+        workflow = {
+            **base,
+            "span_id": "1" * 16,
+            "span_name": "chain.workflow",
+            "attributes": {"agent.info.name": "DevOpsAgent"},
+        }
+        workflow_wrapper = {
+            **base,
+            "span_id": "2" * 16,
+            "span_name": "LangGraph.workflow",
+            "attributes": {"traceloop.span.kind": "workflow"},
+        }
+        tool = {
+            **base,
+            "span_id": "3" * 16,
+            "span_name": "tool.execution",
+            "attributes": {
+                "agent.info.name": "DevOpsAgent",
+                "tool.name": "add",
+            },
+        }
+        tool_wrapper = {
+            **base,
+            "span_id": "4" * 16,
+            "span_name": "create_ai_message_options.tool",
+            "attributes": {
+                "traceloop.span.kind": "tool",
+                "traceloop.entity.name": "add",
+            },
+        }
+
+        spans = adapt_spans([workflow, workflow_wrapper, tool, tool_wrapper], "aidev")
+
+        self.assertEqual(len(spans), 4)
+        self.assertEqual(
+            {span["span_id"] for span in spans},
+            {"1" * 16, "2" * 16, "3" * 16, "4" * 16},
+        )
+        operations = {span["span_id"]: span["attributes"]["gen_ai.operation.name"] for span in spans}
+        self.assertEqual(operations["1" * 16], "invoke_workflow")
+        self.assertEqual(operations["2" * 16], "invoke_workflow")
+        self.assertEqual(operations["3" * 16], "execute_tool")
+        self.assertEqual(operations["4" * 16], "execute_tool")
+
+    def test_bkaidev_classifies_agent_execution(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "agent.execution"
+        span["attributes"] = {
+            "agent.info.id": 3129,
+            "agent.info.name": "进度管理",
+            "agent.session.session_code": "session-1",
+            "agent.session.caller_executor": "user-1",
+            "agent.session.input": "用户问题",
+            "agent.session.output": "最终回答",
+            "agent.status": "completed",
+        }
+
+        spans = adapt_spans([span], "aidev")
+
+        self.assertEqual(len(spans), 1)
+        agent = spans[0]
+        self.assertEqual(agent["attributes"]["gen_ai.operation.name"], "invoke_agent")
+        self.assertEqual(agent["span_type"], "AGENT")
+        self.assertEqual(agent["attributes"]["gen_ai.agent.id"], "3129")
+        self.assertEqual(agent["attributes"]["gen_ai.conversation.id"], "session-1")
+        self.assertEqual(agent["attributes"]["user.id"], "user-1")
+        self.assertEqual(agent["attributes"]["user.name"], "user-1")
+        self.assertEqual(
+            agent["attributes"]["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "用户问题"}]}],
+        )
+        self.assertEqual(
+            agent["attributes"]["gen_ai.output.messages"],
+            [{"role": "assistant", "parts": [{"type": "text", "content": "最终回答"}]}],
+        )
+
+    def test_bkaidev_classifies_traceloop_agent(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "researcher.agent"
+        span["attributes"] = {
+            "traceloop.span.kind": "agent",
+            "traceloop.entity.name": "researcher",
+            "traceloop.entity.input": json.dumps({"inputs": "find the answer"}),
+            "traceloop.entity.output": json.dumps({"outputs": "the answer"}),
+        }
+
+        agent = adapt_spans([span], "aidev")[0]
+
+        self.assertEqual(agent["attributes"]["gen_ai.operation.name"], "invoke_agent")
+        self.assertEqual(agent["attributes"]["gen_ai.agent.name"], "researcher")
+        self.assertEqual(agent["span_type"], "AGENT")
+        self.assertEqual(agent["attributes"]["gen_ai.input.messages"][0]["parts"][0]["content"], "find the answer")
+        self.assertEqual(agent["attributes"]["gen_ai.output.messages"][0]["parts"][0]["content"], "the answer")
+
+    def test_bkaidev_langchain_message_envelope_is_flattened(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat_model.generate"
+        span["attributes"] = {
+            "agent.info.id": 3841,
+            "agent.info.name": "DevOpsAgent",
+            "gen_ai.request.model": "qwen3",
+            "llm.input": json.dumps(
+                [
+                    {"type": "system", "data": {"content": "系统提示"}},
+                    {"type": "human", "data": {"content": "查询主机"}},
+                    {
+                        "type": "ai",
+                        "data": {
+                            "content": "",
+                            "tool_calls": [
+                                {
+                                    "name": "list_hosts",
+                                    "args": {"limit": 8},
+                                    "id": "call-1",
+                                }
+                            ],
+                        },
+                    },
+                    {
+                        "type": "tool",
+                        "data": {
+                            "content": '{"count": 8}',
+                            "tool_call_id": "call-1",
+                        },
+                    },
+                ],
+                ensure_ascii=False,
+            ),
+            "llm.output": json.dumps(
+                [
+                    {
+                        "role": "ChatGeneration",
+                        "content": "共查询到 8 台主机。",
+                        "tool_call": [],
+                    }
+                ],
+                ensure_ascii=False,
+            ),
+        }
+
+        spans = adapt_spans([span], "aidev")
+        step = spans[0]
+        inputs = step["attributes"]["gen_ai.input.messages"]
+        output = step["attributes"]["gen_ai.output.messages"][0]
+
+        self.assertNotIn("gen_ai.usage.input_tokens", step["attributes"])
+        self.assertNotIn("gen_ai.usage.output_tokens", step["attributes"])
+        self.assertEqual(
+            [message["role"] for message in inputs],
+            ["user", "assistant", "tool"],
+        )
+        self.assertEqual(
+            step["attributes"]["gen_ai.system_instructions"][0]["content"],
+            "系统提示",
+        )
+        self.assertEqual(inputs[0]["parts"][0]["content"], "查询主机")
+        self.assertEqual(inputs[1]["parts"][0]["type"], "tool_call")
+        self.assertEqual(inputs[1]["parts"][0]["arguments"], {"limit": 8})
+        self.assertEqual(inputs[2]["parts"][0]["type"], "tool_call_response")
+        self.assertEqual(output["role"], "assistant")
+        self.assertEqual(output["parts"][0]["content"], "共查询到 8 台主机。")
+        self.assertNotIn("finish_reason", output)
+        self.assertNotIn("gen_ai.response.finish_reasons", step["attributes"])
+
+    def test_bkaidev_prefers_standard_content_over_product_fallbacks(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "ChatModel.chat"
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "standard"}]}],
+            "gen_ai.output.messages": [
+                {"role": "assistant", "parts": [{"type": "text", "content": "standard output"}]}
+            ],
+            "llm.request.type": "completion",
+            "llm.input": '[{"role":"user","content":"legacy"}]',
+            "llm.output": '{"role":"assistant","content":"legacy output"}',
+            "traceloop.entity.input": json.dumps({"inputs": [{"type": "human", "data": {"content": "traceloop"}}]}),
+            "traceloop.entity.output": json.dumps(
+                {"outputs": [{"type": "ai", "data": {"content": "traceloop output"}}]}
+            ),
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "standard")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "standard output")
+
+    def test_bkaidev_normalizes_legacy_messages_stored_under_standard_field_names(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat_model.generate"
+        span["attributes"] = {
+            "gen_ai.input.messages": [
+                [
+                    {"type": "system", "data": {"content": "system prompt", "type": "system"}},
+                    {"type": "human", "data": {"content": "user question", "type": "human"}},
+                ]
+            ],
+            "gen_ai.output.messages": [
+                [
+                    {
+                        "role": "ChatGeneration",
+                        "content": "assistant answer",
+                        "tool_call": [
+                            {
+                                "id": "call-1",
+                                "name": "search",
+                                "arguments": '{"query":"error logs"}',
+                            }
+                        ],
+                    }
+                ]
+            ],
+            "llm.input": '[{"type":"human","data":{"content":"duplicate input"}}]',
+            "llm.output": '[{"type":"ai","data":{"content":"duplicate output"}}]',
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.system_instructions"],
+            [{"type": "text", "content": "system prompt"}],
+        )
+        self.assertEqual(
+            attributes["gen_ai.input.messages"],
+            [{"role": "user", "parts": [{"type": "text", "content": "user question"}]}],
+        )
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["role"], "assistant")
+        self.assertEqual(
+            attributes["gen_ai.output.messages"][0]["parts"],
+            [
+                {"type": "text", "content": "assistant answer"},
+                {
+                    "type": "tool_call",
+                    "id": "call-1",
+                    "name": "search",
+                    "arguments": {"query": "error logs"},
+                },
+            ],
+        )
+
+    def test_bkaidev_falls_back_to_traceloop_workflow_payload(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "LangGraph.workflow"
+        span["attributes"] = {
+            "traceloop.span.kind": "workflow",
+            "traceloop.entity.input": json.dumps(
+                {
+                    "inputs": {
+                        "messages": [
+                            {
+                                "lc": 1,
+                                "type": "constructor",
+                                "id": ["langchain", "schema", "messages", "SystemMessage"],
+                                "kwargs": {"content": "system prompt", "type": "system"},
+                            },
+                            {
+                                "lc": 1,
+                                "type": "constructor",
+                                "id": ["langchain", "schema", "messages", "HumanMessage"],
+                                "kwargs": {"content": "user question", "type": "human"},
+                            },
+                        ],
+                        "execute_kwargs": {
+                            "session_code": "session-1",
+                            "caller_executor": "user-1",
+                        },
+                    },
+                    "metadata": {"thread_id": "thread-1"},
+                }
+            ),
+            "traceloop.entity.output": json.dumps(
+                {
+                    "outputs": {
+                        "messages": [
+                            {
+                                "lc": 1,
+                                "type": "constructor",
+                                "id": ["langchain", "schema", "messages", "AIMessage"],
+                                "kwargs": {"content": "assistant answer", "type": "ai"},
+                            }
+                        ]
+                    }
+                }
+            ),
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "invoke_workflow")
+        self.assertEqual(attributes["gen_ai.conversation.id"], "session-1")
+        self.assertEqual(attributes["user.id"], "user-1")
+        self.assertEqual(attributes["gen_ai.system_instructions"][0]["content"], "system prompt")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "user question")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "assistant answer")
+
+    def test_bkaidev_ignores_untyped_traceloop_task_wrapper(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "model.task"
+        span["attributes"] = {
+            "traceloop.span.kind": "task",
+            "traceloop.entity.name": "model",
+            "traceloop.entity.input": json.dumps(
+                {"inputs": {"messages": [{"type": "human", "data": {"content": "duplicate"}}]}}
+            ),
+            "agent.info.id": 17,
+            "agent.info.name": "duplicate wrapper",
+            "agent.session.session_code": "session-1",
+        }
+
+        self.assertEqual(adapt_spans([span], "aidev"), [])
+
+    def test_bkaidev_falls_back_to_traceloop_tool_payload(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "search.tool"
+        span["attributes"] = {
+            "traceloop.span.kind": "tool",
+            "traceloop.entity.name": "search",
+            "traceloop.entity.input": json.dumps(
+                {
+                    "input_str": {"query": "fallback"},
+                    "inputs": {"query": "official Traceloop arguments"},
+                    "metadata": {},
+                }
+            ),
+            "traceloop.entity.output": json.dumps({"output": {"items": [1, 2]}, "kwargs": {}}),
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "execute_tool")
+        self.assertEqual(attributes["gen_ai.tool.name"], "search")
+        self.assertEqual(attributes["gen_ai.tool.call.arguments"], {"query": "official Traceloop arguments"})
+        self.assertEqual(attributes["gen_ai.tool.call.result"], {"items": [1, 2]})
+
+    def test_bkaidev_preserves_traceloop_decorator_arguments(self) -> None:
+        for arguments, expected in (
+            ({"args": [], "kwargs": {"query": "search"}}, {"query": "search"}),
+            ({"args": ["search"], "kwargs": {"limit": 2}}, {"args": ["search"], "kwargs": {"limit": 2}}),
+            ({"args": ["search"], "kwargs": {}}, {"args": ["search"], "kwargs": {}}),
+            ({"query": "search"}, {"query": "search"}),
+        ):
+            with self.subTest(arguments=arguments):
+                span = agentlens_span()
+                span["attributes"] = {
+                    "traceloop.span.kind": "tool",
+                    "traceloop.entity.input": json.dumps(arguments),
+                }
+
+                attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+                self.assertEqual(attributes["gen_ai.tool.call.arguments"], expected)
+
+    def test_bkaidev_preserves_traceloop_decorator_results(self) -> None:
+        for result in ({"items": [1, 2]}, {"output": "business value"}, {"outputs": [1, 2]}, [1, 2], {}):
+            for depth in (1, 2, 3):
+                with self.subTest(result=result, depth=depth):
+                    encoded = result
+                    for _ in range(depth):
+                        encoded = json.dumps(encoded)
+                    span = agentlens_span()
+                    span["attributes"] = {
+                        "traceloop.span.kind": "tool",
+                        "traceloop.entity.output": encoded,
+                    }
+
+                    attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+                    self.assertEqual(attributes["gen_ai.tool.call.result"], result)
+
+    def test_bkaidev_decodes_nested_messages_without_losing_roles_or_tool_calls(self) -> None:
+        inputs = [{"type": "human", "data": {"content": "question"}}]
+        outputs = [{"type": "ai", "data": {"tool_calls": [{"id": "call-1", "name": "search", "args": {"query": "q"}}]}}]
+        for input_key, output_key in (
+            ("gen_ai.input.messages", "gen_ai.output.messages"),
+            ("traceloop.entity.input", "traceloop.entity.output"),
+        ):
+            with self.subTest(input_key=input_key):
+                span = agentlens_span()
+                span["span_name"] = "ChatModel.chat"
+                span["attributes"] = {
+                    input_key: json.dumps(json.dumps(inputs)),
+                    output_key: json.dumps(json.dumps(outputs)),
+                }
+
+                attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+                self.assertEqual(
+                    attributes["gen_ai.input.messages"],
+                    [{"role": "user", "parts": [{"type": "text", "content": "question"}]}],
+                )
+                self.assertEqual(
+                    attributes["gen_ai.output.messages"],
+                    [
+                        {
+                            "role": "assistant",
+                            "parts": [
+                                {"type": "tool_call", "id": "call-1", "name": "search", "arguments": {"query": "q"}}
+                            ],
+                        }
+                    ],
+                )
+
+    def test_bkaidev_nested_parser_preserves_text_and_limits_decoding(self) -> None:
+        for value in ("plain text", "123", "false", "null", '"quoted text"', '{"broken":', None, 0):
+            with self.subTest(value=value):
+                self.assertEqual(parse_nested(value), value)
+        self.assertEqual(parse_nested("{'items': [1, 2]}"), {"items": [1, 2]})
+        self.assertEqual(parse_nested(json.dumps("{'items': [1, 2]}")), {"items": [1, 2]})
+        encoded = json.dumps(json.dumps(json.dumps(json.dumps({"items": [1, 2]}))))
+        self.assertEqual(parse_nested(encoded), encoded)
+
+    def test_bkaidev_unwraps_langchain_tool_message_result(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "tool.execution"
+        span["attributes"] = {
+            "tool.name": "search",
+            "tool.output": (
+                'content=\'{"status_code":200,"response_body":{"items":[1,2]}}\' '
+                "name='search' tool_call_id='call-1'"
+            ),
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(
+            attributes["gen_ai.tool.call.result"],
+            {"status_code": 200, "response_body": {"items": [1, 2]}},
+        )
+
+    def test_bkaidev_standard_operation_skips_legacy_langchain_parse(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "chat_model.generate"
+        span["attributes"] = {
+            "gen_ai.operation.name": "chat",
+            "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "hello"}]}],
+            "gen_ai.output.messages": [{"role": "assistant", "parts": [{"type": "text", "content": "hi"}]}],
+            "llm.input": '[{"type":"system","data":{"content":"should not become instructions"}}]',
+            "llm.output": '[{"role":"ChatGeneration","content":"legacy"}]',
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.operation.name"], "chat")
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["parts"][0]["content"], "hello")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["parts"][0]["content"], "hi")
+        self.assertNotIn("gen_ai.system_instructions", attributes)
+
+    def test_bkaidev_routes_standard_and_legacy_spans_in_one_trace(self) -> None:
+        standard = agentlens_span("1" * 16)
+        standard["span_name"] = "invoke_agent demo"
+        standard["attributes"] = {
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.conversation.id": "session-1",
+            "gen_ai.input.messages": [{"role": "user", "parts": [{"type": "text", "content": "hello"}]}],
+        }
+        legacy = agentlens_span("2" * 16, start_time=NOW - 30)
+        legacy["span_name"] = "agent.execution"
+        legacy["attributes"] = {
+            "agent.info.id": 520,
+            "agent.info.name": "demo-agent",
+            "agent.session.session_code": "session-1",
+            "agent.session.input": "hello",
+        }
+
+        spans = adapt_spans([legacy, standard], "aidev")
+        by_id = {span["span_id"]: span for span in spans}
+
+        self.assertEqual(by_id["1" * 16]["attributes"]["gen_ai.operation.name"], "invoke_agent")
+        self.assertEqual(
+            by_id["1" * 16]["attributes"]["gen_ai.input.messages"][0]["parts"][0]["content"],
+            "hello",
+        )
+        self.assertEqual(by_id["2" * 16]["attributes"]["gen_ai.operation.name"], "invoke_agent")
+        self.assertEqual(by_id["2" * 16]["attributes"]["gen_ai.conversation.id"], "session-1")
+        self.assertEqual(by_id["2" * 16]["attributes"]["gen_ai.agent.name"], "demo-agent")
+
+    def test_bkaidev_normalizes_unknown_indexed_message_roles_by_direction(self) -> None:
+        span = agentlens_span()
+        span["span_name"] = "ChatModel.chat"
+        span["attributes"] = {
+            "llm.request.type": "chat",
+            "gen_ai.prompt.0.role": "unknown",
+            "gen_ai.prompt.0.content": "question",
+            "gen_ai.completion.0.role": "unknown",
+            "gen_ai.completion.0.content": "answer",
+        }
+
+        attributes = adapt_spans([span], "aidev")[0]["attributes"]
+
+        self.assertEqual(attributes["gen_ai.input.messages"][0]["role"], "user")
+        self.assertEqual(attributes["gen_ai.output.messages"][0]["role"], "assistant")

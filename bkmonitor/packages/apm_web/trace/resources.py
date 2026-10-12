@@ -19,7 +19,6 @@ from django.utils.translation import gettext_lazy as _lazy
 from opentelemetry.semconv.resource import ResourceAttributes
 from rest_framework import serializers
 
-from apm.constants import StatisticsProperty
 from apm_web.constants import DEFAULT_DIFF_TRACE_MAX_NUM, CategoryEnum, QueryMode
 from apm_web.handlers.trace_handler.base import (
     StatisticsHandler,
@@ -35,9 +34,9 @@ from apm_web.handlers.trace_handler.query import (
     TraceQueryTransformer,
 )
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
+from apm_web.llm.builders.detail import attach_llm_detail
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
-from apm_web.trace.constants import EnabledStatisticsDimension
 from apm_web.trace.serializers import (
     BaseTraceRequestSerializer,
     GetFieldsOptionValuesRequestSerializer,
@@ -49,10 +48,11 @@ from apm_web.trace.serializers import (
     TraceFieldsTopkRequestSerializer,
     TraceGenerateQueryStringRequestSerializer,
 )
+from bkmonitor.data_source.format import flatten_dict_data
+from bkmonitor.data_source.utils.apm import LogicSupportOperator
 from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.elasticsearch.handler import QueryStringGenerator
-from bkmonitor.data_source.format import flatten_dict_data
 from constants.otel_query import OperatorEnum
 from constants.apm import (
     CallSide,
@@ -63,6 +63,7 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
+from constants.otel_query import EnabledStatisticsDimension, StatisticsProperty
 from core.drf_resource import Resource, api, FaultTolerantResource
 from core.drf_resource.exceptions import CustomException
 from core.errors.api import BKAPIError
@@ -318,6 +319,11 @@ class ListSpanResource(Resource):
 class ListTraceResource(Resource):
     RequestSerializer = QuerySerializer
 
+    # error 属于预计算特有字段，但 logic 过滤可在原始表转换为 status.code = 2，不应阻断空结果回退。
+    ORIGIN_COMPATIBLE_PRECALCULATE_FILTERS: set[tuple[str, str]] = {
+        (PreCalculateSpecificField.ERROR, LogicSupportOperator.LOGIC)
+    }
+
     def perform_request(self, data):
         response = self.get_trace_list_api_data(data)
         QueryHandler.handle_trace_list(response["data"])
@@ -354,8 +360,20 @@ class ListTraceResource(Resource):
             fields=SpanStandardField.standard_fields() + PreCalculateSpecificField.search_fields(),
         )
 
+        filters_for_specific_field_check: list[dict[str, Any]] = [
+            trace_filter
+            for trace_filter in data["filters"]
+            if (
+                TraceQueryTransformer.to_common_field(trace_filter["key"]),
+                trace_filter["operator"],
+            )
+            not in self.ORIGIN_COMPATIBLE_PRECALCULATE_FILTERS
+        ]
         is_has_specific_fields = QueryHandler.has_field_not_in_fields(
-            data["query"], data["filters"], fields=PreCalculateSpecificField.specific_fields(), opposite=True
+            data["query"],
+            filters_for_specific_field_check,
+            fields=PreCalculateSpecificField.specific_fields(),
+            opposite=True,
         )
 
         if is_contain_non_standard_fields:
@@ -488,6 +506,12 @@ class TraceDetailResource(Resource):
             validated_request_data["bk_biz_id"],
             validated_request_data["app_name"],
         )
+        attach_llm_detail(
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            handled_data["trace_tree"],
+            handled_data["original_data"],
+        )
         return handled_data
 
 
@@ -499,7 +523,15 @@ class SpanDetailResource(Resource):
 
     def perform_request(self, validated_request_data):
         span = api.apm_api.query_span_detail(**validated_request_data)
-        return TraceHandler.handle_span(validated_request_data["app_name"], span)
+        handled_data = TraceHandler.handle_span(validated_request_data["app_name"], span)
+        if handled_data:
+            attach_llm_detail(
+                validated_request_data["bk_biz_id"],
+                validated_request_data["app_name"],
+                handled_data["trace_tree"],
+                [span],
+            )
+        return handled_data
 
 
 class TraceDiagramResource(Resource):
@@ -969,11 +1001,7 @@ class TraceFieldStatisticsGraphResource(BaseTraceFaultTolerantResource):
     def perform_request(self, validated_data):
         field_info = validated_data["field"]
         # 边界场景，数值字段最小值，最大值为 None 时，直接返回空数据
-        if field_info["field_type"] in {
-            EnabledStatisticsDimension.INTEGER.value,
-            EnabledStatisticsDimension.LONG.value,
-            EnabledStatisticsDimension.DOUBLE.value,
-        }:
+        if EnabledStatisticsDimension.from_value(field_info["field_type"]).is_numeric():
             min_value, max_value, *_ = field_info["values"][:4]
             if min_value is None or max_value is None:
                 return self.EMPTY_DATA

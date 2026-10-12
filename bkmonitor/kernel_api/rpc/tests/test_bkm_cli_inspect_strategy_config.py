@@ -60,8 +60,14 @@ class FakeStrategyObject:
     def restore(self):
         self.restored = True
 
-    def to_dict(self):
+    def to_dict(self, *, convert_dashboard=False):
+        assert convert_dashboard is False
         return dict(self.config)
+
+
+@pytest.fixture(autouse=True)
+def authorize_detail(monkeypatch):
+    monkeypatch.setattr("kernel_api.rpc.functions.bkm_cli.strategy.authorize_strategy_business", lambda *_args: None)
 
 
 def test_inspect_strategy_config_registered_as_bkm_cli_op():
@@ -72,6 +78,50 @@ def test_inspect_strategy_config_registered_as_bkm_cli_op():
     assert op.capability_level == "inspect"
     assert op.risk_level == "low"
     assert function_detail is not None
+
+
+def test_by_name_authorizes_business_and_includes_disabled_invalid_rows(monkeypatch):
+    from unittest.mock import Mock
+    from bkmonitor.iam import ActionEnum
+    from kernel_api.rpc.functions.bkm_cli import strategy
+
+    class Rows(list):
+        def order_by(self, *fields):
+            assert fields == ("id",)
+            return self
+
+        def count(self):
+            return len(self)
+
+    rows = Rows([{"id": 1, "is_enabled": False, "is_invalid": True}])
+    query = Mock(return_value=rows)
+    authorize = Mock()
+    monkeypatch.setattr(strategy, "StrategyModel", SimpleNamespace(objects=SimpleNamespace(filter=query)))
+    monkeypatch.setattr(strategy, "authorize_strategy_business", authorize)
+    monkeypatch.setattr(strategy, "_summarize_strategy_model", lambda row: row)
+    params = {"operation": "by_name", "bk_biz_id": -2, "name": " demo "}
+    result = strategy.inspect_strategy_config(params)
+    authorize.assert_called_once_with(params, ActionEnum.VIEW_RULE)
+    query.assert_called_once_with(bk_biz_id=-2, name="demo")
+    assert result["count"] == 1
+    assert result["strategies"] == rows
+    assert result["truncated"] is False
+
+
+@pytest.mark.parametrize(
+    "params",
+    [
+        {"name": "demo"},
+        {"bk_biz_id": 0, "name": "demo"},
+        {"bk_biz_id": True, "name": "demo"},
+        {"bk_biz_id": 2, "name": " "},
+    ],
+)
+def test_by_name_rejects_missing_or_invalid_scope(params):
+    from kernel_api.rpc.functions.bkm_cli.strategy import inspect_strategy_config
+
+    with pytest.raises(CustomException):
+        inspect_strategy_config({"operation": "by_name", **params})
 
 
 def test_inspect_strategy_config_reads_current_shared_group_members(monkeypatch):
@@ -113,7 +163,7 @@ def test_inspect_strategy_config_detail_uses_strategy_aggregation(monkeypatch):
     from kernel_api.rpc.functions.bkm_cli import strategy
 
     model = SimpleNamespace(id=121950, bk_biz_id=7)
-    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(detail_row=model))
     strategy_obj = FakeStrategyObject(
         {
             "id": 121950,
@@ -196,7 +246,7 @@ def test_inspect_strategy_config_list_by_priority_group_returns_summary(monkeypa
         ),
     ]
     queryset = FakeStrategyQuerySet(rows)
-    strategy.StrategyModel.objects = FakeStrategyManager(list_queryset=queryset)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(list_queryset=queryset))
 
     result = BkmCliOpCallResource().perform_request(
         {
@@ -244,7 +294,7 @@ def test_inspect_strategy_config_detail_default_injects_strategy_group_key(monke
     from kernel_api.rpc.functions.bkm_cli import strategy
 
     model = SimpleNamespace(id=148631, bk_biz_id=100864)
-    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(detail_row=model))
     strategy_obj = FakeStrategyObject(
         {
             "id": 148631,
@@ -300,7 +350,7 @@ def test_inspect_strategy_config_detail_skips_ineligible_data_types(monkeypatch)
     from kernel_api.rpc.functions.bkm_cli import strategy
 
     model = SimpleNamespace(id=777, bk_biz_id=7)
-    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(detail_row=model))
     strategy_obj = FakeStrategyObject(
         {
             "id": 777,
@@ -410,7 +460,7 @@ def test_inspect_strategy_config_detail_silent_on_group_key_failure(monkeypatch)
     from kernel_api.rpc.functions.bkm_cli import strategy
 
     model = SimpleNamespace(id=999, bk_biz_id=7)
-    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(detail_row=model))
     strategy_obj = FakeStrategyObject(
         {
             "id": 999,
@@ -455,7 +505,7 @@ def test_inspect_strategy_config_detail_without_bk_biz_id(monkeypatch):
     from kernel_api.rpc.functions.bkm_cli import strategy
 
     model = SimpleNamespace(id=51, bk_biz_id=100900)
-    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(detail_row=model))
     strategy_obj = FakeStrategyObject(
         {
             "id": 51,
@@ -779,9 +829,7 @@ def test_list_enabled_can_omit_item_ids(monkeypatch):
 
 
 def test_list_enabled_detect_profile_is_off_by_default(monkeypatch):
-    calls = _patch_strategy_cache(
-        monkeypatch, strategy_ids=[1], groups={}, configs=[_detect_config(1, 60)]
-    )
+    calls = _patch_strategy_cache(monkeypatch, strategy_ids=[1], groups={}, configs=[_detect_config(1, 60)])
 
     result = _call_list_enabled({})
 
@@ -792,13 +840,8 @@ def test_list_enabled_detect_profile_is_off_by_default(monkeypatch):
     assert calls["configs"] == 0
 
 
-def test_list_enabled_detect_profile_peak_is_baseline_plus_growth(monkeypatch):
-    """峰值上界必须是 point_required + 一个清理周期内的新增，不是两者取大。
-
-    热路径 zadd 不裁剪，清理任务每 7200s 才按 point_required 收口一次，所以峰值出现在
-    紧接清理前，等于"保留基线 + 周期内新增"。取大写法给出的上界会低于实测峰值
-    （策略 8361 实测 261，而 max(30, 7200/30)=240），上界被实测突破即不成立。
-    """
+def test_list_enabled_detect_profile_uses_periodic_reference(monkeypatch):
+    """两小时周期公式继续作为主要容量参考，但不是精确字节上界。"""
     calls = _patch_strategy_cache(
         monkeypatch,
         strategy_ids=[1, 2, 3],
@@ -810,6 +853,8 @@ def test_list_enabled_detect_profile_peak_is_baseline_plus_growth(monkeypatch):
     profiles = {item["strategy_id"]: item["detect_profile"] for item in result["strategies"]}
 
     assert profiles[1]["point_required"] == 30
+    assert profiles[1]["model_scope"] == "periodic_reference"
+    assert profiles[1]["is_safe_upper_bound"] is False
     assert profiles[1]["interval"] == 30
     assert profiles[1]["clean_interval_seconds"] == 7200
     assert profiles[1]["growth_per_clean_cycle"] == 240
@@ -823,17 +868,18 @@ def test_list_enabled_detect_profile_peak_is_baseline_plus_growth(monkeypatch):
     assert calls["configs"] == 1
 
 
-def test_list_enabled_detect_profile_upper_bound_covers_measured_peak(monkeypatch):
-    """回归锚点：bkop 策略 8361 实测峰值 261，配置推导上界不得低于它。"""
+def test_list_enabled_detect_profile_preserves_measured_legacy_reference(monkeypatch):
+    """历史样本只保留为旧周期口径参考，不再声明为当前安全上界。"""
     _patch_strategy_cache(monkeypatch, strategy_ids=[8361], groups={}, configs=[_detect_config(8361, 30)])
 
     profile = _call_list_enabled({"include_detect_profile": True})["strategies"][0]["detect_profile"]
 
     assert profile["check_result_peak_per_series"] >= 261
+    assert profile["is_safe_upper_bound"] is False
 
 
-def test_list_enabled_detect_profile_uses_production_point_required(monkeypatch):
-    """point_required 取自生产函数：窗口放大后 P 应随之变大，而不是恒等于下限 30。"""
+def test_list_enabled_detect_profile_uses_legacy_strategy_point_required(monkeypatch):
+    """旧策略级参考值仍随窗口放大，不恒等于下限 30。"""
     _patch_strategy_cache(
         monkeypatch,
         strategy_ids=[1],

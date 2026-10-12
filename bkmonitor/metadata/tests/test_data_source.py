@@ -69,7 +69,7 @@ def test_create_v4_data_source_applies_from_gse_then_registers_to_bkbase(
     expected_event_type,
     expected_bkbase_data_name,
 ):
-    """V4 数据源应先由 GSE 分配 Data ID，再作为预定义数据源注册到 BKBase。"""
+    """V4 数据源应先由 GSE 分配 Data ID，注册到 BKBase 后再刷新 GSE 路由。"""
     mocker.patch.object(settings, "IS_ASSIGN_DATAID_BY_GSE", True)
     mocker.patch.object(settings, "ENABLE_V2_VM_DATA_LINK", True)
 
@@ -88,6 +88,11 @@ def test_create_v4_data_source_applies_from_gse_then_registers_to_bkbase(
         "metadata.models.data_source.api.bkdata.apply_data_link",
         side_effect=lambda *args, **kwargs: operations.append("bkbase"),
     )
+    refresh_gse_config = mocker.patch.object(
+        models.DataSource,
+        "refresh_gse_config_to_gse",
+        side_effect=lambda *args, **kwargs: operations.append("gse_refresh"),
+    )
 
     data_source = models.DataSource.create_data_source(
         data_name=data_name,
@@ -98,10 +103,11 @@ def test_create_v4_data_source_applies_from_gse_then_registers_to_bkbase(
         is_refresh_config=False,
     )
 
-    assert operations == ["gse", "bkbase"]
+    assert operations == ["gse", "bkbase", "gse_refresh"]
     apply_from_gse.assert_called_once_with(DEFAULT_TENANT_ID, "operator")
     apply_from_bkdata.assert_not_called()
     apply_data_link.assert_called_once()
+    refresh_gse_config.assert_called_once_with()
     apply_config = apply_data_link.call_args.kwargs["config"][0]
     assert apply_config["metadata"]["name"] == expected_bkbase_data_name
     assert apply_config["metadata"]["namespace"] == expected_namespace

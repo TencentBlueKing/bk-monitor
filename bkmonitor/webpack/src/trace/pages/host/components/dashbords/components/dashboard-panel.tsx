@@ -31,7 +31,7 @@ import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
 import DashboardRow from './dashboard-row';
 import EmptyStatus from '@/components/empty-status/empty-status';
-import ChartSkeleton from '@/components/skeleton/chart-skeleton';
+import HostLoading, { HostRefreshStatus } from '../../host-loading/host-loading';
 
 import type { DashboardRow as DashboardRowModel } from '../typings/dashboard';
 import type { ScopedVarMap } from '../variables/resolve';
@@ -83,9 +83,10 @@ export default defineComponent({
 
     return () => (
       <div class='dashboard-panel'>
+        <HostRefreshStatus loading={props.loading && props.rows.length > 0} error={props.loadError && props.rows.length > 0} onRetry={() => emit('retry')} />
         {props.loading && props.rows.length === 0 ? (
-          <ChartSkeleton />
-        ) : props.loadError ? (
+          <HostLoading variant='dashboard' columns={props.columns} />
+        ) : props.loadError && !props.rows.length ? (
           <EmptyStatus
             type='500'
             onOperation={() => emit('retry')}

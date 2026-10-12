@@ -9,6 +9,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 import logging
+import re
 
 import requests
 from rest_framework import serializers
@@ -21,6 +22,8 @@ from core.errors.api import BKAPIError
 
 logger = logging.getLogger("apm_ebpf")
 
+_TRACE_ID_RE = re.compile(r"^[0-9a-fA-F-]{8,128}$")
+
 
 class TraceQueryResource(Resource):
     """
@@ -31,7 +34,9 @@ class TraceQueryResource(Resource):
     path = "/v1/query/"
 
     class RequestSerializer(serializers.Serializer):
-        trace_id = serializers.CharField(label="TraceID", max_length=255, required=False)
+        trace_id = serializers.RegexField(
+            label="TraceID", regex=r"^[0-9a-fA-F-]{8,128}$", max_length=128, required=False
+        )
         sql = serializers.CharField(label="sql语句", max_length=5000)
         db = serializers.CharField(label="查询数据库", max_length=50)
         bk_biz_id = serializers.IntegerField(label="业务id")
@@ -39,8 +44,11 @@ class TraceQueryResource(Resource):
     @classmethod
     def build_param(cls, params):
         sql = params["sql"]
-        if params.get("trace_id"):
-            sql += " WHERE trace_id = '{}' ".format(params.get("trace_id"))
+        trace_id = params.get("trace_id")
+        if trace_id:
+            if not _TRACE_ID_RE.fullmatch(str(trace_id)):
+                raise serializers.ValidationError("invalid trace_id")
+            sql += " WHERE trace_id = '{}' ".format(trace_id)
         return {"db": params["db"], "sql": sql}
 
     @classmethod

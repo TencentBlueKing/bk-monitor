@@ -28,16 +28,17 @@ import {
   type ShallowRef,
   computed,
   defineComponent,
-  onMounted,
   onScopeDispose,
   shallowRef,
-  watchEffect,
+  watch,
 } from 'vue';
 
 import { Message } from 'bkui-vue';
 import { EMode } from 'trace/components/retrieval-filter/typing';
 import { handleTransformToTimestamp } from 'trace/components/time-range/utils';
 import { useI18n } from 'vue-i18n';
+
+import { DetailLoadStatus } from '../../../../common-detail/detail-loading';
 
 import AlarmTable from '../../../../components/alarm-table/alarm-table';
 import AlertOperationDialogs from '../../../../components/alert-operation-dialogs/alert-operation-dialogs';
@@ -119,6 +120,9 @@ export default defineComponent({
     const ordering = shallowRef('');
     // 是否加载中
     const loading = shallowRef(false);
+    const loaded = shallowRef(false);
+    const error = shallowRef(false);
+    let lastQueryKey = '';
     // 选中的行
     const selectedRowKeys = shallowRef<string[]>([]);
     // 是否是关注人
@@ -146,6 +150,7 @@ export default defineComponent({
 
     // 分页配置
     const pagination = computed(() => ({
+      total: total.value,
       currentPage: page.value,
       pageSize: pageSize.value,
     }));
@@ -165,6 +170,9 @@ export default defineComponent({
       }
       return newValue;
     });
+
+    const queryKey = computed(() => JSON.stringify([props.detail.bk_biz_id, props.detail.id, commonParams.value, props.timeRange]));
+    watch(queryKey, () => { page.value = 1; });
 
     // 获取数据
     const fetchData = async () => {
@@ -189,15 +197,22 @@ export default defineComponent({
         page_size: pageSize.value,
         page: page.value,
         ordering: ordering.value ? [ordering.value] : [],
-        // 仅触发watchEffect
-        ...(props.refreshKey ? {} : {}),
       };
+      const key = JSON.stringify([queryKey.value, page.value, pageSize.value, ordering.value]);
+      if (key !== lastQueryKey) {
+        data.value = [];
+        total.value = 0;
+        loaded.value = false;
+        selectedRowKeys.value = [];
+      }
+      lastQueryKey = key;
       loading.value = true;
-      data.value = [];
+      error.value = false;
 
       try {
-        const res = await alarmService.value.getFilterTableList(params, { signal });
+        const res = await alarmService.value.getFilterTableList(params, { signal, throwOnError: true });
 
+        if (signal.aborted) return;
         // 获取告警关联事件数和关联告警信息
         await alarmService.value.getAlterRelevance(res.data, { signal }).then(result => {
           if (!result) return;
@@ -213,10 +228,9 @@ export default defineComponent({
 
         total.value = res.total;
         data.value = res.data as unknown as AlertTableItem[];
-      } catch (error) {
-        if (!signal.aborted) {
-          console.error('Failed to fetch alarm data:', error);
-        }
+        loaded.value = true;
+      } catch {
+        if (!signal.aborted) error.value = true;
       } finally {
         if (!signal.aborted) {
           loading.value = false;
@@ -296,9 +310,7 @@ export default defineComponent({
     } = useAlertDialogs(data as unknown as ShallowRef<AlertTableItem[]>);
 
     // 监听参数变化重新获取数据
-    onMounted(() => {
-      watchEffect(fetchData);
-    });
+    watch([queryKey, page, pageSize, ordering, () => props.refreshKey], fetchData, { immediate: true });
 
     onScopeDispose(() => {
       if (abortController) {
@@ -314,6 +326,9 @@ export default defineComponent({
       data,
       ordering,
       loading,
+      loaded,
+      error,
+      retry: fetchData,
       selectedRowKeys,
       isSelectedFollower,
       tableSettings,
@@ -342,15 +357,16 @@ export default defineComponent({
   render() {
     return (
       <div class='issues-detail-alarm-table'>
-        <AlarmTable
+        <DetailLoadStatus loading={this.loading && this.loaded} error={this.error} onRetry={this.retry} />
+        {(!this.error || this.loaded) && <AlarmTable
           columns={this.tableSourceColumns}
           data={this.data}
           defaultActiveRowKeys={[]}
           headerAffixedTop={this.headerAffixedTop}
           horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
           isSelectedFollower={this.isSelectedFollower}
-          loading={this.loading}
-          pagination={this.pagination}
+          loading={this.loading && !this.loaded}
+          pagination={this.loading ? undefined : this.pagination}
           scrollContainerSelector={this.scrollContainerSelector}
           selectedRowKeys={this.selectedRowKeys}
           sort={this.ordering}
@@ -366,7 +382,7 @@ export default defineComponent({
           onSelectionChange={this.handleSelectionChange}
           onShowAlertDetail={this.handleShowAlertDetail}
           onSortChange={this.handleSortChange}
-        />
+        />}
         <AlertOperationDialogs
           alarmBizId={this.alertDialogBizId}
           alarmIds={this.alertDialogIds}

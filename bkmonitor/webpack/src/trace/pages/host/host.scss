@@ -46,7 +46,7 @@
     &-inner-layout {
       height: 100%;
 
-      aside {
+      & > aside {
         z-index: 1;
         background-color: #fff;
       }

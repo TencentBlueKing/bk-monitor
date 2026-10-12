@@ -34,7 +34,7 @@ from bkmonitor.utils.model_manager import AbstractRecordModel, Model
 from constants.common import DEFAULT_TENANT_ID
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.report import StaffChoice
-from constants.shield import ShieldStatus, ShieldType
+from constants.shield import ShieldEndPolicy, ShieldStatus, ShieldType
 from core.drf_resource import api
 
 # nodata dimension tag
@@ -800,6 +800,7 @@ class Shield(AbstractRecordModel):
 
     bk_biz_id = models.IntegerField(verbose_name="业务ID", default=0, blank=True, db_index=True)
     category = models.CharField(verbose_name="屏蔽类型", choices=SHIELD_CATEGORY, max_length=32)
+    end_policy = models.CharField(verbose_name="屏蔽结束处理方式", max_length=16, default=ShieldEndPolicy.NOTIFY_ONCE)
     scope_type = models.CharField(verbose_name="屏蔽范围类型", choices=SCOPE_TYPE, max_length=32)
     content = models.TextField(verbose_name="屏蔽内容快照")
 

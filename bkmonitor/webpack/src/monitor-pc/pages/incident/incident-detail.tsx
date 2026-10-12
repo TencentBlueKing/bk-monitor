@@ -52,8 +52,8 @@ export default class IncidentDetail extends tsc<{ id: string }> {
   }
   get incidentDetailUrl() {
     return process.env.NODE_ENV === 'development'
-      ? `${this.incidentDetailHost}/?bizId=${this.$store.getters.bizId}&key=${random(4)}/#/trace/incident/detail/${this.id}`
-      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/incident/detail/${this.id}`;
+      ? `${this.incidentDetailHost}/?bizId=${this.$store.getters.bizId}&key=${random(4)}#/trace/incident/detail/${this.id}`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}#/trace/incident/detail/${this.id}`;
   }
   get incidentDetailData() {
     return {

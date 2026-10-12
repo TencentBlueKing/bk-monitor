@@ -9,8 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
+import re
 from collections import defaultdict
 
+from django.conf import settings
 from django.core.cache import caches
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -69,9 +71,11 @@ class GetCustomTsMetricGroups(Resource):
             }
         其中 monitor_name_list 即为 scope_name 列表，因此需要按 (scope_name, metric_name) 联合过滤。
 
+        缓存缺失时回源实时查询，与 V1（scene_view/builtin/apm.py）保持一致，避免缓存未生成就整页无数据。
+
         返回值语义：
-            - None: 无需过滤（非 APM 场景 / 缓存不可用）
-            - {}:  该服务在缓存中无任何指标，全部过滤
+            - None: 无需过滤（非 APM 场景 / 缓存与回源均不可用）
+            - {}:  该服务确实没有任何指标，全部过滤
             - {scope_name: {metric_name, ...}}: 精确白名单
         """
         if not params.get("is_apm_scenario"):
@@ -83,25 +87,45 @@ class GetCustomTsMetricGroups(Resource):
         if not (apm_app_name and apm_service_name and bk_biz_id):
             return None
 
-        if "redis" not in caches:
-            return None
-
         try:
             from apm_web.constants import ApmCacheKey
             from apm_web.models import Application
 
             application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=apm_app_name)
-            cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(
-                bk_biz_id=bk_biz_id, application_id=application.application_id
-            )
-            cached_data = caches["redis"].get(cache_key)
-            if not cached_data:
-                return None
 
-            monitor_info_mapping = deserialize_and_decompress(cached_data) or {}
+            monitor_info_mapping = {}
+            if "redis" in caches:
+                cache_key = ApmCacheKey.APP_SCOPE_NAME_KEY.format(
+                    bk_biz_id=bk_biz_id, application_id=application.application_id
+                )
+                try:
+                    cached_data = caches["redis"].get(cache_key)
+                    monitor_info_mapping = deserialize_and_decompress(cached_data) if cached_data else {}
+                except Exception as e:  # pylint: disable=broad-except
+                    logger.warning("[GetCustomTsMetricGroups] read scope_name cache(%s) failed: %s", cache_key, e)
+                    monitor_info_mapping = {}
+
+            if not monitor_info_mapping or not monitor_info_mapping.get(apm_service_name):
+                # 缓存未命中时回源，SDK 映射配置与 V1 取值方式一致
+                from apm_web.handlers.metric_group import MetricHelper
+
+                target_key = f"{bk_biz_id}-{apm_app_name}.{apm_service_name}"
+                metric_config = settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get(target_key) or (
+                    settings.APM_CUSTOM_METRIC_SDK_MAPPING_CONFIG.get("default") or {}
+                )
+                monitor_info_mapping = (
+                    MetricHelper.get_monitor_info(
+                        bk_biz_id,
+                        params.get("result_table_id") or application.metric_result_table_id,
+                        service_name=apm_service_name,
+                        **metric_config,
+                    )
+                    or {}
+                )
+
             service_metric_info = monitor_info_mapping.get(apm_service_name)
             if not service_metric_info:
-                # 缓存中没有该服务的数据，返回空 dict（该服务下全部过滤）
+                # 缓存与回源都没有该服务的数据，返回空 dict（该服务下全部过滤）
                 return {}
 
             # 反转结构：{scope_name: {metric_name, ...}}
@@ -116,8 +140,9 @@ class GetCustomTsMetricGroups(Resource):
             return None
 
     def perform_request(self, params: dict) -> dict[str, list]:
-        # APM 场景：从缓存获取当前服务下 (scope_name -> metric_name 集合) 的白名单
-        scope_metric_whitelist = self._get_service_scope_metric_whitelist(params) or {}
+        # APM 场景：获取当前服务下 (scope_name -> metric_name 集合) 的白名单
+        # None 表示无法判定、不做过滤，不能与「白名单为空」混为一谈，否则会把指标全部过滤掉
+        scope_metric_whitelist = self._get_service_scope_metric_whitelist(params)
 
         # 从 metadata 获取指标分组列表
         request_params = {
@@ -134,7 +159,7 @@ class GetCustomTsMetricGroups(Resource):
             metric_list = scope_data.get("metric_list", [])
             dimension_config = scope_data.get("dimension_config", {})
 
-            allowed_metrics_in_scope = scope_metric_whitelist.get(scope_name, set()) or set()
+            allowed_metrics_in_scope = (scope_metric_whitelist or {}).get(scope_name, set()) or set()
 
             # 构建指标列表
             metrics = []
@@ -145,8 +170,8 @@ class GetCustomTsMetricGroups(Resource):
                         # 过滤内置指标（APM 场景）
                         continue
 
-                    if metric_name not in allowed_metrics_in_scope:
-                        # 只展示缓存中当前服务、当前 scope 下有数据的指标（APM 场景）
+                    if scope_metric_whitelist is not None and metric_name not in allowed_metrics_in_scope:
+                        # 只展示当前服务、当前 scope 下有数据的指标（APM 场景）
                         continue
 
                 field_config = metric_data.get("field_config", {})
@@ -270,6 +295,16 @@ class GetCustomTsDimensionValues(Resource):
         end_time = serializers.IntegerField(label=_("结束时间"))
         metrics = MetricSerializer(label=_("指标"), many=True, default=list)
 
+    @classmethod
+    def _build_label_match(cls, label: str, values: list[str]) -> str | None:
+        unique_values = list(dict.fromkeys(value for value in values if value))
+        if not unique_values:
+            return None
+        if len(unique_values) == 1:
+            return f'{label}="{unique_values[0]}"'
+        escaped = "|".join(re.escape(value) for value in unique_values)
+        return f'{label}=~"({escaped})"'
+
     def perform_request(self, params: dict) -> list[dict]:
         # 如果指标为空，则返回空列表
         if not params["metrics"]:
@@ -301,6 +336,12 @@ class GetCustomTsDimensionValues(Resource):
         if is_apm_scenario:
             label_filters.append(f'app_name="{params["apm_app_name"]}"')
             label_filters.append(f'service_name="{params["apm_service_name"]}"')
+            # 左边勾选的监控项对应 scope_name，多个监控项可共用同一指标字段（如 metric）
+            scope_match = self._build_label_match(
+                "scope_name", [metric.get("scope_name") or "" for metric in params["metrics"]]
+            )
+            if scope_match:
+                label_filters.append(scope_match)
 
         # 组装完整的 PromQL 匹配表达式
         if label_filters:

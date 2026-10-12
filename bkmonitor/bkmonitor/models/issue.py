@@ -28,6 +28,11 @@ class IssueMergeRelation(AbstractRecordModel):
     - merge_reasons 与 split_reasons 单独保留，便于审计追溯；
     - 索引全部为普通索引，无 UNIQUE 强约束；唯一性由应用层 SELECT 校验保证，
       极小概率 race window 通过 bkm-cli list_conflicts 发现 + management command 修复。
+
+    **关系深度恒为 1**（member 不会同时是别行的 active main）。合并两个已成组的主 Issue 时，
+    被并入主的成员会被改挂（reparent）到新主，成为平级 member，而不是形成多层嵌套——
+    ``IssueMergeResolver`` 的 main_of / members_of / expand_to_full_ids / hydrate_aggregations
+    与 ``IssueDocument._cascade_follow_status`` 全部按单层实现，依赖该不变量。
     """
 
     STATUS_ACTIVE = "active"
@@ -60,6 +65,21 @@ class IssueMergeRelation(AbstractRecordModel):
     merge_reasons = JsonField(default=list, verbose_name="合并依据")
     split_reasons = JsonField(default=None, null=True, blank=True, verbose_name="拆分依据")
     split_kind = models.CharField(max_length=16, default=None, null=True, blank=True, verbose_name="拆分触发类型")
+    # 上一跳主 Issue：本行 member 是"随着某个主 Issue 一起被并入"时，记录它此前所属的主。
+    # 直接合并进来的 member 为 None。
+    #
+    # 为什么需要它：reparent 只改 main_issue_id，create_time / create_user 保留原始合并事实
+    # （"U1 在 T1 把 m1 并入 A"）。若不记上一跳，行会读成"U1 在 T1 把 m1 并入 B"，而 U1 当时
+    # 并的是 A，关系表不再自证。
+    #
+    # 只保留**最近一跳**：A→B 后再 B→C，本字段被覆盖为 B；完整链路由 IssueActivityDocument 的
+    # MERGED_INTO(kind=reparent) 承载（append-only）。
+    #
+    # 该值可能指向一个已不在本组的 Issue（如上一跳主随后被拆分），仅作溯源展示，
+    # 不得假设它仍是本组成员。不加索引：无按它过滤的查询路径。
+    via_issue_id = models.CharField(
+        max_length=64, default=None, null=True, blank=True, verbose_name="上一跳主 Issue ID"
+    )
 
 
 class StrategyIssueConfig(AbstractRecordModel):

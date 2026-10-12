@@ -19,11 +19,17 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
-from rest_framework import serializers
+from rest_framework import permissions, serializers
 from rest_framework.response import Response
 
 from apps.api import MonitorApi
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, ResourceEnum
+from apps.iam.handlers.drf import (
+    BusinessActionPermission,
+    InstanceActionForDataPermission,
+    ViewBusinessPermission,
+)
 from apps.log_clustering.serializers import (
     CreateOrUpdateReportSerializer,
     GetExistReportsSerlaizer,
@@ -37,7 +43,35 @@ class ReportViewSet(APIViewSet):
     serializer_class = serializers.Serializer
 
     def get_permissions(self):
-        return []
+        if self.action == "get_reports":
+            return [
+                InstanceActionForDataPermission(
+                    "index_set_id",
+                    [ActionEnum.SEARCH_LOG],
+                    ResourceEnum.INDICES,
+                )
+            ]
+        if self.action in ["create_or_update", "send"]:
+            scenario_config = self.request.data.get("scenario_config") or {}
+            if isinstance(scenario_config, dict) and scenario_config.get("index_set_id"):
+                return [
+                    InstanceActionForDataPermission(
+                        "scenario_config",
+                        [ActionEnum.SEARCH_LOG],
+                        ResourceEnum.INDICES,
+                        get_instance_id=lambda config: config["index_set_id"],
+                    )
+                ]
+            data = getattr(self.request, "data", {}) or {}
+            query = getattr(self.request, "query_params", {}) or {}
+            try:
+                bk_biz_id = int(data.get("bk_biz_id") or query.get("bk_biz_id") or 0)
+            except (TypeError, ValueError):
+                bk_biz_id = 0
+            if bk_biz_id <= 0:
+                return [permissions.NOT(permissions.AllowAny())]
+            return [BusinessActionPermission([ActionEnum.MANAGE_INDICES])]
+        return [ViewBusinessPermission()]
 
     @list_route(methods=["GET"], url_path="get_reports")
     def get_reports(self, request):

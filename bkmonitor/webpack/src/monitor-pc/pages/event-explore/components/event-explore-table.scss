@@ -3,6 +3,22 @@
   position: relative;
   height: 100%;
 
+  @keyframes event-table-refresh-progress {
+    from {
+      transform: translateX(-100%);
+    }
+
+    to {
+      transform: translateX(357.143%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .event-table-refreshing::after {
+      animation: none;
+    }
+  }
+
   .bk-table.explore-table {
     flex-direction: column;
     height: 100%;
@@ -38,15 +54,13 @@
           .filters {
             margin-left: 5px;
             font-size: 12px;
-            color: #979BA5;
+            color: #979ba5;
             cursor: pointer;
 
             &.active {
-              color: #3A84FF;
+              color: #3a84ff;
             }
           }
-          
-
         }
       }
     }
@@ -68,8 +82,8 @@
           &:has(+ .is-expanded-row) {
             .bk-table-expand-icon {
               &::before {
-                bottom: 0px;
-                border-bottom-right-radius: 0px;
+                bottom: 0;
+                border-bottom-right-radius: 0;
               }
             }
           }
@@ -193,10 +207,51 @@
     }
   }
 
-  .explore-table-skeleton {
-    position: absolute;
+  .event-table-refreshing {
+    position: sticky;
     top: 0;
-    padding: 10px 8px;
+    z-index: 101;
+    height: 2px;
+    margin-bottom: -2px;
+    overflow: hidden;
+    pointer-events: none;
+    background: #e1ecff;
+
+    &::after {
+      display: block;
+      width: 28%;
+      height: 100%;
+      content: '';
+      background: linear-gradient(90deg, transparent 0%, #3871dc 80.75%, transparent 100%);
+      animation: event-table-refresh-progress 3624ms linear infinite;
+    }
+  }
+
+  &.is-refreshing .bk-table {
+    .bk-table-body-wrapper,
+    .bk-table-fixed-body-wrapper {
+      pointer-events: none;
+      opacity: 0.65;
+    }
+
+    .bk-table-fixed-body-wrapper .bk-table-row {
+      pointer-events: none;
+    }
+  }
+
+  .event-table-empty.is-loading {
+    width: 100%;
+  }
+
+  &.is-loading {
+    .bk-table-empty-text {
+      width: 100%;
+      padding: 0;
+    }
+
+    .bk-table-empty-block {
+      align-items: flex-start;
+    }
   }
 
   .bk-table {

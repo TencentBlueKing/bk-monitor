@@ -8,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import json
 from abc import ABCMeta
 
@@ -22,7 +23,18 @@ class BaseAbnormalPushProcessor(six.with_metaclass(ABCMeta, object)):
     """
 
     @staticmethod
-    def push_abnormal_data(outputs, strategy_id, anomaly_signal_list=None):
+    def publish_anomaly_signals(anomaly_signal_list):
+        if not anomaly_signal_list:
+            return
+
+        signal_pipeline = key.ANOMALY_SIGNAL_KEY.client.pipeline(transaction=False)
+        anomaly_signal_key = key.ANOMALY_SIGNAL_KEY.get_key()
+        signal_pipeline.lpush(anomaly_signal_key, *anomaly_signal_list)
+        signal_pipeline.expire(anomaly_signal_key, key.ANOMALY_SIGNAL_KEY.ttl)
+        signal_pipeline.execute()
+
+    @staticmethod
+    def push_abnormal_data(outputs, strategy_id, anomaly_signal_list=None, publish_signal=True):
         # detect.anomaly.signal: 异常信号队列
         # detect.anomaly.list.{strategy_id}.{item_id}.{level}: 异常结果信息队列
         anomaly_count = 0
@@ -44,10 +56,7 @@ class BaseAbnormalPushProcessor(six.with_metaclass(ABCMeta, object)):
         # 先推送anomaly list的数据
         pipeline.execute()
 
-        # 再进行一次信号的推送，保证数据ready了之后再推送信号
-        signal_pipeline = key.ANOMALY_SIGNAL_KEY.client.pipeline(transaction=False)
-        anomaly_signal_key = key.ANOMALY_SIGNAL_KEY.get_key()
-        signal_pipeline.lpush(anomaly_signal_key, *anomaly_signal_list)
-        signal_pipeline.expire(anomaly_signal_key, key.ANOMALY_SIGNAL_KEY.ttl)
-        signal_pipeline.execute()
+        if publish_signal:
+            # 再进行一次信号的推送，保证数据ready了之后再推送信号
+            BaseAbnormalPushProcessor.publish_anomaly_signals(anomaly_signal_list)
         return anomaly_count

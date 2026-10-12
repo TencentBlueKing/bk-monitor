@@ -11,6 +11,10 @@
 
 此项目是监控平台的子项目，主要是提供监控平台的基础能力，如空间管理、数据采集、元数据管理等。上层SaaS可以基于此项目提供的能力，实现多样的场景化能力。
 
+本目录由 `bk-monitor` 主仓直接维护，不再作为独立 Git 仓库或 Git submodule。
+保留独立的 Python 包、依赖声明和测试目录，代码改动在主仓统一提交和评审。
+迁入基线为主仓 master 固定的 Base 提交 `afa008350b80f855e69231b2ac115149b8362c70`。
+
 1. 空间管理：提供空间管理能力，根据第三方平台接口同步空间信息。
 2. 数据采集：提供数据采集能力，包括数据采集、数据处理、数据存储等。
 3. 元数据管理：提供元数据管理能力，包括元数据创建、元数据删除、元数据查询等。
@@ -42,9 +46,9 @@ bk_monitor_base
 ### 快速安装
 
 ```bash
-# 克隆项目
-git clone <repository-url>
-cd bk-monitor-base
+# 克隆主仓，无需初始化子仓
+git clone https://github.com/TencentBlueKing/bk-monitor.git
+cd bk-monitor/bk-monitor-base
 
 # 创建虚拟环境并安装依赖
 uv venv --seed
@@ -66,4 +70,3 @@ uv sync --all-groups
 
 - [项目主页](https://github.com/TencentBlueKing/bk-monitor)
 - [蓝鲸智云官网](https://bk.tencent.com/)
-

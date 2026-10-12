@@ -713,7 +713,7 @@ export default defineComponent({
       // 直接写 tagItem，禁止走点击回调，避免 toggle / 重复过滤
       Object.assign(tagItem.value, synced.tagItem);
       tagAppliedBySearch.value = synced.tagAppliedBySearch;
-      if (synced.scrollToTagId != null) {
+      if (synced.scrollToTagId !== null && synced.scrollToTagId !== undefined) {
         nextTick(() => scrollTagIntoView(synced.scrollToTagId));
       }
     };

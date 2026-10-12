@@ -8,10 +8,8 @@ import json
 import logging
 from collections.abc import Callable
 from datetime import datetime
-from typing import Any, cast, final
+from typing import Any, final
 
-from bkmonitor.nodeman_integration.backend import node_man_backend
-from bkmonitor.nodeman_integration.exceptions import NodeManV3CapabilityBlocked
 from django.db.models import Q
 from django.utils.translation import gettext as _
 from packaging.version import Version
@@ -30,7 +28,17 @@ from bk_monitor_base.domains.uptime_check.services.data_access import DataAccess
 from bk_monitor_base.domains.uptime_check.services.subscription import SubscriptionService
 from bk_monitor_base.infras.conversion import safe_int
 from bk_monitor_base.infras.exception.base_error import BaseError
-from bk_monitor_base.infras.third_party_api.nodeman import api as node_man_v2_api
+from bk_monitor_base.infras.third_party_api.nodeman.api import (
+    CreateSubscriptionParams,
+    PluginSearchParams,
+    UpdateSubscriptionParams,
+    batch_get_subscription_task_result,
+    create_subscription,
+    plugin_search,
+    run_subscription,
+    switch_subscription,
+    update_subscription,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,13 +70,6 @@ class TaskManager:
         self.task = task
         self.bk_tenant_id = bk_biz_id_to_bk_tenant_id(task.bk_biz_id)
         self.on_deploy_success = on_deploy_success
-        self.use_nodeman_v3 = node_man_backend.is_v3
-        if self.use_nodeman_v3:
-            from bk_monitor_base.domains.uptime_check.services.nodeman_v3 import UptimeCheckNodeManV3Service
-
-            self.nodeman_v3_service = UptimeCheckNodeManV3Service()
-        else:
-            self.nodeman_v3_service = None
 
         # 初始化服务
         self.subscription_service = SubscriptionService(bk_biz_id=task.bk_biz_id)
@@ -118,40 +119,17 @@ class TaskManager:
                 biz_nodes.append(node)
 
         # 2) 版本校验：依赖 bkmonitorbeat 推荐版本 >= 3.5.0
-        all_plugin: list[dict[str, Any]] = []
-        if self.use_nodeman_v3:
-            hosts_by_business: dict[int, list[int]] = {}
-            for node in [*biz_nodes, *common_nodes]:
-                if node.bk_host_id:
-                    hosts_by_business.setdefault(node.bk_biz_id, []).append(int(node.bk_host_id))
-            for target_bk_biz_id, target_host_ids in hosts_by_business.items():
-                all_plugin.extend(
-                    cast(
-                        list[dict[str, Any]],
-                        node_man_backend.v3.plugin_search_host_status(
-                            bk_tenant_id=bk_biz_id_to_bk_tenant_id(target_bk_biz_id),
-                            bk_biz_id=target_bk_biz_id,
-                            bk_host_ids=target_host_ids,
-                            plugin_names=["bkmonitorbeat"],
-                        ),
-                    )
-                )
-        else:
-            bk_host_ids = [
-                int(host_id)
-                for host_id in all_nodes.values_list("bk_host_id", flat=True).distinct()
-                if host_id
-            ]
-            plugin_result = node_man_v2_api.plugin_search(
-                bk_tenant_id=self.bk_tenant_id,
-                params=node_man_v2_api.PluginSearchParams(
-                    page=1,
-                    pagesize=max(len(bk_host_ids), 1),
-                    conditions=[],
-                    bk_host_id=bk_host_ids,
-                ),
-            )
-            all_plugin = cast(list[dict[str, Any]], plugin_result.get("list", []))
+        bk_host_ids = list(all_nodes.values_list("bk_host_id", flat=True).distinct())
+        plugin_result = plugin_search(
+            bk_tenant_id=self.bk_tenant_id,
+            params=PluginSearchParams(
+                page=1,
+                pagesize=len(bk_host_ids),
+                conditions=[],
+                bk_host_id=bk_host_ids,
+            ),
+        )
+        all_plugin = plugin_result.get("list", [])
         invalid_nodes: list[str] = []
         for plugin in all_plugin:
             plugin_status_list: list[dict[str, Any]] = [
@@ -298,7 +276,7 @@ class TaskManager:
             logger.exception(e)
             raise TestTaskError(_("校验测试结果时发生异常，请联系系统管理员"))
 
-    def deploy(self, *, force_nodeman_v3: bool = False) -> str:
+    def deploy(self) -> str:
         """部署任务
 
         完整的部署流程:
@@ -351,25 +329,15 @@ class TaskManager:
                 use_custom_report=use_custom,
             )
 
-            if self.use_nodeman_v3:
-                assert self.nodeman_v3_service is not None
-                self.nodeman_v3_service.preflight_deploy(self.task, subscription_configs)
-                for subscription_config in subscription_configs:
-                    self.nodeman_v3_service.ensure(
-                        self.task,
-                        subscription_config,
-                        force=force_nodeman_v3,
-                    )
-            else:
-                existing_subscriptions = self._get_existing_subscriptions()
+            existing_subscriptions = self._get_existing_subscriptions()
 
-                # 判断是新增还是更新
-                if not existing_subscriptions:
-                    # 新增流程
-                    self._handle_create_subscriptions(subscription_configs)
-                else:
-                    # 更新流程
-                    self._handle_update_subscriptions(subscription_configs, existing_subscriptions)
+            # 判断是新增还是更新
+            if not existing_subscriptions:
+                # 新增流程
+                self._handle_create_subscriptions(subscription_configs)
+            else:
+                # 更新流程
+                self._handle_update_subscriptions(subscription_configs, existing_subscriptions)
 
             # 执行部署成功回调钩子(如:追加指标缓存)
             if self.on_deploy_success:
@@ -405,15 +373,12 @@ class TaskManager:
         """
         logger.info(f"启动拨测任务: task_id={self.task.pk}")
 
-        if self.use_nodeman_v3:
-            return self._start_nodeman_v3(operator)
-
         # 步骤1: 前置检查是否有运行中的启停任务
         try:
             subscriptions = self._get_existing_subscriptions()
             if subscriptions:
                 subscription_id = subscriptions[0]
-                instance_list, _ = node_man_v2_api.batch_get_subscription_task_result(
+                instance_list, _ = batch_get_subscription_task_result(
                     bk_tenant_id=self.bk_tenant_id,
                     params={"subscription_id": safe_int(subscription_id)},
                 )
@@ -438,7 +403,7 @@ class TaskManager:
 
             # 步骤4: 启用订阅
             for subscription in subscriptions:
-                node_man_v2_api.switch_subscription(
+                switch_subscription(
                     bk_tenant_id=self.bk_tenant_id,
                     subscription_id=safe_int(subscription),
                     action="enable",
@@ -447,7 +412,7 @@ class TaskManager:
             # 步骤5: 执行START操作
             action_name = f"bkmonitorbeat_{self.task.protocol.lower()}"
             for subscription in subscriptions:
-                node_man_v2_api.run_subscription(
+                run_subscription(
                     bk_tenant_id=self.bk_tenant_id,
                     subscription_id=safe_int(subscription),
                     actions={action_name: "START"},
@@ -486,11 +451,6 @@ class TaskManager:
         """
         logger.info(f"停止拨测任务: task_id={self.task.pk}")
 
-        if self.use_nodeman_v3:
-            raise NodeManV3CapabilityBlocked(
-                "uptime stop requires the DeployPolicy reverse field; enabled must remain true"
-            )
-
         # 步骤1: 前置检查是否有运行中的启停任务
         try:
             subscriptions = self._get_existing_subscriptions()
@@ -498,7 +458,7 @@ class TaskManager:
                 raise Exception("拨测任务对应订阅信息不存在")
 
             subscription_id = subscriptions[0]
-            instance_list, _ = node_man_v2_api.batch_get_subscription_task_result(
+            instance_list, _ = batch_get_subscription_task_result(
                 bk_tenant_id=self.bk_tenant_id,
                 params={"subscription_id": safe_int(subscription_id)},
             )
@@ -518,7 +478,7 @@ class TaskManager:
         try:
             # 步骤3: 关闭订阅
             for subscription in subscriptions:
-                node_man_v2_api.switch_subscription(
+                switch_subscription(
                     bk_tenant_id=self.bk_tenant_id,
                     subscription_id=safe_int(subscription),
                     action="disable",
@@ -527,7 +487,7 @@ class TaskManager:
             # 步骤4: 执行STOP操作
             action_name = f"bkmonitorbeat_{self.task.protocol.lower()}"
             for subscription in subscriptions:
-                node_man_v2_api.run_subscription(
+                run_subscription(
                     bk_tenant_id=self.bk_tenant_id,
                     subscription_id=safe_int(subscription),
                     actions={action_name: "STOP"},
@@ -556,17 +516,12 @@ class TaskManager:
         """
         logger.info(f"删除拨测任务: task_id={self.task.pk}")
 
-        if self.use_nodeman_v3:
-            raise NodeManV3CapabilityBlocked(
-                "uptime delete requires the DeployPolicy reverse field; DeployPolicy delete only detaches management"
-            )
-
         action_name = f"bkmonitorbeat_{self.task.protocol.lower()}"
         subscriptions = self._get_existing_subscriptions()
 
         # 先关闭订阅
         for subscription_id in subscriptions:
-            node_man_v2_api.switch_subscription(
+            switch_subscription(
                 bk_tenant_id=self.bk_tenant_id,
                 subscription_id=safe_int(subscription_id),
                 action="disable",
@@ -574,7 +529,7 @@ class TaskManager:
 
         # 再删除订阅
         for subscription_id in subscriptions:
-            node_man_v2_api.run_subscription(
+            run_subscription(
                 bk_tenant_id=self.bk_tenant_id,
                 subscription_id=safe_int(subscription_id),
                 actions={action_name: "UNINSTALL_AND_DELETE"},
@@ -602,39 +557,16 @@ class TaskManager:
         subscriptions = UptimeCheckTaskSubscription.objects.filter(
             uptimecheck_id=self.task.pk,
             is_deleted=False,  # 添加is_deleted过滤
-            node_man_backend="v2",
         ).values_list("subscription_id", flat=True)
 
         return list(subscriptions)
-
-    def _start_nodeman_v3(self, operator: str) -> str:
-        """Reconcile the current forward policies for an explicit start request."""
-
-        assert self.nodeman_v3_service is not None
-        relations = list(
-            UptimeCheckTaskSubscription.objects.filter(
-                uptimecheck_id=self.task.pk,
-                is_deleted=False,
-            ).order_by("pk")
-        )
-        if not relations:
-            return self.deploy(force_nodeman_v3=True)
-        invalid_relations = [relation.pk for relation in relations if relation.node_man_backend != "v3"]
-        if invalid_relations:
-            raise NodeManV3CapabilityBlocked(
-                f"uptime task {self.task.pk} still has V2 subscriptions: {invalid_relations}"
-            )
-
-        self.task.update_user = operator
-        self.task.save(update_fields=["update_user", "update_time"])
-        return self.deploy(force_nodeman_v3=True)
 
     def _handle_create_subscriptions(self, subscription_configs: list[dict[str, Any]]) -> None:
         """处理创建订阅"""
         logger.info(f"创建新订阅: task_id={self.task.pk}, count={len(subscription_configs)}")
 
         for config in subscription_configs:
-            subscription_params = node_man_v2_api.CreateSubscriptionParams(
+            subscription_params = CreateSubscriptionParams(
                 steps=config["steps"],
                 run_immediately=config["run_immediately"],
                 scope=config["scope"],
@@ -644,10 +576,7 @@ class TaskManager:
                 subscription_params["target_hosts"] = config["target_hosts"]
 
             # 向节点管理创建订阅（关键操作：保留少量日志）
-            result = node_man_v2_api.create_subscription(
-                bk_tenant_id=self.bk_tenant_id,
-                params=subscription_params,
-            )
+            result = create_subscription(bk_tenant_id=self.bk_tenant_id, params=subscription_params)
             logger.info(
                 "订阅创建成功: task_id=%s, subscription_id=%s, bk_biz_id=%s",
                 self.task.pk,
@@ -665,7 +594,7 @@ class TaskManager:
         # 启用订阅
         subscriptions = self._get_existing_subscriptions()
         for subscription_id in subscriptions:
-            node_man_v2_api.switch_subscription(
+            switch_subscription(
                 bk_tenant_id=self.bk_tenant_id,
                 subscription_id=safe_int(subscription_id),
                 action="enable",
@@ -679,7 +608,7 @@ class TaskManager:
 
         # 先关闭所有订阅
         for subscription_id in existing_subscriptions:
-            node_man_v2_api.switch_subscription(
+            switch_subscription(
                 bk_tenant_id=self.bk_tenant_id,
                 subscription_id=safe_int(subscription_id),
                 action="disable",
@@ -706,13 +635,13 @@ class TaskManager:
             if bk_biz_id in biz_to_sub:
                 # 更新
                 subscription_id = biz_to_sub[bk_biz_id]
-                update_params = node_man_v2_api.UpdateSubscriptionParams(
+                update_params = UpdateSubscriptionParams(
                     subscription_id=subscription_id,
                     steps=config["steps"],
                     run_immediately=True,
                     scope=config.get("scope"),
                 )
-                node_man_v2_api.update_subscription(
+                update_subscription(
                     bk_tenant_id=self.bk_tenant_id,
                     params=update_params,
                 )
@@ -732,7 +661,7 @@ class TaskManager:
             action_name = f"bkmonitorbeat_{self.task.protocol.lower()}"
             for bk_biz_id in delete_sub_ids:
                 subscription_id = biz_to_sub[bk_biz_id]
-                node_man_v2_api.run_subscription(
+                run_subscription(
                     bk_tenant_id=self.bk_tenant_id,
                     subscription_id=safe_int(subscription_id),
                     actions={action_name: "UNINSTALL_AND_DELETE"},
@@ -747,7 +676,7 @@ class TaskManager:
 
         # 创建新订阅
         for config in create_configs:
-            subscription_params = node_man_v2_api.CreateSubscriptionParams(
+            subscription_params = CreateSubscriptionParams(
                 steps=config["steps"],
                 run_immediately=config["run_immediately"],
                 scope=config["scope"],
@@ -755,10 +684,7 @@ class TaskManager:
             if "target_hosts" in config:
                 subscription_params["target_hosts"] = config["target_hosts"]
 
-            result = node_man_v2_api.create_subscription(
-                bk_tenant_id=self.bk_tenant_id,
-                params=subscription_params,
-            )
+            result = create_subscription(bk_tenant_id=self.bk_tenant_id, params=subscription_params)
             logger.info(
                 "订阅创建成功: task_id=%s, subscription_id=%s, bk_biz_id=%s",
                 self.task.pk,
@@ -774,7 +700,7 @@ class TaskManager:
         # 重新启用所有订阅
         subscriptions = self._get_existing_subscriptions()
         for subscription_id in subscriptions:
-            node_man_v2_api.switch_subscription(
+            switch_subscription(
                 bk_tenant_id=self.bk_tenant_id,
                 subscription_id=safe_int(subscription_id),
                 action="enable",

@@ -10,22 +10,19 @@ specific language governing permissions and limitations under the License.
 
 import logging
 from collections import defaultdict
-from contextlib import nullcontext
 from itertools import chain
 from typing import TYPE_CHECKING, Any, Literal, Union
 
 from django.conf import settings
-from django.db import models, transaction
+from django.db import models
 from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
-from bkmonitor.nodeman_integration.backend import node_man_backend
-from bkmonitor.nodeman_integration.exceptions import NodeManV3CapabilityBlocked
-from bkmonitor.nodeman_integration.resources import NodeManResourceType, build_nodeman_resource_key
 from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkCollectorConfig
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
 from bkmonitor.utils.new_env import is_biz_id_in_black_list, is_biz_id_need_managed
+from bkmonitor.utils.nodeman import host_queries
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -88,11 +85,6 @@ class CustomReportSubscription(models.Model):
         bk_host_ids: list[int],
         op_type: str = "add",
     ):
-        is_v3 = node_man_backend.is_v3
-        if is_v3 and op_type == "remove":
-            raise NodeManV3CapabilityBlocked(
-                "custom-report removal requires the DeployPolicy reverse field while enabled remains true"
-            )
         available_host_ids = bk_host_ids
 
         if op_type != "remove" and not available_host_ids:
@@ -111,62 +103,38 @@ class CustomReportSubscription(models.Model):
             bk_biz_id,
             bk_host_ids,
         )
-        if is_v3:
-            for item, _protocol in data_id_configs:
-                data_id = item["bk_data_id"]
-                existing = cls.objects.filter(bk_biz_id=bk_biz_id, bk_data_id=data_id).first()
-                if not existing:
-                    continue
-                resource_key = build_nodeman_resource_key(NodeManResourceType.CUSTOM_REPORT, data_id=data_id)
-                node_man_backend.v3.ensure_record_ownership(
-                    config=existing.config,
-                    persisted_identifier=existing.subscription_id,
-                    resource=f"custom report data ID {data_id}",
-                    binding_identity={
-                        "resource_type": NodeManResourceType.CUSTOM_REPORT,
-                        "resource_key": resource_key,
-                        "owner_bk_tenant_id": bk_tenant_id,
-                        "execution_bk_tenant_id": bk_tenant_id,
-                        "bk_biz_id": bk_biz_id,
-                    },
-                )
-
-        with transaction.atomic() if is_v3 else nullcontext():
-            for item, protocol in data_id_configs:
-                subscription_params = {
-                    "scope": {
-                        "object_type": "HOST",
-                        "node_type": "INSTANCE",
-                        "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
-                    },
-                    "steps": [
-                        {
-                            "id": "bk-collector",
-                            "type": "PLUGIN",
-                            "config": {
-                                "plugin_name": "bk-collector",
-                                "plugin_version": "latest",
-                                "config_templates": [{"name": cls.SUB_CONFIG_MAP[protocol], "version": "latest"}],
-                            },
-                            "params": {"context": {"bk_biz_id": bk_biz_id, **item}},
+        for item, protocol in data_id_configs:
+            subscription_params = {
+                "scope": {
+                    "object_type": "HOST",
+                    "node_type": "INSTANCE",
+                    "nodes": [{"bk_host_id": bk_host_id} for bk_host_id in bk_host_ids],
+                },
+                "steps": [
+                    {
+                        "id": "bk-collector",
+                        "type": "PLUGIN",
+                        "config": {
+                            "plugin_name": "bk-collector",
+                            "plugin_version": "latest",
+                            "config_templates": [{"name": cls.SUB_CONFIG_MAP[protocol], "version": "latest"}],
                         },
-                    ],
-                }
+                        "params": {"context": {"bk_biz_id": bk_biz_id, **item}},
+                    },
+                ],
+            }
 
-                try:
-                    cls.create_or_update_config(
-                        bk_tenant_id=bk_tenant_id,
-                        bk_biz_id=bk_biz_id,
-                        subscription_params=subscription_params,
-                        bk_data_id=item["bk_data_id"],
-                    )
-                except Exception as e:
-                    if is_v3:
-                        raise
-                    logger.exception(
-                        f"create or update subscription config error, bk_biz_id({bk_biz_id}), "
-                        f"bk_data_id({item['bk_data_id']}), error: {e}"
-                    )
+            try:
+                cls.create_or_update_config(
+                    bk_tenant_id=bk_tenant_id,
+                    bk_biz_id=bk_biz_id,
+                    subscription_params=subscription_params,
+                    bk_data_id=item["bk_data_id"],
+                )
+            except Exception as e:
+                logger.exception(
+                    f"create or update subscription config error, bk_biz_id({bk_biz_id}), bk_data_id({item['bk_data_id']}), error: {e}"
+                )
 
     @classmethod
     def get_protocol(cls, bk_data_id) -> str:
@@ -322,12 +290,8 @@ class CustomReportSubscription(models.Model):
             "failed_count": 0,
         }
         cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
-        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            # 补充中心化集群
-            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-                cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
 
-        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+        for (cluster_id, namespace, _is_global), cc_bk_biz_ids in cluster_mapping.items():
             if str(bk_biz_id) not in cc_bk_biz_ids and int(bk_biz_id) not in cc_bk_biz_ids:
                 continue
 
@@ -336,6 +300,7 @@ class CustomReportSubscription(models.Model):
             config_id_to_protocol: dict[int, str] = {}
             cluster_record = {
                 "cluster_id": cluster_id,
+                "namespace": namespace,
                 "related_bk_biz_ids": sorted(cc_bk_biz_ids, key=str),
                 "protocols": [],
                 "config_count": 0,
@@ -352,7 +317,7 @@ class CustomReportSubscription(models.Model):
                         continue
 
                     if protocol not in protocol_tpl:
-                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, namespace, tpl_name)
                         if not tpl_str:
                             protocol_tpl[protocol] = None
                         else:
@@ -384,21 +349,24 @@ class CustomReportSubscription(models.Model):
 
                 # 分别按协议调用deploy_to_k8s_with_hash
                 for protocol, config_map in protocol_config_maps.items():
-                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, config_map, protocol)
+                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, namespace, config_map, protocol)
 
                 # 在所有协议下执行清理，同一个 config_id(data_id) 只允许有一份配置存在
                 BkCollectorClusterConfig.clean_dup_secrets_in_multi_protocol(
-                    cluster_id, protocol_config_maps.keys(), config_id_to_protocol
+                    cluster_id, namespace, protocol_config_maps.keys(), config_id_to_protocol
                 )
             except Exception as e:  # pylint: disable=broad-except
                 cluster_record.update({"result": False, "message": str(e)})
-                logger.exception(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
+                logger.exception(
+                    f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}/{namespace}) error({e})"
+                )
             result["clusters"].append(cluster_record)
 
-        result["cluster_count"] = len(result["clusters"])
+        result["cluster_count"] = len({record["cluster_id"] for record in result["clusters"]})
+        result["target_count"] = len(result["clusters"])
         result["failed_count"] = sum(1 for cluster in result["clusters"] if cluster["result"] is False)
         if result["failed_count"]:
-            result.update({"result": False, "message": f"failed clusters: {result['failed_count']}"})
+            result.update({"result": False, "message": f"failed targets: {result['failed_count']}"})
         elif not result["clusters"]:
             result.update({"action": "skip", "result": True, "message": "no matched k8s cluster"})
         return result
@@ -440,10 +408,7 @@ class CustomReportSubscription(models.Model):
                 result.update({"action": "skip", "result": True, "message": "bk saas space skipped"})
                 return result
 
-            if node_man_backend.is_v3:
-                proxies = node_man_backend.v3.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
-            else:
-                proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            proxies = host_queries.business_proxies(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
             proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
             for proxy_biz_id in proxy_biz_ids:
                 current_proxy_hosts = api.cmdb.get_host_by_ip(
@@ -476,10 +441,6 @@ class CustomReportSubscription(models.Model):
         # 如果proxy_host_ids为空，则不进行下发
         if not proxy_host_ids:
             logger.warning(f"refresh custom report config to proxy on bk_biz_id({bk_biz_id}) error, No proxy found")
-            if node_man_backend.is_v3 and cls.objects.filter(bk_biz_id=bk_biz_id).exists():
-                raise NodeManV3CapabilityBlocked(
-                    "custom-report target removal requires the DeployPolicy reverse field while enabled remains true"
-                )
             result.update({"action": "skip", "result": True, "message": "no proxy found"})
             return result
 
@@ -533,7 +494,7 @@ class CustomReportSubscription(models.Model):
                 3. 根据上面的查询结果生成bk_biz_id的相关自定义上报dataid的对应关系配置列表
 
             - Nodeman
-                0. 从api.node_man.get_proxies_by_biz接口获取到业务下所有使用到的proxyip
+                0. 从host_queries.business_proxies接口获取到业务下所有使用到的proxyip
                 1. 根据上面的查询结果生成业务ID到目标Proxy的对应关系
 
             按业务ID将上面的任务下发到机器上，通过节点管理的订阅接口，其中0业务为直连云区域，下发所有data_id配置
@@ -703,43 +664,6 @@ class CustomReportSubscription(models.Model):
 
     @classmethod
     def create_or_update_config(cls, bk_tenant_id: str, bk_biz_id: int, subscription_params, bk_data_id=0):
-        is_v3 = node_man_backend.is_v3
-        if is_v3:
-            existing = cls.objects.filter(bk_biz_id=bk_biz_id, bk_data_id=bk_data_id).first()
-            resource_key = build_nodeman_resource_key(NodeManResourceType.CUSTOM_REPORT, data_id=bk_data_id)
-            node_man_backend.v3.ensure_record_ownership(
-                config=existing.config if existing else None,
-                persisted_identifier=existing.subscription_id if existing else None,
-                resource=f"custom report data ID {bk_data_id}",
-                binding_identity={
-                    "resource_type": NodeManResourceType.CUSTOM_REPORT,
-                    "resource_key": resource_key,
-                    "owner_bk_tenant_id": bk_tenant_id,
-                    "execution_bk_tenant_id": bk_tenant_id,
-                    "bk_biz_id": bk_biz_id,
-                },
-            )
-            submission = node_man_backend.v3.policy_service().ensure(
-                resource_type=NodeManResourceType.CUSTOM_REPORT,
-                resource_key=resource_key,
-                owner_bk_tenant_id=bk_tenant_id,
-                execution_bk_tenant_id=bk_tenant_id,
-                bk_biz_id=bk_biz_id,
-                policy_name=f"bkm-custom-report-{bk_data_id}",
-                description=f"bk-monitor custom report data ID {bk_data_id}",
-                scope=subscription_params["scope"],
-                steps=subscription_params["steps"],
-            )
-            stored_config = node_man_backend.v3.mark_config(
-                {**subscription_params, "subscription_id": submission.binding_id}
-            )
-            cls.objects.update_or_create(
-                bk_biz_id=bk_biz_id,
-                bk_data_id=bk_data_id,
-                defaults={"config": stored_config, "subscription_id": submission.binding_id},
-            )
-            return submission.binding_id
-
         # 若订阅存在则判定是否更新，若不存在则创建
         # 使用proxy下发bk_data_id为默认值0，一个业务下的多个data_id对应一个订阅
         qs = CustomReportSubscription.objects.filter(bk_biz_id=bk_biz_id, bk_data_id=bk_data_id)
@@ -838,50 +762,6 @@ class LogSubscriptionConfig(models.Model):
         # 1.2 获取默认租户下全局配置中主机配置列表
         default_target_hosts = BkCollectorConfig.get_target_host_in_default_cloud_area()
 
-        is_v3 = node_man_backend.is_v3
-        if is_v3:
-            if bk_tenant_id == DEFAULT_TENANT_ID:
-                execution_targets = {DEFAULT_TENANT_ID: default_target_hosts + proxy_target_hosts}
-            else:
-                execution_targets = {
-                    DEFAULT_TENANT_ID: default_target_hosts,
-                    bk_tenant_id: proxy_target_hosts,
-                }
-
-            resource_key = build_nodeman_resource_key(
-                NodeManResourceType.CUSTOM_REPORT,
-                data_id=log_group.bk_data_id,
-            )
-            stale_tenants = []
-            for execution_tenant_id, targets in execution_targets.items():
-                existing = cls.objects.filter(
-                    bk_tenant_id=execution_tenant_id,
-                    bk_biz_id=bk_biz_id,
-                    log_name=log_group.log_group_name,
-                ).first()
-                if not existing:
-                    continue
-                if not targets:
-                    stale_tenants.append(execution_tenant_id)
-                    continue
-                node_man_backend.v3.ensure_record_ownership(
-                    config=existing.config,
-                    persisted_identifier=existing.subscription_id,
-                    resource=f"custom log report data ID {log_group.bk_data_id}",
-                    binding_identity={
-                        "resource_type": NodeManResourceType.CUSTOM_REPORT,
-                        "resource_key": resource_key,
-                        "owner_bk_tenant_id": log_group.bk_tenant_id,
-                        "execution_bk_tenant_id": execution_tenant_id,
-                        "bk_biz_id": bk_biz_id,
-                    },
-                )
-            if stale_tenants:
-                raise NodeManV3CapabilityBlocked(
-                    f"custom log config target removal for execution tenants {stale_tenants} "
-                    "requires the DeployPolicy reverse field while enabled remains true"
-                )
-
         # 1.3 如果没有任何主机需要下发, 则跳过流程
         if not default_target_hosts and not proxy_target_hosts:
             logger.info("no bk-collector node, otlp is disabled")
@@ -892,21 +772,18 @@ class LogSubscriptionConfig(models.Model):
 
         # 3. 下发配置
         try:
-            with transaction.atomic() if is_v3 else nullcontext():
-                if bk_tenant_id == DEFAULT_TENANT_ID:
-                    cls.deploy(bk_tenant_id, log_group, log_config, default_target_hosts + proxy_target_hosts)
-                else:
-                    # 如果默认租户下没有主机，则不下发默认租户下的配置
-                    if default_target_hosts:
-                        cls.deploy(DEFAULT_TENANT_ID, log_group, log_config, default_target_hosts)
+            if bk_tenant_id == DEFAULT_TENANT_ID:
+                cls.deploy(bk_tenant_id, log_group, log_config, default_target_hosts + proxy_target_hosts)
+            else:
+                # 如果默认租户下没有主机，则不下发默认租户下的配置
+                if default_target_hosts:
+                    cls.deploy(DEFAULT_TENANT_ID, log_group, log_config, default_target_hosts)
 
-                    # 如果指定租户下没有主机，则不下发指定租户下的配置
-                    if proxy_target_hosts:
-                        cls.deploy(bk_tenant_id, log_group, log_config, proxy_target_hosts)
+                # 如果指定租户下没有主机，则不下发指定租户下的配置
+                if proxy_target_hosts:
+                    cls.deploy(bk_tenant_id, log_group, log_config, proxy_target_hosts)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"auto deploy bk-collector log config error ({e})")
-            if is_v3:
-                raise
 
     @classmethod
     def refresh_k8s(cls, log_groups: list["LogGroup"]) -> None:
@@ -927,11 +804,7 @@ class LogSubscriptionConfig(models.Model):
             bk_biz_id = log_group.bk_biz_id
             biz_log_groups.setdefault(bk_biz_id, []).append(log_group)
 
-        cluster_mapping: dict = BkCollectorClusterConfig.get_cluster_mapping()
-        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            # 补充中心化集群
-            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-                cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
+        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
 
         from metadata.models.bcs.cluster import BCSClusterInfo
 
@@ -941,9 +814,9 @@ class LogSubscriptionConfig(models.Model):
             bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
 
         # 按集群分组配置，实现批量下发
-        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+        for (cluster_id, namespace, is_global), cc_bk_biz_ids in cluster_mapping.items():
             # 如果集群是默认部署集群, 则必须下发
-            if cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            if not is_global:
                 # 如果集群不在BCS集群中，则不下发该集群的配置
                 if cluster_id not in bcs_cluster_to_biz_ids:
                     continue
@@ -958,7 +831,7 @@ class LogSubscriptionConfig(models.Model):
 
             try:
                 tpl = BkCollectorClusterConfig.sub_config_tpl(
-                    cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
+                    cluster_id, namespace, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
                 )
                 if not tpl:
                     continue
@@ -987,11 +860,11 @@ class LogSubscriptionConfig(models.Model):
                             logger.exception(f"generate config for log_group({log_group.log_group_name})")
 
                 # 批量下发该集群的所有配置
-                BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, cluster_config_map, "log")
-                logger.info(f"batch deploy {len(cluster_config_map)} log configs to k8s cluster({cluster_id})")
+                BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, namespace, cluster_config_map, "log")
+                logger.info(f"batch deploy {len(cluster_config_map)} log configs to {cluster_id}/{namespace}")
 
             except Exception:  # pylint: disable=broad-except
-                logger.exception(f"batch refresh custom report config to k8s({cluster_id})")
+                logger.exception(f"batch refresh custom report config to k8s({cluster_id}/{namespace})")
 
     @classmethod
     def get_log_config(cls, log_group: "LogGroup") -> dict:
@@ -1016,7 +889,7 @@ class LogSubscriptionConfig(models.Model):
         }
 
     @classmethod
-    def deploy(cls, bk_tenant_id: str, log_group: "LogGroup", log_config: dict, bk_host_ids: list[int]) -> int:
+    def deploy(cls, bk_tenant_id: str, log_group: "LogGroup", log_config: dict, bk_host_ids: list[int]) -> None:
         """
         Deploy Custom Log Config
         """
@@ -1040,50 +913,6 @@ class LogSubscriptionConfig(models.Model):
                 }
             ],
         }
-
-        if node_man_backend.is_v3:
-            existing = cls.objects.filter(
-                bk_tenant_id=bk_tenant_id,
-                bk_biz_id=log_group.bk_biz_id,
-                log_name=log_group.log_group_name,
-            ).first()
-            resource_key = build_nodeman_resource_key(
-                NodeManResourceType.CUSTOM_REPORT,
-                data_id=log_group.bk_data_id,
-            )
-            node_man_backend.v3.ensure_record_ownership(
-                config=existing.config if existing else None,
-                persisted_identifier=existing.subscription_id if existing else None,
-                resource=f"custom log report data ID {log_group.bk_data_id}",
-                binding_identity={
-                    "resource_type": NodeManResourceType.CUSTOM_REPORT,
-                    "resource_key": resource_key,
-                    "owner_bk_tenant_id": log_group.bk_tenant_id,
-                    "execution_bk_tenant_id": bk_tenant_id,
-                    "bk_biz_id": log_group.bk_biz_id,
-                },
-            )
-            submission = node_man_backend.v3.policy_service().ensure(
-                resource_type=NodeManResourceType.CUSTOM_REPORT,
-                resource_key=resource_key,
-                owner_bk_tenant_id=log_group.bk_tenant_id,
-                execution_bk_tenant_id=bk_tenant_id,
-                bk_biz_id=log_group.bk_biz_id,
-                policy_name=f"bkm-custom-report-{log_group.bk_data_id}",
-                description=f"bk-monitor custom log report data ID {log_group.bk_data_id}",
-                scope=subscription_params["scope"],
-                steps=subscription_params["steps"],
-            )
-            stored_config = node_man_backend.v3.mark_config(
-                {**subscription_params, "subscription_id": submission.binding_id}
-            )
-            cls.objects.update_or_create(
-                bk_tenant_id=bk_tenant_id,
-                bk_biz_id=log_group.bk_biz_id,
-                log_name=log_group.log_group_name,
-                defaults={"config": stored_config, "subscription_id": submission.binding_id},
-            )
-            return submission.binding_id
 
         log_subscription = cls.objects.filter(
             bk_tenant_id=bk_tenant_id, bk_biz_id=log_group.bk_biz_id, log_name=log_group.log_group_name

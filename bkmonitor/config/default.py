@@ -23,7 +23,6 @@ from bkcrypto.symmetric.options import AESSymmetricOptions, SM4SymmetricOptions
 from bkcrypto.utils.convertors import Base64Convertor
 from blueapps.conf.default_settings import *  # noqa
 from blueapps.conf.log import get_logging_config_dict
-from django.core.exceptions import ImproperlyConfigured
 from django.utils.translation import gettext_lazy as _
 
 from bkmonitor.utils.i18n import TranslateDict
@@ -279,6 +278,10 @@ DISK_FILTER_CONDITION_LIST_V1 = [
 # SQL最大查询条数
 SQL_MAX_LIMIT = 500000
 
+# 命名输出（query_output_config.output_list）最多支持的输出个数
+# 与 UQ 侧 defaultNamedOutputSettings 的 MaxOutputs 对齐，可通过环境变量 BKAPP_SETTINGS_NAMED_OUTPUT_MAX_COUNT 覆盖
+NAMED_OUTPUT_MAX_COUNT = 4
+
 FILE_SYSTEM_TYPE_RT_ID = "system.disk"
 FILE_SYSTEM_TYPE_FIELD_NAME = "device_type"
 FILE_SYSTEM_TYPE_IGNORE = ["iso9660", "tmpfs", "udf"]
@@ -366,10 +369,12 @@ ACTIVE_VIEWS = {
         "apm_profile": "apm_web.profile.views",
         "apm_container": "apm_web.container.views",
         "apm_strategy": "apm_web.strategy.views",
+        "llm_web": "apm_web.llm.views",
     },
     "rum_web": {
         "rum_meta": "rum_web.meta.views",
         "rum_metric": "rum_web.metric.views",
+        "rum_query": "rum_web.query.views",
     },
 }
 
@@ -390,6 +395,11 @@ TS_DATA_SAVED_DAYS = 30
 
 ENABLE_RESOURCE_DATA_COLLECT = False
 RESOURCE_DATA_COLLECT_RATIO = 0
+
+# Redis 自监控收尾阶段的策略成本周期快照，按环境通过 GlobalConfig 显式开启。
+ENABLE_REDIS_STRATEGY_COST_SNAPSHOT = False
+# 命令之间检查的软预算（秒），不能中断在途 Redis 命令。取值夹在 5–30，不随节点数放大。
+REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS = 20
 
 # 告警汇总配置
 DIMENSION_COLLECT_THRESHOLD = 2
@@ -518,8 +528,10 @@ BKMONITOR_EXTERNAL_PROXY_TOKEN = os.getenv(
 
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
-# 集群内上报固定域名
-CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE = "bkm-collector.bkmonitor-operator"
+# 集群内上报服务配置
+CUSTOM_REPORT_ENDPOINTS = [
+    {"endpoint": "bkm-collector.bkmonitor-operator", "alias": "集群内服务"},
+]
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
 BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
@@ -807,6 +819,15 @@ ACCESS_LATENCY_THRESHOLD_CONSTANT = 180
 # 灰度策略 ID 列表（可选）
 # 仅对列表中的策略启用合并处理，为空时对所有静态阈值策略生效
 ACCESS_DETECT_MERGE_STRATEGY_IDS = []
+
+# Detect 完成后是否同步执行 Trigger；默认开启，Access-Detect 合并路径共用此开关
+ENABLE_DETECT_INLINE_TRIGGER = True
+
+# Event 完成后是否同步执行 Trigger；默认开启，从旧版本升级时需先完成 Event 和 Trigger worker 滚动更新
+ENABLE_EVENT_INLINE_TRIGGER = True
+
+# 单个 Event 策略项最多占用的内联 Trigger 并发数
+EVENT_INLINE_TRIGGER_MAX_CONCURRENCY_PER_ITEM = 1
 
 # kafka是否自动提交配置
 KAFKA_AUTO_COMMIT = True
@@ -1260,29 +1281,8 @@ BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
-NODEMAN_INTEGRATION_MODE = os.getenv("BKAPP_NODEMAN_INTEGRATION_MODE", "v2")
-if NODEMAN_INTEGRATION_MODE not in {"v2", "v3_fresh"}:
-    raise ImproperlyConfigured(
-        "BKAPP_NODEMAN_INTEGRATION_MODE must be one of: v2, v3_fresh; "
-        f"got {NODEMAN_INTEGRATION_MODE!r}"
-    )
-NODEMAN_INTEGRATION_DEPLOYMENT_ID = os.getenv("BKAPP_NODEMAN_INTEGRATION_DEPLOYMENT_ID", "")
-NODEMAN_INTEGRATION_PROCESS_ID = os.getenv("BKAPP_NODEMAN_INTEGRATION_PROCESS_ID", os.getenv("HOSTNAME", ""))
-NODEMAN_INTEGRATION_PROCESS_ROLE = os.getenv("BKAPP_NODEMAN_INTEGRATION_PROCESS_ROLE", ROLE)
-NODEMAN_V3_DELIVERY_SCOPE = os.getenv("BKAPP_NODEMAN_V3_DELIVERY_SCOPE", "prepublished_release")
-NODEMAN_V3_CONFIRMED_CAPABILITIES = tuple(
-    capability.strip().upper()
-    for capability in os.getenv("BKAPP_NODEMAN_V3_CONFIRMED_CAPABILITIES", "").split(",")
-    if capability.strip()
-)
-NODEMAN_V3_CAPABILITY_EVIDENCE_DIGEST = os.getenv("BKAPP_NODEMAN_V3_CAPABILITY_EVIDENCE_DIGEST", "")
-NODEMAN_V3_EXPECTED_PROCESS_IDS = tuple(
-    process_id.strip()
-    for process_id in os.getenv("BKAPP_NODEMAN_V3_EXPECTED_PROCESS_IDS", "").split(",")
-    if process_id.strip()
-)
-NODEMAN_V3_RUNTIME_ATTESTATION_PATH = os.getenv("BKAPP_NODEMAN_V3_RUNTIME_ATTESTATION_PATH", "")
-NODEMAN_V3_RUNTIME_ATTESTATION_DIGEST = os.getenv("BKAPP_NODEMAN_V3_RUNTIME_ATTESTATION_DIGEST", "")
+ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
+BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
 BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
@@ -1300,13 +1300,13 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
 
-# TAPD API 基础URL
-TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", "http://apiv2.tapd.woa.com"))
+# TAPD API 基础URL（部署环境通过 BKAPP_TAPD_API_BASE_URL / TAPD_API_BASE_URL 注入，公开仓不放默认主机）
+TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))
 # 对于 TAPD API 有权限的应用ID和密钥
 TAPD_APP_ID = os.getenv("BKAPP_TAPD_APP_ID", os.getenv("TAPD_APP_ID", ""))
 TAPD_APP_SECRET = os.getenv("BKAPP_TAPD_APP_SECRET", os.getenv("TAPD_APP_SECRET", ""))
-# TAPD OAuth 授权基础URL（用户态授权跳转、code换token）
-TAPD_OAUTH_BASE_URL = os.getenv("BKAPP_TAPD_OAUTH_BASE_URL", os.getenv("TAPD_OAUTH_BASE_URL", "https://tapd.woa.com"))
+# TAPD OAuth 授权基础URL（用户态授权跳转、code换token；同样只从环境变量读取）
+TAPD_OAUTH_BASE_URL = os.getenv("BKAPP_TAPD_OAUTH_BASE_URL", os.getenv("TAPD_OAUTH_BASE_URL", ""))
 
 BK_NODEMAN_HOST = AGENT_SETUP_URL = os.getenv("BK_NODEMAN_SITE_URL") or os.getenv(
     "BKAPP_NODEMAN_OUTER_HOST", get_service_url("bk_nodeman", bk_paas_host=BK_PAAS_HOST)
@@ -1344,7 +1344,7 @@ BK_CI_URL = os.getenv("BK_CI_URL") or os.getenv("BKAPP_BK_CI_URL", "")
 BKCI_APP_CODE = os.getenv("BKCI_APP_CODE")
 BKCI_APP_SECRET = os.getenv("BKCI_APP_SECRET")
 BK_MONITOR_HOST = os.getenv("BK_MONITOR_HOST", "{}/o/bk_monitorv3/".format(BK_PAAS_HOST.rstrip("/")))
-ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}/#/event-center/action-detail/{{action_id}}"
+ACTION_DETAIL_URL = f"{BK_MONITOR_HOST}?bizId={{bk_biz_id}}#/event-center/action-detail/{{action_id}}"
 EVENT_CENTER_URL = urljoin(
     BK_MONITOR_HOST,
     "?bizId={bk_biz_id}#/trace/alarm-center?queryString=action_id%20%3A%20{collect_id}&filterMode=queryString",
@@ -1386,14 +1386,17 @@ AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
 PUSH_MONITOR_EVENT_TO_FTA = True
 # 监控推送事件数据给自愈的 kafka topic
 MONITOR_EVENT_KAFKA_TOPIC = os.getenv("BK_MONITOR_EVENT_KAFKA_TOPIC", "0bkmonitor_backend_event")
-# Alarm Engine Trigger-only Shadow 默认关闭，环境期望态显式提供独立 Shadow topic 后才可开启。
-ALARM_ENGINE_DETECTION_SHADOW_ENABLED = False
-ALARM_ENGINE_DETECTION_SHADOW_STRATEGY_IDS = ()
-ALARM_ENGINE_DETECTION_SHADOW_KAFKA_CONFIG = {}
-ALARM_ENGINE_DETECTION_SHADOW_ALLOWED_TOPICS = ()
-ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ENABLED = False
-ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG = {}
-ALARM_ENGINE_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS = ()
+# alarmd Detect→Trigger Shadow 默认关闭；所有旁路发布由一个总开关控制。
+ALARMD_SHADOW_ENABLED = False
+ALARMD_V2_SHADOW_KAFKA_CONFIG = {}
+ALARMD_V2_SHADOW_ALLOWED_TOPICS = ()
+ALARMD_V2_SHADOW_ASYNC_MAX_JOBS = 0
+ALARMD_V2_SHADOW_ASYNC_MAX_RECORDS = 0
+ALARMD_V2_SHADOW_ASYNC_MAX_BYTES = 0
+ALARMD_V2_SHADOW_DRAIN_TIMEOUT_SECONDS = 1
+ALARMD_TRIGGER_REFERENCE_SHADOW_KAFKA_CONFIG = {}
+ALARMD_TRIGGER_REFERENCE_SHADOW_ALLOWED_TOPICS = ()
+ALARMD_TRIGGER_REFERENCE_SHADOW_ASYNC_QUEUE_SIZE = 16
 # 监控推送事件数据给自愈的 插件ID
 MONITOR_EVENT_PLUGIN_ID = "bkmonitor"
 # 主机监控获取单个进程支持最多port数
@@ -1590,6 +1593,13 @@ OPENCLAW_RECOVERING_MCP_SERVER_NAME = ""
 ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
 MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
+# Opt in by canonical unified-MCP tool name; applies to standalone routes too.
+# Independent MCP permission first; only explicit denial checks the SaaS permission.
+# Keep empty until target IAM permissions and application access have been verified.
+MCP_NATIVE_PERMISSION_TOOLS: list[str] = []
+# Native log MVP requires an explicitly confirmed V3 current-action model.
+# {"mode": "v3-current", "gateway_url": "https://.../api/bk-iam/prod/"}
+MCP_LOG_IAM_PROFILE: dict = {}
 MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
 # APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
 # 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
@@ -1739,19 +1749,10 @@ BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
-# BKBase graph relation 链路自动 apply 业务白名单，包括内置关系周期双写和图定义变更增量同步
-_graph_relation_bkbase_sync_biz_id_white_list_env = os.getenv("GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST", "")
-GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = [
-    int(biz_id.strip())
-    for biz_id in _graph_relation_bkbase_sync_biz_id_white_list_env.split(",")
-    if biz_id.strip().isdigit()
-]
-# 图关系 v1beta3 查询业务灰度白名单，默认关闭，避免写侧灰度自动触发查询切流
-_graph_relation_query_v1beta3_biz_id_white_list_env = os.getenv("GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST", "")
-GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST = [
-    int(biz_id.strip())
-    for biz_id in _graph_relation_query_v1beta3_biz_id_white_list_env.split(",")
-    if biz_id.strip().isdigit()
+# Graph Relation V4 业务灰度白名单，同时控制双写链路自动 apply 和 v1beta3 查询切流
+_graph_relation_v4_biz_id_white_list_env = os.getenv("GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST", "")
+GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST = [
+    int(biz_id.strip()) for biz_id in _graph_relation_v4_biz_id_white_list_env.split(",") if biz_id.strip().isdigit()
 ]
 
 # 特殊的可以不被禁用的BCS集群ID
@@ -1802,6 +1803,12 @@ ENABLE_UPTIMECHECK_TEST = True
 
 # 检测结果缓存 TTL(小时)
 CHECK_RESULT_TTL_HOURS = 1
+
+# 是否使用 HSCAN 分页清理检测结果缓存
+ENABLE_CHECK_RESULT_CLEAN_HSCAN = False
+CHECK_RESULT_CLEAN_HSCAN_COUNT = 256
+CHECK_RESULT_CLEAN_HSCAN_MAX_FIELDS = 2048
+CHECK_RESULT_CLEAN_PIPELINE_COMMAND_LIMIT = 256
 
 # 支持来源 APIGW 列表
 FROM_APIGW_NAME = os.getenv("FROM_APIGW_NAME", "bk-monitor")
@@ -1857,6 +1864,9 @@ K8S_V2_BIZ_LIST = []
 
 # RUM 灰度列表，关闭灰度: [0] 或删除该配置
 RUM_BIZ_LIST = []
+
+# LLM 观测灰度业务列表，关闭灰度: [0] 或删除该配置
+LLM_BIZ_LIST = []
 
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []

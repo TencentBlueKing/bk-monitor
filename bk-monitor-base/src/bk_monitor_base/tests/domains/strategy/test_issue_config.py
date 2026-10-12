@@ -880,9 +880,7 @@ class TestIssueConfigTableNotExistCompat:
 
     def test_strategy_delete_by_ids_raises_on_other_db_error(self, mocker: MockerFixture) -> None:
         """Strategy.delete_by_strategy_ids 中非"表不存在"的数据库异常应正常抛出。"""
-        mocker.patch.object(
-            IssueConfig, "delete_by_strategy_ids", side_effect=ProgrammingError("permission denied")
-        )
+        mocker.patch.object(IssueConfig, "delete_by_strategy_ids", side_effect=ProgrammingError("permission denied"))
 
         with pytest.raises(ProgrammingError, match="permission denied"):
             Strategy.delete_by_strategy_ids([1, 2], operator="test")

@@ -23,6 +23,65 @@ MAX_RESULT_TABLES = 20
 MAX_EXTERNAL_CONCURRENCY = 5
 
 
+def get_bkdata_clean_errors(params):
+    params = params or {}
+    reject_identity_params(params)
+    raw_data_id = require_positive_int(params, "raw_data_id")
+    bk_biz_id = require_nonzero_int(params, "bk_biz_id")
+    result_table_id = params.get("result_table_id")
+    if not isinstance(result_table_id, str) or not result_table_id.strip():
+        raise ValidationError("result_table_id is required")
+    sample_limit = optional_positive_int(
+        params.get("sample_limit"), "sample_limit", default=DEFAULT_SAMPLE_LIMIT, maximum=MAX_SAMPLE_LIMIT
+    )
+    result = {"raw_data_id": raw_data_id, "bk_biz_id": bk_biz_id, "result_table_id": result_table_id}
+    try:
+        context = build_bkdata_context(bk_biz_id)
+    except Exception as error:
+        return {**result, "errors": probe_failure(error)}
+    # badmsg samples the whole DataID; result_table_id is not an upstream filter.
+    probe = call_bkdata(BkDataDatabusApi.get_raw_data_badmsg, {**context, "raw_data_id": raw_data_id})
+    probe = _summarize_probe(probe, lambda data: _clean_error_samples(data, raw_data_id, result_table_id, sample_limit))
+    if probe["probe_status"] == "success":
+        probe["empty"] = probe["data"]["matched_sample_count"] == 0
+    return {**result, "errors": probe}
+
+
+def _clean_error_samples(rows, raw_data_id, result_table_id, sample_limit):
+    if not isinstance(rows, list) or any(
+        not isinstance(row, dict)
+        or row.get("raw_data_id") != raw_data_id
+        or not isinstance(row.get("result_table_id"), str)
+        for row in rows
+    ):
+        raise ValueError("invalid response: clean errors must be a list of samples for the requested raw_data_id")
+    matched = [row for row in rows if row["result_table_id"] == result_table_id]
+    # Filter before limiting, so unrelated RTs do not consume the local sample budget.
+    serialized = serialize_tail_rows(matched, sample_limit)
+    # badmsg.timestamp is the cleaning-error time, not the original event time.
+    serialized.pop("time_evidence")
+    serialized["warnings"] = [
+        warning for warning in serialized["warnings"] if warning["code"] != "EVENT_TIME_NOT_FOUND"
+    ]
+    serialized.update(
+        source_sample_count=len(rows),
+        matched_sample_count=len(matched),
+        excluded_sample_count=len(rows) - len(matched),
+        upstream_scope="raw_data_id",
+        filtering="client_result_table_id",
+        coverage="unknown",
+        assessment="target_errors_observed" if matched else "no_target_sample",
+    )
+    serialized["warnings"].append(
+        {
+            "code": "UPSTREAM_SAMPLE_SCOPE_LIMITED",
+            "message": "Upstream samples all RTs of this DataID. No match does not prove the target RT has no errors. "
+            "Counts and has_more describe only this returned batch, not upstream totals or pagination.",
+        }
+    )
+    return serialized
+
+
 def get_bkdata_raw_snapshot(params):
     params = params or {}
     reject_identity_params(params)
@@ -252,7 +311,7 @@ def _summarize_probe(probe, serializer):
 def _raw_deploy_summary(data):
     _require_mapping(data, "RawData deploy")
     summary = _pick(data, "raw_data_id", "data_id", "active", "status", "topic", "bk_biz_id")
-    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024)}
+    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024, redact_text=True)}
 
 
 def _clean_detail_summary(data):
@@ -268,7 +327,7 @@ def _clean_detail_summary(data):
         "updated_by",
         "updated_at",
     )
-    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024)}
+    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024, redact_text=True)}
 
 
 def _clean_task_summary(data):
@@ -280,14 +339,14 @@ def _clean_task_summary(data):
         for row in rows
         if isinstance(row, dict)
     ]
-    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024)}
+    return {"summary": summary, "raw": sanitize_json(data, max_bytes=256 * 1024, redact_text=True)}
 
 
 def _flow_detail_summary(data):
     _require_mapping(data, "Flow detail")
     return {
         "summary": _pick(data, "flow_id", "flow_name", "status", "project_id", "created_at", "updated_at"),
-        "raw": sanitize_json(data, max_bytes=512 * 1024),
+        "raw": sanitize_json(data, max_bytes=512 * 1024, redact_text=True),
     }
 
 
@@ -304,7 +363,7 @@ def _flow_deploy_summary(data):
             "nodes_status",
             "version",
         ),
-        "raw": sanitize_json(data, max_bytes=512 * 1024),
+        "raw": sanitize_json(data, max_bytes=512 * 1024, redact_text=True),
     }
 
 
@@ -324,7 +383,7 @@ def _flow_graph_summary(data):
             "node_count": len(nodes),
             "link_count": _collection_size(data, "links", "lines", "edges"),
         },
-        "raw": sanitize_json(data, max_bytes=1024 * 1024),
+        "raw": sanitize_json(data, max_bytes=1024 * 1024, redact_text=True),
     }
 
 
@@ -342,14 +401,14 @@ def _result_table_summary(data):
             "created_at",
             "updated_at",
         ),
-        "raw": sanitize_json(data, max_bytes=256 * 1024),
+        "raw": sanitize_json(data, max_bytes=256 * 1024, redact_text=True),
     }
 
 
 def _pick(value, *keys):
     if not isinstance(value, dict):
         return {}
-    return {key: sanitize_json(value.get(key)) for key in keys if key in value}
+    return {key: sanitize_json(value.get(key), redact_text=True) for key in keys if key in value}
 
 
 def _collection_size(value, *keys):

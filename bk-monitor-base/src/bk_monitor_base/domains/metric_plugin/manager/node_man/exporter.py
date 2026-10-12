@@ -114,7 +114,8 @@ class ExporterPluginManager(CommandPluginManager):
                     f.write(file_content)
 
                 # 设置文件权限为可执行（如果需要）
-                os.chmod(temp_file_path, 0o755)
+                # 临时上传文件只供当前进程打包；最终包权限由 _make_package 统一设置。
+                os.chmod(temp_file_path, 0o700)
 
                 # 构建 extra_files
                 if os_type not in extra_files:

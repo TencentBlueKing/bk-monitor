@@ -117,7 +117,7 @@ omit = ["src/bk_monitor_base/tests/*", "src/bk_monitor_base/**/migrations/*"]
 skip_empty = true
 
 [tool.basedpyright]
-extraPaths = ["src", "../bkmonitor", "../bkmonitor/packages"]
+extraPaths = ["src"]
 stubPath = "typings"  # 类型存根文件目录
 exclude = [
     "**/migrations",

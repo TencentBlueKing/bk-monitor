@@ -29,6 +29,18 @@ class MonitorAPIGWResource(KernelAPIResource):
         return self.__doc__
 
 
+class BkmCliOpCallResource(MonitorAPIGWResource):
+    """调用 monitor-api 的白名单服务桥操作。"""
+
+    action = "/app/bkm_cli/op/call/"
+    method = "POST"
+    TIMEOUT = 5
+
+    class RequestSerializer(serializers.Serializer):
+        op_id = serializers.CharField()
+        params = serializers.DictField(required=False, default=dict)
+
+
 class CollectConfigListResource(MonitorAPIGWResource):
     """
     获取采集配置
@@ -150,6 +162,15 @@ class BatchCreateActionBackendResource(MonitorAPIGWResource):
 
     action = "/app/action/batch_create_action/"
     method = "POST"
+
+
+class CreateChatGroupActionBackendResource(MonitorAPIGWResource):
+    """使用当前登录用户创建跨业务告警群。"""
+
+    action = "/user/action/create_chat_group_action/"
+    method = "POST"
+    # 保留登录凭证供网关校验用户，不提前退化为只有用户名的应用态请求。
+    INSERT_BK_USERNAME_TO_REQUEST_DATA = False
 
 
 class GetActionParamsBackendResource(MonitorAPIGWResource):

@@ -10,7 +10,7 @@ import math
 from io import BytesIO, TextIOWrapper
 
 import arrow
-from bkm_space.utils import space_uid_to_bk_biz_id
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 from django.http import StreamingHttpResponse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -37,6 +37,7 @@ from apps.log_search.constants import (
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import GetMultiResultFailException
+from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.handlers.scene_search import AllConditionsBuilder, get_field_candidates
 from apps.log_search.handlers.search.scene_fields_config import (
     SceneFieldsConfigHandler,
@@ -754,11 +755,14 @@ class SceneSearchViewSet(APIViewSet):
         from apps.log_search.models import IndexSetTag
 
         data = self.params_valid(SceneDimensionValuesSerializer)
+        space_uid = bk_biz_id_to_space_uid(data["bk_biz_id"])
+        space_uids = IndexSetHandler.get_all_related_space_uids(space_uid)
         values = IndexSetTag.get_dimension_values(
             bk_biz_id=data["bk_biz_id"],
             scene=data["scene"],
             dimension_key=data["dimension_key"],
             filters=data.get("filters") or None,
+            space_uids=space_uids,
         )
         return Response({"dimension_key": data["dimension_key"], "values": sorted(values)})
 

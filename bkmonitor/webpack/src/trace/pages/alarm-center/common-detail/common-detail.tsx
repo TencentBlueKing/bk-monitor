@@ -32,6 +32,7 @@ import { useAlarmCenterDetailStore } from '../../../store/modules/alarm-center-d
 import { useAlarmBasicInfo } from '../composables/use-alarm-baseinfo';
 import { AlarmDetail } from '../typings';
 import { ALARM_CENTER_PANEL_TAB_MAP } from '../utils/constant';
+import DetailLoading, { DetailLoadStatus } from './detail-loading';
 import AlarmAlert from './components/alarm-alert/alarm-alert';
 import AlarmConfirmDialog from './components/alarm-alert/alarm-confirm-dialog';
 import QuickShieldDialog from './components/alarm-alert/quick-shield-dialog';
@@ -72,9 +73,9 @@ export default defineComponent({
   setup(props) {
     const boxWrapRef = useTemplateRef<HTMLDivElement>('boxWrap');
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
-    const { alarmDetail, bizId, alarmId, timeRange } = storeToRefs(alarmCenterDetailStore);
+    const { alarmDetail, bizId, alarmId, timeRange, loading, alertError } = storeToRefs(alarmCenterDetailStore);
     const currentPanel = shallowRef(alarmDetail.value?.alarmTabList?.[0]?.name);
-    const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal } = useAlarmBasicInfo();
+    const { alarmStatusOverview, alarmStatusActions, alarmStatusTotal, loading: statusLoading, error: statusError, retry: retryStatus } = useAlarmBasicInfo();
 
     const authority = inject<IAuthority>('authority');
     const judgeOperateAuthority = () => {
@@ -188,12 +189,21 @@ export default defineComponent({
     };
 
     watch(
-      () => props.defaultTab,
-      newVal => {
-        handleCurrentPanelChange(newVal || alarmDetail.value?.alarmTabList?.[0]?.name);
+      () => [props.defaultTab, alarmDetail.value?.id],
+      () => {
+        handleCurrentPanelChange(props.defaultTab || alarmDetail.value?.alarmTabList?.[0]?.name);
       },
       { immediate: true }
     );
+
+    watch([alarmId, bizId], () => {
+      alarmConfirmShow.value = false;
+      quickShieldShow.value = false;
+      alarmStatusDetailShow.value = false;
+      manualProcessShow.value = false;
+      alarmDispatchShow.value = false;
+      manualDebugShow.value = false;
+    });
 
     const getPanelComponent = () => {
       switch (currentPanel.value) {
@@ -242,11 +252,16 @@ export default defineComponent({
       }
     };
 
-    return () => (
+    return () => !alarmDetail.value ? (
+      <div class='alarm-center-detail-box'>
+        {alertError.value ? <DetailLoadStatus error onRetry={alarmCenterDetailStore.getAlertDetailData} /> : <DetailLoading variant='detail' />}
+      </div>
+    ) : (
       <div
         ref={'boxWrap'}
         class='alarm-center-detail-box'
       >
+        <DetailLoadStatus loading={loading.value} error={alertError.value} onRetry={alarmCenterDetailStore.getAlertDetailData} />
         <AlarmAlert
           key='alarm-alert'
           data={alarmDetail.value}
@@ -260,6 +275,9 @@ export default defineComponent({
         <AlarmInfo
           key='alarm-info'
           alertActionOverview={alarmStatusOverview.value}
+          statusLoading={statusLoading.value}
+          statusError={statusError.value}
+          onStatusRetry={retryStatus}
           data={alarmDetail.value}
           onAlarmDispatch={handleAlarmDispatch}
           onAlarmStatusDetailShow={() => {
@@ -281,7 +299,7 @@ export default defineComponent({
             />
           ))}
         </Tab>
-        <KeepAlive>{getPanelComponent()}</KeepAlive>
+        <KeepAlive key={`${bizId.value}:${alarmDetail.value.id}`}>{getPanelComponent()}</KeepAlive>
         <AlarmConfirmDialog
           alarmBizId={bizId.value}
           alarmIds={[alarmId.value]}

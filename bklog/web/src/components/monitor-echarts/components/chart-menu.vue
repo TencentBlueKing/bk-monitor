@@ -29,8 +29,8 @@
     <template v-for="item in menuList">
       <li
         v-if="list.includes(item.id)"
-        class="chart-menu-item"
         :key="item.id"
+        class="chart-menu-item"
         @mousedown="handleMenuClick(item)"
       >
         <i

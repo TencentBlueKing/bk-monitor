@@ -792,7 +792,7 @@ class TestRefreshTaskStatusMultiSubscription:
 
     # --- 业务隔离与订阅查询 -------------------------------------------------
 
-    @patch("bk_monitor_base.domains.uptime_check.operation.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.operation.batch_get_subscription_task_result")
     def test_fetch_includes_public_node_subscription(
         self,
         mock_batch_result,
@@ -819,7 +819,7 @@ class TestRefreshTaskStatusMultiSubscription:
         assert called_sub_ids == [1001, 1002]
         assert result == {task_with_subs.pk: UptimeCheckTaskStatus.RUNNING.value}
 
-    @patch("bk_monitor_base.domains.uptime_check.operation.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.operation.batch_get_subscription_task_result")
     def test_cross_biz_task_is_isolated(
         self,
         mock_batch_result,
@@ -892,7 +892,7 @@ class TestRefreshTaskStatusMultiSubscription:
     )
     @patch("bk_monitor_base.infras.third_party_api.nodeman.api.get_subscription_task_result")
     @patch("bk_monitor_base.infras.third_party_api.nodeman.api.get_subscription_task_result_detail")
-    @patch("bk_monitor_base.domains.uptime_check.operation.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.operation.batch_get_subscription_task_result")
     def test_aggregate_status_across_subscriptions(
         self,
         mock_batch_result,
@@ -940,7 +940,7 @@ class TestRefreshTaskStatusMultiSubscription:
 
     # --- 缺失 / 异常订阅状态聚合 -------------------------------------------
 
-    @patch("bk_monitor_base.domains.uptime_check.operation.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.operation.batch_get_subscription_task_result")
     def test_partial_missing_result_keeps_task_starting(
         self,
         mock_batch_result,
@@ -972,7 +972,7 @@ class TestRefreshTaskStatusMultiSubscription:
         # Assert：任务仍保持启用中状态，而不是被错误地推进到 RUNNING
         assert result == {task_with_subs.pk: UptimeCheckTaskStatus.STARTING.value}
 
-    @patch("bk_monitor_base.domains.uptime_check.operation.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.operation.batch_get_subscription_task_result")
     def test_api_exception_keeps_task_starting(
         self,
         mock_batch_result,
@@ -1002,7 +1002,7 @@ class TestRefreshTaskStatusMultiSubscription:
 
     @patch("bk_monitor_base.infras.third_party_api.nodeman.api.get_subscription_task_result_detail")
     @patch("bk_monitor_base.infras.third_party_api.nodeman.api.get_subscription_task_result")
-    @patch("bk_monitor_base.domains.uptime_check.operation.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.operation.batch_get_subscription_task_result")
     def test_failed_priority_over_missing_subscription(
         self,
         mock_batch_result,
@@ -1036,7 +1036,7 @@ class TestRefreshTaskStatusMultiSubscription:
         called_sub_ids_for_logs = [call.kwargs["params"]["subscription_id"] for call in mock_result.call_args_list]
         assert called_sub_ids_for_logs == [1001]
 
-    @patch("bk_monitor_base.domains.uptime_check.operation.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.operation.batch_get_subscription_task_result")
     def test_all_subscriptions_missing_keeps_task_starting(
         self,
         mock_batch_result,
@@ -1061,7 +1061,7 @@ class TestRefreshTaskStatusMultiSubscription:
 
     @patch("bk_monitor_base.infras.third_party_api.nodeman.api.get_subscription_task_result_detail")
     @patch("bk_monitor_base.infras.third_party_api.nodeman.api.get_subscription_task_result")
-    @patch("bk_monitor_base.domains.uptime_check.operation.node_man_v2_api.batch_get_subscription_task_result")
+    @patch("bk_monitor_base.domains.uptime_check.operation.batch_get_subscription_task_result")
     def test_failed_subscription_writes_collector_log(
         self,
         mock_batch_result,

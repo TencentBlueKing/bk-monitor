@@ -11,11 +11,12 @@ specific language governing permissions and limitations under the License.
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.drf import IAMPermission
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
+from monitor_web.permissions import GlobalSettingPermission
 
 
 class GlobalConfigViewSet(ResourceViewSet):
@@ -24,9 +25,10 @@ class GlobalConfigViewSet(ResourceViewSet):
         if get_request_tenant_id() != DEFAULT_TENANT_ID:
             return [permissions.NOT(permissions.AllowAny())]
 
+        # 不用 BusinessActionPermission：缺少业务 ID 时会被短路放行。
         if self.request.method in permissions.SAFE_METHODS:
-            return [BusinessActionPermission([ActionEnum.VIEW_GLOBAL_SETTING])]
-        return [BusinessActionPermission([ActionEnum.MANAGE_GLOBAL_SETTING])]
+            return [IAMPermission([ActionEnum.VIEW_GLOBAL_SETTING])]
+        return [GlobalSettingPermission()]
 
     resource_routes = [
         ResourceRoute("GET", resource.config.list_global_config),

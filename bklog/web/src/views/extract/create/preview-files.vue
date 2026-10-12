@@ -28,8 +28,8 @@
   <div class="preview-file-content">
     <div class="flex-box">
       <bk-select
-        style="width: 190px; margin-right: 20px; background-color: #fff"
         v-model="previewIp"
+        style="width: 190px; margin-right: 20px; background-color: #fff"
         :clearable="false"
         data-test-id="addNewExtraction_div_selectPreviewAddress"
         multiple
@@ -48,8 +48,8 @@
         :time-value.sync="timeValue"
       />
       <bk-checkbox
-        style="margin-right: 20px"
         v-model="isSearchChild"
+        style="margin-right: 20px"
         data-test-id="addNewExtraction_div_isSearchSubdirectory"
         >{{ $t('是否搜索子目录') }}</bk-checkbox
       >
@@ -75,8 +75,8 @@
       />
     </div>
     <div
-      class="flex-box"
       v-bkloading="{ isLoading, opacity: 0.7, zIndex: 0 }"
+      class="flex-box"
     >
       <bk-table
         ref="previewTable"
@@ -105,8 +105,8 @@
             <div class="table-ceil-container">
               <span
                 v-if="row.size === '0'"
-                class="download-url-text"
                 v-bk-overflow-tips
+                class="download-url-text"
                 @click="getExplorerList(row)"
               >
                 {{ row.path }}
@@ -452,9 +452,7 @@
 
         const nextSelectedPathSet = new Set(this.selectedFilePathList);
         const visibleSelectablePathSet = new Set(
-          this.filteredExplorerList
-            .filter(item => this.isSelectableFile(item))
-            .map(item => this.getFilePath(item)),
+          this.filteredExplorerList.filter(item => this.isSelectableFile(item)).map(item => this.getFilePath(item)),
         );
 
         for (const path of visibleSelectablePathSet) {

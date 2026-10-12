@@ -28,6 +28,7 @@ import jsCookie from 'js-cookie';
 import { useRoute } from 'vue-router/composables';
 
 import { getFeatureToggleStatus } from './hooks/use-feature-toggle';
+import { isMonitorIframeContext } from './common/embed-layout-query';
 import useLocale from './hooks/use-locale';
 import useStore from './hooks/use-store';
 import { join } from '@/global/utils/path';
@@ -42,10 +43,12 @@ const NoticeComponent = defineAsyncComponent(() =>
   ]).then(([component]) => (component as any).default ?? component),
 );
 const AuthDialog = () => import(/* webpackChunkName: 'auth-dialog' */ '@/components/common/auth-dialog.vue');
-const GlobalSettingDialog = () => import(/* webpackChunkName: 'global-setting-dialog' */ '@/components/global-setting/index');
+const GlobalSettingDialog = () =>
+  import(/* webpackChunkName: 'global-setting-dialog' */ '@/components/global-setting/index');
 const HeadNav = () => import(/* webpackChunkName: 'head-nav' */ '@/global/head-navi/index');
 
-const isHeadlessEntry = () => new URLSearchParams(window.location.hash.split('?')[1] || window.location.search).get('hl') === '1';
+const isHeadlessEntry = () =>
+  new URLSearchParams(window.location.hash.split('?')[1] || window.location.search).get('hl') === '1';
 if (isHeadlessEntry()) {
   import(/* webpackChunkName: 'demand-import-lite' */ './common/demand-import-lite');
 } else {
@@ -72,7 +75,7 @@ export default defineComponent({
       '--notice-component-height': `${noticeComponentHeight.value}px`,
     }));
 
-    const isAsIframe = computed(() => route.query.from === 'monitor');
+    const isAsIframe = computed(() => isMonitorIframeContext(route.query));
     const showAlert = computed(() => store.state.showAlert);
 
     const isShowGlobalDialog = computed(() => store.state.isShowGlobalDialog);
@@ -232,9 +235,10 @@ export default defineComponent({
 
     onMounted(() => {
       const platform = window.navigator.platform.toLowerCase();
-      const fontFamily =        platform.indexOf('win') === 0
-        ? 'Microsoft Yahei, pingFang-SC, Helvetica, Aria, sans-serif'
-        : 'pingFang-SC, Microsoft Yahei, Helvetica, Aria, sans-serif';
+      const fontFamily =
+        platform.indexOf('win') === 0
+          ? 'Microsoft Yahei, pingFang-SC, Helvetica, Aria, sans-serif'
+          : 'pingFang-SC, Microsoft Yahei, Helvetica, Aria, sans-serif';
       document.body.style['font-family'] = fontFamily;
       store.commit('updateState', { runVersion: window.RUN_VER || '' });
 

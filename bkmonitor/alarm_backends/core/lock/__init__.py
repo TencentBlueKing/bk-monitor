@@ -36,6 +36,12 @@ class BaseLock:
 
 
 class RedisLock(BaseLock):
+    REFRESH_SCRIPT = """
+    if redis.call('get', KEYS[1]) == ARGV[1] then
+        return redis.call('expire', KEYS[1], ARGV[2])
+    end
+    return 0
+    """
     __token = None
 
     def __init__(self, name, ttl=None):
@@ -61,6 +67,12 @@ class RedisLock(BaseLock):
         if not token or token != self.__token:
             return False
         return self.client.delete(self.name)
+
+    def refresh(self):
+        """Extend the lock TTL only while this instance still owns the lock."""
+        if not self.__token:
+            return False
+        return bool(self.client.eval(self.REFRESH_SCRIPT, 1, self.name, self.__token, self.ttl))
 
 
 class MultiRedisLock:

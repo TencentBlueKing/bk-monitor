@@ -576,3 +576,28 @@ def test_search_view_streams_snapshots_and_end_event() -> None:
     assert result.closed
     assert response["Cache-Control"] == "no-cache"
     assert response["X-Accel-Buffering"] == "no"
+
+
+def test_search_view_streaming_trace_query_uses_application_scope() -> None:
+    app = _app(1, bk_biz_id=42)
+    request = SimpleNamespace(query_params={"query": TRACE_ID}, user=SimpleNamespace(username="admin"))
+
+    with (
+        mock.patch.object(Searcher, "search_items", [TraceSearchItem]),
+        mock.patch("monitor_web.overview.views.get_request_tenant_id", return_value="tenant") as get_tenant_id,
+        mock.patch.object(TraceSearchItem, "_path_precalc", return_value=iter([])),
+        mock.patch.object(TraceSearchItem, "_collect_candidate_apps", return_value=[app]),
+        mock.patch.object(TraceSearchItem, "_get_biz_name", return_value="业务 42"),
+        mock.patch(
+            "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
+            return_value=[{"trace_id": TRACE_ID}],
+        ) as query,
+    ):
+        response = SearchViewSet().list(request)
+        chunks = [chunk.decode() for chunk in response.streaming_content]
+
+    get_tenant_id.assert_called_once_with()
+    query.assert_called_once()
+    query_body = query.call_args.kwargs["query_body"]
+    assert query_body["bk_biz_id"] == app.bk_biz_id
+    assert json.loads(chunks[1].removeprefix("data: "))["items"][0]["application_id"] == app.application_id

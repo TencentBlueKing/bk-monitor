@@ -102,10 +102,10 @@ export default defineComponent({
     // 是否有过滤条件
     const hasFilter = computed(() => {
       return !!(
-        queryParams.value.keyword
-        || queryParams.value.status
-        || queryParams.value.scene
-        || queryParams.value.created_by
+        queryParams.value.keyword ||
+        queryParams.value.status ||
+        queryParams.value.scene ||
+        queryParams.value.created_by
       );
     });
 
@@ -153,14 +153,14 @@ export default defineComponent({
       isShouldPollTask.value = false;
 
       // 遍历新任务列表，检查轮询需求并更新现有任务状态
-      taskList.forEach((newTask) => {
+      taskList.forEach(newTask => {
         // 检查是否有未完成的任务
         if (newTask.status !== TaskStatus.COMPLETED) {
           isShouldPollTask.value = true;
         }
 
         // 更新现有任务列表中对应任务的状态
-        tableData.value.list.forEach((existingTask) => {
+        tableData.value.list.forEach(existingTask => {
           if (existingTask.id === newTask.id) {
             existingTask.status = newTask.status;
             existingTask.status_name = newTask.status_name;
@@ -214,7 +214,7 @@ export default defineComponent({
         // （已缓存的用户不会触发 userInfoUpdated 事件，需要同步处理）
         const userInfoMap = await tenantManager.batchGetUserDisplayInfo(response.data);
         let hasUpdate = false;
-        const updated = createdBys.value.map((item) => {
+        const updated = createdBys.value.map(item => {
           const info = userInfoMap.get(item.value);
           if (info && info.display_name && info.display_name !== item.text) {
             hasUpdate = true;
@@ -304,7 +304,7 @@ export default defineComponent({
       const userInfo = data.userInfo;
 
       // 更新 createdBys 中的 text 为 display_name
-      createdBys.value = createdBys.value.map((item) => {
+      createdBys.value = createdBys.value.map(item => {
         const info = userInfo.get(item.value);
         if (info && info.display_name) {
           return {
@@ -338,7 +338,7 @@ export default defineComponent({
 
     // 处理筛选变化
     const handleFilterChange = (filters: any) => {
-      Object.keys(filters).forEach((key) => {
+      Object.keys(filters).forEach(key => {
         queryParams.value[key] = filters[key]?.[0];
       });
       queryParams.value.page = 1;

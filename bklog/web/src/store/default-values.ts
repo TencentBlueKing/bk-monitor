@@ -81,7 +81,7 @@ const BkLogGlobalStorageKey = 'STORAGE_KEY_BKLOG_GLOBAL';
 export { BkLogGlobalStorageKey };
 
 const mirrorStorageToIndexedDB = (key: string, value: any) => {
-  storeCacheService.setLocalStorageMirror(key, value).catch((error) => {
+  storeCacheService.setLocalStorageMirror(key, value).catch(error => {
     console.warn('[store-cache] mirror localStorage failed', key, error);
   });
 };
@@ -170,7 +170,7 @@ const getUrlArgs = (_route?) => {
 // eslint-disable-next-line import/no-mutable-exports
 let urlArgs = getUrlArgs();
 
-const updateURLArgs = (route) => {
+const updateURLArgs = route => {
   urlArgs = getUrlArgs(route);
   return urlArgs;
 };

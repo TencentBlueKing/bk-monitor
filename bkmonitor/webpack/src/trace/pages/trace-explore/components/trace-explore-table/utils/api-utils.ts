@@ -32,12 +32,12 @@ export function getTableList(
   params,
   isSpanVisual: boolean,
   requestConfig
-): Promise<{ data: any[]; isAborted?: boolean; total: number }> {
+): Promise<{ data: any[]; isAborted?: boolean; isError?: boolean; total: number }> {
   const apiFunc = isSpanVisual ? listFlattenSpan : listFlattenTrace;
   const config = { needMessage: false, ...requestConfig };
   return apiFunc(params, config).catch(err => {
     const isAborted = requestErrorMessage(err);
-    return { data: [], total: 0, isAborted };
+    return { data: [], total: 0, isAborted, isError: !isAborted };
   });
 }
 

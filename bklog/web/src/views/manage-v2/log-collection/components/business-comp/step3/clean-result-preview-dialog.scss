@@ -1,0 +1,433 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ */
+
+.clean-result-preview-dialog {
+  width: 100%;
+
+  .section-label {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    color: #4d4f56;
+    margin-bottom: 8px;
+
+    &.required::after {
+      content: '*';
+      color: #ea3636;
+      margin-left: 4px;
+      line-height: 1;
+    }
+
+    .section-label-text {
+      display: inline-flex;
+      align-items: center;
+
+      .required-mark {
+        color: #ea3636;
+        margin-left: 4px;
+        line-height: 1;
+      }
+    }
+
+    .collecting-tip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-left: 6px;
+
+      .collecting-tip-text {
+        color: #f59500;
+
+        .tips-icon {
+          color: #f59500;
+        }
+      }
+
+      .refresh-link-text {
+        font-size: 12px;
+        color: #3a84ff;
+        cursor: pointer;
+
+        &:hover {
+          opacity: 0.85;
+        }
+      }
+    }
+
+    .refresh-link {
+      display: inline-flex;
+      align-items: center;
+      margin-left: auto;
+      color: #3a84ff;
+      cursor: pointer;
+
+      i {
+        font-size: 14px;
+      }
+
+      &:hover {
+        opacity: 0.85;
+      }
+    }
+  }
+
+  .log-example-textarea {
+    width: 100%;
+  }
+
+  .re-debug-btn {
+    margin-top: 12px;
+    border: 1px solid #3a84ff;
+    color: #3a84ff;
+    background: #fff;
+    font-size: 12px;
+    padding: 0 16px;
+    height: 32px;
+    line-height: 30px;
+    border-radius: 2px;
+    cursor: pointer;
+
+    &:hover {
+      background: #f0f5ff;
+    }
+
+    &:disabled {
+      background: #fafbfd;
+      border-color: #dcdee5;
+      color: #c4c6cc;
+      cursor: not-allowed;
+    }
+  }
+
+  // 三个统计卡片
+  .stat-cards {
+    display: flex;
+    gap: 16px;
+    margin-top: 20px;
+
+    .stat-card {
+      flex: 1;
+      background: #f5f7fa;
+      border-radius: 4px;
+      padding: 16px 20px;
+
+      .stat-label {
+        font-size: 14px;
+        color: #4d4f56;
+        margin-bottom: 8px;
+      }
+
+      .stat-value {
+        font-size: 28px;
+        font-weight: 600;
+        line-height: 1.2;
+
+        &.is-success {
+          color: #2dcb56;
+        }
+
+        &.is-error {
+          color: #ea3636;
+        }
+      }
+    }
+  }
+
+  // 异常说明
+  .exception-alert {
+    margin-top: 16px;
+    border: 1px solid #fdb88d;
+    background: #fff4e6;
+    color: #4d4f56;
+    border-radius: 2px;
+  }
+
+  // 字段表格
+  .preview-fields-table {
+    margin-top: 16px;
+    border: 1px solid #DCDEE5;
+
+    .serial-cell {
+      padding-left: 10px;
+
+      .cell-index {
+        color: #979ba5;
+      }
+    }
+
+    .status-cell {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+      padding-left: 10px;
+
+      &.is-success {
+        color: #299E56;
+
+        .status-dot {
+          border-color: #2CAF5E;
+          background: #DAF6E5;
+        }
+      }
+
+      &.is-error {
+        color: #E71818;
+        text-decoration: underline dotted;
+        text-decoration-skip-ink: none;
+        text-underline-position: under;
+        cursor: pointer;
+
+        .status-dot {
+          border-color: #EA3636;
+          background: #FFEBEB;
+        }
+      }
+
+      .status-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        border: 1px solid;
+        border-radius: 50%;
+        background: transparent;
+      }
+    }
+
+    .field-name-cell {
+      display: flex;
+      align-items: center;
+      width: 100%;
+
+      .field-name-input {
+        flex: 1;
+      }
+    }
+
+    .type-cell {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      width: 100%;
+
+      .type-select {
+        flex: 1;
+        padding-right: 20px;
+      }
+
+      .type-error-icon {
+        position: absolute;
+        right: 24px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #ea3636;
+        font-size: 14px;
+      }
+    }
+
+    .word-breaker {
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 32px;
+      line-height: 32px;
+      padding: 0 10px;
+      position: relative;
+      background: #fff;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      box-sizing: border-box;
+
+      .select-angle {
+        position: absolute;
+        color: #979BA5;
+        font-size: 20px;
+        right: 4px;
+        top: 11px;
+      }
+    }
+
+    .word-breaker-edit {
+      display: block;
+      font-size: 11px;
+      width: 100%;
+      height: 100%;
+      min-height: 32px;
+      line-height: 48px;
+      cursor: pointer;
+
+      .analyzed-box {
+        padding: 6px 0;
+        line-height: 18px;
+      }
+    }
+
+    .value-cell {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding-left: 10px;
+      padding-right: 12px;
+
+      .value-text {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .value-empty {
+        color: #ea3636;
+        font-style: normal;
+      }
+
+      .value-empty-icon {
+        color: #ea3636;
+        font-size: 14px;
+        flex-shrink: 0;
+        margin-left: 4px;
+        cursor: pointer;
+      }
+    }
+
+    // 禁用列：序号、解析状态、值、异常图标
+    .preview-disabled-column {
+      background: #fafbfd;
+      color: #63656e;
+    }
+
+    // 只针对数据行的 td，不影响表头 th
+    .t-table__body {
+      td.preview-disabled-column,
+      td.preview-editable-column {
+        padding: 0 !important;
+        height: 42px;
+
+        .cell {
+          padding: 0 10px !important;
+          height: 100%;
+          display: flex;
+          align-items: center;
+        }
+      }
+
+      td.preview-editable-column {
+        .cell {
+          padding: 0 !important;
+        }
+      }
+    }
+
+    .preview-editable-column {
+      .bk-form-input {
+        border: none !important;
+        height: 42px;
+        line-height: 42px;
+
+        &:focus {
+          border: none !important;
+          box-shadow: none !important;
+        }
+      }
+
+      .bk-select {
+        background: #fff;
+        border: none !important;
+        height: 42px;
+        line-height: 42px;
+
+        .bk-select-angle {
+          top: 11px;
+        }
+
+        .bk-select-name {
+          height: 42px;
+          line-height: 42px;
+        }
+      }
+    }
+  }
+}
+
+.tippy-box[data-theme~='word-breaker-theme-popover'] {
+  max-width: 450px !important;
+  min-width: 380px;
+
+  .tippy-content {
+    padding: 0;
+  }
+
+  .word-breaker-menu-content {
+    padding: 10px 14px;
+    font-size: 12px;
+
+    .menu-item {
+      display: flex;
+      align-items: center;
+      color: #63656e;
+      margin: 8px 0;
+
+      .menu-item-label {
+        text-align: right;
+        display: inline-block;
+        width: 68px;
+        margin-right: 16px;
+      }
+
+      .custom-input {
+        flex: 1;
+        margin-left: 4px;
+        height: 26px;
+        line-height: 26px;
+
+        .bk-input-text,
+        .bk-form-input {
+          height: 26px;
+          line-height: 26px;
+        }
+      }
+    }
+
+    .menu-footer {
+      text-align: right;
+      margin-top: 10px;
+      margin-bottom: 6px;
+
+      .bk-button {
+        min-width: 54px;
+        height: 24px;
+        line-height: 22px;
+      }
+
+      .bk-primary {
+        margin-right: 8px;
+      }
+    }
+  }
+}

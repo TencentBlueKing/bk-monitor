@@ -25,7 +25,7 @@ import re
 from django.utils.translation import gettext_lazy as _
 
 from apps.exceptions import ValidationError
-from apps.log_databus.constants import DORIS_CLUSTER_TYPE, EtlConfig, STORAGE_CLUSTER_TYPE
+from apps.log_databus.constants import EtlConfig, STORAGE_CLUSTER_TYPE
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.handlers.etl_storage.utils.transfer import preview
 from apps.log_databus.handlers.grok.handler import GrokHandler
@@ -300,29 +300,7 @@ class BkLogRegexpEtlStorage(EtlStorage):
         rules.extend(self._build_path_regex_rules_v4(etl_params, built_in_config))
 
         data_link_config = {"clean_rules": rules}
-
-        if storage_cluster_type == STORAGE_CLUSTER_TYPE:
-            data_link_config["es_storage_config"] = {
-                "unique_field_list": built_in_config["option"]["es_unique_field_list"],
-                "timezone": 8,
-            }
-        elif storage_cluster_type == DORIS_CLUSTER_TYPE:
-            json_fields = set()
-            for check_rule in rules:
-                if check_rule["operator"].get("output_type") == self._get_output_type("object"):
-                    json_fields.add(check_rule["output_id"])
-
-            need_analysis_fields = set()
-            for check_field in field_list:
-                if check_field["option"]["es_type"] == "text":
-                    need_analysis_fields.add(check_field["field_name"])
-
-            data_link_config["doris_storage_config"] = {
-                "storage_keys": built_in_config["option"]["es_unique_field_list"],
-                "json_fields": list(json_fields),
-                "field_config_group": {"search_zh": list(need_analysis_fields)},
-                # "flush_timeout": None
-            }
+        data_link_config.update(self._build_storage_config_v4(rules, field_list, built_in_config, storage_cluster_type))
 
         return data_link_config
 

@@ -156,8 +156,12 @@ const instance: AxiosInstance = axios.create({
   paramsSerializer(params: any): string {
     return qs.stringify(params, { arrayFormat: 'brackets' });
   },
+  // 开发态 trace/apm/fta 分别在 :7002/:7003/:7004。若把子应用 host 拼进 baseURL，请求会从当前页跨到另一个端口，
+  // Cursor 内置浏览器无法 --disable-web-security，请求会被拦成无数据。开发态改为走当前页面同源代理。
   baseURL:
-    (window.__BK_WEWEB_DATA__?.host || '').replace(/\/$/, '') +
+    (process.env.NODE_ENV === 'development'
+      ? ''
+      : (window.__BK_WEWEB_DATA__?.host || '').replace(/\/$/, '')) +
     (process.env.NODE_ENV === 'production' ? window.site_url : process.env.APP === 'mobile' ? '/weixin' : '/'),
   xsrfCookieName: 'X-CSRFToken',
 });

@@ -1,0 +1,61 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
+.strategy-cell-skeleton {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  width: 100%;
+  min-height: 32px;
+  vertical-align: middle;
+
+  i { @include skeleton.surface; display: block; height: 12px; }
+  i + i { width: 30%; }
+  &.is-multiline {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+
+    i + i { width: 46%; height: 10px; }
+  }
+  &.is-tag i { max-width: 64px; height: 22px; }
+  &.is-switch i { width: 28px; height: 16px; border-radius: 10px; }
+  &.is-checkbox { justify-content: center; }
+  &.is-checkbox i { width: 14px; height: 14px; }
+}
+
+.strategy-filter-skeleton {
+  &__group { margin-bottom: 16px; }
+  &__title,
+  &__row { display: flex; gap: 8px; align-items: center; height: 32px; }
+  &__title i,
+  &__row i { @include skeleton.surface; flex: 0 0 12px; height: 12px; }
+  &__title span { @include skeleton.surface; width: 72px; height: 14px; }
+  &__row { padding-left: 10px; }
+  &__row span { @include skeleton.surface; height: 12px; }
+  &__row b { @include skeleton.surface; flex: 0 0 20px; height: 10px; margin-left: auto; }
+}
+
+.strategy-config {
+  .strategy-count-skeleton { @include skeleton.surface; display: inline-block; width: 24px; height: 12px; }
+  .strategy-async-placeholder { display: inline-block; width: 64px; }
+  .strategy-async-error { display: inline-flex; gap: 8px; align-items: center; min-height: 28px; color: #979ba5; }
+  .strategy-load-errors { display: flex; flex-wrap: wrap; gap: 0 20px; }
+  .strategy-table.is-busy .bk-table-body { pointer-events: none; }
+  .strategy-table.is-skeleton td .strategy-cell-skeleton { min-height: 58px; }
+  .strategy-refresh-progress {
+    position: absolute;
+    inset: 0 0 auto;
+    z-index: 3;
+    height: 2px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, #3a84ff, transparent) 0 0 / 35% 100% no-repeat;
+    animation: strategy-refresh-progress 1.4s ease-in-out infinite;
+
+    @media (prefers-reduced-motion: reduce) { animation: none; }
+  }
+}
+
+@keyframes strategy-refresh-progress {
+  from { background-position: -55% 0; }
+  to { background-position: 155% 0; }
+}

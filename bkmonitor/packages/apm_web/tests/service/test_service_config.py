@@ -1,8 +1,9 @@
-"""APM 服务配置增量关联测试。"""
+"""APM 服务配置测试。"""
 
 from typing import Any
 
 import pytest
+from rest_framework.exceptions import ValidationError
 
 from apm_web.constants import ServiceRelationLogTypeChoices
 from apm_web.models import (
@@ -19,14 +20,16 @@ from apm_web.service.resources import ServiceConfigResource
 from apm_web.service.serializers import ServiceConfigSerializer
 from apm_web.service.views import ServiceViewSet
 from bkmonitor.iam import ActionEnum
+from bkmonitor.models import DutyArrange, UserGroup
 from monitor_web.data_explorer.event.constants import EventCategory
 
-pytestmark = pytest.mark.django_db
+pytestmark = pytest.mark.django_db(databases=["default", "monitor_api"])
 
 
 BK_BIZ_ID = 2
 APP_NAME = "checkout"
 SERVICE_NAME = "checkout-api"
+SERVICE_NOTICE_GROUP_NAME = "【APM】 checkout/checkout-api 服务告警组"
 BASE_REQUEST = {
     "bk_biz_id": BK_BIZ_ID,
     "app_name": APP_NAME,
@@ -113,6 +116,32 @@ def test_labels_only_serializer_does_not_apply_relation_defaults() -> None:
 
     assert serializer.is_valid(), serializer.errors
     assert set(serializer.validated_data) == {*BASE_REQUEST, "labels"}
+
+
+def test_owners_only_serializer_does_not_apply_relation_defaults() -> None:
+    serializer = ServiceConfigSerializer(data={**BASE_REQUEST, "owners": ["alice", "bob"]})
+
+    assert serializer.is_valid(), serializer.errors
+    assert set(serializer.validated_data) == {*BASE_REQUEST, "owners"}
+
+
+@pytest.mark.parametrize(("service_name_length", "is_valid"), [(65, True), (66, False)])
+def test_owners_serializer_validates_notice_group_name_length_boundary(
+    service_name_length: int,
+    is_valid: bool,
+) -> None:
+    serializer = ServiceConfigSerializer(
+        data={
+            **BASE_REQUEST,
+            "app_name": "a" * 50,
+            "service_name": "s" * service_name_length,
+            "owners": [],
+        }
+    )
+
+    assert serializer.is_valid() is is_valid
+    if not is_valid:
+        assert "owners" in serializer.errors
 
 
 @pytest.mark.parametrize(
@@ -216,6 +245,7 @@ def test_incremental_relations_create_event_records(
     ServiceConfigResource().request(
         {
             **BASE_REQUEST,
+            "owners": ["alice"],
             "incremental_k8s_relations": [NEW_K8S_RELATION],
             "incremental_cicd_relations": [NEW_CICD_RELATION],
         }
@@ -226,6 +256,108 @@ def test_incremental_relations_create_event_records(
     assert relations[EventCategory.K8S_EVENT.value].options == {"is_auto": False}
     assert relations[EventCategory.CICD_EVENT.value].relations == [NEW_CICD_RELATION]
     assert relations[EventCategory.CICD_EVENT.value].options == {}
+    group = UserGroup.objects.get(bk_biz_id=BK_BIZ_ID, name=SERVICE_NOTICE_GROUP_NAME)
+    assert DutyArrange.objects.get(user_group_id=group.id).users == [{"id": "alice", "type": "user"}]
+
+
+def test_owners_create_and_replace_service_notice_group(
+    application: Application,
+    disable_config_delivery: None,
+) -> None:
+    resource = ServiceConfigResource()
+    resource.request({**BASE_REQUEST, "owners": ["alice", "bob", "alice"]})
+
+    group = UserGroup.objects.get(bk_biz_id=BK_BIZ_ID, name=SERVICE_NOTICE_GROUP_NAME)
+    for notice_config in group.alert_notice + group.action_notice:
+        assert notice_config["time_range"] == "00:00:00--23:59:59"
+        assert all(notify_config["type"] == ["rtx"] for notify_config in notice_config["notify_config"])
+
+    assert DutyArrange.objects.get(user_group_id=group.id).users == [
+        {"id": "alice", "type": "user"},
+        {"id": "bob", "type": "user"},
+    ]
+    original_group_config: dict[str, Any] = {
+        "alert_notice": group.alert_notice,
+        "action_notice": group.action_notice,
+        "desc": group.desc,
+        "channels": group.channels,
+    }
+
+    resource.request({**BASE_REQUEST, "owners": ["carol"]})
+
+    group.refresh_from_db()
+    assert UserGroup.objects.filter(bk_biz_id=BK_BIZ_ID, name=group.name).count() == 1
+    assert DutyArrange.objects.get(user_group_id=group.id).users == [{"id": "carol", "type": "user"}]
+    assert {
+        "alert_notice": group.alert_notice,
+        "action_notice": group.action_notice,
+        "desc": group.desc,
+        "channels": group.channels,
+    } == original_group_config
+
+    resource.request({**BASE_REQUEST, "owners": []})
+
+    assert DutyArrange.objects.get(user_group_id=group.id).users == []
+
+
+def test_owners_reject_existing_notice_group_with_duty(
+    application: Application,
+    disable_config_delivery: None,
+) -> None:
+    group = UserGroup.objects.create(
+        bk_biz_id=BK_BIZ_ID,
+        name=SERVICE_NOTICE_GROUP_NAME,
+        desc="",
+        alert_notice=[],
+        action_notice=[],
+        need_duty=True,
+        duty_rules=[1],
+    )
+
+    with pytest.raises(ValidationError) as exc_info:
+        ServiceConfigResource().request(
+            {
+                **BASE_REQUEST,
+                "owners": ["alice"],
+                "incremental_k8s_relations": [NEW_K8S_RELATION],
+            }
+        )
+
+    assert "owners" in exc_info.value.detail
+    assert not EventServiceRelation.objects.exists()
+    group.refresh_from_db()
+    assert group.need_duty is True
+    assert group.duty_rules == [1]
+    assert not DutyArrange.objects.filter(user_group_id=group.id).exists()
+
+
+def test_notice_group_write_rolls_back_on_duty_arrange_failure(
+    application: Application,
+    disable_config_delivery: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_bulk_create(
+        _model_cls: type[DutyArrange],
+        _duty_arranges: list[dict[str, Any]],
+        _instance: UserGroup,
+    ) -> None:
+        raise RuntimeError("duty arrange failed")
+
+    monkeypatch.setattr(DutyArrange, "bulk_create", classmethod(fail_bulk_create))
+
+    with pytest.raises(RuntimeError, match="duty arrange failed"):
+        ServiceConfigResource().request({**BASE_REQUEST, "owners": ["alice"]})
+
+    assert not UserGroup.objects.filter(bk_biz_id=BK_BIZ_ID, name=SERVICE_NOTICE_GROUP_NAME).exists()
+
+
+def test_request_without_owners_does_not_create_service_notice_group(
+    application: Application,
+    disable_config_delivery: None,
+) -> None:
+    ServiceConfigResource().request(BASE_REQUEST)
+
+    assert not UserGroup.objects.filter(bk_biz_id=BK_BIZ_ID, name=SERVICE_NOTICE_GROUP_NAME).exists()
 
 
 def test_incremental_relations_append_deduplicate_and_preserve_existing_configs(
@@ -395,7 +527,7 @@ def test_base_only_request_does_not_delete_existing_relations(
     assert uri_relation.uri == "/checkout"
 
 
-def test_incremental_request_rolls_back_all_relations_on_failure(
+def test_relation_failure_rolls_back_relations_and_skips_notice_group(
     application: Application,
     disable_config_delivery: None,
     monkeypatch: pytest.MonkeyPatch,
@@ -420,12 +552,14 @@ def test_incremental_request_rolls_back_all_relations_on_failure(
         ServiceConfigResource().request(
             {
                 **BASE_REQUEST,
+                "owners": ["alice"],
                 "incremental_k8s_relations": [NEW_K8S_RELATION],
                 "incremental_cicd_relations": [NEW_CICD_RELATION],
             }
         )
 
     assert not EventServiceRelation.objects.exists()
+    assert not UserGroup.objects.filter(bk_biz_id=BK_BIZ_ID, name=SERVICE_NOTICE_GROUP_NAME).exists()
 
 
 def test_missing_application_does_not_create_incremental_relation() -> None:

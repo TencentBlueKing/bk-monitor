@@ -36,7 +36,7 @@ from bk_monitor_base.domains.strategy.operation import (
     update_partial_strategy,
     update_strategy_query_config,
 )
-from bk_monitor_base.domains.strategy.strategy import Item, Strategy
+from bk_monitor_base.domains.strategy.strategy import Item, QueryConfig, Strategy
 
 
 @dataclass(frozen=True)
@@ -295,6 +295,124 @@ def test_list_strategy_restores_query_output_config_from_item_meta(
 
 
 @pytest.mark.django_db(databases=["default"])
+@pytest.mark.parametrize("promql_mode", [False, True], ids=["legacy", "promql_expression"])
+@pytest.mark.parametrize("named_outputs", [False, True])
+def test_list_strategy_preserves_promql_mode_after_query_config_save(promql_mode: bool, named_outputs: bool) -> None:
+    """真实保存、更新及列表加载保留执行模式；历史查询不注入默认模式。"""
+    strategy_model = StrategyModel.objects.create(
+        bk_biz_id=2,
+        name=f"test_promql_mode_{uuid4().hex}",
+        scenario="os",
+        type=StrategyModel.StrategyType.Monitor,
+    )
+    output_config = {
+        "response_contract": "named_outputs/v1",
+        "legacy_output_ref": "RESULT",
+        "output_list": [{"reference_name": alias.upper(), "expression": alias} for alias in ("a", "b", "c")]
+        + [{"reference_name": "RESULT", "expression": "a + b"}],
+    }
+    item_model = ItemModel.objects.create(
+        strategy_id=strategy_model.id,
+        name="promql-mode-item",
+        expression="a + b",
+        functions=[],
+        no_data_config={"is_enabled": False},
+        target=[[]],
+        meta={"query_output_config": output_config} if named_outputs else [],
+        metric_type="time_series",
+    )
+    for alias in ("a", "b", "c"):
+        config: dict[str, Any] = {"promql": f"metric_{alias}", "agg_interval": 60}
+        if promql_mode:
+            config["expression_mode"] = "promql"
+        query_config = QueryConfig(
+            strategy_id=strategy_model.id,
+            item_id=item_model.id,
+            data_source_label="prometheus",
+            data_type_label="time_series",
+            alias=alias,
+            **config,
+        )
+        query_config.save()
+
+    # 更新也走同一份序列化器，确保重新保存不会静默删除已持久化的模式。
+    models = list(QueryConfigModel.objects.filter(item_id=item_model.id).order_by("id"))
+    for query_config in QueryConfig.from_models(models):
+        query_config.save()
+    for model in QueryConfigModel.objects.filter(item_id=item_model.id):
+        assert model.config.get("expression_mode") == ("promql" if promql_mode else None)
+        if not promql_mode:
+            assert "expression_mode" not in model.config
+
+    result = list_strategy(
+        bk_biz_id=2,
+        apply_converters=False,
+        conditions=[{"key": "id", "values": [strategy_model.id], "operator": "eq"}],
+    )
+    item_config = result["data"][0]["items"][0]
+    queries = {query["alias"]: query for query in item_config["query_configs"]}
+    assert set(queries) == {"a", "b", "c"}
+    assert item_config["expression"] == "a + b"
+    assert item_config["functions"] == []
+    assert item_config.get("query_output_config") == (output_config if named_outputs else None)
+    for alias, query in queries.items():
+        assert query["promql"] == f"metric_{alias}"
+        if promql_mode:
+            assert query["expression_mode"] == "promql"
+        else:
+            assert "expression_mode" not in query
+
+
+@pytest.mark.django_db(databases=["default"])
+@pytest.mark.parametrize("value", [None, 1, 15, 100])
+def test_list_strategy_reads_access_lookback_column(value: int | None) -> None:
+    """公共列表读取独立列；未配置时省略字段，读取不修改其他元数据。"""
+    strategy_model = StrategyModel.objects.create(
+        bk_biz_id=2,
+        name="test_access_lookback_column",
+        scenario="os",
+        type=StrategyModel.StrategyType.Monitor,
+    )
+    item_model = ItemModel.objects.create(
+        strategy_id=strategy_model.pk,
+        name="lookback-item",
+        expression="a",
+        metric_type="time_series",
+        access_lookback_periods=value,
+        meta={"owner": "monitor"},
+    )
+    result = list_strategy(bk_biz_id=2, apply_converters=False)
+    item_config = next(row for row in result["data"] if row["id"] == strategy_model.pk)["items"][0]
+    if value is None:
+        assert "access_lookback_periods" not in item_config
+    else:
+        assert item_config["access_lookback_periods"] == value
+    item_model.refresh_from_db()
+    assert item_model.meta == {"owner": "monitor"}
+    assert item_model.access_lookback_periods == value
+
+
+@pytest.mark.django_db(databases=["default"])
+def test_item_save_preserves_omitted_lookback_and_clears_explicit_null() -> None:
+    """公共包保存普通字段时保留省略的回看配置，显式 null 清除覆盖。"""
+    item = Item(
+        strategy_id=1, name="lookback", no_data_config={}, metric_type="time_series", access_lookback_periods=15
+    )
+    item.save()
+    Item(strategy_id=1, id=item.id, name="renamed", no_data_config={}, metric_type="time_series").save()
+    assert ItemModel.objects.get(id=item.id).access_lookback_periods == 15
+    Item(
+        strategy_id=1,
+        id=item.id,
+        name="renamed",
+        no_data_config={},
+        metric_type="time_series",
+        access_lookback_periods=None,
+    ).save()
+    assert ItemModel.objects.get(id=item.id).access_lookback_periods is None
+
+
+@pytest.mark.django_db(databases=["default"])
 def test_restored_query_output_config_is_not_written_when_item_is_recreated() -> None:
     """从模型恢复的命名输出配置是只读信息，Item 重建时不应写入普通模型字段。"""
     strategy_model = StrategyModel.objects.create(
@@ -312,6 +430,7 @@ def test_restored_query_output_config_is_not_written_when_item_is_recreated() ->
         no_data_config={"is_enabled": False},
         target=[[]],
         meta={"query_output_config": deepcopy(NAMED_OUTPUT_CONFIG)},
+        access_lookback_periods=15,
         metric_type="time_series",
     )
     record = Item.from_models([item_model], {item_model.id: []}, {item_model.id: []})[0]
@@ -321,7 +440,9 @@ def test_restored_query_output_config_is_not_written_when_item_is_recreated() ->
 
     recreated_item = ItemModel.objects.get(id=record.id)
     assert recreated_item.meta == []
+    assert recreated_item.access_lookback_periods == 15
     assert record.to_dict()["query_output_config"] == NAMED_OUTPUT_CONFIG
+    assert record.to_dict()["access_lookback_periods"] == 15
 
 
 @pytest.mark.django_db(databases=["default"])

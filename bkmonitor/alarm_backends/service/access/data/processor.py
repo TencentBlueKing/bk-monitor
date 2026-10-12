@@ -39,7 +39,7 @@ from alarm_backends.core.storage.redis import Cache
 from alarm_backends.core.storage.redis_cluster import get_node_by_strategy_id
 from alarm_backends.management.hashring import HashRing
 from alarm_backends.service.access import base
-from alarm_backends.service.access.data.duplicate import Duplicate
+from alarm_backends.service.access.data.duplicate import ZERO_VALUE_RECORD_SUFFIX, Duplicate
 from alarm_backends.service.access.data.filters import (
     ExpireFilter,
     HostStatusFilter,
@@ -61,6 +61,13 @@ from core.prometheus import metrics
 
 IP = get_local_ip()
 logger = logging.getLogger("access.data")
+
+
+def _alarmd_v2_shadow_enabled() -> bool:
+    def enabled(value) -> bool:
+        return value is True or (isinstance(value, str) and value.strip().lower() == "true")
+
+    return enabled(settings.ALARMD_SHADOW_ENABLED)
 
 
 class BaseAccessDataProcess(base.BaseAccessProcess):
@@ -242,18 +249,19 @@ class BaseAccessDataProcess(base.BaseAccessProcess):
                 "count": len(record_list),
             }
 
-    def push(self, records: list | None = None, output_client=None):
+    def push(self, records: list | None = None, output_client=None, *, prepared: bool = False):
         """
         推送格式化后的数据到 detect 和 nodata 中(按单个策略，单个item项，写入不同的队列)
         """
         if records is None:
             records = self.record_list
 
-        # 去除重复数据
-        records: list[DataRecord] = [record for record in records if not record.is_duplicate]
+        if not prepared:
+            # 去除重复数据
+            records: list[DataRecord] = [record for record in records if not record.is_duplicate]
 
-        # 优先级检查
-        PriorityChecker.check_records(records)
+            # 优先级检查
+            PriorityChecker.check_records(records)
 
         # 按item_id分组
         pending_to_push: dict[int, list[DataRecord]] = {}
@@ -306,6 +314,13 @@ class AccessDataProcess(BaseAccessDataProcess):
         self.strategy_group_key = strategy_group_key
         self.from_timestamp = None
         self.until_timestamp = None
+        self.inline_trigger_items = []
+        self.check_result_opportunity_high_load = False
+        self.access_detect_merged = False
+        self.check_result_opportunity_trim_ready = False
+        self.alarmd_v2_execution_id = None
+        self.alarmd_v2_evaluation_time = None
+        self.alarmd_v2_query_result = None
 
         if sub_task_id:
             self.batch_timestamp = int(sub_task_id.split(".")[0])
@@ -314,6 +329,21 @@ class AccessDataProcess(BaseAccessDataProcess):
 
     def __str__(self):
         return f"{self.__class__.__name__}:strategy_group_key({self.strategy_group_key})"
+
+    def run_inline_trigger(self):
+        from alarm_backends.service.trigger.runner import run_trigger_item
+        from core.errors.alarm_backends import LockError
+
+        for strategy_id, item_id in self.inline_trigger_items:
+            try:
+                run_trigger_item(strategy_id, item_id, executor="detect_inline")
+            except LockError:
+                self.publish_anomaly_signals([f"{strategy_id}.{item_id}"])
+                logger.info(
+                    "[access inline trigger] strategy(%s), item(%s) is locked; signal published for trigger worker",
+                    strategy_id,
+                    item_id,
+                )
 
     def _load_items(self) -> list[Item]:
         """加载策略项列表"""
@@ -383,6 +413,15 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         now_timestamp = arrow.utcnow().timestamp
 
+        # v2 Shadow identity is tracing-only and is created only when the
+        # writer is explicitly enabled. It never participates in checkpoint,
+        # duplicate or downstream business identity.
+        if _alarmd_v2_shadow_enabled():
+            import uuid
+
+            self.alarmd_v2_execution_id = uuid.uuid4().hex
+            self.alarmd_v2_evaluation_time = now_timestamp
+
         # 设置查询时间范围
         self.get_query_time_range(now_timestamp)
 
@@ -404,6 +443,7 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 当点数大于阈值时，将数据拆分为多个批量任务
         point_total = len(points)
         if point_total > (settings.ACCESS_DATA_BATCH_PROCESS_THRESHOLD or 500000):
+            self.check_result_opportunity_high_load = True
             # 为分组中的每个策略分别记录指标（修复指标漏报问题）
             # Access 数据拉取基于分组，一个分组可能包含多个策略，且可能使用不同的 Redis 节点
             for item in self.items:
@@ -453,6 +493,11 @@ class AccessDataProcess(BaseAccessDataProcess):
             points = first_item.query_record(self.from_timestamp, self.until_timestamp)
             # 判定is_partial
             if first_item.query.is_partial:
+                if self.alarmd_v2_execution_id:
+                    self.alarmd_v2_query_result = {
+                        "completeness": "PARTIAL",
+                        "reason_code": "QUERY_PARTIAL",
+                    }
                 logger.info(
                     f"strategy_group_key({self.strategy_group_key}) strategy({first_item.strategy.id}) "
                     f"query records is partial, one of points: {points[:1]}"
@@ -468,11 +513,23 @@ class AccessDataProcess(BaseAccessDataProcess):
                         sorted(protected_strategy_ids),
                     )
                     points = []
+            elif self.alarmd_v2_execution_id:
+                self.alarmd_v2_query_result = {"completeness": "FULL"}
         except BKAPIError as e:
             logger.error(e)
+            if self.alarmd_v2_execution_id:
+                self.alarmd_v2_query_result = {
+                    "completeness": "UNAVAILABLE",
+                    "reason_code": "QUERY_UNAVAILABLE",
+                }
             points = []
         except Exception as e:  # noqa
             logger.exception(f"strategy_group_key({self.strategy_group_key}) query records error, {e}")
+            if self.alarmd_v2_execution_id:
+                self.alarmd_v2_query_result = {
+                    "completeness": "UNAVAILABLE",
+                    "reason_code": "QUERY_UNAVAILABLE",
+                }
             points = []
 
         # 如果最大的localTime离得太近，那就存下until_timestamp，下次再拉取数据
@@ -515,8 +572,18 @@ class AccessDataProcess(BaseAccessDataProcess):
         checkpoint = Checkpoint(self.strategy_group_key).get(min_last_checkpoint, interval=agg_interval)
         checkpoint = checkpoint // agg_interval * agg_interval
 
-        # 由于存在入库延时问题，每次多往前拉取settings.NUM_OF_COUNT_FREQ_ACCESS个周期的数据
-        self.from_timestamp = checkpoint - settings.NUM_OF_COUNT_FREQ_ACCESS * agg_interval
+        # 同组监控项的回看配置一致；未配置时保持全局默认行为。
+        lookback_periods = first_item.access_lookback_periods
+        if lookback_periods is None:
+            lookback_periods = settings.NUM_OF_COUNT_FREQ_ACCESS
+        self.from_timestamp = checkpoint - lookback_periods * agg_interval
+        if first_item.access_lookback_periods is not None:
+            logger.info(
+                "strategy_group_key(%s), access_lookback_periods(%s), checkpoint(%s)",
+                self.strategy_group_key,
+                lookback_periods,
+                checkpoint,
+            )
 
         # 计算平台类型尝试获取上次未处理完的时间
         until_timestamp = None
@@ -582,6 +649,11 @@ class AccessDataProcess(BaseAccessDataProcess):
         self.batch_timestamp = int(time.time())
 
         client = key.ACCESS_BATCH_DATA_KEY.client
+        alarmd_v2_context = None
+        if self.alarmd_v2_execution_id:
+            from alarm_backends.core.alarmd.v2_access import export_access_batch_context
+
+            alarmd_v2_context = export_access_batch_context(self)
         first_batch_points = []  # 第一批数据，原地处理
         latest_record_timestamp = None  # 上一个记录的时间戳，用于判断是否遇到新时间点
         last_batch_index, batch_count = 0, 0  # last_batch_index: 上一批次的结束位置，batch_count: 批次计数
@@ -627,7 +699,14 @@ class AccessDataProcess(BaseAccessDataProcess):
                 data_key.strategy_id = self.items[0].strategy.id
 
                 # 数据压缩：使用 gzip + base64 压缩数据，减少 Redis 存储空间
-                compress_batch_points = base64.b64encode(gzip.compress(json.dumps(batch_points).encode("utf-8")))
+                batch_payload = batch_points
+                if alarmd_v2_context:
+                    batch_payload = {
+                        "format": "access-batch-v2-shadow-context",
+                        "points": batch_points,
+                        "alarmd_v2": alarmd_v2_context,
+                    }
+                compress_batch_points = base64.b64encode(gzip.compress(json.dumps(batch_payload).encode("utf-8")))
                 client.set(data_key, compress_batch_points, ex=key.ACCESS_BATCH_DATA_KEY.ttl)
 
                 # 发起异步任务：将批量数据写入 Redis 后，发起异步处理任务
@@ -671,6 +750,13 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 用于在去重后 record_list 为空时，仍然能够更新 checkpoint，避免死循环
         max_queried_data_time = 0
 
+        # 日志关键字计数的 0 只表示暂未查到日志：在静态阈值下判为正常时，去重缓存只记“该点读到过 0”，
+        # 回看窗口内迟到的日志使计数变为非零后仍会被检测。非零值照常按 record_id 去重：
+        # 检测结果缓存按成员条数裁剪，同一时间点多次写入不同的值会挤掉恢复判断仍需要的旧点
+        log_count_detectors = self._build_log_count_threshold_detectors()
+        mark_zero = log_count_detectors is not None and self._is_threshold_normal(log_count_detectors, 0)
+        zero_record_ids = defaultdict(list)
+
         non_duplicate_records = []
 
         for record in reversed(points):
@@ -687,8 +773,12 @@ class AccessDataProcess(BaseAccessDataProcess):
             if record_time > max_queried_data_time:
                 max_queried_data_time = record_time
 
+            zero_record_id = f"{record_id}{ZERO_VALUE_RECORD_SUFFIX}" if mark_zero and value == 0 else None
+
             # 去重判断
-            if dup_obj.is_duplicate_by_id(record_id, record_time):
+            if dup_obj.is_duplicate_by_id(record_id, record_time) or (
+                zero_record_id and dup_obj.is_duplicate_by_id(zero_record_id, record_time)
+            ):
                 duplicate_counts += 1
                 # 有优先级的策略，重复数据需要保留，后续再过滤
                 if have_priority:
@@ -699,7 +789,10 @@ class AccessDataProcess(BaseAccessDataProcess):
                 # 非重复数据创建 DataRecord
                 point = DataRecord(self.items, record)
                 records.append(point)
-                non_duplicate_records.append(point)
+                if zero_record_id:
+                    zero_record_ids[record_time].append(zero_record_id)
+                else:
+                    non_duplicate_records.append(point)
 
                 # 只观察非重复数据
                 if point.time > max_data_time:
@@ -708,6 +801,8 @@ class AccessDataProcess(BaseAccessDataProcess):
         # 批量添加非重复记录到去重缓存
         if non_duplicate_records:
             dup_obj.add_records_batch(non_duplicate_records)
+        if zero_record_ids:
+            dup_obj.add_record_ids_batch(zero_record_ids)
 
         # 保存到实例变量，供 push 方法使用
         self.max_queried_data_time = max_queried_data_time
@@ -837,6 +932,61 @@ class AccessDataProcess(BaseAccessDataProcess):
                 return False
         return True
 
+    def _build_log_count_threshold_detectors(self) -> list | None:
+        """
+        拉取组内的 Item 均为日志关键字计数且只用静态阈值时，返回每个 Item 按级别分组的 Threshold 检测器；否则返回 None。
+        去重缓存由拉取组内的 Item 共用，任一 Item 不满足都需按原逻辑去重。
+        """
+        from alarm_backends.service.detect.strategy.threshold import Threshold
+
+        log_keyword_sources = {
+            (DataSourceLabel.BK_LOG_SEARCH, DataTypeLabel.LOG),
+            (DataSourceLabel.BK_MONITOR_COLLECTOR, DataTypeLabel.LOG),
+        }
+        item_detectors = []
+        for item in self.items:
+            if len(item.data_sources) != 1 or not item.algorithms or not item.data_source_types <= log_keyword_sources:
+                return None
+            metrics = item.data_sources[0].metrics
+            if len(metrics) != 1:
+                return None
+            method = (metrics[0].get("method") or "").upper()
+            # 采集器日志关键字的 COUNT 在数据源构造时被改写为 SUM(event.count)，同样是命中次数
+            if not (method == "COUNT" or (method == "SUM" and metrics[0].get("field") == "event.count")):
+                return None
+            if not self._is_all_static_threshold(item):
+                return None
+
+            level_detectors = defaultdict(list)
+            try:
+                for algorithm in item.algorithms:
+                    detector = Threshold(algorithm["config"], algorithm.get("unit_prefix", ""))
+                    level_detectors[int(algorithm["level"])].append(detector)
+            except Exception as e:
+                logger.warning(f"strategy({item.strategy.id}) item({item.id}) build threshold detectors failed: {e}")
+                return None
+            item_detectors.append((item, level_detectors))
+        return item_detectors
+
+    def _is_threshold_normal(self, item_detectors: list, value) -> bool:
+        """
+        判断值在各 Item 各级别的静态阈值下是否都正常。
+        与检测一致：同级别多个算法按连接符组合，未配置或非 or 时按 and。
+        """
+        from alarm_backends.service.detect import DataPoint
+
+        try:
+            for item, level_detectors in item_detectors:
+                data_point = DataPoint({"value": value, "time": 0, "record_id": ""}, item)
+                for level, detectors in level_detectors.items():
+                    results = [bool(detector.detect(data_point)) for detector in detectors]
+                    if any(results) if item.algorithm_connectors[level] == "or" else all(results):
+                        return False
+        except Exception as e:
+            logger.warning(f"strategy_group_key({self.strategy_group_key}) threshold check failed: {e}")
+            return False
+        return True
+
     def _can_merge_access_detect(self) -> bool:
         """
         判断当前策略组是否可以进行 access-detect 合并处理。
@@ -872,7 +1022,7 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         return True
 
-    def _detect_and_push_abnormal(self, output_client=None):
+    def _detect_and_push_abnormal(self, records=None, output_client=None):
         """
         在 access 模块直接执行静态阈值检测，并推送异常数据。
 
@@ -902,11 +1052,11 @@ class AccessDataProcess(BaseAccessDataProcess):
         detect_start_time = time.time()
         exc = None
 
-        # 去除重复数据（复用原有逻辑）
-        records: list[DataRecord] = [record for record in self.record_list if not record.is_duplicate]
-
-        # 优先级检查（复用原有逻辑）
-        PriorityChecker.check_records(records)
+        # 独立调用保持兼容；AccessDataProcess.push 会传入统一准备结果，
+        # 避免两个正式分支和 Shadow 重复执行 PriorityChecker。
+        if records is None:
+            records = [record for record in self.record_list if not record.is_duplicate]
+            PriorityChecker.check_records(records)
         for item in self.items:
             strategy_id = item.strategy.id
             # 创建 DetectProcess 实例，复用成熟的检测逻辑
@@ -955,6 +1105,9 @@ class AccessDataProcess(BaseAccessDataProcess):
 
             # 推送异常数据（自动获得所有监控指标：延迟统计、大延迟告警、PROCESS_OVER_FLOW 等）
             detect_process.push_data()
+            self.inline_trigger_items.extend(
+                (strategy_id, inline_item_id) for inline_item_id in detect_process.inline_trigger_items
+            )
             # 上报 detect 模块指标，保持监控连续性
             # 即使合并处理跳过了 detect 异步任务，也需要上报这些指标
             detect_end_time = time.time()
@@ -1070,14 +1223,29 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         self.record_list = limited_records
 
+        # 两个正式分支与 v2 Shadow 共用同一份去重和优先级结果。
+        # Shadow 只读该结果；任何构建或入队失败都必须 fail-open。
+        prepared_records: list[DataRecord] = [record for record in self.record_list if not record.is_duplicate]
+        PriorityChecker.check_records(prepared_records)
+        if self.alarmd_v2_execution_id:
+            try:
+                from alarm_backends.core.alarmd.v2_access import submit_access_shadow
+
+                submit_access_shadow(self, prepared_records)
+            except Exception:
+                logger.exception(
+                    "[alarmd shadow] component=alarmd-python stage=access_v2 result=fail_open reason=AUDIT_DROP"
+                )
+
         # 判断是否可以合并处理（access-detect 合并）
         # 当策略的所有检测算法均为静态阈值时，直接在 access 模块执行检测
-        if self._can_merge_access_detect():
+        self.access_detect_merged = self._can_merge_access_detect()
+        if self.access_detect_merged:
             # 直接在 access 中执行检测并推送异常数据
-            self._detect_and_push_abnormal()
+            self._detect_and_push_abnormal(records=prepared_records)
         else:
             # 走原有流程：推送到 Redis 队列，由 detect 异步任务处理
-            super().push(records=records, output_client=output_client)
+            super().push(records=prepared_records, output_client=output_client, prepared=True)
 
         if self.sub_task_id is None:
             # 主任务 需要额外做一些事情
@@ -1109,6 +1277,9 @@ class AccessDataProcess(BaseAccessDataProcess):
 
         # 如果没有分批任务，直接返回
         if self.batch_count == 1:
+            self.check_result_opportunity_trim_ready = bool(
+                not exc and self.check_result_opportunity_high_load and self.access_detect_merged
+            )
             metrics.ACCESS_DATA_PROCESS_TIME.labels(strategy_group_key=metrics.TOTAL_TAG).observe(
                 time.time() - start_time
             )
@@ -1126,6 +1297,8 @@ class AccessDataProcess(BaseAccessDataProcess):
                 "result": not exc,
                 "error": str(exc),
                 "process_counts": self.process_counts,
+                "inline_trigger_items": self.inline_trigger_items,
+                "access_detect_merged": self.access_detect_merged,
             }
         ]
         wait_start_time = time.time()
@@ -1145,6 +1318,33 @@ class AccessDataProcess(BaseAccessDataProcess):
                     batch_results=[result["sub_task_id"] for result in batch_results],
                 )
             )
+            fallback_signals = [f"{item.strategy.id}.{item.id}" for item in self.items]
+            self.publish_anomaly_signals(fallback_signals)
+            logger.warning(
+                "[access inline trigger] strategy_group_key(%s) batch result timeout; "
+                "published %s fallback signals for trigger worker",
+                self.strategy_group_key,
+                len(fallback_signals),
+            )
+
+        self.check_result_opportunity_trim_ready = bool(
+            not exc
+            and self.check_result_opportunity_high_load
+            and self.access_detect_merged
+            and len(batch_results) == self.batch_count
+            and all(result.get("result") and result.get("access_detect_merged") for result in batch_results)
+        )
+
+        inline_trigger_items = []
+        seen_inline_trigger_items = set()
+        for result in batch_results:
+            for strategy_id, item_id in result.get("inline_trigger_items", []):
+                item = (strategy_id, item_id)
+                if item in seen_inline_trigger_items:
+                    continue
+                seen_inline_trigger_items.add(item)
+                inline_trigger_items.append(item)
+        self.inline_trigger_items = inline_trigger_items
 
         # 记录日志
         self.batch_log(batch_results)
@@ -1155,6 +1355,29 @@ class AccessDataProcess(BaseAccessDataProcess):
             status=metrics.StatusEnum.from_exc(exc),
             exception=exc,
         ).inc()
+
+    def schedule_check_result_opportunity_trim(self) -> bool:
+        if not self.check_result_opportunity_trim_ready:
+            return False
+
+        from alarm_backends.core.detect_result.opportunity import claim_opportunity_trim
+        from alarm_backends.core.detect_result.tasks import async_trim_check_result_opportunity
+
+        queued_at = time.time()
+        try:
+            if not claim_opportunity_trim(self.strategy_group_key, queued_at):
+                return False
+            async_trim_check_result_opportunity.apply_async(
+                args=(self.strategy_group_key, queued_at),
+                expires=10 * constants.CONST_MINUTES,
+            )
+        except Exception:
+            logger.exception(
+                "skip CHECK_RESULT opportunity trim scheduling for strategy_group_key(%s)",
+                self.strategy_group_key,
+            )
+            return False
+        return True
 
     def batch_log(self, batch_results: list[dict]):
         """
@@ -1299,7 +1522,14 @@ class AccessBatchDataProcess(AccessDataProcess):
         data = client.get(cache_key)
         if data:
             # 解压数据：base64 解码 → gzip 解压 → JSON 解析
-            points = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
+            batch_payload = json.loads(gzip.decompress(base64.b64decode(data)).decode("utf-8"))
+            if isinstance(batch_payload, dict) and batch_payload.get("format") == "access-batch-v2-shadow-context":
+                from alarm_backends.core.alarmd.v2_access import apply_access_batch_context
+
+                points = batch_payload.get("points") or []
+                apply_access_batch_context(self, batch_payload.get("alarmd_v2"))
+            else:
+                points = batch_payload
         else:
             points = []
         # 删除缓存数据（避免数据残留）
@@ -1336,6 +1566,8 @@ class AccessBatchDataProcess(AccessDataProcess):
                     "result": not exc,  # True 表示成功，False 表示失败
                     "error": str(exc) if exc else "",
                     "process_counts": self.process_counts,  # 处理统计信息
+                    "inline_trigger_items": self.inline_trigger_items,
+                    "access_detect_merged": self.access_detect_merged,
                 }
             ),
         )
@@ -1343,10 +1575,69 @@ class AccessBatchDataProcess(AccessDataProcess):
         client.expire(result_key, key.ACCESS_BATCH_DATA_RESULT_KEY.ttl)
 
 
+class RealTimeKafkaConsumerWorker:
+    """单个集群独占 consumer；慢 broker 不占用其他集群的拉取线程。"""
+
+    def __init__(self, process, bootstrap_server, topics, once=False):
+        self.process = process
+        self.bootstrap_server = bootstrap_server
+        self.topics = topics
+        self.once = once
+        self.stop_event = threading.Event()
+        self.thread = InheritParentThread(target=self.run, name=f"real-time-kafka-{bootstrap_server}", daemon=True)
+
+    def stopping(self):
+        return self.stop_event.is_set() or self.process._stop_signal
+
+    def run(self):
+        consumer = None
+        try:
+            while not self.stopping():
+                topics = self.topics
+                subscriptions = {topic.split("|", 1)[1] for topic in topics}
+                try:
+                    if consumer is None:
+                        consumer = KafkaConsumer(
+                            bootstrap_servers=self.bootstrap_server,
+                            group_id=f"{settings.APP_CODE}.real_time_access",
+                        )
+                    if consumer.subscription() != subscriptions:
+                        consumer.subscribe(topics=list(subscriptions))
+                    if self.stopping():
+                        break
+                    data = consumer.poll(500, max_records=5000)
+                    for records in data.values():
+                        # 队列满时保留背压，同时允许停止；本批次携带自己的路由快照。
+                        while not self.stopping():
+                            try:
+                                self.process.queue.put((self.bootstrap_server, records, topics), timeout=1)
+                                logger.info("real_time poller poll %s: %s", self.bootstrap_server, len(records))
+                                break
+                            except queue.Full:
+                                continue
+                    if not data and not self.once:
+                        self.stop_event.wait(1)
+                except Exception:
+                    logger.exception("real_time consumer failed for %s", self.bootstrap_server)
+                    if not self.once:
+                        self.stop_event.wait(10)
+                if self.once:
+                    break
+        finally:
+            if consumer is not None:
+                try:
+                    consumer.close(autocommit=False)
+                except Exception:
+                    logger.exception("real_time close consumer failed for %s", self.bootstrap_server)
+
+
 class AccessRealTimeDataProcess(BaseAccessDataProcess):
     """
     实时监控数据拉取
     """
+
+    MAX_POLLER_THREAD = 20
+    THREAD_JOIN_TIMEOUT = 5
 
     def __init__(self, service):
         """
@@ -1371,10 +1662,10 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         self.topics: dict[str, dict] = {}
         self.rt_id_to_storage_info = {}
 
-        self.consumers: dict[str, KafkaConsumer] = {}
-        self.consumers_lock = threading.Lock()
+        self.consumer_workers: dict[str, RealTimeKafkaConsumerWorker] = {}
         self.queue = queue.Queue(maxsize=100)
         self._stop_signal = False
+        self._stop_event = threading.Event()
         self.strategy_cache = {}
 
     def __str__(self):
@@ -1507,9 +1798,9 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                 host_topics[host].add(partition.rsplit("|", maxsplit=1)[0])
 
             # 将topic分配信息写入redis
-            pipeline = self.cache.pipeline()
-            self.cache.delete(self.topic_cache_key)
-            self.cache.hmset(
+            pipeline = self.cache.pipeline(transaction=True)
+            pipeline.delete(self.topic_cache_key)
+            pipeline.hmset(
                 self.topic_cache_key,
                 mapping={
                     host: json.dumps(
@@ -1524,7 +1815,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                     for host in hosts
                 },
             )
-            self.cache.expire(self.topic_cache_key, key.REAL_TIME_HOST_TOPIC_KEY.ttl)
+            pipeline.expire(self.topic_cache_key, key.REAL_TIME_HOST_TOPIC_KEY.ttl)
             pipeline.execute()
 
             # 只执行一次或存在停止信号
@@ -1539,7 +1830,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
             if end_time - start_time < 60:
                 time.sleep(60 - (end_time - start_time))
 
-    def flat(self, bootstrap_servers: str, record: ConsumerRecord):
+    def flat(self, bootstrap_servers: str, record: ConsumerRecord, topics=None):
         """
         扁平化
         1. 数据结构转换
@@ -1578,8 +1869,9 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         if data_bk_biz_id == 0:
             return []
 
-        strategy_ids = self.topics[f"{bootstrap_servers}|{record.topic}"]["strategy_ids"]
-        dimensions = self.topics[f"{bootstrap_servers}|{record.topic}"]["dimensions"]
+        topic_info = (self.topics if topics is None else topics)[f"{bootstrap_servers}|{record.topic}"]
+        strategy_ids = topic_info["strategy_ids"]
+        dimensions = topic_info["dimensions"]
         strategies = [self.get_strategy(strategy_id) for strategy_id in strategy_ids]
         strategies = [s for s in strategies if int(s.bk_biz_id) == data_bk_biz_id]
         if not strategies:
@@ -1608,107 +1900,48 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         return self.strategy_cache[strategy_id]["strategy"]
 
     def run_poller(self, once=False):
-        while True:
-            has_record = False
-            pending = []
-            # 持锁仅遍历 self.consumers 做 poll(poll 自带 500ms 上限); 入队是可阻塞操作(队列满会 block),
-            # 移到锁外执行, 避免持锁期间被队列堵死, 进而堵死 consumer_manager(与临界区异常泄漏同类风险)
-            with self.consumers_lock:
-                for consumer in self.consumers.values():
-                    data = consumer.poll(500, max_records=5000)
-                    if not data:
-                        continue
-
-                    has_record = True
-                    for records in data.values():
-                        logger.info(f"real_time poller poll {consumer.config['bootstrap_servers']}: {len(records)}")
-                        pending.append((consumer.config["bootstrap_servers"], records))
-            for item in pending:
-                self.queue.put(item)
-
-            if once or self._stop_signal:
-                logger.info("real_time poller get stop signal")
-                break
-
-            # 如果没有数据就等待一秒
-            if not has_record:
-                time.sleep(1)
+        while not self._stop_signal:
+            interval = 15
+            try:
+                self.run_consumer_manager(once=once)
+            except Exception:
+                logger.exception("real_time refresh consumers failed")
+                interval = 30
+            if once:
+                self.join_threads([worker.thread for worker in self.consumer_workers.values()])
+                return
+            self._stop_event.wait(interval)
 
     def run_consumer_manager(self, once=False):
-        """
-        kafka消费者管理
-        """
-        while True:
-            # 获取最新的topic信息
-            self.topics = json.loads(self.cache.hget(self.topic_cache_key, self.ip) or "{}")
+        """只替换目标配置，consumer 的所有调用留在对应集群线程内。"""
+        self.topics = json.loads(self.cache.hget(self.topic_cache_key, self.ip) or "{}")
+        targets = defaultdict(dict)
+        for topic, config in self.topics.items():
+            targets[topic.split("|", 1)[0]][topic] = config
 
-            # kafka集群及所属topic分组
-            bootstrap_servers_topics = defaultdict(set)
-            for topic in self.topics:
-                bootstrap_servers, topic = topic.split("|")
-                bootstrap_servers_topics[bootstrap_servers].add(topic)
+        for bootstrap_server, worker in list(self.consumer_workers.items()):
+            if not worker.thread.is_alive():
+                del self.consumer_workers[bootstrap_server]
+            elif bootstrap_server not in targets:
+                worker.stop_event.set()
 
-            update_bootstrap_servers = []
-            create_bootstrap_servers = []
-            delete_bootstrap_servers = []
-
-            for bootstrap_servers, topics in bootstrap_servers_topics.items():
-                if bootstrap_servers not in self.consumers:
-                    create_bootstrap_servers.append(bootstrap_servers)
-                    continue
-
-                consumer = self.consumers[bootstrap_servers]
-                if consumer.subscription() != topics:
-                    update_bootstrap_servers.append(bootstrap_servers)
-
-            for bootstrap_servers in self.consumers:
-                if bootstrap_servers not in bootstrap_servers_topics:
-                    delete_bootstrap_servers.append(bootstrap_servers)
-
-            if update_bootstrap_servers:
-                logger.info(f"real_time consumer_manager update {'|'.join(update_bootstrap_servers)}")
-            if create_bootstrap_servers:
-                logger.info(f"real_time consumer_manager create {'|'.join(create_bootstrap_servers)}")
-            if delete_bootstrap_servers:
-                logger.info(f"real_time consumer_manager delete {'|'.join(delete_bootstrap_servers)}")
-
-            if any([update_bootstrap_servers, create_bootstrap_servers, delete_bootstrap_servers]):
-                # 临界区用 with 持锁: KafkaConsumer/subscribe/close 抛错时锁必被释放,
-                # 否则守护线程重启会因锁未释放而自死锁(非可重入), poller 也被一起堵死
-                with self.consumers_lock:
-                    new_consumers = {}
-
-                    for bootstrap_servers in create_bootstrap_servers:
-                        new_consumers[bootstrap_servers] = KafkaConsumer(
-                            bootstrap_servers=bootstrap_servers,
-                            group_id=f"{settings.APP_CODE}.real_time_access",
-                        )
-                        new_consumers[bootstrap_servers].subscribe(
-                            topics=list(bootstrap_servers_topics[bootstrap_servers])
-                        )
-
-                    for bootstrap_servers, consumer in self.consumers.items():
-                        if bootstrap_servers in delete_bootstrap_servers:
-                            consumer.close()
-                            continue
-
-                        if bootstrap_servers in update_bootstrap_servers:
-                            consumer.subscribe(topics=list(bootstrap_servers_topics[bootstrap_servers]))
-                        new_consumers[bootstrap_servers] = consumer
-                    self.consumers = new_consumers
-
-            if once or self._stop_signal:
-                if self._stop_signal:
-                    logger.info("real_time consumer_manager get stop signal")
-                    with self.consumers_lock:
-                        # 显式 close 每个 consumer(原 map() 惰性从不执行, 停机时 Kafka client 资源未释放),
-                        # 并把 self.consumers 复位为 dict(原误设为 list, 会与 run_poller 的 .values() 抢跑抛 AttributeError)
-                        for consumer in self.consumers.values():
-                            consumer.close()
-                        self.consumers = {}
-                break
-
-            time.sleep(15)
+        for bootstrap_server, topics in targets.items():
+            if self._stop_signal:
+                return
+            if bootstrap_server in self.consumer_workers:
+                self.consumer_workers[bootstrap_server].topics = topics
+                continue
+            # ponytail: 未退出的 owner 仍占配额，永久阻塞需要进程重启释放。
+            if len(self.consumer_workers) >= max(self.MAX_POLLER_THREAD, len(targets)):
+                logger.warning("real_time worker limit reached, waiting to start %s", bootstrap_server)
+                continue
+            worker = RealTimeKafkaConsumerWorker(self, bootstrap_server, topics, once=once)
+            self.consumer_workers[bootstrap_server] = worker
+            try:
+                worker.thread.start()
+            except Exception:
+                del self.consumer_workers[bootstrap_server]
+                raise
 
     def run_handler(self, once=False):
         while True:
@@ -1717,16 +1950,17 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                 break
 
             try:
-                bootstrap_servers, data = self.queue.get(block=True, timeout=5)
+                bootstrap_servers, data, topics = self.queue.get(block=True, timeout=5)
             except queue.Empty:
                 data = []
                 bootstrap_servers = ""
+                topics = {}
 
             try:
                 records = []
                 for record in data:
                     try:
-                        records.extend(self.flat(bootstrap_servers, record))
+                        records.extend(self.flat(bootstrap_servers, record, topics=topics))
                     except Exception as e:
                         logger.warning("%s loads alarm(%s) failed: %s", record.topic, record.value, e)
 
@@ -1762,10 +1996,22 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
 
     def _stop(self, *args, **kwargs):
         self._stop_signal = True
+        self._stop_event.set()
+        for worker in list(self.consumer_workers.values()):
+            worker.stop_event.set()
+
+    def join_threads(self, threads):
+        deadline = time.monotonic() + self.THREAD_JOIN_TIMEOUT
+        for thread in threads:
+            if thread.ident is None:
+                continue
+            thread.join(timeout=max(0, deadline - time.monotonic()))
+            if thread.is_alive():
+                logger.warning("real_time thread still stopping: %s", thread.name)
 
     def _guard_daemon(self, func, wait=10):
         """守护线程安全网: 循环体内未捕获异常(如 redis 连接/超时故障)会终止 InheritParentThread
-        且父进程不会重启它, 导致实时接入的 leader 选举/消费管理静默停摆。这里捕获异常并按间隔
+        且父进程不会重启它, 导致实时接入的 leader 选举静默停摆。这里捕获异常并按间隔
         重启循环, 直到收到停止信号(func 正常返回即停止信号或 once, 直接退出)。
         """
         while not self._stop_signal:
@@ -1775,37 +2021,33 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
             except Exception as e:
                 logger.exception(e)
                 logger.error("real_time daemon %s crashed, restart after %ss", getattr(func, "__name__", func), wait)
-                time.sleep(wait)
+                self._stop_event.wait(wait)
 
     def process(self, once=False):
         if once:
             self.run_leader(once=True)
-            self.run_consumer_manager(once=True)
             self.run_poller(once=True)
             self.run_handler(once=True)
         else:
             signal.signal(signal.SIGTERM, self._stop)
             signal.signal(signal.SIGINT, self._stop)
-            # leader / consumer_manager 的循环体直接读写 redis, 连接加固后 redis 故障会抛异常,
-            # 用安全网包裹避免异常逃出杀死线程(线程不会被父进程重启)。
-            leader = InheritParentThread(target=lambda: self._guard_daemon(self.run_leader))
-            consumer_manager = InheritParentThread(target=lambda: self._guard_daemon(self.run_consumer_manager))
-            poller = InheritParentThread(target=self.run_poller)
-            handler = InheritParentThread(target=self.run_handler)
-            leader.start()
-            consumer_manager.start()
-            poller.start()
-            handler.start()
-
-            while True:
-                self.service.register()
-
-                if self._stop_signal:
-                    leader.join()
-                    consumer_manager.join()
-                    poller.join()
-                    handler.join()
-                    self.service.unregister()
-                    return
-
-                time.sleep(15)
+            threads = [
+                InheritParentThread(target=lambda: self._guard_daemon(self.run_leader), daemon=True),
+                InheritParentThread(target=self.run_poller, daemon=True),
+                InheritParentThread(target=self.run_handler, daemon=True),
+            ]
+            try:
+                for thread in threads:
+                    thread.start()
+                while not self._stop_signal:
+                    if any(not thread.is_alive() for thread in threads):
+                        raise RuntimeError("real_time service thread exited")
+                    self.service.register()
+                    self._stop_event.wait(15)
+            finally:
+                self._stop()
+                self.join_threads(
+                    [thread for thread in threads if thread.ident is not None]
+                    + [worker.thread for worker in list(self.consumer_workers.values())]
+                )
+                self.service.unregister()

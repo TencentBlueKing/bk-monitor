@@ -296,7 +296,7 @@ export default defineComponent({
         ref={baseInfoRef}
         data={configData.value}
         typeKey='bk-data'
-        on-change={(data) => {
+        on-change={data => {
           configData.value = { ...configData.value, ...data };
         }}
       />
@@ -320,7 +320,7 @@ export default defineComponent({
                 disabled={props.isEdit}
                 loading={clusterLoading.value}
                 value={configData.value.storage_cluster_id}
-                on-selected={(val) => {
+                on-selected={val => {
                   configData.value.storage_cluster_id = val;
                 }}
               >
@@ -431,7 +431,7 @@ export default defineComponent({
               multiple
               searchable
               allow-create
-              on-selected={(value) => {
+              on-selected={value => {
                 configData.value.target_fields = value;
               }}
             >
@@ -458,7 +458,7 @@ export default defineComponent({
               addType='select'
               selectList={targetFieldSelectList.value}
               value={configData.value.sort_fields}
-              on-change={(value) => {
+              on-change={value => {
                 configData.value.sort_fields = value;
               }}
             />
@@ -514,30 +514,31 @@ export default defineComponent({
         // 更新配置数据
         const {
           indexes,
-          index_set_name,
-          view_roles,
-          storage_cluster_id,
-          sort_fields, target_fields,
-          parent_index_set_ids,
-          time_field,
+          index_set_name: indexSetName,
+          view_roles: viewRoles,
+          storage_cluster_id: storageClusterId,
+          sort_fields: sortFields,
+          target_fields: targetFields,
+          parent_index_set_ids: parentIndexSetIds,
+          time_field: timeField,
           time_field_type,
           time_field_unit,
         } = indexSetData;
         configData.value = {
           ...configData.value,
           indexes: indexes || [],
-          index_set_name: index_set_name || '',
-          view_roles: view_roles || [],
-          storage_cluster_id: storage_cluster_id ?? null,
-          sort_fields: sort_fields || [],
-          target_fields: target_fields || [],
-          parent_index_set_ids: parent_index_set_ids || [],
+          index_set_name: indexSetName || '',
+          view_roles: viewRoles || [],
+          storage_cluster_id: storageClusterId ?? null,
+          sort_fields: sortFields || [],
+          target_fields: targetFields || [],
+          parent_index_set_ids: parentIndexSetIds || [],
         };
 
         // 编辑模式回填时间索引配置（ES场景必需）
-        if (time_field) {
+        if (timeField) {
           timeIndex.value = {
-            time_field,
+            time_field: timeField,
             time_field_type,
             time_field_unit,
           };
@@ -745,13 +746,14 @@ export default defineComponent({
         }
 
         // 并发请求所有结果表的字段信息
-        const requests = resultTableIds.map(id => $http.request('/resultTables/info', {
-          params: { result_table_id: id },
-          query: {
-            scenario_id: props.scenarioId,
-            bk_biz_id: bkBizId.value,
-          },
-        }),
+        const requests = resultTableIds.map(id =>
+          $http.request('/resultTables/info', {
+            params: { result_table_id: id },
+            query: {
+              scenario_id: props.scenarioId,
+              bk_biz_id: bkBizId.value,
+            },
+          }),
         );
 
         const results = (await Promise.all(requests)) as IFieldQueryResult[];
@@ -768,7 +770,7 @@ export default defineComponent({
         }
 
         collectionTableData.value = Array.from(fieldMap.values());
-      } catch (error) {
+      } catch {
         collectionTableData.value = [];
       } finally {
         listLoading.value = false;

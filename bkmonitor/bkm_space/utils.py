@@ -1,11 +1,8 @@
-# -*- coding: utf-8 -*-
-from typing import Dict, List, Optional, Tuple, Union
-
 from bkm_space import api
 from bkm_space.define import SpaceTypeEnum
 
 
-def space_uid_to_bk_biz_id(space_uid: str, id: Optional[int] = None) -> int:
+def space_uid_to_bk_biz_id(space_uid: str, id: int | None = None) -> int:
     """
     空间唯一标识 转换为 业务ID
     规则：空间类型为业务的，直接返回业务ID；空间类型为其他，则返回空间自增ID的相反数
@@ -34,13 +31,13 @@ def space_uid_to_bk_biz_id(space_uid: str, id: Optional[int] = None) -> int:
     return -int(space.id)
 
 
-def bk_biz_id_to_space_uid(bk_biz_id: Union[str, int]) -> str:
+def bk_biz_id_to_space_uid(bk_biz_id: str | int) -> str:
     """
     业务ID 转换为 空间唯一标识
     :param bk_biz_id: CMDB 业务ID
     :return:
     """
-    if isinstance(bk_biz_id, (str, int)):
+    if isinstance(bk_biz_id, str | int):
         bk_biz_id = int(bk_biz_id)
     else:
         return ""
@@ -56,24 +53,24 @@ def bk_biz_id_to_space_uid(bk_biz_id: Union[str, int]) -> str:
     return space.space_uid
 
 
-def parse_space_uid(space_uid: str) -> Tuple[str, str]:
+def parse_space_uid(space_uid: str) -> tuple[str, str]:
     return api.SpaceApi.parse_space_uid(space_uid)
 
 
-def _inject_space_field_recursive(data: Union[Dict, List], max_depth, depth=0):
+def _inject_space_field_recursive(data: dict | list, max_depth, depth=0):
     """
     递归注入空间参数
     """
     if max_depth != -1 and depth > max_depth:
         return
 
-    if isinstance(data, Dict):
+    if isinstance(data, dict):
         if "space_uid" in data and isinstance(data["space_uid"], str) and "bk_biz_id" not in data:
             # 传了 space_uid 的，补充 bk_biz_id
             bk_biz_id = space_uid_to_bk_biz_id(data["space_uid"])
             if bk_biz_id:
                 data["bk_biz_id"] = bk_biz_id
-        elif "space_uid" not in data and "bk_biz_id" in data and isinstance(data["bk_biz_id"], (str, int)):
+        elif "space_uid" not in data and "bk_biz_id" in data and isinstance(data["bk_biz_id"], str | int):
             # 传了 bk_biz_id 的，补充 space_uid
             space_uid = bk_biz_id_to_space_uid(data["bk_biz_id"])
             if space_uid:
@@ -82,12 +79,12 @@ def _inject_space_field_recursive(data: Union[Dict, List], max_depth, depth=0):
         for key in data:
             _inject_space_field_recursive(data[key], max_depth, depth + 1)
 
-    elif isinstance(data, List):
+    elif isinstance(data, list):
         for param in data:
             _inject_space_field_recursive(param, max_depth, depth + 1)
 
 
-def inject_space_field(data: Union[Dict, List], max_depth=5):
+def inject_space_field(data: dict | list, max_depth=5):
     """
     注入空间参数
     """

@@ -10,7 +10,7 @@
 /**
  * 趋势图数据处理 Worker
  * 将 CPU 密集的数据处理从主线程转移到 Worker，避免阻塞 UI 渲染
- * 
+ *
  * 使用方式：
  * const worker = new Worker(new URL('./trend-chart-worker.ts', import.meta.url), { type: 'module' });
  * worker.postMessage({ aggs, fieldName, gradeOptions, ... });
@@ -49,7 +49,7 @@ const getIntervalValue = (interval: string): number => {
 
   const matchs = (interval ?? '1h').match(/(\d+)(s|m|h|d)/);
   if (!matchs) return 60; // 默认 1 分钟
-  
+
   const num = matchs[1];
   const unit = matchs[2];
 
@@ -76,15 +76,15 @@ const getXAxisFormat = (startTime: number, endTime: number, interval: string): s
 
 const isMatchedGroup = (group: any, fieldValue: any, isValueMatch: boolean): boolean => {
   if (!group) return false;
-  
+
   if (isValueMatch) {
     return group.values?.includes(fieldValue);
   }
-  
+
   // 正则匹配
   const pattern = group.regex;
   if (!pattern) return false;
-  
+
   try {
     const regex = new RegExp(pattern);
     return regex.test(fieldValue);
@@ -105,11 +105,11 @@ const processGroupData = (
 ): ProcessChartDataResult => {
   const { start_time, end_time } = retrieveParams;
   const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
-  
+
   const xLabelMap = new Map<number, string>();
   const dataset = new Map<string, any>();
   const buckets = eggs?.group_by_histogram?.buckets || [];
-  
+
   const sortKeys = gradeOptions.map(g => g.id);
   let count = 0;
 
@@ -164,7 +164,7 @@ const processGroupData = (
   const series = sortKeys.map(key => {
     const item = dataset.get(key);
     const data = Array.from(item.dataMap.values());
-    
+
     return {
       name: item.group.name,
       data,
@@ -187,7 +187,7 @@ const processDefaultData = (
 ): ProcessChartDataResult => {
   const { start_time, end_time } = retrieveParams;
   const formatStr = getXAxisFormat(start_time, end_time, runningInterval);
-  
+
   const xLabelMap = new Map<number, string>();
   const buckets = eggs?.group_by_histogram?.buckets || [];
   const optData = new Map<number, [number, string | null]>();
@@ -201,17 +201,19 @@ const processDefaultData = (
   }
 
   const keys = Array.from(optData.keys()).sort((a, b) => a - b);
-  const data = keys.map((key) => {
+  const data = keys.map(key => {
     const val = optData.get(key);
     const itemCount = val ? (val[0] === 0 ? null : val[0]) : null;
     return [key, itemCount, val ? val[1] : null] as [number, number | null, string | null];
   });
 
-  const series = [{
-    name: '',
-    data,
-    color: '#A4B3CD',
-  }];
+  const series = [
+    {
+      name: '',
+      data,
+      color: '#A4B3CD',
+    },
+  ];
 
   return {
     series,

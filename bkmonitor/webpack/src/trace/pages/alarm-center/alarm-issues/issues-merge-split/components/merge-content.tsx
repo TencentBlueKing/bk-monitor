@@ -54,20 +54,12 @@ export default defineComponent({
     const { t } = useI18n();
 
     const submitLoading = shallowRef(false);
-    /** 默认主 Issue*/
-    const defaultMainIssue = computed(() => {
-      return props.issues.find(issue => issue.merge_status?.role === 'main');
-    });
 
     /** 自定义主 Issue ID */
     const customMainIssueId = shallowRef('');
-    /** 主 Issue */
+    /** 主 Issue：默认第 1 条选中，允许任意切换（含已有主 Issue） */
     const mainIssue = computed(() => {
-      /** 有默认主 Issue时，直接返回 */
-      if (defaultMainIssue.value) return defaultMainIssue.value;
-      /** 没有默认主 Issue时，根据自定义主 Issue ID 返回 */
       if (customMainIssueId.value) return props.issues.find(issue => issue.id === customMainIssueId.value);
-      /** 没有自定义主 Issue ID时，返回第一个 Issue */
       return props.issues[0];
     });
     /** 被合并 Issue 列表 */
@@ -117,10 +109,13 @@ export default defineComponent({
         members: targetIssues.value.map(issue => issue.id),
         reasons,
       })
-        .then(() => {
+        .then(data => {
+          const reparentedCount = data.reparented_members?.length ?? 0;
           Message({
             theme: 'success',
-            message: t('issue合并成功'),
+            message: reparentedCount
+              ? t('issue合并成功，本次合并同时并入了 {n} 个来源子 Issue', { n: reparentedCount })
+              : t('issue合并成功'),
           });
           emit('success');
           handleClose();
@@ -136,7 +131,6 @@ export default defineComponent({
 
     return {
       submitLoading,
-      defaultMainIssue,
       mainIssue,
       targetIssues,
       mergeReasonOptions,
@@ -155,7 +149,7 @@ export default defineComponent({
       <div class='issues-merge-content'>
         {/* 合并策略提示 */}
         <div class='strategy-section'>
-          <MergeStrategyTips hasMainIssue={Boolean(this.defaultMainIssue)} />
+          <MergeStrategyTips />
         </div>
 
         {/* 合并设置区域 */}
@@ -221,7 +215,7 @@ export default defineComponent({
                           </span>
                         ),
                         actions: () => {
-                          return this.defaultMainIssue ? null : (
+                          return (
                             <Button
                               class='set-main-btn'
                               size='small'

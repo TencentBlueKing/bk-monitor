@@ -284,15 +284,20 @@ class ClusteringConfigHandler:
             # 当 regex_rule_type 为 customize 时，regex_template_id 设为0，predefined_varibles 按前端的传的保存
             params["regex_template_id"] = 0
         else:
-            # 当 regex_rule_type 为 template 时，predefined_varibles从模板获取
-            instance = RegexTemplate.objects.filter(id=regex_template_id).first()
-            if not instance:
-                raise RegexTemplateNotExistException(
-                    RegexTemplateNotExistException.MESSAGE.format(regex_template_id=regex_template_id)
-                )
+            # 模板必须属于目标索引集所在空间，避免只凭模板 ID 绑定并复制其他空间的规则
+            instance = self._get_space_scoped_regex_template(regex_template_id)
             params["predefined_varibles"] = instance.predefined_varibles
         pipeline_id = self.update(params)
         return [pipeline_id]
+
+    def _get_space_scoped_regex_template(self, regex_template_id):
+        log_index_set = LogIndexSet.objects.get(index_set_id=self.index_set_id)
+        instance = RegexTemplate.objects.filter(id=regex_template_id, space_uid=log_index_set.space_uid).first()
+        if not instance:
+            raise RegexTemplateNotExistException(
+                RegexTemplateNotExistException.MESSAGE.format(regex_template_id=regex_template_id)
+            )
+        return instance
 
     @staticmethod
     def _get_access_check_time_range():
@@ -438,6 +443,22 @@ class ClusteringConfigHandler:
             "message": _("dataflow({}) {}".format(flow_id, flow_status_mapping[flow_status]["message"])),
             "task_detail": task_detail,
         }
+
+    def sample_log(self):
+        """按索引集抽样采集原始日志，供聚类调试填充日志源。
+
+        采集项 ID 只从服务端聚类配置或索引集反查，不接受前端传入，避免越权抽样。
+        """
+        collector_config_id = getattr(self.data, "collector_config_id", None)
+        if not collector_config_id and self.index_set_id:
+            log_index_set = LogIndexSet.objects.filter(index_set_id=self.index_set_id).first()
+            collector_config_id = getattr(log_index_set, "collector_config_id", None) if log_index_set else None
+        if not collector_config_id:
+            raise ClusteringAccessNotSupportedException()
+
+        from apps.log_databus.handlers.collector import CollectorHandler
+
+        return CollectorHandler.get_instance(collector_config_id).tail()
 
     def debug(self, input_data, predefined_varibles, delimeter, max_log_length):
         """

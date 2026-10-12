@@ -39,6 +39,8 @@ export enum ESearchType {
   alert = 'alert',
   // apm_application: APM应用
   apm_application = 'apm_application',
+  // APM服务
+  apm_service = 'apm_service',
   // bcs集群
   bcs_cluster = 'bcs_cluster',
   // host: 主机

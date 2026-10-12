@@ -77,7 +77,7 @@ export default defineComponent({
     }
 
     function handleGotoOld() {
-      const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${appStore.bizId}&key=${random(4)}/${location.hash.replace('#/trace/alarm-center', '#/event-center')}`;
+      const url = `${location.origin}${location.pathname.toString().replace('fta/', '')}?bizId=${appStore.bizId}&key=${random(4)}${location.hash.replace('#/trace/alarm-center', '#/event-center')}`;
       window.location.href = url;
     }
 

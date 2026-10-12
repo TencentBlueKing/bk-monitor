@@ -10,7 +10,6 @@
  */
 
 // 该 loader 会解析为从 Blob URL 加载的 Worker 构造函数。
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
 const RetrieveSearchWorker = require('monitor-inline-worker-loader?inline=no-fallback&esModule=false!@/storage/workers/retrieve-search.worker.ts');
 
 export const createRetrieveSearchWorker = () => new RetrieveSearchWorker();

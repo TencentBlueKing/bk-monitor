@@ -27,8 +27,8 @@
 <template>
   <div>
     <div
-      class="config-tab-item"
       v-show="!configItem.isShowEdit"
+      class="config-tab-item"
       @click="emitOperate('click')"
       @mouseenter="isHoverItem = true"
       @mouseleave="isHoverItem = false"
@@ -39,8 +39,8 @@
         >{{ configItem.name }}</span
       >
       <div
-        class="panel-operate"
         v-show="isShowEditIcon || isClickDelete"
+        class="panel-operate"
         @click="e => e.stopPropagation()"
       >
         <i
@@ -81,8 +81,8 @@
       </div>
     </div>
     <div
-      class="config-tab-item"
       v-show="configItem.isShowEdit"
+      class="config-tab-item"
       @click="e => e.stopPropagation()"
     >
       <bk-input
@@ -106,7 +106,6 @@
 </template>
 
 <script>
-
   export default {
     props: {
       configItem: {

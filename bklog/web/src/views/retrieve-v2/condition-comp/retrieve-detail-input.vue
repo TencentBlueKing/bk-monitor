@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="retrieve-detail-input"
     v-bk-clickoutside="handleClickOutside"
+    class="retrieve-detail-input"
   >
     <monaco-detail-input
       ref="editorElement"
@@ -76,16 +76,16 @@
       <template v-if="showFields">
         <li
           v-for="item in fieldList"
-          class="list-item field-list-item"
           :key="item"
+          class="list-item field-list-item"
           @click="handleClickField(item)"
         >
           <div class="item-type-icon">
             <span class="bklog-icon bklog-field"></span>
           </div>
           <div
-            class="item-text text-overflow-hidden"
             v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-text text-overflow-hidden"
           >
             {{ item }}
           </div>
@@ -100,16 +100,16 @@
       <template v-if="showValue">
         <li
           v-for="item in valueList"
-          class="list-item value-list-item"
           :key="item"
+          class="list-item value-list-item"
           @click="handleClickValue(item)"
         >
           <div class="item-type-icon">
             <span class="bklog-icon bklog-value"></span>
           </div>
           <div
-            class="item-text text-overflow-hidden"
             v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-text text-overflow-hidden"
           >
             {{ item }}
           </div>
@@ -126,8 +126,8 @@
           </div>
           <div class="item-text">:</div>
           <div
-            class="item-description text-overflow-hidden"
             v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-description text-overflow-hidden"
           >
             <i18n path="{0}某一值">
               <span class="item-callout">{{ $t('等于') }}</span>
@@ -143,8 +143,8 @@
           </div>
           <div class="item-text">:*</div>
           <div
-            class="item-description text-overflow-hidden"
             v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-description text-overflow-hidden"
           >
             <i18n path="{0}任意形式">
               <span class="item-callout">{{ $t('存在') }}</span>
@@ -155,8 +155,8 @@
           <template>
             <li
               v-for="(item, key) in operatorSelectList"
-              class="list-item continue-list-item"
               :key="key"
+              class="list-item continue-list-item"
               @click="handleClickColon(item.operator)"
             >
               <div class="item-type-icon">
@@ -164,8 +164,8 @@
               </div>
               <div class="item-text">{{ item.operator }}</div>
               <div
-                class="item-description text-overflow-hidden"
                 v-bk-overflow-tips="{ placement: 'right' }"
+                class="item-description text-overflow-hidden"
               >
                 <i18n path="{0}某一值">
                   <span class="item-callout">{{ item.label }}</span>
@@ -186,8 +186,8 @@
           </div>
           <div class="item-text">AND</div>
           <div
-            class="item-description text-overflow-hidden"
             v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-description text-overflow-hidden"
           >
             <i18n path="需要{0}为真">
               <span class="item-callout">{{ $t('两个参数都') }}</span>
@@ -203,8 +203,8 @@
           </div>
           <div class="item-text">OR</div>
           <div
-            class="item-description text-overflow-hidden"
             v-bk-overflow-tips="{ placement: 'right' }"
+            class="item-description text-overflow-hidden"
           >
             <i18n path="需要{0}为真">
               <span class="item-callout">{{ $t('一个或多个参数') }}</span>
@@ -509,7 +509,7 @@
           this.resetKeyword = data.keyword;
           this.$emit('isCanSearch', data.is_legal);
           return data.is_legal || data.is_resolved;
-        } catch (error) {
+        } catch {
           return true;
         }
       },

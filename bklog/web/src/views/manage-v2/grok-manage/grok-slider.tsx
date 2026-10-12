@@ -141,7 +141,7 @@ export default defineComponent({
     // 监听侧栏显示和编辑数据变化
     watch(
       () => props.isShow,
-      (isShow) => {
+      isShow => {
         if (isShow) {
           if (props.isEdit && props.editData) {
             // 编辑模式，填充数据

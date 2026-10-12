@@ -248,11 +248,14 @@ def test_parse_service_instance_target_merges_topo_and_both_template_types(mocke
     ]
 
 
-def test_parse_service_instance_target_preserves_empty_filter(mocker):
+def test_parse_service_instance_target_returns_none_for_empty_topology(mocker):
     mocker.patch("core.drf_resource.api.cmdb.get_service_instance_ids_by_topo_node", return_value=[])
 
-    assert resource.cc.parse_topo_target(
-        2,
-        ["service_instance_id"],
-        [{"bk_obj_id": "module", "bk_inst_id": 10}],
-    ) == [{"service_instance_id": []}]
+    assert (
+        resource.cc.parse_topo_target(
+            2,
+            ["service_instance_id"],
+            [{"bk_obj_id": "module", "bk_inst_id": 10}],
+        )
+        is None
+    )

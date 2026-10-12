@@ -41,7 +41,7 @@
   const { $t } = useLocale();
   const { $bkPopover } = Vue.prototype;
 
-  const emit = defineEmits(['select-fields-config','handle-popover-hide']);
+  const emit = defineEmits(['select-fields-config', 'handle-popover-hide']);
 
   /** popover 弹窗实例 */
   let popoverInstance = null;
@@ -131,7 +131,7 @@
       arrow: false,
       interactive: true,
       boundary: 'viewport',
-      onHidden: async() => {
+      onHidden: async () => {
         popoverInstance?.destroy?.();
         popoverInstance = null;
         emit('handle-popover-hide');
@@ -203,18 +203,19 @@
           };
       const res = await $http.request(requestName, { data });
       configList.value = res.data;
-    } catch (error) {
+    } catch {
+      // 配置加载失败时保留当前列表，错误由请求层统一处理
     } finally {
       isLoading.value = false;
     }
   };
 
-  const handleClickSelectConfig = async (item) => {
+  const handleClickSelectConfig = async item => {
     handlePopoverHide();
     store.commit('retrieve/updateFiledSettingConfigID', item.id);
     store.commit('updateState', { localSort: false });
     store.commit('updateIsSetDefaultTableColumn', false);
-    
+
     // 先等待用户配置保存完成
     await store.dispatch('userFieldConfigChange', {
       displayFields: item.display_fields,
@@ -234,37 +235,37 @@
   };
 
   const isPopoverInstance = () => {
-    return popoverInstance?.state.isShown
-  }
+    return popoverInstance?.state.isShown;
+  };
   defineExpose({
     isPopoverInstance,
-  })
+  });
 </script>
 <template>
   <div class="field-select-config-v2">
     <div
-      class="dropdown-trigger"
       :ref="vm => (popoverTrigger = vm)"
+      class="dropdown-trigger"
       @click="handleDropdownPopoverShow"
     >
       <span class="bklog-icon bklog-overview1"></span>
       <span class="trigger-label"> {{ $t('字段模板') }} </span>
-      <i class='bk-icon icon-angle-right-line'></i>
+      <i class="bk-icon icon-angle-right-line"></i>
     </div>
     <div style="display: none">
       <div
         v-if="popoverLazyLoaded.dropdown"
-        class="dropdown-content"
         :ref="
           vm => {
             dropdownRef = vm;
           }
         "
+        class="dropdown-content"
       >
         <div class="dropdown-search">
           <bk-input
-            class="field-input"
             v-model="searchKeyword"
+            class="field-input"
             left-icon="icon-search"
             :placeholder="$t('请输入模板名称')"
             clearable
@@ -272,13 +273,13 @@
         </div>
         <div class="underline-box"></div>
         <ul
-          class="dropdown-list"
           v-bkloading="{ isLoading: isLoading, size: 'small' }"
+          class="dropdown-list"
         >
           <li
             v-for="item in searchConfigList"
-            class="dropdown-item"
             :key="item.name"
+            class="dropdown-item"
             @click="() => handleClickSelectConfig(item)"
           >
             <span> {{ item.name }} </span>

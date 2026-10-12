@@ -9,13 +9,11 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-
 import logging
 
-from alarm_backends.core.cache.key import ANOMALY_SIGNAL_KEY, SERVICE_LOCK_TRIGGER
+from alarm_backends.core.cache.key import ANOMALY_SIGNAL_KEY
 from alarm_backends.core.handlers import base
-from alarm_backends.core.lock.service_lock import service_lock
-from alarm_backends.service.trigger.processor import TriggerProcessor
+from alarm_backends.service.trigger.runner import run_trigger_item
 from core.errors.alarm_backends import LockError
 from core.prometheus import metrics
 
@@ -43,32 +41,13 @@ class TriggerHandler(base.BaseHandler):
             logger.error("ANOMALY_SIGNAL_KEY({}) parse error：{}".format(anomaly_key, e))
             return
 
-        logger.info("[start][latency] strategy({}), item({})".format(strategy_id, item_id))
-
-        exc = None
         try:
-            with service_lock(SERVICE_LOCK_TRIGGER, strategy_id=strategy_id, item_id=item_id):
-                with metrics.TRIGGER_PROCESS_TIME.labels(strategy_id=metrics.TOTAL_TAG).time():
-                    processor = TriggerProcessor(strategy_id, item_id)
-                    processor.process()
+            run_trigger_item(strategy_id, item_id, executor="trigger_worker")
         except LockError:
             logger.info(
                 "[get service lock fail] strategy({}), item({}). will process later".format(strategy_id, item_id)
             )
-            ANOMALY_SIGNAL_KEY.client.delay("rpush", ANOMALY_SIGNAL_KEY.get_key(), anomaly_key, delay=1)
+            ANOMALY_SIGNAL_KEY.client.delay("lpush", ANOMALY_SIGNAL_KEY.get_key(), anomaly_key, delay=1)
             # 如果是获取锁失败，不需要上报指标，直接可以返回
             return
-        except Exception as e:
-            exc = e
-            logger.exception(
-                "[process error] strategy({strategy_id}), item({item_id}) reason：{msg}".format(
-                    strategy_id=strategy_id, item_id=item_id, msg=e
-                )
-            )
-
-        logger.info("[end][latency] strategy({}), item({})".format(strategy_id, item_id))
-
-        metrics.TRIGGER_PROCESS_COUNT.labels(
-            strategy_id=metrics.TOTAL_TAG, status=metrics.StatusEnum.from_exc(exc), exception=exc
-        ).inc()
         metrics.report_all()

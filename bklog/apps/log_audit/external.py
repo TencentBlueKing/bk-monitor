@@ -50,6 +50,8 @@ ACTION_INSTANCE_MAP = {
     ExternalPermissionActionEnum.LOG_EXTRACT.value: LogExtractInstance,
     ExternalPermissionActionEnum.CLIENT_LOG.value: ClientLogInstance,
     ExternalPermissionActionEnum.LOG_COMMON.value: LogSearchInstance,
+    # 聚类配置作用于索引集，资源类型与检索一致
+    ExternalPermissionActionEnum.LOG_CLUSTERING.value: LogSearchInstance,
 }
 
 # log_common 对应菜单、全局配置等元数据接口，不涉及日志数据访问，调用量大且无审计价值

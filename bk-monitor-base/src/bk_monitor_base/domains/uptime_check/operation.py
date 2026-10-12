@@ -32,8 +32,6 @@ import logging
 from datetime import datetime
 from typing import Any, TypedDict
 
-from bkmonitor.nodeman_integration.backend import node_man_backend
-from bkmonitor.nodeman_integration.exceptions import NodeManV3DefiniteFailure
 from django.db import transaction
 from django.db.models import Prefetch, Q
 
@@ -48,7 +46,7 @@ from bk_monitor_base.domains.uptime_check.models import (
 )
 from bk_monitor_base.domains.uptime_check.services.config_generator import ConfigGeneratorService
 from bk_monitor_base.domains.uptime_check.services.task_manager import TaskManager
-from bk_monitor_base.infras.third_party_api.nodeman import api as node_man_v2_api
+from bk_monitor_base.infras.third_party_api.nodeman.api import batch_get_subscription_task_result
 
 from .constants import CollectStatus
 from .define import (
@@ -61,10 +59,6 @@ from .define import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-def _is_nodeman_v3_enabled() -> bool:
-    return node_man_backend.is_v3
 
 
 def _check_bk_biz_id_tenant_id(bk_biz_id: int | None, bk_tenant_id: str | None) -> None:
@@ -550,13 +544,9 @@ def _query_task_subscriptions(task_ids: list[int], bk_biz_id: int) -> dict[int, 
     queryset = UptimeCheckTaskSubscription.objects.filter(
         uptimecheck_id__in=valid_task_ids,
         is_deleted=False,
-    )
-    if _is_nodeman_v3_enabled():
-        relation_values = queryset.values_list("uptimecheck_id", "id")
-    else:
-        relation_values = queryset.filter(node_man_backend="v2").values_list("uptimecheck_id", "subscription_id")
+    ).values_list("uptimecheck_id", "subscription_id")
 
-    for task_id, subscription_id in relation_values:
+    for task_id, subscription_id in queryset:
         task_subscription_map.setdefault(task_id, []).append(subscription_id)
 
     return task_subscription_map
@@ -582,14 +572,11 @@ def _fetch_subscription_statuses(bk_tenant_id: str, subscription_ids: list[int])
     if not subscription_ids:
         return {}
 
-    if _is_nodeman_v3_enabled():
-        return _fetch_v3_policy_statuses(subscription_ids)
-
     subscription_statuses: dict[int, str] = {}
 
     for sub_id in subscription_ids:
         try:
-            tasks, _ = node_man_v2_api.batch_get_subscription_task_result(
+            tasks, _ = batch_get_subscription_task_result(
                 bk_tenant_id=bk_tenant_id, params={"subscription_id": sub_id, "need_aggregate_all_tasks": True}
             )
         except Exception as e:
@@ -616,54 +603,6 @@ def _fetch_subscription_statuses(bk_tenant_id: str, subscription_ids: list[int])
             subscription_statuses[sub_id] = status_list[0] if status_list else CollectStatus.RUNNING
 
     return subscription_statuses
-
-
-def _fetch_v3_policy_statuses(relation_ids: list[int]) -> dict[int, str]:
-    """Fetch statuses for V3 policy relations without treating missing observations as success."""
-
-    from bk_monitor_base.domains.uptime_check.services.nodeman_v3 import UptimeCheckNodeManV3Service
-
-    relations = UptimeCheckTaskSubscription.objects.in_bulk(relation_ids)
-    task_ids = {relation.uptimecheck_id for relation in relations.values()}
-    tasks = UptimeCheckTaskModel.objects.in_bulk(task_ids)
-    service = UptimeCheckNodeManV3Service()
-    statuses: dict[int, str] = {}
-    for relation_id in relation_ids:
-        relation = relations.get(relation_id)
-        task = tasks.get(relation.uptimecheck_id) if relation else None
-        if relation is None or task is None:
-            continue
-        if relation.node_man_backend != "v3":
-            statuses[relation_id] = CollectStatus.FAILED
-            continue
-        try:
-            remote_status = service.refresh(task, relation)
-        except NodeManV3DefiniteFailure as error:
-            logger.error(f"NodeMan V3 策略关系{relation_id}存在明确错误: {error}")
-            relation.node_man_operation_status = "failed"
-            relation.node_man_result_state = getattr(error, "result_state", "")
-            relation.node_man_error = str(error)
-            relation.save(
-                update_fields=[
-                    "node_man_operation_status",
-                    "node_man_result_state",
-                    "node_man_error",
-                    "update_time",
-                ]
-            )
-            statuses[relation_id] = CollectStatus.FAILED
-            continue
-        except Exception as error:
-            logger.warning(f"获取 NodeMan V3 策略关系{relation_id}状态失败，按执行中处理: {error}")
-            statuses[relation_id] = CollectStatus.PENDING
-            continue
-        if remote_status == "success":
-            statuses[relation_id] = CollectStatus.SUCCESS
-        elif remote_status in {"failed", "partial_failed", "cancelled", "unknown"}:
-            statuses[relation_id] = CollectStatus.FAILED
-        else:
-            statuses[relation_id] = CollectStatus.PENDING
-    return statuses
 
 
 def _build_task_status_updates(
@@ -727,23 +666,6 @@ def _record_subscription_error_logs(bk_tenant_id: str, task_id: int, subscriptio
         task_id: 拨测任务ID
         subscription_id: 订阅ID
     """
-    if _is_nodeman_v3_enabled():
-        relation = UptimeCheckTaskSubscription.objects.filter(pk=subscription_id, uptimecheck_id=task_id).first()
-        if relation is None:
-            return
-        UptimeCheckTaskCollectorLog.objects.create(
-            task_id=task_id,
-            error_log={
-                "message": relation.node_man_error or "NodeMan V3 DeployPolicy execution failed",
-                "result_state": relation.node_man_result_state,
-                "operation_status": relation.node_man_operation_status,
-                "trigger_id": relation.node_man_trigger_id,
-            },
-            subscription_id=relation.subscription_id,
-            nodeman_task_id=0,
-        )
-        return
-
     from bk_monitor_base.infras.third_party_api.nodeman.api import (
         get_subscription_task_result,
         get_subscription_task_result_detail,

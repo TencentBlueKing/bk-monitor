@@ -294,7 +294,7 @@ class TestMysqlPluginManager:
         """测试生成配置时将数字字符串转为整数"""
         config = self.plugin_manager.generate_config_yaml_content(
             plugin_params={
-                "host": "10.10.28.200",
+                "host": "192.0.2.20",
                 "name": "bk_monitor",
                 "password": "secret",
                 "port": "3306",
@@ -1025,7 +1025,7 @@ class TestMysqlPluginManager:
                         {
                             "bk_inst_id": 2,
                             "bk_cloud_id": 0,
-                            "bk_host_innerip": "10.100.244.241",
+                            "bk_host_innerip": "192.0.2.21",
                             "bk_os_type": "linux",
                             "bk_cpu_architecture": "aarch64",
                         }
@@ -1034,12 +1034,12 @@ class TestMysqlPluginManager:
             ],
         )
 
-        bk_host = {"ip": "10.100.244.241", "bk_cloud_id": 0, "os_type": "linux"}
+        bk_host = {"ip": "192.0.2.21", "bk_cloud_id": 0, "os_type": "linux"}
 
         host_info = get_host_info(bk_host)
 
         assert host_info["bk_host_id"] == 2
-        assert host_info["ip"] == "10.100.244.241"
+        assert host_info["ip"] == "192.0.2.21"
         assert host_info["os_type"] == "linux"
         assert host_info["os_arch"] == "aarch64"
 
@@ -1050,7 +1050,7 @@ class TestMysqlPluginManager:
             return_value={"os_type": None, "os_arch": None},
         )
 
-        collect_host = {"ip": "10.100.244.241", "bk_cloud_id": 0}
+        collect_host = {"ip": "192.0.2.21", "bk_cloud_id": 0}
         os_type = get_os_type_by_collect_host(collect_host)
 
         assert os_type is None

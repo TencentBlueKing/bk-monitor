@@ -40,6 +40,8 @@ import {
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 import { useI18n } from 'vue-i18n';
 
+import HostLoading, { HostRefreshStatus } from '../../host-loading/host-loading';
+
 import { resolveVariables } from '../variables/resolve';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp } from '@/components/time-range/utils';
 import ChartTitle from '@/plugins/components/chart-title';
@@ -85,9 +87,13 @@ export default defineComponent({
     const error = shallowRef(false);
     const value = shallowRef<ExternalPanelValue | null>(null);
     let requestId = 0;
+    let queryKey = ''; 
 
     const requestData = async () => {
       const currentRequestId = ++requestId;
+      const nextQueryKey = JSON.stringify([props.panel, props.scopedVars, toValue(timeRange)]);
+      if (nextQueryKey !== queryKey) value.value = null;
+      queryKey = nextQueryKey;
       loading.value = true;
       error.value = false;
       const [startTime, endTime] = handleTransformToTimestamp(toValue(timeRange));
@@ -115,7 +121,6 @@ export default defineComponent({
         }
       } catch {
         if (currentRequestId === requestId) {
-          value.value = null;
           error.value = true;
         }
       } finally {
@@ -142,8 +147,8 @@ export default defineComponent({
     });
 
     const renderContent = () => {
-      if (loading.value) return <div class='external-panel-card__empty'>{t('加载中...')}</div>;
-      if (error.value) return <div class='external-panel-card__empty'>{t('加载失败')}</div>;
+      if (loading.value && value.value === null) return <HostLoading variant={props.panel.type === 'port-status' ? 'port-status' : 'text-unit'} />;
+      if (error.value && value.value === null) return <HostRefreshStatus error onRetry={requestData} />;
       if (props.panel.type === 'text-unit' && formattedText.value) {
         return (
           <div class='external-panel-card__text-unit'>
@@ -186,6 +191,7 @@ export default defineComponent({
           showMore={false}
           title={props.panel.title}
         />
+        <HostRefreshStatus loading={loading.value && value.value !== null} error={error.value && value.value !== null} onRetry={requestData} />
         {renderContent()}
       </div>
     );

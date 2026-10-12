@@ -7,6 +7,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from core.drf_resource import Resource, api
+from kernel_api.resource.log_collection_common import StrictMCPSerializer, normalize_task_ids
 
 ENVIRONMENT_LINUX = "linux"
 ENVIRONMENT_WINDOWS = "windows"
@@ -20,6 +21,7 @@ COMMON_CREATE_FIELDS = {
     "collector_scenario_id",
     "category_id",
     "description",
+    "parent_index_set_ids",
     "confirm",
 }
 HOST_CREATE_FIELDS = {
@@ -131,10 +133,7 @@ def reject_unknown_fields(value: Any, allowed_fields: set[str], path: str) -> No
     unknown_fields = set(value) - allowed_fields
     if unknown_fields:
         raise serializers.ValidationError(
-            {
-                f"{path}.{field}": ["This field is not supported by Fast Create MCP."]
-                for field in sorted(unknown_fields)
-            }
+            {f"{path}.{field}": ["This field is not supported by Fast Create MCP."] for field in sorted(unknown_fields)}
         )
 
 
@@ -208,35 +207,13 @@ def validate_nested_create_fields(attrs: Mapping) -> None:
         validate_plugin_params(config.get("params"), f"{config_path}.params")
 
 
-def normalize_task_ids(value: Any) -> list[str]:
-    if value in (None, ""):
-        return []
-    if isinstance(value, str):
-        values = value.split(",")
-    elif isinstance(value, (list, tuple, set)):
-        values = value
-    else:
-        values = [value]
-    return [str(item).strip() for item in values if str(item).strip()]
-
-
-class StrictFastCreateSerializer(serializers.Serializer):
-    """拒绝未声明字段，避免 MCP 覆盖存储、数据链路或索引集默认选择。"""
-
-    def to_internal_value(self, data):
-        if isinstance(data, Mapping):
-            unknown_fields = set(data.keys()) - set(self.fields)
-            if unknown_fields:
-                raise serializers.ValidationError(
-                    {field: ["This field is not supported by Fast Create MCP."] for field in sorted(unknown_fields)}
-                )
-        return super().to_internal_value(data)
-
-
 class FastCreateLogCollectorResource(Resource):
     """使用 BKLOG Fast Create 创建 Linux、Windows 或容器日志采集项。"""
 
-    class RequestSerializer(StrictFastCreateSerializer):
+    class RequestSerializer(StrictMCPSerializer):
+        unsupported_api_name = "Fast Create MCP"
+        unsupported_field_message = "This field is not supported by {api_name}."
+
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         environment = serializers.ChoiceField(
             required=True,
@@ -263,6 +240,12 @@ class FastCreateLogCollectorResource(Resource):
             allow_null=True,
             max_length=100,
             label="描述",
+        )
+        parent_index_set_ids = serializers.ListField(
+            child=serializers.IntegerField(min_value=1),
+            required=False,
+            allow_null=True,
+            label="归属索引组ID列表",
         )
         target_object_type = serializers.CharField(required=False, label="主机目标类型")
         target_node_type = serializers.CharField(required=False, label="主机节点类型")
@@ -299,9 +282,7 @@ class FastCreateLogCollectorResource(Resource):
         def validate(self, attrs):
             attrs = super().validate(attrs)
             environment = attrs["environment"]
-            environment_fields = (
-                CONTAINER_CREATE_FIELDS if environment == ENVIRONMENT_CONTAINER else HOST_CREATE_FIELDS
-            )
+            environment_fields = CONTAINER_CREATE_FIELDS if environment == ENVIRONMENT_CONTAINER else HOST_CREATE_FIELDS
             invalid_fields = (set(attrs) - COMMON_CREATE_FIELDS) - environment_fields
             if invalid_fields:
                 raise serializers.ValidationError(
@@ -356,9 +337,7 @@ class FastCreateLogCollectorResource(Resource):
                         path = "params" if environment == ENVIRONMENT_LINUX else f"configs[{index}].params"
                         raise serializers.ValidationError(
                             {
-                                f"{path}.{field}": [
-                                    f"This field cannot be used for a {environment} collector."
-                                ]
+                                f"{path}.{field}": [f"This field cannot be used for a {environment} collector."]
                                 for field in sorted(invalid_params)
                             }
                         )

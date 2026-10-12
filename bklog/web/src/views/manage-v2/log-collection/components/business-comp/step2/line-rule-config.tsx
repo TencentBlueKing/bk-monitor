@@ -100,7 +100,7 @@ export default defineComponent({
      */
     const checkField = (field: string) => {
       const value = props.data[field as keyof typeof props.data];
-      return !value || !String(value).trim();
+      return value === undefined || value === null || !String(value).trim();
     };
     /**
      * 校验方法：检查 multiline_pattern、multiline_max_lines、multiline_timeout 是否为空值
@@ -140,7 +140,7 @@ export default defineComponent({
         </div>
         <div class='line-rule-box'>
           <div class='line-rule-box-item'>
-            <div class='label-title no-require text-left'>{t('最多匹配')}</div>
+            <div class='label-title text-left'>{t('最多匹配')}</div>
             <bk-input
               class={{ 'input-error': errorState.multiline_max_lines }}
               value={props.data.multiline_max_lines}
@@ -155,7 +155,7 @@ export default defineComponent({
             </bk-input>
           </div>
           <div class='line-rule-box-right'>
-            <div class='label-title no-require text-left'>{t('最大耗时')}</div>
+            <div class='label-title text-left'>{t('最大耗时')}</div>
             <bk-input
               class={{ 'time-box': true, 'input-error': errorState.multiline_timeout }}
               value={props.data.multiline_timeout}

@@ -72,6 +72,7 @@ interface ICommonNavBarProps {
   navMode?: NavBarMode;
   needBack?: boolean;
   needCopyLink?: boolean;
+  needNavList?: boolean;
   needShadow?: boolean;
   positionText?: string;
   routeList?: INavItem[];
@@ -90,6 +91,8 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
   @Prop({ type: Boolean, default: undefined }) needBack: boolean;
   @Prop({ type: Boolean, default: false }) needShadow: boolean;
   @Prop({ type: Boolean, default: false }) needCopyLink: boolean;
+  /** 是否显示面包屑导航列表 */
+  @Prop({ type: Boolean, default: true }) needNavList: boolean;
   @Prop({ type: String, default: 'share' }) navMode: NavBarMode;
   @Prop({ type: String, default: '' }) positionText: string;
   @Prop({ type: Object, default: () => ({ isBack: false }) }) backGotoItem: IRouteBackItem;
@@ -175,7 +178,7 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
     return (
       <div
         key='navigationBar'
-        class={`navigation-bar common-nav-bar ${this.needShadow ? 'detail-bar' : ''}`}
+        class={`navigation-bar common-nav-bar ${this.needShadow ? 'detail-bar' : ''} ${this.needNavList ? '' : 'no-nav-list'}`}
         slot='title'
       >
         {!this.readonly && (this.needBack || ((this.needBack ?? true) && len > 1)) && (
@@ -184,96 +187,98 @@ export default class ApmCommonNavBar extends tsc<ICommonNavBarProps, ICommonNavB
             onClick={() => this.handleBackGotoPage()}
           />
         )}
-        <ul class='navigation-bar-list'>
-          {this.navList.map((item, index) => (
-            <li
-              key={index}
-              class='bar-item'
-            >
-              {index > 0 ? <span class='item-split'>/</span> : undefined}
-              {!item.selectOption?.loading ? (
-                [
-                  (!item.selectOption || (index < len - 1 && !item.notLink)) && (
-                    <span
-                      key='1'
-                      class={{
-                        'item-name': true,
-                        'parent-nav': !!item.id && index < len - 1 && !item.notLink,
-                        'only-title': len === 1,
-                        [item.class]: !!item.class,
-                      }}
-                      onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
-                    >
-                      <span class='item-name-text'>{item.name}</span>
-                      {!!item.subName && (
-                        <span class='item-sub-name'>
-                          {item.name ? '-' : ''}&nbsp;{item.subName}
-                        </span>
-                      )}
-                    </span>
-                  ),
-                  item.selectOption && (
-                    <bk-select
-                      popover-options={{
-                        placement: 'bottom',
-                      }}
-                      allow-enter={false}
-                      ext-popover-cls='nav-bar-select-popover'
-                      popover-width={240}
-                      search-placeholder={this.$t('请输入 关键字')}
-                      value={item.selectOption.value}
-                      searchable
-                      onChange={val => this.handleNavSelect(val, item)}
-                      onToggle={() => this.handleNavSelectShow(item)}
-                    >
-                      <div
-                        class={{ 'select-trigger': true, active: this.navSelectShow[item.id] }}
-                        slot='trigger'
+        {this.needNavList && (
+          <ul class='navigation-bar-list'>
+            {this.navList.map((item, index) => (
+              <li
+                key={index}
+                class='bar-item'
+              >
+                {index > 0 ? <span class='item-split'>/</span> : undefined}
+                {!item.selectOption?.loading ? (
+                  [
+                    (!item.selectOption || (index < len - 1 && !item.notLink)) && (
+                      <span
+                        key='1'
+                        class={{
+                          'item-name': true,
+                          'parent-nav': !!item.id && index < len - 1 && !item.notLink,
+                          'only-title': len === 1,
+                          [item.class]: !!item.class,
+                        }}
+                        onClick={() => item.id && index < len - 1 && this.handleGotoPage(item)}
                       >
-                        {(index === len - 1 || item.notLink) && (
-                          <span
-                            class={{
-                              'item-name': true,
-                              [item.class]: !!item.class,
-                            }}
-                          >
-                            <span class='item-name-text'>{item.name}</span>
-                            {!!item.subName && (
-                              <span class='item-sub-name'>
-                                {item.name ? '-' : ''}&nbsp;{item.subName}
-                              </span>
-                            )}
+                        <span class='item-name-text'>{item.name}</span>
+                        {!!item.subName && (
+                          <span class='item-sub-name'>
+                            {item.name ? '-' : ''}&nbsp;{item.subName}
                           </span>
                         )}
-                        <div class='arrow-wrap'>
-                          <i class='icon-monitor icon-mc-arrow-down' />
-                        </div>
-                      </div>
-
-                      {this.sortSelectList(item.selectOption).map((selectItem, index) => (
-                        <bk-option
-                          id={selectItem.id}
-                          key={`${selectItem.id}_${index}`}
-                          class={{ item: true, active: selectItem.id === item.selectOption.value }}
-                          name={selectItem.name}
+                      </span>
+                    ),
+                    item.selectOption && (
+                      <bk-select
+                        popover-options={{
+                          placement: 'bottom',
+                        }}
+                        allow-enter={false}
+                        ext-popover-cls='nav-bar-select-popover'
+                        popover-width={240}
+                        search-placeholder={this.$t('请输入 关键字')}
+                        value={item.selectOption.value}
+                        searchable
+                        onChange={val => this.handleNavSelect(val, item)}
+                        onToggle={() => this.handleNavSelectShow(item)}
+                      >
+                        <div
+                          class={{ 'select-trigger': true, active: this.navSelectShow[item.id] }}
+                          slot='trigger'
                         >
-                          <div
-                            class='name'
-                            v-bk-overflow-tips
-                          >
-                            {selectItem.name}
+                          {(index === len - 1 || item.notLink) && (
+                            <span
+                              class={{
+                                'item-name': true,
+                                [item.class]: !!item.class,
+                              }}
+                            >
+                              <span class='item-name-text'>{item.name}</span>
+                              {!!item.subName && (
+                                <span class='item-sub-name'>
+                                  {item.name ? '-' : ''}&nbsp;{item.subName}
+                                </span>
+                              )}
+                            </span>
+                          )}
+                          <div class='arrow-wrap'>
+                            <i class='icon-monitor icon-mc-arrow-down' />
                           </div>
-                        </bk-option>
-                      ))}
-                    </bk-select>
-                  ),
-                ]
-              ) : (
-                <div class='skeleton-element' />
-              )}
-            </li>
-          ))}
-        </ul>
+                        </div>
+
+                        {this.sortSelectList(item.selectOption).map((selectItem, index) => (
+                          <bk-option
+                            id={selectItem.id}
+                            key={`${selectItem.id}_${index}`}
+                            class={{ item: true, active: selectItem.id === item.selectOption.value }}
+                            name={selectItem.name}
+                          >
+                            <div
+                              class='name'
+                              v-bk-overflow-tips
+                            >
+                              {selectItem.name}
+                            </div>
+                          </bk-option>
+                        ))}
+                      </bk-select>
+                    ),
+                  ]
+                ) : (
+                  <div class='skeleton-element' />
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
         {!(this.readonly && !this.positionText?.length) && this.needCopyLink ? (
           <temporary-share
             navList={this.routeList}

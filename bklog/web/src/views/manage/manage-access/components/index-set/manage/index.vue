@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="access-manage-container"
     v-bkloading="{ isLoading: basicLoading }"
+    class="access-manage-container"
   >
     <auth-container-page
       v-if="authPageInfo"
@@ -60,11 +60,11 @@
       </basic-tab>
       <keep-alive>
         <component
+          :is="dynamicComponent"
           class="tab-content"
           :collector-data="curIndexSet"
           :index-set-data="curIndexSet"
           :index-set-id="curIndexSet.index_set_id"
-          :is="dynamicComponent"
           @update-active-panel="activePanel = $event"
         />
       </keep-alive>

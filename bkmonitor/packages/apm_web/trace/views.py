@@ -41,9 +41,9 @@ from apm_web.trace.resources import (
     TraceStatisticsResource,
 )
 from apm_web.trace.serializers import TraceFieldsTopkRequestSerializer
-from apm_web.utils import generate_csv_file_download_response
+from bkmonitor.utils.csv import generate_csv_file_download_response
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission
+from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from packages.apm_web.handlers.trace_handler.dimension_statistics import (
     DimensionStatisticsAPIHandler,
@@ -54,17 +54,14 @@ class TraceQueryViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
 
     def get_permissions(self):
-        if self.action in [
-            "trace_option_value",
-            "trace_charts",
-            "list_traces",
-            "trace_detail",
-            "span_detail",
-            "list_flatten_traces",
-            "list_flatten_spans",
-            "list_spans",
-            "list_links",
-        ]:
+        """默认按 APM 应用实例鉴权。
+
+        原先只有白名单内的 action 会鉴权，其余返回空列表，连 DRF 默认的业务权限一起失效了。
+        少数接口（如 trace_list_by_id、静态选项列表、查询串生成）请求里没有 app_name，
+        `InstanceActionForDataPermission` 取不到实例 ID 会直接抛错，这些退到业务级鉴权。
+        """
+        data = self.request.query_params if self.request.method == "GET" else self.request.data
+        if data.get(self.INSTANCE_ID):
             return [
                 InstanceActionForDataPermission(
                     self.INSTANCE_ID,
@@ -73,7 +70,7 @@ class TraceQueryViewSet(ResourceViewSet):
                     get_instance_id=Application.get_application_id_by_app_name,
                 )
             ]
-        return []
+        return [ViewBusinessPermission()]
 
     resource_routes = [
         ResourceRoute(

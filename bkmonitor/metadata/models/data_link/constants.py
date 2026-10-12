@@ -27,6 +27,7 @@ class DataLinkKind(Enum):
     BASEREPORTSINK = "BasereportSink"
     SINK = "Sink"
     VMSTORAGE = "VmStorage"
+    VMQUERYCLUSTER = "VmQueryCluster"
     ELASTICSEARCH = "ElasticSearch"
     DORIS = "Doris"
     SURREALDB = "SurrealDB"
@@ -44,6 +45,7 @@ class DataLinkKind(Enum):
         (BASEREPORTSINK, "basereportsinks"),
         (SINK, "sinks"),
         (VMSTORAGE, "vmstorages"),
+        (VMQUERYCLUSTER, "vmqueryclusters"),
         (ELASTICSEARCH, "elasticsearchs"),
         (DORIS, "dorises"),
         (KAFKACHANNEL, "kafkachannels"),

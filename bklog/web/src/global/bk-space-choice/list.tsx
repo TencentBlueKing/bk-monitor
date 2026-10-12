@@ -33,15 +33,10 @@ import './list.scss';
 import 'vue-virtual-scroller/dist/vue-virtual-scroller.css';
 
 export enum ETagsType {
-  // eslint-disable-next-line no-unused-vars
   BCS = 'bcs',
-  // eslint-disable-next-line no-unused-vars
   BKCC = 'bkcc',
-  // eslint-disable-next-line no-unused-vars
   BKCI = 'bkci',
-  // eslint-disable-next-line no-unused-vars
   BKSAAS = 'bksaas',
-  // eslint-disable-next-line no-unused-vars
   MONITOR = 'monitor',
 }
 
@@ -66,6 +61,9 @@ export interface IListItem {
 }
 
 export type ThemeType = 'dark' | 'light';
+
+// 骨架屏行数，按列表可视高度 240px / 行高 32px 铺满
+const SKELETON_ROW_COUNT = 7;
 
 // const DEFAULT_BIZ_ID = 'DEFAULT_BIZ_ID';
 
@@ -101,6 +99,10 @@ export default defineComponent({
     selectableItems: {
       type: Array as () => IListItem[],
       default: () => [],
+    },
+    loading: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['handleClickOutSide', 'handleClickMenuItem', 'openDialog'],
@@ -139,15 +141,30 @@ export default defineComponent({
       return selectableIndex === props.selectedIndex;
     };
 
+    // 空间列表加载中的骨架占位，避免只渲染首屏预加载的单个空间造成误解
+    const renderSkeleton = () => (
+      <div class='list-skeleton'>
+        {Array.from({ length: SKELETON_ROW_COUNT }).map((_, index) => (
+          <div
+            key={index}
+            class='list-skeleton-item'
+          >
+            <span class='list-skeleton-bar' />
+          </div>
+        ))}
+      </div>
+    );
+
     // 渲染函数
     return () => (
       <div class={['biz-list-wrap', props.theme]}>
-        {props.list.length > 0 ? (
+        {props.loading ? (
+          renderSkeleton()
+        ) : props.list.length > 0 ? (
           // 滚动加载
           <RecycleScroller
             class={['list-scroller']}
             scopedSlots={{
-              // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
               default: ({ item, index }: { item: IListItem; index: number }) => (
                 <div
                   key={item.id || item.name + index}

@@ -98,5 +98,16 @@
       border: 1px solid #dcdee5;
       border-radius: 2px;
     }
+
+    .end-policy-form-item {
+      .form-item-label {
+        align-items: flex-start;
+        width: auto;
+        min-width: 130px;
+        height: auto;
+        padding-top: 5px;
+        white-space: nowrap;
+      }
+    }
   }
 }

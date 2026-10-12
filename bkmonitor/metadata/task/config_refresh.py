@@ -33,7 +33,7 @@ from metadata.task.tasks import (
     clean_disable_es_storage,
     manage_es_storage,
 )
-from metadata.tools.constants import TASK_FINISHED_SUCCESS, TASK_STARTED
+from metadata.tools.constants import TASK_FINISHED_FAILURE, TASK_FINISHED_SUCCESS, TASK_STARTED
 from metadata.utils import consul_tools
 
 logger = logging.getLogger("metadata")
@@ -79,6 +79,27 @@ def refresh_consul_storage():
     )
     metrics.report_all()
     logger.info(f"refresh_consul_storage:task finished, cost time: {cost_time}")
+
+
+@share_lock(ttl=PERIODIC_TASK_DEFAULT_TTL, identify="metadata_refreshRedisStorage")
+def refresh_redis_storage():
+    """独立发布 Redis Storage，失败不影响现有 Consul 发布任务。"""
+    task_name = "refresh_redis_storage"
+    metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(task_name=task_name, status=TASK_STARTED, process_target=None).inc()
+    start_time = time.time()
+    status = TASK_FINISHED_SUCCESS
+    try:
+        models.ClusterInfo.refresh_redis_storage_config()
+    except Exception:
+        status = TASK_FINISHED_FAILURE
+        logger.exception("refresh redis storage failed")
+        raise
+    finally:
+        metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(task_name=task_name, status=status, process_target=None).inc()
+        metrics.METADATA_CRON_TASK_COST_SECONDS.labels(task_name=task_name, process_target=None).observe(
+            time.time() - start_time
+        )
+        metrics.report_all()
 
 
 @share_lock(identify="metadata_refreshConsulESInfo")

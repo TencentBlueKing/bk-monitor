@@ -1,0 +1,520 @@
+.redis-management {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 100%;
+  padding: 24px;
+  color: #313238;
+  background: #f5f7fa;
+
+  h2,
+  h3,
+  h4,
+  p {
+    margin: 0;
+  }
+
+  &__toolbar,
+  .redis-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__toolbar {
+    margin-bottom: 16px;
+
+    h2 {
+      font-size: 20px;
+      line-height: 28px;
+    }
+
+    p {
+      margin-top: 4px;
+      color: #979ba5;
+    }
+  }
+
+  &__generated-at {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 12px;
+    color: #979ba5;
+  }
+}
+
+.redis-data-warning {
+  padding: 8px 12px;
+  margin-top: 12px;
+  color: #ff9c01;
+  background: #fff4e2;
+  border-left: 3px solid #ff9c01;
+}
+
+.redis-node-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+.redis-node-card,
+.redis-routing-panel,
+.redis-draft-panel {
+  background: #fff;
+  border: 1px solid #dcdee5;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+}
+
+.redis-node-card {
+  padding: 16px;
+
+  &__header {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  &__metrics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 16px;
+
+    div {
+      display: grid;
+      gap: 4px;
+    }
+
+    span,
+    em {
+      font-style: normal;
+      color: #979ba5;
+    }
+
+    strong {
+      font-size: 18px;
+    }
+  }
+
+  &__trend {
+    width: 100%;
+    height: 42px;
+    margin-top: 4px;
+
+    polyline {
+      fill: none;
+      stroke-width: 2;
+      vector-effect: non-scaling-stroke;
+    }
+  }
+
+  &__trend-head {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 12px;
+    font-size: 12px;
+    color: #979ba5;
+  }
+
+  &__peak-point {
+    fill: #ea3636;
+    stroke: #fff;
+    stroke-width: 1;
+    vector-effect: non-scaling-stroke;
+  }
+
+  &__current-point {
+    fill: #fff;
+    stroke: currentcolor;
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+  }
+
+  &__foot {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 12px;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #979ba5;
+
+    .is-warning {
+      color: #ff9c01;
+    }
+  }
+}
+
+.redis-node-dot,
+.redis-route-legend i {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.redis-node-tag,
+.redis-node-state {
+  padding: 2px 6px;
+  font-size: 12px;
+  color: #2dcbba;
+  background: #e5f6f3;
+  border-radius: 2px;
+}
+
+.redis-node-state {
+  margin-left: auto;
+
+  &.disabled {
+    color: #979ba5;
+    background: #f0f1f5;
+  }
+}
+
+.redis-routing-panel,
+.redis-draft-panel {
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.redis-section-head {
+  h3 {
+    font-size: 16px;
+  }
+
+  p {
+    margin-top: 4px;
+    color: #979ba5;
+  }
+}
+
+.redis-route-scale,
+.redis-route-context,
+.redis-route-snapshot {
+  font-size: 12px;
+  color: #979ba5;
+}
+
+.redis-route-context {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 24px;
+}
+
+.redis-route-snapshot {
+  margin-top: 8px;
+  text-align: right;
+}
+
+.redis-route-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  gap: 28px;
+  align-items: end;
+  margin-top: 8px;
+}
+
+.redis-route-visual {
+  position: relative;
+  height: 174px;
+}
+
+.redis-memory-line {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px dashed #dcdee5;
+
+  &--top {
+    top: 16px;
+  }
+
+  &--middle {
+    top: 70px;
+  }
+}
+
+.redis-hot-layer {
+  position: absolute;
+  inset: 12px 0 66px;
+}
+
+.redis-hot-marker {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  background: #c4c6cc;
+
+  &__point {
+    position: absolute;
+    top: 0;
+    left: -5px;
+    width: 11px;
+    height: 11px;
+    background: #ea3636;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgb(234 54 54 / 25%);
+  }
+
+  &__arrow {
+    position: absolute;
+    top: -18px;
+    left: -5px;
+    font-weight: 700;
+    color: #ea3636;
+  }
+}
+
+.redis-route-track {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 48px;
+  background: #f0f1f5;
+  border-radius: 3px;
+}
+
+.redis-route-segment {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  min-width: 2px;
+  overflow: hidden;
+  color: #fff;
+  white-space: nowrap;
+
+  span {
+    font-size: 12px;
+    opacity: 0.85;
+  }
+}
+
+.redis-route-boundary {
+  position: absolute;
+  top: -5px;
+  bottom: -5px;
+  z-index: 4;
+  width: 8px;
+  padding: 0;
+  cursor: ew-resize;
+  background: #ffb848;
+  border: 2px solid #fff;
+  border-radius: 4px;
+  transform: translateX(-50%);
+
+  .redis-route-boundary-label {
+    position: absolute;
+    top: 58px;
+    left: 50%;
+    display: none;
+    padding: 4px 8px;
+    color: #313238;
+    white-space: nowrap;
+    background: #fff;
+    border: 1px solid #dcdee5;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 10%);
+    transform: translateX(-50%);
+  }
+
+  &.selected,
+  &.dragging {
+    .redis-route-boundary-label {
+      display: block;
+    }
+  }
+
+  &.locked {
+    cursor: not-allowed;
+    opacity: 0.45;
+  }
+}
+
+.redis-future-route {
+  display: grid;
+  gap: 4px;
+  min-height: 72px;
+  padding: 12px;
+  background: repeating-linear-gradient(135deg, #fafbfd, #fafbfd 8px, #f0f1f5 8px, #f0f1f5 16px);
+  border: 1px dashed #c4c6cc;
+  border-radius: 3px;
+
+  span,
+  em {
+    font-size: 12px;
+    font-style: normal;
+    color: #63656e;
+  }
+}
+
+.redis-route-ranges {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-top: 16px;
+  font-size: 12px;
+  color: #63656e;
+
+  > strong {
+    flex: 0 0 auto;
+    color: #313238;
+  }
+
+  > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 18px;
+  }
+
+  span {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+  }
+
+  i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+  }
+
+  b {
+    color: #313238;
+  }
+}
+
+.redis-route-legend {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  margin-top: 28px;
+  font-size: 12px;
+  color: #63656e;
+
+  span {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+  }
+
+  .hot {
+    color: #ea3636;
+  }
+}
+
+.redis-route-live-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  align-items: center;
+  padding: 10px 12px;
+  margin-top: 12px;
+  color: #63656e;
+  background: #f0f5ff;
+  border-left: 3px solid #3a84ff;
+
+  strong {
+    color: #313238;
+  }
+}
+
+.redis-route-warning {
+  padding: 8px 12px;
+  margin-top: 12px;
+  color: #ff9c01;
+  background: #fff4e2;
+  border-left: 3px solid #ff9c01;
+}
+
+.redis-draft-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 24px;
+  padding: 12px 16px;
+  margin-top: 16px;
+  background: #f0f5ff;
+  border-left: 3px solid #3a84ff;
+}
+
+.redis-draft-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.redis-draft-state {
+  padding: 16px;
+  background: #f5f7fa;
+  border: 1px solid #dcdee5;
+
+  h4 {
+    margin-bottom: 12px;
+  }
+}
+
+.redis-draft-node {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  padding: 8px 0;
+  border-top: 1px solid #eaebf0;
+
+  span {
+    color: #63656e;
+  }
+
+  strong {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  em {
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+    color: #63656e;
+  }
+}
+
+.redis-draft-impact {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  padding-top: 16px;
+  margin-top: 16px;
+  border-top: 1px solid #eaebf0;
+
+  div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  a {
+    padding: 3px 8px;
+    color: #3a84ff;
+    background: #edf4ff;
+    border-radius: 2px;
+  }
+}
+
+.redis-draft-timing {
+  margin-top: 12px;
+  color: #63656e;
+}
+
+.redis-hot-strategy-tooltip {
+  white-space: pre-line;
+}
+
+@media (width <= 1180px) {
+  .redis-route-layout,
+  .redis-draft-grid {
+    grid-template-columns: 1fr;
+  }
+}

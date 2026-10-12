@@ -119,6 +119,45 @@ class TestAssignRuleResource(TestCase):
         rule_slz = AssignRuleSlz(data=rule)
         self.assertTrue(rule_slz.is_valid(raise_exception=True))
 
+    def test_condition_field_group_prefix(self):
+        """条件字段携带前端分组展示前缀时，保存前应剥离，否则永远匹配不到告警维度"""
+
+        def clean(field):
+            slz = ConditionSerializer(data={"field": field, "value": ["x"], "method": "eq"})
+            slz.is_valid(raise_exception=True)
+            return slz.validated_data["field"]
+
+        # 分组名随界面语言变化，任意语言的前缀都要剥离
+        self.assertEqual(clean("[维度]bcs_cluster_id"), "bcs_cluster_id")
+        self.assertEqual(clean("[Dimension]bcs_cluster_id"), "bcs_cluster_id")
+        self.assertEqual(clean("[标签]namespace"), "namespace")
+        # 合法字段不受影响
+        self.assertEqual(clean("is_empty_users"), "is_empty_users")
+        self.assertEqual(clean("alert.strategy_id"), "alert.strategy_id")
+        self.assertEqual(clean("tags.bcs_cluster_id"), "tags.bcs_cluster_id")
+        # 剥离后为空时保留原值，避免产生空字段
+        self.assertEqual(clean("[维度]"), "[维度]")
+
+    def test_rule_slz_condition_field_group_prefix(self):
+        assign_group = AlertAssignGroup.objects.create(name="test prefix", bk_biz_id=2, priority=1)
+        rule = {
+            "assign_group_id": assign_group.id,
+            "bk_biz_id": 2,
+            "user_groups": [29],
+            "conditions": [
+                {"field": "[维度]bcs_cluster_id", "value": ["BCS-K8S-40836"], "method": "eq"},
+                {"field": "labels", "value": ["BCS内置告警"], "method": "eq"},
+            ],
+            "actions": [{"action_type": "notice"}],
+            "is_enabled": True,
+        }
+        rule_slz = AssignRuleSlz(data=rule)
+        self.assertTrue(rule_slz.is_valid(raise_exception=True))
+        self.assertEqual(
+            [condition["field"] for condition in rule_slz.validated_data["conditions"]],
+            ["bcs_cluster_id", "labels"],
+        )
+
     def test_include_same_user_slz(self):
         assign_group = AlertAssignGroup.objects.create(name="test cache", bk_biz_id=2, priority=1)
         rule = {

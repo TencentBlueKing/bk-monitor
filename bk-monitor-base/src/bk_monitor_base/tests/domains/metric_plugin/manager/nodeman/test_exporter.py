@@ -174,6 +174,9 @@ class TestExporterPluginManager:
 
         # 验证结果
         assert result == mock_package_path
+        for files in self.plugin_manager._make_package.call_args.kwargs["extra_files"].values():
+            for file_info in files:
+                assert Path(file_info["source_path"]).stat().st_mode & 0o777 == 0o700
 
     @pytest.mark.django_db(databases=["default"])
     def test_make_package_missing_file_token(self, mocker: MockerFixture):

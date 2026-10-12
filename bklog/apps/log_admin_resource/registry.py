@@ -1,15 +1,47 @@
+from collections.abc import Callable
+from typing import Any
+
+from django.conf import settings
+
+from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
-from apps.log_admin_resource.handlers.collector import get_collector_detail, list_collectors
+from apps.log_admin_resource.handlers.collector import (
+    COLLECTOR_DETAIL_PARAMS_SCHEMA,
+    COLLECTOR_DETAIL_RESPONSE_SCHEMA,
+    COLLECTOR_LIST_PARAMS_SCHEMA,
+    COLLECTOR_LIST_RESPONSE_SCHEMA,
+    get_collector_detail,
+    list_collectors,
+)
+from apps.log_admin_resource.handlers.collector_evidence import (
+    FUNCTIONS as COLLECTOR_EVIDENCE_FUNCTIONS,
+    HANDLERS as COLLECTOR_EVIDENCE_HANDLERS,
+)
 from apps.log_admin_resource.handlers.collector_storage import (
+    COLLECTOR_STORAGE_APPLY_PARAMS_SCHEMA,
+    COLLECTOR_STORAGE_PREVIEW_PARAMS_SCHEMA,
+    COLLECTOR_STORAGE_RESPONSE_SCHEMA,
+    COLLECTOR_STORAGE_SNAPSHOT_PARAMS_SCHEMA,
     apply_collector_storage,
     get_collector_storage_snapshot,
     preview_collector_storage,
 )
 from apps.log_admin_resource.handlers.bkdata_inspection import (
     batch_get_bkdata_result_table_snapshots,
+    get_bkdata_clean_errors,
     get_bkdata_clean_snapshot,
     get_bkdata_flow_snapshot,
     get_bkdata_raw_snapshot,
+)
+from apps.log_admin_resource.handlers.datalink_control_plane import (
+    FUNC_NAME as DATALINK_CONTROL_PLANE_FUNC_NAME,
+    PARAMS_SCHEMA as DATALINK_CONTROL_PLANE_PARAMS_SCHEMA,
+    RESPONSE_SCHEMA as DATALINK_CONTROL_PLANE_RESPONSE_SCHEMA,
+    get_datalink_control_plane_snapshot,
+)
+from apps.log_admin_resource.handlers.async_export import (
+    FUNCTIONS as ASYNC_EXPORT_FUNCTIONS,
+    HANDLERS as ASYNC_EXPORT_HANDLERS,
 )
 from apps.log_admin_resource.handlers.clustering_config import (
     get_clustering_config_detail,
@@ -22,7 +54,52 @@ from apps.log_admin_resource.handlers.clustering_pipeline import (
     skip_clustering_pipeline_node,
 )
 from apps.log_admin_resource.handlers.index_set import get_index_set_detail, list_index_sets
-from apps.log_admin_resource.handlers.storage_cluster import list_storage_clusters
+from apps.log_admin_resource.handlers.index_set_route import (
+    FUNCTIONS as INDEX_SET_ROUTE_FUNCTIONS,
+    HANDLERS as INDEX_SET_ROUTE_HANDLERS,
+)
+from apps.log_admin_resource.handlers.host_inspection import (
+    FUNCTIONS as HOST_INSPECTION_FUNCTIONS,
+    HANDLERS as HOST_INSPECTION_HANDLERS,
+)
+from apps.log_admin_resource.handlers.iam_decision import (
+    FUNCTIONS as IAM_DECISION_FUNCTIONS,
+    HANDLERS as IAM_DECISION_HANDLERS,
+)
+from apps.log_admin_resource.handlers.k8s_inspection import (
+    FUNCTIONS as K8S_INSPECTION_FUNCTIONS,
+    HANDLERS as K8S_INSPECTION_HANDLERS,
+)
+from apps.log_admin_resource.handlers.log_extract import (
+    FUNCTIONS as LOG_EXTRACT_FUNCTIONS,
+    HANDLERS as LOG_EXTRACT_HANDLERS,
+)
+from apps.log_admin_resource.handlers.log_query import (
+    FUNCTIONS as LOG_QUERY_FUNCTIONS,
+    HANDLERS as LOG_QUERY_HANDLERS,
+)
+from apps.log_admin_resource.handlers.model_query import (
+    FUNCTIONS as MODEL_QUERY_FUNCTIONS,
+    HANDLERS as MODEL_QUERY_HANDLERS,
+)
+from apps.log_admin_resource.handlers.monitor_strategy import (
+    FUNCTIONS as MONITOR_STRATEGY_FUNCTIONS,
+    HANDLERS as MONITOR_STRATEGY_HANDLERS,
+)
+from apps.log_admin_resource.handlers.platform_source import (
+    FUNCTIONS as PLATFORM_SOURCE_FUNCTIONS,
+    HANDLERS as PLATFORM_SOURCE_HANDLERS,
+)
+from apps.log_admin_resource.handlers.runtime import (
+    FUNCTIONS as RUNTIME_FUNCTIONS,
+    HANDLERS as RUNTIME_HANDLERS,
+)
+from apps.log_admin_resource.handlers.storage_cluster import (
+    STORAGE_CLUSTER_LIST_PARAMS_SCHEMA,
+    STORAGE_CLUSTER_LIST_RESPONSE_SCHEMA,
+    list_storage_clusters,
+)
+from apps.log_admin_resource.schema import validate_params
 
 
 PROTOCOL = "bklog.admin_resource.v1"
@@ -173,44 +250,64 @@ FUNCTIONS = {
         "func_name": "bklog.collector.list",
         "description": "List bklog collector configs for admin resource views.",
         "safety_level": "read",
+        "params_schema": COLLECTOR_LIST_PARAMS_SCHEMA,
+        "response_schema": COLLECTOR_LIST_RESPONSE_SCHEMA,
+        "examples": [{"params": {"page": 1, "page_size": 20, "bk_biz_id": 2}}],
     },
     "bklog.collector.detail": {
         "func_name": "bklog.collector.detail",
         "description": "Get bklog collector config detail for admin resource views.",
         "safety_level": "read",
+        "params_schema": COLLECTOR_DETAIL_PARAMS_SCHEMA,
+        "response_schema": COLLECTOR_DETAIL_RESPONSE_SCHEMA,
+        "examples": [{"params": {"collector_config_id": 1001}}],
     },
     "bklog.collector.storage.preview": {
         "func_name": "bklog.collector.storage.preview",
         "description": "Preview bklog collector storage config changes.",
         "safety_level": "read",
+        "params_schema": COLLECTOR_STORAGE_PREVIEW_PARAMS_SCHEMA,
+        "response_schema": COLLECTOR_STORAGE_RESPONSE_SCHEMA,
+        "examples": [
+            {
+                "params": {
+                    "collector_config_ids": [1001],
+                    "target": {"retention": 7, "storage_shards_nums": 3},
+                }
+            }
+        ],
     },
     "bklog.collector.storage.snapshot": {
         "func_name": "bklog.collector.storage.snapshot",
         "description": "Get current bklog collector storage config snapshots.",
         "safety_level": "read",
-        "params_schema": {
-            "type": "object",
-            "properties": {
-                "collector_config_ids": {
-                    "type": "array",
-                    "items": {"type": "integer", "minimum": 1},
-                    "minItems": 1,
-                    "maxItems": 30,
-                }
-            },
-            "required": ["collector_config_ids"],
-            "additionalProperties": False,
-        },
+        "params_schema": COLLECTOR_STORAGE_SNAPSHOT_PARAMS_SCHEMA,
+        "response_schema": COLLECTOR_STORAGE_RESPONSE_SCHEMA,
+        "examples": [{"params": {"collector_config_ids": [1001]}}],
     },
     "bklog.collector.storage.apply": {
         "func_name": "bklog.collector.storage.apply",
         "description": "Apply bklog collector storage config changes.",
         "safety_level": "write",
+        "params_schema": COLLECTOR_STORAGE_APPLY_PARAMS_SCHEMA,
+        "response_schema": COLLECTOR_STORAGE_RESPONSE_SCHEMA,
+        "examples": [
+            {
+                "params": {
+                    "collector_config_ids": [1001],
+                    "target": {"retention": 7},
+                    "expected_before": {"1001": {"retention": 30}},
+                }
+            }
+        ],
     },
     "bklog.storage_cluster.list": {
         "func_name": "bklog.storage_cluster.list",
         "description": "List bklog ES storage clusters for admin resource views.",
         "safety_level": "read",
+        "params_schema": STORAGE_CLUSTER_LIST_PARAMS_SCHEMA,
+        "response_schema": STORAGE_CLUSTER_LIST_RESPONSE_SCHEMA,
+        "examples": [{"params": {"bk_biz_id": 2, "page": 1, "page_size": 20}}],
     },
     "bklog.index_set.list": {
         "func_name": "bklog.index_set.list",
@@ -293,6 +390,7 @@ FUNCTIONS = {
             "flow_references",
             "generated_flow_configs",
             "result_table_references",
+            "strategy_bindings",
             "access_tasks",
         ),
         "examples": [
@@ -392,6 +490,28 @@ FUNCTIONS = {
         "params_schema": _bkdata_id_schema("raw_data_id", include_sample_limit=True),
         "response_schema": _snapshot_response_schema("raw_data_id", "bk_biz_id", probe_keys=("deploy", "tail")),
         "examples": [{"params": {"bk_biz_id": 5000140, "raw_data_id": 12345, "sample_limit": 10}}],
+    },
+    "bklog.bkdata.clean.errors": {
+        "func_name": "bklog.bkdata.clean.errors",
+        "validate_params": True,
+        "description": "Sample DataID clean errors and filter by exact RT locally; no match does not prove no errors.",
+        "safety_level": "inspect",
+        "data_classification": "sensitive_logs",
+        "params_schema": {
+            "type": "object",
+            "properties": {
+                "bk_biz_id": {"type": "integer", "not": {"const": 0}},
+                "raw_data_id": {"type": "integer", "minimum": 1},
+                "result_table_id": {"type": "string", "minLength": 1},
+                "sample_limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+            "required": ["bk_biz_id", "raw_data_id", "result_table_id"],
+            "additionalProperties": False,
+        },
+        "response_schema": _snapshot_response_schema(
+            "raw_data_id", "result_table_id", "bk_biz_id", probe_keys=("errors",)
+        ),
+        "examples": [{"params": {"bk_biz_id": 2, "raw_data_id": 1, "result_table_id": "2_clean", "sample_limit": 5}}],
     },
     "bklog.bkdata.clean.snapshot": {
         "func_name": "bklog.bkdata.clean.snapshot",
@@ -494,8 +614,30 @@ FUNCTIONS = {
         ],
     },
 }
+FUNCTIONS.update(PLATFORM_SOURCE_FUNCTIONS)
+FUNCTIONS[DATALINK_CONTROL_PLANE_FUNC_NAME] = {
+    "func_name": DATALINK_CONTROL_PLANE_FUNC_NAME,
+    "validate_params": True,
+    "description": "Read tenant-scoped Data ID, GSE, Kafka and BKBase V4 control-plane evidence and verify actual resource references.",
+    "safety_level": "inspect",
+    "data_classification": "control_plane",
+    "params_schema": DATALINK_CONTROL_PLANE_PARAMS_SCHEMA,
+    "response_schema": DATALINK_CONTROL_PLANE_RESPONSE_SCHEMA,
+    "examples": [{"params": {"bk_data_id": 1}}],
+}
+FUNCTIONS.update(COLLECTOR_EVIDENCE_FUNCTIONS)
+FUNCTIONS.update(INDEX_SET_ROUTE_FUNCTIONS)
+FUNCTIONS.update(ASYNC_EXPORT_FUNCTIONS)
+FUNCTIONS.update(LOG_EXTRACT_FUNCTIONS)
+FUNCTIONS.update(LOG_QUERY_FUNCTIONS)
+FUNCTIONS.update(MODEL_QUERY_FUNCTIONS)
+FUNCTIONS.update(HOST_INSPECTION_FUNCTIONS)
+FUNCTIONS.update(K8S_INSPECTION_FUNCTIONS)
+FUNCTIONS.update(IAM_DECISION_FUNCTIONS)
+FUNCTIONS.update(MONITOR_STRATEGY_FUNCTIONS)
+FUNCTIONS.update(RUNTIME_FUNCTIONS)
 
-HANDLERS = {
+HANDLERS: dict[str, Callable[..., Any]] = {
     "bklog.collector.list": list_collectors,
     "bklog.collector.detail": get_collector_detail,
     "bklog.collector.storage.preview": preview_collector_storage,
@@ -512,32 +654,84 @@ HANDLERS = {
     "bklog.clustering_config.pipeline.force_fail": force_fail_clustering_pipeline_node,
     "bklog.bkdata.raw.snapshot": get_bkdata_raw_snapshot,
     "bklog.bkdata.clean.snapshot": get_bkdata_clean_snapshot,
+    "bklog.bkdata.clean.errors": get_bkdata_clean_errors,
     "bklog.bkdata.flow.snapshot": get_bkdata_flow_snapshot,
     "bklog.bkdata.result_table.snapshot_batch": batch_get_bkdata_result_table_snapshots,
 }
+HANDLERS.update(PLATFORM_SOURCE_HANDLERS)
+HANDLERS[DATALINK_CONTROL_PLANE_FUNC_NAME] = get_datalink_control_plane_snapshot
+HANDLERS.update(COLLECTOR_EVIDENCE_HANDLERS)
+HANDLERS.update(INDEX_SET_ROUTE_HANDLERS)
+HANDLERS.update(ASYNC_EXPORT_HANDLERS)
+HANDLERS.update(LOG_EXTRACT_HANDLERS)
+HANDLERS.update(LOG_QUERY_HANDLERS)
+HANDLERS.update(MODEL_QUERY_HANDLERS)
+HANDLERS.update(HOST_INSPECTION_HANDLERS)
+HANDLERS.update(K8S_INSPECTION_HANDLERS)
+HANDLERS.update(IAM_DECISION_HANDLERS)
+HANDLERS.update(MONITOR_STRATEGY_HANDLERS)
+HANDLERS.update(RUNTIME_HANDLERS)
 
 
 class AdminResourceRegistry:
     @classmethod
-    def call(cls, func_name, params):
+    def call(cls, func_name, params, app_code=None):
+        cls._validate_app_access(app_code=app_code, func_name=func_name)
         if func_name == "__meta__":
-            return cls.meta(params)
+            return cls.meta(params, app_code=app_code)
         if func_name in HANDLERS:
+            function = FUNCTIONS[func_name]
+            if function.get("validate_params"):
+                validate_params(params or {}, function.get("params_schema") or _object_schema())
             return HANDLERS[func_name](params or {})
         raise ValidationError(f"unknown func_name: {func_name}")
 
     @classmethod
-    def meta(cls, params):
+    def meta(cls, params, app_code=None):
         params = params or {}
         action = params.get("action", "list")
+        visible_functions = cls._visible_functions(app_code)
         if action == "list":
-            return {"functions": sorted(FUNCTIONS.keys())}
+            names = sorted(visible_functions)
+            return {
+                "protocol": PROTOCOL,
+                "functions": names,
+                "capabilities": [cls._capability_summary(visible_functions[name]) for name in names],
+            }
         if action == "detail":
             target_func_name = params.get("target_func_name")
-            if target_func_name not in FUNCTIONS:
+            if target_func_name not in visible_functions:
                 raise ValidationError(f"unknown target_func_name: {target_func_name}")
-            return FUNCTIONS[target_func_name]
+            return cls._public_metadata(visible_functions[target_func_name])
         raise ValidationError(f"unknown meta action: {action}")
+
+    @staticmethod
+    def _public_metadata(function):
+        return {key: value for key, value in function.items() if not key.startswith("_") and key != "validate_params"}
+
+    @staticmethod
+    def _capability_summary(function):
+        return {key: function[key] for key in ("func_name", "description", "safety_level") if key in function}
+
+    @classmethod
+    def _visible_functions(cls, app_code):
+        if app_code in settings.RESOURCE_CALL_APP_CODE_WHITE_LIST:
+            return FUNCTIONS
+        return {
+            name: function
+            for name, function in FUNCTIONS.items()
+            if function.get("safety_level") in {"read", "inspect"}
+        }
+
+    @classmethod
+    def _validate_app_access(cls, app_code, func_name):
+        if not app_code:
+            raise BklogPermissionError("resource call requires a trusted APIGW app identity")
+        if func_name == "__meta__" or func_name not in FUNCTIONS:
+            return
+        safety_level = FUNCTIONS[func_name].get("safety_level")
+        if safety_level in {"write", "destructive"} and app_code not in settings.RESOURCE_CALL_APP_CODE_WHITE_LIST:
+            raise BklogPermissionError("resource call app is outside the management allowlist")
 
 
 def wrap_result(func_name, result):

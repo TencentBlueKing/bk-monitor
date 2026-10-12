@@ -359,7 +359,8 @@ def parse_time_compare_abbreviation(time_offset: int | str) -> int:
     return time_offset
 
 
-def datetime_str_to_datetime(datetime_str: str, format: str, time_zone: int = 0) -> datetime.datetime:
+# 保留 format 关键字，避免模块迁入主仓时破坏既有调用。
+def datetime_str_to_datetime(datetime_str: str, format: str, time_zone: int = 0) -> datetime.datetime:  # noqa: A002
     return arrow.get(datetime.datetime.strptime(datetime_str, format)).replace(hours=time_zone).datetime
 
 
@@ -371,7 +372,8 @@ def datetime_to_tz_timestamp(datetime, offset):
     return arrow.get(datetime).replace(hours=-offset).timestamp
 
 
-def datetime2str(date_time: datetime.datetime, format="%Y-%m-%d %H:%M:%S"):
+# 保留 format 关键字，避免模块迁入主仓时破坏既有调用。
+def datetime2str(date_time: datetime.datetime, format="%Y-%m-%d %H:%M:%S"):  # noqa: A002
     # datetime 转换为时间字符串
     return date_time.strftime(format)
 

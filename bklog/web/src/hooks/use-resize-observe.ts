@@ -34,7 +34,7 @@ export default (
   immediateStart = true,
 ) => {
   const debounceCallback = debounce(
-    (entry) => {
+    entry => {
       callbackFn?.(entry);
     },
     typeof delayCallback === 'number' ? delayCallback : 120,
@@ -76,7 +76,7 @@ export default (
 
     if (isElement(cellElement)) {
       // 创建一个 ResizeObserver 实例
-      resizeObserver = new ResizeObserver((entries) => {
+      resizeObserver = new ResizeObserver(entries => {
         for (const entry of entries) {
           if (delayCallback === false) {
             callbackFn?.(entry);

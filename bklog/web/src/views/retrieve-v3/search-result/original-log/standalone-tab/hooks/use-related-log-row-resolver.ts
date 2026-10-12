@@ -8,10 +8,7 @@ import {
   resolveRelatedLogTargetRow,
 } from './resolve-related-log-target-row';
 
-export const useRelatedLogRowResolver = (options: {
-  targetRow: Ref<Record<string, any>>;
-  indexSetId: Ref<number>;
-}) => {
+export const useRelatedLogRowResolver = (options: { targetRow: Ref<Record<string, any>>; indexSetId: Ref<number> }) => {
   const store = useStore();
 
   const resolveByRowKey = async (rowKey?: string, fallbackRow?: Record<string, any>) => {

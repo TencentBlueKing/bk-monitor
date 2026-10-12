@@ -96,9 +96,7 @@ def test_serializer_accepts_integer_task_ids_and_rejects_empty_list():
 
 
 def test_serializer_rejects_invalid_collector_id():
-    serializer = GetLogCollectorStatusResource.RequestSerializer(
-        data={"bk_biz_id": 2, "collector_config_id": 0}
-    )
+    serializer = GetLogCollectorStatusResource.RequestSerializer(data={"bk_biz_id": 2, "collector_config_id": 0})
     assert not serializer.is_valid()
     assert "collector_config_id" in serializer.errors
 
@@ -210,7 +208,9 @@ def test_status_resource_normalizes_container_partial_failure(monkeypatch):
 
 
 def test_status_resource_marks_unknown_as_pollable(monkeypatch):
-    task_status = lambda **kwargs: pytest.fail("task status should not be requested")
+    def task_status(**kwargs):
+        pytest.fail("task status should not be requested")
+
     log_search = SimpleNamespace(
         data_bus_collectors=lambda **kwargs: {"bk_biz_id": 2, "task_id_list": None},
         log_collector_task_status=task_status,
@@ -225,6 +225,38 @@ def test_status_resource_marks_unknown_as_pollable(monkeypatch):
     assert result["status"] == "unknown"
     assert result["is_terminal"] is False
     assert result["retry_after_seconds"] == 5
+
+
+def test_status_resource_marks_custom_report_as_complete_without_deployment(monkeypatch):
+    log_search = SimpleNamespace(
+        data_bus_collectors=lambda **kwargs: {
+            "bk_biz_id": 2,
+            "collector_scenario_id": "custom",
+            "custom_type": "log",
+            "subscription_id": "legacy-subscription",
+            "task_id_list": None,
+        },
+        log_collector_task_status=lambda **kwargs: pytest.fail("custom reports do not have deployment tasks"),
+        log_collector_subscription_status=lambda **kwargs: pytest.fail(
+            "custom reports do not have node-manager subscriptions"
+        ),
+    )
+    monkeypatch.setattr(status_module, "api", SimpleNamespace(log_search=log_search))
+
+    result = GetLogCollectorStatusResource().perform_request(
+        {"bk_biz_id": 2, "collector_config_id": 30, "detail_limit": 20}
+    )
+
+    assert result["status"] == "success"
+    assert result["is_terminal"] is True
+    assert result["retry_after_seconds"] == 0
+    assert result["deployment_required"] is False
+    assert result["task_ids"] == []
+    assert result["subscription_id"] == "legacy-subscription"
+    assert result["environment"] == "container"
+    assert result["task"]["status"] == "success"
+    assert result["subscription"]["status"] == "success"
+    assert result["task"] is not result["subscription"]
 
 
 def test_status_resource_uses_subscription_when_no_task_exists(monkeypatch):
@@ -257,9 +289,7 @@ def test_status_resource_rejects_non_numeric_task_ids(monkeypatch):
     monkeypatch.setattr(status_module, "api", SimpleNamespace(log_search=log_search))
 
     with pytest.raises(ValidationError, match="positive integers"):
-        GetLogCollectorStatusResource().perform_request(
-            {"bk_biz_id": 2, "collector_config_id": 30, "detail_limit": 20}
-        )
+        GetLogCollectorStatusResource().perform_request({"bk_biz_id": 2, "collector_config_id": 30, "detail_limit": 20})
 
 
 def test_status_resource_rejects_oversized_task_id():
@@ -282,9 +312,7 @@ def test_status_resource_rejects_normalized_task_id_overflow(monkeypatch):
     monkeypatch.setattr(status_module, "api", SimpleNamespace(log_search=log_search))
 
     with pytest.raises(ValidationError, match="no more than 100"):
-        GetLogCollectorStatusResource().perform_request(
-            {"bk_biz_id": 2, "collector_config_id": 31, "detail_limit": 20}
-        )
+        GetLogCollectorStatusResource().perform_request({"bk_biz_id": 2, "collector_config_id": 31, "detail_limit": 20})
 
 
 def test_status_resource_preserves_unknown_until_task_is_visible(monkeypatch):
@@ -379,6 +407,4 @@ def test_status_resource_rejects_cross_business_collector(monkeypatch):
     monkeypatch.setattr(status_module, "api", SimpleNamespace(log_search=log_search))
 
     with pytest.raises(PermissionDenied):
-        GetLogCollectorStatusResource().perform_request(
-            {"bk_biz_id": 2, "collector_config_id": 40, "detail_limit": 20}
-        )
+        GetLogCollectorStatusResource().perform_request({"bk_biz_id": 2, "collector_config_id": 40, "detail_limit": 20})

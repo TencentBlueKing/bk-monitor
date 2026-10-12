@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import json
 import logging
 from collections.abc import Iterator
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import requests
 from django.conf import settings
@@ -26,6 +26,9 @@ tracer = trace.get_tracer(__name__)
 
 # # 与 urllib3 默认流读取大小一致，平衡首包延迟、迭代开销和内存占用。
 LOG_STREAM_CHUNK_SIZE = 64 * 1024
+
+# 路由前缀，其后的部分即日志平台接口路径。
+LOG_PROXY_PATH_PREFIX = "/bklog/"
 
 
 class _UpstreamResponseIterator:
@@ -49,6 +52,38 @@ class BkLogForwardingView(APIView):
 
     # 需要忽略的头部
     ignore_headers = ["host", "content-length"]
+    # 透传给日志平台但不落到 Trace 的头部，避免用户会话凭据被观测链路持久化。
+    sensitive_headers = frozenset({"cookie", "authorization", "x-csrftoken"})
+
+    @classmethod
+    def _build_target_url(cls, request_path: str) -> str | None:
+        """把代理请求路径映射为日志平台地址，无法安全映射时返回 None。
+
+        urljoin 会把 `//host/x` 这类协议相对路径解析成新的主机，因此需要先剥掉前导斜杠，
+        再校验拼接结果没有偏离 BKLOGSEARCH_INNER_HOST，防止该视图被当作任意地址的跳板。
+        """
+        base_url: str = settings.BKLOGSEARCH_INNER_HOST
+        if not base_url.endswith("/"):
+            base_url = f"{base_url}/"
+
+        _, separator, relative_path = request_path.partition(LOG_PROXY_PATH_PREFIX)
+        if not separator:
+            return None
+
+        relative_path = relative_path.lstrip("/")
+        if ".." in relative_path.split("/"):
+            return None
+
+        target_url: str = urljoin(base_url, relative_path)
+        base_parts, target_parts = urlparse(base_url), urlparse(target_url)
+        if (target_parts.scheme, target_parts.netloc) != (base_parts.scheme, base_parts.netloc):
+            return None
+        return target_url
+
+    @classmethod
+    def _desensitize_headers(cls, headers: dict[str, str]) -> dict[str, str]:
+        """脱敏后的头部，仅用于 Trace 记录。"""
+        return {key: ("******" if key.lower() in cls.sensitive_headers else value) for key, value in headers.items()}
 
     @classmethod
     def _is_attachment_response(cls, response: requests.Response) -> bool:
@@ -117,7 +152,11 @@ class BkLogForwardingView(APIView):
         return cls._construct_json_response(response)
 
     def dispatch(self, request, *args, **kwargs):
-        if not str(request.path).replace("/", "").replace("_", "").isalnum():
+        target_url: str | None = None
+        if str(request.path).replace("/", "").replace("_", "").isalnum():
+            target_url = self._build_target_url(str(request.path))
+
+        if target_url is None:
             return JsonResponse(
                 {
                     "message": _("请求路径不在日志平台接口范围"),
@@ -128,7 +167,6 @@ class BkLogForwardingView(APIView):
                 status=500,
             )
 
-        target_url = urljoin(settings.BKLOGSEARCH_INNER_HOST, request.path.split("bklog")[-1])
         try:
             params = {key: request.GET.get(key) for key in request.GET}
             body = request.body if request.body else None
@@ -139,7 +177,7 @@ class BkLogForwardingView(APIView):
                 "log_forward",
                 attributes={
                     "target_url": target_url,
-                    "headers": json.dumps(headers),
+                    "headers": json.dumps(self._desensitize_headers(headers)),
                     "params": params,
                     "body": body,
                 },
@@ -156,10 +194,12 @@ class BkLogForwardingView(APIView):
                     stream=True,
                 )
                 return self._construct_response(response)
-        except Exception as e:  # noqa
+        except Exception:  # noqa
+            # 异常详情含日志平台内网地址，只写日志不回传给前端。
+            logger.exception("[BkLogForwardingView] failed to forward request, path -> %s", request.path)
             return JsonResponse(
                 {
-                    "message": _("请求日志平台接口错误: ") + str(e),
+                    "message": _("请求日志平台接口错误"),
                     "code": 500,
                     "data": None,
                     "result": False,

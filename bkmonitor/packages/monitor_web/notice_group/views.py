@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,12 +7,14 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from core.drf_resource import resource
+from monitor_web.permissions import require_business_id
 
 
 class NoticeGroupViewSet(ResourceViewSet):
@@ -24,6 +25,7 @@ class NoticeGroupViewSet(ResourceViewSet):
     def get_permissions(self):
         if self.action in ["get_notice_way", "get_receiver"]:
             return []
+        require_business_id(self.request)
         if self.request.method in permissions.SAFE_METHODS:
             return [BusinessActionPermission([ActionEnum.VIEW_NOTIFY_TEAM])]
         return [BusinessActionPermission([ActionEnum.MANAGE_NOTIFY_TEAM])]

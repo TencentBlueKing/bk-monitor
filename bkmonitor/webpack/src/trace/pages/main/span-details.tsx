@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-/** biome-ignore-all lint/suspicious/noExplicitAny: <explanation> */
+/** biome-ignore-all lint/suspicious/noExplicitAny: 兼容原始 Span 的动态属性及不同详情区块的数据结构。 */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community Edition) available.
@@ -29,12 +29,14 @@ import {
   type PropType,
   type Ref,
   computed,
+  ref as deepRef,
   defineComponent,
   inject,
+  nextTick,
+  onBeforeUnmount,
   onMounted,
   provide,
   reactive,
-  ref,
   shallowRef,
   watch,
 } from 'vue';
@@ -52,6 +54,11 @@ import VueJsonPretty from 'vue-json-pretty';
 
 import ExceptionGuide, { type IGuideInfo } from '../../components/exception-guide/exception-guide';
 import MonitorTab from '../../components/monitor-tab/monitor-tab';
+import {
+  hideSelectionDecoder,
+  isSelectionDecoderTrigger,
+  showSelectionDecoder,
+} from '../../components/selection-decoder';
 import transformTraceTree from '../../components/trace-view/model/transform-trace-data';
 import { formatDate, formatDuration, formatTime } from '../../components/trace-view/utils/date';
 import ProfilingFlameGraph from '../../plugins/charts/profiling-graph/profiling-flame-graph/flame-graph';
@@ -76,12 +83,13 @@ import { downFile } from '../../utils';
 import { toUnixMilliseconds } from '../../utils/date';
 import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
-import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
+import { SPAN_DETAILS_Z_INDEX, TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import K8sContainer from './k8s-container';
+import LlmObservation from './llm-observation';
+import ObservationSearch from './llm-observation/components/observation-search';
 import { formatSpanLinks } from './utils/format-span-links';
-import DecodeDialog from '@/components/decode-dialog/decode-dialog';
 
 import type { Span } from '../../components/trace-view/typings';
 import type { IFlameGraphDataItem } from 'monitor-ui/chart-plugins/hooks/profiling-graph/types';
@@ -117,7 +125,16 @@ type SpanLinksRequestParams = {
 
 type SpanLinksResponse = Record<string, unknown>[] | { links?: Record<string, unknown>[] };
 
-type TabName = 'BasicInfo' | 'Container' | 'Event' | 'Host' | 'Index' | 'Log' | 'Process' | 'Profiling';
+type TabName =
+  | 'BasicInfo'
+  | 'Container'
+  | 'Event'
+  | 'Host'
+  | 'Index'
+  | 'LlmObservation'
+  | 'Log'
+  | 'Process'
+  | 'Profiling';
 
 /** 不需要解码的属性名白名单 */
 const UNDECODED_PROPERTY_NAMES_WHITELIST = ['net.peer.port', 'span_id', 'trace_id'];
@@ -145,7 +162,7 @@ export default defineComponent({
     const spanDetailQueryStore = useSpanDetailQueryStore();
     const { t } = useI18n();
     /* 侧栏show */
-    const localShow = ref(false);
+    const localShow = shallowRef(false);
     /* 详情数据 */
     const tempInfo = {
       title: '',
@@ -159,10 +176,10 @@ export default defineComponent({
     const info = reactive<IInfo>(deepClone(tempInfo));
 
     /** 切换显示原始数据 */
-    const showOriginalData = ref(false);
+    const showOriginalData = shallowRef(false);
 
     /** 原始数据 */
-    const originalData = ref<null | Record<string, any>>(null);
+    const originalData = deepRef<null | Record<string, any>>(null);
 
     /** TraceDetail 等上级注入的当前页面业务 / 应用上下文 */
     const injectedBizId = inject<Ref<number | string> | undefined>('bizId', undefined);
@@ -184,6 +201,9 @@ export default defineComponent({
     let spanDetailResponseCache: null | SpanDetailResponseCache = null;
 
     const detailSpan = computed<Span>(() => loadedSpan.value || props.spanDetails);
+
+    /** 后端补充的标准 LLM Span，仅命中 LLM 语义层级的 Span 才有 */
+    const llmDetail = computed(() => detailSpan.value?.llm_detail ?? null);
 
     function shouldLoadSpanDetail(span: Span): boolean {
       if (!span) return false;
@@ -264,21 +284,21 @@ export default defineComponent({
     });
     provide('customTimeProvider', customTimeProvider);
 
-    const serviceNameProvider = ref('');
+    const serviceNameProvider = shallowRef('');
     // 服务、应用 名在日志 tab 里能用到
     provide('serviceName', serviceNameProvider);
     provide('appName', appName);
     provide('bizId', bizId);
 
     // 用于关联日志跳转信息
-    const traceId = ref('');
+    const traceId = shallowRef('');
     provide('traceId', traceId);
-    const spanTime = ref(0);
-    const spanStartTime = ref(0);
-    const spanEndTime = ref(0);
-    const originSpanStartTime = ref(0);
+    const spanTime = shallowRef(0);
+    const spanStartTime = shallowRef(0);
+    const spanEndTime = shallowRef(0);
+    const originSpanStartTime = shallowRef(0);
     provide('originSpanStartTime', originSpanStartTime);
-    const originSpanEndTime = ref(0);
+    const originSpanEndTime = shallowRef(0);
     provide('originSpanEndTime', originSpanEndTime);
 
     const spanId = computed(() => props.spanDetails.span_id);
@@ -810,8 +830,29 @@ export default defineComponent({
 
     /* 关闭侧栏 */
     const handleHiddenChange = () => {
+      hideSelectionDecoder();
       localShow.value = false;
       emit('show', localShow.value);
+    };
+
+    /** 划选或双击选中 .right 区域文本后弹出复制 / 自动解码，纯单击忽略 */
+    const handleRightTextSelect = (event: MouseEvent) => {
+      const selection = window.getSelection();
+      const text = selection?.toString() ?? '';
+      if (!selection || !text.trim()) {
+        hideSelectionDecoder();
+        return;
+      }
+
+      if (!isSelectionDecoderTrigger(event)) {
+        return;
+      }
+
+      if (!event.currentTarget) {
+        return;
+      }
+
+      showSelectionDecoder(text, event);
     };
 
     /* 上一跳/下一跳 */
@@ -1035,8 +1076,7 @@ export default defineComponent({
       if ((typeof content === 'number' && content.toString().length < 10) || typeof content === 'undefined')
         return content;
       if (!isJson(content?.toString())) {
-        const str = typeof content === 'string' ? content : JSON.stringify(content);
-        return <DecodeDialog content={str} />;
+        return typeof content === 'string' ? content : JSON.stringify(content);
       }
       const data = JSON.parse(content?.toString() || '');
       return isFormat ? <VueJsonPretty data={handleFormatJson(data)} /> : content;
@@ -1061,7 +1101,7 @@ export default defineComponent({
         <div class='tags-template'>
           {data.map((item, index) => (
             <div
-              key={index}
+              key={item.label}
               class={['tags-row', { grey: !(index % 2) }]}
             >
               <span class='left'>
@@ -1089,12 +1129,18 @@ export default defineComponent({
                 </div>
               </span>
               {item.type === 'error' ? (
-                <div class='right'>
+                <div
+                  class='right'
+                  onMouseup={handleRightTextSelect}
+                >
                   <span class='error-text'>{formatContent(item.content, item.isFormat)}</span>
                   <span class='icon-monitor icon-mind-fill' />
                 </div>
               ) : (
-                <div class='right'>
+                <div
+                  class='right'
+                  onMouseup={handleRightTextSelect}
+                >
                   {UNDECODED_PROPERTY_NAMES_WHITELIST.includes(item.label)
                     ? item.content
                     : formatContent(item.content, item.isFormat)}
@@ -1124,9 +1170,9 @@ export default defineComponent({
     const stageTimeTemplate = (active: string, list: IStageTimeItem['list'], content: IStageTimeItemContent[]) => (
       <div class='stage-time'>
         <div class='stage-time-list'>
-          {list.map((item, index) => (
+          {list.map(item => (
             <Popover
-              key={index}
+              key={item.id}
               content={item.errorMsg}
               disabled={!item.error || !item.errorMsg}
               placement={'left'}
@@ -1146,12 +1192,12 @@ export default defineComponent({
           ))}
         </div>
         <div class='stage-time-content'>
-          {content.map((item, index) => {
+          {content.map(item => {
             if (item.type === 'useTime') {
               const times = item[item.type] as any;
               return (
                 <div
-                  key={index}
+                  key={times.gap.type}
                   class='use-time'
                 >
                   <span class='left'>{times.tags[0]}</span>
@@ -1197,7 +1243,7 @@ export default defineComponent({
             if (item.type === 'gapTime') {
               return (
                 <div
-                  key={index}
+                  key={item.type}
                   class='gap-time'
                 >
                   <div class='top' />
@@ -1212,7 +1258,16 @@ export default defineComponent({
       </div>
     );
 
-    const tabList = [
+    const tabList = computed(() => [
+      ...(llmDetail.value
+        ? // LLM Span 以观测数据为主，排在基础信息之前
+          [
+            {
+              label: t('LLM 观测'),
+              name: 'LlmObservation',
+            },
+          ]
+        : []),
       {
         label: t('基础信息'),
         name: 'BasicInfo',
@@ -1246,7 +1301,15 @@ export default defineComponent({
       //   label: t('指标'),
       //   name: 'Index'
       // }
-    ];
+      ...(window.enable_apm_profiling
+        ? [
+            {
+              label: t('性能分析'),
+              name: 'Profiling',
+            },
+          ]
+        : []),
+    ]);
 
     // 快捷跳转文案
     const exploreButtonName = computed(() => {
@@ -1265,7 +1328,89 @@ export default defineComponent({
       return '';
     });
 
-    const sceneData = ref<BookMarkModel>({});
+    /** LLM 观测 Tab 页内搜索：状态放在详情侧，避免切 Span 后子树重建丢词 */
+    const llmSearchKeyword = shallowRef('');
+    const llmSearchActiveIndex = shallowRef(0);
+    const llmSearchMatchCount = shallowRef(0);
+    /** 第一层 Tab 已吸顶（header 滚出后）才与第二层拉开 4px，默认贴紧内容 */
+    const infoTabStuck = shallowRef(false);
+    let unbindInfoTabSticky: (() => void) | undefined;
+
+    const syncInfoTabStuck = () => {
+      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      const header = content?.querySelector('.details-header') as HTMLElement | undefined;
+      if (!content || !header) {
+        infoTabStuck.value = false;
+        return;
+      }
+      const scroller = (content.closest('.bk-modal-content') as HTMLElement | null) || content;
+      infoTabStuck.value = header.getBoundingClientRect().bottom <= scroller.getBoundingClientRect().top + 1;
+    };
+
+    const bindInfoTabSticky = () => {
+      unbindInfoTabSticky?.();
+      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      const scroller = (content?.closest('.bk-modal-content') as HTMLElement | null) || content;
+      if (!scroller) return;
+      scroller.addEventListener('scroll', syncInfoTabStuck, { passive: true });
+      syncInfoTabStuck();
+      unbindInfoTabSticky = () => {
+        scroller.removeEventListener('scroll', syncInfoTabStuck);
+        unbindInfoTabSticky = undefined;
+      };
+    };
+
+    /** LLM 观测外滚吸顶后切走，父级高度收回但祖先 scrollTop 仍在，整栏会被顶出视口 */
+    const resetInfoTabScroll = () => {
+      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      let el: HTMLElement | null = content;
+      while (el && el !== document.body) {
+        if (el.scrollTop) {
+          el.scrollTop = 0;
+        }
+        el = el.parentElement;
+      }
+      infoTabStuck.value = false;
+    };
+
+    const resetLlmSearch = () => {
+      llmSearchKeyword.value = '';
+      llmSearchActiveIndex.value = 0;
+      llmSearchMatchCount.value = 0;
+    };
+
+    const handleLlmSearchKeyword = (value: string) => {
+      llmSearchKeyword.value = value;
+      // 换词后 hits 重算，序号从第一条重新数
+      llmSearchActiveIndex.value = 0;
+    };
+
+    const handleLlmSearchStep = (step: number) => {
+      const total = llmSearchMatchCount.value;
+      if (!total) return;
+      llmSearchActiveIndex.value = (llmSearchActiveIndex.value + step + total) % total;
+    };
+
+    const handleLlmSearchMatchCount = (count: number) => {
+      llmSearchMatchCount.value = count;
+      if (count > 0 && llmSearchActiveIndex.value >= count) {
+        llmSearchActiveIndex.value = count - 1;
+      }
+    };
+
+    const handleLlmSearchActiveIndex = (index: number) => {
+      if (index < 0) return;
+      llmSearchActiveIndex.value = index;
+    };
+
+    watch(
+      () => [props.show, props.spanDetails?.span_id],
+      () => {
+        resetLlmSearch();
+      }
+    );
+
+    const sceneData = deepRef<BookMarkModel>({});
     const isSingleChart = computed<boolean>(() => {
       return (
         sceneData.value?.panelCount < 2 &&
@@ -1284,7 +1429,7 @@ export default defineComponent({
     const isDisabledNext = computed(
       () => spans.value.findIndex(span => span.span_id === props.spanDetails?.span_id) === spans.value.length - 1
     );
-    const isTabPanelLoading = ref(false);
+    const isTabPanelLoading = shallowRef(false);
     const handleActiveTabChange = async () => {
       isTabPanelLoading.value = true;
       if (hostAndContainerCancelToken) {
@@ -1313,7 +1458,6 @@ export default defineComponent({
           };
         }
         sceneData.value = new BookMarkModel(result);
-        isTabPanelLoading.value = false;
       }
       if (activeTab.value === 'Host') {
         const result = await getSceneView(
@@ -1332,7 +1476,6 @@ export default defineComponent({
           }
         ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
-        isTabPanelLoading.value = false;
       }
       if (activeTab.value === 'Container') {
         const startTime = dayjs(spanTime.value).unix() - 60 * 60;
@@ -1357,14 +1500,13 @@ export default defineComponent({
           }
         ).catch(() => null);
         sceneData.value = new BookMarkModel(result);
-        isTabPanelLoading.value = false;
       }
-      if (activeTab.value === 'Profiling') {
-        if (enableProfiling.value) {
-          await getFlameGraphData();
-        }
-        isTabPanelLoading.value = false;
+      if (activeTab.value === 'Profiling' && enableProfiling.value) {
+        await getFlameGraphData();
       }
+      // 统一收口：基础信息、LLM 观测这类无需取数的页签也要清掉开头置上的 loading，
+      // 否则它会一直留着，被下一个走 loading 的页签继承
+      isTabPanelLoading.value = false;
     };
     const getProfilingTimeRange = () => {
       const halfHour = 18 * 10 ** 8;
@@ -1489,12 +1631,6 @@ export default defineComponent({
         </Popover>
       </div>
     );
-    if (window.enable_apm_profiling) {
-      tabList.push({
-        label: t('性能分析'),
-        name: 'Profiling',
-      });
-    }
     const detailsMain = () => {
       // profiling 查询起始时间根据 span 开始时间前后各推半小时
       const { start_time, end_time } = getProfilingTimeRange();
@@ -1558,9 +1694,9 @@ export default defineComponent({
                       titleInfoElem()
                     )}
                     <div class='details-others'>
-                      {info.header.others.map((item, index) => (
+                      {info.header.others.map(item => (
                         <span
-                          key={index}
+                          key={item.label}
                           class='other-item'
                         >
                           <span class='label'>{`${item.label}: `}</span>
@@ -1576,11 +1712,11 @@ export default defineComponent({
                   </div>,
                   <MonitorTab
                     key='info-tab'
-                    class='info-tab'
+                    class={['info-tab', { 'is-stuck': infoTabStuck.value }]}
                     v-slots={{
                       setting: () => {
-                        return (
-                          exploreButtonName.value && (
+                        if (exploreButtonName.value) {
+                          return (
                             <div class='quick-jump-container'>
                               {activeTab.value === 'Log' && (
                                 <Button
@@ -1607,8 +1743,20 @@ export default defineComponent({
                                 <i class='icon-monitor icon-fenxiang' />
                               </Button>
                             </div>
-                          )
-                        );
+                          );
+                        }
+                        if (activeTab.value === 'LlmObservation') {
+                          return (
+                            <ObservationSearch
+                              activeIndex={llmSearchActiveIndex.value}
+                              keyword={llmSearchKeyword.value}
+                              matchCount={llmSearchMatchCount.value}
+                              onNext={() => handleLlmSearchStep(1)}
+                              onPrev={() => handleLlmSearchStep(-1)}
+                              onUpdate:keyword={handleLlmSearchKeyword}
+                            />
+                          );
+                        }
                       },
                     }}
                     active={activeTab.value}
@@ -1617,9 +1765,9 @@ export default defineComponent({
                       handleActiveTabChange();
                     }}
                   >
-                    {tabList.map((item, index) => (
+                    {tabList.value.map(item => (
                       <Tab.TabPanel
-                        key={index}
+                        key={item.name}
                         v-slots={{
                           label: () => (
                             <div style='display: flex;'>
@@ -1651,6 +1799,7 @@ export default defineComponent({
                       'is-log-tab': activeTab.value === 'Log',
                       'is-host-tab': activeTab.value === 'Host',
                       'is-container-tab': activeTab.value === 'Container',
+                      'is-llm-tab': activeTab.value === 'LlmObservation',
                     }}
                   >
                     {info.list.map((item, index) => {
@@ -1722,6 +1871,7 @@ export default defineComponent({
                                 handleSmallExpanChange(false, index, childIndex);
                               }
                               return (
+                                // biome-ignore lint/suspicious/noArrayIndexKey: 事件列表加载后不增删或重排，同名同时间的事件也需按原始位置区分。
                                 <div key={childIndex}>
                                   {expanItemSmall(
                                     child.isExpan,
@@ -1835,6 +1985,29 @@ export default defineComponent({
                           {!isTabPanelLoading.value && (
                             <div class='host-tab-container'>
                               <K8sContainer sceneData={sceneData.value} />
+                            </div>
+                          )}
+                        </Loading>
+                      )
+                    }
+                    {
+                      // LLM 观测
+                      activeTab.value === 'LlmObservation' && llmDetail.value && (
+                        <Loading
+                          style='height: 100%;'
+                          loading={isTabPanelLoading.value}
+                        >
+                          {/* 由于视图早于数据先加载好会导致样式错乱，故 loading 完再加载视图 */}
+                          {!isTabPanelLoading.value && (
+                            <div class='host-tab-container'>
+                              <LlmObservation
+                                key={`${detailSpan.value.traceID}:${detailSpan.value.span_id}`}
+                                llmDetail={llmDetail.value}
+                                searchActiveIndex={llmSearchActiveIndex.value}
+                                searchKeyword={llmSearchKeyword.value}
+                                onMatchCount={handleLlmSearchMatchCount}
+                                onSearchActiveIndex={handleLlmSearchActiveIndex}
+                              />
                             </div>
                           )}
                         </Loading>
@@ -1972,6 +2145,7 @@ export default defineComponent({
         transfer={(document.querySelector('.trace-list-wrapper') as HTMLDivElement) ?? true}
         quick-close
         show-mask
+        zIndex={SPAN_DETAILS_Z_INDEX}
         onHidden={handleHiddenChange}
       >
         {detailsMain()}
@@ -1996,9 +2170,12 @@ export default defineComponent({
             document.querySelector('.span-details-sideslider')?.appendChild(maskEle);
           }
         } else {
+          hideSelectionDecoder();
           resetSpanLinksRequestState();
           isInvokeOnceFlag = true;
           activeTab.value = 'BasicInfo';
+          // 关闭时可能还有页签数据在飞，不清掉会让下次打开的首个页签卡在 loading
+          isTabPanelLoading.value = false;
           // countOfInfo.value = {};
           fullscreen.value = false;
         }
@@ -2027,6 +2204,24 @@ export default defineComponent({
       }
     );
 
+    // 每次打开详情都回到首个页签：LLM Span 优先展示观测数据，切到普通 Span 时回落，避免停留在已移除的页签上
+    // 关闭时 detailSpan 不会清空，只盯首个页签名会漏掉「同一个 Span 重新打开」，因此把 show 一并纳入触发源
+    watch(
+      [() => props.show, () => tabList.value[0].name],
+      ([show, name]) => {
+        if (!show) return;
+        // Tab 的面板实例在 onUpdated 才登记，同步切 active 会命中它「active 不在面板里就回退到首个面板」的兜底，
+        // 被反向 tabChange 成旧首项，因此等面板列表登记完再切
+        nextTick(() => {
+          // 外部指定过页签（如点事件图标进来）时不接管
+          if (activeTab.value === 'BasicInfo' || activeTab.value === 'LlmObservation') {
+            activeTab.value = name as TabName;
+          }
+        });
+      },
+      { immediate: true }
+    );
+
     watch(
       () => props.spanDetails,
       val => {
@@ -2038,8 +2233,37 @@ export default defineComponent({
       { immediate: true, deep: true }
     );
 
+    watch(
+      () => props.show,
+      async val => {
+        if (val) {
+          await nextTick();
+          bindInfoTabSticky();
+          return;
+        }
+        unbindInfoTabSticky?.();
+        infoTabStuck.value = false;
+      }
+    );
+
+    watch(activeTab, async () => {
+      if (!props.show) return;
+      resetInfoTabScroll();
+      await nextTick();
+      resetInfoTabScroll();
+      syncInfoTabStuck();
+    });
+
     onMounted(() => {
       getSpanDetailExpandUserConfig();
+      if (props.show) {
+        nextTick(bindInfoTabSticky);
+      }
+    });
+
+    onBeforeUnmount(() => {
+      unbindInfoTabSticky?.();
+      hideSelectionDecoder();
     });
 
     return {

@@ -20,7 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import copy
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.conf import settings
 from django.test import TestCase
@@ -34,7 +34,10 @@ from apps.log_databus.constants import (
 from apps.log_databus.handlers.etl import EtlHandler
 from apps.log_databus.handlers.etl_storage import EtlStorage
 from apps.log_databus.models import CollectorConfig
-from apps.log_databus.serializers import CollectorEtlStorageSerializer
+from apps.log_databus.serializers import (
+    CollectorEtlSerializer,
+    CollectorEtlStorageSerializer,
+)
 from apps.log_databus.utils.es_config import is_version_less_than
 from apps.log_search.constants import (
     ISO_8601_TIME_FORMAT_NAME,
@@ -43,6 +46,7 @@ from apps.log_search.constants import (
 )
 from apps.tests.utils import FakeRedis
 from apps.utils.db import array_group
+from apps.utils.drf import custom_params_valid
 
 # 采集相关
 COLLECTOR_CONFIG_ID = 1
@@ -638,6 +642,15 @@ FIELDS = [
         "is_delete": True,
     },
 ]
+
+
+def set_time_field_format(fields, time_format):
+    time_field = next(field for field in fields if field["field_name"] == "time1")
+    time_field["option"]["time_format"] = time_format
+
+
+FIELDS_NANOS = copy.deepcopy(FIELDS)
+set_time_field_format(FIELDS_NANOS, "yyyy-MM-dd HH:mm:ss.SSSSSS")
 # 时间字段的来源直接设为非维度
 FIELDS_NOT_ES_DOC_VALUES_KEYS = ["key1", "time1"]
 FIELDS_TIME_FIELD_ALIAS_NAME = "time1"
@@ -669,6 +682,68 @@ LOG_INDEX_DATA = {
 
 
 class TestEtl(TestCase):
+    def test_base_handler_forwards_result_table_labels(self):
+        collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
+        handler = EtlHandler(collector_config.collector_config_id)
+        labels = {"scene": "k8s", "cluster_id": "BCS-NEW"}
+        etl_storage = MagicMock()
+        etl_storage.update_or_create_result_table.return_value = {"table_id": TABLE_ID}
+
+        with (
+            patch.object(handler, "check_es_storage_capacity"),
+            patch.object(CollectorConfig, "get_result_table_by_id", return_value=None),
+            patch(
+                "apps.log_databus.handlers.etl.base.StorageHandler.get_cluster_info_by_id",
+                return_value={"cluster_config": {"version": "7.x"}},
+            ),
+            patch("apps.log_databus.handlers.etl.base.EtlStorage.get_instance", return_value=etl_storage),
+            patch.object(
+                handler,
+                "_update_or_create_index_set",
+                return_value={"index_set_id": 1, "scenario_id": "log"},
+            ),
+            patch("apps.log_databus.handlers.etl.base.user_operation_record.delay"),
+        ):
+            handler.update_or_create(
+                etl_config=ETL_CONFIG,
+                table_id=TABLE_ID,
+                storage_cluster_id=STORAGE_CLUSTER_ID,
+                retention=RETENTION_TIME,
+                allocation_min_days=ALLOCATION_MIN_DAYS,
+                storage_replies=1,
+                etl_params={},
+                fields=[],
+                labels=labels,
+            )
+
+        self.assertEqual(etl_storage.update_or_create_result_table.call_args.kwargs["labels"], labels)
+
+    @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
+    @FakeRedis("apps.utils.cache.cache")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_result_table_labels_are_included_when_explicit(self, _mock_modify_delay):
+        collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
+        etl_storage = EtlStorage.get_instance(ETL_CONFIG)
+
+        for labels in ({}, {"scene": "k8s", "stream": "stdout"}):
+            with self.subTest(labels=labels):
+                result = etl_storage.update_or_create_result_table(
+                    collector_config,
+                    table_id=TABLE_ID,
+                    storage_cluster_id=STORAGE_CLUSTER_ID,
+                    retention=RETENTION_TIME,
+                    allocation_min_days=0,
+                    storage_replies=1,
+                    fields=copy.deepcopy(FIELDS),
+                    etl_params=copy.deepcopy(ETL_PARAMS),
+                    labels=labels,
+                )
+
+                self.assertEqual(result["params"]["labels"], labels)
+
     def test_etl_time(self):
         formsts = FieldDateFormatEnum.get_choices_list_dict()
         for format in formsts:
@@ -772,6 +847,7 @@ class TestEtl(TestCase):
             result["params"]["default_storage_config"]["index_set"],
             expected_index_set,
         )
+        self.assertNotIn("labels", result["params"])
         self.assertIn("need_add_time", result["params"]["option"])
         self.assertTrue(result["params"]["option"]["need_add_time"])
         self.assertIn("time_field", result["params"]["option"])
@@ -781,6 +857,50 @@ class TestEtl(TestCase):
         self.assertIsInstance(etl_config["etl_params"]["es_unique_field_list"], list)
         self.assertEqual(etl_config["etl_params"]["separator_node_action"], "")
         return True
+
+    @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_result_table", lambda _: {"table_id": TABLE_ID})
+    @patch("apps.api.TransferApi.get_cluster_info", lambda _: [CLUSTER_INFO])
+    @FakeRedis("apps.utils.cache.cache")
+    @patch("apps.log_databus.handlers.etl.EtlHandler._update_or_create_index_set")
+    @patch("apps.log_databus.tasks.collector.modify_result_table.delay", return_value=None)
+    def test_is_nanos_can_fall_back_to_false(self, mock_modify_delay, mock_index_set):
+        """切换回非纳秒时间字段时，应清除采集项的纳秒标记。"""
+        collector_config = CollectorConfig.objects.create(**COLLECTOR_CONFIG)
+        mock_index_set.return_value = LOG_INDEX_DATA
+        etl_storage = EtlStorage.get_instance(ETL_CONFIG_JSON)
+        nanos_fields = copy.deepcopy(FIELDS_NANOS)
+        non_nanos_fields = copy.deepcopy(FIELDS_NANOS)
+        set_time_field_format(non_nanos_fields, "yyyy-MM-dd HH:mm:ss")
+
+        etl_storage.update_or_create_result_table(
+            collector_config,
+            table_id=TABLE_ID,
+            storage_cluster_id=STORAGE_CLUSTER_ID,
+            retention=RETENTION_TIME,
+            allocation_min_days=ALLOCATION_MIN_DAYS,
+            storage_replies=1,
+            fields=nanos_fields,
+            etl_params=ETL_PARAMS_JSON,
+            hot_warm_config=HOT_WARM_CONFIG,
+        )
+        collector_config.refresh_from_db()
+        self.assertTrue(collector_config.is_nanos)
+
+        etl_storage.update_or_create_result_table(
+            collector_config,
+            table_id=TABLE_ID,
+            storage_cluster_id=STORAGE_CLUSTER_ID,
+            retention=RETENTION_TIME,
+            allocation_min_days=ALLOCATION_MIN_DAYS,
+            storage_replies=1,
+            fields=non_nanos_fields,
+            etl_params=ETL_PARAMS_JSON,
+            hot_warm_config=HOT_WARM_CONFIG,
+        )
+        collector_config.refresh_from_db()
+        self.assertFalse(collector_config.is_nanos)
 
     @patch("apps.api.TransferApi.create_result_table", lambda _: {"table_id": TABLE_ID})
     @patch("apps.api.TransferApi.modify_result_table", lambda _: {"table_id": TABLE_ID})
@@ -1402,3 +1522,66 @@ class TestEtl(TestCase):
         expected_fields = ["level", "message", "user", "context"]
         for expected_field in expected_fields:
             self.assertIn(expected_field, field_names)
+
+    def test_etl_preview_serializer_keeps_trailing_newline(self):
+        """
+        测试字段提取预览入参保留原文末尾换行
+        """
+        raw_log = f"{ETL_PREVIEW_V4_DELIMITER_INPUT}\n"
+        params = custom_params_valid(
+            serializer=CollectorEtlSerializer,
+            params={"etl_config": "bk_log_delimiter", "etl_params": {"separator": " "}, "data": raw_log},
+        )
+
+        self.assertEqual(params["data"], raw_log)
+
+    def test_etl_preview_serializer_keeps_surrounding_whitespace(self):
+        """
+        测试字段提取预览入参保留原文首尾空白
+        """
+        raw_log = f" \t{ETL_PREVIEW_V4_DELIMITER_INPUT}\r\n"
+        params = custom_params_valid(
+            serializer=CollectorEtlSerializer,
+            params={"etl_config": "bk_log_delimiter", "etl_params": {"separator": " "}, "data": raw_log},
+        )
+
+        self.assertEqual(params["data"], raw_log)
+
+    def test_etl_preview_serializer_accepts_whitespace_only_log(self):
+        """
+        测试仅含空白的原文不再被当作空值拒绝，交由下游清洗判定
+        """
+        params = custom_params_valid(
+            serializer=CollectorEtlSerializer,
+            params={"etl_config": "bk_log_delimiter", "etl_params": {"separator": " "}, "data": "\n"},
+        )
+
+        self.assertEqual(params["data"], "\n")
+
+    @patch("apps.api.BkDataDatabusApi.databus_clean_debug")
+    def test_etl_preview_v4_delimiter_keeps_raw_log(self, mock_api):
+        """
+        测试V4版本分隔符格式下发BKBase调试的原文未被预处理
+        """
+        from apps.log_databus.handlers.etl_storage.bk_log_delimiter import BkLogDelimiterEtlStorage
+
+        mock_api.return_value = ETL_PREVIEW_V4_DELIMITER_API_RESPONSE
+        raw_log = f"{ETL_PREVIEW_V4_DELIMITER_INPUT}\n"
+
+        BkLogDelimiterEtlStorage().etl_preview_v4(raw_log, ETL_PREVIEW_V4_DELIMITER_PARAMS)
+
+        self.assertEqual(mock_api.call_args[0][0]["input"], raw_log)
+
+    @patch("apps.api.BkDataDatabusApi.databus_clean_debug")
+    def test_etl_preview_v4_json_keeps_raw_log(self, mock_api):
+        """
+        测试V4版本JSON格式下发BKBase调试的原文未被预处理
+        """
+        from apps.log_databus.handlers.etl_storage.bk_log_json import BkLogJsonEtlStorage
+
+        mock_api.return_value = ETL_PREVIEW_V4_JSON_API_RESPONSE
+        raw_log = f"{ETL_PREVIEW_V4_JSON_INPUT}\n"
+
+        BkLogJsonEtlStorage().etl_preview_v4(raw_log, ETL_PREVIEW_V4_JSON_PARAMS)
+
+        self.assertEqual(mock_api.call_args[0][0]["input"], raw_log)

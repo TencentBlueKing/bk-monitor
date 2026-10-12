@@ -5,6 +5,7 @@ from typing import Any
 
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
+from bk_monitor_base.infras.nodeman_control import host_queries
 from bk_monitor_base.infras.third_party_api.cmdb.api import CloudArea, HostPropertyFilter, format_ip_filter_rule
 from bk_monitor_base.infras.third_party_api.user.api import list_tenant
 from bk_monitor_base.metadata.config import settings
@@ -126,7 +127,7 @@ def _refresh_ping_conf_by_cloud_id(
         ]
     else:
         try:
-            proxy_list = api.node_man.get_proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
+            proxy_list = host_queries.proxies(bk_tenant_id=bk_tenant_id, bk_cloud_id=bk_cloud_id)
         except Exception:  # noqa
             logger.exception(f"从节点管理获取云区域({bk_cloud_id})下的ProxyIP列表失败")
             return

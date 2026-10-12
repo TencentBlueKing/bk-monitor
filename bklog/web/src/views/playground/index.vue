@@ -7,9 +7,8 @@
   import { onMounted, ref } from 'vue';
 
   const refRoot = ref(null);
-  let instance = null;
   const createEditor = () => {
-    instance = new EditorView({
+    new EditorView({
       parent: refRoot.value,
       doc: jsonValue,
       extensions: [

@@ -19,6 +19,10 @@ from alarm_backends.core.cache.key import NOTICE_SHIELD_KEY_LOCK
 from alarm_backends.core.context.utils import get_business_roles
 from alarm_backends.core.control.strategy import Strategy
 from alarm_backends.service.converge.shield.display_manager import DisplayManager
+from alarm_backends.service.converge.shield_conditions import (
+    DIMENSION_CONDITION_CLASSES,
+    PROMQL_EXPRESSION_DIMENSION,
+)
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.range import (
@@ -186,7 +190,8 @@ class ShieldObj:
 
         for k, v in list(clean_dimension.items()):
             field = load_field_instance(k, v)
-            self.dimension_check.add(EqualCondition(field))
+            condition_class = DIMENSION_CONDITION_CLASSES.get(k, EqualCondition)
+            self.dimension_check.add(condition_class(field))
 
     def _clean_dimension(self):
         """
@@ -428,6 +433,24 @@ class ShieldObj:
 
 
 class AlertShieldObj(ShieldObj):
+    def __init__(self, config, business_timezone_name=None):
+        self.business_timezone_name = business_timezone_name
+        super().__init__(config)
+
+    def _parse_cycle_config(self):
+        if self.config.get("end_policy") != "close":
+            return super()._parse_cycle_config()
+        from django.utils import timezone
+
+        from alarm_backends.service.converge.shield.window import business_timezone, close_time_matcher
+
+        if not getattr(self, "business_timezone_name", None):
+            self.business_timezone_name = business_timezone(self.config.get("bk_biz_id"))
+        with timezone.override(self.business_timezone_name):
+            self.time_check = close_time_matcher(
+                self.config["cycle_config"], self.config["begin_time"], self.config["end_time"]
+            )
+
     # 类级别的缓存，用于存储告警维度信息
     _alert_dimension_cache = {}
 
@@ -484,6 +507,7 @@ class AlertShieldObj(ShieldObj):
         dimension["bk_host_id"] = dimension.get("bk_host_id") or alert.event_document.bk_host_id
         dimension["bk_biz_id"] = alert.event_document.bk_biz_id
         metric_ids = []
+        promql_expressions = []
 
         if alert.strategy_id:
             # 需要判断当前的alert是否有策略ID
@@ -495,7 +519,15 @@ class AlertShieldObj(ShieldObj):
             for query_config in strategy.config["items"][0]["query_configs"]:
                 metric_ids.append(query_config["metric_id"])
 
+                # PromQL 策略的 metric_id 受 QueryConfig.metric_id 字段长度（128）限制，超长时被
+                # 截断成 promql[:125] + "..."，指标名可能整个落在截断之外。未截断的表达式存在
+                # config JSONField 中，无长度限制，单独放一个维度键供按指标屏蔽匹配使用。
+                promql = query_config.get("promql")
+                if promql:
+                    promql_expressions.append(promql)
+
         dimension["metric_id"] = metric_ids
+        dimension[PROMQL_EXPRESSION_DIMENSION] = promql_expressions
 
         if "tags.bk_target_ip" in dimension and "ip" not in dimension:
             dimension["ip"] = dimension["tags.bk_target_ip"]
@@ -538,6 +570,19 @@ class AlertShieldObj(ShieldObj):
         """
         return self._get_cached_alert_dimension(alert)
 
-    def is_match(self, alert: AlertDocument):
-        source_time = arrow.now()
-        return self.time_check.is_match(source_time) and self.dimension_check.is_match(self.get_dimension(alert))
+    def is_match(self, alert: AlertDocument, source_time=None):
+        source_time = source_time or arrow.now()
+        if self.config.get("end_policy") == "close":
+            from django.utils import timezone
+
+            from alarm_backends.service.converge.shield.window import business_timezone, matching_window
+
+            with timezone.override(
+                getattr(self, "business_timezone_name", None) or business_timezone(self.config.get("bk_biz_id"))
+            ):
+                window = matching_window(self.time_check, source_time)
+            if not window or not window[0] <= alert.begin_time <= window[1]:
+                return False
+        elif not self.time_check.is_match(source_time):
+            return False
+        return self.dimension_check.is_match(self.get_dimension(alert))

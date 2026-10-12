@@ -43,13 +43,28 @@
  *   4. 同时 provide handleExploreChartZoomChange 供图表子组件使用
  *   5. 管理 window.APM_QUERY_STRING 的生命周期
  */
-import { defineComponent, inject, provide, watch } from 'vue';
+import { defineComponent, inject, onBeforeUnmount, provide, watch } from 'vue';
 
 import TraceExplore from './trace-explore';
+import { clearEmbedContext, setEmbedContext } from '@/common/embed-context';
 import { useTraceExploreStore } from '@/store/modules/explore';
 
 import type { EMode, IWhereItem } from '../../components/retrieval-filter/typing';
 import type { TimeRangeType } from '../../components/time-range/utils';
+
+/** 嵌入 APM 时需要同步到宿主 URL 的过滤条件 */
+export interface TraceExploreUrlState {
+  commonWhere: IWhereItem[];
+  filterMode: EMode;
+  queryString: string;
+  selectedType: string[];
+  where: IWhereItem[];
+}
+
+/** 宿主从路由解析后回传给 Vue3 的初始过滤条件；hasUrlWhere 表示 URL 里已有 traceWhere */
+export interface TraceExploreEmbedQuery extends TraceExploreUrlState {
+  hasUrlWhere: boolean;
+}
 
 /**
  * TraceExplore 消费的 APM 专属回调接口。
@@ -61,6 +76,8 @@ import type { TimeRangeType } from '../../components/time-range/utils';
 export interface TraceExploreApmHooks {
   /** UI 检索条件（where）变更时回调，将新的条件列表通知宿主 */
   onConditionChange?: (condition: IWhereItem[]) => void;
+  /** 过滤条件整体变更时回调，由宿主写入 customRouteQuery */
+  onExploreQueryChange?: (query: TraceExploreUrlState) => void;
   /** 筛选模式（UI / 语句）变更时回调，将新的模式通知宿主 */
   onFilterModeChange?: (mode: EMode) => void;
   /** 查询语句变更时回调，将新的查询字符串通知宿主 */
@@ -85,31 +102,52 @@ export default defineComponent({
     const bridgeProps = inject(BRIDGE_PROPS_KEY, {} as Record<string, any>);
     const bridgeEmit = inject(BRIDGE_EMIT_KEY, (() => {}) as (event: string, ...args: unknown[]) => void);
 
+    /** 声明「已被宿主嵌入」：详情链接前缀、查询口径等差异据此在运行时判定 */
+    setEmbedContext({ bizId: Number(window.bk_biz_id) });
+    onBeforeUnmount(clearEmbedContext);
+
     const handleExploreChartZoomChange = (v: [number, number]) => {
       bridgeEmit('exploreChartZoomChange', v);
     };
     provide('handleExploreChartZoomChange', handleExploreChartZoomChange);
-    provide(APM_SERVICE_NAME_KEY, bridgeProps.viewOptions.filters.service_name);
+    provide(APM_SERVICE_NAME_KEY, bridgeProps.viewOptions?.filters?.service_name);
 
-    // 只同步检索相关字段；勿 deep watch 整个 bridgeProps，否则 slideDetail 开/关也会误触发表格/图表请求
+    // 只同步检索时间相关字段。deep watch 整个 bridgeProps 会在宿主回写 exploreQuery 时再次 updateTimeRange，触发 handleQuery 死循环。
     watch(
-      bridgeProps,
+      () => [
+        bridgeProps.refreshImmediate,
+        bridgeProps.refreshInterval,
+        Array.isArray(bridgeProps.timeRange) ? bridgeProps.timeRange[0] : bridgeProps.timeRange,
+        Array.isArray(bridgeProps.timeRange) ? bridgeProps.timeRange[1] : undefined,
+        bridgeProps.timezone,
+      ],
       () => {
-        exploreStore.updateRefreshImmediate(bridgeProps.refreshImmediate as string);
-        exploreStore.updateRefreshInterval(Number(bridgeProps.refreshInterval));
-        exploreStore.updateTimeRange(bridgeProps.timeRange as TimeRangeType);
-        if (bridgeProps.timezone) {
-          exploreStore.updateTimezone(bridgeProps.timezone as string);
+        const nextImmediate = (bridgeProps.refreshImmediate as string) || '';
+        const nextInterval = Number(bridgeProps.refreshInterval);
+        const nextTimeRange = bridgeProps.timeRange as TimeRangeType;
+        const nextTimezone = bridgeProps.timezone as string | undefined;
+        if (exploreStore.refreshImmediate !== nextImmediate) {
+          exploreStore.updateRefreshImmediate(nextImmediate);
+        }
+        if (exploreStore.refreshInterval !== nextInterval) {
+          exploreStore.updateRefreshInterval(nextInterval);
+        }
+        const currentRange = exploreStore.timeRange;
+        if (!currentRange || currentRange[0] !== nextTimeRange?.[0] || currentRange[1] !== nextTimeRange?.[1]) {
+          exploreStore.updateTimeRange(nextTimeRange);
+        }
+        if (nextTimezone && exploreStore.timezone !== nextTimezone) {
+          exploreStore.updateTimezone(nextTimezone);
         }
       },
       {
         immediate: true,
-        deep: true,
       }
     );
 
     const apmHooks: TraceExploreApmHooks = {
       onConditionChange: condition => bridgeEmit('conditionChange', condition),
+      onExploreQueryChange: query => bridgeEmit('exploreQueryChange', query),
       onQueryStringChange: queryString => bridgeEmit('queryStringChange', queryString),
       onFilterModeChange: mode => bridgeEmit('filterModeChange', mode),
       onSliderClose: () => bridgeEmit('sliderClose'),

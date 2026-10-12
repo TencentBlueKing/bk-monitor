@@ -130,12 +130,12 @@ class Command(BaseCommand):
         proxy_storage_map = {
             (f"{ps['proxy_cluster_id']}", f"{ps['instance_cluster_name']}"): ps["id"] for ps in proxy_storages
         }
-        for ps, id in proxy_storage_map.items():
+        for ps, storage_id in proxy_storage_map.items():
             router = models.InfluxDBStorage.objects.filter(storage_cluster_id=ps[0], proxy_cluster_name=ps[1])
             if not router.exists():
                 self.stderr.write(f"proxy_cluster_id: {ps[0]}, instance_cluster: {ps[1]} not found router")
                 continue
-            router.update(influxdb_proxy_storage_id=id)
+            router.update(influxdb_proxy_storage_id=storage_id)
 
     def _update_router_by_table_id(self, table_id_list: str | None = None):
         """通过结果表更新路由"""

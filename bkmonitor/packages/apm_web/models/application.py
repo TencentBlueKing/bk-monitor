@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from contextlib import nullcontext
+from typing import cast
 
 from celery import shared_task
 from django.conf import settings
@@ -46,10 +46,9 @@ from apm_web.meta.plugin.log_trace_plugin_config import LogTracePluginConfig
 from apm_web.meta.plugin.plugin import LOG_TRACE
 from apm_web.metric_handler import RequestCountInstance
 from bkm_space.api import SpaceApi
+from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.iam import Permission, ResourceEnum
 from bkmonitor.middlewares.source import get_source_app_code
-from bkmonitor.nodeman_integration.backend import node_man_backend
-from bkmonitor.nodeman_integration.exceptions import NodeManV3CapabilityBlocked
 from bkmonitor.utils import group_by
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.db import JsonField
@@ -566,19 +565,9 @@ class Application(AbstractRecordModel):
 
         output_param = self.get_output_param(self.bk_biz_id, self.app_name)
         if not output_param.get("host"):
-            if node_man_backend.is_v3 and (plugin_config or {}).get("subscription_id"):
-                raise NodeManV3CapabilityBlocked(
-                    "APM log-trace target removal requires the DeployPolicy reverse field while enabled remains true"
-                )
             return
-        is_v3 = node_man_backend.is_v3
-        with atomic() if is_v3 else nullcontext():
-            plugin_config = LogTracePluginConfig().release_log_trace_config(
-                plugin_config,
-                output_param,
-                application=self,
-            )
-            Application.objects.filter(application_id=self.application_id).update(plugin_config=plugin_config)
+        plugin_config = LogTracePluginConfig().release_log_trace_config(plugin_config, output_param)
+        Application.objects.filter(application_id=self.application_id).update(plugin_config=plugin_config)
         return plugin_config
 
     @classmethod
@@ -604,7 +593,6 @@ class Application(AbstractRecordModel):
     def stop_plugin_config(cls, application_id):
         app = Application.objects.filter(application_id=application_id).first()
         if app.plugin_id == LOG_TRACE:
-            cls._block_v3_log_trace_lifecycle("stop")
             # 停止节点管理采集任务
             api.node_man.switch_subscription(
                 {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"}
@@ -615,7 +603,6 @@ class Application(AbstractRecordModel):
     def start_plugin_config(cls, application_id):
         app = Application.objects.filter(application_id=application_id).first()
         if app.plugin_id == LOG_TRACE:
-            cls._block_v3_log_trace_lifecycle("start")
             # 开始节点管理采集任务
             api.node_man.switch_subscription(
                 {"subscription_id": app.plugin_config["subscription_id"], "action": "enable"}
@@ -626,7 +613,6 @@ class Application(AbstractRecordModel):
     def delete_plugin_config(cls, application_id):
         app = Application.objects.filter(application_id=application_id).first()
         if app.plugin_id == LOG_TRACE:
-            cls._block_v3_log_trace_lifecycle("delete")
             # 停止节点管理采集任务
             api.node_man.switch_subscription(
                 {"subscription_id": app.plugin_config["subscription_id"], "action": "disable"}
@@ -635,14 +621,6 @@ class Application(AbstractRecordModel):
             return LogTracePluginConfig().run_subscription_task(
                 app.plugin_config["subscription_id"], "UNINSTALL_AND_DELETE"
             )
-
-    @staticmethod
-    def _block_v3_log_trace_lifecycle(action: str) -> None:
-        if not node_man_backend.is_v3:
-            return
-        raise NodeManV3CapabilityBlocked(
-            f"APM log-trace {action} requires the DeployPolicy reverse field while enabled remains true"
-        )
 
     def set_init_datasource(self, datasource_option, enabled_profiling, enabled_trace, enabled_metric, enabled_log):
         # 更新数据源开关
@@ -675,6 +653,18 @@ class Application(AbstractRecordModel):
             TelemetryDataType.METRIC.value: self.is_enabled_metric,
             TelemetryDataType.LOG.value: self.is_enabled_log,
         }
+
+    def build_data_sources(self) -> list[TraceDatasourceTarget]:
+        """构造当前应用的 Trace 数据源查询目标。"""
+
+        return [
+            TraceDatasourceTarget.build(
+                bk_biz_id=cast(int, self.bk_biz_id),
+                app_name=cast(str, self.app_name),
+                table_id=cast(str, self.trace_result_table_id),
+                retention=cast(int, self.es_retention),
+            )
+        ]
 
     def set_init_dimensions_config(self):
         dimensions_value = {self.DimensionConfig.DIMENSIONS: DefaultDimensionConfig.DEFAULT_DIMENSIONS}

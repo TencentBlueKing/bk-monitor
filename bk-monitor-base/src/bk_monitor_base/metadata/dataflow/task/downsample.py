@@ -25,7 +25,7 @@ class StatisticTask(BaseTask):
         2. 根据表信息，创建出对应的flow，以及node节点
         3. 最后启动任务
         """
-        super(StatisticTask, self).__init__()
+        super().__init__()
 
         self.rt_id = rt_id
 

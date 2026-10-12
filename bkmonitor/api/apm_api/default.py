@@ -105,6 +105,14 @@ class QueryTopoNodeResource(ApmAPIGWResource):
     backend_cache_type = CacheType.APM
 
 
+class SearchServiceNamesResource(ApmAPIGWResource):
+    """批量搜索拓扑和 Profiling 服务名称。"""
+
+    action = "/app/apm/search_service_names/"
+    method = "POST"
+    TIMEOUT = 10
+
+
 class QueryTopoRelationResource(ApmAPIGWResource):
     """
     查询topo关系信息
@@ -150,15 +158,6 @@ class QueryEndpointResource(ApmAPIGWResource):
 
     action = "/app/apm/query_apm_endpoint/"
     method = "POST"
-
-
-class QueryFieldsResource(ApmAPIGWResource):
-    """
-    查询应用入口接口
-    """
-
-    action = "/app/apm/query_apm_fields/"
-    method = "GET"
 
 
 class UpdateMetricFieldsResource(ApmAPIGWResource):
@@ -285,15 +284,6 @@ class QueryTraceByHostInstance(ApmAPIGWResource):
     """
 
     action = "/app/apm/query_trace_by_host_instance/"
-    method = "POST"
-
-
-class QueryEsMapping(ApmAPIGWResource):
-    """
-    获取es mapping信息
-    """
-
-    action = "/app/apm/query_apm_es_mapping/"
     method = "POST"
 
 

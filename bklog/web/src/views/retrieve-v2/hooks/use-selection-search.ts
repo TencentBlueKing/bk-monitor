@@ -112,13 +112,14 @@ export const stripSelectionMarkup = (value: string) => String(value ?? '').repla
 
 export { normalizeArrayFieldPath };
 
-export const isStructField = (field?: Record<string, any> | null) => Boolean(field && (STRUCT_FIELD_TYPES.has(field.field_type) || field.is_virtual_obj_node));
+export const isStructField = (field?: Record<string, any> | null) =>
+  Boolean(field && (STRUCT_FIELD_TYPES.has(field.field_type) || field.is_virtual_obj_node));
 
-export const isLeafQueryableField = (field?: Record<string, any> | null) => Boolean(field && !isStructField(field) && field.field_type !== '__virtual__');
+export const isLeafQueryableField = (field?: Record<string, any> | null) =>
+  Boolean(field && !isStructField(field) && field.field_type !== '__virtual__');
 
 export const getParentFieldPath = (fieldName: string) => {
-  const parts = normalizeArrayFieldPath(fieldName).split('.')
-    .filter(Boolean);
+  const parts = normalizeArrayFieldPath(fieldName).split('.').filter(Boolean);
   if (parts.length <= 1) {
     return '';
   }
@@ -129,8 +130,7 @@ export const getFieldPathDepth = (fieldName: string, fallbackDepth?: string | nu
   if (fallbackDepth !== undefined && fallbackDepth !== null && fallbackDepth !== '') {
     return fallbackDepth;
   }
-  const parts = normalizeArrayFieldPath(fieldName).split('.')
-    .filter(Boolean);
+  const parts = normalizeArrayFieldPath(fieldName).split('.').filter(Boolean);
   return String(Math.max(parts.length, 1));
 };
 
@@ -150,9 +150,9 @@ export default (options: UseSelectionSearchOptions) => {
 
     const normalizedName = normalizeArrayFieldPath(fieldName);
     return (
-      filteredFieldList.value.find(item => item.field_name === fieldName || item.field_name === normalizedName)
-      ?? visibleFields.value.find(item => item.field_name === fieldName || item.field_name === normalizedName)
-      ?? fullColumns.value.find(item => item.field_name === fieldName || item.field_name === normalizedName)
+      filteredFieldList.value.find(item => item.field_name === fieldName || item.field_name === normalizedName) ??
+      visibleFields.value.find(item => item.field_name === fieldName || item.field_name === normalizedName) ??
+      fullColumns.value.find(item => item.field_name === fieldName || item.field_name === normalizedName)
     );
   };
 
@@ -212,14 +212,15 @@ export default (options: UseSelectionSearchOptions) => {
     return stripSelectionMarkup(String(rawValue));
   };
 
-  const getFieldSegmentTokens = (row: Record<string, any>, field: Record<string, any>) => tokenizeSelectionText(
-    getFieldPlainText(row, field),
-    {
-      fieldName: field.field_name,
-      tokenType: 'field-value',
-    },
-    field,
-  );
+  const getFieldSegmentTokens = (row: Record<string, any>, field: Record<string, any>) =>
+    tokenizeSelectionText(
+      getFieldPlainText(row, field),
+      {
+        fieldName: field.field_name,
+        tokenType: 'field-value',
+      },
+      field,
+    );
 
   /**
    * 字段 VALUE 的实际可检索分词（强制 Lucene）。
@@ -227,15 +228,16 @@ export default (options: UseSelectionSearchOptions) => {
    * 最小分词补齐必须用这套边界，例如：
    * 0a2bddc9-5657-4949-be1b-f34541ac66f0 → [0a2bddc9, 5657, 4949, be1b, f34541ac66f0]
    */
-  const getFieldLuceneTokens = (row: Record<string, any>, field: Record<string, any>) => tokenizeSelectionText(
-    getFieldPlainText(row, field),
-    {
-      fieldName: field.field_name,
-      tokenType: 'field-value',
-    },
-    field,
-    true,
-  );
+  const getFieldLuceneTokens = (row: Record<string, any>, field: Record<string, any>) =>
+    tokenizeSelectionText(
+      getFieldPlainText(row, field),
+      {
+        fieldName: field.field_name,
+        tokenType: 'field-value',
+      },
+      field,
+      true,
+    );
 
   const getOriginSegmentTokens = (row: Record<string, any>) => {
     const tokens: SelectionToken[] = [];
@@ -302,13 +304,15 @@ export default (options: UseSelectionSearchOptions) => {
       return false;
     }
     const fieldValue = el.closest?.('.field-value') as HTMLElement | null;
-    const fieldType =      fieldValue?.getAttribute('data-field-type')
-      || el.closest?.('[data-field-type]')?.getAttribute('data-field-type')
-      || '';
+    const fieldType =
+      fieldValue?.getAttribute('data-field-type') ||
+      el.closest?.('[data-field-type]')?.getAttribute('data-field-type') ||
+      '';
     if (fieldType === 'object' || fieldType === 'nested') {
       return true;
     }
-    const rootName =      fieldValue?.getAttribute('data-field-name') || fieldValue?.getAttribute('data-search-field-name') || '';
+    const rootName =
+      fieldValue?.getAttribute('data-field-name') || fieldValue?.getAttribute('data-search-field-name') || '';
     const field = getFieldByName(rootName);
     return Boolean(field && (isStructField(field) || field.is_virtual_obj_node));
   };
@@ -318,7 +322,7 @@ export default (options: UseSelectionSearchOptions) => {
       return false;
     }
     return (
-      el.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) != null || el.closest('[data-json-string-parsed="true"]') != null
+      el.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) !== null || el.closest('[data-json-string-parsed="true"]') !== null
     );
   };
 
@@ -374,9 +378,9 @@ export default (options: UseSelectionSearchOptions) => {
         anchor = anchor.parentElement;
         // 不超过 field-value / segment-content
         if (
-          anchor
-          && ((anchor as Element).classList?.contains('field-value')
-            || (anchor as Element).classList?.contains('segment-content'))
+          anchor &&
+          ((anchor as Element).classList?.contains('field-value') ||
+            (anchor as Element).classList?.contains('segment-content'))
         ) {
           break;
         }
@@ -390,8 +394,8 @@ export default (options: UseSelectionSearchOptions) => {
       return '';
     }
     if (
-      prev.getAttribute('data-segment-field-role') === 'key'
-      || next.getAttribute('data-segment-field-role') === 'key'
+      prev.getAttribute('data-segment-field-role') === 'key' ||
+      next.getAttribute('data-segment-field-role') === 'key'
     ) {
       return '';
     }
@@ -411,9 +415,10 @@ export default (options: UseSelectionSearchOptions) => {
    * - Object：按 data-segment-field-name / role=key 解析叶子 KEY/VALUE
    */
   const collectDomSelectionPieces = (range: Range): DomSelectionPiece[] => {
-    const root =      (range.commonAncestorContainer instanceof Element
-      ? range.commonAncestorContainer
-      : range.commonAncestorContainer?.parentElement) ?? null;
+    const root =
+      (range.commonAncestorContainer instanceof Element
+        ? range.commonAncestorContainer
+        : range.commonAncestorContainer?.parentElement) ?? null;
     if (!root) {
       return [];
     }
@@ -455,9 +460,10 @@ export default (options: UseSelectionSearchOptions) => {
 
       // 根字段 KEY（.field-name）：始终剥离
       if (inFieldName) {
-        const fieldName =          el.closest?.('[data-field-name]')?.getAttribute('data-field-name')
-          || resolveRootFieldNameFromElement(el.closest?.('.bklog-root-field') ?? el)
-          || '';
+        const fieldName =
+          el.closest?.('[data-field-name]')?.getAttribute('data-field-name') ||
+          resolveRootFieldNameFromElement(el.closest?.('.bklog-root-field') ?? el) ||
+          '';
         pieces.push({ role: 'key', fieldName, text, isJsonTextValue });
         node = walker.nextNode();
         continue;
@@ -494,9 +500,10 @@ export default (options: UseSelectionSearchOptions) => {
       // role=key 时 segment 已绑定 KEY 自身完整路径并按 Fields 列表收敛
       // （如 application → __ext_json.deployment.application；node → __ext_json.deployment.pod）
       if (inSegmentKey || inJsonViewKey) {
-        const fieldName =          el.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name')
-          || el.closest?.('[data-search-field-name]')?.getAttribute('data-search-field-name')
-          || resolveRootFieldNameFromElement(el);
+        const fieldName =
+          el.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name') ||
+          el.closest?.('[data-search-field-name]')?.getAttribute('data-search-field-name') ||
+          resolveRootFieldNameFromElement(el);
         pieces.push({ role: 'key', fieldName, text, isJsonTextValue: false });
         node = walker.nextNode();
         continue;
@@ -504,9 +511,10 @@ export default (options: UseSelectionSearchOptions) => {
 
       // Object VALUE：优先叶子 segment 路径（如 __ext.io_kubernetes_pod）
       const segmentPath = el.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name') ?? '';
-      const fieldName =        segmentPath
-        || el.closest?.('[data-search-field-name]')?.getAttribute('data-search-field-name')
-        || resolveRootFieldNameFromElement(el);
+      const fieldName =
+        segmentPath ||
+        el.closest?.('[data-search-field-name]')?.getAttribute('data-search-field-name') ||
+        resolveRootFieldNameFromElement(el);
       pieces.push({
         role: 'value',
         fieldName,
@@ -522,7 +530,7 @@ export default (options: UseSelectionSearchOptions) => {
   /** 合并连续同字段 VALUE 碎片（跨过被剥离的 KEY） */
   const mergeDomValueFragments = (pieces: DomSelectionPiece[]) => {
     const result: Array<{ fieldName: string; text: string; isJsonTextValue: boolean }> = [];
-    pieces.forEach((piece) => {
+    pieces.forEach(piece => {
       if (piece.role !== 'value' || !piece.text) {
         return;
       }
@@ -576,10 +584,10 @@ export default (options: UseSelectionSearchOptions) => {
         const tokenEnd = tokenStart + tokens[i].text.length;
         cursor = tokenEnd;
         if (
-          selectionStart < tokenEnd
-          && selectionEnd > tokenStart
-          && !tokens[i].isCursorText
-          && tokens[i].text.length > 1
+          selectionStart < tokenEnd &&
+          selectionEnd > tokenStart &&
+          !tokens[i].isCursorText &&
+          tokens[i].text.length > 1
         ) {
           expandIndexes.add(i);
         }
@@ -859,8 +867,8 @@ export default (options: UseSelectionSearchOptions) => {
     const endElement = endNode instanceof Element ? endNode : endNode?.parentElement;
 
     // Text/String JSON：锚定外层 field-value，避免落到 data-segment-field-name 子路径
-    const jsonTextRoot = (startElement?.closest?.(`[${JSON_TEXT_VALUE_ATTR}="true"]`)
-      ?? endElement?.closest?.(`[${JSON_TEXT_VALUE_ATTR}="true"]`)) as HTMLElement | null;
+    const jsonTextRoot = (startElement?.closest?.(`[${JSON_TEXT_VALUE_ATTR}="true"]`) ??
+      endElement?.closest?.(`[${JSON_TEXT_VALUE_ATTR}="true"]`)) as HTMLElement | null;
     if (jsonTextRoot) {
       return jsonTextRoot;
     }
@@ -868,21 +876,21 @@ export default (options: UseSelectionSearchOptions) => {
     // 优先取分词叶子路径（Origin 未展开 JSON 时挂在 valid-text 上），
     // 再回退 JSON 树 data-search-field-name / data-field-name。
     // 截断尾巴 .blob-text 不得抢占已有 segment / search-field。
-    return (startElement?.closest?.('[data-segment-field-name]')
-      ?? endElement?.closest?.('[data-segment-field-name]')
-      ?? startElement?.closest?.('[data-search-field-name]')
-      ?? endElement?.closest?.('[data-search-field-name]')
-      ?? startElement?.closest?.('.blob-text[data-field-name], .blob-text[data-search-field-name]')
-      ?? endElement?.closest?.('.blob-text[data-field-name], .blob-text[data-search-field-name]')
-      ?? startElement?.closest?.('[data-field-name]')
-      ?? endElement?.closest?.('[data-field-name]')) as HTMLElement | null;
+    return (startElement?.closest?.('[data-segment-field-name]') ??
+      endElement?.closest?.('[data-segment-field-name]') ??
+      startElement?.closest?.('[data-search-field-name]') ??
+      endElement?.closest?.('[data-search-field-name]') ??
+      startElement?.closest?.('.blob-text[data-field-name], .blob-text[data-search-field-name]') ??
+      endElement?.closest?.('.blob-text[data-field-name], .blob-text[data-search-field-name]') ??
+      startElement?.closest?.('[data-field-name]') ??
+      endElement?.closest?.('[data-field-name]')) as HTMLElement | null;
   };
 
   const iterateFieldPools = (visitor: (_field: Record<string, any>) => void) => {
     const pools = [filteredFieldList.value, visibleFields.value, fullColumns.value];
     const seen = new Set<string>();
-    pools.forEach((pool) => {
-      (pool ?? []).forEach((field) => {
+    pools.forEach(pool => {
+      (pool ?? []).forEach(field => {
         const name = field?.field_name;
         if (!name || seen.has(name)) {
           return;
@@ -900,7 +908,7 @@ export default (options: UseSelectionSearchOptions) => {
     }
     const prefix = `${normalizeArrayFieldPath(parentFieldName)}.`;
     let found = false;
-    iterateFieldPools((field) => {
+    iterateFieldPools(field => {
       if (found || !field.field_name.startsWith(prefix) || field.is_virtual_obj_node) {
         return;
       }
@@ -945,7 +953,7 @@ export default (options: UseSelectionSearchOptions) => {
     const prefix = `${normalizedParent}.`;
     const candidates: Record<string, any>[] = [];
 
-    iterateFieldPools((field) => {
+    iterateFieldPools(field => {
       if (!field.field_name.startsWith(prefix) || !isLeafQueryableField(field)) {
         return;
       }
@@ -960,7 +968,7 @@ export default (options: UseSelectionSearchOptions) => {
 
     // 稳定排序后再取最优命中，避免字段池遍历顺序变化导致同词命中不同 KEY
     const scored = candidates
-      .map((field) => {
+      .map(field => {
         const plainText = getFieldPlainText(row, field);
         if (!plainText || plainText === '--') {
           return { field, score: -1 };
@@ -979,9 +987,10 @@ export default (options: UseSelectionSearchOptions) => {
       .filter(item => item.score >= 0);
 
     scored.sort(
-      (a, b) => b.score - a.score
-        || b.field.field_name.length - a.field.field_name.length
-        || a.field.field_name.localeCompare(b.field.field_name),
+      (a, b) =>
+        b.score - a.score ||
+        b.field.field_name.length - a.field.field_name.length ||
+        a.field.field_name.localeCompare(b.field.field_name),
     );
 
     return scored[0]?.field;
@@ -1262,9 +1271,10 @@ export default (options: UseSelectionSearchOptions) => {
     selectionText: string,
     targetElement: HTMLElement | null,
   ): SelectionSearchTarget => {
-    const searchFieldName =      targetElement?.getAttribute('data-search-field-name')
-      ?? targetElement?.getAttribute('data-segment-field-name')
-      ?? '';
+    const searchFieldName =
+      targetElement?.getAttribute('data-search-field-name') ??
+      targetElement?.getAttribute('data-segment-field-name') ??
+      '';
     const domFieldName = targetElement?.getAttribute('data-field-name') ?? '';
     // DOM 可能挂了未映射深路径，先收敛到 Fields 列表再解析
     const candidateFieldName = clampToMappedFieldName(searchFieldName || domFieldName, FULLTEXT_FIELD_NAME);
@@ -1342,7 +1352,7 @@ export default (options: UseSelectionSearchOptions) => {
 
     const prefix = `${normalizeArrayFieldPath(parentFieldName)}.`;
     const candidates: Record<string, any>[] = [];
-    iterateFieldPools((field) => {
+    iterateFieldPools(field => {
       if (!field.field_name.startsWith(prefix) || !isLeafQueryableField(field)) {
         return;
       }
@@ -1370,7 +1380,7 @@ export default (options: UseSelectionSearchOptions) => {
   const dedupeSelectionConditions = (conditions: SelectionCondition[]) => {
     const result: SelectionCondition[] = [];
     const seen = new Set<string>();
-    conditions.forEach((item) => {
+    conditions.forEach(item => {
       const key = [item.field, item.operator, item.value.join('\u0001'), item.isNestedField ?? 'false'].join('__');
       if (seen.has(key)) {
         return;
@@ -1389,19 +1399,21 @@ export default (options: UseSelectionSearchOptions) => {
     const endNode = range.endContainer as Node;
     const startElement = startNode instanceof Element ? startNode : startNode.parentElement;
     const endElement = endNode instanceof Element ? endNode : endNode.parentElement;
-    const root =      (range.commonAncestorContainer instanceof Element
-      ? range.commonAncestorContainer
-      : range.commonAncestorContainer.parentElement)
-      ?? startElement
-      ?? endElement;
+    const root =
+      (range.commonAncestorContainer instanceof Element
+        ? range.commonAncestorContainer
+        : range.commonAncestorContainer.parentElement) ??
+      startElement ??
+      endElement;
 
     if (!root) {
       return [] as HTMLElement[];
     }
 
-    const container =      root.closest?.(
-      '.bklog-json-formatter-root, .bklog-column-wrapper, .bklog-json-view-object, .bklog-json-view-child',
-    ) ?? root;
+    const container =
+      root.closest?.(
+        '.bklog-json-formatter-root, .bklog-column-wrapper, .bklog-json-view-object, .bklog-json-view-child',
+      ) ?? root;
 
     const nodes = Array.from(
       container.querySelectorAll?.('[data-search-field-name], [data-field-name]') ?? [],
@@ -1409,13 +1421,13 @@ export default (options: UseSelectionSearchOptions) => {
 
     // 自身也可能带属性
     if (
-      container instanceof HTMLElement
-      && (container.hasAttribute('data-search-field-name') || container.hasAttribute('data-field-name'))
+      container instanceof HTMLElement &&
+      (container.hasAttribute('data-search-field-name') || container.hasAttribute('data-field-name'))
     ) {
       nodes.unshift(container);
     }
 
-    return nodes.filter((el) => {
+    return nodes.filter(el => {
       try {
         return range.intersectsNode(el);
       } catch {
@@ -1425,13 +1437,16 @@ export default (options: UseSelectionSearchOptions) => {
   };
 
   const resolveFieldPathFromElement = (el: HTMLElement) => {
-    const segmentPath =      el.getAttribute('data-segment-field-name')
-      ?? el.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name')
-      ?? '';
-    const searchPath =      el.getAttribute('data-search-field-name')
-      ?? el.closest?.('[data-search-field-name]')?.getAttribute('data-search-field-name')
-      ?? '';
-    const fieldPath =      el.getAttribute('data-field-name') ?? el.closest?.('[data-field-name]')?.getAttribute('data-field-name') ?? '';
+    const segmentPath =
+      el.getAttribute('data-segment-field-name') ??
+      el.closest?.('[data-segment-field-name]')?.getAttribute('data-segment-field-name') ??
+      '';
+    const searchPath =
+      el.getAttribute('data-search-field-name') ??
+      el.closest?.('[data-search-field-name]')?.getAttribute('data-search-field-name') ??
+      '';
+    const fieldPath =
+      el.getAttribute('data-field-name') ?? el.closest?.('[data-field-name]')?.getAttribute('data-field-name') ?? '';
     // 分词叶子路径优先，再收敛到 Fields 列表真实字段，避免未映射深路径进入检索
     return clampToMappedFieldName(segmentPath || searchPath || fieldPath);
   };
@@ -1457,7 +1472,7 @@ export default (options: UseSelectionSearchOptions) => {
         return byParent;
       }
 
-      const child = listChildLeafFields(parentHint).find((field) => {
+      const child = listChildLeafFields(parentHint).find(field => {
         const name = field.field_name;
         return name === prefixed || name.endsWith(`.${normalizedHint}`) || name.split('.').pop() === normalizedHint;
       });
@@ -1469,22 +1484,22 @@ export default (options: UseSelectionSearchOptions) => {
     // 跨边界划选时 KEY 往往只有尾部。先按 KEY 相似度筛选，再用 VALUE 片段消歧，避免 dsa-1 误命中所有值为 dsa 的字段。
     const keyText = normalizedHint.toLowerCase().replace(/^_+/, '');
     const candidates: Array<{ field: Record<string, any>; score: number }> = [];
-    iterateFieldPools((field) => {
+    iterateFieldPools(field => {
       if (!isLeafQueryableField(field)) return;
-      const leaf = field.field_name.split('.').pop()
-        ?.toLowerCase() ?? '';
+      const leaf = field.field_name.split('.').pop()?.toLowerCase() ?? '';
       const keyScore = leaf === keyText ? 1000 : leaf.endsWith(keyText) ? 800 : leaf.includes(keyText) ? 500 : 0;
       if (!keyScore) return;
       const plain = row ? getFieldPlainText(row, field) : '';
-      const valueScore =        valueHint && plain && plain !== '--'
-        ? plain === valueHint
-          ? 300
-          : plain.startsWith(valueHint)
-            ? 200
-            : plain.includes(valueHint)
-              ? 50
-              : 0
-        : 0;
+      const valueScore =
+        valueHint && plain && plain !== '--'
+          ? plain === valueHint
+            ? 300
+            : plain.startsWith(valueHint)
+              ? 200
+              : plain.includes(valueHint)
+                ? 50
+                : 0
+          : 0;
       candidates.push({ field, score: keyScore + valueScore });
     });
     candidates.sort((a, b) => b.score - a.score || b.field.field_name.length - a.field.field_name.length);
@@ -1494,10 +1509,11 @@ export default (options: UseSelectionSearchOptions) => {
   /**
    * 清洗划选碎片（去掉引号、冒号、逗号等 JSON 边界符）。
    */
-  const sanitizeSelectionFragment = (raw: string) => stripSelectionMarkup(raw)
-    .replace(/^["'\s|,:{[\]\\]+/, '')
-    .replace(/["'\s|,}\]\\]+$/g, '')
-    .trim();
+  const sanitizeSelectionFragment = (raw: string) =>
+    stripSelectionMarkup(raw)
+      .replace(/^["'\s|,:{[\]\\]+/, '')
+      .replace(/["'\s|,}\]\\]+$/g, '')
+      .trim();
 
   /**
    * 判断划选文本是否与字段 VALUE 有实质重叠（完整值 / 前后缀截断）。
@@ -1531,13 +1547,13 @@ export default (options: UseSelectionSearchOptions) => {
       .map(item => item.trim())
       .filter(item => item.length >= minLen);
 
-    return fragments.some((fragment) => {
+    return fragments.some(fragment => {
       if (plainText === fragment || plainText.includes(fragment)) {
         // 碎片是完整值的真子串；过短且更像 KEY 前缀时，交给 KEY 判定过滤
         return (
-          fragment.length >= Math.min(8, Math.max(4, Math.floor(plainText.length / 4)))
-          || plainText.endsWith(fragment)
-          || plainText.startsWith(fragment)
+          fragment.length >= Math.min(8, Math.max(4, Math.floor(plainText.length / 4))) ||
+          plainText.endsWith(fragment) ||
+          plainText.startsWith(fragment)
         );
       }
       return false;
@@ -1557,19 +1573,19 @@ export default (options: UseSelectionSearchOptions) => {
     const scopes = parentHint
       ? listChildLeafFields(parentHint)
       : (() => {
-        const all: Record<string, any>[] = [];
-        iterateFieldPools((field) => {
-          if (isLeafQueryableField(field)) {
-            all.push(field);
-          }
-        });
-        return all;
-      })();
+          const all: Record<string, any>[] = [];
+          iterateFieldPools(field => {
+            if (isLeafQueryableField(field)) {
+              all.push(field);
+            }
+          });
+          return all;
+        })();
 
     type ScoreHit = { field: Record<string, any>; score: number };
     const hits: ScoreHit[] = [];
 
-    scopes.forEach((field) => {
+    scopes.forEach(field => {
       const plain = getFieldPlainText(row, field);
       if (!plain || plain === '--') {
         return;
@@ -1617,16 +1633,16 @@ export default (options: UseSelectionSearchOptions) => {
     const scopes = parentHint
       ? listChildLeafFields(parentHint)
       : (() => {
-        const all: Record<string, any>[] = [];
-        iterateFieldPools((field) => {
-          if (isLeafQueryableField(field)) {
-            all.push(field);
-          }
-        });
-        return all;
-      })();
+          const all: Record<string, any>[] = [];
+          iterateFieldPools(field => {
+            if (isLeafQueryableField(field)) {
+              all.push(field);
+            }
+          });
+          return all;
+        })();
 
-    return scopes.some((field) => {
+    return scopes.some(field => {
       const shortKey = field.field_name.split('.').pop() ?? '';
       return (
         Boolean(shortKey) && shortKey !== cleaned && shortKey.startsWith(cleaned) && cleaned.length < shortKey.length
@@ -1806,10 +1822,10 @@ export default (options: UseSelectionSearchOptions) => {
   const resolveStringFieldContext = (range: Range, row: Record<string, any>) => {
     const targetElement = getSelectionAnchorElement(range);
     const candidatePath = normalizeArrayFieldPath(
-      targetElement?.getAttribute('data-segment-field-name')
-        ?? targetElement?.getAttribute('data-search-field-name')
-        ?? targetElement?.getAttribute('data-field-name')
-        ?? '',
+      targetElement?.getAttribute('data-segment-field-name') ??
+        targetElement?.getAttribute('data-search-field-name') ??
+        targetElement?.getAttribute('data-field-name') ??
+        '',
     );
 
     const directField = getFieldByName(candidatePath);
@@ -1845,7 +1861,8 @@ export default (options: UseSelectionSearchOptions) => {
    * 字段整段 VALUE 的可检索分词（与 Origin/JSON 渲染分词对齐：强制 Lucene）。
    * keyword whole-value 展示会把整段黏成 1 token，导致 Object 叶子多分词位置误判。
    */
-  const getFieldCursorTokens = (row: Record<string, any>, field: Record<string, any>) => getFieldLuceneTokens(row, field).filter(token => token.isCursorText && token.text);
+  const getFieldCursorTokens = (row: Record<string, any>, field: Record<string, any>) =>
+    getFieldLuceneTokens(row, field).filter(token => token.isCursorText && token.text);
 
   /**
    * String / JSON String：
@@ -1888,8 +1905,9 @@ export default (options: UseSelectionSearchOptions) => {
     }
 
     const anchor = getSelectionAnchorElement(range);
-    const isJsonTextValue =      isJsonTextValueElement(anchor)
-      || isJsonTextValueElement(
+    const isJsonTextValue =
+      isJsonTextValueElement(anchor) ||
+      isJsonTextValueElement(
         range.commonAncestorContainer instanceof Element
           ? range.commonAncestorContainer
           : range.commonAncestorContainer?.parentElement,
@@ -1898,12 +1916,13 @@ export default (options: UseSelectionSearchOptions) => {
     // JSON 外观：先剥离外层 KEY，再按字段类型解析（text 必须最小分词补齐）
     if (isJsonTextValue) {
       const pieces = collectDomSelectionPieces(range);
-      const valueText =        mergeDomValueFragments(pieces)
-        .filter(item => item.fieldName === field.field_name || !item.fieldName)
-        .map(item => item.text)
-        .join('')
-        .trim()
-        || selectionText.replace(new RegExp(`^${field.field_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`), '').trim();
+      const valueText =
+        mergeDomValueFragments(pieces)
+          .filter(item => item.fieldName === field.field_name || !item.fieldName)
+          .map(item => item.text)
+          .join('')
+          .trim() ||
+        selectionText.replace(new RegExp(`^${field.field_name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*`), '').trim();
       if (!valueText) {
         return [];
       }
@@ -1919,20 +1938,20 @@ export default (options: UseSelectionSearchOptions) => {
     // 留给后续 KV 分支只解析冒号后的 VALUE，避免把 key:value 整段当 String contains。
     // text 字段即使内容像 JSON，仍按 text 最小分词处理，不走此短路。
     if (
-      !isTextLikeField(field.field_type)
-      && plain
-      && plain !== '--'
-      && !plain.includes(selectionText)
-      && /[A-Za-z0-9_.-]+\s*:\s*\S/.test(selectionText)
+      !isTextLikeField(field.field_type) &&
+      plain &&
+      plain !== '--' &&
+      !plain.includes(selectionText) &&
+      /[A-Za-z0-9_.-]+\s*:\s*\S/.test(selectionText)
     ) {
       return [];
     }
 
     // 字段类型优先
     if (
-      isKeywordLikeField(field.field_type)
-      || isTextLikeField(field.field_type)
-      || (field.field_type && !['object', 'nested', 'text', 'keyword', 'flattened', 'string'].includes(field.field_type))
+      isKeywordLikeField(field.field_type) ||
+      isTextLikeField(field.field_type) ||
+      (field.field_type && !['object', 'nested', 'text', 'keyword', 'flattened', 'string'].includes(field.field_type))
     ) {
       const resolved = resolveSelectionByFieldType(selectionText, field, row);
       return resolved.values.map(token => ({
@@ -1987,7 +2006,7 @@ export default (options: UseSelectionSearchOptions) => {
     const conditions: SelectionCondition[] = [];
     const seen = new Set<string>();
 
-    valueFrags.forEach((frag) => {
+    valueFrags.forEach(frag => {
       if (!frag.fieldName) {
         return;
       }
@@ -1998,7 +2017,7 @@ export default (options: UseSelectionSearchOptions) => {
       if (frag.isJsonTextValue) {
         const field = getFieldByName(mappedFragName) ?? { field_name: mappedFragName, field_type: 'text' };
         const resolved = resolveSelectionByFieldType(frag.text, field, row);
-        resolved.values.forEach((token) => {
+        resolved.values.forEach(token => {
           const key = [field.field_name, resolved.operator, token].join('__');
           if (seen.has(key)) {
             return;
@@ -2011,8 +2030,9 @@ export default (options: UseSelectionSearchOptions) => {
 
       let field = getFieldByName(mappedFragName);
       if (!isLeafQueryableField(field)) {
-        field =          findLeafFieldBySelection(row, mappedFragName, frag.text)
-          ?? findLeafFieldByPartialValue(row, getParentFieldPath(mappedFragName) || mappedFragName, frag.text);
+        field =
+          findLeafFieldBySelection(row, mappedFragName, frag.text) ??
+          findLeafFieldByPartialValue(row, getParentFieldPath(mappedFragName) || mappedFragName, frag.text);
       }
       if (!isLeafQueryableField(field)) {
         return;
@@ -2020,7 +2040,7 @@ export default (options: UseSelectionSearchOptions) => {
 
       // 字段类型优先覆盖「一律补齐」旧逻辑
       const resolved = resolveSelectionByFieldType(frag.text, field, row);
-      resolved.values.forEach((token) => {
+      resolved.values.forEach(token => {
         if (!token) {
           return;
         }
@@ -2052,13 +2072,14 @@ export default (options: UseSelectionSearchOptions) => {
 
     const intersectedNodes = collectIntersectedSearchNodes(range);
     const pathInfos = intersectedNodes
-      .map((el) => {
+      .map(el => {
         const path = resolveFieldPathFromElement(el);
+        const parsedFromJsonStringElement = el.closest?.('[data-json-string-parsed="true"]');
         return {
           path: normalizeArrayFieldPath(path),
           parsedFromJsonString:
-            el.closest?.('[data-json-string-parsed="true"]') != null
-            || el.getAttribute('data-json-string-parsed') === 'true',
+            (parsedFromJsonStringElement !== null && parsedFromJsonStringElement !== undefined) ||
+            el.getAttribute('data-json-string-parsed') === 'true',
         };
       })
       .filter(item => item.path);
@@ -2067,17 +2088,19 @@ export default (options: UseSelectionSearchOptions) => {
     const anchorPath = getSelectionAnchorElement(range)?.getAttribute('data-search-field-name') ?? '';
     const anchorField = getFieldByName(anchorPath);
     // 补全仅针对 Object 类型（含 Fields 子字段 / 运行时 object）；String/JSON String 不走此分支
-    const objectContextField = [anchorField, ...uniquePaths.map(path => getFieldByName(path))].find(field => isObjectRuntimeValue(field, row),
+    const objectContextField = [anchorField, ...uniquePaths.map(path => getFieldByName(path))].find(field =>
+      isObjectRuntimeValue(field, row),
     );
     if (!objectContextField) {
       return [];
     }
 
-    const parentHint =      inferParentHintFromPaths(uniquePaths)
-      || getParentFieldPath(anchorPath)
-      || (hasMappedChildFields(anchorPath) ? anchorPath : '')
-      || objectContextField.field_name
-      || '';
+    const parentHint =
+      inferParentHintFromPaths(uniquePaths) ||
+      getParentFieldPath(anchorPath) ||
+      (hasMappedChildFields(anchorPath) ? anchorPath : '') ||
+      objectContextField.field_name ||
+      '';
 
     const conditions: SelectionCondition[] = [];
     const appendedFields = new Set<string>();
@@ -2120,9 +2143,10 @@ export default (options: UseSelectionSearchOptions) => {
       if (!isLeafQueryableField(field)) {
         return;
       }
-      const selectedValue =        rawValue && rawValue !== '--' ? stripSelectionMarkup(rawValue) : getFieldPlainText(row, field);
+      const selectedValue =
+        rawValue && rawValue !== '--' ? stripSelectionMarkup(rawValue) : getFieldPlainText(row, field);
       const values = resolveSelectionValues(selectedValue, field, row);
-      values.forEach((tokenValue) => {
+      values.forEach(tokenValue => {
         const resolved = resolveFieldSelectionOperator(field, tokenValue);
         if (!resolved.value) {
           return;
@@ -2158,9 +2182,9 @@ export default (options: UseSelectionSearchOptions) => {
       if (selectedTokens.length) {
         // 多分词连续命中时保留划选原文（含 / 等分隔符），避免空格拼接破坏字面量
         if (
-          selectedTokens.length > 1
-          && plain.includes(selectionText)
-          && selectedTokens.every(token => selectionText.includes(token.text))
+          selectedTokens.length > 1 &&
+          plain.includes(selectionText) &&
+          selectedTokens.every(token => selectionText.includes(token.text))
         ) {
           return selectionText;
         }
@@ -2177,7 +2201,7 @@ export default (options: UseSelectionSearchOptions) => {
 
     // 1) DOM 相交叶子：必须有 VALUE 证据；只碰到 KEY/KEY 前缀则丢弃
     if (!kvPairs.length) {
-      uniquePaths.forEach((path) => {
+      uniquePaths.forEach(path => {
         const field = getFieldByName(path);
         if (!isLeafQueryableField(field)) {
           return;
@@ -2198,19 +2222,20 @@ export default (options: UseSelectionSearchOptions) => {
     // 注意：部分 VALUE 命中时必须带上 selection 原文，不能直接塞完整 plain，
     // 否则同词（如 lobby）会因命中多个同值字段而每次 KEY/operator 不一致。
     if (!kvPairs.length && conditions.length < 2) {
-      uniquePaths.forEach((path) => {
+      uniquePaths.forEach(path => {
         const field = getFieldByName(path);
         if (!(hasMappedChildFields(path) || isStructField(field))) {
           return;
         }
-        listChildLeafFields(path).forEach((child) => {
+        listChildLeafFields(path).forEach(child => {
           const plain = getFieldPlainText(row, child);
           const shortKey = child.field_name.split('.').pop() ?? '';
           const valueHit = hasFieldValueOverlap(selectionText, plain);
           const escapedKey = shortKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-          const completeKvHit =            Boolean(shortKey)
-            && (new RegExp(`"${escapedKey}"\\s*:\\s*"`).test(selectionText)
-              || new RegExp(`(?:^|[\\s|{[,])${escapedKey}\\s*:\\s*\\S+`).test(selectionText));
+          const completeKvHit =
+            Boolean(shortKey) &&
+            (new RegExp(`"${escapedKey}"\\s*:\\s*"`).test(selectionText) ||
+              new RegExp(`(?:^|[\\s|{[,])${escapedKey}\\s*:\\s*\\S+`).test(selectionText));
           if (completeKvHit) {
             pushFieldValue(child, plain);
             return;
@@ -2229,7 +2254,7 @@ export default (options: UseSelectionSearchOptions) => {
       pushFieldValue(findLeafFieldByPartialValue(row, parentHint, leading));
     }
 
-    kvPairs.forEach((pair) => {
+    kvPairs.forEach(pair => {
       const field = resolveFieldByKeyHint(pair.key, parentHint, row, pair.value);
       if (!field) {
         return;
@@ -2257,7 +2282,7 @@ export default (options: UseSelectionSearchOptions) => {
     if (!kvPairs.length && conditions.length < 2) {
       const scopeParent = parentHint || uniquePaths.find(path => hasMappedChildFields(path)) || '';
       if (scopeParent && hasMappedChildFields(scopeParent)) {
-        listChildLeafFields(scopeParent).forEach((child) => {
+        listChildLeafFields(scopeParent).forEach(child => {
           const plain = getFieldPlainText(row, child);
           if (hasFieldValueOverlap(selectionText, plain)) {
             pushFieldValue(child, plain);
@@ -2314,11 +2339,11 @@ export default (options: UseSelectionSearchOptions) => {
     const tokenIndex = options.tokenIndex;
     // keyword/flattened：唯一分词整段命中时不加通配
     const isSoleToken = Boolean(
-      options.isSoleToken
-        || (typeof tokenCount === 'number'
-          && tokenCount === 1
-          && (!fullPlain || fullPlain === '--' || String(rawValue) === String(fullPlain)))
-        || (fullPlain && fullPlain !== '--' && String(rawValue) === String(fullPlain)),
+      options.isSoleToken ||
+      (typeof tokenCount === 'number' &&
+        tokenCount === 1 &&
+        (!fullPlain || fullPlain === '--' || String(rawValue) === String(fullPlain))) ||
+      (fullPlain && fullPlain !== '--' && String(rawValue) === String(fullPlain)),
     );
 
     const payload = resolveAddToSearch({
@@ -2336,8 +2361,9 @@ export default (options: UseSelectionSearchOptions) => {
       exactPhrase: false,
     });
 
-    const depth =      options.depth
-      ?? (mappedFieldName && mappedFieldName !== FULLTEXT_FIELD_NAME ? getFieldPathDepth(mappedFieldName) : options.depth);
+    const depth =
+      options.depth ??
+      (mappedFieldName && mappedFieldName !== FULLTEXT_FIELD_NAME ? getFieldPathDepth(mappedFieldName) : options.depth);
     const isNestedField = options.isNestedField;
 
     return handleAddCondition(
@@ -2378,7 +2404,7 @@ export default (options: UseSelectionSearchOptions) => {
     let tokenIndex = tokens.findIndex(item => String(item?.text ?? '') === value);
     // 单分词内部分划词：仅对短 token 做 includes，避免无分隔超长 token（极端数 MB）扫描
     if (tokenIndex < 0 && value && value.length < PARTIAL_TOKEN_MATCH_MAX_LEN) {
-      tokenIndex = tokens.findIndex((item) => {
+      tokenIndex = tokens.findIndex(item => {
         const text = item?.text;
         if (!text) return false;
         const tokenLen = text.length;
@@ -2431,7 +2457,7 @@ export default (options: UseSelectionSearchOptions) => {
   };
 
   const applySelectionConditions = (conditions: SelectionCondition[], row?: Record<string, any>) => {
-    conditions.forEach((item) => {
+    conditions.forEach(item => {
       const mappedName = clampToMappedFieldName(item.field, item.field);
       const field = getFieldByName(mappedName);
       const fullPlain = row && field ? getFieldPlainText(row, field) : undefined;
@@ -2464,7 +2490,7 @@ export default (options: UseSelectionSearchOptions) => {
 
     // 字段类型优先
     const resolved = resolveSelectionByFieldType(selectionText, field, row);
-    resolved.values.forEach((token) => {
+    resolved.values.forEach(token => {
       const pos = resolveSelectionTokenMeta(row, field, token, plain);
       emitAddCondition(field.field_name, resolved.operator, [token], {
         depth,
@@ -2525,7 +2551,7 @@ export default (options: UseSelectionSearchOptions) => {
     if (startEl?.closest?.('[data-segment-field-name]') || endEl?.closest?.('[data-segment-field-name]')) {
       return [];
     }
-    if (startBlob.getAttribute('data-blob-text-offset') == null) {
+    if (startBlob.getAttribute('data-blob-text-offset') === null) {
       return [];
     }
 
@@ -2543,7 +2569,8 @@ export default (options: UseSelectionSearchOptions) => {
       return [];
     }
 
-    const rootFieldName =      startBlob.getAttribute('data-search-field-name') || startBlob.getAttribute('data-field-name') || '';
+    const rootFieldName =
+      startBlob.getAttribute('data-search-field-name') || startBlob.getAttribute('data-field-name') || '';
     if (!rootFieldName) {
       return [];
     }
@@ -2555,13 +2582,14 @@ export default (options: UseSelectionSearchOptions) => {
     const fieldType = startBlob.getAttribute('data-field-type') || rootField.field_type || '';
     rootField.field_type = fieldType || rootField.field_type;
 
-    const withType = (conditions: SelectionCondition[]) => conditions.map(item => ({
-      ...item,
-      fieldType: item.fieldType || fieldType,
-    }));
+    const withType = (conditions: SelectionCondition[]) =>
+      conditions.map(item => ({
+        ...item,
+        fieldType: item.fieldType || fieldType,
+      }));
 
     // Text/String JSON 外观：截断尾巴仍归属外层字段
-    if (startBlob.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) != null || isStringRuntimeValue(rootField, row)) {
+    if (startBlob.closest(`[${JSON_TEXT_VALUE_ATTR}="true"]`) !== null || isStringRuntimeValue(rootField, row)) {
       const resolved = resolveSelectionByFieldType(selectionText, rootField, row);
       const nestedFlag = resolveIsNestedSearchField(rootField.field_name, row);
       return withType(
@@ -2578,17 +2606,18 @@ export default (options: UseSelectionSearchOptions) => {
 
     // 优先用已渲染的完整分词文本（含 blob）做偏移对齐；回退行内字段原文
     const renderedPlain = stripSelectionMarkup(
-      (startBlob.closest('.segment-content') as HTMLElement | null)?.textContent
-        ?? (startBlob.closest('.field-value') as HTMLElement | null)?.textContent
-        ?? '',
+      (startBlob.closest('.segment-content') as HTMLElement | null)?.textContent ??
+        (startBlob.closest('.field-value') as HTMLElement | null)?.textContent ??
+        '',
     );
     const fieldPlain = getFieldPlainText(row, rootField);
     const plain = (renderedPlain && /^\s*[[{]/.test(renderedPlain) ? renderedPlain : '') || fieldPlain;
     const blobBase = Number(startBlob.getAttribute('data-blob-text-offset'));
     const localOffset = getRangeStartOffsetInContainer(range, startBlob);
-    const absOffset =      Number.isFinite(blobBase) && localOffset >= 0
-      ? blobBase + localOffset
-      : getRangeStartOffsetInContainer(range, startBlob.closest('.field-value') as HTMLElement | null);
+    const absOffset =
+      Number.isFinite(blobBase) && localOffset >= 0
+        ? blobBase + localOffset
+        : getRangeStartOffsetInContainer(range, startBlob.closest('.field-value') as HTMLElement | null);
 
     // 偏移 → JSON 叶子路径（再 clamp 到 Fields 最长前缀，如 flattened 父字段）
     if (absOffset >= 0 && plain && plain !== '--' && /^\s*[[{]/.test(plain)) {
@@ -2616,16 +2645,17 @@ export default (options: UseSelectionSearchOptions) => {
 
         let leafField = getFieldByName(mappedPath);
         if (!isLeafQueryableField(leafField)) {
-          leafField =            findLeafFieldBySelection(row, mappedPath, selectionText)
-            ?? findLeafFieldByPartialValue(row, getParentFieldPath(mappedPath) || rootFieldName, selectionText)
-            ?? leafField;
+          leafField =
+            findLeafFieldBySelection(row, mappedPath, selectionText) ??
+            findLeafFieldByPartialValue(row, getParentFieldPath(mappedPath) || rootFieldName, selectionText) ??
+            leafField;
         }
         const targetField = isLeafQueryableField(leafField)
           ? leafField
           : {
-            field_name: mappedPath,
-            field_type: getFieldByName(mappedPath)?.field_type || fieldType || 'keyword',
-          };
+              field_name: mappedPath,
+              field_type: getFieldByName(mappedPath)?.field_type || fieldType || 'keyword',
+            };
         // keyword/flattened：划什么写什么；仅做转义/通配，不拆词、不扩散整段 VALUE
         const resolved = resolveSelectionByFieldType(selectionText, targetField, row);
         const nestedFlag = resolveIsNestedSearchField(targetField.field_name, row);
@@ -2647,13 +2677,13 @@ export default (options: UseSelectionSearchOptions) => {
     if (kvPairs.length) {
       const conditions: SelectionCondition[] = [];
       const seen = new Set<string>();
-      kvPairs.forEach((pair) => {
+      kvPairs.forEach(pair => {
         const field = resolveFieldByKeyHint(pair.key, rootFieldName, row, pair.value);
         if (!isLeafQueryableField(field)) {
           return;
         }
         const resolved = resolveSelectionByFieldType(pair.value, field, row);
-        resolved.values.forEach((token) => {
+        resolved.values.forEach(token => {
           const key = [field.field_name, resolved.operator, token].join('__');
           if (seen.has(key)) return;
           seen.add(key);
@@ -2668,8 +2698,9 @@ export default (options: UseSelectionSearchOptions) => {
       }
     }
 
-    const leafByValue =      findLeafFieldByPartialValue(row, rootFieldName, selectionText)
-      ?? findLeafFieldBySelection(row, rootFieldName, selectionText);
+    const leafByValue =
+      findLeafFieldByPartialValue(row, rootFieldName, selectionText) ??
+      findLeafFieldBySelection(row, rootFieldName, selectionText);
     if (isLeafQueryableField(leafByValue)) {
       const resolved = resolveSelectionByFieldType(selectionText, leafByValue, row);
       return withType(
@@ -2752,9 +2783,10 @@ export default (options: UseSelectionSearchOptions) => {
       return [];
     }
 
-    const segmentRole =      startSegment?.getAttribute('data-segment-field-role')
-      || endSegment?.getAttribute('data-segment-field-role')
-      || '';
+    const segmentRole =
+      startSegment?.getAttribute('data-segment-field-role') ||
+      endSegment?.getAttribute('data-segment-field-role') ||
+      '';
     const field = getFieldByName(startPath);
     const parentPath = getParentFieldPath(startPath);
     const parentField = getFieldByName(parentPath);
@@ -2771,9 +2803,10 @@ export default (options: UseSelectionSearchOptions) => {
         return [];
       }
       const nestedFlag = resolveIsNestedSearchField(conditionField, row);
-      const segmentText =        enableMinimalTokenCompletion && startSegment === endSegment
-        ? stripSelectionMarkup(startSegment?.textContent ?? '').trim()
-        : '';
+      const segmentText =
+        enableMinimalTokenCompletion && startSegment === endSegment
+          ? stripSelectionMarkup(startSegment?.textContent ?? '').trim()
+          : '';
       const values = segmentText
         ? [segmentText]
         : resolveSelectionValues(selectionText, keyField as Record<string, any> | undefined, row);
@@ -2920,16 +2953,16 @@ export default (options: UseSelectionSearchOptions) => {
       ? extractMinimalIntersectingCursorTokens(selectionText, originFieldTokens)
       : completeSelectionByTokens(selectionText, originFieldTokens);
 
-    originTokens.forEach((token) => {
+    originTokens.forEach(token => {
       if (!token.text || token.tokenType === 'field-name' || fieldNameSet.has(token.text)) {
         return;
       }
 
       let field = getFieldByName(token.fieldName ?? '');
       if (
-        isStructField(field)
-        || (field && hasMappedChildFields(field.field_name))
-        || (field && getFieldPlainText(row, field) !== token.text)
+        isStructField(field) ||
+        (field && hasMappedChildFields(field.field_name)) ||
+        (field && getFieldPlainText(row, field) !== token.text)
       ) {
         const leafField = findLeafFieldBySelection(row, token.fieldName ?? '', token.text);
         if (leafField) {
@@ -2942,7 +2975,7 @@ export default (options: UseSelectionSearchOptions) => {
       if (field && isLeafQueryableField(field)) {
         // 字段类型优先
         const resolvedByType = resolveSelectionByFieldType(token.text, field, row);
-        resolvedByType.values.forEach((valueText) => {
+        resolvedByType.values.forEach(valueText => {
           const conditionKey = [field.field_name, resolvedByType.operator, valueText, nestedFlag ? '1' : '0'].join(
             '__',
           );

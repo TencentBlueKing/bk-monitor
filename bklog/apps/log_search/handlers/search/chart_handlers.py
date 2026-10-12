@@ -58,7 +58,6 @@ from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 from apps.utils.grep_syntax_parse import grep_parser
 from apps.utils.local import get_request_username
 from apps.utils.lucene import EnhanceLuceneAdapter
-from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 class ChartHandler:
@@ -540,7 +539,11 @@ class SQLChartHandler(ChartHandler):
         sql = self.generate_grep_query_sql(params)
         trace_params = {"sql": sql}
         try:
-            bk_biz_id = space_uid_to_bk_biz_id(self.data.space_uid)
+            bk_biz_id = LogIndexSet.resolve_search_bk_biz_id(self.data, params.get("bk_biz_id"))
+            if self.data.is_platform_index and bk_biz_id is None:
+                from rest_framework.exceptions import ValidationError
+
+                raise ValidationError(_("平台级索引集检索必须传入 bk_biz_id"))
 
             params["index_set_ids"] = [self.index_set_id]
             params["bk_biz_id"] = bk_biz_id
@@ -585,7 +588,11 @@ class SQLChartHandler(ChartHandler):
         trace_params = {"sql": sql}
 
         try:
-            bk_biz_id = space_uid_to_bk_biz_id(self.data.space_uid)
+            bk_biz_id = LogIndexSet.resolve_search_bk_biz_id(self.data, params.get("bk_biz_id"))
+            if self.data.is_platform_index and bk_biz_id is None:
+                from rest_framework.exceptions import ValidationError
+
+                raise ValidationError(_("平台级索引集检索必须传入 bk_biz_id"))
 
             params["index_set_ids"] = [self.index_set_id]
             params["bk_biz_id"] = bk_biz_id

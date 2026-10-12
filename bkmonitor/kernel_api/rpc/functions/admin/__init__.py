@@ -19,6 +19,7 @@ from . import (
     collect_config,
     collect_plugin,
     custom_report,
+    consul,
     datalink,
     datasource,
     es_storage,
@@ -38,6 +39,7 @@ from . import (
     token,
     uptime_check,
     vm_short_link,
+    vm_query,
 )
 
 __all__ = [
@@ -51,6 +53,7 @@ __all__ = [
     "collect_config",
     "collect_plugin",
     "custom_report",
+    "consul",
     "datalink",
     "datasource",
     "es_storage",
@@ -70,4 +73,5 @@ __all__ = [
     "token",
     "uptime_check",
     "vm_short_link",
+    "vm_query",
 ]

@@ -61,6 +61,8 @@ export const findJsonSegmentRangeAtOffset = (
   if (!ranges.length || offset < 0) {
     return undefined;
   }
-  return ranges.find(item => offset >= item.start && offset < item.end)
-    ?? ranges.find(item => offset >= item.start && offset <= item.end);
+  return (
+    ranges.find(item => offset >= item.start && offset < item.end) ??
+    ranges.find(item => offset >= item.start && offset <= item.end)
+  );
 };

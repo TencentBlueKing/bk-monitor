@@ -1,9 +1,12 @@
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.conf import settings
 from django.test import TestCase
 
+from apps.exceptions import ApiRequestError
 from apps.log_search.constants import DorisFieldTypeEnum
+from apps.log_search.exceptions import GetAllFieldsException
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 
 
@@ -105,3 +108,100 @@ class TestUnifyQueryMappingHandler(TestCase):
         self.assertEqual(fields_by_name["dtEventTimeStamp"]["field_type"], "date")
         self.assertEqual(fields_by_name["dtEventTimeStamp"]["tag"], "timestamp")
         self.assertEqual(fields_by_name["dtEventTimeStampNanos"]["field_type"], "long")
+
+    def test_get_fields_by_result_tables(self):
+        index_set = SimpleNamespace(
+            index_set_id=1,
+            space_uid="bkcc__2",
+            scenario_id="log",
+            storage_cluster_id=1,
+            get_indexes=lambda has_applied: [
+                {
+                    "result_table_id": "2_bklog.demo",
+                    "scenario_id": "log",
+                    "storage_cluster_id": 1,
+                }
+            ],
+        )
+        with (
+            patch(
+                "apps.log_unifyquery.handler.mapping.UnifyQueryMappingHandler.get_fields_by_table_id",
+                return_value=[{"field_name": "message", "field_type": "text"}],
+            ) as mock_get_fields,
+        ):
+            fields_by_rt = UnifyQueryMappingHandler.get_fields_by_result_tables(index_set)
+
+        self.assertEqual(fields_by_rt, {"2_bklog.demo": ([{"field_name": "message", "field_type": "text"}], [])})
+        self.assertEqual(mock_get_fields.call_args.kwargs["bk_biz_id"], 2)
+        self.assertEqual(mock_get_fields.call_args.kwargs["table_id"], "bklog_index_set_1_2_bklog_demo.__default__")
+
+    @patch("apps.log_unifyquery.handler.mapping.UnifyQueryApi.query_field_map")
+    def test_get_fields_by_table_id_uses_metadata_router(self, mock_query_field_map):
+        mock_query_field_map.return_value = {"data": [{"field_name": "message", "field_type": "text"}]}
+
+        fields = UnifyQueryMappingHandler.get_fields_by_table_id(2, "bklog_index_set_1_2_bklog_demo.__default__")
+
+        self.assertEqual(fields, [{"field_name": "message", "field_type": "text"}])
+        mock_query_field_map.assert_called_once_with(
+            {
+                "bk_biz_id": 2,
+                "data_source": settings.UNIFY_QUERY_DATA_SOURCE,
+                "table_id": "bklog_index_set_1_2_bklog_demo.__default__",
+            }
+        )
+
+    def test_get_fields_by_result_tables_returns_empty_when_no_indexes(self):
+        index_set = SimpleNamespace(get_indexes=lambda has_applied: [])
+
+        self.assertEqual(UnifyQueryMappingHandler.get_fields_by_result_tables(index_set), {})
+
+    @staticmethod
+    def _build_index_set_for_fields_by_rt():
+        return SimpleNamespace(
+            index_set_id=1,
+            space_uid="bkcc__2",
+            scenario_id="log",
+            storage_cluster_id=1,
+            get_indexes=lambda has_applied: [
+                {
+                    "result_table_id": "2_bklog.success",
+                    "bk_biz_id": 2,
+                    "scenario_id": "log",
+                    "storage_cluster_id": 1,
+                },
+                {
+                    "result_table_id": "2_bklog.failed",
+                    "bk_biz_id": 2,
+                    "scenario_id": "log",
+                    "storage_cluster_id": 1,
+                },
+            ],
+        )
+
+    def test_get_fields_by_result_tables_keeps_successful_results(self):
+        index_set = self._build_index_set_for_fields_by_rt()
+        with patch(
+            "apps.log_unifyquery.handler.mapping.MultiExecuteFunc.run",
+            return_value={
+                "2_bklog.success": [{"field_name": "message", "field_type": "text"}],
+                "2_bklog.failed": ApiRequestError("unify-query unavailable"),
+            },
+        ):
+            fields_by_rt = UnifyQueryMappingHandler.get_fields_by_result_tables(index_set)
+
+        self.assertEqual(fields_by_rt, {"2_bklog.success": ([{"field_name": "message", "field_type": "text"}], [])})
+
+    def test_get_fields_by_result_tables_wraps_all_failures(self):
+        index_set = self._build_index_set_for_fields_by_rt()
+        with patch(
+            "apps.log_unifyquery.handler.mapping.MultiExecuteFunc.run",
+            return_value={
+                "2_bklog.success": ApiRequestError("unify-query unavailable"),
+                "2_bklog.failed": ApiRequestError("unify-query unavailable"),
+            },
+        ):
+            with self.assertRaises(GetAllFieldsException) as context:
+                UnifyQueryMappingHandler.get_fields_by_result_tables(index_set)
+
+        self.assertIn("索引集(1),获取字段信息异常", context.exception.message)
+        self.assertIn("unify-query unavailable", context.exception.message)

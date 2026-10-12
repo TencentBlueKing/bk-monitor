@@ -47,7 +47,7 @@ export interface IFieldInfo {
 }
 
 /** 结果表信息响应结构（仅收敛 useOperation 里用到的 fields） */
-export interface IResultTableInfoResponse extends IApiResponse<{ fields?: IFieldInfo[]; [key: string]: unknown }> {}
+export type IResultTableInfoResponse = IApiResponse<{ fields?: IFieldInfo[]; [key: string]: unknown }>;
 
 /** 索引组列表响应结构 */
 export interface IIndexGroupListResponse {
@@ -116,6 +116,9 @@ export interface ICollectionParams {
   winlog_name?: string[];
   winlog_level?: string[];
   winlog_event_id?: string[];
+  winlog_source?: string[];
+  winlog_content?: string[];
+  winlog_match_op?: string | string[];
   tail_files?: boolean;
 }
 
@@ -421,6 +424,5 @@ export interface ISubmitOptions {
   /** 操作类型: 'next'(默认) | 'back' | 'saveOnly' */
   action?: 'next' | 'back' | 'saveOnly';
   /** 保存完成后的回调函数 */
-  // eslint-disable-next-line no-unused-vars
   callback?: (success: boolean) => void;
 }

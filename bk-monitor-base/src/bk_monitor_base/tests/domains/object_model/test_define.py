@@ -15,6 +15,7 @@ from bk_monitor_base.domains.object_model.define import (
     ObjectModelRelateType,
     ObjectModelUsageRecord,
 )
+from bk_monitor_base.domains.object_model.errors import ObjectModelGroupValidError, ObjectModelValidError
 from bk_monitor_base.tests.domains.object_model import ATTRIBUTE_CONFIG_ENTITY
 
 
@@ -115,7 +116,7 @@ class TestObjectModel:
             inst_display_name="test_display",
         )
         if should_raise:
-            with pytest.raises(Exception):
+            with pytest.raises(ObjectModelValidError):
                 ObjectModel(**params)
         else:
             ObjectModel(**params)
@@ -149,7 +150,7 @@ class TestObjectModel:
         )
         params[field] = value
         if should_raise:
-            with pytest.raises(Exception):
+            with pytest.raises(ValidationError):
                 ObjectModel(**params)
         else:
             ObjectModel(**params)
@@ -245,7 +246,7 @@ class TestObjectModelGroup:
             is_default=is_default,
         )
         if should_raise:
-            with pytest.raises(Exception):
+            with pytest.raises(ObjectModelGroupValidError):
                 ObjectModelGroup(**params)
         else:
             ObjectModelGroup(**params)

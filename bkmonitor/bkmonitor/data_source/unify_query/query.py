@@ -24,7 +24,9 @@ from django.utils.functional import cached_property
 from opentelemetry import trace
 
 from bkm_space.utils import bk_biz_id_to_space_uid
-from bkmonitor.data_source.data_source import DataSource, TimeSeriesDataSource
+from bkmonitor.data_source.data_source import DataSource, PrometheusTimeSeriesDataSource, TimeSeriesDataSource
+from bkmonitor.data_source.promql_expression import compile_promql_expression
+from bkmonitor.data_source.unify_query.constants import REF_VALUES_RESERVED_FIELD
 from bkmonitor.data_source.unify_query.functions import (
     AggMethods,
     CpAggMethods,
@@ -61,12 +63,56 @@ class UnifyQuery:
         expression: str,
         functions: list | None = None,
         bk_tenant_id: str | None = None,
+        query_output_config: dict | None = None,
+        promql_multi_expression: bool = False,
     ):
         self.is_partial = False
         self.functions = [] if functions is None else functions
+        self.query_output_config = query_output_config
         # 不传业务指标时传 0，为 None 时查询所有业务
         self.bk_biz_id = bk_biz_id
+        # alias -> 原始 promql 映射，用于把命名输出的 expression（alias）翻译成完整 PromQL。
+        # 单条与多条 PromQL 场景均构建（单条时仅一个 alias），供查询时透传给 UQ。
+        self.promql_output_map: dict[str, str] = {
+            source.alias: source.promql
+            for source in data_sources
+            if isinstance(source, PrometheusTimeSeriesDataSource) and source.alias
+        }
+        if promql_multi_expression:
+            if len(data_sources) < 2 or not all(
+                isinstance(source, PrometheusTimeSeriesDataSource) for source in data_sources
+            ):
+                raise ValueError("multiple Prometheus time-series queries are required")
+            filter_dict = data_sources[0].filter_dict
+            if any(source.filter_dict != filter_dict for source in data_sources[1:]):
+                raise ValueError("PromQL queries must use the same filters")
+            promql = compile_promql_expression(
+                [
+                    {
+                        "data_source_label": source.data_source_label,
+                        "data_type_label": source.data_type_label,
+                        "alias": source.alias,
+                        "promql": source.promql,
+                        "interval": source.interval,
+                    }
+                    for source in data_sources
+                ],
+                expression,
+            )
+            data_sources = [
+                PrometheusTimeSeriesDataSource(
+                    bk_biz_id=data_sources[0].bk_biz_id,
+                    promql=promql,
+                    interval=int(data_sources[0].interval),
+                    filter_dict=filter_dict,
+                )
+            ]
         self.data_sources = data_sources
+
+        # Prometheus 命名输出：把 output_list 的 expression（alias）翻译成完整 PromQL，
+        # 设置到 data_source 上，由 PrometheusTimeSeriesDataSource.query_data 透传并解析。
+        if self.query_output_config and self.promql_output_map:
+            self.data_sources[0].query_output_config = self._translate_promql_named_output_config()
 
         # 如果未传入租户ID，则根据业务ID获取租户ID
         if not bk_tenant_id and bk_biz_id:
@@ -443,6 +489,8 @@ class UnifyQuery:
             "bk_tenant_id": self.bk_tenant_id,
             "not_time_align": not_time_align,
         }
+        if self.query_output_config:
+            params.update(self.query_output_config)
 
         if start_time and end_time:
             if time_alignment and not not_time_align:
@@ -453,6 +501,73 @@ class UnifyQuery:
                 params["end_time"] = str(end_time // 1000)
 
         return params
+
+    @classmethod
+    def _index_named_output_records(
+        cls, params: dict[str, Any], output: dict[str, Any]
+    ) -> dict[tuple[int, tuple[tuple[str, Any], ...]], dict[str, Any]]:
+        output_params = {**params, "query_list": [{"reference_name": output.get("reference_name")}]}
+        records = cls.process_unify_query_data(output_params, {"series": output.get("series") or []})
+        indexed = {}
+        for record in records:
+            record.pop(output.get("reference_name"), None)
+            dimensions = tuple(
+                sorted((key, value) for key, value in record.items() if key not in {"_time_", "_result_"})
+            )
+            key = (record["_time_"], dimensions)
+            if key in indexed:
+                raise ValueError(f"duplicate named output point: {output.get('reference_name')}")
+            indexed[key] = record
+        return indexed
+
+    @classmethod
+    def process_named_outputs_data(
+        cls, params: dict[str, Any], data: dict[str, Any], end_time: int | None = None
+    ) -> tuple[list[dict[str, Any]], bool, dict]:
+        contract_version = data.get("contract_version")
+        if contract_version != "named_outputs/v1":
+            raise ValueError(f"unsupported named outputs response contract: {contract_version}")
+
+        legacy_output_ref = params["legacy_output_ref"]
+        outputs = data.get("outputs") or []
+        outputs_by_ref = {}
+        for output in outputs:
+            reference_name = output.get("reference_name")
+            if not reference_name or reference_name in outputs_by_ref:
+                raise ValueError(f"duplicate or empty named output reference: {reference_name}")
+            outputs_by_ref[reference_name] = output
+        if legacy_output_ref not in outputs_by_ref:
+            raise ValueError(f"legacy output is missing: {legacy_output_ref}")
+
+        indexed_outputs = {
+            reference_name: cls._index_named_output_records(params, output)
+            for reference_name, output in outputs_by_ref.items()
+        }
+        condition_output = outputs_by_ref[legacy_output_ref]
+        condition_records = indexed_outputs[legacy_output_ref]
+        records = []
+        for key, condition_record in condition_records.items():
+            record = dict(condition_record)
+            ref_values = {}
+            for reference_name, output in outputs_by_ref.items():
+                state = output.get("state") or ("PARTIAL" if output.get("is_partial") else "SUCCESS")
+                referenced_record = indexed_outputs[reference_name].get(key)
+                if referenced_record is None:
+                    ref_values[reference_name] = {"state": state if state in {"ERROR", "UNSUPPORTED"} else "MISSING"}
+                else:
+                    ref_values[reference_name] = {"value": referenced_record.get("_result_"), "state": state}
+            record[REF_VALUES_RESERVED_FIELD] = ref_values
+            if not params.get("instant") and end_time and record.get("_time_") == end_time:
+                continue
+            records.append(record)
+
+        condition_state = condition_output.get("state")
+        is_partial = bool(condition_output.get("is_partial")) or condition_state in {"PARTIAL", "ERROR"}
+        condition_params = {**params, "query_list": [{"reference_name": legacy_output_ref}]}
+        series_stat = cls.process_unify_query_series_stat(
+            condition_params, {"series": condition_output.get("series") or []}
+        )
+        return records, is_partial, series_stat
 
     def _query_unify_query(
         self,
@@ -515,9 +630,24 @@ class UnifyQuery:
             span.set_attribute("bk.system", "unify_query")
             span.set_attribute("bk.unify_query.statement", json.dumps(params))
             data = api.unify_query.query_data(**params)
-            is_partial = data.get("is_partial", False)
-            series_stat = self.process_unify_query_series_stat(params, data)
-            records: list[dict[str, Any]] = self.process_unify_query_data(params, data, end_time=end_time)
+            if self.query_output_config and "contract_version" in data:
+                records, is_partial, series_stat = self.process_named_outputs_data(params, data, end_time=end_time)
+            else:
+                if self.query_output_config and "series" not in data:
+                    raise ValueError("legacy named outputs response is missing series")
+                is_partial = data.get("is_partial", False)
+                series_stat = self.process_unify_query_series_stat(params, data)
+                records = self.process_unify_query_data(params, data, end_time=end_time)
+                if self.query_output_config:
+                    legacy_output_ref = self.query_output_config["legacy_output_ref"]
+                    state = "PARTIAL" if is_partial else "SUCCESS"
+                    for record in records:
+                        ref_values = {
+                            output["reference_name"]: {"state": "UNSUPPORTED"}
+                            for output in self.query_output_config["output_list"]
+                        }
+                        ref_values[legacy_output_ref] = {"value": record.get("_result_"), "state": state}
+                        record[REF_VALUES_RESERVED_FIELD] = ref_values
             records = self.process_data_by_datasource(records)
         return records, is_partial, series_stat
 
@@ -594,6 +724,29 @@ class UnifyQuery:
             records = self.process_log_by_datasource(records)
         return records
 
+    def _translate_promql_named_output_config(self) -> dict:
+        """把 query_output_config 的 output_list expression 从 alias 翻译成完整 PromQL。
+
+        平台侧保存的 output_list 里 expression 是 query alias（如 "a"），而 UQ 的
+        /query/ts/promql 要求 expression 是完整 PromQL，因此查询前需要翻译：
+        - legacy 输出（reference_name == legacy_output_ref）-> 编译后的 promql（检测值）
+        - 非 legacy 输出 -> 对应 alias 的原始 promql
+        """
+        legacy_output_ref = self.query_output_config["legacy_output_ref"]
+        translated = []
+        for output in self.query_output_config["output_list"]:
+            reference_name = output["reference_name"]
+            if reference_name == legacy_output_ref:
+                translated_expression = self.data_sources[0].promql
+            else:
+                translated_expression = self.promql_output_map[output["expression"].strip()]
+            translated.append({"reference_name": reference_name, "expression": translated_expression})
+        return {
+            "response_contract": self.query_output_config["response_contract"],
+            "legacy_output_ref": legacy_output_ref,
+            "output_list": translated,
+        }
+
     def _query_data_using_datasource(
         self,
         start_time: int,
@@ -628,6 +781,9 @@ class UnifyQuery:
                         continue
                     metric_field = datasource.metrics[0].get("alias") or datasource.metrics[0]["field"]
                     record["_result_"] = record[metric_field]
+            # 汇总 data_source 的 partial 状态（PromQL 命名输出会在 query_data 里设置）
+            if getattr(datasource, "is_partial", False):
+                self.is_partial = True
             all_data.extend(data)
 
         return all_data, all_series_stat

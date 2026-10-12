@@ -4,7 +4,12 @@ from rest_framework.response import Response
 
 from apps.generic import ModelViewSet
 from apps.iam import ActionEnum, ResourceEnum
-from apps.iam.handlers.drf import insert_permission_field
+from apps.iam.handlers.drf import (
+    BusinessActionPermission,
+    IAMPermission,
+    InstanceActionForDataPermission,
+    insert_permission_field,
+)
 from apps.log_databus.exceptions import (
     CollectorConfigNotExistException,
     CollectorPluginNotImplemented,
@@ -25,6 +30,64 @@ from apps.utils.drf import detail_route, list_route
 from apps.utils.function import ignored
 
 
+class RequireBizActionPermission(BusinessActionPermission):
+    """业务权限失败关闭：缺少或为 0 的业务 ID 不得放行。
+
+    allow_public_object_via_request_biz: 公共插件（业务 ID 为 0）的对象权限改用请求中的目标业务，
+    供 retrieve / instances 使用；更新和删除仍只允许超管。
+    """
+
+    def __init__(self, actions, allow_public_object_via_request_biz=False):
+        self.allow_public_object_via_request_biz = allow_public_object_via_request_biz
+        super().__init__(actions)
+
+    @staticmethod
+    def parse_biz_id(value):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return 0
+
+    def _parse_biz_id(self, value):
+        return self.parse_biz_id(value)
+
+    def _is_privileged(self, request):
+        user = getattr(request, "user", None)
+        return bool(user and getattr(user, "is_superuser", False))
+
+    def has_permission(self, request, view):
+        biz_id = self._parse_biz_id(self.fetch_biz_id_by_request(request))
+        if biz_id <= 0:
+            # 更新/删除从 URL 取插件对象，业务 ID 在对象上，延迟到 has_object_permission
+            if getattr(view, "action", None) in ("update", "partial_update", "destroy"):
+                return True
+            return self._is_privileged(request)
+        self.resources = [ResourceEnum.BUSINESS.create_instance(biz_id)]
+        return super(BusinessActionPermission, self).has_permission(request, view)
+
+    def has_object_permission(self, request, view, obj):
+        obj_biz_id = self._parse_biz_id(getattr(obj, "bk_biz_id", 0))
+        if obj_biz_id <= 0:
+            if self.allow_public_object_via_request_biz:
+                return self.has_permission(request, view)
+            return self._is_privileged(request)
+        request_biz_id = self._parse_biz_id(self.fetch_biz_id_by_request(request))
+        if request_biz_id and request_biz_id != obj_biz_id:
+            return False
+        self.resources = [ResourceEnum.BUSINESS.create_instance(obj_biz_id)]
+        # 不得走 IAMPermission.has_object_permission：它会回调 self.has_permission()，
+        # 更新/删除在请求缺少业务 ID 时会直接 True，IAM 不会被调用。
+        return IAMPermission.has_permission(self, request, view)
+
+
+class RequireBizViewBusinessPermission(RequireBizActionPermission):
+    def __init__(self, allow_public_object_via_request_biz=False):
+        super().__init__(
+            [ActionEnum.VIEW_BUSINESS],
+            allow_public_object_via_request_biz=allow_public_object_via_request_biz,
+        )
+
+
 class CollectorPluginViewSet(ModelViewSet):
     """
     采集插件
@@ -40,7 +103,47 @@ class CollectorPluginViewSet(ModelViewSet):
             # ESQUERY白名单不需要鉴权
             if auth_info["bk_app_code"] in settings.ESQUERY_WHITE_LIST:
                 return []
-        return []
+
+        if self.action == "create":
+            return [RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])]
+        if self.action in ["update_instance", "instance_etl"]:
+            return [
+                InstanceActionForDataPermission(
+                    "collector_config_id",
+                    [ActionEnum.MANAGE_COLLECTION],
+                    ResourceEnum.COLLECTION,
+                )
+            ]
+        if self.action == "instances":
+            return [
+                RequireBizActionPermission(
+                    [ActionEnum.CREATE_COLLECTION],
+                    allow_public_object_via_request_biz=True,
+                )
+            ]
+        if self.action in ["update", "partial_update", "destroy"]:
+            return [RequireBizActionPermission([ActionEnum.CREATE_COLLECTION])]
+        if self.action == "retrieve":
+            return [RequireBizViewBusinessPermission(allow_public_object_via_request_biz=True)]
+        return [RequireBizViewBusinessPermission()]
+
+    def _is_privileged_request(self):
+        user = getattr(self.request, "user", None)
+        return bool(user and getattr(user, "is_superuser", False))
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        if self.action != "list":
+            return qs
+        biz_id = RequireBizActionPermission.parse_biz_id(
+            RequireBizActionPermission.fetch_biz_id_by_request(self.request)
+        )
+        # 业务列表可见公共插件（业务 ID 为 0）；超管显式查询 0 时只返回全局插件。
+        if biz_id > 0:
+            return qs.filter(bk_biz_id__in=[0, biz_id])
+        if self._is_privileged_request():
+            return qs.filter(bk_biz_id=0)
+        return qs.none()
 
     def get_serializer_class(self, *args, **kwargs):
         if self.action in ["create"]:

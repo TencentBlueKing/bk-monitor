@@ -32,7 +32,7 @@ export function getMonitorTopOrigin() {
     if (topLocation?.host) {
       return `${topLocation.protocol}//${topLocation.host}`.replace(/\/$/, '');
     }
-  } catch (_error) {
+  } catch {
     // 跨域 iframe 无法读 window.top.location
   }
   return String(window.MONITOR_URL || '').replace(/\/$/, '');
@@ -84,6 +84,11 @@ export function buildMonitorLogRetrievalUrl(options = {}) {
   return `${host}/?${search}#/log-retrieval${hash ? `?${hash}` : ''}`;
 }
 
+/** 仅判断独立日志应用是否运行在监控 iframe 中，用于页面布局。 */
+export function isMonitorIframeContext(query = {}) {
+  return query.from === 'monitor' && window.self !== window.top;
+}
+
 export function isMonitorEmbedContext(query = {}) {
-  return Boolean(window.__IS_MONITOR_COMPONENT__) || query.from === 'monitor';
+  return Boolean(window.__IS_MONITOR_COMPONENT__) || isMonitorIframeContext(query);
 }

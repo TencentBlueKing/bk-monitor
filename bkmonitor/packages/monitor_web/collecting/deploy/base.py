@@ -7,10 +7,22 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 import abc
-from typing import Any, Dict, List, Optional, Union
+from dataclasses import dataclass
+from typing import Any
 
 from monitor_web.models import CollectConfigMeta, DeploymentConfigVersion
+
+
+@dataclass(frozen=True)
+class CollectionStatistics:
+    """采集实例统计。缺失结果不返回，不能当作零实例成功。"""
+
+    total: int = 0
+    failed: int = 0
+    pending: int = 0
+    running: int = 0
 
 
 class BaseInstaller(abc.ABC):
@@ -24,8 +36,17 @@ class BaseInstaller(abc.ABC):
         self.collect_config = collect_config
         self.plugin = collect_config.plugin
 
+    @classmethod
     @abc.abstractmethod
-    def install(self, install_config: Dict, operation: Optional[str]) -> Dict:
+    def statistics(cls, configs: list[CollectConfigMeta]) -> dict[int, CollectionStatistics]:
+        """批量查询统计，以监控采集配置 ID 为键；缺失或失败的结果不返回。"""
+
+    @abc.abstractmethod
+    def is_task_ready(self) -> bool:
+        """查询当前部署版本的任务是否完成初始化，不表示部署成功。"""
+
+    @abc.abstractmethod
+    def install(self, install_config: dict, operation: str | None) -> dict:
         """
         部署
         :return: dict
@@ -45,7 +66,7 @@ class BaseInstaller(abc.ABC):
         return {}
 
     @abc.abstractmethod
-    def upgrade(self, params: Dict) -> Dict:
+    def upgrade(self, params: dict) -> dict:
         """
         升级
         :return: dict
@@ -70,7 +91,7 @@ class BaseInstaller(abc.ABC):
         """
 
     @abc.abstractmethod
-    def rollback(self, deployment_config_version: Union[int, DeploymentConfigVersion, None] = None):
+    def rollback(self, deployment_config_version: int | DeploymentConfigVersion | None = None):
         """
         回滚到某个版本，默认回滚到上一个版本
         :return: dict
@@ -100,19 +121,19 @@ class BaseInstaller(abc.ABC):
         """
 
     @abc.abstractmethod
-    def run(self, action: str = None, scope: Dict[str, Any] = None):
+    def run(self, action: str = None, scope: dict[str, Any] = None):
         """
         主动执行
         """
 
     @abc.abstractmethod
-    def retry(self, instance_ids: List[str] = None):
+    def retry(self, instance_ids: list[str] = None):
         """
         重试实例
         """
 
     @abc.abstractmethod
-    def revoke(self, instance_ids: List[int] = None):
+    def revoke(self, instance_ids: list[int] = None):
         """
         终止实例
         """

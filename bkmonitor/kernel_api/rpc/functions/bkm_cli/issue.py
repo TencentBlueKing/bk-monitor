@@ -10,11 +10,13 @@ detail / list_by_strategy / list_by_fingerprint 复用 fta_web 的字段清洗�
 复用 Issue 标题公共规则；其余 operation 执行受控只读查询：
 
 - detail               : IssueDocument.get_issue_or_raise + IssueQueryHandler.clean_document
-                         + merge_status 字段（合并关系：main / member / none + active_members）
+                         + merge_status 字段（合并关系：main / member / none + active_members，
+                           成员含 via_issue_id 上一跳主）
 - list_by_strategy     : IssueDocument.search().filter("term", strategy_id=...)
 - list_by_fingerprint  : IssueDocument.search().filter("term", fingerprint=...)
 - list_activities      : IssueActivityDocument.search().filter("term", issue_id=...)
-- list_conflicts       : 扫描三类合并/拆分状态不一致（运维对账兜底；含 cascade follow resync）
+- list_conflicts       : 扫描四类合并/拆分状态不一致（运维对账兜底；含 cascade follow resync
+                         与关系深度违例）
 - list_llm_title_candidates: 分页发现可安全补偿 LLM 标题的活跃 Issue（严格只读）
 - list_issues          : 按业务范围分页枚举 Issue，并批量补充最新关联 Alert 安全摘要
 """
@@ -22,6 +24,7 @@ detail / list_by_strategy / list_by_fingerprint 复用 fta_web 的字段清洗�
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
 from django.core.serializers.json import DjangoJSONEncoder
@@ -29,6 +32,8 @@ from django.core.serializers.json import DjangoJSONEncoder
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
+
+logger = logging.getLogger("root")
 
 OPERATION_DETAIL = "detail"
 OPERATION_LIST_BY_STRATEGY = "list_by_strategy"
@@ -145,12 +150,51 @@ def _inspect_issue_detail(params: dict[str, Any]) -> dict[str, Any]:
     # 注入 split_info（独立 Issue 拿到拆分溯源信息）：与 fta_web IssueDetailResource 同口径
     _inject_split_info(cleaned, bk_biz_id)
 
+    # 给 active_members 补 via_issue_id（扁平化 reparent 溯源）
+    _inject_member_via_issue_ids(cleaned, bk_biz_id)
+
     return {
         "operation": OPERATION_DETAIL,
         "bk_biz_id": cleaned.get("bk_biz_id"),
         "issue_id": cleaned.get("id"),
         "issue": cleaned,
     }
+
+
+def _inject_member_via_issue_ids(cleaned: dict[str, Any], bk_biz_id: int | None) -> None:
+    """给 ``merge_status.active_members`` 每项补 ``via_issue_id``（上一跳主 Issue）。
+
+    ``IssueMergeResolver`` 刻意不加载该字段（hydrate 不消费它，避免扩大 per-request context
+    载荷），故只在本运维取证入口按需补一次 SQL。非空表示该成员是"随着某个已成组的主一起被
+    并入"（扁平化 reparent）；纯溯源标签，可能指向已不在本组的 Issue。
+
+    fail-open：查询失败保持原样（缺该字段），不阻塞 detail 主路径。
+    """
+    try:
+        from bkmonitor.models.issue import IssueMergeRelation
+
+        merge_status = cleaned.get("merge_status") or {}
+        members = merge_status.get("active_members")
+        if not members:
+            return
+        issue_id = cleaned.get("id")
+        merge_biz_id = bk_biz_id if bk_biz_id is not None else int(cleaned.get("bk_biz_id") or 0)
+        if not issue_id or not merge_biz_id:
+            return
+
+        via_map = {
+            row["member_issue_id"]: row["via_issue_id"]
+            for row in IssueMergeRelation.objects.filter(
+                main_issue_id=issue_id,
+                bk_biz_id=merge_biz_id,
+                status=IssueMergeRelation.STATUS_ACTIVE,
+            ).values("member_issue_id", "via_issue_id")
+        }
+        for member in members:
+            if isinstance(member, dict):
+                member["via_issue_id"] = via_map.get(member.get("member_issue_id"))
+    except Exception:
+        logger.warning("[issue-merge] inject via_issue_id failed (fail-open)", exc_info=True)
 
 
 def _inject_split_info(cleaned: dict[str, Any], bk_biz_id: int | None) -> None:
@@ -329,11 +373,7 @@ def _latest_alert_summaries(issue_ids: list[str]) -> dict[str, dict[str, Any]]:
         if not issue_id:
             continue
         summaries[issue_id] = {
-            field: (
-                str(hit.meta.id)
-                if field == "id" and not getattr(hit, "id", None)
-                else getattr(hit, field, None)
-            )
+            field: (str(hit.meta.id) if field == "id" and not getattr(hit, "id", None) else getattr(hit, field, None))
             for field in LATEST_ALERT_SOURCE_FIELDS
         }
     return summaries
@@ -665,13 +705,16 @@ _MAX_CONFLICT_LOOKBACK_DAYS = 90
 def _list_merge_conflicts(params: dict[str, Any]) -> dict[str, Any]:
     """扫描合并/拆分状态不一致（运维对账兜底）。
 
-    返回三类（顺序与下方代码计算顺序一致，第 1/2/3 类）：
+    返回四类（顺序与下方代码计算顺序一致，第 1/2/3/4 类）：
     - duplicate_active_members：同一 member_issue_id 在多行 status='active' 关系（race window）
     - pending_split_resets    ：SQL status='split'，但 IssueDocument status!='pending_review' 或 assignee 未清空
       （deprecated：主状态变更不再触发拆分，仅历史遗留 split 关系仍可能触发；将随 reset_pending_split mode 一起移除）
     - pending_follow_resync   ：关系 active 但 member ES status ≠ 主当前 status
       （cascade follow fail-open 兜底，对应 repair_issue_merge_state --mode=follow_status_resync）
       该桶为 best-effort；ES 查询失败会降级为空，空结果不能单独证明没有状态漂移。
+    - depth_violations        ：同一 issue_id 既是某行的 active member 又是另一行的 active main
+      （破坏"关系深度恒为 1"不变量）。合并两个已成组的主时成员改挂在单事务内完成，正常应恒为空；
+      非空说明有异常写入路径或事务未完整提交，视图层的单层假设不再成立。
 
     Args:
         bk_biz_id (必填): 业务 ID
@@ -798,15 +841,54 @@ def _list_merge_conflicts(params: dict[str, Any]) -> dict[str, Any]:
             if len(pending_follow_resync) >= limit:
                 break
 
+    # 第 4 类：关系深度违例（同一 issue 既是 active member 又是 active main）
+    # 不加 create_time 窗口：深度违例是结构性不变量破坏，任何时间产生的都必须暴露，
+    # 不能因为发生得早而被回溯窗口过滤掉。
+    active_qs = IssueMergeRelation.objects.filter(
+        bk_biz_id=bk_biz_id,
+        status=IssueMergeRelation.STATUS_ACTIVE,
+    )
+    member_ids = set(active_qs.values_list("member_issue_id", flat=True))
+    depth_violations = []
+    if member_ids:
+        offender_rows = (
+            active_qs.filter(main_issue_id__in=member_ids)
+            .values("main_issue_id")
+            .annotate(own_member_count=Count("id"))
+            .order_by("-own_member_count")[:limit]
+        )
+        offenders = {r["main_issue_id"]: r["own_member_count"] for r in offender_rows}
+        if offenders:
+            as_member_of = {
+                r["member_issue_id"]: r["main_issue_id"]
+                for r in active_qs.filter(member_issue_id__in=list(offenders)).values(
+                    "member_issue_id", "main_issue_id"
+                )
+            }
+            depth_violations = [
+                {
+                    "issue_id": issue_id,
+                    "as_member_of": as_member_of.get(issue_id),
+                    "own_member_count": own_count,
+                }
+                for issue_id, own_count in offenders.items()
+            ]
+
     return {
         "operation": OPERATION_LIST_CONFLICTS,
         "bk_biz_id": bk_biz_id,
         "since_days": since_days,
-        # 三类顺序与 docstring / 上方计算顺序一致：第 1/2/3 类
+        # 四类顺序与 docstring / 上方计算顺序一致：第 1/2/3/4 类
         "duplicate_active_members": duplicate_active_members,
         "pending_split_resets": pending_split_resets,
         "pending_follow_resync": pending_follow_resync,
-        "total_conflicts": (len(duplicate_active_members) + len(pending_split_resets) + len(pending_follow_resync)),
+        "depth_violations": depth_violations,
+        "total_conflicts": (
+            len(duplicate_active_members)
+            + len(pending_split_resets)
+            + len(pending_follow_resync)
+            + len(depth_violations)
+        ),
     }
 
 
@@ -854,9 +936,7 @@ def _validate_list_issues_params(params: dict[str, Any]) -> dict[str, Any]:
     if limit <= 0 or limit > MAX_LIMIT:
         raise CustomException(message=f"limit 必须在 [1, {MAX_LIMIT}]，当前: {limit}")
     if offset + limit > MAX_RESULT_WINDOW:
-        raise CustomException(
-            message=f"offset + limit 不能超过 ES 结果窗口 {MAX_RESULT_WINDOW}；请缩小过滤范围"
-        )
+        raise CustomException(message=f"offset + limit 不能超过 ES 结果窗口 {MAX_RESULT_WINDOW}；请缩小过滤范围")
 
     return {
         "bk_biz_id": bk_biz_id,

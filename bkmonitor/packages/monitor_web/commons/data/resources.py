@@ -138,7 +138,7 @@ def get_label_msg(label):
 
     # 既非二级、也非真实一级标签：可能是拼错或已删除的无效标签。
     # 记录告警便于排查，但仍回退展示，避免导入配置包、插件、采集等场景因单个无效标签整体中断。
-    logger.warning("get_label_msg 未匹配到结果表标签，可能为无效或已删除的标签: %s", label)
+    logger.warning(f"get_label_msg 未匹配到结果表标签，可能为无效或已删除的标签: {label}")
     return {
         "first_label": label,
         "first_label_name": label,

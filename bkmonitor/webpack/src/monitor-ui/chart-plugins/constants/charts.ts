@@ -25,6 +25,7 @@
  */
 import type { MonitorEchartOptions } from '../typings';
 
+/** 旧版主机监控时序图配色，全平台通用时序图以此为准 */
 export const COLOR_LIST = [
   '#F0AE69',
   '#689DF3',

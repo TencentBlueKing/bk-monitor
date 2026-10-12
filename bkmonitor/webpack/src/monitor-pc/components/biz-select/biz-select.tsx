@@ -106,7 +106,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   searchTypeId = '';
   bizBgColor = '';
 
-  bizListFilter = [];
+  bizListFilter: IListItem[] = [];
 
   /* 当前过滤后的普通列表（存原始引用，分页时再物化） */
   generalList: ISpaceItem[] = [];
@@ -130,6 +130,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   };
 
   firstCodeBgColor = '';
+  /** 键盘高亮项 id，undefined 表示当前无高亮 */
+  highlightId: null | number | string = null;
 
   created() {
     this.localValue = this.value;
@@ -178,6 +180,16 @@ export default class BizSelect extends tsc<IProps, IEvents> {
       ? `#${this.curentBizItem?.id}`
       : this.curentBizItem?.space_id || this.curentBizItem?.space_code || '';
   }
+  /** 下拉中可键盘选中的业务项（跳过分组标题） */
+  get keyboardItems(): IListItem[] {
+    const items: IListItem[] = [];
+    for (const group of this.bizListFilter) {
+      if (group.children?.length) {
+        items.push(...group.children);
+      }
+    }
+    return items;
+  }
 
   /**  */
   get demo() {
@@ -200,6 +212,9 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   handleBizSearch(keyword?: string) {
     this.keyword = keyword;
     this.bizListFilter = this.getBizListFilter();
+    if (this.showBizList) {
+      this.resetHighlight(false);
+    }
   }
 
   @Emit('change')
@@ -389,6 +404,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   /** 设置下拉列表的宽度 */
   handleSetListWidth() {
     this.bizListFilter = this.getBizListFilter();
+    this.resetHighlight(true);
     const react = this.$el.getBoundingClientRect();
     this.listWidth = react.width <= this.minWidth ? this.minWidth : react.width;
     this.showBizList = !this.showBizList;
@@ -454,6 +470,83 @@ export default class BizSelect extends tsc<IProps, IEvents> {
   handleSearchType(typeId: string) {
     this.searchTypeId = typeId === this.searchTypeId ? '' : typeId;
     this.bizListFilter = this.getBizListFilter();
+    this.resetHighlight(false);
+  }
+
+  isSameBizId(a: null | number | string, b: null | number | string) {
+    if (a == null || b == null) return false;
+    return String(a) === String(b);
+  }
+
+  /** 打开时优先高亮当前业务；搜索/筛选后高亮第一项 */
+  resetHighlight(preferCurrent: boolean) {
+    const items = this.keyboardItems;
+    if (!items.length) {
+      this.highlightId = null;
+      return;
+    }
+    if (preferCurrent) {
+      const current = items.find(item => this.isSameBizId(item.id, this.localValue));
+      if (current) {
+        this.highlightId = current.id;
+        return;
+      }
+    }
+    this.highlightId = items[0].id;
+  }
+
+  handleSearchKeydown(value: KeyboardEvent | string, event?: KeyboardEvent) {
+    const keyEvent = (event || value) as KeyboardEvent;
+    if (!keyEvent?.key) return;
+    if (keyEvent.key === 'Enter') {
+      keyEvent.preventDefault();
+      return;
+    }
+    if (keyEvent.key !== 'ArrowDown' && keyEvent.key !== 'ArrowUp') return;
+    keyEvent.preventDefault();
+    keyEvent.stopPropagation();
+    this.moveHighlight(keyEvent.key === 'ArrowDown' ? 1 : -1);
+  }
+
+  handleSearchEnter(_value: string, event?: KeyboardEvent) {
+    event?.preventDefault?.();
+    const items = this.keyboardItems;
+    const target = items.find(item => this.isSameBizId(item.id, this.highlightId));
+    if (target) {
+      this.handleBizChange(target.id as number);
+    }
+  }
+
+  /** 方向键在可见项间移动；触底且还有分页时先加载再继续 */
+  moveHighlight(step: number) {
+    const items = this.keyboardItems;
+    if (!items.length) return;
+    const index = items.findIndex(item => this.isSameBizId(item.id, this.highlightId));
+    if (index < 0) {
+      this.highlightId = items[step > 0 ? 0 : items.length - 1].id;
+      return;
+    }
+    let next = index + step;
+    if (next < 0) {
+      next = 0;
+    } else if (next >= items.length) {
+      const generalData = this.bizListFilter.find(item => item.id === 'general');
+      const beforeCount = items.length;
+      if (generalData && this.pagination.current * this.pagination.limit < this.pagination.count) {
+        this.setPaginationData(false);
+        if (generalData.children) {
+          generalData.children = this.pagination.data;
+        }
+        const loaded = this.keyboardItems;
+        if (loaded.length > beforeCount) {
+          next = Math.min(index + step, loaded.length - 1);
+          this.highlightId = loaded[next].id;
+          return;
+        }
+      }
+      next = items.length - 1;
+    }
+    this.highlightId = items[next].id;
   }
 
   handleScroll(event) {
@@ -546,6 +639,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
             onShow: this.handleSetListWidth,
             onHide: () => {
               this.showBizList = false;
+              this.highlightId = null;
               this.handleBizSearch('');
               return true;
             },
@@ -601,6 +695,8 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                   on-blur={this.handleSearchBlur}
                   on-change={this.handleBizSearch}
                   on-clear={() => this.handleBizSearch('')}
+                  on-enter={this.handleSearchEnter}
+                  on-keydown={this.handleSearchKeydown}
                 />
               </div>
               {this.spaceTypeIdList.length > 1 && (
@@ -644,6 +740,7 @@ export default class BizSelect extends tsc<IProps, IEvents> {
                 <List
                   canSetDefaultSpace={this.canSetDefaultSpace}
                   checked={this.localValue}
+                  highlightId={this.highlightId}
                   list={this.bizListFilter}
                   theme={this.theme}
                   onHide={() => this.popoverRef.instance.hide()}

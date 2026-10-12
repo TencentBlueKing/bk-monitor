@@ -1,25 +1,28 @@
 <template>
   <div class="retrieve-tab-item-title">
-    <span class="history-button" @click="handleClickHistoryButton">
+    <span
+      class="history-button"
+      @click="handleClickHistoryButton"
+    >
       <span class="bklog-icon bklog-history-2"></span>
-      <span >{{ $t('历史查询') }}</span>
+      <span>{{ $t('历史查询') }}</span>
     </span>
     <div v-show="false">
       <div ref="historyUlRef">
-          <div class="input-box">
-            <bk-input
-              behavior="simplicity"
-              :left-icon="'bklog-icon bklog-shoudongchaxun'"
-              :clearable="true"
-              :placeholder="$t('请输入关键字')"
-              v-model="searchInput"
-              ext-cls="search-input"
-            ></bk-input>
-          </div>
+        <div class="input-box">
+          <bk-input
+            v-model="searchInput"
+            behavior="simplicity"
+            :left-icon="'bklog-icon bklog-shoudongchaxun'"
+            :clearable="true"
+            :placeholder="$t('请输入关键字')"
+            ext-cls="search-input"
+          ></bk-input>
+        </div>
         <ul
           ref="historyUlRef"
-          class="retrieve-history-list"
           v-bkloading="{ isLoading: historyLoading, size: 'mini' }"
+          class="retrieve-history-list"
         >
           <template v-if="isHistoryRecords">
             <li
@@ -28,13 +31,14 @@
               class="list-item"
               @click="handleClickHistory(item)"
             >
-              <div class="item-text"
+              <div
                 v-bk-tooltips="{
-                  allowHTML:true,
-                  placement:'top',
+                  allowHTML: true,
+                  placement: 'top',
                   content: getContent(item),
                   disabled: item.query_string.length < 5,
                 }"
+                class="item-text"
               >
                 <span
                   class="bklog-icon"
@@ -43,18 +47,16 @@
                   <!-- {{ getText(item.search_mode) }} -->
                 </span>
 
-                <div
-                  class="text"
-                >
+                <div class="text">
                   {{ item.query_string }}
                 </div>
                 <BookmarkPop
-                v-if="!isMonitorComponent"
-                :sql="(item.params.search_mode || item.search_mode) === 'sql' ? item.query_string : ''"
-                :addition="item.params.addition"
-                :searchMode="item.params.search_mode || item.search_mode || 'sql'"
-                active-favorite="history"
-                @instanceShow="instanceShow"
+                  v-if="!isMonitorComponent"
+                  :sql="(item.params.search_mode || item.search_mode) === 'sql' ? item.query_string : ''"
+                  :addition="item.params.addition"
+                  :search-mode="item.params.search_mode || item.search_mode || 'sql'"
+                  active-favorite="history"
+                  @instanceShow="instanceShow"
                 ></BookmarkPop>
               </div>
             </li>
@@ -73,28 +75,25 @@
 <script>
   import { ConditionOperator } from '@/store/condition-operator';
   // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-  import BookmarkPop from '../search-bar/components/bookmark-pop.vue'
+  import BookmarkPop from '../search-bar/components/bookmark-pop.vue';
   // #else
   // #code const BookmarkPop = () => null;
   // #endif
   import dayjs from 'dayjs';
   export default {
+    components: {
+      BookmarkPop,
+    },
     data() {
       return {
         historyLoading: false,
         isHistoryRecords: true,
         popoverInstance: null,
         historyRecords: [],
-        searchInput: "",
+        searchInput: '',
         bookmarkPopRefsShow: false,
-        isMonitorComponent: false
+        isMonitorComponent: false,
       };
-    },
-    components:{
-      BookmarkPop
-    },
-    mounted(){
-      this.isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
     },
     computed: {
       isUnionSearch() {
@@ -118,10 +117,13 @@
       filterHistoryRecords() {
         if (!this.searchInput?.trim()) return this.historyRecords;
         const searchTerm = this.searchInput.toLowerCase();
-        return this.historyRecords.filter((item) => {
+        return this.historyRecords.filter(item => {
           return item.query_string?.toLowerCase().includes(searchTerm);
         });
       },
+    },
+    mounted() {
+      this.isMonitorComponent = window.__IS_MONITOR_COMPONENT__;
     },
     methods: {
       getClass(searchMode) {
@@ -141,9 +143,9 @@
       escapeHtml(str) {
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       },
-      getContent(item){
+      getContent(item) {
         return `<div><div>${this.$t('检索时间')}：${dayjs(item.created_at).format('YYYY-MM-DD HH:mm:ssZZ')}</div>
-                <div>${this.$t('语句')}："${this.escapeHtml(item.query_string)}"</div></div>`
+                <div>${this.$t('语句')}："${this.escapeHtml(item.query_string)}"</div></div>`;
       },
       async handleClickHistoryButton(e) {
         await this.requestSearchHistory();
@@ -160,8 +162,8 @@
           placement: 'bottom',
           extCls: 'retrieve-history-popover',
           onHide: () => {
-            if(this.bookmarkPopRefsShow){
-              return false
+            if (this.bookmarkPopRefsShow) {
+              return false;
             }
           },
           onHidden: () => {
@@ -175,7 +177,14 @@
       },
       handleClickHistory(item) {
         const { params } = item;
-        const { keyword, addition, ip_chooser, search_mode = item.search_mode, scene_filter_values, table_id_conditions } = params;
+        const {
+          keyword,
+          addition,
+          ip_chooser,
+          search_mode = item.search_mode,
+          scene_filter_values,
+          table_id_conditions,
+        } = params;
         this.$emit('change', { keyword, addition, ip_chooser, search_mode, scene_filter_values, table_id_conditions });
         this.popoverInstance.hide();
       },
@@ -221,9 +230,9 @@
             this.historyLoading = false;
           });
       },
-      instanceShow(val){
-        this.bookmarkPopRefsShow = val
-      }
+      instanceShow(val) {
+        this.bookmarkPopRefsShow = val;
+      },
     },
   };
 </script>

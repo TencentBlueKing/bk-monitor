@@ -11,6 +11,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+import yaml
 
 from bk_monitor_base.domains.uptime_check.constants import (
     DEFAULT_UPTIMECHECK_OUTPUT_FIELDS,
@@ -102,7 +103,8 @@ class TestCollectorScriptGeneration:
         assert "bk_biz_id: 0" in rendered
         assert "period: 60s" in rendered
         assert "steps:" in rendered
-        assert "https://www.baidu.com" in rendered
+        http_task = yaml.safe_load(rendered)["bkmonitorbeat"]["http_task"]["tasks"][0]
+        assert http_task["steps"][0]["url_list"] == ["https://www.baidu.com"]
 
 
 class TestCollectorHostGrouping:
@@ -126,7 +128,7 @@ class TestCollectorHostGrouping:
 
         with (
             patch("bk_monitor_base.domains.uptime_check.collector.get_host_by_ip", return_value=cmdb_hosts),
-            patch("bk_monitor_base.domains.uptime_check.collector.node_man_v2_api.plugin_search", return_value=plugin_result),
+            patch("bk_monitor_base.domains.uptime_check.collector.plugin_search", return_value=plugin_result),
         ):
             task_groups, error_hosts = collector._separate_hosts_by_system_and_path(
                 bk_tenant_id="default",
@@ -357,7 +359,7 @@ class TestTaskManagerTesttaskresult:
         with (
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=node.bk_host_id),
             patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.plugin_search",
+                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
                 return_value=self._mock_plugin_search_result(),
             ),
             patch(
@@ -408,7 +410,7 @@ class TestTaskManagerTesttaskresult:
         with (
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=node.bk_host_id),
             patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.plugin_search",
+                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
                 return_value=self._mock_plugin_search_result(),
             ),
             patch(
@@ -435,7 +437,7 @@ class TestTaskManagerTesttaskresult:
         with (
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=node.bk_host_id),
             patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.plugin_search",
+                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
                 return_value=self._mock_plugin_search_result(),
             ),
             patch(
@@ -457,7 +459,7 @@ class TestTaskManagerTesttaskresult:
         with (
             patch.object(UptimeCheckNodeModel, "set_host_id", return_value=node.bk_host_id),
             patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.plugin_search",
+                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
                 return_value=self._mock_plugin_search_result(),
             ),
             patch(

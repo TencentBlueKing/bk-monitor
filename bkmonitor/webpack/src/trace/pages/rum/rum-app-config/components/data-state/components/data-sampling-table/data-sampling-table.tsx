@@ -29,6 +29,7 @@ import { type PropType, computed, defineComponent, shallowRef, toRef } from 'vue
 import { useI18n } from 'vue-i18n';
 
 import CommonTable from '../../../../../../alarm-center/components/alarm-table/components/common-table/common-table';
+import { renderRumTableSkeletonCell } from '../../../../../components/rum-content-skeleton';
 import { SAMPLING_TABLE_COLUMNS } from '../../../../../constants';
 import { useSamplingColumnsRenderer } from '../../../../hooks/use-sampling-columns-renderer';
 
@@ -104,6 +105,7 @@ export default defineComponent({
           columns={this.columns}
           data={this.samplingList as unknown as Record<string, unknown>[]}
           loading={this.loading}
+          loadingCell={(column, index) => renderRumTableSkeletonCell(column.colKey, index)}
           rowKey='raw_log'
         />
       </div>

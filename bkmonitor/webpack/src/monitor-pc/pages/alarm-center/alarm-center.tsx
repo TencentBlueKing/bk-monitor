@@ -47,8 +47,8 @@ export default class AlarmCenterComponent extends tsc<object> {
   }
   get alarmCenterUrl() {
     return process.env.NODE_ENV === 'development'
-      ? `${this.alarmCenterHost}/?bizId=${this.$store.getters.bizId}/#/trace/alarm-center`
-      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}/#/trace/alarm-center`;
+      ? `${this.alarmCenterHost}/?bizId=${this.$store.getters.bizId}#/trace/alarm-center`
+      : `${location.origin}${window.site_url}trace/?bizId=${this.$store.getters.bizId}#/trace/alarm-center`;
   }
   get alarmCenterData(): Vue3WewebData {
     return {

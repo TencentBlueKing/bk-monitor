@@ -22,7 +22,7 @@ export const buildOriginLogSearchHeaders = (state: Record<string, any>, options:
   if (csrfToken) {
     headers['X-CSRFToken'] = csrfToken;
   }
-  if (state.isExternal && state.spaceUid) {
+  if (state.spaceUid) {
     headers['X-Bk-Space-Uid'] = state.spaceUid;
   }
   if (state.indexItem?.timezone) {

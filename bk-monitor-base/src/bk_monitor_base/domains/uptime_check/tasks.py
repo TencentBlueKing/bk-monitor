@@ -6,9 +6,6 @@ import json
 import logging
 import time
 
-from bkmonitor.nodeman_integration.backend import node_man_backend
-from bkmonitor.nodeman_integration.exceptions import NodeManV3CapabilityBlocked
-
 from bk_monitor_base.domains.space.cache import bk_biz_id_to_bk_tenant_id
 from bk_monitor_base.domains.uptime_check.models import (
     UptimeCheckTaskCollectorLog,
@@ -16,7 +13,10 @@ from bk_monitor_base.domains.uptime_check.models import (
     UptimeCheckTaskSubscription,
 )
 from bk_monitor_base.infras.exception import BaseError as BKAPIError
-from bk_monitor_base.infras.third_party_api.nodeman import api as node_man_v2_api
+from bk_monitor_base.infras.third_party_api.nodeman.api import (
+    batch_get_subscription_task_result,
+    get_subscription_task_result_detail,
+)
 
 from .constants import CollectStatus
 from .define import UptimeCheckTaskStatus
@@ -35,16 +35,11 @@ def check_single_task_status(bk_tenant_id: str, subscription_id: int) -> tuple[s
     Returns:
         (状态, 错误日志列表, 节点管理任务ID)
     """
-    if node_man_backend.is_v3:
-        raise NodeManV3CapabilityBlocked(
-            "legacy uptime subscription polling cannot interpret a NodeMan V3 binding; use refresh_task_status"
-        )
-
     while True:
         time.sleep(3)
         error_count = 0
         try:
-            status_result, _ = node_man_v2_api.batch_get_subscription_task_result(
+            status_result, _ = batch_get_subscription_task_result(
                 bk_tenant_id=bk_tenant_id, params={"subscription_id": subscription_id, "need_aggregate_all_tasks": True}
             )
         except BKAPIError as e:
@@ -64,7 +59,7 @@ def check_single_task_status(bk_tenant_id: str, subscription_id: int) -> tuple[s
                 break
             if item["status"] == CollectStatus.FAILED:
                 error_count += 1
-                result = node_man_v2_api.get_subscription_task_result_detail(
+                result = get_subscription_task_result_detail(
                     bk_tenant_id=bk_tenant_id,
                     subscription_id=subscription_id,
                     instance_id=item["instance_id"],
@@ -97,17 +92,7 @@ def update_task_running_status(task_id: int) -> None:
     bk_biz_id = task.bk_biz_id
     bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
 
-    if node_man_backend.is_v3:
-        from bk_monitor_base.domains.uptime_check.operation import refresh_task_status
-
-        refresh_task_status(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id, task_ids=[task_id])
-        return
-
-    subscriptions = UptimeCheckTaskSubscription.objects.filter(
-        uptimecheck_id=task_id,
-        node_man_backend="v2",
-        is_deleted=False,
-    )
+    subscriptions = UptimeCheckTaskSubscription.objects.filter(uptimecheck_id=task_id)
     has_fail = False
 
     # 遍历所有订阅，获取全部的状态

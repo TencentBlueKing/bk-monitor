@@ -22,11 +22,7 @@ from constants.cmdb import TargetNodeType
 from core.drf_resource import Resource, api
 from core.errors.api import BKAPIError
 from monitor_web.collecting.constant import CollectStatus
-from monitor_web.collecting.deploy import (
-    fetch_collect_statistics,
-    get_collect_installer,
-    get_collect_status_key,
-)
+from monitor_web.collecting.deploy import fetch_collection_statistics, get_collect_installer
 from monitor_web.commons.data_access import ResultTable
 from monitor_web.constants import EVENT_TYPE
 from monitor_web.models import CollectConfigMeta, CustomEventGroup
@@ -358,22 +354,15 @@ class UpdateConfigInstanceCountResource(Resource):
             cache_data = {"error_instance_count": error_count, "total_instance_count": total_count}
         else:
             try:
-                _, collect_statistics_data = fetch_collect_statistics([collect_config])
+                statistics = fetch_collection_statistics([collect_config]).get(collect_config.pk)
             except BKAPIError as e:
                 logger.error(f"请求节点管理状态统计接口失败: {e}")
                 return
 
-            result_dict = {
-                item["key"]: {
-                    "total_instance_count": item["total_instance_count"],
-                    "error_instance_count": item["error_instance_count"],
-                }
-                for item in collect_statistics_data
-            }
-            cache_data = result_dict.get(get_collect_status_key(collect_config))
-            if cache_data is None:
-                # Keep the last known counts when NodeMan has no usable observation yet.
+            # 缺失或失败的查询不覆盖已有缓存，也不当作零实例成功。
+            if statistics is None:
                 return
+            cache_data = {"total_instance_count": statistics.total, "error_instance_count": statistics.failed}
 
         # 更新缓存数据
         if collect_config.cache_data != cache_data:

@@ -36,7 +36,7 @@ import {
   type ITableRowItem,
   operatorSelectList,
   btnGroupList,
-  operatorMapping,
+  normalizeOperator,
   tableRowBaseObj,
 } from '../../../utils';
 import InfoTips from '../../common-comp/info-tips';
@@ -137,7 +137,11 @@ export default defineComponent({
     //   separator: separator.value,
     // }));
 
-    /** 操作符选择列表（根据当前过滤类型动态调整） */
+    /**
+     * 操作符选择列表（根据当前过滤类型动态调整）
+     * 当前模式的主操作符统一用 '=' 作为展示 id（match 模式为「包含」，separator 模式为「等于」），
+     * 因此数据层读入时需用 normalizeOperator 做逆向归一化，否则会匹配不到选项而显示为空
+     */
     const operatorOptions = computed<ISelectItem[]>(() => {
       const targetId = isMatchType.value ? 'include' : 'eq';
       return operatorSelectList.map(option => (option.id === targetId ? { ...option, id: '=' } : option));
@@ -192,9 +196,11 @@ export default defineComponent({
 
       // 兼容旧数据格式
       if (separatorFilters?.length) {
-        filterData.value = splitFiltersIntoGroups(separatorFilters);
+        filterData.value = splitFiltersIntoGroups(separatorFilters, true);
       } else {
-        const op = matchType === 'include' ? 'include' : '=';
+        // 旧数据仅有 match_type（规范名）与 match_content，需归一化为展示层操作符
+        // match_type 缺省时取 'include'，与后端 deal_collector_scenario_param 的默认值保持一致
+        const op = normalizeOperator(matchType || 'include', true);
         filterData.value = [
           [
             {
@@ -216,7 +222,7 @@ export default defineComponent({
       activeFilterType.value = 'separator';
       separator.value = sep || '|';
       filterData.value = separatorFilters
-        ? splitFiltersIntoGroups(separatorFilters)
+        ? splitFiltersIntoGroups(separatorFilters, false)
         : [[{ ...tableRowBaseObj, tableIndex: 0 }]];
 
       // 克隆/更新操作时加载原始日志
@@ -228,9 +234,10 @@ export default defineComponent({
     /**
      * 将扁平的过滤规则拆分为分组结构
      * @param filters 扁平的过滤规则数组
+     * @param isMatch 是否为字符串（match）过滤模式，决定操作符的归一化方向
      * @returns 分组后的规则（组间OR，组内AND）
      */
-    const splitFiltersIntoGroups = (filters: ITableRowItem[]): ITableRowItem[][] => {
+    const splitFiltersIntoGroups = (filters: ITableRowItem[], isMatch: boolean): ITableRowItem[][] => {
       const groups: ITableRowItem[][] = [];
       let currentGroup: ITableRowItem[] = [];
 
@@ -238,7 +245,7 @@ export default defineComponent({
         // 映射操作符并设置组索引
         const mappedFilter: ITableRowItem = {
           ...filter,
-          op: operatorMapping[filter.op] ?? filter.op,
+          op: normalizeOperator(filter.op, isMatch),
           tableIndex: groups.length,
         };
         currentGroup.push(mappedFilter);

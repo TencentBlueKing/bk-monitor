@@ -922,6 +922,61 @@ def test_create_unregistered_scene_host_token_is_rejected(mocker):
     create.assert_not_called()
 
 
+def test_create_grafana_share_token_is_rejected(mocker):
+    mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")
+    create = mocker.patch.object(ApiAuthToken.objects, "create")
+
+    with pytest.raises(TokenValidatedError):
+        CreateShareTokenResource().perform_request(
+            {
+                "bk_biz_id": 2,
+                "type": "grafana",
+                "expire_time": int(datetime.now().timestamp()) + 3600,
+                "expire_period": "1h",
+                "lock_search": False,
+                "default_time_range": [],
+                "start_time": None,
+                "end_time": None,
+                "data": {},
+            }
+        )
+
+    create.assert_not_called()
+
+
+def test_create_collect_share_token_requires_view_collection(mocker):
+    permission = mocker.patch("monitor_web.share.resources.Permission")
+    mocker.patch("monitor_web.share.resources.get_global_user", return_value="token-creator")
+    mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")
+    token_values = Mock()
+    token_values.distinct.return_value = []
+    token_queryset = Mock()
+    token_queryset.values_list.return_value = token_values
+    mocker.patch.object(ApiAuthToken.origin_objects, "filter", return_value=token_queryset)
+    create = mocker.patch.object(ApiAuthToken.objects, "create")
+
+    CreateShareTokenResource().perform_request(
+        {
+            "bk_biz_id": 2,
+            "type": "collect",
+            "expire_time": int(datetime.now().timestamp()) + 3600,
+            "expire_period": "1h",
+            "lock_search": False,
+            "default_time_range": [],
+            "start_time": None,
+            "end_time": None,
+            "data": {},
+        }
+    )
+
+    permission.return_value.is_allowed_by_biz.assert_called_once_with(
+        bk_biz_id=2,
+        action=ActionEnum.VIEW_COLLECTION,
+        raise_exception=True,
+    )
+    create.assert_called_once()
+
+
 def test_create_host_share_token_requires_canonical_existing_scope(mocker):
     mocker.patch("monitor_web.share.resources.Permission")
     mocker.patch("monitor_web.share.resources.get_request_tenant_id", return_value="system")

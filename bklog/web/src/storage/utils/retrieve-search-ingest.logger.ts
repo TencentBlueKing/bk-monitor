@@ -69,10 +69,10 @@ export function categorizeIngestError(error: unknown): RetrieveSearchIngestError
   if (normalized.includes('message error') || normalized.includes('messageerror')) return 'post-message';
   if (normalized.includes('invalid search response')) return 'invalid-response';
   if (
-    normalized.includes('json')
-    || normalized.includes('unexpected token')
-    || normalized.includes('parse')
-    || normalized.includes('decode')
+    normalized.includes('json') ||
+    normalized.includes('unexpected token') ||
+    normalized.includes('parse') ||
+    normalized.includes('decode')
   ) {
     return 'parse';
   }

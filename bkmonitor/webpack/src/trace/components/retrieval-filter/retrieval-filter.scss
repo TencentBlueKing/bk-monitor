@@ -1,8 +1,10 @@
+/* stylelint-disable selector-class-pattern */
 
+/* stylelint-disable no-descending-specificity */
 .vue3_retrieval-filter__component {
   z-index: 2;
   width: 100%;
-  background: #ffffff;
+  background: #fff;
   box-shadow: 0 2px 4px 0 #19192914;
 
   .retrieval-filter__component-main {
@@ -45,6 +47,13 @@
         }
       }
 
+      & > .bk-nested-loading {
+        display: flex;
+        align-items: center;
+        align-self: stretch;
+        justify-content: center;
+      }
+
       &:hover {
         .text {
           color: #3a84ff;
@@ -56,17 +65,15 @@
       }
     }
 
-    
-
     .filter-content {
       flex: 1;
       overflow: hidden;
 
       &:hover {
-        background: #FAFBFD;
+        background: #fafbfd;
 
         & + .component-right {
-          background: #FAFBFD;
+          background: #fafbfd;
         }
       }
     }
@@ -140,7 +147,7 @@
         .error-btn {
           .icon-mind-fill {
             font-size: 18px;
-            color: rgb(234, 54, 54);
+            color: rgb(234 54 54);
           }
         }
       }

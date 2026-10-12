@@ -12,6 +12,7 @@ import abc
 import copy
 import json
 import logging
+import re
 import traceback
 from collections import defaultdict
 from collections.abc import Mapping
@@ -42,6 +43,7 @@ from bkmonitor.action.serializers import (
 )
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import load_data_source
+from bkmonitor.data_source.promql_expression import compile_promql_expression
 from bkmonitor.data_source.unify_query.functions import add_expression_functions
 from bkmonitor.dataflow.constant import AccessStatus
 from bkmonitor.middlewares.source import get_source_app_code
@@ -305,16 +307,20 @@ class AbstractConfig(metaclass=abc.ABCMeta):
         :param configs: 配置对象
         :param config_cls: 配置处理类
         """
-        for config, obj in zip(configs, objs):
-            config.id = obj.id
-        # fmt: off
-        for config in configs[len(objs):]:
-            config.id = 0
-        if objs[len(configs):]:
-            obj_ids = [obj.id for obj in objs[len(configs):]]
+        # Keep explicitly identified records even when the read and save order differ.
+        # Legacy callers without IDs still reuse the remaining records by position.
+        obj_ids = [obj.id for obj in objs]
+        reserved_ids = {config.id for config in configs} & set(obj_ids)
+        available_ids = iter(obj_id for obj_id in obj_ids if obj_id not in reserved_ids)
+        used_ids = set()
+        for config in configs:
+            if config.id not in reserved_ids or config.id in used_ids:
+                config.id = next(available_ids, 0)
+            used_ids.add(config.id)
+        obj_ids = [obj_id for obj_id in obj_ids if obj_id not in used_ids]
+        if obj_ids:
             model.objects.filter(id__in=obj_ids).delete()
             config_cls.delete_useless(obj_ids)
-        # fmt: on
 
     @staticmethod
     def _get_username():
@@ -499,7 +505,9 @@ class BaseActionRelation(AbstractConfig):
             end_time = serializers.CharField(label="生效结束时间", default="23:59:59")
             chart_image_enabled = serializers.BooleanField(label="是否附带图片", default=True)
 
+        id = serializers.IntegerField(required=False, allow_null=True)
         config_id = serializers.IntegerField(required=False, label="套餐ID")
+        user_type = serializers.ChoiceField(required=False, choices=UserGroupType.CHOICE)
         user_groups = serializers.ListField(required=False, child=serializers.IntegerField(), label="通知组ID列表")
         signal = serializers.MultipleChoiceField(
             required=True,
@@ -1495,6 +1503,9 @@ class QueryConfig(AbstractConfig):
         self.agg_dimension = [dimension for dimension in self.agg_dimension if dimension]
 
 
+QUERY_OUTPUT_CONFIG_EMPTY = object()
+
+
 class Item(AbstractConfig):
     """
     监控项配置
@@ -1531,8 +1542,25 @@ class Item(AbstractConfig):
         query_configs = serializers.ListField(allow_empty=False)
         algorithms = Algorithm.Serializer(many=True)
         metric_type = serializers.CharField(allow_blank=True, default="")
-        # 目前只允许后台修改
+        query_output_config = serializers.DictField(required=False, allow_null=True)
+        # time_delay 和 access_lookback_periods 只允许后台修改，不接受接口入参。
         # time_delay = serializers.IntegerField(default=0)
+
+        def validate(self, attrs):
+            query_configs = attrs["query_configs"]
+            modes = [config.get("expression_mode") for config in query_configs]
+            if any(modes):
+                if len(query_configs) < 2 or not all(
+                    (config.get("data_source_label"), config.get("data_type_label"), config.get("expression_mode"))
+                    == ("prometheus", "time_series", "promql")
+                    for config in query_configs
+                ):
+                    raise ValidationError(detail="PromQL expression mode requires all queries to be Prometheus")
+                try:
+                    compile_promql_expression(query_configs, attrs["expression"])
+                except ValueError as exc:
+                    raise ValidationError(detail=str(exc)) from exc
+            return attrs
 
     def __init__(
         self,
@@ -1549,6 +1577,8 @@ class Item(AbstractConfig):
         metric_type: str = "",
         instance: ItemModel = None,
         time_delay: int = None,
+        query_output_config=QUERY_OUTPUT_CONFIG_EMPTY,
+        access_lookback_periods=serializers.empty,
         **kwargs,
     ):
         self.functions = functions or []
@@ -1563,6 +1593,18 @@ class Item(AbstractConfig):
         self.id = id
         self.instance = instance
         self.time_delay = time_delay or 0
+        self.access_lookback_periods = access_lookback_periods
+        if access_lookback_periods is not serializers.empty:
+            self.access_lookback_periods = serializers.IntegerField(allow_null=True, min_value=1).run_validation(
+                access_lookback_periods
+            )
+        self.query_output_config = (
+            query_output_config
+            if query_output_config is QUERY_OUTPUT_CONFIG_EMPTY or query_output_config is None
+            else self.normalize_query_output_config(query_output_config)
+        )
+        if isinstance(self.query_output_config, dict):
+            self.validate_query_output_compatibility(self.query_output_config)
 
         if metric_type:
             self.metric_type = metric_type
@@ -1604,7 +1646,7 @@ class Item(AbstractConfig):
             metric_type = self.metric_type
         else:
             metric_type = self.query_configs[0].data_type_label
-        return {
+        data = {
             "id": self.id,
             "name": self.name,
             "no_data_config": self.no_data_config,
@@ -1617,6 +1659,110 @@ class Item(AbstractConfig):
             "metric_type": metric_type,
             "time_delay": self.time_delay,
         }
+        if self.query_output_config is not QUERY_OUTPUT_CONFIG_EMPTY:
+            data["query_output_config"] = self.query_output_config
+        if self.access_lookback_periods is not serializers.empty and self.access_lookback_periods is not None:
+            data["access_lookback_periods"] = self.access_lookback_periods
+        return data
+
+    @staticmethod
+    def normalize_query_output_config(config: dict) -> dict:
+        if not isinstance(config, dict):
+            raise ValidationError(detail="query_output_config 必须为对象")
+
+        response_contract = config.get("response_contract", "")
+        legacy_output_ref = config.get("legacy_output_ref", "")
+        if not isinstance(response_contract, str):
+            raise ValidationError(detail="query_output_config.response_contract 必须为字符串")
+        if not isinstance(legacy_output_ref, str):
+            raise ValidationError(detail="query_output_config.legacy_output_ref 必须为字符串")
+        response_contract = response_contract.strip()
+        legacy_output_ref = legacy_output_ref.strip()
+        if legacy_output_ref and not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", legacy_output_ref):
+            raise ValidationError(detail=f"命名输出引用不是合法标识符: {legacy_output_ref}")
+
+        raw_output_list = config.get("output_list")
+        if not isinstance(raw_output_list, list):
+            raise ValidationError(detail="query_output_config.output_list 必须为数组")
+        max_outputs = int(getattr(settings, "NAMED_OUTPUT_MAX_COUNT", 4))
+        if len(raw_output_list) > max_outputs:
+            raise ValidationError(
+                detail=(
+                    f"命名输出最多支持 {max_outputs} 个，当前配置了 {len(raw_output_list)} 个。"
+                    "如需支持更多输出，请同步调整两侧配置："
+                    "1) 平台侧：配置环境变量 BKAPP_SETTINGS_NAMED_OUTPUT_MAX_COUNT（对应 settings.NAMED_OUTPUT_MAX_COUNT）；"
+                    "2) UQ 侧：调大 defaultNamedOutputSettings 的 MaxOutputs（默认 4），并保证两侧取值一致。"
+                )
+            )
+        output_list = []
+        references = set()
+        for output in raw_output_list:
+            if not isinstance(output, dict):
+                raise ValidationError(detail="query_output_config.output_list 条目必须为对象")
+            reference_name = output.get("reference_name", "")
+            expression = output.get("expression", "")
+            if not isinstance(reference_name, str) or not isinstance(expression, str):
+                raise ValidationError(detail="命名输出引用和表达式必须为字符串")
+            reference_name = reference_name.strip()
+            expression = expression.strip()
+            if not reference_name or not expression:
+                raise ValidationError(detail="命名输出引用和表达式不能为空")
+            if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", reference_name):
+                raise ValidationError(detail=f"命名输出引用不是合法标识符: {reference_name}")
+            if reference_name in references:
+                raise ValidationError(detail=f"命名输出引用重复: {reference_name}")
+            references.add(reference_name)
+            output_list.append({"reference_name": reference_name, "expression": expression})
+
+        if response_contract != "named_outputs/v1":
+            raise ValidationError(detail=f"不支持的命名输出契约: {response_contract}")
+        if not legacy_output_ref or legacy_output_ref not in references:
+            raise ValidationError(detail=f"legacy_output_ref 不存在: {legacy_output_ref}")
+
+        return {
+            "response_contract": response_contract,
+            "legacy_output_ref": legacy_output_ref,
+            "output_list": output_list,
+        }
+
+    @staticmethod
+    def normalize_output_expression(expression: str) -> str:
+        return re.sub(r"\s+", "", expression)
+
+    def validate_query_output_compatibility(self, config: dict):
+        aliases = {
+            self.normalize_output_expression(query_config.alias)
+            for query_config in self.query_configs
+            if query_config.alias
+        }
+        legacy_output_ref = config["legacy_output_ref"]
+        effective_metric_merge = self.normalize_output_expression(
+            add_expression_functions(self.expression, self.functions)
+        )
+
+        for output in config["output_list"]:
+            expression = self.normalize_output_expression(output["expression"])
+            if output["reference_name"] == legacy_output_ref:
+                if expression != effective_metric_merge:
+                    raise ValidationError(detail="query_output_config 的 legacy 输出表达式必须匹配当前查询表达式和函数")
+            elif expression not in aliases:
+                raise ValidationError(
+                    detail="query_output_config 的非 legacy 输出表达式必须是当前 query alias 的 identity 表达式"
+                )
+
+    @staticmethod
+    def update_query_output_meta(meta, query_output_config) -> dict:
+        if meta is None or (isinstance(meta, list) and not meta):
+            meta = {}
+        if not isinstance(meta, dict):
+            raise ValidationError(detail="ItemModel.meta 历史值不是对象，禁止覆盖")
+
+        updated_meta = copy.deepcopy(meta)
+        if query_output_config is None:
+            updated_meta.pop("query_output_config", None)
+        else:
+            updated_meta["query_output_config"] = copy.deepcopy(query_output_config)
+        return updated_meta
 
     def to_unify_query_config(self):
         """
@@ -1651,13 +1797,16 @@ class Item(AbstractConfig):
                 query["interval"] = f"{query_config.agg_interval}s"
             query_list.append(query)
 
-        return {
+        config = {
             "query_list": query_list,
             "metric_merge": add_expression_functions(self.expression, self.functions),
             "join_on": self.public_dimensions,
             "order_by": ["-time"],
             "keep_columns": ["_result", "_time", *[query["reference_name"] for query in query_list]],
         }
+        if isinstance(self.query_output_config, dict):
+            config.update(self.query_output_config)
+        return config
 
     @classmethod
     def delete_useless(cls, useless_item_ids: list[int]):
@@ -1682,27 +1831,38 @@ class Item(AbstractConfig):
         data.pop("id", None)
         data.pop("query_configs", None)
         data.pop("algorithms", None)
+        query_output_config = data.pop("query_output_config", QUERY_OUTPUT_CONFIG_EMPTY)
+        if query_output_config is not QUERY_OUTPUT_CONFIG_EMPTY:
+            data["meta"] = self.update_query_output_meta(None, query_output_config)
         data["name"] = self.truncate_name(data.get("name", ""))
         self.name = data["name"]
         item = ItemModel.objects.create(strategy_id=self.strategy_id, **data)
         self.id = item.id
         return item
 
-    def save_algorithms(self):
-        self.reuse_exists_records(
-            AlgorithmModel,
-            AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id"),
-            self.algorithms,
-            Algorithm,
-        )
+    def save_algorithms(self, *, preserve_ids: bool = False) -> None:
+        """保存算法集合；局部更新保留已匹配的 ID，完整保存沿用按位置复用的行为。"""
+        if preserve_ids:
+            # patch 已在锁内按身份匹配；只删除未匹配记录，不能再次按位置分配 ID。
+            algorithm_ids: set[int] = {algorithm.id for algorithm in self.algorithms if algorithm.id > 0}
+            AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).exclude(
+                id__in=algorithm_ids
+            ).delete()
+        else:
+            self.reuse_exists_records(
+                AlgorithmModel,
+                AlgorithmModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id").order_by("id"),
+                self.algorithms,
+                Algorithm,
+            )
 
         for algo in self.algorithms:
             algo.save()
 
-    def save_query_configs(self):
+    def save_query_configs(self) -> None:
         self.reuse_exists_records(
             QueryConfigModel,
-            QueryConfigModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id"),
+            QueryConfigModel.objects.filter(strategy_id=self.strategy_id, item_id=self.id).only("id").order_by("id"),
             self.query_configs,
             QueryConfig,
         )
@@ -1715,6 +1875,21 @@ class Item(AbstractConfig):
         try:
             if self.id > 0:
                 item: ItemModel = ItemModel.objects.get(id=self.id, strategy_id=self.strategy_id)
+                if self.query_output_config is QUERY_OUTPUT_CONFIG_EMPTY and isinstance(item.meta, dict):
+                    current_query_output_config = item.meta.get("query_output_config")
+                    if current_query_output_config is not None:
+                        try:
+                            current_query_output_config = self.normalize_query_output_config(
+                                current_query_output_config
+                            )
+                            self.validate_query_output_compatibility(current_query_output_config)
+                        except ValidationError as error:
+                            raise ValidationError(
+                                detail=(
+                                    "当前查询与已保存的 query_output_config 不兼容；"
+                                    "请通过完整 API 同步更新 query_output_config，或显式传 null 删除"
+                                )
+                            ) from error
                 item.name = self.name
                 item.no_data_config = self.no_data_config
                 item.target = self.target
@@ -1723,6 +1898,10 @@ class Item(AbstractConfig):
                 item.origin_sql = self.origin_sql
                 item.metric_type = self.metric_type
                 item.time_delay = self.time_delay if self.time_delay else item.time_delay
+                if self.query_output_config is not QUERY_OUTPUT_CONFIG_EMPTY:
+                    item.meta = self.update_query_output_meta(item.meta, self.query_output_config)
+                if self.access_lookback_periods is not serializers.empty:
+                    item.access_lookback_periods = self.access_lookback_periods
                 item.save()
             else:
                 item = self._create()
@@ -1759,9 +1938,13 @@ class Item(AbstractConfig):
                 metric_type=item.metric_type,
                 instance=item,
                 time_delay=item.time_delay,
+                access_lookback_periods=item.access_lookback_periods,
             )
             record.algorithms = Algorithm.from_models(algorithms[item.id])
             record.query_configs = QueryConfig.from_models(query_configs[item.id])
+            if isinstance(item.meta, dict) and "query_output_config" in item.meta:
+                record.query_output_config = record.normalize_query_output_config(item.meta["query_output_config"])
+                record.validate_query_output_compatibility(record.query_output_config)
             records.append(record)
 
         return records
@@ -2184,15 +2367,15 @@ class Strategy(AbstractConfig):
 
         return converted_config
 
-    def to_dict(self, convert_dashboard: bool = True) -> dict:
+    def to_dict(self, convert_dashboard: bool = True, *, generate_priority_group_key: bool = True) -> dict:
         """
         转换为JSON字典
         """
         if self.priority is None:
             priority_group_key = ""
         else:
-            if self.priority_group_key:
-                priority_group_key = self.priority_group_key
+            if self.priority_group_key or not generate_priority_group_key:
+                priority_group_key = self.priority_group_key or ""
             else:
                 # 自动生成优先级分组key
                 priority_group_key = self.get_priority_group_key(self.bk_biz_id, self.items)
@@ -2654,7 +2837,8 @@ class Strategy(AbstractConfig):
         strategy = Strategy(**strategy_config)
         return strategy.to_dict_v1()
 
-    def _create(self):
+    def _create(self, *, audit_operator=None):
+        username = audit_operator or self._get_username()
         strategy = StrategyModel.objects.create(
             name=self.name,
             scenario=self.scenario,
@@ -2664,8 +2848,8 @@ class Strategy(AbstractConfig):
             is_enabled=self.is_enabled,
             is_invalid=self.is_invalid,
             invalid_type=self.invalid_type,
-            create_user=self._get_username(),
-            update_user=self._get_username(),
+            create_user=username,
+            update_user=username,
             priority=self.priority,
             priority_group_key=self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
             if self.priority is not None
@@ -2673,20 +2857,20 @@ class Strategy(AbstractConfig):
         )
         self.id = strategy.id
 
-    def save_labels(self):
-        """
-        保存策略标签
-        """
-        labels = [f"/{label.strip('/')}/" for label in self.labels]
+    @staticmethod
+    def normalize_labels(labels: list[str]) -> list[str]:
+        """规范化标签并过滤冗余父标签，保留输入顺序及重复项。"""
+        normalized_labels: list[str] = [f"/{label.strip('/')}/" for label in labels]
+        max_length: int = StrategyLabel._meta.get_field("label_name").max_length
 
         # 校验标签长度
-        for label in labels:
-            if len(label) > 128:
+        for label in normalized_labels:
+            if len(label) > max_length:
                 raise ValidationError(_("标签长度超长，请调整后重试"))
 
         # 如果某个标签是另一个标签的父标签，则抛弃该标签
-        redundant_labels = set()
-        for label1, label2 in permutations(labels, 2):
+        redundant_labels: set[str] = set()
+        for label1, label2 in permutations(normalized_labels, 2):
             if label1 == label2:
                 continue
 
@@ -2694,7 +2878,11 @@ class Strategy(AbstractConfig):
                 redundant_labels.add(label2)
             elif label2.startswith(label1):
                 redundant_labels.add(label1)
-        self.labels = [label for label in labels if label not in redundant_labels]
+        return [label for label in normalized_labels if label not in redundant_labels]
+
+    def save_labels(self) -> None:
+        """保存策略标签。"""
+        self.labels = self.normalize_labels(self.labels)
 
         # 清理旧标签
         StrategyLabel.objects.filter(bk_biz_id=self.bk_biz_id, strategy_id=self.id).delete()
@@ -2757,6 +2945,17 @@ class Strategy(AbstractConfig):
                 raise ValidationError(detail=_("已有自动告警等级配置异常，请先修复策略配置"))
             algorithm.config["alert_levels"] = copy.deepcopy(existing_algorithm.config["alert_levels"])
 
+    def save_detects(self) -> None:
+        """整体保存检测配置，完整保存与局部更新共用记录复用和增删逻辑。"""
+        self.reuse_exists_records(
+            DetectModel,
+            DetectModel.objects.filter(strategy_id=self.id).only("id").order_by("id"),
+            self.detects,
+            Detect,
+        )
+        for detect in self.detects:
+            detect.save()
+
     @transaction.atomic
     def save_actions(self):
         """保存actions配置."""
@@ -2799,10 +2998,34 @@ class Strategy(AbstractConfig):
 
         return create_or_update_datas
 
-    def save(self, rollback=False):
+    def get_history_content(self, *, generate_priority_group_key: bool = True) -> dict:
+        """生成包含省略字段有效值的完整历史快照。"""
+        content = self.to_dict(generate_priority_group_key=generate_priority_group_key)
+        if self.id <= 0:
+            return content
+
+        current_items = list(
+            ItemModel.objects.filter(strategy_id=self.id).only("id", "meta", "access_lookback_periods")
+        )
+        current_items_by_id = {item.id: item for item in current_items}
+        for index, (item, item_content) in enumerate(zip(self.items, content["items"])):
+            current_item = current_items_by_id.get(item.id)
+            if current_item is None and index < len(current_items):
+                current_item = current_items[index]
+            if isinstance(getattr(current_item, "meta", None), dict):
+                if item.query_output_config is QUERY_OUTPUT_CONFIG_EMPTY and "query_output_config" in current_item.meta:
+                    item_content["query_output_config"] = copy.deepcopy(current_item.meta["query_output_config"])
+            if item.access_lookback_periods is serializers.empty and current_item is not None:
+                if current_item.access_lookback_periods is not None:
+                    item_content["access_lookback_periods"] = current_item.access_lookback_periods
+
+        return content
+
+    def save(self, rollback=False, *, audit_operator=None):
         """
         保存策略配置
 
+        audit_operator 仅供内部传入已校验的审计名称，不替换请求的认证用户。
         策略本体写入放在独立 atomic 中。history 的创建/失败记录必须在事务外，
         否则 MySQL DataError 会把连接标脏，except 里再 history.save() 会变成
         TransactionManagementError，把原始异常盖掉。
@@ -2824,10 +3047,10 @@ class Strategy(AbstractConfig):
 
         if not rollback:
             history = StrategyHistoryModel.objects.create(
-                create_user=self._get_username(),
+                create_user=audit_operator or self._get_username(),
                 strategy_id=self.id,
                 operate="create" if self.id == 0 else "update",
-                content=self.to_dict(),
+                content=self.get_history_content(),
             )
 
             # 重名检测
@@ -2850,7 +3073,7 @@ class Strategy(AbstractConfig):
                     strategy.is_enabled = self.is_enabled
                     strategy.is_invalid = self.is_invalid
                     strategy.invalid_type = self.invalid_type
-                    strategy.update_user = self._get_username()
+                    strategy.update_user = audit_operator or self._get_username()
                     strategy.priority = self.priority
                     strategy.priority_group_key = (
                         self.get_priority_group_key(self.bk_biz_id, self.items, self.priority_group_key)
@@ -2859,20 +3082,17 @@ class Strategy(AbstractConfig):
                     )
                     strategy.save()
                 else:
-                    self._create()
+                    self._create(audit_operator=audit_operator)
 
                 # 复用当前存在的记录
-                model_configs = [
-                    (ItemModel, Item, self.items),
-                    (DetectModel, Detect, self.detects),
-                ]
-                for model, config_cls, configs in model_configs:
-                    objs = model.objects.filter(strategy_id=self.id).only("id")
-                    self.reuse_exists_records(model, objs, configs, config_cls)
+                self.reuse_exists_records(
+                    ItemModel, ItemModel.objects.filter(strategy_id=self.id).only("id"), self.items, Item
+                )
 
                 # 保存子配置
-                for obj in chain(self.items, self.detects):
+                for obj in self.items:
                     obj.save()
+                self.save_detects()
 
                 # 复用旧ID地保存actions和notice
                 self.save_actions()
@@ -3134,7 +3354,7 @@ class Strategy(AbstractConfig):
         content = json.dumps(query, sort_keys=True)
         return xxhash.xxh64(content).hexdigest()
 
-    def supplement_inst_target_dimension(self):
+    def supplement_inst_target_dimension(self, items: list[Item] | None = None) -> None:
         """
         静态目标补全静态维度
         """
@@ -3144,7 +3364,7 @@ class Strategy(AbstractConfig):
         else:
             host_dimensions = {"bk_target_ip"}
 
-        for item in self.items:
+        for item in self.items if items is None else items:
             if not item.target or not item.target[0]:
                 return
 

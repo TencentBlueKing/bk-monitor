@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-/* eslint-disable no-unused-vars */
 export interface IGrokItem {
   id: number;
   name: string;

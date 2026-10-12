@@ -18,6 +18,7 @@ class GroupEnum(CachedEnum):
     TRPC = "trpc"
     RESOURCE = "resource"
     SPAN = "span"
+    LLM = "llm"
 
     @cached_property
     def label(self) -> str:

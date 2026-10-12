@@ -38,6 +38,7 @@ import { showMessage } from '../../utils';
 import ClusterTable from '../business-comp/step4/cluster-table';
 import { deepEqual } from '@/common/util';
 import $http from '@/api';
+import { isCollectionEditRoute } from './route-utils';
 
 import type { ISubmitOptions } from '../../type';
 
@@ -281,19 +282,17 @@ export default defineComponent({
     });
 
     const prependText = computed(() => {
-      const { table_id, collector_config_name_en } = currentCollect.value;
+      const { table_id: tableId, collector_config_name_en: collectorConfigNameEn } = currentCollect.value;
       if (props.isClone) {
-        return collector_config_name_en || props.configData.collector_config_name_en;
+        return collectorConfigNameEn || props.configData.collector_config_name_en;
       }
-      return (
-        formData.value.table_id || table_id || collector_config_name_en || props.configData.collector_config_name_en
-      );
+      return formData.value.table_id || tableId || collectorConfigNameEn || props.configData.collector_config_name_en;
     });
 
     /**
      * 是否为编辑
      */
-    const isUpdate = computed(() => route.name === 'collectEdit' && props.isEdit);
+    const isUpdate = computed(() => isCollectionEditRoute(route.name) && props.isEdit);
 
     /**
      * 保存初始表单数据快照
@@ -310,9 +309,7 @@ export default defineComponent({
     };
 
     /** 是否为编辑模式 */
-    const isEditMode = computed(() =>
-      ['collectEdit', 'collectStorage', 'collectField'].includes(String(route.name ?? '')),
-    );
+    const isEditMode = computed(() => isCollectionEditRoute(route.name));
 
     /**
      * 异步获取存储列表并按权限排序
@@ -363,7 +360,11 @@ export default defineComponent({
       clusterSelect.value = row.storage_cluster_id;
       clusterData.value = row;
       // doris集群编辑时，接口返回的retention可能为null，使用选中集群的max_retention兜底
-      if (isDorisMode.value && props.isEdit && formData.value.retention == null) {
+      if (
+        isDorisMode.value &&
+        props.isEdit &&
+        (formData.value.retention === null || formData.value.retention === undefined)
+      ) {
         formData.value.retention = row.max_retention ?? STORAGE_DEFAULTS.retention;
       }
       // 如果开启了冷热集群，天数不能为0
@@ -397,6 +398,7 @@ export default defineComponent({
           // 回填清洗配置到 formData，与旧版保持一致
           formData.value = {
             ...formData.value,
+            clean_template_id: res.data.clean_template_id ?? null,
             etl_config: res.data.clean_type,
             etl_params: res.data.etl_params,
             fields: res.data.etl_fields,
@@ -423,16 +425,16 @@ export default defineComponent({
           .then(res => {
             if (res?.data) {
               store.commit('collect/setCurCollect', res.data);
-              const { storage_cluster_id, storage_cluster_type } = res.data;
-              if (storage_cluster_type) {
-                clusterType = storage_cluster_type;
+              const { storage_cluster_id: storageClusterId, storage_cluster_type: storageClusterType } = res.data;
+              if (storageClusterType) {
+                clusterType = storageClusterType;
               }
               formData.value = {
                 ...formData.value,
                 ...res.data,
                 ...normalizeStorageFields(res.data),
               };
-              clusterSelect.value = storage_cluster_id;
+              clusterSelect.value = storageClusterId;
             }
           });
       }
@@ -528,7 +530,8 @@ export default defineComponent({
               }}
               on-blur={val => {
                 if (val === '') {
-                  formData.value.retention = clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
+                  formData.value.retention =
+                    clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
                 }
               }}
             >
@@ -553,7 +556,8 @@ export default defineComponent({
                   }}
                   on-blur={val => {
                     if (val === '') {
-                      formData.value.allocation_min_days = clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
+                      formData.value.allocation_min_days =
+                        clusterData.value?.setup_config?.retention_days_default ?? STORAGE_DEFAULTS.retention;
                     }
                   }}
                 >
@@ -577,7 +581,8 @@ export default defineComponent({
                 }}
                 on-blur={val => {
                   if (val === '') {
-                    formData.value.storage_replies = clusterData.value?.setup_config?.number_of_replicas_default ?? STORAGE_DEFAULTS.storage_replies;
+                    formData.value.storage_replies =
+                      clusterData.value?.setup_config?.number_of_replicas_default ?? STORAGE_DEFAULTS.storage_replies;
                   }
                 }}
               />
@@ -596,7 +601,8 @@ export default defineComponent({
                 }}
                 on-blur={val => {
                   if (val === '') {
-                    formData.value.es_shards = clusterData.value?.setup_config?.es_shards_default ?? STORAGE_DEFAULTS.es_shards;
+                    formData.value.es_shards =
+                      clusterData.value?.setup_config?.es_shards_default ?? STORAGE_DEFAULTS.es_shards;
                   }
                 }}
               />
@@ -623,15 +629,12 @@ export default defineComponent({
      * @param options.action 操作类型: 'next'(默认) | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const handleCustomSubmit = ({
-      action = 'next',
-      callback,
-    }: ISubmitOptions = {}) => {
+    const handleCustomSubmit = ({ action = 'next', callback }: ISubmitOptions = {}) => {
       submitLoading.value = true;
       const {
-        collector_config_name,
+        collector_config_name: collectorConfigName,
         collector_config_name_en,
-        index_set_name,
+        index_set_name: indexSetName,
         bk_data_id,
         custom_type,
         retention,
@@ -655,7 +658,7 @@ export default defineComponent({
         es_shards: Number(es_shards),
         parent_index_set_ids,
         collector_config_name_en,
-        collector_config_name: collector_config_name || index_set_name,
+        collector_config_name: collectorConfigName || indexSetName,
         bk_biz_id: Number(bkBizId.value),
         target_fields: props.configData.target_fields || [],
         sort_fields: props.configData.sort_fields || [],
@@ -676,7 +679,11 @@ export default defineComponent({
           data: submitData,
         })
         .then(res => {
-          res.result && showMessage(t('保存成功'));
+          if (!res?.result) {
+            callback?.(false);
+            return;
+          }
+          showMessage(t('保存成功'));
           if (action === 'saveOnly') {
             // 只保存，不跳转
             callback?.(true);
@@ -697,21 +704,26 @@ export default defineComponent({
      * @param options.action 操作类型: 'next'(默认) | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const handleNormalSubmit = ({
-      action = 'next',
-      callback,
-    }: ISubmitOptions = {}) => {
+    const handleNormalSubmit = ({ action = 'next', callback }: ISubmitOptions = {}) => {
       submitLoading.value = true;
       // 从 formData 读取清洗相关数据，与旧版保持一致
-      const { etl_config, etl_params, fields, retention, allocation_min_days, storage_replies, es_shards } = formData.value;
+      const {
+        etl_config,
+        etl_params: etlParams,
+        fields,
+        retention,
+        allocation_min_days,
+        storage_replies,
+        es_shards,
+      } = formData.value;
       const collectorConfigId = currentCollect.value?.collector_config_id || route.params.collectorId;
       const tableId = props.isClone
         ? currentCollect.value.collector_config_name_en
-        : (formData.value.table_id || currentCollect.value.collector_config_name_en);
+        : formData.value.table_id || currentCollect.value.collector_config_name_en;
       // 仅透传公开的 expand_depth，避免覆盖后台隐藏的 overflow_strategy
       const submitEtlParams = (() => {
-        if (!etl_params) return etl_params;
-        const { ext_json_config: extJsonConfig, ...rest } = etl_params as any;
+        if (!etlParams) return etlParams;
+        const { ext_json_config: extJsonConfig, ...rest } = etlParams as any;
         if (!rest.retain_extra_json || !extJsonConfig || !('expand_depth' in extJsonConfig)) {
           return rest;
         }
@@ -723,6 +735,7 @@ export default defineComponent({
         };
       })();
       const data = {
+        clean_template_id: formData.value.clean_template_id ?? null,
         collector_config_id: collectorConfigId,
         retention: Number(retention),
         allocation_min_days: Number(allocation_min_days),
@@ -767,10 +780,7 @@ export default defineComponent({
      * @param options.action 操作类型: 'next'(默认) | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmitSave = async ({
-      action = 'next',
-      callback,
-    }: ISubmitOptions = {}) => {
+    const handleSubmitSave = async ({ action = 'next', callback }: ISubmitOptions = {}) => {
       if (!clusterSelect.value) {
         showMessage(t('请选择集群'), 'error');
         callback?.(false);

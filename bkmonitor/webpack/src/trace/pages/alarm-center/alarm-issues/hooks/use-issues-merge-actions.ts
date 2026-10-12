@@ -75,10 +75,13 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
    */
   const isSplitTriggeredRefresh = shallowRef(false);
 
-  /** 添加拆分高亮，并标记下次 data 变更需跳过清除 */
-  const addSplitHighlight = (id: string) => {
+  /** 添加拆分高亮（支持批量拆分的多个 ID），并标记下次 data 变更需跳过清除 */
+  const addSplitHighlight = (ids: string[]) => {
+    if (!ids.length) return;
     const next = new Set(highlightedRowIds.value);
-    next.add(id);
+    for (const id of ids) {
+      next.add(id);
+    }
     highlightedRowIds.value = next;
     isSplitTriggeredRefresh.value = true;
   };
@@ -110,12 +113,6 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
 
   // ===================== 合并按钮禁用判定 =====================
 
-  /** 选中行中主 Issue 的数量 */
-  const mainIssueCount = computed(() => {
-    const selectedSet = new Set(selectedRowKeys.value);
-    return data.value.filter(item => selectedSet.has(item.id) && item.merge_status?.role === 'main').length;
-  });
-
   /** 选中行中是否包含不同空间的 Issue */
   const hasMultipleSpaces = computed(() => {
     const selectedSet = new Set(selectedRowKeys.value);
@@ -127,8 +124,7 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
   const mergeDisabled = computed(() => {
     const hasSelection = selectedRowKeys.value.length > 0;
     if (!hasSelection || selectedRowKeys.value.length < 2) return true;
-    if (hasMultipleSpaces.value) return true;
-    return mainIssueCount.value > 1;
+    return hasMultipleSpaces.value;
   });
 
   /** 合并按钮禁用时的 tooltip 提示 */
@@ -137,7 +133,6 @@ export function useIssuesMergeActions(options: UseIssuesMergeActionsOptions) {
     if (!hasSelection) return t('请先选择 Issue');
     if (selectedRowKeys.value.length < 2) return t('请至少选择 2 个 Issue');
     if (hasMultipleSpaces.value) return t('不支持跨空间合并 Issue');
-    if (mainIssueCount.value > 1) return t('主 Issue 不支持再并入其他主 Issue');
     return '';
   });
 

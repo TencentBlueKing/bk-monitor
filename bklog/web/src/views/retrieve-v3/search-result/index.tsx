@@ -38,19 +38,20 @@ import useRetrieveEvent from '@/hooks/use-retrieve-event';
 import './index.scss';
 
 // #if MONITOR_APP !== 'apm' && MONITOR_APP !== 'trace'
-const GraphAnalysis = defineAsyncComponent(() =>
-  import(/* webpackChunkName: 'retrieve-graph-analysis' */ '../../retrieve-v2/search-result-panel/graph-analysis'),
+const GraphAnalysis = defineAsyncComponent(
+  () =>
+    import(/* webpackChunkName: 'retrieve-graph-analysis' */ '../../retrieve-v2/search-result-panel/graph-analysis'),
 );
-const SearchResultTab = defineAsyncComponent(() =>
-  import(/* webpackChunkName: 'retrieve-result-tab' */ '../../retrieve-v2/search-result-tab/index.vue'),
+const SearchResultTab = defineAsyncComponent(
+  () => import(/* webpackChunkName: 'retrieve-result-tab' */ '../../retrieve-v2/search-result-tab/index.vue'),
 );
 // #else
 // #code const GraphAnalysis = () => null
 // #code const SearchResultTab = () => null;
 // #endif
 const Grep = defineAsyncComponent(() => import(/* webpackChunkName: 'retrieve-grep' */ '../grep'));
-const LogClustering = defineAsyncComponent(() =>
-  import(/* webpackChunkName: 'retrieve-log-clustering' */ './log-clustering'),
+const LogClustering = defineAsyncComponent(
+  () => import(/* webpackChunkName: 'retrieve-log-clustering' */ './log-clustering'),
 );
 
 export default defineComponent({
@@ -60,7 +61,7 @@ export default defineComponent({
     const route = useRoute();
     const store = useStore();
 
-    const debounceUpdateTabValue = debounce((value) => {
+    const debounceUpdateTabValue = debounce(value => {
       const isClustering = value === 'clustering';
       router.replace({
         params: { ...(route.params ?? {}) },
@@ -71,9 +72,7 @@ export default defineComponent({
         },
       });
     }, 60);
-    const activeTab = computed(
-      () => route.query.tab ?? 'origin'
-    ) as ComputedRef<string>;
+    const activeTab = computed(() => route.query.tab ?? 'origin') as ComputedRef<string>;
 
     let trendSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -92,10 +91,8 @@ export default defineComponent({
       }
     };
 
-    const handleFavoriteChange = (item) => {
-      debounceUpdateTabValue(
-        item.favorite_type === 'chart' ? 'graph_analysis' : 'origin'
-      );
+    const handleFavoriteChange = item => {
+      debounceUpdateTabValue(item.favorite_type === 'chart' ? 'graph_analysis' : 'origin');
     };
 
     const { addEvent } = useRetrieveEvent();
@@ -110,8 +107,7 @@ export default defineComponent({
     });
 
     const renderTabContent = () => {
-      if (activeTab.value === RouteQueryTab.GRAPH_ANALYSIS
-          || activeTab.value === RouteQueryTab.GRAPH_ANALYSIS_LEGACY) {
+      if (activeTab.value === RouteQueryTab.GRAPH_ANALYSIS || activeTab.value === RouteQueryTab.GRAPH_ANALYSIS_LEGACY) {
         return <GraphAnalysis></GraphAnalysis>;
       }
 

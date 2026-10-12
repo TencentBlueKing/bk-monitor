@@ -2,8 +2,6 @@ import json
 import shutil
 from pathlib import Path
 
-import pytest
-
 from bk_monitor_base.domains.metric_plugin.define import (
     MetricPlugin,
     MetricPluginMetricField,

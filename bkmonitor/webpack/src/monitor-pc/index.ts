@@ -40,7 +40,7 @@ import Api from 'monitor-api/api';
 import Axios from 'monitor-api/axios/axios';
 import { type VueInstance, setVue } from 'monitor-api/utils/index';
 import { immediateRegister } from 'monitor-common/service-worker/service-worker';
-import { getUrlParam, mergeSpaceList, setGlobalBizId } from 'monitor-common/utils';
+import { getUrlParam, mergeSpaceList, parseBizId, setGlobalBizId } from 'monitor-common/utils';
 import { assignWindowField } from 'monitor-common/utils/assign-window';
 import { initIframeBroadcast } from 'monitor-common/utils/iframe-bridge';
 
@@ -71,7 +71,7 @@ if (!window.__POWERED_BY_BK_WEWEB__) {
 }
 const hasRouteHash = getUrlParam('routeHash');
 const spaceUid = getUrlParam('space_uid');
-const bizId = getUrlParam('bizId')?.replace(/\//gim, '');
+const bizId = parseBizId(getUrlParam('bizId'));
 if (process.env.NODE_ENV === 'development') {
   window.site_url = '/';
 }
@@ -107,7 +107,7 @@ if (hasRouteHash) {
         window.user_name = window.uin;
         window.username = window.uin;
         window.user_name = window.uin;
-        window.cc_biz_id = +window.bk_biz_id;
+        window.cc_biz_id = parseBizId(window.bk_biz_id);
         // username 异步就绪后补充到 RUM 上报的 user.id
         bkOTInstance?.setUser({ id: window.username });
 

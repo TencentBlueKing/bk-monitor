@@ -7,6 +7,7 @@ from unittest.mock import patch
 import pytest
 
 from bk_monitor_base.infras.third_party_api.api_client import BkApiClient
+from bk_monitor_base.infras.third_party_api.errors import BkApiError
 
 
 class MockApiClient(BkApiClient):
@@ -682,7 +683,7 @@ class TestBatchRequest:
         )
 
         client = MockApiClient()
-        with pytest.raises(Exception):
+        with pytest.raises(BkApiError):
             client.batch_request(
                 bk_tenant_id="system",
                 params={},

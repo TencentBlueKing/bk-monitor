@@ -255,10 +255,7 @@ const addPrimitiveMark = (
  * 2. 否则说明 mark 跨越了引号 / 冒号等结构字符，把命中区间收敛进它覆盖的 KEY/VALUE 内部后再解析；
  * 3. 数字 / 布尔 / null 字面量无法内嵌标签，命中范围按结构路径放入 primitiveMarks 供渲染层重新包裹。
  */
-export const parseMarkedJson = (
-  source: unknown,
-  parse: (_text: string) => any = JSON.parse,
-): MarkedJsonResult => {
+export const parseMarkedJson = (source: unknown, parse: (_text: string) => any = JSON.parse): MarkedJsonResult => {
   if (!isMarkedJsonLike(source)) {
     return { isJson: false, value: source };
   }
@@ -374,18 +371,12 @@ export const applyPrimitiveMarkText = (leafText: string, entry?: PrimitiveMarkEn
   }
 
   // 展示值与字面量不一致（如 1.50 展示为 1.5）：仅在整段命中时整体高亮，避免偏移错位
-  const coversWholeLiteral = entry.ranges.some(
-    range => range.start <= 0 && range.end >= entry.literal.length,
-  );
+  const coversWholeLiteral = entry.ranges.some(range => range.start <= 0 && range.end >= entry.literal.length);
   return coversWholeLiteral ? `<mark>${text}</mark>` : text;
 };
 
 /** 把嵌套 JSON 字符串解析出的侧通道并入父级映射，路径统一加上父节点前缀 */
-export const mergePrimitiveMarks = (
-  target: PrimitiveMarkMap,
-  parentPath: string,
-  source?: PrimitiveMarkMap,
-) => {
+export const mergePrimitiveMarks = (target: PrimitiveMarkMap, parentPath: string, source?: PrimitiveMarkMap) => {
   if (!source?.size) return target;
 
   for (const [path, entry] of source) {

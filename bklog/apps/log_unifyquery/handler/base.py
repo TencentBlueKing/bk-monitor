@@ -1512,7 +1512,12 @@ class UnifyQueryHandler:
 
         # 2. 直接使用传入的参数，填充必要的table_id和bk_biz_id参数信息
         search_dict = params.copy()
-        search_dict["bk_biz_id"] = space_uid_to_bk_biz_id(index_set.space_uid)
+        bk_biz_id = LogIndexSet.resolve_search_bk_biz_id(index_set, search_dict.get("bk_biz_id"))
+        if index_set.is_platform_index and bk_biz_id is None:
+            from rest_framework.exceptions import ValidationError
+
+            raise ValidationError(_("平台级索引集检索必须传入 bk_biz_id"))
+        search_dict["bk_biz_id"] = bk_biz_id
         if "query_list" in search_dict and search_dict["query_list"]:
             for query_item in search_dict["query_list"]:
                 if isinstance(query_item, dict):

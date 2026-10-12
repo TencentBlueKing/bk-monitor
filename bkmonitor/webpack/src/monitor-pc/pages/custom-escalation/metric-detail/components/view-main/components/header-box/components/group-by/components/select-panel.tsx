@@ -50,7 +50,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   @Prop({ type: Array, required: true }) readonly data: IProps['data'];
   @Prop({ type: Boolean, default: false }) readonly splitable: IProps['splitable'];
 
-  @Ref('popoverRef') popoverRef: HTMLDivElement;
+  @Ref('popoverRef') popoverRef: { hideHandler: () => void; showHandler: () => void };
   @Ref('dimensionInput') readonly dimensionInputRef!: HTMLInputElement;
 
   checkedMap: Readonly<Record<string, boolean>> = {};
@@ -58,6 +58,7 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   customData: IProps['data'] = []; // 自定义添加的维度
   hasSelectedAll = false;
   isPanelShow = false;
+  skipChangeOnHide = false;
   filterKey = ''; // 聚合维度搜索内容
   btmInputShow = false; // 底部输入框显示
   btmInputDimension = ''; // 底部手动输入聚合维度
@@ -88,7 +89,6 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   get customDimensionSet() {
     return new Set(this.customData.map(item => item.name));
   }
-  
 
   handleFilterChange: (filterKey: string) => void;
 
@@ -113,20 +113,24 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     }
   }
 
+  restoreCheckedMapFromValue() {
+    this.checkedMap = Object.freeze(
+      this.value.reduce((result, item) => Object.assign(result, { [item.field]: item.split }), {})
+    );
+  }
+
   handleShowPopover() {
     if (this.isSelectDisabled) {
       return;
     }
+    this.skipChangeOnHide = false;
     this.popoverRef?.showHandler();
     this.renderData = Object.freeze(this.data);
-    this.checkedMap = Object.freeze(
-      this.value.reduce((result, item) => Object.assign(result, { [item.field]: item.split }), {})
-    );
+    this.restoreCheckedMapFromValue();
     this.hasSelectedAll = _.every(this.allData, item => _.has(this.checkedMap, item.name));
     // this.hasSelectedAll =
     //   _.every(this.renderData, item => _.has(this.checkedMap, item.name)) &&
     //   (!this.customData.length || _.every(this.customData, item => _.has(this.checkedMap, item.name)));
-
   }
 
   handlePopoverShow() {
@@ -135,6 +139,10 @@ export default class AppendValue extends tsc<IProps, IEmit> {
 
   handlePopoverhide() {
     this.isPanelShow = false;
+    this.handleResetInputDimension();
+    if (this.skipChangeOnHide) {
+      return;
+    }
     const result = Object.entries(this.checkedMap).map(([field, split]) => ({
       field,
       split,
@@ -148,16 +156,16 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   handleToggleAll(checkAll: boolean) {
     const latestCheckedMap = { ...this.checkedMap };
     if (checkAll) {
-      this.allData.forEach(item => {
+      for (const item of this.allData) {
         latestCheckedMap[item.name] = false;
-      });
+      }
       // this.renderData.forEach(item => {
       //   latestCheckedMap[item.name] = false;
       // });
     } else {
-      this.allData.forEach(item => {
+      for (const item of this.allData) {
         delete latestCheckedMap[item.name];
-      });
+      }
       // this.renderData.forEach(item => {
       //   delete latestCheckedMap[item.name];
       // });
@@ -195,7 +203,9 @@ export default class AppendValue extends tsc<IProps, IEmit> {
   }
 
   // 手动输入添加维度
-  handleInputDimension() {
+  handleInputDimension(e?: Event) {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (!this.btmInputDimension || this.hasExactMatch) return;
     this.customData.unshift({
       name: this.btmInputDimension,
@@ -204,9 +214,16 @@ export default class AppendValue extends tsc<IProps, IEmit> {
     this.handleResetInputDimension();
   }
 
-  // 关闭手动输入添加维度
-  handleCloseInputDimension() {
+  // 关闭手动输入并放弃本次维度修改
+  handleCloseInputDimension(e?: Event) {
+    e?.preventDefault();
+    e?.stopPropagation();
+    this.filterKey = '';
     this.handleResetInputDimension();
+    this.restoreCheckedMapFromValue();
+    this.initCustomDimension();
+    this.skipChangeOnHide = true;
+    this.popoverRef?.hideHandler();
   }
 
   // 重置手动输入框状态
@@ -225,13 +242,13 @@ export default class AppendValue extends tsc<IProps, IEmit> {
 
   // 底部手动输入回车事件
   handleInputKeyDown(val: string, e: KeyboardEvent) {
-    if (e.key === 'Enter' && !!val) {
+    if (e.key === 'Enter' && val) {
       this.handleInputDimension();
     }
   }
 
   created() {
-    this.handleFilterChange = _.throttle((filterKey: string) => {
+    this.handleFilterChange = _.throttle(() => {
       // if (!filterKey) {
       //   this.renderData = Object.freeze(this.data);
       // } else {

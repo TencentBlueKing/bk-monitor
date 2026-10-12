@@ -74,6 +74,7 @@ from apps.log_databus.exceptions import (
     CollectorConfigNameENDuplicateException,
     CollectorConfigNotExistException,
     CollectorResultTableIDDuplicateException,
+    PublicESClusterNotExistException,
     RegexInvalidException,
     RegexMatchException,
     ResultTableNotExistException,
@@ -441,6 +442,15 @@ class CollectorHandler:
     def _pre_start(self):
         raise NotImplementedError
 
+    def _apply_clean_template_before_start(self):
+        """重新提交停用期间可能发生变化的模板正式配置。"""
+        if not self.data.clean_template_id or not self.data.table_id:
+            return
+
+        # 不显式传 clean_template_id，让清洗更新链路按采集项当前关联读取模板最新正式配置。
+        # 结果表修改仍由原有异步任务执行，这里只保证任务在采集项启用前完成提交。
+        self.create_or_update_clean_config(is_update=True, params={})
+
     @transaction.atomic
     def start(self, **kwargs):
         """
@@ -448,6 +458,8 @@ class CollectorHandler:
         :return: task_id
         """
         self._itsm_start_judge()
+
+        self._apply_clean_template_before_start()
 
         self.data.is_active = True
         self.data.save()
@@ -656,7 +668,7 @@ class CollectorHandler:
                 "fields": fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
-                "labels": self._build_scene_labels(),
+                "labels": self.build_scene_labels(),
                 "is_platform_index": is_platform_index,
                 "platform_index_visibility": platform_index_visibility,
                 "platform_index_filter": platform_index_filter,
@@ -1142,9 +1154,12 @@ class CollectorHandler:
             )
 
     @staticmethod
-    def _authorization_owners(collector_config: CollectorConfig, owners: list = None):
+    def _authorization_owners(collector_config: CollectorConfig, owners: list = None, grant_space_access: bool = True):
         """
-        将采集项及其索引集的新建关联权限授予指定用户，仅新增授权，不回收历史权限
+        将采集项、索引集及所属业务的访问权限授予指定用户，仅新增授权，不回收历史权限
+
+        :param grant_space_access: 是否一并授予业务访问。幂等命中已存在采集项时传 False，
+            该分支只校验业务级新建权限，不校验对目标实例的管理权限，不应再扩大授权范围
         """
         if not owners:
             return
@@ -1166,6 +1181,19 @@ class CollectorHandler:
                         index_set.index_set_id, attribute={"name": index_set.index_set_name}
                     ),
                     creators=owners,
+                )
+
+            if not grant_space_access:
+                return
+
+            # 创建者授权只绑定实例本身，owner 拿不到业务访问就进不了这个业务，
+            # 采集项与索引集权限也就用不上，所以必须补一次空间访问授权
+            failed_owners = permission.grant_space_access_batch(collector_config.bk_biz_id, owners)
+            if failed_owners:
+                logger.warning(
+                    f"collector_config->({collector_config.collector_config_id}) grant space access to owners "
+                    f"{failed_owners} failed, bk_biz_id: {collector_config.bk_biz_id}, "
+                    f"bk_tenant_id: {permission.bk_tenant_id}"
                 )
         except Exception as e:  # pylint: disable=broad-except
             logger.warning(
@@ -1283,7 +1311,9 @@ class CollectorHandler:
             )
         return return_data
 
-    def get_subscription_status_by_list(self, collector_id_list: list) -> list:
+    def get_subscription_status_by_list(
+        self, collector_id_list: list, *, no_request: bool = False, bk_tenant_id: str | None = None
+    ) -> list:
         """
         批量获取采集项订阅状态
         :param  [list] collector_id_list: 采集项ID列表
@@ -1323,10 +1353,15 @@ class CollectorHandler:
         status_result = []
         multi_execute_func = MultiExecuteFunc(max_workers=10)
         for subscription_id in subscription_id_list:
+            request_params = {"subscription_id_list": [subscription_id], "plugin_name": LogPluginInfo.NAME}
+            if no_request:
+                request_params["no_request"] = True
+                if bk_tenant_id:
+                    request_params["bk_tenant_id"] = bk_tenant_id
             multi_execute_func.append(
                 result_key=subscription_id,
                 func=NodeApi.subscription_statistic,
-                params={"subscription_id_list": [subscription_id], "plugin_name": LogPluginInfo.NAME},
+                params=request_params,
             )
 
         multi_result = multi_execute_func.run(return_exception=True)
@@ -1478,6 +1513,7 @@ class CollectorHandler:
 
     def create_clean_stash(self, params: dict):
         model_fields = {
+            "clean_template_id": params.get("clean_template_id"),
             "clean_type": params["clean_type"],
             "etl_params": params["etl_params"],
             "etl_fields": params["etl_fields"],
@@ -1527,6 +1563,7 @@ class CollectorHandler:
         etl_params=None,
         fields=None,
         storage_cluster_id=None,
+        auto_select_storage_cluster=False,
         storage_cluster_type=STORAGE_CLUSTER_TYPE,
         retention=7,
         allocation_min_days=0,
@@ -1567,8 +1604,10 @@ class CollectorHandler:
                 existing = CollectorConfig.objects.get(
                     collector_config_name_en=collector_config_name_en, bk_biz_id=bkdata_biz_id
                 )
-                # 幂等创建同样要保证 owners 拿到权限
-                self._authorization_owners(existing, owners)
+                # 幂等创建同样要保证 owners 拿到采集项与索引集权限。
+                # 但这个分支只校验了业务级新建权限，没有校验调用方对 existing 的管理权限，
+                # 在实例级校验收口前不能再往外授业务访问（见 TAPD #1010158081138359778）。
+                self._authorization_owners(existing, owners, grant_space_access=False)
                 return {
                     "collector_config_id": existing.collector_config_id,
                     "index_set_id": existing.index_set_id,
@@ -1581,6 +1620,15 @@ class CollectorHandler:
                     collector_config_name_en=collector_config_name_en
                 )
             )
+
+        # 仅 MCP 等明确请求自动选择的调用使用 Fast Create 的公共集群策略；
+        # 保留既有 custom_create 未传集群时不创建清洗配置的行为。
+        # 幂等命中已有采集项时无需选择集群。
+        if auto_select_storage_cluster and not storage_cluster_id:
+            storage_cluster_id = self.get_random_public_cluster_id(bk_biz_id=bk_biz_id)
+            if not storage_cluster_id:
+                raise PublicESClusterNotExistException()
+
         # 判断是否已存在同bk_data_name, result_table_id
         bk_data_name = self.build_bk_data_name(
             bk_biz_id=bkdata_biz_id, collector_config_name_en=collector_config_name_en
@@ -1671,7 +1719,7 @@ class CollectorHandler:
                 "fields": custom_config.fields,
                 "sort_fields": sort_fields,
                 "target_fields": target_fields,
-                "labels": self._build_scene_labels(),
+                "labels": self.build_scene_labels(),
                 "is_platform_index": is_platform_index,
                 "platform_index_visibility": platform_index_visibility,
                 "platform_index_filter": platform_index_filter,
@@ -1761,7 +1809,7 @@ class CollectorHandler:
             for label_key, label_valus in obj_item["metadata"]["labels"].items()
         ]
 
-    def _build_scene_labels(self) -> dict:
+    def build_scene_labels(self) -> dict:
         """Build ResultTable.labels based on collector scenario and environment.
 
         场景优先级由无模型依赖的共享函数统一维护，在线路径仅负责补充
@@ -1793,17 +1841,18 @@ class CollectorHandler:
         ).values_list("collector_type", flat=True)
         return detect_container_stream(container_configs)
 
-    def _sync_scene_tags_to_index_set(self, labels: dict):
+    @staticmethod
+    def sync_scene_tags_to_index_set(index_set_id: int | None, labels: dict):
         """
         Persist scene labels as IndexSetTag records and attach them to the
         collector's LogIndexSet.tag_ids so that dimension_values can be
         queried purely from DB.
         """
-        if not self.data.index_set_id:
+        if not index_set_id:
             return
 
         try:
-            index_set = LogIndexSet.objects.get(index_set_id=self.data.index_set_id)
+            index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
         except LogIndexSet.DoesNotExist:
             return
 
@@ -1822,6 +1871,21 @@ class CollectorHandler:
         index_set.tag_ids = list((existing - old_scene_tag_ids) | set(tag_ids))
         index_set.save(update_fields=["tag_ids"])
 
+    def _sync_scene_tags_to_index_set(self, labels: dict):
+        self.sync_scene_tags_to_index_set(self.data.index_set_id, labels)
+
+    @staticmethod
+    def _get_current_allocation_min_days(result_table: dict) -> int:
+        # 部分历史 RT 保留了 warm_phase_days，但当前集群并不支持冷热数据。
+        allocation_min_days = result_table["storage_config"].get("warm_phase_days") or 0
+        if not allocation_min_days:
+            return 0
+
+        storage_cluster_id = result_table["cluster_config"]["cluster_id"]
+        cluster_config = StorageHandler(storage_cluster_id).get_cluster_info_by_id().get("cluster_config", {})
+        hot_warm_enabled = cluster_config.get("custom_option", {}).get("hot_warm_config", {}).get("is_enabled", False)
+        return allocation_min_days if hot_warm_enabled else 0
+
     def create_or_update_clean_config(self, is_update, params):
         if is_update:
             table_id = self.data.table_id
@@ -1833,20 +1897,27 @@ class CollectorHandler:
             if not result_table:
                 raise ResultTableNotExistException(ResultTableNotExistException.MESSAGE.format(table_id))
 
+            current_storage_cluster_id = result_table["cluster_config"]["cluster_id"]
+            target_storage_cluster_id = params.get("storage_cluster_id", current_storage_cluster_id)
+            allocation_min_days = params.get("allocation_min_days", 0)
+            if "allocation_min_days" not in params and target_storage_cluster_id == current_storage_cluster_id:
+                allocation_min_days = self._get_current_allocation_min_days(result_table)
+
             default_etl_params = {
+                "table_id": table_id.split(".")[-1],
                 "es_shards": result_table["storage_config"].get("index_settings", {}).get("number_of_shards", 1),
                 "storage_replies": (
                     result_table["storage_config"].get("index_settings", {}).get("number_of_replicas", 0)
                 ),
                 "storage_cluster_id": result_table["cluster_config"]["cluster_id"],
                 "retention": get_storage_retention(result_table["storage_config"], default=0),
-                "allocation_min_days": params.get("allocation_min_days", 0),
+                "allocation_min_days": allocation_min_days,
                 "etl_config": self.data.etl_config,
             }
             default_etl_params.update(params)
             params = default_etl_params
 
-        params.setdefault("labels", self._build_scene_labels())
+        params.setdefault("labels", self.build_scene_labels())
 
         from apps.log_databus.handlers.etl import EtlHandler
 

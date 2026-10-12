@@ -1468,7 +1468,7 @@ def test_datalink_component_list_accepts_cluster_config_kind():
     assert response["data"]["items"][0]["bk_biz_id"] == 0
 
 
-def test_datalink_databus_serializer_includes_consumer_group():
+def test_datalink_databus_serializer_includes_source_fields():
     databus = SimpleNamespace(
         name="l_1575783",
         namespace="bklog",
@@ -1480,6 +1480,9 @@ def test_datalink_databus_serializer_includes_consumer_group():
         bk_tenant_id="default",
         data_id_name="l_1575783",
         bk_data_id=1575783,
+        source_kind="ResultTable",
+        source_name="l_1575783_intermediate",
+        role="shipper",
         sink_names=["ElasticSearchBinding:l_1575783"],
         consumer_group="bkmonitorv3_transfer0bkmonitor_15757830",
     )
@@ -1487,7 +1490,52 @@ def test_datalink_databus_serializer_includes_consumer_group():
     item = admin_datalink._serialize_component(databus, "Databus")
 
     assert item["kind"] == "Databus"
+    assert item["source_kind"] == "ResultTable"
+    assert item["source_name"] == "l_1575783_intermediate"
+    assert item["role"] == "shipper"
     assert item["consumer_group"] == "bkmonitorv3_transfer0bkmonitor_15757830"
+
+
+def test_datalink_channel_binding_serializer_and_detail_group_are_supported():
+    channel_binding = SimpleNamespace(
+        name="custom_format_vm_intermediate",
+        namespace="bkmonitor",
+        create_time=None,
+        last_modify_time=None,
+        status="Ok",
+        data_link_name="custom_format_vm",
+        bk_biz_id=2,
+        bk_tenant_id="system",
+        bkbase_result_table_name="custom_format_vm_intermediate",
+        channel_name="inner-kafka",
+    )
+
+    item = admin_datalink._serialize_component(channel_binding, "ChannelBinding")
+
+    assert item["kind"] == "ChannelBinding"
+    assert item["bkbase_result_table_name"] == "custom_format_vm_intermediate"
+    assert item["channel_name"] == "inner-kafka"
+    assert "ChannelBinding" in admin_datalink.DATALINK_DETAIL_KIND_ORDER
+
+    datalink = SimpleNamespace(
+        data_link_name="custom_format_vm",
+        bk_tenant_id="system",
+        namespace="bkmonitor",
+        data_link_strategy="custom_format_vm",
+        bk_data_id=1575783,
+        table_ids=["2_custom_format_vm.metric"],
+        create_time=None,
+        last_modify_time=None,
+    )
+    channel_binding_model = SimpleNamespace(objects=SimpleNamespace(filter=Mock(return_value=[channel_binding])))
+    with (
+        patch.object(admin_datalink.models.DataLink.objects, "get", return_value=datalink),
+        patch.object(admin_datalink, "DATALINK_DETAIL_KIND_ORDER", ["ChannelBinding"]),
+        patch.object(admin_datalink, "COMPONENT_CLASS_MAP", {"ChannelBinding": channel_binding_model}),
+    ):
+        response = admin_datalink.get_datalink_detail({"bk_tenant_id": "system", "data_link_name": "custom_format_vm"})
+
+    assert response["data"]["components"] == {"ChannelBinding": [item]}
 
 
 def test_datalink_component_detail_accepts_cluster_config_kind_with_component_config():
@@ -2363,6 +2411,40 @@ def test_bcs_cluster_bk_collector_config_detail_masks_platform_secret_by_default
     assert "include_sensitive" not in result["data"]
     assert "real-key" not in result["data"]["config"]
     assert "******" in result["data"]["config"]
+
+
+def test_bcs_cluster_bk_collector_config_inspection_supports_explicit_public_namespace(settings):
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["BCS-K8S-00001/public-1", "BCS-K8S-00001/public-2"]
+    cluster = SimpleNamespace(cluster_id="BCS-K8S-00001", api_client=object(), operator_ns="operator-ns")
+    core_client = Mock()
+    core_client.list_namespaced_secret.side_effect = _collector_secret_list_side_effect()
+    config_ref = admin_bcs_cluster._encode_bk_collector_config_ref("platform", "bk-collector-platform", "platform.conf")
+    params = {"bk_tenant_id": "system", "cluster_id": "BCS-K8S-00001", "namespace": "public-2"}
+    with (
+        patch.object(admin_bcs_cluster.models.BCSClusterInfo.objects, "get", return_value=cluster),
+        patch.object(admin_bcs_cluster.k8s_client, "CoreV1Api", return_value=core_client),
+    ):
+        listing = admin_bcs_cluster.list_bcs_cluster_bk_collector_configs(params)
+        detail = admin_bcs_cluster.get_bcs_cluster_bk_collector_config_detail({**params, "config_ref": config_ref})
+    assert set(listing["data"]["public_namespaces"]) == {"public-1", "public-2"}
+    assert listing["data"]["namespace"] == detail["data"]["namespace"] == "public-2"
+    assert {call.kwargs["namespace"] for call in core_client.list_namespaced_secret.call_args_list} == {"public-2"}
+    assert "real-key" not in detail["data"]["config"]
+
+
+def test_bcs_cluster_bk_collector_namespace_context_skips_invalid_public_targets(settings):
+    settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER = ["cluster-a/", "cluster-a/public"]
+    cluster = SimpleNamespace(cluster_id="cluster-a", operator_ns="operator-ns")
+    context = admin_bcs_cluster._get_bk_collector_namespace_context(cluster, namespace="public")
+    assert context["namespace"] == "public"
+    assert context["public_namespaces"] == ["public"]
+
+
+@pytest.mark.parametrize("namespace", ["", "*", "invalid/namespace"])
+def test_bcs_cluster_bk_collector_namespace_validation(namespace):
+    cluster = SimpleNamespace(cluster_id="cluster-a", operator_ns="operator-ns")
+    with pytest.raises(CustomException):
+        admin_bcs_cluster._get_bk_collector_namespace_context(cluster, namespace=namespace)
 
 
 def test_bcs_cluster_bk_collector_config_detail_can_show_platform_secret_and_keeps_report_token():

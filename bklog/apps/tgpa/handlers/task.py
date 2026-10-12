@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import os
+import re
 import shutil
 import uuid
 
@@ -44,6 +45,7 @@ from apps.tgpa.constants import (
 from apps.tgpa.handlers.base import TGPAFileHandler
 from apps.tgpa.handlers.decrypt import get_decrypt_handler
 from apps.tgpa.models import TGPATask
+from apps.utils.log import logger
 
 
 class TGPATaskHandler:
@@ -331,6 +333,49 @@ class TGPATaskHandler:
             bk_biz_id=self.bk_biz_id,
         )
         file_handler.download_and_process_file(self.task_info["file_name"])
+
+    @staticmethod
+    def _sanitize_download_file_name_part(value):
+        """将任务元数据转换为安全的文件名片段。"""
+        if value is None:
+            return ""
+        return re.sub(r'[\x00-\x1f\x7f<>:"/\\|?*]+', "_", str(value)).strip(" .")
+
+    @classmethod
+    def get_download_file_name(cls, bk_biz_id, file_name):
+        """为单用户日志捞取任务生成便于识别归属的下载文件名。"""
+        original_file_name = os.path.basename(file_name)
+        matched = re.fullmatch(r"ENQ_file_(\d+)\.zip", original_file_name)
+        if not matched:
+            return original_file_name
+
+        task_id = matched.group(1)
+        try:
+            task = cls.get_task_page(
+                {
+                    "bk_biz_id": bk_biz_id,
+                    "task_id": task_id,
+                    "pagesize": 1,
+                },
+                need_format=False,
+                add_process_info=False,
+            )["list"][0]
+            openid = cls._sanitize_download_file_name_part(task["openid"])
+            created_by = cls._sanitize_download_file_name_part(task["created_by"])
+            if not openid or not created_by:
+                return original_file_name
+
+            create_time = arrow.get(task["created_at"], tzinfo=settings.TIME_ZONE).strftime("%Y%m%d%H%M%S")
+            file_extension = os.path.splitext(original_file_name)[1]
+            return f"task_{openid}_{task_id}_{created_by}_{create_time}{file_extension}"
+        except Exception:
+            logger.warning(
+                "Failed to build TGPA download file name, bk_biz_id=%s, task_id=%s",
+                bk_biz_id,
+                task_id,
+                exc_info=True,
+            )
+        return original_file_name
 
     @staticmethod
     def stream_download_file(bk_biz_id, file_name):

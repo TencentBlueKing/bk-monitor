@@ -3,7 +3,8 @@
   position: relative;
 
   .t-table__content {
-    overflow: hidden;
+    /* 纵向交给详情页滚动（无限加载），横向走原生滚动条才能拖动 */
+    overflow: auto hidden;
 
     .t-table__row-full-element {
       padding: var(--td-comp-paddingTB-m) 0;
@@ -93,16 +94,6 @@
       padding: 4px 12px;
       vertical-align: top;
     }
-
-    &.t-table__custom-scroll .t-table--scroll-horizontal:hover::-webkit-scrollbar {
-      height: 7px !important;
-    }
-
-    &.t-table__custom-scroll .t-table--scroll-vertical:hover,
-    .t-table.t-table__custom-scroll .t-table--scroll-horizontal:hover {
-      height: 7px;
-    }
-    
   }
 
   [horizontalscrollaffixedbottom='true'] .t-affix + * {

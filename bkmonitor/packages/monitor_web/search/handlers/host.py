@@ -113,7 +113,7 @@ class HostSearchHandler(BaseSearchHandler):
                     title=f"{host.bk_cloud_id}:{host.ip}",
                     view="performance-detail",
                     view_args={"params": {"id": f"{host.ip}-{host.bk_cloud_id}"}},
-                    temp_share_url=f"{settings.BK_MONITOR_HOST}?bizId={host.bk_biz_id}/#/share/{enabled_token}"
+                    temp_share_url=f"{settings.BK_MONITOR_HOST}?bizId={host.bk_biz_id}#/share/{enabled_token}"
                     if enabled_token
                     else None,
                 )

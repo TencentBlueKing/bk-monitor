@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,49 +7,32 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-from apm_web.constants import InstanceDiscoverKeys
 
+from typing import Any
+
+from apm_web.constants import InstanceDiscoverKeys
+from apm_web.handlers.query import get_query
+from apm_web.models import Application
 from constants.apm import OtlpKey
-from core.drf_resource import api
 
 
 class InstanceHandler:
-
     BK_INSTANCE_ID_FIELD_NAME = OtlpKey.get_resource_key(OtlpKey.BK_INSTANCE_ID)
 
     @classmethod
-    def get_span_fields(cls, app):
-        """获取所有es字段"""
-        res = set()
-        response = api.apm_api.query_es_mapping(bk_biz_id=app.bk_biz_id, app_name=app.app_name)
-        for index_name, item in response.items():
+    def get_span_fields(cls, app: Application) -> list[dict[str, Any]]:
+        """获取所有 Resource 类型的 Span 字段。"""
 
-            item_properties = item.get("mappings", {}).get("properties", {})
-            if not item_properties:
-                # properties 可能位于不同结构中
-                item_properties = item.get("mappings", {}).get(app.trace_result_table_id, {}).get("properties", {})
+        fields_info = get_query(app.build_data_sources()).query_fields(None, None)
+        field_names: list[str] = [
+            field_name
+            for field_name, field_info in fields_info.items()
+            if field_info["origin_field"] == OtlpKey.RESOURCE
+            and field_info["is_searchable"]
+            and field_name != cls.BK_INSTANCE_ID_FIELD_NAME
+        ]
 
-            # 只获取resource字段
-            resource_properties = item_properties.get(OtlpKey.RESOURCE, {})
-            properties_fields = set()
-            cls._extract_properties(resource_properties, properties_fields, OtlpKey.RESOURCE)
-
-            res |= properties_fields
-
-        # 去除自身的实例字段
-        try:
-            res.remove(cls.BK_INSTANCE_ID_FIELD_NAME)
-        except KeyError:
-            pass
-
-        return [{"id": i, "name": i, "alias": InstanceDiscoverKeys.get_label_by_key(i)} for i in res]
-
-    @classmethod
-    def _extract_properties(cls, properties, res, prefix):
-        if "properties" not in properties:
-            return prefix
-
-        for p_prefix, p_properties in properties["properties"].items():
-            r = cls._extract_properties(p_properties, res, ".".join([prefix, p_prefix]))
-            if r:
-                res.add(r)
+        return [
+            {"id": field_name, "name": field_name, "alias": InstanceDiscoverKeys.get_label_by_key(field_name)}
+            for field_name in field_names
+        ]

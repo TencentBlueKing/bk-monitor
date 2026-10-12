@@ -33,8 +33,8 @@ from iam.contrib.iam_migration.migrator import IAMMigrator
 from apps.api import IAMApi
 from apps.api import TransferApi
 from apps.iam import ActionEnum, Permission, ResourceEnum
+from apps.iam.backends.v3.client import CompatibleIAM
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
-from apps.iam.handlers.compatible import CompatibleIAM
 from apps.log_databus.constants import STORAGE_CLUSTER_TYPE
 from apps.log_databus.models import CollectorConfig
 from apps.log_search.models import GlobalConfig, LogIndexSet, Space

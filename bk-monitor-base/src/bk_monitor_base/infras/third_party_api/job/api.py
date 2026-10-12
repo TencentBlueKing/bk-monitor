@@ -49,7 +49,7 @@ class FastExecuteScriptParams(TypedDict):
         script_content: 脚本内容
         timeout: 超时时间，单位秒 (默认7200秒)
         script_language: 脚本语言：1 - shell, 2 - bat, 3 - perl, 4 - python, 5 - powershell。当使用script_content传入自定义脚本的时候，需要指定script_language
-        target_server: 目标服务器信息, 例如 {"ip_list":[{"ip":"10.10.28.10","bk_cloud_id":0}]}, 具体参见作业平台文档
+        target_server: 目标服务器信息, 例如 {"ip_list":[{"ip":"127.0.0.1","bk_cloud_id":0}]}, 具体参见作业平台文档
         account_alias: 目标账号别名, 例如 "root"、"administrator"
         task_name: 任务名称, 非必填
     """
@@ -86,7 +86,7 @@ class FastTransferFileParams(TypedDict):
         bk_biz_id: 业务ID
         file_source_list: 源文件对象数组，例如 [{"file_list":["bucket名称/test.txt"],"file_type":3,"file_source_id":1}] ，具体参见作业平台文档
         file_target_path: 目标路径
-        target_server: 目标服务器信息, 例如 {"ip_list":[{"ip":"10.10.28.10","bk_cloud_id":0}]}, 具体参见作业平台文档
+        target_server: 目标服务器信息, 例如 {"ip_list":[{"ip":"127.0.0.1","bk_cloud_id":0}]}, 具体参见作业平台文档
         account_alias: 目标账号别名, 例如 "root"、"administrator"
         timeout: 超时时间，单位秒 (默认7200秒)
         transfer_mode: 传输模式。1-严谨模式，2-强制模式。默认使用强制模式

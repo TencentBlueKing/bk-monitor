@@ -71,6 +71,7 @@ export default {
   获取通知设置失败: 'Get notification settings failed',
   获取更多数据失败: 'Get more data failed',
   获取监控目标失败: 'Failed to get monitoring targets',
+  获取策略告警数量失败: 'Failed to get strategy alert counts',
   屏蔽详情获取失败: 'Get muted details failed',
   获取节点拓扑树失败: 'Get node topology tree failed',
   数据对象分类请求失败: 'Data object classification request failed',
@@ -475,6 +476,7 @@ export default {
   确定回收所选分享链接: 'Recycle these sharing links ?',
   确定回收当前分享链接: 'Recycle the sharing link ?',
   '是否还原默认配置？': 'Do you want to restore the default configuration?',
+  当前已是默认配置: 'The current configuration is already the default',
   发送测试邮件成功: 'Sent test Email successful',
   索引集非COUNT汇聚方法需要选择一个指标: 'The index set non-COUNT aggregation method needs to select a metric',
   '是否克隆 {0} ?': 'Do you want to clone {0}?',
@@ -565,6 +567,9 @@ export default {
   评论发送失败: 'Comment sending failed',
 
   '已拆分为独立 Issue': 'Split into independent Issue',
+  '已拆分为 {n} 个独立 Issue': 'Split into {n} independent Issues',
+  '成功拆分 {success} 个，失败 {failed} 个': '{success} split successfully, {failed} failed',
+  '拆分失败，请稍后重试': 'Split failed, please try again later',
   issue合并成功: 'Issue merged successfully',
   取消授权成功: 'Authorization cancelled successfully',
 };

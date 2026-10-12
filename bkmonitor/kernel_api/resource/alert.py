@@ -19,8 +19,9 @@ from rest_framework.exceptions import ValidationError
 
 from bkmonitor.documents import AlertDocument
 from bkmonitor.models import ActionConfig, DutyRule, Shield, StrategyModel, UserGroup
-from bkmonitor.strategy.new_strategy import Strategy, get_metric_id
+from bkmonitor.strategy.new_strategy import IssueConfig, Strategy, get_metric_id
 from constants.action import MAX_ACTION_EXECUTE_TIMEOUT
+from constants.shield import ShieldEndPolicy
 from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, resource
 from fta_web.alert.resources import AlertTopNResource as FtaAlertTopNResource
@@ -123,6 +124,19 @@ def get_strategy_config_version(config: dict[str, Any]) -> str:
         default=str,
     )
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+def _validate_strategy_before_write(request_data: dict[str, Any]) -> None:
+    """在调用原保存 Resource 前完成可能晚于主体写入的跨模型校验。"""
+    issue_config = request_data.get("issue_config")
+    if not isinstance(issue_config, dict):
+        return
+
+    # 原策略保存流程在主体和子配置写入后才校验 issue_config；BackendRouter 场景下事务库
+    # 可能与模型写库不一致。Unified 先做同一业务校验，避免返回失败时策略已被部分修改。
+    strategy = Strategy(**request_data)
+    strategy.convert()
+    IssueConfig(**issue_config).validate(strategy)
 
 
 def ensure_strategy_relations_belong_to_biz(bk_biz_id: int, request_data: dict[str, Any]) -> None:
@@ -609,7 +623,7 @@ class CreateAlarmStrategyResource(Resource):
             label="处理套餐ID列表",
         )
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data, *, audit_operator=None):
         request_data = remove_confirm(validated_request_data)
         if request_data.get("id"):
             raise ValidationError({"id": "create_alarm_strategy 不允许传入策略 ID"})
@@ -619,6 +633,10 @@ class CreateAlarmStrategyResource(Resource):
             request_data = build_strategy_from_simplified_request(request_data)
         request_data.setdefault("actions", [])
         ensure_strategy_relations_belong_to_biz(request_data["bk_biz_id"], request_data)
+        if audit_operator is not None:
+            save_resource = resource.strategies.save_strategy_v2
+            validated_data = save_resource.validate_request_data(request_data)
+            return save_resource.perform_request(validated_data, audit_operator=audit_operator)
         return resource.strategies.save_strategy_v2.request(**request_data)
 
 
@@ -673,7 +691,14 @@ class UpdateAlarmStrategyResource(Resource):
         config_version = serializers.CharField(required=True, label="策略并发版本")
 
     def perform_request(self, validated_request_data):
-        request_data = remove_confirm(validated_request_data)
+        return self._update_config(remove_confirm(validated_request_data))
+
+    def _update_config(self, request_data, *, prepare_config=None, audit_operator=None):
+        """Load once, check the version, then prepare and save the complete configuration.
+
+        prepare_config is an internal callback, never a request parameter. It edits a
+        copy so metric normalization still receives the unmodified current snapshot.
+        """
         # 并发控制只用 config_version 乐观锁，不用 select_for_update。
         # kernel_api 启用 BackendRouter 后 StrategyModel 常落在 monitor_api 库，
         # 而 transaction.atomic() 默认作用 default 库；二者不一致时会触发
@@ -690,8 +715,27 @@ class UpdateAlarmStrategyResource(Resource):
         current_config = current_strategy_obj.to_dict(convert_dashboard=False)
         if request_data["config_version"] != get_strategy_config_version(current_config):
             raise ValidationError({"config_version": "策略已被其他操作更新，请重新调用 get_alarm_strategy 后再修改"})
+        if prepare_config is not None:
+            prepared_config = deepcopy(current_config)
+            prepare_config(prepared_config)
+            prepared_config.update(
+                bk_biz_id=request_data["bk_biz_id"],
+                id=request_data["id"],
+                config_version=request_data["config_version"],
+                confirm=True,
+            )
+            serializer = self.RequestSerializer(data=prepared_config)
+            serializer.is_valid(raise_exception=True)
+            request_data = remove_confirm(serializer.validated_data)
         normalize_strategy_metric_ids(request_data, current_config)
         ensure_strategy_relations_belong_to_biz(request_data["bk_biz_id"], request_data)
+        _validate_strategy_before_write(request_data)
+        if audit_operator is not None:
+            # Internal audit attribution only; never accept it from the public serializer
+            # or replace the authenticated request user used by permission checks.
+            save_resource = resource.strategies.save_strategy_v2
+            validated_data = save_resource.validate_request_data(request_data)
+            return save_resource.perform_request(validated_data, audit_operator=audit_operator)
         return resource.strategies.save_strategy_v2.request(**request_data)
 
 
@@ -733,6 +777,9 @@ class CreateAlarmShieldResource(Resource):
     """创建告警屏蔽（用于 AI MCP 请求）。"""
 
     class RequestSerializer(ConfirmedBusinessScopedSerializer):
+        end_policy = serializers.ChoiceField(
+            choices=ShieldEndPolicy.CHOICES, default=ShieldEndPolicy.NOTIFY_ONCE, label="屏蔽结束处理方式"
+        )
         category = serializers.ChoiceField(
             required=True,
             choices=["scope", "strategy", "alert", "dimension"],
@@ -842,6 +889,7 @@ class UpdateAlarmShieldResource(Resource):
     """编辑告警屏蔽（用于 AI MCP 请求）。"""
 
     class RequestSerializer(ConfirmedBusinessScopedSerializer):
+        end_policy = serializers.ChoiceField(choices=ShieldEndPolicy.CHOICES, required=False, label="屏蔽结束处理方式")
         id = serializers.IntegerField(required=True, label="屏蔽ID")
         begin_time = serializers.CharField(required=True, label="屏蔽开始时间")
         end_time = serializers.CharField(required=True, label="屏蔽结束时间")
@@ -888,6 +936,11 @@ class DisableAlarmShieldResource(Resource):
         return resource.shield.disable_shield.request(**request_data)
 
 
+class NoticeGroupReceiverSerializer(serializers.Serializer):
+    id = serializers.CharField(required=True, label="通知对象ID")
+    type = serializers.ChoiceField(required=True, choices=["user", "group"], label="通知对象类别")
+
+
 class SearchNoticeGroupsResource(Resource):
     """查询业务下的告警组（用于 AI MCP 请求）。"""
 
@@ -911,6 +964,59 @@ class SearchNoticeGroupsResource(Resource):
             if detail and detail["bk_biz_id"] == bk_biz_id:
                 details.append(detail)
         return details
+
+
+class CreateNoticeGroupResource(Resource):
+    """创建告警组（用于 AI MCP 请求）。"""
+
+    class RequestSerializer(ConfirmedBusinessScopedSerializer):
+        name = serializers.CharField(required=True, label="告警组名称")
+        receivers = serializers.ListField(
+            required=False,
+            allow_empty=False,
+            child=NoticeGroupReceiverSerializer(),
+            label="通知接收人",
+        )
+
+    def perform_request(self, validated_request_data):
+        from constants.alert import PUBLIC_NOTICE_CONFIG
+        from kernel_api.views.v4.notice_group import SaveUserGroupResource
+
+        request_data = remove_confirm(validated_request_data)
+        if request_data.get("id"):
+            raise ValidationError({"id": "create_alarm_notice_group 不允许传入告警组 ID"})
+
+        bk_biz_id = request_data["bk_biz_id"]
+        if UserGroup.objects.filter(bk_biz_id=bk_biz_id, name=request_data["name"]).exists():
+            raise ValidationError({"name": f"业务 {bk_biz_id} 下已存在同名告警组: {request_data['name']}"})
+
+        request_data.setdefault("desc", "")
+        request_data.setdefault("need_duty", False)
+        request_data.setdefault("timezone", "Asia/Shanghai")
+        request_data.setdefault("alert_notice", PUBLIC_NOTICE_CONFIG["alert_notice"])
+        request_data.setdefault("action_notice", PUBLIC_NOTICE_CONFIG["action_notice"])
+        request_data.pop("mention_type", None)
+
+        receivers = request_data.pop("receivers", None)
+        if receivers:
+            if request_data.get("duty_arranges"):
+                raise ValidationError({"receivers": "receivers 与 duty_arranges 只能提供一个"})
+            request_data["duty_arranges"] = [{"users": receivers}]
+        request_data.setdefault("duty_arranges", [])
+
+        duty_rules = serializers.ListField(
+            child=serializers.IntegerField(),
+            allow_empty=True,
+        ).run_validation(request_data.get("duty_rules") or [])
+        ensure_duty_rules_belong_to_biz(bk_biz_id, duty_rules)
+        request_data["duty_rules"] = duty_rules
+
+        if request_data.get("need_duty") and not duty_rules:
+            raise ValidationError({"duty_rules": "need_duty=true 时必须提供轮值规则"})
+        if not request_data.get("need_duty") and not request_data.get("duty_arranges"):
+            raise ValidationError({"receivers": "创建告警组必须提供 receivers 或 duty_arranges"})
+
+        return SaveUserGroupResource().request(**request_data)
 
 
 class UpdateNoticeGroupResource(Resource):

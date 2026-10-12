@@ -1748,6 +1748,8 @@ class HostCollectorHandler(CollectorHandler):
 
     def list_collectors_by_host(self, params):
         bk_biz_id = params.get("bk_biz_id")
+        no_request = bool(params.get("no_request"))
+        bk_tenant_id = params.get("bk_tenant_id")
 
         # 这个接口按**主机**反查采集项，不针对某一个采集项 —— 视图里是 HostCollectorHandler()
         # 无参构造，self.data 为 None，所以这里不能用 self.use_nodeman_v3 分流：那样会在灰度期
@@ -1762,7 +1764,12 @@ class HostCollectorHandler(CollectorHandler):
             # 可能压根不存在，无条件调用会让整个接口 5xx，也会破坏 V2 零出网门禁
             node_result = []
             try:
-                node_result = NodeApi.query_host_subscriptions({**params, "source_type": "subscription"})
+                req = {**params, "source_type": "subscription"}
+                if no_request:
+                    req["no_request"] = True
+                    if bk_tenant_id:
+                        req["bk_tenant_id"] = bk_tenant_id
+                node_result = NodeApi.query_host_subscriptions(req)
             except ApiRequestError as error:
                 # 刻意保持 V2 原有的吞异常语义。这里改成抛出更合理，但那会把存量环境上
                 # 一个原本降级成空列表的请求变成 5xx —— 不在本单的改动范围内
@@ -1801,7 +1808,9 @@ class HostCollectorHandler(CollectorHandler):
         collect_status = {
             status["collector_id"]: status
             for status in self.get_subscription_status_by_list(
-                [collector["collector_config_id"] for collector in collectors]
+                [collector["collector_config_id"] for collector in collectors],
+                no_request=no_request,
+                bk_tenant_id=bk_tenant_id,
             )
         }
 

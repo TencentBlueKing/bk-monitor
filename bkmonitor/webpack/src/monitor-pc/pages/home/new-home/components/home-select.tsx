@@ -357,6 +357,7 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
               <span class='app-name'>{item.app_name ? `（${item.app_name}）` : ''}</span>
             </span>
           )}
+          {type === ESearchType.apm_service && <span class='ip-sub'>（{item.app_name}）</span>}
           {isHost && <span class='ip-sub'>（{item.bk_host_name}）</span>}
           {isBcsCluster && <span class='ip-sub'>（{item.bcs_cluster_id}）</span>}
           {isHost && item.compare_hosts.length > 0 && (
@@ -770,6 +771,14 @@ export default class HomeSelect extends tsc<IHomeSelectProps, IHomeSelectEvent> 
       apm_application: {
         name: 'apm-home',
         query: { app_name: item.app_name },
+      },
+      /** APM服务 */
+      apm_service: {
+        path: '/apm/service',
+        query: {
+          'filter-app_name': item.app_name,
+          'filter-service_name': item.service_name,
+        },
       },
       /** 主机 */
       host: {

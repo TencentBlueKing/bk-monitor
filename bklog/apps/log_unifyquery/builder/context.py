@@ -199,7 +199,8 @@ class CreateSearchContextBodyScenarioLog:
 
         if bk_host_id:
             and_conditions.append({"field_name": "bk_host_id", "op": "eq", "value": [str(bk_host_id)]})
-        and_conditions.append({"field_name": "serverIp", "op": "eq", "value": [str(server_ip)]})
+        if server_ip:
+            and_conditions.append({"field_name": "serverIp", "op": "eq", "value": [str(server_ip)]})
 
         if path:
             and_conditions.append({"field_name": "path", "op": "eq", "value": [str(path)]})

@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from bkm_ipchooser.api import AbstractBkApi
 from bkmonitor.commons.tools import batch_request
-from bkmonitor.nodeman_integration.backend import node_man_backend
+from bkmonitor.utils.nodeman import host_queries
 
 from . import client
 
@@ -50,11 +50,7 @@ class IpChooserApi(AbstractBkApi):
 
     @staticmethod
     def get_agent_status(params: dict = None):
-        if node_man_backend.is_v3:
-            return node_man_backend.v3.ipchooser_host_detail(params or {})
-        from core.drf_resource import api
-
-        return api.node_man.ipchooser_host_detail(params)
+        return host_queries.details(params)
 
     @staticmethod
     def list_service_template(params: dict = None):

@@ -28,13 +28,6 @@ def pytest_configure() -> None:
 
     django_setup()
 
-    # Base is now loaded inside bk-monitor and NodeMan mode is owned by the
-    # main project settings.  Standalone Base unit tests exercise the legacy
-    # path unless a main-project test explicitly selects V3.
-    from django.conf import settings
-
-    settings.NODEMAN_INTEGRATION_MODE = "v2"
-
 
 @pytest.fixture(autouse=True)
 def enable_db_access_for_all_tests(db):

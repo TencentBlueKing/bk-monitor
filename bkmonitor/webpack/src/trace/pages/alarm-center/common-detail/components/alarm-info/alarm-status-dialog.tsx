@@ -24,16 +24,17 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, reactive, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, onScopeDispose, reactive, shallowRef, watch } from 'vue';
 
 import { type TdPrimaryTableProps, PrimaryTable } from '@blueking/tdesign-ui';
-import { Dialog, Loading, Select } from 'bkui-vue';
+import { Dialog, Select } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { random } from 'lodash';
 import { subActionDetail } from 'monitor-api/modules/alert_v2';
 import { getNoticeWay } from 'monitor-api/modules/notice_group';
 import { useI18n } from 'vue-i18n';
 
+import { DetailLoadStatus, DetailTableSkeleton } from '../../detail-loading';
 import NoticeStatusTable from './notice-status-table';
 
 import type { ActionTableItem } from '../../../typings';
@@ -78,6 +79,9 @@ export default defineComponent({
       statusTip: '',
     });
     const loading = shallowRef(false);
+    const error = shallowRef(false);
+    let requestId = 0;
+    onScopeDispose(() => { ++requestId; });
     const checkedCount = shallowRef<number | string>(''); // 当前选中的
     const isNotice = shallowRef(false);
     const noticeData = reactive({
@@ -108,21 +112,13 @@ export default defineComponent({
       ];
     });
 
-    watch(
-      () => props.actions,
-      val => {
-        // 获取处理记录列表（用于缓存数据）
-        if (val.length) {
-          checkedCount.value = val[val.length - 1].id;
-          localActions.value = structuredClone(val);
-          getCurHandleData();
-        }
-      }
-    );
-
     const handleSelected = id => {
+      ++requestId;
+      loading.value = false;
+      error.value = false;
+      checkedCount.value = id;
       const temp = localActions.value.find(item => item.id === id);
-      if (temp.action_plugin_type === NOTICE) {
+      if (temp?.action_plugin_type === NOTICE) {
         // 如果是通知数据需显示通知状态明细（流转记录的查看明细）
         getNoticeStatusData(id);
         return;
@@ -133,19 +129,27 @@ export default defineComponent({
 
     // 获取通知状态明细
     const getNoticeStatusData = async actionId => {
+      const current = ++requestId;
+      isNotice.value = true;
+      error.value = false;
+      noticeData.hasColumns = [];
+      try {
       loading.value = true;
       if (!noticeData.tableColumns.length) {
-        noticeData.tableColumns = await getNoticeWay({ bk_biz_id: props.alarmBizId })
+        const columns = await getNoticeWay({ bk_biz_id: props.alarmBizId })
           .then(res =>
             res.map(item => ({
               label: item.label,
               prop: item.type,
             }))
           )
-          .catch(() => []);
+          ;
+        if (current !== requestId) return;
+        noticeData.tableColumns = columns;
       }
       await subActionDetail({ parent_action_id: actionId, bk_biz_id: props.alarmBizId })
         .then(data => {
+          if (current !== requestId) return;
           noticeData.tableData = Object.keys(data || {}).map(key => {
             const temp: any = { target: key, _id: random(3) };
             for (const subKey of Object.keys(data[key] || {})) {
@@ -161,10 +165,12 @@ export default defineComponent({
             return temp;
           });
         })
-        .finally(() => {
-          loading.value = false;
-        });
-      isNotice.value = true;
+        ;
+      } catch {
+        if (current === requestId) error.value = true;
+      } finally {
+        if (current === requestId) loading.value = false;
+      }
     };
 
     const getCurHandleData = () => {
@@ -175,7 +181,7 @@ export default defineComponent({
       curHandleData.check = temp?.status; // 执行状态   operate_target_string
       curHandleData.operateTargetString = temp?.operate_target_string; // 执行对象
       curHandleData.statusTip = temp?.status_tips || '';
-      if (temp.action_plugin_type === NOTICE) {
+      if (temp?.action_plugin_type === NOTICE) {
         getNoticeStatusData(temp.id);
       } else {
         isNotice.value = false;
@@ -241,7 +247,20 @@ export default defineComponent({
       emit('update:show', val);
     };
 
+    watch(() => [props.show, props.actions, props.alarmBizId], () => {
+      ++requestId;
+      loading.value = false;
+      if (!props.show) return;
+      localActions.value = structuredClone(props.actions);
+      noticeData.tableColumns = [];
+      if (localActions.value.length) {
+        handleSelected(localActions.value[localActions.value.length - 1].id);
+      }
+    }, { immediate: true });
+
     return {
+      error, retry: () => handleSelected(checkedCount.value),
+      tableColumns,
       localActions,
       curHandleData,
       loading,
@@ -265,7 +284,7 @@ export default defineComponent({
         title={this.$t('告警状态详情')}
         onUpdate:isShow={this.handleShowChange}
       >
-        <Loading loading={this.loading}>
+        <div>
           <div class='handle-status-content'>
             <div class='handle-row'>
               <div class='handel-label'>{this.$t('处理次数')}</div>
@@ -280,7 +299,7 @@ export default defineComponent({
               />
             </div>
             <div class='handle-label mb16'>{this.$t('处理明细')}</div>
-            {this.isNotice ? (
+            {this.loading ? <DetailTableSkeleton columns={this.noticeData.tableColumns.length ? [{ colKey: 'target', title: this.$t('通知方式') }, ...this.noticeData.tableColumns.map(item => ({ colKey: item.prop, title: item.label }))] : this.tableColumns} /> : this.error ? <DetailLoadStatus error onRetry={this.retry} /> : this.isNotice ? (
               <NoticeStatusTable
                 hasColumns={this.noticeData.hasColumns}
                 tableColumns={this.noticeData.tableColumns}
@@ -290,7 +309,7 @@ export default defineComponent({
               this.getTableComponent()
             )}
           </div>
-        </Loading>
+        </div>
       </Dialog>
     );
   },

@@ -158,6 +158,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   @ProvideReactive('strategyId') strategyId = 0;
   /** 当前编辑的策略是否存在智能异常检测算法 */
   @ProvideReactive('editStrategyIntelligentDetectList') editStrategyIntelligentDetectList: string[] = [];
+  queryOutputConfig: Record<string, unknown> | undefined = undefined;
 
   @Ref('judgingCondition') readonly judgingConditionEl: InstanceType<typeof JudgingCondition>;
   @Ref('base-config') readonly baseConfigEl: InstanceType<typeof BaseConfig>;
@@ -315,6 +316,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   sourceData: ISourceData = {
     /* promql */
     sourceCode: '',
+    legacyMultiQuery: false,
+    queryConfigs: [{ alias: 'a', promql: '' }],
     /* agg_interval */
     step: 60,
     sourceCodeCache: '',
@@ -490,6 +493,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     return this.metricData.filter(item => !!item.metric_id);
   }
 
+  get sourceQueries() {
+    return this.sourceData.queryConfigs?.length
+      ? this.sourceData.queryConfigs
+      : [{ alias: 'a', promql: this.sourceData.sourceCode }];
+  }
+
   /* 提交按钮禁用状态 */
   get submitBtnDisabled() {
     if (this.isMultivariateAnomalyDetection) {
@@ -500,7 +509,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     }
     return this.monitorDataEditMode === 'Edit'
       ? this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading
-      : !this.sourceData.sourceCode;
+      : !this.sourceData.legacyMultiQuery && this.sourceQueries.some(item => !item.promql.trim());
   }
   /* 提交按钮禁用提示状态 */
   get submitBtnTipDisabled() {
@@ -512,7 +521,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     }
     return this.monitorDataEditMode === 'Edit'
       ? !(this.metricData?.filter(item => item.metric_id).length < 1 || this.monitorDataLoading)
-      : this.sourceData.sourceCode;
+      : this.sourceData.legacyMultiQuery || !this.sourceQueries.some(item => !item.promql.trim());
   }
 
   /** 策略监控目标 */
@@ -658,11 +667,31 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         if (metric.mode === 'code' || metric.data?.[0]?.promql || metric.query_configs?.[0].promql) {
           await this.$nextTick();
           const promql = metric.data?.[0]?.promql || metric.query_configs?.[0].promql || '';
-          const step = metric.data?.[0]?.step || metric.query_configs?.[0].interval || 60;
+          const step =
+            metric.data?.[0]?.step ||
+            metric.query_configs?.[0].agg_interval ||
+            metric.query_configs?.[0].interval ||
+            60;
           this.monitorDataEditMode = 'Source';
           this.sourceData.sourceCode = promql;
+          this.sourceData.queryConfigs = (metric.query_configs?.length ? metric.query_configs : metric.data || []).map(
+            (item, index) => ({
+              alias: item.alias || LETTERS[index],
+              promql: item.promql || '',
+            })
+          );
+          const sourceQueryConfigs = metric.query_configs?.length ? metric.query_configs : metric.data || [];
+          this.sourceData.legacyMultiQuery =
+            sourceQueryConfigs.length > 1 && !sourceQueryConfigs.every(item => item.expression_mode === 'promql');
+          if (this.sourceData.legacyMultiQuery) {
+            this.sourceData.legacyQueryConfigs = deepClone(sourceQueryConfigs);
+            this.sourceData.legacyExpression = metric.expression;
+            this.sourceData.legacyOriginSql = metric.origin_sql ?? promql;
+          }
           this.sourceData.sourceCodeCache = promql;
           this.sourceData.step = step;
+          this.expression = metric.expression || this.sourceData.queryConfigs[0]?.alias || 'a';
+          this.localExpress = this.expression;
           return;
         }
       } catch (e) {
@@ -843,6 +872,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
   // 重置数据
   handleSetDefaultData() {
+    this.queryOutputConfig = undefined;
     this.baseConfig = {
       bk_biz_id: this.bizId,
       scenario: 'os',
@@ -958,6 +988,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     // 指标数据
     this.metricData = [];
     this.sourceData.sourceCode = '';
+    this.sourceData.legacyMultiQuery = false;
+    this.sourceData.legacyQueryConfigs = undefined;
+    this.sourceData.legacyExpression = undefined;
+    this.sourceData.legacyOriginSql = undefined;
+    this.sourceData.queryConfigs = [{ alias: 'a', promql: '' }];
     this.expression = '';
     this.localExpress = '';
     this.target = [];
@@ -1221,12 +1256,15 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           query_configs: queryConfigs,
           algorithms,
           functions,
+          query_output_config: queryOutputConfig,
         },
       ],
       metric_type,
       // actions: [{ notice_template: template = noticeTemplate }]
     } = data;
-    this.expression = (expression || '').toLocaleLowerCase();
+    this.queryOutputConfig = queryOutputConfig ?? undefined;
+    this.expression =
+      queryConfigs?.[0]?.data_source_label === PROMETHEUS ? expression || 'a' : (expression || '').toLocaleLowerCase();
     this.localExpress = this.expression;
     this.localExpFunctions = functions || [];
     this.sourceData.sourceCode = sourceCode || '';
@@ -1261,6 +1299,17 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         this.monitorDataEditMode = 'Source';
         this.sourceData.sourceCode = promqlItem.promql;
         this.sourceData.step = promqlItem.agg_interval;
+        this.sourceData.queryConfigs = queryConfigs.map((item, index) => ({
+          alias: item.alias || LETTERS[index],
+          promql: item.promql || '',
+        }));
+        this.sourceData.legacyMultiQuery =
+          queryConfigs.length > 1 && !queryConfigs.every(item => item.expression_mode === 'promql');
+        if (this.sourceData.legacyMultiQuery) {
+          this.sourceData.legacyQueryConfigs = deepClone(queryConfigs);
+          this.sourceData.legacyExpression = expression;
+          this.sourceData.legacyOriginSql = sourceCode;
+        }
       }
       const { metric_list: metricList = [] } = await getMetricListV2({
         bk_biz_id: bizId,
@@ -1753,8 +1802,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       });
       return false;
     }
-    if (this.monitorDataEditMode === 'Source') {
-      if (!this.sourceData.sourceCode) {
+    if (this.monitorDataEditMode === 'Source' && !this.sourceData.legacyMultiQuery) {
+      if (this.sourceQueries.some(item => !item.promql.trim())) {
         this.$bkMessage({
           message: this.$t('promql不能为空'),
           theme: 'error',
@@ -1765,6 +1814,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       if ((Number(this.sourceData.step) || 0) <= 0) {
         this.$bkMessage({
           message: this.$t('Step需填写合法的整数值'),
+          theme: 'error',
+          delay: 3000,
+        });
+        validate = false;
+      }
+      if (this.sourceQueries.length > 1 && !this.expression.trim()) {
+        this.$bkMessage({
+          message: this.$t('请填写计算表达式'),
           theme: 'error',
           delay: 3000,
         });
@@ -1840,6 +1897,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (validate) {
       const { noDataConfig } = this.analyzingConditions;
       const itemsParams = [];
+      const queryOutputConfig = this.queryOutputConfig === undefined ? undefined : deepClone(this.queryOutputConfig);
       /* 无数据配置 */
       const noDataConfigParams = {
         // 监控项名称
@@ -1860,6 +1918,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
           origin_sql: '',
           query_configs: curMetricData.sceneConfig.query_configs,
           algorithms: curMetricData.sceneConfig.algorithms,
+          query_output_config: queryOutputConfig,
         });
       } else {
         itemsParams.push({
@@ -1875,14 +1934,20 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             level: noDataConfig.level, // 无数据告警级别
           },
           target: this.handleGetTargetParams(), // 监控目标
-          expression: this.expression?.toLocaleLowerCase?.() || LETTERS.at(0), // 表达式
+          expression:
+            this.monitorDataEditMode === 'Source'
+              ? this.sourceData.legacyMultiQuery
+                ? this.sourceData.legacyExpression
+                : this.expression || this.sourceQueries[0].alias
+              : this.expression?.toLocaleLowerCase?.() || LETTERS.at(0), // 表达式
           functions: this.localExpFunctions, // 表达式函数
-          origin_sql: this.sourceData.sourceCode, // source
+          origin_sql: this.sourceData.legacyMultiQuery ? this.sourceData.legacyOriginSql : this.sourceData.sourceCode, // source
           // 指标信息
           query_configs:
             this.monitorDataEditMode === 'Source' ? this.handlePromsqlQueryConfig() : this.handleQueryConfig(),
           // 检测算法
           algorithms: this.getAlgorithmList(this.metricData[0]),
+          query_output_config: queryOutputConfig,
         });
       }
       // 当 input 手动清空时 priority 为 空串，不符合后端的类型，这里做一次调整或转换。
@@ -2031,15 +2096,15 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
 
   /* promsql模式下query_config提交参数 */
   handlePromsqlQueryConfig() {
-    return [
-      {
-        data_source_label: PROMETHEUS,
-        data_type_label: 'time_series',
-        promql: this.sourceData.sourceCode,
-        agg_interval: this.sourceData.step,
-        alias: 'a',
-      },
-    ];
+    if (this.sourceData.legacyMultiQuery) return deepClone(this.sourceData.legacyQueryConfigs);
+    return this.sourceQueries.map(item => ({
+      data_source_label: PROMETHEUS,
+      data_type_label: 'time_series',
+      promql: item.promql,
+      agg_interval: this.sourceData.step,
+      alias: item.alias,
+      ...(this.sourceQueries.length > 1 ? { expression_mode: 'promql' } : {}),
+    }));
   }
 
   /**
@@ -2225,13 +2290,29 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     this.localExpFunctions = functions;
   }
   handleSourceChange(v: string) {
+    if (this.sourceData.legacyMultiQuery) return;
     this.sourceData.sourceCode = v;
+    this.sourceData.queryConfigs = this.sourceQueries.map((item, index) =>
+      index === 0 ? { ...item, promql: v } : item
+    );
+  }
+  handleSourceQueriesChange(queries: { alias: string; promql: string }[]) {
+    if (this.sourceData.legacyMultiQuery) return;
+    this.sourceData.queryConfigs = queries;
+    this.sourceData.sourceCode = queries[0]?.promql || '';
+  }
+  handleSourceExpressionChange(value: string) {
+    if (this.sourceData.legacyMultiQuery) return;
+    this.expression = value;
+    this.localExpress = value;
   }
   handleSourceStepChange(v: number | string) {
+    if (this.sourceData.legacyMultiQuery) return;
     this.sourceData.step = v;
   }
   // 清空指标
   handleClearMetric() {
+    if (this.sourceData.legacyMultiQuery) return;
     this.metricData = [];
     this.target = [];
     this.detectionConfig.data = [];
@@ -2242,6 +2323,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       ...this.sourceData,
       step: 60,
       sourceCode: '',
+      legacyMultiQuery: false,
+      legacyQueryConfigs: undefined,
+      legacyExpression: undefined,
+      legacyOriginSql: undefined,
+      queryConfigs: [{ alias: 'a', promql: '' }],
       errorMsg: '',
       promqlError: false,
       sourceCodeCache: '',
@@ -2378,6 +2464,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    * @param {string} sql
    */
   async handlePromsqlToQueryConfig(type?: IDataRetrieval.promEventType) {
+    if (this.sourceQueries.length > 1) return;
     if (
       !this.sourceData.sourceCode ||
       (this.sourceData.sourceCodeCache === this.sourceData.sourceCode && type === 'blur')
@@ -2477,7 +2564,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       });
     if (!res) return false;
     this.sourceData.sourceCode = res.promql;
+    this.sourceData.legacyMultiQuery = false;
+    this.sourceData.legacyQueryConfigs = undefined;
+    this.sourceData.legacyExpression = undefined;
+    this.sourceData.legacyOriginSql = undefined;
+    this.sourceData.queryConfigs = [{ alias: 'a', promql: res.promql }];
     this.sourceData.sourceCodeCache = res.promql;
+    this.expression = 'a';
+    this.localExpress = 'a';
     return res;
   }
   /**
@@ -2485,6 +2579,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
    * @param {EditModeType} mode
    */
   async handleEditModeChange({ mode }: { hasError: boolean; mode: EditModeType }) {
+    if (this.sourceData.legacyMultiQuery) return;
     // 切换指标的编辑模式时，警告有则消失
     if (this.metricTipType) {
       this.metricTipType = '';
@@ -2492,6 +2587,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (mode === 'Source') {
       if (this.metricData.every(item => item.isNullMetric)) {
         this.sourceData.sourceCode = '';
+        this.sourceData.legacyMultiQuery = false;
+        this.sourceData.legacyQueryConfigs = undefined;
+        this.sourceData.legacyExpression = undefined;
+        this.sourceData.legacyOriginSql = undefined;
+        this.sourceData.queryConfigs = [{ alias: 'a', promql: '' }];
         this.sourceData.promqlError = false;
         this.monitorDataEditMode = mode;
         return;
@@ -2499,6 +2599,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       const success = await this.handleQueryConfigToPromsql();
       if (success) this.monitorDataEditMode = mode;
     } else {
+      if (this.sourceQueries.length > 1) return;
       if (!this.sourceData.sourceCode) {
         this.sourceData.promqlError = false;
         this.metricData = [];
@@ -2661,12 +2762,14 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         hasAIntelligentDetect={this.hasAIntelligentDetect}
         hasAiOpsDetect={this.hasAiOpsDetect}
         isKpiAnomalySdkEnabled={this.isKpiAnomalySdkEnabled}
+        legacyMultiQuery={this.sourceData.legacyMultiQuery}
         loading={this.monitorDataLoading}
         metricData={this.metricData}
         metricTipType={this.metricTipType}
         promqlError={this.sourceData.promqlError}
         readonly={this.isDetailMode}
         source={this.sourceData.sourceCode}
+        sourceQueries={this.sourceQueries}
         sourceStep={this.sourceData.step}
         onAddMetric={this.handleShowMetricContinue}
         onAddNullMetric={this.handleAddNullMetric}
@@ -2690,6 +2793,8 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         onShowExpress={this.handleShowExpress}
         onSouceStepChange={this.handleSourceStepChange}
         onSourceChange={this.handleSourceChange}
+        onSourceExpressionChange={this.handleSourceExpressionChange}
+        onSourceQueriesChange={this.handleSourceQueriesChange}
         onTargetChange={this.handleTargetChange}
         onTargetTypeChange={this.handleTargetTypeChange}
       />
@@ -2774,7 +2879,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
               class='mb10'
               title={this.$t('监控数据')}
             >
-              {!this.isDetailMode && (
+              {!this.isDetailMode && !this.sourceData.legacyMultiQuery && (
                 <bk-button
                   style={{ paddingRight: 0, display: this.metricData.length ? 'inline-block' : 'none' }}
                   slot='tools'
@@ -2786,7 +2891,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   {this.$t('清除')}
                 </bk-button>
               )}
-              {!this.metricData.length && !this.sourceData.sourceCode
+              {this.monitorDataEditMode !== 'Source' && !this.metricData.length && !this.sourceData.sourceCode
                 ? !this.loading && (
                     <MonitorDataEmpty
                       showMultivariateAnomalyDetection={this.showMultivariateAnomalyDetection}

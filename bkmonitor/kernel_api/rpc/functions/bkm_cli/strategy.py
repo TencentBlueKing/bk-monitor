@@ -14,20 +14,25 @@ import json
 from typing import Any
 
 from bkmonitor.models.strategy import StrategyModel
+from bkmonitor.iam import ActionEnum
 from bkmonitor.strategy.new_strategy import Strategy
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.bkm_cli_registry import BkmCliOpRegistry
+from kernel_api.resource.alert import get_strategy_config_version
+from kernel_api.rpc.functions.bkm_cli.strategy_management import EDITABLE_FIELDS, authorize_strategy_business
 
 OPERATION_DETAIL = "detail"
 OPERATION_LIST_BY_PRIORITY_GROUP = "list_by_priority_group"
 OPERATION_SHARED_GROUP = "shared_group"
 OPERATION_LIST_ENABLED = "list_enabled"
+OPERATION_BY_NAME = "by_name"
 ALLOWED_OPERATIONS = {
     OPERATION_DETAIL,
     OPERATION_LIST_BY_PRIORITY_GROUP,
     OPERATION_SHARED_GROUP,
     OPERATION_LIST_ENABLED,
+    OPERATION_BY_NAME,
 }
 
 DEFAULT_PAGE_SIZE = 500
@@ -52,7 +57,29 @@ def inspect_strategy_config(params: dict[str, Any]) -> dict[str, Any]:
         return _inspect_shared_group(params)
     if operation == OPERATION_LIST_ENABLED:
         return _list_enabled(params)
+    if operation == OPERATION_BY_NAME:
+        return _inspect_by_name(params)
     return _list_by_priority_group(params)
+
+
+def _inspect_by_name(params: dict[str, Any]) -> dict[str, Any]:
+    bk_biz_id = params.get("bk_biz_id")
+    name = params.get("name")
+    if type(bk_biz_id) is not int or bk_biz_id == 0:
+        raise CustomException(message="by_name 必须提供非零整数 bk_biz_id")
+    if not isinstance(name, str) or not name.strip():
+        raise CustomException(message="by_name 必须提供非空策略 name")
+    authorize_strategy_business(params, ActionEnum.VIEW_RULE)
+    queryset = StrategyModel.objects.filter(bk_biz_id=bk_biz_id, name=name.strip()).order_by("id")
+    count = queryset.count()
+    return {
+        "operation": OPERATION_BY_NAME,
+        "bk_biz_id": bk_biz_id,
+        "name": name.strip(),
+        "count": count,
+        "truncated": count > 10,
+        "strategies": [_summarize_strategy_model(strategy) for strategy in queryset[:10]],
+    }
 
 
 def _inspect_shared_group(params: dict[str, Any]) -> dict[str, Any]:
@@ -172,14 +199,14 @@ def _mget_chunks(count: int) -> int:
 
 
 def _build_detect_profiles(strategy_ids: list[int]) -> dict[int, dict[str, Any]]:
-    """算出每个策略的 CHECK_RESULT 成员数配置推导峰值。
+    """按策略级周期清理口径生成 CHECK_RESULT 参考估算。
 
     只对当前页取配置，走 ``get_strategy_by_ids`` 的分块 MGET（每 ``STRATEGY_MGET_CHUNK_SIZE``
     个策略一条命令），因此命令数由页大小决定而非策略总数，不构成 N+1。
 
-    ``point_required`` 与 ``interval`` 都直接调生产函数（``detect_result_point_required`` 与
-    ``core.control.strategy.Strategy.get_interval``）而不重算：这两个值是清理任务和 TTL 的
-    实际依据，一旦本处与生产口径漂移，成本排序就会系统性错位。
+    ``point_required`` 取策略级保留公式。两小时周期任务负责最终收口，因此 ``peak`` 是当前
+    主要容量参考；高负载 Access merge 的低频机会裁剪可能提前降低实际峰值，但不改变该模型
+    仍是近似参考而非精确字节上界。
     """
     if not strategy_ids:
         return {}
@@ -204,12 +231,12 @@ def _build_detect_profiles(strategy_ids: list[int]) -> dict[int, dict[str, Any]]
             profiles[strategy_id] = {"error": f"非法周期: {interval}"}
             continue
 
-        # 热路径 zadd 不裁剪，清理任务每 7200s 才按 point_required 收口一次，
-        # 因此峰值是"保留基线 + 一个清理周期内的新增"，而不是两者取大。
-        # 取大的写法会给出低于实测值的上界（实测 261 > max(30, 7200/30)=240），已被取证否证。
+        # 策略级保留点 + 一个两小时清理周期内的新增点，作为主要容量参考。
         growth = -(-CHECK_RESULT_CLEAN_INTERVAL_SECONDS // interval)
         peak = point_required + growth
         profiles[strategy_id] = {
+            "model_scope": "periodic_reference",
+            "is_safe_upper_bound": False,
             "point_required": point_required,
             "interval": interval,
             "clean_interval_seconds": CHECK_RESULT_CLEAN_INTERVAL_SECONDS,
@@ -401,11 +428,14 @@ def _inspect_strategy_detail(params: dict[str, Any]) -> dict[str, Any]:
             detail = f"bk_biz_id={bk_biz_id}, {detail}"
         raise CustomException(message=f"策略不存在: {detail}") from error
 
+    authorize_strategy_business({**params, "bk_biz_id": strategy_model.bk_biz_id}, ActionEnum.VIEW_RULE)
     strategy_config = _build_strategy_config(strategy_model, include_user_groups=include_user_groups)
     return {
         "operation": OPERATION_DETAIL,
         "bk_biz_id": strategy_model.bk_biz_id,
         "strategy_id": strategy_id,
+        "config_version": strategy_config["config_version"],
+        "editable_fields": EDITABLE_FIELDS,
         "strategy": _select_strategy_config(strategy_config, include_raw_model_ids=include_raw_model_ids),
     }
 
@@ -440,7 +470,8 @@ def _build_strategy_config(strategy_model: StrategyModel, *, include_user_groups
     try:
         strategy_obj = Strategy.from_models([strategy_model])[0]
         strategy_obj.restore()
-        config = strategy_obj.to_dict()
+        config = strategy_obj.to_dict(convert_dashboard=False)
+        config["config_version"] = get_strategy_config_version(config)
     except Exception as error:
         raise CustomException(message=f"策略配置解析失败: strategy_id={strategy_model.id}, 原因: {error}") from error
 
@@ -610,7 +641,8 @@ _LIST_ENABLED_PARAMS_SCHEMA = {
     "include_item_ids": "operation=list_enabled 可选，是否返回 item_ids 明细，默认 true",
     "include_detect_profile": (
         "operation=list_enabled 可选，是否附带当前页各策略的 point_required / interval / "
-        "CHECK_RESULT 成员数配置推导峰值，默认 false（启用会额外产生分块 MGET）"
+        "CHECK_RESULT 两小时周期清理参考估算；高负载机会裁剪可能降低实际峰值，但该值仍非精确字节上界，"
+        "默认 false（启用会额外产生分块 MGET）"
     ),
 }
 
@@ -623,8 +655,9 @@ KernelRPCRegistry.register_function(
     ),
     handler=inspect_strategy_config,
     params_schema={
-        "operation": "detail | list_by_priority_group | shared_group | list_enabled",
+        "operation": "detail | by_name | list_by_priority_group | shared_group | list_enabled",
         "bk_biz_id": "integer",
+        "name": "operation=by_name 必填，业务内精确名称查询，包含已停用和无效策略",
         "strategy_id": "operation=detail 必填",
         "priority_group_key": "operation=list_by_priority_group 必填",
         "strategy_group_key": "operation=shared_group 必填",
@@ -655,8 +688,9 @@ BkmCliOpRegistry.register(
     requires_confirmation=False,
     audit_tags=["db", "strategy", "inspect"],
     params_schema={
-        "operation": "detail | list_by_priority_group | shared_group | list_enabled",
+        "operation": "detail | by_name | list_by_priority_group | shared_group | list_enabled",
         "bk_biz_id": "integer",
+        "name": "operation=by_name 必填，业务内精确名称查询，包含已停用和无效策略",
         "strategy_id": "integer",
         "priority_group_key": "string",
         "strategy_group_key": "string",

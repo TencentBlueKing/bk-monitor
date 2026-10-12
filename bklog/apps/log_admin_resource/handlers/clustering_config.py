@@ -2,7 +2,7 @@ from django.db.models import Q
 
 from apps.exceptions import ValidationError
 from apps.log_admin_resource.handlers.inspection import optional_positive_int, reject_identity_params, sanitize_json
-from apps.log_clustering.models import ClusteringConfig
+from apps.log_clustering.models import ClusteringConfig, SignatureStrategySettings
 from apps.log_search.models import LogIndexSet
 
 
@@ -105,7 +105,7 @@ def get_clustering_config_detail(params):
             in {"is_deleted", "deleted_at", "deleted_by"} | GENERATED_FLOW_CONFIG_FIELDS | ACCESS_RUNTIME_FIELDS
         ):
             continue
-        fields[field.name] = sanitize_json(getattr(config, field.name))
+        fields[field.name] = sanitize_json(getattr(config, field.name), redact_text=True)
 
     available_flow_config_fields = sorted(
         field_name for field_name in GENERATED_FLOW_CONFIG_FIELDS if getattr(config, field_name) is not None
@@ -114,7 +114,10 @@ def get_clustering_config_detail(params):
         "included": include_flow_configs,
         "available_fields": available_flow_config_fields,
         "values": (
-            {field_name: sanitize_json(getattr(config, field_name)) for field_name in available_flow_config_fields}
+            {
+                field_name: sanitize_json(getattr(config, field_name), redact_text=True)
+                for field_name in available_flow_config_fields
+            }
             if include_flow_configs
             else None
         ),
@@ -126,8 +129,9 @@ def get_clustering_config_detail(params):
         "flow_references": _flow_references(config),
         "generated_flow_configs": generated_flow_configs,
         "result_table_references": _result_table_references(config),
+        "strategy_bindings": _strategy_bindings(config),
         "access_tasks": {
-            "task_records": sanitize_json(config.task_records or []),
+            "task_records": sanitize_json(config.task_records or [], redact_text=True),
             "task_detail_ids": sorted((config.task_details or {}).keys()),
         },
     }
@@ -169,6 +173,36 @@ def _flow_references(config):
         if flow_id:
             references.append({"role": role, "flow_id": flow_id})
     return references
+
+
+def _strategy_bk_biz_id(config):
+    """Business used when saving monitor strategies (related space overrides index biz)."""
+
+    return config.related_space_pre_bk_biz_id or config.bk_biz_id
+
+
+def _strategy_bindings(config):
+    """Index-level SignatureStrategySettings bindings used to locate monitor strategy IDs."""
+
+    fallback_bk_biz_id = _strategy_bk_biz_id(config)
+    bindings = []
+    for settings_row in SignatureStrategySettings.objects.filter(
+        index_set_id=config.index_set_id,
+        signature="",
+    ).order_by("strategy_type", "id"):
+        if not settings_row.strategy_id:
+            continue
+        bindings.append(
+            {
+                "strategy_type": settings_row.strategy_type,
+                "strategy_id": settings_row.strategy_id,
+                "enabled": settings_row.enabled,
+                "bk_biz_id": settings_row.bk_biz_id or fallback_bk_biz_id,
+                "signature": settings_row.signature,
+                "pattern_level": settings_row.pattern_level,
+            }
+        )
+    return bindings
 
 
 def _result_table_references(config):

@@ -8,6 +8,7 @@ from jinja2.sandbox import SandboxedEnvironment as Environment
 
 from bk_monitor_base.infras import third_party_api as api
 from bk_monitor_base.infras.constant import DEFAULT_TENANT_ID
+from bk_monitor_base.infras.nodeman_control import host_queries
 from bk_monitor_base.infras.third_party_api.cmdb.api import HostIPParams, HostPropertyFilter, format_ip_filter_rule
 from bk_monitor_base.metadata.config import settings
 from bk_monitor_base.metadata.constants.bk_collector import BkCollectorComp
@@ -362,7 +363,7 @@ class CustomReportSubscription(models.Model):
             )
             proxy_host_ids = [host.bk_host_id for host in hosts if host.bk_cloud_id == 0]
         else:
-            proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            proxies = host_queries.business_proxies(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
             proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
             for proxy_biz_id in proxy_biz_ids:
                 current_proxy_hosts = api.cmdb.get_host_by_ip(
@@ -407,7 +408,7 @@ class CustomReportSubscription(models.Model):
                 3. 根据上面的查询结果生成bk_biz_id的相关自定义上报dataid的对应关系配置列表
 
             - Nodeman
-                0. 从api.node_man.get_proxies_by_biz接口获取到业务下所有使用到的proxyip
+                0. 从host_queries.business_proxies接口获取到业务下所有使用到的proxyip
                 1. 根据上面的查询结果生成业务ID到目标Proxy的对应关系
 
             按业务ID将上面的任务下发到机器上，通过节点管理的订阅接口，其中0业务为直连云区域，下发所有data_id配置

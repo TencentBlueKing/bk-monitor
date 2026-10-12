@@ -229,8 +229,8 @@ class TestDeployAndTestFlow:
     # Deploy 流程测试
     # =========================================================================
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.switch_subscription")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.create_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.switch_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.create_subscription")
     @patch("bk_monitor_base.domains.uptime_check.services.data_access.DataAccessService.get_or_create_data_id")
     @patch("bk_monitor_base.domains.uptime_check.services.config_generator.get_config")
     def test_http_deploy_flow(
@@ -270,10 +270,12 @@ class TestDeployAndTestFlow:
         expected = self._filter_expected_for_comparison(test_data.get("expected_deployment", {}))
         actual = self._build_actual_deployment_result(http_task, subscription)
 
-        assert actual == expected, f"部署结果不符合预期:\n期望: {json.dumps(expected, indent=2, ensure_ascii=False)}\n实际: {json.dumps(actual, indent=2, ensure_ascii=False)}"
+        assert actual == expected, (
+            f"部署结果不符合预期:\n期望: {json.dumps(expected, indent=2, ensure_ascii=False)}\n实际: {json.dumps(actual, indent=2, ensure_ascii=False)}"
+        )
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.switch_subscription")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.create_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.switch_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.create_subscription")
     @patch("bk_monitor_base.domains.uptime_check.services.data_access.DataAccessService.get_or_create_data_id")
     @patch("bk_monitor_base.domains.uptime_check.services.config_generator.get_config")
     def test_tcp_deploy_flow(
@@ -313,10 +315,12 @@ class TestDeployAndTestFlow:
         expected = self._filter_expected_for_comparison(test_data.get("expected_deployment", {}))
         actual = self._build_actual_deployment_result(tcp_task, subscription)
 
-        assert actual == expected, f"部署结果不符合预期:\n期望: {json.dumps(expected, indent=2, ensure_ascii=False)}\n实际: {json.dumps(actual, indent=2, ensure_ascii=False)}"
+        assert actual == expected, (
+            f"部署结果不符合预期:\n期望: {json.dumps(expected, indent=2, ensure_ascii=False)}\n实际: {json.dumps(actual, indent=2, ensure_ascii=False)}"
+        )
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.switch_subscription")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.create_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.switch_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.create_subscription")
     @patch("bk_monitor_base.domains.uptime_check.services.data_access.DataAccessService.get_or_create_data_id")
     @patch("bk_monitor_base.domains.uptime_check.services.config_generator.get_config")
     def test_udp_deploy_flow(
@@ -356,10 +360,12 @@ class TestDeployAndTestFlow:
         expected = self._filter_expected_for_comparison(test_data.get("expected_deployment", {}))
         actual = self._build_actual_deployment_result(udp_task, subscription)
 
-        assert actual == expected, f"部署结果不符合预期:\n期望: {json.dumps(expected, indent=2, ensure_ascii=False)}\n实际: {json.dumps(actual, indent=2, ensure_ascii=False)}"
+        assert actual == expected, (
+            f"部署结果不符合预期:\n期望: {json.dumps(expected, indent=2, ensure_ascii=False)}\n实际: {json.dumps(actual, indent=2, ensure_ascii=False)}"
+        )
 
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.switch_subscription")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.create_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.switch_subscription")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.create_subscription")
     @patch("bk_monitor_base.domains.uptime_check.services.data_access.DataAccessService.get_or_create_data_id")
     @patch("bk_monitor_base.domains.uptime_check.services.config_generator.get_config")
     def test_icmp_deploy_flow(
@@ -399,7 +405,9 @@ class TestDeployAndTestFlow:
         expected = self._filter_expected_for_comparison(test_data.get("expected_deployment", {}))
         actual = self._build_actual_deployment_result(icmp_task, subscription)
 
-        assert actual == expected, f"部署结果不符合预期:\n期望: {json.dumps(expected, indent=2, ensure_ascii=False)}\n实际: {json.dumps(actual, indent=2, ensure_ascii=False)}"
+        assert actual == expected, (
+            f"部署结果不符合预期:\n期望: {json.dumps(expected, indent=2, ensure_ascii=False)}\n实际: {json.dumps(actual, indent=2, ensure_ascii=False)}"
+        )
 
     # =========================================================================
     # Test 流程测试
@@ -408,16 +416,18 @@ class TestDeployAndTestFlow:
     @patch("bk_monitor_base.domains.uptime_check.collector.fast_execute_script")
     @patch("bk_monitor_base.domains.uptime_check.collector.get_job_instance_status")
     @patch("bk_monitor_base.domains.uptime_check.collector.batch_get_job_instance_ip_log")
+    @patch("bk_monitor_base.domains.uptime_check.collector.plugin_search")
     @patch("bk_monitor_base.domains.uptime_check.collector.get_host_by_ip")
     @patch("bk_monitor_base.domains.uptime_check.models.cmdb_api.get_host_by_ip")
-    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.node_man_v2_api.plugin_search")
+    @patch("bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search")
     @patch("bk_monitor_base.domains.uptime_check.services.config_generator.get_config")
     def test_task_flow(
         self,
         mock_get_config: Mock,
-        mock_plugin_search: Mock,
+        mock_task_manager_plugin_search: Mock,
         mock_model_cmdb_get_host: Mock,
         mock_collector_cmdb_get_host: Mock,
+        mock_collector_plugin_search: Mock,
         mock_batch_get_ip_log: Mock,
         mock_get_job_status: Mock,
         mock_fast_execute: Mock,
@@ -433,16 +443,13 @@ class TestDeployAndTestFlow:
         # Mock CMDB API (models 中的) - 返回空列表表示节点已有 bk_host_id，不需要查询
         mock_model_cmdb_get_host.return_value = []
 
-        # task_manager 与 collector 共用同一 NodeMan V2 接口；结果同时包含
-        # 版本校验和安装路径所需字段。
-        mock_plugin_search.return_value = {
+        # Mock plugin_search (task_manager 中的) 返回有效插件版本
+        mock_task_manager_plugin_search.return_value = {
             "list": [
                 {
                     "bk_host_id": 10001,
                     "inner_ip": "192.168.1.1",
                     "bk_cloud_id": 0,
-                    "os_type": "linux",
-                    "setup_path": "/usr/local/gse/plugins",
                     "plugin_status": [
                         {
                             "name": "bkmonitorbeat",
@@ -463,6 +470,19 @@ class TestDeployAndTestFlow:
         mock_host.bk_os_type = "1"
         mock_host.bk_os_type_name = "Linux"
         mock_collector_cmdb_get_host.return_value = [mock_host]
+
+        # Mock collector 内部的 plugin_search（用于获取主机安装路径）
+        mock_collector_plugin_search.return_value = {
+            "list": [
+                {
+                    "bk_host_id": 10001,
+                    "inner_ip": "192.168.1.1",
+                    "bk_cloud_id": 0,
+                    "os_type": "linux",
+                    "setup_path": "/usr/local/gse/plugins",
+                }
+            ]
+        }
 
         # Mock Job API - fast_execute_script 返回任务 ID
         mock_fast_execute.return_value = {"job_instance_id": 12345, "step_instance_id": 1}
@@ -526,4 +546,4 @@ class TestDeployAndTestFlow:
         assert result == expected_result, f"期望返回 '{expected_result}'，但得到 '{result}'"
 
         # 验证 plugin_search 被调用
-        assert mock_plugin_search.call_count == 2
+        mock_task_manager_plugin_search.assert_called_once()

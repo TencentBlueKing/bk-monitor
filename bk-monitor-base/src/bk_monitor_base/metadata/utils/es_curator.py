@@ -1,6 +1,7 @@
 import logging
 
-from curator import utils, IndexList as BaseIndexList
+from curator import IndexList as BaseIndexList
+from curator import utils
 
 
 class IndexList(BaseIndexList):

@@ -52,6 +52,14 @@ export default defineComponent({
       type: String,
       default: '',
     },
+    indexSetId: {
+      type: [String, Number],
+      default: '',
+    },
+    isExternal: {
+      type: Boolean,
+      default: false,
+    },
   },
   setup(props) {
     const { t } = useLocale();
@@ -64,9 +72,34 @@ export default defineComponent({
 
     const cleanConfig = computed(() => store.state.indexSetFieldConfig.clean_config);
 
+    const fillLogOriginal = res => {
+      if (res.data?.length) {
+        const data = res.data[0];
+        logOriginal.value = data.etl.data || '';
+      }
+    };
+
     // 获取原始日志内容
     const getLogOriginal = () => {
       const collectorConfigId = cleanConfig.value?.extra?.collector_config_id;
+      if (props.isExternal && props.indexSetId) {
+        logOriginalRequest.value = true;
+        $http
+          .request('logClustering/sampleLog', {
+            params: {
+              index_set_id: props.indexSetId,
+            },
+          })
+          .then(fillLogOriginal)
+          .catch(e => {
+            console.error(e);
+          })
+          .finally(() => {
+            logOriginalRequest.value = false;
+          });
+        return;
+      }
+
       if (!(collectorConfigId || props.collectorConfigId)) {
         return;
       }
@@ -78,12 +111,7 @@ export default defineComponent({
             collector_config_id: collectorConfigId || Number(props.collectorConfigId),
           },
         })
-        .then(res => {
-          if (res.data?.length) {
-            const data = res.data[0];
-            logOriginal.value = data.etl.data || '';
-          }
-        })
+        .then(fillLogOriginal)
         .catch(e => {
           console.error(e);
         })

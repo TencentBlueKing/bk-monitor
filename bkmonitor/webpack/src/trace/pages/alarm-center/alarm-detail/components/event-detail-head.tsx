@@ -26,6 +26,7 @@
 
 import { computed, defineComponent, reactive, shallowRef, watch } from 'vue';
 
+import { getBizRouteHref } from 'monitor-common/utils';
 import {
   type ILegacyAlarmCenterQuery,
   getAlarmCenterListHash,
@@ -39,6 +40,7 @@ import { useRoute } from 'vue-router';
 import TemporaryShareNew from '../../../../components/temporary-share/temporary-share-new';
 // import AIFavicon from '../../../../static/img/failure/AI.png';
 import { useAlarmCenterDetailStore } from '../../../../store/modules/alarm-center-detail';
+import DetailLoading from '../../common-detail/detail-loading';
 import { fetchListAlertFeedback } from '../../services/alarm-detail';
 import Feedback from './feedback';
 import ChatGroup from '@/components/chat-group/chat-group';
@@ -89,7 +91,7 @@ export default defineComponent({
     /** 是否反馈 */
     const isFeedback = shallowRef(false);
 
-    const { alarmId, alarmDetail, loading } = storeToRefs(alarmCenterDetailStore);
+    const { alarmId, alarmDetail, loading, alertError } = storeToRefs(alarmCenterDetailStore);
 
     /** 一键拉群弹窗 */
     const chatGroupDialog = reactive<IChatGroupDialogOptions>({
@@ -153,21 +155,15 @@ export default defineComponent({
       return params;
     };
 
-    /** 获取告警反馈 */
-    const getAlertFeedback = async () => {
-      const data = await fetchListAlertFeedback(
-        alarmCenterDetailStore.alarmDetail.id,
-        alarmCenterDetailStore.alarmDetail.bk_biz_id
-      ).catch(() => []);
-      isFeedback.value = data.length > 0;
-    };
-
     watch(
       () => alarmDetail.value,
-      newVal => {
-        if (newVal && !loading.value) {
-          getAlertFeedback();
-        }
+      async (detail, _, onCleanup) => {
+        let active = true;
+        onCleanup(() => { active = false; });
+        isFeedback.value = false;
+        if (!detail) return;
+        const data = await fetchListAlertFeedback(detail.id, detail.bk_biz_id).catch(() => []);
+        if (active) isFeedback.value = data.length > 0;
       },
       { immediate: true }
     );
@@ -177,7 +173,7 @@ export default defineComponent({
       // 如果 告警来源 是监控策略就要跳转到 策略详情 。
       if (alarmDetail.value.plugin_id === 'bkmonitor') {
         window.open(
-          `${location.origin}${location.pathname}?bizId=${alarmDetail.value.bk_biz_id}/#/strategy-config/detail/${alarmId.value}?fromEvent=true`
+          getBizRouteHref(`/strategy-config/detail/${alarmId.value}?fromEvent=true`, alarmDetail.value.bk_biz_id)
         );
       } else if (alarmDetail.value.plugin_id) {
         // 否则都新开一个页面并添加 告警源 查询，其它查询项保留。
@@ -267,6 +263,7 @@ export default defineComponent({
       alarmDetail,
       alarmId,
       loading,
+      alertError,
       getTagComponent,
       toStrategyDetail,
       chatGroupShowChange,
@@ -278,17 +275,7 @@ export default defineComponent({
     };
   },
   render() {
-    if (this.loading)
-      return (
-        <div class='event-detail-head-main'>
-          <div class='level-tag skeleton-element' />
-          <div class='event-detail-title skeleton-element' />
-          <div class='event-detail-head-btn-group'>
-            <div class='btn-item skeleton-element' />
-            <div class='btn-item skeleton-element' />
-          </div>
-        </div>
-      );
+    if (!this.alarmDetail) return this.alertError ? <div class='event-detail-head-main'>{this.t('告警详情')}</div> : <DetailLoading variant='header' />;
     return (
       <div class='event-detail-head-main'>
         {this.getTagComponent(this.alarmDetail?.severity)}

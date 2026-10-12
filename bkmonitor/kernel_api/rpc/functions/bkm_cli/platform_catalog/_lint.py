@@ -4,7 +4,7 @@ Copyright (C) 2017-2025 Tencent. All rights reserved.
 Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
 You may obtain a copy of the License at http://opensource.org/licenses/MIT
 
-AST 守卫：除 platform_source.py 与 platform_catalog/* 外，bkm_cli/* 模块不得有
+AST 守卫：除显式目录入口 platform_source.py / unify_query.py 与 platform_catalog/* 外，bkm_cli/* 模块不得有
 api.<domain>.<func>(...) 形态的 Call 节点。类型 import（如 `from api.cmdb.define import Host`）
 不算违规——它不是 Call 节点。
 """
@@ -14,6 +14,9 @@ from __future__ import annotations
 import ast
 import os
 from pathlib import Path
+
+
+ALLOWED_API_CALL_FILES = {"platform_source.py", "unify_query.py"}
 
 
 def _is_api_call(node: ast.AST) -> bool:
@@ -53,7 +56,7 @@ def scan_file_for_api_calls(file_path: str) -> list[tuple[int, str]]:
 
 
 def scan_bkm_cli_for_violations(bkm_cli_dir: str) -> list[tuple[str, int, str]]:
-    """扫描整个 bkm_cli 目录，排除 platform_source.py 与 platform_catalog/*。
+    """扫描整个 bkm_cli 目录，排除显式目录入口与 platform_catalog/*。
 
     返回 [(relpath, lineno, snippet)]。
     """
@@ -70,7 +73,7 @@ def scan_bkm_cli_for_violations(bkm_cli_dir: str) -> list[tuple[str, int, str]]:
         for name in files:
             if not name.endswith(".py"):
                 continue
-            if name == "platform_source.py" and root_path == bkm_cli_path:
+            if name in ALLOWED_API_CALL_FILES and root_path == bkm_cli_path:
                 continue
             file_path = root_path / name
             for lineno, snippet in scan_file_for_api_calls(str(file_path)):
