@@ -215,18 +215,23 @@ export default class FieldFilterComp extends tsc<object> {
       builtInShowFields: this.isShowAllBuiltIn || this.searchKeyword ? [...otherList, ...initHiddenList] : [],
     };
   }
-  getIsShowIndexSetExpand() {
-    return this.indexSetFields().filter(item => item.filterVisible && !item.field_name.includes('.')).length > 10;
+  get indexSetFieldTree() {
+    return this.objectHierarchy(this.indexSetFields());
   }
-  /** 展示的可选字段 */
+  getIsShowIndexSetExpand() {
+    const tree = this.indexSetFieldTree;
+    return tree.length > 10 || tree.some(item => item.children?.length);
+  }
+  /** 展示的可选字段：折叠时只渲染顶层根节点，避免千级嵌套字段一次性进树 */
   get showIndexSetFields() {
-    if (this.searchKeyword) {
-      return this.objectHierarchy(this.indexSetFields());
+    const tree = this.indexSetFieldTree;
+    if (this.searchKeyword || this.isShowAllIndexSet) {
+      return tree;
     }
-    const result = this.objectHierarchy(
-      this.isShowAllIndexSet ? this.indexSetFields() : this.sliceFields(this.indexSetFields()),
-    );
-    return result;
+    return tree.slice(0, 10).map(item => ({
+      ...item,
+      children: undefined,
+    }));
   }
   get filterTypeCount() {
     // 过滤的条件数量
@@ -396,25 +401,6 @@ export default class FieldFilterComp extends tsc<object> {
     }
     return sortList;
   }
-  /**
-   * @desc: 分割展示字段名（排除object字段名）
-   * @param {Array} list
-   * @returns {Array}
-   */
-  sliceFields(Fields) {
-    const { withDot, withoutDot } = Fields.reduce(
-      (acc, str) => {
-        if (str.field_name.includes('.')) {
-          acc.withDot.push(str);
-        } else {
-          acc.withoutDot.push(str);
-        }
-        return acc;
-      },
-      { withDot: [], withoutDot: [] },
-    );
-    return [...withDot, ...withoutDot.slice(0, 10)];
-  }
   handleSearchException(type: string) {
     if (type === 'clear-filter') {
       this.searchKeyword = '';
@@ -474,15 +460,15 @@ export default class FieldFilterComp extends tsc<object> {
       return [];
     }
 
-    const allowedNames = new Set(arrData.map(item => item.field_name));
+    const sourceByName = new Map(arrData.map(item => [item.field_name, item]));
     const visit = node => {
       const children = (node.children ?? []).map(visit).filter(Boolean);
       const fieldName = node.full_name || node.fullName || node.field_name;
-      if (!allowedNames.has(fieldName) && !children.length) {
+      const sourceField = sourceByName.get(fieldName);
+      if (!sourceField && !children.length) {
         return null;
       }
 
-      const sourceField = arrData.find(item => item.field_name === fieldName);
       return {
         ...(sourceField ?? node),
         filterVisible: sourceField?.filterVisible ?? node.filterVisible ?? true,
@@ -578,7 +564,7 @@ export default class FieldFilterComp extends tsc<object> {
             </div>
           )}
           <div class='field-filter-roll'>
-            {!!this.indexSetFields().filter(item => item.filterVisible).length && (
+            {!!this.indexSetFieldTree.some(item => item.filterVisible) && (
               <div class='fields-container not-selected optional-field'>
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
