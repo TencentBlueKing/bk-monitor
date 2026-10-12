@@ -32,6 +32,8 @@ import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import * as authorityMap from '../../../../common/authority-map';
 
+import './use-download-file.scss';
+
 /**
  * 从 Content-Disposition 响应头中解析文件名
  * 优先取 RFC 5987 编码格式（filename*=UTF-8''xxx），其次取普通格式（filename="xxx"）
@@ -62,6 +64,13 @@ interface DownloadFileOptions {
   useResponseFileName?: boolean;
 }
 
+/** 批量下载中的失败记录 */
+interface DownloadFileFailure {
+  file_name: string;
+  message: string;
+  code?: string | number;
+}
+
 /**
  * 文件下载 Hook
  * 用于统一处理表格中的文件下载逻辑（含权限校验）
@@ -70,12 +79,24 @@ export const useDownloadFile = () => {
   const store = useStore();
 
   /**
-   * 请求单个文件并触发浏览器保存；错误提示保持原有逻辑
+   * 请求单个文件并触发浏览器保存；批量下载只返回失败记录，不逐条提示
    * @param fileName 文件名
    * @param bkBizId 业务ID
    * @param options 下载参数
+   * @param showErrorMessage 是否逐条提示错误，批量下载时关闭
    */
-  const requestFileDownload = async (fileName: string, bkBizId: number | string, options: DownloadFileOptions = {}) => {
+  const requestFileDownload = async (
+    fileName: string,
+    bkBizId: number | string,
+    options: DownloadFileOptions = {},
+    showErrorMessage = true,
+  ): Promise<DownloadFileFailure | null> => {
+    const reportFailure = (message: string, code?: DownloadFileFailure['code']): DownloadFileFailure => {
+      if (showErrorMessage) {
+        Message({ theme: 'error', message });
+      }
+      return { file_name: fileName, message, ...(code === undefined ? {} : { code }) };
+    };
     try {
       const res = await axiosInstance.get('/tgpa/task/download_file/', {
         params: {
@@ -89,18 +110,10 @@ export const useDownloadFile = () => {
         try {
           const jsonData = await readBlobRespToJson(res.data);
           if (jsonData?.code !== 0) {
-            Message({
-              theme: 'error',
-              message: jsonData?.message || t('文件不存在'),
-            });
-            return;
+            return reportFailure(jsonData?.message || String(t('文件不存在')), jsonData.code);
           }
         } catch {
-          Message({
-            theme: 'error',
-            message: t('文件不存在'),
-          });
-          return;
+          return reportFailure(String(t('文件不存在')));
         }
       }
       // 仅按需取响应头文件名（后端会按 openid/任务ID/创建人/创建时间生成），未开启或解析失败时使用入参文件名
@@ -108,8 +121,10 @@ export const useDownloadFile = () => {
         ? parseFileNameFromHeader(res.headers?.['content-disposition'])
         : '';
       blobDownload(res.data, responseFileName || fileName);
+      return null;
     } catch (error) {
       console.error('下载失败:', error);
+      return null;
     }
   };
 
@@ -143,7 +158,7 @@ export const useDownloadFile = () => {
   };
 
   /**
-   * 按文件名去重后按首次出现顺序串行下载，单个失败不影响后续文件；无权限时仅申请一次
+   * 按文件名去重后串行下载，结束后汇总失败；单个失败不影响后续文件，无权限时仅申请一次
    * @param fileNames 文件名列表
    * @param isAllowedDownload 是否有下载权限
    * @param options 下载参数
@@ -156,8 +171,23 @@ export const useDownloadFile = () => {
       return;
     }
     const bkBizId = store.state.storage[BK_LOG_STORAGE.BK_BIZ_ID];
+    const failedTasks: DownloadFileFailure[] = [];
     for (const fileName of uniqueFileNames) {
-      await requestFileDownload(fileName, bkBizId, options);
+      const failure = await requestFileDownload(fileName, bkBizId, options, false);
+      if (failure) failedTasks.push(failure);
+    }
+    if (failedTasks.length) {
+      Message({
+        theme: 'error',
+        zIndex: 9999,
+        extCls: 'client-log-batch-download-message',
+        actions: [{ id: 'assistant', disabled: true }],
+        message: {
+          title: String(t('批量下载：{n} 个文件下载失败', { n: failedTasks.length })),
+          type: 'json',
+          details: failedTasks,
+        },
+      });
     }
   };
 
