@@ -1447,13 +1447,13 @@ POST /rum/search/timeline/
 | start_time | Integer / Null | 开始时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话开始时间，按 `view_id` 查询时为 View 开始时间，缺失时为 `null` |
 | end_time   | Integer / Null | 结束时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话结束时间，按 `view_id` 查询时为 View 结束时间，未结束时为 `null` |
 | tree       | Array[Node]    | 节点树，顶层为 View 节点，按开始时间升序，按 `view_id` 查询时只有一个 View 节点，见 Node |
-| records    | Object         | 节点详情，key 为 `span_id`，value 与同一 `span_id` 的 `record_detail` 返回一致                                                       |
+| records    | Array[RecordDetail] | 节点详情，每项与同一 `span_id` 的 `record_detail` 返回一致 |
 
 - Node
 
 | 参数名称 | 类型 | 描述 |
 |----------|------|------|
-| span_id | String | 对应 `records` 的 key |
+| span_id | String | 对应 `records[].span_id` |
 | children | Array[Node] | 可选，子节点，按开始时间升序 |
 
 ```json
@@ -1471,8 +1471,8 @@ POST /rum/search/timeline/
       ]
     }
   ],
-  "records": {
-    "34e3b6ff1943346c": {
+  "records": [
+    {
       "origin_data": {
         "span_id": "34e3b6ff1943346c",
         "span_name": "/order/submit",
@@ -1572,7 +1572,7 @@ POST /rum/search/timeline/
         }
       ]
     },
-    "e121536e5ae785a0": {
+    {
       "origin_data": {
         "span_id": "e121536e5ae785a0",
         "span_name": "click .submit-btn",
@@ -1588,7 +1588,7 @@ POST /rum/search/timeline/
       },
       "span_id": "e121536e5ae785a0"
     },
-    "7d2f09b6f8bc31aa": {
+    {
       "origin_data": {
         "span_id": "7d2f09b6f8bc31aa",
         "span_name": "POST /api/orders",
@@ -1606,7 +1606,7 @@ POST /rum/search/timeline/
       },
       "span_id": "7d2f09b6f8bc31aa"
     },
-    "8e301ac709bd42bb": {
+    {
       "origin_data": {
         "span_id": "8e301ac709bd42bb",
         "span_name": "db.svg",
@@ -1623,7 +1623,7 @@ POST /rum/search/timeline/
       },
       "span_id": "8e301ac709bd42bb"
     },
-    "c49ddfc2ac5214d7": {
+    {
       "origin_data": {
         "span_id": "c49ddfc2ac5214d7",
         "span_name": "longTask",
@@ -1639,7 +1639,7 @@ POST /rum/search/timeline/
       },
       "span_id": "c49ddfc2ac5214d7"
     },
-    "9d199175096474e4": {
+    {
       "origin_data": {
         "span_id": "9d199175096474e4",
         "span_name": "TypeError: Cannot read properties of undefined (reading 'name')",
@@ -1654,7 +1654,7 @@ POST /rum/search/timeline/
       },
       "span_id": "9d199175096474e4"
     }
-  }
+  ]
 }
 ```
 
