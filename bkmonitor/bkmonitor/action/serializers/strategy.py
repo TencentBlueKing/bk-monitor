@@ -24,7 +24,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework.fields import empty
 
-from bkmonitor.action.duty_manage import GroupDutyRuleManager
+from bkmonitor.action.duty_manage import GroupDutyRuleManager, disable_duty_plans
 from bkmonitor.action.serializers import AlertSerializer, ExecutionSerializer
 from bkmonitor.action.utils import (
     get_duty_rule_user_groups,
@@ -559,7 +559,7 @@ class DutyRuleDetailSlz(DutyRuleSlz):
             # 如果是关闭了当前的规则, 则已有的排班计划都需要关闭掉
             # TODO 和产品确认下，是否要一个调整时间
             DutyRuleSnap.objects.filter(duty_rule_id=self.instance.id).update(enabled=False)
-            DutyPlan.objects.filter(duty_rule_id=self.instance.id).update(is_effective=False)
+            disable_duty_plans([self.instance.id])
 
         return self.instance
 

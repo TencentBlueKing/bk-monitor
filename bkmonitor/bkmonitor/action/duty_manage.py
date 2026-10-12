@@ -23,7 +23,7 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Q
 
 from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
-from bkmonitor.models.strategy import DutyPlanSendRecord
+from bkmonitor.models.strategy import DutyPlanSendRecord, DutyRuleRelation
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.send import Sender
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -745,15 +745,10 @@ class GroupDutyRuleManager:
         # 创建排班计划
         DutyPlan.objects.bulk_create(duty_plans)
 
-        next_plan_time = time_tools.datetime2str(duty_manager.end_time)
-        if rule_snap.end_time and next_plan_time >= rule_snap.end_time:
-            # 如果已生成负责的所有计划，则删除快照
-            rule_snap.delete()
-        else:
-            # 否则保存下次排班的上下文信息
-            rule_snap.next_plan_time = next_plan_time
-            rule_snap.next_user_index = duty_manager.last_user_index
-            rule_snap.save(update_fields=["next_plan_time", "next_user_index", "rule_snap"])
+        # 已排完的快照也要保留：删除后下一轮 manage_duty_rule_snap 会把规则当成新关联，重建快照并重复生成计划
+        rule_snap.next_plan_time = time_tools.datetime2str(duty_manager.end_time)
+        rule_snap.next_user_index = duty_manager.last_user_index
+        rule_snap.save(update_fields=["next_plan_time", "next_user_index", "rule_snap"])
 
         logger.info("[manage_duty_plan] finished for user group(%s) snap(%s)", self.user_group.id, snap_id)
 
@@ -1014,6 +1009,21 @@ class GroupDutyRuleManager:
             succeed_list,
             failed_list,
         )
+
+
+def disable_duty_plans(duty_rule_ids: list[int]) -> None:
+    """关闭规则对应的生效计划。
+
+    按告警组走 (user_group_id, is_effective, duty_rule_id) 联合索引，只锁仍生效的计划；
+    只按 duty_rule_id 更新会扫描并锁住该规则的全部历史计划。
+    """
+    user_group_ids = set(
+        DutyRuleRelation.objects.filter(duty_rule_id__in=duty_rule_ids).values_list("user_group_id", flat=True)
+    )
+    if user_group_ids:
+        DutyPlan.objects.filter(
+            user_group_id__in=user_group_ids, is_effective=1, duty_rule_id__in=duty_rule_ids
+        ).update(is_effective=0)
 
 
 def end_time_to_datetime(end_time: str | None) -> datetime:
