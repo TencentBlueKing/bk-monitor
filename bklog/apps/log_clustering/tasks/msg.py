@@ -54,23 +54,20 @@ def access_clustering(index_set_id):
     # 若该配置小于0，则代表不需要审批
     auto_approve_doc_count = conf.get("auto_approve_doc_count", -1)
 
-    # 数据量仅用于审批判定，不需要审批时不查询，避免可选的统计查询失败阻断整个接入流程
-    need_approve = False
-    doc_count_display = 0
-    if auto_approve_doc_count >= 0:
-        try:
-            doc_count = get_doc_count(index_set_id=index_set_id, bk_biz_id=clustering_config.bk_biz_id)
-        except Exception:  # pylint: disable=broad-except
-            # 数据量取不到时转人工审批，避免把未知量级当成小流量直接自动接入
-            logger.exception(f"[access_clustering]get doc count failed, index_set_id: {index_set_id}")
-            doc_count_display = _("获取失败")
-            need_approve = True
-        else:
-            doc_count_display = doc_count
-            need_approve = auto_approve_doc_count < doc_count
+    # 数据量同时用于审批判定和通知展示，无需审批时也统计，便于管理员了解接入规模
+    try:
+        doc_count = get_doc_count(index_set_id=index_set_id, bk_biz_id=clustering_config.bk_biz_id)
+    except Exception:  # pylint: disable=broad-except
+        logger.exception(f"[access_clustering]get doc count failed, index_set_id: {index_set_id}")
+        doc_count_display = _("获取失败")
+        # 启用审批时未知量级转人工审批；无需审批时统计失败不阻断接入
+        need_approve = auto_approve_doc_count >= 0
+    else:
+        doc_count_display = doc_count
+        need_approve = 0 <= auto_approve_doc_count < doc_count
 
     if need_approve:
-        # auto_approve_doc_count 大于 0，且单日文档数量大于 auto_approve_doc_count，则需要进行审批
+        # 审批阈值非负且单日文档数量超过阈值，或统计失败无法判定量级时，转人工审批
         msg = _(
             "[待审批] 有新聚类创建，请关注！索引集id: {}, 索引集名称: {}, 业务id: {}, 业务名称: {}, 创建者: {}, 过去一天的数据量doc_count={}"
         ).format(
