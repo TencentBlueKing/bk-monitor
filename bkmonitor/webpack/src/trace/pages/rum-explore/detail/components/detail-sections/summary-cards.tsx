@@ -144,7 +144,9 @@ export default defineComponent({
               <span
                 style={{ color: toneColor }}
                 class='card-value'
-                v-overflow-tips
+                v-overflow-tips={{
+                  content: `${card.value}${card.growthRate ? card.growthRate.text : ''}${card.unit ? card.unit.text : ''}`,
+                }}
               >
                 {card.value}
               </span>

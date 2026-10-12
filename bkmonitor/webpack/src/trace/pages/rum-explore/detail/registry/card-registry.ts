@@ -77,12 +77,12 @@ const isXhrLike = (ctx: IRumCardResolveCtx) => {
  * 副文案为指标全称；extraFooter 用于 TTFB 追加分段耗时说明。
  */
 const vitalCard = (): IRumCardDescriptor => data => {
-  const metric = String(data['attributes.vital.metric'] ?? '').toLowerCase();
+  const metric = String(data['attributes.vital.metric'] || data.key || '').toLowerCase();
   const value = data['attributes.vital.value'];
   const hasValue = value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const configs = (data['display.rating_config'] ?? []) as IRumRatingConfig[];
-  /** 按阈值命中评级，最后一段无上界，与评级条（buildRatingBar）同一口径；值缺失时不挂标签 */
-  let hitRating = '';
+  /** 按阈值命中评级，最后一段无上界，与评级条（buildRatingBar）同一口径 */
+  let hitRating = RumRatingEnum.GOOD;
   if (hasValue && configs.length) {
     hitRating = configs[configs.length - 1].rating;
     for (const config of configs) {
