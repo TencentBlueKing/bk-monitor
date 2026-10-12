@@ -39,17 +39,21 @@ import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
 import { useRumExploreStore } from '../../store/modules/rum-explore';
+import RumLoadStatus from '../rum/components/rum-load-status';
 import FavoriteBox, { EditFavorite } from '../trace-explore/components/favorite-box';
 import TraceExploreLayout from '../trace-explore/components/trace-explore-layout';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
 import RumDimensionPanel from './components/rum-dimension-panel';
+import RumEventsDrawer from './components/rum-events-drawer';
 import RumExploreHeader from './components/rum-explore-header';
 import RumExploreSkeleton from './components/rum-explore-skeleton/rum-explore-skeleton';
 import RumExploreTable from './components/rum-explore-table';
 import RumExploreView from './components/rum-explore-view/rum-explore-view';
 import RumSpanTypeFilter from './components/rum-span-type-filter';
 import {
+  useRumActiveRow,
   useRumColumnConfig,
+  useRumEventsDrawer,
   useRumFavorite,
   useRumFieldValues,
   useRumQuery,
@@ -69,9 +73,9 @@ import {
 import RumSpanDetailSlider from './detail';
 import { getApplicationList } from './services/rum-application';
 import EmptyStatus from '@/components/empty-status/empty-status';
-import RumLoadStatus from '../rum/components/rum-load-status';
 
 import type { ConditionChangeEvent } from '../trace-explore/typing';
+import type { IRumEventsTarget } from './composables/use-rum-events-drawer';
 import type { IRumDetailContext } from './detail';
 import type { IRumApplication, IRumColumnLayoutPreset } from './typings';
 
@@ -118,6 +122,21 @@ export default defineComponent({
           queryCtx.commonParams.value.mode === store.mode
       )
     );
+    /**
+     * 抽屉与高亮行共用的重置信号：结果集被替换（查询条件 / 排序 / 时间范围变化，换应用与换视角同样改写 commonParams）或手动刷新时变化。
+     * 手动刷新不并入 backTopSignal：后者还驱动滚动复位与整表 loading，复用会把刷新变成「回顶 + 清空列表」。
+     */
+    const resetSignal = computed(() => `${tableCtx.backTopSignal.value}|${store.refreshImmediate}`);
+    /** events 数组列表抽屉：状态与开关由 hook 管理，重置信号变化（结果集被替换或手动刷新）时自动收起 */
+    const eventsDrawerCtx = useRumEventsDrawer(resetSignal);
+    /**
+     * 主表高亮行 key（受控单一数据源）：行点击 / 键盘高亮与 events 抽屉共用，重置信号变化时清除；
+     * 兜底行为详情抽屉的记录 ID，URL 还原的详情因此不会在首屏结果集回填前被重置清空。
+     */
+    const activeRowCtx = useRumActiveRow(resetSignal, {
+      locked: eventsDrawerCtx.show,
+      fallbackRowKey: computed(() => detailContext.value?.record_id ?? ''),
+    });
     const configLoading = computed(() => applicationLoading.value || viewConfigCtx.loading.value);
     // tagValueDisplayFormatter 用于让已选条件 tag 按字段单位与枚举别名展示
     const { getFieldValues, tagValueDisplayFormatter } = useRumFieldValues(
@@ -133,11 +152,6 @@ export default defineComponent({
           : queryCtx.where.value.length > 0 || queryCtx.commonWhere.value.length > 0;
       return hasCondition ? 'search-empty' : 'empty';
     });
-
-    /** 详情抽屉对应的表格高亮行：上一个 / 下一个切换与关闭抽屉时跟随 detailContext 同步 */
-    const detailActiveRowKeys = computed<string[]>(() =>
-      detailContext.value?.record_id ? [detailContext.value.record_id] : []
-    );
 
     /** 当前视角的列布局预设（默认列宽 / 固定列）：列配置与列设置面板共用同一份声明 */
     const layoutPreset = computed<IRumColumnLayoutPreset>(() => RUM_COLUMN_LAYOUT_PRESET[store.mode] ?? {});
@@ -383,6 +397,9 @@ export default defineComponent({
         end_time: endTime,
       };
       detailShow.value = true;
+      /** 打开详情时收起 events 抽屉：两者都是行数据下钻视图，避免底部抽屉与详情侧弹叠放（上/下一条切换同样走这里，随切换收起） */
+      eventsDrawerCtx.closeDrawer();
+      activeRowCtx.setActiveRowKey(detailContext.value.record_id);
       queryCtx.setUrlParams({
         detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
         detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
@@ -423,6 +440,12 @@ export default defineComponent({
     const handlePreviousDetail = () => handleStepDetail(-1);
 
     const handleNextDetail = () => handleStepDetail(1);
+
+    /** 打开 events 抽屉：抽屉 hook 记录目标行后，把高亮行指向该行 */
+    function handleEventsCellClick(target: IRumEventsTarget) {
+      eventsDrawerCtx.handleEventsCellClick(target);
+      activeRowCtx.setActiveRowKey(target.row?.span_id);
+    }
 
     function handleSortChange(sort: string | string[]) {
       tableCtx.handleSortChange(sort);
@@ -478,6 +501,7 @@ export default defineComponent({
           detailShow.value = JSON.parse(decodeURIComponent(query.detailShow));
         }
         if (query.detailContext) {
+          // 高亮行由 detailContext 兜底派生，与页内打开详情的表现一致，无需在此写入
           detailContext.value = JSON.parse(decodeURIComponent(query.detailContext));
         }
       });
@@ -494,13 +518,14 @@ export default defineComponent({
       store,
       applicationList,
       applicationLoading,
+      activeRowCtx,
+      eventsDrawerCtx,
       applicationError,
       initialize,
       configLoading,
       columnConfig,
       detailContext,
       detailShow,
-      detailActiveRowKeys,
       emptyType,
       layoutPreset,
       isSpanSpecialPerspective,
@@ -523,6 +548,7 @@ export default defineComponent({
       setResidentConfig,
       handleAppNameChange,
       handleConditionChange,
+      handleEventsCellClick,
       handleModeChange,
       handleOpenDetail,
       handleSortChange,
@@ -537,7 +563,9 @@ export default defineComponent({
     };
   },
   render() {
-    const { favoriteCtx, queryCtx, spanTypeCtx, tableCtx, viewConfigCtx } = this;
+    const { activeRowCtx, eventsDrawerCtx, favoriteCtx, queryCtx, spanTypeCtx, tableCtx, viewConfigCtx } = this;
+    /** 抽屉的目标行：渲染期取一次快照，既决定是否挂载抽屉，也作为 row 传入 */
+    const eventsRow = eventsDrawerCtx.row.value;
 
     return (
       <div class='rum-explore'>
@@ -575,7 +603,7 @@ export default defineComponent({
           <div class='rum-explore-content'>
             <RumLoadStatus
               error={this.applicationError || viewConfigCtx.error.value}
-              onRetry={() => this.applicationError ? this.initialize() : viewConfigCtx.fetchViewConfig()}
+              onRetry={() => (this.applicationError ? this.initialize() : viewConfigCtx.fetchViewConfig())}
             />
             {this.applicationError || viewConfigCtx.error.value ? null : this.configLoading ? (
               <RumExploreSkeleton
@@ -638,91 +666,96 @@ export default defineComponent({
                 </EmptyStatus>
               </div>
             )}
-            {!this.applicationError && !viewConfigCtx.error.value && (this.applicationLoading || !!this.applicationList.length) && (
-              <TraceExploreLayout
-                isCollapsed={this.isCollapsed}
-                onUpdate:isCollapsed={value => {
-                  this.isCollapsed = value;
-                }}
-              >
-                {{
-                  aside: () => (
-                    <RumDimensionPanel
-                      activeSpanType={spanTypeCtx.activeSpanType.value}
-                      commonParams={queryCtx.commonParams.value}
-                      groups={viewConfigCtx.fieldGroups.value}
-                      loading={this.configLoading}
-                      timeRange={this.store.timeRange}
-                      onClose={() => {
-                        this.isCollapsed = true;
-                      }}
-                      onConditionChange={this.handleConditionChange}
-                    />
-                  ),
-                  default: () => (
-                    <div class='result-panel'>
-                      <RumLoadStatus
-                        loading={tableCtx.loading.value && !!tableCtx.tableData.value.length}
-                        error={tableCtx.error.value}
-                        onRetry={tableCtx.retry}
+            {!this.applicationError &&
+              !viewConfigCtx.error.value &&
+              (this.applicationLoading || !!this.applicationList.length) && (
+                <TraceExploreLayout
+                  isCollapsed={this.isCollapsed}
+                  onUpdate:isCollapsed={value => {
+                    this.isCollapsed = value;
+                  }}
+                >
+                  {{
+                    aside: () => (
+                      <RumDimensionPanel
+                        activeSpanType={spanTypeCtx.activeSpanType.value}
+                        commonParams={queryCtx.commonParams.value}
+                        groups={viewConfigCtx.fieldGroups.value}
+                        loading={this.configLoading}
+                        timeRange={this.store.timeRange}
+                        onClose={() => {
+                          this.isCollapsed = true;
+                        }}
+                        onConditionChange={this.handleConditionChange}
                       />
-                      <RumExploreView
-                        ref='rumExploreViewRef'
-                        v-slots={{
-                          affixedTop: () => (
-                            <RumSpanTypeFilter
-                              list={spanTypeCtx.chipList.value}
-                              loading={this.configLoading}
-                              value={spanTypeCtx.activeSpanType.value}
-                              onChange={this.handleSpanTypeChange}
-                            />
-                          ),
-                          default: () =>
-                            this.configLoading ? (
-                              <RumExploreSkeleton kind='table' />
-                            ) : tableCtx.error.value && !tableCtx.tableData.value.length ? null : (
-                              <RumExploreTable
-                                headerAffixedTop={{
-                                  container: () => this.rumExploreViewRef?.$el,
-                                  // span 模式下表格上方有 RumSpanTypeFilter 吸顶区域（高度 56px：padding 12 + chip 32 + padding 12）
-                                  offsetTop: this.isSpanMode ? 56 : 0,
-                                }}
-                                baseColumns={this.columnConfig.baseColumns.value}
-                                commonParams={queryCtx.commonParams.value}
-                                data={tableCtx.tableData.value}
-                                defaultActiveRowKeys={this.detailActiveRowKeys}
-                                defaultFieldKeys={this.columnConfig.defaultDisplayFields.value}
-                                displayableFields={this.columnConfig.displayableFields.value}
-                                emptyType={this.emptyType}
-                                fieldMap={this.columnConfig.fieldMap.value}
-                                fixedDisplayList={this.layoutPreset.leftFixedColumns}
-                                hasMore={tableCtx.hasMore.value}
-                                horizontalScrollAffixedBottom={{ container: () => this.rumExploreViewRef?.$el }}
-                                loading={tableCtx.loading.value}
-                                mode={this.store.mode}
-                                scrollLoading={tableCtx.scrollLoading.value}
-                                showSettings={!this.isSpanSpecialPerspective}
-                                sort={tableCtx.sortParams.value}
-                                timeRange={this.store.timeRange}
-                                timezone={this.store.timezone}
-                                onClearFilter={queryCtx.clearQuery}
-                                onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
-                                onConditionChange={this.handleConditionChange}
-                                onDisplayFieldChange={fields => this.columnConfig.updateDisplayFields(fields)}
-                                onOpenDetail={this.handleOpenDetail}
-                                onScrollToEnd={tableCtx.handleScrollToEnd}
-                                onSortChange={this.handleSortChange}
+                    ),
+                    default: () => (
+                      <div class='result-panel'>
+                        <RumLoadStatus
+                          error={tableCtx.error.value}
+                          loading={tableCtx.loading.value && !!tableCtx.tableData.value.length}
+                          onRetry={tableCtx.retry}
+                        />
+                        <RumExploreView
+                          ref='rumExploreViewRef'
+                          v-slots={{
+                            affixedTop: () => (
+                              <RumSpanTypeFilter
+                                list={spanTypeCtx.chipList.value}
+                                loading={this.configLoading}
+                                value={spanTypeCtx.activeSpanType.value}
+                                onChange={this.handleSpanTypeChange}
                               />
                             ),
-                        }}
-                        backTopSignal={tableCtx.backTopSignal.value}
-                        syncAffixOnResize={true}
-                      />
-                    </div>
-                  ),
-                }}
-              </TraceExploreLayout>
-            )}
+                            default: () =>
+                              this.configLoading ? (
+                                <RumExploreSkeleton kind='table' />
+                              ) : tableCtx.error.value && !tableCtx.tableData.value.length ? null : (
+                                <RumExploreTable
+                                  headerAffixedTop={{
+                                    container: () => this.rumExploreViewRef?.$el,
+                                    // span 模式下表格上方有 RumSpanTypeFilter 吸顶区域（高度 56px：padding 12 + chip 32 + padding 12）
+                                    offsetTop: this.isSpanMode ? 56 : 0,
+                                  }}
+                                  activeColKey={eventsDrawerCtx.show.value ? eventsDrawerCtx.colKey.value : ''}
+                                  activeRowKey={activeRowCtx.activeRowKey.value}
+                                  baseColumns={this.columnConfig.baseColumns.value}
+                                  commonParams={queryCtx.commonParams.value}
+                                  data={tableCtx.tableData.value}
+                                  defaultFieldKeys={this.columnConfig.defaultDisplayFields.value}
+                                  displayableFields={this.columnConfig.displayableFields.value}
+                                  emptyType={this.emptyType}
+                                  fieldMap={this.columnConfig.fieldMap.value}
+                                  fixedDisplayList={this.layoutPreset.leftFixedColumns}
+                                  hasMore={tableCtx.hasMore.value}
+                                  horizontalScrollAffixedBottom={{ container: () => this.rumExploreViewRef?.$el }}
+                                  loading={tableCtx.loading.value}
+                                  mode={this.store.mode}
+                                  scrollLoading={tableCtx.scrollLoading.value}
+                                  showSettings={!this.isSpanSpecialPerspective}
+                                  sort={tableCtx.sortParams.value}
+                                  timeRange={this.store.timeRange}
+                                  timezone={this.store.timezone}
+                                  onActiveChange={activeRowCtx.handleActiveRowChange}
+                                  onClearFilter={queryCtx.clearQuery}
+                                  onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
+                                  onConditionChange={this.handleConditionChange}
+                                  onDisplayFieldChange={fields => this.columnConfig.updateDisplayFields(fields)}
+                                  onEventsCellClick={this.handleEventsCellClick}
+                                  onOpenDetail={this.handleOpenDetail}
+                                  onScrollToEnd={tableCtx.handleScrollToEnd}
+                                  onSortChange={this.handleSortChange}
+                                />
+                              ),
+                          }}
+                          backTopSignal={tableCtx.backTopSignal.value}
+                          syncAffixOnResize={true}
+                        />
+                      </div>
+                    ),
+                  }}
+                </TraceExploreLayout>
+              )}
           </div>
         </div>
 
@@ -738,6 +771,25 @@ export default defineComponent({
           onPrevious={this.handlePreviousDetail}
           onUpdate:isShow={this.handleSpanDetailShowChange}
         />
+
+        {/* events 抽屉：贴页面底部弹出，覆盖除平台导航外的整块内容区，不随表格滚动 */}
+        {eventsRow ? (
+          <RumEventsDrawer
+            colKey={eventsDrawerCtx.colKey.value}
+            displayFieldKeys={this.columnConfig.displayFields.value}
+            fields={this.columnConfig.displayableFields.value}
+            isShow={eventsDrawerCtx.show.value}
+            row={eventsRow}
+            onUpdate:isShow={(value: boolean) => {
+              /* 关闭统一走 closeDrawer：主表激活单元格高亮随抽屉关闭清除，激活行高亮保留（不随关闭清空） */
+              if (value) {
+                eventsDrawerCtx.show.value = true;
+              } else {
+                eventsDrawerCtx.closeDrawer();
+              }
+            }}
+          />
+        ) : null}
 
         <EditFavorite
           data={favoriteCtx.editFavoriteData.value}
