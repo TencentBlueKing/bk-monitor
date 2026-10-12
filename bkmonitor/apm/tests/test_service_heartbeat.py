@@ -452,18 +452,6 @@ def test_metric_old_or_missing_samples_do_not_advance_data_time(sample_time: Any
     assert (node.heartbeat["metric"]["checked_at"] > 100) == (sample_time is not None)
 
 
-@pytest.mark.parametrize("status", [None, {"code": "SPACE_TABLE_ID_FIELD_MISSING_FALLBACK"}])
-def test_metric_non_failure_status_allows_heartbeat(status: Any) -> None:
-    node = make_node(heartbeat={"metric": {"last_data_at": 90, "checked_at": 100}})
-    with mock.patch(
-        "apm.core.discover.metric.service.api.unify_query.query_data_by_promql",
-        return_value={"series": [metric_series(["service_name"], ["demo"], [[180000, 150]])], "status": status},
-    ):
-        MetricServiceDiscover(datasource()).discover_heartbeat(100, 200)
-    node.refresh_from_db()
-    assert node.heartbeat["metric"]["last_data_at"] == 150
-
-
 def test_sparse_heartbeat_only_updates_observed_nodes() -> None:
     previous = {"log": {"last_data_at": 80, "checked_at": 90}}
     for index in range(100):

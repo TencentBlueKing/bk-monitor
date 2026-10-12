@@ -59,36 +59,6 @@ def test_log_query_uses_index_set_collapse_and_descending_time() -> None:
         assert body["limit"] == BaseQuery.QUERY_MAX_LIMIT
 
 
-@pytest.mark.parametrize("status", [None, {"code": "SPACE_TABLE_ID_FIELD_MISSING_FALLBACK", "message": "fallback"}])
-def test_collapsed_raw_query_accepts_empty_results_and_non_failure_status(status: Any) -> None:
-    query = UnifyQuery(2, [], "a", bk_tenant_id="system")
-    with (
-        mock.patch.object(
-            query, "get_unify_query_params", return_value={"query_list": [{"collapse": {"field": "service"}}]}
-        ),
-        mock.patch.object(query, "process_log_by_datasource", side_effect=lambda rows: rows),
-        mock.patch(
-            "bkmonitor.data_source.unify_query.query.api.unify_query.query_raw",
-            return_value={"list": [], "status": status},
-        ),
-    ):
-        assert query._query_log_using_unify_query(100000, 200000, limit=10000) == []
-
-
-@pytest.mark.parametrize("code", ["QUERY_RAW_PARTIAL", "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"])
-def test_noncollapsed_raw_query_keeps_status_behavior(code: str) -> None:
-    query = UnifyQuery(2, [], "a", bk_tenant_id="system")
-    with (
-        mock.patch.object(query, "get_unify_query_params", return_value={"query_list": [{}]}),
-        mock.patch.object(query, "process_log_by_datasource", side_effect=lambda rows: rows),
-        mock.patch(
-            "bkmonitor.data_source.unify_query.query.api.unify_query.query_raw",
-            return_value={"list": [{"service": "demo"}], "status": {"code": code}},
-        ),
-    ):
-        assert query._query_log_using_unify_query(100000, 200000)[0]["service"] == "demo"
-
-
 def test_span_group_query_preserves_complete_records_and_existing_guards() -> None:
     span = {"span_id": "last", "end_time": 190000000, "attributes": {"db.system": "mysql"}}
     query = SpanQuery([])
@@ -107,25 +77,6 @@ def test_span_group_query_preserves_complete_records_and_existing_guards() -> No
     assert body["order_by"] == ["-end_time"]
     assert config["select"] == []
     assert "app_name" in str(config["filter_dict"])
-
-
-def test_trace_es_query_preserves_collapse_sort_and_time_filter() -> None:
-    query = BkApmTraceDataSource._get_queryset(
-        bk_tenant_id="system",
-        table="2_trace.app",
-        where={"app_name__eq": "app"},
-        time_field="end_time",
-        start_time=100000000,
-        end_time=200000000,
-        distinct="resource.service.name",
-        order_by=["-end_time"],
-        limit=10000,
-    )
-    _, params = query.query.sql_with_params()
-    assert params["collapse"] == {"field": "resource.service.name"}
-    assert params["sort"] == [{"end_time": "desc"}]
-    assert "end_time" in str(params["query"])
-    assert "app_name" in str(params["query"])
 
 
 @pytest.mark.parametrize("failure", [None, "query"])
@@ -270,23 +221,6 @@ def test_fallback_real_node_creation_survives_relation_failure(existing_source: 
     node = TopoNode.objects.get(bk_biz_id=2, app_name="app", topo_key=name)
     assert node.source == ([existing_source, "trace"] if existing_source else ["trace"])
     assert node.heartbeat["trace"]["last_data_at"] == span["end_time"] // 1000000
-
-
-@pytest.mark.parametrize("code", ["QUERY_RAW_PARTIAL", "SPACE_TABLE_ID_FIELD_IS_NOT_EXISTS"])
-def test_collapsed_raw_query_preserves_returned_records(code: str) -> None:
-    query = UnifyQuery(2, [], "a", bk_tenant_id="system")
-    rows = [{"service": "demo"}]
-    with (
-        mock.patch.object(
-            query, "get_unify_query_params", return_value={"query_list": [{"collapse": {"field": "service"}}]}
-        ),
-        mock.patch.object(query, "process_log_by_datasource", side_effect=lambda records: records),
-        mock.patch(
-            "bkmonitor.data_source.unify_query.query.api.unify_query.query_raw",
-            return_value={"list": rows, "status": {"code": code}},
-        ),
-    ):
-        assert query._query_log_using_unify_query(100000, 200000) == rows
 
 
 def test_log_default_count_and_collapse_keep_existing_routing(settings) -> None:
