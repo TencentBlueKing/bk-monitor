@@ -18,7 +18,7 @@ from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
 from bkmonitor.data_source.utils.base import get_bar_interval_number, DataSourceTarget
 from bkmonitor.data_source.utils.statistics import merge_records, process_growth_rates, process_proportions
 from bkmonitor.utils.thread_backend import ThreadPool, InheritParentThread, run_threads
-from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
+from bkmonitor.utils.time_tools import parse_time_compare_abbreviation, time_interval_align
 from bkmonitor.data_source.utils import types
 from constants.otel_query import FieldTypeEnum, AggregatedMethod
 
@@ -49,9 +49,6 @@ class BaseQuery:
 
     # 参与求和的每个字段占一个引用别名。
     METRIC_ALIASES: tuple[str, ...] = tuple(f"q{index}" for index in range(8))
-
-    # 时序图展示的曲线数上限
-    SERIES_LIMIT = 20
 
     def __init__(self, data_sources: list[DataSourceTarget]):
         self.data_sources = data_sources
@@ -613,9 +610,6 @@ class BaseQuery:
         # 预先登记所有别名，某个窗口查询失败时仍保留缺失值，避免增长率计算抛 KeyError。
         alias_records_map: dict[str, list[dict[str, Any]]] = {time_shift: [] for time_shift in time_shifts}
 
-        def _bucket_start(ts: int) -> int:
-            return ts // interval * interval if interval else 0
-
         def _collect(time_shift):
             offset = parse_time_compare_abbreviation(time_shift)
             records = self._query_fields_aggregated_group(
@@ -627,9 +621,12 @@ class BaseQuery:
                 group_by=group_by,
                 interval=interval,
             )
-            # ES 桶按纪元对齐，偏移不一定能整除 interval，按首桶差值对齐回基准窗口
+            # ES 桶按本地时区对齐，按两个窗口首桶的差值平移回基准窗口。
             bucket_delta_ms = (
-                (_bucket_start(start_seconds + offset) - _bucket_start(start_seconds)) * 1000 if interval else 0
+                (time_interval_align(start_seconds + offset, interval) - time_interval_align(start_seconds, interval))
+                * 1000
+                if interval
+                else 0
             )
             for record in records:
                 if "_time_" in record:

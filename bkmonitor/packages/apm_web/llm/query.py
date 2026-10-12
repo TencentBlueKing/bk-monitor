@@ -26,6 +26,9 @@ from apm_web.handlers.query.span import SpanQuery
 class LLMQuery(SpanQuery):
     """查询 LLM Trace 与会话。"""
 
+    # 时序图展示的曲线数上限。
+    SERIES_LIMIT = 20
+
     # 按 ID 拉全量 Span 时单次查询的 ID 数；超过后按该大小切片并发请求。
     GROUP_ID_BATCH_SIZE = 30
     GROUP_ID_QUERY_WORKERS = 5

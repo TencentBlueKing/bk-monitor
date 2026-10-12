@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from unittest.mock import MagicMock, patch
 
 import pytest
+from django.utils import timezone
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from bkmonitor.data_source.utils.query import BaseQuery
@@ -140,38 +141,52 @@ class TestStatistics:
         ]
         assert result == {"total": 0, "data": []}
 
+    @pytest.mark.parametrize("time_zone,timezone_offset", [("UTC", 0), ("Asia/Shanghai", 28800)])
     @pytest.mark.parametrize(
-        "window,shift,interval,expected_interval",
+        "window,shift,interval,expected_interval,start",
         [
-            (86400, "1d", 3600, 3600),
-            (86400, "1h", 2880, 2880),
-            (86400, "1h", None, 2880),
-            (604800, "1d", None, 20160),
-            (604800, "1M", None, 20160),
+            (86400, "1d", 3600, 3600, 1737532937),
+            (86400, "1h", 2880, 2880, 1737532937),
+            (86400, "1h", None, 2880, 1737532937),
+            (604800, "1d", None, 20160, 1737532937),
+            (604800, "1M", None, 20160, 1737532937),
+            (604800, "1h", 86400, 86400, 1737504137),
         ],
-        ids=["aligned-offset", "partial-offset", "auto-day", "auto-week", "auto-week-month-shift"],
+        ids=[
+            "aligned-offset",
+            "partial-offset",
+            "auto-day",
+            "auto-week",
+            "auto-week-month-shift",
+            "day-bucket-hour-shift",
+        ],
     )
-    def test_buckets_align_before_growth_rates(self, query, window, shift, interval, expected_interval):
-        start = 1737532937
+    def test_buckets_align_before_growth_rates(
+        self, query, window, shift, interval, expected_interval, start, time_zone, timezone_offset
+    ):
         end = start + window
+
+        def bucket_start(timestamp):
+            # 模拟 ES date_histogram 的本地时区桶边界，独立于查询层的对齐实现。
+            return (timestamp + timezone_offset) // expected_interval * expected_interval - timezone_offset
 
         def aggregate(queries, shifted_start, shifted_end, fields, method, **kwargs):
             assert kwargs["interval"] == expected_interval
             current = shifted_start == start
-            # ES date_histogram 按纪元划桶，首桶可以早于查询起点。
-            first_bucket = shifted_start // expected_interval * expected_interval
+            first_bucket = bucket_start(shifted_start)
             return [
                 {"_time_": first_bucket * 1000, "_result_": 120 if current else 100},
                 {"_time_": (first_bucket + expected_interval) * 1000, "_result_": 80 if current else 100},
             ]
 
         with (
+            timezone.override(time_zone),
             patch.object(query, "_get_time_range", return_value=(start * 1000, end * 1000)),
             patch.object(query, "_query_fields_aggregated_group", side_effect=aggregate),
         ):
             result = query._statistics([], start, end, "f", "count", "0s", ["0s", shift], ["time"], interval)
         by_time = {record["dimensions"]["time"]: record for record in result["data"]}
-        first_bucket = start // expected_interval * expected_interval
+        first_bucket = bucket_start(start)
         assert result["total"] == 2
         assert by_time[first_bucket]["0s"] == 120
         assert by_time[first_bucket][shift] == 100
