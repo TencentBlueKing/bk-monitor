@@ -11,7 +11,6 @@ specific language governing permissions and limitations under the License.
 from unittest.mock import MagicMock, patch
 
 import pytest
-from rest_framework.exceptions import ValidationError
 
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder
 from bkmonitor.data_source.utils.query import BaseQuery
@@ -109,6 +108,7 @@ class TestQueryFieldsAggregatedGroup:
         assert qs.query.instant is False
         assert qs.query.is_time_agg is True
         assert qs.query.get_limit() == query.QUERY_MAX_LIMIT
+        assert qs.query.expression == "q0"
         assert metric_queries[0].query.interval == expected_interval
         assert list(metric_queries[0].query.group_by) == [field for field in group_by if field != "time"]
         assert group_by[-1] == "time"
@@ -140,26 +140,44 @@ class TestStatistics:
         ]
         assert result == {"total": 0, "data": []}
 
-    def test_buckets_align_before_growth_rates(self, query):
-        start, end = 1737532800, 1737619200
+    @pytest.mark.parametrize(
+        "window,shift,interval,expected_interval",
+        [
+            (86400, "1d", 3600, 3600),
+            (86400, "1h", 2880, 2880),
+            (86400, "1h", None, 2880),
+            (604800, "1d", None, 20160),
+            (604800, "1M", None, 20160),
+        ],
+        ids=["aligned-offset", "partial-offset", "auto-day", "auto-week", "auto-week-month-shift"],
+    )
+    def test_buckets_align_before_growth_rates(self, query, window, shift, interval, expected_interval):
+        start = 1737532937
+        end = start + window
 
         def aggregate(queries, shifted_start, shifted_end, fields, method, **kwargs):
+            assert kwargs["interval"] == expected_interval
             current = shifted_start == start
+            # ES date_histogram 按纪元划桶，首桶可以早于查询起点。
+            first_bucket = shifted_start // expected_interval * expected_interval
             return [
-                {"_time_": shifted_start * 1000, "_result_": 120 if current else 100},
-                {"_time_": (shifted_start + 3600) * 1000, "_result_": 80 if current else 100},
+                {"_time_": first_bucket * 1000, "_result_": 120 if current else 100},
+                {"_time_": (first_bucket + expected_interval) * 1000, "_result_": 80 if current else 100},
             ]
 
         with (
             patch.object(query, "_get_time_range", return_value=(start * 1000, end * 1000)),
             patch.object(query, "_query_fields_aggregated_group", side_effect=aggregate),
         ):
-            result = query._statistics([], start, end, "f", "count", "0s", ["0s", "1d"], ["time"], 3600)
+            result = query._statistics([], start, end, "f", "count", "0s", ["0s", shift], ["time"], interval)
         by_time = {record["dimensions"]["time"]: record for record in result["data"]}
+        first_bucket = start // expected_interval * expected_interval
         assert result["total"] == 2
-        assert by_time[start]["growth_rates"]["1d"] == 20
-        assert by_time[start + 3600]["growth_rates"]["1d"] == -20
-        assert by_time[start]["proportions"]["0s"] == 60
+        assert by_time[first_bucket]["0s"] == 120
+        assert by_time[first_bucket][shift] == 100
+        assert by_time[first_bucket]["growth_rates"][shift] == 20
+        assert by_time[first_bucket + expected_interval]["growth_rates"][shift] == -20
+        assert by_time[first_bucket]["proportions"]["0s"] == 60
 
     @pytest.mark.parametrize("failed_shift", ["0s", "1d"])
     def test_failed_window_keeps_alias(self, query, failed_shift):
@@ -187,15 +205,6 @@ class TestStatistics:
             result = query._statistics([], None, None, "attributes.user.id", "distinct", "0s", ["0s", "1h"])
         assert result["data"][0]["growth_rates"]["1h"] == 0
         assert "proportions" not in result["data"][0]
-
-    def test_bucket_limit_with_default_time_range(self, query):
-        with (
-            patch.object(query, "_get_time_range", return_value=(1737532800000, 1737619200000)),
-            patch.object(query, "_query_fields_aggregated_group") as group,
-            pytest.raises(ValidationError, match="时间分桶过多"),
-        ):
-            query._statistics([], None, None, "f", "count", "0s", ["0s"], ["time"], 1)
-        group.assert_not_called()
 
     def test_span_query_forwards_keyword_arguments(self, query):
         params = {

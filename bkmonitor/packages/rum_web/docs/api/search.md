@@ -941,7 +941,7 @@ POST /rum/search/statistics/
 | filters      | Array[Filter] | 否   | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                                                                    |
 | query_string | String        | 否   | 查询字符串，默认 `""`                                                                                                            |
 | group_by     | List[string]  | 否   | 分组字段；包含 `time` 时按 `interval` 分桶（`time` 为虚拟字段）                                                                                                       |
-| interval | Integer | 否 | 分桶间隔（秒），正整数，仅在 `group_by` 含 `time` 时生效，缺省时按查询窗口自动计算；每个窗口最多 10000 个桶 |
+| interval | Integer | 否 | 分桶间隔（秒），正整数，仅在 `group_by` 含 `time` 时生效，缺省时按查询窗口自动计算 |
 
 
 例如，查询某个错误影响用户数，并返回相对前一个窗口的环比：

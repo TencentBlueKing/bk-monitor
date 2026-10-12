@@ -12,9 +12,6 @@ import datetime
 from functools import partial
 from typing import Any
 
-from django.utils.translation import gettext_lazy as _
-from rest_framework.exceptions import ValidationError
-
 from core.drf_resource import api
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source import conditions_to_q, filter_dict_to_conditions
@@ -37,7 +34,6 @@ class BaseQuery:
 
     # group_by 中的虚拟字段，表示按 interval 分桶。
     TIME_BUCKET_FIELD = "time"
-    MAX_TIME_BUCKETS = 10000
 
     # 时间字段精度，用于时间字段查询时做乘法（秒 -> 毫秒）
     TIME_FIELD_ACCURACY = 1000
@@ -569,7 +565,7 @@ class BaseQuery:
 
         qs = (
             self.get_qs(start_time, end_time)
-            .expression(f"topk({self.SERIES_LIMIT}, {expression})" if not instant and group_by else expression)
+            .expression(expression)
             .time_agg(time_agg)
             .instant(instant)
             .limit(1 if instant and not group_by else self.QUERY_MAX_LIMIT)
@@ -592,12 +588,6 @@ class BaseQuery:
             return int(value)
         return round(value, 2)
 
-    @classmethod
-    def validate_statistics_interval(cls, start_time: int, end_time: int, interval: int) -> None:
-        """限制单个统计窗口的时间桶数量，时间参数为秒。"""
-        if interval < 1 or (end_time - start_time + interval - 1) // interval > cls.MAX_TIME_BUCKETS:
-            raise ValidationError(_("时间分桶过多，请调大 interval"))
-
     def _statistics(
         self,
         queries: list[QueryConfigBuilder],
@@ -618,29 +608,32 @@ class BaseQuery:
         group_by = group_by or []
         start_ms, end_ms = self._get_time_range(start_time, end_time)
         start_seconds, end_seconds = start_ms // 1000, end_ms // 1000
-        if self.TIME_BUCKET_FIELD in group_by:
-            if interval is None:
-                interval = get_bar_interval_number(start_seconds, end_seconds)
-            self.validate_statistics_interval(start_seconds, end_seconds, interval)
+        if self.TIME_BUCKET_FIELD in group_by and interval is None:
+            interval = get_bar_interval_number(start_seconds, end_seconds)
         # 预先登记所有别名，某个窗口查询失败时仍保留缺失值，避免增长率计算抛 KeyError。
         alias_records_map: dict[str, list[dict[str, Any]]] = {time_shift: [] for time_shift in time_shifts}
 
-        def _collect(time_shift: str) -> None:
-            # 1d 解析为 -86400，查询窗口整体回退到前一天。
-            offset_seconds = parse_time_compare_abbreviation(time_shift)
+        def _bucket_start(ts: int) -> int:
+            return ts // interval * interval if interval else 0
+
+        def _collect(time_shift):
+            offset = parse_time_compare_abbreviation(time_shift)
             records = self._query_fields_aggregated_group(
                 queries,
-                start_seconds + offset_seconds,
-                end_seconds + offset_seconds,
+                start_seconds + offset,
+                end_seconds + offset,
                 [field],
                 cal_type,
                 group_by=group_by,
                 interval=interval,
             )
+            # ES 桶按纪元对齐，偏移不一定能整除 interval，按首桶差值对齐回基准窗口
+            bucket_delta_ms = (
+                (_bucket_start(start_seconds + offset) - _bucket_start(start_seconds)) * 1000 if interval else 0
+            )
             for record in records:
                 if "_time_" in record:
-                    # 桶时间对齐回基准窗口，合并逻辑无需感知时间偏移。
-                    record["_time_"] -= offset_seconds * 1000
+                    record["_time_"] -= bucket_delta_ms
             alias_records_map[time_shift] = records
 
         run_threads(

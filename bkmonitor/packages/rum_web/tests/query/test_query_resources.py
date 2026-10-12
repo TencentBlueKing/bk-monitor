@@ -602,25 +602,6 @@ class TestRumStatisticsSerializer:
         )
         assert serializer.is_valid(), serializer.errors
 
-    @pytest.mark.parametrize(
-        "group_by,window,valid", [(["time"], 10000, True), (["time"], 10001, False), ([], 86400, True)]
-    )
-    def test_bucket_count_limit(self, group_by, window, valid):
-        serializer = RumStatisticsRequestSerializer(
-            data={
-                "bk_biz_id": 2,
-                "app_name": "my_app",
-                "field": "f",
-                "cal_type": "count",
-                "group_name": "origin",
-                "start_time": 1737532800,
-                "end_time": 1737532800 + window,
-                "group_by": group_by,
-                "interval": 1,
-            }
-        )
-        assert serializer.is_valid() is valid, serializer.errors
-
 
 class TestRumStatisticsResource:
     """RumStatisticsResource 路由与服务调用"""
