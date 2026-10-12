@@ -20,7 +20,7 @@ class TestSchemaDefinitions:
     def test_action_count(self):
         """所有 53 个 action 都已定义。"""
         actions = [v for v in vars(Actions).values() if hasattr(v, "id")]
-        assert len(actions) == 53
+        assert len(actions) == 55
 
     def test_action_ids_unique(self):
         """Action ID 没有重复。"""
@@ -59,7 +59,7 @@ class TestSchemaRegistry:
     def test_registry_loaded(self):
         fw = get_framework()
         schema = fw.schema
-        assert len(list(schema.all_actions())) == 53
+        assert len(list(schema.all_actions())) == 55
         assert len(list(schema.all_resource_types())) == 4
         assert len(list(schema.all_roles())) == 3
 

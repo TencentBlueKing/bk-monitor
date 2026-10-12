@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from __future__ import annotations
 
 import logging
+import json
 
 from django.core.exceptions import ImproperlyConfigured
 from rest_framework.request import Request
@@ -48,8 +49,8 @@ class V4ResourceCallbackView(APIView):
         """处理 IAM 平台的 list_instance / fetch_instance_info 请求。"""
         try:
             bk_tenant_id = get_callback_tenant_id(request)
-        except ValueError as exc:
-            return Response({"error": {"code": "INVALID_ARGUMENT", "message": str(exc)}}, status=400)
+        except ValueError:
+            return Response({"error": {"code": "INVALID_ARGUMENT", "message": "Invalid callback tenant"}}, status=400)
 
         method = request.data.get("method", "")
         filter_data = request.data.get("filter", {})
@@ -60,12 +61,16 @@ class V4ResourceCallbackView(APIView):
         resource_type = service.decode_resource_type(dialect_resource_type)
 
         logger.info(
-            "[iam_v4:callback] method=%s type=%s business_type=%s page=%s tenant_id=%s",
-            method,
-            dialect_resource_type,
-            resource_type,
-            page,
-            bk_tenant_id,
+            "[iam_v4:callback] %s",
+            json.dumps(
+                {
+                    "method": str(method)[:80],
+                    "type": str(dialect_resource_type)[:80],
+                    "business_type": str(resource_type)[:80],
+                    "tenant_id": str(bk_tenant_id)[:80],
+                },
+                ensure_ascii=True,
+            ),
         )
 
         try:
@@ -79,12 +84,12 @@ class V4ResourceCallbackView(APIView):
                 )
                 return Response({"code": 0, "data": result})
 
-            logger.warning("[iam_v4:callback] unknown method=%s", method)
+            logger.warning("[iam_v4:callback] unknown method=%r", str(method)[:80])
             return Response({"code": 0, "data": {"count": 0, "results": []}})
         except Exception as exc:
-            logger.exception("[iam_v4:callback] error: %s", exc)
+            logger.error("[iam_v4:callback] failed error_type=%s", type(exc).__name__)
             return Response(
-                {"error": {"code": "INTERNAL_ERROR", "message": str(exc)[:200]}},
+                {"error": {"code": "INTERNAL_ERROR", "message": "IAM callback failed"}},
                 status=500,
             )
 

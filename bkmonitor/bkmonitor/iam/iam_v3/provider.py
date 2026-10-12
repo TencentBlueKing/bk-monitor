@@ -142,6 +142,7 @@ class V3PermissionProvider(PermissionProvider):
                 system_id=self._cfg.system.id,
                 codec=self.codec,
                 bk_tenant_id=tid,
+                enable_v1_compat=self.options.get("enable_v1_compat", True),
             )
         return self._clients[key]
 
@@ -422,7 +423,10 @@ class V3PermissionProvider(PermissionProvider):
             "name": resource_id,
             "creator": creator,
         }
-        client.grant_resource_creator_actions(application)
+        result = client.grant_resource_creator_actions(application)
+        if isinstance(result, tuple) and result and not result[0]:
+            raise ProviderError(str(result[1]) if len(result) > 1 else "IAM V3 creator grant failed")
+        return result
 
     # ================================================================
     # 策略表达式查询（低层能力）

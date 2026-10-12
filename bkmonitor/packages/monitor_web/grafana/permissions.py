@@ -278,15 +278,22 @@ class DashboardPermission(BasePermission):
         """
         检查用户的仪表盘权限（内部用户 role 门禁 + 外部用户资源列表合并）。
 
-        内部用户的 per-dashboard 可见列表不再在此计算（需要候选列表），
-        由资源层调用 get_visible_dashboards 获取。
+        代理同步需要完整的当前 org 候选，包含 folder，才能增加和撤销实例 ACL。
         """
         # 内部用户权限处理
         if getattr(request, "skip_check", False) or request.user.is_superuser:
             role, dashboard_permissions = GrafanaRole.Admin, {}
         else:
-            role = cls.get_user_role(request.user.username, org_name, force_check)
-            dashboard_permissions = {}
+            org_id = get_or_create_org(org_name)["id"]
+            candidates = [
+                f"folder:{org_id}|{dashboard_id}" if is_folder else f"{org_id}|{uid}"
+                for dashboard_id, uid, is_folder in Dashboard.objects.filter(org_id=org_id).values_list(
+                    "id", "uid", "is_folder"
+                )
+            ]
+            role, dashboard_permissions = cls.get_visible_dashboards(
+                request.user.username, org_name, resource_ids=candidates, force_check=force_check
+            )
 
         # 外部用户权限处理
         # 兼容处理folder权限判断: 将folder权限展开为dashboard权限

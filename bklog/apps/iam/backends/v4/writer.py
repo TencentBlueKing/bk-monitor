@@ -17,7 +17,7 @@ from apps.iam.backends.v4.exceptions import (
     V4TransportError,
 )
 from apps.iam.grant_config import AuthorizationGrantConfig
-from apps.iam.iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
+from iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
 
 
 # 日志平台 IAM V4 权限矩阵（iWiki 4029400600，2026-08-12 核对）确认了三类子资源的

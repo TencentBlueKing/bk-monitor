@@ -8,7 +8,7 @@ from blueapps.core.celery.celery import app
 from apps.iam.backends.v4.writer import V4AuthorizationWriter
 from apps.iam.error_summary import sanitize_error_summary
 from apps.iam.grant_config import AuthorizationGrantConfig, retry_countdown_seconds
-from apps.iam.iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
+from iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
 
 logger = logging.getLogger("iam.v4.grant")
 

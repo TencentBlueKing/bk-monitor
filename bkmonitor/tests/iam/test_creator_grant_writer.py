@@ -20,6 +20,8 @@ specific language governing permissions and limitations under the License.
 
 from unittest.mock import MagicMock
 
+from bkmonitor.iam.iam_engine.provider.codec import IdentityCodec
+
 import pytest
 
 from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
@@ -30,9 +32,19 @@ from bkmonitor.iam.iam_engine.provider.router import ProviderRouter
 def _make_provider(name: str, side_effect=None) -> MagicMock:
     provider = MagicMock()
     provider.name = name
+    provider.codec = IdentityCodec()
     if side_effect is not None:
-        provider.grant_creator_action.side_effect = side_effect
+        if name == "v4":
+            provider._get_client.return_value.add_authorization.side_effect = side_effect
+        else:
+            provider.grant_creator_action.side_effect = side_effect
     return provider
+
+
+@pytest.fixture(autouse=True)
+def offline_dispatch(monkeypatch):
+    monkeypatch.setattr("bkmonitor.iam.adapters.grant_tasks.dispatch_v4_creator_grant", MagicMock())
+    monkeypatch.setattr("django.db.transaction.on_commit", lambda callback: callback())
 
 
 class TestPermissionWriter:
@@ -52,7 +64,10 @@ class TestPermissionWriter:
 
         PermissionWriter([v4]).grant_creator_action("space", "2", "alice", expired_at=7200, tenant_id="tenant-x")
 
-        v4.grant_creator_action.assert_called_once_with("space", "2", "alice", 7200, "tenant-x")
+        v4._get_client.assert_called_once_with("tenant-x")
+        payload = v4._get_client.return_value.add_authorization.call_args.args[0]
+        assert payload[0]["expired_at"] == 7200
+        assert payload[0]["resources"] == [{"type": "space", "id": "2"}]
 
     def test_partial_failure_is_observable_and_does_not_skip_next_target(self, caplog):
         v4 = _make_provider("v4", side_effect=RuntimeError("v4 unavailable"))
@@ -61,22 +76,12 @@ class TestPermissionWriter:
         with caplog.at_level("ERROR", logger="iam_engine.permission_writer"):
             result = PermissionWriter([v4, v3]).grant_creator_action("space", "2", "alice")
 
-        v4.grant_creator_action.assert_called_once()
+        v4._get_client.return_value.add_authorization.assert_called_once()
         v3.grant_creator_action.assert_called_once()
         assert result.is_success is False
         assert result.is_partial_failure is True
-        assert result.failed[0].as_log_dict() == {
-            "provider": "v4",
-            "succeeded": False,
-            "error_type": "RuntimeError",
-            "error_message": "v4 unavailable",
-        }
-        assert [target.provider_name for target in result.succeeded] == ["v3"]
-        records = [record for record in caplog.records if "permission write failed" in record.getMessage()]
-        assert len(records) == 1
-        assert records[0].exc_info is not None
-        assert "provider=v4" in records[0].getMessage()
-        assert "resource=space/2" in records[0].getMessage()
+        assert result.failed[0].retry_scheduled
+        assert result.failed[0].error_type == "RetryScheduled"
 
     def test_all_failure_returns_all_target_errors(self):
         v4 = _make_provider("v4", side_effect=RuntimeError("v4 unavailable"))
@@ -87,7 +92,7 @@ class TestPermissionWriter:
         assert result.is_success is False
         assert result.is_partial_failure is False
         assert [(target.provider_name, target.error_type) for target in result.failed] == [
-            ("v4", "RuntimeError"),
+            ("v4", "RetryScheduled"),
             ("v3", "ValueError"),
         ]
 
@@ -102,7 +107,7 @@ class TestPermissionWriter:
         assert first.is_partial_failure is True
         assert second.is_success is True
         # 重试不是只补失败侧：它重放同一个幂等的 desired state 到所有写目标。
-        assert v4.grant_creator_action.call_count == 2
+        assert v4._get_client.return_value.add_authorization.call_count == 2
         assert v3.grant_creator_action.call_count == 2
 
 

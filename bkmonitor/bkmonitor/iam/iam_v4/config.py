@@ -29,6 +29,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from iam_engine.v4.config import (
+    DEFAULT_BATCH_CHUNK_SIZE,
+    DEFAULT_BATCH_MAX_WORKERS,
+    DEFAULT_TIMEOUT_SECONDS,
+    normalize_batch_chunk_size,
+    normalize_batch_max_workers,
+    normalize_timeout_seconds,
+)
+
 
 @dataclass(frozen=True)
 class V4Credentials:
@@ -110,9 +119,9 @@ class V4Options:
         credentials:   凭据（app_code / app_secret）
         system:        系统信息（id / name / callback_url 等）
         bk_tenant_id:  租户 ID，传给客户端构造器（多租户请求头 X-Bk-Tenant-Id 使用）
-        timeout:       HTTP 请求超时（秒），默认 30
-        chunk_size:    批量鉴权分片大小（v4 单次上限 20）
-        max_workers:   批量鉴权分片的并发工作线程数，1 表示串行
+        timeout:       HTTP 请求超时（秒），默认 10，与 BKLog 共用归一化规则
+        chunk_size:    批量鉴权分片大小，默认及上限 100
+        max_workers:   批量鉴权分片并发数，默认 4，上限 8
         fallback_apply_url: 平台生成申请 URL 失败/为空时的兜底跳转地址。
             为空则维持既有降级契约（`_get_apply_url_dialect` 返回 ""）；
             非空则返回该地址，让前端至少能给用户一个可点击的兜底链接
@@ -123,9 +132,9 @@ class V4Options:
     credentials: V4Credentials
     system: V4SystemInfo
     bk_tenant_id: str = "system"
-    timeout: int = 30
-    chunk_size: int = 20
-    max_workers: int = 1
+    timeout: float = DEFAULT_TIMEOUT_SECONDS
+    chunk_size: int = DEFAULT_BATCH_CHUNK_SIZE
+    max_workers: int = DEFAULT_BATCH_MAX_WORKERS
     #: 平台生成申请 URL 为空时的兜底跳转地址；默认空 = 维持既有行为（返回 ""）。
     fallback_apply_url: str = ""
     # 预留：Provider 私有扩展字段（未识别的 options 会被收纳到此，方便调试/演进）
@@ -163,13 +172,13 @@ class V4Options:
         if not isinstance(base_url, str):
             raise ValueError(
                 "V4Options.base_url must be a non-empty string; "
-                "check BK_IAM_V4_API_BASE_URL / IAM_FRAMEWORK.PROVIDER_CATALOG['v4'].options.base_url"
+                "check BKAPP_IAM_V4_API_BASE_URL / IAM_FRAMEWORK.PROVIDER_CATALOG['v4'].options.base_url"
             )
         base_url = base_url.strip()
         if not base_url:
             raise ValueError(
                 "V4Options.base_url must be a non-empty string; "
-                "check BK_IAM_V4_API_BASE_URL / IAM_FRAMEWORK.PROVIDER_CATALOG['v4'].options.base_url"
+                "check BKAPP_IAM_V4_API_BASE_URL / IAM_FRAMEWORK.PROVIDER_CATALOG['v4'].options.base_url"
             )
 
         if not isinstance(credentials_raw, dict):
@@ -184,9 +193,9 @@ class V4Options:
             credentials=V4Credentials.from_dict(credentials_raw),
             system=V4SystemInfo.from_dict(system_raw),
             bk_tenant_id=str(raw.get("bk_tenant_id", "system")),
-            timeout=int(raw.get("timeout", 30)),
-            chunk_size=int(raw.get("chunk_size", 20)),
-            max_workers=int(raw.get("max_workers", 1)),
+            timeout=normalize_timeout_seconds(raw.get("timeout")),
+            chunk_size=normalize_batch_chunk_size(raw.get("chunk_size")),
+            max_workers=normalize_batch_max_workers(raw.get("max_workers")),
             fallback_apply_url=str(raw.get("fallback_apply_url", "") or ""),
             extra=extra,
         )

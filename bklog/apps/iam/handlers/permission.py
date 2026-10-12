@@ -35,6 +35,7 @@ the project delivered to anyone in the future.
 import warnings
 
 from django.conf import settings
+from django.db import transaction
 from iam import Resource
 
 from apps.iam import metrics
@@ -49,25 +50,25 @@ from apps.iam.exceptions import IAMDependencyError, PermissionDeniedError
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
 from apps.iam.handlers.resources import Business as BusinessResource
 from apps.iam.handlers.resources import ResourceEnum, ResourceMeta, get_resource_by_id
-from apps.iam.iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK
-from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
-from apps.iam.iam_engine.core.requests import (
+from iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK
+from iam_engine.core.exceptions import InvalidAuthModeError
+from iam_engine.core.requests import (
     AuthRequest as EngineAuthRequest,
     BatchAuthRequest as EngineBatchAuthRequest,
     ResourceInstance as EngineResourceInstance,
     Subject as EngineSubject,
     to_definition_id,
 )
-from apps.iam.iam_engine.core.types import AuthDecision, AuthStatus, AuthorizedResourceScope, BatchAuthDecision
-from apps.iam.iam_engine.migration.policy import ApplicationResolution, MigrationPolicy
-from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
-from apps.iam.iam_engine.provider.bundle import ProviderBundle
-from apps.iam.iam_engine.provider.capabilities import (
+from iam_engine.core.types import AuthDecision, AuthStatus, AuthorizedResourceScope, BatchAuthDecision
+from iam_engine.migration.policy import ApplicationResolution, MigrationPolicy
+from iam_engine.migration.dual_write import DualWriteGrantOrchestrator
+from iam_engine.provider.bundle import ProviderBundle
+from iam_engine.provider.capabilities import (
     AuthorizationWriter,
     AuthorizedScopeProvider,
     PermissionApplicationProvider,
 )
-from apps.iam.iam_engine.provider.router import ModeRouter
+from iam_engine.provider.router import ModeRouter
 from apps.iam.mode import get_mode_provider
 from apps.utils.local import get_request, get_request_username, get_local_username, get_request_tenant_id
 from apps.utils.log import logger
@@ -443,9 +444,7 @@ class Permission:
         if settings.IGNORE_IAM_PERMISSION or self.skip_check:
             return True
 
-        probe = resource_meta.create_simple_instance(
-            UNLIMITED_INSTANCE_PROBE_ID, {"bk_biz_id": bk_biz_id}
-        )
+        probe = resource_meta.create_simple_instance(UNLIMITED_INSTANCE_PROBE_ID, {"bk_biz_id": bk_biz_id})
         return self.is_allowed(action, [probe])
 
     def batch_is_allowed(
@@ -873,6 +872,7 @@ class Permission:
             tenant_id=self.bk_tenant_id,
             operator=self.username,
             dispatch_retry_grant=dispatch_v4_creator_grant,
+            on_commit=transaction.on_commit,
             retry_target=retry_target.value,
             grant_observer=self._observe_grant,
         )

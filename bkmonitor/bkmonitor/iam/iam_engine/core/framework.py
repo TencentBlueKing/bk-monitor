@@ -28,7 +28,7 @@ from __future__ import annotations
 #   fw = IAMFramework(
 #       schema=registry,
 #       providers=[v4_provider, v3_provider],
-#       read_policy=AnyOfPolicy([v4_provider, v3_provider]),
+#       read_policy=SharedMigrationPolicy([v4_provider, v3_provider], mode_provider=mode_provider),
 #       permission_writer=PermissionWriter([v4_provider, v3_provider]),
 #       bypass_rules=[SettingsSkipRule()],
 #   )
@@ -71,7 +71,7 @@ class IAMFramework:
         fw = IAMFramework(
             schema=registry,
             providers=[v4, v3],
-            read_policy=AnyOfPolicy([v4, v3]),
+            read_policy=SharedMigrationPolicy([v4, v3], mode_provider=mode_provider),
             permission_writer=PermissionWriter([v4, v3]),
             bypass_rules=[SettingsSkipRule()],
         )
@@ -149,7 +149,7 @@ class IAMFramework:
         return self._router.batch_by_action(request)
 
     def get_apply_url(self, request: ApplyURLRequest) -> str:
-        """生成权限申请 URL。由 composition 的 primary Provider 生成。"""
+        """生成权限申请 URL。由 共享迁移策略选定的 Provider 生成。"""
         return self._router.get_apply_url(request)
 
     def get_apply_data(
@@ -160,7 +160,7 @@ class IAMFramework:
     ) -> dict | None:
         """生成权限申请数据（前端 "permission" 字段）。
 
-        由 composition 的 primary Provider 生成，Provider 不支持时返回 None。
+        由 共享迁移策略选定的 Provider 生成，Provider 不支持时返回 None。
         """
         return self._router.get_apply_data(action_ids, resources, subject)
 

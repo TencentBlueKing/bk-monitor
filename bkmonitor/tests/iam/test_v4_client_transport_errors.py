@@ -15,7 +15,7 @@ specific language governing permissions and limitations under the License.
 # （MissingSchema / InvalidURL / ConnectionError / SSLError 等）都必须被
 # V4Client 内部转换成 ProviderUnavailable，绝不冒泡到视图层变成 500。
 #
-# 具体触发场景：BK_IAM_V4_API_BASE_URL 为空 → base_url="" → requests 抛
+# 具体触发场景：BKAPP_IAM_V4_API_BASE_URL 为空 → base_url="" → requests 抛
 # MissingSchema。这条兜底是"迁移期忘配 URL 也不炸"的最后一道防线。
 # ==============================================================================
 
@@ -24,6 +24,7 @@ import requests
 
 from bkmonitor.iam.iam_engine.core.exceptions import ProviderUnavailable
 from bkmonitor.iam.iam_v4.client import V4Client
+from iam_engine.v4.exceptions import V4TransportError
 
 
 def _client(base_url: str = "") -> V4Client:
@@ -43,26 +44,26 @@ class TestV4ClientMissingSchema:
         client = _client(base_url="")
         with pytest.raises(ProviderUnavailable) as exc:
             client._post("/api/v1/foo", {})
-        assert "transport error" in str(exc.value)
-        assert isinstance(exc.value.__cause__, requests.exceptions.MissingSchema)
+        assert "transport unavailable" in str(exc.value)
+        assert isinstance(exc.value.__cause__, V4TransportError)
 
     def test_get_missing_schema_raises_provider_unavailable(self):
         client = _client(base_url="")
         with pytest.raises(ProviderUnavailable) as exc:
             client._get("/api/v1/foo")
-        assert isinstance(exc.value.__cause__, requests.exceptions.MissingSchema)
+        assert isinstance(exc.value.__cause__, V4TransportError)
 
     def test_put_missing_schema_raises_provider_unavailable(self):
         client = _client(base_url="")
         with pytest.raises(ProviderUnavailable) as exc:
             client._put("/api/v1/foo", {})
-        assert isinstance(exc.value.__cause__, requests.exceptions.MissingSchema)
+        assert isinstance(exc.value.__cause__, V4TransportError)
 
     def test_delete_missing_schema_raises_provider_unavailable(self):
         client = _client(base_url="")
         with pytest.raises(ProviderUnavailable) as exc:
             client._delete("/api/v1/foo")
-        assert isinstance(exc.value.__cause__, requests.exceptions.MissingSchema)
+        assert isinstance(exc.value.__cause__, V4TransportError)
 
 
 class TestV4ClientConnectionError:
@@ -71,13 +72,13 @@ class TestV4ClientConnectionError:
     def test_connection_error_raises_provider_unavailable(self, mocker):
         client = _client(base_url="http://iam.example.com")
         mocker.patch(
-            "bkmonitor.iam.iam_v4.client.requests.post",
+            "iam_engine.v4.client.requests.request",
             side_effect=requests.exceptions.ConnectionError("dns failure"),
         )
         with pytest.raises(ProviderUnavailable) as exc:
             client._post("/api/v1/foo", {})
-        assert "transport error" in str(exc.value)
-        assert isinstance(exc.value.__cause__, requests.exceptions.ConnectionError)
+        assert "transport unavailable" in str(exc.value)
+        assert isinstance(exc.value.__cause__.__cause__, requests.exceptions.ConnectionError)
 
 
 class TestV4ClientTimeoutStillMapped:
@@ -86,13 +87,13 @@ class TestV4ClientTimeoutStillMapped:
     def test_timeout_still_raises_provider_unavailable(self, mocker):
         client = _client(base_url="http://iam.example.com")
         mocker.patch(
-            "bkmonitor.iam.iam_v4.client.requests.get",
+            "iam_engine.v4.client.requests.request",
             side_effect=requests.Timeout(),
         )
         with pytest.raises(ProviderUnavailable) as exc:
             client._get("/api/v1/foo")
         # Timeout 走的是专门分支，msg 用 "timeout" 关键字
-        assert "timeout" in str(exc.value).lower()
+        assert isinstance(exc.value.__cause__.__cause__, requests.Timeout)
 
 
 class TestV4ClientHTTPErrorStillMapped:
@@ -103,8 +104,8 @@ class TestV4ClientHTTPErrorStillMapped:
         fake_resp = mocker.MagicMock()
         fake_resp.status_code = 502
         fake_resp.text = "bad gateway"
-        fake_resp.raise_for_status.side_effect = requests.HTTPError(response=fake_resp)
-        mocker.patch("bkmonitor.iam.iam_v4.client.requests.post", return_value=fake_resp)
+        fake_resp.json.return_value = {"error": {"message": "bad gateway"}}
+        mocker.patch("iam_engine.v4.client.requests.request", return_value=fake_resp)
 
         with pytest.raises(ProviderUnavailable) as exc:
             client._post("/api/v1/foo", {})

@@ -224,6 +224,7 @@ class Permission:
         from django.utils.functional import SimpleLazyObject
 
         from config.tools.iam_credentials import get_saas_setting
+        from bkmonitor.iam.adapters.v3.config import is_v1_compat_enabled
 
         # V3 资源 dispatcher 在 URLConf 导入时创建；推迟到首次调用，避免 migrate
         # 的 URL 检查阶段读取尚未准备好的 GlobalConfig。
@@ -235,6 +236,7 @@ class Permission:
                 system_id=settings.BK_IAM_SYSTEM_ID,
                 codec=MonitorV3Codec(),
                 bk_tenant_id=bk_tenant_id,
+                enable_v1_compat=is_v1_compat_enabled,
             )
         )
 
@@ -497,8 +499,9 @@ class Permission:
         默认 ``on_failure=log`` 是尽力而为：一侧失败不会阻断业务创建，但会有
         PermissionWriter 的异常栈日志和本方法的结果摘要日志；绝不再把部分失败
         记录为 ``Success``。调用方显式传 ``raise_exception=True`` 时，无论是
-        底层直接抛异常，还是逐后端返回部分/全部失败，都统一抛 ``CreatorGrantFailed``
-        （底层原始异常通过 ``__cause__`` 保留），让上层可以用单一 ``except`` 兜底。
+        底层直接抛异常，或后端返回不能重试的失败，都统一抛 ``CreatorGrantFailed``。
+        已登记提交后重试的 V4 失败不抛出，否则会回滚业务并取消自己的重试回调。
+        重试仅为尽力投递，不表示授权已完成，不提供持久化补偿保障。
         """
         try:
             grant_result = self._fw.grant_creator_action(
@@ -528,7 +531,7 @@ class Permission:
             resource,
             grant_result.as_log_dict(),
         )
-        if raise_exception:
+        if raise_exception and any(not target.retry_scheduled for target in grant_result.failed):
             raise CreatorGrantFailed(
                 f"creator grant incomplete: resource_type={resource.type}, "
                 f"resource_id={resource.id}, result={grant_result.as_log_dict()}"

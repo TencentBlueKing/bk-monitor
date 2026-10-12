@@ -4,7 +4,7 @@ from celery.exceptions import Retry
 from django.test import SimpleTestCase, override_settings
 
 from apps.iam.backends.v4.exceptions import V4ClientError, V4ResponseError, V4TimeoutError
-from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 from apps.iam.tasks.grant import dispatch_v4_creator_grant, grant_v4_creator_action
 
 

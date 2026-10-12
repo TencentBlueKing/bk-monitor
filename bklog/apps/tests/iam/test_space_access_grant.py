@@ -8,8 +8,8 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from apps.iam.backends.v3.writer import V3AuthorizationWriter
 from apps.iam.backends.v4.writer import SPACE_ACCESS_ROLE_ID, V4AuthorizationWriter
 from apps.iam.handlers.permission import Permission
-from apps.iam.iam_engine.core.config import AuthMode
-from apps.iam.iam_engine.provider.bundle import ProviderBundle
+from iam_engine.core.config import AuthMode
+from iam_engine.provider.bundle import ProviderBundle
 from apps.log_search.models import Space, SpaceType
 
 

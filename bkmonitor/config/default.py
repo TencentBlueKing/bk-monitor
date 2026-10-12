@@ -1301,7 +1301,9 @@ BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
 BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
-BK_IAM_V4_APIGATEWAY_URL = os.getenv("BKAPP_IAM_V4_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bkiam/prod/"
+from iam_engine.settings import load_iam_settings
+
+globals().update(load_iam_settings())
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1386,13 +1388,7 @@ OFFICIAL_PLUGINS_MANAGERS = []
 # 跳过权限中心
 SKIP_IAM_PERMISSION_CHECK = False
 
-# ---- IAM v4 鉴权 ----
-BK_IAM_V4_API_BASE_URL = os.getenv("BK_IAM_V4_API_BASE_URL") or BK_IAM_V4_APIGATEWAY_URL
-BK_IAM_V4_SYSTEM_ID = os.getenv("BK_IAM_V4_SYSTEM_ID", "bk_monitor")
-# 默认直接回调监控 Web 服务，不依赖 IAM API 网关；特殊网络拓扑仍可显式覆盖。
-BK_IAM_V4_CALLBACK_URL = os.getenv("BK_IAM_V4_CALLBACK_URL") or (
-    f"{BK_MONITOR_HOST.rstrip('/')}/rest/v2/iam/v4/callback/"
-)
+# IAM V4 settings are loaded by the shared BKLog-compatible mapping above.
 
 # ---- IAM v3 鉴权 ----
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
@@ -1403,64 +1399,10 @@ BK_IAM_V3_API_BASE_URL = (
 
 # ---- IAM 申请 URL 兜底 ----
 BK_IAM_V3_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V3_FALLBACK_APPLY_URL", "") or BK_IAM_SAAS_HOST
-BK_IAM_V4_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V4_FALLBACK_APPLY_URL", "")
 
-# ---- IAM 读写后端独立配置 ----
-#
-# 部署侧原则上只需要显式配置 BK_IAM_PROVIDERS（当前进程装配的后端）。其余读/写/
-# 策略变量都会基于它派生一个合理默认，仅在需要精细化区分“读走 A、写走 A+B”或
-# 强制指定组合策略时才需要显式设置。
-#
-#   BK_IAM_PROVIDERS         当前进程装配的后端，默认 v3（V3 单栈）
-#   BK_IAM_READ_PROVIDERS    读鉴权后端；默认继承 BK_IAM_PROVIDERS
-#   BK_IAM_WRITE_PROVIDERS   通用权限写后端；默认继承 BK_IAM_PROVIDERS
-#   BK_IAM_READ_POLICY       single/any_of/all_of/primary/dynamic；
-#                            单栈默认 single、多栈默认 dynamic
-#   BK_IAM_READ_STRATEGY     dynamic 当前候选，仅在 READ_POLICY=dynamic 时生效；
-#                            可由 GlobalConfig 动态覆盖
-#   BK_IAM_READ_OPTIONS      读策略私有 JSON 参数；dynamic 时默认构造带 selector
-#                            的规范化 JSON，其它策略默认空
-#   BK_IAM_WRITE_ON_FAILURE  当前仅支持 log（逐后端详细失败日志）
-
-# 装配集合：默认 V3 单栈；用户只需要覆盖此项即可从 V3 单栈切到 V4 单栈或双栈。
-BK_IAM_PROVIDERS = os.getenv("BK_IAM_PROVIDERS", "v3")
-_BK_IAM_ENABLED_PROVIDER_LIST = [n.strip() for n in BK_IAM_PROVIDERS.split(",") if n.strip()]
-_BK_IAM_IS_MULTI_STACK = len(_BK_IAM_ENABLED_PROVIDER_LIST) > 1
-
-# 读/写 Provider：默认跟随装配集合，避免用户在“单栈切换”时还要额外覆盖两行。
-BK_IAM_READ_PROVIDERS = os.getenv("BK_IAM_READ_PROVIDERS", BK_IAM_PROVIDERS)
-BK_IAM_WRITE_PROVIDERS = os.getenv("BK_IAM_WRITE_PROVIDERS", BK_IAM_PROVIDERS)
-
-# 读策略：单栈直通 single；多栈动态 dynamic（配合 selector 支持运行时切换主后端）。
-BK_IAM_READ_POLICY = os.getenv(
-    "BK_IAM_READ_POLICY",
-    "dynamic" if _BK_IAM_IS_MULTI_STACK else "single",
-)
-
-# 仅 dynamic 策略读取；single/any_of/all_of/primary 均忽略。
-BK_IAM_READ_STRATEGY = os.getenv("BK_IAM_READ_STRATEGY", "any_of")
-
-# READ_OPTIONS：dynamic 时构造带 selector 的默认 JSON；其它策略默认空字符串，
-# 让 core.config._parse_options 视为“无自定义参数”。
-BK_IAM_READ_OPTIONS = os.getenv(
-    "BK_IAM_READ_OPTIONS",
-    (
-        json.dumps(
-            {
-                "selector": {
-                    "type": "django_setting",
-                    "attr": "BK_IAM_READ_STRATEGY",
-                    "default": BK_IAM_READ_STRATEGY,
-                },
-                "fallback_key": "any_of",
-            }
-        )
-        if BK_IAM_READ_POLICY == "dynamic"
-        else ""
-    ),
-)
-
-BK_IAM_WRITE_ON_FAILURE = os.getenv("BK_IAM_WRITE_ON_FAILURE", "log")
+# Provider loading/writes/migrations are independent of the runtime read mode.
+# V4 is assembled only when its explicit gateway is configured.
+_BK_IAM_PROVIDERS = ["v3", "v4"] if BK_IAM_V4_APIGATEWAY_URL else ["v3"]
 
 IAM_FRAMEWORK = {
     # 操作定义
@@ -1509,36 +1451,31 @@ IAM_FRAMEWORK = {
             "options": {
                 "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
                 "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
-                "base_url": BK_IAM_V4_API_BASE_URL,
+                "base_url": BK_IAM_V4_APIGATEWAY_URL,
                 "bk_tenant_id": "system",
-                "fallback_apply_url": BK_IAM_V4_FALLBACK_APPLY_URL,
+                "fallback_apply_url": BK_IAM_SAAS_HOST,
                 "credentials": {
                     "app_code": saas_setting("SAAS_APP_CODE"),
                     "app_secret": saas_setting("SAAS_SECRET_KEY"),
                 },
                 "system": {
-                    "id": BK_IAM_V4_SYSTEM_ID,
+                    "id": BK_IAM_V4_SYSTEM_ID or BK_IAM_SYSTEM_ID,
                     "name": "蓝鲸监控平台",
                     "description": "蓝鲸监控平台-IAMv4 权限系统",
-                    "callback_url": BK_IAM_V4_CALLBACK_URL,
-                    "managers": [m.strip() for m in os.getenv("BK_IAM_V4_MANAGERS", "admin").split(",") if m.strip()],
+                    "callback_url": BK_IAM_V4_CALLBACK_URL
+                    or f"{BK_IAM_RESOURCE_API_HOST.rstrip('/')}/rest/v2/iam/v4/callback/",
+                    "managers": [m.strip() for m in BK_IAM_V4_MODEL_MANAGERS.split(",") if m.strip()],
                     "clients": [saas_setting("SAAS_APP_CODE")],
                 },
-                "chunk_size": 20,
-                "max_workers": 4,
+                "timeout": BK_IAM_V4_TIMEOUT,
+                "chunk_size": BK_IAM_V4_BATCH_CHUNK_SIZE,
+                "max_workers": BK_IAM_V4_BATCH_MAX_WORKERS,
             },
         },
     },
-    "ENABLED_PROVIDERS": BK_IAM_PROVIDERS,
-    "READ": {
-        "PROVIDERS": BK_IAM_READ_PROVIDERS,
-        "POLICY": BK_IAM_READ_POLICY,
-        "OPTIONS": BK_IAM_READ_OPTIONS,
-    },
-    "WRITE": {
-        "PROVIDERS": BK_IAM_WRITE_PROVIDERS,
-        "ON_FAILURE": BK_IAM_WRITE_ON_FAILURE,
-    },
+    "ENABLED_PROVIDERS": _BK_IAM_PROVIDERS,
+    "READ": {"PROVIDERS": _BK_IAM_PROVIDERS, "POLICY": "shared"},
+    "WRITE": {"PROVIDERS": _BK_IAM_PROVIDERS, "ON_FAILURE": "log"},
     "MIGRATION": {
         # 迁移模式 manual ｜ semi_auto —— 由 BK_IAM_ENGINE_MIGRATION_MODE 控制，
         # 默认 semi_auto 保持随 `manage.py migrate` 一起跑（幂等 CREATE/UPDATE）。

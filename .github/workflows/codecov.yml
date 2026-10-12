@@ -11,9 +11,11 @@ on:
   push:
     paths:
       - 'bklog/**'
+      - 'iam_engine/**'
   pull_request:
     paths:
       - 'bklog/**'
+      - 'iam_engine/**'
   schedule:
     - cron: "0 10 * * *"
 

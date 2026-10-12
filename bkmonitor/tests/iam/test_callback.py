@@ -371,6 +371,16 @@ class TestCallbackAuth:
         assert token_provider.get_system_token() == "test-token-123"
         assert call_count == 1
 
+    def test_zero_ttl_disables_token_cache(self):
+        raw = self._options()
+        raw["api_paths"] = {"auth_token_cache_seconds": 0}
+        client = MagicMock()
+        client.get_auth_token.side_effect = ["first", "second"]
+        token_provider = V4SystemTokenProvider(V4Options.from_dict(raw), client_factory=lambda config: client)
+        assert token_provider.get_system_token() == "first"
+        assert token_provider.get_system_token() == "second"
+        assert client.get_auth_token.call_count == 2
+
     def test_basic_auth_uses_injected_token_provider(self):
         class StaticTokenProvider:
             def get_system_token(self) -> str:
@@ -418,7 +428,9 @@ class TestCallbackAuth:
             # 旧配置即使仍被部署侧设置，也不能再覆盖 V4 的共享连接配置。
             IAM_V4_CALLBACK={"base_url": "https://obsolete.example.com"},
         ):
-            assert get_v4_callback_config() == V4Options.from_dict(options)
+            config = get_v4_callback_config()
+            assert config.base_url == options["base_url"]
+            assert config.system == V4Options.from_dict(options).system
             token_provider = callback_auth.get_callback_token_provider()
             assert token_provider.get_system_token() == "shared-system-token"
             assert callback_auth.get_callback_token_provider() is token_provider
@@ -431,16 +443,47 @@ class TestCallbackAuth:
             app_secret=options["credentials"]["app_secret"],
             timeout=options["timeout"],
             bk_tenant_id=options["bk_tenant_id"],
+            api_paths=config.extra["api_paths"],
         )
         client_factory.return_value.get_auth_token.assert_called_once_with()
 
     @pytest.mark.parametrize("options", (None, {}, {"base_url": ""}))
     def test_callback_rejects_missing_or_invalid_shared_config(self, options):
         with override_settings(IAM_FRAMEWORK={"PROVIDER_CATALOG": {"v4": {"options": options}}}):
-            with pytest.raises(ImproperlyConfigured, match="Invalid IAM_FRAMEWORK.PROVIDER_CATALOG"):
+            with pytest.raises(ImproperlyConfigured, match="Invalid IAM V4 callback configuration"):
                 get_v4_callback_config()
 
     @override_settings(IAM_FRAMEWORK={})
     def test_callback_requires_v4_catalog_config(self):
-        with pytest.raises(ImproperlyConfigured, match="Invalid IAM_FRAMEWORK.PROVIDER_CATALOG"):
+        with pytest.raises(ImproperlyConfigured, match="Invalid IAM V4 callback configuration"):
             get_v4_callback_config()
+
+
+def test_callback_failure_hides_upstream_details_and_escapes_log_metadata(caplog):
+    service = _service()
+
+    @service.registry.register_list_instance("document\nforged-line")
+    def fail(*args, **kwargs):
+        raise RuntimeError("SECRET-PRIVATE-UPSTREAM\nforged-line")
+
+    class Callback(V4ResourceCallbackView):
+        callback_service = service
+
+    view = Callback()
+    request = view.initialize_request(
+        APIRequestFactory().post(
+            "/",
+            {
+                "type": "document\nforged-line",
+                "method": "list_instance",
+            },
+            format="json",
+        )
+    )
+    with caplog.at_level("INFO"):
+        response = view.post(request)
+    assert response.status_code == 500
+    assert "SECRET-PRIVATE-UPSTREAM" not in str(response.data)
+    records = [record.getMessage() for record in caplog.records if "iam_v4:callback" in record.getMessage()]
+    assert records
+    assert all("\n" not in message and "SECRET-PRIVATE-UPSTREAM" not in message for message in records)

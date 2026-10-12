@@ -52,6 +52,9 @@ class IamEngineConfig(AppConfig):
             return
         self._framework_loaded = True
 
+        # Register the IAM retry task in workers before they receive any grants.
+        from bkmonitor.iam.adapters import grant_tasks  # noqa: F401
+
         fw = load_framework()
         logger.info("iam_engine framework loaded: %d provider(s)", len(fw.providers))
 

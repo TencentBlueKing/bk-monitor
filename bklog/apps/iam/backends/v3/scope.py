@@ -4,7 +4,7 @@ from iam import ObjectSet, Request, Subject, make_expression
 from iam.exceptions import AuthAPIError
 
 from apps.iam.backends.v3.codec import V3RequestCodec
-from apps.iam.iam_engine.core.types import AuthorizedResourceScope
+from iam_engine.core.types import AuthorizedResourceScope
 
 # IAM v1 策略在 CompatibleIAM 中已经转换为 space.id；这里只优化转换后的稳定形态。
 FLATTENABLE_FIELD = "space.id"

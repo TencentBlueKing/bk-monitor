@@ -116,11 +116,45 @@ def io(monkeypatch):
     # Permission.is_allowed_by_biz masks some SDK errors as False; the new path must not call it.
     monitor.is_allowed_by_biz.return_value = False
     monitor.filter_space_list_by_action.return_value = [{"bk_biz_id": 2}]
+    monitor.bk_tenant_id = "system"
     monitor.iam_client.is_allowed.side_effect = lambda query: not query.action.id.startswith("using_")
     monitor.iam_client.get_apply_url.return_value = (True, "", "https://iam.invalid/monitor-apply")
-    monitor.make_request.side_effect = lambda action, resources: Request(
-        "bk_monitorv3", Subject("user", "alice"), Action(action), resources, None
-    )
+    # Exercise the real MCP envelope adapter, with only the framework boundary mocked.
+    # The shared router / provider decisions are tested separately without this mock.
+    from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+    from iam_engine.core.types import AuthDecision
+
+    codec = MonitorV3Codec()
+    framework = Mock()
+
+    def decide(query):
+        resources = (
+            []
+            if query.resource is None
+            else [
+                Resource(
+                    query.resource.system,
+                    query.resource.type,
+                    query.resource.id,
+                    query.resource.attributes,
+                )
+            ]
+        )
+        allowed = monitor.iam_client.is_allowed(
+            Request(
+                "bk_monitorv3",
+                Subject("user", query.subject.id),
+                Action(codec.encode_action(query.action_id)),
+                resources,
+                None,
+            )
+        )
+        return AuthDecision(allowed=allowed, provider_results=(), mode="v3")
+
+    framework.router.decide.side_effect = decide
+    framework.get_apply_data.return_value = None
+    framework.get_apply_url.side_effect = lambda query: monitor.iam_client.get_apply_url(query)[2]
+    monkeypatch.setattr("bkmonitor.iam.iam_engine.django.facade.get_framework", lambda: framework)
     monitor.get_apply_url.return_value = "https://iam.invalid/monitor-apply"
     monkeypatch.setattr(
         auth, "_business_resource", lambda biz: Resource("bk_monitorv3", "space", str(biz), {"name": str(biz)})
@@ -2151,8 +2185,8 @@ def test_mcp_first_fallback_matrix_and_english_logs(
 ):
     caplog.set_level(logging.INFO, logger=auth.__name__)
     io.iam.is_allowed.return_value = native_allowed
-    io.monitor.iam_client.is_allowed.side_effect = (
-        lambda query: legacy_allowed if query.action.id.startswith("using_") else native_allowed
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: (
+        legacy_allowed if query.action.id.startswith("using_") else native_allowed
     )
     request = request_factory()
     request.META["HTTP_X_BKAPI_PERMISSION_ACTION"] = "using_dashboard_mcp"

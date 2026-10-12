@@ -53,6 +53,7 @@ def _build_v4_client(config: V4Options) -> V4Client:
         app_secret=config.credentials.app_secret,
         timeout=config.timeout,
         bk_tenant_id=config.bk_tenant_id,
+        api_paths=config.extra.get("api_paths"),
     )
 
 
@@ -79,7 +80,8 @@ class V4SystemTokenProvider:
             if self._client is None:
                 self._client = self._client_factory(self.config)
             self._cached_token = self._client.get_auth_token()
-            self._expires_at = now + _TOKEN_CACHE_TTL
+            ttl = self.config.extra.get("api_paths", {}).get("auth_token_cache_seconds", _TOKEN_CACHE_TTL)
+            self._expires_at = now + ttl
             return self._cached_token
 
 

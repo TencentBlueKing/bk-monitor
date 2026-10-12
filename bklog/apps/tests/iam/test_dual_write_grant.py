@@ -7,8 +7,8 @@ from apps.iam.backends.v3.exceptions import V3GrantError
 from apps.iam.backends.v3.writer import V3AuthorizationWriter
 from apps.iam.backends.v4.writer import UnsupportedV4GrantResource
 from apps.iam.error_summary import sanitize_error_summary
-from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
-from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from iam_engine.migration.dual_write import DualWriteGrantOrchestrator
+from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 
 
 class DualWriteGrantOrchestratorTest(TestCase):
@@ -37,6 +37,7 @@ class DualWriteGrantOrchestratorTest(TestCase):
             writers=(("v3", self.v3_writer), ("v4", self.v4_writer)),
             tenant_id="tenant-1",
             operator="operator",
+            on_commit=transaction.on_commit,
             dispatch_retry_grant=self.dispatch,
             grant_observer=self.grant_observer,
         )
@@ -147,7 +148,7 @@ class DualWriteGrantOrchestratorTest(TestCase):
         self.v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
         self.dispatch.side_effect = RuntimeError("broker unavailable")
 
-        with patch("apps.iam.iam_engine.migration.dual_write.logger.exception") as exception_log:
+        with patch("iam_engine.migration.dual_write.logger.exception") as exception_log:
             with self.captureOnCommitCallbacks(execute=True):
                 result = self.orchestrator.grant_creator_action(self.application)
 
@@ -161,6 +162,7 @@ class DualWriteGrantOrchestratorTest(TestCase):
             writers=(("v3", self.v3_writer),),
             tenant_id="tenant-1",
             operator="operator",
+            on_commit=transaction.on_commit,
             dispatch_retry_grant=self.dispatch,
             grant_observer=self.grant_observer,
         )
@@ -194,6 +196,7 @@ class DualWriteGrantOrchestratorTest(TestCase):
             writers=(("v3", self.v3_writer), ("v5", current_writer)),
             tenant_id="tenant-1",
             operator="operator",
+            on_commit=transaction.on_commit,
             dispatch_retry_grant=self.dispatch,
             grant_observer=self.grant_observer,
             retry_target="v5",

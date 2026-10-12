@@ -55,7 +55,7 @@ class ProviderRouter:
     典型用法（由 IAMFramework 装配）::
 
         router = ProviderRouter(
-            read_policy=AnyOfPolicy([v3, v4]),
+            read_policy=SharedMigrationPolicy([v3, v4], mode_provider=mode_provider),
             permission_writer=PermissionWriter([v4, v3]),
             bypass_rules=[SettingsSkipRule(), TokenBypassRule()],
         )
@@ -89,13 +89,25 @@ class ProviderRouter:
     # ==================== 鉴权通路（bypass 横切） ====================
 
     def is_allowed(self, request: AuthRequest) -> bool:
+        from ..core.exceptions import ProviderUnavailable
+
+        decision = self.decide(request)
+        if decision.degraded and not decision.allowed:
+            raise ProviderUnavailable("IAM did not return an explicit authorization decision")
+        return decision.allowed
+
+    def decide(self, request: AuthRequest):
+        """Preserve shared tri-state evidence for consumers requiring explicit denial."""
+        from iam_engine.core.types import AuthResult
+        from iam_engine.provider.composition.union import UnionDecisionPolicy
+
         if self._should_bypass(
             request.subject,
             (request.action_id,),
             (request.resource,) if request.resource else (),
         ):
-            return True
-        return self.read_policy.is_allowed(request)
+            return UnionDecisionPolicy.decide((AuthResult.allow("bypass"),))
+        return self.read_policy.decide(request)
 
     def batch_by_resource(self, request: BatchByResourceRequest) -> BatchAuthResult:
         if self._should_bypass(

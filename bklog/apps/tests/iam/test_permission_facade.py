@@ -11,12 +11,12 @@ from apps.iam.exceptions import GetSystemInfoError, PermissionDeniedError
 from apps.iam.handlers.actions import ActionEnum, get_action_by_id
 from apps.iam.handlers.permission import UNLIMITED_INSTANCE_PROBE_ID, Permission
 from apps.iam.handlers.resources import ResourceEnum
-from apps.iam.iam_engine.core.config import AuthMode, DualStackSpec
-from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
-from apps.iam.iam_engine.core.requests import ResourceInstance as EngineResourceInstance
-from apps.iam.iam_engine.core.types import AuthResult
-from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
-from apps.iam.iam_engine.provider.router import ModeRouter
+from iam_engine.core.config import AuthMode, DualStackSpec
+from iam_engine.core.exceptions import InvalidAuthModeError
+from iam_engine.core.requests import ResourceInstance as EngineResourceInstance
+from iam_engine.core.types import AuthResult
+from iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from iam_engine.provider.router import ModeRouter
 
 
 @override_settings(

@@ -145,6 +145,7 @@ class V4PermissionProvider(PermissionProvider):
                 app_secret=app_secret,
                 timeout=self._cfg.timeout,
                 bk_tenant_id=tid,
+                api_paths=self._cfg.extra.get("api_paths"),
             )
         return self._clients[key]
 
@@ -180,15 +181,11 @@ class V4PermissionProvider(PermissionProvider):
         避免实体删除/未同步期间鉴权抛异常。
         """
         v4_resource = self._to_v4_resource(request) if request.resource else None
-        try:
-            return self._get_client(request.subject.tenant_id).direct_auth(
-                subject_id=request.subject.id,
-                action_id=request.action_id,
-                resource=v4_resource,
-            )
-        except Exception:
-            logger.exception("[iam_v4:is_allowed] error for action=%s", request.action_id)
-            return False
+        return self._get_client(request.subject.tenant_id).direct_auth(
+            subject_id=request.subject.id,
+            action_id=request.action_id,
+            resource=v4_resource,
+        )
 
     # ================================================================
     # 方言层：同 action、多 resource 单页
@@ -354,27 +351,19 @@ class V4PermissionProvider(PermissionProvider):
         expired_at: int | None = None,
         tenant_id: str = "",
     ) -> None:
-        """V4: 调 add_authorization API，默认角色 space_operator，默认 30 天过期。
+        """V4: 调 add_authorization API，默认角色 space_operator，默认 365 天过期。
         tenant_id 用于选择对应租户的客户端，实现多租户隔离。"""
-        import time
+        from ..adapters.authorization import MonitorAuthorizationWriter
 
-        from ..iam_engine.core.types import to_resource_type_id
-
-        rt_id = to_resource_type_id(resource_type)
-        dialect_rt = self.codec.encode_resource_type(rt_id)
-        dialect_rid = self.codec.encode_resource_id(rt_id, resource_id)
-
-        if expired_at is None:
-            expired_at = int(time.time()) + 30 * 24 * 3600  # 默认 30 天
-
-        authorization = {
-            "subject": {"type": "user", "id": creator},
-            "role_id": "space_operator",
-            "related_resource_type_id": dialect_rt,
-            "resources": [{"type": dialect_rt, "id": dialect_rid}],
-            "expired_at": expired_at,
-        }
-        self._get_client(tenant_id).add_authorization([authorization], operator=creator)
+        writer = MonitorAuthorizationWriter(self, tenant_id=tenant_id, operator=creator, expired_at=expired_at)
+        prepared = writer.prepare_resource_creator_actions(
+            {
+                "type": to_resource_type_id(resource_type),
+                "id": str(resource_id),
+                "creator": creator,
+            }
+        )
+        writer.grant_prepared(prepared)
 
     # ================================================================
     # 有权限的资源列表 —— IAM v4 独有能力
@@ -444,8 +433,13 @@ class V4PermissionProvider(PermissionProvider):
         subject: Subject,
         action_id: str,
     ) -> bool:
-        """v4 平台无子资源反向查询 API → 保守放行 True，由资源层精确过滤兜底。"""
-        return True
+        """Check actual grants; unscoped consumers cannot rely on later filtering."""
+        from ..iam_engine.core.types import AuthRequest
+
+        action = self.schema.get_action(to_action_id(action_id))
+        if not action.resource_type:
+            return self.is_allowed(AuthRequest(subject=subject, action_id=action_id))
+        return any(item.get("ids") for item in self.get_authorized_resources(subject, action_id))
 
     def filter_visible_resources(
         self,

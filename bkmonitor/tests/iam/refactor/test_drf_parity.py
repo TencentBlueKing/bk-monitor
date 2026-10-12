@@ -737,6 +737,8 @@ class TestDrfPreflight:
         provider.is_allowed_result = False
         # SimpleNamespace：真实缺失 skip_check 属性（MagicMock 会自动创建属性，无法模拟“无属性”）
         request = SimpleNamespace(
+            method="GET",
+            query_params={},
             biz_id=2,
             user=SimpleNamespace(username="tester", tenant_id="system"),
         )

@@ -16,10 +16,8 @@ from ..core.config import BypassRuleConfig, FrameworkConfig, ProviderConfig, Rea
 from ..core.framework import IAMFramework
 from ..core.utils import import_class
 from ..django.facade import _set_framework
-from ..provider import composition as _composition  # noqa: F401
 from ..provider.base import PermissionProvider
 from ..provider.composition.base import CompositionPolicy
-from ..provider.composition.resolver import resolve_policy_class
 from ..provider.permission_writer import PermissionWriter
 from ..schema.loaders import load_from_class as schema_load_from_class
 from ..schema.registry import SchemaRegistry
@@ -33,14 +31,28 @@ def _build_composition(
     options: dict,
 ) -> CompositionPolicy:
     """从已选择的读 Provider 构建组合策略。"""
-    policy_cls = resolve_policy_class(policy_name)
-    return policy_cls.from_options(providers, **options)
+    from bkmonitor.iam.adapters.mode import get_mode_provider
+    from bkmonitor.iam.adapters.shared_policy import SharedMigrationPolicy
+
+    if policy_name != "shared" or options:
+        raise ValueError("Monitor IAM uses only the shared v3/v4/union migration policy")
+    return SharedMigrationPolicy(providers, mode_provider=get_mode_provider())
 
 
 def _build_provider(provider_cfg: ProviderConfig, schema: SchemaRegistry) -> PermissionProvider:
     """Provider 的 options 原样透传，由 Provider 自己校验地址、凭据等细节。"""
     cls = import_class(provider_cfg.cls)
-    return cls(schema, **provider_cfg.options)
+    options = dict(provider_cfg.options)
+    if provider_cfg.name == "v3":
+        from bkmonitor.iam.adapters.v3.config import is_v1_compat_enabled
+
+        options["enable_v1_compat"] = is_v1_compat_enabled
+    if provider_cfg.name == "v4":
+        from django.conf import settings
+        from iam_engine.v4.config import load_v4_paths
+
+        options["api_paths"] = load_v4_paths(settings)
+    return cls(schema, **options)
 
 
 def _build_bypass_rules(raw_rules: tuple[BypassRuleConfig, ...]):

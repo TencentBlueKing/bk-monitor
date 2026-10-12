@@ -159,9 +159,13 @@ def _business_resource(bk_biz_id):
     from bkmonitor.iam import ResourceEnum
 
     resource = ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)
-    if resource.system != settings.BK_IAM_SYSTEM_ID or resource.type != "space" or str(resource.id) != str(bk_biz_id):
+    if (
+        resource.system not in ("", settings.BK_IAM_SYSTEM_ID)
+        or resource.type != "space"
+        or str(resource.id) != str(bk_biz_id)
+    ):
         raise AuthorizationUnavailable("The resolved business resource does not match the request.")
-    return resource
+    return Resource(settings.BK_IAM_SYSTEM_ID, resource.type, resource.id, {})
 
 
 def _apm_application_resource(bk_biz_id, context):
@@ -441,6 +445,10 @@ def _apply_guide(client, spec, resource, request):
     result = {"permission": application.to_dict()}
     error_type = "InvalidResponse"
     try:
+        from bkmonitor.iam.adapters.mcp import MonitorMCPClient
+
+        if isinstance(client, MonitorMCPClient):
+            result["permission"] = client.get_apply_data(application) or result["permission"]
         ok, _, url = client.get_apply_url(application)
         if ok and isinstance(url, str) and url:
             result["apply_url"] = url
@@ -506,8 +514,14 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         return {**result, "state": "requires_resource", "authorized": False}
 
     monitor = _monitor_permission(user)
+    from bkmonitor.iam.adapters.mcp import MonitorMCPClient
+    from bkmonitor.iam.iam_engine.django.facade import get_framework
+
+    monitor_client = MonitorMCPClient(get_framework(), monitor.bk_tenant_id)
     legacy_resource = _business_resource(bk_biz_id)
-    legacy_query = monitor.make_request(tool.iam_action, [legacy_resource])
+    legacy_query = Request(
+        settings.BK_IAM_SYSTEM_ID, Subject("user", user.username), Action(tool.iam_action), [legacy_resource], None
+    )
     native_resource = None
     if spec["system_id"] == "bk_monitorv3":
         if spec["resource_type"] == "space":
@@ -519,7 +533,13 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
             native_resource = _dashboard_resource(bk_biz_id, context)
         else:
             raise ImproperlyConfigured(f"Unsupported monitor MCP resource type: {spec['resource_type']}")
-        native_query = monitor.make_request(spec["action_id"], [native_resource])
+        native_query = Request(
+            settings.BK_IAM_SYSTEM_ID,
+            Subject("user", user.username),
+            Action(spec["action_id"]),
+            [native_resource],
+            None,
+        )
     elif spec["system_id"] == "bk_log_search":
         # 资源归属必须先于两种 IAM 判定；旧 MCP 权限不能绕过实例边界。
         native_resource = _log_resource(spec, user, bk_biz_id, context)
@@ -544,7 +564,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         action_id=legacy_query.action.id,
         resource=legacy_resource,
     )
-    legacy_allowed = _checked_permission(tool, request, "legacy", monitor.iam_client, legacy_query, bk_biz_id)
+    legacy_allowed = _checked_permission(tool, request, "legacy", monitor_client, legacy_query, bk_biz_id)
     result["legacy_authorized"] = legacy_allowed
     result["legacy_permission"] = {
         "system_id": legacy_query.system,
@@ -573,7 +593,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         }
 
     # 仅 MCP 明确拒绝才查 SaaS 原生权限；IAM／资源错误绝不能被当成 False。
-    native_client = monitor.iam_client if spec["system_id"] == "bk_monitorv3" else _log_iam(user)
+    native_client = monitor_client if spec["system_id"] == "bk_monitorv3" else _log_iam(user)
     native_allowed = _checked_permission(tool, request, "native", native_client, native_query, bk_biz_id)
     result["native_authorized"] = native_allowed
     if native_allowed:
@@ -608,7 +628,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
     )
     if include_apply_guide:
         primary_guide = _apply_guide(
-            monitor.iam_client,
+            monitor_client,
             {"system_id": legacy_query.system, "action_id": tool.iam_action},
             legacy_resource,
             request,

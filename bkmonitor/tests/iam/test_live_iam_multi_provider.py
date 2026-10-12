@@ -9,11 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 # ==============================================================================
-# Live 集成测试：多 Provider any_of 读策略下的授权 / 鉴权 / filter_visible_resources
+# Live 集成测试：多 Provider union 读策略下的授权 / 鉴权 / filter_visible_resources
 #
 # 前提（.env 已配置好）：
 #   * BK_IAM_PROVIDERS=v4,v3 + BK_IAM_READ_PROVIDERS=v4,v3
-#   * BK_IAM_READ_POLICY=dynamic + BK_IAM_READ_STRATEGY=any_of
+#   * BKAPP_IAM_PERMISSION_MODE=union
 #   * BK_IAM_ENGINE_USER=xuchaoshan —— 目标用户（V4 无授权、V3 有部分权限）
 #   * BK_IAM_V4_* / BK_IAM_V3_*    —— 两侧真实网关地址与凭据
 #   * pytest 测试库已灌好 IAM dump（.claude/datasource/load_iam_dump.py test）
@@ -28,7 +28,7 @@ specific language governing permissions and limitations under the License.
 #                自动可跑，无需人工介入。覆盖：
 #                  评论 2：grant_creator_action 在 V4 error / V3 success 时
 #                          "至少一侧成功"就整体不抛错，回滚到 V3 兜底
-#                  评论 3：union any_of + V3-only 可见空间列表非空
+#                  评论 3：union union + V3-only 可见空间列表非空
 #                  V3 all/partial/none 三种 grant_type 的 is_allowed 语义
 #   * pre     —— "前置测试"：假定用户已到 V4 平台手动给自己加了一条 space 授权
 #                （用 V4 侧存在的 action，如 space_operator 角色）后运行。
@@ -105,17 +105,20 @@ def iam_user() -> str:
 
 
 @pytest.fixture
-def require_multi_provider_any_of(live_framework):
+def require_multi_provider_union(live_framework):
     if not {"v4", "v3"}.issubset(live_framework.providers):
         pytest.skip("live 多 Provider 测试要求同时装配 v4 与 v3")
     read_policy = live_framework.router.read_policy
-    current_policy = read_policy._current() if hasattr(read_policy, "_current") else read_policy
-    if current_policy.__class__.__name__ != "AnyOfPolicy":
-        pytest.skip(f"live 多 Provider 测试要求当前读策略为 any_of，实际 {current_policy.__class__.__name__}")
+    current_policy = read_policy
+    if (
+        current_policy.__class__.__name__ != "SharedMigrationPolicy"
+        or current_policy.mode_provider.get_mode().value != "union"
+    ):
+        pytest.skip(f"live 多 Provider 测试要求当前读策略为 union，实际 {current_policy.__class__.__name__}")
 
 
 @pytest.fixture
-def live_permission(live_framework, iam_user, require_multi_provider_any_of):
+def live_permission(live_framework, iam_user, require_multi_provider_union):
     """安装真实 framework，返回 Permission 实例。"""
     from bkmonitor.iam.iam_engine.django.facade import _set_framework, get_framework
 
@@ -183,7 +186,7 @@ class TestLiveMultiProviderNaturalV4Empty:
     #
     # 之前用真实 grant_creator_action 会走 V4 space_operator 角色写入路径，把
     # xuchaoshan 授予该角色（含 view_incident / view_host 等），后续 test_05
-    # 的 union any_of 语义就会因为 V4 侧命中被误放行。
+    # 的 union union 语义就会因为 V4 侧命中被误放行。
     #
     # 真实双写行为已由阶段 2 的 mock 单元测试全面覆盖（12 passed）。此处只做
     # "live 环境下路由已装配独立写入器、写授权行为契约还在"
@@ -231,13 +234,13 @@ class TestLiveMultiProviderNaturalV4Empty:
         )
 
     # --------------------------------------------------------------------
-    # 评论 3 · union any_of：V4 False + V3 view_business_v2(all) → 应放行
+    # 评论 3 · union union：V4 False + V3 view_business_v2(all) → 应放行
     # --------------------------------------------------------------------
     def test_02_union_is_allowed_backed_by_v3_all(self, live_permission):
         resource = ResourceEnum.BUSINESS.create_simple_instance(TARGET_SPACE_ID)
         allowed = live_permission.is_allowed(ActionEnum.VIEW_BUSINESS, [resource])
         assert allowed is True, (
-            "V3 view_business_v2=all 应通过 union any_of 兜底放行；"
+            "V3 view_business_v2=all 应通过 union union 兜底放行；"
             "若为 False，可能 v3_permission.json 已过期或 V3 服务不可达。"
         )
 
@@ -245,7 +248,7 @@ class TestLiveMultiProviderNaturalV4Empty:
     # 评论 3 · filter_visible_resources：V4 空 + V3 view_business_v2(all)
     # → filter 应返回 tenant_wide=True 或至少非空可见列表
     # 这是评论 3 修复的关键回归：旧实现下 V4 空返回会污染合并结果，
-    # 新实现 AnyOfPolicy 会跳过 V4 空侧、合并 V3 侧的 all_granted。
+    # 新实现 SharedMigrationPolicy 会跳过 V4 空侧、合并 V3 侧的 all_granted。
     # --------------------------------------------------------------------
     def test_03_filter_visible_backed_by_v3_all(self, live_permission, capsys):
         spaces, tenant_wide = live_permission.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
@@ -257,13 +260,13 @@ class TestLiveMultiProviderNaturalV4Empty:
             )
         assert tenant_wide is True or visible, (
             "V3 view_business_v2=all 应让 filter 返回 tenant_wide=True 或非空可见列表；"
-            "若为 (False, empty)，说明 AnyOfPolicy 的 all_granted OR 合并未生效。"
+            "若为 (False, empty)，说明 SharedMigrationPolicy 的 all_granted OR 合并未生效。"
         )
 
     # --------------------------------------------------------------------
     # 评论 3 · filter_visible 合并 partial：view_host_v2 在 V3 是 partial(3,4)
     # → filter 应返回 space=3 或 4 至少之一
-    # 这一步进一步证明"AnyOfPolicy 合并的是真的 V3 visible_ids"，而不是
+    # 这一步进一步证明"SharedMigrationPolicy 合并的是真的 V3 visible_ids"，而不是
     # 简单退化为"全放行 or 全拒绝"。
     # --------------------------------------------------------------------
     def test_04_filter_visible_merges_v3_partial(self, live_permission, capsys):
@@ -288,7 +291,7 @@ class TestLiveMultiProviderNaturalV4Empty:
 
     # --------------------------------------------------------------------
     # V3 none 授权：view_incident 在 V3 是 none、V4 也无授权 → union 拒绝
-    # 证明 union any_of 不会"误放行"：两侧都无授权就必须拒绝
+    # 证明 union union 不会"误放行"：两侧都无授权就必须拒绝
     # --------------------------------------------------------------------
     def test_05_none_action_denied_on_both_sides(self, live_permission):
         try:
@@ -297,7 +300,7 @@ class TestLiveMultiProviderNaturalV4Empty:
             pytest.skip("ActionEnum.VIEW_INCIDENT 未定义，跳过双端拒绝验证")
         resource = ResourceEnum.BUSINESS.create_simple_instance(TARGET_SPACE_ID)
         allowed = live_permission.is_allowed(action, [resource])
-        assert allowed is False, "两侧都无授权时 any_of 必须拒绝"
+        assert allowed is False, "两侧都无授权时 union 必须拒绝"
 
     # --------------------------------------------------------------------
     # 提示进入下一段（可选）
@@ -337,7 +340,7 @@ class TestLiveMultiProviderNaturalV4Empty:
 class TestLiveMultiProviderPreV4Granted:
     """前置测试：自动通过 V4 provider 写入 space_operator 角色授权，然后验证：
       - V4 直连 view_host(space/2) 命中
-      - union any_of 命中
+      - union union 命中
       - filter_visible view_host 包含 space/2
 
     授权由 test_00 通过 V4Provider.grant_creator_action 自动完成，无需人工到 V4 平台操作；
@@ -373,7 +376,7 @@ class TestLiveMultiProviderPreV4Granted:
         )
 
     def test_02_union_hits_view_host_via_v4_or_v3(self, live_permission):
-        """union any_of：V4 已授权 view_host + V3 也授权 view_host(space=2) → 必然放行。"""
+        """union union：V4 已授权 view_host + V3 也授权 view_host(space=2) → 必然放行。"""
         try:
             action = ActionEnum.VIEW_HOST
         except AttributeError:
@@ -384,7 +387,7 @@ class TestLiveMultiProviderPreV4Granted:
 
     def test_03_filter_visible_view_host_includes_v4_and_v3(self, live_permission, capsys):
         """filter_visible view_host：V4 授权 {space=2}、V3 授权 {space=2,3,4}，
-        AnyOfPolicy 并集应包含 {2,3,4}（评论 3 合并逻辑的正向验证）。"""
+        SharedMigrationPolicy 并集应包含 {2,3,4}（评论 3 合并逻辑的正向验证）。"""
         try:
             action = ActionEnum.VIEW_HOST
         except AttributeError:
@@ -430,11 +433,11 @@ class TestLiveMultiProviderPreV4Granted:
     reason=f"当前 BK_IAM_LIVE_STAGE={_current_stage()!r}，后置阶段用例已跳过（BK_IAM_LIVE_STAGE=post 运行）",
 )
 class TestLiveMultiProviderPostV4Revoked:
-    """后置测试：V4 授权已取消，union any_of 仍应由 V3 兜住。
+    """后置测试：V4 授权已取消，union union 仍应由 V3 兜住。
 
     观测 action 仍用 ``view_host``（与 pre 一致）：撤销 space_operator 后 V4 直连
     应对 space/2 返回 False；V3 侧 view_host 在 space/{2,3,4} 都有 partial 授权，
-    AnyOfPolicy 合并结果应仍包含 space/2、space/3、space/4。
+    SharedMigrationPolicy 合并结果应仍包含 space/2、space/3、space/4。
     """
 
     def test_00_v4_direct_denies_view_host_after_manual_revoke(self, live_framework, iam_user, capsys):
@@ -447,17 +450,17 @@ class TestLiveMultiProviderPostV4Revoked:
         )
 
     def test_01_union_still_hits_view_host_via_v3(self, live_permission):
-        """V4 已取消但 V3 view_host 对 space/2 有 partial 授权；union any_of 仍应放行。"""
+        """V4 已取消但 V3 view_host 对 space/2 有 partial 授权；union union 仍应放行。"""
         try:
             action = ActionEnum.VIEW_HOST
         except AttributeError:
             pytest.skip("ActionEnum.VIEW_HOST 未定义")
         resource = ResourceEnum.BUSINESS.create_simple_instance(TARGET_SPACE_ID)
         allowed = live_permission.is_allowed(action, [resource])
-        assert allowed is True, "V4 取消后 V3 view_host 对 space/2 仍有授权；union any_of 应放行"
+        assert allowed is True, "V4 取消后 V3 view_host 对 space/2 仍有授权；union union 应放行"
 
     def test_02_filter_visible_view_host_still_returns_v3(self, live_permission, capsys):
-        """评论 3 关键回归：V4 侧撤销后，AnyOfPolicy.filter_visible_resources 必须
+        """评论 3 关键回归：V4 侧撤销后，SharedMigrationPolicy.filter_visible_resources 必须
         通过 V3 侧的 partial visible_ids={2,3,4} 兜住，而不是因为 V4 空/异常就丢结果。"""
         try:
             action = ActionEnum.VIEW_HOST
@@ -495,7 +498,7 @@ class TestLiveMultiProviderPostV4Revoked:
             )
 
     def test_04_none_action_denied(self, live_permission):
-        """view_incident 在 V3 是 none、V4 也已撤销 → union any_of 应拒绝。"""
+        """view_incident 在 V3 是 none、V4 也已撤销 → union union 应拒绝。"""
         try:
             action = ActionEnum.VIEW_INCIDENT
         except AttributeError:

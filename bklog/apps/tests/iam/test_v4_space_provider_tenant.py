@@ -5,7 +5,7 @@ from django.http import HttpResponse, JsonResponse
 from django.test import RequestFactory, SimpleTestCase, override_settings
 from iam.resource.provider import ListResult
 
-from apps.iam.iam_engine.core.types import AuthorizedResourceScope
+from iam_engine.core.types import AuthorizedResourceScope
 from apps.iam.views.resources_v4 import V4ResourceApiDispatcher, V4SpaceResourceProvider
 
 

@@ -7,18 +7,18 @@ from django.test import SimpleTestCase, override_settings
 from apps.feature_toggle.handlers.toggle import Toggle
 from apps.feature_toggle.plugins.constants import IAM_PERMISSION_MODE
 from apps.iam.apps import IamConfig
-from apps.iam.iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK, DualStackSpec
-from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
-from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
-from apps.iam.iam_engine.core.types import (
+from iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK, DualStackSpec
+from iam_engine.core.exceptions import InvalidAuthModeError
+from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
+from iam_engine.core.types import (
     AuthResult,
     AuthStatus,
     AuthorizedResourceScope,
     BatchAuthResult,
     BatchAuthResultItem,
 )
-from apps.iam.iam_engine.provider.bundle import ProviderBundle
-from apps.iam.iam_engine.provider.router import ModeRouter
+from iam_engine.provider.bundle import ProviderBundle
+from iam_engine.provider.router import ModeRouter
 from apps.iam.mode import (
     FeatureToggleModeProvider,
     InvalidIAMPermissionModeError,

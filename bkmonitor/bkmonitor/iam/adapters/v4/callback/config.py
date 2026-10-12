@@ -14,6 +14,7 @@ from dataclasses import replace
 
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from iam_engine.v4.config import load_v4_paths, resolve_callback_app_credentials
 
 from ....iam_v4.config import V4Credentials, V4Options
 
@@ -23,10 +24,14 @@ def get_v4_callback_config() -> V4Options:
     try:
         options = settings.IAM_FRAMEWORK["PROVIDER_CATALOG"]["v4"]["options"]
         config = V4Options.from_dict(options)
+        app_code, app_secret = resolve_callback_app_credentials(
+            (str(config.credentials.app_code), str(config.credentials.app_secret))
+        )
         # 固化本次凭据快照，让 SaaS 凭据变化能够使 callback token 缓存失效。
         return replace(
             config,
-            credentials=V4Credentials(str(config.credentials.app_code), str(config.credentials.app_secret)),
+            credentials=V4Credentials(app_code, app_secret),
+            extra={**config.extra, "api_paths": load_v4_paths(settings)},
         )
     except (AttributeError, KeyError, TypeError, ValueError) as exc:
-        raise ImproperlyConfigured(f"Invalid IAM_FRAMEWORK.PROVIDER_CATALOG['v4'].options for callback: {exc}") from exc
+        raise ImproperlyConfigured("Invalid IAM V4 callback configuration") from exc

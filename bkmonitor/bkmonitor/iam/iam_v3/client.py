@@ -29,6 +29,7 @@ import copy
 import logging
 import json
 import threading
+from collections.abc import Callable
 
 from cachetools import TTLCache, cachedmethod
 
@@ -71,7 +72,7 @@ class V3Client(IAM):
         system_id: str,
         codec: NameCodec,
         bk_tenant_id: str = "",
-        enable_v1_compat: bool = True,
+        enable_v1_compat: bool | Callable[[], bool] = True,
     ):
         """初始化 V3 客户端。
 
@@ -94,7 +95,8 @@ class V3Client(IAM):
         self._cache_lock = threading.RLock()
 
     def _request_cache_key(self, request):
-        return json.dumps(request.to_dict(), sort_keys=True)
+        compat = self._enable_v1_compat() if callable(self._enable_v1_compat) else self._enable_v1_compat
+        return json.dumps(request.to_dict(), sort_keys=True), bool(compat)
 
     @cachedmethod(lambda self: self._allowed_cache, key=_request_cache_key, lock=lambda self: self._cache_lock)
     def is_allowed_with_cache(self, request):
@@ -242,7 +244,7 @@ class V3Client(IAM):
 
     def _do_policy_query(self, request, with_resources: bool = True):
         # 未开启兼容模式 → 标准查询 + alias
-        if not self._enable_v1_compat:
+        if not (self._enable_v1_compat() if callable(self._enable_v1_compat) else self._enable_v1_compat):
             policies = super()._do_policy_query(request, with_resources)
             return self._merge_alias_policies(request, policies, with_resources)
 
@@ -293,7 +295,7 @@ class V3Client(IAM):
     # ================================================================
 
     def _do_policy_query_by_actions(self, request, with_resources: bool = True):
-        if not self._enable_v1_compat:
+        if not (self._enable_v1_compat() if callable(self._enable_v1_compat) else self._enable_v1_compat):
             return super()._do_policy_query_by_actions(request, with_resources)
 
         data = request.to_dict()

@@ -6,7 +6,7 @@ from typing import Any
 from django.conf import settings
 
 from apps.iam.backends.v3.exceptions import V3GrantError
-from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 
 
 class V3AuthorizationWriter:

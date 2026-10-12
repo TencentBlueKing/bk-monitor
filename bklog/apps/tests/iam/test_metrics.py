@@ -2,6 +2,7 @@ import time
 from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, TestCase, override_settings
+from django.db import transaction
 from iam.exceptions import AuthAPIError
 from prometheus_client import generate_latest
 
@@ -12,15 +13,15 @@ from apps.iam.backends.v4.provider import V4PermissionProvider
 from apps.iam.handlers.actions import ActionEnum, get_action_by_id
 from apps.iam.handlers.permission import Permission
 from apps.iam.handlers.resources import ResourceEnum
-from apps.iam.iam_engine.core.config import AuthMode
-from apps.iam.iam_engine.core.exceptions import InvalidAuthModeError
-from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
-from apps.iam.iam_engine.core.types import AuthorizedResourceScope, AuthResult
-from apps.iam.iam_engine.migration.dual_write import DualWriteGrantOrchestrator
+from iam_engine.core.config import AuthMode
+from iam_engine.core.exceptions import InvalidAuthModeError
+from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
+from iam_engine.core.types import AuthorizedResourceScope, AuthResult
+from iam_engine.migration.dual_write import DualWriteGrantOrchestrator
 from apps.iam.concurrency import run_pair_concurrently
-from apps.iam.iam_engine.provider.bundle import ProviderBundle
-from apps.iam.iam_engine.provider.capabilities import PreparedAuthorizationGrant
-from apps.iam.iam_engine.provider.router import ModeRouter
+from iam_engine.provider.bundle import ProviderBundle
+from iam_engine.provider.capabilities import PreparedAuthorizationGrant
+from iam_engine.provider.router import ModeRouter
 from apps.utils.prometheus import REGISTRY
 
 
@@ -532,6 +533,7 @@ class GrantSyncMetricsTest(TestCase):
         )
         self.dispatch = Mock()
         self.orchestrator = DualWriteGrantOrchestrator(
+            on_commit=transaction.on_commit,
             writers=(("v3", self.v3_writer), ("v4", self.v4_writer)),
             tenant_id="tenant-1",
             operator="operator",
@@ -625,6 +627,7 @@ class GrantSyncMetricsTest(TestCase):
     def test_observer_failure_neither_breaks_the_grant_nor_the_commit_callback(self):
         observer = Mock(side_effect=RuntimeError("metrics backend unavailable"))
         orchestrator = DualWriteGrantOrchestrator(
+            on_commit=transaction.on_commit,
             writers=(("v3", self.v3_writer), ("v4", self.v4_writer)),
             tenant_id="tenant-1",
             operator="operator",

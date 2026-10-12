@@ -38,7 +38,7 @@ class V4CallbackService:
         """分发 V4 list_instance 请求。"""
         handler = self.registry.get_list_instance(resource_type)
         if handler is None:
-            logger.warning("[iam_v4:callback] no list_instance handler for type=%s", resource_type)
+            logger.warning("[iam_v4:callback] no list_instance handler for type=%r", str(resource_type)[:80])
             return {"count": 0, "results": []}
         result = handler(self._decode_filter(filter_data), page, bk_tenant_id)
         self._encode_result_ids(result.get("results") or [], resource_type)
@@ -55,7 +55,7 @@ class V4CallbackService:
         """分发 V4 fetch_instance_info 请求。"""
         handler = self.registry.get_fetch_instance_info(resource_type)
         if handler is None:
-            logger.warning("[iam_v4:callback] no fetch_instance_info handler for type=%s", resource_type)
+            logger.warning("[iam_v4:callback] no fetch_instance_info handler for type=%r", str(resource_type)[:80])
             return []
         decoded_ids = [self._codec.decode_resource_id(resource_type, resource_id) for resource_id in ids]
         result = handler(decoded_ids, requires, bk_tenant_id)

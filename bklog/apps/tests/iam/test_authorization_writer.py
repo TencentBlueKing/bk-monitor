@@ -7,7 +7,7 @@ from apps.iam.backends.v3.exceptions import V3GrantError
 from apps.iam.backends.v3.writer import V3AuthorizationWriter
 from apps.iam.backends.v4.exceptions import V4ClientError, V4RateLimitError, V4TimeoutError
 from apps.iam.backends.v4.writer import UnsupportedV4GrantResource, V4AuthorizationWriter
-from apps.iam.iam_engine.provider.capabilities import GrantFailureKind
+from iam_engine.provider.capabilities import GrantFailureKind
 
 
 @override_settings(BK_IAM_V4_GRANT_EXPIRE_DAYS=365)

@@ -121,9 +121,9 @@ class TestV4Options:
         assert cfg.system.id == "bk_monitor_v4"
         assert cfg.system.name == "监控"
         # 默认值
-        assert cfg.timeout == 30
-        assert cfg.chunk_size == 20
-        assert cfg.max_workers == 1
+        assert cfg.timeout == 10
+        assert cfg.chunk_size == 100
+        assert cfg.max_workers == 4
         assert cfg.extra == {}
 
     def test_from_dict_all_optional_fields(self):

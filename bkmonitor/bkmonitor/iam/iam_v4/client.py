@@ -17,11 +17,9 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
-import requests
 
 from ..iam_engine.core.exceptions import ProviderError, ProviderUnavailable
 
@@ -31,24 +29,31 @@ logger = logging.getLogger(__name__)
 class V4Client:
     """IAM v4 APIGW 客户端。"""
 
-    def __init__(
-        self,
-        base_url: str,
-        system_id: str,
-        app_code: str,
-        app_secret: str,
-        timeout: int = 30,
-        bk_tenant_id: str = "",
-    ):
-        self._base_url = base_url.rstrip("/")
+    def __init__(self, base_url, system_id, app_code, app_secret, timeout=10, bk_tenant_id="system", api_paths=None):
+        from iam_engine.v4.client import V4Client as SharedClient
+        from iam_engine.v4.config import V4Options, load_v4_paths, normalize_timeout_seconds
+        from types import SimpleNamespace
+
+        paths = load_v4_paths(SimpleNamespace())
+        paths.update(api_paths or {})
+        options = V4Options(
+            app_code=app_code,
+            app_secret=app_secret,
+            gateway_url=base_url,
+            system_id=system_id,
+            timeout_seconds=normalize_timeout_seconds(timeout),
+            batch_chunk_size=100,
+            batch_max_workers=4,
+            **paths,
+        )
         self._system_id = system_id
-        self._timeout = timeout
-        self._auth_header = {
-            "X-Bkapi-Authorization": json.dumps({"bk_app_code": app_code, "bk_app_secret": app_secret})
-        }
-        # 多租户模式下添加租户 ID（与 IAM V3 SDK 的 X-Bk-Tenant-Id 约定保持一致）
-        if bk_tenant_id:
-            self._auth_header["X-Bk-Tenant-Id"] = bk_tenant_id
+        self._transport = SharedClient(options, bk_tenant_id=bk_tenant_id)
+
+    def _path(self, key):
+        return getattr(self._transport.options, key).format(system_id=self._system_id)
+
+    def _model_path(self, suffix=""):
+        return self._path("model_base_path").rstrip("/") + f"/{self._system_id}/" + suffix
 
     # ============================================================
     # 鉴权
@@ -56,23 +61,25 @@ class V4Client:
 
     def direct_auth(self, subject_id: str, action_id: str, resource: dict | None = None) -> bool:
         """POST /auth/ — 单资源鉴权。"""
-        path = f"/api/v1/open/rbac/authorization/systems/{self._system_id}/auth/"
+        path = self._path("auth_path")
         body: dict[str, Any] = {"subject": {"type": "user", "id": subject_id}, "action_id": action_id}
         if resource:
             body["resource"] = resource
         resp = self._post(path, body)
-        return resp["data"]["allowed"]
+        return self._transport._extract_allowed(resp["data"])
 
     def direct_auth_by_resources(self, subject_id: str, action_id: str, resources: list[dict]) -> dict[str, bool]:
         """POST /auth-by-resources/ — 同 action 多 resource 批量鉴权（≤20）。"""
-        path = f"/api/v1/open/rbac/authorization/systems/{self._system_id}/auth-by-resources/"
+        path = self._path("auth_by_resources_path")
         body = {
             "subject": {"type": "user", "id": subject_id},
             "action_id": action_id,
             "resources": resources,
         }
         resp = self._post(path, body)
-        return {item["resource_id"]: item["allowed"] for item in resp["data"]}
+        return self._transport._extract_resource_results(
+            resp["data"], expected_resource_ids=[r["id"] for r in resources]
+        )
 
     def direct_auth_by_actions(
         self, subject_id: str, action_ids: list[str], resource: dict | None = None
@@ -83,7 +90,10 @@ class V4Client:
         if resource:
             body["resource"] = resource
         resp = self._post(path, body)
-        return {item["action_id"]: item["allowed"] for item in resp["data"]}
+        return self._transport._extract_resource_results(
+            [{"resource_id": item["action_id"], "allowed": item["allowed"]} for item in resp["data"]],
+            expected_resource_ids=action_ids,
+        )
 
     def add_authorization(self, authorizations: list[dict], operator: str) -> None:
         """POST /mgmt/systems/{sys}/authorizations/ — 单批角色授权（调用方负责分片）。
@@ -106,9 +116,7 @@ class V4Client:
         """
         if not authorizations:
             return
-        path = f"/api/v1/open/rbac/mgmt/systems/{self._system_id}/authorizations/"
-        headers = {"X-Bkiam-Operator": operator}
-        self._post(path, authorizations, extra_headers=headers)
+        self._call(lambda: self._transport.add_authorization(items=authorizations, operator=operator))
 
     def get_authorized_resources(self, subject_id: str, action_id: str) -> list[dict]:
         """POST /relation/authorized-resources/ — 查询用户对某 action 有权限的资源列表。
@@ -132,26 +140,38 @@ class V4Client:
             list[{"type": <方言 rt_id>, "ids": [<方言 rid> 或 "*"]}]
             "*" 表示该资源类型下任意资源都有权限；父资源 ids 表示该父资源下所有子资源都有权限。
         """
-        path = f"/api/v1/open/rbac/authorization/systems/{self._system_id}/relation/authorized-resources/"
+        path = self._path("authorized_resources_path")
         body = {
             "subject": {"type": "user", "id": subject_id},
             "action_id": action_id,
         }
         resp = self._post(path, body)
-        return resp.get("data") or []
+        data = resp.get("data")
+        if not isinstance(data, list):
+            raise ProviderError("Invalid IAM V4 authorized-resources response")
+        result, seen = [], set()
+        for item in data:
+            if not isinstance(item, dict) or not isinstance(item.get("type"), str) or item["type"] in seen:
+                raise ProviderError("Invalid or duplicate IAM V4 authorized resource type")
+            seen.add(item["type"])
+            normalized = self._call(
+                lambda: self._transport._extract_authorized_resource_scope([item], resource_type=item["type"])
+            )
+            result.append(normalized)
+        return result
 
     # ============================================================
     # 模型管理 — System
     # ============================================================
 
     def create_system(self, data: dict) -> dict:
-        return self._post("/api/v1/open/rbac/model/systems/", data)
+        return self._post(self._path("model_base_path"), data)
 
     def retrieve_system(self) -> dict:
-        return self._get(f"/api/v1/open/rbac/model/systems/{self._system_id}/")
+        return self._get(self._model_path())
 
     def update_system(self, data: dict) -> dict:
-        return self._put(f"/api/v1/open/rbac/model/systems/{self._system_id}/", data)
+        return self._put(self._model_path(), data)
 
     # ============================================================
     # 模型管理 — Action
@@ -159,18 +179,18 @@ class V4Client:
 
     def list_actions(self, page: int = 1, page_size: int = 100) -> dict:
         return self._get(
-            f"/api/v1/open/rbac/model/systems/{self._system_id}/actions/",
+            self._model_path("actions/"),
             params={"page": page, "page_size": page_size},
         )
 
     def batch_create_actions(self, actions: list[dict]) -> dict:
-        return self._post(f"/api/v1/open/rbac/model/systems/{self._system_id}/actions/", actions)
+        return self._post(self._model_path("actions/"), actions)
 
     def update_action(self, action_id: str, data: dict) -> dict:
-        return self._put(f"/api/v1/open/rbac/model/systems/{self._system_id}/actions/{action_id}/", data)
+        return self._put(self._model_path(f"actions/{action_id}/"), data)
 
     def delete_action(self, action_id: str) -> dict:
-        return self._delete(f"/api/v1/open/rbac/model/systems/{self._system_id}/actions/{action_id}/")
+        return self._delete(self._model_path(f"actions/{action_id}/"))
 
     # ============================================================
     # 模型管理 — ResourceType
@@ -178,18 +198,18 @@ class V4Client:
 
     def list_resource_types(self, page: int = 1, page_size: int = 100) -> dict:
         return self._get(
-            f"/api/v1/open/rbac/model/systems/{self._system_id}/resource-types/",
+            self._model_path("resource-types/"),
             params={"page": page, "page_size": page_size},
         )
 
     def batch_create_resource_types(self, rts: list[dict]) -> dict:
-        return self._post(f"/api/v1/open/rbac/model/systems/{self._system_id}/resource-types/", rts)
+        return self._post(self._model_path("resource-types/"), rts)
 
     def update_resource_type(self, rt_id: str, data: dict) -> dict:
-        return self._put(f"/api/v1/open/rbac/model/systems/{self._system_id}/resource-types/{rt_id}/", data)
+        return self._put(self._model_path(f"resource-types/{rt_id}/"), data)
 
     def delete_resource_type(self, rt_id: str) -> dict:
-        return self._delete(f"/api/v1/open/rbac/model/systems/{self._system_id}/resource-types/{rt_id}/")
+        return self._delete(self._model_path(f"resource-types/{rt_id}/"))
 
     # ============================================================
     # 模型管理 — Role
@@ -197,21 +217,21 @@ class V4Client:
 
     def list_roles(self, page: int = 1, page_size: int = 100) -> dict:
         return self._get(
-            f"/api/v1/open/rbac/model/systems/{self._system_id}/roles/",
+            self._model_path("roles/"),
             params={"page": page, "page_size": page_size},
         )
 
     def batch_create_roles(self, roles: list[dict]) -> dict:
-        return self._post(f"/api/v1/open/rbac/model/systems/{self._system_id}/roles/", roles)
+        return self._post(self._model_path("roles/"), roles)
 
     def update_role(self, role_id: str, data: dict) -> dict:
-        return self._put(f"/api/v1/open/rbac/model/systems/{self._system_id}/roles/{role_id}/", data)
+        return self._put(self._model_path(f"roles/{role_id}/"), data)
 
     def delete_role(self, role_id: str) -> dict:
-        return self._delete(f"/api/v1/open/rbac/model/systems/{self._system_id}/roles/{role_id}/")
+        return self._delete(self._model_path(f"roles/{role_id}/"))
 
     def batch_create_role_actions(self, role_id: str, actions: list[dict]) -> dict:
-        return self._post(f"/api/v1/open/rbac/model/systems/{self._system_id}/roles/{role_id}/actions/", actions)
+        return self._post(self._model_path(f"roles/{role_id}/actions/"), actions)
 
     def batch_delete_role_actions(self, role_id: str, actions: list[dict]) -> dict:
         # v4 平台约定：ids 通过 query string 传递，用 "," 连接：?ids=action1,action2
@@ -219,7 +239,7 @@ class V4Client:
         if not ids:
             return {}
         return self._delete(
-            f"/api/v1/open/rbac/model/systems/{self._system_id}/roles/{role_id}/actions/",
+            self._model_path(f"roles/{role_id}/actions/"),
             params={"ids": ",".join(ids)},
         )
 
@@ -228,13 +248,13 @@ class V4Client:
     # ============================================================
 
     def generate_perm_apply_url(self, permissions: list[dict]) -> str:
-        path = "/api/v1/open/application/permission-apply-urls/"
+        path = self._path("apply_url_path")
         body = {"system_id": self._system_id, "permissions": permissions}
         try:
             resp = self._post(path, body)
             return (resp.get("data") or {}).get("url", "")
         except ProviderError:
-            logger.warning("[iam_v4:apply_url_fail] permissions=%s", permissions)
+            logger.warning("[iam_v4:apply_url_fail] request failed")
             return ""
 
     # ============================================================
@@ -242,101 +262,35 @@ class V4Client:
     # ============================================================
 
     def get_auth_token(self) -> str:
-        path = f"/api/v1/open/rbac/model/systems/{self._system_id}/auth-token/"
-        resp = self._get(path)
-        return resp["data"]["auth_token"]
+        return self._call(self._transport.retrieve_system_auth_token)
 
     # ============================================================
     # HTTP 底层
     # ============================================================
 
-    def _url(self, path: str) -> str:
-        return f"{self._base_url}{path}"
+    @staticmethod
+    def _call(call):
+        from iam_engine.v4.exceptions import V4ClientError, V4RateLimitError, V4TimeoutError, V4TransportError
 
-    def _post(self, path: str, body: dict, extra_headers: dict | None = None) -> dict:
-        headers = {**self._auth_header}
-        if extra_headers:
-            headers.update(extra_headers)
         try:
-            resp = requests.post(self._url(path), json=body, headers=headers, timeout=self._timeout)
-            resp.raise_for_status()
-        except requests.Timeout:
-            raise ProviderUnavailable(f"IAM v4 timeout: POST {path}")
-        except requests.HTTPError:
-            raise ProviderUnavailable(
-                f"IAM v4 HTTP {resp.status_code}: POST {path}: {_safe_truncate(resp)}",
-                code=resp.status_code,
-            )
-        except requests.exceptions.RequestException as exc:
-            # 兜底：MissingSchema / InvalidURL / ConnectionError 等传输层异常
-            # 都必须转成 ProviderUnavailable，避免直接冒泡到视图层变成 500，
-            # 也确保 CompositionPolicy（primary / any_of）能识别并容错。
-            raise ProviderUnavailable(f"IAM v4 transport error: POST {path}: {exc}") from exc
-        return _safe_json(resp)
+            return call()
+        except (V4TimeoutError, V4TransportError, V4RateLimitError) as error:
+            raise ProviderUnavailable("IAM V4 transport unavailable", code=error.status_code) from error
+        except V4ClientError as error:
+            if error.status_code and error.status_code >= 500:
+                raise ProviderUnavailable("IAM V4 upstream unavailable", code=error.status_code) from error
+            raise ProviderError("IAM V4 request or response invalid", code=error.status_code) from error
 
-    def _get(self, path: str, params: dict | None = None) -> dict:
-        try:
-            resp = requests.get(self._url(path), headers=self._auth_header, params=params, timeout=self._timeout)
-            resp.raise_for_status()
-        except requests.Timeout:
-            raise ProviderUnavailable(f"IAM v4 timeout: GET {path}")
-        except requests.HTTPError:
-            raise ProviderUnavailable(
-                f"IAM v4 HTTP {resp.status_code}: GET {path}: {_safe_truncate(resp)}",
-                code=resp.status_code,
-            )
-        except requests.exceptions.RequestException as exc:
-            raise ProviderUnavailable(f"IAM v4 transport error: GET {path}: {exc}") from exc
-        return _safe_json(resp)
+    def _post(self, path, body, extra_headers=None):
+        return {
+            "data": self._call(lambda: self._transport._request("POST", path, body=body, extra_headers=extra_headers))
+        }
 
-    def _put(self, path: str, body: dict) -> dict:
-        try:
-            resp = requests.put(self._url(path), json=body, headers=self._auth_header, timeout=self._timeout)
-            resp.raise_for_status()
-        except requests.Timeout:
-            raise ProviderUnavailable(f"IAM v4 timeout: PUT {path}")
-        except requests.HTTPError:
-            raise ProviderUnavailable(
-                f"IAM v4 HTTP {resp.status_code}: PUT {path}: {_safe_truncate(resp)}",
-                code=resp.status_code,
-            )
-        except requests.exceptions.RequestException as exc:
-            raise ProviderUnavailable(f"IAM v4 transport error: PUT {path}: {exc}") from exc
-        return _safe_json(resp)
+    def _get(self, path, params=None):
+        return {"data": self._call(lambda: self._transport._request("GET", path, params=params))}
 
-    def _delete(self, path: str, body: dict | None = None, params: dict | None = None) -> dict:
-        try:
-            kwargs = {"headers": self._auth_header, "timeout": self._timeout}
-            if body:
-                kwargs["json"] = body
-            if params:
-                kwargs["params"] = params
-            resp = requests.delete(self._url(path), **kwargs)
-            resp.raise_for_status()
-        except requests.Timeout:
-            raise ProviderUnavailable(f"IAM v4 timeout: DELETE {path}")
-        except requests.HTTPError:
-            raise ProviderUnavailable(
-                f"IAM v4 HTTP {resp.status_code}: DELETE {path}: {_safe_truncate(resp)}",
-                code=resp.status_code,
-            )
-        except requests.exceptions.RequestException as exc:
-            raise ProviderUnavailable(f"IAM v4 transport error: DELETE {path}: {exc}") from exc
-        return _safe_json(resp)
+    def _put(self, path, body):
+        return {"data": self._call(lambda: self._transport._request("PUT", path, body=body))}
 
-
-def _safe_json(resp) -> dict:
-    text = resp.text.strip() if hasattr(resp, "text") else ""
-    if not text:
-        return {}
-    data = resp.json()
-    if data.get("code", 0) != 0:
-        raise ProviderError(data.get("message", "IAM v4 API error"), code=data.get("code"))
-    return data
-
-
-def _safe_truncate(resp, max_len: int = 500) -> str:
-    try:
-        return resp.text[:max_len]
-    except AttributeError:
-        return "<unreadable>"
+    def _delete(self, path, body=None, params=None):
+        return {"data": self._call(lambda: self._transport._request("DELETE", path, body=body, params=params))}

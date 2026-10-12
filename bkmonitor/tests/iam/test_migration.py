@@ -165,9 +165,9 @@ class TestSnapshotRoundTrip:
 
 
 class TestExistingMigrationSnapshot:
-    def test_initial_snapshot_matches_current_schema(self):
+    def test_latest_snapshot_matches_current_schema(self):
         directory = os.path.join(settings.BASE_DIR, "bkmonitor/iam/iam_migrations")
-        initial_migration = MigrationLoader(directory).load_all()["0001_init"]
+        initial_migration = MigrationLoader(directory).load_all()["0002_log_mcp_actions"]
         current_snapshot = get_framework().schema.to_snapshot()
 
         assert current_snapshot == initial_migration.target_snapshot

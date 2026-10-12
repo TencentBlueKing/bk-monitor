@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from iam import Action, MultiActionRequest, Request, Resource, Subject
 
-from apps.iam.iam_engine.core.requests import (
+from iam_engine.core.requests import (
     AuthRequest,
     BatchAuthRequest,
     DefinitionRef,

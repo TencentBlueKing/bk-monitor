@@ -29,7 +29,7 @@ class ReadConfig:
     """读鉴权路径的后端集合、策略名及策略私有参数。"""
 
     providers: tuple[str, ...] = ()
-    policy: str = "single"
+    policy: str = "shared"
     options: dict[str, Any] = field(default_factory=dict)
 
 
@@ -102,7 +102,7 @@ class FrameworkConfig:
             providers=_parse_provider_names(
                 read_raw.get("PROVIDERS"), "IAM_FRAMEWORK.READ.PROVIDERS", allow_missing=True
             ),
-            policy=_parse_identifier(read_raw.get("POLICY", "single"), "IAM_FRAMEWORK.READ.POLICY"),
+            policy=_parse_identifier(read_raw.get("POLICY", "shared"), "IAM_FRAMEWORK.READ.POLICY"),
             options=_parse_options(read_raw.get("OPTIONS"), "IAM_FRAMEWORK.READ.OPTIONS"),
         )
 

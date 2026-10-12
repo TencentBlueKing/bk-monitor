@@ -425,7 +425,7 @@ class TestBatchIsAllowed:
         from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
 
         class Recorder(PermissionProvider):
-            name = "recorder"
+            name = "v3"
 
             def __init__(self):
                 self.batch_calls: list = []

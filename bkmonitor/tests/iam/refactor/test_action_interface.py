@@ -360,8 +360,8 @@ class TestProviderVisibility:
         action_ids = {c.entity_id for c in plan.changes if c.kind == EntityKind.ACTION}
         assert "view_dashboard" not in action_ids
         assert "manage_dashboard" not in action_ids
-        # 51 = 53 - 2 个已废弃；v4 实例级语义仍由 single_dashboard 承担
-        assert len(action_ids) == 51
+        # 53 = 55 - 2 个已废弃；v4 实例级语义仍由 single_dashboard 承担
+        assert len(action_ids) == 53
         assert "view_single_dashboard" in action_ids
         assert "edit_single_dashboard" in action_ids
 

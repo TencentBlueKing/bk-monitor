@@ -2,9 +2,9 @@ from unittest.mock import Mock
 
 from django.test import SimpleTestCase
 
-from apps.iam.iam_engine.core.config import AuthMode, DualStackSpec
-from apps.iam.iam_engine.migration.policy import ApplicationProviderNotConfiguredError, MigrationPolicy
-from apps.iam.iam_engine.provider.bundle import ProviderBundle
+from iam_engine.core.config import AuthMode, DualStackSpec
+from iam_engine.migration.policy import ApplicationProviderNotConfiguredError, MigrationPolicy
+from iam_engine.provider.bundle import ProviderBundle
 
 
 class MigrationPolicyTest(SimpleTestCase):

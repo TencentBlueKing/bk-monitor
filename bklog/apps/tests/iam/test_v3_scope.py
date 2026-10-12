@@ -4,7 +4,7 @@ from django.test import SimpleTestCase
 from iam.exceptions import AuthAPIError
 
 from apps.iam.backends.v3.scope import V3AuthorizedScopeQuery
-from apps.iam.iam_engine.core.types import AuthStatus
+from iam_engine.core.types import AuthStatus
 
 
 class V3AuthorizedScopeQueryTest(SimpleTestCase):

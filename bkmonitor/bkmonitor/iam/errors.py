@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 # IAM 适配层的对外异常。这里的异常服务于旧 DRF / 前端协议，不属于
 # iam_engine 的 ProviderError 层级。ProviderUnavailable 必须先在框架组合
-# 策略中保留原语义，以便 union / primary 可以尝试其它 Provider；只有 DRF
+# 策略中保留原语义，以便 union 可以尝试其它 Provider；只有 DRF
 # 边界确认无法得到鉴权结论后，才将其降级为本模块的异常。
 
 from core.errors.iam import PermissionDeniedError

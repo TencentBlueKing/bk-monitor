@@ -37,7 +37,9 @@ from bkmonitor.iam.iam_engine.schema.loaders import load_from_class
 from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
 from bkmonitor.iam.iam_engine.core.framework import IAMFramework
 from bkmonitor.iam.iam_engine.provider.permission_writer import PermissionWriter
-from bkmonitor.iam.iam_engine.provider.composition.single import SinglePolicy
+from types import SimpleNamespace
+from iam_engine.core.config import AuthMode
+from bkmonitor.iam.adapters.shared_policy import SharedMigrationPolicy
 from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
 
 # ---------------------------------------------------------------------------
@@ -48,6 +50,8 @@ from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
 # ---------------------------------------------------------------------------
 
 OLD_ACTION_SNAPSHOT: dict[str, tuple[str, str, str]] = {
+    "USING_LOG_COLLECTION_MCP": ("using_log_collection_mcp", "manage", "使用日志采集MCP"),
+    "USING_LOG_EXTRACT_MCP": ("using_log_extract_mcp", "manage", "使用日志提取MCP"),
     "VIEW_BUSINESS": ("view_business_v2", "view", "业务访问"),
     "USING_DASHBOARD_MCP": ("using_dashboard_mcp", "view", "使用仪表盘MCP"),
     "USING_METRICS_MCP": ("using_metrics_mcp", "view", "使用指标MCP"),
@@ -371,7 +375,9 @@ def installed_framework(real_schema):
             fw = IAMFramework(
                 schema=schema or real_schema,
                 providers=providers,
-                read_policy=SinglePolicy(providers),
+                read_policy=SharedMigrationPolicy(
+                    providers, mode_provider=SimpleNamespace(get_mode=lambda resources=(): AuthMode.V3)
+                ),
                 permission_writer=PermissionWriter(providers),
                 bypass_rules=bypass_rules or [],
             )
@@ -392,7 +398,7 @@ def fake_framework(installed_framework, real_schema):
     """
 
     class FakeProvider(PermissionProvider):
-        name = "fake"
+        name = "v3"
 
         def __init__(self):
             self.schema = real_schema

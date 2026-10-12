@@ -1,0 +1,131 @@
+from datetime import datetime, timezone
+from unittest.mock import Mock
+
+import pytest
+from django.conf import settings
+from django.db import transaction
+
+from iam_engine.provider.capabilities import GrantFailureKind
+from bkmonitor.iam.adapters import grant_tasks
+from bkmonitor.iam.adapters.authorization import MonitorAuthorizationWriter
+from bkmonitor.iam.iam_engine.core.exceptions import ProviderError, ProviderUnavailable
+from bkmonitor.iam.iam_engine.provider.permission_writer import PermissionWriter
+from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
+from bkmonitor.iam.iam_v4.provider import V4PermissionProvider
+
+
+@pytest.fixture
+def offline_django():
+    if not settings.configured:
+        settings.configure(
+            DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
+            SECRET_KEY="offline-only",
+            USE_TZ=True,
+            INSTALLED_APPS=[],
+        )
+        import django
+
+        django.setup()
+    assert settings.DATABASES["default"]["NAME"] == ":memory:"
+
+
+@pytest.fixture
+def providers(offline_django, monkeypatch):
+    schema = SchemaRegistry()
+    options = {
+        "base_url": "https://example.test/",
+        "bk_tenant_id": "system",
+        "credentials": {"app_code": "offline", "app_secret": "offline"},
+        "system": {"id": "bk_monitorv3", "name": "Monitor", "provider_config": {"host": "https://example.test/"}},
+    }
+    legacy, current = V3PermissionProvider(schema, **options), V4PermissionProvider(schema, **options)
+    legacy._get_client, current._get_client = Mock(), Mock()
+    legacy._get_client.return_value.grant_resource_creator_actions.return_value = (True, "success")
+    dispatch = Mock()
+    monkeypatch.setattr(grant_tasks, "dispatch_v4_creator_grant", dispatch)
+    return legacy, current, dispatch
+
+
+def test_real_providers_both_grant_before_commit(providers, monkeypatch):
+    legacy, current, dispatch = providers
+    fixed = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    monkeypatch.setattr("bkmonitor.iam.adapters.authorization.timezone.now", lambda: fixed)
+    writer = PermissionWriter([legacy, current])
+    with transaction.atomic():
+        result = writer.grant_creator_action("space", "-1", "user", tenant_id="tenant-b")
+        assert result.is_success
+        legacy._get_client.return_value.grant_resource_creator_actions.assert_called_once()
+        current._get_client.return_value.add_authorization.assert_called_once()
+        payload = current._get_client.return_value.add_authorization.call_args.args[0]
+        assert payload[0]["expired_at"] - int(fixed.timestamp()) == 365 * 86400
+        assert payload[0]["resources"] == [{"type": "space", "id": "-1"}]
+        assert payload[0]["subject"] == {"type": "user", "id": "user"}
+        current._get_client.assert_called_with("tenant-b")
+        dispatch.assert_not_called()
+
+
+def test_real_django_on_commit_dispatch_and_frozen_payload(providers):
+    legacy, current, dispatch = providers
+    current._get_client.return_value.add_authorization.side_effect = ProviderUnavailable("offline timeout")
+    with transaction.atomic():
+        result = PermissionWriter([legacy, current]).grant_creator_action("space", "-1", "user", tenant_id="tenant-b")
+        assert result.failed[0].retry_scheduled
+        dispatch.assert_not_called()
+        frozen = current._get_client.return_value.add_authorization.call_args.args[0]
+    dispatch.assert_called_once()
+    kwargs = dispatch.call_args.args[0]
+    assert kwargs["payload"] == frozen
+    assert kwargs["expired_at"] == frozen[0]["expired_at"]
+    assert kwargs["tenant_id"] == "tenant-b"
+
+
+def test_real_django_rollback_discards_fallback(providers):
+    legacy, current, dispatch = providers
+    current._get_client.return_value.add_authorization.side_effect = ProviderUnavailable("offline timeout")
+    with pytest.raises(RuntimeError):
+        with transaction.atomic():
+            PermissionWriter([legacy, current]).grant_creator_action("space", "-1", "user", tenant_id="tenant-b")
+            raise RuntimeError("rollback")
+    dispatch.assert_not_called()
+
+
+def test_v3_false_response_is_failed_but_does_not_block_v4(providers):
+    legacy, current, dispatch = providers
+    legacy._get_client.return_value.grant_resource_creator_actions.return_value = (False, "denied")
+    result = PermissionWriter([legacy, current]).grant_creator_action("space", "-1", "user", tenant_id="tenant-b")
+    assert result.is_partial_failure
+    assert result.failed[0].provider_name == "v3"
+    current._get_client.return_value.add_authorization.assert_called_once()
+    dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "error,kind",
+    [
+        (ProviderUnavailable("timeout"), GrantFailureKind.UNKNOWN),
+        (ProviderUnavailable("rate limited", code=429), GrantFailureKind.RETRY_WAIT),
+        (ProviderUnavailable("server", code=503), GrantFailureKind.RETRY_WAIT),
+        (ProviderUnavailable("bad payload", code=400), GrantFailureKind.FAILED_FINAL),
+        (ProviderError("IAM rejection"), GrantFailureKind.FAILED_FINAL),
+    ],
+)
+def test_grant_failure_classification(error, kind):
+    assert MonitorAuthorizationWriter.classify_failure(error) is kind
+
+
+@pytest.mark.parametrize("mode", ["v3", "v4", "union"])
+def test_read_mode_never_changes_actual_write_targets(providers, mode):
+    from types import SimpleNamespace
+    from iam_engine.core.config import AuthMode
+    from bkmonitor.iam.adapters.shared_policy import SharedMigrationPolicy
+    from bkmonitor.iam.iam_engine.provider.router import ProviderRouter
+
+    legacy, current, _ = providers
+    read_policy = SharedMigrationPolicy(
+        [legacy, current], mode_provider=SimpleNamespace(get_mode=lambda *args: AuthMode(mode))
+    )
+    router = ProviderRouter(read_policy, PermissionWriter([legacy, current]))
+    router.grant_creator_action("space", "2", "alice", tenant_id="tenant-a")
+    legacy._get_client.return_value.grant_resource_creator_actions.assert_called_once()
+    current._get_client.return_value.add_authorization.assert_called_once()
