@@ -27,6 +27,7 @@ from apps.iam.handlers.drf import BusinessActionPermission
 from apps.log_search.constants import (
     ASYNC_EXPORT_SCENE_ID,
     ExportFileType,
+    ExportSearchType,
     ExportStatus,
     ExportType,
     FieldDataTypeEnum,
@@ -37,6 +38,8 @@ from apps.log_search.constants import (
 )
 from apps.log_search.decorators import search_history_record
 from apps.log_search.exceptions import GetMultiResultFailException
+from apps.log_search.export import api as sharded_export_api
+from apps.log_search.export.config import is_sharded_export_enabled
 from apps.log_search.handlers.index_set import IndexSetHandler
 from apps.log_search.handlers.scene_search import AllConditionsBuilder, get_field_candidates
 from apps.log_search.handlers.search.scene_fields_config import (
@@ -1172,6 +1175,10 @@ class SceneSearchViewSet(APIViewSet):
         data["table_id_conditions"] = AllConditionsBuilder.from_raw(data["table_id_conditions"])
         data = _merge_scene_filters_to_addition(data)
 
+        # 灰度分流：命中分片导出开关且非快速导出时，复用本接口已完成的鉴权，转分片导出链路
+        if not is_quick_export and is_sharded_export_enabled(data.get("bk_biz_id")):
+            return self._sharded_scene_export(data)
+
         handler = SceneAsyncExportHandler(
             bk_biz_id=data["bk_biz_id"],
             search_dict=data,
@@ -1185,6 +1192,13 @@ class SceneSearchViewSet(APIViewSet):
                 "prompt": f"任务提交成功，预估等待时间{math.ceil(size / MAX_RESULT_WINDOW * RESULT_WINDOW_COST_TIME)}分钟",
             }
         )
+
+    def _sharded_scene_export(self, data):
+        """把场景化导出参数归一为标准分片导出参数并创建场景化分片任务。"""
+        params = sharded_export_api.normalize_legacy_export_params(data, search_type=ExportSearchType.SCENE)
+        params.update(space_uid=data["space_uid"], table_id_conditions=data["table_id_conditions"])
+        job = sharded_export_api.create_export_job(params, raw_params=data)
+        return Response({"task_id": job.pk, "engine": "sharded"})
 
     @list_route(methods=["POST"], url_path="export/history")
     def scene_export_history(self, request):
