@@ -25,6 +25,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { markRaw } from 'vue';
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -36,6 +37,8 @@ import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 import { LETTERS } from '../../../../../common/constant';
 import { SET_DIMENSIONS_OF_SERIES } from '../../../../../store/modules/strategy-config';
 import { transformSensitivityValue } from '../../../util';
+import { PromqlQueryController } from '../../../strategy-config-common/promql-query/controller';
+import { buildPromqlPreview } from '../../../strategy-config-common/promql-query/service';
 import { EShortcutsType } from '../typing';
 
 import type { ChartType } from '../../../strategy-config-set-new/detection-rules/components/intelligent-detect/intelligent-detect';
@@ -178,14 +181,15 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   }
 
   get promqlStr() {
-    return JSON.stringify(this.sourceData.queryConfigs || this.sourceData.sourceCode);
+    return JSON.stringify([this.editMode, this.sourceData.queryConfigs || this.sourceData.sourceCode, this.sourceData.step, this.expression]);
   }
-  get promqlStep() {
-    return this.sourceData.step;
+  private sourceController = markRaw(new PromqlQueryController());
+
+  @Watch('promqlStr')
+  handlePromqlChange() {
+    if (this.editMode === 'Source') this.initPanel();
   }
 
-  @Watch('promqlStep')
-  @Watch('promqlStr')
   @Watch('expression')
   @Watch('metricData', { immediate: true })
   watchMetricDataChange(val: MetricDetail[]) {
@@ -215,6 +219,10 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   /** 初始化图表panel */
   @Debounce(1000)
   async initPanel() {
+    if (this.editMode === 'Source' && this.sourceController.validate(this.sourceData, this.expression)) {
+      this.panel = null;
+      return;
+    }
     let panelData = null;
     if (this.hasTimeSeriesForecast) {
       panelData = await this.createTimeSeriesForecastPanelData();
@@ -399,28 +407,18 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
    * @returns 图表查询配置
    */
   getQueryParams(isDetect = false, isMetric = true, metrics?) {
+    if (this.editMode === 'Source') {
+      return {
+        ...buildPromqlPreview(this.sourceData, this.expression),
+        functions: this.expression ? this.expFunctions : [],
+        target: this.strategyTarget || [],
+      };
+    }
     const params = {
-      ...(this.editMode === 'Source' && !this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
-        ? { promql_multi_expression: true }
-        : {}),
       expression: this.getExpression(),
       functions: this.expression ? this.expFunctions : [],
       target: this.strategyTarget || [],
-      query_configs:
-        this.editMode === 'Source'
-          ? (!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length
-              ? this.sourceData.queryConfigs
-              : [{ alias: 'a', promql: this.sourceData.sourceCode }]
-            ).map(item => ({
-              data_source_label: 'prometheus',
-              data_type_label: 'time_series',
-              promql: item.promql,
-              interval: this.sourceData.step,
-              ...(!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
-                ? { alias: item.alias }
-                : {}),
-            }))
-          : this.metricData.map(
+      query_configs: this.metricData.map(
               ({
                 data_label,
                 data_source_label: dataSourceLabel,

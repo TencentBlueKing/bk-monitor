@@ -107,32 +107,6 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
       }
     }
 
-    .metric-source-wrap {
-      display: flex;
-      flex-direction: column;
-
-      .source-options-wrap {
-        margin-top: 12px;
-
-        .step-input {
-          width: 205px;
-
-          .step-input-prepend {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 96px;
-            height: 100%;
-            font-size: 12px;
-
-            .icon-AI {
-              margin-left: 8px;
-            }
-          }
-        }
-      }
-    }
-
     .ip-wrapper {
       display: flex;
       flex: 1;
