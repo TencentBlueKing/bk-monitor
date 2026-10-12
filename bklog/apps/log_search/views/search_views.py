@@ -212,20 +212,21 @@ class SearchViewSet(APIViewSet):
         ]:
             return [PlatformAwareIndexSearchPermission([ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
-        if self.action in ["union_search", "config"]:
-            if self.action == "config":
-                if self.request.data.get("index_set_type", IndexSetType.SINGLE.value) == IndexSetType.SINGLE.value:
-                    return [
-                        PlatformAwareIndexSearchPermission(
-                            [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES, iam_instance_id_key="index_set_id"
-                        )
-                    ]
-                else:
-                    return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
+        if self.action in ["union_search", "union_async_export"]:
             self.request.data["index_set_ids"] = [
                 config["index_set_id"] for config in self.request.data.get("union_configs", [])
             ]
             return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
+
+        if self.action == "config":
+            if self.request.data.get("index_set_type", IndexSetType.SINGLE.value) == IndexSetType.SINGLE.value:
+                return [
+                    PlatformAwareIndexSearchPermission(
+                        [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES, iam_instance_id_key="index_set_id"
+                    )
+                ]
+            else:
+                return [BatchIAMPermission("index_set_ids", [ActionEnum.SEARCH_LOG], ResourceEnum.INDICES)]
 
         return [ViewBusinessPermission()]
 

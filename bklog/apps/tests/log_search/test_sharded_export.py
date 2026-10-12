@@ -2568,7 +2568,7 @@ class ExportJobPermissionTests(TestCase):
 
     @override_settings(IGNORE_IAM_PERMISSION=False, BKAPP_IS_BKLOG_API=False)
     @patch("apps.iam.handlers.drf.Permission")
-    def test_union_create_requires_business_permission_at_legacy_entry(self, mock_permission_cls):
+    def test_union_create_checks_every_index_set_at_legacy_entry(self, mock_permission_cls):
         second = LogIndexSet.objects.create(
             index_set_id=760,
             index_set_name="index-760",
@@ -2585,15 +2585,17 @@ class ExportJobPermissionTests(TestCase):
             union_configs=[{"index_set_id": self.index_set.pk}, {"index_set_id": second.pk}],
         )
         view.request = request
-        mock_permission_cls.return_value.is_allowed.side_effect = PermissionDenied("没有业务访问权限")
+        mock_permission_cls.return_value.batch_is_allowed.side_effect = PermissionDenied("没有该索引集的检索权限")
 
-        with self.assertRaisesMessage(PermissionDenied, "没有业务访问权限"):
+        with self.assertRaisesMessage(PermissionDenied, "没有该索引集的检索权限"):
             view.check_permissions(request)
 
-        mock_permission_cls.return_value.is_allowed.assert_called_once()
-        called = mock_permission_cls.return_value.is_allowed.call_args
-        self.assertEqual(called.kwargs["action"], ActionEnum.VIEW_BUSINESS)
-        self.assertEqual(str(called.kwargs["resources"][0].id), "21")
+        mock_permission_cls.return_value.batch_is_allowed.assert_called_once()
+        called = mock_permission_cls.return_value.batch_is_allowed.call_args
+        self.assertEqual(called.args[0], [ActionEnum.SEARCH_LOG])
+        # 每个索引集单独成组，确保逐索引集判定而不是整批合并
+        resource_groups = called.args[1]
+        self.assertEqual([str(group[0].id) for group in resource_groups], [str(self.index_set.pk), str(second.pk)])
         self.assertTrue(called.kwargs["raise_exception"])
 
     @override_settings(IGNORE_IAM_PERMISSION=False)
