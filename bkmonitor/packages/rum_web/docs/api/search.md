@@ -1429,19 +1429,24 @@ POST /rum/search/timeline/
 |----------|------|------|------|
 | bk_biz_id | Integer | 是 | 业务 ID |
 | app_name | String | 是 | 应用名称 |
-| session_id | String | 是 | 会话 ID，对应 `attributes.session.id` |
+| session_id | String | 否 | 会话 ID，对应 `attributes.session.id`，与 `view_id` 二选一 |
+| view_id | String | 否 | 视图 ID，对应 `attributes.view.id`，与 `session_id` 二选一 |
 
 ```json
 {"bk_biz_id": 2, "app_name": "rum-demo", "session_id": "sess-001"}
+```
+
+```json
+{"bk_biz_id": 2, "app_name": "rum-demo", "view_id": "view-001"}
 ```
 
 #### 2.12.2 Response
 
 | 参数名称       | 类型             | 描述                                                                                                                    |
 | ---------- | -------------- | --------------------------------------------------------------------------------------------------------------------- |
-| start_time | Integer / Null | 会话开始时间（Unix 微秒级时间戳），缺失时为 `null` |
-| end_time   | Integer / Null | 会话结束时间（Unix 微秒级时间戳），缺失时为 `null` |
-| tree       | Array[Node]    | 节点树，顶层为 View 节点，按开始时间升序，见 Node                                                                                        |
+| start_time | Integer / Null | 开始时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话开始时间，按 `view_id` 查询时为 View 开始时间，缺失时为 `null` |
+| end_time   | Integer / Null | 结束时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话结束时间，按 `view_id` 查询时为 View 结束时间，未结束时为 `null` |
+| tree       | Array[Node]    | 节点树，顶层为 View 节点，按开始时间升序，按 `view_id` 查询时只有一个 View 节点，见 Node |
 | records    | Object         | 节点详情，key 为 `span_id`，value 与同一 `span_id` 的 `record_detail` 返回一致                                                       |
 
 - Node
