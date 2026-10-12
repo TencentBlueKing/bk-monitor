@@ -23,7 +23,8 @@ from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from django.conf import settings
 
-from apps.log_search.export.config import COORDINATOR_QUEUE, FINALIZE_QUEUE, PART_QUEUE, PLAN_QUEUE
+from apps.log_search.export.config import COORDINATOR_QUEUE, FINALIZE_QUEUE, NOTIFY_QUEUE, PART_QUEUE, PLAN_QUEUE
+from apps.log_search.export.notification import notify_terminal_job
 from apps.log_search.export.worker import run_part
 from apps.log_search.export.planner import run_planning
 from apps.log_search.export.scheduler import coordinate, finalize_export
@@ -58,6 +59,11 @@ def plan_sharded_export(job_id):
 )
 def finalize_sharded_export(job_id):
     finalize_export(job_id)
+
+
+@app.task(ignore_result=True, queue=NOTIFY_QUEUE)
+def notify_sharded_export(job_id):
+    notify_terminal_job(job_id)
 
 
 @periodic_task(

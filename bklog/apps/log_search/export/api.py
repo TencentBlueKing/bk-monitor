@@ -35,6 +35,7 @@ from apps.log_search.constants import (
 from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.export.config import current_policy, is_sharded_export_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
+from apps.log_search.export.notification import build_notification_context
 from apps.log_search.export.storage import build_storage
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -92,6 +93,7 @@ def normalize_legacy_export_params(data, *, search_type=ExportSearchType.INDEX_S
 
 def create_export_job(data, raw_params=None):
     """创建分片导出任务；raw_params 为创建时的原始请求参数，未传时回退用 data 本身。"""
+    raw_params = raw_params if raw_params is not None else data
     username = get_request_external_username() or get_request_username(default="")
     space = Space.objects.get(space_uid=data["space_uid"])
     if not is_sharded_export_enabled(space.bk_biz_id):
@@ -177,7 +179,8 @@ def create_export_job(data, raw_params=None):
             bk_biz_id=space.bk_biz_id,
             search_params=params,
             base_dict=copy.deepcopy(handler.base_dict),
-            raw_params=raw_params if raw_params is not None else data,
+            raw_params=raw_params,
+            notification_context=build_notification_context(raw_params, space.space_uid, index_set_type, index_set_ids),
             policy=policy.snapshot(),
             start_time=data["start_time"],
             end_time=data["end_time"],

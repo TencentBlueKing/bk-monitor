@@ -38,6 +38,8 @@ from apps.log_search.export import state
 from apps.log_search.export.config import (
     FINALIZE_QUEUE,
     FINALIZE_TASK_NAME,
+    NOTIFY_QUEUE,
+    NOTIFY_TASK_NAME,
     PART_QUEUE,
     PART_TASK_NAME,
     PLAN_QUEUE,
@@ -281,6 +283,32 @@ def enqueue_finalization(limit):
     )
 
 
+def pending_notifications(limit):
+    """已进入可通知终态、还没发送过、且不在投递租约内的任务。"""
+    now = timezone.now()
+    return list(
+        ExportJob.objects.filter(status__in=ExportJobStatus.NOTIFIABLE, notify_at__isnull=True)
+        .filter(_lease_expired("notify_enqueued_at", now))
+        .order_by("pk")
+        .values_list("pk", flat=True)[:limit]
+    )
+
+
+def enqueue_notifications(limit):
+    """
+    投递通知消息；租约与规划/收尾一致：投递前占位以防重复发布，发布失败释放，消息丢失由租约到期恢复。
+
+    消费端仍有 notify_at 占位，保证同一个任务最多发出一封邮件。
+    """
+    return _enqueue(
+        pending_notifications(limit),
+        "notify_enqueued_at",
+        ExportJobStatus.NOTIFIABLE,
+        NOTIFY_TASK_NAME,
+        queue=NOTIFY_QUEUE,
+    )
+
+
 def manifest_snapshot(job, parts, *, merged_object_key="", merged_bytes=None, merged_checksum=""):
     """清单只汇总成功叶子分片，边界与条数在提交时再次校验。"""
     snapshot = {
@@ -381,7 +409,7 @@ def finalize_export(job_id):
 
 
 def coordinate(limit=None):
-    """周期控制入口：回收超时分片、补投规划/收尾消息、按额度投递分片。"""
+    """周期控制入口：回收超时分片、补投规划/收尾/通知消息、按额度投递分片。"""
     limit = limit or settings.ASYNC_EXPORT_COORDINATE_BATCH
     started = time.monotonic()
     # 轮次时间预算必须早于调度锁租约到期：超时的轮次会和下一轮重叠，按旧快照重复发放额度
@@ -390,11 +418,13 @@ def coordinate(limit=None):
     planned = enqueue_planning(limit)
     dispatched = dispatch_ready_parts(deadline)
     finalized = enqueue_finalization(limit)
+    notified = enqueue_notifications(limit)
     result = {
         "recovered": len(recovered),
         "planned": len(planned),
         "dispatched": len(dispatched),
         "finalized": len(finalized),
+        "notified": len(notified),
     }
     logger.info("[coordinate] %s cost=%.3fs", result, time.monotonic() - started)
     return result

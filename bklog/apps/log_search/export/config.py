@@ -2,6 +2,8 @@
 
 from dataclasses import asdict, dataclass
 
+from django.conf import settings
+
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.utils.log import logger
 
@@ -11,10 +13,13 @@ FEATURE_ASYNC_EXPORT_SHARDED = "feature_async_export_sharded"
 PLAN_TASK_NAME = "apps.log_search.tasks.sharded_export.plan_sharded_export"
 PART_TASK_NAME = "apps.log_search.tasks.sharded_export.execute_sharded_export_part"
 FINALIZE_TASK_NAME = "apps.log_search.tasks.sharded_export.finalize_sharded_export"
+NOTIFY_TASK_NAME = "apps.log_search.tasks.sharded_export.notify_sharded_export"
 
 PART_QUEUE = "sharded_export"
 PLAN_QUEUE = "sharded_export_plan"
 FINALIZE_QUEUE = "sharded_export_finalize"
+# 走项目的高优先级队列（默认 celery，由主 worker 消费）：旧异步导出队列会被大任务压住，通知不该排在它后面
+NOTIFY_QUEUE = settings.BK_LOG_HIGH_PRIORITY_QUEUE
 COORDINATOR_QUEUE = "sharded_export_coordinator"
 
 

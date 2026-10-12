@@ -274,6 +274,8 @@ class ExportJobStatus:
     # 仍会占用并发额度的状态
     ACTIVE = [PENDING, PLANNING, READY, RUNNING, FINALIZING]
     TERMINAL = [SUCCESS, FAILED, CANCELED]
+    # 发通知的终态：用户主动取消的任务不发
+    NOTIFIABLE = [SUCCESS, FAILED]
 
 
 # 分片状态

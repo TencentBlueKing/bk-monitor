@@ -762,6 +762,19 @@ def finalize_job(
         return job
 
 
+def claim_notification(job_id):
+    """
+    认领可通知终态任务的通知：把 notify_at 从空写成时间的调用才负责后续发送。
+
+    通知不重试、不保证成功，占位只在事务提交后生效；是否需要通知由通知实现判断。
+    """
+    with transaction.atomic():
+        job = ExportJob.objects.select_for_update().get(pk=job_id)
+        if job.notify_at is not None or job.status not in ExportJobStatus.NOTIFIABLE:
+            return None
+        return _save(job, notify_at=timezone.now())
+
+
 def cancel_job(job_id):
     with transaction.atomic():
         job = ExportJob.objects.select_for_update().get(pk=job_id)

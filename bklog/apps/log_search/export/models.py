@@ -48,6 +48,10 @@ class ExportJob(models.Model):
     search_params = models.JSONField(_("冻结查询参数"))
     base_dict = models.JSONField(_("冻结查询体"))
     raw_params = models.JSONField(_("原始请求参数"), null=True, blank=True, default=dict)
+    # 通知：上下文在创建时冻结；notify_enqueued_at 是投递租约，notify_at 是发送占位（不代表发送成功，不重试）
+    notification_context = models.JSONField(_("通知上下文"), blank=True, default=dict)
+    notify_enqueued_at = models.DateTimeField(_("通知入队时间"), null=True, blank=True)
+    notify_at = models.DateTimeField(_("通知时间"), null=True, blank=True)
     policy = models.JSONField(_("任务策略快照"), default=dict)
     start_time = models.BigIntegerField(_("起始时间（毫秒，闭区间）"))
     end_time = models.BigIntegerField(_("结束时间（毫秒，开区间）"))
