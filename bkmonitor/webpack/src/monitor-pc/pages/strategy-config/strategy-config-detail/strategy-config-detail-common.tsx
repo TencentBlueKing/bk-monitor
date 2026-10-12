@@ -66,6 +66,8 @@ import {
 import StrategyTemplatePreview from '../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
+import { createPromqlSourceData, type PromqlSourceData } from '../strategy-config-common/promql-query/model';
+import PromqlQueryEditor from '../strategy-config-common/promql-query/promql-query-editor';
 import DetectionRulesDisplay from './components/detection-rules-display';
 import MetricListItem from './components/metric-list-item';
 import StrategyTargetTable from './strategy-config-detail-table.vue';
@@ -117,8 +119,6 @@ interface IBaseInfo {
 @Component({
   components: {
     StrategyTargetTable,
-    PromqlMonacoEditor: () =>
-      import(/* webpackChunkName: 'PromqlMonacoEditor' */ '../../../components/promql-editor/promql-editor'),
   },
 })
 export default class StrategyConfigDetailCommon extends tsc<object> {
@@ -341,7 +341,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
   /** 关联日历可选项列表 */
   calendarList = [];
   /* source数据 此数据与指标数据隔离 */
-  sourceData = {
+  sourceData: PromqlSourceData = {
     /* promql */
     sourceCode: '',
     /* agg_interval */
@@ -564,7 +564,7 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
    * @returns
    */
   async handleQueryConfigData(srcData = this.detailData) {
-    const [{ expression, query_configs: queryConfigs, functions = [], algorithms }] = srcData.items;
+    const [{ expression, origin_sql: originSql, query_configs: queryConfigs, functions = [], algorithms }] = srcData.items;
     if (
       algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection ||
       algorithms?.[0]?.type === MetricType.HostAnomalyDetection
@@ -584,10 +584,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     const { metric_type } = srcData;
     const isPromql = queryConfigs?.[0]?.data_source_label === 'prometheus';
     if (isPromql) {
-      const queryConfig = queryConfigs[0];
       this.editMode = 'Source';
-      this.sourceData.sourceCode = queryConfig.promql;
-      this.sourceData.step = queryConfig.agg_interval;
+      this.sourceData = createPromqlSourceData(queryConfigs, expression, originSql);
+      this.expression = expression || this.sourceData.queryConfigs[0].alias;
+      this.expFunctions = functions;
       return;
     }
     this.expression = expression;
@@ -1182,43 +1182,11 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                           ];
                         }
                         return (
-                          <div class='promql-content'>
-                            <div class='edit-wrap'>
-                              <promql-monaco-editor
-                                minHeight={160}
-                                readonly={true}
-                                value={this.sourceData.sourceCode}
-                              />
-                              {/* <PromqlEditor
-                                class='promql-editor'
-                                readonly={true}
-                                value={this.sourceData.sourceCode}
-                              ></PromqlEditor> */}
-                            </div>
-                            <div class='step-wrap'>
-                              <bk-input
-                                class='step-input'
-                                min={10}
-                                type='number'
-                                value={this.sourceData.step}
-                                disabled
-                              >
-                                <div
-                                  class='step-input-prepend'
-                                  slot='prepend'
-                                >
-                                  <span>{'Step'}</span>
-                                  <span
-                                    class='icon-monitor icon-hint'
-                                    v-bk-tooltips={{
-                                      content: this.$t('数据步长'),
-                                      placements: ['top'],
-                                    }}
-                                  />
-                                </div>
-                              </bk-input>
-                            </div>
-                          </div>
+                          <PromqlQueryEditor
+                            readonly={true}
+                            expression={this.expression}
+                            sourceData={this.sourceData}
+                          />
                         );
                       })()}
                     </div>
