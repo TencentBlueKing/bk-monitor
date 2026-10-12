@@ -193,12 +193,14 @@
         {{ field.field_name }}
       </span></span
     >
+    <!-- eslint-disable vue/no-v-html -- Log text is sanitized by DOMPurify via $xss before rendering. -->
     <span
-      class="field-value"
       ref="refFieldValue"
+      class="field-value"
       :data-field-name="field.field_name"
       v-html="$xss(renderText)"
     ></span>
+    <!-- eslint-enable vue/no-v-html -->
   </div>
 </template>
 <style lang="scss">

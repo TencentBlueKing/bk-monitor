@@ -29,12 +29,25 @@ import { useRoute, useRouter } from 'vue-router/composables';
 import type { UrlState } from './types';
 
 /** URL 条件参数的 key 列表 */
-const URL_PARAM_KEYS = ['keyword', 'startTime', 'endTime', 'timezone', 'valueType', 'fileName', 'fileId', 'filterKey', 'filterType', 'highlightList'];
+const URL_PARAM_KEYS = [
+  'openid',
+  'task_id',
+  'file_name',
+  'extend_info',
+  'keyword',
+  'startTime',
+  'endTime',
+  'timezone',
+  'valueType',
+  'fileName',
+  'fileId',
+  'filterKey',
+  'filterType',
+  'highlightList',
+];
 
 /** 将 URL query 中的值解析为字符串数组（单值包装为数组） */
-const parseQueryArray = (
-  value: string | (string | null)[] | null | undefined,
-): string[] => {
+const parseQueryArray = (value: string | (string | null)[] | null | undefined): string[] => {
   if (value === null || value === undefined) return [];
   return (Array.isArray(value) ? value : [value])
     .filter((item): item is string => item !== null && item !== undefined)
@@ -53,6 +66,10 @@ export default () => {
   const getUrlState = (): Partial<UrlState> => {
     const query = route.query;
     const state: Partial<UrlState> = {};
+    if (query.openid) state.openid = String(query.openid);
+    if (query.task_id) state.task_id = String(query.task_id);
+    if (query.file_name) state.file_name = String(query.file_name);
+    if (query.extend_info) state.extend_info = String(query.extend_info);
     if (query.keyword) state.keyword = String(query.keyword);
     if (query.startTime) state.startTime = String(query.startTime);
     if (query.endTime) state.endTime = String(query.endTime);
@@ -71,7 +88,7 @@ export default () => {
     const merged: Record<string, any> = { ...route.query, ...newParams };
 
     // 值为空则删除对应 key（undefined / null / '' / [] 都表示清除该参数）
-    Object.keys(merged).forEach((key) => {
+    Object.keys(merged).forEach(key => {
       const val = merged[key];
       if (val === undefined || val === null || val === '' || (Array.isArray(val) && val.length === 0)) {
         delete merged[key];
@@ -89,7 +106,7 @@ export default () => {
   /** 清空 URL 中的搜索条件参数 */
   const clearUrlParams = () => {
     const currentQuery = { ...route.query };
-    URL_PARAM_KEYS.forEach((key) => {
+    URL_PARAM_KEYS.forEach(key => {
       delete currentQuery[key];
     });
     router.replace({ query: currentQuery });

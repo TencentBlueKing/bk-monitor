@@ -138,6 +138,8 @@ class CallerLineChart extends CommonSimpleChart {
   eventConfig: Partial<EventTagConfig> = {};
   eventColumns: Partial<EventTagColumn>[] = [];
   cacheEventConfig: Partial<EventTagConfig> = {};
+  /** 用于丢弃过期的出图 / 关联事件回填 */
+  panelDataSeq = 0;
 
   codeRedefineShow = false;
 
@@ -218,6 +220,8 @@ class CallerLineChart extends CommonSimpleChart {
     if (!(await this.beforeGetPanelData())) {
       return;
     }
+    this.panelDataSeq += 1;
+    const requestId = this.panelDataSeq;
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
     if (this.initialized) this.handleLoadingChange(true);
@@ -359,35 +363,16 @@ class CallerLineChart extends CommonSimpleChart {
         });
         promiseList.push(...list);
       }
-      let customEventScatterSeries: IUnifyQuerySeriesItem[] = null;
-      // 初始化事件分析配置
-      if (!this.eventColumns.length) {
-        const { config, columns } = await getCustomEventAnalysisConfig({
-          app_name: this.viewOptions.filters?.app_name,
-          service_name: this.viewOptions.filters?.service_name,
-          key: `${this.$route.query.scene_id || 'apm_service'}|${this.panel.id}`,
-        });
-        this.eventConfig = config;
-        this.eventColumns = columns;
-      }
       const commonCustomEventParams = {
         start_time: newParams.start_time,
         end_time: newParams.end_time,
         app_name: this.viewOptions.filters?.app_name,
         service_name: this.viewOptions.filters?.service_name,
       };
-      await Promise.all(
-        [
-          ...promiseList,
-          this.eventConfig.is_enabled_metric_tags
-            ? getCustomEventSeries(getCustomEventSeriesParams(commonCustomEventParams, this.eventConfig)).then(
-                series => {
-                  customEventScatterSeries = series;
-                }
-              )
-            : undefined,
-        ].filter(Boolean)
-      ).catch(() => false);
+      // 关联事件不阻塞时序出图：配置与 event/time_series 异步回填散点
+      const eventPromise = this.loadCustomEventSeries(commonCustomEventParams, requestId);
+      await Promise.all(promiseList).catch(() => false);
+      if (requestId !== this.panelDataSeq) return;
       this.metrics = metrics || [];
       if (series.length) {
         const { maxSeriesCount, maxXInterval } = getSeriesMaxInterval(series);
@@ -516,8 +501,7 @@ class CallerLineChart extends CommonSimpleChart {
                 show: false,
               },
             ],
-            // series: [...seriesList, customEventList?.length  ? createCustomEventSeries(customEventList) : undefined],
-            series: [...seriesList, customEventScatterSeries].filter(Boolean),
+            series: [...seriesList],
             tooltip: {
               extraCssText: 'max-width: 50%',
             },
@@ -544,14 +528,68 @@ class CallerLineChart extends CommonSimpleChart {
         this.emptyText = window.i18n.t('暂无数据');
         this.empty = true;
       }
+      void eventPromise
+        .then(scatter => {
+          if (requestId !== this.panelDataSeq || this.empty || !scatter) return;
+          this.patchEventScatterSeries(scatter);
+        })
+        .catch(() => undefined);
     } catch (e) {
+      if (requestId !== this.panelDataSeq) return;
       console.error(e);
       this.empty = true;
       this.emptyText = window.i18n.t('出错了');
     }
-    this.cancelTokens = [];
+    if (requestId !== this.panelDataSeq) return;
     this.handleLoadingChange(false);
     this.unregisterObserver();
+  }
+
+  getEventRequestConfig() {
+    return {
+      cancelToken: new CancelToken((cb: () => void) => this.cancelTokens.push(cb)),
+      needMessage: false,
+    };
+  }
+
+  /** 拉取事件配置与时序，不阻塞折线出图 */
+  async loadCustomEventSeries(
+    commonCustomEventParams: {
+      app_name: string;
+      end_time: number;
+      service_name: string;
+      start_time: number;
+    },
+    requestId: number
+  ) {
+    if (!this.eventColumns.length) {
+      const { config, columns } = await getCustomEventAnalysisConfig(
+        {
+          app_name: this.viewOptions.filters?.app_name,
+          service_name: this.viewOptions.filters?.service_name,
+          key: `${this.$route.query.scene_id || 'apm_service'}|${this.panel.id}`,
+        },
+        this.getEventRequestConfig()
+      );
+      if (requestId !== this.panelDataSeq) return;
+      this.eventConfig = config;
+      this.eventColumns = columns;
+    }
+    if (!this.eventConfig.is_enabled_metric_tags) return;
+    const scatter = await getCustomEventSeries(
+      getCustomEventSeriesParams(commonCustomEventParams, this.eventConfig),
+      this.getEventRequestConfig()
+    );
+    if (requestId !== this.panelDataSeq) return;
+    return scatter;
+  }
+
+  patchEventScatterSeries(scatter: Record<string, any> | undefined) {
+    if (this.empty || !this.options || !this.seriesList) return;
+    this.options = Object.freeze({
+      ...this.options,
+      series: [...this.seriesList, scatter].filter(Boolean),
+    });
   }
 
   // 转换time_shift显示

@@ -171,7 +171,9 @@ export default indexSetApi => {
             const memoryIds = memoryObj[bizAppKey];
             if (memoryIds) {
               const memoryId = memoryIds[0];
-              const defaultValidItem = resp.find(item => item.index_set_id === memoryId && item.tags.every((tag) => tag.tag_id !== 4));
+              const defaultValidItem = resp.find(
+                item => item.index_set_id === memoryId && item.tags.every(tag => tag.tag_id !== 4),
+              );
               if (defaultValidItem) {
                 defaultId = memoryId;
               }
@@ -179,7 +181,7 @@ export default indexSetApi => {
           }
         }
         if (!defaultId) {
-          const dataValidItem = resp.find(item => item.tags.every((tag) => tag.tag_id !== 4));
+          const dataValidItem = resp.find(item => item.tags.every(tag => tag.tag_id !== 4));
           if (dataValidItem) {
             defaultId = `${dataValidItem.index_set_id}`;
           } else {
@@ -188,7 +190,7 @@ export default indexSetApi => {
           }
         }
         store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
-        store.commit('updateState', {'indexId': defaultId});
+        store.commit('updateState', { indexId: defaultId });
         router.replace({
           query: { ...route.query, indexId: defaultId, unionList: undefined },
         });
@@ -214,14 +216,23 @@ export default indexSetApi => {
         }
 
         if (emptyIndexSetList.length) {
-          store.commit('updateIndexItem', { ids: [], items: [] });
-          store.commit('updateState', { 'indexId': ''});
-          store.commit('updateIndexSetQueryResult', {
-            is_error: true,
-            exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
-          });
+          const dataValidItem = resp.find(item => item.tags.every(tag => tag.tag_id !== 4));
+          if (dataValidItem) {
+            const defaultId = `${dataValidItem.index_set_id}`;
+            store.commit('updateIndexItem', { ids: [defaultId], items: [resp[0]] });
+            store.commit('updateState', { indexId: defaultId });
+            router.replace({
+              query: { ...route.query, indexId: defaultId, unionList: undefined },
+            });
+          } else {
+            store.commit('updateIndexItem', { ids: [], items: [] });
+            store.commit('updateState', { indexId: '' });
+            store.commit('updateIndexSetQueryResult', {
+              is_error: true,
+              exception_msg: `index-set-not-found:(${emptyIndexSetList.join(',')})`,
+            });
+          }
         }
-
         if (indexSetItems.length) {
           store.commit('updateIndexItem', { ids: [...indexSetIds], items: [...indexSetItems] });
         }
@@ -256,19 +267,15 @@ export default indexSetApi => {
         });
       }
 
-      if (emptyIndexSetList.length === 0) {
-        RetrieveHelper.setSearchingValue(true);
-
-        const type = route.query.indexId ? 'single' : 'union';
-        RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
-
-        store.dispatch('requestIndexSetFieldInfo').then(() => {
-          store.dispatch('requestIndexSetQuery').then(() => {
-            RetrieveHelper.setSearchingValue(false);
-          });
-          RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+      RetrieveHelper.setSearchingValue(true);
+      const type = route.query.indexId ? 'single' : 'union';
+      RetrieveHelper.setIndexsetId(store.state.indexItem.ids, type);
+      store.dispatch('requestIndexSetFieldInfo').then(() => {
+        store.dispatch('requestIndexSetQuery').then(() => {
+          RetrieveHelper.setSearchingValue(false);
         });
-      }
+        RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
+      });
     });
   };
 

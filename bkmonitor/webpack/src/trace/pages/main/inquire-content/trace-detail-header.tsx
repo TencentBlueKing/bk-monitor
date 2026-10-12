@@ -31,6 +31,7 @@ import { AI_BLUEKING_SHORTCUTS_ID, getAIBluekingShortcutTips } from 'monitor-pc/
 // import { AI_BLUEKING_SHORTCUTS_ID } from 'monitor-pc/components/ai-whale/types';
 import { useI18n } from 'vue-i18n';
 
+import { getEmbedContext } from '@/common/embed-context';
 import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 
 import './trace-detail-header.scss';
@@ -76,11 +77,8 @@ export default defineComponent({
       if (content === 'text') {
         text = traceId;
       } else {
-        // #if IS_APM_MONITOR
-        const parentRoute = '/trace/';
-        // #else
-        const parentRoute = window.__BK_WEWEB_DATA__?.parentRoute || '/';
-        // #endif
+        /** 嵌入宿主时链接固定指向监控的 trace 路由；主站下由 weweb 提供父级路由 */
+        const parentRoute = getEmbedContext() ? '/trace/' : window.__BK_WEWEB_DATA__?.parentRoute || '/';
         const hash = `#${parentRoute}home/?app_name=${
           props.appName
         }&search_type=accurate&sceneMode=trace&trace_id=${traceId}`;

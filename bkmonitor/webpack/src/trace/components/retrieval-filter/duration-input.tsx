@@ -30,9 +30,18 @@ import { shallowReactive } from 'vue';
 import { type InputValue, type SliderValue, Input, Slider } from 'tdesign-vue-next';
 import { useI18n } from 'vue-i18n';
 
-import { formatDuration, isValidTimeFormat, parseDuration } from './duration-input-utils';
+import {
+  type TDurationBaseUnit,
+  DURATION_UNIT_TIPS,
+  formatDuration,
+  normalizeDurationInput,
+  parseDuration,
+} from './duration-input-utils';
 
 import './duration-input.scss';
+
+/** 无有效范围时滑块的默认量程（基础单位） */
+const DEFAULT_SLIDER_MAX = 1000;
 
 export default defineComponent({
   name: 'DurationInput',
@@ -41,9 +50,14 @@ export default defineComponent({
       type: Array as PropType<number[]>,
       default: () => [],
     },
+    /** 展示风格：default 为内容自适应宽度 + small 尺寸；form 为固定宽度 + medium 尺寸 */
     styleType: {
       type: String as PropType<'default' | 'form'>,
       default: 'default',
+    },
+    baseUnit: {
+      type: String as PropType<TDurationBaseUnit>,
+      default: 'μs',
     },
   },
   emits: {
@@ -51,11 +65,13 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
+    /** 滑块状态：min 固定 0，max 为当前量程，value 为 [起始值, 结束值]，单位与 baseUnit 一致 */
     const sliderValue = shallowReactive<Record<string, number | number[]>>({
       min: 0,
-      max: 1000,
-      value: [0, 1000],
+      max: DEFAULT_SLIDER_MAX,
+      value: [0, DEFAULT_SLIDER_MAX],
     });
+    /** 起始 / 结束输入框的原始字符串（带单位，如 "1.5s"） */
     const startInput = shallowRef('');
     const endInput = shallowRef('');
 
@@ -66,9 +82,17 @@ export default defineComponent({
       },
       { immediate: true }
     );
+    /** 基础单位变化时（切换字段）原值含义已变，需按新单位重新格式化 */
+    watch(
+      () => props.baseUnit,
+      () => {
+        watchPropValue(props.value);
+      }
+    );
+    /** 外部值回写：格式化后同步到输入框，仅在与当前输入不一致时刷新，避免打断用户正在输入的内容 */
     function watchPropValue(val: number[]) {
-      const startVal = formatDuration(val[0]);
-      const endVal = formatDuration(val[1]);
+      const startVal = formatDuration(val[0], props.baseUnit);
+      const endVal = formatDuration(val[1], props.baseUnit);
       const isStartNE = startVal !== startInput.value;
       const isEndNE = endVal !== endInput.value;
       if (isStartNE) {
@@ -83,15 +107,14 @@ export default defineComponent({
     }
     /**
      * 处理开始时间输入框变更事件
+     * 输入内容先规范化（单位大小写 / 纯数字）再回写；非法内容仅清空输入框，保留上一次的有效值
      * @param val - 输入框的值
      */
     function handleStartInputChange(val: InputValue) {
-      const isValid = isValidTimeFormat(val as string);
-      if (isValid || val === '') {
-        startInput.value = val as string;
+      const normalized = normalizeDurationInput(val as string, props.baseUnit);
+      startInput.value = normalized;
+      if (normalized || val === '') {
         handleChange();
-      } else {
-        startInput.value = '';
       }
     }
     /**
@@ -99,12 +122,10 @@ export default defineComponent({
      * @param val - 输入框的值
      */
     function handleEndInputChange(val: InputValue) {
-      const isValid = isValidTimeFormat(val as string);
-      if (isValid || val === '') {
-        endInput.value = val as string;
+      const normalized = normalizeDurationInput(val as string, props.baseUnit);
+      endInput.value = normalized;
+      if (normalized || val === '') {
         handleChange();
-      } else {
-        endInput.value = '';
       }
     }
     /**
@@ -113,8 +134,8 @@ export default defineComponent({
      */
     function handleSliderChangeEnd(val: SliderValue) {
       sliderValue.value = val;
-      const startVal = formatDuration(val[0]);
-      const endVal = formatDuration(val[1]);
+      const startVal = formatDuration(val[0], props.baseUnit);
+      const endVal = formatDuration(val[1], props.baseUnit);
       startInput.value = startVal;
       endInput.value = endVal;
       handleChange(false);
@@ -124,8 +145,8 @@ export default defineComponent({
      * 将输入框的时间字符串转换为数值并触发change事件
      */
     function handleChange(isInput = true) {
-      const startVal = parseDuration(startInput.value);
-      const endVal = parseDuration(endInput.value);
+      const startVal = parseDuration(startInput.value, props.baseUnit);
+      const endVal = parseDuration(endInput.value, props.baseUnit);
       if (startVal === props.value[0] && endVal === props.value[1]) {
         return;
       }
@@ -135,14 +156,13 @@ export default defineComponent({
       emit('change', [startVal, endVal]);
     }
 
-    function sliderInit(startVal, endVal) {
-      if (startVal > endVal || startVal === endVal) {
-        sliderValue.max = 1000;
-        sliderValue.value = [0, 1000];
+    /** 按当前 [起始值, 结束值] 重置滑块量程；区间非法（起 >= 止）时回退到默认量程 */
+    function sliderInit(startVal: number, endVal: number) {
+      if (startVal >= endVal) {
+        sliderValue.max = DEFAULT_SLIDER_MAX;
+        sliderValue.value = [0, DEFAULT_SLIDER_MAX];
       } else {
-        if (endVal > 1000) {
-          sliderValue.max = endVal;
-        }
+        sliderValue.max = Math.max(endVal, DEFAULT_SLIDER_MAX);
         sliderValue.value = [startVal, endVal];
       }
     }
@@ -167,15 +187,15 @@ export default defineComponent({
             content: (
               <div>
                 {this.t('支持')}
-                μs/us, ms, s, m, h, d
+                {DURATION_UNIT_TIPS}
               </div>
             ),
           }}
         >
           <Input
             v-model={this.startInput}
-            autoWidth={true}
-            placeholder={'0μs'}
+            autoWidth={this.styleType === 'default'}
+            placeholder={`0${this.baseUnit}`}
             size={this.styleType === 'default' ? 'small' : 'medium'}
             onBlur={this.handleStartInputChange}
             onEnter={this.handleStartInputChange}
@@ -201,14 +221,14 @@ export default defineComponent({
             content: (
               <div>
                 {this.t('支持')}
-                μs/us, ms, s, m, h, d
+                {DURATION_UNIT_TIPS}
               </div>
             ),
           }}
         >
           <Input
             v-model={this.endInput}
-            autoWidth={true}
+            autoWidth={this.styleType === 'default'}
             placeholder={'+∞'}
             size={this.styleType === 'default' ? 'small' : 'medium'}
             onBlur={this.handleEndInputChange}

@@ -21,7 +21,10 @@ from django.db.models import Q
 from django.utils.translation import gettext as _
 from tenacity import RetryError, retry, retry_if_exception_type, stop_after_attempt, wait_exponential
 
-from alarm_backends.core.cache.key import SERVICE_LOCK_METADATA_MANAGE_ES_STORAGE
+from alarm_backends.core.cache.key import (
+    SERVICE_LOCK_METADATA_CLEAN_DISABLE_ES_STORAGE,
+    SERVICE_LOCK_METADATA_MANAGE_ES_STORAGE,
+)
 from alarm_backends.core.lock.service_lock import service_lock
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.utils.tenant import get_tenant_default_biz_id
@@ -358,7 +361,15 @@ def clean_disable_es_storage(es_storages, cluster_id: int | None = None):
     @param cluster_id: 集群ID
     @return:
     """
+    try:
+        with service_lock(SERVICE_LOCK_METADATA_CLEAN_DISABLE_ES_STORAGE, cluster_id=cluster_id):
+            _clean_disable_es_storage_with_cluster_lock(es_storages=es_storages, cluster_id=cluster_id)
+    except LockError:
+        logger.info("clean_disable_es_storage:cluster_id->[%s] is locked, skip clean index", cluster_id)
 
+
+def _clean_disable_es_storage_with_cluster_lock(es_storages, cluster_id: int | None = None):
+    """在集群级锁内执行停用采集项 ES 索引清理任务."""
     # 统计&上报 任务状态指标
     metrics.METADATA_CRON_TASK_STATUS_TOTAL.labels(
         task_name="clean_disable_es_storage", status=TASK_STARTED, process_target=None

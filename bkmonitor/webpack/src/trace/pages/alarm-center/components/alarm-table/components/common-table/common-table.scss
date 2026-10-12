@@ -6,6 +6,12 @@
   display: flex;
   flex-direction: column;
 
+  &.is-loading-rows {
+    .alarm-loading-row {
+      pointer-events: none;
+    }
+  }
+
   // 最小高度应为骨架屏高度避免出现空白
   // min-height: 370px;
 
@@ -52,6 +58,16 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
+
+      // 开头省略：direction: rtl 将省略号移至开头；::before 注入 LRM 零宽字符（\200e），
+      // 避免纯数字 / 下划线连接的 ID 类文本被 rtl 反向排列
+      &--start {
+        direction: rtl;
+
+        &::before {
+          content: '\200e';
+        }
+      }
     }
   }
 

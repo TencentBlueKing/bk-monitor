@@ -1,6 +1,6 @@
 import { defineComponent, ref, watch } from 'vue';
 
-import { RealTimeLogDialogPanel } from '../standalone-tab/related-log-dialog-panel';
+import { RelatedLogDialogPanel } from '../standalone-tab/related-log-dialog-panel';
 
 import '../standalone-tab/index.scss';
 import './index.scss';
@@ -79,8 +79,9 @@ export default defineComponent({
         }}
       >
         {visible.value && (
-          <RealTimeLogDialogPanel
+          <RelatedLogDialogPanel
             key={mountKey.value}
+            isRealTime
             indexSetId={props.indexSetId}
             logParams={props.logParams}
             retrieveParams={props.retrieveParams}

@@ -142,7 +142,15 @@ export default defineComponent({
       default: 'key',
     },
   },
-  emits: ['sort-change', 'page-change', 'filter-change', 'empty-click', 'cell-click', 'setting-change', 'column-resize-change'],
+  emits: [
+    'sort-change',
+    'page-change',
+    'filter-change',
+    'empty-click',
+    'cell-click',
+    'setting-change',
+    'column-resize-change',
+  ],
   setup(props, { emit }) {
     const { t } = useLocale();
     const globalLocale = {
@@ -175,7 +183,7 @@ export default defineComponent({
     // 监听 settingFields 变化，更新列配置
     watch(
       () => props.settingFields,
-      (newFields) => {
+      newFields => {
         columnConfigFields.value = [...newFields];
         // 受控模式下可见列由父组件驱动
         if (!isControlledVisible.value) {

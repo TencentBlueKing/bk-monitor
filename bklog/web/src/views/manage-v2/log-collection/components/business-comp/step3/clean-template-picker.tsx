@@ -206,7 +206,7 @@ export default defineComponent({
 
     watch(
       () => props.visible,
-      (visible) => {
+      visible => {
         if (!visible) {
           return;
         }
@@ -308,9 +308,7 @@ export default defineComponent({
               </div>
             </div>
           ))}
-          {loading.value && currentPage.value > 1 && (
-            <div class='template-list-loading'>{'loading...'}</div>
-          )}
+          {loading.value && currentPage.value > 1 && <div class='template-list-loading'>{'loading...'}</div>}
         </div>
       </div>
     );

@@ -143,6 +143,7 @@ export default {
   'route-数据源管理': 'DataSource Management',
   'route-Profiling 检索': 'Profiling',
   'route-RUM': 'RUM',
+  'route-RUM 检索': 'RUM Search',
   'route-编辑轮值': 'Edit Rotation',
   'route-新增轮值': 'Add Rotation',
   'route-故障': 'Incident',

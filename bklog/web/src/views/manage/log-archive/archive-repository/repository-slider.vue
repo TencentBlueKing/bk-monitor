@@ -40,8 +40,8 @@
     >
       <template #content>
         <div
-          class="repository-slider-content"
           v-bkloading="{ isLoading: sliderLoading }"
+          class="repository-slider-content"
         >
           <bk-form
             v-if="!sliderLoading"
@@ -88,8 +88,8 @@
                   </div>
                   <div
                     v-else
-                    class="option-slot-container"
                     v-bk-overflow-tips
+                    class="option-slot-container"
                   >
                     <span>{{ option.storage_display_name }}</span>
                   </div>
@@ -111,9 +111,9 @@
             >
               <div
                 v-for="card in repository"
+                :key="card.name"
                 :class="{ 'repository-card': true, 'is-active': formData.es_config.type === card.id }"
                 :data-test-id="`addNewStorehouse_div_${card.id}`"
-                :key="card.name"
                 @click="changeRepository(card)"
               >
                 <span class="repository-name">{{ card.name }}</span>
@@ -405,10 +405,6 @@
       showSlider(val) {
         if (val) {
           this.getEsClusterList();
-          if (this.isEdit) {
-          } else {
-            //
-          }
           this.initSidebarFormData();
         } else {
           // 清空表单数据

@@ -26,10 +26,11 @@
 
 import { type PropType, computed, defineComponent, toRef, useTemplateRef } from 'vue';
 
+import { useTableScrollOptimize } from '../../../../hooks/use-table-scroll-optimize';
+import { AlarmTableSkeletonCell } from '../../components/alarm-skeleton';
 import CommonTable from '../../components/alarm-table/components/common-table/common-table';
 import { usePopover } from '../../components/alarm-table/hooks/use-popover';
 import { useEchartsGroupConnect } from '../../composables/use-echarts-group';
-import { useTableScrollOptimize } from '../../composables/use-table-scroll-optimize';
 import { ENDED_STATUS_SET, TrendRangeEnum } from '../constant';
 import { useIssuesColumnsRenderer } from './hooks/use-issues-columns-renderer';
 import { useIssuesHandlers } from './hooks/use-issues-handlers';
@@ -212,7 +213,7 @@ export default defineComponent({
     /** 表格滚动优化：滚动时禁用 pointerEvents 并隐藏 popover */
     useTableScrollOptimize({
       targetElement: tableRef,
-      scrollContainerSelector: props.scrollContainerSelector,
+      scrollContainerElement: props.scrollContainerSelector,
       onScroll: () => {
         clickPopoverTools.hidePopover();
       },
@@ -234,6 +235,15 @@ export default defineComponent({
               <ExploreTableEmpty
                 showOperation={this.showEmptyOperation}
                 onClearFilter={() => this.$emit('clearFilter')}
+              />
+            ) as unknown as SlotReturnValue
+          }
+          loadingCell={(column, rowIndex) =>
+            (
+              <AlarmTableSkeletonCell
+                columnKey={column.colKey}
+                rowIndex={rowIndex}
+                variant='issues'
               />
             ) as unknown as SlotReturnValue
           }

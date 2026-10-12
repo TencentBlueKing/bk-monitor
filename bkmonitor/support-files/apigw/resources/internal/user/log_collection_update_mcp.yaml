@@ -3,8 +3,9 @@ paths:
     post:
       operationId: fast_update_log_collector
       description: >-
-        Update collection-only fields. Never changes cleaning, fields, storage, index-set membership or
-        environment. No confirm parameter. params top-level keys are shallow-merged; conditions, target_nodes,
+        Update collection-only fields. It can replace index-set membership with parent_index_set_ids; omit that
+        field to keep membership unchanged or send [] to remove all parent groups. Never changes cleaning, fields,
+        storage or environment. No confirm parameter. params top-level keys are shallow-merged; conditions, target_nodes,
         configs and extra_labels are full replacements. Omit fields you do not want to change; explicit
         empty values such as target_nodes=[] will be written. Do not send masked ****** secrets from get_log_collector.
         Host cannot change collector_scenario_id; container cannot change bcs_cluster_id. Use returned
@@ -43,6 +44,15 @@ paths:
                   description: >-
                     Collector remark. Host/Windows max 64 characters; container max 100. 采集项描述。主机/Windows
                     最长 64 字符，容器最长 100 字符。
+                parent_index_set_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
+                  description: >-
+                    Parent index group IDs. Omit to keep current membership, send a list to replace membership,
+                    or send [] to remove all parent groups. 归属索引组 ID 列表。不传保持不变，传列表替换归属组，传 [] 清空全部归属组。
                 target_object_type:
                   type: string
                   description: >-

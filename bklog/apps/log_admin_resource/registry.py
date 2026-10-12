@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from typing import Any
+
 from django.conf import settings
 
 from apps.exceptions import PermissionError as BklogPermissionError
@@ -25,9 +28,16 @@ from apps.log_admin_resource.handlers.collector_storage import (
 )
 from apps.log_admin_resource.handlers.bkdata_inspection import (
     batch_get_bkdata_result_table_snapshots,
+    get_bkdata_clean_errors,
     get_bkdata_clean_snapshot,
     get_bkdata_flow_snapshot,
     get_bkdata_raw_snapshot,
+)
+from apps.log_admin_resource.handlers.datalink_control_plane import (
+    FUNC_NAME as DATALINK_CONTROL_PLANE_FUNC_NAME,
+    PARAMS_SCHEMA as DATALINK_CONTROL_PLANE_PARAMS_SCHEMA,
+    RESPONSE_SCHEMA as DATALINK_CONTROL_PLANE_RESPONSE_SCHEMA,
+    get_datalink_control_plane_snapshot,
 )
 from apps.log_admin_resource.handlers.async_export import (
     FUNCTIONS as ASYNC_EXPORT_FUNCTIONS,
@@ -52,6 +62,10 @@ from apps.log_admin_resource.handlers.host_inspection import (
     FUNCTIONS as HOST_INSPECTION_FUNCTIONS,
     HANDLERS as HOST_INSPECTION_HANDLERS,
 )
+from apps.log_admin_resource.handlers.iam_decision import (
+    FUNCTIONS as IAM_DECISION_FUNCTIONS,
+    HANDLERS as IAM_DECISION_HANDLERS,
+)
 from apps.log_admin_resource.handlers.k8s_inspection import (
     FUNCTIONS as K8S_INSPECTION_FUNCTIONS,
     HANDLERS as K8S_INSPECTION_HANDLERS,
@@ -68,9 +82,17 @@ from apps.log_admin_resource.handlers.model_query import (
     FUNCTIONS as MODEL_QUERY_FUNCTIONS,
     HANDLERS as MODEL_QUERY_HANDLERS,
 )
+from apps.log_admin_resource.handlers.monitor_strategy import (
+    FUNCTIONS as MONITOR_STRATEGY_FUNCTIONS,
+    HANDLERS as MONITOR_STRATEGY_HANDLERS,
+)
 from apps.log_admin_resource.handlers.platform_source import (
     FUNCTIONS as PLATFORM_SOURCE_FUNCTIONS,
     HANDLERS as PLATFORM_SOURCE_HANDLERS,
+)
+from apps.log_admin_resource.handlers.runtime import (
+    FUNCTIONS as RUNTIME_FUNCTIONS,
+    HANDLERS as RUNTIME_HANDLERS,
 )
 from apps.log_admin_resource.handlers.storage_cluster import (
     STORAGE_CLUSTER_LIST_PARAMS_SCHEMA,
@@ -368,6 +390,7 @@ FUNCTIONS = {
             "flow_references",
             "generated_flow_configs",
             "result_table_references",
+            "strategy_bindings",
             "access_tasks",
         ),
         "examples": [
@@ -467,6 +490,28 @@ FUNCTIONS = {
         "params_schema": _bkdata_id_schema("raw_data_id", include_sample_limit=True),
         "response_schema": _snapshot_response_schema("raw_data_id", "bk_biz_id", probe_keys=("deploy", "tail")),
         "examples": [{"params": {"bk_biz_id": 5000140, "raw_data_id": 12345, "sample_limit": 10}}],
+    },
+    "bklog.bkdata.clean.errors": {
+        "func_name": "bklog.bkdata.clean.errors",
+        "validate_params": True,
+        "description": "Sample DataID clean errors and filter by exact RT locally; no match does not prove no errors.",
+        "safety_level": "inspect",
+        "data_classification": "sensitive_logs",
+        "params_schema": {
+            "type": "object",
+            "properties": {
+                "bk_biz_id": {"type": "integer", "not": {"const": 0}},
+                "raw_data_id": {"type": "integer", "minimum": 1},
+                "result_table_id": {"type": "string", "minLength": 1},
+                "sample_limit": {"type": "integer", "minimum": 1, "maximum": 20},
+            },
+            "required": ["bk_biz_id", "raw_data_id", "result_table_id"],
+            "additionalProperties": False,
+        },
+        "response_schema": _snapshot_response_schema(
+            "raw_data_id", "result_table_id", "bk_biz_id", probe_keys=("errors",)
+        ),
+        "examples": [{"params": {"bk_biz_id": 2, "raw_data_id": 1, "result_table_id": "2_clean", "sample_limit": 5}}],
     },
     "bklog.bkdata.clean.snapshot": {
         "func_name": "bklog.bkdata.clean.snapshot",
@@ -570,6 +615,16 @@ FUNCTIONS = {
     },
 }
 FUNCTIONS.update(PLATFORM_SOURCE_FUNCTIONS)
+FUNCTIONS[DATALINK_CONTROL_PLANE_FUNC_NAME] = {
+    "func_name": DATALINK_CONTROL_PLANE_FUNC_NAME,
+    "validate_params": True,
+    "description": "Read tenant-scoped Data ID, GSE, Kafka and BKBase V4 control-plane evidence and verify actual resource references.",
+    "safety_level": "inspect",
+    "data_classification": "control_plane",
+    "params_schema": DATALINK_CONTROL_PLANE_PARAMS_SCHEMA,
+    "response_schema": DATALINK_CONTROL_PLANE_RESPONSE_SCHEMA,
+    "examples": [{"params": {"bk_data_id": 1}}],
+}
 FUNCTIONS.update(COLLECTOR_EVIDENCE_FUNCTIONS)
 FUNCTIONS.update(INDEX_SET_ROUTE_FUNCTIONS)
 FUNCTIONS.update(ASYNC_EXPORT_FUNCTIONS)
@@ -578,8 +633,11 @@ FUNCTIONS.update(LOG_QUERY_FUNCTIONS)
 FUNCTIONS.update(MODEL_QUERY_FUNCTIONS)
 FUNCTIONS.update(HOST_INSPECTION_FUNCTIONS)
 FUNCTIONS.update(K8S_INSPECTION_FUNCTIONS)
+FUNCTIONS.update(IAM_DECISION_FUNCTIONS)
+FUNCTIONS.update(MONITOR_STRATEGY_FUNCTIONS)
+FUNCTIONS.update(RUNTIME_FUNCTIONS)
 
-HANDLERS = {
+HANDLERS: dict[str, Callable[..., Any]] = {
     "bklog.collector.list": list_collectors,
     "bklog.collector.detail": get_collector_detail,
     "bklog.collector.storage.preview": preview_collector_storage,
@@ -596,10 +654,12 @@ HANDLERS = {
     "bklog.clustering_config.pipeline.force_fail": force_fail_clustering_pipeline_node,
     "bklog.bkdata.raw.snapshot": get_bkdata_raw_snapshot,
     "bklog.bkdata.clean.snapshot": get_bkdata_clean_snapshot,
+    "bklog.bkdata.clean.errors": get_bkdata_clean_errors,
     "bklog.bkdata.flow.snapshot": get_bkdata_flow_snapshot,
     "bklog.bkdata.result_table.snapshot_batch": batch_get_bkdata_result_table_snapshots,
 }
 HANDLERS.update(PLATFORM_SOURCE_HANDLERS)
+HANDLERS[DATALINK_CONTROL_PLANE_FUNC_NAME] = get_datalink_control_plane_snapshot
 HANDLERS.update(COLLECTOR_EVIDENCE_HANDLERS)
 HANDLERS.update(INDEX_SET_ROUTE_HANDLERS)
 HANDLERS.update(ASYNC_EXPORT_HANDLERS)
@@ -608,6 +668,9 @@ HANDLERS.update(LOG_QUERY_HANDLERS)
 HANDLERS.update(MODEL_QUERY_HANDLERS)
 HANDLERS.update(HOST_INSPECTION_HANDLERS)
 HANDLERS.update(K8S_INSPECTION_HANDLERS)
+HANDLERS.update(IAM_DECISION_HANDLERS)
+HANDLERS.update(MONITOR_STRATEGY_HANDLERS)
+HANDLERS.update(RUNTIME_HANDLERS)
 
 
 class AdminResourceRegistry:

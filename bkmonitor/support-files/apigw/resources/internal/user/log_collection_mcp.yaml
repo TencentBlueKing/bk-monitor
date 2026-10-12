@@ -3,10 +3,13 @@ paths:
     get:
       operationId: list_log_collectors
       description: >-
-        List log collectors in a business with stable pagination. Call this first to obtain collector_config_id
-        before get_log_collector, get_log_collector_status, fast_update_log_collector or update_log_collector_clean_config.
-        Filters: keyword, collector_scenario_id, enabled. Cannot filter by bk_data_id, table_id, bcs_cluster_id
-        or environment. 分页查询业务下的日志采集项。应先调用本工具拿到 collector_config_id。不支持按 dataid / 结果表 / 集群 / 环境过滤。
+        List log access entries in a business with stable pagination. The response is passed through unchanged from
+        the new log-access API as {total, list}. Each list entry includes its type-specific ID and permission. The list includes
+        host/container collectors, custom reports, bkdata and third-party Elasticsearch index sets. Call this first to obtain collector_config_id
+        before collector operations; index-set entries have collector_config_id=null and expose index_set_id instead.
+        Call get_log_index_set before updating an index-set entry to obtain its complete detail.
+        Filters: keyword, conditions, collector_scenario_id and log_access_type. 分页查询业务下的日志接入项，包含主机/容器采集、自定义上报、bkdata 和第三方 ES。
+        索引集条目的 collector_config_id 为 null，请使用 index_set_id。
       tags:
       - log_collection_mcp
       parameters:
@@ -63,11 +66,46 @@ paths:
           / section 段日志 / wineventlog Windows 事件；列表过滤还可传 custom、redis_slowlog、syslog、kafka、client。Fast
           Update 仅容器采集项可改此字段。
       - in: query
-        name: enabled
+        name: log_access_type
+        required: false
+        style: form
+        explode: true
+        schema:
+          type: array
+          items:
+            type: string
+            enum:
+            - linux
+            - winevent
+            - container_file
+            - container_stdout
+            - bkdata
+            - es
+            - custom_report
+        description: >-
+          Filter by unified access type. Use bkdata for BkBase result-table index sets, es for third-party Elasticsearch,
+          and custom_report for custom reports. 按统一接入类型过滤，数据平台使用 bkdata，第三方 ES 使用 es，自定义上报使用 custom_report。
+      - in: query
+        name: conditions
         required: false
         schema:
-          type: boolean
-        description: Filter by enabled (true) or disabled (false) status. 按启用或停用状态过滤。
+          type: string
+        description: >-
+          JSON array of advanced filters, such as [{"key":"name","value":["nginx"]}]. Supported keys:
+          scenario_id, name, bk_data_name, name_en, bk_data_id, collector_scenario_id, created_by, updated_by,
+          status, storage_display_name, log_access_type, tags, collector_source, query. Other keys are rejected.
+          status accepts running, success, failed, or terminated; terminated means the collector is disabled.
+          Each item requires a non-empty value list. Do not repeat collector_scenario_id or log_access_type when using
+          their dedicated parameters. 高级过滤条件 JSON 数组；仅支持上述 key，其他 key 会被拒绝。status 支持 running、success、failed、terminated，
+          其中 terminated 表示采集项已停用；每项包含非空 value 列表，使用快捷参数时不要重复传对应条件。
+      - in: query
+        name: ordering
+        required: false
+        schema:
+          type: string
+          default: -updated_at
+          enum: [name, -name, retention, -retention, updated_at, -updated_at, created_at, -created_at]
+        description: Sort by a supported list field; prefix with - for descending order. 排序字段，前缀 - 表示降序。
       x-bk-apigateway-resource:
         isPublic: false
         allowApplyPermission: false
@@ -91,9 +129,8 @@ paths:
         Get one collector by collector_config_id. Call list_log_collectors first. Validates bk_biz_id
         ownership. IMPORTANT: collection_config.params and configs[].params mask keys containing password/secret/token/...
         as ******. Do not echo those values into fast_update_log_collector or you will persist the literal
-        asterisks. storage currently returns cluster_id/name/type and retention only; allocation_min_days,
-        storage_replies and es_shards are missing here but required by update_log_collector_clean_config.
-        查询采集项详情。敏感字段已打码，禁止原样回传。storage 目前缺副本/分片/热数据天数。
+        asterisks. storage returns cluster_id/name/type, retention, allocation_min_days, storage_replies and es_shards.
+        查询采集项详情。敏感字段已打码，禁止原样回传。storage 包含集群、保留时间、副本数、分片数和冷热数据生效天数。
       tags:
       - log_collection_mcp
       parameters:
@@ -121,6 +158,48 @@ paths:
           name: default
           method: get
           path: /api/v4/log_collection/get_collector/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/get_log_index_set/:
+    get:
+      operationId: get_log_index_set
+      description: >-
+        Get an independent log index set by index_set_id. Use this for third-party Elasticsearch and bkdata
+        entries returned by list_log_collectors. The response is passed through from the new index-set detail API
+        and includes the complete indexes and time-field information needed by the corresponding update tool.
+        查询独立日志索引集详情。第三方 ES 和 bkdata 条目请使用 index_set_id 调用；返回新版索引集详情，包含更新所需的完整索引和时间字段信息。
+      tags:
+      - log_collection_mcp
+      parameters:
+      - in: query
+        name: bk_biz_id
+        required: true
+        schema:
+          type: integer
+        description: Business ID in BlueKing Monitor. Identifies the business space. 业务ID，用于标识业务空间。
+      - in: query
+        name: index_set_id
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+        description: >-
+          Independent index-set ID from list_log_collectors.index_set_id. 独立索引集ID，来自
+          list_log_collectors 返回的 index_set_id。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: get
+          path: /api/v4/log_collection/get_index_set/
           matchSubpath: false
           timeout: 30
         pluginConfigs: []

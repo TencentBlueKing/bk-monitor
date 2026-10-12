@@ -78,7 +78,6 @@ export default defineComponent({
 
     const { observeElement, stopObserve, isStoped } = useResizeObserve(
       () => refContainerElement.value,
-      // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: reason
       () => {
         if (refContainerElement.value) {
           const { scrollWidth, offsetWidth } = refRootElement.value;

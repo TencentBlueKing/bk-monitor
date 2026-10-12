@@ -122,13 +122,12 @@ export default defineComponent({
           loading={groupsCtrl.loading.value}
           rows={groupsCtrl.rows.value}
           scopedVars={scopedVars.value}
-          onRetry={groupsCtrl.load}
+          onRetry={() => groupsCtrl.load(true)}
         />
         <GroupManageDialog
           isShow={groupsCtrl.settingShow.value}
           orderData={groupsCtrl.orderData.value}
-          submitLoading={groupsCtrl.loading.value}
-          onReset={groupsCtrl.handleReset}
+          submitLoading={groupsCtrl.submitting.value}
           onSave={groupsCtrl.handleSave}
           onUpdate:isShow={(v: boolean) => (groupsCtrl.settingShow.value = v)}
         />

@@ -8,6 +8,7 @@ from typing import Any
 
 from django.conf import settings
 
+from apps.api import TransferApi
 from apps.exceptions import BaseException as BklogBaseException
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
@@ -28,11 +29,14 @@ from apps.log_admin_resource.inspection_tasks import (
 )
 from apps.log_admin_resource.k8s_inspection import (
     discover_inspection_targets,
+    safe_spec_projection,
     expected_bklog_configs,
     target_identity,
 )
+from apps.log_admin_resource.k8s_cluster_context import ClusterInspectionContext, load_cluster_context
 from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient
 from apps.log_admin_resource.response_schema import diagnostic_schema, nullable_schema, object_schema
+from apps.log_bcs.handlers.bcs_handler import BcsHandler
 from apps.log_databus.constants import ContainerCollectorType
 from apps.log_databus.models import CollectorConfig, ContainerCollectorConfig
 from apps.log_search.models import Space
@@ -41,6 +45,7 @@ from apps.utils.local import get_request, get_request_tenant_id
 
 START_FUNC_NAME = "bklog.collector.k8s_inspection.start"
 DETAIL_FUNC_NAME = "bklog.collector.k8s_inspection.detail"
+CONFIG_LIST_FUNC_NAME = "bklog.collector.k8s_inspection.configs"
 TARGET_LIST_FUNC_NAME = "bklog.collector.k8s_inspection.targets"
 EVIDENCE_GROUPS = ("control_plane", "sidecar", "collector", "progress")
 DEFAULT_TARGET_LIMIT = 50
@@ -135,9 +140,9 @@ TARGET_LIST_RESPONSE_SCHEMA = object_schema(
     "partial",
     "warnings",
     properties={
-        "collector_config_id": {"type": "integer", "minimum": 1},
-        "bk_biz_id": {"type": "integer", "not": {"const": 0}},
-        "bk_data_id": {"type": "integer", "minimum": 1},
+        "collector_config_id": nullable_schema("integer"),
+        "bk_biz_id": nullable_schema("integer"),
+        "bk_data_id": {"anyOf": [{"type": "integer", "minimum": 1}, {"type": "null"}]},
         "bcs_cluster_id": {"type": "string", "minLength": 1},
         "namespace": nullable_schema("string"),
         "limit": {"type": "integer", "minimum": 1, "maximum": MAX_TARGET_LIMIT},
@@ -253,25 +258,77 @@ DETAIL_RESPONSE_SCHEMA = object_schema(
 )
 
 
+def list_k8s_inspection_configs(params: dict[str, Any]) -> dict[str, Any]:
+    """Discover actual CRs without requiring a SaaS collector or an index set."""
+    _request_identity()
+    client = K8sInspectionClient(cluster_id=params["bcs_cluster_id"])
+    limit = int(params.get("limit") or DEFAULT_TARGET_LIMIT)
+    items, next_token = client.list_bklog_config_page(
+        params.get("namespace"), limit=limit, continue_token=params.get("continue_token")
+    )
+    configs = []
+    for item in items[:limit]:
+        metadata = item.get("metadata") or {}
+        configs.append(
+            {
+                "namespace": metadata.get("namespace"),
+                "name": metadata.get("name"),
+                "uid": metadata.get("uid"),
+                "resource_version": metadata.get("resourceVersion"),
+                "bk_env": (metadata.get("labels") or {}).get("bk_env"),
+                "spec": safe_spec_projection(item.get("spec") or {}),
+            }
+        )
+    return {
+        "bcs_cluster_id": params["bcs_cluster_id"],
+        "configs": configs,
+        "continue_token": next_token,
+        "truncated": bool(next_token) or len(items) > limit,
+    }
+
+
+def _inspection_context(params: dict[str, Any], tenant_id: str):
+    if params.get("collector_config_id") is not None:
+        if params.get("bklog_config") is not None:
+            raise ValidationError("collector_config_id and bklog_config are mutually exclusive")
+        collector = _get_collector(int(params["collector_config_id"]))
+        return collector, _resolve_collector_identity(collector, tenant_id, params)
+    if not params.get("bcs_cluster_id") or not params.get("bklog_config"):
+        raise ValidationError("bcs_cluster_id and bklog_config are required without collector_config_id")
+    if params.get("bk_data_id") is not None:
+        raise ValidationError("cluster inspection derives DataID from the selected BkLogConfig")
+    context = load_cluster_context(params["bcs_cluster_id"], params["bklog_config"])
+    return context, {
+        "tenant_id": tenant_id,
+        "bk_biz_id": None,
+        "bk_data_id": context.bk_data_id,
+        "bcs_cluster_id": context.bcs_cluster_id,
+        "bklog_config": context.binding,
+    }
+
+
 def list_k8s_inspection_targets(params: dict[str, Any]) -> dict[str, Any]:
     _, request_tenant_id = _request_identity()
-    collector = _get_collector(int(params["collector_config_id"]))
-    _validate_collector(collector, request_tenant_id)
+    collector, identity = _inspection_context(params, request_tenant_id)
     namespace = str(params.get("namespace") or "").strip() or None
     if "namespace" in params and namespace is None:
         raise ValidationError("namespace must not be blank")
     limit = int(params.get("limit") or DEFAULT_TARGET_LIMIT)
-    container_configs = list(
-        ContainerCollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).order_by("id")
-    )
-    expected = expected_bklog_configs(collector, container_configs)
+    if isinstance(collector, ClusterInspectionContext):
+        container_configs = []
+        expected = collector.expected
+    else:
+        container_configs = list(
+            ContainerCollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).order_by("id")
+        )
+        expected = expected_bklog_configs(_collector_with_identity(collector, identity), container_configs)
     collector_types = {item["spec"].get("logConfigType") for item in expected}
-    client = K8sInspectionClient(cluster_id=collector.bcs_cluster_id)
+    client = K8sInspectionClient(cluster_id=identity["bcs_cluster_id"])
     pods = []
     nodes = []
     pod_scan_truncated = False
     node_scan_truncated = False
-    warnings = []
+    warnings = list(identity.get("warnings") or [])
     if collector_types.intersection({ContainerCollectorType.CONTAINER, ContainerCollectorType.STDOUT}):
         try:
             pods, pod_scan_truncated = _collect_bounded_pages(
@@ -326,9 +383,9 @@ def list_k8s_inspection_targets(params: dict[str, Any]) -> dict[str, Any]:
     discovered = discover_inspection_targets(pods=pods, nodes=nodes, expected=expected, limit=limit)
     return {
         "collector_config_id": collector.collector_config_id,
-        "bk_biz_id": collector.bk_biz_id,
-        "bk_data_id": collector.bk_data_id,
-        "bcs_cluster_id": collector.bcs_cluster_id,
+        "bk_biz_id": identity["bk_biz_id"],
+        "bk_data_id": identity["bk_data_id"],
+        "bcs_cluster_id": identity["bcs_cluster_id"],
         "namespace": namespace,
         "limit": limit,
         "container_config_ids": [item.id for item in container_configs],
@@ -362,10 +419,11 @@ def _collect_bounded_pages(fetch_page) -> tuple[list[Any], bool]:
 
 def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
     app_code, request_tenant_id = _request_identity()
-    collector = _get_collector(int(params["collector_config_id"]))
-    tenant_id = _validate_collector(collector, request_tenant_id)
+    collector, identity = _inspection_context(params, request_tenant_id)
+    tenant_id = identity["tenant_id"]
     target = _normalize_target(params.get("target"))
-    groups = _normalize_groups(params.get("evidence_groups"))
+    requested_groups = _normalize_groups(params.get("evidence_groups"))
+    groups, skipped_groups = _select_runnable_evidence_groups(requested_groups, identity)
     source = (params.get("source") or "").strip() or None
     include_source_sample = bool(params.get("include_source_sample", False))
     if include_source_sample and not source:
@@ -381,22 +439,29 @@ def start_k8s_inspection(params: dict[str, Any]) -> dict[str, Any]:
             tenant_id=tenant_id,
             collector=collector,
             target=target,
+            identity=identity,
         )
 
     public_target = {
         "collector_config_id": collector.collector_config_id,
-        "bk_biz_id": collector.bk_biz_id,
-        "bk_data_id": collector.bk_data_id,
-        "bcs_cluster_id": collector.bcs_cluster_id,
+        "bk_biz_id": identity["bk_biz_id"],
+        "bk_data_id": identity["bk_data_id"],
+        "bcs_cluster_id": identity["bcs_cluster_id"],
+        "identity_overrides": identity.get("overrides") or {},
         "observed_object": target,
     }
+    if identity.get("bklog_config"):
+        public_target["bklog_config"] = identity["bklog_config"]
     request_options = {
         "target": target,
         "evidence_groups": groups,
+        "requested_evidence_groups": requested_groups,
+        "skipped_evidence_groups": skipped_groups,
         "collector_candidate_id": candidate_id,
         "source": source,
         "include_source_sample": include_source_sample,
         "runtime_log_options": normalize_runtime_log_options(params.get("runtime_log_options")),
+        "identity_warnings": identity.get("warnings") or [],
     }
     try:
         record, reused = ResourceInspectionTaskRecord.create_or_reuse(
@@ -491,12 +556,34 @@ def _get_collector(collector_config_id: int) -> CollectorConfig:
 
 
 def _validate_collector(collector: CollectorConfig, request_tenant_id: str) -> str:
+    """Compatibility wrapper for existing tests and call sites."""
+
+    return _resolve_collector_identity(collector, request_tenant_id, {})["tenant_id"]
+
+
+def _resolve_collector_identity(
+    collector: CollectorConfig, request_tenant_id: str, params: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    params = params or {}
     if not collector.is_active:
         raise ValidationError("collector_config_inactive")
     if not collector.is_container_collector:
         raise ValidationError("collector_not_k8s")
-    if not collector.bk_biz_id or not collector.bk_data_id or not collector.bcs_cluster_id:
-        raise ValidationError("collector_context_incomplete")
+    if not collector.bk_biz_id:
+        raise ValidationError(
+            "collector_context_incomplete",
+            data={
+                "code": "collector_context_incomplete",
+                "missing_fields": ["bk_biz_id"],
+                "present_fields": {
+                    "bk_data_id": collector.bk_data_id or None,
+                    "bcs_cluster_id": collector.bcs_cluster_id or None,
+                },
+                "allowed_overrides": [],
+                "runnable_evidence_groups": [],
+            },
+        )
+
     tenant_id = Space.get_tenant_id(bk_biz_id=collector.bk_biz_id, is_need_default=False)
     if not tenant_id:
         if settings.ENABLE_MULTI_TENANT_MODE:
@@ -504,7 +591,186 @@ def _validate_collector(collector: CollectorConfig, request_tenant_id: str) -> s
         tenant_id = request_tenant_id or settings.BK_APP_TENANT_ID
     if request_tenant_id and tenant_id != request_tenant_id:
         raise BklogPermissionError("collector tenant does not match the current Resource Call tenant")
-    return tenant_id
+
+    warnings: list[dict[str, Any]] = []
+    overrides: dict[str, Any] = {}
+    bcs_cluster_id = str(collector.bcs_cluster_id or "").strip() or None
+    bk_data_id = int(collector.bk_data_id) if collector.bk_data_id else None
+
+    override_cluster = str(params.get("bcs_cluster_id") or "").strip() or None
+    if override_cluster:
+        if bcs_cluster_id and override_cluster != bcs_cluster_id:
+            raise ValidationError("cluster_mismatch")
+        if not bcs_cluster_id:
+            _assert_cluster_visible(collector.bk_biz_id, override_cluster)
+            bcs_cluster_id = override_cluster
+            overrides["bcs_cluster_id"] = override_cluster
+            warnings.append(
+                {
+                    "code": "bcs_cluster_id_overridden",
+                    "message": "collector.bcs_cluster_id was empty; using caller-supplied cluster identity",
+                    "retryable": False,
+                }
+            )
+    elif not bcs_cluster_id:
+        raise ValidationError(
+            "collector_context_incomplete",
+            data={
+                "code": "collector_context_incomplete",
+                "missing_fields": ["bcs_cluster_id"],
+                "present_fields": {
+                    "bk_biz_id": collector.bk_biz_id,
+                    "bk_data_id": bk_data_id,
+                },
+                "allowed_overrides": ["bcs_cluster_id"],
+                "runnable_evidence_groups": [],
+                "next_call": {
+                    "func_name": START_FUNC_NAME,
+                    "params": {
+                        "collector_config_id": collector.collector_config_id,
+                        "bcs_cluster_id": "<cluster_id_visible_to_business>",
+                        "evidence_groups": ["control_plane"],
+                    },
+                },
+            },
+        )
+
+    override_data_id = params.get("bk_data_id")
+    if override_data_id not in (None, ""):
+        try:
+            override_data_id = int(override_data_id)
+        except (TypeError, ValueError) as error:
+            raise ValidationError("bk_data_id must be a positive integer") from error
+        if override_data_id <= 0:
+            raise ValidationError("bk_data_id must be a positive integer")
+        if bk_data_id and override_data_id != bk_data_id:
+            raise ValidationError("data_id_mismatch")
+        if not bk_data_id:
+            _assert_data_id_belongs_to_biz(collector.bk_biz_id, override_data_id)
+            bk_data_id = override_data_id
+            overrides["bk_data_id"] = override_data_id
+            warnings.append(
+                {
+                    "code": "bk_data_id_overridden",
+                    "message": "collector.bk_data_id was empty; using caller-supplied DataID identity",
+                    "retryable": False,
+                }
+            )
+
+    return {
+        "tenant_id": tenant_id,
+        "bk_biz_id": collector.bk_biz_id,
+        "bk_data_id": bk_data_id,
+        "bcs_cluster_id": bcs_cluster_id,
+        "overrides": overrides,
+        "warnings": warnings,
+    }
+
+
+def _select_runnable_evidence_groups(
+    requested_groups: list[str], identity: dict[str, Any]
+) -> tuple[list[str], list[dict[str, Any]]]:
+    skipped = []
+    runnable = []
+    for group in requested_groups:
+        if group == "control_plane":
+            runnable.append(group)
+            continue
+        if not identity.get("bk_data_id"):
+            skipped.append(
+                {
+                    "group": group,
+                    "code": "data_id_missing",
+                    "message": "sidecar/collector/progress evidence requires a positive bk_data_id",
+                }
+            )
+            continue
+        runnable.append(group)
+    if not runnable:
+        raise ValidationError(
+            "collector_context_incomplete",
+            data={
+                "code": "collector_context_incomplete",
+                "missing_fields": ["bk_data_id"],
+                "present_fields": {
+                    "bk_biz_id": identity.get("bk_biz_id"),
+                    "bcs_cluster_id": identity.get("bcs_cluster_id"),
+                },
+                "allowed_overrides": ["bk_data_id"],
+                "runnable_evidence_groups": ["control_plane"],
+                "skipped_evidence_groups": skipped,
+                "next_call": {
+                    "func_name": START_FUNC_NAME,
+                    "params": {
+                        "collector_config_id": "<collector_config_id>",
+                        "evidence_groups": ["control_plane"],
+                    },
+                },
+            },
+        )
+    return runnable, skipped
+
+
+def _collector_with_identity(collector: CollectorConfig, identity: dict[str, Any]) -> CollectorConfig:
+    """Return a collector object whose runtime identity reflects resolved overrides."""
+
+    if identity.get("bk_data_id") and not collector.bk_data_id:
+        collector.bk_data_id = identity["bk_data_id"]
+    if identity.get("bcs_cluster_id") and not collector.bcs_cluster_id:
+        collector.bcs_cluster_id = identity["bcs_cluster_id"]
+    return collector
+
+
+def _assert_cluster_visible(bk_biz_id: int, cluster_id: str) -> None:
+    try:
+        clusters = BcsHandler.list_bcs_cluster(bk_biz_id=bk_biz_id)
+    except Exception as error:  # pylint: disable=broad-except
+        raise ValidationError("cluster_visibility_unavailable") from error
+    if not any(str(item.get("cluster_id") or "") == cluster_id for item in clusters):
+        raise ValidationError("cluster_not_visible_from_business")
+
+
+def _assert_data_id_belongs_to_biz(bk_biz_id: int, bk_data_id: int) -> None:
+    try:
+        data = TransferApi.get_data_id({"bk_data_id": bk_data_id})
+    except Exception as error:  # pylint: disable=broad-except
+        raise ValidationError("data_id_visibility_unavailable") from error
+    data_biz_id = None
+    if isinstance(data, dict):
+        data_biz_id = data.get("bk_biz_id") or (data.get("data") or {}).get("bk_biz_id")
+    try:
+        data_biz_id = int(data_biz_id)
+    except (TypeError, ValueError):
+        data_biz_id = None
+    if data_biz_id != int(bk_biz_id):
+        raise ValidationError("data_id_not_in_collector_business")
+
+
+def _validate_candidate_binding(
+    *,
+    candidate_id: str,
+    app_code: str,
+    tenant_id: str,
+    collector: CollectorConfig,
+    target: dict[str, Any] | None,
+    identity: dict[str, Any] | None = None,
+) -> None:
+    binding = K8sCollectorCandidateStore.get(candidate_id)
+    identity = identity or {
+        "bk_biz_id": collector.bk_biz_id,
+        "bk_data_id": collector.bk_data_id,
+        "bcs_cluster_id": collector.bcs_cluster_id,
+    }
+    expected = {
+        "app_code": app_code,
+        "bk_tenant_id": tenant_id,
+        "collector_config_id": collector.collector_config_id,
+        "cluster_id": identity["bcs_cluster_id"],
+        "target_identity": target_identity(target),
+    }
+    expected["bklog_config"] = identity.get("bklog_config")
+    if not binding or any(binding.get(key) != value for key, value in expected.items()):
+        raise ValidationError("collector_candidate_expired_or_unknown")
 
 
 def _normalize_target(target: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -536,21 +802,6 @@ def _normalize_groups(value: list[str] | None) -> list[str]:
     if unknown:
         raise ValidationError(f"unsupported evidence groups: {sorted(unknown)}")
     return sorted(set(groups), key=EVIDENCE_GROUPS.index)
-
-
-def _validate_candidate_binding(
-    *, candidate_id: str, app_code: str, tenant_id: str, collector: CollectorConfig, target: dict[str, Any] | None
-) -> None:
-    binding = K8sCollectorCandidateStore.get(candidate_id)
-    expected = {
-        "app_code": app_code,
-        "bk_tenant_id": tenant_id,
-        "collector_config_id": collector.collector_config_id,
-        "cluster_id": collector.bcs_cluster_id,
-        "target_identity": target_identity(target),
-    }
-    if not binding or any(binding.get(key) != value for key, value in expected.items()):
-        raise ValidationError("collector_candidate_expired_or_unknown")
 
 
 def _start_response(record: dict[str, Any], *, reused: bool) -> dict[str, Any]:
@@ -589,17 +840,78 @@ def _not_found_response(task_id: str) -> dict[str, Any]:
     }
 
 
+CONFIG_REFERENCE_SCHEMA = object_schema(
+    "namespace",
+    "name",
+    properties={
+        "namespace": {"type": "string", "minLength": 1, "maxLength": 63},
+        "name": {"type": "string", "minLength": 1, "maxLength": 253},
+    },
+    additional_properties=False,
+)
+INSPECTION_IDENTITY_ALTERNATIVES = [
+    {"required": ["collector_config_id"], "not": {"required": ["bklog_config"]}},
+    {
+        "required": ["bcs_cluster_id", "bklog_config"],
+        "not": {"anyOf": [{"required": ["collector_config_id"]}, {"required": ["bk_data_id"]}]},
+    },
+]
+CLUSTER_CONTEXT_NOTES = (
+    " Alternatively pass bcs_cluster_id and bklog_config {namespace, name} without collector_config_id. "
+    "This mode uses the actual CR DataID and bk_env, with no business ownership lookup. "
+    "Execute in the source cluster environment; no cross-environment credential proxy is performed."
+)
+
+
 FUNCTIONS = {
+    CONFIG_LIST_FUNC_NAME: {
+        "func_name": CONFIG_LIST_FUNC_NAME,
+        "description": "Discover actual BkLogConfig resources by cluster ID, without a collector or index set.",
+        "notes": "Uses source-environment cluster credentials. Follow continue_token to inspect additional CRs.",
+        "safety_level": "inspect",
+        "validate_params": True,
+        "params_schema": object_schema(
+            "bcs_cluster_id",
+            properties={
+                "bcs_cluster_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                "namespace": {"type": "string", "minLength": 1, "maxLength": 63},
+                "limit": {"type": "integer", "minimum": 1, "maximum": MAX_TARGET_LIMIT},
+                "continue_token": {"type": "string", "minLength": 1, "maxLength": 16384},
+            },
+            additional_properties=False,
+        ),
+        "response_schema": object_schema(
+            "bcs_cluster_id",
+            "configs",
+            "continue_token",
+            "truncated",
+            properties={
+                "bcs_cluster_id": {"type": "string"},
+                "configs": {"type": "array", "items": {"type": "object"}},
+                "continue_token": nullable_schema("string"),
+                "truncated": {"type": "boolean"},
+            },
+        ),
+        "examples": [{"params": {"bcs_cluster_id": "BCS-K8S-1", "limit": 50}}],
+    },
     TARGET_LIST_FUNC_NAME: {
         "func_name": TARGET_LIST_FUNC_NAME,
         "description": "Discover bounded Pod/container and node targets matched by one active Kubernetes collector.",
-        "notes": "The optional namespace filters Pod/container targets only; node targets remain cluster-scoped.",
+        "notes": (
+            "The optional namespace filters Pod/container targets only; node targets remain cluster-scoped. "
+            "When collector.bcs_cluster_id / bk_data_id are empty, callers may supply the same fields "
+            "as opt-in identity overrides after tenant-scoped visibility checks."
+        )
+        + CLUSTER_CONTEXT_NOTES,
         "safety_level": "inspect",
         "validate_params": True,
         "params_schema": {
             "type": "object",
             "properties": {
                 "collector_config_id": {"type": "integer", "minimum": 1},
+                "bcs_cluster_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                "bk_data_id": {"type": "integer", "minimum": 1},
+                "bklog_config": CONFIG_REFERENCE_SCHEMA,
                 "namespace": {
                     "type": "string",
                     "minLength": 1,
@@ -607,11 +919,12 @@ FUNCTIONS = {
                 },
                 "limit": {"type": "integer", "minimum": 1, "maximum": MAX_TARGET_LIMIT},
             },
-            "required": ["collector_config_id"],
+            "oneOf": INSPECTION_IDENTITY_ALTERNATIVES,
             "additionalProperties": False,
         },
         "response_schema": TARGET_LIST_RESPONSE_SCHEMA,
         "examples": [
+            {"params": {"bcs_cluster_id": "BCS-K8S-1", "bklog_config": {"namespace": "production", "name": "demo"}}},
             {"params": {"collector_config_id": 123, "limit": 50}},
             {"params": {"collector_config_id": 123, "namespace": "production", "limit": 50}},
         ],
@@ -619,12 +932,21 @@ FUNCTIONS = {
     START_FUNC_NAME: {
         "func_name": START_FUNC_NAME,
         "description": "Start a bounded asynchronous inspection of one Kubernetes log collector runtime.",
+        "notes": (
+            "Missing collector identity returns structured collector_context_incomplete data. "
+            "Empty bcs_cluster_id / bk_data_id may be overridden explicitly; deep evidence groups "
+            "without DataID are skipped instead of failing the whole task."
+        )
+        + CLUSTER_CONTEXT_NOTES,
         "safety_level": "inspect",
         "validate_params": True,
         "params_schema": {
             "type": "object",
             "properties": {
                 "collector_config_id": {"type": "integer", "minimum": 1},
+                "bcs_cluster_id": {"type": "string", "minLength": 1, "maxLength": 128},
+                "bk_data_id": {"type": "integer", "minimum": 1},
+                "bklog_config": CONFIG_REFERENCE_SCHEMA,
                 "target": TARGET_SCHEMA,
                 "collector_candidate_id": {"type": "string", "minLength": 36, "maxLength": 36},
                 "evidence_groups": {
@@ -638,11 +960,18 @@ FUNCTIONS = {
                 "include_source_sample": {"type": "boolean"},
                 "runtime_log_options": RUNTIME_LOG_OPTIONS_SCHEMA,
             },
-            "required": ["collector_config_id"],
+            "oneOf": INSPECTION_IDENTITY_ALTERNATIVES,
             "additionalProperties": False,
         },
         "response_schema": START_RESPONSE_SCHEMA,
         "examples": [
+            {
+                "params": {
+                    "bcs_cluster_id": "BCS-K8S-1",
+                    "bklog_config": {"namespace": "production", "name": "demo"},
+                    "evidence_groups": ["control_plane"],
+                }
+            },
             {
                 "params": {
                     "collector_config_id": 123,
@@ -654,7 +983,14 @@ FUNCTIONS = {
                     },
                     "evidence_groups": ["all"],
                 }
-            }
+            },
+            {
+                "params": {
+                    "collector_config_id": 123,
+                    "bcs_cluster_id": "BCS-K8S-1",
+                    "evidence_groups": ["control_plane"],
+                }
+            },
         ],
     },
     DETAIL_FUNC_NAME: {
@@ -674,6 +1010,7 @@ FUNCTIONS = {
 }
 
 HANDLERS = {
+    CONFIG_LIST_FUNC_NAME: list_k8s_inspection_configs,
     TARGET_LIST_FUNC_NAME: list_k8s_inspection_targets,
     START_FUNC_NAME: start_k8s_inspection,
     DETAIL_FUNC_NAME: get_k8s_inspection_detail,

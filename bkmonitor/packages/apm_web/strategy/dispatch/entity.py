@@ -185,7 +185,7 @@ class EntitySet:
         """
         获取服务的系统信息
         :param service_name: 服务名
-        :return: 无 system 返回 {}，否则 {name, sdk, temporality}
+        :return: 无 system 且不支持 LLM 返回 {}
         """
         return ServiceHandler.get_system(self._service_node_map[service_name])
 

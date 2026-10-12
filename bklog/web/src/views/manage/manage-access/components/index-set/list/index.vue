@@ -37,8 +37,8 @@
     ></bk-alert>
     <div class="operate-box">
       <bk-button
-        style="min-width: 120px"
         v-cursor="{ active: isAllowedCreate === false }"
+        style="min-width: 120px"
         :disabled="!collectProject || isTableLoading || isAllowedCreate === null"
         :loading="isCreateLoading"
         data-test-id="logIndexSetBox_button_newIndexSet"
@@ -48,8 +48,8 @@
         {{ $t('新建索引集') }}
       </bk-button>
       <bk-input
-        style="width: 300px"
         v-model="searchParams.keyword"
+        style="width: 300px"
         :placeholder="$t('请输入索引集名称')"
         :right-icon="'bk-icon icon-search'"
         data-test-id="logIndexSetBox_input_searchIndexSet"
@@ -77,17 +77,17 @@
             </bk-button> -->
           <div class="index-set-name-box">
             <span
-              class="indexSet-name"
               v-bk-overflow-tips
               v-cursor="{ active: !(row.permission && row.permission[authorityMap.MANAGE_INDICES_AUTH]) }"
+              class="indexSet-name"
               @click="manageIndexSet('manage', row)"
             >
               {{ row.index_set_name }}
             </span>
             <span
               v-if="row.is_desensitize"
-              class="bk-icon bklog-icon bklog-masking"
               v-bk-tooltips.top="$t('已脱敏')"
+              class="bk-icon bklog-icon bklog-masking"
             >
             </span>
           </div>
@@ -103,14 +103,14 @@
           <span>{{ props.row.indexes.map(item => item.result_table_id).join('; ') }}</span>
         </template>
       </bk-table-column>
-          <bk-table-column
+      <bk-table-column
         :label="$t('日用量/总用量')"
         :render-header="$renderHeader"
         min-width="80"
       >
         <template #default="props">
           <span :class="{ 'text-disabled': props.row.status === 'stop' }">
-            {{ formatUsage(props.row.daily_usage, props.row.total_usage)  }}
+            {{ formatUsage(props.row.daily_usage, props.row.total_usage) }}
           </span>
         </template>
       </bk-table-column>
@@ -173,8 +173,8 @@
       >
         <template #default="props">
           <bk-button
-            style="margin-right: 4px"
             v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_INDICES_AUTH]) }"
+            style="margin-right: 4px"
             theme="primary"
             text
             @click="manageIndexSet('search', props.row)"
@@ -190,8 +190,8 @@
             >{{ $t('日志脱敏') }}
           </bk-button>
           <bk-button
-            style="margin-right: 4px"
             v-cursor="{ active: !(props.row.permission && props.row.permission.manage_indices_v2) }"
+            style="margin-right: 4px"
             :disabled="!props.row.is_editable"
             theme="primary"
             text
@@ -340,13 +340,13 @@
             const resList = res.data.list;
             const indexIdList = resList.filter(item => !!item.index_set_id).map(item => item.index_set_id);
             const { data: desensitizeStatus } = await this.getDesensitizeStatus(indexIdList);
-            this.indexSetList = formatResponseListTimeZoneString(resList, (item) => ({ 
-              is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false, 
+            this.indexSetList = formatResponseListTimeZoneString(resList, item => ({
+              is_desensitize: desensitizeStatus[item.index_set_id]?.is_desensitize ?? false,
             }));
             this.pagination.count = res.data.total;
-            this.loadData()
+            this.loadData();
           })
-          .catch((err) => {
+          .catch(err => {
             console.warn(err);
             this.emptyType = '500';
           })
@@ -363,15 +363,15 @@
       },
       loadData() {
         const callbackFn = (item, key, value) => {
-            this.$set(item, key, value[key]);
+          this.$set(item, key, value[key]);
         };
         requestStorageUsage(this.bkBizId, this.indexSetList, false, callbackFn)
-          .catch((error) => {
+          .catch(error => {
             console.error('Error loading data:', error);
           })
           .finally(() => {
             this.isTableLoading = false;
-        });
+          });
       },
       /**
        * 分页变换
@@ -419,7 +419,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', {'authDialogData': res.data});
+            this.$store.commit('updateState', { authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {
@@ -448,7 +448,7 @@
                 },
               ],
             });
-            this.$store.commit('updateState', {'authDialogData': res.data});
+            this.$store.commit('updateState', { authDialogData: res.data });
           } catch (err) {
             console.warn(err);
           } finally {
@@ -471,7 +471,7 @@
           });
         } else if (type === 'search') {
           // 检索
-          updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id);
           this.$router.push({
             name: 'retrieve',
             params: {
@@ -558,7 +558,7 @@
           return await this.$http.request('masking/getDesensitizeState', {
             data: { index_set_ids: indexIdList },
           });
-        } catch (error) {
+        } catch {
           return [];
         }
       },
@@ -571,13 +571,13 @@
             },
           });
           this.selectLabelList = res.data;
-        } catch (error) {
+        } catch {
           this.selectLabelList = [];
         }
       },
       formatUsage(dailyUsage, totalUsage) {
         return `${formatBytes(dailyUsage)} / ${formatBytes(totalUsage)}`;
-      }
+      },
     },
   };
 </script>

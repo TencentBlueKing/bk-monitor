@@ -196,13 +196,15 @@ export default defineComponent({
               if (result) {
                 const list = Array.isArray(data.list) ? data.list : [];
                 grepRequestResult.value.has_more = list.length === 100;
-                const currentScope = grepRequestResult.value.cache_scope || moduleLargeDataCacheService.createScope('grep', {
-                  indexId: store.state.indexId,
-                  field: field.value,
-                  grepQuery: grepQuery.value,
-                  start_time,
-                  end_time,
-                });
+                const currentScope =
+                  grepRequestResult.value.cache_scope ||
+                  moduleLargeDataCacheService.createScope('grep', {
+                    indexId: store.state.indexId,
+                    field: field.value,
+                    grepQuery: grepQuery.value,
+                    start_time,
+                    end_time,
+                  });
                 const mergedList = grepRequestResult.value.list.concat(list);
                 grepRequestResult.value.cache_scope = currentScope;
                 grepRequestResult.value.cached_count = mergedList.length;

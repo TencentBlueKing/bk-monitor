@@ -367,9 +367,6 @@ class CallerCalleeTableChart extends CommonSimpleChart {
             const { dimensions } = item;
             const key = item.key || this.transformDimensionToKey(dimensions);
             const rawItem = res?.data?.find(set => this.transformDimensionToKey(set.dimensions) === key);
-            if (metric_cal_type === 'timeout_rate') {
-              console.info(item['0s'], rawItem['0s']);
-            }
             tableData.push(resetColItem(item, rawItem, key, dimensions));
           } else {
             tableData.push(resetColItem(item, res?.data[0]));

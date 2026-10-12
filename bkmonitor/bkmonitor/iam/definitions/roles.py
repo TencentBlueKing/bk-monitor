@@ -74,6 +74,8 @@ _manage_space = [
     Actions.MANAGE_INCIDENT,
     Actions.MANAGE_REPORT,
     Actions.USING_ALARM_HANDLING_MCP,
+    Actions.USING_LOG_COLLECTION_MCP,
+    Actions.USING_LOG_EXTRACT_MCP,
 ]
 
 # ---- Sub-resource actions (by resource type) ----

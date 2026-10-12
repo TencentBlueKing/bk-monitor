@@ -36,6 +36,7 @@ import {
 } from '../constants';
 import {
   type BaseTableColumn,
+  type EllipsisPosition,
   type ExploreTableColumn,
   type GetTableCellRenderValue,
   type TableCellRenderContext,
@@ -50,16 +51,19 @@ export interface UseTableCellOptions {
   cellEllipsisClass?: string;
   /** 自定义单元格渲染策略对象集合 */
   customCellRenderMap?: Record<string, TableCellRenderer>;
+  /** 表格全局溢出省略号位置默认值（优先级低于列配置 ellipsisPosition） */
+  ellipsisPosition?: MaybeRef<EllipsisPosition | undefined>;
   /** 表格行数据唯一key字段名 */
   rowKeyField: MaybeRef<string>;
   /** 默认单元格数据取值逻辑 */
-  customDefaultGetRenderValue?: (row, column: BaseTableColumn<any, any>) => string | string[];
+  customDefaultGetRenderValue?: (row, column: BaseTableColumn<any, any>) => unknown;
 }
 export function useTableCell({
   rowKeyField,
   cellEllipsisClass,
   customCellRenderMap,
   customDefaultGetRenderValue,
+  ellipsisPosition,
 }: UseTableCellOptions) {
   /** table 默认配置项 */
   const { tableConfig: defaultTableConfig } = TABLE_DEFAULT_CONFIG;
@@ -108,14 +112,18 @@ export function useTableCell({
 
   /**
    * @description 是否启用单元格溢出省略弹出 popover
-   * @returns {string} 开启单元格溢出省略弹出 popover 的类
+   * @returns {string} 开启单元格溢出省略的类（基础类名；省略位置为 start 时追加 --start 修饰类）
    *
    */
   function isEnabledCellEllipsis(column: BaseTableColumn<any, any>) {
     if (column?.cellEllipsis === false) {
       return '';
     }
-    return renderContext.cellEllipsisClass;
+    // 省略位置优先级：列配置 > 表格全局配置 > 默认 end；保留基础类名以兼容溢出 popover 的事件委托选择器
+    const position = column?.ellipsisPosition || get(ellipsisPosition);
+    return position === 'start'
+      ? `${renderContext.cellEllipsisClass} ${renderContext.cellEllipsisClass}--start`
+      : renderContext.cellEllipsisClass;
   }
 
   /**
@@ -177,6 +185,8 @@ export function useTableCell({
         <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>
           <span
             class='explore-click-text '
+            data-col-id={column.colKey}
+            data-row-id={getRowId(row)}
             onClick={event => column?.clickCallback?.(row, column, event)}
           >
             {alias}
@@ -279,14 +289,14 @@ export function useTableCell({
     renderCtx: TableCellRenderContext<keyof typeof customCellRenderMap>
   ) {
     const timestamp = getTableCellRenderValue(row, column);
-    if (!timestamp) {
+    if (isEmpty(timestamp)) {
       return textColumnFormatter(
         row,
         column as unknown as ExploreTableColumn<ExploreTableColumnTypeEnum.TEXT>,
         renderCtx
       );
     }
-    const alias = formatDuration(+timestamp);
+    const alias = formatDuration(+timestamp, '', 2, column.cellSpecificProps?.durationUnit ?? 'us');
     return (
       <div class={'explore-col explore-duration-col '}>
         <div class={`${renderCtx.isEnabledCellEllipsis(column)}`}>

@@ -1,6 +1,17 @@
+/* stylelint-disable selector-class-pattern */
 .host-stat-cards {
   display: flex;
   gap: 16px;
+
+  &__active-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: none;
+    width: 100%;
+    height: 4px;
+    background: #3a84ff;
+  }
 
   &__item {
     position: relative;
@@ -9,15 +20,13 @@
     align-items: center;
     min-width: 200px;
     height: 64px;
-    padding: 0 24px;
-    cursor: pointer;
     background: #f5f7fa;
     border-radius: 2px;
     transition:
       background-color 0.2s,
       border-color 0.2s;
 
-    &:hover {
+    &:not(.is-disabled):hover {
       background: #f0f1f5;
     }
 
@@ -30,14 +39,34 @@
     }
   }
 
-  &__active-bar {
+  &__content {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    height: 100%;
+    padding: 0 24px;
+    text-align: left;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+    border-radius: 2px;
+
+    &:disabled {
+      cursor: default;
+    }
+  }
+
+  &__loading {
+    width: 40px;
+    height: 20px;
+    margin: 4px 0;
+    border-radius: 2px;
+  }
+
+  &__retry {
     position: absolute;
-    top: 0;
-    left: 0;
-    display: none;
-    width: 100%;
-    height: 4px;
-    background: #3a84ff;
+    right: 12px;
+    bottom: 10px;
   }
 
   &__icon {

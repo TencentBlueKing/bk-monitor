@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
+import { request } from 'monitor-api/base';
 import { getTopoTree } from 'monitor-api/modules/commons';
 import { searchHostInfo, searchHostMetric } from 'monitor-api/modules/performance';
 
 import type { IHostTopoTree } from '../types';
 import type { IHostBaseInfo, IHostMetricInfo } from '../types/host';
+import type { EHostQuickCategory } from '../types/host-list';
 import type { HostScopeParams } from '../utils/share-scope';
 
 /**
@@ -36,8 +38,32 @@ import type { HostScopeParams } from '../utils/share-scope';
  * @returns {Promise<IHostBaseInfo[]>} 基础主机列表
  */
 export const getHostInfoList = async (scope: HostScopeParams = {}) => {
-  const data: IHostBaseInfo[] = await searchHostInfo(scope);
+  const data: IHostBaseInfo[] = await searchHostInfo(scope, { needMessage: false, reject403: true });
   return data;
+};
+
+export interface IHostInfoPage {
+  items: IHostBaseInfo[];
+  page: number;
+  page_size: number;
+  total: number;
+}
+
+export const getHostInfoPage = async (params: HostScopeParams & { page: number; page_size: number }) => {
+  const data: IHostInfoPage = await searchHostInfo(params, { needMessage: false, reject403: true });
+  return data;
+};
+
+const searchHostMetricStats = request('post', 'rest/v2/performance/search_host_metric_stats/');
+
+export const getHostMetricStats = async (
+  params: HostScopeParams & {
+    category: Exclude<EHostQuickCategory, 'alarm'>;
+    end_time: number;
+    start_time: number;
+  }
+): Promise<{ complete: boolean; value: null | number }> => {
+  return await searchHostMetricStats(params, { needMessage: false, reject403: true });
 };
 
 /**
@@ -50,8 +76,8 @@ export const getHostMetricInfoList = async (
     end_time: number;
     start_time: number;
   }
-) => {
-  return await searchHostMetric(params);
+): Promise<Record<string, IHostMetricInfo>> => {
+  return await searchHostMetric(params, { needMessage: false, reject403: true });
 };
 
 /**
@@ -61,14 +87,73 @@ export const getHostMetricInfoList = async (
  */
 export const getHostTopoTreeByBizId = async (
   bizId: number | string = window.cc_biz_id,
-  scope: HostScopeParams = {}
+  scope: HostScopeParams = {},
+  includeHosts = true
 ) => {
   const data: IHostTopoTree[] = await getTopoTree({
     bk_biz_id: bizId,
     ...scope,
     condition_list: [],
-    instance_type: 'host',
+    ...(includeHosts ? { instance_type: 'host' } : {}),
     remove_empty_nodes: false,
   });
   return data;
+};
+
+export interface HostListQuery {
+  basePromise: Promise<IHostBaseInfo[]>;
+  expiresAt: number;
+  key: string;
+  metricPromise: Promise<Record<string, IHostMetricInfo>>;
+  resolved: boolean;
+  timeParams: TimeParams;
+  timer?: number;
+}
+
+type CacheWindow = Window & { __MONITOR_HOST_LIST_QUERY__?: HostListQuery };
+type TimeParams = { end_time: number; start_time: number };
+
+const getCacheWindow = () => (window.rawWindow || window) as CacheWindow;
+
+export const clearHostListQueryCache = (query: HostListQuery | null) => {
+  if (!query) return;
+  const owner = getCacheWindow();
+  if (owner.__MONITOR_HOST_LIST_QUERY__ !== query) return;
+  owner.clearTimeout(query.timer);
+  delete owner.__MONITOR_HOST_LIST_QUERY__;
+};
+
+export const getHostListQuery = (
+  key: null | string,
+  scope: HostScopeParams,
+  getTimeParams: () => TimeParams,
+  forceRefresh: boolean
+): HostListQuery | null => {
+  if (!key || scope.bk_host_id != null || (scope.bk_obj_id && scope.bk_inst_id != null)) return null;
+  const owner = getCacheWindow();
+  const cached = owner.__MONITOR_HOST_LIST_QUERY__;
+  const now = Date.now();
+  if (!forceRefresh && cached?.key === key && cached.expiresAt > now) return cached;
+  clearHostListQueryCache(cached);
+
+  const timeParams = getTimeParams();
+  const query: HostListQuery = {
+    key,
+    // 从查询发起计时，命中不续期，避免相对时间窗口不断变旧。
+    expiresAt: now + 60_000,
+    timeParams,
+    basePromise: getHostInfoList(scope),
+    metricPromise: getHostMetricInfoList({ ...scope, ...timeParams }),
+    resolved: false,
+  };
+  // 宿主 window 保留一份查询，子应用及 Worker 仍按原生命周期销毁。
+  owner.__MONITOR_HOST_LIST_QUERY__ = query;
+  query.timer = owner.setTimeout(() => clearHostListQueryCache(query), query.expiresAt - now);
+  void Promise.all([query.basePromise, query.metricPromise]).then(
+    () => {
+      query.resolved = true;
+    },
+    () => clearHostListQueryCache(query)
+  );
+  return query;
 };

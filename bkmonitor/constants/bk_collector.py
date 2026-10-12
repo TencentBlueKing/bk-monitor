@@ -16,6 +16,7 @@ class BkCollectorComp:
 
     # 默认的bk-collector部署的命名空间，如果有特殊的，需通过全局配置来控制 settings.K8S_OPERATOR_DEPLOY_NAMESPACE
     NAMESPACE = "bkmonitor-operator"
+    GLOBAL_NAMESPACE = "blueking"
 
     DEPLOYMENT_NAME = "bkm-collector"
 

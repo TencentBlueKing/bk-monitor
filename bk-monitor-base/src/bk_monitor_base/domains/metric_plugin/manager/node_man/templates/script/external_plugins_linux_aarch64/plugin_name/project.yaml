@@ -1,0 +1,25 @@
+name: {{ plugin_id }}
+version: "{{ version }}"
+description: {{ plugin_id }}
+description_en: {{ plugin_display_name }}
+label: {{ label }}
+category: external
+auto_launch: false
+launch_node: all
+upstream:
+  - bkmonitorbeat
+dependences:
+  gse_agent: "1.2.0"
+  bkmonitorbeat: "1.7.0"
+control:
+  start: "./start.sh"
+  debug: "./debug.sh"
+  version: "cat VERSION"
+config_templates:
+  - plugin_version: "*"
+    name: env.yaml
+    version: {{ config_version }}
+    file_path: etc
+    format: yaml
+    source_path: etc/env.yaml.tpl
+need_delegate: False

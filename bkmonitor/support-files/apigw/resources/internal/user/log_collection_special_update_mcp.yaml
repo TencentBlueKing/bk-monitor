@@ -1,0 +1,356 @@
+paths:
+  /mcp/update_custom_report/:
+    post:
+      operationId: update_custom_report
+      description: >-
+        Update a custom-report collector. Requires confirm=true and collector_config_name. Supports cleaning,
+        storage, display, owner, target/sort fields and parent_index_set_ids. Omit parent_index_set_ids to keep
+        current membership; send [] to clear all parent groups. 更新自定义上报采集项，必须确认 confirm=true。支持更新清洗、存储、展示、授权用户、定位/排序字段及归属索引组；不传 parent_index_set_ids 保持不变，传 [] 清空全部归属组。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - collector_config_id
+              - collector_config_name
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务ID。
+                collector_config_id:
+                  type: integer
+                  minimum: 1
+                  description: Custom-report collector ID. 自定义上报采集项ID。
+                collector_config_name:
+                  type: string
+                  maxLength: 50
+                  description: Collector display name. 采集项名称。
+                category_id:
+                  type: string
+                  maxLength: 64
+                  description: Data category. 数据分类。
+                description:
+                  type: string
+                  maxLength: 64
+                  nullable: true
+                  description: Collector description. 采集项描述。
+                etl_config:
+                  type: string
+                  description: ETL configuration type. 清洗类型。
+                etl_params:
+                  type: object
+                  description: ETL parameters. 清洗参数。
+                fields:
+                  type: array
+                  items:
+                    type: object
+                  description: Cleaned field definitions. 清洗字段配置。
+                storage_cluster_id:
+                  type: integer
+                  minimum: 1
+                  description: Storage cluster ID. 存储集群ID。
+                storage_cluster_type:
+                  type: string
+                  description: Storage cluster type. 存储集群类型。
+                retention:
+                  type: integer
+                  minimum: 1
+                  description: Retention days. 保留天数。
+                allocation_min_days:
+                  type: integer
+                  minimum: 0
+                  description: Hot-to-cold transition days. 冷热数据生效天数。
+                storage_replies:
+                  type: integer
+                  minimum: 0
+                  description: ES replica count. ES副本数。
+                es_shards:
+                  type: integer
+                  minimum: 1
+                  description: ES shard count. ES分片数。
+                is_display:
+                  type: boolean
+                  description: Whether the collector is displayed. 是否展示。
+                owners:
+                  type: array
+                  items:
+                    type: string
+                  description: Additional authorized users. 新增授权用户列表。
+                sort_fields:
+                  type: array
+                  items: {}
+                  description: Sort fields. 排序字段。
+                target_fields:
+                  type: array
+                  items: {}
+                  description: Target fields. 定位字段。
+                parent_index_set_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
+                  description: >-
+                    Parent index group IDs. Omit to keep current membership; send [] to clear all groups.
+                    归属索引组ID列表。不传保持不变，传 [] 清空全部归属组。
+                confirm:
+                  type: boolean
+                  enum: [true]
+                  description: Must be true for this write. 写操作必须为 true。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_update/update_custom_report/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+
+  /mcp/update_third_party_es/:
+    post:
+      operationId: update_third_party_es
+      description: >-
+        Update a third-party Elasticsearch index set. Requires confirm=true, index_set_name, storage_cluster_id,
+        indexes and all mutable fields. Obtain the complete index-set detail from get_log_index_set and send every
+        mutable field back to avoid resetting existing configuration.
+        scenario_id is fixed to es. parent_index_set_ids replaces the parent groups;
+        omit it to keep current membership or send [] to clear all groups. 更新第三方 ES 索引集，必须确认 confirm=true，填写索引集名称、存储集群、索引列表和时间字段；scenario_id 固定为 es。parent_index_set_ids 用于整体替换归属索引组，不传保持不变，传 [] 清空。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - index_set_id
+              - index_set_name
+              - storage_cluster_id
+              - indexes
+              - time_field
+              - time_field_type
+              - time_field_unit
+              - category_id
+              - is_trace_log
+              - target_fields
+              - sort_fields
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务ID。
+                index_set_id:
+                  type: integer
+                  minimum: 1
+                  description: Third-party ES index set ID. 第三方ES索引集ID。
+                index_set_name:
+                  type: string
+                  maxLength: 64
+                  description: Index set name. 索引集名称。
+                storage_cluster_id:
+                  type: integer
+                  minimum: 1
+                  description: Storage cluster ID. 存储集群ID。
+                indexes:
+                  type: array
+                  minItems: 1
+                  description: Third-party index patterns. 第三方索引列表。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [result_table_id]
+                    properties:
+                      result_table_id:
+                        type: string
+                        maxLength: 255
+                      bk_biz_id:
+                        type: integer
+                        nullable: true
+                      time_field:
+                        type: string
+                      time_field_type:
+                        type: string
+                        enum: [date, long]
+                      time_field_unit:
+                        type: string
+                        enum: [second, millisecond, microsecond]
+                      storage_cluster_id:
+                        type: integer
+                        minimum: 1
+                time_field:
+                  type: string
+                  description: Time field. 时间字段。
+                time_field_type:
+                  type: string
+                  enum: [date, long]
+                time_field_unit:
+                  type: string
+                  enum: [second, millisecond, microsecond]
+                  nullable: true
+                category_id:
+                  type: string
+                  maxLength: 64
+                  description: Data category. 数据分类。
+                is_trace_log:
+                  type: boolean
+                target_fields:
+                  type: array
+                  items: {}
+                sort_fields:
+                  type: array
+                  items: {}
+                parent_index_set_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
+                  description: >-
+                    Parent index group IDs. Omit to keep current membership; send [] to clear all groups.
+                    归属索引组ID列表。不传保持不变，传 [] 清空全部归属组。
+                confirm:
+                  type: boolean
+                  enum: [true]
+                  description: Must be true for this write. 写操作必须为 true。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_update/update_third_party_es/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true
+  /mcp/update_bkdata_index_set/:
+    post:
+      operationId: update_bkdata_index_set
+      description: >-
+        Update a bkdata result-table index set. Obtain the complete indexes and time-field values from
+        get_log_index_set. Requires confirm=true, index_set_name, indexes and all mutable fields. The index
+        business IDs must match bk_biz_id. scenario_id is fixed to bkdata. Omit parent_index_set_ids to keep
+        current membership; send [] to clear all groups. 更新计算平台 bkdata 索引集，必须确认 confirm=true，填写索引集名称和结果表索引列表；索引所属业务必须与 bk_biz_id 一致，scenario_id 固定为 bkdata。parent_index_set_ids 不传保持不变，传 [] 清空全部归属组。
+      tags:
+      - log_collection_mcp
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+              - bk_biz_id
+              - index_set_id
+              - index_set_name
+              - indexes
+              - time_field
+              - time_field_type
+              - time_field_unit
+              - category_id
+              - is_trace_log
+              - target_fields
+              - sort_fields
+              - confirm
+              properties:
+                bk_biz_id:
+                  type: integer
+                  description: Business ID. 业务ID。
+                index_set_id:
+                  type: integer
+                  minimum: 1
+                  description: BkBase result-table index set ID. 计算平台结果表索引集ID。
+                index_set_name:
+                  type: string
+                  maxLength: 64
+                  description: Index set name. 索引集名称。
+                indexes:
+                  type: array
+                  minItems: 1
+                  description: BkBase result-table list. 计算平台结果表列表。
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required: [result_table_id]
+                    properties:
+                      result_table_id:
+                        type: string
+                        maxLength: 255
+                      bk_biz_id:
+                        type: integer
+                        nullable: true
+                time_field:
+                  type: string
+                  description: Time field. 时间字段。
+                time_field_type:
+                  type: string
+                  enum: [date, long]
+                time_field_unit:
+                  type: string
+                  enum: [second, millisecond, microsecond]
+                  nullable: true
+                category_id:
+                  type: string
+                  maxLength: 64
+                  description: Data category. 数据分类。
+                is_trace_log:
+                  type: boolean
+                target_fields:
+                  type: array
+                  items: {}
+                sort_fields:
+                  type: array
+                  items: {}
+                parent_index_set_ids:
+                  type: array
+                  nullable: true
+                  items:
+                    type: integer
+                    minimum: 1
+                  description: >-
+                    Parent index group IDs. Omit to keep current membership; send [] to clear all groups.
+                    归属索引组ID列表。不传保持不变，传 [] 清空全部归属组。
+                confirm:
+                  type: boolean
+                  enum: [true]
+                  description: Must be true for this write. 写操作必须为 true。
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: false
+        matchSubpath: false
+        enableWebsocket: false
+        backend:
+          name: default
+          method: post
+          path: /api/v4/log_collection_update/update_bkdata_index_set/
+          matchSubpath: false
+          timeout: 30
+        pluginConfigs: []
+        authConfig:
+          userVerifiedRequired: true
+          appVerifiedRequired: false
+          resourcePermissionRequired: true

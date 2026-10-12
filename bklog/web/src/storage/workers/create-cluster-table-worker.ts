@@ -18,8 +18,7 @@
  * IN THE SOFTWARE.
  */
 
-export const createClusterTableWorker = () =>
-  new Worker(new URL('./cluster-table.worker.ts', import.meta.url));
+export const createClusterTableWorker = () => new Worker(new URL('./cluster-table.worker.ts', import.meta.url));
 
 export const getClusterTableWorkerUrl = () => {
   try {

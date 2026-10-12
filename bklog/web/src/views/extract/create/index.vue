@@ -27,8 +27,8 @@
 
 <template>
   <div
-    class="main-container create-task-container"
     v-en-class="'en-title'"
+    class="main-container create-task-container"
   >
     <div class="row-container">
       <div class="title">
@@ -81,8 +81,8 @@
         {{ $t('目录或文件名') }}
         <span class="required">*</span>
         <span
-          class="bklog-icon bklog-info-fill"
           v-bk-tooltips="`${$t('以')}/${$t('结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件')}`"
+          class="bklog-icon bklog-info-fill"
         >
         </span>
       </div>
@@ -118,8 +118,8 @@
       <div class="title">{{ $t('备注') }}</div>
       <div class="content">
         <bk-input
-          style="width: 261px"
           v-model="remark"
+          style="width: 261px"
         ></bk-input>
       </div>
     </div>
@@ -127,8 +127,8 @@
       <div class="title">{{ $t('提取链路') }}</div>
       <div class="content">
         <bk-select
-          style="width: 250px; margin-right: 20px; background-color: #fff"
           v-model="link_id"
+          style="width: 250px; margin-right: 20px; background-color: #fff"
           :clearable="false"
           data-test-id="addNewExtraction_select_selectLink"
         >
@@ -206,7 +206,9 @@
         globalsData: 'globals/globalsData',
       }),
       canSubmit() {
-        return (!this.ipList.length || !this.downloadFiles.length) && this.link_id != null;
+        return (
+          (!this.ipList.length || !this.downloadFiles.length) && this.link_id !== null && this.link_id !== undefined
+        );
       },
       isClone() {
         return this.$route.name === 'extract-clone' && !!sessionStorage.getItem('cloneData');
@@ -225,7 +227,7 @@
         if (this.isClone) {
           let cloneData = JSON.parse(sessionStorage.getItem('cloneData') || '{}');
           if (!Object.keys(cloneData).length) {
-            cloneData = await manageDraftCacheService.get('cloneData') || {};
+            cloneData = (await manageDraftCacheService.get('cloneData')) || {};
           }
           sessionStorage.removeItem('cloneData');
           manageDraftCacheService.remove('cloneData').catch(() => {});

@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="dashboard-container"
     v-bkloading="{ isLoading }"
+    class="dashboard-container"
   >
     <auth-container-page
       v-if="authPageInfo"
@@ -217,7 +217,7 @@
             ],
           });
           if (res.isAllowed === false) {
-            this.$store.commit('updateState', { 'authDialogData': res.data});
+            this.$store.commit('updateState', { authDialogData: res.data });
             this.isLoading = false;
             return false;
           }

@@ -24,11 +24,7 @@
  * IN THE SOFTWARE.
  */
 import segmentPopInstance from '../global/utils/segment-pop-instance';
-import {
-  getClickTargetElement,
-  resolveOuterValidText,
-  setPointerCellClickTargetHandler,
-} from './hooks-helper';
+import { getClickTargetElement, resolveOuterValidText, setPointerCellClickTargetHandler } from './hooks-helper';
 import UseSegmentPropInstance from './use-segment-pop';
 import { splitRenderText } from '../storage/utils/retrieve-render-meta';
 
@@ -218,7 +214,8 @@ export default class UseTextSegmentation {
   }
 
   private convertVirtaulObjToArray() {
-    const target = this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(`${this.options.content}`);
+    const target =
+      this.options.data[this.options.field.field_name] ?? this.convertJsonStrToObj(`${this.options.content}`);
 
     const convertObjToArray = (root: object, isValue = false) => {
       const result: Record<string, any>[] = [];
@@ -355,9 +352,7 @@ export default class UseTextSegmentation {
     // JSON 解析关闭后的虚拟 Object 是序列化复合值：标点不可点，KEY/VALUE 可点。
     if (this.isVirtualObjField(field)) {
       const rawValue = this.options.data?.[field.field_name] ?? content;
-      const serializedValue = rawValue !== null && typeof rawValue === 'object'
-        ? JSON.stringify(rawValue)
-        : value;
+      const serializedValue = rawValue !== null && typeof rawValue === 'object' ? JSON.stringify(rawValue) : value;
       return splitRenderText(serializedValue, field, { isSerializedComposite: true });
     }
 

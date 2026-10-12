@@ -40,3 +40,33 @@ class TestSafeSandboxedEnvironmentCall:
         template = '{{ gettext("count=%(n)d", n=count) }}'
         result = Jinja2Renderer.render(template, {"count": 3})
         assert result == "count=3"
+
+
+class TestGettextAliasCallTarget:
+    """覆盖 i18n `_` 别名的调用目标：只能是已安装的 gettext，不受模板作用域影响。"""
+
+    def test_rebound_gettext_is_not_invoked_by_alias(self):
+        """模板内把 gettext 换成上下文对象的方法后，`_()` 不得转而调用该方法。
+
+        `_` 的调用目标不经过 `SafeSandboxedEnvironment.call` 的可调用校验，
+        因此必须固定在已安装的 gettext 上，否则等于绕开沙箱调用任意方法。
+        """
+
+        class Probe:
+            called = False
+
+            def touch(self):
+                Probe.called = True
+                return "touched"
+
+        template = '{% set gettext = obj.touch %}{{ _("safe") }}'
+        assert Jinja2Renderer.render(template, {"obj": Probe()}) == "safe"
+        assert Probe.called is False
+
+    def test_alias_still_translates(self):
+        """`_("...")` 的正常翻译用法不受影响。"""
+        assert Jinja2Renderer.render('{{ _("count=%(n)d", n=count) }}', {"count": 3}) == "count=3"
+
+    def test_trans_block_still_works(self):
+        """`{% trans %}` 块的正常用法不受影响。"""
+        assert Jinja2Renderer.render("{% trans %}hello{% endtrans %}", {}) == "hello"

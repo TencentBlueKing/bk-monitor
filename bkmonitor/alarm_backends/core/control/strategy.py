@@ -272,11 +272,25 @@ class Strategy:
 
     @classmethod
     def get_strategy_snapshot_by_key(cls, snapshot_key, strategy_id=None):
+        """读取策略快照。
+
+        写入方 gen_strategy_snapshot 带 strategy_id，落该策略路由到的节点；
+        而调用方拿到的 snapshot_key 常常是从 Kafka 事件里解出的普通字符串，
+        没有 strategy_id，CacheRouter 因此把它路由到默认节点。分片环境下这
+        两个节点不是同一个，读就取不到写下的快照。
+
+        传了 strategy_id 时先读路由节点，取不到再读默认节点：既修掉这个不
+        对应，也让只写默认节点的写入方（例如 Go 侧的 Python 兼容输出）产生
+        的快照能被读到。多出的一次 GET 只在未命中时发生。
+        """
         client = key.STRATEGY_SNAPSHOT_KEY.client
+        snapshot = None
         if strategy_id:
-            snapshot_key = key.SimilarStr(snapshot_key)
-            snapshot_key.strategy_id = strategy_id
-        snapshot = client.get(snapshot_key)
+            routed_key = key.SimilarStr(snapshot_key)
+            routed_key.strategy_id = strategy_id
+            snapshot = client.get(routed_key)
+        if not snapshot:
+            snapshot = client.get(str(snapshot_key))
         if not snapshot:
             return None
 

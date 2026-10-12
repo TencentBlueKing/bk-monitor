@@ -35,10 +35,8 @@ export const isKeywordLikeFieldType = (fieldType?: string) => isKeywordLikeField
 export const isTextFieldType = (fieldType?: string) => isTextLikeField(fieldType);
 
 /** @deprecated 使用 escapeQueryValue */
-export const escapeEsReservedChars = (
-  value: string,
-  options: { keepWildcards?: boolean } = {},
-) => escapeQueryValue(value, options);
+export const escapeEsReservedChars = (value: string, options: { keepWildcards?: boolean } = {}) =>
+  escapeQueryValue(value, options);
 
 /** @deprecated 使用 applyPositionalWildcard */
 export const formatSqlContainsWildcardValue = (
@@ -61,7 +59,7 @@ export const formatSqlContainsValues = (
   if (fieldType && !isKeywordLikeFieldType(fieldType)) {
     return values;
   }
-  return (values ?? []).map((item) => {
+  return (values ?? []).map(item => {
     // 先按原文判定通配，再单次转义（与 buildContainsQuery 一致；keepWildcards 保留首尾 *）
     const pattern = applyPositionalWildcard(item, fullPlainValue, options);
     return escapeQueryValue(pattern, { keepWildcards: true });
@@ -81,8 +79,8 @@ export const resolveSqlFieldTypeFormat = (params: {
   field?: string;
 }): { operator: string; values: string[]; queryString?: string } => {
   const { fieldType, operator, values, fullPlainValue, field } = params;
-  const isNegative = params.isNegative
-    || ['is not', 'not contains match phrase', 'not contains', '!='].includes(operator);
+  const isNegative =
+    params.isNegative || ['is not', 'not contains match phrase', 'not contains', '!='].includes(operator);
   const raw = values?.[0] ?? '';
 
   const queryString = compileFieldValue({
@@ -92,11 +90,7 @@ export const resolveSqlFieldTypeFormat = (params: {
     fullText: fullPlainValue,
     operatorHint: operator,
     negative: isNegative,
-    isSoleToken: Boolean(
-      fullPlainValue
-      && fullPlainValue !== '--'
-      && String(raw) === String(fullPlainValue),
-    ),
+    isSoleToken: Boolean(fullPlainValue && fullPlainValue !== '--' && String(raw) === String(fullPlainValue)),
   }).queryString;
 
   if (isTextFieldType(fieldType)) {
@@ -108,11 +102,7 @@ export const resolveSqlFieldTypeFormat = (params: {
   }
 
   if (isKeywordLikeFieldType(fieldType)) {
-    const isSoleToken = Boolean(
-      fullPlainValue
-      && fullPlainValue !== '--'
-      && String(raw) === String(fullPlainValue),
-    );
+    const isSoleToken = Boolean(fullPlainValue && fullPlainValue !== '--' && String(raw) === String(fullPlainValue));
     const wild = applyPositionalWildcard(raw, fullPlainValue, { isSoleToken });
     return {
       operator: isNegative ? 'not contains match phrase' : 'contains match phrase',

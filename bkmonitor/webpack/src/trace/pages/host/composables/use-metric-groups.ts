@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type MaybeRefOrGetter, computed, toValue } from 'vue';
+import { type MaybeRefOrGetter, computed, onScopeDispose, toValue } from 'vue';
 import { shallowRef } from 'vue';
 
 import { updateSceneView } from 'monitor-api/modules/scene_view';
@@ -48,7 +48,9 @@ interface UseHostMetricOptions {
  */
 export function useMetricGroups(options: UseHostMetricOptions) {
   const { t } = useI18n();
-  const loading = shallowRef(false);
+  const loading = shallowRef(true);
+  const submitting = shallowRef(false);
+  let disposed = false;
   /** 面板或排序配置是否加载失败 */
   const loadError = shallowRef(false);
   /** 仅允许最新配置请求提交状态 */
@@ -67,6 +69,7 @@ export function useMetricGroups(options: UseHostMetricOptions) {
    * - true：忽略缓存，强制重新拉取最新排序配置（保存/重置后使用）
    */
   const load = async (forceRefresh = false) => {
+    if (disposed) return false;
     const loadId = ++latestLoadId;
     loading.value = true;
     loadError.value = false;
@@ -75,18 +78,16 @@ export function useMetricGroups(options: UseHostMetricOptions) {
         getHostViewsPanelsApi(),
         getHostMetricGroupPanelOrderApi(forceRefresh),
       ]);
-      if (loadId !== latestLoadId) return false;
+      if (disposed || loadId !== latestLoadId) return false;
       panels.value = panelsRes;
       orderData.value = orderRes;
       return true;
     } catch {
-      if (loadId !== latestLoadId) return false;
-      panels.value = [];
-      orderData.value = [];
+      if (disposed || loadId !== latestLoadId) return false;
       loadError.value = true;
       return false;
     } finally {
-      if (loadId === latestLoadId) {
+      if (!disposed && loadId === latestLoadId) {
         loading.value = false;
       }
     }
@@ -94,8 +95,9 @@ export function useMetricGroups(options: UseHostMetricOptions) {
 
   /** 保存 */
   const handleSave = async (value: MetricGroupPanelOrder[]) => {
+    if (submitting.value || disposed) return;
     try {
-      loading.value = true;
+      submitting.value = true;
       await updateSceneView({
         scene_id: 'host', // 场景分类
         type: 'detail',
@@ -109,14 +111,15 @@ export function useMetricGroups(options: UseHostMetricOptions) {
         settingShow.value = false;
       }
     } finally {
-      loading.value = false;
+      submitting.value = false;
     }
   };
 
   /** 恢复默认 */
   const handleReset = async () => {
+    if (submitting.value || disposed) return;
     try {
-      loading.value = true;
+      submitting.value = true;
       await updateSceneView({
         scene_id: 'host', // 场景分类
         type: 'detail',
@@ -130,7 +133,7 @@ export function useMetricGroups(options: UseHostMetricOptions) {
         settingShow.value = false;
       }
     } finally {
-      loading.value = false;
+      submitting.value = false;
     }
   };
 
@@ -156,8 +159,11 @@ export function useMetricGroups(options: UseHostMetricOptions) {
     return result;
   });
 
+  onScopeDispose(() => { disposed = true; latestLoadId += 1; });
+
   return {
     rows,
+    submitting,
     orderData,
     loadError,
     loading,

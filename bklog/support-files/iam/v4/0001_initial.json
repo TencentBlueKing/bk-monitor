@@ -144,6 +144,14 @@
             ]
         },
         {
+            "id": "space_access",
+            "name": "空间访问",
+            "description": "日志平台最小空间访问；只包含业务访问，用于按精确子资源授权后补齐页面访问权限。",
+            "actions": [
+                {"id": "view_business", "resource_type_id": "space"}
+            ]
+        },
+        {
             "id": "system_admin",
             "name": "系统管理员",
             "description": "拥有日志平台全部操作权限。",

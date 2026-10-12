@@ -158,6 +158,20 @@ class RumQueryMode(CachedEnum):
         return [(member.value, member.label) for member in cls]
 
 
+class RumGroupName(CachedEnum):
+    """RUM 计算组"""
+
+    ORIGIN = "origin"
+
+    @cached_property
+    def label(self) -> str:
+        return {self.ORIGIN.value: _("原始字段")}.get(self.value, self.value)
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]
+
+
 # RUM 检索页分组配置（新协议：每个分组含 name、alias、fields 列表）
 # fields 列表中每项为字段名，view_config 构建时会从 query_fields 结果中填充完整字段信息
 # supported_span_types：该分组适用的 Span 类型列表，前端据此在切换类型时折叠不相关分组
@@ -167,14 +181,7 @@ RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
             "name": "COMMON",
             "alias": _("公共字段"),
             "supported_span_types": RumSpanType.values(),
-            "field_names": [
-                "kind",
-                "span_name",
-                "attributes.span_type",
-                "elapsed_time",
-                "status.code",
-                "status.message",
-            ],
+            "field_names": ["kind", "span_name", "attributes.span_type", "elapsed_time", "status.code"],
         },
         {
             "name": "APP_VERSION",
@@ -224,6 +231,7 @@ RUM_SEARCH_PAGE_GROUPS: dict[str, list[dict]] = {
             "field_names": [
                 "attributes.resource.type",
                 "attributes.url.template",
+                "attributes.url.full",
                 "attributes.http.request.method",
                 "attributes.http.response.status_code",
                 "attributes.resource.size",

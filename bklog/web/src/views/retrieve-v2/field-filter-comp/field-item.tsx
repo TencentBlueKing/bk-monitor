@@ -115,9 +115,9 @@ export default class FieldItem extends tsc<object> {
   get isShowFieldsAnalysis() {
     const validTypes = ['keyword', 'integer', 'long', 'double', 'bool', 'conflict'];
     return (
-      validTypes.includes(this.fieldItem.field_type)
-      && this.fieldItem.es_doc_values
-      && !/^__dist_/.test(this.fieldItem.field_name)
+      validTypes.includes(this.fieldItem.field_type) &&
+      this.fieldItem.es_doc_values &&
+      !/^__dist_/.test(this.fieldItem.field_name)
     );
   }
   /** 冲突字段索引集名称*/
@@ -250,20 +250,18 @@ export default class FieldItem extends tsc<object> {
     return this.isUnionSearch && fieldType === 'conflict';
   }
 
-  getFieldIconColor = (type) => {
+  getFieldIconColor = type => {
     return this.fieldTypeMap?.[type] ? this.fieldTypeMap?.[type]?.color : '#EAEBF0';
   };
 
-  getFieldIconTextColor = (type) => {
+  getFieldIconTextColor = type => {
     return this.fieldTypeMap?.[type]?.textColor;
   };
   /** 下载 */
   downloadFieldStatistics() {
     this.btnLoading = true;
     const isScene = this.$store.getters.isSceneMode;
-    const downRequestUrl = isScene
-      ? '/search/scene/field/fetch_value_list/'
-      : '/field/index_set/fetch_value_list/';
+    const downRequestUrl = isScene ? '/search/scene/field/fetch_value_list/' : '/field/index_set/fetch_value_list/';
     const indexSetIDs = this.isUnionSearch
       ? this.unionIndexList
       : [window.__IS_MONITOR_COMPONENT__ ? this.$route.query.indexId : this.$route.params.indexId];
@@ -276,7 +274,7 @@ export default class FieldItem extends tsc<object> {
     };
     axiosInstance
       .post(downRequestUrl, data)
-      .then((res) => {
+      .then(res => {
         if (typeof res !== 'string') {
           this.$bkMessage({
             theme: 'error',
@@ -362,7 +360,7 @@ export default class FieldItem extends tsc<object> {
                 <div
                   class='operation-icon-box'
                   v-bk-tooltips={{ content: this.$t('图表分析') }}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     this.handleClickAnalysisItem();
                   }}
@@ -376,7 +374,7 @@ export default class FieldItem extends tsc<object> {
                   v-bk-tooltips={{
                     content: this.type === 'visible' ? this.$t('隐藏') : this.$t('显示'),
                   }}
-                  onClick={(e) => {
+                  onClick={e => {
                     e.stopPropagation();
                     this.handleShowOrHiddenItem();
                   }}
@@ -423,7 +421,7 @@ export default class FieldItem extends tsc<object> {
                     loading={this.btnLoading}
                     size='small'
                     text
-                    onClick={(e) => {
+                    onClick={e => {
                       e.stopPropagation();
                       this.downloadFieldStatistics();
                     }}

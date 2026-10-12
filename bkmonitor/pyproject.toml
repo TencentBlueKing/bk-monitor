@@ -165,6 +165,7 @@ testpaths = [
     "alarm_backends/tests",
     "bkmonitor/data_source/tests",
     "metadata/tests",
+    "tests/api/unify_query",
 ]
 python_files = ["test_*.py", "tests.py"]
 log_level = "ERROR"

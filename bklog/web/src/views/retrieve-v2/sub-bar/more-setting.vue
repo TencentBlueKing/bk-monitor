@@ -168,9 +168,7 @@
     if (isIndexGroupType) {
       query.indexSetId = indexSetItem.value?.index_set_id;
     } else if (isV2Enabled.value && (isBkDataOrEs || isCustom)) {
-      params.collectorId = isBkDataOrEs
-        ? indexSetItem.value?.index_set_id
-        : indexSetItem.value?.collector_config_id;
+      params.collectorId = isBkDataOrEs ? indexSetItem.value?.index_set_id : indexSetItem.value?.collector_config_id;
       query.typeKey = isCustom ? 'custom_report' : currentKey;
     } else {
       params.indexSetId = indexSetItem.value?.index_set_id;
@@ -180,7 +178,6 @@
     if (val === 'logMasking') {
       query.type = 'masking';
     }
-
 
     const { href } = router.resolve({ name: routeName, params, query });
     refTrigger.value?.click?.();
@@ -234,8 +231,8 @@
         >
           <li
             v-for="menu in showSettingMenuList"
-            class="list-menu-item"
             :key="menu.id"
+            class="list-menu-item"
             @click="handleMenuClick(menu.id)"
           >
             {{ menu.name }}

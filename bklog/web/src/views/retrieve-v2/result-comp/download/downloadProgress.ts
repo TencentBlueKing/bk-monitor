@@ -62,10 +62,7 @@ export function calculateProgress(task: any) {
   const maxExportedCount = Math.floor(task.export_total_count * PROGRESS_CEILING);
 
   // 增长 exported_count，但不超过 99% 上限
-  task.exported_count = Math.min(
-    Math.max(task.exported_count, 0) + growthPerUpdate,
-    maxExportedCount,
-  );
+  task.exported_count = Math.min(Math.max(task.exported_count, 0) + growthPerUpdate, maxExportedCount);
 
   // 同步计算百分比
   task.progressPercent = calculateProgressPercent(task.exported_count, task.export_total_count);
@@ -128,7 +125,7 @@ export function formatNumber(num: number | null | undefined) {
 
   while (value >= 1000 && unitIndex < UNITS.length - 1) {
     value /= 1000;
-    unitIndex++;
+    unitIndex += 1;
   }
 
   value = Number(value.toFixed(1));
@@ -136,7 +133,7 @@ export function formatNumber(num: number | null | undefined) {
   // 四舍五入后达到1000，则升级单位
   if (value >= 1000 && unitIndex < UNITS.length - 1) {
     value = 1;
-    unitIndex++;
+    unitIndex += 1;
   }
 
   return `${value}${UNITS[unitIndex]}`;

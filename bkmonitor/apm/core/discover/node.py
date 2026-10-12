@@ -31,7 +31,7 @@ from bkm_space.validate import validate_bk_biz_id
 from bkmonitor.models import BCSPod
 from bkmonitor.utils.cache import lru_cache_with_ttl
 from bkmonitor.utils.thread_backend import ThreadPool
-from constants.apm import OtlpKey, TelemetryDataType, Vendor
+from constants.apm import LLMProduct, OtlpKey, TelemetryDataType, Vendor
 
 
 logger = logging.getLogger(__name__)
@@ -119,13 +119,19 @@ class NodeDiscover(DiscoverBase):
             [(spans, category_rules, rules) for spans in divide_biscuit(origin_data, self.HANDLE_SPANS_BATCH_SIZE)],
         )
 
+        llm_products: dict[str, str] = {}
+        for _, batch_products in results:
+            for topo_key, product in batch_products.items():
+                self.set_preferred_llm_product(llm_products, topo_key, product)
+        llm_updated_at: int = int(datetime.now().timestamp())
+
         # 结合发现的数据和已有数据判断 创建/更新
         exists_instances = self.list_exists()
 
         pod_tuples = set()
         create_instances = {}
         update_instances = {}
-        for instances_mapping in results:
+        for instances_mapping, _ in results:
             if not instances_mapping:
                 continue
 
@@ -140,6 +146,11 @@ class NodeDiscover(DiscoverBase):
                     continue
 
                 exists_instance = exists_instances.get(k)
+                if v["extra_data"].get("kind") == ApmTopoDiscoverRule.TOPO_SERVICE:
+                    if product := llm_products.get(k):
+                        v["extra_data"]["llm"] = {"product": product, "updated_at": llm_updated_at}
+                    elif exists_instance and exists_instance["extra_data"].get("llm"):
+                        v["extra_data"]["llm"] = exists_instance["extra_data"]["llm"]
                 v.update({"system": list(v["system"].values()), "sdk": list(v["sdk"].values())})
                 if v["extra_data"]["category"] == ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
                     if k in update_instances:
@@ -218,17 +229,21 @@ class NodeDiscover(DiscoverBase):
         return sources
 
     @staticmethod
+    def set_preferred_llm_product(products: dict[str, str], key: str, product: str | None) -> None:
+        if product and products.get(key) in (None, LLMProduct.DEFAULT.value):
+            products[key] = product
+
+    @staticmethod
     def merge_other_extra_data_preserving_category(
         target: dict[str, Any] | None, source: dict[str, Any]
     ) -> dict[str, Any]:
         if not target:
             return source
 
-        if target.get("category") and target["category"] != ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
-            return target
-
         merged: dict[str, Any] = target.copy()
         merged.update({key: value for key, value in source.items() if value not in ("", None)})
+        if target.get("category") and target["category"] != ApmTopoDiscoverRule.APM_TOPO_CATEGORY_OTHER:
+            merged.update({key: target[key] for key in ("category", "kind", "predicate_value") if key in target})
         return merged
 
     @classmethod
@@ -291,8 +306,10 @@ class NodeDiscover(DiscoverBase):
         source["workloads"] = list(merged_workload_mapping.values())
         return source
 
-    def batch_execute(self, origin_data, category_rules, rules):
+    def batch_execute(self, origin_data, category_rules, rules) -> tuple[dict[str, Any], dict[str, str]]:
         instance_mapping = self.extra_data_factory
+        # LLM 产品单独收集：extra_data 归类别发现所有，发现组件时会被整体重写，标记放进去会被丢掉
+        llm_products: dict[str, str] = {}
         for span in origin_data:
             topo_key = None
 
@@ -323,6 +340,8 @@ class NodeDiscover(DiscoverBase):
             if not topo_key:
                 continue
 
+            self.set_preferred_llm_product(llm_products, topo_key, self.get_llm_product(span))
+
             # 后续的规则基于上一步发现的 topo_key 来补充数据
             for item in rules:
                 item_rule_type = item[0]
@@ -343,7 +362,40 @@ class NodeDiscover(DiscoverBase):
                     if match_rule:
                         self.find_sdk(instance_mapping, match_rule, span, topo_key)
 
-        return instance_mapping
+        return instance_mapping, llm_products
+
+    def get_llm_product(self, span: dict[str, Any]) -> str | None:
+        attributes: dict[str, Any] = span.get(OtlpKey.ATTRIBUTES) or {}
+        is_gen_ai: bool = any(
+            key.startswith("gen_ai.") and value not in (None, "") for key, value in attributes.items()
+        )
+        is_langfuse: bool = attributes.get("langfuse.observation.type") not in (None, "")
+        is_agentlens: bool = str(attributes.get("gen_ai.span.kind", "")).lower() in {"agent", "llm", "tool"}
+        is_aidev: bool = self.app_name.startswith("bkapp_ai0us0") and (
+            is_gen_ai
+            or is_langfuse
+            or attributes.get("chain.type") == "workflow"
+            or any(
+                attributes.get(key) not in (None, "")
+                for key in (
+                    "agent.info.code",
+                    "agent.info.id",
+                    "agent.info.name",
+                    "traceloop.span.kind",
+                    "llm.request.type",
+                )
+            )
+        )
+
+        if is_aidev:
+            return LLMProduct.AIDEV.value
+        if is_langfuse:
+            return LLMProduct.LANGFUSE.value
+        if is_agentlens:
+            return LLMProduct.AGENTLENS.value
+        if is_gen_ai:
+            return LLMProduct.DEFAULT.value
+        return None
 
     def find_category(self, instance_mapping, match_rule, other_rule, span):
         self.find_remote_service(span, match_rule, instance_mapping)

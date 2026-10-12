@@ -135,8 +135,7 @@ export default defineComponent({
     const { addEvent } = useRetrieveEvent();
     let rawSnapshot: LogPattern[] = [];
     let pipelineToken = 0;
-    let clusterRequesting = false;
-    let pendingRefresh = false;
+    let refreshSeq = 0;
     let isUnmounted = false;
 
     const buildPipelineInput = (): ClusterPipelineInput => ({
@@ -161,12 +160,12 @@ export default defineComponent({
 
     const syncGroupStateFromMeta = (openMap: ClusterViewResult['openMap'] = {}) => {
       const next: GroupListState = {};
-      Object.keys(groupListState.value).forEach((key) => {
+      Object.keys(groupListState.value).forEach(key => {
         if (groupListState.value[key]?.isOpen) {
           next[key] = { isOpen: true };
         }
       });
-      Object.keys(openMap).forEach((key) => {
+      Object.keys(openMap).forEach(key => {
         if (openMap[key]?.isOpen) {
           next[key] = { isOpen: true };
         }
@@ -202,19 +201,19 @@ export default defineComponent({
       tableList.value = (view.window ?? []).map(item => markRaw(item));
     };
 
-    const runPipeline = async (resetWindow = true) => {
+    const runPipeline = async (resetWindow = true, replaceRaw = false) => {
       pipelineToken += 1;
       const token = pipelineToken;
       if (resetWindow) {
         pagination.value.current = 1;
       }
       const input = buildPipelineInput();
-      const { view, viaWorker } = await clusterTableWorkerService.run(input, getWindowOptions());
+      const { view, viaWorker } = await clusterTableWorkerService.run(input, getWindowOptions(), { replaceRaw });
       if (token !== pipelineToken) return;
       if (!viaWorker && !(view.window ?? []).length && !input.raw?.length) {
         await ensureRawSnapshot();
         if (rawSnapshot.length && token === pipelineToken) {
-          await runPipeline(resetWindow);
+          await runPipeline(resetWindow, replaceRaw);
           return;
         }
       }
@@ -273,7 +272,7 @@ export default defineComponent({
     /**
      * 分页器观察器
      */
-    useIntersectionObserver(paginationRef, (entry) => {
+    useIntersectionObserver(paginationRef, entry => {
       if (entry.isIntersecting) {
         (paginationRef.value?.childNodes[0] as HTMLElement)?.style?.setProperty('visibility', 'visible');
         if (pagination.value.current * pagination.value.limit < pagination.value.count) {
@@ -313,27 +312,54 @@ export default defineComponent({
       pagination.value.count = pagination.value.childCount;
     };
 
-    const getClusterSearchAddition = () => {
-      return (retrieveParams.value.addition ?? []).reduce((list: any[], item) => {
-        if (!item.disabled) {
-          list.push({
-            field: item.field,
-            operator: item.operator,
-            value:
-              item.hidden_values && item.hidden_values.length > 0
-                ? item.value.filter(value => !item.hidden_values.includes(value))
-                : item.value,
-          });
+    const normalizeSearchAddition = (list: any[] = []) => {
+      return list.reduce((result: any[], item) => {
+        if (!item || item.disabled || item.is_focus_input || item.field === '_ip-select_') {
+          return result;
         }
-        return list;
+        result.push({
+          field: item.field,
+          operator: item.operator,
+          value:
+            item.hidden_values?.length > 0
+              ? (item.value ?? []).filter((value: string) => !item.hidden_values.includes(value))
+              : item.value,
+        });
+        return result;
       }, []);
     };
 
-    const getClusterSearchData = (overrides: Record<string, any> = {}) => {
+    const getClusterSearchAddition = (payload?: { type?: string; value?: unknown }) => {
+      if (payload?.type === 'sql') {
+        return [];
+      }
+      if ((payload?.type === 'ui' || payload?.type === 'filter') && Array.isArray(payload.value)) {
+        return normalizeSearchAddition(payload.value);
+      }
+      return store.getters.requestAddition ?? [];
+    };
+
+    const getClusterOperateParams = () => {
+      const requestData = props.requestData ?? {};
+      return {
+        pattern_level: requestData.pattern_level,
+        year_on_year_hour: requestData.year_on_year_hour,
+        show_new_pattern: requestData.show_new_pattern,
+        group_by: requestData.group_by,
+        size: requestData.size,
+        remark_config: requestData.remark_config,
+        owner_config: requestData.owner_config,
+        owners: requestData.owners,
+      };
+    };
+
+    const getClusterSearchData = (
+      overrides: Record<string, any> = {},
+      payload?: { type?: string; value?: unknown },
+    ) => {
       const {
         start_time,
         end_time,
-        size,
         keyword = '*',
         ip_chooser,
         host_scopes,
@@ -346,16 +372,15 @@ export default defineComponent({
 
       const data: Record<string, any> = {
         bk_biz_id: store.state.bkBizId,
-        addition: getClusterSearchAddition(),
-        size,
-        keyword,
+        addition: getClusterSearchAddition(payload),
+        keyword: payload?.type === 'sql' ? ((payload.value as string) ?? '*') : keyword,
         ip_chooser,
         host_scopes,
         interval,
         timezone,
         start_time,
         end_time,
-        ...props.requestData,
+        ...getClusterOperateParams(),
         ...overrides,
       };
 
@@ -365,6 +390,22 @@ export default defineComponent({
       }
 
       return data;
+    };
+
+    const getClusterListRequestId = () => `log-clustering-cluster-search-list-${props.indexId}`;
+    const getClusterOriginLogRequestId = () => `log-clustering-cluster-search-origin-${props.indexId}`;
+
+    const isRequestCanceled = (error: { code?: string; name?: string; __CANCEL__?: boolean } | null | undefined) =>
+      Boolean(error) && (error.code === 'ERR_CANCELED' || error.name === 'CanceledError' || Boolean(error.__CANCEL__));
+
+    const resolveClusterSearchList = (res: unknown): LogPattern[] | null => {
+      if (Array.isArray(res)) {
+        return res;
+      }
+      if (res && typeof res === 'object' && Array.isArray((res as IResponseData<LogPattern[]>).data)) {
+        return (res as IResponseData<LogPattern[]>).data;
+      }
+      return null;
     };
 
     const getPatternOriginLog = async (row: LogPattern) => {
@@ -380,7 +421,7 @@ export default defineComponent({
           value: signature,
         },
       ];
-      const res = (await $http.request(
+      const res = await $http.request(
         '/logClustering/clusterSearch',
         {
           params: {
@@ -394,24 +435,23 @@ export default defineComponent({
             filter_not_clustering: false,
           }),
         },
-        { catchIsShowMessage: false },
-      )) as IResponseData<LogPattern[]>;
+        {
+          catchIsShowMessage: false,
+          cancelPrevious: false,
+          requestId: getClusterOriginLogRequestId(),
+        },
+      );
 
-      return res.data?.[0]?.origin_log ?? '';
+      return resolveClusterSearchList(res)?.[0]?.origin_log ?? '';
     };
 
-    const refreshTable = () => {
-      // 没有开启数据指纹功能，或当前页面初始化 / 切换索引集时不允许起请求。
+    const refreshTable = (payload?: { type?: string; value?: unknown }) => {
+      // 未开启数据指纹、页签未激活或组件已卸载时不起请求；其余刷新一律以最后一次条件为准。
       if (isUnmounted || !props.clusterSwitch || !props.isClusterActive) {
-        pendingRefresh = false;
         return;
       }
-      if (clusterRequesting) {
-        pendingRefresh = true;
-        return;
-      }
-      clusterRequesting = true;
-      pendingRefresh = false;
+      refreshSeq += 1;
+      const seq = refreshSeq;
       clusterRequestException.value = '';
       tableList.value = [];
       tableLoading.value = true;
@@ -420,6 +460,7 @@ export default defineComponent({
       pagination.value.groupCount = 0;
       pagination.value.childCount = 0;
       pagination.value.visibleCount = 0;
+      // 同列表 requestId 取消进行中的旧请求；origin-log 使用独立 requestId，避免互相打断。
       (
         $http.request(
           '/logClustering/clusterSearch',
@@ -427,20 +468,29 @@ export default defineComponent({
             params: {
               index_set_id: props.indexId,
             },
-            data: getClusterSearchData(),
+            data: getClusterSearchData({}, payload),
           },
-          { cancelWhenRouteChange: false },
-        ) as Promise<IResponseData<LogPattern[]>>
-      ) // 由于回填指纹的数据导致路由变化，故路由变化时不取消请求
-        .then(async (res) => {
-          if (!Array.isArray(res.data)) {
+          {
+            cancelWhenRouteChange: false,
+            cancelPrevious: true,
+            requestId: getClusterListRequestId(),
+          },
+        ) as Promise<unknown>
+      )
+        .then(async res => {
+          if (seq !== refreshSeq || isUnmounted) {
+            return;
+          }
+          const clusterList = resolveClusterSearchList(res);
+          if (!clusterList) {
             clusterRequestException.value = t('聚类结果数据格式异常，请重新发起查询');
             rawSnapshot = [];
             rawDataCount.value = 0;
+            void clusterTableWorkerService.clear();
             return;
           }
           // 原始接口数据不再 structuredClone 到响应式内存，分块镜像到 IndexedDB，下载时按需读取。
-          const responseList = res.data.map((item) => {
+          const responseList = clusterList.map(item => {
             const nextItem = {
               ...item,
               owners: getOwnerList(item.owners),
@@ -454,27 +504,33 @@ export default defineComponent({
           const prevScope = rawDataScope.value;
           rawDataScope.value = nextScope;
           rawDataCount.value = responseList.length;
-          moduleLargeDataCacheService.replaceList(nextScope, responseList, 50).catch((error) => {
+          moduleLargeDataCacheService.replaceList(nextScope, responseList, 50).catch(error => {
             console.warn('[cluster-cache] persist raw data failed', error);
           });
           if (prevScope) {
             moduleLargeDataCacheService.clear(prevScope).catch(() => {});
           }
           rawSnapshot = responseList;
-          await runPipeline(true);
+          await runPipeline(true, true);
+          if (seq !== refreshSeq || isUnmounted) {
+            return;
+          }
           setTimeout(computedScrollXWidth);
         })
-        .catch(() => {
+        .catch(error => {
+          if (seq !== refreshSeq || isUnmounted || isRequestCanceled(error)) {
+            return;
+          }
           clusterRequestException.value = t('聚类结果获取异常，请重新发起查询');
           rawSnapshot = [];
           rawDataCount.value = 0;
+          void clusterTableWorkerService.clear();
         })
         .finally(() => {
-          clusterRequesting = false;
-          tableLoading.value = false;
-          if (!isUnmounted && pendingRefresh && props.clusterSwitch && props.isClusterActive) {
-            refreshTable();
+          if (seq !== refreshSeq || isUnmounted) {
+            return;
           }
+          tableLoading.value = false;
         });
     };
 
@@ -489,7 +545,7 @@ export default defineComponent({
     };
 
     const handleColumnSort = (field: string, order: string) => {
-      Object.keys(filterSortMap.value.sort).forEach((key) => {
+      Object.keys(filterSortMap.value.sort).forEach(key => {
         if (key !== field) {
           filterSortMap.value.sort[key] = '';
         }
@@ -515,7 +571,7 @@ export default defineComponent({
       pagination.value.current = 1;
     };
 
-    const handleScrollXChange = (event) => {
+    const handleScrollXChange = event => {
       const scrollLeft = (event.target as HTMLElement)?.scrollLeft || 0;
       for (const element of rootElement.value.querySelectorAll('.bklog-fill-offset-x')) {
         element.scrollLeft = scrollLeft;
@@ -608,7 +664,8 @@ export default defineComponent({
 
     onBeforeUnmount(() => {
       isUnmounted = true;
-      pendingRefresh = false;
+      refreshSeq += 1;
+      $http.cancel(getClusterListRequestId());
       if (rawDataScope.value) {
         moduleLargeDataCacheService.clear(rawDataScope.value).catch(() => {});
       }
@@ -656,6 +713,7 @@ export default defineComponent({
           type={option.type}
           scene='part'
           style='margin-top: 80px'
+          data-testid='cluster-result-exception'
         >
           <span>{option.text}</span>
         </bk-exception>

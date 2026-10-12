@@ -1,210 +1,211 @@
 <script setup>
-import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+  import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
-import useStore from '@/hooks/use-store';
-import { getCommonFilterAdditionWithValues } from '@/store/helper';
-import { BK_LOG_STORAGE } from '@/store/store.type';
-import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
-import { throttle } from 'lodash-es';
+  import useStore from '@/hooks/use-store';
+  import { getCommonFilterAdditionWithValues } from '@/store/helper';
+  import { BK_LOG_STORAGE } from '@/store/store.type';
+  import { normalizeSearchTotal } from '@/storage/utils/normalize-search-total';
+  import { throttle } from 'lodash-es';
 
-import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
-import NoIndexSet from '../result-comp/no-index-set';
-import LogResult from './log-result/index';
+  import RetrieveHelper, { RetrieveEvent } from '../../retrieve-helper';
+  import NoIndexSet from '../result-comp/no-index-set';
+  import LogResult from './log-result/index';
 
-const DEFAULT_FIELDS_WIDTH = 200;
+  const DEFAULT_FIELDS_WIDTH = 200;
 
-const props = defineProps({
-  activeTab: { type: String, default: '' },
-});
-const emit = defineEmits(['update:active-tab']);
-
-
-// #if MONITOR_APP !== 'trace'
-const SearchResultChart = defineAsyncComponent(() =>
-  import(/* webpackChunkName: 'retrieve-search-result-chart' */ '../search-result-chart/index.tsx'),
-);
-// #else
-// #code const SearchResultChart = () => null;
-// #endif
-
-// #if MONITOR_APP !== 'trace'
-const FieldFilter = defineAsyncComponent(() =>
-  import(/* webpackChunkName: 'retrieve-field-filter' */ './field-filter'),
-);
-// #else
-// #code const FieldFilter = () => null;
-// #endif
-
-// #if MONITOR_APP !== 'trace' && MONITOR_APP !== 'apm'
-const LogClustering = defineAsyncComponent(() =>
-  import(/* webpackChunkName: 'retrieve-v2-log-clustering' */ './log-clustering/index'),
-);
-// #else
-// #code const LogClustering = () => null;
-// #endif
-
-const store = useStore();
-const isFilterLoading = computed(() => store.state.indexFieldInfo.is_loading);
-const isSearchRersultLoading = computed(() => store.state.indexSetQueryResult.is_loading);
-
-const retrieveParams = computed(() => store.getters.retrieveParams);
-const requestAddition = computed(() => store.getters.requestAddition);
-const isNoIndexSet = computed(() => !store.state.retrieve.flatIndexSetList.length);
-const isOriginShow = computed(() => props.activeTab === 'origin');
-const trendContextKey = computed(() => [
-  store.state.spaceUid,
-  store.state.indexId,
-  ...(store.state.indexItem.ids ?? []),
-].join('|'));
-const pageLoading = computed(
-  () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading,
-);
-
-const totalCount = ref(0);
-const queueStatus = ref(false);
-const isTrendChartShow = ref(!store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD]);
-const DEFAULT_TREND_CHART_EXPANDED_HEIGHT = 170;
-const DEFAULT_TREND_CHART_FOLDED_HEIGHT = 40;
-const heightNum = ref(isTrendChartShow.value ? DEFAULT_TREND_CHART_EXPANDED_HEIGHT : DEFAULT_TREND_CHART_FOLDED_HEIGHT);
-const shouldRenderTrendChart = ref(false);
-const isTrendChartPending = ref(!shouldRenderTrendChart.value);
-
-const setTrendChartPending = () => {
-  if (!isOriginShow.value) {
-    return;
-  }
-
-  isTrendChartPending.value = true;
-  store.commit('retrieve/updateTrendDataLoading', true);
-  heightNum.value = isTrendChartShow.value ? Math.max(heightNum.value, DEFAULT_TREND_CHART_EXPANDED_HEIGHT) : DEFAULT_TREND_CHART_FOLDED_HEIGHT;
-  RetrieveHelper.setTrendGraphHeight(heightNum.value);
-};
-
-const scheduleRenderTrendChart = () => {
-  if (shouldRenderTrendChart.value) {
-    return;
-  }
-
-  if (!isOriginShow.value) {
-    return;
-  }
-
-  // 立即渲染，不延迟
-  shouldRenderTrendChart.value = true;
-};
-
-watch(isOriginShow, (value) => {
-  if (value) {
-    scheduleRenderTrendChart();
-  }
-});
-
-watch(trendContextKey, (value, oldValue) => {
-  if (oldValue !== undefined && value !== oldValue) {
-    setTrendChartPending();
-  }
-});
-
-RetrieveHelper.on(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
-
-onMounted(() => {
-  RetrieveHelper.setTrendGraphHeight(heightNum.value);
-  scheduleRenderTrendChart();
-});
-
-onBeforeUnmount(() => {
-  RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
-});
-
-const fieldFilterWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
-const isShowFieldStatistics = computed(() => {
-  if (window.__IS_MONITOR_TRACE__) {
-    return false;
-  }
-  return store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].show;
-});
-
-const retrieveParamsWithCommonAddition = computed(() => {
-  return {
-    ...retrieveParams.value,
-    addition: [...requestAddition.value, ...getCommonFilterAdditionWithValues(store.state)],
-  };
-});
-
-RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
-
-const changeTotalCount = (count) => {
-  totalCount.value = count;
-};
-watch(
-  () => normalizeSearchTotal(store.state.searchTotal),
-  count => {
-    totalCount.value = count;
-  },
-  { immediate: true },
-);
-const changeQueueRes = (status) => {
-  queueStatus.value = status;
-};
-const handleTrendReady = () => {
-  isTrendChartPending.value = false;
-};
-
-const handleToggleChange = (isShow, height) => {
-  isTrendChartShow.value = isShow;
-  if (height <= 0) {
-    heightNum.value = isShow ? DEFAULT_TREND_CHART_EXPANDED_HEIGHT : DEFAULT_TREND_CHART_FOLDED_HEIGHT;
-  } else {
-    heightNum.value = height + 4;
-  }
-  RetrieveHelper.setTrendGraphHeight(heightNum.value);
-};
-
-const handleFieldsShowChange = (status) => {
-  if (status) {
-    RetrieveHelper.setLeftFieldSettingWidth(DEFAULT_FIELDS_WIDTH);
-  }
-  RetrieveHelper.setLeftFieldIsShown(!!status);
-  store.commit('updateStorage', {
-    [BK_LOG_STORAGE.FIELD_SETTING]: {
-      show: !!status,
-      width: DEFAULT_FIELDS_WIDTH,
-    },
+  const props = defineProps({
+    activeTab: { type: String, default: '' },
   });
-};
+  const emit = defineEmits(['update:active-tab']);
 
-const handleFilterWidthChange = throttle((width) => {
-  if (width !== fieldFilterWidth.value) {
-    RetrieveHelper.setLeftFieldSettingWidth(width);
+  // #if MONITOR_APP !== 'trace'
+  const SearchResultChart = defineAsyncComponent(
+    () => import(/* webpackChunkName: 'retrieve-search-result-chart' */ '../search-result-chart/index.tsx'),
+  );
+  // #else
+  // #code const SearchResultChart = () => null;
+  // #endif
+
+  // #if MONITOR_APP !== 'trace'
+  const FieldFilter = defineAsyncComponent(
+    () => import(/* webpackChunkName: 'retrieve-field-filter' */ './field-filter'),
+  );
+  // #else
+  // #code const FieldFilter = () => null;
+  // #endif
+
+  // #if MONITOR_APP !== 'trace' && MONITOR_APP !== 'apm'
+  const LogClustering = defineAsyncComponent(
+    () => import(/* webpackChunkName: 'retrieve-v2-log-clustering' */ './log-clustering/index'),
+  );
+  // #else
+  // #code const LogClustering = () => null;
+  // #endif
+
+  const store = useStore();
+  const isFilterLoading = computed(() => store.state.indexFieldInfo.is_loading);
+  const isSearchRersultLoading = computed(() => store.state.indexSetQueryResult.is_loading);
+
+  const retrieveParams = computed(() => store.getters.retrieveParams);
+  const requestAddition = computed(() => store.getters.requestAddition);
+  const isNoIndexSet = computed(() => !store.state.retrieve.flatIndexSetList.length);
+  const isOriginShow = computed(() => props.activeTab === 'origin');
+  const trendContextKey = computed(() =>
+    [store.state.spaceUid, store.state.indexId, ...(store.state.indexItem.ids ?? [])].join('|'),
+  );
+  const pageLoading = computed(
+    () => isFilterLoading.value || isSearchRersultLoading.value || store.state.retrieve.isIndexSetLoading,
+  );
+
+  const totalCount = ref(0);
+  const queueStatus = ref(false);
+  const isTrendChartShow = ref(!store.state.storage[BK_LOG_STORAGE.TREND_CHART_IS_FOLD]);
+  const DEFAULT_TREND_CHART_EXPANDED_HEIGHT = 170;
+  const DEFAULT_TREND_CHART_FOLDED_HEIGHT = 40;
+  const heightNum = ref(
+    isTrendChartShow.value ? DEFAULT_TREND_CHART_EXPANDED_HEIGHT : DEFAULT_TREND_CHART_FOLDED_HEIGHT,
+  );
+  const shouldRenderTrendChart = ref(false);
+  const isTrendChartPending = ref(!shouldRenderTrendChart.value);
+
+  const setTrendChartPending = () => {
+    if (!isOriginShow.value) {
+      return;
+    }
+
+    isTrendChartPending.value = true;
+    store.commit('retrieve/updateTrendDataLoading', true);
+    heightNum.value = isTrendChartShow.value
+      ? Math.max(heightNum.value, DEFAULT_TREND_CHART_EXPANDED_HEIGHT)
+      : DEFAULT_TREND_CHART_FOLDED_HEIGHT;
+    RetrieveHelper.setTrendGraphHeight(heightNum.value);
+  };
+
+  const scheduleRenderTrendChart = () => {
+    if (shouldRenderTrendChart.value) {
+      return;
+    }
+
+    if (!isOriginShow.value) {
+      return;
+    }
+
+    // 立即渲染，不延迟
+    shouldRenderTrendChart.value = true;
+  };
+
+  watch(isOriginShow, value => {
+    if (value) {
+      scheduleRenderTrendChart();
+    }
+  });
+
+  watch(trendContextKey, (value, oldValue) => {
+    if (oldValue !== undefined && value !== oldValue) {
+      setTrendChartPending();
+    }
+  });
+
+  RetrieveHelper.on(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
+
+  onMounted(() => {
+    RetrieveHelper.setTrendGraphHeight(heightNum.value);
+    scheduleRenderTrendChart();
+  });
+
+  onBeforeUnmount(() => {
+    RetrieveHelper.off(RetrieveEvent.TREND_GRAPH_PENDING, setTrendChartPending);
+  });
+
+  const fieldFilterWidth = computed(() => store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].width);
+  const isShowFieldStatistics = computed(() => {
+    if (window.__IS_MONITOR_TRACE__) {
+      return false;
+    }
+    return store.state.storage[BK_LOG_STORAGE.FIELD_SETTING].show;
+  });
+
+  const retrieveParamsWithCommonAddition = computed(() => {
+    return {
+      ...retrieveParams.value,
+      addition: [...requestAddition.value, ...getCommonFilterAdditionWithValues(store.state)],
+    };
+  });
+
+  RetrieveHelper.setLeftFieldSettingWidth(fieldFilterWidth.value);
+
+  const changeTotalCount = count => {
+    totalCount.value = count;
+  };
+  watch(
+    () => normalizeSearchTotal(store.state.searchTotal),
+    count => {
+      totalCount.value = count;
+    },
+    { immediate: true },
+  );
+  const changeQueueRes = status => {
+    queueStatus.value = status;
+  };
+  const handleTrendReady = () => {
+    isTrendChartPending.value = false;
+  };
+
+  const handleToggleChange = (isShow, height) => {
+    isTrendChartShow.value = isShow;
+    if (height <= 0) {
+      heightNum.value = isShow ? DEFAULT_TREND_CHART_EXPANDED_HEIGHT : DEFAULT_TREND_CHART_FOLDED_HEIGHT;
+    } else {
+      heightNum.value = height + 4;
+    }
+    RetrieveHelper.setTrendGraphHeight(heightNum.value);
+  };
+
+  const handleFieldsShowChange = status => {
+    if (status) {
+      RetrieveHelper.setLeftFieldSettingWidth(DEFAULT_FIELDS_WIDTH);
+    }
+    RetrieveHelper.setLeftFieldIsShown(!!status);
     store.commit('updateStorage', {
       [BK_LOG_STORAGE.FIELD_SETTING]: {
-        show: true,
-        width,
+        show: !!status,
+        width: DEFAULT_FIELDS_WIDTH,
       },
     });
-  }
-});
-
-const handleUpdateActiveTab = (active) => {
-  emit('update:active-tab', active);
-};
-
-const __IS_MONITOR_TRACE__ = computed(() => {
-  return !!window.__IS_MONITOR_TRACE__;
-});
-
-const rightContentStyle = computed(() => {
-  if (isOriginShow.value) {
-    return {
-      width: `calc(100% - ${isShowFieldStatistics.value ? fieldFilterWidth.value : 0}px)`,
-    };
-  }
-
-  return {
-    width: '100%',
-    padding: '8px 16px',
   };
-});
+
+  const handleFilterWidthChange = throttle(width => {
+    if (width !== fieldFilterWidth.value) {
+      RetrieveHelper.setLeftFieldSettingWidth(width);
+      store.commit('updateStorage', {
+        [BK_LOG_STORAGE.FIELD_SETTING]: {
+          show: true,
+          width,
+        },
+      });
+    }
+  });
+
+  const handleUpdateActiveTab = active => {
+    emit('update:active-tab', active);
+  };
+
+  const __IS_MONITOR_TRACE__ = computed(() => {
+    return !!window.__IS_MONITOR_TRACE__;
+  });
+
+  const rightContentStyle = computed(() => {
+    if (isOriginShow.value) {
+      return {
+        width: `calc(100% - ${isShowFieldStatistics.value ? fieldFilterWidth.value : 0}px)`,
+      };
+    }
+
+    return {
+      width: '100%',
+      padding: '8px 16px',
+    };
+  });
 </script>
 
 <template>

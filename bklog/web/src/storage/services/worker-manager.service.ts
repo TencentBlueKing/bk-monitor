@@ -61,7 +61,7 @@ type ManagedWorkEntry = ManagedWorkDefinition & {
 const WINDOW_WORKERS_API_NAME = '__BKLOG_WORKERS__';
 const WINDOW_WORKER_MANAGER_API_NAME = '__BKLOG_WORKER_MANAGER__';
 
-const toErrorMessage = (error: any) => error instanceof Error ? error.message : String(error);
+const toErrorMessage = (error: any) => (error instanceof Error ? error.message : String(error));
 
 class WorkerManagerService {
   private works = new Map<string, ManagedWorkEntry>();
@@ -114,7 +114,12 @@ class WorkerManagerService {
     return this.get(definition.id);
   }
 
-  update(id: string, patch: Partial<Pick<ManagedWorkEntry, 'lastError' | 'lastOkAt' | 'lastPingAt' | 'state' | 'url'>> & { metrics?: Record<string, any> }) {
+  update(
+    id: string,
+    patch: Partial<Pick<ManagedWorkEntry, 'lastError' | 'lastOkAt' | 'lastPingAt' | 'state' | 'url'>> & {
+      metrics?: Record<string, any>;
+    },
+  ) {
     const entry = this.works.get(id);
     if (!entry) return null;
     const nextMetrics = patch.metrics ? { ...entry.metrics, ...patch.metrics } : entry.metrics;

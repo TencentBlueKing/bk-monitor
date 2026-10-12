@@ -175,7 +175,17 @@ export default defineComponent({
     };
 
     /** 上一次搜索参数，供触底加载更多使用 */
-    const lastSearchParams = ref<SearchParams>({ keyword: '', timeRange: ['', ''], timezone: window.timezone });
+    const lastSearchParams = ref<SearchParams>({ conditions: [], timeRange: ['', ''], timezone: window.timezone });
+    const initialSelectedFileName = initialUrlState.file_name || initialUrlState.fileName;
+    let shouldRestoreInitialSelection = Boolean(initialSelectedFileName);
+
+    /** 文件名条件存在时复用 file_name，否则用 fileName 保存当前选中项。 */
+    const syncSelectedFileName = (fileName: string) => {
+      const hasFileNameCondition = lastSearchParams.value.conditions.some(condition => condition.key === 'file_name');
+      syncUrlParams(
+        hasFileNameCondition ? { file_name: fileName, fileName: undefined } : { fileName, file_name: undefined },
+      );
+    };
 
     /**
      * 请求任务列表
@@ -203,28 +213,9 @@ export default defineComponent({
         query.source = taskSource.value;
       }
 
-      const urlFileName = initialUrlState?.fileName;
-      if (urlFileName) {
-        delete initialUrlState.fileName;
-      }
-
-      // URL 回填时加上 file_name 过滤（有 keyword 时不设置，避免同时传递 file_name 和 openid/task_id）
-      if (urlFileName && !params.keyword.trim()) {
-        query.file_name = urlFileName;
-      }
-
-      // 根据 valueType 决定将搜索值作为 openid 还是 task_id
-      const openidVal = params.keyword.trim();
-      if (openidVal) {
-        if (params.valueType === 'task_id') {
-          const numVal = Number(openidVal);
-          if (!Number.isNaN(numVal)) {
-            query.task_id = numVal;
-          }
-        } else if (params.valueType === 'file_name') {
-          query.file_name = openidVal;
-        } else {
-          query.openid = openidVal;
+      for (const condition of params.conditions) {
+        if (condition.value.trim()) {
+          query[condition.key] = condition.value.trim();
         }
       }
 
@@ -247,14 +238,15 @@ export default defineComponent({
             // 重新查询时重置滚动位置到顶部
             taskListPanelRef.value?.resetScroll?.();
             // 首次加载默认选中第一项
+            const restoreInitialSelection = shouldRestoreInitialSelection;
+            shouldRestoreInitialSelection = false;
             if (list.length > 0) {
-              const matchedItem = urlFileName
-                ? list.find((item: LogItem) => item.file_name === urlFileName)
+              const matchedItem = restoreInitialSelection
+                ? list.find((item: LogItem) => item.file_name === initialSelectedFileName)
                 : null;
               selectedLogItem.value = matchedItem || list[0];
               fetchClientInfo(selectedLogItem.value);
-              // 任务列表返回后同步 URL（选中的任务文件名）
-              syncUrlParams({ fileName: selectedLogItem?.value?.file_name });
+              syncSelectedFileName(selectedLogItem.value.file_name);
             }
           }
           hasMore.value = taskList.value.length < total;
@@ -282,13 +274,24 @@ export default defineComponent({
       const [startTime, endTime] = params.timeRange;
       const [startTs, endTs] = handleTransformToTimestamp([String(startTime), String(endTime)]);
       lastSearchParams.value = { ...params, timeRange: [startTs, endTs] };
-      // 搜索时同步 URL（关键词、时间范围、时区、类型）
+      const conditionState: Partial<UrlState> = {
+        openid: undefined,
+        task_id: undefined,
+        file_name: undefined,
+        extend_info: undefined,
+      };
+      params.conditions.forEach(condition => {
+        conditionState[condition.key] = condition.value;
+      });
+      // 新版 URL 仅同步具体搜索字段；keyword/valueType 只保留兼容读取。
       syncUrlParams({
-        keyword: params.keyword,
+        ...conditionState,
+        keyword: undefined,
+        valueType: undefined,
+        ...(conditionState.file_name ? { fileName: undefined } : {}),
         startTime: String(startTime),
         endTime: String(endTime),
         timezone: params.timezone,
-        valueType: params.valueType,
       });
       fetchTaskList(lastSearchParams.value);
     };
@@ -335,7 +338,9 @@ export default defineComponent({
       fetchClientInfo(item);
       // 手动切换任务时同步 URL（选中的任务文件名，同时清除文件和过滤/高亮状态）
       syncUrlParams({
-        fileName: item.file_name,
+        ...(lastSearchParams.value.conditions.some(condition => condition.key === 'file_name')
+          ? { file_name: item.file_name, fileName: undefined }
+          : { fileName: item.file_name, file_name: undefined }),
         fileId: undefined,
         filterKey: [],
         filterType: undefined,
@@ -386,7 +391,7 @@ export default defineComponent({
 
     /** 更新 taskList 中指定任务的状态 */
     const updateTaskStatus = (source: DataSource, id: number | string, status: ProcessStatus, processedAt?: string) => {
-      const index = taskList.value.findIndex((item) => {
+      const index = taskList.value.findIndex(item => {
         if (source === 'task') {
           return item.source === 'task' && String(item.task_id) === String(id);
         }
@@ -400,8 +405,13 @@ export default defineComponent({
         }
         taskList.value.splice(index, 1, updatedItem);
         // 同步更新 selectedLogItem
-        if (selectedLogItem.value && selectedLogItem.value.source === source
-          && (source === 'task' ? String(selectedLogItem.value.task_id) === String(id) : selectedLogItem.value.file_name === id)) {
+        if (
+          selectedLogItem.value &&
+          selectedLogItem.value.source === source &&
+          (source === 'task'
+            ? String(selectedLogItem.value.task_id) === String(id)
+            : selectedLogItem.value.file_name === id)
+        ) {
           selectedLogItem.value = updatedItem;
         }
       }
@@ -429,39 +439,43 @@ export default defineComponent({
       if (taskItems.length > 0) {
         const taskIdList = taskItems.map(item => item.task_id).filter((id): id is string => id !== null);
         queries.push(
-          $http.request('clientLog/getTaskStatus', {
-            data: {
-              bk_biz_id: bkBizId,
-              task_id_list: taskIdList,
-            },
-          }).then((res) => {
-            if (res?.data && Array.isArray(res.data)) {
-              res.data.forEach((statusItem: any) => {
-                if (statusItem.status !== 'pending' && statusItem.process_status !== 'running') {
-                  updateTaskStatus('task', statusItem.task_id, statusItem.process_status, statusItem.processed_at);
-                }
-              });
-            }
-          }),
+          $http
+            .request('clientLog/getTaskStatus', {
+              data: {
+                bk_biz_id: bkBizId,
+                task_id_list: taskIdList,
+              },
+            })
+            .then(res => {
+              if (res?.data && Array.isArray(res.data)) {
+                res.data.forEach((statusItem: any) => {
+                  if (statusItem.status !== 'pending' && statusItem.process_status !== 'running') {
+                    updateTaskStatus('task', statusItem.task_id, statusItem.process_status, statusItem.processed_at);
+                  }
+                });
+              }
+            }),
         );
       }
 
       if (reportItems.length > 0) {
         const fileNameList = reportItems.map(item => item.file_name);
         queries.push(
-          $http.request('collect/getFileStatus', {
-            data: {
-              file_name_list: fileNameList,
-            },
-          }).then((res) => {
-            if (res?.data && Array.isArray(res.data)) {
-              res.data.forEach((statusItem: any) => {
-                if (statusItem.status !== 'pending' && statusItem.status !== 'running') {
-                  updateTaskStatus('report', statusItem.file_name, statusItem.status as ProcessStatus);
-                }
-              });
-            }
-          }),
+          $http
+            .request('collect/getFileStatus', {
+              data: {
+                file_name_list: fileNameList,
+              },
+            })
+            .then(res => {
+              if (res?.data && Array.isArray(res.data)) {
+                res.data.forEach((statusItem: any) => {
+                  if (statusItem.status !== 'pending' && statusItem.status !== 'running') {
+                    updateTaskStatus('report', statusItem.file_name, statusItem.status as ProcessStatus);
+                  }
+                });
+              }
+            }),
         );
       }
 
@@ -491,7 +505,7 @@ export default defineComponent({
       stopPolling();
 
       // 先将任务状态修改为 running
-      const index = taskList.value.findIndex((t) => {
+      const index = taskList.value.findIndex(t => {
         if (item.source === 'task') {
           return t.source === 'task' && t.file_name === item.file_name;
         }
@@ -501,8 +515,13 @@ export default defineComponent({
         const updatedItem = { ...taskList.value[index], process_status: 'running' as ProcessStatus };
         taskList.value.splice(index, 1, updatedItem);
         // 如果当前选中项就是该项，同步更新选中状态
-        if (selectedLogItem.value && selectedLogItem.value.source === item.source
-          && (item.source === 'task' ? selectedLogItem.value.task_id === item.task_id : selectedLogItem.value.file_name === item.file_name)) {
+        if (
+          selectedLogItem.value &&
+          selectedLogItem.value.source === item.source &&
+          (item.source === 'task'
+            ? selectedLogItem.value.task_id === item.task_id
+            : selectedLogItem.value.file_name === item.file_name)
+        ) {
           selectedLogItem.value = updatedItem;
         }
       }
@@ -559,10 +578,7 @@ export default defineComponent({
           // 业务切换时清空 URL 中的条件
           clearUrlParams();
           const isExternal = store.state.isExternal;
-          const hasPermission = isFeatureToggleOn(
-            'tgpa_task',
-            [String(store.state.bkBizId), String(newSpaceUid)],
-          );
+          const hasPermission = isFeatureToggleOn('tgpa_task', [String(store.state.bkBizId), String(newSpaceUid)]);
           const externalMenu = store.state.externalMenu as string[];
           const hasExternalPermission = isExternal && (externalMenu || []).includes('client-log-search');
           // 灰度开关关闭 或 外部版无权限 则跳转
@@ -627,10 +643,7 @@ export default defineComponent({
     onMounted(async () => {
       // 页面挂载时检查功能开关/权限，无权限则跳转
       const isExternal = store.state.isExternal;
-      const hasPermission = isFeatureToggleOn(
-        'tgpa_task',
-        [String(store.state.bkBizId), String(store.state.spaceUid)],
-      );
+      const hasPermission = isFeatureToggleOn('tgpa_task', [String(store.state.bkBizId), String(store.state.spaceUid)]);
       const externalMenu = store.state.externalMenu as string[];
       const hasExternalPermission = isExternal && (externalMenu || []).includes('client-log-search');
       // 灰度开关关闭 或 外部版无权限 则跳转
@@ -686,11 +699,7 @@ export default defineComponent({
         <bk-exception type='empty'>
           <div class='empty-state-content'>
             <div class='empty-state-title'>{t('检索无数据')}</div>
-            <div class='empty-state-subtitle'>
-              {lastSearchParams.value.keyword
-                ? t('未找到与 "{keyword}" 匹配的用户或任务', { keyword: lastSearchParams.value.keyword })
-                : t('未找到匹配的用户或任务')}
-            </div>
+            <div class='empty-state-subtitle'>{t('未找到匹配的用户或任务')}</div>
             <div class='empty-state-tips'>
               <div>1. {t('请检查任务ID和用户ID是否输入错误')}</div>
               <div>2. {t('平台默认保存 90 天的任务记录，请检查 ID 是否过期')}</div>

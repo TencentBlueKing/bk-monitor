@@ -1,0 +1,18 @@
+@import '../../../../theme/theme';
+@import '../../../../theme/mixin';
+
+.llm-tool-panel {
+  flex: 1;
+  gap: 24px;
+  min-height: 0;
+  padding: 16px 0 24px;
+  overflow: auto;
+
+  @include flex-column;
+}
+
+/* Sideslider transfer 到 body，需保持顶层选择器 */
+.llm-tool-panel-slider-json {
+  padding: 16px 24px 24px;
+  overflow: auto;
+}

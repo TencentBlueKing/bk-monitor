@@ -38,9 +38,11 @@ from apm.utils.es_search import EsSearch
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.db import JsonField
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, get_tenant_default_biz_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
+from bkm_space.errors import NoRelatedResourceError
+from bkm_space.validate import validate_bk_biz_id
 from common.log import logger
 from constants.apm import (
     FlowType,
@@ -586,13 +588,16 @@ class TraceDataSource(ApmDataSourceConfigBase):
 
     STORAGE_TYPE = "elasticsearch"
 
-    # 默认的动态维度发现配置
     ES_DYNAMIC_CONFIG = {
         "dynamic_templates": [
             {
                 "strings_as_keywords": {
                     "match_mapping_type": "string",
-                    "mapping": {"norms": "false", "type": "keyword"},
+                    "mapping": {
+                        "norms": "false",
+                        "type": "keyword",
+                        "ignore_above": 1024,
+                    },
                 }
             }
         ]
@@ -1555,10 +1560,18 @@ class ProfileDataSource(ApmDataSourceConfigBase):
     @classmethod
     def apply_datasource(cls, bk_biz_id, app_name, **options):
         option = options["option"]
+        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         profile_bk_biz_id = bk_biz_id
         if bk_biz_id < 0:
-            # 非业务创建 profile 将创建在公共业务下
-            profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
+            # 负数 bk_biz_id 表示项目空间，需先尝试获取其关联的业务ID；
+            # 若空间无关联业务（如 SAAS 空间），再回退到租户默认业务ID。
+            try:
+                profile_bk_biz_id = validate_bk_biz_id(bk_biz_id)
+            except NoRelatedResourceError:
+                if settings.ENABLE_MULTI_TENANT_MODE:
+                    profile_bk_biz_id = get_tenant_default_biz_id(bk_tenant_id)
+                else:
+                    profile_bk_biz_id = settings.BK_DATA_BK_BIZ_ID
 
         obj = cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name).first()
 
@@ -1573,7 +1586,6 @@ class ProfileDataSource(ApmDataSourceConfigBase):
 
         # 创建接入
         apm_maintainers = ",".join(settings.APM_APP_BKDATA_MAINTAINER)
-        bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
         global_user = get_global_user(bk_tenant_id=bk_tenant_id)
         maintainer = global_user if not apm_maintainers else f"{global_user},{apm_maintainers}"
 
@@ -1593,7 +1605,7 @@ class ProfileDataSource(ApmDataSourceConfigBase):
                 operator=global_user,
                 prefer_kafka_cluster_name=prefer_kafka_cluster_name,
             )
-            data_id_name = compose_profile_data_id_name(provider.data_biz_id, obj.app_name)
+            data_id_name = compose_profile_data_id_name(provider.bk_biz_id, obj.app_name)
             obj.bkdata_datalink_config = {
                 "version": 4,
                 "namespace": _V4_NAMESPACE,

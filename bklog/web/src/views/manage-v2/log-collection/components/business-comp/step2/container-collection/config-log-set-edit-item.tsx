@@ -126,7 +126,6 @@ export default defineComponent({
       return `${props.editType}_${itemKeyMap.get(item)}`;
     };
 
-
     // 计算属性：是否为标签编辑
     const isLabelEdit = computed(() => props.editType === 'label_selector');
     const bkBizId = computed(() => store.getters.bkBizId);

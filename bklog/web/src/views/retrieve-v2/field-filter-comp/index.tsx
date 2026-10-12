@@ -95,7 +95,7 @@ export default class FieldFilterComp extends tsc<object> {
   }
   get statisticalFieldsData() {
     // 版本号用于触发视图更新，实际大对象存放在 runtime cache / IndexedDB 镜像中。
-    this.$store.state.retrieveDropdownDataVersion;
+    void this.$store.state.retrieveDropdownDataVersion;
     return storeRuntimeCacheService.getRetrieveDropdownData(this.$store.state.indexId || 'default');
   }
 
@@ -167,7 +167,7 @@ export default class FieldFilterComp extends tsc<object> {
   }
   /** 递归将tree变回数组 */
   convertNestedStructureToArray(nestedArray) {
-    const flatten = (nodes) => {
+    const flatten = nodes => {
       const result: any[] = [];
       for (const node of nodes) {
         const currentPath = node.field_name;
@@ -205,8 +205,8 @@ export default class FieldFilterComp extends tsc<object> {
     );
 
     const visibleBuiltLength = builtInFieldsValue.filter(item => item.filterVisible).length;
-    const hiddenFieldVisible = !!initHiddenList.filter(item => item.filterVisible).length
-      && visibleBuiltLength === builtInFieldsValue.length;
+    const hiddenFieldVisible =
+      !!initHiddenList.filter(item => item.filterVisible).length && visibleBuiltLength === builtInFieldsValue.length;
 
     return {
       // 若没找到初始隐藏的内置字段且内置字段不足10条则不展示展开按钮
@@ -266,7 +266,9 @@ export default class FieldFilterComp extends tsc<object> {
       default: {
         const { scenario_id_white_list: scenarioIdWhiteList } = (window as any).FIELD_ANALYSIS_CONFIG || {};
         const scenarioID = this.indexSetItem.items?.[0]?.scenario_id;
-        isFront = !(scenarioIdWhiteList?.includes(scenarioID) && isFeatureToggleOn('field_analysis_config', this.bkBizId));
+        isFront = !(
+          scenarioIdWhiteList?.includes(scenarioID) && isFeatureToggleOn('field_analysis_config', this.bkBizId)
+        );
         break;
       }
     }
@@ -312,9 +314,10 @@ export default class FieldFilterComp extends tsc<object> {
     for (const fieldList of [this.visibleFields, this.hiddenFields]) {
       for (const fieldItem of fieldList) {
         regExp.lastIndex = 0; // 重置lastIndex,这个正则有全局标志
-        fieldItem.filterVisible = regExp.test(fieldItem.field_name)
-          || regExp.test(fieldItem.field_alias)
-          || regExp.test(fieldItem.query_alias || '');
+        fieldItem.filterVisible =
+          regExp.test(fieldItem.field_name) ||
+          regExp.test(fieldItem.field_alias) ||
+          regExp.test(fieldItem.query_alias || '');
       }
     }
     this.$nextTick(() => {
@@ -341,11 +344,7 @@ export default class FieldFilterComp extends tsc<object> {
 
     const parentFieldName = fieldItem.parentFieldName || fieldItem.parent_field_name;
     const fieldName = fieldItem.field_name;
-    if (
-      parentFieldName
-      && typeof fieldName === 'string'
-      && !fieldName.startsWith(`${parentFieldName}.`)
-    ) {
+    if (parentFieldName && typeof fieldName === 'string' && !fieldName.startsWith(`${parentFieldName}.`)) {
       return `${parentFieldName}.${fieldName}`;
     }
 
@@ -476,7 +475,7 @@ export default class FieldFilterComp extends tsc<object> {
     }
 
     const allowedNames = new Set(arrData.map(item => item.field_name));
-    const visit = (node) => {
+    const visit = node => {
       const children = (node.children ?? []).map(visit).filter(Boolean);
       const fieldName = node.full_name || node.fullName || node.field_name;
       if (!allowedNames.has(fieldName) && !children.length) {
@@ -505,7 +504,7 @@ export default class FieldFilterComp extends tsc<object> {
             right-icon='icon-search'
             clearable
             onChange={() => this.filterListByCondition()}
-          // onClear={() => this.handleSearchException('clear-filter')}
+            // onClear={() => this.handleSearchException('clear-filter')}
           />
         </div>
         <div
@@ -583,23 +582,24 @@ export default class FieldFilterComp extends tsc<object> {
               <div class='fields-container not-selected optional-field'>
                 <div class='title'>{this.$t('可选字段')}</div>
                 <ul class='filed-list'>
-                  {this.showIndexSetFields.map((item, index) => (item.children?.length ? (
-                    this.bigTreeRender(item, `${index}select`)
-                  ) : (
-                    <FieldItem
-                      key={`${index}-${item}`}
-                      v-show={item.filterVisible}
-                      date-picker-value={this.datePickerValue}
-                      field-alias-map={this.fieldAliasMap}
-                      field-item={item}
-                      is-front-statistics={this.isFrontStatistics}
-                      retrieve-params={this.retrieveParams}
-                      show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
-                      statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                      type='hidden'
-                      onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
-                    />
-                  )),
+                  {this.showIndexSetFields.map((item, index) =>
+                    item.children?.length ? (
+                      this.bigTreeRender(item, `${index}select`)
+                    ) : (
+                      <FieldItem
+                        key={`${index}-${item}`}
+                        v-show={item.filterVisible}
+                        date-picker-value={this.datePickerValue}
+                        field-alias-map={this.fieldAliasMap}
+                        field-item={item}
+                        is-front-statistics={this.isFrontStatistics}
+                        retrieve-params={this.retrieveParams}
+                        show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
+                        statistical-field-data={this.statisticalFieldsData[item.field_name]}
+                        type='hidden'
+                        onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+                      />
+                    ),
                   )}
                   {this.getIsShowIndexSetExpand() && (
                     <div
@@ -623,23 +623,24 @@ export default class FieldFilterComp extends tsc<object> {
                   {(this.$t('label-内置字段') as string).replace('label-', '')}
                 </div>
                 <ul class='filed-list'>
-                  {this.builtInFieldsShowObj().builtInShowFields.map((item, index) => (item.children?.length ? (
-                    this.bigTreeRender(item, `${index}built`)
-                  ) : (
-                    <FieldItem
-                      key={`${index}-${item}`}
-                      v-show={item.filterVisible}
-                      date-picker-value={this.datePickerValue}
-                      field-alias-map={this.fieldAliasMap}
-                      field-item={item}
-                      is-front-statistics={this.isFrontStatistics}
-                      retrieve-params={this.retrieveParams}
-                      show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
-                      statistical-field-data={this.statisticalFieldsData[item.field_name]}
-                      type='hidden'
-                      onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
-                    />
-                  )),
+                  {this.builtInFieldsShowObj().builtInShowFields.map((item, index) =>
+                    item.children?.length ? (
+                      this.bigTreeRender(item, `${index}built`)
+                    ) : (
+                      <FieldItem
+                        key={`${index}-${item}`}
+                        v-show={item.filterVisible}
+                        date-picker-value={this.datePickerValue}
+                        field-alias-map={this.fieldAliasMap}
+                        field-item={item}
+                        is-front-statistics={this.isFrontStatistics}
+                        retrieve-params={this.retrieveParams}
+                        show-field-alias={this[BK_LOG_STORAGE.SHOW_FIELD_ALIAS]}
+                        statistical-field-data={this.statisticalFieldsData[item.field_name]}
+                        type='hidden'
+                        onToggleItem={({ type, fieldItem }) => this.handleToggleItem(type, fieldItem)}
+                      />
+                    ),
                   )}
                   {/* {this.builtInFieldsShowObj().isShowBuiltExpandBtn && (
                     <div

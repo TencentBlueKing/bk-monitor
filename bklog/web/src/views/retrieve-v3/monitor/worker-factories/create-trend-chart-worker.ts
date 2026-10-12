@@ -8,7 +8,6 @@
  * 通过 resolveLoader.alias 注入，作用是让 Worker 子编译不继承本构建的 commonjs externals。
  */
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
 const TrendChartWorker = require('monitor-inline-worker-loader?inline=no-fallback&esModule=false!@/hooks/workers/trend-chart-worker.ts');
 
 export const createTrendChartWorker = () => new TrendChartWorker();

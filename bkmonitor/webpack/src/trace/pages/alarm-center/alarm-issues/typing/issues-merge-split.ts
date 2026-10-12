@@ -96,8 +96,14 @@ export interface MergeSourceActiveMember extends MergeSourceMemberBase {
 
 /** 合并来源中成员的公共基础字段（active_members 与 split_history 共用） */
 export interface MergeSourceMemberBase {
+  /** 告警事件数 */
+  alert_count?: number;
   /** 异常信息 */
   anomaly_message: string;
+  /** 最早发生时间（Unix 秒级时间戳），缺失时按 -- 展示 */
+  first_alert_time?: number;
+  /** 最后出现时间（Unix 秒级时间戳），缺失时按 -- 展示 */
+  last_alert_time?: number;
   /** 成员 Issue 在 ES 中的真实状态；查不到时为 null，按已删除占位 */
   member_es_status?: MergeMemberEsStatus | null;
   /** 成员 Issue ID */
@@ -149,19 +155,32 @@ export interface MergeStatus {
 export interface SplitIssueParams {
   /** 业务 ID */
   bk_biz_id: number;
-  /** 待拆分的成员 Issue ID，必须处于活跃合并状态 */
-  member_issue_id: string;
-  /** 拆分依据列表，至少 1 条 */
+  /** 待拆分的成员 Issue ID 列表，1~50 条；单条拆分传长度 1 的列表 */
+  member_issue_ids: string[];
+  /** 拆分依据列表，缺省或空数组均合法 */
   reasons: string[];
 }
 
 /** 拆分 Issue 响应 data */
 export interface SplitIssueResponseData {
-  /** 已拆分的成员 Issue ID */
-  member_issue_id: string;
-  /** 操作结果，固定为 'ok' */
+  /** 逐条执行结果，顺序与请求去重后一致 */
+  results: SplitIssueResultItem[];
+  /** 接口级结果，固定为 'ok'；单条失败不影响接口级状态，需逐条读 results */
   status: 'ok';
 }
+
+/** 批量拆分中单条 Issue 的执行结果 */
+export interface SplitIssueResultItem {
+  /** 成员 Issue ID */
+  member_issue_id: string;
+  /** 跳过或失败的原因说明 */
+  message?: string;
+  /** 该条的执行结果 */
+  status: SplitIssueResultStatus;
+}
+
+/** 单条拆分结果状态：failed=执行失败 / ok=拆分成功 / skipped=合并关系已不活跃（并发或重复触发，幂等跳过） */
+export type SplitIssueResultStatus = 'failed' | 'ok' | 'skipped';
 
 /** 拆分触发类型 */
 export type SplitKind = 'by_main_archive' | 'by_main_resolve' | 'manual';

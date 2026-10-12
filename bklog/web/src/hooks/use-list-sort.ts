@@ -1,4 +1,3 @@
-
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -62,11 +61,7 @@ export default (list: any[], matchKeys: string[] = [], hiddenMatchKeys: string[]
    * @param isPinyinField 是否为拼音字段（py_text）
    * @returns 匹配度分数，分数越高匹配度越高，-1 表示不匹配
    */
-  const calculateMatchScore = (
-    text: string,
-    searchText: string,
-    isPinyinField: boolean = false,
-  ): number => {
+  const calculateMatchScore = (text: string, searchText: string, isPinyinField: boolean = false): number => {
     if (!text || !searchText) return -1;
 
     const lowerText = text.toLowerCase();

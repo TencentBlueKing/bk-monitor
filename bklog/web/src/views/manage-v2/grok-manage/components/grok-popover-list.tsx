@@ -228,7 +228,7 @@ export default defineComponent({
     // 监听 visible 变化，打开时加载数据
     watch(
       () => props.visible,
-      (val) => {
+      val => {
         if (val) {
           searchKeyword.value = props.keyword;
           fetchGrokList();
@@ -240,7 +240,7 @@ export default defineComponent({
     // 监听 keyword 变化，重新搜索
     watch(
       () => props.keyword,
-      (val) => {
+      val => {
         searchKeyword.value = val;
         if (props.visible) {
           handleSearchChange(val);
@@ -317,34 +317,31 @@ export default defineComponent({
             onScroll={handleScroll}
           >
             {isLoading.value && renderListSkeleton()}
-            {!isLoading.value && list.value.map((item, index) => (
-              <div
-                key={item.id}
-                class={['grok-popover-list-row', { active: index === activeIndex.value }]}
-                onClick={() => handleRowClick(item, index)}
-              >
-                <div class='grok-popover-list-name'>{item.name}</div>
-                <div class='grok-popover-list-description'>{item.description}</div>
-              </div>
-            ))}
+            {!isLoading.value &&
+              list.value.map((item, index) => (
+                <div
+                  key={item.id}
+                  class={['grok-popover-list-row', { active: index === activeIndex.value }]}
+                  onClick={() => handleRowClick(item, index)}
+                >
+                  <div class='grok-popover-list-name'>{item.name}</div>
+                  <div class='grok-popover-list-description'>{item.description}</div>
+                </div>
+              ))}
 
-            {isLoadingMore.value && (
-              <div class='grok-popover-list-more-skeleton'>
-                {renderListSkeleton(2)}
-              </div>
-            )}
+            {isLoadingMore.value && <div class='grok-popover-list-more-skeleton'>{renderListSkeleton(2)}</div>}
 
             {/* 空状态 */}
-            {!isLoading.value && list.value.length === 0 && (
-              <div class='grok-popover-list-empty'>{t('暂无数据')}</div>
-            )}
+            {!isLoading.value && list.value.length === 0 && <div class='grok-popover-list-empty'>{t('暂无数据')}</div>}
           </div>
         </div>
 
         {/* 右侧调试结果 */}
         <div class='grok-popover-list-right'>
           <div class='grok-popover-debug'>
-            {isLoading.value ? renderDetailSkeleton() : activeItem.value ? (
+            {isLoading.value ? (
+              renderDetailSkeleton()
+            ) : activeItem.value ? (
               <div class='grok-popover-debug-content'>
                 {/* name */}
                 <div class='grok-popover-debug-name'>{activeItem.value.name}</div>
@@ -386,9 +383,7 @@ export default defineComponent({
                       </tbody>
                     </table>
                   ) : (
-                    !debugLoading.value && (
-                      <div class='grok-popover-debug-empty'>{t('暂无调试结果')}</div>
-                    )
+                    !debugLoading.value && <div class='grok-popover-debug-empty'>{t('暂无调试结果')}</div>
                   )}
                 </div>
               </div>

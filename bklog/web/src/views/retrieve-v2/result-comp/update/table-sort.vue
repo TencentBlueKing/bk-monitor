@@ -2,92 +2,96 @@
   <div>
     <vue-draggable
       v-bind="dragOptions"
-      class="custom-select-list"
       v-model="sortList"
+      class="custom-select-list"
     >
       <li
-          v-for="({ key, sorts }, index) in sortList"
-          class="custom-select-item"
-          :key="key"
+        v-for="{ key, sorts } in sortList"
+        :key="key"
+        class="custom-select-item"
+      >
+        <span class="icon bklog-icon bklog-ketuodong"></span>
+        <bk-select
+          v-model="sorts[0]"
+          style="width: 174px"
+          class="rtl-text"
+          ext-cls="bklog-v3-popover-tag"
+          ext-popover-cls="bklog-v3-popover-tag"
+          auto-focus
+          searchable
         >
-          <span class="icon bklog-icon bklog-ketuodong"></span>
-          <bk-select
-            style="width: 174px"
-            class="rtl-text"
-            ext-cls="bklog-v3-popover-tag"
-            ext-popover-cls="bklog-v3-popover-tag"
-            v-model="sorts[0]"
-            auto-focus
-            searchable
+          <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
+          <div
+            class="table-sort-option-container"
+            :class="{ 'is-start-text-ellipsis': isStartTextEllipsis }"
           >
-            <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
-            <div
-              class="table-sort-option-container"
-              :class="{ 'is-start-text-ellipsis': isStartTextEllipsis }"
-            >
-              <bk-option
-                v-for="option in selectList"
-                class="custom-option bklog-v3-popover-tag"
-                :disabled="option.disabled"
-                :id="option.field_name"
-                :key="option.field_name"
-                :name="option.field_name"
-              >
-                <div class="custom-option-item bklog-v3-popover-tag">
-                  <span
-                    :style="{
-                      backgroundColor: option.is_full_text ? false : getFieldIconColor(option.field_type),
-                      color: option.is_full_text ? false : getFieldIconTextColor(option.field_type),
-                    }"
-                    :class="[option.is_full_text ? 'full-text' : getFieldIcon(option.field_type), 'field-type-icon']"
-                  >
-                  </span>
-                  <div
-                    v-if="option.query_alias"
-                    class="display-container rtl-text"
-                    v-bk-overflow-tips="{ placement: 'right' }"
-                  >
-                    <span class="field-alias">{{ option.query_alias || option.field_name }}</span>
-                    <span class="field-name">({{ option.field_name }})</span>
-                  </div>
-                  <div 
-                    v-else 
-                    class="display-container rtl-text" 
-                    v-bk-overflow-tips="{ placement: 'right' }"
-                  >
-                    <span class="field-name">{{ option.field_name }}</span>
-                  </div>
-                </div>
-              </bk-option>
-            </div>
-          </bk-select>
-          <bk-select
-            style="width: 77px"
-            v-model="sorts[1]"
-            :placeholder="$t('请选择')"
-          >
-            <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
             <bk-option
-              v-for="option in orderList"
-              class="bklog-v3-popover-tag"
-              :id="option.id"
-              :key="option.id"
-              :name="option.name"
+              v-for="option in selectList"
+              :id="option.field_name"
+              :key="option.field_name"
+              class="custom-option bklog-v3-popover-tag"
+              :disabled="option.disabled"
+              :name="option.field_name"
             >
+              <div class="custom-option-item bklog-v3-popover-tag">
+                <span
+                  :style="{
+                    backgroundColor: option.is_full_text ? false : getFieldIconColor(option.field_type),
+                    color: option.is_full_text ? false : getFieldIconTextColor(option.field_type),
+                  }"
+                  :class="[option.is_full_text ? 'full-text' : getFieldIcon(option.field_type), 'field-type-icon']"
+                >
+                </span>
+                <div
+                  v-if="option.query_alias"
+                  v-bk-overflow-tips="{ placement: 'right' }"
+                  class="display-container rtl-text"
+                >
+                  <span class="field-alias">{{ option.query_alias || option.field_name }}</span>
+                  <span class="field-name">({{ option.field_name }})</span>
+                </div>
+                <div
+                  v-else
+                  v-bk-overflow-tips="{ placement: 'right' }"
+                  class="display-container rtl-text"
+                >
+                  <span class="field-name">{{ option.field_name }}</span>
+                </div>
+              </div>
             </bk-option>
-          </bk-select>
-          <span
-            style="font-size: 14px; color: #c4c6cc"
-            class="bklog-icon bklog-circle-minus-filled bklog-v3-popover-tag"
-            @click="deleteTableItem(key)"
-          ></span>
-        </li>
+          </div>
+        </bk-select>
+        <bk-select
+          v-model="sorts[1]"
+          style="width: 77px"
+          :placeholder="$t('请选择')"
+        >
+          <!-- bklog-v3-popover-tag 不要乱加，这里用来判定是否为select 弹出，只做标识，不做样式作用 -->
+          <bk-option
+            v-for="option in orderList"
+            :id="option.id"
+            :key="option.id"
+            class="bklog-v3-popover-tag"
+            :name="option.name"
+          >
+          </bk-option>
+        </bk-select>
+        <span
+          style="font-size: 14px; color: #c4c6cc"
+          class="bklog-icon bklog-circle-minus-filled bklog-v3-popover-tag"
+          @click="deleteTableItem(key)"
+        ></span>
+      </li>
     </vue-draggable>
     <span
       style="margin-left: 20px; font-size: 14px; color: #3a84ff"
       class="bklog-icon bklog-log-plus-circle-shape"
       @click="addTableItem()"
-      ><span style="margin-left: 4px; font-size: 12px" class="add-sort-field">{{ $t('添加排序字段') }}</span></span
+      ><span
+        style="margin-left: 4px; font-size: 12px"
+        class="add-sort-field"
+        >{{ $t('添加排序字段') }}</span
+      ></span
     >
   </div>
 </template>
@@ -131,7 +135,8 @@
   const fieldList = computed(() => store.getters.filteredFieldList);
 
   const selectList = computed(() => {
-    const filterFn = field => field.es_doc_values && field.field_type !== '__virtual__' && field.field_type !== 'flattened';
+    const filterFn = field =>
+      field.es_doc_values && field.field_type !== '__virtual__' && field.field_type !== 'flattened';
     return fieldList.value.filter(filterFn).map(field => {
       return Object.assign({}, field, { disabled: shadowSort.value.some(item => item[0] === field.field_name) });
     });
@@ -160,9 +165,12 @@
       if (Array.isArray(newInitData) && newInitData.length) {
         const filterList = newInitData;
         if (filterList.length) {
-          sortList.value = structuredClone(filterList).map(sorts => ({ key: random(8), sorts })) as { key: string; sorts: string[] }[]
+          sortList.value = structuredClone(filterList).map(sorts => ({ key: random(8), sorts })) as {
+            key: string;
+            sorts: string[];
+          }[];
         }
-      } 
+      }
     },
     { immediate: true, deep: true },
   );
@@ -187,7 +195,7 @@
     }
   }
 
-  .table-sort-option-time{
+  .table-sort-option-time {
     box-sizing: border-box;
     width: 174px;
     padding: 0 36px 0 10px;
@@ -199,7 +207,7 @@
     border: 1px solid #c4c6cc;
     border-radius: 2px;
 
-    .badge{
+    .badge {
       padding: 0px 7px;
       color: #979bb4;
       background-color: #eaebee;
@@ -222,11 +230,11 @@
     }
   }
 
-  .bklog-circle-minus-filled{
+  .bklog-circle-minus-filled {
     cursor: pointer;
   }
 
-  .add-sort-field{
+  .add-sort-field {
     cursor: pointer;
   }
 </style>

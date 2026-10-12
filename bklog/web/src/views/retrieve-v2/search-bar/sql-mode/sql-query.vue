@@ -1,337 +1,337 @@
 <script setup>
-import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref } from 'vue';
+  import { computed, nextTick, onBeforeUnmount, onMounted, onUpdated, ref } from 'vue';
 
-import useLocale from '@/hooks/use-locale';
-import useStore from '@/hooks/use-store';
-import { debounce } from 'lodash-es';
+  import useLocale from '@/hooks/use-locale';
+  import useStore from '@/hooks/use-store';
+  import { debounce } from 'lodash-es';
 
-import CreateLuceneEditor from './codemirror-lucene';
-import SqlQueryOptions from './sql-query-options';
-import useFocusInput from '../utils/use-focus-input';
-import { hostHasRenderableContent } from '../utils/host-has-content';
+  import CreateLuceneEditor from './codemirror-lucene';
+  import SqlQueryOptions from './sql-query-options';
+  import useFocusInput from '../utils/use-focus-input';
+  import { hostHasRenderableContent } from '../utils/host-has-content';
 
-const props = defineProps({
-  value: {
-    type: String,
-    required: true,
-    default: '',
-  },
-  popupAppendToBody: {
-    type: Boolean,
-    default: false,
-  },
-});
+  const props = defineProps({
+    value: {
+      type: String,
+      required: true,
+      default: '',
+    },
+    popupAppendToBody: {
+      type: Boolean,
+      default: false,
+    },
+  });
 
-const emit = defineEmits(['retrieve', 'input', 'change', 'height-change', 'popup-change', 'text-to-query']);
-const handleHeightChange = (height) => {
-  emit('height-change', height);
-};
+  const emit = defineEmits(['retrieve', 'input', 'change', 'height-change', 'popup-change', 'text-to-query']);
+  const handleHeightChange = height => {
+    emit('height-change', height);
+  };
 
-const { t } = useLocale();
-const store = useStore();
-const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
+  const { t } = useLocale();
+  const store = useStore();
+  const isAiAssistantActive = computed(() => store.state.features.isAiAssistantActive);
 
-// 检测操作系统，决定显示 CMD 还是 Ctrl
-const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent);
-const shortcutKey = isMac ? 'CMD' : 'Ctrl';
+  // 检测操作系统，决定显示 CMD 还是 Ctrl
+  const isMac = /Mac|iPhone|iPod|iPad/i.test(navigator.userAgent);
+  const shortcutKey = isMac ? 'CMD' : 'Ctrl';
 
-// 输入框是否被 focus
-const isFocused = ref(false);
+  // 输入框是否被 focus
+  const isFocused = ref(false);
 
-// 动态 placeholder 文本
-const placeholderText = computed(() => {
-  if (window.__IS_MONITOR_APM__ || window.__IS_MONITOR_TRACE__) {
-    return ` / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
-  }
-  if (isFocused.value) {
-    if (isAiAssistantActive.value) {
-      return `${t('可输入自然语言')}，${shortcutKey} + Enter ${t('触发 AI 解析')}`;
+  // 动态 placeholder 文本
+  const placeholderText = computed(() => {
+    if (window.__IS_MONITOR_APM__ || window.__IS_MONITOR_TRACE__) {
+      return ` / ${t('快速定位到搜索')}，log:error AND"name=bklog"`;
     }
-    return ` / ${t('唤起')}， ${t('输入检索内容')}`;
-  }
-  return ` / ${t('唤起')}， ${t('输入检索内容')}${isAiAssistantActive.value ? `（${t('Tab 可切换为 AI 模式')}）` : ''}`;
-  // return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}`;
-});
+    if (isFocused.value) {
+      if (isAiAssistantActive.value) {
+        return `${t('可输入自然语言')}，${shortcutKey} + Enter ${t('触发 AI 解析')}`;
+      }
+      return ` / ${t('唤起')}， ${t('输入检索内容')}`;
+    }
+    return ` / ${t('唤起')}， ${t('输入检索内容')}${isAiAssistantActive.value ? `（${t('Tab 可切换为 AI 模式')}）` : ''}`;
+    // return `log:error AND "name=bklog" ${t('或直接输入自然语言')}，/ ${t('唤起')}`;
+  });
 
-const refSqlQueryOption = ref(null);
-const refEditorParent = ref(null);
-const editorFocusPosition = ref(null);
+  const refSqlQueryOption = ref(null);
+  const refEditorParent = ref(null);
+  const editorFocusPosition = ref(null);
 
-// SQL查询提示选中可选项索引
-const sqlActiveParamsIndex = ref(null);
+  // SQL查询提示选中可选项索引
+  const sqlActiveParamsIndex = ref(null);
 
-let editorInstance = null;
-let isSelectedText = false;
+  let editorInstance = null;
+  let isSelectedText = false;
 
-/**
+  /**
    * 更新编辑器内容
    * @param val 更新值
    * @param from 开始位置
    * @param to 结束位置：如果是指定位置插入，To可以忽略，只要指定from位置就行
    * 如果是替换，需要指定结束位置；to：设置为 Infinity 表示从from位置到结束位置全部替换
    */
-const setEditorContext = (val, from = 0, to = Infinity) => {
-  editorInstance?.setValue(val, from, to);
-};
+  const setEditorContext = (val, from = 0, to = Infinity) => {
+    editorInstance?.setValue(val, from, to);
+  };
 
-/**
+  /**
    * use-focus在监听到props.value更新时会调用此方法
    * 用于格式化并更新编辑器内容
    * @param item
    */
-const formatModelValueItem = (item) => {
-  setEditorContext(item, 0, Infinity);
-  return item;
-};
+  const formatModelValueItem = item => {
+    setEditorContext(item, 0, Infinity);
+    return item;
+  };
 
-/**
+  /**
    * 用于点击操作判定当前是否在搜索容器内部进行多次点击
    * @param e
    */
-const handleWrapperClickCapture = (e) => {
-  return refEditorParent.value?.contains(e.target) ?? false;
-};
+  const handleWrapperClickCapture = e => {
+    return refEditorParent.value?.contains(e.target) ?? false;
+  };
 
-const { modelValue, delayShowInstance, getTippyInstance, handleContainerClick, hideTippyInstance } = useFocusInput(
-  props,
-  {
-    onHeightChange: handleHeightChange,
-    formatModelValueItem,
-    refContent: refSqlQueryOption,
-    refTarget: refEditorParent,
-    refWrapper: refEditorParent,
-    arrow: false,
-    newInstance: false,
-    addInputListener: false,
-    tippyOptions: {
-      maxWidth: 'none',
-      offset: [0, 15],
-      hideOnClick: false,
-      appendTo: props.popupAppendToBody ? document.body : undefined,
-      zIndex: props.popupAppendToBody ? 99999 : undefined,
-      popperOptions: props.popupAppendToBody
-        ? {
-          strategy: 'fixed',
-          modifiers: [
-            {
-              name: 'preventOverflow',
-              options: {
-                boundary: document.body,
-                padding: 8,
-              },
-            },
-            {
-              name: 'flip',
-              options: {
-                boundary: document.body,
-                padding: 8,
-              },
-            },
-          ],
+  const { modelValue, delayShowInstance, getTippyInstance, handleContainerClick, hideTippyInstance } = useFocusInput(
+    props,
+    {
+      onHeightChange: handleHeightChange,
+      formatModelValueItem,
+      refContent: refSqlQueryOption,
+      refTarget: refEditorParent,
+      refWrapper: refEditorParent,
+      arrow: false,
+      newInstance: false,
+      addInputListener: false,
+      tippyOptions: {
+        maxWidth: 'none',
+        offset: [0, 15],
+        hideOnClick: false,
+        appendTo: props.popupAppendToBody ? document.body : undefined,
+        zIndex: props.popupAppendToBody ? 99999 : undefined,
+        popperOptions: props.popupAppendToBody
+          ? {
+              strategy: 'fixed',
+              modifiers: [
+                {
+                  name: 'preventOverflow',
+                  options: {
+                    boundary: document.body,
+                    padding: 8,
+                  },
+                },
+                {
+                  name: 'flip',
+                  options: {
+                    boundary: document.body,
+                    padding: 8,
+                  },
+                },
+              ],
+            }
+          : undefined,
+      },
+      onShowFn: instance => {
+        emit('popup-change', { isShow: true });
+
+        if (isSelectedText) {
+          return false;
         }
-        : undefined,
-    },
-    onShowFn: (instance) => {
-      emit('popup-change', { isShow: true });
 
-      if (isSelectedText) {
+        if (refSqlQueryOption.value?.beforeShowndFn?.()) {
+          instance.popper?.style.setProperty('width', '100%');
+          return true;
+        }
+
         return false;
-      }
-
-      if (refSqlQueryOption.value?.beforeShowndFn?.()) {
-        instance.popper?.style.setProperty('width', '100%');
+      },
+      onHiddenFn: () => {
+        refSqlQueryOption.value?.beforeHideFn?.();
+        emit('popup-change', { isShow: false });
         return true;
-      }
+      },
+      handleWrapperClick: handleWrapperClickCapture,
+      afterShowKeyEnter: () => {
+        editorInstance?.setFocus(Infinity);
+      },
+    },
+  );
 
-      return false;
-    },
-    onHiddenFn: () => {
-      refSqlQueryOption.value?.beforeHideFn?.();
-      emit('popup-change', { isShow: false });
-      return true;
-    },
-    handleWrapperClick: handleWrapperClickCapture,
-    afterShowKeyEnter: () => {
-      editorInstance?.setFocus(Infinity);
-    },
-  },
-);
-
-/**
+  /**
    * 编辑器内容改变回掉事件
    * @param doc
    */
-const onEditorContextChange = (doc) => {
-  const val = doc.text.join('');
-  if (val !== props.value) {
-    emit('input', val);
-    nextTick(() => {
-      emit('change', val);
-    });
-    if (val.length && !(getTippyInstance()?.state?.isShown ?? false)) {
-      delayShowInstance(refEditorParent.value);
+  const onEditorContextChange = doc => {
+    const val = doc.text.join('');
+    if (val !== props.value) {
+      emit('input', val);
+      nextTick(() => {
+        emit('change', val);
+      });
+      if (val.length && !(getTippyInstance()?.state?.isShown ?? false)) {
+        delayShowInstance(refEditorParent.value);
+      }
     }
-  }
-};
+  };
 
-const isEmptySqlString = computed(() => {
-  return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
-});
+  const isEmptySqlString = computed(() => {
+    return /^\s*$/.test(modelValue.value) || !modelValue.value.length;
+  });
 
-const refCustomPlaceholder = ref(null);
-const isCustomPlaceholderEmpty = ref(true);
+  const refCustomPlaceholder = ref(null);
+  const isCustomPlaceholderEmpty = ref(true);
 
-const syncCustomPlaceholderEmpty = () => {
-  isCustomPlaceholderEmpty.value = !hostHasRenderableContent(refCustomPlaceholder.value);
-};
+  const syncCustomPlaceholderEmpty = () => {
+    isCustomPlaceholderEmpty.value = !hostHasRenderableContent(refCustomPlaceholder.value);
+  };
 
-const handleCustomPlaceholderClick = () => {};
+  const handleCustomPlaceholderClick = () => {};
 
-const debounceRetrieve = debounce((value) => {
-  emit('retrieve', value ?? modelValue.value);
-});
+  const debounceRetrieve = debounce(value => {
+    emit('retrieve', value ?? modelValue.value);
+  });
 
-const closeAndRetrieve = (value) => {
-  // 键盘enter事件，如果当前没有选中任何可选项 或者当前没有联想提示
-  // 此时执行查询操作，如果有联想提示，关闭提示弹出
-  if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
+  const closeAndRetrieve = value => {
+    // 键盘enter事件，如果当前没有选中任何可选项 或者当前没有联想提示
+    // 此时执行查询操作，如果有联想提示，关闭提示弹出
+    if (!(getTippyInstance()?.state?.isShown ?? false) || sqlActiveParamsIndex.value === null) {
+      hideTippyInstance();
+    }
+
+    debounceRetrieve(value);
+  };
+
+  const handleQueryChange = (value, retrieve, _replace = true, focusPosition) => {
+    if (modelValue.value !== value) {
+      // 确保编辑器实例存在
+      if (!editorInstance) {
+        return;
+      }
+
+      setEditorContext(value);
+      // 更新光标位置
+      nextTick(() => {
+        if (editorInstance) {
+          if (retrieve) {
+            closeAndRetrieve(value);
+          }
+        }
+      });
+    }
+
+    if (focusPosition) {
+      setTimeout(() => {
+        editorFocusPosition.value = focusPosition;
+        editorInstance?.setFocus?.(focusPosition);
+      });
+    }
+  };
+
+  const handleSqlParamsActiveChange = val => {
+    sqlActiveParamsIndex.value = val;
+  };
+
+  const handleCancel = (force = false) => {
     hideTippyInstance();
-  }
 
-  debounceRetrieve(value);
-};
+    if (!force) {
+      handleContainerClick();
+    }
+  };
 
-const handleQueryChange = (value, retrieve, _replace = true, focusPosition) => {
-  if (modelValue.value !== value) {
-    // 确保编辑器实例存在
-    if (!editorInstance) {
+  const handleDocumentClick = e => {
+    if (
+      refEditorParent?.value?.contains(e.target) ||
+      refSqlQueryOption.value?.$el.contains(e.target) ||
+      e.target?.parentElement?.hasAttribute('data-bklog-v3-pop-click-item')
+    ) {
       return;
     }
 
-    setEditorContext(value);
-    // 更新光标位置
-    nextTick(() => {
-      if (editorInstance) {
-        if (retrieve) {
-          closeAndRetrieve(value);
-        }
-      }
-    });
-  }
+    hideTippyInstance();
+  };
 
-  if (focusPosition) {
-    setTimeout(() => {
-      editorFocusPosition.value = focusPosition;
-      editorInstance?.setFocus?.(focusPosition);
-    });
-  }
-};
+  const handleEditorClick = _e => {
+    if (editorInstance === null) {
+      createEditorInstance();
+    }
 
-const handleSqlParamsActiveChange = (val) => {
-  sqlActiveParamsIndex.value = val;
-};
+    if (!(getTippyInstance()?.state?.isShown ?? false)) {
+      delayShowInstance(refEditorParent.value);
+    }
+  };
 
-const handleCancel = (force = false) => {
-  hideTippyInstance();
-
-  if (!force) {
-    handleContainerClick();
-  }
-};
-
-const handleDocumentClick = (e) => {
-  if (
-    refEditorParent?.value?.contains(e.target)
-      || refSqlQueryOption.value?.$el.contains(e.target)
-      || e.target?.parentElement?.hasAttribute('data-bklog-v3-pop-click-item')
-  ) {
-    return;
-  }
-
-  hideTippyInstance();
-};
-
-const handleEditorClick = (_e) => {
-  if (editorInstance === null) {
-    createEditorInstance();
-  }
-
-  if (!(getTippyInstance()?.state?.isShown ?? false)) {
-    delayShowInstance(refEditorParent.value);
-  }
-};
-
-const createEditorInstance = () => {
-  editorInstance = CreateLuceneEditor({
-    value: modelValue.value,
-    target: refEditorParent.value,
-    stopDefaultKeyboard: () => {
-      return getTippyInstance()?.state?.isShown ?? false;
-    },
-    onChange: (e) => {
-      onEditorContextChange(e);
-    },
-    onKeyEnter: () => {
-      closeAndRetrieve();
-      return true;
-    },
-    onCtrlEnter: () => {
-      // 如果 AI 助手未激活，不触发 AI 解析
-      if (!isAiAssistantActive.value) {
-        return false;
-      }
-
-      // 如果有内容，直接执行 AI 解析，无论是否有下拉提示
-      if (modelValue.value.length) {
-        handleTextToQuery();
+  const createEditorInstance = () => {
+    editorInstance = CreateLuceneEditor({
+      value: modelValue.value,
+      target: refEditorParent.value,
+      stopDefaultKeyboard: () => {
+        return getTippyInstance()?.state?.isShown ?? false;
+      },
+      onChange: e => {
+        onEditorContextChange(e);
+      },
+      onKeyEnter: () => {
+        closeAndRetrieve();
         return true;
-      }
-
-      return false;
-    },
-    onFocusChange: (state, isFocusing) => {
-      // 更新 focus 状态，用于动态显示 placeholder
-      isFocused.value = isFocusing;
-
-      if (isFocusing) {
-        if (!(getTippyInstance()?.state?.isShown ?? false)) {
-          delayShowInstance(refEditorParent.value);
+      },
+      onCtrlEnter: () => {
+        // 如果 AI 助手未激活，不触发 AI 解析
+        if (!isAiAssistantActive.value) {
+          return false;
         }
-      }
-    },
-    onFocusPosChange: (state) => {
-      editorFocusPosition.value = state.selection.main.to;
-      isSelectedText = state.selection.main.to > state.selection.main.from;
-    },
+
+        // 如果有内容，直接执行 AI 解析，无论是否有下拉提示
+        if (modelValue.value.length) {
+          handleTextToQuery();
+          return true;
+        }
+
+        return false;
+      },
+      onFocusChange: (state, isFocusing) => {
+        // 更新 focus 状态，用于动态显示 placeholder
+        isFocused.value = isFocusing;
+
+        if (isFocusing) {
+          if (!(getTippyInstance()?.state?.isShown ?? false)) {
+            delayShowInstance(refEditorParent.value);
+          }
+        }
+      },
+      onFocusPosChange: state => {
+        editorFocusPosition.value = state.selection.main.to;
+        isSelectedText = state.selection.main.to > state.selection.main.from;
+      },
+    });
+  };
+
+  /**
+   * @description 处理自然语言转查询语句
+   * @param value {string}
+   * @returns {void}
+   */
+  const handleTextToQuery = value => {
+    emit('text-to-query', value ?? modelValue.value);
+    hideTippyInstance();
+  };
+
+  onMounted(() => {
+    createEditorInstance();
+    document.addEventListener('click', handleDocumentClick);
+    syncCustomPlaceholderEmpty();
   });
-};
 
-/**
- * @description 处理自然语言转查询语句
- * @param value {string}
- * @returns {void}
- */
-const handleTextToQuery = (value) => {
-  emit('text-to-query', value ?? modelValue.value);
-  hideTippyInstance();
-};
+  onUpdated(syncCustomPlaceholderEmpty);
 
-onMounted(() => {
-  createEditorInstance();
-  document.addEventListener('click', handleDocumentClick);
-  syncCustomPlaceholderEmpty();
-});
-
-onUpdated(syncCustomPlaceholderEmpty);
-
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleDocumentClick);
-  // 清理编辑器实例
-  if (editorInstance?.destroy) {
-    editorInstance.destroy();
-    editorInstance = null;
-  }
-});
+  onBeforeUnmount(() => {
+    document.removeEventListener('click', handleDocumentClick);
+    // 清理编辑器实例
+    if (editorInstance?.destroy) {
+      editorInstance.destroy();
+      editorInstance = null;
+    }
+  });
 </script>
 <template>
   <div

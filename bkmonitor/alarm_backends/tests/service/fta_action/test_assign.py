@@ -714,6 +714,21 @@ class TestAlertAssignRule:
         )
         assert rule_obj.is_matched(m.match_manager.get_match_dimensions())
 
+    def test_empty_host_id_list_does_not_match_all(self):
+        rule = {
+            "conditions": [
+                {
+                    "field": "bk_host_id",
+                    "value": [],
+                    "method": "eq",
+                    "condition": "and",
+                }
+            ]
+        }
+        match_obj = AssignRuleMatch(rule)
+        assert match_obj.is_matched({"bk_host_id": None, "namespace": "production"}) is False
+        assert match_obj.is_matched({"namespace": "production"}) is False
+
     def test_empty_value_false(self, alert):
         rule = {
             "conditions": [

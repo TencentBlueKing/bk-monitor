@@ -189,6 +189,7 @@ DELETE /v4/namespaces/bkbase/flows/{flow_name}/
           "flow_type": "recording-rule"
         },
         "annotations": {
+          "task_stopped": "false",
           "record-rule.bkmonitor/space-uid": "<SPACE_UID>",
           "record-rule.bkmonitor/name": "<NAME>",
           "record-rule.bkmonitor/generation": "<RESOLVED_GENERATION>",
@@ -238,8 +239,7 @@ DELETE /v4/namespaces/bkbase/flows/{flow_name}/
           "batch_cluster": null,
           "deploy_mode": null
         },
-        "maintainers": ["<MAINTAINER>"],
-        "desired_status": "running"
+        "maintainers": ["<MAINTAINER>"]
       },
       "status": null
     }
@@ -249,13 +249,14 @@ DELETE /v4/namespaces/bkbase/flows/{flow_name}/
 
 已确认约束：
 
+- Flow 必须指定 `metadata.annotations.task_stopped`，字符串 `"false"` 表示期望运行，`"true"` 表示期望停止；不下发 `spec.desired_status`。
 - `VmSourceNode` 的源 RT 必须已有 VM storage。
 - `VmSourceNode.data.name` 不是 VMRT，而是源表对应的 `ResultTableConfig.name`。
 - 如果 check 返回的源 VM RT 中包含当前预计算自身的输出 RT，需要在生成 `VmSourceNode` 前排除，避免自引用计算。
 - `RecordingRuleNode.inputs` 指向一个或多个 `VmSourceNode.name`。
 - `RecordingRuleNode.output` 是 recording rule 产生的新 RT，需要提前在 metadata 中定义。
 - `interval` 当前支持 `1min`、`2min`、`5min`、`10min`。
-- series 限制口径是单个 PromQL 计算的 series 总量，当前约束按 50W 理解。
+- series 限制口径是单个 PromQL 计算的 series 总量，当前约束按 50W 理解，实际限制与源数据所在集群有关；计算超时为 30 秒。
 - recording rule 场景暂不需要关心 `operation_config` 细节，先按固定默认值下发。
 
 ### VMRT 到 bkbase ResultTable name 的解析
@@ -448,9 +449,9 @@ def refresh_record_rule_v4():
 3. stop/start
    - 只更新 `RecordRuleV4.desired_status`，不生成新的 spec / resolved / flow。
    - 不重新调用 unify-query。
-   - 直接基于 `applied_resolved.flow` 下发新的 `desired_status`。
+   - 直接基于 `applied_resolved.flow`，将内部 `desired_status` 转换为 `metadata.annotations.task_stopped` 后下发。
    - 成功后更新 `applied_desired_status`；失败时 `desired_status != applied_desired_status` 表示启停未生效。
-   - Flow 计算内容指纹不包含运行态 `desired_status`，避免启停导致后续被误判为计算定义变化。
+   - Flow 计算内容指纹不包含运行态 annotation `task_stopped`，避免启停导致后续被误判为计算定义变化。
 
 4. manual refresh
    - 对当前 spec 重新 check。

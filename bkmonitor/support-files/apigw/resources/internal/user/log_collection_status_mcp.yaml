@@ -5,8 +5,10 @@ paths:
       description: >-
         Query one collector's deployment task and subscription status. Pass task_ids from Fast Create/Fast
         Update when available. Poll again after retry_after_seconds while is_terminal is false. Terminal
-        statuses: success, partial_failed, failed, terminated. 查询单个采集项的任务与订阅状态。按 retry_after_seconds 轮询，is_terminal=true
-        即停。
+        statuses: success, partial_failed, failed, terminated. Custom-report collectors have no deployment
+        task or Node Manager subscription, so they return success immediately with deployment_required=false;
+        do not poll them. 查询单个采集项的任务与订阅状态。自定义上报没有部署任务或节点管理订阅，返回 success 且 deployment_required=false，无需轮询；其他采集项按 retry_after_seconds
+        轮询，is_terminal=true 即停。
       tags:
       - log_collection_mcp
       requestBody:

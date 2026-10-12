@@ -1,0 +1,35 @@
+{
+  "name": "@blueking/apm-vue3-for-vue2",
+  "version": "0.0.1",
+  "description": "蓝鲸监控 APM 用的 Vue3→Vue2 组件库：把告警中心与 Trace 检索打成可嵌入 Vue3 子应用，供 Vue2 宿主挂载",
+  "scripts": {},
+  "files": [
+    "dist",
+    "readme.md"
+  ],
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./index.css": "./dist/index.css"
+  },
+  "author": "bkfe",
+  "license": "MIT",
+  "keywords": [
+    "@blueking",
+    "apm",
+    "vue3",
+    "vue2",
+    "@blueking/apm-vue3-for-vue2"
+  ],
+  "dependencies": {
+    "@blueking/bkui-library": "0.0.0-beta.6",
+    "@blueking/monitor-trace-log": "2.0.27",
+    "@prometheus-io/lezer-promql": "0.305.0",
+    "@toast-ui/editor": "^3.2.2",
+    "@toast-ui/editor-plugin-code-syntax-highlight": "^3.1.0",
+    "dayjs": "^1.11.18",
+    "echarts": "^5.6.0",
+    "monaco-editor": "0.44.0"
+  }
+}

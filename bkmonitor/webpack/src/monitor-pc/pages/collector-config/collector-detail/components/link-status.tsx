@@ -33,6 +33,9 @@ import { copyText } from 'monitor-common/utils/utils';
 
 import MonacoEditor from '../../../../components/editors/monaco-editor.vue';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
+import DetailRequest from '../detail-request';
+import DetailLoadError from './detail-load-error';
+import DetailSkeleton from './detail-skeleton';
 import LinkStatusChart from './link-status-chart';
 
 import type { TimeRangeType } from '../../../../components/time-range/time-range';
@@ -68,7 +71,9 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
   };
 
   tableList = [];
-  tableLoading = false;
+  tableRequest = new DetailRequest();
+  chartRequests = { minute: new DetailRequest(), hour: new DetailRequest() };
+  disposed = false;
 
   sideslider = {
     isShow: false,
@@ -80,10 +85,21 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
     if (val) {
       if (this.collectId) this.init();
       this.$nextTick(() => {
-        this.minuteChart.chartResize();
-        this.dayChart.chartResize();
+        this.minuteChart?.chartResize();
+        this.dayChart?.chartResize();
       });
-    }
+    } else this.cancelRequests();
+  }
+
+  cancelRequests() {
+    this.tableRequest.cancel();
+    this.chartRequests.minute.cancel();
+    this.chartRequests.hour.cancel();
+  }
+
+  beforeDestroy() {
+    this.disposed = true;
+    this.cancelRequests();
   }
 
   handleTimeRange(val, type: 'hour' | 'minute') {
@@ -95,31 +111,45 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
   }
 
   async getChartData(type: 'hour' | 'minute') {
+    if (this.disposed || !this.show) return;
     const [startTime, endTime] = handleTransformToTimestamp(
       type === 'minute' ? this.minuteChartConfig.timeRange : this.hourChartConfig.timeRange
     );
-    const res = await transferCountSeries({
-      collect_config_id: this.collectId,
-      interval_option: type,
-      start_time: startTime,
-      end_time: endTime,
-    }).catch(() => [{ datapoints: [] }]);
-    if (res.length) {
-      if (type === 'minute') {
-        this.minuteChartConfig.data = res[0].datapoints;
-      } else {
-        this.hourChartConfig.data = res[0].datapoints;
+    return this.chartRequests[type].run(
+      signal =>
+        transferCountSeries(
+          {
+            collect_config_id: this.collectId,
+            interval_option: type,
+            start_time: startTime,
+            end_time: endTime,
+          },
+          { signal, needMessage: false }
+        ),
+      res => {
+        if (type === 'minute') {
+          this.minuteChartConfig.data = res[0]?.datapoints || [];
+        } else {
+          this.hourChartConfig.data = res[0]?.datapoints || [];
+        }
       }
-    }
+    );
   }
 
   async getTableData() {
-    this.tableLoading = true;
-    const res = await transferLatestMsg({
-      collect_config_id: this.collectId,
-    }).catch(() => []);
-    this.tableList = res;
-    this.tableLoading = false;
+    if (this.disposed || !this.show) return;
+    return this.tableRequest.run(
+      signal =>
+        transferLatestMsg(
+          {
+            collect_config_id: this.collectId,
+          },
+          { signal, needMessage: false }
+        ),
+      res => {
+        this.tableList = res;
+      }
+    );
   }
 
   handleHiddenSlider() {
@@ -158,7 +188,10 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             <LinkStatusChart
               ref='minuteChartRef'
               data={this.minuteChartConfig.data}
+              error={this.chartRequests.minute.error}
               getChartData={() => this.getChartData('minute')}
+              loaded={this.chartRequests.minute.loaded}
+              loading={this.chartRequests.minute.loading}
               timeRange={this.minuteChartConfig.timeRange}
               type='minute'
               onTimeRangeChange={val => this.handleTimeRange(val, 'minute')}
@@ -168,7 +201,10 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
             <LinkStatusChart
               ref='dayChartRef'
               data={this.hourChartConfig.data}
+              error={this.chartRequests.hour.error}
               getChartData={() => this.getChartData('hour')}
+              loaded={this.chartRequests.hour.loaded}
+              loading={this.chartRequests.hour.loading}
               timeRange={this.hourChartConfig.timeRange}
               type='hour'
               onTimeRangeChange={val => this.handleTimeRange(val, 'hour')}
@@ -176,67 +212,80 @@ export default class LinkStatus extends tsc<LinkStatusProps, {}> {
           </div>
         </div>
         <bk-divider class='divider' />
-        <div class='table-container'>
+        <div class='table-container' aria-busy={this.tableRequest.loading ? 'true' : 'false'}>
           <div class='title'>
             <div class='panel-title'>{this.$t('数据采样')}</div>
             <div
               class='refresh-btn'
-              onClick={this.getTableData}
+              onClick={() => !this.tableRequest.loading && this.getTableData()}
             >
-              <i class='icon-monitor icon-zhongzhi1' />
+              {this.tableRequest.loading ? (
+                <span class='collector-detail-loading-indicator' role='status' aria-label={this.$t('加载中')} />
+              ) : <i class='icon-monitor icon-zhongzhi1' />}
             </div>
           </div>
 
           <div class='table-content'>
-            <bk-table
-              class='data-sample-table'
-              v-bkloading={{ isLoading: this.tableLoading }}
-              data={this.tableList}
-              header-border={false}
-              outer-border={false}
-            >
-              <bk-table-column
-                width='120'
-                label={this.$t('序号')}
-                type='index'
+            {this.tableRequest.error && (
+              <DetailLoadError
+                compact={this.tableRequest.loaded}
+                onRetry={this.getTableData}
               />
-              <bk-table-column
-                label={this.$t('原始数据')}
-                prop='message'
-                show-overflow-tooltip
-              />
-              <bk-table-column
-                width='250'
-                scopedSlots={{
-                  default: ({ row }) => <span>{formatWithTimezone(row.time)}</span>,
-                }}
-                label={this.$t('采集时间')}
-                prop='time'
-              />
-              <bk-table-column
-                width='175'
-                scopedSlots={{
-                  default: ({ row }) => [
-                    <bk-button
-                      key='copy'
-                      class='mr8'
-                      text
-                      onClick={() => this.handleCopy(row.message)}
-                    >
-                      {this.$t('复制')}
-                    </bk-button>,
-                    <bk-button
-                      key='view'
-                      text
-                      onClick={() => this.handleViewData(row)}
-                    >
-                      {this.$t('查看上报数据')}
-                    </bk-button>,
-                  ],
-                }}
-                label={this.$t('操作')}
-              />
-            </bk-table>
+            )}
+            {!this.tableRequest.loaded && !this.tableRequest.error ? (
+              <DetailSkeleton section='sample' />
+            ) : (
+              this.tableRequest.loaded && (
+                <bk-table
+                  class='data-sample-table'
+                  data={this.tableList}
+                  header-border={false}
+                  outer-border={false}
+                >
+                  <bk-table-column
+                    width='120'
+                    label={this.$t('序号')}
+                    type='index'
+                  />
+                  <bk-table-column
+                    label={this.$t('原始数据')}
+                    prop='message'
+                    show-overflow-tooltip
+                  />
+                  <bk-table-column
+                    width='250'
+                    scopedSlots={{
+                      default: ({ row }) => <span>{formatWithTimezone(row.time)}</span>,
+                    }}
+                    label={this.$t('采集时间')}
+                    prop='time'
+                  />
+                  <bk-table-column
+                    width='175'
+                    scopedSlots={{
+                      default: ({ row }) => [
+                        <bk-button
+                          key='copy'
+                          class='mr8'
+                          text
+                          onClick={() => this.handleCopy(row.message)}
+                        >
+                          {this.$t('复制')}
+                        </bk-button>,
+                        <bk-button
+                          key='view'
+                          text
+                          onClick={() => this.handleViewData(row)}
+                        >
+                          {this.$t('查看上报数据')}
+                        </bk-button>,
+                      ],
+                    }}
+                    label={this.$t('操作')}
+                  />
+                </bk-table>
+              )
+            )}
           </div>
         </div>
 

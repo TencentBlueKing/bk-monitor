@@ -1,0 +1,492 @@
+[
+  {
+    "data_name": "base_alarm",
+    "etl_config": "bk_gse_system_event",
+    "bk_data_id": 1000,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": [
+      {
+        "value_type": "bool",
+        "value": "true",
+        "name": "inject_local_time"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      }
+    ]
+  },
+  {
+    "data_name": "snapshot",
+    "etl_config": "bk_system_basereport",
+    "bk_data_id": 1001,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "mysql",
+    "etl_config": "bk_component_mysql",
+    "bk_data_id": 1002,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "redis",
+    "etl_config": "bk_component_redis",
+    "bk_data_id": 1003,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "apache",
+    "etl_config": "bk_component_apache",
+    "bk_data_id": 1004,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "nginx",
+    "etl_config": "bk_component_nginx",
+    "bk_data_id": 1005,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "tomcat",
+    "etl_config": "bk_component_tomcat",
+    "bk_data_id": 1006,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "process_perf",
+    "etl_config": "bk_system_proc",
+    "bk_data_id": 1007,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "uptimecheck_heartbeat",
+    "etl_config": "bk_uptimecheck_heartbeat",
+    "bk_data_id": 1008,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "uptimecheck_tcp",
+    "etl_config": "bk_uptimecheck_tcp",
+    "bk_data_id": 1009,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "uptimecheck_udp",
+    "etl_config": "bk_uptimecheck_udp",
+    "bk_data_id": 1010,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "uptimecheck_http",
+    "etl_config": "bk_uptimecheck_http",
+    "bk_data_id": 1011,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "process_port",
+    "etl_config": "bk_system_proc_port",
+    "bk_data_id": 1013,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "cmd_report",
+    "etl_config": "bk_gse_custom_string",
+    "bk_data_id": 1100000,
+    "source_label": "bk_monitor",
+    "type_label": "bk_event",
+    "is_custom_source": false,
+    "option_list": [
+      {
+        "value_type": "bool",
+        "value": "true",
+        "name": "inject_local_time"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      }
+    ]
+  },
+  {
+    "data_name": "1100001",
+    "etl_config": "bk_standard",
+    "bk_data_id": 1100001,
+    "source_label": "bk_monitor",
+    "type_label": "bk_event",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "1100002",
+    "etl_config": "bk_standard",
+    "bk_data_id": 1100002,
+    "source_label": "bk_monitor",
+    "type_label": "bk_event",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "uptimecheck_icmp",
+    "etl_config": "bk_standard",
+    "bk_data_id": 1100003,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": []
+  },
+  {
+    "data_name": "pingserver",
+    "etl_config": "bk_standard_v2_time_series",
+    "bk_data_id": 1100005,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": [
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "true",
+        "name": "disable_metric_cutter"
+      }
+    ]
+  },
+  {
+    "data_name": "bkunifylogbeat common metrics",
+    "etl_config": "bk_standard_v2_time_series",
+    "bk_data_id": 1100006,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": [
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "true",
+        "name": "disable_metric_cutter"
+      },
+      {
+        "value_type": "string",
+        "value": "",
+        "name": "metrics_report_path"
+      }
+    ]
+  },
+  {
+    "data_name": "bkunifylogbeat task metrics",
+    "etl_config": "bk_standard_v2_time_series",
+    "bk_data_id": 1100007,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": [
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "true",
+        "name": "disable_metric_cutter"
+      },
+      {
+        "value_type": "string",
+        "value": "",
+        "name": "metrics_report_path"
+      }
+    ]
+  },
+  {
+    "data_name": "gse_process_event_report",
+    "etl_config": "bk_standard_v2_event",
+    "bk_data_id": 1100008,
+    "source_label": "bk_monitor",
+    "type_label": "event",
+    "is_custom_source": true,
+    "option_list": [
+      {
+        "value_type": "bool",
+        "value": "true",
+        "name": "inject_local_time"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      }
+    ]
+  },
+  {
+    "data_name": "2_custom_report_aggate_dataid",
+    "etl_config": "bk_standard_v2_time_series",
+    "bk_data_id": 1100011,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": true,
+    "option_list": [
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "true",
+        "name": "disable_metric_cutter"
+      },
+      {
+        "value_type": "string",
+        "value": "",
+        "name": "metrics_report_path"
+      }
+    ]
+  },
+  {
+    "data_name": "2_operation_data_custom_series",
+    "etl_config": "bk_standard_v2_time_series",
+    "bk_data_id": 1100012,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": true,
+    "option_list": [
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "true",
+        "name": "disable_metric_cutter"
+      },
+      {
+        "value_type": "string",
+        "value": "",
+        "name": "metrics_report_path"
+      }
+    ]
+  },
+  {
+    "data_name": "2_bkm_statistics",
+    "etl_config": "bk_standard_v2_time_series",
+    "bk_data_id": 1100013,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": true,
+    "option_list": [
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "true",
+        "name": "disable_metric_cutter"
+      },
+      {
+        "value_type": "string",
+        "value": "",
+        "name": "metrics_report_path"
+      }
+    ]
+  },
+  {
+    "data_name": "2_datalink_stats",
+    "etl_config": "bk_standard_v2_time_series",
+    "bk_data_id": 1100014,
+    "source_label": "datalink",
+    "type_label": "time_series",
+    "is_custom_source": true,
+    "option_list": [
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "true",
+        "name": "disable_metric_cutter"
+      },
+      {
+        "value_type": "string",
+        "value": "",
+        "name": "metrics_report_path"
+      }
+    ]
+  },
+  {
+    "data_name": "2_bkunifylogbeat_k8s_common",
+    "etl_config": "bk_standard_v2_time_series",
+    "bk_data_id": 1100015,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": [
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "true",
+        "name": "disable_metric_cutter"
+      }
+    ]
+  },
+  {
+    "data_name": "2_bkunifylogbeat_k8s_task",
+    "etl_config": "bk_standard_v2_time_series",
+    "bk_data_id": 1100016,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": [
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "true",
+        "name": "disable_metric_cutter"
+      }
+    ]
+  },
+  {
+    "data_name": "2_bkmonitorbeat_gather_up",
+    "etl_config": "bk_standard_v2_time_series",
+    "bk_data_id": 1100017,
+    "source_label": "bk_monitor",
+    "type_label": "time_series",
+    "is_custom_source": false,
+    "option_list": [
+      {
+        "value_type": "string",
+        "value": "data",
+        "name": "flat_batch_key"
+      },
+      {
+        "value_type": "string",
+        "value": "ms",
+        "name": "timestamp_precision"
+      },
+      {
+        "value_type": "string",
+        "value": "true",
+        "name": "disable_metric_cutter"
+      }
+    ]
+  }
+]

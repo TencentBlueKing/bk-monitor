@@ -104,7 +104,8 @@ export default defineComponent({
           onInput={this.handleInput}
           onKeyup={this.handleKeyup}
         />
-        <span class='input-value-hidden'>{this.value}</span>
+        {/* 隐藏镜像元素：撑开容器以自适应宽度，无值时回退到 placeholder，避免输入框被压成一条线 */}
+        <span class='input-value-hidden'>{this.value || this.placeholder}</span>
       </div>
     );
   },

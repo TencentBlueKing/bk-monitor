@@ -29,7 +29,12 @@ from constants.apm import PreCalculateSpecificField, SpanStandardField, Precalcu
 from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension
 
 NON_SEARCHABLE_FIELD_TYPES = {"object", "nested"}
-DIMENSION_FIELD_TYPES = {dimension.value for dimension in EnabledStatisticsDimension}
+DIMENSION_FIELD_TYPES = {
+    EnabledStatisticsDimension.KEYWORD.value,
+    EnabledStatisticsDimension.INTEGER.value,
+    EnabledStatisticsDimension.DOUBLE.value,
+    EnabledStatisticsDimension.LONG.value,
+}
 TRACE_NON_DIMENSION_FIELDS = {
     PreCalculateSpecificField.MIN_START_TIME.value,
     PreCalculateSpecificField.MAX_END_TIME.value,

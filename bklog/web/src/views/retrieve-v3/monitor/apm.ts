@@ -28,17 +28,17 @@ import Vue from 'vue';
 import LogIcon from '@/components/log-icon';
 
 import i18n from '@/language/i18n';
+import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
+import useStore from '@/hooks/use-store';
+import { performanceMonitorService } from '@/storage';
+
+import MonitorApmLog from './monitor';
 if (!window.mainComponent?.$t) {
   window.mainComponent = {
     $t: i18n.t.bind(i18n),
     $i18n: i18n,
   };
 }
-import JsonFormatWrapper from '@/global/json-format-wrapper.vue';
-import useStore from '@/hooks/use-store';
-import { performanceMonitorService } from '@/storage';
-
-import MonitorApmLog from './monitor';
 
 const logStore = useStore();
 

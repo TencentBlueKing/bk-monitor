@@ -26,7 +26,7 @@
 
 import { toRaw } from 'vue';
 
-import type { IEntity, ITopoNode } from './types';
+import type { IEntity, ITopoNode } from './types/topo';
 import type { ITargetInfo } from 'monitor-ui/chart-plugins/plugins/caller-line-chart/use-custom';
 
 /** 根因节点样式 */

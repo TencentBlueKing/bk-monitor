@@ -1,0 +1,47 @@
+{
+  "description": "TCP基础场景 - 端口检测",
+  "task_config": {
+    "bk_biz_id": 2,
+    "name": "TCP拨测任务",
+    "protocol": "tcp",
+    "labels": {
+      "env": "prod"
+    },
+    "config": {
+      "ip_list": [
+        "10.0.0.1"
+      ],
+      "port": 443,
+      "timeout": 5000,
+      "period": 120,
+      "response": "OK",
+      "response_format": "in"
+    }
+  },
+  "nodes": [
+    {
+      "bk_biz_id": 2,
+      "name": "测试节点2",
+      "bk_host_id": 10002,
+      "ip": "10.0.0.1",
+      "plat_id": 1
+    }
+  ],
+  "expected_deployment": {
+    "subscription_created": true,
+    "task_status": "STARTING",
+    "node_count": 1,
+    "protocol": "tcp",
+    "verify_fields": {
+      "ip_list": [
+        "10.0.0.1"
+      ],
+      "port": 443,
+      "response": "OK",
+      "response_format": "in",
+      "timeout": "5000ms",
+      "period": "120s"
+    },
+    "notes": "TCP 协议用于端口检测，验证单个目标 IP 和端口号的正确性"
+  }
+}

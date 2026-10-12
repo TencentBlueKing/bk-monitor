@@ -47,8 +47,8 @@ const GPU_METRIC_SET = new Set<string>([
  * @description K8s GPU 图表数据查询 Promql 生成器。
  * GPU 指标自带 namespace / pod_name / container_name 维度，但不带 workload 维度：
  * - 按 namespace / pod / container 聚合时，可直接按对应维度查询；
- * - 按 workload 聚合时，需关联 container_cpu_usage_seconds_total 补齐 workload 标签
- *   （与后端 K8sWorkloadMeta 的 promql 口径一致）。
+ * - 按 workload 聚合时，优先关联独立的 pod_with_workload_relation，
+ *   未部署新关系指标的集群兼容回退到 container_cpu_usage_seconds_total。
  * 注意 GPU 指标的 pod 维度标签为 pod_name（非 pod），聚合维度需对应。
  */
 export class K8sGpuPromqlGenerator extends K8sBasePromqlGenerator {
@@ -56,15 +56,31 @@ export class K8sGpuPromqlGenerator extends K8sBasePromqlGenerator {
 
   scenePrivatePromqlGenerateMain(metric: string, context: K8sBasePromqlGeneratorContext): string {
     if (!GPU_METRIC_SET.has(metric)) return '';
-    // 按 workload 聚合：GPU 指标无 workload 标签，借助 container_cpu_usage_seconds_total 关联补齐
+    // 按 workload 聚合：新关系按 Pod 优先，旧 CPU 关系仅补新指标尚未覆盖的 Pod，避免双算或关系冲突
     if (context.groupByField === K8sTableColumnKeysEnum.WORKLOAD) {
+      const relationDimensions = 'bcs_cluster_id, workload_kind, workload_name, namespace, pod_name';
+      const relation = (filter: string) => `max by (${relationDimensions}) (
+          label_replace(
+            pod_with_workload_relation{${filter}} $time_shift,
+            "pod_name", "$1", "pod", "(.+)"
+          )
+        )`;
+      const workloadFilter = K8sBasePromqlGenerator.createCommonPromqlContent(context);
+      const namespaceFilter = K8sBasePromqlGenerator.createCommonPromqlContent(context, true);
       return `${K8sBasePromqlGenerator.createCommonPromqlMethod(context)} (
-        (count by (workload_kind, workload_name, namespace, pod_name) (
-          container_cpu_usage_seconds_total{${K8sBasePromqlGenerator.createCommonPromqlContent(context)},container_name!="POD"} $time_shift
-        ) * 0 + 1)
-        * on(pod_name, namespace) group_right(workload_kind, workload_name)
-        sum by (pod_name, namespace) (
-          ${gpuOr(metric, K8sBasePromqlGenerator.createCommonPromqlContent(context, true), ' $time_shift')}
+        (
+          (${relation(workloadFilter)})
+          or (
+            (count by (${relationDimensions}) (
+              container_cpu_usage_seconds_total{${workloadFilter},container_name!="POD"} $time_shift
+            ) * 0 + 1)
+            unless on(bcs_cluster_id, namespace, pod_name)
+            (${relation(namespaceFilter)})
+          )
+        )
+        * on(bcs_cluster_id, pod_name, namespace) group_right(workload_kind, workload_name)
+        sum by (bcs_cluster_id, pod_name, namespace) (
+          ${gpuOr(metric, namespaceFilter, ' $time_shift')}
         )
       )`;
     }

@@ -1,3 +1,5 @@
+@import '../failure-topo/failure-topo-dark-tooltip';
+
 .timeline-zoom {
     position: absolute;
     right: 22px;
@@ -31,7 +33,7 @@
       }
     }
 
-    .failure-topo-graph-tooltip {
+    .failure-topo-dark-tooltip {
       z-index: 9999 !important;
     }
 

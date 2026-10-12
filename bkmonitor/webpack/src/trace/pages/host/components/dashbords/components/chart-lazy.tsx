@@ -26,6 +26,8 @@
 
 import { defineComponent, onBeforeUnmount, onMounted, shallowRef, useTemplateRef } from 'vue';
 
+import HostLoading from '../../host-loading/host-loading';
+
 /**
  * 懒渲染容器：仅当自身滚动进入视口（含 100px 预加载边距）后才渲染默认插槽，
  * 用于推迟图表卡片的挂载与取数，避免一次性请求全部图表。
@@ -69,7 +71,7 @@ export default defineComponent({
         style={{ minHeight: typeof props.minHeight === 'number' ? `${props.minHeight}px` : props.minHeight }}
         class='chart-lazy'
       >
-        {visible.value ? slots.default?.() : null}
+        {visible.value ? slots.default?.() : <div class='host-loading__card' style={{ height: typeof props.minHeight === 'number' ? `${props.minHeight}px` : props.minHeight }}><HostLoading variant='chart' /></div>}
       </div>
     );
   },

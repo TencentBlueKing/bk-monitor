@@ -125,7 +125,7 @@ class Command(BaseCommand):
         # 使用哈希环下发配置
         try:
             self.stdout.write(f"开始下发 {len(manual_configs)} 个配置文件到集群 {cluster_id}")
-            BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, manual_configs, "manual", namespace)
+            BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, namespace, manual_configs, "manual")
             stats["success"] = len(manual_configs)
             self.stdout.write(self.style.SUCCESS(f"✓ 成功下发 {len(manual_configs)} 个配置文件到命名空间 {namespace}"))
         except Exception as e:

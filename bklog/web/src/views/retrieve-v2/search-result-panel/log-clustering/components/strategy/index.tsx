@@ -30,10 +30,10 @@ import { Component as tsc } from 'vue-tsx-support';
 import type { From } from 'bk-magic-vue';
 
 import './index.scss';
+import $http from '../../../../../../api';
 
 type FormType = 'alarm' | 'increase';
 type StrategyType = 'new_cls_strategy' | 'normal_strategy';
-import $http from '../../../../../../api';
 
 const { $i18n } = window.mainComponent;
 

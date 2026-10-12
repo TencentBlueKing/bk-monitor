@@ -30,7 +30,7 @@ import { type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { useResizeObserver } from '@vueuse/core';
 import { useI18n } from 'vue-i18n';
 
-import TableSkeleton from '../../../../components/skeleton/table-skeleton';
+import { HostLoadingCell, HostRefreshStatus } from '../host-loading/host-loading';
 import { useTableEllipsis } from '../../../../hooks/use-table-popover';
 import { PROCESS_LIST_COLUMNS, PROCESS_LIST_ELLIPSIS_CELL_CLASS } from '../../constants/process';
 import { useProcessColumnsRenderer } from './hooks/use-process-columns-renderer';
@@ -54,6 +54,11 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => [],
     },
+    /** 列宽缓存（key -> 像素宽度），覆盖列配置默认宽度 */
+    columnWidths: {
+      type: Object as PropType<Record<string, number>>,
+      default: () => ({}),
+    },
     /** 排序（`-key` 倒序 / `key` 正序） */
     sort: {
       type: String,
@@ -64,6 +69,8 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    refreshing: Boolean,
+    refreshError: Boolean,
     /** 表格空数据类型 */
     emptyType: {
       type: String as PropType<'500' | 'empty' | 'search-empty'>,
@@ -73,6 +80,7 @@ export default defineComponent({
   emits: {
     sortChange: (_v: string) => true,
     columnsChange: (_cols: string[]) => true,
+    columnResize: (_widths: Record<string, number>) => true,
     rowClick: (_row: ProcessItem) => true,
     clearFilter: () => true,
     retry: () => true,
@@ -105,15 +113,7 @@ export default defineComponent({
     /** 列渲染器 hook（含各列单元格自定义渲染逻辑） */
     const { buildColumn } = useProcessColumnsRenderer({
       onRowClick: row => emit('rowClick', row),
-    });
-
-    /** 表格骨架屏展示相关配置（loading 时隐藏表体并覆盖骨架屏） */
-    const tableSkeletonConfig = computed(() => {
-      if (!props.loading) return null;
-      return {
-        tableClass: 'common-table-hidden-body',
-        skeletonClass: 'common-skeleton-show-body',
-      };
+      getColumnWidth: colKey => props.columnWidths[colKey],
     });
 
     /**
@@ -135,7 +135,6 @@ export default defineComponent({
       bodyHeight,
       buildColumn,
       tableSort,
-      tableSkeletonConfig,
       handleSortChange,
     };
   },
@@ -144,9 +143,11 @@ export default defineComponent({
       <div
         ref='body'
         class='process-table'
+        aria-busy={this.loading || this.refreshing}
       >
+        <HostRefreshStatus loading={this.refreshing} error={this.refreshError} onRetry={() => this.$emit('retry')} />
         <PrimaryTable
-          class={`process-table-body ${this.data.length === 0 ? 'process-table-body--empty' : ''} ${this.tableSkeletonConfig?.tableClass || ''}`}
+          class={`process-table-body ${!this.loading && this.data.length === 0 ? 'process-table-body--empty' : ''}`}
           v-slots={{
             empty: () =>
               this.emptyType === '500' ? (
@@ -170,8 +171,11 @@ export default defineComponent({
             })),
             checked: this.visibleColumns,
           }}
-          columns={PROCESS_LIST_COLUMNS.map(this.buildColumn)}
-          data={this.data}
+          columns={PROCESS_LIST_COLUMNS.map(column => ({
+            ...this.buildColumn(column),
+            ...(this.loading ? { cell: (_: unknown, { rowIndex }: { rowIndex: number }) => <HostLoadingCell index={rowIndex} kind={['cpu', 'memory', 'fileHandle'].includes(column.type) ? 'metric' : column.type} /> } : {}),
+          }))}
+          data={this.loading ? Array.from({ length: Math.max(3, Math.floor((this.bodyHeight - 42) / 56)) }, (_, index) => ({ id: `loading-${index}` })) : this.data}
           disableDataPage={true}
           hover={true}
           maxHeight={this.bodyHeight}
@@ -182,11 +186,13 @@ export default defineComponent({
           size='small'
           sort={this.tableSort}
           tableLayout='fixed'
+          onColumnResizeChange={(ctx: { columnsWidth: Record<string, number> }) =>
+            this.$emit('columnResize', ctx.columnsWidth)
+          }
           // @ts-expect-error
           onDisplayColumnsChange={(cols: string[]) => this.$emit('columnsChange', cols)}
           onSortChange={this.handleSortChange}
         />
-        <TableSkeleton class={`common-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
       </div>
     );
   },

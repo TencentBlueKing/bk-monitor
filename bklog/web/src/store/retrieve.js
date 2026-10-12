@@ -24,7 +24,6 @@
  * IN THE SOFTWARE.
  */
 
-
 import http from '@/api';
 import { transformSceneConfigs } from '@/store/scene-filter-config';
 
@@ -36,7 +35,6 @@ const random = (length = 10) => {
   }
   return result;
 };
-
 
 const LIGHTEN_NAME_LIMIT = 3;
 
@@ -220,12 +218,12 @@ export default {
             bk_biz_id: rootState?.bkBizId,
           },
         })
-        .then((resp) => {
+        .then(resp => {
           const data = resp.data ?? resp ?? [];
           commit('updateSceneConfigs', { data });
           return data;
         })
-        .catch((err) => {
+        .catch(err => {
           console.error('requestSceneConfigs error:', err);
           commit('updateSceneConfigs', { data: [] });
           return [];

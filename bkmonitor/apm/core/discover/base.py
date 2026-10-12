@@ -15,7 +15,7 @@ import logging
 import traceback
 from abc import ABC
 from collections import defaultdict
-from typing import NamedTuple
+from typing import Any, NamedTuple
 from collections.abc import Callable
 
 from django.conf import settings
@@ -25,12 +25,14 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from apm import constants
 from apm.constants import DiscoverRuleType
 from apm.core.discover.instance_data import BaseInstanceData
-from apm.models import ApmApplication, ApmTopoDiscoverRule, TraceDataSource
+from apm.core.handlers.query.span_query import SpanQuery
+from apm.models import ApmApplication, ApmTopoDiscoverRule, TopoNode, TraceDataSource
 from apm.utils.base import divide_biscuit
 from apm.utils.es_search import limits
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
+from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
 from constants.apm import OtlpKey, SpanKind, TelemetryDataType
 from core.drf_resource.exceptions import CustomException
 
@@ -156,6 +158,8 @@ class DiscoverBase(ABC):
     model = None
     # 定义此发现器根据 span 列表发现时 span 列表是否为过滤后的 span 列表
     DISCOVERY_ALL_SPANS = False
+    # 依赖 Trace 上下文的发现器不能使用按服务折叠后的独立 Span。
+    DISCOVERY_REQUIRES_TRACE_CONTEXT: bool = False
 
     def __init__(self, bk_biz_id, app_name):
         self.bk_biz_id = bk_biz_id
@@ -331,6 +335,8 @@ class DiscoverBase(ABC):
 
 
 class TopoHandler:
+    """编排常规 Trace 发现与每服务最新 Span 的兜底发现，完成后维护服务 Trace 心跳。"""
+
     TRACE_ID_CHUNK_MAX_DURATION = 10 * 60
     # 最大发现的TraceId数量
     TRACE_ID_MAX_SIZE = 50000
@@ -511,8 +517,28 @@ class TopoHandler:
 
         return 1 if not per_trace_size else per_trace_size
 
-    def discover(self):
-        """application spans discover"""
+    def _discover_spans(
+        self,
+        spans: list[dict[str, Any]],
+        template: list[tuple[type[DiscoverBase], Any]],
+        is_fallback: bool = False,
+    ) -> None:
+        """按 Span kind 分发；兜底轮重读已有对象，并跳过依赖 Trace 上下文的发现器。"""
+        filter_spans: list[dict[str, Any]] = [span for span in spans if span[OtlpKey.KIND] in self.FILTER_KIND]
+        topo_params: list[tuple[type[DiscoverBase], list[dict[str, Any]], str, Any]] = []
+        for cls, remain_data in template:
+            if is_fallback and cls.DISCOVERY_REQUIRES_TRACE_CONTEXT:
+                continue
+            if is_fallback:
+                # 常规轮已完成写入，不能继续用轮次开始前的快照判断是否需要创建。
+                remain_data = cls(self.bk_biz_id, self.app_name).get_remain_data()
+            selected_spans = spans if cls.DISCOVERY_ALL_SPANS else filter_spans
+            topo_params.append((cls, selected_spans, "topo", remain_data))
+        pool = ThreadPool()
+        pool.map_ignore_exception(self._discover_handle, topo_params)
+
+    def discover(self) -> bool | None:
+        """常规发现后用每服务最新完整 Span 补齐稀疏服务，并记录 Trace 心跳。"""
         start = datetime.datetime.now()
         trace_id_count = 0
         span_count = 0
@@ -526,10 +552,11 @@ class TopoHandler:
             )
             return
 
-        # 提前构造topo_params结构
-        topo_params_template = []
-        for c in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value):
-            topo_params_template.append((c, None, "topo", c(self.bk_biz_id, self.app_name).get_remain_data()))
+        # 提前读取各发现器的已有对象。
+        topo_params_template: list[tuple[type[DiscoverBase], Any]] = [
+            (discover_cls, discover_cls(self.bk_biz_id, self.app_name).get_remain_data())
+            for discover_cls in DiscoverContainer.list_discovers(TelemetryDataType.TRACE.value)
+        ]
 
         for round_index, trace_ids in enumerate(self.list_trace_ids(index_name)):
             if not trace_ids:
@@ -556,20 +583,31 @@ class TopoHandler:
 
             span_count += len(all_spans)
 
-            # 拓扑发现任务
-            # endpoint\relation\remote_service_relation\root_endpoint 需要 kind != 0/1 数据
-            # host\instance\node 需要全部 span 数据
-            topo_params = []
-            filter_spans = [i for i in all_spans if i[OtlpKey.KIND] in self.FILTER_KIND]
-            filter_span_count += len(filter_spans)
-            # 根据模板更新spans数据
-            for c, spans, handle_type, remain_data in topo_params_template:
-                if c.DISCOVERY_ALL_SPANS:
-                    topo_params.append((c, all_spans, handle_type, remain_data))
-                else:
-                    topo_params.append((c, filter_spans, handle_type, remain_data))
+            filter_span_count += sum(span[OtlpKey.KIND] in self.FILTER_KIND for span in all_spans)
+            self._discover_spans(all_spans, topo_params_template)
 
-            pool.map_ignore_exception(self._discover_handle, topo_params)
+        # 按服务取完整的最后一条 Span，补齐 Trace 抽样和轮次截断遗漏的稀疏服务。
+        end_time: int = int(start.timestamp())
+        span_query: SpanQuery = SpanQuery([self._trace_target])
+        last_spans: list[dict[str, Any]] = span_query.query_group_list(
+            end_time + parse_time_compare_abbreviation(constants.DISCOVER_TIME_RANGE),
+            end_time,
+            group_field=OtlpKey.get_resource_key(ResourceAttributes.SERVICE_NAME),
+            limit=SpanQuery.QUERY_MAX_LIMIT,
+        )
+        self._discover_spans(last_spans, topo_params_template, is_fallback=True)
+        observed: dict[str, int] = {}
+        for span in last_spans:
+            name = extract_field_value((OtlpKey.RESOURCE, ResourceAttributes.SERVICE_NAME), span)
+            if name:
+                observed[name] = int(span[OtlpKey.END_TIME]) // 1_000_000
+        TopoNode.touch_heartbeat(
+            self.bk_biz_id,
+            self.app_name,
+            TelemetryDataType.TRACE.value,
+            observed,
+            int(datetime.datetime.now().timestamp()),
+        )
 
         logger.info(
             f"[TopoHandler] discover finished {self.bk_biz_id} {self.app_name} "

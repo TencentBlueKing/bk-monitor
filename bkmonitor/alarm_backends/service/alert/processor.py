@@ -160,7 +160,7 @@ class BaseAlertProcessor:
 
         blocked = 0
         for alert in alerts:
-            if alert.is_blocked:
+            if alert.is_blocked or alert.shield_end_close:
                 blocked += 1
                 # 如果告警被熔断，不发送composite事件
                 continue

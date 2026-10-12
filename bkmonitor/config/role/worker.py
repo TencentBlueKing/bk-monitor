@@ -226,6 +226,7 @@ ACTION_TASK_CRONTAB = [
     ("alarm_backends.service.alert.manager.tasks.check_abnormal_alert", "* * * * *", "cluster"),
     # 定期关闭流控告警，避免与整点之类的任务并发，设置每小时执行一次
     ("alarm_backends.service.alert.manager.tasks.check_blocked_alert", "40 */1 * * *", "cluster"),
+    ("alarm_backends.service.alert.manager.shield_tasks.check_shield_end_close_alert", "* * * * *", "cluster"),
     # 定期检测屏蔽策略，进行告警的屏蔽
     ("alarm_backends.service.converge.shield.tasks.check_and_send_shield_notice", "* * * * *", "cluster"),
     # 全局任务
@@ -264,6 +265,7 @@ DEFAULT_CRONTAB += [
     ("metadata.task.config_refresh.refresh_kafka_storage", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_es_info", "*/10 * * * *", "global"),
     ("metadata.task.config_refresh.refresh_consul_storage", "*/10 * * * *", "global"),
+    ("metadata.task.config_refresh.refresh_redis_storage", "*/10 * * * *", "global"),
     # 检查V4数据源是否存在对应的Consul配置，若存在则删除
     ("metadata.task.config_refresh.check_and_delete_ds_consul_config", "0 1 * * *", "global"),
     ("metadata.task.config_refresh.refresh_bcs_info", "*/10 * * * *", "global"),

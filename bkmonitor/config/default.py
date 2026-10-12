@@ -280,6 +280,10 @@ DISK_FILTER_CONDITION_LIST_V1 = [
 # SQL最大查询条数
 SQL_MAX_LIMIT = 500000
 
+# 命名输出（query_output_config.output_list）最多支持的输出个数
+# 与 UQ 侧 defaultNamedOutputSettings 的 MaxOutputs 对齐，可通过环境变量 BKAPP_SETTINGS_NAMED_OUTPUT_MAX_COUNT 覆盖
+NAMED_OUTPUT_MAX_COUNT = 4
+
 FILE_SYSTEM_TYPE_RT_ID = "system.disk"
 FILE_SYSTEM_TYPE_FIELD_NAME = "device_type"
 FILE_SYSTEM_TYPE_IGNORE = ["iso9660", "tmpfs", "udf"]
@@ -396,6 +400,8 @@ RESOURCE_DATA_COLLECT_RATIO = 0
 
 # Redis 自监控收尾阶段的策略成本周期快照，按环境通过 GlobalConfig 显式开启。
 ENABLE_REDIS_STRATEGY_COST_SNAPSHOT = False
+# 命令之间检查的软预算（秒），不能中断在途 Redis 命令。取值夹在 5–30，不随节点数放大。
+REDIS_STRATEGY_COST_SNAPSHOT_TOTAL_BUDGET_SECONDS = 20
 
 # 告警汇总配置
 DIMENSION_COLLECT_THRESHOLD = 2
@@ -524,8 +530,10 @@ BKMONITOR_EXTERNAL_PROXY_TOKEN = os.getenv(
 
 IS_AUTO_DEPLOY_CUSTOM_REPORT_SERVER = True
 
-# 集群内上报固定域名
-CUSTOM_REPORT_DEFAULT_K8S_CLUSTER_SERVICE = "bkm-collector.bkmonitor-operator"
+# 集群内上报服务配置
+CUSTOM_REPORT_ENDPOINTS = [
+    {"endpoint": "bkm-collector.bkmonitor-operator", "alias": "集群内服务"},
+]
 
 # 监控内置可观测数据上报Redis Key TODO：联调时赋予默认值，后续更改
 BUILTIN_DATA_RT_REDIS_KEY = os.getenv(
@@ -1282,6 +1290,8 @@ BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
+ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
+BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
 BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")
@@ -1757,6 +1767,13 @@ OPENCLAW_RECOVERING_MCP_SERVER_NAME = ""
 ENABLE_AI_RENAME = False
 # MCP权限校验豁免的工具名称白名单
 MCP_PERMISSION_EXEMPT_TOOLS = ["list_spaces"]
+# Opt in by canonical unified-MCP tool name; applies to standalone routes too.
+# Independent MCP permission first; only explicit denial checks the SaaS permission.
+# Keep empty until target IAM permissions and application access have been verified.
+MCP_NATIVE_PERMISSION_TOOLS: list[str] = []
+# Native log MVP requires an explicitly confirmed V3 current-action model.
+# {"mode": "v3-current", "gateway_url": "https://.../api/bk-iam/prod/"}
+MCP_LOG_IAM_PROFILE: dict = {}
 MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
 # APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
 # 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
@@ -1906,19 +1923,10 @@ BKBASE_REDIS_RECONNECT_INTERVAL_SECONDS = 2
 BKBASE_REDIS_LOCK_NAME = "watch_bkbase_meta_redis_lock"
 # 是否同步数据至DB
 ENABLE_SYNC_BKBASE_METADATA_TO_DB = False
-# BKBase graph relation 链路自动 apply 业务白名单，包括内置关系周期双写和图定义变更增量同步
-_graph_relation_bkbase_sync_biz_id_white_list_env = os.getenv("GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST", "")
-GRAPH_RELATION_BKBASE_SYNC_BIZ_ID_WHITE_LIST = [
-    int(biz_id.strip())
-    for biz_id in _graph_relation_bkbase_sync_biz_id_white_list_env.split(",")
-    if biz_id.strip().isdigit()
-]
-# 图关系 v1beta3 查询业务灰度白名单，默认关闭，避免写侧灰度自动触发查询切流
-_graph_relation_query_v1beta3_biz_id_white_list_env = os.getenv("GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST", "")
-GRAPH_RELATION_QUERY_V1BETA3_BIZ_ID_WHITE_LIST = [
-    int(biz_id.strip())
-    for biz_id in _graph_relation_query_v1beta3_biz_id_white_list_env.split(",")
-    if biz_id.strip().isdigit()
+# Graph Relation V4 业务灰度白名单，同时控制双写链路自动 apply 和 v1beta3 查询切流
+_graph_relation_v4_biz_id_white_list_env = os.getenv("GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST", "")
+GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST = [
+    int(biz_id.strip()) for biz_id in _graph_relation_v4_biz_id_white_list_env.split(",") if biz_id.strip().isdigit()
 ]
 
 # 特殊的可以不被禁用的BCS集群ID
@@ -2030,6 +2038,9 @@ K8S_V2_BIZ_LIST = []
 
 # RUM 灰度列表，关闭灰度: [0] 或删除该配置
 RUM_BIZ_LIST = []
+
+# LLM 观测灰度业务列表，关闭灰度: [0] 或删除该配置
+LLM_BIZ_LIST = []
 
 # APM UnifyQuery 查询业务黑名单
 APM_UNIFY_QUERY_BLACK_BIZ_LIST = []

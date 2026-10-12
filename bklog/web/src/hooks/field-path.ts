@@ -37,11 +37,7 @@ export type FieldPathLookup = (_fieldName: string) => { field_name?: string } | 
  * - `__ext_json.deployment.pod.node` → `__ext_json.deployment.pod`（未声明子字段，向上回溯）
  * - `__ext_json` → `__ext_json`（虚拟 object 中间层也可作为字段）
  */
-export const resolveMappedFieldPath = (
-  path: string,
-  resolveField: FieldPathLookup,
-  fallback?: string,
-): string => {
+export const resolveMappedFieldPath = (path: string, resolveField: FieldPathLookup, fallback?: string): string => {
   const normalized = normalizeArrayFieldPath(path);
   if (!normalized) {
     return fallback ?? '';

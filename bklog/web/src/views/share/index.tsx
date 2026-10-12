@@ -52,7 +52,7 @@ export default defineComponent({
       errorMessage.value = '正在解析地址, 请稍候 ...';
       http
         .request('retrieve/getShareParams', { query: { token: linkId } }, { catchIsShowMessage: false })
-        .then((resp) => {
+        .then(resp => {
           if (resp.result) {
             const data = resp.data.data;
             const { storage, indexItem, catchFieldCustomConfig } = data.store;
@@ -70,7 +70,7 @@ export default defineComponent({
 
           errorMessage.value = resp.message || '获取分享链接参数失败，请稍后重试！';
         })
-        .catch((err) => {
+        .catch(err => {
           errorMessage.value = err.message || err || '获取分享链接参数失败，请稍后重试！';
         });
     };

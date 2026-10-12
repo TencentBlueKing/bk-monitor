@@ -7,10 +7,12 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from core.drf_resource import Resource, api
+from kernel_api.resource.log_collection_common import StrictMCPSerializer, normalize_task_ids
 
 COMMON_UPDATE_FIELDS = {
     "collector_config_name",
     "description",
+    "parent_index_set_ids",
 }
 HOST_UPDATE_FIELDS = COMMON_UPDATE_FIELDS | {
     "target_object_type",
@@ -112,28 +114,13 @@ SEPARATOR_FILTER_FIELDS = {"fieldindex", "word", "op", "logic_op"}
 SYSLOG_CONDITION_FIELDS = {"syslog_field", "syslog_content", "syslog_op", "syslog_logic_op"}
 
 
-def normalize_task_ids(value: Any) -> list[str]:
-    if value in (None, ""):
-        return []
-    if isinstance(value, str):
-        values = value.split(",")
-    elif isinstance(value, (list, tuple, set)):
-        values = value
-    else:
-        values = [value]
-    return [str(item).strip() for item in values if str(item).strip()]
-
-
 def reject_unknown_fields(value: Any, allowed_fields: set[str], path: str) -> None:
     if not isinstance(value, Mapping):
         return
     unknown_fields = set(value) - allowed_fields
     if unknown_fields:
         raise serializers.ValidationError(
-            {
-                f"{path}.{field}": ["This field is not supported by Fast Update MCP."]
-                for field in sorted(unknown_fields)
-            }
+            {f"{path}.{field}": ["This field is not supported by Fast Update MCP."] for field in sorted(unknown_fields)}
         )
 
 
@@ -207,28 +194,24 @@ def validate_nested_update_fields(attrs: Mapping) -> None:
         validate_plugin_params(config.get("params"), f"{config_path}.params")
 
 
-class StrictFastUpdateSerializer(serializers.Serializer):
-    """拒绝未声明字段，避免 MCP 静默忽略环境、清洗或存储参数。"""
-
-    def to_internal_value(self, data):
-        if isinstance(data, Mapping):
-            unknown_fields = set(data.keys()) - set(self.fields)
-            if unknown_fields:
-                raise serializers.ValidationError(
-                    {field: ["This field is not supported by Fast Update MCP."] for field in sorted(unknown_fields)}
-                )
-        return super().to_internal_value(data)
-
-
 class FastUpdateLogCollectorResource(Resource):
     """只更新采集配置，不修改清洗、字段和存储配置。"""
 
-    class RequestSerializer(StrictFastUpdateSerializer):
+    class RequestSerializer(StrictMCPSerializer):
+        unsupported_api_name = "Fast Update MCP"
+        unsupported_field_message = "This field is not supported by {api_name}."
+
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         collector_config_id = serializers.IntegerField(required=True, min_value=1, label="采集项ID")
         collector_config_name = serializers.CharField(required=False, max_length=50, label="采集项名称")
         description = serializers.CharField(
             required=False, allow_blank=True, allow_null=True, max_length=100, label="描述"
+        )
+        parent_index_set_ids = serializers.ListField(
+            child=serializers.IntegerField(min_value=1),
+            required=False,
+            allow_null=True,
+            label="归属索引组ID列表",
         )
         target_object_type = serializers.CharField(required=False, label="目标类型")
         target_node_type = serializers.CharField(required=False, label="节点类型")
@@ -288,7 +271,9 @@ class FastUpdateLogCollectorResource(Resource):
                 }
             )
         if environment in {"linux", "windows"} and len(request_data.get("description") or "") > 64:
-            raise serializers.ValidationError({"description": "Host collector description cannot exceed 64 characters."})
+            raise serializers.ValidationError(
+                {"description": "Host collector description cannot exceed 64 characters."}
+            )
         if environment == "container" and "description" in request_data and request_data["description"] is None:
             raise serializers.ValidationError({"description": "Container collector description cannot be null."})
 
@@ -302,9 +287,7 @@ class FastUpdateLogCollectorResource(Resource):
             or {}
         )
 
-        if deployment_requested and (
-            "subscription_id" not in update_result or "task_id_list" not in update_result
-        ):
+        if deployment_requested and ("subscription_id" not in update_result or "task_id_list" not in update_result):
             latest_collector = api.log_search.data_bus_collectors(collector_config_id=collector_config_id)
         else:
             latest_collector = {}
@@ -314,9 +297,7 @@ class FastUpdateLogCollectorResource(Resource):
             latest_collector.get("subscription_id", collector.get("subscription_id")),
         )
         task_id_list = (
-            update_result.get("task_id_list", latest_collector.get("task_id_list"))
-            if deployment_requested
-            else []
+            update_result.get("task_id_list", latest_collector.get("task_id_list")) if deployment_requested else []
         )
         return {
             "collector_config_id": collector_config_id,

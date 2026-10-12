@@ -280,6 +280,38 @@ class Actions:
             }
         },
     )
+    USING_LOG_COLLECTION_MCP = ActionDef(
+        id="using_log_collection_mcp",
+        name="使用日志采集MCP",
+        description="使用日志采集MCP进行日志采集配置管理",
+        resource_type="space",
+        extensions={
+            "v3": {
+                "action_id": "using_log_collection_mcp",
+                "type": "manage",
+                "version": 1,
+                "name_en": "Using Log Collection MCP",
+                "description_en": "Use Log Collection MCP to manage log collection configurations",
+                "related_actions": ["view_business_v2"],
+            }
+        },
+    )
+    USING_LOG_EXTRACT_MCP = ActionDef(
+        id="using_log_extract_mcp",
+        name="使用日志提取MCP",
+        description="使用日志提取MCP进行日志文件提取",
+        resource_type="space",
+        extensions={
+            "v3": {
+                "action_id": "using_log_extract_mcp",
+                "type": "manage",
+                "version": 1,
+                "name_en": "Using Log Extract MCP",
+                "description_en": "Use Log Extract MCP to extract log files",
+                "related_actions": ["view_business_v2"],
+            }
+        },
+    )
     USING_METADATA_MCP = ActionDef(
         id="using_metadata_mcp",
         name="使用元数据MCP",

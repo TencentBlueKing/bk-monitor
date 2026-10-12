@@ -962,7 +962,8 @@ class CollectorEtlSerializer(serializers.Serializer):
     bk_biz_id = serializers.IntegerField(label=_("业务id"), required=False)
     etl_config = serializers.CharField(label=_("清洗类型"), required=True)
     etl_params = CollectorEtlParamsSerializer(required=False)
-    data = serializers.CharField(label=_("日志内容"), required=True)
+    # 调试原文必须与真实入库的日志逐字节一致，末尾换行等空白字符参与清洗匹配，不能裁剪
+    data = serializers.CharField(label=_("日志内容"), required=True, trim_whitespace=False)
 
 
 class CleanTemplatePreviewSerializer(serializers.Serializer):
@@ -1681,6 +1682,7 @@ class CustomCollectorBaseSerializer(CollectorETLParamsFieldSerializer, ParentInd
         label=_("备注说明"), max_length=64, required=False, allow_null=True, allow_blank=True
     )
     is_display = serializers.BooleanField(label=_("是否展示"), default=True, required=False)
+    # 授权范围：采集项 + 索引集 + 所属业务的业务访问，详见 CollectorHandler._authorization_owners
     owners = serializers.ListField(
         label=_("授权用户列表"),
         required=False,
@@ -1726,6 +1728,9 @@ class CustomCreateSerializer(CustomCollectorBaseSerializer, PlatformIndexFieldsS
     sort_fields = serializers.ListField(label=_("排序字段"), required=False, allow_empty=True)
     target_fields = serializers.ListField(label=_("目标字段"), required=False, allow_empty=True)
     ignore_exists = serializers.BooleanField(label=_("是否忽略已存在"), required=False, default=False)
+    auto_select_storage_cluster = serializers.BooleanField(
+        label=_("是否自动选择公共存储集群"), required=False, default=False
+    )
 
     def validate(self, attrs: dict) -> dict:
         attrs = super().validate(attrs)

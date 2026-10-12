@@ -71,6 +71,11 @@ export default defineComponent({
       type: Object as PropType<TableCellRenderContext>,
       default: () => ({}),
     },
+    /** 最少保持可见的标签数量，未配置时回退列配置 cellSpecificProps.minVisibleCount，默认 0 保持原有折叠行为 */
+    minVisibleCount: {
+      type: Number,
+      default: 0,
+    },
   },
   setup() {
     /**
@@ -98,19 +103,21 @@ export default defineComponent({
                 '--tag-hover-color': tag?.tagHoverColor || tag?.tagColor || DEFAULT_TAG_COLOR.tagHoverColor,
                 '--tag-hover-bg-color': tag?.tagHoverBgColor || tag?.tagBgColor || DEFAULT_TAG_COLOR.tagHoverBgColor,
               }}
-              class={`tag-item ${this.renderCtx?.isEnabledCellEllipsis(this.column)}`}
+              class='tag-item'
               stopPropagation={false}
             >
               {{
                 default: () => (
-                  <span
-                    class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
-                    data-col-id={this.colId}
-                    data-index={index}
-                    data-row-id={this.rowId}
-                  >
-                    {tag?.alias || tag}
-                  </span>
+                  <div class={this.renderCtx?.isEnabledCellEllipsis(this.column)}>
+                    <span
+                      class={`${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+                      data-col-id={this.colId}
+                      data-index={index}
+                      data-row-id={this.rowId}
+                    >
+                      {tag?.alias || tag}
+                    </span>
+                  </div>
                 ),
               }}
             </Tag>
@@ -119,6 +126,7 @@ export default defineComponent({
         data={this.tags}
         ellipsisTip={this.column?.cellSpecificProps?.ellipsisTip ?? this.defaultEllipsisTipsContentRender}
         ellipsisTippyOptions={this.column?.cellSpecificProps?.ellipsisTippyOptions ?? {}}
+        minVisibleCount={this.column?.cellSpecificProps?.minVisibleCount ?? this.minVisibleCount}
       />
     );
   },

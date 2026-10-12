@@ -18,5 +18,5 @@ BROWSER_SCREEN_HEIGHT = FieldSpec(field_name="browser.screen.height", field_alia
 BROWSER_SCREEN_WIDTH = FieldSpec(field_name="browser.screen.width", field_alias=_("屏幕宽度"))
 
 # viewport
-BROWSER_VIEWPORT_HEIGHT = FieldSpec(field_name="browser.viewport.height", field_alias=_("视口高度"))
-BROWSER_VIEWPORT_WIDTH = FieldSpec(field_name="browser.viewport.width", field_alias=_("视口宽度"))
+BROWSER_VIEWPORT_HEIGHT = FieldSpec(field_name="browser.viewport.height", field_alias=_("可视区域高度"))
+BROWSER_VIEWPORT_WIDTH = FieldSpec(field_name="browser.viewport.width", field_alias=_("可视区域宽度"))

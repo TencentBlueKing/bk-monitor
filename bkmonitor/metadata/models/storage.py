@@ -108,6 +108,8 @@ class ClusterInfo(models.Model):
 
     CONSUL_PREFIX_PATH = f"{config.CONSUL_PATH}/unify-query/data/storage"
     CONSUL_VERSION_PATH = f"{config.CONSUL_PATH}/unify-query/version/storage"
+    REDIS_PREFIX_KEY = f"{config.UNIFY_QUERY_REDIS_KV_BASE_PATH}:data:storage"
+    REDIS_CHANNEL = f"{REDIS_PREFIX_KEY}:storage_channel"
 
     TYPE_INFLUXDB = "influxdb"
     TYPE_KAFKA = "kafka"
@@ -966,6 +968,51 @@ class ClusterInfo(models.Model):
 
         logger.info(f"all es table info is refresh to consul success count->[{total_count}].")
 
+    @staticmethod
+    def _format_storage_address(schema: str, host: str, port: int) -> str:
+        """IPv6 地址需要方括号，才能被 UQ 的 URL 解析器识别。"""
+        if not (host.startswith("[") and host.endswith("]")):
+            try:
+                address = ipaddress.ip_address(host)
+            except ValueError:
+                pass
+            else:
+                if address.version == 6:
+                    host = f"[{address.compressed}]"
+        return f"{schema}://{host}:{port}"
+
+    @classmethod
+    def refresh_redis_storage_config(cls):
+        """全量发布 UQ Storage 配置，清理已删除集群后通知重载。"""
+        storage_by_id = {storage.cluster_id: storage for storage in cls.objects.all()}
+        redis_client = RedisTools().client
+        expected_keys = {f"{cls.REDIS_PREFIX_KEY}:{cluster_id}" for cluster_id in storage_by_id}
+
+        for cluster_id, storage in storage_by_id.items():
+            schema = storage.schema if storage.schema in ("http", "https") else "http"
+            value = {
+                "address": cls._format_storage_address(schema, storage.domain_name, storage.port),
+                "username": storage.username,
+                "password": storage.password,
+                "type": storage.cluster_type,
+            }
+            # SET 不设 TTL，同时清除旧 Key 可能存在的过期时间。
+            redis_client.set(f"{cls.REDIS_PREFIX_KEY}:{cluster_id}", json.dumps(value))
+
+        existing_keys = {
+            key.decode("utf-8") if isinstance(key, bytes) else key
+            for key in redis_client.scan_iter(match=f"{cls.REDIS_PREFIX_KEY}:*")
+        }
+        stale_keys = existing_keys - expected_keys
+        if stale_keys:
+            redis_client.delete(*stale_keys)
+
+        redis_client.publish(
+            cls.REDIS_CHANNEL,
+            json.dumps({"storage_ids": sorted(storage_by_id), "timestamp": time.time()}),
+        )
+        logger.info("refreshed storage redis config: count=%s, deleted=%s", len(storage_by_id), len(stale_keys))
+
     def base64_with_prefix(self, content: str | None) -> str | None:
         """编码，并添加上前缀"""
         # 如果为空，则直接返回
@@ -1014,6 +1061,7 @@ class ClusterInfo(models.Model):
                 "display_name": self.display_name,
                 "version": self.version,
                 "custom_option": self.custom_option,
+                "default_settings": self.default_settings,
                 "registered_system": self.registered_system,
                 "creator": self.creator,
                 "create_time": arrow.get(self.create_time).timestamp,
@@ -1151,7 +1199,14 @@ class ClusterInfo(models.Model):
             )
             raise ValueError(_("集群名【{}】与已有集群冲突，请确认后重试").format(cluster_name))
 
-        if cluster_type not in (cls.TYPE_INFLUXDB, cls.TYPE_ES, cls.TYPE_KAFKA, cls.TYPE_REDIS, cls.TYPE_ARGUS):
+        if cluster_type not in (
+            cls.TYPE_INFLUXDB,
+            cls.TYPE_ES,
+            cls.TYPE_KAFKA,
+            cls.TYPE_REDIS,
+            cls.TYPE_ARGUS,
+            cls.TYPE_DORIS,
+        ):
             logger.error(
                 f"reg_system->[{registered_system}] try to add cluster type->[{cluster_type}] but is not at CLUSTER_TYPE_CHOICES, nothing "
                 "will do"
@@ -1164,7 +1219,7 @@ class ClusterInfo(models.Model):
         ).exists():
             logger.error(
                 f"reg_system->[{registered_system}] try to add cluster->[{cluster_type}] with domain->[{domain_name}] port->[{port}] username->[{username}] "
-                f"pass->[{password}] which already has the same cluster config , nothing will do."
+                "which already has the same cluster config , nothing will do."
             )
             raise ValueError(_("存在同样配置集群，请确认后重试"))
 
@@ -1204,7 +1259,7 @@ class ClusterInfo(models.Model):
         new_cluster.cluster_init()
 
         # 同步集群配置到bkbase
-        if new_cluster.cluster_type == ClusterInfo.TYPE_ES:
+        if new_cluster.cluster_type in (ClusterInfo.TYPE_ES, ClusterInfo.TYPE_DORIS):
             ClusterConfig.sync_cluster_config(cluster=new_cluster)
 
         return new_cluster
@@ -1221,7 +1276,7 @@ class ClusterInfo(models.Model):
         schema=None,
         is_ssl_verify=None,
         version=None,
-        label="",
+        label=None,
         default_settings=None,
         ssl_verification_mode: str | None = None,
         ssl_certificate_authorities: str | None = None,
@@ -1256,6 +1311,12 @@ class ClusterInfo(models.Model):
 
         from metadata.models.data_link.data_link_configs import ClusterConfig
 
+        previous_sync_fields = ClusterConfig.sync_fields(self)
+        if self.cluster_type == self.TYPE_DORIS and default_settings is not None:
+            if not isinstance(default_settings, dict):
+                raise ValueError("default_settings 必须是 JSON 对象")
+            default_settings = {**(self.default_settings or {}), **default_settings}
+
         args = {
             "display_name": display_name,
             "description": description,
@@ -1282,15 +1343,24 @@ class ClusterInfo(models.Model):
                 setattr(self, attribute_name, value)
                 # 由于已经有更新了，所以需要更新最后更新者
                 self.last_modify_user = operator
-                logger.info(
-                    f"cluster->[{self.cluster_name}] attribute->[{attribute_name}] is set to->[{value}] by->[{operator}]"
-                )
+                logger.info(f"cluster->[{self.cluster_name}] attribute->[{attribute_name}] updated by->[{operator}]")
+
+        # 仅实际下发字段变化时同步，元数据修改不依赖 BKBase。
+        needs_sync = previous_sync_fields != ClusterConfig.sync_fields(self)
+        if needs_sync and self.cluster_type == self.TYPE_ES and not self.CLUSTER_NAME_REGEX.match(self.cluster_name):
+            original_cluster_name = self.cluster_name
+            self.cluster_name = f"auto_cluster_name_{self.cluster_id}"
+            logger.warning(
+                "cluster(%s) cluster_name: %s is not valid, set to: %s",
+                self.cluster_id,
+                original_cluster_name,
+                self.cluster_name,
+            )
 
         self.save()
         logger.info(f"cluster->[{self.cluster_name}] update success.")
 
-        # 同步集群配置到bkbase（目前仅支持ES集群）
-        if self.cluster_type == ClusterInfo.TYPE_ES:
+        if needs_sync:
             ClusterConfig.sync_cluster_config(cluster=self)
 
         return True
@@ -3053,7 +3123,6 @@ class ESStorage(models.Model, StorageResultTable):
     def _get_index_infos(
         self, namespaced: str, request_timeout: int | None = None
     ) -> tuple[dict[str, dict[str, Any]], str]:
-        index_version = ""
         extra = {ESNamespacedClientType.CAT.value: {"format": "json"}, ESNamespacedClientType.INDICES.value: {}}[
             namespaced
         ]
@@ -3068,15 +3137,21 @@ class ESStorage(models.Model, StorageResultTable):
             ESNamespacedClientType.INDICES.value: self.es_client.indices.stats,
         }[namespaced]
 
-        index_info_map: dict[str, dict[str, Any]] = getdata(func(index=self.search_format_v2(), **extra))
-        if len(index_info_map) != 0:
-            index_version = "v2"
-        else:
-            index_info_map: dict[str, dict[str, Any]] = getdata(func(index=self.search_format_v1(), **extra))
-            if len(index_info_map) != 0:
-                index_version = "v1"
+        # 通配符可能命中索引名前缀更长的其他结果表，需先精确过滤再判断索引版本。
+        for index_version, search_format, index_re in (
+            ("v2", self.search_format_v2(), self.index_re_v2),
+            ("v1", self.search_format_v1(), self.index_re_v1),
+        ):
+            raw_index_info_map: dict[str, dict[str, Any]] = getdata(func(index=search_format, **extra))
+            index_info_map = {
+                index_name: index_info
+                for index_name, index_info in raw_index_info_map.items()
+                if index_re.fullmatch(index_name)
+            }
+            if index_info_map:
+                return index_info_map, index_version
 
-        return index_info_map, index_version
+        return {}, ""
 
     def get_index_names(self, request_timeout: int | None = None) -> list[str]:
         index_info_map, index_version = self._get_index_infos(
@@ -3431,7 +3506,10 @@ class ESStorage(models.Model, StorageResultTable):
         last_read_alias_name = f"{es_storage.index_name}_{last_date_str}_read"
 
         # 确定上一个写别名指向的索引
-        last_indexes = list(es_storage.es_client.indices.get_alias(name=last_write_alias_name).keys())
+        try:
+            last_indexes = list(es_storage.es_client.indices.get_alias(name=last_write_alias_name).keys())
+        except (elasticsearch5.NotFoundError, elasticsearch.NotFoundError, elasticsearch6.NotFoundError):
+            last_indexes = []
         if not last_indexes:
             print("上一个索引没有进行配置，因此也不需要进行写别名的移动")
             return

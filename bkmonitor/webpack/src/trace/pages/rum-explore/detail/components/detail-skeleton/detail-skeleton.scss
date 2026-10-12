@@ -1,0 +1,166 @@
+.rum-detail-skeleton {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+
+  /* 标题区，结构与 .rum-detail-header 对应 */
+  .skeleton-header {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    padding: 20px 40px;
+    background: #f2f6fc;
+  }
+
+  .skeleton-logo {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    border-radius: 8px;
+  }
+
+  .skeleton-header-main {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .skeleton-title-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .skeleton-title {
+    width: 240px;
+    height: 24px;
+  }
+
+  .skeleton-badge {
+    flex-shrink: 0;
+    width: 48px;
+    height: 20px;
+    border-radius: 4px;
+
+    &:nth-of-type(2) {
+      width: 64px;
+    }
+  }
+
+  .skeleton-info-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 0;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .skeleton-info-item {
+    width: 18%;
+    height: 20px;
+  }
+
+  /* Tab 栏，结构与 .rum-detail-tabs 对应 */
+  .skeleton-tabs {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+    height: 40px;
+    padding: 0 40px;
+    background: #f2f6fc;
+  }
+
+  .skeleton-tab {
+    width: 124px;
+    height: 100%;
+    background: #e4e9f2;
+    border-radius: 8px 8px 0 0;
+
+    &:nth-of-type(2) {
+      width: 138px;
+    }
+  }
+
+  /* 卡片区，结构与 .rum-detail-card 对应 */
+  .skeleton-card {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    gap: 40px;
+    padding: 24px 40px;
+    background: #fff;
+  }
+
+  /* 详情区块，结构与 .rum-detail-sections 对应 */
+  .skeleton-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 40px;
+  }
+
+  .skeleton-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .skeleton-section-title {
+    width: 96px;
+    height: 22px;
+  }
+
+  .skeleton-section-body {
+    display: flex;
+    gap: 12px;
+  }
+
+  .skeleton-section-card {
+    width: 140px;
+    height: 70px;
+    border-radius: 4px;
+  }
+
+  .skeleton-section-block {
+    height: 240px;
+    background: #f7f9fc;
+    border-radius: 4px;
+  }
+
+  /* 原始数据折叠块，结构与 .rum-origin-data-panel 对应（默认收起，仅块头） */
+  .skeleton-origin-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .skeleton-origin-block {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    height: 40px;
+    padding: 0 12px;
+    background: #f2f6fc;
+    border: 1px solid #c1cde5;
+    border-radius: 4px;
+  }
+
+  .skeleton-origin-arrow {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+  }
+
+  .skeleton-origin-title {
+    flex-shrink: 0;
+    width: 72px;
+    height: 16px;
+  }
+
+  .skeleton-origin-summary {
+    width: 40%;
+    height: 16px;
+  }
+}

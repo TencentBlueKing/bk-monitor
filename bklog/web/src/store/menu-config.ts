@@ -203,7 +203,6 @@ export const DEFAULT_MENU_LISTS = [
   },
 ];
 
-
 export interface MenuConfigItem {
   id: string;
   name: string;
@@ -220,7 +219,7 @@ export const mergeMenuWithDefaultConfig = (
   routeMap: Record<string, string>,
   deepUpdateMenu: (_oldMenu: MenuConfigItem, _resMenu: MenuConfigItem) => void,
 ) => {
-  menuList.forEach((child) => {
+  menuList.forEach(child => {
     child.id = routeMap[child.id] || child.id;
     const menu = DEFAULT_MENU_LISTS.find(menuItem => menuItem.id === child.id);
     if (menu) {

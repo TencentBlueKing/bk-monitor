@@ -755,7 +755,7 @@ export default {
   无限: 'Unlimited',
   解析示例: 'Parse example',
   输入: 'Input',
-  '无限展示': 'Unlimited view',
+  无限展示: 'Unlimited view',
   '{n} 层展示': '{n}-level view',
   动态对象字段: 'Dynamic object field',
   对象: 'Object',

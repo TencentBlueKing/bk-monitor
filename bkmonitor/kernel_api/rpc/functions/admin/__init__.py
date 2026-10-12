@@ -39,6 +39,7 @@ from . import (
     token,
     uptime_check,
     vm_short_link,
+    vm_query,
 )
 
 __all__ = [
@@ -72,4 +73,5 @@ __all__ = [
     "token",
     "uptime_check",
     "vm_short_link",
+    "vm_query",
 ]

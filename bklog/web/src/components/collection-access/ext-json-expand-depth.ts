@@ -38,7 +38,9 @@ export const toSubmitExpandDepth = (select: ExpandDepthSelect): ExpandDepthSubmi
 };
 
 /** 仅提取公开配置，剥离 overflow_strategy 等后台字段 */
-export const pickPublicExtJsonConfig = (config?: { expand_depth?: ExpandDepthSubmit } | null): ExtJsonConfigPublic | undefined => {
+export const pickPublicExtJsonConfig = (
+  config?: { expand_depth?: ExpandDepthSubmit } | null,
+): ExtJsonConfigPublic | undefined => {
   if (!config || typeof config !== 'object') {
     return undefined;
   }

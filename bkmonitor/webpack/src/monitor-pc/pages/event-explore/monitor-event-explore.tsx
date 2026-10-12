@@ -23,6 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component, Mixins, Provide, ProvideReactive, Ref } from 'vue-property-decorator';
 
 import { getDataSourceConfig } from 'monitor-api/modules/grafana';
@@ -82,6 +83,10 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
   dataId = '';
   /** 数据ID列表 */
   dataIdList = [];
+  dataSourceLoading = true;
+  dataSourceRequestId = 0;
+  dataSourceError = false;
+  pendingDataType: { data_source_label: string; data_type_label: string } = null;
   /** 查询语句 */
   queryString = '';
   /** 实时输入的查询语句 */
@@ -119,8 +124,21 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
 
     this.isShowFavorite = isShowFavorite;
     this.getRouteParams();
-    this.defaultDataId = await this.handleGetUserConfig(this.defaultDataIdKey);
-    await this.getDataIdList(!this.dataId);
+    const requestId = ++this.dataSourceRequestId;
+    try {
+      this.defaultDataId = await this.handleGetUserConfig(this.defaultDataIdKey);
+      if (requestId !== this.dataSourceRequestId) return;
+      await this.getDataIdList(!this.dataId, requestId);
+    } catch {
+      if (requestId === this.dataSourceRequestId) this.dataSourceError = true;
+    } finally {
+      if (requestId === this.dataSourceRequestId) this.dataSourceLoading = false;
+    }
+  }
+
+  beforeDestroy() {
+    this.dataSourceRequestId += 1;
+    clearInterval(this.timer);
   }
 
   @Provide('handleTimeRangeChange')
@@ -280,6 +298,10 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
 
   /** 事件类型切换 */
   async handleEventTypeChange(dataType: { data_source_label: string; data_type_label: string }) {
+    const requestId = ++this.dataSourceRequestId;
+    this.dataSourceLoading = true;
+    this.dataSourceError = false;
+    this.pendingDataType = dataType;
     this.cacheQuery.set(
       this.dataTypeLabel,
       structuredClone({
@@ -298,7 +320,13 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
         data_source_label: dataType.data_source_label,
         data_type_label: dataType.data_type_label,
         return_dimensions: false,
-      }).catch(() => []);
+      }).catch(() => null);
+    }
+    if (requestId !== this.dataSourceRequestId) return;
+    if (!list) {
+      this.dataSourceError = true;
+      this.dataSourceLoading = false;
+      return;
     }
     this.dataId = cacheQuery?.dataId || list[0]?.id || '';
     this.dataIdList = list;
@@ -308,15 +336,25 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
     this.queryString = cacheQuery?.query_string || '';
     this.group_by = cacheQuery?.group_by || [];
     this.filter_dict = cacheQuery?.filter_dict || {};
+    this.dataSourceLoading = false;
+    this.pendingDataType = null;
     this.setRouteParams();
   }
 
-  async getDataIdList(init = true) {
+  async getDataIdList(init = true, requestId = ++this.dataSourceRequestId) {
+    this.dataSourceLoading = true;
+    this.dataSourceError = false;
     const list = await getDataSourceConfig({
       data_source_label: this.dataSourceLabel,
       data_type_label: this.dataTypeLabel,
       return_dimensions: false,
-    }).catch(() => []);
+    }).catch(() => null);
+    if (requestId !== this.dataSourceRequestId) return;
+    this.dataSourceLoading = false;
+    if (!list) {
+      this.dataSourceError = true;
+      return;
+    }
     this.dataIdList = list;
     if (init) {
       if (list.find(item => item.id === this.defaultDataId)) {
@@ -325,6 +363,11 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
         this.dataId = list[0]?.id || '';
       }
     }
+  }
+
+  retryDataSource() {
+    if (this.pendingDataType) return this.handleEventTypeChange(this.pendingDataType);
+    return this.getDataIdList(!this.dataId);
   }
 
   /** where条件修改 */
@@ -492,6 +535,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
                 dataSourceLabel={this.dataSourceLabel}
                 dataTypeLabel={this.dataTypeLabel}
                 isShowFavorite={this.isShowFavorite}
+                loading={this.dataSourceLoading}
                 refreshInterval={this.refreshInterval}
                 timeRange={this.timeRange}
                 timezone={this.timezone}
@@ -517,6 +561,8 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
         filterMode={this.filterMode}
         group_by={this.group_by}
         hideFeatures={this.hideFeatures}
+        initializationError={this.dataSourceError}
+        initializing={this.dataSourceLoading}
         queryString={this.queryString}
         source={APIType.MONITOR}
         where={this.where}
@@ -525,6 +571,7 @@ export default class MonitorEventExplore extends Mixins(UserConfigMixin) {
         onFilterModeChange={this.handleFilterModeChange}
         onQueryStringChange={this.handleQueryStringChange}
         onQueryStringInputChange={this.handleQueryStringInputChange}
+        onRetryInitialize={this.retryDataSource}
         onSetRouteParams={this.setRouteParams}
         onShowResidentBtnChange={this.handleShowResidentBtnChange}
         onWhereChange={this.handleWhereChange}

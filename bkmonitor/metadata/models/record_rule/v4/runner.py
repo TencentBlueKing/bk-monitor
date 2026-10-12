@@ -10,7 +10,6 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-import copy
 import logging
 from typing import Any
 
@@ -76,7 +75,7 @@ class RecordRuleV4Runner:
                 "rule": self.rule,
                 "bk_tenant_id": self.rule.bk_tenant_id,
                 "flow_name": flow_payload["flow_name"],
-                "flow_config": self.with_desired_status(flow_payload["flow_config"], self.rule.desired_status),
+                "flow_config": flow_payload["flow_config"],
                 "content_hash": flow_payload["content_hash"],
                 "creator": self.actor,
                 "updater": self.actor,
@@ -124,7 +123,7 @@ class RecordRuleV4Runner:
             self.rule, flow, action_type=action_type, source=self.source, operator=self.operator
         )
         try:
-            flow_config = self.with_desired_status(flow.flow_config, self.rule.desired_status)
+            flow_config = RecordRuleV4Flow.with_desired_status(flow.flow_config, self.rule.desired_status)
             self.apply_flow(flow_config)
             flow.flow_config = flow_config
             flow.save(update_fields=["flow_config", "updated_at"])
@@ -228,7 +227,7 @@ class RecordRuleV4Runner:
             self.rule, flow, action_type=action_type, source=self.source, operator=self.operator
         )
         try:
-            flow_config = self.with_desired_status(flow.flow_config, desired_status)
+            flow_config = RecordRuleV4Flow.with_desired_status(flow.flow_config, desired_status)
             self.apply_flow(flow_config)
             flow.flow_config = flow_config
             flow.save(update_fields=["flow_config", "updated_at"])
@@ -265,14 +264,6 @@ class RecordRuleV4Runner:
         if desired_status == RecordRuleV4DesiredStatus.STOPPED.value:
             return RecordRuleV4FlowActionType.STOP.value
         return RecordRuleV4FlowActionType.START.value
-
-    @staticmethod
-    def with_desired_status(flow_config: dict[str, Any], desired_status: str) -> dict[str, Any]:
-        """给 Flow 配置注入运行态 desired_status，并保持原配置不可变。"""
-
-        next_config = copy.deepcopy(flow_config)
-        next_config.setdefault("spec", {})["desired_status"] = desired_status
-        return next_config
 
     def is_flow_current(self, flow: RecordRuleV4Flow) -> bool:
         """确认待下发 Flow 仍是当前声明对应的 latest flow。"""

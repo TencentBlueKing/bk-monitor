@@ -26,15 +26,15 @@
 
 <template>
   <div
-    class="fields-setting"
     v-bkloading="{ isLoading: isLoading }"
+    class="fields-setting"
   >
     <!-- 设置列表字段 -->
     <div class="fields-container">
       <div class="fields-config-container">
         <div
-          class="add-fields-config"
           v-show="!isShowAddInput"
+          class="add-fields-config"
           @click="handleClickAddNew"
         >
           <bk-button
@@ -46,8 +46,8 @@
           </bk-button>
         </div>
         <div
-          class="config-tab-item"
           v-show="isShowAddInput"
+          class="config-tab-item"
         >
           <bk-input
             v-model="newConfigStr"
@@ -87,7 +87,7 @@
         <div class="fields-tab-container">
           <bk-tab
             :active.sync="activeFieldTab"
-            :labelHeight="42"
+            :label-height="42"
             type="unborder-card"
           >
             <template v-for="(panel, index) in fieldTabPanels">
@@ -121,15 +121,15 @@
             <ul class="select-list">
               <li
                 v-for="item in filterShadowTotal"
-                style="cursor: pointer"
-                class="select-item"
                 v-show="activeFieldTab === 'visible' ? !item.is_display : !item.isSorted && item.es_doc_values"
                 :key="item.field_name"
+                style="cursor: pointer"
+                class="select-item"
                 @click="addField(item)"
               >
                 <span
-                  class="field-name"
                   v-bk-overflow-tips
+                  class="field-name"
                   >{{ getFiledDisplay(item) }}</span
                 >
                 <span class="icon bklog-icon bklog-filled-right-arrow"></span>
@@ -142,15 +142,15 @@
           </div>
           <!-- 设置显示字段 -->
           <div
-            class="visible-fields-list"
             v-show="activeFieldTab === 'visible'"
+            class="visible-fields-list"
           >
             <div class="title">
               <!-- 已选项列表 -->
               <span>{{ $t('已选项列表') + '(' + shadowVisible.length + ')' }}</span>
               <span
-                class="icon bklog-icon bklog-info-fill"
                 v-bk-tooltips="$t('支持拖拽更改顺序，从上向下对应列表列从左到右顺序')"
+                class="icon bklog-icon bklog-info-fill"
               ></span>
               <span
                 class="clear-all text-action"
@@ -160,19 +160,19 @@
             </div>
             <vue-draggable
               v-bind="dragOptions"
-              class="select-list"
               v-model="shadowVisible"
+              class="select-list"
             >
               <transition-group>
                 <li
                   v-for="(item, index) in shadowVisible"
-                  class="select-item"
                   :key="item"
+                  class="select-item"
                 >
                   <span class="icon bklog-icon bklog-drag-dots"></span>
                   <span
-                    class="field-name"
                     v-bk-overflow-tips
+                    class="field-name"
                     >{{ getFiledDisplayByFieldName(item) }}</span
                   >
                   <span
@@ -185,15 +185,15 @@
           </div>
           <!-- 设置权重排序 -->
           <div
-            class="sort-fields-list"
             v-show="activeFieldTab === 'sort'"
+            class="sort-fields-list"
           >
             <div class="title">
               <!-- 已选项列表 -->
               <span>{{ $t('已选项列表') + '(' + shadowSort.length + ')' }}</span>
               <span
-                class="icon bklog-icon bklog-info-fill"
                 v-bk-tooltips="$t('支持拖拽更改顺序，排在上面的拥有更高的排序权重')"
+                class="icon bklog-icon bklog-info-fill"
               ></span>
               <span
                 class="clear-all text-action"
@@ -203,20 +203,20 @@
             </div>
             <vue-draggable
               v-bind="dragOptions"
-              class="select-list"
               v-model="shadowSort"
+              class="select-list"
             >
               <transition-group>
                 <li
                   v-for="(item, index) in shadowSort"
-                  class="select-item"
                   :key="item[0]"
+                  class="select-item"
                 >
                   <span class="icon bklog-icon bklog-drag-dots"></span>
                   <span
+                    v-bk-overflow-tips
                     :style="`width: calc(100% - ${fieldWidth}px);`"
                     class="field-name"
-                    v-bk-overflow-tips
                     >{{ getFiledDisplayByFieldName(item[0]) }}</span
                   >
                   <span :class="`bk-icon status ${filterStatusIcon(item[1])}`"></span>
@@ -619,7 +619,8 @@
             }
             this.$emit('should-retrieve', undefined, false); // 不请求图表
           }
-        } catch (error) {
+        } catch {
+          // 配置保存失败时不执行成功态处理，错误由请求层统一处理
         } finally {
           if (!this.isConfirmSubmit) this.initRequestConfigListShow();
           this.newConfigStr = '';
@@ -637,7 +638,8 @@
               index_set_type: this.isUnionSearch ? 'union' : 'single',
             },
           });
-        } catch (error) {
+        } catch {
+          // 删除失败时保留当前配置，错误由请求层统一处理
         } finally {
           this.initRequestConfigListShow();
           this.newConfigStr = '';
@@ -695,7 +697,8 @@
             isShowEdit: false,
             editStr: item.name,
           }));
-        } catch (error) {
+        } catch {
+          // 配置列表加载失败时保留当前列表，错误由请求层统一处理
         } finally {
           this.isLoading = false;
         }

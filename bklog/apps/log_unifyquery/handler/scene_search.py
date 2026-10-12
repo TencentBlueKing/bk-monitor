@@ -61,7 +61,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
         self._enhance()
         self.query_string = QueryStringBuilder(self.query_string).query_string
 
-        self.agg_field: str = params.get("agg_field", "")
+        self.agg_field_name: str = params.get("agg_field", "")
         self.request_username = get_request_external_username() or get_request_username()
 
         # sort — use frontend-provided sort_list directly, no DB lookup
@@ -124,7 +124,7 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
             interval = self.search_params["interval"]
 
         conditions = self._transform_scene_additions()
-        field_name = self.agg_field if self.agg_field else self.time_field
+        field_name = self.agg_field_name if self.agg_field_name else self.time_field
         query_dict = {
             "data_source": "bklog",
             "table_id": "",

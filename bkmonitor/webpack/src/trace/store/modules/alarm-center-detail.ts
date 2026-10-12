@@ -50,7 +50,13 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
   /** 告警类型 */
   const alarmType = shallowRef<AlarmType>(AlarmType.ALERT);
   /** 加载状态 */
-  const loading = shallowRef<boolean>(false);
+  const alertLoading = shallowRef(false);
+  const actionLoading = shallowRef(false);
+  const alertError = shallowRef(false);
+  const actionError = shallowRef(false);
+  const loading = computed(() => alarmType.value === AlarmType.ALERT ? alertLoading.value : actionLoading.value);
+  let alertRequestId = 0;
+  let actionRequestId = 0;
   const bizId = shallowRef<number>((window.bk_biz_id as number) || (window.cc_biz_id as number) || undefined);
   const appStore = useAppStore();
   /** 数据间隔 */
@@ -74,48 +80,77 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     return alarmType.value === AlarmType.ALERT ? alarmDetail.value : actionDetail.value;
   });
 
-  /**
-   * @description 获取告警详情
-   * @param id 告警ID
-   */
-  const getAlertDetailData = async (id: string) => {
-    loading.value = true;
-    const data = await fetchAlarmDetail(id, bizId.value).catch(() => null);
-    alarmDetail.value = data;
-    loading.value = false;
-  };
-
-  const getActionDetailData = async (id: string) => {
-    loading.value = true;
-    const data = await fetchActionDetail(id, bizId.value).catch(() => null);
-    actionDetail.value = data;
-    loading.value = false;
-  };
-
-  watch(
-    () => alarmId.value,
-    newVal => {
-      if (newVal && !loading.value) {
-        getAlertDetailData(newVal);
-      }
-    },
-    { immediate: true }
-  );
-
-  watch(
-    () => actionId.value,
-    newVal => {
-      if (newVal && !loading.value) {
-        getActionDetailData(newVal);
-      }
+  const getAlertDetailData = async () => {
+    const requestId = ++alertRequestId;
+    const id = alarmId.value;
+    const biz = bizId.value;
+    const isCurrent = () => requestId === alertRequestId && id === alarmId.value && biz === bizId.value
+      && alarmType.value === AlarmType.ALERT;
+    alertError.value = false;
+    if (!id || alarmType.value !== AlarmType.ALERT) {
+      alertLoading.value = false;
+      alarmDetail.value = null;
+      return;
     }
-  );
+    if (alarmDetail.value?.id !== id || +alarmDetail.value?.bk_biz_id !== +biz) alarmDetail.value = null;
+    alertLoading.value = true;
+    try {
+      const data = await fetchAlarmDetail(id, biz);
+      if (!isCurrent()) return;
+      if (!data) {
+        alertError.value = true;
+        return;
+      }
+      alarmDetail.value = data;
+    } catch {
+      if (isCurrent()) alertError.value = true;
+    } finally {
+      if (isCurrent()) alertLoading.value = false;
+    }
+  };
 
-  onScopeDispose(() => {
+  const getActionDetailData = async () => {
+    const requestId = ++actionRequestId;
+    const id = actionId.value;
+    const biz = bizId.value;
+    const isCurrent = () => requestId === actionRequestId && id === actionId.value && biz === bizId.value
+      && alarmType.value === AlarmType.ACTION;
+    actionError.value = false;
+    if (!id || alarmType.value !== AlarmType.ACTION) {
+      actionLoading.value = false;
+      actionDetail.value = null;
+      return;
+    }
+    actionDetail.value = null;
+    actionLoading.value = true;
+    try {
+      const data = await fetchActionDetail(id, biz);
+      if (!isCurrent()) return;
+      actionDetail.value = data;
+      actionError.value = !data;
+    } catch {
+      if (isCurrent()) actionError.value = true;
+    } finally {
+      if (isCurrent()) actionLoading.value = false;
+    }
+  };
+
+  const reset = () => {
+    ++alertRequestId;
+    ++actionRequestId;
     alarmId.value = '';
+    actionId.value = '';
     alarmDetail.value = null;
-    loading.value = false;
-  });
+    actionDetail.value = null;
+    alertLoading.value = false;
+    actionLoading.value = false;
+    alertError.value = false;
+    actionError.value = false;
+  };
+
+  watch([alarmId, bizId, alarmType], getAlertDetailData, { immediate: true });
+  watch([actionId, bizId, alarmType], getActionDetailData);
+  onScopeDispose(reset);
 
   return {
     alarmDetail,
@@ -125,6 +160,11 @@ export const useAlarmCenterDetailStore = defineStore('alarmCenterDetail', () => 
     actionDetail,
     alarmType,
     loading,
+    alertError,
+    actionError,
+    getAlertDetailData,
+    getActionDetailData,
+    reset,
     bizId,
     bizItem,
     interval,

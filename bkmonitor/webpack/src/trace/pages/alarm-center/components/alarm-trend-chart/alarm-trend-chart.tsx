@@ -35,6 +35,7 @@ import ChartCollapse from '../../../../pages/trace-explore/components/explore-ch
 import ExploreChart from '../../../../pages/trace-explore/components/explore-chart/explore-chart';
 import { useAlarmCenterStore } from '../../../../store/modules/alarm-center';
 import { AlarmStatusEnum, AlarmStatusIconMap, AlarmType, IncidentIconMap } from '../../typings';
+import { AlarmTrendSkeleton } from '../alarm-skeleton';
 
 import './alarm-trend-chart.scss';
 
@@ -45,14 +46,14 @@ export default defineComponent({
       type: Number,
       default: 0,
     },
+    tableLoading: Boolean,
   },
   setup() {
     const { t } = useI18n();
     const store = useAlarmCenterStore();
 
-    // #if IS_APM_MONITOR
+    /** 非嵌入场景下取到默认空实现，框选仅更新自身 store */
     const handleAlarmTrendChartZoomChange = inject('handleAlarmTrendChartZoomChange', (_: [number, number]) => {});
-    // #endif
 
     /** 告警类型对应的直方图接口 */
     const apiMap = {
@@ -68,12 +69,13 @@ export default defineComponent({
     };
 
     const duration = shallowRef(0);
+    const chartLoading = shallowRef(true);
     const handleDurationChange = (val: number) => {
       duration.value = val;
     };
 
     const seriesColorMap = computed(() => {
-      let colorMap = {};
+      let colorMap: Record<string, string> = {};
 
       switch (store.alarmType) {
         case AlarmType.ALERT: {
@@ -180,9 +182,7 @@ export default defineComponent({
 
     /** 图表框选 */
     const handleDataZoomChange = dataZoom => {
-      // #if IS_APM_MONITOR
       handleAlarmTrendChartZoomChange(dataZoom);
-      // #endif
       store.timeRange = dataZoom;
     };
 
@@ -192,6 +192,8 @@ export default defineComponent({
       params,
       interval,
       duration,
+      chartLoading,
+      skeletonSeriesCount: computed(() => Object.keys(seriesColorMap.value).length),
       handleDurationChange,
       formatterData,
       customSeries,
@@ -214,6 +216,7 @@ export default defineComponent({
             default: () => (
               <div class='alarm-trend-chart-container'>
                 <ExploreChart
+                  v-slots={{ skeleton: () => <AlarmTrendSkeleton seriesCount={this.skeletonSeriesCount} /> }}
                   customOptions={{
                     formatterData: this.formatterData,
                     series: this.customSeries,
@@ -221,22 +224,33 @@ export default defineComponent({
                   }}
                   panel={this.panel}
                   params={this.params}
+                  retainOnRefresh={true}
                   showTitle={false}
                   onDataZoomChange={this.handleDataZoomChange}
                   onDurationChange={this.handleDurationChange}
+                  onLoadingChange={value => {
+                    this.chartLoading = value;
+                  }}
                 />
               </div>
             ),
             headerCustom: () => (
               <div class='header-custom'>
-                <i18n-t
-                  class='title-description'
-                  keypath='（找到 {0} 条结果，用时 {1} 毫秒）'
-                  tag='div'
-                >
-                  <span class='count'>{this.total}</span>
-                  <span class='duration'>{this.duration}</span>
-                </i18n-t>
+                {this.tableLoading || this.chartLoading ? (
+                  <span
+                    class='alarm-skeleton-block trend-summary-skeleton'
+                    aria-hidden='true'
+                  />
+                ) : (
+                  <i18n-t
+                    class='title-description'
+                    keypath='（找到 {0} 条结果，用时 {1} 毫秒）'
+                    tag='div'
+                  >
+                    <span class='count'>{this.total}</span>
+                    <span class='duration'>{this.duration}</span>
+                  </i18n-t>
+                )}
                 <IntervalSelect
                   interval={this.interval}
                   label={this.t('汇聚周期')}

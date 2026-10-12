@@ -1,0 +1,13 @@
+.trace-explore-dimension-statistics-popover {
+  .load-more {
+    margin: 8px 0 0 46px;
+    font-size: 12px;
+    line-height: 20px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    &.is-duration {
+      margin-left: 20px;
+    }
+  }
+}

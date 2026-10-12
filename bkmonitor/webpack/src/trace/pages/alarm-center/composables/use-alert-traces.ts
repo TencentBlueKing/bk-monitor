@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, reactive, shallowRef, watchEffect } from 'vue';
+import { type MaybeRef, reactive, shallowRef, watch, onScopeDispose } from 'vue';
 
 import { get } from '@vueuse/core';
 import { alertTraces } from 'monitor-api/modules/alert_v2';
@@ -68,37 +68,45 @@ export const useAlertTraces = (alertId: MaybeRef<string>) => {
   /** 判断当前数据是否需要触底加载更多 */
   const tableHasMoreData = shallowRef(true);
 
-  /**
-   * @method getTraceList 请求接口
-   * @description 获取调用链表格数据
-   */
+  const error = shallowRef(false);
+  let requestId = 0;
   const getTraceList = async () => {
     if (!get(alertId)) return;
-    if (pagination.offset === 0) {
-      tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = true;
-    } else {
-      tableLoading[ExploreTableLoadingEnum.SCROLL] = true;
+    const current = ++requestId;
+    const offset = pagination.offset;
+    const state = offset ? ExploreTableLoadingEnum.SCROLL : ExploreTableLoadingEnum.BODY_SKELETON;
+    error.value = false;
+    tableLoading[state] = true;
+    try {
+      const data: ALertTracesData = await alertTraces({
+        alert_id: get(alertId), offset, limit: pagination.limit,
+        bk_biz_id: alarmCenterDetailStore.bizId,
+      });
+      if (current !== requestId) return;
+      traceList.value = offset ? [...traceList.value, ...data.list] : data.list;
+      traceQueryConfig.value = data.query_config;
+      tableHasMoreData.value = data.list?.length >= pagination.limit;
+    } catch {
+      if (current === requestId) error.value = true;
+    } finally {
+      if (current === requestId) tableLoading[state] = false;
     }
-    const data: ALertTracesData = await alertTraces({
-      alert_id: get(alertId),
-      offset: pagination.offset,
-      limit: pagination.limit,
-      bk_biz_id: alarmCenterDetailStore.bizId,
-    });
-    if (pagination.offset === 0) {
-      traceList.value = data.list;
-      tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] = false;
-    } else {
-      traceList.value = [...traceList.value, ...data.list];
-      tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
-    }
-    traceQueryConfig.value = data.query_config;
-    tableHasMoreData.value = data.list?.length >= pagination.limit;
   };
-
-  watchEffect(getTraceList);
+  const loadMore = () => {
+    if (error.value || !tableHasMoreData.value || Object.values(tableLoading).some(Boolean)) return;
+    pagination.offset = traceList.value.length;
+    getTraceList();
+  };
+  watch([() => get(alertId), () => alarmCenterDetailStore.bizId], () => {
+    pagination.offset = 0;
+    traceList.value = [];
+    tableLoading[ExploreTableLoadingEnum.SCROLL] = false;
+    getTraceList();
+  }, { immediate: true });
+  onScopeDispose(() => { ++requestId; });
 
   return {
+    error, retry: getTraceList, loadMore,
     traceList,
     traceQueryConfig,
     tableLoading,

@@ -52,8 +52,8 @@
     </section>
     <section class="log-restore-table">
       <bk-table
-        class="restore-table"
         v-bkloading="{ isLoading: isTableLoading }"
+        class="restore-table"
         :data="dataList"
         :limit-list="pagination.limitList"
         :pagination="pagination"
@@ -144,10 +144,10 @@
               </log-button>
               <!-- 编辑 -->
               <bk-button
-                class="mr10 king-button"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
+                class="mr10 king-button"
                 :disabled="props.row.is_expired"
                 theme="primary"
                 text
@@ -157,10 +157,10 @@
               </bk-button>
               <!-- 删除 -->
               <bk-button
-                class="mr10 king-button"
                 v-cursor="{
                   active: !(props.row.permission && props.row.permission[authorityMap.MANAGE_COLLECTION_AUTH]),
                 }"
+                class="mr10 king-button"
                 :disabled="props.row.is_expired"
                 theme="primary"
                 text
@@ -315,7 +315,11 @@
               this.restoreIds = [];
               this.pagination.count = data.total;
               this.restoreIds = [];
-              const formattedList = formatResponseListTimeZoneString(data.list || [], { }, ['expired_time', 'created_at', 'updated_at']);
+              const formattedList = formatResponseListTimeZoneString(data.list || [], {}, [
+                'expired_time',
+                'created_at',
+                'updated_at',
+              ]);
               formattedList.forEach(row => {
                 row.status = '';
                 row.status_name = '';
@@ -486,7 +490,7 @@
         try {
           this.isTableLoading = true;
           const res = await this.$store.dispatch('getApplyData', paramData);
-          this.$store.commit('updateState', {'authDialogData': res.data});
+          this.$store.commit('updateState', { authDialogData: res.data });
         } catch (err) {
           console.warn(err);
         } finally {

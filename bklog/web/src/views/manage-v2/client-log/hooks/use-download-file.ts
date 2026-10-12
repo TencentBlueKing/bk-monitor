@@ -33,6 +33,36 @@ import { BK_LOG_STORAGE } from '@/store/store.type';
 import * as authorityMap from '../../../../common/authority-map';
 
 /**
+ * 从 Content-Disposition 响应头中解析文件名
+ * 优先取 RFC 5987 编码格式（filename*=UTF-8''xxx），其次取普通格式（filename="xxx"）
+ * @param contentDisposition Content-Disposition 响应头
+ * @returns 解析出的文件名，解析失败时返回空字符串
+ */
+const parseFileNameFromHeader = (contentDisposition?: string): string => {
+  if (!contentDisposition) return '';
+
+  const encodedMatch = /filename\*\s*=\s*[^']*''([^;]+)/i.exec(contentDisposition);
+  if (encodedMatch?.[1]) {
+    try {
+      return decodeURIComponent(encodedMatch[1].trim());
+    } catch {
+      // 编码不合法时忽略，继续尝试普通格式
+    }
+  }
+
+  const match = /filename\s*=\s*("([^"]*)"|([^;]+))/i.exec(contentDisposition);
+  if (!match) return '';
+
+  return (match[2] ?? match[3] ?? '').trim();
+};
+
+/** 下载参数 */
+interface DownloadFileOptions {
+  /** 是否优先使用响应头 Content-Disposition 中的文件名，默认 false（使用入参 fileName） */
+  useResponseFileName?: boolean;
+}
+
+/**
  * 文件下载 Hook
  * 用于统一处理表格中的文件下载逻辑（含权限校验）
  */
@@ -43,8 +73,9 @@ export const useDownloadFile = () => {
    * 下载文件
    * @param fileName 文件名
    * @param isAllowedDownload 是否有下载权限
+   * @param options 下载参数
    */
-  const downloadFile = async (fileName: string, isAllowedDownload: boolean) => {
+  const downloadFile = async (fileName: string, isAllowedDownload: boolean, options: DownloadFileOptions = {}) => {
     if (isAllowedDownload) {
       axiosInstance
         .get('/tgpa/task/download_file/', {
@@ -54,7 +85,7 @@ export const useDownloadFile = () => {
           },
           responseType: 'blob',
         })
-        .then(async (res) => {
+        .then(async res => {
           const contentType = res.headers?.['content-type'] || '';
           if (!contentType.includes('application/zip')) {
             try {
@@ -74,9 +105,13 @@ export const useDownloadFile = () => {
               return;
             }
           }
-          blobDownload(res.data, fileName);
+          // 仅按需取响应头文件名（后端会按 openid/任务ID/创建人/创建时间生成），未开启或解析失败时使用入参文件名
+          const responseFileName = options.useResponseFileName
+            ? parseFileNameFromHeader(res.headers?.['content-disposition'])
+            : '';
+          blobDownload(res.data, responseFileName || fileName);
         })
-        .catch((error) => {
+        .catch(error => {
           console.error('下载失败:', error);
         });
     } else {

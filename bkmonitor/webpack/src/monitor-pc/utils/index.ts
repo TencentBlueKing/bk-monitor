@@ -114,7 +114,7 @@ export const ftaUrl = (hash: string): string => {
   const isDev = process.env.NODE_ENV === 'development';
   const { hostname, protocol, search } = location;
   if (isDev) {
-    url = `${protocol}//${hostname}:7002/${search}${hash}`;
+    url = `${protocol}//${hostname}:7004/${search}${hash}`;
   } else {
     const host = `${window.bk_paas_host}${window.site_url}fta/?bizId=${window.bk_biz_id}`;
     url = `${host}${hash}`;

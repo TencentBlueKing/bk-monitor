@@ -35,8 +35,8 @@
       <template #right>
         <div class="load">
           <span
-            class="load-tips"
             v-bk-tooltips="{ distance: 20, content: $t('上传'), delay: 300 }"
+            class="load-tips"
           >
             <span
               class="bk-icon icon-upload-cloud"
@@ -44,8 +44,8 @@
             ></span>
           </span>
           <span
-            class="load-tips"
             v-bk-tooltips="{ distance: 20, content: $t('下载'), delay: 300 }"
+            class="load-tips"
           >
             <span
               class="bk-icon icon-download"

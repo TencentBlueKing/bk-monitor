@@ -36,6 +36,7 @@ import AiopsDimensionLint from '../plugins/aiops-dimension-lint/aiops-dimension-
 import AlarmEventChart from '../plugins/alarm-event-chart/alarm-event-chart';
 import ApdexChart from '../plugins/apdex-chart/apdex-chart';
 import ApmAlarmCenter from '../plugins/apm-alarm-center';
+import ApmLlmOverview from '../plugins/apm-llm-overview';
 import ApmCustomGraphV2 from '../plugins/apm-custom-graph-v2/apm-custom-graph-v2';
 import ApmCustomGraph from '../plugins/apm-custom-graph/apm-custom-graph';
 import ApmHeatmap from '../plugins/apm-heatmap/apm-heatmap';
@@ -490,7 +491,7 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'log-retrieve':
         return <monitor-retrieve />;
       case 'container':
-        return <ApmMonitorK8s />
+        return <ApmMonitorK8s />;
       case 'exception-guide':
         return (
           <ExceptionGuide
@@ -635,7 +636,10 @@ export default class ChartWrapper extends tsc<IChartWrapperProps, IChartWrapperE
       case 'alarm_template':
         return <AlarmTemplate />;
       case 'alarm_center':
+        // 临时用告警中心 tab 预览 LLM 概览
         return <ApmAlarmCenter />;
+      case 'llm_overview':
+        return <ApmLlmOverview />;
       case 'trace':
         return <ApmTraceExplore />;
       // 不需要报错显示

@@ -39,7 +39,6 @@ interface IUseClusterTypeOptions {
   bkBizId: Ref<string | number>;
   spaceUid: Ref<string | number>;
   initialTab?: ClusterType;
-  // eslint-disable-next-line no-unused-vars
   onTabChange?: (type: ClusterType, previousType: ClusterType, isInitial?: boolean) => void | Promise<void>;
   onAccessDenied?: () => void;
 }

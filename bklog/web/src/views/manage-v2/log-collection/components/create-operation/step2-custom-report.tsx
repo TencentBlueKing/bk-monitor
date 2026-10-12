@@ -128,9 +128,9 @@ export default defineComponent({
      */
     const collectorId = computed(() => route.params.collectorId);
     const defaultRetention = computed(() => {
-      const { storage_duration_time } = globalsData.value;
+      const { storage_duration_time: storageDurationTime } = globalsData.value;
 
-      return storage_duration_time?.filter(item => item.default === true)[0].id;
+      return storageDurationTime?.filter(item => item.default === true)[0].id;
     });
 
     // 防止重复调用的标志
@@ -155,22 +155,28 @@ export default defineComponent({
           },
         });
         loading.value = false;
-        const { collector_config_name, index_set_id, target_fields, sort_fields } = res?.data;
+        const responseData = res?.data ?? {};
+        const {
+          collector_config_name: collectorConfigName,
+          index_set_id: indexSetId,
+          target_fields: targetFields,
+          sort_fields: sortFields,
+        } = responseData;
         configData.value = {
           ...configData.value,
-          ...res?.data,
-          index_set_name: collector_config_name,
-          target_fields: target_fields || [],
-          sort_fields: sort_fields || [],
-          index_set_id: index_set_id || '',
+          ...responseData,
+          index_set_name: collectorConfigName,
+          target_fields: targetFields || [],
+          sort_fields: sortFields || [],
+          index_set_id: indexSetId || '',
         };
-        store.commit('collect/setCurCollect', res.data);
+        store.commit('collect/setCurCollect', responseData);
         // 保存初始表单数据快照
         saveInitialFormData();
         emit('detail', configData.value);
         // 编辑模式下初始化字段选择列表
-        if (index_set_id) {
-          initTargetFieldSelectList(index_set_id);
+        if (indexSetId) {
+          initTargetFieldSelectList(indexSetId);
         }
       } else {
         const { retention } = configData.value;
@@ -340,10 +346,7 @@ export default defineComponent({
      * @param options.action 操作类型: 'next'(默认) | 'back' | 'saveOnly'
      * @param options.callback 保存完成后的回调函数
      */
-    const handleSubmitSave = async ({
-      action = 'saveOnly',
-      callback,
-    }: ISubmitOptions = {}) => {
+    const handleSubmitSave = async ({ action = 'saveOnly', callback }: ISubmitOptions = {}) => {
       // 表单校验
       try {
         await baseInfoRef.value?.validate();
@@ -355,9 +358,9 @@ export default defineComponent({
       submitLoading.value = true;
 
       const {
-        collector_config_name,
+        collector_config_name: collectorConfigName,
         collector_config_name_en,
-        index_set_name,
+        index_set_name: indexSetName,
         bk_data_id,
         custom_type,
         retention,
@@ -368,7 +371,7 @@ export default defineComponent({
         storage_cluster_id,
         es_shards,
         parent_index_set_ids,
-        storage_cluster_type,
+        storage_cluster_type: storageClusterType,
         data_link_id,
       } = configData.value as { [key: string]: unknown };
 
@@ -384,7 +387,7 @@ export default defineComponent({
         es_shards: Number(es_shards),
         parent_index_set_ids,
         collector_config_name_en,
-        collector_config_name: collector_config_name || index_set_name,
+        collector_config_name: collectorConfigName || indexSetName,
         bk_biz_id: Number(bkBizId.value),
         target_fields: configData.value.target_fields || [],
         sort_fields: configData.value.sort_fields || [],
@@ -392,7 +395,7 @@ export default defineComponent({
       };
 
       // 根据 storage_cluster_type 判断是否需要移除字段
-      if (storage_cluster_type === 'doris') {
+      if (storageClusterType === 'doris') {
         delete submitData.es_shards;
         delete submitData.storage_replies;
         delete submitData.allocation_min_days;
@@ -405,7 +408,7 @@ export default defineComponent({
           },
           data: submitData,
         })
-        .then((res) => {
+        .then(res => {
           if (res.result) {
             showMessage(t('保存成功'));
             // 同步最新配置到父级，避免步骤条切换后存储步骤使用旧快照提交

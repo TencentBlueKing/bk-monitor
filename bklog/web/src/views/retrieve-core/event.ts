@@ -90,7 +90,7 @@ export class EventEmitter<TEvent extends string = string> {
     if (listeners && listeners.length > 0) {
       // 复制数组，避免在执行过程中修改原数组导致的问题
       const listenersCopy = [...listeners];
-      listenersCopy.forEach((callback) => {
+      listenersCopy.forEach(callback => {
         try {
           callback(...args);
         } catch (err) {
@@ -145,4 +145,3 @@ export class EventEmitter<TEvent extends string = string> {
     return this.events.get(event)?.length || 0;
   }
 }
-

@@ -382,7 +382,7 @@ export default defineComponent({
                   content: this.t('显示图例'),
                   disabled: this.showLegend,
                   boundary: 'parent',
-                  extCls: 'failure-topo-graph-tooltip',
+                  extCls: 'failure-topo-dark-tooltip',
                 }}
                 onClick={this.handleShowLegend}
               >
@@ -433,7 +433,7 @@ export default defineComponent({
                   disabled: this.showMinimap,
                   boundary: 'parent',
                   placement: 'bottom',
-                  extCls: 'failure-topo-graph-tooltip',
+                  extCls: 'failure-topo-dark-tooltip',
                 }}
                 onClick={this.handleShowMinimap}
               >
@@ -477,7 +477,11 @@ export default defineComponent({
         <span class='failure-topo-graph-line' />
         <div
           class='failure-topo-graph-proportion'
-          v-bk-tooltips={{ content: this.t('重置比例'), boundary: 'parent', extCls: 'failure-topo-graph-tooltip' }}
+          v-bk-tooltips={{
+            content: this.t('重置比例'),
+            boundary: 'parent',
+            extCls: 'failure-topo-dark-tooltip',
+          }}
           onClick={this.handleResetZoom}
         >
           <i class='icon-monitor icon-mc-restoration-ratio' />

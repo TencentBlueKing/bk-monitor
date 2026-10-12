@@ -1363,7 +1363,8 @@ class ResultTable(models.Model):
         old_is_enable = self.is_enable
         old_active_cluster_id = self._get_storage_cluster_id(old_default_storage)
         old_es_cluster_id = self._get_storage_cluster_id(ClusterInfo.TYPE_ES)
-        is_custom_format = self.get_related_datasource().etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
+        related_data_source = self.get_related_datasource()
+        is_custom_format = related_data_source.etl_config == EtlConfigs.BK_CUSTOM_FORMAT.value
 
         # 1. 判断是否需要修改中文名
         if table_name_zh is not None:
@@ -1607,6 +1608,19 @@ class ResultTable(models.Model):
                 and self.data_source.created_from == DataIdCreatedFromSystem.BKGSE.value
             ):
                 force_update_datalink = True
+
+            # bk_exporter / bk_standard 会根据 cmdb_level_config 决定是否在 log_to_metric 中开启 CMDB 输出。
+            # option 是全量替换语义，因此缺少该 key 也等价于清空配置。
+            if related_data_source.etl_config in {EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value}:
+                cmdb_level_option = ResultTableOption.objects.filter(
+                    table_id=self.table_id,
+                    bk_tenant_id=self.bk_tenant_id,
+                    name=ResultTableOption.OPTION_CMDB_LEVEL_CONFIG,
+                ).first()
+                existing_cmdb_levels = (cmdb_level_option.get_value() or []) if cmdb_level_option else []
+                new_cmdb_levels = option.get(ResultTableOption.OPTION_CMDB_LEVEL_CONFIG) or []
+                if existing_cmdb_levels != new_cmdb_levels:
+                    force_update_datalink = True
 
             graph_relation_option = ResultTableOption.objects.filter(
                 table_id=self.table_id,
@@ -3115,6 +3129,7 @@ class LogV4DataLinkOption(pydantic.BaseModel):
         json_fields: list[str] = pydantic.Field(description="JSON字段列表", default_factory=list)
         original_json_fields: list[str] = pydantic.Field(description="原始JSON字段列表", default_factory=list)
         field_config_group: dict[str, Any] = pydantic.Field(description="字段配置组", default_factory=dict)
+        tokenizers: dict[str, str] | None = pydantic.Field(description="字段自定义分词规则", default=None)
         flush_timeout: int | None = pydantic.Field(description="刷新超时时间(s)，默认为60秒", default=None)
 
     class CleanRule(pydantic.BaseModel):
@@ -3229,11 +3244,13 @@ class ResultTableOption(OptionBase):
     OPTION_ENABLE_PLUGIN_V4_DATA_LINK = "enable_plugin_v4_data_link"
     OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE = "enable_data_link_component_reuse"
     OPTION_GRAPH_RELATION_V4_DATA_LINK = "graph_relation_v4_data_link"
+    OPTION_DATABUS_LABELS = "databus_labels"
     OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK = "enable_custom_format_v4_data_link"
     OPTION_CUSTOM_FORMAT_V4_DATA_LINK = "custom_format_v4_data_link"
     OPTION_BINDING_BCS_CLUSTER_ID = "binding_bcs_cluster_id"
     OPTION_METRIC_GROUP_DIMENSIONS = "metric_group_dimensions"
     OPTION_QUERY_ROUTER_CONFIG = "query_router_config"
+    OPTION_DATABUS_PREFER_CLUSTER = "databus_prefer_cluster"
 
     # 选项类型
     TYPE_BOOL = "bool"
@@ -3261,9 +3278,11 @@ class ResultTableOption(OptionBase):
             (OPTION_IS_VIRTUAL_TABLE, _("是否为虚拟结果表")),
             (OPTION_ENABLE_DATA_LINK_COMPONENT_REUSE, _("是否开启DataLink组件复用")),
             (OPTION_GRAPH_RELATION_V4_DATA_LINK, _("Graph Relation V4 数据链路配置")),
+            (OPTION_DATABUS_LABELS, _("Databus 标签注入配置")),
             (OPTION_ENABLE_CUSTOM_FORMAT_V4_DATA_LINK, _("是否开启自定义格式 V4 数据链路")),
             (OPTION_CUSTOM_FORMAT_V4_DATA_LINK, _("自定义格式 V4 数据链路配置")),
             (OPTION_BINDING_BCS_CLUSTER_ID, _("绑定BCS集群ID")),
+            (OPTION_DATABUS_PREFER_CLUSTER, _("Databus 优先集群配置")),
         ),
         max_length=128,
     )

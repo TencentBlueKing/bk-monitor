@@ -37,8 +37,8 @@
   >
     <slot name="trigger">
       <bk-input
-        style="width: 669px"
         v-model="showValue"
+        style="width: 669px"
         :class="isError && 'is-error'"
         data-test-id="addNewExtraction_input_specifyFolder"
         @change="handleChange"
@@ -56,8 +56,8 @@
         >
           <i class="left-icon bk-icon icon-search"></i>
           <input
-            class="bk-select-search-input"
             v-model="searchValue"
+            class="bk-select-search-input"
             :placeholder="$t('输入关键字搜索')"
             type="text"
           />
@@ -72,8 +72,8 @@
           >
             <li
               v-for="option in filesSearchedPath"
-              class="bk-option"
               :key="option"
+              class="bk-option"
               @click="handleSelectOption(option)"
             >
               <div class="bk-option-content">{{ option }}</div>

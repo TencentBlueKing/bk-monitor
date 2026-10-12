@@ -33,6 +33,26 @@ BKLOG_CONFIG_NAMESPACE = "default"
 MAX_CANDIDATES = 20
 MAX_CONTRACT_EVIDENCE = 100
 MAX_CHILD_CONFIG_HINTS = 20
+PROJECTED_SPEC_FIELDS = (
+    "namespace",
+    "dataId",
+    "path",
+    "exclude_files",
+    "encoding",
+    "logConfigType",
+    "allContainer",
+    "namespaceSelector",
+    "workloadType",
+    "workloadName",
+    "containerNameMatch",
+    "containerNameExclude",
+    "labelSelector",
+    "annotationSelector",
+    "multiline",
+    "delimiter",
+    "addPodLabel",
+    "addPodAnnotation",
+)
 
 
 @dataclass(frozen=True)
@@ -99,40 +119,153 @@ def expected_bklog_configs(collector: Any, container_configs: Iterable[Any]) -> 
 
 
 def safe_spec_projection(spec: dict[str, Any]) -> dict[str, Any]:
-    keys = (
-        "dataId",
-        "path",
-        "exclude_files",
-        "encoding",
-        "logConfigType",
-        "allContainer",
-        "namespaceSelector",
-        "workloadType",
-        "workloadName",
-        "containerNameMatch",
-        "containerNameExclude",
-        "labelSelector",
-        "annotationSelector",
-        "multiline",
-        "delimiter",
-        "addPodLabel",
-        "addPodAnnotation",
-    )
-    result = {key: copy.deepcopy(spec.get(key)) for key in keys if key in spec}
+    result = {key: copy.deepcopy(spec.get(key)) for key in PROJECTED_SPEC_FIELDS if key in spec}
     ext_options = spec.get("extOptions") or {}
     if "tail_files" in ext_options:
         result["tail_files"] = ext_options["tail_files"]
     return result
 
 
+@dataclass(frozen=True)
+class CrdSpecSchemaEvidence:
+    declared_fields: frozenset[str] | None
+    preserves_unknown_fields: bool
+    source: str | None
+    storage_version: str | None
+    unreadable_reason: str | None
+
+
+def _crd_spec_schema_evidence(crd: dict[str, Any] | None) -> CrdSpecSchemaEvidence:
+    """Read the effective spec schema and explain why it is unavailable when it cannot be read."""
+    if not isinstance(crd, dict) or not isinstance(crd.get("spec"), dict) or not crd["spec"]:
+        return CrdSpecSchemaEvidence(None, False, None, None, "crd_spec_missing")
+
+    crd_spec = crd["spec"]
+    preserve_unknown = bool(crd_spec.get("preserveUnknownFields") or crd_spec.get("preserve_unknown_fields"))
+    schema = None
+    source = None
+    storage_version = None
+    for version in crd_spec.get("versions") or []:
+        if not isinstance(version, dict) or not version.get("storage"):
+            continue
+        storage_version = str(version.get("name") or "") or None
+        holder = version.get("schema") or {}
+        # The typed Kubernetes client exposes snake_case attributes while a raw dict keeps the
+        # apiserver's camelCase, and object_to_dict passes either through untouched.
+        schema = holder.get("openAPIV3Schema") or holder.get("open_apiv3_schema") or holder.get("open_api_v3_schema")
+        if isinstance(schema, dict):
+            source = "storage_version"
+        break
+    if not isinstance(schema, dict):
+        # apiextensions/v1beta1 stores one shared schema under spec.validation instead of
+        # versions[].schema. The current transport uses the v1 API, but accepting the legacy
+        # shape keeps exported CRD evidence and older clients diagnosable as well.
+        holder = crd_spec.get("validation") or {}
+        schema = holder.get("openAPIV3Schema") or holder.get("open_apiv3_schema") or holder.get("open_api_v3_schema")
+        if isinstance(schema, dict):
+            source = "legacy_validation"
+    if not isinstance(schema, dict):
+        reason = (
+            "storage_version_not_found" if crd_spec.get("versions") and storage_version is None else "schema_missing"
+        )
+        return CrdSpecSchemaEvidence(None, preserve_unknown, None, storage_version, reason)
+    properties = schema.get("properties")
+    if not isinstance(properties, dict):
+        return CrdSpecSchemaEvidence(None, preserve_unknown, source, storage_version, "root_properties_missing")
+    spec_schema = properties.get("spec")
+    if not isinstance(spec_schema, dict):
+        return CrdSpecSchemaEvidence(None, preserve_unknown, source, storage_version, "spec_schema_missing")
+    preserve_unknown = preserve_unknown or bool(
+        spec_schema.get("x-kubernetes-preserve-unknown-fields")
+        or spec_schema.get("x_kubernetes_preserve_unknown_fields")
+    )
+    properties = spec_schema.get("properties")
+    if not isinstance(properties, dict):
+        return CrdSpecSchemaEvidence(None, preserve_unknown, source, storage_version, "spec_properties_missing")
+    return CrdSpecSchemaEvidence(frozenset(properties), preserve_unknown, source, storage_version, None)
+
+
+def crd_spec_schema(crd: dict[str, Any] | None) -> tuple[frozenset[str] | None, bool]:
+    """Read which spec fields the cluster's CRD actually declares, and whether it keeps the rest.
+
+    A ``None`` field set means the schema could not be read. Callers must not conclude anything
+    about pruning in that case: an unreadable schema and a schema that genuinely omits fields
+    look identical from the outside but mean opposite things.
+    """
+    evidence = _crd_spec_schema_evidence(crd)
+    return evidence.declared_fields, evidence.preserves_unknown_fields
+
+
+def _top_level_field(path: str) -> str | None:
+    """Pull the spec key out of a difference path such as ``$.multiline.maxLines``."""
+    if not path.startswith("$."):
+        return None
+    return re.split(r"[.\[]", path[2:], maxsplit=1)[0] or None
+
+
+def _semantically_empty(value: Any) -> bool:
+    """Whether a value asks the collector for nothing, so its absence changes no behaviour."""
+    if value is None or value is False or value == "":
+        return True
+    if isinstance(value, dict):
+        return all(_semantically_empty(item) for item in value.values())
+    if isinstance(value, list | tuple):
+        return all(_semantically_empty(item) for item in value)
+    return False
+
+
+def classify_spec_differences(
+    paths: Iterable[str],
+    expected_spec: dict[str, Any],
+    actual_spec: dict[str, Any],
+    declared_fields: frozenset[str] | None,
+    preserve_unknown: bool,
+) -> dict[str, list[str]]:
+    """Split raw difference paths into what the cluster cannot store and what was sent wrong.
+
+    A field the CRD schema never declares is pruned by the apiserver on write, so re-releasing
+    the collector can never make it stick; only upgrading the CRD can. Separating the two is the
+    difference between an actionable finding and an operator re-pushing the same config all day.
+    """
+    pruned: list[str] = []
+    drift: list[str] = []
+    ignorable: list[str] = []
+    for path in paths:
+        field = _top_level_field(path)
+        is_pruned = (
+            field is not None
+            and declared_fields is not None
+            and not preserve_unknown
+            and field not in declared_fields
+            and field in expected_spec
+            and field not in actual_spec
+        )
+        if not is_pruned:
+            drift.append(path)
+        elif _semantically_empty(expected_spec.get(field)):
+            # The platform asked for nothing here, so a pruned field and a sent one behave the
+            # same. Counting it as drift buries the fields that do change collection.
+            ignorable.append(path)
+        else:
+            pruned.append(path)
+    return {"schema_pruned": pruned, "value_drift": drift, "ignorable": ignorable}
+
+
 def desired_config_evidence(
-    *, expected: list[dict[str, Any]], actual_items: Iterable[dict[str, Any]], configured_namespace: str
+    *,
+    expected: list[dict[str, Any]],
+    actual_items: Iterable[dict[str, Any]],
+    configured_namespace: str,
+    crd: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     actual_by_name = {
         str((item.get("metadata") or {}).get("name")): item
         for item in actual_items
         if isinstance(item, dict) and (item.get("metadata") or {}).get("name")
     }
+    schema_evidence = _crd_spec_schema_evidence(crd)
+    declared_fields = schema_evidence.declared_fields
+    preserve_unknown = schema_evidence.preserves_unknown_fields
     rows = []
     required_bk_envs = set()
     for item in expected:
@@ -143,6 +276,8 @@ def desired_config_evidence(
         if labels.get("bk_env"):
             required_bk_envs.add(str(labels["bk_env"]))
         exact = bool(actual is not None and actual_spec == item["spec"])
+        paths = different_paths(item["spec"], actual_spec) if actual is not None else ["$"]
+        reasons = classify_spec_differences(paths, item["spec"], actual_spec, declared_fields, preserve_unknown)
         rows.append(
             {
                 "name": item["name"],
@@ -158,7 +293,8 @@ def desired_config_evidence(
                 "expected_spec_sha256": sha256_json(item["spec"]),
                 "actual_spec_sha256": sha256_json(actual_spec) if actual is not None else None,
                 "exact_match": exact,
-                "different_paths": different_paths(item["spec"], actual_spec) if actual is not None else ["$"],
+                "different_paths": paths,
+                "difference_reasons": reasons,
                 "safe_expected_spec": item["safe_spec"],
                 "safe_actual_spec": safe_spec_projection(actual_spec) if actual is not None else None,
                 "conditions": _safe_conditions((actual or {}).get("status") or {}),
@@ -169,6 +305,32 @@ def desired_config_evidence(
         "items": rows,
         "all_present": all(item["present"] for item in rows),
         "all_exact_match": all(item["exact_match"] for item in rows),
+        # Unlike all_exact_match, this ignores differences that change no collection behaviour,
+        # so a cluster whose only drift is an empty field it cannot store still reads as healthy.
+        "all_material_match": all(
+            not row["difference_reasons"]["schema_pruned"] and not row["difference_reasons"]["value_drift"]
+            for row in rows
+        ),
+        "crd_schema": {
+            "readable": declared_fields is not None,
+            "preserves_unknown_fields": preserve_unknown,
+            "source": schema_evidence.source,
+            "storage_version": schema_evidence.storage_version,
+            "unreadable_reason": schema_evidence.unreadable_reason,
+            # Taken from the specs the platform is about to send rather than a hand-kept list,
+            # so a field added to the delivery side is covered here the day it ships.
+            "unsupported_platform_fields": sorted({key for item in expected for key in item["spec"]} - declared_fields)
+            if declared_fields is not None and not preserve_unknown
+            else [],
+            "pruned_fields_in_use": sorted(
+                {
+                    field
+                    for row in rows
+                    for path in row["difference_reasons"]["schema_pruned"]
+                    if (field := _top_level_field(path))
+                }
+            ),
+        },
         "required_bk_envs": sorted(required_bk_envs),
     }
 
@@ -233,12 +395,18 @@ def collector_child_config_hints(
     if not target_snapshot:
         return []
     matched_ids = {str(value) for value in target_snapshot.get("matched_container_config_ids") or []}
-    matched = [item for item in expected if str(item.get("container_config_id")) in matched_ids]
+    matched = [
+        item
+        for item in expected
+        if item.get("container_config_id") is None or str(item.get("container_config_id")) in matched_ids
+    ]
     hints = []
     if target_snapshot.get("type") == "node":
         for item in matched:
             if item.get("collector_type") == ContainerCollectorType.NODE:
-                hints.append(f"{ContainerCollectorType.NODE}_{configured_namespace}_{item['name']}.conf")
+                hints.append(
+                    f"{ContainerCollectorType.NODE}_{item.get('namespace', configured_namespace)}_{item['name']}.conf"
+                )
     elif target_snapshot.get("type") == "pod_container":
         container = target_snapshot.get("container") or {}
         container_id = str(container.get("container_id") or "")
@@ -248,7 +416,9 @@ def collector_child_config_hints(
             for item in matched:
                 collector_type = item.get("collector_type")
                 if collector_type in {ContainerCollectorType.CONTAINER, ContainerCollectorType.STDOUT}:
-                    hints.append(f"{container_id}_{collector_type}_{configured_namespace}_{item['name']}.conf")
+                    hints.append(
+                        f"{container_id}_{collector_type}_{item.get('namespace', configured_namespace)}_{item['name']}.conf"
+                    )
     return sorted({hint for hint in hints if re.fullmatch(r"[A-Za-z0-9_.-]{1,255}", hint)})[:MAX_CHILD_CONFIG_HINTS]
 
 
@@ -296,7 +466,9 @@ def discover_inspection_targets(
                     "ready": container_status.get("ready"),
                     "workload_type": workload_type,
                     "workload_name": workload_name,
-                    "matched_container_config_ids": [item["container_config_id"] for item in matched],
+                    "matched_container_config_ids": [
+                        item["container_config_id"] for item in matched if item["container_config_id"] is not None
+                    ],
                 }
             )
 
@@ -317,7 +489,9 @@ def discover_inspection_targets(
                 "target": target,
                 "node_uid": metadata.get("uid"),
                 "ready": _condition_is_true(status.get("conditions") or [], "Ready"),
-                "matched_container_config_ids": [item["container_config_id"] for item in matched],
+                "matched_container_config_ids": [
+                    item["container_config_id"] for item in matched if item["container_config_id"] is not None
+                ],
             }
         )
 
@@ -358,11 +532,16 @@ def _pod_target_matches(target: dict[str, Any], pod: dict[str, Any], spec: dict[
     pod_spec = pod.get("spec") or {}
     namespace_selector = spec.get("namespaceSelector") or {}
     namespace = str(metadata.get("namespace") or "")
-    if not namespace_selector.get("any") and namespace_selector.get("matchNames"):
-        if namespace not in namespace_selector.get("matchNames"):
+    # Sidecar precedence: any, excludeNames, matchNames, then legacy namespace.
+    if not namespace_selector.get("any"):
+        if namespace_selector.get("excludeNames"):
+            if namespace in namespace_selector["excludeNames"]:
+                return False
+        elif namespace_selector.get("matchNames"):
+            if namespace not in namespace_selector["matchNames"]:
+                return False
+        elif spec.get("namespace") and namespace != spec["namespace"]:
             return False
-    if namespace in (namespace_selector.get("excludeNames") or []):
-        return False
     if not _labels_match(metadata.get("labels") or {}, spec.get("labelSelector") or {}):
         return False
     if not _expressions_match(
@@ -436,7 +615,9 @@ def safe_target_snapshot(target: dict[str, Any], value: Any, matched: list[dict[
                 )
                 if node_info.get(key) is not None
             },
-            "matched_container_config_ids": [entry["container_config_id"] for entry in matched],
+            "matched_container_config_ids": [
+                entry["container_config_id"] for entry in matched if entry["container_config_id"] is not None
+            ],
         }
     spec = item.get("spec") or {}
     status = item.get("status") or {}
@@ -488,7 +669,9 @@ def safe_target_snapshot(target: dict[str, Any], value: Any, matched: list[dict[
             ),
         },
         "path_mappings": _path_mount_mappings(matched, safe_mounts),
-        "matched_container_config_ids": [entry["container_config_id"] for entry in matched],
+        "matched_container_config_ids": [
+            entry["container_config_id"] for entry in matched if entry["container_config_id"] is not None
+        ],
     }
 
 

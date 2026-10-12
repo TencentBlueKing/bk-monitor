@@ -83,8 +83,8 @@ export default class QuickOpenCluster extends tsc<IProps> {
   }
 
   get datePickerValue() {
-    const { start_time = 'now-15m', end_time = 'now' } = this.$store.state.indexItem;
-    return [start_time, end_time];
+    const { start_time: startTime = 'now-15m', end_time: endTime = 'now' } = this.$store.state.indexItem;
+    return [startTime, endTime];
   }
 
   @Emit('cluster-created')
@@ -336,8 +336,6 @@ export default class QuickOpenCluster extends tsc<IProps> {
           </bk-button>
         </div>
         <div class='right-box'>
-          {/** biome-ignore lint/performance/noImgElement: reason */}
-          {/** biome-ignore lint/nursery/useImageSize: reason */}
           <img
             alt='日志聚类'
             src={clusterImg}

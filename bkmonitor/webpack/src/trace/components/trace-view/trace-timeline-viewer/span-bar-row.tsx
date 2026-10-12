@@ -45,9 +45,16 @@ import TimelineRow from './timeline-row';
 import TimelineRowCell from './timeline-row-cell';
 import { type ViewedBoundsFunctionType, createViewedBoundsFunc, formatDuration } from './utils';
 
-import type { Span } from '../typings';
+import type { Span, SpanLlmType } from '../typings';
 
 import './span-bar-row.scss';
+
+/** LLM Span 语义层级标签，与后端 llm_detail.span_type 对齐；图标由样式按 is-* 类名挂载 */
+const SPAN_LLM_LABELS: Record<SpanLlmType, string> = {
+  AGENT: 'Agent',
+  LLM: '模型',
+  TOOL: '工具',
+};
 
 const SpanBarRowProps = {
   className: {
@@ -299,6 +306,9 @@ export default defineComponent({
       5: 'icon-bei',
     };
     const isShowKindIcon = !isVirtual && source !== 'ebpf' && !!kindIcons?.[kind];
+    // 后端新增语义层级时前端没有对应文案与配色，直接不展示标签，避免渲染出 undefined
+    const spanLlmType = span?.llm_detail?.span_type;
+    const spanLlmLabel = spanLlmType ? SPAN_LLM_LABELS[spanLlmType] : '';
 
     return (
       <TimelineRow
@@ -384,6 +394,12 @@ export default defineComponent({
                       style={{ color: color }}
                       class={`${kindIcons[kind]} icon-monitor kind-icon`}
                     />
+                  )}
+                  {spanLlmLabel && (
+                    <span class={`span-llm-tag is-${spanLlmType.toLowerCase()}`}>
+                      <span class='tag-icon' />
+                      <span>{this.t(spanLlmLabel)}</span>
+                    </span>
                   )}
                   {showErrorIcon && (
                     <Popover

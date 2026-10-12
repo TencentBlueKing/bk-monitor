@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, call, patch
 from django.core.cache import caches
 from django.test import SimpleTestCase, override_settings
 from django.utils import timezone
+from kubernetes import client as k8s_client
 
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
@@ -32,11 +33,13 @@ from apps.log_admin_resource.inspection_tasks import (
     ResourceInspectionTaskRecord,
 )
 from apps.log_admin_resource.k8s_inspection import (
+    BKLOG_CONFIG_CRD_NAME,
     COLLECTOR_CONTAINER_NAME,
     SIDECAR_CONTAINER_NAME,
     CollectorCandidate,
     collector_child_config_hints,
     collector_daemon_set_contract,
+    crd_spec_schema,
     desired_config_evidence,
     discover_collector_candidates,
     discover_inspection_targets,
@@ -46,7 +49,7 @@ from apps.log_admin_resource.k8s_inspection import (
     target_config_matches,
     target_identity,
 )
-from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text
+from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text, object_to_dict
 from apps.log_admin_resource.collector_probe import (
     MAX_PROBE_OUTPUT_BYTES,
     PROBE_PROTOCOL,
@@ -85,6 +88,19 @@ TEST_CACHES = {
 
 def task_cache():
     return caches["redis"]
+
+
+def resolved_identity(**overrides):
+    values = {
+        "tenant_id": "tenant-a",
+        "bk_biz_id": 2,
+        "bk_data_id": 1001,
+        "bcs_cluster_id": "BCS-K8S-1",
+        "overrides": {},
+        "warnings": [],
+    }
+    values.update(overrides)
+    return values
 
 
 def collector(**overrides):
@@ -263,6 +279,106 @@ def business_target_expected():
     ]
 
 
+def crd_declaring(*fields, preserve_unknown=False):
+    spec_schema = {"type": "object", "properties": {name: {"type": "string"} for name in fields}}
+    if preserve_unknown:
+        spec_schema["x-kubernetes-preserve-unknown-fields"] = True
+    return {
+        "metadata": {"name": BKLOG_CONFIG_CRD_NAME},
+        "spec": {
+            "versions": [
+                # A served-but-not-storage version first: only the storage one describes what
+                # the apiserver actually persists.
+                {"name": "v1alpha1", "served": True, "storage": False, "schema": {"openAPIV3Schema": {}}},
+                {
+                    "name": "v1",
+                    "served": True,
+                    "storage": True,
+                    "schema": {"openAPIV3Schema": {"type": "object", "properties": {"spec": spec_schema}}},
+                },
+            ]
+        },
+    }
+
+
+def typed_v1_crd_declaring(*fields):
+    spec_schema = k8s_client.V1JSONSchemaProps(
+        type="object",
+        properties={name: k8s_client.V1JSONSchemaProps(type="string") for name in fields},
+    )
+    validation = k8s_client.V1CustomResourceValidation(
+        open_apiv3_schema=k8s_client.V1JSONSchemaProps(
+            type="object",
+            properties={"spec": spec_schema},
+        )
+    )
+    return object_to_dict(
+        k8s_client.V1CustomResourceDefinition(
+            api_version="apiextensions.k8s.io/v1",
+            kind="CustomResourceDefinition",
+            metadata=k8s_client.V1ObjectMeta(name=BKLOG_CONFIG_CRD_NAME),
+            spec=k8s_client.V1CustomResourceDefinitionSpec(
+                group="bk.tencent.com",
+                names=k8s_client.V1CustomResourceDefinitionNames(
+                    kind="BkLogConfig",
+                    plural="bklogconfigs",
+                ),
+                preserve_unknown_fields=False,
+                scope="Namespaced",
+                versions=[
+                    k8s_client.V1CustomResourceDefinitionVersion(
+                        name="v1alpha1",
+                        served=True,
+                        storage=True,
+                        schema=validation,
+                    )
+                ],
+            ),
+        )
+    )
+
+
+def typed_v1beta1_crd_declaring(*fields, preserve_unknown=False):
+    spec_schema = k8s_client.V1beta1JSONSchemaProps(
+        type="object",
+        properties={name: k8s_client.V1beta1JSONSchemaProps(type="string") for name in fields},
+    )
+    return object_to_dict(
+        k8s_client.V1beta1CustomResourceDefinition(
+            api_version="apiextensions.k8s.io/v1beta1",
+            kind="CustomResourceDefinition",
+            metadata=k8s_client.V1ObjectMeta(name=BKLOG_CONFIG_CRD_NAME),
+            spec=k8s_client.V1beta1CustomResourceDefinitionSpec(
+                group="bk.tencent.com",
+                names=k8s_client.V1CustomResourceDefinitionNames(
+                    kind="BkLogConfig",
+                    plural="bklogconfigs",
+                ),
+                preserve_unknown_fields=preserve_unknown,
+                scope="Namespaced",
+                validation=k8s_client.V1beta1CustomResourceValidation(
+                    open_apiv3_schema=k8s_client.V1beta1JSONSchemaProps(
+                        type="object",
+                        properties={"spec": spec_schema},
+                    )
+                ),
+                version="v1alpha1",
+                versions=[
+                    k8s_client.V1beta1CustomResourceDefinitionVersion(
+                        name="v1alpha1",
+                        served=True,
+                        storage=True,
+                    )
+                ],
+            ),
+        )
+    )
+
+
+def expected_config(spec):
+    return [{"name": "demo-2-44", "container_config_id": 44, "spec": spec, "safe_spec": dict(spec)}]
+
+
 def candidate(**overrides):
     values = {
         "cluster_id": "BCS-K8S-1",
@@ -403,7 +519,9 @@ class K8sInspectionHandlerTest(SimpleTestCase):
             _validate_collector(collector(), "tenant-a")
 
     @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
-    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
     @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_control_plane_only_is_always_async_without_target(self, _identity, _get, _validate, apply_async):
@@ -416,7 +534,9 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         self.assertEqual(record["deadline_seconds"], 120)
 
     @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
-    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
     @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_omitted_groups_defaults_to_control_plane(self, _identity, _get, _validate, apply_async):
@@ -426,14 +546,18 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         self.assertEqual(record["request_options"]["evidence_groups"], ["control_plane"])
         apply_async.assert_called_once()
 
-    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
     @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_deep_evidence_requires_business_target(self, _identity, _get, _validate):
         with self.assertRaisesRegex(ValidationError, "target is required"):
             start_k8s_inspection({"collector_config_id": 123, "evidence_groups": ["collector"]})
 
-    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
     @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
     def test_source_sample_requires_explicit_source(self, _identity, _get, _validate):
@@ -479,8 +603,8 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 return_value=collector(),
             ),
             patch(
-                "apps.log_admin_resource.handlers.k8s_inspection._validate_collector",
-                return_value="tenant-a",
+                "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity",
+                return_value=resolved_identity(),
             ),
             patch(
                 "apps.log_admin_resource.handlers.k8s_inspection.ContainerCollectorConfig.objects.filter",
@@ -552,8 +676,8 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 return_value=collector(),
             ),
             patch(
-                "apps.log_admin_resource.handlers.k8s_inspection._validate_collector",
-                return_value="tenant-a",
+                "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity",
+                return_value=resolved_identity(),
             ),
             patch(
                 "apps.log_admin_resource.handlers.k8s_inspection.ContainerCollectorConfig.objects.filter",
@@ -591,7 +715,9 @@ class K8sInspectionHandlerTest(SimpleTestCase):
         return_value=("reader-a", "tenant-a"),
     )
     @patch("apps.log_admin_resource.handlers.k8s_inspection._get_collector", return_value=collector())
-    @patch("apps.log_admin_resource.handlers.k8s_inspection._validate_collector", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._resolve_collector_identity", return_value=resolved_identity()
+    )
     def test_target_discovery_rejects_blank_namespace_instead_of_scanning_cluster(
         self, _validate_collector, _get_collector, _identity
     ):
@@ -639,6 +765,87 @@ class K8sInspectionHandlerTest(SimpleTestCase):
                 collector=collector(),
                 target={"type": "node", "node_name": "node-a"},
             )
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value="tenant-a")
+    def test_missing_cluster_returns_structured_incomplete_error(self, _tenant):
+        from apps.log_admin_resource.handlers.k8s_inspection import _resolve_collector_identity
+
+        with self.assertRaises(ValidationError) as raised:
+            _resolve_collector_identity(collector(bcs_cluster_id=""), "tenant-a", {})
+        self.assertEqual(raised.exception.message, "collector_context_incomplete")
+        self.assertEqual(raised.exception.data["missing_fields"], ["bcs_cluster_id"])
+        self.assertEqual(raised.exception.data["allowed_overrides"], ["bcs_cluster_id"])
+
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection.BcsHandler.list_bcs_cluster",
+        return_value=[{"cluster_id": "BCS-K8S-9"}],
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value="tenant-a")
+    def test_empty_cluster_accepts_visible_override(self, _tenant, _clusters):
+        from apps.log_admin_resource.handlers.k8s_inspection import _resolve_collector_identity
+
+        identity = _resolve_collector_identity(
+            collector(bcs_cluster_id=None),
+            "tenant-a",
+            {"bcs_cluster_id": "BCS-K8S-9"},
+        )
+        self.assertEqual(identity["bcs_cluster_id"], "BCS-K8S-9")
+        self.assertEqual(identity["overrides"]["bcs_cluster_id"], "BCS-K8S-9")
+        self.assertEqual(identity["warnings"][0]["code"], "bcs_cluster_id_overridden")
+
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection.TransferApi.get_data_id",
+        return_value={"bk_biz_id": 2},
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value="tenant-a")
+    def test_empty_data_id_accepts_business_owned_override(self, _tenant, _data_id):
+        from apps.log_admin_resource.handlers.k8s_inspection import _resolve_collector_identity
+
+        identity = _resolve_collector_identity(
+            collector(bk_data_id=None),
+            "tenant-a",
+            {"bk_data_id": 2002},
+        )
+        self.assertEqual(identity["bk_data_id"], 2002)
+        self.assertEqual(identity["overrides"]["bk_data_id"], 2002)
+
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value="tenant-a")
+    def test_missing_data_id_skips_deep_groups_but_keeps_control_plane(self, _tenant):
+        from apps.log_admin_resource.handlers.k8s_inspection import (
+            _resolve_collector_identity,
+            _select_runnable_evidence_groups,
+        )
+
+        identity = _resolve_collector_identity(collector(bk_data_id=None), "tenant-a", {})
+        runnable, skipped = _select_runnable_evidence_groups(
+            ["control_plane", "sidecar", "collector", "progress"],
+            identity,
+        )
+        self.assertEqual(runnable, ["control_plane"])
+        self.assertEqual({item["group"] for item in skipped}, {"sidecar", "collector", "progress"})
+
+    @patch("apps.log_admin_resource.k8s_tasks.run_k8s_inspection.apply_async")
+    @patch("apps.log_admin_resource.handlers.k8s_inspection.Space.get_tenant_id", return_value="tenant-a")
+    @patch(
+        "apps.log_admin_resource.handlers.k8s_inspection._get_collector",
+        return_value=collector(bk_data_id=None),
+    )
+    @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-a", "tenant-a"))
+    def test_start_degrades_to_control_plane_when_data_id_missing(self, _identity, _get, _tenant, apply_async):
+        result = start_k8s_inspection(
+            {
+                "collector_config_id": 123,
+                "evidence_groups": ["control_plane", "collector"],
+            }
+        )
+        record = ResourceInspectionTaskRecord.get(result["task_id"])
+        self.assertEqual(record["request_options"]["evidence_groups"], ["control_plane"])
+        self.assertEqual(
+            [item["group"] for item in record["request_options"]["skipped_evidence_groups"]],
+            ["collector"],
+        )
+        self.assertIsNone(record["target"]["bk_data_id"])
+        apply_async.assert_called_once()
 
     @patch("apps.log_admin_resource.handlers.k8s_inspection._request_identity", return_value=("reader-b", "tenant-a"))
     def test_detail_hides_cross_app_task_existence(self, _identity):
@@ -718,6 +925,214 @@ class K8sInspectionDomainTest(SimpleTestCase):
         self.assertIn("$.path[0]", result["items"][0]["different_paths"])
         self.assertNotIn("password", json.dumps(result["items"][0]["safe_expected_spec"]))
         self.assertEqual(result["required_bk_envs"], ["bkte"])
+
+    def test_crd_schema_reads_typed_v1_sdk_shape(self):
+        crd = typed_v1_crd_declaring(
+            "dataId",
+            "addPodLabel",
+            "addPodAnnotation",
+            "annotationSelector",
+            "exclude_files",
+        )
+
+        self.assertIn("open_apiv3_schema", crd["spec"]["versions"][0]["schema"])
+        declared_fields, preserve_unknown = crd_spec_schema(crd)
+
+        self.assertEqual(
+            declared_fields,
+            frozenset({"dataId", "addPodLabel", "addPodAnnotation", "annotationSelector", "exclude_files"}),
+        )
+        self.assertFalse(preserve_unknown)
+
+        evidence = desired_config_evidence(
+            expected=expected_config({"dataId": 1001}),
+            actual_items=[{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}],
+            configured_namespace="default",
+            crd=crd,
+        )["crd_schema"]
+        self.assertEqual(evidence["source"], "storage_version")
+        self.assertEqual(evidence["storage_version"], "v1alpha1")
+        self.assertIsNone(evidence["unreadable_reason"])
+
+    def test_crd_schema_reads_typed_v1beta1_legacy_validation_shape(self):
+        crd = typed_v1beta1_crd_declaring("dataId", "addPodAnnotation")
+
+        self.assertIn("open_apiv3_schema", crd["spec"]["validation"])
+        declared_fields, preserve_unknown = crd_spec_schema(crd)
+
+        self.assertEqual(declared_fields, frozenset({"dataId", "addPodAnnotation"}))
+        self.assertFalse(preserve_unknown)
+
+        evidence = desired_config_evidence(
+            expected=expected_config({"dataId": 1001}),
+            actual_items=[{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}],
+            configured_namespace="default",
+            crd=crd,
+        )["crd_schema"]
+        self.assertEqual(evidence["source"], "legacy_validation")
+        self.assertEqual(evidence["storage_version"], "v1alpha1")
+        self.assertIsNone(evidence["unreadable_reason"])
+
+    def test_control_plane_respects_typed_crd_top_level_preserve_unknown_fields(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=typed_v1beta1_crd_declaring("dataId", preserve_unknown=True),
+        )
+
+        self.assertEqual(result["items"][0]["difference_reasons"]["schema_pruned"], [])
+        self.assertEqual(result["items"][0]["difference_reasons"]["value_drift"], ["$.addPodAnnotation"])
+        self.assertTrue(result["crd_schema"]["preserves_unknown_fields"])
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], [])
+
+    def test_control_plane_names_the_fields_an_outdated_crd_silently_prunes(self):
+        expected = expected_config(
+            {
+                "dataId": 1001,
+                "path": ["/data/*.log"],
+                "addPodAnnotation": True,
+                "exclude_files": ["/data/skip.log"],
+                "annotationSelector": {"matchExpressions": []},
+            }
+        )
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001, "path": ["/data/*.log"]}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId", "path"),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        self.assertEqual(sorted(reasons["schema_pruned"]), ["$.addPodAnnotation", "$.exclude_files"])
+        self.assertEqual(reasons["value_drift"], [])
+        self.assertFalse(result["all_material_match"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], ["addPodAnnotation", "exclude_files"])
+        # The cluster gap is wider than the fields that actually hurt this config: an empty
+        # annotationSelector changes nothing today but would be dropped just the same.
+        self.assertEqual(
+            result["crd_schema"]["unsupported_platform_fields"],
+            ["addPodAnnotation", "annotationSelector", "exclude_files"],
+        )
+
+    def test_control_plane_flags_a_field_the_delivery_side_only_just_started_sending(self):
+        # The gap list is derived from the outgoing specs, so a field added on the delivery
+        # side is covered the day it ships without anyone updating this module.
+        expected = expected_config({"dataId": 1001, "brandNewOption": "enabled"})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId"),
+        )
+
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], ["brandNewOption"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], ["brandNewOption"])
+        self.assertFalse(result["all_material_match"])
+
+    def test_control_plane_still_reports_real_drift_when_the_crd_declares_the_field(self):
+        expected = expected_config({"dataId": 1001, "path": ["/data/*.log"]})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001, "path": ["/data/other.log"]}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId", "path"),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        self.assertEqual(reasons["value_drift"], ["$.path[0]"])
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertFalse(result["all_material_match"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], [])
+
+    def test_control_plane_does_not_blame_the_schema_when_it_keeps_unknown_fields(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId", preserve_unknown=True),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        # The apiserver stores undeclared fields here, so a missing one is a delivery problem
+        # and pointing at the CRD would send the operator to upgrade something that works.
+        self.assertEqual(reasons["value_drift"], ["$.addPodAnnotation"])
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], [])
+        self.assertTrue(result["crd_schema"]["preserves_unknown_fields"])
+
+    def test_control_plane_ignores_pruned_fields_that_ask_the_collector_for_nothing(self):
+        expected = expected_config(
+            {
+                "dataId": 1001,
+                "exclude_files": [],
+                "annotationSelector": {"matchExpressions": []},
+                "addPodAnnotation": False,
+            }
+        )
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd=crd_declaring("dataId"),
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        self.assertEqual(
+            sorted(reasons["ignorable"]),
+            ["$.addPodAnnotation", "$.annotationSelector", "$.exclude_files"],
+        )
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertEqual(reasons["value_drift"], [])
+        self.assertFalse(result["all_exact_match"])
+        self.assertTrue(result["all_material_match"])
+        self.assertEqual(result["crd_schema"]["pruned_fields_in_use"], [])
+
+    def test_control_plane_makes_no_schema_claim_when_the_crd_cannot_be_parsed(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected, actual_items=[actual], configured_namespace="default", crd={"spec": {}}
+        )
+
+        reasons = result["items"][0]["difference_reasons"]
+        # An unreadable schema looks exactly like one missing every field. Guessing here would
+        # tell operators to upgrade a CRD that may already be current.
+        self.assertEqual(reasons["value_drift"], ["$.addPodAnnotation"])
+        self.assertEqual(reasons["schema_pruned"], [])
+        self.assertFalse(result["crd_schema"]["readable"])
+        self.assertEqual(result["crd_schema"]["unreadable_reason"], "crd_spec_missing")
+        self.assertEqual(result["crd_schema"]["unsupported_platform_fields"], [])
+
+    def test_control_plane_explains_missing_storage_version_schema(self):
+        expected = expected_config({"dataId": 1001, "addPodAnnotation": True})
+        actual = {"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}
+
+        result = desired_config_evidence(
+            expected=expected,
+            actual_items=[actual],
+            configured_namespace="default",
+            crd={"spec": {"versions": [{"name": "v1alpha1", "served": True, "storage": True}]}},
+        )
+
+        self.assertFalse(result["crd_schema"]["readable"])
+        self.assertEqual(result["crd_schema"]["storage_version"], "v1alpha1")
+        self.assertEqual(result["crd_schema"]["unreadable_reason"], "schema_missing")
 
     def test_business_pod_target_matches_actual_config_without_exposing_env(self):
         target = {
@@ -1672,7 +2087,27 @@ class K8sInspectionWorkerTest(SimpleTestCase):
                 }
             )
 
-    def _record(self, *, target=None, groups=None, candidate_id=None):
+    @patch(
+        "apps.log_admin_resource.k8s_tasks.CollectorConfig.objects.get",
+        return_value=collector(bk_data_id=None, bcs_cluster_id=None),
+    )
+    def test_worker_accepts_dispatch_time_identity_overrides(self, _get):
+        bound = _load_bound_collector(
+            {
+                "bk_tenant_id": "tenant-a",
+                "target": {
+                    "collector_config_id": 123,
+                    "bk_biz_id": 2,
+                    "bk_data_id": 2002,
+                    "bcs_cluster_id": "BCS-K8S-9",
+                    "identity_overrides": {"bk_data_id": 2002, "bcs_cluster_id": "BCS-K8S-9"},
+                },
+            }
+        )
+        self.assertEqual(bound.bk_data_id, 2002)
+        self.assertEqual(bound.bcs_cluster_id, "BCS-K8S-9")
+
+    def _record(self, *, target=None, groups=None, candidate_id=None, skipped_groups=None):
         return ResourceInspectionTaskRecord.create_or_reuse(
             app_code="reader-a",
             bk_tenant_id="tenant-a",
@@ -1686,6 +2121,7 @@ class K8sInspectionWorkerTest(SimpleTestCase):
             request_options={
                 "target": target,
                 "evidence_groups": groups or ["control_plane"],
+                "skipped_evidence_groups": skipped_groups or [],
                 "collector_candidate_id": candidate_id,
                 "source": None,
                 "include_source_sample": False,
@@ -1711,6 +2147,35 @@ class K8sInspectionWorkerTest(SimpleTestCase):
         self.assertEqual(stored["task_status"], "success")
         self.assertEqual(result["remote_execution"]["executor"], "K8S_API")
         self.assertFalse(result["remote_execution"]["mutations_permitted"])
+
+    @patch("apps.log_admin_resource.k8s_tasks.K8sInspectionClient")
+    @patch("apps.log_admin_resource.k8s_tasks.expected_bklog_configs", return_value=[])
+    @patch("apps.log_admin_resource.k8s_tasks.ContainerCollectorConfig.objects.filter")
+    @patch("apps.log_admin_resource.k8s_tasks.CollectorConfig.objects.get", return_value=collector())
+    @patch("apps.log_admin_resource.k8s_tasks._control_plane_probe")
+    def test_skipped_deep_groups_mark_task_partial(self, control, _get, configs_filter, _expected, _client):
+        configs_filter.return_value.order_by.return_value = []
+        control.return_value = (probe(evidence={}), None, [])
+        record = self._record(
+            groups=["control_plane"],
+            skipped_groups=[
+                {
+                    "group": "collector",
+                    "code": "data_id_missing",
+                    "message": "sidecar/collector/progress evidence requires a positive bk_data_id",
+                }
+            ],
+        )
+
+        run_k8s_inspection.run(record["task_id"])
+
+        stored = ResourceInspectionTaskRecord.get(record["task_id"])
+        result = ResourceInspectionTaskRecord.load_result(record["task_id"])
+        self.assertEqual(stored["task_status"], "partial")
+        self.assertEqual(stored["error"]["code"], "evidence_groups_skipped")
+        self.assertTrue(result["partial"])
+        self.assertEqual(result["probes"]["collector"]["status"], "skipped")
+        self.assertEqual(result["probes"]["collector"]["code"], "data_id_missing")
 
     @patch("apps.log_admin_resource.k8s_tasks._revalidate_candidate")
     @patch("apps.log_admin_resource.k8s_tasks._discover_candidates")
@@ -1787,6 +2252,50 @@ class K8sInspectionWorkerTest(SimpleTestCase):
         )
 
         self.assertEqual(required_envs, ["bkte"])
+
+    @patch("apps.log_admin_resource.k8s_tasks.BcsHandler.list_bcs_cluster", return_value=[])
+    def test_control_plane_blames_the_crd_when_the_cluster_cannot_store_a_sent_field(self, _clusters):
+        client = SimpleNamespace(
+            read_crd=lambda _name: crd_declaring("dataId", "path"),
+            list_bklog_configs=lambda _namespace: {
+                "items": [{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001, "path": ["/data/*.log"]}}]
+            },
+        )
+
+        result, _node_name, _envs = _control_plane_probe(
+            record={"request_options": {}},
+            collector=collector(),
+            expected=expected_config({"dataId": 1001, "path": ["/data/*.log"], "addPodAnnotation": True}),
+            client=client,
+        )
+
+        self.assertEqual(result["status"], "warning")
+        self.assertEqual(result["code"], "crd_schema_outdated")
+        self.assertEqual(result["evidence"]["crd"]["schema"]["pruned_fields_in_use"], ["addPodAnnotation"])
+        self.assertIn("upgrade the CRD", result["warnings"][-1]["message"])
+
+    @patch("apps.log_admin_resource.k8s_tasks.BcsHandler.list_bcs_cluster", return_value=[])
+    def test_control_plane_stays_clean_when_the_only_gap_asks_the_collector_for_nothing(self, _clusters):
+        client = SimpleNamespace(
+            read_crd=lambda _name: crd_declaring("dataId"),
+            list_bklog_configs=lambda _namespace: {
+                "items": [{"metadata": {"name": "demo-2-44"}, "spec": {"dataId": 1001}}]
+            },
+        )
+
+        result, _node_name, _envs = _control_plane_probe(
+            record={"request_options": {}},
+            collector=collector(),
+            expected=expected_config({"dataId": 1001, "exclude_files": []}),
+            client=client,
+        )
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(result["code"], "control_plane_resolved")
+        self.assertNotIn("crd_schema_outdated", [warning["code"] for warning in result["warnings"]])
+        # The cluster still cannot store the field. Keeping that visible is what warns whoever
+        # later configures a real blacklist that it would silently do nothing.
+        self.assertIn("exclude_files", result["evidence"]["crd"]["schema"]["unsupported_platform_fields"])
 
     def test_pod_logs_read_only_fixed_collector_container_and_bound_total(self):
         calls = []

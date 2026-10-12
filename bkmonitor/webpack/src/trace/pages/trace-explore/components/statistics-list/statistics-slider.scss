@@ -1,0 +1,75 @@
+.trace-dimension-top-k-slider {
+  .bk-modal-mask {
+    background-color: transparent;
+  }
+
+  .bk-sideslider-title {
+    overflow: hidden;
+  }
+
+  .dimension-slider-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding-right: 24px;
+
+    .field-name {
+      font-size: 16px;
+    }
+
+    .desc {
+      font-size: 12px;
+    }
+
+    .loading-icon {
+      width: 20px;
+      height: 20px;
+    }
+
+    .download-tool {
+      margin-left: 10px;
+      cursor: pointer;
+
+      .icon-xiazai2 {
+        font-size: 14px;
+        color: #4d4f56;
+      }
+
+      .text {
+        margin-left: 6px;
+        font-size: 12px;
+        color: #4d4f56;
+      }
+    }
+  }
+
+  .dimension-slider-content {
+    padding: 12px 40px;
+
+    .slider-load-more {
+      width: 120px;
+      height: 27px;
+      margin: 16px auto 0;
+      font-size: 12px;
+      line-height: 27px;
+      color: #3a84ff;
+      text-align: center;
+      cursor: pointer;
+      background: #f0f5ff;
+      border-radius: 14px;
+
+      &.is-loading {
+        background: transparent;
+      }
+
+      &:hover {
+        background: #e1ecff;
+
+        &.is-loading {
+          background: transparent;
+        }
+      }
+    }
+  }
+}

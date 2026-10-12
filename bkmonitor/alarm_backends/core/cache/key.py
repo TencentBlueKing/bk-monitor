@@ -680,6 +680,16 @@ SERVICE_LOCK_METADATA_MANAGE_ES_STORAGE = register_key_with_config(
     }
 )
 
+SERVICE_LOCK_METADATA_CLEAN_DISABLE_ES_STORAGE = register_key_with_config(
+    {
+        "label": "[metadata]停用采集项ES索引清理集群锁",
+        "key_type": "string",
+        "key_tpl": "metadata.clean_disable_es_storage.lock.{cluster_id}",
+        "ttl": CONST_ONE_HOUR,
+        "backend": "service",
+    }
+)
+
 SERVICE_LOCK_METADATA_RECONCILE_FEDERATION_DATA_LINK = register_key_with_config(
     {
         "label": "[metadata]BCS联邦数据链路租户锁",

@@ -211,8 +211,17 @@ def test_compose_graph_relation_v4_uses_ordinary_components(
         assert "autoOffsetReset" not in graph_databus["spec"]
 
 
-def test_apply_graph_relation_v4_injects_labels_into_each_databus(mocker, graph_relation_v4_records):
+@pytest.mark.parametrize("custom_labels", [{}, {"team": "monitor", "bk-monitor/data-scene": "override"}])
+def test_apply_graph_relation_v4_injects_labels_into_each_databus(mocker, graph_relation_v4_records, custom_labels):
     ctx = graph_relation_v4_records
+    models.ResultTableOption.objects.create(
+        bk_tenant_id="system",
+        table_id=ctx["table_id"],
+        name=models.ResultTableOption.OPTION_DATABUS_LABELS,
+        value=json.dumps(custom_labels),
+        value_type=models.ResultTableOption.TYPE_DICT,
+        creator="system",
+    )
     models.ResultTableOption.objects.create(
         bk_tenant_id="system",
         table_id=ctx["table_id"],
@@ -241,6 +250,7 @@ def test_apply_graph_relation_v4_injects_labels_into_each_databus(mocker, graph_
         "bk-monitor/data-scene": "relation",
         "bk-monitor/data-type": "graph",
     }
+    expected_labels.update(custom_labels)
     assert all(databus["metadata"]["labels"] == expected_labels for databus in databuses)
     assert all(
         not any(key.startswith("bk-monitor/") for key in config["metadata"]["labels"])

@@ -1,0 +1,42 @@
+@import '../../../../theme/mixin';
+
+.trace-llm-observation {
+  box-sizing: border-box;
+  height: 100%;
+  padding-top: 24px;
+  overflow: hidden;
+  // 工具栏行 32 + 与 Trace 头间距 16；Trace 头 42
+  --llm-exec-row-height: 32px;
+  --llm-exec-sticky-gap: 16px;
+  --llm-trace-header-height: 42px;
+
+  @include flex-column;
+
+  &-main {
+    flex: 1;
+    gap: 24px;
+    min-height: 0;
+    padding-bottom: 16px;
+    overflow: auto;
+
+    @include flex-column;
+  }
+
+  &-timeline {
+    // 按内容撑高，交给 &-main 滚动；flex:1 会锁死视口高，行溢出去穿吸顶
+    flex: 0 0 auto;
+    gap: 0;
+    min-height: auto;
+
+    @include flex-column;
+  }
+
+  &-list {
+    flex: 0 0 auto;
+    min-height: auto;
+  }
+
+  &-empty {
+    margin-top: 80px;
+  }
+}

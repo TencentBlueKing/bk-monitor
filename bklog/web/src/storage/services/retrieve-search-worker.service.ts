@@ -4,10 +4,7 @@
  */
 import { storageHealthService } from './storage-health.service';
 import { workerManagerService } from './worker-manager.service';
-import {
-  createRetrieveSearchWorker,
-  getRetrieveSearchWorkerUrl,
-} from '../workers/create-retrieve-search-worker';
+import { createRetrieveSearchWorker, getRetrieveSearchWorkerUrl } from '../workers/create-retrieve-search-worker';
 import { createRequestId, PAGE_INSTANCE_ID } from '../utils/page-instance';
 import {
   categorizeIngestError,
@@ -154,7 +151,7 @@ class RetrieveSearchWorkerService {
 
     try {
       worker = this.createWorker();
-      return await new Promise<any>((resolve) => {
+      return await new Promise<any>(resolve => {
         const cleanup = () => {
           if (timer) clearTimeout(timer);
           if (worker) {
@@ -170,13 +167,13 @@ class RetrieveSearchWorkerService {
           resolve({ ...status, ok: false, error: `WebWorker diagnostic timeout after ${timeout}ms` });
         }, timeout);
 
-        worker!.onmessage = (event) => {
+        worker!.onmessage = event => {
           if (event.data?.id !== id) return;
           cleanup();
           resolve({ ...status, ok: !!event.data?.ok, message: event.data });
         };
 
-        worker!.onerror = (error) => {
+        worker!.onerror = error => {
           cleanup();
           resolve({ ...status, ok: false, error: error.message || 'WebWorker script load failed' });
         };
@@ -343,8 +340,8 @@ class RetrieveSearchWorkerService {
     }
 
     if (!message.ok) {
-      const errorCategory = (message.errorCategory
-        || categorizeIngestError(message.error)) as RetrieveSearchIngestErrorCategory;
+      const errorCategory = (message.errorCategory ||
+        categorizeIngestError(message.error)) as RetrieveSearchIngestErrorCategory;
       this.recordFailure(
         message.error || 'WebWorker search stream failed',
         errorCategory,
@@ -391,9 +388,10 @@ class RetrieveSearchWorkerService {
   }
 
   private handleWorkerRuntimeError(error: ErrorEvent | string) {
-    const detail =      error instanceof ErrorEvent
-      ? `${error.message || 'WebWorker script load failed'}${error.filename ? ` (${error.filename}:${error.lineno}:${error.colno})` : ''}`
-      : String(error);
+    const detail =
+      error instanceof ErrorEvent
+        ? `${error.message || 'WebWorker script load failed'}${error.filename ? ` (${error.filename}:${error.lineno}:${error.colno})` : ''}`
+        : String(error);
     this.rejectAllPending(new Error(detail), 'worker-load');
     this.resetWorker('runtime-error');
   }
@@ -456,7 +454,7 @@ class RetrieveSearchWorkerService {
   }
 
   private createWorker() {
-    return createRetrieveSearchWorker()
+    return createRetrieveSearchWorker();
   }
 }
 

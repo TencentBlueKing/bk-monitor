@@ -49,4 +49,13 @@ def api_exception_handler(exc, context):
     json_data["code"] = code
     json_data.pop("msg", None)
 
-    return Response(json_data, content_type="application/json")
+    response = Response(json_data, content_type="application/json")
+    request = context.get("request") if isinstance(context, dict) else None
+    raw_request = getattr(request, "_request", request)
+    if raw_request is not None and getattr(raw_request, "unified_mcp_operation", ""):
+        # DRF Request 只是 Django request 的包装；状态必须写回原请求，外层 Middleware 才能读取。
+        # 只传递整数结果码，不复制异常或响应正文。
+        raw_request.unified_mcp_response_failed = True
+        if type(code) is int:
+            raw_request.unified_mcp_result_code = code
+    return response

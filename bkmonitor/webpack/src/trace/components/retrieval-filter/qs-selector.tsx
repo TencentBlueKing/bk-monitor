@@ -100,19 +100,21 @@ export default defineComponent({
         if (queryStringEditor.value) {
           queryStringEditor.value.setQueryString(localValue.value);
         } else {
-          const el = elRef.value.querySelector('.retrieval-filter__qs-selector-component');
-          queryStringEditor.value = new QueryStringEditor({
-            target: el,
-            value: localValue.value,
-            popUpFn: handlePopUp,
-            onSearch: handleSearch,
-            popDownFn: destroyPopoverInstance,
-            onChange: handleChange,
-            onQuery: handleQuery,
-            onInput: handleInput,
-            keyFormatter: fieldFormatter,
-            valueFormatter: valueFormatter,
-          });
+          const el = elRef.value?.querySelector('.retrieval-filter__qs-selector-component');
+          if (el) {
+            queryStringEditor.value = new QueryStringEditor({
+              target: el,
+              value: localValue.value,
+              popUpFn: handlePopUp,
+              onSearch: handleSearch,
+              popDownFn: destroyPopoverInstance,
+              onChange: handleChange,
+              onQuery: handleQuery,
+              onInput: handleInput,
+              keyFormatter: fieldFormatter,
+              valueFormatter: valueFormatter,
+            });
+          }
         }
       });
     }

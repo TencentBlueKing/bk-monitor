@@ -34,8 +34,8 @@
         :required="true"
       >
         <bk-switcher
-          class="ml200"
           v-model="formData.is_case_sensitive"
+          class="ml200"
           :disabled="!globalEditable"
           size="large"
           theme="primary"
@@ -47,8 +47,8 @@
         :required="true"
       >
         <bk-switcher
-          class="ml200"
           v-model="demo1"
+          class="ml200"
           :disabled="!globalEditable"
           size="large"
           theme="primary"
@@ -62,8 +62,8 @@
         :required="true"
       >
         <bk-input
-          class="ml200 w240"
           v-model="formData.delimeter"
+          class="ml200 w240"
           :clearable="true"
           :disabled="!globalEditable"
         >

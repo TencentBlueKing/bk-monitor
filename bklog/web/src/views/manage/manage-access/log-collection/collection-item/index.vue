@@ -31,8 +31,8 @@
   >
     <section class="top-operation">
       <bk-button
-        class="fl"
         v-cursor="{ active: isAllowedCreate === false }"
+        class="fl"
         :disabled="!collectProject || isAllowedCreate === null || isTableLoading"
         data-test-id="logCollectionBox_button_addNewCollectionItem"
         theme="primary"
@@ -56,8 +56,8 @@
     <section class="collect-list">
       <bk-table
         ref="collectTable"
-        class="collect-table"
         v-bkloading="{ isLoading: isTableLoading }"
+        class="collect-table"
         :data="collectShowList"
         :empty-text="$t('暂无内容')"
         :limit-list="pagination.limitList"
@@ -90,16 +90,16 @@
         >
           <template #default="props">
             <span
-              class="text-active"
               v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.VIEW_COLLECTION_AUTH]) }"
+              class="text-active"
               @click="operateHandler(props.row, 'view')"
             >
               {{ props.row.collector_config_name }}
             </span>
             <span
               v-if="props.row.is_desensitize"
-              class="bk-icon bklog-icon bklog-masking"
               v-bk-tooltips.top="$t('已脱敏')"
+              class="bk-icon bklog-icon bklog-masking"
             >
             </span>
             <span
@@ -353,12 +353,12 @@
               <!-- 检索 -->
               <!-- 启用状态下 且存在 index_set_id 才能检索 -->
               <span
-                class="king-button"
                 v-bk-tooltips.top="{
                   content: getDisabledTipsMessage(props.row, 'search'),
                   disabled: getOperatorCanClick(props.row, 'search'),
                   delay: 500,
                 }"
+                class="king-button"
               >
                 <bk-button
                   v-cursor="{ active: !(props.row.permission && props.row.permission[authorityMap.SEARCH_LOG_AUTH]) }"
@@ -372,12 +372,12 @@
               </span>
               <!-- 编辑 -->
               <span
-                class="king-button"
                 v-bk-tooltips.top="{
                   content: getDisabledTipsMessage(props.row, 'edit'),
                   disabled: getOperatorCanClick(props.row, 'edit'),
                   delay: 500,
                 }"
+                class="king-button"
               >
                 <bk-button
                   v-cursor="{
@@ -394,12 +394,12 @@
 
               <!-- 清洗 -->
               <span
-                class="king-button"
                 v-bk-tooltips.top="{
                   content: getDisabledTipsMessage(props.row, 'clean'),
                   disabled: getOperatorCanClick(props.row, 'clean'),
                   delay: 500,
                 }"
+                class="king-button"
               >
                 <bk-button
                   v-cursor="{
@@ -609,7 +609,7 @@
     clearTableFilter,
     getDefaultSettingSelectFiled,
     setDefaultSettingSelectFiled,
-    updateLastSelectedIndexId
+    updateLastSelectedIndexId,
   } from '@/common/util';
   import collectedItemsMixin from '@/mixins/collected-items-mixin';
   import { mapGetters } from 'vuex';
@@ -757,7 +757,7 @@
           fields: settingFields,
           selectedFields: [...settingFields.slice(3, 8), settingFields[2]],
         },
-        statusEnum: statusEnum,
+        statusEnum,
         // 是否支持一键检测
         enableCheckCollector: JSON.parse(window.ENABLE_CHECK_COLLECTOR),
         // 一键检测弹窗配置
@@ -849,21 +849,6 @@
         return !!Object.values(this.filterParams).some(item => !this.filterIsNotCompared(item));
       },
     },
-    created() {
-      !this.authGlobalInfo && this.checkCreateAuth();
-      const { selectedFields } = this.columnSetting;
-      this.columnSetting.selectedFields = getDefaultSettingSelectFiled(this.settingCacheKey, selectedFields);
-    },
-    async mounted() {
-      this.needGuide = !localStorage.getItem('needGuide');
-      !this.authGlobalInfo && (await this.initLabelSelectList());
-      !this.authGlobalInfo && this.requestData();
-    },
-    beforeDestroy() {
-      this.isDestroyed = true;
-      this.isShouldPollCollect = false;
-      this.stopStatusPolling();
-    },
     watch: {
       collectShowList: {
         handler(val) {
@@ -881,6 +866,21 @@
           }
         },
       },
+    },
+    created() {
+      !this.authGlobalInfo && this.checkCreateAuth();
+      const { selectedFields } = this.columnSetting;
+      this.columnSetting.selectedFields = getDefaultSettingSelectFiled(this.settingCacheKey, selectedFields);
+    },
+    async mounted() {
+      this.needGuide = !localStorage.getItem('needGuide');
+      !this.authGlobalInfo && (await this.initLabelSelectList());
+      !this.authGlobalInfo && this.requestData();
+    },
+    beforeDestroy() {
+      this.isDestroyed = true;
+      this.isShouldPollCollect = false;
+      this.stopStatusPolling();
     },
     methods: {
       async stopCollectHandler(row) {
@@ -978,7 +978,7 @@
           query.type = 'collectionStatus';
         }
         if (operateType === 'search') {
-          updateLastSelectedIndexId(this.spaceUid, row.index_set_id)
+          updateLastSelectedIndexId(this.spaceUid, row.index_set_id);
           if (!row.index_set_id && !row.bkdata_index_set_ids.length) return;
           params.indexId = row.index_set_id ? row.index_set_id : row.bkdata_index_set_ids[0];
         }
@@ -1057,7 +1057,7 @@
                 row.status_name = '';
                 idList.push(row.collector_config_id);
                 row.is_desensitize = desensitizeStatus[row.index_set_id]?.is_desensitize ?? false;
-                if (!!row.storage_display_name) setStorageDisplayName.add(row.storage_display_name);
+                if (row.storage_display_name) setStorageDisplayName.add(row.storage_display_name);
               });
               this.filterStorageLabelList = Array.from(setStorageDisplayName).map(item => ({
                 text: item,
@@ -1180,7 +1180,7 @@
           return await this.$http.request('masking/getDesensitizeState', {
             data: { index_set_ids: indexIdList },
           });
-        } catch (error) {
+        } catch {
           return [];
         }
       },
@@ -1201,7 +1201,7 @@
               name: item.name,
             }));
           this.filterLabelList = cloneTagBase.concat(notBuiltInList);
-        } catch (error) {
+        } catch {
           this.selectLabelList = [];
           this.filterLabelList = [];
         }
@@ -1245,7 +1245,7 @@
       },
       filterIsNotCompared(val) {
         if (typeof val === 'string' && val === '') return true;
-        if (typeof val === 'obj' && JSON.stringify(val) === '{}') return true;
+        if (typeof val === 'object' && JSON.stringify(val) === '{}') return true;
         if (Array.isArray(val) && !val.length) return true;
         return false;
       },
@@ -1270,7 +1270,7 @@
         this.handleFilterChange(this.tagsData);
       },
       handleToggleTagSelect() {
-        this.tagSelect = !!this.tagsData.tags.length ? structuredClone(this.tagsData.tags) : ['all'];
+        this.tagSelect = this.tagsData.tags.length ? structuredClone(this.tagsData.tags) : ['all'];
       },
       renderTagsHeader(h, { column }) {
         const isActive = !!this.filterLabelList.length && !this.tagSelect.includes('all');

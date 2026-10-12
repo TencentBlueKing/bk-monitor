@@ -114,6 +114,15 @@
       .view-has-no-data-container {
         padding: 16px;
       }
+
+      /* 内容区由 customContent 插槽自渲染的页签，撑满剩余高度由插槽内容自行滚动 */
+      .dashboard-custom-content {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-height: 0;
+        padding: 16px;
+      }
     }
 
     .table-wrapper {

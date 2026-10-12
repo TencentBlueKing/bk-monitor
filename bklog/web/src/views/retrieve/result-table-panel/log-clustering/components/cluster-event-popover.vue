@@ -51,8 +51,8 @@
             <span>{{ $t('查询命中pattern的日志') }}</span>
           </span>
           <div
-            class="new-link"
             v-bk-tooltips="$t('新开标签页')"
+            class="new-link"
             @click.stop="handleClick('show original', true)"
           >
             <i class="bklog-icon bklog-jump"></i>

@@ -161,7 +161,6 @@ export default defineComponent({
         return;
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       timeoutID.value = setTimeout(async () => {
         if (!pollingList.value.length) {
           return;
@@ -263,14 +262,14 @@ export default defineComponent({
     };
 
     // 下载文件
-    const downloadFile = ({ task_id }: any) => {
+    const downloadFile = ({ task_id: taskId }: any) => {
       let urlPrefix = (window as any).AJAX_URL_PREFIX;
       if (!urlPrefix.endsWith('/')) {
         urlPrefix += '/';
       }
       const { bkBizId } = store.state;
 
-      const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${task_id}&bk_biz_id=${bkBizId}`;
+      const downloadUrl = `${urlPrefix}log_extract/tasks/download/?task_id=${taskId}&bk_biz_id=${bkBizId}`;
       window.open(downloadUrl);
     };
 
@@ -463,7 +462,9 @@ export default defineComponent({
             min-width='100'
             prop='created_by'
             renderHeader={renderHeader}
-            scopedSlots={{ default: (props: any) => <bk-user-display-name user-id={props.row.created_by}></bk-user-display-name> }}
+            scopedSlots={{
+              default: (props: any) => <bk-user-display-name user-id={props.row.created_by}></bk-user-display-name>,
+            }}
           />
 
           {/* 任务状态列 */}
@@ -505,7 +506,7 @@ export default defineComponent({
                 <div class='task-operation-container'>
                   <span
                     class='task-operation'
-                    onClick={() => viewDetail(row)} // eslint-disable-line @typescript-eslint/no-misused-promises
+                    onClick={() => viewDetail(row)}
                   >
                     {t('详情')}
                   </span>
@@ -532,7 +533,7 @@ export default defineComponent({
                   {row.download_status === 'redownloadable' && (
                     <span
                       class='task-operation'
-                      onClick={() => reDownloadFile(row)} // eslint-disable-line @typescript-eslint/no-misused-promises
+                      onClick={() => reDownloadFile(row)}
                     >
                       {t('重试')}
                     </span>

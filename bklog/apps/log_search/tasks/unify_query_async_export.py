@@ -54,6 +54,7 @@ from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_search.models import (
     AsyncTask,
     LogIndexSet,
+    Space,
 )
 from apps.utils.log import logger
 from apps.utils.notify import NotifyType
@@ -523,7 +524,13 @@ class AsyncExportUtils(BaseExportUtils):
             language=language,
         )
         receivers = self.external_user_email if self.is_external else async_task.created_by
-        self.notify.send(receivers=receivers, title=title, content=content, is_external=self.is_external)
+        self.notify.send(
+            receivers=receivers,
+            title=title,
+            content=content,
+            is_external=self.is_external,
+            bk_tenant_id=Space.get_tenant_id(bk_biz_id=async_task.bk_biz_id),
+        )
 
     @classmethod
     def generate_title_template(cls, title_model):
@@ -665,7 +672,13 @@ class UnionAsyncExportUtils(BaseExportUtils):
             language=language,
         )
         receivers = self.external_user_email if self.is_external else async_task.created_by
-        self.notify.send(receivers=receivers, title=title, content=content, is_external=self.is_external)
+        self.notify.send(
+            receivers=receivers,
+            title=title,
+            content=content,
+            is_external=self.is_external,
+            bk_tenant_id=Space.get_tenant_id(bk_biz_id=async_task.bk_biz_id),
+        )
 
     @classmethod
     def generate_title_template(cls, title_model):

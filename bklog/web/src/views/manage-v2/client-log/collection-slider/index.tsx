@@ -197,7 +197,7 @@ export default defineComponent({
     // 监听showSlider变化
     watch(
       () => props.showSlider,
-      (newVal) => {
+      newVal => {
         if (newVal && props.logData) {
           setFormData(props.logData);
         } else {

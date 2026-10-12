@@ -102,7 +102,7 @@ export default class FilterRule extends tsc<IProps> {
     const { getConcatenatedFieldName } = useFieldNameHook({ store: this.$store });
     return this.totalFields
       .filter(item => !/^__dist/.test(item.field_name) && item.field_type !== '__virtual__')
-      .map((el) => {
+      .map(el => {
         return getConcatenatedFieldName(el);
       });
   }
@@ -174,15 +174,13 @@ export default class FilterRule extends tsc<IProps> {
           },
         };
       }
-      const res = await $http.request(
-        isScene ? 'retrieve/getSceneAggsTerms' : 'retrieve/getAggsTerms',
-        requestConfig,
-      );
+      const res = await $http.request(isScene ? 'retrieve/getSceneAggsTerms' : 'retrieve/getAggsTerms', requestConfig);
       for (const item of this.formData.filter_rules) {
-        item.valueList = res.data.aggs_items[item.fields_name]?.map(newItem => ({
-          id: newItem.toString(),
-          name: newItem.toString(),
-        })) ?? [];
+        item.valueList =
+          res.data.aggs_items[item.fields_name]?.map(newItem => ({
+            id: newItem.toString(),
+            name: newItem.toString(),
+          })) ?? [];
       }
     } catch {
       for (const item of this.formData.filter_rules) {
@@ -208,7 +206,7 @@ export default class FilterRule extends tsc<IProps> {
     return this.formData.filter_rules.every(item => !!item.value.length && item.fields_name);
   }
   checkLIKERules() {
-    this.isLikeCorrect = this.formData.filter_rules.every((item) => {
+    this.isLikeCorrect = this.formData.filter_rules.every(item => {
       if (['NOT LIKE', 'LIKE'].includes(item.op) && !!item.value.length) {
         return /%/.test(item.value[0]);
       }
@@ -344,7 +342,6 @@ export default class FilterRule extends tsc<IProps> {
               </div>
             ))}
             {this.isShowAddFilterIcon && (
-              // biome-ignore lint/a11y/useButtonType: reason
               <button
                 class='icon-box'
                 onClick={this.handleAddFilterRule}

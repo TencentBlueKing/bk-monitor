@@ -22,6 +22,7 @@ from bkmonitor.utils.bk_collector_config import BkCollectorClusterConfig, BkColl
 from bkmonitor.utils.common_utils import count_md5
 from bkmonitor.utils.db.fields import JsonField
 from bkmonitor.utils.new_env import is_biz_id_in_black_list, is_biz_id_need_managed
+from bkmonitor.utils.nodeman import host_queries
 from constants.bk_collector import BkCollectorComp
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -289,12 +290,8 @@ class CustomReportSubscription(models.Model):
             "failed_count": 0,
         }
         cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
-        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            # 补充中心化集群
-            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-                cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
 
-        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+        for (cluster_id, namespace, _is_global), cc_bk_biz_ids in cluster_mapping.items():
             if str(bk_biz_id) not in cc_bk_biz_ids and int(bk_biz_id) not in cc_bk_biz_ids:
                 continue
 
@@ -303,6 +300,7 @@ class CustomReportSubscription(models.Model):
             config_id_to_protocol: dict[int, str] = {}
             cluster_record = {
                 "cluster_id": cluster_id,
+                "namespace": namespace,
                 "related_bk_biz_ids": sorted(cc_bk_biz_ids, key=str),
                 "protocols": [],
                 "config_count": 0,
@@ -319,7 +317,7 @@ class CustomReportSubscription(models.Model):
                         continue
 
                     if protocol not in protocol_tpl:
-                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, tpl_name)
+                        tpl_str = BkCollectorClusterConfig.sub_config_tpl(cluster_id, namespace, tpl_name)
                         if not tpl_str:
                             protocol_tpl[protocol] = None
                         else:
@@ -351,21 +349,24 @@ class CustomReportSubscription(models.Model):
 
                 # 分别按协议调用deploy_to_k8s_with_hash
                 for protocol, config_map in protocol_config_maps.items():
-                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, config_map, protocol)
+                    BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, namespace, config_map, protocol)
 
                 # 在所有协议下执行清理，同一个 config_id(data_id) 只允许有一份配置存在
                 BkCollectorClusterConfig.clean_dup_secrets_in_multi_protocol(
-                    cluster_id, protocol_config_maps.keys(), config_id_to_protocol
+                    cluster_id, namespace, protocol_config_maps.keys(), config_id_to_protocol
                 )
             except Exception as e:  # pylint: disable=broad-except
                 cluster_record.update({"result": False, "message": str(e)})
-                logger.exception(f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}) error({e})")
+                logger.exception(
+                    f"refresh custom report ({bk_biz_id}) config to k8s({cluster_id}/{namespace}) error({e})"
+                )
             result["clusters"].append(cluster_record)
 
-        result["cluster_count"] = len(result["clusters"])
+        result["cluster_count"] = len({record["cluster_id"] for record in result["clusters"]})
+        result["target_count"] = len(result["clusters"])
         result["failed_count"] = sum(1 for cluster in result["clusters"] if cluster["result"] is False)
         if result["failed_count"]:
-            result.update({"result": False, "message": f"failed clusters: {result['failed_count']}"})
+            result.update({"result": False, "message": f"failed targets: {result['failed_count']}"})
         elif not result["clusters"]:
             result.update({"action": "skip", "result": True, "message": "no matched k8s cluster"})
         return result
@@ -407,7 +408,7 @@ class CustomReportSubscription(models.Model):
                 result.update({"action": "skip", "result": True, "message": "bk saas space skipped"})
                 return result
 
-            proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
+            proxies = host_queries.business_proxies(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
             proxy_biz_ids = {proxy["bk_biz_id"] for proxy in proxies}
             for proxy_biz_id in proxy_biz_ids:
                 current_proxy_hosts = api.cmdb.get_host_by_ip(
@@ -493,7 +494,7 @@ class CustomReportSubscription(models.Model):
                 3. 根据上面的查询结果生成bk_biz_id的相关自定义上报dataid的对应关系配置列表
 
             - Nodeman
-                0. 从api.node_man.get_proxies_by_biz接口获取到业务下所有使用到的proxyip
+                0. 从host_queries.business_proxies接口获取到业务下所有使用到的proxyip
                 1. 根据上面的查询结果生成业务ID到目标Proxy的对应关系
 
             按业务ID将上面的任务下发到机器上，通过节点管理的订阅接口，其中0业务为直连云区域，下发所有data_id配置
@@ -803,11 +804,7 @@ class LogSubscriptionConfig(models.Model):
             bk_biz_id = log_group.bk_biz_id
             biz_log_groups.setdefault(bk_biz_id, []).append(log_group)
 
-        cluster_mapping: dict = BkCollectorClusterConfig.get_cluster_mapping()
-        if settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-            # 补充中心化集群
-            for cluster_id in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
-                cluster_mapping[cluster_id] = [BkCollectorClusterConfig.GLOBAL_CONFIG_BK_BIZ_ID]
+        cluster_mapping = BkCollectorClusterConfig.get_cluster_mapping()
 
         from metadata.models.bcs.cluster import BCSClusterInfo
 
@@ -817,9 +814,9 @@ class LogSubscriptionConfig(models.Model):
             bcs_cluster_to_biz_ids[bcs_cluster.cluster_id] = bcs_cluster.bk_biz_id
 
         # 按集群分组配置，实现批量下发
-        for cluster_id, cc_bk_biz_ids in cluster_mapping.items():
+        for (cluster_id, namespace, is_global), cc_bk_biz_ids in cluster_mapping.items():
             # 如果集群是默认部署集群, 则必须下发
-            if cluster_id not in settings.CUSTOM_REPORT_DEFAULT_DEPLOY_CLUSTER:
+            if not is_global:
                 # 如果集群不在BCS集群中，则不下发该集群的配置
                 if cluster_id not in bcs_cluster_to_biz_ids:
                     continue
@@ -834,7 +831,7 @@ class LogSubscriptionConfig(models.Model):
 
             try:
                 tpl = BkCollectorClusterConfig.sub_config_tpl(
-                    cluster_id, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
+                    cluster_id, namespace, BkCollectorComp.CONFIG_MAP_APPLICATION_TPL_NAME
                 )
                 if not tpl:
                     continue
@@ -863,11 +860,11 @@ class LogSubscriptionConfig(models.Model):
                             logger.exception(f"generate config for log_group({log_group.log_group_name})")
 
                 # 批量下发该集群的所有配置
-                BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, cluster_config_map, "log")
-                logger.info(f"batch deploy {len(cluster_config_map)} log configs to k8s cluster({cluster_id})")
+                BkCollectorClusterConfig.deploy_to_k8s_with_hash(cluster_id, namespace, cluster_config_map, "log")
+                logger.info(f"batch deploy {len(cluster_config_map)} log configs to {cluster_id}/{namespace}")
 
             except Exception:  # pylint: disable=broad-except
-                logger.exception(f"batch refresh custom report config to k8s({cluster_id})")
+                logger.exception(f"batch refresh custom report config to k8s({cluster_id}/{namespace})")
 
     @classmethod
     def get_log_config(cls, log_group: "LogGroup") -> dict:

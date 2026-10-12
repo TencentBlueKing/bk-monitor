@@ -686,6 +686,7 @@ class SearchViewSet(APIViewSet):
         """
         request_user = get_request_external_username() or get_request_username()
         data = self.params_valid(SearchExportSerializer)
+        request_bk_biz_id = data["bk_biz_id"]
         _apply_index_set_search_bk_biz_id(self.get_object(), data, request)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
             data["is_desensitize"] = False
@@ -693,6 +694,7 @@ class SearchViewSet(APIViewSet):
             data["is_desensitize"] = True
         index_set_id = int(index_set_id)
         request_data = copy.deepcopy(data)
+        request_data["bk_biz_id"] = request_bk_biz_id
 
         tmp_index_obj = LogIndexSet.objects.filter(index_set_id=index_set_id).first()
         if tmp_index_obj:
@@ -733,7 +735,7 @@ class SearchViewSet(APIViewSet):
             start_time=data["start_time"],
             end_time=data["end_time"],
             export_type=ExportType.SYNC,
-            bk_biz_id=data["bk_biz_id"],
+            bk_biz_id=request_bk_biz_id,
             created_by=request_user,
         )
 
@@ -852,6 +854,8 @@ class SearchViewSet(APIViewSet):
 
     def _export(self, request, index_set_id, is_quick_export):
         data = self.params_valid(SearchExportSerializer)
+        # 检索参数可能被解析为索引集归属业务，导出历史需要保留请求方的原始业务。
+        request_bk_biz_id = data["bk_biz_id"]
         _apply_index_set_search_bk_biz_id(self.get_object(), data, request)
         if "is_desensitize" in data and not data["is_desensitize"] and request.user.is_superuser:
             data["is_desensitize"] = False
@@ -865,6 +869,7 @@ class SearchViewSet(APIViewSet):
             task_id, size = UnifyQueryAsyncExportHandlers(
                 index_set_id=int(index_set_id),
                 bk_biz_id=data["bk_biz_id"],
+                request_bk_biz_id=request_bk_biz_id,
                 search_dict=data,
                 export_fields=data["export_fields"],
                 export_file_type=data["file_type"],
@@ -873,6 +878,7 @@ class SearchViewSet(APIViewSet):
             task_id, size = AsyncExportHandlers(
                 index_set_id=int(index_set_id),
                 bk_biz_id=data["bk_biz_id"],
+                request_bk_biz_id=request_bk_biz_id,
                 search_dict=data,
                 export_fields=data["export_fields"],
                 export_file_type=data["file_type"],

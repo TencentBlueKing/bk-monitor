@@ -140,4 +140,24 @@
       line-height: 20px;
     }
   }
+
+  .search-field-filter-new {
+    width: 190px !important;
+  }
+
+  .collection-favorite-popover {
+    .popover-title-content {
+      .dialog-title {
+        margin-top: 0;
+      }
+    }
+
+    .tippy-arrow {
+      left: 347px !important;
+    }
+  }
+
+  .bk-table-expand-icon {
+    color: #8f9fbd !important;
+  }
 }

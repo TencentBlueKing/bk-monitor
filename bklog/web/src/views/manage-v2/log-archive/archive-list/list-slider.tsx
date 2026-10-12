@@ -230,11 +230,11 @@ export default defineComponent({
         if (isEdit.value) {
           url = '/archive/editArchive';
           const { snapshot_days } = formData;
-          const { archive_config_id } = props.editArchive;
+          const { archive_config_id: archiveConfigId } = props.editArchive;
           paramsData = {
             snapshot_days,
           };
-          params.archive_config_id = archive_config_id;
+          params.archive_config_id = archiveConfigId;
         }
 
         // 设置提交按钮为加载状态
@@ -326,19 +326,19 @@ export default defineComponent({
           if (isEdit.value) {
             const {
               instance_id: instanceId,
-              target_snapshot_repository_name,
-              snapshot_days,
+              target_snapshot_repository_name: targetSnapshotRepositoryName,
+              snapshot_days: snapshotDays,
               instance_type: instanceType,
             } = props.editArchive;
 
             // 先设置采集类型和采集项
             collectorType.value = instanceType;
             formData.instance_id = instanceId;
-            formData.snapshot_days = snapshot_days;
+            formData.snapshot_days = snapshotDays;
 
             // 等仓库选项刷新后再赋值仓库名称
             await nextTick();
-            formData.target_snapshot_repository_name = target_snapshot_repository_name;
+            formData.target_snapshot_repository_name = targetSnapshotRepositoryName;
           }
         } else {
           // 清空表单数据

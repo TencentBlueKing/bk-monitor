@@ -151,13 +151,15 @@ const isCleanTemplateImportData = (data: unknown): data is CleanTemplateImportDa
     return false;
   }
   const template = data as Partial<CleanTemplateImportData>;
-  return typeof template.name === 'string'
-    && CLEAN_TYPES.includes(template.clean_type as CleanType)
-    && Boolean(template.etl_params)
-    && typeof template.etl_params === 'object'
-    && !Array.isArray(template.etl_params)
-    && Array.isArray(template.etl_fields)
-    && (template.description === undefined || typeof template.description === 'string');
+  return (
+    typeof template.name === 'string' &&
+    CLEAN_TYPES.includes(template.clean_type as CleanType) &&
+    Boolean(template.etl_params) &&
+    typeof template.etl_params === 'object' &&
+    !Array.isArray(template.etl_params) &&
+    Array.isArray(template.etl_fields) &&
+    (template.description === undefined || typeof template.description === 'string')
+  );
 };
 
 export default defineComponent({
@@ -241,10 +243,7 @@ export default defineComponent({
         const containerRect = containerRef.value.getBoundingClientRect();
         const tableContainerRect = tableContainerRef.value.getBoundingClientRect();
         const paddingBottom = Number.parseFloat(getComputedStyle(containerRef.value).paddingBottom) || 0;
-        tableAreaHeight.value = Math.max(
-          0,
-          Math.floor(containerRect.bottom - tableContainerRect.top - paddingBottom),
-        );
+        tableAreaHeight.value = Math.max(0, Math.floor(containerRect.bottom - tableContainerRect.top - paddingBottom));
       });
     };
 
@@ -538,9 +537,8 @@ export default defineComponent({
       if (!res.result) {
         return;
       }
-      const targetPage = templateList.value.length <= 1 && pagination.current > 1
-        ? pagination.current - 1
-        : pagination.current;
+      const targetPage =
+        templateList.value.length <= 1 && pagination.current > 1 ? pagination.current - 1 : pagination.current;
       Message({
         theme: 'success',
         message: t('删除成功'),

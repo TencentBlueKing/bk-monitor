@@ -23,17 +23,15 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component, Emit, InjectReactive, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listK8sResources, resourceTrend } from 'monitor-api/modules/k8s';
 import { bkMessage, makeMessage } from 'monitor-api/utils';
-import { Debounce, random } from 'monitor-common/utils/utils';
-import loadingIcon from 'monitor-ui/chart-plugins/icons/spinner.svg';
+import { random } from 'monitor-common/utils/utils';
 import { getValueFormat } from 'monitor-ui/monitor-echarts/valueFormats';
 
-import EmptyStatus from '../../../../components/empty-status/empty-status';
-import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import {
   type IK8SMetricItem,
@@ -45,6 +43,7 @@ import {
   K8sTableColumnKeysEnum,
 } from '../../typings/k8s-new';
 import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
+import K8sEmptyStatus from '../k8s-empty-status/k8s-empty-status';
 import K8sQuickTools from '../k8s-quick-tools/k8s-quick-tools';
 import K8sConvergeSelect from './k8s-converge-select';
 
@@ -145,6 +144,7 @@ interface K8sTableNewProps {
   groupInstance: K8sGroupDimension;
   hideMetrics: string[];
   metricList: IK8SMetricItem[];
+  metricLoading?: boolean;
 }
 
 /** 是否开启前端分页功能 */
@@ -177,6 +177,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   /** 获取资源列表公共请求参数 */
   @Prop({ type: Object, default: () => ({}) }) filterCommonParams: ITableCommonParams;
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
+  @Prop({ type: Boolean, default: false }) metricLoading: boolean;
+  @InjectReactive({ from: 'timezone', default: '' }) timezone: string;
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   // 刷新间隔 - monitor-k8s-new 传入
   @InjectReactive('refreshInterval') readonly refreshInterval!: number;
@@ -223,6 +225,29 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   scrollContainer: HTMLElement = null;
   /** 滚动结束后回调逻辑执行计时器  */
   scrollTimer = null;
+  requestId = 0;
+  requestTimer = null;
+  disposed = false;
+  loadedQueryKey = '';
+  loadError = false;
+  metricControllers = new Map<K8sTableColumnChartKey, AbortController>();
+
+  get queryKey() {
+    return JSON.stringify([
+      this.filterCommonParams,
+      this.resourceType,
+      this.activeTab,
+      this.timezone,
+      this.sortContainer.prop,
+      this.sortContainer.orderBy,
+      this.tableChartColumns.ids,
+      this.metricsForConvergeMap,
+    ]);
+  }
+
+  get showSkeleton() {
+    return this.metricLoading || (this.tableLoading.loading && this.loadedQueryKey !== this.queryKey);
+  }
 
   get isListTab() {
     return this.activeTab === K8sNewTabEnum.LIST;
@@ -309,6 +334,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
   /** table视图数据（由于后端返回全量数据，分页功能需前端自己处理） */
   get tableViewData() {
+    if (this.showSkeleton) return Array.from({ length: 6 }, () => ({}) as K8sTableRow);
     if (enabledFrontendLimit) {
       /** 接口返回全量数据时执行方案 */
       const { page, pageSize } = this.pagination;
@@ -318,7 +344,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   }
 
   get tableHasScrollLoading() {
-    return this.tableViewData?.length !== this.tableDataTotal;
+    return this.tableLoading.scrollLoading;
   }
 
   get filterBy() {
@@ -365,6 +391,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.refreshTable();
   }
 
+  @Watch('metricLoading')
+  @Watch('timezone')
   @Watch('filterCommonParams')
   onFilterCommonParamsChange() {
     this.debounceGetK8sList();
@@ -416,6 +444,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     this.addScrollListener();
   }
   beforeDestroy() {
+    this.disposed = true;
+    this.requestId++;
+    clearTimeout(this.requestTimer);
+    this.abortAsyncData();
     this.removeScrollListener();
   }
 
@@ -538,7 +570,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   addScrollListener() {
     this.removeScrollListener();
     this.scrollContainer = this.$el.querySelector(SCROLL_CONTAINER_DOM);
-    this.scrollContainer.addEventListener('scroll', this.handleScroll);
+    this.scrollContainer?.addEventListener('scroll', this.handleScroll);
   }
   /**
    * @description 移除滚动监听
@@ -559,7 +591,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       return;
     }
     const setDomPointerEvents = (val: 'auto' | 'none') => {
-      // @ts-ignore
+      // @ts-expect-error
       for (const children of childrenArr) {
         children.style.pointerEvents = val;
       }
@@ -571,9 +603,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     }, 600);
   }
 
-  @Debounce(200)
   debounceGetK8sList() {
-    this.getK8sList({ needRefresh: true });
+    this.requestId++;
+    this.abortAsyncData();
+    clearTimeout(this.requestTimer);
+    this.tableLoading.loading = true;
+    this.tableLoading.scrollLoading = false;
+    this.requestTimer = setTimeout(() => this.getK8sList({ needRefresh: true }), 200);
   }
 
   /**
@@ -588,7 +624,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     const wrapperRect = wrapperContainer?.getBoundingClientRect?.();
     const wrapperStyle = window.getComputedStyle(wrapperContainer);
     const wrapperPaddingHeight =
-      Number.parseInt(wrapperStyle?.paddingTop) + Number.parseInt(wrapperStyle?.paddingBottom);
+      Number.parseInt(wrapperStyle?.paddingTop, 10) + Number.parseInt(wrapperStyle?.paddingBottom, 10);
     const scrollHeight = wrapperRect?.height - (wrapperPaddingHeight || 0) - TABLE_ROW_MIN_HEIGHT;
     return Math.ceil(scrollHeight / TABLE_ROW_MIN_HEIGHT / this.pagination.pageSize) + 1 || 1;
   }
@@ -599,10 +635,21 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @param {boolean} config.needIncrement 是否需要增量加载（table 触底加载）
    */
   async getK8sList(config: { needIncrement?: boolean; needRefresh?: boolean } = {}) {
-    if (!this.filterCommonParams.bcs_cluster_id || this.tableLoading.scrollLoading || !this.metricList?.length) {
+    if (this.disposed || (config.needIncrement && (this.tableLoading.scrollLoading || this.tableLoading.loading)))
+      return;
+    clearTimeout(this.requestTimer);
+    const requestId = ++this.requestId;
+    const queryKey = this.queryKey;
+    if (!this.filterCommonParams.bcs_cluster_id || this.metricLoading) {
+      this.abortAsyncData();
+      this.tableLoading.loading = this.metricLoading;
+      this.tableLoading.scrollLoading = false;
+      this.tableData = [];
+      this.tableDataTotal = 0;
       return;
     }
-
+    if (!config.needIncrement) this.tableLoading.scrollLoading = false;
+    this.loadError = false;
     this.abortAsyncData();
     let loadingKey = 'scrollLoading';
     const initPagination = () => {
@@ -625,9 +672,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       };
     }
 
+    if (requestId !== this.requestId || this.disposed) return;
     this.tableLoading[loadingKey] = true;
 
-    if (config.needRefresh) {
+    if (this.loadedQueryKey !== queryKey) {
       this.asyncDataCache.clear();
     }
     // 汇聚类型
@@ -659,31 +707,41 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
     const abortController = new AbortController();
     this.abortControllerQueue.add(abortController);
-    let isAborted = false;
-    const data: { count: number; items: K8sTableRow[] } = await listK8sResources(requestParam, {
-      signal: abortController.signal,
-      needMessage: false,
-    }).catch(err => {
-      if (err?.message === 'canceled') {
-        isAborted = true;
+    try {
+      const data: { count: number; items: K8sTableRow[] } = await listK8sResources(requestParam, {
+        signal: abortController.signal,
+        needMessage: false,
+      });
+      if (requestId !== this.requestId || abortController.signal.aborted || this.disposed) return;
+      const resourceParam = this.formatTableData(
+        data.items,
+        resourceType as K8sTableColumnResourceKey,
+        undefined,
+        !!config.needRefresh
+      );
+      this.tableData = data.items;
+      this.tableDataTotal = data.count;
+      this.loadedQueryKey = queryKey;
+      this.loadAsyncData(resourceType, resourceParam);
+    } catch (err) {
+      if (requestId !== this.requestId || abortController.signal.aborted || this.disposed) return;
+      this.loadError = true;
+      if (config.needIncrement) this.pagination.page = Math.max(1, this.pagination.page - 1);
+      if (this.loadedQueryKey !== queryKey) {
+        this.tableData = [];
+        this.tableDataTotal = 0;
       } else {
-        const message = makeMessage(err.error_details || err.message);
-        bkMessage(message);
+        for (const row of this.tableData) {
+          for (const field of this.tableChartColumns.ids) {
+            if (row[field] && !row[field].datapoints) row[field].datapoints = [];
+          }
+        }
       }
-      return {
-        count: 0,
-        items: [],
-      };
-    });
-    this.abortControllerQueue.delete(abortController);
-    if (isAborted) {
-      return;
+      bkMessage(makeMessage(err.error_details || err.message));
+    } finally {
+      this.abortControllerQueue.delete(abortController);
+      if (requestId === this.requestId && !this.disposed) this.tableLoading[loadingKey] = false;
     }
-    const resourceParam = this.formatTableData(data.items, resourceType as K8sTableColumnResourceKey);
-    this.tableData = data.items;
-    this.tableDataTotal = data.count;
-    this.tableLoading[loadingKey] = false;
-    this.loadAsyncData(resourceType, resourceParam);
   }
 
   getResourceId(key: K8sTableColumnKeysEnum, data: Record<K8sTableColumnKeysEnum, string>) {
@@ -702,7 +760,8 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
   formatTableData(
     tableData: K8sTableRow[],
     resourceType: K8sTableColumnResourceKey,
-    requestColumns?: K8sTableColumnChartKey[]
+    requestColumns?: K8sTableColumnChartKey[],
+    refresh = false
   ): Map<K8sTableColumnChartKey, { ids: Set<string>; indexForId: Record<string, number[]> }> {
     let asyncColumns = requestColumns;
     if (!requestColumns) {
@@ -723,7 +782,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
             unitDecimal: null,
             valueTitle: this.$tc('用量'),
           };
+        }
 
+        if (refresh || !item?.[id]?.datapoints) {
           if (!prev.has(columnKey)) {
             prev.set(columnKey, { ids: new Set(), indexForId: {} });
           }
@@ -769,12 +830,15 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     if (!requestColumns) {
       asyncColumns = this.tableChartColumns.ids;
     }
+    const requestId = this.requestId;
     for (const field of asyncColumns) {
       const { ids, indexForId } = resourceParam.get(field as K8sTableColumnChartKey) || {};
       if (!ids?.size) {
         continue;
       }
+      this.metricControllers.get(field)?.abort();
       const controller = new AbortController();
+      this.metricControllers.set(field, controller);
       this.abortControllerQueue.add(controller);
       const { timeRange, ...filterCommonParams } = this.filterCommonParams;
       const formatTimeRange = handleTransformToTimestamp(timeRange);
@@ -797,14 +861,17 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
         { signal: controller.signal, needMessage: false }
       )
         .then(tableAsyncData => {
+          if (controller.signal.aborted || requestId !== this.requestId || this.disposed) return;
           this.renderTableBatchByBatch(field, tableAsyncData, indexForId);
         })
         .catch(() => {
+          if (controller.signal.aborted || requestId !== this.requestId || this.disposed) return;
           // 接口请求失败，渲染空数据
           this.renderTableBatchByBatch(field, [], indexForId);
         })
         .finally(() => {
           this.abortControllerQueue.delete(controller);
+          if (this.metricControllers.get(field) === controller) this.metricControllers.delete(field);
         });
     }
   }
@@ -881,7 +948,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
 
       const set = unitFormatter(chartVal, chartData.unitDecimal || unitDecimal);
       chartData.datapoints[0][0] = set.text;
-      // @ts-ignore
+      // @ts-expect-error
       chartData.unit = set.suffix;
     }
   }
@@ -931,7 +998,11 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    * @description 表格滚动到底部回调
    */
   handleTableScrollEnd() {
-    if (this.tableViewData.length >= this.tableDataTotal) {
+    if (
+      this.tableLoading.loading ||
+      this.tableLoading.scrollLoading ||
+      this.tableViewData.length >= this.tableDataTotal
+    ) {
       return;
     }
     if (enabledFrontendLimit) {
@@ -1019,6 +1090,13 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
    */
   resourcesTextFormatter(column: K8sTableColumn<K8sTableColumnResourceKey>) {
     return (row: K8sTableRow, tableInsideColumn, cellValue, index: number) => {
+      if (this.showSkeleton)
+        return (
+          <span
+            style={{ width: `${[64, 78, 52][index % 3]}%` }}
+            class='skeleton-element k8s-resource-skeleton'
+          />
+        );
       const text = K8sTableNew.getResourcesTextRowValue(row, column);
       return (
         <div class='k8s-table-col-item'>
@@ -1035,9 +1113,9 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           {this.isListTab ? (
             <K8sQuickTools
               class='table-col-tools'
-              isListTab={this.isListTab}
               filterCommonParams={this.filterCommonParams}
               groupByField={column.id}
+              isListTab={this.isListTab}
               value={text}
             />
           ) : null}
@@ -1054,14 +1132,10 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
     return (row: K8sTableRow) => {
       const columnKey = column.id;
       const chartData = row[columnKey];
-      if (!chartData?.datapoints) {
+      if (this.showSkeleton || !chartData?.datapoints) {
         return (
           <div class='k8s-metric-column'>
-            <img
-              class='loading-svg'
-              alt=''
-              src={loadingIcon}
-            />
+            <span class='skeleton-element k8s-value-skeleton' />
           </div>
         );
       }
@@ -1121,12 +1195,12 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
       <div
         ref='tableViewportContainer'
         class='k8s-table-new'
+        aria-busy={this.tableLoading.loading || this.metricLoading}
       >
         <bk-table
           key={this.refreshKey}
           ref='table'
           style={{
-            display: !this.tableLoading.loading ? 'block' : 'none',
             '--row-min-height': `${TABLE_ROW_MIN_HEIGHT}px`,
           }}
           height='100%'
@@ -1137,6 +1211,7 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
           border={false}
           data={this.tableViewData}
           outer-border={false}
+          row-class-name={() => (this.showSkeleton ? 'is-skeleton-row' : '')}
           size='small'
           on-scroll-end={this.handleTableScrollEnd}
           on-sort-change={val => this.handleSortChange(val as TableSort)}
@@ -1158,20 +1233,24 @@ export default class K8sTableNew extends tsc<K8sTableNewProps, K8sTableNewEvent>
               </bk-spin>
             ) : null}
           </div>
-          <EmptyStatus
+          <K8sEmptyStatus
             slot='empty'
-            textMap={{
-              empty: this.$t('暂无数据'),
-            }}
-            type={this.tableEmptyType}
-            onOperation={this.clearSearch}
+            type={this.loadError ? '500' : this.tableEmptyType}
+            onOperation={() => (this.loadError ? this.getK8sList({ needRefresh: true }) : this.clearSearch())}
           />
         </bk-table>
-        {this.tableLoading.loading ? (
-          <TableSkeleton
-            class='table-skeleton'
-            type={5}
-          />
+        {this.tableLoading.loading && !this.showSkeleton ? (
+          <div
+            class='k8s-table-refreshing'
+            role='status'
+          >
+            <bk-spin
+              placement='right'
+              size='mini'
+            >
+              {this.$t('加载中')}
+            </bk-spin>
+          </div>
         ) : null}
 
         <K8sDetailSlider

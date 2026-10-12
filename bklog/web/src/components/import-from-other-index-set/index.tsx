@@ -189,10 +189,10 @@ export default defineComponent({
         .validate()
         .then(async () => {
           confirmLoading.value = true;
-          const { index_set_id, export_type } = indexSetData.value;
+          const { index_set_id, export_type: exportType } = indexSetData.value;
           const res = await getClusterConfig(index_set_id);
           const importRuleArr = base64ToRuleArr(res.data.predefined_varibles);
-          rulesList = export_type === 'replace' ? importRuleArr : mergeAndDeduplicate(importRuleArr, rulesList);
+          rulesList = exportType === 'replace' ? importRuleArr : mergeAndDeduplicate(importRuleArr, rulesList);
           isShow.value = false;
           emit('success', rulesList);
         })

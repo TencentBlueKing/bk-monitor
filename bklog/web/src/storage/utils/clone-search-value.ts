@@ -18,10 +18,13 @@ export const cloneSearchMeta = (value: any): any => {
   if (normalized !== value) return normalized;
   if (Array.isArray(value)) return value.map(item => cloneSearchMeta(item));
   if (value && Object.prototype.toString.call(value) === '[object Object]') {
-    return Object.keys(value).reduce((output, key) => {
-      output[key] = cloneSearchMeta(value[key]);
-      return output;
-    }, {} as Record<string, any>);
+    return Object.keys(value).reduce(
+      (output, key) => {
+        output[key] = cloneSearchMeta(value[key]);
+        return output;
+      },
+      {} as Record<string, any>,
+    );
   }
   return value;
 };

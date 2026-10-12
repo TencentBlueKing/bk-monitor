@@ -26,8 +26,8 @@
 
 <template>
   <div
-    class="create-index-container"
     v-bkloading="{ isLoading: basicLoading }"
+    class="create-index-container"
     data-test-id="logIndexSetBox_div_newlogIndexSetBox"
   >
     <auth-container-page
@@ -109,10 +109,10 @@
               >
                 <bk-option
                   v-for="option in clusterList"
-                  class="custom-no-padding-option"
                   v-show="option.storage_cluster_id"
                   :id="option.storage_cluster_id"
                   :key="option.storage_cluster_id"
+                  class="custom-no-padding-option"
                   :name="option.storage_display_name"
                 >
                   <!-- <div
@@ -127,9 +127,7 @@
                       >{{ $t('申请权限') }}</span
                     >
                   </div> -->
-                  <div
-                    class="option-slot-container"
-                  >
+                  <div class="option-slot-container">
                     {{ option.storage_display_name }}
                   </div>
                 </bk-option>
@@ -142,17 +140,17 @@
               <template>
                 <bk-tag
                   v-for="(item, index) in formData.indexes"
-                  :class="{ 'selected-tag': scenarioId === 'es' }"
                   :key="item.result_table_id"
+                  :class="{ 'selected-tag': scenarioId === 'es' }"
                   :theme="getIndexActive(item.result_table_id)"
                   closable
                   @click="handleClickTag(item.result_table_id)"
                   @close="removeCollection(index, item.result_table_id)"
                 >
                   <span
+                    v-bk-overflow-tips
                     style="max-width: 360px"
                     class="title-overflow"
-                    v-bk-overflow-tips
                   >
                     {{ item.result_table_id }}
                   </span>
@@ -187,8 +185,8 @@
                 >
                   <template #default="props">
                     <span
-                      class="title-overflow"
                       v-bk-overflow-tips
+                      class="title-overflow"
                       >{{ props.row.field_name }}</span
                     >
                   </template>
@@ -200,8 +198,8 @@
                 >
                   <template #default="props">
                     <span
-                      class="title-overflow"
                       v-bk-overflow-tips
+                      class="title-overflow"
                       >{{ props.row.field_type }}</span
                     >
                   </template>
@@ -267,8 +265,8 @@
         <div class="collection-form">
           <div class="collection-label not-required">
             <span
-              class="dotted-line"
               v-bk-tooltips="$t('用于标识日志文件来源及唯一性')"
+              class="dotted-line"
             >
               {{ $t('目标字段') }}
             </span>
@@ -295,8 +293,8 @@
         <div class="collection-form">
           <div class="collection-label not-required">
             <span
-              class="dotted-line"
               v-bk-tooltips="$t('用于控制日志排序的字段')"
+              class="dotted-line"
             >
               {{ $t('排序字段') }}
             </span>
@@ -310,8 +308,8 @@
               <transition-group>
                 <bk-tag
                   v-for="item in formData.sort_fields"
-                  ext-cls="tag-items"
                   :key="item"
+                  ext-cls="tag-items"
                   closable
                   @close="handleCloseSortFiled(item)"
                 >
@@ -334,9 +332,9 @@
               </template>
               <bk-option
                 v-for="option in targetFieldSelectList"
-                :disabled="getSortDisabledState(option.id)"
                 :id="option.id"
                 :key="option.id"
+                :disabled="getSortDisabledState(option.id)"
                 :name="option.name"
               >
               </bk-option>
@@ -354,8 +352,8 @@
         {{ $t('提交') }}
       </bk-button>
       <component
-        ref="selectCollectionRef"
         :is="scenarioId === 'es' ? 'SelectEs' : 'SelectCollection'"
+        ref="selectCollectionRef"
         :parent-data="formData"
         :time-index.sync="timeIndex"
         @selected="addCollection"

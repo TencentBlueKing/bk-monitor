@@ -12,6 +12,9 @@ from collections import defaultdict
 
 from alarm_backends.core.cache import key
 
+# 读到 0 的去重标记，与按 record_id 记录的非零值区分；record_id 形如 {md5}.{time}，不含该分隔符
+ZERO_VALUE_RECORD_SUFFIX = "|0"
+
 
 class Duplicate:
     def __init__(self, strategy_group_key, strategy_id=None, ttl=None):
@@ -129,8 +132,12 @@ class Duplicate:
         time_to_record_ids = defaultdict(list)
         for record in records:
             time_to_record_ids[record.time].append(record.record_id)
+        self.add_record_ids_batch(time_to_record_ids)
 
-        # 批量更新内存缓存
+    def add_record_ids_batch(self, time_to_record_ids: dict[int, list[str]]) -> None:
+        """
+        按时间点批量添加 record_id 到去重缓存
+        """
         for t, record_ids in time_to_record_ids.items():
             dup_key = key.ACCESS_DUPLICATE_KEY.get_key(strategy_group_key=self.strategy_group_key, dt_event_time=t)
             if self.strategy_id is not None:

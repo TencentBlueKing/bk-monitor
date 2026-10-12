@@ -50,6 +50,8 @@ const stateTpl = {
   iframeQuery: {},
   // 当前项目及Id
   space: {},
+  // 首屏空间解析失败时保留首页 URL，等待用户选择可用空间后恢复检索。
+  spaceResolveFailed: false,
   spaceUid: urlArgs.spaceUid ?? '',
   indexId: urlArgs.index_id ?? '',
   indexItem: { ...IndexItem },

@@ -98,6 +98,7 @@ def test_serializer_requires_explicit_confirmation(confirm):
         (linux_payload(configs=container_payload()["configs"]), "configs"),
         (container_payload(target_nodes=[]), "target_nodes"),
         (windows_payload(bcs_cluster_id="BCS-K8S-00000"), "bcs_cluster_id"),
+        (container_payload(data_encoding="GBK"), "data_encoding"),
     ],
 )
 def test_serializer_rejects_fields_from_another_environment(payload, field):
@@ -105,6 +106,28 @@ def test_serializer_rejects_fields_from_another_environment(payload, field):
 
     assert not serializer.is_valid()
     assert field in serializer.errors
+
+
+def test_container_serializer_accepts_filters_under_container_object():
+    serializer = FastCreateLogCollectorResource.RequestSerializer(
+        data=container_payload(
+            configs=[
+                {
+                    "namespaces": ["default"],
+                    "container": {
+                        "workload_type": "Deployment",
+                        "workload_name": "api-.*",
+                        "container_name": "api,sidecar",
+                    },
+                    "data_encoding": "GBK",
+                    "params": {"paths": ["/var/log/app.log"]},
+                    "collector_type": "container_log_config",
+                }
+            ]
+        )
+    )
+
+    assert serializer.is_valid(), serializer.errors
 
 
 @pytest.mark.parametrize(
@@ -129,7 +152,6 @@ def test_serializer_rejects_scenario_environment_mismatch(payload, field):
         "data_link_id",
         "retention",
         "es_shards",
-        "parent_index_set_ids",
         "platform_username",
         "bk_username",
     ],
@@ -139,6 +161,13 @@ def test_serializer_rejects_infrastructure_and_identity_overrides(field):
 
     assert not serializer.is_valid()
     assert field in serializer.errors
+
+
+def test_serializer_accepts_parent_index_set_ids():
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=linux_payload(parent_index_set_ids=[11, 12]))
+
+    assert serializer.is_valid(), serializer.errors
+    assert serializer.validated_data["parent_index_set_ids"] == [11, 12]
 
 
 @pytest.mark.parametrize(
@@ -331,3 +360,32 @@ def test_fast_create_api_resource_injects_current_username(monkeypatch):
     request_data = resource.full_request_data({"bk_biz_id": 2})
 
     assert request_data["bk_username"] == "alice"
+
+
+def test_fast_create_forwards_parent_index_set_ids(monkeypatch):
+    calls = {}
+
+    def fast_create(**kwargs):
+        calls.update(kwargs)
+        return {
+            "collector_config_id": 31,
+            "bk_data_id": 51,
+            "subscription_id": None,
+            "task_id_list": None,
+            "index_set_id": 41,
+        }
+
+    monkeypatch.setattr(
+        create_module,
+        "api",
+        SimpleNamespace(log_search=SimpleNamespace(fast_create_log_collector=fast_create)),
+    )
+    payload = linux_payload(parent_index_set_ids=[901, 902])
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=payload)
+    assert serializer.is_valid(), serializer.errors
+
+    result = FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert calls["parent_index_set_ids"] == [901, 902]
+    assert "parent_index_set_id" not in calls
+    assert result["index_set_id"] == 41

@@ -43,7 +43,7 @@ class StorageHealthService {
         this.stopHeartbeat();
         void this.enqueueActiveMutation(() => this.deleteActiveOwner());
       });
-      window.addEventListener('pageshow', (event) => {
+      window.addEventListener('pageshow', event => {
         if ((event as PageTransitionEvent).persisted && this.activeQueryKey) {
           this.startHeartbeat();
           void this.enqueueActiveMutation(() => this.persistActiveQuery(this.activeQueryKey));
@@ -88,8 +88,8 @@ class StorageHealthService {
     this.compatibilityNotified = true;
     this.safeSessionSet(SUPPORT_NOTICE_KEY, '1');
     showWarning(
-      reason
-        || '当前浏览器不支持或限制了 IndexedDB，本次检索将使用内存降级模式；大日志结果可能出现加载变慢或无法完整展示，建议使用最新版 Chrome / Edge。',
+      reason ||
+        '当前浏览器不支持或限制了 IndexedDB，本次检索将使用内存降级模式；大日志结果可能出现加载变慢或无法完整展示，建议使用最新版 Chrome / Edge。',
     );
   }
 
@@ -97,8 +97,7 @@ class StorageHealthService {
     if (this.workerFallbackNotified) return;
     this.workerFallbackNotified = true;
     showWarning(
-      reason
-        || 'WebWorker 解析检索结果失败，已自动降级为主线程解析；功能不受影响，但大数据检索期间页面可能短暂卡顿。',
+      reason || 'WebWorker 解析检索结果失败，已自动降级为主线程解析；功能不受影响，但大数据检索期间页面可能短暂卡顿。',
     );
   }
 
@@ -106,8 +105,8 @@ class StorageHealthService {
     if (this.indexedDBFallbackNotified) return;
     this.indexedDBFallbackNotified = true;
     showWarning(
-      reason
-        || 'IndexedDB 写入检索结果失败，已自动降级为当前页面内存缓存；功能可继续使用，但刷新或切换页面后结果缓存不会保留。',
+      reason ||
+        'IndexedDB 写入检索结果失败，已自动降级为当前页面内存缓存；功能可继续使用，但刷新或切换页面后结果缓存不会保留。',
     );
   }
 
@@ -132,14 +131,8 @@ class StorageHealthService {
     }
     const now = Date.now();
     try {
-      await db.activeRetrieveQueries
-        .where('expireAt')
-        .belowOrEqual(now)
-        .delete();
-      const records = await db.activeRetrieveQueries
-        .where('expireAt')
-        .above(now)
-        .toArray();
+      await db.activeRetrieveQueries.where('expireAt').belowOrEqual(now).delete();
+      const records = await db.activeRetrieveQueries.where('expireAt').above(now).toArray();
       return Array.from(new Set(records.map(record => record.queryKey).filter(Boolean)));
     } catch (error) {
       console.warn('[bklog-storage] get active query keys failed', error);
@@ -194,7 +187,7 @@ class StorageHealthService {
 
   private enqueueActiveMutation(operation: () => Promise<void>) {
     const task = this.activeMutation.then(operation, operation);
-    this.activeMutation = task.catch((error) => {
+    this.activeMutation = task.catch(error => {
       console.warn('[bklog-storage] active query mutation failed', error);
     });
     return task;

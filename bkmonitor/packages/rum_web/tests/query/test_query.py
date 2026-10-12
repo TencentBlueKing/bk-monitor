@@ -87,3 +87,26 @@ class TestSpanQuery:
 
     def test_default_time_field_defined(self):
         assert SpanQuery.DEFAULT_TIME_FIELD == "end_time"
+
+
+class TestSpanQueryDetail:
+    @pytest.mark.parametrize("records", [[], [{"span_id": "id", "attributes": {"span_type": "resource"}}]])
+    def test_query_detail_returns_record_or_empty_dict(self, records, mocker):
+        from bkmonitor.data_source.utils.apm import FilterOperator
+
+        query = SpanQuery([_make_target()])
+        query_list = mocker.patch.object(query, "query_list", return_value=records)
+        result = query.query_detail("id")
+        assert result == (records[0] if records else {})
+        query_list.assert_called_once_with(
+            start_time=None,
+            end_time=None,
+            offset=0,
+            limit=1,
+            filters=[{"key": "span_id", "value": ["id"], "operator": FilterOperator.EQUAL}],
+        )
+
+    def test_list_query_requires_explicit_range_and_pagination(self):
+        query = SpanQuery([_make_target()])
+        with pytest.raises(TypeError):
+            query.query_list()

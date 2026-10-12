@@ -24,15 +24,12 @@ const mapNode = (node: AstNode, visitor: (n: AstNode) => AstNode): AstNode => {
  * - 其他 → term（完整值等值）
  * - IP/UUID/... → global
  */
-export const analyzeSemantics = (
-  ast: AstNode,
-  ctx: SelectionContext,
-  options: QueryCompilerOptions,
-): AstNode => {
-  const negative = Boolean(options.negative)
-    || ['is not', 'not contains match phrase', 'not contains', '!='].includes(String(ctx.operatorHint ?? ''));
+export const analyzeSemantics = (ast: AstNode, ctx: SelectionContext, options: QueryCompilerOptions): AstNode => {
+  const negative =
+    Boolean(options.negative) ||
+    ['is not', 'not contains match phrase', 'not contains', '!='].includes(String(ctx.operatorHint ?? ''));
 
-  return mapNode(ast, (node) => {
+  return mapNode(ast, node => {
     const next: AstNode = { ...node, negative: node.negative ?? negative };
 
     if (next.type === 'Global') {
@@ -54,7 +51,12 @@ export const analyzeSemantics = (
         next.matchMode = 'phrase';
       } else if (isKeywordLikeField(fieldType)) {
         next.matchMode = options.wildcardForKeyword === false ? 'term' : 'wildcard';
-      } else if (isNumberLikeField(fieldType) || isDateLikeField(fieldType) || fieldType === 'boolean' || fieldType === 'ip') {
+      } else if (
+        isNumberLikeField(fieldType) ||
+        isDateLikeField(fieldType) ||
+        fieldType === 'boolean' ||
+        fieldType === 'ip'
+      ) {
         // 其他类型：补齐为完整 FieldValue（由 resolver 写入）
         next.matchMode = 'term';
         if (ctx.fullText && ctx.fullText !== '--' && ctx.fullText !== '[object Object]') {

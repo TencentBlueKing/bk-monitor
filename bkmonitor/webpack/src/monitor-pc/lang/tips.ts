@@ -87,6 +87,7 @@ export default {
   '对该配置增/删目标,成功{0}个实例,失败{1}个实例':
     'adding/deleting targets to this configuration, {0} instances succeeded, failed{ 1} instances',
   '即将上线，敬请期待': 'Coming soon, stay tuned',
+  敬请期待: 'Coming soon',
   '组合策略功能暂未开放，敬请期待！': 'The combined rule function is not yet open, please look forward to it!',
   '邮件任务已生成，请一分钟后到邮箱查看': 'The email task has been generated, please check your mailbox in one minute',
   '迁移完成，请确认迁移结果': 'Migration completed, please confirm the migration result',
@@ -161,6 +162,7 @@ export default {
   '当前空间未开启故障诊断功能, 请联系': 'The current space does not support this function. please contact',
   BK助手: 'BK Assistant',
   'BK 助手': 'BK Assistant',
+  产品白皮书: 'Product White Paper',
   当前告警关联故障: 'Current alarm associated fault',
   当前告警无关联故障: 'The current alarm has no associated faults',
   当前无异常事件: 'Currently no abnormal events',
@@ -494,6 +496,8 @@ export default {
   请选择Issue聚合生效告警级别: 'Please select effective alert level for Issue aggregation',
   '请先选择 Issue': 'Please select Issue first',
   '请至少选择 2 个 Issue': 'Please select at least 2 Issues',
+  '请先勾选需要拆分的 Issue': 'Please check the Issues to be split first',
+  '单次最多拆分 {n} 个 Issue': 'Up to {n} Issues can be split at a time',
   '主 Issue 不支持再并入其他主 Issue': 'The main Issue does not support being merged into other main Issues',
   '合并了 {n} 个 Issue，点击查看合并明细': 'Merged {n} Issues, click to view merge details',
   拆分: 'Split',
@@ -540,4 +544,8 @@ export default {
     'After the group is deleted, the related metrics will be moved to <{name}>',
   '触发规则：仅当对应数据值大于 {threshold} 时触发告警':
     'Trigger rule: alarm is triggered only when the corresponding data value is greater than {threshold}',
+
+  // RUM 检索--详情
+  'TTFB 表示从请求发出到收到响应首字节的时间，包含请求传输、服务端处理和排队时间；仅凭浏览器时序不能直接判定服务端处理，需结合 Trace 或 Server-Timing。':
+    'TTFB is the time from sending the request to receiving the first byte of the response, including request transfer, server-side processing and queuing time. Browser timing alone cannot determine server-side processing, it needs to be combined with Trace or Server-Timing.',
 };

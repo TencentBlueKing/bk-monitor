@@ -47,6 +47,7 @@ from apm.resources import (
     QuerySpanResource,
     QueryTopoInstanceResource,
     QueryTopoNodeResource,
+    SearchServiceNamesResource,
     QueryTopoRelationResource,
     QueryTraceByHostInstanceResource,
     QueryTraceByIdsResource,
@@ -125,6 +126,7 @@ class TopoViewSet(ResourceViewSet):
         ResourceRoute("POST", QueryRemoteServiceRelationResource, endpoint="query_remote_service_relation"),
         ResourceRoute("POST", QueryTopoRelationResource, endpoint="query_topo_relation"),
         ResourceRoute("GET", QueryTopoNodeResource, endpoint="query_topo_node"),
+        ResourceRoute("POST", SearchServiceNamesResource, endpoint="search_service_names"),
     ]
 
 

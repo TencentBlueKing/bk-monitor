@@ -56,6 +56,11 @@ export const allRouteConfig: IRouteConfig[] = [
     route: 'incident-detail',
   },
   {
+    id: 'profiling-explore',
+    name: 'Profiling 检索',
+    route: 'profiling-explore',
+  },
+  {
     id: 'profiling',
     name: 'Profiling',
     route: 'profiling',
@@ -64,6 +69,11 @@ export const allRouteConfig: IRouteConfig[] = [
     id: 'rum',
     name: 'RUM',
     route: 'rum',
+  },
+  {
+    id: 'rum-explore',
+    name: 'RUM 检索',
+    route: 'rumExplore',
   },
   {
     id: 'report',

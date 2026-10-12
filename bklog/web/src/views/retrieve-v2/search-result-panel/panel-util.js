@@ -42,8 +42,7 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink, appe
     return JSON.stringify(linkAdditionList?.length ? filterAddition.concat(...linkAdditionList) : filterAddition);
   };
   const { params, query } = window.mainComponent.$route;
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  const { ip_chooser, addition, keyword, ...reset } = query;
+  const { ip_chooser: ipChooser, addition, keyword, ...reset } = query;
   const filterQuery = reset; // 给query排序 让addition和ip_chooser排前面
   let newAddition;
   let newKeyWord;
@@ -66,7 +65,7 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink, appe
     addition: newAddition,
     search_mode: searchMode,
   }; // 新的query对象
-  const newIPChooser = ip_chooser;
+  const newIPChooser = ipChooser;
 
   if (newIPChooser && Object.keys(newIPChooser).length && !isNewLink) {
     // ip值更新
@@ -78,8 +77,8 @@ export function getConditionRouterParams(searchList, searchMode, isNewLink, appe
   Object.assign(filterQuery, newQueryObj, append ?? {});
   const storeState = window.mainComponent.$store.state;
   const indexId = window.__IS_MONITOR_COMPONENT__
-    ? (query.indexId || params.indexId || storeState.indexId)
-    : (params.indexId || query.indexId || storeState.indexId);
+    ? query.indexId || params.indexId || storeState.indexId
+    : params.indexId || query.indexId || storeState.indexId;
 
   if (isMonitorEmbedContext(query)) {
     return buildMonitorLogRetrievalUrl({

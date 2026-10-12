@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, computed, shallowRef, watch } from 'vue';
+import { type MaybeRef, computed, onBeforeUnmount, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 
@@ -51,6 +51,11 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
   const customDisplayFields = shallowRef<string[]>([]);
   /** 用户自定义配置 table 列宽度 */
   const customFieldsWidthConfig = shallowRef<{ [colKey: string]: number }>({});
+  const fieldsLoading = shallowRef(true);
+  let requestId = 0;
+  onBeforeUnmount(() => {
+    requestId += 1;
+  });
 
   const store = useTraceExploreStore();
   const { handleGetUserConfig, handleSetUserConfig } = useUserConfig();
@@ -66,19 +71,18 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
     () => `${get(options.mode)}_${get(options.appName)}_${TABLE_DISPLAY_COLUMNS_FIELD_SUFFIX}`
   );
 
-  /** table 显示列配置 */
-  const displayColumnFields = computed<string[]>(() => {
-    // 前端写死的兜底默认显示列配置(优先级：userConfig -> appList -> defaultConfig)
-    const defaultColumnsConfig = get(options.mode) === 'span' ? spanConfig : traceConfig;
+  /** 未做用户个性化配置时的展示列：应用视角配置优先，未配置时兜底前端写死的默认展示列（列设置「恢复默认」的回填来源） */
+  const defaultDisplayFields = computed<string[]>(() => {
     const applicationColumnConfig =
       store?.currentApp?.view_config?.[`${get(options.mode)}_config`]?.display_columns || [];
-    // 需要展示的字段列名数组
-    return get(customDisplayFields)?.length
-      ? get(customDisplayFields)
-      : applicationColumnConfig?.length
-        ? applicationColumnConfig
-        : ((defaultColumnsConfig?.displayFields || []) as string[]);
+    const builtInColumns = (get(options.mode) === 'span' ? spanConfig : traceConfig)?.displayFields || [];
+    return applicationColumnConfig?.length ? applicationColumnConfig : [...builtInColumns];
   });
+
+  /** table 显示列配置：需要展示的字段列名数组(优先级：userConfig -> appList -> defaultConfig) */
+  const displayColumnFields = computed<string[]>(() =>
+    get(customDisplayFields)?.length ? get(customDisplayFields) : defaultDisplayFields.value
+  );
 
   /**
    * @method handleSetFavoriteFields 设置收藏中表格显示字段及字段宽度配置
@@ -96,9 +100,14 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
    * @description 从用户配置/收藏配置中获取 table 表格列配置
    */
   const getCustomFieldsConfig = async () => {
+    const currentRequest = ++requestId;
+    fieldsLoading.value = true;
     customDisplayFields.value = [];
     customFieldsWidthConfig.value = {};
-    if (!get(options.appName) || !get(options.mode)) return;
+    if (!get(options.appName) || !get(options.mode)) {
+      fieldsLoading.value = false;
+      return;
+    }
     let customCacheConfig: any = {
       displayFields: [],
       fieldsWidth: {},
@@ -107,11 +116,15 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
       // 优先取收藏配置
       customCacheConfig = favoriteTableConfig.value;
     } else {
-      customCacheConfig = (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value)) || {
+      customCacheConfig = (await handleGetUserConfig<string[]>(customDisplayColumnFieldsCacheKey.value).catch(
+        () => null
+      )) || {
         displayFields: [],
         fieldsWidth: {},
       };
     }
+    if (currentRequest !== requestId) return;
+    fieldsLoading.value = false;
     // 原来只缓存了展示字段，且是数组结构，目前改为对象结构需向前兼容
     if (Array.isArray(customCacheConfig)) {
       customDisplayFields.value = customCacheConfig;
@@ -166,7 +179,9 @@ export const useExploreTableDisplayField = (options: UseExploreTableDisplayField
   );
 
   return {
+    fieldsLoading,
     displayColumnFields,
+    defaultDisplayFields,
     fieldsWidthConfig: customFieldsWidthConfig,
     getCustomFieldsConfig,
     handleDisplayColumnFieldsChange,

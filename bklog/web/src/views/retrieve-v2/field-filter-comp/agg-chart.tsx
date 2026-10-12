@@ -91,10 +91,10 @@ export default class AggChart extends tsc<object> {
       .map(([key, value]) => {
         const markList = key.toString().match(/(<mark>).*?(<\/mark>)/g) || [];
         if (markList.length) {
-          return [
-            markList.map(m => m.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(','),
-            value,
-          ] as [string, unknown];
+          return [markList.map(m => m.replace(/<mark>/g, '').replace(/<\/mark>/g, '')).join(','), value] as [
+            string,
+            unknown,
+          ];
         }
         return [key, value] as [string, unknown];
       });
@@ -107,15 +107,11 @@ export default class AggChart extends tsc<object> {
   }
 
   get showValidCount() {
-    return this.isFrontStatistics
-      ? this.statisticalFieldData.__validCount || 0
-      : this.fieldValueData.field_count;
+    return this.isFrontStatistics ? this.statisticalFieldData.__validCount || 0 : this.fieldValueData.field_count;
   }
 
   get showTotalCount() {
-    return this.isFrontStatistics
-      ? this.statisticalFieldData.__totalCount || 0
-      : this.fieldValueData.total_count;
+    return this.isFrontStatistics ? this.statisticalFieldData.__totalCount || 0 : this.fieldValueData.total_count;
   }
 
   get watchQueryParams() {
@@ -240,16 +236,16 @@ export default class AggChart extends tsc<object> {
 
     if (this.searchMode === 0) {
       const mappedOperator = OPERATOR_MAPPING[operator] || operator;
-      return store.getters.retrieveParams?.addition?.some((addition) => {
+      return store.getters.retrieveParams?.addition?.some(addition => {
         return (
-          addition.field === fieldName
-          && addition.operator === mappedOperator
-          && addition.value.toString() === value.toString()
+          addition.field === fieldName &&
+          addition.operator === mappedOperator &&
+          addition.value.toString() === value.toString()
         );
       });
     }
 
-    const formatJsonString = (formatResult) => {
+    const formatJsonString = formatResult => {
       if (typeof formatResult === 'string') {
         return DOMPurify.sanitize(formatResult);
       }
@@ -257,12 +253,10 @@ export default class AggChart extends tsc<object> {
       return formatResult;
     };
 
-    // biome-ignore lint/nursery/noShadow: reason
     const getSqlAdditionMappingOperator = ({ operator, field }) => {
       const textType = this.fieldType;
 
-      // biome-ignore lint/nursery/noShadow: reason
-      const formatValue = (value) => {
+      const formatValue = value => {
         let formatResult = value;
         if (['text', 'string', 'keyword'].includes(textType)) {
           if (Array.isArray(formatResult)) {
@@ -320,9 +314,7 @@ export default class AggChart extends tsc<object> {
         ...(isScene ? {} : { index_set_ids: indexSetIDs }),
       };
 
-      const urlStr = isScene
-        ? 'retrieve/getSceneFieldFetchTopList'
-        : 'retrieve/fieldFetchTopList';
+      const urlStr = isScene ? 'retrieve/getSceneFieldFetchTopList' : 'retrieve/fieldFetchTopList';
       const res = await $http.request(urlStr, { data });
 
       if (res.code === 0) {
@@ -340,17 +332,16 @@ export default class AggChart extends tsc<object> {
   render() {
     return (
       <div class='retrieve-v2 field-data'>
-        {
-          this.showSearchKeyword
-            ? <div style={{ marginBottom: '10px' }}>
-              <bk-input
-                v-model={this.searchKeyword}
-                placeholder={this.$t('搜索')}
-                clearable
-                right-icon='icon-search'
-              />
-            </div> : null
-        }
+        {this.showSearchKeyword ? (
+          <div style={{ marginBottom: '10px' }}>
+            <bk-input
+              v-model={this.searchKeyword}
+              placeholder={this.$t('搜索')}
+              clearable
+              right-icon='icon-search'
+            />
+          </div>
+        ) : null}
         {this.listLoading ? (
           <ItemSkeleton
             columns={2}

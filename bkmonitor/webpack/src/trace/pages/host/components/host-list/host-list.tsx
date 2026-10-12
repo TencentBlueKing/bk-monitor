@@ -26,15 +26,16 @@
 
 import { type PropType, computed, defineComponent, toRef } from 'vue';
 
+import { Alert, Button } from 'bkui-vue';
 import { storeToRefs } from 'pinia';
 import { useHostStore } from 'trace/store/modules/host';
+import { useI18n } from 'vue-i18n';
 
-import EmptyStatus from '../../../../components/empty-status/empty-status';
-import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { useHostList } from '../../composables/use-host-list';
 import HostListFilter from './host-list-filter';
 import HostListTable from './host-list-table';
 import HostListToolbar from './host-list-toolbar';
+import { HostRefreshStatus } from '../host-loading/host-loading';
 import HostStatCards from './host-stat-cards';
 
 import type { EHostQuickCategory, IHostListRow } from '../../types/host-list';
@@ -60,6 +61,7 @@ export default defineComponent({
     processClick: (_row: IHostListRow, _processName: string) => true,
   },
   setup(props, { emit }) {
+    const { t } = useI18n();
     const { where, filterExpanded, activeCategory, keyword } = storeToRefs(useHostStore());
     const ctx = useHostList({
       readonly: props.readonly,
@@ -79,45 +81,41 @@ export default defineComponent({
 
     return () => (
       <div class='host-list'>
-        {/* 骨架屏：通过 display 控制显隐，避免条件渲染导致重建 */}
-        <div
-          style={{ display: ctx.loading.value ? 'flex' : 'none' }}
-          class='host-list-skeleton'
-        >
-          <div class='host-list-skeleton__cards'>
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div
-                key={i}
-                class='host-list-skeleton__card'
-              >
-                <div class='skeleton-element host-list-skeleton__card-icon' />
-                <div class='host-list-skeleton__card-text'>
-                  <div class='skeleton-element host-list-skeleton__card-name' />
-                  <div class='skeleton-element host-list-skeleton__card-num' />
-                </div>
-              </div>
-            ))}
-          </div>
-          <div class='host-list-skeleton__toolbar'>
-            <div class='skeleton-element host-list-skeleton__toolbar-btn' />
-            <div class='skeleton-element host-list-skeleton__toolbar-search' />
-          </div>
-          <div class='host-list-skeleton__table'>
-            <TableSkeleton />
-          </div>
-        </div>
-        {/* 真实内容：通过 display 控制显隐，避免条件渲染导致重建 */}
-        <div
-          style={{ display: ctx.loading.value || ctx.loadError.value ? 'none' : '' }}
-          class='host-list-content'
-        >
+        <HostRefreshStatus loading={ctx.retainingData.value && ctx.fullLoading.value} error={ctx.retainingData.value && ctx.fullLoadError.value} onRetry={ctx.retryFullData} />
+        <div class='host-list-content'>
           <HostStatCards
             activeKey={ctx.activeCategory.value}
+            fullDataReady={ctx.fullDataReady.value}
+            states={ctx.categoryStates.value}
             stats={ctx.categoryStats.value}
             onCardClick={(key: EHostQuickCategory) => ctx.handleCategoryClick(key)}
+            onRetry={ctx.retryCategory}
           />
+          {!ctx.fullDataReady.value && ctx.fullLoadError.value && (
+            <Alert
+              class='host-list__full-status'
+              theme='warning'
+            >
+              {{
+                title: () => (
+                  <div>
+                    <span>{t('全量数据加载失败，可继续按页浏览')}</span>
+                    <Button
+                      class='host-list__full-retry'
+                      disabled={ctx.fullLoading.value}
+                      text
+                      onClick={ctx.retryFullData}
+                    >
+                      {t('重新加载')}
+                    </Button>
+                  </div>
+                ),
+              }}
+            </Alert>
+          )}
           <div class='host-list__filter-bar'>
             <HostListToolbar
+              disabled={!ctx.fullDataReady.value}
               filterExpanded={ctx.filterExpanded.value}
               hasSelection={hasSelection.value}
               keyword={ctx.keyword.value}
@@ -128,6 +126,7 @@ export default defineComponent({
             />
             {ctx.filterExpanded.value && (
               <HostListFilter
+                disabled={!ctx.fullDataReady.value}
                 fields={ctx.filterFields}
                 filterMode={ctx.filterMode.value}
                 filterOptionsMap={ctx.filterOptionsMap.value}
@@ -142,9 +141,15 @@ export default defineComponent({
             )}
           </div>
           <HostListTable
+            emptyType={
+              ctx.fullDataReady.value && ctx.rawRowCount.value > 0 && ctx.total.value === 0 ? 'search-empty' : 'empty'
+            }
+            columnWidths={ctx.fieldsWidthConfig.value}
             data={ctx.pagedRows.value}
-            emptyType={ctx.rawRowCount.value > 0 && ctx.total.value === 0 ? 'search-empty' : 'empty'}
-            markValue={ctx.stickyValue.value}
+            fullDataReady={ctx.fullDataReady.value}
+            loadError={ctx.loadError.value}
+            loading={ctx.loading.value}
+            markValue={ctx.fullDataReady.value ? ctx.stickyValue.value : {}}
             metricLoadError={ctx.metricLoadError.value}
             metricLoading={ctx.metricLoading.value}
             page={ctx.page.value}
@@ -152,10 +157,11 @@ export default defineComponent({
             readonly={props.readonly}
             selectedRowKeys={ctx.selectedRowKeys.value}
             selectType={ctx.selectType.value}
-            sort={ctx.sortInfo.value}
+            sort={ctx.fullDataReady.value ? ctx.sortInfo.value : ''}
             total={ctx.total.value}
             visibleColumns={ctx.visibleColumns.value}
             onClearFilter={ctx.handleClearFilter}
+            onColumnResize={(widths: Record<string, number>) => (ctx.fieldsWidthConfig.value = widths)}
             onColumnsChange={ctx.handleColumnsChange}
             onHeaderSelect={ctx.handleHeaderSelect}
             onIpMark={ctx.handleIpMark}
@@ -163,18 +169,12 @@ export default defineComponent({
             onPageSizeChange={ctx.handlePageSizeChange}
             onProcessClick={(...args) => emit('processClick', ...args)}
             onRetryMetric={ctx.loadMetricData}
+            onRetryPage={ctx.loadPageData}
             onRowCheck={ctx.handleRowCheck}
             onSelectIpCell={handleSelectIpCell}
             onSortChange={ctx.handleSortChange}
           />
         </div>
-        {!ctx.loading.value && ctx.loadError.value && (
-          <EmptyStatus
-            class='host-list-error'
-            type='500'
-            onOperation={ctx.loadData}
-          />
-        )}
       </div>
     );
   },

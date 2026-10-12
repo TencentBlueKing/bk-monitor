@@ -94,8 +94,8 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
     },
   });
 
-  const initRootOperator = (depth) => {
-    initEditPromise = new Promise((resolve) => {
+  const initRootOperator = depth => {
+    initEditPromise = new Promise(resolve => {
       for (const value of rootFieldOperator.values()) {
         if (!value.editor) {
           value.editor = new UseJsonFormatter(buildFormatterConfig(value));
@@ -117,7 +117,7 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
     return initEditPromise;
   };
 
-  const setEditor = (depth) => {
+  const setEditor = depth => {
     for (const value of rootFieldOperator.values()) {
       if (!value.editor) {
         value.editor = new UseJsonFormatter(buildFormatterConfig(value));
@@ -132,9 +132,8 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
 
       if (!value.isJson) {
         // 优先用 stringValue 渲染（时间格式化后的展示串）；jsonValue 仍保留原始 value
-        const displayText = value.stringValue !== undefined && value.stringValue !== null
-          ? value.stringValue
-          : value.value;
+        const displayText =
+          value.stringValue !== undefined && value.stringValue !== null ? value.stringValue : value.value;
         value.editor?.initStringAsValue(displayText as string);
       }
     }
@@ -201,7 +200,7 @@ export default ({ fields: initialFields, onSegmentClick, onSegmentRenderUpdate }
     return initRootOperator(depth);
   };
 
-  const setExpand = (depth) => {
+  const setExpand = depth => {
     for (const item of rootFieldOperator.values()) {
       if (item.isJson) {
         item.editor?.setExpand(depth);

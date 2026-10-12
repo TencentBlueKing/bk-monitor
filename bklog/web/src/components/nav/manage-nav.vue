@@ -43,15 +43,15 @@
       {{ getBaseName() }}
     </div>
     <ul
-      v-if="showSubNav &&activeManageNav.children && !$route.meta.needBack"
+      v-if="showSubNav && activeManageNav.children && !$route.meta.needBack"
       class="sub-nav-list"
       data-test-id="logCollection_ul_logCollectionNavBox"
     >
       <template v-for="navItem in activeManageNav.children">
         <li
+          :key="navItem.id"
           :class="{ 'sub-nav-item': true, active: navItem.id === activeManageSubNav.id }"
           :data-test-id="`logCollectionNavBox_li_${navItem.id}`"
-          :key="navItem.id"
           @click="handleClickSubNav(navItem.id)"
         >
           {{ navItem.name }}
@@ -62,7 +62,6 @@
 </template>
 
 <script>
-  
   export default {
     props: {
       name: {
@@ -124,7 +123,7 @@
         const idmap = {
           'log-index-set': 'log-index-set-list',
           'collection-item': 'collection-item-list',
-        }
+        };
         return this.activeManageNav?.children?.find(t => idmap[t.id] === this.$route.name) ?? {};
       },
     },
@@ -142,10 +141,10 @@
       handleBack() {
         if (this.$route.meta.backName) {
           const {
-            query: { backRoute, typeKey,indexSetId },
+            query: { backRoute, typeKey, indexSetId },
           } = this.$route;
           this.$router.push({
-            name: !!backRoute ? backRoute : this.$route.meta.backName,
+            name: backRoute ? backRoute : this.$route.meta.backName,
             query: {
               spaceUid: this.$store.state.spaceUid,
               typeKey,
