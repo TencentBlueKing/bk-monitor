@@ -254,7 +254,7 @@ function buildSummaryCards(section: IRumDetailSection, spanType: string, ctx: IR
   for (const [groupKey, groupData] of Object.entries(data)) {
     const descriptor = getCardDescriptor(spanType, section.key, groupKey);
     if (!descriptor) continue;
-    for (const [index, card] of descriptor(groupData, ctx).entries()) {
+    for (const [index, card] of descriptor({ ...groupData, key: groupKey }, ctx).entries()) {
       cards.push({ ...card, key: `${groupKey}_${index}` });
     }
   }
