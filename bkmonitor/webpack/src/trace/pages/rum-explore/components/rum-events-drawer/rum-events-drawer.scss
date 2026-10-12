@@ -1,0 +1,112 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation the
+ * rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to
+ * permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+/* stylelint-disable selector-class-pattern */
+
+/* 抽屉外壳（定位 / 拖拽调高 / 动画）由 components/vertical-drawer 提供，此处只描述 events 列表内容 */
+.rum-events-drawer-actions {
+  display: flex;
+  column-gap: 4px;
+  align-items: center;
+
+  .show-all-label {
+    font-size: 12px;
+    color: #4d4f56;
+    white-space: nowrap;
+  }
+}
+
+.events-table-wrap {
+  height: 100%;
+
+  /* 空态没有内容可撑开，让表格内容区与空白区域同高（表格根已有确定高度，百分比可解析） */
+  &.is-empty .t-table__content {
+    height: 100%;
+  }
+}
+
+/* class 经 CommonTable 透传落在其根元素 .common-table-wrapper 上，以下选择器均以它为祖先 */
+.events-table {
+  height: 100%;
+
+  /* CommonTable 的事件委托层为 display:contents 不产生盒模型，表格根沿 wrapper 高度解析 maxHeight */
+  .common-table {
+    height: 100%;
+  }
+
+  /* 外框由 bordered 提供（即设计稿的「表格容器」），此处只把色值、圆角校正为设计值，
+     并去掉组件自带的单元格竖线 */
+  .t-table--bordered {
+    .t-table__content {
+      box-sizing: border-box;
+      border-color: #dcdee5;
+      border-radius: 2px;
+    }
+
+    td,
+    th {
+      border-left: 0;
+    }
+  }
+
+  /* 表头用原生 sticky 吸顶，不引入 affix，避免其滚动容器判定与抽屉的挂载时机相互干扰 */
+  .t-table__header th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+
+    /* 与 TDesign 固定表头同源：内容纵向溢出时 thead 带 .t-table__header--fixed，
+       其 th 背景规则特异性高于本选择器，写死色值会在该态下失效 */
+    background: var(--td-bg-color-secondarycontainer);
+  }
+
+  /* 左固定序号列的表头格需压过同层 sticky 的其他表头格，否则横向滚动时会被后序列覆盖 */
+  .t-table__header th.t-table__cell--fixed-left {
+    z-index: 2;
+  }
+
+  /* 空态：清掉空行单元格内边距，使空态撑满表格高度 */
+  .t-table__empty-row td {
+    padding: 0;
+  }
+
+  /* 激活列整列高亮：内容列与表头同色系，表头重一档。
+     th 侧需带上 .t-table__header 提升特异性，才能盖过 TDesign 固定表头的背景规则 */
+  td.events-col-active {
+    background: #f0f5ff;
+  }
+
+  .t-table__header th.events-col-active {
+    background: #e1ecff;
+  }
+}
+
+.events-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
