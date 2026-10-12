@@ -23,7 +23,7 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Q
 
 from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
-from bkmonitor.models.strategy import DutyPlanSendRecord, DutyRuleRelation
+from bkmonitor.models.strategy import DutyPlanSendRecord
 from bkmonitor.utils import time_tools
 from bkmonitor.utils.send import Sender
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
@@ -590,9 +590,8 @@ class GroupDutyRuleManager:
 
             old_snaps: list[DutyRuleSnap] = rule_id_to_snaps[rule_id]
 
-            # 规则没有变化，跳过
-            old_hashes = {snap.rule_snap["hash"] for snap in old_snaps}
-            if duty_rule["hash"] in old_hashes:
+            # 规则没有变化，跳过；旧快照排完后会保留，只能和最新快照比较，否则规则改回旧内容时会被误判为未变化
+            if max(old_snaps, key=attrgetter("id")).rule_snap["hash"] == duty_rule["hash"]:
                 continue
 
             # 规则被修改，创建新快照，处理旧快照，更新旧计划
@@ -1009,21 +1008,6 @@ class GroupDutyRuleManager:
             succeed_list,
             failed_list,
         )
-
-
-def disable_duty_plans(duty_rule_ids: list[int]) -> None:
-    """关闭规则对应的生效计划。
-
-    按告警组走 (user_group_id, is_effective, duty_rule_id) 联合索引，只锁仍生效的计划；
-    只按 duty_rule_id 更新会扫描并锁住该规则的全部历史计划。
-    """
-    user_group_ids = set(
-        DutyRuleRelation.objects.filter(duty_rule_id__in=duty_rule_ids).values_list("user_group_id", flat=True)
-    )
-    if user_group_ids:
-        DutyPlan.objects.filter(
-            user_group_id__in=user_group_ids, is_effective=1, duty_rule_id__in=duty_rule_ids
-        ).update(is_effective=0)
 
 
 def end_time_to_datetime(end_time: str | None) -> datetime:

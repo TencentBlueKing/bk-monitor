@@ -37,7 +37,7 @@ class TestSnap:
             pytest.param("", 1, id="incomplete_without_end"),
         ],
     )
-    def test_snap_deletion_after_schedule_completion(
+    def test_snap_retained_after_schedule(
         self, today_as_2024_06_01, rule_end_time, create_duty_rule, create_user_group, expected_snap_count
     ):
         """使用不同的结束时间，测试排班一次后，用于排班的快照都被保留。"""
@@ -58,6 +58,19 @@ class TestSnap:
         m.manage_duty_rule_snap("2024-06-01 00:01:00")
 
         assert DutyPlan.objects.count() == plan_count
+
+    def test_rule_reverted_to_completed_content(self, today_as_2024_06_01, create_duty_rule, create_user_group):
+        """规则改到旧快照结束后生效，再改回旧内容时，应按旧内容重建快照。"""
+        duty_rule = create_duty_rule(end_time="2024-06-15 00:00:00")
+        create_user_group(rule_ids=[duty_rule.id])
+        origin_data = DutyRuleDetailSlz(duty_rule).data
+
+        for changes in ({"effective_time": "2024-06-16 00:00:00", "end_time": "2024-06-30 00:00:00"}, {}):
+            serializer = DutyRuleDetailSlz(duty_rule, data={**origin_data, **changes})
+            serializer.is_valid(raise_exception=True)
+            serializer.save()
+
+        assert DutyRuleSnap.objects.order_by("-id").first().rule_snap["hash"] == origin_data["hash"]
 
     @pytest.mark.parametrize(
         "rule_end_time, new_rule_effective_time, expected_snap_count",

@@ -13,11 +13,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from bkmonitor.action import serializers
-from bkmonitor.action.duty_manage import disable_duty_plans
 from bkmonitor.action.serializers import DutySwitchSlz
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.models import DutyRule, DutyRuleSnap, UserGroup
+from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
 from bkmonitor.utils.request import get_request
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -147,7 +146,7 @@ class DutyRuleViewSet(PermissionMixin, viewsets.ModelViewSet):
             if enabled is False:
                 # 关闭掉之后，直接关闭掉对应的计划
                 DutyRuleSnap.objects.filter(duty_rule_id__in=rule_ids).update(enabled=False)
-                disable_duty_plans(rule_ids)
+                DutyPlan.objects.filter(duty_rule_id__in=rule_ids).update(is_effective=False)
         return Response({"rule_ids": rule_ids})
 
 
