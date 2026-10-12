@@ -1781,6 +1781,8 @@ POST /rum/search/statistics/
 | 发生次数 | `count` | `attributes.span_type` | `time_shifts=["0s"]` |
 | 影响会话数 | `distinct` | `attributes.session.id` | `time_shifts=["0s"]` |
 
+示例中当前 Error Span 的 `end_time` 换算为秒级时间戳后为 `1788451626`。
+
 ```json
 {
   "bk_biz_id": 2,
@@ -1789,10 +1791,10 @@ POST /rum/search/statistics/
   "group_name": "origin",
   "cal_type": "distinct",
   "field": "attributes.user.id",
-  "start_time": 1788448026,
-  "end_time": 1788451626,
+  "start_time": 1788365226,
+  "end_time": 1788538026,
   "baseline": "0s",
-  "time_shifts": ["0s", "3600s"],
+  "time_shifts": ["0s", "172800s"],
   "filters": [
     {"key": "attributes.span_type", "operator": "equal", "value": ["error"]},
     {"key": "attributes.code.filepath", "operator": "equal", "value": ["https://example.com/static/js/app.js"]},
@@ -1805,7 +1807,8 @@ POST /rum/search/statistics/
 ```
 
 - *[1] 共用示例中的 `filters`，其余参数按表替换。*
-- *[2] 影响面查询时间范围：页面所选时间范围。*
+- *[2] 影响面查询时间范围：`[当前 Error Span 的 end_time - 1d, 当前 Error Span 的 end_time + 1d]`；Span 的 `end_time` 需先从微秒换算为秒。*
+- *[3] 影响用户数与前一个同长度窗口比较；本例窗口长度为 `172800` 秒，因此比较偏移为 `172800s`。*
 
 响应示例（影响用户数）：
 
@@ -1816,8 +1819,8 @@ POST /rum/search/statistics/
     {
       "dimensions": {},
       "0s": 12,
-      "3600s": 10,
-      "growth_rates": {"0s": 0, "3600s": 20}
+      "172800s": 10,
+      "growth_rates": {"0s": 0, "172800s": 20}
     }
   ]
 }
