@@ -42,6 +42,7 @@ from metadata.models.record_rule.v4 import (
     EVENT_TYPE_FLOW_ACTION_SUCCEEDED,
     RecordRuleV4,
     RecordRuleV4Event,
+    RecordRuleV4Flow,
 )
 from metadata.models.record_rule.v4.operator import RecordRuleV4Operator
 from metadata.models.record_rule.v4.output import RecordRuleV4OutputResources
@@ -272,6 +273,7 @@ def declare_rule(
     interval: str = "1min",
     labels: list[dict] | None = None,
     auto_refresh: bool = True,
+    desired_status: str = RecordRuleV4DesiredStatus.RUNNING.value,
 ) -> RecordRuleV4:
     records = [build_record()] if records is None else records
     group_labels = labels or []
@@ -293,6 +295,7 @@ def declare_rule(
         interval=interval,
         labels=group_labels,
         auto_refresh=auto_refresh,
+        desired_status=desired_status,
         source="pytest",
         operator="tester",
     )
@@ -308,6 +311,7 @@ def create_rule(
     labels: list[dict] | None = None,
     auto_refresh: bool = True,
     apply_immediately: bool = True,
+    desired_status: str = RecordRuleV4DesiredStatus.RUNNING.value,
 ) -> RecordRuleV4:
     rule = declare_rule(
         records=records,
@@ -317,6 +321,7 @@ def create_rule(
         interval=interval,
         labels=labels,
         auto_refresh=auto_refresh,
+        desired_status=desired_status,
     )
     RecordRuleV4Operator(rule, source="pytest", operator="tester").execute_declaration(auto_apply=apply_immediately)
     rule.refresh_from_db()
@@ -469,6 +474,7 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
         "flow_type": "recording-rule",
     }
     assert flow.flow_config["metadata"]["annotations"] == {
+        "task_stopped": "false",
         "record-rule.bkmonitor/space-uid": f"{SPACE_TYPE}__{SPACE_ID}",
         "record-rule.bkmonitor/name": RULE_NAME,
         "record-rule.bkmonitor/generation": str(resolved.generation),
@@ -1230,17 +1236,55 @@ def test_reconcile_applies_changed_resolved_when_auto_refresh_is_enabled(v4_base
     assert_flow_apply_only(external_api)
 
 
-def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_data, external_api):
-    rule = create_rule()
+@pytest.mark.parametrize(("desired_status", "task_stopped"), [("running", "false"), ("stopped", "true")])
+def test_create_flow_sets_task_stopped(v4_base_data, external_api, desired_status, task_stopped):
+    rule = create_rule(desired_status=desired_status)
+    flow = get_applied_flow(rule)
+
+    assert flow.flow_config["metadata"]["annotations"]["task_stopped"] == task_stopped
+    assert "desired_status" not in flow.flow_config["spec"]
+    assert external_api.apply_data_link.call_args.kwargs["config"] == [flow.flow_config]
+    assert rule.applied_desired_status == desired_status
+
+
+def test_update_stopped_flow_keeps_task_stopped(v4_base_data, external_api):
+    rule = create_rule(desired_status=RecordRuleV4DesiredStatus.STOPPED.value)
+    external_api.apply_data_link.reset_mock()
+    operator = RecordRuleV4Operator(rule, source="manual", operator="admin")
+
+    operator.update_declaration(records=[build_record(metric_name="cpu_usage_v2")])
+    assert operator.execute_declaration(auto_apply=True) is True
+
+    rule.refresh_from_db()
+    flow = get_applied_flow(rule)
+    assert flow.flow_config["metadata"]["annotations"]["task_stopped"] == "true"
+    assert "desired_status" not in flow.flow_config["spec"]
+    assert get_recording_rule_node(flow.flow_config)["config"][0]["metric_name"] == "cpu_usage_v2"
+    assert external_api.apply_data_link.call_args.kwargs["config"] == [flow.flow_config]
+    assert rule.applied_desired_status == RecordRuleV4DesiredStatus.STOPPED.value
+
+
+@pytest.mark.parametrize(
+    ("initial_status", "desired_status", "task_stopped", "action_type"),
+    [
+        ("running", "stopped", "true", RecordRuleV4FlowActionType.STOP.value),
+        ("stopped", "running", "false", RecordRuleV4FlowActionType.START.value),
+    ],
+)
+def test_start_stop_updates_runtime_status_without_new_spec_resolved_or_flow(
+    v4_base_data, external_api, initial_status, desired_status, task_stopped, action_type
+):
+    rule = create_rule(desired_status=initial_status)
     previous_spec_id = rule.current_spec_id
     previous_resolved_id = rule.current_spec.latest_resolved_id
     previous_flow_id = get_latest_flow(rule).pk
     previous_flow_hash = get_latest_flow(rule).content_hash
+    previous_annotations = dict(get_latest_flow(rule).flow_config["metadata"]["annotations"])
     external_api.check_query_ts.reset_mock()
     external_api.apply_data_link.reset_mock()
 
     operator = RecordRuleV4Operator(rule, source="manual", operator="admin")
-    operator.update_declaration(desired_status=RecordRuleV4DesiredStatus.STOPPED.value)
+    operator.update_declaration(desired_status=desired_status)
     operator.execute_declaration(auto_apply=True)
 
     rule.refresh_from_db()
@@ -1249,19 +1293,24 @@ def test_stop_updates_runtime_status_without_new_spec_resolved_or_flow(v4_base_d
     assert rule.current_spec_id == previous_spec_id
     assert rule.current_spec.latest_resolved_id == previous_resolved_id
     assert get_latest_flow(rule).pk == previous_flow_id
-    assert rule.desired_status == RecordRuleV4DesiredStatus.STOPPED.value
-    assert rule.applied_desired_status == RecordRuleV4DesiredStatus.STOPPED.value
+    assert rule.desired_status == desired_status
+    assert rule.applied_desired_status == desired_status
     assert flow.content_hash == previous_flow_hash
-    assert flow.flow_config["spec"]["desired_status"] == RecordRuleV4DesiredStatus.STOPPED.value
-    assert rule.status == RecordRuleV4Status.STOPPED.value
+    assert flow.flow_config["metadata"]["annotations"] == {**previous_annotations, "task_stopped": task_stopped}
+    assert "desired_status" not in flow.flow_config["spec"]
+    assert (
+        RecordRuleV4Flow.compose_for_resolved(rule=rule, resolved=flow.resolved)["content_hash"] == previous_flow_hash
+    )
+    assert rule.status == desired_status
     external_api.check_query_ts.assert_not_called()
     assert_flow_apply_only(external_api)
+    assert external_api.apply_data_link.call_args.kwargs["config"] == [flow.flow_config]
     assert rule.events.filter(event_type=EVENT_TYPE_APPLY_STARTED, flow=flow).exists()
     assert rule.events.filter(event_type=EVENT_TYPE_APPLY_SUCCEEDED, flow=flow).exists()
     action_started = list(rule.events.filter(event_type=EVENT_TYPE_FLOW_ACTION_STARTED, flow=flow))
     action_succeeded = list(rule.events.filter(event_type=EVENT_TYPE_FLOW_ACTION_SUCCEEDED, flow=flow))
-    assert any(event.detail["action_type"] == RecordRuleV4FlowActionType.STOP.value for event in action_started)
-    assert any(event.detail["action_type"] == RecordRuleV4FlowActionType.STOP.value for event in action_succeeded)
+    assert any(event.detail["action_type"] == action_type for event in action_started)
+    assert any(event.detail["action_type"] == action_type for event in action_succeeded)
 
 
 def test_stop_without_applied_flow_records_apply_failure(v4_base_data, external_api):
