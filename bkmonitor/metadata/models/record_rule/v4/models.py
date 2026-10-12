@@ -1033,7 +1033,7 @@ class RecordRuleV4Flow(BaseModelWithTime):
             for resolved_record in records
         ]
 
-        return {
+        flow_config = {
             "kind": "Flow",
             "metadata": {
                 "tenant": bkbase_tenant,
@@ -1066,10 +1066,10 @@ class RecordRuleV4Flow(BaseModelWithTime):
                     "deploy_mode": None,
                 },
                 "maintainers": [settings.BK_DATA_PROJECT_MAINTAINER],
-                "desired_status": rule.desired_status,
             },
             "status": None,
         }
+        return RecordRuleV4Flow.with_desired_status(flow_config, rule.desired_status)
 
     @staticmethod
     def compose_bkbase_tenant(rule: RecordRuleV4) -> str:
@@ -1109,11 +1109,22 @@ class RecordRuleV4Flow(BaseModelWithTime):
         }
 
     @staticmethod
+    def with_desired_status(flow_config: dict[str, Any], desired_status: str) -> dict[str, Any]:
+        """把运行期望转换为 BKBase 启停 annotation，保持原配置不可变。"""
+
+        if desired_status not in {RecordRuleV4DesiredStatus.RUNNING.value, RecordRuleV4DesiredStatus.STOPPED.value}:
+            raise ValueError(f"unsupported flow desired_status: {desired_status}")
+        next_config = copy.deepcopy(flow_config)
+        annotations = next_config.setdefault("metadata", {}).setdefault("annotations", {})
+        annotations["task_stopped"] = "true" if desired_status == RecordRuleV4DesiredStatus.STOPPED.value else "false"
+        return next_config
+
+    @staticmethod
     def strip_runtime_status(flow_config: dict[str, Any]) -> dict[str, Any]:
         """移除运行态字段，避免启停影响 Flow 内容指纹。"""
 
         pure_config = copy.deepcopy(flow_config)
-        pure_config.get("spec", {}).pop("desired_status", None)
+        pure_config.get("metadata", {}).get("annotations", {}).pop("task_stopped", None)
         return pure_config
 
     def mark_flow_observed(self, flow_status: str) -> None:
