@@ -75,7 +75,10 @@ def merge_records(
     for alias, records in alias_records_map.items():
         for record in records:
             dimensions = {**record, "time": record.get("_time_", 0) // 1000}
-            group_key = tuple((field, dimensions.get(field) or "") for field in group_fields)
+            # 缺失维度统一为空字符串，保留 0、False 等合法值。
+            group_key = tuple(
+                (field, dimensions[field] if dimensions.get(field) is not None else "") for field in group_fields
+            )
             group_key_record_map.setdefault(group_key, {})[alias] = record["_result_"]
 
     merged_records: list[dict[str, Any]] = []

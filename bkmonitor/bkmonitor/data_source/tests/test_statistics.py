@@ -160,6 +160,24 @@ class TestStatisticsIntegration:
 
 
 class TestMergeRecords:
+    @pytest.mark.parametrize("value", [0, False], ids=["zero", "false"])
+    @pytest.mark.parametrize(
+        "missing_dimension", [{"status": None}, {}, {"status": ""}], ids=["null", "absent", "empty"]
+    )
+    def test_falsy_dimension_is_distinct_from_missing(self, value, missing_dimension):
+        records = {
+            "0s": [{"status": value, "_result_": 5}, {**missing_dimension, "_result_": 7}],
+            "1d": [{**missing_dimension, "_result_": 3}, {"status": value, "_result_": 2}],
+        }
+
+        merged_records = merge_records(["status"], records, int)
+
+        assert merged_records == [
+            {"dimensions": {"status": value}, "0s": 5, "1d": 2},
+            {"dimensions": {"status": ""}, "0s": 7, "1d": 3},
+        ]
+        assert type(merged_records[0]["dimensions"]["status"]) is type(value)
+
     def test_dimension_union_and_missing_aliases(self):
         records = {
             "0s": [{"service": "a", "_result_": 10}, {"service": "b", "_result_": 20}],
