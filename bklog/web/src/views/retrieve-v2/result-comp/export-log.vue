@@ -69,7 +69,7 @@
         >
           <TaskItem
             v-for="task in displayTasks"
-            :key="task.id"
+            :key="getExportTaskKey(task)"
             :item="task"
             @retry-export="handleRetryExport"
           />
@@ -255,6 +255,12 @@
   import BklogPopover from '@/components/bklog-popover';
   import TaskItem from './TaskItem';
   import {
+    buildExportRetryRequest,
+    EXPORT_SUBMITTED_MESSAGE,
+    getExportDownloadFileName,
+    getExportTaskKey,
+  } from './download/exportTask';
+  import {
     calculateProgress,
     adjustGrowthAfterPoll,
     calculateProgressPercent,
@@ -366,7 +372,7 @@
         isComponentUnmounted: false, // 组件是否已卸载
         progressUpdateTimer: null, // 进度更新定时器
         popoverHoverTimer: null, // Popover 悬浮延迟隐藏定时器
-        pendingTaskStatus: {}, // 进行中任务状态记录 { [taskId]: status }
+        pendingTaskStatus: {}, // 进行中任务状态记录 { [engine:id]: status }
         failedTaskIds: [],
         failedTaskTimer: null, // 失败任务定时器
       };
@@ -437,7 +443,7 @@
             if (row.export_created_by !== currentUser) return false;
             const status = row.export_status;
             if (status === 'failed') {
-              return this.failedTaskIds.includes(row.id);
+              return this.failedTaskIds.includes(getExportTaskKey(row));
             }
             return POLLING_STATUS.includes(status);
           })
@@ -507,6 +513,7 @@
       this.clearFailedTaskTimer();
     },
     methods: {
+      getExportTaskKey,
       // 原handleShowAlarmPopover方法已移除，点击下载按钮直接打开下载日志弹窗
       // handleShowAlarmPopover(e) {
       //   if (this.popoverInstance || !this.queueStatus) return;
@@ -608,7 +615,7 @@
               this.$bkMessage({
                 theme: 'success',
                 ellipsisLine: 2,
-                message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
+                message: this.$t(EXPORT_SUBMITTED_MESSAGE),
               });
               this.fetchCurrentTasks(true);
             } else {
@@ -705,7 +712,7 @@
               this.$bkMessage({
                 theme: 'success',
                 ellipsisLine: 2,
-                message: this.$t('任务提交成功，下载完成将会收到邮件通知。可前往下载历史查看下载状态'),
+                message: this.$t(EXPORT_SUBMITTED_MESSAGE),
               });
               this.fetchCurrentTasks(true);
             }
@@ -754,15 +761,22 @@
        * @param { Object } task 任务对象
        */
       async handleRetryExport(task) {
-        // 从失败任务列表中移除
-        this.failedTaskIds = this.failedTaskIds.filter(id => id !== task.id);
-        // 异常任务直接异步下载
-        if (task.export_type === 'sync') {
-          await this.openDownloadUrl(task);
-        } else {
-          await this.downloadAsync(task.search_dict);
+        try {
+          const request = buildExportRetryRequest(task);
+          if (request.isSync) {
+            const res = await axiosInstance.post(request.url, request.config.data, { responseType: 'blob' });
+            blobDownload(res.data, getExportDownloadFileName(task, this.indexSetList));
+          } else {
+            const res = await this.$http.request(request.url, request.config);
+            if (!res.result) return;
+            this.$bkMessage({ theme: 'success', message: res.data?.prompt || this.$t(EXPORT_SUBMITTED_MESSAGE) });
+          }
+          const taskKey = getExportTaskKey(task);
+          this.failedTaskIds = this.failedTaskIds.filter(key => key !== taskKey);
+          await this.fetchCurrentTasks(true);
+        } catch (error) {
+          console.error(error);
         }
-        this.fetchCurrentTasks(true);
       },
       /**
        * @desc: 取消未完成的当前任务请求
@@ -863,7 +877,8 @@
           // 只处理当前用户的任务
           if (item.export_created_by !== currentUser) return;
 
-          const oldStatus = this.pendingTaskStatus[item.id];
+          const taskKey = getExportTaskKey(item);
+          const oldStatus = this.pendingTaskStatus[taskKey];
           const currentStatus = item.export_status;
 
           // 成功或失败状态：检查是否有记录，有记录则提示
@@ -873,20 +888,20 @@
               const message =
                 currentStatus === 'success'
                   ? `${item.export_pkg_name || ''}${this.$t('下载成功')}`
-                  : item.eerror_msg || this.$t('下载任务异常，请查看下载历史');
+                  : item.error_msg || this.$t('下载任务异常，请查看下载历史');
               this.$bkMessage({
                 theme: currentStatus === 'success' ? 'success' : 'error',
                 message,
                 closeIcon: true,
               });
               // 从记录中移除
-              delete this.pendingTaskStatus[item.id];
+              delete this.pendingTaskStatus[taskKey];
 
               // 处理失败任务记录
               if (currentStatus === 'failed') {
                 // 进行中任务失败时，记录到 failedTaskIds
-                if (!this.failedTaskIds.includes(item.id)) {
-                  this.failedTaskIds.push(item.id);
+                if (!this.failedTaskIds.includes(taskKey)) {
+                  this.failedTaskIds.push(taskKey);
                 }
                 // 清除之前的定时器，重新设置20分钟定时器
                 this.clearFailedTaskTimer();
@@ -898,11 +913,17 @@
                 );
               }
             }
+            if (currentStatus === 'success') {
+              this.failedTaskIds = this.failedTaskIds.filter(key => key !== taskKey);
+            }
           } else if (POLLING_STATUS.includes(currentStatus)) {
             // 进行中状态：检查是否已有记录，没有则进行记录
             if (oldStatus === undefined) {
-              this.pendingTaskStatus[item.id] = currentStatus;
+              this.pendingTaskStatus[taskKey] = currentStatus;
             }
+          } else {
+            delete this.pendingTaskStatus[taskKey];
+            this.failedTaskIds = this.failedTaskIds.filter(key => key !== taskKey);
           }
         });
       },
@@ -913,17 +934,15 @@
        */
       setExportListData(data, isPolling) {
         if (isPolling) {
+          const currentRowMap = new Map(this.exportListData.map(row => [getExportTaskKey(row), row]));
           data.forEach(item => {
-            this.exportListData.forEach(row => {
-              if (row.id === item.id) {
-                // 如果是拉取中的任务，修正增长量
-                if (row.export_status === 'download_log' && item.export_status === 'download_log') {
-                  adjustGrowthAfterPoll(row, item.exported_count || 0, DOWNLOAD_PROGRESS_BASE_GROWTH);
-                } else {
-                  Object.assign(row, { ...item });
-                }
-              }
-            });
+            const row = currentRowMap.get(getExportTaskKey(item));
+            if (!row) return;
+            if (row.export_status === 'download_log' && item.export_status === 'download_log') {
+              adjustGrowthAfterPoll(row, item.exported_count || 0, DOWNLOAD_PROGRESS_BASE_GROWTH);
+            } else {
+              Object.assign(row, { ...item });
+            }
           });
         } else {
           this.exportListData = data;
@@ -1017,6 +1036,7 @@
   @import '@/scss/mixins/flex.scss';
 
   .operation-icon {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1028,7 +1048,6 @@
     border-radius: 2px;
     outline: none;
     transition: boder-color 0.2s;
-    position: relative;
 
     &:hover {
       border-color: #4d4f56;
@@ -1049,9 +1068,9 @@
     .progress-mask {
       position: absolute;
       top: 0;
-      left: 0;
       right: 0;
       bottom: 0;
+      left: 0;
       background: conic-gradient(from 0deg, rgba(0, 0, 0, 0) var(--progress, 0%), rgba(0, 0, 0, 0.3) 0);
       transition: background 0.25s ease;
     }
@@ -1251,12 +1270,12 @@
       width: 100%;
 
       .view-history-btn {
-        margin-left: 16px;
+        z-index: 10;
         padding-left: 12px;
+        margin-left: 16px;
         font-size: 14px;
         color: #3a84ff;
         cursor: pointer;
-        z-index: 10;
         border-left: 1px solid #dcdee5;
 
         &:hover {
@@ -1273,13 +1292,13 @@
         .failed-task-count {
           width: 20px;
           height: 20px;
-          text-align: center;
-          line-height: 20px;
+          margin-right: 4px;
           font-size: 12px;
+          line-height: 20px;
+          color: #fff;
+          text-align: center;
           background-color: #ea3636;
           border-radius: 50%;
-          color: #fff;
-          margin-right: 4px;
         }
 
         .failed-task-text {
@@ -1292,8 +1311,8 @@
         width: 16px;
         height: 16px;
         margin-left: 8px;
-        border-radius: 50%;
         background: conic-gradient(from 0deg, rgba(233, 237, 245, 1) var(--progress, 0%), rgba(0, 0, 0, 0.3) 0);
+        border-radius: 50%;
       }
     }
   }
@@ -1326,10 +1345,10 @@
   }
 
   .download-progress-content {
-    padding: 16px 0;
     display: flex;
     flex-direction: column;
     gap: 24px;
+    padding: 16px 0;
     cursor: pointer;
   }
 </style>
