@@ -438,6 +438,18 @@ class ViewSetActionEnum(ChoicesEnum):
         view_set="SearchViewSet",
         view_action="update_or_create_config",
     )
+    # ============================= 分片异步导出-ExportJobViewSet =============================
+    # 逐 action 显式指定 action_id: 缺省值会让整个 ViewSet 默认放行
+    EXPORT_JOB_VIEWSET_RETRIEVE = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ExportJobViewSet",
+        view_action="retrieve",
+    )
+    EXPORT_JOB_VIEWSET_DOWNLOAD_LINK = ViewSetAction(
+        action_id=ExternalPermissionActionEnum.LOG_SEARCH.value,
+        view_set="ExportJobViewSet",
+        view_action="download_link",
+    )
     # ======================================= 聚合-AggsViewSet =======================================
     AGGS_VIEWSET_TERMS = ViewSetAction(
         action_id=ExternalPermissionActionEnum.LOG_SEARCH.value, view_set="AggsViewSet", view_action="terms"
@@ -709,6 +721,9 @@ class ViewSetActionEnum(ChoicesEnum):
         SEARCH_VIEWSET_LIST_CONFIG,
         SEARCH_VIEWSET_DELETE_CONFIG,
         SEARCH_VIEWSET_USER_CUSTOM_CONFIG,
+        # ============================= 分片异步导出-ExportJobViewSet =============================
+        EXPORT_JOB_VIEWSET_RETRIEVE,
+        EXPORT_JOB_VIEWSET_DOWNLOAD_LINK,
         # ======================================= 聚合-AggsViewSet =======================================
         AGGS_VIEWSET_TERMS,
         AGGS_VIEWSET_DATE_HISTOGRAM,
