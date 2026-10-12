@@ -28,12 +28,14 @@ import { get } from '@vueuse/core';
 import { hexToRgba } from 'monitor-common/utils/colorHelpers';
 
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
+import { ENABLED_TABLE_CONDITION_MENU_CLASS_NAME } from '../../../../trace-explore/components/trace-explore-table/constants';
 import {
   type BaseTableColumn,
   type TableCellRenderContext,
   ExploreTableColumnTypeEnum,
 } from '../../../../trace-explore/components/trace-explore-table/typing';
 import {
+  RUM_DETAIL_SPAN_TYPES,
   RUM_HTTP_STATUS_CODE_MAP,
   RUM_OUTCOME_TYPE_MAP,
   RUM_STATUS_CODE_MAP,
@@ -61,7 +63,8 @@ export class SpanScenario extends BaseScenario {
   readonly rowKey = 'span_id';
   protected columnOverrides: Record<string, BaseTableColumn> = {
     /**
-     * span_name 列：蓝色链接样式，点击把值加为检索条件，hover 展示 span / trace 信息 tooltip。
+     * span_name 列：蓝色链接样式，点击打开 Span 详情抽屉，hover 展示 span / trace 信息 tooltip。
+     * 「加为检索条件」改由右键菜单承担。
      * 渲染由 cellRenderer 全权接管，不再声明 renderType（两者互斥，见 BaseScenario.resolveColumnConfig）。
      */
     span_name: {
@@ -114,6 +117,8 @@ export class SpanScenario extends BaseScenario {
       hoverPopoverTools: IUsePopoverTools;
       /** 点击链接类单元格，把值加为检索条件 */
       onCellFilter: (colKey: string, value: string) => void;
+      /** 点击 Span 名称单元格，打开该行的详情抽屉 */
+      onOpenDetail: (row: Record<string, unknown>) => void;
     } & BaseScenario['context']
   ) {
     super(context);
@@ -168,8 +173,8 @@ export class SpanScenario extends BaseScenario {
   // ----------------- Span 场景私有逻辑方法 -----------------
 
   /**
-   * @description span_name 列单元格渲染：保留 CLICK 列「点击加为检索条件」的结构与交互（含右键条件菜单），
-   *              并在 hover 时展示 span 名称 / Span ID / 所属 Trace ID 信息
+   * @description span_name 列单元格渲染：可看详情的类型走链接列（左键打开 Span 详情抽屉、右键唤起检索条件菜单），
+   *              无详情的类型（如 session）走 TEXT 列渲染，hover 均展示 span 名称 / Span ID / 所属 Trace ID 信息
    * @param {IRumSpanRecord} row 当前行数据
    * @param {BaseTableColumn} column 当前列配置项
    * @param {TableCellRenderContext} renderCtx 列渲染上下文
@@ -179,6 +184,13 @@ export class SpanScenario extends BaseScenario {
     const alias = renderCtx.getTableCellRenderValue(row, column);
     if (alias === null || alias === undefined || alias === '') {
       return renderCtx.cellRenderHandleMap[ExploreTableColumnTypeEnum.TEXT]?.(row, column, renderCtx);
+    }
+    /**
+     * session 类型的详情尚未设计，不提供详情入口，退化成 TEXT 列；
+     * 判定与详情抽屉「上一条 / 下一条」跳过逻辑同源（RUM_DETAIL_SPAN_TYPES），避免两处可用类型不一致。
+     */
+    if (!RUM_DETAIL_SPAN_TYPES.has(row?.[SPAN_TYPE_FIELD] ?? '')) {
+      return this.renderPlainSpanNameCell(row, column, renderCtx, alias);
     }
     /**
      * 省略号不使用 renderCtx.isEnabledCellEllipsis：该类是表格溢出 tip 的事件委托类，
@@ -192,7 +204,44 @@ export class SpanScenario extends BaseScenario {
             class='explore-click-text'
             data-col-id={column.colKey}
             data-row-id={renderCtx.getRowId(row)}
-            onClick={() => this.context.onCellFilter(column.colKey, String(row?.span_name ?? ''))}
+            onClick={(e: MouseEvent) => {
+              // 阻止冒泡到表格行：tdesign 行高亮是 toggle 语义，重复点击当前详情行会被取消高亮
+              e.stopPropagation();
+              this.context.onOpenDetail(row);
+            }}
+            onMouseenter={e => this.handleSpanNameHover(e, row)}
+            onMouseleave={this.context.hoverPopoverTools.clearPopoverTimer}
+          >
+            {alias}
+          </span>
+        </div>
+      </div>
+    ) as unknown as SlotReturnValue;
+  }
+
+  /**
+   * @description span_name 列的 TEXT 列渲染（无详情的类型走这里）：展示与交互对齐 trace 检索的 TEXT 列
+   *              （正文色文本 + 左键「加为检索条件」菜单），左键不再被详情占用，故无需像可点行那样走右键菜单；
+   *              唯一差异是保留本列 hover 的 span / trace 信息 tooltip。
+   * @param {IRumSpanRecord} row 当前行数据
+   * @param {BaseTableColumn} column 当前列配置项
+   * @param {TableCellRenderContext} renderCtx 列渲染上下文
+   * @param {unknown} alias 单元格渲染值
+   * @returns {SlotReturnValue} 渲染dom
+   */
+  private renderPlainSpanNameCell(
+    row: IRumSpanRecord,
+    column: BaseTableColumn,
+    renderCtx: TableCellRenderContext,
+    alias: unknown
+  ) {
+    return (
+      <div class='explore-col explore-text-col'>
+        <div class='span-name-ellipsis'>
+          <span
+            class={`explore-col-text ${ENABLED_TABLE_CONDITION_MENU_CLASS_NAME}`}
+            data-col-id={column.colKey}
+            data-row-id={renderCtx.getRowId(row)}
             onMouseenter={e => this.handleSpanNameHover(e, row)}
             onMouseleave={this.context.hoverPopoverTools.clearPopoverTimer}
           >

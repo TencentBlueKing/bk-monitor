@@ -26,11 +26,16 @@
 import { computed, defineComponent, onBeforeUnmount, onMounted, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 
 import RetrievalFilter from '../../components/retrieval-filter/retrieval-filter';
 import { type IHandleGetUserConfig, EMethod, EMode } from '../../components/retrieval-filter/typing';
-import { traceWhereChangeFormatter, traceWhereFormatter } from '../../components/retrieval-filter/utils';
+import {
+  mergeWhereList,
+  traceWhereChangeFormatter,
+  traceWhereFormatter,
+} from '../../components/retrieval-filter/utils';
+import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
 import { useRumExploreStore } from '../../store/modules/rum-explore';
@@ -56,14 +61,18 @@ import {
   ALL_SPAN_TYPE,
   RUM_COLUMN_CONFIG_KEY,
   RUM_COLUMN_LAYOUT_PRESET,
+  RUM_DETAIL_SPAN_TYPES,
   RUM_RESIDENT_SETTING_KEY,
   RumModeEnum,
+  SPAN_TYPE_FIELD,
 } from './constants';
+import RumSpanDetailSlider from './detail';
 import { getApplicationList } from './services/rum-application';
 import EmptyStatus from '@/components/empty-status/empty-status';
 import RumLoadStatus from '../rum/components/rum-load-status';
 
 import type { ConditionChangeEvent } from '../trace-explore/typing';
+import type { IRumDetailContext } from './detail';
 import type { IRumApplication, IRumColumnLayoutPreset } from './typings';
 
 import './rum-explore.scss';
@@ -77,6 +86,7 @@ export default defineComponent({
   setup() {
     const { t } = useI18n();
     const route = useRoute();
+    const router = useRouter();
     const store = useRumExploreStore();
 
     const { handleGetUserConfig: getDefaultAppConfig, handleSetUserConfig: setDefaultAppConfig } = useUserConfig();
@@ -84,6 +94,9 @@ export default defineComponent({
     const { handleGetUserConfig: getResidentConfig, handleSetUserConfig: setResidentConfig } = useUserConfig();
 
     const isCollapsed = shallowRef(false);
+    /** Span 详情抽屉的上下文，为 null 时抽屉关闭 */
+    const detailContext = shallowRef<IRumDetailContext | null>(null);
+    const detailShow = shallowRef(false);
     const applicationLoading = shallowRef(true);
     const applicationError = shallowRef(false);
     let disposed = false;
@@ -120,6 +133,11 @@ export default defineComponent({
           : queryCtx.where.value.length > 0 || queryCtx.commonWhere.value.length > 0;
       return hasCondition ? 'search-empty' : 'empty';
     });
+
+    /** 详情抽屉对应的表格高亮行：上一个 / 下一个切换与关闭抽屉时跟随 detailContext 同步 */
+    const detailActiveRowKeys = computed<string[]>(() =>
+      detailContext.value?.record_id ? [detailContext.value.record_id] : []
+    );
 
     /** 当前视角的列布局预设（默认列宽 / 固定列）：列配置与列设置面板共用同一份声明 */
     const layoutPreset = computed<IRumColumnLayoutPreset>(() => RUM_COLUMN_LAYOUT_PRESET[store.mode] ?? {});
@@ -303,6 +321,109 @@ export default defineComponent({
       );
     }
 
+    /**
+     * Span 详情内的「添加为检索条件」：不改动当前页面的检索条件，
+     * 而是把「当前查询状态 + 新条件」拼成 URL 另开一页，避免打断正在浏览的详情与列表。
+     * @param isFromDimensionFilterPanel 透传给 mergeWhereList 的「是否合并同 key 对立项」开关；
+     *                                   详情侧固定传 false，只做追加
+     */
+    function handleRumSpanDetailConditionAdd(condition: ConditionChangeEvent, isFromDimensionFilterPanel = true) {
+      const { key, method: operator, value } = condition;
+      // 详情里的字段可能来自原始数据面板，未必在视图配置字段中
+      const field = viewConfigCtx.viewConfig.value.fields.find(item => item.name === key);
+      /** 范围值（耗时 / 字节大小）在详情里展示为 "min-max"，需拆成区间条件而非等值匹配 */
+      const isRangeValue =
+        (field?.field_display_type === 'duration' && field?.field_unit !== 'vital') || field?.field_unit === 'bytes';
+      /** 区间值 "100-200" 的匹配结果，[1] 为下界、[2] 为上界 */
+      const matched = value.match(/^(-?\d+)-(-?\d+)$/);
+      const query = queryCtx.buildUrlQuery();
+      // 不沿用收藏：新页应用收藏条件会覆盖掉本次追加的条件
+      delete query.favorite_id;
+      if (queryCtx.filterMode.value === EMode.ui) {
+        query.where = encodeURIComponent(
+          JSON.stringify(
+            mergeWhereList(
+              queryCtx.where.value,
+              [
+                {
+                  key,
+                  operator,
+                  value: isRangeValue && matched ? [matched[1], matched[2]] : safeParseJsonValueForWhere(value),
+                },
+              ],
+              isFromDimensionFilterPanel
+            )
+          )
+        );
+      } else {
+        // 语句模式：默认拼等值/取反子句，区间值改用 ES 的 range 语法
+        let endStr = `${operator === EMethod.eq ? '' : 'NOT '}${key} : "${value || ''}"`;
+        if (isRangeValue && matched) {
+          endStr = `${key} : [${matched[1]} TO ${matched[2] || matched[1]}]`;
+        }
+        query.queryString = encodeURIComponent(
+          queryCtx.queryString.value ? `${queryCtx.queryString.value} AND ${endStr}` : endStr
+        );
+      }
+      // 复用当前查询态另开一页：新页走 initFromUrl 还原，故不改动本页 store
+      window.open(router.resolve({ path: route.path, query }).href, '_blank');
+    }
+
+    /**
+     * 打开 Span 详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
+     * 不额外请求列表接口。
+     */
+    function handleOpenDetail(row: Record<string, unknown>) {
+      const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
+      detailContext.value = {
+        app_name: store.appName,
+        record_id: String(row?.span_id ?? ''),
+        span_type: String(row?.[SPAN_TYPE_FIELD] ?? ''),
+        start_time: startTime,
+        end_time: endTime,
+      };
+      detailShow.value = true;
+      queryCtx.setUrlParams({
+        detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
+        detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
+      });
+    }
+
+    const handleSpanDetailShowChange = (show: boolean) => {
+      detailShow.value = show;
+      if (!show) detailContext.value = null;
+      queryCtx.setUrlParams({
+        detailShow: encodeURIComponent(JSON.stringify(detailShow.value)),
+        detailContext: encodeURIComponent(JSON.stringify(detailContext.value)),
+      });
+    };
+
+    /**
+     * 详情抽屉「上一条 / 下一条」共用逻辑：从当前记录出发按 step 方向查找相邻的可展示详情记录，
+     * 跳过非详情展示的 span 类型，循环到头后从另一头继续；转完一圈仍没找到则停留在当前记录。
+     */
+    function handleStepDetail(step: -1 | 1) {
+      const tableData = tableCtx.tableData.value;
+      if (!tableData.length) return;
+      const currentIndex = Math.max(
+        0,
+        tableData.findIndex(item => item.span_id === detailContext.value?.record_id)
+      );
+      // 最多回绕一整圈，offset 走到与起点重合即说明没有其他可展示详情的记录
+      for (let offset = 1; offset <= tableData.length; offset++) {
+        const index = (currentIndex + step * offset + tableData.length) % tableData.length;
+        if (index === currentIndex) return;
+        if (RUM_DETAIL_SPAN_TYPES.has(tableData[index][SPAN_TYPE_FIELD] ?? '')) {
+          handleOpenDetail(tableData[index]);
+          return;
+        }
+      }
+    }
+
+    const handlePreviousDetail = () => handleStepDetail(-1);
+
+    const handleNextDetail = () => handleStepDetail(1);
+
     function handleSortChange(sort: string | string[]) {
       tableCtx.handleSortChange(sort);
       queryCtx.setUrlParams();
@@ -350,7 +471,16 @@ export default defineComponent({
 
     onMounted(() => {
       updateTimezone(store.timezone);
-      initialize();
+      initialize().then(() => {
+        if (disposed || applicationError.value) return;
+        const query = route.query as Record<string, string>;
+        if (query.detailShow) {
+          detailShow.value = JSON.parse(decodeURIComponent(query.detailShow));
+        }
+        if (query.detailContext) {
+          detailContext.value = JSON.parse(decodeURIComponent(query.detailContext));
+        }
+      });
     });
 
     onBeforeUnmount(() => {
@@ -368,6 +498,9 @@ export default defineComponent({
       initialize,
       configLoading,
       columnConfig,
+      detailContext,
+      detailShow,
+      detailActiveRowKeys,
       emptyType,
       layoutPreset,
       isSpanSpecialPerspective,
@@ -391,11 +524,16 @@ export default defineComponent({
       handleAppNameChange,
       handleConditionChange,
       handleModeChange,
+      handleOpenDetail,
       handleSortChange,
       handleSpanTypeChange,
       handleThumbtackChange,
       handleCreateApp,
       tagValueDisplayFormatter,
+      handlePreviousDetail,
+      handleNextDetail,
+      handleRumSpanDetailConditionAdd,
+      handleSpanDetailShowChange,
     };
   },
   render() {
@@ -552,6 +690,7 @@ export default defineComponent({
                                 baseColumns={this.columnConfig.baseColumns.value}
                                 commonParams={queryCtx.commonParams.value}
                                 data={tableCtx.tableData.value}
+                                defaultActiveRowKeys={this.detailActiveRowKeys}
                                 defaultFieldKeys={this.columnConfig.defaultDisplayFields.value}
                                 displayableFields={this.columnConfig.displayableFields.value}
                                 emptyType={this.emptyType}
@@ -570,6 +709,7 @@ export default defineComponent({
                                 onColumnResizeChange={width => this.columnConfig.updateColumnResizeWidth(width)}
                                 onConditionChange={this.handleConditionChange}
                                 onDisplayFieldChange={fields => this.columnConfig.updateDisplayFields(fields)}
+                                onOpenDetail={this.handleOpenDetail}
                                 onScrollToEnd={tableCtx.handleScrollToEnd}
                                 onSortChange={this.handleSortChange}
                               />
@@ -585,6 +725,19 @@ export default defineComponent({
             )}
           </div>
         </div>
+
+        <RumSpanDetailSlider
+          context={this.detailContext}
+          fields={viewConfigCtx.viewConfig.value.fields}
+          isShow={this.detailShow}
+          mode={this.store.mode}
+          onConditionAdd={(key, value) =>
+            this.handleRumSpanDetailConditionAdd({ key, method: EMethod.eq, value }, false)
+          }
+          onNext={this.handleNextDetail}
+          onPrevious={this.handlePreviousDetail}
+          onUpdate:isShow={this.handleSpanDetailShowChange}
+        />
 
         <EditFavorite
           data={favoriteCtx.editFavoriteData.value}

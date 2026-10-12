@@ -34,6 +34,7 @@ import ResourceIcon from '../../static/img/rum-explore/span-type/resource.svg';
 import ViewIcon from '../../static/img/rum-explore/span-type/view.svg';
 import VitalIcon from '../../static/img/rum-explore/span-type/vital.svg';
 import WebsocketIcon from '../../static/img/rum-explore/span-type/websocket.svg';
+import { RumCardToneEnum } from './detail';
 
 import type { IRumColumnLayoutPreset, RumModeType } from './typings';
 
@@ -107,6 +108,17 @@ export const SPAN_TYPE_META: Record<string, ISpanTypeMeta> = {
   custom: { icon: CustomIcon, label: 'Custom' },
 };
 
+export const SPAN_TYPE_META_ICON = {
+  view: { icon: 'icon-View', label: 'View' },
+  resource: { icon: 'icon-Resource', label: 'Resource' },
+  error: { icon: 'icon-ERROR', label: 'Error' },
+  vital: { icon: 'icon-a-WebVital', label: 'Vital' },
+  long_task: { icon: 'icon-Long-Task', label: 'Long task' },
+  action: { icon: 'icon-Action', label: 'Action' },
+  websocket: { icon: 'icon-websocket', label: 'Websocket' },
+  custom: { icon: 'icon-custom1', label: 'Custom' },
+};
+
 /**
  * 字段分组的图标。
  *
@@ -136,6 +148,17 @@ export const RUM_TIME_FIELDS = new Set(['start_time', 'end_time', 'events.timest
 
 /** 支持排序的字段类型 */
 export const RUM_SORTABLE_FIELD_TYPES = new Set(['date', 'double', 'integer', 'long']);
+
+export const RUM_DETAIL_SPAN_TYPES = new Set([
+  'view',
+  'resource',
+  'error',
+  'vital',
+  'long_task',
+  'action',
+  'websocket',
+  'custom',
+]);
 
 /** Span 视角列宽（视角私有），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
 export const SPAN_COLUMN_WIDTH_MAP: Record<string, number> = {
@@ -214,6 +237,14 @@ export const RUM_OUTCOME_TYPE_MAP: Record<string, { icon: string; label: string 
   error: { icon: 'icon-monitor icon-mc-close-fill outcome-type-icon-error', label: window.i18n.t('失败') },
   timeout: { icon: 'icon-monitor icon-Long-Task outcome-type-icon-timeout', label: window.i18n.t('超时') },
   abort: { icon: 'icon-monitor icon-mc-minus-plus outcome-type-icon-abort', label: window.i18n.t('中止') },
+};
+
+export const OUTCOME_TYPE_TONE_MAP = {
+  success: RumCardToneEnum.SUCCESS,
+  warning: RumCardToneEnum.WARNING,
+  error: RumCardToneEnum.DANGER,
+  timeout: RumCardToneEnum.DANGER,
+  abort: RumCardToneEnum.DEFAULT,
 };
 
 /** attributes.http.response.status_code 列按状态码分组的展示配置 */

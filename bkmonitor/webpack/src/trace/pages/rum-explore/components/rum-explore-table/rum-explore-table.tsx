@@ -62,6 +62,11 @@ export default defineComponent({
       type: Array as PropType<IRumSpanRecord[]>,
       default: () => [],
     },
+    /** 表格默认选中高亮的行：详情抽屉打开时跟随当前 span_id，抽屉关闭时清空 */
+    defaultActiveRowKeys: {
+      type: Array as PropType<(number | string)[]>,
+      default: () => [],
+    },
     /** 基础列配置（含列宽覆盖），由上层 useRumColumnConfig 提供 */
     baseColumns: {
       type: Array as PropType<BaseTableColumn[]>,
@@ -158,6 +163,8 @@ export default defineComponent({
     scrollToEnd: () => true,
     /** 点击清空检索条件 */
     clearFilter: () => true,
+    /** 点击 Span 名称，打开该行的详情抽屉 */
+    openDetail: (_row: Record<string, unknown>) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -196,6 +203,7 @@ export default defineComponent({
         fieldMap,
         hoverPopoverTools,
         onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
+        onOpenDetail: row => emit('openDetail', row),
         onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
       }
     );
@@ -434,6 +442,7 @@ export default defineComponent({
             horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
             loading={showSkeleton}
             rowKey={this.tableRowKey}
+            defaultActiveRowKeys={this.defaultActiveRowKeys}
             sort={this.sort}
             onColumnResizeChange={(ctx: { columnsWidth: Record<string, number> }) =>
               this.$emit('columnResizeChange', ctx.columnsWidth)

@@ -357,3 +357,57 @@ export const safeDeepClone = <T>(value: T): T => {
     return value;
   }
 };
+
+/** 从 eventStream 事件字符串中提取 data 数据，非 data 事件或解析失败时返回 null */
+const parseEventStreamData = <T>(eventString: string): null | T => {
+  if (!eventString.startsWith('data:')) {
+    return null;
+  }
+  try {
+    return JSON.parse(eventString.slice(5).trim()) as T;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * 请求 eventStream(SSE) 接口，收集并返回流中所有 data 事件解析后的数据
+ * @param url 接口地址
+ * @returns 流中所有 data 事件的数据列表，请求失败时返回空数组
+ */
+export const fetchEventStream = async <T = any>(url: string): Promise<T[]> => {
+  const result: T[] = [];
+  try {
+    const traceparent = `00-${random(32, 'abcdef0123456789')}-${random(16, 'abcdef0123456789')}-01`;
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        traceparent,
+      },
+    });
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder('utf-8');
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+
+      let boundary = buffer.indexOf('\n\n');
+      while (boundary !== -1) {
+        const eventString = buffer.substring(0, boundary);
+        buffer = buffer.substring(boundary + 2);
+        const parsedData = parseEventStreamData<T>(eventString);
+        if (parsedData !== null) {
+          result.push(parsedData);
+        }
+        boundary = buffer.indexOf('\n\n');
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching event stream:', error);
+  }
+  return result;
+};

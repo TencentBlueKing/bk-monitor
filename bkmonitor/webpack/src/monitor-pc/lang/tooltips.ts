@@ -341,4 +341,7 @@ export default {
   更多日志: 'More logs',
   大小写敏感: 'Case sensitive',
   '负责人拥有该应用的所有权限。': 'The owner has all permissions for this application.',
+
+  // RUM 检索--详情
+  敬请期待: 'Coming Soon',
 };
