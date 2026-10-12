@@ -188,6 +188,10 @@ const unionExportAsync = {
   url: '/search/index_set/union_async_export/',
   method: 'post',
 };
+const getExportDownloadLink = {
+  url: '/search/export_jobs/:job_id/download_link/',
+  method: 'get',
+};
 const getRealTimeLog = {
   url: '/search/index_set/:index_set_id/tail_f/',
   method: 'post',
@@ -587,6 +591,7 @@ export {
   downloadLog,
   unionDownloadLog,
   exportAsync,
+  getExportDownloadLink,
   quickDownload,
   getRealTimeLog,
   getContentLog,
