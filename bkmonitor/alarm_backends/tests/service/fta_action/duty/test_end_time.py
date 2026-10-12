@@ -59,6 +59,10 @@ class TestSnap:
 
         assert DutyPlan.objects.count() == plan_count
 
+        # 已排完的快照再次进入提前 7 天的窗口，也不应生成计划
+        m.manage_duty_rule_snap("2024-06-25 00:00:00")
+        assert DutyPlan.objects.count() == plan_count
+
     def test_rule_reverted_to_completed_content(self, today_as_2024_06_01, create_duty_rule, create_user_group):
         """规则改到旧快照结束后生效，再改回旧内容时，应按旧内容重建快照。"""
         duty_rule = create_duty_rule(end_time="2024-06-15 00:00:00")
