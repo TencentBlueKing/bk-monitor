@@ -31,10 +31,11 @@ import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
 
 import { splitIssues } from '../../services/issues-operations';
+import { getIssueExceptionText } from '../../utils/issue-log-content';
 import IssueInfoItem from './issue-info-item';
 import ReasonSection from './reason-section';
 
-import type { MergeSourceActiveMember, SplitIssueResultItem } from '../../typing';
+import type { IssueLogContentResponse, MergeSourceActiveMember, SplitIssueResultItem } from '../../typing';
 
 import './issues-split-dialog.scss';
 
@@ -54,6 +55,16 @@ export default defineComponent({
     issues: {
       type: Array as PropType<MergeSourceActiveMember[]>,
       default: () => [],
+    },
+    /** 合并明细已拉取的关联日志，key 为 issue id */
+    logContentMap: {
+      type: Object as PropType<IssueLogContentResponse>,
+      default: () => ({}),
+    },
+    /** 已完成关联日志请求的 issue id */
+    logContentReadyIds: {
+      type: Object as PropType<ReadonlySet<string>>,
+      default: () => new Set<string>(),
     },
   },
   emits: ['update:isShow', 'success'],
@@ -170,7 +181,11 @@ export default defineComponent({
                 <span class='operate-record'>{`${issue.merge_operator} · ${dayjs(issue.merge_time * 1000).format('YYYY-MM-DD HH:mm')}`}</span>
               ),
             }}
-            desc={issue.anomaly_message}
+            desc={getIssueExceptionText({
+              log_content: props.logContentMap[issue.member_issue_id]?.log_content,
+              anomaly_message: issue.anomaly_message,
+            })}
+            descLoading={!props.logContentReadyIds.has(issue.member_issue_id)}
             list={getMetricList(issue)}
             name={issue.member_name}
           />

@@ -27,7 +27,7 @@ class HasChoicesCachedEnum(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
-class RatingLevel:
+class RatingThreshold:
     """评级阈值描述符。
 
     按数组顺序匹配：``value`` 是包含性上界，单位沿用字段的 ``field_unit``；
@@ -70,7 +70,7 @@ class FieldSpec:
     field_display_type: str | None = None
     is_real: bool = True
     option_values: type[HasChoicesCachedEnum] | None = None
-    rating_config: tuple[RatingLevel, ...] = ()
+    rating_config: tuple[RatingThreshold, ...] = ()
     _full_field_name: str = field(default="", init=False, repr=False, compare=False)
 
     def children(self) -> Iterator["FieldSpec"]:

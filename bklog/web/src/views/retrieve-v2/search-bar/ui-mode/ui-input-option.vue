@@ -614,7 +614,7 @@
           conditionValueInstance.hide(0);
         });
       } else {
-        conditionValueInstance.hide(100);
+        conditionValueInstance.hide(isFuzzyMatchAvailable.value ? 0 : 100);
       }
     }
 
@@ -680,6 +680,7 @@
       result.value = [];
     }
 
+    conditionValueInstance.hide();
     resetParams();
     emit('save', result);
   };

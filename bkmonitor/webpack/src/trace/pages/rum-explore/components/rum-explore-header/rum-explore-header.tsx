@@ -23,13 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, computed, defineComponent, onMounted, onUnmounted, shallowRef } from 'vue';
+import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
 import { Select } from 'bkui-vue';
-import { deepClone, detectOS, random } from 'monitor-common/utils';
+import { deepClone, random } from 'monitor-common/utils';
 import { useI18n } from 'vue-i18n';
 
 import RefreshRate from '../../../../components/refresh-rate/refresh-rate';
+import SelectorShortcut, { useSelectorShortcut } from '../../../../components/selector-shortcut/selector-shortcut';
 import TimeRange from '../../../../components/time-range/time-range';
 import { useRumExploreStore } from '../../../../store/modules/rum-explore';
 import { RUM_MODE_TAB_LIST } from '../../constants';
@@ -42,6 +43,10 @@ import './rum-explore-header.scss';
 export default defineComponent({
   name: 'RumExploreHeader',
   props: {
+    loading: {
+      type: Boolean,
+      default: false,
+    },
     applicationList: {
       type: Array as PropType<IRumApplication[]>,
       default: () => [],
@@ -81,8 +86,6 @@ export default defineComponent({
       return [...pinned, ...others];
     });
 
-    const shortcutKeyText = computed(() => (detectOS() === 'Windows' ? 'Ctrl+O' : 'Cmd+O'));
-
     function applicationFilter(keyword: string, item: { id: string; name: string }) {
       return item.name.includes(keyword) || item.id.includes(keyword);
     }
@@ -106,27 +109,16 @@ export default defineComponent({
       emit('thumbtackChange', item.isTop ? list.filter(name => name !== item.app_name) : [item.app_name, ...list]);
     }
 
-    /** 全局 Cmd/Ctrl + O 唤起应用选择器 */
-    function handleShortcutKeydown(event: KeyboardEvent) {
-      if (event.key?.toLowerCase() !== 'o' || !(event.ctrlKey || event.metaKey)) return;
-      event.preventDefault();
-      applicationSelectRef.value?.showPopover();
-    }
-
-    onMounted(() => {
-      window.addEventListener('keydown', handleShortcutKeydown);
-    });
-
-    onUnmounted(() => {
-      window.removeEventListener('keydown', handleShortcutKeydown);
-    });
+    useSelectorShortcut(
+      () => applicationSelectRef.value?.showPopover(),
+      () => !props.loading
+    );
 
     return {
       t,
       store,
       applicationSelectRef,
       applicationToggle,
-      shortcutKeyText,
       sortedApplicationList,
       applicationFilter,
       handleApplicationChange,
@@ -186,6 +178,7 @@ export default defineComponent({
             ref='applicationSelectRef'
             class='application-select'
             clearable={false}
+            disabled={this.loading}
             filterOption={this.applicationFilter}
             modelValue={this.store.appName}
             popoverOptions={{ extCls: 'rum-explore-application-select-popover' }}
@@ -198,7 +191,13 @@ export default defineComponent({
               trigger: () => (
                 <div class='application-select-trigger'>
                   <span class='data-prefix'>{this.t('应用')}：</span>
-                  {this.store.currentApp && (
+                  {this.loading && (
+                    <span
+                      style={{ width: '120px' }}
+                      class='rum-skeleton-line'
+                    />
+                  )}
+                  {!this.loading && this.store.currentApp && (
                     <span
                       class='application-name'
                       v-overflow-tips
@@ -206,7 +205,7 @@ export default defineComponent({
                       {this.store.currentApp.app_alias}({this.store.currentApp.app_name})
                     </span>
                   )}
-                  {!this.applicationToggle && <div class='select-shortcut-keys'>{this.shortcutKeyText}</div>}
+                  {!this.applicationToggle && <SelectorShortcut />}
                   <span class={['icon-monitor icon-mc-arrow-down', { expand: this.applicationToggle }]} />
                 </div>
               ),

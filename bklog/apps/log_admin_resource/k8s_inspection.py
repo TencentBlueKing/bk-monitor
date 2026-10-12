@@ -34,6 +34,7 @@ MAX_CANDIDATES = 20
 MAX_CONTRACT_EVIDENCE = 100
 MAX_CHILD_CONFIG_HINTS = 20
 PROJECTED_SPEC_FIELDS = (
+    "namespace",
     "dataId",
     "path",
     "exclude_files",
@@ -394,12 +395,18 @@ def collector_child_config_hints(
     if not target_snapshot:
         return []
     matched_ids = {str(value) for value in target_snapshot.get("matched_container_config_ids") or []}
-    matched = [item for item in expected if str(item.get("container_config_id")) in matched_ids]
+    matched = [
+        item
+        for item in expected
+        if item.get("container_config_id") is None or str(item.get("container_config_id")) in matched_ids
+    ]
     hints = []
     if target_snapshot.get("type") == "node":
         for item in matched:
             if item.get("collector_type") == ContainerCollectorType.NODE:
-                hints.append(f"{ContainerCollectorType.NODE}_{configured_namespace}_{item['name']}.conf")
+                hints.append(
+                    f"{ContainerCollectorType.NODE}_{item.get('namespace', configured_namespace)}_{item['name']}.conf"
+                )
     elif target_snapshot.get("type") == "pod_container":
         container = target_snapshot.get("container") or {}
         container_id = str(container.get("container_id") or "")
@@ -409,7 +416,9 @@ def collector_child_config_hints(
             for item in matched:
                 collector_type = item.get("collector_type")
                 if collector_type in {ContainerCollectorType.CONTAINER, ContainerCollectorType.STDOUT}:
-                    hints.append(f"{container_id}_{collector_type}_{configured_namespace}_{item['name']}.conf")
+                    hints.append(
+                        f"{container_id}_{collector_type}_{item.get('namespace', configured_namespace)}_{item['name']}.conf"
+                    )
     return sorted({hint for hint in hints if re.fullmatch(r"[A-Za-z0-9_.-]{1,255}", hint)})[:MAX_CHILD_CONFIG_HINTS]
 
 
@@ -457,7 +466,9 @@ def discover_inspection_targets(
                     "ready": container_status.get("ready"),
                     "workload_type": workload_type,
                     "workload_name": workload_name,
-                    "matched_container_config_ids": [item["container_config_id"] for item in matched],
+                    "matched_container_config_ids": [
+                        item["container_config_id"] for item in matched if item["container_config_id"] is not None
+                    ],
                 }
             )
 
@@ -478,7 +489,9 @@ def discover_inspection_targets(
                 "target": target,
                 "node_uid": metadata.get("uid"),
                 "ready": _condition_is_true(status.get("conditions") or [], "Ready"),
-                "matched_container_config_ids": [item["container_config_id"] for item in matched],
+                "matched_container_config_ids": [
+                    item["container_config_id"] for item in matched if item["container_config_id"] is not None
+                ],
             }
         )
 
@@ -519,11 +532,16 @@ def _pod_target_matches(target: dict[str, Any], pod: dict[str, Any], spec: dict[
     pod_spec = pod.get("spec") or {}
     namespace_selector = spec.get("namespaceSelector") or {}
     namespace = str(metadata.get("namespace") or "")
-    if not namespace_selector.get("any") and namespace_selector.get("matchNames"):
-        if namespace not in namespace_selector.get("matchNames"):
+    # Sidecar precedence: any, excludeNames, matchNames, then legacy namespace.
+    if not namespace_selector.get("any"):
+        if namespace_selector.get("excludeNames"):
+            if namespace in namespace_selector["excludeNames"]:
+                return False
+        elif namespace_selector.get("matchNames"):
+            if namespace not in namespace_selector["matchNames"]:
+                return False
+        elif spec.get("namespace") and namespace != spec["namespace"]:
             return False
-    if namespace in (namespace_selector.get("excludeNames") or []):
-        return False
     if not _labels_match(metadata.get("labels") or {}, spec.get("labelSelector") or {}):
         return False
     if not _expressions_match(
@@ -597,7 +615,9 @@ def safe_target_snapshot(target: dict[str, Any], value: Any, matched: list[dict[
                 )
                 if node_info.get(key) is not None
             },
-            "matched_container_config_ids": [entry["container_config_id"] for entry in matched],
+            "matched_container_config_ids": [
+                entry["container_config_id"] for entry in matched if entry["container_config_id"] is not None
+            ],
         }
     spec = item.get("spec") or {}
     status = item.get("status") or {}
@@ -649,7 +669,9 @@ def safe_target_snapshot(target: dict[str, Any], value: Any, matched: list[dict[
             ),
         },
         "path_mappings": _path_mount_mappings(matched, safe_mounts),
-        "matched_container_config_ids": [entry["container_config_id"] for entry in matched],
+        "matched_container_config_ids": [
+            entry["container_config_id"] for entry in matched if entry["container_config_id"] is not None
+        ],
     }
 
 

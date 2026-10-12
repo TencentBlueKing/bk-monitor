@@ -35,11 +35,15 @@
 import { applyRuntimeClassPrefix } from './common/class-prefix';
 
 import 'monitor-static/icons/monitor-icons.css';
+import 'monitor-static/styles/skeleton.scss';
 
 applyRuntimeClassPrefix();
 
+/** Trace 详情侧滑：只挂详情，不挂整页检索 */
+export { mount as mountTraceSlider, default as TraceSliderApm } from './components/trace-slider/trace-slider-apm-entry';
 /** 告警中心：mountAlarmCenter 返回 { update, unmount } 句柄，宿主销毁时必须调用 unmount */
 export { default as AlarmCenterApm, mount as mountAlarmCenter } from './pages/alarm-center/alarm-center-apm-entry';
+
 export type { BridgeEmit, BridgeProps, MountHandle, MountOptions } from './pages/alarm-center/alarm-center-apm-entry';
 
 /** Trace 检索：入参与句柄结构与告警中心一致 */

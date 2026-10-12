@@ -86,8 +86,15 @@
   .metric-card-trend {
     font-family: Arial, sans-serif;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 22px;
+    color: #8f9fbd;
+
+    &.is-brand,
+    &.is-success,
+    &.is-warn {
+      font-weight: 700;
+    }
 
     &.is-brand {
       color: #3a84ff;

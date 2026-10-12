@@ -45,6 +45,7 @@ import {
   formatGrowthRate,
   formatMetricValue,
   formatSeriesInterval,
+  getComparisonTimeShift,
   getDimensionName,
   getOperationDisplayName,
   GROUP_BY_MODEL,
@@ -224,11 +225,14 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
   }
 
   async fetchMetricCards() {
+    const queryBase = this.queryBase;
+    const timeShift = getComparisonTimeShift(queryBase.start_time, queryBase.end_time);
     const results = await Promise.all(
       METRIC_CARD_CONFIG.map(item =>
         this.fetchCalculate(item.calType, {
+          ...queryBase,
           baseline: '0s',
-          time_shifts: ['0s', '1d'],
+          time_shifts: ['0s', timeShift],
         })
       )
     );
@@ -238,7 +242,7 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
       return {
         title: item.title,
         value: formatMetricValue(value, item.format),
-        trend: formatGrowthRate(current?.growth_rates?.['1d']),
+        trend: formatGrowthRate(current?.growth_rates?.[timeShift]),
         trendTheme: item.trendTheme,
       };
     });
@@ -301,7 +305,7 @@ export default class ApmLlmOverview extends tsc<Record<string, never>> {
               <span class='metric-card-value'>{item.value}</span>
               <span class='metric-card-trend-wrap'>
                 <span class='metric-card-trend-label'>{this.$t('环比')}</span>
-                <span class={['metric-card-trend', `is-${item.trendTheme}`]}>{item.trend}</span>
+                <span class={['metric-card-trend', item.trend !== '--' && `is-${item.trendTheme}`]}>{item.trend}</span>
               </span>
             </div>
           </div>

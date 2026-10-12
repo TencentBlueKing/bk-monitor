@@ -30,6 +30,7 @@ import { get } from '@vueuse/core';
 
 import { AlarmType } from '../../typings';
 import { TrendRangeEnum } from '../constant';
+import { fetchIssueLogContentInBatches } from '../utils/issue-log-content';
 
 import type { IssuesService } from '../../services/issues-services';
 import type { IssueItem, TrendRangeType } from '../typing';
@@ -94,22 +95,26 @@ export function useIssuesTableEnhancement(options: UseIssuesTableEnhancementOpti
     if (trendAbortController) trendAbortController.abort();
 
     const trendEndTime = get(endTime);
-    if (!shouldFetchIssues(issues) || !trendEndTime) return;
+    if (!shouldFetchIssues(issues) || !trendEndTime) {
+      trendLoading.value = false;
+      return;
+    }
 
     const controller = new AbortController();
     trendAbortController = controller;
     const { signal: trendSignal } = controller;
 
     trendLoading.value = true;
-    const trendMap = await get(serviceInstance).getIssueTrend(issues, trendEndTime, trendRange.value, {
-      signal: trendSignal,
-    });
-    if (trendSignal.aborted) return;
-    for (const issue of issues) {
-      issue.trend = trendMap[issue.id] || [];
-    }
-    if (trendAbortController === controller) {
-      trendLoading.value = false;
+    try {
+      const trendMap = await get(serviceInstance).getIssueTrend(issues, trendEndTime, trendRange.value, {
+        signal: trendSignal,
+      });
+      if (trendSignal.aborted) return;
+      for (const issue of issues) {
+        issue.trend = trendMap[issue.id] || [];
+      }
+    } finally {
+      if (!trendSignal.aborted) trendLoading.value = false;
     }
   };
 
@@ -117,8 +122,8 @@ export function useIssuesTableEnhancement(options: UseIssuesTableEnhancementOpti
    * @description 按批串行获取 Issue 关联日志内容并回填
    * - 每批最多 10 条
    * - 串行执行，避免并发超限
-   * - 单批失败静默处理，不影响其他批次
-   * - 无 loading 状态
+   * - 单批失败按空日志处理，回退 anomaly_message
+   * - 未回填前保持 log_content_loaded=false，列表展示骨架而不是先闪兜底文案
    */
   const fetchLogContent = async (issues: IssueItem[]) => {
     if (logAbortController) logAbortController.abort();
@@ -126,26 +131,23 @@ export function useIssuesTableEnhancement(options: UseIssuesTableEnhancementOpti
     const controller = new AbortController();
     logAbortController = controller;
     const { signal: logSignal } = controller;
-
-    const batchSize = 10;
-    const batches: IssueItem[][] = [];
-    for (let i = 0; i < issues.length; i += batchSize) {
-      batches.push(issues.slice(i, i + batchSize));
+    const issueById = new Map(issues.map(issue => [issue.id, issue]));
+    for (const issue of issues) {
+      issue.log_content_loaded = false;
     }
 
-    for (const batch of batches) {
-      if (logSignal.aborted) return;
-
-      const dataMap = await get(serviceInstance).getIssueLogContent(batch, {
-        signal: logSignal,
-      });
-
-      if (logSignal.aborted) return;
-
-      for (const issue of batch) {
-        issue.log_content = dataMap[issue.id]?.log_content || '';
-      }
-    }
+    await fetchIssueLogContentInBatches(issues, {
+      signal: logSignal,
+      onBatch: (batch, dataMap) => {
+        if (logSignal.aborted) return;
+        for (const item of batch) {
+          const issue = issueById.get(item.id);
+          if (!issue) continue;
+          issue.log_content = dataMap?.[item.id]?.log_content || '';
+          issue.log_content_loaded = true;
+        }
+      },
+    });
   };
 
   const onTrendRangeChange = (range: TrendRangeType) => {

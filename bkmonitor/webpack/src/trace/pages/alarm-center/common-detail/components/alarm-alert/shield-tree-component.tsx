@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef, useTemplateRef, watch } from 'vue';
+import { defineComponent, onScopeDispose, shallowRef, useTemplateRef, watch } from 'vue';
 
 import { Button } from 'bkui-vue';
 import { getHostOrTopoNodeDetail } from 'monitor-api/modules/scene_view';
 import { type TreeNodeModel, type TreeNodeValue, Tree } from 'tdesign-vue-next';
 import { useI18n } from 'vue-i18n';
+
+import { DetailLoadStatus } from '../../detail-loading';
 
 import type { ITopoNodeDataItem } from '../../../typings';
 
@@ -62,7 +64,10 @@ export default defineComponent({
   emits: ['confirm', 'cancel'],
   setup(props, { emit }) {
     const { t } = useI18n();
-    const loading = shallowRef(true);
+    const loading = shallowRef(false);
+    const error = shallowRef(false);
+    let requestId = 0;
+    onScopeDispose(() => { ++requestId; });
     // 选中的节点树id，集群和模块之间字段名相同，id值可能重复，与后端确认使用_拼接方式：`${item.bk_inst_id}_${item.bk_obj_id}`
     const checkedIds = shallowRef([]);
     // big-tree渲染数据
@@ -84,6 +89,8 @@ export default defineComponent({
     };
 
     const getTopoNodeDetailData = () => {
+      const current = ++requestId;
+      error.value = false;
       if (!props.bkHostId || !props.bizId) return;
       loading.value = true;
       getHostOrTopoNodeDetail({
@@ -92,23 +99,29 @@ export default defineComponent({
         bk_host_id: props.bkHostId, // 只有该接口需要查找topoNode才需要此参数
       })
         .then(res => {
+          if (current !== requestId) return;
           treeNodeList.value = mapTreeData(res);
         })
         .catch(() => {
+          if (current !== requestId) return;
+          error.value = true;
           treeNodeList.value = [];
         })
         .finally(() => {
-          loading.value = false;
+          if (current === requestId) loading.value = false;
         });
     };
 
     watch(
-      () => props.show,
-      show => {
+      () => [props.show, props.bizId, props.bkHostId],
+      () => {
+        ++requestId;
+        loading.value = false;
+        error.value = false;
         // 告警中心首页存在批量操作，每次打开需要重置数据
         checkedIds.value = [];
         treeNodeList.value = [];
-        if (show) {
+        if (props.show) {
           getTopoNodeDetailData();
         }
       },
@@ -118,6 +131,7 @@ export default defineComponent({
     );
 
     const handleConfirm = () => {
+      if (loading.value || error.value || !treeRef.value) return;
       const ids = treeRef.value
         .getItems()
         .filter(item => item.checked && !item.disabled)
@@ -183,9 +197,7 @@ export default defineComponent({
     const skeletonComponent = () => {
       return (
         <div class='skeleton-wrap'>
-          <div class='skeleton-element' />
-          <div class='skeleton-element' />
-          <div class='skeleton-element' />
+          {[0, 1, 2, 2, 1, 2, 2].map((depth, i) => <div key={i} style={{ display: 'flex', gap: '8px', alignItems: 'center', height: '32px', paddingLeft: `${depth * 16}px` }}><span class='skeleton-element' style={{ width: '14px', height: '14px' }} /><span class='skeleton-element' style={{ width: `${[112, 88, 144][i % 3]}px`, height: '12px' }} /></div>)}
         </div>
       );
     };
@@ -217,6 +229,7 @@ export default defineComponent({
 
     return {
       loading,
+      error, retry: getTopoNodeDetailData,
       checkedIds,
       skeletonComponent,
       treeNodeComponent,
@@ -227,12 +240,12 @@ export default defineComponent({
   render() {
     return (
       <div class='tree-node-shield__container'>
-        {this.loading ? this.skeletonComponent() : this.treeNodeComponent()}
+        {this.loading ? this.skeletonComponent() : this.error ? <DetailLoadStatus error onRetry={this.retry} /> : this.treeNodeComponent()}
         <div class='component-bottom'>
           <div class='button-wrap'>
             <Button
               class='mr-8'
-              disabled={this.loading}
+              disabled={this.loading || this.error}
               theme='primary'
               onClick={this.handleConfirm}
             >

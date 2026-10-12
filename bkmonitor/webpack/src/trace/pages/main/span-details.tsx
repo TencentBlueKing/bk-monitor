@@ -83,7 +83,7 @@ import { downFile } from '../../utils';
 import { toUnixMilliseconds } from '../../utils/date';
 import { SPAN_KIND_MAPS as SPAN_KIND_MAPS_NEW } from '../trace-explore/components/trace-explore-table/constants';
 import { safeParseJsonValueForWhere } from '../trace-explore/utils';
-import { TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
+import { SPAN_DETAILS_Z_INDEX, TRACE_SPAN_DETAIL_BASIC_INFO_EXPAND_KEY } from './constants';
 // import AiBluekingIcon from '@/components/ai-blueking-icon/ai-blueking-icon';
 import DashboardPanel from './dashboard-panel/dashboard-panel';
 import K8sContainer from './k8s-container';
@@ -1332,6 +1332,46 @@ export default defineComponent({
     const llmSearchKeyword = shallowRef('');
     const llmSearchActiveIndex = shallowRef(0);
     const llmSearchMatchCount = shallowRef(0);
+    /** 第一层 Tab 已吸顶（header 滚出后）才与第二层拉开 4px，默认贴紧内容 */
+    const infoTabStuck = shallowRef(false);
+    let unbindInfoTabSticky: (() => void) | undefined;
+
+    const syncInfoTabStuck = () => {
+      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      const header = content?.querySelector('.details-header') as HTMLElement | undefined;
+      if (!content || !header) {
+        infoTabStuck.value = false;
+        return;
+      }
+      const scroller = (content.closest('.bk-modal-content') as HTMLElement | null) || content;
+      infoTabStuck.value = header.getBoundingClientRect().bottom <= scroller.getBoundingClientRect().top + 1;
+    };
+
+    const bindInfoTabSticky = () => {
+      unbindInfoTabSticky?.();
+      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      const scroller = (content?.closest('.bk-modal-content') as HTMLElement | null) || content;
+      if (!scroller) return;
+      scroller.addEventListener('scroll', syncInfoTabStuck, { passive: true });
+      syncInfoTabStuck();
+      unbindInfoTabSticky = () => {
+        scroller.removeEventListener('scroll', syncInfoTabStuck);
+        unbindInfoTabSticky = undefined;
+      };
+    };
+
+    /** LLM 观测外滚吸顶后切走，父级高度收回但祖先 scrollTop 仍在，整栏会被顶出视口 */
+    const resetInfoTabScroll = () => {
+      const content = document.querySelector('.span-details-sideslider-content') as HTMLElement | null;
+      let el: HTMLElement | null = content;
+      while (el && el !== document.body) {
+        if (el.scrollTop) {
+          el.scrollTop = 0;
+        }
+        el = el.parentElement;
+      }
+      infoTabStuck.value = false;
+    };
 
     const resetLlmSearch = () => {
       llmSearchKeyword.value = '';
@@ -1672,7 +1712,7 @@ export default defineComponent({
                   </div>,
                   <MonitorTab
                     key='info-tab'
-                    class='info-tab'
+                    class={['info-tab', { 'is-stuck': infoTabStuck.value }]}
                     v-slots={{
                       setting: () => {
                         if (exploreButtonName.value) {
@@ -2105,6 +2145,7 @@ export default defineComponent({
         transfer={(document.querySelector('.trace-list-wrapper') as HTMLDivElement) ?? true}
         quick-close
         show-mask
+        zIndex={SPAN_DETAILS_Z_INDEX}
         onHidden={handleHiddenChange}
       >
         {detailsMain()}
@@ -2192,11 +2233,36 @@ export default defineComponent({
       { immediate: true, deep: true }
     );
 
+    watch(
+      () => props.show,
+      async val => {
+        if (val) {
+          await nextTick();
+          bindInfoTabSticky();
+          return;
+        }
+        unbindInfoTabSticky?.();
+        infoTabStuck.value = false;
+      }
+    );
+
+    watch(activeTab, async () => {
+      if (!props.show) return;
+      resetInfoTabScroll();
+      await nextTick();
+      resetInfoTabScroll();
+      syncInfoTabStuck();
+    });
+
     onMounted(() => {
       getSpanDetailExpandUserConfig();
+      if (props.show) {
+        nextTick(bindInfoTabSticky);
+      }
     });
 
     onBeforeUnmount(() => {
+      unbindInfoTabSticky?.();
       hideSelectionDecoder();
     });
 

@@ -25,15 +25,14 @@
  */
 import { type PropType, computed, defineComponent, inject, shallowRef, watch } from 'vue';
 
-import { Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { parseInputObservation } from '../utils/parse-input';
 import { LLM_OBSERVATION_SEARCH_KEY, LLM_SEARCH_SECTION } from '../utils/search';
 import CollapseSection from './collapse-section';
+import DetailSlider, { type LlmDetailSliderContent } from './detail-slider';
 import HighlightText from './highlight-text';
 import JsonCodeBlock from './json-code-block';
-import JsonView from './json-view';
 import TextContentItem from './text-content-item';
 import ToolCallList from './tool-call-list';
 import ToolDescBar from './tool-desc-bar';
@@ -41,20 +40,6 @@ import ToolDescBar from './tool-desc-bar';
 import type { LlmTextItem, LlmToolDefinition } from '../utils/typings';
 
 import './input-tab.scss';
-
-/** 独立查看侧栏内容：文本或 JSON */
-type DetailState =
-  | null
-  | {
-      data: unknown;
-      kind: 'json';
-      title: string;
-    }
-  | {
-      kind: 'text';
-      text: string;
-      title: string;
-    };
 
 /** 输入 Tab：用户/模型/系统消息、推理、工具调用记录、可用工具 */
 export default defineComponent({
@@ -68,7 +53,7 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
-    const detail = shallowRef<DetailState>(null);
+    const detail = shallowRef<LlmDetailSliderContent | null>(null);
     /** 当前选中的可用工具 */
     const selectedToolName = shallowRef('');
     const search = inject(LLM_OBSERVATION_SEARCH_KEY, null);
@@ -244,35 +229,10 @@ export default defineComponent({
             )}
           </>
         )}
-        {detail.value ? (
-          <Sideslider
-            width={640}
-            extCls='llm-input-tab-slider'
-            isShow={true}
-            quickClose={true}
-            transfer={true}
-            onClosed={closeDetail}
-            onHidden={closeDetail}
-            onUpdate:isShow={(val: boolean) => {
-              if (!val) closeDetail();
-            }}
-          >
-            {{
-              header: () => <span>{detail.value?.title || ''}</span>,
-              default: () =>
-                detail.value?.kind === 'json' ? (
-                  <div class='llm-input-tab-slider-json'>
-                    <JsonView
-                      data={detail.value.data}
-                      showLineNumber={true}
-                    />
-                  </div>
-                ) : (
-                  <pre class='llm-input-tab-slider-text'>{detail.value?.kind === 'text' ? detail.value.text : ''}</pre>
-                ),
-            }}
-          </Sideslider>
-        ) : null}
+        <DetailSlider
+          detail={detail.value}
+          onClose={closeDetail}
+        />
       </div>
     );
   },

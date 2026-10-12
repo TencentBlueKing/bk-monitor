@@ -60,6 +60,7 @@
 | span_id | string | Span ID |
 | parent_span_id | string | 父 Span ID；可能为空，也可能指向未包含在标准化结果中的外部父 Span |
 | span_name | string | Span 名称 |
+| span_type | string | 后端识别的节点类型：`AGENT`、`LLM` 或 `TOOL`，未识别时不返回该字段 |
 | start_time | int | 开始时间，单位为微秒 |
 | end_time | int | 结束时间，单位为微秒 |
 | elapsed_time | int | 耗时，单位为微秒 |
@@ -77,6 +78,8 @@
 | gen_ai.agent.name | string | Agent 名称 |
 | gen_ai.provider.name | string | 模型服务提供方 |
 | gen_ai.request.model | string | 请求模型 |
+| gen_ai.request.stream | bool | 是否以流式方式请求 |
+| gen_ai.request.temperature | number | 温度参数 |
 | gen_ai.request.reasoning.level | string | 请求的推理强度 |
 | gen_ai.response.model | string | 响应模型 |
 | gen_ai.response.finish_reasons | list | 模型结束原因，例如 `tool_call`、`stop` |
@@ -88,13 +91,31 @@
 | gen_ai.usage.input_tokens | int | 输入 Token 数 |
 | gen_ai.usage.output_tokens | int | 输出 Token 数 |
 | gen_ai.usage.cache_read.input_tokens | int | 缓存读取 Token 数 |
-| gen_ai.usage.cache_creation.input_tokens | int | 缓存写入 Token 数 |
+| gen_ai.usage.cache_write.input_tokens | int | 缓存写入 Token 数 |
 | gen_ai.usage.reasoning.output_tokens | int | 推理过程使用的输出 Token 数 |
 | gen_ai.tool.name | string | 工具名称 |
 | gen_ai.tool.call.id | string | 工具调用 ID |
 | gen_ai.tool.call.arguments | object | 工具调用参数 |
 | gen_ai.tool.call.result | object | 工具调用结果 |
 | user.id | string | 用户 ID |
+
+#### Galileo 字段兼容
+
+响应的标准属性仅包含《LLM 核心字段》（`3-llm-semcov.md`）列出的字段。[Galileo 协议](https://iwiki.woa.com/p/4015969950) 中的历史字段按下表转换，未纳入核心字段规范的属性不输出：
+
+| Galileo 原始字段 | 响应中的标准字段 |
+|---|---|
+| `gen_ai.server.time_to_first_token` | `gen_ai.response.time_to_first_chunk`，保留秒单位 |
+| `gen_ai.request.is_stream`、`gen_ai.is_stream` | `gen_ai.request.stream` |
+| `gen_ai.user.id` | `user.id` |
+| `gen_ai.usage.cache_read_input_tokens`、`gen_ai.usage.cached.input_tokens` | `gen_ai.usage.cache_read.input_tokens` |
+| `gen_ai.usage.cache_creation.input_tokens`、`gen_ai.usage.cache_creation_input_tokens` | `gen_ai.usage.cache_write.input_tokens` |
+
+已上报的标准字段优先，别名只补充缺失字段，`0` 和 `false` 均保留。
+
+工具定义中的 `inputSchema` 转换为 `gen_ai.tool.definitions[].parameters`。消息中的 `reasoning_content`、`tool_calls` 分别补充为 `reasoning`、`tool_call` Part，已有对应标准 Part 时不重复添加。
+
+#### 消息与工具结构
 
 消息结构：
 
@@ -122,15 +143,15 @@
 
 #### Span 类型
 
-`attributes.gen_ai.operation.name` 是节点类型的判断字段，`span_name` 仅用于展示：
+前端通过 Span 顶层的 `span_type` 选择展示类型，`span_name` 仅用于展示名称：
 
-| 页面节点类型 | `gen_ai.operation.name` 取值 |
+| `span_type` | 页面节点类型 |
 |---|---|
-| Agent | `invoke_agent`、`invoke_workflow` |
-| 模型 | `chat`、`text_completion` |
-| Tool | `execute_tool` |
+| `AGENT` | Agent |
+| `LLM` | 模型 |
+| `TOOL` | Tool |
 
-其他操作值按通用 GenAI Span 展示，不归入上述三类。
+类型由后端统一归类，前端无需根据 `attributes.gen_ai.operation.name` 重新判断。未识别类型的 Span 不返回 `span_type`，按通用 GenAI Span 展示。
 
 #### 输入区块
 
@@ -180,6 +201,7 @@
                 "span_id": "30e66c2d28e1bfd8",
                 "parent_span_id": "a75a608f6c6bf9ee",
                 "span_name": "invoke_agent 标准排障",
+                "span_type": "AGENT",
                 "start_time": 1787912684072035,
                 "end_time": 1787912699650734,
                 "elapsed_time": 15578699,
@@ -232,6 +254,7 @@
                 "span_id": "89c0d0e71b37fa50",
                 "parent_span_id": "30e66c2d28e1bfd8",
                 "span_name": "chat k3",
+                "span_type": "LLM",
                 "start_time": 1787912684078297,
                 "end_time": 1787912689487839,
                 "elapsed_time": 5409542,
@@ -327,6 +350,7 @@
                 "span_id": "55e489f22aa46592",
                 "parent_span_id": "89c0d0e71b37fa50",
                 "span_name": "execute_tool list_incident_events",
+                "span_type": "TOOL",
                 "start_time": 1787912689507924,
                 "end_time": 1787912689798924,
                 "elapsed_time": 291000,
@@ -365,6 +389,7 @@
                 "span_id": "6218ec01f35516ef",
                 "parent_span_id": "30e66c2d28e1bfd8",
                 "span_name": "chat k3",
+                "span_type": "LLM",
                 "start_time": 1787912689802118,
                 "end_time": 1787912699639749,
                 "elapsed_time": 9837631,

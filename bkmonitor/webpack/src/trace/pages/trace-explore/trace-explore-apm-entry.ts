@@ -1,4 +1,3 @@
-import i18n from '../../i18n/i18n';
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -46,8 +45,9 @@ import i18n from '../../i18n/i18n';
  *      - 内部将回调包装为 bridgeEmit 函数，通过 app.provide() 注入
  *      - Vue 3 子组件 inject(BRIDGE_EMIT_KEY) 后调用即可向宿主抛出事件
  */
-import { createApp, reactive } from 'vue';
 
+import i18n from '../../i18n/i18n';
+import { createApp, reactive } from 'vue';
 import { Message, provideGlobalConfig } from 'bkui-vue';
 import {
   BarChart,

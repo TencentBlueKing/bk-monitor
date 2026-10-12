@@ -483,6 +483,11 @@ class StrategyCacheManager(CacheManager):
         """
         item = copy.deepcopy(item)
 
+        promql_multi_expression = len(item["query_configs"]) > 1 and all(
+            (config.get("data_source_label"), config.get("data_type_label"), config.get("expression_mode"))
+            == (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES, "promql")
+            for config in item["query_configs"]
+        )
         configs = []
         for query_config in item["query_configs"]:
             params = {
@@ -504,6 +509,11 @@ class StrategyCacheManager(CacheManager):
 
             if query_config.get("promql"):
                 params["promql"] = query_config["promql"]
+
+            if promql_multi_expression:
+                # 仅新执行模式扩展身份；别名与原始查询绑定，避免复用不同表达式的结果。
+                params["expression_mode"] = query_config["expression_mode"]
+                params["alias"] = query_config.get("alias")
 
             # 日志平台来源数据需要加上index_set_id作为查询条件
             if params["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH:
@@ -541,15 +551,16 @@ class StrategyCacheManager(CacheManager):
             if len(configs) == 1 and len(item.get("expression", "").strip(" ")) <= 1
             else {"expression": item["expression"], "query_configs": configs}
         )
-        if "query_output_config" not in item:
-            return count_md5(legacy_query_identity)
-
-        return count_md5(
-            {
+        query_identity = legacy_query_identity
+        if "query_output_config" in item:
+            query_identity = {
                 "legacy_query": legacy_query_identity,
                 "query_output_config": cls.canonical_query_output_config(item["query_output_config"]),
             }
-        )
+        # 未配置或清除覆盖时保留原有身份，不将全局默认值注入旧策略的分组。
+        if item.get("access_lookback_periods") is not None:
+            query_identity["access_lookback_periods"] = item["access_lookback_periods"]
+        return count_md5(query_identity)
 
     @classmethod
     def handle_strategy(cls, strategy: dict, invalid_strategy_dict=None) -> bool:

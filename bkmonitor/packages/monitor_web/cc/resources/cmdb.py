@@ -18,6 +18,7 @@ from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import to_dict
+from bkmonitor.utils.nodeman import host_queries
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType
@@ -158,7 +159,7 @@ def get_agent_status(
         futures.append(
             (
                 pool.apply_async(
-                    api.node_man.ipchooser_host_detail,
+                    host_queries.details,
                     kwds={
                         "host_list": batch,
                         "scope_list": scope_list,
@@ -263,8 +264,11 @@ def get_process_info(
     if len(hosts) == 1:
         bk_host_id = hosts[0].bk_host_id
 
-    # 查询进程信息
-    result = api.cmdb.get_process(bk_biz_id=bk_biz_id, bk_host_id=bk_host_id)
+    # 多主机页先筛选原始服务实例，避免为全业务构造 Process 后再过滤。
+    process_params = {"bk_biz_id": bk_biz_id, "bk_host_id": bk_host_id}
+    if push_host_target and bk_host_id is None:
+        process_params["bk_host_ids"] = [host.bk_host_id for host in hosts]
+    result = api.cmdb.get_process(**process_params)
 
     # 查询进程状态数据
     statuses: dict[int, dict[str, int]] = get_process_status(
@@ -1099,9 +1103,9 @@ def parse_topo_target(bk_biz_id: int, dimensions: list[str], target: list[dict])
 
     # 处理返回值
     instances = []
-    if is_host_id:
+    if is_host_id and result["bk_host_id"]:
         instances = [{"bk_host_id": list(result["bk_host_id"])}]
-    elif is_service_instance:
+    elif is_service_instance and result["service_instance_id"]:
         if "bk_target_service_instance_id" in dimensions:
             instances = [{"bk_target_service_instance_id": list(result["service_instance_id"])}]
         else:

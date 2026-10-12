@@ -56,6 +56,11 @@ export const allRouteConfig: IRouteConfig[] = [
     route: 'incident-detail',
   },
   {
+    id: 'profiling-explore',
+    name: 'Profiling 检索',
+    route: 'profiling-explore',
+  },
+  {
     id: 'profiling',
     name: 'Profiling',
     route: 'profiling',

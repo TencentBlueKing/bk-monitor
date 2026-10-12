@@ -372,6 +372,7 @@ export default {
   '搜索 分组名': 'Search Groups Name',
   '搜索 收藏名称': 'Search Favorite Name',
   '请输入 关键字': 'Please enter keywords',
+  '搜索 关键字': 'Search Keyword',
   '搜索 字段名称': 'Search Field Name',
   '搜索 名称、别名': 'Search Name, Alias',
   '搜索 指标名、别名': 'Search Metric Name, Alias',
@@ -396,4 +397,5 @@ export default {
   请输入分组名称: 'Please enter group name',
   '搜索 IP / 主机名 / 节点名称': 'Search IP / Hostname / Node Name',
   '输入 进程名': 'Enter Process Name',
+  '搜索 名称、模型、Span ID': 'Search Name, Model, Span ID',
 };

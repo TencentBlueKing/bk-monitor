@@ -67,6 +67,7 @@ export default {
   屏蔽原因: 'Mute Reason',
   当前周期剩余时长: 'Current cycle remaining',
   状态: 'Status',
+  '用户 ID': 'User ID',
   屏蔽内容: 'Mute Content',
   结束时间: 'End Time',
   告警ID: 'Alarm ID',

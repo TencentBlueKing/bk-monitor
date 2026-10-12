@@ -233,6 +233,45 @@ for _name in (
 
 NATIVE_PERMISSIONS["list_bcs_clusters"] = _native_permission("view_business_v2")
 
+# 告警处置写工具复用各自页面的管理权限；Resource 继续校验目标业务、对象归属和并发版本。
+for _name in (
+    "create_alarm_strategy",
+    "update_alarm_strategy",
+    "update_alarm_action_config",
+    "save_alarm_assign_group",
+    "delete_alarm_assign_group",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_rule_v2")
+for _name in ("create_alarm_shield", "update_alarm_shield", "disable_alarm_shield"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_downtime_v2")
+for _name in ("create_alarm_notice_group", "update_alarm_notice_group"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_notify_team_v2")
+
+# Dashboard as Code 可一次导入多个配置，当前无法收敛为单一仪表盘实例；先复用业务级仪表盘管理权限。
+for _name in ("create_dashboard", "update_dashboard"):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_dashboard_v2")
+
+# 日志采集写工具复用 Unified 旧路径已补回的采集管理权限。
+for _name in (
+    "update_log_collector_clean_config",
+    "fast_create_log_collector",
+    "create_custom_report",
+    "create_bkdata_index_set",
+    "create_third_party_es",
+    "update_custom_report",
+    "update_third_party_es",
+    "update_bkdata_index_set",
+    "fast_update_log_collector",
+):
+    NATIVE_PERMISSIONS[_name] = _native_permission("manage_collection_v2")
+
+# 日志文件发现保留业务访问和下载策略，创建任务、取得下载地址分别复用日志平台既有动作。
+NATIVE_PERMISSIONS["search_log_extract_files"] = _native_permission("view_business_v2", system_id="bk_log_search")
+NATIVE_PERMISSIONS["create_log_extract_task"] = _native_permission("create_client_log_task", system_id="bk_log_search")
+NATIVE_PERMISSIONS["get_log_extract_download_url"] = _native_permission(
+    "download_client_log", system_id="bk_log_search"
+)
+
 
 def native_tool_names() -> tuple[str, ...]:
     """读取并校验动态启用的原生权限工具白名单。"""
@@ -246,7 +285,7 @@ def native_tool_names() -> tuple[str, ...]:
 
 
 # 公共 Schema 归一化规则变化时递增，确保客户端不会沿用旧目录版本缓存。
-SCHEMA_NORMALIZATION_VERSION = 2
+SCHEMA_NORMALIZATION_VERSION = 3
 
 # 对外工具名与历史 operationId 不一致时，在这里做唯一别名归一。
 PUBLIC_TOOL_NAMES = {"apm_mcp_calculate_by_range": "calculate_by_range"}
@@ -668,6 +707,12 @@ class ToolDefinition:
         keys.update(conditional.get("all_args") or ())
         if spec.get("resource_type") == "indices":
             keys.add("target_type")
+        if (
+            spec.get("resource_type") == "apm_application"
+            and self.native_permission.get("target_kind") == "event_table"
+        ):
+            # APM 事件由后端按应用／服务派生表；table 是调用参数而非此分支的 IAM 资源。
+            keys.add("table")
         return keys
 
     @staticmethod
@@ -691,12 +736,12 @@ class ToolDefinition:
             return {"mode": "exempt", "reason": "platform-visible metadata discovery"}
         if self.native_permission:
             return {
-                **self._public_native_permission(self.native_permission),
-                "mode": "native_then_legacy",
-                "fallback_system_id": settings.BK_IAM_SYSTEM_ID,
-                "fallback_action_id": self.iam_action,
-                "fallback_resource_type": "space",
-                "fallback_resource_arg": "bk_biz_id",
+                "system_id": settings.BK_IAM_SYSTEM_ID,
+                "action_id": self.iam_action,
+                "resource_type": "space",
+                "resource_arg": "bk_biz_id",
+                "mode": "mcp_then_native",
+                "fallback_permission": self._public_native_permission(self.native_permission),
                 "fallback_on": "explicit_denial_only",
             }
         payload = {"action_id": self.iam_action, "resource_type": "space", "resource_arg": self.resource_arg}
@@ -1010,13 +1055,13 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                             "description": "Must be true after explicit user confirmation. 用户明确确认后必须传 true。",
                         }
                         schema["required"] = list(dict.fromkeys([*schema.get("required", []), "confirm"]))
-                    # Step 5: 只有动态配置显式启用的工具才注入 native-first 权限契约。
+                    # Step 5: 只有动态配置显式启用的工具才注入 MCP 优先／SaaS 兜底权限契约。
                     description = operation.get("description", "")
                     if tool_name in enabled:
                         description += (
-                            " Native permissions are checked first; explicit denial falls back to the original MCP action. "
-                            "Errors and invalid resource scopes never trigger fallback. 原生权限优先，明确无权时检查原 MCP 权限；"
-                            "异常或资源校验失败不回退。"
+                            " The original MCP permission is checked first; only its explicit denial falls back "
+                            "to the SaaS permission. Errors and invalid resource scopes never trigger fallback. "
+                            "原 MCP 权限优先；只有明确无权时才检查 SaaS 权限，异常或资源越界不回退。"
                         )
                         if NATIVE_PERMISSIONS[tool_name]["resource_type"] == "indices":
                             if NATIVE_PERMISSIONS[tool_name].get("conditional"):

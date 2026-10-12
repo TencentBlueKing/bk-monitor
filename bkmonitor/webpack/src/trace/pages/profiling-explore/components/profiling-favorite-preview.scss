@@ -1,0 +1,95 @@
+.profiling-favorite-preview {
+  min-width: 0;
+  font-size: 12px;
+  line-height: 20px;
+  color: #63656e;
+  overflow-wrap: anywhere;
+
+  .profiling-favorite-heading {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+    color: #313238;
+  }
+
+  .profiling-favorite-mode {
+    padding: 0 6px;
+    color: #3a84ff;
+    background: #e1ecff;
+    border-radius: 2px;
+  }
+
+  .profiling-favorite-summary {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 6px 16px;
+    margin: 0;
+
+    dt {
+      color: #979ba5;
+    }
+
+    dd {
+      min-width: 0;
+      margin: 0;
+    }
+  }
+
+  .profiling-favorite-query {
+    padding-top: 12px;
+    margin-top: 12px;
+    border-top: 1px solid #dddfe3;
+  }
+
+  h4 {
+    margin: 0 0 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #313238;
+  }
+
+  .profiling-favorite-range {
+    margin: 0 0 8px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .profiling-favorite-muted {
+    color: #979ba5;
+  }
+
+  .profiling-favorite-expression {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding: 6px 8px;
+    background: #fff;
+    border-radius: 2px;
+  }
+
+  .profiling-favorite-field {
+    color: #313238;
+  }
+
+  .profiling-favorite-operator {
+    color: #979ba5;
+  }
+
+  .profiling-favorite-values {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .profiling-favorite-value {
+    color: #3a84ff;
+    white-space: pre-wrap;
+  }
+
+  .profiling-favorite-relation {
+    display: inline-block;
+    margin: 2px 8px;
+    font-size: 11px;
+    color: #979ba5;
+  }
+}

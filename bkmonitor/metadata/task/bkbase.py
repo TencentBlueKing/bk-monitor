@@ -29,7 +29,7 @@ from alarm_backends.service.scheduler.app import app
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from core.prometheus import metrics
-from metadata import models
+from metadata import config as metadata_config, models
 from metadata.config import KAFKA_SASL_PROTOCOL
 from metadata.models import BkBaseResultTable, ClusterInfo
 from metadata.models.constants import DataIdCreatedFromSystem
@@ -40,6 +40,7 @@ from metadata.models.data_link.constants import (
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link_configs import COMPONENT_CLASS_MAP, ClusterConfig, ResultTableConfig
+from metadata.models.data_link.vm_query_cluster import VmQueryClusterConfig
 from metadata.models.space.constants import SpaceStatus, SpaceTypes
 from metadata.models.vm.utils import report_metadata_data_link_status_info
 from metadata.service.sync_metadata import sync_kafka_metadata, sync_vm_metadata
@@ -297,6 +298,112 @@ def watch_bkbase_meta_redis(redis_conn, key_pattern, runtime_limit=86400):
     logger.info("watch_bkbase_meta_redis: Task completed after reaching runtime limit.")
 
 
+def _parse_vm_query_clusters(configs: Any, *, bk_tenant_id: str, namespace: str) -> dict[str, dict[str, Any]]:
+    """完整校验 VM Query 列表，防止异常批次覆盖本地镜像或误标失效。"""
+    if not isinstance(configs, list):
+        raise ValueError("VmQueryCluster response must be a list")
+
+    parsed = {}
+    string_fields = {
+        "cluster_name": "clusterName",
+        "cluster_domain": "clusterDomain",
+        "k8s_cluster": "k8sCluster",
+        "k8s_namespace": "k8sNamespace",
+        "version": "version",
+    }
+    for resource in configs:
+        if (
+            not isinstance(resource, dict)
+            or resource.get("kind", VmQueryClusterConfig.kind) != VmQueryClusterConfig.kind
+        ):
+            raise ValueError("Invalid VmQueryCluster resource kind")
+        metadata = resource.get("metadata")
+        spec = resource.get("spec")
+        if not isinstance(metadata, dict) or not isinstance(spec, dict):
+            raise ValueError("VmQueryCluster metadata and spec must be objects")
+        name = metadata.get("name")
+        if not isinstance(name, str) or not name.strip() or name in parsed:
+            raise ValueError("VmQueryCluster resource name is missing or duplicated")
+        if metadata.get("namespace") != namespace:
+            raise ValueError(f"VmQueryCluster {name} namespace does not match the requested scope")
+        remote_tenant = metadata.get("tenant")
+        allowed_tenants = {bk_tenant_id} if settings.ENABLE_MULTI_TENANT_MODE else {bk_tenant_id, "default"}
+        if remote_tenant is not None and remote_tenant not in allowed_tenants:
+            raise ValueError(f"VmQueryCluster {name} tenant does not match the requested scope")
+
+        values = {}
+        for field, remote_field in string_fields.items():
+            value = spec.get(remote_field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"VmQueryCluster {name} has invalid {remote_field}")
+            values[field] = value
+        storages = spec.get("monitorStorageClusters")
+        if not isinstance(storages, list) or any(not isinstance(item, str) or not item.strip() for item in storages):
+            raise ValueError(f"VmQueryCluster {name} has invalid monitorStorageClusters")
+        replicas = spec.get("numReplicas")
+        if type(replicas) is not int or replicas < 1:
+            raise ValueError(f"VmQueryCluster {name} has invalid numReplicas")
+        status = resource.get("status")
+        if status is not None and not isinstance(status, dict):
+            raise ValueError(f"VmQueryCluster {name} has invalid status")
+        phase = status.get("phase", "") if status is not None else ""
+        if not isinstance(phase, str):
+            raise ValueError(f"VmQueryCluster {name} has invalid status.phase")
+        values.update(
+            monitor_storage_clusters=copy.deepcopy(storages),
+            num_replicas=replicas,
+            status=phase,
+            origin_config=copy.deepcopy(resource),
+        )
+        # 同时检查字段长度等模型约束；此时不访问数据库，也不改写远端原始值。
+        instance = VmQueryClusterConfig(bk_tenant_id=bk_tenant_id, namespace=namespace, name=name, **values)
+        instance.full_clean(validate_unique=False, validate_constraints=False)
+        parsed[name] = values
+    return parsed
+
+
+def sync_bkbase_vm_query_clusters(bk_tenant_id: str, namespace: str = BKBASE_NAMESPACE_BK_MONITOR) -> bool:
+    """反向同步一个租户、命名空间的 VM Query 镜像；失败时整批保留。"""
+    try:
+        if not bk_tenant_id or not namespace:
+            raise ValueError("VmQueryCluster synchronization requires tenant and namespace")
+        configs = api.bkdata.list_data_link(
+            bk_tenant_id=bk_tenant_id,
+            namespace=namespace,
+            kind=DataLinkKind.get_choice_value(VmQueryClusterConfig.kind),
+        )
+        parsed = _parse_vm_query_clusters(configs, bk_tenant_id=bk_tenant_id, namespace=namespace)
+        synced_at = timezone.now()
+        with transaction.atomic(using=metadata_config.DATABASE_CONNECTION_NAME):
+            queryset = VmQueryClusterConfig.objects.filter(bk_tenant_id=bk_tenant_id, namespace=namespace)
+            for name, values in parsed.items():
+                VmQueryClusterConfig.objects.update_or_create(
+                    bk_tenant_id=bk_tenant_id,
+                    namespace=namespace,
+                    name=name,
+                    defaults={**values, "last_synced_at": synced_at},
+                )
+            queryset.exclude(name__in=parsed).update(
+                status=DataLinkResourceStatus.TERMINATED.value,
+                last_synced_at=synced_at,
+                last_modify_time=synced_at,
+            )
+        logger.info(
+            "sync_bkbase_vm_query_clusters: tenant->[%s], namespace->[%s], resource_count->[%s]",
+            bk_tenant_id,
+            namespace,
+            len(parsed),
+        )
+        return True
+    except Exception:  # pylint: disable=broad-except
+        logger.exception(
+            "sync_bkbase_vm_query_clusters: batch failed, tenant->[%s], namespace->[%s]",
+            bk_tenant_id,
+            namespace,
+        )
+        return False
+
+
 @share_lock(ttl=3600, identify="metadata_sync_all_bkbase_cluster_info")
 def sync_all_bkbase_cluster_info():
     """同步 bkbase 集群信息 VM / ES /Doris ...
@@ -312,6 +419,7 @@ def sync_all_bkbase_cluster_info():
 
     # 遍历所有存储类型配置
     for tenant in api.bk_login.list_tenant():
+        sync_bkbase_vm_query_clusters(bk_tenant_id=tenant["id"])
         for storage_config in BKBASE_V4_KIND_STORAGE_CONFIGS:
             clusters = api.bkdata.list_data_link(
                 bk_tenant_id=tenant["id"], namespace=storage_config["namespace"], kind=storage_config["kind"]

@@ -60,6 +60,34 @@ class K8sInspectionClient:
             _request_timeout=K8S_API_TIMEOUT_SECONDS,
         )
 
+    def read_bklog_config(self, namespace: str, name: str) -> dict[str, Any]:
+        return self.bcs.crd_api.get_namespaced_custom_object(
+            group=self.bcs.BKLOG_CONFIG_GROUP,
+            version=self.bcs.BKLOG_CONFIG_VERSION,
+            namespace=namespace,
+            plural=self.bcs.BKLOG_CONFIG_PLURAL,
+            name=name,
+            _request_timeout=K8S_API_TIMEOUT_SECONDS,
+        )
+
+    def list_bklog_config_page(
+        self, namespace: str | None = None, *, limit: int, continue_token: str | None = None
+    ) -> tuple[list[Any], str | None]:
+        kwargs = {
+            "group": self.bcs.BKLOG_CONFIG_GROUP,
+            "version": self.bcs.BKLOG_CONFIG_VERSION,
+            "plural": self.bcs.BKLOG_CONFIG_PLURAL,
+            "limit": limit,
+            "_request_timeout": K8S_API_TIMEOUT_SECONDS,
+        }
+        if continue_token:
+            kwargs["_continue"] = continue_token
+        if namespace:
+            result = self.bcs.crd_api.list_namespaced_custom_object(namespace=namespace, **kwargs)
+        else:
+            result = self.bcs.crd_api.list_cluster_custom_object(**kwargs)
+        return result.get("items") or [], (result.get("metadata") or {}).get("continue") or None
+
     def read_pod(self, namespace: str, name: str) -> Any:
         return self.bcs.api_instance_core_v1.read_namespaced_pod(
             namespace=namespace, name=name, _request_timeout=K8S_API_TIMEOUT_SECONDS

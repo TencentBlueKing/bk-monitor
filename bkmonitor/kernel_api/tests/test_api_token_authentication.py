@@ -40,6 +40,19 @@ def test_privileged_token_uses_tenant_admin(mocker, token_type):
     login.assert_called_once_with(request, user)
 
 
+@pytest.mark.parametrize("token_type", ["AS_CODE", "Grafana"])
+def test_privileged_token_type_is_case_sensitive(mocker, token_type):
+    record = make_record(token_type)
+    request = SimpleNamespace(META={"HTTP_AUTHORIZATION": "Bearer token"}, biz_id=2)
+    mocker.patch.object(ApiAuthToken.objects, "get", return_value=record)
+    authenticate = mocker.patch("kernel_api.middlewares.authentication.auth.authenticate")
+
+    assert AuthenticationMiddleware(lambda _: None)._handle_api_token_auth(request, Mock()) is None
+    assert not hasattr(request, "skip_check")
+    authenticate.assert_not_called()
+    assert request.token == "token"
+
+
 @pytest.mark.parametrize("create_user,expected", [("creator", "creator"), ("", TENANT_ADMIN)])
 def test_entity_token_uses_creator_or_tenant_admin(mocker, create_user, expected):
     record = make_record("entity", create_user)

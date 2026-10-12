@@ -28,6 +28,7 @@ import { type PropType, defineComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { ALL_SPAN_TYPE } from '../../constants';
+import RumExploreSkeleton from '../rum-explore-skeleton/rum-explore-skeleton';
 
 import type { IRumSpanTypeChip } from '../../composables/use-rum-span-type';
 
@@ -54,7 +55,7 @@ export default defineComponent({
   emits: {
     change: (_value: string) => true,
   },
-  setup(props, { emit }) {
+  setup(_props, { emit }) {
     const { t } = useI18n();
     return {
       t,
@@ -63,17 +64,7 @@ export default defineComponent({
   },
   render() {
     if (this.loading) {
-      return (
-        <div class='rum-span-type-filter'>
-          <div class='skeleton-element filter-label-skeleton' />
-          <div class='filter-chips'>
-            <div class='skeleton-element type-chip-skeleton' />
-            <div class='skeleton-element type-chip-skeleton' />
-            <div class='skeleton-element type-chip-skeleton' />
-            <div class='skeleton-element type-chip-skeleton' />
-          </div>
-        </div>
-      );
+      return <RumExploreSkeleton kind='types' />;
     }
     // if (!this.list.length) return null;
     return (

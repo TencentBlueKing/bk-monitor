@@ -23,6 +23,9 @@ class CalculationType(CachedEnum):
     TOTAL_TOKENS = "total_tokens"
     # 缓存 Token 数
     CACHE_TOKENS = "cache_tokens"
+    # 缓存读取、写入 Token 数，与执行线统计字段一致
+    CACHE_READ_INPUT_TOKENS = "cache_read_input_tokens"
+    CACHE_WRITE_INPUT_TOKENS = "cache_write_input_tokens"
     # 模型调用次数
     MODEL_CALL_COUNT = "model_call_count"
     # 操作次数
@@ -43,6 +46,8 @@ class CalculationType(CachedEnum):
             self.OUTPUT_TOKENS: _("输出 Token 数"),
             self.TOTAL_TOKENS: _("总 Token 数"),
             self.CACHE_TOKENS: _("缓存 Token 数"),
+            self.CACHE_READ_INPUT_TOKENS: _("缓存读取 Token 数"),
+            self.CACHE_WRITE_INPUT_TOKENS: _("缓存写入 Token 数"),
             self.MODEL_CALL_COUNT: _("模型调用次数"),
             self.OPERATION_COUNT: _("操作次数"),
             self.DURATION: _("平均耗时"),
@@ -86,6 +91,7 @@ STANDARD_FIELDS: set[str] = {
     "gen_ai.agent.description",
     "gen_ai.agent.version",
     "gen_ai.request.model",
+    "gen_ai.request.stream",
     "gen_ai.request.temperature",
     "gen_ai.request.reasoning.level",
     "gen_ai.response.id",
@@ -108,8 +114,4 @@ STANDARD_FIELDS: set[str] = {
     "gen_ai.tool.call.id",
     "gen_ai.tool.call.arguments",
     "gen_ai.tool.call.result",
-    "gen_ai.retrieval.query.text",
-    "gen_ai.retrieval.top_k",
-    "gen_ai.retrieval.documents",
-    "gen_ai.data_source.id",
 }

@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Emit, Mixins, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
+import { Component, Mixins, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listBcsCluster, scenarioMetricList } from 'monitor-api/modules/k8s';
@@ -35,9 +35,11 @@ import K8sEventExplore from '../../pages/event-explore/k8s-event-explore';
 import FilterByCondition from '../../pages/monitor-k8s/components/filter-by-condition/filter-by-condition';
 import GroupByCondition from '../../pages/monitor-k8s/components/group-by-condition/group-by-condition';
 import K8SCharts from '../../pages/monitor-k8s/components/k8s-charts/k8s-charts';
+import K8sEmptyStatus from '../../pages/monitor-k8s/components/k8s-empty-status/k8s-empty-status';
 import K8sDimensionList from '../../pages/monitor-k8s/components/k8s-left-panel/k8s-dimension-list';
 import K8sLeftPanel from '../../pages/monitor-k8s/components/k8s-left-panel/k8s-left-panel';
 import K8sMetricList from '../../pages/monitor-k8s/components/k8s-left-panel/k8s-metric-list';
+import K8sLoading from '../../pages/monitor-k8s/components/k8s-loading/k8s-loading';
 import K8sTableNew, {
   type K8sTableColumnResourceKey,
   type K8sTableGroupByEvent,
@@ -52,6 +54,7 @@ import {
   K8sNewTabEnum,
   SceneEnum,
 } from '../../pages/monitor-k8s/typings/k8s-new';
+import EmptyStatus from '../empty-status/empty-status';
 import { EMode } from '../retrieval-filter/utils';
 import { DEFAULT_TIME_RANGE } from '../time-range/utils';
 import { parseK8sMonitorQuery } from './utils';
@@ -145,6 +148,7 @@ export default class K8sMonitorPanel extends Mixins(
   // 是否立即刷新
   @ProvideReactive('refreshImmediate') refreshImmediate = '';
   @Provide('handleUpdateQueryData') handleUpdateQueryData = undefined;
+  @Provide('k8sRefreshManaged') k8sRefreshManaged = true;
   @Provide('enableSelectionRestoreAll') enableSelectionRestoreAll = true;
   @ProvideReactive('showRestore') showRestore = false;
   // 场景
@@ -158,6 +162,13 @@ export default class K8sMonitorPanel extends Mixins(
   clusterList: IBcsClusterItem[] = [];
   // 集群加载状态
   clusterLoading = true;
+  initializing = true;
+  clusterError = false;
+  metricError = false;
+  initializationId = 0;
+  metricRequestId = 0;
+  hideMetricsRequestId = 0;
+  disposed = false;
   // 当前 tab
   activeTab = K8sNewTabEnum.LIST;
   filterBy: Record<string, string[]> = {};
@@ -293,9 +304,10 @@ export default class K8sMonitorPanel extends Mixins(
    * @description 状态变更抛给调用方，由其决定是否写入 URL
    * @param extra 表格排序等不属于视图状态的附加 query，原样透传
    */
-  @Emit('stateChange')
-  emitStateChange(extra: Record<string, any> = {}): K8sMonitorStateChangeEvent {
-    return { state: this.currentState, extra };
+  emitStateChange(extra: Record<string, any> = {}) {
+    if (!this.initializing && !this.disposed) {
+      this.$emit('stateChange', { state: this.currentState, extra } as K8sMonitorStateChangeEvent);
+    }
   }
 
   setGroupFilters(groupId: K8sTableColumnResourceKey, config?: { single: boolean }) {
@@ -368,29 +380,42 @@ export default class K8sMonitorPanel extends Mixins(
     }
   }
 
-  async created() {
+  created() {
+    this.initialize();
+  }
+
+  async initialize() {
+    const requestId = ++this.initializationId;
+    this.initializing = true;
     if (this.initialParams) {
       this.applyInitialParams(this.initialParams);
-      this.getClusterList();
-    } else if (this.queryCacheKey) {
-      /** 无初始状态且开启了缓存，先定位默认集群再取该集群上次的查询条件 */
-      await this.getClusterList();
+    } else {
+      this.initFilterBy();
+    }
+    await this.getClusterList();
+    if (requestId !== this.initializationId || this.disposed) return;
+    if (!this.initialParams && this.queryCacheKey && this.cluster) {
       const data = await this.handleGetUserConfig<Record<string, string | string[]>>(
         `${this.queryCacheKey}_${this.bizId}_${this.cluster}`
-      );
+      ).catch(() => undefined);
+      if (requestId !== this.initializationId || this.disposed) return;
       data && this.applyInitialParams(parseK8sMonitorQuery(data));
-    } else {
-      this.getClusterList();
     }
+    this.initializing = false;
     this.getScenarioMetricList();
-    this.getHideMetrics();
+    this.handleRefreshChange(this.refreshInterval);
+    this.$nextTick(this.observerFilterByHeader);
   }
 
   mounted() {
     this.observerFilterByHeader();
   }
 
-  destroyed() {
+  beforeDestroy() {
+    this.disposed = true;
+    this.initializationId++;
+    this.metricRequestId++;
+    this.hideMetricsRequestId++;
     this.resizeObserver?.disconnect();
     this.timer && clearInterval(this.timer);
   }
@@ -399,7 +424,7 @@ export default class K8sMonitorPanel extends Mixins(
   applyInitialParams(params: K8sMonitorInitialParams) {
     this.timeRange = params.timeRange ?? DEFAULT_TIME_RANGE;
     this.refreshInterval = params.refreshInterval ?? -1;
-    this.cluster = params.cluster ?? '';
+    this.cluster = params.cluster || this.cluster;
     this.scene = params.scene ?? SceneEnum.Performance;
     if (this.scene === SceneEnum.Event) {
       this.eventFilterMode = params.filterMode || EMode.ui;
@@ -462,40 +487,45 @@ export default class K8sMonitorPanel extends Mixins(
   }
 
   async getClusterList() {
+    const requestId = this.initializationId;
     this.clusterLoading = true;
-    this.clusterList = await listBcsCluster().catch(() => []);
-    this.clusterLoading = false;
-    if (this.clusterList.length && !this.cluster) {
-      this.cluster = this.clusterList[0].id;
+    this.clusterError = false;
+    try {
+      const clusters = await listBcsCluster();
+      if (this.disposed || requestId !== this.initializationId) return;
+      this.clusterList = clusters;
+      if (clusters.length && !this.cluster) this.cluster = clusters[0].id;
+    } catch {
+      if (!this.disposed && requestId === this.initializationId) this.clusterError = true;
+    } finally {
+      if (!this.disposed && requestId === this.initializationId) this.clusterLoading = false;
     }
-    this.emitStateChange();
   }
 
-  /**
-   * @description 获取场景指标列表
-   */
   async getScenarioMetricList() {
+    const requestId = ++this.metricRequestId;
+    const scene = this.scene;
     this.metricList = [];
-    if (this.scene === SceneEnum.Event) return;
-    this.metricLoading = true;
-    const data = await scenarioMetricList({ scenario: this.scene }).catch(() => []);
-    this.metricLoading = false;
-    this.metricList = data.map(item => ({
-      ...item,
-      count: item.children.length,
-    }));
+    this.metricError = false;
+    this.metricLoading = scene !== SceneEnum.Event;
+    if (scene === SceneEnum.Event) return;
+    try {
+      const [data] = await Promise.all([scenarioMetricList({ scenario: scene }), this.getHideMetrics()]);
+      if (requestId !== this.metricRequestId || this.disposed) return;
+      this.metricList = data.map(item => ({ ...item, count: item.children.length }));
+    } catch {
+      if (requestId === this.metricRequestId && !this.disposed) this.metricError = true;
+    } finally {
+      if (requestId === this.metricRequestId && !this.disposed) this.metricLoading = false;
+    }
   }
 
-  /** 获取隐藏的指标项 */
-  getHideMetrics() {
-    this.handleGetUserConfig(`${HIDE_METRICS_KEY}_${this.scene}`).then((res: string[]) => {
-      if (this.scene === SceneEnum.Network && !res) {
-        /** 网络场景初始化，默认隐藏丢包量指标 */
-        this.hideMetrics = [...networkDefaultHideMetrics];
-      } else {
-        this.hideMetrics = res || [];
-      }
-    });
+  async getHideMetrics() {
+    const requestId = ++this.hideMetricsRequestId;
+    const scene = this.scene;
+    const res = await this.handleGetUserConfig<string[]>(`${HIDE_METRICS_KEY}_${scene}`).catch(() => undefined);
+    if (requestId !== this.hideMetricsRequestId || scene !== this.scene || this.disposed) return;
+    this.hideMetrics = scene === SceneEnum.Network && !res ? [...networkDefaultHideMetrics] : res || [];
   }
 
   /** 场景切换 */
@@ -519,7 +549,6 @@ export default class K8sMonitorPanel extends Mixins(
       this.initFilterBy();
       this.initGroupBy();
     }
-    this.getHideMetrics();
     this.getScenarioMetricList();
     this.emitStateChange();
     this.showCancelDrill = false;
@@ -645,7 +674,6 @@ export default class K8sMonitorPanel extends Mixins(
     this.initFilterBy();
     this.groupInstance.initGroupFilter();
     this.showCancelDrill = false;
-    this.getScenarioMetricList();
     this.emitStateChange();
   }
 
@@ -691,6 +719,17 @@ export default class K8sMonitorPanel extends Mixins(
   }
 
   tabContentRender() {
+    const pending = this.initializing || (this.metricLoading && !this.clusterError);
+    if (pending && !this.isChart) return <K8sLoading type='table' />;
+    if (!pending && (this.clusterError || this.metricError)) {
+      return (
+        <K8sEmptyStatus
+          type='500'
+          onOperation={() => (this.clusterError ? this.initialize() : this.getScenarioMetricList())}
+        />
+      );
+    }
+    if (!pending && !this.cluster) return <K8sEmptyStatus type='empty' />;
     switch (this.activeTab) {
       case K8sNewTabEnum.CHART:
         return (
@@ -700,6 +739,8 @@ export default class K8sMonitorPanel extends Mixins(
             groupBy={this.groupFilters}
             hideMetrics={this.resultHideMetrics}
             metricList={this.metricList}
+            metricLoading={pending}
+            onClearSearch={this.handleTableClearSearch}
           />
         );
       default:
@@ -718,7 +759,16 @@ export default class K8sMonitorPanel extends Mixins(
   }
 
   renderClusterList() {
-    if (this.clusterLoading) return <div class='skeleton-element cluster-skeleton' />;
+    if (this.clusterLoading)
+      return (
+        <div
+          class='cluster-skeleton'
+          aria-busy='true'
+        >
+          <span class='skeleton-element' />
+          <i class='skeleton-element' />
+        </div>
+      );
 
     return (
       <bk-select
@@ -778,22 +828,31 @@ export default class K8sMonitorPanel extends Mixins(
 
   render() {
     return (
-      <div class={['monitor-k8s-new', 'k8s-monitor-panel', this.scene]}>
+      <div class={['monitor-k8s-new', 'k8s-monitor-panel', this.scene, { 'is-initializing': this.initializing }]}>
         {this.navBarRender()}
         {this.scene === SceneEnum.Event ? (
-          <K8sEventExplore
-            scopedSlots={{
-              filterPrepend: () => this.renderClusterList(),
-            }}
-            dataId={this.selectCluster?.event_table_id || ''}
-            filterMode={this.eventFilterMode}
-            queryString={this.eventQueryString}
-            where={this.eventWhere}
-            onFilterModeChange={this.handleEventFilterModeChange}
-            onQueryStringChange={this.handleEventQueryStringChange}
-            onSetRouteParams={this.emitStateChange}
-            onWhereChange={this.handleEventWhereChange}
-          />
+          this.initializing ? (
+            <K8sLoading type='table' />
+          ) : this.clusterError ? (
+            <EmptyStatus
+              type='500'
+              onOperation={this.initialize}
+            />
+          ) : (
+            <K8sEventExplore
+              scopedSlots={{
+                filterPrepend: () => this.renderClusterList(),
+              }}
+              dataId={this.selectCluster?.event_table_id || ''}
+              filterMode={this.eventFilterMode}
+              queryString={this.eventQueryString}
+              where={this.eventWhere}
+              onFilterModeChange={this.handleEventFilterModeChange}
+              onQueryStringChange={this.handleEventQueryStringChange}
+              onSetRouteParams={this.emitStateChange}
+              onWhereChange={this.handleEventWhereChange}
+            />
+          )
         ) : (
           [
             <div
@@ -805,11 +864,17 @@ export default class K8sMonitorPanel extends Mixins(
                 <div class='filter-by-wrap __filter-by__'>
                   <div class='filter-by-title'>{this.$t('过滤条件')}</div>
                   <div class='filter-by-content'>
-                    <FilterByCondition
-                      commonParams={this.commonParams}
-                      filterBy={this.filterBy}
-                      onChange={this.handleFilterByChange}
-                    />
+                    {this.initializing ? (
+                      <div class='filter-initial-skeleton'>
+                        <span class='skeleton-element' />
+                      </div>
+                    ) : (
+                      <FilterByCondition
+                        commonParams={this.commonParams}
+                        filterBy={this.filterBy}
+                        onChange={this.handleFilterByChange}
+                      />
+                    )}
                   </div>
                 </div>
                 <div class='filter-by-wrap __group-by__'>
@@ -837,6 +902,7 @@ export default class K8sMonitorPanel extends Mixins(
                     commonParams={this.commonParams as ICommonParams}
                     filterBy={this.filterBy}
                     groupBy={this.groupFilters}
+                    initializing={this.initializing}
                     onClearFilterBy={this.clearFilterBy}
                     onDimensionTotal={this.dimensionTotalChange}
                     onDrillDown={this.handleTableGroupChange}

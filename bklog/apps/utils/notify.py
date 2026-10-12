@@ -47,16 +47,19 @@ class EmailNotify(NotifyBase):
     def content(self, name, language, **kwargs):
         return EmailTemplate.get_content(name=name, language=language, **kwargs)
 
-    def send(self, receivers, title, content, is_external: bool = False):
+    def send(self, receivers, title, content, is_external: bool = False, bk_tenant_id: str = ""):
         """
         发送邮件, is_external 为 True 时，表示发送给外部用户, receivers 为邮箱地址
         """
         if is_external:
             CmsiApi.send_mail(
-                {"receiver": receivers, "title": title, "content": content, "email_type": "SEND_TO_INTERNET"}
+                {"receiver": receivers, "title": title, "content": content, "email_type": "SEND_TO_INTERNET"},
+                bk_tenant_id=bk_tenant_id,
             )
         else:
-            CmsiApi.send_mail({"receiver__username": receivers, "title": title, "content": content})
+            CmsiApi.send_mail(
+                {"receiver__username": receivers, "title": title, "content": content}, bk_tenant_id=bk_tenant_id
+            )
 
 
 class NotifyType:

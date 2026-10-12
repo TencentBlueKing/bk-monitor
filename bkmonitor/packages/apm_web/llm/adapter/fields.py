@@ -1,4 +1,12 @@
-"""产品路由和标准字段定义。"""
+"""
+Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
+Copyright (C) 2017-2025 Tencent. All rights reserved.
+Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
+You may obtain a copy of the License at http://opensource.org/licenses/MIT
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
+an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
+specific language governing permissions and limitations under the License.
+"""
 
 from __future__ import annotations
 
@@ -48,7 +56,6 @@ QUERY_FIELD_MAPPING: dict[str, dict[str, str]] = {
         # 该产品的 operation.name 取值为大写，语义层级实际由 span.kind 表达
         LLMProduct.AGENTLENS.value: "attributes.gen_ai.span.kind",
         LLMProduct.LANGFUSE.value: "attributes.langfuse.observation.type",
-        LLMProduct.AIDEV.value: "attributes.llm.request.type",
     },
     "attributes.gen_ai.response.model": {
         # 该产品未上报 response.model，但 request.model 在样本与生产环境都是全量填充的
@@ -78,6 +85,7 @@ OPERATION_NAME_ALIASES: dict[str, dict[str, str]] = {
         "rerank": "retrieval",
     },
     LLMProduct.LANGFUSE.value: {
+        "span": "invoke_agent",
         "agent": "invoke_agent",
         "chain": "invoke_workflow",
         "embedding": "embeddings",
@@ -100,3 +108,24 @@ def resolve_operation_name(product: str, value: Any) -> str:
         return ""
     lowered = raw.lower()
     return OPERATION_NAME_ALIASES.get(product, {}).get(lowered, lowered)
+
+
+def operation_query(product: str, operations: list[str]) -> Q:
+    """将标准操作名条件映射到产品原始字段，同时保留标准语义的 Span。"""
+    standard_field: str = "attributes.gen_ai.operation.name"
+    query: Q = Q(**{standard_field: operations})
+    if product == LLMProduct.AIDEV.value:
+        # 旧埋点的 request.type 无法覆盖 Agent，且会命中同一次模型调用的包装 Span。
+        if "chat" in operations:
+            query |= Q(span_name=["chat_model.generate", "ChatModel.chat"])
+        if "invoke_agent" in operations:
+            query |= Q(span_name="agent.execution")
+        return query
+    product_field: str = resolve_query_field(product, standard_field)
+    aliases: dict[str, str] = OPERATION_NAME_ALIASES.get(product, {})
+    values: list[str] = [raw for raw, standard in aliases.items() if standard in operations]
+    if product == LLMProduct.AGENTLENS.value:
+        values = [value.upper() for value in values]
+    if product_field != standard_field and values:
+        query |= Q(**{product_field: values})
+    return query

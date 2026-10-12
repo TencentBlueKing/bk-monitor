@@ -188,6 +188,7 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
           animateFill: false,
           animation: false,
           arrow: false,
+          delay: [500, 0],
           hideOnClick: false,
           interactive: true,
         }}
@@ -284,6 +285,7 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
     return (
       <div class='llm-table-expand'>
         <bk-table
+          class='llm-table-expand-table'
           data={row.children}
           outer-border={false}
           row-key='key'

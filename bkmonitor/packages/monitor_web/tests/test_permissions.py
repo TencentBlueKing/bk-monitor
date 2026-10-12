@@ -22,7 +22,13 @@ from monitor_web.permissions import BusinessViewPermission
 
 
 def make_request(bk_biz_id=2, bk_tenant_id="tenant-a"):
-    return SimpleNamespace(biz_id=bk_biz_id, user=SimpleNamespace(tenant_id=bk_tenant_id))
+    return SimpleNamespace(
+        biz_id=bk_biz_id,
+        user=SimpleNamespace(tenant_id=bk_tenant_id),
+        method="GET",
+        query_params={"bk_biz_id": bk_biz_id},
+        data={},
+    )
 
 
 def make_iam_permission(token="share-token", path="/api/v4/scene_view/host/"):

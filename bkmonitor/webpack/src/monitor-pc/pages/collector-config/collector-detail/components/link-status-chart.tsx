@@ -33,6 +33,8 @@ import BaseEchart from 'monitor-ui/chart-plugins/plugins/monitor-base-echart';
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import TimeRange, { type DateValue, type TimeRangeType } from '../../../../components/time-range/time-range';
 import { DEFAULT_TIME_RANGE, handleTransformToTimestamp, shortcuts } from '../../../../components/time-range/utils';
+import DetailLoadError from './detail-load-error';
+import DetailSkeleton from './detail-skeleton';
 
 import type { MonitorEchartOptions, MonitorEchartSeries } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 
@@ -45,6 +47,9 @@ interface LinkStatusChartEvents {
 
 interface LinkStatusChartProps {
   data: [number, number][];
+  error?: boolean;
+  loaded?: boolean;
+  loading?: boolean;
   timeRange?: TimeRangeType;
   type: 'hour' | 'minute';
   getChartData: () => any;
@@ -52,6 +57,9 @@ interface LinkStatusChartProps {
 
 @Component
 export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatusChartEvents> {
+  @Prop({ type: Boolean, default: false }) loading: boolean;
+  @Prop({ type: Boolean, default: false }) loaded: boolean;
+  @Prop({ type: Boolean, default: false }) error: boolean;
   @Prop({ type: Array, required: true }) data: LinkStatusChartProps['data'];
   @Prop({ type: String, default: 'minute' }) type: LinkStatusChartProps['type'];
   @Prop({ type: Array, default: () => [...DEFAULT_TIME_RANGE] }) timeRange: LinkStatusChartProps['timeRange'];
@@ -125,7 +133,6 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
       containLabel: true,
     },
   });
-  loading = false;
   width = 0;
   resizeObserver: ResizeObserver;
 
@@ -133,7 +140,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
   get isDifferentDay() {
     if (this.timeRange) {
       const oneDayInMilliseconds = 24 * 60 * 60;
-      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange)
+      const [startTime, endTime] = handleTransformToTimestamp(this.timeRange);
       return endTime - startTime > oneDayInMilliseconds;
     }
     return false;
@@ -166,7 +173,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
         axisLabel: {
           ...this.defaultOption.xAxis.axisLabel,
           formatter: value => {
-            return this.isDifferentDay ? dayjs.tz(value).format('MM-DD') : dayjs.tz(value).format('HH:mm')
+            return this.isDifferentDay ? dayjs.tz(value).format('MM-DD') : dayjs.tz(value).format('HH:mm');
           },
         },
       },
@@ -195,7 +202,7 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
   }
 
   beforeDestroy() {
-    this.resizeObserver?.unobserve(this.$el);
+    this.resizeObserver?.disconnect();
   }
 
   chartResize() {
@@ -215,16 +222,14 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
   }
 
   async handleRefresh() {
-    this.loading = true;
     await this.getChartData();
-    this.loading = false;
   }
 
   render() {
     return (
       <div
         class='minute-chart-component'
-        v-bkloading={{ isLoading: this.loading }}
+        aria-busy={this.loading ? 'true' : 'false'}
       >
         <div class='chart-header'>
           <div class='chart-label'>{this.type === 'minute' ? this.$tc('分钟数据量') : this.$tc('小时数据量')}</div>
@@ -236,24 +241,40 @@ export default class LinkStatusChart extends tsc<LinkStatusChartProps, LinkStatu
               onChange={val => this.handleTimeRange(val)}
             />
             <span class='operate'>
-              <i
+              {this.loading ? (
+                <span class='collector-detail-loading-indicator' role='status' aria-label={this.$t('加载中')} />
+              ) : <i
                 class='icon-monitor icon-zhongzhi1 refresh'
                 onClick={this.handleRefresh}
-              />
+              />}
             </span>
           </div>
         </div>
-        {this.data.length ? (
-          <div class='chart-wrap'>
-            <BaseEchart
-              ref='baseChartRef'
-              width={this.width}
-              height={200}
-              options={this.options}
-            />
-          </div>
+        {this.error && (
+          <DetailLoadError
+            compact={this.loaded}
+            onRetry={this.handleRefresh}
+          />
+        )}
+        {!this.loaded && !this.error ? (
+          <DetailSkeleton section='chart' chartType={this.type === 'minute' ? 'line' : 'bar'} />
         ) : (
-          <EmptyStatus />
+          this.loaded && (
+            <div>
+              {this.data.length ? (
+                <div class='chart-wrap'>
+                  <BaseEchart
+                    ref='baseChartRef'
+                    width={this.width}
+                    height={200}
+                    options={this.options}
+                  />
+                </div>
+              ) : (
+                <EmptyStatus />
+              )}
+            </div>
+          )
         )}
       </div>
     );

@@ -8,7 +8,7 @@ from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata.models import ClusterInfo
 from metadata.models.data_link.data_link_configs import ClusterConfig
-from metadata.task.bkbase import sync_bkbase_cluster_info
+from metadata.task.bkbase import sync_bkbase_cluster_info, sync_bkbase_vm_query_clusters
 from metadata.task.constants import BKBASE_V4_KIND_STORAGE_CONFIGS
 from metadata.task.sync_space import sync_bkcc_space
 from metadata.task.tasks import create_single_tenant_system_datalink, create_single_tenant_system_proc_datalink
@@ -121,6 +121,7 @@ def _init_bkbase_cluster(bk_tenant_id: str):
     """
     初始化BKBase集群
     """
+    sync_bkbase_vm_query_clusters(bk_tenant_id=bk_tenant_id)
     # 遍历所有存储配置
     for storage_config in BKBASE_V4_KIND_STORAGE_CONFIGS:
         clusters: list[dict[str, Any]] = api.bkdata.list_data_link(

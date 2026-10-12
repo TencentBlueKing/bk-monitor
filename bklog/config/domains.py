@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,7 +18,6 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
-
 
 from django.conf import settings
 
@@ -60,7 +58,6 @@ API_ROOTS = [
     "JOB_APIGATEWAY_ROOT_V2",
     # JOBV3
     "JOB_APIGATEWAY_ROOT_V3",
-    "BK_SSM_ROOT",
     # BCS
     "BCS_APIGATEWAY_ROOT",
     # AIOPS
@@ -72,7 +69,7 @@ API_ROOTS = [
     # Wework api
     "WEWORK_APIGATEWAY_ROOT",
     # UNIFY QUERY
-    "UNIFYQUERY_APIGATEWAY_ROOT"
+    "UNIFYQUERY_APIGATEWAY_ROOT",
 ]
 
 env_domains = load_domains(settings)

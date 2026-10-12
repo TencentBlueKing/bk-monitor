@@ -93,6 +93,7 @@ class ItemModel(Model):
     meta = models.JSONField("查询配置元数据", default=list)
     metric_type = models.CharField("指标类型", max_length=32, default="", blank=True)
     time_delay = models.IntegerField("策略等待时间", default=0)
+    access_lookback_periods = models.IntegerField("Access 回看周期数", null=True, blank=True, default=None)
 
     class Meta:
         verbose_name = "监控项配置V2"

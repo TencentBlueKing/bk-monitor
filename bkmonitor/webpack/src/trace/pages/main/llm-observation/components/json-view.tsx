@@ -45,6 +45,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    theme: {
+      type: String as PropType<'dark' | 'default'>,
+      default: 'default',
+    },
     /** 与搜索计数共用的 JSON path 前缀，独立查看侧栏不传 */
     searchBlockId: {
       type: String,
@@ -83,8 +87,10 @@ export default defineComponent({
       return /[\r\n]/.test(text) ? <span class='llm-json-view-text'>{highlighted}</span> : highlighted;
     };
 
+    const isDark = computed(() => props.theme === 'dark');
+
     return () => (
-      <div class='llm-json-view'>
+      <div class={['llm-json-view', { 'is-dark': isDark.value }]}>
         {Array.isArray(data.value) || isRecord(data.value) ? (
           <VueJsonPretty
             renderNodeKey={({ node, defaultKey }) => {
@@ -107,7 +113,7 @@ export default defineComponent({
             rootPath={props.searchBlockId || 'root'} // 与 collectJsonSearchTexts(rootPath) 对齐，独立查看保持默认 root
             showIcon={false}
             showKeyValueSpace={true}
-            showLine={false}
+            showLine={isDark.value}
             showLineNumber={props.showLineNumber}
           />
         ) : props.searchBlockId ? (

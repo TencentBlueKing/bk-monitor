@@ -115,6 +115,10 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
+    /** 按真实列布局渲染首屏骨架；已有数据时保留表格并显示刷新状态。 */
+    loadingCell: {
+      type: Function as PropType<(column: BaseTableColumn, rowIndex: number) => SlotReturnValue>,
+    },
     /** 表格空数据展示 */
     empty: {
       type: [Object, Function] as PropType<TableEmpty>,
@@ -214,6 +218,12 @@ export default defineComponent({
       },
     });
     const activeRowKeys = shallowRef([]);
+    const showLoadingRows = computed(() => !!props.loadingCell && props.loading);
+    const displayedData = computed(() =>
+      showLoadingRows.value && !props.data.length
+        ? Array.from({ length: 8 }, (_, index) => ({ [props.rowKey]: `loading-${index}` }))
+        : props.data
+    );
     /** 处理后的表格列配置 */
     const tableColumns = computed(() =>
       props.columns.map(column => ({
@@ -223,15 +233,18 @@ export default defineComponent({
         // @ts-expect-error ellipsisTitle 不在 BaseTableColumn 类型中，但 TDesign 运行时支持
         ellipsisTitle: column?.ellipsisTitle != null ? column?.ellipsisTitle : true,
         ...column,
+        ...(showLoadingRows.value ? { type: undefined, ellipsis: false } : {}),
         cell: (_, cellParams) =>
-          column?.cellRenderer
-            ? column?.cellRenderer(cellParams.row, column, { ...renderContext, runtime: cellParams })
-            : tableCellRender(cellParams.row, column, { ...renderContext, runtime: cellParams }),
+          showLoadingRows.value
+            ? props.loadingCell(column, cellParams.rowIndex)
+            : column?.cellRenderer
+              ? column?.cellRenderer(cellParams.row, column, { ...renderContext, runtime: cellParams })
+              : tableCellRender(cellParams.row, column, { ...renderContext, runtime: cellParams }),
       }))
     );
     /** 表格骨架屏展示相关配置 */
     const tableSkeletonConfig = computed(() => {
-      if (!props.loading) return null;
+      if (!props.loading || props.loadingCell) return null;
       const config = {
         tableClass: 'common-table-hidden-body',
         skeletonClass: 'common-skeleton-show-body',
@@ -391,6 +404,8 @@ export default defineComponent({
 
     return {
       tableColumns,
+      displayedData,
+      showLoadingRows,
       tableSort,
       showPagination,
       tableSkeletonConfig,
@@ -410,11 +425,21 @@ export default defineComponent({
   },
   render() {
     return (
-      <div class={`common-table-wrapper ${this.autoFillSpace ? 'fill-remaining-space' : ''}`}>
+      <div
+        class={[
+          'common-table-wrapper',
+          {
+            'fill-remaining-space': this.autoFillSpace && (!this.showLoadingRows || !!this.data.length),
+            'is-loading-rows': this.showLoadingRows,
+          },
+        ]}
+        aria-busy={this.loading}
+      >
         {/* 事件委托包裹层：避免 PrimaryTable 销毁重建时事件委托丢失 */}
         <div
           ref='wrapperRef'
           class='common-table-event-root'
+          inert={this.loadingCell && this.loading ? true : undefined}
         >
           <PrimaryTable
             key={this.refreshKey}
@@ -423,26 +448,26 @@ export default defineComponent({
             v-slots={{
               empty: this.tableEmptyRender,
             }}
-            activeRowKeys={this.activeRowKeys}
+            activeRowKeys={this.showLoadingRows ? [] : this.activeRowKeys}
             activeRowType='single'
             bkUiSettings={this.tableSettings}
             columns={this.tableColumns}
-            data={this.data}
+            data={this.displayedData}
             disableDataPage={true}
             filterValue={this.filterValue}
-            firstFullRow={this.firstFullRow}
+            firstFullRow={this.showLoadingRows ? null : this.firstFullRow}
             headerAffixedTop={this.headerAffixedTop}
             horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
             hover={true}
-            lastFullRow={this.data?.length ? this.tableLastFullRowRender : null}
+            lastFullRow={!this.showLoadingRows && this.data?.length ? this.tableLastFullRowRender : null}
             maxHeight={this.maxHeight}
             needCustomScroll={false}
             reserveSelectedRowOnPaginate={false}
             resizable={true}
-            rowClassName={this.rowClassName}
+            rowClassName={this.showLoadingRows ? 'alarm-loading-row' : this.rowClassName}
             rowKey={this.rowKey}
             scroll={this.scroll}
-            selectedRowKeys={this.selectedRowKeys}
+            selectedRowKeys={this.showLoadingRows ? [] : this.selectedRowKeys}
             showSortColumnBgColor={true}
             size={this.tableSize}
             sort={this.tableSort}
@@ -455,7 +480,9 @@ export default defineComponent({
             onSortChange={this.handleSortChange}
           />
         </div>
-        <TableSkeleton class={`common-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
+        {!this.loadingCell && (
+          <TableSkeleton class={`common-table-skeleton ${this.tableSkeletonConfig?.skeletonClass}`} />
+        )}
 
         {this.showPagination ? (
           <Pagination

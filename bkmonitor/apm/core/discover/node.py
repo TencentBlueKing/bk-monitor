@@ -371,7 +371,7 @@ class NodeDiscover(DiscoverBase):
         )
         is_langfuse: bool = attributes.get("langfuse.observation.type") not in (None, "")
         is_agentlens: bool = str(attributes.get("gen_ai.span.kind", "")).lower() in {"agent", "llm", "tool"}
-        is_aidev: bool = self.app_name.startswith("bkapp_ai") and (
+        is_aidev: bool = self.app_name.startswith("bkapp_ai0us0") and (
             is_gen_ai
             or is_langfuse
             or attributes.get("chain.type") == "workflow"

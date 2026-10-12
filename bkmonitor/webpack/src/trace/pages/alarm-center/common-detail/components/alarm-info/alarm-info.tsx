@@ -35,6 +35,7 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
 
+import { DetailLoadStatus } from '../../detail-loading';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 import {
   AlertTargetType,
@@ -60,8 +61,10 @@ export default defineComponent({
       default: () => ({}),
     },
     readonly: Boolean,
+    statusLoading: Boolean,
+    statusError: Boolean,
   },
-  emits: ['manualProcess', 'alarmDispatch', 'alarmStatusDetailShow'],
+  emits: ['statusRetry', 'manualProcess', 'alarmDispatch', 'alarmStatusDetailShow'],
   setup(props, { emit }) {
     const { t } = useI18n();
     const { bizItem, loading, timeRange } = storeToRefs(useAlarmCenterDetailStore());
@@ -344,6 +347,8 @@ export default defineComponent({
 
     /** 告警状态 */
     function renderAlarmStatus() {
+      if (props.statusLoading) return <span class='skeleton-element' style={{ display: 'inline-block', width: '144px', height: '12px' }} />;
+      if (props.statusError) return <DetailLoadStatus error onRetry={() => emit('statusRetry')} />;
       return (
         <div class='alarm-status'>
           <span class='total'>{handleStatusString.value}</span>
@@ -437,7 +442,7 @@ export default defineComponent({
       <div class='alarm-center-detail-alarm-info'>
         <div class='block-title'>维度信息</div>
         <div class='dimension-info'>
-          {this.loading ? <div class='skeleton-element' /> : this.renderDimensionsInfo()}
+          {this.loading && !this.data?.id ? <div class='skeleton-element' /> : this.renderDimensionsInfo()}
         </div>
         <div class='block-title'>基础信息</div>
         <div class='basic-info'>
@@ -452,9 +457,9 @@ export default defineComponent({
                   class={['item-col', item.extCls]}
                 >
                   <div class='item-label'>{item.title}：</div>
-                  {this.loading ? (
+                  {this.loading && !this.data?.id ? (
                     <div
-                      style={{ width: `${Math.random() * 80 + 40}px` }}
+                      style={{ width: `${[96, 140, 112, 80][(index + ind) % 4]}px` }}
                       class='item-content skeleton-element'
                     />
                   ) : item.content ? (

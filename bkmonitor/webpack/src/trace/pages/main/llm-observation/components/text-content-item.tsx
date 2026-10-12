@@ -126,6 +126,24 @@ export default defineComponent({
         <div class='llm-text-content-row'>
           <span class='llm-text-content-index'>[{props.index}]</span>
           <div class='llm-text-content-main'>
+            <div class='llm-text-content-actions'>
+              <div
+                class='llm-text-content-action'
+                onClick={handleCopy}
+              >
+                <i class='icon-monitor icon-mc-copy' />
+                <span>{t('复制信息')}</span>
+              </div>
+              {overflow.value && (
+                <div
+                  class='llm-text-content-action'
+                  onClick={() => emit('viewAlone', props.content)}
+                >
+                  <i class='icon-monitor icon-sidebar' />
+                  <span>{t('独立查看')}</span>
+                </div>
+              )}
+            </div>
             <div class='llm-text-content-clip'>
               <div
                 ref={textRef}
@@ -155,26 +173,6 @@ export default defineComponent({
             )}
           </div>
         </div>
-        {!expanded.value && (
-          <div class='llm-text-content-actions'>
-            <div
-              class='llm-text-content-action'
-              onClick={handleCopy}
-            >
-              <i class='icon-monitor icon-mc-copy' />
-              <span>{t('复制信息')}</span>
-            </div>
-            {overflow.value && (
-              <div
-                class='llm-text-content-action'
-                onClick={() => emit('viewAlone', props.content)}
-              >
-                <i class='icon-monitor icon-chakan1' />
-                <span>{t('独立查看')}</span>
-              </div>
-            )}
-          </div>
-        )}
       </div>
     );
   },

@@ -14,7 +14,7 @@ from bkmonitor.data_source.utils import types
 from bkmonitor.data_source.utils.base import sort_fields
 from bkmonitor.data_source.utils.query import BaseQuery
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
-from bkmonitor.data_source.utils.apm import APMQueryFilterMixin
+from bkmonitor.data_source.utils.apm import APMQueryFilterMixin, FilterOperator
 from bkm_space.utils import bk_biz_id_to_space_uid
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.otel_query import FIELD_OPERATIONS, EnabledStatisticsDimension
@@ -64,8 +64,8 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
 
     def query_list(
         self,
-        start_time: int,
-        end_time: int,
+        start_time: int | None,
+        end_time: int | None,
         offset: int,
         limit: int,
         filters: list[types.Filter] | None = None,
@@ -168,6 +168,21 @@ class SpanQuery(APMQueryFilterMixin, BaseQuery):
             and field_dict.get("field_name") not in cls.NON_DIMENSION_FIELDS
         )
         return field_dict
+
+    def query_detail(self, record_id: str) -> dict[str, Any]:
+        """通过 span_id 查询单条 Span 记录。
+
+        :param record_id: Span ID
+        :return: 单条记录字典，未找到时返回空字典 ``{}``（保持返回类型稳定，避免调用方额外 ``or {}``）。
+        """
+        records = self.query_list(
+            start_time=None,
+            end_time=None,
+            offset=0,
+            limit=1,
+            filters=[{"key": "span_id", "value": [record_id], "operator": FilterOperator.EQUAL}],
+        )
+        return records[0] if records else {}
 
     def query_fields(self, start_time: int | None, end_time: int | None) -> dict[str, dict[str, Any]]:
         """查询字段元数据，并通过 SpanSpec 补充别名、单位和枚举候选值。"""

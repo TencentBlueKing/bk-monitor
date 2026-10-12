@@ -23,7 +23,6 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-
 import { Component, Inject, InjectReactive, Watch } from 'vue-property-decorator';
 import { ofType } from 'vue-tsx-support';
 
@@ -34,6 +33,8 @@ import { CancelToken } from 'monitor-api/cancel';
 import { openAlarmCenter } from 'monitor-common/utils/alarm-center-router';
 import { Debounce, deepClone, random } from 'monitor-common/utils/utils';
 import { handleTransformToTimestamp } from 'monitor-pc/components/time-range/utils';
+import K8sEmptyStatus from 'monitor-pc/pages/monitor-k8s/components/k8s-empty-status/k8s-empty-status';
+import K8sLoading from 'monitor-pc/pages/monitor-k8s/components/k8s-loading/k8s-loading';
 import K8sQuickTools from 'monitor-pc/pages/monitor-k8s/components/k8s-quick-tools/k8s-quick-tools';
 import {
   type IUnifyQuerySeriesItem,
@@ -103,6 +104,12 @@ class K8SCustomChart extends CommonSimpleChart {
   @InjectReactive({ from: 'showRestore', default: false }) readonly showRestoreInject: boolean;
   // 时间对比的偏移量
   @InjectReactive('timeOffset') readonly timeOffset: string[];
+  @Inject({ from: 'k8sLoadingSkeleton', default: false }) readonly k8sLoadingSkeleton: boolean;
+  dataRequestId = 0;
+  dataLoading = true;
+  chartDataLoaded = false;
+  chartLoadError = false;
+  disposed = false;
   metrics = [];
   options = {};
   empty = true;
@@ -162,16 +169,38 @@ class K8SCustomChart extends CommonSimpleChart {
    * @param {*}
    * @return {*}
    */
+  beforeDestroy() {
+    this.disposed = true;
+    this.dataRequestId++;
+    if (this.k8sLoadingSkeleton) this.cancelTokens.forEach(cancel => cancel?.());
+  }
+
+  isCurrentDataRequest(requestId: number) {
+    return !this.k8sLoadingSkeleton || (!this.disposed && requestId === this.dataRequestId);
+  }
+
+  getPanelData(start_time?: string, end_time?: string) {
+    if (this.k8sLoadingSkeleton && this.disposed) return;
+    const requestId = ++this.dataRequestId;
+    if (this.k8sLoadingSkeleton) {
+      this.dataLoading = true;
+      this.cancelTokens.forEach(cancel => cancel?.());
+      this.cancelTokens = [];
+    }
+    this.loadPanelData(start_time, end_time, requestId);
+  }
+
   @Debounce(100)
-  async getPanelData(start_time?: string, end_time?: string) {
+  async loadPanelData(start_time?: string, end_time?: string, requestId = this.dataRequestId) {
     if (!(await this.beforeGetPanelData())) {
       return;
     }
-    if (!this.$el?.clientWidth) return;
+    if (!this.isCurrentDataRequest(requestId) || !this.$el?.clientWidth) return;
     this.cancelTokens.forEach(cb => cb?.());
     this.cancelTokens = [];
-    if (this.initialized) this.handleLoadingChange(true);
+    if (this.k8sLoadingSkeleton ? this.chartDataLoaded : this.initialized) this.handleLoadingChange(true);
     this.emptyText = window.i18n.t('加载中...');
+    this.chartLoadError = false;
     if (
       this.panel.targets.some(item =>
         item.data?.query_configs?.some(q => q.data_source_label === 'prometheus' && !q.promql)
@@ -234,6 +263,7 @@ class K8SCustomChart extends CommonSimpleChart {
                   needMessage: false,
                 })
                 .then(res => {
+                  if (!this.isCurrentDataRequest(requestId)) return;
                   res.metrics && metrics.push(...res.metrics);
                   // if (res.series?.length > 1) {
                   //   res.series = res.series.slice(0, 1);
@@ -275,12 +305,17 @@ class K8SCustomChart extends CommonSimpleChart {
                   return true;
                 })
                 .catch(error => {
+                  if (!this.isCurrentDataRequest(requestId)) return;
                   this.handleErrorMsgChange(error.msg || error.message);
                 });
             });
           promiseList.push(...list);
         }
-        await Promise.all(promiseList).catch(() => false);
+        const results = await Promise.all(promiseList).catch(() => []);
+        if (!this.isCurrentDataRequest(requestId)) return;
+        if (this.k8sLoadingSkeleton && results.length && results.every(result => result !== true)) {
+          throw new Error(String(window.i18n.t('出错了')));
+        }
         this.metrics = metrics || [];
         if (series.length) {
           series = series.toSorted((a, b) => b.name?.localeCompare?.(a?.name));
@@ -503,12 +538,17 @@ class K8SCustomChart extends CommonSimpleChart {
           this.empty = true;
         }
       } catch (e) {
+        if (!this.isCurrentDataRequest(requestId)) return;
+        this.chartLoadError = true;
         console.error(e);
-        this.empty = true;
+        if (!this.k8sLoadingSkeleton || !this.chartDataLoaded) this.empty = true;
         this.emptyText = window.i18n.t('出错了');
       }
     }
 
+    if (!this.isCurrentDataRequest(requestId)) return;
+    this.dataLoading = false;
+    this.chartDataLoaded = true;
     this.cancelTokens = [];
     this.handleLoadingChange(false);
     this.unregisterObserver();
@@ -1028,7 +1068,10 @@ class K8SCustomChart extends CommonSimpleChart {
     const groupByField = this.panel.externalData?.groupByField;
     const canShowDetail = groupByField !== 'namespace';
     return (
-      <div class='k8s-custom-graph'>
+      <div
+        class='k8s-custom-graph'
+        aria-busy={this.k8sLoadingSkeleton && this.dataLoading}
+      >
         <ChartHeader
           collectIntervalDisplay={this.collectIntervalDisplay}
           customArea={true}
@@ -1047,7 +1090,9 @@ class K8SCustomChart extends CommonSimpleChart {
           onMetricClick={this.handleMetricClick}
           onSelectChild={this.handleSelectChildMenu}
         />
-        {!this.empty ? (
+        {this.k8sLoadingSkeleton && this.dataLoading && !this.chartDataLoaded ? (
+          <K8sLoading type='chart' />
+        ) : !this.empty ? (
           <div class={`time-series-content ${showLegend ? 'right-legend' : ''}`}>
             <div
               ref='chart'
@@ -1092,10 +1137,10 @@ class K8SCustomChart extends CommonSimpleChart {
                         {!this.isSpecialSeries(item.name) && (
                           <K8sQuickTools
                             class='k8s-graph-quick-tools'
+                            dimensions={item.dimensions}
                             filterCommonParams={this.panel.externalData?.filterCommonParams}
                             groupByField={this.panel.externalData?.groupByField}
                             value={item.name}
-                            dimensions={item.dimensions}
                           />
                           // <K8sDimensionDrillDown
                           //   dimension={this.panel.externalData?.groupByField}
@@ -1113,6 +1158,12 @@ class K8SCustomChart extends CommonSimpleChart {
               </div>
             )}
           </div>
+        ) : this.k8sLoadingSkeleton ? (
+          <K8sEmptyStatus
+            type={this.chartLoadError ? '500' : 'empty'}
+            compact
+            onOperation={() => this.getPanelData()}
+          />
         ) : (
           <div class='empty-chart'>{this.emptyText}</div>
         )}

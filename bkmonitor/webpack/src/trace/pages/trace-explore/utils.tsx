@@ -181,6 +181,20 @@ export function safeParseJsonValueForWhere(value: string): any {
 }
 
 /**
+ * @description URL解码，各检索页写入 URL 时可能额外 encodeURIComponent 过，非法串则原样返回
+ * @param str 需要解码的字符串
+ * @returns 解码后的值或原值
+ */
+export function tryURLDecode(str?: string) {
+  if (!str) return '';
+  try {
+    return decodeURIComponent(str);
+  } catch {
+    return str;
+  }
+}
+
+/**
  * URL解码并转化
  * @param str 需要解析的字符串
  * @param defaultValue 默认值

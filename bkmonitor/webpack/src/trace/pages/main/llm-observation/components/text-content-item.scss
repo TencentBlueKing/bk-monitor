@@ -65,14 +65,11 @@
   }
 
   .llm-text-content-actions {
-    position: absolute;
-    top: 8px;
-    right: 8px;
     z-index: 1;
     display: none;
     flex-direction: column;
     gap: 8px;
-    align-items: flex-start;
+    pointer-events: none;
   }
 
   .llm-text-content-action {
@@ -81,6 +78,7 @@
     font-size: $font-size-base;
     line-height: 20px;
     color: $primary-color;
+    pointer-events: auto;
     white-space: nowrap;
     cursor: pointer;
     background: #fff;
@@ -97,6 +95,13 @@
 
   // 卡片 160px = padding 8+8 + 正文 120px + 展开 20px，正文再高会把按钮裁掉一半。
   &:not(.is-expanded) {
+    .llm-text-content-actions {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      align-items: flex-start;
+    }
+
     .llm-text-content-clip {
       max-height: 120px;
       overflow: hidden;
@@ -119,11 +124,33 @@
     overflow: hidden;
   }
 
-  // 展开后仍限制可视高度，收起始终跟在可见正文下方，避免再滚到文末才找得到。
+  // 展开后：滚动时吸在小标题下方，模块滚走后一起离开。
   &.is-expanded {
+    overflow: visible;
+
+    @include flex-column;
+
+    .llm-text-content-actions {
+      position: sticky;
+      top: calc(var(--llm-section-sticky-top, 90px) + var(--llm-section-header-height, 32px) + 8px);
+      align-items: flex-end;
+      width: 100%;
+      height: 0;
+      overflow: visible;
+    }
+
+    .llm-text-content-row {
+      overflow: visible;
+      align-items: stretch;
+    }
+
     .llm-text-content-clip {
-      max-height: 60vh;
+      max-height: calc(var(--llm-expand-max-height, calc(100vh - 174px)) - 36px);
       overflow: auto;
+    }
+
+    .llm-text-content-expand {
+      flex-shrink: 0;
     }
   }
 

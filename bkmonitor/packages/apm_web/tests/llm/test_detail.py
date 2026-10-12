@@ -6,9 +6,9 @@ from unittest import TestCase, mock
 
 from django.test import override_settings
 
-from apm_web.llm.detail import attach_llm_detail
+from apm_web.llm.builders.detail import attach_llm_detail
 
-DETAIL_MODULE = "apm_web.llm.detail"
+DETAIL_MODULE = "apm_web.llm.builders.detail"
 
 
 def raw_span(span_id: str, operation_name: str, *, service_name: str = "agent-service") -> dict:

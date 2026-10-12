@@ -39,6 +39,7 @@ from apps.log_admin_resource.k8s_inspection import (
     target_config_matches,
     target_identity,
 )
+from apps.log_admin_resource.k8s_cluster_context import ClusterInspectionContext, load_cluster_context
 from apps.log_admin_resource.k8s_inspection_client import K8sInspectionClient, bounded_text, object_to_dict
 from apps.log_admin_resource.k8s_probe import FixedProbeError, run_fixed_collector_probe
 from apps.log_bcs.handlers.bcs_handler import BcsHandler
@@ -78,10 +79,15 @@ def run_k8s_inspection(task_id: str) -> None:
             raise RuntimeError("inspection task metadata disappeared before execution")
         options = record.get("request_options") or {}
         collector = _load_bound_collector(record)
-        container_configs = list(
-            ContainerCollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).order_by("id")
-        )
-        expected = expected_bklog_configs(collector, container_configs)
+        if isinstance(collector, ClusterInspectionContext):
+            expected = collector.expected
+        else:
+            container_configs = list(
+                ContainerCollectorConfig.objects.filter(collector_config_id=collector.collector_config_id).order_by(
+                    "id"
+                )
+            )
+            expected = expected_bklog_configs(collector, container_configs)
         client = K8sInspectionClient(cluster_id=collector.bcs_cluster_id)
 
         for skipped in options.get("skipped_evidence_groups") or []:
@@ -236,6 +242,8 @@ def run_k8s_inspection(task_id: str) -> None:
             )
             _save_probe(task_id, "collector_logs", collector_logs)
 
+            if isinstance(collector, ClusterInspectionContext):
+                load_cluster_context(collector.bcs_cluster_id, collector.binding)
             parsed_probe = run_fixed_collector_probe(
                 client,
                 selected,
@@ -243,6 +251,8 @@ def run_k8s_inspection(task_id: str) -> None:
                 include_source_sample=bool(options.get("include_source_sample")),
                 child_config_hints=collector_child_config_hints(control_evidence.get("target"), expected),
             )
+            if isinstance(collector, ClusterInspectionContext):
+                load_cluster_context(collector.bcs_cluster_id, collector.binding)
             _daemon_after, _pod_after = _revalidate_candidate(client, selected, required_bk_envs)
             if collector_logs["status"] == "failed":
                 collector_logs = _timed_probe(build_collector_file_log_probe(parsed_probe))
@@ -315,8 +325,10 @@ def run_k8s_inspection(task_id: str) -> None:
         ResourceInspectionTaskRecord.release_active(current)
 
 
-def _load_bound_collector(record: dict[str, Any]) -> CollectorConfig:
+def _load_bound_collector(record: dict[str, Any]) -> CollectorConfig | ClusterInspectionContext:
     target = record.get("target") or {}
+    if target.get("bklog_config"):
+        return load_cluster_context(target["bcs_cluster_id"], target["bklog_config"])
     collector = CollectorConfig.objects.get(collector_config_id=target["collector_config_id"])
     overrides = dict(target.get("identity_overrides") or {})
 
@@ -353,31 +365,37 @@ def _load_bound_collector(record: dict[str, Any]) -> CollectorConfig:
 
 
 def _control_plane_probe(
-    *, record: dict[str, Any], collector: CollectorConfig, expected: list[dict[str, Any]], client: K8sInspectionClient
+    *,
+    record: dict[str, Any],
+    collector: CollectorConfig | ClusterInspectionContext,
+    expected: list[dict[str, Any]],
+    client: K8sInspectionClient,
 ) -> tuple[dict[str, Any], str | None, list[str]]:
     started_at = timezone.now().isoformat()
     started = time.monotonic()
     warnings = []
     cluster_info = None
-    try:
-        clusters = BcsHandler.list_bcs_cluster(bk_biz_id=collector.bk_biz_id)
-        cluster_info = next((item for item in clusters if item.get("cluster_id") == collector.bcs_cluster_id), None)
-        if not cluster_info:
+    cluster_context = isinstance(collector, ClusterInspectionContext)
+    if not cluster_context:
+        try:
+            clusters = BcsHandler.list_bcs_cluster(bk_biz_id=collector.bk_biz_id)
+            cluster_info = next((item for item in clusters if item.get("cluster_id") == collector.bcs_cluster_id), None)
+            if not cluster_info:
+                warnings.append(
+                    {
+                        "code": "cluster_not_visible_from_business",
+                        "message": "the collector cluster was not returned by the current business cluster view",
+                        "retryable": True,
+                    }
+                )
+        except Exception:
             warnings.append(
                 {
-                    "code": "cluster_not_visible_from_business",
-                    "message": "the collector cluster was not returned by the current business cluster view",
+                    "code": "cluster_metadata_unavailable",
+                    "message": "BCS cluster metadata is unavailable",
                     "retryable": True,
                 }
             )
-    except Exception:
-        warnings.append(
-            {
-                "code": "cluster_metadata_unavailable",
-                "message": "BCS cluster metadata is unavailable",
-                "retryable": True,
-            }
-        )
 
     try:
         crd = object_to_dict(client.read_crd(BKLOG_CONFIG_CRD_NAME))
@@ -395,15 +413,23 @@ def _control_plane_probe(
             [],
         )
     try:
-        crs = client.list_bklog_configs(BKLOG_CONFIG_NAMESPACE)
-        actual_items = crs.get("items") or []
+        configured_namespace = collector.binding["namespace"] if cluster_context else BKLOG_CONFIG_NAMESPACE
+        if cluster_context:
+            actual = client.read_bklog_config(configured_namespace, collector.collector_config_name)
+            refreshed = ClusterInspectionContext(collector.bcs_cluster_id, actual)
+            if refreshed.binding != collector.binding:
+                raise RuntimeError("BkLogConfig changed during control-plane inspection")
+            actual_items = [actual]
+        else:
+            crs = client.list_bklog_configs(configured_namespace)
+            actual_items = crs.get("items") or []
     except Exception as error:
         return (
             _probe(
                 "failed",
                 "bklog_config_list_failed",
                 "BkLogConfig resources could not be listed from the configured namespace",
-                {"namespace": BKLOG_CONFIG_NAMESPACE, "error_type": error.__class__.__name__},
+                {"namespace": configured_namespace, "error_type": error.__class__.__name__},
                 started_at=started_at,
                 started=started,
             ),
@@ -411,10 +437,10 @@ def _control_plane_probe(
             [],
         )
     desired = desired_config_evidence(
-        expected=expected, actual_items=actual_items, configured_namespace=BKLOG_CONFIG_NAMESPACE, crd=crd
+        expected=expected, actual_items=actual_items, configured_namespace=configured_namespace, crd=crd
     )
     configured_bk_env = str(getattr(settings, "CONTAINER_COLLECTOR_CR_LABEL_BKENV", "") or "").strip()
-    if configured_bk_env:
+    if configured_bk_env and not cluster_context:
         desired["required_bk_envs"] = sorted({*desired["required_bk_envs"], configured_bk_env})
     observed_target = (record.get("request_options") or {}).get("target")
     target_node = None
@@ -516,7 +542,9 @@ def _control_plane_probe(
             "bcs_cluster_id": collector.bcs_cluster_id,
             "collector_config_name": collector.collector_config_name,
             "is_active": collector.is_active,
-            "container_config_ids": [item["container_config_id"] for item in expected],
+            "container_config_ids": [
+                item["container_config_id"] for item in expected if item["container_config_id"] is not None
+            ],
         },
         "cluster": cluster_info,
         "crd": {
@@ -543,6 +571,15 @@ def _control_plane_probe(
         "target": target_snapshot,
         "target_events": target_events,
     }
+    if cluster_context:
+        evidence.pop("desired_config")
+        evidence["observed_config"] = {
+            **collector.binding,
+            "resource_version": actual_items[0]["metadata"].get("resourceVersion"),
+            "safe_spec": expected[0]["safe_spec"],
+            "source": "actual_cluster_config",
+            "saas_desired_comparison_performed": False,
+        }
     pruned_fields = desired["crd_schema"]["pruned_fields_in_use"]
     if pruned_fields:
         warnings.append(
@@ -558,7 +595,7 @@ def _control_plane_probe(
         )
     status = "success" if desired["all_present"] and desired["all_material_match"] else "warning"
     if status == "success":
-        code = "control_plane_resolved"
+        code = "cluster_config_resolved" if cluster_context else "control_plane_resolved"
     elif any(row["difference_reasons"]["value_drift"] for row in desired["items"]):
         # Real drift outranks a stale schema: it can be fixed by re-releasing, and saying so
         # keeps the operator from waiting on a CRD upgrade that would not have helped.
@@ -568,7 +605,9 @@ def _control_plane_probe(
     probe = _probe(
         status,
         code,
-        "collector control-plane, desired configuration and selected target were inspected",
+        "actual cluster configuration and selected target were inspected"
+        if cluster_context
+        else "collector control-plane, desired configuration and selected target were inspected",
         evidence,
         started_at=started_at,
         started=started,
@@ -641,6 +680,7 @@ def _select_candidate(record: dict[str, Any], candidates: list[CollectorCandidat
         "collector_config_id": (record.get("target") or {}).get("collector_config_id"),
         "cluster_id": (record.get("target") or {}).get("bcs_cluster_id"),
         "target_identity": target_identity((record.get("request_options") or {}).get("target")),
+        "bklog_config": (record.get("target") or {}).get("bklog_config"),
     }
     if any(binding.get(key) != value for key, value in expected_context.items()):
         raise FixedProbeError(
@@ -685,6 +725,7 @@ def _public_candidates(record: dict[str, Any], candidates: list[CollectorCandida
             "collector_config_id": (record.get("target") or {}).get("collector_config_id"),
             "cluster_id": candidate.cluster_id,
             "target_identity": target_identity(options.get("target")),
+            "bklog_config": (record.get("target") or {}).get("bklog_config"),
             **candidate.binding(),
         }
         candidate_id = K8sCollectorCandidateStore.create(binding)

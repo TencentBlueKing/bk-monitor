@@ -27,6 +27,7 @@
 import { type PropType, computed, defineComponent, toRef, useTemplateRef } from 'vue';
 
 import { useTableScrollOptimize } from '../../../../hooks/use-table-scroll-optimize';
+import { AlarmTableSkeletonCell } from '../../components/alarm-skeleton';
 import CommonTable from '../../components/alarm-table/components/common-table/common-table';
 import { usePopover } from '../../components/alarm-table/hooks/use-popover';
 import { useEchartsGroupConnect } from '../../composables/use-echarts-group';
@@ -234,6 +235,15 @@ export default defineComponent({
               <ExploreTableEmpty
                 showOperation={this.showEmptyOperation}
                 onClearFilter={() => this.$emit('clearFilter')}
+              />
+            ) as unknown as SlotReturnValue
+          }
+          loadingCell={(column, rowIndex) =>
+            (
+              <AlarmTableSkeletonCell
+                columnKey={column.colKey}
+                rowIndex={rowIndex}
+                variant='issues'
               />
             ) as unknown as SlotReturnValue
           }

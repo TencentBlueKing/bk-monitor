@@ -269,8 +269,7 @@ export function formatDuration(value: number) {
 }
 
 export function formatGrowthRate(rate: null | number | undefined) {
-  if (typeof rate !== 'number' || Number.isNaN(rate)) return '--';
-  if (rate === 0) return '0%';
+  if (typeof rate !== 'number' || Number.isNaN(rate) || rate === 0) return '--';
   const sign = rate > 0 ? '+ ' : '- ';
   return `${sign}${Math.abs(rate)}%`;
 }
@@ -286,6 +285,19 @@ export function formatSeriesInterval(res: ITimeSeriesItem[] | ITimeSeriesResult 
   if (interval % 3600 === 0) return `${interval / 3600}h`;
   if (interval % 60 === 0) return `${interval / 60}m`;
   return `${interval}s`;
+}
+
+/** 环比窗口紧邻当前窗口，偏移量等于本次查询的时间跨度（秒）。 */
+export function getComparisonTimeShift(startTime: number, endTime: number): string {
+  const seconds = endTime - startTime;
+  for (const [unit, size] of [
+    ['d', 86400],
+    ['h', 3600],
+    ['m', 60],
+  ] as const) {
+    if (seconds > 0 && seconds % size === 0) return `${seconds / size}${unit}`;
+  }
+  return `${seconds}s`;
 }
 
 export function getDimensionName(item: ICalculateItem, key: string) {

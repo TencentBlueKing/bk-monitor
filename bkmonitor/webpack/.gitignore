@@ -87,6 +87,8 @@ src/bk-weweb
 report.**.json
 packages/self-healing
 local.settings.js
+cookie.txt
+.proxy-cookie
 packages/eslint-fix
 webpack/monitor-static/icons/iconfont/*
 
@@ -108,6 +110,7 @@ monitor-vue3-components
 apm-vue3-for-vue2/dist
 apm-vue3-for-vue2/readme.md
 apm-vue3-for-vue2/.ensure.lock
+apm-vue3-for-vue2/.watch.pid
 apm-vue3-for-vue2/*.js
 apm-vue3-for-vue2/*.css
 apm-vue3-for-vue2/assets

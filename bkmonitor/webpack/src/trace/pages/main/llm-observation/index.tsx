@@ -208,6 +208,8 @@ export default defineComponent({
       const inputTokens = pickNumber(attrs, ['gen_ai.usage.input_tokens', 'gen_ai.usage.prompt_tokens']);
       const outputTokens = pickNumber(attrs, ['gen_ai.usage.output_tokens', 'gen_ai.usage.completion_tokens']);
       const totalTokens = pickNumber(attrs, ['gen_ai.usage.total_tokens']) || inputTokens + outputTokens;
+      const cacheReadTokens = pickNumber(attrs, ['gen_ai.usage.cache_read.input_tokens']);
+      const cacheHitRate = inputTokens > 0 ? (cacheReadTokens / inputTokens) * 100 : 0;
       const firstChunk = pickOptionalNumber(attrs, ['gen_ai.response.time_to_first_chunk']);
       const modelCards: LlmStatCard[] = isModelSpan.value
         ? [
@@ -232,14 +234,19 @@ export default defineComponent({
 
       return [
         ...modelCards,
-        { key: 'input', label: t('输入 Tokens'), value: inputTokens },
-        { key: 'output', label: t('输出 Tokens'), value: outputTokens },
-        { key: 'total', label: t('总 Tokens'), value: totalTokens, theme: 'success' },
         ...firstTokenCards,
+        { key: 'total', label: t('总 Tokens'), value: totalTokens, theme: 'success' },
+        {
+          extra: cacheHitRate > 0 ? t('缓存命中率：{0}%', [Number(cacheHitRate.toFixed(2))]) : undefined,
+          key: 'input',
+          label: t('输入 Tokens'),
+          value: inputTokens,
+        },
+        { key: 'output', label: t('输出 Tokens'), value: outputTokens },
         {
           key: 'cacheRead',
-          label: t('缓存读数'),
-          value: pickNumber(attrs, ['gen_ai.usage.cache_read.input_tokens']),
+          label: t('缓存读取'),
+          value: cacheReadTokens,
         },
         {
           key: 'cacheWrite',

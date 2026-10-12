@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type InjectionKey, type ShallowRef, provide, shallowRef, watch } from 'vue';
+import { type InjectionKey, type ShallowRef, computed, onScopeDispose, provide, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
 import { getHostOrTopoNodeDetail } from 'monitor-api/modules/scene_view';
@@ -59,6 +59,7 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
 
   /** 获取详情数据 */
   const fetchDetail = async (node: IHostTopoTreeNode, requestId: number) => {
+    if (requestId !== latestRequestId) return;
     try {
       const data = await getHostOrTopoNodeDetail(
         isHostNode(node)
@@ -85,7 +86,6 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
         }) || [];
     } catch {
       if (requestId === latestRequestId) {
-        detailData.value = [];
         error.value = true;
       }
     } finally {
@@ -113,10 +113,18 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
 
   provide(HOST_DETAIL_STATE_KEY, { error, retry });
 
+  const nodeKey = computed(() => {
+    const node = selectedNode.value;
+    return node ? JSON.stringify(isHostNode(node) ? [node.bk_biz_id, node.bk_host_id] : [node.bk_biz_id, node.bk_obj_id, node.bk_inst_id]) : '';
+  });
+  onScopeDispose(() => { latestRequestId += 1; });
+
   /** 监听选中节点变化 */
   watch(
-    [() => selectedNode.value, refreshGeneration],
-    ([node]) => {
+    [nodeKey, refreshGeneration],
+    ([key], previous) => {
+      const node = selectedNode.value;
+      if (key !== previous?.[0]) detailData.value = [];
       if (!node) {
         latestRequestId += 1;
         detailData.value = [];
@@ -126,7 +134,7 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
       }
       requestDetail(node);
     },
-    { immediate: true }
+    { immediate: true, flush: 'sync' }
   );
 
   /** 是否为主机节点 */

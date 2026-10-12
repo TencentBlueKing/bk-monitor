@@ -1,0 +1,32 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
+.issues-loading {
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+
+  &-block { @include skeleton.surface; display: inline-block; max-width: 100%; flex-shrink: 0; border-radius: 3px; }
+  &--page, &--page > &-content { height: 100%; }
+  &--count { display: inline-flex; width: 32px; vertical-align: middle; }
+  &--trend, &--trend > &-content { display: flex; flex: 1; min-height: 0; height: 100%; }
+  &-card { position: relative; }
+  &-chart-card { flex: 1; min-width: 0; }
+  &-filter { display: flex; justify-content: space-between; align-items: center; gap: 16px; height: 50px; padding: 0 16px; margin-top: 16px; background: #fff; border: 1px solid #e4e9f2; border-radius: 8px; }
+  &-tabs { display: flex; align-items: center; gap: 28px; height: 48px; margin-bottom: 16px; }
+  &-rows { display: flex; flex-direction: column; gap: 20px; padding-top: 16px; }
+  &-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+  &-text { display: flex; flex: 1; flex-direction: column; gap: 10px; min-width: 0; }
+  &-rows--history { gap: 6px; }
+  &-rows--history > &-row { justify-content: space-between; height: 32px; padding: 0 12px; background: #f2f6fc; border-radius: 6px; }
+  &-rows--tapd > &-row { padding: 12px; border: 1px solid #e4e9f2; border-radius: 4px; }
+  &-rows--activity > &-row { align-items: flex-start; min-height: 48px; }
+  &-rows--activity > &-row > &-block { border-radius: 50%; }
+  &-trend { display: flex; flex: 1; gap: 12px; min-width: 0; min-height: 0; width: 100%; padding-top: 8px; }
+  &-axis { display: flex; flex-direction: column; justify-content: space-between; padding-bottom: 24px; }
+  &-plot { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+  &-bars { display: flex; flex: 1; align-items: flex-end; gap: 4%; min-height: 0; padding: 0 8px; border-bottom: 1px solid #dcdee5; background: repeating-linear-gradient(to top, #f0f1f5 0 1px, transparent 1px 50%); }
+  &-bars > &-block { flex: 1; min-width: 0; border-radius: 2px 2px 0 0; }
+  &-labels { display: flex; justify-content: space-between; gap: 8px; height: 24px; align-items: center; }
+  &-dimensions { display: flex; flex-direction: column; gap: 16px; padding-top: 12px; }
+  &-segments { display: flex; flex: 1; gap: 2px; min-width: 0; overflow: hidden; }
+}

@@ -117,12 +117,12 @@ import {
   updateIssuesPriority,
 } from './alarm-issues/services/issues-operations';
 import { saveAlertContentName } from './services/alert-services';
+import { type AlarmCenterPanelTabType, ALARM_CENTER_PANEL_TAB_MAP } from './utils/constant';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { IssueItem, IssuePriorityType, IssuesBatchActionType, TrendRangeType } from './alarm-issues/typing';
 import type { AlertSavePromiseEvent } from './components/alarm-table/components/alert-content-detail/alert-content-detail';
 import type { IssuesService } from './services/issues-services';
-import type { AlarmCenterPanelTabType } from './utils/constant';
 
 import './alarm-center.scss';
 
@@ -160,7 +160,11 @@ export default defineComponent({
       handleQuickFilteringOperation,
     } = useQuickFilter();
 
-    const { data, loading, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
+    const { data, loading, hasLoaded, total, page, pageSize, ordering, enabledSpaces, wxCsLink } = useAlarmTable();
+    const contentKey = computed(() => JSON.stringify([alarmStore.alarmType, alarmStore.bizIds]));
+    watch(loading, value => {
+      if (value) selectedRowKeys.value = [];
+    });
 
     const {
       trendRange,
@@ -216,7 +220,7 @@ export default defineComponent({
       () =>
         alarmStore.alarmType === AlarmType.INCIDENT &&
         !!alarmStore.bizIds?.length &&
-        !loading.value &&
+        hasLoaded.value &&
         ((isVirtualBiz.value &&
           intersection(
             authorizedBizList.value.map(({ bk_biz_id }) => bk_biz_id),
@@ -230,7 +234,7 @@ export default defineComponent({
       () =>
         alarmStore.alarmType === AlarmType.INCIDENT &&
         !!alarmStore.bizIds?.length &&
-        !loading.value &&
+        hasLoaded.value &&
         !isVirtualBiz.value &&
         connectedBizIds.value.length === 0 &&
         unconnectedBizIds.value.length > 0 &&
@@ -519,7 +523,6 @@ export default defineComponent({
     /** 告警类型切换 */
     const handleAlarmTypeChange = (value: AlarmType) => {
       alarmStore.handleAlarmTypeChange(value);
-      isFirstInit.value = true;
       ordering.value = ''; // 清理排序
     };
 
@@ -1141,6 +1144,7 @@ export default defineComponent({
       pagination,
       data,
       loading,
+      contentKey,
       total,
       page,
       pageSize,
@@ -1417,12 +1421,19 @@ export default defineComponent({
                       <div class={CONTENT_SCROLL_ELEMENT_CLASS_NAME}>
                         {this.alarmStore.alarmType !== AlarmType.ISSUES && (
                           <div class='chart-trend'>
-                            <AlarmTrendChart total={this.total} />
+                            <AlarmTrendChart
+                              key={this.contentKey}
+                              tableLoading={this.loading}
+                              total={this.total}
+                            />
                           </div>
                         )}
                         {![AlarmType.INCIDENT, AlarmType.ISSUES].includes(this.alarmStore.alarmType) && (
                           <div class='alarm-analysis'>
-                            <AlarmAnalysis onConditionChange={this.handleAddCondition} />
+                            <AlarmAnalysis
+                              key={this.contentKey}
+                              onConditionChange={this.handleAddCondition}
+                            />
                           </div>
                         )}
                         <div class='alarm-center-table'>
@@ -1565,6 +1576,14 @@ export default defineComponent({
                 type={this.mergeSplitType}
                 onMergeSuccess={() => {
                   this.alarmStore.refreshImmediate += 1;
+                }}
+                onShowDetail={(issueId: string) => {
+                  const bizId = this.mergeSplitIssues[0]?.bk_biz_id;
+                  if (bizId == null) return;
+                  this.handleIssuesShowDetail(
+                    { bk_biz_id: bizId, id: issueId } as IssueItem,
+                    ALARM_CENTER_PANEL_TAB_MAP.LOG
+                  );
                 }}
                 onSplitSuccess={(memberIssueIds: string[]) => {
                   this.alarmStore.refreshImmediate += 1;

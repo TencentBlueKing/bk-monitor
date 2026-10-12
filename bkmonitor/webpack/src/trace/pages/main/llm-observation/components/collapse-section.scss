@@ -7,9 +7,12 @@
   @include flex-column;
 
   &-header {
+    position: sticky;
+    top: var(--llm-section-sticky-top, 90px);
+    z-index: 3;
     flex-shrink: 0;
     justify-content: space-between;
-    height: 32px;
+    height: var(--llm-section-header-height, 32px);
     padding: 0 12px;
     cursor: pointer;
     background: #e4e9f2;
@@ -29,7 +32,6 @@
   }
 
   &-title {
-    gap: 12px;
     min-width: 0;
     color: #111214;
 
@@ -47,6 +49,8 @@
   }
 
   &-label {
+    margin-right: 6px;
+    margin-left: 12px;
     font-family: 'PingFang SC', sans-serif;
     font-size: 13px;
     font-weight: 500;
