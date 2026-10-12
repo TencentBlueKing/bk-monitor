@@ -1,6 +1,7 @@
 @import '@/scss/mixins/flex.scss';
 
 .field-filter-box {
+  min-width: 0;
   overflow: hidden;
 
   > .form-container {
@@ -72,26 +73,40 @@
   }
 
   .big-tree {
-    overflow-y: hidden;
+    min-width: max-content;
+    overflow: visible;
 
     .bk-big-tree-node {
+      display: flex;
+      align-items: center;
+      min-width: max-content;
       height: 28px;
+      overflow: visible;
+      white-space: nowrap;
     }
 
     .is-leaf {
-      height: auto;
+      height: 28px;
       padding-left: calc(var(--level) * var(--padding) + 2px);
-      line-height: normal;
+      line-height: 28px;
     }
 
     .node-options {
       display: none;
     }
+
+    .node-content {
+      display: flex;
+      flex-shrink: 0;
+      align-items: center;
+      min-width: max-content;
+      overflow: visible;
+    }
   }
 
   .field-filter-container-new {
     height: calc(100vh - var(--top-searchbar-height) - 210px);
-    overflow-y: auto;
+    overflow: auto;
     font-family: Roboto-Regular;
     font-size: 12px;
     line-height: 20px;
@@ -162,6 +177,10 @@
         margin: 0 0 7px 20px;
         line-height: 26px;
         color: #63656e;
+      }
+
+      .filed-list {
+        min-width: max-content;
       }
 
       .filed-item + .expand-all {

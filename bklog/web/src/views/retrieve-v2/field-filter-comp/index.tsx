@@ -66,6 +66,7 @@ export default class FieldFilterComp extends tsc<object> {
   };
   dragVisibleFields = [];
   expandedNodes = {}; // 用于存储展开节点的 key
+  expandedFieldIds = {}; // 按 fullName 记录已展开节点，只挂载下一层 children
   builtInHeaderList = ['log', 'ip', 'utctime', 'path'];
   builtInInitHiddenList = builtInInitHiddenList;
 
@@ -222,16 +223,68 @@ export default class FieldFilterComp extends tsc<object> {
     const tree = this.indexSetFieldTree;
     return tree.length > 10 || tree.some(item => item.children?.length);
   }
-  /** 展示的可选字段：折叠时只渲染顶层根节点，避免千级嵌套字段一次性进树 */
+  get expandedFieldIdSet() {
+    return new Set(Object.keys(this.expandedFieldIds).filter(id => this.expandedFieldIds[id]));
+  }
+  /** 只把已展开节点的下一层 children 交给树，避免一次挂上全部后代 */
+  hydrateVisibleTree(node, expandedSet) {
+    const childList = node.children || [];
+    if (!childList.length) {
+      return { ...node, children: undefined };
+    }
+    const nodeId = node.fullName || node.full_name || node.field_name;
+    if (!expandedSet.has(nodeId)) {
+      return {
+        ...node,
+        children: childList.map(child => ({
+          ...child,
+          children: undefined,
+        })),
+      };
+    }
+    return {
+      ...node,
+      children: childList.map(child => this.hydrateVisibleTree(child, expandedSet)),
+    };
+  }
+  markSearchExpanded(nodes, keyword, expanded, ancestors = []) {
+    if (!keyword) {
+      return false;
+    }
+    const regExp = getRegExp(keyword.trim());
+    let matched = false;
+    for (const node of nodes || []) {
+      const nodeId = node.fullName || node.full_name || node.field_name;
+      const selfMatch =
+        regExp.test(node.field_name || '') ||
+        regExp.test(node.field_alias || '') ||
+        regExp.test(node.query_alias || '');
+      const childMatch = this.markSearchExpanded(node.children, keyword, expanded, [...ancestors, nodeId]);
+      if (selfMatch || childMatch) {
+        matched = true;
+        ancestors.forEach(id => {
+          expanded[id] = true;
+        });
+      }
+    }
+    return matched;
+  }
+  getLazyFieldTree(nodes) {
+    const expanded = { ...this.expandedFieldIds };
+    if (this.searchKeyword) {
+      this.markSearchExpanded(nodes, this.searchKeyword, expanded);
+    }
+    const expandedSet = new Set(Object.keys(expanded).filter(id => expanded[id]));
+    return (nodes || []).map(node => this.hydrateVisibleTree(node, expandedSet));
+  }
+  /** 折叠时最多 10 个根；展开全部也只按层挂载，不一次渲染 1117 个节点 */
   get showIndexSetFields() {
     const tree = this.indexSetFieldTree;
-    if (this.searchKeyword || this.isShowAllIndexSet) {
-      return tree;
-    }
-    return tree.slice(0, 10).map(item => ({
-      ...item,
-      children: undefined,
-    }));
+    const roots = this.searchKeyword || this.isShowAllIndexSet ? tree : tree.slice(0, 10);
+    return this.getLazyFieldTree(roots);
+  }
+  get builtInLazyShowFields() {
+    return this.getLazyFieldTree(this.builtInFieldsShowObj().builtInShowFields);
   }
   get filterTypeCount() {
     // 过滤的条件数量
@@ -291,6 +344,8 @@ export default class FieldFilterComp extends tsc<object> {
     this.fieldType = 'any';
     this.isShowAllBuiltIn = false;
     this.isShowAllIndexSet = false;
+    this.expandedNodes = {};
+    this.expandedFieldIds = {};
   }
 
   @Watch('showFieldAlias')
@@ -412,16 +467,25 @@ export default class FieldFilterComp extends tsc<object> {
   // 记录bigTree展开节点
   expandChange(TreeNode, ref) {
     this.expandedNodes[ref] = this.expandedNodes[ref] || [];
+    const nodeId = TreeNode.id;
     if (TreeNode.expanded) {
-      if (!this.expandedNodes[ref].includes(TreeNode.id)) {
-        this.expandedNodes[ref].push(TreeNode.id);
+      if (!this.expandedNodes[ref].includes(nodeId)) {
+        this.expandedNodes[ref].push(nodeId);
+      }
+      if (nodeId) {
+        this.$set(this.expandedFieldIds, nodeId, true);
       }
     } else {
-      this.expandedNodes[ref] = this.expandedNodes[ref].filter(id => id !== TreeNode.id);
+      this.expandedNodes[ref] = this.expandedNodes[ref].filter(id => id !== nodeId);
+      if (nodeId) {
+        this.$delete(this.expandedFieldIds, nodeId);
+      }
     }
   }
   bigTreeRender(field, index) {
-    const defaultExpandedNodes = this.expandedNodes[`bigTreeRef-${index}`];
+    const defaultExpandedNodes = Array.from(
+      new Set([...(this.expandedNodes[`bigTreeRef-${index}`] || []), ...Array.from(this.expandedFieldIdSet)]),
+    );
     const scopedSlots = {
       default: ({ data }) => (
         <FieldItem
@@ -609,7 +673,7 @@ export default class FieldFilterComp extends tsc<object> {
                   {(this.$t('label-内置字段') as string).replace('label-', '')}
                 </div>
                 <ul class='filed-list'>
-                  {this.builtInFieldsShowObj().builtInShowFields.map((item, index) =>
+                  {this.builtInLazyShowFields.map((item, index) =>
                     item.children?.length ? (
                       this.bigTreeRender(item, `${index}built`)
                     ) : (
