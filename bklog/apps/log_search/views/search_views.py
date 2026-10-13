@@ -1272,7 +1272,11 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(CreateIndexSetFieldsConfigSerializer)
         if data.get("index_set_type") == IndexSetType.SINGLE.value:
-            SearchHandlerEsquery(data["index_set_id"], {}).verify_sort_list_item(data["sort_list"])
+            # 这里只需要校验排序字段，不需要 esquery 预查询：
+            # Doris 以及 ES/Doris 混合存储的索引集经 esquery 取不到字段，预查询会在构造阶段误报物理索引不存在
+            SearchHandlerEsquery(data["index_set_id"], {}, pre_check_enable=False).verify_sort_list_item(
+                data["sort_list"]
+            )
             init_params = {
                 "index_set_id": data["index_set_id"],
                 "index_set_type": data["index_set_type"],
@@ -1313,7 +1317,10 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(UpdateIndexSetFieldsConfigSerializer)
         if data.get("index_set_type") == IndexSetType.SINGLE.value:
-            SearchHandlerEsquery(data["index_set_id"], {}).verify_sort_list_item(data["sort_list"])
+            # 只校验排序字段，跳过 esquery 预查询，避免 Doris 及 ES/Doris 混合存储索引集误报物理索引不存在
+            SearchHandlerEsquery(data["index_set_id"], {}, pre_check_enable=False).verify_sort_list_item(
+                data["sort_list"]
+            )
             init_params = {
                 "index_set_id": data["index_set_id"],
                 "index_set_type": data["index_set_type"],
