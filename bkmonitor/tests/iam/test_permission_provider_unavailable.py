@@ -31,15 +31,15 @@ specific language governing permissions and limitations under the License.
 #              get_apply_data → (None, "")
 # ==============================================================================
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderError, ProviderUnavailable
+from iam_engine.exceptions import ProviderError, ProviderUnavailable
 
 
 # ------------------------------------------------------------------
-# 测试脚手架：直接 mock get_framework 返回值，避免依赖 refactor 目录的 fixture
+# 测试脚手架：直接注入实际 Permission 的 Provider，避免依赖 refactor 目录的 fixture
 # ------------------------------------------------------------------
 
 
@@ -53,27 +53,24 @@ class _FakeResource:
 
 @pytest.fixture
 def fake_fw():
-    """构造一个 mock 的 IAMFramework，返回 (mock_fw, permission_instance_factory)。
+    """Control the product adapter boundary, without a framework singleton."""
+    from bkmonitor.iam.permission import Permission
 
-    每个测试可自定义 mock_fw.is_allowed / batch_by_resource / get_apply_url /
-    get_apply_data 的 side_effect，然后调 permission_factory() 拿到装好 fw 的
-    Permission 实例。
-    """
-    mock_fw = MagicMock()
-    # 默认值：让不涉及的路径不炸
-    mock_fw.is_allowed.return_value = True
-    mock_fw.batch_by_resource.return_value = MagicMock(items=())
-    mock_fw.get_apply_url.return_value = "http://iam.invalid/apply"
-    mock_fw.get_apply_data.return_value = {"actions": []}
+    control = MagicMock()
+    control.is_allowed.return_value = True
+    control.batch_by_resource.return_value = MagicMock(items=())
+    control.get_apply_url.return_value = "http://iam.invalid/apply"
+    control.get_apply_data.return_value = {"actions": []}
 
-    with patch("bkmonitor.iam.permission.get_framework", return_value=mock_fw):
-        # patch 生效期间，任何新建的 Permission(self._fw = get_framework()) 都会拿到 mock
-        from bkmonitor.iam.permission import Permission
+    def make_permission():
+        permission = Permission(username="tester", bk_tenant_id="system")
+        permission._is_allowed_request = control.is_allowed
+        permission._batch_by_resource = control.batch_by_resource
+        permission._apply_url_request = control.get_apply_url
+        permission._apply_data_request = control.get_apply_data
+        return permission
 
-        def _make_permission():
-            return Permission(username="tester", bk_tenant_id="system")
-
-        yield mock_fw, _make_permission
+    return control, make_permission
 
 
 # ------------------------------------------------------------------

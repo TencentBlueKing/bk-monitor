@@ -17,7 +17,7 @@ specific language governing permissions and limitations under the License.
 #   related_instance_selections : V3 平台的实例选择器列表
 # ---------------------------------------------------------------------------
 
-from ..iam_engine.schema.definitions import ResourceTypeDef
+from iam_engine.schema.definitions import ResourceTypeDef
 
 
 class ResourceTypes:

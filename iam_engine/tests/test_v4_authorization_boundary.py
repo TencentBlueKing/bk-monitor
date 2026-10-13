@@ -3,9 +3,9 @@ from unittest.mock import Mock
 
 import pytest
 
-from bkmonitor.iam.iam_engine.core.types import Subject
-from bkmonitor.iam.iam_engine.provider.dialect_types import DialectAuthRequest
-from bkmonitor.iam.iam_v4.provider import V4PermissionProvider
+from iam_engine.provider.requests import Subject
+from iam_engine.provider.dialect_types import DialectAuthRequest
+from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
 
 
 def make_provider(resource_type="grafana_dashboard"):

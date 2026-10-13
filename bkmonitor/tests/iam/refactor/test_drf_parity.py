@@ -38,8 +38,8 @@ from bkmonitor.iam.drf import (
     insert_permission_field,
 )
 from bkmonitor.iam.errors import IAMBackendUnavailableError
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderUnavailable
-from bkmonitor.iam.iam_engine.core.types import (
+from iam_engine.exceptions import ProviderUnavailable
+from iam_engine.provider.requests import (
     BatchAuthResult,
     ResourceAuthResult,
     ResourceInstance,
@@ -127,14 +127,14 @@ class TestDrfSurface:
 
 
 class TestIAMPermission:
-    def test_no_actions_grants(self, fake_framework):
+    def test_no_actions_grants(self, fake_permission):
         perm = IAMPermission(actions=[])
         request = _make_request()
         assert perm.has_permission(request, view=None) is True
 
-    def test_or_semantics_first_denied_second_allowed(self, fake_framework):
+    def test_or_semantics_first_denied_second_allowed(self, fake_permission):
         """旧版 OR 语义：第一个动作被拒、第二个通过 → 放行。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([False, True])
         provider.is_allowed = scripted.is_allowed
         perm = IAMPermission(actions=[ActionEnum.VIEW_EVENT, ActionEnum.MANAGE_EVENT])
@@ -142,16 +142,16 @@ class TestIAMPermission:
         assert perm.has_permission(request, view=None) is True
         assert [c.action_id for c in scripted.calls] == ["view_event", "manage_event"]
 
-    def test_or_semantics_first_allowed_short_circuit(self, fake_framework):
-        fw, provider = fake_framework
+    def test_or_semantics_first_allowed_short_circuit(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = IAMPermission(actions=[ActionEnum.VIEW_EVENT, ActionEnum.MANAGE_EVENT])
         assert perm.has_permission(_make_request(), view=None) is True
         assert len(scripted.calls) == 1
 
-    def test_all_denied_raises_permission_denied(self, fake_framework):
-        fw, provider = fake_framework
+    def test_all_denied_raises_permission_denied(self, fake_permission):
+        fw, provider = fake_permission
         provider.is_allowed_result = False
         provider.apply_url = "http://iam.invalid/apply/x"
         provider.apply_data = {"system": "bk_monitorv3", "actions": [{"id": "view_event"}]}
@@ -162,9 +162,9 @@ class TestIAMPermission:
         assert str(exc.value) == "当前用户无 [事件中心管理] 权限"
         assert exc.value.extra["permission"] == {"system": "bk_monitorv3", "actions": [{"id": "view_event"}]}
 
-    def test_legacy_v3_action_id_is_normalized_but_message_uses_display_name(self, fake_framework):
+    def test_legacy_v3_action_id_is_normalized_but_message_uses_display_name(self, fake_permission):
         """方言 ID 只在 Provider codec 边界出现，老前端消息始终显示动作名称。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.is_allowed_result = False
         provider.apply_url = "http://iam.invalid/apply/x"
 
@@ -175,9 +175,9 @@ class TestIAMPermission:
         assert provider.is_allowed_calls[0].action_id == "view_event"
         assert str(exc.value) == "当前用户无 [事件中心查看] 权限"
 
-    def test_provider_unavailable_uses_exact_legacy_response_envelope(self, fake_framework):
+    def test_provider_unavailable_uses_exact_legacy_response_envelope(self, fake_permission):
         """P1：DRF 直调框架超时后仍返回旧前端可处理的 403 结构，而不是 500。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.is_allowed_result = ProviderUnavailable("v4 timeout")
         provider.apply_url = "http://iam.invalid/fallback"
         provider.apply_data = {"system": "bk_monitor_v4", "actions": [{"id": "view_event"}]}
@@ -209,8 +209,8 @@ class TestIAMPermission:
             "permission": {"system": "bk_monitor_v4", "actions": [{"id": "view_event"}]},
         }
 
-    def test_resources_passed_through(self, fake_framework):
-        fw, provider = fake_framework
+    def test_resources_passed_through(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         resource = ResourceInstance(type="space", id="2")
@@ -218,11 +218,11 @@ class TestIAMPermission:
         assert perm.has_permission(_make_request(), view=None) is True
         assert scripted.calls[0].resource.id == "2"
 
-    def test_global_action_with_resource_still_passed(self, fake_framework):
+    def test_global_action_with_resource_still_passed(self, fake_permission):
         """已知差异：旧版 is_allowed 对无资源 action 清空 resources；
         新版 _fw_check_any 原样传给框架，由 provider 方言层在发 SDK 请求时丢弃
         （净效果一致——见 test_resource_interface 的方言层用例）。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = IAMPermission(
@@ -233,14 +233,14 @@ class TestIAMPermission:
 
 
 class TestBusinessActionPermission:
-    def test_no_biz_id_grants_without_framework(self, fake_framework):
-        fw, provider = fake_framework
+    def test_no_biz_id_grants_without_framework(self, fake_permission):
+        fw, provider = fake_permission
         provider.is_allowed_result = False
         perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
         assert perm.has_permission(_make_request(biz_id=None), view=None) is True
 
-    def test_biz_id_uses_space_resource(self, fake_framework):
-        fw, provider = fake_framework
+    def test_biz_id_uses_space_resource(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
@@ -248,8 +248,8 @@ class TestBusinessActionPermission:
         assert scripted.calls[0].resource.type == "space"
         assert scripted.calls[0].resource.id == "2"
 
-    def test_cross_tenant_biz_is_denied_without_framework(self, fake_framework):
-        fw, provider = fake_framework
+    def test_cross_tenant_biz_is_denied_without_framework(self, fake_permission):
+        fw, provider = fake_permission
         perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
 
         with patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=False):
@@ -257,7 +257,7 @@ class TestBusinessActionPermission:
 
         assert provider.is_allowed_calls == []
 
-    def test_object_permission_uses_obj_bk_biz_id(self, fake_framework):
+    def test_object_permission_uses_obj_bk_biz_id(self, fake_permission):
         """新旧版一致的行为：obj.bk_biz_id 分支设置的 resources 会被多态覆盖。
 
         super().has_object_permission -> IAMPermission.has_object_permission
@@ -265,7 +265,7 @@ class TestBusinessActionPermission:
         重新按 request.biz_id 覆盖 resources。旧版同样如此（obj 分支为历史遗留的
         "意图未实现"代码），因此最终鉴权始终按 request.biz_id。
         """
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
@@ -274,8 +274,8 @@ class TestBusinessActionPermission:
         assert perm.has_object_permission(_make_request(biz_id=2), view=None, obj=obj) is True
         assert scripted.calls[0].resource.id == "2"
 
-    def test_object_permission_falls_back_to_request(self, fake_framework):
-        fw, provider = fake_framework
+    def test_object_permission_falls_back_to_request(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
@@ -286,8 +286,8 @@ class TestBusinessActionPermission:
 
 
 class TestViewBusinessPermission:
-    def test_default_action(self, fake_framework):
-        fw, provider = fake_framework
+    def test_default_action(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = ViewBusinessPermission()
@@ -296,13 +296,13 @@ class TestViewBusinessPermission:
 
 
 class TestMCPPermission:
-    def test_missing_biz_id_raises(self, fake_framework):
+    def test_missing_biz_id_raises(self, fake_permission):
         perm = MCPPermission()
         with pytest.raises(PermissionDeniedError):
             perm.has_permission(_make_request(biz_id=None), view=None)
 
-    def test_with_biz_id(self, fake_framework):
-        fw, provider = fake_framework
+    def test_with_biz_id(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = MCPPermission()
@@ -311,8 +311,8 @@ class TestMCPPermission:
 
 
 class TestInstanceActionPermission:
-    def test_url_kwarg_resource(self, fake_framework):
-        fw, provider = fake_framework
+    def test_url_kwarg_resource(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = InstanceActionPermission([ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION)
@@ -320,15 +320,15 @@ class TestInstanceActionPermission:
         assert scripted.calls[0].resource.type == "apm_application"
         assert scripted.calls[0].resource.id == "app-1"
 
-    def test_missing_kwarg_asserts(self, fake_framework):
+    def test_missing_kwarg_asserts(self, fake_permission):
         perm = InstanceActionPermission([ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION)
         with pytest.raises(AssertionError):
             perm.has_permission(_make_request(), view=_make_view())
 
 
 class TestInstanceActionForDataPermission:
-    def test_get_query_params(self, fake_framework):
-        fw, provider = fake_framework
+    def test_get_query_params(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = InstanceActionForDataPermission(
@@ -339,8 +339,8 @@ class TestInstanceActionForDataPermission:
         assert perm.has_permission(request, view=_make_view()) is True
         assert scripted.calls[0].resource.id == "app-9"
 
-    def test_post_body(self, fake_framework):
-        fw, provider = fake_framework
+    def test_post_body(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = InstanceActionForDataPermission(
@@ -350,8 +350,8 @@ class TestInstanceActionForDataPermission:
         request.method = "POST"
         assert perm.has_permission(request, view=_make_view()) is True
 
-    def test_kwargs_fallback(self, fake_framework):
-        fw, provider = fake_framework
+    def test_kwargs_fallback(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = InstanceActionForDataPermission(
@@ -361,8 +361,8 @@ class TestInstanceActionForDataPermission:
         request.method = "POST"
         assert perm.has_permission(request, view=_make_view(pk="app-9")) is True
 
-    def test_get_instance_id_transform(self, fake_framework):
-        fw, provider = fake_framework
+    def test_get_instance_id_transform(self, fake_permission):
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         perm = InstanceActionForDataPermission(
@@ -376,7 +376,7 @@ class TestInstanceActionForDataPermission:
         assert perm.has_permission(request, view=_make_view()) is True
         assert scripted.calls[0].resource.id == "transformed-app-9"
 
-    def test_missing_instance_id_raises(self, fake_framework):
+    def test_missing_instance_id_raises(self, fake_permission):
         perm = InstanceActionForDataPermission(
             "application_id", [ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION
         )
@@ -414,9 +414,9 @@ class TestInsertPermissionField:
 
         return insert_permission_field(actions=actions, resource_meta=resource_meta, **kwargs)(view_func)
 
-    def test_injects_business_id_keys(self, fake_framework):
+    def test_injects_business_id_keys(self, fake_permission):
         """权限键为业务 ID（旧版为 V3 平台 ID，如 view_event_v2）——已知差异记录。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         actions = [ActionEnum.VIEW_EVENT]
         wrapped = self._decorated_view(
             fw, provider, [("2", True), ("3", False)], actions, ResourceEnum.BUSINESS, id_field=lambda d: d["id"]
@@ -429,9 +429,9 @@ class TestInsertPermissionField:
         # 无 id 的行不注入
         assert "permission" not in data[2]
 
-    def test_opt_in_injects_registered_legacy_keys_without_extra_iam_queries(self, fake_framework):
+    def test_opt_in_injects_registered_legacy_keys_without_extra_iam_queries(self, fake_permission):
         """APM 兼容响应复制同一次鉴权结果，同时提供业务键和 V3 历史键。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.batch_result = _batch_result_for([("2", True)], action_id="view_apm_application")
         provider.batch_by_resource = MagicMock(return_value=provider.batch_result)
 
@@ -454,8 +454,8 @@ class TestInsertPermissionField:
         }
         assert provider.batch_by_resource.call_count == 1
 
-    def test_legacy_keys_follow_always_allowed_override(self, fake_framework):
-        fw, provider = fake_framework
+    def test_legacy_keys_follow_always_allowed_override(self, fake_permission):
+        fw, provider = fake_permission
         provider.batch_result = _batch_result_for([("2", False)], action_id="manage_apm_application")
 
         def view_func(request):
@@ -478,8 +478,8 @@ class TestInsertPermissionField:
             "manage_apm_application_v2": True,
         }
 
-    def test_always_allowed(self, fake_framework):
-        fw, provider = fake_framework
+    def test_always_allowed(self, fake_permission):
+        fw, provider = fake_permission
         actions = [ActionEnum.VIEW_EVENT]
         wrapped = self._decorated_view(
             fw,
@@ -495,8 +495,8 @@ class TestInsertPermissionField:
         assert data[0]["permission"]["view_event"] is False
         assert data[1]["permission"]["view_event"] is True  # always_allowed 豁免
 
-    def test_many_false(self, fake_framework):
-        fw, provider = fake_framework
+    def test_many_false(self, fake_permission):
+        fw, provider = fake_permission
         provider.batch_result = _batch_result_for([("2", True)])
         actions = [ActionEnum.VIEW_EVENT]
 
@@ -509,8 +509,8 @@ class TestInsertPermissionField:
         response = wrapped(_make_request())
         assert response.data["permission"]["view_event"] is True
 
-    def test_data_field(self, fake_framework):
-        fw, provider = fake_framework
+    def test_data_field(self, fake_permission):
+        fw, provider = fake_permission
         provider.batch_result = _batch_result_for([("2", True)])
         actions = [ActionEnum.VIEW_EVENT]
 
@@ -527,8 +527,8 @@ class TestInsertPermissionField:
         response = wrapped(_make_request())
         assert response.data["list"][0]["permission"]["view_event"] is True
 
-    def test_sorts_allowed_records_first_with_framework_action(self, fake_framework):
-        fw, provider = fake_framework
+    def test_sorts_allowed_records_first_with_framework_action(self, fake_permission):
+        fw, provider = fake_permission
         wrapped = self._decorated_view(
             fw,
             provider,
@@ -589,13 +589,13 @@ class TestFilterDataByPermission:
             {"id": None, "name": "no-id"},
         ]
 
-    def _setup(self, fake_framework, pairs):
-        fw, provider = fake_framework
+    def _setup(self, fake_permission, pairs):
+        fw, provider = fake_permission
         provider.batch_result = _batch_result_for(pairs)
         return fw, provider
 
-    def test_mode_any(self, fake_framework):
-        fw, provider = self._setup(fake_framework, [("2", True), ("3", False), ("5", True)])
+    def test_mode_any(self, fake_permission):
+        fw, provider = self._setup(fake_permission, [("2", True), ("3", False), ("5", True)])
         result = filter_data_by_permission(
             bk_tenant_id="system",
             data=self._items(),
@@ -606,9 +606,9 @@ class TestFilterDataByPermission:
         )
         assert [item["id"] for item in result] == ["2", "5"]
 
-    def test_mode_all(self, fake_framework):
+    def test_mode_all(self, fake_permission):
         """全部 action 通过才保留（框架按 action×resource 返回全部组合）。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.batch_result = BatchAuthResult(
             items=(
                 ResourceAuthResult(action_id="view_event", resource_type="space", resource_id="2", allowed=True),
@@ -630,8 +630,8 @@ class TestFilterDataByPermission:
         # 只有 2 在 view_event 和 manage_event 上都通过
         assert [item["id"] for item in result] == ["2"]
 
-    def test_mode_insert(self, fake_framework):
-        fw, provider = self._setup(fake_framework, [("2", True), ("3", False), ("5", True)])
+    def test_mode_insert(self, fake_permission):
+        fw, provider = self._setup(fake_permission, [("2", True), ("3", False), ("5", True)])
         result = filter_data_by_permission(
             bk_tenant_id="system",
             data=self._items(),
@@ -644,8 +644,8 @@ class TestFilterDataByPermission:
         assert result[0]["permission"]["view_event"] is True
         assert result[1]["permission"]["view_event"] is False
 
-    def test_always_allowed(self, fake_framework):
-        fw, provider = self._setup(fake_framework, [("2", False), ("3", False), ("5", False)])
+    def test_always_allowed(self, fake_permission):
+        fw, provider = self._setup(fake_permission, [("2", False), ("3", False), ("5", False)])
         result = filter_data_by_permission(
             bk_tenant_id="system",
             data=self._items(),
@@ -657,8 +657,8 @@ class TestFilterDataByPermission:
         )
         assert [item["id"] for item in result] == ["5"]
 
-    def test_dict_input(self, fake_framework):
-        fw, provider = self._setup(fake_framework, [("2", True)])
+    def test_dict_input(self, fake_permission):
+        fw, provider = self._setup(fake_permission, [("2", True)])
         result = filter_data_by_permission(
             bk_tenant_id="system",
             data={"id": "2", "name": "a"},
@@ -668,8 +668,8 @@ class TestFilterDataByPermission:
         )
         assert len(result) == 1
 
-    def test_empty_data(self, fake_framework):
-        fw, provider = self._setup(fake_framework, [])
+    def test_empty_data(self, fake_permission):
+        fw, provider = self._setup(fake_permission, [])
         result = filter_data_by_permission(
             bk_tenant_id="system",
             data=[],
@@ -679,8 +679,8 @@ class TestFilterDataByPermission:
         )
         assert result == []
 
-    def test_username_passthrough(self, fake_framework):
-        fw, provider = fake_framework
+    def test_username_passthrough(self, fake_permission):
+        fw, provider = fake_permission
 
         captured = {}
 
@@ -710,17 +710,17 @@ class TestFilterDataByPermission:
 class TestDrfPreflight:
     """request.skip_check / settings 级 / token 临时分享豁免在 DRF 路径生效（与旧版一致）。"""
 
-    def test_request_skip_check_granted(self, fake_framework):
+    def test_request_skip_check_granted(self, fake_permission):
         """回归点修复验证：BusinessActionPermission 读取 request.skip_check=True 直接放行，不调框架。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.is_allowed_result = False  # 若框架被调用将返回 False
         request = _make_request(biz_id=2, skip_check=True)
         perm = BusinessActionPermission([ActionEnum.VIEW_BUSINESS])
         assert perm.has_permission(request, view=None) is True
 
-    def test_request_skip_check_false_goes_to_framework(self, fake_framework):
+    def test_request_skip_check_false_goes_to_framework(self, fake_permission):
         """request.skip_check=False 显式强制校验时覆盖 settings 级，仍走真实鉴权。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         request = _make_request(biz_id=2, skip_check=False)
@@ -729,11 +729,11 @@ class TestDrfPreflight:
             assert perm.has_permission(request, view=None) is True
         assert len(scripted.calls) == 1
 
-    def test_settings_skip_check_granted(self, fake_framework):
+    def test_settings_skip_check_granted(self, fake_permission):
         """settings.SKIP_IAM_PERMISSION_CHECK=True 且 request 无 skip_check 属性时 DRF 路径放行。"""
         from types import SimpleNamespace
 
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.is_allowed_result = False
         # SimpleNamespace：真实缺失 skip_check 属性（MagicMock 会自动创建属性，无法模拟“无属性”）
         request = SimpleNamespace(
@@ -746,7 +746,7 @@ class TestDrfPreflight:
             perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
             assert perm.has_permission(request, view=None) is True
 
-    def test_token_no_record_denied(self, fake_framework):
+    def test_token_no_record_denied(self, fake_permission):
         """token 存在但记录不存在：不豁免 → 走真实鉴权 → 拒绝。
 
         旧版此处存在生成器表达式恒真 bug（任何带 token 的请求直接放行），
@@ -755,7 +755,7 @@ class TestDrfPreflight:
         """
         from bkmonitor.models import ApiAuthToken
 
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.is_allowed_result = False
         request = _make_request(biz_id=2)
         request.token = "tok"
@@ -767,10 +767,10 @@ class TestDrfPreflight:
         # 前置豁免未放行，框架被真实调用（is_allowed 返回 False → 拒绝）
         assert len(provider.is_allowed_calls) == 1
 
-    def test_token_action_id_map_hit(self, fake_framework):
+    def test_token_action_id_map_hit(self, fake_permission):
         """token 记录存在且 ActionIdMap 命中 → 放行（不调框架）。"""
 
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.is_allowed_result = False
         record = MagicMock()
         record.type = "host"  # ActionIdMap["host"] = [ActionEnum.VIEW_HOST]
@@ -781,9 +781,9 @@ class TestDrfPreflight:
             perm = BusinessActionPermission([ActionEnum.VIEW_HOST])
             assert perm.has_permission(request, view=None) is True
 
-    def test_insert_permission_field_skip_check_all_true(self, fake_framework):
+    def test_insert_permission_field_skip_check_all_true(self, fake_permission):
         """insert_permission_field：request.skip_check=True 时全部权限为 True（旧 batch 语义），不调框架。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.batch_result = BatchAuthResult(items=())  # 若走框架将无任何权限
         actions = [ActionEnum.VIEW_EVENT]
 
@@ -798,12 +798,12 @@ class TestDrfPreflight:
         assert response.data[0]["permission"] == {"view_event": True}
         assert response.data[1]["permission"] == {"view_event": True}
 
-    def test_insert_permission_field_token_no_record_raises(self, fake_framework):
+    def test_insert_permission_field_token_no_record_raises(self, fake_permission):
         """insert_permission_field：带 token 且记录不存在 → TokenValidatedError（与旧 batch_is_allowed 一致）。"""
         from bkmonitor.models import ApiAuthToken
         from core.errors.share import TokenValidatedError
 
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         actions = [ActionEnum.VIEW_EVENT]
 
         def view_func(request):
@@ -818,9 +818,9 @@ class TestDrfPreflight:
             with pytest.raises(TokenValidatedError):
                 wrapped(request)
 
-    def test_filter_data_by_permission_request_skip_check_keeps_all(self, fake_framework):
+    def test_filter_data_by_permission_request_skip_check_keeps_all(self, fake_permission):
         """filter_data_by_permission：未显式传 username 时读当前请求的 skip_check（旧 Permission() 语义）。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.batch_result = BatchAuthResult(items=())  # 若走框架将过滤掉全部
         request = _make_request(skip_check=True)
         with patch("bkmonitor.iam.drf.get_request", return_value=request):
@@ -833,9 +833,9 @@ class TestDrfPreflight:
             )
         assert [item["id"] for item in result] == ["2", "3"]
 
-    def test_filter_data_by_permission_explicit_username_ignores_request(self, fake_framework):
+    def test_filter_data_by_permission_explicit_username_ignores_request(self, fake_permission):
         """显式传 username 时不读 request（旧 Permission(username=...) 语义），仅 settings 级豁免生效。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
 
         captured = {}
 

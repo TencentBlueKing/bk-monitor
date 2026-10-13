@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 # Permission — IAM 鉴权适配层（Facade）
 #
 # 改造说明:
-#   鉴权核心已委托给 IAMFramework（is_allowed / batch_is_allowed / get_apply_url /
+#   鉴权核心已委托给 公共 ModeRouter（is_allowed / batch_is_allowed / get_apply_url /
 #   filter_space_list_by_action）。
 #   Permission 保留：Django 身份解析、token 分享检查、skip_check 绕过、
 #   SaaS 空间全家桶。
@@ -38,19 +38,32 @@ from bkmonitor.iam import ResourceEnum
 from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, canonicalize_action_id, get_action_by_id
 from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
-from bkmonitor.iam.iam_engine.core.exceptions import CreatorGrantFailed, PermissionDenied, ProviderError
-from bkmonitor.iam.iam_engine.provider.permission_writer import PermissionWriteResult
-from bkmonitor.iam.iam_v3.client import V3Client
-from bkmonitor.iam.iam_engine.core.types import (
+from iam_engine.exceptions import CreatorGrantFailed, PermissionDenied, ProviderError
+from bkmonitor.iam.backends.grant import PermissionWriteResult
+from bkmonitor.iam.backends.v3.client import V3Client
+from iam_engine.provider.requests import (
     ApplyURLRequest,
     AuthRequest,
     BatchByResourceRequest,
+    BatchAuthResult,
+    ResourceAuthResult,
+    VisibleResult,
     ResourceInstance as FwResource,
     Subject as FwSubject,
     SubjectType,
     to_action_id,
 )
-from bkmonitor.iam.iam_engine.django.facade import get_framework
+from bkmonitor.iam.backends.config import build_providers, get_schema
+from bkmonitor.iam.backends.auth import MonitorAuthAdapter, _result, _subject
+from bkmonitor.iam.backends.grant import grant_creator_actions
+from iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK
+from iam_engine.core.exceptions import InvalidAuthModeError
+from iam_engine.core.requests import AuthRequest as SharedRequest, BatchAuthRequest
+from iam_engine.core.types import AuthResult, AuthorizedResourceScope
+from iam_engine.provider.bundle import ProviderBundle
+from iam_engine.provider.router import ModeRouter
+from iam_engine.provider.composition.union import UnionDecisionPolicy, UnionScopePolicy
+from bkmonitor.iam.adapters.mode import get_mode_provider
 from bkmonitor.models import ApiAuthToken
 from bkmonitor.utils.request import get_request
 from constants.common import DEFAULT_TENANT_ID
@@ -101,7 +114,7 @@ def _skip_check_enabled(request) -> bool:
 
 
 def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
-    """直连框架的调用方（DRF 权限类等）使用的前置豁免判定。
+    """Permission 调用方（DRF 权限类等）使用的前置豁免判定。
 
     复刻旧版 Permission.is_allowed 的豁免顺序，命中任一即放行（返回 True），
     否则返回 False 进入真实鉴权：
@@ -141,7 +154,7 @@ def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
 
 
 def check_iam_batch_preflight(request, actions) -> dict | None:
-    """直连框架的批量调用方（insert_permission_field / filter_data_by_permission）使用的前置豁免。
+    """Permission 批量调用方（insert_permission_field / filter_data_by_permission）使用的前置豁免。
 
     复刻旧版 Permission.batch_is_allowed 的豁免语义：
       * request 带 token 且 ApiAuthToken 记录不存在 → 抛 TokenValidatedError（与旧版一致）；
@@ -173,7 +186,7 @@ def check_iam_batch_preflight(request, actions) -> dict | None:
 
 class Permission:
     """
-    权限中心鉴权封装 — IAMFramework 适配层。
+    权限中心鉴权封装 — 公共 ModeRouter 适配层。
     """
 
     def __init__(self, username: str = "", bk_tenant_id: str = "", request=None):
@@ -199,13 +212,236 @@ class Permission:
 
         self.request = request
 
-        # 新框架引用
-        self._fw = get_framework()
+        self._providers = None
+        self._mode_router = None
+        self.mode_provider = get_mode_provider()
 
         self.skip_check = getattr(settings, "SKIP_IAM_PERMISSION_CHECK", False)
         if request and hasattr(request, "skip_check"):
             logger.info(f"Permission: request.skip_check: {request.skip_check}")
             self.skip_check = request.skip_check
+
+    @property
+    def schema(self):
+        return getattr(self, "_schema", None) or get_schema()
+
+    @property
+    def providers(self):
+        if self._providers is None:
+            self._providers = build_providers(self.bk_tenant_id)
+        return self._providers
+
+    def get_provider(self, name):
+        from iam_engine.exceptions import ProviderNotFound
+
+        try:
+            return self.providers[name]
+        except KeyError:
+            raise ProviderNotFound(f"Provider {name!r} is not configured") from None
+
+    @property
+    def provider_bundles(self):
+        return {
+            AuthMode(name): ProviderBundle(auth=MonitorAuthAdapter(provider))
+            for name, provider in self.providers.items()
+        }
+
+    @property
+    def mode_router(self):
+        if self._mode_router is None:
+            self._mode_router = ModeRouter(
+                self.mode_provider, self.provider_bundles, pair_executor=lambda left, right: (left(), right())
+            )
+        return self._mode_router
+
+    def _selected(self, resources=(), *, application=False):
+        mode = self.mode_provider.get_mode(resources)
+        modes = DEFAULT_DUAL_STACK.application_candidates(mode) if application else DEFAULT_DUAL_STACK.modes_for(mode)
+        return [
+            self.get_provider(item.value)
+            for item in modes
+            if any(p.name == item.value for p in self.providers.values())
+        ]
+
+    def _is_allowed_request(self, request):
+        from iam_engine.exceptions import ProviderUnavailable
+
+        decision = self._decide_request(request)
+        if decision.degraded and not decision.allowed:
+            raise ProviderUnavailable("IAM did not return an explicit authorization decision")
+        return decision.allowed
+
+    def _decide_request(self, request):
+        if self.skip_check:
+            return UnionDecisionPolicy.decide((AuthResult.allow("bypass"),))
+        return self.mode_router.is_allowed(
+            SharedRequest(
+                subject=_subject(request.subject),
+                action_id=request.action_id,
+                resources=(request.resource,) if request.resource is not None else (),
+                environment=request.environment,
+            )
+        )
+
+    def _batch_by_resource(self, request):
+        if not request.resources:
+            return BatchAuthResult()
+        result = self.mode_router.batch_is_allowed(
+            BatchAuthRequest(
+                subject=_subject(request.subject),
+                action_ids=(request.action_id,),
+                resource_groups=tuple((resource,) for resource in request.resources),
+                environment=request.environment,
+            )
+        )
+        resource_types = {str(r.id): r.type for r in request.resources}
+        return BatchAuthResult(
+            tuple(
+                ResourceAuthResult(
+                    item.action_id,
+                    resource_types[item.resource_id],
+                    item.resource_id,
+                    item.decision.allowed,
+                )
+                for item in result.items
+            )
+        )
+
+    def _batch_by_action(self, request):
+        # Resource-free actions cannot be represented by BatchAuthRequest's nonempty groups.
+        # Snapshot the mode once, including invalid-mode rejection, for the entire batch.
+        try:
+            mode = self.mode_provider.get_mode((request.resource,) if request.resource else ())
+        except InvalidAuthModeError:
+            return BatchAuthResult(
+                tuple(
+                    ResourceAuthResult(
+                        to_action_id(a),
+                        request.resource.type if request.resource else "",
+                        str(request.resource.id) if request.resource else "",
+                        False,
+                    )
+                    for a in request.action_ids
+                )
+            )
+
+        class Snapshot:
+            def get_mode(self, resources=()):
+                return mode
+
+        router = ModeRouter(Snapshot(), self.mode_router.bundles, pair_executor=self.mode_router.pair_executor)
+        return BatchAuthResult(
+            tuple(
+                ResourceAuthResult(
+                    to_action_id(action),
+                    request.resource.type if request.resource else "",
+                    str(request.resource.id) if request.resource else "",
+                    router.is_allowed(
+                        SharedRequest(
+                            subject=_subject(request.subject),
+                            action_id=action,
+                            resources=(request.resource,) if request.resource else (),
+                            environment=request.environment,
+                        )
+                    ).allowed,
+                )
+                for action in request.action_ids
+            )
+        )
+
+    def _apply_url_request(self, request):
+        for provider in self._selected(request.resources, application=True):
+            try:
+                url = provider.get_apply_url(request)
+                if url:
+                    return url
+            except Exception:
+                continue
+        return ""
+
+    def _apply_data_request(self, action_ids, resources, subject):
+        for provider in self._selected(tuple(resources), application=True):
+            try:
+                data = provider.get_apply_data(action_ids, resources, subject)
+                if data:
+                    return data
+            except Exception:
+                continue
+        return None
+
+    def has_any_permission(self, subject, action_id):
+        try:
+            providers = self._selected()
+        except InvalidAuthModeError:
+            return False
+        return UnionDecisionPolicy.decide(
+            tuple(_result(p, lambda p=p: p.has_any_permission(subject, action_id)) for p in providers)
+        ).allowed
+
+    def filter_visible_resources(self, subject, action_id, candidates):
+        if not candidates:
+            return VisibleResult()
+        try:
+            providers = self._selected(candidates)
+        except InvalidAuthModeError:
+            return VisibleResult()
+        if not providers:
+            return VisibleResult()
+        scopes = []
+        resource_type = candidates[0].type
+        for provider in providers:
+            try:
+                result = provider.filter_visible_resources(subject, action_id, candidates)
+                scopes.append(
+                    AuthorizedResourceScope.wildcard(resource_type, provider_name=provider.name)
+                    if result.all_granted
+                    else AuthorizedResourceScope.concrete(
+                        resource_type, set(result.visible_ids), provider_name=provider.name
+                    )
+                )
+            except Exception as error:
+                scopes.append(
+                    AuthorizedResourceScope.error(
+                        resource_type,
+                        provider_name=provider.name,
+                        reason=str(error) or type(error).__name__,
+                        error_type=type(error).__name__,
+                    )
+                )
+        scope = UnionScopePolicy.merge(tuple(scopes))
+        return VisibleResult(scope.is_wildcard, tuple(str(r.id) for r in candidates if str(r.id) in scope.ids))
+
+    def query_policies(self, subject, action_id):
+        return self._query("query_policy", subject, action_id)
+
+    def _query(self, method, subject, action_id):
+        results, errors = [], []
+        for provider in self._selected():
+            try:
+                value = getattr(provider, method)(subject, action_id)
+                if value is not None:
+                    results.append(value)
+            except Exception as error:
+                errors.append(error)
+        if errors and not results:
+            raise errors[0]
+        return results
+
+    def query_policies_by_actions(self, subject, action_ids):
+        results = {to_action_id(action): [] for action in action_ids}
+        errors, succeeded = [], False
+        for provider in self._selected():
+            try:
+                values = provider.query_policy_by_actions(subject, action_ids)
+                succeeded = True
+                for action_id, expression in values.items():
+                    if expression is not None and action_id in results:
+                        results[action_id].append(expression)
+            except Exception as error:
+                errors.append(error)
+        if errors and not succeeded:
+            raise errors[0]
+        return results
 
     # ================================================================
     # V3 平台 SDK 客户端（仅 v3 平台集成点使用，非 provider 中立鉴权入口）
@@ -246,10 +482,10 @@ class Permission:
 
     def is_allowed(self, action, resources: list = None, raise_exception: bool = False):
         """
-        校验用户是否有动作的权限（委托 IAMFramework）。
+        校验用户是否有动作的权限（委托 公共 ModeRouter）。
 
         资源列表处理规则：
-          * 空 / 单资源 → 走 ``_is_allowed_fw`` 单点鉴权。
+          * 空 / 单资源 → 走 ``_is_allowed_single`` 单点鉴权。
           * 多资源同类型 → 走框架 ``batch_by_resource``，**全部允许才判 True**，
             任一资源被拒即 False；``raise_exception=True`` 时按首个被拒资源构造
             PermissionDeniedError。这条修复了旧版"只取 ``resources[0]`` 静默漏检
@@ -270,14 +506,14 @@ class Permission:
             if resources:
                 r = resources[0]
                 fw_resource = FwResource(type=r.type, id=r.id)
-            return self._is_allowed_fw(action, fw_resource, raise_exception)
+            return self._is_allowed_single(action, fw_resource, raise_exception)
 
         # 多资源同类型 → batch_by_resource
         resource_types = {r.type for r in resources}
         if len(resource_types) > 1:
             raise ValueError(
                 f"Permission.is_allowed 不支持混合资源类型（收到 {sorted(resource_types)}）；"
-                "请按类型拆分调用，或直接使用 IAMFramework 批量接口显式表达意图。"
+                "请按类型拆分调用，或直接使用 公共 ModeRouter 批量接口显式表达意图。"
             )
 
         return self._is_allowed_batch(action, resources, raise_exception)
@@ -289,7 +525,7 @@ class Permission:
         fw_resources = tuple(FwResource(type=resource_type, id=r.id) for r in resources)
 
         try:
-            batch_result = self._fw.batch_by_resource(
+            batch_result = self._batch_by_resource(
                 BatchByResourceRequest(
                     subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
                     action_id=action_id_biz,
@@ -321,12 +557,12 @@ class Permission:
             raise self._build_permission_denied(action_id_biz, denied_resource)
         return False
 
-    def _is_allowed_fw(self, action, fw_resource: FwResource | None, raise_exception: bool):
+    def _is_allowed_single(self, action, fw_resource: FwResource | None, raise_exception: bool):
         """内部：直接接受 FwResource 的鉴权方法。"""
         action_id_biz = _to_business_action_id(action)
 
         try:
-            result = self._fw.is_allowed(
+            result = self._is_allowed_request(
                 AuthRequest(
                     subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
                     action_id=action_id_biz,
@@ -382,17 +618,17 @@ class Permission:
 
     def is_allowed_by_biz(self, bk_biz_id: int, action, raise_exception: bool = False):
         """
-        判断用户对当前动作在该业务下是否有权限（委托 IAMFramework）。
+        判断用户对当前动作在该业务下是否有权限（委托 公共 ModeRouter）。
         """
         if self.skip_check:
             return True
 
         fw_resource = FwResource(type=ResourceTypes.SPACE.id, id=str(bk_biz_id))
-        return self._is_allowed_fw(action, fw_resource, raise_exception)
+        return self._is_allowed_single(action, fw_resource, raise_exception)
 
     def batch_is_allowed(self, actions: list, resources: list[list]):
         """
-        查询某批资源某批操作是否有权限（委托 IAMFramework）。
+        查询某批资源某批操作是否有权限（委托 公共 ModeRouter）。
         """
         result = defaultdict(dict)
         # token 临时分享权限豁免
@@ -433,7 +669,7 @@ class Permission:
         for action_id_biz in action_ids_biz:
             for fw_resources in grouped.values():
                 try:
-                    batch_result = self._fw.batch_by_resource(
+                    batch_result = self._batch_by_resource(
                         BatchByResourceRequest(subject=subject, action_id=action_id_biz, resources=tuple(fw_resources))
                     )
                 except ProviderError as e:
@@ -458,7 +694,7 @@ class Permission:
         action_ids_biz = [_to_business_action_id(action_id) for action_id in action_ids]
         fw_resources = tuple(FwResource(type=r.type, id=r.id) for r in (resources or []))
         try:
-            return self._fw.get_apply_url(
+            return self._apply_url_request(
                 ApplyURLRequest(
                     subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
                     action_ids=tuple(action_ids_biz),
@@ -476,7 +712,7 @@ class Permission:
         fw_resources = [FwResource(type=r.type, id=r.id) for r in resources]
 
         try:
-            apply_data = self._fw.get_apply_data(
+            apply_data = self._apply_data_request(
                 action_ids_biz,
                 fw_resources,
                 FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
@@ -494,17 +730,18 @@ class Permission:
         self, resource, creator: str = None, raise_exception: bool = False
     ) -> PermissionWriteResult | None:
         """
-        新建实例关联权限授权（委托 IAMFramework），返回逐写后端结果。
+        新建实例关联权限授权（委托公共双写编排），返回逐写后端结果。
 
-        默认 ``on_failure=log`` 是尽力而为：一侧失败不会阻断业务创建，但会有
-        PermissionWriter 的异常栈日志和本方法的结果摘要日志；绝不再把部分失败
+        默认写入是尽力而为：一侧失败不会阻断业务创建，但会有
+        公共双写编排的异常日志和本方法的结果摘要日志；绝不再把部分失败
         记录为 ``Success``。调用方显式传 ``raise_exception=True`` 时，无论是
         底层直接抛异常，或后端返回不能重试的失败，都统一抛 ``CreatorGrantFailed``。
         已登记提交后重试的 V4 失败不抛出，否则会回滚业务并取消自己的重试回调。
         重试仅为尽力投递，不表示授权已完成，不提供持久化补偿保障。
         """
         try:
-            grant_result = self._fw.grant_creator_action(
+            grant_result = grant_creator_actions(
+                tuple(self.providers.values()),
                 resource_type=resource.type,
                 resource_id=resource.id,
                 creator=creator or self.username,
@@ -573,7 +810,7 @@ class Permission:
         candidates = tuple(FwResource(type="space", id=str(s["bk_biz_id"])) for s in space_list)
 
         try:
-            result = self._fw.filter_visible_resources(subject, action_id_biz, candidates)
+            result = self.filter_visible_resources(subject, action_id_biz, candidates)
         except ProviderError as e:
             logger.exception("[IAM Policy Query Error]: %s", e)
             return [], False
@@ -603,7 +840,7 @@ class Permission:
         """返回平台注册的动作列表，字段兼容旧版 IAM V3 ``model.actions`` 返回结构。
 
         原实现调 V3 平台 ``model/systems/{sys}/query``；重构后不再依赖具体
-        Provider，直接从注入的 ``IAMFramework.schema``（SchemaRegistry）读取，
+        Provider，直接从注入的 ``Permission.schema``（SchemaRegistry）读取，
         即使 Provider 平台不可用也能返回稳定结果。
 
         每一项包含字段：
@@ -616,7 +853,7 @@ class Permission:
             related_actions        : 依赖动作列表（读 extensions.v3.related_actions）
             description            : action 描述
         """
-        schema = self._fw.schema
+        schema = self.schema
         actions_data: list[dict] = []
         for action_def in schema.all_actions():
             v3_ext = (action_def.extensions or {}).get("v3", {}) or {}

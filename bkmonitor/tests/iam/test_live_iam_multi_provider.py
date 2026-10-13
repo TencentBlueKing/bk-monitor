@@ -91,9 +91,7 @@ V3_PARTIAL_HOST_SPACES = {"3", "4"}
 def live_framework():
     if not _live_enabled():
         pytest.skip("live 测试未启用（缺少 BK_IAM_LIVE=1），跳过")
-    from bkmonitor.iam.iam_engine.django.conf import load_framework
-
-    return load_framework()
+    return Permission(username=_iam_user() or "offline", bk_tenant_id="system")
 
 
 @pytest.fixture
@@ -108,31 +106,14 @@ def iam_user() -> str:
 def require_multi_provider_union(live_framework):
     if not {"v4", "v3"}.issubset(live_framework.providers):
         pytest.skip("live 多 Provider 测试要求同时装配 v4 与 v3")
-    read_policy = live_framework.router.read_policy
-    current_policy = read_policy
-    if (
-        current_policy.__class__.__name__ != "SharedMigrationPolicy"
-        or current_policy.mode_provider.get_mode().value != "union"
-    ):
-        pytest.skip(f"live 多 Provider 测试要求当前读策略为 union，实际 {current_policy.__class__.__name__}")
+    if live_framework.mode_provider.get_mode().value != "union":
+        pytest.skip("live 多 Provider 测试要求 union 模式")
 
 
 @pytest.fixture
 def live_permission(live_framework, iam_user, require_multi_provider_union):
     """安装真实 framework，返回 Permission 实例。"""
-    from bkmonitor.iam.iam_engine.django.facade import _set_framework, get_framework
-
-    saved = None
-    try:
-        saved = get_framework()
-    except RuntimeError:
-        saved = None
-    _set_framework(live_framework)
-    perm = Permission(username=iam_user, bk_tenant_id="system")
-    try:
-        yield perm
-    finally:
-        _set_framework(saved)
+    return Permission(username=iam_user, bk_tenant_id="system")
 
 
 def _v4_provider(live_framework):
@@ -156,7 +137,7 @@ def _v4_direct_is_allowed(v4, iam_user: str, action_id: str, resource_type: str,
     注意：V4 provider._is_allowed_dialect 对任何异常都吞成 False（含 v4 平台
     尚未同步该 action 的场景），所以返回值 True 才能证明"V4 侧真的有授权"。
     """
-    from bkmonitor.iam.iam_engine.core.types import AuthRequest, ResourceInstance, Subject
+    from iam_engine.provider.requests import AuthRequest, ResourceInstance, Subject
 
     req = AuthRequest(
         subject=Subject(id=iam_user, tenant_id="system"),
@@ -182,7 +163,7 @@ class TestLiveMultiProviderNaturalV4Empty:
     """
 
     # --------------------------------------------------------------------
-    # 评论 2 · PermissionWriter 多 Provider 双写语义（用 mock 验证，不污染真实平台）
+    # 评论 2 · 创建者双写编排 多 Provider 双写语义（用 mock 验证，不污染真实平台）
     #
     # 之前用真实 grant_creator_action 会走 V4 space_operator 角色写入路径，把
     # xuchaoshan 授予该角色（含 view_incident / view_host 等），后续 test_05
@@ -192,30 +173,6 @@ class TestLiveMultiProviderNaturalV4Empty:
     # "live 环境下路由已装配独立写入器、写授权行为契约还在"
     # 的最小回归 —— 不真的调远端。
     # --------------------------------------------------------------------
-    def test_00_permission_writer_double_writes(self, live_framework, iam_user, capsys):
-        from unittest.mock import MagicMock
-        from bkmonitor.iam.iam_engine.provider.permission_writer import PermissionWriter
-
-        writer_cls = type(live_framework.router.permission_writer)
-        with capsys.disabled():
-            print(f"\n[live·natural] creator grant writer = {writer_cls.__name__}")
-        assert writer_cls.__name__ == "PermissionWriter"
-
-        # 构造两个 mock Provider 走一次真实 PermissionWriter：
-        # 一侧成功、一侧异常 → 返回部分失败结果且不会跳过成功侧（评论 2）。
-        good = MagicMock()
-        good.name = "v3_mock"
-        bad = MagicMock()
-        bad.name = "v4_mock"
-        bad.grant_creator_action.side_effect = RuntimeError("simulate v4 unavailable")
-
-        result = PermissionWriter([bad, good]).grant_creator_action("space", TARGET_SPACE_ID, iam_user)
-
-        # 两侧都被调用一次，且结果可观测。
-        bad.grant_creator_action.assert_called_once()
-        good.grant_creator_action.assert_called_once()
-        assert result.is_partial_failure is True
-
     # --------------------------------------------------------------------
     # 直连 V4 provider 断言：V4 侧对 view_business_v2 空间应为 False
     #   —— 前置事实断言，避免"未清理干净"造成后续断言失真
@@ -248,7 +205,7 @@ class TestLiveMultiProviderNaturalV4Empty:
     # 评论 3 · filter_visible_resources：V4 空 + V3 view_business_v2(all)
     # → filter 应返回 tenant_wide=True 或至少非空可见列表
     # 这是评论 3 修复的关键回归：旧实现下 V4 空返回会污染合并结果，
-    # 新实现 SharedMigrationPolicy 会跳过 V4 空侧、合并 V3 侧的 all_granted。
+    # 新实现 公共 Union 策略 会跳过 V4 空侧、合并 V3 侧的 all_granted。
     # --------------------------------------------------------------------
     def test_03_filter_visible_backed_by_v3_all(self, live_permission, capsys):
         spaces, tenant_wide = live_permission.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
@@ -260,13 +217,13 @@ class TestLiveMultiProviderNaturalV4Empty:
             )
         assert tenant_wide is True or visible, (
             "V3 view_business_v2=all 应让 filter 返回 tenant_wide=True 或非空可见列表；"
-            "若为 (False, empty)，说明 SharedMigrationPolicy 的 all_granted OR 合并未生效。"
+            "若为 (False, empty)，说明 公共 Union 策略 的 all_granted OR 合并未生效。"
         )
 
     # --------------------------------------------------------------------
     # 评论 3 · filter_visible 合并 partial：view_host_v2 在 V3 是 partial(3,4)
     # → filter 应返回 space=3 或 4 至少之一
-    # 这一步进一步证明"SharedMigrationPolicy 合并的是真的 V3 visible_ids"，而不是
+    # 这一步进一步证明"公共 Union 策略 合并的是真的 V3 visible_ids"，而不是
     # 简单退化为"全放行 or 全拒绝"。
     # --------------------------------------------------------------------
     def test_04_filter_visible_merges_v3_partial(self, live_permission, capsys):
@@ -387,7 +344,7 @@ class TestLiveMultiProviderPreV4Granted:
 
     def test_03_filter_visible_view_host_includes_v4_and_v3(self, live_permission, capsys):
         """filter_visible view_host：V4 授权 {space=2}、V3 授权 {space=2,3,4}，
-        SharedMigrationPolicy 并集应包含 {2,3,4}（评论 3 合并逻辑的正向验证）。"""
+        公共 Union 策略 并集应包含 {2,3,4}（评论 3 合并逻辑的正向验证）。"""
         try:
             action = ActionEnum.VIEW_HOST
         except AttributeError:
@@ -437,7 +394,7 @@ class TestLiveMultiProviderPostV4Revoked:
 
     观测 action 仍用 ``view_host``（与 pre 一致）：撤销 space_operator 后 V4 直连
     应对 space/2 返回 False；V3 侧 view_host 在 space/{2,3,4} 都有 partial 授权，
-    SharedMigrationPolicy 合并结果应仍包含 space/2、space/3、space/4。
+    公共 Union 策略 合并结果应仍包含 space/2、space/3、space/4。
     """
 
     def test_00_v4_direct_denies_view_host_after_manual_revoke(self, live_framework, iam_user, capsys):
@@ -460,7 +417,7 @@ class TestLiveMultiProviderPostV4Revoked:
         assert allowed is True, "V4 取消后 V3 view_host 对 space/2 仍有授权；union union 应放行"
 
     def test_02_filter_visible_view_host_still_returns_v3(self, live_permission, capsys):
-        """评论 3 关键回归：V4 侧撤销后，SharedMigrationPolicy.filter_visible_resources 必须
+        """评论 3 关键回归：V4 侧撤销后，公共 Union 策略.filter_visible_resources 必须
         通过 V3 侧的 partial visible_ids={2,3,4} 兜住，而不是因为 V4 空/异常就丢结果。"""
         try:
             action = ActionEnum.VIEW_HOST

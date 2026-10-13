@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 class V4ResourceCallbackView(APIView):
     """项目侧 V4 资源 callback 协议 View。
 
-    子类显式提供 callback_service 和认证方式。本类不读取 IAMFramework、
+    子类显式提供 callback_service 和认证方式。本类不读取 公共 ModeRouter、
     V4PermissionProvider 或 Provider 配置。
     """
 

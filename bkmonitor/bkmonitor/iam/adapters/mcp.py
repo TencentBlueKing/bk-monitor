@@ -4,14 +4,14 @@ No IAM SDK network client is created here. A degraded rejection must not trigger
 the MCP native-permission fallback; an explicit union ALLOW still wins.
 """
 
-from ..iam_engine.core.exceptions import ProviderUnavailable
-from ..iam_engine.core.types import ApplyURLRequest, AuthRequest, ResourceInstance, Subject
+from iam_engine.exceptions import ProviderUnavailable
+from iam_engine.provider.requests import ApplyURLRequest, AuthRequest, ResourceInstance, Subject
 from .v3.codec import MonitorV3Codec
 
 
 class MonitorMCPClient:
-    def __init__(self, framework, tenant_id):
-        self.framework = framework
+    def __init__(self, permission, tenant_id):
+        self.permission = permission
         self.tenant_id = tenant_id
         self.codec = MonitorV3Codec()
 
@@ -30,7 +30,7 @@ class MonitorMCPClient:
     def is_allowed(self, query):
         if len(query.resources) > 1:
             raise ValueError("MCP checks exactly one resource")
-        decision = self.framework.router.decide(
+        decision = self.permission._decide_request(
             AuthRequest(
                 subject=Subject(id=query.subject.id, tenant_id=self.tenant_id),
                 action_id=self.codec.decode_action(query.action.id),
@@ -71,8 +71,8 @@ class MonitorMCPClient:
 
     def get_apply_data(self, application):
         request = self._application_request(application)
-        return self.framework.get_apply_data(list(request.action_ids), list(request.resources), request.subject)
+        return self.permission._apply_data_request(list(request.action_ids), list(request.resources), request.subject)
 
     def get_apply_url(self, application):
-        url = self.framework.get_apply_url(self._application_request(application))
+        url = self.permission._apply_url_request(self._application_request(application))
         return bool(url), "", url

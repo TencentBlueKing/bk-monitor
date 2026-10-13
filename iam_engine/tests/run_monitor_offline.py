@@ -98,16 +98,20 @@ def main():
             settings.RABBITMQ_PASS,
             _,
         ) = get_rabbitmq_settings(settings.APP_CODE, backend=True)
+        # API/Worker use the SaaS identity normally supplied by GlobalConfig.
+        # Keep this harness independent of real DB credentials in every role.
+        settings.SAAS_APP_CODE = "offline-saas"
+        settings.SAAS_SECRET_KEY = "offline-only"
         django.setup()
-        from bkmonitor.iam.iam_engine.django.facade import get_framework
+        from bkmonitor.iam.permission import Permission
 
-        framework = get_framework()
+        permission = Permission(username="offline_user", bk_tenant_id="system")
         print(
             "Offline Monitor startup:",
             settings.ROLE,
-            list(framework.providers),
+            list(permission.providers),
             "actions:",
-            len(framework.schema.all_actions()),
+            len(permission.schema.all_actions()),
         )
         if options.startup_only:
             from celery import current_app

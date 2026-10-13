@@ -4,7 +4,7 @@ import pytest
 from elasticsearch_dsl import Search
 
 from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.iam.iam_engine.core.types import VisibleResult
+from iam_engine.provider.requests import VisibleResult
 from fta_web.alert.handlers import base as base_handler_module
 from fta_web.alert.handlers.action import ActionQueryHandler
 from fta_web.alert.handlers.alert import AlertQueryHandler
@@ -306,7 +306,7 @@ def test_filter_space_list_by_action_reports_trusted_scope(
     permission.bk_tenant_id = TENANT_ID
     permission.username = "admin"
     permission.skip_check = False
-    permission._fw = SimpleNamespace(filter_visible_resources=lambda subject, action_id, candidates: visible_result)
+    monkeypatch.setattr(permission, "filter_visible_resources", lambda subject, action_id, candidates: visible_result)
 
     authorized_spaces, tenant_wide_authorized = permission.filter_space_list_by_action_with_scope(
         ActionEnum.VIEW_BUSINESS

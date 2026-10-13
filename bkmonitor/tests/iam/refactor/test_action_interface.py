@@ -32,7 +32,7 @@ from bkmonitor.iam.action import (
     get_action_by_id,
 )
 from bkmonitor.iam.definitions.actions import Actions
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
+from iam_engine.schema.definitions import ActionDef
 from core.errors.iam import ActionNotExistError
 
 from .conftest import (
@@ -346,9 +346,9 @@ class TestProviderVisibility:
         from unittest.mock import MagicMock
 
         from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
-        from bkmonitor.iam.iam_engine.schema.diff import EntityKind
-        from bkmonitor.iam.iam_v4.config import V4SystemInfo
-        from bkmonitor.iam.iam_v4.migrator import V4Migrator
+        from iam_engine.schema.diff import EntityKind
+        from bkmonitor.iam.backends.v4.config import V4SystemInfo
+        from bkmonitor.iam.backends.v4.migrator import V4Migrator
 
         system = V4SystemInfo(id="bk_monitor_v4", name="监控平台V4")
         migrator = V4Migrator(client=MagicMock(), schema=real_schema, system_def=system, codec=MonitorV4Codec())
@@ -366,7 +366,7 @@ class TestProviderVisibility:
         assert "edit_single_dashboard" in action_ids
 
     def test_deprecated_dashboard_actions_still_visible_to_v3(self, real_schema):
-        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+        from iam_engine.schema.visibility import is_visible_to
 
         assert is_visible_to(Actions.VIEW_DASHBOARD, "v3") is True
         assert is_visible_to(Actions.MANAGE_DASHBOARD, "v3") is True

@@ -5,7 +5,7 @@
 
 import json
 
-from bkmonitor.iam.iam_engine.schema.diff import Change, ChangeType, EntityKind
+from iam_engine.schema.diff import Change, ChangeType, EntityKind
 
 
 dependencies: list[str] = ["0001_init"]

@@ -5,7 +5,7 @@ import pytest
 from iam_engine.settings import load_iam_settings
 from iam_engine.v4 import config as shared_config
 from iam_engine.v4 import gateway
-from bkmonitor.iam.iam_v4.config import V4Options as MonitorOptions
+from bkmonitor.iam.backends.v4.config import V4Options as MonitorOptions
 
 
 @pytest.mark.parametrize(

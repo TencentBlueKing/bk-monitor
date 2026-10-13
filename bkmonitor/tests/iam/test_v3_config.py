@@ -21,7 +21,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from bkmonitor.iam.iam_v3.config import V3Credentials, V3Options, V3SystemInfo
+from bkmonitor.iam.backends.v3.config import V3Credentials, V3Options, V3SystemInfo
 
 
 class TestV3Credentials:

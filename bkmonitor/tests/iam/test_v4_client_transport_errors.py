@@ -22,8 +22,8 @@ specific language governing permissions and limitations under the License.
 import pytest
 import requests
 
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderUnavailable
-from bkmonitor.iam.iam_v4.client import V4Client
+from iam_engine.exceptions import ProviderUnavailable
+from bkmonitor.iam.backends.v4.client import V4Client
 from iam_engine.v4.exceptions import V4TransportError
 
 

@@ -10,14 +10,14 @@ specific language governing permissions and limitations under the License.
 
 from unittest.mock import MagicMock
 
-from bkmonitor.iam.iam_engine.core.types import ResourceInstance, Subject
-from bkmonitor.iam.iam_engine.provider.dialect_types import (
+from iam_engine.provider.requests import ResourceInstance, Subject
+from iam_engine.provider.dialect_types import (
     DialectAuthRequest,
     DialectBatchByActionRequest,
     DialectBatchByResourceRequest,
     DialectResource,
 )
-from bkmonitor.iam.iam_v4.provider import V4PermissionProvider, _build_iam_path
+from bkmonitor.iam.backends.v4.provider import V4PermissionProvider, _build_iam_path
 
 
 def _subject() -> Subject:
@@ -30,10 +30,10 @@ def _space_ancestor() -> DialectResource:
 
 def _build_provider() -> tuple[V4PermissionProvider, MagicMock]:
     """构造真实 v4 provider（mock client），codec 用真实 MonitorV4Codec。"""
-    from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
+    from bkmonitor.iam.backends.config import get_schema
 
     provider = V4PermissionProvider(
-        real_get_fw().schema,
+        get_schema(),
         base_url="http://iam.example.com",
         bk_tenant_id="system",
         credentials={"app_code": "test_app", "app_secret": "test_secret"},
@@ -164,7 +164,7 @@ class TestBatchByActionDialectPage:
 class TestBatchByResourceBasePlumbing:
     def test_ancestors_reach_dialect_layer(self):
         """基类 batch_by_resource：业务 ancestor_chain 经 codec 编码到达方言层。"""
-        from bkmonitor.iam.iam_engine.core.types import BatchByResourceRequest, ResourceInstance
+        from iam_engine.provider.requests import BatchByResourceRequest, ResourceInstance
 
         provider, _ = _build_provider()
         captured: dict = {}

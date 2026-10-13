@@ -7,7 +7,7 @@ from celery.exceptions import Retry
 from django.test import override_settings
 
 from bkmonitor.iam.adapters.grant_tasks import grant_v4_creator_action
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderError, ProviderUnavailable
+from iam_engine.exceptions import ProviderError, ProviderUnavailable
 
 
 @pytest.fixture
@@ -15,9 +15,7 @@ def grant(monkeypatch):
     client = Mock()
     provider = Mock()
     provider._get_client.return_value = client
-    monkeypatch.setattr(
-        "bkmonitor.iam.iam_engine.django.facade.get_framework", lambda: Mock(get_provider=Mock(return_value=provider))
-    )
+    monkeypatch.setattr("bkmonitor.iam.backends.config.build_provider", lambda name, tenant_id: provider)
     data = {
         "tenant_id": "tenant-a",
         "operator": "alice",

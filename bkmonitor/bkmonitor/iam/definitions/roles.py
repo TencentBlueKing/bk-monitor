@@ -15,7 +15,7 @@ specific language governing permissions and limitations under the License.
 # 子资源 action 的 RoleActionBinding.resource_type 使用子资源自身类型。
 # ---------------------------------------------------------------------------
 
-from ..iam_engine.schema.definitions import ActionDef, ResourceTypeDef, RoleActionBinding, RoleDef
+from iam_engine.schema.definitions import ActionDef, ResourceTypeDef, RoleActionBinding, RoleDef
 from .actions import Actions
 from .resource_types import ResourceTypes
 

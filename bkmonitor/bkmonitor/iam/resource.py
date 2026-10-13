@@ -17,14 +17,14 @@ specific language governing permissions and limitations under the License.
 #     框架自动通过 ResourceResolver 补全 name / ancestor_chain
 #   - 已移除：ResourceMeta / parent_resource / system_id / selection_mode /
 #     related_instance_selections / _all_resources / get_resource_by_id
-#     （元数据查询统一走 get_framework().schema，父资源走 rt_def.ancestor）
+#     （元数据查询统一走 get_schema()，父资源走 rt_def.ancestor）
 #   - 切换到 V4 后：ResourceEnum 成员直接作为 ResourceTypeDef 使用
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
 
 from bkmonitor.iam.definitions.resource_types import ResourceTypes as _NewResourceTypes
-from bkmonitor.iam.iam_engine.core.types import ResourceInstance
+from iam_engine.provider.requests import ResourceInstance
 
 
 # ============================================================================

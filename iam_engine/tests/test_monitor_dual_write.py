@@ -8,15 +8,15 @@ from django.db import transaction
 from iam_engine.provider.capabilities import GrantFailureKind
 from bkmonitor.iam.adapters import grant_tasks
 from bkmonitor.iam.adapters.authorization import MonitorAuthorizationWriter
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderError, ProviderUnavailable
-from bkmonitor.iam.iam_engine.provider.permission_writer import PermissionWriter
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
-from bkmonitor.iam.iam_v4.provider import V4PermissionProvider
+from iam_engine.exceptions import ProviderError, ProviderUnavailable
+from bkmonitor.iam.backends.grant import grant_creator_actions
+from iam_engine.schema.registry import SchemaRegistry
+from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
+from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
 
 
 @pytest.fixture
-def offline_django():
+def offline_django(django_db_blocker):
     if not settings.configured:
         settings.configure(
             DATABASES={"default": {"ENGINE": "django.db.backends.sqlite3", "NAME": ":memory:"}},
@@ -28,6 +28,8 @@ def offline_django():
 
         django.setup()
     assert settings.DATABASES["default"]["NAME"] == ":memory:"
+    with django_db_blocker.unblock():
+        yield
 
 
 @pytest.fixture
@@ -51,9 +53,8 @@ def test_real_providers_both_grant_before_commit(providers, monkeypatch):
     legacy, current, dispatch = providers
     fixed = datetime(2026, 1, 1, tzinfo=timezone.utc)
     monkeypatch.setattr("bkmonitor.iam.adapters.authorization.timezone.now", lambda: fixed)
-    writer = PermissionWriter([legacy, current])
     with transaction.atomic():
-        result = writer.grant_creator_action("space", "-1", "user", tenant_id="tenant-b")
+        result = grant_creator_actions([legacy, current], "space", "-1", "user", tenant_id="tenant-b")
         assert result.is_success
         legacy._get_client.return_value.grant_resource_creator_actions.assert_called_once()
         current._get_client.return_value.add_authorization.assert_called_once()
@@ -69,7 +70,7 @@ def test_real_django_on_commit_dispatch_and_frozen_payload(providers):
     legacy, current, dispatch = providers
     current._get_client.return_value.add_authorization.side_effect = ProviderUnavailable("offline timeout")
     with transaction.atomic():
-        result = PermissionWriter([legacy, current]).grant_creator_action("space", "-1", "user", tenant_id="tenant-b")
+        result = grant_creator_actions([legacy, current], "space", "-1", "user", tenant_id="tenant-b")
         assert result.failed[0].retry_scheduled
         dispatch.assert_not_called()
         frozen = current._get_client.return_value.add_authorization.call_args.args[0]
@@ -85,7 +86,7 @@ def test_real_django_rollback_discards_fallback(providers):
     current._get_client.return_value.add_authorization.side_effect = ProviderUnavailable("offline timeout")
     with pytest.raises(RuntimeError):
         with transaction.atomic():
-            PermissionWriter([legacy, current]).grant_creator_action("space", "-1", "user", tenant_id="tenant-b")
+            grant_creator_actions([legacy, current], "space", "-1", "user", tenant_id="tenant-b")
             raise RuntimeError("rollback")
     dispatch.assert_not_called()
 
@@ -93,7 +94,7 @@ def test_real_django_rollback_discards_fallback(providers):
 def test_v3_false_response_is_failed_but_does_not_block_v4(providers):
     legacy, current, dispatch = providers
     legacy._get_client.return_value.grant_resource_creator_actions.return_value = (False, "denied")
-    result = PermissionWriter([legacy, current]).grant_creator_action("space", "-1", "user", tenant_id="tenant-b")
+    result = grant_creator_actions([legacy, current], "space", "-1", "user", tenant_id="tenant-b")
     assert result.is_partial_failure
     assert result.failed[0].provider_name == "v3"
     current._get_client.return_value.add_authorization.assert_called_once()
@@ -118,14 +119,16 @@ def test_grant_failure_classification(error, kind):
 def test_read_mode_never_changes_actual_write_targets(providers, mode):
     from types import SimpleNamespace
     from iam_engine.core.config import AuthMode
-    from bkmonitor.iam.adapters.shared_policy import SharedMigrationPolicy
-    from bkmonitor.iam.iam_engine.provider.router import ProviderRouter
+    from bkmonitor.iam.permission import Permission
+    from iam import Resource
 
     legacy, current, _ = providers
-    read_policy = SharedMigrationPolicy(
-        [legacy, current], mode_provider=SimpleNamespace(get_mode=lambda *args: AuthMode(mode))
+    permission = Permission(username="alice", bk_tenant_id="tenant-a")
+    permission._providers = {"v3": legacy, "v4": current}
+    permission.mode_provider = SimpleNamespace(get_mode=lambda *args: AuthMode(mode))
+    result = permission.grant_creator_action(
+        Resource("bk_monitorv3", "space", "2", {}), creator="alice", raise_exception=True
     )
-    router = ProviderRouter(read_policy, PermissionWriter([legacy, current]))
-    router.grant_creator_action("space", "2", "alice", tenant_id="tenant-a")
+    assert result is not None
     legacy._get_client.return_value.grant_resource_creator_actions.assert_called_once()
     current._get_client.return_value.add_authorization.assert_called_once()

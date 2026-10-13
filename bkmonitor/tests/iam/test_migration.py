@@ -19,20 +19,20 @@ import tempfile
 import pytest
 from django.conf import settings
 
-from bkmonitor.iam.iam_engine.core.exceptions import MigrationPreCheckFailed
-from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.iam_engine.migration.diff import diff_snapshots
-from bkmonitor.iam.iam_engine.migration.loader import MigrationLoader
-from bkmonitor.iam.iam_engine.migration.planner import MigrationPlanner
-from bkmonitor.iam.iam_engine.migration.recorder import InMemoryRecorder
-from bkmonitor.iam.iam_engine.schema.definitions import (
+from iam_engine.exceptions import MigrationPreCheckFailed
+from bkmonitor.iam.permission import Permission
+from iam_engine.model.diff import diff_snapshots
+from iam_engine.model.loader import MigrationLoader
+from iam_engine.model.planner import MigrationPlanner
+from iam_engine.model.recorder import InMemoryRecorder
+from iam_engine.schema.definitions import (
     ActionDef,
     ResourceTypeDef,
     RoleActionBinding,
     RoleDef,
 )
-from bkmonitor.iam.iam_engine.schema.diff import ChangeType, EntityKind
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from iam_engine.schema.diff import ChangeType, EntityKind
+from iam_engine.schema.registry import SchemaRegistry
 
 
 # ==============================================================================
@@ -168,7 +168,7 @@ class TestExistingMigrationSnapshot:
     def test_latest_snapshot_matches_current_schema(self):
         directory = os.path.join(settings.BASE_DIR, "bkmonitor/iam/iam_migrations")
         initial_migration = MigrationLoader(directory).load_all()["0002_log_mcp_actions"]
-        current_snapshot = get_framework().schema.to_snapshot()
+        current_snapshot = Permission(username="offline", bk_tenant_id="system").schema.to_snapshot()
 
         assert current_snapshot == initial_migration.target_snapshot
         assert diff_snapshots(current_snapshot, initial_migration.target_snapshot) == []

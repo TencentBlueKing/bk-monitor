@@ -54,9 +54,10 @@ class TestIamGenerateConfigCommand:
         assert "system" not in config
 
     def test_provider_controls_system_serialization(self, monkeypatch):
-        from bkmonitor.iam.iam_engine.django.facade import get_framework
+        from bkmonitor.iam.permission import Permission
 
-        provider = get_framework().providers["v4"]
+        permission = Permission(username="offline", bk_tenant_id="system")
+        provider = permission.providers["v4"]
         monkeypatch.setattr(
             provider,
             "serialize_system_info",
@@ -67,6 +68,9 @@ class TestIamGenerateConfigCommand:
             },
         )
 
+        monkeypatch.setattr(
+            "bkmonitor.iam.management.commands.iam_generate_config.Permission", lambda **kwargs: permission
+        )
         out = StringIO()
         call_command("iam_generate_config", provider="v4", stdout=out)
         config = json.loads(out.getvalue())

@@ -27,11 +27,11 @@ from collections import defaultdict
 from typing import TYPE_CHECKING, Any
 
 from bkmonitor.iam.definitions.actions import Actions
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
-from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+from iam_engine.exceptions import ProviderNotFound
+from bkmonitor.iam.permission import Permission
+from iam_engine.schema.definitions import ActionDef
+from iam_engine.schema.registry import SchemaRegistry
+from iam_engine.schema.visibility import is_visible_to
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
@@ -330,7 +330,7 @@ def _build_action_groups(
 def action_categories(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
 
-    fw = get_framework()
+    fw = Permission(username="iam_metadata", bk_tenant_id=bk_tenant_id)
     schema = fw.schema
 
     # backend → 对应 provider：可见性过滤与 id 口径全部由 provider 提供

@@ -14,7 +14,7 @@ from bkmonitor.iam.adapters import catalog
 from bkmonitor.iam.adapters.resolver import MonitorResourceResolver
 from bkmonitor.iam.adapters.v4.callback import auth
 from bkmonitor.iam.adapters.v4.callback.views import MonitorV4ResourceCallbackView
-from bkmonitor.iam.iam_engine.core.types import (
+from iam_engine.provider.requests import (
     ApplyURLRequest,
     AuthRequest,
     BatchByActionRequest,
@@ -22,12 +22,12 @@ from bkmonitor.iam.iam_engine.core.types import (
     ResourceInstance,
     Subject,
 )
-from bkmonitor.iam.iam_engine.provider.codec import IdentityCodec
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.iam_v3.client import V3Client
-from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
-from bkmonitor.iam.iam_v4.provider import V4PermissionProvider
+from iam_engine.provider.codec import IdentityCodec
+from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
+from iam_engine.schema.registry import SchemaRegistry
+from bkmonitor.iam.backends.v3.client import V3Client
+from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
+from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
 from kernel_api.rpc.functions.admin.permission._v3 import _enrich_permissions
 from monitor_web.iam import views
 

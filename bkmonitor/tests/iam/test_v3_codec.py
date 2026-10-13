@@ -19,9 +19,9 @@ specific language governing permissions and limitations under the License.
 #   5. resource_type / resource_id / role：全部恒等
 # ==============================================================================
 
-from bkmonitor.iam.iam_engine.provider.codec import NameCodec
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from iam_engine.provider.codec import NameCodec
+from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
+from iam_engine.schema.registry import SchemaRegistry
 from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
 
 

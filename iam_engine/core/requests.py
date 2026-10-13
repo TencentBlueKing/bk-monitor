@@ -14,7 +14,8 @@ from typing import Any, Protocol
 
 
 class IdentifiedDefinition(Protocol):
-    id: str
+    @property
+    def id(self) -> str: ...
 
 
 class ResourceTypeDefinition(IdentifiedDefinition, Protocol):

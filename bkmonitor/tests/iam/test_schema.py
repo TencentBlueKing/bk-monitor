@@ -8,7 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from bkmonitor.iam.iam_engine.django.facade import get_framework
+from bkmonitor.iam.permission import Permission
 from bkmonitor.iam.definitions.actions import Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.iam.definitions.roles import Roles
@@ -57,25 +57,25 @@ class TestSchemaRegistry:
     """验证 SchemaRegistry 正确加载并 freeze。"""
 
     def test_registry_loaded(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         schema = fw.schema
         assert len(list(schema.all_actions())) == 55
         assert len(list(schema.all_resource_types())) == 4
         assert len(list(schema.all_roles())) == 3
 
     def test_action_lookup(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         action = fw.schema.get_action("view_business")
         assert action.name == "业务访问"
         assert action.resource_type == "space"
 
     def test_role_lookup(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         role = fw.schema.get_role("space_viewer")
         assert role.name == "业务查看"
 
     def test_resolve_ancestor_types(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         chain = fw.schema.resolve_ancestor_types("apm_application")
         assert chain == ["space"]
 
@@ -86,8 +86,8 @@ class TestProviderBatching:
     @staticmethod
     def _make_fake(**kwargs):
         """构造一个"就地实现方言层 + 恒等 codec"的最小 Provider，验证基类分片。"""
-        from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
-        from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+        from iam_engine.provider.codec_provider import PermissionProvider
+        from iam_engine.schema.registry import SchemaRegistry
 
         class FakeProvider(PermissionProvider):
             name = "fake"
@@ -130,7 +130,7 @@ class TestProviderBatching:
     # ---- batch_by_resource ----
 
     def test_batch_by_resource_serial(self):
-        from bkmonitor.iam.iam_engine.core.types import (
+        from iam_engine.provider.requests import (
             BatchByResourceRequest,
             ResourceInstance,
             Subject,
@@ -152,7 +152,7 @@ class TestProviderBatching:
 
     def test_batch_by_resource_single_chunk(self):
         """不超过 CHUNK_SIZE 时不走并行路径。"""
-        from bkmonitor.iam.iam_engine.core.types import (
+        from iam_engine.provider.requests import (
             BatchByResourceRequest,
             ResourceInstance,
             Subject,
@@ -170,7 +170,7 @@ class TestProviderBatching:
         assert len(result.items) == 3
 
     def test_batch_by_resource_empty(self):
-        from bkmonitor.iam.iam_engine.core.types import (
+        from iam_engine.provider.requests import (
             BatchByResourceRequest,
             Subject,
         )
@@ -187,7 +187,7 @@ class TestProviderBatching:
 
     def test_batch_by_resource_parallel(self):
         """MAX_WORKERS > 1 且分片 > 1 时走并行路径，结果保序。"""
-        from bkmonitor.iam.iam_engine.core.types import (
+        from iam_engine.provider.requests import (
             BatchByResourceRequest,
             ResourceInstance,
             Subject,
@@ -209,7 +209,7 @@ class TestProviderBatching:
     # ---- batch_by_action ----
 
     def test_batch_by_action_serial(self):
-        from bkmonitor.iam.iam_engine.core.types import BatchByActionRequest, Subject
+        from iam_engine.provider.requests import BatchByActionRequest, Subject
 
         p = self._make_fake(CHUNK_SIZE=3, MAX_WORKERS=1)
         action_ids = [f"action_{i}" for i in range(10)]
@@ -223,7 +223,7 @@ class TestProviderBatching:
         assert all(item.allowed for item in result.items)
 
     def test_batch_by_action_empty(self):
-        from bkmonitor.iam.iam_engine.core.types import BatchByActionRequest, Subject
+        from iam_engine.provider.requests import BatchByActionRequest, Subject
 
         p = self._make_fake()
         result = p.batch_by_action(
@@ -235,7 +235,7 @@ class TestProviderBatching:
         assert len(result.items) == 0
 
     def test_batch_by_action_parallel(self):
-        from bkmonitor.iam.iam_engine.core.types import BatchByActionRequest, Subject
+        from iam_engine.provider.requests import BatchByActionRequest, Subject
 
         p = self._make_fake(CHUNK_SIZE=3, MAX_WORKERS=4)
         action_ids = [f"action_{i}" for i in range(9)]
@@ -255,13 +255,13 @@ class TestProviderVisibility:
     @staticmethod
     def _entity(extensions=None):
         """构造一个最小的持有 extensions 的 schema 实体（用 ActionDef 代表即可）。"""
-        from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
+        from iam_engine.schema.definitions import ActionDef
 
         return ActionDef(id="a", name="A", extensions=extensions or {})
 
     def test_no_extensions_visible_to_all(self):
         """默认（不设置任何 extensions）→ 对所有 provider 可见（向后兼容）。"""
-        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+        from iam_engine.schema.visibility import is_visible_to
 
         entity = self._entity()
         assert is_visible_to(entity, "v4") is True
@@ -270,7 +270,7 @@ class TestProviderVisibility:
 
     def test_only_providers_whitelist(self):
         """only_providers 白名单：不在名单里的 provider 不可见。"""
-        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+        from iam_engine.schema.visibility import is_visible_to
 
         entity = self._entity({"only_providers": ("v4",)})
         assert is_visible_to(entity, "v4") is True
@@ -278,7 +278,7 @@ class TestProviderVisibility:
 
     def test_exclude_providers_blacklist(self):
         """exclude_providers 黑名单：在名单里的 provider 不可见。"""
-        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+        from iam_engine.schema.visibility import is_visible_to
 
         entity = self._entity({"exclude_providers": ("v3",)})
         assert is_visible_to(entity, "v4") is True
@@ -286,7 +286,7 @@ class TestProviderVisibility:
 
     def test_both_are_independent(self):
         """同时设置 only + exclude：两者独立判断，任一命中即拒绝。"""
-        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+        from iam_engine.schema.visibility import is_visible_to
 
         entity = self._entity({"only_providers": ("v4", "v3"), "exclude_providers": ("v3",)})
         # v4：在 only 里 + 不在 exclude 里 → 可见
@@ -298,7 +298,7 @@ class TestProviderVisibility:
 
     def test_empty_tuples_treated_as_unset(self):
         """空 tuple 视为未设置：不参与过滤。"""
-        from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+        from iam_engine.schema.visibility import is_visible_to
 
         entity = self._entity({"only_providers": (), "exclude_providers": ()})
         assert is_visible_to(entity, "v4") is True

@@ -33,8 +33,8 @@ from django.conf import settings
 
 from bkmonitor.iam.definitions.actions import Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
-from bkmonitor.iam.iam_engine.core.exceptions import PermissionDenied
-from bkmonitor.iam.iam_engine.core.types import (
+from iam_engine.exceptions import PermissionDenied
+from iam_engine.provider.requests import (
     ApplyURLRequest,
     AuthRequest,
     BatchByActionRequest,
@@ -42,7 +42,7 @@ from bkmonitor.iam.iam_engine.core.types import (
     ResourceInstance,
     Subject,
 )
-from bkmonitor.iam.iam_engine.django.facade import get_framework
+from bkmonitor.iam.permission import Permission
 
 # ---- 配置 ----
 
@@ -133,7 +133,7 @@ class TestGetApplyData:
 
     def test_structure_resource_free(self):
         """resource-free action：related_resource_types 为空列表。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         subject = Subject(id=TEST_USER)
         data = fw.get_apply_data(
             action_ids=[Actions.MANAGE_GLOBAL_SETTING.id],
@@ -153,7 +153,7 @@ class TestGetApplyData:
 
     def test_structure_with_resource(self):
         """有资源 action + 单个资源实例。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         subject = Subject(id=TEST_USER)
         data = fw.get_apply_data(
             action_ids=[Actions.VIEW_BUSINESS.id],
@@ -182,7 +182,7 @@ class TestGetApplyData:
 
     def test_structure_multiple_actions(self):
         """多个 action + 同一 resource。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         subject = Subject(id=TEST_USER)
         data = fw.get_apply_data(
             action_ids=[Actions.VIEW_BUSINESS.id, Actions.VIEW_RULE.id],
@@ -204,7 +204,7 @@ class TestGetApplyData:
 
     def test_structure_unknown_action_graceful(self):
         """不存在的 action 不抛异常，related_resource_types 为空。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         subject = Subject(id=TEST_USER)
         data = fw.get_apply_data(
             action_ids=["nonexistent_action"],
@@ -231,7 +231,7 @@ class TestGetApplyUrl:
 
     def test_url_format(self):
         """get_apply_url 返回合法的 http(s) URL。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         url = fw.get_apply_url(
             ApplyURLRequest(
                 subject=Subject(id=TEST_USER),
@@ -245,7 +245,7 @@ class TestGetApplyUrl:
 
     def test_url_resource_free(self):
         """resource-free action 的申请 URL。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         url = fw.get_apply_url(
             ApplyURLRequest(
                 subject=Subject(id=TEST_USER),
@@ -258,7 +258,7 @@ class TestGetApplyUrl:
 
     def test_url_multiple_actions(self):
         """多个 action 的申请 URL。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         url = fw.get_apply_url(
             ApplyURLRequest(
                 subject=Subject(id=TEST_USER),
@@ -385,7 +385,7 @@ class TestGetApplyDataFallback:
 
     def test_none_on_unsupported(self):
         """基类默认 get_apply_data 返回 None。"""
-        from bkmonitor.iam.iam_engine.provider.base import PermissionProvider as BaseProvider
+        from iam_engine.provider.codec_provider import PermissionProvider as BaseProvider
 
         class NoopProvider(BaseProvider):
             name = "noop"
@@ -427,7 +427,7 @@ class TestBatchAuthResultFormat:
 
     def test_batch_by_resource_structure(self):
         """BatchAuthResult.items 格式：每个 item 含 action_id / resource_type / resource_id / allowed。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         space_ids = [str(i) for i in range(1, 4)]
         result = fw.batch_by_resource(
             BatchByResourceRequest(
@@ -450,7 +450,7 @@ class TestBatchAuthResultFormat:
 
     def test_batch_by_action_structure(self):
         """BatchAuthResult.items 格式：每个 item 含 action_id / allowed。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         action_ids = [
             Actions.VIEW_BUSINESS.id,
             Actions.VIEW_RULE.id,
@@ -477,7 +477,7 @@ class TestBatchAuthResultFormat:
         """模拟 insert_permission_field 的 {resource_id: {action_id: bool}} 转换。"""
         from collections import defaultdict
 
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         space_ids = ["1", "2", "3"]
         actions = [Actions.VIEW_BUSINESS.id, Actions.VIEW_RULE.id]
 
@@ -520,7 +520,7 @@ class TestIAMPermissionDeniedIntegration:
         被拒时抛异常由 DRF IAMPermission 层负责，不在此测试。
         本测试只验证 Provider 层的 is_allowed 正常返回 bool。
         """
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         allowed = fw.is_allowed(
             AuthRequest(
                 subject=Subject(id=TEST_USER),
@@ -535,7 +535,7 @@ class TestIAMPermissionDeniedIntegration:
         """模拟 IAMPermission._is_any_action_allowed 的 denied 分支：
         调 get_apply_url + get_apply_data，验证两者返回合法的值。
         """
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         subject = Subject(id=TEST_USER)
         action_ids = [Actions.VIEW_BUSINESS.id]
         resource = ResourceInstance(type=ResourceTypes.SPACE, id="99999999")

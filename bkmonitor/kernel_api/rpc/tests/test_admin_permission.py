@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -29,8 +30,8 @@ from kernel_api.rpc.functions.admin.permission import (
 # Helpers — 构造 ActionDef / ResourceTypeDef 测试数据
 # ============================================================================
 
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
-from bkmonitor.iam.iam_engine.policy.expression import Op, PolicyExpression
+from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
+from iam_engine.policy.expression import Op, PolicyExpression
 
 
 def _make_action_def(
@@ -551,9 +552,9 @@ class TestActionCategories:
 
     def test_business_groups_structure(self):
         """验证 business_groups 覆盖所有 schema.all_actions()。"""
-        from bkmonitor.iam.iam_engine.django.facade import get_framework
+        from bkmonitor.iam.permission import Permission
 
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         all_ids = {a.id for a in fw.schema.all_actions()}
 
         result = action_categories({"bk_tenant_id": "system"})
@@ -608,17 +609,17 @@ class TestActionCategories:
     @staticmethod
     def _mock_backend_fw(provider_name: str, codec):
         """构造 mock 框架：schema 用真实注册表，backend 解析返回 mock provider。"""
-        from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
+        from bkmonitor.iam.permission import Permission as RealPermission
 
         provider = MagicMock()
         provider.name = provider_name
         provider.codec = codec
         mock_fw = MagicMock()
-        mock_fw.schema = real_get_fw().schema
+        mock_fw.schema = RealPermission(username="offline", bk_tenant_id="system").schema
         mock_fw.get_provider.return_value = provider
         return mock_fw
 
-    @patch("kernel_api.rpc.functions.admin.permission._shared.get_framework")
+    @patch("kernel_api.rpc.functions.admin.permission._shared.Permission")
     def test_backend_v4_filters_hidden_actions(self, mock_get_fw):
         """backend=v4：exclude_providers=("v4",) 的过时 action 不出现在元数据中。"""
         from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
@@ -633,7 +634,7 @@ class TestActionCategories:
         assert "view_dashboard" not in data["action_index"]
         assert "view_single_dashboard" in data["action_index"]
 
-    @patch("kernel_api.rpc.functions.admin.permission._shared.get_framework")
+    @patch("kernel_api.rpc.functions.admin.permission._shared.Permission")
     def test_backend_v3_returns_dialect_ids(self, mock_get_fw):
         """backend=v3：过时 action 仍可见，id 经 v3 codec 输出方言 ID（与权限查询口径一致）。"""
         from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
@@ -647,10 +648,10 @@ class TestActionCategories:
         assert "view_business" not in ids
         assert "view_business_v2" in result["data"]["action_index"]
 
-    @patch("kernel_api.rpc.functions.admin.permission._shared.get_framework")
+    @patch("kernel_api.rpc.functions.admin.permission._shared.Permission")
     def test_backend_unknown_provider(self, mock_get_fw):
         """backend 对应 provider 未装配 → 明确报错（不再硬编码版本清单）。"""
-        from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
+        from iam_engine.exceptions import ProviderNotFound
 
         mock_fw = MagicMock()
         mock_fw.get_provider.side_effect = ProviderNotFound("provider 'v5' not found")
@@ -661,9 +662,9 @@ class TestActionCategories:
 
     def test_business_groups_uncategorized_fallback(self):
         """验证未匹配硬编码分组的操作归入'其他'组并不丢失。"""
-        from bkmonitor.iam.iam_engine.django.facade import get_framework
+        from bkmonitor.iam.permission import Permission
 
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         all_ids = {a.id for a in fw.schema.all_actions()}
 
         result = action_categories({"bk_tenant_id": "system"})
@@ -686,12 +687,12 @@ class TestQueryUserPermissions:
             query_user_permissions({"bk_tenant_id": "system"})
 
     @patch("kernel_api.rpc.functions.admin.permission._v3._enrich_permissions", return_value=0)
-    @patch("kernel_api.rpc.functions.admin.permission._v3.get_framework")
+    @patch("kernel_api.rpc.functions.admin.permission._v3.Permission")
     def test_batch_query_success(self, mock_get_fw, mock_enrich):
         """验证 query_user_permissions 通过 v3 provider 查询策略的完整流程。"""
-        from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
+        from bkmonitor.iam.permission import Permission as RealPermission
 
-        real_schema = real_get_fw().schema
+        real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
 
         # 构造 PolicyExpression → action_id 映射（Business ID，单 provider 单表达式）
         policies = {
@@ -787,12 +788,12 @@ class TestQueryUserPermissions:
         assert data["summary"]["total_actions"] > 0
 
     @patch("kernel_api.rpc.functions.admin.permission._v3._enrich_permissions", return_value=0)
-    @patch("kernel_api.rpc.functions.admin.permission._v3.get_framework")
+    @patch("kernel_api.rpc.functions.admin.permission._v3.Permission")
     def test_framework_query_failure_fallback(self, mock_get_fw, mock_enrich):
         """批量查询失败时降级为逐条查询；逐条也失败时全部 error 且 warning 含 action_id。"""
-        from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
+        from bkmonitor.iam.permission import Permission as RealPermission
 
-        real_schema = real_get_fw().schema
+        real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
         all_ids = {a.id for a in real_schema.all_actions()}
 
         mock_v3 = MagicMock()
@@ -819,12 +820,12 @@ class TestQueryUserPermissions:
             assert action["grant_type"] == "error"
 
     @patch("kernel_api.rpc.functions.admin.permission._v3._enrich_permissions", return_value=0)
-    @patch("kernel_api.rpc.functions.admin.permission._v3.get_framework")
+    @patch("kernel_api.rpc.functions.admin.permission._v3.Permission")
     def test_batch_failure_fallback_partial_success(self, mock_get_fw, mock_enrich):
         """批量失败 + 逐条部分成功：成功的 action 正常解析，失败的标 error。"""
-        from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
+        from bkmonitor.iam.permission import Permission as RealPermission
 
-        real_schema = real_get_fw().schema
+        real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
 
         def fake_query_policies(subject, aid):
             if aid == "view_business":
@@ -866,10 +867,10 @@ class TestQueryUserPermissions:
         assert "view_business" not in failed_biz_ids
         assert all("query failed for" in str(w["details"]["error"]) for w in failed_warnings)
 
-    @patch("kernel_api.rpc.functions.admin.permission._v3.get_framework")
+    @patch("kernel_api.rpc.functions.admin.permission._v3.Permission")
     def test_v3_provider_missing_raises(self, mock_get_fw):
         """v3 provider 未配置 → 显式报错，不再静默返回全 none。"""
-        from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
+        from iam_engine.exceptions import ProviderNotFound
 
         mock_fw = MagicMock()
         mock_fw.get_provider.side_effect = ProviderNotFound("provider 'v3' not found")
@@ -884,11 +885,12 @@ class TestQueryUserPermissions:
 # ==============================================================================
 
 
+@pytest.mark.live
 @pytest.mark.skipif(
-    not __import__("django").conf.settings.SAAS_APP_CODE,
-    reason="IAM 未配置（SAAS_APP_CODE 为空）",
+    os.getenv("BK_IAM_LIVE") != "1" or not __import__("django").conf.settings.SAAS_APP_CODE,
+    reason="真实 IAM 用例仅在 BK_IAM_LIVE=1 且凭据已配置时运行",
 )
-class TestRealFrameworkQuery:
+class TestRealPermissionQuery:
     """连接真实 IAM v3 服务器，调用 query_user_permissions 获取实际权限数据。"""
 
     @pytest.mark.django_db(databases=["default", "monitor_api", "bk_dataview"])

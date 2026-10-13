@@ -51,7 +51,7 @@ def custom_exception_handler(exc, context):
     针对CustomException返回的错误进行特殊处理，增加了传递数据的特性
     """
     # 延迟导入避免框架与 Django 启动顺序的循环依赖
-    from bkmonitor.iam.iam_engine.core.exceptions import PermissionDenied  # noqa: F811
+    from iam_engine.exceptions import PermissionDenied  # noqa: F811
 
     response = None
     if isinstance(exc, Error):

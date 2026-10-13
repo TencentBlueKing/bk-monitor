@@ -9,10 +9,10 @@ specific language governing permissions and limitations under the License.
 """
 
 # ---------------------------------------------------------------------------
-# DRF 权限插件 — 委托 IAMFramework
+# DRF 权限插件 — 委托 公共 ModeRouter
 #
 # 改造说明
-#   所有权限类保留旧签名（外部调用者零改动），内部直接调 get_framework()。
+#   所有权限类保留旧签名（外部调用者零改动），内部直接调 Permission。
 #   iam.Resource 对象在本文件中已彻底消除，切换 V3/V4 drf.py 零改动。
 # ---------------------------------------------------------------------------
 
@@ -30,7 +30,7 @@ from bkmonitor.iam.definitions.actions import Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.tenant import is_biz_in_tenant
-from bkmonitor.iam.iam_engine.core.types import (
+from iam_engine.provider.requests import (
     ApplyURLRequest,
     AuthRequest,
     BatchByResourceRequest,
@@ -39,8 +39,8 @@ from bkmonitor.iam.iam_engine.core.types import (
     SubjectType,
     to_action_id,
 )
-from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderUnavailable
+from bkmonitor.iam.permission import Permission
+from iam_engine.exceptions import ProviderUnavailable
 from bkmonitor.iam.errors import build_legacy_permission_denied
 from core.errors.iam import ActionNotExistError, PermissionDeniedError
 from bkmonitor.iam.permission import check_iam_preflight, check_iam_batch_preflight
@@ -80,13 +80,13 @@ def _build_drf_permission_denied(fw, subject, action_ref, resources, *, backend_
     try:
         # V4 的 get_apply_data 为本地构造；即使鉴权 API 超时，通常仍能提供
         # 老前端权限弹窗需要的 permission 数据。
-        permission = fw.get_apply_data([action_id], list(resources), subject)
+        permission = fw._apply_data_request([action_id], list(resources), subject)
     except ProviderUnavailable as exc:
         logger.exception("[IAMPermission] generate apply data unavailable: %s", exc)
 
     apply_url = ""
     try:
-        apply_url = fw.get_apply_url(
+        apply_url = fw._apply_url_request(
             ApplyURLRequest(
                 subject=subject,
                 action_ids=(action_id,),
@@ -110,7 +110,7 @@ def _fw_check_any(request, action_refs, resources=None):
     每个 action 先走前置豁免（token 临时分享 / skip_check），与旧版
     IAMPermission → Permission().is_allowed 的豁免语义一致。
     """
-    fw = get_framework()
+    fw = Permission(request=request)
     subject = FwSubject(id=request.user.username, type=SubjectType.USER, tenant_id=request.user.tenant_id)
 
     fw_resources = tuple(resources) if resources else ()
@@ -123,7 +123,7 @@ def _fw_check_any(request, action_refs, resources=None):
 
         fw_resource = fw_resources[0] if fw_resources else None
         try:
-            allowed = fw.is_allowed(
+            allowed = fw._is_allowed_request(
                 AuthRequest(subject=subject, action_id=_to_business_action_id(action), resource=fw_resource)
             )
         except ProviderUnavailable as exc:
@@ -392,9 +392,9 @@ def insert_permission_field(
     sort_action=None,
     include_legacy_action_keys: bool = False,
 ):
-    """数据返回后，注入权限字段（内部委托 IAMFramework）。
+    """数据返回后，注入权限字段（内部委托 公共 ModeRouter）。
 
-    保留旧签名兼容，但不再创建 iam.Resource 或调用 Permission()。
+    保留旧签名兼容，使用 Permission 的公共双栈路径，不再创建 iam.Resource。
 
     兼容说明：instance_create_func / batch_create 参数仅为兼容旧调用方签名保留，
     当前实现不再使用（实例统一构造为 FwResource）。
@@ -443,10 +443,10 @@ def insert_permission_field(
                         allowed_map[(aid, rid)] = exemption.get(aid, False)
             else:
                 # 批量鉴权
-                fw = get_framework()
+                fw = Permission(request=request)
                 subject = FwSubject(id=request.user.username, type=SubjectType.USER, tenant_id=request.user.tenant_id)
                 for aid in action_ids:
-                    batch_result = fw.batch_by_resource(
+                    batch_result = fw._batch_by_resource(
                         BatchByResourceRequest(
                             subject=subject,
                             action_id=aid,
@@ -503,7 +503,7 @@ def filter_data_by_permission(
     mode: Literal["any", "all", "insert"] = "any",
     username: str | None = None,
 ) -> list[dict]:
-    """根据权限过滤/标注数据（内部委托 IAMFramework）。
+    """根据权限过滤/标注数据（内部委托 公共 ModeRouter）。
 
     保留旧签名兼容。mode: "any"=任一通过/"all"=全部通过/"insert"=插入不删。
 
@@ -533,7 +533,6 @@ def filter_data_by_permission(
         return []
 
     # 批量鉴权
-    fw = get_framework()
     request = None
     if not username:
         # 未显式传 username：与 Permission.__init__ 的解析链对齐，从当前请求解析用户。
@@ -541,7 +540,8 @@ def filter_data_by_permission(
         # 因此这里保留解析出的 request 供前置豁免使用。
         request = get_request(peaceful=True)
         username = request.user.username if request else ""
-    subject = FwSubject(id=username, type=SubjectType.USER, tenant_id=bk_tenant_id or "")
+    fw = Permission(username=username, bk_tenant_id=bk_tenant_id or "system", request=request)
+    subject = FwSubject(id=fw.username, type=SubjectType.USER, tenant_id=fw.bk_tenant_id)
     allowed_map: dict[tuple[str, str], bool] = {}
 
     # 前置豁免（复刻旧 Permission(...).batch_is_allowed 语义：username 显式传入时
@@ -553,7 +553,7 @@ def filter_data_by_permission(
                 allowed_map[(aid, rid)] = exemption.get(aid, False)
     else:
         for aid in action_ids:
-            batch_result = fw.batch_by_resource(
+            batch_result = fw._batch_by_resource(
                 BatchByResourceRequest(
                     subject=subject,
                     action_id=aid,

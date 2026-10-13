@@ -21,10 +21,10 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.iam_v4.config import V4Credentials, V4Options, V4SystemInfo
-from bkmonitor.iam.iam_v4.provider import V4PermissionProvider
+from bkmonitor.iam.permission import Permission
+from iam_engine.schema.registry import SchemaRegistry
+from bkmonitor.iam.backends.v4.config import V4Credentials, V4Options, V4SystemInfo
+from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
 
 
 # ==============================================================================
@@ -227,7 +227,7 @@ class TestV4ProviderConstruction:
     @staticmethod
     def _fresh_schema() -> SchemaRegistry:
         """返回一个 freeze 好的最小 SchemaRegistry（复用框架已构建的即可）。"""
-        return get_framework().schema
+        return Permission(username="offline", bk_tenant_id="system").schema
 
     def test_construct_from_options(self):
         schema = self._fresh_schema()
@@ -267,119 +267,41 @@ class TestV4ProviderConstruction:
 
 
 # ==============================================================================
-# FrameworkConfig 层面回归：确认 credentials_provider 字段已删除
-# ==============================================================================
+# Product backend construction replaces the removed framework catalog.
 
 
-class TestFrameworkConfigNoCredentialsProvider:
-    def test_from_dict_ignores_legacy_credentials_provider_key(self):
-        """settings 里即使残留 CREDENTIALS_PROVIDER，也不应影响解析（字段已删除）。"""
-        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
+class TestProductAssembly:
+    @pytest.mark.parametrize("mode", ["v3", "v4", "union"])
+    def test_read_mode_does_not_select_loaded_backends(self, settings, mode):
+        from bkmonitor.iam.backends.config import build_providers
 
-        raw = {
-            "ACTIONS": "",
-            "RESOURCE_TYPES": "",
-            "ROLES": "",
-            "CREDENTIALS_PROVIDER": "legacy.path.that.should.be.ignored",
-            "PROVIDERS": [],
-            "COMPOSITION": {"policy": "single"},
-        }
-        cfg = FrameworkConfig.from_dict(raw)
-        assert not hasattr(cfg, "credentials_provider")
+        settings.BK_IAM_PERMISSION_MODE = mode
+        settings.BK_IAM_V4_APIGATEWAY_URL = "https://iam.example.test/dev"
+        assert set(build_providers("tenant-a")) == {"v3", "v4"}
 
+    def test_without_explicit_v4_gateway_only_v3_is_loaded(self, settings):
+        from bkmonitor.iam.backends.config import build_providers
 
-class TestFrameworkReadWriteConfig:
-    def test_read_and_write_targets_are_parsed_independently(self):
-        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
+        settings.BK_IAM_V4_APIGATEWAY_URL = ""
+        assert set(build_providers("tenant-a")) == {"v3"}
 
-        cfg = FrameworkConfig.from_dict(
-            {
-                "PROVIDER_CATALOG": {
-                    "v3": {"class": "test.v3"},
-                    "v4": {"class": "test.v4"},
-                },
-                "ENABLED_PROVIDERS": ["v4", "v3"],
-                "READ": {
-                    "PROVIDERS": ["v3"],
-                    "POLICY": "single",
-                },
-                "WRITE": {
-                    "PROVIDERS": ["v4", "v3"],
-                    "ON_FAILURE": "log",
-                },
-            }
-        )
+    def test_permission_uses_shared_router_directly(self):
+        from iam_engine.provider.router import ModeRouter
 
-        assert cfg.read.providers == ("v3",)
-        assert cfg.read.policy == "single"
-        assert cfg.write.providers == ("v4", "v3")
-        assert cfg.write.on_failure == "log"
+        permission = Permission(username="offline", bk_tenant_id="system")
+        assert isinstance(permission.mode_router, ModeRouter)
+        assert not hasattr(permission, "_fw")
 
-    def test_policy_options_accept_environment_json(self):
-        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
+    def test_metadata_is_immutable_and_shared(self):
+        from bkmonitor.iam.backends.config import get_schema
 
-        cfg = FrameworkConfig.from_dict(
-            {
-                "READ": {
-                    "PROVIDERS": ["v4", "v3"],
-                    "POLICY": "dynamic",
-                    "OPTIONS": (
-                        '{"selector":{"type":"static","value":"only_v3"},'
-                        '"fallback_key":"only_v3",'
-                        '"policies":{"only_v3":{"providers":["v3"],"policy":"single"}}}'
-                    ),
-                }
-            }
-        )
-
-        assert cfg.read.options["policies"] == {"only_v3": {"providers": ["v3"], "policy": "single"}}
-
-    def test_policy_options_reject_invalid_environment_json(self):
-        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
-
-        with pytest.raises(ValueError, match="valid JSON"):
-            FrameworkConfig.from_dict({"READ": {"OPTIONS": "not-json"}})
-
-    @pytest.mark.parametrize("names", [["v3", "v3"], ["v3", ""]])
-    def test_rejects_invalid_read_or_write_provider_names(self, names):
-        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
-
-        with pytest.raises(ValueError, match="PROVIDERS"):
-            FrameworkConfig.from_dict({"READ": {"PROVIDERS": names}})
+        assert get_schema() is get_schema()
+        assert len(get_schema().all_actions()) == 55
 
 
-class TestFrameworkConfigExtensibility:
-    def test_migration_recorder_and_bypass_rule_options_are_parsed(self):
-        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
-        from bkmonitor.iam.iam_engine.core.types import Subject
-        from bkmonitor.iam.iam_engine.django.conf import _build_bypass_rules
+def test_monitor_and_common_use_identical_subject_and_resource_objects():
+    from iam_engine.core.requests import Subject, ResourceInstance
+    from iam_engine.provider import requests
 
-        cfg = FrameworkConfig.from_dict(
-            {
-                "MIGRATION": {
-                    "database": "iam",
-                    "table_name": "project_iam_migration_state",
-                },
-                "BYPASS_RULES": [
-                    {
-                        "class": "bkmonitor.iam.iam_engine.crosscutting.bypass.SubjectBypassRule",
-                        "options": {"subject_ids": ["iam_admin"]},
-                    }
-                ],
-            }
-        )
-
-        assert cfg.migration.database == "iam"
-        assert cfg.migration.table_name == "project_iam_migration_state"
-        rules = _build_bypass_rules(cfg.bypass_rules)
-        assert rules[0].should_bypass(Subject(id="iam_admin"), (), ()) is True
-
-    def test_legacy_bypass_rule_path_is_still_supported(self):
-        from bkmonitor.iam.iam_engine.core.config import FrameworkConfig
-
-        cfg = FrameworkConfig.from_dict(
-            {"BYPASS_RULES": ["bkmonitor.iam.iam_engine.crosscutting.bypass.SettingsSkipRule"]}
-        )
-
-        assert cfg.bypass_rules[0].cls == "bkmonitor.iam.iam_engine.crosscutting.bypass.SettingsSkipRule"
-        assert cfg.bypass_rules[0].options == {}
+    assert requests.Subject is Subject
+    assert requests.ResourceInstance is ResourceInstance

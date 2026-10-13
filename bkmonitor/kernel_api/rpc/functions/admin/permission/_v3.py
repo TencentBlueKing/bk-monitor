@@ -24,12 +24,12 @@ from typing import Any
 
 from bkmonitor.iam.adapters import catalog
 from bkmonitor.iam.adapters.catalog import parse_iam_path as _parse_iam_path
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
-from bkmonitor.iam.iam_engine.core.types import Subject as FwSubject, SubjectType
-from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.iam_engine.policy.expression import Op, PolicyExpression
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from iam_engine.exceptions import ProviderNotFound
+from iam_engine.provider.requests import Subject as FwSubject, SubjectType
+from bkmonitor.iam.permission import Permission
+from iam_engine.policy.expression import Op, PolicyExpression
+from iam_engine.schema.definitions import ActionDef
+from iam_engine.schema.registry import SchemaRegistry
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
@@ -363,7 +363,7 @@ def query_user_permissions(params: dict[str, Any]) -> dict[str, Any]:
     username = _normalize_username(params.get("username"))
     bk_tenant_id = require_bk_tenant_id(params)
 
-    fw = get_framework()
+    fw = Permission(username=username, bk_tenant_id=bk_tenant_id)
     try:
         v3_provider = fw.get_provider("v3")
     except ProviderNotFound:

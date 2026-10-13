@@ -18,7 +18,7 @@ class TestMigrationSafeDefault:
     def test_migration_allow_destructive_defaults_false(self):
         from django.conf import settings
 
-        assert settings.IAM_FRAMEWORK["MIGRATION"]["allow_destructive"] is False
+        assert settings.IAM_MODEL_MIGRATION["allow_destructive"] is False
 
 
 class TestMigrationEnvOverrides:
@@ -37,7 +37,7 @@ class TestMigrationEnvOverrides:
 
         import config.default as default_mod
 
-        return importlib.reload(default_mod).IAM_FRAMEWORK["MIGRATION"]
+        return importlib.reload(default_mod).IAM_MODEL_MIGRATION
 
     def test_defaults_without_env(self, monkeypatch):
         migration = self._reload_default_migration(monkeypatch, {})

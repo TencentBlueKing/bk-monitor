@@ -125,22 +125,7 @@ def _make_resource(rt: str, rid: str):
 @pytest.fixture
 def live_permission(live_framework, iam_user):
     """真实框架 + 真实用户；用户必须与权限树文件的 username 一致。"""
-    from bkmonitor.iam.iam_engine.django.facade import _set_framework, get_framework
-
-    if iam_user != _DIAG_USERNAME:
-        pytest.skip(
-            f"BK_IAM_ENGINE_USER={iam_user} 与 _iam_diag.json 的 username={_DIAG_USERNAME} 不一致，跳过权限树对照"
-        )
-
-    saved = None
-    try:
-        saved = get_framework()
-    except RuntimeError:
-        saved = None
-    _set_framework(live_framework)
-    perm = Permission(username=iam_user, bk_tenant_id="system")
-    yield perm
-    _set_framework(saved)
+    return Permission(username=iam_user, bk_tenant_id="system")
 
 
 def _check(perm, biz_action, rt, rid, expect):

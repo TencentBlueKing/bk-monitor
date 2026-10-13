@@ -515,9 +515,8 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
 
     monitor = _monitor_permission(user)
     from bkmonitor.iam.adapters.mcp import MonitorMCPClient
-    from bkmonitor.iam.iam_engine.django.facade import get_framework
 
-    monitor_client = MonitorMCPClient(get_framework(), monitor.bk_tenant_id)
+    monitor_client = MonitorMCPClient(monitor, monitor.bk_tenant_id)
     legacy_resource = _business_resource(bk_biz_id)
     legacy_query = Request(
         settings.BK_IAM_SYSTEM_ID, Subject("user", user.username), Action(tool.iam_action), [legacy_resource], None

@@ -1,117 +1,111 @@
-# IAM 公共框架重构：离线自测报告
+# IAM 结构收敛：离线自测报告
 
-日期：2026-10-12。单据：138944425。分支：`feat/iam-v4-support`。
-实现基线：`696591016804d4b45a4918dc0aff0d37dc64d756`，对应监控 PR #12734。
+日期：2026-10-13。单据：138944425。分支：`feat/iam-v4-support`。
+本轮基线：`c5b7054b3cd02a2c59080b3012283bb9c62ab180`，对应 PR #12734 已推送版本。
 
 ## 结论与范围
 
-共同决策/配置/HTTP/双写实现已经落地，BKLog 与监控引用同一公共目录。
-已实现范围的离线回归通过；未调用真实 IAM、未注册系统、未部署、未运行真实迁移。
-**不能将本报告解释为完整需求验收通过或已具备上线证据。**
+监控保留 Permission/DRF 对外接口，直接装配 BKLog 使用的公共 ModeRouter；
+删除监控私有 iam_engine、IAMFramework、ProviderRouter、SharedMigrationPolicy、
+框架单例和 IAM_FRAMEWORK 配置目录，不通过兼容外壳间接复用公共层。
+两平台仍引用根目录同一份 iam_engine。
 
-尚未完成的开发是任意 V3 策略到 V4 Role/资源分支的产品转换。
-已完成迁移预览、冻结、重放、回读机制，但缺少经确认的 Action→Role 映射，不能猜测
-单个 Action 可以升级成更大的运维角色。该问题已向提出人询问，不阻塞其他离线工作。
-最终真实接入验收与业务验收仍由吴嘉华负责。
+产品协议适配统一放在 backends/v3、backends/v4；监控的 Action、Resource、Role、
+codec、资源解析、回调和租户边界保持产品所有权。纯 Python schema、policy、model
+工具移至公共目录；Django AppConfig、注册记录、信号和命令留在产品侧。
+模型注册文件明确排除在 Django 数据库 migrations 之外。
+
+**存量授权迁移由 IAM 完成，不在本次产品开发范围。** 未被产品调用的存量回放
+工具及其测试已移除；保留模型注册/更新、新建资源授权双写和冻结请求重试。
+此前报告中 Action→Role 存量转换待确认、脚本未完成的说明作废。
+
+本轮开发离线自测通过；真实 IAM 接入验收为 not_run，不宣称已可上线。
+未连接真实 IAM、未注册系统、未真实授权、未部署，未修改 Charts。
+最终业务验收仍由提出人负责。
 
 ## 实际执行结果
 
-下面命令均在仓库根目录执行，`python` 使用对应产品的既有 Python 3.11 环境。
-脚本不加载个人 local_settings，不需要真实 IAM 凭据。
+Python 使用两产品既有 Python 3.11 环境；离线入口不加载个人 local_settings，
+使用显式假 SaaS 凭据、内存 SQLite 和 LocMem，阻断 socket/requests 外连。
+API/Worker 正式环境的 SaaS 凭据仍沿用 settings/GlobalConfig，未改变其来源。
 
 | 检查 | 实际结果 | 证据边界 |
 | --- | --- | --- |
-| 公共层与跨产品适配专项 | 109 passed | 核心策略、HTTP 模拟、实际 SQLite 事务、隔离模块产物 |
-| 监控已有 IAM 套件及新增专项 | 570 passed / 39 skipped / 7 deselected | 真实 Django apps、55 Actions、Permission/DRF、mock IAM/DB 边界 |
-| BKLog IAM + 管理诊断工具 | 673 tests，OK | IAM 664 + 诊断决策 9，真实 Django models 与内存 fixture 表 |
-| 监控原生 MCP 消费者 | 790 passed | 真实 MCP 权限模块；框架边界 mock，部分重型 HTTP 方法由既有 AST 测试执行 |
-| Web/API/Worker 装配 | 三种角色均成功加载 V3/V4、55 Actions，并注册 V4 重试任务 | Django 测试 bootstrap；不是完整服务健康或 broker 消费验证 |
-| 共同决策/编排静态类型 | 0 errors / 0 warnings | core、provider、dual_write、policy、replay，未全仓类型检查 |
-| Ruff / whitespace | 检查和格式化通过，git diff --check 通过 | 仅本次改动文件；正常提交 hook 另行记录 |
+| 监控 IAM、公共层、管理权限 RPC、告警消费者合并回归 | 785 passed / 39 skipped / 10 deselected | 实际 Permission/DRF、55 Actions、模拟 IAM、内存 DB |
+| BKLog IAM 与管理诊断决策 | 673 tests，OK | 实际 Django 装配与产品适配；外部依赖模拟 |
+| 监控原生 MCP 消费者 | 790 passed | 实际 MCP 权限模块；部分重型方法采用既有 AST 测试 |
+| 重构前后同输入对照 | 195 passed | 基线 c5b7054b 的实际决策与范围算法，对照当前 Permission |
+| Web/API/Worker 装配 | 三种角色加载 V3/V4、55 Actions、冻结授权重试任务 | 离线 Django bootstrap，不是完整服务或真实 broker |
+| 公共层类型检查 | 0 errors / 0 warnings | core、provider、schema、policy、model、dual_write、migration policy |
+| Ruff / whitespace | 检查、格式化和 git diff --check 通过 | 本次 Python 改动范围，不是全仓检查 |
 
-执行命令：
+上述套件结果分别统计，不用相加后的总数冒充互不重复的业务场景数。
+39 个跳过项需真实 IAM 配置/写授权；10 个 live 用例明确排除，
+test_live* 模块整体不运行。Django/SDK 弃用告警不是测试失败。
+BKLog 启动取应用信息被离线入口阻断，以及故障分支的异常日志，属于预期输出。
+
+执行命令均从仓库根目录运行，python 使用表中对应产品环境：
 
 ```bash
-PYTHONPATH=.:bkmonitor python -m pytest -c /dev/null --noconftest \
-  -p no:django -p no:cacheprovider iam_engine/tests -q --tb=short
-python iam_engine/tests/run_monitor_offline.py tests/iam -m 'not live' --tb=line
-python iam_engine/tests/run_bklog_offline.py apps.tests.iam apps.tests.log_admin_resource.test_iam_decision
+PYTHONPATH=.:bkmonitor python iam_engine/tests/run_monitor_offline.py \
+  tests/iam ../iam_engine/tests \
+  kernel_api/rpc/tests/test_admin_permission.py \
+  kernel_api/rpc/tests/test_admin_permission_v4.py \
+  packages/fta_web/tests/alert/test_biz_condition.py -m 'not live' --tb=line
+python iam_engine/tests/run_bklog_offline.py \
+  apps.tests.iam apps.tests.log_admin_resource.test_iam_decision
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=.:bkmonitor python -m pytest \
-  -c /dev/null -p no:cacheprovider bkmonitor/kernel_api/tests/test_native_mcp_permissions.py -q --tb=short
+  -c /dev/null -p no:cacheprovider \
+  bkmonitor/kernel_api/tests/test_native_mcp_permissions.py -q --tb=line
 python iam_engine/tests/run_monitor_offline.py --role web --startup-only
 python iam_engine/tests/run_monitor_offline.py --role api --startup-only
 python iam_engine/tests/run_monitor_offline.py --role worker --startup-only
 pyright --pythonpath <monitor-python> iam_engine/core iam_engine/provider \
-  iam_engine/migration/dual_write.py iam_engine/migration/policy.py iam_engine/migration/replay.py --level error
+  iam_engine/schema iam_engine/policy iam_engine/model \
+  iam_engine/migration/dual_write.py iam_engine/migration/policy.py --level error
 ```
 
-Monitor 39 跳过项是需要真实 IAM 配置/写授权的既有用例；7 项 live 标记排除，
-`test_live*` 模块整体排除，未执行真实环境用例。Monitor 3 条既有 Django 弃用告警，
-MCP 7 条依赖弃用告警，不是测试失败。
+同输入对照为本轮临时只读验证：从 Git 读取固定基线的 SharedMigrationPolicy 和其
+契约，使用等价值对象加载；147 个模式/允许/拒绝/异常/畸形结果组合，
+48 个资源范围组合，全部与当前结果一致。临时验证脚本不加入产品产物。
+持续回归由仓库里的契约测试维护，不让 CI 依赖本地临时文件或 Git 历史。
+类型检查不覆盖全仓产品代码。正常提交 hooks 与推送回执另记于单据。
 
-测试脚本在加载 settings 前拦截外连 socket 和 requests Session，所有 DB alias 为
-内存 SQLite、Django cache 为 LocMem。BKLog 关闭测试中的 APIGW 公钥启动获取并
-mock 非 IAM Redis 连接；只创建 GlobalConfig、FeatureToggle、SpaceType、Space 表，
-不执行迁移/post_migrate。部分 AppConfig 初始化因尚无 fixture 表产生预期日志，
-授权重试/指标容错用例也会输出预期异常日志；以上均未改变正式配置。
+## 直接覆盖的验收项
 
-## 直接覆盖的行为
+- 公共模块无产品业务 import；双产品软链接指向同一源；隔离产物可以导入。
+- 监控没有私有引擎或新增框架外壳，Permission 实际持有公共 ModeRouter。
+- V3/V4/Union；Union 任一明确允许即通过，无允许则拒绝；异常保留 degraded。
+- 动态模式每次解析，批量模式快照；非法模式、非布尔值、批量缺项不放行。
+- Union 无权限申请优先 V4，原申请回退保持；精确资源范围不退化为空间级授权。
+- 三个读模式均独立调用两侧写目标；默认 V4 365 天。
+- 实际 transaction.atomic 提交后投递、回滚不投递；冻结主体、租户、资源、角色、
+  expired_at 不在重试时重算；没有 outbox/持久化补偿。
+- 两平台共同 settings/endpoint loader、选项归一化；不从 V3 推导 V4 网关。
+- Permission/DRF 的 Action 兼容、token/skip_check、申请协议、列表范围与租户边界。
+- MCP 明确拒绝/错误的回退边界；Grafana 粗门禁、dashboard/folder 候选与 ACL 回收。
+- callback 路由、凭据与 token 缓存，V4 HTTP/业务异常和批量响应契约。
+- 模型注册命令使用实际 Permission 和只读 recorder；最新 snapshot 覆盖 55 Actions。
+- Web/API/Worker 的产品 IAMConfig 与重试任务注册，模型注册/数据库迁移分离。
 
-- V3/V4/Union；允许、拒绝、错误组合；非法模式和非布尔响应 fail closed。
-- 动态模式每次请求解析；批量整批只解析一次，Action 策略查询继续走批量入口。
-- Union 明确 ALLOW 赢过另一侧 DENY/ERROR；没有 ALLOW 拒绝，保留 degraded 证据。
-- 无权限申请/展示优先 V4，既有申请回退路径保留。
-- 三个读模式均调用 V3 与 V4 写入，不让读选择影响写目标。
-- 首次两侧同步尝试，默认 365 天；实际 transaction.atomic 提交后投递、回滚不投递。
-- 重试原样保留租户、主体、角色、资源、expired_at；退避和最终终止不依赖真实 broker。
-- 同一 settings loader、endpoint loader、选项归一化；无隐式 V4 网关推导。
-- V4 201 空授权响应、HTTP/业务错误、租户头、阶段路径、不完整/重复批量资源结果。
-- 持久化 IAM_V1_COMPATIBLE=False 不再双查旧 Action；动态变化不复用旧兼容标志缓存键。
-- V4 has_any_permission 不再恒真，零权限不能绕过 Grafana 粗门禁。
-- Grafana 实际候选包括当前 org 的 dashboard 和 folder；folder 展开与 View/Edit ACL；
-  空期望权限删除现有托管角色 ACL，不影响其他角色，也不创建无用角色。
-- MCP 通过统一决策、保留 bypass hook；故障不能触发明确 DENY 的原生权限回退；
-  legacy `_v2` Action 归一化，申请保留父链与租户。
-- callback 错误响应不回显上游详情，结构化日志转义换行，0 TTL 禁用 token 缓存。
-- 最新 model migration 0002 覆盖 55 Actions（含日志采集/提取 MCP），最新 snapshot 无 diff。
-- 两平台产物解引用后隔离导入共同模块，公共运行时代码无产品 import。
+## 本地只读自审
 
-## 只读自审
+针对本轮相对 c5b7054b 的本地 diff，核对真实 Permission/DRF → 公共 ModeRouter
+→ 产品 backend，以及 MCP、Grafana、RPC、callback、授权重试和模型注册调用链。
+删除的测试是已移除框架配置/外壳的过时契约；业务行为测试改为实际 Permission
+边界，没有增加仅为旧测试服务的兼容框架。
 
-目标是本地本次 diff 相对实现基线，而不是把未推送代码当成远端 PR current head。
-复核 Permission/DRF→ProviderRouter→SharedMigrationPolicy→ModeRouter→产品 provider 的
-实际路径，以及 MCP、Grafana proxy→sync_dashboard_permission、Celery 重试与配置加载。
+自审发现的命令 settings 导入遮蔽、旧消费者 mock 和离线角色凭据缺口已修复，
+重新运行相关测试。当前范围未发现新的可复现 P0/P1。
+未发布 GitHub 评论、resolve、approve 或创建新 PR；远端 CI 未以本地结果代替。
 
-此前六类高优先风险（V4 任意权限恒真、V3 兼容配置遗漏、非法组合策略回退、Grafana
-候选/ACL 回收、MCP 旧 SDK 路径、模型快照遗漏）在本地改动中修复并有回归证据。
-callback CodeQL 提示对应位置已在本地处理并直接测试；不代表远端 CodeQL 重新通过。
-已实现范围未发现新的可复现 P0/P1；未发布评论、resolve、approve 或创建新 PR。
+## 未覆盖与残余风险
 
-## 单据验收项状态
+真实 IAM 普通用户/精确资源/申请页/模型注册/新增授权，以及 Celery broker 投递
+与故障恢复未验证；未构建完整镜像、未验证真实部署流水线解引用归档。
+公共目录的隔离导入不等于完整容器或正式部署验收。
 
-| 验收项 | 本轮状态 |
-| --- | --- |
-| 同一公共源、产物导入 | 本地隔离产物通过；真实部署归档与完整容器待验证 |
-| 单向依赖、原 Permission/DRF | 通过 |
-| 三种模式、三态组合 | 通过 |
-| Union OR、V4 优先申请 | 通过 |
-| 动态选择与独立双写 | 通过 |
-| 365 天有效期 | 创建者与迁移冻结机制通过；完整转换脚本未完成 |
-| 事务/重试/恢复边界 | 离线通过；真实 broker/故障恢复未验证 |
-| settings/env 一致 | 共同声明与解析回归通过；未修改 Charts |
-| 精确资源/实际消费者 | 当前 IAM、DRF、列表、Grafana、MCP 回归通过；非全平台 E2E |
-| 完整策略迁移脚本 | 部分完成，Action→Role 映射与产品转换待确认 |
-| 本地测试及证据 | 通过，模拟不冒充真实接入 |
-| 真实 IAM 普通用户验收 | 用户指定本阶段 not_run |
-| 开发/真实验收分开报告 | 已记录 |
-| 吴嘉华最终验收 | 待确认 |
-
-## 真实环境后续清单
-
-监控 system ID 使用 `bk_monitorv3`，目标 V4 gateway 为已确认的 dev 地址，尚未注册。
-普通用户 jayjhwu 当前预期 V3 有权/V4 无权。后续在明确操作授权和范围后验证：
-V3-only 允许、V4-only 拒绝、Union 允许；再覆盖其余三个授权组合及申请/创建者链路。
-核验 callback 路由/Basic token、模型注册、真实资源范围、V4 201 授权、broker 实际投递，
-明确云侧 365 天授权有效期与精确实例范围。不要以单测代替真实接口与部署证据。
-
-回退使用配置中心 v3 模式，保留两侧写目标和原 V3 授权。自动化迁移实际执行另行确认。
+后续需在明确操作范围后验证监控 system ID bk_monitorv3、仅 V3/仅 V4/Union，
+四种授权组合、callback 和创建者授权及重试。本阶段按提出人要求不运行真实数据。
+配置中心切回 v3 是读侧回退，不删除 V3/V4 模型、授权或关闭独立双写。
+存量权限迁移不作为本次交付阻塞项，由 IAM 负责。

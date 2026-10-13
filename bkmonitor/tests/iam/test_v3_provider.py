@@ -25,20 +25,20 @@ import pytest
 
 from iam.exceptions import AuthAPIError
 
-from bkmonitor.iam.iam_engine.core.types import (
+from iam_engine.provider.requests import (
     Subject as CoreSubject,
 )
-from bkmonitor.iam.iam_engine.provider.dialect_types import (
+from iam_engine.provider.dialect_types import (
     DialectApplyURLRequest,
     DialectAuthRequest,
     DialectBatchByActionRequest,
     DialectBatchByResourceRequest,
     DialectResource,
 )
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
+from iam_engine.schema.registry import SchemaRegistry
 from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
-from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
+from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 
 
 def _valid_options() -> dict:
@@ -497,7 +497,7 @@ class TestV3ProviderDialectMethods:
         plan = p.plan_migration(p.schema, scope="system")
         # mock 迁移执行用的 IamMigrateClient（migrator 模块内以该名字引用；
         # patch 源模块属性不会影响 migrator 已绑定的引用），避免真实网络调用
-        with patch("bkmonitor.iam.iam_v3.migrator.IamMigrateClient") as mock_client_cls:
+        with patch("bkmonitor.iam.backends.v3.migrator.IamMigrateClient") as mock_client_cls:
             mock_migration_client = MagicMock()
             mock_migration_client.add_system.return_value = (True, "")
             mock_client_cls.return_value = mock_migration_client
@@ -524,7 +524,7 @@ class TestV3ProviderDialectMethods:
             },
         )
 
-        from bkmonitor.iam.iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan
+        from iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan
 
         plan = MigrationPlan(
             provider_name="v3",
@@ -619,7 +619,7 @@ class TestV3SystemRegistration:
         provider._iam_client.query_system.return_value = (True, "ok", {"base_info": self._remote_system()})
         plan = provider.plan_migration(provider.schema, scope="system")
 
-        with patch("bkmonitor.iam.iam_v3.migrator.IamMigrateClient") as client:
+        with patch("bkmonitor.iam.backends.v3.migrator.IamMigrateClient") as client:
             report = provider.apply_migration(plan)
 
         assert report.success
@@ -635,7 +635,7 @@ class TestV3SystemRegistration:
             {"base_info": self._remote_system(host="https://old-monitor.example.com")},
         )
         plan = provider.plan_migration(provider.schema, scope="system")
-        with patch("bkmonitor.iam.iam_v3.migrator.IamMigrateClient") as client:
+        with patch("bkmonitor.iam.backends.v3.migrator.IamMigrateClient") as client:
             report = provider.apply_migration(plan, dry_run=True)
         assert report.success
         assert len(report.would_apply) == 1
@@ -643,7 +643,7 @@ class TestV3SystemRegistration:
         client.return_value.update_system.assert_not_called()
 
     def test_migration_rejects_missing_callback_config_before_network(self):
-        from bkmonitor.iam.iam_engine.core.exceptions import MigrationFailed
+        from iam_engine.exceptions import MigrationFailed
 
         provider = _make_provider(system={"id": "bk_monitorv3", "name": "监控平台"})
         with pytest.raises(MigrationFailed, match="system.provider_config"):

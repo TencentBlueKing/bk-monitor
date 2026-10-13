@@ -17,9 +17,9 @@ from django.test import override_settings
 
 from bkmonitor.iam.adapters.v4.callback import auth as callback_auth
 from bkmonitor.iam.adapters.v4.callback.config import get_v4_callback_config
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
-from bkmonitor.iam.iam_v4.provider import V4PermissionProvider
+from iam_engine.schema.registry import SchemaRegistry
+from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
+from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
 from config.tools.iam_credentials import get_saas_setting, saas_setting
 
 
@@ -78,7 +78,7 @@ def test_v3_registration_uses_saas_credentials_in_actual_sdk_request():
     provider = V3PermissionProvider(schema, **_options())
     with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"):
         plan = provider.plan_migration(schema, scope="system")
-        with patch("bkmonitor.iam.iam_v3.client.V3Client.query_system", return_value=(False, "not found", None)):
+        with patch("bkmonitor.iam.backends.v3.client.V3Client.query_system", return_value=(False, "not found", None)):
             with patch("iam.contrib.iam_migration.utils.do_migrate.http_post") as post:
                 post.return_value = (True, {"code": 0, "data": {}})
                 report = provider.apply_migration(plan)
@@ -92,17 +92,16 @@ def test_v3_registration_uses_saas_credentials_in_actual_sdk_request():
 
 def test_callback_snapshots_saas_credentials_and_refreshes_token_provider(monkeypatch):
     monkeypatch.setattr(callback_auth, "_token_provider", None)
-    with override_settings(IAM_FRAMEWORK={"PROVIDER_CATALOG": {"v4": {"options": _options()}}}):
-        with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"):
-            config = get_v4_callback_config()
-            first = callback_auth.get_callback_token_provider()
-            assert callback_auth.get_callback_token_provider() is first
-            assert config.credentials.app_code == "saas-app"
-        with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="rotated-secret"):
-            second = callback_auth.get_callback_token_provider()
-            assert second is not first
-            assert config.credentials.app_secret == "saas-secret"
-            assert second.config.credentials.app_secret == "rotated-secret"
+    with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"):
+        config = get_v4_callback_config()
+        first = callback_auth.get_callback_token_provider()
+        assert callback_auth.get_callback_token_provider() is first
+        assert config.credentials.app_code == "saas-app"
+    with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="rotated-secret"):
+        second = callback_auth.get_callback_token_provider()
+        assert second is not first
+        assert config.credentials.app_secret == "saas-secret"
+        assert second.config.credentials.app_secret == "rotated-secret"
 
 
 @override_settings(SAAS_APP_CODE="", SAAS_SECRET_KEY="", APP_CODE="backend-app", SECRET_KEY="backend-secret")

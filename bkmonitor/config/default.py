@@ -44,7 +44,6 @@ from .tools.mysql import (
     get_saas_mysql_settings,
 )
 from .tools.service import get_service_url
-from .tools.iam_credentials import saas_setting
 
 # 这里是默认的 INSTALLED_APPS，大部分情况下，不需要改动
 # 如果你已经了解每个默认 APP 的作用，确实需要去掉某些 APP，请去掉下面的注释，然后修改
@@ -65,7 +64,7 @@ INSTALLED_APPS = (
     # account app
     "blueapps.account",
     "apigw_manager.apigw",
-    "bkmonitor.iam.iam_engine.django",
+    "bkmonitor.iam.apps.IAMConfig",
 )
 
 # 这里是默认的中间件，大部分情况下，不需要改动
@@ -1400,93 +1399,20 @@ BK_IAM_V3_API_BASE_URL = (
 # ---- IAM 申请 URL 兜底 ----
 BK_IAM_V3_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V3_FALLBACK_APPLY_URL", "") or BK_IAM_SAAS_HOST
 
-# Provider loading/writes/migrations are independent of the runtime read mode.
-# V4 is assembled only when its explicit gateway is configured.
-_BK_IAM_PROVIDERS = ["v3", "v4"] if BK_IAM_V4_APIGATEWAY_URL else ["v3"]
+# Product model registration is independent of runtime read mode.
+# IAM's historical files are model registrations, not Django DB migrations.
+MIGRATION_MODULES = {"bkmonitor_iam": None}
 
-IAM_FRAMEWORK = {
-    # 操作定义
-    "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
-    # 资源定义
-    "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
-    # 角色定义
-    "ROLES": "bkmonitor.iam.definitions.roles.Roles",
-    # 完整目录不等于当前装配集合，便于读/写独立选择且不隐含 V3/V4 语义。
-    "PROVIDER_CATALOG": {
-        "v3": {
-            "class": "bkmonitor.iam.iam_v3.provider.V3PermissionProvider",
-            "options": {
-                "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
-                "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
-                "base_url": BK_IAM_V3_API_BASE_URL,
-                "bk_tenant_id": "system",
-                "provider_config_path": os.getenv("BK_IAM_V3_RESOURCE_PATH", "/rest/v2/iam/resource/"),
-                "fallback_apply_url": BK_IAM_V3_FALLBACK_APPLY_URL,
-                "credentials": {
-                    "app_code": saas_setting("SAAS_APP_CODE"),
-                    "app_secret": saas_setting("SAAS_SECRET_KEY"),
-                },
-                "system": {
-                    "id": BK_IAM_SYSTEM_ID,
-                    "name": "监控平台",
-                    "description": (
-                        "蓝鲸监控平台是一款针对主机和互联网应用进行监控的产品，监控服务可用于收集主机资源"
-                        "（系统性能、组件服务、数据库、日志等）的监控指标，探测互联网应用服务的可用性，"
-                        "并对指标进行告警设置。"
-                    ),
-                    "name_en": "BKMonitor",
-                    "description_en": (
-                        "BKMonitor is a product that monitors the host and Internet applications. "
-                        "The monitoring service can be used to collect monitoring metrics of host "
-                        "(system performance, component services, databases, logs, etc.), detect the "
-                        "availability of Internet application services, and set alarms for metrics."
-                    ),
-                    "clients": [saas_setting("SAAS_APP_CODE"), "bk_monitorv3", "bkci", "bk_paas3", "paasv3cli"],
-                    "provider_config": {"host": BK_IAM_RESOURCE_API_HOST, "auth": "basic"},
-                },
-            },
-        },
-        "v4": {
-            "class": "bkmonitor.iam.iam_v4.provider.V4PermissionProvider",
-            "options": {
-                "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
-                "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
-                "base_url": BK_IAM_V4_APIGATEWAY_URL,
-                "bk_tenant_id": "system",
-                "fallback_apply_url": BK_IAM_SAAS_HOST,
-                "credentials": {
-                    "app_code": saas_setting("SAAS_APP_CODE"),
-                    "app_secret": saas_setting("SAAS_SECRET_KEY"),
-                },
-                "system": {
-                    "id": BK_IAM_V4_SYSTEM_ID or BK_IAM_SYSTEM_ID,
-                    "name": "蓝鲸监控平台",
-                    "description": "蓝鲸监控平台-IAMv4 权限系统",
-                    "callback_url": BK_IAM_V4_CALLBACK_URL
-                    or f"{BK_IAM_RESOURCE_API_HOST.rstrip('/')}/rest/v2/iam/v4/callback/",
-                    "managers": [m.strip() for m in BK_IAM_V4_MODEL_MANAGERS.split(",") if m.strip()],
-                    "clients": [saas_setting("SAAS_APP_CODE")],
-                },
-                "timeout": BK_IAM_V4_TIMEOUT,
-                "chunk_size": BK_IAM_V4_BATCH_CHUNK_SIZE,
-                "max_workers": BK_IAM_V4_BATCH_MAX_WORKERS,
-            },
-        },
-    },
-    "ENABLED_PROVIDERS": _BK_IAM_PROVIDERS,
-    "READ": {"PROVIDERS": _BK_IAM_PROVIDERS, "POLICY": "shared"},
-    "WRITE": {"PROVIDERS": _BK_IAM_PROVIDERS, "ON_FAILURE": "log"},
-    "MIGRATION": {
-        # 迁移模式 manual ｜ semi_auto —— 由 BK_IAM_ENGINE_MIGRATION_MODE 控制，
-        # 默认 semi_auto 保持随 `manage.py migrate` 一起跑（幂等 CREATE/UPDATE）。
-        "mode": os.getenv("BK_IAM_ENGINE_MIGRATION_MODE", "semi_auto"),
-        # 迁移文件存放目录 —— 由 BK_IAM_ENGINE_MIGRATION_DIRECTORY 控制。
-        "directory": os.getenv("BK_IAM_ENGINE_MIGRATION_DIRECTORY", "bkmonitor/iam/iam_migrations"),
-        # 破坏性变更（DELETE / 方言 id 变更重建）全局开关：
-        # 默认 False —— 破坏性变更必须走独立命令 `iam_engine_migrate --allow-destructive`
-        "allow_destructive": os.getenv("BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE", "false").lower()
-        in ("1", "true", "yes"),
-    },
+IAM_MODEL_MIGRATION = {
+    # 迁移模式 manual ｜ semi_auto —— 由 BK_IAM_ENGINE_MIGRATION_MODE 控制，
+    # 默认 semi_auto 保持随 `manage.py migrate` 一起跑（幂等 CREATE/UPDATE）。
+    "mode": os.getenv("BK_IAM_ENGINE_MIGRATION_MODE", "semi_auto"),
+    # 迁移文件存放目录 —— 由 BK_IAM_ENGINE_MIGRATION_DIRECTORY 控制。
+    "directory": os.getenv("BK_IAM_ENGINE_MIGRATION_DIRECTORY", "bkmonitor/iam/iam_migrations"),
+    # 破坏性变更（DELETE / 方言 id 变更重建）全局开关：
+    # 默认 False —— 破坏性变更必须走独立命令 `iam_engine_migrate --allow-destructive`
+    "allow_destructive": os.getenv("BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE", "false").lower()
+    in ("1", "true", "yes"),
 }
 
 

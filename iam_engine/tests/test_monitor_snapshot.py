@@ -1,10 +1,10 @@
 from pathlib import Path
 
 from bkmonitor.iam.definitions import Actions, ResourceTypes, Roles
-from bkmonitor.iam.iam_engine.migration.diff import diff_snapshots
-from bkmonitor.iam.iam_engine.migration.loader import MigrationLoader
-from bkmonitor.iam.iam_engine.schema.loaders import load_from_class
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from iam_engine.model.diff import diff_snapshots
+from iam_engine.model.loader import MigrationLoader
+from iam_engine.schema.loaders import load_from_class
+from iam_engine.schema.registry import SchemaRegistry
 
 
 def test_latest_migration_snapshot_matches_current_definitions():

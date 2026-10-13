@@ -7,14 +7,18 @@ BKLog 与监控实际引用根目录同一份 `iam_engine`；产品目录中的
 
 - `core/`：协议中立请求、允许/拒绝/错误结果与三种模式。
 - `provider/`：ModeRouter、Union 决策/范围合并、能力 Bundle 和执行器协议。
-- `migration/`：申请选边、独立双写、注入式事务提交 hook、冻结授权计划重放。
+- `migration/`：申请选边、独立双写、注入式事务提交 hook、新建资源授权的冻结请求重试。
 - `settings.py`、`v4/`：BKLog 既有环境变量映射、选项归一化、网关、HTTP 和响应校验。
-- 产品适配：BKLog `apps.iam.backends`；监控 `bkmonitor.iam.adapters` 与 `iam_v3/iam_v4`。
+- 产品适配：BKLog `apps.iam.backends`；监控 `bkmonitor.iam.backends` 与 `adapters`。
   Action、资源、角色、codec、租户/资源归属、回调和策略 AST 仍由产品负责。
 
-公共层不 import 任一产品业务模块。监控保留既有 IAMFramework、Permission/DRF
-门面和 schema/resolver 扩展点，但删除另一套 all_of、primary、any_of 等组合算法。
-监控 SharedMigrationPolicy 只做值对象适配；实际布尔与范围合并使用公共实现。
+公共层不 import 任一产品业务模块。两平台保留 Permission/DRF 对外接口，
+由 Permission 直接装配公共 ModeRouter。监控不再保留 IAMFramework、ProviderRouter、
+SharedMigrationPolicy、框架单例或 IAM_FRAMEWORK 配置目录。产品 backend 只负责
+协议、codec、资源解析和 IAM 模型；布尔决策、范围合并与双写编排复用公共实现。
+
+公共 schema/、policy/、model/ 提供不依赖 Django 的模型和策略工具。监控的
+Django 信号、模型注册记录及管理命令放在产品侧；模型注册不等于存量权限迁移。
 
 `PairExecutor` 由上层注入。BKLog 继续使用带请求上下文的双路执行器；监控目前顺序
 执行两侧，保留租户上下文。不要在公共层读取产品配置中心或另起没有上下文的线程。
@@ -94,21 +98,11 @@ Dockerfile 在构建时检查模块存在；本地 unit_test 复制也改为解�
 `test_packaging.py` 实际复制并在隔离目录导入两种产物；未构建完整容器镜像。
 部署流水线的实际归档实现仍需按最终部署方式核对。
 
-## 策略迁移：已完成机制，映射仍待确认
+## 存量权限迁移边界
 
-`migration.replay.freeze_grant_plan` 和 `replay_grant_plan` 提供共同机制：默认仅
-预览、365 天冻结有效期、全部 V3 源权限预检查、V4 写入与回读、重复执行跳过已确认
-授权。没有 V3 写接口，不删除旧授权；回读证明的是检查项的授权，不是授权记录 TTL。
-
-计划每条必须明确 `mapping_reference`、`authorization`（主体、role、资源分支、精确
-资源、有效期）及 `checks`。调用方注入明确 V3/V4 单栈检查，不能使用 Union 或 bypass。
-外部服务异常、非布尔结果和未确认映射都不能冒充迁移成功。
-
-**这不是完整 V3 策略→V4 RBAC 转换脚本。** 已核对两平台旧
-`iam_upgrade_action_v2.py` 的策略读取/展开流程，但 V4 授权接口是 Role+资源而非旧
-Action 授权。单个 V3 Action 不能直接推断成更宽的 space_operator。角色/策略映射及
-检查项完整性尚未获得产品确认，因此本次不实现臆测转换、不运行真实迁移。
-映射确认后，产品适配器负责导出/转换、校验等价范围并提供管理命令，复用此共同机制。
+存量 V3 授权迁移由 IAM 自行完成，不在本次产品开发范围。不提供 Action→Role
+转换、批量存量补授权或授权回放脚本，也不将映射规则作为本次开发阻塞项。
+保留 IAM 模型注册/更新和新建资源的同步双写及冻结重试，这两者不是存量迁移。
 
 ## 自测与真实验收
 

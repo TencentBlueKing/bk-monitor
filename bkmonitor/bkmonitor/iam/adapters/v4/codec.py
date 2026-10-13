@@ -26,7 +26,7 @@ specific language governing permissions and limitations under the License.
 #       （历史数据、极端兼容路径），视作已是业务 ID 原样返回。
 #
 # 配置方式：
-#   在 IAM_FRAMEWORK.PROVIDER_CATALOG["v4"].options.codec_class 中配置本类的 dotted path：
+#   在 产品 backend 配置 中配置本类的 dotted path：
 #       "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec"
 #   Provider 在初始化时自动加载。业务可自由替换为自己的 codec 实现。
 # ---------------------------------------------------------------------------
@@ -35,7 +35,7 @@ from __future__ import annotations
 
 import logging
 
-from ...iam_engine.provider.codec import IdentityCodec
+from iam_engine.provider.codec import IdentityCodec
 
 logger = logging.getLogger(__name__)
 

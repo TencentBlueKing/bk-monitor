@@ -14,7 +14,7 @@ import pytest
 from django.db import connections
 from django.test import override_settings
 
-from bkmonitor.iam.iam_engine.django.migration_recorder import DjangoMigrationRecorder
+from bkmonitor.iam.model.recorder import DjangoMigrationRecorder
 
 
 class TestDjangoMigrationRecorder:
@@ -87,7 +87,7 @@ class TestDjangoMigrationRecorder:
             DjangoMigrationRecorder(table_name="invalid-name")
 
     def test_migration_command_uses_configured_recorder_lock(self, monkeypatch):
-        from bkmonitor.iam.iam_engine.django.management.commands import iam_engine_migrate
+        from bkmonitor.iam.management.commands import iam_engine_migrate
 
         events = []
 
@@ -109,14 +109,12 @@ class TestDjangoMigrationRecorder:
             providers = {"fake": Provider()}
 
         monkeypatch.setattr(iam_engine_migrate, "DjangoMigrationRecorder", Recorder)
-        monkeypatch.setattr(iam_engine_migrate, "get_framework", lambda: Framework())
+        monkeypatch.setattr(iam_engine_migrate, "Permission", lambda **kwargs: Framework())
 
         with override_settings(
-            IAM_FRAMEWORK={
-                "MIGRATION": {
-                    "database": "iam_history",
-                    "table_name": "project_iam_history",
-                }
+            IAM_MODEL_MIGRATION={
+                "database": "iam_history",
+                "table_name": "project_iam_history",
             }
         ):
             iam_engine_migrate.Command().handle(
@@ -134,7 +132,7 @@ class TestDjangoMigrationRecorder:
         ]
 
     def test_migration_command_uses_read_only_recorder_for_dry_run(self, monkeypatch):
-        from bkmonitor.iam.iam_engine.django.management.commands import iam_engine_migrate
+        from bkmonitor.iam.management.commands import iam_engine_migrate
 
         events = []
 
@@ -153,14 +151,12 @@ class TestDjangoMigrationRecorder:
             providers = {"fake": Provider()}
 
         monkeypatch.setattr(iam_engine_migrate, "DjangoMigrationRecorder", Recorder)
-        monkeypatch.setattr(iam_engine_migrate, "get_framework", lambda: Framework())
+        monkeypatch.setattr(iam_engine_migrate, "Permission", lambda **kwargs: Framework())
 
         with override_settings(
-            IAM_FRAMEWORK={
-                "MIGRATION": {
-                    "database": "iam_history",
-                    "table_name": "project_iam_history",
-                }
+            IAM_MODEL_MIGRATION={
+                "database": "iam_history",
+                "table_name": "project_iam_history",
             }
         ):
             iam_engine_migrate.Command().handle(

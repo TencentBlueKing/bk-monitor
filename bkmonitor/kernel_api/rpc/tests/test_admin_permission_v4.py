@@ -8,25 +8,26 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
-from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+from iam_engine.exceptions import ProviderNotFound
+from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc.functions.admin.permission import query_user_permissions_v4, query_user_sub_resources_v4
 
-_GET_FW = "kernel_api.rpc.functions.admin.permission._v4.get_framework"
+_GET_FW = "kernel_api.rpc.functions.admin.permission._v4.Permission"
 _CATALOG_FETCH = "bkmonitor.iam.adapters.catalog.fetch_instance_info"
 _CATALOG_LIST = "bkmonitor.iam.adapters.catalog.list_instances"
 
 
 def _mock_fw_with_v4(v4_provider) -> MagicMock:
-    from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
+    from bkmonitor.iam.permission import Permission as RealPermission
 
     mock_fw = MagicMock()
-    mock_fw.schema = real_get_fw().schema
+    mock_fw.schema = RealPermission(username="offline", bk_tenant_id="system").schema
     mock_fw.get_provider.return_value = v4_provider
     return mock_fw
 
@@ -63,10 +64,14 @@ class TestQueryUserPermissionsV4:
     @patch(_GET_FW)
     def test_overview_global_space_deferred(self, mock_get_fw, mock_fetch):
         """全局 action 走批量、space 走 get_authorized_resources、二级 deferred。"""
-        from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
+        from bkmonitor.iam.permission import Permission as RealPermission
 
         mock_v4 = MagicMock()
-        global_ids = {a.id for a in real_get_fw().schema.all_actions() if not a.resource_type}
+        global_ids = {
+            a.id
+            for a in RealPermission(username="offline", bk_tenant_id="system").schema.all_actions()
+            if not a.resource_type
+        }
         mock_v4.batch_by_action.return_value = BatchAuthResult(
             items=tuple(
                 ResourceAuthResult(
@@ -134,10 +139,14 @@ class TestQueryUserPermissionsV4:
     @patch(_GET_FW)
     def test_overview_space_query_failure(self, mock_get_fw):
         """单个 space 授权查询失败 → 该 action error + warning，不整体失败。"""
-        from bkmonitor.iam.iam_engine.django.facade import get_framework as real_get_fw
+        from bkmonitor.iam.permission import Permission as RealPermission
 
         mock_v4 = MagicMock()
-        global_ids = {a.id for a in real_get_fw().schema.all_actions() if not a.resource_type}
+        global_ids = {
+            a.id
+            for a in RealPermission(username="offline", bk_tenant_id="system").schema.all_actions()
+            if not a.resource_type
+        }
         mock_v4.batch_by_action.return_value = BatchAuthResult(
             items=tuple(
                 ResourceAuthResult(action_id=aid, resource_type="", resource_id="", allowed=False) for aid in global_ids
@@ -423,17 +432,18 @@ class TestQueryUserSubResourcesV4:
 # ==============================================================================
 # 真实 IAM 框架集成测试 — 连接真实 V4 IAM 服务器查询用户权限
 #
-# 与 v3 的 TestRealFrameworkQuery 同一环境：共用同一 Django settings / 数据库
+# 与 v3 的 TestRealPermissionQuery 同一环境：共用同一 Django settings / 数据库
 # （@pytest.mark.django_db 使用完全相同的 databases：default / monitor_api /
 # bk_dataview），catalog 的 space / apm / rum / grafana 查询走同一套本地库。
-# 平台连接走同一 .env 的 v4 配置（BK_IAM_V4_API_BASE_URL 等），
-# 并要求 IAM_FRAMEWORK.PROVIDERS 已装配 v4 provider（未装配时运行时 skip）。
+# 平台连接走同一 .env 的 v4 配置（BK_IAM_V4_APIGATEWAY_URL 等），
+# 并要求 Permission.providers 已装配 v4 provider（未装配时运行时 skip）。
 # ==============================================================================
 
 
+@pytest.mark.live
 @pytest.mark.skipif(
-    not __import__("django").conf.settings.BK_IAM_V4_API_BASE_URL,
-    reason="IAM v4 API 未配置（BK_IAM_V4_API_BASE_URL 为空）",
+    os.getenv("BK_IAM_LIVE") != "1" or not __import__("django").conf.settings.BK_IAM_V4_APIGATEWAY_URL,
+    reason="真实 IAM V4 用例仅在 BK_IAM_LIVE=1 且网关已配置时运行",
 )
 class TestRealFrameworkQueryV4:
     """连接真实 IAM v4 服务器，调用 v4 权限查询接口获取实际权限数据。"""
@@ -456,10 +466,10 @@ class TestRealFrameworkQueryV4:
         username = __import__("os").environ.get("IAM_V4_TEST_USER", "admin")
         tenant_id = __import__("os").environ.get("IAM_V4_TENANT_ID", "system")
 
-        from bkmonitor.iam.iam_engine.django.facade import get_framework
+        from bkmonitor.iam.permission import Permission
 
-        if "v4" not in get_framework().providers:
-            pytest.skip("框架未装配 v4 provider（IAM_FRAMEWORK.PROVIDERS 未启用 v4 块）")
+        if "v4" not in Permission(username="offline", bk_tenant_id="system").providers:
+            pytest.skip("Permission 未装配 V4 backend（V4 网关未配置）")
 
         result = query_user_permissions_v4({"username": username, "bk_tenant_id": tenant_id})
 
@@ -520,10 +530,10 @@ class TestRealFrameworkQueryV4:
         tenant_id = __import__("os").environ.get("IAM_V4_TENANT_ID", "system")
         space_id = __import__("os").environ.get("IAM_V4_TEST_SPACE_ID", "2")
 
-        from bkmonitor.iam.iam_engine.django.facade import get_framework
+        from bkmonitor.iam.permission import Permission
 
-        if "v4" not in get_framework().providers:
-            pytest.skip("框架未装配 v4 provider（IAM_FRAMEWORK.PROVIDERS 未启用 v4 块）")
+        if "v4" not in Permission(username="offline", bk_tenant_id="system").providers:
+            pytest.skip("Permission 未装配 V4 backend（V4 网关未配置）")
 
         result = query_user_sub_resources_v4({"username": username, "bk_tenant_id": tenant_id, "bk_biz_id": space_id})
 

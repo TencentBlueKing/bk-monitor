@@ -13,5 +13,5 @@ specific language governing permissions and limitations under the License.
 #
 # 本包由 callback 项目持有：资源 handler、协议分发、HTTP 鉴权、配置和 URL View
 # 都在这里完成。它可以复用 V4Client 与 NameCodec，但不依赖 V4PermissionProvider、
-# IAM_FRAMEWORK 或 Provider 的生命周期。
+# 产品 backend 配置 或 Provider 的生命周期。
 # ---------------------------------------------------------------------------

@@ -20,8 +20,8 @@ from typing import Protocol
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
-from ....iam_v4.client import V4Client
-from ....iam_v4.config import V4Options
+from ....backends.v4.client import V4Client
+from ....backends.v4.config import V4Options
 from .config import get_v4_callback_config
 
 logger = logging.getLogger(__name__)

@@ -18,7 +18,7 @@ specific language governing permissions and limitations under the License.
 #   - codec_v4.py     — v4 命名编解码器（业务 ↔ 平台方言）
 #   - callbacks.py — v4 资源回调 handler 实现
 #
-# 使用方式（在 IAM_FRAMEWORK 配置中）：
+# 使用方式（在 产品 backend 配置 配置中）：
 #   "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
 #   "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
 #   "ROLES": "bkmonitor.iam.definitions.roles.Roles",

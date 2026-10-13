@@ -33,7 +33,7 @@ import time
 import pytest
 from django.conf import settings
 
-from bkmonitor.iam.iam_engine.core.types import (
+from iam_engine.provider.requests import (
     ApplyURLRequest,
     AuthRequest,
     BatchByActionRequest,
@@ -41,12 +41,12 @@ from bkmonitor.iam.iam_engine.core.types import (
     ResourceInstance,
     Subject,
 )
-from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.iam_engine.migration.diff import diff_snapshots
-from bkmonitor.iam.iam_engine.migration.loader import MigrationLoader
-from bkmonitor.iam.iam_engine.migration.planner import MigrationPlanner
-from bkmonitor.iam.iam_engine.migration.recorder import InMemoryRecorder
-from bkmonitor.iam.iam_engine.schema.diff import ChangeType, EntityKind, MigrationPlan
+from bkmonitor.iam.permission import Permission
+from iam_engine.model.diff import diff_snapshots
+from iam_engine.model.loader import MigrationLoader
+from iam_engine.model.planner import MigrationPlanner
+from iam_engine.model.recorder import InMemoryRecorder
+from iam_engine.schema.diff import ChangeType, EntityKind, MigrationPlan
 from bkmonitor.iam.definitions.actions import Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.iam.definitions.roles import Roles
@@ -111,7 +111,7 @@ class TestIAMv4CommandFlow:
 
     def test_phase1_system_plan(self):
         """对应 migrate Phase ①：plan_migration(scope="system") —— 纯本地生成系统计划。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="system")
 
@@ -130,7 +130,7 @@ class TestIAMv4CommandFlow:
 
         首次：远端无系统 → CREATE。再次运行：远端已有且一致 → reconcile 跳过。
         """
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="system")
         report = provider.apply_migration(plan, dry_run=False, allow_destructive=False)
@@ -153,7 +153,7 @@ class TestIAMv4CommandFlow:
 
         验证本地 diff 的计数（53 action + 4 RT + 3 role = 60 CREATE）。
         """
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         current = fw.schema.to_snapshot()
         changes = diff_snapshots(current, {})
 
@@ -186,7 +186,7 @@ class TestIAMv4CommandFlow:
           - 远端已有 → reconcile 跳过
           - 远端没有 → 出现在 would_apply 中
         """
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="full")
 
@@ -215,7 +215,7 @@ class TestIAMv4CommandFlow:
 
         设置 IAM_V4_APPLY=1 才会执行。
         """
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="full")
         report = provider.apply_migration(plan, dry_run=False, allow_destructive=False)
@@ -267,7 +267,7 @@ class TestIAMv4CommandFlow:
         每个 migration 的 operations 经 apply_migration 查远端 + reconcile + 执行。
         完成后 recorder.record() 记录已应用状态。
         """
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         loader = MigrationLoader(_MIGRATION_DIR)
         recorder = self.__class__._recorder
@@ -324,14 +324,14 @@ class TestIAMv4CommandFlow:
 
     def test_phase2_auth_is_allowed_resource_free(self):
         """迁移完成后：无资源 action 鉴权可用。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         allowed = fw.is_allowed(AuthRequest(subject=Subject(id=TEST_USER), action_id=Actions.VIEW_GLOBAL_SETTING.id))
         print(f"\n  is_allowed({Actions.VIEW_GLOBAL_SETTING.id}) = {allowed}")
         assert isinstance(allowed, bool)
 
     def test_phase2_auth_is_allowed_with_resource(self):
         """迁移完成后：有资源 action 鉴权可用。"""
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         allowed = fw.is_allowed(
             AuthRequest(
                 subject=Subject(id=TEST_USER),
@@ -355,7 +355,7 @@ class TestIAMv4AuthCapabilities:
     # ------- 批量资源鉴权 -------
 
     def test_batch_by_resource(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         space_ids = [str(i) for i in range(1, 6)]
         result = fw.batch_by_resource(
             BatchByResourceRequest(
@@ -372,7 +372,7 @@ class TestIAMv4AuthCapabilities:
     # ------- 批量 action 鉴权 -------
 
     def test_batch_by_action(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         result = fw.batch_by_action(
             BatchByActionRequest(
                 subject=Subject(id=TEST_USER),
@@ -392,7 +392,7 @@ class TestIAMv4AuthCapabilities:
         assert len(result.items) == 5
 
     def test_batch_by_action_resource_free(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         result = fw.batch_by_action(
             BatchByActionRequest(
                 subject=Subject(id=TEST_USER),
@@ -411,7 +411,7 @@ class TestIAMv4AuthCapabilities:
     # ------- 权限申请 URL -------
 
     def test_get_apply_url(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         url = fw.get_apply_url(
             ApplyURLRequest(
                 subject=Subject(id=TEST_USER),
@@ -427,7 +427,7 @@ class TestIAMv4AuthCapabilities:
     # ------- 有权限的资源列表 -------
 
     def test_get_authorized_resources_resource_free(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         result = provider.get_authorized_resources(
             subject=Subject(id=TEST_USER),
@@ -437,7 +437,7 @@ class TestIAMv4AuthCapabilities:
         assert result == []
 
     def test_get_authorized_resources_view_business(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         result = provider.get_authorized_resources(
             subject=Subject(id=TEST_USER),
@@ -455,7 +455,7 @@ class TestIAMv4AuthCapabilities:
     # ------- 角色授权参数校验 -------
 
     def test_add_authorization_invalid_args(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         with pytest.raises(ValueError):
             provider.add_authorization(
@@ -479,7 +479,7 @@ class TestIAMv4AuthCapabilities:
 
     @pytest.mark.skipif(not _APPLY_ENABLED, reason=APPLY_SKIP_REASON)
     def test_add_authorization_space_viewer(self):
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         expired_at = int(time.time()) + 3600
         provider.add_authorization(
@@ -522,7 +522,7 @@ class TestIAMv4ActionIdRename:
         if ta.id != "test_action":
             pytest.skip(f"当前 TEST_ACTION.id={ta.id}，本步要求 id='test_action'")
 
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="full")
         change = _find_change(plan, "action", "test_action", "create")
@@ -542,7 +542,7 @@ class TestIAMv4ActionIdRename:
         if ta is None or ta.id != "test_action":
             pytest.skip("需要 TEST_ACTION.id='test_action'")
 
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="full")
         report = provider.apply_migration(plan, dry_run=False, allow_destructive=False)
@@ -561,7 +561,7 @@ class TestIAMv4ActionIdRename:
         if ta is None or ta.id != "test_action":
             pytest.skip("需要 TEST_ACTION.id='test_action' 且已在平台 UI 授权")
         print(f"\n  确认 user={TEST_USER} action=test_action space={TEST_SPACE_ID} 已授权")
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         allowed = fw.is_allowed(
             AuthRequest(
                 subject=Subject(id=TEST_USER),
@@ -581,7 +581,7 @@ class TestIAMv4ActionIdRename:
         if ta.id != "test_action_v2":
             pytest.skip("需要手动改 TEST_ACTION.id='test_action_v2' 并重启 pytest")
 
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="full")
         print(f"\n  plan.summary: {plan.summary()}, destructive={plan.has_destructive()}")
@@ -597,7 +597,7 @@ class TestIAMv4ActionIdRename:
         ta = _get_test_action()
         if ta is None or ta.id != "test_action_v2":
             pytest.skip("需要 TEST_ACTION.id='test_action_v2'")
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="full")
         report = provider.apply_migration(plan, dry_run=False, allow_destructive=False)
@@ -611,7 +611,7 @@ class TestIAMv4ActionIdRename:
         ta = _get_test_action()
         if ta is None or ta.id != "test_action_v2":
             pytest.skip("需要 TEST_ACTION.id='test_action_v2'")
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="full")
         report = provider.apply_migration(plan, dry_run=False, allow_destructive=True)
@@ -630,7 +630,7 @@ class TestIAMv4ActionIdRename:
         ta = _get_test_action()
         if ta is None or ta.id != "test_action_v2":
             pytest.skip("需要 TEST_ACTION.id='test_action_v2' 且已完成 test_E")
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         allowed = fw.is_allowed(
             AuthRequest(
                 subject=Subject(id=TEST_USER),
@@ -647,7 +647,7 @@ class TestIAMv4ActionIdRename:
         ta = _get_test_action()
         if ta is not None:
             pytest.skip(f"TEST_ACTION 仍存在(id={ta.id})，需要先从 actions.py 删除")
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="full")
         print(f"\n  plan.summary: {plan.summary()}, destructive={plan.has_destructive()}")
@@ -662,7 +662,7 @@ class TestIAMv4ActionIdRename:
         ta = _get_test_action()
         if ta is not None:
             pytest.skip("需要先从 actions.py 删除 TEST_ACTION")
-        fw = get_framework()
+        fw = Permission(username="offline", bk_tenant_id="system")
         provider = fw.providers["v4"]
         plan = provider.plan_migration(fw.schema, scope="full")
         report = provider.apply_migration(plan, dry_run=False, allow_destructive=True)

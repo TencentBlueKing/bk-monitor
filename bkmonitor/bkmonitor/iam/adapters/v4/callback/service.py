@@ -13,7 +13,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from ....iam_engine.provider.codec import IdentityCodec, NameCodec
+from iam_engine.provider.codec import IdentityCodec, NameCodec
 from .registry import V4CallbackRegistry
 
 logger = logging.getLogger(__name__)

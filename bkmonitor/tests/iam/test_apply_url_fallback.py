@@ -32,15 +32,15 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from bkmonitor.iam.iam_engine.core.types import Subject, SubjectType
-from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.iam_engine.provider.dialect_types import DialectApplyURLRequest, DialectResource
+from iam_engine.provider.requests import Subject, SubjectType
+from bkmonitor.iam.permission import Permission
+from iam_engine.provider.dialect_types import DialectApplyURLRequest, DialectResource
 
 
 @pytest.fixture
 def real_schema():
     """复用框架已构建的 SchemaRegistry（避免手工构造 schema）。"""
-    return get_framework().schema
+    return Permission(username="offline", bk_tenant_id="system").schema
 
 
 def _v4_valid_options(**overrides) -> dict:
@@ -90,7 +90,7 @@ def _build_dialect_request(action_id: str = "view_business") -> DialectApplyURLR
 
 class TestV4ApplyUrlFallback:
     def _build_provider(self, schema, fallback: str = "", *, client_return: str = ""):
-        from bkmonitor.iam.iam_v4.provider import V4PermissionProvider
+        from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
 
         provider = V4PermissionProvider(schema, **_v4_valid_options(fallback_apply_url=fallback))
         # 拦截 client：避免真实 HTTP，直接返回受测值
@@ -133,7 +133,7 @@ class TestV4ApplyUrlFallback:
 class TestV3ApplyUrlFallback:
     def _build_provider(self, schema, fallback: str = ""):
         """构造 V3 provider，并 patch 内部 _get_client / _action_has_resource。"""
-        from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
+        from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 
         provider = V3PermissionProvider(schema, **_v3_valid_options(fallback_apply_url=fallback))
         # 简化：所有 action 都视为 "无关联资源"，避免 schema.get_action 走真实数据
@@ -183,13 +183,13 @@ class TestV3ApplyUrlFallback:
 
 class TestBackwardCompat:
     def test_v4_options_without_fallback_defaults_to_empty(self):
-        from bkmonitor.iam.iam_v4.config import V4Options
+        from bkmonitor.iam.backends.v4.config import V4Options
 
         cfg = V4Options.from_dict(_v4_valid_options())
         assert cfg.fallback_apply_url == ""
 
     def test_v3_options_without_fallback_defaults_to_empty(self):
-        from bkmonitor.iam.iam_v3.config import V3Options
+        from bkmonitor.iam.backends.v3.config import V3Options
 
         cfg = V3Options.from_dict(_v3_valid_options())
         assert cfg.fallback_apply_url == ""

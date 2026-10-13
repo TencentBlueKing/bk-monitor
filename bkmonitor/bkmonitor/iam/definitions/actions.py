@@ -19,7 +19,7 @@ specific language governing permissions and limitations under the License.
 #   version   : 固定为 1
 # ---------------------------------------------------------------------------
 
-from ..iam_engine.schema.definitions import ActionDef
+from iam_engine.schema.definitions import ActionDef
 
 
 class Actions:

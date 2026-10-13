@@ -31,18 +31,18 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
 from bkmonitor.iam.adapters import catalog
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderNotFound
-from bkmonitor.iam.iam_engine.core.types import (
+from iam_engine.exceptions import ProviderNotFound
+from iam_engine.provider.requests import (
     BatchByActionRequest,
     BatchByResourceRequest,
     ResourceInstance,
     Subject as FwSubject,
     SubjectType,
 )
-from bkmonitor.iam.iam_engine.django.facade import get_framework
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.iam_engine.schema.visibility import is_visible_to
+from bkmonitor.iam.permission import Permission
+from iam_engine.schema.definitions import ActionDef
+from iam_engine.schema.registry import SchemaRegistry
+from iam_engine.schema.visibility import is_visible_to
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
@@ -262,7 +262,7 @@ def query_user_permissions_v4(params: dict[str, Any]) -> dict[str, Any]:
     username = _normalize_username(params.get("username"))
     bk_tenant_id = require_bk_tenant_id(params)
 
-    fw = get_framework()
+    fw = Permission(username=username, bk_tenant_id=bk_tenant_id)
     v4_provider = _require_v4_provider(fw)
     schema = fw.schema
     subject = FwSubject(id=username, type=SubjectType.USER, tenant_id=bk_tenant_id)
@@ -385,7 +385,7 @@ def query_user_sub_resources_v4(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = require_bk_tenant_id(params)
     bk_biz_id = _normalize_bk_biz_id(params.get("bk_biz_id"))
 
-    fw = get_framework()
+    fw = Permission(username=username, bk_tenant_id=bk_tenant_id)
     v4_provider = _require_v4_provider(fw)
     schema = fw.schema
     subject = FwSubject(id=username, type=SubjectType.USER, tenant_id=bk_tenant_id)

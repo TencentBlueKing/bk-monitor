@@ -39,14 +39,14 @@ from iam import Resource as SdkResource
 from iam import Subject as SdkSubject
 
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from bkmonitor.iam.iam_engine.core.types import (
+from iam_engine.provider.requests import (
     AuthRequest,
     ResourceInstance as FwResource,
     Subject as FwSubject,
     SubjectType,
     VisibleResult,
 )
-from bkmonitor.iam.iam_v3.client import V3Client
+from bkmonitor.iam.backends.v3.client import V3Client
 from core.errors.iam import PermissionDeniedError
 
 from .conftest import LegacyCompatibleIAM
@@ -130,7 +130,7 @@ class TestPermissionSurface:
         for name in old_methods:
             assert callable(getattr(Permission, name)), name
 
-    def test_init_with_username_and_tenant(self, fake_framework):
+    def test_init_with_username_and_tenant(self, fake_permission):
         p = Permission(username="tester", bk_tenant_id="system")
         assert p.username == "tester"
         assert p.bk_tenant_id == "system"
@@ -162,8 +162,8 @@ class TestPermissionSurface:
 
 
 class TestCreatorGrantResultLogging:
-    def test_failure_is_logged_as_incomplete_not_success(self, fake_framework, caplog):
-        _, provider = fake_framework
+    def test_failure_is_logged_as_incomplete_not_success(self, fake_permission, caplog):
+        _, provider = fake_permission
         provider.creator_grant_error = RuntimeError("temporary backend failure")
         permission = Permission(username="tester", bk_tenant_id="system")
         resource = ResourceEnum.BUSINESS.create_simple_instance("2")
@@ -178,10 +178,10 @@ class TestCreatorGrantResultLogging:
         assert any("[grant_creator_action] Incomplete!" in message for message in messages)
         assert not any("[grant_creator_action] Success!" in message for message in messages)
 
-    def test_raise_exception_exposes_incomplete_creator_grant(self, fake_framework):
-        from bkmonitor.iam.iam_engine.core.exceptions import CreatorGrantFailed
+    def test_raise_exception_exposes_incomplete_creator_grant(self, fake_permission):
+        from iam_engine.exceptions import CreatorGrantFailed
 
-        _, provider = fake_framework
+        _, provider = fake_permission
         provider.creator_grant_error = RuntimeError("temporary backend failure")
         permission = Permission(username="tester", bk_tenant_id="system")
         resource = ResourceEnum.BUSINESS.create_simple_instance("2")
@@ -189,21 +189,21 @@ class TestCreatorGrantResultLogging:
         with pytest.raises(CreatorGrantFailed, match="creator grant incomplete"):
             permission.grant_creator_action(resource, raise_exception=True)
 
-    def test_raise_exception_wraps_underlying_crash_as_creator_grant_failed(self, fake_framework, monkeypatch):
+    def test_raise_exception_wraps_underlying_crash_as_creator_grant_failed(self, fake_permission, monkeypatch):
         """底层 framework 直接抛异常时，raise_exception=True 也应统一包装为 CreatorGrantFailed。
 
         与 partial-failure 路径共用同一个异常类型，避免上层需要区分
         `except RuntimeError` / `except CreatorGrantFailed` 两种情况。
         """
-        from bkmonitor.iam.iam_engine.core.exceptions import CreatorGrantFailed
+        from iam_engine.exceptions import CreatorGrantFailed
 
-        fw, _ = fake_framework
+        fw, _ = fake_permission
         original_error = RuntimeError("framework crashed")
 
         def _boom(*_args, **_kwargs):
             raise original_error
 
-        monkeypatch.setattr(fw, "grant_creator_action", _boom)
+        monkeypatch.setattr("bkmonitor.iam.permission.grant_creator_actions", _boom)
         permission = Permission(username="tester", bk_tenant_id="system")
         resource = ResourceEnum.BUSINESS.create_simple_instance("2")
 
@@ -213,14 +213,14 @@ class TestCreatorGrantResultLogging:
         # 原始异常通过 __cause__ 保留，便于排障
         assert exc_info.value.__cause__ is original_error
 
-    def test_underlying_crash_without_raise_exception_returns_none(self, fake_framework, monkeypatch):
+    def test_underlying_crash_without_raise_exception_returns_none(self, fake_permission, monkeypatch):
         """底层直接抛异常且 raise_exception=False 时保持 None 返回，兼容原调用契约。"""
-        fw, _ = fake_framework
+        fw, _ = fake_permission
 
         def _boom(*_args, **_kwargs):
             raise RuntimeError("framework crashed")
 
-        monkeypatch.setattr(fw, "grant_creator_action", _boom)
+        monkeypatch.setattr("bkmonitor.iam.permission.grant_creator_actions", _boom)
         permission = Permission(username="tester", bk_tenant_id="system")
         resource = ResourceEnum.BUSINESS.create_simple_instance("2")
 
@@ -233,8 +233,8 @@ class TestCreatorGrantResultLogging:
 
 
 class TestIsAllowed:
-    def test_action_enum_passes_business_id(self, fake_framework):
-        fw, provider = fake_framework
+    def test_action_enum_passes_business_id(self, fake_permission):
+        fw, provider = fake_permission
         provider.is_allowed_result = True
         p = Permission(username="tester", bk_tenant_id="system")
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, [ResourceEnum.BUSINESS.create_simple_instance("2")]) is True
@@ -245,9 +245,9 @@ class TestIsAllowed:
         assert req.subject.id == "tester"
         assert req.subject.tenant_id == "system"
 
-    def test_legacy_v3_id_is_normalized_before_framework(self, fake_framework):
+    def test_legacy_v3_id_is_normalized_before_framework(self, fake_permission):
         """旧前端传入 V3 平台 ID 时，Framework 只能收到业务 ID。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.is_allowed_result = True
         p = Permission(username="tester", bk_tenant_id="system")
 
@@ -256,13 +256,13 @@ class TestIsAllowed:
         req: AuthRequest = provider.is_allowed_calls[0]
         assert req.action_id == "view_business"
 
-    def test_legacy_v3_id_string_same_decision(self, fake_framework, real_schema, v3_provider_factory):
+    def test_legacy_v3_id_string_same_decision(self, fake_permission, real_schema, v3_provider_factory):
         """前端以 V3 平台 ID 字符串（view_business_v2）调用 is_allowed 时，
         新版路径经 codec 恒等回退后仍以正确的 V3 action 发起请求（与旧版一致）。"""
         provider, mock_client = v3_provider_factory()
         # 让 provider 走真实 dialect：action=view_business_v2（前端传入原样透传）
-        from bkmonitor.iam.iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
-        from bkmonitor.iam.iam_engine.core.types import Subject
+        from iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
+        from iam_engine.provider.requests import Subject
 
         mock_client.is_allowed_with_cache.return_value = True
         req = DialectAuthRequest(
@@ -276,10 +276,10 @@ class TestIsAllowed:
         # 读操作走缓存
         mock_client.is_allowed_with_cache.assert_called_once()
 
-    def test_legacy_v3_id_roundtrips_through_facade_and_v3_codec(self, installed_framework, v3_provider_factory):
+    def test_legacy_v3_id_roundtrips_through_permission_and_v3_codec(self, installed_permission, v3_provider_factory):
         """旧前端 ID 先归一化，随后由 v3 codec 重新编码为正确的平台 ID。"""
         provider, mock_client = v3_provider_factory()
-        installed_framework.build([provider])
+        installed_permission.build([provider])
         mock_client.is_allowed_with_cache.return_value = True
         p = Permission(username="tester", bk_tenant_id="system")
 
@@ -289,8 +289,8 @@ class TestIsAllowed:
         mock_client.is_allowed_with_cache.assert_called_once()
 
     def test_write_action_no_cache(self, real_schema, v3_provider_factory):
-        from bkmonitor.iam.iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
-        from bkmonitor.iam.iam_engine.core.types import Subject
+        from iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
+        from iam_engine.provider.requests import Subject
 
         provider, mock_client = v3_provider_factory()
         mock_client.is_allowed.return_value = False
@@ -303,8 +303,8 @@ class TestIsAllowed:
         mock_client.is_allowed.assert_called_once()
         mock_client.is_allowed_with_cache.assert_not_called()
 
-    def test_denied_with_raise_exception(self, fake_framework):
-        fw, provider = fake_framework
+    def test_denied_with_raise_exception(self, fake_permission):
+        fw, provider = fake_permission
         provider.is_allowed_result = False
         provider.apply_url = "http://iam.invalid/apply/1"
         provider.apply_data = {"system": "bk_monitorv3", "actions": []}
@@ -316,29 +316,29 @@ class TestIsAllowed:
         assert exc.value.data.get("apply_url") == "http://iam.invalid/apply/1"
         assert exc.value.extra.get("permission") == {"system": "bk_monitorv3", "actions": []}
 
-    def test_denied_no_raise_returns_false(self, fake_framework):
-        fw, provider = fake_framework
+    def test_denied_no_raise_returns_false(self, fake_permission):
+        fw, provider = fake_permission
         provider.is_allowed_result = False
         p = Permission(username="tester", bk_tenant_id="system")
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, raise_exception=False) is False
 
-    def test_skip_check_short_circuits(self, fake_framework):
-        fw, provider = fake_framework
+    def test_skip_check_short_circuits(self, fake_permission):
+        fw, provider = fake_permission
         provider.is_allowed_result = False
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS) is True
         assert provider.is_allowed_calls == []
 
-    def test_multi_resource_routes_to_batch_by_resource(self, fake_framework):
+    def test_multi_resource_routes_to_batch_by_resource(self, fake_permission):
         """守护修复：多资源同类型必须走 framework.batch_by_resource，不再退化到 is_allowed 的第一项。
 
         修复前旧实现只取 resources[0] 调 is_allowed 单点鉴权，导致后续资源
         被静默漏检；修复后走批量鉴权，全部允许才判 True。
         """
-        from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         # 全部资源都允许
         provider.batch_result = BatchAuthResult(
             items=(
@@ -357,11 +357,11 @@ class TestIsAllowed:
             "多资源鉴权必须走 batch_by_resource，不允许退化为对 resources[0] 的单点 is_allowed"
         )
 
-    def test_token_bypass_parity(self, fake_framework):
+    def test_token_bypass_parity(self, fake_permission):
         """token 临时分享豁免逻辑与旧版一致（业务查看动作直接豁免）。"""
         from bkmonitor.models import ApiAuthToken
 
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         request = MagicMock()
         request.token = "tok"
         request.path = "/whatever/"
@@ -380,8 +380,8 @@ class TestIsAllowed:
 
 
 class TestIsAllowedByBiz:
-    def test_space_resource_built(self, fake_framework):
-        fw, provider = fake_framework
+    def test_space_resource_built(self, fake_permission):
+        fw, provider = fake_permission
         provider.is_allowed_result = True
         p = Permission(username="tester", bk_tenant_id="system")
         assert p.is_allowed_by_biz(2, ActionEnum.VIEW_EVENT) is True
@@ -389,8 +389,8 @@ class TestIsAllowedByBiz:
         assert req.resource.type == "space"
         assert req.resource.id == "2"
 
-    def test_skip_check(self, fake_framework):
-        fw, provider = fake_framework
+    def test_skip_check(self, fake_permission):
+        fw, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
         assert p.is_allowed_by_biz(2, ActionEnum.MANAGE_DOWNTIME) is True
@@ -398,12 +398,12 @@ class TestIsAllowedByBiz:
 
 
 class TestBatchIsAllowed:
-    def test_result_shape_and_business_id_keys(self, fake_framework):
+    def test_result_shape_and_business_id_keys(self, fake_permission):
         """结果键：新版为业务 ID（旧版为 V3 平台 ID）。
         现有外部调用方 kernel_api mail_report 使用恒等动作 view_single_dashboard，
         不受影响；其余调用方需按业务 ID 读取。"""
-        fw, provider = fake_framework
-        from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+        fw, provider = fake_permission
+        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 
         provider.batch_result = BatchAuthResult(
             items=(
@@ -419,10 +419,10 @@ class TestBatchIsAllowed:
         assert result["2"]["view_event"] is True
         assert result["3"]["view_event"] is False
 
-    def test_framework_batch_grouping(self, installed_framework, real_schema):
+    def test_framework_batch_grouping(self, installed_permission, real_schema):
         """Permission.batch_is_allowed 按资源类型分组后一次批量调用。"""
-        from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
-        from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+        from iam_engine.provider.codec_provider import PermissionProvider
+        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 
         class Recorder(PermissionProvider):
             name = "v3"
@@ -464,7 +464,7 @@ class TestBatchIsAllowed:
                 return {"status": "ok"}
 
         provider = Recorder()
-        _fw = installed_framework.build([provider])
+        _fw = installed_permission.build([provider])
         p = Permission(username="tester", bk_tenant_id="system")
         result = p.batch_is_allowed(
             [ActionEnum.VIEW_EVENT, ActionEnum.MANAGE_EVENT],
@@ -483,8 +483,8 @@ class TestBatchIsAllowed:
         assert result["3"] == {"view_event": True, "manage_event": True}
         assert result["4"] == {"view_event": True, "manage_event": True}
 
-    def test_skip_check_branch(self, fake_framework):
-        fw, provider = fake_framework
+    def test_skip_check_branch(self, fake_permission):
+        fw, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
         result = p.batch_is_allowed(
@@ -493,10 +493,10 @@ class TestBatchIsAllowed:
         )
         assert result["2"]["view_event"] is True
 
-    def test_legacy_v3_id_is_normalized_and_result_uses_business_key(self, fake_framework):
-        from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+    def test_legacy_v3_id_is_normalized_and_result_uses_business_key(self, fake_permission):
+        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.batch_by_resource = MagicMock(
             return_value=BatchAuthResult(
                 items=(
@@ -515,8 +515,8 @@ class TestBatchIsAllowed:
         assert request.action_id == "view_event"
         assert result == {"2": {"view_event": True}}
 
-    def test_skip_check_legacy_v3_id_result_uses_business_key(self, fake_framework):
-        fw, provider = fake_framework
+    def test_skip_check_legacy_v3_id_result_uses_business_key(self, fake_permission):
+        fw, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
 
@@ -534,15 +534,15 @@ class TestBatchIsAllowed:
 
 
 class TestApplyMethods:
-    def test_get_apply_url(self, fake_framework):
-        fw, provider = fake_framework
+    def test_get_apply_url(self, fake_permission):
+        fw, provider = fake_permission
         provider.apply_url = "http://iam.invalid/apply/xyz"
         p = Permission(username="tester", bk_tenant_id="system")
         url = p.get_apply_url(["view_business"], [ResourceEnum.BUSINESS.create_simple_instance("2")])
         assert url == "http://iam.invalid/apply/xyz"
 
-    def test_get_apply_data(self, fake_framework):
-        fw, provider = fake_framework
+    def test_get_apply_data(self, fake_permission):
+        fw, provider = fake_permission
         provider.apply_data = {"system": "bk_monitorv3", "actions": [{"id": "view_business"}]}
         provider.apply_url = "http://iam.invalid/apply/xyz"
         p = Permission(username="tester", bk_tenant_id="system")
@@ -550,9 +550,9 @@ class TestApplyMethods:
         assert data == {"system": "bk_monitorv3", "actions": [{"id": "view_business"}]}
         assert url == "http://iam.invalid/apply/xyz"
 
-    def test_get_apply_data_accepts_v3_platform_id_string(self, fake_framework):
+    def test_get_apply_data_accepts_v3_platform_id_string(self, fake_permission):
         """前端 V3 ID 字符串在申请路径进入 Framework 前归一化为业务 ID。"""
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.get_apply_data = MagicMock(return_value={"system": "bk_monitorv3", "actions": []})
         provider.get_apply_url = MagicMock(return_value="http://iam.invalid/apply/xyz")
         p = Permission(username="tester", bk_tenant_id="system")
@@ -571,16 +571,16 @@ class TestFilterSpaceListByAction:
             {"bk_biz_id": 5, "space_name": "C"},
         ]
 
-    def test_all_granted(self, fake_framework):
-        fw, provider = fake_framework
+    def test_all_granted(self, fake_permission):
+        fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=True, visible_ids=("2", "3", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
         with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert len(result) == 3
 
-    def test_with_scope_reports_all_granted(self, fake_framework):
-        fw, provider = fake_framework
+    def test_with_scope_reports_all_granted(self, fake_permission):
+        fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=True, visible_ids=("2", "3", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
         with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
@@ -589,16 +589,16 @@ class TestFilterSpaceListByAction:
         assert [space["bk_biz_id"] for space in spaces] == [2, 3, 5]
         assert tenant_wide_authorized is True
 
-    def test_visible_ids_filter(self, fake_framework):
-        fw, provider = fake_framework
+    def test_visible_ids_filter(self, fake_permission):
+        fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=False, visible_ids=("2", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
         with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert [s["bk_biz_id"] for s in result] == [2, 5]
 
-    def test_with_scope_reports_partial_authorization(self, fake_framework):
-        fw, provider = fake_framework
+    def test_with_scope_reports_partial_authorization(self, fake_permission):
+        fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=False, visible_ids=("2", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
         with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
@@ -607,8 +607,8 @@ class TestFilterSpaceListByAction:
         assert [space["bk_biz_id"] for space in spaces] == [2, 5]
         assert tenant_wide_authorized is False
 
-    def test_legacy_v3_id_is_normalized_before_visible_resource_query(self, fake_framework):
-        fw, provider = fake_framework
+    def test_legacy_v3_id_is_normalized_before_visible_resource_query(self, fake_permission):
+        fw, provider = fake_permission
         provider.filter_visible_resources = MagicMock(
             return_value=VisibleResult(all_granted=False, visible_ids=("2", "5"))
         )
@@ -620,9 +620,9 @@ class TestFilterSpaceListByAction:
         assert [space["bk_biz_id"] for space in result] == [2, 5]
         assert provider.filter_visible_resources.call_args.args[1] == "view_business"
 
-    def test_provider_error_returns_empty(self, fake_framework):
-        fw, provider = fake_framework
-        from bkmonitor.iam.iam_engine.core.exceptions import ProviderError
+    def test_provider_error_returns_empty(self, fake_permission):
+        fw, provider = fake_permission
+        from iam_engine.exceptions import ProviderError
 
         def _boom(subject, action_id, candidates):
             raise ProviderError("backend down")
@@ -633,9 +633,9 @@ class TestFilterSpaceListByAction:
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert result == []
 
-    def test_with_scope_provider_error_is_not_tenant_wide(self, fake_framework):
-        fw, provider = fake_framework
-        from bkmonitor.iam.iam_engine.core.exceptions import ProviderError
+    def test_with_scope_provider_error_is_not_tenant_wide(self, fake_permission):
+        fw, provider = fake_permission
+        from iam_engine.exceptions import ProviderError
 
         def _boom(subject, action_id, candidates):
             raise ProviderError("backend down")
@@ -648,16 +648,16 @@ class TestFilterSpaceListByAction:
         assert spaces == []
         assert tenant_wide_authorized is False
 
-    def test_skip_check(self, fake_framework):
-        fw, provider = fake_framework
+    def test_skip_check(self, fake_permission):
+        fw, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
         with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert len(result) == 3
 
-    def test_with_scope_skip_check_is_tenant_wide(self, fake_framework):
-        fw, provider = fake_framework
+    def test_with_scope_skip_check_is_tenant_wide(self, fake_permission):
+        fw, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
         with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
@@ -866,7 +866,7 @@ class TestPreflightHelpers:
 class TestKnownRegressions:
     """本次回归修复的守卫用例：list_actions + is_allowed 多资源静默漏检。"""
 
-    def test_list_actions_returns_action_list(self, installed_framework):
+    def test_list_actions_returns_action_list(self, installed_permission):
         """list_actions 应从 SchemaRegistry 生成动作列表（含旧版兼容字段）。
 
         与旧版 IAM V3 model.actions 契约对齐：每项含 id / name / name_en / type /
@@ -887,15 +887,15 @@ class TestKnownRegressions:
         assert view_business["version"] == 1
         assert view_business["related_resource_types"], "view_business 关联 space，应有一条 related_resource_types"
 
-    def test_is_allowed_multi_resource_partial_deny(self, fake_framework):
+    def test_is_allowed_multi_resource_partial_deny(self, fake_permission):
         """回归：多资源同类型鉴权，第一项允许、第二项拒绝时整体必须 False。
 
         旧实现只取 resources[0]，会把上述场景误判为 True 并静默漏检后续资源。
         修复后走 framework.batch_by_resource，任一资源被拒即整体 False。
         """
-        from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.batch_result = BatchAuthResult(
             items=(
                 ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="2", allowed=True),
@@ -915,11 +915,11 @@ class TestKnownRegressions:
         with pytest.raises(PermissionDeniedError):
             p.is_allowed(ActionEnum.VIEW_BUSINESS, resources, raise_exception=True)
 
-    def test_is_allowed_multi_resource_all_hit(self, fake_framework):
+    def test_is_allowed_multi_resource_all_hit(self, fake_permission):
         """多资源同类型全部允许 → 整体 True。"""
-        from bkmonitor.iam.iam_engine.core.types import BatchAuthResult, ResourceAuthResult
+        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 
-        fw, provider = fake_framework
+        fw, provider = fake_permission
         provider.batch_result = BatchAuthResult(
             items=(
                 ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="2", allowed=True),
@@ -934,7 +934,7 @@ class TestKnownRegressions:
         ]
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
 
-    def test_is_allowed_mixed_resource_types_raises(self, fake_framework):
+    def test_is_allowed_mixed_resource_types_raises(self, fake_permission):
         """混合资源类型必须显式拒绝：Permission.is_allowed 不接受隐式混合。"""
         p = Permission(username="tester", bk_tenant_id="system")
 
@@ -988,7 +988,7 @@ def _mock_http(policy_map, batch_map=None):
 
 
 def _new_provider_with_http(real_schema, http, codec_kwargs=None):
-    from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
+    from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
     from .conftest import build_v3_options
 
     options = build_v3_options()
@@ -1164,7 +1164,7 @@ class TestAuthPathParity:
 
     def test_filter_visible_resources_parity(self, real_schema):
         """空间列表过滤：新旧对同一策略表达式的过滤结果一致。"""
-        from bkmonitor.iam.iam_engine.core.types import VisibleResult as VR
+        from iam_engine.provider.requests import VisibleResult as VR
 
         for policy, expected in [
             ({"op": "any"}, {"all": True}),
@@ -1232,17 +1232,7 @@ def live_permission(live_framework, iam_user):
     注意 scope 必须是 function：iam_user（function scope）的 pytest.skip 门控需要
     逐用例生效；此前 module scope 依赖 function scope 触发 ScopeMismatch。
     """
-    from bkmonitor.iam.iam_engine.django.facade import get_framework, _set_framework
-
-    saved = None
-    try:
-        saved = get_framework()
-    except RuntimeError:
-        saved = None
-    _set_framework(live_framework)
-    perm = Permission(username=iam_user, bk_tenant_id="system")
-    yield perm
-    _set_framework(saved)
+    return Permission(username=iam_user, bk_tenant_id="system")
 
 
 def _live_biz_id() -> str:

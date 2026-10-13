@@ -6,9 +6,8 @@ import pytest
 from iam import Action, Request, Resource, Subject as SDKSubject
 from iam_engine.core.config import AuthMode
 from bkmonitor.iam.adapters.mcp import MonitorMCPClient
-from bkmonitor.iam.adapters.shared_policy import SharedMigrationPolicy
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderUnavailable
-from bkmonitor.iam.iam_engine.provider.router import ProviderRouter
+from bkmonitor.iam.permission import Permission
+from iam_engine.exceptions import ProviderUnavailable
 
 
 @pytest.mark.parametrize(
@@ -32,8 +31,10 @@ def test_mcp_does_not_treat_degraded_rejection_as_native_fallback(v3, v4, allowe
             provider.is_allowed.return_value = result
         providers.append(provider)
     mode = SimpleNamespace(get_mode=lambda resources=(): AuthMode.UNION)
-    router = ProviderRouter(SharedMigrationPolicy(providers, mode_provider=mode), Mock())
-    client = MonitorMCPClient(SimpleNamespace(router=router), "tenant-a")
+    permission = Permission(username="alice", bk_tenant_id="tenant-a")
+    permission._providers = {p.name: p for p in providers}
+    permission.mode_provider = mode
+    client = MonitorMCPClient(permission, "tenant-a")
     query = Request(
         "bk_monitorv3",
         SDKSubject("user", "alice"),
@@ -49,19 +50,19 @@ def test_mcp_does_not_treat_degraded_rejection_as_native_fallback(v3, v4, allowe
     assert providers[0].is_allowed.call_args.args[0].subject.tenant_id == "tenant-a"
 
 
-def test_mcp_keeps_framework_bypass_hook():
-    rule = Mock()
-    rule.should_bypass.return_value = True
-    policy = Mock()
-    client = MonitorMCPClient(SimpleNamespace(router=ProviderRouter(policy, Mock(), [rule])), "tenant-a")
+def test_mcp_keeps_product_skip_check():
+    permission = Permission(username="alice", bk_tenant_id="tenant-a")
+    permission.skip_check = True
+    permission._providers = {"v3": Mock()}
+    client = MonitorMCPClient(permission, "tenant-a")
     query = Request("bk_monitorv3", SDKSubject("user", "alice"), Action("view_business"), [], None)
     assert client.is_allowed(query)
-    policy.decide.assert_not_called()
+    permission._providers["v3"].is_allowed.assert_not_called()
 
 
 def test_mcp_normalizes_legacy_v2_action_before_shared_dispatch():
     framework = Mock()
-    framework.router.decide.return_value = SimpleNamespace(allowed=True, degraded=False)
+    framework._decide_request.return_value = SimpleNamespace(allowed=True, degraded=False)
     client = MonitorMCPClient(framework, "tenant-a")
     query = Request(
         "bk_monitorv3",
@@ -71,7 +72,7 @@ def test_mcp_normalizes_legacy_v2_action_before_shared_dispatch():
         None,
     )
     assert client.is_allowed(query)
-    request = framework.router.decide.call_args.args[0]
+    request = framework._decide_request.call_args.args[0]
     assert request.action_id == "view_business"
     assert request.resource.system == "bk_monitorv3"
     assert request.subject.tenant_id == "tenant-a"
@@ -100,12 +101,12 @@ def test_mcp_application_display_and_url_share_business_action_and_parent_chain(
         ],
     )
     framework = Mock()
-    framework.get_apply_data.return_value = {"system_id": "v4-display"}
-    framework.get_apply_url.return_value = "https://iam.example.test/apply/"
+    framework._apply_data_request.return_value = {"system_id": "v4-display"}
+    framework._apply_url_request.return_value = "https://iam.example.test/apply/"
     client = MonitorMCPClient(framework, "tenant-a")
     assert client.get_apply_data(application) == {"system_id": "v4-display"}
     assert client.get_apply_url(application)[2] == "https://iam.example.test/apply/"
-    request = framework.get_apply_url.call_args.args[0]
+    request = framework._apply_url_request.call_args.args[0]
     assert request.action_ids == ("view_apm_application",)
     assert request.resources[0].id == "42"
     assert request.resources[0].ancestor_chain[0].id == "2"

@@ -20,7 +20,7 @@ def dispatch_v4_creator_grant(task_kwargs):
 
 @shared_task(bind=True, ignore_result=True, max_retries=None)
 def grant_v4_creator_action(self, *, tenant_id, operator, payload, role_id, expired_at, resource_meta):
-    from ..iam_engine.django.facade import get_framework
+    from ..backends.config import build_provider
 
     max_attempts = AuthorizationGrantConfig.from_settings().max_attempts
     metadata = json.dumps(
@@ -29,7 +29,7 @@ def grant_v4_creator_action(self, *, tenant_id, operator, payload, role_id, expi
         default=str,
     )
     try:
-        provider = get_framework().get_provider("v4")
+        provider = build_provider("v4", tenant_id=tenant_id)
         writer = MonitorAuthorizationWriter(provider, tenant_id=tenant_id, operator=operator)
         writer.grant_prepared(PreparedAuthorizationGrant(payload, role_id, expired_at))
     except Exception as error:

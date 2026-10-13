@@ -19,9 +19,8 @@ from bk_dataview.api import get_or_create_org
 from bk_dataview.models import Dashboard
 from bk_dataview.permissions import BasePermission, GrafanaPermission, GrafanaRole
 from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderError
-from bkmonitor.iam.iam_engine.core.types import ResourceInstance, Subject as FwSubject, SubjectType
-from bkmonitor.iam.iam_engine.django.facade import get_framework
+from iam_engine.exceptions import ProviderError
+from iam_engine.provider.requests import ResourceInstance, Subject as FwSubject, SubjectType
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.request import get_request_tenant_id
 
@@ -190,7 +189,7 @@ class DashboardPermission(BasePermission):
             return True
 
         subject = FwSubject(id=username, type=SubjectType.USER, tenant_id=get_request_tenant_id())
-        fw = get_framework()
+        fw = p
         try:
             return fw.has_any_permission(subject, ActionEnum.VIEW_SINGLE_DASHBOARD) or fw.has_any_permission(
                 subject, ActionEnum.EDIT_SINGLE_DASHBOARD
@@ -236,7 +235,7 @@ class DashboardPermission(BasePermission):
 
         org_id = get_or_create_org(org_name)["id"]
         subject = FwSubject(id=username, type=SubjectType.USER, tenant_id=get_request_tenant_id())
-        fw = get_framework()
+        fw = p
 
         space_inst = ResourceInstance(type="space", id=str(org_name))
         if resource_ids:

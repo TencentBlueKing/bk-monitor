@@ -28,8 +28,8 @@ from bkmonitor.iam.adapters.v4.callback.registry import V4CallbackRegistry
 from bkmonitor.iam.adapters.v4.callback.service import V4CallbackService
 from bkmonitor.iam.adapters.v4.callback.views import MonitorV4ResourceCallbackView, V4ResourceCallbackView
 from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
-from bkmonitor.iam.iam_engine.provider.codec import IdentityCodec
-from bkmonitor.iam.iam_v4.config import V4Options
+from iam_engine.provider.codec import IdentityCodec
+from bkmonitor.iam.backends.v4.config import V4Options
 
 
 class PrefixTypeCodec(IdentityCodec):
@@ -412,8 +412,8 @@ class TestCallbackAuth:
                 factory.get("/", HTTP_AUTHORIZATION=f"Basic {wrong_token}")
             )
 
-    @pytest.mark.parametrize("enabled", ("v3", "v4", "v4,v3"))
-    def test_callback_uses_catalog_connection_even_when_v4_is_disabled(self, monkeypatch, enabled):
+    @pytest.mark.parametrize("enabled", ("v3", "v4", "union"))
+    def test_callback_uses_shared_settings_independent_of_read_mode(self, monkeypatch, enabled):
         options = self._options()
         client_factory = MagicMock()
         client_factory.return_value.get_auth_token.return_value = "shared-system-token"
@@ -421,16 +421,20 @@ class TestCallbackAuth:
         monkeypatch.setattr(callback_auth, "_token_provider", None)
 
         with override_settings(
-            IAM_FRAMEWORK={
-                "PROVIDER_CATALOG": {"v4": {"options": options}},
-                "ENABLED_PROVIDERS": enabled,
-            },
+            BK_IAM_PERMISSION_MODE=enabled,
+            BK_APP_TENANT_ID=options["bk_tenant_id"],
+            BK_IAM_V4_APIGATEWAY_URL=options["base_url"],
+            BK_IAM_V4_SYSTEM_ID=options["system"]["id"],
+            BK_IAM_V4_CALLBACK_URL=options["system"].get("callback_url", ""),
+            BK_IAM_V4_TIMEOUT=options["timeout"],
+            SAAS_APP_CODE=options["credentials"]["app_code"],
+            SAAS_SECRET_KEY=options["credentials"]["app_secret"],
             # 旧配置即使仍被部署侧设置，也不能再覆盖 V4 的共享连接配置。
             IAM_V4_CALLBACK={"base_url": "https://obsolete.example.com"},
         ):
             config = get_v4_callback_config()
             assert config.base_url == options["base_url"]
-            assert config.system == V4Options.from_dict(options).system
+            assert config.system.id == options["system"]["id"]
             token_provider = callback_auth.get_callback_token_provider()
             assert token_provider.get_system_token() == "shared-system-token"
             assert callback_auth.get_callback_token_provider() is token_provider
@@ -447,16 +451,11 @@ class TestCallbackAuth:
         )
         client_factory.return_value.get_auth_token.assert_called_once_with()
 
-    @pytest.mark.parametrize("options", (None, {}, {"base_url": ""}))
-    def test_callback_rejects_missing_or_invalid_shared_config(self, options):
-        with override_settings(IAM_FRAMEWORK={"PROVIDER_CATALOG": {"v4": {"options": options}}}):
+    @pytest.mark.parametrize("gateway", (None, ""))
+    def test_callback_requires_explicit_v4_gateway(self, gateway):
+        with override_settings(BK_IAM_V4_APIGATEWAY_URL=gateway):
             with pytest.raises(ImproperlyConfigured, match="Invalid IAM V4 callback configuration"):
                 get_v4_callback_config()
-
-    @override_settings(IAM_FRAMEWORK={})
-    def test_callback_requires_v4_catalog_config(self):
-        with pytest.raises(ImproperlyConfigured, match="Invalid IAM V4 callback configuration"):
-            get_v4_callback_config()
 
 
 def test_callback_failure_hides_upstream_details_and_escapes_log_metadata(caplog):

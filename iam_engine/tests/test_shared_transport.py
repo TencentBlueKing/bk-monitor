@@ -8,8 +8,8 @@ import requests
 from iam_engine.v4.client import V4Client
 from iam_engine.v4.config import V4Options, load_v4_paths
 from iam_engine.v4.exceptions import V4ClientError, V4ResponseError, V4TransportError
-from bkmonitor.iam.iam_v4.client import V4Client as MonitorClient
-from bkmonitor.iam.iam_engine.core.exceptions import ProviderError, ProviderUnavailable
+from bkmonitor.iam.backends.v4.client import V4Client as MonitorClient
+from iam_engine.exceptions import ProviderError, ProviderUnavailable
 
 
 def options(**paths):

@@ -12,7 +12,7 @@ specific language governing permissions and limitations under the License.
 # 通用权限写路径：独立于 CompositionPolicy 的显式 Writer
 #
 # 覆盖：
-#   1. 写目标完全由 PermissionWriter 的 Provider 集合决定；
+#   1. 写目标完全由 CreatorGrantOrchestration 的 Provider 集合决定；
 #   2. 一侧失败仍继续其余目标，逐侧结果和详细异常日志可观测；
 #   3. 重试会重放完整 desired state，恢复的后端会被再次写入；
 #   4. 配置非法（重复后端 / 未实现的失败策略）启动期拒绝。
@@ -20,13 +20,11 @@ specific language governing permissions and limitations under the License.
 
 from unittest.mock import MagicMock
 
-from bkmonitor.iam.iam_engine.provider.codec import IdentityCodec
+from iam_engine.provider.codec import IdentityCodec
 
 import pytest
 
-from bkmonitor.iam.iam_engine.provider.composition.base import CompositionPolicy
-from bkmonitor.iam.iam_engine.provider.permission_writer import PermissionWriter
-from bkmonitor.iam.iam_engine.provider.router import ProviderRouter
+from bkmonitor.iam.backends.grant import grant_creator_actions
 
 
 def _make_provider(name: str, side_effect=None) -> MagicMock:
@@ -47,12 +45,12 @@ def offline_dispatch(monkeypatch):
     monkeypatch.setattr("django.db.transaction.on_commit", lambda callback: callback())
 
 
-class TestPermissionWriter:
+class TestCreatorGrantOrchestration:
     def test_writes_only_to_explicit_write_targets(self):
         v4 = _make_provider("v4")
         v3 = _make_provider("v3")
 
-        result = PermissionWriter([v3]).grant_creator_action("space", "2", "alice")
+        result = grant_creator_actions([v3], "space", "2", "alice")
 
         v3.grant_creator_action.assert_called_once_with("space", "2", "alice", None, "")
         v4.grant_creator_action.assert_not_called()
@@ -62,7 +60,7 @@ class TestPermissionWriter:
     def test_forwards_expired_at_and_tenant_id(self):
         v4 = _make_provider("v4")
 
-        PermissionWriter([v4]).grant_creator_action("space", "2", "alice", expired_at=7200, tenant_id="tenant-x")
+        grant_creator_actions([v4], "space", "2", "alice", expired_at=7200, tenant_id="tenant-x")
 
         v4._get_client.assert_called_once_with("tenant-x")
         payload = v4._get_client.return_value.add_authorization.call_args.args[0]
@@ -74,7 +72,7 @@ class TestPermissionWriter:
         v3 = _make_provider("v3")
 
         with caplog.at_level("ERROR", logger="iam_engine.permission_writer"):
-            result = PermissionWriter([v4, v3]).grant_creator_action("space", "2", "alice")
+            result = grant_creator_actions([v4, v3], "space", "2", "alice")
 
         v4._get_client.return_value.add_authorization.assert_called_once()
         v3.grant_creator_action.assert_called_once()
@@ -87,7 +85,7 @@ class TestPermissionWriter:
         v4 = _make_provider("v4", side_effect=RuntimeError("v4 unavailable"))
         v3 = _make_provider("v3", side_effect=ValueError("v3 unavailable"))
 
-        result = PermissionWriter([v4, v3]).grant_creator_action("space", "2", "alice")
+        result = grant_creator_actions([v4, v3], "space", "2", "alice")
 
         assert result.is_success is False
         assert result.is_partial_failure is False
@@ -99,46 +97,12 @@ class TestPermissionWriter:
     def test_retry_replays_all_targets_and_can_fill_previously_failed_target(self):
         v4 = _make_provider("v4")
         v3 = _make_provider("v3", side_effect=[RuntimeError("transient"), None])
-        writer = PermissionWriter([v4, v3])
 
-        first = writer.grant_creator_action("space", "2", "alice")
-        second = writer.grant_creator_action("space", "2", "alice")
+        first = grant_creator_actions([v4, v3], "space", "2", "alice")
+        second = grant_creator_actions([v4, v3], "space", "2", "alice")
 
         assert first.is_partial_failure is True
         assert second.is_success is True
         # 重试不是只补失败侧：它重放同一个幂等的 desired state 到所有写目标。
         assert v4._get_client.return_value.add_authorization.call_count == 2
         assert v3.grant_creator_action.call_count == 2
-
-
-class TestProviderRouterWriteRouting:
-    def test_creator_grant_uses_writer_not_read_policy(self):
-        write_target = _make_provider("writer-target")
-        read_policy = MagicMock(spec=CompositionPolicy)
-        router = ProviderRouter(
-            read_policy=read_policy,
-            permission_writer=PermissionWriter([write_target]),
-        )
-
-        result = router.grant_creator_action("space", "2", "alice")
-
-        write_target.grant_creator_action.assert_called_once_with("space", "2", "alice", None, "")
-        assert result.is_success is True
-        # CompositionPolicy 已没有创建者授权接口；这里证明 Router 的写路由只依赖 Writer。
-        assert not hasattr(read_policy, "grant_creator_action")
-
-
-class TestPermissionWriterConstruction:
-    def test_requires_at_least_one_target(self):
-        with pytest.raises(ValueError, match="at least one provider"):
-            PermissionWriter([])
-
-    def test_rejects_duplicate_targets(self):
-        v4 = _make_provider("v4")
-        another_v4 = _make_provider("v4")
-        with pytest.raises(ValueError, match="must be unique"):
-            PermissionWriter([v4, another_v4])
-
-    def test_rejects_unimplemented_failure_policy(self):
-        with pytest.raises(ValueError, match="only on_failure='log'"):
-            PermissionWriter([_make_provider("v4")], on_failure="outbox")

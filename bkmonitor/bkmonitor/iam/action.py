@@ -30,7 +30,7 @@ from typing import Any
 
 from bkmonitor.iam.definitions.actions import Actions as _NewActions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes as _NewResourceTypes
-from bkmonitor.iam.iam_engine.schema.definitions import ActionDef, ResourceTypeDef
+from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
 
 
 # 资源类型 ID → V3 system_id 映射（由 definitions/resource_types.py 派生）

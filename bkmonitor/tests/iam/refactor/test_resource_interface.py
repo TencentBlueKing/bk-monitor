@@ -27,7 +27,7 @@ from unittest.mock import MagicMock, patch
 
 
 from bkmonitor.iam.resource import ApmApplication, Business, GrafanaDashboard, ResourceEnum, RumApplication
-from bkmonitor.iam.iam_engine.core.types import ResourceInstance
+from iam_engine.provider.requests import ResourceInstance
 
 
 class TestResourceEnumSurface:
@@ -222,7 +222,7 @@ class TestSdkResourceParity:
     """
 
     def _build_provider_with_client(self, real_schema):
-        from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
+        from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
         from .conftest import build_v3_options
 
         provider = V3PermissionProvider(real_schema, **build_v3_options())
@@ -239,8 +239,8 @@ class TestSdkResourceParity:
         assert (old_resource.system, old_resource.type, old_resource.id) == ("bk_monitorv3", "space", "2")
 
         # 新路径：方言层用 make_resource(type, id) 构建等价 SDK Resource
-        from bkmonitor.iam.iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
-        from bkmonitor.iam.iam_engine.core.types import Subject
+        from iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
+        from iam_engine.provider.requests import Subject
 
         provider, mock_client = self._build_provider_with_client(real_schema)
         req = DialectAuthRequest(
@@ -254,7 +254,7 @@ class TestSdkResourceParity:
 
     def test_apm_resource_ancestors_passed_to_sdk(self, real_schema):
         """APM 资源：resolver 补全的 ancestor_chain 经方言编码传入 SDK make_resource。"""
-        from bkmonitor.iam.iam_engine.core.types import AuthRequest, Subject
+        from iam_engine.provider.requests import AuthRequest, Subject
 
         provider, mock_client = self._build_provider_with_client(real_schema)
 
@@ -287,14 +287,14 @@ class TestProviderIsAllowedResourceHandling:
     def test_resource_free_action_drops_resource(self, real_schema):
         """旧版：action.related_resource_types 为空时 resources=[]；
         新版：方言层 _action_has_resource=False 时同样不传 SDK resources。"""
-        from bkmonitor.iam.iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
-        from bkmonitor.iam.iam_engine.core.types import Subject
+        from iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
+        from iam_engine.provider.requests import Subject
 
         from .conftest import build_v3_options
 
         provider = MagicMock()
         # 直接用真实 provider 验证
-        from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
+        from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 
         provider = V3PermissionProvider(real_schema, **build_v3_options())
         mock_client = MagicMock()

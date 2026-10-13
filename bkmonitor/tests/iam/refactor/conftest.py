@@ -15,7 +15,7 @@ specific language governing permissions and limitations under the License.
 #   1. 真实 schema（Actions / ResourceTypes / Roles 定义）构建的冻结注册表
 #   2. 可注入 mock client 的 V3PermissionProvider（新鉴权路径）
 #   3. 旧版参考实现（Legacy 兼容客户端 / 旧 Permission 行为），用于路径对照
-#   4. facade 单例安装 / 恢复（get_framework）
+#   4. 直接装配实际 Permission 与 fake Provider
 #   5. 实测环境 gate（BK_IAM_ENGINE_USER）
 #
 # 安全约束：本目录所有用例只允许“权限查询”类操作（is_allowed / batch_is_allowed /
@@ -32,15 +32,11 @@ from typing import Any
 
 import pytest
 
-from bkmonitor.iam.iam_engine.django.facade import _set_framework
-from bkmonitor.iam.iam_engine.schema.loaders import load_from_class
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.iam_engine.core.framework import IAMFramework
-from bkmonitor.iam.iam_engine.provider.permission_writer import PermissionWriter
+from iam_engine.schema.loaders import load_from_class
+from iam_engine.schema.registry import SchemaRegistry
 from types import SimpleNamespace
 from iam_engine.core.config import AuthMode
-from bkmonitor.iam.adapters.shared_policy import SharedMigrationPolicy
-from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
+from iam_engine.provider.codec_provider import PermissionProvider
 
 # ---------------------------------------------------------------------------
 # 旧版快照（取自本分支 merge-base 7b360f40 的 bkmonitor/iam/action.py）
@@ -341,7 +337,7 @@ def v3_provider_factory(real_schema):
     """返回可注入 mock client 的 V3PermissionProvider 工厂。"""
 
     def _build(**options_overrides) -> tuple[PermissionProvider, Any]:
-        from bkmonitor.iam.iam_v3.provider import V3PermissionProvider
+        from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
         from unittest.mock import MagicMock
 
         provider = V3PermissionProvider(real_schema, **build_v3_options(**options_overrides))
@@ -353,45 +349,25 @@ def v3_provider_factory(real_schema):
 
 
 @pytest.fixture
-def installed_framework(real_schema):
-    """把指定 framework 安装到 facade 单例，测试结束后恢复。
+def installed_permission(real_schema, monkeypatch):
+    """Inject backend dependencies into the real product Permission."""
+    from bkmonitor.iam import permission as module
 
-    用法::
-
-        def test_x(installed_framework):
-            fw = installed_framework.build(provider)
-            ...
-    """
-    from bkmonitor.iam.iam_engine.django.facade import get_framework
-
-    saved = None
-    try:
-        saved = get_framework()
-    except RuntimeError:
-        saved = None
-
-    class _Installer:
-        def build(self, providers, bypass_rules=None, schema=None):
-            fw = IAMFramework(
-                schema=schema or real_schema,
-                providers=providers,
-                read_policy=SharedMigrationPolicy(
-                    providers, mode_provider=SimpleNamespace(get_mode=lambda resources=(): AuthMode.V3)
-                ),
-                permission_writer=PermissionWriter(providers),
-                bypass_rules=bypass_rules or [],
+    class Installer:
+        def build(self, providers, schema=None):
+            monkeypatch.setattr(module, "get_schema", lambda: schema or real_schema)
+            monkeypatch.setattr(module, "build_providers", lambda tenant_id: {p.name: p for p in providers})
+            monkeypatch.setattr(
+                module, "get_mode_provider", lambda: SimpleNamespace(get_mode=lambda resources=(): AuthMode.V3)
             )
-            _set_framework(fw)
-            return fw
+            monkeypatch.setattr("bkmonitor.utils.user.get_local_username", lambda: "offline")
+            return module.Permission(username="offline", bk_tenant_id="system")
 
-    installer = _Installer()
-    yield installer
-
-    _set_framework(saved)  # type: ignore[arg-type]
+    return Installer()
 
 
 @pytest.fixture
-def fake_framework(installed_framework, real_schema):
+def fake_permission(installed_permission, real_schema):
     """安装一个“可脚本化”的框架（is_allowed/batch_by_resource 等由测试控制）。
 
     返回 (framework, controller)，controller 是各方法的 side_effect 设置器。
@@ -458,7 +434,7 @@ def fake_framework(installed_framework, real_schema):
             return {"status": "ok", "provider": self.name}
 
     provider = FakeProvider()
-    fw = installed_framework.build([provider])
+    fw = installed_permission.build([provider])
     return fw, provider
 
 
@@ -473,13 +449,13 @@ def iam_user() -> str:
 
 @pytest.fixture(scope="session")
 def live_framework():
-    """从 settings.IAM_FRAMEWORK 构建真实框架（连接测试鉴权服务器）。
+    """从统一 settings 构建实际 Permission（连接测试鉴权服务器）。
 
     仅查询类接口会被用例调用；本 fixture 本身不触发任何写操作。
     """
-    from bkmonitor.iam.iam_engine.django.conf import load_framework
+    from bkmonitor.iam.permission import Permission
 
-    return load_framework()
+    return Permission(username=os.getenv("BK_IAM_ENGINE_USER", "offline"), bk_tenant_id="system")
 
 
 @pytest.fixture(autouse=True)

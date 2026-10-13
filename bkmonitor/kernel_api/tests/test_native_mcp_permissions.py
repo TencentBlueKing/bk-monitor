@@ -125,7 +125,6 @@ def io(monkeypatch):
     from iam_engine.core.types import AuthDecision
 
     codec = MonitorV3Codec()
-    framework = Mock()
 
     def decide(query):
         resources = (
@@ -151,10 +150,9 @@ def io(monkeypatch):
         )
         return AuthDecision(allowed=allowed, provider_results=(), mode="v3")
 
-    framework.router.decide.side_effect = decide
-    framework.get_apply_data.return_value = None
-    framework.get_apply_url.side_effect = lambda query: monitor.iam_client.get_apply_url(query)[2]
-    monkeypatch.setattr("bkmonitor.iam.iam_engine.django.facade.get_framework", lambda: framework)
+    monitor._decide_request.side_effect = decide
+    monitor._apply_data_request.return_value = None
+    monitor._apply_url_request.side_effect = lambda query: monitor.iam_client.get_apply_url(query)[2]
     monitor.get_apply_url.return_value = "https://iam.invalid/monitor-apply"
     monkeypatch.setattr(
         auth, "_business_resource", lambda biz: Resource("bk_monitorv3", "space", str(biz), {"name": str(biz)})

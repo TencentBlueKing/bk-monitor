@@ -11,10 +11,10 @@ specific language governing permissions and limitations under the License.
 import logging
 from types import SimpleNamespace
 
-from bkmonitor.iam.iam_engine.django.apps import _log_system_migration
-from bkmonitor.iam.iam_engine.django.management.commands.iam_engine_migrate import Command
-from bkmonitor.iam.iam_engine.django.migration_logging import summarize_system_migration
-from bkmonitor.iam.iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan, MigrationReport
+from bkmonitor.iam.apps import _log_system_migration
+from bkmonitor.iam.management.commands.iam_engine_migrate import Command
+from bkmonitor.iam.model.logging import summarize_system_migration
+from iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan, MigrationReport
 
 
 def _system_change(change_type, *, before=None, after=None, reason=""):

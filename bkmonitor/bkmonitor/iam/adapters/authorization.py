@@ -7,7 +7,7 @@ from django.utils import timezone
 from iam_engine.migration.grant_config import AuthorizationGrantConfig
 from iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
 
-from ..iam_engine.core.exceptions import ProviderError, ProviderUnavailable
+from iam_engine.exceptions import ProviderError, ProviderUnavailable
 
 
 class MonitorAuthorizationWriter:

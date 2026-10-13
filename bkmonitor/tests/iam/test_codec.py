@@ -19,7 +19,7 @@ specific language governing permissions and limitations under the License.
 # ==============================================================================
 
 from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
-from bkmonitor.iam.iam_engine.core.types import (
+from iam_engine.provider.requests import (
     ApplyURLRequest,
     AuthRequest,
     BatchByActionRequest,
@@ -27,9 +27,9 @@ from bkmonitor.iam.iam_engine.core.types import (
     ResourceInstance,
     Subject,
 )
-from bkmonitor.iam.iam_engine.provider.base import PermissionProvider
-from bkmonitor.iam.iam_engine.provider.codec import IdentityCodec, NameCodec
-from bkmonitor.iam.iam_engine.schema.registry import SchemaRegistry
+from iam_engine.provider.codec_provider import PermissionProvider
+from iam_engine.provider.codec import IdentityCodec, NameCodec
+from iam_engine.schema.registry import SchemaRegistry
 
 
 # ==============================================================================

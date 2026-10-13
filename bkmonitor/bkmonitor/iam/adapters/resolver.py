@@ -16,7 +16,7 @@ specific language governing permissions and limitations under the License.
 #   - ApmApplication / GrafanaDashboard / RumApplication：经资源目录
 #     adapters/catalog.py 查询名称与祖先链（与平台回调、权限树同一份实现）
 #
-# 由框架基类从 IAM_FRAMEWORK.PROVIDER_CATALOG[<name>].options.resolver_class 加载，
+# 由框架基类从 产品 backend 配置 加载，
 # 在 is_allowed / batch_by_* / get_apply_data 等鉴权路径统一调用。
 # ---------------------------------------------------------------------------
 
@@ -29,8 +29,8 @@ from typing import Any
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import api as space_api
 
-from ..iam_engine.core.types import ResourceInstance, to_resource_type_id
-from ..iam_engine.provider.resolver import ResourceResolver
+from iam_engine.provider.requests import ResourceInstance, to_resource_type_id
+from iam_engine.provider.resolver import ResourceResolver
 from ..definitions.resource_types import ResourceTypes
 from bkmonitor.utils.cache import lru_cache_with_ttl
 
@@ -67,7 +67,7 @@ class MonitorResourceResolver(ResourceResolver):
 
     根据 type + id 查询 DB，补全 name / ancestor_chain。
     配置方式：
-        IAM_FRAMEWORK.PROVIDER_CATALOG[<name>].options.resolver_class =
+        产品 backend 配置 =
             "bkmonitor.iam.adapters.resolver.MonitorResourceResolver"
     """
 

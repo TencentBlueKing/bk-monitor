@@ -11,7 +11,6 @@ from monitor_web.grafana import permissions as grafana
 def test_proxy_collects_org_candidates_and_expands_folder_permissions(monkeypatch):
     monkeypatch.setattr(grafana, "get_or_create_org", lambda name: {"id": 10})
     monkeypatch.setattr(grafana, "get_request_tenant_id", lambda: "tenant-a")
-    monkeypatch.setattr(grafana, "Permission", Mock(return_value=SimpleNamespace(skip_check=False)))
     monkeypatch.setattr(grafana.DashboardPermission, "get_user_role", lambda *args: GrafanaRole.Anonymous)
     manager = Mock()
 
@@ -29,7 +28,8 @@ def test_proxy_collects_org_candidates_and_expands_folder_permissions(monkeypatc
         SimpleNamespace(all_granted=False, visible_ids=["10|dash-a"]),
         SimpleNamespace(all_granted=False, visible_ids=["folder:10|7"]),
     ]
-    monkeypatch.setattr(grafana, "get_framework", lambda: framework)
+    framework.skip_check = False
+    monkeypatch.setattr(grafana, "Permission", Mock(return_value=framework))
     request = SimpleNamespace(user=SimpleNamespace(username="alice", is_superuser=False))
     allowed, role, acl = grafana.DashboardPermission.has_permission(request, None, "2", force_check=True)
     assert allowed
