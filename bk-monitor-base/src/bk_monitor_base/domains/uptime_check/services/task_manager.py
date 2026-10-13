@@ -228,16 +228,18 @@ class TaskManager:
                     failed_content_list = [
                         content for content in content_list if json.loads(content).get("error_code") != 0
                     ]
-                result_msg_map = UDP_RESULT_MSG if protocol == UptimeCheckTaskModel.Protocol.UDP else RESULT_MSG
+                result_msg_map = (
+                    RESULT_MSG | UDP_RESULT_MSG if protocol == UptimeCheckTaskModel.Protocol.UDP else RESULT_MSG
+                )
                 error_message: list[str] = []
                 for failed_content in failed_content_list:
                     failed_content_dict = json.loads(failed_content)
-                    error_code = str(failed_content_dict["error_code"])
-                    if error_code in result_msg_map:
-                        msg = result_msg_map[error_code]
-                    else:
-                        msg = _("未知错误（{error_code}）").format(error_code=error_code)
-                        msg += f"message: {failed_content}"
+                    error_code = str(
+                        failed_content_dict["dimensions"]["error_code"]
+                        if protocol == UptimeCheckTaskModel.Protocol.ICMP
+                        else failed_content_dict["error_code"]
+                    )
+                    msg = result_msg_map.get(error_code, _("采集器返回未知错误码（%s）") % error_code)
 
                     error_message.append(
                         "{} {} {}".format(
