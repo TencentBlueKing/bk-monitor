@@ -57,8 +57,8 @@
 
   /* ===== events 抽屉联动的行 / 单元格选中态 ===== */
 
-  /* 激活行底色走 TDesign 内置规则（activeRowType='single' 根类 t-table__row--active-single + tr.t-table__row--active，
-   * 取值同为 --td-brand-color-light / -hover），此处只补充内置规则没有的单元格态 */
+  /* 激活行底色由 rum-explore-table.scss 重定义 --td-brand-color-light 为 #f0f5ff（内置为 brand-1 #f0f3ff），
+   * hover 态仍取内置的 --td-brand-color-light-hover（#d7e2ff）；此处只补充内置规则没有的单元格态 */
 
   /* 激活的 events 单元格整格中蓝（设计稿 Brand/5 蓝白 #cddffe），盖过所在行的浅蓝底 */
   td:has(.rum-array-col-trigger.is-active) {
