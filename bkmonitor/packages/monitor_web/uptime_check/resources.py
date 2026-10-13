@@ -450,14 +450,19 @@ class TestTaskResource(Resource):
                 error_message = []
                 for failed_content in failed_content_list:
                     failed_content_dict = json.loads(failed_content)
-                    error_code = str(failed_content_dict["error_code"])
+                    error_code = str(
+                        failed_content_dict["dimensions"]["error_code"]
+                        if protocol == UptimeCheckTask.Protocol.ICMP
+                        else failed_content_dict["error_code"]
+                    )
+                    result_message = RESULT_MSG.get(error_code, _("采集器返回未知错误码（%s）") % error_code)
+                    if protocol == UptimeCheckTask.Protocol.UDP:
+                        result_message = UDP_RESULT_MSG.get(error_code, result_message)
                     error_message.append(
                         "{} {} {}".format(
                             failed_content_dict.get("target_host", ""),
                             failed_content_dict.get("message", ""),
-                            UDP_RESULT_MSG[error_code]
-                            if protocol == UptimeCheckTask.Protocol.UDP
-                            else RESULT_MSG[error_code],
+                            result_message,
                         )
                     )
 
