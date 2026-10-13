@@ -47,6 +47,8 @@ import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { handleSetTargetDesc, isRecoveryDisable, isStatusSetterNoData } from '../common';
+import { type PromqlSourceData, createPromqlSourceData } from '../strategy-config-common/promql-query/model';
+import PromqlQueryEditor from '../strategy-config-common/promql-query/promql-query-editor';
 import { signalNames } from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
 import { RecoveryConfigStatusSetter } from '../strategy-config-set-new/judging-condition/judging-condition';
 import AiopsMonitorData from '../strategy-config-set-new/monitor-data/aiops-monitor-data';
@@ -66,8 +68,6 @@ import {
 import StrategyTemplatePreview from '../strategy-config-set/strategy-template-preview/strategy-template-preview.vue';
 import StrategyVariateList from '../strategy-config-set/strategy-variate-list/strategy-variate-list.vue';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
-import { createPromqlSourceData, type PromqlSourceData } from '../strategy-config-common/promql-query/model';
-import PromqlQueryEditor from '../strategy-config-common/promql-query/promql-query-editor';
 import DetectionRulesDisplay from './components/detection-rules-display';
 import MetricListItem from './components/metric-list-item';
 import StrategyTargetTable from './strategy-config-detail-table.vue';
@@ -564,7 +564,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
    * @returns
    */
   async handleQueryConfigData(srcData = this.detailData) {
-    const [{ expression, origin_sql: originSql, query_configs: queryConfigs, functions = [], algorithms }] = srcData.items;
+    const [{ expression, origin_sql: originSql, query_configs: queryConfigs, functions = [], algorithms }] =
+      srcData.items;
     if (
       algorithms?.[0]?.type === MetricType.MultivariateAnomalyDetection ||
       algorithms?.[0]?.type === MetricType.HostAnomalyDetection
@@ -1183,8 +1184,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                         }
                         return (
                           <PromqlQueryEditor
-                            readonly={true}
                             expression={this.expression}
+                            readonly={true}
                             sourceData={this.sourceData}
                           />
                         );
