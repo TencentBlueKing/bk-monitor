@@ -748,6 +748,10 @@ class FastCreateLogCollectorResource(LogSearchAPIGWResource):
         )
         collector_scenario_id = serializers.CharField(required=True, label="日志类型")
         category_id = serializers.CharField(required=False, label="分类ID")
+        storage_cluster_id = serializers.IntegerField(required=False, min_value=1, label="存储集群ID")
+        retention = serializers.IntegerField(required=False, min_value=1, label="保留天数")
+        es_shards = serializers.IntegerField(required=False, min_value=1, label="ES分片数量")
+        storage_replies = serializers.IntegerField(required=False, min_value=0, label="ES副本数量")
         description = serializers.CharField(
             required=False,
             allow_blank=True,

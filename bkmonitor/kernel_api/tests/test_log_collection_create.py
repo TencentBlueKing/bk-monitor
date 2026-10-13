@@ -148,16 +148,91 @@ def test_serializer_rejects_scenario_environment_mismatch(payload, field):
 @pytest.mark.parametrize(
     "field",
     [
-        "storage_cluster_id",
         "data_link_id",
-        "retention",
-        "es_shards",
+        "allocation_min_days",
         "platform_username",
         "bk_username",
     ],
 )
 def test_serializer_rejects_infrastructure_and_identity_overrides(field):
     serializer = FastCreateLogCollectorResource.RequestSerializer(data=linux_payload(**{field: 1}))
+
+    assert not serializer.is_valid()
+    assert field in serializer.errors
+
+
+@pytest.mark.parametrize("payload_factory", [linux_payload, windows_payload, container_payload])
+@pytest.mark.parametrize(
+    "storage_options",
+    [
+        {},
+        {"storage_cluster_id": 12},
+        {"retention": 30},
+        {"es_shards": 3},
+        {"storage_replies": 0},
+        {"storage_cluster_id": 12, "retention": 30, "es_shards": 3, "storage_replies": 1},
+        {"storage_cluster_id": 12, "retention": 30, "es_shards": 3, "storage_replies": 0},
+    ],
+)
+def test_fast_create_forwards_optional_storage_settings(monkeypatch, payload_factory, storage_options):
+    calls = {}
+    api_resource = FastCreateLogCollectorAPIResource()
+
+    def fast_create(**kwargs):
+        calls["mcp"] = kwargs
+        calls["bklog"] = api_resource.validate_request_data(kwargs)
+        return {
+            "collector_config_id": 31,
+            "bk_data_id": 51,
+            "subscription_id": 61,
+            "task_id_list": [71],
+            "index_set_id": 41,
+        }
+
+    monkeypatch.setattr(
+        create_module,
+        "api",
+        SimpleNamespace(log_search=SimpleNamespace(fast_create_log_collector=fast_create)),
+    )
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=payload_factory(**storage_options))
+    assert serializer.is_valid(), serializer.errors
+
+    result = FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    for params in calls.values():
+        assert {
+            key: params[key]
+            for key in ("storage_cluster_id", "retention", "es_shards", "storage_replies")
+            if key in params
+        } == storage_options
+    assert calls["bklog"]["enforce_permission"] is True
+    assert "confirm" not in calls["bklog"]
+    assert result["collector_config_id"] == 31
+
+
+@pytest.mark.parametrize(
+    "serializer_class",
+    [FastCreateLogCollectorResource.RequestSerializer, FastCreateLogCollectorAPIResource.RequestSerializer],
+)
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("storage_cluster_id", 0),
+        ("storage_cluster_id", -1),
+        ("retention", 0),
+        ("retention", -1),
+        ("es_shards", 0),
+        ("es_shards", -1),
+        ("storage_replies", -1),
+        *[
+            (field, value)
+            for field in ("storage_cluster_id", "retention", "es_shards", "storage_replies")
+            for value in (None, 1.5, "invalid")
+        ],
+    ],
+)
+def test_fast_create_rejects_invalid_storage_settings(serializer_class, field, value):
+    serializer = serializer_class(data=linux_payload(**{field: value}))
 
     assert not serializer.is_valid()
     assert field in serializer.errors

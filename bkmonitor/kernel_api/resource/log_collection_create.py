@@ -22,6 +22,10 @@ COMMON_CREATE_FIELDS = {
     "category_id",
     "description",
     "parent_index_set_ids",
+    "storage_cluster_id",
+    "retention",
+    "es_shards",
+    "storage_replies",
     "confirm",
 }
 HOST_CREATE_FIELDS = {
@@ -247,6 +251,10 @@ class FastCreateLogCollectorResource(Resource):
             allow_null=True,
             label="归属索引组ID列表",
         )
+        storage_cluster_id = serializers.IntegerField(required=False, min_value=1, label="存储集群ID")
+        retention = serializers.IntegerField(required=False, min_value=1, label="保留天数")
+        es_shards = serializers.IntegerField(required=False, min_value=1, label="ES分片数量")
+        storage_replies = serializers.IntegerField(required=False, min_value=0, label="ES副本数量")
         target_object_type = serializers.CharField(required=False, label="主机目标类型")
         target_node_type = serializers.CharField(required=False, label="主机节点类型")
         target_nodes = serializers.ListField(
