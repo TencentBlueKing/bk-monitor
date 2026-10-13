@@ -65,7 +65,7 @@ from constants.issue import (
     IssueStatus,
     SourceAnalysisFailureMessage,
     SourceAnalysisFailureStage,
-    SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+    SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
     SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
     SourceAnalysisResultType,
     SourceAnalysisStage,
@@ -1283,7 +1283,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
                 # BKFara 在创建任务后将该占位符渲染为 analysis_task_id，供流水线回调结果。
                 "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
                 # BKFara 识别固定值后注入当前用户 access_token；BKM 不读取真实 Token。
-                "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+                "BKAPI_ACCESS_TOKEN": SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
             },
         }
         params["bk_username"] = execution.run_as_user

@@ -29,7 +29,7 @@ from api.bk_incident.default import (
 )
 from bkmonitor.models import IssueSourceAnalysisExecution
 from constants.issue import (
-    SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+    SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
     SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
     SourceAnalysisFailureMessage,
     SourceAnalysisFailureStage,
@@ -58,7 +58,7 @@ class TestSourceAnalysisContract(SimpleTestCase):
 
     def test_bkfara_runtime_placeholders_match_protocol(self):
         self.assertEqual(SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER, "__BKFARA_TASK_ID__")
-        self.assertEqual(SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER, "__BKAICLI_ACCESS_TOKEN__")
+        self.assertEqual(SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER, "__BKAICLI_ACCESS_TOKEN__")
 
     def test_failed_task_trace_is_normalized_before_persistence(self):
         execution = SimpleNamespace(analysis_id="analysis-1", mark_failed=MagicMock())
@@ -166,7 +166,7 @@ class TestSourceAnalysisContract(SimpleTestCase):
                     "knowledge_base_ids": "",
                     "alert_id": "alert-1",
                     "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
-                    "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+                    "BKAPI_ACCESS_TOKEN": SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
                 },
             }
         )
@@ -221,11 +221,11 @@ class TestSourceAnalysisContract(SimpleTestCase):
             "agent_id": "agent-a",
             "alert_id": "alert-1",
             "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
-            "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+            "BKAPI_ACCESS_TOKEN": SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
         }
         invalid_values = {
             "BKFARA_TASK_ID": "task-1",
-            "BKAI_AIDEV_API_KEY": "real-access-token",
+            "BKAPI_ACCESS_TOKEN": "real-access-token",
         }
 
         for field, value in invalid_values.items():
@@ -387,8 +387,8 @@ class TestSourceAnalysisContract(SimpleTestCase):
             SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
         )
         self.assertEqual(
-            trigger_params["inputs"]["BKAI_AIDEV_API_KEY"],
-            SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+            trigger_params["inputs"]["BKAPI_ACCESS_TOKEN"],
+            SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
         )
 
     def test_http_error_body_is_normalized_to_protocol_error(self):
@@ -506,7 +506,7 @@ class TestSourceAnalysisOrchestration(TestCase):
                 "knowledge_base_ids": "knowledge-a",
                 "alert_id": "alert-1",
                 "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
-                "BKAI_AIDEV_API_KEY": SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+                "BKAPI_ACCESS_TOKEN": SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
             },
         )
 

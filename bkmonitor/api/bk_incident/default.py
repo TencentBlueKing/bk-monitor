@@ -26,7 +26,7 @@ from api.bk_incident.client import BKFaraClient
 from bkm_space.scope import bk_biz_id_to_scope_id
 from bkmonitor.utils.request import get_request
 from constants.issue import (
-    SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,
+    SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
     SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
 )
 from core.drf_resource.contrib.api import APIResource
@@ -268,9 +268,9 @@ class SourceAnalysisInputsSerializer(serializers.Serializer):
     )
     # BKM 只传固定占位符。BKFara 在用户态 trigger 请求内将其替换为当前用户的
     # access_token，再注入同名蓝盾变量；真实 Token 不进入 BKM。
-    BKAI_AIDEV_API_KEY = serializers.ChoiceField(
-        label=_("AIDEV API Key 运行时占位符"),
-        choices=(SOURCE_ANALYSIS_BKAI_AIDEV_API_KEY_PLACEHOLDER,),
+    BKAPI_ACCESS_TOKEN = serializers.ChoiceField(
+        label=_("蓝鲸 API 访问凭证运行时占位符"),
+        choices=(SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,),
     )
 
     def to_internal_value(self, data):
