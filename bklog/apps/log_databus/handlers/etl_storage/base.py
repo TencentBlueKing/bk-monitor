@@ -735,11 +735,18 @@ class EtlStorage:
 
             temp_output_id = f"__ext_json_temp_{self.separator_node_name}"
 
+            # bkbase 缺省 error_strategy 为 drop：保留清洗失败日志时 separator_node 可能为 null 或非对象，
+            # delete 会因输入类型不符整条丢弃，需与上游 json_de 的策略保持一致
+            delete_error_strategy = "null" if self.is_retain_content_enabled(etl_params) else "drop"
             rules.append(
                 {
                     "input_id": self.separator_node_name,
                     "output_id": temp_output_id,
-                    "operator": {"type": "delete", "key_index": exclude_keys},
+                    "operator": {
+                        "type": "delete",
+                        "key_index": exclude_keys,
+                        "error_strategy": delete_error_strategy,
+                    },
                 }
             )
 
