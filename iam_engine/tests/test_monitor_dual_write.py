@@ -118,7 +118,7 @@ def test_grant_failure_classification(error, kind):
 
 
 @pytest.mark.parametrize("mode", ["v3", "v4", "union"])
-def test_read_mode_never_changes_actual_write_targets(providers, mode):
+def test_mode_selects_actual_write_targets(providers, mode):
     from types import SimpleNamespace
     from iam_engine.core.config import AuthMode
     from bkmonitor.iam.permission import Permission
@@ -132,5 +132,5 @@ def test_read_mode_never_changes_actual_write_targets(providers, mode):
         Resource("bk_monitorv3", "space", "2", {}), creator="alice", raise_exception=True
     )
     assert result is not None
-    legacy._get_client.return_value.grant_resource_creator_actions.assert_called_once()
-    current._get_client.return_value.add_authorization.assert_called_once()
+    assert legacy._get_client.return_value.grant_resource_creator_actions.call_count == (mode != "v4")
+    assert current._get_client.return_value.add_authorization.call_count == (mode != "v3")

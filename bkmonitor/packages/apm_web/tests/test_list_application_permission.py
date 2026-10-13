@@ -231,8 +231,8 @@ def test_list_application_resources_are_equivalent_for_share_token():
 
     assert old_result == new_result
     for actions in new_result.values():
-        assert actions[canonicalize_action_id(ActionEnum.VIEW_APM_APPLICATION.id)] is True
-        assert actions[canonicalize_action_id(ActionEnum.MANAGE_APM_APPLICATION.id)] is False
+        assert actions["view_apm_application_v2"] is True
+        assert actions["manage_apm_application_v2"] is False
 
 
 def _build_application(application_id: int, app_name: str) -> Application:

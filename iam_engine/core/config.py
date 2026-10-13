@@ -23,28 +23,6 @@ class AuthMode(str, Enum):
     V4 = "v4"
     UNION = "union"
 
-    @classmethod
-    def safe_coerce(cls, value: AuthMode | str, *, default: AuthMode | None = None) -> AuthMode:
-        """尽力将任意值转换为合法鉴权模式；非法值安全回退到 default，不抛出 ValueError。
-
-        default 缺省时用 ``DEFAULT_DUAL_STACK.legacy``，不要在这里写死 V3。
-        换代后申请旁路应回退仍在服役的旧栈，而不是上一代字面量。
-
-        用于处理已经越过 ModeProvider 校验、但仍可能是非法值的场景（例如 AuthDecision.mode
-        在非法模式下被写入原始非法字符串），确保鉴权模式解析永远不会向上抛出未捕获异常。
-
-        不要用它去「纠正」环境变量或 Toggle 误配再继续鉴权：ModeRouter 对非法模式必须 fail-closed。
-        这里只给申请数据等旁路兜底，避免 403 流程变成 500。
-        """
-
-        fallback = default if default is not None else DEFAULT_DUAL_STACK.legacy
-        if isinstance(value, cls):
-            return value
-        try:
-            return cls(value)
-        except ValueError:
-            return fallback
-
 
 @dataclass(frozen=True, slots=True)
 class DualStackSpec:
@@ -82,23 +60,13 @@ class DualStackSpec:
     def application_candidates(self, mode: AuthMode) -> tuple[AuthMode, ...]:
         """无权限申请的选边顺序。
 
-        current / union 优先生成新协议申请单，缺省再回退 legacy，避免灰度期用户
-        点到已经不再签发的 V3 申请页。legacy 单栈只用自身，避免 V3 模式误发 V4 单。
+        current / union 固定生成新协议申请单，缺少能力时不能回退 legacy。
+        legacy 单栈只用自身，避免 V3 模式误发 V4 单。
         """
 
         if mode is AuthMode.UNION or mode is self.current:
-            return (self.current, self.legacy)
+            return (self.current,)
         return (mode,)
-
-    @property
-    def writer_modes(self) -> tuple[AuthMode, AuthMode]:
-        """创建者授权始终按 legacy → current 尝试双写。
-
-        与当前鉴权模式无关：V3 模式下只要 current Writer 已注入，新资源也要写到新栈，
-        否则切到 V4 后创建者会看不见自己刚建的资源。
-        """
-
-        return (self.legacy, self.current)
 
     @property
     def fallback_mode(self) -> AuthMode:

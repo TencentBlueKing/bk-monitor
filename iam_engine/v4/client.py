@@ -148,9 +148,9 @@ class V4Client:
         if not isinstance(data, dict):
             raise V4ResponseError("IAM V4 apply response must be an object")
         url = data.get("url")
-        if not url:
+        if not isinstance(url, str) or not url.strip():
             raise V4ResponseError("IAM V4 apply response missing url")
-        return str(url)
+        return url.strip()
 
     def add_authorization(self, *, items: list[dict[str, Any]], operator: str) -> None:
         """为主体新增角色授权。
@@ -203,8 +203,10 @@ class V4Client:
         params: dict | None = None,
     ) -> Any:
         if not self.options.gateway_url:
-            logger.error("IAM V4 gateway is not configured; set BKAPP_IAM_V4_API_BASE_URL to the bkiam APIGateway root")
-            raise V4TransportError("IAM V4 gateway is not configured (BKAPP_IAM_V4_API_BASE_URL)")
+            logger.error("IAM V4 gateway is not configured; set BK_COMPONENT_API_URL or BKAPP_IAM_V4_API_BASE_URL")
+            raise V4TransportError(
+                "IAM V4 gateway is not configured (BK_COMPONENT_API_URL / BKAPP_IAM_V4_API_BASE_URL)"
+            )
         tenant_id = str(self.bk_tenant_id or "").strip()
         if not tenant_id:
             raise V4TransportError("IAM V4 request requires a non-empty bk_tenant_id")

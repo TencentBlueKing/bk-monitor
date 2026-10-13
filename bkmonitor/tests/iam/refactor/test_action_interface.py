@@ -342,22 +342,11 @@ class TestProviderVisibility:
     V4Migrator 的 plan/diff 据此过滤；roles 不再绑定这两个 action。
     """
 
-    def _plan_v4_full(self, real_schema):
-        from unittest.mock import MagicMock
-
-        from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
-        from iam_engine.schema.diff import EntityKind
-        from bkmonitor.iam.backends.v4.config import V4SystemInfo
-        from bkmonitor.iam.backends.v4.migrator import V4Migrator
-
-        system = V4SystemInfo(id="bk_monitor_v4", name="监控平台V4")
-        migrator = V4Migrator(client=MagicMock(), schema=real_schema, system_def=system, codec=MonitorV4Codec())
-        plan = migrator.plan_migration(scope="full")
-        return plan, EntityKind
-
     def test_deprecated_dashboard_actions_excluded_from_v4(self, real_schema):
-        plan, EntityKind = self._plan_v4_full(real_schema)
-        action_ids = {c.entity_id for c in plan.changes if c.kind == EntityKind.ACTION}
+        from bkmonitor.iam.model_sync import expected_v4_model
+
+        model = expected_v4_model()
+        action_ids = {action.id for action in model.actions}
         assert "view_dashboard" not in action_ids
         assert "manage_dashboard" not in action_ids
         # 53 = 55 - 2 个已废弃；v4 实例级语义仍由 single_dashboard 承担

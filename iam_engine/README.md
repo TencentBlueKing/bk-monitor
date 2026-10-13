@@ -7,7 +7,8 @@ BKLog 与监控实际引用根目录同一份 `iam_engine`；产品目录中的
 
 - `core/`：协议中立请求、允许/拒绝/错误结果与三种模式。
 - `provider/`：ModeRouter、Union 决策/范围合并、能力 Bundle 和执行器协议。
-- `migration/`：申请选边、独立双写、注入式事务提交 hook、新建资源授权的冻结请求重试。
+- `migration/`：模式选边、Union 双写、注入式事务提交 hook、新建资源授权的冻结请求重试。
+- `model/`：公共 V4 模型校验、差异计划与非破坏性收敛；`django.py` 提供可选部署/命令适配。
 - `settings.py`、`v4/`：BKLog 既有环境变量映射、选项归一化、网关、HTTP 和响应校验。
 - 产品适配：保留各产品原有 Permission/DRF 公开入口，
   `backends/v3/` 与 `backends/v4/` 提供原生能力，callback 和重试留在产品 IAM 层。
@@ -23,8 +24,8 @@ SharedMigrationPolicy、框架单例或 IAM_FRAMEWORK 配置目录。产品 back
 BKLog 继续使用自身 `apps.iam.handlers` 入口。不强求目录树相同，也不为目录对齐
 重写业务 import。两边一致的是职责、能力协议与公共实现，不是文件路径。
 
-公共 schema/、policy/、model/ 提供不依赖 Django 的模型和策略工具。监控的
-Django 信号、模型注册记录及管理命令放在产品侧；模型注册不等于存量权限迁移。
+公共 schema/、policy/ 和模型收敛核心不依赖 Django。产品注册 Django 信号和管理命令，
+共用 `model.django` 的命令/锁适配；原有 V3 模型历史仍由产品维护，模型注册不是存量权限迁移。
 
 `PairExecutor` 由上层注入。双产品并发和有序分页共用 `concurrency.py`，产品只负责
 绑定/恢复本身的请求、租户、时区和 OTel 上下文。不要在公共层读取产品配置中心。
@@ -37,14 +38,16 @@ MCP 继续通过产品 Permission 的 `make_request` / `iam_client` 查询和生
 双栈客户端由 IAM 内部装配；明确需要 V3 SDK 的模型工具和回调使用 `get_iam_client`。
 Grafana 对外保留 `(allowed, role, permissions)` 契约，父文件夹覆盖在权限服务展开；
 APM 旧 permission Action key 在 DRF 边界生成，无需逐个视图开启兼容开关。
+监控公开 `batch_is_allowed` 继续返回历史 V3 Action 键；默认 V3 直接保留 SDK 的完整资源组、
+原始返回值和异常契约。内部 DRF/Router 仍用中立 Action ID，不让调用方承担版本转换。
 
 ## 已确定的运行规则
 
-| 模式 | 实际鉴权 | Union 申请/展示 | 创建者授权 |
-| --- | --- | --- | --- |
-| v3 | 仅 V3 | 不适用，按 V3 | 已配置的 V3 与 V4 同步尝试 |
-| v4 | 仅 V4 | 不适用，优先 V4 | 同上 |
-| union | 两侧任一明确允许即通过 | 优先 V4，既有申请回退保留 | 同上 |
+| 模式 | 实际鉴权 | 创建者授权 | 模型同步 | 无权限申请 |
+| --- | --- | --- | --- | --- |
+| v3（默认） | 仅 V3 | 仅 V3 | 仅 V3 | V3 |
+| v4 | 仅 V4 | 仅 V4 | 仅 V4 | V4 |
+| union | 两侧任一明确允许即通过 | V3＋V4 | V3＋V4 | 仅 V4 |
 
 Union 无 ALLOW 则拒绝；ERROR 不等于 DENY，决策保留 degraded 与各侧结果。
 畸形响应、缺项批量响应和非法模式不能当成允许。MCP 的原生权限回退仅针对明确
@@ -53,14 +56,20 @@ Union 无 ALLOW 则拒绝；ERROR 不等于 DENY，决策保留 degraded 与各�
 模式来自配置中心，由产品注入；环境变量非空时具有更高优先级。仅支持
 `v3`、`v4`、`union`，不支持业务灰度。环境变量覆盖需重启进程；配置中心仍遵循
 各产品现有动态配置/缓存机制。Monitor 动态字段名为 `BK_IAM_PERMISSION_MODE`；
-BKLog 继续使用 `iam_permission` FeatureToggle 的 `feature_config.mode`。
+BKLog 继续使用 `iam_permission_mode` FeatureToggle 的 `feature_config.mode`。
 
-V4 只在明确配置网关时装配，不从 V3 地址猜测 V4 网关。读模式不决定写目标，也不
-决定迁移可用性。监控 V4 system ID 留空时使用 `bk_monitorv3`（V3 ID）。
+地址决定请求目的地，模式决定是否调用。能力按需装配，只缓存能力、不缓存模式；
+默认 V3 下，即使已推导 V4 URL，也不调用 V4 鉴权/授权/同步/申请。
+非法模式拒绝，不自动切到另一协议。监控 V4 system ID 留空时使用 `bk_monitorv3`（V3 ID）。
+
+V4/Union 申请调用 `api/v1/open/application/permission-apply-urls/`，使用返回的页面 URL。
+超时、异常、空 URL 或缺少能力返回 `({}, "")`，保持无权限，不回退 V3、
+不返回通用 SaaS Host 或网关根地址。沿用后端响应协议；没有修改前端。
+V3 保留已有申请逻辑及其失败兜底；“获取申请链接失败”并非 V4 才可能发生。
 
 ## 双写与失败恢复
 
-首次 V3、V4 都同步尝试。V4 默认 365 天；冻结主体、角色、资源和 expired_at。
+仅 Union 首次同时尝试 V3、V4；单栈仅写对应协议。V4 默认 365 天；冻结主体、角色、资源和 expired_at。
 V4 同步失败只在最外层事务提交后投递 Celery；事务回滚不会投递。重放不重算有效期。
 V3 的调用结果/失败和产品业务处理继续沿用已有边界，公共化不扩大角色或实例范围。
 
@@ -81,7 +90,7 @@ settings 保留 BKLog 的字符串类型默认值；使用时由共同 loader/no
 | --- | --- | --- |
 | BK_IAM_PERMISSION_MODE | BKAPP_IAM_PERMISSION_MODE | 空，动态配置优先参与选择 |
 | BK_IAM_V4_SYSTEM_ID | BKAPP_IAM_V4_SYSTEM_ID | 空，回退 V3 ID |
-| BK_IAM_V4_APIGATEWAY_URL | BKAPP_IAM_V4_API_BASE_URL | 空，不推导 |
+| BK_IAM_V4_APIGATEWAY_URL | BKAPP_IAM_V4_API_BASE_URL | 从公共组件地址推导 bkiam 网关 |
 | BK_IAM_V4_CALLBACK_APP_CODE | BKAPP_IAM_V4_CALLBACK_APP_CODE | 空 |
 | BK_IAM_V4_CALLBACK_APP_SECRET | BKAPP_IAM_V4_CALLBACK_APP_SECRET | 空 |
 | BK_IAM_V4_TIMEOUT | BK_IAM_V4_TIMEOUT | 10 秒 |
@@ -101,6 +110,43 @@ settings 保留 BKLog 的字符串类型默认值；使用时由共同 loader/no
 使用全局应用凭据（Monitor 用 SaaS 凭据，非 backend 凭据），与现有产品边界一致。
 Charts 应映射同名环境变量；本次未修改 Charts 仓库。
 
+普通 K8s 环境仅需既有 `BK_COMPONENT_API_URL`：V3 默认
+`{BK_COMPONENT_API_URL}/api/bk-iam/prod/`，V4 默认
+`{BK_COMPONENT_API_URL}/api/bkiam/prod/`。不要求新增 IAM Helm Values。
+显式非空覆盖优先；空字符串/空白无覆盖，统一末尾斜杠。缺少根地址返回空配置，
+不拼接 `None`，V4 不回退 V3 网关。两产品沿用 `BKAPP_IAM_API_BASE_URL` 的 V3 覆盖；
+监控额外保留既有 `BK_IAM_V3_API_BASE_URL` 最高优先级入口，不把它复制成新的 BKLog 别名。
+
+## 模型同步与运维
+
+两产品 `post_migrate` 与手动 `iam_migrate_model` 共用同一 `ModelSyncService`：
+
+```bash
+python manage.py iam_migrate_model          # 预览，不写 IAM
+python manage.py iam_migrate_model --apply  # 按进程模式实际同步
+python manage.py migrate                   # 部署 post_migrate 自动同步
+```
+
+部署模式优先读环境覆盖，否则严格读取产品权威配置表；读配置失败必须报错，
+不把迁移进程未装载动态配置误当默认 V3。业务进程遵循产品既有动态配置缓存。
+动态切换后不会自动注册新模型；先用相同目标模式部署/同步，再切业务流量。
+
+V3 保留原机制：监控使用 `iam/migrations` 与 `MonitorMigration(app="iam")` 记录，
+不会重放已完成文件；BKLog 沿用原 JSON/SDK upsert。V3 预览只列本地文件，
+不是远端差异计划，且绝不执行旧写入 Migrator。部署失败向迁移进程传播，手动失败为非零退出。
+
+V4 共用期望模型 → 远端读取 → 校验/差异 → 按依赖应用 → 结果报告。
+BKLog 的 JSON 基线与运行时 Action 一致性测试保留；监控从运行时 definitions 派生，
+不维护第二份模型快照。模型 ID 与既有 Action 命名不变。
+不自动删除远端多余对象/角色动作/客户端；仅报告漂移。Action 换绑、角色授权维度
+变化与资源祖先链变化明确阻断，不能自动破坏现有授权。部分失败后重新读取远端并收敛，
+远端分页提前结束或 count 畸形时明确失败，不把不完整模型清单作为写入基线。
+已收敛不产生模型写请求。MySQL 使用数据库 advisory lock，SQLite 离线仅用进程锁，
+不新增或删除历史表。真实 MySQL 锁与部署全链路仍需端到端验证。
+
+旧监控 `iam_engine_migrate`、`iam_engine_makemigrations` 与 Planner/Loader/Recorder 已移除；
+BKLog 旧 `iam_v4_migrate_model` 由统一命令替换。原 V3 文件、记录和数据库表不删除。
+
 ## 打包
 
 Monitor 的根仓库 Docker 构建显式 COPY `iam_engine/` 到 `/app/iam_engine/`，
@@ -117,7 +163,7 @@ Dockerfile 在构建时检查模块存在；本地 unit_test 复制也改为解�
 
 存量 V3 授权迁移由 IAM 自行完成，不在本次产品开发范围。不提供 Action→Role
 转换、批量存量补授权或授权回放脚本，也不将映射规则作为本次开发阻塞项。
-保留 IAM 模型注册/更新和新建资源的同步双写及冻结重试，这两者不是存量迁移。
+保留按模式进行 IAM 模型注册/更新、新建资源授权及冻结重试，这些不是存量迁移。
 
 ## 自测与真实验收
 
@@ -126,4 +172,5 @@ DB 仅内存 SQLite；不要把 `tests/run_*_offline.py` 的覆盖配置带到�
 
 真实验收仍需注册监控 V4 系统、授权接入配置/测试用户和资源范围，再验证仅 V3、
 仅 V4、两侧有权、两侧无权、申请、创建者授权及重试。用户已决定本阶段不跑真实数据。
-回退只把配置中心模式切回 v3；保持 V4 双写及 V3 授权不变，不随回退删除模型或权限。
+回退到 v3 后，后续操作只用 V3，不再创建 V4 授权或同步请求；不删除已有模型或授权。
+已冻结投递的 V4 重试属于切换前操作，保留原目标和有效期，不重新选择版本。

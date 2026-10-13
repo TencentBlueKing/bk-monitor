@@ -25,11 +25,13 @@ class FeatureToggleModeProvider:
         *,
         stack: DualStackSpec | None = None,
         env_loader: Callable[[], str | None],
+        raise_on_load_error: bool = False,
     ) -> None:
         self.toggle_loader = toggle_loader
         self.env_loader = env_loader
         self.logger = logger or logging.getLogger("iam.mode")
         self.stack = stack or DEFAULT_DUAL_STACK
+        self.raise_on_load_error = raise_on_load_error
         self._logged_env_override = False
 
     def get_mode(self, resources: tuple[ResourceInstance, ...] = ()) -> AuthMode:
@@ -79,6 +81,8 @@ class FeatureToggleModeProvider:
         try:
             toggle = self.toggle_loader(IAM_PERMISSION_MODE)
         except Exception:  # pylint: disable=broad-except
+            if self.raise_on_load_error:
+                raise
             self.logger.exception("failed to load IAM permission mode toggle, fallback to %s", fallback.value)
             return fallback
 

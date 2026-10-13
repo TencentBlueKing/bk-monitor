@@ -33,6 +33,7 @@ the project delivered to anyone in the future.
 # ---------------------------------------------------------------------------
 
 import warnings
+from collections.abc import Mapping
 
 from django.conf import settings
 from django.db import transaction
@@ -45,7 +46,6 @@ from apps.iam.backends.v3.meta import get_system_info as get_v3_system_info
 from apps.iam.backends.v4 import V4AuthorizationWriter, V4PermissionProvider
 from apps.iam.backends.v4.callback_client import V4CallbackIAM
 from apps.iam.concurrency import run_pair_concurrently
-from apps.iam.backends.v4.config import resolve_v4_gateway_url
 from apps.iam.exceptions import IAMDependencyError, PermissionDeniedError
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
 from apps.iam.handlers.resources import Business as BusinessResource
@@ -62,7 +62,7 @@ from iam_engine.core.requests import (
 from iam_engine.core.types import AuthDecision, AuthStatus, AuthorizedResourceScope, BatchAuthDecision
 from iam_engine.migration.policy import ApplicationResolution, MigrationPolicy
 from iam_engine.migration.dual_write import DualWriteGrantOrchestrator
-from iam_engine.provider.bundle import ProviderBundle
+from iam_engine.provider.bundle import LazyProviderBundles, ProviderBundle
 from iam_engine.provider.capabilities import (
     AuthorizationWriter,
     AuthorizedScopeProvider,
@@ -142,7 +142,7 @@ class Permission:
     # ================================================================
 
     @property
-    def provider_bundles(self) -> dict[AuthMode, ProviderBundle]:
+    def provider_bundles(self) -> Mapping[AuthMode, ProviderBundle]:
         if self._provider_bundles is None:
             self._provider_bundles = self._build_provider_bundles()
         return self._provider_bundles
@@ -158,25 +158,28 @@ class Permission:
             )
         return self._mode_router
 
-    def _build_provider_bundles(self) -> dict[AuthMode, ProviderBundle]:
+    def _build_provider_bundles(self) -> Mapping[AuthMode, ProviderBundle]:
         """按协议版本注入能力。换代时在这里加新 key，拓扑的 current 指向它即可。"""
 
-        v3_provider = self.get_v3_provider()
-        v4_provider = self.get_v4_provider()
-        return {
-            AuthMode.V3: ProviderBundle(
+        def legacy_bundle():
+            v3_provider = self.get_v3_provider()
+            return ProviderBundle(
                 auth=v3_provider,
                 application=v3_provider,
                 writer=V3AuthorizationWriter(self.iam_client, bk_tenant_id=self.bk_tenant_id),
                 scope=v3_provider,
-            ),
-            AuthMode.V4: ProviderBundle(
+            )
+
+        def current_bundle():
+            v4_provider = self.get_v4_provider()
+            return ProviderBundle(
                 auth=v4_provider,
                 application=self.get_v4_permission_application_provider(),
                 writer=self.get_v4_authorization_writer(),
                 scope=v4_provider,
-            ),
-        }
+            )
+
+        return LazyProviderBundles({AuthMode.V3: legacy_bundle, AuthMode.V4: current_bundle})
 
     def get_v3_provider(self) -> V3PermissionProvider:
         if self._v3_provider is None:
@@ -200,8 +203,6 @@ class Permission:
         return self.get_v4_provider()
 
     def get_v4_authorization_writer(self) -> AuthorizationWriter | None:
-        if not resolve_v4_gateway_url():
-            return None
         if self._v4_authorization_writer is None:
             self._v4_authorization_writer = V4AuthorizationWriter.from_settings(
                 username=self.username,
@@ -284,37 +285,30 @@ class Permission:
         生成本系统无权限数据
         """
         resources = resources or []
-        resolved_mode = self._resolve_safe_apply_mode(resources, mode)
         stack = self.mode_router.stack
-        application = MigrationPolicy.resolve_application(resolved_mode, self.provider_bundles, stack=stack)
         try:
-            return self._call_application_provider(application, actions, resources)
+            resolved_mode = self._resolve_safe_apply_mode(resources, mode)
+            application = MigrationPolicy.resolve_application(resolved_mode, self.provider_bundles, stack=stack)
+        except (InvalidAuthModeError, ValueError, RuntimeError) as error:
+            logger.warning("[IAM Apply] application provider unavailable: %s", error)
+            return {}, ""
+        try:
+            data, url = self._call_application_provider(application, actions, resources)
+            if application.source_mode is stack.current:
+                return (data, url.strip()) if isinstance(url, str) and url.strip() else ({}, "")
+            return data, url
         except Exception as error:  # pylint: disable=broad-except
             if application.source_mode is not stack.current:
                 raise
 
-            if resolved_mode is AuthMode.UNION:
-                logger.warning(
-                    "[IAM Apply] mode=%s %s provider failed, fallback to %s: %s",
-                    resolved_mode.value,
-                    stack.current.value,
-                    stack.legacy.value,
-                    error,
-                )
-                legacy_application = MigrationPolicy.resolve_application(
-                    stack.legacy, self.provider_bundles, stack=stack
-                )
-                return self._call_application_provider(legacy_application, actions, resources)
-
-            # 纯 current 模式最终会不再保留 legacy，这里不做“回退旧栈”的迁移期兼容，
-            # 只记录错误并返回退化的申请数据，保证鉴权拒绝流程不会因为申请数据生成失败而变成 500。
+            # 申请旁路失败不改变鉴权拒绝，也不跨版本生成旧申请单。
             logger.error(
                 "[IAM Apply] mode=%s %s apply data generation failed: %s",
                 resolved_mode.value,
                 stack.current.value,
                 error,
             )
-            return {}, settings.BK_IAM_SAAS_HOST
+            return {}, ""
 
     def _call_application_provider(
         self,
@@ -328,36 +322,13 @@ class Permission:
         )
 
     def _resolve_safe_apply_mode(self, resources: list[Resource], mode: AuthMode | str | None) -> AuthMode:
-        """统一"显式传入模式"与"自动读取模式"两条入口，任何非法值都安全回退 legacy。
-
-        调用方既可能显式传入 mode（例如 is_allowed 把 decision.mode 原样传回，可能是非法字符串），
-        也可能不传 mode 走 ModeProvider 自动解析（环境变量优先，否则 Feature Toggle；
-        可能因配置非法抛出 InvalidAuthModeError）。
-        这里统一兜底，避免任何一条路径把异常/非法值泄漏给直接调用 get_apply_data 的业务代码。
-        """
-        fallback_mode = self.mode_router.stack.legacy
+        """Resolve the actual mode; the application caller handles invalid values as unavailable."""
         if mode is not None:
-            resolved_mode = AuthMode.safe_coerce(mode, default=fallback_mode)
-            if resolved_mode.value != mode:
-                logger.warning(
-                    "[IAM Apply] invalid auth mode=%r is not a valid AuthMode, falling back to %s apply",
-                    mode,
-                    resolved_mode.value,
-                )
-            return resolved_mode
+            return AuthMode(mode)
+        return self._resolve_auth_mode(resources)
 
-        try:
-            return self._resolve_auth_mode(resources)
-        except InvalidAuthModeError as error:
-            logger.warning(
-                "[IAM Apply] failed to resolve auth mode (%s), falling back to %s apply",
-                error.reason,
-                fallback_mode.value,
-            )
-            return fallback_mode
-
-    def _resolve_auth_mode(self, resources: list[Resource]) -> AuthMode:
-        engine_resources = tuple(self._to_engine_resource(resource) for resource in resources)
+    def _resolve_auth_mode(self, resources: list[Resource] = None) -> AuthMode:
+        engine_resources = tuple(self._to_engine_resource(resource) for resource in (resources or []))
         return self.mode_router.mode_provider.get_mode(engine_resources)
 
     @staticmethod
@@ -530,8 +501,8 @@ class Permission:
         """把决策模式归一到闭合取值。
 
         非法模式配置会被 ModeRouter 原样写进 AuthDecision.mode，而它来自环境变量或 Feature Toggle，
-        是运维可改写的配置，直接当 label 用就不再是有限枚举。这里不套 AuthMode.safe_coerce，因为它会把误配折叠成
-        v3、反而掩盖配置错误；误配单独归到 invalid，仍可与 IAM_PROVIDER_RESULT_COUNT 里
+        是运维可改写的配置，直接当 label 用就不再是有限枚举。误配不能折叠成 v3，
+        应单独归到 invalid，仍可与 IAM_PROVIDER_RESULT_COUNT 里
         provider="mode"、error_type="InvalidPermissionMode" 的样本对上。
         """
         try:
@@ -870,7 +841,9 @@ class Permission:
             raise NotImplementedError(f"retry dispatcher is still V4-only, got {retry_target.value}")
 
         orchestrator = DualWriteGrantOrchestrator(
-            writers=MigrationPolicy.resolve_authorization_writers(self.provider_bundles, stack=stack),
+            writers=MigrationPolicy.resolve_authorization_writers(
+                self._resolve_auth_mode(), self.provider_bundles, stack=stack
+            ),
             tenant_id=self.bk_tenant_id,
             operator=self.username,
             dispatch_retry_grant=dispatch_v4_creator_grant,
@@ -927,7 +900,9 @@ class Permission:
         space_id = space_resource.id
         space_name = (space_resource.attribute or {}).get("name") or space_id
 
-        writers = MigrationPolicy.resolve_authorization_writers(self.provider_bundles, stack=self.mode_router.stack)
+        writers = MigrationPolicy.resolve_authorization_writers(
+            self._resolve_auth_mode(), self.provider_bundles, stack=self.mode_router.stack
+        )
         failed_subjects: list[str] = []
         for subject in unique_subjects:
             for target_version, writer in writers:

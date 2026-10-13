@@ -1,5 +1,8 @@
 # IAM V4 稳定产品边界与公共底层复用：离线自测报告
 
+> 下文前几节是已交付快照的历史记录。“始终双写”“显式 V4 URL 才启用”“申请回退 V3”
+> 已由文末新版模式/模型同步验收替代；当前行为以 README 和文末最新范围为准。
+
 日期：2026-10-13。单据：138944425。分支：`feat/iam-v4-support`。
 本轮纠偏基线：`e33a428ad25a96b2c64c023dec89dbf9b4e19feb`。
 已同步 master `ff89f63ff4036b4ff6dad180ba3455eb34ef62ab`；合并提交为
@@ -208,3 +211,66 @@ V4/Union 多实例批量入口维持既有逐项决策，公共 OR 规则、V4 �
 远端仍有四条 CodeQL 日志注入线程未解决；本轮未发布 review 或 resolve。
 Code Review MCP 未连接 GitHub，未读取修复后 CI；不将本地通过扩大为 CI/部署通过。
 真实 IAM、申请页面、MySQL 迁移及线上 E2E 仍未执行。
+
+## 新版模式、网关与模型同步（2026-10-13）
+
+本轮修改基线 `b925ce99f`。最新用户 Plan 替换历史“所有模式始终双写”及“URL 非空启用 V4”。
+单一模式统一控制鉴权、创建者授权、模型同步与申请；默认 V3 仅调用 V3，V4 仅调用 V4，
+Union 两套鉴权取 OR、授权和模型都执行两套，申请仅走 V4。不新增启用开关、业务灰度、
+`all_of` 或 `primary`。原有 Token/skip_check、产品角色/资源边界与 365 天冻结重试保留。
+
+两产品共用 `resolve_iam_gateway_url`，从组件根地址独立推导 `bk-iam` / `bkiam` 网关；
+保留既有合法覆盖入口及优先级，处理空白、斜杠和缺失值。测试 mock 实际 HTTP 请求 URL，
+不是只断言 settings。V3 默认不装配 V4；能力缓存不缓存模式，一次鉴权/申请共用快照。
+V4/Union 申请使用 API 返回的页面 URL，失败保持拒绝并返回空申请数据/链接，无 V3 回退。
+**仅 IAM 后端和必要配置/生命周期/测试改动，没有新增前端改动。**
+
+V4 期望模型、远端 API、校验、diff、依赖执行、漂移/阻塞报告与锁进入共同 `model/`。
+BKLog 保留 JSON 权威基线和运行时一致性检查；Monitor 从运行时 definitions 派生，
+保留既有 Action ID，系统 ID 默认 `bk_monitorv3`。不删除远端额外对象/客户端/角色动作，
+Action 换绑、角色维度和祖先链改变阻断。状态型假客户端验证部分失败后重跑收敛及最终 no-op。
+
+部署 post_migrate 与两平台 `iam_migrate_model [--apply]` 共用 `ModelSyncService`。
+部署严格读取权威模式，配置查询失败不假装默认 V3；同步失败会传播，命令失败为 CommandError。
+Monitor V3 使用原 `Migrator` 和 `MonitorMigration(app="iam")`：不重放历史，
+预览只列待执行文件、不调用写入口，apply 用新的原 Migrator 实例，防止重复加载破坏依赖图；
+完成后核对历史记录，不能把旧引擎的静默退出当成功。BKLog 保留原 JSON/SDK upsert，
+预览明确不是远端 diff。仅动态切模式不会自动注册目标模型，必须先以目标模式部署或同步。
+
+删除旧 Monitor 迁移命令、Planner/Loader/Recorder、V4 快照及专用测试；
+移除重复模型 HTTP 接口和孤儿迁移 DTO/可见性 helper；BKLog 旧 V4 命令由统一命令替换。
+**原 Monitor V3 迁移文件、历史模型/数据库表均未删除；不实施存量授权迁移。**
+删除的源码与测试可从 Git 恢复，不执行数据库结构清理。
+
+本轮实际结果（分别统计，不相加冒充场景数）：
+
+| 检查 | 结果 | 边界 |
+| --- | --- | --- |
+| Monitor IAM/公共层/DRF/APM/RUM/Grafana/RPC/MCP 主回归 | 906 passed、9 skipped、21 deselected，退出 0 | 实际 Django 与业务调用链，外部依赖 mock |
+| 既有业务补充 | 89 passed，退出 0 | ORM/API 模拟 |
+| 原生 MCP 独立进程 | 808 passed，退出 0 | 独立原生权限与消费者 |
+| BKLog IAM/管理诊断 | 661 tests，OK，退出 0 | 实际 Django、内存 fixture 表 |
+| 实际 V3 基线源码差异对照 | 20 passed，退出 0 | `ff89f63ff4` 方法/消费者隔离，不是 HTTP E2E |
+| Web/API/Worker 冷启动 | 均退出 0，只装配 v3、55 Actions、冻结任务已注册 | 假配置、禁网 |
+| 公共层 Pyright | 0 errors、0 warnings，退出 0 | 包含新公共模型服务/命令适配 |
+| 新模型/模式测试 Ruff | 通过 | 只读检查；新增文件排版通过 apply_patch 应用 |
+
+主回归 9 项为真实 IAM 门控；21 项明确排除 live 或真实 DB 迁移用例。
+SQLite 未运行全库迁移，MySQL advisory lock 仅做游标/故障模拟；未验证真实部署锁。
+测试入口仍阻断 socket/HTTP；BKLog 启动应用信息和故障分支日志如实保留。
+首次失败来自旧规则断言、旧依赖注入和测试清理残留，已修正后重新执行上述命令。
+
+没有调用真实 IAM、注册/授权、部署或修改 Charts。真实模型 API/回调可达、V4 页面点击、
+Celery/broker、生产 MySQL 与镜像部署仍待授权后的 E2E，不以离线通过代替。
+CI 工具返回“Connect your GitHub account to continue”，未确认修复后远端 CI。
+最新 master 已获取为 `59249477c`；提交、合并及合并后复测回执另记本报告与 TAPD。
+
+最后一轮自审修复两个边界：公共 V4 模型读取拒绝提前空页/非法 count，避免基于不完整清单写入；
+监控公开批量鉴权恢复原 V3 SDK 的完整资源组、历史 Action 键、原始返回与异常契约，
+V4/Union 整批使用同一模式快照并保留同样的公开键。新增 14 项模型清单及 5 项批量契约测试。
+针对后者的定向回归为 101 passed、9 skipped、7 deselected，退出 0；旧“公开接口返回内部 ID”
+及旧 Provider 调用次数断言已按稳定接口契约更新，不要求业务调用方改键。
+一次定向命令漏写离线筛选参数，尝试运行 SQLite 全库迁移后在 MySQL 专用 SQL 处失败；
+没有真实 IAM/数据库写入。补回 `not live and not django_db` 后定向回归通过。
+正常提交首次由 ruff-format 改写 18 个文件而中断，不是代码测试失败；逐项审阅后撤回一处
+原 V3 的无关换行。用户授权本轮仅跳过 ruff-format，其余 hooks 保留；不修改仓库规则。

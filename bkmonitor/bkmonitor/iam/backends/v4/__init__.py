@@ -15,8 +15,8 @@ specific language governing permissions and limitations under the License.
 #   - config.py      — Provider 配置契约（V4Options / V4Credentials / V4SystemInfo）
 #   - client.py      — IAM v4 APIGW HTTP 客户端
 #   - provider.py    — V4PermissionProvider
-#   - migrator.py    — plan_migration / apply_migration
-#   - callback/      — 资源回调（IAM 查询资源实例）
+#   - callback.py    — 资源回调（IAM 查询资源实例）
+# 模型同步由 iam.model_sync 从产品模型派生期望值，调用 iam_engine.model 公共收敛服务。
 # ---------------------------------------------------------------------------
 
 #: Provider 标识 —— v4 包内唯一入口，所有引用 ``"v4"`` 的地方统一使用此常量。

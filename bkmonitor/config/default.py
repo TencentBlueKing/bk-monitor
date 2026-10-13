@@ -1299,10 +1299,11 @@ BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
-BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
-from iam_engine.settings import load_iam_settings
+from iam_engine.settings import load_iam_settings, resolve_iam_gateway_url
 
-globals().update(load_iam_settings())
+BK_IAM_APIGATEWAY_URL = resolve_iam_gateway_url(BK_COMPONENT_API_URL, os.getenv("BKAPP_IAM_API_BASE_URL"), version="v3")
+
+globals().update(load_iam_settings(component_api_url=BK_COMPONENT_API_URL))
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1392,28 +1393,15 @@ SKIP_IAM_PERMISSION_CHECK = False
 # ---- IAM v3 鉴权 ----
 BK_IAM_SYSTEM_ID = "bk_monitorv3"
 BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
-BK_IAM_V3_API_BASE_URL = (
-    os.getenv("BK_IAM_V3_API_BASE_URL") or os.getenv("BKAPP_IAM_API_BASE_URL") or BK_IAM_APIGATEWAY_URL
+BK_IAM_V3_API_BASE_URL = resolve_iam_gateway_url(
+    BK_COMPONENT_API_URL, os.getenv("BK_IAM_V3_API_BASE_URL"), BK_IAM_APIGATEWAY_URL, version="v3"
 )
 
 # ---- IAM 申请 URL 兜底 ----
 BK_IAM_V3_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V3_FALLBACK_APPLY_URL", "") or BK_IAM_SAAS_HOST
 
-# Product model registration is independent of runtime read mode.
 # IAM's historical files are model registrations, not Django DB migrations.
 MIGRATION_MODULES = {"bkmonitor_iam": None}
-
-IAM_MODEL_MIGRATION = {
-    # 迁移模式 manual ｜ semi_auto —— 由 BK_IAM_ENGINE_MIGRATION_MODE 控制，
-    # 默认 semi_auto 保持随 `manage.py migrate` 一起跑（幂等 CREATE/UPDATE）。
-    "mode": os.getenv("BK_IAM_ENGINE_MIGRATION_MODE", "semi_auto"),
-    # 迁移文件存放目录 —— 由 BK_IAM_ENGINE_MIGRATION_DIRECTORY 控制。
-    "directory": os.getenv("BK_IAM_ENGINE_MIGRATION_DIRECTORY", "bkmonitor/iam/iam_migrations"),
-    # 破坏性变更（DELETE / 方言 id 变更重建）全局开关：
-    # 默认 False —— 破坏性变更必须走独立命令 `iam_engine_migrate --allow-destructive`
-    "allow_destructive": os.getenv("BK_IAM_ENGINE_MIGRATION_ALLOW_DESTRUCTIVE", "false").lower()
-    in ("1", "true", "yes"),
-}
 
 
 # 聚合网关默认业务ID

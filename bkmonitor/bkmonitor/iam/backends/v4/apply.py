@@ -1,4 +1,4 @@
-"""V4 application payloads and legacy UI data, hidden behind the product capability."""
+"""V4 application payloads with the existing UI envelope, never a V3 fallback."""
 
 from iam_engine.core.requests import to_definition_id
 from iam_engine.v4.exceptions import V4ClientError
@@ -45,6 +45,5 @@ class V4ApplicationBuilder:
         try:
             url = p.client.generate_perm_apply_url(permissions=permissions)
         except V4ClientError:
-            # The locally built UI data remains useful when the gateway is unavailable.
-            url = p._cfg.fallback_apply_url
-        return {"system": p._cfg.system.id, "actions": data}, url or p._cfg.fallback_apply_url
+            url = ""
+        return {"system": p._cfg.system.id, "actions": data}, url

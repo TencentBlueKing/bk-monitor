@@ -57,7 +57,7 @@ class TestIamGenerateConfigCommand:
         from bkmonitor.iam.permission import Permission
 
         permission = Permission(username="offline", bk_tenant_id="system")
-        provider = permission.providers["v4"]
+        provider = permission.get_provider("v4")
         monkeypatch.setattr(
             provider,
             "serialize_system_info",

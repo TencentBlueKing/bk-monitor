@@ -75,24 +75,6 @@ def test_clients_resolve_saas_identity_lazily_and_keep_tenants_separate(provider
             json.dumps({"app_code": code, "app_secret": secret})
 
 
-def test_v3_registration_uses_saas_credentials_in_actual_sdk_request():
-    schema = SchemaRegistry()
-    schema.freeze()
-    provider = build_provider("v3", schema=schema, options={**_options()})
-    with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"):
-        plan = provider.plan_migration(schema, scope="system")
-        with patch("bkmonitor.iam.backends.v3.client.V3Client.query_system", return_value=(False, "not found", None)):
-            with patch("iam.contrib.iam_migration.utils.do_migrate.http_post") as post:
-                post.return_value = (True, {"code": 0, "data": {}})
-                report = provider.apply_migration(plan)
-    assert report.success
-    assert post.call_args.args[1]["clients"] == "saas-app"
-    assert json.loads(post.call_args.kwargs["headers"]["X-Bkapi-Authorization"]) == {
-        "bk_app_code": "saas-app",
-        "bk_app_secret": "saas-secret",
-    }
-
-
 def test_callback_snapshots_saas_credentials_and_refreshes_token_provider(monkeypatch):
     monkeypatch.setattr(callback_auth, "_token_provider", None)
     with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"):

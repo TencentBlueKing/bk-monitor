@@ -13,7 +13,7 @@ logger = logging.getLogger("iam.dual_write")
 
 
 class DualWriteGrantOrchestrator:
-    """创建者授权双写：两侧同步直写，current（retry_target）失败才回落到可重试任务。
+    """对调用方按模式选定的 Writer 同步授权，current 失败才回落到可重试任务。
 
     retry_target 默认是 DualStackSpec.current，不要再判断 ``v4`` 字面量。
     Celery 任务文件名可以暂时仍叫 v4，那只是投递实现，不是编排语义。
@@ -64,7 +64,7 @@ class DualWriteGrantOrchestrator:
         self.retry_target = retry_target
 
     def grant_creator_action(self, application: Mapping[str, Any], *, raise_exception: bool = False) -> Any:
-        """同步完成两侧授权并返回 legacy 结果；current 同步失败时回落到提交后的重试任务。"""
+        """同步完成所选目标并保留 legacy 返回值；current 失败时提交后重试。"""
 
         grant_result = None
         for target_version, writer in self.writers:

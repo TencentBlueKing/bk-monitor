@@ -14,14 +14,12 @@ def client(gateway="https://iam.example.test"):
     return V4Client(options, bk_tenant_id="system")
 
 
-@pytest.mark.parametrize(
-    "method,args", [("_post", ("path/", {})), ("_get", ("path/",)), ("_put", ("path/", {})), ("_delete", ("path/",))]
-)
-def test_empty_gateway_rejects_before_network(monkeypatch, method, args):
+@pytest.mark.parametrize("method", ["POST", "GET", "PUT", "DELETE"])
+def test_empty_gateway_rejects_before_network(monkeypatch, method):
     send = Mock()
     monkeypatch.setattr(requests, "request", send)
     with pytest.raises(V4TransportError):
-        getattr(client(""), method)(*args)
+        client("")._request(method, "path/")
     send.assert_not_called()
 
 
@@ -36,7 +34,7 @@ def test_empty_gateway_rejects_before_network(monkeypatch, method, args):
 def test_request_exceptions_share_native_mapping(monkeypatch, error, expected):
     monkeypatch.setattr(requests, "request", Mock(side_effect=error))
     with pytest.raises(expected) as caught:
-        client()._post("path/", {})
+        client()._request("POST", "path/", body={})
     assert caught.value.__cause__ is error
 
 
@@ -45,5 +43,5 @@ def test_http_status_preserved_for_retry_classification(monkeypatch):
     response.json.return_value = {"error": {"message": "bad gateway"}}
     monkeypatch.setattr(requests, "request", Mock(return_value=response))
     with pytest.raises(V4ClientError) as caught:
-        client()._get("path/")
+        client()._request("GET", "path/")
     assert caught.value.status_code == 502

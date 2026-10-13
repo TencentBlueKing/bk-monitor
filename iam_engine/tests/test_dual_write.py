@@ -25,7 +25,7 @@ def build():
     return engine, legacy, current, dispatch, observer, callbacks
 
 
-def test_both_stacks_write_synchronously_without_read_mode():
+def test_selected_union_writers_run_synchronously():
     engine, legacy, current, dispatch, _, callbacks = build()
     engine.grant_creator_action(APPLICATION)
     legacy.grant_resource_creator_actions.assert_called_once_with(APPLICATION)

@@ -18,7 +18,7 @@ specific language governing permissions and limitations under the License.
 #
 # 本文件断言 Permission 层四个入口的降级行为：
 #   1. is_allowed        —— _is_allowed_fw 单资源路径
-#   2. batch_is_allowed  —— 走 _fw.batch_by_resource
+#   2. batch_is_allowed  —— V4/Union 走公共批量 Router；V3 保留原 SDK 异常契约
 #   3. get_apply_url     —— 走 _fw.get_apply_url
 #   4. get_apply_data    —— 走 _fw.get_apply_data
 #
@@ -32,10 +32,14 @@ specific language governing permissions and limitations under the License.
 # ==============================================================================
 
 from unittest.mock import MagicMock
+from types import SimpleNamespace
 
 import pytest
 
 from iam_engine.exceptions import ProviderError, ProviderUnavailable
+from iam_engine.core.config import AuthMode
+from iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem
+from iam_engine.provider.bundle import ProviderBundle
 
 
 # ------------------------------------------------------------------
@@ -58,14 +62,16 @@ def fake_fw():
 
     control = MagicMock()
     control.is_allowed.return_value = True
-    control.batch_by_resource.return_value = MagicMock(items=())
+    control.batch_native.return_value = BatchAuthResult()
     control.get_apply_url.return_value = "http://iam.invalid/apply"
     control.get_apply_data.return_value = {"actions": []}
 
     def make_permission():
         permission = Permission(username="tester", bk_tenant_id="system")
         permission._is_allowed_request = control.is_allowed
-        permission._batch_by_resource = control.batch_by_resource
+        permission.mode_provider = SimpleNamespace(get_mode=lambda resources=(): AuthMode.V4)
+        permission._provider_bundles = {AuthMode.V4: ProviderBundle(auth=control)}
+        control.batch_is_allowed = control.batch_native
         permission._apply_url_request = control.get_apply_url
         permission._apply_data_request = control.get_apply_data
         return permission
@@ -125,39 +131,46 @@ class TestIsAllowedProviderUnavailableFallback:
 
 class TestBatchIsAllowedProviderUnavailableFallback:
     def test_provider_unavailable_marks_all_as_false(self, fake_fw, caplog):
-        """batch_by_resource 抛 ProviderUnavailable：当前 (action, 分组) 全标 False，
+        """V4 Provider 抛 ProviderUnavailable：当前 (action, 分组) 全标 False，
         不冒泡到视图层。"""
         mock_fw, make_permission = fake_fw
-        mock_fw.batch_by_resource.side_effect = ProviderUnavailable("v4 down")
+        mock_fw.batch_native.side_effect = lambda request: BatchAuthResult(
+            tuple(
+                BatchAuthResultItem(action, resource, AuthResult.error("v4", "offline", "ProviderUnavailable"))
+                for action, resource in request.iter_keys()
+            )
+        )
 
         perm = make_permission()
-        with caplog.at_level("ERROR", logger="bkmonitor.iam.permission"):
+        with caplog.at_level("WARNING", logger="bkmonitor.iam.permission"):
             result = perm.batch_is_allowed(
                 actions=["view_business"],
                 resources=[[_FakeResource("space", "2")], [_FakeResource("space", "3")]],
             )
 
         # 两个资源都应有条目，且值为 False
-        assert result["2"]["view_business"] is False
-        assert result["3"]["view_business"] is False
-        assert any("ProviderError" in r.getMessage() for r in caplog.records)
+        assert result["2"]["view_business_v2"] is False
+        assert result["3"]["view_business_v2"] is False
+        assert any("degraded" in r.getMessage() for r in caplog.records)
 
     def test_provider_unavailable_on_one_action_does_not_break_others(self, fake_fw):
         """多 action 场景下：一个 action 抛 ProviderUnavailable 不影响其它 action
         的正常返回。"""
         mock_fw, make_permission = fake_fw
 
-        call_state = {"count": 0}
-
         def _side_effect(request):
-            call_state["count"] += 1
-            if request.action_id == "view_business":
-                raise ProviderUnavailable("v4 down")
-            # 其他 action 正常返回
-            item = MagicMock(resource_id="2", allowed=True)
-            return MagicMock(items=[item])
+            return BatchAuthResult(
+                tuple(
+                    BatchAuthResultItem(
+                        action, resource,
+                        AuthResult.error("v4", "offline", "ProviderUnavailable")
+                        if action == "view_business" else AuthResult.allow("v4"),
+                    )
+                    for action, resource in request.iter_keys()
+                )
+            )
 
-        mock_fw.batch_by_resource.side_effect = _side_effect
+        mock_fw.batch_native.side_effect = _side_effect
 
         perm = make_permission()
         result = perm.batch_is_allowed(
@@ -165,7 +178,7 @@ class TestBatchIsAllowedProviderUnavailableFallback:
             resources=[[_FakeResource("space", "2")]],
         )
         # view_business 被兜底为 False，manage_business 正常
-        assert result["2"]["view_business"] is False
+        assert result["2"]["view_business_v2"] is False
         assert result["2"]["manage_business"] is True
 
 
@@ -198,7 +211,6 @@ class TestGetApplyDataProviderUnavailableFallback:
     @pytest.mark.parametrize("error", [ProviderUnavailable("offline"), ProviderError("bad request")])
     def test_native_application_failure_returns_safe_pair(self, error):
         from types import SimpleNamespace
-        from django.conf import settings
         from bkmonitor.iam.permission import Permission
         from iam_engine.core.config import AuthMode
 
@@ -210,5 +222,5 @@ class TestGetApplyDataProviderUnavailableFallback:
         permission.mode_provider = SimpleNamespace(get_mode=lambda resources=(): AuthMode.V4)
         data, url = permission.get_apply_data(["view_business"], [_FakeResource("space", "2")])
         assert data == {}
-        assert url == settings.BK_IAM_SAAS_HOST
+        assert url == ""
         provider.get_apply_data.assert_called_once()

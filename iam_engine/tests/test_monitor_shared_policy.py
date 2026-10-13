@@ -119,14 +119,15 @@ def test_resource_free_batch_snapshots_mode_once():
     selector.get_mode.assert_called_once()
 
 
-def test_union_application_prefers_v4_and_falls_back_on_empty():
+def test_union_application_selects_v4_and_empty_is_unavailable():
     engine, v3, v4, _ = policy()
     v3.get_apply_data.return_value, v4.get_apply_data.return_value = ({}, "legacy"), ({}, "current")
     request = ApplyURLRequest(SUBJECT, ("view_business",), (RESOURCE,))
     assert engine._apply_url_request(request) == "current"
     v3.get_apply_data.assert_not_called()
     v4.get_apply_data.return_value = ({}, "")
-    assert engine._apply_url_request(request) == "legacy"
+    assert engine._apply_url_request(request) == ""
+    v3.get_apply_data.assert_not_called()
     v3.get_apply_data.return_value, v4.get_apply_data.return_value = (
         ({"system": "legacy"}, "legacy"),
         ({"system": "current"}, "current"),

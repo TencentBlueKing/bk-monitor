@@ -363,7 +363,9 @@ def installed_permission(real_schema, monkeypatch):
     class Installer:
         def build(self, providers, schema=None):
             monkeypatch.setattr(module, "get_schema", lambda: schema or real_schema)
-            monkeypatch.setattr(module, "build_providers", lambda tenant_id, **kwargs: {p.name: p for p in providers})
+            monkeypatch.setattr(
+                module, "build_provider", lambda name, tenant_id, **kwargs: next(p for p in providers if p.name == name)
+            )
             monkeypatch.setattr(
                 module, "get_mode_provider", lambda: SimpleNamespace(get_mode=lambda resources=(): AuthMode.V3)
             )
@@ -441,6 +443,15 @@ def fake_permission(installed_permission, real_schema):
                     for i in self.batch_result.items
                 )
             )
+
+        def batch_product_is_allowed(self, request):
+            from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
+
+            codec = MonitorV3Codec()
+            result = {}
+            for item in self.batch_is_allowed(request).items:
+                result.setdefault(item.resource_id, {})[codec.encode_action(item.action_id)] = item.result.allowed
+            return result
 
         def get_apply_url(self, request):
             return self.apply_url

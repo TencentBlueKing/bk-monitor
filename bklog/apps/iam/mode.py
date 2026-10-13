@@ -76,3 +76,40 @@ def get_mode_provider() -> FeatureToggleModeProvider:
     """
 
     return FeatureToggleModeProvider()
+
+
+def get_deployment_mode_provider():
+    """Deployments must not mistake an unreadable configuration table for V3."""
+
+    def load_toggle(name):
+        from apps.feature_toggle.models import FeatureToggle
+
+        toggle = FeatureToggle.objects.filter(name=name).first()
+        if toggle is not None:
+            param = {
+                key: getattr(toggle, key)
+                for key in (
+                    "name",
+                    "status",
+                    "alias",
+                    "description",
+                    "is_viewed",
+                    "feature_config",
+                    "biz_id_white_list",
+                    "biz_id_black_list",
+                )
+            }
+        else:
+            status = settings.FEATURE_TOGGLE.get(name)
+            if not status:
+                return None
+            param = {"name": name, "status": status, "feature_config": None}
+        # Preserve the product's settings -> DB -> plugin precedence, but do not
+        # swallow DB errors during deployment and silently synchronize V3.
+        return FeatureToggleObject._format_result(FeatureToggleObject._load_plugins(name=name, param=param))
+
+    return SharedFeatureToggleModeProvider(
+        load_toggle,
+        env_loader=FeatureToggleModeProvider._load_settings_mode,
+        raise_on_load_error=True,
+    )

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from dataclasses import asdict, replace
-from typing import TYPE_CHECKING
 import logging
 from iam_engine.core.requests import AuthRequest, BatchAuthRequest, to_definition_id
 from iam_engine.core.types import AuthStatus, AuthResult, BatchAuthResult, BatchAuthResultItem, AuthorizedResourceScope
@@ -13,9 +12,6 @@ from iam_engine.utils import chunked
 from bkmonitor.iam.concurrency import map_chunks_concurrently
 from bkmonitor.iam.backends.v4.apply import V4ApplicationBuilder
 
-if TYPE_CHECKING:
-    from iam_engine.schema.registry import SchemaRegistry
-    from iam_engine.schema.diff import MigrationPlan, MigrationReport
 logger = logging.getLogger(__name__)
 
 
@@ -232,47 +228,12 @@ class V4PermissionProvider(PermissionProvider):
         """
         try:
             system = self._client.retrieve_system()
+            if system is None:
+                return {"status": "error", "provider": self.name, "error": "system is not registered"}
             return {
                 "status": "ok",
                 "provider": self.name,
-                "remote_id": system.get("data", {}).get("id", ""),
+                "remote_id": system.get("id", ""),
             }
         except Exception as e:
             return {"status": "error", "provider": self.name, "error": str(e)[:200]}
-
-    # ================================================================
-    # plan_migration / apply_migration
-    def plan_migration(self, schema: SchemaRegistry, *, scope: str = "full") -> MigrationPlan:
-        """从本地 definitions + V4Options 生成迁移计划（不查远端）。
-
-        Args:
-            schema: 冻结的 SchemaRegistry。
-            scope: "system" / "full"。
-        """
-        from bkmonitor.iam.backends.v4.migrator import V4Migrator
-
-        migrator = V4Migrator(self._client, schema, self.get_system_info(), self.codec)
-        return migrator.plan_migration(scope=scope)
-
-    def apply_migration(
-        self,
-        plan: MigrationPlan,
-        *,
-        dry_run: bool = False,
-        allow_destructive: bool = False,
-    ) -> MigrationReport:
-        """应用变更计划（查远端 + reconcile + 执行）。
-
-        Args:
-            plan: plan_migration 或迁移文件产出的 Change 列表。
-            dry_run: 只演练，不真正提交。
-            allow_destructive: 是否允许破坏性变更。
-        """
-        from bkmonitor.iam.backends.v4.migrator import V4Migrator
-
-        migrator = V4Migrator(self._client, self.schema, self.get_system_info(), self.codec)
-        return migrator.apply_migration(
-            plan,
-            dry_run=dry_run,
-            allow_destructive=allow_destructive,
-        )

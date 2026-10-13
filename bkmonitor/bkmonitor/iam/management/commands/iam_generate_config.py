@@ -79,7 +79,7 @@ class Command(BaseCommand):
         }
 
         if provider_name:
-            provider = fw.providers.get(provider_name)
+            provider = fw.get_provider(provider_name)
             if provider is not None:
                 system_info = provider.serialize_system_info()
                 if system_info is not None:

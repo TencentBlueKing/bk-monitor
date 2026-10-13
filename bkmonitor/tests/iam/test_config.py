@@ -191,26 +191,6 @@ class TestV4Options:
         cfg = V4Options.from_dict(_valid_options(custom_field="hello", another=123))
         assert cfg.extra == {"custom_field": "hello", "another": 123}
 
-    def test_fallback_apply_url_default_empty(self):
-        """未配置 fallback_apply_url 时保持空字符串（维持既有降级契约）。"""
-        cfg = V4Options.from_dict(_valid_options())
-        assert cfg.fallback_apply_url == ""
-
-    def test_fallback_apply_url_parsed(self):
-        """显式配置的 fallback_apply_url 应被解析到 _cfg.fallback_apply_url。"""
-        cfg = V4Options.from_dict(_valid_options(fallback_apply_url="https://itsm.example.com/apply"))
-        assert cfg.fallback_apply_url == "https://itsm.example.com/apply"
-
-    def test_fallback_apply_url_none_coerced_to_empty(self):
-        """None 被视作未配置（兼容 os.getenv 未设置且 or "" 的写法）。"""
-        cfg = V4Options.from_dict(_valid_options(fallback_apply_url=None))
-        assert cfg.fallback_apply_url == ""
-
-    def test_fallback_apply_url_not_in_extra(self):
-        """新增字段必须列入 known 白名单，不能被误收纳到 extra。"""
-        cfg = V4Options.from_dict(_valid_options(fallback_apply_url="https://x.example.com"))
-        assert "fallback_apply_url" not in cfg.extra
-
     def test_frozen(self):
         cfg = V4Options.from_dict(_valid_options())
         with pytest.raises(Exception):
@@ -272,17 +252,19 @@ class TestV4ProviderConstruction:
 
 class TestProductAssembly:
     @pytest.mark.parametrize("mode", ["v3", "v4", "union"])
-    def test_read_mode_does_not_select_loaded_backends(self, settings, mode):
+    def test_mode_selects_loaded_backends(self, settings, monkeypatch, mode):
         from bkmonitor.iam.backends.config import build_providers
 
-        settings.BK_IAM_PERMISSION_MODE = mode
+        monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", mode)
         settings.BK_IAM_V4_APIGATEWAY_URL = "https://iam.example.test/dev"
-        assert set(build_providers("tenant-a")) == {"v3", "v4"}
+        assert set(build_providers("tenant-a")) == ({"v3", "v4"} if mode == "union" else {mode})
 
-    def test_without_explicit_v4_gateway_only_v3_is_loaded(self, settings):
+    def test_default_v3_does_not_load_v4_even_with_derived_gateway(self, settings, monkeypatch):
         from bkmonitor.iam.backends.config import build_providers
 
+        monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", "v3")
         settings.BK_IAM_V4_APIGATEWAY_URL = ""
+        settings.BK_COMPONENT_API_URL = "https://components.example.test/"
         assert set(build_providers("tenant-a")) == {"v3"}
 
     def test_permission_uses_shared_router_directly(self):

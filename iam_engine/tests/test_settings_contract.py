@@ -15,11 +15,12 @@ def product_values(product, environ):
     nodes = [
         node
         for node in tree.body
-        if isinstance(node, ast.Expr) and ast.unparse(node) == "globals().update(load_iam_settings())"
+        if isinstance(node, ast.Expr)
+        and ast.unparse(node) == "globals().update(load_iam_settings(component_api_url=BK_COMPONENT_API_URL))"
     ]
     assert len(nodes) == 1
-    namespace = {}
-    namespace.update({"load_iam_settings": lambda: load_iam_settings(environ), "globals": lambda: namespace})
+    namespace = {"BK_COMPONENT_API_URL": environ.get("BK_COMPONENT_API_URL")}
+    namespace.update({"load_iam_settings": lambda **kw: load_iam_settings(environ, **kw), "globals": lambda: namespace})
     exec(compile(ast.Module(body=nodes, type_ignores=[]), str(source), "exec"), namespace)
     return {name: namespace[name] for name in IAM_ENVIRONMENT}
 
@@ -28,6 +29,7 @@ def product_values(product, environ):
     "environ",
     [
         {},
+        {"BK_COMPONENT_API_URL": "https://components.example.test/"},
         {env: "  override  " for env, _ in IAM_ENVIRONMENT.values()},
         {"BKAPP_IAM_PERMISSION_MODE": "  UnIoN  ", "BK_IAM_V4_TIMEOUT": "0", "BK_IAM_V4_BATCH_CHUNK_SIZE": "20"},
     ],

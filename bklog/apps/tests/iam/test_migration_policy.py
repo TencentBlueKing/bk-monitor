@@ -36,39 +36,33 @@ class MigrationPolicyTest(SimpleTestCase):
         self.assertEqual(resolution.source_mode, AuthMode.V3)
         self.assertIs(resolution.provider, self.v3_application)
 
-    def test_missing_v4_application_falls_back_to_v3_for_union(self):
+    def test_missing_v4_application_is_unavailable_for_union(self):
         bundles = {
             AuthMode.V3: ProviderBundle(application=self.v3_application, writer=self.v3_writer),
             AuthMode.V4: ProviderBundle(writer=self.v4_writer),
         }
 
-        resolution = MigrationPolicy.resolve_application(AuthMode.UNION, bundles)
+        with self.assertRaises(ApplicationProviderNotConfiguredError):
+            MigrationPolicy.resolve_application(AuthMode.UNION, bundles)
 
-        self.assertEqual(resolution.source_mode, AuthMode.V3)
-        self.assertIs(resolution.provider, self.v3_application)
-
-    def test_missing_v4_bundle_falls_back_to_v3_for_union(self):
+    def test_missing_v4_bundle_is_unavailable_for_union(self):
         bundles = {
             AuthMode.V3: ProviderBundle(application=self.v3_application, writer=self.v3_writer),
         }
 
-        resolution = MigrationPolicy.resolve_application(AuthMode.UNION, bundles)
+        with self.assertRaises(ApplicationProviderNotConfiguredError):
+            MigrationPolicy.resolve_application(AuthMode.UNION, bundles)
 
-        self.assertEqual(resolution.source_mode, AuthMode.V3)
-        self.assertIs(resolution.provider, self.v3_application)
-
-    def test_missing_v4_bundle_falls_back_to_v3_for_v4_mode(self):
+    def test_missing_v4_bundle_is_unavailable_for_v4_mode(self):
         bundles = {
             AuthMode.V3: ProviderBundle(application=self.v3_application, writer=self.v3_writer),
         }
 
-        resolution = MigrationPolicy.resolve_application(AuthMode.V4, bundles)
-
-        self.assertEqual(resolution.source_mode, AuthMode.V3)
-        self.assertIs(resolution.provider, self.v3_application)
+        with self.assertRaises(ApplicationProviderNotConfiguredError):
+            MigrationPolicy.resolve_application(AuthMode.V4, bundles)
 
     def test_authorization_writers_include_v3_and_v4_when_configured(self):
-        writers = MigrationPolicy.resolve_authorization_writers(self.bundles)
+        writers = MigrationPolicy.resolve_authorization_writers(AuthMode.UNION, self.bundles)
 
         self.assertEqual(
             writers,
@@ -78,15 +72,17 @@ class MigrationPolicyTest(SimpleTestCase):
             ),
         )
 
-    def test_authorization_writers_keep_v3_when_v4_writer_missing(self):
+    def test_selected_v4_writer_missing_is_an_error(self):
         bundles = {
             AuthMode.V3: ProviderBundle(application=self.v3_application, writer=self.v3_writer),
             AuthMode.V4: ProviderBundle(application=self.v4_application),
         }
 
-        writers = MigrationPolicy.resolve_authorization_writers(bundles)
-
-        self.assertEqual(writers, ((AuthMode.V3.value, self.v3_writer),))
+        with self.assertRaisesRegex(RuntimeError, "v4 authorization writer"):
+            MigrationPolicy.resolve_authorization_writers(AuthMode.UNION, bundles)
+        self.assertEqual(
+            MigrationPolicy.resolve_authorization_writers(AuthMode.V3, bundles), ((AuthMode.V3.value, self.v3_writer),)
+        )
 
     def test_raises_when_no_application_provider_configured(self):
         with self.assertRaises(ApplicationProviderNotConfiguredError):
@@ -96,7 +92,7 @@ class MigrationPolicyTest(SimpleTestCase):
         stack = DualStackSpec(legacy=AuthMode.V4, current=AuthMode.V3)
 
         resolution = MigrationPolicy.resolve_application(AuthMode.UNION, self.bundles, stack=stack)
-        writers = MigrationPolicy.resolve_authorization_writers(self.bundles, stack=stack)
+        writers = MigrationPolicy.resolve_authorization_writers(AuthMode.UNION, self.bundles, stack=stack)
 
         self.assertEqual(resolution.source_mode, AuthMode.V3)
         self.assertIs(resolution.provider, self.v3_application)

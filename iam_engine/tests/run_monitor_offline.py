@@ -54,7 +54,6 @@ def main():
             "BKPAAS_URL": "https://paas.example.test",
             "BK_PAAS2_URL": "https://paas.example.test",
             "BK_COMPONENT_API_URL": "https://api.example.test",
-            "BK_IAM_ENGINE_MIGRATION_MODE": "manual",
             "BKAPP_IAM_PERMISSION_MODE": "v3",
             "BKAPP_IAM_V4_API_BASE_URL": "https://iam.example.test/dev",
             "BK_IAM_LIVE": "0",

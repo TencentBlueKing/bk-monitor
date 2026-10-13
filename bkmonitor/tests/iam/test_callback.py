@@ -433,7 +433,7 @@ class TestCallbackAuth:
             IAM_V4_CALLBACK={"base_url": "https://obsolete.example.com"},
         ):
             config = get_v4_callback_config()
-            assert config.base_url == options["base_url"]
+            assert config.base_url == options["base_url"].rstrip("/") + "/"
             assert config.system.id == options["system"]["id"]
             token_provider = callback_auth.get_callback_token_provider()
             assert token_provider.get_system_token() == "shared-system-token"
@@ -446,8 +446,8 @@ class TestCallbackAuth:
         client_factory.return_value.get_auth_token.assert_called_once_with()
 
     @pytest.mark.parametrize("gateway", (None, ""))
-    def test_callback_requires_explicit_v4_gateway(self, gateway):
-        with override_settings(BK_IAM_V4_APIGATEWAY_URL=gateway):
+    def test_callback_requires_resolvable_v4_gateway(self, gateway):
+        with override_settings(BK_IAM_V4_APIGATEWAY_URL=gateway, BK_COMPONENT_API_URL=""):
             with pytest.raises(ImproperlyConfigured, match="Invalid IAM V4 callback configuration"):
                 get_v4_callback_config()
 

@@ -53,14 +53,14 @@ from iam_engine.provider.requests import (
     SubjectType,
     to_action_id,
 )
-from bkmonitor.iam.backends.config import build_providers, get_schema
+from bkmonitor.iam.backends.config import build_provider, get_schema
 from bkmonitor.iam.concurrency import run_pair_concurrently
 from iam_engine.migration.policy import MigrationPolicy
 from iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK
 from iam_engine.core.exceptions import InvalidAuthModeError
 from iam_engine.core.requests import AuthRequest as SharedRequest, BatchAuthRequest
 from iam_engine.core.types import AuthResult, AuthorizedResourceScope
-from iam_engine.provider.bundle import ProviderBundle
+from iam_engine.provider.bundle import LazyProviderBundles, ProviderBundle
 from iam_engine.provider.router import ModeRouter
 from iam_engine.provider.composition.union import UnionDecisionPolicy, UnionScopePolicy
 from bkmonitor.iam.mode import get_mode_provider
@@ -257,17 +257,15 @@ class Permission:
 
     @property
     def providers(self):
-        if self._providers is None:
-            self._providers = build_providers(self.bk_tenant_id, username=self.username)
-        return self._providers
+        mode = self.mode_provider.get_mode()
+        return {target.value: self.get_provider(target.value) for target in DEFAULT_DUAL_STACK.modes_for(mode)}
 
     def get_provider(self, name):
-        from iam_engine.exceptions import ProviderNotFound
-
-        try:
-            return self.providers[name]
-        except KeyError:
-            raise ProviderNotFound(f"Provider {name!r} is not configured") from None
+        if self._providers is None:
+            self._providers = {}
+        if name not in self._providers:
+            self._providers[name] = build_provider(name, self.bk_tenant_id, username=self.username)
+        return self._providers[name]
 
     @property
     def provider_bundles(self):
@@ -276,8 +274,10 @@ class Permission:
 
         if self._provider_bundles is not None:
             return self._provider_bundles
-        self._provider_bundles = {
-            AuthMode(name): ProviderBundle(
+
+        def bundle(name):
+            provider = self.get_provider(name)
+            return ProviderBundle(
                 auth=provider,
                 application=provider,
                 scope=provider,
@@ -285,8 +285,13 @@ class Permission:
                     provider, tenant_id=self.bk_tenant_id, operator=self.username
                 ),
             )
-            for name, provider in self.providers.items()
-        }
+
+        self._provider_bundles = LazyProviderBundles(
+            {
+                target: lambda target=target: bundle(target.value)
+                for target in DEFAULT_DUAL_STACK.modes_for(AuthMode.UNION)
+            }
+        )
         return self._provider_bundles
 
     @property
@@ -300,26 +305,23 @@ class Permission:
     def _selected(self, resources=()):
         mode = self.mode_provider.get_mode(resources)
         modes = DEFAULT_DUAL_STACK.modes_for(mode)
-        return [
-            self.get_provider(item.value)
-            for item in modes
-            if any(p.name == item.value for p in self.providers.values())
-        ]
+        return [self.get_provider(item.value) for item in modes]
 
-    def _is_allowed_request(self, request):
+    def _is_allowed_request(self, request, *, mode=None):
         from iam_engine.exceptions import ProviderUnavailable
 
-        decision = self._decide_request(request)
+        decision = self._decide_request(request, mode=mode)
         if decision.degraded and not decision.allowed:
             raise ProviderUnavailable("IAM did not return an explicit authorization decision")
         return decision.allowed
 
-    def _decide_request(self, request):
+    def _decide_request(self, request, *, mode=None):
         if self.skip_check:
             return UnionDecisionPolicy.decide((AuthResult.allow("bypass"),))
+        router = self.mode_router if mode is None else self.mode_router.with_mode(mode)
         if isinstance(request, SharedRequest):
-            return self.mode_router.is_allowed(request)
-        return self.mode_router.is_allowed(
+            return router.is_allowed(request)
+        return router.is_allowed(
             SharedRequest(
                 subject=request.subject,
                 action_id=request.action_id,
@@ -328,10 +330,11 @@ class Permission:
             )
         )
 
-    def _batch_by_resource(self, request):
+    def _batch_by_resource(self, request, *, mode=None):
         if not request.resources:
             return BatchAuthResult()
-        result = self.mode_router.batch_is_allowed(
+        router = self.mode_router if mode is None else self.mode_router.with_mode(mode)
+        result = router.batch_is_allowed(
             BatchAuthRequest(
                 subject=request.subject,
                 action_ids=(request.action_id,),
@@ -370,11 +373,7 @@ class Permission:
                 )
             )
 
-        class Snapshot:
-            def get_mode(self, resources=()):
-                return mode
-
-        router = ModeRouter(Snapshot(), self.mode_router.bundles, pair_executor=self.mode_router.pair_executor)
+        router = self.mode_router.with_mode(mode)
         return BatchAuthResult(
             tuple(
                 ResourceAuthResult(
@@ -394,25 +393,23 @@ class Permission:
             )
         )
 
-    def _application_data(self, action_ids, resources):
+    def _application_data(self, action_ids, resources, *, mode=None):
         try:
-            mode = self.mode_provider.get_mode(tuple(resources))
+            if isinstance(mode, InvalidAuthModeError):
+                raise mode
+            mode = mode or self.mode_provider.get_mode(tuple(resources))
             application = MigrationPolicy.resolve_application(mode, self.provider_bundles)
-        except (InvalidAuthModeError, RuntimeError):
-            return {}, settings.BK_IAM_SAAS_HOST
+        except Exception as error:
+            logger.warning("IAM application provider unavailable: %s", error)
+            return {}, ""
         try:
             data, url = application.provider.get_apply_data(action_ids, list(resources))
-            if url or application.source_mode is not DEFAULT_DUAL_STACK.current or mode is not AuthMode.UNION:
-                return data, url
+            if application.source_mode is DEFAULT_DUAL_STACK.current:
+                return (data, url.strip()) if isinstance(url, str) and url.strip() else ({}, "")
+            return data, url
         except Exception as error:
             logger.warning("IAM application generation failed: %s", error)
-        if mode is AuthMode.UNION and application.source_mode is DEFAULT_DUAL_STACK.current:
-            try:
-                legacy = MigrationPolicy.resolve_application(DEFAULT_DUAL_STACK.legacy, self.provider_bundles)
-                return legacy.provider.get_apply_data(action_ids, list(resources))
-            except Exception as error:
-                logger.warning("IAM legacy application fallback failed: %s", error)
-        return {}, settings.BK_IAM_SAAS_HOST
+        return {}, settings.BK_IAM_SAAS_HOST if mode is AuthMode.V3 else ""
 
     def _apply_url_request(self, request):
         return self._application_data(list(request.action_ids), request.resources)[1]
@@ -587,15 +584,13 @@ class Permission:
         resources = resources or []
 
         fw_resources = tuple(to_resource_instance(r) for r in resources)
-        if len(resources) <= 1:
-            return self._is_allowed_resources(action, fw_resources, raise_exception)
         try:
             mode = self.mode_provider.get_mode(fw_resources)
-        except InvalidAuthModeError:
+        except InvalidAuthModeError as error:
             # 交给 Router 生成拒绝结果，不把非法配置回退为 V3。
-            return self._is_allowed_resources(action, fw_resources, raise_exception)
-        if mode is AuthMode.V3:
-            return self._is_allowed_resources(action, fw_resources, raise_exception)
+            return self._is_allowed_resources(action, fw_resources, raise_exception, mode=error)
+        if len(resources) <= 1 or mode is AuthMode.V3:
+            return self._is_allowed_resources(action, fw_resources, raise_exception, mode=mode)
 
         # 多资源同类型 → batch_by_resource
         resource_types = {r.type for r in resources}
@@ -605,9 +600,9 @@ class Permission:
                 "请按类型拆分调用，或直接使用 公共 ModeRouter 批量接口显式表达意图。"
             )
 
-        return self._is_allowed_batch(action, resources, raise_exception)
+        return self._is_allowed_batch(action, resources, raise_exception, mode=mode)
 
-    def _is_allowed_batch(self, action, resources: list, raise_exception: bool):
+    def _is_allowed_batch(self, action, resources: list, raise_exception: bool, *, mode=None):
         """内部：同类型多资源批量鉴权，所有资源都允许才返回 True。"""
         action_id_biz = _to_business_action_id(action)
         fw_resources = tuple(to_resource_instance(r) for r in resources)
@@ -618,16 +613,17 @@ class Permission:
                     subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
                     action_id=action_id_biz,
                     resources=fw_resources,
-                )
+                ),
+                mode=mode,
             )
         except PermissionDenied as e:
             if raise_exception:
-                raise self._build_permission_denied(action_id_biz, fw_resources[0]) from e
+                raise self._build_permission_denied(action_id_biz, fw_resources[0], mode=mode) from e
             return False
         except ProviderError as e:
             logger.exception("[Permission.is_allowed batch] ProviderError: %s", e)
             if raise_exception:
-                raise self._build_permission_denied(action_id_biz, fw_resources[0]) from e
+                raise self._build_permission_denied(action_id_biz, fw_resources[0], mode=mode) from e
             return False
 
         # items 与请求资源顺序一致；按 resource_id 汇总允许集
@@ -642,10 +638,10 @@ class Permission:
             return True
 
         if raise_exception:
-            raise self._build_permission_denied(action_id_biz, denied_resource)
+            raise self._build_permission_denied(action_id_biz, denied_resource, mode=mode)
         return False
 
-    def _is_allowed_resources(self, action, fw_resources: tuple[FwResource, ...], raise_exception: bool):
+    def _is_allowed_resources(self, action, fw_resources: tuple[FwResource, ...], raise_exception: bool, *, mode=None):
         """保留 SDK 关联资源请求，不将默认 V3 请求拆成逐项批量鉴权。"""
         action_id_biz = _to_business_action_id(action)
 
@@ -655,11 +651,12 @@ class Permission:
                     subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
                     action_id=action_id_biz,
                     resources=fw_resources,
-                )
+                ),
+                mode=mode,
             )
         except PermissionDenied as e:
             if raise_exception:
-                raise self._build_permission_denied(action_id_biz, fw_resources) from e
+                raise self._build_permission_denied(action_id_biz, fw_resources, mode=mode) from e
             return False
         except ProviderError as e:
             # Provider 层错误（含 ProviderUnavailable：平台不可达 / URL 缺失 / 超时）
@@ -668,15 +665,15 @@ class Permission:
             # 权限"），False 时 log.exception + 返回 False。
             logger.exception("[Permission.is_allowed] ProviderError: %s", e)
             if raise_exception:
-                raise self._build_permission_denied(action_id_biz, fw_resources) from e
+                raise self._build_permission_denied(action_id_biz, fw_resources, mode=mode) from e
             return False
 
         if not result and raise_exception:
-            raise self._build_permission_denied(action_id_biz, fw_resources)
+            raise self._build_permission_denied(action_id_biz, fw_resources, mode=mode)
 
         return result
 
-    def _build_permission_denied(self, action_id_biz: str, fw_resource):
+    def _build_permission_denied(self, action_id_biz: str, fw_resource, *, mode=None):
         """构建 PermissionDeniedError（含 SaaS 全家桶 + apply 数据）。"""
         resources = list(fw_resource) if isinstance(fw_resource, tuple) else ([fw_resource] if fw_resource else [])
         actions, detail_resources = self.prepare_apply_for_saas(resources)
@@ -689,6 +686,7 @@ class Permission:
         apply_data, apply_url = self.get_apply_data(
             [a.id for a in actions] if actions else [action_id_biz],
             detail_resources,
+            mode=mode,
         )
         try:
             action_name = get_action_by_id(action_id_biz).name
@@ -724,48 +722,38 @@ class Permission:
                 for resource in resources:
                     resource_id = resource[0].id
                     action_id = _to_business_action_id(action)
+                    product_id = MonitorV3Codec().encode_action(action_id)
                     if action_id == "view_business" or (record and action_id in allowed_action_ids):
-                        result[resource_id][action_id] = True
+                        result[resource_id][product_id] = True
                     else:
-                        result[resource_id][action_id] = False
+                        result[resource_id][product_id] = False
             return result
 
         if self.skip_check:
             for action in actions:
                 for resource in resources:
                     resource_id = resource[0].id
-                    action_id = _to_business_action_id(action)
+                    action_id = MonitorV3Codec().encode_action(_to_business_action_id(action))
                     result[resource_id][action_id] = True
             return result
 
         action_ids_biz = [_to_business_action_id(action) for action in actions]
 
-        # 按资源类型分组（框架批量契约：同批同类型），
-        # 每个 (action, 类型组) 一次批量调用（替代 N×M 次单资源调用）
         subject = FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id)
-        grouped: dict[str, list[FwResource]] = {}
-        for resource_list in resources:
-            resource = resource_list[0]
-            grouped.setdefault(str(resource.type), []).append(to_resource_instance(resource))
-
-        for action_id_biz in action_ids_biz:
-            for fw_resources in grouped.values():
-                try:
-                    batch_result = self._batch_by_resource(
-                        BatchByResourceRequest(subject=subject, action_id=action_id_biz, resources=tuple(fw_resources))
-                    )
-                except ProviderError as e:
-                    # Provider 不可达（URL 缺失 / 网络异常 / 超时）时不冒泡为 500：
-                    # 与 filter_space_list_by_action 的 ProviderError 兜底对齐，
-                    # 把当前 (action, 分组内资源) 全部标记为无权限，让上游继续渲染
-                    # 页面而不是整块 500；运维通过 log 追查。
-                    logger.exception("[Permission.batch_is_allowed] ProviderError action=%s: %s", action_id_biz, e)
-                    for r in fw_resources:
-                        result[r.id][action_id_biz] = False
-                    continue
-                for item in batch_result.items:
-                    result[item.resource_id][action_id_biz] = item.allowed
-
+        groups = tuple(tuple(to_resource_instance(r) for r in group) for group in resources)
+        request = BatchAuthRequest(subject, tuple(action_ids_biz), groups)
+        try:
+            mode = self.mode_provider.get_mode(tuple(r for group in groups for r in group))
+        except InvalidAuthModeError as error:
+            mode = error
+        if mode is AuthMode.V3:
+            return self.get_provider("v3").batch_product_is_allowed(request)
+        decision = self.mode_router.with_mode(mode).batch_is_allowed(request)
+        if any(item.decision.degraded and not item.decision.allowed for item in decision.items):
+            logger.warning("IAM batch authorization degraded; no explicit grant")
+        codec = MonitorV3Codec()
+        for item in decision.items:
+            result[item.resource_id][codec.encode_action(item.action_id)] = item.decision.allowed
         return result
 
     # ================================================================
@@ -787,13 +775,13 @@ class Permission:
             logger.exception("[Permission.get_apply_url] ProviderError: %s", e)
             return ""
 
-    def get_apply_data(self, actions, resources: list = None):
+    def get_apply_data(self, actions, resources: list = None, *, mode=None):
         resources = resources or []
 
         action_ids_biz = [_to_business_action_id(action) for action in actions]
         fw_resources = [to_resource_instance(r) for r in resources]
 
-        return self._application_data(action_ids_biz, fw_resources)
+        return self._application_data(action_ids_biz, fw_resources, mode=mode)
 
     # ================================================================
     # 创建者授权 — 框架委托
@@ -805,7 +793,8 @@ class Permission:
         from iam_engine.error_summary import sanitize_error_summary
         from bkmonitor.iam.tasks.grant import dispatch_v4_creator_grant
 
-        writers = dict(MigrationPolicy.resolve_authorization_writers(self.provider_bundles))
+        mode = self.mode_provider.get_mode()
+        writers = dict(MigrationPolicy.resolve_authorization_writers(mode, self.provider_bundles))
         results = {}
 
         def observe(version, resource_type, outcome):

@@ -1,6 +1,5 @@
 """Monitor product metadata and backend construction, without a framework singleton."""
 
-import os
 from functools import lru_cache
 
 from django.conf import settings
@@ -10,6 +9,8 @@ from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.iam.definitions.roles import Roles
 from iam_engine.schema.registry import SchemaRegistry
 from iam_engine.schema.loaders import load_from_class
+from iam_engine.settings import resolve_iam_gateway_url
+from iam_engine.v4.gateway import resolve_v4_gateway_url
 
 
 @lru_cache(maxsize=1)
@@ -24,9 +25,13 @@ def get_schema():
 def provider_options(name, tenant_id="system"):
     if name == "v3":
         return {
-            "base_url": settings.BK_IAM_V3_API_BASE_URL,
+            "base_url": resolve_iam_gateway_url(
+                settings.BK_COMPONENT_API_URL,
+                settings.BK_IAM_V3_API_BASE_URL,
+                settings.BK_IAM_APIGATEWAY_URL,
+                version="v3",
+            ),
             "bk_tenant_id": tenant_id,
-            "provider_config_path": os.getenv("BK_IAM_V3_RESOURCE_PATH", "/rest/v2/iam/resource/"),
             "fallback_apply_url": settings.BK_IAM_V3_FALLBACK_APPLY_URL,
             "credentials": {
                 "app_code": get_saas_setting("SAAS_APP_CODE"),
@@ -53,9 +58,8 @@ def provider_options(name, tenant_id="system"):
         }
     if name == "v4":
         return {
-            "base_url": settings.BK_IAM_V4_APIGATEWAY_URL,
+            "base_url": resolve_v4_gateway_url(),
             "bk_tenant_id": tenant_id,
-            "fallback_apply_url": settings.BK_IAM_SAAS_HOST,
             "credentials": {
                 "app_code": get_saas_setting("SAAS_APP_CODE"),
                 "app_secret": get_saas_setting("SAAS_SECRET_KEY"),
@@ -163,6 +167,12 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
         )
 
 
-def build_providers(tenant_id="system", *, username=""):
-    names = ("v3", "v4") if settings.BK_IAM_V4_APIGATEWAY_URL else ("v3",)
-    return {name: build_provider(name, tenant_id, username=username) for name in names}
+def build_providers(tenant_id="system", *, username="", mode=None):
+    from bkmonitor.iam.mode import get_mode_provider
+    from iam_engine.core.config import DEFAULT_DUAL_STACK
+
+    mode = mode if mode is not None else get_mode_provider().get_mode()
+    return {
+        target.value: build_provider(target.value, tenant_id, username=username)
+        for target in DEFAULT_DUAL_STACK.modes_for(mode)
+    }

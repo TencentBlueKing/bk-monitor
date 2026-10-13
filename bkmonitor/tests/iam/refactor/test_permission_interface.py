@@ -387,10 +387,8 @@ class TestIsAllowedByBiz:
 
 
 class TestBatchIsAllowed:
-    def test_result_shape_and_business_id_keys(self, fake_permission):
-        """结果键：新版为业务 ID（旧版为 V3 平台 ID）。
-        现有外部调用方 kernel_api mail_report 使用恒等动作 view_single_dashboard，
-        不受影响；其余调用方需按业务 ID 读取。"""
+    def test_result_shape_preserves_legacy_action_keys(self, fake_permission):
+        """公开批量接口保持原 V3 平台 Action 键，不向调用方泄漏内部模型 ID。"""
         fw, provider = fake_permission
         from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 
@@ -405,15 +403,17 @@ class TestBatchIsAllowed:
             [ActionEnum.VIEW_EVENT],
             [[ResourceEnum.BUSINESS.create_simple_instance("2")], [ResourceEnum.BUSINESS.create_simple_instance("3")]],
         )
-        assert result["2"]["view_event"] is True
-        assert result["3"]["view_event"] is False
+        assert result["2"]["view_event_v2"] is True
+        assert result["3"]["view_event_v2"] is False
 
     def test_framework_batch_grouping(self, installed_permission, real_schema):
-        """Permission.batch_is_allowed 按资源类型分组后一次批量调用。"""
+        """V4 批量整批传给公共 Router，所有 Action 共用一次模式快照。"""
         from iam_engine.provider.base import PermissionProvider
+        from iam_engine.core.config import AuthMode
+        from types import SimpleNamespace
 
         class Recorder(PermissionProvider):
-            name = "v3"
+            name = "v4"
 
             def __init__(self):
                 self.batch_calls: list = []
@@ -433,6 +433,7 @@ class TestBatchIsAllowed:
         provider = Recorder()
         _fw = installed_permission.build([provider])
         p = Permission(username="tester", bk_tenant_id="system")
+        p.mode_provider = SimpleNamespace(get_mode=lambda resources=(): AuthMode.V4)
         result = p.batch_is_allowed(
             [ActionEnum.VIEW_EVENT, ActionEnum.MANAGE_EVENT],
             [
@@ -441,14 +442,12 @@ class TestBatchIsAllowed:
                 [ResourceEnum.BUSINESS.create_simple_instance("4")],
             ],
         )
-        # 2 actions × 1 类型组 = 2 次批量调用
-        assert len(provider.batch_calls) == 2
-        assert provider.batch_calls[0].action_ids == ("view_event",)
-        assert provider.batch_calls[1].action_ids == ("manage_event",)
+        assert len(provider.batch_calls) == 1
+        assert provider.batch_calls[0].action_ids == ("view_event", "manage_event")
         assert {group[0].id for group in provider.batch_calls[0].resource_groups} == {"2", "3", "4"}
-        assert result["2"] == {"view_event": True, "manage_event": True}
-        assert result["3"] == {"view_event": True, "manage_event": True}
-        assert result["4"] == {"view_event": True, "manage_event": True}
+        assert result["2"] == {"view_event_v2": True, "manage_event_v2": True}
+        assert result["3"] == {"view_event_v2": True, "manage_event_v2": True}
+        assert result["4"] == {"view_event_v2": True, "manage_event_v2": True}
 
     def test_skip_check_branch(self, fake_permission):
         fw, provider = fake_permission
@@ -458,9 +457,9 @@ class TestBatchIsAllowed:
             [ActionEnum.VIEW_EVENT],
             [[ResourceEnum.BUSINESS.create_simple_instance("2")]],
         )
-        assert result["2"]["view_event"] is True
+        assert result["2"]["view_event_v2"] is True
 
-    def test_legacy_v3_id_is_normalized_and_result_uses_business_key(self, fake_permission):
+    def test_legacy_v3_id_is_normalized_without_changing_public_result_key(self, fake_permission):
         fw, provider = fake_permission
         provider.batch_is_allowed = MagicMock(
             return_value=NativeBatchResult((BatchAuthResultItem("view_event", "2", AuthResult.allow("v3")),))
@@ -474,9 +473,9 @@ class TestBatchIsAllowed:
 
         request = provider.batch_is_allowed.call_args.args[0]
         assert request.action_ids == ("view_event",)
-        assert result == {"2": {"view_event": True}}
+        assert result == {"2": {"view_event_v2": True}}
 
-    def test_skip_check_legacy_v3_id_result_uses_business_key(self, fake_permission):
+    def test_skip_check_preserves_legacy_v3_result_key(self, fake_permission):
         fw, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
@@ -486,7 +485,7 @@ class TestBatchIsAllowed:
             [[ResourceEnum.BUSINESS.create_simple_instance("2")]],
         )
 
-        assert result == {"2": {"view_event": True}}
+        assert result == {"2": {"view_event_v2": True}}
 
 
 # ---------------------------------------------------------------------------

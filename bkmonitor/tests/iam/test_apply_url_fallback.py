@@ -11,7 +11,7 @@ from iam_engine.v4.exceptions import V4TransportError
 @pytest.mark.parametrize(
     "name,ok,url,fallback,expected",
     [
-        ("v4", True, "", "https://fallback.test", "https://fallback.test"),
+        ("v4", True, "", "https://fallback.test", ""),
         ("v4", True, "", "", ""),
         ("v4", True, "https://apply.test", "https://fallback.test", "https://apply.test"),
         ("v3", False, "", "https://fallback.test", "https://fallback.test"),
@@ -61,4 +61,4 @@ def test_v4_transport_failure_keeps_local_permission_data():
     p._get_client = MagicMock(return_value=client)
     data, url = p.get_apply_data(["view_business"], [ResourceInstance("space", "2")])
     assert data["system"] == "bk_monitorv3"
-    assert url == "https://fallback.test"
+    assert url == ""

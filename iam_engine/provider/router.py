@@ -41,6 +41,16 @@ class ModeProvider(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
+class _ModeSnapshot:
+    mode: AuthMode | InvalidAuthModeError
+
+    def get_mode(self, resources=()):
+        if isinstance(self.mode, InvalidAuthModeError):
+            raise self.mode
+        return self.mode
+
+
+@dataclass(frozen=True, slots=True)
 class ScopeResolution:
     """范围查询的路由结果。
 
@@ -65,9 +75,13 @@ class ModeRouter:
         stack: DualStackSpec | None = None,
     ) -> None:
         self.mode_provider = mode_provider
-        self.bundles = dict(bundles)
+        self.bundles = bundles
         self.pair_executor = pair_executor
         self.stack = stack or DEFAULT_DUAL_STACK
+
+    def with_mode(self, mode: AuthMode | InvalidAuthModeError) -> ModeRouter:
+        """Reuse capabilities with a frozen operation mode, including invalidity."""
+        return ModeRouter(_ModeSnapshot(mode), self.bundles, pair_executor=self.pair_executor, stack=self.stack)
 
     def is_allowed(self, request: AuthRequest) -> AuthDecision:
         """单点鉴权。union 两侧都跑完再合并，不做短路，便于观测两侧分歧。"""

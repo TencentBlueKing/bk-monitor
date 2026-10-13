@@ -386,19 +386,17 @@ class TestBatchAuthResultFormat:
         from unittest.mock import Mock
         from types import SimpleNamespace
         from iam_engine.core.config import AuthMode
-        from iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         permission = Permission(username="offline", bk_tenant_id="system")
         permission.skip_check = False
         permission.mode_provider = SimpleNamespace(get_mode=lambda resources=(): AuthMode.V3)
         provider = Mock()
         provider.name = "v3"
-        provider.batch_is_allowed.side_effect = lambda request: BatchAuthResult(
-            tuple(
-                BatchAuthResultItem(action, resource, AuthResult.allow("v3"))
-                for action, resource in request.iter_keys()
-            )
-        )
+        provider.batch_product_is_allowed.side_effect = lambda request: {
+            str(group[0].id): {MonitorV3Codec().encode_action(action): True for action in request.action_ids}
+            for group in request.resource_groups
+        }
         permission._providers = {"v3": provider}
         return permission
 
@@ -413,7 +411,9 @@ class TestBatchAuthResultFormat:
     def test_product_batch_format_compatible_with_insert_permission_field(self, space_ids, actions):
         permission = self._permission()
         result = permission.batch_is_allowed(actions, [[ResourceInstance(type="space", id=sid)] for sid in space_ids])
-        assert result == {sid: {action: True for action in actions} for sid in space_ids}
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
+
+        assert result == {sid: {MonitorV3Codec().encode_action(action): True for action in actions} for sid in space_ids}
 
 
 # ==============================================================================

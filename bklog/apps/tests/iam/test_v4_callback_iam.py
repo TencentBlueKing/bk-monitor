@@ -56,6 +56,14 @@ class V4CallbackIAMTest(SimpleTestCase):
         self.assertEqual(token, "v3-token")
         v3_get_token.assert_called_once_with("bk_log_search")
 
+    @override_settings(BK_IAM_V4_APIGATEWAY_URL="", BK_COMPONENT_API_URL="")
+    @patch("iam.IAM.get_token")
+    def test_v4_callback_without_a_gateway_does_not_use_v3_token(self, v3_get_token):
+        ok, _, token = self.client.get_token("bklog_test")
+        self.assertFalse(ok)
+        self.assertEqual(token, "")
+        v3_get_token.assert_not_called()
+
     @override_settings(BK_IAM_V4_SYSTEM_ID="")
     @patch("apps.iam.backends.v4.client.V4Client.retrieve_system_auth_token", return_value="v4-token")
     def test_get_token_uses_v3_system_id_when_v4_system_id_empty(self, retrieve_mock):

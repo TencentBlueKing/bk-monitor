@@ -122,6 +122,7 @@ class SpaceAccessBatchGrantTest(TestCase):
         self.assertEqual(permission.provider_bundles[AuthMode.V3].writer.bk_tenant_id, "tenant-1")
 
     def test_grants_on_both_stacks_and_dedupes_subjects(self):
+        self.mode_provider.get_mode.return_value = AuthMode.UNION
         permission = self._make_permission()
 
         failed = permission.grant_space_access_batch(2, ["owner1", "owner1", "owner2", "", None])
@@ -155,6 +156,7 @@ class SpaceAccessBatchGrantTest(TestCase):
         )
 
     def test_reports_subject_when_any_stack_fails(self):
+        self.mode_provider.get_mode.return_value = AuthMode.UNION
         self.v4_writer.grant_space_access.side_effect = [RuntimeError("iam v4 timeout"), None]
         permission = self._make_permission()
 

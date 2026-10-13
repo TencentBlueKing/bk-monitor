@@ -44,10 +44,25 @@ _STRIPPED = {
 }
 
 
-def load_iam_settings(environ=None):
+def resolve_iam_gateway_url(component_api_url, *overrides, version):
+    """Resolve independent gateway roots, preserving the caller's override order."""
+    gateway = {"v3": "bk-iam", "v4": "bkiam"}[version]
+    for value in overrides:
+        if isinstance(value, str) and value.strip():
+            return value.strip().rstrip("/") + "/"
+    root = component_api_url.strip().rstrip("/") if isinstance(component_api_url, str) else ""
+    return f"{root}/api/{gateway}/prod/" if root else ""
+
+
+def load_iam_settings(environ=None, *, component_api_url=None):
     environ = os.environ if environ is None else environ
     values = {name: environ.get(env_name, default) for name, (env_name, default) in IAM_ENVIRONMENT.items()}
     for name in _STRIPPED:
         values[name] = values[name].strip()
     values["BK_IAM_PERMISSION_MODE"] = values["BK_IAM_PERMISSION_MODE"].lower()
+    values["BK_IAM_V4_APIGATEWAY_URL"] = resolve_iam_gateway_url(
+        component_api_url if component_api_url is not None else environ.get("BK_COMPONENT_API_URL"),
+        values["BK_IAM_V4_APIGATEWAY_URL"],
+        version="v4",
+    )
     return values

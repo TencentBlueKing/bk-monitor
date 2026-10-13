@@ -103,7 +103,7 @@ def test_monitor_error_mapping_is_consistent_with_grant_retry(monkeypatch, statu
     monkeypatch.setattr(requests, "request", Mock(return_value=response(status=status)))
     client = MonitorClient(options(), bk_tenant_id="system")
     with pytest.raises(error):
-        client._get("read/")
+        client._request("GET", "read/")
 
 
 def test_business_error_in_200_is_not_success(monkeypatch):
@@ -133,6 +133,6 @@ def test_model_auth_token_paths_and_cache_key_are_shared(monkeypatch):
     )
     assert client.get_auth_token() == "dummy-token"
     assert send.call_args.kwargs["url"].endswith("/dev/custom/bk_monitorv3/token/")
-    client.list_actions(page=2)
-    assert send.call_args.kwargs["url"].endswith("/dev/custom/models/bk_monitorv3/actions/")
-    assert send.call_args.kwargs["params"] == {"page": 2, "page_size": 100}
+    send.return_value = response({"count": 0, "results": []})
+    assert client.list_actions() == []
+    assert send.call_args.kwargs["url"].endswith("/dev/custom/models/bk_monitorv3/actions/?page=1&page_size=100")

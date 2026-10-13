@@ -452,11 +452,12 @@ BK_HOT_WARM_CONFIG_URL = (
 BK_COMPONENT_API_URL = os.environ.get("BK_COMPONENT_API_URL")
 DEPLOY_MODE = os.environ.get("DEPLOY_MODE", "")
 
-BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
-from iam_engine.settings import load_iam_settings
+from iam_engine.settings import load_iam_settings, resolve_iam_gateway_url
+
+BK_IAM_APIGATEWAY_URL = resolve_iam_gateway_url(BK_COMPONENT_API_URL, os.getenv("BKAPP_IAM_API_BASE_URL"), version="v3")
 
 # Both products share the BKLog environment contract (including string defaults).
-globals().update(load_iam_settings())
+globals().update(load_iam_settings(component_api_url=BK_COMPONENT_API_URL))
 
 BK_USER_HOST = os.getenv("BKAPP_BKUSER_HOST", BK_BKLOG_HOST.replace("bklog", "bkuser"))
 SHOW_PERSONAL_SETTINGS = os.getenv("BKAPP_SHOW_PERSONAL_SETTINGS", "on") == "on"

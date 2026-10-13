@@ -12,8 +12,7 @@ from iam_engine.provider.capabilities import AuthorizationWriter, PermissionAppl
 class ApplicationResolution:
     """迁移策略选定的无权限申请能力与来源版本。
 
-    source_mode 告诉门面这次申请单是哪一代生成的，便于 UNION 下 current 失败时
-    决定能不能再回退 legacy，以及纯 current 失败时该不该继续降级。
+    source_mode 标识申请版本；生成失败只标记不可用，不能跨版本回退。
     """
 
     source_mode: AuthMode
@@ -27,9 +26,9 @@ class ApplicationProviderNotConfiguredError(RuntimeError):
 class MigrationPolicy:
     """跨双栈迁移期的共用编排策略，平台侧只负责注入 Bundle 与拓扑。
 
-    申请和双写故意不跟当前鉴权模式完全绑定：
-    - 申请：current / union 优先新协议申请页，避免用户点到即将下线的旧申请单。
-    - 双写：只要 Writer 在 Bundle 里，legacy 与 current 都写，与当时是不是 V3 模式无关。
+    所有能力使用同一次操作的模式快照：
+    - 申请：current / union 固定新协议申请页，不回退旧协议。
+    - 授权及模型同步：单栈只选自身，Union 才选择两侧。
     """
 
     @staticmethod
@@ -51,17 +50,19 @@ class MigrationPolicy:
 
     @staticmethod
     def resolve_authorization_writers(
+        mode: AuthMode,
         bundles: Mapping[AuthMode, ProviderBundle],
         *,
         stack: DualStackSpec | None = None,
     ) -> tuple[tuple[str, AuthorizationWriter], ...]:
-        """按 legacy → current 收集已注入的 Writer；缺 current 时只双写一侧。"""
+        """只选择模式指定的授权目标；缺少目标能力不能静默跳过。"""
 
         topology = stack or DEFAULT_DUAL_STACK
         writers: list[tuple[str, AuthorizationWriter]] = []
-        for mode in topology.writer_modes:
-            bundle = bundles.get(mode)
-            if bundle is not None and bundle.writer is not None:
-                writers.append((mode.value, bundle.writer))
+        for target in topology.modes_for(mode):
+            bundle = bundles.get(target)
+            if bundle is None or bundle.writer is None:
+                raise RuntimeError(f"IAM {target.value} authorization writer is not configured")
+            writers.append((target.value, bundle.writer))
 
         return tuple(writers)

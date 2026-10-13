@@ -141,10 +141,6 @@ class V4Options:
         timeout:       HTTP 请求超时（秒），默认 10，与 BKLog 共用归一化规则
         chunk_size:    批量鉴权分片大小，默认及上限 100
         max_workers:   批量鉴权分片并发数，默认 4，上限 8
-        fallback_apply_url: 平台生成申请 URL 失败/为空时的兜底跳转地址。
-            为空则维持既有降级契约（`_get_apply_url_dialect` 返回 ""）；
-            非空则返回该地址，让前端至少能给用户一个可点击的兜底链接
-            （典型值：外部 ITSM 权限工单页或 IAM SaaS 站点根 URL）。
     """
 
     base_url: str
@@ -154,8 +150,6 @@ class V4Options:
     timeout: float = DEFAULT_TIMEOUT_SECONDS
     chunk_size: int = DEFAULT_BATCH_CHUNK_SIZE
     max_workers: int = DEFAULT_BATCH_MAX_WORKERS
-    #: 平台生成申请 URL 为空时的兜底跳转地址；默认空 = 维持既有行为（返回 ""）。
-    fallback_apply_url: str = ""
     # 预留：Provider 私有扩展字段（未识别的 options 会被收纳到此，方便调试/演进）
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -175,7 +169,6 @@ class V4Options:
             "timeout",
             "chunk_size",
             "max_workers",
-            "fallback_apply_url",
         }
         try:
             base_url = raw["base_url"]
@@ -213,6 +206,5 @@ class V4Options:
             timeout=normalize_timeout_seconds(raw.get("timeout")),
             chunk_size=normalize_batch_chunk_size(raw.get("chunk_size")),
             max_workers=normalize_batch_max_workers(raw.get("max_workers")),
-            fallback_apply_url=str(raw.get("fallback_apply_url", "") or ""),
             extra=extra,
         )

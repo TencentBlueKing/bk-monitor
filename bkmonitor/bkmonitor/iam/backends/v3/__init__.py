@@ -14,10 +14,9 @@ specific language governing permissions and limitations under the License.
 # 依赖 iam_engine 框架，将 V3Client SDK 客户端封装为新框架的 Provider：
 #   - config.py      — Provider 配置契约（V3Options / V3Credentials / V3SystemInfo）
 #   - provider.py    — V3PermissionProvider
-#   codec 在 adapters/v3/codec.py —— V3NameCodec（业务 action_id ↔ V3 平台 action_id 映射）
+#   - codec.py       — V3NameCodec（业务 action_id ↔ V3 平台 action_id 映射）
 #
-# Phase 1 范围：鉴权（is_allowed / batch_* / get_apply_url）、
-# 最小 migration 支持（空实现）、health_check。
+# 模型同步由 iam.model_sync 调用原有 V3 Migrator，保留原迁移文件及执行记录。
 # ---------------------------------------------------------------------------
 
 #: Provider 标识 —— v3 包内唯一入口，所有引用 ``"v3"`` 的地方统一使用此常量。

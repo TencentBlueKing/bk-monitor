@@ -51,7 +51,7 @@ def test_monitor_native_provider_assembly_has_no_intermediate_adapters():
     for mode in (AuthMode.V3, AuthMode.V4):
         bundle = permission.provider_bundles[mode]
         assert isinstance(bundle.auth, PermissionProvider)
-        assert bundle.auth is bundle.application is bundle.scope is permission.providers[mode.value]
+        assert bundle.auth is bundle.application is bundle.scope is permission.get_provider(mode.value)
         assert bundle.writer.provider is bundle.auth
     assert issubclass(MonitorV4Client, V4Client)
     product = Path(__file__).resolve().parents[2] / "bkmonitor/bkmonitor/iam"

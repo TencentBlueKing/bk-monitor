@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 from dataclasses import asdict, replace
-from typing import TYPE_CHECKING
 import logging
 from iam.exceptions import AuthAPIError
 from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject, to_definition_id
@@ -14,9 +13,6 @@ from iam_engine.policy.expression import Op, PolicyExpression
 from bkmonitor.iam.backends.v3.policy_converter import iam_dict_to_expression, expression_to_iam_dict
 from bkmonitor.iam.backends.v3.apply import V3ApplicationBuilder
 
-if TYPE_CHECKING:
-    from iam_engine.schema.registry import SchemaRegistry
-    from iam_engine.schema.diff import MigrationPlan, MigrationReport
 logger = logging.getLogger(__name__)
 
 
@@ -121,27 +117,40 @@ class V3PermissionProvider(PermissionProvider):
         except Exception as error:
             return self._error(error)
 
+    def _encode_batch_request(self, request, *, resolve_resources=False):
+        client = self._get_client(request.subject.tenant_id)
+        encoded_actions = [self.codec.encode_action(to_definition_id(a)) for a in request.action_ids]
+        groups = [
+            [
+                self.codec.encode_resource(
+                    self._resolve(r, tenant_id=request.subject.tenant_id) if resolve_resources else r,
+                    client, batch=True,
+                )
+                for r in group
+            ]
+            for group in request.resource_groups
+        ]
+        encoded_ids = {
+            (to_definition_id(resource.type), str(resource.id)): sdk_resource.id
+            for group, sdk_group in zip(request.resource_groups, groups)
+            for resource, sdk_resource in zip(group, sdk_group)
+        }
+        return client, client.make_multi_action_request(request.subject.id, encoded_actions), groups, encoded_ids
+
+    def batch_product_is_allowed(self, request):
+        """Keep the original product batch SDK result and exception contract in V3.
+
+        The caller already supplies complete resource groups. Do not replace
+        their attributes through a resolver or discard associated resources.
+        """
+        client, sdk_request, groups, _ = self._encode_batch_request(request)
+        return client.batch_resource_multi_actions_allowed(sdk_request, groups)
+
     def batch_is_allowed(self, request: BatchAuthRequest) -> BatchAuthResult:
         try:
-            client = self._get_client(request.subject.tenant_id)
-            actions = [to_definition_id(a) for a in request.action_ids]
-            encoded_actions = [self.codec.encode_action(a) for a in actions]
-            groups = [
-                [
-                    self.codec.encode_resource(
-                        self._resolve(r, tenant_id=request.subject.tenant_id), client, batch=True
-                    )
-                    for r in group
-                ]
-                for group in request.resource_groups
-            ]
-            encoded_ids = {
-                (to_definition_id(resource.type), str(resource.id)): sdk_resource.id
-                for group, sdk_group in zip(request.resource_groups, groups)
-                for resource, sdk_resource in zip(group, sdk_group)
-            }
+            client, sdk_request, groups, encoded_ids = self._encode_batch_request(request, resolve_resources=True)
             raw = client.batch_resource_multi_actions_allowed(
-                client.make_multi_action_request(request.subject.id, encoded_actions), groups
+                sdk_request, groups
             )
         except Exception as error:
             result = self._error(error)
@@ -367,44 +376,3 @@ class V3PermissionProvider(PermissionProvider):
         result["provider"] = self.name
         result["remote_id"] = self._cfg.system.id
         return result
-
-    # ================================================================
-    # plan_migration / apply_migration
-    def plan_migration(self, schema: SchemaRegistry, *, scope: str = "full") -> MigrationPlan:
-        """从本地 definitions + V3Options 生成迁移计划（不查远端）。
-
-        Args:
-            schema: 冻结的 SchemaRegistry。
-            scope: "system" 只生成系统注册 Change；
-                   "full" 生成系统+资源类型+操作的全量 Change。
-
-        Returns:
-            MigrationPlan: 包含 provider_name 和 changes 列表的变更计划。
-        """
-        from bkmonitor.iam.backends.v3.migrator import V3Migrator
-
-        migrator = V3Migrator(self._iam_client, schema, self._cfg, self.codec, self.name)
-        return migrator.plan_migration(scope=scope)
-
-    def apply_migration(
-        self,
-        plan: MigrationPlan,
-        *,
-        dry_run: bool = False,
-        allow_destructive: bool = False,
-    ) -> MigrationReport:
-        """应用变更计划（查远端 + reconcile + 执行）。
-
-        Args:
-            plan: plan_migration 或迁移文件产出的 Change 列表。
-            dry_run: 只演练，不真正提交。
-            allow_destructive: 是否允许破坏性变更。
-        """
-        from bkmonitor.iam.backends.v3.migrator import V3Migrator
-
-        migrator = V3Migrator(self._iam_client, self.schema, self._cfg, self.codec, self.name)
-        return migrator.apply_migration(
-            plan,
-            dry_run=dry_run,
-            allow_destructive=allow_destructive,
-        )

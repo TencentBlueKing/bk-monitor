@@ -230,5 +230,5 @@ def test_list_application_resources_are_equivalent_for_share_token():
 
     assert old_result == new_result
     for actions in new_result.values():
-        assert actions[canonicalize_action_id(ActionEnum.VIEW_RUM_APPLICATION.id)] is True
-        assert actions[canonicalize_action_id(ActionEnum.MANAGE_RUM_APPLICATION.id)] is False
+        assert actions["view_rum_application_v2"] is True
+        assert actions["manage_rum_application_v2"] is False

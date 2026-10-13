@@ -13,7 +13,7 @@ class V4CallbackIAM(CompatibleIAM):
     """V4 资源回调鉴权客户端：token 从 bkiam(V4) 拉取，而不是 V3 的 bk-iam 网关。"""
 
     def get_token(self, system):
-        if system == resolve_effective_v4_system_id() and getattr(settings, "BK_IAM_V4_APIGATEWAY_URL", ""):
+        if system == resolve_effective_v4_system_id():
             return self._get_v4_auth_token(system)
 
         return super().get_token(system)
