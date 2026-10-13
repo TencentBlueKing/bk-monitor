@@ -1557,11 +1557,12 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                       <div class='user-groups-container mb10'>
                         <div class='user-notice-item'>
                           <span class='groups-title-warp'>{this.$t('告警组')}：</span>
-                          <span>
+                          <div class='notice-user-list'>
                             {this.noticeData?.user_group_list?.map((item, index) => (
                               <span
                                 key={index}
                                 class='user-group'
+                                title={item.name}
                                 onClick={(e: Event) => {
                                   e.stopPropagation();
                                   this.handleSelcetAlarmGroup(item.id);
@@ -1570,35 +1571,31 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                                 {item.name}
                               </span>
                             ))}
-                          </span>
+                          </div>
                         </div>
                         {this.noticeData?.user_group_list?.length > 1 && this.noticeData?.config?.voice_notice ? (
                           <div class='user-notice-item'>
                             <span class='groups-title-warp'>{this.$t('语音拨打顺序')}：</span>
-                            {this.voiceNoticeText[this.noticeData.config.voice_notice]}
+                            <span>{this.voiceNoticeText[this.noticeData.config.voice_notice]}</span>
                           </div>
                         ) : undefined}
                         <div class='user-notice-item'>
                           <span class='groups-title-warp'>{this.$t('通知升级')}：</span>
                           {this.noticeData?.options?.upgrade_config?.is_enabled ? (
-                            [
-                              <span key='1'>
-                                <i18n
-                                  class='text'
-                                  path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
-                                >
-                                  <span>{this.noticeData?.options?.upgrade_config?.upgrade_interval || 0}</span>
-                                </i18n>
-                              </span>,
-                              <div
-                                key='2'
-                                class='ml10 notice-user-list'
+                            <div class='notice-upgrade-body'>
+                              <i18n
+                                class='notice-upgrade-text'
+                                path='当告警持续时长每超过{0}分种，将逐个按告警组升级通知'
                               >
+                                <span>{this.noticeData?.options?.upgrade_config?.upgrade_interval || 0}</span>
+                              </i18n>
+                              <div class='notice-user-list'>
                                 {this.noticeData?.options?.upgrade_config?.user_groups?.map((alarm, index) =>
                                   !this.alarmGroupLoading ? (
                                     <span
                                       key={index}
                                       class='user-group'
+                                      title={this.getAlarmGroupByID(alarm)}
                                       onClick={(e: Event) => {
                                         e.stopPropagation();
                                         this.handleSelcetAlarmGroup(alarm);
@@ -1613,16 +1610,15 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                                     />
                                   )
                                 )}
-                              </div>,
-                            ]
+                              </div>
+                            </div>
                           ) : (
                             <span>{this.$t('关闭')}</span>
                           )}
                         </div>
                       </div>
                     </div>,
-                    {},
-                    { width: '100%' }
+                    {}
                   )}
                   {commonItem(
                     this.$t('通知间隔'),
