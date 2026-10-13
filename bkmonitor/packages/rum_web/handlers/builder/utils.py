@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import math
 from collections.abc import Iterable
 from typing import Any
 
@@ -18,11 +19,13 @@ from semconv.rum.trace import SpanSpec
 
 
 def get_safe_number(value: Any, default: int | float | None = 0) -> int | float | None:
-    """default=None 用于区分字段缺失和有效的零值。"""
+    """将输入转为有限数值，非法值返回 default；default=None 可区分字段缺失和有效零值。"""
     if value is None:
         return default
     try:
         number = float(value)
+        if not math.isfinite(number):
+            return default
         return int(number) if number.is_integer() else number
     except (TypeError, ValueError):
         return default
