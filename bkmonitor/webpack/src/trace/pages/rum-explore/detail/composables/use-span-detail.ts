@@ -89,7 +89,12 @@ export function useSpanDetail({ context, mode, timeRange }: IUseSpanDetailOption
       traceInfo.value = null;
     } else {
       const { links, bk_biz_id } = detail.origin_data;
-      const url = `${location.origin}${window.site_url}rest/v2/overview/search/?query=${encodeURIComponent(links?.[0]?.trace_id)}&bk_biz_id=${encodeURIComponent(String(bk_biz_id))}`;
+      const traceId = links?.[0]?.trace_id;
+      if (!traceId) {
+        traceInfo.value = null;
+        return;
+      }
+      const url = `${location.origin}${window.site_url}rest/v2/overview/search/?query=${encodeURIComponent(traceId)}&bk_biz_id=${encodeURIComponent(String(bk_biz_id))}`;
       fetchEventStream(url).then(res => {
         traceInfo.value = res[0]?.items?.[0];
       });
