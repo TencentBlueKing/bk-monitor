@@ -190,8 +190,8 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
         },
       },
     ],
-    loadRelated: (context, mode, detail, timeRange) =>
-      getErrorRelated(context, mode, buildErrorFilters(detail), timeRange),
+    /** 影响面统计以 detail.origin_data 内的 Span end_time 为时间基准，详见 getErrorRelated */
+    loadRelated: (context, mode, detail) => getErrorRelated(context, mode, buildErrorFilters(detail), detail),
   },
 
   view: {

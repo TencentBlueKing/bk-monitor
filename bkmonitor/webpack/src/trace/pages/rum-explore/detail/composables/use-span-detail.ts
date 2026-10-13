@@ -37,7 +37,7 @@ interface IUseSpanDetailOptions {
   /** 详情上下文，为 null 表示抽屉未打开 */
   context: Ref<IRumDetailContext | null>;
   mode: Ref<RumModeType>;
-  /** 页面所选时间范围，Error 影响面统计沿用该范围 */
+  /** 页面所选时间范围，透传给各 span 类型的 loadRelated */
   timeRange: Ref<IRumTimeRange>;
 }
 

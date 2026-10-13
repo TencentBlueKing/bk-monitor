@@ -18,6 +18,12 @@
 
 /* 组件根（与场景类名复合于同一元素）：跨场景公共样式 */
 .rum-explore-table {
+  /* 激活行底色与 events 抽屉激活列统一为 #f0f5ff：TDesign 内置激活行取 --td-brand-color-light（brand-1，#f0f3ff），
+   * 这里在表格根上重定义该变量，由内置规则自行产出目标色，不复制其选择器形态；
+   * hover 态走 --td-brand-color-light-hover（brand-2，#d7e2ff），保持内置，不参与本次统一。
+   * 注意该变量同时是品牌浅色 token，本子树内其他读它的 light 品牌面（light tag / primary tooltip / 已选下拉项）会一并取此值 */
+  --td-brand-color-light: #f0f5ff;
+
   flex: 1;
   min-height: 0;
 

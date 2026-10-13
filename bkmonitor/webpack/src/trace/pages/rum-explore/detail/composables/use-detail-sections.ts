@@ -202,6 +202,12 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
   const configs = data['display.rating_config'] || [];
   const meta = VITAL_METRIC_META[metric];
   const unit = meta?.unit ?? 'ms';
+  /**
+   * 数值展示口径与列表侧 vital 值列一致（span-scenario）：
+   * lcp / fcp / inp / ttfb 为毫秒耗时，按 ms 自适应换算展示（如 2.5s、180ms）；
+   * cls 为 0~1 的无量纲分数，原样展示，不拼时间单位
+   */
+  const formatValue = (num: number) => (unit ? formatDuration(num, '', 2, 'ms') : String(num));
   const segments: IRumRatingSegmentVM[] = [];
   let thumbPercent = 0;
   /** 指标值可能恰好落在 0%，不能用 thumbPercent 自身判断是否已定位 */
@@ -217,9 +223,9 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
       rating: config.rating,
       color: ratingMeta.barColor,
       label: isLast
-        ? `${config.alias || ratingMeta.alias} > ${lower}${unit}`
-        : `${config.alias || ratingMeta.alias} ≦ ${upper}${unit}`,
-      threshold: isLast ? '' : `${upper}${unit}`,
+        ? `${config.alias || ratingMeta.alias} > ${formatValue(lower)}`
+        : `${config.alias || ratingMeta.alias} ≦ ${formatValue(Number(upper))}`,
+      threshold: isLast ? '' : formatValue(Number(upper)),
     });
     /** 落在本段内时按段内比例定位指针；最后一段无上界，按前一段阈值作为虚拟段宽 */
     if (!thumbResolved && (isLast || value <= upper)) {
@@ -234,7 +240,7 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
   const hitMeta = RATING_META[hitRating] || RATING_FALLBACK_META;
   return {
     metricLabel: meta?.label || metric.toUpperCase(),
-    valueText: unit ? `${value.toLocaleString('en-US')} ${unit}` : String(value),
+    valueText: formatValue(value),
     rating: hitRating,
     ratingAlias: hitMeta.alias,
     segments,

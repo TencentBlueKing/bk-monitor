@@ -81,8 +81,8 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    /** 展开的折叠块，默认全部收起（与设计稿一致，Events 由用户按需展开） */
-    const expandedKeys = shallowRef<Set<string>>(new Set());
+    /** 展开的折叠块，默认全部收起（与设计稿一致），Events 块默认展开 */
+    const expandedKeys = shallowRef<Set<string>>(new Set(['events']));
     /** 收起的二级分组（Links 按 trace_id、Events 按事件名），默认全部展开 */
     const collapsedGroups = shallowRef<Set<string>>(new Set());
     /** 已切换为「格式化」展示的 JSON 行，未记录的行默认以原文展示 */
