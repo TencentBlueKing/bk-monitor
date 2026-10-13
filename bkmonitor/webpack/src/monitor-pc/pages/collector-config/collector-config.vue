@@ -509,7 +509,6 @@ export default {
           vm.tableInstance.keyword = vm.panel.keword;
         }
       }
-      vm.initPageData();
     });
   },
   beforeRouteLeave(_to, _fromm, next) {
@@ -741,7 +740,7 @@ export default {
     this.lisenResize = debounce(100, this.handleTableWrapperChange);
   },
   activated() {
-    this.isLeave = false;
+    this.initPageData();
   },
   deactivated() {
     this.stopLoading();

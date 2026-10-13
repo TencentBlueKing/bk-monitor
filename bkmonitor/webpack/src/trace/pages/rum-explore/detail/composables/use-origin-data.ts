@@ -120,6 +120,17 @@ function resolveValueType(value: unknown): IRumOriginRowVM['valueType'] {
   return 'string';
 }
 
+/** 对象序列化为单行 JSON（冒号、逗号后带一个空格），原文模式下打平展示 */
+function stringifyFlat(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stringifyFlat).join(', ')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.entries(value)
+      .map(([itemKey, itemValue]) => `${JSON.stringify(itemKey)}: ${stringifyFlat(itemValue)}`)
+      .join(', ')}}`;
+  }
+  return JSON.stringify(value);
+}
+
 /**
  * 把字段名拼成原始数据里的完整路径（如 attributes.view.id），检索条件按这个路径回传。
  * 数组类型的块（links / events）沿用后端扁平化的字段命名，不带数组下标。
@@ -139,7 +150,7 @@ function toRow(key: string, value: unknown, prefix = ''): IRumOriginRowVM {
     key,
     originKey: toOriginKey(prefix, key),
     valueType,
-    value: valueType === 'object' ? JSON.stringify(value, null, 2) : String(value ?? ''),
+    value: valueType === 'object' ? stringifyFlat(value) : String(value ?? ''),
   };
 }
 

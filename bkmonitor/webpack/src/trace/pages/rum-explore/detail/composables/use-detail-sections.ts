@@ -64,10 +64,6 @@ import type {
 
 const t = (text: string) => window.i18n.t(text) as string;
 
-/** 请求时序区块的 TTFB 口径说明 */
-const TTFB_TIP =
-  'TTFB 表示从请求发出到收到响应首字节的时间，包含请求传输、服务端处理和排队时间；仅凭浏览器时序不能直接判定服务端处理，需结合 Trace 或 Server-Timing。';
-
 /**
  * @description 按评级阈值配置匹配指标值的评级：value 不超过某个配置的上界（value ≦ config.value）时
  * 命中该配置的 rating，不带 value 的配置视为无上界兜底；配置为空时返回空串
@@ -148,15 +144,12 @@ export function useDetailSections(
         case RumSectionTypeEnum.WATERFALL: {
           const waterfallData = (section.data || { phases: [], unit: 'ms' }) as IRumWaterfallData;
           const waterfall = buildWaterfall(waterfallData, type);
-          /** 含等待首字节阶段时补一条口径说明，避免把 TTFB 直接当作服务端处理耗时 */
-          const hasFirstByte = waterfallData.phases?.some(phase => phase.key === 'first_byte');
           acc.push({
             ...base,
             waterfall,
             subTitle: waterfallData.total_duration
               ? `${t('总耗时')}：${formatDuration(Number(waterfallData.total_duration) || 0, '', 3, waterfallData.unit || 'us').replace(/ /g, '')}`
               : '',
-            tip: hasFirstByte ? t(TTFB_TIP) : '',
             spanType: type,
           });
           break;
@@ -202,6 +195,12 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
   const configs = data['display.rating_config'] || [];
   const meta = VITAL_METRIC_META[metric];
   const unit = meta?.unit ?? 'ms';
+  /**
+   * 数值展示口径与列表侧 vital 值列一致（span-scenario）：
+   * lcp / fcp / inp / ttfb 为毫秒耗时，按 ms 自适应换算展示（如 2.5s、180ms）；
+   * cls 为 0~1 的无量纲分数，原样展示，不拼时间单位
+   */
+  const formatValue = (num: number) => (unit ? formatDuration(num, '', 2, 'ms') : String(num));
   const segments: IRumRatingSegmentVM[] = [];
   let thumbPercent = 0;
   /** 指标值可能恰好落在 0%，不能用 thumbPercent 自身判断是否已定位 */
@@ -217,9 +216,9 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
       rating: config.rating,
       color: ratingMeta.barColor,
       label: isLast
-        ? `${config.alias || ratingMeta.alias} > ${lower}${unit}`
-        : `${config.alias || ratingMeta.alias} ≦ ${upper}${unit}`,
-      threshold: isLast ? '' : `${upper}${unit}`,
+        ? `${config.alias || ratingMeta.alias} > ${formatValue(lower)}`
+        : `${config.alias || ratingMeta.alias} ≦ ${formatValue(Number(upper))}`,
+      threshold: isLast ? '' : formatValue(Number(upper)),
     });
     /** 落在本段内时按段内比例定位指针；最后一段无上界，按前一段阈值作为虚拟段宽 */
     if (!thumbResolved && (isLast || value <= upper)) {
@@ -234,7 +233,7 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
   const hitMeta = RATING_META[hitRating] || RATING_FALLBACK_META;
   return {
     metricLabel: meta?.label || metric.toUpperCase(),
-    valueText: unit ? `${value.toLocaleString('en-US')} ${unit}` : String(value),
+    valueText: formatValue(value),
     rating: hitRating,
     ratingAlias: hitMeta.alias,
     segments,
@@ -311,7 +310,6 @@ function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfal
   return {
     rows,
     durationTotal: total,
-    durationTotalText: formatDuration(Number(total) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
     mergedNames,
     behavior: spanType === 'view' ? 'complex' : 'simplicity',
     ttfbBreakdown: buildTtfbBreakdown(data),

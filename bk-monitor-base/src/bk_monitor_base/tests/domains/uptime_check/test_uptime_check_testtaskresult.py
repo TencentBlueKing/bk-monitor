@@ -3,11 +3,13 @@ testtaskresult 兼容性测试。
 
 本文件聚焦两类行为：
 1. 采集器测试脚本生成与日志分隔符裁剪语义；
-2. TaskManager.test 的错误码判定与异常语义，确保与 legacy 行为一致。
+2. TaskManager.test 的新旧错误码提示、ICMP 日志结构和节点失败隔离。
 """
 
 import base64
+import json
 from types import SimpleNamespace
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -309,23 +311,23 @@ class TestCollectorTopoConversion:
 
 
 class TestTaskManagerTesttaskresult:
-    """测试 TaskManager.test 的 legacy 兼容行为。"""
+    """测试 TaskManager.test 的错误提示与成功判定。"""
 
     @pytest.fixture
-    def task_with_node(self):
-        """创建默认任务与节点。"""
+    def task_with_node(self) -> tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]:
+        """创建合成任务与节点，由 pytest 数据库事务清理。"""
         task = UptimeCheckTaskModel.objects.create(
             bk_biz_id=2,
             name="testtaskresult-task",
             protocol=UptimeCheckTaskModel.Protocol.TCP,
-            config={"period": 60, "ip_list": ["127.0.0.1"], "port": 80},
+            config={"period": 60, "ip_list": ["192.0.2.1"], "port": 80},
         )
         node = UptimeCheckNodeModel.objects.create(
             bk_tenant_id="default",
             bk_biz_id=2,
             name="node-a",
-            ip="127.0.0.1",
-            bk_host_id=1001,
+            ip="192.0.2.1",
+            bk_host_id=1,
             plat_id=0,
             is_common=False,
         )
@@ -339,25 +341,18 @@ class TestTaskManagerTesttaskresult:
             "list": [
                 {
                     "plugin_status": [{"name": "bkmonitorbeat", "version": "3.5.0.1\n"}],
-                    "inner_ip": "127.0.0.1",
+                    "inner_ip": "192.0.2.1",
                     "inner_ipv6": "",
                     "bk_cloud_id": 0,
                 }
             ]
         }
 
-    def test_task_manager_test_success_returns_legacy_success_message(self, task_with_node):
-        """error_code=0 时应返回 legacy 成功文案。"""
-        task, node = task_with_node
+    def _run_task_test(self, task: UptimeCheckTaskModel, collector_result: dict[str, Any]) -> str:
+        """仅模拟下发与版本查询，执行实际的结果解析及节点查询。"""
         manager = TaskManager(task=task)
-
-        collector_result = {
-            "success": [{"bk_host_id": node.bk_host_id, "ip": node.ip, "log_content": '{"error_code":0}'}],
-            "failed": [],
-        }
-
         with (
-            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=node.bk_host_id),
+            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=None),
             patch(
                 "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
                 return_value=self._mock_plugin_search_result(),
@@ -367,25 +362,52 @@ class TestTaskManagerTesttaskresult:
                 return_value=collector_result,
             ),
         ):
-            assert manager.test() == RESULT_MSG["0"]
+            return manager.test()
+
+    @staticmethod
+    def _collector_result(node: UptimeCheckNodeModel, log_line: str) -> dict[str, Any]:
+        """将合成日志封装为单节点采集器返回结构。"""
+        return {
+            "success": [{"bk_host_id": node.bk_host_id, "ip": node.ip, "log_content": log_line}],
+            "failed": [],
+        }
+
+    @pytest.mark.parametrize(
+        ("protocol", "log_line"),
+        [
+            (UptimeCheckTaskModel.Protocol.HTTP, '{"error_code":0}'),
+            (UptimeCheckTaskModel.Protocol.TCP, '{"error_code":0}'),
+            (UptimeCheckTaskModel.Protocol.UDP, '{"error_code":0}'),
+            (UptimeCheckTaskModel.Protocol.ICMP, '{"dimensions":{"error_code":0}}'),
+            (UptimeCheckTaskModel.Protocol.ICMP, '{"dimensions":{"error_code":"0"}}'),
+        ],
+    )
+    def test_task_manager_test_success_returns_legacy_success_message(
+        self, protocol: str, log_line: str, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]
+    ) -> None:
+        """各协议 error_code=0 时应继续返回原成功文案。"""
+        task, node = task_with_node
+        task.protocol = protocol
+
+        assert self._run_task_test(task, self._collector_result(node, log_line)) == RESULT_MSG["0"]
 
     @pytest.mark.parametrize(
         ("protocol", "log_line", "expected_message"),
         [
             (
                 UptimeCheckTaskModel.Protocol.TCP,
-                '{"error_code":3002,"target_host":"127.0.0.1","message":"tcp failed"}',
-                RESULT_MSG["3002"],
+                '{"error_code":3002,"target_host":"synthetic-target","message":"tcp failed"}',
+                "请确认响应内容是否正确（3002）",
             ),
             (
                 UptimeCheckTaskModel.Protocol.UDP,
-                '{"error_code":3002,"target_host":"127.0.0.1","message":"udp failed"}',
-                UDP_RESULT_MSG["3002"],
+                '{"error_code":3002,"target_host":"synthetic-target","message":"udp failed"}',
+                "响应内容匹配失败，请确认响应内容是否正确（3002）",
             ),
             (
                 UptimeCheckTaskModel.Protocol.ICMP,
-                '{"error_code":3002,"dimensions":{"error_code":"3002"},"target_host":"127.0.0.1","message":"icmp failed"}',
-                RESULT_MSG["3002"],
+                '{"dimensions":{"error_code":"3002"},"target_host":"synthetic-target","message":"icmp failed"}',
+                "请确认响应内容是否正确（3002）",
             ),
         ],
     )
@@ -394,80 +416,156 @@ class TestTaskManagerTesttaskresult:
         protocol: str,
         log_line: str,
         expected_message: str,
-        task_with_node,
-    ):
-        """表驱动验证不同协议的错误码映射语义。"""
+        task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel],
+    ) -> None:
+        """保留旧错误码提示，ICMP 只在 dimensions 提供错误码。"""
         task, node = task_with_node
         task.protocol = protocol
-        task.save(update_fields=["protocol"])
-        manager = TaskManager(task=task)
+        with pytest.raises(UptimeCheckTestTaskError) as exc_info:
+            self._run_task_test(task, self._collector_result(node, log_line))
 
-        collector_result = {
-            "success": [{"bk_host_id": node.bk_host_id, "ip": node.ip, "log_content": log_line}],
-            "failed": [],
-        }
+        assert expected_message in str(exc_info.value)
+        assert log_line not in str(exc_info.value)
 
-        with (
-            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=node.bk_host_id),
-            patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
-                return_value=self._mock_plugin_search_result(),
-            ),
-            patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
-                return_value=collector_result,
-            ),
-        ):
-            with pytest.raises(UptimeCheckTestTaskError) as exc_info:
-                manager.test()
-
-        assert str(expected_message) in str(exc_info.value)
-
-    def test_task_manager_test_unknown_error_code_returns_raw_log(self, task_with_node):
-        """错误码映射缺失触发 KeyError 时，应返回原始 log_content。"""
+    @pytest.mark.parametrize("protocol", ["HTTP", "TCP", "UDP"])
+    @pytest.mark.parametrize(
+        ("error_code", "expected_message"),
+        [
+            (1100, "请求失败，请确认网络/目标服务是否可访问（1100）"),
+            (1101, "请求超时，请确认网络/目标服务是否可访问（1101）"),
+            (1103, "请求参数错误，请检查任务配置（1103）"),
+            (1200, "响应处理失败（1200）"),
+            (1202, "响应不符合预期，请检查状态码或响应内容（1202）"),
+            (1211, "未找到可用IP地址，请检查域名解析及IP类型配置（1211）"),
+            (1213, "URL格式非法，请检查任务配置（1213）"),
+            (1501, "临时文件写入失败，请检查节点文件权限或磁盘空间（1501）"),
+            (2102, "IP地址非法，请检查任务配置（2102）"),
+            (2501, "连接被拒绝，请确认目标端口及服务状态（2501）"),
+        ],
+    )
+    def test_task_manager_test_collector_error_codes(
+        self,
+        protocol: str,
+        error_code: int,
+        expected_message: str,
+        task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel],
+    ) -> None:
+        """HTTP、TCP 和 UDP 均能识别新采集器错误码，并保持测试失败。"""
         task, node = task_with_node
-        manager = TaskManager(task=task)
-        raw_log = '{"error_code":9999,"target_host":"127.0.0.1","message":"unknown"}'
+        task.protocol = protocol
+        log_line = json.dumps({"error_code": error_code, "target_host": "synthetic-target", "message": "failed"})
 
-        collector_result = {
-            "success": [{"bk_host_id": node.bk_host_id, "ip": node.ip, "log_content": raw_log}],
-            "failed": [],
+        with pytest.raises(UptimeCheckTestTaskError) as exc_info:
+            self._run_task_test(task, self._collector_result(node, log_line))
+
+        assert expected_message in str(exc_info.value)
+        assert log_line not in str(exc_info.value)
+
+    @pytest.mark.parametrize("message", ["status code does not match", "response content does not match"])
+    def test_task_manager_test_http_response_mismatch(
+        self, message: str, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]
+    ) -> None:
+        """HTTP 状态码或内容校验失败共用 1202，提示需覆盖两种原因。"""
+        task, node = task_with_node
+        task.protocol = UptimeCheckTaskModel.Protocol.HTTP
+        log_line = json.dumps({"error_code": 1202, "message": message})
+
+        with pytest.raises(UptimeCheckTestTaskError) as exc_info:
+            self._run_task_test(task, self._collector_result(node, log_line))
+
+        assert "响应不符合预期，请检查状态码或响应内容（1202）" in str(exc_info.value)
+        assert message in str(exc_info.value)
+
+    @pytest.mark.parametrize("error_code", ["1000", "2000", "2003", "3001", "3002", "3007", "1004"])
+    def test_task_manager_test_udp_mapping_priority(
+        self, error_code: str, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]
+    ) -> None:
+        """UDP 优先保留专用旧提示，未单独定义的 DNS 错误使用通用提示。"""
+        task, node = task_with_node
+        task.protocol = UptimeCheckTaskModel.Protocol.UDP
+        log_line = json.dumps({"error_code": int(error_code)})
+
+        with pytest.raises(UptimeCheckTestTaskError) as exc_info:
+            self._run_task_test(task, self._collector_result(node, log_line))
+
+        assert str(UDP_RESULT_MSG.get(error_code, RESULT_MSG[error_code])) in str(exc_info.value)
+
+    @pytest.mark.parametrize("protocol", ["HTTP", "TCP", "UDP", "ICMP"])
+    def test_task_manager_test_unknown_error_code_returns_concise_message(
+        self, protocol: str, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]
+    ) -> None:
+        """未知错误码继续判失败，提示包含码值且不附加原始 JSON。"""
+        task, node = task_with_node
+        task.protocol = protocol
+        log_content: dict[str, Any] = {
+            "target_host": "synthetic-target",
+            "message": "unknown",
+            "diagnostics": "synthetic-detail",
         }
+        if protocol == UptimeCheckTaskModel.Protocol.ICMP:
+            log_content["dimensions"] = {"error_code": "9999"}
+        else:
+            log_content["error_code"] = 9999
+        raw_log = json.dumps(log_content)
 
-        with (
-            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=node.bk_host_id),
-            patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
-                return_value=self._mock_plugin_search_result(),
-            ),
-            patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
-                return_value=collector_result,
-            ),
-        ):
-            with pytest.raises(UptimeCheckTestTaskError) as exc_info:
-                manager.test()
+        with pytest.raises(UptimeCheckTestTaskError) as exc_info:
+            self._run_task_test(task, self._collector_result(node, raw_log))
 
-        assert raw_log in str(exc_info.value)
+        assert "采集器返回未知错误码（9999）" in str(exc_info.value)
+        assert raw_log not in str(exc_info.value)
+        assert "synthetic-detail" not in str(exc_info.value)
 
-    def test_task_manager_test_empty_collector_result_returns_no_response_error(self, task_with_node):
+    def test_task_manager_test_icmp_uses_nested_error_code(
+        self, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]
+    ) -> None:
+        """ICMP 顶层码与维度码冲突时，筛选和格式化都使用维度码。"""
+        task, node = task_with_node
+        task.protocol = UptimeCheckTaskModel.Protocol.ICMP
+        log_line = '{"error_code":0,"dimensions":{"error_code":"1101"}}'
+
+        with pytest.raises(UptimeCheckTestTaskError) as exc_info:
+            self._run_task_test(task, self._collector_result(node, log_line))
+
+        assert "请求超时，请确认网络/目标服务是否可访问（1101）" in str(exc_info.value)
+        assert str(RESULT_MSG["0"]) not in str(exc_info.value)
+
+    def test_task_manager_test_reports_all_failed_nodes(
+        self, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]
+    ) -> None:
+        """一个未知码节点不阻断其余节点解析，健康节点不混入失败提示。"""
+        task, healthy_node = task_with_node
+        known_error_node = UptimeCheckNodeModel.objects.create(
+            bk_tenant_id="default", bk_biz_id=2, name="node-b", ip="192.0.2.2", bk_host_id=2, plat_id=0
+        )
+        unknown_error_node = UptimeCheckNodeModel.objects.create(
+            bk_tenant_id="default", bk_biz_id=2, name="node-c", ip="192.0.2.3", bk_host_id=3, plat_id=0
+        )
+        task.nodes.add(known_error_node, unknown_error_node)  # pyright: ignore[reportAttributeAccessIssue]
+        collector_result: dict[str, Any] = {"success": [], "failed": []}
+        for node, error_code in [(unknown_error_node, 9999), (healthy_node, 0), (known_error_node, 1202)]:
+            collector_result["success"].extend(
+                self._collector_result(node, json.dumps({"error_code": error_code}))["success"]
+            )
+
+        with pytest.raises(UptimeCheckTestTaskError) as exc_info:
+            self._run_task_test(task, collector_result)
+
+        error_message = str(exc_info.value)
+        assert "node:node-b" in error_message
+        assert "node:node-c" in error_message
+        assert "node:node-a" not in error_message
+        assert "响应不符合预期，请检查状态码或响应内容（1202）" in error_message
+        assert "采集器返回未知错误码（9999）" in error_message
+        assert '{"error_code"' not in error_message
+
+    def test_task_manager_test_empty_collector_result_returns_no_response_error(
+        self, task_with_node: tuple[UptimeCheckTaskModel, UptimeCheckNodeModel]
+    ) -> None:
         """采集器返回空结果时，应该返回明确错误而非数组越界。"""
-        task, node = task_with_node
-        manager = TaskManager(task=task)
-        collector_result = {"success": [], "pending": [], "failed": []}
+        task, _ = task_with_node
+        collector_result: dict[str, Any] = {"success": [], "pending": [], "failed": []}
 
-        with (
-            patch.object(UptimeCheckNodeModel, "set_host_id", return_value=node.bk_host_id),
-            patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.plugin_search",
-                return_value=self._mock_plugin_search_result(),
-            ),
-            patch(
-                "bk_monitor_base.domains.uptime_check.services.task_manager.UptimeCheckCollector.test",
-                return_value=collector_result,
-            ),
-        ):
-            with pytest.raises(UptimeCheckTestTaskError) as exc_info:
-                manager.test()
+        with pytest.raises(UptimeCheckTestTaskError) as exc_info:
+            self._run_task_test(task, collector_result)
 
         assert "采集器无返回" in str(exc_info.value)

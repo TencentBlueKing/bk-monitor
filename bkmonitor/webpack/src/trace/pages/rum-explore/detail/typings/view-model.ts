@@ -65,6 +65,8 @@ export interface IRumCardResolveCtx {
   copyText: (value: string) => void;
   /** 按字段元信息格式化值（单位换算 + 枚举别名） */
   formatField: (fieldName: string, value: unknown) => string;
+  /** 按字段元信息格式化值并拆出单位（value 为值文本，unit 为单位后缀），用于数值与单位需分别排版的场景 */
+  formatFieldParts: (fieldName: string, value: unknown) => { unit: string; value: string };
   /** 按字段名取字段元信息（别名、单位、枚举） */
   getField: (fieldName: string) => IRumField | undefined;
   /** 按字段名取展示别名，无别名时回退字段名 */
@@ -98,8 +100,6 @@ export interface IRumDetailSectionVM {
   spanType?: string;
   /** 区块标题右侧的补充说明（如「总耗时：122.2ms」） */
   subTitle?: string;
-  /** 区块顶部的提示条 */
-  tip?: string;
   /** 区块标题，为空时不渲染标题行 */
   title: string;
   type: RumSectionType;
@@ -206,10 +206,13 @@ export interface IRumSummaryCardVM {
   tag?: { bgColor: string; color: string; text: string };
   /** 主值语义配色 */
   tone?: RumCardToneType;
+  type?: 'link' | 'text';
   /** 主值右侧的次要文本（单位） */
   unit?: { text: string; tone?: RumCardToneType };
   /** 主值 */
   value: string;
+  /** link 类型卡片的点击回调 */
+  click?: () => void;
 }
 
 /** 瀑布图的 TTFB 分解说明 */
@@ -248,7 +251,6 @@ export interface IRumWaterfallVM {
   behavior?: 'complex' | 'simplicity';
   /** 总耗时 */
   durationTotal: number;
-  durationTotalText: string;
   /** 时间点标记 */
   markers?: Array<IRumWaterfallMarkerVM>;
   /** 被合并掉的阶段名（如 DNS、TCP、TLS），由瀑布图组件拼装成说明文案 */

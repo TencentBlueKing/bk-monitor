@@ -32,13 +32,13 @@ import {
   BADGE_COLOR,
   DURATION_BADGE_FIELDS,
   OUTCOME_BADGE_COLOR,
-  OVERVIEW_ITEM_LABEL_MAP,
   OVERVIEW_LINK_FIELDS,
   RATING_FALLBACK_META,
   RATING_META,
   TYPE_BADGE_FIELDS,
 } from '../constants';
 
+import type { IRumField } from '../../typings';
 import type { IRumBadgeVM, IRumDetailHeaderVM, IRumDetailItem, IRumRecordDetail } from '../typings';
 
 /** HTTP 状态码徽标按百位分组着色，与表格状态码列语义一致 */
@@ -57,11 +57,13 @@ const HTTP_STATUS_BADGE_COLOR: Record<number, string> = {
  * @param detail 接口返回的详情
  * @param spanType 当前 span 类型，决定左侧 LOGO 图标
  * @param formatField 字段格式化函数，来自 useDetailFormatter
+ * @param getField 获取字段对应的别名，来自 useDetailFormatter
  */
 export function useDetailOverview(
   detail: MaybeRef<IRumRecordDetail | null>,
   spanType: MaybeRef<string>,
-  formatField: (fieldName: string, value: unknown) => string
+  formatField: (fieldName: string, value: unknown) => string,
+  getField: (fieldName: string) => IRumField
 ) {
   /** 单个 badge 的配色与文案推导 */
   function resolveBadge(badge: IRumDetailItem): IRumBadgeVM {
@@ -98,12 +100,14 @@ export function useDetailOverview(
     const data = unref(detail);
     if (!data) return null;
     const { overview } = data;
-    const items = (overview?.items || []).map(item => ({
-      key: item.field_name,
-      label: item.field_alias || OVERVIEW_ITEM_LABEL_MAP[item.field_name] || item.field_name,
-      value: item.alias ?? formatField(item.field_name, item.value),
-      isLink: OVERVIEW_LINK_FIELDS.has(item.field_name),
-    }));
+    const items = (overview?.items || []).map(item => {
+      return {
+        key: item.field_name,
+        label: item.field_alias || getField(item.field_name)?.alias || item.field_name,
+        value: item.alias ?? formatField(item.field_name, item.value),
+        isLink: OVERVIEW_LINK_FIELDS.has(item.field_name),
+      };
+    });
     return {
       title: overview?.title || '',
       logo: SPAN_TYPE_META_ICON[unref(spanType)]?.icon || '',

@@ -37,7 +37,7 @@ interface IUseSpanDetailOptions {
   /** 详情上下文，为 null 表示抽屉未打开 */
   context: Ref<IRumDetailContext | null>;
   mode: Ref<RumModeType>;
-  /** 页面所选时间范围，Error 影响面统计沿用该范围 */
+  /** 页面所选时间范围，透传给各 span 类型的 loadRelated */
   timeRange: Ref<IRumTimeRange>;
 }
 
@@ -89,7 +89,12 @@ export function useSpanDetail({ context, mode, timeRange }: IUseSpanDetailOption
       traceInfo.value = null;
     } else {
       const { links, bk_biz_id } = detail.origin_data;
-      const url = `${location.origin}${window.site_url}rest/v2/overview/search/?query=${encodeURIComponent(links?.[0]?.trace_id)}&bk_biz_id=${encodeURIComponent(String(bk_biz_id))}`;
+      const traceId = links?.[0]?.trace_id;
+      if (!traceId) {
+        traceInfo.value = null;
+        return;
+      }
+      const url = `${location.origin}${window.site_url}rest/v2/overview/search/?query=${encodeURIComponent(traceId)}&bk_biz_id=${encodeURIComponent(String(bk_biz_id))}`;
       fetchEventStream(url).then(res => {
         traceInfo.value = res[0]?.items?.[0];
       });

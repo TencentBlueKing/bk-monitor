@@ -539,8 +539,6 @@ export default {
   非阻塞: 'Non-blocking',
   '未关联 Action': 'No Associated Action',
   阻塞贡献: 'Blocking Contribution',
-  '超出 50ms 阈值': 'Exceeds 50ms Threshold',
-  低可信度: 'Low Confidence',
   行: 'Line',
   列: 'Column',
   当前查询范围: 'Current Query Range',

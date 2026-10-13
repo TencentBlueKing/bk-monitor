@@ -190,16 +190,40 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
         },
       },
     ],
-    loadRelated: (context, mode, detail, timeRange) =>
-      getErrorRelated(context, mode, buildErrorFilters(detail), timeRange),
+    /** 影响面统计以 detail.origin_data 内的 Span end_time 为时间基准，详见 getErrorRelated */
+    loadRelated: (context, mode, detail) => getErrorRelated(context, mode, buildErrorFilters(detail), detail),
   },
 
   view: {
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
-        countCard({ label: t('请求'), tone: RumCardToneEnum.LINK, cardCls: 'view-extra-card' }, 'resourceCount'),
-        countCard({ label: t('错误'), tone: RumCardToneEnum.DANGER, cardCls: 'view-extra-card' }, 'errorCount'),
-        countCard({ label: 'Span', tone: RumCardToneEnum.LINK, cardCls: 'view-extra-card' }, 'spanCount'),
+        countCard(
+          {
+            label: t('请求'),
+            tone: RumCardToneEnum.LINK,
+            type: 'link',
+            cardCls: 'view-card',
+          },
+          'resourceCount'
+        ),
+        countCard(
+          {
+            label: t('错误'),
+            tone: RumCardToneEnum.DANGER,
+            type: 'link',
+            cardCls: 'view-card',
+          },
+          'errorCount'
+        ),
+        countCard(
+          {
+            label: 'Span',
+            tone: RumCardToneEnum.LINK,
+            type: 'link',
+            cardCls: 'view-card',
+          },
+          'spanCount'
+        ),
       ],
     },
     loadRelated: (context, mode, detail) => {

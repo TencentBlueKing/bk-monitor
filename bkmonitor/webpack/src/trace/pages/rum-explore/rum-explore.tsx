@@ -35,7 +35,6 @@ import {
   traceWhereChangeFormatter,
   traceWhereFormatter,
 } from '../../components/retrieval-filter/utils';
-import { handleTransformToTimestamp } from '../../components/time-range/utils';
 import useUserConfig from '../../hooks/useUserConfig';
 import { updateTimezone } from '../../i18n/dayjs';
 import { useRumExploreStore } from '../../store/modules/rum-explore';
@@ -77,7 +76,7 @@ import EmptyStatus from '@/components/empty-status/empty-status';
 import type { ConditionChangeEvent } from '../trace-explore/typing';
 import type { IRumEventsTarget } from './composables/use-rum-events-drawer';
 import type { IRumDetailContext } from './detail';
-import type { IRumApplication, IRumColumnLayoutPreset } from './typings';
+import type { IRumApplication, IRumColumnLayoutPreset, IRumSpanRecord } from './typings';
 
 import './rum-explore.scss';
 
@@ -387,14 +386,14 @@ export default defineComponent({
      * 打开 Span 详情：详情所需的应用、记录 ID、类型与时间都能从列表行与当前查询条件里取到，
      * 不额外请求列表接口。
      */
-    function handleOpenDetail(row: Record<string, unknown>) {
-      const [startTime, endTime] = handleTransformToTimestamp(store.timeRange);
+    function handleOpenDetail(row: IRumSpanRecord) {
       detailContext.value = {
         app_name: store.appName,
         record_id: String(row?.span_id ?? ''),
         span_type: String(row?.[SPAN_TYPE_FIELD] ?? ''),
-        start_time: startTime,
-        end_time: endTime,
+        /** 微秒转化为秒 */
+        start_time: Math.floor(row.start_time / 1000000),
+        end_time: Math.floor(row.end_time / 1000000),
       };
       detailShow.value = true;
       /** 打开详情时收起 events 抽屉：两者都是行数据下钻视图，避免底部抽屉与详情侧弹叠放（上/下一条切换同样走这里，随切换收起） */
