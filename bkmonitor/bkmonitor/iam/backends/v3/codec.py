@@ -33,20 +33,16 @@ from iam_engine.provider.codec import IdentityCodec
 def _build_v3_mappings():
     """从 Actions 定义类直接提取 v3 action_id 映射表（模块加载时执行一次）。
 
-    使用与 schema.loaders.load_from_class 相同的 vars() 遍历模式，
+    直接读取产品 Action 定义，
     保证与 schema 注册的 action 集合完全一致。
     """
-    from bkmonitor.iam.definitions.actions import Actions
+    from bkmonitor.iam.definitions import actions
 
     fwd: dict[str, str] = {}
     rev: dict[str, str] = {}
     action_types: dict[str, str] = {}
 
-    for name, action in vars(Actions).items():
-        if name.startswith("_"):
-            continue
-        if not hasattr(action, "id"):
-            continue
+    for action in actions.values():
         v3_ext = action.extensions.get("v3", {})
         v3_action_id = v3_ext.get("action_id", "")
         action_type = v3_ext.get("type", "")
@@ -105,6 +101,9 @@ class MonitorV3Codec(IdentityCodec):
         """引擎资源直接转换成 SDK 资源；不再经过公共 Dialect DTO 模板层。"""
         from types import SimpleNamespace
         from iam_engine.core.requests import to_definition_id
+        from bkmonitor.iam.resource import to_resource_instance
+
+        resource = to_resource_instance(resource)
 
         rt = to_definition_id(resource.type)
         ancestors = tuple(
@@ -138,4 +137,4 @@ class MonitorV3Codec(IdentityCodec):
 
     def is_read_action(self, business_action_id: str) -> bool:
         """判断是否为读操作（用于 is_allowed_with_cache 策略）。"""
-        return self._action_types.get(business_action_id) == "view"
+        return self._action_types.get(self.decode_action(business_action_id)) == "view"

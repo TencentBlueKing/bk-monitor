@@ -14,18 +14,34 @@ specific language governing permissions and limitations under the License.
 # Action / ResourceType / Role 的定义不绑定任何 IAM 版本（v3/v4），
 # 各版本 Provider 共用同一套 schema。
 #
-# 同时包含：
-#   - codec_v4.py     — v4 命名编解码器（业务 ↔ 平台方言）
-#   - callbacks.py — v4 资源回调 handler 实现
-#
-# 使用方式（在 产品 backend 配置 配置中）：
-#   "ACTIONS": "bkmonitor.iam.definitions.actions.Actions",
-#   "RESOURCE_TYPES": "bkmonitor.iam.definitions.resource_types.ResourceTypes",
-#   "ROLES": "bkmonitor.iam.definitions.roles.Roles",
-# ---------------------------------------------------------------------------
-
-from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.action import ActionEnum as Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.iam.definitions.roles import Roles
 
-__all__ = ["Actions", "ResourceTypes", "Roles"]
+from types import MappingProxyType
+from iam_engine.schema.definitions import ActionDef, ResourceTypeDef, RoleDef
+
+# Static indexes of the authoritative product definitions. No registration,
+# freezing lifecycle, loaders or independent synchronization snapshots.
+from bkmonitor.iam.action import ActionMeta, canonicalize_action_id
+
+# Derive protocol-neutral metadata from the untouched public V3 definitions.
+# Only the explicit ID mapping is additional; no independently editable Action model.
+actions = MappingProxyType({
+    canonicalize_action_id(a.id): ActionDef(
+        id=canonicalize_action_id(a.id), name=a.name, description=a.description,
+        resource_type=a.related_resource_types[0]["id"] if a.related_resource_types else "",
+        extensions={"v3": {
+            "action_id": a.id, "type": a.type, "version": a.version,
+            "name_en": a.name_en, "description_en": a.description_en, "related_actions": a.related_actions,
+        }},
+    )
+    for a in vars(Actions).values() if isinstance(a, ActionMeta)
+})
+resource_types = MappingProxyType({r.id: r for r in vars(ResourceTypes).values() if isinstance(r, ResourceTypeDef)})
+roles = MappingProxyType({r.id: r for r in vars(Roles).values() if isinstance(r, RoleDef)})
+# These historical V3 space actions were replaced by instance Dashboard actions
+# in the confirmed V4 model. Retain them only for the original V3 contract.
+v4_actions = MappingProxyType({k: v for k, v in actions.items() if k not in {"view_dashboard", "manage_dashboard"}})
+
+__all__ = ["Actions", "ResourceTypes", "Roles", "actions", "resource_types", "roles", "v4_actions"]

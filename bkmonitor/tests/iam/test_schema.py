@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.iam.permission import Permission
-from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.action import ActionEnum as Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.iam.definitions.roles import Roles
 
@@ -53,84 +53,23 @@ class TestSchemaDefinitions:
         assert len(Roles.SPACE_OPERATOR.actions) > len(Roles.SPACE_VIEWER.actions)
 
 
-class TestSchemaRegistry:
-    """验证 SchemaRegistry 正确加载并 freeze。"""
+class TestStaticDefinitions:
+    def test_product_uses_authoritative_static_definitions(self):
+        from bkmonitor.iam import definitions
+        schema = Permission(username="offline", bk_tenant_id="system").schema
+        assert schema is definitions
+        assert (len(schema.actions), len(schema.resource_types), len(schema.roles)) == (55, 4, 3)
+        assert schema.actions["view_business"].name == "业务访问"
+        assert schema.roles["space_viewer"].name == "业务查看"
+        assert schema.resource_types["apm_application"].ancestor == "space"
+        import pytest
+        with pytest.raises(TypeError):
+            schema.actions["extra"] = schema.actions["view_business"]
 
-    def test_registry_loaded(self):
-        fw = Permission(username="offline", bk_tenant_id="system")
-        schema = fw.schema
-        assert len(list(schema.all_actions())) == 55
-        assert len(list(schema.all_resource_types())) == 4
-        assert len(list(schema.all_roles())) == 3
-
-    def test_action_lookup(self):
-        fw = Permission(username="offline", bk_tenant_id="system")
-        action = fw.schema.get_action("view_business")
-        assert action.name == "业务访问"
-        assert action.resource_type == "space"
-
-    def test_role_lookup(self):
-        fw = Permission(username="offline", bk_tenant_id="system")
-        role = fw.schema.get_role("space_viewer")
-        assert role.name == "业务查看"
-
-    def test_resolve_ancestor_types(self):
-        fw = Permission(username="offline", bk_tenant_id="system")
-        chain = fw.schema.resolve_ancestor_types("apm_application")
-        assert chain == ["space"]
-
-
-class TestProviderVisibility:
-    """验证 schema.visibility.is_visible_to 的 4 种分支。"""
-
-    @staticmethod
-    def _entity(extensions=None):
-        """构造一个最小的持有 extensions 的 schema 实体（用 ActionDef 代表即可）。"""
-        from iam_engine.schema.definitions import ActionDef
-
-        return ActionDef(id="a", name="A", extensions=extensions or {})
-
-    def test_no_extensions_visible_to_all(self):
-        """默认（不设置任何 extensions）→ 对所有 provider 可见（向后兼容）。"""
-        from iam_engine.schema.visibility import is_visible_to
-
-        entity = self._entity()
-        assert is_visible_to(entity, "v4") is True
-        assert is_visible_to(entity, "v3") is True
-        assert is_visible_to(entity, "anything") is True
-
-    def test_only_providers_whitelist(self):
-        """only_providers 白名单：不在名单里的 provider 不可见。"""
-        from iam_engine.schema.visibility import is_visible_to
-
-        entity = self._entity({"only_providers": ("v4",)})
-        assert is_visible_to(entity, "v4") is True
-        assert is_visible_to(entity, "v3") is False
-
-    def test_exclude_providers_blacklist(self):
-        """exclude_providers 黑名单：在名单里的 provider 不可见。"""
-        from iam_engine.schema.visibility import is_visible_to
-
-        entity = self._entity({"exclude_providers": ("v3",)})
-        assert is_visible_to(entity, "v4") is True
-        assert is_visible_to(entity, "v3") is False
-
-    def test_both_are_independent(self):
-        """同时设置 only + exclude：两者独立判断，任一命中即拒绝。"""
-        from iam_engine.schema.visibility import is_visible_to
-
-        entity = self._entity({"only_providers": ("v4", "v3"), "exclude_providers": ("v3",)})
-        # v4：在 only 里 + 不在 exclude 里 → 可见
-        assert is_visible_to(entity, "v4") is True
-        # v3：在 only 里但也在 exclude 里 → 不可见（exclude 命中）
-        assert is_visible_to(entity, "v3") is False
-        # x：不在 only 里 → 不可见（only 命中）
-        assert is_visible_to(entity, "x") is False
-
-    def test_empty_tuples_treated_as_unset(self):
-        """空 tuple 视为未设置：不参与过滤。"""
-        from iam_engine.schema.visibility import is_visible_to
-
-        entity = self._entity({"only_providers": (), "exclude_providers": ()})
-        assert is_visible_to(entity, "v4") is True
-        assert is_visible_to(entity, "v3") is True
+    def test_v4_model_uses_the_same_definitions_and_validates_bindings(self):
+        from bkmonitor.iam.model_sync import expected_v4_model
+        from bkmonitor.iam import definitions
+        model = expected_v4_model()
+        assert {a.id for a in model.actions} == set(definitions.v4_actions)
+        assert {r.id for r in model.roles} == set(definitions.roles)
+        assert {r.id for r in model.resource_types} == set(definitions.resource_types)

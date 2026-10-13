@@ -72,6 +72,8 @@ class MonitorResourceResolver(ResourceResolver):
     """
 
     def resolve(self, resource: ResourceInstance, *, tenant_id: str) -> ResourceInstance:
+        from bkmonitor.iam.resource import to_resource_instance
+        resource = to_resource_instance(resource)
         rt_id = to_resource_type_id(resource.type)
         if rt_id in {ResourceTypes.APM_APPLICATION.id, ResourceTypes.RUM_APPLICATION.id} and resource.ancestor_chain:
             # Product list serializers already supply the same local metadata.

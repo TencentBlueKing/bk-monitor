@@ -31,7 +31,6 @@ from kernel_api.rpc.functions.admin.permission import (
 # ============================================================================
 
 from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
-from iam_engine.policy.expression import Op, PolicyExpression
 
 
 def _make_action_def(
@@ -54,24 +53,36 @@ def _make_global_action_def(id: str, v3_type: str = "view") -> ActionDef:
     return _make_action_def(id=id, resource_type="", v3_type=v3_type)
 
 
-def _expr_any() -> PolicyExpression:
-    return PolicyExpression.any()
+def _expr_any() -> dict:
+    return {"op": "any", "field": "", "value": []}
 
 
-def _expr_none() -> PolicyExpression:
-    return PolicyExpression.none()
+def _expr_none() -> dict:
+    return {}
 
 
-def _expr_in(field: str, values: list[str]) -> PolicyExpression:
-    return PolicyExpression.leaf(Op.IN, field, tuple(values))
+def _expr_leaf(op, field, value):
+    return {"op": op, "field": field, "value": value}
 
 
-def _expr_eq(field: str, value: str) -> PolicyExpression:
-    return PolicyExpression.leaf(Op.EQ, field, value)
+def _expr_or(*children):
+    return {"op": "OR", "content": list(children)}
 
 
-def _expr_starts_with(field: str, value: str) -> PolicyExpression:
-    return PolicyExpression.leaf(Op.STARTS_WITH, field, value)
+def _expr_and(*children):
+    return {"op": "AND", "content": list(children)}
+
+
+def _expr_in(field: str, values: list[str]) -> dict:
+    return _expr_leaf("in", field, tuple(values))
+
+
+def _expr_eq(field: str, value: str) -> dict:
+    return _expr_leaf("eq", field, value)
+
+
+def _expr_starts_with(field: str, value: str) -> dict:
+    return _expr_leaf("starts_with", field, value)
 
 
 # ============================================================================
@@ -122,7 +133,7 @@ class TestFieldToResourceType:
 
 
 # ============================================================================
-# _parse_expression_entries (was _parse_permission_entries — now PolicyExpression-based)
+# _parse_expression_entries (was _parse_permission_entries — now SDK 原始策略-based)
 # ============================================================================
 
 
@@ -158,7 +169,7 @@ class TestParseExpressionEntries:
         assert entries[0]["path"][0] == {"type": "apm_application", "id": "390"}
 
     def test_in_empty_values(self):
-        expr = PolicyExpression.leaf(Op.IN, "space.id", ())
+        expr = _expr_leaf("in", "space.id", ())
         is_all, entries = _parse_expression_entries(expr)
         assert is_all is False
         assert entries == []
@@ -170,7 +181,7 @@ class TestParseExpressionEntries:
         assert entries == [{"path": [{"type": "space", "id": "2"}]}]
 
     def test_eq_empty_value(self):
-        expr = PolicyExpression.leaf(Op.EQ, "space.id", "")
+        expr = _expr_leaf("eq", "space.id", "")
         is_all, entries = _parse_expression_entries(expr)
         assert is_all is False
         assert entries == []
@@ -188,7 +199,7 @@ class TestParseExpressionEntries:
         assert entries == []
 
     def test_or_combines(self):
-        expr = PolicyExpression.or_(
+        expr = _expr_or(
             _expr_in("space.id", ["2", "5"]),
             _expr_eq("space.id", "10"),
         )
@@ -199,7 +210,7 @@ class TestParseExpressionEntries:
         assert ids == {"2", "5", "10"}
 
     def test_or_with_any_sub(self):
-        expr = PolicyExpression.or_(
+        expr = _expr_or(
             _expr_in("space.id", ["2"]),
             _expr_any(),
         )
@@ -209,9 +220,9 @@ class TestParseExpressionEntries:
 
     def test_or_nested_with_starts_with(self):
         """Real pattern: OR(in(id), OR(starts_with, ...))."""
-        expr = PolicyExpression.or_(
+        expr = _expr_or(
             _expr_in("apm_application.id", ["390", "405"]),
-            PolicyExpression.or_(
+            _expr_or(
                 _expr_starts_with("apm_application._bk_iam_path_", "/space,61/"),
                 _expr_starts_with("apm_application._bk_iam_path_", "/space,60/"),
             ),
@@ -227,7 +238,7 @@ class TestParseExpressionEntries:
 
     def test_and_cartesian(self):
         """AND with prefix (starts_with) and leaf (in)."""
-        expr = PolicyExpression.and_(
+        expr = _expr_and(
             _expr_starts_with("module._bk_iam_path_", "/space,2/"),
             _expr_in("module.id", ["10", "20"]),
         )
@@ -239,7 +250,7 @@ class TestParseExpressionEntries:
 
     def test_and_any_noop(self):
         """AND with any sub → any is no-op and gets skipped."""
-        expr = PolicyExpression.and_(
+        expr = _expr_and(
             _expr_any(),
             _expr_in("space.id", ["2"]),
         )
@@ -249,7 +260,7 @@ class TestParseExpressionEntries:
 
     def test_and_only_any(self):
         """AND with only any children → all skipped, result empty."""
-        expr = PolicyExpression.and_(_expr_any(), _expr_any())
+        expr = _expr_and(_expr_any(), _expr_any())
         is_all, entries = _parse_expression_entries(expr)
         assert is_all is False
         assert entries == []
@@ -302,10 +313,9 @@ class TestParseActionPermissions:
 
 class TestEnrichPermissions:
     def _make_schema_mock(self, rt_map: dict[str, ResourceTypeDef]) -> MagicMock:
-        """Build a SchemaRegistry mock with given resource types."""
+        """Build a 产品静态定义 mock with given resource types."""
         schema = MagicMock()
-        schema.get_resource_type.side_effect = lambda rt: rt_map[rt]
-        schema.has_resource_type.side_effect = lambda rt: rt in rt_map
+        schema.resource_types = rt_map
         return schema
 
     @staticmethod
@@ -502,7 +512,7 @@ class TestBuildActionResultItem:
 
 class TestActionCategories:
     def test_returns_groups_and_index(self):
-        """action_categories 直接走真实 SchemaRegistry，验证结构和 Business ID。"""
+        """action_categories 直接走真实 产品静态定义，验证结构和 Business ID。"""
         result = action_categories({"bk_tenant_id": "system"})
         data = result["data"]
         assert "groups" in data
@@ -552,11 +562,11 @@ class TestActionCategories:
             assert apm_rt["parent_resource_type"] == "space"
 
     def test_business_groups_structure(self):
-        """验证 business_groups 覆盖所有 schema.all_actions()。"""
+        """验证 business_groups 覆盖所有 schema.actions.values()。"""
         from bkmonitor.iam.permission import Permission
 
         fw = Permission(username="offline", bk_tenant_id="system")
-        all_ids = {a.id for a in fw.schema.all_actions()}
+        all_ids = {a.id for a in fw.schema.actions.values()}
 
         result = action_categories({"bk_tenant_id": "system"})
         data = result["data"]
@@ -616,6 +626,7 @@ class TestActionCategories:
         provider.name = provider_name
         provider.codec = codec
         mock_fw = MagicMock()
+        mock_fw.mode_provider.get_mode.return_value = "v3"
         mock_fw.schema = RealPermission(username="offline", bk_tenant_id="system").schema
         mock_fw.get_provider.return_value = provider
         return mock_fw
@@ -655,6 +666,7 @@ class TestActionCategories:
         from iam_engine.exceptions import ProviderNotFound
 
         mock_fw = MagicMock()
+        mock_fw.mode_provider.get_mode.return_value = "v3"
         mock_fw.get_provider.side_effect = ProviderNotFound("provider 'v5' not found")
         mock_get_fw.return_value = mock_fw
 
@@ -666,7 +678,7 @@ class TestActionCategories:
         from bkmonitor.iam.permission import Permission
 
         fw = Permission(username="offline", bk_tenant_id="system")
-        all_ids = {a.id for a in fw.schema.all_actions()}
+        all_ids = {a.id for a in fw.schema.actions.values()}
 
         result = action_categories({"bk_tenant_id": "system"})
         business_groups = result["data"]["business_groups"]
@@ -695,7 +707,7 @@ class TestQueryUserPermissions:
 
         real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
 
-        # 构造 PolicyExpression → action_id 映射（Business ID，单 provider 单表达式）
+        # 构造 SDK 原始策略 → action_id 映射（Business ID，单 provider 单表达式）
         policies = {
             # all space
             "view_business": _expr_any(),
@@ -706,9 +718,9 @@ class TestQueryUserPermissions:
             # none instance
             "view_apm_application": _expr_none(),
             # partial instance with nested OR
-            "manage_apm_application": PolicyExpression.or_(
+            "manage_apm_application": _expr_or(
                 _expr_in("apm_application.id", ["390", "405"]),
-                PolicyExpression.or_(
+                _expr_or(
                     _expr_starts_with("apm_application._bk_iam_path_", "/space,61/"),
                     _expr_starts_with("apm_application._bk_iam_path_", "/space,60/"),
                 ),
@@ -718,18 +730,18 @@ class TestQueryUserPermissions:
             # none global（None → 无权限，非查询失败）
             "view_self_state": None,
             # V1+V2 merge — both any
-            "manage_public_plugin": PolicyExpression.or_(_expr_any(), _expr_any()),
+            "manage_public_plugin": _expr_or(_expr_any(), _expr_any()),
             # partial grafana
-            "view_single_dashboard": PolicyExpression.or_(
+            "view_single_dashboard": _expr_or(
                 _expr_in("grafana_dashboard.id", ["14|f0ImroNIz", "14|nKviroNIz"]),
-                PolicyExpression.or_(
+                _expr_or(
                     _expr_starts_with("grafana_dashboard._bk_iam_path_", "/space,2/"),
                     _expr_starts_with("grafana_dashboard._bk_iam_path_", "/space,-6/"),
                 ),
             ),
         }
         # 补齐所有 action（不在 policies 中的 action 返回 None）
-        all_ids = {a.id for a in real_schema.all_actions()}
+        all_ids = {a.id for a in real_schema.actions.values()}
         for aid in all_ids:
             policies.setdefault(aid, None)
 
@@ -742,6 +754,7 @@ class TestQueryUserPermissions:
         mock_v3.query_policy_by_actions.return_value = policies
 
         mock_fw = MagicMock()
+        mock_fw.mode_provider.get_mode.return_value = "v3"
         mock_fw.schema = real_schema
         mock_fw.get_provider.return_value = mock_v3
         mock_get_fw.return_value = mock_fw
@@ -795,13 +808,14 @@ class TestQueryUserPermissions:
         from bkmonitor.iam.permission import Permission as RealPermission
 
         real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
-        all_ids = {a.id for a in real_schema.all_actions()}
+        all_ids = {a.id for a in real_schema.actions.values()}
 
         mock_v3 = MagicMock()
         mock_v3.query_policy_by_actions.side_effect = RuntimeError("connection failed")
         mock_v3.query_policy.side_effect = RuntimeError("per-action connection failed")
 
         mock_fw = MagicMock()
+        mock_fw.mode_provider.get_mode.return_value = "v3"
         mock_fw.schema = real_schema
         mock_fw.get_provider.return_value = mock_v3
         mock_get_fw.return_value = mock_fw
@@ -830,7 +844,7 @@ class TestQueryUserPermissions:
 
         def fake_query_policies(subject, aid):
             if aid == "view_business":
-                return PolicyExpression.any()
+                return _expr_any()
             raise RuntimeError(f"query failed for {aid}")
 
         # 直接构造真实 v3 codec（与框架装配状态无关），
@@ -843,6 +857,7 @@ class TestQueryUserPermissions:
         mock_v3.query_policy.side_effect = fake_query_policies
 
         mock_fw = MagicMock()
+        mock_fw.mode_provider.get_mode.return_value = "v3"
         mock_fw.schema = real_schema
         mock_fw.get_provider.return_value = mock_v3
         mock_get_fw.return_value = mock_fw
@@ -874,6 +889,7 @@ class TestQueryUserPermissions:
         from iam_engine.exceptions import ProviderNotFound
 
         mock_fw = MagicMock()
+        mock_fw.mode_provider.get_mode.return_value = "v3"
         mock_fw.get_provider.side_effect = ProviderNotFound("provider 'v3' not found")
         mock_get_fw.return_value = mock_fw
 

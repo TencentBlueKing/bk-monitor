@@ -15,6 +15,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from bkmonitor.documents import AlertDocument, EventDocument
 from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.action import canonicalize_action_id
 from constants.action import ActionStatus
 from core.errors.alert import AlertNotFoundError
 from core.errors.iam import PermissionDeniedError
@@ -27,7 +28,7 @@ def test_preview_requires_manage_rule(mocker, allowed_action):
     mocker.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True)
     permission = mocker.patch("bkmonitor.iam.drf.Permission").return_value
     permission.prepare_apply_for_saas.return_value = ([], [])
-    permission._is_allowed_request.side_effect = lambda query: query.action_id == allowed_action.id
+    permission._is_allowed_request.side_effect = lambda query: query.action_id == canonicalize_action_id(allowed_action.id)
     permission._apply_data_request.return_value = {}
     permission._apply_url_request.return_value = ""
     view = ActionInstanceViewSet()
@@ -115,7 +116,7 @@ def test_event_operator_can_read_manual_action_result(mocker):
 
     mocker.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True)
     drf_permission = mocker.patch("bkmonitor.iam.drf.Permission").return_value
-    drf_permission._is_allowed_request.side_effect = lambda query: query.action_id in {a.id for a in allowed_actions}
+    drf_permission._is_allowed_request.side_effect = lambda query: query.action_id in {canonicalize_action_id(a.id) for a in allowed_actions}
     drf_permission._apply_data_request.return_value = {}
     drf_permission._apply_url_request.return_value = ""
     permission = mocker.patch.object(frontend_resources, "Permission").return_value.is_allowed_by_biz

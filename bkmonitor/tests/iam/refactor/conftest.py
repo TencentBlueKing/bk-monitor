@@ -34,8 +34,6 @@ from typing import Any
 
 import pytest
 
-from iam_engine.schema.loaders import load_from_class
-from iam_engine.schema.registry import SchemaRegistry
 from types import SimpleNamespace
 from iam_engine.core.config import AuthMode
 from iam_engine.provider.base import PermissionProvider
@@ -310,19 +308,10 @@ class LegacyCompatibleIAM:
 
 
 @pytest.fixture(scope="session")
-def real_schema() -> SchemaRegistry:
-    """从真实 definitions 构建的冻结 SchemaRegistry（与 load_framework 一致）。"""
-    from bkmonitor.iam.definitions.actions import Actions
-    from bkmonitor.iam.definitions.resource_types import ResourceTypes
-    from bkmonitor.iam.definitions.roles import Roles
-
-    registry = SchemaRegistry()
-    load_from_class(registry, ResourceTypes)
-    load_from_class(registry, Actions)
-    load_from_class(registry, Roles)
-    registry.freeze()
-    return registry
-
+def real_schema():
+    """The same static definitions consumed by the product entry point."""
+    from bkmonitor.iam import definitions
+    return definitions
 
 def build_v3_options(**overrides) -> dict:
     """构造 V3Provider options（默认指向本地假地址，测试中 client 会被替换）。"""
@@ -362,7 +351,7 @@ def installed_permission(real_schema, monkeypatch):
 
     class Installer:
         def build(self, providers, schema=None):
-            monkeypatch.setattr(module, "get_schema", lambda: schema or real_schema)
+            monkeypatch.setattr(module, "definitions", schema or real_schema)
             monkeypatch.setattr(
                 module, "build_provider", lambda name, tenant_id, **kwargs: next(p for p in providers if p.name == name)
             )

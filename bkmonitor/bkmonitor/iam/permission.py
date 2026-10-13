@@ -53,7 +53,8 @@ from iam_engine.provider.requests import (
     SubjectType,
     to_action_id,
 )
-from bkmonitor.iam.backends.config import build_provider, get_schema
+from bkmonitor.iam.backends.config import build_provider
+from bkmonitor.iam import definitions
 from bkmonitor.iam.concurrency import run_pair_concurrently
 from iam_engine.migration.policy import MigrationPolicy
 from iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK
@@ -140,8 +141,8 @@ def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
 
         action_id = _to_business_action_id(action_ref)
         if (
-            action_id == ActionEnum.VIEW_BUSINESS.id
-            or (record and any(action_id == allowed_action.id for allowed_action in ActionIdMap.get(record.type, [])))
+            action_id == _to_business_action_id(ActionEnum.VIEW_BUSINESS)
+            or (record and any(action_id == _to_business_action_id(a) for a in ActionIdMap.get(record.type, [])))
             or any(path in request.path for path in api_paths)
         ):
             return True
@@ -170,7 +171,7 @@ def check_iam_batch_preflight(request, actions) -> dict | None:
             raise TokenValidatedError
 
         result = {}
-        allowed_action_ids = {action.id for action in ActionIdMap.get(record.type, [])}
+        allowed_action_ids = {_to_business_action_id(action) for action in ActionIdMap.get(record.type, [])}
         for action in actions:
             action_id = _to_business_action_id(action)
             result[action_id] = action_id == "view_business" or (record and action_id in allowed_action_ids)
@@ -253,7 +254,7 @@ class Permission:
 
     @property
     def schema(self):
-        return getattr(self, "_schema", None) or get_schema()
+        return getattr(self, "_schema", None) or definitions
 
     @property
     def providers(self):
@@ -717,7 +718,7 @@ class Permission:
                 record = ApiAuthToken.objects.get(token=self.request.token, bk_tenant_id=self.request.user.tenant_id)
             except ApiAuthToken.DoesNotExist:
                 raise TokenValidatedError
-            allowed_action_ids = {allowed_action.id for allowed_action in ActionIdMap.get(record.type, [])}
+            allowed_action_ids = {_to_business_action_id(a) for a in ActionIdMap.get(record.type, [])}
             for action in actions:
                 for resource in resources:
                     resource_id = resource[0].id
@@ -956,7 +957,7 @@ class Permission:
             ok, message, data = provider.client._client.query(provider.system_id)
             if not ok:
                 raise BKAPIError(
-                    system_name=settings.BK_IAM_SAAS_APP_CODE,
+                    system_name=settings.BK_IAM_APP_CODE,
                     url=f"/api/v1/model/systems/{provider.system_id}/query",
                     result={"message": message},
                 )
@@ -965,7 +966,7 @@ class Permission:
         schema = self.schema
         codec = MonitorV3Codec()
         actions_data: list[dict] = []
-        for action_def in schema.all_actions():
+        for action_def in schema.actions.values():
             v3_ext = (action_def.extensions or {}).get("v3", {}) or {}
 
             # related_resource_types：查 schema 获取资源类型名称，缺失时以 id 兜底
@@ -973,7 +974,7 @@ class Permission:
             rt_id = action_def.resource_type
             if rt_id:
                 try:
-                    rt_def = schema.get_resource_type(rt_id)
+                    rt_def = schema.resource_types[rt_id]
                     rt_name_en = (rt_def.extensions or {}).get("v3", {}).get("name_en", "") if rt_def else ""
                 except Exception:  # noqa: BLE001  schema 未注册该资源类型时兜底
                     rt_def = None

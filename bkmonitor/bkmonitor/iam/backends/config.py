@@ -1,25 +1,10 @@
 """Monitor product metadata and backend construction, without a framework singleton."""
 
-from functools import lru_cache
-
 from django.conf import settings
-from config.tools.iam_credentials import get_saas_setting
-from bkmonitor.iam.definitions.actions import Actions
-from bkmonitor.iam.definitions.resource_types import ResourceTypes
-from bkmonitor.iam.definitions.roles import Roles
-from iam_engine.schema.registry import SchemaRegistry
-from iam_engine.schema.loaders import load_from_class
+from config.tools.iam_credentials import get_saas_setting, saas_setting
+from bkmonitor.iam import definitions
 from iam_engine.settings import resolve_iam_gateway_url
-from iam_engine.v4.gateway import resolve_v4_gateway_url
-
-
-@lru_cache(maxsize=1)
-def get_schema():
-    schema = SchemaRegistry()
-    for definitions in (Actions, ResourceTypes, Roles):
-        load_from_class(schema, definitions)
-    schema.freeze()
-    return schema
+from iam_engine.v4.config import V4Options
 
 
 def provider_options(name, tenant_id="system"):
@@ -57,26 +42,9 @@ def provider_options(name, tenant_id="system"):
             },
         }
     if name == "v4":
-        return {
-            "base_url": resolve_v4_gateway_url(),
-            "bk_tenant_id": tenant_id,
-            "credentials": {
-                "app_code": get_saas_setting("SAAS_APP_CODE"),
-                "app_secret": get_saas_setting("SAAS_SECRET_KEY"),
-            },
-            "system": {
-                "id": settings.BK_IAM_V4_SYSTEM_ID or settings.BK_IAM_SYSTEM_ID,
-                "name": "蓝鲸监控平台",
-                "description": "蓝鲸监控平台-IAMv4 权限系统",
-                "callback_url": settings.BK_IAM_V4_CALLBACK_URL
-                or f"{settings.BK_IAM_RESOURCE_API_HOST.rstrip('/')}/rest/v2/iam/v4/callback/",
-                "managers": [m.strip() for m in settings.BK_IAM_V4_MODEL_MANAGERS.split(",") if m.strip()],
-                "clients": [get_saas_setting("SAAS_APP_CODE")],
-            },
-            "timeout": settings.BK_IAM_V4_TIMEOUT,
-            "chunk_size": settings.BK_IAM_V4_BATCH_CHUNK_SIZE,
-            "max_workers": settings.BK_IAM_V4_BATCH_MAX_WORKERS,
-        }
+        return V4Options.from_settings(
+            global_credentials=(saas_setting("SAAS_APP_CODE"), saas_setting("SAAS_SECRET_KEY"))
+        )
     raise ValueError(f"Unknown IAM provider: {name!r}")
 
 
@@ -88,7 +56,7 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
     from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
 
     options = options if options is not None else provider_options(name, tenant_id)
-    schema = schema if schema is not None else get_schema()
+    schema = schema if schema is not None else definitions
     clients = {}
     lock = RLock()
     if name == "v3":
@@ -132,22 +100,21 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
     else:
         from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
         from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
-        from bkmonitor.iam.backends.v4.config import V4Options, make_client_options
         from bkmonitor.iam.backends.v4.client import V4Client
-        from iam_engine.v4.config import load_v4_paths
         from dataclasses import replace
 
-        options = {"api_paths": load_v4_paths(settings), **options}
-        cfg = V4Options.from_dict(options)
+        if not isinstance(options, V4Options):
+            raise TypeError("IAM V4 uses the shared V4Options contract")
+        cfg = options
 
         def client_factory(request_tenant):
-            tid = request_tenant or cfg.bk_tenant_id
-            code, secret = str(cfg.credentials.app_code), str(cfg.credentials.app_secret)
-            key = (tid, code, secret)
+            tid = request_tenant or tenant_id
+            current = replace(cfg, app_code=str(cfg.app_code), app_secret=str(cfg.app_secret))
+            key = (tid, current)
             with lock:
                 if key not in clients:
                     clients[key] = V4Client(
-                        replace(make_client_options(cfg), app_code=code, app_secret=secret),
+                        current,
                         username=username,
                         bk_tenant_id=tid,
                     )
@@ -159,11 +126,11 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
             schema=schema,
             resolver=MonitorResourceResolver(),
             client_factory=client_factory,
-            configuration=cfg,
-            tenant_id=cfg.bk_tenant_id,
+            system_id=cfg.system_id,
+            tenant_id=tenant_id,
             username=username,
-            batch_chunk_size=cfg.chunk_size,
-            batch_max_workers=cfg.max_workers,
+            batch_chunk_size=cfg.batch_chunk_size,
+            batch_max_workers=cfg.batch_max_workers,
         )
 
 

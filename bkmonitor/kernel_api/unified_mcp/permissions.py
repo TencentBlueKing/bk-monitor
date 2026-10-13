@@ -159,13 +159,9 @@ def _business_resource(bk_biz_id):
     from bkmonitor.iam import ResourceEnum
 
     resource = ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)
-    if (
-        resource.system not in ("", settings.BK_IAM_SYSTEM_ID)
-        or resource.type != "space"
-        or str(resource.id) != str(bk_biz_id)
-    ):
+    if resource.system != settings.BK_IAM_SYSTEM_ID or resource.type != "space" or str(resource.id) != str(bk_biz_id):
         raise AuthorizationUnavailable("The resolved business resource does not match the request.")
-    return Resource(settings.BK_IAM_SYSTEM_ID, resource.type, resource.id, {})
+    return resource
 
 
 def _apm_application_resource(bk_biz_id, context):

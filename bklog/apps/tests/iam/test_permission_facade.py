@@ -481,6 +481,7 @@ class PermissionFacadeTest(TestCase):
         v4_writer.grant_prepared.assert_called_once_with(prepared)
         apply_async.assert_not_called()
 
+    @override_settings(BK_IAM_PERMISSION_MODE="union")
     def test_creator_grant_falls_back_to_the_retry_task_when_v4_sync_grant_fails(self):
         self.mode_provider.get_mode.return_value = AuthMode.UNION
         self.iam_client.grant_resource_creator_actions.return_value = "v3-result"

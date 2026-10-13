@@ -344,7 +344,8 @@ class TestIsAllowed:
             ResourceEnum.BUSINESS.create_simple_instance("3"),
         ]
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
-        assert provider.is_allowed_calls[0].resources == tuple(resources)
+        from bkmonitor.iam.resource import to_resource_instance
+        assert provider.is_allowed_calls[0].resources == tuple(to_resource_instance(r) for r in resources)
 
     def test_token_bypass_parity(self, fake_permission):
         """token 临时分享豁免逻辑与旧版一致（业务查看动作直接豁免）。"""
@@ -829,7 +830,7 @@ class TestKnownRegressions:
     """产品元数据与默认 V3 关联资源请求的兼容性。"""
 
     def test_list_actions_returns_action_list(self, installed_permission):
-        """list_actions 应从 SchemaRegistry 生成动作列表（含旧版兼容字段）。
+        """list_actions 应从 产品静态定义 生成动作列表（含旧版兼容字段）。
 
         与旧版 IAM V3 model.actions 契约对齐：每项含 id / name / name_en / type /
         version / related_resource_types / related_actions / description。
@@ -849,7 +850,7 @@ class TestKnownRegressions:
 
         # 抽样断言：view_business 的 v3 兼容字段来自 extensions.v3
         view_business = next((a for a in result if a["id"] == "view_business_v2"), None)
-        assert view_business is not None, "SchemaRegistry 应包含 view_business"
+        assert view_business is not None, "产品静态定义 应包含 view_business"
         assert view_business["type"] == "view"
         assert view_business["version"] == 1
         assert view_business["related_resource_types"], "view_business 关联 space，应有一条 related_resource_types"
@@ -882,17 +883,19 @@ class TestKnownRegressions:
         ]
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
 
-    def test_v3_is_allowed_mixed_resource_types_reach_sdk(self, fake_permission):
+    def test_v3_is_allowed_mixed_resource_types_reach_sdk(self, fake_permission, monkeypatch):
         """默认 V3 沿用原 SDK 的关联资源协议，不额外增加混合类型限制。"""
         _, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
 
+        monkeypatch.setattr(ResourceEnum.APM_APPLICATION, "create_simple_instance", lambda id: FwResource("apm_application", id))
         resources = [
             ResourceEnum.BUSINESS.create_simple_instance("2"),
             ResourceEnum.APM_APPLICATION.create_simple_instance("app-1"),
         ]
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
-        assert provider.is_allowed_calls[0].resources == tuple(resources)
+        from bkmonitor.iam.resource import to_resource_instance
+        assert provider.is_allowed_calls[0].resources == tuple(to_resource_instance(r) for r in resources)
 
 
 # ---------------------------------------------------------------------------

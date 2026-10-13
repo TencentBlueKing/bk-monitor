@@ -129,9 +129,9 @@ class V4Client:
         if not isinstance(data, dict):
             raise V4ResponseError("IAM V4 auth-token response must be an object")
         token = data.get("auth_token")
-        if not token:
+        if not isinstance(token, str) or not token.strip():
             raise V4ResponseError("IAM V4 auth-token response missing auth_token")
-        return str(token)
+        return token
 
     def generate_perm_apply_url(self, *, permissions: list[dict[str, Any]]) -> str:
         normalized_permissions = deepcopy(permissions)

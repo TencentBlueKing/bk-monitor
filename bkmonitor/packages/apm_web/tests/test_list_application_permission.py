@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from types import SimpleNamespace
 from unittest import mock
 
-from bkmonitor.iam.action import canonicalize_action_id, get_legacy_action_ids
+from bkmonitor.iam.action import canonicalize_action_id
 from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
 from iam_engine.core.requests import ResourceInstance
@@ -64,11 +64,7 @@ def scripted_batch(mapping):
 
 
 def expected_permissions(row):
-    return {
-        key: allowed
-        for aid, allowed in row.items()
-        for key in (canonicalize_action_id(aid), *get_legacy_action_ids(canonicalize_action_id(aid)))
-    }
+    return dict(row)
 
 
 def serialize_applications():
@@ -101,9 +97,11 @@ def decorate_response(response_data):
 
 
 def create_old_and_new_resources(item):
-    old_resource = ResourceEnum.APM_APPLICATION.create_simple_instance(item["application_id"])
+    with mock.patch("monitor_web.iam.views.ApmApplicationProvider._get_app_simple_info_by_id_or_none", return_value=item):
+        old_resource = ResourceEnum.APM_APPLICATION.create_simple_instance(item["application_id"])
     new_resource = ResourceEnum.APM_APPLICATION.create_instance_by_info(item)
-    return old_resource, new_resource
+    from bkmonitor.iam.resource import to_resource_instance
+    return to_resource_instance(old_resource), to_resource_instance(new_resource)
 
 
 def test_list_application_permission_reuses_response_metadata():
@@ -148,6 +146,7 @@ def test_list_application_permission_reuses_response_metadata():
         "id": 1001,
         "name": "alpha",
         "bk_biz_id": "2",
+        "_bk_iam_path_": "/space,2/",
     }
     assert resources[0].ancestor_chain == (ResourceInstance(type="space", id="2"),)
     assert resources[1].id == "1002"
@@ -183,7 +182,7 @@ def test_list_application_resources_are_equivalent_for_normal_iam():
             assert resolved.id == new_resource.id
             assert resolved.name == new_resource.name
             assert resolved.ancestor_chain == new_resource.ancestor_chain
-            lookup.assert_called_once_with(old_resource.id, tenant_id="system")
+            lookup.assert_not_called()
         with mock.patch.object(resolver, "_get_apm_app_info", side_effect=AssertionError("metadata is complete")):
             assert resolver.resolve(new_resource, tenant_id="system") is new_resource
 

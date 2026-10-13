@@ -1,8 +1,8 @@
 """Monitor V4 capabilities, directly implementing the same Provider contract as BKLog."""
 
 from __future__ import annotations
-from dataclasses import asdict, replace
 import logging
+from bkmonitor.iam.action import canonicalize_action_id
 from iam_engine.core.requests import AuthRequest, BatchAuthRequest, to_definition_id
 from iam_engine.core.types import AuthStatus, AuthResult, BatchAuthResult, BatchAuthResultItem, AuthorizedResourceScope
 from iam_engine.provider.base import PermissionProvider
@@ -27,7 +27,7 @@ class V4PermissionProvider(PermissionProvider):
         schema,
         resolver=None,
         client_factory=None,
-        configuration=None,
+        system_id,
         tenant_id="system",
         username="",
         batch_chunk_size=20,
@@ -40,7 +40,7 @@ class V4PermissionProvider(PermissionProvider):
         self.resolver = resolver
         self.tenant_id = tenant_id
         self.username = username
-        self._cfg = configuration
+        self.system_id = system_id
         self.batch_chunk_size = batch_chunk_size
         self.batch_max_workers = batch_max_workers
         self.application_builder = V4ApplicationBuilder(self)
@@ -59,17 +59,11 @@ class V4PermissionProvider(PermissionProvider):
             return resource
         return self.resolver.resolve(resource, tenant_id=tenant_id or self.tenant_id)
 
-    def get_system_info(self):
-        return replace(self._cfg.system, clients=tuple(dict.fromkeys(str(c) for c in self._cfg.system.clients)))
-
-    def serialize_system_info(self):
-        return asdict(self.get_system_info())
-
     def get_apply_data(self, actions, resources=None):
         return self.application_builder.get_apply_data(actions, resources or [])
 
     def _action_has_resource(self, action_id):
-        return bool(self.schema.get_action(to_definition_id(action_id)).resource_type)
+        return bool(self.schema.actions[canonicalize_action_id(to_definition_id(action_id))].resource_type)
 
     @staticmethod
     def _decision(name, allowed):
@@ -100,7 +94,7 @@ class V4PermissionProvider(PermissionProvider):
             )
             result = client.direct_auth(
                 subject={"type": request.subject.type, "id": request.subject.id},
-                action_id=self.codec.encode_action(to_definition_id(request.action_id)),
+                action_id=self.codec.encode_action(canonicalize_action_id(to_definition_id(request.action_id))),
                 resource=resource,
             )
             return self._decision(self.name, result)
@@ -110,7 +104,7 @@ class V4PermissionProvider(PermissionProvider):
     def batch_is_allowed(self, request: BatchAuthRequest) -> BatchAuthResult:
         items = []
         for action_ref in request.action_ids:
-            action_id = to_definition_id(action_ref)
+            action_id = canonicalize_action_id(to_definition_id(action_ref))
             groups = request.resource_groups
             try:
                 if any(len(g) != 1 for g in groups):
@@ -171,7 +165,7 @@ class V4PermissionProvider(PermissionProvider):
         try:
             raw = self.client.list_authorized_resource(
                 subject=request_subject,
-                action_id=self.codec.encode_action(to_definition_id(action_id)),
+                action_id=self.codec.encode_action(canonicalize_action_id(to_definition_id(action_id))),
                 resource_type=self.codec.encode_resource_type(resource_type),
             )
         except Exception as error:
@@ -186,15 +180,15 @@ class V4PermissionProvider(PermissionProvider):
         )
 
     def has_any_permission(self, subject, action_id):
-        action = self.schema.get_action(to_action_id(action_id))
+        action = self.schema.actions[canonicalize_action_id(to_action_id(action_id))]
         if not action.resource_type:
             result = self.is_allowed(AuthRequest(subject, action_id))
             if result.status is AuthStatus.ERROR:
                 raise ProviderUnavailable(result.reason)
             return result.allowed
         resource_type = action.resource_type
-        while self.schema.get_resource_type(resource_type).ancestor:
-            resource_type = self.schema.get_resource_type(resource_type).ancestor
+        while self.schema.resource_types[resource_type].ancestor:
+            resource_type = self.schema.resource_types[resource_type].ancestor
         scope = self.list_authorized_resources(
             action_id=action_id, resource_type=resource_type, subject={"type": subject.type, "id": subject.id}
         )
@@ -205,8 +199,8 @@ class V4PermissionProvider(PermissionProvider):
     def filter_visible_resources(self, subject, action_id, candidates):
         if not candidates:
             return VisibleResult()
-        resource_type = to_definition_id(candidates[0].type)
-        if not self.schema.get_resource_type(resource_type).ancestor:
+        resource_type = canonicalize_action_id(to_definition_id(candidates[0].type))
+        if not self.schema.resource_types[resource_type].ancestor:
             scope = self.list_authorized_resources(
                 action_id=action_id, resource_type=resource_type, subject={"type": subject.type, "id": subject.id}
             )

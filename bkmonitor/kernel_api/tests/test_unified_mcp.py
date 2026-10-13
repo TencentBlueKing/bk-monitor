@@ -388,6 +388,7 @@ def test_apm_web_dispatchers_preserve_application_permission(monkeypatch, tool_n
     captured = {}
     app_query = SimpleNamespace(
         values_list=lambda *_args, **_kwargs: SimpleNamespace(first=lambda: 9),
+        values=lambda *_args: SimpleNamespace(first=lambda: {"application_id": 9, "app_name": "demo", "bk_biz_id": 789}),
     )
     monkeypatch.setattr(dispatcher.Application.objects, "filter", lambda **kwargs: app_query)
 

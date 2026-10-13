@@ -1,16 +1,14 @@
 """Monitor V3 capabilities, directly implementing the same Provider contract as BKLog."""
 
 from __future__ import annotations
-from dataclasses import asdict, replace
 import logging
 from iam.exceptions import AuthAPIError
+from bkmonitor.iam.action import canonicalize_action_id
 from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject, to_definition_id
 from iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem, AuthorizedResourceScope
 from iam_engine.provider.base import PermissionProvider
 from iam_engine.provider.requests import VisibleResult, to_action_id, to_resource_type_id
 from iam_engine.exceptions import ProviderError
-from iam_engine.policy.expression import Op, PolicyExpression
-from bkmonitor.iam.backends.v3.policy_converter import iam_dict_to_expression, expression_to_iam_dict
 from bkmonitor.iam.backends.v3.apply import V3ApplicationBuilder
 
 logger = logging.getLogger(__name__)
@@ -68,21 +66,18 @@ class V3PermissionProvider(PermissionProvider):
         return self._client_instance
 
     def _resolve(self, resource, *, tenant_id=""):
+        if "id" in resource.attributes and "name" in resource.attributes:
+            # Native public V3 constructors already queried the product resource.
+            return resource
         if self.resolver is None:
             return resource
         return self.resolver.resolve(resource, tenant_id=tenant_id or self.tenant_id)
-
-    def get_system_info(self):
-        return replace(self._cfg.system, clients=tuple(dict.fromkeys(str(c) for c in self._cfg.system.clients)))
-
-    def serialize_system_info(self):
-        return asdict(self.get_system_info())
 
     def get_apply_data(self, actions, resources=None):
         return self.application_builder.get_apply_data(actions, resources or [])
 
     def _action_has_resource(self, action_id):
-        return bool(self.schema.get_action(to_definition_id(action_id)).resource_type)
+        return bool(self.schema.actions[canonicalize_action_id(to_definition_id(action_id))].resource_type)
 
     @staticmethod
     def _decision(name, allowed):
@@ -102,7 +97,7 @@ class V3PermissionProvider(PermissionProvider):
     def is_allowed(self, request: AuthRequest) -> AuthResult:
         try:
             client = self._get_client(request.subject.tenant_id)
-            action_id = to_definition_id(request.action_id)
+            action_id = canonicalize_action_id(to_definition_id(request.action_id))
             resources = (
                 []
                 if not self._action_has_resource(action_id)
@@ -119,7 +114,7 @@ class V3PermissionProvider(PermissionProvider):
 
     def _encode_batch_request(self, request, *, resolve_resources=False):
         client = self._get_client(request.subject.tenant_id)
-        encoded_actions = [self.codec.encode_action(to_definition_id(a)) for a in request.action_ids]
+        encoded_actions = [self.codec.encode_action(canonicalize_action_id(to_definition_id(a))) for a in request.action_ids]
         groups = [
             [
                 self.codec.encode_resource(
@@ -131,7 +126,7 @@ class V3PermissionProvider(PermissionProvider):
             for group in request.resource_groups
         ]
         encoded_ids = {
-            (to_definition_id(resource.type), str(resource.id)): sdk_resource.id
+            (canonicalize_action_id(to_definition_id(resource.type)), str(resource.id)): sdk_resource.id
             for group, sdk_group in zip(request.resource_groups, groups)
             for resource, sdk_resource in zip(group, sdk_group)
         }
@@ -157,7 +152,7 @@ class V3PermissionProvider(PermissionProvider):
             return BatchAuthResult(tuple(BatchAuthResultItem(a, r, result) for a, r in request.iter_keys()))
         items = []
         for action_id, resource_id in request.iter_keys():
-            rt = next(to_definition_id(g[0].type) for g in request.resource_groups if str(g[0].id) == resource_id)
+            rt = next(canonicalize_action_id(to_definition_id(g[0].type)) for g in request.resource_groups if str(g[0].id) == resource_id)
             encoded_id = encoded_ids[(rt, resource_id)]
             row = raw.get(encoded_id, {})
             aid = self.codec.encode_action(action_id)
@@ -198,16 +193,16 @@ class V3PermissionProvider(PermissionProvider):
         self,
         subject: Subject,
         action_id: str,
-    ) -> PolicyExpression | None:
+    ) -> dict | None:
         """查询单个 action 的策略 AST。
 
         语义约定：
-          * 查询成功、用户无权限（IAM 返回空策略）→ PolicyExpression.none()
+          * 查询成功、用户无权限（IAM 返回空策略）→ {}
           * 查询失败 → 抛框架统一异常 ProviderError，由调用方（framework/permission 层）降级处理
         """
-        action_id_biz = to_action_id(action_id)
+        action_id_biz = canonicalize_action_id(to_action_id(action_id))
         try:
-            _ = self.schema.get_action(action_id_biz)
+            _ = self.schema.actions[action_id_biz]
         except Exception:
             logger.warning("[iam_v3:query_policy] unknown action_id=%s", action_id_biz)
             return None
@@ -224,31 +219,30 @@ class V3PermissionProvider(PermissionProvider):
             raise ProviderError(
                 f"[iam_v3:query_policy] policy query failed, action={action_id_biz}, user={subject.id}"
             ) from e
-        expr = iam_dict_to_expression(dict_ast)
-        return expr if expr is not None else PolicyExpression.none()
+        return dict_ast or {}
 
     def query_policy_by_actions(
         self,
         subject: Subject,
         action_ids: list[str],
-    ) -> dict[str, PolicyExpression | None]:
+    ) -> dict[str, dict | None]:
         """批量查询多个 action 的策略 AST。
 
         语义约定：
-          * 批量成功、未返回/空 condition 的 action（用户无权限）→ PolicyExpression.none()
+          * 批量成功、未返回/空 condition 的 action（用户无权限）→ {}
           * 批量失败 → 抛框架统一异常 ProviderError，由调用方（framework/permission 层）降级为逐个查询
         """
-        action_ids_biz = [to_action_id(a) for a in action_ids]
+        action_ids_biz = [canonicalize_action_id(to_action_id(a)) for a in action_ids]
         valid_aids = []
         for aid in action_ids_biz:
             try:
-                self.schema.get_action(aid)
+                self.schema.actions[aid]
                 valid_aids.append(aid)
             except Exception:
                 logger.warning("[iam_v3:query_policy_by_actions] unknown action_id=%s", aid)
 
         if not valid_aids:
-            return {aid: PolicyExpression.none() for aid in action_ids_biz}
+            return {aid: {} for aid in action_ids_biz}
 
         v3_action_ids = [self.codec.encode_action(aid) for aid in valid_aids]
 
@@ -265,21 +259,20 @@ class V3PermissionProvider(PermissionProvider):
 
         # raw_list: [{"action": {"id": "v3_id"}, "condition": {...}}, ...]
         # 先构建有效结果，再补齐未返回的 action
-        result: dict[str, PolicyExpression | None] = {}
+        result: dict[str, dict | None] = {}
         for item in raw_list or []:
             v3_aid = item.get("action", {}).get("id", "")
             if not v3_aid:
                 continue
             biz_aid = self.codec.decode_action(v3_aid)
             if biz_aid:
-                expr = iam_dict_to_expression(item.get("condition"))
-                # 空 condition = 用户无权限 → none()，与"查询失败"区分
-                result[biz_aid] = expr if expr is not None else PolicyExpression.none()
+                # Empty successful conditions remain distinct from query failures.
+                result[biz_aid] = item.get("condition") or {}
 
         # 未返回的 action：批量查询成功但没有该 action 的策略 → 无权限
         for aid in action_ids_biz:
             if aid not in result:
-                result[aid] = PolicyExpression.none()
+                result[aid] = {}
 
         return result
 
@@ -297,7 +290,7 @@ class V3PermissionProvider(PermissionProvider):
         AuthAPIError 向上抛，由调用方决定降级。
         """
         expr = self.query_policy(subject, action_id)
-        return expr is not None and expr.op != Op.NONE
+        return bool(expr) and expr.get("op") != "none"
 
     def filter_visible_resources(
         self,
@@ -311,9 +304,9 @@ class V3PermissionProvider(PermissionProvider):
         对 "{rt}.id" 上的 IN/EQ 叶子走集合快速路径，避免逐候选求值。
         """
         expr = self.query_policy(subject, action_id)
-        if expr is None or expr.op == Op.NONE:
+        if not expr or expr.get("op") == "none":
             return VisibleResult()
-        if expr.op == Op.ANY:
+        if expr.get("op") == "any":
             return VisibleResult(all_granted=True, visible_ids=tuple(c.id for c in candidates))
         if not candidates:
             return VisibleResult()
@@ -324,7 +317,7 @@ class V3PermissionProvider(PermissionProvider):
             from iam import make_expression
             from bkmonitor.iam.backends.v3.grafana import policy_resource_ids
 
-            policy = expression_to_iam_dict(expr)
+            policy = expr
             probe = _build_eval_obj(candidates[0], with_id=False)
             all_granted = make_expression(policy).eval(probe)
             org_id = None
@@ -341,20 +334,25 @@ class V3PermissionProvider(PermissionProvider):
         # 快速路径："{rt}.id" 的 IN/EQ → 集合过滤（O(N) set 查找，与旧 filter_space_list 的 IN 分支对齐）
         rt_biz = to_resource_type_id(candidates[0].type)
         id_field = f"{rt_biz}.id"
-        if expr.op in (Op.IN, Op.EQ) and expr.field == id_field:
+        if expr.get("op") in ("in", "eq") and expr.get("field") == id_field:
             # SDK 的 IN 只接受数组；不能把字符串拆成字符或改变数值类型。
-            values = expr.value if expr.op == Op.IN else (expr.value,)
+            values = expr.get("value") if expr.get("op") == "in" else (expr.get("value"),)
             if not isinstance(values, list | tuple):
                 return VisibleResult()
-            allowed = set(values)
-            return VisibleResult(
-                visible_ids=tuple(c.id for c in candidates if c.id in allowed),
-            )
+            try:
+                allowed = set(values)
+            except TypeError:
+                # Array-valued EQ and nested values must retain SDK semantics.
+                allowed = None
+            if allowed is not None:
+                return VisibleResult(
+                    visible_ids=tuple(c.id for c in candidates if c.id in allowed),
+                )
 
         # V3 必须沿用 SDK 求值器，不能以中立求值器替代其历史数组/path 语义。
         from iam import make_expression
 
-        evaluator = make_expression(expression_to_iam_dict(expr))
+        evaluator = make_expression(expr)
 
         # 全量判定：空 id + 首个候选的父链（约定同批候选共享父链，如 Grafana 单 org 一批）
         all_granted = False

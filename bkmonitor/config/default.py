@@ -1248,15 +1248,8 @@ HEADER_FOOTER_CONFIG = {
 BKDATA_DATA_TOKEN = os.getenv("BKAPP_BKDATA_DATA_TOKEN", "")
 
 # 权限中心 SaaS host
-#
-# BK_IAM_V3_APP_CODE 是历史变量，实际含义是 IAM SaaS 的 app code（通常为
-# bk_iam），不是 V3 Provider 调 IAM API 时使用的客户端凭据。保留旧环境变量，
-# 但在 settings 中使用明确的 SaaS 命名，避免与 V3/V4 Provider 凭据混淆。
-BK_IAM_SAAS_APP_CODE = os.getenv("BK_IAM_V3_APP_CODE", "bk_iam")
-BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(
-    BK_IAM_SAAS_APP_CODE,
-    bk_paas_host=BK_PAAS_HOST,
-)
+BK_IAM_APP_CODE = os.getenv("BK_IAM_V3_APP_CODE", "bk_iam")
+BK_IAM_SAAS_HOST = os.getenv("BK_IAM_SITE_URL") or get_service_url(BK_IAM_APP_CODE, bk_paas_host=BK_PAAS_HOST)
 
 # 文档中心地址
 BK_DOCS_SITE_URL = os.getenv("BK_DOCS_SITE_URL") or get_service_url("bk_docs_center", bk_paas_host=BK_PAAS_HOST)
@@ -1371,6 +1364,8 @@ ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lowe
 ENABLE_BK_INCIDENT_NOTICE = os.getenv("ENABLE_BK_INCIDENT_NOTICE", "false").lower() == "true"
 
 # IAM
+
+BK_IAM_SYSTEM_NAME = _("监控平台")
 
 BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
 

@@ -26,20 +26,13 @@ from django.urls import re_path
 from rest_framework import routers
 
 from apps.iam import Permission
-from apps.iam.backends.v4.config import resolve_effective_v4_system_id
 from apps.iam.views import meta
 from apps.iam.views.resources import (
     CollectionResourceProvider,
     EsSourceResourceProvider,
     IndicesResourceProvider,
 )
-from apps.iam.views.resources_v4 import (
-    V4CollectionResourceProvider,
-    V4EsSourceResourceProvider,
-    V4IndicesResourceProvider,
-    V4ResourceApiDispatcher,
-    V4SpaceResourceProvider,
-)
+from apps.iam.views.resources_v4 import build_resource_dispatcher
 
 from apps.iam.views import resources
 
@@ -50,12 +43,7 @@ dispatcher.register("collection", CollectionResourceProvider())
 dispatcher.register("es_source", EsSourceResourceProvider())
 dispatcher.register("indices", IndicesResourceProvider())
 
-v4_system_id = resolve_effective_v4_system_id()
-v4_dispatcher = V4ResourceApiDispatcher(Permission.get_v4_callback_iam_client(settings.BK_APP_TENANT_ID), v4_system_id)
-v4_dispatcher.register("space", V4SpaceResourceProvider())
-v4_dispatcher.register("collection", V4CollectionResourceProvider())
-v4_dispatcher.register("es_source", V4EsSourceResourceProvider())
-v4_dispatcher.register("indices", V4IndicesResourceProvider())
+v4_dispatcher = build_resource_dispatcher()
 
 
 router = routers.DefaultRouter(trailing_slash=True)

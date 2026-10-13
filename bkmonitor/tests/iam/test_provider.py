@@ -25,7 +25,7 @@ from iam_engine.provider.requests import (
     Subject,
 )
 from bkmonitor.iam.permission import Permission
-from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.action import ActionEnum as Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.iam.definitions.roles import Roles
 

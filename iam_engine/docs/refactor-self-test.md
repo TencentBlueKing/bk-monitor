@@ -2,6 +2,8 @@
 
 > 下文前几节是已交付快照的历史记录。“始终双写”“显式 V4 URL 才启用”“申请回退 V3”
 > 已由文末新版模式/模型同步验收替代；当前行为以 README 和文末最新范围为准。
+> SchemaRegistry、动态枚举、中间策略 DSL、产品回调框架等描述也仅属于历史快照；
+> 它们已在最新架构对齐中删除，不能作为当前实现说明。
 
 日期：2026-10-13。单据：138944425。分支：`feat/iam-v4-support`。
 本轮纠偏基线：`e33a428ad25a96b2c64c023dec89dbf9b4e19feb`。
@@ -337,3 +339,64 @@ git diff --check 59249477c...HEAD
 PreCI 包装提示系统未安装 PreCI 并跳过，不能计为实际 PreCI 扫描通过。
 修复后的远端 CI 无法通过当前未连接的 GitHub MCP 核验，状态仍未确认。
 上述全部是离线结果；真实 IAM、MySQL 部署迁移、回调和申请页面仍未验收。
+
+## 最新：从 V3 基线出发的架构对齐验收
+
+本节替代前面历史快照的实现说明和测试统计。盘点起点为 `89182eaa4`；
+已将最新 master `864722982` 无冲突合入，合并提交为 `a0cba2225`。
+完整机制去向、目录和调用链见 [架构对齐清单](architecture-alignment.md)。
+
+本轮实际收敛内容：
+
+- 两平台 V4 回调使用同一个 SDK Dispatcher 扩展和 ResourceProvider 协议适配；
+  Monitor 的 Registry/Service/View/Auth 链及两产品重复回调/Token 缓存已删除。
+- 每产品只有原生 ResourceProvider 拥有 ORM 查询，供回调、Resolver、构造和批量元数据
+  共用。Monitor catalog 不再查询 ORM，BKLog 资源构造不再另写 ORM 查询。
+- Monitor 公开 ActionMeta/ResourceMeta、静态枚举、字段、辅助方法、原 SDK Resource
+  和原 `_v2` Action ID 保留；中立模型从这些定义派生，不维护第二份可编辑模型。
+  `BK_IAM_APP_CODE`、`BK_IAM_SYSTEM_NAME` 恢复原 V3 配置契约。
+- 删除 SchemaRegistry 注册/冻结/加载/快照/可见性、动态枚举和无消费者框架；
+  删除 SDK dict → 中间 PolicyExpression → SDK dict，V3 原策略直接交 SDK 求值。
+- Monitor 删除额外 V4 config dataclass/TokenProvider/客户端模型包装；
+  直接使用共同 V4Options、通信、Token、缓存和租户/凭据隔离规则。
+- 授权失败分类、冻结重试、退避、事务提交边界和当前模式检查集中在公共 grant_retry；
+  产品只绑定 Celery 和真实授权映射。默认有效期仍为 365 天。
+- 原全局异常处理器恢复 master 原文；实际 IAM DRF → 原处理器测试确认三模式拒绝
+  及 V4/Union 申请失败均为已处理的无权限响应，不误跳 V3、不产生未处理的 500。
+- 权限诊断 RPC 补齐共同模式目标检查：指定被禁用的协议或非法模式时，装配 Provider
+  前即拒绝；没有绕过主模式的 IAM 查询旁路。
+
+模式同时控制鉴权/范围、创建者授权、模型同步和申请：默认 V3 仅 V3；V4 仅 V4；
+Union 前三项执行两套、任一明确允许放行、申请固定 V4。URL 不启用协议。
+网关推导、统一配置 loader、非破坏性 V4 模型收敛、自动 post_migrate 和
+`iam_migrate_model` 入口保持新版规则；没有存量授权迁移，没有前端改动。
+
+### 最后稳定工作区的实际结果
+
+| 检查 | 结果与边界 |
+| --- | --- |
+| Monitor IAM/公共层/真实 DRF 处理器/APM/RUM/Grafana/RPC/MCP + V3 基线隔离对照 | 1025 passed、21 deselected、7 warnings，退出 0；包含 20 项基线方法对照 |
+| 原生 MCP 独立进程 | 808 passed、7 warnings，退出 0；208.75 秒 |
+| BKLog IAM/管理诊断 | 634 tests、OK，退出 0 |
+| 原 V3 CompatibleIAM 与当前 V3Client 策略和请求的只读隔离对照 | 18 passed，退出 0；覆盖旧 Action 兼容开/关、成功空策略/ANY/EQ，不运行真实 IAM |
+| Web/API/Worker 冷启动 | 三项退出 0；仅装配 V3、55 Actions，历史 V4 任务注册但不执行 |
+| 公共层 Pyright | 0 errors、0 warnings，退出 0；core/provider/schema/model、dual_write/policy |
+| IAM correctness Ruff、修改/新增 IAM 文件完整 Ruff、git diff --check | 均通过；恢复 master 原文的全局异常文件另有基线 UP 现代化告警，不改写无关代码 |
+
+测试删除的是被替换框架及过时/不运行的断言；以原公开接口、真实消费者和 SDK 原语义
+补充回归，不能把旧框架的测试数量作为本轮通过数。21 项为明确排除的 live/真实 DB 用例。
+所有测试均禁用出站 HTTP/socket；BKLog 冷启动应用信息请求被阻断的日志如实保留。
+
+Monitor 复现命令沿用前节完整业务集合，增加
+`kernel_api/rpc/tests/test_permission_mode_boundary.py`；Pyright 不再传已删除的
+`iam_engine/policy`。原生 MCP、BKLog 与冷启动命令保持前节入口。
+临时 V3 对照脚本只用于基线方法隔离核验，不冒充完整 HTTP 端到端或仓库内测试。
+
+再次检查完整 PR 相对 `864722982` 的 diff：前端、原 Monitor V3 migrations、全局异常
+处理器均无 diff；207 个可比 Python 路径中没有整文件 AST 相同的纯格式/注释变更。
+不批量调整业务 import、不夹带 typo、类型现代化或业务优化。
+原 V3 模型迁移历史/数据库表保留；没有新增旧 Action 升级或存量授权迁移工具。
+
+Git 提交及推送 hooks 的实际结果另记交付回执，不用单测替代 hooks。
+仍未验收真实 IAM、MySQL 锁/部署 migrate、真实 Celery/broker、镜像和 Charts、
+回调可达性及 V4 申请页面；当前 GitHub MCP 未连接，远端 CI 未核实。

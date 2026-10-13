@@ -28,7 +28,7 @@ def test_application_fallback(name, ok, url, fallback, expected):
             "credentials": {"app_code": "offline", "app_secret": "offline"},
             "system": {"id": "bk_monitorv3", "name": "Monitor"},
             "fallback_apply_url": fallback,
-        },
+        } if name == "v3" else None,
     )
     p.resolver = None
     if name == "v3":
@@ -48,12 +48,6 @@ def test_application_fallback(name, ok, url, fallback, expected):
 def test_v4_transport_failure_keeps_local_permission_data():
     p = build_provider(
         "v4",
-        options={
-            "base_url": "https://iam.example.test",
-            "credentials": {"app_code": "offline", "app_secret": "offline"},
-            "system": {"id": "bk_monitorv3", "name": "Monitor"},
-            "fallback_apply_url": "https://fallback.test",
-        },
     )
     p.resolver = None
     client = MagicMock()

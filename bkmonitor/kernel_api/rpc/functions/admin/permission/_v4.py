@@ -30,6 +30,8 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
+from iam.resource.utils import get_filter_obj, get_page_obj
+
 from bkmonitor.iam.handlers import catalog
 from iam_engine.exceptions import ProviderNotFound, ProviderUnavailable
 from iam_engine.core.requests import AuthRequest, BatchAuthRequest
@@ -41,8 +43,6 @@ from iam_engine.provider.requests import (
 )
 from bkmonitor.iam.permission import Permission
 from iam_engine.schema.definitions import ActionDef
-from iam_engine.schema.registry import SchemaRegistry
-from iam_engine.schema.visibility import is_visible_to
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
@@ -64,7 +64,7 @@ OPERATION_QUERY_USER_SUB_RESOURCES_V4 = "permission.query_user_sub_resources_v4"
 # 总览中 space 级授权的并发查询 worker 数（list_authorized_resources 每 action 1 次）
 _SPACE_QUERY_WORKERS = 8
 
-# 二级资源枚举的分页大小（catalog.list_instances 单页上限）
+# 二级资源枚举的分页大小
 _LIST_PAGE_SIZE = 1000
 
 
@@ -82,17 +82,16 @@ def _normalize_bk_biz_id(value: Any) -> int:
         raise CustomException(message="bk_biz_id 必填且必须为整数") from None
 
 
-def _normalize_action_ids(params: dict[str, Any], schema: SchemaRegistry) -> tuple[list[ActionDef], list[dict]]:
+def _normalize_action_ids(params: dict[str, Any], schema) -> tuple[list[ActionDef], list[dict]]:
     """解析可选 action_ids 参数（逗号分隔字符串或列表），未知 / 对 v4 不可见 ID 记 warning 跳过。
 
-    缺省返回 schema 中对 v4 平台可见的全部 action：exclude_providers=("v4",) 的
-    过时 action（如 view_dashboard / manage_dashboard）不进入 v4 查询，
-    与 V4Migrator 的平台注册口径保持一致。返回 (actions, warnings)。
+    缺省返回产品已确认的 V4 操作集合；保留两个旧 Dashboard 操作的 V3 接口，
+    但不将其加入 V4 查询或模型。返回 (actions, warnings)。
     """
     raw = params.get("action_ids")
     warnings: list[dict] = []
     if raw in (None, ""):
-        return [a for a in schema.all_actions() if is_visible_to(a, "v4")], warnings
+        return list(schema.v4_actions.values()), warnings
 
     if isinstance(raw, str):
         raw_ids = [s.strip() for s in raw.split(",") if s.strip()]
@@ -104,7 +103,7 @@ def _normalize_action_ids(params: dict[str, Any], schema: SchemaRegistry) -> tup
     actions: list[ActionDef] = []
     for aid in raw_ids:
         try:
-            action = schema.get_action(aid)
+            action = schema.actions[aid]
         except Exception:
             warnings.append(
                 {
@@ -114,11 +113,11 @@ def _normalize_action_ids(params: dict[str, Any], schema: SchemaRegistry) -> tup
                 }
             )
             continue
-        if not is_visible_to(action, "v4"):
+        if aid not in schema.v4_actions:
             warnings.append(
                 {
                     "code": "IAM_UNSUPPORTED_ACTION",
-                    "message": f"操作 {aid} 不适用于 v4 后端（exclude_providers），已忽略",
+                    "message": f"操作 {aid} 不适用于 v4 后端，已忽略",
                     "details": {"action_id": aid},
                 }
             )
@@ -127,13 +126,13 @@ def _normalize_action_ids(params: dict[str, Any], schema: SchemaRegistry) -> tup
     return actions, warnings
 
 
-def _action_kind(action: ActionDef, schema: SchemaRegistry) -> str:
+def _action_kind(action: ActionDef, schema) -> str:
     """按 action 关联资源类型划分：global / top / sub。"""
     rt_id = action.resource_type or ""
     if not rt_id:
         return "global"
     try:
-        rt_def = schema.get_resource_type(rt_id)
+        rt_def = schema.resource_types[rt_id]
     except Exception:
         # 未知类型保守按顶级处理（不查平台），仅兜底
         return "top"
@@ -200,23 +199,27 @@ def _list_all_instances(rt_id: str, bk_biz_id: str, bk_tenant_id: str) -> list[d
     """翻页收集资源目录枚举的全部候选实例（每页 ≤1000）。"""
     parent = {"type": "space", "id": bk_biz_id}
     collected: list[dict] = []
-    page = 1
+    provider = catalog.get_resource_provider(rt_id)
+    filters = get_filter_obj({"parent": parent}, ["parent", "search", "resource_type_chain"])
+    offset = 0
     while True:
-        result = catalog.list_instances(
-            rt_id, {"parent": parent}, {"page": page, "page_size": _LIST_PAGE_SIZE}, bk_tenant_id=bk_tenant_id
+        result = provider.list_instance(
+            filters, get_page_obj({"limit": _LIST_PAGE_SIZE, "offset": offset}),
+            bk_tenant_id=bk_tenant_id, include_resource_metadata=True,
         )
-        items = result.get("results") or []
+        items = result.results or []
         collected.extend(items)
-        if not items or len(collected) >= (result.get("count") or 0):
+        if not items or len(collected) >= (result.count or 0):
             break
-        page += 1
+        offset += len(items)
     return collected
 
 
 def _require_v4_provider(fw):
     """显式获取 v4 provider；未配置时明确报错（不静默降级）。"""
     try:
-        return fw.get_provider("v4")
+        from ._shared import _get_enabled_provider
+        return _get_enabled_provider(fw, "v4")
     except ProviderNotFound:
         raise CustomException(
             message="当前 IAM 后端未配置 v4 provider，v4 权限查询接口不可用；"

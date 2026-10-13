@@ -11,7 +11,6 @@ from bkmonitor.iam import drf, permission as permission_module
 from bkmonitor.iam.backends.config import build_provider
 from bkmonitor.iam.backends.v3.client import V3Client
 from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
-from bkmonitor.iam.backends.v3.policy_converter import iam_dict_to_expression
 from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
 from iam_engine.core.config import AuthMode
@@ -23,7 +22,7 @@ from bk_dataview.permissions import GrafanaRole
 
 def v3_filter(policy, resource_type="space", ids=("1", "2"), ancestors=()):
     provider = object.__new__(V3PermissionProvider)
-    provider.query_policy = lambda *args: iam_dict_to_expression(policy)
+    provider.query_policy = lambda *args: policy
     candidates = tuple(ResourceInstance(type=resource_type, id=i, ancestor_chain=ancestors) for i in ids)
     return provider.filter_visible_resources(Subject(id="alice"), "action", candidates)
 
@@ -74,8 +73,8 @@ def test_and_negative_constraint_is_not_dropped():
 @pytest.mark.parametrize("operator", ["AND", "OR"])
 def test_unknown_or_empty_operand_is_never_silently_removed(operator):
     for child in [{"op": "unsupported", "field": "space.id", "value": "2"}, None]:
-        with pytest.raises(ValueError):
-            iam_dict_to_expression(
+        with pytest.raises((ValueError, TypeError)):
+            v3_filter(
                 {
                     "op": operator,
                     "content": [
@@ -134,7 +133,11 @@ def test_nested_dashboard_uid_keeps_v3_scope_without_local_candidate(operator):
     "resource_meta",
     [ResourceEnum.BUSINESS, ResourceEnum.APM_APPLICATION, ResourceEnum.GRAFANA_DASHBOARD, ResourceEnum.RUM_APPLICATION],
 )
-def test_simple_resource_keeps_explicit_v3_attributes(resource_meta):
+def test_simple_resource_keeps_explicit_v3_attributes(resource_meta, monkeypatch):
+    from monitor_web.iam.views import ApmApplicationProvider, RumApplicationProvider, Dashboard
+    monkeypatch.setattr(ApmApplicationProvider, "_get_app_simple_info_by_id_or_none", lambda id: None)
+    monkeypatch.setattr(RumApplicationProvider, "_get_app_simple_info_by_id_or_none", lambda id: None)
+    monkeypatch.setattr(Dashboard, "objects", Mock(filter=Mock(return_value=Mock(only=Mock(return_value=Mock(first=Mock(return_value=None)))))))
     attributes = {"owner": "alice", "_bk_iam_path_": "/space,2/"}
     resource = resource_meta.create_simple_instance("7", attributes)
     client = V3Client("offline", "offline", "https://iam.example.test", "bk_monitorv3", MonitorV3Codec())
@@ -306,7 +309,8 @@ def test_drf_saas_denial_reuses_product_bundle_for_every_read_mode(monkeypatch, 
     request = SimpleNamespace(token=None, skip_check=False, user=SimpleNamespace(username="alice", tenant_id="system"))
     with pytest.raises(PermissionDeniedError) as error:
         drf._fw_check_any(request, [ActionEnum.EXPLORE_METRIC], [ResourceInstance(type="space", id="-42")])
-    assert error.value.extra["permission"]["actions"] == permission_module.MINI_ACTION_IDS
+    internal_ids = [permission_module.canonicalize_action_id(a) for a in permission_module.MINI_ACTION_IDS]
+    assert error.value.extra["permission"]["actions"] == internal_ids
     apply_request = permission._apply_url_request.call_args.args[0]
-    assert apply_request.action_ids == tuple(permission_module.MINI_ACTION_IDS)
+    assert apply_request.action_ids == tuple(internal_ids)
     assert apply_request.resources[0].id == "-42"

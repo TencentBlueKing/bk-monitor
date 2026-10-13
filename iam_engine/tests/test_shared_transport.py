@@ -131,7 +131,7 @@ def test_model_auth_token_paths_and_cache_key_are_shared(monkeypatch):
         options(auth_token_path="custom/{system_id}/token/", model_base_path="custom/models/"),
         bk_tenant_id="system",
     )
-    assert client.get_auth_token() == "dummy-token"
+    assert client.retrieve_system_auth_token() == "dummy-token"
     assert send.call_args.kwargs["url"].endswith("/dev/custom/bk_monitorv3/token/")
     send.return_value = response({"count": 0, "results": []})
     assert client.list_actions() == []

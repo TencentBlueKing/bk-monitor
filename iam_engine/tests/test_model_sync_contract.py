@@ -1,6 +1,7 @@
 """Shared convergence and the actual Monitor deployment/command adapters, offline."""
 
 import copy
+import json
 from contextlib import contextmanager
 from io import StringIO
 from unittest.mock import Mock, patch
@@ -21,6 +22,25 @@ from iam_engine.model.definition import build_model_definition
 from iam_engine.model.django import model_sync_lock
 from iam_engine.model.sync import ModelSyncError, ModelSyncService
 from iam_engine.v4.exceptions import V4ResponseError
+
+
+def test_monitor_model_entry_uses_shared_transport_and_materialized_saas_credentials(settings):
+    settings.BK_COMPONENT_API_URL = "https://components.example.test/"
+    settings.BK_IAM_V4_APIGATEWAY_URL = ""
+    settings.SAAS_APP_CODE = "model-saas"
+    settings.SAAS_SECRET_KEY = "offline-model-secret"
+    settings.BK_IAM_V4_SYSTEM_ID = ""
+    settings.BK_IAM_SYSTEM_ID = "bk_monitorv3"
+    settings.BK_APP_TENANT_ID = "tenant-model"
+    response = Mock(status_code=200, content=b"body")
+    response.json.return_value = {"data": {"id": "bk_monitorv3"}}
+    with patch("iam_engine.v4.client.requests.request", return_value=response) as send:
+        assert monitor.v4_migrator().client.retrieve_system() == {"id": "bk_monitorv3"}
+    call = send.call_args.kwargs
+    assert call["url"] == "https://components.example.test/api/bkiam/prod/api/v1/open/rbac/model/systems/bk_monitorv3/"
+    assert call["headers"]["X-Bk-Tenant-Id"] == "tenant-model"
+    auth = json.loads(call["headers"]["X-Bkapi-Authorization"])
+    assert (auth["bk_app_code"], auth["bk_app_secret"]) == ("model-saas", "offline-model-secret")
 
 
 @pytest.mark.parametrize("method", ["list_resource_types", "list_actions", "list_roles"])

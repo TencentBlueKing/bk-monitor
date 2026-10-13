@@ -27,7 +27,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.action import ActionEnum as Actions
 from bkmonitor.iam.drf import (
     BusinessActionPermission,
     IAMPermission,
@@ -431,10 +431,11 @@ def _batch_result_for(pairs, action_id="view_event"):
 
 
 class TestInsertPermissionField:
-    """insert_permission_field：权限注入行为与旧版一致（键为业务 ID）。"""
+    """insert_permission_field：权限注入保留原有产品 Action 键。"""
 
     def _decorated_view(self, fw, provider, pairs, actions, resource_meta, **kwargs):
-        provider.batch_result = _batch_result_for(pairs, action_id=actions[0].id)
+        from bkmonitor.iam.action import canonicalize_action_id
+        provider.batch_result = _batch_result_for(pairs, action_id=canonicalize_action_id(actions[0].id))
 
         def view_func(request):
             resp = MagicMock()
@@ -447,8 +448,8 @@ class TestInsertPermissionField:
 
         return insert_permission_field(actions=actions, resource_meta=resource_meta, **kwargs)(view_func)
 
-    def test_injects_business_id_keys(self, fake_permission):
-        """权限键为业务 ID（旧版为 V3 平台 ID，如 view_event_v2）——已知差异记录。"""
+    def test_injects_original_product_keys(self, fake_permission):
+        """业务权限字段保持原有 V3 ID，不泄漏内部模型 ID。"""
         fw, provider = fake_permission
         actions = [ActionEnum.VIEW_EVENT]
         wrapped = self._decorated_view(
@@ -457,13 +458,13 @@ class TestInsertPermissionField:
         request = _make_request()
         response = wrapped(request)
         data = response.data
-        assert data[0]["permission"] == {"view_event": True, "view_event_v2": True}
-        assert data[1]["permission"] == {"view_event": False, "view_event_v2": False}
+        assert data[0]["permission"] == {"view_event_v2": True}
+        assert data[1]["permission"] == {"view_event_v2": False}
         # 无 id 的行不注入
         assert "permission" not in data[2]
 
     def test_injects_registered_legacy_keys_without_extra_iam_queries(self, fake_permission):
-        """APM 兼容响应复制同一次鉴权结果，同时提供业务键和 V3 历史键。"""
+        """APM 保留原字段，并且不增加额外鉴权请求。"""
         fw, provider = fake_permission
         provider.batch_result = _batch_result_for([("2", True)], action_id="view_apm_application")
         provider.batch_is_allowed = MagicMock(return_value=provider.batch_result)
@@ -481,7 +482,6 @@ class TestInsertPermissionField:
         response = wrapped(_make_request())
 
         assert response.data[0]["permission"] == {
-            "view_apm_application": True,
             "view_apm_application_v2": True,
         }
         assert provider.batch_is_allowed.call_count == 1
@@ -505,7 +505,6 @@ class TestInsertPermissionField:
         response = wrapped(_make_request())
 
         assert response.data["permission"] == {
-            "manage_apm_application": True,
             "manage_apm_application_v2": True,
         }
 
@@ -523,8 +522,8 @@ class TestInsertPermissionField:
         )
         response = wrapped(_make_request())
         data = response.data
-        assert data[0]["permission"]["view_event"] is False
-        assert data[1]["permission"]["view_event"] is True  # always_allowed 豁免
+        assert data[0]["permission"]["view_event_v2"] is False
+        assert data[1]["permission"]["view_event_v2"] is True  # always_allowed 豁免
 
     def test_many_false(self, fake_permission):
         fw, provider = fake_permission
@@ -538,7 +537,7 @@ class TestInsertPermissionField:
 
         wrapped = insert_permission_field(actions=actions, resource_meta=ResourceEnum.BUSINESS, many=False)(view_func)
         response = wrapped(_make_request())
-        assert response.data["permission"]["view_event"] is True
+        assert response.data["permission"]["view_event_v2"] is True
 
     def test_data_field(self, fake_permission):
         fw, provider = fake_permission
@@ -556,7 +555,7 @@ class TestInsertPermissionField:
             data_field=lambda d: d["list"],
         )(view_func)
         response = wrapped(_make_request())
-        assert response.data["list"][0]["permission"]["view_event"] is True
+        assert response.data["list"][0]["permission"]["view_event_v2"] is True
 
     def test_sorts_allowed_records_first_with_framework_action(self, fake_permission):
         fw, provider = fake_permission
@@ -574,7 +573,7 @@ class TestInsertPermissionField:
 
         # 有权限项在前；无权限项保持输入时的相对顺序。
         assert [item["id"] for item in response.data] == ["3", "2", None]
-        assert response.data[0]["permission"] == {"view_event": True, "view_event_v2": True}
+        assert response.data[0]["permission"] == {"view_event_v2": True}
 
 
 class TestApmLegacyPermissionKeyConfiguration:
@@ -671,8 +670,8 @@ class TestFilterDataByPermission:
             mode="insert",
         )
         assert len(result) == 3
-        assert result[0]["permission"]["view_event"] is True
-        assert result[1]["permission"]["view_event"] is False
+        assert result[0]["permission"]["view_event_v2"] is True
+        assert result[1]["permission"]["view_event_v2"] is False
 
     def test_always_allowed(self, fake_permission):
         fw, provider = self._setup(fake_permission, [("2", False), ("3", False), ("5", False)])
@@ -825,8 +824,8 @@ class TestDrfPreflight:
         wrapped = insert_permission_field(actions=actions, resource_meta=ResourceEnum.BUSINESS)(view_func)
         request = _make_request(skip_check=True)
         response = wrapped(request)
-        assert response.data[0]["permission"] == {"view_event": True, "view_event_v2": True}
-        assert response.data[1]["permission"] == {"view_event": True, "view_event_v2": True}
+        assert response.data[0]["permission"] == {"view_event_v2": True}
+        assert response.data[1]["permission"] == {"view_event_v2": True}
 
     def test_insert_permission_field_token_no_record_raises(self, fake_permission):
         """insert_permission_field：带 token 且记录不存在 → TokenValidatedError（与旧 batch_is_allowed 一致）。"""

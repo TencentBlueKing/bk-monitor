@@ -16,16 +16,17 @@ from bkmonitor.iam.backends.config import build_provider
 # 对照基线：merge-base 7b360f40 上的旧 resource.py（478 行）
 # 测试目标：
 #   1. ResourceEnum 成员 / .id / .name 与旧版一致（接口稳定性）
-#   2. create_* 系列返回 ResourceInstance（type+id），可被新版鉴权路径消费
+#   2. create_* 保留原生 SDK Resource，IAM 内部才转换为引擎请求
 #   3. MonitorResourceResolver 补全 name / ancestor_chain，与旧版 create_instance
 #      的 DB 查询语义一致（鉴权路径一致性的资源侧前提）
-#   4. 旧版接口移除项（system_id / parent_resource / get_resource_by_id /
-#      batch_get_display_names / batch_get_parent / to_json）显式记录
+#   4. 元数据、资源 lookup、批量名称/父资源等旧公开接口继续可用
 # 安全约束：仅内存/DB 只读查询（SpaceApi 详情、Application/Dashboard 查询），
 # 不涉及任何授权写操作。
 # ==============================================================================
 
 from unittest.mock import MagicMock, patch
+import pytest
+from iam import Resource
 
 
 from bkmonitor.iam.resource import ApmApplication, Business, GrafanaDashboard, ResourceEnum, RumApplication
@@ -56,11 +57,17 @@ class TestResourceEnumSurface:
 
 
 class TestCreateInstance:
-    """create_* 系列返回 ResourceInstance（type + id）。"""
+    """create_* 保留原生 SDK Resource，内部边界转换为引擎输入。"""
+
+    @pytest.fixture(autouse=True)
+    def no_application_found(self, monkeypatch):
+        from monitor_web.iam.views import ApmApplicationProvider, RumApplicationProvider
+        monkeypatch.setattr(ApmApplicationProvider, "_get_app_simple_info_by_id_or_none", lambda id: None)
+        monkeypatch.setattr(RumApplicationProvider, "_get_app_simple_info_by_id_or_none", lambda id: None)
 
     def test_create_simple_instance(self):
         r = Business.create_simple_instance("2")
-        assert isinstance(r, ResourceInstance)
+        assert isinstance(r, Resource)
         assert r.type == "space"
         assert r.id == "2"
 
@@ -84,34 +91,29 @@ class TestCreateInstance:
     def test_attribute_param_preserves_v3_metadata(self):
         """显式实例属性必须保留，resolver 补全不能丢弃旧 SDK 的鉴权输入。"""
         r = ApmApplication.create_simple_instance("app-1", {"bk_biz_id": "2"})
-        assert r.attributes == {"bk_biz_id": "2"}
+        assert r.attribute == {"bk_biz_id": "2"}
 
 
-class TestRemovedInterfaces:
-    """旧版接口移除项显式记录（review 发现项）。"""
+class TestPreservedInterfaces:
+    """原 V3 元数据及批量接口均保留。"""
 
-    def test_removed_class_attributes(self):
+    def test_original_module_exports_remain(self):
         import bkmonitor.iam.resource as resource_module
 
         for attr in (
-            "system_id",
-            "selection_mode",
-            "related_instance_selections",
-            "parent_resource",
             "get_resource_by_id",
             "_all_resources",
-            "batch_get_display_names",
-            "batch_get_parent",
-            "to_json",
             "ResourceMeta",
         ):
-            assert not hasattr(resource_module, attr), attr
+            assert hasattr(resource_module, attr), attr
 
-    def test_resource_classes_no_longer_have_meta_attrs(self):
-        assert not hasattr(Business, "system_id")
-        assert not hasattr(Business, "parent_resource")
-        assert not hasattr(ApmApplication, "batch_get_display_names")
-        assert not hasattr(GrafanaDashboard, "batch_get_parent")
+    def test_resource_classes_keep_native_metadata(self):
+        assert Business.system_id == "bk_monitorv3"
+        assert Business.parent_resource is None
+        assert ApmApplication.parent_resource is Business
+        assert callable(ApmApplication.batch_get_display_names)
+        assert callable(GrafanaDashboard.batch_get_parent)
+        assert ApmApplication.to_json()["related_instance_selections"] == [{"system_id": "bk_monitorv3", "id": "apm_application_list_v2"}]
 
 
 class TestMonitorResourceResolver:

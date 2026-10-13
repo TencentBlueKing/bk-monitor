@@ -11,12 +11,7 @@ def make_provider():
     p = build_provider(
         "v4",
         username="user",
-        options={
-            "base_url": "https://iam.example.test",
-            "bk_tenant_id": "tenant-b",
-            "credentials": {"app_code": "offline", "app_secret": "offline"},
-            "system": {"id": "bk_monitorv3", "name": "Monitor"},
-        },
+        tenant_id="tenant-b",
     )
     client = Mock()
     p._get_client = Mock(return_value=client)

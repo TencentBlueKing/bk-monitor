@@ -12,12 +12,6 @@ from iam_engine.core.types import AuthStatus
 def _build_provider():
     provider = build_provider(
         "v4",
-        options={
-            "base_url": "http://iam.example.test",
-            "bk_tenant_id": "system",
-            "credentials": {"app_code": "test", "app_secret": "offline"},
-            "system": {"id": "bk_monitorv3", "name": "监控"},
-        },
     )
     client = MagicMock()
     provider._get_client = MagicMock(return_value=client)

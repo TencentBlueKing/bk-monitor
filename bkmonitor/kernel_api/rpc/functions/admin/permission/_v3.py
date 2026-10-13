@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 #
 # v3 权限总览接口的全部 v3 专属逻辑：
 #   - 策略查询显式走 v3 provider（不消费组合聚合结果，v3+v4 共配置时语义唯一）；
-#   - v3 平台 AST（PolicyExpression）→ 权限树 entries 解析；
+#   - v3 平台 AST（dict）→ 权限树 entries 解析；
 #   - 父路径 / 展示名经资源目录 catalog 做全响应级两阶段批量补全（每 rt 一次查询）；
 #   - 对外 action_id 默认返回 v3 方言 ID（USE_DIALECT_ACTION_ID，历史契约）。
 # ---------------------------------------------------------------------------
@@ -27,9 +27,7 @@ from bkmonitor.iam.handlers.catalog import parse_iam_path as _parse_iam_path
 from iam_engine.exceptions import ProviderNotFound
 from iam_engine.provider.requests import Subject as FwSubject, SubjectType
 from bkmonitor.iam.permission import Permission
-from iam_engine.policy.expression import Op, PolicyExpression
 from iam_engine.schema.definitions import ActionDef
-from iam_engine.schema.registry import SchemaRegistry
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
@@ -88,57 +86,57 @@ def _field_to_resource_type(field: str) -> str:
 
 
 # ============================================================================
-# PolicyExpression → permission entries 解析（v3 AST 语义）
+# dict → permission entries 解析（v3 AST 语义）
 # ============================================================================
 
 
-def _parse_expression_entries(expr: PolicyExpression) -> tuple[bool, list[dict]]:
-    """Parse PolicyExpression AST into (is_all, entries).
+def _parse_expression_entries(expr: dict) -> tuple[bool, list[dict]]:
+    """Parse dict AST into (is_all, entries).
 
     Each entry: {"path": [{"type": "space", "id": "2"}, ...]}
     """
-    if expr is None:
+    if not expr:
         return False, []
 
-    if expr.op == Op.ANY:
+    if expr.get("op") == "any":
         return True, []
 
-    if expr.op == Op.NONE:
+    if expr.get("op") == "none":
         return False, []
 
-    if expr.op == Op.IN:
-        values = expr.value or ()
+    if expr.get("op") == "in":
+        values = expr.get("value") or ()
         if not values:
             return False, []
-        typ = _field_to_resource_type(expr.field)
+        typ = _field_to_resource_type(expr.get("field", ""))
         return False, [{"path": [{"type": typ, "id": str(v)}]} for v in values]
 
-    if expr.op == Op.EQ:
-        value = expr.value
+    if expr.get("op") == "eq":
+        value = expr.get("value")
         if not value:
             return False, []
-        typ = _field_to_resource_type(expr.field)
+        typ = _field_to_resource_type(expr.get("field", ""))
         return False, [{"path": [{"type": typ, "id": str(value)}]}]
 
-    if expr.op == Op.STARTS_WITH:
-        value = expr.value
+    if expr.get("op") == "starts_with":
+        value = expr.get("value")
         if not value:
             return False, []
         path = _parse_iam_path(str(value))
         return (False, [{"path": path}]) if path else (False, [])
 
-    if expr.op == Op.OR:
+    if expr.get("op") == "OR":
         entries: list[dict] = []
-        for child in expr.children:
+        for child in expr.get("content", []):
             sub_all, sub_entries = _parse_expression_entries(child)
             if sub_all:
                 return True, []
             entries.extend(sub_entries)
         return False, entries
 
-    if expr.op == Op.AND:
+    if expr.get("op") == "AND":
         all_entries: list[list[dict]] = []
-        for child in expr.children:
+        for child in expr.get("content", []):
             sub_all, sub_entries = _parse_expression_entries(child)
             if sub_all:
                 continue
@@ -160,7 +158,7 @@ def _parse_expression_entries(expr: PolicyExpression) -> tuple[bool, list[dict]]
     return False, []
 
 
-def _parse_action_permissions(action: ActionDef, expr: PolicyExpression | None) -> tuple[str, list[dict], str | None]:
+def _parse_action_permissions(action: ActionDef, expr: dict | None) -> tuple[str, list[dict], str | None]:
     """Return (grant_type, permissions, note).
 
     permissions: list of {"path": [{type, id, [display_name]}, ...]}
@@ -182,7 +180,7 @@ def _parse_action_permissions(action: ActionDef, expr: PolicyExpression | None) 
 # ============================================================================
 
 
-def _enrich_permissions(actions_result: list[dict], schema: SchemaRegistry, bk_tenant_id: str) -> int:
+def _enrich_permissions(actions_result: list[dict], schema, bk_tenant_id: str) -> int:
     """父路径 + 展示名两阶段补全，等价于旧版逐 action 的
     _resolve_parent_paths + _resolve_display_names 语义。
 
@@ -204,7 +202,7 @@ def _enrich_permissions(actions_result: list[dict], schema: SchemaRegistry, bk_t
                 continue
             head = path[0]
             try:
-                rt_def = schema.get_resource_type(head["type"])
+                rt_def = schema.resource_types[head["type"]]
             except Exception:
                 continue
             if rt_def.ancestor:
@@ -302,7 +300,7 @@ def _query_policies_with_fallback(
     action_ids: list[str],
     warnings: list[dict],
     failed_action_ids: set[str],
-) -> dict[str, PolicyExpression | None]:
+) -> dict[str, dict | None]:
     """批量优先 + 逐条降级查询 v3 策略表达式。
 
     单 provider 语义三态（调用方据此区分"查询失败"与"无权限"）：
@@ -322,7 +320,7 @@ def _query_policies_with_fallback(
             }
         )
 
-    policies: dict[str, PolicyExpression | None] = {}
+    policies: dict[str, dict | None] = {}
     for aid in action_ids:
         try:
             policies[aid] = v3_provider.query_policy(subject, aid)
@@ -365,7 +363,8 @@ def query_user_permissions(params: dict[str, Any]) -> dict[str, Any]:
 
     fw = Permission(username=username, bk_tenant_id=bk_tenant_id)
     try:
-        v3_provider = fw.get_provider("v3")
+        from ._shared import _get_enabled_provider
+        v3_provider = _get_enabled_provider(fw, "v3")
     except ProviderNotFound:
         raise CustomException(
             message="当前 IAM 后端未配置 v3 provider，v3 权限总览接口不可用；"
@@ -374,7 +373,7 @@ def query_user_permissions(params: dict[str, Any]) -> dict[str, Any]:
     schema = fw.schema
     subject = FwSubject(id=username, type=SubjectType.USER, tenant_id=bk_tenant_id)
 
-    all_actions_list = schema.all_actions()
+    all_actions_list = schema.actions.values()
     action_ids = [a.id for a in all_actions_list]
 
     # 通过 v3 provider 查询策略表达式：批量优先，失败时降级为逐个 action 查询

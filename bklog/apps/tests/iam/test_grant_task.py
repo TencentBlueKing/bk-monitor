@@ -8,7 +8,7 @@ from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 from apps.iam.tasks.grant import dispatch_v4_creator_grant, grant_v4_creator_action
 
 
-@override_settings(BK_IAM_GRANT_MAX_ATTEMPTS=12)
+@override_settings(BK_IAM_GRANT_MAX_ATTEMPTS=12, BK_IAM_PERMISSION_MODE="v4")
 class GrantV4CreatorActionTaskTest(SimpleTestCase):
     task_kwargs = {
         "tenant_id": "tenant-1",
@@ -71,6 +71,21 @@ class GrantV4CreatorActionTaskTest(SimpleTestCase):
         # add_authorization 没有幂等键，重复授权可以接受，但重算 expired_at 会让有效期随重试漂移。
         self.assertEqual(self.writer.grant_prepared.call_args.args[0].expired_at, 1893456000)
 
+    @override_settings(BK_IAM_PERMISSION_MODE="v3")
+    def test_historical_v4_task_is_suppressed_after_switch_to_v3(self):
+        with patch.object(grant_v4_creator_action, "retry") as retry:
+            self._run_task(retries=4)
+        self.from_settings.assert_not_called()
+        self.writer.grant_prepared.assert_not_called()
+        retry.assert_not_called()
+
+    @override_settings(BK_IAM_PERMISSION_MODE="union")
+    def test_union_retry_keeps_frozen_request(self):
+        self._run_task()
+        self.writer.grant_prepared.assert_called_once_with(
+            PreparedAuthorizationGrant(self.task_kwargs["payload"], "space_operator", 1893456000)
+        )
+
     def test_final_failure_is_not_retried(self):
         self.writer.grant_prepared.side_effect = V4ResponseError("unexpected response body")
 
@@ -106,6 +121,7 @@ class GrantV4CreatorActionTaskTest(SimpleTestCase):
         self.assertEqual(retry.call_args.kwargs["countdown"], 30)
 
 
+@override_settings(BK_IAM_PERMISSION_MODE="v4")
 class DispatchV4CreatorGrantTest(SimpleTestCase):
     def test_dispatch_sends_task_kwargs_as_is(self):
         task_kwargs = {"tenant_id": "tenant-1", "operator": "operator"}
@@ -114,3 +130,9 @@ class DispatchV4CreatorGrantTest(SimpleTestCase):
             dispatch_v4_creator_grant(task_kwargs)
 
         apply_async.assert_called_once_with(kwargs=task_kwargs)
+
+    @override_settings(BK_IAM_PERMISSION_MODE="v3")
+    def test_commit_callback_does_not_dispatch_after_switch_to_v3(self):
+        with patch.object(grant_v4_creator_action, "apply_async") as dispatch:
+            dispatch_v4_creator_grant({"tenant_id": "tenant-1", "operator": "operator"})
+        dispatch.assert_not_called()

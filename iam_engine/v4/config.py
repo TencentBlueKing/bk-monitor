@@ -191,13 +191,15 @@ class V4Options:
     model_base_path: str = DEFAULT_MODEL_BASE_PATH
 
     @classmethod
-    def from_settings(cls, *, bk_tenant_id: str = "", for_resource_callback: bool = False) -> V4Options:
+    def from_settings(
+        cls, *, bk_tenant_id: str = "", for_resource_callback: bool = False, global_credentials=None
+    ) -> V4Options:
         del bk_tenant_id  # 租户信息通过每次请求的请求头传递，不放入选项
         system_id = resolve_effective_v4_system_id()
         if for_resource_callback:
-            app_code, app_secret = resolve_callback_app_credentials()
+            app_code, app_secret = resolve_callback_app_credentials(global_credentials)
         else:
-            app_code, app_secret = settings.APP_CODE, settings.SECRET_KEY
+            app_code, app_secret = global_credentials or (settings.APP_CODE, settings.SECRET_KEY)
         return cls(
             app_code=app_code,
             app_secret=app_secret,

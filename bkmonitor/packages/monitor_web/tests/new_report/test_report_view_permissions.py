@@ -126,7 +126,7 @@ class TestNewReportViewSetPermissions(TestCase):
         create_instance.assert_called_once_with(2)
         permission._is_allowed_request.assert_called_once()
         query = permission._is_allowed_request.call_args.args[0]
-        self.assertEqual(query.action_id, ActionEnum.VIEW_BUSINESS.id)
+        self.assertEqual(query.action_id, "view_business")
         self.assertEqual(query.resource.id, str(resource.id))
         self.assertEqual(query.subject.id, "operator")
         self.assertEqual(query.subject.tenant_id, "system")

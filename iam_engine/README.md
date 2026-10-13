@@ -11,20 +11,22 @@ BKLog 与监控实际引用根目录同一份 `iam_engine`；产品目录中的
 - `model/`：公共 V4 模型校验、差异计划与非破坏性收敛；`django.py` 提供可选部署/命令适配。
 - `settings.py`、`v4/`：BKLog 既有环境变量映射、选项归一化、网关、HTTP 和响应校验。
 - 产品适配：保留各产品原有 Permission/DRF 公开入口，
-  `backends/v3/` 与 `backends/v4/` 提供原生能力，callback 和重试留在产品 IAM 层。
-  Action、资源、角色、codec、租户/资源归属、回调和策略 AST 仍由产品负责。
+  `backends/v3/` 与 `backends/v4/` 提供原生能力。回调与重试的协议/编排共用公共实现，
+  产品仅注册原生 ResourceProvider、注入凭据和绑定 Celery。
+  Action、资源、角色、codec、租户/资源归属和原 V3 SDK 策略仍由产品负责。
 
 公共层不 import 任一产品业务模块。两平台保留 Permission/DRF 对外接口，
 由 Permission 直接装配公共 ModeRouter。监控不再保留 IAMFramework、ProviderRouter、
 SharedMigrationPolicy、框架单例或 IAM_FRAMEWORK 配置目录。产品 backend 只负责
 协议、codec、资源解析和 IAM 模型；布尔决策、范围合并与双写编排复用公共实现。
 监控 Provider 直接实现公共 PermissionProvider，申请和范围能力也由原生 Provider 提供，
-不再通过 MonitorAuthAdapter/方言转换层装配；V4 Client 继承共同通信底座。
+不再通过 MonitorAuthAdapter/方言转换层装配；V4 Client 直接引用共同通信底座。
 监控的 Action/Resource/Permission/DRF 实现仍位于原有 `bkmonitor.iam` 公开模块；
 BKLog 继续使用自身 `apps.iam.handlers` 入口。不强求目录树相同，也不为目录对齐
 重写业务 import。两边一致的是职责、能力协议与公共实现，不是文件路径。
 
-公共 schema/、policy/ 和模型收敛核心不依赖 Django。产品注册 Django 信号和管理命令，
+公共 schema/ 仅保留元数据记录；没有 Registry、冻结、动态枚举或中间策略 DSL。
+原 V3 SDK 策略直接交给 SDK 求值。模型收敛核心不依赖 Django。产品注册 Django 信号和管理命令，
 共用 `model.django` 的命令/锁适配；原有 V3 模型历史仍由产品维护，模型注册不是存量权限迁移。
 
 `PairExecutor` 由上层注入。双产品并发和有序分页共用 `concurrency.py`，产品只负责
@@ -173,4 +175,23 @@ DB 仅内存 SQLite；不要把 `tests/run_*_offline.py` 的覆盖配置带到�
 真实验收仍需注册监控 V4 系统、授权接入配置/测试用户和资源范围，再验证仅 V3、
 仅 V4、两侧有权、两侧无权、申请、创建者授权及重试。用户已决定本阶段不跑真实数据。
 回退到 v3 后，后续操作只用 V3，不再创建 V4 授权或同步请求；不删除已有模型或授权。
-已冻结投递的 V4 重试属于切换前操作，保留原目标和有效期，不重新选择版本。
+已冻结投递的 V4 重试仍检查执行时的模式：切回 V3 后不执行 V4 请求；
+V4/Union 下保留原目标和有效期。投递回调也检查当前模式，不把回滚视为授权成功。
+
+## 回调与产品公开接口
+
+两产品 V4 路由直接注册共同 `V4ResourceApiDispatcher`，复用 SDK 的 ResourceProvider
+分发扩展点，不调用 V3 服务。只支持已核实的 `list_instance`、`fetch_instance_info`；
+未知资源/方法返回明确错误，不伪造成功空列表。分页、过滤、属性投影、响应和认证共用。
+Basic 用户名固定为 `bk_iam`；Token 由共同客户端获取。缓存键隔离租户、系统、网关、
+应用凭据、Token 路径和 TTL；0 关闭缓存，配置/凭据变化不复用旧缓存。
+模式校验发生在 Token/凭据/查询之前；两侧 V3 dispatcher 也检查当前模式。
+
+监控公开 ActionMeta/ActionEnum、ResourceMeta/ResourceEnum 继续使用原 V3 SDK 契约，
+包含原 Action ID、英文名、依赖动作、选择器、资源构造和批量元数据接口。
+内部静态模型从它们派生；业务不改 import，也不接触引擎 DTO。
+两产品资源查询由原生 ResourceProvider 承载；构造、回调和 Resolver 没有第二套 catalog ORM。
+原 V3 单实例构造和租户回调各自的查询边界不被强行合并：前者保留旧缓存/覆盖属性语义，
+后者仍执行租户过滤，由同一产品 Provider 提供相应原生操作。
+
+机制去向、目录及调用链对照见 [架构对齐验收](docs/architecture-alignment.md)。

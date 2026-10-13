@@ -25,8 +25,8 @@ from typing import Literal
 
 from rest_framework import permissions
 
-from bkmonitor.iam.action import ActionMeta, canonicalize_action_id, get_action_by_id, get_legacy_action_ids
-from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.action import ActionMeta, canonicalize_action_id, get_action_by_id
+from bkmonitor.iam.action import ActionEnum as Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.utils.request import get_request
 from bkmonitor.utils.tenant import is_biz_in_tenant
@@ -157,7 +157,7 @@ def _fw_check_any(request, action_refs, resources=None):
 
 def _to_action_ids(actions) -> list[str]:
     """将 ActionDef / str 列表统一为 business ID 字符串列表。"""
-    return [a.id if hasattr(a, "id") else str(a) for a in (actions or [])]
+    return [_to_business_action_id(a) for a in (actions or [])]
 
 
 def _to_fw_resources(resources) -> list[FwResource]:
@@ -482,9 +482,7 @@ def insert_permission_field(
                 perm = {}
                 for aid in action_ids:
                     allowed = allowed_map.get((aid, rid), False)
-                    perm[aid] = allowed
-                    for legacy_action_id in get_legacy_action_ids(aid):
-                        perm[legacy_action_id] = allowed
+                    perm[get_action_by_id(aid).id] = allowed
                 # 注意：dict.update 是浅拷贝，always_allowed 豁免必须作用于已写入的
                 # permission dict 本身（与旧版 item["permission"] 原地修改语义一致），
                 # 否则修改局部 perm 不会反映到响应数据上。
@@ -593,7 +591,7 @@ def filter_data_by_permission(
 
         perm = {}
         for aid in action_ids:
-            perm[aid] = allowed_map.get((aid, rid), False)
+            perm[get_action_by_id(aid).id] = allowed_map.get((aid, rid), False)
 
         if always_allowed(item):
             for k in perm:

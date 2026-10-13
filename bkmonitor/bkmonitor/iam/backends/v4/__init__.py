@@ -12,10 +12,9 @@ specific language governing permissions and limitations under the License.
 # iam_v4 — IAM v4 (RBAC) Provider 实现
 #
 # 依赖 iam_engine 框架，提供完整的 v4 鉴权接入：
-#   - config.py      — Provider 配置契约（V4Options / V4Credentials / V4SystemInfo）
 #   - client.py      — IAM v4 APIGW HTTP 客户端
 #   - provider.py    — V4PermissionProvider
-#   - callback.py    — 资源回调（IAM 查询资源实例）
+#   - callback_client.py — 产品凭据适配；回调分发与 Token 在公共层
 # 模型同步由 iam.model_sync 从产品模型派生期望值，调用 iam_engine.model 公共收敛服务。
 # ---------------------------------------------------------------------------
 

@@ -19,12 +19,10 @@ class IAMConfig(AppConfig):
 
     def ready(self):
         from bkmonitor.iam.tasks import grant  # noqa: F401
-        from bkmonitor.iam.backends.config import get_schema
         from bkmonitor.iam.model_sync import migrate_iam_models
         from bkmonitor.iam.mode import get_mode_provider
 
         get_mode_provider()
-        get_schema()
         post_migrate.connect(
             migrate_iam_models,
             sender=apps.get_app_config("bkmonitor"),

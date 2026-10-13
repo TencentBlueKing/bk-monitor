@@ -12,6 +12,7 @@ import os
 from unittest.mock import MagicMock, patch
 
 import pytest
+from iam.resource.provider import ListResult
 
 from iam_engine.exceptions import ProviderNotFound
 from iam_engine.core.types import AuthResult, AuthorizedResourceScope, BatchAuthResult, BatchAuthResultItem
@@ -21,13 +22,14 @@ from kernel_api.rpc.functions.admin.permission import query_user_permissions_v4,
 
 _GET_FW = "kernel_api.rpc.functions.admin.permission._v4.Permission"
 _CATALOG_FETCH = "bkmonitor.iam.handlers.catalog.fetch_instance_info"
-_CATALOG_LIST = "bkmonitor.iam.handlers.catalog.list_instances"
+_CATALOG_LIST = "bkmonitor.iam.handlers.catalog.get_resource_provider"
 
 
 def _mock_fw_with_v4(v4_provider) -> MagicMock:
     from bkmonitor.iam.permission import Permission as RealPermission
 
     mock_fw = MagicMock()
+    mock_fw.mode_provider.get_mode.return_value = "v4"
     mock_fw.schema = RealPermission(username="offline", bk_tenant_id="system").schema
     mock_fw.get_provider.return_value = v4_provider
     if v4_provider.is_allowed._mock_return_value is DEFAULT and v4_provider.is_allowed.side_effect is None:
@@ -71,6 +73,7 @@ class TestQueryUserPermissionsV4:
     @patch(_GET_FW)
     def test_v4_provider_missing_raises(self, mock_get_fw):
         mock_fw = MagicMock()
+        mock_fw.mode_provider.get_mode.return_value = "v4"
         mock_fw.get_provider.side_effect = ProviderNotFound("provider 'v4' not found")
         mock_get_fw.return_value = mock_fw
 
@@ -262,6 +265,7 @@ class TestQueryUserSubResourcesV4:
     @patch(_GET_FW)
     def test_v4_provider_missing_raises(self, mock_get_fw):
         mock_fw = MagicMock()
+        mock_fw.mode_provider.get_mode.return_value = "v4"
         mock_fw.get_provider.side_effect = ProviderNotFound("provider 'v4' not found")
         mock_get_fw.return_value = mock_fw
 
@@ -277,17 +281,19 @@ class TestQueryUserSubResourcesV4:
             "manage_apm_application", "apm_application", {"390": True, "405": False}
         )
 
-        def fake_list(rt_id, filter_data, page, bk_tenant_id="system"):
+        def fake_list(filter_data, page, *, bk_tenant_id, include_resource_metadata):
             assert filter_data["parent"] == {"type": "space", "id": "2"}
-            return {
-                "count": 2,
-                "results": [
+            assert bk_tenant_id == "system"
+            assert include_resource_metadata is True
+            return ListResult(
+                count=2,
+                results=[
                     {"id": "390", "display_name": "alias-390", "name": "app-390"},
                     {"id": "405", "display_name": "alias-405", "name": "app-405"},
                 ],
-            }
+            )
 
-        mock_list.side_effect = fake_list
+        mock_list.return_value.list_instance.side_effect = fake_list
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
 
         result = query_user_sub_resources_v4(self._params(action_ids=["manage_apm_application", "view_business"]))
@@ -320,13 +326,13 @@ class TestQueryUserSubResourcesV4:
             _auth_items("view_apm_application", "apm_application", {"390": True, "405": True}),
             _auth_items("manage_apm_application", "apm_application", {"390": False, "405": False}),
         ]
-        mock_list.return_value = {
-            "count": 2,
-            "results": [
+        mock_list.return_value.list_instance.return_value = ListResult(
+            count=2,
+            results=[
                 {"id": "390", "display_name": "alias-390", "name": "app-390"},
                 {"id": "405", "display_name": "alias-405", "name": "app-405"},
             ],
-        }
+        )
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
 
         result = query_user_sub_resources_v4(
@@ -343,7 +349,7 @@ class TestQueryUserSubResourcesV4:
     def test_expand_empty_candidates(self, mock_get_fw, mock_list):
         """空间内无该资源实例 → none + note。"""
         mock_v4 = MagicMock()
-        mock_list.return_value = {"count": 0, "results": []}
+        mock_list.return_value.list_instance.return_value = ListResult(count=0, results=[])
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
 
         result = query_user_sub_resources_v4(self._params(action_ids=["manage_apm_application"]))
@@ -375,10 +381,10 @@ class TestQueryUserSubResourcesV4:
         """批量鉴权失败 → 该 action error + warning。"""
         mock_v4 = MagicMock()
         mock_v4.batch_is_allowed.side_effect = RuntimeError("auth gateway down")
-        mock_list.return_value = {
-            "count": 1,
-            "results": [{"id": "390", "display_name": "alias-390", "name": "app-390"}],
-        }
+        mock_list.return_value.list_instance.return_value = ListResult(
+            count=1,
+            results=[{"id": "390", "display_name": "alias-390", "name": "app-390"}],
+        )
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
 
         result = query_user_sub_resources_v4(self._params(action_ids=["manage_apm_application"]))
@@ -395,12 +401,13 @@ class TestQueryUserSubResourcesV4:
         mock_v4 = MagicMock()
         mock_v4.batch_is_allowed.return_value = BatchAuthResult(items=())
 
-        def fake_list(rt_id, filter_data, page, bk_tenant_id="system"):
-            if page.get("page") == 1:
-                return {"count": 3, "results": [{"id": "390", "display_name": "a"}, {"id": "405", "display_name": "b"}]}
-            return {"count": 3, "results": [{"id": "411", "display_name": "c"}]}
+        def fake_list(filter_data, page, **options):
+            if page.offset == 0:
+                return ListResult(count=3, results=[{"id": "390", "display_name": "a"}, {"id": "405", "display_name": "b"}])
+            assert page.offset == 2
+            return ListResult(count=3, results=[{"id": "411", "display_name": "c"}])
 
-        mock_list.side_effect = fake_list
+        mock_list.return_value.list_instance.side_effect = fake_list
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
 
         query_user_sub_resources_v4(self._params(action_ids=["manage_apm_application"]))
@@ -413,7 +420,7 @@ class TestQueryUserSubResourcesV4:
     def test_expand_default_all_sub_actions(self, mock_get_fw, mock_list):
         """缺省 action_ids → 全部二级资源操作（共 6 个）。"""
         mock_v4 = MagicMock()
-        mock_list.return_value = {"count": 0, "results": []}
+        mock_list.return_value.list_instance.return_value = ListResult(count=0, results=[])
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
 
         result = query_user_sub_resources_v4(self._params())

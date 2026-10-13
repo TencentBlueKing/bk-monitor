@@ -8,22 +8,12 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-# ---------------------------------------------------------------------------
-# resource.py — ResourceEnum 定义（元数据从 definitions/resource_types.py 派生）
-#
-# 改造说明:
-#   - ResourceEnum 成员是轻量包装类，元数据从 ResourceTypeDef 自动派生
-#   - 简单实例由 ResourceResolver 补全；列表已有元数据时保留 name / ancestor_chain，
-#     沿用 V3 的 instance_create_func 扩展点，避免冗余查询
-#   - 已移除：ResourceMeta / parent_resource / system_id / selection_mode /
-#     related_instance_selections / _all_resources / get_resource_by_id
-#     （元数据查询统一走 get_schema()，父资源走 rt_def.ancestor）
-#   - 切换到 V4 后：ResourceEnum 成员直接作为 ResourceTypeDef 使用
-# ---------------------------------------------------------------------------
 
-from __future__ import annotations
-
-from bkmonitor.iam.definitions.resource_types import ResourceTypes as _NewResourceTypes
+import abc
+from django.conf import settings
+from django.utils.translation import gettext_lazy as _lazy
+from iam import Resource
+from core.errors.iam import ResourceNotExistError
 from iam_engine.provider.requests import ResourceInstance
 
 
@@ -44,102 +34,207 @@ def to_resource_instance(resource) -> ResourceInstance:
     )
 
 
-# ============================================================================
-# 资源类型类（4 个）— 元数据从 ResourceTypeDef 派生，实例返回 FwResource
-# ============================================================================
 
+class ResourceMeta(metaclass=abc.ABCMeta):
+    """
+    资源定义
+    """
 
-class Business:
-    """空间资源 — 顶级资源。"""
+    # === IAM 资源元数据声明 ===
+    system_id: str = ""
+    id: str = ""
+    name: str = ""
+    selection_mode: str = ""
+    related_instance_selections: list = ""
 
-    _rt_def = _NewResourceTypes.SPACE
-    id: str = _rt_def.id
-    name: str = _rt_def.name
-
-    @classmethod
-    def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return ResourceInstance(type=cls.id, id=str(instance_id), attributes=attribute or {})
-
-    @classmethod
-    def create_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return cls.create_simple_instance(instance_id, attribute)
-
-
-class ApmApplication:
-    """APM 应用资源 — 父资源 Business。"""
-
-    _rt_def = _NewResourceTypes.APM_APPLICATION
-    id: str = _rt_def.id
-    name: str = _rt_def.name
+    # === 资源拓扑关系 ===
+    # 父资源类型；顶级资源为 None。
+    parent_resource: type["ResourceMeta"] | None = None
 
     @classmethod
-    def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return ResourceInstance(type=cls.id, id=str(instance_id), attributes=attribute or {})
+    def to_json(cls):
+        return {
+            "system_id": cls.system_id,
+            "id": cls.id,
+            "selection_mode": cls.selection_mode,
+            "related_instance_selections": cls.related_instance_selections,
+        }
 
     @classmethod
-    def create_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return cls.create_simple_instance(instance_id, attribute)
+    def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
+        """
+        创建简单资源实例
+        :param instance_id: 实例ID
+        :param attribute: 属性kv对
+        """
+        return Resource(cls.system_id, cls.id, str(instance_id), attribute)
 
     @classmethod
-    def create_instance_by_info(cls, item: dict) -> ResourceInstance:
-        return ResourceInstance(
-            type=cls.id,
-            id=str(item["application_id"]),
-            name=item["app_name"],
-            ancestor_chain=(ResourceInstance(type=Business.id, id=str(item["bk_biz_id"])),),
-            attributes={"id": item["application_id"], "name": item["app_name"], "bk_biz_id": str(item["bk_biz_id"])},
-        )
-
-
-class GrafanaDashboard:
-    """Grafana 仪表盘资源 — 父资源 Business。"""
-
-    _rt_def = _NewResourceTypes.GRAFANA_DASHBOARD
-    id: str = _rt_def.id
-    name: str = _rt_def.name
-
-    @classmethod
-    def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return ResourceInstance(type=cls.id, id=str(instance_id), attributes=attribute or {})
-
-    @classmethod
-    def create_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return cls.create_simple_instance(instance_id, attribute)
-
-
-class RumApplication:
-    """RUM 应用资源 — 父资源 Business。"""
-
-    _rt_def = _NewResourceTypes.RUM_APPLICATION
-    id: str = _rt_def.id
-    name: str = _rt_def.name
-
-    @classmethod
-    def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return ResourceInstance(type=cls.id, id=str(instance_id), attributes=attribute or {})
-
-    @classmethod
-    def create_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
+    def create_instance(cls, instance_id: str, attribute=None) -> Resource:
+        """
+        创建资源实例（带实例名称）可由子类重载
+        :param instance_id: 实例ID
+        :param attribute: 属性kv对
+        """
         return cls.create_simple_instance(instance_id, attribute)
 
     @classmethod
-    def create_instance_by_info(cls, item: dict) -> ResourceInstance:
-        return ResourceInstance(
-            type=cls.id,
-            id=str(item["application_id"]),
-            name=item["app_name"],
-            ancestor_chain=(ResourceInstance(type=Business.id, id=str(item["bk_biz_id"])),),
-            attributes={"id": item["application_id"], "name": item["app_name"], "bk_biz_id": str(item["bk_biz_id"])},
-        )
+    def batch_get_parent(cls, instance_ids: set[str]) -> dict[str, str]:
+        """返回 {instance_id: parent_instance_id}。
+
+        注意：
+          - “是否有父资源”这一模型层信息，请通过 `parent_resource` 类属性判断，
+            不要用“本方法是否返回空”来隐式判断。
+          - 顶级资源（parent_resource is None）不应重写本方法，保持默认返回 {}。
+          - 非顶级资源子类应重写本方法，返回本实例到父实例 id 的批量映射。
+        """
+        return {}
+
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]) -> dict[str, str]:
+        """返回 {instance_id: display_name}。子类重写。"""
+        return {}
 
 
-# ============================================================================
-# ResourceEnum
-# ============================================================================
+class Business(ResourceMeta):
+    """
+    CMDB业务
+    """
+    system_id = settings.BK_IAM_SYSTEM_ID
+    id = "space"
+    name = _lazy("空间")
+    selection_mode = "instance"
+    related_instance_selections = [{"system_id": system_id, "id": "space_list"}]
+    parent_resource = None
+    @classmethod
+    def create_simple_instance(cls, instance_id: str, attribute=None):
+        from monitor_web.iam.views import SpaceProvider
+        return SpaceProvider.create_simple_instance(instance_id, attribute)
+
+    @classmethod
+    def create_instance(cls, instance_id: str, attribute=None):
+        from monitor_web.iam.views import SpaceProvider
+        return SpaceProvider.create_instance(instance_id, attribute)
+
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]):
+        from monitor_web.iam.views import SpaceProvider
+        return SpaceProvider.batch_get_display_names(instance_ids)
+
+
+
+class ApmApplication(ResourceMeta):
+    system_id = settings.BK_IAM_SYSTEM_ID
+    id = "apm_application"
+    name = _lazy("APM应用")
+    selection_mode = "instance"
+    related_instance_selections = [{"system_id": system_id, "id": "apm_application_list_v2"}]
+    parent_resource = Business
+    @classmethod
+    def create_instance_by_info(cls, item: dict):
+        from monitor_web.iam.views import ApmApplicationProvider
+        return ApmApplicationProvider.create_instance_by_info(item)
+
+    @classmethod
+    def _get_app_simple_info_by_id_or_none(cls, application_id: str):
+        from monitor_web.iam.views import ApmApplicationProvider
+        return ApmApplicationProvider._get_app_simple_info_by_id_or_none(application_id)
+
+    @classmethod
+    def create_simple_instance(cls, instance_id: str, attribute=None):
+        from monitor_web.iam.views import ApmApplicationProvider
+        return ApmApplicationProvider.create_simple_instance(instance_id, attribute)
+
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]):
+        from monitor_web.iam.views import ApmApplicationProvider
+        return ApmApplicationProvider.batch_get_display_names(instance_ids)
+
+    @classmethod
+    def batch_get_parent(cls, instance_ids: set[str]):
+        from monitor_web.iam.views import ApmApplicationProvider
+        return ApmApplicationProvider.batch_get_parent(instance_ids)
+
+
+
+class GrafanaDashboard(ResourceMeta):
+    system_id = settings.BK_IAM_SYSTEM_ID
+    id = "grafana_dashboard"
+    name = _lazy("Grafana仪表盘")
+    selection_mode = "instance"
+    related_instance_selections = [{"system_id": system_id, "id": "grafana_dashboard_list"}]
+    parent_resource = Business
+    @classmethod
+    def create_simple_instance(cls, instance_id: str, attribute=None):
+        from monitor_web.iam.views import GrafanaDashboardProvider
+        return GrafanaDashboardProvider.create_simple_instance(instance_id, attribute)
+
+    GENERAL_FOLDER_NAME = "General"
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]):
+        from monitor_web.iam.views import GrafanaDashboardProvider
+        return GrafanaDashboardProvider.batch_get_display_names(instance_ids)
+
+    @classmethod
+    def batch_get_parent(cls, instance_ids: set[str]):
+        from monitor_web.iam.views import GrafanaDashboardProvider
+        return GrafanaDashboardProvider.batch_get_parent(instance_ids)
+
+
+
+class RumApplication(ResourceMeta):
+    system_id = settings.BK_IAM_SYSTEM_ID
+    id = "rum_application"
+    name = _lazy("RUM应用")
+    selection_mode = "instance"
+    related_instance_selections = [{"system_id": system_id, "id": "rum_application_list_v2"}]
+    parent_resource = Business
+    @classmethod
+    def create_instance_by_info(cls, item: dict):
+        from monitor_web.iam.views import RumApplicationProvider
+        return RumApplicationProvider.create_instance_by_info(item)
+
+    @classmethod
+    def _get_app_simple_info_by_id_or_none(cls, application_id: str):
+        from monitor_web.iam.views import RumApplicationProvider
+        return RumApplicationProvider._get_app_simple_info_by_id_or_none(application_id)
+
+    @classmethod
+    def create_simple_instance(cls, instance_id: str, attribute=None):
+        from monitor_web.iam.views import RumApplicationProvider
+        return RumApplicationProvider.create_simple_instance(instance_id, attribute)
+
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]):
+        from monitor_web.iam.views import RumApplicationProvider
+        return RumApplicationProvider.batch_get_display_names(instance_ids)
+
+    @classmethod
+    def batch_get_parent(cls, instance_ids: set[str]):
+        from monitor_web.iam.views import RumApplicationProvider
+        return RumApplicationProvider.batch_get_parent(instance_ids)
+
 
 
 class ResourceEnum:
+    """
+    资源类型枚举
+    """
+
     BUSINESS = Business
     APM_APPLICATION = ApmApplication
     GRAFANA_DASHBOARD = GrafanaDashboard
     RUM_APPLICATION = RumApplication
+
+
+_all_resources = {resource.id: resource for resource in ResourceEnum.__dict__.values() if hasattr(resource, "id")}
+
+
+def get_resource_by_id(resource_id: str) -> ResourceMeta:
+    """
+    根据资源ID获取资源
+    """
+    if resource_id not in _all_resources:
+        raise ResourceNotExistError({"resource_id": resource_id})
+
+    return _all_resources[resource_id]

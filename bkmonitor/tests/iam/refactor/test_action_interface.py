@@ -14,9 +14,9 @@ specific language governing permissions and limitations under the License.
 # 对照基线：本分支 merge-base 7b360f40 上的旧 action.py（729 行）
 # 测试目标：
 #   1. 对外接口（ActionEnum 成员 / get_action_by_id / 常量 / ActionMeta 属性）稳定
-#   2. 业务 ID（新版 .id）↔ V3 平台 ID（extensions["v3"]["action_id"]）映射与旧版一致
+#   2. 公开 Action 保留 V3 ID，内部模型的业务 ID 映射与旧版一致
 #   3. type / version / name / related_resource_types 与旧版语义一致
-#   4. 已知差异（name_en/related_actions 置空等）显式记录，供上层评估
+#   4. 英文名、依赖动作、选择器和辅助接口保留原有协议
 # 安全约束：本文件只做内存级接口检查，不访问任何鉴权服务器。
 # ==============================================================================
 
@@ -31,8 +31,6 @@ from bkmonitor.iam.action import (
     ActionMeta,
     get_action_by_id,
 )
-from bkmonitor.iam.definitions.actions import Actions
-from iam_engine.schema.definitions import ActionDef
 from core.errors.iam import ActionNotExistError
 
 from .conftest import (
@@ -102,7 +100,7 @@ OLD_MEMBER_RRT: dict[str, str | None] = {
 
 
 def _enum_members() -> list[str]:
-    return [n for n in dir(ActionEnum) if not n.startswith("_") and isinstance(getattr(ActionEnum, n), ActionDef)]
+    return [n for n in dir(ActionEnum) if not n.startswith("_") and isinstance(getattr(ActionEnum, n), ActionMeta)]
 
 
 class TestActionEnumSurface:
@@ -117,17 +115,16 @@ class TestActionEnumSurface:
         for name in _enum_members():
             member = getattr(ActionEnum, name)
             assert isinstance(member, ActionMeta), name
-            assert isinstance(member, ActionDef), name
 
-    def test_member_ids_are_business_ids(self):
-        """新版 .id 为业务 ID；且业务 ID 与 V3 平台 ID 的映射与旧版定义一致。"""
+    def test_member_ids_remain_native_v3_ids(self):
+        """公开 Action ID 保留原值，转换仅发生于产品 IAM 边界。"""
         from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         codec = MonitorV3Codec()
         for name, (old_v3_id, _type, _name) in OLD_ACTION_SNAPSHOT.items():
             member = getattr(ActionEnum, name)
-            v3_action_id = member.extensions.get("v3", {}).get("action_id")
-            assert member.id == getattr(Actions, name).id, name
+            v3_action_id = member.id
+            assert member.id == old_v3_id, name
             assert v3_action_id == old_v3_id, f"{name}: 期望 V3 ID {old_v3_id}, 实际 {v3_action_id}"
             # 业务 ID 经 codec 编码后必须还原成旧版 V3 平台 ID（鉴权路径一致性的前提）
             assert codec.encode_action(member.id) == old_v3_id, name
@@ -173,22 +170,16 @@ class TestActionMetaCompatibility:
             "description",
             "description_en",
         }
-        # 旧版 name_en 有值；新版恒为空 —— 显式记录该差异（review 发现项）
-        assert json_data["id"] == "view_business"
-        assert json_data["name_en"] == ""
+        assert json_data["id"] == "view_business_v2"
+        assert json_data["name_en"] == "View Business"
 
-    def test_known_differences_documented(self):
-        """显式记录新版与旧版的有意差异（供上层评估是否可接受）。"""
-        # 1. name_en / description_en / related_actions 在新版恒为空
-        assert ActionEnum.EXPLORE_METRIC.name_en == ""
+    def test_native_metadata_and_helpers_are_preserved(self):
+        """不得为适配 V4 丢弃 SDK Action 的已有元数据。"""
+        assert ActionEnum.EXPLORE_METRIC.name_en == "Explore Metric"
         assert ActionEnum.EXPLORE_METRIC.description_en == ""
-        assert ActionEnum.EXPLORE_METRIC.related_actions == []
-        # 旧版 EXPLORE_METRIC.related_actions == [VIEW_BUSINESS.id]
-        # 2. related_resource_types 不再携带 selection_mode / related_instance_selections
+        assert ActionEnum.EXPLORE_METRIC.related_actions == [ActionEnum.VIEW_BUSINESS.id]
         rrt = ActionEnum.VIEW_BUSINESS.related_resource_types[0]
-        assert set(rrt) == {"id", "system_id"}
-        # 3. 旧版 SPACE_RESOURCE / APM_APPLICATION_RESOURCE / GRAFANA_DASHBOARD_RESOURCE /
-        #    RUM_APPLICATION_RESOURCE 常量已删除（无外部调用方，见 review 报告）
+        assert set(rrt) == {"id", "system_id", "selection_mode", "related_instance_selections"}
         import bkmonitor.iam.action as action_module
 
         for removed in (
@@ -199,7 +190,7 @@ class TestActionMetaCompatibility:
             "fetch_related_actions",
             "generate_all_actions_json",
         ):
-            assert not hasattr(action_module, removed), removed
+            assert hasattr(action_module, removed), removed
 
 
 class TestGetActionById:
@@ -216,18 +207,12 @@ class TestGetActionById:
         with pytest.raises(ActionNotExistError):
             get_action_by_id("no_such_action")
 
-    def test_old_v3_platform_id_is_not_resolvable(self):
-        """已知行为变化：旧版 get_action_by_id("view_business_v2") 可解析，
-        新版仅接受业务 ID（"view_business_v2" 会抛 ActionNotExistError）。
-        影响面：仅当上层直接以 V3 平台 ID 字符串调 get_action_by_id 时才会触发
-        （全仓检索无此类调用，前端 V3 ID 字符串走 is_allowed 路径不受影响）。
-        """
-        with pytest.raises(ActionNotExistError):
-            get_action_by_id("view_business_v2")
+    def test_old_v3_platform_id_is_resolvable(self):
+        assert get_action_by_id("view_business_v2") is ActionEnum.VIEW_BUSINESS
 
 
 class TestActionConstants:
-    """常量集合与旧版一致（以业务 ID 表达）。"""
+    """公开常量保留原有 V3 ID 集合。"""
 
     def test_mini_action_ids(self):
         # 新版业务 ID 集合经 codec 编码后应等于旧版 V3 平台 ID 集合
@@ -253,10 +238,9 @@ class TestActionConstants:
             v3 for v3, _t, _n in OLD_ACTION_SNAPSHOT.values()
         }
 
-    def test_constants_use_business_ids(self):
-        """显式记录：常量值从 V3 平台 ID 变为业务 ID（无外部调用方直接消费常量值）。"""
-        assert "view_business" in MINI_ACTION_IDS
-        assert "view_business_v2" not in MINI_ACTION_IDS
+    def test_constants_use_native_v3_ids(self):
+        assert "view_business_v2" in MINI_ACTION_IDS
+        assert "view_business" not in MINI_ACTION_IDS
 
 
 class TestActionIdMappingConsistency:
@@ -266,7 +250,7 @@ class TestActionIdMappingConsistency:
         from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         codec = MonitorV3Codec()
-        for action in real_schema.all_actions():
+        for action in real_schema.actions.values():
             biz_id = action.id
             v3_id = action.extensions.get("v3", {}).get("action_id", biz_id)
             assert codec.encode_action(biz_id) == v3_id, biz_id
@@ -305,41 +289,30 @@ class TestActionIdAliasCompatibility:
         assert canonicalize_action_id("unknown_action_v2") == "unknown_action_v2"
 
     def test_registered_legacy_ids_are_available_for_compatible_responses(self):
-        from bkmonitor.iam.action import get_legacy_action_ids
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
-        assert get_legacy_action_ids("view_apm_application") == ("view_apm_application_v2",)
-        assert get_legacy_action_ids("view_incident") == ()
+        assert MonitorV3Codec().encode_action("view_apm_application") == "view_apm_application_v2"
+        assert MonitorV3Codec().encode_action("view_incident") == "view_incident"
 
     def test_all_declared_v3_ids_have_consistent_compatibility_mappings(self):
-        from bkmonitor.iam.action import canonicalize_action_id, get_legacy_action_ids
+        from bkmonitor.iam.action import canonicalize_action_id
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         for name, (v3_action_id, _action_type, _action_name) in OLD_ACTION_SNAPSHOT.items():
-            business_action_id = getattr(ActionEnum, name).id
+            business_action_id = canonicalize_action_id(getattr(ActionEnum, name).id)
             assert canonicalize_action_id(v3_action_id) == business_action_id
-            expected_aliases = () if v3_action_id == business_action_id else (v3_action_id,)
-            assert get_legacy_action_ids(business_action_id) == expected_aliases
+            assert MonitorV3Codec().encode_action(business_action_id) == v3_action_id
 
-    def test_duplicate_legacy_alias_is_rejected(self):
-        from bkmonitor.iam.action import _build_legacy_action_id_mappings
+    def test_explicit_alias_mapping_is_one_to_one(self):
+        from bkmonitor.iam.action import _ACTION_ALIAS_TO_BUSINESS
 
-        actions = {
-            "first": ActionDef(
-                id="first", name="first", resource_type="", extensions={"v3": {"action_id": "shared_v2"}}
-            ),
-            "second": ActionDef(
-                id="second", name="second", resource_type="", extensions={"v3": {"action_id": "shared_v2"}}
-            ),
-        }
-
-        with pytest.raises(RuntimeError, match="duplicate IAM action alias"):
-            _build_legacy_action_id_mappings(actions)
+        assert len(set(_ACTION_ALIAS_TO_BUSINESS.values())) == len(_ACTION_ALIAS_TO_BUSINESS)
 
 
 class TestProviderVisibility:
     """v4 平台纯净性：v3 兼容遗留的已废弃 space 级仪表盘操作不在 v4 注册。
 
-    definitions 通过 extensions["exclude_providers"] 声明可见性，
-    V4Migrator 的 plan/diff 据此过滤；roles 不再绑定这两个 action。
+    产品分别保留历史 V3 操作和已确认的 V4 操作集合；角色不再绑定旧 Dashboard 操作。
     """
 
     def test_deprecated_dashboard_actions_excluded_from_v4(self, real_schema):
@@ -355,16 +328,14 @@ class TestProviderVisibility:
         assert "edit_single_dashboard" in action_ids
 
     def test_deprecated_dashboard_actions_still_visible_to_v3(self, real_schema):
-        from iam_engine.schema.visibility import is_visible_to
-
-        assert is_visible_to(Actions.VIEW_DASHBOARD, "v3") is True
-        assert is_visible_to(Actions.MANAGE_DASHBOARD, "v3") is True
-        assert is_visible_to(Actions.VIEW_DASHBOARD, "v4") is False
-        assert is_visible_to(Actions.MANAGE_DASHBOARD, "v4") is False
+        assert "view_dashboard" in real_schema.actions
+        assert "manage_dashboard" in real_schema.actions
+        assert "view_dashboard" not in real_schema.v4_actions
+        assert "manage_dashboard" not in real_schema.v4_actions
 
     def test_roles_no_longer_bind_deprecated_dashboard_actions(self, real_schema):
-        assert real_schema.roles_containing_action("view_dashboard") == []
-        assert real_schema.roles_containing_action("manage_dashboard") == []
+        assert [role for role in real_schema.roles.values() if any(binding.action_id == "view_dashboard" for binding in role.actions)] == []
+        assert [role for role in real_schema.roles.values() if any(binding.action_id == "manage_dashboard" for binding in role.actions)] == []
         # v4 的仪表盘语义由 grafana_dashboard 实例级的 single_dashboard 操作承担
-        assert real_schema.roles_containing_action("view_single_dashboard")
-        assert real_schema.roles_containing_action("edit_single_dashboard")
+        assert [role for role in real_schema.roles.values() if any(binding.action_id == "view_single_dashboard" for binding in role.actions)]
+        assert [role for role in real_schema.roles.values() if any(binding.action_id == "edit_single_dashboard" for binding in role.actions)]

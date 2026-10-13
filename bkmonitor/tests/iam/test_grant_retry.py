@@ -12,6 +12,7 @@ from iam_engine.exceptions import ProviderError, ProviderUnavailable
 
 @pytest.fixture
 def grant(monkeypatch):
+    monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", "v4")
     client = Mock()
     provider = Mock()
     provider._get_client.return_value = client
@@ -49,6 +50,32 @@ def test_retry_replays_exact_payload_expiry_and_tenant(grant):
     provider._get_client.assert_called_once_with("tenant-a")
     client.add_authorization.assert_called_once_with(items=data["payload"], operator="alice")
     assert data["payload"][0]["expired_at"] == 1893456000
+
+
+def test_historical_v4_task_is_suppressed_after_switch_to_v3(grant, monkeypatch):
+    provider, client, data = grant
+    monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", "v3")
+    with patch.object(grant_v4_creator_action, "retry") as retry:
+        run_task(data, retries=4)
+    provider._get_client.assert_not_called()
+    client.add_authorization.assert_not_called()
+    retry.assert_not_called()
+
+
+def test_union_retry_keeps_frozen_request(grant, monkeypatch):
+    _, client, data = grant
+    monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", "union")
+    run_task(data)
+    client.add_authorization.assert_called_once_with(items=data["payload"], operator="alice")
+
+
+def test_commit_callback_does_not_dispatch_after_switch_to_v3(grant, monkeypatch):
+    from bkmonitor.iam.tasks.grant import dispatch_v4_creator_grant
+
+    monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", "v3")
+    with patch.object(grant_v4_creator_action, "apply_async") as dispatch:
+        dispatch_v4_creator_grant(grant[2])
+    dispatch.assert_not_called()
 
 
 def test_transient_failure_retries_with_backoff(grant):

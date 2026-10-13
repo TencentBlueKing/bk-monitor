@@ -8,11 +8,6 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from iam_engine.model.client import V4ModelClient
+from iam_engine.model.client import V4ModelClient as V4Client
 
-
-class V4Client(V4ModelClient):
-    """Shared HTTP and model API client; retain only the callback token protocol."""
-
-    def get_auth_token(self):
-        return self.retrieve_system_auth_token()
+__all__ = ["V4Client"]

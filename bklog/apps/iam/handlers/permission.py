@@ -44,7 +44,7 @@ from apps.iam.backends.v3 import V3AuthorizationWriter, V3PermissionProvider
 from apps.iam.backends.v3.client import build_v3_client
 from apps.iam.backends.v3.meta import get_system_info as get_v3_system_info
 from apps.iam.backends.v4 import V4AuthorizationWriter, V4PermissionProvider
-from apps.iam.backends.v4.callback_client import V4CallbackIAM
+from apps.iam.backends.v4.callback_client import build_callback_client
 from apps.iam.concurrency import run_pair_concurrently
 from apps.iam.exceptions import IAMDependencyError, PermissionDeniedError
 from apps.iam.handlers.actions import ActionMeta, get_action_by_id
@@ -133,9 +133,7 @@ class Permission:
     @classmethod
     def get_v4_callback_iam_client(cls, bk_tenant_id: str):
         """V4 反向回调验签客户端，只给 views/resources_v4.py 用。"""
-        return V4CallbackIAM(
-            settings.APP_CODE, settings.SECRET_KEY, settings.BK_IAM_APIGATEWAY_URL, bk_tenant_id=bk_tenant_id
-        )
+        return build_callback_client(bk_tenant_id)
 
     # ================================================================
     # 双栈装配 —— Bundle + ModeRouter + DualStackSpec

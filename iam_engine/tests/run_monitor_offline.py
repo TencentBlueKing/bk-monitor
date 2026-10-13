@@ -110,7 +110,7 @@ def main():
             settings.ROLE,
             list(permission.providers),
             "actions:",
-            len(permission.schema.all_actions()),
+            len(permission.schema.actions.values()),
         )
         if options.startup_only:
             from celery import current_app

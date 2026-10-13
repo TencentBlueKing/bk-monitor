@@ -20,63 +20,7 @@ specific language governing permissions and limitations under the License.
 # ==============================================================================
 
 from iam_engine.provider.codec import NameCodec
-from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
-from iam_engine.schema.registry import SchemaRegistry
 from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
-
-
-def _build_test_schema() -> SchemaRegistry:
-    """构建包含测试数据的冻结 SchemaRegistry（供 plan_migration 等需要 schema 的测试使用）。"""
-    schema = SchemaRegistry()
-    schema.register_action(
-        ActionDef(
-            id="view_business",
-            name="业务访问",
-            resource_type="space",
-            extensions={"v3": {"action_id": "view_business_v2", "type": "view", "version": 1}},
-        )
-    )
-    schema.register_action(
-        ActionDef(
-            id="manage_synthetic",
-            name="拨测管理",
-            resource_type="space",
-            extensions={"v3": {"action_id": "manage_synthetic_v2", "type": "manage", "version": 1}},
-        )
-    )
-    schema.register_action(
-        ActionDef(
-            id="using_dashboard_mcp",
-            name="使用仪表盘MCP",
-            resource_type="space",
-            extensions={"v3": {"action_id": "using_dashboard_mcp", "type": "view", "version": 1}},
-        )
-    )
-    schema.register_action(
-        ActionDef(
-            id="manage_incident",
-            name="故障管理",
-            resource_type="space",
-            extensions={"v3": {"action_id": "manage_incident", "type": "manage", "version": 1}},
-        )
-    )
-    schema.register_action(
-        ActionDef(
-            id="unknown_type_action",
-            name="未知类型",
-            resource_type="space",
-            extensions={"v3": {"action_id": "unknown_type_action", "version": 1}},
-        )
-    )
-    schema.register_resource_type(
-        ResourceTypeDef(
-            id="space",
-            name="空间",
-            extensions={"v3": {"system_id": "bk_monitorv3", "selection_mode": "instance"}},
-        )
-    )
-    schema.freeze()
-    return schema
 
 
 # -- 从 _build_test_schema 对应的数据构建 codec 映射表 --

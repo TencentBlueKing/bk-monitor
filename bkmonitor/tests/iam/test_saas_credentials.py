@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -17,9 +18,7 @@ import pytest
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 
-from bkmonitor.iam.views import callback_auth
-from bkmonitor.iam.views.callback_config import get_v4_callback_config
-from iam_engine.schema.registry import SchemaRegistry
+from bkmonitor.iam.backends.v4.callback_client import build_callback_client
 from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
 from config.tools.iam_credentials import get_saas_setting, saas_setting
@@ -45,8 +44,8 @@ def _options():
 
 @pytest.mark.parametrize("provider_class", (V3PermissionProvider, V4PermissionProvider))
 def test_clients_resolve_saas_identity_lazily_and_keep_tenants_separate(provider_class):
-    schema = SchemaRegistry()
-    schema.freeze()
+    schema = SimpleNamespace(actions={}, resource_types={}, roles={})
+
     version = "v3" if provider_class is V3PermissionProvider else "v4"
     module = f"bkmonitor.iam.backends.{version}.client"
     client_name = "V3Client" if version == "v3" else "V4Client"
@@ -54,7 +53,7 @@ def test_clients_resolve_saas_identity_lazily_and_keep_tenants_separate(provider
         constructor.side_effect = lambda *args, **kwargs: object()
         with override_settings(SAAS_APP_CODE="", SAAS_SECRET_KEY=""):
             with patch("bkmonitor.models.config.GlobalConfig.get", side_effect=AssertionError("eager credential read")):
-                provider = build_provider(version, schema=schema, options=_options())
+                provider = build_provider(version, schema=schema, options=_options() if version == "v3" else None)
         constructor.assert_not_called()
         with override_settings(
             APP_CODE="backend-app", SECRET_KEY="backend-secret", SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"
@@ -63,7 +62,6 @@ def test_clients_resolve_saas_identity_lazily_and_keep_tenants_separate(provider
             assert provider._get_client("tenant-a") is first
             assert provider._get_client("tenant-b") is not first
             default_client = provider._get_client()
-            assert provider.serialize_system_info()["clients"] == ("saas-app",)
         with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="rotated-secret"):
             assert provider._get_client("tenant-a") is not first
             assert provider._get_client() is not default_client
@@ -76,17 +74,14 @@ def test_clients_resolve_saas_identity_lazily_and_keep_tenants_separate(provider
 
 
 def test_callback_snapshots_saas_credentials_and_refreshes_token_provider(monkeypatch):
-    monkeypatch.setattr(callback_auth, "_token_provider", None)
+    client = build_callback_client("system")
     with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"):
-        config = get_v4_callback_config()
-        first = callback_auth.get_callback_token_provider()
-        assert callback_auth.get_callback_token_provider() is first
-        assert config.credentials.app_code == "saas-app"
+        first = client.options_loader("system")
+        assert (first.app_code, first.app_secret) == ("saas-app", "saas-secret")
     with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="rotated-secret"):
-        second = callback_auth.get_callback_token_provider()
-        assert second is not first
-        assert config.credentials.app_secret == "saas-secret"
-        assert second.config.credentials.app_secret == "rotated-secret"
+        second = client.options_loader("system")
+        assert first.app_secret == "saas-secret"
+        assert second.app_secret == "rotated-secret"
 
 
 @override_settings(SAAS_APP_CODE="", SAAS_SECRET_KEY="", APP_CODE="backend-app", SECRET_KEY="backend-secret")

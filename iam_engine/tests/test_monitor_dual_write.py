@@ -1,4 +1,5 @@
 from datetime import datetime, timezone
+from types import SimpleNamespace
 from unittest.mock import Mock
 
 import pytest
@@ -10,7 +11,6 @@ from bkmonitor.iam.tasks import grant as grant_tasks
 from bkmonitor.iam.backends.v4.writer import V4AuthorizationWriter
 from iam_engine.exceptions import ProviderError, ProviderUnavailable
 from tests.iam.helpers import grant_creator_actions
-from iam_engine.schema.registry import SchemaRegistry
 from bkmonitor.iam.backends.config import build_provider
 
 
@@ -33,7 +33,7 @@ def offline_django(django_db_blocker):
 
 @pytest.fixture
 def providers(offline_django, monkeypatch):
-    schema = SchemaRegistry()
+    schema = SimpleNamespace(actions={}, resource_types={}, roles={})
     options = {
         "base_url": "https://example.test/",
         "bk_tenant_id": "system",
@@ -42,7 +42,7 @@ def providers(offline_django, monkeypatch):
     }
     legacy, current = (
         build_provider("v3", schema=schema, options=options),
-        build_provider("v4", schema=schema, options=options),
+        build_provider("v4", schema=schema),
     )
     legacy._get_client, current._get_client = Mock(), Mock()
     legacy._get_client.return_value.grant_resource_creator_actions.return_value = (True, "success")

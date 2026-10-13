@@ -17,21 +17,21 @@ specific language governing permissions and limitations under the License.
 # 兼容历史契约传 True，v4 接口不消费该字段。
 #
 # 后端口径（backend 参数）不在此处硬编码任何版本分支：
-#   - 可见性：按 provider.name 走 is_visible_to（only/exclude_providers）；
+#   - 操作集合：V3 保留历史 Dashboard 操作，V4 使用产品确认的实例级模型；
 #   - id 口径：actions[].id 经 provider.codec.encode_action 编码（v3 输出方言 ID、
 #     v4 输出业务 ID 都是各自 codec 的职责，本模块不关心）。
 # ---------------------------------------------------------------------------
 
 import logging
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.definitions import actions as product_actions
 from iam_engine.exceptions import ProviderNotFound
+from iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK
+from iam_engine.core.exceptions import InvalidAuthModeError
 from bkmonitor.iam.permission import Permission
 from iam_engine.schema.definitions import ActionDef
-from iam_engine.schema.registry import SchemaRegistry
-from iam_engine.schema.visibility import is_visible_to
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc import KernelRPCRegistry
 from kernel_api.rpc.functions.admin.common import (
@@ -40,13 +40,21 @@ from kernel_api.rpc.functions.admin.common import (
     get_bk_tenant_id,
 )
 
-if TYPE_CHECKING:
-    pass
-
 logger = logging.getLogger("kernel_api")
 
 FUNC_ACTION_CATEGORIES = "admin.permission.action_categories"
 OPERATION_ACTION_CATEGORIES = "permission.action_categories"
+
+
+def _get_enabled_provider(fw, protocol):
+    """Read one current mode snapshot before any protocol-specific IAM query."""
+    try:
+        mode = AuthMode(fw.mode_provider.get_mode())
+    except (ValueError, InvalidAuthModeError) as error:
+        raise CustomException(message="Invalid IAM mode; permission query is unavailable") from error
+    if AuthMode(protocol) not in DEFAULT_DUAL_STACK.modes_for(mode):
+        raise CustomException(message=f"IAM {protocol} is disabled in mode {mode.value}")
+    return fw.get_provider(protocol)
 
 
 # ============================================================================
@@ -57,89 +65,89 @@ OPERATION_ACTION_CATEGORIES = "permission.action_categories"
 # ============================================================================
 
 _ACTION_CATEGORY_MAP: dict[str, frozenset[str]] = {
-    "业务": frozenset({Actions.VIEW_BUSINESS.id}),
+    "业务": frozenset({product_actions["view_business"].id}),
     "数据集成": frozenset(
         {
-            Actions.VIEW_PLUGIN.id,
-            Actions.MANAGE_PLUGIN.id,
-            Actions.VIEW_COLLECTION.id,
-            Actions.MANAGE_COLLECTION.id,
-            Actions.VIEW_CUSTOM_METRIC.id,
-            Actions.MANAGE_CUSTOM_METRIC.id,
-            Actions.VIEW_CUSTOM_EVENT.id,
-            Actions.MANAGE_CUSTOM_EVENT.id,
+            product_actions["view_plugin"].id,
+            product_actions["manage_plugin"].id,
+            product_actions["view_collection"].id,
+            product_actions["manage_collection"].id,
+            product_actions["view_custom_metric"].id,
+            product_actions["manage_custom_metric"].id,
+            product_actions["view_custom_event"].id,
+            product_actions["manage_custom_event"].id,
         }
     ),
     "监控场景": frozenset(
         {
-            Actions.VIEW_HOST.id,
-            Actions.MANAGE_HOST.id,
-            Actions.VIEW_SYNTHETIC.id,
-            Actions.MANAGE_SYNTHETIC.id,
-            Actions.USE_PUBLIC_SYNTHETIC_LOCATION.id,
+            product_actions["view_host"].id,
+            product_actions["manage_host"].id,
+            product_actions["view_synthetic"].id,
+            product_actions["manage_synthetic"].id,
+            product_actions["use_public_synthetic_location"].id,
         }
     ),
     "监控管理": frozenset(
         {
-            Actions.VIEW_RULE.id,
-            Actions.MANAGE_RULE.id,
-            Actions.VIEW_NOTIFY_TEAM.id,
-            Actions.MANAGE_NOTIFY_TEAM.id,
-            Actions.VIEW_DOWNTIME.id,
-            Actions.MANAGE_DOWNTIME.id,
-            Actions.EXPORT_CONFIG.id,
-            Actions.IMPORT_CONFIG.id,
+            product_actions["view_rule"].id,
+            product_actions["manage_rule"].id,
+            product_actions["view_notify_team"].id,
+            product_actions["manage_notify_team"].id,
+            product_actions["view_downtime"].id,
+            product_actions["manage_downtime"].id,
+            product_actions["export_config"].id,
+            product_actions["import_config"].id,
         }
     ),
     "分析定位": frozenset(
         {
-            Actions.EXPLORE_METRIC.id,
-            Actions.VIEW_EVENT.id,
-            Actions.MANAGE_EVENT.id,
-            Actions.VIEW_SINGLE_DASHBOARD.id,
-            Actions.EDIT_SINGLE_DASHBOARD.id,
-            Actions.MANAGE_DATASOURCE.id,
-            Actions.NEW_DASHBOARD.id,
-            Actions.MANAGE_REPORT.id,
-            Actions.VIEW_DASHBOARD.id,
-            Actions.MANAGE_DASHBOARD.id,
-            Actions.VIEW_INCIDENT.id,
-            Actions.MANAGE_INCIDENT.id,
+            product_actions["explore_metric"].id,
+            product_actions["view_event"].id,
+            product_actions["manage_event"].id,
+            product_actions["view_single_dashboard"].id,
+            product_actions["edit_single_dashboard"].id,
+            product_actions["manage_datasource"].id,
+            product_actions["new_dashboard"].id,
+            product_actions["manage_report"].id,
+            product_actions["view_dashboard"].id,
+            product_actions["manage_dashboard"].id,
+            product_actions["view_incident"].id,
+            product_actions["manage_incident"].id,
         }
     ),
     "应用监控": frozenset(
         {
-            Actions.VIEW_APM_APPLICATION.id,
-            Actions.MANAGE_APM_APPLICATION.id,
+            product_actions["view_apm_application"].id,
+            product_actions["manage_apm_application"].id,
         }
     ),
     "用户体验监控": frozenset(
         {
-            Actions.VIEW_RUM_APPLICATION.id,
-            Actions.MANAGE_RUM_APPLICATION.id,
+            product_actions["view_rum_application"].id,
+            product_actions["manage_rum_application"].id,
         }
     ),
     "全局配置": frozenset(
         {
-            Actions.MANAGE_PUBLIC_SYNTHETIC_LOCATION.id,
-            Actions.MANAGE_PUBLIC_PLUGIN.id,
-            Actions.VIEW_GLOBAL_SETTING.id,
-            Actions.MANAGE_GLOBAL_SETTING.id,
-            Actions.VIEW_SELF_STATE.id,
-            Actions.MANAGE_PUBLIC_ACTION_CONFIG.id,
-            Actions.MANAGE_CALENDAR.id,
+            product_actions["manage_public_synthetic_location"].id,
+            product_actions["manage_public_plugin"].id,
+            product_actions["view_global_setting"].id,
+            product_actions["manage_global_setting"].id,
+            product_actions["view_self_state"].id,
+            product_actions["manage_public_action_config"].id,
+            product_actions["manage_calendar"].id,
         }
     ),
     "监控平台MCP": frozenset(
         {
-            Actions.USING_DASHBOARD_MCP.id,
-            Actions.USING_METRICS_MCP.id,
-            Actions.USING_LOG_MCP.id,
-            Actions.USING_ALARM_MCP.id,
-            Actions.USING_ALARM_HANDLING_MCP.id,
-            Actions.USING_METADATA_MCP.id,
-            Actions.USING_APM_MCP.id,
-            Actions.USING_OPERATION_MCP.id,
+            product_actions["using_dashboard_mcp"].id,
+            product_actions["using_metrics_mcp"].id,
+            product_actions["using_log_mcp"].id,
+            product_actions["using_alarm_mcp"].id,
+            product_actions["using_alarm_handling_mcp"].id,
+            product_actions["using_metadata_mcp"].id,
+            product_actions["using_apm_mcp"].id,
+            product_actions["using_operation_mcp"].id,
         }
     ),
 }
@@ -198,15 +206,12 @@ def _build_action_info(
     return info
 
 
-def _visible_actions(schema: SchemaRegistry, provider=None) -> list[ActionDef]:
-    """schema 全量 action；指定 provider 时按其 name 做可见性过滤（only/exclude_providers）。"""
-    actions = schema.all_actions()
-    if provider is not None:
-        return [a for a in actions if is_visible_to(a, provider.name)]
-    return actions
+def _visible_actions(schema, provider=None) -> list[ActionDef]:
+    """返回当前协议的产品操作集合，保留 V3 历史 Dashboard 操作。"""
+    return list((schema.v4_actions if provider is not None and provider.name == "v4" else schema.actions).values())
 
 
-def _build_business_groups(schema: SchemaRegistry, provider=None) -> list[dict[str, Any]]:
+def _build_business_groups(schema, provider=None) -> list[dict[str, Any]]:
     """将 schema 中的操作按业务场景扁平分组（可选按 provider 可见性 + id 口径）。"""
     codec = provider.codec if provider is not None else None
     groups_data: dict[str, list[dict[str, Any]]] = defaultdict(list)
@@ -243,7 +248,7 @@ def _build_business_groups(schema: SchemaRegistry, provider=None) -> list[dict[s
 
 
 def _build_action_groups(
-    schema: SchemaRegistry, provider=None
+    schema, provider=None
 ) -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]]:
     """Group actions by resource_type, returning (groups, action_index).
 
@@ -260,7 +265,7 @@ def _build_action_groups(
     top_level_keys = sorted(
         k
         for k in groups_data
-        if k != "global" and schema.has_resource_type(k) and not schema.get_resource_type(k).ancestor
+        if k != "global" and (k in schema.resource_types) and not schema.resource_types[k].ancestor
     )
     other_keys = sorted(k for k in groups_data if k != "global" and k not in top_level_keys)
     key_order = top_level_keys + (["global"] if "global" in groups_data else []) + other_keys
@@ -268,8 +273,8 @@ def _build_action_groups(
     groups: list[dict[str, Any]] = []
     for key in key_order:
         actions = groups_data[key]
-        if key != "global" and schema.has_resource_type(key):
-            rt_def = schema.get_resource_type(key)
+        if key != "global" and (key in schema.resource_types):
+            rt_def = schema.resource_types[key]
             groups.append(
                 {
                     "resource_type": key,
@@ -356,8 +361,7 @@ def action_categories(params: dict[str, Any]) -> dict[str, Any]:
             "is_top_level": not rt.ancestor,
             "parent_resource_type": rt.ancestor or None,
         }
-        for rt in schema.all_resource_types()
-        if provider is None or is_visible_to(rt, provider.name)
+        for rt in schema.resource_types.values()
     ]
 
     return build_response(

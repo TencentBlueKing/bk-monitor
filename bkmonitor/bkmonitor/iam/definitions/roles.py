@@ -15,12 +15,12 @@ specific language governing permissions and limitations under the License.
 # 子资源 action 的 RoleActionBinding.resource_type 使用子资源自身类型。
 # ---------------------------------------------------------------------------
 
-from iam_engine.schema.definitions import ActionDef, ResourceTypeDef, RoleActionBinding, RoleDef
-from bkmonitor.iam.definitions.actions import Actions
+from iam_engine.schema.definitions import ResourceTypeDef, RoleActionBinding, RoleDef
+from bkmonitor.iam.action import ActionEnum as Actions, ActionMeta, canonicalize_action_id
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 
 
-def _bind(action: ActionDef, resource_type: ResourceTypeDef | None = None) -> RoleActionBinding:
+def _bind(action: ActionMeta, resource_type: ResourceTypeDef | None = None) -> RoleActionBinding:
     """把 ActionDef + ResourceTypeDef 归一为 RoleActionBinding。
 
     Args:
@@ -28,7 +28,7 @@ def _bind(action: ActionDef, resource_type: ResourceTypeDef | None = None) -> Ro
         resource_type: 授权维度；None 表示无关资源类型的授权
     """
     rt_id = resource_type.id if resource_type is not None else ""
-    return RoleActionBinding(action_id=action.id, resource_type=rt_id)
+    return RoleActionBinding(action_id=canonicalize_action_id(action.id), resource_type=rt_id)
 
 
 # ---- View actions on space ----

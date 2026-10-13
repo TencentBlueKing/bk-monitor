@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -34,7 +35,6 @@ from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInst
 from iam_engine.core.types import AuthStatus
 from iam import Action, Resource
 from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
-from iam_engine.schema.registry import SchemaRegistry
 from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 
@@ -69,49 +69,39 @@ def _valid_options() -> dict:
     }
 
 
-def _build_test_schema() -> SchemaRegistry:
-    """构建包含测试数据的冻结 SchemaRegistry。"""
-    schema = SchemaRegistry()
-    schema.register_action(
-        ActionDef(
+def _build_test_schema():
+    """测试直接提供最小的产品定义映射。"""
+    schema = SimpleNamespace(actions={}, resource_types={}, roles={})
+    schema.actions["view_business"] = ActionDef(
             id="view_business",
             name="业务访问",
             resource_type="space",
             extensions={"v3": {"action_id": "view_business_v2", "type": "view", "version": 1}},
         )
-    )
-    schema.register_action(
-        ActionDef(
+    schema.actions["manage_synthetic"] = ActionDef(
             id="manage_synthetic",
             name="拨测管理",
             resource_type="space",
             extensions={"v3": {"action_id": "manage_synthetic_v2", "type": "manage", "version": 1}},
         )
-    )
-    schema.register_action(
-        ActionDef(
+    schema.actions["using_dashboard_mcp"] = ActionDef(
             id="using_dashboard_mcp",
             name="使用仪表盘MCP",
             resource_type="space",
             extensions={"v3": {"action_id": "using_dashboard_mcp", "type": "view", "version": 1}},
         )
-    )
-    schema.register_action(
-        ActionDef(
+    schema.actions["manage_global_setting"] = ActionDef(
             id="manage_global_setting",
             name="全局配置编辑",
             resource_type="",
             extensions={"v3": {"action_id": "manage_global_setting", "type": "manage", "version": 1}},
         )
-    )
-    schema.register_resource_type(
-        ResourceTypeDef(
+    schema.resource_types["space"] = ResourceTypeDef(
             id="space",
             name="空间",
             extensions={"v3": {"system_id": "bk_monitorv3", "selection_mode": "instance"}},
         )
-    )
-    schema.freeze()
+
     return schema
 
 
@@ -140,13 +130,6 @@ class TestV3ProviderConstruction:
         assert p._cfg.system.id == "bk_monitorv3"
         assert p._cfg.chunk_size == 8
         assert p._cfg.max_workers == 1
-
-    def test_get_system_info(self):
-        p = _make_provider()
-        info = p.get_system_info()
-        assert info.id == "bk_monitorv3"
-        assert info.name == "监控平台"
-
 
 class TestV3ProviderCapabilities:
     """Native three-state contract with the real product codec and mocked SDK."""

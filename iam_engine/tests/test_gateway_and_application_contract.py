@@ -105,7 +105,7 @@ def test_monitor_default_provider_and_actual_request_urls(v3_url, v4_url):
         assert send.call_args.kwargs["url"] == expected_v4 + "api/v1/open/application/permission-apply-urls/"
         assert send.call_args.kwargs["json"]["permissions"][0]["action_id"] == "view_business"
         assert url == "https://v4-page.example.test/application/123/"
-        assert data["system"] == providers["v4"]._cfg.system.id
+        assert data["system"] == providers["v4"].system_id
 
 
 @pytest.mark.parametrize(

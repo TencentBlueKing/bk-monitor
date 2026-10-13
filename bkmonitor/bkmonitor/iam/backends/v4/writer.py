@@ -5,9 +5,9 @@ from datetime import timedelta
 from django.utils import timezone
 
 from iam_engine.migration.grant_config import AuthorizationGrantConfig
-from iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
+from iam_engine.migration.grant_retry import classify_grant_failure
+from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 
-from iam_engine.exceptions import ProviderError, ProviderUnavailable
 
 
 class V4AuthorizationWriter:
@@ -53,25 +53,4 @@ class V4AuthorizationWriter:
             items=prepared.payload, operator=self.operator
         )
 
-    @staticmethod
-    def classify_failure(error):
-        from iam_engine.v4.exceptions import V4ClientError, V4TransportError, V4TimeoutError, V4RateLimitError
-
-        if isinstance(error, V4TimeoutError | V4TransportError | V4RateLimitError):
-            return GrantFailureKind.RETRY_WAIT
-        if isinstance(error, V4ClientError):
-            return (
-                GrantFailureKind.RETRY_WAIT
-                if error.status_code and error.status_code >= 500
-                else GrantFailureKind.FAILED_FINAL
-            )
-        code = getattr(error, "code", 0)
-        if isinstance(error, ProviderUnavailable):
-            if code == 429 or isinstance(code, int) and code >= 500:
-                return GrantFailureKind.RETRY_WAIT
-            if isinstance(code, int) and 400 <= code < 500:
-                return GrantFailureKind.FAILED_FINAL
-            return GrantFailureKind.UNKNOWN
-        if isinstance(error, ProviderError | ValueError):
-            return GrantFailureKind.FAILED_FINAL
-        return GrantFailureKind.RETRY_WAIT
+    classify_failure = staticmethod(classify_grant_failure)

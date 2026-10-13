@@ -13,15 +13,13 @@ from rest_framework.test import APIRequestFactory
 
 from bkmonitor.iam.handlers import catalog
 from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
-from bkmonitor.iam.views import callback_auth as auth
-from bkmonitor.iam.views.resources_v4 import MonitorV4ResourceCallbackView
+from bkmonitor.iam.views.resources_v4 import build_resource_dispatcher
 from iam_engine.provider.requests import (
     ResourceInstance,
     Subject,
 )
 from iam_engine.provider.codec import IdentityCodec
 from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
-from iam_engine.schema.registry import SchemaRegistry
 from bkmonitor.iam.backends.v3.client import V3Client
 from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
@@ -148,6 +146,7 @@ def resource_rows(monkeypatch):
         for name in ("filter", "exclude", "all"):
             monkeypatch.setattr(model.objects, name, getattr(manager, name))
     monkeypatch.setattr(views, "get_org_by_name", lambda org_name: {"id": 100 + int(org_name)})
+    monkeypatch.setattr(views, "get_org_by_id", lambda org_id: {"id": org_id, "name": str(org_id - 100)})
     monkeypatch.setattr("bk_dataview.api.get_org_by_name", lambda org_name: {"id": 100 + int(org_name)})
 
     def get_space_detail(space_uid="", bk_biz_id=0):
@@ -162,7 +161,9 @@ def resource_rows(monkeypatch):
 
 @pytest.fixture
 def callback(monkeypatch):
-    monkeypatch.setattr(auth, "get_callback_token_provider", lambda: row(get_system_token=lambda: "test-token"))
+    monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", "v4")
+    dispatcher = build_resource_dispatcher()
+    monkeypatch.setattr(dispatcher.iam, "is_basic_auth_allowed", lambda *args, **kwargs: True)
 
     def call(method="list_instance", rt="space", tenant="tenant-a", filter_data=None, page=None, http_method="post"):
         headers = {"HTTP_AUTHORIZATION": "Basic " + base64.b64encode(b"bk_iam:test-token").decode()}
@@ -178,13 +179,15 @@ def callback(monkeypatch):
                     "method": method,
                     "type": rt,
                     "filter": filter_data or {},
-                    "page": page or {},
+                    "page": page or {"page": 1, "page_size": 1000},
                     "bk_tenant_id": "body-must-not-be-used",
                 },
                 format="json",
                 **headers,
             )
-        return MonitorV4ResourceCallbackView.as_view()(request)
+        response = dispatcher.as_view()(request)
+        response.data = json.loads(response.content)
+        return response
 
     return call
 
@@ -224,12 +227,11 @@ def test_v4_parent_cannot_select_another_tenant(resource_rows, callback, setting
 def test_v4_multitenant_requires_header_before_catalog(monkeypatch, callback, settings, tenant, method):
     settings.ENABLE_MULTI_TENANT_MODE = True
     query = MagicMock(side_effect=AssertionError("must not query"))
-    monkeypatch.setattr(catalog, "list_instances", query)
-    monkeypatch.setattr(catalog, "fetch_instance_info", query)
+    monkeypatch.setattr(catalog, "get_resource_provider", query)
     result = callback(method=method, tenant=tenant)
     assert result.status_code == 400
     query.assert_not_called()
-    assert callback(tenant=tenant, http_method="get").status_code == 200
+    assert callback(tenant=tenant, http_method="get").status_code == 400
 
 
 @pytest.mark.parametrize(
@@ -301,6 +303,21 @@ def test_v3_details_exclude_foreign_applications_and_folders(resource_rows):
     assert [r["id"] for r in grafana.results] == ["folder:101|201"]
 
 
+def test_native_v3_response_contract_and_parent_search_precedence(resource_rows):
+    provider = views.ApmApplicationProvider()
+    filters = row(parent={"id": "1"}, search={"apm_application": ["no-match"]}, resource_type_chain=None)
+    page = row(slice_from=0, slice_to=20)
+    # V3 deliberately keeps its existing parent-before-search behavior and fields.
+    assert provider.list_instance(filters, page, bk_tenant_id="tenant-a").results == [
+        {"id": "1", "display_name": "alias-1"}
+    ]
+    assert provider.fetch_instance_info(row(ids=["1"]), bk_tenant_id="tenant-a").results == [
+        {"id": "1", "display_name": "alias-1"}
+    ]
+    # The V4 wire adapter applies both documented filters without altering V3.
+    assert provider.list_instance(filters, page, bk_tenant_id="tenant-a", include_resource_metadata=True).results == []
+
+
 @pytest.mark.parametrize("rt", ["apm_application", "rum_application"])
 def test_resolver_application_cache_includes_tenant(monkeypatch, rt):
     fetch = MagicMock(
@@ -339,9 +356,9 @@ def test_resolver_does_not_enrich_foreign_resources(resource_rows, rt, rid):
 
 
 def test_v3_rpc_enrichment_passes_tenant(resource_rows):
-    schema = SchemaRegistry()
-    schema.register_resource_type(ResourceTypeDef(id="space", name="Space"))
-    schema.register_resource_type(ResourceTypeDef(id="apm_application", name="APM", ancestor="space"))
+    schema = SimpleNamespace(actions={}, resource_types={}, roles={})
+    schema.resource_types["space"] = ResourceTypeDef(id="space", name="Space")
+    schema.resource_types["apm_application"] = ResourceTypeDef(id="apm_application", name="APM", ancestor="space")
     actions = [{"permissions": [{"path": [{"type": "apm_application", "id": "2"}]}]}]
     assert _enrich_permissions(actions, schema, "tenant-b") == 0
     assert actions[0]["permissions"][0]["path"] == [
@@ -351,17 +368,20 @@ def test_v3_rpc_enrichment_passes_tenant(resource_rows):
 
 
 def make_provider(cls, **overrides):
-    schema = SchemaRegistry()
-    schema.register_resource_type(ResourceTypeDef(id="space", name="Space"))
-    schema.register_action(ActionDef(id="view_business", name="View", resource_type="space"))
-    schema.freeze()
+    schema = SimpleNamespace(actions={}, resource_types={}, roles={})
+    schema.resource_types["space"] = ResourceTypeDef(id="space", name="Space")
+    schema.actions["view_business"] = ActionDef(id="view_business", name="View", resource_type="space")
+
     options = {
         "base_url": "https://iam.example.test",
         "credentials": {"app_code": "test", "app_secret": "secret"},
         "system": {"id": "monitor", "name": "Monitor", "name_en": "Monitor"},
     }
     options.update(overrides)
-    return build_provider(("v3" if cls is V3PermissionProvider else "v4"), schema=schema, options=options)
+    return build_provider(
+        ("v3" if cls is V3PermissionProvider else "v4"), schema=schema,
+        tenant_id=options.get("bk_tenant_id", "system"), options=options if cls is V3PermissionProvider else None,
+    )
 
 
 @pytest.mark.parametrize("cls", [V3PermissionProvider, V4PermissionProvider])

@@ -16,9 +16,7 @@ from __future__ import annotations
 # 所有框架抛出的异常都必须继承 IamEngineError；使用方只 catch 顶层异常即可覆盖框架错误。
 # 分类原则：
 #   - 配置错误        ConfigError（启动阶段，无法自愈）
-#   - Schema 错误     SchemaError（definitions 有误，需要开发者修）
 #   - Provider 错误   ProviderError（运行时，可能可重试）
-#   - Migration 错误  MigrationError（同步平台配置时）
 #   - 鉴权拒绝        PermissionDenied（业务语义，非框架故障）
 # ---------------------------------------------------------------------------
 
@@ -42,33 +40,6 @@ class ProviderNotFound(ConfigError):
     """按名字查找 Provider 时未找到。"""
 
 
-# ---- Schema 类 -------------------------------------------------------------
-
-
-class SchemaError(IamEngineError):
-    """Schema 定义错误的基类。"""
-
-
-class SchemaConflict(SchemaError):
-    """定义冲突（例如重复注册同名 action_id）。"""
-
-
-class SchemaFrozenError(SchemaError):
-    """Registry 已冻结，禁止再修改。"""
-
-
-class ActionNotFound(SchemaError):
-    """按 id 查找 ActionDef 时未找到。"""
-
-
-class ResourceTypeNotFound(SchemaError):
-    """按 id 查找 ResourceTypeDef 时未找到。"""
-
-
-class RoleNotFound(SchemaError):
-    """按 id 查找 RoleDef 时未找到。"""
-
-
 # ---- Provider 类 -----------------------------------------------------------
 
 
@@ -80,10 +51,6 @@ class ProviderUnavailable(ProviderError):
     """Provider 后端不可用（连不通、超时、限流等）。"""
 
 
-class CapabilityNotSupported(ProviderError):
-    """当前 Provider 不支持某能力（应通过 Provider.supports() 事先判断）。"""
-
-
 class CreatorGrantFailed(ProviderError):
     """创建者授权未写入全部目标后端。
 
@@ -91,25 +58,6 @@ class CreatorGrantFailed(ProviderError):
     要求 ``raise_exception=True`` 时，Permission facade 使用本异常把部分失败
     交给上层事务或接口处理。
     """
-
-
-# ---- Migration 类 ----------------------------------------------------------
-
-
-class MigrationError(IamEngineError):
-    """迁移相关错误基类。"""
-
-
-class DestructiveMigrationBlocked(MigrationError):
-    """检测到破坏性变更且未显式允许时抛出。"""
-
-
-class MigrationPreCheckFailed(MigrationError):
-    """apply 前置检查失败（clients 白名单缺失、仍有授权等）。"""
-
-
-class MigrationFailed(MigrationError):
-    """执行阶段失败。"""
 
 
 # ---- 鉴权语义 --------------------------------------------------------------

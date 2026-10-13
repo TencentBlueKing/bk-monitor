@@ -9,6 +9,7 @@ from iam.apply.models import (
     ResourceNode,
 )
 from iam.utils import gen_perms_apply_data
+from bkmonitor.iam.action import canonicalize_action_id
 from iam_engine.core.requests import to_definition_id
 
 
@@ -22,19 +23,19 @@ class V3ApplicationBuilder:
         from iam import meta
 
         meta.setup_system(p.system_id, p._cfg.system.name)
-        for resource_type in p.schema.all_resource_types():
+        for resource_type in p.schema.resource_types.values():
             system_id = resource_type.extensions.get("v3", {}).get("system_id") or p.system_id
             meta.setup_resource(system_id, p.codec.encode_resource_type(resource_type.id), resource_type.name)
-        for action in p.schema.all_actions():
+        for action in p.schema.actions.values():
             meta.setup_action(p.system_id, p.codec.encode_action(action.id), action.name)
         resolved = [p._resolve(r, tenant_id=p.tenant_id) for r in resources]
         sdk_actions, action_resources = [], []
         for action in actions:
-            aid = to_definition_id(action)
+            aid = canonicalize_action_id(to_definition_id(action))
             encoded = p.codec.encode_action(aid)
-            definition = p.schema.get_action(aid)
+            definition = p.schema.actions[aid]
             rt = definition.resource_type
-            matched = [r for r in resolved if to_definition_id(r.type) == rt]
+            matched = [r for r in resolved if canonicalize_action_id(to_definition_id(r.type)) == rt]
             sdk_resources = []
             for resource in matched:
                 sdk_resource = p.codec.encode_resource(resource, client)
@@ -46,7 +47,7 @@ class V3ApplicationBuilder:
             if not rt:
                 sdk_actions.append(ActionWithoutResources(encoded))
                 continue
-            resource_type = p.schema.get_resource_type(rt)
+            resource_type = p.schema.resource_types[rt]
             system_id = resource_type.extensions.get("v3", {}).get("system_id") or p.system_id
             instances = [
                 ResourceInstance(

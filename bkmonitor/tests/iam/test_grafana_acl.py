@@ -15,7 +15,6 @@ def test_product_contract_expands_folder_for_dashboard_only_candidates(monkeypat
     from bkmonitor.iam.permission import Permission
     from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
     from iam_engine.core.config import AuthMode
-    from iam_engine.policy.expression import Op, PolicyExpression
     from iam_engine.provider.requests import VisibleResult
 
     monkeypatch.setattr(grafana, "get_or_create_org", lambda name: {"id": 10})
@@ -36,7 +35,7 @@ def test_product_contract_expands_folder_for_dashboard_only_candidates(monkeypat
     permission.skip_check = False
     permission.mode_provider = Mock(get_mode=Mock(return_value=AuthMode(mode)))
     v3 = object.__new__(V3PermissionProvider)
-    v3.query_policy = Mock(return_value=PolicyExpression(Op.EQ, "grafana_dashboard.id", "folder:10|7"))
+    v3.query_policy = Mock(return_value={"op": "eq", "field": "grafana_dashboard.id", "value": "folder:10|7"})
     v4 = Mock(name="v4-provider")
     v4.name = "v4"
     v4.filter_visible_resources.return_value = VisibleResult()

@@ -1,54 +1,33 @@
-"""Celery delivery adapter for frozen V4 grants; no persisted compensation/outbox."""
+"""Product Celery binding; execution, mode guards and retry policy are shared."""
 
 import logging
-import json
-
 from celery import shared_task
-
-from iam_engine.error_summary import sanitize_error_summary
-from iam_engine.migration.grant_config import AuthorizationGrantConfig, retry_countdown_seconds
-from iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
-
 from bkmonitor.iam.backends.v4.writer import V4AuthorizationWriter
+from bkmonitor.iam.mode import get_mode_provider
+from iam_engine.migration.grant_retry import dispatch_v4_grant, execute_frozen_v4_grant
 
 logger = logging.getLogger("iam.v4.grant")
 
 
 def dispatch_v4_creator_grant(task_kwargs):
-    grant_v4_creator_action.apply_async(kwargs=task_kwargs)
+    return dispatch_v4_grant(
+        grant_v4_creator_action, task_kwargs,
+        mode_loader=lambda: get_mode_provider().get_mode(), logger=logger,
+    )
+
+
+def _build_writer(tenant_id, operator):
+    from bkmonitor.iam.backends.config import build_provider
+
+    return V4AuthorizationWriter(
+        build_provider("v4", tenant_id=tenant_id), tenant_id=tenant_id, operator=operator
+    )
 
 
 @shared_task(bind=True, ignore_result=True, max_retries=None)
 def grant_v4_creator_action(self, *, tenant_id, operator, payload, role_id, expired_at, resource_meta):
-    from bkmonitor.iam.backends.config import build_provider
-
-    max_attempts = AuthorizationGrantConfig.from_settings().max_attempts
-    metadata = json.dumps(
-        {"tenant_id": str(tenant_id)[:80], "resource": resource_meta, "role_id": str(role_id)[:80]},
-        ensure_ascii=True,
-        default=str,
+    return execute_frozen_v4_grant(
+        self, writer_factory=_build_writer, mode_loader=lambda: get_mode_provider().get_mode(), logger=logger,
+        tenant_id=tenant_id, operator=operator, payload=payload,
+        role_id=role_id, expired_at=expired_at, resource_meta=resource_meta,
     )
-    try:
-        provider = build_provider("v4", tenant_id=tenant_id)
-        writer = V4AuthorizationWriter(provider, tenant_id=tenant_id, operator=operator)
-        writer.grant_prepared(PreparedAuthorizationGrant(payload, role_id, expired_at))
-    except Exception as error:
-        failure = V4AuthorizationWriter.classify_failure(error)
-        logger.warning(
-            "[IAM V4 Grant] meta=%s attempt=%s failure_kind=%s error=%s",
-            metadata,
-            self.request.retries + 1,
-            failure.value,
-            sanitize_error_summary(error),
-        )
-        if failure is GrantFailureKind.FAILED_FINAL or self.request.retries + 1 >= max_attempts:
-            logger.error(
-                "[IAM V4 Grant] final failure meta=%s attempt=%s max_attempts=%s failure_kind=%s",
-                metadata,
-                self.request.retries + 1,
-                max_attempts,
-                failure.value,
-            )
-            return
-        raise self.retry(exc=error, countdown=retry_countdown_seconds(self.request.retries))
-    logger.info("[IAM V4 Grant] succeeded meta=%s", metadata)

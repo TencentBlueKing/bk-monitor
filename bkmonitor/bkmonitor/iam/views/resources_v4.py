@@ -1,110 +1,20 @@
-"""
-Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2025 Tencent. All rights reserved.
-Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at http://opensource.org/licenses/MIT
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
-specific language governing permissions and limitations under the License.
-"""
+"""Monitor registers native SDK providers on the shared V4 callback dispatcher."""
 
-from __future__ import annotations
+from django.conf import settings
 
-import logging
-import json
-
-from django.core.exceptions import ImproperlyConfigured
-from rest_framework.request import Request
-from rest_framework.response import Response
-from rest_framework.views import APIView
-
-from bkmonitor.views.renderers import UJSONRenderer
-from bkmonitor.iam.tenant import get_callback_tenant_id
-
-from bkmonitor.iam.views.callback_auth import MonitorIamCallbackAuthentication
-from bkmonitor.iam.views.callback_handlers import get_callback_service
-from bkmonitor.iam.views.callback_service import V4CallbackService
-
-logger = logging.getLogger(__name__)
+from bkmonitor.iam.backends.v4.callback_client import build_callback_client
+from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
+from bkmonitor.iam.handlers.catalog import get_resource_provider
+from iam_engine.v4.callback import V4ResourceApiDispatcher
+from iam_engine.v4.config import resolve_effective_v4_system_id
+from iam_engine.v4.resource import V4ResourceProvider
 
 
-class V4ResourceCallbackView(APIView):
-    """项目侧 V4 资源 callback 协议 View。
-
-    子类显式提供 callback_service 和认证方式。本类不读取 公共 ModeRouter、
-    V4PermissionProvider 或 Provider 配置。
-    """
-
-    authentication_classes = []
-    permission_classes = []
-    # IAM callback 有独立协议，不能被 Web/API 角色的全局 renderer 再包一层。
-    renderer_classes = [UJSONRenderer]
-    callback_service: V4CallbackService | None = None
-
-    def get(self, request: Request) -> Response:
-        """供 IAM 平台执行 callback 连通性探测。"""
-        return Response({"code": 0, "data": {"status": "ok"}})
-
-    def post(self, request: Request) -> Response:
-        """处理 IAM 平台的 list_instance / fetch_instance_info 请求。"""
-        try:
-            bk_tenant_id = get_callback_tenant_id(request)
-        except ValueError:
-            return Response({"error": {"code": "INVALID_ARGUMENT", "message": "Invalid callback tenant"}}, status=400)
-
-        method = request.data.get("method", "")
-        filter_data = request.data.get("filter", {})
-        page = request.data.get("page", {})
-
-        service = self.get_callback_service()
-        dialect_resource_type = request.data.get("type", "")
-        resource_type = service.decode_resource_type(dialect_resource_type)
-
-        logger.info(
-            "[iam_v4:callback] %s",
-            json.dumps(
-                {
-                    "method": str(method)[:80],
-                    "type": str(dialect_resource_type)[:80],
-                    "business_type": str(resource_type)[:80],
-                    "tenant_id": str(bk_tenant_id)[:80],
-                },
-                ensure_ascii=True,
-            ),
-        )
-
-        try:
-            if method == "list_instance":
-                result = service.dispatch_list_instance(resource_type, filter_data, page, bk_tenant_id=bk_tenant_id)
-                return Response({"code": 0, "data": result})
-            if method == "fetch_instance_info":
-                requires = request.data.get("requires", [])
-                result = service.dispatch_fetch_instance_info(
-                    resource_type, filter_data.get("ids", []), requires, bk_tenant_id=bk_tenant_id
-                )
-                return Response({"code": 0, "data": result})
-
-            logger.warning("[iam_v4:callback] unknown method=%r", str(method)[:80])
-            return Response({"code": 0, "data": {"count": 0, "results": []}})
-        except Exception as exc:
-            logger.error("[iam_v4:callback] failed error_type=%s", type(exc).__name__)
-            return Response(
-                {"error": {"code": "INTERNAL_ERROR", "message": "IAM callback failed"}},
-                status=500,
-            )
-
-    def get_callback_service(self) -> V4CallbackService:
-        """返回项目注入的 V4 回调服务。"""
-        if self.callback_service is None:
-            raise ImproperlyConfigured(
-                "V4ResourceCallbackView requires a project-provided callback_service; "
-                "configure it in the callback project."
-            )
-        return self.callback_service
-
-
-class MonitorV4ResourceCallbackView(V4ResourceCallbackView):
-    """监控项目的 V4 callback 入口。"""
-
-    authentication_classes = [MonitorIamCallbackAuthentication]
-    callback_service = get_callback_service()
+def build_resource_dispatcher():
+    dispatcher = V4ResourceApiDispatcher(
+        build_callback_client(settings.BK_APP_TENANT_ID), resolve_effective_v4_system_id()
+    )
+    codec = MonitorV4Codec()
+    for resource_type in ("space", "apm_application", "grafana_dashboard", "rum_application"):
+        dispatcher.register(resource_type, V4ResourceProvider(get_resource_provider(resource_type), resource_type, codec))
+    return dispatcher
