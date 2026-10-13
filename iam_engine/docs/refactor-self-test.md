@@ -393,10 +393,30 @@ Monitor 复现命令沿用前节完整业务集合，增加
 临时 V3 对照脚本只用于基线方法隔离核验，不冒充完整 HTTP 端到端或仓库内测试。
 
 再次检查完整 PR 相对 `864722982` 的 diff：前端、原 Monitor V3 migrations、全局异常
-处理器均无 diff；207 个可比 Python 路径中没有整文件 AST 相同的纯格式/注释变更。
+处理器均无 diff；Python diff 中没有整文件 AST 相同的纯格式/注释变更。
 不批量调整业务 import、不夹带 typo、类型现代化或业务优化。
 原 V3 模型迁移历史/数据库表保留；没有新增旧 Action 升级或存量授权迁移工具。
 
 Git 提交及推送 hooks 的实际结果另记交付回执，不用单测替代 hooks。
 仍未验收真实 IAM、MySQL 锁/部署 migrate、真实 Celery/broker、镜像和 Charts、
 回调可达性及 V4 申请页面；当前 GitHub MCP 未连接，远端 CI 未核实。
+
+### 最新提交及交付前同步回执
+
+- `9951c5751`：架构对齐实现，正常 Ruff 通过；只跳过用户授权的 ruff-format。
+- `7a9edad77`：单文件删除全局异常处理器新增分支，恢复 master 原文。
+  正常尝试时 Ruff 自动改写该文件的基线类型/格式，且仍报两处 UP031；
+  改写已撤回。经用户另行明确授权，仅此单文件提交额外跳过 Ruff。
+  冲突、私钥、IP 和提交信息检查均正常通过，没有 --no-verify 或规则修改。
+- `95c47bc94`：交付前再合入最新 master `4ffa88c7e`，无冲突、正常 hook。
+  该上游增量仅包含两处前端变化；逐目录比对确认 IAM/配置/消费者与
+  `7a9edad77` 相同。完整 PR 相对最新 master 仍无前端/原 V3 migrations/全局异常 diff。
+- 上述实现、单文件恢复和两次 master 合并均实际验证 GPG Good signature。
+  PreCI 包装返回成功，但提示未安装 PreCI 并跳过，不能描述为实际 PreCI 扫描通过。
+
+提交后 Monitor 主回归 1025 passed、21 deselected，BKLog 634 tests/OK，
+原生 MCP 808 passed（206.46 秒），均退出 0。最后纯前端 master 合并后，
+Monitor 再次为 1025 passed（10.08 秒），Web/API/Worker 冷启动均退出 0。
+MCP 的 808 项针对合并前的同一 IAM 代码，没有将重复运行数量相加。
+2026-10-13 交付前再次读取 PR CI 仍返回 GitHub account 未连接，未确认远端 CI。
+最终推送 head 与正式自测评论回读另记 TAPD；真实环境验收边界不变。
