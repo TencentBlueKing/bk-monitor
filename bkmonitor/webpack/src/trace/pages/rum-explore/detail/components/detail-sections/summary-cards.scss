@@ -15,7 +15,7 @@
   .summary-card-group-title {
     padding: 0 8px;
     font-size: 14px;
-    font-weight: 50;
+    font-weight: 500;
     line-height: 28px;
     color: #111214;
     background: #f0f1f5;
@@ -34,7 +34,7 @@
     flex-direction: column;
     gap: 4px;
     min-width: 0;
-    padding: 8px 12px 8px 16px;
+    padding: 8px 16px;
     background: #fff;
     border: 1px solid #c1cde5;
     border-radius: 4px;
@@ -73,7 +73,7 @@
 
     .card-value-row {
       display: flex;
-      gap: 4px;
+      gap: 2px;
       align-items: center;
       min-width: 0;
 
@@ -142,7 +142,13 @@
       }
     }
 
+    &.view-card {
+      padding: 8px;
+    }
+
     &.vital-card {
+      padding: 8px;
+
       &.success {
         background-color: #edfaf6;
         border-color: #c1e5dc;
@@ -159,12 +165,13 @@
       }
     }
 
-    &.view-extra-card {
+    &.link-type {
       .card-value {
         line-height: 32px;
         text-decoration-line: underline;
         text-decoration-style: solid;
         text-underline-position: from-font;
+        cursor: pointer;
       }
     }
   }

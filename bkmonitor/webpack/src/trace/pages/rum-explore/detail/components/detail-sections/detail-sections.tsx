@@ -26,8 +26,6 @@
 import { defineComponent } from 'vue';
 import type { PropType } from 'vue';
 
-import { Alert } from 'bkui-vue';
-
 import { SectionKeyEnum } from '../../constants';
 import { renderSection } from '../../registry/section-registry';
 import { RumSectionTypeEnum } from '../../typings';
@@ -117,13 +115,6 @@ export default defineComponent({
                 {section.subTitle ? <span class='section-divider' /> : null}
                 {section.subTitle ? <span class='section-sub-title'>{section.subTitle}</span> : null}
               </div>
-            ) : null}
-            {section.tip ? (
-              <Alert
-                class='section-tip'
-                theme='info'
-                title={section.tip}
-              />
             ) : null}
             <div
               class={{
