@@ -26,13 +26,13 @@
 
 import { blobDownload, readBlobRespToJson } from '@/common/util';
 import { axiosInstance } from '@/api';
-import { Message } from 'bk-magic-vue';
 import { t } from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import * as authorityMap from '../../../../common/authority-map';
+import { showBatchDownloadFailures, showDownloadFailure } from '../download-message';
 
-import './use-download-file.scss';
+import type { DownloadFileFailure } from '../types';
 
 /**
  * 从 Content-Disposition 响应头中解析文件名
@@ -64,13 +64,6 @@ interface DownloadFileOptions {
   useResponseFileName?: boolean;
 }
 
-/** 批量下载中的失败记录 */
-interface DownloadFileFailure {
-  file_name: string;
-  message: string;
-  code?: string | number;
-}
-
 /**
  * 文件下载 Hook
  * 用于统一处理表格中的文件下载逻辑（含权限校验）
@@ -93,7 +86,7 @@ export const useDownloadFile = () => {
   ): Promise<DownloadFileFailure | null> => {
     const reportFailure = (message: string, code?: DownloadFileFailure['code']): DownloadFileFailure => {
       if (showErrorMessage) {
-        Message({ theme: 'error', message });
+        showDownloadFailure(message);
       }
       return { file_name: fileName, message, ...(code === undefined ? {} : { code }) };
     };
@@ -177,19 +170,7 @@ export const useDownloadFile = () => {
       const failure = await requestFileDownload(fileName, bkBizId, options, false);
       if (failure) failedTasks.push(failure);
     }
-    if (failedTasks.length) {
-      Message({
-        theme: 'error',
-        zIndex: 9999,
-        extCls: 'client-log-batch-download-message',
-        actions: [{ id: 'assistant', disabled: true }],
-        message: {
-          title: String(t('批量下载：{n} 个文件下载失败', { n: failedTasks.length })),
-          type: 'json',
-          details: failedTasks,
-        },
-      });
-    }
+    showBatchDownloadFailures(failedTasks);
   };
 
   return {
