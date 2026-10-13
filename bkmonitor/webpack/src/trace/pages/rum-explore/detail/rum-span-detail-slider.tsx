@@ -99,8 +99,8 @@ export default defineComponent({
     });
 
     const originData = computed(() => detail.value?.origin_data || {});
-    const { formatField, copyText, resolveCtx } = useDetailFormatter(toRef(props, 'fields'), originData);
-    const { headerVM } = useDetailOverview(detail, spanType, formatField);
+    const { getField, formatField, copyText, resolveCtx } = useDetailFormatter(toRef(props, 'fields'), originData);
+    const { headerVM } = useDetailOverview(detail, spanType, formatField, getField);
     const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading);
     const { blocks, eventKeyword } = useOriginData(originData);
 

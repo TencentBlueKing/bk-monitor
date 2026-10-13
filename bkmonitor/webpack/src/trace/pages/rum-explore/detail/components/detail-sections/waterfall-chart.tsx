@@ -178,23 +178,6 @@ export default defineComponent({
                 </div>
               </div>
             ) : null}
-            <div class='waterfall-row timestamp-row'>
-              <span class='row-label'>{t('时间轴')}</span>
-              <span class='row-duration'>{data.durationTotalText}</span>
-              <div class='row-track'>
-                {data.rows.map(row => (
-                  <span
-                    key={row.key}
-                    style={{
-                      left: `${row.startPercent}%`,
-                      width: `${row.durationPercent}%`,
-                      backgroundColor: row.color,
-                    }}
-                    class='row-block'
-                  />
-                ))}
-              </div>
-            </div>
             {data.ttfbBreakdown ? (
               <div class='waterfall-ttfb-breakdown'>
                 {`${t('TTFB 分解（RUM 协议）')} · ${t('子项合计')} ${data.ttfbBreakdown.itemsTotalText} · ${t('与 TTFB 相差')} ${data.ttfbBreakdown.diffText}`}
@@ -205,8 +188,15 @@ export default defineComponent({
                 key={row.key}
                 class='waterfall-row'
               >
-                <span class='row-label'>{row.label}</span>
-                <span class='row-duration'>{row.durationText}</span>
+                <span class='row-label'>
+                  <span class='text'>{row.label}</span>
+                </span>
+                <span
+                  class='row-duration'
+                  v-overflow-tips
+                >
+                  {row.durationText}
+                </span>
                 <div class='row-track'>
                   <span
                     style={{
@@ -243,7 +233,7 @@ export default defineComponent({
             ])}
           </div>
 
-          {data.milestones?.length && (
+          {data.milestones?.length > 0 && (
             <div class='milestones-wrap'>
               <div class='milestones-wrap-title'>{t('累计里程碑')}</div>
               <div class='milestones-list'>

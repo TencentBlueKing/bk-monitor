@@ -30,22 +30,6 @@ import type { RumCardToneType } from './typings';
 /** 后端计算字段的前缀，此类字段的别名与格式化值由后端直接给出 */
 export const DISPLAY_FIELD_PREFIX = 'display.';
 
-/**
- * 公共信息项的展示名覆盖。
- * view_config 里的 field_alias 面向检索列（如「页面 URL 模板」），详情头部需要更短的说明文案，
- * 故按设计稿在此覆盖；未登记的字段仍走 field_alias -> field_name 的兜底链路。
- */
-export const OVERVIEW_ITEM_LABEL_MAP: Record<string, string> = {
-  app_name: window.i18n.t('应用'),
-  start_time: window.i18n.t('开始'),
-  end_time: window.i18n.t('结束'),
-  'attributes.view.url_template': window.i18n.t('视图'),
-  'attributes.session.id': window.i18n.t('会话'),
-  'attributes.view.id': window.i18n.t('View 详情'),
-  'attributes.user.id': window.i18n.t('用户'),
-  'resource.deployment.environment.name': window.i18n.t('环境'),
-};
-
 /** 以蓝色可点击样式展示的公共信息项 */
 export const OVERVIEW_LINK_FIELDS = new Set([
   'attributes.view.url_template',
