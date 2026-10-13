@@ -503,7 +503,7 @@ class RecordRuleV4Resolver:
         return result
 
     def resolve_src_result_table_configs(self, vm_table_ids: list[str]) -> list[ResolvedVmResultTableConfig]:
-        """把源 VMRT 固化成 bkbase ResultTableConfig.name 快照。"""
+        """把源 VMRT 固化成 BKBase ResultTable 资源身份与 VM storage 快照。"""
 
         return resolve_vm_result_table_configs(
             bk_tenant_id=self.rule.bk_tenant_id,

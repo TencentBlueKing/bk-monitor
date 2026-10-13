@@ -19,6 +19,7 @@ class ResolvedVmResultTableConfig(TypedDict):
     result_table_id: str
     vm_result_table_id: str
     bkbase_result_table_name: str
+    bkbase_result_table_namespace: str
     vm_storage_name: str
 
 
@@ -77,6 +78,7 @@ def resolve_vm_result_table_configs(
                 "result_table_id": result_table_config.table_id,
                 "vm_result_table_id": vm_table_id,
                 "bkbase_result_table_name": result_table_config.name,
+                "bkbase_result_table_namespace": result_table_config.namespace,
                 "vm_storage_name": vm_storage_name,
             }
         )
