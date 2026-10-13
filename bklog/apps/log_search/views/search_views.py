@@ -867,7 +867,7 @@ class SearchViewSet(APIViewSet):
 
         # 分片查询尚不支持自定义物理索引，指定 custom_indices 的请求沿用原链路。
         if not is_quick_export and not data.get("custom_indices") and is_sharded_export_enabled(data.get("bk_biz_id")):
-            return self._sharded_export_from_data(data, index_set_id=index_set_id)
+            return self._sharded_export_from_data(data, index_set_id=index_set_id, request_bk_biz_id=request_bk_biz_id)
 
         notify_type_name = NotifyType.get_choice_label(
             FeatureToggleObject.toggle(FEATURE_ASYNC_EXPORT_COMMON).feature_config.get(FEATURE_ASYNC_EXPORT_NOTIFY_TYPE)
@@ -903,7 +903,7 @@ class SearchViewSet(APIViewSet):
             }
         )
 
-    def _sharded_export_from_data(self, data, index_set_id=None, index_set_ids=None):
+    def _sharded_export_from_data(self, data, index_set_id=None, index_set_ids=None, request_bk_biz_id=None):
         """把旧导出参数归一为标准分片导出参数并创建任务，返回带引擎标记的分流响应。"""
         params = sharded_export_api.normalize_legacy_export_params(data)
         params["space_uid"] = bk_biz_id_to_space_uid(data["bk_biz_id"])
@@ -913,7 +913,7 @@ class SearchViewSet(APIViewSet):
         else:
             params["index_set_id"] = int(index_set_id)
             params["index_set_type"] = IndexSetType.SINGLE.value
-        job = sharded_export_api.create_export_job(params, raw_params=data)
+        job = sharded_export_api.create_export_job(params, raw_params=data, job_bk_biz_id=request_bk_biz_id)
         return Response({"task_id": job.pk, "engine": "sharded"})
 
     @list_route(methods=["POST"], url_path="union_async_export")
