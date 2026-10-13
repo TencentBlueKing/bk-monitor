@@ -12,6 +12,8 @@ import logging
 import time
 from typing import Any
 
+from dateutil import parser
+
 from apm.core.discover.log.base import Discover
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import TopoNode
@@ -60,7 +62,12 @@ class ServiceDiscover(Discover):
                     name = resource.get("server")
                 if not name:
                     continue
-                timestamp: int = int(log["time"]) // 1000
+                # 查询可能返回毫秒时间戳或带时区的 ISO 8601 时间。
+                log_time: int | str = log["time"]
+                if isinstance(log_time, str) and "T" in log_time:
+                    timestamp: int = int(parser.isoparse(log_time).timestamp())
+                else:
+                    timestamp = int(log_time) // 1000
                 observed[name] = max(observed.get(name, 0), timestamp)
 
         TopoNode.upsert_telemetry_nodes(

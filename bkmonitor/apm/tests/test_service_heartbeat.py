@@ -90,38 +90,94 @@ def test_heartbeat_locks_and_rolls_back_on_routed_database() -> None:
     assert node.heartbeat == {}
 
 
-def log_response(name: str = "demo", timestamp: int = 150000) -> list[dict[str, Any]]:
+def log_response(name: str = "demo", timestamp: int | str = 150000) -> list[dict[str, Any]]:
     return [{"resource": {"service": {"name": name}, "server": name}, "time": timestamp}]
 
 
-def test_log_discover_creates_nodes_and_merges_fields() -> None:
+@pytest.mark.parametrize(
+    ("first_time", "second_time", "expected_last_data_at"),
+    [
+        pytest.param(150000, 190000, 190, id="millisecond_timestamps"),
+        pytest.param("150000", "190000", 190, id="millisecond_strings"),
+        pytest.param(
+            "2026-10-13T07:37:00.128000000Z",
+            "2026-10-13T07:36:59.999999999Z",
+            1791877020,
+            id="iso_utc",
+        ),
+        pytest.param(
+            "2026-10-13T15:36:59.999999999+08:00",
+            "2026-10-13T15:37:00.128000000+08:00",
+            1791877020,
+            id="iso_timezone_offset",
+        ),
+        pytest.param(1791877021128, "2026-10-13T07:37:00.128000000Z", 1791877021, id="mixed_formats"),
+    ],
+)
+def test_log_discover_creates_nodes_and_merges_fields(
+    first_time: int | str, second_time: int | str, expected_last_data_at: int
+) -> None:
     existing = make_node("existing", source=["trace"], heartbeat={"trace": {"last_data_at": 80, "checked_at": 90}})
     with (
         mock.patch(
             "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
-            side_effect=[log_response(timestamp=150000), log_response(timestamp=190000)],
+            side_effect=[log_response(timestamp=first_time), log_response(timestamp=second_time)],
         ) as query,
         mock.patch.object(TopoNode, "get_empty_extra_data", return_value={"kind": "service", "category": "other"}),
     ):
         LogServiceDiscover(datasource()).discover(100, 200)
     created = TopoNode.objects.get(topo_key="demo")
     assert created.source == ["log"]
-    assert created.heartbeat["log"]["last_data_at"] == 190
+    assert created.heartbeat["log"]["last_data_at"] == expected_last_data_at
     assert query.call_count == 2
     existing.refresh_from_db()
     assert "log" not in existing.heartbeat
     assert existing.heartbeat["trace"] == {"last_data_at": 80, "checked_at": 90}
 
 
-def test_log_failure_does_not_write_or_renew() -> None:
+def test_log_discover_iso_time_updates_existing_node() -> None:
+    previous = {
+        "trace": {"last_data_at": 1791877010, "checked_at": 1791877020},
+        "metric": {"last_data_at": 1791877000, "checked_at": 1791877030},
+    }
+    node = make_node("bkm.web", source=["trace", "metric"], heartbeat=previous)
+    with (
+        mock.patch(
+            "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
+            side_effect=[
+                [{"resource": {"service.name": "bkm.web"}, "time": "2026-10-13T07:37:00.128000000Z"}],
+                [{"resource": {"server": "bkm.web"}, "time": 1791877019000}],
+            ],
+        ),
+        mock.patch.object(TopoNode, "get_empty_extra_data", return_value={"kind": "service", "category": "other"}),
+        mock.patch("apm.core.discover.log.service.time.time", return_value=1791877449),
+    ):
+        LogServiceDiscover(datasource()).discover(1791876420, 1791877020)
+    node.refresh_from_db()
+    assert node.source == ["trace", "metric", "log"]
+    assert node.heartbeat == {**previous, "log": {"last_data_at": 1791877020, "checked_at": 1791877449}}
+    assert TopoNode.objects.count() == 1
+
+
+@pytest.mark.parametrize(
+    ("second_response", "error_type"),
+    [
+        (RuntimeError("failed"), RuntimeError),
+        (log_response("new", timestamp="invalid-time"), ValueError),
+        (log_response("new", timestamp="2026-10-13"), ValueError),
+    ],
+)
+def test_log_failure_does_not_write_or_renew(
+    second_response: Exception | list[dict[str, Any]], error_type: type[Exception]
+) -> None:
     previous = {"log": {"last_data_at": 90, "checked_at": 100}}
     node = make_node(heartbeat=previous)
     with (
         mock.patch(
             "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
-            side_effect=[log_response("new"), RuntimeError("failed")],
+            side_effect=[log_response("new"), second_response],
         ),
-        pytest.raises(RuntimeError),
+        pytest.raises(error_type),
     ):
         LogServiceDiscover(datasource()).discover(100, 200)
     node.refresh_from_db()
