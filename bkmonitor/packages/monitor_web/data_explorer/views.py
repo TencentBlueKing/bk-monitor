@@ -60,9 +60,9 @@ def order_records_by_config(records: list[dict], order: list) -> list[dict]:
     order_dict = {group_id: index for index, group_id in enumerate(order)}
     return sorted(
         records,
-        key=lambda x: (
-            order_dict.get(x["id"], len(order_dict)) if x["id"] else (len(order_dict) + 1 if x["id"] is None else -1)
-        ),
+        key=lambda x: order_dict.get(x["id"], len(order_dict))
+        if x["id"]
+        else (len(order_dict) + 1 if x["id"] is None else -1),
     )
 
 

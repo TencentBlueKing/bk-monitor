@@ -444,7 +444,9 @@ class Permission:
         if settings.IGNORE_IAM_PERMISSION or self.skip_check:
             return True
 
-        probe = resource_meta.create_simple_instance(UNLIMITED_INSTANCE_PROBE_ID, {"bk_biz_id": bk_biz_id})
+        probe = resource_meta.create_simple_instance(
+            UNLIMITED_INSTANCE_PROBE_ID, {"bk_biz_id": bk_biz_id}
+        )
         return self.is_allowed(action, [probe])
 
     def batch_is_allowed(

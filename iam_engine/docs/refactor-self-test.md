@@ -4,7 +4,8 @@
 本轮纠偏基线：`e33a428ad25a96b2c64c023dec89dbf9b4e19feb`。
 已同步 master `ff89f63ff4036b4ff6dad180ba3455eb34ef62ab`；合并提交为
 `fda06c588d` 和 `bb52f054f9`。业务兼容同时对照原 V3 及最新 master。
-报告只代表本轮最终离线结果，不沿用此前快照的通过数；提交/推送回执另记 TAPD。
+报告包含同日 `a7a0440743` 之后的 PR diff 清理；以下最终结果已在清理后重新运行，
+不沿用此前快照的通过数；提交/推送及正常 hooks 回执另记 TAPD。
 
 ## 交付范围与结构
 
@@ -60,13 +61,13 @@ ACL 空期望权限撤销 managed ACL 是此前版本已引入的可观察行为
 
 | 检查 | 最终结果 | 证据边界 |
 | --- | --- | --- |
-| Monitor IAM/公共层/DRF/APM/RUM/Grafana/权限 RPC/统一 MCP 合并回归 | 872 passed，39 skipped，13 deselected，退出 0 | 实际 Django 装配和消费者；外部 DB/API 模拟 |
+| Monitor IAM/公共层/DRF/APM/RUM/Grafana/权限 RPC/统一 MCP 合并回归 | 874 passed，39 skipped，13 deselected，退出 0 | 实际 Django 装配和消费者；外部 DB/API 模拟 |
 | 独立原生 MCP 套件 | 808 passed，退出 0 | 原生权限模块实际执行；重型 HTTP 方法沿用 AST 隔离测试 |
 | 既有产品边界补充回归 | 89 passed，退出 0 | Token、Datalink、NewReport、收藏搜索、FTA、场景/主机视图；ORM 模拟 |
 | BKLog IAM 与管理诊断决策 | 673 tests，OK，退出 0 | 实际 Django/产品装配、内存 IAM fixture 表 |
 | Monitor Web/API/Worker 冷启动 | 三种角色均退出 0，V3/V4、55 Actions、冻结任务已注册 | 离线 bootstrap，不是在线服务或 broker |
 | 公共层 Pyright | 0 errors，0 warnings，退出 0 | core/provider/schema/policy/model、dual_write/policy |
-| Ruff / whitespace | 当前 Python 范围通过，git diff --check 通过 | 非全仓静态检查；正常提交 hooks 回执另记 |
+| Ruff correctness / whitespace | 本轮现有文件无新增 E4/E7/E9/F；新增目录树用例通过；git diff --check 通过 | 与 master 对照既有告警；未执行全文件自动格式化，正常 hooks 回执另记 |
 
 39 项因真实 IAM 配置、授权写入开关或迁移目录等门控跳过；13 项明确排除：
 10 项 live 用例及 3 项依赖真实数据库迁移的 Profile 集成用例。
@@ -139,3 +140,24 @@ pyright --pythonpath <monitor-python> iam_engine/core iam_engine/provider \
 Union 任一明确 ALLOW 放行，否则拒绝并保留 ERROR/degraded；申请优先 V4。
 回退只切读模式到 v3，不删除授权/模型，也不关闭配置好的独立双写。
 最终业务验收由提出人负责；存量授权迁移不作为本次产品交付阻塞项。
+
+## PR diff 范围清理（2026-10-13）
+
+清理基线为 `a7a0440743`，对照已同步的 master `ff89f63ff4`，
+检查范围是整个 PR，不只本轮提交的文件。
+
+- 22 个文件恢复为 master 原文，完全退出 PR diff：16 个业务视图/工具文件，
+  healthz、ResourceFinder、搜索 handler、旧 IAM migrate、原生 MCP 测试及目录树调用方。
+- 混合文件保留必要 IAM 配置、SDK/公共层引用及测试替身；撤回无关注释删改、
+  字符串/类型现代化和行宽变化。异常处理框架只保留 IAM PermissionDenied 转换。
+- 目录树重新统一调用已有 request-aware 产品权限入口；内部和外部用户各一项
+  实际消费者回归，证明业务层不必新增版本/身份分支。
+- 按 Git 的 rename-aware 口径，PR 涉及路径从 272 缩减为 250。
+  其余改动归属产品 IAM、公共引擎、配置/打包/回调/任务，以及必要消费者和回归测试。
+  仍有新的 IAM 文件和公共模块抽取，不能把路径总数当成上层业务改动数量。
+- 当前相对 master 不再有整文件 AST 相同的 Python diff；恢复原文的文件逐一字节核对。
+  本轮现有文件的 correctness 静态告警从 master 11 项到当前 2 项，未新增；
+  master 的既有格式/现代化告警不是本需求的修复范围。
+
+不修改 Ruff/PreCI 的仓库规则，不接受 hook 重新引入无关变更后直接暂存提交。
+正常提交 hook 的实际执行结果及处置另记 TAPD，不能以本报告替代提交回执。

@@ -102,9 +102,8 @@ class PolicyMigrator:
                     results.append(self.grant_resource_chunked(resource, chunk))
         except Exception as e:  # pylint: disable=broad-except
             print(
-                "grant permission error for action[{}], subject[{}]: {}".format(
-                    resource["actions"][0]["id"], resource["subject"], e
-                )
+                "grant permission error for action[%s], subject[%s]: %s"
+                % (resource["actions"][0]["id"], resource["subject"], e)
             )
         return results
 

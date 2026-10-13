@@ -115,16 +115,10 @@ class GetDirectoryTree(Resource):
         if not result:
             raise GetFolderOrDashboardError(**result)
 
-        # 获取仪表盘权限（包含 folder 展开后的 Dashboard）
-        is_external_user = getattr(request, "external_user", False)
-        if is_external_user:
-            _, role, dashboard_permissions = DashboardPermission.has_permission(
-                request, None, params["bk_biz_id"], force_check=True
-            )
-        else:
-            _, role, dashboard_permissions = DashboardPermission.get_user_permission(
-                username=request.user.username, org_name=str(params["bk_biz_id"]), force_check=True
-            )
+        # 获取仪表盘权限 （包含 folder 展开后的 Dashboard）
+        _, role, dashboard_permissions = DashboardPermission.has_permission(
+            request, None, params["bk_biz_id"], force_check=True
+        )
 
         folders: dict[int, dict] = defaultdict(lambda: {"dashboards": []})
 
@@ -134,6 +128,7 @@ class GetDirectoryTree(Resource):
         )
 
         # 是否过滤无权限的仪表盘
+        is_external_user = getattr(request, "external_user", False)
         filter_no_permission = params.get("filter_no_permission", False) or is_external_user
 
         for record in result["data"]:

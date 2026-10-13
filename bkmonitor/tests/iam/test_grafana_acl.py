@@ -114,6 +114,32 @@ def test_favorite_consumer_passes_product_uids_not_iam_candidates(monkeypatch):
     check.assert_called_once_with(username="alice", org_name="2", dashboard_uids=["dash-b"])
 
 
+@pytest.mark.parametrize("external_user", [False, "guest"])
+def test_directory_tree_keeps_product_permission_entrypoint(monkeypatch, external_user):
+    from monitor_web.grafana.resources import manage
+
+    request = SimpleNamespace(user=SimpleNamespace(username="alice"), external_user=external_user)
+    monkeypatch.setattr(manage, "get_request", lambda **kwargs: request)
+    monkeypatch.setattr(manage, "get_or_create_org", lambda name: {"id": 10})
+    search = Mock(return_value={"data": [{"type": "dash-db", "uid": "dash-b", "folderId": 0}]})
+    monkeypatch.setattr(manage, "api", SimpleNamespace(grafana=SimpleNamespace(search_folder_or_dashboard=search)))
+    check = Mock(return_value=(True, GrafanaRole.Anonymous, {"dash-b": GrafanaPermission.View}))
+    monkeypatch.setattr(manage.DashboardPermission, "has_permission", check)
+    monkeypatch.setattr(
+        manage.DashboardPermission,
+        "get_user_permission",
+        Mock(side_effect=AssertionError("the consumer must not bypass the request-aware product entrypoint")),
+    )
+
+    result = manage.GetDirectoryTree().perform_request({"bk_biz_id": 2, "filter_no_permission": True})
+
+    check.assert_called_once_with(request, None, 2, force_check=True)
+    search.assert_called_once_with(org_id=10)
+    assert result[0]["dashboards"][0]["uid"] == "dash-b"
+    assert result[0]["dashboards"][0]["has_permission"] is True
+    assert result[0]["dashboards"][0]["editable"] is False
+
+
 def test_proxy_query_failure_never_enters_acl_write(monkeypatch):
     from bk_dataview import views
     from iam_engine.exceptions import ProviderUnavailable

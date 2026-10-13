@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -7,6 +8,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 
 import logging
 import os
@@ -100,7 +102,7 @@ class ResourceFinder(BaseFinder):
         return matches
 
 
-class ResourceStatus:
+class ResourceStatus(object):
     # 待加载
     unloaded = "unloaded"
     # 加载成功
@@ -111,7 +113,7 @@ class ResourceStatus:
     error = "error"
 
 
-class ResourcePath:
+class ResourcePath(object):
     """
     path = ResourcePath("api.xxx")
     path.loaded()
@@ -136,7 +138,7 @@ class ResourcePath:
             return status_setter(status)(lambda: status, self)
 
     def __repr__(self):
-        return f"{self.path}: {self.status}"
+        return "{}: {}".format(self.path, self.status)
 
 
 def status_setter(status):

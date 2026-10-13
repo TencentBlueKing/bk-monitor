@@ -25,7 +25,7 @@ from typing import Literal
 
 from rest_framework import permissions
 
-from bkmonitor.iam.action import canonicalize_action_id, get_action_by_id, get_legacy_action_ids
+from bkmonitor.iam.action import ActionMeta, canonicalize_action_id, get_action_by_id, get_legacy_action_ids
 from bkmonitor.iam.definitions.actions import Actions
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.utils.request import get_request
@@ -196,6 +196,9 @@ class IAMPermission(permissions.BasePermission):
         return True
 
     def has_object_permission(self, request, view, obj):
+        """
+        Return `True` if permission is granted, `False` otherwise.
+        """
         return self.has_permission(request, view)
 
 
@@ -207,7 +210,7 @@ class IAMPermission(permissions.BasePermission):
 class BusinessActionPermission(IAMPermission):
     """业务级权限检查。从 request.biz_id 取空间 ID，不再创建 iam.Resource。"""
 
-    def __init__(self, actions):
+    def __init__(self, actions: list[ActionMeta]):
         super().__init__(actions)
 
     def has_permission(self, request, view):
@@ -226,13 +229,17 @@ class BusinessActionPermission(IAMPermission):
         return super().has_permission(request, view)
 
     def has_object_permission(self, request, view, obj):
-        bk_biz_id = getattr(obj, "bk_biz_id", None)
+        # 先查询对象中有没有业务ID相关属性
+        bk_biz_id = None
+        if hasattr(obj, "bk_biz_id"):
+            bk_biz_id = obj.bk_biz_id
         if bk_biz_id:
             user = getattr(request, "user", None)
             if not is_biz_in_tenant(bk_biz_id, getattr(user, "tenant_id", None)):
                 return False
             self.resources = [FwResource(type=ResourceTypes.SPACE.id, id=str(bk_biz_id))]
             return super().has_object_permission(request, view, obj)
+        # 没有就尝试取请求的业务ID
         return self.has_permission(request, view)
 
 
@@ -300,6 +307,7 @@ class InstanceActionPermission(IAMPermission):
 
     def _get_look_url_kwarg(self, view):
         lookup_url_kwarg = view.lookup_url_kwarg or view.lookup_field
+
         assert lookup_url_kwarg in view.kwargs, (
             f"Expected view {self.__class__.__name__} to be called with a URL keyword argument "
             f'named "{lookup_url_kwarg}". Fix your URL conf, or set the `.lookup_field` '

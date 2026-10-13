@@ -36,7 +36,7 @@ from django.utils.functional import cached_property
 from bkm_space.api import SpaceApi
 from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.iam import ResourceEnum
-from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, canonicalize_action_id, get_action_by_id
+from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, ActionMeta, canonicalize_action_id, get_action_by_id
 from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from iam_engine.exceptions import CreatorGrantFailed, PermissionDenied, ProviderError
@@ -913,8 +913,10 @@ class Permission:
     # 空间列表过滤 — 走框架 filter_visible_resources（provider 中立）
     # ================================================================
 
-    def filter_space_list_by_action(self, action, using_cache=True) -> list[dict]:
-        """获取有对应 action 权限的空间列表。"""
+    def filter_space_list_by_action(self, action: ActionMeta | str, using_cache=True) -> list[dict]:
+        """
+        获取有对应action权限的空间列表
+        """
         space_list, _ = self.filter_space_list_by_action_with_scope(action, using_cache)
         return space_list
 
@@ -950,6 +952,9 @@ class Permission:
 
     @classmethod
     def batch_make_resource(cls, resources: list[dict]):
+        """
+        批量构造resource对象
+        """
         return [cls.make_resource(r["type"], r["id"]) for r in resources]
 
     # ================================================================

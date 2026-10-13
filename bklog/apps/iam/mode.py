@@ -62,7 +62,9 @@ class FeatureToggleModeProvider(SharedFeatureToggleModeProvider):
         )
 
     @staticmethod
-    def _load_settings_mode():
+    def _load_settings_mode() -> str:
+        """每次从 Django settings 读，不缓存，便于测试 override_settings。"""
+
         return str(getattr(settings, "BK_IAM_PERMISSION_MODE", "") or "").strip()
 
 

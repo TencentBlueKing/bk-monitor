@@ -87,10 +87,13 @@ class ActionMeta(ActionDef):
     def related_actions(self) -> list:
         return []
 
-    def is_read_action(self) -> bool:
+    def is_read_action(self):
+        """
+        是否为读权限
+        """
         return self.type == "view"
 
-    def to_json(self) -> dict[str, Any]:
+    def to_json(self):
         return {
             "id": self.id,
             "name": self.name,
@@ -218,7 +221,6 @@ def get_action_by_id(action_id: str | ActionDef) -> ActionDef:
 
 # 权限全集
 ALL_ACTION_IDS = set(_all_actions.keys())
-
 # 默认最小监控功能使用权限
 MINI_ACTION_IDS = [
     ActionEnum.VIEW_BUSINESS.id,
@@ -248,7 +250,6 @@ MINI_ACTION_IDS = [
     ActionEnum.MANAGE_INCIDENT.id,
     ActionEnum.USE_PUBLIC_SYNTHETIC_LOCATION.id,
 ]
-
 # CMDB（主机依赖）权限
 CMDB_REQUIRE_ACTION_IDS = [
     ActionEnum.MANAGE_COLLECTION.id,
@@ -260,7 +261,6 @@ CMDB_REQUIRE_ACTION_IDS = [
     ActionEnum.MANAGE_SYNTHETIC.id,
     ActionEnum.VIEW_SYNTHETIC.id,
 ]
-
 # 管理权限
 ADMIN_ACTION_IDS = [
     ActionEnum.MANAGE_CALENDAR.id,

@@ -95,6 +95,7 @@ class TestParseIamPath:
         assert _parse_iam_path("/space,2") == [{"type": "space", "id": "2"}]
 
     def test_deep_nesting(self):
+        """3+ levels — parser is unlimited."""
         result = _parse_iam_path("/space,1/sub_type,2/leaf,3/")
         assert len(result) == 3
         assert result[2] == {"type": "leaf", "id": "3"}

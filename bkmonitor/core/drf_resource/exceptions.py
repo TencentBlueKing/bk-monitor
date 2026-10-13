@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -10,6 +11,7 @@ specific language governing permissions and limitations under the License.
 
 import inspect
 import logging
+from typing import Optional
 
 from django.http import Http404
 from django.utils.translation import gettext_lazy as _lazy
@@ -59,7 +61,7 @@ def custom_exception_handler(exc, context):
         if getattr(exc, "auth_header", None):
             headers["WWW-Authenticate"] = exc.auth_header
         if getattr(exc, "wait", None):
-            headers["Retry-After"] = f"{exc.wait}"
+            headers["Retry-After"] = "%d" % exc.wait
         result = {
             "result": False,
             "code": exc.code,
@@ -93,7 +95,7 @@ def custom_exception_handler(exc, context):
         if getattr(exc, "auth_header", None):
             headers["WWW-Authenticate"] = exc.auth_header
         if getattr(exc, "wait", None):
-            headers["Retry-After"] = f"{exc.wait}"
+            headers["Retry-After"] = "%d" % exc.wait
         msg = DrfApiError.drf_error_processor(exc.detail)
         error_detail = ErrorDetails(
             exc_type=type(exc).__name__,
@@ -151,7 +153,7 @@ def record_exception(
     span: Span,
     exception: Exception,
     attributes: types.Attributes = None,
-    timestamp: int | None = None,
+    timestamp: Optional[int] = None,
     escaped: bool = False,
     out_limit: int = None,
 ) -> None:
@@ -165,18 +167,18 @@ def record_exception(
         if out_limit and out_limit > 0:
             out_frames = out_frames[:out_limit]
         for item in reversed(out_frames):
-            row.append(f'  File "{item.filename}", line {item.lineno}, in {item.function}\n')
+            row.append('  File "{}", line {}, in {}\n'.format(item.filename, item.lineno, item.function))
             for line in item.code_context:
                 if line:
-                    row.append(f"    {line.strip()}\n")
+                    row.append('    {}\n'.format(line.strip()))
 
         for item in inspect.getinnerframes(tb):
-            row.append(f'  File "{item.filename}", line {item.lineno}, in {item.function}\n')
+            row.append('  File "{}", line {}, in {}\n'.format(item.filename, item.lineno, item.function))
             for line in item.code_context:
                 if line:
-                    row.append(f"    {line.strip()}\n")
+                    row.append('    {}\n'.format(line.strip()))
 
-        stacktrace = "".join(row)
+        stacktrace = ''.join(row)
     except Exception:  # pylint: disable=broad-except
         # workaround for python 3.4, format_exc can raise
         # an AttributeError if the __context__ on

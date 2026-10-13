@@ -2191,8 +2191,8 @@ def test_mcp_first_fallback_matrix_and_english_logs(
 ):
     caplog.set_level(logging.INFO, logger=auth.__name__)
     io.iam.is_allowed.return_value = native_allowed
-    io.monitor.iam_client.is_allowed.side_effect = lambda query: (
-        legacy_allowed if query.action.id.startswith("using_") else native_allowed
+    io.monitor.iam_client.is_allowed.side_effect = (
+        lambda query: legacy_allowed if query.action.id.startswith("using_") else native_allowed
     )
     request = request_factory()
     request.META["HTTP_X_BKAPI_PERMISSION_ACTION"] = "using_dashboard_mcp"
@@ -2488,10 +2488,7 @@ def test_routing_configuration_errors_are_logged_without_legacy_fallback(
 ):
     caplog.set_level(logging.INFO, logger=auth.__name__)
     monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", ["unsupported"])
-    for name, attr in [
-        ("bkmonitor.iam.action", "get_action_by_id"),
-        ("bkmonitor.iam.drf", "MCPPermission"),
-    ]:
+    for name, attr in [("bkmonitor.iam.action", "get_action_by_id"), ("bkmonitor.iam.drf", "MCPPermission")]:
         module = ModuleType(name)
         setattr(module, attr, Mock(side_effect=AssertionError("legacy must not be called")))
         monkeypatch.setitem(sys.modules, name, module)

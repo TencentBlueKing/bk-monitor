@@ -27,7 +27,9 @@ class EventViewSet(ResourceViewSet):
 
     def get_permissions(self):
         action = (
-            ActionEnum.MANAGE_APM_APPLICATION if self.action == "update_tag_config" else ActionEnum.VIEW_APM_APPLICATION
+            ActionEnum.MANAGE_APM_APPLICATION
+            if self.action == "update_tag_config"
+            else ActionEnum.VIEW_APM_APPLICATION
         )
         return [
             InstanceActionForDataPermission(

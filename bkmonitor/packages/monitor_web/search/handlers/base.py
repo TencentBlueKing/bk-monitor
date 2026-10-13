@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
 import abc
 from collections import defaultdict
-from collections.abc import Callable
+from typing import Callable, List, Optional
 
 from django.utils.functional import cached_property
 
@@ -23,7 +24,7 @@ class SearchResultItem:
         view: str,
         view_args: dict = None,
         is_collected: bool = False,
-        temp_share_url: str | None = None,
+        temp_share_url: Optional[str] = None,
     ):
         self.bk_biz_id = bk_biz_id
         self.title = title
@@ -48,7 +49,7 @@ class SearchResultItem:
 
 
 class SearchResult:
-    def __init__(self, scene: str, results: list[SearchResultItem] = None):
+    def __init__(self, scene: str, results: List[SearchResultItem] = None):
         self.results = results or []
         self.scene = scene
 
@@ -76,10 +77,10 @@ class BaseSearchHandler(metaclass=abc.ABCMeta):
             self.username = username
 
     @cached_property
-    def all_business(self) -> list[Business]:
+    def all_business(self) -> List[Business]:
         return api.cmdb.get_business(all=True)
 
-    def add_permission_for_results(self, results: list[SearchResultItem], action: ActionMeta):
+    def add_permission_for_results(self, results: List[SearchResultItem], action: ActionMeta):
         """
         为搜索结果增加访问权限检测
         """
@@ -87,7 +88,7 @@ class BaseSearchHandler(metaclass=abc.ABCMeta):
         for item in results:
             item.is_allowed = item.bk_biz_id in allowed_biz_ids
 
-    def _add_biz_name_for_results(self, results: list[SearchResultItem]):
+    def _add_biz_name_for_results(self, results: List[SearchResultItem]):
         """
         为搜索结果增加业务名称翻译
         """
@@ -95,7 +96,7 @@ class BaseSearchHandler(metaclass=abc.ABCMeta):
         for item in results:
             item.bk_biz_name = biz_names.get(item.bk_biz_id, str(item.bk_biz_id))
 
-    def _sort_results(self, results: list[SearchResultItem]):
+    def _sort_results(self, results: List[SearchResultItem]):
         # 按业务ID升序
         results.sort(key=lambda item: item.bk_biz_id)
 
@@ -107,10 +108,10 @@ class BaseSearchHandler(metaclass=abc.ABCMeta):
 
     def collect_results_by_biz(
         self,
-        results: list[SearchResultItem],
+        results: List[SearchResultItem],
         limit: int,
-        collect_func: Callable[[int, list[SearchResultItem]], SearchResultItem],
-    ) -> list[SearchResultItem]:
+        collect_func: Callable[[int, List[SearchResultItem]], SearchResultItem],
+    ) -> List[SearchResultItem]:
         """
         以业务作为分组，对超出长度的结果进行汇总
         :param results: 原始结果列表
@@ -134,13 +135,13 @@ class BaseSearchHandler(metaclass=abc.ABCMeta):
 
         return origin_results + merged_results
 
-    def wrap_search_result(self, results: list[SearchResultItem]) -> SearchResult:
+    def wrap_search_result(self, results: List[SearchResultItem]) -> SearchResult:
         """
         将搜索结果进一步封装，添加场景参数
         """
         return SearchResult(scene=self.SCENE, results=results)
 
-    def post_search(self, items: list[SearchResultItem]) -> SearchResult:
+    def post_search(self, items: List[SearchResultItem]) -> SearchResult:
         self._add_biz_name_for_results(items)
         self._sort_results(items)
         result = self.wrap_search_result(items)
@@ -151,5 +152,5 @@ class BaseSearchHandler(metaclass=abc.ABCMeta):
         result = self.post_search(items)
         return result
 
-    def search(self, query: str, limit: int = 10) -> list[SearchResultItem]:
+    def search(self, query: str, limit: int = 10) -> List[SearchResultItem]:
         raise NotImplementedError
