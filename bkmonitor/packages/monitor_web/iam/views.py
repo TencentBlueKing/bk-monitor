@@ -22,7 +22,6 @@ from bkm_space.utils import bk_biz_id_to_space_uid
 from iam import DjangoQuerySetConverter
 from iam.resource.provider import ListResult, ResourceProvider
 from iam_engine.v4.callback import V3ResourceApiDispatcher
-from iam.contrib.django.dispatcher.dispatchers import fail_response
 
 from apm_web.models import Application
 from bk_dataview.api import get_org_by_id, get_org_by_name
@@ -31,8 +30,8 @@ from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import ResourceEnum
 from bkmonitor.iam.resource import Business
-from bkmonitor.iam.tenant import get_callback_tenant_id
 from bkmonitor.iam.mode import get_mode_provider
+from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from metadata.models import Space, SpaceType
@@ -75,16 +74,10 @@ class ResourceApiDispatcher(V3ResourceApiDispatcher):
     def __init__(self, iam, system):
         super().__init__(iam, system, mode_loader=lambda: get_mode_provider().get_mode())
 
-    def _dispatch(self, request):
-        try:
-            get_callback_tenant_id(request)
-        except ValueError as exc:
-            return fail_response(400, str(exc), request.META.get("HTTP_X_REQUEST_ID", ""))
-        return super()._dispatch(request)
-
     def _get_options(self, request):
         options = super()._get_options(request)
-        options["bk_tenant_id"] = get_callback_tenant_id(request)
+        if not options.get("bk_tenant_id"):
+            options["bk_tenant_id"] = DEFAULT_TENANT_ID
         return options
 
 
@@ -217,9 +210,9 @@ class ApmApplicationProvider(BaseResourceProvider):
         ]
         return ListResult(results=results, count=queryset.count())
 
-
     system_id = settings.BK_IAM_SYSTEM_ID
-    id = 'apm_application'
+    id = "apm_application"
+
     @classmethod
     def create_instance_by_info(cls, item: dict) -> Resource:
         instance_id = item["application_id"]
@@ -244,7 +237,8 @@ class ApmApplicationProvider(BaseResourceProvider):
         :return:
         """
         return (
-            cls.get_queryset().filter(application_id=application_id)
+            cls.get_queryset()
+            .filter(application_id=application_id)
             .values("application_id", "app_name", "bk_biz_id")
             .first()
         )
@@ -288,13 +282,8 @@ class RumApplicationProvider(ApmApplicationProvider):
 
         return RumApplication.objects
 
-
     system_id = settings.BK_IAM_SYSTEM_ID
-    id = 'rum_application'
-
-
-
-
+    id = "rum_application"
 
 
 class SpaceQuerySetConverter(DjangoQuerySetConverter):
@@ -398,9 +387,9 @@ class SpaceProvider(BaseResourceProvider):
         results = self.generate_resources(queryset[page.slice_from : page.slice_to])
         return ListResult(results=results, count=queryset.count())
 
-
     system_id = settings.BK_IAM_SYSTEM_ID
-    id = 'space'
+    id = "space"
+
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
         """
@@ -766,9 +755,9 @@ class GrafanaDashboardProvider(BaseResourceProvider):
 
         return folder_results, dashboard_results
 
-
     system_id = settings.BK_IAM_SYSTEM_ID
-    id = 'grafana_dashboard'
+    id = "grafana_dashboard"
+
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
         resource = super().create_simple_instance(instance_id, attribute)

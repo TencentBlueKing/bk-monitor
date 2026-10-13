@@ -20,10 +20,12 @@ from iam_engine.provider.requests import (
 )
 from iam_engine.provider.codec import IdentityCodec
 from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
+from iam.resource.provider import ListResult
 from bkmonitor.iam.backends.v3.client import V3Client
 from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
 from kernel_api.rpc.functions.admin.permission._v3 import _enrich_permissions
+from constants.common import DEFAULT_TENANT_ID
 from monitor_web.iam import views
 
 
@@ -242,6 +244,15 @@ def test_callback_single_tenant_compatibility(callback, resource_rows, settings,
     result = callback(tenant=tenant)
     assert result.status_code == 200
     assert result.data["data"]["results"][0]["id"] == ("space|4" if expected == "system" else "space|2")
+
+
+@pytest.mark.parametrize("multi_tenant", [False, True])
+@pytest.mark.parametrize(
+    "tenant,expected",
+    [(None, DEFAULT_TENANT_ID), ("", DEFAULT_TENANT_ID), ("   ", "   "), ("tenant-b", "tenant-b")],
+)
+def test_v3_callback_options_preserve_legacy_tenant_fallback(settings, multi_tenant, tenant, expected):
+    settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
     dispatcher = views.ResourceApiDispatcher(MagicMock(), "monitor")
     request = APIRequestFactory().post(
         "/", {}, format="json", **({"HTTP_X_BK_TENANT_ID": tenant} if tenant is not None else {})
@@ -249,22 +260,42 @@ def test_callback_single_tenant_compatibility(callback, resource_rows, settings,
     assert dispatcher._get_options(request)["bk_tenant_id"] == expected
 
 
+@pytest.mark.parametrize("multi_tenant", [False, True])
+@pytest.mark.parametrize("mode", ["v3", "union"])
 @pytest.mark.parametrize("tenant", [None, "", "   "])
-def test_v3_missing_tenant_uses_protocol_error(settings, tenant):
+def test_v3_missing_tenant_keeps_sdk_callback(settings, monkeypatch, multi_tenant, mode, tenant):
+    settings.ENABLE_MULTI_TENANT_MODE = multi_tenant
+    monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", mode)
+    client = MagicMock()
+    client.is_basic_auth_allowed.return_value = True
+    dispatcher = views.ResourceApiDispatcher(client, "monitor")
+    provider = views.SpaceProvider()
+    provider.list_instance = MagicMock(return_value=ListResult(results=[], count=0))
+    dispatcher.register("space", provider)
+    request = APIRequestFactory().post(
+        "/",
+        {"method": "list_instance", "type": "space", "page": {"offset": 0, "limit": 20}},
+        format="json",
+        **({"HTTP_X_BK_TENANT_ID": tenant} if tenant is not None else {}),
+    )
+    result = dispatcher.as_view()(request)
+    assert json.loads(result.content)["code"] == 0
+    client.is_basic_auth_allowed.assert_called_once()
+    provider.list_instance.assert_called_once()
+    assert provider.list_instance.call_args.kwargs["bk_tenant_id"] == (tenant or DEFAULT_TENANT_ID)
+
+
+def test_v3_callback_disabled_before_auth_with_missing_tenant(settings, monkeypatch):
     settings.ENABLE_MULTI_TENANT_MODE = True
+    monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", "v4")
     client = MagicMock()
     dispatcher = views.ResourceApiDispatcher(client, "monitor")
     provider = views.SpaceProvider()
     provider.list_instance = MagicMock()
     dispatcher.register("space", provider)
-    request = APIRequestFactory().post(
-        "/",
-        {"method": "list_instance", "type": "space"},
-        format="json",
-        **({"HTTP_X_BK_TENANT_ID": tenant} if tenant is not None else {}),
-    )
+    request = APIRequestFactory().post("/", {"method": "list_instance", "type": "space"}, format="json")
     result = dispatcher.as_view()(request)
-    assert json.loads(result.content)["code"] == 400
+    assert json.loads(result.content)["code"] == 503
     client.is_basic_auth_allowed.assert_not_called()
     provider.list_instance.assert_not_called()
 
@@ -379,8 +410,10 @@ def make_provider(cls, **overrides):
     }
     options.update(overrides)
     return build_provider(
-        ("v3" if cls is V3PermissionProvider else "v4"), schema=schema,
-        tenant_id=options.get("bk_tenant_id", "system"), options=options if cls is V3PermissionProvider else None,
+        ("v3" if cls is V3PermissionProvider else "v4"),
+        schema=schema,
+        tenant_id=options.get("bk_tenant_id", "system"),
+        options=options if cls is V3PermissionProvider else None,
     )
 
 
