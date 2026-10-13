@@ -541,7 +541,7 @@ class TestTaskManagerTesttaskresult:
             bk_tenant_id="default", bk_biz_id=2, name="node-c", ip="192.0.2.3", bk_host_id=3, plat_id=0
         )
         task.nodes.add(known_error_node, unknown_error_node)  # pyright: ignore[reportAttributeAccessIssue]
-        collector_result = {"success": [], "failed": []}
+        collector_result: dict[str, Any] = {"success": [], "failed": []}
         for node, error_code in [(unknown_error_node, 9999), (healthy_node, 0), (known_error_node, 1202)]:
             collector_result["success"].extend(
                 self._collector_result(node, json.dumps({"error_code": error_code}))["success"]
@@ -563,7 +563,7 @@ class TestTaskManagerTesttaskresult:
     ) -> None:
         """采集器返回空结果时，应该返回明确错误而非数组越界。"""
         task, _ = task_with_node
-        collector_result = {"success": [], "pending": [], "failed": []}
+        collector_result: dict[str, Any] = {"success": [], "pending": [], "failed": []}
 
         with pytest.raises(UptimeCheckTestTaskError) as exc_info:
             self._run_task_test(task, collector_result)
