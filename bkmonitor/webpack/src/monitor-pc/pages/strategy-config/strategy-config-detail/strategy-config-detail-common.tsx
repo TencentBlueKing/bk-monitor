@@ -47,6 +47,7 @@ import HistoryDialog from '../../../components/history-dialog/history-dialog';
 import AlarmGroupDetail from '../../alarm-group/alarm-group-detail/alarm-group-detail';
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { handleSetTargetDesc, isRecoveryDisable, isStatusSetterNoData } from '../common';
+import { LETTERS } from '../../../common/constant';
 import { signalNames } from '../strategy-config-set-new/alarm-handling/alarm-handling-list';
 import { RecoveryConfigStatusSetter } from '../strategy-config-set-new/judging-condition/judging-condition';
 import AiopsMonitorData from '../strategy-config-set-new/monitor-data/aiops-monitor-data';
@@ -346,6 +347,8 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     sourceCode: '',
     /* agg_interval */
     step: 'auto',
+    /* 多 PromQL 查询（含别名），详情页逐条展示使用 */
+    queryConfigs: [] as { alias: string; promql: string }[],
   };
   editMode: EditModeType = 'Edit';
   /* 是否为场景智能检测 */
@@ -584,10 +587,15 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
     const { metric_type } = srcData;
     const isPromql = queryConfigs?.[0]?.data_source_label === 'prometheus';
     if (isPromql) {
-      const queryConfig = queryConfigs[0];
       this.editMode = 'Source';
-      this.sourceData.sourceCode = queryConfig.promql;
-      this.sourceData.step = queryConfig.agg_interval;
+      // 多 PromQL：完整回填所有查询（含别名）与计算表达式，详情页逐条展示
+      this.sourceData.queryConfigs = queryConfigs.map((item, index) => ({
+        alias: item.alias || LETTERS[index] || 'a',
+        promql: item.promql || '',
+      }));
+      this.sourceData.sourceCode = queryConfigs[0].promql;
+      this.sourceData.step = queryConfigs[0].agg_interval;
+      this.expression = expression || '';
       return;
     }
     this.expression = expression;
@@ -1183,18 +1191,31 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                         }
                         return (
                           <div class='promql-content'>
-                            <div class='edit-wrap'>
-                              <promql-monaco-editor
-                                minHeight={160}
-                                readonly={true}
-                                value={this.sourceData.sourceCode}
-                              />
-                              {/* <PromqlEditor
-                                class='promql-editor'
-                                readonly={true}
-                                value={this.sourceData.sourceCode}
-                              ></PromqlEditor> */}
-                            </div>
+                            {(this.sourceData.queryConfigs.length
+                              ? this.sourceData.queryConfigs
+                              : [{ alias: 'a', promql: this.sourceData.sourceCode }]
+                            ).map((query, index) => (
+                              <div
+                                class='edit-wrap'
+                                key={query.alias}
+                                style={{ marginTop: index > 0 ? '16px' : undefined }}
+                              >
+                                {this.sourceData.queryConfigs.length > 1 && (
+                                  <div class='source-query-title'>{query.alias} PromQL</div>
+                                )}
+                                <promql-monaco-editor
+                                  minHeight={this.sourceData.queryConfigs.length > 1 ? 80 : 160}
+                                  readonly={true}
+                                  value={query.promql}
+                                />
+                              </div>
+                            ))}
+                            {this.sourceData.queryConfigs.length > 1 && !!this.expression?.trim() && (
+                              <div class='edit-wrap expression-wrap'>
+                                <div class='source-query-title'>{this.$t('表达式')}</div>
+                                <div class='expression-text'>{this.expression}</div>
+                              </div>
+                            )}
                             <div class='step-wrap'>
                               <bk-input
                                 class='step-input'

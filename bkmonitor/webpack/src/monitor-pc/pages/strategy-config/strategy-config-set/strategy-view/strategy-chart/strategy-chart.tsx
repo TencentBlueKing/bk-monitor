@@ -219,11 +219,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
     if (this.hasTimeSeriesForecast) {
       panelData = await this.createTimeSeriesForecastPanelData();
     } else {
-      if (
-        this.editMode === 'Source' &&
-        (!this.sourceData.sourceCode ||
-          (!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1 && !this.expression.trim()))
-      ) {
+      if (this.editMode === 'Source' && !this.sourceData.sourceCode) {
         this.panel = null;
         return;
       }
@@ -236,7 +232,7 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
             need_hover_style: false,
           },
         },
-        panels: [await this.createLocalMetricPanel()],
+        panels: await this.getSourcePanels(),
       };
     }
     if (this.hasIntelligentDetect && this.aiopsChartType === 'score') {
@@ -335,7 +331,11 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
       id: this.dashboardId,
       // type: 'graph',
       type: this.hasTimeSeriesForecast ? 'time-series-forecast' : 'graph',
-      title: isMetric ? this.getMetricName() : this.$t('异常分值'),
+      title: isMetric
+        ? this.editMode === 'Source'
+          ? this.getExpression()
+          : this.getMetricName()
+        : this.$t('异常分值'),
       subTitle: '',
       dashboardId: this.dashboardId,
       options: {
@@ -384,6 +384,69 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
         },
       } as any;
     }
+    return new PanelModel(data as any);
+  }
+  /**
+   * Source 多 PromQL 查询时：每条查询单独一个图表，另加表达式合成结果图表
+   * @returns 图表面板列表
+   */
+  async getSourcePanels() {
+    const queries =
+      this.editMode === 'Source' && !this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
+        ? this.sourceData.queryConfigs.filter(item => item.promql?.trim())
+        : [];
+    if (!queries.length) {
+      return [await this.createLocalMetricPanel()];
+    }
+    const panels = queries.map(item => this.createQueryPanel(item));
+    // 表达式为空时不展示表达式合成图，各查询图保持正常显示
+    const expression = String(this.expression || '').trim();
+    return expression ? [...panels, await this.createLocalMetricPanel()] : panels;
+  }
+  /**
+   * 单条 PromQL 查询的独立图表 panel
+   * @param query 查询（别名 + PromQL）
+   * @returns PanelModel
+   */
+  createQueryPanel(query: { alias: string; promql: string }) {
+    const data = {
+      id: this.dashboardId,
+      type: 'graph',
+      title: `${query.alias} PromQL`,
+      subTitle: '',
+      dashboardId: this.dashboardId,
+      options: {
+        time_series: {
+          type: this.chartType,
+          custom_timerange: true,
+          noTransformVariables: true,
+          only_one_result: false,
+          nearSeriesNum: this.nearNum,
+        },
+      },
+      targets: [
+        {
+          data: {
+            expression: query.alias,
+            functions: [],
+            target: this.strategyTarget || [],
+            query_configs: [
+              {
+                data_source_label: 'prometheus',
+                data_type_label: 'time_series',
+                promql: query.promql,
+                interval: this.sourceData.step,
+                alias: query.alias,
+              },
+            ],
+          },
+          alias: '',
+          datasource: 'time_series',
+          data_type: 'time_series',
+          api: 'grafana.graphUnifyQuery',
+        },
+      ],
+    };
     return new PanelModel(data as any);
   }
   getExpression() {
