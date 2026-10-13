@@ -289,24 +289,19 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
         label: t('任务耗时'),
         value: text(value),
         unit: suffix ? { text: suffix.trim() } : undefined,
-        footer: [{ text: `${t('阻塞贡献')} ${blocking}ms · ${t('超出 50ms 阈值')}` }],
+        footer: [{ text: `${t('阻塞贡献')} ${blocking}ms` }],
       },
     ];
   },
 
-  /**
-   * 主要归因：Performance Entry 名称。
-   * 名称与 entry_type 相同说明浏览器没有给出更具体的归因目标，标注为低可信度。
-   */
+  /** 主要归因：Performance Entry 名称 */
   'key_info.attribution': data => {
     const name = String(data['attributes.long_task.name'] ?? '');
-    const entryType = String(data['attributes.long_task.entry_type'] ?? '');
     return [
       {
         label: t('主要归因'),
         value: name || EMPTY_TEXT,
         footer: [{ text: 'Performance Entry name' }],
-        tag: name && name !== entryType ? undefined : { text: t('低可信度'), color: '#E38B02', bgColor: '#FDF4E8' },
       },
     ];
   },
