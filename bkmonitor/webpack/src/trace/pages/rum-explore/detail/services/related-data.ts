@@ -119,42 +119,52 @@ export async function getActionRelated(
 
 /**
  * @description Error 详情的关联数据：影响用户数（含环比）、发生次数、影响会话数与 24 小时趋势
+ * 影响面查询时间范围按协议取 [当前 Error Span 的 end_time - 1d, end_time + 1d]
  * @param errorFilters 定位同一个错误的过滤条件（文件、行列号、异常类型），由区块数据推导
- * @param timeRange 页面所选时间范围，影响面统计沿用该范围
+ * @param detail 详情数据，origin_data.end_time 以微秒存储，换算为秒后作为影响面查询的时间基准
  */
 export async function getErrorRelated(
   context: IRumDetailContext,
   mode: RumModeType,
   errorFilters: IRumFilter[],
-  timeRange: { end_time: number; start_time: number }
+  detail: IRumRecordDetail
 ): Promise<IRumErrorRelated | null> {
   const filters: IRumFilter[] = [{ key: 'attributes.span_type', operator: 'equal', value: ['error'] }, ...errorFilters];
-  /** 影响用户数额外带上「与查询区间等长」的时移，用于算环比 */
-  const compareShift = `${Math.max(timeRange.end_time - timeRange.start_time, 1)}s`;
+  /** Span 的 end_time 以微秒存储，换算为秒；缺失或非法时回退取 context 的秒级 end_time */
+  const rawEndTime = Number(detail.origin_data?.end_time);
+  const spanEndSeconds = rawEndTime > 0 ? Math.floor(rawEndTime / 1e6) : context.end_time;
+  /** 影响面查询时间范围：[Span end_time - 1d, end_time + 1d] */
+  const impactRange = { start_time: spanEndSeconds - 86400, end_time: spanEndSeconds + 86400 };
+  /** 影响用户数额外带上「与查询区间等长」的时移，用于算环比（影响面区间为前后各 1 天，即 2 天） */
+  const compareShift = `${Math.max(impactRange.end_time - impactRange.start_time, 1)}s`;
   const [userRows, countRows, sessionRows, trendRows] = await Promise.all([
-    fetchStatistics(context, mode, timeRange, {
+    // 影响用户数
+    fetchStatistics(context, mode, impactRange, {
       cal_type: 'distinct',
       field: 'attributes.user.id',
       filters,
       group_by: [],
       time_shifts: [BASELINE, compareShift],
     }),
-    fetchStatistics(context, mode, timeRange, {
+    // 发生次数
+    fetchStatistics(context, mode, impactRange, {
       cal_type: 'count',
       field: 'attributes.span_type',
       filters,
       group_by: [],
     }),
-    fetchStatistics(context, mode, timeRange, {
+    // 影响会话数
+    fetchStatistics(context, mode, impactRange, {
       cal_type: 'distinct',
       field: 'attributes.session.id',
       filters,
       group_by: [],
     }),
+    // 24小时趋势：查询范围 [end_time - 1d, end_time]
     fetchStatistics(
       context,
       mode,
-      { start_time: context.end_time - 86400, end_time: context.end_time },
+      { start_time: spanEndSeconds - 86400, end_time: spanEndSeconds },
       { cal_type: 'count', field: 'attributes.span_type', filters, group_by: ['time'], interval: 3600 }
     ),
   ]);
