@@ -250,10 +250,25 @@ class TestTaskResultMessages:
     def test_icmp_nested_error_code(self, run_test_task, error_code):
         """ICMP 只在 dimensions 中携带错误信息时也能正确解析。"""
         with pytest.raises(CustomException) as exc:
-            run_test_task("ICMP", {"dimensions": {"error_code": str(error_code), "message": "probe failed"}})
+            run_test_task(
+                "ICMP",
+                {
+                    "dimensions": {"error_code": str(error_code)},
+                    "message": "probe failed",
+                    "target_host": "probe-target",
+                },
+            )
         assert RESULT_MSG[str(error_code)] in exc.value.message
         assert "probe failed" in exc.value.message
+        assert "probe-target" in exc.value.message
         assert '"dimensions"' not in exc.value.message
+
+    def test_icmp_conflicting_error_codes(self, run_test_task):
+        """顶层码与 ICMP 维度码冲突时，以预检筛选使用的维度码为准。"""
+        with pytest.raises(CustomException) as exc:
+            run_test_task("ICMP", {"error_code": 0, "dimensions": {"error_code": "1101"}})
+        assert RESULT_MSG["1101"] in exc.value.message
+        assert RESULT_MSG["0"] not in exc.value.message
 
     @pytest.mark.parametrize("protocol", ["HTTP", "TCP", "UDP", "ICMP"])
     def test_success(self, run_test_task, protocol):
