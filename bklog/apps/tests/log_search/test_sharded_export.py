@@ -78,6 +78,7 @@ from apps.log_search.export.config import (
     ExportPolicy,
 )
 from apps.log_search.export.api import create_export_job, download_link
+from apps.log_search.export.history import sharded_export_history_queryset
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.models import AsyncTask, LogIndexSet, Scenario, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -2703,6 +2704,150 @@ class LegacyExportRoutingTests(SimpleTestCase):
                         self.assertEqual(response.data["task_id"], 19)
                         view._sharded_export_from_data.assert_called_once()
                         legacy_handler.assert_not_called()
+
+
+@override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
+class CrossBusinessExportOwnershipTests(TestCase):
+    """跨业务索引集：检索按索引集归属业务执行，任务按请求方业务与空间归属。"""
+
+    REQUEST_SPACE_UID = "bkcc__2"
+    OWNER_SPACE_UID = "bkcc__10"
+
+    def setUp(self):
+        for space_uid, bk_biz_id in ((self.REQUEST_SPACE_UID, 2), (self.OWNER_SPACE_UID, 10)):
+            Space.objects.create(
+                space_uid=space_uid,
+                bk_biz_id=bk_biz_id,
+                space_type_id="bkcc",
+                space_type_name="业务",
+                space_id=str(bk_biz_id),
+                space_name=f"biz-{bk_biz_id}",
+                bk_tenant_id="tenant-a",
+            )
+        self.index_set = LogIndexSet.objects.create(
+            index_set_id=758,
+            index_set_name="index-758",
+            space_uid=self.OWNER_SPACE_UID,
+            category_id="application",
+            scenario_id=Scenario.LOG,
+        )
+
+    def make_handler(self):
+        handler = MagicMock(
+            base_dict={"query_list": []},
+            origin_order_by=[["dtEventTimeStamp", "desc"]],
+            is_desensitize=True,
+        )
+        handler.pre_get_result.return_value = {"list": [{"message": "log"}]}
+        return handler
+
+    def job_params(self):
+        """create_export_job 的检索参数，与 normalize_legacy_export_params 的输出保持一致。"""
+        return {
+            "space_uid": self.OWNER_SPACE_UID,
+            "index_set_id": self.index_set.pk,
+            "start_time": 0,
+            "end_time": 2000,
+            "keyword": "*",
+            "addition": [],
+            "ip_chooser": {},
+            "sort_list": [],
+            "export_fields": [],
+            "is_desensitize": True,
+        }
+
+    def test_creation_separates_job_ownership_from_search_business(self):
+        handler = self.make_handler()
+        with (
+            patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True),
+            patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
+            patch("apps.log_search.export.api.get_request_username", return_value="tester"),
+            patch("apps.log_search.export.api.get_request_external_username", return_value=""),
+            patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
+        ):
+            job = create_export_job(self.job_params(), job_bk_biz_id=2)
+
+        self.assertEqual(job.space_uid, self.REQUEST_SPACE_UID)
+        self.assertEqual(job.bk_biz_id, 2)
+        # 检索仍按索引集归属业务执行，数据隔离与路由不变
+        self.assertEqual(job.search_params["bk_biz_id"], 10)
+        # 历史展示与重试读 raw_params，业务要与任务归属一致
+        self.assertEqual(job.raw_params["bk_biz_id"], 2)
+
+    def test_creation_defaults_job_ownership_to_search_space(self):
+        handler = self.make_handler()
+        with (
+            patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True),
+            patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
+            patch("apps.log_search.export.api.get_request_username", return_value="tester"),
+            patch("apps.log_search.export.api.get_request_external_username", return_value=""),
+            patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
+        ):
+            job = create_export_job(self.job_params())
+
+        self.assertEqual(job.space_uid, self.OWNER_SPACE_UID)
+        self.assertEqual(job.bk_biz_id, 10)
+        self.assertEqual(job.search_params["bk_biz_id"], 10)
+        # 未指定任务归属时原样保留请求参数，不做业务回填
+        self.assertEqual(job.raw_params, self.job_params())
+
+    def test_single_index_set_export_history_stays_in_the_request_business(self):
+        """检索参数被解析成归属业务后，导出历史仍需能在请求方业务查到该任务。"""
+        handler = self.make_handler()
+        module = "apps.log_search.views.search_views"
+        request = SimpleNamespace(user=SimpleNamespace(is_superuser=False), data={}, query_params={})
+        view = SearchViewSet()
+        view.request = request
+        view.params_valid = Mock(
+            return_value={
+                "bk_biz_id": 2,
+                "file_type": "txt",
+                "start_time": 0,
+                "end_time": 2000,
+                "keyword": "*",
+                "addition": [],
+                "ip_chooser": {},
+                "sort_list": [],
+                "export_fields": [],
+                "is_desensitize": True,
+            }
+        )
+        view.get_object = Mock()
+
+        def rewrite_to_owner_business(index_set_obj, data, request=None):
+            data["bk_biz_id"] = 10
+            return data
+
+        with (
+            patch(f"{module}.is_sharded_export_enabled", return_value=True),
+            patch(f"{module}._apply_index_set_search_bk_biz_id", side_effect=rewrite_to_owner_business),
+            patch("apps.log_search.export.api.is_sharded_export_enabled", return_value=True),
+            patch("apps.log_search.export.api.UnifyQueryHandler", return_value=handler),
+            patch("apps.log_search.export.api.get_request_username", return_value="tester"),
+            patch("apps.log_search.export.api.get_request_external_username", return_value=""),
+            patch("apps.log_search.export.api.get_request_app_code", return_value="bk_log"),
+        ):
+            response = view._export(request, index_set_id=self.index_set.pk, is_quick_export=False)
+
+        job = ExportJob.objects.get(pk=response.data["task_id"])
+        self.assertEqual(response.data["engine"], "sharded")
+        self.assertEqual(job.space_uid, self.REQUEST_SPACE_UID)
+        self.assertEqual(job.bk_biz_id, 2)
+        self.assertEqual(job.raw_params["bk_biz_id"], 2)
+        self.assertEqual(job.search_params["bk_biz_id"], 10)
+
+        with (
+            patch("apps.log_search.export.history.get_request_app_code", return_value="bk_log"),
+            patch("apps.log_search.export.history.get_request_external_username", return_value=""),
+        ):
+            history = sharded_export_history_queryset(
+                bk_biz_id=2,
+                search_type=ExportSearchType.INDEX_SET,
+                index_set_type=IndexSetType.SINGLE.value,
+                index_set_id=self.index_set.pk,
+            )
+
+        self.assertEqual([item.pk for item in history], [job.pk])
 
 
 @override_settings(ENABLE_MULTI_TENANT_MODE=True, BK_APP_TENANT_ID="tenant-a")
