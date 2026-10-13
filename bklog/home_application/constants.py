@@ -59,11 +59,6 @@ QUEUES = [
     "pipeline_priority",
     "async_export",
     "tgpa_task",
-    # 分片异步导出：各自有独立 worker（support-files/supervisord.conf），堆积需要进监控
-    "sharded_export",
-    "sharded_export_plan",
-    "sharded_export_finalize",
-    "sharded_export_coordinator",
 ]
 
 # 如果高优先级队列特殊指定，则追加进队列
