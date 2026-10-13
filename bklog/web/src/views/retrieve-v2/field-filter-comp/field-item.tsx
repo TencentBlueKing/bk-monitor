@@ -300,7 +300,7 @@ export default class FieldItem extends tsc<object> {
       backgroundColor: this.fieldItem.is_full_text ? '' : fieldIconInfo.color,
       color: this.fieldItem.is_full_text ? '' : fieldIconInfo.textColor,
     };
-    const childrenCount = this.fieldItem.children?.length || 0;
+    const childrenCount = this.fieldItem.children?.length || this.fieldItem.children_count || 0;
     const showAnalysisOperation = this.isShowFieldsAnalysis && !this.isFrontStatistics;
     const showOperationText = showAnalysisOperation || this.isFieldDisplayToggleSupported;
 
