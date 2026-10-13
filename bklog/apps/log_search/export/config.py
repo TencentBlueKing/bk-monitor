@@ -15,12 +15,12 @@ PART_TASK_NAME = "apps.log_search.tasks.sharded_export.execute_sharded_export_pa
 FINALIZE_TASK_NAME = "apps.log_search.tasks.sharded_export.finalize_sharded_export"
 NOTIFY_TASK_NAME = "apps.log_search.tasks.sharded_export.notify_sharded_export"
 
-PART_QUEUE = "sharded_export"
-PLAN_QUEUE = "sharded_export_plan"
-FINALIZE_QUEUE = "sharded_export_finalize"
-# 走项目的高优先级队列（默认 celery，由主 worker 消费）：旧异步导出队列会被大任务压住，通知不该排在它后面
+PART_QUEUE = "async_export"
+PLAN_QUEUE = settings.BK_LOG_HIGH_PRIORITY_QUEUE
+FINALIZE_QUEUE = "async_export"
+# 调度与通知走现有高优先级队列，避免被耗时导出任务阻塞。
 NOTIFY_QUEUE = settings.BK_LOG_HIGH_PRIORITY_QUEUE
-COORDINATOR_QUEUE = "sharded_export_coordinator"
+COORDINATOR_QUEUE = settings.BK_LOG_HIGH_PRIORITY_QUEUE
 
 
 @dataclass(frozen=True)
