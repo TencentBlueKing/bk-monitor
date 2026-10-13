@@ -21,11 +21,20 @@ class AuthorizedResourceScopeTypeTest(SimpleTestCase):
 
 
 @override_settings(
-    APP_CODE="callback-bklog", SECRET_KEY="dummy-secret",
-    BK_IAM_PERMISSION_MODE="v4", BK_IAM_V4_SYSTEM_ID="bklog_test",
+    APP_CODE="callback-bklog",
+    SECRET_KEY="dummy-secret",
+    BK_IAM_PERMISSION_MODE="v4",
+    BK_IAM_V4_SYSTEM_ID="bklog_test",
     BK_IAM_V4_APIGATEWAY_URL="https://v4.example.test/",
-    BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS=0, BK_APP_TENANT_ID="system",
+    BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS=0,
+    BK_APP_TENANT_ID="system",
     ENABLE_MULTI_TENANT_MODE=False,
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "iam-v4-callback-tests",
+        }
+    },
 )
 class V4CallbackEntryTest(SimpleTestCase):
     def setUp(self):
@@ -42,10 +51,14 @@ class V4CallbackEntryTest(SimpleTestCase):
             "HTTP_X_REQUEST_ID": "bklog-callback-test",
         }
         values.update(headers)
-        body = body if body is not None else {
-            "type": "space", "method": "list_instance", "page": {"page": 1, "page_size": 10}
-        }
-        response = self.dispatcher.as_view()(RequestFactory().post("/", json.dumps(body), content_type="application/json", **values))
+        body = (
+            body
+            if body is not None
+            else {"type": "space", "method": "list_instance", "page": {"page": 1, "page_size": 10}}
+        )
+        response = self.dispatcher.as_view()(
+            RequestFactory().post("/", json.dumps(body), content_type="application/json", **values)
+        )
         return response, json.loads(response.content)
 
     @override_settings(ENABLE_MULTI_TENANT_MODE=True)
@@ -59,23 +72,34 @@ class V4CallbackEntryTest(SimpleTestCase):
 
     @override_settings(ENABLE_MULTI_TENANT_MODE=True)
     def test_native_local_query_receives_requested_tenant_and_documented_page(self):
-        with patch("apps.iam.views.resources.Space.get_spaces_page", return_value=([{
-            "bk_biz_id": -5423, "space_type_name": "项目", "space_name": "demo"
-        }], 1)) as query:
-            response, payload = self.request({
-                "type": "space", "method": "list_instance", "filter": {"keyword": "demo"},
-                "page": {"page": 2, "page_size": 10},
-            }, HTTP_X_BK_TENANT_ID="tenant-a")
+        with patch(
+            "apps.iam.views.resources.Space.get_spaces_page",
+            return_value=([{"bk_biz_id": -5423, "space_type_name": "项目", "space_name": "demo"}], 1),
+        ) as query:
+            response, payload = self.request(
+                {
+                    "type": "space",
+                    "method": "list_instance",
+                    "filter": {"keyword": "demo"},
+                    "page": {"page": 2, "page_size": 10},
+                },
+                HTTP_X_BK_TENANT_ID="tenant-a",
+            )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(payload, {"data": {"count": 1, "results": [{"id": "neg_5423", "display_name": "[项目] demo"}]}})
+        self.assertEqual(
+            payload, {"data": {"count": 1, "results": [{"id": "neg_5423", "display_name": "[项目] demo"}]}}
+        )
         self.assertEqual(response["X-Request-Id"], "bklog-callback-test")
         query.assert_called_once_with("tenant-a", offset=10, limit=10, keywords=["demo"])
 
     def test_native_fetch_decodes_space_ids_and_empty_ids_do_not_query(self):
-        with patch("apps.iam.views.resources.Space.get_spaces_by_bk_biz_ids", return_value=[{
-            "bk_biz_id": -5423, "space_type_name": "项目", "space_name": "demo"
-        }]) as query:
-            response, payload = self.request({"type": "space", "method": "fetch_instance_info", "filter": {"ids": ["neg_5423"]}})
+        with patch(
+            "apps.iam.views.resources.Space.get_spaces_by_bk_biz_ids",
+            return_value=[{"bk_biz_id": -5423, "space_type_name": "项目", "space_name": "demo"}],
+        ) as query:
+            response, payload = self.request(
+                {"type": "space", "method": "fetch_instance_info", "filter": {"ids": ["neg_5423"]}}
+            )
             self.assertEqual(response.status_code, 200)
             self.assertEqual(payload["data"][0]["id"], "neg_5423")
             query.assert_called_once_with("system", ["-5423"])
@@ -117,10 +141,23 @@ class V4CallbackEntryTest(SimpleTestCase):
     def test_invalid_pagination_and_ids_never_query(self):
         self.provider.list_instance = Mock()
         self.provider.fetch_instance_info = Mock()
-        for page in (None, {}, [], {"page": 0, "page_size": 10}, {"page": 1, "page_size": 1001}, {"page": True, "page_size": 10}, {"limit": 10, "offset": -1}):
-            self.assertEqual(self.request({"method": "list_instance", "type": "space", "page": page})[0].status_code, 400)
+        for page in (
+            None,
+            {},
+            [],
+            {"page": 0, "page_size": 10},
+            {"page": 1, "page_size": 1001},
+            {"page": True, "page_size": 10},
+            {"limit": 10, "offset": -1},
+        ):
+            self.assertEqual(
+                self.request({"method": "list_instance", "type": "space", "page": page})[0].status_code, 400
+            )
         for ids in (None, [1], ["1"] * 1001):
-            self.assertEqual(self.request({"method": "fetch_instance_info", "type": "space", "filter": {"ids": ids}})[0].status_code, 400)
+            self.assertEqual(
+                self.request({"method": "fetch_instance_info", "type": "space", "filter": {"ids": ids}})[0].status_code,
+                400,
+            )
         self.provider.list_instance.assert_not_called()
         self.provider.fetch_instance_info.assert_not_called()
 
