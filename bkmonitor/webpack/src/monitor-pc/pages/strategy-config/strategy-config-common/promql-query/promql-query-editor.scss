@@ -31,6 +31,11 @@
 
     .bk-button-text {
       font-size: 12px;
+
+      &.is-disabled {
+        color: #3a84ff;
+        opacity: 0.35;
+      }
     }
   }
 
