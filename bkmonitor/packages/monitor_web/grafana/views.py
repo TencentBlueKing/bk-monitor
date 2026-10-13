@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework.authentication import SessionAuthentication
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.handlers.drf import BusinessActionPermission
 from bkmonitor.middlewares.authentication import NoCsrfSessionAuthentication
 from core.drf_resource import api, resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet

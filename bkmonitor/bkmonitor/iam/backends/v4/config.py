@@ -39,6 +39,25 @@ from iam_engine.v4.config import (
 )
 
 
+def make_client_options(config):
+    """Use the shared BKLog HTTP options; the local dataclass describes model metadata only."""
+    from types import SimpleNamespace
+    from iam_engine.v4.config import V4Options as ClientOptions, load_v4_paths
+
+    paths = load_v4_paths(SimpleNamespace())
+    paths.update(config.extra.get("api_paths", {}))
+    return ClientOptions(
+        app_code=config.credentials.app_code,
+        app_secret=config.credentials.app_secret,
+        gateway_url=config.base_url,
+        system_id=config.system.id,
+        timeout_seconds=config.timeout,
+        batch_chunk_size=config.chunk_size,
+        batch_max_workers=config.max_workers,
+        **paths,
+    )
+
+
 @dataclass(frozen=True)
 class V4Credentials:
     """V4 Provider 凭据契约。

@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import IAMPermission
+from bkmonitor.iam.handlers.drf import IAMPermission
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource

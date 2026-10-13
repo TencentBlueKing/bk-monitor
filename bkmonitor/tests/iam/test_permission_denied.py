@@ -42,7 +42,7 @@ from iam_engine.provider.requests import (
     ResourceInstance,
     Subject,
 )
-from bkmonitor.iam.permission import Permission
+from bkmonitor.iam.handlers.permission import Permission
 
 # ---- 配置 ----
 

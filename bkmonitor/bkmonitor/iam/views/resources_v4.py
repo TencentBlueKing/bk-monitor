@@ -19,11 +19,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from bkmonitor.views.renderers import UJSONRenderer
-from bkmonitor.iam.adapters.tenant import get_callback_tenant_id
+from bkmonitor.iam.tenant import get_callback_tenant_id
 
-from .auth import MonitorIamCallbackAuthentication
-from .handlers import get_callback_service
-from .service import V4CallbackService
+from bkmonitor.iam.views.callback_auth import MonitorIamCallbackAuthentication
+from bkmonitor.iam.views.callback_handlers import get_callback_service
+from bkmonitor.iam.views.callback_service import V4CallbackService
 
 logger = logging.getLogger(__name__)
 

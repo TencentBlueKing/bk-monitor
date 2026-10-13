@@ -9,7 +9,6 @@ from iam_engine.v4.client import V4Client
 from iam_engine.v4.config import V4Options, load_v4_paths
 from iam_engine.v4.exceptions import V4ClientError, V4ResponseError, V4TransportError
 from bkmonitor.iam.backends.v4.client import V4Client as MonitorClient
-from iam_engine.exceptions import ProviderError, ProviderUnavailable
 
 
 def options(**paths):
@@ -29,9 +28,9 @@ def test_both_products_share_http_envelope_and_strict_boolean(monkeypatch, allow
     send = Mock(return_value=response({"allowed": allowed}))
     monkeypatch.setattr(requests, "request", send)
     shared = V4Client(options(), username="alice", bk_tenant_id="tenant-a")
-    monitor = MonitorClient("https://iam.example.test/dev", "bk_monitorv3", "app", "dummy", bk_tenant_id="tenant-a")
+    monitor = MonitorClient(options(), username="alice", bk_tenant_id="tenant-a")
     assert shared.direct_auth(subject={"type": "user", "id": "alice"}, action_id="view_business") is allowed
-    assert monitor.direct_auth("alice", "view_business") is allowed
+    assert monitor.direct_auth(subject={"type": "user", "id": "alice"}, action_id="view_business") is allowed
     for call in send.call_args_list:
         assert (
             call.kwargs["url"]
@@ -61,20 +60,19 @@ def test_invalid_decisions_never_allow(monkeypatch, data):
 )
 def test_incomplete_duplicate_unknown_batch_results_are_errors(monkeypatch, data):
     monkeypatch.setattr(requests, "request", Mock(return_value=response(data)))
-    client = MonitorClient("https://iam.example.test/dev", "bk_monitorv3", "app", "dummy")
+    client = MonitorClient(options(), bk_tenant_id="system")
     with pytest.raises(V4ResponseError):
-        client.direct_auth_by_resources("alice", "view_business", [{"type": "space", "id": "1"}])
+        client.direct_auth_by_resources(
+            subject={"type": "user", "id": "alice"}, action_id="view_business", resources=[{"type": "space", "id": "1"}]
+        )
 
 
 def test_201_empty_grant_custom_path_and_operator(monkeypatch):
     send = Mock(return_value=response(status=201, empty=True))
     monkeypatch.setattr(requests, "request", send)
     client = MonitorClient(
-        "https://iam.example.test/dev",
-        "bk_monitorv3",
-        "app",
-        "dummy",
-        api_paths={"add_authorization_path": "custom/{system_id}/grants/"},
+        options(add_authorization_path="custom/{system_id}/grants/"),
+        bk_tenant_id="system",
     )
     items = [
         {
@@ -85,7 +83,7 @@ def test_201_empty_grant_custom_path_and_operator(monkeypatch):
             "expired_at": 1,
         }
     ]
-    assert client.add_authorization(items, "operator") is None
+    assert client.add_authorization(items=items, operator="operator") is None
     assert send.call_args.kwargs["url"].endswith("/dev/custom/bk_monitorv3/grants/")
     assert send.call_args.kwargs["json"] == items
     assert send.call_args.kwargs["headers"]["X-Bkiam-Operator"] == "operator"
@@ -94,16 +92,16 @@ def test_201_empty_grant_custom_path_and_operator(monkeypatch):
 @pytest.mark.parametrize(
     "status,error",
     [
-        (400, ProviderError),
-        (401, ProviderError),
-        (429, ProviderUnavailable),
-        (500, ProviderUnavailable),
-        (503, ProviderUnavailable),
+        (400, V4ClientError),
+        (401, V4ClientError),
+        (429, V4ClientError),
+        (500, V4ClientError),
+        (503, V4ClientError),
     ],
 )
 def test_monitor_error_mapping_is_consistent_with_grant_retry(monkeypatch, status, error):
     monkeypatch.setattr(requests, "request", Mock(return_value=response(status=status)))
-    client = MonitorClient("https://iam.example.test/dev", "bk_monitorv3", "app", "dummy")
+    client = MonitorClient(options(), bk_tenant_id="system")
     with pytest.raises(error):
         client._get("read/")
 
@@ -130,11 +128,8 @@ def test_model_auth_token_paths_and_cache_key_are_shared(monkeypatch):
     send = Mock(return_value=response({"auth_token": "dummy-token"}))
     monkeypatch.setattr(requests, "request", send)
     client = MonitorClient(
-        "https://iam.example.test/dev",
-        "bk_monitorv3",
-        "app",
-        "dummy",
-        api_paths={"auth_token_path": "custom/{system_id}/token/", "model_base_path": "custom/models/"},
+        options(auth_token_path="custom/{system_id}/token/", model_base_path="custom/models/"),
+        bk_tenant_id="system",
     )
     assert client.get_auth_token() == "dummy-token"
     assert send.call_args.kwargs["url"].endswith("/dev/custom/bk_monitorv3/token/")

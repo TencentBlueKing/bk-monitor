@@ -25,10 +25,7 @@ specific language governing permissions and limitations under the License.
 #       解码 space 时，若输入没有 "space|" 前缀但能作为整数解析
 #       （历史数据、极端兼容路径），视作已是业务 ID 原样返回。
 #
-# 配置方式：
-#   在 产品 backend 配置 中配置本类的 dotted path：
-#       "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec"
-#   Provider 在初始化时自动加载。业务可自由替换为自己的 codec 实现。
+# 产品装配显式注入本 Codec；Provider 不再动态加载 dotted path。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
@@ -66,6 +63,43 @@ class MonitorV4Codec(IdentityCodec):
                 return business_id
             return f"{_SPACE_PREFIX}{business_id}"
         return business_id
+
+    def encode_resource_for_auth(self, resource):
+        from iam_engine.core.requests import to_definition_id
+
+        rt = to_definition_id(resource.type)
+        payload = {"type": self.encode_resource_type(rt), "id": self.encode_resource_id(rt, str(resource.id))}
+        attributes = dict(resource.attributes)
+        if resource.ancestor_chain:
+            path = (
+                "/"
+                + "/".join(
+                    f"{self.encode_resource_type(to_definition_id(parent.type))},"
+                    f"{self.encode_resource_id(to_definition_id(parent.type), str(parent.id))}"
+                    for parent in resource.ancestor_chain
+                )
+                + "/"
+            )
+            attributes["_bk_iam_path_"] = path
+        if attributes:
+            payload["attributes"] = attributes
+        return payload
+
+    def encode_resource_for_apply(self, resource):
+        from iam_engine.core.requests import to_definition_id
+
+        rt = to_definition_id(resource.type)
+        return {
+            "type": self.encode_resource_type(rt),
+            "id": self.encode_resource_id(rt, str(resource.id)),
+            "ancestors": [
+                {
+                    "type": self.encode_resource_type(to_definition_id(parent.type)),
+                    "id": self.encode_resource_id(to_definition_id(parent.type), str(parent.id)),
+                }
+                for parent in resource.ancestor_chain
+            ],
+        }
 
     def decode_resource_id(self, rt_id: str, dialect_id: str) -> str:
         """解码 resource_id：v4 方言 ID → 业务 ID。

@@ -311,7 +311,7 @@ class TestEnrichPermissions:
     def _actions(permissions: list[dict]) -> list[dict]:
         return [{"permissions": permissions}]
 
-    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info")
+    @patch("bkmonitor.iam.handlers.catalog.fetch_instance_info")
     def test_prepend_parent_chain(self, mock_fetch):
         """实例级 entry 按 catalog 返回的父链前置补齐空间节点。"""
 
@@ -338,7 +338,7 @@ class TestEnrichPermissions:
             {"type": "apm_application", "id": "390", "display_name": ""},
         ]
 
-    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info")
+    @patch("bkmonitor.iam.handlers.catalog.fetch_instance_info")
     def test_skip_space_first(self, mock_fetch):
         """顶级资源开头的 path 不做父链查询（仅展示名阶段）。"""
         schema = self._make_schema_mock({"space": ResourceTypeDef(id="space", name="空间")})
@@ -353,7 +353,7 @@ class TestEnrichPermissions:
         _enrich_permissions(actions, schema, bk_tenant_id="system")
         assert actions[0]["permissions"][0]["path"] == []
 
-    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info", return_value=[])
+    @patch("bkmonitor.iam.handlers.catalog.fetch_instance_info", return_value=[])
     def test_unknown_resource_type(self, mock_fetch):
         """Unknown resource type — silently skipped（展示名回填空串）。"""
         schema = self._make_schema_mock({})
@@ -361,7 +361,7 @@ class TestEnrichPermissions:
         _enrich_permissions(actions, schema, bk_tenant_id="system")
         assert actions[0]["permissions"][0]["path"] == [{"type": "unknown_rt", "id": "x", "display_name": ""}]
 
-    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info", return_value=[])
+    @patch("bkmonitor.iam.handlers.catalog.fetch_instance_info", return_value=[])
     def test_parent_not_found(self, mock_fetch):
         """父链查不到 → 保持原样，不补父节点。"""
         schema = self._make_schema_mock(
@@ -376,7 +376,7 @@ class TestEnrichPermissions:
             {"type": "grafana_dashboard", "id": "14|missing", "display_name": ""}
         ]
 
-    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info")
+    @patch("bkmonitor.iam.handlers.catalog.fetch_instance_info")
     def test_fills_display_names(self, mock_fetch):
         """展示名按 rt 批量回填；apm/rum 取 name（app_name）口径。"""
 
@@ -411,7 +411,7 @@ class TestEnrichPermissions:
         assert path[0]["display_name"] == "业务-2"
         assert path[1]["display_name"] == "app-390"
 
-    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info", return_value=[])
+    @patch("bkmonitor.iam.handlers.catalog.fetch_instance_info", return_value=[])
     def test_catalog_queried_once_per_rt(self, mock_fetch):
         """两阶段补全：每个 rt 最多 2 次 catalog 查询（父链 + 展示名），与 entry 数无关。"""
         schema = self._make_schema_mock(
@@ -426,7 +426,7 @@ class TestEnrichPermissions:
         apm_calls = [c for c in mock_fetch.call_args_list if c.args[0] == "apm_application"]
         assert len(apm_calls) == 2
 
-    @patch("bkmonitor.iam.adapters.catalog.fetch_instance_info")
+    @patch("bkmonitor.iam.handlers.catalog.fetch_instance_info")
     def test_catalog_failure_counts_resolve_failed(self, mock_fetch):
         """catalog 查询失败 → 记 resolve_failed，权限数据本身保留且不补 display_name。"""
         mock_fetch.side_effect = RuntimeError("db down")
@@ -552,7 +552,7 @@ class TestActionCategories:
 
     def test_business_groups_structure(self):
         """验证 business_groups 覆盖所有 schema.all_actions()。"""
-        from bkmonitor.iam.permission import Permission
+        from bkmonitor.iam.handlers.permission import Permission
 
         fw = Permission(username="offline", bk_tenant_id="system")
         all_ids = {a.id for a in fw.schema.all_actions()}
@@ -609,7 +609,7 @@ class TestActionCategories:
     @staticmethod
     def _mock_backend_fw(provider_name: str, codec):
         """构造 mock 框架：schema 用真实注册表，backend 解析返回 mock provider。"""
-        from bkmonitor.iam.permission import Permission as RealPermission
+        from bkmonitor.iam.handlers.permission import Permission as RealPermission
 
         provider = MagicMock()
         provider.name = provider_name
@@ -622,7 +622,7 @@ class TestActionCategories:
     @patch("kernel_api.rpc.functions.admin.permission._shared.Permission")
     def test_backend_v4_filters_hidden_actions(self, mock_get_fw):
         """backend=v4：exclude_providers=("v4",) 的过时 action 不出现在元数据中。"""
-        from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
+        from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
 
         mock_get_fw.return_value = self._mock_backend_fw("v4", MonitorV4Codec())
         result = action_categories({"bk_tenant_id": "system", "backend": "v4"})
@@ -637,7 +637,7 @@ class TestActionCategories:
     @patch("kernel_api.rpc.functions.admin.permission._shared.Permission")
     def test_backend_v3_returns_dialect_ids(self, mock_get_fw):
         """backend=v3：过时 action 仍可见，id 经 v3 codec 输出方言 ID（与权限查询口径一致）。"""
-        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         mock_get_fw.return_value = self._mock_backend_fw("v3", MonitorV3Codec())
         result = action_categories({"bk_tenant_id": "system", "backend": "v3"})
@@ -662,7 +662,7 @@ class TestActionCategories:
 
     def test_business_groups_uncategorized_fallback(self):
         """验证未匹配硬编码分组的操作归入'其他'组并不丢失。"""
-        from bkmonitor.iam.permission import Permission
+        from bkmonitor.iam.handlers.permission import Permission
 
         fw = Permission(username="offline", bk_tenant_id="system")
         all_ids = {a.id for a in fw.schema.all_actions()}
@@ -690,7 +690,7 @@ class TestQueryUserPermissions:
     @patch("kernel_api.rpc.functions.admin.permission._v3.Permission")
     def test_batch_query_success(self, mock_get_fw, mock_enrich):
         """验证 query_user_permissions 通过 v3 provider 查询策略的完整流程。"""
-        from bkmonitor.iam.permission import Permission as RealPermission
+        from bkmonitor.iam.handlers.permission import Permission as RealPermission
 
         real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
 
@@ -734,7 +734,7 @@ class TestQueryUserPermissions:
 
         # 直接构造真实 v3 codec（与框架装配状态无关），
         # 使 action_id 方言编码（USE_DIALECT_ACTION_ID）走真实逻辑
-        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         mock_v3 = MagicMock()
         mock_v3.codec = MonitorV3Codec()
@@ -791,7 +791,7 @@ class TestQueryUserPermissions:
     @patch("kernel_api.rpc.functions.admin.permission._v3.Permission")
     def test_framework_query_failure_fallback(self, mock_get_fw, mock_enrich):
         """批量查询失败时降级为逐条查询；逐条也失败时全部 error 且 warning 含 action_id。"""
-        from bkmonitor.iam.permission import Permission as RealPermission
+        from bkmonitor.iam.handlers.permission import Permission as RealPermission
 
         real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
         all_ids = {a.id for a in real_schema.all_actions()}
@@ -823,7 +823,7 @@ class TestQueryUserPermissions:
     @patch("kernel_api.rpc.functions.admin.permission._v3.Permission")
     def test_batch_failure_fallback_partial_success(self, mock_get_fw, mock_enrich):
         """批量失败 + 逐条部分成功：成功的 action 正常解析，失败的标 error。"""
-        from bkmonitor.iam.permission import Permission as RealPermission
+        from bkmonitor.iam.handlers.permission import Permission as RealPermission
 
         real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
 
@@ -834,7 +834,7 @@ class TestQueryUserPermissions:
 
         # 直接构造真实 v3 codec（与框架装配状态无关），
         # 使 action_id 方言编码（USE_DIALECT_ACTION_ID）走真实逻辑
-        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         mock_v3 = MagicMock()
         mock_v3.codec = MonitorV3Codec()

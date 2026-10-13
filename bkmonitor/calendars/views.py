@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import IAMPermission
+from bkmonitor.iam.handlers.drf import IAMPermission
 from calendars import resources
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 

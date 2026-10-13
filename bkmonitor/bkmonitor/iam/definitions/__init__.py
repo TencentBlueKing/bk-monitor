@@ -24,8 +24,8 @@ specific language governing permissions and limitations under the License.
 #   "ROLES": "bkmonitor.iam.definitions.roles.Roles",
 # ---------------------------------------------------------------------------
 
-from .actions import Actions
-from .resource_types import ResourceTypes
-from .roles import Roles
+from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.definitions.resource_types import ResourceTypes
+from bkmonitor.iam.definitions.roles import Roles
 
 __all__ = ["Actions", "ResourceTypes", "Roles"]

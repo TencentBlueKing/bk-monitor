@@ -20,7 +20,7 @@ specific language governing permissions and limitations under the License.
 #     授权明细；浏览器可对（空间 × 资源类型）并发多个请求，不重复查询总览数据。
 #
 # codec 边界：本模块禁止直连 V4Client、禁止假设 v4 恒等映射，只消费 provider
-# 方法（get_authorized_resources / batch_by_*，其内部已按 MonitorV4Codec 完成
+# 方法（list_authorized_resources / batch_is_allowed，其内部已按 MonitorV4Codec 完成
 # 编解码）；出参 action_id 恒为 schema 业务 ID。未来 v4 codec 变化时本模块与
 # 前端契约零改动。
 # ---------------------------------------------------------------------------
@@ -30,16 +30,16 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Any
 
-from bkmonitor.iam.adapters import catalog
-from iam_engine.exceptions import ProviderNotFound
+from bkmonitor.iam.handlers import catalog
+from iam_engine.exceptions import ProviderNotFound, ProviderUnavailable
+from iam_engine.core.requests import AuthRequest, BatchAuthRequest
+from iam_engine.core.types import AuthStatus
 from iam_engine.provider.requests import (
-    BatchByActionRequest,
-    BatchByResourceRequest,
     ResourceInstance,
     Subject as FwSubject,
     SubjectType,
 )
-from bkmonitor.iam.permission import Permission
+from bkmonitor.iam.handlers.permission import Permission
 from iam_engine.schema.definitions import ActionDef
 from iam_engine.schema.registry import SchemaRegistry
 from iam_engine.schema.visibility import is_visible_to
@@ -61,7 +61,7 @@ OPERATION_QUERY_USER_PERMISSIONS_V4 = "permission.query_user_permissions_v4"
 FUNC_QUERY_USER_SUB_RESOURCES_V4 = "admin.permission.query_user_sub_resources_v4"
 OPERATION_QUERY_USER_SUB_RESOURCES_V4 = "permission.query_user_sub_resources_v4"
 
-# 总览中 space 级授权的并发查询 worker 数（get_authorized_resources 每 action 1 次）
+# 总览中 space 级授权的并发查询 worker 数（list_authorized_resources 每 action 1 次）
 _SPACE_QUERY_WORKERS = 8
 
 # 二级资源枚举的分页大小（catalog.list_instances 单页上限）
@@ -158,32 +158,17 @@ def _build_v4_action_item(
     }
 
 
-def _parse_authorized(authorized: list[dict], rt_biz: str) -> tuple[bool, set[str]]:
-    """解析 get_authorized_resources 返回（provider 已 decode 为业务命名）。
-
-    Returns (all_granted, ids)：
-      * ids 含 "*" → all_granted=True（该资源类型下任意资源均有权限）
-      * 其余 id 收集到集合（跳过 "*"）
-    """
-    all_granted = False
-    ids: set[str] = set()
-    for item in authorized or []:
-        if item.get("type") != rt_biz:
-            continue
-        item_ids = item.get("ids") or []
-        if "*" in item_ids:
-            all_granted = True
-        ids.update(str(i) for i in item_ids if i != "*")
-    return all_granted, ids
-
-
 def _query_space_grant(v4_provider, subject: FwSubject, action: ActionDef) -> tuple[str, list[dict], str | None]:
     """查询单个 space 级 action 的授权条目。
 
     Returns (grant_type, permissions, error)；error 非 None 表示平台调用失败。
     """
-    authorized = v4_provider.get_authorized_resources(subject, action.id)
-    all_granted, ids = _parse_authorized(authorized, action.resource_type)
+    scope = v4_provider.list_authorized_resources(
+        action_id=action.id, resource_type=action.resource_type, subject={"type": subject.type, "id": subject.id}
+    )
+    if not scope.ok:
+        raise ProviderUnavailable(scope.reason)
+    all_granted, ids = scope.is_wildcard, scope.ids
     if all_granted:
         return "all", [{"resource_type": action.resource_type, "resource_id": "*", "display_name": ""}], None
     if not ids:
@@ -281,10 +266,10 @@ def query_user_permissions_v4(params: dict[str, Any]) -> dict[str, Any]:
     # ---- 全局 action：一次批量（无关资源类型） ----
     if global_actions:
         try:
-            batch = v4_provider.batch_by_action(
-                BatchByActionRequest(subject=subject, action_ids=tuple(a.id for a in global_actions), resource=None)
-            )
-            allowed_map = {item.action_id: item.allowed for item in batch.items}
+            decisions = {a.id: v4_provider.is_allowed(AuthRequest(subject, a.id)) for a in global_actions}
+            if any(result.status is AuthStatus.ERROR for result in decisions.values()):
+                raise ProviderUnavailable("IAM global action query failed")
+            allowed_map = {action_id: result.allowed for action_id, result in decisions.items()}
         except Exception as e:
             logger.warning("Batch auth for global actions failed: %s", e)
             allowed_map = {}
@@ -302,7 +287,7 @@ def query_user_permissions_v4(params: dict[str, Any]) -> dict[str, Any]:
             else:
                 result_by_id[action.id] = _build_v4_action_item(action, "error", note="IAM 查询失败")
 
-    # ---- space 级授权：每 action 1 次 get_authorized_resources，并发 ----
+    # ---- space 级授权：每 action 1 次 list_authorized_resources，并发 ----
     if space_actions:
         workers = min(_SPACE_QUERY_WORKERS, len(space_actions))
         futures = {}
@@ -440,9 +425,11 @@ def query_user_sub_resources_v4(params: dict[str, Any]) -> dict[str, Any]:
         resources = tuple(ResourceInstance(type=rt, id=c["id"]) for c in candidates)
         for action in rt_actions:
             try:
-                auth_result = v4_provider.batch_by_resource(
-                    BatchByResourceRequest(subject=subject, action_id=action.id, resources=resources)
+                auth_result = v4_provider.batch_is_allowed(
+                    BatchAuthRequest(subject, (action.id,), tuple((r,) for r in resources))
                 )
+                if any(item.result.status is AuthStatus.ERROR for item in auth_result.items):
+                    raise ProviderUnavailable("IAM resource batch query failed")
             except Exception as e:
                 logger.warning("Batch auth failed for action %s: %s", action.id, e)
                 warnings.append(
@@ -455,7 +442,7 @@ def query_user_sub_resources_v4(params: dict[str, Any]) -> dict[str, Any]:
                 items.append(_build_v4_action_item(action, "error", note="IAM 查询失败"))
                 continue
 
-            allowed_ids = [item.resource_id for item in auth_result.items if item.allowed]
+            allowed_ids = [item.resource_id for item in auth_result.items if item.result.allowed]
             if len(allowed_ids) == len(candidates):
                 grant_type = "all"
             elif allowed_ids:

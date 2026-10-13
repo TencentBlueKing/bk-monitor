@@ -18,7 +18,7 @@ from apm_web.event.serializers import EventDownloadTopKRequestSerializer
 from apm_web.models import Application
 from bkmonitor.utils.csv import generate_csv_file_download_response
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission
+from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
@@ -27,9 +27,7 @@ class EventViewSet(ResourceViewSet):
 
     def get_permissions(self):
         action = (
-            ActionEnum.MANAGE_APM_APPLICATION
-            if self.action == "update_tag_config"
-            else ActionEnum.VIEW_APM_APPLICATION
+            ActionEnum.MANAGE_APM_APPLICATION if self.action == "update_tag_config" else ActionEnum.VIEW_APM_APPLICATION
         )
         return [
             InstanceActionForDataPermission(

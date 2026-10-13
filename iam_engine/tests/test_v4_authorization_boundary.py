@@ -1,48 +1,49 @@
-from types import SimpleNamespace
+"""V4 any-resource queries use top-level action scopes, never imply a grant."""
+
 from unittest.mock import Mock
-
 import pytest
-
-from iam_engine.provider.requests import Subject
-from iam_engine.provider.dialect_types import DialectAuthRequest
-from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
-
-
-def make_provider(resource_type="grafana_dashboard"):
-    provider = object.__new__(V4PermissionProvider)
-    provider.schema = Mock()
-    provider.schema.get_action.return_value = SimpleNamespace(resource_type=resource_type)
-    provider.get_authorized_resources = Mock()
-    provider._get_client = Mock()
-    provider.is_allowed = Mock(return_value=False)
-    return provider
+from bkmonitor.iam.backends.config import build_provider
+from iam_engine.core.requests import AuthRequest, Subject
+from iam_engine.core.types import AuthStatus
 
 
-@pytest.mark.parametrize(
-    "grants,expected",
-    [
-        ([], False),
-        ([{"type": "space", "ids": []}], False),
-        ([{"type": "space", "ids": ["2"]}], True),
-        ([{"type": "grafana_dashboard", "ids": ["*"]}], True),
-    ],
-)
-def test_has_any_permission_requires_real_grants(grants, expected):
-    provider = make_provider()
-    provider.get_authorized_resources.return_value = grants
+def make_provider():
+    p = build_provider(
+        "v4",
+        username="user",
+        options={
+            "base_url": "https://iam.example.test",
+            "bk_tenant_id": "tenant-b",
+            "credentials": {"app_code": "offline", "app_secret": "offline"},
+            "system": {"id": "bk_monitorv3", "name": "Monitor"},
+        },
+    )
+    client = Mock()
+    p._get_client = Mock(return_value=client)
+    return p, client
+
+
+@pytest.mark.parametrize("ids,expected", [([], False), (["2"], True), (["*"], True)])
+def test_has_any_permission_requires_real_grants(ids, expected):
+    provider, client = make_provider()
+    client.list_authorized_resource.return_value = {"type": "space", "ids": ids}
     assert provider.has_any_permission(Subject("user", tenant_id="tenant-b"), "view_single_dashboard") is expected
-    assert provider.get_authorized_resources.call_args.args[0].tenant_id == "tenant-b"
+    client.list_authorized_resource.assert_called_once_with(
+        subject={"type": "user", "id": "user"}, action_id="view_single_dashboard", resource_type="space"
+    )
+    assert provider.tenant_id == "tenant-b"
 
 
 def test_resource_free_action_uses_direct_authorization():
-    provider = make_provider("")
-    assert not provider.has_any_permission(Subject("user"), "create_resource")
-    provider.is_allowed.assert_called_once()
-    provider.get_authorized_resources.assert_not_called()
+    provider, client = make_provider()
+    client.direct_auth.return_value = False
+    assert not provider.has_any_permission(Subject("user", tenant_id="tenant-b"), "manage_global_setting")
+    client.list_authorized_resource.assert_not_called()
 
 
 def test_provider_failure_is_not_collapsed_to_business_deny():
-    provider = make_provider()
-    provider._get_client.return_value.direct_auth.side_effect = TimeoutError("offline timeout")
-    with pytest.raises(TimeoutError):
-        provider._is_allowed_dialect(DialectAuthRequest(subject=Subject("user"), action_id="create_resource"))
+    provider, client = make_provider()
+    client.direct_auth.side_effect = TimeoutError("offline")
+    result = provider.is_allowed(AuthRequest(Subject("user", tenant_id="tenant-b"), "manage_global_setting"))
+    assert result.status is AuthStatus.ERROR
+    assert not result.allowed

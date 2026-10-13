@@ -20,7 +20,6 @@ from bk_dataview.models import Dashboard
 from bk_dataview.permissions import BasePermission, GrafanaPermission, GrafanaRole
 from bkmonitor.iam import ActionEnum, Permission
 from iam_engine.exceptions import ProviderError
-from iam_engine.provider.requests import ResourceInstance, Subject as FwSubject, SubjectType
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.request import get_request_tenant_id
 
@@ -188,11 +187,9 @@ class DashboardPermission(BasePermission):
         if p.skip_check:
             return True
 
-        subject = FwSubject(id=username, type=SubjectType.USER, tenant_id=get_request_tenant_id())
-        fw = p
         try:
-            return fw.has_any_permission(subject, ActionEnum.VIEW_SINGLE_DASHBOARD) or fw.has_any_permission(
-                subject, ActionEnum.EDIT_SINGLE_DASHBOARD
+            return p.has_any_resource_permission(ActionEnum.VIEW_SINGLE_DASHBOARD) or p.has_any_resource_permission(
+                ActionEnum.EDIT_SINGLE_DASHBOARD
             )
         except ProviderError:
             logger.exception("[grafana] has_any_dashboard_permission 查询失败, username=%s", username)
@@ -215,7 +212,8 @@ class DashboardPermission(BasePermission):
             resource_ids: IAM 格式资源 id 候选列表：
                 - dashboard: "{org_id}|{uid}"
                 - folder: "folder:{org_id}|{folder_id}"
-                空/None 时仅做 role + 全量授权提级（不返回实例 map）。
+                None 时查询当前组织全部仪表盘；空列表只检查全量授权。
+                仪表盘所属文件夹由权限服务补齐，调用方不负责构造父资源。
 
         Returns:
             (role, {uid: GrafanaPermission})
@@ -234,20 +232,13 @@ class DashboardPermission(BasePermission):
             return role, {}
 
         org_id = get_or_create_org(org_name)["id"]
-        subject = FwSubject(id=username, type=SubjectType.USER, tenant_id=get_request_tenant_id())
-        fw = p
-
-        space_inst = ResourceInstance(type="space", id=str(org_name))
-        if resource_ids:
-            candidates = tuple(
-                ResourceInstance(type="grafana_dashboard", id=rid, ancestor_chain=(space_inst,)) for rid in resource_ids
-            )
-        else:
-            # 无候选：探针实例仅用于全量授权提级（空 id 求值）
-            candidates = (ResourceInstance(type="grafana_dashboard", id="", ancestor_chain=(space_inst,)),)
-
-        view_result = fw.filter_visible_resources(subject, ActionEnum.VIEW_SINGLE_DASHBOARD, candidates)
-        edit_result = fw.filter_visible_resources(subject, ActionEnum.EDIT_SINGLE_DASHBOARD, candidates)
+        candidate_ids = cls._candidate_ids(org_id, resource_ids)
+        view_result = p.filter_visible_resource_ids(
+            ActionEnum.VIEW_SINGLE_DASHBOARD, "grafana_dashboard", candidate_ids, bk_biz_id=int(org_name)
+        )
+        edit_result = p.filter_visible_resource_ids(
+            ActionEnum.EDIT_SINGLE_DASHBOARD, "grafana_dashboard", candidate_ids, bk_biz_id=int(org_name)
+        )
 
         # 实例级全量授权 → role 提级
         if edit_result.all_granted:
@@ -271,6 +262,40 @@ class DashboardPermission(BasePermission):
         return role, dashboard_permissions
 
     @classmethod
+    def _candidate_ids(cls, org_id: int, resource_ids: list[str] | None) -> tuple[str, ...]:
+        """集中维护本地仪表盘与文件夹覆盖关系，避免业务入口遗漏父资源。"""
+        if resource_ids is None:
+            records = Dashboard.objects.filter(org_id=org_id).values_list("id", "uid", "is_folder")
+            ids = {
+                f"{cls.FOLDER_PREFIX}{org_id}|{did}" if is_folder else f"{org_id}|{uid}"
+                for did, uid, is_folder in records
+            }
+        else:
+            ids = set(resource_ids)
+            uids = {uid for rid in resource_ids if (uid := cls._parse_resource_id(org_id, rid)[0]) is not None}
+            if uids:
+                folder_ids = Dashboard.objects.filter(org_id=org_id, uid__in=uids, is_folder=False).values_list(
+                    "folder_id", flat=True
+                )
+                ids.update(f"{cls.FOLDER_PREFIX}{org_id}|{fid}" for fid in folder_ids if fid)
+        # 空 id 探针仅用于识别当前空间的全量授权，不会返回实例 ACL。
+        return tuple(sorted(ids)) or ("",)
+
+    @classmethod
+    def get_user_permission(
+        cls, username: str, org_name: str, force_check: bool = False, *, dashboard_uids: list[str] | None = None
+    ) -> tuple[bool, GrafanaRole, dict[str, GrafanaPermission]]:
+        """保留 V3 产品接口与三项返回契约；业务只传产品参数，不接触 IAM DTO。"""
+        resource_ids = None
+        if dashboard_uids is not None:
+            org_id = get_or_create_org(org_name)["id"]
+            resource_ids = [f"{org_id}|{uid}" for uid in dashboard_uids]
+        role, dashboard_permissions = cls.get_visible_dashboards(
+            username, org_name, resource_ids=resource_ids, force_check=force_check
+        )
+        return True, role, dashboard_permissions
+
+    @classmethod
     def has_permission(
         cls, request, view, org_name: str, force_check: bool = False
     ) -> tuple[bool, GrafanaRole, dict[str, GrafanaPermission]]:
@@ -283,15 +308,8 @@ class DashboardPermission(BasePermission):
         if getattr(request, "skip_check", False) or request.user.is_superuser:
             role, dashboard_permissions = GrafanaRole.Admin, {}
         else:
-            org_id = get_or_create_org(org_name)["id"]
-            candidates = [
-                f"folder:{org_id}|{dashboard_id}" if is_folder else f"{org_id}|{uid}"
-                for dashboard_id, uid, is_folder in Dashboard.objects.filter(org_id=org_id).values_list(
-                    "id", "uid", "is_folder"
-                )
-            ]
-            role, dashboard_permissions = cls.get_visible_dashboards(
-                request.user.username, org_name, resource_ids=candidates, force_check=force_check
+            _, role, dashboard_permissions = cls.get_user_permission(
+                request.user.username, org_name, force_check=force_check
             )
 
         # 外部用户权限处理

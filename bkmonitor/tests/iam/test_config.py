@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.iam.backends.config import build_provider
+
 # ==============================================================================
 # V4 Provider 配置契约的单元测试
 #
@@ -21,10 +23,9 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from bkmonitor.iam.permission import Permission
+from bkmonitor.iam.handlers.permission import Permission
 from iam_engine.schema.registry import SchemaRegistry
 from bkmonitor.iam.backends.v4.config import V4Credentials, V4Options, V4SystemInfo
-from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
 
 
 # ==============================================================================
@@ -231,9 +232,8 @@ class TestV4ProviderConstruction:
 
     def test_construct_from_options(self):
         schema = self._fresh_schema()
-        provider = V4PermissionProvider(
-            schema,
-            **_valid_options(timeout=15, chunk_size=8, max_workers=2),
+        provider = build_provider(
+            "v4", schema=schema, options={**_valid_options(timeout=15, chunk_size=8, max_workers=2)}
         )
         # schema 直接挂在 self.schema 上，非 ctx.schema
         assert provider.schema is schema
@@ -242,12 +242,12 @@ class TestV4ProviderConstruction:
         assert provider._cfg.credentials.app_code == "app1"
         assert provider._cfg.system.id == "bk_monitor_v4"
         # 分片参数字段来自 options
-        assert provider.CHUNK_SIZE == 8
-        assert provider.MAX_WORKERS == 2
+        assert provider.batch_chunk_size == 8
+        assert provider.batch_max_workers == 2
 
     def test_get_system_info(self):
         schema = self._fresh_schema()
-        provider = V4PermissionProvider(schema, **_valid_options())
+        provider = build_provider("v4", schema=schema, options={**_valid_options()})
         info = provider.get_system_info()
         assert isinstance(info, V4SystemInfo)
         assert info.id == "bk_monitor_v4"
@@ -257,12 +257,12 @@ class TestV4ProviderConstruction:
         """缺少 credentials 应在 Provider 构造阶段就 fail，而不是等到运行时。"""
         schema = self._fresh_schema()
         with pytest.raises(ValueError):
-            V4PermissionProvider(schema, base_url="u", system={"id": "i", "name": "n"})
+            build_provider("v4", schema=schema, options={"base_url": "u", "system": {"id": "i", "name": "n"}})
 
     def test_no_ctx_attribute(self):
         """确保重构后 Provider 上不再暴露 ctx 属性。"""
         schema = self._fresh_schema()
-        provider = V4PermissionProvider(schema, **_valid_options())
+        provider = build_provider("v4", schema=schema, options={**_valid_options()})
         assert not hasattr(provider, "ctx")
 
 

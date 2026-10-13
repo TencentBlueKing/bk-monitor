@@ -298,7 +298,7 @@ def test_filter_space_list_by_action_reports_trusted_scope(
 ):
     spaces = [{"bk_biz_id": 1}, {"bk_biz_id": 2}]
     monkeypatch.setattr(
-        "bkmonitor.iam.permission.SpaceApi.list_spaces_dict",
+        "bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict",
         lambda **kwargs: spaces,
     )
 
@@ -319,7 +319,7 @@ def test_filter_space_list_by_action_reports_trusted_scope(
 def test_filter_space_list_by_action_reports_skip_check_as_trusted_scope(monkeypatch):
     spaces = [{"bk_biz_id": 1}, {"bk_biz_id": 2}]
     monkeypatch.setattr(
-        "bkmonitor.iam.permission.SpaceApi.list_spaces_dict",
+        "bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict",
         lambda **kwargs: spaces,
     )
 
@@ -338,7 +338,7 @@ def test_filter_space_list_by_action_reports_skip_check_as_trusted_scope(monkeyp
 def test_filter_space_list_by_action_keeps_list_return_contract(monkeypatch):
     spaces = [{"bk_biz_id": 1}, {"bk_biz_id": 2}]
     monkeypatch.setattr(
-        "bkmonitor.iam.permission.SpaceApi.list_spaces_dict",
+        "bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict",
         lambda **kwargs: spaces,
     )
 

@@ -21,13 +21,13 @@ from rest_framework import RemovedInDRF317Warning
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.test import APIRequestFactory
 
-from bkmonitor.iam.adapters.v4.callback import auth as callback_auth
-from bkmonitor.iam.adapters.v4.callback.auth import IamCallbackAuthentication, V4SystemTokenProvider
-from bkmonitor.iam.adapters.v4.callback.config import get_v4_callback_config
-from bkmonitor.iam.adapters.v4.callback.registry import V4CallbackRegistry
-from bkmonitor.iam.adapters.v4.callback.service import V4CallbackService
-from bkmonitor.iam.adapters.v4.callback.views import MonitorV4ResourceCallbackView, V4ResourceCallbackView
-from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
+from bkmonitor.iam.views import callback_auth
+from bkmonitor.iam.views.callback_auth import IamCallbackAuthentication, V4SystemTokenProvider
+from bkmonitor.iam.views.callback_config import get_v4_callback_config
+from bkmonitor.iam.views.callback_registry import V4CallbackRegistry
+from bkmonitor.iam.views.callback_service import V4CallbackService
+from bkmonitor.iam.views.resources_v4 import MonitorV4ResourceCallbackView, V4ResourceCallbackView
+from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
 from iam_engine.provider.codec import IdentityCodec
 from bkmonitor.iam.backends.v4.config import V4Options
 
@@ -192,7 +192,7 @@ class TestV4CallbackService:
 
     def test_monitor_handlers_are_registered_on_the_project_service(self, monkeypatch):
         """确保移动后的 handlers 仍由项目侧 service 持有并委托 catalog。"""
-        from bkmonitor.iam.adapters.v4.callback import handlers
+        from bkmonitor.iam.views import callback_handlers as handlers
 
         calls = []
 
@@ -440,15 +440,9 @@ class TestCallbackAuth:
             assert callback_auth.get_callback_token_provider() is token_provider
             assert token_provider.get_system_token() == "shared-system-token"
 
-        client_factory.assert_called_once_with(
-            base_url=options["base_url"],
-            system_id=options["system"]["id"],
-            app_code=options["credentials"]["app_code"],
-            app_secret=options["credentials"]["app_secret"],
-            timeout=options["timeout"],
-            bk_tenant_id=options["bk_tenant_id"],
-            api_paths=config.extra["api_paths"],
-        )
+        from bkmonitor.iam.backends.v4.config import make_client_options
+
+        client_factory.assert_called_once_with(make_client_options(config), bk_tenant_id=config.bk_tenant_id)
         client_factory.return_value.get_auth_token.assert_called_once_with()
 
     @pytest.mark.parametrize("gateway", (None, ""))

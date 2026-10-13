@@ -16,8 +16,8 @@ specific language governing permissions and limitations under the License.
 # ---------------------------------------------------------------------------
 
 from iam_engine.schema.definitions import ActionDef, ResourceTypeDef, RoleActionBinding, RoleDef
-from .actions import Actions
-from .resource_types import ResourceTypes
+from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.definitions.resource_types import ResourceTypes
 
 
 def _bind(action: ActionDef, resource_type: ResourceTypeDef | None = None) -> RoleActionBinding:

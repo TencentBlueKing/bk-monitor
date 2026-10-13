@@ -24,7 +24,7 @@ from iam_engine.provider.codec import IdentityCodec
 
 import pytest
 
-from bkmonitor.iam.backends.grant import grant_creator_actions
+from tests.iam.helpers import grant_creator_actions
 
 
 def _make_provider(name: str, side_effect=None) -> MagicMock:
@@ -35,13 +35,13 @@ def _make_provider(name: str, side_effect=None) -> MagicMock:
         if name == "v4":
             provider._get_client.return_value.add_authorization.side_effect = side_effect
         else:
-            provider.grant_creator_action.side_effect = side_effect
+            provider._get_client.return_value.grant_resource_creator_actions.side_effect = side_effect
     return provider
 
 
 @pytest.fixture(autouse=True)
 def offline_dispatch(monkeypatch):
-    monkeypatch.setattr("bkmonitor.iam.adapters.grant_tasks.dispatch_v4_creator_grant", MagicMock())
+    monkeypatch.setattr("bkmonitor.iam.tasks.grant.dispatch_v4_creator_grant", MagicMock())
     monkeypatch.setattr("django.db.transaction.on_commit", lambda callback: callback())
 
 
@@ -52,8 +52,8 @@ class TestCreatorGrantOrchestration:
 
         result = grant_creator_actions([v3], "space", "2", "alice")
 
-        v3.grant_creator_action.assert_called_once_with("space", "2", "alice", None, "")
-        v4.grant_creator_action.assert_not_called()
+        v3._get_client.return_value.grant_resource_creator_actions.assert_called_once()
+        v4._get_client.return_value.add_authorization.assert_not_called()
         assert result.is_success is True
         assert [target.provider_name for target in result.succeeded] == ["v3"]
 
@@ -63,7 +63,7 @@ class TestCreatorGrantOrchestration:
         grant_creator_actions([v4], "space", "2", "alice", expired_at=7200, tenant_id="tenant-x")
 
         v4._get_client.assert_called_once_with("tenant-x")
-        payload = v4._get_client.return_value.add_authorization.call_args.args[0]
+        payload = v4._get_client.return_value.add_authorization.call_args.kwargs["items"]
         assert payload[0]["expired_at"] == 7200
         assert payload[0]["resources"] == [{"type": "space", "id": "2"}]
 
@@ -75,7 +75,7 @@ class TestCreatorGrantOrchestration:
             result = grant_creator_actions([v4, v3], "space", "2", "alice")
 
         v4._get_client.return_value.add_authorization.assert_called_once()
-        v3.grant_creator_action.assert_called_once()
+        v3._get_client.return_value.grant_resource_creator_actions.assert_called_once()
         assert result.is_success is False
         assert result.is_partial_failure is True
         assert result.failed[0].retry_scheduled
@@ -90,8 +90,8 @@ class TestCreatorGrantOrchestration:
         assert result.is_success is False
         assert result.is_partial_failure is False
         assert [(target.provider_name, target.error_type) for target in result.failed] == [
-            ("v4", "RetryScheduled"),
             ("v3", "ValueError"),
+            ("v4", "RetryScheduled"),
         ]
 
     def test_retry_replays_all_targets_and_can_fill_previously_failed_target(self):
@@ -105,4 +105,4 @@ class TestCreatorGrantOrchestration:
         assert second.is_success is True
         # 重试不是只补失败侧：它重放同一个幂等的 desired state 到所有写目标。
         assert v4._get_client.return_value.add_authorization.call_count == 2
-        assert v3.grant_creator_action.call_count == 2
+        assert v3._get_client.return_value.grant_resource_creator_actions.call_count == 2

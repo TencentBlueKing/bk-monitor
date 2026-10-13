@@ -445,7 +445,7 @@ def _apply_guide(client, spec, resource, request):
     result = {"permission": application.to_dict()}
     error_type = "InvalidResponse"
     try:
-        from bkmonitor.iam.adapters.mcp import MonitorMCPClient
+        from bkmonitor.iam.handlers.mcp import MonitorMCPClient
 
         if isinstance(client, MonitorMCPClient):
             result["permission"] = client.get_apply_data(application) or result["permission"]
@@ -514,7 +514,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         return {**result, "state": "requires_resource", "authorized": False}
 
     monitor = _monitor_permission(user)
-    from bkmonitor.iam.adapters.mcp import MonitorMCPClient
+    from bkmonitor.iam.handlers.mcp import MonitorMCPClient
 
     monitor_client = MonitorMCPClient(monitor, monitor.bk_tenant_id)
     legacy_resource = _business_resource(bk_biz_id)

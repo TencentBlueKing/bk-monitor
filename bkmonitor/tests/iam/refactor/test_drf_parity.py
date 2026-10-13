@@ -21,13 +21,14 @@ specific language governing permissions and limitations under the License.
 # 安全约束：全部用例走 mock 框架，无真实服务器访问。
 # ==============================================================================
 
+from iam_engine.core.types import AuthResult, BatchAuthResult as NativeBatchResult, BatchAuthResultItem
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.definitions.actions import Actions
-from bkmonitor.iam.drf import (
+from bkmonitor.iam.handlers.drf import (
     BusinessActionPermission,
     IAMPermission,
     InstanceActionForDataPermission,
@@ -76,7 +77,7 @@ def _make_view(**kwargs):
 @pytest.fixture(autouse=True)
 def allow_business_in_test_tenant():
     """隔离 BusinessActionPermission 的租户归属判断，个别拒绝用例自行覆盖。"""
-    with patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True):
+    with patch("bkmonitor.iam.handlers.drf.is_biz_in_tenant", return_value=True):
         yield
 
 
@@ -89,7 +90,8 @@ class _ScriptedProvider:
 
     def is_allowed(self, request):
         self.calls.append(request)
-        return self.results.pop(0)
+        result = self.results.pop(0)
+        return AuthResult.allow("v3") if result is True else AuthResult.deny("v3")
 
 
 class TestDrfSurface:
@@ -124,6 +126,37 @@ class TestDrfSurface:
 
         p5 = MCPPermission(action=ActionEnum.USING_DASHBOARD_MCP)
         assert p5._action_ids == ["using_dashboard_mcp"]
+
+    def test_bound_apm_viewset_route_keeps_request_metadata_and_public_fields(self, fake_permission):
+        from apm_web.meta.views import ApplicationViewSet
+        from rest_framework.response import Response
+        from iam_engine.core.requests import ResourceInstance
+
+        _, provider = fake_permission
+        provider.batch_result = {"1001": {"view_apm_application": True, "manage_apm_application": False}}
+        provider.batch_is_allowed = MagicMock(wraps=provider.batch_is_allowed)
+        view = ApplicationViewSet()
+        view.request = _make_request(biz_id=2, tenant="system")
+        route = next(route for route in view.resource_routes if route.endpoint == "list_application")
+        wrapped = route.decorators[0](
+            lambda self, request: Response(
+                {
+                    "columns": [],
+                    "total": 1,
+                    "data": [{"application_id": 1001, "app_name": "alpha", "bk_biz_id": 2}],
+                }
+            )
+        )
+        response = wrapped(view, view.request)
+        assert response.data["data"][0]["permission"]["view_apm_application_v2"] is True
+        assert provider.batch_is_allowed.call_count == 2
+        resource = provider.batch_is_allowed.call_args.args[0].resource_groups[0][0]
+        assert resource.id == "1001"
+        assert resource.name == "alpha"
+        assert resource.ancestor_chain == (ResourceInstance(type="space", id="2"),)
+        guard = InstanceActionPermission([ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION)
+        assert guard.actions == [ActionEnum.VIEW_APM_APPLICATION]
+        assert guard.resource_meta is ResourceEnum.APM_APPLICATION
 
 
 class TestIAMPermission:
@@ -216,7 +249,7 @@ class TestIAMPermission:
         resource = ResourceInstance(type="space", id="2")
         perm = IAMPermission(actions=[ActionEnum.VIEW_BUSINESS], resources=[resource])
         assert perm.has_permission(_make_request(), view=None) is True
-        assert scripted.calls[0].resource.id == "2"
+        assert scripted.calls[0].resources[0].id == "2"
 
     def test_global_action_with_resource_still_passed(self, fake_permission):
         """已知差异：旧版 is_allowed 对无资源 action 清空 resources；
@@ -229,7 +262,7 @@ class TestIAMPermission:
             actions=[ActionEnum.MANAGE_GLOBAL_SETTING], resources=[ResourceInstance(type="space", id="2")]
         )
         assert perm.has_permission(_make_request(), view=None) is True
-        assert scripted.calls[0].resource.id == "2"
+        assert scripted.calls[0].resources[0].id == "2"
 
 
 class TestBusinessActionPermission:
@@ -245,14 +278,14 @@ class TestBusinessActionPermission:
         provider.is_allowed = scripted.is_allowed
         perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
         assert perm.has_permission(_make_request(biz_id=2), view=None) is True
-        assert scripted.calls[0].resource.type == "space"
-        assert scripted.calls[0].resource.id == "2"
+        assert scripted.calls[0].resources[0].type == "space"
+        assert scripted.calls[0].resources[0].id == "2"
 
     def test_cross_tenant_biz_is_denied_without_framework(self, fake_permission):
         fw, provider = fake_permission
         perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
 
-        with patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=False):
+        with patch("bkmonitor.iam.handlers.drf.is_biz_in_tenant", return_value=False):
             assert perm.has_permission(_make_request(biz_id=2), view=None) is False
 
         assert provider.is_allowed_calls == []
@@ -272,7 +305,7 @@ class TestBusinessActionPermission:
         obj = MagicMock()
         obj.bk_biz_id = 7
         assert perm.has_object_permission(_make_request(biz_id=2), view=None, obj=obj) is True
-        assert scripted.calls[0].resource.id == "2"
+        assert scripted.calls[0].resources[0].id == "2"
 
     def test_object_permission_falls_back_to_request(self, fake_permission):
         fw, provider = fake_permission
@@ -282,7 +315,7 @@ class TestBusinessActionPermission:
         obj = MagicMock()
         del obj.bk_biz_id  # 无 bk_biz_id 属性 → 回退 request.biz_id
         assert perm.has_object_permission(_make_request(biz_id=5), view=None, obj=obj) is True
-        assert scripted.calls[0].resource.id == "5"
+        assert scripted.calls[0].resources[0].id == "5"
 
 
 class TestViewBusinessPermission:
@@ -307,7 +340,7 @@ class TestMCPPermission:
         provider.is_allowed = scripted.is_allowed
         perm = MCPPermission()
         assert perm.has_permission(_make_request(biz_id=2), view=None) is True
-        assert scripted.calls[0].resource.type == "space"
+        assert scripted.calls[0].resources[0].type == "space"
 
 
 class TestInstanceActionPermission:
@@ -317,8 +350,8 @@ class TestInstanceActionPermission:
         provider.is_allowed = scripted.is_allowed
         perm = InstanceActionPermission([ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION)
         assert perm.has_permission(_make_request(), view=_make_view(pk="app-1")) is True
-        assert scripted.calls[0].resource.type == "apm_application"
-        assert scripted.calls[0].resource.id == "app-1"
+        assert scripted.calls[0].resources[0].type == "apm_application"
+        assert scripted.calls[0].resources[0].id == "app-1"
 
     def test_missing_kwarg_asserts(self, fake_permission):
         perm = InstanceActionPermission([ActionEnum.VIEW_APM_APPLICATION], ResourceEnum.APM_APPLICATION)
@@ -337,7 +370,7 @@ class TestInstanceActionForDataPermission:
         request = _make_request(query={"application_id": "app-9"})
         request.method = "GET"
         assert perm.has_permission(request, view=_make_view()) is True
-        assert scripted.calls[0].resource.id == "app-9"
+        assert scripted.calls[0].resources[0].id == "app-9"
 
     def test_post_body(self, fake_permission):
         fw, provider = fake_permission
@@ -374,7 +407,7 @@ class TestInstanceActionForDataPermission:
         request = _make_request(data={"application_id": "app-9"})
         request.method = "POST"
         assert perm.has_permission(request, view=_make_view()) is True
-        assert scripted.calls[0].resource.id == "transformed-app-9"
+        assert scripted.calls[0].resources[0].id == "transformed-app-9"
 
     def test_missing_instance_id_raises(self, fake_permission):
         perm = InstanceActionForDataPermission(
@@ -389,9 +422,9 @@ class TestInstanceActionForDataPermission:
 
 
 def _batch_result_for(pairs, action_id="view_event"):
-    return BatchAuthResult(
+    return NativeBatchResult(
         items=tuple(
-            ResourceAuthResult(action_id=action_id, resource_type="space", resource_id=rid, allowed=allowed)
+            BatchAuthResultItem(action_id, rid, AuthResult.allow("v3") if allowed else AuthResult.deny("v3"))
             for rid, allowed in pairs
         )
     )
@@ -424,16 +457,16 @@ class TestInsertPermissionField:
         request = _make_request()
         response = wrapped(request)
         data = response.data
-        assert data[0]["permission"] == {"view_event": True}
-        assert data[1]["permission"] == {"view_event": False}
+        assert data[0]["permission"] == {"view_event": True, "view_event_v2": True}
+        assert data[1]["permission"] == {"view_event": False, "view_event_v2": False}
         # 无 id 的行不注入
         assert "permission" not in data[2]
 
-    def test_opt_in_injects_registered_legacy_keys_without_extra_iam_queries(self, fake_permission):
+    def test_injects_registered_legacy_keys_without_extra_iam_queries(self, fake_permission):
         """APM 兼容响应复制同一次鉴权结果，同时提供业务键和 V3 历史键。"""
         fw, provider = fake_permission
         provider.batch_result = _batch_result_for([("2", True)], action_id="view_apm_application")
-        provider.batch_by_resource = MagicMock(return_value=provider.batch_result)
+        provider.batch_is_allowed = MagicMock(return_value=provider.batch_result)
 
         def view_func(request):
             response = MagicMock()
@@ -443,7 +476,6 @@ class TestInsertPermissionField:
         wrapped = insert_permission_field(
             actions=[ActionEnum.VIEW_APM_APPLICATION],
             resource_meta=ResourceEnum.APM_APPLICATION,
-            include_legacy_action_keys=True,
         )(view_func)
 
         response = wrapped(_make_request())
@@ -452,7 +484,7 @@ class TestInsertPermissionField:
             "view_apm_application": True,
             "view_apm_application_v2": True,
         }
-        assert provider.batch_by_resource.call_count == 1
+        assert provider.batch_is_allowed.call_count == 1
 
     def test_legacy_keys_follow_always_allowed_override(self, fake_permission):
         fw, provider = fake_permission
@@ -468,7 +500,6 @@ class TestInsertPermissionField:
             resource_meta=ResourceEnum.APM_APPLICATION,
             always_allowed=lambda _item: True,
             many=False,
-            include_legacy_action_keys=True,
         )(view_func)
 
         response = wrapped(_make_request())
@@ -537,7 +568,6 @@ class TestInsertPermissionField:
             ResourceEnum.BUSINESS,
             id_field=lambda d: d["id"],
             sort_allowed_first=True,
-            include_legacy_action_keys=True,
         )
 
         response = wrapped(_make_request())
@@ -548,8 +578,8 @@ class TestInsertPermissionField:
 
 
 class TestApmLegacyPermissionKeyConfiguration:
-    def test_all_apm_permission_response_routes_enable_legacy_keys(self):
-        """旧前端会消费的 APM 列表/详情响应必须显式开启双键，避免新增 IAM 查询。"""
+    def test_apm_routes_use_default_legacy_response_contract(self):
+        """旧前端会消费的 APM 列表/详情响应由统一 DRF 适配边界提供双键，避免新增 IAM 查询。"""
         from inspect import getclosurevars
 
         from apm_web.meta.views import ApplicationViewSet as MetaApplicationViewSet
@@ -568,14 +598,14 @@ class TestApmLegacyPermissionKeyConfiguration:
             if route.endpoint not in expected_meta_endpoints:
                 continue
             assert route.decorators, route.endpoint
-            assert getclosurevars(route.decorators[0]).nonlocals["include_legacy_action_keys"] is True
+            assert "include_legacy_action_keys" not in getclosurevars(route.decorators[0]).nonlocals
             configured_meta_endpoints.add(route.endpoint)
 
         assert configured_meta_endpoints == expected_meta_endpoints
 
         service_info_route = next(route for route in ServiceViewSet.resource_routes if route.endpoint == "service_info")
         assert service_info_route.decorators
-        assert getclosurevars(service_info_route.decorators[0]).nonlocals["include_legacy_action_keys"] is True
+        assert "include_legacy_action_keys" not in getclosurevars(service_info_route.decorators[0]).nonlocals
 
 
 class TestFilterDataByPermission:
@@ -688,7 +718,7 @@ class TestFilterDataByPermission:
             captured["subject"] = request.subject
             return _batch_result_for([("2", True)])
 
-        provider.batch_by_resource = _record
+        provider.batch_is_allowed = _record
         _result = filter_data_by_permission(
             bk_tenant_id="tenant-x",
             data=[{"id": "2", "name": "a"}],
@@ -724,7 +754,7 @@ class TestDrfPreflight:
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         request = _make_request(biz_id=2, skip_check=False)
-        with patch("bkmonitor.iam.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
+        with patch("bkmonitor.iam.handlers.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
             perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
             assert perm.has_permission(request, view=None) is True
         assert len(scripted.calls) == 1
@@ -742,7 +772,7 @@ class TestDrfPreflight:
             biz_id=2,
             user=SimpleNamespace(username="tester", tenant_id="system"),
         )
-        with patch("bkmonitor.iam.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
+        with patch("bkmonitor.iam.handlers.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
             perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
             assert perm.has_permission(request, view=None) is True
 
@@ -760,7 +790,7 @@ class TestDrfPreflight:
         request = _make_request(biz_id=2)
         request.token = "tok"
         request.path = "/whatever/"
-        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
+        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
             with pytest.raises(PermissionDeniedError):
                 perm.has_permission(request, view=None)
@@ -777,7 +807,7 @@ class TestDrfPreflight:
         request = _make_request(biz_id=2)
         request.token = "tok"
         request.path = "/whatever/"
-        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
+        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", return_value=record):
             perm = BusinessActionPermission([ActionEnum.VIEW_HOST])
             assert perm.has_permission(request, view=None) is True
 
@@ -795,8 +825,8 @@ class TestDrfPreflight:
         wrapped = insert_permission_field(actions=actions, resource_meta=ResourceEnum.BUSINESS)(view_func)
         request = _make_request(skip_check=True)
         response = wrapped(request)
-        assert response.data[0]["permission"] == {"view_event": True}
-        assert response.data[1]["permission"] == {"view_event": True}
+        assert response.data[0]["permission"] == {"view_event": True, "view_event_v2": True}
+        assert response.data[1]["permission"] == {"view_event": True, "view_event_v2": True}
 
     def test_insert_permission_field_token_no_record_raises(self, fake_permission):
         """insert_permission_field：带 token 且记录不存在 → TokenValidatedError（与旧 batch_is_allowed 一致）。"""
@@ -814,7 +844,7 @@ class TestDrfPreflight:
         wrapped = insert_permission_field(actions=actions, resource_meta=ResourceEnum.BUSINESS)(view_func)
         request = _make_request()
         request.token = "tok"
-        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
+        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             with pytest.raises(TokenValidatedError):
                 wrapped(request)
 
@@ -823,7 +853,7 @@ class TestDrfPreflight:
         fw, provider = fake_permission
         provider.batch_result = BatchAuthResult(items=())  # 若走框架将过滤掉全部
         request = _make_request(skip_check=True)
-        with patch("bkmonitor.iam.drf.get_request", return_value=request):
+        with patch("bkmonitor.iam.handlers.drf.get_request", return_value=request):
             result = filter_data_by_permission(
                 bk_tenant_id="system",
                 data=[{"id": "2", "name": "a"}, {"id": "3", "name": "b"}],
@@ -843,9 +873,9 @@ class TestDrfPreflight:
             captured["subject"] = request.subject
             return _batch_result_for([("2", True)])
 
-        provider.batch_by_resource = _record
+        provider.batch_is_allowed = _record
         request = _make_request(skip_check=True)  # 显式 username 时该 request 不应生效
-        with patch("bkmonitor.iam.drf.get_request", return_value=request):
+        with patch("bkmonitor.iam.handlers.drf.get_request", return_value=request):
             result = filter_data_by_permission(
                 bk_tenant_id="system",
                 data=[{"id": "2", "name": "a"}],

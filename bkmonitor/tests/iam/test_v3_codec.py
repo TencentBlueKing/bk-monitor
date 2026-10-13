@@ -22,7 +22,7 @@ specific language governing permissions and limitations under the License.
 from iam_engine.provider.codec import NameCodec
 from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
 from iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
 
 def _build_test_schema() -> SchemaRegistry:

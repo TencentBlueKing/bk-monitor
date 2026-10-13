@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.iam.backends.config import build_provider
+
 # ==============================================================================
 # V3PermissionProvider 单元测试（mock CompatibleIAM，无需真实 IAM 平台）
 #
@@ -28,22 +30,18 @@ from iam.exceptions import AuthAPIError
 from iam_engine.provider.requests import (
     Subject as CoreSubject,
 )
-from iam_engine.provider.dialect_types import (
-    DialectApplyURLRequest,
-    DialectAuthRequest,
-    DialectBatchByActionRequest,
-    DialectBatchByResourceRequest,
-    DialectResource,
-)
+from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance
+from iam_engine.core.types import AuthStatus
+from iam import Action, Resource
 from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
 from iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 
 
 def _valid_options() -> dict:
     return {
-        "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
+        "codec_class": "bkmonitor.iam.backends.v3.codec.MonitorV3Codec",
         "codec_kwargs": {
             "action_id_map": {
                 "view_business": "view_business_v2",
@@ -120,8 +118,9 @@ def _build_test_schema() -> SchemaRegistry:
 def _make_provider(**overrides) -> V3PermissionProvider:
     options = _valid_options()
     options.update(overrides)
-    provider = V3PermissionProvider(_build_test_schema(), **options)
+    provider = build_provider("v3", schema=_build_test_schema(), options={**options})
     mock_client = MagicMock()
+    provider.resolver = None
     # 方言方法通过 _get_client(tenant_id) 获取 client，统一返回 mock
     provider._get_client = MagicMock(return_value=mock_client)
     return provider
@@ -131,15 +130,15 @@ class TestV3ProviderConstruction:
     """V3Provider 构造与属性验证。"""
 
     def test_construct_from_options(self):
-        p = V3PermissionProvider(_build_test_schema(), **_valid_options())
+        p = build_provider("v3", schema=_build_test_schema(), options={**_valid_options()})
         assert p.name == "v3"
         assert p.schema is not None
         assert isinstance(p.codec, MonitorV3Codec)
         assert p._cfg.base_url == "https://iam.example.com"
         assert p._cfg.credentials.app_code == "test_app"
         assert p._cfg.system.id == "bk_monitorv3"
-        assert p.CHUNK_SIZE == 8
-        assert p.MAX_WORKERS == 1
+        assert p._cfg.chunk_size == 8
+        assert p._cfg.max_workers == 1
 
     def test_get_system_info(self):
         p = _make_provider()
@@ -148,266 +147,96 @@ class TestV3ProviderConstruction:
         assert info.name == "监控平台"
 
 
-class TestV3ProviderDialectMethods:
-    """方言层方法测试（mock CompatibleIAM）。"""
+class TestV3ProviderCapabilities:
+    """Native three-state contract with the real product codec and mocked SDK."""
 
-    # ---------- _is_allowed_dialect ----------
-
-    def test_is_allowed_read_action_uses_cache(self):
-        """读操作（type="view"）调用 is_allowed_with_cache。"""
+    @pytest.mark.parametrize(
+        "action,raw,method,status",
+        [
+            ("view_business", True, "is_allowed_with_cache", AuthStatus.ALLOW),
+            ("view_business", False, "is_allowed_with_cache", AuthStatus.DENY),
+            ("manage_synthetic", False, "is_allowed", AuthStatus.DENY),
+            ("manage_synthetic", None, "is_allowed", AuthStatus.ERROR),
+        ],
+    )
+    def test_read_cache_write_and_strict_decision(self, action, raw, method, status):
         p = _make_provider()
-        p._iam_client.is_allowed_with_cache.return_value = True
+        getattr(p.client, method).return_value = raw
+        result = p.is_allowed(AuthRequest(CoreSubject(id="alice"), action, (ResourceInstance("space", "3"),)))
+        assert result.status is status
+        getattr(p.client, method).assert_called_once()
+        args = p.client.make_request.call_args.args
+        assert args[:2] == ("alice", p.codec.encode_action(action))
+        assert len(args[2]) == 1
 
-        result = p._is_allowed_dialect(
-            DialectAuthRequest(
-                subject=CoreSubject(id="alice"),
-                action_id="view_business_v2",
-                resource=None,
-            )
-        )
-        assert result is True
-        p._iam_client.is_allowed_with_cache.assert_called_once()
-        p._iam_client.is_allowed.assert_not_called()
-
-    def test_is_allowed_write_action_no_cache(self):
-        """写操作（type="manage"）调用 is_allowed。"""
+    def test_auth_api_failure_preserves_error(self):
         p = _make_provider()
-        p._iam_client.is_allowed.return_value = False
+        p.client.is_allowed.side_effect = AuthAPIError("offline")
+        result = p.is_allowed(AuthRequest(CoreSubject(id="alice"), "manage_synthetic"))
+        assert result.status is AuthStatus.ERROR
+        assert not result.allowed
 
-        result = p._is_allowed_dialect(
-            DialectAuthRequest(
-                subject=CoreSubject(id="alice"),
-                action_id="manage_synthetic_v2",
-                resource=None,
-            )
-        )
-        assert result is False
-        p._iam_client.is_allowed.assert_called_once()
-        p._iam_client.is_allowed_with_cache.assert_not_called()
-
-    def test_is_allowed_read_with_resource(self):
-        """带资源的读操作鉴权，验证 client 工厂方法与鉴权调用参数。"""
+    def test_batch_encodes_actions_and_missing_row(self):
         p = _make_provider()
-        p._iam_client.is_allowed_with_cache.return_value = True
-
-        result = p._is_allowed_dialect(
-            DialectAuthRequest(
-                subject=CoreSubject(id="alice"),
-                action_id="view_business_v2",
-                resource=DialectResource(type="space", id="3"),
-            )
-        )
-        assert result is True
-        # 资源通过 client.make_resource 构造（type/id/ancestors）
-        p._iam_client.make_resource.assert_called_once_with("space", "3", ancestors=())
-        # Request 通过 client.make_request 构造（username/action_id/resources）
-        make_req_args = p._iam_client.make_request.call_args[0]
-        assert make_req_args[0] == "alice"
-        assert make_req_args[1] == "view_business_v2"
-        assert len(make_req_args[2]) == 1
-
-    def test_is_allowed_auth_api_error_returns_false(self):
-        """AuthAPIError 不传播，返回 False。"""
-        p = _make_provider()
-        p._iam_client.is_allowed.side_effect = AuthAPIError("test error")
-
-        result = p._is_allowed_dialect(
-            DialectAuthRequest(
-                subject=CoreSubject(id="alice"),
-                action_id="manage_synthetic_v2",
-            )
-        )
-        assert result is False
-
-    # ---------- _batch_by_resource_dialect_page ----------
-
-    def test_batch_by_resource_page(self):
-        """同 action 多 resource：调用 batch_resource_multi_actions_allowed。"""
-        p = _make_provider()
-        p._iam_client.batch_resource_multi_actions_allowed.return_value = {
-            "3": {"view_business_v2": True},
-            "4": {"view_business_v2": False},
+        p.client.batch_resource_multi_actions_allowed.return_value = {
+            "3": {"view_business_v2": True, "manage_synthetic_v2": False}
         }
-
-        result = p._batch_by_resource_dialect_page(
-            DialectBatchByResourceRequest(
-                subject=CoreSubject(id="alice"),
-                action_id="view_business_v2",
-                resource_type="space",
-                resource_ids=("3", "4"),
+        result = p.batch_is_allowed(
+            BatchAuthRequest(
+                CoreSubject(id="alice"),
+                ("view_business", "manage_synthetic"),
+                ((ResourceInstance("space", "3"),), (ResourceInstance("space", "4"),)),
             )
         )
-        assert result == [("3", True), ("4", False)]
-        p._iam_client.batch_resource_multi_actions_allowed.assert_called_once()
+        values = result.by_key()
+        assert values["view_business", "3"].allowed
+        assert values["manage_synthetic", "3"].status is AuthStatus.DENY
+        assert values["view_business", "4"].status is AuthStatus.ERROR
+        p.client.batch_resource_multi_actions_allowed.assert_called_once()
 
-    def test_batch_by_resource_without_ancestors_uses_empty_path_guard(self):
-        """无祖先链的旧构造：attribute 带空串 _bk_iam_path_ 占位，避免 SDK 本地求值 KeyError。"""
+    def test_batch_without_ancestor_keeps_sdk_empty_path_guard(self):
         p = _make_provider()
-        p._iam_client.batch_resource_multi_actions_allowed.return_value = {
-            "390": {"manage_apm_application_v2": False},
-        }
-
-        result = p._batch_by_resource_dialect_page(
-            DialectBatchByResourceRequest(
-                subject=CoreSubject(id="alice"),
-                action_id="manage_apm_application_v2",
-                resource_type="apm_application",
-                resource_ids=("390",),
-            )
+        p.client.batch_resource_multi_actions_allowed.return_value = {"3": {"view_business_v2": False}}
+        p.batch_is_allowed(
+            BatchAuthRequest(CoreSubject(id="alice"), ("view_business",), ((ResourceInstance("space", "3"),),))
         )
-        assert result == [("390", False)]
-        p._iam_client.make_resource.assert_called_once_with(
-            "apm_application", "390", ancestors=(), attribute={"_bk_iam_path_": ""}
-        )
+        p.client.make_resource.assert_called_once_with("space", "3", ancestors=(), attribute={"_bk_iam_path_": ""})
 
-    def test_batch_by_resource_with_ancestors(self):
-        """携带祖先链的批量鉴权：SDK resource 通过 ancestors 构造 _bk_iam_path_。"""
+    def test_batch_ancestor_is_encoded_at_product_boundary(self):
         p = _make_provider()
-        p._iam_client.batch_resource_multi_actions_allowed.return_value = {
-            "14|f0ImroNIz": {"view_single_dashboard": True},
-        }
-
-        result = p._batch_by_resource_dialect_page(
-            DialectBatchByResourceRequest(
-                subject=CoreSubject(id="alice"),
-                action_id="view_single_dashboard",
-                resource_type="grafana_dashboard",
-                resource_ids=("14|f0ImroNIz",),
-                resources=(
-                    DialectResource(
-                        type="grafana_dashboard",
-                        id="14|f0ImroNIz",
-                        ancestors=(DialectResource(type="space", id="-6"),),
-                    ),
-                ),
-            )
+        resource = ResourceInstance("space", "3", ancestor_chain=(ResourceInstance("space", "-6"),))
+        p.client.batch_resource_multi_actions_allowed.return_value = {"3": {"view_business_v2": True}}
+        assert (
+            p.batch_is_allowed(BatchAuthRequest(CoreSubject(id="alice"), ("view_business",), ((resource,),)))
+            .items[0]
+            .result.allowed
         )
-        assert result == [("14|f0ImroNIz", True)]
-        p._iam_client.make_resource.assert_called_once_with(
-            "grafana_dashboard",
-            "14|f0ImroNIz",
-            ancestors=(DialectResource(type="space", id="-6"),),
-            attribute=None,
-        )
+        ancestor = p.client.make_resource.call_args.kwargs["ancestors"][0]
+        assert (ancestor.type, ancestor.id) == ("space", "-6")
 
-    def test_batch_by_resource_auth_api_error(self):
-        """SDK 异常时全部返回 False。"""
+    def test_batch_error_marks_every_requested_key(self):
         p = _make_provider()
-        p._iam_client.batch_resource_multi_actions_allowed.side_effect = AuthAPIError("err")
-
-        result = p._batch_by_resource_dialect_page(
-            DialectBatchByResourceRequest(
-                subject=CoreSubject(id="alice"),
-                action_id="view_business_v2",
-                resource_type="space",
-                resource_ids=("3", "4"),
-            )
+        p.client.batch_resource_multi_actions_allowed.side_effect = AuthAPIError("offline")
+        request = BatchAuthRequest(
+            CoreSubject(id="alice"),
+            ("view_business", "manage_synthetic"),
+            ((ResourceInstance("space", "3"),), (ResourceInstance("space", "4"),)),
         )
-        assert result == [("3", False), ("4", False)]
+        result = p.batch_is_allowed(request)
+        assert set(result.by_key()) == set(request.iter_keys())
+        assert all(item.result.status is AuthStatus.ERROR for item in result.items)
 
-    # ---------- _batch_by_action_dialect_page ----------
-
-    def test_batch_by_action_with_resource(self):
-        """多 action 同 resource：调用 batch_resource_multi_actions_allowed。"""
+    @pytest.mark.parametrize(
+        "action,resources", [("view_business", [ResourceInstance("space", "3")]), ("manage_global_setting", [])]
+    )
+    def test_application_native_tuple(self, action, resources):
         p = _make_provider()
-        p._iam_client.batch_resource_multi_actions_allowed.return_value = {
-            "3": {
-                "view_business_v2": True,
-                "manage_synthetic_v2": False,
-            }
-        }
-
-        result = p._batch_by_action_dialect_page(
-            DialectBatchByActionRequest(
-                subject=CoreSubject(id="alice"),
-                action_ids=("view_business_v2", "manage_synthetic_v2"),
-                resource=DialectResource(type="space", id="3"),
-            )
-        )
-        assert result == [("view_business_v2", True), ("manage_synthetic_v2", False)]
-        p._iam_client.batch_resource_multi_actions_allowed.assert_called_once()
-
-    def test_batch_by_action_with_ancestors(self):
-        """多 action 同 resource：SDK resource 携带祖先链（_bk_iam_path_ 依赖）。"""
-        p = _make_provider()
-        p._iam_client.batch_resource_multi_actions_allowed.return_value = {
-            "390": {"manage_apm_application_v2": True},
-        }
-
-        result = p._batch_by_action_dialect_page(
-            DialectBatchByActionRequest(
-                subject=CoreSubject(id="alice"),
-                action_ids=("manage_apm_application_v2",),
-                resource=DialectResource(
-                    type="apm_application",
-                    id="390",
-                    ancestors=(DialectResource(type="space", id="2"),),
-                ),
-            )
-        )
-        assert result == [("manage_apm_application_v2", True)]
-        p._iam_client.make_resource.assert_called_once_with(
-            "apm_application", "390", ancestors=(DialectResource(type="space", id="2"),), attribute=None
-        )
-
-    def test_batch_by_action_without_resource(self):
-        """无资源的 resource-free action 批量鉴权。"""
-        p = _make_provider()
-        p._iam_client.batch_resource_multi_actions_allowed.return_value = {"": {"manage_global_setting": True}}
-
-        result = p._batch_by_action_dialect_page(
-            DialectBatchByActionRequest(
-                subject=CoreSubject(id="alice"),
-                action_ids=("manage_global_setting",),
-                resource=None,
-            )
-        )
-        assert result == [("manage_global_setting", True)]
-
-    # ---------- _get_apply_url_dialect ----------
-
-    def test_get_apply_url(self):
-        """生成权限申请 URL。"""
-        p = _make_provider()
-        p._iam_client.get_apply_url.return_value = (True, "", "https://iam.example.com/apply")
-
-        url = p._get_apply_url_dialect(
-            DialectApplyURLRequest(
-                subject=CoreSubject(id="alice"),
-                action_ids=("view_business_v2",),
-                resources=(DialectResource(type="space", id="3"),),
-            )
-        )
-        assert url == "https://iam.example.com/apply"
-        p._iam_client.get_apply_url.assert_called_once()
-
-    def test_get_apply_url_failure_returns_empty(self):
-        """申请 URL 生成失败返回空字符串。"""
-        p = _make_provider()
-        p._iam_client.get_apply_url.return_value = (False, "error msg", "")
-
-        url = p._get_apply_url_dialect(
-            DialectApplyURLRequest(
-                subject=CoreSubject(id="alice"),
-                action_ids=("view_business_v2",),
-                resources=(),
-            )
-        )
-        assert url == ""
-
-    def test_get_apply_url_resource_free_action(self):
-        """无关联资源的 action 使用 ActionWithoutResources。"""
-        p = _make_provider()
-        p._iam_client.get_apply_url.return_value = (True, "", "https://iam.example.com/apply")
-
-        url = p._get_apply_url_dialect(
-            DialectApplyURLRequest(
-                subject=CoreSubject(id="alice"),
-                action_ids=("manage_global_setting",),
-                resources=(),
-            )
-        )
-        assert url == "https://iam.example.com/apply"
+        p.client.make_action.side_effect = lambda aid: Action(aid)
+        p.client.make_resource.side_effect = lambda rt, rid, **kw: Resource("bk_monitorv3", rt, rid, {})
+        p.client.get_apply_url.return_value = (True, "", "https://iam.example.test/apply")
+        data, url = p.get_apply_data([action], resources)
+        assert data["actions"][0]["id"] == p.codec.encode_action(action)
+        assert url == "https://iam.example.test/apply"
 
     # ---------- health_check ----------
 
@@ -472,7 +301,7 @@ class TestV3ProviderDialectMethods:
         schema.freeze()
         options = _valid_options()
         options["system"].update({"id": "custom_v3_system", "name": "自定义系统"})
-        provider = V3PermissionProvider(schema, **options)
+        provider = build_provider("v3", schema=schema, options={**options})
 
         plan = provider.plan_migration(schema, scope="full")
         resource_change = next(change for change in plan.changes if change.entity_id == "document")

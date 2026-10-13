@@ -4,8 +4,8 @@ from unittest.mock import Mock
 
 from iam import IAM
 
-from bkmonitor.iam.adapters.v3.config import is_v1_compat_enabled
-from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+from bkmonitor.iam.backends.v3.compat import is_v1_compat_enabled
+from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 from bkmonitor.iam.backends.v3.client import V3Client
 from bkmonitor.models import GlobalConfig
 

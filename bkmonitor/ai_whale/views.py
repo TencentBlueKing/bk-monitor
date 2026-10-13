@@ -27,7 +27,7 @@ from ai_whale.resources.resources import (
     GetMCPAccessTokenResource,
 )
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.handlers.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 

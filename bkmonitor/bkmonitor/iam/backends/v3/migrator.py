@@ -27,8 +27,8 @@ from iam_engine.provider.codec import IdentityCodec
 from iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan, MigrationReport
 from iam_engine.schema.definitions import ActionDef, ResourceTypeDef
 from iam_engine.schema.visibility import is_change_visible_to, is_visible_to
-from .client import V3Client
-from .config import V3Options
+from bkmonitor.iam.backends.v3.client import V3Client
+from bkmonitor.iam.backends.v3.config import V3Options
 
 if TYPE_CHECKING:
     from iam_engine.schema.registry import SchemaRegistry

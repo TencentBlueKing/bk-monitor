@@ -29,8 +29,8 @@ def test_preview_requires_manage_rule(mocker, allowed_action):
             raise PermissionDeniedError(action_name=action.name)
         return True
 
-    mocker.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True)
-    mocker.patch("bkmonitor.iam.drf.Permission").return_value.is_allowed.side_effect = is_allowed
+    mocker.patch("bkmonitor.iam.handlers.drf.is_biz_in_tenant", return_value=True)
+    mocker.patch("bkmonitor.iam.handlers.drf.Permission").return_value.is_allowed.side_effect = is_allowed
     view = ActionInstanceViewSet()
     view.action = "preview_demo_action_context"
     request = SimpleNamespace(
@@ -114,8 +114,8 @@ def test_event_operator_can_read_manual_action_result(mocker):
             raise PermissionDeniedError(action_name=action.name)
         return True
 
-    mocker.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True)
-    mocker.patch("bkmonitor.iam.drf.Permission").return_value.is_allowed.side_effect = is_allowed
+    mocker.patch("bkmonitor.iam.handlers.drf.is_biz_in_tenant", return_value=True)
+    mocker.patch("bkmonitor.iam.handlers.drf.Permission").return_value.is_allowed.side_effect = is_allowed
     permission = mocker.patch.object(frontend_resources, "Permission").return_value.is_allowed_by_biz
     permission.side_effect = lambda bk_biz_id, action, **kwargs: is_allowed(action)
     action = SimpleNamespace(bk_biz_id=2, status=ActionStatus.SUCCESS, get_content=lambda: {"result": "done"})

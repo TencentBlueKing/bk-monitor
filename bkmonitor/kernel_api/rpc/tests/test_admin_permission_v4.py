@@ -14,28 +14,45 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from iam_engine.exceptions import ProviderNotFound
-from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
+from iam_engine.core.types import AuthResult, AuthorizedResourceScope, BatchAuthResult, BatchAuthResultItem
+from unittest.mock import DEFAULT
 from core.drf_resource.exceptions import CustomException
 from kernel_api.rpc.functions.admin.permission import query_user_permissions_v4, query_user_sub_resources_v4
 
 _GET_FW = "kernel_api.rpc.functions.admin.permission._v4.Permission"
-_CATALOG_FETCH = "bkmonitor.iam.adapters.catalog.fetch_instance_info"
-_CATALOG_LIST = "bkmonitor.iam.adapters.catalog.list_instances"
+_CATALOG_FETCH = "bkmonitor.iam.handlers.catalog.fetch_instance_info"
+_CATALOG_LIST = "bkmonitor.iam.handlers.catalog.list_instances"
 
 
 def _mock_fw_with_v4(v4_provider) -> MagicMock:
-    from bkmonitor.iam.permission import Permission as RealPermission
+    from bkmonitor.iam.handlers.permission import Permission as RealPermission
 
     mock_fw = MagicMock()
     mock_fw.schema = RealPermission(username="offline", bk_tenant_id="system").schema
     mock_fw.get_provider.return_value = v4_provider
+    if v4_provider.is_allowed._mock_return_value is DEFAULT and v4_provider.is_allowed.side_effect is None:
+        v4_provider.is_allowed.return_value = AuthResult.deny("v4")
+    if (
+        v4_provider.list_authorized_resources._mock_return_value is DEFAULT
+        and v4_provider.list_authorized_resources.side_effect is None
+    ):
+        v4_provider.list_authorized_resources.return_value = AuthorizedResourceScope.empty("space", provider_name="v4")
     return mock_fw
+
+
+def _scope(rows):
+    ids = set(rows[0]["ids"]) if rows else set()
+    return (
+        AuthorizedResourceScope.wildcard("space", provider_name="v4")
+        if "*" in ids
+        else AuthorizedResourceScope.concrete("space", ids, provider_name="v4")
+    )
 
 
 def _auth_items(action_id: str, resource_type: str, allowed_map: dict[str, bool]) -> BatchAuthResult:
     return BatchAuthResult(
         items=tuple(
-            ResourceAuthResult(action_id=action_id, resource_type=resource_type, resource_id=rid, allowed=allowed)
+            BatchAuthResultItem(action_id, rid, AuthResult.allow("v4") if allowed else AuthResult.deny("v4"))
             for rid, allowed in allowed_map.items()
         )
     )
@@ -63,31 +80,18 @@ class TestQueryUserPermissionsV4:
     @patch(_CATALOG_FETCH)
     @patch(_GET_FW)
     def test_overview_global_space_deferred(self, mock_get_fw, mock_fetch):
-        """全局 action 走批量、space 走 get_authorized_resources、二级 deferred。"""
-        from bkmonitor.iam.permission import Permission as RealPermission
-
+        """全局 action 直接鉴权、space 查询顶层范围、二级 deferred。"""
         mock_v4 = MagicMock()
-        global_ids = {
-            a.id
-            for a in RealPermission(username="offline", bk_tenant_id="system").schema.all_actions()
-            if not a.resource_type
-        }
-        mock_v4.batch_by_action.return_value = BatchAuthResult(
-            items=tuple(
-                ResourceAuthResult(
-                    action_id=aid,
-                    resource_type="",
-                    resource_id="",
-                    allowed=aid == "manage_global_setting",
-                )
-                for aid in global_ids
-            )
+        mock_v4.is_allowed.side_effect = lambda request: (
+            AuthResult.allow("v4") if request.action_id == "manage_global_setting" else AuthResult.deny("v4")
         )
         authorized_map = {
             "view_business": [{"type": "space", "ids": ["*"]}],
             "explore_metric": [{"type": "space", "ids": ["2", "-3"]}],
         }
-        mock_v4.get_authorized_resources.side_effect = lambda subject, aid: authorized_map.get(aid, [])
+        mock_v4.list_authorized_resources.side_effect = lambda action_id, **kwargs: _scope(
+            authorized_map.get(action_id, [])
+        )
 
         def fake_fetch(rt_id, ids, requires, bk_tenant_id="system"):
             return [{"id": i, "display_name": f"业务-{i}"} for i in ids]
@@ -139,26 +143,15 @@ class TestQueryUserPermissionsV4:
     @patch(_GET_FW)
     def test_overview_space_query_failure(self, mock_get_fw):
         """单个 space 授权查询失败 → 该 action error + warning，不整体失败。"""
-        from bkmonitor.iam.permission import Permission as RealPermission
-
         mock_v4 = MagicMock()
-        global_ids = {
-            a.id
-            for a in RealPermission(username="offline", bk_tenant_id="system").schema.all_actions()
-            if not a.resource_type
-        }
-        mock_v4.batch_by_action.return_value = BatchAuthResult(
-            items=tuple(
-                ResourceAuthResult(action_id=aid, resource_type="", resource_id="", allowed=False) for aid in global_ids
-            )
-        )
+        mock_v4.is_allowed.return_value = AuthResult.deny("v4")
 
-        def fake_authorized(subject, aid):
-            if aid == "explore_metric":
+        def fake_authorized(action_id, **kwargs):
+            if action_id == "explore_metric":
                 raise RuntimeError("gateway down")
-            return []
+            return AuthorizedResourceScope.empty("space", provider_name="v4")
 
-        mock_v4.get_authorized_resources.side_effect = fake_authorized
+        mock_v4.list_authorized_resources.side_effect = fake_authorized
 
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
         result = query_user_permissions_v4({"username": "testuser", "bk_tenant_id": "system"})
@@ -175,8 +168,8 @@ class TestQueryUserPermissionsV4:
     def test_overview_global_batch_failure(self, mock_get_fw):
         """全局批量鉴权失败 → 全部全局 action error + warning。"""
         mock_v4 = MagicMock()
-        mock_v4.batch_by_action.side_effect = RuntimeError("auth gateway down")
-        mock_v4.get_authorized_resources.return_value = []
+        mock_v4.is_allowed.side_effect = RuntimeError("auth gateway down")
+        mock_v4.list_authorized_resources.return_value = AuthorizedResourceScope.empty("space", provider_name="v4")
 
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
         result = query_user_permissions_v4(
@@ -194,7 +187,7 @@ class TestQueryUserPermissionsV4:
     def test_overview_action_ids_filter_and_unknown_warning(self, mock_get_fw):
         """action_ids 过滤生效；未知 ID 记 warning 忽略。"""
         mock_v4 = MagicMock()
-        mock_v4.get_authorized_resources.return_value = []
+        mock_v4.list_authorized_resources.return_value = AuthorizedResourceScope.empty("space", provider_name="v4")
 
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
         result = query_user_permissions_v4(
@@ -206,7 +199,7 @@ class TestQueryUserPermissionsV4:
         )
         assert len(result["data"]["actions"]) == 1
         assert result["data"]["actions"][0]["action_id"] == "view_business"
-        mock_v4.batch_by_action.assert_not_called()
+        mock_v4.is_allowed.assert_not_called()
         unknown = [w for w in result["warnings"] if w["code"] == "IAM_UNKNOWN_ACTION"]
         assert len(unknown) == 1
         assert unknown[0]["details"]["action_id"] == "unknown_action"
@@ -215,8 +208,8 @@ class TestQueryUserPermissionsV4:
     def test_overview_excludes_provider_hidden_actions(self, mock_get_fw):
         """exclude_providers=("v4",) 的过时 action（view_dashboard/manage_dashboard）不进入 v4 总览。"""
         mock_v4 = MagicMock()
-        mock_v4.batch_by_action.return_value = BatchAuthResult(items=())
-        mock_v4.get_authorized_resources.return_value = []
+        mock_v4.is_allowed.return_value = AuthResult.deny("v4")
+        mock_v4.list_authorized_resources.return_value = AuthorizedResourceScope.empty("space", provider_name="v4")
 
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
         result = query_user_permissions_v4({"username": "testuser", "bk_tenant_id": "system"})
@@ -231,7 +224,7 @@ class TestQueryUserPermissionsV4:
     def test_overview_explicit_hidden_action_warns(self, mock_get_fw):
         """显式请求 v4 不可见 action → warning 忽略，不进入查询。"""
         mock_v4 = MagicMock()
-        mock_v4.get_authorized_resources.return_value = []
+        mock_v4.list_authorized_resources.return_value = AuthorizedResourceScope.empty("space", provider_name="v4")
 
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
         result = query_user_permissions_v4(
@@ -280,7 +273,7 @@ class TestQueryUserSubResourcesV4:
     def test_expand_apm_partial_and_unsupported_filtered(self, mock_get_fw, mock_list):
         """apm 展开：枚举 + 批量鉴权 → partial；非二级 action 记 warning 忽略。"""
         mock_v4 = MagicMock()
-        mock_v4.batch_by_resource.return_value = _auth_items(
+        mock_v4.batch_is_allowed.return_value = _auth_items(
             "manage_apm_application", "apm_application", {"390": True, "405": False}
         )
 
@@ -323,7 +316,7 @@ class TestQueryUserSubResourcesV4:
     def test_expand_all_and_none(self, mock_get_fw, mock_list):
         """全部候选通过 → all；无一通过 → none。"""
         mock_v4 = MagicMock()
-        mock_v4.batch_by_resource.side_effect = [
+        mock_v4.batch_is_allowed.side_effect = [
             _auth_items("view_apm_application", "apm_application", {"390": True, "405": True}),
             _auth_items("manage_apm_application", "apm_application", {"390": False, "405": False}),
         ]
@@ -357,7 +350,7 @@ class TestQueryUserSubResourcesV4:
         apm = result["data"]["actions"][0]
         assert apm["grant_type"] == "none"
         assert "无此资源类型" in apm["note"]
-        mock_v4.batch_by_resource.assert_not_called()
+        mock_v4.batch_is_allowed.assert_not_called()
 
     @patch(_CATALOG_LIST)
     @patch(_GET_FW)
@@ -371,7 +364,7 @@ class TestQueryUserSubResourcesV4:
         apm = result["data"]["actions"][0]
         assert apm["grant_type"] == "error"
         assert apm["note"] == "二级资源枚举失败"
-        mock_v4.batch_by_resource.assert_not_called()
+        mock_v4.batch_is_allowed.assert_not_called()
         failed = [w for w in result["warnings"] if w["code"] == "IAM_SUB_RESOURCE_ENUM_FAILED"]
         assert len(failed) == 1
         assert failed[0]["details"]["resource_type"] == "apm_application"
@@ -381,7 +374,7 @@ class TestQueryUserSubResourcesV4:
     def test_expand_batch_auth_failure(self, mock_get_fw, mock_list):
         """批量鉴权失败 → 该 action error + warning。"""
         mock_v4 = MagicMock()
-        mock_v4.batch_by_resource.side_effect = RuntimeError("auth gateway down")
+        mock_v4.batch_is_allowed.side_effect = RuntimeError("auth gateway down")
         mock_list.return_value = {
             "count": 1,
             "results": [{"id": "390", "display_name": "alias-390", "name": "app-390"}],
@@ -400,7 +393,7 @@ class TestQueryUserSubResourcesV4:
     def test_expand_pagination(self, mock_get_fw, mock_list):
         """候选跨页收集：翻页直到拿满 count，再一次性批量鉴权。"""
         mock_v4 = MagicMock()
-        mock_v4.batch_by_resource.return_value = BatchAuthResult(items=())
+        mock_v4.batch_is_allowed.return_value = BatchAuthResult(items=())
 
         def fake_list(rt_id, filter_data, page, bk_tenant_id="system"):
             if page.get("page") == 1:
@@ -411,9 +404,9 @@ class TestQueryUserSubResourcesV4:
         mock_get_fw.return_value = _mock_fw_with_v4(mock_v4)
 
         query_user_sub_resources_v4(self._params(action_ids=["manage_apm_application"]))
-        request = mock_v4.batch_by_resource.call_args.args[0]
-        assert [r.id for r in request.resources] == ["390", "405", "411"]
-        assert request.action_id == "manage_apm_application"
+        request = mock_v4.batch_is_allowed.call_args.args[0]
+        assert [group[0].id for group in request.resource_groups] == ["390", "405", "411"]
+        assert request.action_ids == ("manage_apm_application",)
 
     @patch(_CATALOG_LIST)
     @patch(_GET_FW)
@@ -466,7 +459,7 @@ class TestRealFrameworkQueryV4:
         username = __import__("os").environ.get("IAM_V4_TEST_USER", "admin")
         tenant_id = __import__("os").environ.get("IAM_V4_TENANT_ID", "system")
 
-        from bkmonitor.iam.permission import Permission
+        from bkmonitor.iam.handlers.permission import Permission
 
         if "v4" not in Permission(username="offline", bk_tenant_id="system").providers:
             pytest.skip("Permission 未装配 V4 backend（V4 网关未配置）")
@@ -530,7 +523,7 @@ class TestRealFrameworkQueryV4:
         tenant_id = __import__("os").environ.get("IAM_V4_TENANT_ID", "system")
         space_id = __import__("os").environ.get("IAM_V4_TEST_SPACE_ID", "2")
 
-        from bkmonitor.iam.permission import Permission
+        from bkmonitor.iam.handlers.permission import Permission
 
         if "v4" not in Permission(username="offline", bk_tenant_id="system").providers:
             pytest.skip("Permission 未装配 V4 backend（V4 网关未配置）")

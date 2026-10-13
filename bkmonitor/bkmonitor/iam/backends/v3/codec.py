@@ -22,10 +22,7 @@ specific language governing permissions and limitations under the License.
 #   resource_type / resource_id / role：
 #       V3 全部恒等映射，继承 IdentityCodec。
 #
-# 配置方式：
-#   在 产品 backend 配置 中配置本类的 dotted path：
-#       "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec"
-#   Provider 在初始化时自动加载，无需手动传参。
+# 产品装配显式注入本 Codec；Provider 不再动态加载 dotted path。
 # ---------------------------------------------------------------------------
 
 from __future__ import annotations
@@ -39,7 +36,7 @@ def _build_v3_mappings():
     使用与 schema.loaders.load_from_class 相同的 vars() 遍历模式，
     保证与 schema 注册的 action 集合完全一致。
     """
-    from ...definitions.actions import Actions
+    from bkmonitor.iam.definitions.actions import Actions
 
     fwd: dict[str, str] = {}
     rev: dict[str, str] = {}
@@ -103,6 +100,29 @@ class MonitorV3Codec(IdentityCodec):
     # ================================================================
     # action_id 编解码
     # ================================================================
+
+    def encode_resource(self, resource, client, *, batch=False):
+        """引擎资源直接转换成 SDK 资源；不再经过公共 Dialect DTO 模板层。"""
+        from types import SimpleNamespace
+        from iam_engine.core.requests import to_definition_id
+
+        rt = to_definition_id(resource.type)
+        ancestors = tuple(
+            SimpleNamespace(
+                type=self.encode_resource_type(to_definition_id(parent.type)),
+                id=self.encode_resource_id(to_definition_id(parent.type), str(parent.id)),
+            )
+            for parent in resource.ancestor_chain
+        )
+        attributes = dict(resource.attributes)
+        if batch and not ancestors:
+            attributes.setdefault("_bk_iam_path_", "")
+        return client.make_resource(
+            self.encode_resource_type(rt),
+            self.encode_resource_id(rt, str(resource.id)),
+            ancestors=ancestors,
+            attribute=attributes,
+        )
 
     def encode_action(self, action_id: str) -> str:
         """业务 action_id → V3 平台 action_id。"""

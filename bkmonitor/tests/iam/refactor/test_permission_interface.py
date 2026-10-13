@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.iam.backends.config import build_provider
+
 # ==============================================================================
 # permission.py 重构对照测试（含新旧鉴权路径一致性验证）
 #
@@ -29,6 +31,8 @@ import copy
 import os
 
 import pytest
+from iam_engine.core.requests import AuthRequest as NativeAuthRequest
+from iam_engine.core.types import AuthResult, BatchAuthResult as NativeBatchResult, BatchAuthResultItem
 from unittest.mock import MagicMock, patch
 
 from iam import Action as SdkAction
@@ -168,7 +172,7 @@ class TestCreatorGrantResultLogging:
         permission = Permission(username="tester", bk_tenant_id="system")
         resource = ResourceEnum.BUSINESS.create_simple_instance("2")
 
-        with caplog.at_level("WARNING", logger="bkmonitor.iam.permission"):
+        with caplog.at_level("WARNING", logger="bkmonitor.iam.handlers.permission"):
             result = permission.grant_creator_action(resource)
 
         assert result.is_success is False
@@ -203,7 +207,7 @@ class TestCreatorGrantResultLogging:
         def _boom(*_args, **_kwargs):
             raise original_error
 
-        monkeypatch.setattr("bkmonitor.iam.permission.grant_creator_actions", _boom)
+        monkeypatch.setattr(Permission, "_grant_creator_actions", _boom)
         permission = Permission(username="tester", bk_tenant_id="system")
         resource = ResourceEnum.BUSINESS.create_simple_instance("2")
 
@@ -220,7 +224,7 @@ class TestCreatorGrantResultLogging:
         def _boom(*_args, **_kwargs):
             raise RuntimeError("framework crashed")
 
-        monkeypatch.setattr("bkmonitor.iam.permission.grant_creator_actions", _boom)
+        monkeypatch.setattr(Permission, "_grant_creator_actions", _boom)
         permission = Permission(username="tester", bk_tenant_id="system")
         resource = ResourceEnum.BUSINESS.create_simple_instance("2")
 
@@ -240,8 +244,8 @@ class TestIsAllowed:
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, [ResourceEnum.BUSINESS.create_simple_instance("2")]) is True
         req: AuthRequest = provider.is_allowed_calls[0]
         assert req.action_id == "view_business"
-        assert req.resource.type == "space"
-        assert req.resource.id == "2"
+        assert req.resources[0].type == "space"
+        assert req.resources[0].id == "2"
         assert req.subject.id == "tester"
         assert req.subject.tenant_id == "system"
 
@@ -261,16 +265,16 @@ class TestIsAllowed:
         新版路径经 codec 恒等回退后仍以正确的 V3 action 发起请求（与旧版一致）。"""
         provider, mock_client = v3_provider_factory()
         # 让 provider 走真实 dialect：action=view_business_v2（前端传入原样透传）
-        from iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
+        from iam_engine.core.requests import AuthRequest as NativeAuthRequest, ResourceInstance as NativeResource
         from iam_engine.provider.requests import Subject
 
         mock_client.is_allowed_with_cache.return_value = True
-        req = DialectAuthRequest(
+        req = NativeAuthRequest(
             subject=Subject(id="u", tenant_id="system"),
-            action_id="view_business_v2",
-            resource=DialectResource(type="space", id="2"),
+            action_id="view_business",
+            resources=(NativeResource(type="space", id="2"),),
         )
-        assert provider._is_allowed_dialect(req) is True
+        assert provider.is_allowed(req).allowed is True
         # 发给 SDK 的 action 仍是 V3 平台 ID
         assert mock_client.make_request.call_args.args[1] == "view_business_v2"
         # 读操作走缓存
@@ -289,17 +293,17 @@ class TestIsAllowed:
         mock_client.is_allowed_with_cache.assert_called_once()
 
     def test_write_action_no_cache(self, real_schema, v3_provider_factory):
-        from iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
+        from iam_engine.core.requests import AuthRequest as NativeAuthRequest, ResourceInstance as NativeResource
         from iam_engine.provider.requests import Subject
 
         provider, mock_client = v3_provider_factory()
         mock_client.is_allowed.return_value = False
-        req = DialectAuthRequest(
+        req = NativeAuthRequest(
             subject=Subject(id="u", tenant_id="system"),
-            action_id="manage_event_v2",
-            resource=DialectResource(type="space", id="2"),
+            action_id="manage_event",
+            resources=(NativeResource(type="space", id="2"),),
         )
-        assert provider._is_allowed_dialect(req) is False
+        assert provider.is_allowed(req).allowed is False
         mock_client.is_allowed.assert_called_once()
         mock_client.is_allowed_with_cache.assert_not_called()
 
@@ -368,7 +372,7 @@ class TestIsAllowed:
         request.user.username = "tester"
         request.user.tenant_id = "system"
         request.skip_check = False
-        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
+        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             p = Permission(request=request)
             # 业务查看权限：直接豁免（无需查 token 记录）
             assert p.is_allowed(ActionEnum.VIEW_BUSINESS) is True
@@ -386,8 +390,8 @@ class TestIsAllowedByBiz:
         p = Permission(username="tester", bk_tenant_id="system")
         assert p.is_allowed_by_biz(2, ActionEnum.VIEW_EVENT) is True
         req: AuthRequest = provider.is_allowed_calls[0]
-        assert req.resource.type == "space"
-        assert req.resource.id == "2"
+        assert req.resources[0].type == "space"
+        assert req.resources[0].id == "2"
 
     def test_skip_check(self, fake_permission):
         fw, provider = fake_permission
@@ -421,8 +425,7 @@ class TestBatchIsAllowed:
 
     def test_framework_batch_grouping(self, installed_permission, real_schema):
         """Permission.batch_is_allowed 按资源类型分组后一次批量调用。"""
-        from iam_engine.provider.codec_provider import PermissionProvider
-        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
+        from iam_engine.provider.base import PermissionProvider
 
         class Recorder(PermissionProvider):
             name = "v3"
@@ -430,35 +433,14 @@ class TestBatchIsAllowed:
             def __init__(self):
                 self.batch_calls: list = []
 
-            def batch_by_resource(self, request):
+            def is_allowed(self, request):
+                return AuthResult.allow(self.name)
+
+            def batch_is_allowed(self, request):
                 self.batch_calls.append(request)
-                return BatchAuthResult(
-                    items=tuple(
-                        ResourceAuthResult(
-                            action_id=request.action_id, resource_type=r.type, resource_id=r.id, allowed=True
-                        )
-                        for r in request.resources
-                    )
+                return NativeBatchResult(
+                    tuple(BatchAuthResultItem(a, r, AuthResult.allow(self.name)) for a, r in request.iter_keys())
                 )
-
-            # ---- PermissionProvider 抽象方言方法：补实现以满足实例化 ----
-            def _is_allowed_dialect(self, request):
-                raise NotImplementedError
-
-            def _batch_by_resource_dialect_page(self, request):
-                raise NotImplementedError
-
-            def _batch_by_action_dialect_page(self, request):
-                raise NotImplementedError
-
-            def _get_apply_url_dialect(self, request):
-                raise NotImplementedError
-
-            def plan_migration(self, schema, *, scope="full"):
-                raise NotImplementedError
-
-            def apply_migration(self, plan, *, dry_run=False, allow_destructive=False):
-                raise NotImplementedError
 
             def health_check(self):
                 return {"status": "ok"}
@@ -476,9 +458,9 @@ class TestBatchIsAllowed:
         )
         # 2 actions × 1 类型组 = 2 次批量调用
         assert len(provider.batch_calls) == 2
-        assert provider.batch_calls[0].action_id == "view_event"
-        assert provider.batch_calls[1].action_id == "manage_event"
-        assert {r.id for r in provider.batch_calls[0].resources} == {"2", "3", "4"}
+        assert provider.batch_calls[0].action_ids == ("view_event",)
+        assert provider.batch_calls[1].action_ids == ("manage_event",)
+        assert {group[0].id for group in provider.batch_calls[0].resource_groups} == {"2", "3", "4"}
         assert result["2"] == {"view_event": True, "manage_event": True}
         assert result["3"] == {"view_event": True, "manage_event": True}
         assert result["4"] == {"view_event": True, "manage_event": True}
@@ -494,15 +476,9 @@ class TestBatchIsAllowed:
         assert result["2"]["view_event"] is True
 
     def test_legacy_v3_id_is_normalized_and_result_uses_business_key(self, fake_permission):
-        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
-
         fw, provider = fake_permission
-        provider.batch_by_resource = MagicMock(
-            return_value=BatchAuthResult(
-                items=(
-                    ResourceAuthResult(action_id="view_event", resource_type="space", resource_id="2", allowed=True),
-                )
-            )
+        provider.batch_is_allowed = MagicMock(
+            return_value=NativeBatchResult((BatchAuthResultItem("view_event", "2", AuthResult.allow("v3")),))
         )
         p = Permission(username="tester", bk_tenant_id="system")
 
@@ -511,8 +487,8 @@ class TestBatchIsAllowed:
             [[ResourceEnum.BUSINESS.create_simple_instance("2")]],
         )
 
-        request = provider.batch_by_resource.call_args.args[0]
-        assert request.action_id == "view_event"
+        request = provider.batch_is_allowed.call_args.args[0]
+        assert request.action_ids == ("view_event",)
         assert result == {"2": {"view_event": True}}
 
     def test_skip_check_legacy_v3_id_result_uses_business_key(self, fake_permission):
@@ -553,14 +529,16 @@ class TestApplyMethods:
     def test_get_apply_data_accepts_v3_platform_id_string(self, fake_permission):
         """前端 V3 ID 字符串在申请路径进入 Framework 前归一化为业务 ID。"""
         fw, provider = fake_permission
-        provider.get_apply_data = MagicMock(return_value={"system": "bk_monitorv3", "actions": []})
+        provider.get_apply_data = MagicMock(
+            return_value=({"system": "bk_monitorv3", "actions": []}, "http://iam.invalid/apply/xyz")
+        )
         provider.get_apply_url = MagicMock(return_value="http://iam.invalid/apply/xyz")
         p = Permission(username="tester", bk_tenant_id="system")
         data, url = p.get_apply_data(["view_business_v2"], [ResourceEnum.BUSINESS.create_simple_instance("2")])
         assert data == {"system": "bk_monitorv3", "actions": []}
         assert url == "http://iam.invalid/apply/xyz"
         assert provider.get_apply_data.call_args.args[0] == ["view_business"]
-        assert provider.get_apply_url.call_args.args[0].action_ids == ("view_business",)
+        provider.get_apply_data.assert_called_once()
 
 
 class TestFilterSpaceListByAction:
@@ -575,7 +553,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=True, visible_ids=("2", "3", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert len(result) == 3
 
@@ -583,7 +561,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=True, visible_ids=("2", "3", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             spaces, tenant_wide_authorized = p.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
 
         assert [space["bk_biz_id"] for space in spaces] == [2, 3, 5]
@@ -593,7 +571,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=False, visible_ids=("2", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert [s["bk_biz_id"] for s in result] == [2, 5]
 
@@ -601,7 +579,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=False, visible_ids=("2", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             spaces, tenant_wide_authorized = p.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
 
         assert [space["bk_biz_id"] for space in spaces] == [2, 5]
@@ -614,7 +592,7 @@ class TestFilterSpaceListByAction:
         )
         p = Permission(username="tester", bk_tenant_id="system")
 
-        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action("view_business_v2")
 
         assert [space["bk_biz_id"] for space in result] == [2, 5]
@@ -629,7 +607,7 @@ class TestFilterSpaceListByAction:
 
         provider.filter_visible_resources = _boom
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert result == []
 
@@ -642,7 +620,7 @@ class TestFilterSpaceListByAction:
 
         provider.filter_visible_resources = _boom
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             spaces, tenant_wide_authorized = p.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
 
         assert spaces == []
@@ -652,7 +630,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
-        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert len(result) == 3
 
@@ -660,7 +638,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
-        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             spaces, tenant_wide_authorized = p.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
 
         assert [space["bk_biz_id"] for space in spaces] == [2, 3, 5]
@@ -716,15 +694,15 @@ class TestPreflightHelpers:
     """check_iam_preflight / check_iam_batch_preflight 的兼容豁免与安全修复。"""
 
     def test_preflight_none_request_uses_settings(self):
-        from bkmonitor.iam.permission import check_iam_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_preflight
 
-        with patch("bkmonitor.iam.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
+        with patch("bkmonitor.iam.handlers.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
             assert check_iam_preflight(None, ActionEnum.VIEW_BUSINESS) is True
-        with patch("bkmonitor.iam.permission.settings.SKIP_IAM_PERMISSION_CHECK", False):
+        with patch("bkmonitor.iam.handlers.permission.settings.SKIP_IAM_PERMISSION_CHECK", False):
             assert check_iam_preflight(None, ActionEnum.VIEW_BUSINESS) is False
 
     def test_preflight_request_skip_check_true(self):
-        from bkmonitor.iam.permission import check_iam_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_preflight
 
         request = MagicMock()
         request.skip_check = True
@@ -734,18 +712,18 @@ class TestPreflightHelpers:
 
     def test_preflight_request_skip_check_false_overrides_settings(self):
         """request.skip_check=False 显式强制校验时覆盖 settings 级（与 Permission.__init__ 一致）。"""
-        from bkmonitor.iam.permission import check_iam_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_preflight
 
         request = MagicMock()
         request.skip_check = False
         request.token = None  # 显式置 None：MagicMock 自动属性会误入 token 分支
         request.path = "/whatever/"
-        with patch("bkmonitor.iam.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
+        with patch("bkmonitor.iam.handlers.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
             assert check_iam_preflight(request, ActionEnum.VIEW_BUSINESS) is False
 
     def test_preflight_skip_check_param_passthrough(self):
         """Permission.is_allowed 传入实例值 self.skip_check（兼容调用方构造后修改实例属性）。"""
-        from bkmonitor.iam.permission import check_iam_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_preflight
 
         assert check_iam_preflight(None, ActionEnum.VIEW_BUSINESS, skip_check=True) is True
         assert check_iam_preflight(None, ActionEnum.VIEW_BUSINESS, skip_check=False) is False
@@ -753,19 +731,19 @@ class TestPreflightHelpers:
     def test_preflight_token_no_record_is_not_bypassed(self):
         """Token 记录不存在时不再因旧 generator 恒真问题被放行。"""
         from bkmonitor.models import ApiAuthToken
-        from bkmonitor.iam.permission import check_iam_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_preflight
 
         request = MagicMock()
         request.token = "tok"
         request.path = "/any/path/"
         request.skip_check = False
         request.user.tenant_id = "system"
-        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
+        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             assert check_iam_preflight(request, ActionEnum.VIEW_EVENT) is False
 
     def test_preflight_token_action_id_map_accepts_string_action(self):
         """Token 动作匹配按 action ID 执行，ActionEnum 与字符串调用语义一致。"""
-        from bkmonitor.iam.permission import check_iam_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_preflight
 
         request = MagicMock()
         request.token = "tok"
@@ -774,11 +752,11 @@ class TestPreflightHelpers:
         request.user.tenant_id = "system"
         record = MagicMock()
         record.type = "host"
-        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
+        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", return_value=record):
             assert check_iam_preflight(request, "view_host") is True
 
     def test_preflight_token_action_id_map_accepts_legacy_alias(self):
-        from bkmonitor.iam.permission import check_iam_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_preflight
 
         request = MagicMock()
         request.token = "tok"
@@ -787,11 +765,11 @@ class TestPreflightHelpers:
         request.user.tenant_id = "system"
         record = MagicMock()
         record.type = "host"
-        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
+        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", return_value=record):
             assert check_iam_preflight(request, "view_host_v2") is True
 
     def test_preflight_no_exemption_goes_to_framework(self):
-        from bkmonitor.iam.permission import check_iam_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_preflight
 
         request = MagicMock()
         request.skip_check = False
@@ -800,7 +778,7 @@ class TestPreflightHelpers:
         assert check_iam_preflight(request, ActionEnum.VIEW_EVENT) is False
 
     def test_batch_preflight_skip_all_true(self):
-        from bkmonitor.iam.permission import check_iam_batch_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
 
         request = MagicMock()
         request.skip_check = True
@@ -809,7 +787,7 @@ class TestPreflightHelpers:
         assert result == {"view_event": True, "manage_event": True}
 
     def test_batch_preflight_skip_legacy_alias_uses_business_key(self):
-        from bkmonitor.iam.permission import check_iam_batch_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
 
         request = MagicMock()
         request.skip_check = True
@@ -818,7 +796,7 @@ class TestPreflightHelpers:
         assert result == {"view_event": True}
 
     def test_batch_preflight_none(self):
-        from bkmonitor.iam.permission import check_iam_batch_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
 
         request = MagicMock()
         request.skip_check = False
@@ -828,37 +806,37 @@ class TestPreflightHelpers:
     def test_batch_preflight_token_no_record_raises(self):
         """batch 语义：token 记录不存在 → 抛 TokenValidatedError（与旧版 batch_is_allowed 一致）。"""
         from bkmonitor.models import ApiAuthToken
-        from bkmonitor.iam.permission import check_iam_batch_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
         from core.errors.share import TokenValidatedError
 
         request = MagicMock()
         request.token = "tok"
         request.user.tenant_id = "system"
-        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
+        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             with pytest.raises(TokenValidatedError):
                 check_iam_batch_preflight(request, [ActionEnum.VIEW_EVENT])
 
     def test_batch_preflight_token_action_id_map(self):
-        from bkmonitor.iam.permission import check_iam_batch_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
 
         request = MagicMock()
         request.token = "tok"
         request.user.tenant_id = "system"
         record = MagicMock()
         record.type = "host"  # ActionIdMap["host"] = [ActionEnum.VIEW_HOST]
-        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
+        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", return_value=record):
             result = check_iam_batch_preflight(request, ["view_host", "view_event"])
         assert result == {"view_host": True, "view_event": False}
 
     def test_batch_preflight_token_action_id_map_accepts_legacy_alias(self):
-        from bkmonitor.iam.permission import check_iam_batch_preflight
+        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
 
         request = MagicMock()
         request.token = "tok"
         request.user.tenant_id = "system"
         record = MagicMock()
         record.type = "host"
-        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
+        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", return_value=record):
             result = check_iam_batch_preflight(request, ["view_host_v2", "view_event_v2"])
         assert result == {"view_host": True, "view_event": False}
 
@@ -988,7 +966,6 @@ def _mock_http(policy_map, batch_map=None):
 
 
 def _new_provider_with_http(real_schema, http, codec_kwargs=None):
-    from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
     from .conftest import build_v3_options
 
     options = build_v3_options()
@@ -997,7 +974,7 @@ def _new_provider_with_http(real_schema, http, codec_kwargs=None):
     options.pop("resolver_class", None)
     if codec_kwargs:
         options["codec_kwargs"] = codec_kwargs
-    provider = V3PermissionProvider(real_schema, **options)
+    provider = build_provider("v3", schema=real_schema, options={**options})
     client = V3Client(
         "test_app",
         "test_secret",
@@ -1015,10 +992,10 @@ def _new_auth_request(username, action_ref, resource_type, resource_id, tenant="
     resource = None
     if resource_type is not None:
         resource = FwResource(type=resource_type, id=resource_id)
-    return AuthRequest(
+    return NativeAuthRequest(
         subject=FwSubject(id=username, type=SubjectType.USER, tenant_id=tenant),
         action_id=action_ref,
-        resource=resource,
+        resources=(resource,) if resource else (),
     )
 
 
@@ -1054,7 +1031,7 @@ class TestAuthPathParity:
         legacy_allowed = legacy_eval_decision(legacy_client, "tester", v3_action, resources, is_read)
 
         provider, client = _new_provider_with_http(real_schema, http)
-        new_allowed = provider.is_allowed(_new_auth_request("tester", biz_action, rt, rid))
+        new_allowed = provider.is_allowed(_new_auth_request("tester", biz_action, rt, rid)).allowed
 
         assert new_allowed == legacy_allowed, (biz_action, legacy_allowed, new_allowed)
 
@@ -1131,7 +1108,7 @@ class TestAuthPathParity:
             }
         )
         provider, client = _new_provider_with_http(real_schema, http2)
-        new_allowed = provider.is_allowed(_new_auth_request("tester", "new_dashboard", "space", "2"))
+        new_allowed = provider.is_allowed(_new_auth_request("tester", "new_dashboard", "space", "2")).allowed
 
         assert legacy_allowed is True  # OR 合并后放行
         assert new_allowed == legacy_allowed

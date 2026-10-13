@@ -29,7 +29,7 @@ from apm_web.service.resources import (
 )
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission, insert_permission_field
+from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission, ViewBusinessPermission, insert_permission_field
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 
@@ -70,7 +70,6 @@ class ServiceViewSet(ResourceViewSet):
                     resource_meta=ResourceEnum.APM_APPLICATION,
                     id_field=lambda d: d["application_id"],
                     many=False,
-                    include_legacy_action_keys=True,
                 )
             ],
         ),

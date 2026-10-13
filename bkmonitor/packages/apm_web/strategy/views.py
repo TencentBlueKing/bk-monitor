@@ -25,7 +25,7 @@ from rest_framework.serializers import Serializer, ValidationError
 from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission
+from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from bkmonitor.query_template.constants import VariableType

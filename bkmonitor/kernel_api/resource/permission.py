@@ -13,7 +13,7 @@ import logging
 from django.core.exceptions import ValidationError
 
 from bkmonitor.iam import Permission
-from bkmonitor.iam.action import ActionEnum
+from bkmonitor.iam.handlers.actions import ActionEnum
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from bkmonitor.views import serializers
 from core.drf_resource import Resource
@@ -25,7 +25,7 @@ class BusinessListByActions(Resource):
     class RequestSerializer(serializers.Serializer):
         """
         actions_id 参考
-        >>>from bkmonitor.iam.action import ActionEnum
+        >>>from bkmonitor.iam.handlers.actions import ActionEnum
         """
 
         action_ids = serializers.ListField(required=False, label="权限id列表", default=[ActionEnum.VIEW_BUSINESS])

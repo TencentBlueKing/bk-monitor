@@ -43,7 +43,7 @@ from apm_web.trace.resources import (
 from apm_web.trace.serializers import TraceFieldsTopkRequestSerializer
 from bkmonitor.utils.csv import generate_csv_file_download_response
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
+from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission, ViewBusinessPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from packages.apm_web.handlers.trace_handler.dimension_statistics import (
     DimensionStatisticsAPIHandler,

@@ -10,10 +10,10 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-from ... import catalog
-from ..codec import MonitorV4Codec
-from .registry import V4CallbackRegistry
-from .service import V4CallbackService
+from bkmonitor.iam.handlers import catalog
+from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
+from bkmonitor.iam.views.callback_registry import V4CallbackRegistry
+from bkmonitor.iam.views.callback_service import V4CallbackService
 
 # callback 项目显式持有 registry 和 service；Provider 不导入、创建或调用它们。
 _registry = V4CallbackRegistry()

@@ -18,7 +18,7 @@ specific language governing permissions and limitations under the License.
 #      get_apply_url 出站 encode + 入站 decode 走通
 # ==============================================================================
 
-from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
+from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
 from iam_engine.provider.requests import (
     ApplyURLRequest,
     AuthRequest,

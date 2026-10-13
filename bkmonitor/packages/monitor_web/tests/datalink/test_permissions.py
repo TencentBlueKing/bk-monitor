@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,6 +7,7 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
+
 from types import SimpleNamespace
 from unittest import mock
 
@@ -46,9 +46,10 @@ class TestCollectConfigActionPermission(TestCase):
     def test_uses_collect_config_biz_even_without_request_biz(self):
         perm = CollectConfigActionPermission([ActionEnum.MANAGE_COLLECTION])
         request = SimpleNamespace(method="POST", data={"collect_config_id": 9}, query_params={})
-        with mock.patch("monitor_web.datalink.views.CollectConfigMeta.objects.only") as only, mock.patch(
-            "bkmonitor.iam.drf.Permission"
-        ) as perm_cls:
+        with (
+            mock.patch("monitor_web.datalink.views.CollectConfigMeta.objects.only") as only,
+            mock.patch("bkmonitor.iam.handlers.drf.Permission") as perm_cls,
+        ):
             only.return_value.get.return_value = SimpleNamespace(id=9, bk_biz_id=22)
             perm_cls.return_value.is_allowed.return_value = True
             self.assertTrue(perm.has_permission(request, None))

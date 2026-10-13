@@ -22,11 +22,11 @@ import logging
 from collections import defaultdict
 from typing import Any
 
-from bkmonitor.iam.adapters import catalog
-from bkmonitor.iam.adapters.catalog import parse_iam_path as _parse_iam_path
+from bkmonitor.iam.handlers import catalog
+from bkmonitor.iam.handlers.catalog import parse_iam_path as _parse_iam_path
 from iam_engine.exceptions import ProviderNotFound
 from iam_engine.provider.requests import Subject as FwSubject, SubjectType
-from bkmonitor.iam.permission import Permission
+from bkmonitor.iam.handlers.permission import Permission
 from iam_engine.policy.expression import Op, PolicyExpression
 from iam_engine.schema.definitions import ActionDef
 from iam_engine.schema.registry import SchemaRegistry

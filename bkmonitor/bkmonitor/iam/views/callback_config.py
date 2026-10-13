@@ -16,13 +16,13 @@ from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from iam_engine.v4.config import load_v4_paths, resolve_callback_app_credentials
 
-from ....backends.v4.config import V4Credentials, V4Options
+from bkmonitor.iam.backends.v4.config import V4Credentials, V4Options
 
 
 def get_v4_callback_config() -> V4Options:
     """复用 V4 目录配置，不依赖 Provider 的启用状态或运行期实例。"""
     try:
-        from ....backends.config import provider_options
+        from bkmonitor.iam.backends.config import provider_options
 
         options = provider_options("v4", getattr(settings, "BK_APP_TENANT_ID", "system"))
         config = V4Options.from_dict(options)

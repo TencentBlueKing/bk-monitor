@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.iam.backends.config import build_provider
+
 import json
 from unittest.mock import patch
 
@@ -15,8 +17,8 @@ import pytest
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 
-from bkmonitor.iam.adapters.v4.callback import auth as callback_auth
-from bkmonitor.iam.adapters.v4.callback.config import get_v4_callback_config
+from bkmonitor.iam.views import callback_auth
+from bkmonitor.iam.views.callback_config import get_v4_callback_config
 from iam_engine.schema.registry import SchemaRegistry
 from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
@@ -45,13 +47,15 @@ def _options():
 def test_clients_resolve_saas_identity_lazily_and_keep_tenants_separate(provider_class):
     schema = SchemaRegistry()
     schema.freeze()
-    with override_settings(SAAS_APP_CODE="", SAAS_SECRET_KEY=""):
-        with patch("bkmonitor.models.config.GlobalConfig.get", side_effect=AssertionError("eager credential read")):
-            provider = provider_class(schema, **_options())
-    module = provider_class.__module__
-    client_name = "V3Client" if provider_class is V3PermissionProvider else "V4Client"
-    with patch(f"{module}.{client_name}") as client_factory:
-        client_factory.side_effect = lambda *args, **kwargs: object()
+    version = "v3" if provider_class is V3PermissionProvider else "v4"
+    module = f"bkmonitor.iam.backends.{version}.client"
+    client_name = "V3Client" if version == "v3" else "V4Client"
+    with patch(f"{module}.{client_name}") as constructor:
+        constructor.side_effect = lambda *args, **kwargs: object()
+        with override_settings(SAAS_APP_CODE="", SAAS_SECRET_KEY=""):
+            with patch("bkmonitor.models.config.GlobalConfig.get", side_effect=AssertionError("eager credential read")):
+                provider = build_provider(version, schema=schema, options=_options())
+        constructor.assert_not_called()
         with override_settings(
             APP_CODE="backend-app", SECRET_KEY="backend-secret", SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"
         ):
@@ -63,19 +67,18 @@ def test_clients_resolve_saas_identity_lazily_and_keep_tenants_separate(provider
         with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="rotated-secret"):
             assert provider._get_client("tenant-a") is not first
             assert provider._get_client() is not default_client
-    assert client_factory.call_count == 5
-    for index, call in enumerate(client_factory.call_args_list):
-        expected_secret = "saas-secret" if index < 3 else "rotated-secret"
-        app_code = call.args[0] if call.args else call.kwargs["app_code"]
-        app_secret = call.args[1] if call.args else call.kwargs["app_secret"]
-        assert (app_code, app_secret) == ("saas-app", expected_secret)
-        json.dumps({"app_code": app_code, "app_secret": app_secret})
+        assert constructor.call_count == 5
+        for index, call in enumerate(constructor.call_args_list):
+            expected_secret = "saas-secret" if index < 3 else "rotated-secret"
+            code, secret = call.args[:2] if version == "v3" else (call.args[0].app_code, call.args[0].app_secret)
+            assert (code, secret) == ("saas-app", expected_secret)
+            json.dumps({"app_code": code, "app_secret": secret})
 
 
 def test_v3_registration_uses_saas_credentials_in_actual_sdk_request():
     schema = SchemaRegistry()
     schema.freeze()
-    provider = V3PermissionProvider(schema, **_options())
+    provider = build_provider("v3", schema=schema, options={**_options()})
     with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"):
         plan = provider.plan_migration(schema, scope="system")
         with patch("bkmonitor.iam.backends.v3.client.V3Client.query_system", return_value=(False, "not found", None)):
@@ -120,13 +123,13 @@ def test_missing_saas_identity_never_falls_back_to_backend():
 
 
 def test_v3_callback_defers_saas_lookup_until_client_is_used():
-    from bkmonitor.iam.permission import Permission
+    from bkmonitor.iam.handlers.permission import Permission
 
     with override_settings(SAAS_APP_CODE="", SAAS_SECRET_KEY=""):
         with patch("bkmonitor.models.config.GlobalConfig.get", side_effect=AssertionError("eager credential read")):
             client = Permission.get_iam_client("tenant-a")
     with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"):
-        with patch("bkmonitor.iam.permission.V3Client") as constructor:
+        with patch("bkmonitor.iam.handlers.permission.V3Client") as constructor:
             client.health_check()
     assert constructor.call_args.args[:2] == ("saas-app", "saas-secret")
     assert constructor.call_args.kwargs["bk_tenant_id"] == "tenant-a"

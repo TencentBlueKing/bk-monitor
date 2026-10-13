@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,7 +7,6 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-
 
 import logging
 import os
@@ -43,7 +41,14 @@ class ResourceFinder(BaseFinder):
             app_names = set(app_names)
             app_configs = [ac for ac in app_configs if ac.name in app_names]
 
+        app_configs = list(app_configs)
         for app_config in app_configs:
+            # Parent apps are scanned recursively. Scanning a nested app again
+            # registers the same resources under a second, truncated module path.
+            if any(
+                app_config.path.startswith(parent.path + os.sep) for parent in app_configs if parent is not app_config
+            ):
+                continue
             self.resource_path += self.find(app_config.path, root_path=os.path.dirname(app_config.path))
             app_path_directories.append(app_config.path)
 
@@ -102,7 +107,7 @@ class ResourceFinder(BaseFinder):
         return matches
 
 
-class ResourceStatus(object):
+class ResourceStatus:
     # 待加载
     unloaded = "unloaded"
     # 加载成功
@@ -113,7 +118,7 @@ class ResourceStatus(object):
     error = "error"
 
 
-class ResourcePath(object):
+class ResourcePath:
     """
     path = ResourcePath("api.xxx")
     path.loaded()
@@ -138,7 +143,7 @@ class ResourcePath(object):
             return status_setter(status)(lambda: status, self)
 
     def __repr__(self):
-        return "{}: {}".format(self.path, self.status)
+        return f"{self.path}: {self.status}"
 
 
 def status_setter(status):

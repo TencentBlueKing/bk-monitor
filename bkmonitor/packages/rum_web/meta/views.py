@@ -32,7 +32,7 @@ from rum_web.meta.resources import (
 )
 from rum_web.models.application import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission, insert_permission_field
+from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission, ViewBusinessPermission, insert_permission_field
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 

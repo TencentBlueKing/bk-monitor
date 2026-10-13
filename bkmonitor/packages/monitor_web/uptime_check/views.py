@@ -48,7 +48,7 @@ from rest_framework.response import Response
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.handlers.drf import BusinessActionPermission
 from bkmonitor.utils.common_utils import host_key, safe_int
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.data_source import DataSourceLabel, DataTypeLabel

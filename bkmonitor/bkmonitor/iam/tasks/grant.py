@@ -9,7 +9,7 @@ from iam_engine.error_summary import sanitize_error_summary
 from iam_engine.migration.grant_config import AuthorizationGrantConfig, retry_countdown_seconds
 from iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
 
-from .authorization import MonitorAuthorizationWriter
+from bkmonitor.iam.backends.v4.writer import V4AuthorizationWriter
 
 logger = logging.getLogger("iam.v4.grant")
 
@@ -20,7 +20,7 @@ def dispatch_v4_creator_grant(task_kwargs):
 
 @shared_task(bind=True, ignore_result=True, max_retries=None)
 def grant_v4_creator_action(self, *, tenant_id, operator, payload, role_id, expired_at, resource_meta):
-    from ..backends.config import build_provider
+    from bkmonitor.iam.backends.config import build_provider
 
     max_attempts = AuthorizationGrantConfig.from_settings().max_attempts
     metadata = json.dumps(
@@ -30,10 +30,10 @@ def grant_v4_creator_action(self, *, tenant_id, operator, payload, role_id, expi
     )
     try:
         provider = build_provider("v4", tenant_id=tenant_id)
-        writer = MonitorAuthorizationWriter(provider, tenant_id=tenant_id, operator=operator)
+        writer = V4AuthorizationWriter(provider, tenant_id=tenant_id, operator=operator)
         writer.grant_prepared(PreparedAuthorizationGrant(payload, role_id, expired_at))
     except Exception as error:
-        failure = MonitorAuthorizationWriter.classify_failure(error)
+        failure = V4AuthorizationWriter.classify_failure(error)
         logger.warning(
             "[IAM V4 Grant] meta=%s attempt=%s failure_kind=%s error=%s",
             metadata,

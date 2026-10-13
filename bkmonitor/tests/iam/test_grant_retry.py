@@ -6,7 +6,7 @@ import pytest
 from celery.exceptions import Retry
 from django.test import override_settings
 
-from bkmonitor.iam.adapters.grant_tasks import grant_v4_creator_action
+from bkmonitor.iam.tasks.grant import grant_v4_creator_action
 from iam_engine.exceptions import ProviderError, ProviderUnavailable
 
 
@@ -47,7 +47,7 @@ def test_retry_replays_exact_payload_expiry_and_tenant(grant):
     provider, client, data = grant
     run_task(data, retries=4)
     provider._get_client.assert_called_once_with("tenant-a")
-    client.add_authorization.assert_called_once_with(data["payload"], operator="alice")
+    client.add_authorization.assert_called_once_with(items=data["payload"], operator="alice")
     assert data["payload"][0]["expired_at"] == 1893456000
 
 

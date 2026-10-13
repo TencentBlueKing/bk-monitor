@@ -122,18 +122,8 @@ class GetDirectoryTree(Resource):
                 request, None, params["bk_biz_id"], force_check=True
             )
         else:
-            # 候选：该 org 的全部 dashboard + folder（IAM 格式资源 id），走框架候选过滤
-            resource_ids = []
-            for record in result["data"]:
-                if record.get("type") == "dash-db":
-                    resource_ids.append(f"{org_id}|{record['uid']}")
-                elif record.get("type") == "dash-folder":
-                    resource_ids.append(f"{DashboardPermission.FOLDER_PREFIX}{org_id}|{record['id']}")
-            role, dashboard_permissions = DashboardPermission.get_visible_dashboards(
-                username=request.user.username,
-                org_name=str(params["bk_biz_id"]),
-                resource_ids=resource_ids,
-                force_check=True,
+            _, role, dashboard_permissions = DashboardPermission.get_user_permission(
+                username=request.user.username, org_name=str(params["bk_biz_id"]), force_check=True
             )
 
         folders: dict[int, dict] = defaultdict(lambda: {"dashboards": []})

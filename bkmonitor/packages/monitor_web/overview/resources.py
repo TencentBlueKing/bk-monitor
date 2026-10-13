@@ -28,8 +28,8 @@ from bk_dataview.permissions import GrafanaRole
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import filter_data_by_permission
-from bkmonitor.iam.resource import ResourceEnum
+from bkmonitor.iam.handlers.drf import filter_data_by_permission
+from bkmonitor.iam.handlers.resources import ResourceEnum
 from bkmonitor.models import StrategyModel
 from bkmonitor.models.base import Shield
 from bkmonitor.models.home import HomeAlarmGraphConfig
@@ -265,9 +265,10 @@ class GetFunctionShortcutResource(Resource):
                         biz_org_uids.setdefault(bk_biz_id, []).append((dashboard.org_id, dashboard.uid))
 
                 for bk_biz_id, org_uids in biz_org_uids.items():
-                    resource_ids = [f"{org_id}|{uid}" for org_id, uid in org_uids]
-                    role, dashboard_permissions = DashboardPermission.get_visible_dashboards(
-                        username=request.user.username, org_name=str(bk_biz_id), resource_ids=resource_ids
+                    _, role, dashboard_permissions = DashboardPermission.get_user_permission(
+                        username=request.user.username,
+                        org_name=str(bk_biz_id),
+                        dashboard_uids=[uid for _, uid in org_uids],
                     )
                     if role >= GrafanaRole.Viewer:
                         allowed_bk_biz_ids.add(bk_biz_id)

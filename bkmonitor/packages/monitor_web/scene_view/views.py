@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from django.utils.decorators import method_decorator
 from django.views.decorators.gzip import gzip_page
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.handlers.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_web.scene_view.resources.host import (

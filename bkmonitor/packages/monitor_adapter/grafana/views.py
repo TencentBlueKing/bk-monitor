@@ -29,11 +29,10 @@ from django.views.decorators.csrf import csrf_exempt
 from rest_framework.exceptions import ValidationError
 
 from bk_dataview.api import get_or_create_org
-from bk_dataview.models import Dashboard
 from bk_dataview.permissions import GrafanaRole
 from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
 from bkm_space.api import SpaceApi
-from bkmonitor.iam.action import ActionEnum
+from bkmonitor.iam.handlers.actions import ActionEnum
 from bkmonitor.models.external_iam import ExternalPermission
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
@@ -177,18 +176,8 @@ class GrafanaSwitchOrgView(SwitchOrgView):
             # 兼容旧版权限
             role = DashboardPermission.get_user_role(username=request.user.username, org_name=org_name)
             if role < GrafanaRole.Viewer:
-                # 单仪表盘候选: dashboard 自身 + 其所属 folder（folder 授权覆盖其下所有 dashboard）
-                org_id = get_or_create_org(org_name)["id"]
-                resource_ids = [f"{org_id}|{uid}"]
-                folder_id = (
-                    Dashboard.objects.filter(org_id=org_id, uid=uid, is_folder=False)
-                    .values_list("folder_id", flat=True)
-                    .first()
-                )
-                if folder_id:
-                    resource_ids.append(f"{DashboardPermission.FOLDER_PREFIX}{org_id}|{folder_id}")
-                role, dashboard_permissions = DashboardPermission.get_visible_dashboards(
-                    username=request.user.username, org_name=org_name, resource_ids=resource_ids
+                _, role, dashboard_permissions = DashboardPermission.get_user_permission(
+                    username=request.user.username, org_name=org_name, dashboard_uids=[uid]
                 )
                 if role < GrafanaRole.Viewer and uid not in dashboard_permissions:
                     return HttpResponseRedirect(

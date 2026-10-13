@@ -17,7 +17,7 @@ specific language governing permissions and limitations under the License.
 #
 # 设计要点（旧 CompatibleIAM 兼容层已删除，本类是其替代）：
 #   - 不依赖 Django settings / GlobalConfig
-#   - 不依赖 bkmonitor.iam.action.get_action_by_id
+#   - 不依赖 bkmonitor.iam.handlers.actions.get_action_by_id
 #   - 使用注入的 NameCodec 做 action_id 编解码
 #   - enable_v1_compat 由构造参数控制（代替 DB 配置读取）
 #   - ACTION_COMPATIBLE_ALIASES 使用 Business ID

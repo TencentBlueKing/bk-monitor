@@ -22,7 +22,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 
-from bkmonitor.iam.action import (
+from bkmonitor.iam.handlers.actions import (
     ADMIN_ACTION_IDS,
     ALL_ACTION_IDS,
     CMDB_REQUIRE_ACTION_IDS,
@@ -121,7 +121,7 @@ class TestActionEnumSurface:
 
     def test_member_ids_are_business_ids(self):
         """新版 .id 为业务 ID；且业务 ID 与 V3 平台 ID 的映射与旧版定义一致。"""
-        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         codec = MonitorV3Codec()
         for name, (old_v3_id, _type, _name) in OLD_ACTION_SNAPSHOT.items():
@@ -189,7 +189,7 @@ class TestActionMetaCompatibility:
         assert set(rrt) == {"id", "system_id"}
         # 3. 旧版 SPACE_RESOURCE / APM_APPLICATION_RESOURCE / GRAFANA_DASHBOARD_RESOURCE /
         #    RUM_APPLICATION_RESOURCE 常量已删除（无外部调用方，见 review 报告）
-        import bkmonitor.iam.action as action_module
+        import bkmonitor.iam.handlers.actions as action_module
 
         for removed in (
             "SPACE_RESOURCE",
@@ -231,13 +231,13 @@ class TestActionConstants:
 
     def test_mini_action_ids(self):
         # 新版业务 ID 集合经 codec 编码后应等于旧版 V3 平台 ID 集合
-        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         codec = MonitorV3Codec()
         assert {codec.encode_action(aid) for aid in MINI_ACTION_IDS} == OLD_MINI_ACTION_IDS
 
     def test_cmdb_require_action_ids(self):
-        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         codec = MonitorV3Codec()
         assert {codec.encode_action(aid) for aid in CMDB_REQUIRE_ACTION_IDS} == OLD_CMDB_REQUIRE_ACTION_IDS
@@ -246,7 +246,7 @@ class TestActionConstants:
         assert set(ADMIN_ACTION_IDS) == OLD_ADMIN_ACTION_IDS
 
     def test_all_action_ids(self):
-        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         codec = MonitorV3Codec()
         assert {codec.encode_action(aid) for aid in ALL_ACTION_IDS} == {
@@ -263,7 +263,7 @@ class TestActionIdMappingConsistency:
     """codec 映射与 definitions 的完整性（鉴权路径一致性的前提）。"""
 
     def test_codec_roundtrip_all_actions(self, real_schema):
-        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         codec = MonitorV3Codec()
         for action in real_schema.all_actions():
@@ -273,7 +273,7 @@ class TestActionIdMappingConsistency:
             assert codec.decode_action(v3_id) == biz_id, v3_id
 
     def test_codec_identity_for_unmapped_ids(self):
-        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         codec = MonitorV3Codec()
         assert codec.encode_action("view_incident") == "view_incident"
@@ -281,7 +281,7 @@ class TestActionIdMappingConsistency:
 
     def test_read_action_types_complete(self):
         """所有 action 的 v3 type 均在 codec 的 action_types 中（读写缓存策略依赖）。"""
-        from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
         codec = MonitorV3Codec()
         for name, (old_v3_id, old_type, _old_name) in OLD_ACTION_SNAPSHOT.items():
@@ -293,25 +293,25 @@ class TestActionIdAliasCompatibility:
     """历史 Provider Action ID 只在系统边界归一化，框架主键仍保持业务 ID。"""
 
     def test_known_v3_alias_is_canonicalized(self):
-        from bkmonitor.iam.action import canonicalize_action_id
+        from bkmonitor.iam.handlers.actions import canonicalize_action_id
 
         assert canonicalize_action_id("view_business_v2") == "view_business"
         assert canonicalize_action_id("manage_apm_application_v2") == "manage_apm_application"
 
     def test_business_and_unknown_ids_are_not_guessed(self):
-        from bkmonitor.iam.action import canonicalize_action_id
+        from bkmonitor.iam.handlers.actions import canonicalize_action_id
 
         assert canonicalize_action_id("view_business") == "view_business"
         assert canonicalize_action_id("unknown_action_v2") == "unknown_action_v2"
 
     def test_registered_legacy_ids_are_available_for_compatible_responses(self):
-        from bkmonitor.iam.action import get_legacy_action_ids
+        from bkmonitor.iam.handlers.actions import get_legacy_action_ids
 
         assert get_legacy_action_ids("view_apm_application") == ("view_apm_application_v2",)
         assert get_legacy_action_ids("view_incident") == ()
 
     def test_all_declared_v3_ids_have_consistent_compatibility_mappings(self):
-        from bkmonitor.iam.action import canonicalize_action_id, get_legacy_action_ids
+        from bkmonitor.iam.handlers.actions import canonicalize_action_id, get_legacy_action_ids
 
         for name, (v3_action_id, _action_type, _action_name) in OLD_ACTION_SNAPSHOT.items():
             business_action_id = getattr(ActionEnum, name).id
@@ -320,7 +320,7 @@ class TestActionIdAliasCompatibility:
             assert get_legacy_action_ids(business_action_id) == expected_aliases
 
     def test_duplicate_legacy_alias_is_rejected(self):
-        from bkmonitor.iam.action import _build_legacy_action_id_mappings
+        from bkmonitor.iam.handlers.actions import _build_legacy_action_id_mappings
 
         actions = {
             "first": ActionDef(
@@ -345,7 +345,7 @@ class TestProviderVisibility:
     def _plan_v4_full(self, real_schema):
         from unittest.mock import MagicMock
 
-        from bkmonitor.iam.adapters.v4.codec import MonitorV4Codec
+        from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
         from iam_engine.schema.diff import EntityKind
         from bkmonitor.iam.backends.v4.config import V4SystemInfo
         from bkmonitor.iam.backends.v4.migrator import V4Migrator

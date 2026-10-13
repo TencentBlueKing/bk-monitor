@@ -35,7 +35,7 @@ from iam.exceptions import AuthAPIError
 from apm_web.models import Application
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from bkmonitor.iam.action import ActionMeta, get_action_by_id
+from bkmonitor.iam.handlers.actions import ActionMeta, get_action_by_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.common import DEFAULT_TENANT_ID
 
@@ -135,7 +135,7 @@ class Command(BaseCommand):
         self.upgrade_policy(concurrency)
 
         end_time = time.time()
-        print("[upgrade_iam_action_v2] ##### END #####, Cost: %d" % (end_time - start_time))
+        print(f"[upgrade_iam_action_v2] ##### END #####, Cost: {int(end_time - start_time)}")
 
         check_result = self.check_upgrade_polices()
         if check_result:
@@ -183,7 +183,7 @@ class Command(BaseCommand):
         for action in ACTIONS_TO_UPGRADE:
             old_action_id = action.id.replace("_v2", "")
             policies = policies_by_actions[old_action_id]
-            print("[grant_resource] [START] action[%s], policy count: %d" % (action.id, len(policies)))
+            print(f"[grant_resource] [START] action[{action.id}], policy count: {len(policies)}")
 
             total = len(policies)
             progress = 0
@@ -213,16 +213,9 @@ class Command(BaseCommand):
             global_progress += len(resources)
 
             print(
-                "[grant_resource] [%d%%(%d/%d)] grant permission for action: %s, progress: %d%% (%d/%d)"
-                % (
-                    global_progress / global_total * 100 if global_total > 0 else 0,
-                    global_progress,
-                    global_total,
-                    action.id,
-                    progress / total * 100 if total > 0 else 0,
-                    progress,
-                    total,
-                )
+                f"[grant_resource] [{int(global_progress / global_total * 100) if global_total > 0 else 0}%"
+                f"({global_progress}/{global_total})] grant permission for action: {action.id}, "
+                f"progress: {int(progress / total * 100) if total > 0 else 0}% ({progress}/{total})"
             )
 
             print(f"[grant_resource] [END] action[{action.id}]")
@@ -246,8 +239,8 @@ class Command(BaseCommand):
                 # 新策略数量少于旧策略是不正常的
                 no_ok_actions.append(result[0])
             print(
-                "[check_upgrade_polices] action[%s] old count: %d, new count: %d, diff: %d"
-                % (result[0], result[1], result[2], result[2] - result[1])
+                f"[check_upgrade_polices] action[{result[0]}] old count: {result[1]}, "
+                f"new count: {result[2]}, diff: {result[2] - result[1]}"
             )
 
         print("##### CHECK RESULT #####")

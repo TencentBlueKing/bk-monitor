@@ -11,8 +11,8 @@ specific language governing permissions and limitations under the License.
 from django.shortcuts import render
 from rest_framework import permissions
 
-from bkmonitor.iam.action import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.handlers.actions import ActionEnum
+from bkmonitor.iam.handlers.drf import BusinessActionPermission
 from bkmonitor.utils.request import get_request_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource

@@ -21,9 +21,9 @@ from bkmonitor.action.serializers.report import (
     ReportChannelSerializer,
     ReportContentSerializer,
 )
-from bkmonitor.iam.action import ActionEnum
-from bkmonitor.iam.permission import Permission
-from bkmonitor.iam.resource import ResourceEnum
+from bkmonitor.iam.handlers.actions import ActionEnum
+from bkmonitor.iam.handlers.permission import Permission
+from bkmonitor.iam.handlers.resources import ResourceEnum
 from bkmonitor.models import RenderImageTask, ReportItems
 from bkmonitor.utils.common_utils import to_dict
 from bkmonitor.utils.request import get_request, get_request_tenant_id

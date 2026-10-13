@@ -3,15 +3,14 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 # IAM 双栈并发
 #
-# pair 并发是拓扑编排能力，不属于 V3/V4 方言。实现放在这里而不是 iam_engine，
-# 因为要绑定 Django request / 时区 / OTel context。
+# pair 并发编排复用 iam_engine；本产品适配只绑定 Django request / 时区 / OTel context。
 #
 # V4 批量分片仍用 backends.v4.concurrency.map_chunks_concurrently；
 # 两边共用 bind_current_context，不要再抄一份线程变量恢复逻辑。
 # ---------------------------------------------------------------------------
 
 from collections.abc import Callable
-from concurrent.futures import ThreadPoolExecutor
+from iam_engine.concurrency import run_pair_concurrently as _run_pair
 from contextlib import nullcontext
 from typing import TypeVar
 
@@ -76,10 +75,4 @@ def run_pair_concurrently(
     max_workers <= 1 时串行执行，便于对照与调试。
     任一任务抛出的异常会在对应 future.result() 处原样抛出。
     """
-    if max_workers <= 1:
-        return left(), right()
-
-    with ThreadPoolExecutor(max_workers=2) as executor:
-        left_future = executor.submit(bind_current_context(left))
-        right_future = executor.submit(bind_current_context(right))
-        return left_future.result(), right_future.result()
+    return _run_pair(left, right, bind=bind_current_context, max_workers=max_workers)

@@ -8,6 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from bkmonitor.iam.backends.config import build_provider
+
 # ==============================================================================
 # resource.py 重构对照测试
 #
@@ -26,7 +28,7 @@ specific language governing permissions and limitations under the License.
 from unittest.mock import MagicMock, patch
 
 
-from bkmonitor.iam.resource import ApmApplication, Business, GrafanaDashboard, ResourceEnum, RumApplication
+from bkmonitor.iam.handlers.resources import ApmApplication, Business, GrafanaDashboard, ResourceEnum, RumApplication
 from iam_engine.provider.requests import ResourceInstance
 
 
@@ -92,7 +94,7 @@ class TestRemovedInterfaces:
     """旧版接口移除项显式记录（review 发现项）。"""
 
     def test_removed_class_attributes(self):
-        import bkmonitor.iam.resource as resource_module
+        import bkmonitor.iam.handlers.resources as resource_module
 
         for attr in (
             "system_id",
@@ -119,7 +121,7 @@ class TestMonitorResourceResolver:
     """MonitorResourceResolver 补全行为与旧版 create_instance 的 DB 查询语义一致。"""
 
     def _resolver(self):
-        from bkmonitor.iam.adapters.resolver import MonitorResourceResolver
+        from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
 
         return MonitorResourceResolver()
 
@@ -138,7 +140,7 @@ class TestMonitorResourceResolver:
         space.space_name = "蓝鲸"
         space.bk_tenant_id = "system"
         space_api.SpaceApi.get_space_detail.return_value = space
-        with patch("bkmonitor.iam.adapters.resolver.space_api", space_api):
+        with patch("bkmonitor.iam.handlers.resolver.space_api", space_api):
             r = resolver.resolve(ResourceInstance(type="space", id="2"), tenant_id="system")
         assert r.type == "space"
         assert r.id == "2"
@@ -148,14 +150,14 @@ class TestMonitorResourceResolver:
         resolver = self._resolver()
         space_api = MagicMock()
         space_api.SpaceApi.get_space_detail.side_effect = Exception("boom")
-        with patch("bkmonitor.iam.adapters.resolver.space_api", space_api):
+        with patch("bkmonitor.iam.handlers.resolver.space_api", space_api):
             r = resolver.resolve(ResourceInstance(type="space", id="999"), tenant_id="system")
         assert r.name == "999"  # 查不到时退化为实例 ID（旧版同）
 
     def test_resolve_apm(self):
         resolver = self._resolver()
         with patch(
-            "bkmonitor.iam.adapters.resolver.MonitorResourceResolver._get_apm_app_info",
+            "bkmonitor.iam.handlers.resolver.MonitorResourceResolver._get_apm_app_info",
             return_value={"application_id": "app-1", "app_name": "demo", "bk_biz_id": 2},
         ):
             r = resolver.resolve(ResourceInstance(type="apm_application", id="app-1"), tenant_id="system")
@@ -166,7 +168,7 @@ class TestMonitorResourceResolver:
 
     def test_resolve_apm_missing(self):
         resolver = self._resolver()
-        with patch("bkmonitor.iam.adapters.resolver.MonitorResourceResolver._get_apm_app_info", return_value=None):
+        with patch("bkmonitor.iam.handlers.resolver.MonitorResourceResolver._get_apm_app_info", return_value=None):
             r = resolver.resolve(ResourceInstance(type="apm_application", id="app-x"), tenant_id="system")
         assert r.name == ""
         assert r.ancestor_chain == ()
@@ -175,7 +177,7 @@ class TestMonitorResourceResolver:
         """grafana 实例补全经 catalog 查询（三种 ID 格式的解析逻辑在 catalog 侧）。"""
         resolver = self._resolver()
         with patch(
-            "bkmonitor.iam.adapters.resolver.catalog.fetch_instance_info",
+            "bkmonitor.iam.handlers.resolver.catalog.fetch_instance_info",
             return_value=[{"id": "1|uid-1", "display_name": "[仪表盘] General/大盘", "_bk_iam_path_": "/space,3/"}],
         ):
             r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="1|uid-1"), tenant_id="system")
@@ -186,7 +188,7 @@ class TestMonitorResourceResolver:
     def test_resolve_grafana_folder_format(self):
         resolver = self._resolver()
         with patch(
-            "bkmonitor.iam.adapters.resolver.catalog.fetch_instance_info",
+            "bkmonitor.iam.handlers.resolver.catalog.fetch_instance_info",
             return_value=[{"id": "folder:1|7", "display_name": "[目录] 运维大盘", "_bk_iam_path_": "/space,3/"}],
         ):
             r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="folder:1|7"), tenant_id="system")
@@ -196,7 +198,7 @@ class TestMonitorResourceResolver:
 
     def test_resolve_grafana_missing(self):
         resolver = self._resolver()
-        with patch("bkmonitor.iam.adapters.resolver.catalog.fetch_instance_info", return_value=[]):
+        with patch("bkmonitor.iam.handlers.resolver.catalog.fetch_instance_info", return_value=[]):
             r = resolver.resolve(ResourceInstance(type="grafana_dashboard", id="1|uid-missing"), tenant_id="system")
         assert r.name == ""
         assert r.ancestor_chain == ()
@@ -204,7 +206,7 @@ class TestMonitorResourceResolver:
     def test_resolve_rum(self):
         resolver = self._resolver()
         with patch(
-            "bkmonitor.iam.adapters.resolver.MonitorResourceResolver._get_rum_app_info",
+            "bkmonitor.iam.handlers.resolver.MonitorResourceResolver._get_rum_app_info",
             return_value={"application_id": "rum-1", "app_name": "r", "bk_biz_id": 7},
         ):
             r = resolver.resolve(ResourceInstance(type="rum_application", id="rum-1"), tenant_id="system")
@@ -222,12 +224,12 @@ class TestSdkResourceParity:
     """
 
     def _build_provider_with_client(self, real_schema):
-        from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
         from .conftest import build_v3_options
 
-        provider = V3PermissionProvider(real_schema, **build_v3_options())
+        provider = build_provider("v3", schema=real_schema, options={**build_v3_options()})
         mock_client = MagicMock()
         provider._get_client = MagicMock(return_value=mock_client)
+        provider.resolver = None
         return provider, mock_client
 
     def test_space_resource_payload_parity(self, real_schema):
@@ -239,22 +241,22 @@ class TestSdkResourceParity:
         assert (old_resource.system, old_resource.type, old_resource.id) == ("bk_monitorv3", "space", "2")
 
         # 新路径：方言层用 make_resource(type, id) 构建等价 SDK Resource
-        from iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
+        from iam_engine.core.requests import AuthRequest, ResourceInstance
         from iam_engine.provider.requests import Subject
 
         provider, mock_client = self._build_provider_with_client(real_schema)
-        req = DialectAuthRequest(
+        req = AuthRequest(
             subject=Subject(id="u", tenant_id="system"),
-            action_id="view_business_v2",
-            resource=DialectResource(type="space", id="2"),
+            action_id="view_business",
+            resources=(ResourceInstance(type="space", id="2"),),
         )
-        provider._is_allowed_dialect(req)
+        provider.is_allowed(req)
         # 方言层用 type/id 构造资源（system 由 client 内部固定为 bk_monitorv3）
-        mock_client.make_resource.assert_called_once_with("space", "2", ancestors=())
+        mock_client.make_resource.assert_called_once_with("space", "2", ancestors=(), attribute={})
 
     def test_apm_resource_ancestors_passed_to_sdk(self, real_schema):
         """APM 资源：resolver 补全的 ancestor_chain 经方言编码传入 SDK make_resource。"""
-        from iam_engine.provider.requests import AuthRequest, Subject
+        from iam_engine.core.requests import AuthRequest, Subject
 
         provider, mock_client = self._build_provider_with_client(real_schema)
 
@@ -266,7 +268,7 @@ class TestSdkResourceParity:
                 AuthRequest(
                     subject=Subject(id="u", tenant_id="system"),
                     action_id="view_apm_application",
-                    resource=ResourceInstance(type="apm_application", id="app-1"),
+                    resources=(ResourceInstance(type="apm_application", id="app-1"),),
                 )
             )
 
@@ -287,25 +289,24 @@ class TestProviderIsAllowedResourceHandling:
     def test_resource_free_action_drops_resource(self, real_schema):
         """旧版：action.related_resource_types 为空时 resources=[]；
         新版：方言层 _action_has_resource=False 时同样不传 SDK resources。"""
-        from iam_engine.provider.dialect_types import DialectAuthRequest, DialectResource
+        from iam_engine.core.requests import AuthRequest, ResourceInstance
         from iam_engine.provider.requests import Subject
 
         from .conftest import build_v3_options
 
         provider = MagicMock()
         # 直接用真实 provider 验证
-        from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
 
-        provider = V3PermissionProvider(real_schema, **build_v3_options())
+        provider = build_provider("v3", schema=real_schema, options={**build_v3_options()})
         mock_client = MagicMock()
         provider._get_client = MagicMock(return_value=mock_client)
 
-        req = DialectAuthRequest(
+        req = AuthRequest(
             subject=Subject(id="u", tenant_id="system"),
             action_id="manage_global_setting",
-            resource=DialectResource(type="space", id="2"),
+            resources=(ResourceInstance(type="space", id="2"),),
         )
-        provider._is_allowed_dialect(req)
+        provider.is_allowed(req)
         # 无资源 action：不构造 SDK resource
         mock_client.make_resource.assert_not_called()
         # request 的 resources 为空列表

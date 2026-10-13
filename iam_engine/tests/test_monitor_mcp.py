@@ -5,8 +5,9 @@ import pytest
 
 from iam import Action, Request, Resource, Subject as SDKSubject
 from iam_engine.core.config import AuthMode
-from bkmonitor.iam.adapters.mcp import MonitorMCPClient
-from bkmonitor.iam.permission import Permission
+from iam_engine.core.types import AuthResult
+from bkmonitor.iam.handlers.mcp import MonitorMCPClient
+from bkmonitor.iam.handlers.permission import Permission
 from iam_engine.exceptions import ProviderUnavailable
 
 
@@ -26,9 +27,9 @@ def test_mcp_does_not_treat_degraded_rejection_as_native_fallback(v3, v4, allowe
         provider = Mock(name=name)
         provider.name = name
         if isinstance(result, Exception):
-            provider.is_allowed.side_effect = result
+            provider.is_allowed.return_value = AuthResult.error(name, str(result) or type(result).__name__)
         else:
-            provider.is_allowed.return_value = result
+            provider.is_allowed.return_value = AuthResult.allow(name) if result is True else AuthResult.deny(name)
         providers.append(provider)
     mode = SimpleNamespace(get_mode=lambda resources=(): AuthMode.UNION)
     permission = Permission(username="alice", bk_tenant_id="tenant-a")

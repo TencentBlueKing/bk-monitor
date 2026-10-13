@@ -5,9 +5,9 @@ from functools import lru_cache
 
 from django.conf import settings
 from config.tools.iam_credentials import get_saas_setting
-from ..definitions.actions import Actions
-from ..definitions.resource_types import ResourceTypes
-from ..definitions.roles import Roles
+from bkmonitor.iam.definitions.actions import Actions
+from bkmonitor.iam.definitions.resource_types import ResourceTypes
+from bkmonitor.iam.definitions.roles import Roles
 from iam_engine.schema.registry import SchemaRegistry
 from iam_engine.schema.loaders import load_from_class
 
@@ -24,8 +24,6 @@ def get_schema():
 def provider_options(name, tenant_id="system"):
     if name == "v3":
         return {
-            "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
-            "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
             "base_url": settings.BK_IAM_V3_API_BASE_URL,
             "bk_tenant_id": tenant_id,
             "provider_config_path": os.getenv("BK_IAM_V3_RESOURCE_PATH", "/rest/v2/iam/resource/"),
@@ -55,8 +53,6 @@ def provider_options(name, tenant_id="system"):
         }
     if name == "v4":
         return {
-            "codec_class": "bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
-            "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
             "base_url": settings.BK_IAM_V4_APIGATEWAY_URL,
             "bk_tenant_id": tenant_id,
             "fallback_apply_url": settings.BK_IAM_SAAS_HOST,
@@ -80,23 +76,93 @@ def provider_options(name, tenant_id="system"):
     raise ValueError(f"Unknown IAM provider: {name!r}")
 
 
-def build_provider(name, tenant_id="system"):
-    options = provider_options(name, tenant_id)
+def build_provider(name, tenant_id="system", *, username="", schema=None, options=None):
+    """Explicitly inject native capabilities, codecs and clients, as in BKLog."""
+    if name not in {"v3", "v4"}:
+        raise ValueError(f"Unknown IAM provider: {name!r}")
+    from threading import RLock
+    from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
+
+    options = options if options is not None else provider_options(name, tenant_id)
+    schema = schema if schema is not None else get_schema()
+    clients = {}
+    lock = RLock()
     if name == "v3":
-        from .v3.provider import V3PermissionProvider
-        from ..adapters.v3.config import is_v1_compat_enabled
+        from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
+        from bkmonitor.iam.backends.v3.compat import is_v1_compat_enabled
+        from bkmonitor.iam.backends.v3.config import V3Options
+        from bkmonitor.iam.backends.v3.client import V3Client
+        from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
-        options["enable_v1_compat"] = is_v1_compat_enabled
-        cls = V3PermissionProvider
+        cfg = V3Options.from_dict(options)
+        codec = MonitorV3Codec(**options.get("codec_kwargs", {}))
+
+        def client_factory(request_tenant):
+            tid = request_tenant or cfg.bk_tenant_id
+            code, secret = str(cfg.credentials.app_code), str(cfg.credentials.app_secret)
+            key = (tid, code, secret)
+            with lock:
+                if key not in clients:
+                    clients[key] = V3Client(
+                        code,
+                        secret,
+                        cfg.base_url,
+                        cfg.system.id,
+                        codec,
+                        bk_tenant_id=tid,
+                        enable_v1_compat=options.get("enable_v1_compat", is_v1_compat_enabled),
+                    )
+                return clients[key]
+
+        return V3PermissionProvider(
+            None,
+            cfg.system.id,
+            codec=codec,
+            schema=schema,
+            resolver=MonitorResourceResolver(),
+            client_factory=client_factory,
+            configuration=cfg,
+            tenant_id=cfg.bk_tenant_id,
+            username=username,
+        )
     else:
-        from .v4.provider import V4PermissionProvider
+        from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
+        from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
+        from bkmonitor.iam.backends.v4.config import V4Options, make_client_options
+        from bkmonitor.iam.backends.v4.client import V4Client
         from iam_engine.v4.config import load_v4_paths
+        from dataclasses import replace
 
-        options["api_paths"] = load_v4_paths(settings)
-        cls = V4PermissionProvider
-    return cls(get_schema(), **options)
+        options = {"api_paths": load_v4_paths(settings), **options}
+        cfg = V4Options.from_dict(options)
+
+        def client_factory(request_tenant):
+            tid = request_tenant or cfg.bk_tenant_id
+            code, secret = str(cfg.credentials.app_code), str(cfg.credentials.app_secret)
+            key = (tid, code, secret)
+            with lock:
+                if key not in clients:
+                    clients[key] = V4Client(
+                        replace(make_client_options(cfg), app_code=code, app_secret=secret),
+                        username=username,
+                        bk_tenant_id=tid,
+                    )
+                return clients[key]
+
+        return V4PermissionProvider(
+            None,
+            codec=MonitorV4Codec(),
+            schema=schema,
+            resolver=MonitorResourceResolver(),
+            client_factory=client_factory,
+            configuration=cfg,
+            tenant_id=cfg.bk_tenant_id,
+            username=username,
+            batch_chunk_size=cfg.chunk_size,
+            batch_max_workers=cfg.max_workers,
+        )
 
 
-def build_providers(tenant_id="system"):
+def build_providers(tenant_id="system", *, username=""):
     names = ("v3", "v4") if settings.BK_IAM_V4_APIGATEWAY_URL else ("v3",)
-    return {name: build_provider(name, tenant_id) for name in names}
+    return {name: build_provider(name, tenant_id, username=username) for name in names}

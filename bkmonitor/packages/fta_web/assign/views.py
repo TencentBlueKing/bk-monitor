@@ -15,7 +15,7 @@ from rest_framework import permissions, viewsets
 
 from bkmonitor.action import serializers
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission, IAMPermission
+from bkmonitor.iam.handlers.drf import BusinessActionPermission, IAMPermission
 from bkmonitor.models import AlertAssignGroup, AlertAssignRule
 from bkmonitor.utils.request import get_request, get_request_tenant_id
 from constants.action import GLOBAL_BIZ_ID

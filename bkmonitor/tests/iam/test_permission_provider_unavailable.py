@@ -54,7 +54,7 @@ class _FakeResource:
 @pytest.fixture
 def fake_fw():
     """Control the product adapter boundary, without a framework singleton."""
-    from bkmonitor.iam.permission import Permission
+    from bkmonitor.iam.handlers.permission import Permission
 
     control = MagicMock()
     control.is_allowed.return_value = True
@@ -86,7 +86,7 @@ class TestIsAllowedProviderUnavailableFallback:
         mock_fw.is_allowed.side_effect = ProviderUnavailable("v4 down: base_url empty")
 
         perm = make_permission()
-        with caplog.at_level("ERROR", logger="bkmonitor.iam.permission"):
+        with caplog.at_level("ERROR", logger="bkmonitor.iam.handlers.permission"):
             result = perm.is_allowed("view_business", raise_exception=False)
 
         assert result is False
@@ -131,7 +131,7 @@ class TestBatchIsAllowedProviderUnavailableFallback:
         mock_fw.batch_by_resource.side_effect = ProviderUnavailable("v4 down")
 
         perm = make_permission()
-        with caplog.at_level("ERROR", logger="bkmonitor.iam.permission"):
+        with caplog.at_level("ERROR", logger="bkmonitor.iam.handlers.permission"):
             result = perm.batch_is_allowed(
                 actions=["view_business"],
                 resources=[[_FakeResource("space", "2")], [_FakeResource("space", "3")]],
@@ -182,7 +182,7 @@ class TestGetApplyUrlProviderUnavailableFallback:
         mock_fw.get_apply_url.side_effect = ProviderUnavailable("v4 down")
 
         perm = make_permission()
-        with caplog.at_level("ERROR", logger="bkmonitor.iam.permission"):
+        with caplog.at_level("ERROR", logger="bkmonitor.iam.handlers.permission"):
             url = perm.get_apply_url(["view_business"], resources=[_FakeResource("space", "2")])
 
         assert url == ""
@@ -195,31 +195,20 @@ class TestGetApplyUrlProviderUnavailableFallback:
 
 
 class TestGetApplyDataProviderUnavailableFallback:
-    def test_apply_data_error_falls_back_to_none(self, fake_fw, caplog):
-        """_fw.get_apply_data 抛 ProviderUnavailable 时 apply_data 降级为 None；
-        apply_url 独立走 get_apply_url 路径。"""
-        mock_fw, make_permission = fake_fw
-        mock_fw.get_apply_data.side_effect = ProviderUnavailable("v4 down")
-        mock_fw.get_apply_url.return_value = "http://iam/still-alive"
+    @pytest.mark.parametrize("error", [ProviderUnavailable("offline"), ProviderError("bad request")])
+    def test_native_application_failure_returns_safe_pair(self, error):
+        from types import SimpleNamespace
+        from django.conf import settings
+        from bkmonitor.iam.handlers.permission import Permission
+        from iam_engine.core.config import AuthMode
 
-        perm = make_permission()
-        with caplog.at_level("ERROR", logger="bkmonitor.iam.permission"):
-            data, url = perm.get_apply_data(["view_business"], resources=[_FakeResource("space", "2")])
-
-        assert data is None
-        # apply_url 分支独立，仍能拿到 URL
-        assert url == "http://iam/still-alive"
-        assert any("get_apply_data" in r.getMessage() for r in caplog.records)
-
-    def test_both_apply_data_and_apply_url_unavailable(self, fake_fw):
-        """极端场景：apply_data 和 apply_url 都不可达，两者都返回降级值，
-        整个流程仍不冒泡 500。"""
-        mock_fw, make_permission = fake_fw
-        mock_fw.get_apply_data.side_effect = ProviderUnavailable("v4 down")
-        mock_fw.get_apply_url.side_effect = ProviderUnavailable("v4 down")
-
-        perm = make_permission()
-        data, url = perm.get_apply_data(["view_business"], resources=[_FakeResource("space", "2")])
-
-        assert data is None
-        assert url == ""
+        permission = Permission(username="tester", bk_tenant_id="system")
+        provider = MagicMock()
+        provider.name = "v4"
+        provider.get_apply_data.side_effect = error
+        permission._providers = {"v4": provider}
+        permission.mode_provider = SimpleNamespace(get_mode=lambda resources=(): AuthMode.V4)
+        data, url = permission.get_apply_data(["view_business"], [_FakeResource("space", "2")])
+        assert data == {}
+        assert url == settings.BK_IAM_SAAS_HOST
+        provider.get_apply_data.assert_called_once()

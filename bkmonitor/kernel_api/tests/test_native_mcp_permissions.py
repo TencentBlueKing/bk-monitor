@@ -121,7 +121,7 @@ def io(monkeypatch):
     monitor.iam_client.get_apply_url.return_value = (True, "", "https://iam.invalid/monitor-apply")
     # Exercise the real MCP envelope adapter, with only the framework boundary mocked.
     # The shared router / provider decisions are tested separately without this mock.
-    from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+    from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
     from iam_engine.core.types import AuthDecision
 
     codec = MonitorV3Codec()
@@ -1691,11 +1691,11 @@ def test_execution_marker_is_restored_after_failure(request_factory, io):
 def test_standalone_and_unified_middleware_route_from_same_catalog(
     monkeypatch, request_factory, io, suffix, tool_name, args
 ):
-    for name in ("bkmonitor.iam", "bkmonitor.iam.action", "bkmonitor.iam.drf"):
+    for name in ("bkmonitor.iam", "bkmonitor.iam.handlers.actions", "bkmonitor.iam.handlers.drf"):
         monkeypatch.setitem(sys.modules, name, ModuleType(name))
     legacy = Mock(side_effect=AssertionError("legacy permission must not be called"))
-    sys.modules["bkmonitor.iam.action"].get_action_by_id = legacy
-    sys.modules["bkmonitor.iam.drf"].MCPPermission = legacy
+    sys.modules["bkmonitor.iam.handlers.actions"].get_action_by_id = legacy
+    sys.modules["bkmonitor.iam.handlers.drf"].MCPPermission = legacy
     handle = source_method(
         "kernel_api/middlewares/authentication.py",
         "AuthenticationMiddleware._handle_mcp_auth",
@@ -1738,11 +1738,11 @@ def test_standalone_and_unified_middleware_route_from_same_catalog(
 
 
 def test_middleware_preserves_exempt_space_discovery(monkeypatch, request_factory):
-    for name in ("bkmonitor.iam", "bkmonitor.iam.action", "bkmonitor.iam.drf"):
+    for name in ("bkmonitor.iam", "bkmonitor.iam.handlers.actions", "bkmonitor.iam.handlers.drf"):
         monkeypatch.setitem(sys.modules, name, ModuleType(name))
     legacy = Mock(side_effect=AssertionError("exempt tool must not query permissions"))
-    sys.modules["bkmonitor.iam.action"].get_action_by_id = legacy
-    sys.modules["bkmonitor.iam.drf"].MCPPermission = legacy
+    sys.modules["bkmonitor.iam.handlers.actions"].get_action_by_id = legacy
+    sys.modules["bkmonitor.iam.handlers.drf"].MCPPermission = legacy
     handle = source_method(
         "kernel_api/middlewares/authentication.py",
         "AuthenticationMiddleware._handle_mcp_auth",
@@ -1777,11 +1777,11 @@ def test_middleware_preserves_exempt_space_discovery(monkeypatch, request_factor
 
 
 def test_middleware_keeps_facade_and_target_tool_separate(monkeypatch, request_factory):
-    for name in ("bkmonitor.iam", "bkmonitor.iam.action", "bkmonitor.iam.drf"):
+    for name in ("bkmonitor.iam", "bkmonitor.iam.handlers.actions", "bkmonitor.iam.handlers.drf"):
         monkeypatch.setitem(sys.modules, name, ModuleType(name))
     legacy = Mock(side_effect=AssertionError("facade tool must not query permissions"))
-    sys.modules["bkmonitor.iam.action"].get_action_by_id = legacy
-    sys.modules["bkmonitor.iam.drf"].MCPPermission = legacy
+    sys.modules["bkmonitor.iam.handlers.actions"].get_action_by_id = legacy
+    sys.modules["bkmonitor.iam.handlers.drf"].MCPPermission = legacy
     handle = source_method(
         "kernel_api/middlewares/authentication.py",
         "AuthenticationMiddleware._handle_mcp_auth",
@@ -2480,7 +2480,10 @@ def test_routing_configuration_errors_are_logged_without_legacy_fallback(
 ):
     caplog.set_level(logging.INFO, logger=auth.__name__)
     monkeypatch.setattr(settings, "MCP_NATIVE_PERMISSION_TOOLS", ["unsupported"])
-    for name, attr in [("bkmonitor.iam.action", "get_action_by_id"), ("bkmonitor.iam.drf", "MCPPermission")]:
+    for name, attr in [
+        ("bkmonitor.iam.handlers.actions", "get_action_by_id"),
+        ("bkmonitor.iam.handlers.drf", "MCPPermission"),
+    ]:
         module = ModuleType(name)
         setattr(module, attr, Mock(side_effect=AssertionError("legacy must not be called")))
         monkeypatch.setitem(sys.modules, name, module)

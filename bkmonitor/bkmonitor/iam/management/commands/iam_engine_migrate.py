@@ -26,7 +26,7 @@ from django.conf import settings
 from django.core.management.base import BaseCommand
 
 from iam_engine.model.config import MigrationConfig
-from bkmonitor.iam.permission import Permission
+from bkmonitor.iam.handlers.permission import Permission
 from bkmonitor.iam.model.logging import summarize_system_migration
 from bkmonitor.iam.model.recorder import DjangoMigrationRecorder
 from iam_engine.model.loader import MigrationLoader

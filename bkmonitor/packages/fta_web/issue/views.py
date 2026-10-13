@@ -11,8 +11,8 @@ specific language governing permissions and limitations under the License.
 from django.urls import reverse
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import IAMPermission
-from bkmonitor.iam.resource import ResourceEnum
+from bkmonitor.iam.handlers.drf import IAMPermission
+from bkmonitor.iam.handlers.resources import ResourceEnum
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from core.drf_resource import resource
 from core.drf_resource.exceptions import CustomException

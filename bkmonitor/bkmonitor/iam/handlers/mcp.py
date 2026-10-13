@@ -6,7 +6,7 @@ the MCP native-permission fallback; an explicit union ALLOW still wins.
 
 from iam_engine.exceptions import ProviderUnavailable
 from iam_engine.provider.requests import ApplyURLRequest, AuthRequest, ResourceInstance, Subject
-from .v3.codec import MonitorV3Codec
+from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
 
 class MonitorMCPClient:

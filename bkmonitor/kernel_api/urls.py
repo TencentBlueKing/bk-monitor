@@ -19,7 +19,7 @@ from django.urls import include, path, re_path
 from rest_framework.documentation import include_docs_urls
 
 from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
-from bkmonitor.iam.adapters.v4.callback.views import MonitorV4ResourceCallbackView
+from bkmonitor.iam.views.resources_v4 import MonitorV4ResourceCallbackView
 from bkmonitor.utils.common_utils import package_contents
 from core.drf_resource.routers import ResourceRouter
 from kernel_api import views

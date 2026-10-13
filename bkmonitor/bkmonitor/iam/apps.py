@@ -52,9 +52,9 @@ class IAMConfig(AppConfig):
         self._initialized = True
 
         # Register the IAM retry task in workers before they receive any grants.
-        from bkmonitor.iam.adapters import grant_tasks  # noqa: F401
+        from bkmonitor.iam.tasks import grant  # noqa: F401
 
-        from .backends.config import get_schema
+        from bkmonitor.iam.backends.config import get_schema
 
         get_schema()
         self._maybe_auto_migrate()
@@ -113,7 +113,7 @@ class IAMConfig(AppConfig):
         self._do_auto_migration(migration_cfg)
 
     def _do_auto_migration(self, migration_cfg: dict) -> None:
-        from .permission import Permission
+        from bkmonitor.iam.handlers.permission import Permission
 
         permission = Permission(username="iam_model", bk_tenant_id="system")
         allow_destructive = migration_cfg.get("allow_destructive", False)
@@ -123,7 +123,7 @@ class IAMConfig(AppConfig):
         from iam_engine.schema.diff import MigrationPlan
 
         directory = migration_cfg.get("directory", "")
-        from .model.recorder import DjangoMigrationRecorder
+        from bkmonitor.iam.model.recorder import DjangoMigrationRecorder
 
         recorder = DjangoMigrationRecorder(
             database=migration_cfg.get("database", "default"),

@@ -54,7 +54,7 @@ class TestIamGenerateConfigCommand:
         assert "system" not in config
 
     def test_provider_controls_system_serialization(self, monkeypatch):
-        from bkmonitor.iam.permission import Permission
+        from bkmonitor.iam.handlers.permission import Permission
 
         permission = Permission(username="offline", bk_tenant_id="system")
         provider = permission.providers["v4"]

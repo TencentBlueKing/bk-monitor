@@ -32,8 +32,8 @@ from bkmonitor.dataflow.constant import (
 )
 from bkmonitor.dataflow.flow import DataFlow
 from bkmonitor.documents import AlertDocument
-from bkmonitor.iam.action import ActionEnum
-from bkmonitor.iam.permission import Permission
+from bkmonitor.iam.handlers.actions import ActionEnum
+from bkmonitor.iam.handlers.permission import Permission
 from bkmonitor.models import (
     ActionConfig,
     ActionSignal,

@@ -24,7 +24,7 @@ from bk_dataview.models import Dashboard, Org
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import ResourceEnum
-from bkmonitor.iam.adapters.tenant import get_callback_tenant_id
+from bkmonitor.iam.tenant import get_callback_tenant_id
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from metadata.models import Space, SpaceType

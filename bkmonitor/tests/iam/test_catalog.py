@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from unittest.mock import MagicMock, patch
 
-from bkmonitor.iam.adapters.catalog import (
+from bkmonitor.iam.handlers.catalog import (
     GrafanaRef,
     fetch_instance_info,
     list_instances,

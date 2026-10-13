@@ -6,13 +6,12 @@ from django.conf import settings
 from django.db import transaction
 
 from iam_engine.provider.capabilities import GrantFailureKind
-from bkmonitor.iam.adapters import grant_tasks
-from bkmonitor.iam.adapters.authorization import MonitorAuthorizationWriter
+from bkmonitor.iam.tasks import grant as grant_tasks
+from bkmonitor.iam.backends.v4.writer import V4AuthorizationWriter
 from iam_engine.exceptions import ProviderError, ProviderUnavailable
-from bkmonitor.iam.backends.grant import grant_creator_actions
+from tests.iam.helpers import grant_creator_actions
 from iam_engine.schema.registry import SchemaRegistry
-from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
-from bkmonitor.iam.backends.v4.provider import V4PermissionProvider
+from bkmonitor.iam.backends.config import build_provider
 
 
 @pytest.fixture
@@ -41,7 +40,10 @@ def providers(offline_django, monkeypatch):
         "credentials": {"app_code": "offline", "app_secret": "offline"},
         "system": {"id": "bk_monitorv3", "name": "Monitor", "provider_config": {"host": "https://example.test/"}},
     }
-    legacy, current = V3PermissionProvider(schema, **options), V4PermissionProvider(schema, **options)
+    legacy, current = (
+        build_provider("v3", schema=schema, options=options),
+        build_provider("v4", schema=schema, options=options),
+    )
     legacy._get_client, current._get_client = Mock(), Mock()
     legacy._get_client.return_value.grant_resource_creator_actions.return_value = (True, "success")
     dispatch = Mock()
@@ -52,15 +54,15 @@ def providers(offline_django, monkeypatch):
 def test_real_providers_both_grant_before_commit(providers, monkeypatch):
     legacy, current, dispatch = providers
     fixed = datetime(2026, 1, 1, tzinfo=timezone.utc)
-    monkeypatch.setattr("bkmonitor.iam.adapters.authorization.timezone.now", lambda: fixed)
+    monkeypatch.setattr("bkmonitor.iam.backends.v4.writer.timezone.now", lambda: fixed)
     with transaction.atomic():
         result = grant_creator_actions([legacy, current], "space", "-1", "user", tenant_id="tenant-b")
         assert result.is_success
         legacy._get_client.return_value.grant_resource_creator_actions.assert_called_once()
         current._get_client.return_value.add_authorization.assert_called_once()
-        payload = current._get_client.return_value.add_authorization.call_args.args[0]
+        payload = current._get_client.return_value.add_authorization.call_args.kwargs["items"]
         assert payload[0]["expired_at"] - int(fixed.timestamp()) == 365 * 86400
-        assert payload[0]["resources"] == [{"type": "space", "id": "-1"}]
+        assert payload[0]["resources"] == [{"type": "space", "id": "space|-1"}]
         assert payload[0]["subject"] == {"type": "user", "id": "user"}
         current._get_client.assert_called_with("tenant-b")
         dispatch.assert_not_called()
@@ -73,7 +75,7 @@ def test_real_django_on_commit_dispatch_and_frozen_payload(providers):
         result = grant_creator_actions([legacy, current], "space", "-1", "user", tenant_id="tenant-b")
         assert result.failed[0].retry_scheduled
         dispatch.assert_not_called()
-        frozen = current._get_client.return_value.add_authorization.call_args.args[0]
+        frozen = current._get_client.return_value.add_authorization.call_args.kwargs["items"]
     dispatch.assert_called_once()
     kwargs = dispatch.call_args.args[0]
     assert kwargs["payload"] == frozen
@@ -112,14 +114,14 @@ def test_v3_false_response_is_failed_but_does_not_block_v4(providers):
     ],
 )
 def test_grant_failure_classification(error, kind):
-    assert MonitorAuthorizationWriter.classify_failure(error) is kind
+    assert V4AuthorizationWriter.classify_failure(error) is kind
 
 
 @pytest.mark.parametrize("mode", ["v3", "v4", "union"])
 def test_read_mode_never_changes_actual_write_targets(providers, mode):
     from types import SimpleNamespace
     from iam_engine.core.config import AuthMode
-    from bkmonitor.iam.permission import Permission
+    from bkmonitor.iam.handlers.permission import Permission
     from iam import Resource
 
     legacy, current, _ = providers

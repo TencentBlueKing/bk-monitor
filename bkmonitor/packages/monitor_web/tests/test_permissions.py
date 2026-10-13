@@ -15,8 +15,8 @@ import pytest
 from django.test import override_settings
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.iam.permission import Permission, api_paths
+from bkmonitor.iam.handlers.drf import BusinessActionPermission
+from bkmonitor.iam.handlers.permission import Permission, api_paths
 from bkmonitor.utils.tenant import is_biz_in_tenant
 from monitor_web.permissions import BusinessViewPermission
 
@@ -51,7 +51,7 @@ def make_iam_permission(token="share-token", path="/api/v4/scene_view/host/"):
 @pytest.mark.parametrize("action", [ActionEnum.VIEW_HOST, ActionEnum.VIEW_HOST.id])
 def test_host_token_allows_view_host_without_iam(mocker, action):
     mocker.patch(
-        "bkmonitor.iam.permission.ApiAuthToken.objects.get",
+        "bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get",
         return_value=SimpleNamespace(type="host"),
     )
     permission = make_iam_permission()
@@ -63,7 +63,7 @@ def test_host_token_allows_view_host_without_iam(mocker, action):
 @pytest.mark.parametrize("token_type", ["collect", "custom_metric", "custom_event"])
 def test_non_host_scene_token_does_not_bypass_view_host_iam(mocker, token_type):
     mocker.patch(
-        "bkmonitor.iam.permission.ApiAuthToken.objects.get",
+        "bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get",
         return_value=SimpleNamespace(type=token_type),
     )
     permission = make_iam_permission()
@@ -75,7 +75,7 @@ def test_non_host_scene_token_does_not_bypass_view_host_iam(mocker, token_type):
 @pytest.mark.parametrize("api_path", api_paths)
 def test_api_query_path_keeps_token_permission_bypass(mocker, api_path):
     mocker.patch(
-        "bkmonitor.iam.permission.ApiAuthToken.objects.get",
+        "bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get",
         return_value=SimpleNamespace(type="api"),
     )
     permission = make_iam_permission(path=f"/api/v4/{api_path.lstrip('/')}")
@@ -134,8 +134,8 @@ def test_is_biz_in_tenant_denies_unknown_business(mocker):
 
 
 def test_business_action_permission_denies_cross_tenant_request(mocker):
-    check_tenant = mocker.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=False)
-    iam_permission = mocker.patch("bkmonitor.iam.drf.IAMPermission.has_permission")
+    check_tenant = mocker.patch("bkmonitor.iam.handlers.drf.is_biz_in_tenant", return_value=False)
+    iam_permission = mocker.patch("bkmonitor.iam.handlers.drf.IAMPermission.has_permission")
     request = make_request()
 
     allowed = BusinessActionPermission([ActionEnum.VIEW_BUSINESS]).has_permission(request, None)
@@ -146,8 +146,8 @@ def test_business_action_permission_denies_cross_tenant_request(mocker):
 
 
 def test_business_action_permission_denies_cross_tenant_object(mocker):
-    check_tenant = mocker.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=False)
-    iam_permission = mocker.patch("bkmonitor.iam.drf.IAMPermission.has_object_permission")
+    check_tenant = mocker.patch("bkmonitor.iam.handlers.drf.is_biz_in_tenant", return_value=False)
+    iam_permission = mocker.patch("bkmonitor.iam.handlers.drf.IAMPermission.has_object_permission")
     request = make_request()
     obj = SimpleNamespace(bk_biz_id=3)
 

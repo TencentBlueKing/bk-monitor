@@ -1,112 +1,49 @@
-"""
-Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2025 Tencent. All rights reserved.
-Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at http://opensource.org/licenses/MIT
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
-specific language governing permissions and limitations under the License.
-"""
+"""Both Monitor and BKLog use native shared V4 transport errors."""
 
-# ==============================================================================
-# 阶段 1 · 评论 1 后半 —— V4Client 传输层异常兜底
-#
-# 覆盖：Timeout / HTTPError 之外的 `RequestException` 子类
-# （MissingSchema / InvalidURL / ConnectionError / SSLError 等）都必须被
-# V4Client 内部转换成 ProviderUnavailable，绝不冒泡到视图层变成 500。
-#
-# 具体触发场景：BKAPP_IAM_V4_API_BASE_URL 为空 → base_url="" → requests 抛
-# MissingSchema。这条兜底是"迁移期忘配 URL 也不炸"的最后一道防线。
-# ==============================================================================
-
+from types import SimpleNamespace
+from unittest.mock import Mock
 import pytest
 import requests
-
-from iam_engine.exceptions import ProviderUnavailable
 from bkmonitor.iam.backends.v4.client import V4Client
-from iam_engine.v4.exceptions import V4TransportError
+from iam_engine.v4.config import V4Options, load_v4_paths
+from iam_engine.v4.exceptions import V4ClientError, V4TransportError, V4TimeoutError
 
 
-def _client(base_url: str = "") -> V4Client:
-    return V4Client(
-        base_url=base_url,
-        system_id="bk_monitor_v4",
-        app_code="test_app",
-        app_secret="test_secret",
-        timeout=1,
-    )
+def client(gateway="https://iam.example.test"):
+    options = V4Options("offline", "offline", gateway, "bk_monitorv3", 1, 20, 4, **load_v4_paths(SimpleNamespace()))
+    return V4Client(options, bk_tenant_id="system")
 
 
-class TestV4ClientMissingSchema:
-    """base_url 为空时最直接会触发的场景。"""
-
-    def test_post_missing_schema_raises_provider_unavailable(self):
-        client = _client(base_url="")
-        with pytest.raises(ProviderUnavailable) as exc:
-            client._post("/api/v1/foo", {})
-        assert "transport unavailable" in str(exc.value)
-        assert isinstance(exc.value.__cause__, V4TransportError)
-
-    def test_get_missing_schema_raises_provider_unavailable(self):
-        client = _client(base_url="")
-        with pytest.raises(ProviderUnavailable) as exc:
-            client._get("/api/v1/foo")
-        assert isinstance(exc.value.__cause__, V4TransportError)
-
-    def test_put_missing_schema_raises_provider_unavailable(self):
-        client = _client(base_url="")
-        with pytest.raises(ProviderUnavailable) as exc:
-            client._put("/api/v1/foo", {})
-        assert isinstance(exc.value.__cause__, V4TransportError)
-
-    def test_delete_missing_schema_raises_provider_unavailable(self):
-        client = _client(base_url="")
-        with pytest.raises(ProviderUnavailable) as exc:
-            client._delete("/api/v1/foo")
-        assert isinstance(exc.value.__cause__, V4TransportError)
+@pytest.mark.parametrize(
+    "method,args", [("_post", ("path/", {})), ("_get", ("path/",)), ("_put", ("path/", {})), ("_delete", ("path/",))]
+)
+def test_empty_gateway_rejects_before_network(monkeypatch, method, args):
+    send = Mock()
+    monkeypatch.setattr(requests, "request", send)
+    with pytest.raises(V4TransportError):
+        getattr(client(""), method)(*args)
+    send.assert_not_called()
 
 
-class TestV4ClientConnectionError:
-    """网络断开 / DNS 失败 → ConnectionError，也应该走兜底。"""
-
-    def test_connection_error_raises_provider_unavailable(self, mocker):
-        client = _client(base_url="http://iam.example.com")
-        mocker.patch(
-            "iam_engine.v4.client.requests.request",
-            side_effect=requests.exceptions.ConnectionError("dns failure"),
-        )
-        with pytest.raises(ProviderUnavailable) as exc:
-            client._post("/api/v1/foo", {})
-        assert "transport unavailable" in str(exc.value)
-        assert isinstance(exc.value.__cause__.__cause__, requests.exceptions.ConnectionError)
-
-
-class TestV4ClientTimeoutStillMapped:
-    """回归保护：Timeout 分支未被 RequestException 兜底吞掉。"""
-
-    def test_timeout_still_raises_provider_unavailable(self, mocker):
-        client = _client(base_url="http://iam.example.com")
-        mocker.patch(
-            "iam_engine.v4.client.requests.request",
-            side_effect=requests.Timeout(),
-        )
-        with pytest.raises(ProviderUnavailable) as exc:
-            client._get("/api/v1/foo")
-        # Timeout 走的是专门分支，msg 用 "timeout" 关键字
-        assert isinstance(exc.value.__cause__.__cause__, requests.Timeout)
+@pytest.mark.parametrize(
+    "error,expected",
+    [
+        (requests.ConnectionError("dns"), V4TransportError),
+        (requests.Timeout("timeout"), V4TimeoutError),
+        (requests.exceptions.InvalidURL("invalid"), V4TransportError),
+    ],
+)
+def test_request_exceptions_share_native_mapping(monkeypatch, error, expected):
+    monkeypatch.setattr(requests, "request", Mock(side_effect=error))
+    with pytest.raises(expected) as caught:
+        client()._post("path/", {})
+    assert caught.value.__cause__ is error
 
 
-class TestV4ClientHTTPErrorStillMapped:
-    """回归保护：HTTPError 分支仍然是 ProviderUnavailable(code=...)，未被兜底覆盖。"""
-
-    def test_http_error_still_raises_with_status_code(self, mocker):
-        client = _client(base_url="http://iam.example.com")
-        fake_resp = mocker.MagicMock()
-        fake_resp.status_code = 502
-        fake_resp.text = "bad gateway"
-        fake_resp.json.return_value = {"error": {"message": "bad gateway"}}
-        mocker.patch("iam_engine.v4.client.requests.request", return_value=fake_resp)
-
-        with pytest.raises(ProviderUnavailable) as exc:
-            client._post("/api/v1/foo", {})
-        assert exc.value.code == 502
+def test_http_status_preserved_for_retry_classification(monkeypatch):
+    response = Mock(status_code=502, text="bad gateway", content=b"json")
+    response.json.return_value = {"error": {"message": "bad gateway"}}
+    monkeypatch.setattr(requests, "request", Mock(return_value=response))
+    with pytest.raises(V4ClientError) as caught:
+        client()._get("path/")
+    assert caught.value.status_code == 502

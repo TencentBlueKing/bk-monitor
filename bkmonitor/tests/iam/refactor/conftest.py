@@ -25,6 +25,8 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+from bkmonitor.iam.backends.config import build_provider
+
 import copy
 import os
 import warnings
@@ -36,7 +38,13 @@ from iam_engine.schema.loaders import load_from_class
 from iam_engine.schema.registry import SchemaRegistry
 from types import SimpleNamespace
 from iam_engine.core.config import AuthMode
-from iam_engine.provider.codec_provider import PermissionProvider
+from iam_engine.provider.base import PermissionProvider
+from iam_engine.core.types import (
+    AuthorizedResourceScope,
+    AuthResult,
+    BatchAuthResult as NativeBatchResult,
+    BatchAuthResultItem,
+)
 
 # ---------------------------------------------------------------------------
 # 旧版快照（取自本分支 merge-base 7b360f40 的 bkmonitor/iam/action.py）
@@ -319,8 +327,8 @@ def real_schema() -> SchemaRegistry:
 def build_v3_options(**overrides) -> dict:
     """构造 V3Provider options（默认指向本地假地址，测试中 client 会被替换）。"""
     options = {
-        "codec_class": "bkmonitor.iam.adapters.v3.codec.MonitorV3Codec",
-        "resolver_class": "bkmonitor.iam.adapters.resolver.MonitorResourceResolver",
+        "codec_class": "bkmonitor.iam.backends.v3.codec.MonitorV3Codec",
+        "resolver_class": "bkmonitor.iam.handlers.resolver.MonitorResourceResolver",
         "base_url": "https://iam.invalid/",
         "bk_tenant_id": "system",
         "credentials": {"app_code": "test_app", "app_secret": "test_secret"},
@@ -337,10 +345,9 @@ def v3_provider_factory(real_schema):
     """返回可注入 mock client 的 V3PermissionProvider 工厂。"""
 
     def _build(**options_overrides) -> tuple[PermissionProvider, Any]:
-        from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
         from unittest.mock import MagicMock
 
-        provider = V3PermissionProvider(real_schema, **build_v3_options(**options_overrides))
+        provider = build_provider("v3", schema=real_schema, options={**build_v3_options(**options_overrides)})
         mock_client = MagicMock()
         provider._get_client = MagicMock(return_value=mock_client)  # type: ignore[method-assign]
         return provider, mock_client
@@ -351,12 +358,12 @@ def v3_provider_factory(real_schema):
 @pytest.fixture
 def installed_permission(real_schema, monkeypatch):
     """Inject backend dependencies into the real product Permission."""
-    from bkmonitor.iam import permission as module
+    from bkmonitor.iam.handlers import permission as module
 
     class Installer:
         def build(self, providers, schema=None):
             monkeypatch.setattr(module, "get_schema", lambda: schema or real_schema)
-            monkeypatch.setattr(module, "build_providers", lambda tenant_id: {p.name: p for p in providers})
+            monkeypatch.setattr(module, "build_providers", lambda tenant_id, **kwargs: {p.name: p for p in providers})
             monkeypatch.setattr(
                 module, "get_mode_provider", lambda: SimpleNamespace(get_mode=lambda resources=(): AuthMode.V3)
             )
@@ -386,49 +393,80 @@ def fake_permission(installed_permission, real_schema):
             self.visible = None  # VisibleResult
             self.creator_grant_error = None
             self.creator_grant_calls: list = []
+            from iam_engine.provider.codec import IdentityCodec
+
+            self.codec = IdentityCodec()
+            self.system_id = "bk_monitorv3"
+
+        def _get_client(self, tenant_id):
+            def grant(application):
+                self.creator_grant_calls.append(
+                    (application["type"], application["id"], application["creator"], None, tenant_id)
+                )
+                if self.creator_grant_error:
+                    raise self.creator_grant_error
+                return True, ""
+
+            return SimpleNamespace(grant_resource_creator_actions=grant)
 
         def is_allowed(self, request):
             self.is_allowed_calls.append(request)
             if isinstance(self.is_allowed_result, Exception):
                 raise self.is_allowed_result
-            return self.is_allowed_result
+            return AuthResult.allow(self.name) if self.is_allowed_result is True else AuthResult.deny(self.name)
 
-        def batch_by_resource(self, request):
-            return self.batch_result
+        def batch_is_allowed(self, request):
+            if isinstance(self.batch_result, dict):
+                return NativeBatchResult(
+                    tuple(
+                        BatchAuthResultItem(
+                            a,
+                            r,
+                            AuthResult.allow(self.name)
+                            if self.batch_result.get(r, {}).get(a) is True
+                            else AuthResult.deny(self.name),
+                        )
+                        for a, r in request.iter_keys()
+                    )
+                )
+            if isinstance(self.batch_result, NativeBatchResult):
+                return self.batch_result
+            return NativeBatchResult(
+                tuple(
+                    BatchAuthResultItem(
+                        i.action_id,
+                        i.resource_id,
+                        AuthResult.allow(self.name) if i.allowed is True else AuthResult.deny(self.name),
+                    )
+                    for i in self.batch_result.items
+                )
+            )
 
         def get_apply_url(self, request):
             return self.apply_url
 
-        def get_apply_data(self, action_ids, resources, subject):
-            return self.apply_data
+        def get_apply_data(self, action_ids, resources=None):
+            return self.apply_data, self.apply_url
+
+        def list_authorized_resources(self, *, action_id, resource_type, subject, candidate_ids):
+            from iam_engine.core.requests import Subject, ResourceInstance
+
+            try:
+                visible = self.filter_visible_resources(
+                    Subject(subject["id"]), action_id, tuple(ResourceInstance(resource_type, i) for i in candidate_ids)
+                )
+                return (
+                    AuthorizedResourceScope.wildcard(resource_type, provider_name=self.name)
+                    if visible.all_granted
+                    else AuthorizedResourceScope.concrete(
+                        resource_type, set(visible.visible_ids), provider_name=self.name
+                    )
+                )
+            except Exception as error:
+                return AuthorizedResourceScope.error(resource_type, provider_name=self.name, reason=str(error))
 
         def filter_visible_resources(self, subject, action_id, candidates):
             return self.visible
-
-        def grant_creator_action(self, resource_type, resource_id, creator, expired_at=None, tenant_id=""):
-            self.creator_grant_calls.append((resource_type, resource_id, creator, expired_at, tenant_id))
-            if self.creator_grant_error is not None:
-                raise self.creator_grant_error
-
-        # ---- PermissionProvider 抽象方言方法：本桩不直接使用（框架层只调
-        #      is_allowed / batch_by_resource 等非抽象接口），补实现以满足实例化 ----
-        def _is_allowed_dialect(self, request):
-            raise NotImplementedError
-
-        def _batch_by_resource_dialect_page(self, request):
-            raise NotImplementedError
-
-        def _batch_by_action_dialect_page(self, request):
-            raise NotImplementedError
-
-        def _get_apply_url_dialect(self, request):
-            raise NotImplementedError
-
-        def plan_migration(self, schema, *, scope="full"):
-            raise NotImplementedError
-
-        def apply_migration(self, plan, *, dry_run=False, allow_destructive=False):
-            raise NotImplementedError
 
         def health_check(self):
             return {"status": "ok", "provider": self.name}
@@ -453,7 +491,7 @@ def live_framework():
 
     仅查询类接口会被用例调用；本 fixture 本身不触发任何写操作。
     """
-    from bkmonitor.iam.permission import Permission
+    from bkmonitor.iam.handlers.permission import Permission
 
     return Permission(username=os.getenv("BK_IAM_ENGINE_USER", "offline"), bk_tenant_id="system")
 

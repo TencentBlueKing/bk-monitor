@@ -20,9 +20,9 @@ from typing import Protocol
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 
-from ....backends.v4.client import V4Client
-from ....backends.v4.config import V4Options
-from .config import get_v4_callback_config
+from bkmonitor.iam.backends.v4.client import V4Client
+from bkmonitor.iam.backends.v4.config import V4Options, make_client_options
+from bkmonitor.iam.views.callback_config import get_v4_callback_config
 
 logger = logging.getLogger(__name__)
 
@@ -47,13 +47,8 @@ class AuthTokenClient(Protocol):
 
 def _build_v4_client(config: V4Options) -> V4Client:
     return V4Client(
-        base_url=config.base_url,
-        system_id=config.system.id,
-        app_code=config.credentials.app_code,
-        app_secret=config.credentials.app_secret,
-        timeout=config.timeout,
+        make_client_options(config),
         bk_tenant_id=config.bk_tenant_id,
-        api_paths=config.extra.get("api_paths"),
     )
 
 

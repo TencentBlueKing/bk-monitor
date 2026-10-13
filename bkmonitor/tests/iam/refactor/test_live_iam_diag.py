@@ -34,7 +34,7 @@ from pathlib import Path
 import pytest
 
 from bkmonitor.iam import Permission, ResourceEnum
-from bkmonitor.iam.adapters.v3.codec import MonitorV3Codec
+from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
 pytestmark = [pytest.mark.live, pytest.mark.django_db(databases=["default", "monitor_api"])]
 

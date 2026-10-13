@@ -15,7 +15,7 @@ from rest_framework.response import Response
 from bkmonitor.action import serializers
 from bkmonitor.action.serializers import DutySwitchSlz
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.handlers.drf import BusinessActionPermission
 from bkmonitor.models import DutyPlan, DutyRule, DutyRuleSnap, UserGroup
 from bkmonitor.utils.request import get_request
 from core.drf_resource import resource

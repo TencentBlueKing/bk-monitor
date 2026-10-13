@@ -103,7 +103,7 @@ def main():
         settings.SAAS_APP_CODE = "offline-saas"
         settings.SAAS_SECRET_KEY = "offline-only"
         django.setup()
-        from bkmonitor.iam.permission import Permission
+        from bkmonitor.iam.handlers.permission import Permission
 
         permission = Permission(username="offline_user", bk_tenant_id="system")
         print(
@@ -117,7 +117,7 @@ def main():
             from celery import current_app
 
             current_app.finalize()
-            assert "bkmonitor.iam.adapters.grant_tasks.grant_v4_creator_action" in current_app.tasks
+            assert "bkmonitor.iam.tasks.grant.grant_v4_creator_action" in current_app.tasks
             print("Frozen V4 grant task registered")
             return 0
         tests = tests or ["tests/iam", "-m", "not live"]

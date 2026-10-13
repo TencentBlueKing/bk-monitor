@@ -31,10 +31,10 @@ from bkm_space.utils import api as space_api
 
 from iam_engine.provider.requests import ResourceInstance, to_resource_type_id
 from iam_engine.provider.resolver import ResourceResolver
-from ..definitions.resource_types import ResourceTypes
+from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from bkmonitor.utils.cache import lru_cache_with_ttl
 
-from . import catalog
+from bkmonitor.iam.handlers import catalog
 
 logger = logging.getLogger(__name__)
 
@@ -68,11 +68,15 @@ class MonitorResourceResolver(ResourceResolver):
     根据 type + id 查询 DB，补全 name / ancestor_chain。
     配置方式：
         产品 backend 配置 =
-            "bkmonitor.iam.adapters.resolver.MonitorResourceResolver"
+            "bkmonitor.iam.handlers.resolver.MonitorResourceResolver"
     """
 
     def resolve(self, resource: ResourceInstance, *, tenant_id: str) -> ResourceInstance:
         rt_id = to_resource_type_id(resource.type)
+        if rt_id in {ResourceTypes.APM_APPLICATION.id, ResourceTypes.RUM_APPLICATION.id} and resource.ancestor_chain:
+            # Product list serializers already supply the same local metadata.
+            # Retain the V3 instance_create_func boundary instead of re-querying per row.
+            return resource
         if rt_id == ResourceTypes.SPACE.id:
             return self._resolve_space(resource, tenant_id=tenant_id)
         if rt_id == ResourceTypes.APM_APPLICATION.id:

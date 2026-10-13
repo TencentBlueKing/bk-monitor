@@ -36,3 +36,25 @@ def test_products_reference_same_common_source():
     root = Path(__file__).resolve().parents[2]
     assert (root / "bkmonitor/iam_engine").resolve() == root / "iam_engine"
     assert (root / "bklog/iam_engine").resolve() == root / "iam_engine"
+
+
+def test_monitor_native_provider_assembly_has_no_intermediate_adapters():
+    from bkmonitor.iam.handlers.permission import Permission
+    from bkmonitor.iam.backends.v4.client import V4Client as MonitorV4Client
+    from iam_engine.core.config import AuthMode
+    from iam_engine.provider.router import ModeRouter
+    from iam_engine.provider.base import PermissionProvider
+    from iam_engine.v4.client import V4Client
+
+    permission = Permission(username="offline", bk_tenant_id="system")
+    assert isinstance(permission.mode_router, ModeRouter)
+    for mode in (AuthMode.V3, AuthMode.V4):
+        bundle = permission.provider_bundles[mode]
+        assert isinstance(bundle.auth, PermissionProvider)
+        assert bundle.auth is bundle.application is bundle.scope is permission.providers[mode.value]
+        assert bundle.writer.provider is bundle.auth
+    assert issubclass(MonitorV4Client, V4Client)
+    product = Path(__file__).resolve().parents[2] / "bkmonitor/bkmonitor/iam"
+    assert not list((product / "adapters").rglob("*.py"))
+    assert not (product / "backends/auth.py").exists()
+    assert not (product / "backends/grant.py").exists()

@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from rum_web.metric.resources import RumAlertQueryResource
-from bkmonitor.iam.drf import ViewBusinessPermission
+from bkmonitor.iam.handlers.drf import ViewBusinessPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 

@@ -9,19 +9,30 @@ BKLog 与监控实际引用根目录同一份 `iam_engine`；产品目录中的
 - `provider/`：ModeRouter、Union 决策/范围合并、能力 Bundle 和执行器协议。
 - `migration/`：申请选边、独立双写、注入式事务提交 hook、新建资源授权的冻结请求重试。
 - `settings.py`、`v4/`：BKLog 既有环境变量映射、选项归一化、网关、HTTP 和响应校验。
-- 产品适配：BKLog `apps.iam.backends`；监控 `bkmonitor.iam.backends` 与 `adapters`。
+- 产品适配：两边均由 `handlers/` 对外提供产品 Permission/DRF 接口，
+  `backends/v3/` 与 `backends/v4/` 提供原生能力，`views/` 提供 callback、`tasks/` 提供重试。
   Action、资源、角色、codec、租户/资源归属、回调和策略 AST 仍由产品负责。
 
 公共层不 import 任一产品业务模块。两平台保留 Permission/DRF 对外接口，
 由 Permission 直接装配公共 ModeRouter。监控不再保留 IAMFramework、ProviderRouter、
 SharedMigrationPolicy、框架单例或 IAM_FRAMEWORK 配置目录。产品 backend 只负责
 协议、codec、资源解析和 IAM 模型；布尔决策、范围合并与双写编排复用公共实现。
+监控 Provider 直接实现公共 PermissionProvider，申请和范围能力也由原生 Provider 提供，
+不再通过 MonitorAuthAdapter/方言转换层装配；V4 Client 继承共同通信底座。
+根目录 Action/Resource/Permission/DRF 模块仅保留既有 V3 导入兼容，不参与额外装配。
 
 公共 schema/、policy/、model/ 提供不依赖 Django 的模型和策略工具。监控的
 Django 信号、模型注册记录及管理命令放在产品侧；模型注册不等于存量权限迁移。
 
-`PairExecutor` 由上层注入。BKLog 继续使用带请求上下文的双路执行器；监控目前顺序
-执行两侧，保留租户上下文。不要在公共层读取产品配置中心或另起没有上下文的线程。
+`PairExecutor` 由上层注入。双产品并发和有序分页共用 `concurrency.py`，产品只负责
+绑定/恢复本身的请求、租户、时区和 OTel 上下文。不要在公共层读取产品配置中心。
+配置 max_workers=1 时仍可串行对照；线程池结果按输入顺序归并。
+
+产品差异限于实际语义：监控的 Action/资源/角色、空间 ID 编码、V3 策略 AST，
+Grafana 文件夹覆盖、模型注册命令，以及 SaaS 凭据和本地请求上下文来源。
+业务调用方传用户名、业务 ID、仪表盘 UID；不自行拼祖先资源或导入引擎 DTO。
+Grafana 对外保留 `(allowed, role, permissions)` 契约，父文件夹覆盖在权限服务展开；
+APM 旧 permission Action key 在 DRF 边界生成，无需逐个视图开启兼容开关。
 
 ## 已确定的运行规则
 

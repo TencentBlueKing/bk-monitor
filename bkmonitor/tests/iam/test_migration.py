@@ -20,7 +20,7 @@ import pytest
 from django.conf import settings
 
 from iam_engine.exceptions import MigrationPreCheckFailed
-from bkmonitor.iam.permission import Permission
+from bkmonitor.iam.handlers.permission import Permission
 from iam_engine.model.diff import diff_snapshots
 from iam_engine.model.loader import MigrationLoader
 from iam_engine.model.planner import MigrationPlanner

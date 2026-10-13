@@ -1,0 +1,71 @@
+"""V3 product application data; same tuple capability as BKLog."""
+
+from iam.apply.models import (
+    ActionWithoutResources,
+    ActionWithResources,
+    Application,
+    RelatedResourceType,
+    ResourceInstance,
+    ResourceNode,
+)
+from iam.utils import gen_perms_apply_data
+from iam_engine.core.requests import to_definition_id
+
+
+class V3ApplicationBuilder:
+    def __init__(self, provider):
+        self.provider = provider
+
+    def get_apply_data(self, actions, resources):
+        p = self.provider
+        client = p.client
+        resolved = [p._resolve(r, tenant_id=p.tenant_id) for r in resources]
+        sdk_actions, action_resources = [], []
+        for action in actions:
+            aid = to_definition_id(action)
+            encoded = p.codec.encode_action(aid)
+            definition = p.schema.get_action(aid)
+            rt = definition.resource_type
+            matched = [r for r in resolved if to_definition_id(r.type) == rt]
+            sdk_resources = []
+            for resource in matched:
+                sdk_resource = p.codec.encode_resource(resource, client)
+                sdk_resource.attribute["name"] = resource.name or resource.id
+                sdk_resources.append(sdk_resource)
+            action_resources.append(
+                {"action": client.make_action(encoded), "resources_list": [sdk_resources] if sdk_resources else [[]]}
+            )
+            if not rt:
+                sdk_actions.append(ActionWithoutResources(encoded))
+                continue
+            resource_type = p.schema.get_resource_type(rt)
+            system_id = resource_type.extensions.get("v3", {}).get("system_id") or p.system_id
+            instances = [
+                ResourceInstance(
+                    [
+                        ResourceNode(
+                            type=p.codec.encode_resource_type(rt),
+                            id=p.codec.encode_resource_id(rt, str(r.id)),
+                            name=r.name or r.id,
+                        )
+                    ]
+                )
+                for r in matched
+            ]
+            sdk_actions.append(
+                ActionWithResources(
+                    encoded,
+                    [
+                        RelatedResourceType(
+                            system_id=system_id,
+                            type=p.codec.encode_resource_type(rt),
+                            instances=instances,
+                        )
+                    ],
+                )
+            )
+        data = gen_perms_apply_data(
+            system=p.system_id, subject=client.make_subject(p.username), action_to_resources_list=action_resources
+        )
+        ok, _, url = client.get_apply_url(Application(p.system_id, actions=sdk_actions))
+        return data, (url if ok and url else p._cfg.fallback_apply_url)

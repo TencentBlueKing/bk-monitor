@@ -59,7 +59,7 @@ def report_handler():
 @pytest.fixture()
 def biz_mock(mocker):
     return mocker.patch(
-        "bkmonitor.iam.permission.Permission.filter_space_list_by_action", return_value=[dict(bk_biz_id=2)]
+        "bkmonitor.iam.handlers.permission.Permission.filter_space_list_by_action", return_value=[dict(bk_biz_id=2)]
     )
 
 

@@ -14,7 +14,7 @@ import logging
 from typing import Any
 
 from iam_engine.provider.codec import IdentityCodec, NameCodec
-from .registry import V4CallbackRegistry
+from bkmonitor.iam.views.callback_registry import V4CallbackRegistry
 
 logger = logging.getLogger(__name__)
 

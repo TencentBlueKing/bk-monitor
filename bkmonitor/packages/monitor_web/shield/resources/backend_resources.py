@@ -25,8 +25,8 @@ from rest_framework.exceptions import ValidationError
 from bkm_space.api import SpaceApi
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
-from bkmonitor.iam.action import ActionEnum
-from bkmonitor.iam.permission import Permission
+from bkmonitor.iam.handlers.actions import ActionEnum
+from bkmonitor.iam.handlers.permission import Permission
 from bkmonitor.models import Event, Shield
 from bkmonitor.utils.common_utils import logger
 from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username

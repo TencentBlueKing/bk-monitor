@@ -22,11 +22,11 @@ from iam_engine.exceptions import MigrationFailed, ProviderUnavailable
 from iam_engine.provider.codec import IdentityCodec, NameCodec
 from iam_engine.schema.diff import Change, ChangeType, EntityKind, MigrationPlan, MigrationReport
 from iam_engine.schema.visibility import is_change_visible_to, is_visible_to
-from .client import V4Client
+from bkmonitor.iam.backends.v4.client import V4Client
 
 if TYPE_CHECKING:
     from iam_engine.schema.registry import SchemaRegistry
-    from .config import V4SystemInfo
+    from bkmonitor.iam.backends.v4.config import V4SystemInfo
 
 logger = logging.getLogger(__name__)
 

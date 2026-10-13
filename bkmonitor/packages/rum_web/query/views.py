@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from rest_framework.decorators import action
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission
+from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission
 from bkmonitor.utils.csv import generate_csv_file_download_response
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from rum_web.models.application import Application

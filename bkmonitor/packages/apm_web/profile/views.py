@@ -62,7 +62,7 @@ from apm_web.profile.serializers import (
 )
 from apm_web.tasks import profile_file_upload_and_parse
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
+from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission, ViewBusinessPermission
 from bkmonitor.utils.cache import CacheType, using_cache
 from core.drf_resource import api
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet

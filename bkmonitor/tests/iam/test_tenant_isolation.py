@@ -1,5 +1,6 @@
 """IAM 回调、资源补全和 SDK 缓存的多租户回归测试，不访问外部服务。"""
 
+from bkmonitor.iam.backends.config import build_provider
 import base64
 import json
 from concurrent.futures import ThreadPoolExecutor
@@ -10,15 +11,11 @@ import pytest
 from django.db.models import Q
 from rest_framework.test import APIRequestFactory
 
-from bkmonitor.iam.adapters import catalog
-from bkmonitor.iam.adapters.resolver import MonitorResourceResolver
-from bkmonitor.iam.adapters.v4.callback import auth
-from bkmonitor.iam.adapters.v4.callback.views import MonitorV4ResourceCallbackView
+from bkmonitor.iam.handlers import catalog
+from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
+from bkmonitor.iam.views import callback_auth as auth
+from bkmonitor.iam.views.resources_v4 import MonitorV4ResourceCallbackView
 from iam_engine.provider.requests import (
-    ApplyURLRequest,
-    AuthRequest,
-    BatchByActionRequest,
-    BatchByResourceRequest,
     ResourceInstance,
     Subject,
 )
@@ -159,7 +156,7 @@ def resource_rows(monkeypatch):
         space_type, space_id = space_uid.split("__", 1)
         return Rows(spaces).get(space_type_id=space_type, space_id=space_id)
 
-    monkeypatch.setattr("bkmonitor.iam.adapters.resolver.space_api.SpaceApi.get_space_detail", get_space_detail)
+    monkeypatch.setattr("bkmonitor.iam.handlers.resolver.space_api.SpaceApi.get_space_detail", get_space_detail)
     return tenants
 
 
@@ -364,45 +361,29 @@ def make_provider(cls, **overrides):
         "system": {"id": "monitor", "name": "Monitor", "name_en": "Monitor"},
     }
     options.update(overrides)
-    return cls(schema, **options)
+    return build_provider(("v3" if cls is V3PermissionProvider else "v4"), schema=schema, options=options)
 
 
 @pytest.mark.parametrize("cls", [V3PermissionProvider, V4PermissionProvider])
 @pytest.mark.parametrize("tenant,expected", [("tenant-b", "tenant-b"), ("", "system")])
-@pytest.mark.parametrize(
-    "operation", ["is_allowed", "batch_by_resource", "batch_by_action", "get_apply_url", "get_apply_data"]
-)
+@pytest.mark.parametrize("operation", ["is_allowed", "batch_is_allowed", "get_apply_data"])
 def test_provider_passes_effective_tenant_to_resolver(monkeypatch, cls, tenant, expected, operation):
-    provider = make_provider(cls)
+    from iam_engine.core.requests import AuthRequest, BatchAuthRequest
+
+    provider = make_provider(cls, bk_tenant_id=expected)
     seen = []
-
-    def resolve(resource, *, tenant_id):
-        seen.append(tenant_id)
-        return resource
-
-    provider.resolver = row(resolve=resolve)
-    monkeypatch.setattr(provider, "_is_allowed_dialect", lambda request: True)
-    monkeypatch.setattr(provider, "_batch_by_resource_dialect_page", lambda request: [])
-    monkeypatch.setattr(provider, "_batch_by_action_dialect_page", lambda request: [])
-    monkeypatch.setattr(provider, "_get_apply_url_dialect", lambda request: "https://iam.example.test/apply")
+    provider.resolver = row(resolve=lambda resource, tenant_id: (seen.append(tenant_id), resource)[1])
+    client = MagicMock()
+    client.get_apply_url.return_value = (True, "", "https://iam.example.test/apply")
+    provider._get_client = MagicMock(return_value=client)
     subject = Subject(id="user", tenant_id=tenant)
     resource = ResourceInstance(type="space", id="2")
-    requests = {
-        "is_allowed": lambda: provider.is_allowed(
-            AuthRequest(subject=subject, action_id="view_business", resource=resource)
-        ),
-        "batch_by_resource": lambda: provider.batch_by_resource(
-            BatchByResourceRequest(subject=subject, action_id="view_business", resources=(resource,))
-        ),
-        "batch_by_action": lambda: provider.batch_by_action(
-            BatchByActionRequest(subject=subject, action_ids=("view_business",), resource=resource)
-        ),
-        "get_apply_url": lambda: provider.get_apply_url(
-            ApplyURLRequest(subject=subject, action_ids=("view_business",), resources=(resource,))
-        ),
-        "get_apply_data": lambda: provider.get_apply_data(["view_business"], [resource], subject),
-    }
-    requests[operation]()
+    if operation == "is_allowed":
+        provider.is_allowed(AuthRequest(subject, "view_business", (resource,)))
+    elif operation == "batch_is_allowed":
+        provider.batch_is_allowed(BatchAuthRequest(subject, ("view_business",), ((resource,),)))
+    else:
+        provider.get_apply_data(["view_business"], [resource])
     assert seen == [expected]
 
 

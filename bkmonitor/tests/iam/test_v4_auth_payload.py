@@ -1,197 +1,122 @@
-"""
-Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
-Copyright (C) 2017-2025 Tencent. All rights reserved.
-Licensed under the MIT License (the "License"); you may not use this file except in compliance with the License.
-You may obtain a copy of the License at http://opensource.org/licenses/MIT
-Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on
-an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
-specific language governing permissions and limitations under the License.
-"""
+"""Monitor V4 native Provider payloads, with the real product codec and no network."""
 
 from unittest.mock import MagicMock
 
-from iam_engine.provider.requests import ResourceInstance, Subject
-from iam_engine.provider.dialect_types import (
-    DialectAuthRequest,
-    DialectBatchByActionRequest,
-    DialectBatchByResourceRequest,
-    DialectResource,
-)
-from bkmonitor.iam.backends.v4.provider import V4PermissionProvider, _build_iam_path
+import pytest
+
+from bkmonitor.iam.backends.config import build_provider
+from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
+from iam_engine.core.types import AuthStatus
 
 
-def _subject() -> Subject:
-    return Subject(id="user1", tenant_id="system")
-
-
-def _space_ancestor() -> DialectResource:
-    return DialectResource(type="space", id="space|2")
-
-
-def _build_provider() -> tuple[V4PermissionProvider, MagicMock]:
-    """构造真实 v4 provider（mock client），codec 用真实 MonitorV4Codec。"""
-    from bkmonitor.iam.backends.config import get_schema
-
-    provider = V4PermissionProvider(
-        get_schema(),
-        base_url="http://iam.example.com",
-        bk_tenant_id="system",
-        credentials={"app_code": "test_app", "app_secret": "test_secret"},
-        system={"id": "bk_monitor_v4", "name": "监控平台V4"},
-        codec_class="bkmonitor.iam.adapters.v4.codec.MonitorV4Codec",
+def _build_provider():
+    provider = build_provider(
+        "v4",
+        options={
+            "base_url": "http://iam.example.test",
+            "bk_tenant_id": "system",
+            "credentials": {"app_code": "test", "app_secret": "offline"},
+            "system": {"id": "bk_monitorv3", "name": "监控"},
+        },
     )
-    mock_client = MagicMock()
-    provider._get_client = MagicMock(return_value=mock_client)
-    return provider, mock_client
+    client = MagicMock()
+    provider._get_client = MagicMock(return_value=client)
+    provider.resolver = None
+    return provider, client
 
 
-class TestBuildIamPath:
-    def test_with_ancestors(self):
-        r = DialectResource(type="grafana_dashboard", id="folder:3|182", ancestors=(_space_ancestor(),))
-        assert _build_iam_path(r) == "/space,space|2/"
-
-    def test_multi_ancestors(self):
-        apm = DialectResource(type="apm_application", id="390", ancestors=(_space_ancestor(),))
-        assert _build_iam_path(apm) == "/space,space|2/"
-
-    def test_no_ancestors(self):
-        r = DialectResource(type="space", id="space|2")
-        assert _build_iam_path(r) is None
+SUBJECT = Subject(id="alice", tenant_id="tenant-a")
+SPACE = ResourceInstance(type="space", id="2")
+DASHBOARD = ResourceInstance(type="grafana_dashboard", id="folder:3|182", ancestor_chain=(SPACE,))
 
 
-class TestProviderBoundary:
-    def test_apply_data_uses_resolver_without_callback_service(self):
-        provider, _ = _build_provider()
-
-        class Resolver:
-            def resolve(self, resource, *, tenant_id):
-                return ResourceInstance(
-                    type=resource.type,
-                    id=resource.id,
-                    name="业务 2",
-                    ancestor_chain=resource.ancestor_chain,
-                )
-
-        provider.resolver = Resolver()
-        data = provider.get_apply_data(
-            ["view_business"],
-            [ResourceInstance(type="space", id="2")],
-            _subject(),
-        )
-
-        instance = data["actions"][0]["related_resource_types"][0]["instances"][0][0]
-        assert instance == {"type": "space", "id": "space|2", "name": "业务 2"}
-        assert not hasattr(provider, "callback_service")
+@pytest.mark.parametrize(
+    "resource,expected",
+    [
+        (SPACE, {"type": "space", "id": "space|2"}),
+        (ResourceInstance(type="space", id="-42"), {"type": "space", "id": "space|-42"}),
+        (
+            DASHBOARD,
+            {"type": "grafana_dashboard", "id": "folder:3|182", "attributes": {"_bk_iam_path_": "/space,space|2/"}},
+        ),
+    ],
+)
+def test_single_payload_uses_product_codec(resource, expected):
+    provider, client = _build_provider()
+    client.direct_auth.return_value = True
+    action = "view_business" if resource.type == "space" else "view_single_dashboard"
+    result = provider.is_allowed(AuthRequest(SUBJECT, action, (resource,)))
+    assert result.allowed
+    client.direct_auth.assert_called_once_with(
+        subject={"type": "user", "id": "alice"}, action_id=action, resource=expected
+    )
+    provider._get_client.assert_called_once_with("tenant-a")
 
 
-class TestToV4Resource:
-    def test_payload_with_ancestors(self):
-        req = DialectAuthRequest(
-            subject=_subject(),
-            action_id="view_single_dashboard",
-            resource=DialectResource(type="grafana_dashboard", id="folder:3|182", ancestors=(_space_ancestor(),)),
-        )
-        payload = V4PermissionProvider._to_v4_resource(req)
-        assert payload == {
-            "id": "folder:3|182",
-            "type": "grafana_dashboard",
-            "attributes": {"_bk_iam_path_": "/space,space|2/"},
-        }
-
-    def test_payload_without_ancestors(self):
-        req = DialectAuthRequest(
-            subject=_subject(), action_id="view_business", resource=DialectResource(type="space", id="space|2")
-        )
-        payload = V4PermissionProvider._to_v4_resource(req)
-        assert payload == {"id": "space|2", "type": "space"}
-
-    def test_none_resource(self):
-        req = DialectAuthRequest(subject=_subject(), action_id="x", resource=None)
-        assert V4PermissionProvider._to_v4_resource(req) == {}
+@pytest.mark.parametrize(
+    "raw,status",
+    [(True, AuthStatus.ALLOW), (False, AuthStatus.DENY), (None, AuthStatus.ERROR), ("true", AuthStatus.ERROR)],
+)
+def test_single_retains_three_states(raw, status):
+    provider, client = _build_provider()
+    client.direct_auth.return_value = raw
+    assert provider.is_allowed(AuthRequest(SUBJECT, "view_business", (SPACE,))).status is status
 
 
-class TestBatchByResourceDialectPage:
-    def test_payload_contains_iam_path(self):
-        provider, mock_client = _build_provider()
-        mock_client.direct_auth_by_resources.return_value = {"folder:3|182": True}
-        req = DialectBatchByResourceRequest(
-            subject=_subject(),
-            action_id="view_single_dashboard",
-            resource_type="grafana_dashboard",
-            resource_ids=("folder:3|182",),
-            resources=(DialectResource(type="grafana_dashboard", id="folder:3|182", ancestors=(_space_ancestor(),)),),
-        )
-        provider._batch_by_resource_dialect_page(req)
-        sent = mock_client.direct_auth_by_resources.call_args.kwargs["resources"]
-        assert sent == [
-            {
-                "id": "folder:3|182",
-                "type": "grafana_dashboard",
-                "attributes": {"_bk_iam_path_": "/space,space|2/"},
-            }
-        ]
-
-    def test_fallback_to_bare_ids(self):
-        """旧构造（仅 resource_ids、无祖先链）→ payload 带 type、不带 attributes。"""
-        provider, mock_client = _build_provider()
-        mock_client.direct_auth_by_resources.return_value = {"3": True}
-        req = DialectBatchByResourceRequest(
-            subject=_subject(), action_id="x", resource_type="space", resource_ids=("3",)
-        )
-        provider._batch_by_resource_dialect_page(req)
-        sent = mock_client.direct_auth_by_resources.call_args.kwargs["resources"]
-        assert sent == [{"id": "3", "type": "space"}]
+def test_transport_error_is_not_an_explicit_deny():
+    provider, client = _build_provider()
+    client.direct_auth.side_effect = TimeoutError("offline")
+    assert provider.is_allowed(AuthRequest(SUBJECT, "view_business", (SPACE,))).status is AuthStatus.ERROR
 
 
-class TestBatchByActionDialectPage:
-    def test_payload_contains_iam_path(self):
-        provider, mock_client = _build_provider()
-        mock_client.direct_auth_by_actions.return_value = {"view_single_dashboard": True}
-        req = DialectBatchByActionRequest(
-            subject=_subject(),
-            action_ids=("view_single_dashboard",),
-            resource=DialectResource(type="grafana_dashboard", id="3|_zCiy5INk", ancestors=(_space_ancestor(),)),
-        )
-        provider._batch_by_action_dialect_page(req)
-        sent = mock_client.direct_auth_by_actions.call_args.kwargs["resource"]
-        assert sent == {
-            "id": "3|_zCiy5INk",
-            "type": "grafana_dashboard",
-            "attributes": {"_bk_iam_path_": "/space,space|2/"},
-        }
+def test_batch_ancestor_payload_and_missing_result():
+    provider, client = _build_provider()
+    other = ResourceInstance(type="grafana_dashboard", id="3|missing", ancestor_chain=(SPACE,))
+    client.direct_auth_by_resources.return_value = {DASHBOARD.id: True}
+    result = provider.batch_is_allowed(BatchAuthRequest(SUBJECT, ("view_single_dashboard",), ((DASHBOARD,), (other,))))
+    assert result.items[0].result.allowed
+    assert result.items[1].result.error_type == "IncompleteBatchResult"
+    sent = client.direct_auth_by_resources.call_args.kwargs["resources"]
+    assert all(r["attributes"]["_bk_iam_path_"] == "/space,space|2/" for r in sent)
 
 
-class TestBatchByResourceBasePlumbing:
-    def test_ancestors_reach_dialect_layer(self):
-        """基类 batch_by_resource：业务 ancestor_chain 经 codec 编码到达方言层。"""
-        from iam_engine.provider.requests import BatchByResourceRequest, ResourceInstance
+def test_resource_free_batch_uses_direct_auth():
+    provider, client = _build_provider()
+    provider.resolver = MagicMock()
+    provider.resolver.resolve.side_effect = AssertionError("global actions must not resolve unrelated resources")
+    client.direct_auth.return_value = False
+    result = provider.batch_is_allowed(BatchAuthRequest(SUBJECT, ("manage_global_setting",), ((SPACE,),)))
+    assert result.items[0].result.status is AuthStatus.DENY
+    client.direct_auth_by_resources.assert_not_called()
 
-        provider, _ = _build_provider()
-        captured: dict = {}
 
-        def fake_dialect(request):
-            captured["req"] = request
-            return [("folder:3|182", True)]
+def test_resource_free_single_uses_direct_auth_without_enrichment():
+    provider, client = _build_provider()
+    provider.resolver = MagicMock()
+    provider.resolver.resolve.side_effect = AssertionError("global actions must not resolve unrelated resources")
+    client.direct_auth.return_value = True
+    result = provider.is_allowed(AuthRequest(SUBJECT, "manage_global_setting", (SPACE,)))
+    assert result.allowed
+    client.direct_auth.assert_called_once_with(
+        subject={"type": "user", "id": "alice"}, action_id="manage_global_setting", resource=None
+    )
 
-        provider._batch_by_resource_dialect_page = fake_dialect
 
-        result = provider.batch_by_resource(
-            BatchByResourceRequest(
-                subject=_subject(),
-                action_id="view_single_dashboard",
-                resources=(
-                    ResourceInstance(
-                        type="grafana_dashboard",
-                        id="folder:3|182",
-                        ancestor_chain=(ResourceInstance(type="space", id="2"),),
-                    ),
-                ),
-            )
-        )
-        req = captured["req"]
-        assert req.resource_ids == ("folder:3|182",)
-        assert len(req.resources) == 1
-        assert req.resources[0].id == "folder:3|182"
-        assert req.resources[0].type == "grafana_dashboard"
-        assert req.resources[0].ancestors == (_space_ancestor(),)
-        assert result.items[0].allowed is True
+def test_application_tuple_resolves_product_names():
+    provider, client = _build_provider()
+
+    class Resolver:
+        def resolve(self, resource, *, tenant_id):
+            assert tenant_id == "system"
+            return ResourceInstance(type=resource.type, id=resource.id, name="业务 2")
+
+    provider.resolver = Resolver()
+    client.generate_perm_apply_url.return_value = "https://iam.example.test/apply"
+    data, url = provider.get_apply_data(["view_business"], [SPACE])
+    assert data["actions"][0]["related_resource_types"][0]["instances"][0][0] == {
+        "type": "space",
+        "id": "space|2",
+        "name": "业务 2",
+    }
+    assert url == "https://iam.example.test/apply"
+    assert not hasattr(provider, "callback_service")

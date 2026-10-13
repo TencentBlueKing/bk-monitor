@@ -12,20 +12,27 @@ from types import SimpleNamespace
 from unittest import TestCase, mock
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.handlers.drf import BusinessActionPermission
 
 
 class TestBusinessActionPermissionBizId(TestCase):
     """请求参数中的业务 ID 与解析出的业务 ID 需保持一致"""
 
     def _request(self, method, biz_id, data=None, query=None):
-        return SimpleNamespace(method=method, biz_id=biz_id, data=data or {}, query_params=query or {})
+        return SimpleNamespace(
+            method=method,
+            biz_id=biz_id,
+            data=data or {},
+            query_params=query or {},
+            user=SimpleNamespace(username="alice", tenant_id="system"),
+            token=None,
+            skip_check=False,
+        )
 
-    @mock.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True)
-    @mock.patch("bkmonitor.iam.drf.ResourceEnum.BUSINESS.create_instance")
-    @mock.patch("bkmonitor.iam.drf.Permission")
-    def _check(self, request, perm_cls, create_instance, _in_tenant):
-        perm_cls.return_value.is_allowed.return_value = True
+    @mock.patch("bkmonitor.iam.handlers.drf.is_biz_in_tenant", return_value=True)
+    @mock.patch("bkmonitor.iam.handlers.drf.Permission")
+    def _check(self, request, perm_cls, _in_tenant):
+        perm_cls.return_value._is_allowed_request.return_value = True
         permission = BusinessActionPermission([ActionEnum.VIEW_BUSINESS])
         return permission.has_permission(request, None), perm_cls
 
@@ -36,12 +43,12 @@ class TestBusinessActionPermissionBizId(TestCase):
     def test_consistent_body_biz_id_is_checked_by_iam(self):
         allowed, perm_cls = self._check(self._request("POST", "2", {"bk_biz_id": 2}))
         self.assertTrue(allowed)
-        perm_cls.return_value.is_allowed.assert_called_once()
+        perm_cls.return_value._is_allowed_request.assert_called_once()
 
     def test_mismatched_body_biz_id_is_rejected(self):
         allowed, perm_cls = self._check(self._request("POST", "2", {"bk_biz_id": 3}))
         self.assertFalse(allowed)
-        perm_cls.return_value.is_allowed.assert_not_called()
+        perm_cls.return_value._is_allowed_request.assert_not_called()
 
     def test_mismatched_alias_biz_id_is_rejected(self):
         allowed, _ = self._check(self._request("POST", "2", {"biz_id": 2, "bk_biz_id": 3}))
@@ -50,7 +57,7 @@ class TestBusinessActionPermissionBizId(TestCase):
     def test_body_without_biz_id_is_checked_by_iam(self):
         allowed, perm_cls = self._check(self._request("POST", "2", {"name": "x"}))
         self.assertTrue(allowed)
-        perm_cls.return_value.is_allowed.assert_called_once()
+        perm_cls.return_value._is_allowed_request.assert_called_once()
 
     def test_get_request_compares_query_params(self):
         allowed, _ = self._check(self._request("GET", "2", query={"bk_biz_id": "2"}))
