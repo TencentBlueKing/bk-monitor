@@ -91,13 +91,19 @@ def normalize_legacy_export_params(data, *, search_type=ExportSearchType.INDEX_S
     }
 
 
-def create_export_job(data, raw_params=None):
+def create_export_job(data, raw_params=None, job_bk_biz_id=None):
     """创建分片导出任务；raw_params 为创建时的原始请求参数，未传时回退用 data 本身。"""
     raw_params = raw_params if raw_params is not None else data
     username = get_request_external_username() or get_request_username(default="")
     space = Space.objects.get(space_uid=data["space_uid"])
     if not is_sharded_export_enabled(space.bk_biz_id):
         raise ValidationError({"detail": "分片导出未启用"})
+    job_space = space
+    if job_bk_biz_id is not None:
+        if job_bk_biz_id != space.bk_biz_id:
+            job_space = Space.objects.get(bk_biz_id=job_bk_biz_id)
+        # 导出历史的展示与重试都读 raw_params，业务需要与任务归属保持一致
+        raw_params = {**raw_params, "bk_biz_id": job_bk_biz_id}
 
     search_type = data.get("search_type", ExportSearchType.INDEX_SET)
     is_scene = search_type == ExportSearchType.SCENE
@@ -169,18 +175,20 @@ def create_export_job(data, raw_params=None):
     with AsyncTask.export_create_lock(username, is_scene=is_scene):
         AsyncTask.check_running_count_by_user(username, is_scene=is_scene)
         job = ExportJob.objects.create(
-            space_uid=space.space_uid,
+            space_uid=job_space.space_uid,
             created_by=username,
             source_app_code=get_request_app_code(),
             is_external=bool(get_request_external_username()),
             search_type=search_type,
             index_set_ids=index_set_ids,
             index_set_type=index_set_type,
-            bk_biz_id=space.bk_biz_id,
+            bk_biz_id=job_space.bk_biz_id,
             search_params=params,
             base_dict=copy.deepcopy(handler.base_dict),
             raw_params=raw_params,
-            notification_context=build_notification_context(raw_params, space.space_uid, index_set_type, index_set_ids),
+            notification_context=build_notification_context(
+                raw_params, job_space.space_uid, index_set_type, index_set_ids
+            ),
             policy=policy.snapshot(),
             start_time=data["start_time"],
             end_time=data["end_time"],
