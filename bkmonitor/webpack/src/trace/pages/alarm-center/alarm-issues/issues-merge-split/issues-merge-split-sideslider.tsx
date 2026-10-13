@@ -27,7 +27,10 @@
 import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { Sideslider } from 'bkui-vue';
+import { useI18n } from 'vue-i18n';
 
+import { usePopover } from '../../components/alarm-table/hooks/use-popover';
+import { getMergeDetailPopoverOptions, showIssueExceptionPopover } from '../utils/issue-exception-popover';
 import { getIssueExceptionText } from '../utils/issue-log-content';
 import MergeContent from './components/merge-content';
 import SplitContent from './components/split-content';
@@ -58,8 +61,10 @@ export default defineComponent({
       default: () => [],
     },
   },
-  emits: ['update:show', 'mergeSuccess', 'splitSuccess'],
+  emits: ['update:show', 'mergeSuccess', 'splitSuccess', 'showDetail'],
   setup(props, { emit }) {
+    const { t } = useI18n();
+    const hoverPopoverTools = usePopover();
     /** 合并明细里按 issue id 回填的关联日志 */
     const logContentByIssueId = shallowRef<IssueLogContentResponse>({});
     /** 合并明细里已完成关联日志请求的 issue id */
@@ -85,10 +90,36 @@ export default defineComponent({
       logContentReadyIds.value = payload.readyIds;
     };
 
+    const showHeaderLogOverflowTip = (event: MouseEvent) => {
+      const mainIssue = props.issues[0];
+      const el = event.currentTarget as HTMLElement;
+      if (!mainIssue || !el) return;
+      showIssueExceptionPopover(event, hoverPopoverTools, {
+        onViewMore: () => emit('showDetail', mainIssue.id),
+        popoverOptions: getMergeDetailPopoverOptions(el),
+        source: {
+          anomaly_message: mainIssue.anomaly_message,
+          log_content: logContentReadyIds.value.has(mainIssue.id)
+            ? logContentByIssueId.value[mainIssue.id]?.log_content
+            : mainIssue.log_content,
+        },
+        t,
+      });
+    };
+
+    const hideHeaderLogOverflowTip = () => {
+      hoverPopoverTools.clearPopoverTimer();
+    };
+
+    const handleShowDetail = (issueId: string) => {
+      emit('showDetail', issueId);
+    };
+
     watch(
       () => props.show,
       show => {
         if (!show) {
+          hoverPopoverTools.hidePopover();
           logContentByIssueId.value = {};
           logContentReadyIds.value = new Set();
         }
@@ -102,6 +133,9 @@ export default defineComponent({
       handleMergeSuccess,
       handleSplitSuccess,
       handleLogContentChange,
+      showHeaderLogOverflowTip,
+      hideHeaderLogOverflowTip,
+      handleShowDetail,
     };
   },
   render() {
@@ -124,7 +158,11 @@ export default defineComponent({
                 <span class='divider' />
                 {mainIssue &&
                   (this.logContentReadyIds.has(mainIssue.id) || mainIssue.log_content_loaded ? (
-                    <span class='header-desc'>
+                    <span
+                      class='header-desc'
+                      onMouseenter={this.showHeaderLogOverflowTip}
+                      onMouseleave={this.hideHeaderLogOverflowTip}
+                    >
                       {getIssueExceptionText({
                         log_content: this.logContentReadyIds.has(mainIssue.id)
                           ? this.logContentByIssueId[mainIssue.id]?.log_content
@@ -151,6 +189,7 @@ export default defineComponent({
               <SplitContent
                 issues={this.issues}
                 onLogContentChange={this.handleLogContentChange}
+                onShowDetail={this.handleShowDetail}
                 onSuccess={(memberIssueIds: string[]) => {
                   this.handleShowChange(false);
                   this.handleSplitSuccess(memberIssueIds);

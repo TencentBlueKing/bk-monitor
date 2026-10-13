@@ -43,9 +43,12 @@
     white-space: nowrap;
   }
 
-  kbd {
+  .select-shortcut-keys {
     padding: 0 4px;
-    color: #8f9fbd;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 16px;
+    color: #a3b1cc;
     white-space: nowrap;
     background: #fff;
     border-radius: 2px;

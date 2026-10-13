@@ -1,0 +1,11 @@
+diff --git a/lib/popover/index.js b/lib/popover/index.js
+--- a/lib/popover/index.js
++++ b/lib/popover/index.js
+@@ -4855,6 +4855,7 @@ function usePopoverInit(props, context, refs) {
+     }
+   };
+   var onUnmountedFn = function onUnmountedFn() {
++    cleanup === null || cleanup === void 0 || cleanup();
+     beforeInstanceUnmount();
+     // 清理父节点上的 data-pnode-id 属性
+     var _resolvePopElements5 = resolvePopElements(),

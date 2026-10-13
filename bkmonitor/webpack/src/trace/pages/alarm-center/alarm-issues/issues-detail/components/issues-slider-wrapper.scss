@@ -7,6 +7,8 @@
   overflow: hidden;
   background-color: #f2f6fc;
 
+  .basic-card-wrapper, .issues-alarm-panel-content { position: relative; }
+
   .issues-slider-left-panel {
     flex: 1;
     padding-right: 8px;

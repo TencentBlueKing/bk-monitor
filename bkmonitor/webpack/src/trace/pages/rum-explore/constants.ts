@@ -34,6 +34,7 @@ import ResourceIcon from '../../static/img/rum-explore/span-type/resource.svg';
 import ViewIcon from '../../static/img/rum-explore/span-type/view.svg';
 import VitalIcon from '../../static/img/rum-explore/span-type/vital.svg';
 import WebsocketIcon from '../../static/img/rum-explore/span-type/websocket.svg';
+import { RumCardToneEnum } from './detail';
 
 import type { IRumColumnLayoutPreset, RumModeType } from './typings';
 
@@ -78,6 +79,22 @@ export const ALL_SPAN_TYPE = '';
 /** span 类型对应的字段名，快捷筛选与按类型切列都基于它 */
 export const SPAN_TYPE_FIELD = 'attributes.span_type';
 
+/**
+ * events 字段前缀。该前缀下的属性值可能是数组（一条 span 携带多个同名事件属性），
+ * 需按「值 , 值 +N」的数组样式渲染而非 JSON 序列化。
+ * 字段元数据未提供数组标识，故只作为前缀筛选，实际是否为数组仍需运行时判定。
+ */
+export const EVENTS_FIELD_PREFIX = 'events.';
+
+/** events 抽屉中命中主表当前列的整列高亮类名，表头与单元格同时高亮 */
+export const RUM_EVENTS_ACTIVE_COLUMN_CLASS = 'events-col-active';
+
+/** events 抽屉的列宽，与单元格文本省略宽度一致 */
+export const RUM_EVENTS_COLUMN_WIDTH = 200;
+
+/** events 抽屉骨架屏最短展示时长（ms），避免一闪而过 */
+export const RUM_EVENTS_MIN_SKELETON_DURATION = 300;
+
 /** 表格滚动加载每页条数 */
 export const RUM_TABLE_PAGE_LIMIT = 30;
 
@@ -105,6 +122,17 @@ export const SPAN_TYPE_META: Record<string, ISpanTypeMeta> = {
   action: { icon: ActionIcon, label: 'Action' },
   websocket: { icon: WebsocketIcon, label: 'Websocket' },
   custom: { icon: CustomIcon, label: 'Custom' },
+};
+
+export const SPAN_TYPE_META_ICON = {
+  view: { icon: 'icon-View', label: 'View' },
+  resource: { icon: 'icon-Resource', label: 'Resource' },
+  error: { icon: 'icon-ERROR', label: 'Error' },
+  vital: { icon: 'icon-a-WebVital', label: 'Vital' },
+  long_task: { icon: 'icon-Long-Task', label: 'Long task' },
+  action: { icon: 'icon-Action', label: 'Action' },
+  websocket: { icon: 'icon-websocket', label: 'Websocket' },
+  custom: { icon: 'icon-custom1', label: 'Custom' },
 };
 
 /**
@@ -136,6 +164,17 @@ export const RUM_TIME_FIELDS = new Set(['start_time', 'end_time', 'events.timest
 
 /** 支持排序的字段类型 */
 export const RUM_SORTABLE_FIELD_TYPES = new Set(['date', 'double', 'integer', 'long']);
+
+export const RUM_DETAIL_SPAN_TYPES = new Set([
+  'view',
+  'resource',
+  'error',
+  'vital',
+  'long_task',
+  'action',
+  'websocket',
+  'custom',
+]);
 
 /** Span 视角列宽（视角私有），未列出的字段使用 DEFAULT_COLUMN_WIDTH */
 export const SPAN_COLUMN_WIDTH_MAP: Record<string, number> = {
@@ -214,6 +253,14 @@ export const RUM_OUTCOME_TYPE_MAP: Record<string, { icon: string; label: string 
   error: { icon: 'icon-monitor icon-mc-close-fill outcome-type-icon-error', label: window.i18n.t('失败') },
   timeout: { icon: 'icon-monitor icon-Long-Task outcome-type-icon-timeout', label: window.i18n.t('超时') },
   abort: { icon: 'icon-monitor icon-mc-minus-plus outcome-type-icon-abort', label: window.i18n.t('中止') },
+};
+
+export const OUTCOME_TYPE_TONE_MAP = {
+  success: RumCardToneEnum.SUCCESS,
+  warning: RumCardToneEnum.WARNING,
+  error: RumCardToneEnum.DANGER,
+  timeout: RumCardToneEnum.DANGER,
+  abort: RumCardToneEnum.DEFAULT,
 };
 
 /** attributes.http.response.status_code 列按状态码分组的展示配置 */

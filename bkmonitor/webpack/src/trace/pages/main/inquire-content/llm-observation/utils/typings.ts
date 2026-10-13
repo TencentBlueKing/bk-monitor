@@ -107,18 +107,29 @@ export type LlmOverviewStats = Pick<
   | 'total_tokens'
 >;
 
-/** 输入 → 输出预览：纯文本或可解析的 KV */
-export type LlmIoPreview =
+/**
+ * 执行线一行某一侧的预览片段。
+ * text：消息 / 推理 / 非对象工具值；name：工具名；kv：对象参数或返回的顶层字段。
+ */
+export type LlmIoPiece =
   | {
-      input: LlmKvPair[];
-      output: LlmKvPair[];
-      type: 'kv';
+      text: string;
+      type: 'text';
     }
   | {
-      input: string;
-      output: string;
-      type: 'text';
+      text: string;
+      type: 'name';
+    }
+  | {
+      pairs: LlmKvPair[];
+      type: 'kv';
     };
+
+/** 输入列、输出列预览。同一侧可并列多段，避免只保留最后一条文本或第一组 KV */
+export type LlmIoPreview = {
+  input: LlmIoPiece[];
+  output: LlmIoPiece[];
+};
 
 /** 统计卡片 */
 export interface LlmStatCard {

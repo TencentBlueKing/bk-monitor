@@ -1,0 +1,7 @@
+blueking:
+  app_code: test_code
+  app_secret: test_secret
+  api_url: http://test-url.com/
+django:
+  MEDIA_ROOT: test_media
+  USE_TZ: true

@@ -30,6 +30,7 @@ import { storeToRefs } from 'pinia';
 import TraceExploreTable from '../../../../trace-explore/components/trace-explore-table/trace-explore-table';
 import { useAlertTraces } from '../../../composables/use-alert-traces';
 import { ALERT_TRACE_FIELD_CONFIGS } from './constants';
+import { DetailLoadStatus } from '../../detail-loading';
 import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import type { IDimensionField } from '../../../../trace-explore/typing';
@@ -49,7 +50,7 @@ export default defineComponent({
   setup(props) {
     const alarmCenterDetailStore = useAlarmCenterDetailStore();
     const { bizId } = storeToRefs(alarmCenterDetailStore);
-    const { traceList, traceQueryConfig, tableLoading, pagination, tableHasMoreData } = useAlertTraces(
+    const { traceList, traceQueryConfig, tableLoading, pagination, tableHasMoreData, error, retry, loadMore } = useAlertTraces(
       toRef(props, 'alertId')
     );
     const sliderShow = shallowRef(false);
@@ -79,10 +80,11 @@ export default defineComponent({
     };
 
     const handleScrollToEnd = () => {
-      pagination.offset += pagination.limit;
+      loadMore();
     };
 
     return {
+      error, retry,
       displayFields,
       traceList,
       traceQueryConfig,
@@ -101,6 +103,7 @@ export default defineComponent({
     return (
       <div class='alarm-center-detail-panel-trace'>
         <div class='alarm-center-detail-panel-trace-wrapper'>
+          <DetailLoadStatus error={this.error} onRetry={this.retry} />
           <TraceExploreTable
             class='panel-trace-table'
             appName={this.traceQueryConfig?.app_name || ''}
@@ -115,7 +118,7 @@ export default defineComponent({
             showOperation={false}
             sourceFieldConfigs={ALERT_TRACE_FIELD_CONFIGS as unknown as IDimensionField[]}
             tableData={this.traceList}
-            tableHasScrollLoading={this.tableHasMoreData}
+            tableHasScrollLoading={this.tableHasMoreData && !this.error}
             tableLoading={this.tableLoading}
             onScrollToEnd={this.handleScrollToEnd}
             onSliderShow={this.handleSliderShow}

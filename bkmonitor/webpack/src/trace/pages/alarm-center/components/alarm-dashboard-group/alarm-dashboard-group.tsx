@@ -31,7 +31,7 @@ import { random } from 'monitor-common/utils';
 import { echartsConnect } from 'monitor-ui/monitor-echarts/utils';
 
 import AlarmMetricsDashboard from '../alarm-metrics-dashboard/alarm-metrics-dashboard';
-import ChartSkeleton from '@/components/skeleton/chart-skeleton';
+import DetailLoading from '@/pages/alarm-center/common-detail/detail-loading';
 
 import type { LegendCustomOptions } from '../../../trace-explore/components/explore-chart/use-chart-legend';
 import type { CustomOptions } from '../../../trace-explore/components/explore-chart/use-echarts';
@@ -118,7 +118,7 @@ export default defineComponent({
               key={index}
               class='alarm-dashboard-group-skeleton-item'
             >
-              <ChartSkeleton />
+              <DetailLoading />
             </div>
           ))}
         </div>

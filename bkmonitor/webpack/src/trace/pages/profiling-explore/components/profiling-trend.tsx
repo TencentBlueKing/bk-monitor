@@ -88,6 +88,7 @@ export default defineComponent({
     select: (_range: null | SelectionRange) => true,
     traceChange: (_trace: boolean) => true,
     retry: () => true,
+    zoom: (_range: SelectionRange) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -109,16 +110,17 @@ export default defineComponent({
         })) as SeriesItem[]
       )
     );
+    // 与通用图表 createXAxis 的时间档位保持一致，按页面时区格式化。
     const timeAxisLabelFormat = computed(() => {
-      if (!props.bounds) return 'HH:mm';
-      const duration = props.bounds[1] - props.bounds[0];
-      if (duration < 60 * 1000) return 'ss.SSS';
-      if (duration < 60 * 60 * 1000) return 'mm:ss';
-      if (duration < 24 * 60 * 60 * 1000) return 'HH:mm';
-      const [start, end] = props.bounds.map(value => dayjs(value).tz(props.timezone));
-      if (start.year() !== end.year()) return 'YYYY-MM';
-      if (duration <= 7 * 24 * 60 * 60 * 1000) return 'DD HH';
-      return 'MM-DD';
+      const xData = (prepared.value.xAxis[0]?.data || []) as number[];
+      const [start, end] = props.bounds || [Number(xData.at(0)), Number(xData.at(-1))];
+      const seconds = Math.abs(end - start) / 1000;
+      if (!Number.isFinite(seconds)) return 'HH:mm';
+      if (seconds < 60) return 'mm:ss';
+      if (seconds < 60 * 60 * 24) return 'HH:mm';
+      if (seconds < 60 * 60 * 24 * 6) return 'MM-DD HH:mm';
+      if (seconds <= 60 * 60 * 24 * 30 * 12) return 'MM-DD';
+      return 'YYYY-MM-DD';
     });
     const handleData = (range: null | SelectionRange) => range?.map(time => [time, 0]) || [];
     const formatTooltip: TooltipComponentOption['formatter'] = params => {
@@ -187,11 +189,8 @@ export default defineComponent({
                 splitLine: { show: false },
                 axisLabel: {
                   color: '#979ba5',
+                  fontSize: 12,
                   hideOverlap: true,
-                  showMinLabel: true,
-                  showMaxLabel: true,
-                  alignMinLabel: 'left',
-                  alignMaxLabel: 'right',
                   formatter: (value: number) => dayjs(value).tz(props.timezone).format(labelFormat),
                 },
               },
@@ -201,26 +200,31 @@ export default defineComponent({
               boundaryGap: props.trace,
               axisLabel: {
                 ...axis.axisLabel,
-                formatter: (value: string) => dayjs(Number(value)).tz(props.timezone).format('HH:mm:ss'),
+                formatter: (value: string) => dayjs(Number(value)).tz(props.timezone).format(labelFormat),
               },
             })),
         yAxis: createYAxis(seriesData),
-        brush: props.selection
-          ? {
-              xAxisIndex: 'all',
-              seriesIndex: props.series.map((_, index) => index),
+        brush: props.trace
+          ? undefined
+          : {
+              xAxisIndex: props.selection ? 'all' : 0,
+              seriesIndex: props.selection ? props.series.map((_, index) => index) : 'all',
               brushLink: 'all',
               brushType: 'lineX',
               brushMode: 'single',
               transformable: true,
-              brushStyle: { color: `${props.color}15`, borderColor: props.color, borderWidth: 1, borderType: 'dashed' },
+              brushStyle: props.selection
+                ? { color: `${props.color}15`, borderColor: props.color, borderWidth: 1, borderType: 'dashed' }
+                : {
+                    color: 'rgba(58, 132, 255, 0.12)',
+                    borderColor: '#3a84ff',
+                    borderWidth: 1,
+                    borderType: 'dashed',
+                  },
               outOfBrush: { colorAlpha: 0.1 },
               inBrush: { colorAlpha: 1 },
-            }
-          : undefined,
-        toolbox: props.selection
-          ? { show: false, feature: { brush: { type: ['lineX', 'clear'] }, dataZoom: {} } }
-          : undefined,
+            },
+        toolbox: props.trace ? undefined : { show: false, feature: { brush: { type: ['lineX', 'clear'] } } },
         series: props.selection
           ? [
               ...props.series.map((item, index) => ({
@@ -267,6 +271,22 @@ export default defineComponent({
     watch(chartContainer, handleChartResize, { flush: 'post' });
 
     let selectionKey = '';
+    let brushReady = false;
+    function enableBrush() {
+      const instance = chart.value?.chart;
+      if (!instance || instance.isDisposed() || props.trace || !instance.getOption()?.brush) return;
+      if (props.selection) {
+        showSelection();
+        return;
+      }
+      if (brushReady || !prepared.value.xAxis.length) return;
+      brushReady = true;
+      instance.dispatchAction({
+        type: 'takeGlobalCursor',
+        key: 'brush',
+        brushOption: { brushType: 'lineX', brushMode: 'single' },
+      });
+    }
     function showSelection() {
       // 等 ECharts 安装 brush 后再恢复选区；去重避免 rendered → dispatchAction 循环。
       const instance = chart.value?.chart;
@@ -293,6 +313,7 @@ export default defineComponent({
     }
 
     function handleBrushMove(event: { areas?: { coordRange?: number[] }[] }) {
+      if (!props.selection) return;
       // 拖动中只绘制手柄，结束后由 handleBrush 提交查询，避免每个像素都触发请求。
       const range = event.areas?.[0]?.coordRange;
       chart.value?.setOption(
@@ -301,7 +322,25 @@ export default defineComponent({
       );
     }
 
+    function zoomFromCategory(event: { areas?: { coordRange?: number[] }[] }) {
+      const coord = event.areas?.[0]?.coordRange;
+      const data = prepared.value.xAxis[0]?.data as number[] | undefined;
+      if (!coord || !data?.length) return;
+      const [rawStart, rawEnd] = coord;
+      // 分类轴框选返回的是数据下标；若已经是时间戳则直接使用。
+      const indexed = rawStart <= data.length && rawEnd <= data.length + 1;
+      const startIndex = Math.max(0, Math.floor(Math.min(rawStart, rawEnd)));
+      const endIndex = Math.min(data.length - 1, Math.ceil(Math.max(rawStart, rawEnd)));
+      const start = indexed ? Number(data[startIndex]) : Math.min(rawStart, rawEnd);
+      const end = indexed ? Number(data[endIndex]) : Math.max(rawStart, rawEnd);
+      if (Number.isFinite(start) && Number.isFinite(end) && end > start) emit('zoom', [start, end]);
+    }
+
     function handleBrush(event: { areas?: { coordRange?: number[] }[] }) {
+      if (!props.selection) {
+        zoomFromCategory(event);
+        return;
+      }
       const range = event.areas?.[0]?.coordRange;
       if (!range) {
         resetSelection();
@@ -351,7 +390,8 @@ export default defineComponent({
       () => {
         traceItems.value = [];
         selectionKey = '';
-        nextTick(showSelection);
+        brushReady = false;
+        nextTick(enableBrush);
       },
       { flush: 'post' }
     );
@@ -364,6 +404,7 @@ export default defineComponent({
       options,
       autoresize: { onResize: handleChartResize },
       showSelection,
+      enableBrush,
       handleBrush,
       handleBrushMove,
       handlePoint,
@@ -397,9 +438,7 @@ export default defineComponent({
                   this.$emit('collapseChange', !this.collapsed);
                 }}
               >
-                <i
-                  class={`icon-monitor ${this.collapsed ? 'icon-mc-triangle-down' : 'icon-mc-triangle-down expanded'}`}
-                />
+                <i class={['icon-monitor', 'icon-mc-triangle-down', { 'is-collapsed': this.collapsed }]} />
               </Button>
               <Radio.Group
                 modelValue={this.trace ? 'trace' : 'trend'}
@@ -446,7 +485,7 @@ export default defineComponent({
                 onBrush={this.handleBrushMove}
                 onBrushEnd={this.handleBrush}
                 onClick={this.handlePoint}
-                onFinished={() => nextTick(this.showSelection)}
+                onFinished={() => nextTick(this.enableBrush)}
                 onLegendselectchanged={event => this.$emit('legendChange', event.selected)}
               />
             )}

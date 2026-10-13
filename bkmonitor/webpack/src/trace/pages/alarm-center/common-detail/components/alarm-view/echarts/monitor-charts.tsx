@@ -38,7 +38,7 @@ import {
 import VueEcharts from 'vue-echarts';
 
 import { type CustomOptions, useEcharts } from '../../../../../trace-explore/components/explore-chart/use-echarts';
-import ChartSkeleton from '@/components/skeleton/chart-skeleton';
+import DetailLoading, { DetailLoadStatus } from '@/pages/alarm-center/common-detail/detail-loading';
 import {
   type LegendCustomOptions,
   useChartLegend,
@@ -127,7 +127,7 @@ export default defineComponent({
       return props.downSampleRange;
     };
 
-    const { options, loading, metricList, targets, series, duration, chartId } = useEcharts({
+    const { options, loading, metricList, targets, series, duration, chartId, loadError, getEchartOptions } = useEcharts({
       panel,
       chartRef,
       $api: instance.appContext.config.globalProperties.$api,
@@ -257,6 +257,7 @@ export default defineComponent({
     return {
       chartInstance,
       loading,
+      loadError, retry: getEchartOptions,
       options,
       metricList,
       legendData,
@@ -302,8 +303,9 @@ export default defineComponent({
           </ChartTitle>
         )}
 
-        {this.loading ? (
-          <ChartSkeleton />
+        <DetailLoadStatus loading={this.loading && !!this.options} error={this.loadError} onRetry={() => this.retry()} />
+        {this.loading && !this.options ? (
+          this.$slots.skeleton?.() || <DetailLoading showTitle={false} />
         ) : this.options ? (
           <>
             <div
@@ -340,7 +342,7 @@ export default defineComponent({
             />
           </>
         ) : (
-          <div class='empty-chart'>{this.$t('暂无数据')}</div>
+          !this.loadError && <div class='empty-chart'>{this.$t('暂无数据')}</div>
         )}
       </div>
     );

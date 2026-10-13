@@ -23,14 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
+
+import { Component, Inject, InjectReactive, Prop, Provide, ProvideReactive, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { listK8sResources } from 'monitor-api/modules/k8s';
 import { Debounce } from 'monitor-common/utils';
 import FlexDashboardPanel from 'monitor-ui/chart-plugins/components/flex-dashboard-panel';
 
-import TableSkeleton from '../../../../components/skeleton/table-skeleton';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { K8S_METHOD_LIST, PANEL_INTERVAL_LIST } from '../../../../constant/constant';
 import {
@@ -41,6 +41,8 @@ import {
 } from '../../typings/k8s-new';
 import FilterVarSelectSimple from '../filter-var-select/filter-var-select-simple';
 import K8sDetailSlider from '../k8s-detail-slider/k8s-detail-slider';
+import K8sEmptyStatus from '../k8s-empty-status/k8s-empty-status';
+import K8sLoading from '../k8s-loading/k8s-loading';
 import TimeCompareSelect from '../panel-tools/time-compare-select';
 import { K8sChartTargetsCreateTool } from './tools/targets-create/k8s-chart-targets-create-tool';
 
@@ -51,16 +53,21 @@ import type { IPanelModel } from 'monitor-ui/chart-plugins/typings/dashboard-pan
 
 import './k8s-charts.scss';
 @Component
-export default class K8SCharts extends tsc<{
-  activeMetricId?: string;
-  filterCommonParams: Record<string, any>;
-  groupBy: K8sTableColumnResourceKey[];
-  hideMetrics: string[];
-  isDetailMode?: boolean;
-  metricList: IK8SMetricItem[];
-  resourceListData?: Record<K8sTableColumnKeysEnum, string>[];
-}> {
+export default class K8SCharts extends tsc<
+  {
+    activeMetricId?: string;
+    filterCommonParams: Record<string, any>;
+    groupBy: K8sTableColumnResourceKey[];
+    hideMetrics: string[];
+    isDetailMode?: boolean;
+    metricList: IK8SMetricItem[];
+    metricLoading?: boolean;
+    resourceListData?: Record<K8sTableColumnKeysEnum, string>[];
+  },
+  { onClearSearch?: () => void }
+> {
   @Prop({ type: Array, default: () => [] }) metricList: IK8SMetricItem[];
+  @Prop({ type: Boolean, default: false }) metricLoading: boolean;
   @Prop({ type: Array, default: () => [] }) hideMetrics: string[];
   @Prop({ type: Array, default: () => [] }) groupBy: K8sTableColumnResourceKey[];
   @Prop({ type: Object, default: () => ({}) }) filterCommonParams: Record<string, any>;
@@ -69,6 +76,13 @@ export default class K8SCharts extends tsc<{
   @Prop({ type: Array, default: () => [] }) resourceListData: Record<K8sTableColumnKeysEnum, string>[];
   // 视图变量
   @ProvideReactive('viewOptions') viewOptions: IViewOptions & { unit?: string } = {};
+  @Provide('k8sLoadingSkeleton') k8sLoadingSkeleton = true;
+  @Inject({ from: 'k8sRefreshManaged', default: false }) k8sRefreshManaged: boolean;
+  @InjectReactive({ from: 'refreshInterval', default: -1 }) parentRefreshInterval: number;
+  @ProvideReactive('refreshInterval')
+  get chartRefreshInterval() {
+    return this.k8sRefreshManaged ? -1 : this.parentRefreshInterval;
+  }
   @ProvideReactive('timeOffset') timeOffset: string[] = [];
 
   // 汇聚周期
@@ -79,7 +93,36 @@ export default class K8SCharts extends tsc<{
   method = K8S_METHOD_LIST[0].id;
   showTimeCompare = false;
   panels: IPanelModel[] = [];
-  loading = false;
+  loading = true;
+  loadError = false;
+  requestId = 0;
+  requestTimer = null;
+  requestController: AbortController = null;
+  disposed = false;
+  loadedQueryKey = '';
+
+  get queryKey() {
+    return JSON.stringify([this.filterCommonParams, this.groupBy, this.limit, this.limitFunc]);
+  }
+
+  get showSkeleton() {
+    return this.metricLoading || (this.loading && this.loadedQueryKey !== this.queryKey);
+  }
+
+  get emptyType() {
+    if (this.loadError) return '500';
+    return this.metricList.length &&
+      !this.resourceList.size &&
+      Object.values(this.filterCommonParams.filter_dict || {}).some((value: string[]) => value?.length)
+      ? 'search-empty'
+      : 'empty';
+  }
+
+  handleEmptyOperation(type: 'clear-filter' | 'refresh') {
+    if (type === 'refresh') this.createPanelList();
+    else this.$emit('clearSearch');
+  }
+
   resourceMap: Map<K8sTableColumnKeysEnum, string> = new Map();
   resourceList: Set<Partial<Record<K8sTableColumnKeysEnum, string>>> = new Set();
   sideDetailShow = false;
@@ -115,20 +158,23 @@ export default class K8SCharts extends tsc<{
   get scene() {
     return this.filterCommonParams.scenario;
   }
+  @Watch('metricLoading')
+  @Watch('groupBy')
+  @Watch('resourceListData')
   @Watch('metricList')
   onMetricListChange() {
     this.createPanelList();
   }
   @Watch('hideMetrics')
   onHideMetricListChange() {
-    this.createPanelList(false);
+    this.createPanelList();
   }
   @Watch('filterCommonParams')
   onFilterCommonParamsChange(newVal: Record<string, string>, oldVal: Record<string, string>) {
     if (
       !newVal ||
       !oldVal ||
-      Object.entries(newVal.filter_dict).some(([key, value]) => value !== oldVal.filter_dict[key]) ||
+      Object.entries(newVal.filter_dict || {}).some(([key, value]) => value !== oldVal.filter_dict?.[key]) ||
       Object.entries(oldVal?.filter_dict || {}).some(([key, value]) => value !== newVal?.filter_dict?.[key]) ||
       Object.entries(newVal).some(
         ([key, value]) => !['start_time', 'end_time', 'filter_dict'].includes(key) && value !== oldVal[key]
@@ -189,63 +235,99 @@ export default class K8SCharts extends tsc<{
     this.updateViewOptions();
     this.createPanelList();
   }
-  @Debounce(300)
-  async createPanelList(hasLoading = true) {
-    if (hasLoading) {
-      this.loading = true;
-    }
-    await this.getResourceList();
-    const displayMode = this.isDetailMode ? 'hidden' : 'table';
-    const panelList = [];
-    const needAuxiliaryLine = this.resourceList.size === 1;
-    const targetCreateContext: K8sBasePromqlGeneratorContext = {
-      resourceMap: this.resourceMap,
-      bcs_cluster_id: this.filterCommonParams.bcs_cluster_id,
-      groupByField: this.groupByField,
-      filter_dict: this.filterCommonParams.filter_dict,
-    };
-    for (const item of this.metricList) {
-      panelList.push({
-        id: item.id,
-        title: item.name,
-        type: 'row',
-        collapsed: true,
-        panels: item.children
-          ?.filter(panel => !this.hideMetrics.includes(panel.id) && panel.show_chart)
-          .map(panel => ({
-            id: panel.id,
-            type: 'k8s_custom_graph',
-            title: panel.name,
-            subTitle: '',
-            externalData: {
-              groupByField: this.groupByField,
-              metrics: [{ metric_id: panel.id }],
-              filterCommonParams: this.filterCommonParams,
-            },
-            options: {
-              legend: {
-                displayMode,
-              },
-              unit: this.method === 'count' ? '' : panel.unit || K8SPerformanceMetricUnitMap[panel.id] || '',
-            },
-            targets: this.k8sChartTargetsCreateTool.createTargetsPanelList(
-              this.scene,
-              panel.id,
-              targetCreateContext,
-              needAuxiliaryLine
-            ),
-          })),
-      });
-    }
-    this.panels = panelList;
-    if (hasLoading) {
-      this.loading = false;
-    }
-    await this.$nextTick();
-    this.onActiveMetricIdChange(this.activeMetricId);
+  beforeDestroy() {
+    this.disposed = true;
+    this.requestId++;
+    clearTimeout(this.requestTimer);
+    this.requestController?.abort();
   }
 
-  async getResourceList() {
+  createPanelList() {
+    this.requestId++;
+    this.requestController?.abort();
+    clearTimeout(this.requestTimer);
+    this.loading = true;
+    this.requestTimer = setTimeout(() => this.loadPanels(), 100);
+  }
+
+  async loadPanels() {
+    if (this.disposed) return;
+    const requestId = ++this.requestId;
+    const queryKey = this.queryKey;
+    this.loadError = false;
+    if (this.metricLoading || !this.filterCommonParams.bcs_cluster_id || !this.metricList.length) {
+      this.panels = [];
+      this.loading = this.metricLoading;
+      return;
+    }
+    const controller = new AbortController();
+    this.requestController = controller;
+    try {
+      const resources = await this.getResourceList(controller.signal);
+      if (requestId !== this.requestId || controller.signal.aborted || this.disposed) return;
+      this.resourceMap = resources.resourceMap;
+      this.resourceList = resources.resourceList;
+      if (!this.resourceList.size) {
+        this.panels = [];
+        this.loadedQueryKey = queryKey;
+        return;
+      }
+      const displayMode = this.isDetailMode ? 'hidden' : 'table';
+      const panelList = [];
+      const needAuxiliaryLine = this.resourceList.size === 1;
+      const targetCreateContext: K8sBasePromqlGeneratorContext = {
+        resourceMap: this.resourceMap,
+        bcs_cluster_id: this.filterCommonParams.bcs_cluster_id,
+        groupByField: this.groupByField,
+        filter_dict: this.filterCommonParams.filter_dict,
+      };
+      for (const item of this.metricList) {
+        panelList.push({
+          id: item.id,
+          title: item.name,
+          type: 'row',
+          collapsed: true,
+          panels: item.children
+            ?.filter(panel => !this.hideMetrics.includes(panel.id) && panel.show_chart)
+            .map(panel => ({
+              id: panel.id,
+              type: 'k8s_custom_graph',
+              title: panel.name,
+              subTitle: '',
+              externalData: {
+                groupByField: this.groupByField,
+                metrics: [{ metric_id: panel.id }],
+                filterCommonParams: this.filterCommonParams,
+              },
+              options: {
+                legend: {
+                  displayMode,
+                },
+                unit: this.method === 'count' ? '' : panel.unit || K8SPerformanceMetricUnitMap[panel.id] || '',
+              },
+              targets: this.k8sChartTargetsCreateTool.createTargetsPanelList(
+                this.scene,
+                panel.id,
+                targetCreateContext,
+                needAuxiliaryLine
+              ),
+            })),
+        });
+      }
+      this.panels = panelList.filter(panel => panel.panels?.length);
+      this.loadedQueryKey = queryKey;
+      await this.$nextTick();
+      if (requestId === this.requestId && !this.disposed) this.onActiveMetricIdChange(this.activeMetricId);
+    } catch {
+      if (requestId !== this.requestId || controller.signal.aborted || this.disposed) return;
+      this.loadError = true;
+      if (this.loadedQueryKey !== queryKey) this.panels = [];
+    } finally {
+      if (requestId === this.requestId && !this.disposed) this.loading = false;
+    }
+  }
+
+  async getResourceList(signal: AbortSignal) {
     const resourceMap = new Map<K8sTableColumnKeysEnum, string>([
       [K8sTableColumnKeysEnum.CLUSTER, this.filterCommonParams.bcs_cluster_id],
       [K8sTableColumnKeysEnum.CONTAINER, ''],
@@ -269,22 +351,23 @@ export default class K8SCharts extends tsc<{
       const formatTimeRange = handleTransformToTimestamp(timeRange);
       data = this.isDetailMode
         ? this.resourceListData
-        : await listK8sResources({
-            ...filterCommonParams,
-            column: this.scene === SceneEnum.GPU ? K8sTableColumnKeysEnum.GPU_UTILIZATION : undefined,
-            start_time: formatTimeRange[0],
-            end_time: formatTimeRange[1],
-            with_history: true,
-            page_size: Math.abs(this.limit),
-            page: 1,
-            page_type: 'scrolling',
-            order_by: this.limitFunc === 'bottom' ? 'asc' : 'desc',
-          })
-            .then(data => {
-              if (!data?.items?.length) return [];
-              return data.items;
-            })
-            .catch(() => []);
+        : await listK8sResources(
+            {
+              ...filterCommonParams,
+              column: this.scene === SceneEnum.GPU ? K8sTableColumnKeysEnum.GPU_UTILIZATION : undefined,
+              start_time: formatTimeRange[0],
+              end_time: formatTimeRange[1],
+              with_history: true,
+              page_size: Math.abs(this.limit),
+              page: 1,
+              page_type: 'scrolling',
+              order_by: this.limitFunc === 'bottom' ? 'asc' : 'desc',
+            },
+            { signal }
+          ).then(data => {
+            if (!data?.items?.length) return [];
+            return data.items;
+          });
       if (data.length) {
         const container = new Set<string>();
         const pod = new Set<string>();
@@ -318,8 +401,7 @@ export default class K8SCharts extends tsc<{
         resourceMap.set(K8sTableColumnKeysEnum.NODE, Array.from(node).filter(Boolean).join('|'));
       }
     }
-    this.resourceList = new Set(data);
-    this.resourceMap = resourceMap;
+    return { resourceList: new Set(data), resourceMap };
   }
   updateViewOptions() {
     this.viewOptions = {
@@ -424,11 +506,30 @@ export default class K8SCharts extends tsc<{
             )}
           </div>
         </div>
-        <div class='k8s-charts-list'>
-          {this.loading || !this.panels.length ? (
-            <TableSkeleton
-              class='table-skeleton'
-              type={5}
+        <div
+          class={['k8s-charts-list', { 'is-empty': !this.showSkeleton && !this.panels.length }]}
+          aria-busy={this.loading || this.metricLoading}
+        >
+          {this.loading && !this.showSkeleton ? (
+            <div
+              class='k8s-charts-refreshing'
+              role='status'
+            >
+              <bk-spin
+                placement='right'
+                size='mini'
+              >
+                {this.$t('加载中')}
+              </bk-spin>
+            </div>
+          ) : null}
+          {this.showSkeleton ? (
+            <K8sLoading type='charts' />
+          ) : !this.panels.length ? (
+            <K8sEmptyStatus
+              showOperation={this.emptyType !== 'search-empty' || !!this.$listeners.clearSearch}
+              type={this.emptyType}
+              onOperation={this.handleEmptyOperation}
             />
           ) : (
             <FlexDashboardPanel

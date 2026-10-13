@@ -24,11 +24,13 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, shallowRef, watch } from 'vue';
+import { type PropType, computed, defineComponent, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { Dialog } from 'bkui-vue';
 import { getDemoActionDetail } from 'monitor-api/modules/action';
 import { useI18n } from 'vue-i18n';
+
+import DetailLoading, { DetailLoadStatus } from '../../detail-loading';
 
 import type { DebugStatusData, MealInfo } from '../../../typings';
 
@@ -77,55 +79,40 @@ export default defineComponent({
       emit('update:show', value);
     };
 
-    // 轮询调试状态
-    const getDebugStatus = actionIds => {
-      let timer = null;
-
-      // biome-ignore lint/suspicious/noAsyncPromiseExecutor: <explanation>
-      return new Promise(async resolve => {
-        if (!isQueryStatus.value) {
-          resolve({});
-          return;
-        }
-        debugStatusData.value = await getDemoActionDetail({
-          bk_biz_id: props.alarmBizId,
-          action_id: actionIds[0],
-        })
-          .then(res => (isQueryStatus.value ? res : {}))
-          .catch(() => false);
-        if (debugStatusData.value.is_finished || !debugStatusData.value) {
-          resolve(debugStatusData.value);
-        } else {
-          timer = setTimeout(() => {
-            clearTimeout(timer);
-            if (!isQueryStatus.value) {
-              resolve({});
-              return;
-            }
-            getDebugStatus(actionIds).then(data => {
-              if (!isQueryStatus.value) {
-                resolve({});
-                return;
-              }
-              debugStatusData.value = data as any;
-              if (debugStatusData.value.is_finished) {
-                resolve(debugStatusData.value);
-              }
-            });
-          }, 2000);
-        }
-      });
+    const initialLoading = shallowRef(false);
+    const loadError = shallowRef(false);
+    let generation = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const stopPolling = () => {
+      ++generation;
+      clearTimeout(timer);
+      isQueryStatus.value = false;
     };
-
-    watch(
-      () => props.show,
-      async show => {
-        if (show) {
-          isQueryStatus.value = true;
-          debugStatusData.value = await getDebugStatus(props.actionIds);
-        }
+    const getDebugStatus = async (current = generation) => {
+      if (!props.show || !isQueryStatus.value || current !== generation) return;
+      loadError.value = false;
+      try {
+        const data = await getDemoActionDetail({ bk_biz_id: props.alarmBizId, action_id: props.actionIds[0] });
+        if (current !== generation) return;
+        debugStatusData.value = data;
+        if (!data.is_finished) timer = setTimeout(() => getDebugStatus(current), 2000);
+      } catch {
+        if (current === generation) loadError.value = true;
+      } finally {
+        if (current === generation) initialLoading.value = false;
       }
-    );
+    };
+    watch(() => [props.show, props.actionIds.join(','), props.alarmBizId], () => {
+      stopPolling();
+      debugStatusData.value = {};
+      loadError.value = false;
+      initialLoading.value = props.show;
+      if (props.show && props.actionIds.length) {
+        isQueryStatus.value = true;
+        getDebugStatus();
+      }
+    }, { immediate: true });
+    onScopeDispose(stopPolling);
 
     const debugStatusIcon = () => {
       const loading = (
@@ -221,6 +208,7 @@ export default defineComponent({
     };
 
     return {
+      initialLoading, loadError, retry: () => getDebugStatus(),
       debugStatusData,
       actionUrl,
       handleShowChange,
@@ -240,7 +228,7 @@ export default defineComponent({
         renderDirective={'if'}
         onUpdate:isShow={this.handleShowChange}
       >
-        <div class='status-content'>
+        {this.initialLoading ? <DetailLoading variant='status' /> : this.loadError ? <DetailLoadStatus error onRetry={this.retry} /> : <div class='status-content'>
           <div class='spinner'>{this.debugStatusIcon()}</div>
           <div class='status-title'>{this.debugStatusTitle()}</div>
           <div class='status-text'>{this.debugStatusText(this.debugStatusData?.content)}</div>
@@ -266,7 +254,7 @@ export default defineComponent({
             </div>,
             this.debugStatusOperate(),
           ]}
-        </div>
+        </div>}
       </Dialog>
     );
   },

@@ -32,13 +32,16 @@ import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 import { TrendStatusEnum } from '../../../constant';
 import BasicCard from '../basic-card/basic-card';
 import { type TimeRangeType, DEFAULT_TIME_RANGE } from '@/components/time-range/utils';
-import ExploreChart from '@/pages/trace-explore/components/explore-chart/explore-chart';
+import MonitorCharts from '../../../../common-detail/components/alarm-view/echarts/monitor-charts';
+import IssuesLoading from '../issues-loading';
 
 import './issues-trend-chart.scss';
 
 export default defineComponent({
   name: 'IssuesTrendChart',
   props: {
+    countLoading: Boolean,
+    countError: Boolean,
     alertCount: {
       type: Number,
       default: 0,
@@ -149,14 +152,16 @@ export default defineComponent({
               <span class='chart-subtitle'>
                 <i class='icon-monitor icon-alert-line' />
                 <span>{this.$t('告警事件')}：</span>
-                <span class='count'>{this.alertCount}</span>
+                <span class='count'>{this.countLoading ? <IssuesLoading variant='count' /> : this.countError ? '--' : this.alertCount}</span>
               </span>
             </div>
           ),
         }}
       >
         <div class='chart-body'>
-          <ExploreChart
+          <MonitorCharts
+            downSampleRange=''
+            v-slots={{ skeleton: () => <IssuesLoading variant='trend' /> }}
             customOptions={{ formatterData: this.formatterData }}
             panel={this.panel}
             params={this.params}

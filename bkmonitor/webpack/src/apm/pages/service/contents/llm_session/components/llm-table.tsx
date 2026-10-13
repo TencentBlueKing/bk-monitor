@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { Component, Prop } from 'vue-property-decorator';
+import { Component, Prop, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { copyText } from 'monitor-common/utils/utils';
@@ -65,12 +65,154 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
   @Prop({ default: false, type: Boolean }) loading: boolean;
   @Prop({ default: false, type: Boolean }) scrollLoading: boolean;
   @Prop({ type: [Number, String] }) maxHeight: number | string;
+  @Ref('table') tableRef: { $refs?: { bodyWrapper?: HTMLElement }; bodyWrapper?: HTMLElement };
 
   /** 手风琴：同时最多展开一行 */
   expandRowKeys: string[] = [];
+  /** 已滚过展开区底部时取消吸顶；默认吸顶，避免展开瞬间 DOM 未就绪把 sticky 关掉 */
+  isExpandStickyReleased = false;
+  /** 主表的滚动容器，滚动的吸顶计算都基于它 */
+  bodyScrollEl: HTMLElement | null = null;
+  /** 监听展开区可见性，出入视口时触发吸顶状态重算 */
+  expandStickyObserver: IntersectionObserver | null = null;
+  /** 节流用 rAF 句柄：合并同一帧内的多次触发，避免高频 scroll/resize 反复布局计算 */
+  expandStickyRaf = 0;
 
   get hasExpand() {
     return !!this.expandColumns?.length;
+  }
+
+  mounted() {
+    this.bindExpandSticky();
+    window.addEventListener('resize', this.scheduleExpandStickyUpdate);
+  }
+
+  beforeDestroy() {
+    this.unbindExpandSticky();
+    window.removeEventListener('resize', this.scheduleExpandStickyUpdate);
+  }
+
+  /**
+   * 当 data / expandRowKeys / loading / maxHeight 任一变化时，在 DOM 更新后重新绑定吸顶逻辑。
+   * 因为这些变化会导致表格重新渲染或尺寸变化，原有的 Observer 可能已失效。
+   */
+  @Watch('data')
+  @Watch('expandRowKeys')
+  @Watch('loading')
+  @Watch('maxHeight')
+  handleExpandStickyDepsChange() {
+    this.$nextTick(() => this.bindExpandSticky());
+  }
+
+  /**
+   * 获取主表 body 的滚动容器 DOM 节点。
+   * 优先通过 $refs 取 bodyWrapper，降级回 DOM 查询（兼容不同 bk-table 版本）。
+   * @returns 滚动容器元素，未找到时返回 null
+   */
+  getMainBodyWrapper() {
+    return (
+      this.tableRef?.bodyWrapper ||
+      this.tableRef?.$refs?.bodyWrapper ||
+      (this.$el?.querySelector(':scope > .bk-table > .bk-table-body-wrapper') as HTMLElement | null) ||
+      null
+    );
+  }
+
+  /**
+   * 获取与吸顶计算相关的三个关键节点：
+   * - scrollRoot: 主表滚动容器
+   * - expandedRow: 被展开的行（吸顶目标）
+   * - expandBox: 展开区域容器（用于判断是否滚过底部）
+   */
+  getExpandStickyNodes() {
+    const scrollRoot = this.getMainBodyWrapper();
+    const expandedRow = scrollRoot?.querySelector('table.bk-table-body tr.bk-table-row.expanded') as HTMLElement | null;
+    const expandRow = expandedRow?.nextElementSibling as HTMLElement | null;
+    const expandBox = (expandRow?.querySelector('.llm-table-expand') as HTMLElement | null) || expandRow;
+    return { expandBox, expandedRow, scrollRoot };
+  }
+
+  /**
+   * 绑定吸顶逻辑：
+   * 1. 在滚动容器上注册 scroll 事件（再度监听前先移除旧的）
+   * 2. 用 IntersectionObserver 监听展开区在滚动容器内的可见性变化
+   * 3. 三种 threshold（0 / 0.01 / 1）覆盖入/出视口的边界情况
+   * 4. 立即调用一次更新以确保初始状态正确
+   */
+  bindExpandSticky() {
+    const scrollRoot = this.getMainBodyWrapper();
+    if (this.bodyScrollEl !== scrollRoot) {
+      this.bodyScrollEl?.removeEventListener('scroll', this.scheduleExpandStickyUpdate);
+      this.bodyScrollEl = scrollRoot;
+      this.bodyScrollEl?.addEventListener('scroll', this.scheduleExpandStickyUpdate, { passive: true });
+    }
+    this.expandStickyObserver?.disconnect();
+    this.expandStickyObserver = null;
+    const { expandBox } = this.getExpandStickyNodes();
+    if (scrollRoot && expandBox) {
+      this.expandStickyObserver = new IntersectionObserver(this.scheduleExpandStickyUpdate, {
+        root: scrollRoot,
+        threshold: [0, 0.01, 1],
+      });
+      this.expandStickyObserver.observe(expandBox);
+    }
+    this.scheduleExpandStickyUpdate();
+  }
+
+  /** 解绑吸顶：取消 rAF、断开 Observer、移除 scroll 监听，重置引用 */
+  unbindExpandSticky() {
+    if (this.expandStickyRaf) {
+      cancelAnimationFrame(this.expandStickyRaf);
+      this.expandStickyRaf = 0;
+    }
+    this.expandStickyObserver?.disconnect();
+    this.expandStickyObserver = null;
+    this.bodyScrollEl?.removeEventListener('scroll', this.scheduleExpandStickyUpdate);
+    this.bodyScrollEl = null;
+  }
+
+  /**
+   * 通过 requestAnimationFrame 节流频繁触发（scroll/resize/IntersectionObserver）
+   * 同帧内的多次调用被合并为一次更新，避免布局抖动
+   */
+  scheduleExpandStickyUpdate = () => {
+    if (this.expandStickyRaf) return;
+    this.expandStickyRaf = requestAnimationFrame(() => {
+      this.expandStickyRaf = 0;
+      this.updateExpandSticky();
+    });
+  };
+
+  /**
+   * 展开区吸顶核心算法：
+   * 当展开区底部滚过「吸顶行高度」时释放吸顶（sticky → relative），
+   * 否则保持吸顶。这样展开区内部的子表 thead 能衔接到父表滚动位置，
+   * 避免吸顶行遮挡展开区内容。
+   * 判断条件：expandBox.bottom <= scrollRoot.top + rowHeight
+   */
+  updateExpandSticky() {
+    if (!this.hasExpand || !this.expandRowKeys.length) {
+      this.isExpandStickyReleased = false;
+      return;
+    }
+    const { expandBox, expandedRow, scrollRoot } = this.getExpandStickyNodes();
+    if (!expandBox || !expandedRow || !scrollRoot) return;
+    const viewportTop = scrollRoot.getBoundingClientRect().top;
+    const rowHeight = expandedRow.offsetHeight || 42;
+    this.isExpandStickyReleased = expandBox.getBoundingClientRect().bottom <= viewportTop + rowHeight;
+  }
+
+  /**
+   * 为当前展开行追加 CSS class：
+   * 当该行处于「吸顶释放」状态时加 is-sticky-released，
+   * 使 CSS 将 position:sticky 改为 position:relative，不遮挡展开区。
+   * @returns 额外 class 字符串，无特殊情况返回空串
+   */
+  getRowClassName({ row }: { row: LlmRow }) {
+    if (this.hasExpand && this.expandRowKeys[0] === row.key && this.isExpandStickyReleased) {
+      return 'is-sticky-released';
+    }
+    return '';
   }
 
   handleScrollEnd() {
@@ -99,8 +241,13 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
     this.setExpandedKey(opened ? row.key : undefined);
   }
 
+  /**
+   * 设置当前展开行 key（手风琴：最多展开一行）。
+   * 切换行时重置 isExpandStickyReleased，让新展开区从吸顶状态开始。
+   */
   setExpandedKey(key?: string) {
     this.expandRowKeys = key ? [key] : [];
+    this.isExpandStickyReleased = false;
   }
 
   clipTooltipContent(value: string) {
@@ -188,6 +335,7 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
           animateFill: false,
           animation: false,
           arrow: false,
+          delay: [500, 0],
           hideOnClick: false,
           interactive: true,
         }}
@@ -284,6 +432,7 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
     return (
       <div class='llm-table-expand'>
         <bk-table
+          class='llm-table-expand-table'
           data={row.children}
           outer-border={false}
           row-key='key'
@@ -296,7 +445,9 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
 
   render() {
     return (
-      <div class={['llm-table', { 'is-expandable': this.hasExpand }]}>
+      // is-expand-sticky-released 类控制展开区子表 thead 的吸顶偏移量，
+      // 展开区滚过吸顶行高度后释放，避免遮挡展开区内容
+      <div class={['llm-table', { 'is-expandable': this.hasExpand, 'is-expand-sticky-released': this.isExpandStickyReleased }]}>
         {this.loading ? (
           <TableSkeleton
             class='llm-table-skeleton'
@@ -304,6 +455,7 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
           />
         ) : (
           <bk-table
+            ref='table'
             scroll-loading={{
               isLoading: this.scrollLoading,
               size: 'mini',
@@ -315,6 +467,7 @@ export default class LlmTable extends tsc<ILlmTableProps, ILlmTableEvents> {
             expand-row-keys={this.expandRowKeys}
             max-height={this.maxHeight}
             outer-border={false}
+            row-class-name={this.getRowClassName}
             row-key='key'
             on-expand-change={this.handleExpandChange}
             on-row-click={this.handleRowClick}

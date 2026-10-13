@@ -72,16 +72,16 @@ const isKnownUnitId = (unitId: string): boolean => {
 };
 
 /**
- * @description 带单位数值的单位自适应展示，量纲换算与 explore-chart（use-echarts）共用 getValueFormat
+ * @description 带单位数值的单位自适应换算，返回数值与单位两段，供需要分别排版的场景（如详情统计卡片）使用
  * @param {unknown} value 原始值
  * @param {string} unit 原始值单位（字段的 field_unit，如 us / ms / bytes / GiB）
- * @returns {string} 自适应单位后的展示文本，如 1234 ms → '1.23 s'、1048576 bytes → '1 MiB'
+ * @returns {{ suffix: string; text: string }} 换算后的数值文本与单位后缀（保留量纲表原始前导空格），非数值时 suffix 为空
  */
-export const formatUnitValue = (value: unknown, unit: string): string => {
-  if (value === null || value === undefined || value === '') return '';
+export const formatUnitValueParts = (value: unknown, unit: string): { suffix: string; text: string } => {
+  if (value === null || value === undefined || value === '') return { text: '', suffix: '' };
   const num = Number(value);
   /** 非数值（如单位标错的字符串字段）不换算，避免渲染成 NaN */
-  if (!Number.isFinite(num)) return String(value);
+  if (!Number.isFinite(num)) return { text: String(value), suffix: '' };
   const unitId = UNIT_ID_ALIAS[unit.toLowerCase()] ?? unit;
   /**
    * 单位不在量纲表内且非 getValueFormat 内建语法（prefix:/time:/si:/count:/currency:）时，
@@ -90,5 +90,16 @@ export const formatUnitValue = (value: unknown, unit: string): string => {
    */
   const formatter = isKnownUnitId(unitId) ? getValueFormat(unitId) : toFixedUnit(unit);
   const { text, suffix } = formatter(num, UNIT_VALUE_DECIMALS);
-  return `${text}${suffix || ''}`;
+  return { text, suffix: suffix || '' };
+};
+
+/**
+ * @description 带单位数值的单位自适应展示，量纲换算与 explore-chart（use-echarts）共用 getValueFormat
+ * @param {unknown} value 原始值
+ * @param {string} unit 原始值单位（字段的 field_unit，如 us / ms / bytes / GiB）
+ * @returns {string} 自适应单位后的展示文本，如 1234 ms → '1.23 s'、1048576 bytes → '1 MiB'
+ */
+export const formatUnitValue = (value: unknown, unit: string): string => {
+  const { text, suffix } = formatUnitValueParts(value, unit);
+  return `${text}${suffix}`;
 };

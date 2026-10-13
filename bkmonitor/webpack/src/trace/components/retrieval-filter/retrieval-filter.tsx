@@ -655,6 +655,7 @@ export default defineComponent({
         </div>
         {this.showResidentSetting && this.mode !== EMode.queryString && this.isShowResident && (
           <ResidentSetting
+            v-slots={this.$slots.residentSkeleton ? { loading: this.$slots.residentSkeleton } : undefined}
             defaultResidentSetting={this.defaultResidentSetting}
             fields={this.localFields}
             getValueFn={this.getValueFn}

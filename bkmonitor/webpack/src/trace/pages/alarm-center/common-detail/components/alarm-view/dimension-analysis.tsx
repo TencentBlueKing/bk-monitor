@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, provide, shallowRef, toRef } from 'vue';
+import { type PropType, computed, defineComponent, provide, onScopeDispose, shallowRef, toRef } from 'vue';
 import { watch } from 'vue';
 
 import { Dialog, Exception, Popover } from 'bkui-vue';
@@ -36,6 +36,7 @@ import { useAppStore } from 'trace/store/modules/app';
 import { useI18n } from 'vue-i18n';
 
 import { useDimensionChartPanel } from '../../../composables/use-dimension-chart-panel';
+import DetailLoading, { DetailLoadStatus } from '../../detail-loading';
 import DimensionAnalysisTable from './components/dimension-analysis-table';
 import DimensionSelector from './components/dimension-selector';
 import DimensionTreeMapCharts from './echarts/dimension-tree-map-charts';
@@ -142,7 +143,14 @@ export default defineComponent({
     provide('refreshImmediate', refreshImmediate);
     provide('timeRange', viewerTimeRange);
 
+    let dimensionRequestId = 0;
+    let tableRequestId = 0;
+    const dimensionError = shallowRef(false);
+    const tableError = shallowRef(false);
+    onScopeDispose(() => { ++dimensionRequestId; ++tableRequestId; });
     const getDrillDimensionsData = async () => {
+      const current = ++dimensionRequestId;
+      dimensionError.value = false;
       dimensionListLoading.value = true;
       const queryConfigsParams =
         props.detail.extra_info?.strategy?.items?.[0]?.query_configs
@@ -156,20 +164,31 @@ export default defineComponent({
         dimensionListLoading.value = false;
         return [];
       }
+      try {
       const res = await getDrillDimensions({
         bk_biz_id: props.detail.bk_biz_id,
         query_configs: queryConfigsParams,
-      }).catch(() => []);
-      dimensionListLoading.value = false;
+      });
+      if (current !== dimensionRequestId) return null;
       return res;
+      } catch {
+        if (current === dimensionRequestId) dimensionError.value = true;
+        return null;
+      } finally {
+        if (current === dimensionRequestId) dimensionListLoading.value = false;
+      }
     };
 
     const graphDrillDownData = async () => {
+      const current = ++tableRequestId;
+      tableError.value = false;
+      tableData.value = [];
       tableDataLoading.value = true;
       if (!selectedDimension.value.length) {
         tableDataLoading.value = false;
         return [];
       }
+      try {
       const res = props.detail.graph_panel
         ? await alertGraphDrillDown({
             bk_biz_id: props.detail.bk_biz_id,
@@ -195,42 +214,40 @@ export default defineComponent({
             start_time: dayjs(chartClickPointEvent.value?.xAxis || viewerTimeRange.value[0]).unix(),
             end_time: dayjs(viewerTimeRange.value[1]).unix(),
             group_by: selectedDimension.value,
-          }).catch(() => [])
+          })
         : [];
+      if (current !== tableRequestId) return;
       tableData.value = res.map((item, index) => {
         return {
           ...item,
           color: COLOR_LIST[index % COLOR_LIST.length],
         };
       });
-      tableDataLoading.value = false;
       return res;
+      } catch {
+        if (current === tableRequestId) tableError.value = true;
+      } finally {
+        if (current === tableRequestId) tableDataLoading.value = false;
+      }
     };
 
-    watch(
-      () => props.detail,
-      async newVal => {
-        if (newVal) {
-          dimensionListLoading.value = true;
-          tableDataLoading.value = true;
-          const dimensionsData = await getDrillDimensionsData();
-          dimensionList.value = dimensionsData.map(item => {
-            if (typeof item === 'object') {
-              return {
-                id: item.value,
-                name: item.text,
-              };
-            }
-            return { id: item, name: item };
-          });
-          selectedDimension.value = dimensionList.value.length ? [dimensionList.value[0].id] : [];
-          graphDrillDownData();
-        }
-      },
-      {
-        immediate: true,
+    const initDimensions = async () => {
+      if (!props.detail) return;
+      tableDataLoading.value = true;
+      const pending = getDrillDimensionsData();
+      const current = dimensionRequestId;
+      const dimensionsData = await pending;
+      if (current !== dimensionRequestId) return;
+      if (!dimensionsData) {
+        tableDataLoading.value = false;
+        return;
       }
-    );
+      dimensionList.value = dimensionsData.map(item => typeof item === 'object'
+        ? { id: item.value, name: item.text } : { id: item, name: item });
+      selectedDimension.value = dimensionList.value.length ? [dimensionList.value[0].id] : [];
+      graphDrillDownData();
+    };
+    watch(() => [props.detail?.id, props.detail?.bk_biz_id], initDimensions, { immediate: true });
 
     const handleTableDrillDown = async (obj: { dimension: string; where: any[] }) => {
       const existingKeys = new Set(obj.where.map(item => item.key));
@@ -337,6 +354,7 @@ export default defineComponent({
       selectedDimension,
       where,
       tableData,
+      dimensionError, tableError, initDimensions, retryTable: graphDrillDownData,
       tableDataLoading,
       dimensionListLoading,
       chartClickPointEvent,
@@ -361,6 +379,8 @@ export default defineComponent({
   render() {
     return (
       <div class='alarm-view-panel-dimension-analysis-wrap'>
+        <DetailLoadStatus error={this.dimensionError} onRetry={this.initDimensions} />
+        <DetailLoadStatus error={this.tableError} onRetry={this.retryTable} />
         {this.isPromQLStrategy ? (
           /** PromQL 策略:仅显示空状态,不渲染图表和维度分析 */
           <div class='dimension-analysis-promql-empty'>
@@ -442,7 +462,7 @@ export default defineComponent({
                       tableData={this.tableData}
                       onDrillDown={this.handleTableDrillDown}
                     />
-                  ) : (
+                  ) : this.tableDataLoading ? <DetailLoading variant='treemap' /> : (
                     <DimensionTreeMapCharts
                       chartData={this.tableData}
                       dimensionList={this.dimensionList}

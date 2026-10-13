@@ -278,6 +278,10 @@ DISK_FILTER_CONDITION_LIST_V1 = [
 # SQL最大查询条数
 SQL_MAX_LIMIT = 500000
 
+# 命名输出（query_output_config.output_list）最多支持的输出个数
+# 与 UQ 侧 defaultNamedOutputSettings 的 MaxOutputs 对齐，可通过环境变量 BKAPP_SETTINGS_NAMED_OUTPUT_MAX_COUNT 覆盖
+NAMED_OUTPUT_MAX_COUNT = 4
+
 FILE_SYSTEM_TYPE_RT_ID = "system.disk"
 FILE_SYSTEM_TYPE_FIELD_NAME = "device_type"
 FILE_SYSTEM_TYPE_IGNORE = ["iso9660", "tmpfs", "udf"]
@@ -1277,6 +1281,8 @@ BKLOGSEARCH_API_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_BASE_URL", "")
 # 通过 apigw 访问日志平台 api 的地址
 BKLOGSEARCH_API_GW_BASE_URL = os.getenv("BKAPP_BKLOGSEARCH_API_GW_BASE_URL", "")
 BKNODEMAN_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_API_BASE_URL", "")
+ENABLE_NODEMAN_V3 = os.getenv("BKAPP_ENABLE_NODEMAN_V3", "false").lower() == "true"
+BKNODEMAN_V3_API_BASE_URL = os.getenv("BKAPP_BKNODEMAN_V3_API_BASE_URL", "")
 BKSOPS_API_BASE_URL = os.getenv("BKAPP_BKSOPS_API_BASE_URL", "")
 BKDOCS_API_BASE_URL = os.getenv("BKAPP_BKDOCS_API_BASE_URL", "")
 DEVOPS_API_BASE_URL = os.getenv("BKAPP_DEVOPS_API_BASE_URL", "")

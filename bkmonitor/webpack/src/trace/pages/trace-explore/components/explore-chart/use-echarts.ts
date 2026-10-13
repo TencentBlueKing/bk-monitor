@@ -489,14 +489,13 @@ export const useEcharts = ({
     intersectionObserver.value = new IntersectionObserver(async entries => {
       for (const entry of entries) {
         if (intersectionObserver.value && entry.intersectionRatio > 0) {
-          options.value = await getEchartOptions();
-          chartId.value = random(8);
+          await getEchartOptions();
         }
       }
     });
     // 临时使用此方法解决，自定义指标直接全选分组时，偶现前两个图表不会请求数据
     setTimeout(() => {
-      intersectionObserver.value.observe(el);
+      intersectionObserver.value?.observe(el);
     }, 50);
   };
 
@@ -592,7 +591,7 @@ export const useEcharts = ({
     };
   };
 
-  const getEchartOptions = async () => {
+  const fetchEchartOptions = async () => {
     const requestId = ++currentRequestId;
     loadError.value = false;
     for (const cb of cancelTokens) {
@@ -688,11 +687,7 @@ export const useEcharts = ({
     const syncPromiseList = timeShiftList.flatMap(time_shift =>
       syncTargets.map(target => queryTarget(target, time_shift))
     );
-    const syncResList = await Promise.allSettled(syncPromiseList).finally(() => {
-      if (requestId === currentRequestId) {
-        loading.value = false;
-      }
-    });
+    const syncResList = await Promise.allSettled(syncPromiseList);
     if (requestId !== currentRequestId) return options.value;
     const hasSyncSuccess = syncResList.some(item => item.status === 'fulfilled');
     const hasSyncFailure = syncResList.some(item => item.status === 'rejected');
@@ -725,6 +720,20 @@ export const useEcharts = ({
     }
     return buildOptions(syncSeriesList);
   };
+  const getEchartOptions = async () => {
+    const request = fetchEchartOptions();
+    const requestId = currentRequestId;
+    try {
+      const nextOptions = await request;
+      if (requestId !== currentRequestId) return options.value;
+      options.value = nextOptions;
+      chartId.value = random(8);
+      return nextOptions;
+    } finally {
+      if (requestId === currentRequestId) loading.value = false;
+    }
+  };
+
   watch(
     [
       () => toValue(timeRange),
@@ -734,12 +743,7 @@ export const useEcharts = ({
       () => toValue(params),
       () => toValue(timeOffset),
     ],
-    async () => {
-      loading.value = true;
-      options.value = await getEchartOptions();
-      chartId.value = random(8);
-      loading.value = false;
-    },
+    getEchartOptions,
     {
       immediate: true,
     }
@@ -759,6 +763,8 @@ export const useEcharts = ({
   });
 
   onBeforeUnmount(() => {
+    currentRequestId += 1;
+    for (const cancel of cancelTokens) cancel?.();
     if (intersectionObserver.value) {
       unregisterObserver(viewportRequest.el.value);
     }

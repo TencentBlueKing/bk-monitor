@@ -86,6 +86,19 @@ export default class SharePage extends tsc<object> {
         /^#\/([^?]*)\?/g,
         ''
       )}`;
+    } else if (/^\/trace/.test(data.path)) {
+      // trace 处理
+      const route = this.$router.resolve({
+        name: data.path,
+        params: data.params,
+        query: data.query,
+      });
+      const host = has_permission ? location.origin + location.pathname : data.weWebData.host;
+      const path = !has_permission && process.env.NODE_ENV === 'production' ? `${location.pathname}trace/` : '';
+      url = `${host}${path}?bizId=${this.$store.getters.bizId}#${data?.path || '/'}?${route.href.replace(
+        /^#\/([^?]*)\?/g,
+        ''
+      )}`;
     } else {
       const route = this.$router.resolve({
         name: data.name,

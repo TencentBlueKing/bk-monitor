@@ -70,7 +70,7 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   const topoTreeWorker = useHostTopoTreeWorker();
   const isAllExpand = shallowRef(false);
   /** 加载状态 */
-  const loading = shallowRef(false);
+  const loading = shallowRef(true);
   /** 拓扑加载失败状态 */
   const loadError = shallowRef(false);
   /** 原始树数据（接口/ mock 原样数据） */
@@ -281,9 +281,10 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
     viewportScrollTop = Math.min(viewportScrollTop, Math.max(0, result.total * TOPO_ROW_HEIGHT - viewportHeight));
     if (scrollEl) scrollEl.scrollTop = viewportScrollTop;
+    await refreshVisibleRange(true);
+    if (disposed || version !== loadRequestVersion || (!complete && fullArrived)) return;
     loading.value = false;
     loadError.value = false;
-    await refreshVisibleRange(true);
   };
 
   const loadFullTree = async (version = loadRequestVersion) => {
@@ -304,12 +305,12 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
       if (!disposed && version === loadRequestVersion && request === fullRequestVersion) {
         fullArrived = false;
         fullTreeError.value = true;
-        if (!initialized) loadError.value = true;
+        if (!visibleRows.value.length) loadError.value = true;
       }
     } finally {
       if (!disposed && version === loadRequestVersion && request === fullRequestVersion) {
         fullTreeLoading.value = false;
-        if (!initialized) loading.value = false;
+        if (!initialized || loadError.value) loading.value = false;
       }
     }
   };
@@ -318,10 +319,11 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
   const loadTopoTree = async () => {
     const version = ++loadRequestVersion;
     if (scopeError.value) {
+      loading.value = false;
       loadError.value = true;
       return;
     }
-    loading.value = !initialized;
+    loading.value = !visibleRows.value.length;
     loadError.value = false;
     fullArrived = false;
     fullTreeReady.value = false;
