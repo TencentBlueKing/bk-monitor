@@ -19,12 +19,14 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import configparser
 import copy
 import gzip
 import hashlib
 import io
 import itertools
 import json
+import shlex
 import tempfile
 import time
 from dataclasses import replace
@@ -119,6 +121,7 @@ from apps.log_search.tasks.sharded_export import (
     coordinate_sharded_exports,
     execute_sharded_export_part,
     finalize_sharded_export,
+    notify_sharded_export,
     plan_sharded_export,
 )
 
@@ -960,10 +963,11 @@ class PartTaskContractTests(SimpleTestCase):
 
     def test_message_carries_part_id_and_task_id_only(self):
         with patch("apps.log_search.export.scheduler.app.send_task") as send_task:
-            _send(PART_TASK_NAME, 7, task_id="token-a")
+            _send(PART_TASK_NAME, 7, task_id="token-a", queue=PART_QUEUE)
 
         self.assertEqual(send_task.call_args.kwargs["args"], [7])
         self.assertEqual(send_task.call_args.kwargs["task_id"], "token-a")
+        self.assertEqual(send_task.call_args.kwargs["queue"], "async_export")
 
     def test_task_passes_message_id_as_fence(self):
         with patch("apps.log_search.tasks.sharded_export.run_part") as run_part:
@@ -2009,16 +2013,33 @@ class CoordinateLockTests(SimpleTestCase):
 
 
 class ControlPipelineTests(SimpleTestCase):
-    """规划、收尾、调度轮次、分片四类消息各自独占队列：大合并不阻塞规划，排队再久也不推迟回收投递。"""
+    """分片与合并复用导出队列，规划、调度与通知复用高优先级队列。"""
 
-    def test_queues_are_distinct(self):
-        self.assertEqual(len({PART_QUEUE, PLAN_QUEUE, FINALIZE_QUEUE, COORDINATOR_QUEUE}), 4)
+    def test_export_tasks_reuse_async_export_queue(self):
+        for task in (execute_sharded_export_part, finalize_sharded_export):
+            with self.subTest(task=task.name):
+                route = app.amqp.router.route(task._get_exec_options(), task.name, args=(1,), kwargs={})
+                self.assertEqual(route["queue"].name, "async_export")
 
-    def test_coordinator_tick_has_its_own_queue(self):
-        self.assertEqual(coordinate_sharded_exports.options, {"queue": COORDINATOR_QUEUE})
+    def test_planning_reuses_high_priority_queue(self):
+        task = plan_sharded_export
+        route = app.amqp.router.route(task._get_exec_options(), task.name, args=(1,), kwargs={})
+        self.assertEqual(route["queue"].name, settings.BK_LOG_HIGH_PRIORITY_QUEUE)
+        with patch("apps.log_search.export.scheduler.app.send_task") as send_task:
+            _send(task.name, 1)
+        self.assertEqual(send_task.call_args.kwargs["queue"], settings.BK_LOG_HIGH_PRIORITY_QUEUE)
+
+    def test_coordinator_tick_reuses_high_priority_queue(self):
+        self.assertEqual(coordinate_sharded_exports.options, {"queue": settings.BK_LOG_HIGH_PRIORITY_QUEUE})
         self.assertEqual(
-            app.conf.beat_schedule[coordinate_sharded_exports.name]["options"], {"queue": COORDINATOR_QUEUE}
+            app.conf.beat_schedule[coordinate_sharded_exports.name]["options"],
+            {"queue": settings.BK_LOG_HIGH_PRIORITY_QUEUE},
         )
+
+    def test_notification_reuses_high_priority_queue(self):
+        task = notify_sharded_export
+        route = app.amqp.router.route(task._get_exec_options(), task.name, args=(1,), kwargs={})
+        self.assertEqual(route["queue"].name, settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 
     def test_planning_is_bounded_before_the_reclaim_window(self):
         """规划软超时必须早于规划超时窗口，否则 Coordinator 会判定超时并重复投递同一份规划。"""
@@ -2056,10 +2077,18 @@ class ControlPipelineTests(SimpleTestCase):
     def test_supervisord_consumes_every_queue(self):
         """漏部署任一 worker 会让对应链路整体停摆，队列改动必须同步部署配置。"""
         conf_path = Path(__file__).resolve().parents[3] / "support-files" / "supervisord.conf"
-        conf = conf_path.read_text(encoding="utf-8")
+        conf = configparser.ConfigParser(interpolation=None)
+        conf.read(conf_path, encoding="utf-8")
+        consumed = set()
+        for section in conf.sections():
+            if not section.startswith("program:"):
+                continue
+            command = shlex.split(conf[section]["command"])
+            if "-Q" in command:
+                consumed.update(command[command.index("-Q") + 1].split(","))
         for queue in (PART_QUEUE, PLAN_QUEUE, FINALIZE_QUEUE, COORDINATOR_QUEUE):
             with self.subTest(queue=queue):
-                self.assertIn(f"-Q {queue} ", conf)
+                self.assertIn(queue, consumed)
 
 
 class JobFailureClassificationTests(TestCase):
