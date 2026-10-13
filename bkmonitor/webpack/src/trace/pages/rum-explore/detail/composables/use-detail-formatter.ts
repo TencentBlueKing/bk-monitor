@@ -31,7 +31,7 @@ import dayjs from 'dayjs';
 import { copyText as copyToClipboard } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 
-import { formatUnitValue } from '../../utils';
+import { formatUnitValue, formatUnitValueParts } from '../../utils';
 import { OVERVIEW_DATETIME_FIELDS } from '../constants';
 
 import type { IRumField } from '../../typings';
@@ -72,6 +72,32 @@ export function useDetailFormatter(fields: MaybeRef<IRumField[]>, originData: Ma
     return String(value);
   };
 
+  /**
+   * @description 按字段元信息格式化取值，并拆出单位后缀：数值与单位两段，供需要分别排版的场景使用
+   * 与 formatField 的取值规则保持一致（枚举别名 > 日期时间 > 单位换算 > 原样输出），
+   * 仅当字段有单位且值为纯数值时才做量纲换算，此时单位随换算结果自适应变化。
+   * @param fieldName 字段名
+   * @param value 字段原始值
+   * @returns { value: 格式化后的值文本; unit: 单位后缀（无单位时为空） }
+   */
+  const formatFieldParts = (fieldName: string, value: unknown): { unit: string; value: string } => {
+    if (value === null || value === undefined || value === '') return { value: '', unit: '' };
+    const field = getField(fieldName);
+    const optionAlias = field?.option_values?.find(option => option.value === String(value))?.alias;
+    if (optionAlias) return { value: optionAlias, unit: '' };
+    if (OVERVIEW_DATETIME_FIELDS.has(fieldName) || field?.field_display_type === 'datetime') {
+      return { value: formatField(fieldName, value), unit: '' };
+    }
+    if (field?.field_unit) {
+      const { text, suffix } = formatUnitValueParts(value, field.field_unit);
+      return {
+        value: text,
+        unit: suffix,
+      };
+    }
+    return { value: String(value), unit: '' };
+  };
+
   const copyText = (value: string) => {
     copyToClipboard(value);
     Message({ theme: 'success', message: t('复制成功') });
@@ -83,8 +109,9 @@ export function useDetailFormatter(fields: MaybeRef<IRumField[]>, originData: Ma
     getField,
     getFieldAlias,
     formatField,
+    formatFieldParts,
     copyText,
   }));
 
-  return { fieldMap, getField, getFieldAlias, formatField, copyText, resolveCtx };
+  return { fieldMap, getField, getFieldAlias, formatField, formatFieldParts, copyText, resolveCtx };
 }

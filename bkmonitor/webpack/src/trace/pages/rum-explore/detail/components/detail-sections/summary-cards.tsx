@@ -104,10 +104,12 @@ export default defineComponent({
 
     function renderCard(card: IRumSummaryCardVM) {
       const toneColor = CARD_TONE_COLOR[card.tone ?? RumCardToneEnum.DEFAULT];
+      const isLink = card.type === 'link';
       return (
         <div
           key={card.key}
-          class={['rum-summary-card', card.cardCls]}
+          class={['rum-summary-card', card.cardCls, { 'link-type': isLink }]}
+          onClick={() => isLink && card.click?.()}
         >
           <div class='card-head'>
             <span class='card-label'>{card.label}</span>

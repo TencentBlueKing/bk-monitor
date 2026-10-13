@@ -76,13 +76,13 @@ const isXhrLike = (ctx: IRumCardResolveCtx) => {
  * Web Vitals 指标卡描述符工厂：主值为指标值，右上角按 rating_config 阈值挂评级标签，
  * 副文案为指标全称；extraFooter 用于 TTFB 追加分段耗时说明。
  */
-const vitalCard = (): IRumCardDescriptor => data => {
-  const metric = String(data['attributes.vital.metric'] || data.key || '').toLowerCase();
+const vitalCard = (): IRumCardDescriptor => (data, ctx) => {
+  const metric = String(data['attributes.vital.metric'] || data.key || '').toUpperCase();
   const value = data['attributes.vital.value'];
   const hasValue = value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const configs = (data['display.rating_config'] ?? []) as IRumRatingConfig[];
   /** 按阈值命中评级，最后一段无上界，与评级条（buildRatingBar）同一口径 */
-  let hitRating = RumRatingEnum.GOOD;
+  let hitRating: string = RumRatingEnum.GOOD;
   if (hasValue && configs.length) {
     hitRating = configs[configs.length - 1].rating;
     for (const config of configs) {
@@ -99,11 +99,13 @@ const vitalCard = (): IRumCardDescriptor => data => {
     [RumRatingEnum.POOR]: RumCardToneEnum.DANGER,
   };
 
+  const { value: formatValue, unit } = ctx.formatFieldParts(metric, value);
+
   return [
     {
-      label: metric.toUpperCase(),
-      value: text(value),
-      unit: { text: 'ms', tone: ratingToneMap[hitRating] },
+      label: metric,
+      value: text(formatValue),
+      unit: { text: unit, tone: ratingToneMap[hitRating] },
       tone: ratingToneMap[hitRating],
       cardCls: `vital-card ${ratingToneMap[hitRating]}`,
     },
@@ -346,6 +348,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
         label: t('停留时长'),
         value: text(value),
         unit: suffix ? { text: suffix.trim() } : undefined,
+        cardCls: 'view-card',
       },
     ];
   },
