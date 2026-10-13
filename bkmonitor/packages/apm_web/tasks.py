@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import json
 import time
+from collections import defaultdict
 from datetime import datetime, timedelta
 from enum import Enum
 from typing import Any
@@ -26,7 +27,13 @@ from apm_web.handlers.log_handler import deserialize_service_related_log_indexes
 from apm_web.handlers.task_handler import ServiceLogTaskHandler
 from apm_web.handlers.metric_group import MetricHelper
 from apm_web.handlers.service_handler import ServiceHandler
-from apm_web.models import Application
+from apm_web.models import ActiveProfilingTask, Application
+from apm_web.profile.active_collection.constants import (
+    DEPLOYMENT_STATUS_EXPIRED,
+    DEPLOYMENT_STATUS_FAILED,
+    EXPIRED_TASK_STOP_DELAY_MS,
+)
+from apm_web.profile.active_collection.handlers import ActiveProfilingNodeManHandler
 from apm_web.profile.file_handler import ProfilingFileHandler
 from apm_web.serializers import ApplicationCacheSerializer
 from apm_web.strategy.builtin.registry import BuiltinStrategyTemplateRegistry
@@ -34,7 +41,7 @@ from apm_web.strategy.handler import StrategyTemplateHandler
 from monitor.models import GlobalConfig
 from bkmonitor.utils.common_utils import compress_and_serialize, deserialize_and_decompress, get_local_ip
 from bkmonitor.utils.custom_report_tools import custom_report_tool
-from bkmonitor.utils.tenant import set_local_tenant_id
+from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id, set_local_tenant_id
 from bkmonitor.utils.time_tools import strftime_local
 from common.log import logger
 from constants.apm import TelemetryDataType
@@ -455,3 +462,36 @@ def auto_apply_strategy_template():
             )
 
     logger.info("[AUTO_APPLY_STRATEGY_TEMPLATE] task finished")
+
+
+@shared_task(ignore_result=True)
+def stop_expired_active_profiling_tasks():
+    """主动 Profiling 的指定时间/周期计划最后一次执行过去 1 天后停用，由节点管理移除各主机上残留的子配置"""
+    logger.info("[STOP_EXPIRED_ACTIVE_PROFILING_TASKS] task start")
+
+    expire_before = int(time.time() * 1000) - EXPIRED_TASK_STOP_DELAY_MS
+    tasks_by_biz = defaultdict(list)
+    # 停用失败的计划保持部署失败状态，第二天再试；订阅没建成的计划主机上没有配置
+    for task in ActiveProfilingTask.objects.filter(
+        Q(is_enabled=True) | Q(deployment_status=DEPLOYMENT_STATUS_FAILED)
+    ).exclude(subscription_id=0):
+        schedule = task.schedule
+        # cron 没设生效结束时间时一直有效
+        last_run_at = schedule["execute_at"] if schedule["type"] == "once_at" else schedule.get("effective_end_at")
+        if last_run_at is not None and last_run_at < expire_before:
+            tasks_by_biz[task.bk_biz_id].append(task)
+
+    for bk_biz_id, tasks in tasks_by_biz.items():
+        try:
+            set_local_tenant_id(bk_biz_id_to_bk_tenant_id(bk_biz_id))
+            handler = ActiveProfilingNodeManHandler(bk_biz_id)
+        except Exception as e:
+            logger.exception(f"[STOP_EXPIRED_ACTIVE_PROFILING_TASKS] init failed: bk_biz_id={bk_biz_id}, error => {e}")
+            continue
+        # 与手动停用同一流程，节点管理调用失败由 handler 记日志并回写部署状态
+        for task in tasks:
+            # 停用状态随节点管理结果一次写回；成功记为已过期，失败仍是 failed，下一次任务再试
+            task.is_enabled = False
+            handler.switch(task, DEPLOYMENT_STATUS_EXPIRED)
+
+    logger.info("[STOP_EXPIRED_ACTIVE_PROFILING_TASKS] task finished")

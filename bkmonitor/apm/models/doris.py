@@ -29,6 +29,7 @@ from metadata.models.data_link.constants import (
     DataLinkResourceStatus,
     MATCH_DATA_NAME_PATTERN,
 )
+from apm_web.profile.active_collection.constants import BUILTIN_PROFILING_APP_NAME
 
 if TYPE_CHECKING:
     from .datasource import ApmDataSourceConfigBase, ProfileDataSource  # noqa
@@ -818,6 +819,12 @@ class BkDataDorisV4Provider:
             },
         }
 
+    def _flush_timeout(self) -> int:
+        """主动 Profiling 内置数据源缩短刷盘等待，其余 Profiling 使用 60 秒。"""
+        if self.app_name == BUILTIN_PROFILING_APP_NAME:
+            return 30
+        return 60
+
     def _build_doris_binding_config(self, bk_data_id: int) -> dict:
         dorisbinding_name = self._doris_binding_name(bk_data_id)
         rt_name = self._result_table_name(bk_data_id)
@@ -857,7 +864,7 @@ class BkDataDorisV4Provider:
                     "expires": self.config.expires,
                     "sample_table_name": f"{rt_name}_sample_{self.bkbase_biz_id}",
                     "label_table_name": f"{rt_name}_label_{self.bkbase_biz_id}",
-                    "flush_timeout": 300,
+                    "flush_timeout": self._flush_timeout(),
                 },
             },
         }
