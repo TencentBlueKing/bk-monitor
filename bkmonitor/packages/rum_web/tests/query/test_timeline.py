@@ -170,6 +170,33 @@ class TestTimelineBuilder:
         assert result["tree"] == [{"span_id": "view-first"}, {"span_id": "other-view"}]
         assert [record["span_id"] for record in result["records"]] == ["view-first", "other-view"]
 
+    @pytest.mark.parametrize(
+        "first_start,latest_start,expected_order",
+        [
+            (1200, None, ["other-view", "view-first"]),
+            (1200, "invalid", ["other-view", "view-first"]),
+            (1200, "NaN", ["other-view", "view-first"]),
+            (1200, float("inf"), ["other-view", "view-first"]),
+            (1200, float("-inf"), ["other-view", "view-first"]),
+            (1200, 0, ["view-first", "other-view"]),
+            (None, "invalid", ["view-first", "other-view"]),
+        ],
+        ids=["missing", "invalid", "nan", "positive-inf", "negative-inf", "zero", "all-invalid"],
+    )
+    def test_view_sort_ignores_invalid_snapshot_starts_and_preserves_zero(
+        self, first_start, latest_start, expected_order
+    ):
+        spans = [
+            _view("view-first", started_at=first_start, version=1),
+            _view("view-update", started_at=latest_start, version=2),
+            _view("other-view", "view-2", started_at=1000),
+        ]
+
+        result = build_timeline(spans)
+
+        assert result["tree"] == [{"span_id": span_id} for span_id in expected_order]
+        assert [record["span_id"] for record in result["records"]] == expected_order
+
     @pytest.mark.parametrize("flatten", [False, True])
     def test_collapses_view_snapshots_and_matches_record_detail(self, mocker, flatten):
         canonical = _view("view-first", version=1, start_time=1_020_000)

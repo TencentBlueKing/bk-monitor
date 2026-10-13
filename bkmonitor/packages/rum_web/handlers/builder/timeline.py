@@ -107,8 +107,13 @@ def _version(item: _Span) -> int | float:
 
 
 def _started_at(group: ViewGroup) -> int | float:
+    """取最早有效导航时间，无有效值时使用 0。"""
     return min(
-        (get_safe_number(item.flatten_data.get("attributes.view.started_at")) for item in group.snapshots),
+        (
+            started_at
+            for item in group.snapshots
+            if (started_at := get_safe_number(item.flatten_data.get("attributes.view.started_at"), None)) is not None
+        ),
         default=0,
     )
 
