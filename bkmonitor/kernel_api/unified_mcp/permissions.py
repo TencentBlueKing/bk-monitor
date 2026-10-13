@@ -374,11 +374,10 @@ def call_log_api(name, **params):
     return call(**params, bk_username=request.user.username, bk_tenant_id=request.user.tenant_id)
 
 
-def _log_resource(spec, user, bk_biz_id, context):
-    """把业务或索引集上下文解析为日志 IAM V3 资源。"""
+def _visible_log_index_set(spec, user, bk_biz_id, context):
+    """确认索引集在请求业务目录中唯一可见；业务级日志工具没有目录项。"""
     if spec["resource_type"] == "space":
-        # 日志 IAM V3 引用监控空间资源，而不是日志系统内自建的 space。
-        return Resource("bk_monitorv3", "space", str(bk_biz_id), {"name": str(bk_biz_id)})
+        return None
     if context.get("target_type", "index_set") != "index_set":
         raise ValidationError("Native log MCP currently supports fixed index sets only.")
     index_set_id = serializers.IntegerField(min_value=1).run_validation(context.get("index_set_id"))
@@ -388,8 +387,15 @@ def _log_resource(spec, user, bk_biz_id, context):
     ]
     if len(matches) != 1:
         raise PermissionDenied("The log index set is not uniquely visible in the requested space.")
-    item = matches[0]
-    # ponytail: 当前只支持普通同空间索引集；平台／关联空间需要后续显式建模。
+    return matches[0]
+
+
+def _log_resource(spec, bk_biz_id, item):
+    """把业务或已确认可见的索引集解析为日志 IAM V3 资源。"""
+    if spec["resource_type"] == "space":
+        # 日志 IAM V3 引用监控空间资源，而不是日志系统内自建的 space。
+        return Resource("bk_monitorv3", "space", str(bk_biz_id), {"name": str(bk_biz_id)})
+    # ponytail: SaaS 兜底只支持普通索引集（含业务关联空间）；平台级／分组索引集需要后续显式建模。
     if (
         item.get("is_platform_index") is not False
         or item.get("is_group") is not False
@@ -398,21 +404,22 @@ def _log_resource(spec, user, bk_biz_id, context):
         raise ValidationError(
             "Native log MCP does not yet support platform or grouped index sets, or incomplete catalog metadata."
         )
-    if str(item.get("bk_biz_id")) != str(bk_biz_id):
-        raise PermissionDenied("The log index set does not belong to the requested business.")
-    from bkm_space.utils import bk_biz_id_to_space_uid
+    from bkm_space.utils import space_uid_to_bk_biz_id
 
-    expected_space = bk_biz_id_to_space_uid(bk_biz_id)
-    if not expected_space or item.get("space_uid") != expected_space:
-        raise PermissionDenied("The log index set space does not match the requested business.")
+    # 与日志平台 Indices.create_simple_instance() 一致按归属空间鉴权；
+    # 改用请求业务拼路径会让业务级授权覆盖关联空间的索引集。
+    owner_biz_id = space_uid_to_bk_biz_id(item.get("space_uid") or "")
+    if not owner_biz_id or str(item.get("bk_biz_id")) != str(owner_biz_id):
+        raise PermissionDenied("The log index set owner space is unresolvable or inconsistent.")
+    index_set_id = str(item.get("index_set_id"))
     return Resource(
         "bk_log_search",
         "indices",
-        str(index_set_id),
+        index_set_id,
         {
-            "name": item.get("index_set_name") or str(index_set_id),
-            "bk_biz_id": str(bk_biz_id),
-            "_bk_iam_path_": f"/space,{bk_biz_id}/",
+            "name": item.get("index_set_name") or index_set_id,
+            "bk_biz_id": str(owner_biz_id),
+            "_bk_iam_path_": f"/space,{owner_biz_id}/",
         },
     )
 
@@ -522,6 +529,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         settings.BK_IAM_SYSTEM_ID, Subject("user", user.username), Action(tool.iam_action), [legacy_resource], None
     )
     native_resource = None
+    log_item = None
     if spec["system_id"] == "bk_monitorv3":
         if spec["resource_type"] == "space":
             _validate_native_target(tool, spec, bk_biz_id, context)
@@ -540,13 +548,11 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
             None,
         )
     elif spec["system_id"] == "bk_log_search":
-        # 资源归属必须先于两种 IAM 判定；旧 MCP 权限不能绕过实例边界。
-        native_resource = _log_resource(spec, user, bk_biz_id, context)
-        if native_resource.type == "indices":
-            result["resource"]["index_set_id"] = native_resource.id
-        native_query = Request(
-            spec["system_id"], Subject("user", user.username), Action(spec["action_id"]), [native_resource], None
-        )
+        # 业务目录可见性是两种权限共用的归属边界，先于两种 IAM 判定；索引集类型与归属空间
+        # 只决定 SaaS 兜底能否使用，留到 MCP 明确无权后再解析，不能拦住有 MCP 权限的用户。
+        log_item = _visible_log_index_set(spec, user, bk_biz_id, context)
+        if log_item is not None:
+            result["resource"]["index_set_id"] = str(log_item.get("index_set_id"))
     else:
         raise ImproperlyConfigured(f"Unsupported native MCP IAM system: {spec['system_id']}")
 
@@ -592,6 +598,11 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         }
 
     # 仅 MCP 明确拒绝才查 SaaS 原生权限；IAM／资源错误绝不能被当成 False。
+    if spec["system_id"] == "bk_log_search":
+        native_resource = _log_resource(spec, bk_biz_id, log_item)
+        native_query = Request(
+            spec["system_id"], Subject("user", user.username), Action(spec["action_id"]), [native_resource], None
+        )
     native_client = monitor_client if spec["system_id"] == "bk_monitorv3" else _log_iam(user)
     native_allowed = _checked_permission(tool, request, "native", native_client, native_query, bk_biz_id)
     result["native_authorized"] = native_allowed

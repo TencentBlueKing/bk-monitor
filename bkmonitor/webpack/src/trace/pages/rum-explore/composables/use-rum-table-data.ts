@@ -53,7 +53,7 @@ export function useRumTableData(commonParams: MaybeRef<IRumCommonParams>, enable
   let requestKey = '';
   /** 是否还有下一页数据 */
   const hasMore = shallowRef(false);
-  /** 回到顶部信号。查询条件、排序、时间范围或手动刷新变化时重新生成随机串，由外层视图组件监听并触发滚动复位；使用信号而非回调，避免父组件通过 ref 直接调用子组件方法，保持数据流单向 */
+  /** 回到顶部信号。查询条件、排序、时间范围变化时重新生成随机串，由外层视图组件监听并触发滚动复位；使用信号而非回调，避免父组件通过 ref 直接调用子组件方法，保持数据流单向 */
   const backTopSignal = shallowRef(random(8));
   /** 排序参数（与接口一致，降序加 `-` 前缀，如 '-end_time'）。由 store 派生：用户未设置排序时回落视图配置的默认排序，对外只读，变更统一走 handleSortChange */
   const sortParams = computed(() => store.sortParams);

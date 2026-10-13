@@ -22,6 +22,8 @@
 4. **钩子机制**：支持 `on_deploy_success` 回调钩子，用于解耦基础层与SaaS层的业务逻辑（如指标缓存追加）
 5. **职责边界**：TaskManager 专注于任务生命周期管理和流程编排，配置生成由 SubscriptionService 负责；订阅操作通过 nodeman API 完成
 
+`test()` 在保存前下发一次采集并解析节点日志。新旧采集器错误码使用对应提示；UDP 优先使用协议专用提示，其余错误码使用通用提示。HTTP 的 `1202` 同时涵盖状态码与响应内容不符合预期。未知错误码保留码值并判定失败，提示不附加原始 JSON；ICMP 的错误码从 `dimensions.error_code` 读取。
+
 ### 配置生成服务 (ConfigGeneratorService)
 
 配置生成服务采用**模板方法模式**，负责将业务配置转换为 bkmonitorbeat 采集器配置。
