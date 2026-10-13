@@ -1476,4 +1476,5 @@ export default {
   '下载 {n} 个采集任务': 'Download {n} collected tasks',
   开始下载: 'Start download',
   '批量下载：{n} 个文件下载失败': 'Batch download: {n} files failed to download',
+  '文件下载失败，请稍后重试': 'Failed to download the file. Please try again later',
 };

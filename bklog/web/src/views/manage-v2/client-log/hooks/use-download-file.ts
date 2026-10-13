@@ -104,6 +104,7 @@ export const useDownloadFile = () => {
           file_name: fileName,
         },
         responseType: 'blob',
+        catchIsShowMessage: false,
       });
       const contentType = res.headers?.['content-type'] || '';
       if (!contentType.includes('application/zip')) {
@@ -124,7 +125,7 @@ export const useDownloadFile = () => {
       return null;
     } catch (error) {
       console.error('下载失败:', error);
-      return null;
+      return reportFailure(String(t('文件下载失败，请稍后重试')));
     }
   };
 
