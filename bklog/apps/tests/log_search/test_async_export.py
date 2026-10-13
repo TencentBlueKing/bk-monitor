@@ -524,6 +524,7 @@ class TestSearchViewSetExport(TestCase):
                 return_value=(2, "bkcc__2"),
             ),
             patch("apps.log_search.views.search_views.FeatureToggleObject.switch", return_value=True),
+            patch("apps.log_search.views.search_views.is_sharded_export_enabled", return_value=False),
             patch(
                 "apps.log_search.views.search_views.FeatureToggleObject.toggle",
                 return_value=Mock(feature_config={}),
@@ -537,16 +538,12 @@ class TestSearchViewSetExport(TestCase):
             patch.object(UnifyQueryAsyncExportHandlers, "_get_url", return_value="/download/"),
             patch.object(UnifyQueryAsyncExportHandlers, "_get_search_url", return_value="/search/"),
             patch("apps.log_unifyquery.handler.async_export_handlers.get_request_username", return_value="admin"),
-            patch(
-                "apps.log_unifyquery.handler.async_export_handlers.get_request_external_username", return_value=""
-            ),
+            patch("apps.log_unifyquery.handler.async_export_handlers.get_request_external_username", return_value=""),
             patch(
                 "apps.log_unifyquery.handler.async_export_handlers.get_request_language_code",
                 return_value="zh-hans",
             ),
-            patch(
-                "apps.log_unifyquery.handler.async_export_handlers.get_request_external_user_email", return_value=""
-            ),
+            patch("apps.log_unifyquery.handler.async_export_handlers.get_request_external_user_email", return_value=""),
         ):
             response = self.view.async_export(self.request, index_set_id=3)
 

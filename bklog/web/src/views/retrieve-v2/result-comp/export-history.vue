@@ -26,8 +26,8 @@
 
 <template>
   <bk-dialog
-    width="80%"
     v-model="isShowDialog"
+    width="80%"
     :draggable="false"
     :mask-close="false"
     :position="position"
@@ -54,8 +54,8 @@
       >
       </bk-date-picker>
       <span
-        class="top-start"
         v-bk-tooltips="$t('查看所有的索引集的下载历史')"
+        class="top-start"
       >
         <bk-button
           theme="primary"
@@ -67,8 +67,8 @@
       </span>
     </div>
     <div
-      class="table-container"
       v-bkloading="{ isLoading: tableLoading }"
+      class="table-container"
     >
       <bk-table
         :row-key="getExportTaskKey"
@@ -159,8 +159,8 @@
                 v-if="isShowProgress(row.export_status)"
                 class="progress-text"
               >
-                {{ row.progressPercent || 0 }} %
-                ({{ formatNumber(row.exported_count) }} / {{ formatNumber(row.export_total_count) }})
+                {{ row.progressPercent || 0 }} % ({{ formatNumber(row.exported_count) }} /
+                {{ formatNumber(row.export_total_count) }})
               </span>
             </span>
           </template>
@@ -173,8 +173,8 @@
         >
           <template #default="{ row }">
             <div
-              class="title-overflow"
               v-bk-overflow-tips
+              class="title-overflow"
             >
               <span>{{ row.export_pkg_name || '--' }}</span>
             </div>
@@ -198,8 +198,8 @@
         >
           <template #default="{ row }">
             <div
-              class="title-overflow"
               v-bk-overflow-tips
+              class="title-overflow"
             >
               <span>
                 <bk-user-display-name :user-id="row.export_created_by || '--'"></bk-user-display-name>
@@ -216,8 +216,8 @@
         >
           <template #default="{ row }">
             <div
-              class="title-overflow"
               v-bk-overflow-tips
+              class="title-overflow"
             >
               <span>{{ getFormatDate(row.export_created_at) }}</span>
             </div>
@@ -244,8 +244,8 @@
               </bk-button>
               <span
                 v-else
-                class="top-start"
                 v-bk-tooltips="$t('下载链接过期')"
+                class="top-start"
               >
                 <bk-button
                   disabled
@@ -268,11 +268,11 @@
               </bk-button>
               <span
                 v-else
-                class="top-start"
                 v-bk-tooltips="{
                   content: $t('数据源过期'),
                   disabled: row.export_status === 'success',
                 }"
+                class="top-start"
               >
                 <bk-button
                   disabled
@@ -745,10 +745,7 @@
         return {
           ...row,
           currentGrowth: DOWNLOAD_PROGRESS_BASE_GROWTH,
-          progressPercent: calculateProgressPercent(
-            row.exported_count || 0,
-            row.export_total_count || 0,
-          ),
+          progressPercent: calculateProgressPercent(row.exported_count || 0, row.export_total_count || 0),
         };
       },
       setExportListData(data) {
@@ -807,9 +804,7 @@
           pagesize: limit,
           show_all: this.isSearchAll,
           start_time: this.dateRange[0]?.getTime() || null,
-          end_time: this.dateRange[1]
-            ? this.dateRange[1].getTime() + DOWNLOAD_DATA_DELAY
-            : null,
+          end_time: this.dateRange[1] ? this.dateRange[1].getTime() + DOWNLOAD_DATA_DELAY : null,
         };
         let queryUrl;
         let requestConfig;
@@ -947,7 +942,7 @@
   .progress-text {
     font-size: 12px;
     font-weight: 700;
-    color: #3A84FF;
+    color: #3a84ff;
     white-space: nowrap;
   }
 </style>
