@@ -58,7 +58,7 @@ class Business:
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return ResourceInstance(type=cls.id, id=str(instance_id))
+        return ResourceInstance(type=cls.id, id=str(instance_id), attributes=attribute or {})
 
     @classmethod
     def create_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
@@ -74,7 +74,7 @@ class ApmApplication:
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return ResourceInstance(type=cls.id, id=str(instance_id))
+        return ResourceInstance(type=cls.id, id=str(instance_id), attributes=attribute or {})
 
     @classmethod
     def create_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
@@ -100,7 +100,7 @@ class GrafanaDashboard:
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return ResourceInstance(type=cls.id, id=str(instance_id))
+        return ResourceInstance(type=cls.id, id=str(instance_id), attributes=attribute or {})
 
     @classmethod
     def create_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
@@ -116,7 +116,7 @@ class RumApplication:
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:
-        return ResourceInstance(type=cls.id, id=str(instance_id))
+        return ResourceInstance(type=cls.id, id=str(instance_id), attributes=attribute or {})
 
     @classmethod
     def create_instance(cls, instance_id: str, attribute=None) -> ResourceInstance:

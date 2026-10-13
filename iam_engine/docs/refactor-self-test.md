@@ -50,9 +50,9 @@ Grafana 文件夹覆盖、模型注册与 SaaS 凭据/请求上下文来源，�
   已增加实际 APM ResourceRoute 的回归。
 - 授权范围查询故障不是成功的空范围，不进入 ACL 撤权。
 
-ACL 空期望权限撤销 managed ACL 是此前版本已引入的可观察行为，本轮没有新增或回退
-该规则；独立测试撤销范围、非 managed ACL 保留、查询失败不写、写失败及再次同步。
-不能将这一行为仅描述为目录重构。
+复审确认：空期望权限撤销 ACL 不属于本次需求，已恢复为 V3 基线的直接返回、不操作 ACL。
+非空权限的 managed ACL 对账仍保留，测试覆盖非 managed ACL 保留、查询失败不写、
+写失败及再次同步。不能把未授权的业务行为变化混入 IAM 重构。
 
 ## 已观察到的最终结果
 
@@ -61,7 +61,7 @@ ACL 空期望权限撤销 managed ACL 是此前版本已引入的可观察行为
 
 | 检查 | 最终结果 | 证据边界 |
 | --- | --- | --- |
-| Monitor IAM/公共层/DRF/APM/RUM/Grafana/权限 RPC/统一 MCP 合并回归 | 874 passed，39 skipped，13 deselected，退出 0 | 实际 Django 装配和消费者；外部 DB/API 模拟 |
+| Monitor IAM/公共层/DRF/APM/RUM/Grafana/权限 RPC/统一 MCP 合并回归 | 915 passed，36 skipped，13 deselected，退出 0 | 实际 Django 装配和消费者；外部 DB/API 模拟 |
 | 独立原生 MCP 套件 | 808 passed，退出 0 | 原生权限模块实际执行；重型 HTTP 方法沿用 AST 隔离测试 |
 | 既有产品边界补充回归 | 89 passed，退出 0 | Token、Datalink、NewReport、收藏搜索、FTA、场景/主机视图；ORM 模拟 |
 | BKLog IAM 与管理诊断决策 | 673 tests，OK，退出 0 | 实际 Django/产品装配、内存 IAM fixture 表 |
@@ -69,7 +69,7 @@ ACL 空期望权限撤销 managed ACL 是此前版本已引入的可观察行为
 | 公共层 Pyright | 0 errors，0 warnings，退出 0 | core/provider/schema/policy/model、dual_write/policy |
 | Ruff correctness / whitespace | 本轮现有文件无新增 E4/E7/E9/F；新增目录树用例通过；git diff --check 通过 | 与 master 对照既有告警；未执行全文件自动格式化，正常 hooks 回执另记 |
 
-39 项因真实 IAM 配置、授权写入开关或迁移目录等门控跳过；13 项明确排除：
+36 项因真实 IAM 配置、授权写入开关或迁移目录等门控跳过；13 项明确排除：
 10 项 live 用例及 3 项依赖真实数据库迁移的 Profile 集成用例。
 test_live* 模块整体不执行，不计入通过数。
 
@@ -161,3 +161,50 @@ Union 任一明确 ALLOW 放行，否则拒绝并保留 ERROR/degraded；申请�
 
 不修改 Ruff/PreCI 的仓库规则，不接受 hook 重新引入无关变更后直接暂存提交。
 正常提交 hook 的实际执行结果及处置另记 TAPD，不能以本报告替代提交回执。
+
+## PR #12734 新增问题修复与 V3 基线复核
+
+本轮修改起点为 `be94662bb66e6bf5bb0b0e2ac986c00079712546`；
+V3 对照使用 PR 当前目标基线 `ff89f63ff4036b4ff6dad180ba3455eb34ef62ab`。
+以下结论针对本轮工作区修复，不把旧远端 head 的 CI 结果当作修复后验收。
+
+此前 review 的十项问题已处理：
+
+1. Grafana 门禁恢复当前业务与 request-aware 入口，不按全局任意仪表盘授权放行。
+2. V3 策略转换不再丢弃无法识别的 AND 子条件；本地判定沿用 SDK 求值器，
+   保留数组、类型、负向条件、比较及 `_bk_iam_path_` 的历史语义。
+3. Grafana V3 策略范围解析收回 V3 backend，保留裸 UID、嵌套 AND/OR、
+   文件夹和不依赖本地候选存在性的授权范围；文件夹展开仍在产品权限层。
+4. space_uid 在统一 resolver 中归一化；批量响应按编码后的 ID 查找，
+   再用调用方原始 ID 回填，覆盖 V3/V4 两条路径。
+5. `is_allowed_by_biz` 恢复完整 Token/skip_check 前置豁免。
+6. 收藏与 Grafana 门禁恢复原 request.skip_check/超级用户和角色合并规则；
+   外部授权撤掉重复范围查询，沿用原角色/实例权限映射。
+7. 默认 V3 动作元数据原样返回远端 model.actions；V4/Union 投影稳定的
+   前端历史 Action ID、依赖 ID 及资源选择字段，不要求 V3 在线。
+8. V3 申请数据初始化 SDK 元数据，冷启动返回正确的系统、动作及资源名称。
+9. DRF 拒绝分支沿用 SaaS 空间 26 Action 申请包，覆盖三种读模式。
+10. 空期望 ACL 恢复基线 no-op，`bk_dataview/api.py` 与 PR 基线字节一致。
+
+进一步复审补齐默认 V3 的完整关联资源请求与显式实例属性，不再新增混合类型限制，
+不将原 SDK 请求改成逐实例鉴权；非空间资源的拒绝信息不再误构造为空间资源。
+V4/Union 多实例批量入口维持既有逐项决策，公共 OR 规则、V4 优先申请、
+配置中心模式、独立双写及 365 天有效期未改变。
+
+删除没有运行时引用的 CodecPermissionProvider/Dialect DTO/ProviderFeatures
+中间模板及其专用测试；实际 V3/V4 Provider 和公共 Router、通信、双写测试保留。
+旧断言中“丢弃 attribute”和“空权限撤销 ACL”被更新为 V3 基线契约；
+业务测试替身补齐真实 Permission 的 SaaS 申请接口，没有修改业务放行/拒绝断言。
+
+新增 `test_v3_compatibility.py` 为持久回归；另用同组输入执行实际基线源码的
+20 项差异对照，全部通过。该对照为方法/消费者隔离复现，不是完整 HTTP 或真实 IAM。
+本轮主回归、业务补充、BKLog、独立 MCP、三角色冷启动与公共层 Pyright 均重新执行；
+结果见上表。只读 Ruff correctness 与 `git diff --check` 通过。
+正常提交 hook 首次因整理本轮新增代码失败；逐 hunk 确认只涉及新代码及删除后的类间距，
+没有对原有无关代码进行全文件格式化或现代化改写；未跳过 hooks。
+完整 PR 的现存 Python diff 没有整文件 AST 相同的纯格式/注释改动；
+上层仅保留必要的权限接口适配，收藏与 ACL 同步退出 PR diff。
+
+远端仍有四条 CodeQL 日志注入线程未解决；本轮未发布 review 或 resolve。
+Code Review MCP 未连接 GitHub，未读取修复后 CI；不将本地通过扩大为 CI/部署通过。
+真实 IAM、申请页面、MySQL 迁移及线上 E2E 仍未执行。

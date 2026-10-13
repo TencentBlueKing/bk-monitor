@@ -37,8 +37,6 @@ from iam_engine.exceptions import PermissionDenied
 from iam_engine.provider.requests import (
     ApplyURLRequest,
     AuthRequest,
-    BatchByActionRequest,
-    BatchByResourceRequest,
     ResourceInstance,
     Subject,
 )
@@ -376,133 +374,46 @@ class TestDeniedResponseFormat:
 
 
 # ==============================================================================
-# 框架层 get_apply_data 回退 — Provider 不支持时返回 None
+# 批量鉴权返回协议
 # ==============================================================================
 
 
-class TestGetApplyDataFallback:
-    """不支持的 Provider 不会让 get_apply_data 抛异常。"""
-
-    def test_none_on_unsupported(self):
-        """基类默认 get_apply_data 返回 None。"""
-        from iam_engine.provider.codec_provider import PermissionProvider as BaseProvider
-
-        class NoopProvider(BaseProvider):
-            name = "noop"
-
-            def _is_allowed_dialect(self, request):
-                return False
-
-            def _batch_by_resource_dialect_page(self, request):
-                return []
-
-            def _batch_by_action_dialect_page(self, request):
-                return []
-
-            def _get_apply_url_dialect(self, request):
-                return ""
-
-            def plan_migration(self, schema):
-                raise NotImplementedError
-
-            def apply_migration(self, plan, **kwargs):
-                raise NotImplementedError
-
-            def health_check(self):
-                return {}
-
-        result = NoopProvider(None).get_apply_data(["view_business"], [], Subject(id="test"))
-        assert result is None
-        print("\n  ✓ 默认返回 None")
-
-
-# ==============================================================================
-# 批量鉴权 BatchAuthResult 结构
-# ==============================================================================
-
-
-@pytest.mark.skipif(_MISSING_CONFIG, reason=SKIP_REASON)
 class TestBatchAuthResultFormat:
-    """验证批量鉴权返回结构的正确性，确保与 insert_permission_field 的兼容。"""
+    """验证实际产品批量接口的返回结构，不依赖已删除的模板 Provider。"""
 
-    def test_batch_by_resource_structure(self):
-        """BatchAuthResult.items 格式：每个 item 含 action_id / resource_type / resource_id / allowed。"""
-        fw = Permission(username="offline", bk_tenant_id="system")
-        space_ids = [str(i) for i in range(1, 4)]
-        result = fw.batch_by_resource(
-            BatchByResourceRequest(
-                subject=Subject(id=TEST_USER),
-                action_id=Actions.VIEW_BUSINESS.id,
-                resources=tuple(ResourceInstance(type=ResourceTypes.SPACE, id=sid) for sid in space_ids),
+    @staticmethod
+    def _permission():
+        from unittest.mock import Mock
+        from types import SimpleNamespace
+        from iam_engine.core.config import AuthMode
+        from iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem
+
+        permission = Permission(username="offline", bk_tenant_id="system")
+        permission.skip_check = False
+        permission.mode_provider = SimpleNamespace(get_mode=lambda resources=(): AuthMode.V3)
+        provider = Mock()
+        provider.name = "v3"
+        provider.batch_is_allowed.side_effect = lambda request: BatchAuthResult(
+            tuple(
+                BatchAuthResultItem(action, resource, AuthResult.allow("v3"))
+                for action, resource in request.iter_keys()
             )
         )
-        assert len(result.items) == len(space_ids)
+        permission._providers = {"v3": provider}
+        return permission
 
-        for item in result.items:
-            assert item.action_id == Actions.VIEW_BUSINESS.id
-            assert item.resource_type == ResourceTypes.SPACE.id
-            assert item.resource_id in space_ids
-            assert isinstance(item.allowed, bool)
-
-        print(f"\n  batch_by_resource results ({len(result.items)} items):")
-        for item in result.items:
-            print(f"    space={item.resource_id} allowed={item.allowed}")
-
-    def test_batch_by_action_structure(self):
-        """BatchAuthResult.items 格式：每个 item 含 action_id / allowed。"""
-        fw = Permission(username="offline", bk_tenant_id="system")
-        action_ids = [
-            Actions.VIEW_BUSINESS.id,
-            Actions.VIEW_RULE.id,
-            Actions.EXPLORE_METRIC.id,
-        ]
-        result = fw.batch_by_action(
-            BatchByActionRequest(
-                subject=Subject(id=TEST_USER),
-                action_ids=action_ids,
-                resource=ResourceInstance(type=ResourceTypes.SPACE, id=TEST_SPACE_ID),
-            )
-        )
-        assert len(result.items) == len(action_ids)
-
-        for item in result.items:
-            assert item.action_id in action_ids
-            assert isinstance(item.allowed, bool)
-
-        print(f"\n  batch_by_action results ({len(result.items)} items):")
-        for item in result.items:
-            print(f"    {item.action_id}: allowed={item.allowed}")
-
-    def test_format_compatible_with_insert_permission_field(self):
-        """模拟 insert_permission_field 的 {resource_id: {action_id: bool}} 转换。"""
-        from collections import defaultdict
-
-        fw = Permission(username="offline", bk_tenant_id="system")
-        space_ids = ["1", "2", "3"]
-        actions = [Actions.VIEW_BUSINESS.id, Actions.VIEW_RULE.id]
-
-        # 模拟 insert_permission_field 的转换逻辑：batch_by_action 做跨 action、同 resource 的批量
-        output: dict[str, dict[str, bool]] = defaultdict(dict)
-        for space_id in space_ids:
-            result = fw.batch_by_action(
-                BatchByActionRequest(
-                    subject=Subject(id=TEST_USER),
-                    action_ids=actions,
-                    resource=ResourceInstance(type=ResourceTypes.SPACE, id=space_id),
-                )
-            )
-            for item in result.items:
-                output[space_id][item.action_id] = item.allowed
-
-        assert len(output) == len(space_ids)
-        for sid in space_ids:
-            assert set(output[sid].keys()) == set(actions)
-            for aid in actions:
-                assert isinstance(output[sid][aid], bool)
-
-        print("\n  insert_permission_field 兼容格式:")
-        for sid, perms in output.items():
-            print(f"    space={sid} → {perms}")
+    @pytest.mark.parametrize(
+        "space_ids,actions",
+        [
+            (["1", "2", "3"], ["view_business"]),
+            (["2"], ["view_business", "view_rule", "explore_metric"]),
+            (["1", "2", "3"], ["view_business", "view_rule"]),
+        ],
+    )
+    def test_product_batch_format_compatible_with_insert_permission_field(self, space_ids, actions):
+        permission = self._permission()
+        result = permission.batch_is_allowed(actions, [[ResourceInstance(type="space", id=sid)] for sid in space_ids])
+        assert result == {sid: {action: True for action in actions} for sid in space_ids}
 
 
 # ==============================================================================

@@ -42,6 +42,14 @@ _OP_MAP: dict[str, Op] = {
     "starts_with": Op.STARTS_WITH,
     "ends_with": Op.ENDS_WITH,
     "contains": Op.CONTAINS,
+    "not_contains": Op.NOT_CONTAINS,
+    "not_starts_with": Op.NOT_STARTS_WITH,
+    "not_ends_with": Op.NOT_ENDS_WITH,
+    "string_contains": Op.STRING_CONTAINS,
+    "lt": Op.LT,
+    "lte": Op.LTE,
+    "gt": Op.GT,
+    "gte": Op.GTE,
 }
 
 
@@ -69,9 +77,8 @@ def iam_dict_to_expression(node: dict | None) -> PolicyExpression | None:
     if op in ("and", "or"):
         content = node.get("content", [])
         children = [iam_dict_to_expression(c) for c in content]
-        children = [c for c in children if c is not None]
-        if not children:
-            return None
+        if any(c is None for c in children):
+            raise ValueError("IAM policy contains an empty logical operand")
         if op == "and":
             return PolicyExpression.and_(*children)
         return PolicyExpression.or_(*children)
@@ -82,9 +89,19 @@ def iam_dict_to_expression(node: dict | None) -> PolicyExpression | None:
         field = node.get("field", "")
         value = node.get("value")
         # IN / NOT_IN 的 value 应该是 tuple（PolicyExpression 叶子要求 tuple）
-        if framework_op in (Op.IN, Op.NOT_IN) and not isinstance(value, tuple):
-            value = tuple(value) if value else ()
+        if isinstance(value, list):
+            value = tuple(value)
         return PolicyExpression.leaf(framework_op, field, value)
 
-    # 未识别的 op：返回 None 而非抛异常，保证健壮性
-    return None
+    # 不能删除无法识别的限制条件，否则 AND 会被静默放宽。
+    raise ValueError(f"Unsupported IAM V3 policy operator: {op}")
+
+
+def expression_to_iam_dict(expression: PolicyExpression) -> dict:
+    """在 V3 边界恢复 SDK AST，复用 SDK 的数组、类型和 IAM path 求值语义。"""
+    if expression.op in (Op.AND, Op.OR):
+        return {
+            "op": expression.op.value,
+            "content": [expression_to_iam_dict(child) for child in expression.children],
+        }
+    return {"op": expression.op.value, "field": expression.field, "value": expression.value}

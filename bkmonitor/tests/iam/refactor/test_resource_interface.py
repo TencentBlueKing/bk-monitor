@@ -81,13 +81,10 @@ class TestCreateInstance:
         assert r.id == "2"
         assert isinstance(r.id, str)
 
-    def test_attribute_param_is_now_ignored(self):
-        """已知行为差异：旧版 create_simple_instance 会把 attribute 写进
-        iam.Resource.attribute（含 bk_biz_id / name / _bk_iam_path_）；
-        新版返回裸 ResourceInstance，属性由 MonitorResourceResolver 在鉴权时补全。
-        """
+    def test_attribute_param_preserves_v3_metadata(self):
+        """显式实例属性必须保留，resolver 补全不能丢弃旧 SDK 的鉴权输入。"""
         r = ApmApplication.create_simple_instance("app-1", {"bk_biz_id": "2"})
-        assert r.attributes == {}
+        assert r.attributes == {"bk_biz_id": "2"}
 
 
 class TestRemovedInterfaces:

@@ -117,6 +117,7 @@ class TestNewReportViewSetPermissions(TestCase):
         resource = create_instance.return_value
         request = SimpleNamespace(data={"bk_biz_id": 2}, user=SimpleNamespace(username="operator", tenant_id="system"))
         permission = perm_cls.return_value
+        permission.prepare_apply_for_saas.return_value = ([], [])
         permission._is_allowed_request.return_value = False
         permission._apply_data_request.return_value = {}
         permission._apply_url_request.return_value = ""

@@ -99,6 +99,22 @@ class DictEvaluator:
             return isinstance(left, str) and left.startswith(str(expr.value))
         if op is Op.ENDS_WITH:
             return isinstance(left, str) and left.endswith(str(expr.value))
+        if op is Op.NOT_STARTS_WITH:
+            return isinstance(left, str) and not left.startswith(str(expr.value))
+        if op is Op.NOT_ENDS_WITH:
+            return isinstance(left, str) and not left.endswith(str(expr.value))
+        if op is Op.STRING_CONTAINS:
+            return isinstance(left, str) and str(expr.value) in left
+        if op is Op.NOT_CONTAINS:
+            return isinstance(left, list | tuple) and expr.value not in left
+        if op is Op.LT:
+            return left < expr.value
+        if op is Op.LTE:
+            return left <= expr.value
+        if op is Op.GT:
+            return left > expr.value
+        if op is Op.GTE:
+            return left >= expr.value
         if op is Op.CONTAINS:
             # 语义与 Django __contains 对齐：left 是 str 时做子串匹配；
             # 其它可迭代类型做包含判断（例如 tags 列表包含某标签）

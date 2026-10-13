@@ -120,6 +120,7 @@ def _make_provider(**overrides) -> V3PermissionProvider:
     options.update(overrides)
     provider = build_provider("v3", schema=_build_test_schema(), options={**options})
     mock_client = MagicMock()
+    mock_client.make_resource.side_effect = lambda rt, rid, **kwargs: Resource("bk_monitorv3", rt, rid, {})
     provider.resolver = None
     # 方言方法通过 _get_client(tenant_id) 获取 client，统一返回 mock
     provider._get_client = MagicMock(return_value=mock_client)

@@ -86,7 +86,7 @@ def test_external_authorization_list_uses_stable_three_value_contract(monkeypatc
     check.assert_called_once_with("alice", "2")
 
 
-def test_favorite_consumer_passes_product_uids_not_iam_candidates(monkeypatch):
+def test_favorite_consumer_keeps_request_aware_permission_entrypoint(monkeypatch):
     from monitor_web.overview import resources
 
     request = SimpleNamespace(user=SimpleNamespace(username="alice"))
@@ -106,12 +106,12 @@ def test_favorite_consumer_passes_product_uids_not_iam_candidates(monkeypatch):
     ):
         monkeypatch.setattr(model, "objects", manager)
     check = Mock(return_value=(True, GrafanaRole.Anonymous, {"dash-b": GrafanaPermission.View}))
-    monkeypatch.setattr(resources.DashboardPermission, "get_user_permission", check)
+    monkeypatch.setattr(resources.DashboardPermission, "has_permission", check)
 
     result = resources.GetFunctionShortcutResource.get_favorite_shortcuts("alice", ["dashboard"])
 
     assert result[0]["items"][0]["dashboard_uid"] == "dash-b"
-    check.assert_called_once_with(username="alice", org_name="2", dashboard_uids=["dash-b"])
+    check.assert_called_once_with(request, None, 2)
 
 
 @pytest.mark.parametrize("external_user", [False, "guest"])
@@ -168,9 +168,11 @@ def test_acl_delete_failure_is_visible_and_retry_recomputes_same_target(monkeypa
     monkeypatch.setattr(api.Dashboard, "objects", dashboards)
     monkeypatch.setattr(api, "_get_user_dashboard_actions", Mock(return_value=({"dash-a": ["dashboards:read"]}, False)))
     permissions.filter.return_value.delete.side_effect = [RuntimeError("write failed"), None]
+    desired = {"dash-b": GrafanaPermission.View}
+    dashboards.filter.return_value.values_list.return_value = ["dash-a", "dash-b"]
     with pytest.raises(RuntimeError, match="write failed"):
-        api.sync_dashboard_permission(10, 42, GrafanaRole.Anonymous, {})
-    api.sync_dashboard_permission(10, 42, GrafanaRole.Anonymous, {})
+        api.sync_dashboard_permission(10, 42, GrafanaRole.Anonymous, desired)
+    api.sync_dashboard_permission(10, 42, GrafanaRole.Anonymous, desired)
     assert permissions.filter.call_args_list[0] == permissions.filter.call_args_list[1]
     assert permissions.filter.return_value.delete.call_count == 2
 
@@ -209,7 +211,7 @@ def test_proxy_collects_org_candidates_and_expands_folder_permissions(monkeypatc
         assert call.kwargs == {"bk_biz_id": 2}
 
 
-def test_empty_desired_acl_revokes_only_existing_managed_role(monkeypatch):
+def test_empty_desired_acl_keeps_v3_noop_behavior(monkeypatch):
     roles, permissions, dashboards = Mock(), Mock(), Mock()
     roles.filter.return_value.first.return_value = SimpleNamespace(id=99)
     dashboards.filter.return_value.values_list.return_value = ["dash-a"]
@@ -218,12 +220,8 @@ def test_empty_desired_acl_revokes_only_existing_managed_role(monkeypatch):
     monkeypatch.setattr(api.Dashboard, "objects", dashboards)
     monkeypatch.setattr(api, "_get_user_dashboard_actions", Mock(return_value=({"dash-a": ["dashboards:read"]}, False)))
     api.sync_dashboard_permission(10, 42, GrafanaRole.Anonymous, {})
-    permissions.filter.return_value.delete.assert_called_once_with()
-    assert dict(permissions.filter.call_args.args[0].children) == {
-        "role_id": 99,
-        "action": "dashboards:read",
-        "scope": "dashboards:uid:dash-a",
-    }
+    roles.filter.assert_not_called()
+    permissions.filter.assert_not_called()
     roles.create.assert_not_called()
     permissions.bulk_create.assert_not_called()
 

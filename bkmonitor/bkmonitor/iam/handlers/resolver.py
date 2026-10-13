@@ -99,6 +99,7 @@ class MonitorResourceResolver(ResourceResolver):
             bk_biz_id = None
 
         space_name = resource.id
+        resource_id = resource.id
         try:
             # 保留空间 API 的缓存和 ID 兼容行为；缓存命中也必须校验租户。
             if bk_biz_id is None:
@@ -109,13 +110,19 @@ class MonitorResourceResolver(ResourceResolver):
                 space = space_api.SpaceApi.get_space_detail(bk_biz_id=bk_biz_id)
             if space is not None and space.bk_tenant_id == tenant_id:
                 space_name = f"[{space.space_type_id}] {space.space_name}"
+                if bk_biz_id is None:
+                    from bkm_space.utils import space_uid_to_bk_biz_id
+
+                    resource_id = str(space_uid_to_bk_biz_id(space_uid=space.space_uid, id=space.id))
         except Exception:
             space_name = resource.id
 
         return ResourceInstance(
             type=resource.type,
-            id=resource.id,
+            id=resource_id,
             name=space_name,
+            attributes=resource.attributes,
+            ancestor_chain=resource.ancestor_chain,
         )
 
     # ================================================================
@@ -132,6 +139,7 @@ class MonitorResourceResolver(ResourceResolver):
             id=resource.id,
             name=app_info["app_name"],
             ancestor_chain=(ResourceInstance(type=ResourceTypes.SPACE.id, id=str(app_info["bk_biz_id"])),),
+            attributes=resource.attributes,
         )
 
     @staticmethod
@@ -174,6 +182,7 @@ class MonitorResourceResolver(ResourceResolver):
             id=resource.id,
             name=item.get("display_name", ""),
             ancestor_chain=_chain_from_iam_path(item.get("_bk_iam_path_", "")),
+            attributes=resource.attributes,
         )
 
     # ================================================================
@@ -190,6 +199,7 @@ class MonitorResourceResolver(ResourceResolver):
             id=resource.id,
             name=app_info["app_name"],
             ancestor_chain=(ResourceInstance(type=ResourceTypes.SPACE.id, id=str(app_info["bk_biz_id"])),),
+            attributes=resource.attributes,
         )
 
     @staticmethod

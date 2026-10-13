@@ -291,13 +291,13 @@ def sync_dashboard_permission(
         uid: permission for uid, permission in dashboard_permissions.items() if permission.value > role.value
     }
 
+    # 如果没有需要同步的单仪表盘权限，跳过后续操作
+    if not dashboard_permissions:
+        return
+
     # 获取或新建单用户权限角色
     user_role = Role.objects.filter(org_id=org_id, name=f"managed:users:{user_id}:permissions").first()
     if not user_role:
-        # Empty desired state still revokes an existing managed role's ACLs.
-        # Avoid creating a role when there is nothing to grant or revoke.
-        if not dashboard_permissions:
-            return
         try:
             user_role = Role.objects.create(
                 org_id=org_id,

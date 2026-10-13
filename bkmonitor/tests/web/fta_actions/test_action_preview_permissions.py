@@ -26,6 +26,7 @@ from fta_web.action.views import ActionInstanceViewSet
 def test_preview_requires_manage_rule(mocker, allowed_action):
     mocker.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True)
     permission = mocker.patch("bkmonitor.iam.drf.Permission").return_value
+    permission.prepare_apply_for_saas.return_value = ([], [])
     permission._is_allowed_request.side_effect = lambda query: query.action_id == allowed_action.id
     permission._apply_data_request.return_value = {}
     permission._apply_url_request.return_value = ""

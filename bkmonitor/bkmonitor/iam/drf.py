@@ -78,10 +78,13 @@ def _build_drf_permission_denied(fw, subject, action_ref, resources, *, backend_
     action_id = _to_business_action_id(action_ref)
     action_name = _get_action_display_name(action_ref)
     permission = None
+    saas_actions, saas_resources = fw.prepare_apply_for_saas(list(resources))
+    apply_actions = tuple(_to_business_action_id(action) for action in saas_actions) if saas_actions else (action_id,)
+    apply_resources = list(saas_resources) if saas_actions else list(resources)
     try:
         # V4 的 get_apply_data 为本地构造；即使鉴权 API 超时，通常仍能提供
         # 老前端权限弹窗需要的 permission 数据。
-        permission = fw._apply_data_request([action_id], list(resources), subject)
+        permission = fw._apply_data_request(list(apply_actions), apply_resources, subject)
     except ProviderUnavailable as exc:
         logger.exception("[IAMPermission] generate apply data unavailable: %s", exc)
 
@@ -90,8 +93,8 @@ def _build_drf_permission_denied(fw, subject, action_ref, resources, *, backend_
         apply_url = fw._apply_url_request(
             ApplyURLRequest(
                 subject=subject,
-                action_ids=(action_id,),
-                resources=resources,
+                action_ids=apply_actions,
+                resources=tuple(apply_resources),
             )
         )
     except ProviderUnavailable as exc:

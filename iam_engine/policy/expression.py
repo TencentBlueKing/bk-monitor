@@ -51,6 +51,14 @@ class Op(str, Enum):
     STARTS_WITH = "starts_with"
     ENDS_WITH = "ends_with"
     CONTAINS = "contains"
+    NOT_CONTAINS = "not_contains"
+    NOT_STARTS_WITH = "not_starts_with"
+    NOT_ENDS_WITH = "not_ends_with"
+    STRING_CONTAINS = "string_contains"
+    LT = "lt"
+    LTE = "lte"
+    GT = "gt"
+    GTE = "gte"
 
     # 通配
     ANY = "any"

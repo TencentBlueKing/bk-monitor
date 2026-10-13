@@ -335,32 +335,16 @@ class TestIsAllowed:
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS) is True
         assert provider.is_allowed_calls == []
 
-    def test_multi_resource_routes_to_batch_by_resource(self, fake_permission):
-        """守护修复：多资源同类型必须走 framework.batch_by_resource，不再退化到 is_allowed 的第一项。
-
-        修复前旧实现只取 resources[0] 调 is_allowed 单点鉴权，导致后续资源
-        被静默漏检；修复后走批量鉴权，全部允许才判 True。
-        """
-        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
-
+    def test_v3_multi_resource_preserves_complete_sdk_request(self, fake_permission):
+        """默认 V3 将完整关联资源交给 SDK，不改为独立资源的批量交集。"""
         fw, provider = fake_permission
-        # 全部资源都允许
-        provider.batch_result = BatchAuthResult(
-            items=(
-                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="2", allowed=True),
-                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="3", allowed=True),
-            )
-        )
         p = Permission(username="tester", bk_tenant_id="system")
         resources = [
             ResourceEnum.BUSINESS.create_simple_instance("2"),
             ResourceEnum.BUSINESS.create_simple_instance("3"),
         ]
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
-        # 关键守护：多资源分支不能退化到调 is_allowed（否则又会只看第一项）
-        assert provider.is_allowed_calls == [], (
-            "多资源鉴权必须走 batch_by_resource，不允许退化为对 resources[0] 的单点 is_allowed"
-        )
+        assert provider.is_allowed_calls[0].resources == tuple(resources)
 
     def test_token_bypass_parity(self, fake_permission):
         """token 临时分享豁免逻辑与旧版一致（业务查看动作直接豁免）。"""
@@ -843,7 +827,7 @@ class TestPreflightHelpers:
 
 
 class TestKnownRegressions:
-    """本次回归修复的守卫用例：list_actions + is_allowed 多资源静默漏检。"""
+    """产品元数据与默认 V3 关联资源请求的兼容性。"""
 
     def test_list_actions_returns_action_list(self, installed_permission):
         """list_actions 应从 SchemaRegistry 生成动作列表（含旧版兼容字段）。
@@ -851,7 +835,12 @@ class TestKnownRegressions:
         与旧版 IAM V3 model.actions 契约对齐：每项含 id / name / name_en / type /
         version / related_resource_types / related_actions / description。
         """
-        result = Permission(username="tester", bk_tenant_id="system").list_actions()
+        from iam_engine.core.config import AuthMode
+        from types import SimpleNamespace
+
+        permission = Permission(username="tester", bk_tenant_id="system")
+        permission.mode_provider = SimpleNamespace(get_mode=lambda resources=(): AuthMode.V4)
+        result = permission.list_actions()
         assert isinstance(result, list)
         assert len(result) > 0
 
@@ -860,27 +849,16 @@ class TestKnownRegressions:
             assert key in first, f"list_actions 缺少兼容字段 {key!r}: {first}"
 
         # 抽样断言：view_business 的 v3 兼容字段来自 extensions.v3
-        view_business = next((a for a in result if a["id"] == "view_business"), None)
+        view_business = next((a for a in result if a["id"] == "view_business_v2"), None)
         assert view_business is not None, "SchemaRegistry 应包含 view_business"
         assert view_business["type"] == "view"
         assert view_business["version"] == 1
         assert view_business["related_resource_types"], "view_business 关联 space，应有一条 related_resource_types"
 
     def test_is_allowed_multi_resource_partial_deny(self, fake_permission):
-        """回归：多资源同类型鉴权，第一项允许、第二项拒绝时整体必须 False。
-
-        旧实现只取 resources[0]，会把上述场景误判为 True 并静默漏检后续资源。
-        修复后走 framework.batch_by_resource，任一资源被拒即整体 False。
-        """
-        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
-
+        """完整 V3 关联资源请求被 SDK 拒绝时，保留 False/异常契约。"""
         fw, provider = fake_permission
-        provider.batch_result = BatchAuthResult(
-            items=(
-                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="2", allowed=True),
-                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="3", allowed=False),
-            )
-        )
+        provider.is_allowed_result = False
         p = Permission(username="tester", bk_tenant_id="system")
 
         resources = [
@@ -895,16 +873,8 @@ class TestKnownRegressions:
             p.is_allowed(ActionEnum.VIEW_BUSINESS, resources, raise_exception=True)
 
     def test_is_allowed_multi_resource_all_hit(self, fake_permission):
-        """多资源同类型全部允许 → 整体 True。"""
-        from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
-
+        """完整 V3 关联资源请求被 SDK 允许时，返回 True。"""
         fw, provider = fake_permission
-        provider.batch_result = BatchAuthResult(
-            items=(
-                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="2", allowed=True),
-                ResourceAuthResult(action_id="view_business", resource_type="space", resource_id="3", allowed=True),
-            )
-        )
         p = Permission(username="tester", bk_tenant_id="system")
 
         resources = [
@@ -913,16 +883,17 @@ class TestKnownRegressions:
         ]
         assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
 
-    def test_is_allowed_mixed_resource_types_raises(self, fake_permission):
-        """混合资源类型必须显式拒绝：Permission.is_allowed 不接受隐式混合。"""
+    def test_v3_is_allowed_mixed_resource_types_reach_sdk(self, fake_permission):
+        """默认 V3 沿用原 SDK 的关联资源协议，不额外增加混合类型限制。"""
+        _, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
 
         resources = [
             ResourceEnum.BUSINESS.create_simple_instance("2"),
             ResourceEnum.APM_APPLICATION.create_simple_instance("app-1"),
         ]
-        with pytest.raises(ValueError, match="混合资源类型"):
-            p.is_allowed(ActionEnum.VIEW_BUSINESS, resources)
+        assert p.is_allowed(ActionEnum.VIEW_BUSINESS, resources) is True
+        assert provider.is_allowed_calls[0].resources == tuple(resources)
 
 
 # ---------------------------------------------------------------------------

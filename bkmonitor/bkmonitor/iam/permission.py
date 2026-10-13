@@ -38,14 +38,12 @@ from bkm_space.utils import bk_biz_id_to_space_uid, is_bk_saas_space
 from bkmonitor.iam import ResourceEnum
 from bkmonitor.iam.action import MINI_ACTION_IDS, ActionEnum, ActionMeta, canonicalize_action_id, get_action_by_id
 from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
-from bkmonitor.iam.definitions.resource_types import ResourceTypes
 from iam_engine.exceptions import CreatorGrantFailed, PermissionDenied, ProviderError
 from bkmonitor.iam.handlers.grants import PermissionWriteResult, PermissionWriteTargetResult
 from bkmonitor.iam.resource import to_resource_instance
 from bkmonitor.iam.backends.v3.client import V3Client
 from iam_engine.provider.requests import (
     ApplyURLRequest,
-    AuthRequest,
     BatchByResourceRequest,
     BatchAuthResult,
     ResourceAuthResult,
@@ -121,7 +119,7 @@ def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
     复刻旧版 Permission.is_allowed 的豁免顺序，命中任一即放行（返回 True），
     否则返回 False 进入真实鉴权：
       1. token 临时分享豁免（ApiAuthToken + ActionIdMap + api_paths）；
-         仅命中明确豁免条件时放行，修复历史 generator 恒真问题
+         仅命中当前 V3 基线明确的豁免条件时放行
       2. skip_check 豁免（request 级覆盖 settings 级）
 
     Args:
@@ -132,10 +130,8 @@ def check_iam_preflight(request, action_ref, skip_check=None) -> bool:
     """
     # token 临时分享权限豁免
     #
-    # 与旧版 Permission.is_allowed 的语义对齐（旧版此处存在生成器表达式恒真 bug，
-    # 使得任何携带 token 的请求对所有 action 直接放行；本次修复用 any(...) 显式求值，
-    # 恢复原始意图：view_business / ActionIdMap 场景命中 / api_paths 路径命中 才放行）。
-    # 同步用 ActionIdMap.get(record.type, []) 兜底，避免 entity/user 等未登记 token 类型触发 KeyError。
+    # 沿用当前 V3 基线：view_business / ActionIdMap 场景 / api_paths 命中才放行。
+    # 未登记的 token 类型按空动作列表处理。
     if request is not None and getattr(request, "token", None):
         try:
             record = ApiAuthToken.objects.get(token=request.token, bk_tenant_id=request.user.tenant_id)
@@ -321,6 +317,8 @@ class Permission:
     def _decide_request(self, request):
         if self.skip_check:
             return UnionDecisionPolicy.decide((AuthResult.allow("bypass"),))
+        if isinstance(request, SharedRequest):
+            return self.mode_router.is_allowed(request)
         return self.mode_router.is_allowed(
             SharedRequest(
                 subject=request.subject,
@@ -499,6 +497,10 @@ class Permission:
         if not scope.ok:
             # 查询失败不能伪装成成功的空权限，尤其不能被 ACL 同步解释为撤权。
             raise ProviderUnavailable(scope.reason)
+        if resource_type == "grafana_dashboard":
+            # V3 的仪表盘实例范围来自策略，不能再次与本地候选求交而丢掉
+            # bare UID、文件夹或尚未进入本地缓存的已授权实例；V4 已在批量查询中限定候选。
+            return VisibleResult(scope.is_wildcard, tuple(sorted(scope.ids)))
         return VisibleResult(scope.is_wildcard, tuple(str(r.id) for r in candidates if str(r.id) in scope.ids))
 
     def query_policies(self, subject, action_id):
@@ -574,14 +576,8 @@ class Permission:
         """
         校验用户是否有动作的权限（委托 公共 ModeRouter）。
 
-        资源列表处理规则：
-          * 空 / 单资源 → 走 ``_is_allowed_single`` 单点鉴权。
-          * 多资源同类型 → 走框架 ``batch_by_resource``，**全部允许才判 True**，
-            任一资源被拒即 False；``raise_exception=True`` 时按首个被拒资源构造
-            PermissionDeniedError。这条修复了旧版"只取 ``resources[0]`` 静默漏检
-            其余资源"的问题。
-          * 多资源异类型 → 显式抛 ValueError。批量鉴权不接受隐式混合类型，
-            调用方必须按类型拆分或使用框架批量接口显式表达意图。
+        V3 保留完整关联资源请求，由原 SDK 判断；V4/Union 的多资源列表
+        按现有批量接口逐项判断，全部允许才返回 True。
         """
         # token 临时分享 / skip_check 前置豁免（与旧版逻辑一致；skip_check 传实例值，
         # 兼容调用方构造后修改 permission.skip_check 的既有用法）
@@ -590,13 +586,16 @@ class Permission:
 
         resources = resources or []
 
-        # 单资源（或空）保持原路径，避免对既有调用方引入行为差异
+        fw_resources = tuple(to_resource_instance(r) for r in resources)
         if len(resources) <= 1:
-            fw_resource = None
-            if resources:
-                r = resources[0]
-                fw_resource = to_resource_instance(r)
-            return self._is_allowed_single(action, fw_resource, raise_exception)
+            return self._is_allowed_resources(action, fw_resources, raise_exception)
+        try:
+            mode = self.mode_provider.get_mode(fw_resources)
+        except InvalidAuthModeError:
+            # 交给 Router 生成拒绝结果，不把非法配置回退为 V3。
+            return self._is_allowed_resources(action, fw_resources, raise_exception)
+        if mode is AuthMode.V3:
+            return self._is_allowed_resources(action, fw_resources, raise_exception)
 
         # 多资源同类型 → batch_by_resource
         resource_types = {r.type for r in resources}
@@ -646,21 +645,21 @@ class Permission:
             raise self._build_permission_denied(action_id_biz, denied_resource)
         return False
 
-    def _is_allowed_single(self, action, fw_resource: FwResource | None, raise_exception: bool):
-        """内部：直接接受 FwResource 的鉴权方法。"""
+    def _is_allowed_resources(self, action, fw_resources: tuple[FwResource, ...], raise_exception: bool):
+        """保留 SDK 关联资源请求，不将默认 V3 请求拆成逐项批量鉴权。"""
         action_id_biz = _to_business_action_id(action)
 
         try:
             result = self._is_allowed_request(
-                AuthRequest(
+                SharedRequest(
                     subject=FwSubject(id=self.username, type=SubjectType.USER, tenant_id=self.bk_tenant_id),
                     action_id=action_id_biz,
-                    resource=fw_resource,
+                    resources=fw_resources,
                 )
             )
         except PermissionDenied as e:
             if raise_exception:
-                raise self._build_permission_denied(action_id_biz, fw_resource) from e
+                raise self._build_permission_denied(action_id_biz, fw_resources) from e
             return False
         except ProviderError as e:
             # Provider 层错误（含 ProviderUnavailable：平台不可达 / URL 缺失 / 超时）
@@ -669,24 +668,20 @@ class Permission:
             # 权限"），False 时 log.exception + 返回 False。
             logger.exception("[Permission.is_allowed] ProviderError: %s", e)
             if raise_exception:
-                raise self._build_permission_denied(action_id_biz, fw_resource) from e
+                raise self._build_permission_denied(action_id_biz, fw_resources) from e
             return False
 
         if not result and raise_exception:
-            raise self._build_permission_denied(action_id_biz, fw_resource)
+            raise self._build_permission_denied(action_id_biz, fw_resources)
 
         return result
 
-    def _build_permission_denied(self, action_id_biz: str, fw_resource: FwResource | None):
+    def _build_permission_denied(self, action_id_biz: str, fw_resource):
         """构建 PermissionDeniedError（含 SaaS 全家桶 + apply 数据）。"""
-        resources = []
-        if fw_resource:
-            resources = [ResourceEnum.BUSINESS.create_instance(fw_resource.id)]
+        resources = list(fw_resource) if isinstance(fw_resource, tuple) else ([fw_resource] if fw_resource else [])
         actions, detail_resources = self.prepare_apply_for_saas(resources)
         if not actions:
-            detail_resources = []
-            if fw_resource:
-                detail_resources = [fw_resource]
+            detail_resources = resources
             try:
                 actions = [get_action_by_id(action_id_biz)]
             except ActionNotExistError:
@@ -709,11 +704,9 @@ class Permission:
         """
         判断用户对当前动作在该业务下是否有权限（委托 公共 ModeRouter）。
         """
-        if self.skip_check:
-            return True
-
-        fw_resource = FwResource(type=ResourceTypes.SPACE.id, id=str(bk_biz_id))
-        return self._is_allowed_single(action, fw_resource, raise_exception)
+        return self.is_allowed(
+            action, [ResourceEnum.BUSINESS.create_simple_instance(bk_biz_id)], raise_exception=raise_exception
+        )
 
     def batch_is_allowed(self, actions: list, resources: list[list]):
         """
@@ -958,26 +951,30 @@ class Permission:
         return [cls.make_resource(r["type"], r["id"]) for r in resources]
 
     # ================================================================
-    # list_actions — 从框架 SchemaRegistry 生成动作列表
+    # list_actions — 保持产品前端使用的 V3 元数据契约
     # ================================================================
     def list_actions(self):
         """返回平台注册的动作列表，字段兼容旧版 IAM V3 ``model.actions`` 返回结构。
 
-        原实现调 V3 平台 ``model/systems/{sys}/query``；重构后不再依赖具体
-        Provider，直接从注入的 ``Permission.schema``（SchemaRegistry）读取，
-        即使 Provider 平台不可用也能返回稳定结果。
-
-        每一项包含字段：
-            id                     : 业务 action id（如 "view_business"）
-            name                   : 中文名
-            name_en                : 英文名（读 extensions.v3.name_en，缺失回落到 id）
-            type                   : "view" / "manage"（读 extensions.v3.type）
-            version                : 版本号（读 extensions.v3.version，缺失默认 1）
-            related_resource_types : 关联资源类型元数据列表（system_id + id + name_en）
-            related_actions        : 依赖动作列表（读 extensions.v3.related_actions）
-            description            : action 描述
+        V3 模式仍查询 V3 平台并原样返回 model.actions；V4/Union 模式从本地
+        Schema 投影相同的前端字段及历史 Action ID，不额外依赖 V3 平台可用性。
         """
+        if self.mode_provider.get_mode() is AuthMode.V3:
+            # 默认 V3 保留远端 model.actions 的完整协议与查询失败行为。
+            from core.errors.api import BKAPIError
+
+            provider = self.get_provider("v3")
+            ok, message, data = provider.client._client.query(provider.system_id)
+            if not ok:
+                raise BKAPIError(
+                    system_name=settings.BK_IAM_SAAS_APP_CODE,
+                    url=f"/api/v1/model/systems/{provider.system_id}/query",
+                    result={"message": message},
+                )
+            return data["actions"]
+
         schema = self.schema
+        codec = MonitorV3Codec()
         actions_data: list[dict] = []
         for action_def in schema.all_actions():
             v3_ext = (action_def.extensions or {}).get("v3", {}) or {}
@@ -992,18 +989,21 @@ class Permission:
                 except Exception:  # noqa: BLE001  schema 未注册该资源类型时兜底
                     rt_def = None
                     rt_name_en = ""
+                rt_v3 = rt_def.extensions.get("v3", {}) if rt_def else {}
                 related_resource_types.append(
                     {
                         "system_id": settings.BK_IAM_SYSTEM_ID,
                         "id": rt_id,
                         "name": rt_def.name if rt_def else rt_id,
                         "name_en": rt_name_en,
+                        "selection_mode": rt_v3.get("selection_mode", "instance"),
+                        "related_instance_selections": rt_v3.get("related_instance_selections", []),
                     }
                 )
 
             actions_data.append(
                 {
-                    "id": action_def.id,
+                    "id": codec.encode_action(action_def.id),
                     "name": action_def.name,
                     "name_en": v3_ext.get("name_en", action_def.id),
                     "type": v3_ext.get("type", ""),

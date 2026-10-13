@@ -19,6 +19,14 @@ class V3ApplicationBuilder:
     def get_apply_data(self, actions, resources):
         p = self.provider
         client = p.client
+        from iam import meta
+
+        meta.setup_system(p.system_id, p._cfg.system.name)
+        for resource_type in p.schema.all_resource_types():
+            system_id = resource_type.extensions.get("v3", {}).get("system_id") or p.system_id
+            meta.setup_resource(system_id, p.codec.encode_resource_type(resource_type.id), resource_type.name)
+        for action in p.schema.all_actions():
+            meta.setup_action(p.system_id, p.codec.encode_action(action.id), action.name)
         resolved = [p._resolve(r, tenant_id=p.tenant_id) for r in resources]
         sdk_actions, action_resources = [], []
         for action in actions:

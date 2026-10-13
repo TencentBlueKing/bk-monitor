@@ -174,28 +174,6 @@ class DashboardPermission(BasePermission):
         return role
 
     @classmethod
-    def has_any_dashboard_permission(cls, username: str, force_check: bool = False) -> bool:
-        """
-        用户是否存在任意实例级仪表盘权限（布尔判定，无需候选列表）。
-
-        用于权限层粗门禁：只有 per-dashboard 权限、无空间级角色的用户
-        在此放行，由资源层精确过滤兜底。
-        """
-        p = Permission(username=username, bk_tenant_id=get_request_tenant_id())
-        if force_check:
-            p.skip_check = False
-        if p.skip_check:
-            return True
-
-        try:
-            return p.has_any_resource_permission(ActionEnum.VIEW_SINGLE_DASHBOARD) or p.has_any_resource_permission(
-                ActionEnum.EDIT_SINGLE_DASHBOARD
-            )
-        except ProviderError:
-            logger.exception("[grafana] has_any_dashboard_permission 查询失败, username=%s", username)
-            return False
-
-    @classmethod
     def get_visible_dashboards(
         cls,
         username: str,
@@ -225,11 +203,8 @@ class DashboardPermission(BasePermission):
         if p.skip_check:
             return GrafanaRole.Admin, {}
 
-        role = cls.get_user_role(username, org_name, force_check)
-
-        # 空间级角色已达 Editor，无需实例级查询（与旧逻辑一致）
-        if role >= GrafanaRole.Editor:
-            return role, {}
+        # 实例级查询不混入空间角色；空间角色由 request-aware 入口合并。
+        role = GrafanaRole.Anonymous
 
         org_id = get_or_create_org(org_name)["id"]
         candidate_ids = cls._candidate_ids(org_id, resource_ids)
@@ -279,7 +254,7 @@ class DashboardPermission(BasePermission):
                 )
                 ids.update(f"{cls.FOLDER_PREFIX}{org_id}|{fid}" for fid in folder_ids if fid)
         # 空 id 探针仅用于识别当前空间的全量授权，不会返回实例 ACL。
-        return tuple(sorted(ids)) or ("",)
+        return tuple(sorted(ids)) or (f"{org_id}|",)
 
     @classmethod
     def get_user_permission(
@@ -308,9 +283,14 @@ class DashboardPermission(BasePermission):
         if getattr(request, "skip_check", False) or request.user.is_superuser:
             role, dashboard_permissions = GrafanaRole.Admin, {}
         else:
-            _, role, dashboard_permissions = cls.get_user_permission(
-                request.user.username, org_name, force_check=force_check
-            )
+            role = cls.get_user_role(request.user.username, org_name, force_check)
+            dashboard_permissions = {}
+            if role < GrafanaRole.Editor:
+                _, new_role, dashboard_permissions = cls.get_user_permission(
+                    request.user.username, org_name, force_check
+                )
+                if new_role >= role:
+                    role = new_role
 
         # 外部用户权限处理
         # 兼容处理folder权限判断: 将folder权限展开为dashboard权限
@@ -326,16 +306,6 @@ class DashboardPermission(BasePermission):
 
             org_id = get_or_create_org(org_name)["id"]
 
-            # 外部授权 ⊆ authorizer 权限：authorizer 无空间级角色时，需要其实例级可见性做约束。
-            # 候选 = 外部授权涉及的资源本身（数量小），走框架过滤（与旧 get_user_permission 的 map 等价）。
-            authorizer_visible_uids: set[str] = set()
-            if role < GrafanaRole.Editor:
-                authorizer_resource_ids = list({rid for p in external_permissions for rid in p.resources})
-                _, authorizer_map = cls.get_visible_dashboards(
-                    request.user.username, org_name, resource_ids=authorizer_resource_ids
-                )
-                authorizer_visible_uids = set(authorizer_map.keys())
-
             for permission in external_permissions:
                 # 展开资源（dashboard 和 folder）为 dashboard uids
                 all_dashboard_uids = cls.expand_resources_to_dashboard_uids(org_id, permission.resources)
@@ -343,11 +313,11 @@ class DashboardPermission(BasePermission):
                 # 为所有dashboard设置权限
                 for uid in all_dashboard_uids:
                     if permission.action_id == "view_grafana" and (
-                        role >= GrafanaRole.Viewer or uid in authorizer_visible_uids
+                        role >= GrafanaRole.Viewer or uid in dashboard_permissions
                     ):
                         external_dashboard_permissions[uid] = GrafanaPermission.View
                     elif permission.action_id == "manage_grafana" and (
-                        role >= GrafanaRole.Editor or uid in authorizer_visible_uids
+                        role >= GrafanaRole.Editor or uid in dashboard_permissions
                     ):
                         external_dashboard_permissions[uid] = GrafanaPermission.Edit
 
@@ -365,12 +335,8 @@ class GrafanaReadPermission:
         if not request.biz_id:
             return True
 
-        # 空间级角色门禁
-        if DashboardPermission.get_user_role(request.user.username, request.biz_id) != GrafanaRole.Anonymous:
-            return True
-
-        # 场景 B：只有 per-dashboard 权限的用户（无候选时布尔放行，资源层精确过滤）
-        if DashboardPermission.has_any_dashboard_permission(request.user.username):
+        ok, role, dashboard_permissions = DashboardPermission.has_permission(request, view, request.biz_id)
+        if ok and (role != GrafanaRole.Anonymous or dashboard_permissions):
             return True
 
         if self.permission is None:

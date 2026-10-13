@@ -11,8 +11,7 @@ from iam_engine.provider.base import PermissionProvider
 from iam_engine.provider.requests import VisibleResult, to_action_id, to_resource_type_id
 from iam_engine.exceptions import ProviderError
 from iam_engine.policy.expression import Op, PolicyExpression
-from iam_engine.policy.evaluator import DictEvaluator
-from bkmonitor.iam.backends.v3.policy_converter import iam_dict_to_expression
+from bkmonitor.iam.backends.v3.policy_converter import iam_dict_to_expression, expression_to_iam_dict
 from bkmonitor.iam.backends.v3.apply import V3ApplicationBuilder
 
 if TYPE_CHECKING:
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 def _build_eval_obj(resource: ResourceInstance, with_id: bool = True) -> dict:
-    """把 ResourceInstance 转成 DictEvaluator 的求值对象。
+    """把 ResourceInstance 转成 IAM SDK 的求值对象。
 
     key 为 IAM 表达式 field 全名（"{rt}.id" / "{rt}._bk_iam_path_"）。
     with_id=False 时 id 置空串，用于"空 id 求值"的全量授权判定。
@@ -136,6 +135,11 @@ class V3PermissionProvider(PermissionProvider):
                 ]
                 for group in request.resource_groups
             ]
+            encoded_ids = {
+                (to_definition_id(resource.type), str(resource.id)): sdk_resource.id
+                for group, sdk_group in zip(request.resource_groups, groups)
+                for resource, sdk_resource in zip(group, sdk_group)
+            }
             raw = client.batch_resource_multi_actions_allowed(
                 client.make_multi_action_request(request.subject.id, encoded_actions), groups
             )
@@ -145,7 +149,7 @@ class V3PermissionProvider(PermissionProvider):
         items = []
         for action_id, resource_id in request.iter_keys():
             rt = next(to_definition_id(g[0].type) for g in request.resource_groups if str(g[0].id) == resource_id)
-            encoded_id = self.codec.encode_resource_id(rt, resource_id)
+            encoded_id = encoded_ids[(rt, resource_id)]
             row = raw.get(encoded_id, {})
             aid = self.codec.encode_action(action_id)
             result = (
@@ -292,7 +296,7 @@ class V3PermissionProvider(PermissionProvider):
         action_id: str,
         candidates: tuple[ResourceInstance, ...],
     ) -> VisibleResult:
-        """v3：query_policy 表达式 + DictEvaluator 本地求值（1 次 API）。
+        """v3：query_policy 表达式 + IAM SDK 本地求值（1 次 API）。
 
         性能约定：顶层资源候选可达数十万（如 space 列表过滤），
         对 "{rt}.id" 上的 IN/EQ 叶子走集合快速路径，避免逐候选求值。
@@ -305,26 +309,52 @@ class V3PermissionProvider(PermissionProvider):
         if not candidates:
             return VisibleResult()
 
+        # Grafana V3 的产品范围原本来自策略 ID（包含 bare UID 和 folder），
+        # 不能改为仅返回本地 DB 候选或用另一套解析规则替代。
+        if to_resource_type_id(candidates[0].type) == "grafana_dashboard":
+            from iam import make_expression
+            from bkmonitor.iam.backends.v3.grafana import policy_resource_ids
+
+            policy = expression_to_iam_dict(expr)
+            probe = _build_eval_obj(candidates[0], with_id=False)
+            all_granted = make_expression(policy).eval(probe)
+            org_id = None
+            for candidate in candidates:
+                raw_id = candidate.id.removeprefix("folder:")
+                if "|" in raw_id:
+                    org_id = int(raw_id.split("|", 1)[0])
+                    break
+            if org_id is None:
+                return VisibleResult(all_granted=all_granted)
+            bk_biz_id = next((parent.id for parent in candidates[0].ancestor_chain if parent.type == "space"), 0)
+            return VisibleResult(all_granted, tuple(sorted(policy_resource_ids(policy, org_id, bk_biz_id))))
+
         # 快速路径："{rt}.id" 的 IN/EQ → 集合过滤（O(N) set 查找，与旧 filter_space_list 的 IN 分支对齐）
         rt_biz = to_resource_type_id(candidates[0].type)
         id_field = f"{rt_biz}.id"
-        if expr.op == Op.IN and expr.field == id_field:
-            allowed = {str(v) for v in (expr.value or ())}
-            return VisibleResult(visible_ids=tuple(c.id for c in candidates if c.id in allowed))
-        if expr.op == Op.EQ and expr.field == id_field:
-            allowed = str(expr.value)
-            return VisibleResult(visible_ids=tuple(c.id for c in candidates if c.id == allowed))
+        if expr.op in (Op.IN, Op.EQ) and expr.field == id_field:
+            # SDK 的 IN 只接受数组；不能把字符串拆成字符或改变数值类型。
+            values = expr.value if expr.op == Op.IN else (expr.value,)
+            if not isinstance(values, list | tuple):
+                return VisibleResult()
+            allowed = set(values)
+            return VisibleResult(
+                visible_ids=tuple(c.id for c in candidates if c.id in allowed),
+            )
 
-        evaluator = DictEvaluator()
+        # V3 必须沿用 SDK 求值器，不能以中立求值器替代其历史数组/path 语义。
+        from iam import make_expression
+
+        evaluator = make_expression(expression_to_iam_dict(expr))
 
         # 全量判定：空 id + 首个候选的父链（约定同批候选共享父链，如 Grafana 单 org 一批）
         all_granted = False
-        if evaluator.evaluate(expr, _build_eval_obj(candidates[0], with_id=False)):
+        if rt_biz != "space" and evaluator.eval(_build_eval_obj(candidates[0], with_id=False)):
             all_granted = True
 
         visible: list[str] = []
         for c in candidates:
-            if evaluator.evaluate(expr, _build_eval_obj(c)):
+            if evaluator.eval(_build_eval_obj(c)):
                 visible.append(c.id)
 
         return VisibleResult(all_granted=all_granted, visible_ids=tuple(visible))
