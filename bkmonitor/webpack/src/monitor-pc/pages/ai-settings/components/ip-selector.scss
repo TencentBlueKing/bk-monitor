@@ -1,3 +1,5 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
 .ai-settings-ip-selector {
   position: relative;
 
@@ -7,7 +9,18 @@
     left: 0;
     width: 100%;
     height: 20px;
-    background-color: #fff;
+
+    // 保持遮罩不透明，避免半透明渐变透出下方的对象信息。
+    background: #fff;
+    animation: none;
+
+    &::before {
+      width: 100%;
+      height: 100%;
+      content: '';
+
+      @include skeleton.surface;
+    }
   }
 
   .target-overview {

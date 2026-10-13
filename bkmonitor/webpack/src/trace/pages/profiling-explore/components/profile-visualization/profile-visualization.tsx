@@ -111,16 +111,19 @@ export default defineComponent({
               </Radio.Button>
             ))}
           </Radio.Group>
-          <Input
-            class='profile-symbol-search'
-            disabled={this.mode === 'callgraph'}
-            modelValue={this.keyword}
-            placeholder={this.t('搜索函数名')}
-            type='search'
-            clearable
-            onClear={() => this.searchFunction('')}
-            onInput={value => this.searchFunction(String(value))}
-          />
+          {this.mode === 'callgraph' ? (
+            <span class='profile-symbol-search' />
+          ) : (
+            <Input
+              class='profile-symbol-search'
+              modelValue={this.keyword}
+              placeholder={this.t('搜索 关键字')}
+              type='search'
+              clearable
+              onClear={() => this.searchFunction('')}
+              onInput={value => this.searchFunction(String(value))}
+            />
+          )}
           <Radio.Group
             class='profile-direction-modes'
             disabled={this.mode === 'callgraph'}

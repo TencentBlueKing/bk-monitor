@@ -47,6 +47,7 @@ const TraceSlider = defineAsyncComponent(
 import BackTop from '../../../../components/back-top/back-top';
 import { useTraceExploreStore } from '../../../../store/modules/explore';
 import ChartWrapper from '../explore-chart/chart-wrapper';
+import TraceExploreSkeleton from '../trace-explore-skeleton';
 import { useExploreTableData } from '../trace-explore-table/hooks/use-explore-table-data';
 import { useExploreTableDisplayField } from '../trace-explore-table/hooks/use-explore-table-display-field';
 import TraceExploreTable from '../trace-explore-table/trace-explore-table';
@@ -82,6 +83,8 @@ export default defineComponent({
         span: [],
       }),
     },
+    queryPending: { type: Boolean, default: false },
+    configLoading: { type: Boolean, default: false },
     /** 是否展示详情 */
     showSlideDetail: {
       type: Object as PropType<{ appName?: string; bizId?: number; id: string; type: 'span' | 'trace' }>,
@@ -119,23 +122,39 @@ export default defineComponent({
       displayColumnFields,
       defaultDisplayFields,
       fieldsWidthConfig,
+      fieldsLoading,
       getCustomFieldsConfig,
       handleDisplayColumnFieldsChange,
       handleDisplayColumnResize,
     } = useExploreTableDisplayField({ mode, appName });
 
     /** 当前视角下的字段配置 */
-    const sourceFieldConfigs = computed(() => props.fieldListMap?.[mode.value] ?? []);
+    const sourceFieldConfigs = computed(() => (props.configLoading ? [] : (props.fieldListMap?.[mode.value] ?? [])));
 
     // 使用数据处理 hook
-    const { tableViewData, tableHasScrollLoading, tableLoading, sortContainer, getExploreList, handleSortChange } =
-      useExploreTableData({
-        commonParams: toRef(props, 'commonParams'),
-        sourceFieldConfigs,
-        onBackTop: () => {
-          backTopRef.value?.handleBackTop?.(false);
-        },
-      });
+    const {
+      tableViewData,
+      tableHasScrollLoading,
+      tableLoading,
+      tableRefreshing,
+      sortContainer,
+      getExploreList,
+      handleSortChange,
+    } = useExploreTableData({
+      commonParams: toRef(props, 'commonParams'),
+      sourceFieldConfigs,
+      ready: computed(
+        () =>
+          !fieldsLoading.value &&
+          !props.configLoading &&
+          !props.queryPending &&
+          props.commonParams.app_name === appName.value &&
+          props.commonParams.mode === mode.value
+      ),
+      onBackTop: () => {
+        backTopRef.value?.handleBackTop?.(false);
+      },
+    });
 
     /**
      * @description 触底加载更多
@@ -260,6 +279,7 @@ export default defineComponent({
       tableViewData,
       tableHasScrollLoading,
       tableLoading,
+      tableRefreshing,
       sortContainer,
       sliderMode,
       activeSliderId,
@@ -287,29 +307,37 @@ export default defineComponent({
           {this.filtersCheckBoxGroupRender()}
         </div>
         <div class='trace-explore-view-table'>
-          <TraceExploreTable
-            ref='traceExploreTable'
-            appName={this.appName}
-            commonParams={this.commonParams}
-            defaultFieldKeys={this.defaultDisplayFields}
-            displayFields={this.displayColumnFields}
-            fieldsWidthConfig={this.fieldsWidthConfig}
-            mode={this.mode}
-            sortContainer={this.sortContainer}
-            sourceFieldConfigs={this.sourceFieldConfigs}
-            tableData={this.tableViewData}
-            tableHasScrollLoading={this.tableHasScrollLoading}
-            tableLoading={this.tableLoading}
-            onClearRetrievalFilter={() => this.$emit('clearRetrievalFilter')}
-            onColumnResize={this.handleDisplayColumnResize}
-            onConditionChange={(conditionEvent, isMergeSameKey) =>
-              this.$emit('conditionChange', conditionEvent, isMergeSameKey)
-            }
-            onDisplayFieldChange={this.handleDisplayColumnFieldsChange}
-            onScrollToEnd={this.handleScrollToEnd}
-            onSliderShow={this.handleSliderShowChange}
-            onSortChange={this.handleTableSortChange}
-          />
+          {this.tableLoading[ExploreTableLoadingEnum.BODY_SKELETON] ? (
+            <TraceExploreSkeleton
+              mode={this.mode}
+              type='table'
+            />
+          ) : (
+            <TraceExploreTable
+              ref='traceExploreTable'
+              appName={this.appName}
+              commonParams={this.commonParams}
+              defaultFieldKeys={this.defaultDisplayFields}
+              displayFields={this.displayColumnFields}
+              fieldsWidthConfig={this.fieldsWidthConfig}
+              mode={this.mode}
+              refreshing={this.tableRefreshing}
+              sortContainer={this.sortContainer}
+              sourceFieldConfigs={this.sourceFieldConfigs}
+              tableData={this.tableViewData}
+              tableHasScrollLoading={this.tableHasScrollLoading}
+              tableLoading={this.tableLoading}
+              onClearRetrievalFilter={() => this.$emit('clearRetrievalFilter')}
+              onColumnResize={this.handleDisplayColumnResize}
+              onConditionChange={(conditionEvent, isMergeSameKey) =>
+                this.$emit('conditionChange', conditionEvent, isMergeSameKey)
+              }
+              onDisplayFieldChange={this.handleDisplayColumnFieldsChange}
+              onScrollToEnd={this.handleScrollToEnd}
+              onSliderShow={this.handleSliderShowChange}
+              onSortChange={this.handleTableSortChange}
+            />
+          )}
         </div>
         <KeepAlive include={['TraceSlider', 'ExploreSpanSlider', 'AsyncComponentWrapper']}>
           <div>

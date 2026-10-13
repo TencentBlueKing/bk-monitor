@@ -33,7 +33,6 @@ import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 
 import RefreshRate from '../../../../../components/refresh-rate/refresh-rate';
-import ChartSkeleton from '../../../../../components/skeleton/chart-skeleton';
 import TagOverflow from '../../../../../components/tag-overflow/tag-overflow';
 import TimeRange from '../../../../../components/time-range/time-range';
 import { handleTransformToTimestamp } from '../../../../../components/time-range/utils';
@@ -43,6 +42,7 @@ import { formatProcessSeriesAlias, formatProcessUptimeDetail } from '../../../..
 import { useMetricAggregation } from '../../../composables/use-metric-aggregation';
 import { useProcessMetric } from '../../../composables/use-process-metric';
 import { type ScopedVarMap, buildScopedVars, DashboardPanel } from '../../dashbords';
+import HostLoading from '../../host-loading/host-loading';
 import GroupManageDialog from '../../host-metric/group-manage-dialog';
 import MetricToolbar from '../../host-metric/metric-toolbar';
 import { useHostStore } from '@/store/modules/host';
@@ -67,6 +67,10 @@ import './process-detail.scss';
 export default defineComponent({
   name: 'ProcessDetail',
   props: {
+    infoLoading: {
+      type: Boolean,
+      default: false,
+    },
     /** 是否展示抽屉 */
     show: {
       type: Boolean,
@@ -116,6 +120,7 @@ export default defineComponent({
       value: null,
     });
     let processUptimeRequestId = 0;
+    const processUptimeLoading = shallowRef(false);
     /** 自动刷新定时器引用：间隔 > 0 时周期性触发图表刷新 */
     let refreshTimer: null | ReturnType<typeof setInterval> = null;
     const timeShift = computed(() =>
@@ -147,7 +152,7 @@ export default defineComponent({
     /** 汇聚 Toolbar 状态（受控分发给 Toolbar 与图表） */
     const aggregation = useMetricAggregation(processMetricAggregationState.value);
     /** 进程指标数据：取数走带缓存的 panel / order */
-    const { rows, orderData, loading, settingShow, load, handleSave } = useProcessMetric({
+    const { rows, orderData, loading, loadError, submitting, settingShow, load, handleSave } = useProcessMetric({
       keyword: () => aggregation.state.keyword,
       ungroupTitle: () => t('未分组'),
     });
@@ -254,7 +259,7 @@ export default defineComponent({
      */
     const renderInfo = () => {
       const process = props.process;
-      if (!process) return null;
+      if (props.infoLoading || !process) return <HostLoading variant='process-info' />;
       const ports: ProcessPort[] = process.ports?.length
         ? process.ports
         : process.protocol && process.bindIp && process.port
@@ -282,9 +287,13 @@ export default defineComponent({
               </div>
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('运行时长')}：</span>
-                <span class='process-detail-kv-value'>
-                  {formatProcessUptimeDetail(processUptimeSnapshot.value.value, processUptimeSnapshot.value.observedAt)}
-                </span>
+                {processUptimeLoading.value ? (
+                  <span class='process-detail-kv-skeleton' aria-label={t('加载中...')} role='status' />
+                ) : (
+                  <span class='process-detail-kv-value'>
+                    {formatProcessUptimeDetail(processUptimeSnapshot.value.value, processUptimeSnapshot.value.observedAt)}
+                  </span>
+                )}
               </div>
               <div class='process-detail-kv'>
                 <span class='process-detail-kv-label'>{t('实例数')}：</span>
@@ -349,20 +358,6 @@ export default defineComponent({
     );
 
     /**
-     * @description 图表区域加载态骨架屏（参考告警中心仪表盘分组，按当前列数渲染两行图表骨架）
-     */
-    const renderSkeleton = () => (
-      <div
-        style={{ gridTemplateColumns: `repeat(${processMetricAggregationState.value.columns}, minmax(0, 1fr))` }}
-        class='process-detail-skeleton'
-      >
-        {new Array(3 * processMetricAggregationState.value.columns).fill(0).map((_, index) => (
-          <ChartSkeleton key={index} />
-        ))}
-      </div>
-    );
-
-    /**
      * @description 抽屉内容区域渲染函数
      * 指标 Tab：展示 MetricToolbar + DashboardPanel + GroupManageDialog
      * 其他 Tab：展示「功能开发中」占位
@@ -380,21 +375,20 @@ export default defineComponent({
                 settingShow.value = true;
               }}
             />
-            {loading.value ? (
-              renderSkeleton()
-            ) : (
-              <DashboardPanel
+            <DashboardPanel
                 class='process-detail-charts'
+                loading={loading.value}
+                loadError={loadError.value}
+                onRetry={() => load(true)}
                 columns={processMetricAggregationState.value.columns}
                 customOptions={chartCustomOptions}
                 rows={rows.value}
                 scopedVars={scopedVars.value}
               />
-            )}
             <GroupManageDialog
               isShow={settingShow.value}
               orderData={orderData.value}
-              submitLoading={loading.value}
+              submitLoading={submitting.value}
               onSave={handleSave}
               onUpdate:isShow={(v: boolean) => {
                 settingShow.value = v;
@@ -443,9 +437,11 @@ export default defineComponent({
       async () => {
         const requestId = ++processUptimeRequestId;
         processUptimeSnapshot.value = { observedAt: 0, value: null };
+        processUptimeLoading.value = false;
         const node = props.selectedNode;
         if (!props.show || !props.process?.name || !node || !('bk_host_id' in node)) return;
 
+        processUptimeLoading.value = true;
         const [startTime, endTime] = handleTransformToTimestamp(timeRange.value);
         try {
           const result = await getHostProcessUptime(
@@ -469,6 +465,8 @@ export default defineComponent({
           if (requestId === processUptimeRequestId) {
             processUptimeSnapshot.value = { observedAt: endTime, value: null };
           }
+        } finally {
+          if (requestId === processUptimeRequestId) processUptimeLoading.value = false;
         }
       },
       { immediate: true }
@@ -483,7 +481,10 @@ export default defineComponent({
     });
 
     /** 组件卸载前清除定时器，避免内存泄漏 */
-    onBeforeUnmount(clearRefreshTimer);
+    onBeforeUnmount(() => {
+      clearRefreshTimer();
+      processUptimeRequestId += 1;
+    });
 
     return {
       renderHeader,

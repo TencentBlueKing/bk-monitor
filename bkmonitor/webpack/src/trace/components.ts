@@ -50,5 +50,6 @@ export { default as i18n } from './i18n/i18n';
 export * from './pages/trace-explore/components/explore-chart/index';
 
 import 'monitor-static/icons/monitor-icons.css';
+import 'monitor-static/styles/skeleton.scss';
 
 export { PromqlEditor, RetrievalFilter };

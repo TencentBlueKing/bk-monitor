@@ -220,7 +220,7 @@ def _invoke(domain_id: str, operation_id: str, params: dict[str, Any], *, force_
         try:
             invoke_params = op.params_guard(invoke_params)
         except ParamsGuardRejected as e:
-            return _error(code="unsafe_action_blocked", message=str(e))
+            return _error(code=e.code, message=str(e))
 
     # cache_bypass：bk-monitor CacheResource 把 self.request 包成 using_cache wrapper（见
     # bkmonitor/utils/cache.py:217-220），wrapper 同时挂 .refresh / .cacheless 两个方法。
@@ -261,7 +261,7 @@ def _invoke(domain_id: str, operation_id: str, params: dict[str, Any], *, force_
         else:
             result = op.response_postprocess(raw, requested_fields)
     except ProviderResponseRejected as error:
-        return _error(code="provider_unavailable", message=str(error))
+        return _error(code=error.code, message=str(error))
     return {
         "status": "ok",
         "kind": "invocation",

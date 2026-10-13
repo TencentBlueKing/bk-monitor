@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
@@ -37,8 +36,8 @@ import {
 } from 'monitor-api/modules/collecting';
 import { copyText } from 'monitor-common/utils/utils.js';
 
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import ExpandWrapper from '../../../components/expand-wrapper/expand-wrapper';
-import TableSkeleton from '../../../components/skeleton/table-skeleton';
 import { transformJobUrl } from '../../../utils/index';
 import {
   type IContentsItem,
@@ -50,6 +49,9 @@ import {
   statusMap,
 } from '../collector-host-detail/utils';
 import AlertHistogram from './components/alert-histogram';
+import DetailLoadError from './components/detail-load-error';
+import DetailSkeleton from './components/detail-skeleton';
+import DetailRequest from './detail-request';
 
 import './collector-status-details.scss';
 
@@ -98,8 +100,9 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     show: false,
     title: '',
     detail: '',
-    loading: false,
+    target: null,
   };
+  logRequest = new DetailRequest();
 
   config = null;
 
@@ -147,6 +150,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
       this.config = this.data.config_info;
       this.targetNodeType = this.data.config_info?.target_node_type || '';
       this.contents = this.data.contents.map((item, index) => {
+        const previous = this.contents.find(content => content.label_name === item.label_name);
         const table = [];
         const nums = {
           failedNum: 0,
@@ -187,7 +191,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
           table: Object.freeze(table),
           child: Object.freeze(item.child),
           showAlertHistogram,
-          isExpand: index < 1,
+          isExpand: previous?.isExpand ?? index < 1,
         };
       });
       const headerData: any = {};
@@ -207,34 +211,33 @@ export default class CollectorStatusDetails extends tsc<IProps> {
     });
   }
 
+  beforeDestroy() {
+    this.logRequest.cancel();
+  }
+
   /**
    * @description 表格详情按钮
    * @param data
    */
   handleGetMoreDetail(data) {
     this.side.show = true;
-    const { instance_name } = data;
-    if (instance_name !== this.side.title) {
-      this.side.title = instance_name;
-      this.side.loading = true;
-      getCollectLogDetail(
-        {
-          instance_id: data.instance_id,
-          task_id: data.task_id,
-          id: this.config.id,
-        },
-        { needMessage: false }
-      )
-        .then(data => {
-          this.side.detail = data.log_detail;
-          this.side.loading = false;
-        })
-        .catch(error => {
-          this.bkMsg('error', error.message || this.$t('获取更多数据失败'));
-          this.side.show = false;
-          this.side.loading = false;
-        });
-    }
+    this.side.title = data.instance_name;
+    this.side.target = data;
+    this.side.detail = '';
+    return this.logRequest.run(
+      signal =>
+        getCollectLogDetail(
+          {
+            instance_id: data.instance_id,
+            task_id: data.task_id,
+            id: this.config.id,
+          },
+          { signal, needMessage: false }
+        ),
+      data => {
+        this.side.detail = data.log_detail;
+      }
+    );
   }
 
   /**
@@ -550,11 +553,11 @@ export default class CollectorStatusDetails extends tsc<IProps> {
         </div>
         <div class='table-content'>
           {this.tableLoading ? (
-            <TableSkeleton
+            <DetailSkeleton
               style={{
                 marginTop: '20px',
               }}
-              type={1}
+              section='status-table'
             />
           ) : (
             this.contents
@@ -784,6 +787,7 @@ export default class CollectorStatusDetails extends tsc<IProps> {
                 </ExpandWrapper>
               ))
           )}
+          {!this.tableLoading && !this.contents.some(content => content.table.length) && <EmptyStatus />}
         </div>
         <bk-sideslider
           width={900}
@@ -795,21 +799,28 @@ export default class CollectorStatusDetails extends tsc<IProps> {
             on: {
               'update:isShow': v => {
                 this.side.show = v;
+                if (!v) this.logRequest.cancel();
               },
             },
           }}
         >
           <div
-            class='side-detail fix-same-code'
+            class={['side-detail fix-same-code', { 'is-loading': this.logRequest.loading || this.logRequest.error }]}
             slot='content'
-            v-bkloading={{ isLoading: this.side.loading }}
+            aria-busy={this.logRequest.loading ? 'true' : 'false'}
           >
-            <pre
-              class='side-detail-code fix-same-code'
-              domProps={{
-                innerHTML: transformJobUrl(this.side.detail),
-              }}
-            />
+            {this.logRequest.loading ? (
+              <DetailSkeleton section='log' />
+            ) : this.logRequest.error ? (
+              <DetailLoadError onRetry={() => this.handleGetMoreDetail(this.side.target)} />
+            ) : (
+              <pre
+                class='side-detail-code fix-same-code'
+                domProps={{
+                  innerHTML: transformJobUrl(this.side.detail),
+                }}
+              />
+            )}
           </div>
         </bk-sideslider>
       </div>

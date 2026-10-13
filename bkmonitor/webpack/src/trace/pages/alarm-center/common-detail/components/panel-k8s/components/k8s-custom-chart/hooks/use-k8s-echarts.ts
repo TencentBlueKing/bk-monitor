@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, type Ref, inject, watch } from 'vue';
+import { type MaybeRef, type Ref, inject, onScopeDispose, watch } from 'vue';
 import { shallowRef } from 'vue';
 import { computed } from 'vue';
 
@@ -73,6 +73,9 @@ export const useK8sEcharts = (
   const refreshImmediate = inject('refreshImmediate');
 
   const cancelTokens = [];
+  let requestId = 0;
+  const error = shallowRef(false);
+  onScopeDispose(() => { ++requestId; cancelTokens.splice(0).forEach(cancel => cancel()); });
   const loading = shallowRef(false);
   /** 接口请求耗时 */
   const duration = shallowRef(0);
@@ -224,11 +227,11 @@ export const useK8sEcharts = (
     return seriesData;
   };
 
-  const getEchartOptions = async () => {
+  const getEchartOptions = async (current: number) => {
     const startDate = Date.now();
     loading.value = true;
-    metricList.value = [];
-    targets.value = [];
+    const nextMetrics = [];
+    const nextTargets = [];
     const [startTime, endTime] = handleTransformToTimestamp(get(timeRange));
     const promiseList = get(panel)?.targets?.map?.(target => {
       return $api[target.apiModule]
@@ -245,13 +248,14 @@ export const useK8sEcharts = (
           }
         )
         .then(res => {
+          if (current !== requestId) return [];
           const { series, metrics, query_config } = customOptions.formatterData?.(res, target) ?? res;
           for (const metric of metrics) {
-            if (!metricList.value.some(item => item.metric_id === metric.metric_id)) {
-              metricList.value.push(metric);
+            if (!nextMetrics.some(item => item.metric_id === metric.metric_id)) {
+              nextMetrics.push(metric);
             }
           }
-          targets.value.push({ ...target, data: query_config ?? target.data });
+          nextTargets.push({ ...target, data: query_config ?? target.data });
           return series?.length
             ? series
                 .filter(item => ['extra_info', '_result_'].includes(item.alias))
@@ -276,16 +280,21 @@ export const useK8sEcharts = (
                 })
             : [];
         })
-        .catch(() => []);
+        .catch(() => {
+          if (current === requestId) error.value = true;
+          return [];
+        });
     });
-    const resList = await Promise.allSettled(promiseList ?? []).finally(() => {
-      loading.value = false;
-    });
+    const resList = await Promise.allSettled(promiseList ?? []);
+    if (current !== requestId) return;
     const seriesList = [];
     for (const item of resList) {
       // @ts-expect-error
       Array.isArray(item?.value) && item.value.length && seriesList.push(...item.value);
     }
+    if (error.value && !seriesList.length) return;
+    metricList.value = nextMetrics;
+    targets.value = nextTargets;
     duration.value = Date.now() - startDate;
     series.value = seriesList;
     if (!seriesList.length) {
@@ -602,18 +611,23 @@ export const useK8sEcharts = (
       }),
     };
   };
-  watch(
-    [timeRange, refreshImmediate, panel, params],
-    async () => {
-      loading.value = true;
-      options.value = await getEchartOptions();
+  const load = async () => {
+    const current = ++requestId;
+    cancelTokens.splice(0).forEach(cancel => cancel());
+    loading.value = true;
+    error.value = false;
+    try {
+      const nextOptions = await getEchartOptions(current);
+      if (current !== requestId) return;
+      if (nextOptions || !error.value) options.value = nextOptions;
       chartId.value = random(8);
-      loading.value = false;
-    },
-    {
-      immediate: true,
+    } catch {
+      if (current === requestId) error.value = true;
+    } finally {
+      if (current === requestId) loading.value = false;
     }
-  );
+  };
+  watch([timeRange, refreshImmediate, panel, params], load, { immediate: true });
   return {
     loading,
     options,
@@ -623,6 +637,7 @@ export const useK8sEcharts = (
     duration,
     series,
     chartId,
-    getEchartOptions,
+    getEchartOptions: load,
+    error,
   };
 };

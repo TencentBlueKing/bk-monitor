@@ -80,6 +80,22 @@ class TestBaseRumLevelHandler:
             def generate_query_string(self, filters, extra_config=None):
                 return ""
 
+            def statistics(
+                self,
+                start_time,
+                end_time,
+                field,
+                cal_type,
+                baseline,
+                time_shifts,
+                group_by=None,
+                interval=None,
+                filters=None,
+                query_string="",
+                extra_config=None,
+            ):
+                return {}
+
         handler = _MinimalHandler(data_sources)
         assert handler.data_sources is data_sources
 
@@ -329,3 +345,97 @@ class TestSpanLevelHandlerMethods:
         field_percent_val = result["field_percent"]
         assert field_percent_val < 100, f"field_percent 应 < 100，实际为 {field_percent_val}"
         assert abs(field_percent_val - 70.0) < 0.1, f"field_percent 应约为 70%，实际为 {field_percent_val}"
+
+
+class TestSpanStatistics:
+    """Level 层只负责统计参数透传。"""
+
+    @pytest.mark.parametrize("group_by,interval", [([], None), (["service"], None), (["time"], 3600)])
+    def test_statistics_forwards_parameters(self, group_by, interval):
+        handler = SpanLevelHandler([_make_target()])
+        params = {
+            "start_time": 1000,
+            "end_time": 2000,
+            "field": "attributes.user.id",
+            "cal_type": "distinct",
+            "baseline": "0s",
+            "time_shifts": ["0s", "1d"],
+            "group_by": group_by,
+            "interval": interval,
+            "filters": [{"key": "attributes.span_type", "operator": "equal", "value": ["error"]}],
+            "query_string": "attributes.error.name: TypeError",
+        }
+        expected = {"total": 0, "data": []}
+        with patch.object(handler.query, "statistics", return_value=expected) as statistics:
+            result = handler.statistics(**params)
+        statistics.assert_called_once_with(**params)
+        assert result is expected
+
+
+class TestSpanRecordDetail:
+    @pytest.fixture
+    def handler(self):
+        return SpanLevelHandler([_make_target()])
+
+    def test_record_not_found(self, handler, mocker):
+        from rest_framework.exceptions import ValidationError
+
+        detail = mocker.patch.object(handler.query, "query_detail", return_value={})
+        query_list = mocker.patch.object(handler.query, "query_list")
+        with pytest.raises(ValidationError, match="记录不存在"):
+            handler.record_detail("missing")
+        detail.assert_called_once_with("missing")
+        query_list.assert_not_called()
+
+    @pytest.mark.parametrize("span_type", ["resource", "action", "error", "vital", "long_task", "unknown"])
+    def test_non_view_does_not_query_related_spans(self, handler, mocker, span_type):
+        span = {"span_id": "main", "attributes": {"span_type": span_type, "view.id": "view-1"}}
+        mocker.patch.object(handler.query, "query_detail", return_value=span)
+        query_list = mocker.patch.object(handler.query, "query_list")
+        result = handler.record_detail("main")
+        assert result["origin_data"] is span
+        assert result["span_id"] == "main"
+        query_list.assert_not_called()
+
+    def test_view_without_view_id_skips_related_query(self, handler, mocker):
+        mocker.patch.object(
+            handler.query, "query_detail", return_value={"span_id": "v", "attributes": {"span_type": "view"}}
+        )
+        query_list = mocker.patch.object(handler.query, "query_list")
+        handler.record_detail("v")
+        query_list.assert_not_called()
+
+    def test_view_related_filters_and_builder_output(self, handler, mocker):
+        from bkmonitor.data_source.utils.apm import FilterOperator
+
+        span = {
+            "span_id": "main",
+            "start_time": 100000,
+            "end_time": 100000,
+            "attributes": {"span_type": "view", "view.id": "view-1", "view.started_at": 100},
+        }
+        related = [
+            {
+                "span_id": "end",
+                "end_time": 400000,
+                "attributes": {"span_type": "view", "view.version": 3, "view.started_at": 100},
+            },
+            {"span_id": "lcp", "attributes": {"span_type": "vital", "vital.metric": "LCP", "vital.value": 2840}},
+        ]
+        mocker.patch.object(handler.query, "query_detail", return_value=span)
+        query_list = mocker.patch.object(handler.query, "query_list", return_value=related)
+        result = handler.record_detail("main")
+        query_list.assert_called_once_with(
+            start_time=None,
+            end_time=None,
+            offset=0,
+            limit=handler.VIEW_RELATED_SPAN_LIMIT,
+            filters=[
+                {"key": "attributes.view.id", "value": ["view-1"], "operator": FilterOperator.EQUAL},
+                {"key": "attributes.span_type", "value": ["view", "vital"], "operator": FilterOperator.EQUAL},
+            ],
+        )
+        assert result["origin_data"] is span
+        assert result["overview"]["badges"] == [{"field_name": "display.view.duration", "value": 300}]
+        vitals = next(section for section in result["sections"] if section["key"] == "web_vitals")["data"]
+        assert vitals["lcp"]["attributes.vital.value"] == 2840

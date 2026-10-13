@@ -1874,6 +1874,11 @@ class IncidentPanelDetailResource(IncidentBaseResource):
         detail_ref = serializers.DictField(required=True, label="详情引用")
         page = serializers.IntegerField(required=False, default=1, min_value=1, label="页码")
         page_size = serializers.IntegerField(required=False, default=30, min_value=1, max_value=1000, label="每页数量")
+        sort_list = serializers.ListField(
+            required=False,
+            max_length=10,
+            child=serializers.ListField(child=serializers.CharField(), min_length=2, max_length=2),
+        )
 
     def perform_request(self, validated_request_data: dict) -> dict:
         return api.bk_incident.get_panel_detail(**validated_request_data)

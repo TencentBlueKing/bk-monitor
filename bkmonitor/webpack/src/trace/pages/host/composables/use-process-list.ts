@@ -52,9 +52,11 @@ export const useProcessList = (options: {
    */
   loadDataEnd?: (list: ProcessItem[]) => void;
 }) => {
-  const { timeRangeTimestamp } = storeToRefs(useHostStore());
+  const { timeRangeTimestamp, timeRange, timezone } = storeToRefs(useHostStore());
   const { keyword } = options;
   const loading = shallowRef(false);
+  const refreshing = shallowRef(false);
+  let queryKey = '';
   /** 当前进程列表请求是否失败 */
   const loadError = shallowRef(false);
   /** 原始进程数据（接口原样数据） */
@@ -72,6 +74,8 @@ export const useProcessList = (options: {
       rawList.value = [];
       loadError.value = false;
       loading.value = false;
+      refreshing.value = false;
+      queryKey = '';
       abortController = null;
       return;
     }
@@ -80,7 +84,12 @@ export const useProcessList = (options: {
     abortController = controller;
     const { signal } = controller;
 
-    loading.value = true;
+    const nextQueryKey = JSON.stringify([host.bk_biz_id, host.bk_host_id, timeRange.value, timezone.value]);
+    const preserve = nextQueryKey === queryKey && rawList.value.length > 0;
+    queryKey = nextQueryKey;
+    if (!preserve) rawList.value = [];
+    loading.value = !preserve;
+    refreshing.value = preserve;
     loadError.value = false;
     try {
       const data = await getHostProcessList(
@@ -98,11 +107,11 @@ export const useProcessList = (options: {
       options.loadDataEnd?.(data);
     } catch {
       if (signal.aborted || abortController !== controller) return;
-      rawList.value = [];
       loadError.value = true;
     } finally {
       if (abortController === controller) {
         loading.value = false;
+        refreshing.value = false;
         abortController = null;
       }
     }
@@ -142,7 +151,7 @@ export const useProcessList = (options: {
   };
 
   // 选中主机或时间范围变化时重新拉取
-  watch([() => options.host.value?.bk_host_id, timeRangeTimestamp], () => loadData(), { immediate: true });
+  watch([() => options.host.value?.bk_host_id, timeRangeTimestamp], () => loadData(), { immediate: true, flush: 'sync' });
 
   // 组件卸载（effect scope 释放）时终止未完成的请求
   onScopeDispose(() => {
@@ -152,6 +161,8 @@ export const useProcessList = (options: {
 
   return {
     loadError,
+    refreshing,
+    refreshError: computed(() => loadError.value && rawList.value.length > 0),
     loading,
     sortInfo,
     displayList,

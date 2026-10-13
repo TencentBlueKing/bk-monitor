@@ -1575,10 +1575,69 @@ class AccessBatchDataProcess(AccessDataProcess):
         client.expire(result_key, key.ACCESS_BATCH_DATA_RESULT_KEY.ttl)
 
 
+class RealTimeKafkaConsumerWorker:
+    """单个集群独占 consumer；慢 broker 不占用其他集群的拉取线程。"""
+
+    def __init__(self, process, bootstrap_server, topics, once=False):
+        self.process = process
+        self.bootstrap_server = bootstrap_server
+        self.topics = topics
+        self.once = once
+        self.stop_event = threading.Event()
+        self.thread = InheritParentThread(target=self.run, name=f"real-time-kafka-{bootstrap_server}", daemon=True)
+
+    def stopping(self):
+        return self.stop_event.is_set() or self.process._stop_signal
+
+    def run(self):
+        consumer = None
+        try:
+            while not self.stopping():
+                topics = self.topics
+                subscriptions = {topic.split("|", 1)[1] for topic in topics}
+                try:
+                    if consumer is None:
+                        consumer = KafkaConsumer(
+                            bootstrap_servers=self.bootstrap_server,
+                            group_id=f"{settings.APP_CODE}.real_time_access",
+                        )
+                    if consumer.subscription() != subscriptions:
+                        consumer.subscribe(topics=list(subscriptions))
+                    if self.stopping():
+                        break
+                    data = consumer.poll(500, max_records=5000)
+                    for records in data.values():
+                        # 队列满时保留背压，同时允许停止；本批次携带自己的路由快照。
+                        while not self.stopping():
+                            try:
+                                self.process.queue.put((self.bootstrap_server, records, topics), timeout=1)
+                                logger.info("real_time poller poll %s: %s", self.bootstrap_server, len(records))
+                                break
+                            except queue.Full:
+                                continue
+                    if not data and not self.once:
+                        self.stop_event.wait(1)
+                except Exception:
+                    logger.exception("real_time consumer failed for %s", self.bootstrap_server)
+                    if not self.once:
+                        self.stop_event.wait(10)
+                if self.once:
+                    break
+        finally:
+            if consumer is not None:
+                try:
+                    consumer.close(autocommit=False)
+                except Exception:
+                    logger.exception("real_time close consumer failed for %s", self.bootstrap_server)
+
+
 class AccessRealTimeDataProcess(BaseAccessDataProcess):
     """
     实时监控数据拉取
     """
+
+    MAX_POLLER_THREAD = 20
+    THREAD_JOIN_TIMEOUT = 5
 
     def __init__(self, service):
         """
@@ -1603,10 +1662,10 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         self.topics: dict[str, dict] = {}
         self.rt_id_to_storage_info = {}
 
-        self.consumers: dict[str, KafkaConsumer] = {}
-        self.consumers_lock = threading.Lock()
+        self.consumer_workers: dict[str, RealTimeKafkaConsumerWorker] = {}
         self.queue = queue.Queue(maxsize=100)
         self._stop_signal = False
+        self._stop_event = threading.Event()
         self.strategy_cache = {}
 
     def __str__(self):
@@ -1739,9 +1798,9 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                 host_topics[host].add(partition.rsplit("|", maxsplit=1)[0])
 
             # 将topic分配信息写入redis
-            pipeline = self.cache.pipeline()
-            self.cache.delete(self.topic_cache_key)
-            self.cache.hmset(
+            pipeline = self.cache.pipeline(transaction=True)
+            pipeline.delete(self.topic_cache_key)
+            pipeline.hmset(
                 self.topic_cache_key,
                 mapping={
                     host: json.dumps(
@@ -1756,7 +1815,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                     for host in hosts
                 },
             )
-            self.cache.expire(self.topic_cache_key, key.REAL_TIME_HOST_TOPIC_KEY.ttl)
+            pipeline.expire(self.topic_cache_key, key.REAL_TIME_HOST_TOPIC_KEY.ttl)
             pipeline.execute()
 
             # 只执行一次或存在停止信号
@@ -1771,7 +1830,7 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
             if end_time - start_time < 60:
                 time.sleep(60 - (end_time - start_time))
 
-    def flat(self, bootstrap_servers: str, record: ConsumerRecord):
+    def flat(self, bootstrap_servers: str, record: ConsumerRecord, topics=None):
         """
         扁平化
         1. 数据结构转换
@@ -1810,8 +1869,9 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         if data_bk_biz_id == 0:
             return []
 
-        strategy_ids = self.topics[f"{bootstrap_servers}|{record.topic}"]["strategy_ids"]
-        dimensions = self.topics[f"{bootstrap_servers}|{record.topic}"]["dimensions"]
+        topic_info = (self.topics if topics is None else topics)[f"{bootstrap_servers}|{record.topic}"]
+        strategy_ids = topic_info["strategy_ids"]
+        dimensions = topic_info["dimensions"]
         strategies = [self.get_strategy(strategy_id) for strategy_id in strategy_ids]
         strategies = [s for s in strategies if int(s.bk_biz_id) == data_bk_biz_id]
         if not strategies:
@@ -1840,107 +1900,48 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
         return self.strategy_cache[strategy_id]["strategy"]
 
     def run_poller(self, once=False):
-        while True:
-            has_record = False
-            pending = []
-            # 持锁仅遍历 self.consumers 做 poll(poll 自带 500ms 上限); 入队是可阻塞操作(队列满会 block),
-            # 移到锁外执行, 避免持锁期间被队列堵死, 进而堵死 consumer_manager(与临界区异常泄漏同类风险)
-            with self.consumers_lock:
-                for consumer in self.consumers.values():
-                    data = consumer.poll(500, max_records=5000)
-                    if not data:
-                        continue
-
-                    has_record = True
-                    for records in data.values():
-                        logger.info(f"real_time poller poll {consumer.config['bootstrap_servers']}: {len(records)}")
-                        pending.append((consumer.config["bootstrap_servers"], records))
-            for item in pending:
-                self.queue.put(item)
-
-            if once or self._stop_signal:
-                logger.info("real_time poller get stop signal")
-                break
-
-            # 如果没有数据就等待一秒
-            if not has_record:
-                time.sleep(1)
+        while not self._stop_signal:
+            interval = 15
+            try:
+                self.run_consumer_manager(once=once)
+            except Exception:
+                logger.exception("real_time refresh consumers failed")
+                interval = 30
+            if once:
+                self.join_threads([worker.thread for worker in self.consumer_workers.values()])
+                return
+            self._stop_event.wait(interval)
 
     def run_consumer_manager(self, once=False):
-        """
-        kafka消费者管理
-        """
-        while True:
-            # 获取最新的topic信息
-            self.topics = json.loads(self.cache.hget(self.topic_cache_key, self.ip) or "{}")
+        """只替换目标配置，consumer 的所有调用留在对应集群线程内。"""
+        self.topics = json.loads(self.cache.hget(self.topic_cache_key, self.ip) or "{}")
+        targets = defaultdict(dict)
+        for topic, config in self.topics.items():
+            targets[topic.split("|", 1)[0]][topic] = config
 
-            # kafka集群及所属topic分组
-            bootstrap_servers_topics = defaultdict(set)
-            for topic in self.topics:
-                bootstrap_servers, topic = topic.split("|")
-                bootstrap_servers_topics[bootstrap_servers].add(topic)
+        for bootstrap_server, worker in list(self.consumer_workers.items()):
+            if not worker.thread.is_alive():
+                del self.consumer_workers[bootstrap_server]
+            elif bootstrap_server not in targets:
+                worker.stop_event.set()
 
-            update_bootstrap_servers = []
-            create_bootstrap_servers = []
-            delete_bootstrap_servers = []
-
-            for bootstrap_servers, topics in bootstrap_servers_topics.items():
-                if bootstrap_servers not in self.consumers:
-                    create_bootstrap_servers.append(bootstrap_servers)
-                    continue
-
-                consumer = self.consumers[bootstrap_servers]
-                if consumer.subscription() != topics:
-                    update_bootstrap_servers.append(bootstrap_servers)
-
-            for bootstrap_servers in self.consumers:
-                if bootstrap_servers not in bootstrap_servers_topics:
-                    delete_bootstrap_servers.append(bootstrap_servers)
-
-            if update_bootstrap_servers:
-                logger.info(f"real_time consumer_manager update {'|'.join(update_bootstrap_servers)}")
-            if create_bootstrap_servers:
-                logger.info(f"real_time consumer_manager create {'|'.join(create_bootstrap_servers)}")
-            if delete_bootstrap_servers:
-                logger.info(f"real_time consumer_manager delete {'|'.join(delete_bootstrap_servers)}")
-
-            if any([update_bootstrap_servers, create_bootstrap_servers, delete_bootstrap_servers]):
-                # 临界区用 with 持锁: KafkaConsumer/subscribe/close 抛错时锁必被释放,
-                # 否则守护线程重启会因锁未释放而自死锁(非可重入), poller 也被一起堵死
-                with self.consumers_lock:
-                    new_consumers = {}
-
-                    for bootstrap_servers in create_bootstrap_servers:
-                        new_consumers[bootstrap_servers] = KafkaConsumer(
-                            bootstrap_servers=bootstrap_servers,
-                            group_id=f"{settings.APP_CODE}.real_time_access",
-                        )
-                        new_consumers[bootstrap_servers].subscribe(
-                            topics=list(bootstrap_servers_topics[bootstrap_servers])
-                        )
-
-                    for bootstrap_servers, consumer in self.consumers.items():
-                        if bootstrap_servers in delete_bootstrap_servers:
-                            consumer.close()
-                            continue
-
-                        if bootstrap_servers in update_bootstrap_servers:
-                            consumer.subscribe(topics=list(bootstrap_servers_topics[bootstrap_servers]))
-                        new_consumers[bootstrap_servers] = consumer
-                    self.consumers = new_consumers
-
-            if once or self._stop_signal:
-                if self._stop_signal:
-                    logger.info("real_time consumer_manager get stop signal")
-                    with self.consumers_lock:
-                        # 显式 close 每个 consumer(原 map() 惰性从不执行, 停机时 Kafka client 资源未释放),
-                        # 并把 self.consumers 复位为 dict(原误设为 list, 会与 run_poller 的 .values() 抢跑抛 AttributeError)
-                        for consumer in self.consumers.values():
-                            consumer.close()
-                        self.consumers = {}
-                break
-
-            time.sleep(15)
+        for bootstrap_server, topics in targets.items():
+            if self._stop_signal:
+                return
+            if bootstrap_server in self.consumer_workers:
+                self.consumer_workers[bootstrap_server].topics = topics
+                continue
+            # ponytail: 未退出的 owner 仍占配额，永久阻塞需要进程重启释放。
+            if len(self.consumer_workers) >= max(self.MAX_POLLER_THREAD, len(targets)):
+                logger.warning("real_time worker limit reached, waiting to start %s", bootstrap_server)
+                continue
+            worker = RealTimeKafkaConsumerWorker(self, bootstrap_server, topics, once=once)
+            self.consumer_workers[bootstrap_server] = worker
+            try:
+                worker.thread.start()
+            except Exception:
+                del self.consumer_workers[bootstrap_server]
+                raise
 
     def run_handler(self, once=False):
         while True:
@@ -1949,16 +1950,17 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
                 break
 
             try:
-                bootstrap_servers, data = self.queue.get(block=True, timeout=5)
+                bootstrap_servers, data, topics = self.queue.get(block=True, timeout=5)
             except queue.Empty:
                 data = []
                 bootstrap_servers = ""
+                topics = {}
 
             try:
                 records = []
                 for record in data:
                     try:
-                        records.extend(self.flat(bootstrap_servers, record))
+                        records.extend(self.flat(bootstrap_servers, record, topics=topics))
                     except Exception as e:
                         logger.warning("%s loads alarm(%s) failed: %s", record.topic, record.value, e)
 
@@ -1994,10 +1996,22 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
 
     def _stop(self, *args, **kwargs):
         self._stop_signal = True
+        self._stop_event.set()
+        for worker in list(self.consumer_workers.values()):
+            worker.stop_event.set()
+
+    def join_threads(self, threads):
+        deadline = time.monotonic() + self.THREAD_JOIN_TIMEOUT
+        for thread in threads:
+            if thread.ident is None:
+                continue
+            thread.join(timeout=max(0, deadline - time.monotonic()))
+            if thread.is_alive():
+                logger.warning("real_time thread still stopping: %s", thread.name)
 
     def _guard_daemon(self, func, wait=10):
         """守护线程安全网: 循环体内未捕获异常(如 redis 连接/超时故障)会终止 InheritParentThread
-        且父进程不会重启它, 导致实时接入的 leader 选举/消费管理静默停摆。这里捕获异常并按间隔
+        且父进程不会重启它, 导致实时接入的 leader 选举静默停摆。这里捕获异常并按间隔
         重启循环, 直到收到停止信号(func 正常返回即停止信号或 once, 直接退出)。
         """
         while not self._stop_signal:
@@ -2007,37 +2021,33 @@ class AccessRealTimeDataProcess(BaseAccessDataProcess):
             except Exception as e:
                 logger.exception(e)
                 logger.error("real_time daemon %s crashed, restart after %ss", getattr(func, "__name__", func), wait)
-                time.sleep(wait)
+                self._stop_event.wait(wait)
 
     def process(self, once=False):
         if once:
             self.run_leader(once=True)
-            self.run_consumer_manager(once=True)
             self.run_poller(once=True)
             self.run_handler(once=True)
         else:
             signal.signal(signal.SIGTERM, self._stop)
             signal.signal(signal.SIGINT, self._stop)
-            # leader / consumer_manager 的循环体直接读写 redis, 连接加固后 redis 故障会抛异常,
-            # 用安全网包裹避免异常逃出杀死线程(线程不会被父进程重启)。
-            leader = InheritParentThread(target=lambda: self._guard_daemon(self.run_leader))
-            consumer_manager = InheritParentThread(target=lambda: self._guard_daemon(self.run_consumer_manager))
-            poller = InheritParentThread(target=self.run_poller)
-            handler = InheritParentThread(target=self.run_handler)
-            leader.start()
-            consumer_manager.start()
-            poller.start()
-            handler.start()
-
-            while True:
-                self.service.register()
-
-                if self._stop_signal:
-                    leader.join()
-                    consumer_manager.join()
-                    poller.join()
-                    handler.join()
-                    self.service.unregister()
-                    return
-
-                time.sleep(15)
+            threads = [
+                InheritParentThread(target=lambda: self._guard_daemon(self.run_leader), daemon=True),
+                InheritParentThread(target=self.run_poller, daemon=True),
+                InheritParentThread(target=self.run_handler, daemon=True),
+            ]
+            try:
+                for thread in threads:
+                    thread.start()
+                while not self._stop_signal:
+                    if any(not thread.is_alive() for thread in threads):
+                        raise RuntimeError("real_time service thread exited")
+                    self.service.register()
+                    self._stop_event.wait(15)
+            finally:
+                self._stop()
+                self.join_threads(
+                    [thread for thread in threads if thread.ident is not None]
+                    + [worker.thread for worker in list(self.consumer_workers.values())]
+                )
+                self.service.unregister()

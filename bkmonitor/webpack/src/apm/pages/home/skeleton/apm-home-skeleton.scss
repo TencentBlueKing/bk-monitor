@@ -1,19 +1,17 @@
+@use 'monitor-static/styles/skeleton-theme' as skeleton;
+
 .apm-home-skeleton {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-
-  .apm-skeleton-shapes {
-    animation: apm-skeleton-breathe 1.8s ease-in-out infinite;
-  }
 
   .apm-skeleton-block {
     display: inline-block;
     flex-shrink: 0;
     max-width: 100%;
     height: 12px;
-    background: #e9edf2;
-    border-radius: 3px;
+
+    @include skeleton.surface;
 
     &.is-icon {
       height: 20px;
@@ -106,17 +104,6 @@
   }
 }
 
-@keyframes apm-skeleton-breathe {
-  0%,
-  100% {
-    opacity: 1;
-  }
-
-  50% {
-    opacity: 0.55;
-  }
-}
-
 @keyframes apm-refresh-progress {
   from {
     background-position: -55% 0;
@@ -128,7 +115,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .apm-home-skeleton .apm-skeleton-shapes,
   .apm-home-wrap-page .apm-loading-region.is-refreshing::after {
     animation: none;
   }

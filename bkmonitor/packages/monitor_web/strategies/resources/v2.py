@@ -2214,7 +2214,7 @@ class SaveStrategyV2Resource(Resource):
         if set(upgrade_config["user_groups"]) & set(notice_info.user_groups):
             raise ValidationError(detail=_("通知升级的用户组不能包含第一次接收告警的用户组"))
 
-    def perform_request(self, params):
+    def perform_request(self, params, *, audit_operator=None):
         strategy = Strategy(**params)
         strategy.convert()
         self.validate_realtime_kafka(strategy)
@@ -2225,7 +2225,7 @@ class SaveStrategyV2Resource(Resource):
         # - Strategy.__init__ 通过 ISSUE_CONFIG_EMPTY sentinel 区分"字段未传"与"显式 null"，
         #   自动设置 _issue_config_in_request 与 self.issue_config
         # - strategy.save() → save_issue_config() 在落库前调用 IssueConfig.validate(self)
-        strategy.save()
+        strategy.save(audit_operator=audit_operator)
 
         # 编辑后需要重置AsCode相关配置
         StrategyModel.objects.filter(id=strategy.id).update(hash="", snippet="")

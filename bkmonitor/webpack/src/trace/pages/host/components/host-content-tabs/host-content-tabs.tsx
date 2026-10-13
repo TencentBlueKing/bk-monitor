@@ -39,6 +39,7 @@ import {
   resolveHostContentTab,
 } from '../../constants/constants';
 import { isHostNode } from '../../utils/topo-tree';
+import HostLoading from '../host-loading/host-loading';
 import HostList from '../host-list/host-list';
 import HostMetric from '../host-metric/host-metric';
 import HostProcess from '../host-process/host-process';
@@ -77,7 +78,7 @@ export default defineComponent({
     const { t } = useI18n();
     const route = useRoute();
     const router = useRouter();
-    const { activeTab: hostActiveTab } = storeToRefs(useHostStore());
+    const { activeTab: hostActiveTab, metricAggregationState } = storeToRefs(useHostStore());
 
     /** 当前视角：选中主机叶子 → host 视角，否则 → topo 视角 */
     const perspective = computed<HostPerspective>(() =>
@@ -189,7 +190,7 @@ export default defineComponent({
           );
         case 'metric':
         case 'system':
-          if (hostMetadataPending.value) return null;
+          if (hostMetadataPending.value) return props.hostMetadataError ? null : <HostLoading variant='dashboard' columns={metricAggregationState.value.columns} />;
           // 指标汇聚（topo）与系统指标（host）视觉一致，复用同一组件
           return (
             <HostMetric
@@ -246,7 +247,7 @@ export default defineComponent({
           aria-labelledby={`host-content-tab-${activeTab.value}`}
           role='tabpanel'
         >
-          {hostMetadataPending.value && (
+          {hostMetadataPending.value && props.hostMetadataError && (
             <div
               class='host-content-tabs__host-status'
               role='status'

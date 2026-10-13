@@ -26,9 +26,17 @@
 import { onScopeDispose, shallowRef } from 'vue';
 import type { ShallowRef } from 'vue';
 
-import { getHostInfoList, getHostInfoPage, getHostMetricInfoList, getHostMetricStats } from '../services/host-service';
+import {
+  clearHostListQueryCache,
+  getHostInfoList,
+  getHostInfoPage,
+  getHostListQuery,
+  getHostMetricInfoList,
+  getHostMetricStats,
+} from '../services/host-service';
 import { createHostListRow } from '../utils/host-list-core';
 
+import type { HostListQuery } from '../services/host-service';
 import type { IHostBaseInfo, IHostMetricInfo } from '../types/host';
 import type { EHostQuickCategory, IHostListRow, IHostQuickCardStats } from '../types/host-list';
 import type { HostScopeParams } from '../utils/share-scope';
@@ -40,6 +48,7 @@ interface HostListDataOptions {
   worker: ReturnType<typeof useHostListWorker>;
   getComputeParams: () => IHostListComputeParams;
   getPageScope: () => HostScopeParams;
+  getQueryKey?: () => null | string;
   getScope: () => HostScopeParams;
   getTimeParams: () => { end_time: number; start_time: number };
 }
@@ -54,7 +63,10 @@ const emptyCategoryStates = () => ({
 
 /** 页数据独立展示；全量 Worker 的最新视图及统计一起接替。 */
 export const useHostListData = (options: HostListDataOptions) => {
-  const loading = shallowRef(false);
+  const loading = shallowRef(true);
+  /** 原地刷新期间保留已就绪的 Worker 快照。 */
+  const retainingData = shallowRef(false);
+  const snapshotVersion = shallowRef(0);
   const loadError = shallowRef(false);
   const metricLoading = shallowRef(false);
   const metricLoadError = shallowRef(false);
@@ -75,10 +87,13 @@ export const useHostListData = (options: HostListDataOptions) => {
   let viewRequest = 0;
   let disposed = false;
   let prepared = false;
+  // 后台新数据就绪后，下一次最新视图计算才能结束刷新。
+  let pendingHandoff = false;
   let pageBase: IHostBaseInfo[] = [];
   let fullBase: IHostBaseInfo[] | null = null;
   let fullMetrics: null | Record<string, IHostMetricInfo> = null;
   let fullRowCount = 0;
+  let sharedQuery: HostListQuery | null = null;
   let timeParams: ReturnType<HostListDataOptions['getTimeParams']>;
   let fullScope: HostScopeParams;
   const categoryRequests: Record<EHostQuickCategory, number> = { alarm: 0, cpu: 0, disk: 0, mem: 0 };
@@ -113,11 +128,13 @@ export const useHostListData = (options: HostListDataOptions) => {
 
   const invalidateView = () => {
     viewRequest += 1;
+    if (fullDataReady.value) loading.value = true;
   };
   const invalidatePage = () => {
     pageRequest += 1;
     metricRequest += 1;
     pageBase = [];
+    if (!fullDataReady.value) retainingData.value = false;
     invalidateView();
   };
 
@@ -155,6 +172,7 @@ export const useHostListData = (options: HostListDataOptions) => {
     const requestId = ++pageRequest;
     metricRequest += 1;
     pageBase = [];
+    retainingData.value = false;
     loading.value = true;
     loadError.value = false;
     metricLoading.value = true;
@@ -213,9 +231,15 @@ export const useHostListData = (options: HostListDataOptions) => {
         mem: { loading: false, error: false },
       };
       rawRowCount.value = fullRowCount;
+      loading.value = false;
+      if (retainingData.value && !pendingHandoff) return;
+      if (pendingHandoff) snapshotVersion.value += 1;
+      pendingHandoff = false;
       fullBase = null;
       fullMetrics = null;
+      sharedQuery = null;
       fullDataReady.value = true;
+      retainingData.value = false;
       fullLoading.value = false;
       fullLoadError.value = false;
       loading.value = false;
@@ -225,30 +249,36 @@ export const useHostListData = (options: HostListDataOptions) => {
       pageBase = [];
     } catch {
       if (!isLatest()) return;
+      clearHostListQueryCache(sharedQuery);
+      sharedQuery = null;
       prepared = false;
       fullDataReady.value = false;
       fullLoading.value = false;
       fullLoadError.value = true;
+      setCategoryState('alarm', false, true);
+      loading.value = false;
       void loadPageData();
       void loadCategoryStats();
     }
   };
 
   const retryFullData = async () => {
-    if (!timeParams || disposed || fullDataReady.value) return;
+    if (!timeParams || disposed || (fullDataReady.value && !retainingData.value)) return;
     const currentGeneration = generation;
     const requestId = ++fullRequest;
     const isLatest = () => isCurrent(currentGeneration) && requestId === fullRequest;
-    prepared = false;
+    let workerChanged = false;
     viewRequest += 1;
     fullLoading.value = true;
     fullLoadError.value = false;
+    if (!fullDataReady.value) setCategoryState('alarm', true, false);
     const scope = fullScope;
     const range = timeParams;
+    const query = sharedQuery;
     // 分享仍沿用明确 ID 子集的查询协议；普通业务全量指标立即并发且省略 ID。
     const basePromise = fullBase
       ? Promise.resolve(fullBase)
-      : getHostInfoList(scope).then(rows => {
+      : (query?.basePromise ?? getHostInfoList(scope)).then(rows => {
           if (isLatest()) fullBase = rows;
           return rows;
         });
@@ -261,7 +291,7 @@ export const useHostListData = (options: HostListDataOptions) => {
                 ? getHostMetricInfoList({ ...scope, ...range, bk_host_ids: rows.map(row => row.bk_host_id) })
                 : {}
             )
-          : getHostMetricInfoList({ ...scope, ...range })
+          : (query?.metricPromise ?? getHostMetricInfoList({ ...scope, ...range }))
         ).then(metrics => {
           if (isLatest()) fullMetrics = metrics;
           return metrics;
@@ -269,6 +299,9 @@ export const useHostListData = (options: HostListDataOptions) => {
     try {
       const [rows, metrics] = await Promise.all([basePromise, metricPromise]);
       if (!isLatest()) return;
+      prepared = false;
+      workerChanged = true;
+      viewRequest += 1;
       await options.worker.initBaseData(rows);
       if (!isLatest()) return;
       const result = await options.worker.mergeMetrics(metrics);
@@ -276,27 +309,48 @@ export const useHostListData = (options: HostListDataOptions) => {
       fullRowCount = rows.length;
       filterOptionsMap.value = result.filterOptionsMap;
       prepared = true;
+      pendingHandoff = true;
       await refreshList();
     } catch {
       if (!isLatest()) return;
+      clearHostListQueryCache(query);
+      sharedQuery = null;
       fullLoading.value = false;
       fullLoadError.value = true;
+      if (workerChanged && (fullDataReady.value || query?.resolved)) {
+        fullDataReady.value = false;
+        void loadPageData();
+        void loadCategoryStats();
+      }
+      if (!fullDataReady.value) setCategoryState('alarm', false, true);
     }
   };
 
-  const loadData = () => {
+  const loadData = (preserve = false, forceRefresh = true) => {
+    retainingData.value = preserve && fullDataReady.value && prepared;
+    pageRequest += 1;
+    metricRequest += 1;
     generation += 1;
     viewRequest += 1;
     fullRequest += 1;
-    prepared = false;
-    fullDataReady.value = false;
+    prepared = retainingData.value && prepared;
+    pendingHandoff = false;
+    fullDataReady.value = retainingData.value;
     fullBase = null;
     fullMetrics = null;
-    filterOptionsMap.value = {};
-    categoryStats.value = emptyStats();
-    categoryStates.value = emptyCategoryStates();
-    timeParams = options.getTimeParams();
+    if (!retainingData.value) filterOptionsMap.value = {};
+    if (!retainingData.value) {
+      categoryStats.value = emptyStats();
+      categoryStates.value = emptyCategoryStates();
+    }
     fullScope = options.getScope();
+    sharedQuery = getHostListQuery(options.getQueryKey?.() ?? null, fullScope, options.getTimeParams, forceRefresh);
+    timeParams = sharedQuery?.timeParams ?? options.getTimeParams();
+    if (retainingData.value || sharedQuery?.resolved) {
+      loading.value = !retainingData.value;
+      metricLoading.value = false;
+      return retryFullData();
+    }
     return Promise.all([loadPageData(), retryFullData(), loadCategoryStats()]);
   };
 
@@ -306,6 +360,7 @@ export const useHostListData = (options: HostListDataOptions) => {
     pageBase = [];
     fullBase = null;
     fullMetrics = null;
+    sharedQuery = null;
   });
 
   return {
@@ -327,6 +382,8 @@ export const useHostListData = (options: HostListDataOptions) => {
     metricLoading,
     pagedRows,
     rawRowCount,
+    retainingData,
+    snapshotVersion,
     refreshList,
     retryCategory,
     retryFullData,

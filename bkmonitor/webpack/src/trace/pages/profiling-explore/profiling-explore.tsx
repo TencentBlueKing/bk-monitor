@@ -135,7 +135,10 @@ export default defineComponent({
     const f = this.favorite;
     const state = q.state.value;
     const comparingTime = state.mode === 'time';
-    const applicationReady = !!q.detail.value?.data_types.length;
+    // 筛选条只依赖服务详情是否加载成功；时间范围内无数据时仍保留筛选和常驻设置。
+    const filterVisible = q.loading.value || !!q.detail.value;
+    const filterLoading = q.loading.value || (q.labelsLoading.value && !q.fields.value.length);
+    const residentKey = `${state.appName}_${state.serviceName}_PROFILING`;
     return (
       <div class='profiling-explore'>
         <aside
@@ -190,14 +193,14 @@ export default defineComponent({
           />
           {this.tab === 'application' ? (
             <div class='profiling-application'>
-              {(q.loading.value || applicationReady) && (
+              {filterVisible && (
                 <ProfilingFilter
                   commonWhere={state.commonWhere}
-                  configKey={`profiling_${state.appName}_${state.serviceName}_baseline`}
+                  configKey={`${residentKey}_RESIDENT_SETTING`}
                   fields={q.fields.value}
                   getValues={q.getFieldValues}
-                  label={comparingTime ? this.t('查询项') : ''}
-                  loading={q.loading.value}
+                  label={state.mode !== 'none' ? this.t('查询项') : ''}
+                  loading={filterLoading}
                   selectedFavorite={f.selected.value}
                   where={state.where}
                   onChange={where => q.changeFilters({ where })}
@@ -206,14 +209,15 @@ export default defineComponent({
                   onSearch={() => q.executeQuery()}
                 />
               )}
-              {(q.loading.value || applicationReady) && state.mode !== 'none' && (
+              {filterVisible && state.mode !== 'none' && (
                 <ProfilingFilter
                   commonWhere={state.comparisonCommonWhere}
-                  configKey={`profiling_${state.appName}_${state.serviceName}_comparison`}
+                  configKey={`${residentKey}_COMPARISON_RESIDENT_SETTING`}
                   fields={q.fields.value}
                   getValues={q.getFieldValues}
                   label={this.t('对比项')}
-                  loading={q.loading.value}
+                  loading={filterLoading}
+                  placeholder={this.t('请选择对比条件')}
                   where={state.comparisonWhere}
                   onChange={comparisonWhere => q.changeFilters({ comparisonWhere })}
                   onCommonChange={comparisonCommonWhere => q.changeFilters({ comparisonCommonWhere })}
@@ -343,6 +347,14 @@ export default defineComponent({
                           onRetry={r.retryTrends}
                           onTraceChange={value => {
                             r.traceMode.value = value;
+                          }}
+                          onZoom={range => {
+                            q.patch({
+                              timeRange: range,
+                              baselineRange: null,
+                              comparisonRange: null,
+                            });
+                            q.executeQuery(true);
                           }}
                         />
                       )}

@@ -196,7 +196,7 @@ class ShieldDetailResource(Resource):
 
     def perform_request(self, data):
         try:
-            shield = Shield.objects.get(id=data["id"])
+            shield = Shield.objects.get(id=data["id"], bk_biz_id=data["bk_biz_id"])
         except Shield.DoesNotExist:
             raise ShieldNotExist({"msg": data["id"]})
 
@@ -553,7 +553,7 @@ class EditShieldResource(Resource):
 
     def perform_request(self, data):
         try:
-            shield = Shield.objects.get(id=data["id"])
+            shield = Shield.objects.get(id=data["id"], bk_biz_id=data["bk_biz_id"])
         except Shield.DoesNotExist:
             raise ShieldNotExist({"msg": data["id"]})
 
@@ -630,6 +630,11 @@ class DisableShieldResource(Resource):
         shields = Shield.objects.filter(pk__in=data["id"])
         if data.get("bk_biz_id"):
             shields = shields.filter(bk_biz_id=data["bk_biz_id"])
+        else:
+            permission = Permission(username=username, bk_tenant_id=get_request_tenant_id())
+            for biz_id in {shield.bk_biz_id for shield in shields}:
+                if not permission.is_allowed_by_biz(biz_id, ActionEnum.MANAGE_DOWNTIME):
+                    raise ValidationError({"bk_biz_id": f"当前用户无权限解除{biz_id}业务屏蔽配置"})
 
         update_shields = []
         for shield in shields:

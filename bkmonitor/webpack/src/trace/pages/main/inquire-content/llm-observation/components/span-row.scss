@@ -7,6 +7,7 @@ $tree-step: 16px;
 .llm-span-row {
   height: 42px;
   cursor: pointer;
+  background: #fff;
   border-bottom: 1px solid #e4e9f2;
 
   @include flex-align(center);
@@ -69,8 +70,17 @@ $tree-step: 16px;
   }
 
   &.is-token {
-    width: 170px;
+    justify-content: flex-end;
+    width: 200px;
     padding: 0 12px;
+
+    .llm-span-tokens {
+      margin-right: auto;
+    }
+
+    .bk-button {
+      flex-shrink: 0;
+    }
   }
 
   &.is-action {
@@ -250,9 +260,20 @@ $tree-step: 16px;
   border-radius: 4px;
 }
 
-.llm-span-io-text,
+.llm-span-io-pieces,
 .llm-span-io-empty {
   flex: 1;
+  min-width: 0;
+}
+
+.llm-span-io-pieces {
+  overflow: hidden;
+
+  @include flex-align(center);
+}
+
+.llm-span-io-text,
+.llm-span-io-empty {
   min-width: 0;
   font-family: 'Microsoft YaHei', sans-serif;
   font-size: $font-size-base;
@@ -263,9 +284,29 @@ $tree-step: 16px;
   @include ellipsis;
 }
 
-.llm-span-io-kvs {
+.llm-span-io-text {
   flex: 1;
-  gap: 4px;
+}
+
+.llm-span-io-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 120px;
+  padding: 0 3px;
+  font-family: menlo, monaco, monospace;
+  font-size: $font-size-base;
+  font-weight: 700;
+  line-height: 20px;
+  color: #313238;
+  background: #e9edf5;
+  border-radius: 4px;
+
+  @include ellipsis;
+}
+
+.llm-span-io-kvs,
+.llm-span-io-kv {
+  flex: 1;
   min-width: 0;
   overflow: hidden;
 
@@ -273,18 +314,14 @@ $tree-step: 16px;
 }
 
 .llm-span-io-kv {
-  flex-shrink: 0;
   gap: 2px;
-  width: 100%;
-  min-width: 0;
-  overflow: hidden;
   font-size: $font-size-base;
   line-height: 20px;
   white-space: nowrap;
 
-  @include flex-align(center);
-
   &-key {
+    flex: 0 1 auto;
+    min-width: 0;
     max-width: 120px;
     padding: 0 3px;
     font-weight: 500;
@@ -295,8 +332,15 @@ $tree-step: 16px;
     @include ellipsis;
   }
 
+  &-colon {
+    flex-shrink: 0;
+    margin: 0 2px;
+    color: #4e5e7a;
+  }
+
   &-value {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     color: #4e5e7a;
 
     @include ellipsis;

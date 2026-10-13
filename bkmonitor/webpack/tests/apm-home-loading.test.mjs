@@ -82,7 +82,9 @@ function methods(file, names, globals = {}) {
     members
   );
   const text = ts.createPrinter().printNode(ts.EmitHint.Unspecified, subject, source);
-  const code = ts.transpileModule(text, { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText;
+  const code = ts.transpileModule(text, {
+    compilerOptions: { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, jsxFactory: 'h' },
+  }).outputText;
   return vm.runInNewContext(`${code}; Subject.prototype`, { ...globals });
 }
 
@@ -436,4 +438,27 @@ test('entering APM Home enables arrow navigation without a prior click', () => {
   assert.equal(subject.appName, 'alpha');
   subject.handleAppListKeydown(keyEvent('Enter', { target: list, currentTarget: list }));
   assert.equal(subject.appName, 'beta');
+});
+
+test('async cells use the home skeleton slot only while pending and preserve default loading for other consumers', () => {
+  const proto = methods('src/monitor-pc/pages/monitor-k8s/components/common-table.tsx', ['handleSetFormatter'], {
+    h: (tag, props) => ({ tag, props }),
+    loadingIcon: 'spinner.svg',
+  });
+  const column = { id: 'request_count', type: 'number', asyncable: true };
+  const row = { request_count: { value: 0 } };
+  const subject = Object.assign(Object.create(proto), {
+    columns: [column],
+    $scopedSlots: {},
+    numberFormatter: item => item.value,
+  });
+  assert.equal(subject.handleSetFormatter(column.id, row).tag, 'img');
+  subject.$scopedSlots.asyncLoading = context => {
+    assert.equal(context.column, column);
+    assert.equal(context.row, row);
+    return 'cell-skeleton';
+  };
+  assert.equal(subject.handleSetFormatter(column.id, row), 'cell-skeleton');
+  column.asyncable = false;
+  assert.equal(subject.handleSetFormatter(column.id, row), 0);
 });

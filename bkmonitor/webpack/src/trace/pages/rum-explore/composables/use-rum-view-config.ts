@@ -57,6 +57,7 @@ export function useRumViewConfig(enabled: MaybeRef<boolean> = true) {
   const store = useRumExploreStore();
 
   const loading = shallowRef(false);
+  const error = shallowRef(false);
   const viewConfig = shallowRef<IRumViewConfig>(EMPTY_VIEW_CONFIG);
   const resolvedKey = shallowRef('');
   const configKey = computed(() => JSON.stringify([store.appName, store.mode]));
@@ -106,6 +107,7 @@ export function useRumViewConfig(enabled: MaybeRef<boolean> = true) {
     resolvedKey.value = '';
     viewConfig.value = EMPTY_VIEW_CONFIG;
     loading.value = false;
+    error.value = false;
     // 应用 / 视角已变，旧的默认排序失效，先清空避免切换瞬间用它去查新视角
     store.defaultSort = [];
     if (!unref(enabled) || !store.appName) return;
@@ -128,6 +130,8 @@ export function useRumViewConfig(enabled: MaybeRef<boolean> = true) {
       viewConfig.value = config;
       store.defaultSort = config.default_sort || [];
       resolvedKey.value = key;
+    } catch {
+      if (!signal.aborted) error.value = true;
     } finally {
       if (!signal.aborted) loading.value = false;
     }
@@ -139,6 +143,7 @@ export function useRumViewConfig(enabled: MaybeRef<boolean> = true) {
 
   return {
     loading,
+    error,
     ready,
     viewConfig,
     fieldGroups,

@@ -590,9 +590,8 @@ class GroupDutyRuleManager:
 
             old_snaps: list[DutyRuleSnap] = rule_id_to_snaps[rule_id]
 
-            # 规则没有变化，跳过
-            old_hashes = {snap.rule_snap["hash"] for snap in old_snaps}
-            if duty_rule["hash"] in old_hashes:
+            # 规则没有变化，跳过；旧快照排完后会保留，只能和最新快照比较，否则规则改回旧内容时会被误判为未变化
+            if max(old_snaps, key=attrgetter("id")).rule_snap["hash"] == duty_rule["hash"]:
                 continue
 
             # 规则被修改，创建新快照，处理旧快照，更新旧计划
@@ -745,15 +744,10 @@ class GroupDutyRuleManager:
         # 创建排班计划
         DutyPlan.objects.bulk_create(duty_plans)
 
-        next_plan_time = time_tools.datetime2str(duty_manager.end_time)
-        if rule_snap.end_time and next_plan_time >= rule_snap.end_time:
-            # 如果已生成负责的所有计划，则删除快照
-            rule_snap.delete()
-        else:
-            # 否则保存下次排班的上下文信息
-            rule_snap.next_plan_time = next_plan_time
-            rule_snap.next_user_index = duty_manager.last_user_index
-            rule_snap.save(update_fields=["next_plan_time", "next_user_index", "rule_snap"])
+        # 已排完的快照也要保留：删除后下一轮 manage_duty_rule_snap 会把规则当成新关联，重建快照并重复生成计划
+        rule_snap.next_plan_time = time_tools.datetime2str(duty_manager.end_time)
+        rule_snap.next_user_index = duty_manager.last_user_index
+        rule_snap.save(update_fields=["next_plan_time", "next_user_index", "rule_snap"])
 
         logger.info("[manage_duty_plan] finished for user group(%s) snap(%s)", self.user_group.id, snap_id)
 

@@ -256,16 +256,17 @@
     z-index: 30;
     isolation: isolate;
     padding: 10px 40px 0;
-    background: #f3f6fa;
+    background: #f2f6fc;
 
     /* 吸顶后用白色填 4px 间隔，不占默认文档流高度 */
     &.is-stuck {
       box-shadow: 0 4px 0 0 #fff;
     }
 
-    .bk-tab-header {
+    .bk-tab-header,
+    .bkmv3-tab-header {
       min-width: 0;
-      background: #f3f6fa;
+      background: #f2f6fc;
 
       /* 不要 width:100% 打到 setting：离开 LLM 后搜索卸掉，空 setting 会把 nav 挤成 0 */
       > div {
@@ -274,17 +275,41 @@
       }
     }
 
-    /* 导航吃剩余空间；空间不够时再收缩并横向滚动，避免盖住「性能分析」 */
-    .bk-tab-header-nav {
-      flex: 1 1 auto;
+    /* Tab 优先占位，不被右侧搜索挤掉 */
+    .bk-tab-header-nav,
+    .bkmv3-tab-header-nav {
+      flex: 0 1 auto;
       min-width: 0;
       overflow-x: auto;
+      gap: 8px;
     }
 
     /* 面板内容在 .content-list，这里的 section 会铺白底并把下层内容透出来 */
     .bk-tab-section,
     .bk-tab-content {
       display: none;
+    }
+
+    .bk-tab-header-item,
+    .bkmv3-tab-header-item {
+      color: #4e5e7a;
+      background-color: #e4e9f2;
+      border-radius: 6px 6px 0 0;
+
+      & + .bk-tab-header-item,
+      & + .bkmv3-tab-header-item {
+        margin-left: 0;
+      }
+
+      .icon-monitor {
+        color: inherit;
+      }
+
+      &.bk-tab-header--active,
+      &.bkmv3-tab-header--active {
+        color: #3a84ff;
+        background-color: #fff;
+      }
     }
 
     .num-badge {
@@ -307,19 +332,20 @@
       }
     }
 
-    .bk-tab-header-setting {
+    .bk-tab-header-setting,
+    .bkmv3-tab-header-setting {
       display: flex;
       flex: 0 0 auto;
       align-items: center;
       width: auto;
       min-width: 0;
-      overflow: visible;
+      overflow: hidden;
       line-height: 32px;
 
-      /* 有搜索框时：优先 400px，空间不够先压缩搜索，不要盖住 Tab */
+      /* 有搜索框时：吃 Tab 剩下的宽度，最多 400px，无最小宽度以免挡住 Tab */
       &:has(.llm-observation-search) {
-        flex: 1 1 400px;
-        min-width: 120px;
+        flex: 1 1 0;
+        min-width: 0;
         max-width: 400px;
       }
     }
@@ -390,12 +416,13 @@
 
       .label {
         flex-shrink: 0;
-        color: #979ba5;
+        color: #8f9fbd;
       }
 
       .content {
         min-width: 0;
         margin-top: 2px;
+        color: #4d4f56;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;

@@ -1173,6 +1173,42 @@ class FetchK8sContainerListByClusterResource(CacheResource):
                 }
 
 
+class FetchK8sNodeIpListByClusterResource(Resource):
+    """按需采样节点 IP，避免为云区域推断加载全量节点详情。"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_tenant_id = serializers.CharField(label="租户ID")
+        bcs_cluster_id = serializers.CharField(label="集群ID")
+        limit = serializers.IntegerField(label="采样节点数量", min_value=1, max_value=100)
+
+    def perform_request(self, params):
+        cluster_id = params["bcs_cluster_id"]
+        limit = params["limit"]
+        offset = 0
+        result = []
+        while len(result) < limit:
+            nodes = api.bcs_storage.fetch_page(
+                {
+                    "bk_tenant_id": params["bk_tenant_id"],
+                    "cluster_id": cluster_id,
+                    "type": "Node",
+                    "field": "data.status.addresses",
+                    "offset": offset,
+                    "limit": limit,
+                }
+            )
+            for node in nodes:
+                node_ip = KubernetesNodeJsonParser(node).node_ip
+                if node_ip:
+                    result.append({"bcs_cluster_id": cluster_id, "node_ip": node_ip})
+                    if len(result) == limit:
+                        return result
+            if len(nodes) < limit:
+                break
+            offset += limit
+        return result
+
+
 class FetchK8sNodeListByClusterResource(CacheResource):
     cache_type = CacheType.BCS
 

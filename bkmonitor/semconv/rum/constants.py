@@ -689,3 +689,25 @@ class SessionHasReplay(CachedEnum):
     @classmethod
     def choices(cls) -> list[tuple[bool, str]]:
         return [(member.value, member.label) for member in cls]
+
+
+class RatingLevel(CachedEnum):
+    """评分等级枚举：仅提供评级名称与别名，阈值由 ``SpanSpec`` 下发统一管理。"""
+
+    GOOD = "good"
+    NEEDS_IMPROVEMENT = "needs_improvement"
+    POOR = "poor"
+
+    @cached_property
+    def label(self) -> str:
+        return str(
+            {
+                self.GOOD: _("良好"),
+                self.NEEDS_IMPROVEMENT: _("需改进"),
+                self.POOR: _("差"),
+            }.get(self, self.value)
+        )
+
+    @classmethod
+    def choices(cls) -> list[tuple[str, str]]:
+        return [(member.value, member.label) for member in cls]

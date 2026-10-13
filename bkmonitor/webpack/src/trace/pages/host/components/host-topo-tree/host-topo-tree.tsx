@@ -29,6 +29,8 @@ import { type PropType, defineComponent, onBeforeUnmount, onMounted, shallowRef,
 import { $bkPopover, Button, Checkbox, Input } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import HostLoading from '../host-loading/host-loading';
+
 import { isHostNode } from '../../utils/topo-tree';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
@@ -292,46 +294,19 @@ export default defineComponent({
             </div>
           </div>
         </div>
-        {!ctx.fullTreeReady.value && !ctx.scopeError.value && (
-          <div class='host-topo-tree__notice'>
-            <span>
-              {ctx.fullTreeError.value ? t('完整拓扑加载失败') : t('正在补全拓扑，搜索和主机数量将在完成后显示')}
-            </span>
-            {ctx.fullTreeError.value && (
-              <Button
-                text
-                onClick={ctx.loadFullTree}
-              >
-                {t('重试')}
-              </Button>
-            )}
+        {!ctx.fullTreeReady.value && ctx.fullTreeError.value && !ctx.scopeError.value && (
+          <div class='host-topo-tree__notice' role='status' aria-live='polite'>
+            <span>{t('完整拓扑加载失败')}</span>
+            <Button
+              text
+              onClick={ctx.loadFullTree}
+            >
+              {t('重试')}
+            </Button>
           </div>
         )}
         {ctx.loading.value ? (
-          <div class='host-topo-tree__loading'>
-            <div class='skeleton-row'>
-              <div class='skeleton-element' />
-            </div>
-            {new Array(5).fill(0).map((_, index) => (
-              <div key={index}>
-                <div
-                  style='padding-left: 16px;'
-                  class='skeleton-row'
-                >
-                  <div class='skeleton-element' />
-                </div>
-                {new Array(3).fill(0).map((_, index) => (
-                  <div
-                    key={index}
-                    style='padding-left: 32px;'
-                    class='skeleton-row'
-                  >
-                    <div class='skeleton-element' />
-                  </div>
-                ))}
-              </div>
-            ))}
-          </div>
+          <HostLoading variant='tree' />
         ) : ctx.loadError.value ? (
           <EmptyStatus
             type='500'

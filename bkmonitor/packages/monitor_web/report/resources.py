@@ -42,6 +42,11 @@ logger = logging.getLogger(__name__)
 GlobalConfig = apps.get_model("bkmonitor.GlobalConfig")
 
 
+def _is_report_manager(report_item):
+    user = get_request().user
+    return bool(user.is_superuser or user.username in report_item.format_managers)
+
+
 class ReportListResource(Resource):
     """
     已订阅列表接口
@@ -190,6 +195,9 @@ class ReportCloneResource(Resource):
         report_item = ReportItems.objects.filter(id=params["report_item_id"], bk_tenant_id=bk_tenant_id).values()
         if not report_item:
             raise CustomException(f"[mail_report] item id: {params['report_item_id']} not exists.")
+        item = ReportItems.objects.get(id=params["report_item_id"], bk_tenant_id=bk_tenant_id)
+        if not _is_report_manager(item):
+            raise PermissionError(_("您无权限访问此页面"))
         report_item = report_item[0]
         new_mail_title = f"{report_item['mail_title']}_copy"
 
@@ -340,6 +348,34 @@ class ReportCreateOrUpdateResource(Resource):
                 new_staff_list.append(data)
         return new_staff_list
 
+    def merge_self_receiver(self, report_item, receivers, current_time):
+        username = get_request().user.username
+        self_receivers = [item for item in receivers if item["id"] == username and item["type"] == StaffChoice.user]
+        if not self_receivers:
+            raise PermissionError(_("您无权限访问此页面"))
+        is_enabled = self_receivers[0]["is_enabled"]
+        existing = [
+            item for item in report_item.receivers if item["id"] == username and item.get("type") == StaffChoice.user
+        ]
+        for receiver in existing:
+            receiver["is_enabled"] = is_enabled
+        if not existing:
+            group_ids = {item["id"] for item in report_item.receivers if item.get("type") == StaffChoice.group}
+            if not group_ids or not any(
+                group["id"] in group_ids and username in group["children"] for group in resource.report.group_list()
+            ):
+                raise PermissionError(_("您无权限访问此页面"))
+            report_item.receivers.append(
+                {
+                    "id": username,
+                    "name": username,
+                    "type": StaffChoice.user,
+                    "is_enabled": is_enabled,
+                    "create_time": current_time,
+                }
+            )
+        return report_item.receivers
+
     def perform_request(self, validated_request_data):
         bk_tenant_id = get_request_tenant_id()
         current_time = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
@@ -350,6 +386,12 @@ class ReportCreateOrUpdateResource(Resource):
             )
             if not report_item:
                 raise CustomException(_("此订阅不存在"))
+            if not _is_report_manager(report_item[0]):
+                receivers = self.merge_self_receiver(
+                    report_item[0], validated_request_data.get("receivers", []), current_time
+                )
+                report_item.update(receivers=receivers)
+                return "success"
 
             # 更新参数
             update_args = copy.deepcopy(validated_request_data)
@@ -425,6 +467,9 @@ class ReportDeleteResource(Resource):
 
     def perform_request(self, params: dict):
         bk_tenant_id = get_request_tenant_id()
+        item = ReportItems.objects.filter(id=params["report_item_id"], bk_tenant_id=bk_tenant_id).first()
+        if item and not _is_report_manager(item):
+            raise PermissionError(_("您无权限访问此页面"))
         try:
             ReportItems.objects.filter(id=params["report_item_id"], bk_tenant_id=bk_tenant_id).delete()
             ReportContents.objects.filter(report_item=params["report_item_id"], bk_tenant_id=bk_tenant_id).delete()

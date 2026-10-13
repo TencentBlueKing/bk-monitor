@@ -20,42 +20,43 @@
 
   .select-label {
     flex: none;
-    color: #8f9fbd;
-  }
-
-  .bk-input {
-    flex: 1;
-    min-width: 0;
-    height: 30px;
-    background: transparent;
-    border: 0;
-    box-shadow: none;
-
-    &.is-readonly {
-      background: transparent !important;
-    }
-  }
-
-  .bk-input--text {
-    padding: 0;
-    cursor: pointer;
-    background: transparent !important;
-  }
-
-  .icon-arrow-down {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 20px;
     color: #979ba5;
   }
 
-  kbd {
+  .select-value {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 13px;
+    color: #313238;
+    white-space: nowrap;
+
+    &.is-empty {
+      color: #c4c6cc;
+    }
+  }
+
+  .icon-mc-arrow-down {
     flex: none;
-    padding: 0 4px;
     margin-right: 8px;
     font-size: 10px;
-    color: #8f9fbd;
+    color: #979ba5;
+    transition: transform 0.1s;
+
+    &.expand {
+      transform: rotate(-180deg);
+    }
+  }
+
+  .select-shortcut-keys {
+    flex: none;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 16px;
+    color: #a3b1cc;
     background: #fff;
     border-radius: 2px;
   }

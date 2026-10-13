@@ -73,6 +73,7 @@ class RedisClient(Singleton):
                 "host": host,
                 "port": port,
                 "password": redis_password,
+                "db": os.environ.get(f"{prefix}_REDIS_DB", 0),
             }
         else:
             configs = {

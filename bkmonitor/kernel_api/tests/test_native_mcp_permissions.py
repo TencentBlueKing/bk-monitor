@@ -1417,6 +1417,27 @@ def test_log_uses_native_system_subject_instance_and_path(request_factory, io):
     io.dispatch.assert_called_once_with("search_logs", log_args())
 
 
+@pytest.mark.parametrize("granted_biz, allowed", [(-7, True), (2, False)])
+def test_associated_space_index_set_is_authorized_by_owner_space(
+    monkeypatch, request_factory, io, granted_biz, allowed
+):
+    # BKCC 业务目录中可见、归属关联 BKCI 项目的普通索引集：SaaS 兜底只认归属空间的授权。
+    io.catalog.return_value[0].update(bk_biz_id=-7, space_uid="bkci__demo")
+    monkeypatch.setattr("bkm_space.utils.space_uid_to_bk_biz_id", lambda uid: -7 if uid == "bkci__demo" else 0)
+    granted_path = f"/space,{granted_biz}/"
+    io.iam.is_allowed.side_effect = lambda query: query.resources[0].attribute["_bk_iam_path_"] == granted_path
+    tool = registry.get_tool_registry().get("search_logs")
+    if allowed:
+        assert auth.execute_native_tool(tool, log_args(), request_factory()) == {"ok": True}
+    else:
+        with pytest.raises(PermissionDenied):
+            auth.execute_native_tool(tool, log_args(), request_factory())
+        io.dispatch.assert_not_called()
+    native = io.iam.is_allowed.call_args.args[0].resources[0]
+    assert (native.id, native.attribute["bk_biz_id"]) == ("123", "-7")
+    assert io.monitor.iam_client.is_allowed.call_args_list[0].args[0].resources[0].id == "2"
+
+
 def test_native_denial_is_not_bypassed_by_old_checked_flag(request_factory, io):
     io.iam.is_allowed.return_value = False
     request = request_factory()
@@ -1480,16 +1501,35 @@ def test_identity_and_tenant_fail_closed(monkeypatch, request_factory, io, case)
         {"platform_index_owner_space_uid": "bkcc__9"},
         {"bk_biz_id": 9},
         {"space_uid": "bkcc__9"},
-        {"index_set_id": 456},
+        {"space_uid": ""},
     ],
 )
 @pytest.mark.parametrize("standalone", [False, True])
-def test_unsupported_or_foreign_indices_do_not_query(native_http, io, change, standalone):
-    io.monitor.iam_client.is_allowed.side_effect = lambda query: True
+@pytest.mark.parametrize("mcp_allowed", [True, False])
+def test_saas_only_index_rules_do_not_block_mcp_permission(native_http, io, change, standalone, mcp_allowed):
+    # 平台级／分组、目录字段缺失或归属不一致只让 SaaS 兜底不可用，有 MCP 权限时照常执行。
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: mcp_allowed
     io.catalog.return_value[0].update(change)
     args = log_args(index_set_id="123" if standalone else 123)
     response, _ = native_http(registry.get_tool_registry().get("search_logs"), args, unified=not standalone)
-    assert response.status_code in {400, 403}
+    io.catalog.assert_called_once()
+    io.monitor.iam_client.is_allowed.assert_called_once()
+    io.iam.is_allowed.assert_not_called()
+    if mcp_allowed:
+        assert response.status_code == 200
+        io.dispatch.assert_called_once()
+    else:
+        assert response.status_code in {400, 403}
+        io.dispatch.assert_not_called()
+
+
+@pytest.mark.parametrize("standalone", [False, True])
+def test_invisible_index_set_is_rejected_before_any_iam(native_http, io, standalone):
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: True
+    io.catalog.return_value[0]["index_set_id"] = 456
+    args = log_args(index_set_id="123" if standalone else 123)
+    response, _ = native_http(registry.get_tool_registry().get("search_logs"), args, unified=not standalone)
+    assert response.status_code == 403
     io.catalog.assert_called_once()
     io.iam.is_allowed.assert_not_called()
     io.monitor.iam_client.is_allowed.assert_not_called()

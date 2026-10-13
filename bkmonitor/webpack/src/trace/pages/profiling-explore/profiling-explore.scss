@@ -34,19 +34,35 @@
     .profiling-heading {
       display: flex;
       flex: none;
-      gap: 16px;
       align-items: center;
 
-      > .bk-button {
+      .favorite-container {
+        padding: 10px 8px;
+        border-right: 1px solid #eaebf0;
+      }
+
+      .favorite-btn {
         width: 32px;
         height: 32px;
-        margin: 0 8px;
-        background: #f0f4fa;
+        padding: 0;
+        font-size: 18px;
+        line-height: 32px;
+        color: inherit;
+        text-align: center;
+        cursor: pointer;
+        background: #f0f1f5;
+        border: 0;
+        border-radius: 2px;
+
+        &.active {
+          color: #3a84ff;
+          background: #e1ecff;
+        }
       }
     }
 
     h1 {
-      margin: 0;
+      margin: 0 12px;
       font-size: 16px;
       font-weight: 400;
       white-space: nowrap;
@@ -62,6 +78,15 @@
 
       .bk-radio-button-label {
         padding: 0 16px;
+        font-weight: 500;
+      }
+
+      .bk-radio-button:not(.is-disabled) .bk-radio-button-label {
+        color: #313238;
+      }
+
+      .bk-radio-button.is-checked .bk-radio-button-label {
+        color: #3a84ff;
       }
 
       .bk-radio-button::before {
@@ -252,6 +277,16 @@
       gap: 10px;
       align-items: center;
       height: 32px;
+
+      .icon-mc-triangle-down {
+        font-size: 18px;
+        color: #4d4f56;
+        transition: transform 0.2s ease;
+
+        &.is-collapsed {
+          transform: rotate(-90deg);
+        }
+      }
 
       strong {
         margin-right: auto;

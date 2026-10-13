@@ -195,6 +195,7 @@ _CA = "alarm_backends.service.fta_action.tasks.create_action"
 def _make_alert(alert_id):
     alert = MagicMock()
     alert.id = alert_id
+    alert.extra_info = {}
     alert.to_dict.return_value = {}
     alert.is_no_data.return_value = False
     return alert
