@@ -10,7 +10,7 @@ from rest_framework.exceptions import ValidationError
 
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import Permission, ResourceEnum
-from bkmonitor.iam.handlers.actions import get_action_by_id
+from bkmonitor.iam.action import get_action_by_id
 from bkmonitor.utils.request import get_request
 from core.drf_resource import Resource
 from kernel_api.unified_mcp.dispatcher import dispatch_tool

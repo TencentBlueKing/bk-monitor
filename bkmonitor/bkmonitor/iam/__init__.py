@@ -20,15 +20,15 @@ __all__ = [
 
 def __getattr__(name: str):
     if name == "ActionEnum":
-        from bkmonitor.iam.handlers.actions import ActionEnum as _v
+        from bkmonitor.iam.action import ActionEnum as _v
 
         return _v
     if name == "ResourceEnum":
-        from bkmonitor.iam.handlers.resources import ResourceEnum as _v
+        from bkmonitor.iam.resource import ResourceEnum as _v
 
         return _v
     if name == "Permission":
-        from bkmonitor.iam.handlers.permission import Permission as _v
+        from bkmonitor.iam.permission import Permission as _v
 
         return _v
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

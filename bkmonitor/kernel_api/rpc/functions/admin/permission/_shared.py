@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any
 
 from bkmonitor.iam.definitions.actions import Actions
 from iam_engine.exceptions import ProviderNotFound
-from bkmonitor.iam.handlers.permission import Permission
+from bkmonitor.iam.permission import Permission
 from iam_engine.schema.definitions import ActionDef
 from iam_engine.schema.registry import SchemaRegistry
 from iam_engine.schema.visibility import is_visible_to

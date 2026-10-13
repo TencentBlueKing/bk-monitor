@@ -49,7 +49,7 @@ def test_application_write_actions_require_manage_permission(action, data):
     assert [item.id for item in permissions[0].actions] == [ActionEnum.MANAGE_APM_APPLICATION.id]
 
 
-@mock.patch("bkmonitor.iam.handlers.drf.Permission")
+@mock.patch("bkmonitor.iam.drf.Permission")
 @mock.patch("apm_web.meta.views.Application.objects")
 @mock.patch("apm_web.meta.views.ApplicationCustomService")
 def test_delete_custom_service_permission_resolves_owning_application(

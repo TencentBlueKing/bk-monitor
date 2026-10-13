@@ -35,7 +35,7 @@ from iam.exceptions import AuthAPIError
 from apm_web.models import Application
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from bkmonitor.iam.handlers.actions import ActionMeta, get_action_by_id
+from bkmonitor.iam.action import ActionMeta, get_action_by_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.common import DEFAULT_TENANT_ID
 

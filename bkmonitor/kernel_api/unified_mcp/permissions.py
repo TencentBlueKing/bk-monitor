@@ -452,10 +452,11 @@ def _apply_guide(client, spec, resource, request):
     result = {"permission": application.to_dict()}
     error_type = "InvalidResponse"
     try:
-        from bkmonitor.iam.handlers.mcp import MonitorMCPClient
-
-        if isinstance(client, MonitorMCPClient):
-            result["permission"] = client.get_apply_data(application) or result["permission"]
+        get_apply_data = getattr(client, "get_apply_data", None)
+        if callable(get_apply_data):
+            data = get_apply_data(application)
+            if isinstance(data, dict) and data:
+                result["permission"] = data
         ok, _, url = client.get_apply_url(application)
         if ok and isinstance(url, str) and url:
             result["apply_url"] = url
@@ -521,13 +522,8 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         return {**result, "state": "requires_resource", "authorized": False}
 
     monitor = _monitor_permission(user)
-    from bkmonitor.iam.handlers.mcp import MonitorMCPClient
-
-    monitor_client = MonitorMCPClient(monitor, monitor.bk_tenant_id)
     legacy_resource = _business_resource(bk_biz_id)
-    legacy_query = Request(
-        settings.BK_IAM_SYSTEM_ID, Subject("user", user.username), Action(tool.iam_action), [legacy_resource], None
-    )
+    legacy_query = monitor.make_request(tool.iam_action, [legacy_resource])
     native_resource = None
     log_item = None
     if spec["system_id"] == "bk_monitorv3":
@@ -540,13 +536,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
             native_resource = _dashboard_resource(bk_biz_id, context)
         else:
             raise ImproperlyConfigured(f"Unsupported monitor MCP resource type: {spec['resource_type']}")
-        native_query = Request(
-            settings.BK_IAM_SYSTEM_ID,
-            Subject("user", user.username),
-            Action(spec["action_id"]),
-            [native_resource],
-            None,
-        )
+        native_query = monitor.make_request(spec["action_id"], [native_resource])
     elif spec["system_id"] == "bk_log_search":
         # 业务目录可见性是两种权限共用的归属边界，先于两种 IAM 判定；索引集类型与归属空间
         # 只决定 SaaS 兜底能否使用，留到 MCP 明确无权后再解析，不能拦住有 MCP 权限的用户。
@@ -569,7 +559,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         action_id=legacy_query.action.id,
         resource=legacy_resource,
     )
-    legacy_allowed = _checked_permission(tool, request, "legacy", monitor_client, legacy_query, bk_biz_id)
+    legacy_allowed = _checked_permission(tool, request, "legacy", monitor.iam_client, legacy_query, bk_biz_id)
     result["legacy_authorized"] = legacy_allowed
     result["legacy_permission"] = {
         "system_id": legacy_query.system,
@@ -603,7 +593,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
         native_query = Request(
             spec["system_id"], Subject("user", user.username), Action(spec["action_id"]), [native_resource], None
         )
-    native_client = monitor_client if spec["system_id"] == "bk_monitorv3" else _log_iam(user)
+    native_client = monitor.iam_client if spec["system_id"] == "bk_monitorv3" else _log_iam(user)
     native_allowed = _checked_permission(tool, request, "native", native_client, native_query, bk_biz_id)
     result["native_authorized"] = native_allowed
     if native_allowed:
@@ -638,7 +628,7 @@ def _permission_state(tool, request, bk_biz_id, context, include_apply_guide):
     )
     if include_apply_guide:
         primary_guide = _apply_guide(
-            monitor_client,
+            monitor.iam_client,
             {"system_id": legacy_query.system, "action_id": tool.iam_action},
             legacy_resource,
             request,

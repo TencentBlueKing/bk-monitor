@@ -1,7 +1,7 @@
 import threading
 from unittest import mock
 
-from bkmonitor.iam.handlers.actions import ActionEnum
+from bkmonitor.iam.action import ActionEnum
 from monitor_web.overview.search import ApmApplicationSearchItem, ApmServiceSearchItem, Searcher
 
 

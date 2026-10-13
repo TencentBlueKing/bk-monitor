@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import pytest
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.handlers.drf import BusinessActionPermission
+from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource.viewsets import ResourceViewSet
 from monitor_web.performance.views import (
     HostListViewSet,

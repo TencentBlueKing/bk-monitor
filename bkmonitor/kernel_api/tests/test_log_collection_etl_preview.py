@@ -5,7 +5,7 @@ import pytest
 
 from api.log_search.default import LogEtlPreviewResource
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.handlers.drf import BusinessActionPermission
+from bkmonitor.iam.drf import BusinessActionPermission
 from constants.log_collection import (
     ETL_PREVIEW_MAX_EXPRESSION_LENGTH,
     ETL_PREVIEW_MAX_FIELDS,

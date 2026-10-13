@@ -9,8 +9,8 @@ BKLog 与监控实际引用根目录同一份 `iam_engine`；产品目录中的
 - `provider/`：ModeRouter、Union 决策/范围合并、能力 Bundle 和执行器协议。
 - `migration/`：申请选边、独立双写、注入式事务提交 hook、新建资源授权的冻结请求重试。
 - `settings.py`、`v4/`：BKLog 既有环境变量映射、选项归一化、网关、HTTP 和响应校验。
-- 产品适配：两边均由 `handlers/` 对外提供产品 Permission/DRF 接口，
-  `backends/v3/` 与 `backends/v4/` 提供原生能力，`views/` 提供 callback、`tasks/` 提供重试。
+- 产品适配：保留各产品原有 Permission/DRF 公开入口，
+  `backends/v3/` 与 `backends/v4/` 提供原生能力，callback 和重试留在产品 IAM 层。
   Action、资源、角色、codec、租户/资源归属、回调和策略 AST 仍由产品负责。
 
 公共层不 import 任一产品业务模块。两平台保留 Permission/DRF 对外接口，
@@ -19,7 +19,9 @@ SharedMigrationPolicy、框架单例或 IAM_FRAMEWORK 配置目录。产品 back
 协议、codec、资源解析和 IAM 模型；布尔决策、范围合并与双写编排复用公共实现。
 监控 Provider 直接实现公共 PermissionProvider，申请和范围能力也由原生 Provider 提供，
 不再通过 MonitorAuthAdapter/方言转换层装配；V4 Client 继承共同通信底座。
-根目录 Action/Resource/Permission/DRF 模块仅保留既有 V3 导入兼容，不参与额外装配。
+监控的 Action/Resource/Permission/DRF 实现仍位于原有 `bkmonitor.iam` 公开模块；
+BKLog 继续使用自身 `apps.iam.handlers` 入口。不强求目录树相同，也不为目录对齐
+重写业务 import。两边一致的是职责、能力协议与公共实现，不是文件路径。
 
 公共 schema/、policy/、model/ 提供不依赖 Django 的模型和策略工具。监控的
 Django 信号、模型注册记录及管理命令放在产品侧；模型注册不等于存量权限迁移。
@@ -31,6 +33,8 @@ Django 信号、模型注册记录及管理命令放在产品侧；模型注册�
 产品差异限于实际语义：监控的 Action/资源/角色、空间 ID 编码、V3 策略 AST，
 Grafana 文件夹覆盖、模型注册命令，以及 SaaS 凭据和本地请求上下文来源。
 业务调用方传用户名、业务 ID、仪表盘 UID；不自行拼祖先资源或导入引擎 DTO。
+MCP 继续通过产品 Permission 的 `make_request` / `iam_client` 查询和生成申请信息，
+双栈客户端由 IAM 内部装配；明确需要 V3 SDK 的模型工具和回调使用 `get_iam_client`。
 Grafana 对外保留 `(allowed, role, permissions)` 契约，父文件夹覆盖在权限服务展开；
 APM 旧 permission Action key 在 DRF 边界生成，无需逐个视图开启兼容开关。
 

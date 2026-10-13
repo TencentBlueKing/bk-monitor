@@ -10,7 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from django.conf import settings
 
-from bkmonitor.iam.handlers.drf import ViewBusinessPermission
+from bkmonitor.iam.drf import ViewBusinessPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from packages.monitor_web.incident.metrics.views import IncidentMetricsViewSet  # noqa

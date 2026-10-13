@@ -118,6 +118,7 @@ class TestPermissionSurface:
     def test_public_methods_preserved(self):
         old_methods = {
             "get_iam_client",
+            "make_request",
             "grant_creator_action",
             "get_apply_url",
             "get_apply_data",
@@ -172,7 +173,7 @@ class TestCreatorGrantResultLogging:
         permission = Permission(username="tester", bk_tenant_id="system")
         resource = ResourceEnum.BUSINESS.create_simple_instance("2")
 
-        with caplog.at_level("WARNING", logger="bkmonitor.iam.handlers.permission"):
+        with caplog.at_level("WARNING", logger="bkmonitor.iam.permission"):
             result = permission.grant_creator_action(resource)
 
         assert result.is_success is False
@@ -372,7 +373,7 @@ class TestIsAllowed:
         request.user.username = "tester"
         request.user.tenant_id = "system"
         request.skip_check = False
-        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             p = Permission(request=request)
             # 业务查看权限：直接豁免（无需查 token 记录）
             assert p.is_allowed(ActionEnum.VIEW_BUSINESS) is True
@@ -553,7 +554,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=True, visible_ids=("2", "3", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert len(result) == 3
 
@@ -561,7 +562,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=True, visible_ids=("2", "3", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             spaces, tenant_wide_authorized = p.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
 
         assert [space["bk_biz_id"] for space in spaces] == [2, 3, 5]
@@ -571,7 +572,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=False, visible_ids=("2", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert [s["bk_biz_id"] for s in result] == [2, 5]
 
@@ -579,7 +580,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         provider.visible = VisibleResult(all_granted=False, visible_ids=("2", "5"))
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             spaces, tenant_wide_authorized = p.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
 
         assert [space["bk_biz_id"] for space in spaces] == [2, 5]
@@ -592,7 +593,7 @@ class TestFilterSpaceListByAction:
         )
         p = Permission(username="tester", bk_tenant_id="system")
 
-        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action("view_business_v2")
 
         assert [space["bk_biz_id"] for space in result] == [2, 5]
@@ -607,7 +608,7 @@ class TestFilterSpaceListByAction:
 
         provider.filter_visible_resources = _boom
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert result == []
 
@@ -620,7 +621,7 @@ class TestFilterSpaceListByAction:
 
         provider.filter_visible_resources = _boom
         p = Permission(username="tester", bk_tenant_id="system")
-        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             spaces, tenant_wide_authorized = p.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
 
         assert spaces == []
@@ -630,7 +631,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
-        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             result = p.filter_space_list_by_action(ActionEnum.VIEW_BUSINESS)
         assert len(result) == 3
 
@@ -638,7 +639,7 @@ class TestFilterSpaceListByAction:
         fw, provider = fake_permission
         p = Permission(username="tester", bk_tenant_id="system")
         p.skip_check = True
-        with patch("bkmonitor.iam.handlers.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
+        with patch("bkmonitor.iam.permission.SpaceApi.list_spaces_dict", return_value=self._space_list()):
             spaces, tenant_wide_authorized = p.filter_space_list_by_action_with_scope(ActionEnum.VIEW_BUSINESS)
 
         assert [space["bk_biz_id"] for space in spaces] == [2, 3, 5]
@@ -694,15 +695,15 @@ class TestPreflightHelpers:
     """check_iam_preflight / check_iam_batch_preflight 的兼容豁免与安全修复。"""
 
     def test_preflight_none_request_uses_settings(self):
-        from bkmonitor.iam.handlers.permission import check_iam_preflight
+        from bkmonitor.iam.permission import check_iam_preflight
 
-        with patch("bkmonitor.iam.handlers.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
+        with patch("bkmonitor.iam.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
             assert check_iam_preflight(None, ActionEnum.VIEW_BUSINESS) is True
-        with patch("bkmonitor.iam.handlers.permission.settings.SKIP_IAM_PERMISSION_CHECK", False):
+        with patch("bkmonitor.iam.permission.settings.SKIP_IAM_PERMISSION_CHECK", False):
             assert check_iam_preflight(None, ActionEnum.VIEW_BUSINESS) is False
 
     def test_preflight_request_skip_check_true(self):
-        from bkmonitor.iam.handlers.permission import check_iam_preflight
+        from bkmonitor.iam.permission import check_iam_preflight
 
         request = MagicMock()
         request.skip_check = True
@@ -712,18 +713,18 @@ class TestPreflightHelpers:
 
     def test_preflight_request_skip_check_false_overrides_settings(self):
         """request.skip_check=False 显式强制校验时覆盖 settings 级（与 Permission.__init__ 一致）。"""
-        from bkmonitor.iam.handlers.permission import check_iam_preflight
+        from bkmonitor.iam.permission import check_iam_preflight
 
         request = MagicMock()
         request.skip_check = False
         request.token = None  # 显式置 None：MagicMock 自动属性会误入 token 分支
         request.path = "/whatever/"
-        with patch("bkmonitor.iam.handlers.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
+        with patch("bkmonitor.iam.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
             assert check_iam_preflight(request, ActionEnum.VIEW_BUSINESS) is False
 
     def test_preflight_skip_check_param_passthrough(self):
         """Permission.is_allowed 传入实例值 self.skip_check（兼容调用方构造后修改实例属性）。"""
-        from bkmonitor.iam.handlers.permission import check_iam_preflight
+        from bkmonitor.iam.permission import check_iam_preflight
 
         assert check_iam_preflight(None, ActionEnum.VIEW_BUSINESS, skip_check=True) is True
         assert check_iam_preflight(None, ActionEnum.VIEW_BUSINESS, skip_check=False) is False
@@ -731,19 +732,19 @@ class TestPreflightHelpers:
     def test_preflight_token_no_record_is_not_bypassed(self):
         """Token 记录不存在时不再因旧 generator 恒真问题被放行。"""
         from bkmonitor.models import ApiAuthToken
-        from bkmonitor.iam.handlers.permission import check_iam_preflight
+        from bkmonitor.iam.permission import check_iam_preflight
 
         request = MagicMock()
         request.token = "tok"
         request.path = "/any/path/"
         request.skip_check = False
         request.user.tenant_id = "system"
-        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             assert check_iam_preflight(request, ActionEnum.VIEW_EVENT) is False
 
     def test_preflight_token_action_id_map_accepts_string_action(self):
         """Token 动作匹配按 action ID 执行，ActionEnum 与字符串调用语义一致。"""
-        from bkmonitor.iam.handlers.permission import check_iam_preflight
+        from bkmonitor.iam.permission import check_iam_preflight
 
         request = MagicMock()
         request.token = "tok"
@@ -752,11 +753,11 @@ class TestPreflightHelpers:
         request.user.tenant_id = "system"
         record = MagicMock()
         record.type = "host"
-        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", return_value=record):
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
             assert check_iam_preflight(request, "view_host") is True
 
     def test_preflight_token_action_id_map_accepts_legacy_alias(self):
-        from bkmonitor.iam.handlers.permission import check_iam_preflight
+        from bkmonitor.iam.permission import check_iam_preflight
 
         request = MagicMock()
         request.token = "tok"
@@ -765,11 +766,11 @@ class TestPreflightHelpers:
         request.user.tenant_id = "system"
         record = MagicMock()
         record.type = "host"
-        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", return_value=record):
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
             assert check_iam_preflight(request, "view_host_v2") is True
 
     def test_preflight_no_exemption_goes_to_framework(self):
-        from bkmonitor.iam.handlers.permission import check_iam_preflight
+        from bkmonitor.iam.permission import check_iam_preflight
 
         request = MagicMock()
         request.skip_check = False
@@ -778,7 +779,7 @@ class TestPreflightHelpers:
         assert check_iam_preflight(request, ActionEnum.VIEW_EVENT) is False
 
     def test_batch_preflight_skip_all_true(self):
-        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
+        from bkmonitor.iam.permission import check_iam_batch_preflight
 
         request = MagicMock()
         request.skip_check = True
@@ -787,7 +788,7 @@ class TestPreflightHelpers:
         assert result == {"view_event": True, "manage_event": True}
 
     def test_batch_preflight_skip_legacy_alias_uses_business_key(self):
-        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
+        from bkmonitor.iam.permission import check_iam_batch_preflight
 
         request = MagicMock()
         request.skip_check = True
@@ -796,7 +797,7 @@ class TestPreflightHelpers:
         assert result == {"view_event": True}
 
     def test_batch_preflight_none(self):
-        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
+        from bkmonitor.iam.permission import check_iam_batch_preflight
 
         request = MagicMock()
         request.skip_check = False
@@ -806,37 +807,37 @@ class TestPreflightHelpers:
     def test_batch_preflight_token_no_record_raises(self):
         """batch 语义：token 记录不存在 → 抛 TokenValidatedError（与旧版 batch_is_allowed 一致）。"""
         from bkmonitor.models import ApiAuthToken
-        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
+        from bkmonitor.iam.permission import check_iam_batch_preflight
         from core.errors.share import TokenValidatedError
 
         request = MagicMock()
         request.token = "tok"
         request.user.tenant_id = "system"
-        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             with pytest.raises(TokenValidatedError):
                 check_iam_batch_preflight(request, [ActionEnum.VIEW_EVENT])
 
     def test_batch_preflight_token_action_id_map(self):
-        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
+        from bkmonitor.iam.permission import check_iam_batch_preflight
 
         request = MagicMock()
         request.token = "tok"
         request.user.tenant_id = "system"
         record = MagicMock()
         record.type = "host"  # ActionIdMap["host"] = [ActionEnum.VIEW_HOST]
-        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", return_value=record):
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
             result = check_iam_batch_preflight(request, ["view_host", "view_event"])
         assert result == {"view_host": True, "view_event": False}
 
     def test_batch_preflight_token_action_id_map_accepts_legacy_alias(self):
-        from bkmonitor.iam.handlers.permission import check_iam_batch_preflight
+        from bkmonitor.iam.permission import check_iam_batch_preflight
 
         request = MagicMock()
         request.token = "tok"
         request.user.tenant_id = "system"
         record = MagicMock()
         record.type = "host"
-        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", return_value=record):
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
             result = check_iam_batch_preflight(request, ["view_host_v2", "view_event_v2"])
         assert result == {"view_host": True, "view_event": False}
 

@@ -22,7 +22,7 @@ from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 
 from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.iam.handlers.drf import BusinessActionPermission, IAMPermission
+from bkmonitor.iam.drf import BusinessActionPermission, IAMPermission
 from bkmonitor.middlewares.authentication import NoCsrfSessionAuthentication
 from bkmonitor.utils.common_utils import safe_int
 from bkmonitor.utils.request import get_request_tenant_id

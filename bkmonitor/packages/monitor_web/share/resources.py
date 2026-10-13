@@ -14,7 +14,7 @@ from datetime import datetime
 from functools import partial
 from secrets import token_hex
 
-from bkmonitor.iam.handlers.permission import ActionIdMap, Permission
+from bkmonitor.iam.permission import ActionIdMap, Permission
 from bkmonitor.models import REGISTERED_SCENE_AUTH_TYPES, ApiAuthToken, AuthType, TokenAccessRecord
 from bkmonitor.share.handler import validate_host_share_scope
 from bkmonitor.utils.request import get_request, get_request_tenant_id

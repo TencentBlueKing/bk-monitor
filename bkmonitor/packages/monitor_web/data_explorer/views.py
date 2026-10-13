@@ -22,7 +22,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from bkmonitor.utils.csv import generate_csv_file_download_response
 from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.iam.handlers.drf import BusinessActionPermission
+from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.utils.request import get_request
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet

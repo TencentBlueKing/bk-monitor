@@ -28,7 +28,7 @@ import pytest
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.definitions.actions import Actions
-from bkmonitor.iam.handlers.drf import (
+from bkmonitor.iam.drf import (
     BusinessActionPermission,
     IAMPermission,
     InstanceActionForDataPermission,
@@ -77,7 +77,7 @@ def _make_view(**kwargs):
 @pytest.fixture(autouse=True)
 def allow_business_in_test_tenant():
     """隔离 BusinessActionPermission 的租户归属判断，个别拒绝用例自行覆盖。"""
-    with patch("bkmonitor.iam.handlers.drf.is_biz_in_tenant", return_value=True):
+    with patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True):
         yield
 
 
@@ -285,7 +285,7 @@ class TestBusinessActionPermission:
         fw, provider = fake_permission
         perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
 
-        with patch("bkmonitor.iam.handlers.drf.is_biz_in_tenant", return_value=False):
+        with patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=False):
             assert perm.has_permission(_make_request(biz_id=2), view=None) is False
 
         assert provider.is_allowed_calls == []
@@ -754,7 +754,7 @@ class TestDrfPreflight:
         scripted = _ScriptedProvider([True])
         provider.is_allowed = scripted.is_allowed
         request = _make_request(biz_id=2, skip_check=False)
-        with patch("bkmonitor.iam.handlers.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
+        with patch("bkmonitor.iam.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
             perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
             assert perm.has_permission(request, view=None) is True
         assert len(scripted.calls) == 1
@@ -772,7 +772,7 @@ class TestDrfPreflight:
             biz_id=2,
             user=SimpleNamespace(username="tester", tenant_id="system"),
         )
-        with patch("bkmonitor.iam.handlers.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
+        with patch("bkmonitor.iam.permission.settings.SKIP_IAM_PERMISSION_CHECK", True):
             perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
             assert perm.has_permission(request, view=None) is True
 
@@ -790,7 +790,7 @@ class TestDrfPreflight:
         request = _make_request(biz_id=2)
         request.token = "tok"
         request.path = "/whatever/"
-        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             perm = BusinessActionPermission([ActionEnum.VIEW_EVENT])
             with pytest.raises(PermissionDeniedError):
                 perm.has_permission(request, view=None)
@@ -807,7 +807,7 @@ class TestDrfPreflight:
         request = _make_request(biz_id=2)
         request.token = "tok"
         request.path = "/whatever/"
-        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", return_value=record):
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", return_value=record):
             perm = BusinessActionPermission([ActionEnum.VIEW_HOST])
             assert perm.has_permission(request, view=None) is True
 
@@ -844,7 +844,7 @@ class TestDrfPreflight:
         wrapped = insert_permission_field(actions=actions, resource_meta=ResourceEnum.BUSINESS)(view_func)
         request = _make_request()
         request.token = "tok"
-        with patch("bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
+        with patch("bkmonitor.iam.permission.ApiAuthToken.objects.get", side_effect=ApiAuthToken.DoesNotExist):
             with pytest.raises(TokenValidatedError):
                 wrapped(request)
 
@@ -853,7 +853,7 @@ class TestDrfPreflight:
         fw, provider = fake_permission
         provider.batch_result = BatchAuthResult(items=())  # 若走框架将过滤掉全部
         request = _make_request(skip_check=True)
-        with patch("bkmonitor.iam.handlers.drf.get_request", return_value=request):
+        with patch("bkmonitor.iam.drf.get_request", return_value=request):
             result = filter_data_by_permission(
                 bk_tenant_id="system",
                 data=[{"id": "2", "name": "a"}, {"id": "3", "name": "b"}],
@@ -875,7 +875,7 @@ class TestDrfPreflight:
 
         provider.batch_is_allowed = _record
         request = _make_request(skip_check=True)  # 显式 username 时该 request 不应生效
-        with patch("bkmonitor.iam.handlers.drf.get_request", return_value=request):
+        with patch("bkmonitor.iam.drf.get_request", return_value=request):
             result = filter_data_by_permission(
                 bk_tenant_id="system",
                 data=[{"id": "2", "name": "a"}],

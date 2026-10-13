@@ -113,7 +113,7 @@ class IAMConfig(AppConfig):
         self._do_auto_migration(migration_cfg)
 
     def _do_auto_migration(self, migration_cfg: dict) -> None:
-        from bkmonitor.iam.handlers.permission import Permission
+        from bkmonitor.iam.permission import Permission
 
         permission = Permission(username="iam_model", bk_tenant_id="system")
         allow_destructive = migration_cfg.get("allow_destructive", False)

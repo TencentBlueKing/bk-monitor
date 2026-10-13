@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from types import SimpleNamespace
 from unittest import mock
 
-from bkmonitor.iam.handlers.actions import canonicalize_action_id, get_legacy_action_ids
+from bkmonitor.iam.action import canonicalize_action_id, get_legacy_action_ids
 from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
 from iam_engine.core.requests import ResourceInstance
@@ -31,7 +31,7 @@ ACTIONS = [ActionEnum.MANAGE_RUM_APPLICATION, ActionEnum.VIEW_RUM_APPLICATION]
 @pytest.fixture(autouse=True)
 def product_request(monkeypatch):
     request = SimpleNamespace(user=SimpleNamespace(username="alice", tenant_id="system"), token=None, skip_check=False)
-    monkeypatch.setattr("bkmonitor.iam.handlers.drf.get_request", lambda **kwargs: request)
+    monkeypatch.setattr("bkmonitor.iam.drf.get_request", lambda **kwargs: request)
 
 
 def init_permission(instance, *args, **kwargs):
@@ -222,7 +222,7 @@ def test_list_application_resources_are_equivalent_for_share_token():
     permission.skip_check = False
 
     with mock.patch(
-        "bkmonitor.iam.handlers.permission.ApiAuthToken.objects.get",
+        "bkmonitor.iam.permission.ApiAuthToken.objects.get",
         return_value=SimpleNamespace(type="rum"),
     ):
         old_result = permission.batch_is_allowed(ACTIONS, old_resources)

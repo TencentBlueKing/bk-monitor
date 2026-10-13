@@ -794,10 +794,8 @@ def test_middleware_routes_unified_execute_permission_from_inner_tool(monkeypatc
             captured["bk_biz_id"] = request.biz_id
             return True
 
-    monkeypatch.setattr(
-        "bkmonitor.iam.handlers.actions.get_action_by_id", lambda action_id: SimpleNamespace(id=action_id)
-    )
-    monkeypatch.setattr("bkmonitor.iam.handlers.drf.MCPPermission", FakeMCPPermission)
+    monkeypatch.setattr("bkmonitor.iam.action.get_action_by_id", lambda action_id: SimpleNamespace(id=action_id))
+    monkeypatch.setattr("bkmonitor.iam.drf.MCPPermission", FakeMCPPermission)
     monkeypatch.setattr(AuthenticationMiddleware, "_report_mcp_metric", lambda *_args, **_kwargs: None)
 
     request = RequestFactory().post(

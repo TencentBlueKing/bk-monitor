@@ -28,8 +28,8 @@ from bk_dataview.permissions import GrafanaRole
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.handlers.drf import filter_data_by_permission
-from bkmonitor.iam.handlers.resources import ResourceEnum
+from bkmonitor.iam.drf import filter_data_by_permission
+from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import StrategyModel
 from bkmonitor.models.base import Shield
 from bkmonitor.models.home import HomeAlarmGraphConfig

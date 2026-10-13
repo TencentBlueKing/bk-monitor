@@ -20,7 +20,7 @@ from bkmonitor.action.utils import (
 )
 from bkmonitor.documents import ActionInstanceDocument
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.handlers.drf import BusinessActionPermission, IAMPermission
+from bkmonitor.iam.drf import BusinessActionPermission, IAMPermission
 from bkmonitor.models import ActionConfig, ActionPlugin, StrategyActionConfigRelation
 from constants.action import GLOBAL_BIZ_ID, ActionDisplayStatus
 from core.drf_resource import resource

@@ -23,9 +23,9 @@ from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQ
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGuard
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import Permission
-from bkmonitor.iam.handlers.actions import ActionEnum, ActionMeta
-from bkmonitor.iam.handlers.drf import filter_data_by_permission
-from bkmonitor.iam.handlers.resources import ResourceEnum
+from bkmonitor.iam.action import ActionEnum, ActionMeta
+from bkmonitor.iam.drf import filter_data_by_permission
+from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import StrategyModel
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.utils.thread_backend import ThreadPool

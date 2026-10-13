@@ -456,8 +456,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
         MCP请求已经通过API网关认证，这里只需要额外的MCP权限校验
         """
         # 导入放在这里避免循环依赖
-        from bkmonitor.iam.handlers.actions import get_action_by_id
-        from bkmonitor.iam.handlers.drf import MCPPermission
+        from bkmonitor.iam.action import get_action_by_id
+        from bkmonitor.iam.drf import MCPPermission
         from constants.mcp import get_mcp_permission_action_by_server_name
         from kernel_api.unified_mcp.registry import native_tool_names
 

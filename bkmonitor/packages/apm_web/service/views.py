@@ -29,7 +29,7 @@ from apm_web.service.resources import (
 )
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission, ViewBusinessPermission, insert_permission_field
+from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission, insert_permission_field
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 

@@ -16,7 +16,7 @@ from iam.auth.models import ApiBatchAuthResourceWithPath, Subject
 from iam.exceptions import AuthAPIError
 
 from bkmonitor.iam import Permission, ResourceEnum
-from bkmonitor.iam.handlers.actions import ActionMeta
+from bkmonitor.iam.action import ActionMeta
 from constants.common import DEFAULT_TENANT_ID
 
 

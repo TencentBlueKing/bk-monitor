@@ -22,7 +22,7 @@ from django.template import Context, Template
 from rest_framework import permissions
 
 from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.iam.handlers.drf import BusinessActionPermission, IAMPermission
+from bkmonitor.iam.drf import BusinessActionPermission, IAMPermission
 from bkmonitor.models import EventPluginV2
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet

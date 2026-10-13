@@ -48,7 +48,7 @@ import os
 import pytest
 
 from bkmonitor.iam import Permission, ResourceEnum
-from bkmonitor.iam.handlers.actions import ActionEnum
+from bkmonitor.iam.action import ActionEnum
 
 pytestmark = [
     pytest.mark.live,

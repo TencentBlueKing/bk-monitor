@@ -11,7 +11,7 @@ from iam_engine.core.types import (
 )
 from iam_engine.core.exceptions import InvalidAuthModeError
 from iam_engine.exceptions import ProviderUnavailable
-from bkmonitor.iam.handlers.permission import Permission
+from bkmonitor.iam.permission import Permission
 from iam_engine.provider.requests import (
     ApplyURLRequest,
     AuthRequest,

@@ -41,14 +41,7 @@ class ResourceFinder(BaseFinder):
             app_names = set(app_names)
             app_configs = [ac for ac in app_configs if ac.name in app_names]
 
-        app_configs = list(app_configs)
         for app_config in app_configs:
-            # Parent apps are scanned recursively. Scanning a nested app again
-            # registers the same resources under a second, truncated module path.
-            if any(
-                app_config.path.startswith(parent.path + os.sep) for parent in app_configs if parent is not app_config
-            ):
-                continue
             self.resource_path += self.find(app_config.path, root_path=os.path.dirname(app_config.path))
             app_path_directories.append(app_config.path)
 

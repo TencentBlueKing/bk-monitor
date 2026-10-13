@@ -25,7 +25,7 @@ _CATALOG_LIST = "bkmonitor.iam.handlers.catalog.list_instances"
 
 
 def _mock_fw_with_v4(v4_provider) -> MagicMock:
-    from bkmonitor.iam.handlers.permission import Permission as RealPermission
+    from bkmonitor.iam.permission import Permission as RealPermission
 
     mock_fw = MagicMock()
     mock_fw.schema = RealPermission(username="offline", bk_tenant_id="system").schema
@@ -459,7 +459,7 @@ class TestRealFrameworkQueryV4:
         username = __import__("os").environ.get("IAM_V4_TEST_USER", "admin")
         tenant_id = __import__("os").environ.get("IAM_V4_TENANT_ID", "system")
 
-        from bkmonitor.iam.handlers.permission import Permission
+        from bkmonitor.iam.permission import Permission
 
         if "v4" not in Permission(username="offline", bk_tenant_id="system").providers:
             pytest.skip("Permission 未装配 V4 backend（V4 网关未配置）")
@@ -523,7 +523,7 @@ class TestRealFrameworkQueryV4:
         tenant_id = __import__("os").environ.get("IAM_V4_TENANT_ID", "system")
         space_id = __import__("os").environ.get("IAM_V4_TEST_SPACE_ID", "2")
 
-        from bkmonitor.iam.handlers.permission import Permission
+        from bkmonitor.iam.permission import Permission
 
         if "v4" not in Permission(username="offline", bk_tenant_id="system").providers:
             pytest.skip("Permission 未装配 V4 backend（V4 网关未配置）")

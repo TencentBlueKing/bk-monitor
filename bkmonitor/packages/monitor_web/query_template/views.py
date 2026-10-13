@@ -19,7 +19,7 @@ from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.handlers.drf import BusinessActionPermission
+from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.models.query_template import QueryTemplate
 from bkmonitor.query_template.core import QueryTemplateWrapper
 from constants.query_template import GLOBAL_BIZ_ID

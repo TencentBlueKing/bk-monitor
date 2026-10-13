@@ -103,7 +103,7 @@ def main():
         settings.SAAS_APP_CODE = "offline-saas"
         settings.SAAS_SECRET_KEY = "offline-only"
         django.setup()
-        from bkmonitor.iam.handlers.permission import Permission
+        from bkmonitor.iam.permission import Permission
 
         permission = Permission(username="offline_user", bk_tenant_id="system")
         print(

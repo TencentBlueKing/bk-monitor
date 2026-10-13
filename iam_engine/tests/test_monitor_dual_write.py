@@ -121,7 +121,7 @@ def test_grant_failure_classification(error, kind):
 def test_read_mode_never_changes_actual_write_targets(providers, mode):
     from types import SimpleNamespace
     from iam_engine.core.config import AuthMode
-    from bkmonitor.iam.handlers.permission import Permission
+    from bkmonitor.iam.permission import Permission
     from iam import Resource
 
     legacy, current, _ = providers

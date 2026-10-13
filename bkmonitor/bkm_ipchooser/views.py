@@ -21,7 +21,7 @@ from bkm_ipchooser.serializers import (
     topo_sers,
 )
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.handlers.drf import BusinessActionPermission
+from bkmonitor.iam.drf import BusinessActionPermission
 
 try:
     from rest_framework.decorators import detail_route, list_route

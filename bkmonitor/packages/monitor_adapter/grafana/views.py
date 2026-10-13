@@ -32,7 +32,7 @@ from bk_dataview.api import get_or_create_org
 from bk_dataview.permissions import GrafanaRole
 from bk_dataview.views import ProxyView, StaticView, SwitchOrgView
 from bkm_space.api import SpaceApi
-from bkmonitor.iam.handlers.actions import ActionEnum
+from bkmonitor.iam.action import ActionEnum
 from bkmonitor.models.external_iam import ExternalPermission
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api

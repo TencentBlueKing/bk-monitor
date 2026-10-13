@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from bkmonitor.iam.handlers.actions import ActionEnum
-from bkmonitor.iam.handlers.drf import BusinessActionPermission
+from bkmonitor.iam.action import ActionEnum
+from bkmonitor.iam.drf import BusinessActionPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 

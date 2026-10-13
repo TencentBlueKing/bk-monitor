@@ -552,7 +552,7 @@ class TestActionCategories:
 
     def test_business_groups_structure(self):
         """验证 business_groups 覆盖所有 schema.all_actions()。"""
-        from bkmonitor.iam.handlers.permission import Permission
+        from bkmonitor.iam.permission import Permission
 
         fw = Permission(username="offline", bk_tenant_id="system")
         all_ids = {a.id for a in fw.schema.all_actions()}
@@ -609,7 +609,7 @@ class TestActionCategories:
     @staticmethod
     def _mock_backend_fw(provider_name: str, codec):
         """构造 mock 框架：schema 用真实注册表，backend 解析返回 mock provider。"""
-        from bkmonitor.iam.handlers.permission import Permission as RealPermission
+        from bkmonitor.iam.permission import Permission as RealPermission
 
         provider = MagicMock()
         provider.name = provider_name
@@ -662,7 +662,7 @@ class TestActionCategories:
 
     def test_business_groups_uncategorized_fallback(self):
         """验证未匹配硬编码分组的操作归入'其他'组并不丢失。"""
-        from bkmonitor.iam.handlers.permission import Permission
+        from bkmonitor.iam.permission import Permission
 
         fw = Permission(username="offline", bk_tenant_id="system")
         all_ids = {a.id for a in fw.schema.all_actions()}
@@ -690,7 +690,7 @@ class TestQueryUserPermissions:
     @patch("kernel_api.rpc.functions.admin.permission._v3.Permission")
     def test_batch_query_success(self, mock_get_fw, mock_enrich):
         """验证 query_user_permissions 通过 v3 provider 查询策略的完整流程。"""
-        from bkmonitor.iam.handlers.permission import Permission as RealPermission
+        from bkmonitor.iam.permission import Permission as RealPermission
 
         real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
 
@@ -791,7 +791,7 @@ class TestQueryUserPermissions:
     @patch("kernel_api.rpc.functions.admin.permission._v3.Permission")
     def test_framework_query_failure_fallback(self, mock_get_fw, mock_enrich):
         """批量查询失败时降级为逐条查询；逐条也失败时全部 error 且 warning 含 action_id。"""
-        from bkmonitor.iam.handlers.permission import Permission as RealPermission
+        from bkmonitor.iam.permission import Permission as RealPermission
 
         real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
         all_ids = {a.id for a in real_schema.all_actions()}
@@ -823,7 +823,7 @@ class TestQueryUserPermissions:
     @patch("kernel_api.rpc.functions.admin.permission._v3.Permission")
     def test_batch_failure_fallback_partial_success(self, mock_get_fw, mock_enrich):
         """批量失败 + 逐条部分成功：成功的 action 正常解析，失败的标 error。"""
-        from bkmonitor.iam.handlers.permission import Permission as RealPermission
+        from bkmonitor.iam.permission import Permission as RealPermission
 
         real_schema = RealPermission(username="offline", bk_tenant_id="system").schema
 

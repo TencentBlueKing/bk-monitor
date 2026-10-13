@@ -1,6 +1,6 @@
 """日志采集 MCP 路由共享的业务权限校验。"""
 
-from bkmonitor.iam.handlers.drf import BusinessActionPermission
+from bkmonitor.iam.drf import BusinessActionPermission
 
 
 class CanonicalBusinessActionPermission(BusinessActionPermission):

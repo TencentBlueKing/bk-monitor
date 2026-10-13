@@ -54,7 +54,7 @@ class _FakeResource:
 @pytest.fixture
 def fake_fw():
     """Control the product adapter boundary, without a framework singleton."""
-    from bkmonitor.iam.handlers.permission import Permission
+    from bkmonitor.iam.permission import Permission
 
     control = MagicMock()
     control.is_allowed.return_value = True
@@ -86,7 +86,7 @@ class TestIsAllowedProviderUnavailableFallback:
         mock_fw.is_allowed.side_effect = ProviderUnavailable("v4 down: base_url empty")
 
         perm = make_permission()
-        with caplog.at_level("ERROR", logger="bkmonitor.iam.handlers.permission"):
+        with caplog.at_level("ERROR", logger="bkmonitor.iam.permission"):
             result = perm.is_allowed("view_business", raise_exception=False)
 
         assert result is False
@@ -131,7 +131,7 @@ class TestBatchIsAllowedProviderUnavailableFallback:
         mock_fw.batch_by_resource.side_effect = ProviderUnavailable("v4 down")
 
         perm = make_permission()
-        with caplog.at_level("ERROR", logger="bkmonitor.iam.handlers.permission"):
+        with caplog.at_level("ERROR", logger="bkmonitor.iam.permission"):
             result = perm.batch_is_allowed(
                 actions=["view_business"],
                 resources=[[_FakeResource("space", "2")], [_FakeResource("space", "3")]],
@@ -182,7 +182,7 @@ class TestGetApplyUrlProviderUnavailableFallback:
         mock_fw.get_apply_url.side_effect = ProviderUnavailable("v4 down")
 
         perm = make_permission()
-        with caplog.at_level("ERROR", logger="bkmonitor.iam.handlers.permission"):
+        with caplog.at_level("ERROR", logger="bkmonitor.iam.permission"):
             url = perm.get_apply_url(["view_business"], resources=[_FakeResource("space", "2")])
 
         assert url == ""
@@ -199,7 +199,7 @@ class TestGetApplyDataProviderUnavailableFallback:
     def test_native_application_failure_returns_safe_pair(self, error):
         from types import SimpleNamespace
         from django.conf import settings
-        from bkmonitor.iam.handlers.permission import Permission
+        from bkmonitor.iam.permission import Permission
         from iam_engine.core.config import AuthMode
 
         permission = Permission(username="tester", bk_tenant_id="system")

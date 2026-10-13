@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.handlers.drf import IAMPermission
+from bkmonitor.iam.drf import IAMPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from monitor_web.models.collecting import CollectConfigMeta

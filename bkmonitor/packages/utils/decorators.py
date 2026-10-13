@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import functools
 
 from bkmonitor.iam import Permission
-from bkmonitor.iam.handlers.actions import ActionMeta
+from bkmonitor.iam.action import ActionMeta
 from bkmonitor.utils.common_utils import fetch_biz_id_from_dict
 
 

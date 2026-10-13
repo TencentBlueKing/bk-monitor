@@ -123,13 +123,13 @@ def test_missing_saas_identity_never_falls_back_to_backend():
 
 
 def test_v3_callback_defers_saas_lookup_until_client_is_used():
-    from bkmonitor.iam.handlers.permission import Permission
+    from bkmonitor.iam.permission import Permission
 
     with override_settings(SAAS_APP_CODE="", SAAS_SECRET_KEY=""):
         with patch("bkmonitor.models.config.GlobalConfig.get", side_effect=AssertionError("eager credential read")):
             client = Permission.get_iam_client("tenant-a")
     with override_settings(SAAS_APP_CODE="saas-app", SAAS_SECRET_KEY="saas-secret"):
-        with patch("bkmonitor.iam.handlers.permission.V3Client") as constructor:
+        with patch("bkmonitor.iam.permission.V3Client") as constructor:
             client.health_check()
     assert constructor.call_args.args[:2] == ("saas-app", "saas-secret")
     assert constructor.call_args.kwargs["bk_tenant_id"] == "tenant-a"

@@ -13,7 +13,7 @@ from rest_framework import permissions
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from bkmonitor.iam import ActionEnum, Permission
-from bkmonitor.iam.handlers.drf import IAMPermission
+from bkmonitor.iam.drf import IAMPermission
 from bkmonitor.utils.tenant import is_biz_in_tenant
 
 

@@ -62,7 +62,7 @@ from apm_web.meta.resources import (
 )
 from apm_web.models import Application, ApplicationCustomService
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.handlers.drf import (
+from bkmonitor.iam.drf import (
     IAMPermission,
     InstanceActionForDataPermission,
     InstanceActionPermission,

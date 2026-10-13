@@ -77,7 +77,7 @@ def test_model_registration_command_uses_permission_and_read_only_recorder(monke
 
     from django.core.management import call_command
 
-    from bkmonitor.iam.handlers.permission import Permission
+    from bkmonitor.iam.permission import Permission
     from iam_engine.schema.diff import MigrationPlan, MigrationReport
 
     permission = Permission(username="offline", bk_tenant_id="system")

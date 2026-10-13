@@ -5,7 +5,7 @@ from collections.abc import Callable
 from django.utils.functional import cached_property
 
 from api.cmdb.define import Business
-from bkmonitor.iam.handlers.actions import ActionMeta
+from bkmonitor.iam.action import ActionMeta
 from bkmonitor.utils.request import get_request_username
 from core.drf_resource import api, resource
 

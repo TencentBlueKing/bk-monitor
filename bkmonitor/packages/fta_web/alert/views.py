@@ -15,7 +15,7 @@ from rest_framework.viewsets import ModelViewSet
 
 from bkmonitor.documents import ActionInstanceDocument, AlertDocument
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.handlers.drf import BusinessActionPermission
+from bkmonitor.iam.drf import BusinessActionPermission
 from bkmonitor.views.renderers import PlainTextRenderer
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet

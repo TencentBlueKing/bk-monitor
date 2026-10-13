@@ -12,7 +12,7 @@ from types import SimpleNamespace
 from unittest import TestCase, mock
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.handlers.drf import BusinessActionPermission
+from bkmonitor.iam.drf import BusinessActionPermission
 
 
 class TestBusinessActionPermissionBizId(TestCase):
@@ -29,8 +29,8 @@ class TestBusinessActionPermissionBizId(TestCase):
             skip_check=False,
         )
 
-    @mock.patch("bkmonitor.iam.handlers.drf.is_biz_in_tenant", return_value=True)
-    @mock.patch("bkmonitor.iam.handlers.drf.Permission")
+    @mock.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True)
+    @mock.patch("bkmonitor.iam.drf.Permission")
     def _check(self, request, perm_cls, _in_tenant):
         perm_cls.return_value._is_allowed_request.return_value = True
         permission = BusinessActionPermission([ActionEnum.VIEW_BUSINESS])

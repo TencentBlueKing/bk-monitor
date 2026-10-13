@@ -12,7 +12,7 @@ from monitor_web.grafana import permissions as grafana
 
 @pytest.mark.parametrize("mode", ["v3", "v4", "union"])
 def test_product_contract_expands_folder_for_dashboard_only_candidates(monkeypatch, mode):
-    from bkmonitor.iam.handlers.permission import Permission
+    from bkmonitor.iam.permission import Permission
     from bkmonitor.iam.backends.v3.provider import V3PermissionProvider
     from iam_engine.core.config import AuthMode
     from iam_engine.policy.expression import Op, PolicyExpression

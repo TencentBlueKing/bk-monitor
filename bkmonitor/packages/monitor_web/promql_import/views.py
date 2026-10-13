@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 from monitor_web.grafana.permissions import GrafanaWritePermission
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.handlers.drf import BusinessActionPermission, ViewBusinessPermission
+from bkmonitor.iam.drf import BusinessActionPermission, ViewBusinessPermission
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 

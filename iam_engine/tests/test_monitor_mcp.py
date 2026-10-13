@@ -7,7 +7,7 @@ from iam import Action, Request, Resource, Subject as SDKSubject
 from iam_engine.core.config import AuthMode
 from iam_engine.core.types import AuthResult
 from bkmonitor.iam.handlers.mcp import MonitorMCPClient
-from bkmonitor.iam.handlers.permission import Permission
+from bkmonitor.iam.permission import Permission
 from iam_engine.exceptions import ProviderUnavailable
 
 

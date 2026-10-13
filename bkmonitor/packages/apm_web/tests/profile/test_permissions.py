@@ -23,7 +23,7 @@ from apm_web.profile.serializers import (
     ProfileQueryLabelValuesSerializer,
 )
 from apm_web.profile.views import ProfileQueryViewSet, ProfileUploadViewSet
-from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission, ViewBusinessPermission
+from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
 
 BK_BIZ_ID = 2
 OTHER_BK_BIZ_ID = 3

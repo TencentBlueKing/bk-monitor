@@ -24,7 +24,7 @@ from bk_dataview.models import Dashboard
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space, SpaceTypeEnum
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
-from bkmonitor.iam.handlers.resources import ApmApplication
+from bkmonitor.iam.resource import ApmApplication
 from bkmonitor.models.external_iam import (
     ExternalPermission,
     ExternalPermissionApplyRecord,

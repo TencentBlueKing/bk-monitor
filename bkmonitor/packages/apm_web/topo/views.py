@@ -20,7 +20,7 @@ from apm_web.topo.resources import (
     TopoViewResource,
 )
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission
+from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 

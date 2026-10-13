@@ -28,7 +28,7 @@ from bkmonitor.iam.backends.config import build_provider
 from unittest.mock import MagicMock, patch
 
 
-from bkmonitor.iam.handlers.resources import ApmApplication, Business, GrafanaDashboard, ResourceEnum, RumApplication
+from bkmonitor.iam.resource import ApmApplication, Business, GrafanaDashboard, ResourceEnum, RumApplication
 from iam_engine.provider.requests import ResourceInstance
 
 
@@ -94,7 +94,7 @@ class TestRemovedInterfaces:
     """旧版接口移除项显式记录（review 发现项）。"""
 
     def test_removed_class_attributes(self):
-        import bkmonitor.iam.handlers.resources as resource_module
+        import bkmonitor.iam.resource as resource_module
 
         for attr in (
             "system_id",

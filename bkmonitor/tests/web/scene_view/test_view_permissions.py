@@ -14,8 +14,8 @@ import pytest
 from django.urls import resolve
 
 from bkmonitor.iam import ActionEnum
-from bkmonitor.iam.handlers.drf import BusinessActionPermission
-from bkmonitor.iam.handlers.permission import ActionIdMap
+from bkmonitor.iam.drf import BusinessActionPermission
+from bkmonitor.iam.permission import ActionIdMap
 from bkmonitor.models import ApiAuthToken, AuthType
 
 

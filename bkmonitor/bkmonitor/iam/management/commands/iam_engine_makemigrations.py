@@ -21,7 +21,7 @@ from datetime import datetime
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from bkmonitor.iam.handlers.permission import Permission
+from bkmonitor.iam.permission import Permission
 from iam_engine.model.diff import diff_snapshots
 from iam_engine.model.loader import MigrationLoader
 

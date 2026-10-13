@@ -19,7 +19,7 @@ from apm_web.llm.resources import (
 )
 from apm_web.models import Application
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission
+from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 
 

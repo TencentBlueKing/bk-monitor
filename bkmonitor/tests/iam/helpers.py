@@ -2,7 +2,7 @@
 
 from types import SimpleNamespace
 
-from bkmonitor.iam.handlers.permission import Permission
+from bkmonitor.iam.permission import Permission
 from iam_engine.core.config import AuthMode
 
 

@@ -6,7 +6,7 @@ import pytest
 from apm_web.decorators import user_visit_record
 from apm_web.llm.views import LLMViewSet
 from bkmonitor.iam import ActionEnum, ResourceEnum
-from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission
+from bkmonitor.iam.drf import InstanceActionForDataPermission
 from core.errors.iam import PermissionDeniedError
 
 
@@ -43,7 +43,7 @@ def test_list_traces_and_calculate_by_range_record_user_visits():
 
 
 @pytest.mark.parametrize("allowed", [True, False])
-@mock.patch("bkmonitor.iam.handlers.drf.Permission")
+@mock.patch("bkmonitor.iam.drf.Permission")
 @mock.patch("apm_web.llm.views.Application.get_application_id_by_app_name", return_value=9)
 def test_apm_application_permission_result(get_application_id, permission_mock, allowed):
     if allowed:

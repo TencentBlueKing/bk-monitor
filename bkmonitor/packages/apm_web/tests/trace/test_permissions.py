@@ -14,7 +14,7 @@ from rest_framework.parsers import JSONParser
 from rest_framework.test import APIRequestFactory
 
 from apm_web.trace.views import TraceQueryViewSet
-from bkmonitor.iam.handlers.drf import InstanceActionForDataPermission, ViewBusinessPermission
+from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
 
 BK_BIZ_ID = 2
 

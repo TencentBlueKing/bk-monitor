@@ -39,7 +39,7 @@ def test_products_reference_same_common_source():
 
 
 def test_monitor_native_provider_assembly_has_no_intermediate_adapters():
-    from bkmonitor.iam.handlers.permission import Permission
+    from bkmonitor.iam.permission import Permission
     from bkmonitor.iam.backends.v4.client import V4Client as MonitorV4Client
     from iam_engine.core.config import AuthMode
     from iam_engine.provider.router import ModeRouter

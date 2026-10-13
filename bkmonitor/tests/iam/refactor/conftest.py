@@ -358,7 +358,7 @@ def v3_provider_factory(real_schema):
 @pytest.fixture
 def installed_permission(real_schema, monkeypatch):
     """Inject backend dependencies into the real product Permission."""
-    from bkmonitor.iam.handlers import permission as module
+    from bkmonitor.iam import permission as module
 
     class Installer:
         def build(self, providers, schema=None):
@@ -491,7 +491,7 @@ def live_framework():
 
     仅查询类接口会被用例调用；本 fixture 本身不触发任何写操作。
     """
-    from bkmonitor.iam.handlers.permission import Permission
+    from bkmonitor.iam.permission import Permission
 
     return Permission(username=os.getenv("BK_IAM_ENGINE_USER", "offline"), bk_tenant_id="system")
 

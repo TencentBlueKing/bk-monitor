@@ -13,7 +13,7 @@ from django.conf import settings
 from django.urls import include, re_path
 
 from bkmonitor.iam.views.resources_v4 import MonitorV4ResourceCallbackView
-from bkmonitor.iam.handlers.permission import Permission
+from bkmonitor.iam.permission import Permission
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.routers import ResourceRouter
 from monitor_web.iam import views
