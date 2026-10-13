@@ -1,32 +1,62 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { markRaw } from 'vue';
+
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
 import { PromqlQueryController } from './controller';
-import { getSourceQueries, type PromqlQuery, type PromqlSourceData } from './model';
+import { type PromqlQuery, type PromqlSourceData, getSourceQueries } from './model';
 
 import './promql-query-editor.scss';
 
-interface Props {
-  sourceData: PromqlSourceData;
-  expression: string;
-  readonly?: boolean;
-  loading?: boolean;
-}
+/** 覆盖 promql-editor 默认代码样式，对齐设计稿字号 12px / 行高 22px。 */
+const EDITOR_OPTIONS = { fontSize: 12, lineHeight: 22 };
 
 interface Events {
-  onQueriesChange: PromqlQuery[];
-  onExpressionChange: string;
-  onExpressionBlur: string;
-  onStepChange: number;
-  onExecute: boolean;
   onBlur: boolean;
+  onExecute: boolean;
+  onExpressionBlur: string;
+  onExpressionChange: string;
+  onQueriesChange: PromqlQuery[];
+  onStepChange: number;
+}
+
+interface Props {
+  expression: string;
+  loading?: boolean;
+  readonly?: boolean;
+  sourceData: PromqlSourceData;
 }
 
 @Component({
   components: {
-    PromqlMonacoEditor: () => import(/* webpackChunkName: 'PromqlMonacoEditor' */ '../../../../components/promql-editor/promql-editor'),
+    PromqlMonacoEditor: () =>
+      import(/* webpackChunkName: 'PromqlMonacoEditor' */ '../../../../components/promql-editor/promql-editor'),
   },
 })
 export default class PromqlQueryEditor extends tsc<Props, Events> {
@@ -39,29 +69,41 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
   validationShown = false;
   deletingAlias = '';
   deletedAlias = '';
+  addedAlias = '';
 
   get queries() {
     return getSourceQueries(this.sourceData);
   }
 
   get effectiveExpression() {
-    return this.expression || (this.queries.length === 1 ? this.queries[0].alias : '');
+    return this.controller.effectiveExpression(this.sourceData, this.expression);
   }
 
   get isReadonly() {
     return this.readonly || this.sourceData.legacyMultiQuery;
   }
 
+  /** immediate 错误无需等待提交校验即可展示，其余错误在失焦或执行后才提示。 */
   get validationError() {
-    return this.validationShown ? this.controller.validate(this.sourceData, this.effectiveExpression) : null;
+    const error = this.controller.validate(this.sourceData, this.expression);
+    return this.validationShown || error?.immediate ? error : null;
   }
 
   get hint() {
     if (this.validationError) {
-      if (this.deletedAlias && this.controller.analyzeExpression(this.effectiveExpression).aliases.includes(this.deletedAlias)) {
-        return this.$t('查询 {alias} 已删除，表达式仍引用它。请修改表达式后再查询或提交。', { alias: this.deletedAlias });
+      if (
+        this.deletedAlias &&
+        !this.queries.some(query => query.alias === this.deletedAlias) &&
+        this.controller.analyzeExpression(this.effectiveExpression).aliases.includes(this.deletedAlias)
+      ) {
+        return this.$t('查询 {alias} 已删除，表达式仍引用 {alias}。请修改表达式后再查询或提交。', {
+          alias: this.deletedAlias,
+        });
       }
       return this.$t(this.validationError.message, this.validationError.params || {});
+    }
+    if (this.queries.some(query => query.alias === this.addedAlias)) {
+      return this.$t('新增查询 {alias}；填写后可在表达式中引用，原表达式保持不变。', { alias: this.addedAlias });
     }
     return this.queries.length === 1
       ? this.$t('单查询默认使用 {alias} 的结果；可继续添加查询并设置表达式。', { alias: this.queries[0].alias })
@@ -75,13 +117,17 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
 
   handleQueryChange(alias: string, promql: string) {
     if (this.isReadonly) return;
-    this.$emit('queriesChange', this.queries.map(query => {
-      if (query.alias !== alias || query.promql === promql) return query;
-      const updatedQuery = { ...query, promql };
-      // metric_id 由后端按 PromQL 生成，编辑后不能继续使用旧值。
-      delete updatedQuery.metric_id;
-      return updatedQuery;
-    }));
+    this.$emit(
+      'queriesChange',
+      this.queries.map(query => {
+        if (query.alias !== alias || query.promql === promql) return query;
+        if (alias === this.addedAlias) this.addedAlias = '';
+        const updatedQuery = { ...query, promql };
+        // metric_id 由后端按 PromQL 生成，编辑后不能继续使用旧值。
+        delete updatedQuery.metric_id;
+        return updatedQuery;
+      })
+    );
   }
 
   handleAdd() {
@@ -90,6 +136,7 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
     if (!alias) return;
     this.validationShown = false;
     this.$emit('queriesChange', [...this.queries, { alias, promql: '' }]);
+    this.addedAlias = alias;
   }
 
   handleDelete(alias: string) {
@@ -103,9 +150,13 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
 
   removeQuery(alias: string) {
     if (this.isReadonly || this.queries.length <= 1) return;
-    this.$emit('queriesChange', this.queries.filter(query => query.alias !== alias));
+    this.$emit(
+      'queriesChange',
+      this.queries.filter(query => query.alias !== alias)
+    );
     this.deletedAlias = alias;
     this.deletingAlias = '';
+    this.addedAlias = '';
     this.validationShown = true;
   }
 
@@ -122,27 +173,39 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
             {this.$t('历史多 PromQL 查询配置仅可查看；其他策略设置可正常保存。查询请通过 API 或 as-code 修改。')}
           </div>
         )}
-        {!this.loading && this.queries.map(query => (
-          <div key={query.alias} class='source-query'>
-            <div class='source-query-title'>
-              <span>{query.alias}{'  PromQL'}</span>
-              {!this.isReadonly && (
-                <bk-button text disabled={this.queries.length <= 1} onClick={() => this.handleDelete(query.alias)}>
-                  {this.$t('删除')}
-                </bk-button>
-              )}
+        {!this.loading &&
+          this.queries.map(query => (
+            <div
+              key={query.alias}
+              class='source-query'
+            >
+              <div class='source-query-title'>
+                <span>
+                  {query.alias}
+                  {'  PromQL'}
+                </span>
+                {!this.isReadonly && (
+                  <bk-button
+                    disabled={this.queries.length <= 1}
+                    text
+                    onClick={() => this.handleDelete(query.alias)}
+                  >
+                    {this.$t('删除')}
+                  </bk-button>
+                )}
+              </div>
+              <promql-monaco-editor
+                executeQuery={() => this.$emit('execute', !this.validate())}
+                isError={this.validationError?.aliases?.includes(query.alias)}
+                minHeight={80}
+                options={EDITOR_OPTIONS}
+                readonly={this.isReadonly}
+                value={query.promql}
+                onBlur={this.handleBlur}
+                onChange={(value: string) => this.handleQueryChange(query.alias, value)}
+              />
             </div>
-            <promql-monaco-editor
-              minHeight={80}
-              readonly={this.isReadonly}
-              value={query.promql}
-              isError={this.validationError?.aliases?.includes(query.alias)}
-              executeQuery={() => this.$emit('execute', !this.validate())}
-              onChange={(value: string) => this.handleQueryChange(query.alias, value)}
-              onBlur={this.handleBlur}
-            />
-          </div>
-        ))}
+          ))}
         <div class='source-expression-row'>
           <span class='source-expression-label'>{this.$t('表达式')}</span>
           <bk-input
@@ -150,49 +213,81 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
             behavior='simplicity'
             readonly={this.isReadonly}
             value={this.effectiveExpression}
-            onChange={(value: string) => this.$emit('expressionChange', value)}
             onBlur={() => {
               this.validate();
               this.$emit('expressionBlur', this.effectiveExpression);
             }}
+            onChange={(value: string) => this.$emit('expressionChange', value)}
             onEnter={() => this.$emit('execute', !this.validate())}
           />
           {!this.isReadonly && (
-            <bk-button class='source-add-query' disabled={!this.controller.nextAlias(this.queries)} onClick={this.handleAdd}>
+            <bk-button
+              class='source-add-query'
+              disabled={!this.controller.nextAlias(this.queries)}
+              onClick={this.handleAdd}
+            >
               {this.$t('添加查询')}
             </bk-button>
           )}
         </div>
-        {!this.isReadonly && <div class={['source-expression-hint', { 'is-error': !!this.validationError }]}>{this.hint}</div>}
+        {!this.isReadonly && (
+          <div class={['source-expression-hint', { 'is-error': !!this.validationError }]}>{this.hint}</div>
+        )}
         <bk-input
           class='source-step-input'
-          type='number'
+          disabled={this.isReadonly}
           min={10}
           precision={0}
-          disabled={this.isReadonly}
+          type='number'
           value={this.sourceData.step}
           onChange={(value: number) => this.$emit('stepChange', value)}
         >
-          <div class='source-step-label' slot='prepend'>
+          <div
+            class='source-step-label'
+            slot='prepend'
+          >
             <span>Step</span>
-            <AIWhaleIcon content='Step' tip={this.$t('数据步长').toString()} type='explanation' />
+            <AIWhaleIcon
+              content='Step'
+              tip={this.$t('数据步长').toString()}
+              type='explanation'
+            />
           </div>
         </bk-input>
         <bk-dialog
-          value={!!this.deletingAlias}
-          title={this.$t('删除查询 {alias}？', { alias: this.deletingAlias })}
           width={480}
-          header-position='left'
           ext-cls='strategy-promql-delete-dialog'
-          onCancel={() => { this.deletingAlias = ''; }}
+          header-position='left'
+          title={this.$t('删除查询 {alias}？', { alias: this.deletingAlias })}
+          value={!!this.deletingAlias}
+          onCancel={() => {
+            this.deletingAlias = '';
+          }}
         >
           <div class='source-delete-message'>
-            <p>{this.$t('查询 {alias} 正被表达式 {expression} 引用。', { alias: this.deletingAlias, expression: this.effectiveExpression })}</p>
+            <p>
+              {this.$t('查询 {alias} 正被表达式 {expression} 引用。', {
+                alias: this.deletingAlias,
+                expression: this.effectiveExpression,
+              })}
+            </p>
             <p>{this.$t('删除后需修正表达式；其他查询的别名不会改变。')}</p>
           </div>
           <div slot='footer'>
-            <bk-button onClick={() => { this.deletingAlias = ''; }}>{this.$t('取消')}</bk-button>
-            <bk-button outline theme='danger' onClick={() => this.removeQuery(this.deletingAlias)}>
+            <bk-button
+              class='source-delete-cancel'
+              onClick={() => {
+                this.deletingAlias = '';
+              }}
+            >
+              {this.$t('取消')}
+            </bk-button>
+            <bk-button
+              class='source-delete-confirm'
+              theme='danger'
+              outline
+              onClick={() => this.removeQuery(this.deletingAlias)}
+            >
               {this.$t('删除并修改公式')}
             </bk-button>
           </div>

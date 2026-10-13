@@ -26,6 +26,7 @@
  */
 
 import { markRaw } from 'vue';
+
 import { Component, Emit, Inject, Prop, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -61,8 +62,16 @@ import IntelligentModelsStore, { type IntelligentModelsType } from '../../../sto
 import CommonNavBar from '../../monitor-k8s/components/common-nav-bar';
 import { HANDLE_HIDDEN_SETTING } from '../../nav-tools';
 import { PromqlQueryController } from '../strategy-config-common/promql-query/controller';
-import { createPromqlSourceData, getSourceQueries, type PromqlQuery } from '../strategy-config-common/promql-query/model';
-import { buildPromqlItem, convertFormToPromql, convertPromqlToForm } from '../strategy-config-common/promql-query/service';
+import {
+  type PromqlQuery,
+  createPromqlSourceData,
+  getSourceQueries,
+} from '../strategy-config-common/promql-query/model';
+import {
+  buildPromqlItem,
+  convertFormToPromql,
+  convertPromqlToForm,
+} from '../strategy-config-common/promql-query/service';
 import { transformLogMetricId } from '../strategy-config-detail/utils';
 import StrategyView from '../strategy-config-set/strategy-view/strategy-view';
 import { type IValue as IAlarmItem, type IAllDefense, actionConfigGroupList } from './alarm-handling/alarm-handling';
@@ -676,7 +685,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
             60;
           this.monitorDataEditMode = 'Source';
           const sourceQueryConfigs = metric.query_configs?.length ? metric.query_configs : metric.data || [];
-          this.sourceData = createPromqlSourceData(sourceQueryConfigs, metric.expression, metric.origin_sql ?? promql, step);
+          this.sourceData = createPromqlSourceData(
+            sourceQueryConfigs,
+            metric.expression,
+            metric.origin_sql ?? promql,
+            step
+          );
           this.expression = metric.expression || this.sourceData.queryConfigs[0]?.alias || 'a';
           this.localExpress = this.expression;
           return;
@@ -2426,11 +2440,10 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
     if (!this.sourceData.sourceCode) return;
     const requestId = ++this.sourceConversionId;
     this.monitorDataLoading = true;
-    const res = await convertPromqlToForm(this.sourceData.sourceCode, this.sourceData.step)
-      .catch(err => {
-        if (requestId !== this.sourceConversionId) return;
-        this.sourceData.errorMsg = err.data?.message || err.message || '';
-      });
+    const res = await convertPromqlToForm(this.sourceData.sourceCode, this.sourceData.step).catch(err => {
+      if (requestId !== this.sourceConversionId) return;
+      this.sourceData.errorMsg = err.data?.message || err.message || '';
+    });
     if (requestId !== this.sourceConversionId) return;
     if (!res?.query_configs?.length) {
       this.monitorDataLoading = false;
@@ -2503,7 +2516,12 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
         }, 0);
       });
     if (!res) return false;
-    this.sourceData = createPromqlSourceData([{ alias: 'a', promql: res.promql }], 'a', res.promql, this.sourceData.step);
+    this.sourceData = createPromqlSourceData(
+      [{ alias: 'a', promql: res.promql }],
+      'a',
+      res.promql,
+      this.sourceData.step
+    );
     this.expression = 'a';
     this.localExpress = 'a';
     return res;

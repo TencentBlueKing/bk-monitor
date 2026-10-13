@@ -40,7 +40,6 @@ import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import { handleSetTargetDesc as getTargetDesc } from '../../common';
-import type { PromqlQuery } from '../../strategy-config-common/promql-query/model';
 import PromqlQueryEditor from '../../strategy-config-common/promql-query/promql-query-editor';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
@@ -48,6 +47,7 @@ import { type dataModeType, type EditModeType, type MetricDetail, MetricType } f
 import MonitorDataInput from './monitor-data-input';
 
 import type { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
+import type { PromqlQuery } from '../../strategy-config-common/promql-query/model';
 import type { IFunctionsValue } from './function-select';
 import type { TranslateResult } from 'vue-i18n';
 
@@ -692,21 +692,21 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
           ) : (
             <PromqlQueryEditor
               ref='sourceEditor'
-              expression={this.expression}
-              loading={this.loading}
-              readonly={this.readonly}
               sourceData={{
                 sourceCode: this.source,
                 queryConfigs: this.sourceQueries,
                 step: this.sourceStep,
                 legacyMultiQuery: this.legacyMultiQuery,
               }}
-              onQueriesChange={queries => this.$emit('sourceQueriesChange', queries)}
-              onExpressionChange={value => this.$emit('sourceExpressionChange', value)}
-              onExpressionBlur={this.handleExpressionBlur}
-              onStepChange={this.handleSourceStepChange}
-              onExecute={this.handlePromqlEnter}
+              expression={this.expression}
+              loading={this.loading}
+              readonly={this.readonly}
               onBlur={this.handlePromqlBlur}
+              onExecute={this.handlePromqlEnter}
+              onExpressionBlur={this.handleExpressionBlur}
+              onExpressionChange={value => this.$emit('sourceExpressionChange', value)}
+              onQueriesChange={queries => this.$emit('sourceQueriesChange', queries)}
+              onStepChange={this.handleSourceStepChange}
             />
           )}
           {this.supportSource && this.errMsg ? <div class='monitor-err-msg'>{this.errMsg}</div> : undefined}
@@ -778,19 +778,28 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         </div>
         {this.metricData.some(item => item.canSetTarget) && this.ipSelect()}
         <bk-dialog
-          value={this.showSourceModeDialog}
-          title={this.$t('无法无损切换为表单')}
           width={480}
-          header-position='left'
           ext-cls='strategy-promql-mode-dialog'
-          onCancel={() => { this.showSourceModeDialog = false; }}
+          header-position='left'
+          title={this.$t('无法无损切换为表单')}
+          value={this.showSourceModeDialog}
+          onCancel={() => {
+            this.showSourceModeDialog = false;
+          }}
         >
           <div class='source-mode-message'>
             <p>{this.$t('当前查询包含表单无法完整表达的内容。')}</p>
             <p>{this.$t('已保留全部 PromQL 与表达式，请继续在当前模式编辑。')}</p>
           </div>
           <div slot='footer'>
-            <bk-button outline theme='primary' onClick={() => { this.showSourceModeDialog = false; }}>
+            <bk-button
+              class='source-mode-cancel'
+              theme='primary'
+              outline
+              onClick={() => {
+                this.showSourceModeDialog = false;
+              }}
+            >
               {this.$t('继续编辑 PromQL')}
             </bk-button>
           </div>

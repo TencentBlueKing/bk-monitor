@@ -148,7 +148,8 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Prop({ default: '' }) readonly defaultValue?: string;
   @Prop({ default: 'promql' }) readonly language?: string;
   @Prop({ default: 'vs' }) readonly theme?: null | string;
-  @Prop({ default: () => defalutOptions }) readonly options: object;
+  /** 在 defalutOptions 之上浅合并的编辑器配置，嵌套对象需整体覆盖；建议传模块级常量，避免每次 render 产生新引用而频繁触发 updateOptions。 */
+  @Prop({ default: () => ({}) }) readonly options: object;
   @Prop({ default: () => ({}) }) readonly overrideServices?: object;
   @Prop({ default: null }) readonly className?: null | string;
   @Prop({ default: () => null }) readonly executeQuery: (v: boolean) => void;
@@ -164,6 +165,11 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   roInstance = null;
 
   throttleUpdateLayout = () => {};
+
+  /** 默认配置与消费方 options 的浅合并结果，为编辑器配置的唯一来源。 */
+  get mergeOptions(): object {
+    return { ...defalutOptions, ...this.options };
+  }
 
   created() {
     this.throttleUpdateLayout = throttle(300, this.updateLayout);
@@ -265,7 +271,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   initMonaco() {
     const finalValue = this.value !== null ? this.value : this.defaultValue;
     if (this.containerElement) {
-      const finalOptions = { ...this.options, ...editorWillMount(monaco) };
+      const finalOptions = { ...this.mergeOptions, ...editorWillMount(monaco) };
       const modelUri = this.uri?.(monaco);
       let model = null;
       if (modelUri) {
@@ -342,7 +348,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Watch('className')
   onClassChanged() {
     if (this.editor) {
-      const { model, ...optionsWithoutModel } = this.options as any;
+      const { model, ...optionsWithoutModel } = this.mergeOptions as any;
       this.editor.updateOptions({
         ...(this.className ? { extraEditorClassName: this.className } : {}),
         ...optionsWithoutModel,
@@ -352,7 +358,7 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
   @Watch('options')
   onOptionsChanged() {
     if (this.editor) {
-      const { model, ...optionsWithoutModel } = this.options as any;
+      const { model, ...optionsWithoutModel } = this.mergeOptions as any;
       this.editor.updateOptions({
         ...(this.className ? { extraEditorClassName: this.className } : {}),
         ...optionsWithoutModel,
@@ -367,8 +373,10 @@ export default class PromqlMonacoEditor extends tsc<IPromqlMonacoEditorProps> {
     }
   }
   destroyMonaco() {
+    // model 在 monaco 中全局注册，只销毁本实例的 model，否则同页其他编辑器内容会被清空。
+    const model = this.editor?.getModel();
     this.editor?.dispose?.();
-    monaco.editor.getModels().forEach(model => model.dispose());
+    model?.dispose();
     this.roInstance?.disconnect?.();
   }
 
