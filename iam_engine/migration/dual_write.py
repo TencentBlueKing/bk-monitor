@@ -18,7 +18,7 @@ class DualWriteGrantOrchestrator:
     retry_target 默认是 DualStackSpec.current，不要再判断 ``v4`` 字面量。
     Celery 任务文件名可以暂时仍叫 v4，那只是投递实现，不是编排语义。
 
-    两侧都同步是为了让用户创建资源后立刻拥有权限：current / UNION 模式下新资源的权限来自新栈，
+    所选目标都同步是为了让用户创建资源后立刻拥有权限：current / UNION 模式下新资源的权限来自新栈，
     如果首次授权就走异步，从创建成功到 worker 取到任务之间存在一个访问自己新资源被拒的窗口。
 
     这里明确接受两项代价，因为调用方（如 ``IndexSetHandler.create``）都带 ``transaction.atomic``：

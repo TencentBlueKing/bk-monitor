@@ -274,3 +274,66 @@ V4/Union 整批使用同一模式快照并保留同样的公开键。新增 14 �
 没有真实 IAM/数据库写入。补回 `not live and not django_db` 后定向回归通过。
 正常提交首次由 ruff-format 改写 18 个文件而中断，不是代码测试失败；逐项审阅后撤回一处
 原 V3 的无关换行。用户授权本轮仅跳过 ruff-format，其余 hooks 保留；不修改仓库规则。
+
+### 最终提交与合并后验收
+
+实现提交为 `9e42bcd46`，随后将最新 master `59249477c` 合入，合并提交为 `0d595efcc`。
+合并无冲突、没有改变 IAM 内容；两次提交的 GPG 签名均实际验证为 Good signature。
+本节替代上面合并前的测试统计与待合并状态，不把重复执行的测试相加。
+
+| 合并后实际检查 | 结果 |
+| --- | --- |
+| Monitor 主回归、业务补充与 V3 基线对照合并执行 | 1034 passed、9 skipped、21 deselected，退出 0 |
+| 原生 MCP 独立进程 | 808 passed，退出 0 |
+| BKLog IAM/管理诊断 | 661 tests、OK，退出 0 |
+| Web/API/Worker 冷启动 | 三项退出 0，仅装配 V3、55 Actions；冻结重试任务注册不等于调用 V4 |
+| 公共层 Pyright | 0 errors、0 warnings，退出 0 |
+| IAM 范围只读 Ruff correctness、完整 PR `git diff --check` | 均通过 |
+
+Monitor 使用产品虚拟环境解释器，执行命令如下；临时 V3 对照脚本隔离运行实际基线方法，
+不是仓库测试入口或完整业务 E2E。临时脚本的 20 项已经包含在 1034 项中。
+
+```bash
+python iam_engine/tests/run_monitor_offline.py \
+  tests/iam ../iam_engine/tests tests/test_iam_business_action_permission.py \
+  kernel_api/rpc/tests/test_admin_permission.py kernel_api/rpc/tests/test_admin_permission_v4.py \
+  kernel_api/tests/test_unified_mcp.py \
+  packages/apm_web/tests/test_application_permissions.py \
+  packages/apm_web/tests/test_list_application_permission.py \
+  packages/apm_web/tests/llm/test_permissions.py packages/apm_web/tests/profile/test_permissions.py \
+  packages/apm_web/tests/trace/test_permissions.py packages/rum_web/tests/test_list_application_permission.py \
+  packages/monitor_web/tests/test_permissions.py packages/monitor_web/tests/datalink/test_permissions.py \
+  packages/monitor_web/tests/new_report/test_report_view_permissions.py \
+  packages/monitor_web/tests/overview/test_service_search.py \
+  tests/web/fta_actions/test_action_preview_permissions.py tests/web/performance/test_view_permissions.py \
+  tests/web/scene_view/test_view_permissions.py /private/tmp/test_pr12734_v3_review.py \
+  -m 'not live and not django_db' --tb=short --disable-warnings
+
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 PYTHONPATH=.:bkmonitor python -m pytest \
+  -c /dev/null -p no:cacheprovider bkmonitor/kernel_api/tests/test_native_mcp_permissions.py \
+  -q --tb=line --disable-warnings
+
+python iam_engine/tests/run_bklog_offline.py apps.tests.iam apps.tests.log_admin_resource.test_iam_decision
+python iam_engine/tests/run_monitor_offline.py --role web --startup-only
+python iam_engine/tests/run_monitor_offline.py --role api --startup-only
+python iam_engine/tests/run_monitor_offline.py --role worker --startup-only
+
+pyright --pythonpath <monitor-python> iam_engine/core iam_engine/provider iam_engine/schema \
+  iam_engine/policy iam_engine/model iam_engine/migration/dual_write.py \
+  iam_engine/migration/policy.py --level error
+ruff check --no-cache --select E4,E7,E9,F --ignore E402 iam_engine bkmonitor/bkmonitor/iam \
+  bkmonitor/tests/iam bklog/apps/iam bklog/apps/tests/iam
+git diff --check 59249477c...HEAD
+```
+
+再次检查整个 PR，而非只检查本轮提交：相对最新 master，前端与原 Monitor
+`iam/migrations` 没有 diff；没有整文件 Python AST 相同的纯格式/注释变更。
+上层改动限制在必要配置、注册/任务/打包、IAM 错误与产品权限入口适配及相关回归。
+公开批量鉴权、文件夹覆盖、外部授权返回值、APM permission 与原 ACL 空权限 no-op
+均纳入回归；不为目录一致而修改业务 import，不夹带 typo、类型现代化或无关优化。
+
+实现提交仅跳过用户明确授权的 `ruff-format`；Ruff、冲突、私钥、IP 与提交信息 hooks
+照常执行。master 合并走正常 Git 流程；没有修改 hook 配置或使用 `--no-verify`。
+PreCI 包装提示系统未安装 PreCI 并跳过，不能计为实际 PreCI 扫描通过。
+修复后的远端 CI 无法通过当前未连接的 GitHub MCP 核验，状态仍未确认。
+上述全部是离线结果；真实 IAM、MySQL 部署迁移、回调和申请页面仍未验收。

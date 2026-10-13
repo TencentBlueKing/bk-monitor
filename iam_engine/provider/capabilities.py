@@ -9,7 +9,7 @@ from typing import Any, ClassVar, Protocol
 # 可选能力协议
 #
 # 不是每个 Provider 都要实现全部槽位。申请、范围查询、写入拆开，
-# 是为了 V4 网关未配齐时鉴权仍能跑、双写可以只落 V3。
+# 由操作所需能力和模式决定装配目标；所选目标缺少能力时明确失败，不切换协议。
 # ---------------------------------------------------------------------------
 
 from iam_engine.core.types import AuthorizedResourceScope
