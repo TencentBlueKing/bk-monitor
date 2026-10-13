@@ -52,9 +52,6 @@ def custom_exception_handler(exc, context):
     """
     针对CustomException返回的错误进行特殊处理，增加了传递数据的特性
     """
-    # 延迟导入避免框架与 Django 启动顺序的循环依赖
-    from iam_engine.exceptions import PermissionDenied  # noqa: F811
-
     response = None
     if isinstance(exc, Error):
         headers = {}
@@ -72,24 +69,6 @@ def custom_exception_handler(exc, context):
         }
         result.update(getattr(exc, "extra", {}))
         response = Response(result, status=exc.status_code, headers=headers)
-    elif isinstance(exc, PermissionDenied):
-        headers = {}
-        result = {
-            "result": False,
-            "code": PermissionDenied.code,
-            "name": PermissionDenied.default_detail,
-            "message": str(exc),
-            "data": {"apply_url": exc.apply_url},
-            "error_details": ErrorDetails(
-                exc_type=type(exc).__name__,
-                exc_code=PermissionDenied.code,
-                overview=str(exc),
-                detail=exc.apply_url,
-                popup_message="primary",
-            ).to_dict(),
-        }
-        result.update(exc.detail_data)
-        response = Response(result, status=PermissionDenied.status_code, headers=headers)
     elif isinstance(exc, APIException):
         headers = {}
         if getattr(exc, "auth_header", None):
