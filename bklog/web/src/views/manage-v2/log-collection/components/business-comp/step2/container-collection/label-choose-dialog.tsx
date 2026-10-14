@@ -30,7 +30,7 @@ import { random } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 
 import TreeComponent from '../../../common-comp/tree-component';
-import type { IClusterItem, IValueItem } from '../../../../type';
+import type { IClusterItem, IValueItem, ILabelSelector } from '../../../../type';
 import $http from '@/api';
 
 import './label-choose-dialog.scss';
@@ -43,6 +43,15 @@ type ITreeItem = {
   isOpen?: boolean;
 };
 
+type ILabelParams = {
+  bk_biz_id: number | string;
+  bcs_cluster_id: string;
+  type: string;
+  namespaceStr: string;
+  namespacesExclude?: string;
+  labelSelector?: ILabelSelector;
+};
+
 export default defineComponent({
   name: 'LabelChooseDialog',
 
@@ -52,7 +61,7 @@ export default defineComponent({
       default: false,
     },
     labelParams: {
-      type: Object as PropType<IValueItem>,
+      type: Object as PropType<ILabelParams>,
       default: () => ({}),
     },
     clusterList: {
@@ -84,6 +93,9 @@ export default defineComponent({
     const startX = ref(0);
     const startLeftWidth = ref(0);
     const currentNodeId = ref('');
+    // 仅接受当前请求的结果，避免旧回调、关闭和切换范围污染当前状态。
+    let treeRequestId = 0;
+    let labelRequestId = 0;
 
     // 预构建集群映射，避免在每次初始化树时重复查找
     const clusterIdToName = computed<Record<string, string>>(() => {
@@ -98,6 +110,7 @@ export default defineComponent({
      * 关闭新增索引弹窗
      */
     const handleCancel = () => {
+      resetSelect();
       emit('cancel', false);
     };
 
@@ -186,22 +199,29 @@ export default defineComponent({
      * 根据请求类型获取树列表
      */
     const getTreeList = () => {
-      const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = props.labelParams;
+      const { bk_biz_id, bcs_cluster_id, type, namespaceStr, namespacesExclude } = props.labelParams;
       const baseQuery = { bcs_cluster_id, type, bk_biz_id };
+      const namespaceKey = namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespace';
       const query =
-        type === 'node' ? baseQuery : { ...baseQuery, namespace: namespaceStr === '*' ? undefined : namespaceStr };
+        type === 'node' ? baseQuery : { ...baseQuery, [namespaceKey]: namespaceStr === '*' ? undefined : namespaceStr };
 
       treeLoading.value = true;
+      treeRequestId += 1;
+      const requestId = treeRequestId;
       $http
         .request('container/getPodTree', { query })
         .then(res => {
-          processTreeData(res.data);
+          if (requestId === treeRequestId && res.code === 0) {
+            processTreeData(res.data);
+          }
         })
         .catch(err => {
           console.warn(err);
         })
         .finally(() => {
-          treeLoading.value = false;
+          if (requestId === treeRequestId) {
+            treeLoading.value = false;
+          }
         });
     };
 
@@ -255,12 +275,19 @@ export default defineComponent({
 
     // 清理事件监听器
     onUnmounted(() => {
+      treeRequestId += 1;
+      labelRequestId += 1;
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
       document.body.classList.remove('dragging-resize');
     });
 
     const resetSelect = () => {
+      treeRequestId += 1;
+      labelRequestId += 1;
+      treeLoading.value = false;
+      labelLoading.value = false;
+      currentNodeId.value = '';
       matchSelectList.value = [];
       matchSelectItemList.value = [];
       matchCheckedList.value = [];
@@ -337,6 +364,23 @@ export default defineComponent({
       },
     );
 
+    watch(
+      [
+        () => props.labelParams.bk_biz_id,
+        () => props.labelParams.bcs_cluster_id,
+        () => props.labelParams.type,
+        () => props.labelParams.namespaceStr,
+        () => props.labelParams.namespacesExclude,
+      ],
+      () => {
+        if (props.isShowDialog) {
+          resetSelect();
+          treeList.value = [];
+          getTreeList();
+        }
+      },
+    );
+
     /**
      * 判断两个标签是否等价（用于去重）
      * @param a
@@ -354,13 +398,17 @@ export default defineComponent({
      */
     const handleSelectTreeItem = (treeItem, parent) => {
       currentNodeId.value = treeItem.id;
+      labelRequestId += 1;
+      const requestId = labelRequestId;
+      matchSelectItemList.value = [];
+      matchSelectList.value = [];
+      labelLoading.value = false;
 
       /**
        * 非 pod/node 节点时，清空未选择区域
        */
       if (!['pod', 'node'].includes(treeItem.type)) {
-        matchSelectItemList.value = [];
-        // return;
+        return;
       }
 
       const { bk_biz_id, bcs_cluster_id, type } = props.labelParams;
@@ -380,7 +428,7 @@ export default defineComponent({
       $http
         .request('container/getNodeLabelList', { query })
         .then(res => {
-          if (res.code !== 0) {
+          if (requestId !== labelRequestId || res.code !== 0) {
             return;
           }
 
@@ -407,7 +455,9 @@ export default defineComponent({
           console.warn(err);
         })
         .finally(() => {
-          labelLoading.value = false;
+          if (requestId === labelRequestId) {
+            labelLoading.value = false;
+          }
         });
     };
 
