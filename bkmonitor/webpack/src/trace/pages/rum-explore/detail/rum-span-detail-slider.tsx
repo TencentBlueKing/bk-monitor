@@ -102,7 +102,7 @@ export default defineComponent({
     const { getField, formatField, copyText, resolveCtx } = useDetailFormatter(toRef(props, 'fields'), originData);
     const { headerVM } = useDetailOverview(detail, spanType, formatField, getField);
     const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading);
-    const { blocks, eventKeyword } = useOriginData(originData);
+    const { blocks, eventKeyword } = useOriginData(originData, toRef(props, 'fields'));
 
     const isXhrOrFetch = computed(() => {
       const spanType = detail.value?.overview.items.find(item => item.field_name === 'display.span_type')?.value;
