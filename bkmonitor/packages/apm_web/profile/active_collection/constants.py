@@ -245,6 +245,12 @@ META_CONFIG = {
         "max_disk_usage": 1024,
         "min_mem_level": 100,
     },
+    # 周期任务表单默认每小时整点执行
+    "schedule": {
+        "cron": {
+            "cron_expression": "0 * * * *",
+        },
+    },
     "collection_methods": _choice_values(COLLECTION_METHOD_CHOICES),
     "collection_types_by_method": {method: list(types) for method, types in COLLECTION_TYPES_BY_METHOD.items()},
     "schedule_types": _choice_values(SCHEDULE_TYPE_CHOICES),
