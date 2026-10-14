@@ -201,3 +201,25 @@ export const MILESTONES_KEY_MAP = {
   load_event: window.i18n.t('Load 完成'),
   page_stable: window.i18n.t('页面稳定'),
 };
+
+/** 链路上下文：当前 Span 同级前后各保留的条数，其余折叠 */
+export const TIMELINE_CONTEXT_SIZE = 2;
+
+/** 链路上下文：当前 Span 不在该层级时，从头保留的条数（与有锚点时的可见条数一致） */
+export const TIMELINE_HEAD_SIZE = TIMELINE_CONTEXT_SIZE * 2 + 1;
+
+/** 计入 View「请求数」的 resource.type */
+export const TIMELINE_REQUEST_RESOURCE_TYPES = new Set(['xhr', 'fetch']);
+
+/** 类型标签底色相对类型主色的透明度 */
+export const TIMELINE_TAG_BG_ALPHA = 0.2;
+
+/** 链路上下文行尾 HTTP 状态码标签配色，按状态码百位分组 */
+export const TIMELINE_STATUS_CODE_COLOR: Record<number, { bgColor: string; color: string }> = {
+  2: { bgColor: '#E1F5F0', color: '#21A380' },
+  3: { bgColor: '#E1ECFF', color: '#3A84FF' },
+  4: { bgColor: '#FFF3E1', color: '#F59500' },
+  5: { bgColor: '#FDE7E7', color: '#EA3636' },
+};
+
+export const TIMELINE_STATUS_CODE_FALLBACK_COLOR = { bgColor: '#F0F1F5', color: '#4D4F56' };
