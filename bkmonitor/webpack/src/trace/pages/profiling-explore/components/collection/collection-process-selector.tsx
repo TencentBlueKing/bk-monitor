@@ -25,11 +25,13 @@
  */
 import { type PropType, defineComponent, shallowRef } from 'vue';
 
-import { PrimaryTable } from '@blueking/tdesign-ui';
-import { Alert, Button, Input, Pagination, Radio, Switcher } from 'bkui-vue';
+import { type TableProps, PrimaryTable } from '@blueking/tdesign-ui';
+import { Button, Input, Pagination, Radio, Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { formatCollectionTime, processKey, processLabels } from '../../utils/collection';
+import CollectionSkeleton from './collection-skeleton';
+import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { CollectionForm } from '../../composables/use-collection-form';
 import type { ProcessMode, ProcessRow } from '../../types/collection';
@@ -50,14 +52,22 @@ export default defineComponent({
     const d = f.draft.value;
     const p = d.process;
     const selected = f.selected.value;
-    const columns = [
-      {
-        colKey: 'row-select',
-        type: 'multiple' as const,
-        width: 40,
-        checkProps: ({ row }) => ({ disabled: f.dynamic.value || !!row.err_msg || !row.pid }),
-      },
-      { colKey: 'ip', title: this.t('主机 IP'), width: 120, cell: (_, { row }) => row.ip || `#${row.bk_host_id}` },
+    const condition = f.processCondition.value;
+    const manual = f.manualSelection.value;
+    const hostLabel = (row: ProcessRow) =>
+      row.ip || d.hosts.find(host => host.host_id === row.bk_host_id)?.ip || `#${row.bk_host_id}`;
+    const columns: TableProps['columns'] = [
+      ...(manual
+        ? [
+            {
+              colKey: 'row-select',
+              type: 'multiple' as const,
+              width: 40,
+              checkProps: ({ row }) => ({ disabled: !!row.err_msg || !row.pid }),
+            },
+          ]
+        : []),
+      { colKey: 'ip', title: this.t('主机 IP'), width: 120, cell: (_, { row }) => hostLabel(row as ProcessRow) },
       { colKey: 'pid', title: 'PID', width: 70, cell: (_, { row }) => row.pid || '--' },
       {
         colKey: 'process_name',
@@ -72,7 +82,11 @@ export default defineComponent({
         minWidth: 160,
         ellipsis: true,
         cell: (_, { row }) =>
-          row.err_msg ? <span class='collection-error-text'>{row.err_msg}</span> : row.command || '--',
+          row.err_msg ? (
+            <span class='collection-error-text'>{row.err_msg}</span>
+          ) : (
+            row.command || (row.pid ? '--' : this.t('未匹配到进程'))
+          ),
       },
       {
         colKey: 'started_at',
@@ -81,10 +95,20 @@ export default defineComponent({
         cell: (_, { row }) => formatCollectionTime(row.started_at, d.timezone),
       },
     ];
-    const hostLabel = (row: ProcessRow) =>
-      row.ip || d.hosts.find(host => host.host_id === row.bk_host_id)?.ip || `#${row.bk_host_id}`;
+    const values =
+      condition?.type === 'pid'
+        ? condition.config.pids.split(';')
+        : condition?.type === 'pid_file'
+          ? condition.config.pid_path.split(';')
+          : [];
+    const count = manual ? selected.length : f.dynamic.value ? Number(!!condition) : values.length;
+    const countText = manual
+      ? this.t('已选择 {n} 个进程', { n: count })
+      : f.dynamic.value
+        ? this.t('已配置 {n} 个动态下发', { n: count })
+        : this.t(d.processMode === 'pid' ? '已选择 {n} 个 PID' : '已选择 {n} 个 PID 文件', { n: count });
     return (
-      <div class='collection-process-selector'>
+      <div class={['collection-process-selector', { 'is-condition': d.processMode !== 'command' }]}>
         <div class='collection-process-query'>
           <div class='collection-process-conditions'>
             <div class='collection-process-inputs'>
@@ -107,6 +131,7 @@ export default defineComponent({
                   <Input
                     modelValue={p.matchPattern}
                     placeholder={this.t('直接字符串匹配，不支持正则，举例：/data/home/user00/word')}
+                    onEnter={f.queryProcesses}
                     onInput={matchPattern => f.patchProcess({ matchPattern })}
                   >
                     {{ prefix: () => <span class='collection-input-prefix'>{this.t('包含')}</span> }}
@@ -114,6 +139,7 @@ export default defineComponent({
                   <Input
                     modelValue={p.excludePattern}
                     placeholder={this.t('排除匹配到的进程，支持正则，举例：/data/home/user00/word[d].+')}
+                    onEnter={f.queryProcesses}
                     onInput={excludePattern => f.patchProcess({ excludePattern })}
                   >
                     {{ prefix: () => <span class='collection-input-prefix'>{this.t('排除')}</span> }}
@@ -122,23 +148,30 @@ export default defineComponent({
               ) : d.processMode === 'pid_file' ? (
                 <Input
                   modelValue={p.pidPath}
-                  placeholder={this.t('请输入 PID 文件的绝对路径')}
+                  placeholder={this.t('输入 PID 文件的绝对路径，多个以分号（;）分隔')}
+                  onEnter={f.queryProcesses}
                   onInput={pidPath => f.patchProcess({ pidPath })}
-                />
+                >
+                  {{ prefix: () => <span class='collection-input-prefix'>{this.t('PID 文件')}</span> }}
+                </Input>
               ) : (
                 <Input
                   modelValue={p.pids}
-                  placeholder={this.t('请输入 PID，多个 PID 用逗号分隔')}
+                  placeholder={this.t('输入进程 PID，多个以分号（;）分隔')}
+                  onEnter={f.queryProcesses}
                   onInput={pids => f.patchProcess({ pids })}
-                />
+                >
+                  {{ prefix: () => <span class='collection-input-prefix'>PID</span> }}
+                </Input>
               )}
             </div>
             <Button
+              class='collection-process-preview-button'
               loading={f.previewLoading.value}
               theme='primary'
               onClick={f.queryProcesses}
             >
-              {this.t('查询')}
+              {this.t('预览')}
             </Button>
           </div>
           {d.processMode === 'command' && (
@@ -148,111 +181,150 @@ export default defineComponent({
                 size='small'
                 onChange={dynamic => f.patchProcess({ dynamic })}
               />
-              <span v-tippy={this.t('开启后保存匹配条件，在每次执行时重新匹配进程，无需选择具体进程')}>
-                {this.t('动态下发')}
-              </span>
+              <span>{this.t('动态下发')}</span>
+              <i
+                class='icon-monitor icon-inform-circle'
+                v-tippy={this.t('开启后保存匹配条件，在每次执行时重新匹配进程，无需选择具体进程')}
+              />
             </div>
           )}
-          {f.previewError.value && (
-            <Alert
-              class='collection-inline-alert'
-              theme='danger'
-              title={f.previewError.value}
-            />
-          )}
-          <div v-tippy={{ content: this.t('已选择动态下发，无需具体选择进程'), onShow: () => f.dynamic.value }}>
-            <PrimaryTable
-              data={f.preview.value.data
-                .slice((f.previewPage.value - 1) * 10, f.previewPage.value * 10)
-                .map(row => ({ ...row, key: processKey(row) }))}
-              columns={columns}
-              empty={this.t(f.preview.value.columns.length ? '暂无匹配进程' : '输入条件并查询进程')}
-              loading={f.previewLoading.value}
-              rowKey='key'
-              selectedRowKeys={f.dynamic.value ? [] : selected.map(processKey)}
-              size='small'
-              onSelectChange={keys => {
-                if (!f.dynamic.value) f.selectPreview(keys);
-              }}
-            />
+          <div
+            class='collection-process-results'
+            aria-busy={f.previewLoading.value}
+          >
+            {f.previewLoading.value ? (
+              <CollectionSkeleton columns={[...(manual ? [40] : []), 120, 70, 100, 160, 165]} />
+            ) : f.previewError.value ? (
+              <EmptyStatus
+                textMap={{ 500: f.previewError.value }}
+                type='500'
+                onOperation={f.queryProcesses}
+              />
+            ) : (
+              <>
+                <div v-tippy={{ content: this.t('已选择动态下发，无需具体选择进程'), onShow: () => f.dynamic.value }}>
+                  <PrimaryTable
+                    v-slots={{
+                      empty: () => (
+                        <EmptyStatus
+                          showOperation={false}
+                          textMap={{ empty: this.t('输入条件并预览进程'), 'search-empty': this.t('暂无匹配进程') }}
+                          type={f.previewed.value ? 'search-empty' : 'empty'}
+                        />
+                      ),
+                    }}
+                    data={f.preview.value.data
+                      .slice(
+                        (f.previewPage.value - 1) * f.previewPageSize.value,
+                        f.previewPage.value * f.previewPageSize.value
+                      )
+                      .map(row => ({ ...row, key: processKey(row) }))}
+                    columns={columns}
+                    rowKey='key'
+                    selectedRowKeys={manual ? selected.map(processKey) : []}
+                    size='small'
+                    onSelectChange={f.selectPreview}
+                  />
+                </div>
+                {!!f.preview.value.data.length && (
+                  <Pagination
+                    class='collection-process-pagination'
+                    align='right'
+                    count={f.preview.value.data.length}
+                    layout={['total', 'limit', 'list']}
+                    limit={f.previewPageSize.value}
+                    limitList={[10, 20, 50, 100]}
+                    modelValue={f.previewPage.value}
+                    small
+                    onChange={page => {
+                      f.previewPage.value = page;
+                    }}
+                    onLimitChange={limit => {
+                      f.previewPageSize.value = limit;
+                    }}
+                  />
+                )}
+              </>
+            )}
           </div>
-          <Pagination
-            class='collection-process-pagination'
-            count={f.preview.value.data.length}
-            limit={10}
-            modelValue={f.previewPage.value}
-            showLimit={false}
-            small
-            onChange={page => {
-              f.previewPage.value = page;
-            }}
-          />
         </div>
         <aside class='collection-process-targets'>
           <h4>{this.t('目标进程')}</h4>
-          {f.dynamic.value ? (
-            <>
-              <p>{this.t('已配置动态下发')}</p>
+          <div class='collection-process-target-heading'>
+            <Button
+              class='collection-process-count'
+              aria-expanded={!this.collapsed}
+              text
+              onClick={() => {
+                this.collapsed = !this.collapsed;
+              }}
+            >
+              <i class={['icon-monitor icon-mc-triangle-down', { 'is-collapsed': this.collapsed }]} />
+              {countText}
+            </Button>
+            <Button
+              disabled={!count || f.previewLoading.value}
+              theme='primary'
+              text
+              onClick={f.clearTargets}
+            >
+              <i class='icon-monitor icon-mc-delete-line' />
+              {this.t('清空')}
+            </Button>
+          </div>
+          {!this.collapsed &&
+            (f.previewLoading.value ? (
+              <CollectionSkeleton variant='targets' />
+            ) : f.dynamic.value && condition?.type === 'command' ? (
               <div class='collection-process-card'>
                 <div>
-                  {this.t('包含')}：{p.matchPattern || '--'}
+                  {this.t('包含')}：{condition.config.match_pattern}
                 </div>
-                {p.excludePattern && (
+                {condition.config.exclude_pattern && (
                   <div>
-                    {this.t('排除')}：{p.excludePattern}
+                    {this.t('排除')}：{condition.config.exclude_pattern}
                   </div>
                 )}
                 <small>{this.t('命令行匹配')}</small>
-              </div>
-            </>
-          ) : (
-            <>
-              <div class='collection-process-target-heading'>
                 <Button
+                  class='collection-process-remove'
+                  aria-label={this.t('删除')}
                   text
-                  onClick={() => {
-                    this.collapsed = !this.collapsed;
-                  }}
+                  onClick={f.clearTargets}
                 >
-                  {this.collapsed ? '▸' : '▾'} {this.t('已选择 {n} 个进程', { n: selected.length })}
-                </Button>
-                <Button
-                  disabled={!selected.length}
-                  theme='primary'
-                  text
-                  onClick={() => f.selectProcesses([])}
-                >
-                  {this.t('清空')}
+                  <i class='icon-monitor icon-mc-close' />
                 </Button>
               </div>
-              {!this.collapsed &&
-                selected.map(row => (
-                  <div
-                    key={processKey(row)}
-                    class='collection-process-card'
+            ) : manual ? (
+              selected.map(row => (
+                <div
+                  key={processKey(row)}
+                  class='collection-process-card'
+                >
+                  <div>PID：{row.pid}</div>
+                  <small title={`${hostLabel(row)} / ${row.process_name || '--'}`}>
+                    {hostLabel(row)} / {row.process_name || '--'}
+                  </small>
+                  <Button
+                    class='collection-process-remove'
+                    aria-label={this.t('删除')}
+                    text
+                    onClick={() => f.selectProcesses(selected.filter(item => processKey(item) !== processKey(row)))}
                   >
-                    <div>PID：{row.pid}</div>
-                    <small title={`${hostLabel(row)} / ${row.process_name || '--'}`}>
-                      {hostLabel(row)} / {row.process_name || '--'}
-                    </small>
-                    <Button
-                      class='collection-process-remove'
-                      aria-label={this.t('删除')}
-                      text
-                      onClick={() => f.selectProcesses(selected.filter(item => processKey(item) !== processKey(row)))}
-                    >
-                      ×
-                    </Button>
-                  </div>
-                ))}
-              {!selected.length && (
-                <p class='collection-muted'>
-                  {this.t(
-                    d.processMode === 'pid_file' ? '按 PID 文件路径采集，无需选择具体进程' : '请从左侧选择目标进程'
-                  )}
-                </p>
-              )}
-            </>
+                    <i class='icon-monitor icon-mc-close' />
+                  </Button>
+                </div>
+              ))
+            ) : (
+              !!values.length && (
+                <div class='collection-process-card collection-process-summary'>
+                  <div>{d.processMode === 'pid_file' ? this.t('PID 文件') : 'PID'}：</div>
+                  <p>{values.join('; ')}</p>
+                </div>
+              )
+            ))}
+          {!count && !f.previewLoading.value && (
+            <p class='collection-muted'>{this.t(manual ? '请从左侧选择目标进程' : '请在左侧输入采集条件')}</p>
           )}
         </aside>
       </div>
