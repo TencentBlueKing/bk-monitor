@@ -2187,7 +2187,7 @@ class K8sCollectorHandler(CollectorHandler):
                         break
 
                 if is_break:
-                    break
+                    continue
 
             filtered_pods.append(pod)
 

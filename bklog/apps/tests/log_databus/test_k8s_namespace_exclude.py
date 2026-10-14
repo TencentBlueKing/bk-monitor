@@ -1,5 +1,6 @@
 """容器采集候选的命名空间排除范围回归测试。"""
 
+from itertools import permutations
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -9,6 +10,7 @@ from rest_framework.exceptions import ValidationError
 from apps.log_databus.constants import TopoType, WorkLoadType
 from apps.log_databus.exceptions import NodeNotAllowedException, VclusterNodeNotAllowedException
 from apps.log_databus.handlers.collector.k8s import K8sCollectorHandler
+from apps.log_databus.serializers import PreviewContainersSerializer
 from apps.log_databus.views.collector_views import CollectorViewSet
 
 
@@ -170,3 +172,76 @@ class NamespaceExcludeTests(SimpleTestCase):
 
     def test_unknown_workload_stays_empty(self):
         self.assertEqual(self.handler.get_workload("unknown", "cluster", namespaces_exclude="system", bk_biz_id=2), [])
+
+
+class ContainerExcludePreviewTests(SimpleTestCase):
+    def setUp(self):
+        self.bcs = self.enterContext(patch("apps.log_databus.handlers.collector.k8s.Bcs")).return_value
+        self.enterContext(
+            patch.object(
+                K8sCollectorHandler, "get_cluster_info", return_value={"is_shared": False, "is_virtual": False}
+            )
+        )
+        self.handler = K8sCollectorHandler()
+
+    @staticmethod
+    def pod(name, container_names, namespace="app"):
+        return SimpleNamespace(
+            metadata=SimpleNamespace(namespace=namespace, name=name, owner_references=[]),
+            spec=SimpleNamespace(containers=[SimpleNamespace(name=name) for name in container_names]),
+        )
+
+    def preview(self, pods, **scope):
+        api = self.bcs.api_instance_core_v1
+        api.list_namespaced_pod.return_value = SimpleNamespace(items=pods)
+        api.list_pod_for_all_namespaces.return_value = SimpleNamespace(items=pods)
+        serializer = PreviewContainersSerializer(
+            data={
+                "type": "pod",
+                "bk_biz_id": 2,
+                "bcs_cluster_id": "cluster",
+                "container": {"container_name_exclude": "sidecar,agent"},
+                **scope,
+            }
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        data = dict(serializer.validated_data)
+        data["topo_type"] = data.pop("type")
+        return self.handler.preview_containers(**data)
+
+    def test_container_exclusion_preserves_matches_in_every_pod_order(self):
+        pods = [
+            self.pod("excluded-sidecar", ["sidecar"]),
+            self.pod("allowed-app", ["app"]),
+            self.pod("excluded-agent", ["agent", "sidecar"]),
+            self.pod("allowed-mixed", ["sidecar", "app"]),
+        ]
+        for ordered_pods in permutations(pods):
+            with self.subTest(order=[pod.metadata.name for pod in ordered_pods]):
+                result = self.preview(list(ordered_pods), namespaces=["app"])
+                self.assertEqual(len(result), 1)
+                self.assertEqual(result[0]["group"], "namespace = app")
+                self.assertEqual(result[0]["total"], 2)
+                self.assertEqual(sorted(result[0]["items"]), ["allowed-app", "allowed-mixed"])
+
+    def test_all_containers_excluded_returns_empty_preview(self):
+        self.assertEqual(
+            self.preview(
+                [self.pod("sidecar-only", ["sidecar"]), self.pod("agent-only", ["agent"])],
+                namespaces=["app"],
+            ),
+            [],
+        )
+
+    def test_namespace_and_container_exclusions_apply_together(self):
+        result = self.preview(
+            [
+                self.pod("system-app", ["app"], namespace="system"),
+                self.pod("sidecar-only", ["sidecar"]),
+                self.pod("allowed-app", ["app"]),
+            ],
+            namespaces_exclude=["system"],
+        )
+        self.assertEqual(result, [{"group": "namespace = app", "total": 1, "items": ["allowed-app"]}])
+        self.bcs.api_instance_core_v1.list_pod_for_all_namespaces.assert_called_once_with()
+        self.bcs.api_instance_core_v1.list_namespaced_pod.assert_not_called()
