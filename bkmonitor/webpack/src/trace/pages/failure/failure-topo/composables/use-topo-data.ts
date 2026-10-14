@@ -44,9 +44,10 @@
 import { type Ref, ref as deepRef } from 'vue';
 
 import { incidentTopology } from 'monitor-api/modules/incident';
-import { deepClone, random } from 'monitor-common/utils/utils.js';
+import { deepClone } from 'monitor-common/utils/utils.js';
 
 import ElkjsUtils from '../graph/elkjs-utils';
+import { topologyEdgeId } from '../snapshot-analysis';
 import formatTopoData, { type NodeArgs } from '../graph/format-topo-data';
 
 import type { GraphAccess } from '../types/composable';
@@ -302,14 +303,15 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
     state.loading.value = !isAutoRefresh;
     if (!state.wrapRef.value) return;
     clearTimeout(refreshTimeout!);
+    const lastFrame = topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1];
     const params: Record<string, any> = {
       id: state.incidentId.value,
       auto_aggregate: autoAggregate.value,
       aggregate_cluster: aggregateCall.value,
       aggregate_version: aggregateVersion.value,
       only_diff: true,
-      start_time: isAutoRefresh
-        ? topoRawDataCache.value.diff[topoRawDataCache.value.diff.length - 1].create_time + 1
+      start_time: isAutoRefresh && lastFrame
+        ? lastFrame.create_time + 1
         : state.incidentId.value.substr(0, 10),
     };
     // 手动聚合时，才传 aggregate_config
@@ -320,11 +322,13 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
     const renderData = await incidentTopology(params, { needMessage: false, needCancel: true })
       .then(res => {
         const { latest, diff, complete } = res;
+        if (isAutoRefresh && diff.length === 0 && lastFrame) return;
         complete.combos = latest.combos;
         formatResponseData(complete);
         const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
         state.errorData.value.isNoData = combos.length === 0;
         state.errorData.value.isError = false;
+        state.errorData.value.msg = res.message || '';
         ElkjsUtils.setSubCombosMap(ElkjsUtils.getSubComboCountMap(nodes));
         const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
         const processedNodes = [];
@@ -345,8 +349,8 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
           processedNodes.push(item.content.nodes);
           // biome-ignore lint/complexity/noForEach: <explanation>
           item.content.edges.forEach(edge => {
-            const key = edge.target + edge.source;
-            const index = processedEdges.findIndex(item => item.target + item.source === key);
+            const key = topologyEdgeId(edge);
+            const index = processedEdges.findIndex(item => topologyEdgeId(item) === key);
             if (index !== -1) {
               processedEdges[index] = edge;
             } else {
@@ -361,7 +365,7 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
         topoRawDataCache.value.latest = latest;
         topoRawDataCache.value.complete = { ...complete, combos: resolvedCombos };
         const diffLen = topoRawDataCache.value.diff.length;
-        state.timelinePosition.value = diffLen - 1;
+        state.timelinePosition.value = Math.max(0, diffLen - 1);
         return ElkjsUtils.getTopoRawData(resolvedCombos, edges, nodes);
       })
       .catch(err => {
@@ -424,11 +428,11 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
 
   /**
    * 处理单个边的公共逻辑，构造边关联节点数据
-   * @returns 带随机 id 与 nodes 的边模型（仍归入 IEdge）
+   * @returns 保留稳定 id、补充两端节点的边模型
    */
   const processEdge = (edge: IEdge, nodes: ITopoNode[], isAggregatedEdge = false): IEdge => {
     const model = deepClone(edge) as IEdge;
-    model.id = `edge-${random(10)}`;
+    model.id = topologyEdgeId(edge);
     const getEntityData = (prefix: string) =>
       isAggregatedEdge
         ? {
@@ -467,15 +471,12 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
       if (edge.source === nodeId || edge.target === nodeId) {
         result.push(processEdge(edge, nodes, isAggregated));
       }
+      edge.aggregated_edges?.forEach(child => checkAndProcess(child, true));
     };
 
     // biome-ignore lint/complexity/noForEach: <explanation>
     edges.forEach(mainEdge => {
       checkAndProcess(mainEdge);
-      // biome-ignore lint/complexity/noForEach: <explanation>
-      mainEdge.aggregated_edges?.forEach(aggEdge => {
-        checkAndProcess(aggEdge, true);
-      });
     });
     return result;
   };
@@ -485,11 +486,10 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
   // ---------------------------------------------------------------------------
 
   /**
-   * 在边列表中查找匹配 source/target 的边
-   * @param target 只需提供 source/target 即可匹配（也可传入完整 IEdge）
+   * 按稳定边标识匹配，保留同一对节点之间的不同关系。
    */
-  const findEdges = (edges: IEdge[], target: IEdge | Pick<IEdge, 'source' | 'target'>): IEdge | undefined => {
-    return edges.find(item => item.source === target.source && target.target === item.target);
+  const findEdges = (edges: IEdge[], target: IEdge): IEdge | undefined => {
+    return edges.find(item => topologyEdgeId(item) === topologyEdgeId(target));
   };
 
   return {

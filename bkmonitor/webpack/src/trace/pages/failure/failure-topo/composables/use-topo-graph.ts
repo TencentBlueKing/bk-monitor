@@ -50,6 +50,7 @@ import ElkjsUtils from '../graph/elkjs-utils';
 import { clearAllG6Animations, registerAllAfterGraph, registerAllBeforeGraph } from '../graph/register-all';
 import { clearEdgeIntervals } from '../graph/topo-edge';
 import { createTruncateByTextWidth } from '../graph/topo-node';
+import { topologyEdgeId } from '../snapshot-analysis';
 import { canJumpByType, handleToLink } from '../utils';
 
 import type { G6TooltipInstance } from '../types/composable';
@@ -573,12 +574,13 @@ export function useTopoGraph(
     /** 设置边高亮状态 */
     graph.on('edge:click', ({ item }) => {
       graph.setAutoPaint(false);
-      const { source, target, count } = item.getModel();
+      const model = item.getModel();
+      const { count } = model;
       interaction.clearEdgeState(item, count === 1);
       graph.paint();
       graph.setAutoPaint(true);
       item.toFront();
-      state.resourceEdgeId.value = `${source}-${target}`;
+      state.resourceEdgeId.value = topologyEdgeId(model);
       if (count === 1) {
         graph.setItemState(item, 'highlight', true);
         graph.setItemState(item, 'dark', true);

@@ -907,7 +907,7 @@ export default defineComponent({
             exceptionData.value.showException = true;
             exceptionData.value.type = 'noData';
             exceptionData.value.msg =
-              props.entityId.indexOf('Unknown') !== -1 ? t('第三方节点不支持查看从属') : t('暂无数据');
+              res.message || (props.entityId.indexOf('Unknown') !== -1 ? t('第三方节点不支持查看从属') : t('暂无数据'));
           } else {
             exceptionData.value.showException = false;
           }
