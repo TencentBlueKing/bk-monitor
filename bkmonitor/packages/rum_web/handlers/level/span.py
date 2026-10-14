@@ -99,9 +99,6 @@ class SpanLevelHandler(BaseRumLevelHandler):
 
     VIEW_RELATED_SPAN_TYPES: tuple[str, ...] = (RumSpanType.VIEW.value, RumSpanType.VITAL.value)
 
-    #: 时间线单次查询的原始 Span 数量上限，包括 View 快照与 Web Vitals。
-    TIMELINE_QUERY_LIMIT = 1000
-
     def __init__(self, data_sources: list[TraceDatasourceTarget]):
         super().__init__(data_sources)
         self.query = SpanQuery(data_sources)
@@ -438,7 +435,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
         )
 
     def timeline(self, session_id: str | None = None, view_id: str | None = None) -> dict[str, Any]:
-        """查询会话或单个 View 的时间线，最多读取 1000 条原始 Span。"""
+        """查询会话或单个 View 的时间线，单次最多读取 10000 条原始 Span，不分页。"""
         filters: list[types.Filter] = [
             {
                 "key": "attributes.session.id" if session_id else "attributes.view.id",
@@ -458,7 +455,7 @@ class SpanLevelHandler(BaseRumLevelHandler):
             start_time=None,
             end_time=None,
             offset=0,
-            limit=self.TIMELINE_QUERY_LIMIT,
+            limit=10000,
             filters=filters,
             sort=["start_time", "span_id"],
         )

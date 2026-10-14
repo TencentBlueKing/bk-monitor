@@ -277,7 +277,7 @@ class TestTimelineHandler:
         handler = _handler()
         spans = [
             _view(),
-            *(_span(f"resource-{index}", "resource", 1_010_000 + index) for index in range(999)),
+            *(_span(f"resource-{index}", "resource", 1_010_000 + index) for index in range(9999)),
         ]
         query = mocker.patch.object(
             handler.query, "query_list", side_effect=[spans, [_span("after-limit", "resource", 2_000_000)]]
@@ -286,7 +286,7 @@ class TestTimelineHandler:
 
         result = handler.timeline(**scope)
 
-        assert len(result["records"]) == 1000
+        assert len(result["records"]) == 10000
         assert "after-limit" not in {record["span_id"] for record in result["records"]}
         if "session_id" in scope:
             filters = [{"key": "attributes.session.id", "value": ["session-1"], "operator": FilterOperator.EQUAL}]
@@ -299,7 +299,7 @@ class TestTimelineHandler:
             start_time=None,
             end_time=None,
             offset=0,
-            limit=1000,
+            limit=10000,
             filters=filters,
             sort=["start_time", "span_id"],
         )
@@ -405,7 +405,7 @@ class TestTimelineQuery:
             start_time=None,
             end_time=None,
             offset=0,
-            limit=1000,
+            limit=10000,
             filters=[
                 {"key": "attributes.view.id", "value": ["view-1"], "operator": FilterOperator.EQUAL},
                 {"key": "attributes.span_type", "value": ["session"], "operator": FilterOperator.NOT_EQUAL},
@@ -418,7 +418,7 @@ class TestTimelineQuery:
         assert body["bk_biz_id"] == 2
         assert body["is_es_batch"] is False
         assert body["offset"] == 0
-        assert body["limit"] == 1000
+        assert body["limit"] == 10000
         assert body["start_time"] == 1000
         assert body["end_time"] == 2000
         assert body["is_time_align"] is False
