@@ -97,13 +97,9 @@ class ActiveProfilingMetaConfigResource(Resource):
 
     @staticmethod
     def _is_enabled(bk_biz_id):
-        """与 enable 的短路条件一致：Profiling 已有 DataID，且内置事件分组已存在"""
+        """内置 Profiling 数据源已有 DataID 即视为已开通，事件分组由 enable 一起创建"""
         profile = ProfileDataSource.objects.filter(bk_biz_id=bk_biz_id, app_name=BUILTIN_PROFILING_APP_NAME).first()
-        if profile is None or profile.bk_data_id == -1:
-            return False
-        return bool(
-            api.metadata.single_query_event_group(bk_biz_id=bk_biz_id, event_group_name=BUILTIN_EVENT_GROUP_NAME)
-        )
+        return profile is not None and profile.bk_data_id != -1
 
 
 class EnableActiveCollectionResource(Resource):

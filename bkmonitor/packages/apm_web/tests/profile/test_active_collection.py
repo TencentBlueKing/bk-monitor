@@ -195,31 +195,21 @@ def _patch_profile(mocker, profile):
     mocker.patch.object(ProfileDataSource.objects, "filter", return_value=mocker.Mock(first=lambda: profile))
 
 
-def test_meta_config_enabled_when_profile_and_event_group_exist(mocker):
+def test_meta_config_enabled_when_profile_data_id_exists(mocker):
     _patch_profile(mocker, mocker.Mock(bk_data_id=1001))
-    event_group = mocker.patch(
-        "core.drf_resource.api.metadata.single_query_event_group", return_value=[{"event_group_id": 555}]
-    )
+    event_group = mocker.patch("core.drf_resource.api.metadata.single_query_event_group")
 
     result = ActiveProfilingMetaConfigResource().request({"bk_biz_id": 2})
 
     assert result == {**META_CONFIG, "enabled": True}
-    event_group.assert_called_once_with(bk_biz_id=2, event_group_name=BUILTIN_EVENT_GROUP_NAME)
+    # 事件分组与 Profiling 数据源由 enable 一起创建，开通状态只看 Profiling 数据源
+    event_group.assert_not_called()
 
 
 @pytest.mark.parametrize("bk_data_id", [None, -1])
 def test_meta_config_disabled_until_profile_data_id_exists(mocker, bk_data_id):
     profile = None if bk_data_id is None else mocker.Mock(bk_data_id=bk_data_id)
     _patch_profile(mocker, profile)
-    event_group = mocker.patch("core.drf_resource.api.metadata.single_query_event_group", return_value=[{"id": 1}])
-
-    assert ActiveProfilingMetaConfigResource().request({"bk_biz_id": 2})["enabled"] is False
-    event_group.assert_not_called()
-
-
-def test_meta_config_disabled_when_event_group_missing(mocker):
-    _patch_profile(mocker, mocker.Mock(bk_data_id=1001))
-    mocker.patch("core.drf_resource.api.metadata.single_query_event_group", return_value=[])
 
     assert ActiveProfilingMetaConfigResource().request({"bk_biz_id": 2})["enabled"] is False
 
