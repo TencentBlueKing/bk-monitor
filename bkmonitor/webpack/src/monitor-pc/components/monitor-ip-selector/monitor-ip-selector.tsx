@@ -251,6 +251,7 @@ export default class MonitorIpSelector extends tsc<IMonitorIpSelectorProps, IMon
       hostTableRenderColumnList: this.hostTableRenderColumnList ?? [],
       hostViewFieldRender: this.hostViewFieldRender,
       serviceConfigError: true,
+      warningSelectAllBusinesses: false,
     };
   }
   // 动态分组api
