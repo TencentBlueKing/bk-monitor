@@ -151,7 +151,10 @@ export default defineComponent({
               />
             </div>
           </div>
-          <div class='row-value'>{isJson && showJson ? <VueJsonPretty data={JSON.parse(row.value)} /> : row.value}</div>
+          {/* 值优先展示按字段元信息格式化后的 displayValue（枚举别名 / 单位换算 / 时间），检索条件回传与复制仍用 row.value 的原始值 */}
+          <div class='row-value'>
+            {isJson && showJson ? <VueJsonPretty data={JSON.parse(row.value)} /> : row.displayValue}
+          </div>
           {isJson ? (
             <Button
               class='format-button'
