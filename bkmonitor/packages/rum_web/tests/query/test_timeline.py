@@ -217,6 +217,10 @@ class TestTimelineBuilder:
         assert spans == before
         assert result["records"][0]["origin_data"] == canonical
         assert result["records"][0] == build_span(canonical, spans)
+        web_vitals = next(section for section in result["records"][0]["sections"] if section["key"] == "web_vitals")
+        hover = web_vitals["data"]["lcp"]["hover"]
+        assert {"title", "description", "user_experience", "source"} == hover.keys()
+        assert not {"formula", "calculation"} & hover.keys()
         handler = _handler()
         mocker.patch.object(handler.query, "query_detail", return_value=canonical)
         mocker.patch.object(handler.query, "query_list", return_value=spans)
@@ -334,6 +338,10 @@ class TestTimelineHandler:
         web_vitals = next(section for section in detail["sections"] if section["key"] == "web_vitals")
         assert web_vitals["data"]["fcp"]["attributes.vital.value"] == 25
         assert web_vitals["data"]["lcp"]["attributes.vital.value"] == 50
+        timeline_vitals = next(
+            section for section in timeline["records"][0]["sections"] if section["key"] == "web_vitals"
+        )
+        assert timeline_vitals["data"]["lcp"]["hover"] == web_vitals["data"]["lcp"]["hover"]
         assert query.call_count == 2
         assert [call.kwargs["offset"] for call in query.call_args_list] == [0, 0]
 

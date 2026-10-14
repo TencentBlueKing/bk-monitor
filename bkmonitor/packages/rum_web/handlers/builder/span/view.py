@@ -18,7 +18,19 @@ from bkmonitor.data_source.format import flatten_dict_data
 from semconv.rum.constants import RumSpanType, ViewLoadingTimeSource, ViewLoadingType
 from rum_web.handlers.builder.base import BaseSection, DictItem, KeyInfoSection, KeyValueItem, WaterfallSection, group
 from rum_web.handlers.builder.constants import SectionType
-from rum_web.handlers.builder.span.base import RatingConfigItem, SpanBuilder, SpanOverview, insert_after, named
+from rum_web.handlers.builder.hover import (
+    VIEW_PHASE_HOVERS,
+    get_milestone_hover,
+    get_vital_hover,
+)
+from rum_web.handlers.builder.span.base import (
+    RatingConfigItem,
+    SpanBuilder,
+    SpanOverview,
+    VitalHoverItem,
+    insert_after,
+    named,
+)
 from rum_web.handlers.builder.utils import build_rating_config, get_safe_number, safe_diff, waterfall
 
 
@@ -75,7 +87,11 @@ def vital_group(metric: str, extra: tuple[str, ...] = ()) -> DictItem:
     fields = ("attributes.vital.metric", "attributes.vital.value", *extra)
     return DictItem(
         metric,
-        (*(KeyValueItem(field, source=vital_key(metric, field)) for field in fields), RatingConfigItem(metric=metric)),
+        (
+            *(KeyValueItem(field, source=vital_key(metric, field)) for field in fields),
+            VitalHoverItem(metric=metric),
+            RatingConfigItem(metric=metric),
+        ),
     )
 
 
@@ -88,6 +104,7 @@ class ViewWebVitalsSection(BaseSection):
 class ViewLoadingTimingSection(WaterfallSection):
     KEY = "loading_timing"
     MIN_START = 0
+    PHASE_HOVERS = VIEW_PHASE_HOVERS
     PHASE_ALIASES = {
         "prepare": _("浏览器准备"),
         "dns": _("DNS 查询"),
@@ -131,23 +148,33 @@ class ViewLoadingTimingSection(WaterfallSection):
         return self.phases(specs)
 
     def _build_markers(self) -> list[dict[str, Any]]:
-        return [
-            {
+        markers: list[dict[str, Any]] = []
+        for metric in MARKER_METRICS:
+            value = self.numeric_or_none(vital_key(metric, "attributes.vital.value"))
+            if value is None:
+                continue
+            marker: dict[str, Any] = {
                 "key": metric.upper(),
                 "field_name": metric.upper(),
                 "value": value,
                 "display.rating_config": build_rating_config(metric),
             }
-            for metric in MARKER_METRICS
-            if (value := self.numeric_or_none(vital_key(metric, "attributes.vital.value"))) is not None
-        ]
+            if (hover := get_vital_hover(metric)) is not None:
+                marker["hover"] = hover
+            markers.append(marker)
+        return markers
 
     def _build_milestones(self, is_auto: bool) -> list[dict[str, Any]]:
-        return [
-            {"key": key, "field_name": field, "value": value}
-            for key, field in self.MILESTONES
-            if (value := self.numeric_or_none(field)) is not None and (key != "page_stable" or is_auto)
-        ]
+        milestones: list[dict[str, Any]] = []
+        for key, field in self.MILESTONES:
+            value = self.numeric_or_none(field)
+            if value is None or (key == "page_stable" and not is_auto):
+                continue
+            milestone: dict[str, Any] = {"key": key, "field_name": field, "value": value}
+            if (hover := get_milestone_hover(key)) is not None:
+                milestone["hover"] = hover
+            milestones.append(milestone)
+        return milestones
 
     def get_data(self) -> dict[str, Any] | None:
         if self.flatten_data.get("attributes.view.loading_type") != ViewLoadingType.INITIAL_LOAD.value:

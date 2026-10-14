@@ -18,6 +18,7 @@ from bkmonitor.data_source.format import flatten_dict_data
 from semconv.rum.constants import ResourceType
 from rum_web.handlers.builder.base import BaseSection, KeyInfoSection, KeyValueItem, WaterfallSection, group
 from rum_web.handlers.builder.constants import SectionType
+from rum_web.handlers.builder.hover import RESOURCE_PHASE_HOVERS
 from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
 from rum_web.handlers.builder.utils import get_safe_number, safe_diff, waterfall
 
@@ -66,6 +67,7 @@ class ResourceXhrAndFetchKeyInfoSection(KeyInfoSection):
 
 class LoadingTimingSection(WaterfallSection):
     KEY = "loading_timing"
+    PHASE_HOVERS = RESOURCE_PHASE_HOVERS
     PHASE_ALIASES = {
         "prepare": _("浏览器准备"),
         "dns": _("DNS"),
