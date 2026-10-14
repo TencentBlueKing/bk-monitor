@@ -61,6 +61,8 @@ import {
 } from '@/components/collection-access/ext-json-expand-depth';
 import { getCleanTypeLabel, getCleanTypeIcon } from '../business-comp/step3/clean-type';
 import { isCollectionEditRoute } from './route-utils';
+import { resolveSyncErrorMessage, resolveSyncFailDetail } from './resolve-sync-fail-detail';
+import SyncFailDialog, { type SyncFailDetail } from './sync-fail-dialog';
 
 import type { ISelectItem, ISubmitOptions } from '../../type';
 
@@ -168,6 +170,8 @@ export default defineComponent({
 
     const templateDialogVisible = ref(false);
     const templateSaveConfirmVisible = ref(false);
+    const syncFailDialogVisible = ref(false);
+    const syncFailDetail = ref<SyncFailDetail>({ items: [], summary: '' });
     const templateName = ref('');
     const templateDescription = ref('');
     const templateCollectorCount = ref(0);
@@ -1262,21 +1266,38 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
           return;
         }
 
-        let syncFailed = false;
+        let pendingSyncFail: SyncFailDetail | null = null;
         if (isEditTemp.value && syncToCollectors) {
+          const emptyResult = t('同步失败，未返回采集项结果');
+          const missingReason = t('未返回失败原因');
           try {
             const syncRes = await $http.request('clean/syncCleanTemplateCollectors', {
               params: { clean_template_id: route.params.templateId },
             });
-            syncFailed = !Array.isArray(syncRes.data) || syncRes.data.some(item => item.status !== 'SUCCESS');
-          } catch {
-            syncFailed = true;
+            pendingSyncFail = resolveSyncFailDetail(syncRes.data, {
+              emptyResult,
+              missingReason,
+              errorMessage: syncRes.result === false ? syncRes.message || emptyResult : undefined,
+            });
+            if (!pendingSyncFail && syncRes.result === false) {
+              pendingSyncFail = { items: [], summary: syncRes.message || emptyResult };
+            }
+          } catch (error) {
+            pendingSyncFail = {
+              items: [],
+              summary: resolveSyncErrorMessage(error, emptyResult),
+            };
           }
         }
 
         templateDialogVisible.value = false;
         templateSaveConfirmVisible.value = false;
-        showMessage(syncFailed ? t('同步失败') : t('保存成功'), syncFailed ? 'error' : 'success');
+        if (pendingSyncFail) {
+          syncFailDetail.value = pendingSyncFail;
+          syncFailDialogVisible.value = true;
+        } else {
+          showMessage(t('保存成功'));
+        }
         if (props.isTempField) {
           emit('change-submit', true);
         }
@@ -2800,6 +2821,14 @@ __ext_json.service.labels   ${t('动态对象字段')}`;
             </div>
           </div>
         </bk-dialog>
+        <SyncFailDialog
+          items={syncFailDetail.value.items}
+          summary={syncFailDetail.value.summary}
+          value={syncFailDialogVisible.value}
+          on-cancel={() => {
+            syncFailDialogVisible.value = false;
+          }}
+        />
       </div>
     );
   },
