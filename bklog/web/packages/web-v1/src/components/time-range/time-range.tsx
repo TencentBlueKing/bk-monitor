@@ -89,8 +89,8 @@ export default class TimeRange extends tsc<IProps, IEvents> {
     hideResolvedTimeTooltip();
   }
   closeResolvedTimeTooltip() {
-    hideResolvedTimeTooltip();
-    this.$nextTick(() => hideResolvedTimeTooltip());
+    hideResolvedTimeTooltip(this.$el);
+    this.$nextTick(() => hideResolvedTimeTooltip(this.$el));
   }
   render() {
     return (

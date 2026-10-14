@@ -24,7 +24,9 @@
  * IN THE SOFTWARE.
  */
 
-const RESOLVED_TIME_TOOLTIP_SELECTOR = '.__date-tooltips__, .time-range-tips-content';
+const TRIGGER_SELECTOR = '.date-content';
+const CONTENT_SELECTOR = '.__date-tooltips__, .time-range-tips-content';
+const POPOVER_MARK = '__bk-date-picker-popover__';
 
 type TippyLike = {
   hide?: () => void;
@@ -32,40 +34,70 @@ type TippyLike = {
 
 type TippyHost = Element & {
   _tippy?: TippyLike;
-  style?: CSSStyleDeclaration;
+  $tippy?: TippyLike;
 };
 
 /**
- * Close leftover @blueking/date-picker resolved-time tooltips.
- * The picker hides its panel on change but leaves the body-level tippy visible.
+ * Hide the resolved-time hover tippy without touching its content node.
+ * Setting display:none on `.__date-tooltips__` leaves an empty black shell
+ * that cannot show content or close on later hovers.
  */
-export function hideResolvedTimeTooltip(root?: ParentNode) {
-  const scope = root ?? (typeof document === 'undefined' ? undefined : document);
-  if (!scope?.querySelectorAll) {
+export function hideResolvedTimeTooltip(scope?: ParentNode) {
+  const doc = typeof document === 'undefined' ? undefined : document;
+  const local = scope ?? doc;
+  if (!local?.querySelectorAll) {
     return;
   }
 
-  const seen = new Set<Element>();
-  scope.querySelectorAll(RESOLVED_TIME_TOOLTIP_SELECTOR).forEach((content) => {
-    const tippyRoot = ((content.closest?.('[data-tippy-root]') as TippyHost | null)
-      || (content as TippyHost)) as TippyHost;
-    if (seen.has(tippyRoot)) {
-      return;
+  const instances = new Set<TippyLike>();
+  collectTriggerInstances(local, instances);
+  collectPopperInstances(doc ?? local, instances);
+  instances.forEach((instance) => {
+    if (typeof instance.hide === 'function') {
+      instance.hide();
     }
-    seen.add(tippyRoot);
-    hideTippyHost(tippyRoot);
+  });
+
+  syncDatePickerHoverState(local);
+}
+
+function collectTriggerInstances(scope: ParentNode, instances: Set<TippyLike>) {
+  scope.querySelectorAll(TRIGGER_SELECTOR).forEach((el) => {
+    const instance = getTippy(el as TippyHost);
+    if (instance) {
+      instances.add(instance);
+    }
   });
 }
 
-function hideTippyHost(host: TippyHost) {
-  if (typeof host._tippy?.hide === 'function') {
-    host._tippy.hide();
+function collectPopperInstances(scope: ParentNode, instances: Set<TippyLike>) {
+  if (!scope?.querySelectorAll) {
     return;
   }
-  if (host.style) {
-    host.style.display = 'none';
+  scope.querySelectorAll('[data-tippy-root]').forEach((popper) => {
+    if (!popper.querySelector(CONTENT_SELECTOR)) {
+      return;
+    }
+    if (String((popper as Element).className || '').includes(POPOVER_MARK)) {
+      return;
+    }
+    const instance = getTippy(popper as TippyHost);
+    if (instance) {
+      instances.add(instance);
+    }
+  });
+}
+
+function syncDatePickerHoverState(scope: ParentNode) {
+  const EventCtor = typeof MouseEvent !== 'undefined' ? MouseEvent : typeof Event !== 'undefined' ? Event : null;
+  if (!EventCtor) {
+    return;
   }
-  if (typeof host.setAttribute === 'function') {
-    host.setAttribute('aria-hidden', 'true');
-  }
+  scope.querySelectorAll(TRIGGER_SELECTOR).forEach((el) => {
+    el.dispatchEvent(new EventCtor('mouseleave', { bubbles: true }));
+  });
+}
+
+function getTippy(host: TippyHost) {
+  return host._tippy || host.$tippy;
 }
