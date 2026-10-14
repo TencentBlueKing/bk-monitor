@@ -32,7 +32,7 @@ import type {
   CollectionPayload,
   CollectionQueryState,
   CollectionTask,
-  HostPids,
+  HostPid,
   PreviewSelector,
   ProcessRow,
   ProcessSelector,
@@ -66,10 +66,10 @@ export function createCollectionDraft(meta: CollectionMeta, timezone: string, ta
     process: {
       matchPattern: '',
       excludePattern: '',
-      dynamic: false,
+      dynamic: true,
       pidPath: '',
       pids: '',
-      selected: { command: [], pid_file: [], pid: [] },
+      selected: [],
     },
     scheduleType: schedule?.type || meta.schedule_types[0],
     executeAt: schedule && schedule.type !== 'cron' ? schedule.execute_at : null,
@@ -83,13 +83,10 @@ export function createCollectionDraft(meta: CollectionMeta, timezone: string, ta
       draft.process.matchPattern = selector.config.match_pattern;
       draft.process.excludePattern = selector.config.exclude_pattern;
       draft.process.dynamic = selector.config.enable_dynamic_collection;
+      draft.process.selected = (selector.config.host_pids || []).map(row => ({ ...row }));
     }
     if (selector.type === 'pid_file') draft.process.pidPath = selector.config.pid_path;
-    draft.process.selected[selector.type] = (selector.config.host_pids || []).flatMap(host =>
-      host.pids.map(pid => ({ bk_host_id: host.bk_host_id, pid }))
-    );
-    if (selector.type === 'pid')
-      draft.process.pids = [...new Set(draft.process.selected.pid.map(row => row.pid))].join(', ');
+    if (selector.type === 'pid') draft.process.pids = selector.config.pids;
   }
   return draft;
 }
@@ -145,35 +142,26 @@ export function buildCollectionPayload(draft: CollectionDraft, bizId: number, no
     throw new Error('请填写有效的采样频率和栈展开方式');
   if (draft.method === 'golang' && (!collector.ip_address?.trim() || !positive(collector.port)))
     throw new Error('请填写有效的采集地址和端口');
-  let hosts = draft.hosts;
   let selector: ProcessSelector;
   if (draft.method !== 'golang') {
-    const hostIds = new Set(hosts.map(host => host.host_id));
-    const hostPids = groupProcessPids(
-      draft.process.selected[draft.processMode].filter(row => hostIds.has(row.bk_host_id))
-    );
-    if (draft.processMode === 'pid') selector = { type: 'pid', config: { host_pids: hostPids } };
-    else {
-      const preview = buildPreviewSelector(draft);
-      if (preview.type === 'pid_file')
-        selector = {
-          type: 'pid_file',
-          config: { ...preview.config, ...(hostPids.length ? { host_pids: hostPids } : {}) },
-        };
-      if (preview.type === 'command')
-        selector = {
-          type: 'command',
-          config: {
-            ...preview.config,
-            enable_dynamic_collection: draft.process.dynamic,
-            ...(!draft.process.dynamic ? { host_pids: hostPids } : {}),
-          },
-        };
-    }
-    if (selector.type === 'pid' || (selector.type === 'command' && !selector.config.enable_dynamic_collection)) {
-      if (!hostPids.length) throw new Error('请选择目标进程');
-      const selectedHosts = new Set(hostPids.map(host => host.bk_host_id));
-      hosts = hosts.filter(host => selectedHosts.has(host.host_id));
+    const preview = buildPreviewSelector(draft);
+    if (preview.type === 'command') {
+      const hostIds = new Set(draft.hosts.map(host => host.host_id));
+      const hostPids = collectHostPids(draft.process.selected.filter(row => hostIds.has(row.bk_host_id)));
+      if (!draft.process.dynamic) {
+        if (!hostPids.length) throw new Error('请选择目标进程');
+        if (hostPids.length > 500) throw new Error('最多选择 500 个进程');
+      }
+      selector = {
+        type: 'command',
+        config: {
+          ...preview.config,
+          enable_dynamic_collection: draft.process.dynamic,
+          ...(!draft.process.dynamic ? { host_pids: hostPids } : {}),
+        },
+      };
+    } else {
+      selector = preview;
     }
   }
   if (draft.scheduleType === 'once_at' && (!draft.executeAt || draft.executeAt <= now))
@@ -190,7 +178,7 @@ export function buildCollectionPayload(draft: CollectionDraft, bizId: number, no
     name: draft.name.trim(),
     collection_method: draft.method,
     collection_type: draft.collectionType,
-    target_config: collectionTarget(hosts),
+    target_config: collectionTarget(draft.hosts),
     ...(selector ? { process_selector: selector } : {}),
     collector_config: { ...collector },
     resource_guard_config: { ...draft.resourceGuard },
@@ -221,16 +209,30 @@ export function buildPreviewSelector(draft: CollectionDraft): PreviewSelector {
     };
   }
   if (draft.processMode === 'pid_file') {
-    if (!process.pidPath.trim().startsWith('/')) throw new Error('请输入 PID 文件的绝对路径');
-    return { type: 'pid_file', config: { pid_path: process.pidPath.trim() } };
+    const paths = process.pidPath.split(';').map(value => value.trim());
+    if (paths.some(value => !value.startsWith('/'))) throw new Error('请输入 PID 文件的绝对路径，多个路径用分号分隔');
+    const pidPath = paths.join(';');
+    if (paths.length > 20) throw new Error('最多输入 20 个 PID 文件路径');
+    if (pidPath.length > 4096) throw new Error('PID 文件路径总长度不能超过 4096 个字符');
+    return { type: 'pid_file', config: { pid_path: pidPath } };
   }
-  const values = process.pids.trim().split(/[,;\s，；]+/);
+  const values = process.pids.split(';').map(value => value.trim());
   if (
     !values.length ||
     values.some(value => !/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) <= 0)
   )
-    throw new Error('请输入有效的 PID，多个 PID 用逗号分隔');
-  return { type: 'pid', config: { pids: [...new Set(values.map(Number))] } };
+    throw new Error('请输入有效的 PID，多个 PID 用分号分隔');
+  if (values.length > 1000) throw new Error('最多输入 1000 个 PID');
+  return { type: 'pid', config: { pids: values.join(';') } };
+}
+
+export function collectHostPids(rows: ProcessRow[]): HostPid[] {
+  const processes = new Map<string, HostPid>();
+  for (const row of rows) {
+    if (!Number.isInteger(row.pid) || row.pid <= 0 || row.err_msg) continue;
+    processes.set(processKey(row), { bk_host_id: row.bk_host_id, pid: row.pid });
+  }
+  return [...processes.values()];
 }
 
 export function filterCollectionTasks(tasks: CollectionTask[], query: CollectionQueryState) {
@@ -260,16 +262,6 @@ export function filterCollectionTasks(tasks: CollectionTask[], query: Collection
 
 export function formatCollectionTime(value: number, timezone: string) {
   return value ? dayjs(value).tz(timezone).format('YYYY-MM-DD HH:mm:ss') : '--';
-}
-
-export function groupProcessPids(rows: ProcessRow[]): HostPids[] {
-  const grouped = new Map<number, Set<number>>();
-  for (const row of rows) {
-    if (!Number.isInteger(row.pid) || row.pid <= 0 || row.err_msg) continue;
-    if (!grouped.has(row.bk_host_id)) grouped.set(row.bk_host_id, new Set());
-    grouped.get(row.bk_host_id).add(row.pid);
-  }
-  return [...grouped].map(([bk_host_id, pids]) => ({ bk_host_id, pids: [...pids] }));
 }
 
 export function immediateCollectionPayload(task: CollectionTask, bizId: number, now = Date.now()): CollectionPayload {

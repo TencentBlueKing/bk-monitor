@@ -21,6 +21,10 @@
   height: calc(100% - 16px);
   margin: 8px;
   background: #fff;
+
+  &.is-loading {
+    align-items: stretch;
+  }
 }
 
 .collection-meta-error {
@@ -65,6 +69,14 @@
 
 .collection-task-pagination {
   padding-top: 16px;
+}
+
+.collection-task-pagination,
+.collection-process-pagination {
+  .bk-pagination-list,
+  .bk-pagination-small-list {
+    margin-left: auto;
+  }
 }
 
 .collection-inline-alert {
@@ -159,8 +171,14 @@
 .collection-process-selector {
   display: flex;
   min-width: 0;
+  min-height: 630px;
+  overflow: hidden;
   border: 1px solid #dcdee5;
-  border-radius: 2px;
+  border-radius: 4px;
+
+  &.is-condition {
+    min-height: 640px;
+  }
 
   .bk-button {
     font-size: 12px;
@@ -168,6 +186,13 @@
 
   .t-table {
     font-size: 12px;
+
+    th,
+    td {
+      height: 36px;
+      padding: 7px 12px;
+      line-height: 20px;
+    }
   }
 }
 
@@ -211,19 +236,52 @@
 }
 
 .collection-process-pagination {
-  padding-top: 12px;
+  min-height: 42px;
+  padding: 8px 16px;
+  border: 1px solid #dcdee5;
+  border-top: 0;
+}
+
+.collection-process-preview-button {
+  min-width: 64px;
+}
+
+.collection-process-results {
+  min-height: 438px;
+
+  > .empty-status-container,
+  .t-table__empty {
+    height: 396px;
+  }
+}
+
+.collection-process-count {
+  min-width: 0;
+  font-weight: normal;
+
+  .icon-mc-triangle-down {
+    margin-right: 4px;
+    font-size: 14px;
+
+    &.is-collapsed {
+      transform: rotate(-90deg);
+    }
+  }
 }
 
 .collection-process-targets {
-  width: 240px;
+  flex: 0 0 272px;
+  min-width: 0;
   padding: 16px;
   overflow-wrap: anywhere;
   background: #f5f7fa;
 
   h4 {
-    margin: 0 0 12px;
+    margin: 0 0 8px;
     font-size: 14px;
-    font-weight: normal;
+    font-weight: 500;
+    line-height: 22px;
+    color: #313238;
   }
 
   p {
@@ -233,6 +291,8 @@
 
 .collection-process-target-heading {
   display: flex;
+  gap: 4px;
+  align-items: center;
   justify-content: space-between;
   margin-bottom: 8px;
 }
@@ -244,8 +304,8 @@
   font-size: 12px;
   line-height: 20px;
   background: #fff;
-  border-radius: 2px;
-  box-shadow: 0 1px 2px #00000014;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px #1919290d;
 
   small {
     display: block;
@@ -263,10 +323,19 @@
   }
 }
 
+.collection-process-summary {
+  padding: 8px;
+
+  p {
+    margin: 4px 0 0;
+  }
+}
+
 .collection-form-footer {
-  padding: 12px 40px;
-  background: #fafbfd;
-  border-top: 1px solid #dcdee5;
+  // padding: 12px 40px;
+
+  // background: #fafbfd;
+  // border-top: 1px solid #dcdee5;
 
   > .bk-alert {
     margin-bottom: 12px;
@@ -383,7 +452,7 @@
   }
 
   .collection-process-targets {
-    width: 200px;
+    flex-basis: 240px;
     padding: 12px;
   }
 
