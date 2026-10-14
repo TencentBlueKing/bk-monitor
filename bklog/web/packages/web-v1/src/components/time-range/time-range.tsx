@@ -30,6 +30,7 @@ import { Component as tsc } from 'vue-tsx-support';
 import DatePicker from '@blueking/date-picker/vue2';
 
 import { updateTimezone } from '../../language/dayjs';
+import { hideResolvedTimeTooltip } from './hide-resolved-time-tooltip';
 import { DEFAULT_TIME_RANGE } from './utils';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 
@@ -63,6 +64,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
     this.$store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: [] });
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
+    this.closeResolvedTimeTooltip();
     return v;
   }
 
@@ -77,10 +79,18 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   @Emit('timezone-change')
   handleTimezoneChange(timezone: string) {
     timezone && updateTimezone(timezone);
+    this.closeResolvedTimeTooltip();
     return timezone;
   }
   mounted() {
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
+  }
+  beforeDestroy() {
+    hideResolvedTimeTooltip();
+  }
+  closeResolvedTimeTooltip() {
+    hideResolvedTimeTooltip();
+    this.$nextTick(() => hideResolvedTimeTooltip());
   }
   render() {
     return (
