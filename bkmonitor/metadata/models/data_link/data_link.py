@@ -44,6 +44,7 @@ from metadata.models.data_link.constants import (
     SYSTEM_PROC_PORT_DATABUS_FORMAT,
     DataLinkImmutableField,
     DataLinkKind,
+    DataLinkNameScene,
     DataLinkResourceStatus,
 )
 from metadata.models.data_link.data_link_configs import (
@@ -538,6 +539,9 @@ class DataLink(models.Model):
     REUSE_LEFTOVER_POLICY: dict[tuple[str, type["DataLinkResourceConfigBase"]], Literal["strict", "keep", "delete"]] = {
         # 日志在 ES / Doris 间切换时，需要保留旧存储绑定以支持历史分段查询；
         # compose 只会认领当前生效的绑定，因此旧绑定不应被视为脏数据。
+        (BCS_FEDERAL_PROXY_TIME_SERIES, DataBusConfig): "delete",
+        (BCS_FEDERAL_SUBSET_TIME_SERIES, ResultTableConfig): "keep",
+        (BCS_FEDERAL_SUBSET_TIME_SERIES, VMStorageBindingConfig): "keep",
         (BK_LOG, ESStorageBindingConfig): "keep",
         (BK_LOG, DorisStorageBindingConfig): "keep",
         (GRAPH_RELATION_TIME_SERIES, ResultTableConfig): "delete",
@@ -604,6 +608,8 @@ class DataLink(models.Model):
         return list(dict.fromkeys(self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]))
 
     def get_delete_component_classes(self) -> list[type["DataLinkResourceConfigBase"]]:
+        if self.data_link_strategy == self.BCS_FEDERAL_SUBSET_TIME_SERIES:
+            return [ConditionalSinkConfig, DataBusConfig]
         return self.STRATEGY_RELATED_COMPONENTS[self.data_link_strategy]
 
     def _get_compose_method(self):
@@ -642,7 +648,7 @@ class DataLink(models.Model):
         """
         生成对应套餐的链路完整配置
 
-        ``existing_context`` 由上层根据 strategy 灰度开关或 RT option 单表开关决定是否构造。
+        随机命名策略始终复用名称；其他策略由上层根据灰度或单表开关决定是否构造上下文。
         本层只负责确认当前 compose 分支已经接入 ``existing_context`` 形参，避免把该参数
         透传给尚未改造的 strategy。
         """
@@ -1043,6 +1049,7 @@ class DataLink(models.Model):
             return cls._strip_bkbase_biz_prefix(existing_vm_record.vm_result_table_id)
         return default_name
 
+    @transaction.atomic(using=DATABASE_CONNECTION_NAME)
     def compose_graph_relation_v4_time_series_configs(
         self,
         bk_biz_id: int,
@@ -1053,6 +1060,10 @@ class DataLink(models.Model):
         consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
         """根据 ResultTableOption 一次性组装 Graph Relation V4 的完整期望状态。"""
+        if existing_context is None:
+            type(self).objects.select_for_update().get(pk=self.pk)
+            existing_context = ExistingComponentContext.from_datalink(self)
+
         from metadata.models import ResultTableOption
         from metadata.models.result_table import GraphRelationV4DataLinkOption
 
@@ -1062,14 +1073,8 @@ class DataLink(models.Model):
             name=ResultTableOption.OPTION_GRAPH_RELATION_V4_DATA_LINK,
         )
         option = GraphRelationV4DataLinkOption.from_option_value(option_record.get_value())
-        default_vm_name = self.resolve_graph_relation_vm_result_table_name(
-            bk_tenant_id=self.bk_tenant_id,
-            table_id=table_id,
-            default_name=utils.compose_bkdata_table_id(table_id),
-        )
-        surrealdb_name = self.compose_surrealdb_table_name(table_id)
-
         configs: list[dict[str, Any]] = []
+        # 双写的两组组件通过 RT 类型和实际 sink 种类区分，各自复用名称，不从名称后缀推断归属。
         if option.should_write_vm:
             if not storage_cluster_name:
                 access_vm_record = AccessVMRecord.objects.filter(
@@ -1086,34 +1091,44 @@ class DataLink(models.Model):
             if not storage_cluster_name:
                 raise ValueError("compose_graph_relation_v4_time_series_configs: vm cluster name is empty")
 
-            existing_vm_rt = (
-                existing_context.claim(ResultTableConfig, lambda component: component.data_type != "graph")
-                if existing_context is not None
-                else None
+            existing_rt = existing_context.claim(
+                ResultTableConfig, lambda c: c.data_type != "graph", require_unique=True
             )
-            existing_vm_binding = (
-                existing_context.claim(VMStorageBindingConfig, lambda component: True)
-                if existing_context is not None
-                else None
+            existing_binding = existing_context.claim(VMStorageBindingConfig, lambda c: True, require_unique=True)
+            existing_databus = existing_context.claim(
+                DataBusConfig,
+                lambda c: not any(name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:") for name in c.sink_names),
+                require_unique=True,
             )
-            existing_vm_databus = (
-                existing_context.claim(
-                    DataBusConfig,
-                    lambda component: any(
-                        sink_name.startswith(f"{DataLinkKind.VMSTORAGEBINDING.value}:")
-                        for sink_name in component.sink_names
-                    ),
+            # 保存的引用也属于已有身份；只有没有组件和引用时才分配新名称。
+            vm_rt_name = (
+                existing_rt.name
+                if existing_rt
+                else (existing_binding.bkbase_result_table_name if existing_binding else "")
+            )
+            if not vm_rt_name:
+                # 老链路可能只保留了 AccessVMRecord，使用完整 VMRT 中的原名恢复 VM 输出。
+                vm_rt_name = self.resolve_graph_relation_vm_result_table_name(
+                    self.bk_tenant_id, table_id, default_name=""
                 )
-                if existing_context is not None
-                else None
+            saved_bindings = (
+                {
+                    name.split(":", 1)[1]
+                    for name in existing_databus.sink_names
+                    if name.startswith(f"{DataLinkKind.VMSTORAGEBINDING.value}:")
+                }
+                if existing_databus
+                else set()
             )
-            vm_rt_name = existing_vm_rt.name if existing_vm_rt is not None else default_vm_name
-            vm_binding_name = existing_vm_binding.name if existing_vm_binding is not None else vm_rt_name
-            vm_databus_name = existing_vm_databus.name if existing_vm_databus is not None else vm_rt_name
+            if len(saved_bindings) > 1:
+                raise ValueError(f"ambiguous VMStorageBindingConfig references: {sorted(saved_bindings)}")
+            vm_binding_name = existing_binding.name if existing_binding else next(iter(saved_bindings), "")
+            vm_databus_name = existing_databus.name if existing_databus else ""
             vm_data_id_name = (
-                existing_vm_databus.data_id_name
-                if existing_vm_databus is not None
-                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+                existing_databus.data_id_name if existing_databus else ""
+            ) or utils.get_registered_bkdata_data_id_name(
+                data_source,
+                namespace=self.namespace,
             )
 
             result_table_option = ResultTableOption.objects.filter(
@@ -1147,40 +1162,41 @@ class DataLink(models.Model):
                     f"compose_graph_relation_v4_time_series_configs: surrealdb storage not found, table_id={table_id}"
                 )
 
-            existing_surrealdb_rt = (
-                existing_context.claim(ResultTableConfig, lambda component: component.data_type == "graph")
-                if existing_context is not None
-                else None
+            existing_rt = existing_context.claim(
+                ResultTableConfig, lambda c: c.data_type == "graph", require_unique=True
             )
-            existing_surrealdb_binding = (
-                existing_context.claim(SurrealDBBindingConfig, lambda component: True)
-                if existing_context is not None
-                else None
+            existing_binding = existing_context.claim(SurrealDBBindingConfig, lambda c: True, require_unique=True)
+            existing_databus = existing_context.claim(
+                DataBusConfig,
+                lambda c: any(name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:") for name in c.sink_names),
+                require_unique=True,
             )
-            existing_surrealdb_databus = (
-                existing_context.claim(
-                    DataBusConfig,
-                    lambda component: any(
-                        sink_name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:")
-                        for sink_name in component.sink_names
-                    ),
-                )
-                if existing_context is not None
-                else None
+            # 保存的引用也属于已有身份；只有没有组件和引用时才分配新名称。
+            graph_rt_name = (
+                existing_rt.name
+                if existing_rt
+                else (existing_binding.bkbase_result_table_name if existing_binding else "")
             )
-            graph_rt_name = existing_surrealdb_rt.name if existing_surrealdb_rt is not None else surrealdb_name
-            graph_binding_name = (
-                existing_surrealdb_binding.name if existing_surrealdb_binding is not None else graph_rt_name
+            saved_bindings = (
+                {
+                    name.split(":", 1)[1]
+                    for name in existing_databus.sink_names
+                    if name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:")
+                }
+                if existing_databus
+                else set()
             )
-            graph_databus_name = (
-                existing_surrealdb_databus.name if existing_surrealdb_databus is not None else graph_rt_name
-            )
+            if len(saved_bindings) > 1:
+                raise ValueError(f"ambiguous SurrealDBBindingConfig references: {sorted(saved_bindings)}")
+            graph_binding_name = existing_binding.name if existing_binding else next(iter(saved_bindings), "")
+            graph_databus_name = existing_databus.name if existing_databus else ""
             graph_data_id_name = (
-                existing_surrealdb_databus.data_id_name
-                if existing_surrealdb_databus is not None
-                else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+                existing_databus.data_id_name if existing_databus else ""
+            ) or utils.get_registered_bkdata_data_id_name(
+                data_source,
+                namespace=self.namespace,
             )
-            with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+            if graph_rt_name:
                 graph_rt, _ = ResultTableConfig.objects.update_or_create(
                     name=graph_rt_name,
                     data_link_name=self.data_link_name,
@@ -1189,44 +1205,59 @@ class DataLink(models.Model):
                     bk_tenant_id=self.bk_tenant_id,
                     defaults={"table_id": table_id, "data_type": "graph"},
                 )
-                graph_binding, _ = SurrealDBBindingConfig.objects.update_or_create(
-                    name=graph_binding_name,
+            else:
+                graph_rt = utils.create_resource_with_random_name(
+                    ResultTableConfig,
+                    DataLinkNameScene.GRAPH_SURREALDB,
+                    data_source.bk_data_id,
+                    conflict_models=(SurrealDBBindingConfig, DataBusConfig),
                     data_link_name=self.data_link_name,
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
-                    defaults={
-                        "surrealdb_cluster_name": surrealdb_storage.storage_cluster.cluster_name,
-                        "table_id": table_id,
-                        "bkbase_result_table_name": graph_rt.name,
-                        "table_type": surrealdb_storage.table_type,
-                        "vertices": surrealdb_storage.vertices,
-                        "relations": surrealdb_storage.relations,
-                    },
+                    table_id=table_id,
+                    data_type="graph",
                 )
-                graph_sink = {
-                    "kind": DataLinkKind.SURREALDBBINDING.value,
-                    "name": graph_binding.name,
-                    "namespace": self.namespace,
-                }
-                if settings.ENABLE_MULTI_TENANT_MODE:
-                    graph_sink["tenant"] = self.bk_tenant_id
-                graph_databus, _ = DataBusConfig.objects.update_or_create(
-                    name=graph_databus_name,
-                    data_link_name=self.data_link_name,
-                    namespace=self.namespace,
-                    bk_biz_id=bk_biz_id,
-                    bk_tenant_id=self.bk_tenant_id,
-                    defaults={
-                        "data_id_name": graph_data_id_name,
-                        "bk_data_id": data_source.bk_data_id,
-                        "sink_names": [f"{graph_sink['kind']}:{graph_sink['name']}"],
-                        # Transfer consumer group 只用于 VM 分支承接原消费位点。
-                        # SurrealDB 分支必须使用独立消费组，避免与 VM Databus
-                        # 竞争同一 Kafka 分区；同时清理早期错误写入的共享值。
-                        "consumer_group": "",
-                    },
-                )
+            graph_binding_name = graph_binding_name or graph_rt.name
+            graph_databus_name = graph_databus_name or graph_rt.name
+            graph_binding, _ = SurrealDBBindingConfig.objects.update_or_create(
+                name=graph_binding_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "surrealdb_cluster_name": surrealdb_storage.storage_cluster.cluster_name,
+                    "table_id": table_id,
+                    "bkbase_result_table_name": graph_rt.name,
+                    "table_type": surrealdb_storage.table_type,
+                    "vertices": surrealdb_storage.vertices,
+                    "relations": surrealdb_storage.relations,
+                },
+            )
+            graph_sink = {
+                "kind": DataLinkKind.SURREALDBBINDING.value,
+                "name": graph_binding.name,
+                "namespace": self.namespace,
+            }
+            if settings.ENABLE_MULTI_TENANT_MODE:
+                graph_sink["tenant"] = self.bk_tenant_id
+            graph_databus, _ = DataBusConfig.objects.update_or_create(
+                name=graph_databus_name,
+                data_link_name=self.data_link_name,
+                namespace=self.namespace,
+                bk_biz_id=bk_biz_id,
+                bk_tenant_id=self.bk_tenant_id,
+                defaults={
+                    "data_id_name": graph_data_id_name,
+                    "bk_data_id": data_source.bk_data_id,
+                    "sink_names": [f"{graph_sink['kind']}:{graph_sink['name']}"],
+                    # Transfer consumer group 只用于 VM 分支承接原消费位点。
+                    # SurrealDB 分支必须使用独立消费组，避免与 VM Databus
+                    # 竞争同一 Kafka 分区；同时清理早期错误写入的共享值。
+                    "consumer_group": "",
+                },
+            )
 
             configs.extend(
                 [
@@ -1946,6 +1977,7 @@ class DataLink(models.Model):
 
         return config_list
 
+    @transaction.atomic(using=DATABASE_CONNECTION_NAME)
     def compose_bcs_federal_proxy_time_series_configs(
         self,
         bk_biz_id: int,
@@ -1953,9 +1985,13 @@ class DataLink(models.Model):
         table_id: str,
         storage_cluster_name: str,
         consumer_group: str | None = None,
+        existing_context: ExistingComponentContext | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成联邦代理集群（父集群）时序数据链路配置
+
+        优先复用本链路关联的 RT/Binding；关联缺失时，通过完整 VMRT 和 Binding 的 RT 引用
+        定位历史组件。Proxy 负责原地补齐归属，保留名称和完整 VMRT，供多个 Subset 共享。
         """
 
         logger.info(
@@ -1968,47 +2004,117 @@ class DataLink(models.Model):
             storage_cluster_name,
         )
 
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
+        from metadata.models import ResultTable
 
-        logger.info(
-            "compose_federal_proxy_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] "
-            "bkbase_vmrt_name->[%s]to"
-            "compose configs",
-            self.data_link_name,
-            bkbase_data_name,
-            bkbase_vmrt_name,
+        if existing_context is None:
+            ResultTable.objects.select_for_update().get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
+            type(self).objects.select_for_update().get(pk=self.pk)
+            existing_context = ExistingComponentContext.from_datalink(self)
+        # 先使用正常归属，再沿 Binding 的实际 RT 引用补齐缺失组件，不要求二者同名。
+        existing_rt = existing_context.claim(ResultTableConfig, lambda c: c.data_type != "graph", require_unique=True)
+        existing_binding = existing_context.claim(VMStorageBindingConfig, lambda c: True, require_unique=True)
+        rt_query = ResultTableConfig.objects.select_for_update().filter(
+            bk_tenant_id=self.bk_tenant_id, namespace=self.namespace
         )
+        rt_name = (
+            existing_rt.name if existing_rt else (existing_binding.bkbase_result_table_name if existing_binding else "")
+        )
+        if rt_name:
+            existing_rt = rt_query.filter(name=rt_name).first()
+        saved_vmrt = existing_rt.bkbase_table_id if existing_rt else ""
+        if not saved_vmrt:
+            saved_vmrt = utils.get_federal_vm_table_id(self.bk_tenant_id, self.namespace, table_id)
+        # 老流程可能未保存 data_link_name/table_id，只能按 bkbase_table_id 找回原 RT。
+        # 已有 VMRT 却找不到组件时不能另起随机名，否则会把同一目标当成新资源。
+        if not rt_name and saved_vmrt:
+            try:
+                existing_rt = rt_query.get(bkbase_table_id=saved_vmrt)
+            except ResultTableConfig.DoesNotExist:
+                raise ValueError(f"federation ResultTable config missing: vmrt={saved_vmrt}") from None
+        if existing_rt:
+            rt_name = existing_rt.name
+            if existing_rt.data_link_name not in ("", self.pk) or existing_rt.table_id not in ("", table_id):
+                raise ValueError(f"federation ResultTable belongs to another link or table: name={rt_name}")
+            if existing_rt.data_type != "metric":
+                raise ValueError(f"federation ResultTable is not metric: name={rt_name}")
+        if saved_vmrt and rt_name and self._strip_bkbase_biz_prefix(saved_vmrt) != rt_name:
+            raise ValueError(f"conflicting federation RT reference: name={rt_name}, vmrt={saved_vmrt}")
 
-        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            # 渲染所需的资源配置
+        binding_query = VMStorageBindingConfig.objects.select_for_update().filter(
+            bk_tenant_id=self.bk_tenant_id, namespace=self.namespace
+        )
+        if existing_binding:
+            existing_binding = binding_query.get(pk=existing_binding.pk)
+        elif rt_name:
+            # 同一 RT 可能绑定多个存储，历史认领必须精确匹配当前父集群的 VM 集群。
+            candidates = list(binding_query.filter(bkbase_result_table_name=rt_name))
+            matches = [binding for binding in candidates if binding.vm_cluster_name == storage_cluster_name]
+            if candidates and len(matches) != 1:
+                raise ValueError(f"ambiguous or mismatched federation VM bindings: rt={rt_name}")
+            existing_binding = matches[0] if matches else None
+        if existing_binding:
+            if existing_binding.data_link_name not in ("", self.pk) or existing_binding.table_id not in ("", table_id):
+                raise ValueError(f"federation binding belongs to another link or table: name={existing_binding.name}")
+            if existing_binding.bkbase_result_table_name not in ("", rt_name):
+                raise ValueError(f"conflicting federation binding RT reference: name={existing_binding.name}")
+            if not existing_binding.data_link_name and existing_binding.vm_cluster_name != storage_cluster_name:
+                raise ValueError(f"federation binding VM cluster mismatch: name={existing_binding.name}")
+
+        # 只修复本地归属；完整 VMRT 中的历史业务前缀属于远端身份，不能随 bk_biz_id 改写。
+        rt_fields = dict(data_link_name=self.pk, bk_biz_id=bk_biz_id, table_id=table_id, data_type="metric")
+        if saved_vmrt:
+            rt_fields["bkbase_table_id"] = saved_vmrt
+        if rt_name:
             vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
-                name=bkbase_vmrt_name,
-                data_link_name=self.data_link_name,
-                namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
-                bk_tenant_id=self.bk_tenant_id,
-                defaults={"table_id": table_id},
+                name=rt_name, namespace=self.namespace, bk_tenant_id=self.bk_tenant_id, defaults=rt_fields
             )
-            vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
-                name=bkbase_vmrt_name,
-                data_link_name=self.data_link_name,
+        else:
+            vm_table_id_ins = utils.create_resource_with_random_name(
+                ResultTableConfig,
+                DataLinkNameScene.FEDERAL_PROXY,
+                data_source.bk_data_id,
+                conflict_models=(VMStorageBindingConfig,),
                 namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={
-                    "table_id": table_id,
-                    "bkbase_result_table_name": bkbase_vmrt_name,
-                    "vm_cluster_name": storage_cluster_name,
-                },
+                **rt_fields,
             )
+        binding_name = existing_binding.name if existing_binding else vm_table_id_ins.name
+        if existing_binding is None:
+            # 普通链路切换到 Proxy 时，残留 DataBus 中的引用可用于按原名补建 Binding。
+            saved_names = {
+                sink.split(":", 1)[1]
+                for sinks in DataBusConfig.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id, namespace=self.namespace, data_link_name=self.pk
+                ).values_list("sink_names", flat=True)
+                for sink in sinks
+                if sink.startswith(f"{DataLinkKind.VMSTORAGEBINDING.value}:")
+            }
+            if len(saved_names) > 1:
+                raise ValueError(f"ambiguous federation binding references: {sorted(saved_names)}")
+            binding_name = next(iter(saved_names), binding_name)
+        # name 才是组件身份；历史归属字段在找到实例后补齐，不能用于 update_or_create 的查找。
+        if existing_binding is None and binding_query.filter(name=binding_name).exists():
+            raise ValueError(f"federation binding name is occupied: name={binding_name}")
+        vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
+            name=binding_name,
+            namespace=self.namespace,
+            bk_tenant_id=self.bk_tenant_id,
+            defaults={
+                "data_link_name": self.pk,
+                "bk_biz_id": bk_biz_id,
+                "table_id": table_id,
+                "bkbase_result_table_name": vm_table_id_ins.name,
+                "vm_cluster_name": storage_cluster_name,
+            },
+        )
 
         configs = [
             vm_table_id_ins.compose_config(),
-            vm_storage_ins.compose_config(),
+            vm_storage_ins.compose_config(rt_name=vm_table_id_ins.name),
         ]
         return configs
 
+    @transaction.atomic(using=DATABASE_CONNECTION_NAME)
     def compose_bcs_federal_subset_time_series_configs(
         self,
         bk_biz_id: int,
@@ -2017,6 +2123,7 @@ class DataLink(models.Model):
         storage_cluster_name: str,
         federation_routes: list[dict[str, Any]],
         consumer_group: str | None = None,
+        existing_context: ExistingComponentContext | None = None,
     ) -> list[dict[str, Any]]:
         """
         生成联邦子集群时序数据链路配置
@@ -2025,6 +2132,9 @@ class DataLink(models.Model):
         @param storage_cluster_name: 存储集群名称
         @param federation_routes: 已由联邦领域服务完成租户过滤、冲突检查和排序的路由列表
         @return: config_list 配置列表
+
+        每条路由读取父集群的共享 RT/Binding，允许引用尚未修复归属的历史组件。
+        本方法只保存子链路自己的 ConditionalSink/Databus，不把共享组件认领到 Subset。
         """
         logger.info(
             "compose_federal_sub_configs: data_link_name->[%s],bk_biz_id->[%s],bk_data_id->[%s],table_id->[%s],vm_cluster_name->[%s]"
@@ -2036,19 +2146,34 @@ class DataLink(models.Model):
             storage_cluster_name,
         )
 
-        # 联邦子集群场景下，这里的bkbase_data_name会有一个fed_的前缀
-        bkbase_raw_data_name = get_bkbase_raw_data_id_name(data_source=data_source, table_id=table_id)
-        bkbase_data_name = utils.compose_bkdata_data_id_name(data_source.data_name, self.data_link_strategy)
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
+        from metadata.models import ResultTable
 
-        logger.info(
-            "compose_federal_sub_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] "
-            "bkbase_vmrt_name->[%s]to"
-            "compose configs",
-            self.data_link_name,
-            bkbase_data_name,
-            bkbase_vmrt_name,
+        if existing_context is None:
+            ResultTable.objects.select_for_update().get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
+            type(self).objects.select_for_update().get(pk=self.pk)
+            existing_context = ExistingComponentContext.from_datalink(self)
+        existing_sink = existing_context.claim(ConditionalSinkConfig, lambda c: True, require_unique=True)
+        existing_databus = existing_context.claim(DataBusConfig, lambda c: True, require_unique=True)
+        # 已有 DataBus 的 source 是实际消费来源；缺失时再读取登记或 V3 查询结果。
+        bkbase_raw_data_name = (
+            existing_databus.data_id_name if existing_databus else ""
+        ) or get_bkbase_raw_data_id_name(
+            data_source=data_source,
+            table_id=table_id,
+            namespace=self.namespace,
         )
+        saved_sinks = (
+            {
+                name.split(":", 1)[1]
+                for name in existing_databus.sink_names
+                if name.startswith(f"{DataLinkKind.CONDITIONALSINK.value}:")
+            }
+            if existing_databus
+            else set()
+        )
+        if len(saved_sinks) > 1:
+            raise ValueError(f"ambiguous ConditionalSink references: {sorted(saved_sinks)}")
+        sink_name = existing_sink.name if existing_sink else next(iter(saved_sinks), "")
 
         if not federation_routes:
             raise ValueError(
@@ -2057,8 +2182,79 @@ class DataLink(models.Model):
 
         config_list, conditions = [], []
         for route in federation_routes:
-            # 联邦代理集群的RT名
-            proxy_k8s_metric_vmrt_name = utils.compose_bkdata_table_id(route["target_metric_table_id"])
+            # 正常关联优先；历史共享组件可仅凭完整 VMRT 和实际 RT 引用找到。
+            target_table_id = route["target_metric_table_id"]
+            proxy_links = (
+                type(self)
+                .objects.filter(
+                    models.Q(table_ids__contains=[target_table_id])
+                    | models.Q(
+                        data_link_name__in=ResultTableConfig.objects.filter(
+                            bk_tenant_id=self.bk_tenant_id, namespace=self.namespace, table_id=target_table_id
+                        ).values("data_link_name")
+                    ),
+                    bk_tenant_id=self.bk_tenant_id,
+                    namespace=self.namespace,
+                    data_link_strategy=self.BCS_FEDERAL_PROXY_TIME_SERIES,
+                )
+                .values("data_link_name")
+            )
+            rt_query = ResultTableConfig.objects.filter(bk_tenant_id=self.bk_tenant_id, namespace=self.namespace)
+            candidates = list(rt_query.filter(table_id=target_table_id, data_link_name__in=proxy_links))
+            if not candidates:
+                saved_vmrt = utils.get_federal_vm_table_id(self.bk_tenant_id, self.namespace, target_table_id)
+                if saved_vmrt:
+                    candidates = list(rt_query.filter(bkbase_table_id=saved_vmrt))
+            if len(candidates) != 1:
+                raise ValueError(f"missing or ambiguous federation ResultTable: table={target_table_id}")
+            proxy_rt = candidates[0]
+            owners = set(proxy_links.values_list("data_link_name", flat=True))
+            if proxy_rt.table_id not in ("", target_table_id) or proxy_rt.data_link_name not in {"", *owners}:
+                raise ValueError(f"federation ResultTable belongs to another link or table: name={proxy_rt.name}")
+            binding_query = VMStorageBindingConfig.objects.filter(
+                bk_tenant_id=self.bk_tenant_id,
+                namespace=self.namespace,
+            )
+            bindings = list(binding_query.filter(table_id=target_table_id, data_link_name__in=proxy_links))
+            if len(bindings) != 1:
+                # 正常归属未找到唯一 Binding 时，再通过 RT 引用和父集群存储缩小候选范围。
+                if not bindings:
+                    bindings = list(binding_query.filter(bkbase_result_table_name=proxy_rt.name))
+                cluster_ids = set(
+                    AccessVMRecord.objects.filter(
+                        bk_tenant_id=self.bk_tenant_id,
+                        result_table_id=target_table_id,
+                        vm_result_table_id=proxy_rt.bkbase_table_id,
+                    ).values_list("vm_cluster_id", flat=True)
+                )
+                from metadata.models import BkBaseResultTable
+
+                cluster_ids.update(
+                    BkBaseResultTable.objects.filter(
+                        bk_tenant_id=self.bk_tenant_id,
+                        monitor_table_id=target_table_id,
+                        data_link_name__in=proxy_links,
+                        bkbase_table_id=proxy_rt.bkbase_table_id,
+                        storage_type=ClusterInfo.TYPE_VM,
+                    ).values_list("storage_cluster_id", flat=True)
+                )
+                cluster_names = set(
+                    ClusterInfo.objects.filter(
+                        bk_tenant_id=self.bk_tenant_id, cluster_id__in=cluster_ids, cluster_type=ClusterInfo.TYPE_VM
+                    ).values_list("cluster_name", flat=True)
+                )
+                if cluster_names:
+                    bindings = [binding for binding in bindings if binding.vm_cluster_name in cluster_names]
+            if len(bindings) != 1:
+                raise ValueError(f"missing or ambiguous federation VM binding: rt={proxy_rt.name}")
+            proxy_binding = bindings[0]
+            if proxy_binding.data_link_name not in {"", proxy_rt.data_link_name} or proxy_binding.table_id not in (
+                "",
+                target_table_id,
+            ):
+                raise ValueError(f"federation binding belongs to another link or table: name={proxy_binding.name}")
+            if proxy_binding.bkbase_result_table_name != proxy_rt.name:
+                raise ValueError(f"conflicting federation binding RT reference: name={proxy_binding.name}")
             relabels = [{"name": "bcs_cluster_id", "value": route["fed_cluster_id"]}]
             logger.info(
                 "compose_federal_sub_configs: data_link_name->[%s] start to compose for fed_cluster_id->[%s],"
@@ -2071,8 +2267,8 @@ class DataLink(models.Model):
             sinks = [
                 {
                     "kind": "VmStorageBinding",
-                    "name": proxy_k8s_metric_vmrt_name,
-                    "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                    "name": proxy_binding.name,
+                    "namespace": proxy_binding.namespace,
                 }
             ]
             if settings.ENABLE_MULTI_TENANT_MODE:
@@ -2091,36 +2287,48 @@ class DataLink(models.Model):
             conditions,
         )
 
-        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        # 下游只写共享 Binding 的真实引用；子链路自身组件缺失时优先使用保存的引用名补建。
+        if sink_name:
             vm_conditional_ins, _ = ConditionalSinkConfig.objects.update_or_create(
-                name=bkbase_vmrt_name,
+                name=sink_name,
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={
-                    "data_link_name": self.data_link_name,
-                    "bk_biz_id": bk_biz_id,
-                },
+                data_link_name=self.data_link_name,
+                defaults={"bk_biz_id": bk_biz_id},
             )
-            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=bkbase_vmrt_name,
+        else:
+            vm_conditional_ins = utils.create_resource_with_random_name(
+                ConditionalSinkConfig,
+                DataLinkNameScene.FEDERAL_SUBSET,
+                data_source.bk_data_id,
+                conflict_models=(DataBusConfig,),
                 namespace=self.namespace,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={
-                    "data_id_name": bkbase_raw_data_name,
-                    "data_link_name": self.data_link_name,
-                    "bk_biz_id": bk_biz_id,
-                    "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{bkbase_vmrt_name}"],
-                },
+                data_link_name=self.data_link_name,
+                bk_biz_id=bk_biz_id,
             )
-            data_bus_ins.apply_consumer_group(consumer_group)
+        databus_name = existing_databus.name if existing_databus else vm_conditional_ins.name
+        data_bus_ins, _ = DataBusConfig.objects.update_or_create(
+            name=databus_name,
+            namespace=self.namespace,
+            bk_tenant_id=self.bk_tenant_id,
+            data_link_name=self.data_link_name,
+            defaults={
+                "data_id_name": bkbase_raw_data_name,
+                "data_link_name": self.data_link_name,
+                "bk_biz_id": bk_biz_id,
+                "bk_data_id": data_source.bk_data_id,
+                "sink_names": [f"{DataLinkKind.CONDITIONALSINK.value}:{vm_conditional_ins.name}"],
+            },
+        )
+        data_bus_ins.apply_consumer_group(consumer_group)
 
         vm_conditional_sink_config = vm_conditional_ins.compose_conditional_sink_config(conditions=conditions)
         conditional_sink = [
             {
                 "kind": DataLinkKind.CONDITIONALSINK.value,
-                "name": bkbase_vmrt_name,
-                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+                "name": vm_conditional_ins.name,
+                "namespace": self.namespace,
             },
         ]
         if settings.ENABLE_MULTI_TENANT_MODE:
@@ -2144,8 +2352,12 @@ class DataLink(models.Model):
         metric_group_dimensions: list[dict[str, Any]] | None = None,
         consumer_group: str | None = None,
     ) -> list[dict[str, Any]]:
-        """按已解析的稳定名称创建普通 VM 组件。"""
-        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        """复用调用方查出的名称，首次创建 RT 时分配名称并写入完整的 VM 组件配置。
+
+        传入名称可以来自已有组件或持久化引用。Binding/Databus 只有没有保存名称时
+        才沿用 RT 名称；所有引用均使用最终实例名，已有的不同名组件不会被重命名。
+        """
+        if rt_name:
             vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=rt_name,
                 data_link_name=self.data_link_name,
@@ -2154,40 +2366,57 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={"table_id": table_id, "data_type": "metric"},
             )
-            vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
-                name=binding_name,
+        else:
+            vm_table_id_ins = utils.create_resource_with_random_name(
+                ResultTableConfig,
+                DataLinkNameScene.GRAPH_VM
+                if self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
+                else utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
+                data_source.bk_data_id,
+                conflict_models=(VMStorageBindingConfig, DataBusConfig),
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                defaults={
-                    "table_id": table_id,
-                    "bkbase_result_table_name": vm_table_id_ins.name,
-                    "vm_cluster_name": storage_cluster_name,
-                },
+                table_id=table_id,
+                data_type="metric",
             )
-            sink_item = {
-                "kind": DataLinkKind.VMSTORAGEBINDING.value,
-                "name": vm_storage_ins.name,
-                "namespace": self.namespace,
-            }
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                sink_item["tenant"] = self.bk_tenant_id
-            sinks = [sink_item]
+        binding_name = binding_name or vm_table_id_ins.name
+        databus_name = databus_name or vm_table_id_ins.name
+        vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
+            name=binding_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+            defaults={
+                "table_id": table_id,
+                "bkbase_result_table_name": vm_table_id_ins.name,
+                "vm_cluster_name": storage_cluster_name,
+            },
+        )
+        sink_item = {
+            "kind": DataLinkKind.VMSTORAGEBINDING.value,
+            "name": vm_storage_ins.name,
+            "namespace": self.namespace,
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            sink_item["tenant"] = self.bk_tenant_id
+        sinks = [sink_item]
 
-            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=databus_name,
-                data_link_name=self.data_link_name,
-                namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
-                bk_tenant_id=self.bk_tenant_id,
-                defaults={
-                    "data_id_name": bkbase_data_name,
-                    "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
-                },
-            )
-            data_bus_ins.apply_consumer_group(consumer_group)
+        data_bus_ins, _ = DataBusConfig.objects.update_or_create(
+            name=databus_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+            defaults={
+                "data_id_name": bkbase_data_name,
+                "bk_data_id": data_source.bk_data_id,
+                "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
+            },
+        )
+        data_bus_ins.apply_consumer_group(consumer_group)
 
         return [
             vm_table_id_ins.compose_config(),
@@ -2198,6 +2427,7 @@ class DataLink(models.Model):
             data_bus_ins.compose_config(sinks),
         ]
 
+    @transaction.atomic(using=DATABASE_CONNECTION_NAME)
     def compose_standard_time_series_configs(
         self,
         bk_biz_id: int,
@@ -2213,16 +2443,12 @@ class DataLink(models.Model):
         @param data_source: 数据源
         @param table_id: 监控平台结果表ID（Metadata中的）
         @param storage_cluster_name: VM集群名称
-        @param existing_context: 已有组件复用上下文；由灰度开关控制，仅当当前
-            strategy 同时出现在 ``settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES``
-            与 ``component_reuse.REUSE_ENABLED_STRATEGIES`` 时由上层注入。非 None 时
-            compose 会尝试按 ``table_id`` / ``data_id_name`` 从已有组件池中认领名称，
-            避免迁移/改名场景下重复创建组件。未认领到时回退到 ``bkbase_vmrt_name``
-            新建语义。
-
-        注意：``vm_cluster_name`` 放在 defaults 中，允许复用既有 binding 时同步更新 VM 集群名称；
-        ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
+        @param existing_context: 当前链路已有组件；未传入时仍按持久化关系复用名称。
+            只有没有已有资源或保存引用的组件才分配随机名称。
         """
+        if existing_context is None:
+            type(self).objects.select_for_update().get(pk=self.pk)
+            existing_context = ExistingComponentContext.from_datalink(self)
 
         from metadata.models import ResultTableOption
 
@@ -2234,62 +2460,44 @@ class DataLink(models.Model):
             table_id,
             storage_cluster_name,
         )
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
-
-        # 解析 compose 所需的 name：优先复用既有组件的 name（若同 kind 恰好只有
-        # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。
-        # 存量链路里 table_id / bk_data_id 可能缺失，复用判断只依赖 datalink
-        # 下同 kind 组件的一对一关系；同 kind 多条会留给 leftover 校验兜底。
-        existing_rt = (
-            existing_context.claim(ResultTableConfig, lambda component: component.data_type != "graph")
-            if existing_context is not None
-            else None
+        existing_rt = existing_context.claim(ResultTableConfig, lambda c: c.data_type != "graph", require_unique=True)
+        existing_binding = existing_context.claim(VMStorageBindingConfig, lambda c: True, require_unique=True)
+        existing_databus = existing_context.claim(
+            DataBusConfig,
+            lambda c: not any(name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:") for name in c.sink_names),
+            require_unique=True,
         )
-        rt_name = bkbase_vmrt_name
-        if existing_rt:
-            rt_name = existing_rt.name
-        else:
-            # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
-            existing_vm_record = AccessVMRecord.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                result_table_id=table_id,
-            ).last()
-            if existing_vm_record:
-                # 需要剔除业务ID前缀
-                vmrt_id = existing_vm_record.vm_result_table_id
-                rt_name = vmrt_id.split("_", 1)[-1]
-
-        existing_binding = (
-            existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
+        # RT 缺失时沿 Binding 引用恢复，再用 AccessVMRecord 的历史 VMRT 兜底。
+        # Binding 缺失时沿 DataBus.sink_names 恢复，不能重新命名后留下悬空引用。
+        rt_name = (
+            existing_rt.name if existing_rt else (existing_binding.bkbase_result_table_name if existing_binding else "")
         )
-        binding_name = existing_binding.name if existing_binding is not None else bkbase_vmrt_name
-
-        existing_databus = (
-            existing_context.claim(
-                DataBusConfig,
-                lambda component: (
-                    not any(
-                        sink_name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:")
-                        for sink_name in component.sink_names
-                    )
-                ),
-            )
-            if existing_context is not None
-            else None
+        if not rt_name:
+            rt_name = self.resolve_graph_relation_vm_result_table_name(self.bk_tenant_id, table_id, default_name="")
+        saved_bindings = (
+            {
+                name.split(":", 1)[1]
+                for name in existing_databus.sink_names
+                if name.startswith(f"{DataLinkKind.VMSTORAGEBINDING.value}:")
+            }
+            if existing_databus
+            else set()
         )
+        if len(saved_bindings) > 1:
+            raise ValueError(f"ambiguous VMStorageBindingConfig references: {sorted(saved_bindings)}")
+        binding_name = existing_binding.name if existing_binding else next(iter(saved_bindings), "")
+        databus_name = existing_databus.name if existing_databus else ""
+        # Proxy 切回普通链路时 DataBus 已被清理，来源仍以保存的 RT 映射为准。
+        from metadata.models.bkdata.result_table import BkBaseResultTable
 
-        databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
         bkbase_data_name = (
-            existing_databus.data_id_name
-            if existing_databus is not None
-            else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
-        )
-        logger.info(
-            "compose_configs: data_link_name->[%s] start to use bkbase_data_name->[%s] bkbase_vmrt_name->[%s]to "
-            "compose configs",
-            self.data_link_name,
-            bkbase_data_name,
-            bkbase_vmrt_name,
+            (existing_databus.data_id_name if existing_databus else "")
+            or (
+                BkBaseResultTable.objects.filter(bk_tenant_id=self.bk_tenant_id, data_link_name=self.pk)
+                .values_list("bkbase_data_name", flat=True)
+                .first()
+            )
+            or utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
         )
 
         # 获取指标组维度配置
@@ -2418,6 +2626,7 @@ class DataLink(models.Model):
             raise ValueError(f"自定义格式固定指标 ResultTable({table_id}) 缺少有效指标字段")
         return whitelist
 
+    @transaction.atomic(using=DATABASE_CONNECTION_NAME)
     def compose_bk_plugin_time_series_config(
         self,
         bk_biz_id: int,
@@ -2430,14 +2639,12 @@ class DataLink(models.Model):
         """
         生成采集插件时序数据链路配置 -- bk_standard & bk_exporter
 
-        当 ``existing_context`` 非 None 时（由灰度开关控制），会尝试基于
-        ``table_id`` / ``data_id_name`` 从已有组件池中认领名称，用于复用历史组件避免
-        重复创建。未认领到时回退到 ``bkbase_vmrt_name`` 新建语义。
-
-        注意：``vm_cluster_name`` 放在 defaults 中，允许复用既有 binding 时同步更新 VM 集群名称；
-        ``DataBusConfig`` 仍按 ``data_id_name`` 作为稳定查询条件命中既有记录。
+        已有名称始终复用，不受灰度开关影响；只有首次创建才分配随机名称。
         """
-        bkbase_vmrt_name = utils.compose_bkdata_table_id(table_id, self.data_link_strategy)
+        if existing_context is None:
+            type(self).objects.select_for_update().get(pk=self.pk)
+            existing_context = ExistingComponentContext.from_datalink(self)
+
         supports_cmdb_output = self.data_link_strategy in {
             self.BK_EXPORTER_TIME_SERIES,
             self.BK_STANDARD_TIME_SERIES,
@@ -2457,44 +2664,41 @@ class DataLink(models.Model):
         # 白名单配置
         whitelist = self._compose_time_series_field_whitelist(table_id)
 
-        # 解析 compose 所需的 name：优先复用既有组件的 name（若同 kind 恰好只有
-        # 一条可 claim），否则回退到新生成的 bkbase_vmrt_name 作为新建名称。
-        # 存量链路里 table_id / bk_data_id 可能缺失，复用判断只依赖 datalink
-        # 下同 kind 组件的一对一关系；同 kind 多条会留给 leftover 校验兜底。
-        existing_rt = (
-            existing_context.claim(ResultTableConfig, lambda c: True) if existing_context is not None else None
+        existing_rt = existing_context.claim(ResultTableConfig, lambda c: c.data_type != "graph", require_unique=True)
+        existing_binding = existing_context.claim(VMStorageBindingConfig, lambda c: True, require_unique=True)
+        existing_databus = existing_context.claim(
+            DataBusConfig,
+            lambda c: not any(name.startswith(f"{DataLinkKind.SURREALDBBINDING.value}:") for name in c.sink_names),
+            require_unique=True,
         )
-        rt_name = bkbase_vmrt_name
-        if existing_rt:
-            rt_name = existing_rt.name
-        else:
-            # 复用已有AccessVMRecord记录的vm_result_table_id作为结果表名称
-            existing_vm_record = AccessVMRecord.objects.filter(
-                bk_tenant_id=self.bk_tenant_id,
-                result_table_id=table_id,
-            ).last()
-            if existing_vm_record:
-                # 需要剔除业务ID前缀
-                vmrt_id = existing_vm_record.vm_result_table_id
-                rt_name = vmrt_id.split("_", 1)[-1]
-
-        existing_binding = (
-            existing_context.claim(VMStorageBindingConfig, lambda c: True) if existing_context is not None else None
+        # 与普通时序保持一致：先取组件名，再取保存的 RT/Binding 引用，最后才允许随机新建。
+        rt_name = (
+            existing_rt.name if existing_rt else (existing_binding.bkbase_result_table_name if existing_binding else "")
         )
-        binding_name = existing_binding.name if existing_binding is not None else bkbase_vmrt_name
-
-        existing_databus = (
-            existing_context.claim(DataBusConfig, lambda c: True) if existing_context is not None else None
+        if not rt_name:
+            rt_name = self.resolve_graph_relation_vm_result_table_name(self.bk_tenant_id, table_id, default_name="")
+        saved_bindings = (
+            {
+                name.split(":", 1)[1]
+                for name in existing_databus.sink_names
+                if name.startswith(f"{DataLinkKind.VMSTORAGEBINDING.value}:")
+            }
+            if existing_databus
+            else set()
         )
-        databus_name = existing_databus.name if existing_databus is not None else bkbase_vmrt_name
+        if len(saved_bindings) > 1:
+            raise ValueError(f"ambiguous VMStorageBindingConfig references: {sorted(saved_bindings)}")
+        binding_name = existing_binding.name if existing_binding else next(iter(saved_bindings), "")
+        databus_name = existing_databus.name if existing_databus else ""
         bkbase_data_name = (
-            existing_databus.data_id_name
-            if existing_databus is not None
-            else utils.get_registered_bkdata_data_id_name(data_source, namespace=self.namespace)
+            existing_databus.data_id_name if existing_databus else ""
+        ) or utils.get_registered_bkdata_data_id_name(
+            data_source,
+            namespace=self.namespace,
         )
 
-        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            # 渲染所需的资源配置
+        # 渲染所需的资源配置
+        if rt_name:
             vm_table_id_ins, _ = ResultTableConfig.objects.update_or_create(
                 name=rt_name,
                 data_link_name=self.data_link_name,
@@ -2503,49 +2707,64 @@ class DataLink(models.Model):
                 bk_tenant_id=self.bk_tenant_id,
                 defaults={"table_id": table_id},
             )
-            vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
-                name=binding_name,
+        else:
+            vm_table_id_ins = utils.create_resource_with_random_name(
+                ResultTableConfig,
+                utils.RANDOM_NAME_STRATEGIES[self.data_link_strategy],
+                data_source.bk_data_id,
+                conflict_models=(VMStorageBindingConfig, DataBusConfig),
                 data_link_name=self.data_link_name,
                 namespace=self.namespace,
                 bk_biz_id=bk_biz_id,
                 bk_tenant_id=self.bk_tenant_id,
-                # bkbase_result_table_name 必须与最终实际引用的 RT 保持一致：
-                # 下发给 BKBase 的 payload 里 spec.data.name 是 vm_table_id_ins.name，
-                # 本地 ORM 里这个字段也是 metadata/models/data_link/relation.py 用来按
-                # name 回查 ResultTableConfig 的指针。复用场景下 RT 被 claim 成
-                # legacy_rt 而 binding 被 claim 成 legacy_binding 时，如果继续写成
-                # bkbase_vmrt_name（生成名），本地关系就会指向一张不存在的 RT。
-                defaults={
-                    "table_id": table_id,
-                    "bkbase_result_table_name": vm_table_id_ins.name,
-                    "vm_cluster_name": storage_cluster_name,
-                },
+                table_id=table_id,
+                data_type="metric",
             )
-            sink_item = {
-                "kind": DataLinkKind.VMSTORAGEBINDING.value,
-                # sink 必须指向实际存在的 VMStorageBinding，因此这里联动 binding_name
-                # 而非 bkbase_vmrt_name，以便在复用 legacy binding 时 databus 能正确引用。
-                "name": binding_name,
-                "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
-            }
-            if settings.ENABLE_MULTI_TENANT_MODE:
-                sink_item["tenant"] = self.bk_tenant_id
+        binding_name = binding_name or vm_table_id_ins.name
+        databus_name = databus_name or vm_table_id_ins.name
+        vm_storage_ins, _ = VMStorageBindingConfig.objects.update_or_create(
+            name=binding_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+            # bkbase_result_table_name 必须与最终实际引用的 RT 保持一致：
+            # 下发给 BKBase 的 payload 里 spec.data.name 是 vm_table_id_ins.name，
+            # 本地 ORM 里这个字段也是 metadata/models/data_link/relation.py 用来按
+            # name 回查 ResultTableConfig 的指针。复用场景下 RT 被 claim 成
+            # legacy_rt 而 binding 被 claim 成 legacy_binding 时，如果继续写成
+            # bkbase_vmrt_name（生成名），本地关系就会指向一张不存在的 RT。
+            defaults={
+                "table_id": table_id,
+                "bkbase_result_table_name": vm_table_id_ins.name,
+                "vm_cluster_name": storage_cluster_name,
+            },
+        )
+        sink_item = {
+            "kind": DataLinkKind.VMSTORAGEBINDING.value,
+            # sink 必须指向实际存在的 VMStorageBinding，因此这里联动 binding_name
+            # 而非 bkbase_vmrt_name，以便在复用 legacy binding 时 databus 能正确引用。
+            "name": binding_name,
+            "namespace": settings.DEFAULT_VM_DATA_LINK_NAMESPACE,
+        }
+        if settings.ENABLE_MULTI_TENANT_MODE:
+            sink_item["tenant"] = self.bk_tenant_id
 
-            sinks = [sink_item]
+        sinks = [sink_item]
 
-            data_bus_ins, _ = DataBusConfig.objects.update_or_create(
-                name=databus_name,
-                data_link_name=self.data_link_name,
-                namespace=self.namespace,
-                bk_biz_id=bk_biz_id,
-                bk_tenant_id=self.bk_tenant_id,
-                defaults={
-                    "data_id_name": bkbase_data_name,
-                    "bk_data_id": data_source.bk_data_id,
-                    "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
-                },
-            )
-            data_bus_ins.apply_consumer_group(consumer_group)
+        data_bus_ins, _ = DataBusConfig.objects.update_or_create(
+            name=databus_name,
+            data_link_name=self.data_link_name,
+            namespace=self.namespace,
+            bk_biz_id=bk_biz_id,
+            bk_tenant_id=self.bk_tenant_id,
+            defaults={
+                "data_id_name": bkbase_data_name,
+                "bk_data_id": data_source.bk_data_id,
+                "sink_names": [f"{sink_item['kind']}:{sink_item['name']}"],
+            },
+        )
+        data_bus_ins.apply_consumer_group(consumer_group)
 
         transform_format = self.DATABUS_TRANSFORMER_FORMAT.get(self.data_link_strategy)
         transform_options = None
@@ -2725,7 +2944,7 @@ class DataLink(models.Model):
                 )
 
         try:
-            # NOTE:新链路下，data_link_name和bkbase_data_name一致
+            # 随机命名链路的主名称与 DataId 名独立，source 由 sync_metadata 按真实 DataBus 回填。
             monitor_table_id: str | None = (
                 table_id if self.data_link_strategy != self.BASEREPORT_TIME_SERIES_V1 else self.data_link_name
             )
@@ -2734,7 +2953,9 @@ class DataLink(models.Model):
                 data_link_name=self.data_link_name,
                 defaults={
                     "monitor_table_id": monitor_table_id,
-                    "bkbase_data_name": self.data_link_name,
+                    "bkbase_data_name": ""
+                    if self.data_link_strategy in utils.RANDOM_NAME_STRATEGIES
+                    else self.data_link_name,
                     "storage_type": storage_type,
                     "status": DataLinkResourceStatus.INITIALIZING.value,
                 },
@@ -2749,20 +2970,14 @@ class DataLink(models.Model):
             )
             raise e
 
-        # 组件复用开关：strategy 级灰度或 RT option 单表开关任一命中，且代码侧已接入时，
-        # 才会构造 existing_context 并交给 compose 分支；table_id 为空时不查 RT option。
+        # 开关继续控制可选复用和 leftover 校验；随机命名策略始终读取已保存的组件身份。
         enable_reuse = is_reuse_enabled_for(
             self.data_link_strategy,
             table_id=table_id,
             bk_tenant_id=self.bk_tenant_id,
         )
-        existing_context: ExistingComponentContext | None = (
-            ExistingComponentContext.from_datalink(self)
-            if enable_reuse
-            or self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
-            or force_cleanup_absent_components
-            else None
-        )
+        require_name_reuse = self.data_link_strategy in utils.RANDOM_NAME_STRATEGIES
+        validate_leftovers = enable_reuse or self.data_link_strategy == self.GRAPH_RELATION_TIME_SERIES
 
         # 把 compose（含内部 update_or_create）和 leftover 校验放进同一个外层事务：
         #
@@ -2777,13 +2992,24 @@ class DataLink(models.Model):
         # savepoint，外层异常触发时连带一起回滚，保证 "apply 不通过 -> 本地无副作用"。
         try:
             with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+                if self.data_link_strategy in {self.BCS_FEDERAL_PROXY_TIME_SERIES, self.BCS_FEDERAL_SUBSET_TIME_SERIES}:
+                    from metadata.models import ResultTable
+
+                    ResultTable.objects.select_for_update().get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)
+                if require_name_reuse:
+                    type(self).objects.select_for_update().get(pk=self.pk)
+                existing_context = (
+                    ExistingComponentContext.from_datalink(self)
+                    if require_name_reuse or enable_reuse or force_cleanup_absent_components
+                    else None
+                )
                 configs: list[dict[str, Any]] = self.compose_configs(
                     *args,
                     existing_context=existing_context,
                     consumer_group=consumer_group,
                     **kwargs,
                 )
-                if existing_context is not None and not force_cleanup_absent_components:
+                if validate_leftovers and existing_context is not None and not force_cleanup_absent_components:
                     # compose 已跑完，本次 apply 的所有既有组件认领都已完成；
                     # 此时 pool 中剩下的就是"未被 compose 消费的既有组件"，按策略决定是否放行。
                     # 一旦 strict 策略不通过会抛 ComponentReuseError，连带上面的 compose
@@ -2801,6 +3027,7 @@ class DataLink(models.Model):
             logger.error("apply_data_link: data_link_name->[%s] compose config error->[%s]", self.data_link_name, e)
             raise e
 
+        # 本地组件及引用已提交；后续合并远端配置或下发失败时，重试仍读取同一组资源名称。
         configs = self.merge_existing_component_configs(configs)
         if databus_prefer_cluster is not None:
             for config in configs:

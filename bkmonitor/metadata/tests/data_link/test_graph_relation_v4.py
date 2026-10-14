@@ -517,13 +517,17 @@ def test_removing_graph_option_follows_standard_metric_datalink_rules(
     mock_vm_apply.assert_not_called()
 
 
+@pytest.mark.parametrize("new_link", [False, True])
 def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
     mocker,
     graph_relation_v4_records,
+    new_link,
 ):
     from metadata.task.datalink import apply_graph_relation_v4_datalink
 
     ctx = graph_relation_v4_records
+    if new_link:
+        ctx["data_link"].delete()
     models.ResultTableOption.objects.create(
         bk_tenant_id="system",
         table_id=ctx["table_id"],
@@ -547,7 +551,12 @@ def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
 
     apply_graph_relation_v4_datalink(bk_tenant_id="system", table_id=ctx["table_id"])
 
-    data_link = DataLink.objects.get(data_link_name="bkm_graph_relation_v4_metric")
+    data_link = DataLink.objects.get(bk_data_id=ctx["data_source"].pk)
+    if new_link:
+        assert data_link.data_link_name.startswith(f"bkm_gr_{ctx['data_source'].pk}_")
+        assert data_link.data_link_name != "bkm_graph_relation_v4_metric"
+    else:
+        assert data_link.data_link_name == "bkm_graph_relation_v4_metric"
     assert data_link.data_link_strategy == DataLink.GRAPH_RELATION_TIME_SERIES
     mock_apply.assert_called_once()
     assert mock_apply.call_args.kwargs["storage_type"] == models.ClusterInfo.TYPE_SURREALDB
@@ -560,6 +569,10 @@ def test_apply_graph_relation_v4_surrealdb_only_does_not_create_vm_record(
         bk_tenant_id="system",
         result_table_id=ctx["table_id"],
     ).exists()
+    generator = mocker.patch("metadata.task.datalink.generate_bkdata_resource_name")
+    apply_graph_relation_v4_datalink(bk_tenant_id="system", table_id=ctx["table_id"])
+    assert DataLink.objects.get(bk_data_id=ctx["data_source"].pk).pk == data_link.pk
+    generator.assert_not_called()
 
 
 def test_apply_graph_relation_v4_fails_when_data_id_config_missing(mocker, graph_relation_v4_records):

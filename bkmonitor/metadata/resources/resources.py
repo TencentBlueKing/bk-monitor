@@ -62,9 +62,7 @@ from metadata.models.constants import (
     DataIdCreatedFromSystem,
 )
 from metadata.models.data_link.constants import BKBASE_NAMESPACE_BK_LOG
-from metadata.models.data_link.data_link_configs import DataIdConfig
 from metadata.models.data_link.utils import (
-    compose_bkdata_data_id_name,
     find_registered_bkdata_data_id_name,
     get_bkbase_raw_data_name_for_v3_datalink,
     get_data_source_related_info,
@@ -2948,25 +2946,22 @@ class KafkaTailResource(Resource):
                 )
                 result = [json.loads(data) for data in res]
             elif result_table and datasource.etl_config == EtlConfigs.BK_STANDARD_V2_EVENT.value:
-                data_id_config_name = compose_bkdata_data_id_name(datasource.data_name)
-                try:
-                    data_id_config = DataIdConfig.objects.get(
-                        bk_tenant_id=bk_tenant_id,
-                        namespace=BKBASE_NAMESPACE_BK_LOG,
-                        name=data_id_config_name,
-                    )
-                except DataIdConfig.DoesNotExist:
+                data_id_config_name = find_registered_bkdata_data_id_name(
+                    datasource,
+                    namespace=BKBASE_NAMESPACE_BK_LOG,
+                )
+                if not data_id_config_name:
                     logger.warning(
-                        "KafkaTailResource: DataIdConfig not found, bk_tenant_id->[%s], namespace->[%s], name->[%s]",
+                        "KafkaTailResource: DataIdConfig not found, tenant->[%s], namespace->[%s], bk_data_id->[%s]",
                         bk_tenant_id,
                         BKBASE_NAMESPACE_BK_LOG,
-                        data_id_config_name,
+                        datasource.bk_data_id,
                     )
                     return []
                 res = api.bkdata.tail_kafka_data(
                     bk_tenant_id=bk_tenant_id,
                     namespace=BKBASE_NAMESPACE_BK_LOG,
-                    name=data_id_config.name,
+                    name=data_id_config_name,
                     limit=size,
                 )
                 result = [json.loads(data) for data in res]
