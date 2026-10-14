@@ -1,13 +1,45 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
 import { promqlToQueryConfig, queryConfigToPromql } from 'monitor-api/modules/strategies';
 
-import { getSourceQueries, type PromqlSourceData } from './model';
+import { type PromqlSourceData, getSourceQueries } from './model';
 
-export function buildPromqlItem(source: PromqlSourceData, expression: string) {
+export function buildPromqlItem(source: PromqlSourceData, expression: string, options?: { preserveMulti?: boolean }) {
   if (source.legacyMultiQuery) {
     return {
       expression: source.legacyExpression,
       origin_sql: source.legacyOriginSql,
       query_configs: source.legacyQueryConfigs.map(query => ({ ...query })),
+    };
+  }
+  if (options?.preserveMulti && source.rawQueryConfigs?.length) {
+    return {
+      expression: source.rawExpression ?? expression,
+      origin_sql: source.rawOriginSql ?? source.sourceCode,
+      query_configs: source.rawQueryConfigs.map(query => ({ ...query })),
     };
   }
   const queries = getSourceQueries(source);
@@ -44,14 +76,14 @@ export function buildPromqlPreview(source: PromqlSourceData, expression: string)
   };
 }
 
-export function convertPromqlToForm(promql: string, step: number | string) {
-  return promqlToQueryConfig('', { promql, step }, { needMessage: false });
-}
-
 export function convertFormToPromql(expression: string, queryConfigs: unknown[]) {
   return queryConfigToPromql(
     '',
     { query_config_format: 'strategy', expression, query_configs: queryConfigs },
     { needMessage: false }
   );
+}
+
+export function convertPromqlToForm(promql: string, step: number | string) {
+  return promqlToQueryConfig('', { promql, step }, { needMessage: false });
 }
