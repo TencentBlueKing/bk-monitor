@@ -17,6 +17,7 @@ from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.data_source.utils.apm import TraceDatasourceTarget
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import Resource
+from rum_web.constants import RumQueryMode
 from rum_web.handlers.level.factory import RumLevelHandlerFactory
 from rum_web.models.application import Application
 from rum_web.query.serializers import (
@@ -29,6 +30,7 @@ from rum_web.query.serializers import (
     RumFieldStatisticsInfoRequestSerializer,
     RumFieldStatisticsGraphRequestSerializer,
     RumRecordDetailRequestSerializer,
+    RumTimelineRequestSerializer,
 )
 
 
@@ -210,3 +212,14 @@ class RumStatisticsResource(Resource):
             filters=data["filters"],
             query_string=data["query_string"],
         )
+
+
+class RumTimelineResource(Resource):
+    """POST /rum/search/timeline/ — 查询会话或视图时间线。"""
+
+    RequestSerializer = RumTimelineRequestSerializer
+
+    def perform_request(self, data: dict[str, Any]) -> dict[str, Any]:
+        application = _get_application(data["bk_biz_id"], data["app_name"])
+        handler = RumLevelHandlerFactory.create(RumQueryMode.SPAN.value, _build_data_sources([application]))
+        return handler.timeline(session_id=data.get("session_id"), view_id=data.get("view_id"))

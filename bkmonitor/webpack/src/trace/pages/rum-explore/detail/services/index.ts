@@ -25,3 +25,5 @@
  */
 export * from './record-detail';
 export * from './related-data';
+export * from './timeline';
+export * from './trace-link';

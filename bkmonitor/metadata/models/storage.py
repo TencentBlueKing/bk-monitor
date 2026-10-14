@@ -2760,6 +2760,7 @@ class ESStorage(models.Model, StorageResultTable):
         need_create_index=True,
         origin_table_id=None,
         create_storage_cluster_record=True,
+        raise_on_index_error=True,
         **kwargs,
     ):
         """
@@ -2783,6 +2784,7 @@ class ESStorage(models.Model, StorageResultTable):
         :param need_create_index: 是否需要创建索引，默认为 True
         :param origin_table_id: 原始结果表ID
         :param create_storage_cluster_record: 是否创建当前存储集群记录，非默认存储创建时应关闭
+        :param raise_on_index_error: 建索引失败是否抛出异常；关闭时保留存储配置，由周期任务补建
         :param kwargs: 其他配置参数
         :return:
         """
@@ -2888,13 +2890,14 @@ class ESStorage(models.Model, StorageResultTable):
             try:
                 new_record.create_es_index(is_sync_db)
             except Exception as e:  # pylint: disable=broad-except
-                logger.error(
+                logger.exception(
                     "create_table: table_id->[%s] under bk_tenant_id->[%s] create_es_index failed,error->[%s]",
                     table_id,
                     bk_tenant_id,
                     e,
                 )
-                raise e
+                if raise_on_index_error:
+                    raise
 
         # 针对单个结果表推送数据很快，不用异步处理
         try:

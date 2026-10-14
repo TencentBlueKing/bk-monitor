@@ -123,7 +123,7 @@ class StrategiesViewSet(ResourceViewSet):
         # 校验策略名
         ResourceRoute("POST", resource.strategies.verify_strategy_name, endpoint="v2/verify_strategy_name"),
         # 保存/创建策略
-        ResourceRoute("POST", resource.strategies.save_strategy_v2, endpoint="v2/save_strategy"),
+        ResourceRoute("POST", resource.strategies.save_strategy_for_page, endpoint="v2/save_strategy"),
         # 批量更新策略
         ResourceRoute("POST", resource.strategies.update_partial_strategy_v2, endpoint="v2/update_partial_strategy"),
         # 克隆策略

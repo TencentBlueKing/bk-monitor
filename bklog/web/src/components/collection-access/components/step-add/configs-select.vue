@@ -498,6 +498,7 @@
             bcs_cluster_id: this.formData.bcs_cluster_id,
             type,
             namespaceStr: config.noQuestParams.namespaceStr,
+            namespacesExclude: config.noQuestParams.namespacesExclude,
             labelSelector: config.labelSelector,
           };
         } else if (dialogType === 'view') {

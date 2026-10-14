@@ -28,3 +28,4 @@ export * from './use-detail-overview';
 export * from './use-detail-sections';
 export * from './use-origin-data';
 export * from './use-span-detail';
+export * from './use-trace-context';

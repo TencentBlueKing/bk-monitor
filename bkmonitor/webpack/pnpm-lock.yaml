@@ -458,8 +458,8 @@ importers:
         specifier: ^2.0.7
         version: 2.0.7(dompurify@3.4.2)
       '@blueking/open-telemetry':
-        specifier: ^0.0.33
-        version: 0.0.33
+        specifier: ^0.0.34
+        version: 0.0.34
       '@blueking/platform-config':
         specifier: ^1.0.5
         version: 1.0.5
@@ -1726,8 +1726,8 @@ packages:
     peerDependencies:
       dompurify: '>=2.5.4'
 
-  '@blueking/open-telemetry@0.0.33':
-    resolution: {integrity: sha512-OATcr2HIoMAqSVCEjNIxmo7SEWaDqIZGPyqKUYLbAmnrcpQmJvUdmcgjzvltRvbIoamhhIXktW0LiZw1l7FQSA==}
+  '@blueking/open-telemetry@0.0.34':
+    resolution: {integrity: sha512-KEOKcwo8WHln2n5o8+Qg5PoDwOAMWnDRGNvqhpgy30uBNcaAV9EsfZxPuV87ip2PuNdpP1Crm6KhPN2LWlh5Rg==}
 
   '@blueking/platform-config@1.0.5':
     resolution: {integrity: sha512-z88WCgnPJ1V5XzFMcftEEwDVz3Cvfn7VWv+mRlfh+LfBBDJyUrwX4uhkMYr06kP+35NPIky8ZdETFb2VWDoMyg==}
@@ -3598,17 +3598,26 @@ packages:
   '@vue/reactivity@3.5.43':
     resolution: {integrity: sha512-G/c9GyOZNI2jVaaS6OX1EF1SSFSv7H0ERqNTl4+DTFMlZmB5eVAB53aLQNam/7NL2NPtaDD7RdVrzf8uJzMuOA==}
 
+  '@vue/reactivity@3.5.44':
+    resolution: {integrity: sha512-u+QJdKeBBEADkPdevsL+6E12QlYVfBD8Zcw5qjDQKtamI6l14KyqazJMobhCKelhWN5zpyKUiEDoTyHE93cqWw==}
+
   '@vue/runtime-core@3.5.30':
     resolution: {integrity: sha512-e0Z+8PQsUTdwV8TtEsLzUM7SzC7lQwYKePydb7K2ZnmS6jjND+WJXkmmfh/swYzRyfP1EY3fpdesyYoymCzYfg==}
 
   '@vue/runtime-core@3.5.43':
     resolution: {integrity: sha512-hU6U6VnVhBGQDpvlnnDlIB8ZGJBiOcgk2lh/0InltHiz3D8oSkluvuvY+do1G2H3+udeKFsmaBlgVYP7gXQzEw==}
 
+  '@vue/runtime-core@3.5.44':
+    resolution: {integrity: sha512-uEa/ndwjhrrhnOfb2p+sZy6zeoamJOISqaLSJGk/8R6nABT1ZldpzcJoPzKj+zHVomVBPcmQYyC2r4LtvDV6CQ==}
+
   '@vue/runtime-dom@3.5.30':
     resolution: {integrity: sha512-2UIGakjU4WSQ0T4iwDEW0W7vQj6n7AFn7taqZ9Cvm0Q/RA2FFOziLESrDL4GmtI1wV3jXg5nMoJSYO66egDUBw==}
 
   '@vue/runtime-dom@3.5.43':
     resolution: {integrity: sha512-Bb2Jc0YjjJdMt1SJmb9b2L/IWd3I8lIT9x9eS/xvvP9CiVgna0ffua74xKRmt4/uSJ+0r4iN8ex1jrqkhQGWQw==}
+
+  '@vue/runtime-dom@3.5.44':
+    resolution: {integrity: sha512-3fc4ARcXVhVBaJ3ujWiNZJARD6pkyRcwG+ZYhMzjKtKUp7MAY0HLwr7r3Smep3Li6ZaWT6ewdmx8XqdaD5oNZg==}
 
   '@vue/server-renderer@3.5.43':
     resolution: {integrity: sha512-l2Ygjv9NehV94PSBxNWsAHC0j/eIIKbn92mBuWXAPGLnn6HfJ6MH5ubsd+Nk0YoZ5FRuxWI1P2VSoh+dbPQhCQ==}
@@ -3618,6 +3627,9 @@ packages:
 
   '@vue/shared@3.5.43':
     resolution: {integrity: sha512-uksS7YGMR5NZyr4JNq0Rp+QyLns0ueaz20KwzIPW9R0LH1Vnt4E+XUM29PNseEbf1www2gOuhuDi5AKOIXag9Q==}
+
+  '@vue/shared@3.5.44':
+    resolution: {integrity: sha512-H82XLH0DjmSOdbEwO15x3QTo1f5PWEtv237eLpYKc0mqLu+B8hnq16lFWmuBmNurkeiG3wr+oM1FhOll/YVFRg==}
 
   '@vueuse/core@10.11.1':
     resolution: {integrity: sha512-guoy26JQktXPcz+0n3GukWIy/JDNKti9v6VEMu6kV2sYBsWuGiTU8OWdg+ADfUbHg3/3DlqySDe7JmdHrktiww==}
@@ -10842,7 +10854,7 @@ snapshots:
 
   '@blueking/bkui-library@0.0.0-beta.4':
     dependencies:
-      '@vue/runtime-dom': 3.5.43
+      '@vue/runtime-dom': 3.5.44
 
   '@blueking/bkui-library@0.0.0-beta.6':
     dependencies:
@@ -10897,22 +10909,22 @@ snapshots:
       bkui-vue: 2.0.2-beta.112(highlight.js@11.11.1)(vue@2.7.16)
       vue: 2.7.16
 
-  '@blueking/ip-selector@1.0.6(vue@2.7.16)':
-    dependencies:
-      '@blueking/bkui-library': 0.0.0-beta.6
-      '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
-      '@blueking/user-selector': 1.0.14
-      vue-i18n: 8.14.1(vue@2.7.16)
-    transitivePeerDependencies:
-      - bkui-vue
-      - vue
-
   '@blueking/ip-selector@1.0.6(bkui-vue@2.0.2-beta.97(patch_hash=d5031e038d8ba43bcb8250478e247016b014655ec312957ef2053168a3cc42d7)(highlight.js@11.11.1)(vue@3.5.43(typescript@5.9.3)))(vue@3.5.43(typescript@5.9.3))':
     dependencies:
       '@blueking/bkui-library': 0.0.0-beta.6
       '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(bkui-vue@2.0.2-beta.97(patch_hash=d5031e038d8ba43bcb8250478e247016b014655ec312957ef2053168a3cc42d7)(highlight.js@11.11.1)(vue@3.5.43(typescript@5.9.3)))(vue@3.5.43(typescript@5.9.3))
       '@blueking/user-selector': 1.0.14
       vue-i18n: 8.14.1(vue@3.5.43(typescript@5.9.3))
+    transitivePeerDependencies:
+      - bkui-vue
+      - vue
+
+  '@blueking/ip-selector@1.0.6(vue@2.7.16)':
+    dependencies:
+      '@blueking/bkui-library': 0.0.0-beta.6
+      '@blueking/functional-dependency': 0.0.1-beta.12(@blueking/bkui-library@0.0.0-beta.6)(vue@2.7.16)
+      '@blueking/user-selector': 1.0.14
+      vue-i18n: 8.14.1(vue@2.7.16)
     transitivePeerDependencies:
       - bkui-vue
       - vue
@@ -10938,7 +10950,7 @@ snapshots:
     dependencies:
       dompurify: 3.4.2
 
-  '@blueking/open-telemetry@0.0.33':
+  '@blueking/open-telemetry@0.0.34':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@opentelemetry/context-zone': 2.7.1(@opentelemetry/api@1.9.1)
@@ -13044,6 +13056,10 @@ snapshots:
     dependencies:
       '@vue/shared': 3.5.43
 
+  '@vue/reactivity@3.5.44':
+    dependencies:
+      '@vue/shared': 3.5.44
+
   '@vue/runtime-core@3.5.30':
     dependencies:
       '@vue/reactivity': 3.5.30
@@ -13053,6 +13069,11 @@ snapshots:
     dependencies:
       '@vue/reactivity': 3.5.43
       '@vue/shared': 3.5.43
+
+  '@vue/runtime-core@3.5.44':
+    dependencies:
+      '@vue/reactivity': 3.5.44
+      '@vue/shared': 3.5.44
 
   '@vue/runtime-dom@3.5.30':
     dependencies:
@@ -13068,6 +13089,13 @@ snapshots:
       '@vue/shared': 3.5.43
       csstype: 3.2.3
 
+  '@vue/runtime-dom@3.5.44':
+    dependencies:
+      '@vue/reactivity': 3.5.44
+      '@vue/runtime-core': 3.5.44
+      '@vue/shared': 3.5.44
+      csstype: 3.2.3
+
   '@vue/server-renderer@3.5.43':
     dependencies:
       '@vue/compiler-ssr': 3.5.43
@@ -13077,6 +13105,8 @@ snapshots:
   '@vue/shared@3.5.30': {}
 
   '@vue/shared@3.5.43': {}
+
+  '@vue/shared@3.5.44': {}
 
   '@vueuse/core@10.11.1(vue@2.7.16)':
     dependencies:

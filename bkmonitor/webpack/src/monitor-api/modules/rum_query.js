@@ -10,6 +10,7 @@ export const rumFieldStatisticsGraph = request('POST', 'rum/search/field_statist
 export const rumDownloadTopK = request('POST', 'rum/search/download_topk/');
 export const rumRecordDetail = request('POST', 'rum/search/record_detail/');
 export const rumStatistics = request('POST', 'rum/search/statistics/');
+export const rumTimeline = request('POST', 'rum/search/timeline/');
 
 export default {
   rumRecords,
@@ -22,4 +23,5 @@ export default {
   rumDownloadTopK,
   rumRecordDetail,
   rumStatistics,
+  rumTimeline,
 };

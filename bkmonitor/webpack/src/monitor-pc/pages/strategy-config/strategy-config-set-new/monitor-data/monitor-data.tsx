@@ -40,6 +40,11 @@ import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import { handleSetTargetDesc as getTargetDesc } from '../../common';
+import {
+  type PromqlQuery,
+  isExistingMultiPromql,
+  isMultiPromqlBiz,
+} from '../../strategy-config-common/promql-query/model';
 import PromqlQueryEditor from '../../strategy-config-common/promql-query/promql-query-editor';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
@@ -47,7 +52,6 @@ import { type dataModeType, type EditModeType, type MetricDetail, MetricType } f
 import MonitorDataInput from './monitor-data-input';
 
 import type { IIpV6Value, INodeType, TargetObjectType } from '../../../../components/monitor-ip-selector/typing';
-import type { PromqlQuery } from '../../strategy-config-common/promql-query/model';
 import type { IFunctionsValue } from './function-select';
 import type { TranslateResult } from 'vue-i18n';
 
@@ -269,6 +273,22 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     );
   }
 
+  /** 非多 PromQL 业务下，已有多查询或非别名表达式不可改写。 */
+  get promqlMultiLocked() {
+    return (
+      this.editMode === 'Source' &&
+      !isMultiPromqlBiz(this.$store.getters.bizId) &&
+      isExistingMultiPromql(
+        {
+          sourceCode: this.source,
+          queryConfigs: this.sourceQueries,
+          step: this.sourceStep,
+          legacyMultiQuery: this.legacyMultiQuery,
+        },
+        this.expression
+      )
+    );
+  }
   /* 当前是否允许转为promql */
   get canToPromql() {
     if (this.editMode === 'Edit') {
@@ -277,7 +297,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         .filter(item => !!item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
-    return !this.legacyMultiQuery;
+    return !this.legacyMultiQuery && !this.promqlMultiLocked;
   }
   get targetDesc() {
     return this.handleSetTargetDesc(this.targetList, this.target?.targetType || this.metricData?.[0]?.targetType);
@@ -649,11 +669,14 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 <span
                   class={['metric-tab-right', { 'mode-disable': this.dataMode === 'realtime' || !this.canToPromql }]}
                   v-bk-tooltips={{
-                    content: this.isShowExpress
-                      ? this.$t('存在表达式,暂不支持转换')
-                      : this.$t('目前仅支持{0}切换PromQL', [
-                          `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
-                        ]),
+                    content:
+                      this.promqlMultiLocked && !this.legacyMultiQuery
+                        ? this.$t('当前业务不支持配置多 PromQL，已有查询和表达式仅可查看。')
+                        : this.isShowExpress
+                          ? this.$t('存在表达式,暂不支持转换')
+                          : this.$t('目前仅支持{0}切换PromQL', [
+                              `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
+                            ]),
                     disabled: !(this.dataMode === 'realtime' || !this.canToPromql),
                   }}
                   on-click={this.handleEditModeChange}
