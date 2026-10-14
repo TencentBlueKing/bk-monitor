@@ -218,7 +218,11 @@ def test_fast_create_forwards_optional_storage_settings(monkeypatch, payload_fac
     assert calls["bklog"]["enforce_permission"] is True
     assert "confirm" not in calls["bklog"]
     if "storage_cluster_id" in storage_options:
-        assert [(query["bk_biz_id"], query["cluster_type"]) for query in cluster_queries] == [(2, "all")]
+        # 显式传集群时按 ES + Doris 查询可见集群
+        assert [(query["bk_biz_id"], query.get("cluster_type")) for query in cluster_queries] == [(2, "all")]
+    elif any(key in storage_options for key in ("retention", "es_shards", "storage_replies")):
+        # 只传存储参数时按 BKLOG 默认口径查询公共 ES 集群，用于取上限
+        assert [(query["bk_biz_id"], query.get("cluster_type")) for query in cluster_queries] == [(2, None)]
     else:
         assert cluster_queries == []
     assert result["collector_config_id"] == 31
@@ -254,7 +258,7 @@ def test_fast_create_rejects_storage_cluster_outside_business_visible_range(monk
     assert created == []
 
 
-def test_fast_create_skips_cluster_visibility_lookup_without_storage_cluster_id(monkeypatch):
+def test_fast_create_skips_storage_cluster_lookup_without_storage_params(monkeypatch):
     monkeypatch.setattr(
         create_module,
         "api",
@@ -274,6 +278,150 @@ def test_fast_create_skips_cluster_visibility_lookup_without_storage_cluster_id(
         ),
     )
     serializer = FastCreateLogCollectorResource.RequestSerializer(data=linux_payload())
+    assert serializer.is_valid(), serializer.errors
+
+    result = FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert result["collector_config_id"] == 31
+
+
+STORAGE_CAPS_CLUSTER = {
+    "storage_cluster_id": 12,
+    "cluster_type": "elasticsearch",
+    "cluster_config": {
+        "cluster_id": 12,
+        "custom_option": {
+            "setup_config": {
+                "retention_days_max": 7,
+                "es_shards_max": 512,
+                "number_of_replicas_max": 1,
+            }
+        },
+    },
+}
+
+
+def patch_api_with_clusters(monkeypatch, clusters, created, queries=None):
+    """把集群列表与创建接口替换为桩，并记录实际创建参数与集群查询参数。"""
+
+    def fast_create(**kwargs):
+        created.append(kwargs)
+        return {
+            "collector_config_id": 31,
+            "bk_data_id": 51,
+            "subscription_id": 61,
+            "task_id_list": [71],
+            "index_set_id": 41,
+        }
+
+    def cluster_groups(**kwargs):
+        if queries is not None:
+            queries.append(kwargs)
+        return clusters
+
+    monkeypatch.setattr(
+        create_module,
+        "api",
+        SimpleNamespace(
+            log_search=SimpleNamespace(
+                fast_create_log_collector=fast_create,
+                bk_log_search_cluster_groups=cluster_groups,
+            )
+        ),
+    )
+
+
+@pytest.mark.parametrize("payload_factory", [linux_payload, windows_payload, container_payload])
+@pytest.mark.parametrize(("field", "value"), [("retention", 8), ("es_shards", 513), ("storage_replies", 2)])
+def test_fast_create_rejects_storage_settings_above_cluster_limits(monkeypatch, payload_factory, field, value):
+    created = []
+    patch_api_with_clusters(monkeypatch, [STORAGE_CAPS_CLUSTER], created)
+    serializer = FastCreateLogCollectorResource.RequestSerializer(
+        data=payload_factory(storage_cluster_id=12, **{field: value})
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    with pytest.raises(ValidationError, match=field):
+        FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert created == []
+
+
+@pytest.mark.parametrize("payload_factory", [linux_payload, windows_payload, container_payload])
+def test_fast_create_allows_storage_settings_at_cluster_limits(monkeypatch, payload_factory):
+    created = []
+    patch_api_with_clusters(monkeypatch, [STORAGE_CAPS_CLUSTER], created)
+    serializer = FastCreateLogCollectorResource.RequestSerializer(
+        data=payload_factory(storage_cluster_id=12, retention=7, es_shards=512, storage_replies=1)
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    result = FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert result["collector_config_id"] == 31
+    assert created[0]["es_shards"] == 512
+
+
+def test_fast_create_checks_storage_limits_of_default_cluster(monkeypatch):
+    created = []
+    queries = []
+    patch_api_with_clusters(monkeypatch, [STORAGE_CAPS_CLUSTER], created, queries)
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=linux_payload(retention=8))
+    assert serializer.is_valid(), serializer.errors
+
+    with pytest.raises(ValidationError, match="retention"):
+        FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert created == []
+    # 未传集群时按 BKLOG 默认口径查询（不带 cluster_type，仅公共 ES 集群）
+    assert [(query["bk_biz_id"], query.get("cluster_type")) for query in queries] == [(2, None)]
+
+
+def test_fast_create_allows_storage_settings_within_default_cluster_limits(monkeypatch):
+    created = []
+    patch_api_with_clusters(monkeypatch, [STORAGE_CAPS_CLUSTER], created)
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=linux_payload(retention=7, storage_replies=0))
+    assert serializer.is_valid(), serializer.errors
+
+    result = FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert result["collector_config_id"] == 31
+    assert created[0]["storage_replies"] == 0
+
+
+def test_fast_create_skips_limits_missing_from_cluster_setup_config(monkeypatch):
+    doris_cluster = {
+        "storage_cluster_id": 21,
+        "cluster_type": "doris",
+        "cluster_config": {"cluster_id": 21, "custom_option": {"setup_config": {"retention_days_max": 7}}},
+    }
+    created = []
+    patch_api_with_clusters(monkeypatch, [doris_cluster], created)
+    serializer = FastCreateLogCollectorResource.RequestSerializer(
+        data=linux_payload(storage_cluster_id=21, retention=7, es_shards=4096, storage_replies=50)
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    result = FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert result["collector_config_id"] == 31
+
+
+def test_fast_create_ignores_non_positive_cluster_limits(monkeypatch):
+    cluster = {
+        "storage_cluster_id": 12,
+        "cluster_config": {
+            "cluster_id": 12,
+            "custom_option": {
+                "setup_config": {"retention_days_max": 7, "es_shards_max": 0, "number_of_replicas_max": 0}
+            },
+        },
+    }
+    created = []
+    patch_api_with_clusters(monkeypatch, [cluster], created)
+    serializer = FastCreateLogCollectorResource.RequestSerializer(
+        data=linux_payload(storage_cluster_id=12, retention=7, es_shards=513, storage_replies=100)
+    )
     assert serializer.is_valid(), serializer.errors
 
     result = FastCreateLogCollectorResource().perform_request(serializer.validated_data)

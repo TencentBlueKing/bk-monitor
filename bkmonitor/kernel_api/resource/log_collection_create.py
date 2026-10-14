@@ -14,6 +14,14 @@ ENVIRONMENT_LINUX = "linux"
 ENVIRONMENT_WINDOWS = "windows"
 ENVIRONMENT_CONTAINER = "container"
 
+# 存储参数与所选取集群 setup_config 中对应上限字段的映射
+STORAGE_PARAM_FIELDS = ("storage_cluster_id", "retention", "es_shards", "storage_replies")
+STORAGE_LIMIT_KEYS = {
+    "retention": "retention_days_max",
+    "es_shards": "es_shards_max",
+    "storage_replies": "number_of_replicas_max",
+}
+
 COMMON_CREATE_FIELDS = {
     "bk_biz_id",
     "environment",
@@ -212,24 +220,49 @@ def validate_nested_create_fields(attrs: Mapping) -> None:
         validate_plugin_params(config.get("params"), f"{config_path}.params")
 
 
-def validate_storage_cluster_visible(bk_biz_id: int, storage_cluster_id: int | None) -> None:
-    """校验显式指定的存储集群在业务可见范围内，避免 MCP 绕过控制台的集群可选范围。"""
+def fetch_visible_storage_clusters(bk_biz_id: int, cluster_type: str | None = None) -> list[dict]:
+    """查询业务可见的存储集群。
+
+    cluster_type 缺省时不带该参数，与 BKLOG 默认选集群的口径一致（只看公共 ES 集群）。
+    """
+    # 可见范围由业务决定，这里用后台用户查询，避免调用者缺少存储源权限时查不到列表。
+    params: dict[str, Any] = {"bk_biz_id": bk_biz_id, "bk_username": get_backend_username()}
+    if cluster_type:
+        params["cluster_type"] = cluster_type
+    return api.log_search.bk_log_search_cluster_groups(**params) or []
+
+
+def resolve_storage_cluster(bk_biz_id: int, storage_cluster_id: int | None) -> dict | None:
+    """定位本次创建实际使用的存储集群：显式传值需业务可见，未传时取 BKLOG 的默认公共集群。"""
     if storage_cluster_id is None:
-        return
-    # 可见范围由业务决定，这里用后台用户查询，避免调用者缺少存储源权限时查不到列表；
+        default_clusters = fetch_visible_storage_clusters(bk_biz_id)
+        return default_clusters[0] if default_clusters else None
     # cluster_type 传 all，保证 ES 与 Doris 集群都不被误判为不可见。
-    cluster_groups = api.log_search.bk_log_search_cluster_groups(
-        bk_biz_id=bk_biz_id,
-        bk_username=get_backend_username(),
-        cluster_type="all",
-    )
-    visible_cluster_ids = {
-        cluster.get("storage_cluster_id") for cluster in cluster_groups or [] if cluster.get("storage_cluster_id")
-    }
-    if storage_cluster_id not in visible_cluster_ids:
-        raise serializers.ValidationError(
-            {"storage_cluster_id": ["Storage cluster is not available for this business."]}
-        )
+    for cluster in fetch_visible_storage_clusters(bk_biz_id, cluster_type="all"):
+        if cluster.get("storage_cluster_id") == storage_cluster_id:
+            return cluster
+    raise serializers.ValidationError({"storage_cluster_id": ["Storage cluster is not available for this business."]})
+
+
+def validate_storage_settings(bk_biz_id: int, request_data: Mapping) -> None:
+    """校验存储参数的取值落在所选存储集群的上限内，避免 MCP 绕过控制台的资源限制。"""
+    if all(request_data.get(field) is None for field in STORAGE_PARAM_FIELDS):
+        return
+    cluster = resolve_storage_cluster(bk_biz_id, request_data.get("storage_cluster_id"))
+    if not cluster:
+        # 没有可用集群时由 BKLOG 报错，这里不拦。
+        return
+    cluster_config = cluster.get("cluster_config") or {}
+    setup_config = (cluster_config.get("custom_option") or {}).get("setup_config") or {}
+    exceed_errors = {}
+    for field, limit_key in STORAGE_LIMIT_KEYS.items():
+        limit = setup_config.get(limit_key)
+        value = request_data.get(field)
+        # 上限缺省或非正数视为不限制（Doris 集群没有分片/副本上限）。
+        if value is not None and limit and limit > 0 and value > limit:
+            exceed_errors[field] = [f"{field} exceeds the selected storage cluster limit ({limit})."]
+    if exceed_errors:
+        raise serializers.ValidationError(exceed_errors)
 
 
 class FastCreateLogCollectorResource(Resource):
@@ -376,7 +409,7 @@ class FastCreateLogCollectorResource(Resource):
     def perform_request(self, validated_request_data):
         request_data = dict(validated_request_data)
         request_data.pop("confirm")
-        validate_storage_cluster_visible(request_data["bk_biz_id"], request_data.get("storage_cluster_id"))
+        validate_storage_settings(request_data["bk_biz_id"], request_data)
         create_result = (
             api.log_search.fast_create_log_collector(
                 enforce_permission=True,
