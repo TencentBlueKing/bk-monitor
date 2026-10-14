@@ -28,6 +28,7 @@ class RumSpanType(CachedEnum):
     ACTION = "action"
     WEBSOCKET = "websocket"
     CUSTOM = "custom"
+    SESSION = "session"
 
     @cached_property
     def label(self) -> str:
@@ -41,6 +42,7 @@ class RumSpanType(CachedEnum):
                 self.ACTION: _("用户操作"),
                 self.WEBSOCKET: "WebSocket",
                 self.CUSTOM: _("自定义事件"),
+                self.SESSION: _("会话"),
             }.get(self, str(self.value))
         )
 
@@ -132,6 +134,14 @@ class RumSpanType(CachedEnum):
                 "resource.service.version",
                 "resource.user_agent.name",
                 "resource.device.type",
+            ],
+            self.SESSION: [
+                "attributes.session.id",
+                "attributes.session.phase",
+                "attributes.session.type",
+                "resource.deployment.environment.name",
+                "resource.user_agent.name",
+                "attributes.user.id",
             ],
         }[self]
 

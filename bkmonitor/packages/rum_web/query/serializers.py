@@ -199,3 +199,17 @@ class RumStatisticsRequestSerializer(BaseRumSearchSerializer):
             raise serializers.ValidationError(_("最多支持 2 个对比时间点"))
         attrs["time_shifts"] = time_shifts
         return attrs
+
+
+class RumTimelineRequestSerializer(BaseRumRequestSerializer):
+    """按会话或视图查询时间线，两种查询范围必须且只能选择一种。"""
+
+    mode = None
+    session_id = serializers.CharField(label=_("会话 ID"), required=False)
+    view_id = serializers.CharField(label=_("视图 ID"), required=False)
+
+    def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
+        attrs = super().validate(attrs)
+        if bool(attrs.get("session_id")) == bool(attrs.get("view_id")):
+            raise serializers.ValidationError(_("session_id 和 view_id 必须且只能提供一个"))
+        return attrs
