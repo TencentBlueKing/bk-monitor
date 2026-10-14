@@ -90,15 +90,19 @@ def test_heartbeat_locks_and_rolls_back_on_routed_database() -> None:
     assert node.heartbeat == {}
 
 
-def log_response(name: str = "demo", timestamp: int | str = 150000) -> list[dict[str, Any]]:
+def log_response(name: str = "demo", timestamp: int | str | None = 1791877020000) -> list[dict[str, Any]]:
     return [{"resource": {"service": {"name": name}, "server": name}, "time": timestamp}]
 
 
 @pytest.mark.parametrize(
     ("first_time", "second_time", "expected_last_data_at"),
     [
-        pytest.param(150000, 190000, 190, id="millisecond_timestamps"),
-        pytest.param("150000", "190000", 190, id="millisecond_strings"),
+        pytest.param(1791877019000, 1791877020128, 1791877020, id="millisecond_timestamps"),
+        pytest.param("1791877019000", "1791877020128", 1791877020, id="millisecond_strings"),
+        pytest.param(1791877019, 1791877020, 1791877020, id="second_timestamps"),
+        pytest.param("1791877019", "1791877020", 1791877020, id="second_strings"),
+        pytest.param("1791877019.999", "1791877020.128", 1791877020, id="fractional_second_strings"),
+        pytest.param(0, 0, 0, id="zero_timestamp"),
         pytest.param(
             "2026-10-13T07:37:00.128000000Z",
             "2026-10-13T07:36:59.999999999Z",
@@ -165,6 +169,8 @@ def test_log_discover_iso_time_updates_existing_node() -> None:
         (RuntimeError("failed"), RuntimeError),
         (log_response("new", timestamp="invalid-time"), ValueError),
         (log_response("new", timestamp="2026-10-13"), ValueError),
+        (log_response("new", timestamp="2026-10-13T07:37:00"), ValueError),
+        (log_response("new", timestamp=None), ValueError),
     ],
 )
 def test_log_failure_does_not_write_or_renew(
@@ -396,7 +402,7 @@ def test_log_limit_result_only_updates_observed_services() -> None:
         LogServiceDiscover(datasource()).discover(100, 200)
     unknown.refresh_from_db()
     assert unknown.heartbeat == {"log": {"last_data_at": 90, "checked_at": 100}}
-    assert TopoNode.objects.get(topo_key="demo").heartbeat["log"]["last_data_at"] == 150
+    assert TopoNode.objects.get(topo_key="demo").heartbeat["log"]["last_data_at"] == 1791877020
 
 
 def test_log_without_index_set_does_not_query_or_renew() -> None:
