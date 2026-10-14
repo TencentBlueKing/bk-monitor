@@ -285,18 +285,21 @@ def test_fast_create_skips_storage_cluster_lookup_without_storage_params(monkeyp
     assert result["collector_config_id"] == 31
 
 
+# 集群列表接口返回的是拍平后的集群信息（setup_config 在顶层），结构取自
+# /databus/storage/cluster_groups/ 的接口文档与 StorageHandler.get_cluster_groups 的返回
 STORAGE_CAPS_CLUSTER = {
     "storage_cluster_id": 12,
-    "cluster_type": "elasticsearch",
-    "cluster_config": {
-        "cluster_id": 12,
-        "custom_option": {
-            "setup_config": {
-                "retention_days_max": 7,
-                "es_shards_max": 512,
-                "number_of_replicas_max": 1,
-            }
-        },
+    "storage_cluster_name": "bklog-test",
+    "storage_type": "elasticsearch",
+    "registered_system": "bklog",
+    "priority": 0,
+    "setup_config": {
+        "retention_days_max": 7,
+        "retention_days_default": 7,
+        "number_of_replicas_max": 1,
+        "number_of_replicas_default": 1,
+        "es_shards_default": 3,
+        "es_shards_max": 512,
     },
 }
 
@@ -392,8 +395,8 @@ def test_fast_create_allows_storage_settings_within_default_cluster_limits(monke
 def test_fast_create_skips_limits_missing_from_cluster_setup_config(monkeypatch):
     doris_cluster = {
         "storage_cluster_id": 21,
-        "cluster_type": "doris",
-        "cluster_config": {"cluster_id": 21, "custom_option": {"setup_config": {"retention_days_max": 7}}},
+        "storage_type": "doris",
+        "setup_config": {"retention_days_max": 7, "retention_days_default": 7},
     }
     created = []
     patch_api_with_clusters(monkeypatch, [doris_cluster], created)
@@ -407,26 +410,35 @@ def test_fast_create_skips_limits_missing_from_cluster_setup_config(monkeypatch)
     assert result["collector_config_id"] == 31
 
 
-def test_fast_create_ignores_non_positive_cluster_limits(monkeypatch):
+@pytest.mark.parametrize("payload_factory", [linux_payload, windows_payload, container_payload])
+def test_fast_create_rejects_replicas_when_cluster_limit_is_zero(monkeypatch, payload_factory):
+    # number_of_replicas_max=0 表示该集群只允许零副本，任何正数副本都要被拒绝
     cluster = {
         "storage_cluster_id": 12,
-        "cluster_config": {
-            "cluster_id": 12,
-            "custom_option": {
-                "setup_config": {"retention_days_max": 7, "es_shards_max": 0, "number_of_replicas_max": 0}
-            },
-        },
+        "storage_type": "elasticsearch",
+        "setup_config": {"retention_days_max": 7, "es_shards_max": 512, "number_of_replicas_max": 0},
     }
     created = []
     patch_api_with_clusters(monkeypatch, [cluster], created)
     serializer = FastCreateLogCollectorResource.RequestSerializer(
-        data=linux_payload(storage_cluster_id=12, retention=7, es_shards=513, storage_replies=100)
+        data=payload_factory(storage_cluster_id=12, storage_replies=1)
     )
     assert serializer.is_valid(), serializer.errors
 
-    result = FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+    with pytest.raises(ValidationError, match="storage_replies"):
+        FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert created == []
+
+    zero_replica_serializer = FastCreateLogCollectorResource.RequestSerializer(
+        data=payload_factory(storage_cluster_id=12, storage_replies=0)
+    )
+    assert zero_replica_serializer.is_valid(), zero_replica_serializer.errors
+
+    result = FastCreateLogCollectorResource().perform_request(zero_replica_serializer.validated_data)
 
     assert result["collector_config_id"] == 31
+    assert created[0]["storage_replies"] == 0
 
 
 @pytest.mark.parametrize(

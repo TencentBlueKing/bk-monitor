@@ -252,15 +252,16 @@ def validate_storage_settings(bk_biz_id: int, request_data: Mapping) -> None:
     if not cluster:
         # 没有可用集群时由 BKLOG 报错，这里不拦。
         return
-    cluster_config = cluster.get("cluster_config") or {}
-    setup_config = (cluster_config.get("custom_option") or {}).get("setup_config") or {}
+    # 集群列表接口返回的是拍平后的集群信息，setup_config 在顶层（详见 /databus/storage/cluster_groups/ 接口）
+    setup_config = cluster.get("setup_config") or {}
     exceed_errors = {}
     for field, limit_key in STORAGE_LIMIT_KEYS.items():
-        limit = setup_config.get(limit_key)
         value = request_data.get(field)
-        # 上限缺省或非正数视为不限制（Doris 集群没有分片/副本上限）。
-        if value is not None and limit and limit > 0 and value > limit:
-            exceed_errors[field] = [f"{field} exceeds the selected storage cluster limit ({limit})."]
+        limit = setup_config.get(limit_key)
+        # 上限字段缺失（Doris 集群没有分片/副本上限）时不限制；0 是合法上限，需要拦截任何正数
+        if value is None or limit is None or value <= limit:
+            continue
+        exceed_errors[field] = [f"{field} exceeds the selected storage cluster limit ({limit})."]
     if exceed_errors:
         raise serializers.ValidationError(exceed_errors)
 
