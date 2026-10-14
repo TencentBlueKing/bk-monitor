@@ -91,16 +91,14 @@ export default defineComponent({
 
     // 监听命名空间变化
     watch(
-      () => props.conItem.noQuestParams.namespaceStr,
-      (str: string) => {
-        if (str) {
-          if (timer.value) {
-            clearTimeout(timer.value);
-          }
-          timer.value = setTimeout(() => {
-            getWorkLoadNameList();
-          }, 1000);
+      () => [props.conItem.noQuestParams.namespaceStr, props.conItem.noQuestParams.namespacesExclude],
+      () => {
+        if (timer.value) {
+          clearTimeout(timer.value);
         }
+        timer.value = setTimeout(() => {
+          getWorkLoadNameList();
+        }, 1000);
       },
       { immediate: true },
     );
@@ -138,10 +136,12 @@ export default defineComponent({
       nameListLoading.value = true;
 
       nameCannotClick.value = true;
+      const { namespaceStr, namespacesExclude } = props.conItem.noQuestParams;
+      const namespaceKey = namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespace';
       const query = {
         type: formData.workload_type,
         bk_biz_id: bkBizId.value,
-        namespace: props.conItem.noQuestParams.namespaceStr,
+        [namespaceKey]: namespaceStr === '*' ? undefined : namespaceStr,
         bcs_cluster_id: props.bcsClusterId,
       };
 

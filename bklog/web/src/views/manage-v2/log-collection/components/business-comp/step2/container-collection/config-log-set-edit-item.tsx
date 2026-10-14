@@ -138,6 +138,7 @@ export default defineComponent({
       bcs_cluster_id: props.bcsClusterId,
       type: props.isNode ? 'node' : 'pod',
       namespaceStr: Array.isArray(props.config?.namespaces) ? (props.config.namespaces as string[]).join(',') : '',
+      namespacesExclude: props.config?.noQuestParams?.namespacesExclude,
       labelSelector: props.config?.label_selector || {},
     }));
 

@@ -246,8 +246,14 @@
     watch: {
       isShowDialog(val) {
         if (val) {
-          const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = this.labelParams;
-          const requestParams = { bk_biz_id, bcs_cluster_id, type, namespace: namespaceStr };
+          const { bk_biz_id, bcs_cluster_id, type, namespaceStr, namespacesExclude } = this.labelParams;
+          const namespaceKey = namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespace';
+          const requestParams = {
+            bk_biz_id,
+            bcs_cluster_id,
+            type,
+            ...(type === 'node' ? {} : { [namespaceKey]: namespaceStr === '*' ? undefined : namespaceStr }),
+          };
           this.treeList = [];
           this.defaultExpandList = [];
           this.cacheRequestParams = requestParams;
@@ -343,9 +349,14 @@
        * @desc: 根据请求类型获取树列表
        */
       getTreeList() {
-        const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = this.labelParams;
-        const query = { namespace: namespaceStr, bcs_cluster_id, type, bk_biz_id };
-        if (type === 'node') delete query.namespace;
+        const { bk_biz_id, bcs_cluster_id, type, namespaceStr, namespacesExclude } = this.labelParams;
+        const namespaceKey = namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespace';
+        const query = {
+          bcs_cluster_id,
+          type,
+          bk_biz_id,
+          ...(type === 'node' ? {} : { [namespaceKey]: namespaceStr === '*' ? undefined : namespaceStr }),
+        };
         this.treeLoading = true;
         this.$http
           .request('container/getPodTree', { query })

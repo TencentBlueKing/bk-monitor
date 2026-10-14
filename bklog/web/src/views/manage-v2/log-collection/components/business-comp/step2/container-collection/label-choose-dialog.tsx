@@ -30,7 +30,7 @@ import { random } from '@/common/util';
 import useLocale from '@/hooks/use-locale';
 
 import TreeComponent from '../../../common-comp/tree-component';
-import type { IClusterItem, IValueItem } from '../../../../type';
+import type { IClusterItem, IValueItem, ILabelSelector } from '../../../../type';
 import $http from '@/api';
 
 import './label-choose-dialog.scss';
@@ -43,6 +43,15 @@ type ITreeItem = {
   isOpen?: boolean;
 };
 
+type ILabelParams = {
+  bk_biz_id: number | string;
+  bcs_cluster_id: string;
+  type: string;
+  namespaceStr: string;
+  namespacesExclude?: string;
+  labelSelector?: ILabelSelector;
+};
+
 export default defineComponent({
   name: 'LabelChooseDialog',
 
@@ -52,7 +61,7 @@ export default defineComponent({
       default: false,
     },
     labelParams: {
-      type: Object as PropType<IValueItem>,
+      type: Object as PropType<ILabelParams>,
       default: () => ({}),
     },
     clusterList: {
@@ -186,10 +195,11 @@ export default defineComponent({
      * 根据请求类型获取树列表
      */
     const getTreeList = () => {
-      const { bk_biz_id, bcs_cluster_id, type, namespaceStr } = props.labelParams;
+      const { bk_biz_id, bcs_cluster_id, type, namespaceStr, namespacesExclude } = props.labelParams;
       const baseQuery = { bcs_cluster_id, type, bk_biz_id };
+      const namespaceKey = namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespace';
       const query =
-        type === 'node' ? baseQuery : { ...baseQuery, namespace: namespaceStr === '*' ? undefined : namespaceStr };
+        type === 'node' ? baseQuery : { ...baseQuery, [namespaceKey]: namespaceStr === '*' ? undefined : namespaceStr };
 
       treeLoading.value = true;
       $http

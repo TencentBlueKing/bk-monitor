@@ -2338,8 +2338,24 @@ class K8sCollectorHandler(CollectorHandler):
                     NamespaceNotValidException.MESSAGE.format(namespaces=", ".join(invalid_namespaces))
                 )
 
-    def list_topo(self, topo_type, bk_biz_id, bcs_cluster_id, namespace):
-        namespace_list = [ns for ns in namespace.split(",") if ns]
+    def list_topo(self, topo_type, bk_biz_id, bcs_cluster_id, namespace="", namespaces_exclude=""):
+        namespace_list = [ns for ns in (namespace or "").split(",") if ns]
+        excluded_namespaces = {ns for ns in (namespaces_exclude or "").split(",") if ns}
+        if namespace_list and excluded_namespaces:
+            raise ValidationError(_("不能同时指定命名空间和排除指定空间"))
+
+        result = {"id": bcs_cluster_id, "name": bcs_cluster_id, "type": "cluster"}
+        if excluded_namespaces and topo_type == TopoType.POD.value:
+            cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
+            if cluster_info["is_shared"]:
+                namespace_list = [
+                    ns["id"]
+                    for ns in self.list_namespace(bk_biz_id, bcs_cluster_id)
+                    if ns["id"] not in excluded_namespaces
+                ]
+                if not namespace_list:
+                    result["children"] = []
+                    return result
 
         collector_type = (
             ContainerCollectorType.NODE if topo_type == TopoType.NODE.value else ContainerCollectorType.CONTAINER
@@ -2347,7 +2363,6 @@ class K8sCollectorHandler(CollectorHandler):
         self.check_cluster_config(bk_biz_id, collector_type, bcs_cluster_id, namespace_list)
 
         api_instance = Bcs(cluster_id=bcs_cluster_id).api_instance_core_v1
-        result = {"id": bcs_cluster_id, "name": bcs_cluster_id, "type": "cluster"}
         if topo_type == TopoType.NODE.value:
             node_result = []
             nodes = api_instance.list_node().to_dict()
@@ -2358,7 +2373,7 @@ class K8sCollectorHandler(CollectorHandler):
             return result
         if topo_type == TopoType.POD.value:
             result["children"] = []
-            if namespace_list:
+            if namespace_list and not excluded_namespaces:
                 for namespace_item in namespace_list:
                     namespace_result = {"id": namespace_item, "name": namespace_item, "type": "namespace"}
                     pods = api_instance.list_namespaced_pod(namespace=namespace_item).to_dict()
@@ -2375,6 +2390,9 @@ class K8sCollectorHandler(CollectorHandler):
             namespaced_dict = defaultdict(list)
             items = pods.get("items", [])
             for pod in items:
+                pod_namespace = pod["metadata"]["namespace"]
+                if pod_namespace in excluded_namespaces or (namespace_list and pod_namespace not in namespace_list):
+                    continue
                 namespaced_dict[pod["metadata"]["namespace"]].append(
                     {"id": pod["metadata"]["name"], "name": pod["metadata"]["name"], "type": "pod"}
                 )
@@ -2383,22 +2401,38 @@ class K8sCollectorHandler(CollectorHandler):
             return result
 
     @classmethod
-    def generate_objs(cls, objs_dict, namespaces=None):
+    def generate_objs(cls, objs_dict, namespaces=None, namespaces_exclude=None):
         result = []
         if not objs_dict.get("items"):
             return result
         for item in objs_dict["items"]:
+            if namespaces_exclude and item["metadata"]["namespace"] in namespaces_exclude:
+                continue
             if not namespaces or item["metadata"]["namespace"] in namespaces:
                 # 有指定命名空间的，按命名空间过滤
                 result.append(item["metadata"]["name"])
         return result
 
-    def get_workload(self, workload_type, bcs_cluster_id, namespace):
+    def get_workload(self, workload_type, bcs_cluster_id, namespace="", namespaces_exclude="", bk_biz_id=None):
+        namespaces = [ns for ns in (namespace or "").split(",") if ns]
+        excluded_namespaces = {ns for ns in (namespaces_exclude or "").split(",") if ns}
+        if namespaces and excluded_namespaces:
+            raise ValidationError(_("不能同时指定命名空间和排除指定空间"))
+
+        if excluded_namespaces:
+            cluster_info = self.get_cluster_info(bk_biz_id, bcs_cluster_id)
+            if cluster_info["is_shared"]:
+                namespaces = [
+                    ns["id"]
+                    for ns in self.list_namespace(bk_biz_id, bcs_cluster_id)
+                    if ns["id"] not in excluded_namespaces
+                ]
+                if not namespaces:
+                    return []
+
         bcs = Bcs(cluster_id=bcs_cluster_id)
 
-        namespaces = [ns for ns in namespace.split(",") if ns]
-
-        if len(namespaces) == 1:
+        if len(namespaces) == 1 and not excluded_namespaces:
             workload_type_handler_dict = {
                 WorkLoadType.DEPLOYMENT: bcs.api_instance_apps_v1.list_namespaced_deployment,
                 WorkLoadType.STATEFUL_SET: bcs.api_instance_apps_v1.list_namespaced_stateful_set,
@@ -2420,7 +2454,9 @@ class K8sCollectorHandler(CollectorHandler):
         if not workload_handler:
             return []
 
-        return self.generate_objs(workload_handler().to_dict(), namespaces=namespaces)
+        return self.generate_objs(
+            workload_handler().to_dict(), namespaces=namespaces, namespaces_exclude=excluded_namespaces
+        )
 
     @staticmethod
     def _convert_lower_cluster_id(bcs_cluster_id: str):

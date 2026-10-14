@@ -112,20 +112,21 @@
       typeListIDStrList() {
         return this.typeList.map(item => item.id);
       },
+      namespaceScope() {
+        return [this.conItem.noQuestParams.namespaceStr, this.conItem.noQuestParams.namespacesExclude];
+      },
     },
     watch: {
       'formData.workload_type'(val) {
         val ? this.getWorkLoadNameList() : (this.nameList = []);
       },
-      'conItem.noQuestParams.namespaceStr': {
+      namespaceScope: {
         immediate: true,
-        handler(str) {
-          if (str) {
-            clearTimeout(this.timer);
-            this.timer = setTimeout(() => {
-              this.getWorkLoadNameList();
-            }, 1000);
-          }
+        handler() {
+          clearTimeout(this.timer);
+          this.timer = setTimeout(() => {
+            this.getWorkLoadNameList();
+          }, 1000);
         },
       },
       formData: {
@@ -151,10 +152,12 @@
       getWorkLoadNameList() {
         if (!this.typeListIDStrList.includes(this.formData.workload_type)) return;
         this.nameCannotClick = true;
+        const { namespaceStr, namespacesExclude } = this.conItem.noQuestParams;
+        const namespaceKey = namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespace';
         const query = {
           type: this.formData.workload_type,
           bk_biz_id: this.bkBizId,
-          namespace: this.conItem.noQuestParams.namespaceStr,
+          [namespaceKey]: namespaceStr === '*' ? undefined : namespaceStr,
           bcs_cluster_id: this.bcsClusterId,
         };
         this.$http
