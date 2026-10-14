@@ -556,6 +556,16 @@ export default {
   '与 TTFB 相差': 'Difference from TTFB',
   'Load 完成': 'Load complete',
   页面稳定: 'Page stability',
+
+  // RUM 检索--详情--链路上下文
+  '当前 Span': 'Current Span',
+  '{0} 个请求': '{0} requests',
+  '{0} 个操作': '{0} actions',
+  '停留 {0}': 'Stayed {0}',
+  '已折叠 {0} 个 Span，{1}': '{0} Spans collapsed, {1}',
+  '查询链路上下文失败，请稍后重试': 'Failed to query trace context, please try again later',
+  暂无链路上下文数据: 'No trace context data',
+  '未找到关联 Trace': 'Associated Trace not found',
   会话: 'Conversation',
   用户输入: 'User input',
   最终输出: 'Final output',
