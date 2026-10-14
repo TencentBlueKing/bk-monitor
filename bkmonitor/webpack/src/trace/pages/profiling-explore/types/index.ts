@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 
+import type { CollectionQueryState } from './collection';
 import type { FileQueryState } from './file';
 import type { IWhereItem } from '@/components/retrieval-filter/typing';
 
@@ -119,6 +120,7 @@ export interface QueryState {
   aggregation: Aggregation;
   appName: string;
   baselineRange: null | SelectionRange;
+  collection: CollectionQueryState;
   commonWhere: IWhereItem[];
   comparisonCommonWhere: IWhereItem[];
   comparisonRange: null | SelectionRange;
