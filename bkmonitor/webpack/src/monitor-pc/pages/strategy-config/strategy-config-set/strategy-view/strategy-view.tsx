@@ -25,6 +25,7 @@
  * IN THE SOFTWARE.
  */
 import { markRaw } from 'vue';
+
 import { Component, Emit, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -42,6 +43,7 @@ import { handleTransformToTimestamp } from '../../../../components/time-range/ut
 import { type ILogUrlParams, transformLogUrlQuery } from '../../../../utils/index';
 import CollectChart from '../../../data-retrieval/components/collect-chart.vue';
 import { PromqlQueryController } from '../../strategy-config-common/promql-query/controller';
+import { isMultiPromqlBiz } from '../../strategy-config-common/promql-query/model';
 import { buildPromqlPreview } from '../../strategy-config-common/promql-query/service';
 import GroupPanel from '../../strategy-config-set-new/components/group-panel';
 import {
@@ -392,7 +394,11 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   private sourceController = markRaw(new PromqlQueryController());
 
   get sourceQueryKey() {
-    return JSON.stringify([this.editMode, this.sourceData.queryConfigs || this.sourceData.sourceCode, this.sourceData.step]);
+    return JSON.stringify([
+      this.editMode,
+      this.sourceData.queryConfigs || this.sourceData.sourceCode,
+      this.sourceData.step,
+    ]);
   }
 
   @Watch('sourceQueryKey')
@@ -546,7 +552,14 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   // 获取策略辅助视图数据
   @asyncDebounceDecorator(200)
   async getSeriesData(startTime, endTime) {
-    if (this.editMode === 'Source' && this.sourceController.validate(this.sourceData, this.expression)) return [];
+    if (
+      this.editMode === 'Source' &&
+      this.sourceController.validate(this.sourceData, this.expression, {
+        allowMulti: isMultiPromqlBiz(this.$store.getters.bizId),
+      })
+    ) {
+      return [];
+    }
     // 框选图表后更新时间框
     if (startTime && endTime) {
       const timeRange = [startTime, endTime] as TimeRangeType;
