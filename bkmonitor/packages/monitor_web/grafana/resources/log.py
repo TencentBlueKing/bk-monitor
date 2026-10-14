@@ -22,6 +22,7 @@ from bkmonitor.data_source import load_data_source, filter_dict_to_q
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.time_tools import parse_log_timestamp
 from constants.data_source import DataSourceLabel, DataTypeLabel, GrayUnifyQueryDataSources
 from core.drf_resource import resource
 
@@ -129,23 +130,12 @@ class LogQueryResource(ApiAuthResource):
     def get_time(record: dict, time_field: str) -> int:
         time_value = record.pop(time_field)
 
-        # 带毫秒的时间戳处理
         try:
-            time_value = int(time_value)
-            if len(str(time_value)) > 10:
-                time_value = time_value // 1000
-        except (TypeError, ValueError):
-            pass
-
-        # 将时间字段序列化
-        try:
-            _time = arrow.get(time_value)
+            return parse_log_timestamp(time_value)
         except Exception as e:
             logger.error(f"parse time error: {time_value}")
             logger.exception(e)
-            _time = arrow.now()
-
-        return int(_time.timestamp)
+            return int(arrow.now().timestamp)
 
     def perform_request(self, params):
         if "start_time" not in params or "end_time" not in params:
