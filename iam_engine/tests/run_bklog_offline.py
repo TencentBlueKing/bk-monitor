@@ -5,6 +5,7 @@ are blocked before loading any settings. Only IAM fixture tables are created.
 """
 
 import os
+from importlib import import_module
 from pathlib import Path
 import socket
 import sys
@@ -64,6 +65,7 @@ def main():
         django.setup()
         # Do not run migrations or post_migrate: those register models in real IAM.
         from django.db import connection
+        from django.apps import apps
         from apps.log_search.models import GlobalConfig
         from apps.feature_toggle.models import FeatureToggle
         from apps.log_search.models import Space, SpaceType
@@ -71,7 +73,10 @@ def main():
         with connection.schema_editor() as editor:
             for model in (GlobalConfig, FeatureToggle, SpaceType, Space):
                 editor.create_model(model)
-        print("Offline BKLog startup: real Django apps, in-memory IAM fixture tables")
+        # Seed the same IAM mode row as the standard Django test database, without
+        # running full migrations or post_migrate hooks that could contact IAM.
+        import_module("apps.feature_toggle.migrations.0011_init_iam_permission_toggle").forwards_func(apps, None)
+        print("Offline BKLog startup: real Django apps, in-memory IAM fixture tables and initial mode data")
         names = sys.argv[1:] or ["apps.tests.iam"]
         suite = unittest.TestSuite()
         for name in names:

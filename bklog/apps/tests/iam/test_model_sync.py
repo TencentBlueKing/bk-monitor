@@ -16,6 +16,7 @@ from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.permission import Permission
 from apps.iam.mode import get_deployment_mode_provider, get_mode_provider
 from apps.feature_toggle.models import FeatureToggle
+from apps.feature_toggle.plugins.constants import IAM_PERMISSION_MODE
 from iam_engine.core.config import AuthMode
 from iam_engine.core.types import AuthResult
 from iam_engine.model.sync import ModelSyncError
@@ -166,7 +167,14 @@ class ModelSyncCommandTest(SimpleTestCase):
 @override_settings(BK_IAM_PERMISSION_MODE="", FEATURE_TOGGLE={})
 class DeploymentModeTest(TestCase):
     def test_runtime_and_deployment_read_same_dynamic_toggle(self):
-        toggle = FeatureToggle.objects.create(name="iam_permission_mode", status="on", feature_config={"mode": "union"})
+        initial_toggle, _ = FeatureToggle.objects.get_or_create(
+            name=IAM_PERMISSION_MODE, defaults={"status": "on", "feature_config": {"mode": "v3"}}
+        )
+        toggle, _ = FeatureToggle.objects.update_or_create(
+            name=IAM_PERMISSION_MODE, defaults={"status": "on", "feature_config": {"mode": "union"}}
+        )
+        self.assertEqual(toggle.pk, initial_toggle.pk)
+        self.assertEqual(FeatureToggle.objects.filter(name=IAM_PERMISSION_MODE).count(), 1)
         assert get_deployment_mode_provider().get_mode() is AuthMode.UNION
         assert get_mode_provider().get_mode() is AuthMode.UNION
         toggle.feature_config = {"mode": "v4"}
