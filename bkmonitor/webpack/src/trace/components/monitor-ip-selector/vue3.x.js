@@ -23,34 +23,31 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { h, onBeforeUnmount, onMounted, onUpdated, ref } from 'vue';
+import { h, onBeforeUnmount, onMounted, onUpdated, shallowRef } from 'vue';
 
 import { Component, merge, Vue2 } from '@blueking/ip-selector/dist/vue2.6.x.esm';
-
-Component.props.mode.default = 'section';
 
 export default function (options) {
   merge(options);
 
   return {
     name: 'bk-ip-selector',
-    props: Object.assign({}, Component.props),
+    props: {
+      ...Component.props,
+      mode: { ...Component.props.mode, default: 'section' },
+    },
     emits: [...Component.emits],
     setup(props, context) {
-      const rootRef = ref();
+      const rootRef = shallowRef();
 
       let app = new Vue2({
         render: h => {
           return h(Component, {
             ref: 'componentRef',
-            props,
+            props: { ...props },
           });
         },
       });
-      function isPrimitive(value) {
-        const type = typeof value;
-        return value === null || (type !== 'object' && type !== 'function');
-      }
       onMounted(() => {
         app.$mount();
         rootRef.value.appendChild(app.$el);
@@ -59,13 +56,10 @@ export default function (options) {
             context.emit(eventName, ...agrs);
           });
         }
-        onUpdated(() => {
-          for (const [key, value] of Object.entries(props)) {
-            if (!isPrimitive(value)) continue;
-            app.$refs.componentRef[key] = value;
-          }
-          app.$refs.componentRef.$forceUpdate();
-        });
+      });
+
+      onUpdated(() => {
+        app.$forceUpdate();
       });
 
       onBeforeUnmount(() => {
@@ -82,6 +76,7 @@ export default function (options) {
       return h('div', {
         role: 'bk-ip-selector',
         ref: 'rootRef',
+        style: { height: 'inherit' },
       });
     },
   };

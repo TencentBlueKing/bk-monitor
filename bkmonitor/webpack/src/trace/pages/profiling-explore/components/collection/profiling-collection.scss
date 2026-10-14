@@ -1,0 +1,397 @@
+.profiling-collection {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: #f5f7fa;
+
+  > .bk-tab {
+    background: #fff;
+
+    .bk-tab-content {
+      display: none;
+    }
+  }
+}
+
+.collection-meta-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: calc(100% - 16px);
+  margin: 8px;
+  background: #fff;
+}
+
+.collection-meta-error {
+  max-width: 560px;
+  padding: 24px;
+  text-align: center;
+
+  .bk-button {
+    margin-top: 16px;
+  }
+}
+
+.collection-task-panel {
+  min-height: calc(100% - 58px);
+  padding: 16px 24px;
+  margin: 8px;
+  background: #fff;
+
+  .t-table {
+    font-size: 12px;
+  }
+}
+
+.collection-task-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 16px 0;
+
+  .collection-task-search {
+    width: min(480px, 45%);
+    margin-left: auto;
+  }
+}
+
+.collection-row-actions {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.collection-task-pagination {
+  padding-top: 16px;
+}
+
+.collection-inline-alert {
+  margin: 12px 0;
+}
+
+.collection-error-text {
+  color: #ea3636;
+}
+
+.collection-muted {
+  font-size: 12px;
+  color: #979ba5;
+}
+
+.collection-task-form,
+.collection-task-detail {
+  .bk-sideslider-content {
+    height: 100%;
+    overflow: auto;
+  }
+
+  .bk-modal-content {
+    min-height: 0;
+  }
+}
+
+.collection-form-body {
+  padding: 24px 40px 32px;
+
+  .bk-form-item {
+    margin-bottom: 24px;
+  }
+
+  .bk-form-label {
+    font-size: 12px;
+  }
+
+  .bk-date-picker {
+    width: 100%;
+  }
+
+  .collection-advanced-button {
+    margin: 0 0 24px;
+  }
+
+  > .bk-form > .collection-muted {
+    margin: -12px 0 20px;
+  }
+}
+
+.collection-form-columns {
+  display: flex;
+  gap: 16px;
+
+  > .bk-form-item {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.collection-host-selection {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 12px;
+}
+
+.collection-input-prefix,
+.collection-input-suffix {
+  padding: 0 8px;
+  color: #63656e;
+  white-space: nowrap;
+}
+
+.collection-input-prefix {
+  border-right: 1px solid #dcdee5;
+}
+
+.collection-input-suffix {
+  border-left: 1px solid #dcdee5;
+}
+
+.collection-process-empty {
+  display: grid;
+  place-items: center;
+  min-height: 210px;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+}
+
+.collection-process-selector {
+  display: flex;
+  min-width: 0;
+  border: 1px solid #dcdee5;
+  border-radius: 2px;
+
+  .bk-button {
+    font-size: 12px;
+  }
+
+  .t-table {
+    font-size: 12px;
+  }
+}
+
+.collection-process-query {
+  flex: 1;
+  min-width: 0;
+  padding: 16px 24px;
+}
+
+.collection-process-conditions {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  margin-bottom: 12px;
+}
+
+.collection-process-inputs {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+
+  .bk-radio-group {
+    display: flex;
+    width: 100%;
+  }
+
+  .bk-radio-button {
+    flex: 1;
+    text-align: center;
+  }
+}
+
+.collection-dynamic-toggle {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 12px;
+}
+
+.collection-process-pagination {
+  padding-top: 12px;
+}
+
+.collection-process-targets {
+  width: 240px;
+  padding: 16px;
+  overflow-wrap: anywhere;
+  background: #f5f7fa;
+
+  h4 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: normal;
+  }
+
+  p {
+    font-size: 12px;
+  }
+}
+
+.collection-process-target-heading {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.collection-process-card {
+  position: relative;
+  padding: 8px 24px 8px 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  line-height: 20px;
+  background: #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 2px #00000014;
+
+  small {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #979ba5;
+    white-space: nowrap;
+  }
+
+  .collection-process-remove {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    color: #979ba5;
+  }
+}
+
+.collection-form-footer {
+  padding: 12px 40px;
+  background: #fafbfd;
+  border-top: 1px solid #dcdee5;
+
+  > .bk-alert {
+    margin-bottom: 12px;
+  }
+
+  > div:last-child {
+    display: flex;
+    gap: 8px;
+  }
+
+  .bk-button {
+    min-width: 88px;
+  }
+}
+
+.collection-detail-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  font-size: 16px;
+
+  > span:first-child {
+    flex-shrink: 0;
+  }
+
+  .collection-detail-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 12px;
+    color: #979ba5;
+    white-space: nowrap;
+  }
+
+  .collection-detail-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 16px;
+    padding-right: 24px;
+    margin-left: auto;
+  }
+}
+
+.collection-detail-body {
+  padding: 24px 32px;
+
+  h3 {
+    padding: 8px 12px;
+    margin: 0 0 12px;
+    font-size: 14px;
+    font-weight: normal;
+    background: #f0f3fa;
+    border-radius: 2px;
+  }
+
+  dl {
+    margin: 0 0 32px;
+  }
+}
+
+.collection-detail-row {
+  display: flex;
+  margin: 0 0 16px;
+  font-size: 12px;
+  line-height: 20px;
+
+  dt {
+    flex-shrink: 0;
+    width: 88px;
+    color: #979ba5;
+    text-align: right;
+  }
+
+  dd {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+}
+
+.collection-detail-tag {
+  display: inline-block;
+  padding: 0 4px;
+  margin-bottom: 4px;
+  background: #f0f1f5;
+  border-radius: 2px;
+}
+
+.collection-cron-editor .bk-crontab-datetime,
+.collection-cron-summary .bk-crontab-datetime,
+.collection-cron-summary .bk-crontab-editarea {
+  display: none;
+}
+
+.collection-cron-summary {
+  padding: 8px;
+  font-size: 12px;
+}
+
+.collection-cron-expression {
+  cursor: help;
+  border-bottom: 1px dashed #979ba5;
+}
+
+@media (width <= 1000px) {
+  .collection-form-body {
+    padding: 24px;
+  }
+
+  .collection-process-query {
+    padding: 12px;
+  }
+
+  .collection-process-targets {
+    width: 200px;
+    padding: 12px;
+  }
+
+  .collection-form-columns {
+    flex-wrap: wrap;
+  }
+
+  .collection-task-panel {
+    padding: 16px;
+  }
+}
