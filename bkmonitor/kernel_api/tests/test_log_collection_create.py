@@ -176,6 +176,7 @@ def test_serializer_rejects_infrastructure_and_identity_overrides(field):
 )
 def test_fast_create_forwards_optional_storage_settings(monkeypatch, payload_factory, storage_options):
     calls = {}
+    cluster_queries = []
     api_resource = FastCreateLogCollectorAPIResource()
 
     def fast_create(**kwargs):
@@ -189,10 +190,19 @@ def test_fast_create_forwards_optional_storage_settings(monkeypatch, payload_fac
             "index_set_id": 41,
         }
 
+    def cluster_groups(**kwargs):
+        cluster_queries.append(kwargs)
+        return [{"storage_cluster_id": 12}]
+
     monkeypatch.setattr(
         create_module,
         "api",
-        SimpleNamespace(log_search=SimpleNamespace(fast_create_log_collector=fast_create)),
+        SimpleNamespace(
+            log_search=SimpleNamespace(
+                fast_create_log_collector=fast_create,
+                bk_log_search_cluster_groups=cluster_groups,
+            )
+        ),
     )
     serializer = FastCreateLogCollectorResource.RequestSerializer(data=payload_factory(**storage_options))
     assert serializer.is_valid(), serializer.errors
@@ -207,6 +217,67 @@ def test_fast_create_forwards_optional_storage_settings(monkeypatch, payload_fac
         } == storage_options
     assert calls["bklog"]["enforce_permission"] is True
     assert "confirm" not in calls["bklog"]
+    if "storage_cluster_id" in storage_options:
+        assert [(query["bk_biz_id"], query["cluster_type"]) for query in cluster_queries] == [(2, "all")]
+    else:
+        assert cluster_queries == []
+    assert result["collector_config_id"] == 31
+
+
+@pytest.mark.parametrize("payload_factory", [linux_payload, windows_payload, container_payload])
+def test_fast_create_rejects_storage_cluster_outside_business_visible_range(monkeypatch, payload_factory):
+    created = []
+
+    def fast_create(**kwargs):
+        created.append(kwargs)
+        return {"collector_config_id": 31}
+
+    monkeypatch.setattr(
+        create_module,
+        "api",
+        SimpleNamespace(
+            log_search=SimpleNamespace(
+                fast_create_log_collector=fast_create,
+                bk_log_search_cluster_groups=lambda **kwargs: [
+                    {"storage_cluster_id": 12},
+                    {"storage_cluster_id": 13},
+                ],
+            )
+        ),
+    )
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=payload_factory(storage_cluster_id=99))
+    assert serializer.is_valid(), serializer.errors
+
+    with pytest.raises(ValidationError, match="storage_cluster_id"):
+        FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert created == []
+
+
+def test_fast_create_skips_cluster_visibility_lookup_without_storage_cluster_id(monkeypatch):
+    monkeypatch.setattr(
+        create_module,
+        "api",
+        SimpleNamespace(
+            log_search=SimpleNamespace(
+                fast_create_log_collector=lambda **kwargs: {
+                    "collector_config_id": 31,
+                    "bk_data_id": 51,
+                    "subscription_id": None,
+                    "task_id_list": None,
+                    "index_set_id": 41,
+                },
+                bk_log_search_cluster_groups=lambda **kwargs: pytest.fail(
+                    "storage cluster visibility must not be queried when storage_cluster_id is absent"
+                ),
+            )
+        ),
+    )
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=linux_payload())
+    assert serializer.is_valid(), serializer.errors
+
+    result = FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
     assert result["collector_config_id"] == 31
 
 

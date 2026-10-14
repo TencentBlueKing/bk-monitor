@@ -6,6 +6,7 @@ from typing import Any
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
+from bkmonitor.utils.user import get_backend_username
 from core.drf_resource import Resource, api
 from kernel_api.resource.log_collection_common import StrictMCPSerializer, normalize_task_ids
 
@@ -211,6 +212,26 @@ def validate_nested_create_fields(attrs: Mapping) -> None:
         validate_plugin_params(config.get("params"), f"{config_path}.params")
 
 
+def validate_storage_cluster_visible(bk_biz_id: int, storage_cluster_id: int | None) -> None:
+    """校验显式指定的存储集群在业务可见范围内，避免 MCP 绕过控制台的集群可选范围。"""
+    if storage_cluster_id is None:
+        return
+    # 可见范围由业务决定，这里用后台用户查询，避免调用者缺少存储源权限时查不到列表；
+    # cluster_type 传 all，保证 ES 与 Doris 集群都不被误判为不可见。
+    cluster_groups = api.log_search.bk_log_search_cluster_groups(
+        bk_biz_id=bk_biz_id,
+        bk_username=get_backend_username(),
+        cluster_type="all",
+    )
+    visible_cluster_ids = {
+        cluster.get("storage_cluster_id") for cluster in cluster_groups or [] if cluster.get("storage_cluster_id")
+    }
+    if storage_cluster_id not in visible_cluster_ids:
+        raise serializers.ValidationError(
+            {"storage_cluster_id": ["Storage cluster is not available for this business."]}
+        )
+
+
 class FastCreateLogCollectorResource(Resource):
     """使用 BKLOG Fast Create 创建 Linux、Windows 或容器日志采集项。"""
 
@@ -355,6 +376,7 @@ class FastCreateLogCollectorResource(Resource):
     def perform_request(self, validated_request_data):
         request_data = dict(validated_request_data)
         request_data.pop("confirm")
+        validate_storage_cluster_visible(request_data["bk_biz_id"], request_data.get("storage_cluster_id"))
         create_result = (
             api.log_search.fast_create_log_collector(
                 enforce_permission=True,
