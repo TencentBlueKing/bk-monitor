@@ -225,6 +225,13 @@ class ActionProcessor(BaseActionProcessor):
             return {}
 
         request_class = getattr(resource_module, source_class)
+        inputs = self.get_request_inputs(request_schema, **kwargs)
+        data = {"response": request_class(**request_schema.get("init_kwargs", {})).request(**inputs)}
+        outputs = self.decode_request_outputs(output_templates=request_schema.get("outputs", []), **data)
+        return outputs
+
+    def get_request_inputs(self, request_schema, **kwargs):
+        """构建完成映射和模板渲染的请求参数。"""
         inputs = self.jmespath_search_data(inputs=request_schema.get("inputs", []), **kwargs)
         inputs.update(
             {
@@ -237,9 +244,7 @@ class ActionProcessor(BaseActionProcessor):
         if request_schema.get("render_inputs", False):
             # 对由 jmespath/静态映射生成的 inputs 可选执行二次 Jinja 渲染。
             inputs = self.jinja_render(inputs)
-        data = {"response": request_class(**request_schema.get("init_kwargs", {})).request(**inputs)}
-        outputs = self.decode_request_outputs(output_templates=request_schema.get("outputs", []), **data)
-        return outputs
+        return inputs
 
     def decode_request_outputs(self, output_templates, **kwargs):
         """
