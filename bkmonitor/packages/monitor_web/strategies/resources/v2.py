@@ -26,6 +26,7 @@ from bkmonitor.action.utils import get_strategy_user_group_dict
 from bkmonitor.aiops.utils import AiSetting
 from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import Functions, UnifyQuery, load_data_source
+from bkmonitor.data_source.unify_query.functions import add_expression_functions
 from bkmonitor.dataflow.constant import (
     AI_SETTING_ALGORITHMS,
     AccessStatus,
@@ -52,6 +53,7 @@ from bkmonitor.models.strategy import AlgorithmChoiceConfig, NoticeSubscribe
 from bkmonitor.strategy.new_strategy import (
     ActionRelation,
     Algorithm,
+    Item,
     NoticeRelation,
     QueryConfig,
     Strategy,
@@ -2230,6 +2232,142 @@ class SaveStrategyV2Resource(Resource):
         # 编辑后需要重置AsCode相关配置
         StrategyModel.objects.filter(id=strategy.id).update(hash="", snippet="")
         return strategy.to_dict()
+
+
+class SaveStrategyForPageResource(SaveStrategyV2Resource):
+    """Page-only defaults for named outputs of a multi-PromQL item."""
+
+    @staticmethod
+    def is_multi_promql(item: dict) -> bool:
+        queries = item.get("query_configs") or []
+        return len(queries) >= 2 and all(
+            (query.get("data_source_label"), query.get("data_type_label"), query.get("expression_mode"))
+            == (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES, "promql")
+            for query in queries
+        )
+
+    @staticmethod
+    def default_output_config(item: dict, *, enforce_capacity: bool = True) -> dict:
+        aliases = [query["alias"] for query in item["query_configs"]]
+        references = [alias.upper() for alias in aliases]
+        if len(references) != len(set(references)):
+            raise ValidationError(detail="PromQL 查询别名忽略大小写后存在重复，无法生成默认命名输出")
+        if "RESULT" in references:
+            raise ValidationError(detail="PromQL 查询别名 RESULT 为默认命名输出保留名")
+        config = {
+            "response_contract": "named_outputs/v1",
+            "legacy_output_ref": "RESULT",
+            "output_list": [
+                {"reference_name": reference, "expression": alias} for reference, alias in zip(references, aliases)
+            ]
+            + [
+                {
+                    "reference_name": "RESULT",
+                    "expression": add_expression_functions(item["expression"], item.get("functions") or []),
+                }
+            ],
+        }
+        return Item.normalize_query_output_config(config) if enforce_capacity else config
+
+    @staticmethod
+    def same_output_config(left: dict | None, right: dict | None) -> bool:
+        """Compare output identities, not presentation order of query configs."""
+        if not isinstance(left, dict) or not isinstance(right, dict):
+            return False
+        if (left.get("response_contract"), left.get("legacy_output_ref")) != (
+            right.get("response_contract"),
+            right.get("legacy_output_ref"),
+        ):
+            return False
+        left_outputs = left.get("output_list")
+        right_outputs = right.get("output_list")
+        if not isinstance(left_outputs, list) or not isinstance(right_outputs, list):
+            return False
+        if len(left_outputs) != len(right_outputs) or not all(
+            isinstance(output, dict) and isinstance(output.get("reference_name"), str)
+            for output in left_outputs + right_outputs
+        ):
+            return False
+        left_by_name = {output.get("reference_name"): output.get("expression") for output in left_outputs}
+        right_by_name = {output.get("reference_name"): output.get("expression") for output in right_outputs}
+        return len(left_by_name) == len(left_outputs) and left_by_name == right_by_name
+
+    @staticmethod
+    def match_old_items(items: list[dict], old_items: list[ItemModel]) -> list[ItemModel | None]:
+        """Use the same explicit-ID reservation and positional fallback as Strategy.save()."""
+        old_by_id = {item.id: item for item in old_items}
+        reserved_ids = {item.get("id") for item in items} & set(old_by_id)
+        available_ids = iter(item.id for item in old_items if item.id not in reserved_ids)
+        used_ids = set()
+        matched = []
+        for item in items:
+            old_id = item.get("id")
+            if old_id not in reserved_ids or old_id in used_ids:
+                old_id = next(available_ids, 0)
+            used_ids.add(old_id)
+            matched.append(old_by_id.get(old_id))
+        return matched
+
+    @classmethod
+    def add_page_defaults(cls, params: dict) -> dict:
+        prepared = deepcopy(params)
+        items = prepared.get("items") or []
+        strategy_id = prepared.get("id")
+        old_items: list[ItemModel] = []
+        old_queries: dict[int, list[dict]] = defaultdict(list)
+        if strategy_id and StrategyModel.objects.filter(id=strategy_id, bk_biz_id=prepared["bk_biz_id"]).exists():
+            # Keep the ItemModel query order aligned with Strategy.save()'s record reuse.
+            old_items = list(
+                ItemModel.objects.filter(strategy_id=strategy_id).only("id", "expression", "functions", "meta")
+            )
+            for query in QueryConfigModel.objects.filter(
+                strategy_id=strategy_id, item_id__in=[item.id for item in old_items]
+            ).order_by("id"):
+                old_queries[query.item_id].append(
+                    {
+                        "alias": query.alias,
+                        "data_source_label": query.data_source_label,
+                        "data_type_label": query.data_type_label,
+                        **query.config,
+                    }
+                )
+
+        for item, old_item in zip(items, cls.match_old_items(items, old_items)):
+            incoming = item.get("query_output_config", serializers.empty)
+            old_config = (
+                old_item.meta.get("query_output_config") if old_item and isinstance(old_item.meta, dict) else None
+            )
+            old_is_multi = bool(old_item) and cls.is_multi_promql({"query_configs": old_queries[old_item.id]})
+            old_default = None
+            if isinstance(old_config, dict) and old_is_multi:
+                old_data = {
+                    "query_configs": old_queries[old_item.id],
+                    "expression": old_item.expression,
+                    "functions": old_item.functions,
+                }
+                # Recognition of an old default must not apply today's capacity limit to custom/disabled items.
+                old_output_list = old_config.get("output_list")
+                if isinstance(old_output_list, list) and len(old_data["query_configs"]) + 1 == len(old_output_list):
+                    try:
+                        old_default = cls.default_output_config(old_data, enforce_capacity=False)
+                    except ValidationError:
+                        pass
+            is_old_default = cls.same_output_config(old_config, old_default)
+            supplied_old_default = incoming is serializers.empty or cls.same_output_config(incoming, old_config)
+
+            if cls.is_multi_promql(item):
+                if incoming is None:
+                    continue
+                if is_old_default and supplied_old_default:
+                    item["query_output_config"] = cls.default_output_config(item)
+                elif incoming is serializers.empty and old_config is None and (old_item is None or not old_is_multi):
+                    item["query_output_config"] = cls.default_output_config(item)
+            elif is_old_default and supplied_old_default:
+                item["query_output_config"] = None
+        return prepared
+
+    def perform_request(self, params, *, audit_operator=None):
+        return super().perform_request(self.add_page_defaults(params), audit_operator=audit_operator)
 
 
 class UpdatePartialStrategyV2Resource(Resource):

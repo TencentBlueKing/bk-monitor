@@ -40,7 +40,7 @@ export const RumSectionTypeEnum = {
 
 export type RumSectionType = (typeof RumSectionTypeEnum)[keyof typeof RumSectionTypeEnum];
 
-/** 详情抽屉的 Tab，「链路上下文」本期未实现，渲染为禁用态 */
+/** 详情抽屉的 Tab */
 export const RumDetailTabEnum = {
   /** 基础信息 */
   BASIC: 'basic',

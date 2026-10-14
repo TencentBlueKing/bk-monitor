@@ -26,4 +26,5 @@
 export * from './detail';
 export * from './enum';
 export * from './related';
+export * from './timeline';
 export * from './view-model';

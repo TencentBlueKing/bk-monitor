@@ -123,10 +123,12 @@ export interface IRumOriginBlockVM {
 
 /** 原始数据面板的一行键值 */
 export interface IRumOriginRowVM {
+  /** 按字段元信息格式化后的展示文本（枚举别名 / 单位换算，形如「1.23 s(1234)」），未命中时与 value 一致 */
+  displayValue: string;
   key: string;
   /** 字段在原始数据里的完整路径（如 attributes.view.id），「添加为检索条件」回传上层时用它 */
   originKey: string;
-  /** 展示用的值文本 */
+  /** 展示用的值文本（保持原始值，回传检索条件与复制都用它） */
   value: string;
   /** 值的原始类型，决定前置的数据类型图标 */
   valueType: 'boolean' | 'number' | 'object' | 'string';

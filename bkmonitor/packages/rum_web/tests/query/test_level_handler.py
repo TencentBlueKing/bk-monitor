@@ -77,6 +77,9 @@ class TestBaseRumLevelHandler:
             def record_detail(self, record_id, extra_config=None):
                 return {}
 
+            def timeline(self, session_id=None, view_id=None):
+                return {}
+
             def generate_query_string(self, filters, extra_config=None):
                 return ""
 
@@ -130,6 +133,7 @@ class TestBaseRumLevelHandler:
             "get_fields_option_values",
             "list_records",
             "record_detail",
+            "timeline",
             "generate_query_string",
         ],
     )
