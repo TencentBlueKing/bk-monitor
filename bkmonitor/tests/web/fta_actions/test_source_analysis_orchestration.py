@@ -29,6 +29,7 @@ from api.bk_incident.default import (
 )
 from bkmonitor.models import IssueSourceAnalysisExecution
 from constants.issue import (
+    SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER,
     SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
     SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
     SourceAnalysisFailureMessage,
@@ -59,6 +60,7 @@ class TestSourceAnalysisContract(SimpleTestCase):
     def test_bkfara_runtime_placeholders_match_protocol(self):
         self.assertEqual(SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER, "__BKFARA_TASK_ID__")
         self.assertEqual(SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER, "__BKAICLI_ACCESS_TOKEN__")
+        self.assertEqual(SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER, "__BKAIDEV_ACCESS_TOKEN__")
 
     def test_failed_task_trace_is_normalized_before_persistence(self):
         execution = SimpleNamespace(analysis_id="analysis-1", mark_failed=MagicMock())
@@ -167,6 +169,8 @@ class TestSourceAnalysisContract(SimpleTestCase):
                     "alert_id": "alert-1",
                     "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
                     "BKAPI_ACCESS_TOKEN": SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
+                    "AIDEV_ACCESS_TOKEN": SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER,
+                    "BKAI_MCP_ENV": "bkop",
                 },
             }
         )
@@ -222,10 +226,13 @@ class TestSourceAnalysisContract(SimpleTestCase):
             "alert_id": "alert-1",
             "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
             "BKAPI_ACCESS_TOKEN": SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
+            "AIDEV_ACCESS_TOKEN": SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER,
+            "BKAI_MCP_ENV": "bkop",
         }
         invalid_values = {
             "BKFARA_TASK_ID": "task-1",
             "BKAPI_ACCESS_TOKEN": "real-access-token",
+            "AIDEV_ACCESS_TOKEN": "real-aidev-access-token",
         }
 
         for field, value in invalid_values.items():
@@ -390,6 +397,17 @@ class TestSourceAnalysisContract(SimpleTestCase):
             trigger_params["inputs"]["BKAPI_ACCESS_TOKEN"],
             SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
         )
+        for environment in ("bkop", "bkte", "bksg"):
+            with (
+                self.subTest(environment=environment),
+                patch("fta_web.issue.resources.settings.BKAI_MCP_ENV", environment),
+            ):
+                params = SourceAnalysisExecutionBaseResource.build_trigger_params(execution)
+                self.assertEqual(params["inputs"]["BKAI_MCP_ENV"], environment)
+                self.assertEqual(params["inputs"]["AIDEV_ACCESS_TOKEN"], "__BKAIDEV_ACCESS_TOKEN__")
+                request = TriggerSourceAnalysisResource.RequestSerializer(data=params)
+                self.assertTrue(request.is_valid(), request.errors)
+                self.assertEqual(request.validated_data["inputs"], params["inputs"])
 
     def test_http_error_body_is_normalized_to_protocol_error(self):
         response = {
@@ -470,6 +488,7 @@ class TestSourceAnalysisOrchestration(TestCase):
 
     @patch("fta_web.issue.resources.api.bk_incident.trigger_source_analysis")
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
+    @patch("fta_web.issue.resources.settings.BKAI_MCP_ENV", "bkte")
     def test_ready_scene_triggers_and_persists_task(self, get_scene, trigger):
         execution = self.create_execution()
         get_scene.return_value = self.ready_scene_state()
@@ -507,6 +526,8 @@ class TestSourceAnalysisOrchestration(TestCase):
                 "alert_id": "alert-1",
                 "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
                 "BKAPI_ACCESS_TOKEN": SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
+                "AIDEV_ACCESS_TOKEN": SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER,
+                "BKAI_MCP_ENV": "bkte",
             },
         )
 

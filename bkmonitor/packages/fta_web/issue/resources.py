@@ -63,6 +63,7 @@ from constants.issue import (
     IssueActivityType,
     IssuePriority,
     IssueStatus,
+    SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER,
     SourceAnalysisFailureMessage,
     SourceAnalysisFailureStage,
     SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
@@ -1255,7 +1256,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         cls,
         execution: IssueSourceAnalysisExecution,
     ) -> dict:
-        """从不可变执行快照构造正式 trigger.inputs，规则变更不会污染已发起任务。"""
+        """从执行快照和部署环境配置构造 trigger.inputs，规则变更不影响已发起任务。"""
 
         bk_tenant_id = bk_biz_id_to_bk_tenant_id(execution.bk_biz_id)
         params = {
@@ -1284,6 +1285,9 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
                 "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
                 # BKFara 识别固定值后注入当前用户 access_token；BKM 不读取真实 Token。
                 "BKAPI_ACCESS_TOKEN": SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
+                # 参数由监控完整声明，BKFara 仅渲染凭证占位符并透传环境。
+                "AIDEV_ACCESS_TOKEN": SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER,
+                "BKAI_MCP_ENV": settings.BKAI_MCP_ENV,
             },
         }
         params["bk_username"] = execution.run_as_user

@@ -26,6 +26,7 @@ from api.bk_incident.client import BKFaraClient
 from bkm_space.scope import bk_biz_id_to_scope_id
 from bkmonitor.utils.request import get_request
 from constants.issue import (
+    SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER,
     SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
     SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
 )
@@ -272,6 +273,11 @@ class SourceAnalysisInputsSerializer(serializers.Serializer):
         label=_("蓝鲸 API 访问凭证运行时占位符"),
         choices=(SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,),
     )
+    AIDEV_ACCESS_TOKEN = serializers.ChoiceField(
+        label=_("AIDEV 访问凭证运行时占位符"),
+        choices=(SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER,),
+    )
+    BKAI_MCP_ENV = serializers.CharField(label=_("源码分析监控环境"))
 
     def to_internal_value(self, data):
         if isinstance(data, dict):
