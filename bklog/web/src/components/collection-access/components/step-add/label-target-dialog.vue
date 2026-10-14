@@ -214,6 +214,8 @@
         leftPreWidth: 300,
         treeLoading: false, // 树loading
         labelLoading: false, // 标签loading
+        treeRequestId: 0,
+        labelRequestId: 0,
         activeStretchBtn: '',
         treeIsEmpty: false, // 树结构是否搜索为空
         cacheRequestParams: {
@@ -271,12 +273,19 @@
         }
       },
     },
+    beforeDestroy() {
+      this.treeRequestId += 1;
+      this.labelRequestId += 1;
+    },
     methods: {
       handleSelectTreeItem(treeItem) {
+        this.labelRequestId += 1;
+        const requestId = this.labelRequestId;
+        this.catchCheckedItemList();
+        this.matchSelectList = [];
+        this.matchSelectItemList = [];
+        this.labelLoading = false;
         if (!['pod', 'node'].includes(treeItem.data.type)) {
-          this.catchCheckedItemList();
-          this.matchSelectList = [];
-          this.matchSelectItemList = [];
           return;
         }
 
@@ -285,11 +294,10 @@
         const query = { namespace: nameSpaceStr, bcs_cluster_id, type, bk_biz_id, name: nameStr };
         if (type === 'node') delete query.namespace;
         this.labelLoading = true;
-        this.catchCheckedItemList();
         this.$http
           .request('container/getNodeLabelList', { query })
           .then(res => {
-            if (res.code === 0) {
+            if (requestId === this.labelRequestId && res.code === 0) {
               this.matchSelectItemList = res.data
                 .filter(item => {
                   // 先生成已选列表和主页已选列表 若为没有 则全返回
@@ -307,7 +315,9 @@
             console.warn(err);
           })
           .finally(() => {
-            this.labelLoading = false;
+            if (requestId === this.labelRequestId) {
+              this.labelLoading = false;
+            }
           });
       },
       // 切换树选项时缓存备选列表里的值
@@ -328,6 +338,10 @@
       },
       // 关闭弹窗 重置备选 已选数组
       resetSelect() {
+        this.treeRequestId += 1;
+        this.labelRequestId += 1;
+        this.treeLoading = false;
+        this.labelLoading = false;
         this.matchSelectList = [];
         this.matchSelectItemList = [];
         this.matchCheckedList = [];
@@ -358,10 +372,12 @@
           ...(type === 'node' ? {} : { [namespaceKey]: namespaceStr === '*' ? undefined : namespaceStr }),
         };
         this.treeLoading = true;
+        this.treeRequestId += 1;
+        const requestId = this.treeRequestId;
         this.$http
           .request('container/getPodTree', { query })
           .then(res => {
-            if (res.code === 0) {
+            if (requestId === this.treeRequestId && res.code === 0) {
               // 树列表
               this.treeList = this.initTreeList(typeof res.data === 'object' ? [res.data] : res.data);
               const expandList = this.getResultStrList(this.treeList);
@@ -373,7 +389,9 @@
             console.warn(err);
           })
           .finally(() => {
-            this.treeLoading = false;
+            if (requestId === this.treeRequestId) {
+              this.treeLoading = false;
+            }
           });
       },
       /**
@@ -464,6 +482,7 @@
         window.addEventListener('mouseup', handleMouseUp);
       },
       handelCancelDialog() {
+        this.resetSelect();
         this.$emit('update:is-show-dialog', false);
       },
       isSelectItem(listName, key) {
