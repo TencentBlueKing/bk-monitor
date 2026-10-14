@@ -44,8 +44,21 @@
 | description | String | 是 | 专业解释，不包含计算方式、公式或原始字段表达式 |
 | user_experience | String | 否 | 用户可感知的页面表现 |
 | source | Object | 否 | 参考来源 |
-| source.label | String | 是 | 来源名称 |
-| source.url | String | 是 | 官方定义或规范链接 |
+| source.label | String | source 存在时必填 | 来源名称 |
+| source.url | String | source 存在时必填 | 官方定义或规范链接 |
+
+`hover` 是可选字段，当前可能出现在以下位置：
+
+| 展示对象 | 字段路径 |
+| --- | --- |
+| Resource、View 加载阶段 | `sections.loading_timing.data.phases[].hover` |
+| View 指标标记 | `sections.loading_timing.data.markers[].hover` |
+| View 累计里程碑 | `sections.loading_timing.data.milestones[].hover` |
+| View Web Vital | `sections.web_vitals.data.<metric>.hover` |
+| Vital 详情 | `sections.vital_rating.data.hover` |
+| Web Vital 评级 | 上述对象内 `display.rating_config[].hover` |
+
+消费端仅在字段存在时为对应展示项增加虚线标识，并在 Hover 时展示内容；字段缺失时不展示虚线。
 
 ---
 
@@ -1171,8 +1184,6 @@ POST /rum/search/record_detail/
 }
 ```
 
-- *[1] `phases[]` 均携带 `hover`，示例只展开 `prepare`。Hover 术语不改变现有阶段划分和时序值。*
-
 ##### 2）Resource（其他资源）
 
 ```json
@@ -1543,8 +1554,6 @@ POST /rum/search/record_detail/
 
 - *[1] `total_duration` 取 `attributes.view.loading_time`，缺失时省略。*
 - *[2] `loading_timing` 仅用于首次加载，`page_stable` 仅用于自动 Loading Time。*
-- *[3] `web_vitals` 的每个指标、`phases[]`、`markers[]` 和 `milestones[]` 均携带 `hover`；示例只展开一项。*
-- *[4] `markers[]` 与 `web_vitals` 复用同一 Web Vital Hover；评级项与 Vital 详情复用同一评级 Hover。*
 
 ### 2.12 timeline - 会话时间线
 
@@ -1820,9 +1829,6 @@ POST /rum/search/timeline/
 | 筛选：动作 | `origin_data.attributes.span_type` | 取值为 `action` |
 | 筛选：请求 | `origin_data.attributes.resource.type` | 取值为 `xhr` 或 `fetch` |
 | 筛选：错误 | `origin_data.attributes.span_type`<br />`origin_data.attributes.outcome.type` | 任一取值为 `error` |
-
-Timeline 的 View record 直接读取 `sections.web_vitals` 和 `sections.loading_timing`。其中 Hover 与同一
-`span_id` 的 `record_detail` 完全一致，Timeline Builder 不重复组装或修改 Hover。
 
 ## 3 详情页关联数据获取
 
