@@ -687,9 +687,24 @@ class GroupDutyRuleManager:
         duty_plan_queryset.filter(Q(start_time__gte=new_start_time)).update(is_effective=0)
         # DutyPlan 按闭区间命中；旧计划结束时间提前一秒，避免和新计划在切换时刻同时生效。
         old_plan_end_time = time_tools.datetime2str(time_tools.str2datetime(new_start_time) - timedelta(seconds=1))
-        duty_plan_queryset.filter(
-            Q(finished_time__gte=new_start_time) | Q(finished_time=None) | Q(finished_time="")
-        ).update(finished_time=old_plan_end_time)
+        outdated_plans = list(
+            duty_plan_queryset.select_for_update().filter(
+                Q(finished_time__gte=new_start_time) | Q(finished_time=None) | Q(finished_time="")
+            )
+        )
+        for plan in outdated_plans:
+            plan.finished_time = old_plan_end_time
+            plan.work_times = [
+                {
+                    **work_time,
+                    "start_time": max(work_time["start_time"], plan.start_time[:-3]),
+                    "end_time": min(work_time["end_time"], old_plan_end_time[:-3]),
+                }
+                for work_time in plan.work_times
+                if f"{work_time['end_time']}:59" > plan.start_time
+                and f"{work_time['start_time']}:00" < old_plan_end_time
+            ]
+        DutyPlan.objects.bulk_update(outdated_plans, fields=["finished_time", "work_times"])
 
     def manage_disabled_rules(self) -> None:
         """被禁用规则处理。
@@ -762,6 +777,17 @@ class GroupDutyRuleManager:
             snap_end_time = rule_snap.end_time or time_tools.MAX_DATETIME_STR
             finished_time = min(max(duty_end_times), rule_end_time, snap_end_time)
             if finished_time <= duty_start_time:
+                continue
+            work_times = [
+                {
+                    **work_time,
+                    "start_time": max(work_time["start_time"], duty_start_time[:-3]),
+                    "end_time": min(work_time["end_time"], finished_time[:-3]),
+                }
+                for work_time in work_times
+                if f"{work_time['start_time']}:00" < finished_time
+            ]
+            if not work_times:
                 continue
             duty_plans.append(
                 DutyPlan(

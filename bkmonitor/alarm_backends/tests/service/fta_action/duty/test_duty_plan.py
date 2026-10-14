@@ -1376,6 +1376,12 @@ class TestDutyPlan:
         assert new_plan.is_active_plan(change_time)
         assert new_plan.users == expected_plan["users"]
         assert all(f"{work_time['end_time']}:59" > change_time for work_time in new_plan.work_times)
+        assert old_plan.work_times[-1]["end_time"] == old_plan_end_time[:-3]
+        assert new_plan.work_times[0]["start_time"] == change_time[:-3]
+        assert all(work_time["end_time"] <= new_plan.finished_time[:-3] for work_time in new_plan.work_times)
+        preview_plans = {plan.id: plan for plan in user_group.duty_plans}
+        assert preview_plans[old_plan.id].work_times[-1]["end_time"] == old_plan_end_time[:-3]
+        assert preview_plans[new_plan.id].work_times[0]["start_time"] == change_time[:-3]
 
     def test_duty_rule_save_keeps_multiple_user_groups_aligned(self, datetime_today, db_setup, weekly_duty_rule_data):
         weekly_duty_rule_data["effective_time"] = "2024-05-06 00:00:00"
