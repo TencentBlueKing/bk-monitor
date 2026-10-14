@@ -116,7 +116,9 @@ export default defineComponent({
       }
     };
 
-    const displayName = computed(() => props.name.trim() || (props.variant === 'tool' ? t('工具描述') : ''));
+    const displayName = computed(() => props.name.trim());
+    /** Agent 标签已自带冒号，工具名需要补上 */
+    const nameColon = computed(() => (displayName.value && !/[：:]$/.test(displayName.value) ? '：' : ''));
 
     return () => (
       <div class={['llm-tool-desc-bar', { 'is-agent': props.variant === 'agent', 'is-expanded': expanded.value }]}>
@@ -131,6 +133,7 @@ export default defineComponent({
               ) : (
                 displayName.value
               )}
+              {nameColon.value}
             </span>
           ) : null}
           <span

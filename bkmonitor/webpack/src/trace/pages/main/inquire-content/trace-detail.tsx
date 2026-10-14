@@ -659,10 +659,21 @@ export default defineComponent({
     };
     /** 侧栏查看 span 详情 */
     const handleShowSpanDetails = (span: Span | string) => {
+      let fromRelatedTrace = false;
       if (typeTools.isString(span)) {
-        // 如果 span 为 string 类型 说明span为span_id 需要通过spanlist匹配
-        spanDetails.value = (traceTree.value.spans.find(item => item.span_id === span) || {}) as Span;
+        const found = traceTree.value.spans.find(item => item.span_id === span);
+        // 当前 Trace 瀑布图能命中则直接复用；关联 Trace 的 span 不在这棵树上，只传 stub 交给 SpanDetails 按 span_id 拉取
+        spanDetails.value = (found || ({ span_id: span } as Span)) as Span;
+        fromRelatedTrace = !found;
       } else spanDetails.value = span as Span;
+      if (fromRelatedTrace && showSpanDetails.value) {
+        // SpanDetails 主要在 show 从 false→true 时 prepare；侧栏已打开时先关再开才能重新拉数
+        showSpanDetails.value = false;
+        nextTick(() => {
+          showSpanDetails.value = true;
+        });
+        return;
+      }
       showSpanDetails.value = true;
     };
     /** 计算 span list 赋值的定位 */

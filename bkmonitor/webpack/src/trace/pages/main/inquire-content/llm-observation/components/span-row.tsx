@@ -81,12 +81,10 @@ export default defineComponent({
       return content.length > 200 ? `${content.substring(0, 200)}...` : content;
     };
 
-    /** 行内只展示 1 个 Tag：优先 KV，其次工具名，最后文本 */
+    /** 行内只展示 1 类预览：优先 KV（全部字段），其次工具名，最后文本 */
     const pickPreviewPiece = (pieces: LlmIoPiece[]): LlmIoPiece | null => {
       const kv = pieces.find(piece => piece.type === 'kv' && piece.pairs.length);
-      if (kv?.type === 'kv') {
-        return { pairs: [kv.pairs[0]], type: 'kv' };
-      }
+      if (kv?.type === 'kv') return kv;
       return pieces.find(piece => piece.type === 'name') || pieces.find(piece => piece.type === 'text') || null;
     };
 
@@ -113,14 +111,28 @@ export default defineComponent({
         );
       }
       if (piece.type === 'kv') {
-        const item = piece.pairs[0];
         return (
           <div class='llm-span-io-kvs'>
-            <span class='llm-span-io-kv'>
-              <span class='llm-span-io-kv-key'>{item.key}</span>
-              <span class='llm-span-io-kv-colon'>:</span>
-              <span class='llm-span-io-kv-value'>{item.value}</span>
-            </span>
+            {piece.pairs.map((item, index) => (
+              <span
+                key={`${item.key}-${index}`}
+                class='llm-span-io-kv'
+              >
+                <span
+                  class='llm-span-io-kv-key'
+                  v-overflow-tips={{ content: item.key, placement: 'top' }}
+                >
+                  {item.key}
+                </span>
+                <span class='llm-span-io-kv-colon'>:</span>
+                <span
+                  class='llm-span-io-kv-value'
+                  v-overflow-tips={{ content: item.value, placement: 'top' }}
+                >
+                  {item.value}
+                </span>
+              </span>
+            ))}
           </div>
         );
       }
@@ -134,7 +146,7 @@ export default defineComponent({
       );
     };
 
-    /** 位置不够时只留 1 个 Tag 省略，不把所有字段挤进同一行 */
+    /** KV 按顺序铺开，不挤压已露出的项；超出列宽的直接裁掉 */
     const renderIoSide = (pieces: LlmIoPiece[]) => {
       const preview = pickPreviewPiece(pieces);
       if (!preview) return <span class='llm-span-io-empty'>—</span>;
