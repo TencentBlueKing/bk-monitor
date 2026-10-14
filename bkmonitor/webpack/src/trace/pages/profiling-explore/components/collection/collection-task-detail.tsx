@@ -182,12 +182,14 @@ export default defineComponent({
                         </>
                       )}
                       {selector.type === 'pid_file' && <div>{selector.config.pid_path}</div>}
-                      {selector.config.host_pids?.map(host => (
-                        <div key={host.bk_host_id}>
-                          {this.hosts.find(item => item.host_id === host.bk_host_id)?.ip || `#${host.bk_host_id}`}：
-                          {host.pids.join(', ')}
-                        </div>
-                      ))}
+                      {selector.type === 'pid' && <div>PID：{selector.config.pids}</div>}
+                      {selector.type === 'command' &&
+                        selector.config.host_pids?.map(host => (
+                          <div key={`${host.bk_host_id}:${host.pid}`}>
+                            {this.hosts.find(item => item.host_id === host.bk_host_id)?.ip || `#${host.bk_host_id}`}：
+                            {host.pid}
+                          </div>
+                        ))}
                     </div>
                   )}
                 {row(

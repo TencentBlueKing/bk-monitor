@@ -26,15 +26,17 @@
 import { type PropType, computed, defineComponent } from 'vue';
 
 import { type TableProps, PrimaryTable } from '@blueking/tdesign-ui';
-import { Alert, Button, Dialog, Input, Loading, Pagination, Switcher, Tab } from 'bkui-vue';
+import { Alert, Button, Dialog, Input, Pagination, Switcher, Tab } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useProfilingCollection } from '../../composables/use-profiling-collection';
 import { formatCollectionTime, scheduleLabels } from '../../utils/collection';
 import CollectionCrontab from './collection-crontab';
 import CollectionOnboarding from './collection-onboarding';
+import CollectionSkeleton from './collection-skeleton';
 import CollectionTaskDetail from './collection-task-detail';
 import CollectionTaskForm from './collection-task-form';
+import EmptyStatus from '@/components/empty-status/empty-status';
 import { useAppStore } from '@/store/modules/app';
 
 import type { CollectionQueryState, CollectionTask, ScheduleType } from '../../types/collection';
@@ -66,25 +68,29 @@ export default defineComponent({
     if (!c.meta.value) {
       return (
         <section class='profiling-collection'>
-          <Loading
-            class='collection-meta-state'
-            loading={c.loading.value}
+          <div
+            class={['collection-meta-state', { 'is-loading': c.loading.value }]}
+            aria-busy={c.loading.value}
           >
-            {c.error.value && (
-              <div class='collection-meta-error'>
-                <Alert
-                  theme='danger'
-                  title={c.error.value}
-                />
-                <Button
-                  loading={c.loading.value}
-                  onClick={c.refresh}
-                >
-                  {this.t('重试')}
-                </Button>
-              </div>
+            {c.loading.value ? (
+              <CollectionSkeleton variant='page' />
+            ) : (
+              c.error.value && (
+                <div class='collection-meta-error'>
+                  <Alert
+                    theme='danger'
+                    title={c.error.value}
+                  />
+                  <Button
+                    loading={c.loading.value}
+                    onClick={c.refresh}
+                  >
+                    {this.t('重试')}
+                  </Button>
+                </div>
+              )
             )}
-          </Loading>
+          </div>
         </section>
       );
     }
@@ -117,6 +123,13 @@ export default defineComponent({
       { colKey: 'operations', title: this.t('操作'), width: 295, fixed: 'right', cell: 'operations' },
     ];
     const tableSlots = {
+      empty: () => (
+        <EmptyStatus
+          textMap={{ empty: this.t('暂无定时任务'), 'search-empty': this.t('暂无匹配任务') }}
+          type={state.keyword || state.scheduleTypes.length || state.statuses.length ? 'search-empty' : 'empty'}
+          onOperation={() => this.patch({ keyword: '', scheduleTypes: [], statuses: [] })}
+        />
+      ),
       taskName: ({ row }: { row: CollectionTask }) => (
         <Button
           theme='primary'
@@ -260,41 +273,43 @@ export default defineComponent({
                     title={c.error.value}
                   />
                 )}
-                <PrimaryTable
-                  v-slots={tableSlots}
-                  empty={this.t(
-                    state.keyword || state.scheduleTypes.length || state.statuses.length
-                      ? '暂无匹配任务'
-                      : '暂无定时任务'
-                  )}
-                  columns={columns}
-                  data={c.rows.value}
-                  filterValue={{ schedule_type: state.scheduleTypes, task_status: state.statuses }}
-                  loading={c.loading.value}
-                  rowKey='task_id'
-                  size='small'
-                  sort={state.sort || undefined}
-                  onFilterChange={value =>
-                    this.patch({
-                      scheduleTypes: (value.schedule_type || []) as ScheduleType[],
-                      statuses: (value.task_status || []) as string[],
-                    })
-                  }
-                  onSortChange={sort => this.patch({ sort: (Array.isArray(sort) ? sort[0] : sort) || null })}
-                />
-                <Pagination
-                  class='collection-task-pagination'
-                  count={c.filtered.value.length}
-                  limit={c.pageSize.value}
-                  limitList={[10, 20, 50, 100]}
-                  modelValue={c.page.value}
-                  onChange={value => {
-                    c.page.value = value;
-                  }}
-                  onLimitChange={value => {
-                    c.pageSize.value = value;
-                  }}
-                />
+                {c.loading.value ? (
+                  <CollectionSkeleton />
+                ) : (
+                  <>
+                    <PrimaryTable
+                      v-slots={tableSlots}
+                      columns={columns}
+                      data={c.rows.value}
+                      filterValue={{ schedule_type: state.scheduleTypes, task_status: state.statuses }}
+                      rowKey='task_id'
+                      size='small'
+                      sort={state.sort || undefined}
+                      onFilterChange={value =>
+                        this.patch({
+                          scheduleTypes: (value.schedule_type || []) as ScheduleType[],
+                          statuses: (value.task_status || []) as string[],
+                        })
+                      }
+                      onSortChange={sort => this.patch({ sort: (Array.isArray(sort) ? sort[0] : sort) || null })}
+                    />
+                    <Pagination
+                      class='collection-task-pagination'
+                      align='right'
+                      count={c.filtered.value.length}
+                      layout={['total', 'limit', 'list']}
+                      limit={c.pageSize.value}
+                      limitList={[10, 20, 50, 100]}
+                      modelValue={c.page.value}
+                      onChange={value => {
+                        c.page.value = value;
+                      }}
+                      onLimitChange={value => {
+                        c.pageSize.value = value;
+                      }}
+                    />
+                  </>
+                )}
               </div>
             ) : (
               <div

@@ -109,15 +109,15 @@ export interface CollectorConfig {
   stack_unwind?: string;
 }
 
-export interface HostPids {
+export interface HostPid {
   bk_host_id: number;
-  pids: number[];
+  pid: number;
 }
 
 export type PreviewSelector =
   | { config: { exclude_pattern: string; match_pattern: string }; type: 'command' }
   | { config: { pid_path: string }; type: 'pid_file' }
-  | { config: { pids: number[] }; type: 'pid' };
+  | { config: { pids: string }; type: 'pid' };
 
 export interface ProcessDraft {
   dynamic: boolean;
@@ -125,7 +125,7 @@ export interface ProcessDraft {
   matchPattern: string;
   pidPath: string;
   pids: string;
-  selected: Record<ProcessMode, ProcessRow[]>;
+  selected: ProcessRow[];
 }
 
 export type ProcessMode = 'command' | 'pid' | 'pid_file';
@@ -150,13 +150,13 @@ export type ProcessSelector =
       config: {
         enable_dynamic_collection: boolean;
         exclude_pattern: string;
-        host_pids?: HostPids[];
+        host_pids?: HostPid[];
         match_pattern: string;
       };
       type: 'command';
     }
-  | { config: { host_pids: HostPids[] }; type: 'pid' }
-  | { config: { host_pids?: HostPids[]; pid_path: string }; type: 'pid_file' };
+  | { config: { pid_path: string }; type: 'pid_file' }
+  | { config: { pids: string }; type: 'pid' };
 
 export interface ResourceGuardConfig {
   auto_stop_on_resource_pressure: boolean;

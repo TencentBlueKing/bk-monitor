@@ -46,7 +46,6 @@ import type {
   CollectionTask,
   CollectionType,
   ProcessDraft,
-  ProcessMode,
   ProcessPreview,
   ProcessRow,
 } from '../types/collection';
@@ -69,13 +68,23 @@ export function useCollectionForm(
   const previewError = shallowRef('');
   const preview = shallowRef<ProcessPreview>({ columns: [], data: [] });
   const previewPage = shallowRef(1);
+  const previewPageSize = shallowRef(10);
+  const previewed = shallowRef(false);
   const hostSelectorOpen = shallowRef(false);
   const advancedOpen = shallowRef(false);
   const controller = new AbortController();
   const hostServices = createCollectionHostServices(bizId, controller.signal);
   let previewController: AbortController;
-  const selected = computed(() => draft.value.process.selected[draft.value.processMode]);
+  const selected = computed(() => draft.value.process.selected);
   const dynamic = computed(() => draft.value.processMode === 'command' && draft.value.process.dynamic);
+  const manualSelection = computed(() => draft.value.processMode === 'command' && !dynamic.value);
+  const processCondition = computed(() => {
+    try {
+      return buildPreviewSelector(draft.value);
+    } catch {
+      return undefined;
+    }
+  });
 
   function patch(value: Partial<CollectionDraft>) {
     draft.value = { ...draft.value, ...value };
@@ -91,7 +100,14 @@ export function useCollectionForm(
     changeType(meta.collection_types_by_method[method]?.[0]);
   }
   function selectProcesses(rows: ProcessRow[]) {
-    patchProcess({ selected: { ...draft.value.process.selected, [draft.value.processMode]: rows } });
+    if (!manualSelection.value || previewLoading.value) return;
+    patchProcess({ selected: rows });
+  }
+  function clearTargets() {
+    if (draft.value.processMode === 'pid') patchProcess({ pids: '' });
+    else if (draft.value.processMode === 'pid_file') patchProcess({ pidPath: '' });
+    else if (dynamic.value) patchProcess({ matchPattern: '', excludePattern: '' });
+    else selectProcesses([]);
   }
   function changeHosts(hosts: CollectionHost[]) {
     const ids = new Set(hosts.map(host => host.host_id));
@@ -100,17 +116,18 @@ export function useCollectionForm(
       hosts,
       process: {
         ...draft.value.process,
-        selected: Object.fromEntries(
-          Object.entries(previous).map(([mode, rows]) => [mode, rows.filter(row => ids.has(row.bk_host_id))])
-        ) as Record<ProcessMode, ProcessRow[]>,
+        selected: previous.filter(row => ids.has(row.bk_host_id)),
       },
     });
     hostSelectorOpen.value = false;
   }
   function selectPreview(keys: Array<number | string>) {
+    if (!manualSelection.value || previewLoading.value) return;
     const selectedKeys = new Set(keys);
     const visibleKeys = new Set(
-      preview.value.data.slice((previewPage.value - 1) * 10, previewPage.value * 10).map(processKey)
+      preview.value.data
+        .slice((previewPage.value - 1) * previewPageSize.value, previewPage.value * previewPageSize.value)
+        .map(processKey)
     );
     const previous = selected.value.filter(
       row => !visibleKeys.has(processKey(row)) || selectedKeys.has(processKey(row))
@@ -126,10 +143,11 @@ export function useCollectionForm(
     previewLoading.value = false;
     previewError.value = '';
     preview.value = { columns: [], data: [] };
+    previewed.value = false;
     previewPage.value = 1;
   }
   async function queryProcesses() {
-    if (!draft.value.hosts.length || draft.value.method === 'golang') return;
+    if (previewLoading.value || !draft.value.hosts.length || draft.value.method === 'golang') return;
     clearPreview();
     const current = new AbortController();
     previewController = current;
@@ -139,8 +157,11 @@ export function useCollectionForm(
       const result = await getProcessPreview(bizId, collectionTarget(draft.value.hosts), selector, current.signal);
       if (current.signal.aborted) return;
       preview.value = result;
-      const rows = new Map(result.data.filter(row => !row.err_msg && row.pid).map(row => [processKey(row), row]));
-      selectProcesses(selected.value.map(row => rows.get(processKey(row)) || row));
+      previewed.value = true;
+      if (draft.value.processMode === 'command') {
+        const rows = new Map(result.data.filter(row => !row.err_msg && row.pid).map(row => [processKey(row), row]));
+        patchProcess({ selected: selected.value.map(row => rows.get(processKey(row)) || row) });
+      }
     } catch (e) {
       if (!current.signal.aborted) previewError.value = t((e as Error)?.message || '进程查询失败，请重试');
     } finally {
@@ -188,8 +209,12 @@ export function useCollectionForm(
       () => draft.value.process.pidPath,
       () => draft.value.process.pids,
     ],
-    clearPreview
+    clearPreview,
+    { flush: 'sync' }
   );
+  watch(previewPageSize, () => {
+    previewPage.value = 1;
+  });
   if (task) hydrateHosts();
   onScopeDispose(() => {
     controller.abort();
@@ -204,11 +229,16 @@ export function useCollectionForm(
     previewError,
     preview,
     previewPage,
+    previewPageSize,
+    previewed,
     hostSelectorOpen,
     advancedOpen,
     hostServices,
     selected,
     dynamic,
+    manualSelection,
+    processCondition,
+    clearTargets,
     patch,
     patchProcess,
     changeType,
