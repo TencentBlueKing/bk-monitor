@@ -24,6 +24,8 @@
  * IN THE SOFTWARE.
  */
 
+import { createCollectionQueryState, restoreCollectionQuery } from './collection';
+
 import type { ProfileQuery, ProfileViewState, QueryState, SelectionRange } from '../types';
 import type { FileQueryState } from '../types/file';
 import type { IWhereItem } from '@/components/retrieval-filter/typing';
@@ -86,6 +88,7 @@ export function createFileQueryState(): FileQueryState {
 export function createQueryState(timezone: string): QueryState {
   return {
     file: createFileQueryState(),
+    collection: createCollectionQueryState(),
     appName: '',
     serviceName: '',
     dataType: '',
@@ -155,6 +158,7 @@ export function restoreQueryState(value: unknown, timezone: string): QueryState 
       : [];
   return {
     ...defaults,
+    collection: restoreCollectionQuery(input.collection),
     file: {
       ...defaults.file,
       profileId: typeof input.file?.profileId === 'string' ? input.file.profileId : '',
