@@ -30,7 +30,6 @@ import { Component as tsc } from 'vue-tsx-support';
 import DatePicker from '@blueking/date-picker/vue2';
 
 import { updateTimezone } from '../../language/dayjs';
-import { hideResolvedTimeTooltip } from './hide-resolved-time-tooltip';
 import { DEFAULT_TIME_RANGE } from './utils';
 import { BK_LOG_STORAGE } from '@/store/store.type.ts';
 
@@ -56,6 +55,10 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: 'simplicity', type: String }) type: TimeRangeDisplayType; // 组件回显值
   @Prop({ default: window.timezone, type: String }) timezone: TimeRangeDisplayType; // 组件回显值
   @Prop({ default: true, type: Boolean }) needTimezone: boolean; // 是否显示时区选择
+  // DatePicker 确认时间只关面板、不销毁 hover tooltip；trigger 重绘后 mouseleave 丢失。
+  // 用 key 卸载重建，走组件 onBeforeUnmount 里的 tippy.destroy，不按 class 强关。
+  pickerInstanceKey = 0;
+
   @Emit('change')
   handleModelValueChange(v: TimeRangeType) {
     if (v.every(item => typeof item === 'string')) {
@@ -64,7 +67,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
     this.$store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: [] });
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
-    this.closeResolvedTimeTooltip();
+    this.recreateDatePicker();
     return v;
   }
 
@@ -79,23 +82,20 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   @Emit('timezone-change')
   handleTimezoneChange(timezone: string) {
     timezone && updateTimezone(timezone);
-    this.closeResolvedTimeTooltip();
+    this.recreateDatePicker();
     return timezone;
   }
   mounted() {
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
   }
-  beforeDestroy() {
-    hideResolvedTimeTooltip();
-  }
-  closeResolvedTimeTooltip() {
-    hideResolvedTimeTooltip(this.$el);
-    this.$nextTick(() => hideResolvedTimeTooltip(this.$el));
+  recreateDatePicker() {
+    this.pickerInstanceKey += 1;
   }
   render() {
     return (
       <div style='display: inline-flex'>
         <DatePicker
+          key={this.pickerInstanceKey}
           ref='datePicker'
           behavior={this.type}
           modelValue={this.value}
