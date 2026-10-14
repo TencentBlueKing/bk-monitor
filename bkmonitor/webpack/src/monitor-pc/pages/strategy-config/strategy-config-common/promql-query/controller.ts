@@ -134,11 +134,6 @@ export class PromqlQueryController {
         params: { alias: queries[0].alias },
       };
     }
-    const referenced = new Set(analysis.aliases);
-    const unused = queries.filter(query => !referenced.has(query.alias)).map(query => query.alias);
-    if (unused.length) {
-      return { message: '表达式需引用全部查询，尚未引用：{alias}。', params: { alias: unused.join('、') } };
-    }
     return null;
   }
 }

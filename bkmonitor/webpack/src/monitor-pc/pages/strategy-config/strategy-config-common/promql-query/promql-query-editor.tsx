@@ -67,8 +67,6 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
 
   private controller = markRaw(new PromqlQueryController());
   validationShown = false;
-  deletingAlias = '';
-  deletedAlias = '';
   addedAlias = '';
 
   get queries() {
@@ -77,6 +75,18 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
 
   get effectiveExpression() {
     return this.controller.effectiveExpression(this.sourceData, this.expression);
+  }
+
+  /** 被表达式引用的查询不能直接删除，需先从表达式中去掉该别名。 */
+  isReferenced(alias: string) {
+    return this.controller.analyzeExpression(this.effectiveExpression).aliases.includes(alias);
+  }
+
+  /** 删除按钮禁用原因；仅剩一条查询时表达式必然兜底引用它，故先判条数再判依赖。 */
+  deleteDisabledTip(alias: string) {
+    if (this.queries.length <= 1) return this.$t('至少需要有 1 条查询，不能删除');
+    if (this.isReferenced(alias)) return this.$t('存在表达式依赖，不能删除');
+    return '';
   }
 
   get isReadonly() {
@@ -91,15 +101,6 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
 
   get hint() {
     if (this.validationError) {
-      if (
-        this.deletedAlias &&
-        !this.queries.some(query => query.alias === this.deletedAlias) &&
-        this.controller.analyzeExpression(this.effectiveExpression).aliases.includes(this.deletedAlias)
-      ) {
-        return this.$t('查询 {alias} 已删除，表达式仍引用 {alias}。请修改表达式后再查询或提交。', {
-          alias: this.deletedAlias,
-        });
-      }
       return this.$t(this.validationError.message, this.validationError.params || {});
     }
     if (this.queries.some(query => query.alias === this.addedAlias)) {
@@ -107,7 +108,7 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
     }
     return this.queries.length === 1
       ? this.$t('单查询默认使用 {alias} 的结果；可继续添加查询并设置表达式。', { alias: this.queries[0].alias })
-      : this.$t('已添加 {count} 条查询，可继续添加；表达式需引用全部查询的别名。', { count: this.queries.length });
+      : this.$t('已添加 {count} 条查询，可继续添加；表达式可引用所需查询的别名。', { count: this.queries.length });
   }
 
   validate() {
@@ -140,22 +141,11 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
   }
 
   handleDelete(alias: string) {
-    if (this.isReadonly || this.queries.length <= 1) return;
-    if (this.controller.analyzeExpression(this.effectiveExpression).aliases.includes(alias)) {
-      this.deletingAlias = alias;
-      return;
-    }
-    this.removeQuery(alias);
-  }
-
-  removeQuery(alias: string) {
-    if (this.isReadonly || this.queries.length <= 1) return;
+    if (this.isReadonly || this.queries.length <= 1 || this.isReferenced(alias)) return;
     this.$emit(
       'queriesChange',
       this.queries.filter(query => query.alias !== alias)
     );
-    this.deletedAlias = alias;
-    this.deletingAlias = '';
     this.addedAlias = '';
     this.validationShown = true;
   }
@@ -185,13 +175,21 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
                   {'  PromQL'}
                 </span>
                 {!this.isReadonly && (
-                  <bk-button
-                    disabled={this.queries.length <= 1}
-                    text
-                    onClick={() => this.handleDelete(query.alias)}
+                  <span
+                    class='source-query-delete'
+                    v-bk-tooltips={{
+                      content: this.deleteDisabledTip(query.alias),
+                      disabled: !this.deleteDisabledTip(query.alias),
+                    }}
                   >
-                    {this.$t('删除')}
-                  </bk-button>
+                    <bk-button
+                      disabled={this.queries.length <= 1 || this.isReferenced(query.alias)}
+                      text
+                      onClick={() => this.handleDelete(query.alias)}
+                    >
+                      {this.$t('删除')}
+                    </bk-button>
+                  </span>
                 )}
               </div>
               <promql-monaco-editor
@@ -254,44 +252,6 @@ export default class PromqlQueryEditor extends tsc<Props, Events> {
             />
           </div>
         </bk-input>
-        <bk-dialog
-          width={480}
-          ext-cls='strategy-promql-delete-dialog'
-          header-position='left'
-          title={this.$t('删除查询 {alias}？', { alias: this.deletingAlias })}
-          value={!!this.deletingAlias}
-          onCancel={() => {
-            this.deletingAlias = '';
-          }}
-        >
-          <div class='source-delete-message'>
-            <p>
-              {this.$t('查询 {alias} 正被表达式 {expression} 引用。', {
-                alias: this.deletingAlias,
-                expression: this.effectiveExpression,
-              })}
-            </p>
-            <p>{this.$t('删除后需修正表达式；其他查询的别名不会改变。')}</p>
-          </div>
-          <div slot='footer'>
-            <bk-button
-              class='source-delete-cancel'
-              onClick={() => {
-                this.deletingAlias = '';
-              }}
-            >
-              {this.$t('取消')}
-            </bk-button>
-            <bk-button
-              class='source-delete-confirm'
-              theme='danger'
-              outline
-              onClick={() => this.removeQuery(this.deletingAlias)}
-            >
-              {this.$t('删除并修改公式')}
-            </bk-button>
-          </div>
-        </bk-dialog>
       </div>
     );
   }
