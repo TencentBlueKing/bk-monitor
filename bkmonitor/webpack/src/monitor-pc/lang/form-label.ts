@@ -1669,6 +1669,10 @@ export default {
   告警恢复时通知: 'Notify When Alarm Recovers',
   告警接收业务: 'Alarm receiving business',
   告警模板预览: 'Alarm Template Preview',
+  '预览使用固定示例数据，不是当前策略的查询值。':
+    'This preview uses fixed sample data, not values queried by the current strategy.',
+  模板渲染失败: 'Template rendering failed',
+  '模板预览失败，请稍后重试': 'Template preview failed. Please try again later',
   告警确认时: 'Acknowledged',
   日志关键字事件: 'Log Keyword Event',
   日志关键字采集: 'Log keyword collection',
@@ -2052,4 +2056,12 @@ export default {
   未命名工具: 'Unnamed tool',
   规划的工具调用: 'Planned tool calls',
   模型输出: 'Model output',
+
+  // RUM 检索--详情
+  会话: 'Session',
+  用户: 'User',
+  环境: 'Environment',
+  'View 详情': 'View Details',
+  请求: 'Request',
+  停留时长: 'duration',
 };

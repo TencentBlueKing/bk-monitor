@@ -1,4 +1,4 @@
-"""Create log strategies and edit existing strategies through the existing save API."""
+"""Create and edit standard strategies through the existing save API."""
 
 from __future__ import annotations
 
@@ -12,7 +12,6 @@ from rest_framework.exceptions import PermissionDenied
 
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.strategy.new_strategy import Algorithm, Detect, Item, NoticeRelation, QueryConfig, Strategy
-from bkmonitor.strategy.serializers import allowed_threshold_method
 from bkmonitor.utils.request import get_request
 from core.drf_resource.exceptions import CustomException
 from kernel_api.resource.alert import CreateAlarmStrategyResource, UpdateAlarmStrategyResource
@@ -23,10 +22,16 @@ from kernel_api.rpc.functions.bkm_cli.platform_catalog.cmdb import _authorize_bu
 
 EDITABLE_FIELDS = {
     "config": ["name", "scenario", "is_enabled", "items", "detects", "notice", "labels"],
-    "items": ["expression"],
-    "query_configs": ["query_string", "agg_dimension", "agg_condition"],
-    "algorithms": {"type": "Threshold", "fields": ["config"]},
+    "items": list(Item.Serializer().fields),
+    "query_configs": sorted(
+        {"data_source_label", "data_type_label", "alias"}
+        | {field for serializer in QueryConfig.QueryConfigSerializerMapping.values() for field in serializer().fields}
+    ),
+    "algorithms": {"fields": list(Algorithm.Serializer().fields)},
+    "detects": list(Detect.Serializer().fields),
 }
+LEGACY_QUERY_FIELDS = {"query_string", "agg_dimension", "agg_condition"}
+QUERY_IDENTITY_FIELDS = {"data_source_label", "data_type_label", "alias"}
 ALLOWED_FIELDS = {
     "operation",
     "bk_tenant_id",
@@ -111,31 +116,15 @@ def _validate_query_patch(patch):
                     raise CustomException(message="agg_condition.value 仅支持字符串、有限数值和布尔值")
 
 
-def _validate_threshold(config):
-    if not isinstance(config, list) or not config:
-        raise CustomException(message="Threshold config 必须为非空二维数组")
-    for group in config:
-        if not isinstance(group, list) or not group:
-            raise CustomException(message="Threshold config 条件组不能为空")
-        for condition in group:
-            _strict_object(condition, {"method", "threshold"}, "Threshold config")
-            if not isinstance(condition.get("method"), str) or condition["method"] not in allowed_threshold_method:
-                raise CustomException(message="不支持的 Threshold method")
-            value = condition.get("threshold")
-            if not _finite_number(value):
-                raise CustomException(message="threshold 必须为有限数值")
-
-
 def _validate_items(items):
     for item in _patches(items, {"expression", "query_configs", "algorithms"}, "items"):
         if "expression" in item:
             _text(item["expression"], "expression", allow_blank=True)
         if "query_configs" in item:
-            for query in _patches(item["query_configs"], EDITABLE_FIELDS["query_configs"], "query_configs"):
+            for query in _patches(item["query_configs"], LEGACY_QUERY_FIELDS, "query_configs"):
                 _validate_query_patch(query)
         if "algorithms" in item:
-            for algorithm in _patches(item["algorithms"], {"config"}, "algorithms"):
-                _validate_threshold(algorithm["config"])
+            _patches(item["algorithms"], {"config"}, "algorithms")
 
 
 def authorize_strategy_business(params, action=ActionEnum.MANAGE_RULE):
@@ -178,24 +167,85 @@ def _merge_items(config, patches):
             item["expression"] = patch["expression"]
         for query_patch in patch.get("query_configs", []):
             query = _target(item["query_configs"], query_patch["id"], "query_configs")
-            fields = QueryConfig.get_serializer_class(
-                query["data_source_label"], query["data_type_label"]
-            ).get_config_field_names()
-            for field, value in query_patch.items():
-                if field == "id":
-                    continue
-                if field not in fields:
-                    raise CustomException(message=f"当前数据源不支持修改 {field}")
-                query[field] = deepcopy(value)
+            _merge_query_config(query, query_patch)
         for algorithm_patch in patch.get("algorithms", []):
             algorithm = _target(item["algorithms"], algorithm_patch["id"], "algorithms")
-            if algorithm["type"] != "Threshold":
-                raise CustomException(message="仅支持修改已有 Threshold 算法配置")
-            algorithm["config"] = deepcopy(algorithm_patch["config"])
+            _merge_algorithm(algorithm, algorithm_patch)
+
+
+def _query_serializer(query):
+    source = query.get("data_source_label")
+    data_type = query.get("data_type_label")
+    _text(source, "data_source_label")
+    _text(data_type, "data_type_label")
+    serializer_class = QueryConfig.QueryConfigSerializerMapping.get((source, data_type))
+    if serializer_class is None:
+        raise CustomException(message=f"不支持的查询数据源类型: {source}/{data_type}")
+    return serializer_class()
+
+
+def _merge_query_config(current, patch):
+    """Validate the submitted fields before projecting onto the target source schema."""
+    identity = {key: patch.get(key, current.get(key)) for key in QUERY_IDENTITY_FIELDS}
+    _text(identity["alias"], "query_configs.alias")
+    serializer = _query_serializer(identity)
+    _strict_object(patch, {"id", *QUERY_IDENTITY_FIELDS, *serializer.fields}, "query_configs")
+    _check_serializer_fields(
+        {key: value for key, value in patch.items() if key in serializer.fields}, serializer, "query_configs"
+    )
+    values = {key: deepcopy(current[key]) for key in serializer.fields if key in current}
+    same_source = all(identity[key] == current.get(key) for key in ("data_source_label", "data_type_label"))
+    for key, value in patch.items():
+        if key not in serializer.fields:
+            continue
+        if same_source and isinstance(value, dict) and isinstance(values.get(key), dict):
+            _merge_config_patch(values[key], value, ())
+        else:
+            values[key] = deepcopy(value)
+    validated = serializer.run_validation(values)
+    result = {"id": current["id"], **identity, **validated}
+    if "metric_id" in current:
+        result["metric_id"] = current["metric_id"]
+    current.clear()
+    current.update(result)
+
+
+def _validate_algorithm_config(algorithm, config):
+    algorithm_type = Algorithm.Serializer().fields["type"].run_validation(algorithm.get("type"))
+    serializer_factory = Algorithm.Serializer.AlgorithmSerializers.get(algorithm_type)
+    if serializer_factory:
+        _check_serializer_fields(config, serializer_factory(), "algorithms.config")
+
+
+def _validate_query_output_config(config):
+    if config is None:
+        return
+    _strict_object(config, {"response_contract", "legacy_output_ref", "output_list"}, "query_output_config")
+    if isinstance(config.get("output_list"), list):
+        for output in config["output_list"]:
+            _strict_object(output, {"reference_name", "expression"}, "query_output_config.output_list")
+    Item.normalize_query_output_config(config)
+
+
+def _merge_algorithm(current, patch):
+    merged = deepcopy(current)
+    if "config" in patch:
+        _validate_algorithm_config({**current, **patch}, patch["config"])
+    for field, value in patch.items():
+        if field == "id":
+            continue
+        if field == "config" and patch.get("type", current["type"]) == current["type"]:
+            if isinstance(value, dict) and isinstance(merged.get(field), dict):
+                _merge_config_patch(merged[field], value, ())
+                continue
+        merged[field] = deepcopy(value)
+    validated = Algorithm.Serializer().run_validation(merged)
+    current.clear()
+    current.update(validated)
 
 
 def _check_serializer_fields(value, field, path):
-    """Reject fields the platform serializer would silently discard during creation."""
+    """Reject fields the platform serializer would silently discard."""
     if isinstance(field, serializers.ListSerializer | serializers.ListField) and isinstance(value, list):
         for entry in value:
             _check_serializer_fields(entry, field.child, path)
@@ -215,27 +265,14 @@ def _validate_config_patch(config):
         raise CustomException(message="config.is_enabled 必须为布尔值")
     if "name" in config:
         _text(config["name"], "config.name")
-    query_fields = set(QueryConfig.get_serializer_class("bk_log_search", "log").get_config_field_names())
-    query_fields = (query_fields - {"intelligent_detect"}) | {"data_source_label", "data_type_label", "alias"}
     if "items" in config:
         for item in _patches(config["items"], set(Item.Serializer().fields) - {"id"}, "config.items"):
+            if "query_output_config" in item:
+                _validate_query_output_config(item["query_output_config"])
             if "query_configs" in item:
-                for query in _patches(item["query_configs"], query_fields, "query_configs"):
-                    _validate_query_patch(query)
-                    for field, expected in (("data_source_label", "bk_log_search"), ("data_type_label", "log")):
-                        if field in query and query[field] != expected:
-                            raise CustomException(message="config.items 仅支持 bk_log_search/log")
-                    for field in ("agg_interval", "index_set_id"):
-                        if field in query:
-                            _integer(query[field], field)
+                _patches(item["query_configs"], EDITABLE_FIELDS["query_configs"], "query_configs")
             if "algorithms" in item:
-                for algorithm in _patches(
-                    item["algorithms"], set(Algorithm.Serializer().fields) - {"id"}, "algorithms"
-                ):
-                    if "type" in algorithm and algorithm["type"] != "Threshold":
-                        raise CustomException(message="仅支持 Threshold 算法")
-                    if "config" in algorithm:
-                        _validate_threshold(algorithm["config"])
+                _patches(item["algorithms"], set(Algorithm.Serializer().fields) - {"id"}, "algorithms")
     if "detects" in config:
         _patches(config["detects"], set(Detect.Serializer().fields) - {"id"}, "detects")
     if "notice" in config:
@@ -250,15 +287,16 @@ def _merge_config_patch(current, patch, records=("items", "detects")):
         if field in records:
             for record in value:
                 target = _target(current[field], record["id"], field)
-                if field == "items" and any(
-                    (query["data_source_label"], query["data_type_label"]) != ("bk_log_search", "log")
-                    for query in target["query_configs"]
-                ):
-                    raise CustomException(message="config.items 仅支持已有日志监控项")
-                if field == "algorithms" and target["type"] != "Threshold":
-                    raise CustomException(message="仅支持修改已有 Threshold 算法配置")
+                if field == "query_configs":
+                    _merge_query_config(target, record)
+                    continue
+                if field == "algorithms":
+                    _merge_algorithm(target, record)
+                    continue
                 nested = ("query_configs", "algorithms") if field == "items" else ()
                 _merge_config_patch(target, {key: part for key, part in record.items() if key != "id"}, nested)
+        elif field == "query_output_config":
+            current[field] = deepcopy(value)
         elif isinstance(value, dict) and isinstance(current.get(field), dict):
             _merge_config_patch(current[field], value, ())
         else:
@@ -278,32 +316,28 @@ def _validate_create_config(config):
         raise CustomException(message="config.items 必须为非空数组")
     for item in items:
         _strict_object(item, set(Item.Serializer().fields) - {"id"}, "config.items")
+        if "query_output_config" in item:
+            _validate_query_output_config(item["query_output_config"])
         queries = item.get("query_configs")
         if not isinstance(queries, list) or not queries:
             raise CustomException(message="query_configs 必须为非空数组")
         for query in queries:
-            if not isinstance(query, dict) or (query.get("data_source_label"), query.get("data_type_label")) != (
-                "bk_log_search",
-                "log",
-            ):
-                raise CustomException(message="create 暂仅支持 bk_log_search/log 日志关键字策略")
-            fields = QueryConfig.get_serializer_class("bk_log_search", "log").get_config_field_names()
-            _strict_object(
-                query,
-                (set(fields) - {"intelligent_detect"}) | {"data_source_label", "data_type_label", "alias"},
-                "query_configs",
+            if not isinstance(query, dict):
+                raise CustomException(message="query_configs 条目必须为对象")
+            serializer = _query_serializer(query)
+            _strict_object(query, {*serializer.fields, *QUERY_IDENTITY_FIELDS}, "query_configs")
+            _text(query.get("alias"), "query_configs.alias")
+            _check_serializer_fields(
+                {key: value for key, value in query.items() if key in serializer.fields}, serializer, "query_configs"
             )
-            _integer(query.get("index_set_id"), "index_set_id")
-            _integer(query.get("agg_interval"), "agg_interval")
-            _validate_query_patch(query)
+            serializer.run_validation(query)
         algorithms = item.get("algorithms")
-        if not isinstance(algorithms, list) or not algorithms:
-            raise CustomException(message="algorithms 必须为非空数组")
+        if not isinstance(algorithms, list):
+            raise CustomException(message="algorithms 必须为数组")
         for algorithm in algorithms:
             _strict_object(algorithm, set(Algorithm.Serializer().fields) - {"id"}, "algorithms")
-            if algorithm.get("type") != "Threshold":
-                raise CustomException(message="create 暂仅支持 Threshold 算法")
-            _validate_threshold(algorithm.get("config"))
+            _validate_algorithm_config(algorithm, algorithm.get("config"))
+            Algorithm.Serializer().run_validation(algorithm)
     detects = config.get("detects")
     if not isinstance(detects, list) or not detects:
         raise CustomException(message="config.detects 必须为非空数组")
@@ -379,8 +413,8 @@ _PARAMS_SCHEMA = {
     "bk_biz_id": "必填，非零业务或空间 ID",
     "strategy_id": "update 必填，单个策略 ID",
     "config_version": "update 必填，inspect-strategy-config detail 返回的原 SHA-256 版本",
-    "items": "update 兼容原查询与阈值补丁；与 config 至少提供一项，不得同时提供 config.items",
-    "config": "create 为完整 V2 日志阈值配置；update 为同范围字段补丁，含周期、检测窗口、级别、通知和启停；子记录按已有 ID 修改，未提供字段保留",
+    "items": "update 兼容原查询与算法配置补丁；与 config 至少提供一项，不得同时提供 config.items",
+    "config": "create 为完整标准 V2 配置；update 为同范围字段补丁；查询按目标来源、算法按类型校验，子记录按已有 ID 修改；query_output_config 对象整体替换、null 清除，省略保留",
     "confirmed": "必须为 true，先取得对精确变更的人工确认",
     "operator": "审计执行人，最长 32 字符；无需已注册用户，不作为认证身份",
 }
@@ -395,8 +429,8 @@ _EXAMPLE = {
 }
 KernelRPCRegistry.register_function(
     func_name="bkm_cli.manage_strategy_config",
-    summary="创建或修改日志阈值策略配置，包括周期、检测窗口、通知和启停",
-    description="通过原策略保存 API 创建日志关键字策略或修改指定字段；保存结果须独立回读，超时禁止自动重发。",
+    summary="创建或修改标准策略配置，包括查询、算法、检测窗口、通知和启停",
+    description="通过原策略保存 API 创建策略或修改已有子记录，按平台查询和算法类型校验；保存结果须独立回读，超时禁止自动重发。",
     handler=manage_strategy_config,
     params_schema=_PARAMS_SCHEMA,
     example_params=_EXAMPLE,
@@ -404,8 +438,8 @@ KernelRPCRegistry.register_function(
 BkmCliOpRegistry.register(
     op_id="manage-strategy-config",
     func_name="bkm_cli.manage_strategy_config",
-    summary="创建日志关键字策略或修改单策略查询检测配置",
-    description="create/update 对齐日志阈值配置范围，update 按原版本修改已有子记录，复用平台保存校验；结果未知禁止重发。",
+    summary="创建标准策略或修改单策略查询检测配置",
+    description="create/update 对齐标准查询和算法范围，update 按原版本修改已有子记录，复用平台保存校验；结果未知禁止重发。",
     capability_level="admin",
     risk_level="mutation",
     requires_confirmation=True,

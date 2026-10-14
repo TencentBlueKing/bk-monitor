@@ -122,6 +122,10 @@ export const useHostList = (options: IUseHostListOptions) => {
   };
 
   const data = useHostListData({
+    getQueryKey: () =>
+      options.readonly || !appStore.userName
+        ? null
+        : JSON.stringify([appStore.userName, appStore.siteUrl, timeRange.value, timezone.value, getRequestScope()]),
     getComputeParams: () => getComputeParams(),
     getPageScope,
     getScope: getRequestScope,
@@ -155,13 +159,13 @@ export const useHostList = (options: IUseHostListOptions) => {
     excludedRowKeys.value = new Set();
   };
   let lastQueryKey = '';
-  const loadData = () => {
+  const loadData = (forceRefresh = true) => {
     if (!selectedNode.value) return;
     const queryKey = JSON.stringify([timeRange.value, timezone.value, getRequestScope()]);
     const preserve = queryKey === lastQueryKey;
     lastQueryKey = queryKey;
     resetSelection();
-    return data.loadData(preserve);
+    return data.loadData(preserve, forceRefresh);
   };
   watch(
     [timeRange, timezone, refreshGeneration, () => JSON.stringify(getRequestScope())],
@@ -491,7 +495,7 @@ export const useHostList = (options: IUseHostListOptions) => {
 
   onMounted(() => {
     void loadStickyConfig();
-    void loadData();
+    void loadData(false);
   });
 
   return {

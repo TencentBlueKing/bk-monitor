@@ -2364,7 +2364,8 @@ class LogSearchLogDataSource(LogSearchTimeSeriesDataSource):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.metrics = self.metrics or [{"field": "_index", "method": "COUNT"}]
+        if not self.metrics and not self.distinct:
+            self.metrics = [{"field": "_index", "method": "COUNT"}]
 
     @property
     def metric_display(self):

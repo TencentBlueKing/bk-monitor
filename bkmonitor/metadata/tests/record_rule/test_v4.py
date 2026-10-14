@@ -35,7 +35,6 @@ from metadata.models.record_rule.v4 import (
     RecordRuleV4Spec,
     stable_hash,
 )
-from metadata.models.record_rule.v4.output import RecordRuleV4OutputResources
 
 pytestmark = pytest.mark.django_db(databases="__all__")
 
@@ -121,13 +120,40 @@ def test_stable_hash_is_independent_from_dict_key_order():
     assert stable_hash(left) == stable_hash(right)
 
 
+@pytest.mark.parametrize(("desired_status", "task_stopped"), [("running", "false"), ("stopped", "true")])
+def test_flow_runtime_annotation_preserves_config(desired_status, task_stopped):
+    flow_config = {
+        "metadata": {"annotations": {"record-rule.bkmonitor/name": "cpu-group", "task_stopped": "false"}},
+        "spec": {"nodes": [{"kind": "RecordingRuleNode", "config": [{"expr": "cpu_usage"}]}]},
+    }
+
+    updated = RecordRuleV4Flow.with_desired_status(flow_config, desired_status)
+    assert updated["metadata"]["annotations"] == {
+        "record-rule.bkmonitor/name": "cpu-group",
+        "task_stopped": task_stopped,
+    }
+    assert "desired_status" not in updated["spec"]
+    assert RecordRuleV4Flow.strip_runtime_status(updated) == {
+        "metadata": {"annotations": {"record-rule.bkmonitor/name": "cpu-group"}},
+        "spec": flow_config["spec"],
+    }
+    assert updated["metadata"]["annotations"]["task_stopped"] == task_stopped
+    updated["spec"]["nodes"][0]["config"][0]["expr"] = "other_metric"
+    assert flow_config["metadata"]["annotations"]["task_stopped"] == "false"
+    assert flow_config["spec"]["nodes"][0]["config"][0]["expr"] == "cpu_usage"
+
+
+def test_flow_runtime_annotation_rejects_deleted_status():
+    with pytest.raises(ValueError, match="unsupported flow desired_status: deleted"):
+        RecordRuleV4Flow.with_desired_status({}, RecordRuleV4DesiredStatus.DELETED.value)
+
+
 def test_compose_names_keep_hint_random_suffix_and_short_length():
     table_id = RecordRuleV4.compose_table_id(
         pk=123,
         name="cpu-usage.with/slashes-and-very-long-name",
         random_suffix="abcdef12",
     )
-    result_table_config_name = RecordRuleV4OutputResources.compose_result_table_config_name(table_id)
     flow_name = RecordRuleV4.compose_flow_name(
         pk=123,
         name="cpu-usage.with/slashes-and-very-long-name",
@@ -141,12 +167,10 @@ def test_compose_names_keep_hint_random_suffix_and_short_length():
     table_base_name = table_id.split(".__default__")[0]
 
     assert len(table_base_name) <= 50
-    assert len(result_table_config_name) <= 40
     assert len(flow_name) <= 50
     assert len(group_flow_name) <= 50
     assert table_base_name.startswith("bkm_rr_123_cpu_usage")
     assert table_id.endswith("_abcdef12.__default__")
-    assert result_table_config_name.startswith("bkm_bkm_rr_123_cpu_usage")
     assert "abcdef12" in flow_name
     assert "abcdef12" in group_flow_name
 

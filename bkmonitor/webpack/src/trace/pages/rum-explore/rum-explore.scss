@@ -1,5 +1,7 @@
 /* stylelint-disable selector-class-pattern */
 .rum-explore {
+  /* 数组列表抽屉贴页面底部弹出，锚定页面根：宽度占满除平台导航外的整块内容区 */
+  position: relative;
   display: flex;
   width: 100%;
   height: 100%;

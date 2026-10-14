@@ -2,7 +2,10 @@
 @import '../../../../../theme/mixin';
 
 .llm-trace-block {
-  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  isolation: isolate;
+  overflow: visible;
   background: #fff;
   border: 1px solid #cddffe;
   border-radius: 4px;
@@ -21,11 +24,15 @@
 }
 
 .llm-trace-header {
+  position: sticky;
+  top: calc(var(--llm-exec-row-height, 32px) + var(--llm-exec-sticky-gap, 16px));
+  z-index: 20;
   height: 42px;
   padding-right: 12px;
   cursor: pointer;
   background: #f0f5ff;
   border-bottom: 1px solid #cddffe;
+  border-radius: 4px 4px 0 0;
 
   @include flex-align(center);
   @include flex-justify(space-between);
@@ -33,6 +40,7 @@
   .llm-trace-block.is-collapsed & {
     background: #f2f6fc;
     border-bottom: 0;
+    border-radius: 4px;
   }
 }
 
@@ -188,6 +196,11 @@
 }
 
 .llm-trace-table-head {
+  position: sticky;
+  top: calc(
+    var(--llm-exec-row-height, 32px) + var(--llm-exec-sticky-gap, 16px) + var(--llm-trace-header-height, 42px)
+  );
+  z-index: 15;
   height: 36px;
   font-family: 'PingFang SC', sans-serif;
   font-size: $font-size-base;
@@ -233,4 +246,10 @@
     width: 40px;
     padding: 0;
   }
+}
+
+.llm-trace-table-body {
+  position: relative;
+  z-index: 0;
+  overflow: hidden;
 }

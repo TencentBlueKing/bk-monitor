@@ -189,6 +189,7 @@ DELETE /v4/namespaces/bkbase/flows/{flow_name}/
           "flow_type": "recording-rule"
         },
         "annotations": {
+          "task_stopped": "false",
           "record-rule.bkmonitor/space-uid": "<SPACE_UID>",
           "record-rule.bkmonitor/name": "<NAME>",
           "record-rule.bkmonitor/generation": "<RESOLVED_GENERATION>",
@@ -203,7 +204,7 @@ DELETE /v4/namespaces/bkbase/flows/{flow_name}/
             "data": {
               "kind": "ResultTable",
               "tenant": "<BKBASE_TENANT>",
-              "namespace": "bkmonitor",
+              "namespace": "<SOURCE_BKBASE_NAMESPACE>",
               "name": "<SOURCE_BKBASE_RESULT_TABLE_NAME>"
             }
           },
@@ -238,8 +239,7 @@ DELETE /v4/namespaces/bkbase/flows/{flow_name}/
           "batch_cluster": null,
           "deploy_mode": null
         },
-        "maintainers": ["<MAINTAINER>"],
-        "desired_status": "running"
+        "maintainers": ["<MAINTAINER>"]
       },
       "status": null
     }
@@ -249,22 +249,24 @@ DELETE /v4/namespaces/bkbase/flows/{flow_name}/
 
 已确认约束：
 
+- Flow 必须指定 `metadata.annotations.task_stopped`，字符串 `"false"` 表示期望运行，`"true"` 表示期望停止；不下发 `spec.desired_status`。
 - `VmSourceNode` 的源 RT 必须已有 VM storage。
-- `VmSourceNode.data.name` 不是 VMRT，而是源表对应的 `ResultTableConfig.name`。
+- `VmSourceNode.data` 的 namespace 和 name 均来自源表对应的 `ResultTableConfig`，不按 VMRT 推导资源名。
 - 如果 check 返回的源 VM RT 中包含当前预计算自身的输出 RT，需要在生成 `VmSourceNode` 前排除，避免自引用计算。
 - `RecordingRuleNode.inputs` 指向一个或多个 `VmSourceNode.name`。
-- `RecordingRuleNode.output` 是 recording rule 产生的新 RT，需要提前在 metadata 中定义。
+- `RecordingRuleNode.output` 使用 group 创建时分配并固定的 VMRT；BKBase 的 ResultTable / VmStorageBinding 由 Flow 自动创建，监控侧不创建或下发对应 Config。
 - `interval` 当前支持 `1min`、`2min`、`5min`、`10min`。
-- series 限制口径是单个 PromQL 计算的 series 总量，当前约束按 50W 理解。
+- series 限制口径是单个 PromQL 计算的 series 总量，当前约束按 50W 理解，实际限制与源数据所在集群有关；计算超时为 30 秒。
 - recording rule 场景暂不需要关心 `operation_config` 细节，先按固定默认值下发。
 
 ### VMRT 到 bkbase ResultTable name 的解析
 
 check 返回的 `result_table_id` 按 VMRT 处理，但 V4 Flow source 需要的是 bkbase ResultTable name。Metadata 解析时批量完成这层映射：
 
-1. 优先用 `ResultTableConfig.bkbase_table_id == vm_rt` 命中源表配置，取 `ResultTableConfig.name`。
-2. 未命中时，通过 `AccessVMRecord.vm_result_table_id -> result_table_id` 回退查询 `ResultTableConfig.table_id`，再取 `ResultTableConfig.name`。
-3. 同时通过 `AccessVMRecord.vm_cluster_id -> ClusterInfo.cluster_name` 固化每张源 VMRT 的 VM storage。
+1. 优先用 `ResultTableConfig.bkbase_table_id == vm_rt` 命中源表配置。
+2. 未命中时，通过 `AccessVMRecord.vm_result_table_id -> result_table_id` 回退查询 `ResultTableConfig.table_id`。
+3. 源节点使用命中配置的 `namespace` 和 `name`；嵌套规则也依赖源输出对应的 `ResultTableConfig` 已同步到本地，不单独识别预计算规则或推导资源身份。
+4. 通过 `AccessVMRecord.vm_cluster_id -> ClusterInfo.cluster_name` 固化每张源 VMRT 的 VM storage。生成节点时按 `(namespace, name)` 去重，保留不同 namespace 的同名资源。
 
 解析结果固化在 `src_result_table_configs`：
 
@@ -274,6 +276,7 @@ check 返回的 `result_table_id` 按 VMRT 处理，但 V4 Flow source 需要的
     "result_table_id": "<RESULT_TABLE_ID>",
     "vm_result_table_id": "<VM_RESULT_TABLE_ID>",
     "bkbase_result_table_name": "<SOURCE_BKBASE_RESULT_TABLE_NAME>",
+    "bkbase_result_table_namespace": "<SOURCE_BKBASE_NAMESPACE>",
     "vm_storage_name": "<SOURCE_VM_STORAGE_NAME>"
   }
 ]
@@ -302,7 +305,8 @@ V4 按 group 建模：用户看到的是一个预计算组，组内可以包含�
 - `RecordRuleV4Flow` 和 `RecordRuleV4Resolved` 一一对应；外部 `flow_name` 在 group 创建时生成并保持稳定。
 - `name` 落库长度限制为 128，支持中文；生成 `table_id` / `flow_name` 时会先尝试将中文转拼音，并将不可用字符折成 `_`，不可转换时使用 `group` 作为 fallback。
 - `table_id` 基础名和 `flow_name` 不超过 50 字符，`table_id` 的 `.__default__` 后缀不计入 50 字符约束。
-- 输出 `ResultTable.table_name_zh` 使用 `name`；description 只保存为 group 描述；data_label 默认为空，非空时同步到输出 `ResultTable.data_label`。`ResultTableConfig` 不保存这些展示字段。
+- 输出 `ResultTable.table_name_zh` 使用 `name`；description 只保存为 group 描述；data_label 默认为空，非空时同步到输出 `ResultTable.data_label`。
+- 监控侧仅维护本地 `ResultTable`、`AccessVMRecord`、`ResultTableOption` 和指标字段用于查询路由；BKBase 的输出 ResultTable / VmStorageBinding 由 Flow 自动创建，没有 output 单独下发或重试流程。
 
 输出 RT 固定补齐两个 `ResultTableOption`：
 
@@ -432,7 +436,7 @@ def refresh_record_rule_v4():
 
 1. create
    - 生成 group 输出 `table_id` / `dst_vm_table_id` / `dst_vm_storage_name`，以及稳定外部 `flow_name`。
-   - 创建输出 RT / ResultTableConfig / AccessVMRecord / ResultTableOption 后，推送 `SpaceTableIDRedis.push_space_table_ids` 和 `SpaceTableIDRedis.push_table_id_detail`。
+   - 执行声明时准备本地输出 RT / AccessVMRecord / ResultTableOption，固定 VMRT 映射，再推送 `SpaceTableIDRedis.push_space_table_ids` 和 `SpaceTableIDRedis.push_table_id_detail`；不创建输出 ResultTableConfig / VMStorageBindingConfig。
    - 创建 `RecordRuleV4Spec` 和多条 `RecordRuleV4SpecRecord`。
    - 按 `metric_name` 补齐输出 `ResultTableField`；如果后续只是指标字段新增，只刷新 `SpaceTableIDRedis.push_table_id_detail`。
    - 逐条调用 unify-query check，生成 `RecordRuleV4Resolved` 和 `RecordRuleV4ResolvedRecord`。
@@ -448,9 +452,9 @@ def refresh_record_rule_v4():
 3. stop/start
    - 只更新 `RecordRuleV4.desired_status`，不生成新的 spec / resolved / flow。
    - 不重新调用 unify-query。
-   - 直接基于 `applied_resolved.flow` 下发新的 `desired_status`。
+   - 直接基于 `applied_resolved.flow`，将内部 `desired_status` 转换为 `metadata.annotations.task_stopped` 后下发。
    - 成功后更新 `applied_desired_status`；失败时 `desired_status != applied_desired_status` 表示启停未生效。
-   - Flow 计算内容指纹不包含运行态 `desired_status`，避免启停导致后续被误判为计算定义变化。
+   - Flow 计算内容指纹不包含运行态 annotation `task_stopped`，避免启停导致后续被误判为计算定义变化。
 
 4. manual refresh
    - 对当前 spec 重新 check。

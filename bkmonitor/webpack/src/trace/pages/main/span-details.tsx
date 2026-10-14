@@ -207,13 +207,17 @@ export default defineComponent({
 
     function shouldLoadSpanDetail(span: Span): boolean {
       if (!span) return false;
+      const sourceSpanId = span.span_id || span.spanID;
+      if (!sourceSpanId) return false;
+      // 关联 Trace / 检索入口可能只传入 span_id stub，当前瀑布图树与 original_data 都没有这条 Span
+      const incomplete = !span.operationName && !span.startTime;
       const appMismatch = Boolean(span.app_name && viewAppName.value && span.app_name !== viewAppName.value);
       const bizMismatch =
         span.bk_biz_id != null &&
         span.bk_biz_id !== '' &&
         Boolean(viewBizId.value) &&
         String(span.bk_biz_id) !== String(viewBizId.value);
-      return appMismatch || bizMismatch;
+      return incomplete || appMismatch || bizMismatch;
     }
 
     /** 详情及其所有 Tab 统一使用 Span 自带上下文，存量数据缺字段时回退页面上下文。 */

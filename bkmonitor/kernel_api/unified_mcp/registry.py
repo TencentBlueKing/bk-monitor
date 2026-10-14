@@ -724,7 +724,7 @@ class ToolDefinition:
         if payload["system_id"] == "bk_log_search":
             payload["iam_model"] = "v3-current"
             if payload["resource_type"] == "indices":
-                payload["resource_scope"] = "ordinary_same_space"
+                payload["resource_scope"] = "ordinary_visible_in_space"
         conditional = payload.get("conditional")
         if conditional:
             conditional["permission"] = ToolDefinition._public_native_permission(conditional["permission"])
@@ -975,10 +975,14 @@ def _build_guidelines(tool: ToolDefinition) -> list[str]:
     if tool.native_permission and tool.native_permission["resource_type"] == "indices":
         if tool.native_permission.get("conditional"):
             guidelines.append(
-                "固定索引集模式只支持普通、非分组、同空间索引集；场景模式由日志平台按动态命中资源继续鉴权。"
+                "固定索引集模式下，SaaS 兜底只支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
+                "场景模式由日志平台按动态命中资源继续鉴权。"
             )
         else:
-            guidelines.append("原生权限仅支持普通、非分组、同空间索引集；不支持平台级或分组索引集。")
+            guidelines.append(
+                "SaaS 兜底仅支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
+                "平台级或分组索引集需使用原 MCP 权限。"
+            )
     properties = tool.input_schema.get("properties") or {}
     if "start_time" in properties or "end_time" in properties:
         guidelines.append("start_time 和 end_time 必须按当前时间动态计算，不能使用固定历史时间戳。")
@@ -1066,17 +1070,19 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                         if NATIVE_PERMISSIONS[tool_name]["resource_type"] == "indices":
                             if NATIVE_PERMISSIONS[tool_name].get("conditional"):
                                 description = (
-                                    "Index-set mode only supports ordinary, non-grouped index sets in the requested "
-                                    "space; scene mode keeps the log platform's dynamic resource checks. "
-                                    "固定索引集模式仅支持普通、非分组、同空间索引集；"
+                                    "In index-set mode the SaaS fallback only supports ordinary, non-grouped index "
+                                    "sets visible in the requested space, authorized in their owner space; scene mode "
+                                    "keeps the log platform's dynamic resource checks. "
+                                    "固定索引集模式下，SaaS 兜底仅支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
                                     "场景模式继续由日志平台按动态命中资源鉴权。以下为底层通用接口说明： " + description
                                 )
                             else:
                                 description = (
-                                    "Native mode only supports ordinary, non-grouped index sets in the requested "
-                                    "space. Platform and grouped index sets are unavailable. "
-                                    "原生模式仅支持普通、非分组、同空间索引集；不支持平台或分组索引集。"
-                                    "以下为底层通用接口说明： " + description
+                                    "The SaaS fallback only supports ordinary, non-grouped index sets visible in the "
+                                    "requested space, authorized in their owner space; platform and grouped index "
+                                    "sets require the original MCP permission. "
+                                    "SaaS 兜底仅支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
+                                    "平台或分组索引集需使用原 MCP 权限。以下为底层通用接口说明： " + description
                                 )
                         if tool_name == "list_time_series_groups":
                             schema["properties"]["is_platform"]["enum"] = [False]

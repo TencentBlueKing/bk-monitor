@@ -1,4 +1,5 @@
 import json
+from copy import deepcopy
 from unittest.mock import patch
 
 from django.test import SimpleTestCase, override_settings
@@ -269,6 +270,7 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.assertEqual(result["gse_route"]["probe_status"], "skipped")
         self.monitor.assert_not_called()
 
+    @override_settings(ENABLE_MULTI_TENANT_MODE=False)
     def test_v4_reference_mismatch_is_explicit_and_does_not_follow_storage(self):
         resources = dict(RESOURCES)
         resources[("dataids", DATAID_NAME)] = resource(
@@ -303,6 +305,7 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.assertFalse(databus["exists"])
         self.assertEqual(databus["error"]["code"], "RESOURCE_NOT_FOUND")
 
+    @override_settings(ENABLE_MULTI_TENANT_MODE=True)
     def test_cross_tenant_reference_is_not_followed(self):
         resources = dict(RESOURCES)
         bus = resource(
@@ -320,6 +323,84 @@ class DataLinkControlPlaneTest(SimpleTestCase):
         self.assertEqual(source["probe_status"], "skipped")
         self.assertEqual(source["error"]["code"], "CROSS_TENANT_REFERENCE")
         self.assertEqual(result["v4_branches"][0]["association_status"], "unknown")
+
+    def test_v4_tenant_checks_follow_multi_tenant_mode(self):
+        for location in ("metadata", "references", "binding", "all"):
+            for enabled in (False, True):
+                with (
+                    self.subTest(location=location, multi_tenant=enabled),
+                    override_settings(ENABLE_MULTI_TENANT_MODE=enabled),
+                ):
+                    resources = deepcopy(RESOURCES)
+                    if location in ("metadata", "all"):
+                        for value in resources.values():
+                            value["metadata"]["tenant"] = "default"
+                    if location in ("references", "all"):
+                        bus_spec = resources[("databuses", RT_NAME)]["spec"]
+                        for reference in bus_spec["sources"] + bus_spec["sinks"]:
+                            reference["tenant"] = "default"
+                        resources[("dataids", DATAID_NAME)]["spec"]["predefined"]["channel"]["tenant"] = "default"
+                        resources[("elasticsearchbindings", RT_NAME)]["spec"]["storage"]["tenant"] = "default"
+                    if location in ("binding", "all"):
+                        resources[("elasticsearchbindings", RT_NAME)]["spec"]["data"]["tenant"] = "default"
+                    self.v4_resource.reset_mock()
+                    self.v4_resource.side_effect = lambda **kwargs: resources[
+                        (kwargs["params"]["kind"], kwargs["params"]["name"])
+                    ]
+                    result = AdminResourceRegistry.call(FUNC_NAME, {"bk_data_id": DATA_ID}, app_code="test-app")
+                    branch = result["v4_branches"][0]
+                    if not enabled:
+                        self.assertEqual(branch["association_status"], "verified")
+                        self.assertEqual(self.v4_resource.call_count, 6)
+                        self.assertTrue(all(p["probe_status"] == "success" for p in branch["resources"].values()))
+                    elif location in ("metadata", "all"):
+                        self.assertEqual(branch["association_status"], "unknown")
+                        self.assertEqual(branch["resources"]["result_table"]["probe_status"], "failed")
+                        self.assertEqual(branch["resources"]["databus"]["probe_status"], "failed")
+                        self.assertEqual(self.v4_resource.call_count, 2)
+                    elif location == "references":
+                        self.assertEqual(branch["association_status"], "unknown")
+                        self.assertEqual(branch["resources"]["data_id"]["error"]["code"], "CROSS_TENANT_REFERENCE")
+                        self.assertEqual(branch["resources"]["binding"]["error"]["code"], "CROSS_TENANT_REFERENCE")
+                        self.assertEqual(self.v4_resource.call_count, 2)
+                    else:
+                        self.assertEqual(branch["association_status"], "mismatch")
+                        self.assertNotIn("storage", branch["resources"])
+                    for call in self.v4_resource.call_args_list:
+                        self.assertEqual(call.kwargs["bk_tenant_id"], "system")
+                        self.assertEqual(call.kwargs["params"]["tenant"], "system")
+
+    @override_settings(ENABLE_MULTI_TENANT_MODE=False)
+    def test_single_tenant_mode_preserves_resource_identity_and_association_checks(self):
+        for field, wrong_value in (("kind", "DataId"), ("name", "wrong"), ("namespace", "other"), ("bizId", 99)):
+            with self.subTest(field=field):
+                resources = deepcopy(RESOURCES)
+                rt = resources[("resulttables", RT_NAME)]
+                rt["metadata"]["tenant"] = "default"
+                if field == "kind":
+                    rt[field] = wrong_value
+                elif field == "bizId":
+                    rt["spec"][field] = wrong_value
+                else:
+                    rt["metadata"][field] = wrong_value
+                self.v4_resource.side_effect = lambda **kwargs: resources[
+                    (kwargs["params"]["kind"], kwargs["params"]["name"])
+                ]
+                branch = get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})["v4_branches"][0]
+                self.assertEqual(branch["association_status"], "mismatch" if field == "bizId" else "unknown")
+                if field != "bizId":
+                    self.assertEqual(branch["resources"]["result_table"]["probe_status"], "failed")
+
+    @override_settings(ENABLE_MULTI_TENANT_MODE=False)
+    def test_single_tenant_mode_does_not_follow_other_namespace_references(self):
+        resources = deepcopy(RESOURCES)
+        source = resources[("databuses", RT_NAME)]["spec"]["sources"][0]
+        source.update(tenant="default", namespace="other")
+        self.v4_resource.side_effect = lambda **kwargs: resources[(kwargs["params"]["kind"], kwargs["params"]["name"])]
+        branch = get_datalink_control_plane_snapshot({"bk_data_id": DATA_ID})["v4_branches"][0]
+        self.assertEqual(branch["association_status"], "unknown")
+        self.assertEqual(branch["resources"]["data_id"]["error"]["code"], "UNSUPPORTED_NAMESPACE")
+        self.assertNotIn("storage", branch["resources"])
 
     def test_monitor_stream_response_and_resource_phase(self):
         resources = dict(RESOURCES)

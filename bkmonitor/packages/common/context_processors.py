@@ -61,8 +61,7 @@ def get_default_biz_id(request, biz_list: list[dict[str, Any]] | None = None, id
             if biz_id_or_none:
                 biz_id = safe_int(str(biz_id_or_none).strip("/"), dft=None)
             elif biz_list:
-                sorted(biz_list, key=lambda biz: biz[id_key])
-                biz_id = biz_list[0]["bk_biz_id"]
+                biz_id = min(biz_list, key=lambda biz: biz[id_key])["bk_biz_id"]
             else:
                 biz_id = -1
 

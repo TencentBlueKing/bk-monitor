@@ -95,13 +95,13 @@ GET /rum/search/view_config/?app_name=rum-demo&bk_biz_id=2
 
 #### 2.2.1 Request
 
-| 参数名称       | 类型      | 必填 | 描述                                                                  |
-|------------|---------|----|---------------------------------------------------------------------|
-| bk_biz_id  | Integer | 是  | 业务 ID                                                               |
-| app_name   | String  | 是  | 应用名称                                                                |
-| mode       | String  | 否  | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
-| start_time | Integer | 否  | 开始时间（Unix 秒级时间戳）；不传时由查询层基于数据保留期自动补齐                                  |
-| end_time   | Integer | 否  | 结束时间（Unix 秒级时间戳）；不传时由查询层基于数据保留期自动补齐                                  |
+| 参数名称       | 类型      | 必填  | 描述                                                                  |
+| ---------- | ------- | --- | ------------------------------------------------------------------- |
+| bk_biz_id  | Integer | 是   | 业务 ID                                                               |
+| app_name   | String  | 是   | 应用名称                                                                |
+| mode       | String  | 否   | 查询层级模式，枚举值：<br/>- `span`<br/>- `view`<br/>- `session`<br/>默认 `span` |
+| start_time | Integer | 否   | 开始时间（Unix 秒级时间戳）；不传时由查询层基于数据保留期自动补齐                                 |
+| end_time   | Integer | 否   | 结束时间（Unix 秒级时间戳）；不传时由查询层基于数据保留期自动补齐                                 |
 
 ```json
 {
@@ -932,19 +932,19 @@ POST /rum/search/statistics/
 | app_name     | string        | 是   | 应用名称                                                                                                                         |
 | mode | String | 否 | 查询层级模式，可选 `span`、`view`、`session`，默认 `span` |
 | group_name   | string        | 是   | 计算组，可选 `origin`（原始字段）。                                                                                              |
-| cal_type     | string        | 是   | 指标计算类型，可选 `count`（计数）、`sum`（求和）、`distinct`（取重计数）、`max`（最大值）、`min`（最小值）、`avg`（平均值）     |
-| field        | Field         | 是   | 计算字段，例如 `attributes.user.id`。                                                                                            |
+| cal_type     | string        | 是   | 指标计算类型，可选 `count`（计数）、`sum`（求和）、`distinct`（去重计数）、`max`（最大值）、`min`（最小值）、`avg`（平均值）     |
+| field        | string         | 是   | 计算字段，例如 `attributes.user.id`。                                                                                            |
 | start_time   | int           | 否   | 开始时间（Unix 时间戳，秒）                                                                                                      |
 | end_time     | int           | 否   | 结束时间（Unix 时间戳，秒）                                                                                                      |
-| baseline     | string        | 否   | 对比基准时间偏移，默认 `0s`，表示当前时间                                                                                        |
-| time_shifts  | List[string]  | 否   | 时间偏移列表，支持 `1d`（1 天前）、`1w`（1 周前）、`1d`（1 天前）、`1w`（一周前）、`1M`（一月前）等格式，最多支持 2 个对比时间点 |
+| baseline     | string        | 否   | 对比基准时间偏移，默认 `0s`，表示当前查询窗口                                                                                        |
+| time_shifts  | List[string]  | 否   | 时间偏移列表，支持 `1h`（1 小时前）、`1d`（1 天前）、`1w`（1 周前）、`1M`（一月前）等格式，最多支持 2 个对比时间点 |
 | filters      | Array[Filter] | 否   | 过滤条件，见 [1.1 Filter](#filter)，默认 `[]`                                                                                    |
 | query_string | String        | 否   | 查询字符串，默认 `""`                                                                                                            |
-| group_by     | List[string]  | 否   | 分组字段列表，用于维度聚合                                                                                                       |
-| interval | Integer | 否 | 时间分桶间隔（秒），正整数，与 `group_by` 中的 `time` 配合使用，不传时统计整个范围 |
+| group_by     | List[string]  | 否   | 分组字段；包含 `time` 时按 `interval` 分桶（`time` 为虚拟字段）                                                                                                       |
+| interval | Integer | 否 | 分桶间隔（秒），正整数，仅在 `group_by` 含 `time` 时生效，缺省时按查询窗口自动计算 |
 
 
-例如，查询某个错误影响用户数，并返回比：
+例如，查询某个错误影响用户数，并返回相对前一个窗口的环比：
 
 ```json
 {
@@ -952,7 +952,7 @@ POST /rum/search/statistics/
     "app_name": "trpc-cluster-access-demo",
     "mode": "span",
     "group_name": "origin",
-    "cal_type": "count",
+    "cal_type": "distinct",
     "field": "attributes.user.id",
     "baseline": "0s",
     "filters": [
@@ -996,10 +996,6 @@ POST /rum/search/statistics/
       "growth_rates": {
         "0s": 0,
         "1h": 20
-      },
-      "proportions": {
-        "0s": 100,
-        "1h": 100
       }
     }
   ]
@@ -1047,10 +1043,11 @@ POST /rum/search/record_detail/
 | field_name | String | 字段标识 |
 | value | Any | 原始值或计算值 |
 | field_alias | String | 可选，字段展示名称 |
-| alias | String | 可选，格式化后的值或枚举别名 |
+| alias | String | 可选，枚举别名或展示文本，带单位的数值改用 `field_unit` |
+| field_unit | String | 可选，值的单位，如 `us`、`ms` |
 
 * *[1] 原始字段：`field_alias`、`alias` 等信息，优先从 `GET /rum/search/view_config/` 取用字段元信息，前端根据字段类型选取可读样式。*
-* *[2] 展示字段：field_name 以 `display.` 开头，此类字段后台返回 `field_alias`、`alias`。*
+* *[2] 展示字段：field_name 以 `display.` 开头，此类字段后台返回 `field_alias`，并按取值返回 `alias` 或 `field_unit`。*
 
 - Section
 
@@ -1135,7 +1132,7 @@ POST /rum/search/record_detail/
 
 ##### 2）Resource（其他资源）
 
-```jsonc
+```json
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "8e301ac709bd42bb",
@@ -1187,7 +1184,7 @@ POST /rum/search/record_detail/
 
 ##### 3）Action
 
-```jsonc
+```json
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "e121536e5ae785a0",
@@ -1215,7 +1212,7 @@ POST /rum/search/record_detail/
 
 ##### 4）Long Task
 
-```jsonc
+```json
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "c49ddfc2ac5214d7",
@@ -1243,14 +1240,13 @@ POST /rum/search/record_detail/
 
 ##### 5）Error
 
-```jsonc
+```json
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "9d199175096474e4",
   "overview": {
     "title": "TypeError: Cannot read properties of undefined (reading 'name')",
     "badges": [
-      {"field_name": "elapsed_time", "value": 123500},
       {"field_name": "attributes.outcome.type", "value": "error"}
     ]
     // items 结构同示例 1，字段值取当前 Span。
@@ -1270,7 +1266,7 @@ POST /rum/search/record_detail/
 
 ##### 6）Vital
 
-```jsonc
+```json
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "ea1ae6490e17fd9d",
@@ -1304,14 +1300,14 @@ POST /rum/search/record_detail/
 
 ##### 7）View
 
-```jsonc
+```json
 {
   // origin_data 结构同示例 1，字段值取当前 Span。
   "span_id": "34e3b6ff1943346c",
   "overview": {
     "title": "view-001",
     "badges": [
-      {"field_name": "display.view.duration", "alias": "60.3 s", "value": 60300}
+      {"field_name": "display.view.duration", "field_unit": "ms", "value": 60300}
     ],
     "items": [
       // 公共 items 同示例 1，此处仅列 View 额外字段。
@@ -1419,6 +1415,281 @@ POST /rum/search/record_detail/
 - *[1] `total_duration` 取 `attributes.view.loading_time`，缺失时省略。*
 - *[2] `loading_timing` 仅用于首次加载，`page_stable` 仅用于自动 Loading Time。*
 
+### 2.12 timeline - 会话时间线
+
+POST /rum/search/timeline/
+
+#### 2.12.1 Request
+
+| 参数名称 | 类型 | 必填 | 描述 |
+|----------|------|------|------|
+| bk_biz_id | Integer | 是 | 业务 ID |
+| app_name | String | 是 | 应用名称 |
+| session_id | String | 否 | 会话 ID，对应 `attributes.session.id`，与 `view_id` 二选一 |
+| view_id | String | 否 | 视图 ID，对应 `attributes.view.id`，与 `session_id` 二选一 |
+
+```json
+{"bk_biz_id": 2, "app_name": "rum-demo", "session_id": "sess-001"}
+```
+
+```json
+{"bk_biz_id": 2, "app_name": "rum-demo", "view_id": "view-001"}
+```
+
+#### 2.12.2 Response
+
+| 参数名称       | 类型             | 描述                                                                                                                    |
+| ---------- | -------------- | --------------------------------------------------------------------------------------------------------------------- |
+| start_time | Integer / Null | 开始时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话开始时间，按 `view_id` 查询时为 View 开始时间，缺失时为 `null` |
+| end_time   | Integer / Null | 结束时间（Unix 微秒级时间戳），按 `session_id` 查询时为会话结束时间，按 `view_id` 查询时为 View 结束时间，未结束时为 `null` |
+| tree       | Array[Node]    | 节点树，顶层为 View 节点，按开始时间升序，按 `view_id` 查询时只有一个 View 节点，见 Node |
+| records    | Array[RecordDetail] | 节点详情，每项与同一 `span_id` 的 `record_detail` 返回一致 |
+
+- Node
+
+| 参数名称 | 类型 | 描述 |
+|----------|------|------|
+| span_id | String | 对应 `records[].span_id` |
+| children | Array[Node] | 可选，子节点，按开始时间升序 |
+
+```json
+{
+  "start_time": 1788451565857000,
+  "end_time": 1788451625500000,
+  "tree": [
+    {
+      "span_id": "34e3b6ff1943346c",
+      "children": [
+        {"span_id": "e121536e5ae785a0", "children": [{"span_id": "7d2f09b6f8bc31aa"}]},
+        {"span_id": "8e301ac709bd42bb"},
+        {"span_id": "c49ddfc2ac5214d7"},
+        {"span_id": "9d199175096474e4"}
+      ]
+    }
+  ],
+  "records": [
+    {
+      "origin_data": {
+        "span_id": "34e3b6ff1943346c",
+        "span_name": "/order/submit",
+        "attributes": {
+          "span_type": "view",
+          "view.id": "view-001",
+          "view.phase": "start",
+          "view.started_at": 1788451565200,
+          "view.loading_type": "initial_load"
+        }
+      },
+      "span_id": "34e3b6ff1943346c",
+      "sections": [
+        {
+          "key": "key_info",
+          "type": "summary_cards",
+          "data": {
+            "duration": {"display.view.duration": 60300}
+          }
+        },
+        {
+          "key": "web_vitals",
+          "type": "summary_cards",
+          "data": {
+            "ttfb": {
+              "attributes.vital.metric": "ttfb",
+              "attributes.vital.value": 101.7,
+              "attributes.vital.ttfb.waiting_duration": 1.2,
+              "attributes.vital.ttfb.dns_duration": 3.8,
+              "attributes.vital.ttfb.connection_duration": 10,
+              "attributes.vital.ttfb.request_duration": 83.7,
+              "display.rating_config": [
+                {"rating": "good", "value": 800, "alias": "良好"},
+                {"rating": "needs_improvement", "value": 1800, "alias": "需改进"},
+                {"rating": "poor", "alias": "差"}
+              ]
+            },
+            "fcp": {
+              "attributes.vital.metric": "fcp",
+              "attributes.vital.value": 120,
+              "display.rating_config": [
+                {"rating": "good", "value": 1800, "alias": "良好"},
+                {"rating": "needs_improvement", "value": 3000, "alias": "需改进"},
+                {"rating": "poor", "alias": "差"}
+              ]
+            },
+            "lcp": {
+              "attributes.vital.metric": "lcp",
+              "attributes.vital.value": 250,
+              "display.rating_config": [
+                {"rating": "good", "value": 2500, "alias": "良好"},
+                {"rating": "needs_improvement", "value": 4000, "alias": "需改进"},
+                {"rating": "poor", "alias": "差"}
+              ]
+            },
+            "inp": {
+              "attributes.vital.metric": "inp",
+              "attributes.vital.value": 86,
+              "display.rating_config": [
+                {"rating": "good", "value": 200, "alias": "良好"},
+                {"rating": "needs_improvement", "value": 500, "alias": "需改进"},
+                {"rating": "poor", "alias": "差"}
+              ]
+            },
+            "cls": {
+              "attributes.vital.metric": "cls",
+              "attributes.vital.value": 0.023,
+              "display.rating_config": [
+                {"rating": "good", "value": 0.1, "alias": "良好"},
+                {"rating": "needs_improvement", "value": 0.25, "alias": "需改进"},
+                {"rating": "poor", "alias": "差"}
+              ]
+            }
+          }
+        },
+        {
+          "key": "loading_timing",
+          "type": "waterfall",
+          "data": {
+            "unit": "ms",
+            "total_duration": 200,
+            "phases": [
+              {"key": "prepare", "alias": "浏览器准备", "start": 0, "duration": 1.2},
+              {"key": "dns", "alias": "DNS 查询", "start": 4.2, "duration": 3.8},
+              {"key": "connect", "alias": "网络连接建立", "start": 8, "duration": 10},
+              {"key": "first_byte", "alias": "等待首字节", "start": 18, "duration": 83.7},
+              {"key": "dom_processing", "alias": "内容传输与 DOM 处理", "start": 101.7, "duration": 38.3},
+              {"key": "resource_load", "alias": "剩余资源加载", "start": 140, "duration": 35},
+              {"key": "page_stable", "alias": "页面趋于稳定", "start": 175, "duration": 25}
+            ],
+            "markers": [
+              {"key": "TTFB", "field_name": "TTFB", "value": 101.7},
+              {"key": "FCP", "field_name": "FCP", "value": 120},
+              {"key": "LCP", "field_name": "LCP", "value": 250}
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "origin_data": {
+        "span_id": "e121536e5ae785a0",
+        "span_name": "click .submit-btn",
+        "start_time": 1788451565200000,
+        "end_time": 1788451565632000,
+        "elapsed_time": 432000,
+        "attributes": {
+          "span_type": "action",
+          "view.id": "view-001",
+          "action.id": "action-001",
+          "outcome.type": "warning"
+        }
+      },
+      "span_id": "e121536e5ae785a0"
+    },
+    {
+      "origin_data": {
+        "span_id": "7d2f09b6f8bc31aa",
+        "span_name": "POST /api/orders",
+        "start_time": 1788451565200000,
+        "end_time": 1788451565328000,
+        "elapsed_time": 128000,
+        "attributes": {
+          "span_type": "resource",
+          "view.id": "view-001",
+          "action.id": "action-001",
+          "resource.type": "fetch",
+          "http.response.status_code": 200,
+          "outcome.type": "success"
+        }
+      },
+      "span_id": "7d2f09b6f8bc31aa"
+    },
+    {
+      "origin_data": {
+        "span_id": "8e301ac709bd42bb",
+        "span_name": "db.svg",
+        "start_time": 1788451565240000,
+        "end_time": 1788451565300300,
+        "elapsed_time": 60300,
+        "attributes": {
+          "span_type": "resource",
+          "view.id": "view-001",
+          "resource.type": "img",
+          "http.response.status_code": 200,
+          "outcome.type": "success"
+        }
+      },
+      "span_id": "8e301ac709bd42bb"
+    },
+    {
+      "origin_data": {
+        "span_id": "c49ddfc2ac5214d7",
+        "span_name": "longTask",
+        "start_time": 1788451565330000,
+        "end_time": 1788451565453500,
+        "elapsed_time": 123500,
+        "attributes": {
+          "span_type": "long_task",
+          "view.id": "view-001",
+          "action.id": "action-001",
+          "outcome.type": "warning"
+        }
+      },
+      "span_id": "c49ddfc2ac5214d7"
+    },
+    {
+      "origin_data": {
+        "span_id": "9d199175096474e4",
+        "span_name": "TypeError: Cannot read properties of undefined (reading 'name')",
+        "start_time": 1788451565460000,
+        "end_time": 1788451565583500,
+        "elapsed_time": 123500,
+        "attributes": {
+          "span_type": "error",
+          "view.id": "view-001",
+          "outcome.type": "error"
+        }
+      },
+      "span_id": "9d199175096474e4"
+    }
+  ]
+}
+```
+
+- *[1] `records` 只列出 2.12.3 涉及的字段，`overview` 和其余 `sections` 同 2.11.2 的对应示例。*
+
+#### 2.12.3 展示取值
+
+路径以 `$.` 开头时相对响应根，其余路径相对 `records.<span_id>`，`sections.<key>` 表示 `key` 为 `<key>` 的区块。
+
+- View 节点
+
+| 展示项 | 字段 | 说明 |
+|--------|------|------|
+| 标题 | `origin_data.span_name` | -- |
+| 时间 | `origin_data.attributes.view.started_at` | 毫秒，展示为 `HH:mm:ss` |
+| 路由类型 | `origin_data.attributes.view.loading_type` | -- |
+| 停留时长 | `sections.key_info.data.duration.display.view.duration` | 毫秒 |
+| Vitals 值 | `sections.web_vitals.data.<metric>.attributes.vital.value` | `<metric>` 取 `ttfb`、`fcp`、`lcp`、`inp`、`cls` |
+| Vitals 评级 | `sections.web_vitals.data.<metric>.display.rating_config` | -- |
+| 加载时序 | `sections.loading_timing.data` | -- |
+| 视图退出 | `$.end_time` | 取值不为 `null` 时展示在最后一个 View 节点 |
+| 请求数 | `origin_data.attributes.resource.type` | 统计子树中取值为 `xhr` 或 `fetch` 的节点数 |
+| 操作数 | `origin_data.attributes.span_type` | 统计子节点中取值为 `action` 的节点数 |
+| 异常数 | `origin_data.attributes.span_type` | 统计子树中取值为 `error` 的节点数 |
+
+- Span 节点
+
+| 展示项 | 字段 | 说明 |
+|--------|------|------|
+| 标题 | `origin_data.span_name` | -- |
+| 时间 | `origin_data.start_time` | 微秒，展示为 `HH:mm:ss` |
+| 类型标签 | `origin_data.attributes.span_type`<br />`origin_data.attributes.resource.type` | Resource 展示为 `Resource(<resource.type>)` |
+| 耗时 | `origin_data.elapsed_time` | 微秒 |
+| 状态码 | `origin_data.attributes.http.response.status_code` | 仅 Resource 返回 |
+| 静态资源分组 | `origin_data.attributes.resource.type` | 相邻同级 Resource 中取值不为 `xhr` 或 `fetch` 的节点合并为一组 |
+| 筛选：动作 | `origin_data.attributes.span_type` | 取值为 `action` |
+| 筛选：请求 | `origin_data.attributes.resource.type` | 取值为 `xhr` 或 `fetch` |
+| 筛选：错误 | `origin_data.attributes.span_type`<br />`origin_data.attributes.outcome.type` | 任一取值为 `error` |
+
 ## 3 详情页关联数据获取
 
 ### 3.1 Action
@@ -1510,6 +1781,8 @@ POST /rum/search/statistics/
 | 发生次数 | `count` | `attributes.span_type` | `time_shifts=["0s"]` |
 | 影响会话数 | `distinct` | `attributes.session.id` | `time_shifts=["0s"]` |
 
+示例中当前 Error Span 的 `end_time` 换算为秒级时间戳后为 `1788451626`。
+
 ```json
 {
   "bk_biz_id": 2,
@@ -1518,10 +1791,10 @@ POST /rum/search/statistics/
   "group_name": "origin",
   "cal_type": "distinct",
   "field": "attributes.user.id",
-  "start_time": 1788448026,
-  "end_time": 1788451626,
+  "start_time": 1788365226,
+  "end_time": 1788538026,
   "baseline": "0s",
-  "time_shifts": ["0s", "3600s"],
+  "time_shifts": ["0s", "172800s"],
   "filters": [
     {"key": "attributes.span_type", "operator": "equal", "value": ["error"]},
     {"key": "attributes.code.filepath", "operator": "equal", "value": ["https://example.com/static/js/app.js"]},
@@ -1534,7 +1807,8 @@ POST /rum/search/statistics/
 ```
 
 - *[1] 共用示例中的 `filters`，其余参数按表替换。*
-- *[2] 影响面查询时间范围：页面所选时间范围。*
+- *[2] 影响面查询时间范围：`[当前 Error Span 的 end_time - 1d, 当前 Error Span 的 end_time + 1d]`；Span 的 `end_time` 需先从微秒换算为秒。*
+- *[3] 影响用户数与前一个同长度窗口比较；本例窗口长度为 `172800` 秒，因此比较偏移为 `172800s`。*
 
 响应示例（影响用户数）：
 
@@ -1545,8 +1819,8 @@ POST /rum/search/statistics/
     {
       "dimensions": {},
       "0s": 12,
-      "3600s": 10,
-      "growth_rates": {"0s": 0, "3600s": 20}
+      "172800s": 10,
+      "growth_rates": {"0s": 0, "172800s": 20}
     }
   ]
 }

@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import copy
 from typing import Any
 
 from api.cmdb.client import list_biz_hosts
-from bkmonitor.models import ApiAuthToken
-from bkmonitor.utils.request import get_app_code_by_request, get_request
-from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
-from kernel_api.middlewares.authentication import is_match_api_token
 
+from ._authorization import authorize_business
 from ._catalog import OperationSpec, ParamsGuardRejected, PlatformSourceCatalog, ProviderResponseRejected
 
 HOST_FIELDS = ("bk_host_id", "bk_cloud_id", "bk_host_innerip", "bk_host_innerip_v6", "bk_host_name")
@@ -18,45 +14,15 @@ MAX_PAGE_SIZE = 500
 ALLOWED_KEYS = frozenset({"bk_biz_id", "page", "page_size"})
 
 
+def _authorize_business(bk_biz_id: int) -> str:
+    """Keep the authorization import contract used by UQ, strategy management and DB reads."""
+    return authorize_business(bk_biz_id, query_name="CMDB")
+
+
 def _positive_integer(value: Any, name: str, maximum: int | None = None) -> int:
     if type(value) is not int or value <= 0 or (maximum is not None and value > maximum):
         raise ParamsGuardRejected(f"{name} 必须是正整数" + (f"，且不超过 {maximum}" if maximum else ""))
     return value
-
-
-def _authorize_business(bk_biz_id: int) -> str:
-    request = get_request(peaceful=True)
-    user = getattr(request, "user", None)
-    tenant = getattr(user, "tenant_id", None)
-    if not request or not getattr(user, "is_authenticated", False) or not tenant:
-        raise ParamsGuardRejected("CMDB 查询需要已认证的应用和请求租户")
-    try:
-        if bk_biz_id_to_bk_tenant_id(bk_biz_id) != tenant:
-            raise ParamsGuardRejected("目标业务不属于当前请求租户")
-        request_biz = getattr(request, "biz_id", None)
-        if request_biz and int(request_biz) != bk_biz_id:
-            raise ParamsGuardRejected("目标业务与请求业务不一致")
-        # catalog 的业务位于嵌套 params，中间件未解析该字段；两条认证路径
-        # 都必须针对实际目标重做业务授权，租户归属校验不能替代该检查。
-        authorization = request.META.get("HTTP_AUTHORIZATION", "")
-        if authorization.startswith("Bearer "):
-            record = ApiAuthToken.objects.filter(token=authorization[7:], bk_tenant_id=tenant).first()
-            if not record or record.is_expired() or not record.is_allowed_namespace(f"biz#{bk_biz_id}"):
-                raise ParamsGuardRejected("API Token 未获目标业务授权或已失效")
-        else:
-            jwt_app = getattr(getattr(request, "jwt", None), "app", None)
-            app_code = getattr(jwt_app, "app_code", None) or get_app_code_by_request(request)
-            if not app_code:
-                raise ParamsGuardRejected("CMDB 查询缺少已认证的应用身份")
-            scoped_request = copy.copy(request)
-            scoped_request.biz_id = bk_biz_id
-            if not is_match_api_token(scoped_request, tenant, app_code):
-                raise ParamsGuardRejected("当前应用未获目标业务授权")
-    except ParamsGuardRejected:
-        raise
-    except Exception as error:
-        raise ParamsGuardRejected("无法验证 CMDB 业务授权") from error
-    return tenant
 
 
 def guard_list_biz_hosts(params: Any) -> dict[str, Any]:
@@ -68,7 +34,7 @@ def guard_list_biz_hosts(params: Any) -> dict[str, Any]:
     bk_biz_id = _positive_integer(params.get("bk_biz_id"), "bk_biz_id")
     page = _positive_integer(params.get("page", 1), "page")
     page_size = _positive_integer(params.get("page_size", 50), "page_size", MAX_PAGE_SIZE)
-    tenant = _authorize_business(bk_biz_id)
+    tenant = authorize_business(bk_biz_id, query_name="CMDB")
     return {
         "bk_biz_id": bk_biz_id,
         "bk_tenant_id": tenant,

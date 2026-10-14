@@ -173,6 +173,38 @@ class TestJsonRetainExtraJson(TestCase):
         self.assertIn("client_ip", exclude_values)
         self.assertNotIn("src_ip", exclude_values)
 
+    def test_extra_json_delete_null_when_retain_content(self):
+        """保留清洗失败日志时 delete 应使用 null 策略，避免 json_de 输出 null 后整条被丢弃"""
+        etl_params = {"retain_original_text": True, "enable_retain_content": True, "retain_extra_json": True}
+        fields = [make_field("level")]
+        config = get_fresh_config()
+        result = self.storage.build_log_v4_data_link(fields, etl_params, config, build_test_field_list(fields, config))
+        rules = result["clean_rules"]
+        sep_rules = find_rules_by_output(rules, "bk_separator_object")
+        delete_rules = find_rules_by_type(rules, "delete")
+        self.assertEqual(sep_rules[0]["operator"]["error_strategy"], "null")
+        self.assertEqual(delete_rules[0]["operator"]["error_strategy"], "null")
+
+    def test_extra_json_delete_drop_without_retain_content(self):
+        """未保留清洗失败日志时 delete 与 json_de 一致使用 drop 策略"""
+        for etl_params in (
+            {"retain_original_text": False, "retain_extra_json": True},
+            {"retain_original_text": True, "retain_extra_json": True},
+            # enable_retain_content 是 retain_original_text 的子开关，单独开启不生效
+            {"retain_original_text": False, "enable_retain_content": True, "retain_extra_json": True},
+        ):
+            with self.subTest(etl_params=etl_params):
+                fields = [make_field("level")]
+                config = get_fresh_config()
+                result = self.storage.build_log_v4_data_link(
+                    fields, etl_params, config, build_test_field_list(fields, config)
+                )
+                rules = result["clean_rules"]
+                sep_rules = find_rules_by_output(rules, "bk_separator_object")
+                delete_rules = find_rules_by_type(rules, "delete")
+                self.assertEqual(sep_rules[0]["operator"]["error_strategy"], "drop")
+                self.assertEqual(delete_rules[0]["operator"]["error_strategy"], "drop")
+
     def test_extra_json_excludes_skip_deleted_fields(self):
         """is_delete=True 的字段不应出现在 exclude keys 中"""
         etl_params = {"retain_original_text": False, "retain_extra_json": True}

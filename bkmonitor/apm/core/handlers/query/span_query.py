@@ -55,6 +55,22 @@ class SpanQuery(BaseQuery):
         ]
         return self._query_list(queries, start_time, end_time, offset, limit)
 
+    def query_group_list(
+        self,
+        start_time: int,
+        end_time: int,
+        group_field: str,
+        offset: int = 0,
+        limit: int = BaseQuery.QUERY_MAX_LIMIT,
+    ) -> list[dict[str, Any]]:
+        """按指定字段折叠，返回每组 end_time 最大的完整 Span。
+
+        时间窗口以秒传入，保留共享结果表的应用隔离条件；offset / limit 限制折叠后的记录数，
+        返回达到 limit 不代表已枚举全部分组。
+        """
+        queries = [query.order_by(f"{OtlpKey.END_TIME} desc") for query in self.build_queries()]
+        return self._query_group_list(queries, start_time, end_time, group_field, offset, limit)
+
     def query_by_trace_id(
         self,
         trace_id: str,

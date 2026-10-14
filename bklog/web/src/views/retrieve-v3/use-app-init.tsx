@@ -501,7 +501,6 @@ export default () => {
               .dispatch('requestIndexSetFieldInfo')
               .then(resp => {
                 RetrieveHelper.fire(RetrieveEvent.TREND_GRAPH_SEARCH);
-                RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
 
                 if (
                   route.query.tab === 'origin' ||
@@ -534,6 +533,7 @@ export default () => {
                   RetrieveHelper.setSearchingValue(false);
                 }
 
+                RetrieveHelper.fire(RetrieveEvent.LEFT_FIELD_INFO_UPDATE);
                 setSearchMode();
                 setDefaultRouteUrl();
                 const { ids, isUnionIndex, items } = store.state.indexItem;

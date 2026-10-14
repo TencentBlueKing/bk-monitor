@@ -394,6 +394,26 @@ VARIABLES = [
             {"name": "alarm.collect_count", "desc": _lazy("汇总事件数量"), "example": "10"},
             {"name": "alarm.notice_from", "desc": _lazy("消息来源"), "example": _lazy("蓝鲸监控")},
             {"name": "alarm.current_value", "desc": _lazy("当前值"), "example": "1.1"},
+            {
+                "name": "alarm.ref_values",
+                "desc": _lazy("查询参考值"),
+                "example": {
+                    "A": {"value": 4, "state": "SUCCESS"},
+                    "B": {"value": 6, "state": "SUCCESS"},
+                    "C": {"value": 9, "state": "SUCCESS"},
+                    "RESULT": {"value": 10, "state": "SUCCESS"},
+                },
+            },
+            {
+                "name": 'alarm.ref_values.get("A", {}).get("value", "--")',
+                "desc": _lazy("查询参考值（A 为配置的输出名称）"),
+                "example": "4",
+            },
+            {
+                "name": 'alarm.ref_values.get("A", {}).get("state", "MISSING")',
+                "desc": _lazy("查询参考值状态（A 为配置的输出名称）"),
+                "example": "SUCCESS",
+            },
             {"name": "alarm.target_type", "desc": _lazy("目标类型"), "example": "IP/INSTANCE/TOPO"},
             {"name": "alarm.target_type_name", "desc": _lazy("目标类型名称"), "example": _lazy("IP/实例/节点")},
             {
