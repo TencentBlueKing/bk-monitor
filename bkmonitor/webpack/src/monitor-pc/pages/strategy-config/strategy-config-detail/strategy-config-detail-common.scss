@@ -158,39 +158,6 @@ $levelColor: #ea3636 #ff9c01 #699df4;
           }
         }
 
-        .promql-content {
-          .edit-wrap {
-            position: relative;
-
-            // height: 160px;
-            // min-height: 160px;
-            // overflow-y: auto;
-            // background-color: #fff;
-            // border: 1px solid #dcdee5;
-          }
-
-          .step-wrap {
-            display: block;
-            margin: 10px 0 0;
-
-            .step-input {
-              width: 205px;
-
-              .step-input-prepend {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 96px;
-                height: 100%;
-                font-size: 12px;
-
-                .icon-hint {
-                  margin-left: 8px;
-                }
-              }
-            }
-          }
-        }
       }
 
       .algorithms-wrap {

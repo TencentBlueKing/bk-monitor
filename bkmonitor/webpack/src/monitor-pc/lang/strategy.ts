@@ -26,7 +26,39 @@
 
 // 策略模块个性化的词条
 export default {
+  添加查询: 'Add query',
+  请填写计算表达式: 'Enter an expression',
   'strategy-目标IP': 'Target IP',
   'strategy-云区域ID': 'Cloud ID',
   'strategy-主机ID': 'Host ID',
+  '查询 {alias} 不能为空，请填写 PromQL 或删除该查询。': 'Query {alias} is empty. Enter PromQL or delete the query.',
+  '查询 {alias} 的 PromQL 语法有误，请检查。': 'Invalid PromQL syntax in query {alias}. Please check the query.',
+  '表达式语法有误，请检查。': 'Invalid expression syntax. Please check the expression.',
+  '时间范围、offset 和标签过滤请填写在各条 PromQL 查询中。':
+    'Specify ranges, offset and label filters in individual PromQL queries.',
+  '表达式引用了不存在的查询 {alias}，请修改表达式或添加查询。':
+    'The expression references unknown query {alias}. Edit the expression or add a query.',
+  '单查询表达式应为 {alias}；复杂计算请填写在 PromQL 查询中。':
+    'The expression for a single query must be {alias}. Put complex calculations in the PromQL query.',
+  '表达式需引用全部查询，尚未引用：{alias}。': 'The expression must reference all queries. Missing: {alias}.',
+  '查询 {alias} 已删除，表达式仍引用 {alias}。请修改表达式后再查询或提交。':
+    'Query {alias} was deleted but is still referenced. Update the expression before querying or saving.',
+  '单查询默认使用 {alias} 的结果；可继续添加查询并设置表达式。':
+    'A single query uses the result of {alias}. Add more queries to configure an expression.',
+  '新增查询 {alias}；填写后可在表达式中引用，原表达式保持不变。':
+    'Added query {alias}. Fill it in and reference it in the expression. The original expression remains unchanged.',
+  '已添加 {count} 条查询，可继续添加；表达式需引用全部查询的别名。':
+    '{count} queries added. You can add more; the expression must reference all query aliases.',
+  '删除查询 {alias}？': 'Delete query {alias}?',
+  '查询 {alias} 正被表达式 {expression} 引用。': 'Query {alias} is referenced by expression {expression}.',
+  '删除后需修正表达式；其他查询的别名不会改变。':
+    'Update the expression after deleting. Other query aliases will remain unchanged.',
+  删除并修改公式: 'Delete and edit expression',
+  无法无损切换为表单: 'Cannot switch to form without data loss',
+  '当前查询包含表单无法完整表达的内容。': 'The current queries contain content that the form cannot fully represent.',
+  '已保留全部 PromQL 与表达式，请继续在当前模式编辑。':
+    'All PromQL queries and the expression are preserved. Continue editing in the current mode.',
+  '继续编辑 PromQL': 'Continue editing PromQL',
+  '历史多 PromQL 查询配置仅可查看；其他策略设置可正常保存。查询请通过 API 或 as-code 修改。':
+    'Legacy multi-PromQL queries are read-only. Other strategy settings can be saved. Edit queries through the API or as-code.',
 };
