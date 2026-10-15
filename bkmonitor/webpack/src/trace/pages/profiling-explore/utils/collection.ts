@@ -75,7 +75,7 @@ export function createCollectionDraft(meta: CollectionMeta, timezone: string, ta
     executeAt: schedule && schedule.type !== 'cron' ? schedule.execute_at : null,
     startAt: schedule?.type === 'cron' ? schedule.effective_start_at : null,
     endAt: schedule?.type === 'cron' ? schedule.effective_end_at : null,
-    cron: schedule?.type === 'cron' ? schedule.cron_expression : '',
+    cron: schedule?.type === 'cron' ? schedule.cron_expression : meta.schedule?.cron?.cron_expression ?? '',
     timezone: schedule?.timezone || timezone,
   };
   if (selector) {
