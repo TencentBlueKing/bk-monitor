@@ -21,6 +21,7 @@ from rest_framework.fields import empty
 
 from bkmonitor.models import ActionConfig, ActionPlugin, UserGroup
 from bkmonitor.utils.template import Jinja2Renderer
+from bkmonitor.utils.template_ref_values import RefValueTemplateError, validate_ref_value_template
 from constants.action import (
     ALL_CONVERGE_DIMENSION,
     CONVERGE_FUNCTION,
@@ -181,6 +182,10 @@ class TemplateSerializer(serializers.Serializer):
     @staticmethod
     def validate_title_tmpl(value):
         try:
+            validate_ref_value_template(value)
+        except (RefValueTemplateError, TemplateSyntaxError) as error:
+            raise CreateStrategyError(msg=str(error)) from error
+        try:
             Jinja2Renderer.render(value, {})
         except TemplateSyntaxError:
             raise CreateStrategyError(msg=_("通知自定义标题格式不正确，请重新确认"))
@@ -190,6 +195,10 @@ class TemplateSerializer(serializers.Serializer):
 
     @staticmethod
     def validate_message_tmpl(value):
+        try:
+            validate_ref_value_template(value)
+        except (RefValueTemplateError, TemplateSyntaxError) as error:
+            raise CreateStrategyError(msg=str(error)) from error
         try:
             Jinja2Renderer.render(value, {})
         except TemplateSyntaxError:

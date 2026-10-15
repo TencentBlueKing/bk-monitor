@@ -57,6 +57,75 @@ def test_page_save_generates_default_for_all_queries_including_unused_alias(mock
     }
 
 
+def test_notice_preview_reuses_new_page_defaults_without_writing(mocker):
+    from fta_web.action.resources.frontend_resources import RenderNoticeTemplate
+
+    item = _promql_item("a", "b", "c")
+    config = RenderNoticeTemplate.get_output_config({"bk_biz_id": 2, "preview_item": item})
+    assert [output["reference_name"] for output in config["output_list"]] == ["A", "B", "C", "RESULT"]
+    assert "query_output_config" not in item
+
+
+def test_notice_preview_tracks_edited_defaults_but_keeps_explicit_null(mocker):
+    from fta_web.action.resources.frontend_resources import RenderNoticeTemplate
+    from monitor_web.strategies.resources.v2 import SaveStrategyForPageResource
+
+    old_config = SaveStrategyForPageResource.default_output_config(_promql_item("a", "b"))
+    _mock_persisted_item(mocker, meta={"query_output_config": old_config})
+    params = {
+        "bk_biz_id": 2,
+        "strategy_id": 9,
+        "preview_item": _promql_item("a", "b", "c", expression="a - b", id=101, query_output_config=old_config),
+    }
+    result = RenderNoticeTemplate.get_output_config(params)
+    assert result["output_list"][-1] == {"reference_name": "RESULT", "expression": "a - b"}
+    assert result["output_list"][2] == {"reference_name": "C", "expression": "c"}
+    params["preview_item"]["query_output_config"] = None
+    assert RenderNoticeTemplate.get_output_config(params) is None
+
+
+def test_notice_preview_keeps_omitted_custom_config_and_disabled_legacy_item(mocker):
+    from fta_web.action.resources.frontend_resources import RenderNoticeTemplate
+
+    custom = {
+        "response_contract": "named_outputs/v1",
+        "legacy_output_ref": "RESULT",
+        "output_list": [
+            {"reference_name": "detail", "expression": "a"},
+            {"reference_name": "RESULT", "expression": "a + b"},
+        ],
+    }
+    params = {"bk_biz_id": 2, "strategy_id": 9, "preview_item": _promql_item("a", "b", id=101)}
+    _mock_persisted_item(mocker, meta={"query_output_config": custom})
+    assert RenderNoticeTemplate.get_output_config(params) == custom
+    _mock_persisted_item(mocker, meta={})
+    assert RenderNoticeTemplate.get_output_config(params) is None
+
+
+def test_notice_preview_validates_reference_config_and_draft_schema():
+    from fta_web.action.resources.frontend_resources import RenderNoticeTemplate
+
+    serializer = RenderNoticeTemplate.RequestSerializer(
+        data={"template": "legacy", "preview_item": {"query_configs": []}}
+    )
+    assert not serializer.is_valid()
+    with pytest.raises(ValidationError):
+        RenderNoticeTemplate.get_output_config(
+            {"query_output_config": {"response_contract": "unknown", "output_list": []}}
+        )
+
+
+def test_notice_preview_supports_signed_space_business_ids():
+    from fta_web.action.resources.frontend_resources import RenderNoticeTemplate
+
+    serializer = RenderNoticeTemplate.RequestSerializer(
+        data={"template": "{{alarm.ref_values.a.value}}", "bk_biz_id": -42, "preview_item": _promql_item("a", "b")}
+    )
+    assert serializer.is_valid(), serializer.errors
+    config = RenderNoticeTemplate.get_output_config(serializer.validated_data)
+    assert config["output_list"][0]["reference_name"] == "A"
+
+
 def test_page_save_uses_effective_expression_with_functions(mocker):
     item = _promql_item("a", "b", functions=[{"id": "abs", "params": []}])
 
