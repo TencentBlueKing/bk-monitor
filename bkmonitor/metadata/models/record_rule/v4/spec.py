@@ -15,6 +15,7 @@ from typing import Any, cast
 
 from django.db import transaction
 
+from metadata import config
 from metadata.models.record_rule.v4.models import (
     RecordRuleV4,
     RecordRuleV4Spec,
@@ -70,7 +71,7 @@ class RecordRuleV4SpecBuilder:
             "labels": group_labels,
         }
 
-        with transaction.atomic():
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
             spec = RecordRuleV4Spec.objects.create(
                 rule=self.rule,
                 bk_tenant_id=self.rule.bk_tenant_id,
