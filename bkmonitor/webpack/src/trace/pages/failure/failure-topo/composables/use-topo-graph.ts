@@ -46,6 +46,7 @@ import { type ICombo, type IG6GraphEvent, type INode, type Item, Arrow, Graph } 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { debounce } from 'throttle-debounce';
 
+import { isDirectedEdge } from '../edge-relation';
 import ElkjsUtils from '../graph/elkjs-utils';
 import { clearAllG6Animations, registerAllAfterGraph, registerAllBeforeGraph } from '../graph/register-all';
 import { clearEdgeIntervals } from '../graph/topo-edge';
@@ -409,8 +410,8 @@ export function useTopoGraph(
       };
     });
     graph.edge((cfg: any) => {
-      const { is_anomaly, edge_type, anomaly_score, source, target } = cfg;
-      const isInvoke = edge_type === 'ebpf_call';
+      const { is_anomaly, anomaly_score, source, target } = cfg;
+      const isDirected = isDirectedEdge(cfg);
       const color = is_anomaly ? '#F55555' : '#63656E';
       const isSelfLoop = source === target;
 
@@ -420,17 +421,15 @@ export function useTopoGraph(
         style: {
           cursor: 'pointer',
           lineAppendWidth: 15,
-          endArrow:
-            isInvoke || is_anomaly
-              ? {
-                  path: Arrow.triangle(10, 10, 0),
-                  d: 0,
-                  fill: color,
-                  stroke: color,
-                  lineDash: [0, 0],
-                }
-              : false,
-          // fill: isInvoke ? '#F55555' : '#63656E',
+          endArrow: isDirected
+            ? {
+                path: Arrow.triangle(10, 10, 0),
+                d: 0,
+                fill: color,
+                stroke: color,
+                lineDash: [0, 0],
+              }
+            : false,
           stroke: color,
           lineWidth: is_anomaly ? (anomaly_score > 0 ? 3 : 1.5) : 1,
           lineDash: is_anomaly ? [4, 2] : false,

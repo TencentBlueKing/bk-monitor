@@ -446,7 +446,6 @@ export default defineComponent({
                 <AggregatedEdgesList
                   key={edge.id}
                   edge={edge}
-                  edgeType={edge.edge_type}
                   onClick={this.showEdgeDetail}
                 />
               ))}

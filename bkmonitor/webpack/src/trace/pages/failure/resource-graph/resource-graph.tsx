@@ -34,6 +34,7 @@ import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 
 import ExceptionComp from '../../../components/exception';
+import { isDirectedEdge } from '../failure-topo/edge-relation';
 import { NODE_TYPE_SVG } from '../failure-topo/node-type-svg';
 import FailureTopoTooltips from '../failure-topo/tooltip/failure-topo-tooltips';
 import TopoTooltip from '../failure-topo/tooltip/resource-tooltip-plugin';
@@ -1061,8 +1062,8 @@ export default defineComponent({
         };
       });
       graph.edge((cfg: any) => {
-        const { is_anomaly, edge_type } = cfg;
-        const isInvoke = edge_type === 'ebpf_call';
+        const { is_anomaly } = cfg;
+        const isDirected = isDirectedEdge(cfg);
         const color = is_anomaly ? '#F55555' : '#63656E';
         const edg = {
           ...cfg,
@@ -1070,17 +1071,15 @@ export default defineComponent({
           style: {
             cursor: 'pointer',
             lineAppendWidth: 15,
-            endArrow:
-              isInvoke || is_anomaly
-                ? {
-                    path: Arrow.triangle(12, 12, 0),
-                    d: 0,
-                    fill: color,
-                    stroke: color,
-                    lineDash: [0, 0],
-                  }
-                : false,
-            // fill: isInvoke ? '#F55555' : '#63656E',
+            endArrow: isDirected
+              ? {
+                  path: Arrow.triangle(12, 12, 0),
+                  d: 0,
+                  fill: color,
+                  stroke: color,
+                  lineDash: [0, 0],
+                }
+              : false,
             stroke: color,
             lineWidth: is_anomaly ? 2 : 1,
             lineDash: is_anomaly ? [4, 2] : false,

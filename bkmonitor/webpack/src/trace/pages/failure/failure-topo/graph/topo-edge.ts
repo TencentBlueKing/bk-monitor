@@ -31,6 +31,7 @@
 
 import { registerEdge } from '@antv/g6';
 
+import { isDirectedEdge } from '../edge-relation';
 import { createConnectedParallelCurves } from '../utils';
 
 import type { EdgeIntervalItem } from '../types/g6';
@@ -111,9 +112,9 @@ const edgeUtils = {
    */
   handleEdgeAnimation(shape: any, item: Item, cfg: EdgeBizCfg) {
     // biome-ignore lint/complexity/noForEach: <explanation>
-    const { is_anomaly, anomaly_score, events, edge_type } = cfg;
+    const { is_anomaly, anomaly_score, events } = cfg;
     const lineDash = anomaly_score === 0 ? [6] : [10];
-    if (is_anomaly && events?.[0] && edge_type === 'ebpf_call') {
+    if (is_anomaly && events?.[0] && isDirectedEdge(cfg)) {
       const { direction } = events[0];
       let index = 0;
       // 这里改为定时器执行，自带的动画流动速度控制不了
