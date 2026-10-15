@@ -199,10 +199,15 @@ if locals()["RUN_VER"] == "open":
     # 从 apigw jwt 中获取 username 的 键
     APIGW_USER_USERNAME_KEY = "bk_username"
 
-    # PAASV2对外版不需要bkoauth,DISABLED_APPS加入bkoauth
-    INSTALLED_APPS = (
-        INSTALLED_APPS[0 : INSTALLED_APPS.index("bkoauth")] + INSTALLED_APPS[INSTALLED_APPS.index("bkoauth") + 1 :]
-    )
+    # Open 按需接入 SSM，复用 bkoauth 的用户 Token 持久化和后台续期。
+    # 配置基址（不含 /api/v1/auth/access-tokens）；未配置时保持原有禁用行为。
+    OAUTH_API_URL = os.getenv("OAUTH_API_URL") or locals().get("OAUTH_API_URL", "")
+    if OAUTH_API_URL:
+        BKAUTH_BACKEND_TYPE = "bk_token"
+        # bkoauth 优先读取同名环境变量，可覆盖默认 Cookie 映射。
+        OAUTH_COOKIES_PARAMS = {"bk_token": "bk_token"}
+    else:
+        INSTALLED_APPS = tuple(app for app in INSTALLED_APPS if app != "bkoauth")
 
     # 请求官方 API 默认版本号，可选值为："v2" 或 ""；其中，"v2"表示规范化API，
     # ""表示未规范化API.如果外面设置了该值则使用设置值,否则默认使用v2
