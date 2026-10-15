@@ -25,7 +25,7 @@
  */
 import { type PropType, defineComponent } from 'vue';
 
-import { Button, Sideslider } from 'bkui-vue';
+import { Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import CollectionConfiguration from './collection-configuration';
@@ -49,6 +49,17 @@ export default defineComponent({
   render() {
     const task = this.task;
     const schedule = task.schedule;
+    const action = (icon: string, label: string, disabled: boolean, danger: boolean, onClick: () => void) => (
+      <button
+        class={['collection-detail-action', { 'is-danger': danger }]}
+        disabled={disabled}
+        type='button'
+        onClick={onClick}
+      >
+        <i class={`icon-monitor ${icon}`} />
+        <span>{this.t(label)}</span>
+      </button>
+    );
     return (
       <Sideslider
         width='min(640px, 100vw)'
@@ -60,43 +71,31 @@ export default defineComponent({
         {{
           header: () => (
             <div class='collection-detail-header'>
-              <span>{this.t('定时任务详情')}</span>
-              <span
-                class='collection-detail-name'
-                title={task.name}
-              >
-                {task.name}
-              </span>
-              <div class='collection-detail-actions'>
-                <Button
-                  disabled={this.readonly || this.busy}
-                  theme='primary'
-                  text
-                  onClick={() => this.$emit('edit')}
+              <div class='collection-detail-title'>
+                <span>{this.t('定时任务详情')}</span>
+                <span class='collection-detail-divider' />
+                <span
+                  class='collection-detail-name'
+                  title={task.name}
                 >
-                  {this.t('编辑')}
-                </Button>
+                  {task.name}
+                </span>
+              </div>
+              <div class='collection-detail-actions'>
+                {action('icon-mc-edit', '编辑', this.readonly || this.busy, false, () => this.$emit('edit'))}
                 <span v-tippy={{ content: this.t('指定时间无执行记录'), onShow: () => schedule.type !== 'cron' }}>
-                  <Button
-                    disabled={schedule.type !== 'cron'}
-                    theme='primary'
-                    text
-                    onClick={() => this.$emit('history')}
-                  >
-                    {this.t('执行记录')}
-                  </Button>
+                  {action('icon-mc-history', '执行记录', schedule.type !== 'cron', false, () => this.$emit('history'))}
                 </span>
                 <span
                   v-tippy={{ content: this.t('请先停用任务后再删除'), onShow: () => task.task_status !== 'disabled' }}
                 >
-                  <Button
-                    disabled={this.readonly || this.busy || task.task_status !== 'disabled'}
-                    theme='danger'
-                    text
-                    onClick={() => this.$emit('delete')}
-                  >
-                    {this.t('删除')}
-                  </Button>
+                  {action(
+                    'icon-mc-delete-line',
+                    '删除',
+                    this.readonly || this.busy || task.task_status !== 'disabled',
+                    true,
+                    () => this.$emit('delete')
+                  )}
                 </span>
               </div>
             </div>
