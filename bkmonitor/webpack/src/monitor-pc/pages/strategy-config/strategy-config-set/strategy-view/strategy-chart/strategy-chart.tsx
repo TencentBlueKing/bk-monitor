@@ -269,13 +269,20 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   @Emit('logQuery')
   handleLogQuery() {}
 
-  /** 图表 title：存在表达式时直接展示表达式，单指标展示指标名 */
+  /** 图表 title：PromQL 模式直接展示表达式；表单模式将表达式别名替换为指标中文名，取不到回落别名 */
   getMetricName() {
-    // 单指标时表达式就是该指标的别名，展示指标名
-    if (this.metricData?.length === 1) {
-      return this.metricData[0].metric_field_name || this.getExpression();
-    }
-    return this.getExpression();
+    const expression = this.getExpression()?.trim() || '';
+    if (this.editMode === 'Source') return expression;
+    // 字符串分隔成多个单词
+    return expression.replace(/\b\w+\b/g, alias =>
+      // 单词分隔成多个关键字
+      alias.replace(/bool|and|or|\w/gi, keyword => {
+        if (['bool', 'or', 'and'].includes(keyword.toLocaleLowerCase())) return keyword;
+        const metric = this.metricData.find(item => item.alias === keyword);
+        if (metric) return metric.metric_field_name || keyword;
+        return keyword || '';
+      })
+    );
   }
 
   /**
