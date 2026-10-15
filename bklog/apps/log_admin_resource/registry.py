@@ -1,3 +1,6 @@
+from collections.abc import Callable
+from typing import Any
+
 from django.conf import settings
 
 from apps.exceptions import PermissionError as BklogPermissionError
@@ -29,6 +32,12 @@ from apps.log_admin_resource.handlers.bkdata_inspection import (
     get_bkdata_clean_snapshot,
     get_bkdata_flow_snapshot,
     get_bkdata_raw_snapshot,
+)
+from apps.log_admin_resource.handlers.datalink_control_plane import (
+    FUNC_NAME as DATALINK_CONTROL_PLANE_FUNC_NAME,
+    PARAMS_SCHEMA as DATALINK_CONTROL_PLANE_PARAMS_SCHEMA,
+    RESPONSE_SCHEMA as DATALINK_CONTROL_PLANE_RESPONSE_SCHEMA,
+    get_datalink_control_plane_snapshot,
 )
 from apps.log_admin_resource.handlers.async_export import (
     FUNCTIONS as ASYNC_EXPORT_FUNCTIONS,
@@ -606,6 +615,16 @@ FUNCTIONS = {
     },
 }
 FUNCTIONS.update(PLATFORM_SOURCE_FUNCTIONS)
+FUNCTIONS[DATALINK_CONTROL_PLANE_FUNC_NAME] = {
+    "func_name": DATALINK_CONTROL_PLANE_FUNC_NAME,
+    "validate_params": True,
+    "description": "Read tenant-scoped Data ID, GSE, Kafka and BKBase V4 control-plane evidence and verify actual resource references.",
+    "safety_level": "inspect",
+    "data_classification": "control_plane",
+    "params_schema": DATALINK_CONTROL_PLANE_PARAMS_SCHEMA,
+    "response_schema": DATALINK_CONTROL_PLANE_RESPONSE_SCHEMA,
+    "examples": [{"params": {"bk_data_id": 1}}],
+}
 FUNCTIONS.update(COLLECTOR_EVIDENCE_FUNCTIONS)
 FUNCTIONS.update(INDEX_SET_ROUTE_FUNCTIONS)
 FUNCTIONS.update(ASYNC_EXPORT_FUNCTIONS)
@@ -618,7 +637,7 @@ FUNCTIONS.update(IAM_DECISION_FUNCTIONS)
 FUNCTIONS.update(MONITOR_STRATEGY_FUNCTIONS)
 FUNCTIONS.update(RUNTIME_FUNCTIONS)
 
-HANDLERS = {
+HANDLERS: dict[str, Callable[..., Any]] = {
     "bklog.collector.list": list_collectors,
     "bklog.collector.detail": get_collector_detail,
     "bklog.collector.storage.preview": preview_collector_storage,
@@ -640,6 +659,7 @@ HANDLERS = {
     "bklog.bkdata.result_table.snapshot_batch": batch_get_bkdata_result_table_snapshots,
 }
 HANDLERS.update(PLATFORM_SOURCE_HANDLERS)
+HANDLERS[DATALINK_CONTROL_PLANE_FUNC_NAME] = get_datalink_control_plane_snapshot
 HANDLERS.update(COLLECTOR_EVIDENCE_HANDLERS)
 HANDLERS.update(INDEX_SET_ROUTE_HANDLERS)
 HANDLERS.update(ASYNC_EXPORT_HANDLERS)

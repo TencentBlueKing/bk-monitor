@@ -62,7 +62,7 @@ export default defineComponent({
     /** 从 store 获取当前选中进程名称和进程指标汇聚状态 */
     const { hostProcessName, processMetricAggregationState, hostProcessKeyword: keyword } = storeToRefs(useHostStore());
     /** 进程列表数据 hook（含加载状态、搜索、排序） */
-    const { loadError, loading, displayList, sortInfo, loadData, handleKeywordChange, handleSortChange } =
+    const { loadError, loading, refreshing, refreshError, displayList, sortInfo, loadData, handleKeywordChange, handleSortChange } =
       useProcessList({
         host: toRef(props, 'host'),
         /**
@@ -121,6 +121,8 @@ export default defineComponent({
       t,
       loadData,
       loadError,
+      refreshing,
+      refreshError,
       loading: loading,
       keyword: keyword,
       displayList: displayList,
@@ -152,7 +154,9 @@ export default defineComponent({
         <ProcessTable
           columnWidths={this.fieldsWidthConfig}
           data={this.displayList}
-          emptyType={this.loadError ? '500' : this.keyword ? 'search-empty' : 'empty'}
+          emptyType={this.loadError && !this.refreshError ? '500' : this.keyword ? 'search-empty' : 'empty'}
+          refreshing={this.refreshing}
+          refreshError={this.refreshError}
           loading={this.loading}
           sort={this.sortInfo}
           visibleColumns={this.visibleColumns}
@@ -166,6 +170,7 @@ export default defineComponent({
         {!this.host?.metadataPending && (
           <ProcessDetail
             compareHostList={this.compareHostList}
+            infoLoading={this.loading}
             process={this.activeProcess}
             selectedNode={this.host}
             show={this.detailShow}

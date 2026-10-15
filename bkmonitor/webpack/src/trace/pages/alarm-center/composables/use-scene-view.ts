@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, shallowRef, watchEffect } from 'vue';
+import { type MaybeRef, shallowRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 
@@ -43,18 +43,26 @@ export const useSceneView = (bizId: MaybeRef<number>, type: string) => {
   /** 是否处于请求加载状态 */
   const loading = shallowRef(false);
 
-  /**
-   * @description 获取仪表盘数据数组
-   */
-  const getDashboardPanels = async () => {
+  const error = shallowRef(false);
+  const revision = shallowRef(0);
+  watch([() => get(bizId), revision], async (_, __, onCleanup) => {
+    let active = true;
+    onCleanup(() => { active = false; });
     loading.value = true;
-    const model = await getDetailSceneView(get(bizId), type);
-    dashboards.value = model?.panels ?? [];
-    loading.value = false;
-  };
-
-  watchEffect(getDashboardPanels);
+    error.value = false;
+    dashboards.value = null;
+    try {
+      const model = await getDetailSceneView(get(bizId), type);
+      if (active) dashboards.value = model?.panels ?? [];
+    } catch {
+      if (active) error.value = true;
+    } finally {
+      if (active) loading.value = false;
+    }
+  }, { immediate: true });
   return {
+    error,
+    retry: () => { revision.value++; },
     dashboards,
     loading,
   };

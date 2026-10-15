@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from unittest.mock import Mock
 
 from bkmonitor.utils.send import ChannelBkchatSender, Sender
+from bkmonitor.utils.template import AlarmNoticeTemplate
 from constants.action import NoticeChannel, NoticeWay
 from core.errors.api import BKAPIError
 
@@ -187,3 +188,33 @@ def test_send_wxwork_falls_back_to_user_id_when_display_info_fails(settings, mon
 
     assert result["errcode"] == 0
     assert "<@xxx_id_1>" in post.call_args.kwargs["json"]["markdown"]["content"]
+
+
+def test_recovered_markdown_templates_use_green_status():
+    context = {
+        "action": None,
+        "notice_way": NoticeWay.WX_BOT,
+        "content_template": "**内容: **测试",
+        "default_content_template": "",
+        "title_template": "",
+        "default_title_template": "",
+        "alarm": SimpleNamespace(collect_count=2, detail_url="https://example.com", strategy_url=""),
+        "alert": SimpleNamespace(alert_name="测试告警"),
+        "level_name": "致命",
+    }
+
+    action_content = AlarmNoticeTemplate("notice/recovered/action/markdown_content.jinja").render(context)
+    converge_content = AlarmNoticeTemplate("notice/recovered/converge/markdown_content.jinja").render(context)
+
+    assert '<font color="info">[已恢复]</font>' in action_content
+    assert "</font> [致命] 测试告警" in action_content
+    assert '<font color="info">已恢复</font>2条致命告警' in converge_content
+    assert "详情：[汇总详情](https://example.com)" in converge_content
+    assert "**内容: **测试" in action_content
+    assert "**内容: **测试" in converge_content
+
+
+def test_recovered_markdown_template_has_english_variant():
+    template_path = Sender.get_language_template_path("notice/recovered/action/markdown_content.jinja", "en")
+
+    assert template_path == "notice/recovered/action/markdown_content_en.jinja"

@@ -25,7 +25,6 @@
  */
 import { type PropType, computed, defineComponent, nextTick, onBeforeUnmount, toRef, useTemplateRef, watch } from 'vue';
 
-import { Loading } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import ExploreFieldSetting from '../../../trace-explore/components/explore-field-setting/explore-field-setting';
@@ -34,6 +33,7 @@ import ExploreConditionMenu from '../../../trace-explore/components/trace-explor
 import { type IStatisticsFieldItem, useFieldStatisticsPopover } from '../../composables/use-field-statistics-popover';
 import { RUM_EXPLORE_VIEW_CLASS, RumModeEnum } from '../../constants';
 import { statisticsApi } from '../../services/rum-search';
+import { renderRumLoadingCell, RUM_TABLE_SKELETON_ROW_COUNT } from '../rum-explore-skeleton/rum-explore-skeleton';
 import { useCellConditionMenu } from './hooks/use-cell-condition-menu';
 import { useScenarioRenderer } from './hooks/use-scenario-renderer';
 import { useTableScrollOptimize } from '@/hooks/use-table-scroll-optimize';
@@ -87,7 +87,7 @@ export default defineComponent({
       type: Boolean,
       default: true,
     },
-    /** 表格初始加载状态（用于展示全屏 loading） */
+    /** 首次加载展示列骨架，同一查询刷新时保留已有行 */
     loading: {
       type: Boolean,
       default: false,
@@ -97,7 +97,7 @@ export default defineComponent({
       type: Boolean,
       default: false,
     },
-    /** 是否还有更多数据，控制触底加载与 loading 提示展示 */
+    /** 是否还有更多数据，控制触底加载 */
     hasMore: {
       type: Boolean,
       default: false,
@@ -144,8 +144,20 @@ export default defineComponent({
     horizontalScrollAffixedBottom: {
       type: [Boolean, Object] as PropType<boolean | TdAffixProps>,
     },
+    /** 激活行 key（当前为 events 抽屉打开时的行 span_id）：整行高亮，空串表示无激活行 */
+    activeRowKey: {
+      type: String,
+      default: '',
+    },
+    /** 激活的 events 列键：与 activeRowKey 成对传入，命中单元格中蓝高亮 */
+    activeColKey: {
+      type: String,
+      default: '',
+    },
   },
   emits: {
+    /** 点击 events.* 列单元格，回传该行数据与列键，供上层打开 events 数组列表抽屉 */
+    eventsCellClick: (_target: { colKey: string; row: IRumSpanRecord }) => true,
     /** 点击单元格筛选值或统计列表触发，回传检索条件 */
     conditionChange: (_condition: ConditionChangeEvent) => true,
     /** 字段设置变更，回传新的展示字段列表 */
@@ -158,6 +170,10 @@ export default defineComponent({
     scrollToEnd: () => true,
     /** 点击清空检索条件 */
     clearFilter: () => true,
+    /** 点击 Span 名称，打开该行的详情抽屉 */
+    openDetail: (_row: Record<string, unknown>) => true,
+    /** 高亮行变化回调（透传 CommonTable activeChange）：行点击 / 键盘高亮时回传，高亮状态由上层维护 */
+    activeChange: (rowKeys: Array<number | string>) => Array.isArray(rowKeys),
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -195,7 +211,12 @@ export default defineComponent({
       {
         fieldMap,
         hoverPopoverTools,
+        /** 传 toRef 引用而非裸值：场景实例按 mode 缓存，裸值会在构造时冻结；渲染时由场景内 get() 解包取最新值 */
+        activeRowKey: toRef(props, 'activeRowKey'),
+        activeColKey: toRef(props, 'activeColKey'),
+        onEventsCellClick: (row, colKey) => emit('eventsCellClick', { colKey, row }),
         onCellFilter: (colKey, value) => emit('conditionChange', { key: colKey, method: 'equal', value }),
+        onOpenDetail: row => emit('openDetail', row),
         onFieldAnalysis: (trigger, field) => openPopover(trigger, field as unknown as IStatisticsFieldItem),
       }
     );
@@ -222,6 +243,9 @@ export default defineComponent({
 
     /** 当前展示列的字段 key 列表，供字段设置组件使用 */
     const displayFieldKeys = computed(() => props.baseColumns.map(col => col.colKey));
+
+    /** 受控高亮行 keys：行点击 / 键盘高亮与 events / span 详情抽屉共用（activeRowKey）；computed 保持引用稳定，避免重复触发 CommonTable 同步 */
+    const activeRowKeys = computed(() => (props.activeRowKey ? [props.activeRowKey] : []));
 
     /**
      * @description 滚动触底加载更多
@@ -298,10 +322,29 @@ export default defineComponent({
       destroyPopover();
     });
 
+    watch(
+      () => props.scrollLoading,
+      loading => {
+        if (!loading) isRequestingLock = false;
+      }
+    );
+
+    watch(
+      () => props.loading,
+      loading => {
+        if (!loading) return;
+        scrollTopBeforeLoad = null;
+        destroyPopover();
+        hoverPopoverTools.hidePopover();
+        hideMenu();
+      }
+    );
+
     return {
       t,
       activeConditionMenuTarget,
       activeFieldName,
+      activeRowKeys,
       closeMenu,
       columns,
       defaultGetCellValue,
@@ -317,79 +360,115 @@ export default defineComponent({
     };
   },
   render() {
+    const showSkeleton = this.loading && !this.data.length;
     return (
-      <div class='rum-explore-table-wrap'>
-        <CommonTable
-          ref='tableRef'
-          class={`rum-explore-table ${this.tableScenarioClassName}`}
-          columns={[
-            ...this.columns,
-            ...(this.showSettings
-              ? ([
-                  {
-                    colKey: '__col_setting__',
-                    width: 32,
-                    minWidth: 32,
-                    fixed: 'right',
-                    align: 'center',
-                    resizable: false,
-                    thClassName: '__table-custom-setting-col__',
-                    title: (() =>
-                      (
-                        <ExploreFieldSetting
-                          class='table-field-setting'
-                          defaultFields={this.defaultFieldKeys}
-                          dragHandle='.list-item-left'
-                          fixedDisplayList={this.fixedDisplayList}
-                          popoverTheme='rum-explore-field-setting'
-                          showFieldName={true}
-                          sourceList={this.displayableFields}
-                          targetList={this.displayFieldKeys}
-                          onConfirm={fields => this.$emit('displayFieldChange', fields)}
-                        />
-                      ) as unknown as SlotReturnValue) as BaseTableColumn['title'],
-                    cellRenderer: () => null,
-                  },
-                ] as BaseTableColumn[])
-              : []),
-          ]}
-          empty={() =>
-            (
-              <ExploreTableEmpty
-                showOperation={this.emptyType === 'search-empty'}
-                type={this.emptyType}
-                onClearFilter={() => this.$emit('clearFilter')}
-              />
-            ) as unknown as SlotReturnValue
-          }
-          lastFullRow={(): SlotReturnValue =>
-            this.data?.length
-              ? ((
-                  <Loading
-                    style={{ display: this.hasMore ? 'inline-flex' : 'none' }}
-                    class='scroll-end-loading'
-                    loading={true}
-                    mode='spin'
-                    size='mini'
-                    theme='primary'
-                    title={this.t('加载中...')}
-                  />
-                ) as unknown as SlotReturnValue)
-              : null
-          }
-          autoFillSpace={!this.data?.length}
-          customDefaultGetRenderValue={this.defaultGetCellValue}
-          data={this.data}
-          headerAffixedTop={this.headerAffixedTop}
-          horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
-          loading={this.loading}
-          rowKey={this.tableRowKey}
-          sort={this.sort}
-          onColumnResizeChange={(ctx: { columnsWidth: Record<string, number> }) =>
-            this.$emit('columnResizeChange', ctx.columnsWidth)
-          }
-          onSortChange={(sort: string | string[]) => this.$emit('sortChange', sort)}
-        />
+      <div
+        class='rum-explore-table-wrap'
+        aria-busy={this.loading || this.scrollLoading}
+      >
+        <div
+          class='rum-table-content'
+          inert={this.loading ? true : undefined}
+        >
+          <CommonTable
+            ref='tableRef'
+            class={`rum-explore-table ${this.tableScenarioClassName}`}
+            columns={[
+              ...this.columns,
+              ...(this.showSettings
+                ? ([
+                    {
+                      colKey: '__col_setting__',
+                      width: 32,
+                      minWidth: 32,
+                      fixed: 'right',
+                      align: 'center',
+                      resizable: false,
+                      thClassName: '__table-custom-setting-col__',
+                      title: (() =>
+                        (
+                          <ExploreFieldSetting
+                            class='table-field-setting'
+                            defaultFields={this.defaultFieldKeys}
+                            dragHandle='.list-item-left'
+                            fixedDisplayList={this.fixedDisplayList}
+                            popoverTheme='rum-explore-field-setting'
+                            showFieldName={true}
+                            sourceList={this.displayableFields}
+                            targetList={this.displayFieldKeys}
+                            onConfirm={fields => this.$emit('displayFieldChange', fields)}
+                          />
+                        ) as unknown as SlotReturnValue) as BaseTableColumn['title'],
+                      cellRenderer: () => null,
+                    },
+                  ] as BaseTableColumn[])
+                : []),
+            ]}
+            data={
+              showSkeleton
+                ? Array.from({ length: RUM_TABLE_SKELETON_ROW_COUNT }, (_, index) => ({
+                    [this.tableRowKey]: `loading-${index}`,
+                  }))
+                : this.data
+            }
+            empty={() =>
+              (
+                <ExploreTableEmpty
+                  showOperation={this.emptyType === 'search-empty'}
+                  type={this.emptyType}
+                  onClearFilter={() => this.$emit('clearFilter')}
+                />
+              ) as unknown as SlotReturnValue
+            }
+            lastFullRow={(): SlotReturnValue =>
+              this.data?.length && this.scrollLoading
+                ? ((
+                    <div
+                      class='rum-table-append-skeleton'
+                      aria-label={this.t('加载中...')}
+                      role='status'
+                    >
+                      {Array.from({ length: 3 }, (_, rowIndex) => (
+                        <div
+                          key={rowIndex}
+                          class='rum-table-append-row'
+                          aria-hidden='true'
+                        >
+                          {this.columns.map(column => (
+                            <div
+                              key={column.colKey}
+                              style={{ flex: `${Number(column.width) || 120} 0 ${Number(column.width) || 120}px` }}
+                              class='rum-table-append-cell'
+                            >
+                              {renderRumLoadingCell(column.colKey, rowIndex)}
+                            </div>
+                          ))}
+                          {this.showSettings && <div class='rum-table-append-settings' />}
+                        </div>
+                      ))}
+                    </div>
+                  ) as unknown as SlotReturnValue)
+                : null
+            }
+            loadingCell={(column, rowIndex) =>
+              renderRumLoadingCell(column.colKey, rowIndex) as unknown as SlotReturnValue
+            }
+            activeRowKeys={this.activeRowKeys}
+            activeRowType='single'
+            autoFillSpace={!this.data.length && !this.loading}
+            customDefaultGetRenderValue={this.defaultGetCellValue}
+            headerAffixedTop={this.headerAffixedTop}
+            horizontalScrollAffixedBottom={this.horizontalScrollAffixedBottom}
+            loading={showSkeleton}
+            rowKey={this.tableRowKey}
+            sort={this.sort}
+            onActiveChange={(rowKeys: Array<number | string>) => this.$emit('activeChange', rowKeys)}
+            onColumnResizeChange={(ctx: { columnsWidth: Record<string, number> }) =>
+              this.$emit('columnResizeChange', ctx.columnsWidth)
+            }
+            onSortChange={(sort: string | string[]) => this.$emit('sortChange', sort)}
+          />
+        </div>
 
         <StatisticsList
           ref='statisticsListRef'

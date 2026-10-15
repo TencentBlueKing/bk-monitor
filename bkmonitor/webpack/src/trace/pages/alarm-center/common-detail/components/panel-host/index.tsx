@@ -28,6 +28,7 @@ import { type PropType, computed, defineComponent, shallowRef, toRef, watch } fr
 import { get } from '@vueuse/core';
 import { storeToRefs } from 'pinia';
 
+import DetailLoading, { DetailLoadStatus } from '../../detail-loading';
 import { useAlarmCenterDetailStore } from '../../../../../store/modules/alarm-center-detail';
 // import AiHighlightCard from '../../../components/ai-highlight-card/ai-highlight-card';
 import AlarmDashboardGroup from '../../../components/alarm-dashboard-group/alarm-dashboard-group';
@@ -49,8 +50,8 @@ export default defineComponent({
   },
   setup(props) {
     const { bizId, interval, timeRange } = storeToRefs(useAlarmCenterDetailStore());
-    const { currentTarget, targetList, loading } = useAlertHost({ alertId: toRef(props, 'alertId'), bizId });
-    const { dashboards: hostDashboards, loading: sceneViewLoading } = useSceneView(bizId, 'host');
+    const { currentTarget, targetList, loading, error, retry } = useAlertHost({ alertId: toRef(props, 'alertId'), bizId });
+    const { dashboards: hostDashboards, loading: sceneViewLoading, error: sceneError, retry: retryScene } = useSceneView(bizId, 'host');
     /** 图表执行 dataZoom 框线缩放后的时间范围 */
     const dataZoomTimeRange = shallowRef<DateValue>(null);
     /** 是否可以跳转到主机检索页面 */
@@ -162,6 +163,7 @@ export default defineComponent({
     );
 
     return {
+      error, retry, sceneError, retryScene,
       bizId,
       currentTarget,
       canLinkToPerformance,
@@ -181,7 +183,7 @@ export default defineComponent({
   render() {
     return (
       <div class={['alarm-center-detail-panel-host', this.loading ? 'is-loading' : '']}>
-        {this.canLinkToPerformance || this.loading ? (
+        {this.error ? <DetailLoadStatus error onRetry={this.retry} /> : this.canLinkToPerformance || this.loading ? (
           <>
             <div class='panel-host-white-bg-container'>
               <div class='host-selector-wrap'>
@@ -232,7 +234,8 @@ export default defineComponent({
               </div> */}
             </div>
             <div class='panel-host-chart-wrap'>
-              <AlarmDashboardGroup
+              {this.loading ? <DetailLoading variant='dashboard' /> : this.sceneError ? <DetailLoadStatus error onRetry={this.retryScene} /> : <AlarmDashboardGroup
+                key={JSON.stringify(this.currentTarget)}
                 customOptions={{
                   formatterData: this.formatterData,
                 }}
@@ -246,7 +249,7 @@ export default defineComponent({
                 viewOptions={this.viewOptions}
                 onDataZoomChange={this.handleDataZoomTimeRangeChange}
                 onRestore={this.handleDataZoomTimeRangeChange}
-              />
+              />}
             </div>
           </>
         ) : (

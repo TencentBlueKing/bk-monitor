@@ -31,7 +31,8 @@ from bkmonitor.report.serializers import (
 )
 from bkmonitor.report.utils import get_last_send_record_map
 from bkmonitor.utils.itsm import ApprovalStatusEnum
-from bkmonitor.utils.request import get_request, get_request_username
+from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
+from bkmonitor.utils.tenant import is_biz_in_tenant
 from bkmonitor.utils.user import get_local_username
 from constants.new_report import (
     SUBSCRIPTION_VARIABLES_MAP,
@@ -86,8 +87,17 @@ class GetReportListResource(Resource):
         order = serializers.CharField(required=False, label="排序", default="", allow_null=True, allow_blank=True)
 
     @staticmethod
-    def check_permission(bk_biz_id, raise_exception=False):
-        permission_obj = Permission()
+    def check_permission(bk_biz_id, raise_exception=False, request=None):
+        if not bk_biz_id:
+            raise CustomException("bk_biz_id must be a non-zero business or space ID")
+        request = request or get_request(peaceful=True)
+        user = getattr(request, "user", None)
+        tenant_id = getattr(user, "tenant_id", None) if request else get_request_tenant_id()
+        if not is_biz_in_tenant(bk_biz_id, tenant_id):
+            raise CustomException("report does not belong to the current tenant")
+        if getattr(user, "is_superuser", False):
+            return True
+        permission_obj = Permission(request=request)
         permission_obj.skip_check = False
         return permission_obj.is_allowed(
             ActionEnum.MANAGE_REPORT,
@@ -231,15 +241,13 @@ class GetReportListResource(Resource):
     def perform_request(self, validated_request_data):
         report_qs = Report.objects.all().order_by("-update_time")
 
-        # 根据角色过滤
-        if validated_request_data["create_type"]:
-            # 管理员视角需校验当前用户的订阅管理权限
-            if validated_request_data["create_type"] == ReportCreateTypeEnum.MANAGER.value:
-                self.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
-            # 用户视角获取全业务下的订阅
-            if validated_request_data["create_type"] != ReportCreateTypeEnum.SELF.value:
-                report_qs = report_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
-            report_qs = self.filter_by_create_type(validated_request_data["create_type"], report_qs)
+        create_type = validated_request_data["create_type"] or ReportCreateTypeEnum.SELF.value
+        if create_type in (ReportCreateTypeEnum.MANAGER.value, "user"):
+            self.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
+            report_qs = report_qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        elif create_type != ReportCreateTypeEnum.SELF.value:
+            raise CustomException(f"unsupported create_type {create_type}")
+        report_qs = self.filter_by_create_type(create_type, report_qs)
 
         # 根据搜索关键字过滤
         if validated_request_data["search_key"]:
@@ -284,6 +292,57 @@ class GetReportListResource(Resource):
         return {"report_list": reports, "total": total}
 
 
+def _in_subscribed_group(subscribers, bk_biz_id, username):
+    group_ids = {subscriber["id"] for subscriber in subscribers if subscriber.get("type") == StaffEnum.GROUP.value}
+    if not group_ids:
+        return False
+    return any(
+        group["id"] in group_ids and username in group.get("children", [])
+        for group in resource.report.group_list(bk_biz_id=bk_biz_id)
+    )
+
+
+def _assert_report_access(report_id, bk_biz_id, create_user):
+    if not is_biz_in_tenant(bk_biz_id, get_request_tenant_id()):
+        raise CustomException("report does not belong to the current tenant")
+    username = get_request_username()
+    if create_user == username:
+        return
+    channel = ReportChannel.objects.filter(report_id=report_id, channel_name=ChannelEnum.USER.value).first()
+    subscribers = channel.subscribers if channel else []
+    if any(
+        subscriber["id"] == username and subscriber.get("type") == StaffEnum.USER.value for subscriber in subscribers
+    ):
+        return
+    if _in_subscribed_group(subscribers, bk_biz_id, username):
+        return
+    GetReportListResource.check_permission(bk_biz_id, raise_exception=True)
+
+
+def _assert_report_editable(report, is_manager):
+    if is_manager or report.create_user == get_request_username() or Permission().skip_check:
+        return
+    raise CustomException(f"current user is not allowed to edit report {report.id}")
+
+
+def _assert_resend_subscribers(report_id, channels):
+    if not channels:
+        raise CustomException(f"channels is required when resending report {report_id}")
+    for channel in channels:
+        send_results_list = (
+            ReportSendRecord.objects.filter(report_id=report_id, channel_name=channel["channel_name"])
+            .exclude(send_status=SendStatusEnum.NO_STATUS.value)
+            .order_by("-send_time")
+            .values_list("send_results", flat=True)[:100]
+        )
+        sent_ids = {result["id"] for send_results in send_results_list for result in send_results}
+        unknown_ids = {subscriber["id"] for subscriber in channel["subscribers"]} - sent_ids
+        if unknown_ids:
+            raise CustomException(
+                f"subscribers {sorted(unknown_ids)} are not in the send records of report {report_id}"
+            )
+
+
 class GetReportResource(Resource):
     """
     获取订阅
@@ -294,6 +353,7 @@ class GetReportResource(Resource):
 
     def perform_request(self, validated_request_data):
         report = Report.objects.values().get(id=validated_request_data["report_id"])
+        _assert_report_access(report["id"], report["bk_biz_id"], report["create_user"])
         report["channels"] = list(
             ReportChannel.objects.filter(report_id=report["id"]).values(
                 "channel_name", "is_enabled", "subscribers", "send_text"
@@ -426,6 +486,7 @@ class CreateOrUpdateReportResource(Resource):
             except Report.DoesNotExist:
                 raise Exception("report_id: %s not found", params["id"])
             self._assert_report_ownership(report, params)
+            _assert_report_editable(report, is_manager_created)
             report.__dict__.update(params)
             report.save()
         else:
@@ -498,15 +559,12 @@ class SendReportResource(Resource):
         is_enabled = serializers.BooleanField(required=False, default=True)
 
     def _assert_report_send_access(self, report, params):
-        requested_biz_id = params.get("bk_biz_id")
-        if requested_biz_id is not None and report.bk_biz_id != requested_biz_id:
-            raise CustomException("report does not belong to the requested business")
+        # 补发使用库存订阅配置，页面当前业务不限制已授予的跨业务订阅访问。
         stored_index_set_id = (report.scenario_config or {}).get("index_set_id")
         request_index_set_id = (params.get("scenario_config") or {}).get("index_set_id")
         if stored_index_set_id and request_index_set_id and stored_index_set_id != request_index_set_id:
             raise CustomException("report does not belong to the requested index set")
-        if not Permission().is_allowed_by_biz(report.bk_biz_id, ActionEnum.VIEW_BUSINESS):
-            raise CustomException("permission denied")
+        _assert_report_access(report.id, report.bk_biz_id, report.create_user)
 
     def perform_request(self, validated_request_data):
         report_id = validated_request_data.get("report_id") or validated_request_data.get("id")
@@ -514,8 +572,12 @@ class SendReportResource(Resource):
             try:
                 report = Report.objects.get(id=report_id)
             except Report.DoesNotExist:
-                raise CustomException("report_id: %s not found" % report_id)
+                raise CustomException(f"report_id: {report_id} not found")
             self._assert_report_send_access(report, validated_request_data)
+            if not GetReportListResource.check_permission(report.bk_biz_id):
+                _assert_resend_subscribers(report.id, validated_request_data.get("channels"))
+            validated_request_data["report_id"] = report.id
+            validated_request_data.pop("id", None)
         try:
             api.monitor.send_report(**validated_request_data)
         except Exception as e:  # pylint: disable=broad-except
@@ -547,6 +609,8 @@ class CancelOrResubscribeReportResource(Resource):
                 subscriber["is_enabled"] = is_enabled
                 channel.save()
                 return "success"
+        report = Report.objects.get(id=channel.report_id)
+        _assert_report_access(report.id, report.bk_biz_id, report.create_user)
         channel.subscribers.append({"id": username, "type": StaffEnum.USER.value, "is_enabled": is_enabled})
         channel.save()
         return "success"
@@ -562,6 +626,10 @@ class GetSendRecordsResource(Resource):
         channel_name = serializers.CharField(required=False)
 
     def perform_request(self, validated_request_data):
+        report = Report.objects.filter(id=validated_request_data["report_id"]).first()
+        if not report:
+            return []
+        _assert_report_access(report.id, report.bk_biz_id, report.create_user)
         qs = ReportSendRecord.objects.filter(report_id=validated_request_data["report_id"]).exclude(
             send_status=SendStatusEnum.NO_STATUS.value
         )
@@ -584,13 +652,15 @@ class GetApplyRecordsResource(Resource):
 
     def perform_request(self, validated_request_data):
         qs = ReportApplyRecord.objects.all()
-        if validated_request_data["query_type"] == ApplyRecordQueryTypeEnum.USER.value:
-            # 根据用户获取
+        query_type = validated_request_data["query_type"]
+        if query_type == ApplyRecordQueryTypeEnum.USER.value:
             username = get_request().user.username
             qs = qs.filter(create_user=username)
-        else:
-            # 根据业务获取
+        elif query_type == ApplyRecordQueryTypeEnum.BIZ.value:
+            GetReportListResource.check_permission(validated_request_data["bk_biz_id"], raise_exception=True)
             qs = qs.filter(bk_biz_id=validated_request_data["bk_biz_id"])
+        else:
+            raise CustomException(f"unsupported query_type {query_type}")
 
         if validated_request_data.get("status"):
             qs = qs.filter(status=validated_request_data["status"])
@@ -651,6 +721,8 @@ class GetExistReportsResource(Resource):
         qs = Report.objects.filter(
             bk_biz_id=validated_request_data["bk_biz_id"], scenario=validated_request_data["scenario"]
         )
+        if not GetReportListResource.check_permission(validated_request_data["bk_biz_id"]):
+            qs = GetReportListResource.filter_by_user(qs)
         if validated_request_data.get("create_type"):
             qs = GetReportListResource.filter_by_create_type(validated_request_data["create_type"], qs)
         reports = list(qs.values())

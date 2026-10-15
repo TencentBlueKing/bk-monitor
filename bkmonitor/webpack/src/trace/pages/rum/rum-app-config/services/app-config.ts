@@ -69,15 +69,15 @@ interface IUpdateStorageConfigParams extends IAppBaseParams {
  * 获取应用配置信息
  * @param appName 应用名称
  */
-export const getAppConfigByAppName = async (appName: string) => {
-  return getApplicationInfoByAppName({ app_name: appName });
+export const getAppConfigByAppName = async (appName: string, signal?: AbortSignal) => {
+  return getApplicationInfoByAppName({ app_name: appName }, { signal, needMessage: false });
 };
 
 /**
  * 获取 ES 集群列表
  */
-export const getEsClusterList = async () => {
-  return listEsClusterGroups().catch(() => []);
+export const getEsClusterList = async (signal?: AbortSignal) => {
+  return listEsClusterGroups({}, { signal, needMessage: false });
 };
 
 /**
@@ -129,33 +129,27 @@ export const operateApplication = async (type: ApplicationOperationType, params:
 /**
  * 获取存储信息
  * @param params 应用基础参数
- * @param fallback 存储信息兜底数据
+ * @param signal 请求取消信号
  */
-export const getStorageInfoData = async (params: IAppBaseParams, fallback?: IStorageInfo) => {
-  return getStorageInfo(params).catch(
-    () =>
-      fallback ?? {
-        es_number_of_replicas: 0,
-        es_retention: 14,
-        es_shards: 3,
-        es_slice_size: 100,
-        es_storage_cluster: '',
-      }
-  );
+export const getStorageInfoData = async (params: IAppBaseParams, signal?: AbortSignal): Promise<IStorageInfo> => {
+  return getStorageInfo(params, { signal, needMessage: false });
 };
 
 /**
  * 获取物理索引数据
  * @param params 应用基础参数
  */
-export const getIndicesInfoData = async (params: Pick<IAppBaseParams, 'app_name'>) => {
-  return getIndicesInfo(params).catch(() => [] as IIndicesInfo[]);
+export const getIndicesInfoData = async (
+  params: Pick<IAppBaseParams, 'app_name'>,
+  signal?: AbortSignal
+): Promise<IIndicesInfo[]> => {
+  return getIndicesInfo(params, { signal, needMessage: false });
 };
 
 /**
  * 获取字段信息数据
  * @param params 应用基础参数
  */
-export const getFieldInfoData = async (params: IAppBaseParams) => {
-  return storageFieldInfo(params).catch(() => [] as IStorageField[]);
+export const getFieldInfoData = async (params: IAppBaseParams, signal?: AbortSignal): Promise<IStorageField[]> => {
+  return storageFieldInfo(params, { signal, needMessage: false });
 };

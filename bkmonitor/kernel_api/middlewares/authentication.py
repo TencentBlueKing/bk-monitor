@@ -842,7 +842,8 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 f"namespace biz#{request.biz_id} is not allowed in [{','.join(record.namespaces)}]"
             )
 
-        token_type = record.type.lower()
+        # 与 ApiAuthToken.is_allowed_view 保持一致，按精确类型判断
+        token_type = record.type
         # grafana、as_code场景权限模式：使用当前租户的管理员用户
         if token_type in ["as_code", "grafana"]:
             username = get_admin_username(record.bk_tenant_id)

@@ -34,7 +34,7 @@ handle.update({ timeRange: next }); // 增量推送 props，触发子应用响�
 handle.unmount(); // 宿主销毁前必须调用，否则内存泄漏
 ```
 
-`mountTraceExplore` 用法完全一致。子应用的 Vue3 实例（router / pinia / i18n）由包内自行创建，
+`mountTraceExplore` / `mountTraceSlider` 用法完全一致。`mountTraceSlider` 的 props 为 `{ isShow, appName, bizId, traceId }`，事件 `sliderClose`。子应用的 Vue3 实例（router / pinia / i18n）由包内自行创建，
 宿主只需提供一个挂载节点。
 
 ## 2. 导出
@@ -43,7 +43,8 @@ handle.unmount(); // 宿主销毁前必须调用，否则内存泄漏
 | --- | --- |
 | `mountAlarmCenter(el, options)` | 挂载告警中心，返回 `{ update, unmount }` |
 | `mountTraceExplore(el, options)` | 挂载 Trace 检索，返回 `{ update, unmount }` |
-| `AlarmCenterApm` / `TraceExploreApm` | 两块能力的根组件，供已有 Vue3 应用直接渲染（需自备 router / pinia / i18n） |
+| `mountTraceSlider(el, options)` | 挂载 Trace 详情侧滑，返回 `{ update, unmount }` |
+| `AlarmCenterApm` / `TraceExploreApm` / `TraceSliderApm` | 根组件，供已有 Vue3 应用直接渲染（需自备 router / pinia / i18n） |
 | 类型 | `MountOptions` / `MountHandle` / `BridgeProps` / `BridgeEmit` |
 
 ## 3. 运行环境与依赖

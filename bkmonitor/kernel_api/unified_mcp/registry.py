@@ -285,7 +285,7 @@ def native_tool_names() -> tuple[str, ...]:
 
 
 # 公共 Schema 归一化规则变化时递增，确保客户端不会沿用旧目录版本缓存。
-SCHEMA_NORMALIZATION_VERSION = 2
+SCHEMA_NORMALIZATION_VERSION = 3
 
 # 对外工具名与历史 operationId 不一致时，在这里做唯一别名归一。
 PUBLIC_TOOL_NAMES = {"apm_mcp_calculate_by_range": "calculate_by_range"}
@@ -707,6 +707,12 @@ class ToolDefinition:
         keys.update(conditional.get("all_args") or ())
         if spec.get("resource_type") == "indices":
             keys.add("target_type")
+        if (
+            spec.get("resource_type") == "apm_application"
+            and self.native_permission.get("target_kind") == "event_table"
+        ):
+            # APM 事件由后端按应用／服务派生表；table 是调用参数而非此分支的 IAM 资源。
+            keys.add("table")
         return keys
 
     @staticmethod
@@ -718,7 +724,7 @@ class ToolDefinition:
         if payload["system_id"] == "bk_log_search":
             payload["iam_model"] = "v3-current"
             if payload["resource_type"] == "indices":
-                payload["resource_scope"] = "ordinary_same_space"
+                payload["resource_scope"] = "ordinary_visible_in_space"
         conditional = payload.get("conditional")
         if conditional:
             conditional["permission"] = ToolDefinition._public_native_permission(conditional["permission"])
@@ -730,12 +736,12 @@ class ToolDefinition:
             return {"mode": "exempt", "reason": "platform-visible metadata discovery"}
         if self.native_permission:
             return {
-                **self._public_native_permission(self.native_permission),
-                "mode": "native_then_legacy",
-                "fallback_system_id": settings.BK_IAM_SYSTEM_ID,
-                "fallback_action_id": self.iam_action,
-                "fallback_resource_type": "space",
-                "fallback_resource_arg": "bk_biz_id",
+                "system_id": settings.BK_IAM_SYSTEM_ID,
+                "action_id": self.iam_action,
+                "resource_type": "space",
+                "resource_arg": "bk_biz_id",
+                "mode": "mcp_then_native",
+                "fallback_permission": self._public_native_permission(self.native_permission),
                 "fallback_on": "explicit_denial_only",
             }
         payload = {"action_id": self.iam_action, "resource_type": "space", "resource_arg": self.resource_arg}
@@ -969,10 +975,14 @@ def _build_guidelines(tool: ToolDefinition) -> list[str]:
     if tool.native_permission and tool.native_permission["resource_type"] == "indices":
         if tool.native_permission.get("conditional"):
             guidelines.append(
-                "固定索引集模式只支持普通、非分组、同空间索引集；场景模式由日志平台按动态命中资源继续鉴权。"
+                "固定索引集模式下，SaaS 兜底只支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
+                "场景模式由日志平台按动态命中资源继续鉴权。"
             )
         else:
-            guidelines.append("原生权限仅支持普通、非分组、同空间索引集；不支持平台级或分组索引集。")
+            guidelines.append(
+                "SaaS 兜底仅支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
+                "平台级或分组索引集需使用原 MCP 权限。"
+            )
     properties = tool.input_schema.get("properties") or {}
     if "start_time" in properties or "end_time" in properties:
         guidelines.append("start_time 和 end_time 必须按当前时间动态计算，不能使用固定历史时间戳。")
@@ -1049,28 +1059,30 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                             "description": "Must be true after explicit user confirmation. 用户明确确认后必须传 true。",
                         }
                         schema["required"] = list(dict.fromkeys([*schema.get("required", []), "confirm"]))
-                    # Step 5: 只有动态配置显式启用的工具才注入 native-first 权限契约。
+                    # Step 5: 只有动态配置显式启用的工具才注入 MCP 优先／SaaS 兜底权限契约。
                     description = operation.get("description", "")
                     if tool_name in enabled:
                         description += (
-                            " Native permissions are checked first; explicit denial falls back to the original MCP action. "
-                            "Errors and invalid resource scopes never trigger fallback. 原生权限优先，明确无权时检查原 MCP 权限；"
-                            "异常或资源校验失败不回退。"
+                            " The original MCP permission is checked first; only its explicit denial falls back "
+                            "to the SaaS permission. Errors and invalid resource scopes never trigger fallback. "
+                            "原 MCP 权限优先；只有明确无权时才检查 SaaS 权限，异常或资源越界不回退。"
                         )
                         if NATIVE_PERMISSIONS[tool_name]["resource_type"] == "indices":
                             if NATIVE_PERMISSIONS[tool_name].get("conditional"):
                                 description = (
-                                    "Index-set mode only supports ordinary, non-grouped index sets in the requested "
-                                    "space; scene mode keeps the log platform's dynamic resource checks. "
-                                    "固定索引集模式仅支持普通、非分组、同空间索引集；"
+                                    "In index-set mode the SaaS fallback only supports ordinary, non-grouped index "
+                                    "sets visible in the requested space, authorized in their owner space; scene mode "
+                                    "keeps the log platform's dynamic resource checks. "
+                                    "固定索引集模式下，SaaS 兜底仅支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
                                     "场景模式继续由日志平台按动态命中资源鉴权。以下为底层通用接口说明： " + description
                                 )
                             else:
                                 description = (
-                                    "Native mode only supports ordinary, non-grouped index sets in the requested "
-                                    "space. Platform and grouped index sets are unavailable. "
-                                    "原生模式仅支持普通、非分组、同空间索引集；不支持平台或分组索引集。"
-                                    "以下为底层通用接口说明： " + description
+                                    "The SaaS fallback only supports ordinary, non-grouped index sets visible in the "
+                                    "requested space, authorized in their owner space; platform and grouped index "
+                                    "sets require the original MCP permission. "
+                                    "SaaS 兜底仅支持业务目录中可见的普通、非分组索引集，按归属空间鉴权；"
+                                    "平台或分组索引集需使用原 MCP 权限。以下为底层通用接口说明： " + description
                                 )
                         if tool_name == "list_time_series_groups":
                             schema["properties"]["is_platform"]["enum"] = [False]

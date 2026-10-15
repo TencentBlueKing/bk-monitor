@@ -11,14 +11,42 @@ specific language governing permissions and limitations under the License.
 import datetime
 import re
 import time
+from typing import Any
 
 import arrow
 import pytz
 import six
+from dateutil import parser
 from django.conf import settings
 from django.utils import timezone
 
 DEFAULT_FORMAT = "%Y-%m-%d %H:%M:%S"
+
+
+def parse_log_timestamp(time_value: Any, *, strict: bool = False) -> int:
+    """将日志时间解析为整数秒时间戳。
+
+    :param time_value: 秒 / 毫秒时间戳或 ISO 8601 时间。
+    :param strict: 要求非数字时间包含时区，禁止使用缺失或不完整的时间。
+    :raises ValueError: 严格模式下时间缺失或不含时区。
+    """
+    try:
+        time_value = int(time_value)
+        if len(str(time_value)) > 10:
+            time_value //= 1000
+    except (TypeError, ValueError):
+        if isinstance(time_value, str):
+            try:
+                numeric_time = float(time_value)
+            except ValueError:
+                time_value = parser.isoparse(time_value.strip())
+            else:
+                # 小数字符串，沿用原始日志的秒时间戳语义。
+                return int(arrow.get(numeric_time).timestamp)
+        if strict and (not isinstance(time_value, datetime.datetime) or time_value.tzinfo is None):
+            raise ValueError("Log timestamp must include a timezone")
+
+    return int(arrow.get(time_value).timestamp)
 
 
 def now():

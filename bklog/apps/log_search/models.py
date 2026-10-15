@@ -1129,7 +1129,7 @@ class LogIndexSetData(SoftDeleteModel):
     index_id = models.AutoField(_("索引ID"), primary_key=True)
     index_set_id = models.IntegerField(_("索引集ID"), db_index=True)
     bk_biz_id = models.IntegerField(_("业务ID"), null=True, default=None)
-    result_table_id = models.CharField(_("结果表"), max_length=255)
+    result_table_id = models.CharField(_("结果表"), max_length=255, db_index=True)
     result_table_name = models.CharField(_("结果表名称"), max_length=255, null=True, default=None, blank=True)
     time_field = models.CharField(_("时间字段"), max_length=64, null=True, default=None, blank=True)
     apply_status = models.CharField(_("审核状态"), max_length=64, choices=Status.StatusChoices, default=Status.PENDING)

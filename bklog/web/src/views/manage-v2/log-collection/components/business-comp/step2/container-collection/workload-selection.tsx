@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, reactive, watch, computed, onMounted, type PropType } from 'vue';
+import { defineComponent, ref, reactive, watch, computed, onMounted, onUnmounted, type PropType } from 'vue';
 
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
@@ -64,6 +64,8 @@ export default defineComponent({
     const isOptionOpen = ref(false);
     const nameCannotClick = ref(false);
     const nameList = ref<Array<{ id: string; name: string }>>([]);
+    let nameRequestId = 0;
+    let isUnmounted = false;
     // const placeHolderStr = ref(`${t('请输入应用名称')}, ${t('支持正则匹配')}`);
 
     const bkBizId = computed(() => store.getters.bkBizId);
@@ -76,31 +78,45 @@ export default defineComponent({
     onMounted(() => {
       getWorkLoadTypeList();
     });
+    onUnmounted(() => {
+      isUnmounted = true;
+      nameRequestId += 1;
+      clearTimeout(timer.value);
+    });
 
     // 监听工作负载类型变化
     watch(
       () => formData.workload_type,
       (val: string) => {
+        nameRequestId += 1;
+        nameList.value = [];
+        nameListLoading.value = false;
+        nameCannotClick.value = false;
         if (val) {
           getWorkLoadNameList();
-        } else {
-          nameList.value = [];
         }
       },
     );
 
     // 监听命名空间变化
     watch(
-      () => props.conItem.noQuestParams.namespaceStr,
-      (str: string) => {
-        if (str) {
-          if (timer.value) {
-            clearTimeout(timer.value);
-          }
-          timer.value = setTimeout(() => {
-            getWorkLoadNameList();
-          }, 1000);
+      [
+        () => props.conItem.noQuestParams.namespaceStr,
+        () => props.conItem.noQuestParams.namespacesExclude,
+        () => props.bcsClusterId,
+        () => bkBizId.value,
+      ],
+      () => {
+        nameRequestId += 1;
+        nameList.value = [];
+        nameListLoading.value = false;
+        nameCannotClick.value = false;
+        if (timer.value) {
+          clearTimeout(timer.value);
         }
+        timer.value = setTimeout(() => {
+          getWorkLoadNameList();
+        }, 1000);
       },
       { immediate: true },
     );
@@ -118,7 +134,7 @@ export default defineComponent({
     const getWorkLoadTypeList = async () => {
       try {
         const res = await $http.request('container/getWorkLoadType');
-        if (res.code === 0) {
+        if (!isUnmounted && res.code === 0) {
           typeList.value = res.data.map((item: string) => ({ id: item, name: item }));
           // 编辑态：typeList 加载完成后，如果已有 workload_type，主动请求名称列表
           if (formData.workload_type) {
@@ -136,19 +152,24 @@ export default defineComponent({
         return;
       }
       nameListLoading.value = true;
+      nameRequestId += 1;
+      const requestId = nameRequestId;
+      nameList.value = [];
 
       nameCannotClick.value = true;
+      const { namespaceStr, namespacesExclude } = props.conItem.noQuestParams;
+      const namespaceKey = namespacesExclude === '!=' ? 'namespaces_exclude' : 'namespace';
       const query = {
         type: formData.workload_type,
         bk_biz_id: bkBizId.value,
-        namespace: props.conItem.noQuestParams.namespaceStr,
+        [namespaceKey]: namespaceStr === '*' ? undefined : namespaceStr,
         bcs_cluster_id: props.bcsClusterId,
       };
 
       $http
         .request('container/getWorkLoadName', { query })
         .then(res => {
-          if (res.code === 0) {
+          if (requestId === nameRequestId && res.code === 0) {
             nameList.value = res.data.map(item => ({ id: item, name: item }));
           }
         })
@@ -156,8 +177,10 @@ export default defineComponent({
           console.log(err);
         })
         .finally(() => {
-          nameCannotClick.value = false;
-          nameListLoading.value = false;
+          if (requestId === nameRequestId) {
+            nameCannotClick.value = false;
+            nameListLoading.value = false;
+          }
         });
     };
 

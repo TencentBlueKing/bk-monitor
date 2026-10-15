@@ -68,8 +68,16 @@ class UnifyQuery:
     ):
         self.is_partial = False
         self.functions = [] if functions is None else functions
+        self.query_output_config = query_output_config
         # 不传业务指标时传 0，为 None 时查询所有业务
         self.bk_biz_id = bk_biz_id
+        # alias -> 原始 promql 映射，用于把命名输出的 expression（alias）翻译成完整 PromQL。
+        # 单条与多条 PromQL 场景均构建（单条时仅一个 alias），供查询时透传给 UQ。
+        self.promql_output_map: dict[str, str] = {
+            source.alias: source.promql
+            for source in data_sources
+            if isinstance(source, PrometheusTimeSeriesDataSource) and source.alias
+        }
         if promql_multi_expression:
             if len(data_sources) < 2 or not all(
                 isinstance(source, PrometheusTimeSeriesDataSource) for source in data_sources
@@ -101,6 +109,11 @@ class UnifyQuery:
             ]
         self.data_sources = data_sources
 
+        # Prometheus 命名输出：把 output_list 的 expression（alias）翻译成完整 PromQL，
+        # 设置到 data_source 上，由 PrometheusTimeSeriesDataSource.query_data 透传并解析。
+        if self.query_output_config and self.promql_output_map:
+            self.data_sources[0].query_output_config = self._translate_promql_named_output_config()
+
         # 如果未传入租户ID，则根据业务ID获取租户ID
         if not bk_tenant_id and bk_biz_id:
             bk_tenant_id = bk_biz_id_to_bk_tenant_id(bk_biz_id)
@@ -114,7 +127,6 @@ class UnifyQuery:
             data_source.set_bk_tenant_id(bk_tenant_id)
 
         self.expression = expression
-        self.query_output_config = query_output_config
 
     @cached_property
     def space_uid(self):
@@ -712,6 +724,29 @@ class UnifyQuery:
             records = self.process_log_by_datasource(records)
         return records
 
+    def _translate_promql_named_output_config(self) -> dict:
+        """把 query_output_config 的 output_list expression 从 alias 翻译成完整 PromQL。
+
+        平台侧保存的 output_list 里 expression 是 query alias（如 "a"），而 UQ 的
+        /query/ts/promql 要求 expression 是完整 PromQL，因此查询前需要翻译：
+        - legacy 输出（reference_name == legacy_output_ref）-> 编译后的 promql（检测值）
+        - 非 legacy 输出 -> 对应 alias 的原始 promql
+        """
+        legacy_output_ref = self.query_output_config["legacy_output_ref"]
+        translated = []
+        for output in self.query_output_config["output_list"]:
+            reference_name = output["reference_name"]
+            if reference_name == legacy_output_ref:
+                translated_expression = self.data_sources[0].promql
+            else:
+                translated_expression = self.promql_output_map[output["expression"].strip()]
+            translated.append({"reference_name": reference_name, "expression": translated_expression})
+        return {
+            "response_contract": self.query_output_config["response_contract"],
+            "legacy_output_ref": legacy_output_ref,
+            "output_list": translated,
+        }
+
     def _query_data_using_datasource(
         self,
         start_time: int,
@@ -746,6 +781,9 @@ class UnifyQuery:
                         continue
                     metric_field = datasource.metrics[0].get("alias") or datasource.metrics[0]["field"]
                     record["_result_"] = record[metric_field]
+            # 汇总 data_source 的 partial 状态（PromQL 命名输出会在 query_data 里设置）
+            if getattr(datasource, "is_partial", False):
+                self.is_partial = True
             all_data.extend(data)
 
         return all_data, all_series_stat

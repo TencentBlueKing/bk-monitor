@@ -131,24 +131,6 @@
   }
 }
 
-.dimension-filter-panel-skeleton {
-  padding: 8px 12px;
-
-  .title {
-    height: 20px;
-  }
-
-  .search-input {
-    height: 32px;
-    margin: 8px 0;
-  }
-
-  .list-item {
-    height: 14px;
-    margin-bottom: 14px;
-  }
-}
-
 /*
  * v-overflow-tips（维度名省略号）：与下方 statistics 弹层同理，双 theme token 提高特异性。
  * APM 嵌入时 trace 主站的 global.scss 可能未进包，宿主全局 .tippy-* / [data-theme~='light'] 会污染默认气泡样式。

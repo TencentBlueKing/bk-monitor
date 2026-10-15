@@ -2,12 +2,12 @@
 @import '../../../../../theme/mixin';
 
 .llm-execution-toolbar {
-  flex-shrink: 0;
-  gap: 8px;
-
-  @include flex-column;
+  // 让 title / row 成为 timeline 的子项，row 才能相对外层 scroller 吸顶
+  display: contents;
 
   &-title {
+    flex-shrink: 0;
+    margin-bottom: 8px;
     font-family: 'PingFang SC', sans-serif;
     font-size: $font-size-large;
     font-weight: 500;
@@ -16,11 +16,21 @@
   }
 
   &-row {
-    @include flex-align(flex-start);
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    flex-shrink: 0;
+    gap: 12px;
+    width: 100%;
+    padding-bottom: var(--llm-exec-sticky-gap, 16px);
+    background: #fff;
+
+    @include flex-align(center);
     @include flex-justify(space-between);
   }
 
   &-left {
+    flex: 0 0 auto;
     gap: 12px;
 
     @include flex-align(center);
@@ -28,8 +38,10 @@
 }
 
 .llm-execution-session {
+  flex-shrink: 0;
   height: 32px;
   padding: 0 8px;
+  white-space: nowrap;
   background: #f0f1f5;
   border-radius: 4px;
 
@@ -63,6 +75,7 @@
 }
 
 .llm-execution-filters {
+  flex-shrink: 0;
   height: 32px;
   border-radius: 4px;
 
@@ -101,7 +114,12 @@
 }
 
 .llm-execution-search {
-  width: 400px !important;
+  flex: 1 1 0;
+  width: auto !important;
+  min-width: 160px;
+  max-width: 400px;
+  overflow: hidden;
+  border-radius: 4px;
 
   /* stylelint-disable-next-line selector-class-pattern */
   .bk-input--suffix-icon {

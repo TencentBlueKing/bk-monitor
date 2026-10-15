@@ -15,6 +15,8 @@ from typing import Any
 from django.conf import settings
 from django.db.models import Q
 
+from apm.models.subscription_config import SubscriptionConfig as ApmSubscriptionConfig
+from bkmonitor.utils.nodeman import host_queries
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource.exceptions import CustomException
@@ -35,7 +37,6 @@ from kernel_api.rpc.functions.admin.uptime_check import (
     _sanitize_subscription_detail_value,
     _summarize_subscription,
 )
-from apm.models.subscription_config import SubscriptionConfig as ApmSubscriptionConfig
 from metadata.models.custom_report.subscription_config import CustomReportSubscription, LogSubscriptionConfig
 from metadata.models.ping_server import PingServerSubscriptionConfig
 
@@ -903,11 +904,9 @@ def _serialize_proxy_row(
 def _build_proxy_rows(
     *, bk_tenant_id: str, bk_biz_id: int, params: dict[str, Any]
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    from core.drf_resource import api
-
     warnings: list[dict[str, Any]] = []
     try:
-        raw_proxies = api.node_man.get_proxies_by_biz(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id) or []
+        raw_proxies = host_queries.business_proxies(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id) or []
     except Exception as error:  # noqa: BLE001
         return [], [{"code": "LOAD_BIZ_PROXIES_FAILED", "message": str(error)}]
 

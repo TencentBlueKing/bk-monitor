@@ -23,17 +23,23 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, toRef } from 'vue';
+import { type PropType, defineAsyncComponent, defineComponent, shallowRef, toRef } from 'vue';
 
-import deepmerge from 'deepmerge';
+import { storeToRefs } from 'pinia';
 
 import TraceExploreTable from '../../../../trace-explore/components/trace-explore-table/trace-explore-table';
 import { useAlertTraces } from '../../../composables/use-alert-traces';
 import { ALERT_TRACE_FIELD_CONFIGS } from './constants';
+import { DetailLoadStatus } from '../../detail-loading';
+import { useAlarmCenterDetailStore } from '@/store/modules/alarm-center-detail';
 
 import type { IDimensionField } from '../../../../trace-explore/typing';
 
 import './index.scss';
+
+const TraceSlider = defineAsyncComponent(
+  () => import(/* webpackChunkName: "trace-slider" */ '@/components/trace-slider/trace-slider')
+);
 
 export default defineComponent({
   name: 'PanelTrace',
@@ -42,9 +48,13 @@ export default defineComponent({
     alertId: String as PropType<string>,
   },
   setup(props) {
-    const { traceList, traceQueryConfig, tableLoading, pagination, tableHasMoreData } = useAlertTraces(
+    const alarmCenterDetailStore = useAlarmCenterDetailStore();
+    const { bizId } = storeToRefs(alarmCenterDetailStore);
+    const { traceList, traceQueryConfig, tableLoading, pagination, tableHasMoreData, error, retry, loadMore } = useAlertTraces(
       toRef(props, 'alertId')
     );
+    const sliderShow = shallowRef(false);
+    const activeTraceId = shallowRef('');
 
     const displayFields = [
       'trace_id',
@@ -57,38 +67,35 @@ export default defineComponent({
     ];
 
     const handleSliderShow = (openMode: '' | 'span' | 'trace', activeId: string) => {
-      const query = deepmerge(traceQueryConfig.value, {
-        where: [
-          {
-            key: openMode === 'span' ? 'span_id' : 'trace_id',
-            operator: 'equal',
-            value: [activeId],
-          },
-        ],
-      });
-      const newQuery = Object.entries(query).reduce((prev, [key, value]) => {
-        if (typeof value === 'object') {
-          prev[key] = decodeURIComponent(JSON.stringify(value));
-        } else {
-          prev[key] = value;
-        }
-        return prev;
-      }, {});
-      window.open(`#/trace/home/?${new URLSearchParams(newQuery).toString()}`);
+      if (openMode === 'trace' && activeId) {
+        activeTraceId.value = activeId;
+        sliderShow.value = true;
+        return;
+      }
+      sliderShow.value = false;
+    };
+
+    const handleSliderClose = () => {
+      sliderShow.value = false;
     };
 
     const handleScrollToEnd = () => {
-      pagination.offset += pagination.limit;
+      loadMore();
     };
 
     return {
+      error, retry,
       displayFields,
       traceList,
       traceQueryConfig,
       pagination,
       tableLoading,
       tableHasMoreData,
+      sliderShow,
+      activeTraceId,
+      bizId,
       handleSliderShow,
+      handleSliderClose,
       handleScrollToEnd,
     };
   },
@@ -96,6 +103,7 @@ export default defineComponent({
     return (
       <div class='alarm-center-detail-panel-trace'>
         <div class='alarm-center-detail-panel-trace-wrapper'>
+          <DetailLoadStatus error={this.error} onRetry={this.retry} />
           <TraceExploreTable
             class='panel-trace-table'
             appName={this.traceQueryConfig?.app_name || ''}
@@ -110,12 +118,19 @@ export default defineComponent({
             showOperation={false}
             sourceFieldConfigs={ALERT_TRACE_FIELD_CONFIGS as unknown as IDimensionField[]}
             tableData={this.traceList}
-            tableHasScrollLoading={this.tableHasMoreData}
+            tableHasScrollLoading={this.tableHasMoreData && !this.error}
             tableLoading={this.tableLoading}
             onScrollToEnd={this.handleScrollToEnd}
             onSliderShow={this.handleSliderShow}
           />
         </div>
+        <TraceSlider
+          appName={this.traceQueryConfig?.app_name || ''}
+          bizId={this.bizId}
+          isShow={this.sliderShow}
+          traceId={this.activeTraceId}
+          onSliderClose={this.handleSliderClose}
+        />
       </div>
     );
   },

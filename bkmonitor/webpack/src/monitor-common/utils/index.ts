@@ -157,8 +157,8 @@ export const setGlobalBizId = () => {
     if (isNoBusiness && !bizList.length) {
       return true;
     }
-    // 设置过默认id时，优先取defaultBizId
-    const newBizId = defaultBizId || spaceItem?.bk_biz_id || window.cc_biz_id;
+    // 默认业务优先，其次恢复仍有权限的最近业务。
+    const newBizId = defaultBizId || spaceItem?.bk_biz_id || (hasAuth(localBizId) ? +localBizId : window.cc_biz_id);
     if ((isSpecialAlarmCenterEntry || isCanAllIn) && !bizList.length) {
       bizId = newBizId && newBizId !== -1 ? newBizId : 0;
     } else if (spaceUid) {

@@ -26,7 +26,7 @@
 
 import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 
-import { Switcher } from 'bkui-vue';
+// import { Switcher } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import DetailSlider, { type LlmDetailSliderContent } from '../../../llm-observation/components/detail-slider';
@@ -60,7 +60,7 @@ export default defineComponent({
   emits: {
     'view-detail': (_spanId: string) => true,
   },
-  setup(props, { emit }) {
+  setup(props) {
     const { t } = useI18n();
     const activeIoTab = shallowRef<IoTabName>('input');
     const showRawJson = shallowRef(false);
@@ -120,28 +120,28 @@ export default defineComponent({
     };
 
     /** flush：Tool 布局下操作条与内容区对齐（无 Tab 行） */
-    const renderActions = (flush = false) => (
-      <div class={['llm-span-expand-actions', { 'is-flush': flush }]}>
-        <div class='llm-span-expand-switch'>
-          <Switcher
-            modelValue={showRawJson.value}
-            size='small'
-            theme='primary'
-            onChange={(val: boolean) => {
-              showRawJson.value = val;
-            }}
-          />
-          <span class='llm-span-expand-switch-text'>{t('查看原始 Span JSON')}</span>
-        </div>
-        <div
-          class='llm-span-expand-detail-link'
-          onClick={() => emit('view-detail', props.row.spanId)}
-        >
-          <span>{t('查看 Span 详情')}</span>
-          <i class='icon-monitor icon-mc-goto' />
-        </div>
-      </div>
-    );
+    // const renderActions = (flush = false) => (
+    //   <div class={['llm-span-expand-actions', { 'is-flush': flush }]}>
+    //     <div class='llm-span-expand-switch'>
+    //       <Switcher
+    //         modelValue={showRawJson.value}
+    //         size='small'
+    //         theme='primary'
+    //         onChange={(val: boolean) => {
+    //           showRawJson.value = val;
+    //         }}
+    //       />
+    //       <span class='llm-span-expand-switch-text'>{t('查看原始 Span JSON')}</span>
+    //     </div>
+    //     <div
+    //       class='llm-span-expand-detail-link'
+    //       onClick={() => emit('view-detail', props.row.spanId)}
+    //     >
+    //       <span>{t('查看 Span 详情')}</span>
+    //       <i class='icon-monitor icon-mc-goto' />
+    //     </div>
+    //   </div>
+    // );
 
     const renderJson = () => (
       <div class='llm-span-expand-json is-dark'>
@@ -201,7 +201,7 @@ export default defineComponent({
               </div>
             ))}
           </div>
-          {renderActions()}
+          {/* {renderActions()} */}
         </div>
         <div class={['llm-span-expand-content', { 'is-raw-json': showRawJson.value }]}>
           {showRawJson.value ? (
@@ -229,7 +229,7 @@ export default defineComponent({
         {renderDescription()}
         {isTool.value ? (
           <>
-            <div class='llm-span-expand-toolbar is-tool'>{renderActions(true)}</div>
+            {/* <div class='llm-span-expand-toolbar is-tool'>{renderActions(true)}</div> */}
             {showRawJson.value ? renderJson() : renderToolContent()}
           </>
         ) : (

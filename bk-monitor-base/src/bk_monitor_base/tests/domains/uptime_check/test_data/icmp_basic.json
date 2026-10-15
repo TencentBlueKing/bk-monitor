@@ -1,0 +1,77 @@
+{
+  "description": "ICMP场景 - Ping检测网络可达性，多节点多地址",
+  "task_config": {
+    "bk_biz_id": 2,
+    "name": "ICMP网络可达性检测",
+    "protocol": "icmp",
+    "labels": {
+      "env": "prod",
+      "purpose": "reachability"
+    },
+    "config": {
+      "ip_list": [
+        "8.8.8.8",
+        "1.1.1.1",
+        "114.114.114.114"
+      ],
+      "timeout": 5000,
+      "period": 120,
+      "size": 56,
+      "max_rtt": 4500,
+      "total_num": 4
+    }
+  },
+  "nodes": [
+    {
+      "bk_biz_id": 2,
+      "name": "北京主机-CMDB",
+      "bk_host_id": 10001,
+      "ip": "192.168.1.1",
+      "plat_id": 0,
+      "location": {
+        "country": "中国",
+        "city": "北京"
+      },
+      "carrieroperator": "联通"
+    },
+    {
+      "bk_biz_id": 2,
+      "name": "上海主机-CMDB多云",
+      "bk_host_id": 10002,
+      "ip": "10.0.0.1",
+      "plat_id": 1,
+      "location": {
+        "country": "中国",
+        "city": "上海"
+      },
+      "carrieroperator": "电信"
+    },
+    {
+      "bk_biz_id": 2,
+      "name": "深圳主机-直接IP",
+      "bk_host_id": 20001,
+      "ip": "203.0.113.50",
+      "plat_id": 0,
+      "location": {
+        "country": "中国",
+        "city": "深圳"
+      },
+      "carrieroperator": "移动"
+    }
+  ],
+  "expected_deployment": {
+    "subscription_created": true,
+    "task_status": "STARTING",
+    "node_count": 3,
+    "protocol": "icmp",
+    "verify_fields": {
+      "size": 56,
+      "max_rtt": 4500,
+      "total_num": 4,
+      "timeout": "5000ms",
+      "period": "120s",
+      "ip_list_count": 3
+    },
+    "notes": "ICMP用于测试网络可达性和延迟，验证大IP列表和多节点场景下的正确处理"
+  }
+}

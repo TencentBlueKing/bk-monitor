@@ -25,8 +25,15 @@
  */
 
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
-import { formatTokenCount, getByPath, pickNumber, stringifyContent } from '../../../llm-observation/utils/helpers';
-import { flattenKvPairs, parseInputObservation } from '../../../llm-observation/utils/parse-input';
+import {
+  formatTokenCount,
+  getByPath,
+  isRecord,
+  parseJsonValue,
+  pickNumber,
+  stringifyContent,
+} from '../../../llm-observation/utils/helpers';
+import { parseInputObservation } from '../../../llm-observation/utils/parse-input';
 import { parseOutputObservation } from '../../../llm-observation/utils/parse-output';
 import { parseToolObservation } from '../../../llm-observation/utils/parse-tool';
 
@@ -34,6 +41,7 @@ import type {
   LlmExecutionFilter,
   LlmFlowSpan,
   LlmFlowTrace,
+  LlmIoPiece,
   LlmIoPreview,
   LlmOverviewStats,
   LlmSpanKind,
@@ -399,30 +407,94 @@ function pickDescription(span: LlmFlowSpan, kind = resolveSpanKind(span)): strin
   return '';
 }
 
-/** Tool 用 KV 预览；LLM/Agent 取 parse-input/output 最后一条可读文本 */
+/**
+ * 执行线输入/输出列。
+ * 对齐 list_llm_flows：消息按 role/part 归类后都进入对应列，不再只留最后一条文本。
+ * 系统 Prompt、可用工具定义仍在展开面板。
+ * 没有任何消息和工具记录时，行内才回退到系统 Prompt。
+ */
 function pickIoPreview(span: LlmFlowSpan, kind = resolveSpanKind(span)): LlmIoPreview {
   const attrs = span.attributes || {};
   if (kind === 'TOOL') {
     const tool = parseToolObservation(attrs);
     return {
-      type: 'kv',
-      input: flattenKvPairs(tool.arguments),
-      output: flattenKvPairs(tool.result),
+      input: valueToPieces(tool.arguments),
+      output: valueToPieces(tool.result),
     };
   }
-  const input = parseInputObservation(attrs);
-  const output = parseOutputObservation(attrs);
-  const inputText =
-    input.userMessages.at(-1)?.content ||
-    input.modelMessages.at(-1)?.content ||
-    input.systemPrompts.at(-1)?.content ||
-    '';
-  const outputText = output.modelOutputs.at(-1)?.content || output.reasoningMessages.at(-1)?.content || '';
-  return {
-    type: 'text',
-    input: inputText,
-    output: outputText,
-  };
+  return pickMessageIo(attrs);
+}
+
+/** LLM / Agent / 未归类：主文本在左，工具调用与推理接在后面 */
+function pickMessageIo(attrs: Record<string, unknown>): LlmIoPreview {
+  const inputObs = parseInputObservation(attrs);
+  const outputObs = parseOutputObservation(attrs);
+  const input: LlmIoPiece[] = [];
+  pushText(input, joinPreviewText(inputObs.userMessages));
+  pushText(input, joinPreviewText(inputObs.modelMessages));
+  for (const call of inputObs.toolCalls) {
+    pushToolPayload(input, call.name, call.arguments, call.response);
+  }
+  pushText(input, joinPreviewText(inputObs.reasoningMessages));
+  if (!input.length) pushText(input, joinPreviewText(inputObs.systemPrompts));
+
+  const output: LlmIoPiece[] = [];
+  pushText(output, joinPreviewText(outputObs.modelOutputs));
+  for (const call of outputObs.plannedToolCalls) {
+    pushToolPayload(output, call.name, call.arguments);
+  }
+  pushText(output, joinPreviewText(outputObs.reasoningMessages));
+  return { input, output };
+}
+
+function pushText(pieces: LlmIoPiece[], text: string) {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (normalized) pieces.push({ type: 'text', text: normalized });
+}
+
+function joinPreviewText(items: { content: string }[]): string {
+  return items
+    .map(item => item.content.replace(/\s+/g, ' ').trim())
+    .filter(Boolean)
+    .join(' ');
+}
+
+/** 工具名单独成段；参数、返回各自展开，避免合并后只看见其中一侧 */
+function pushToolPayload(pieces: LlmIoPiece[], name: string, args: unknown, response?: unknown) {
+  const payload = [...valueToPieces(args), ...valueToPieces(response)];
+  if (!name && !payload.length) return;
+  if (name) pieces.push({ type: 'name', text: name });
+  pieces.push(...payload);
+}
+
+/**
+ * 对象展开全部顶层字段（不再截到 4 个）。
+ * 数组、字符串、数字等不再因为不是对象而显示成空。
+ */
+function valueToPieces(value: unknown): LlmIoPiece[] {
+  if (value == null || value === '') return [];
+  const parsed = parseJsonValue(value);
+  if (parsed == null || parsed === '') return [];
+  if (isRecord(parsed)) {
+    const pairs = Object.entries(parsed)
+      .map(([key, val]) => ({ key, value: compactPreviewText(val) }))
+      .filter(item => item.value !== '');
+    return pairs.length ? [{ type: 'kv', pairs }] : [];
+  }
+  const text = compactPreviewText(parsed);
+  return text ? [{ type: 'text', text }] : [];
+}
+
+/** 单行预览：嵌套值用紧凑 JSON，避免缩进换行撑开 42px 行高 */
+function compactPreviewText(value: unknown): string {
+  if (value == null) return '';
+  if (typeof value === 'string') return value.replace(/\s+/g, ' ').trim();
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
 }
 
 /** 展示名：Tool/Agent 优先 gen_ai.*.name，LLM 用 span_name */
@@ -447,11 +519,17 @@ function pickSpanSubtitle(span: LlmFlowSpan, kind = resolveSpanKind(span)): stri
   return '';
 }
 
-/** Trace 卡片标题：首个有用户输入预览的 Span，否则根 span_name */
+/** Trace 卡片标题：首个非 Tool Span 的用户消息，其次模型消息 / 系统 Prompt */
 function pickTraceTitle(flow: LlmFlowSpan[]): string {
   for (const span of walkSpans(flow)) {
-    const preview = pickIoPreview(span);
-    if (preview.type === 'text' && preview.input.trim()) return preview.input.trim();
+    if (resolveSpanKind(span) === 'TOOL') continue;
+    const input = parseInputObservation(span.attributes || {});
+    const text =
+      input.userMessages.at(-1)?.content.trim() ||
+      input.modelMessages.at(-1)?.content.trim() ||
+      input.systemPrompts.at(-1)?.content.trim() ||
+      '';
+    if (text) return text.replace(/\s+/g, ' ').trim();
   }
   return flow[0]?.span_name || '';
 }

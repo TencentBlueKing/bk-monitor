@@ -1,7 +1,23 @@
 /*
  * Tencent is pleased to support the open source community by making
  * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ * Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
  */
+
 import axios from 'axios';
 
 import http from '@/api';
@@ -210,7 +226,7 @@ function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
         ? { cancelToken: requestCancelToken }
         : { catchIsShowMessage: false, cancelToken: requestCancelToken },
     )
-    .then(async res => {
+    .then(res => {
       const normalizedFields = normalizeRetrieveFields(res.data ?? {});
       if (res.data) {
         res.data.fields = normalizedFields;
@@ -237,9 +253,7 @@ function requestIndexSetFieldInfoActionImpl({ commit, state, getters }) {
           default_sort_list: defaultSortList,
         }),
       );
-      // updateIndexFieldInfo 已同步写入内存缓存；继续等待 IndexedDB 持久化，
-      // 保证 fields action resolve 后 search/worker 看到的是完整字段语义。
-      await retrieveFieldCacheService.waitForMetaPersistence(fieldScope);
+      // updateIndexFieldInfo 已同步写入内存 meta；IndexedDB 后台落盘，不挡住后续 search。
       commit('updataOperatorDictionary', res.data ?? {});
       commit('updateNotTextTypeFields', res.data ?? {});
       commit('updateIndexSetFieldConfig', res.data ?? {});
@@ -331,8 +345,8 @@ export async function requestIndexSetQueryAction(
     return;
   }
 
-  // /search 写入 IndexedDB 前必须拿到 fields 元数据。字段元数据决定 analyzed、
-  // tokenize_on_chars 以及最终点击粒度，不能在检索返回后再补齐。
+  // /search 只依赖内存里的 fields 元数据（analyzed / tokenize_on_chars）。
+  // IndexedDB 落盘与检索并行，避免千级字段时 persistence 把首屏 search 挡住。
   const fieldScope = state.indexFieldInfo.field_scope || state.indexId || 'default';
   const hasFieldMetadata = retrieveFieldCacheService.getFieldList(fieldScope, false).length > 0;
   if (!hasFieldMetadata) {
@@ -341,10 +355,6 @@ export async function requestIndexSetQueryAction(
       return { result: false, ignored: true, reason: 'index-set-field-not-found' };
     }
   }
-  // fields 可能已由初始化入口写入内存但仍在持久化；search 也必须等待该阶段完成。
-  await retrieveFieldCacheService.waitForMetaPersistence(
-    state.indexFieldInfo.field_scope || state.indexId || 'default',
-  );
 
   const retrieveParams = getters.retrieveParams;
   const shouldSkipEmptySceneSearch =

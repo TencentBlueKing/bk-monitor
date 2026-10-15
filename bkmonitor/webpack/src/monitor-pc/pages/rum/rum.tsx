@@ -44,6 +44,8 @@ export default class Rum extends tsc<object> {
   @Ref('traceApp') traceApp: HTMLElement;
   @Prop() a: number;
   unmountCallback: () => void;
+  disposed = false;
+  loadError = false;
   // 是否显示引导页（依赖 space_introduce 接口数据，未接入时通过本地兜底模板始终展示）
   // get showGuidePage() {
   //   return introduce.getShowGuidePageByRoute(this.$route.meta?.navId);
@@ -86,29 +88,36 @@ export default class Rum extends tsc<object> {
       window.customElements.define('trace-explore', TraceExploreElement);
     }
   }
-  async mounted() {
-    // console.log('mounted--------------------------', this.showGuidePage);
-    // if (this.showGuidePage) {
-    //   this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
-    //   return;
-    // }
-    await loadApp({
-      url: this.traceUrl,
-      id: traceAppId,
-      setShadowDom: true,
-      container: this.traceApp.shadowRoot,
-      data: this.traceData,
-      showSourceCode: false,
-      scopeCss: true,
-      scopeJs: true,
-      scopeLocation: false,
-    });
-    mount(traceAppId, this.traceApp.shadowRoot);
-    setTimeout(() => {
+  mounted() {
+    this.loadRumApp();
+  }
+  async loadRumApp() {
+    this.loadError = false;
+    try {
+      await loadApp({
+        url: this.traceUrl,
+        id: traceAppId,
+        isPreLoad: true,
+        setShadowDom: true,
+        container: this.traceApp.shadowRoot,
+        data: this.traceData,
+        showSourceCode: false,
+        scopeCss: true,
+        scopeJs: true,
+        scopeLocation: false,
+      });
+      if (this.disposed) return;
+      mount(traceAppId, this.traceApp.shadowRoot, () => {
+        if (!this.disposed) this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
+      });
+    } catch {
+      if (this.disposed) return;
+      this.loadError = true;
       this.$store.commit('app/SET_ROUTE_CHANGE_LOADING', false);
-    }, 300);
+    }
   }
   beforeDestroy() {
+    this.disposed = true;
     // if (this.showGuidePage) return;
     this.unmountCallback?.();
     unmount(traceAppId);
@@ -120,6 +129,21 @@ export default class Rum extends tsc<object> {
     // }
     return (
       <div class='rum-wrap'>
+        {this.loadError && (
+          <div
+            class='rum-host-error'
+            role='status'
+          >
+            <span>{this.$t('加载失败')}</span>
+            <bk-button
+              theme='primary'
+              text
+              onClick={this.loadRumApp}
+            >
+              {this.$t('重试')}
+            </bk-button>
+          </div>
+        )}
         <div class='rum-wrap-iframe'>
           <trace-explore ref='traceApp' />
         </div>

@@ -113,10 +113,36 @@ class BaseRumLevelHandler(ABC):
         ...
 
     @abstractmethod
+    def timeline(self, session_id: str | None = None, view_id: str | None = None) -> dict[str, Any]:
+        """查询会话或单个视图的时间线。"""
+        ...
+
+    @abstractmethod
     def generate_query_string(
         self,
         filters: list[types.Filter],
         extra_config: dict[str, Any] | None = None,
     ) -> str:
         """将过滤条件列表转换为 Elasticsearch query string"""
+        ...
+
+    @abstractmethod
+    def statistics(
+        self,
+        start_time: int | None,
+        end_time: int | None,
+        field: str,
+        cal_type: str,
+        baseline: str,
+        time_shifts: list[str],
+        group_by: list[str] | None = None,
+        interval: int | None = None,
+        filters: list[types.Filter] | None = None,
+        query_string: str = "",
+        extra_config: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """数据统计：多时间偏移聚合查询，返回带 growth_rates / proportions 的分组结果。
+
+        start_time / end_time 缺省时由实现层基于数据保留期自动补齐时间窗口。
+        """
         ...

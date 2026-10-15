@@ -14,27 +14,37 @@ import logging
 import re
 import time
 from datetime import datetime
+from types import SimpleNamespace
 from collections import defaultdict
 
+from django.template import TemplateDoesNotExist
 from django.utils.translation import gettext as _
+from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from api.itsm.default import TokenVerifyResource
 from bkmonitor.action.serializers import (
     ActionConfigDetailSlz,
     ActionPluginSlz,
     BatchCreateDataSerializer,
+    CreateChatGroupSerializer,
     GetCreateParamsSerializer,
 )
 from bkmonitor.documents import AlertLog
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
+from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.models import GlobalConfig
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
 from bkmonitor.utils.common_utils import count_md5
-from bkmonitor.utils.template import CustomTemplateRenderer, Jinja2Renderer, jinja_render
+from bkmonitor.utils.request import get_request, get_request_tenant_id, get_request_username
+from bkmonitor.utils.template import AlarmNoticeTemplate, CustomTemplateRenderer, Jinja2Renderer, jinja_render
+from bkmonitor.utils.tenant import is_biz_in_tenant
 from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
-from constants.action import ActionSignal
+from constants.action import GLOBAL_BIZ_ID, ActionSignal, ChatMessageType
 from core.drf_resource import Resource
+from core.errors.alert import AlertNotFoundError
+from fta_web.action.utils import filter_alerts_by_biz
 
 try:
     # 后台接口，需要引用后台代码
@@ -93,20 +103,30 @@ class BatchCreateActionResource(Resource):
         creator = serializers.CharField(required=True, label="执行人")
 
     def perform_request(self, validated_request_data):
+        alert_groups = [
+            filter_alerts_by_biz(AlertDocument.mget(ids=data["alert_ids"]), validated_request_data["bk_biz_id"])
+            for data in validated_request_data["operate_data_list"]
+        ]
+        return self._create_actions(validated_request_data, alert_groups)
+
+    def _create_actions(self, validated_request_data, alert_groups):
         operate_data_list = validated_request_data["operate_data_list"]
         creator = validated_request_data["creator"]
-        generate_uuid = count_md5([json.dumps(operate_data_list), int(datetime.now().timestamp())])
+        batch_uuid = count_md5([json.dumps(operate_data_list), int(datetime.now().timestamp())])
         action_plugins = {
             str(plugin["id"]): plugin for plugin in ActionPluginSlz(instance=ActionPlugin.objects.all(), many=True).data
         }
         action_logs = []
-        handled_alerts = []
-        alert_ids = []
-        for operate_data in operate_data_list:
-            alert_ids = operate_data["alert_ids"]
-            alerts = AlertDocument.mget(ids=alert_ids)
+        all_alerts = {}
+        action_alerts = {}
+        for index, (operate_data, alerts) in enumerate(zip(operate_data_list, alert_groups)):
+            alert_ids = [alert.id for alert in alerts]
             if not alerts:
                 continue
+            all_alerts.update((alert.id, alert) for alert in alerts)
+            # 下游按创建批次取告警快照，每组需要独立批次，避免套餐使用其他组的告警上下文。
+            generate_uuid = count_md5([batch_uuid, index])
+            action_alerts[generate_uuid] = alerts
             for action_config in operate_data["action_configs"]:
                 action = ActionInstance.objects.create(
                     signal=ActionSignal.MANUAL,
@@ -140,18 +160,125 @@ class BatchCreateActionResource(Resource):
                     )
                 )
 
-            handled_alerts = [
-                AlertDocument(
-                    id=alert.id, is_handled=True, assignee=list(set([man for man in alert.assignee] + [creator]))
-                )
-                for alert in alerts
-            ]
-        actions = PushActionProcessor.push_actions_to_queue(generate_uuid, alerts)
+        if not all_alerts:
+            return {"actions": [], "alert_ids": []}
+
+        alerts = list(all_alerts.values())
+        handled_alerts = [
+            AlertDocument(id=alert.id, is_handled=True, assignee=list(set([man for man in alert.assignee] + [creator])))
+            for alert in alerts
+        ]
+        actions = []
+        for generate_uuid, group_alerts in action_alerts.items():
+            actions.extend(PushActionProcessor.push_actions_to_queue(generate_uuid, group_alerts))
         # 更新告警状态和流转日志
         AlertLog.bulk_create(action_logs)
         AlertDocument.bulk_create(handled_alerts, action=BulkActionType.UPDATE)
 
-        return {"actions": list(actions), "alert_ids": alert_ids}
+        return {"actions": list(actions), "alert_ids": list(all_alerts)}
+
+
+class CreateChatGroupActionResource(BatchCreateActionResource):
+    """跨业务拉群只使用服务端内置套餐，全部告警授权通过后才创建任务。"""
+
+    RequestSerializer = CreateChatGroupSerializer
+
+    @staticmethod
+    def convert_action_data(validated_request_data):
+        try:
+            action_config = ActionConfig.objects.get(name=_("「快捷」一键拉群"), is_builtin=True)
+        except ActionConfig.DoesNotExist:
+            logger.info("config of builtin create-chat-group is not existed")
+            raise
+
+        alert_ids = validated_request_data["alert_ids"]
+        message_template = "{{content.detail}}"
+        if ChatMessageType.ALARM_CONTENT in validated_request_data["content_type"]:
+            template_path = "notice/abnormal/action/default_content.jinja"
+            if len(alert_ids) > 1:
+                template_path = "notice/abnormal/converge/default_content.jinja"
+            try:
+                message_template = AlarmNoticeTemplate.get_template_source(template_path)
+            except TemplateDoesNotExist:
+                # 不存在直接用告警模板
+                logger.debug("notice template does not exist， use user content")
+                message_template = "{{user_content}}"
+
+        notice_title = _(GlobalConfig.get("NOTICE_TITLE", "蓝鲸监控"))
+        chat_name_template = notice_title + " - {{alarm.name}}[{{alarm.id}}]"
+        if len(validated_request_data["alert_ids"]) > 1:
+            chat_name_template = notice_title + _(" - 【{}】等{}个告警").format("{{alarm.name}}", len(alert_ids))
+
+        operator = get_request_username()
+        action_data = {
+            "operate_data_list": [
+                {
+                    "alert_ids": validated_request_data["alert_ids"],
+                    "action_configs": [
+                        {
+                            "execute_config": {
+                                "template_detail": {
+                                    "chat_owner": operator,
+                                    "chat_name": chat_name_template,
+                                    "chat_members": ",".join(validated_request_data["chat_members"]),
+                                    "message": message_template,
+                                },
+                                "template_id": action_config.execute_config["template_id"],
+                                "timeout": action_config.execute_config["timeout"],
+                            },
+                            "plugin_id": action_config.plugin_id,
+                            "name": action_config.name,
+                            "is_enabled": action_config.is_enabled,
+                            "bk_biz_id": action_config.bk_biz_id,
+                            "config_id": action_config.id,
+                        }
+                    ],
+                }
+            ],
+            "bk_biz_id": validated_request_data["bk_biz_id"],
+            "creator": operator,
+        }
+        return action_data
+
+    def perform_request(self, validated_request_data):
+        from kernel_api.middlewares.authentication import is_match_api_token
+
+        request = get_request()
+        if getattr(request, "token", None):
+            raise PermissionDenied()
+        jwt = getattr(request, "jwt", None)
+        if jwt:
+            if not jwt.user.get("verified") or not jwt.user.get("username"):
+                raise PermissionDenied()
+            app_code = jwt.app.get("app_code")
+        else:
+            if not request.META.get("HTTP_BK_USERNAME"):
+                raise PermissionDenied()
+            app_code = request.META.get("HTTP_BK_APP_CODE")
+        username = get_request_username()
+        if not username or not app_code:
+            raise PermissionDenied()
+
+        alert_ids = list(dict.fromkeys(validated_request_data["alert_ids"]))
+        alerts_by_id = {alert.id: alert for alert in AlertDocument.mget(ids=alert_ids)}
+        if set(alert_ids) != alerts_by_id.keys():
+            raise ValidationError(_("部分告警不存在或无权访问，请刷新后重试"))
+        alerts = [alerts_by_id[alert_id] for alert_id in alert_ids]
+        tenant_id = get_request_tenant_id()
+        biz_ids = {int(alert.event.bk_biz_id) for alert in alerts}
+        permission = Permission(username=username, bk_tenant_id=tenant_id)
+        # API 服务默认豁免 IAM；跨业务拉群必须显式校验真实操作者。
+        permission.skip_check = False
+        for bk_biz_id in sorted(biz_ids):
+            if not bk_biz_id or not is_biz_in_tenant(bk_biz_id, tenant_id):
+                raise PermissionDenied()
+            if not is_match_api_token(SimpleNamespace(biz_id=bk_biz_id), tenant_id, app_code):
+                raise PermissionDenied()
+            permission.is_allowed_by_biz(bk_biz_id, ActionEnum.VIEW_EVENT, raise_exception=True)
+
+        params = dict(validated_request_data, alert_ids=alert_ids, bk_biz_id=str(alerts[0].event.bk_biz_id))
+        action_data = BatchCreateActionResource().validate_request_data(self.convert_action_data(params))
+        return self._create_actions(action_data, [alerts])
 
 
 class GetActionParamsByConfigResource(Resource):
@@ -184,14 +311,17 @@ class GetActionParamsByConfigResource(Resource):
         action_configs = validated_request_data.get("action_configs", [])
         action_id = validated_request_data.get("action_id")
 
+        bk_biz_id = str(validated_request_data["bk_biz_id"])
         if config_ids:
-            action_configs = ActionConfigDetailSlz(ActionConfig.objects.filter(id__in=config_ids), many=True).data
+            action_configs = ActionConfigDetailSlz(
+                ActionConfig.objects.filter(id__in=config_ids, bk_biz_id__in=[GLOBAL_BIZ_ID, bk_biz_id]), many=True
+            ).data
 
-        alerts = AlertDocument.mget(validated_request_data["alert_ids"])
+        alerts = filter_alerts_by_biz(AlertDocument.mget(validated_request_data["alert_ids"]), bk_biz_id)
         action = None
         if action_id:
             try:
-                action = ActionInstance.objects.get(id=action_id)
+                action = ActionInstance.objects.get(id=action_id, bk_biz_id=bk_biz_id)
             except ActionInstance.DoesNotExist:
                 logger.info("action(%s) not exist", action_id)
 
@@ -370,8 +500,8 @@ class GetDemoActionContextResource(Resource):
         variables = validated_request_data.get("variables", {})
 
         alerts = AlertDocument.mget(ids=[alert_id])
-        if not alerts:
-            raise ValueError(_("告警不存在或已过期: {}").format(alert_id))
+        if not alerts or str(getattr(alerts[0].event, "bk_biz_id", None)) != str(bk_biz_id):
+            raise AlertNotFoundError({"alert_id": alert_id})
 
         alert = alerts[0]
         fake_action = self.build_fake_action(alert, bk_biz_id)

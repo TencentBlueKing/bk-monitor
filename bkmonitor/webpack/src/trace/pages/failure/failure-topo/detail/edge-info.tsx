@@ -33,6 +33,7 @@ import { checkIsRoot } from '../../utils';
 import { NODE_TYPE_ICON } from '../node-type-svg';
 import { canJumpByType, getApmServiceType, handleToLink } from '../utils';
 import MetricView from './metric-view';
+import SnapshotAnalysisInfo from './snapshot-analysis-info';
 
 import type { IEdge, IncidentDetailData, ITopoNode } from '../types/topo';
 
@@ -197,6 +198,10 @@ export default defineComponent({
     return (
       <div class='edge-wrap'>
         <div class='edge-info'>{this.renderEdgeInfo()}</div>
+        <SnapshotAnalysisInfo analysis={this.activeEdge?.graph_analysis} scores={this.activeEdge?.properties?.scores} />
+        {this.activeEdge?.properties?.relation && (
+          <div>{this.t('关系类型')}：{this.activeEdge.properties.relation}</div>
+        )}
         <div class='edge-metrics'>
           <div class='edge-metrics_title'>{this.t('指标')}</div>
           <div class='edge-metrics_main'>

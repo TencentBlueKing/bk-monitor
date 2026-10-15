@@ -252,6 +252,25 @@ class LLMQueryTestCase(TestCase):
         query_builder.values.assert_called_once_with("attributes.session.id", OtlpKey.TRACE_ID)
         query_list.assert_called_once_with([query_builder], None, None, 0, 10000)
 
+    def test_group_aggregation_keeps_all_dimensions(self):
+        records = [{"attributes.gen_ai.request.model": f"model-{index}", "_result_": index} for index in range(25)]
+        with mock.patch.object(self.query, "_add_query", return_value=records) as add_query:
+            result = self.query.query_field_aggregated_group(
+                self.query.build_queries(),
+                1737532800,
+                1737536400,
+                ["attributes.gen_ai.usage.input_tokens"],
+                "sum",
+                ["attributes.gen_ai.request.model"],
+            )
+        qs, queries = add_query.call_args.args
+        self.assertEqual(result, records)
+        self.assertEqual(qs.query.expression, "q0")
+        self.assertTrue(qs.query.instant)
+        self.assertFalse(qs.query.is_time_agg)
+        self.assertEqual(qs.query.get_limit(), self.query.QUERY_MAX_LIMIT)
+        self.assertEqual(list(queries[0].query.group_by), ["attributes.gen_ai.request.model"])
+
 
 class TracePreviewQueryTestCase(TestCase):
     setUp = LLMQueryTestCase.setUp

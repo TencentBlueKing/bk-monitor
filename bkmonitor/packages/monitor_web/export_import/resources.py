@@ -1158,7 +1158,7 @@ class AddMonitorTargetResource(Resource):
         bk_biz_id = validated_request_data["bk_biz_id"]
         history_id = validated_request_data["import_history_id"]
         target = validated_request_data["target"]
-        history_instance = ImportHistory.objects.filter(id=history_id).first()
+        history_instance = ImportHistory.objects.filter(id=history_id, bk_biz_id=bk_biz_id).first()
         if not history_instance:
             raise ImportHistoryNotExistError
 

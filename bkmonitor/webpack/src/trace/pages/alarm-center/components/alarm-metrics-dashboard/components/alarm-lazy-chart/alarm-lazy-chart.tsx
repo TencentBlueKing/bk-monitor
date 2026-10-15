@@ -39,6 +39,8 @@ import { get } from '@vueuse/core';
 import { PanelModel } from 'monitor-ui/chart-plugins/typings';
 
 import { DEFAULT_TIME_RANGE } from '../../../../../../components/time-range/utils';
+import ChartTitle from '../../../../../../plugins/components/chart-title';
+import DetailLoading, { DetailLoadStatus } from '../../../../common-detail/detail-loading';
 import ExploreChart from '../../../../../trace-explore/components/explore-chart/explore-chart';
 
 import type { LegendCustomOptions } from '../../../../../trace-explore/components/explore-chart/use-chart-legend';
@@ -98,6 +100,7 @@ export default defineComponent({
     const viewerRefreshImmediate = shallowRef('');
     /** 图表相关配置 是否发生了改变 */
     const hasPanelChange = shallowRef(true);
+    const initialized = shallowRef(false);
     /** 根元素容器是否在可视区域 */
     const isInViewport = shallowRef(false);
     /** 数据时间范围，兼容视口懒加载逻辑，对 timeRange 进行拦截 */
@@ -118,6 +121,7 @@ export default defineComponent({
       viewerTimeRange.value = get(timeRange);
       viewerRefreshImmediate.value = get(refreshImmediate);
       hasPanelChange.value = false;
+      initialized.value = true;
     };
 
     /**
@@ -190,6 +194,7 @@ export default defineComponent({
     });
 
     return {
+      initialized,
       viewerPanel,
       viewerParams,
       handleDataZoomChange,
@@ -214,10 +219,15 @@ export default defineComponent({
         ref='chartContainerRef'
         class='alarm-lazy-chart'
       >
-        {this.$slots?.customBaseChart?.(renderContext) || (
+        {!this.initialized ? <div class='base-chart alarm-lazy-chart-placeholder'>
+          {this.showTitle && <ChartTitle title={this.panel.title} subtitle={this.panel.subTitle || ''} showMore={false} />}
+          <DetailLoading showTitle={false} />
+        </div> : this.$slots?.customBaseChart?.(renderContext) || (
           <ExploreChart
             class='base-chart'
             {...renderContext}
+            retainOnRefresh={true}
+            v-slots={{ skeleton: () => <DetailLoading showTitle={false} />, refresh: () => <DetailLoadStatus loading /> }}
           />
         )}
       </div>

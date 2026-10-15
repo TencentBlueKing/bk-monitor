@@ -1173,6 +1173,8 @@ export default defineComponent({
       const selection = extractTargetSelection(value);
 
       if (!selection) {
+        formData.value.target_nodes = [];
+        isTargetNodesEmpty.value = true;
         return;
       }
       isConfigChange.value = true;
@@ -1543,6 +1545,10 @@ export default defineComponent({
         .validate()
         .then(() => {
           if (props.scenarioId !== 'winevent' && !isLineRuleValid) {
+            callback?.(false);
+            return;
+          }
+          if (props.scenarioId === 'winevent' && isTargetNodesEmpty.value) {
             callback?.(false);
             return;
           }

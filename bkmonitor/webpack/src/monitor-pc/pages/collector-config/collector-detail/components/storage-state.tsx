@@ -83,8 +83,9 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
 
   tableList: StatusItem[] = [];
 
-  @Watch('data')
+  @Watch('data', { immediate: true })
   handleDataChange(val: DataInterface) {
+    if (!val) return;
     this.infoData = val.info.map(item => {
       // todo 当前版本没有编辑功能，后续版本可能会加上，需要后台返回编辑状态
       if (item.hasEdit) {
@@ -175,10 +176,15 @@ export default class StorageState extends tsc<StorageStateProps, {}> {
     return (
       <div
         class='storage-state-component'
-        v-bkloading={{ isLoading: this.loading }}
+        aria-busy={this.loading ? 'true' : 'false'}
       >
         <div class='storage-info'>
-          <div class='title'>{this.$t('存储信息')}</div>
+          <div class='title'>
+            {this.$t('存储信息')}
+            {this.loading && (
+              <span class='collector-detail-loading-indicator' role='status' aria-label={this.$t('加载中')} />
+            )}
+          </div>
           <div class='info-form'>{this.infoData.map(field => this.renderInfoField(field))}</div>
         </div>
 

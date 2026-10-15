@@ -7,10 +7,10 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
 
   &-metric {
     position: relative;
-    margin-top: 10px;
+    margin-top: 16px;
 
     .alert-metric {
-      padding: 6px 0 0 0;
+      padding: 6px 0 0;
     }
 
     .clear-metric-content {
@@ -69,7 +69,6 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
           display: flex;
           align-items: center;
           width: 14px;
-          height: 30px;
           height: 14px;
           padding-bottom: 7px;
           margin-left: 5px;
@@ -107,38 +106,12 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
       }
     }
 
-    .metric-source-wrap {
-      display: flex;
-      flex-direction: column;
-
-      .source-options-wrap {
-        margin-top: 12px;
-
-        .step-input {
-          width: 205px;
-
-          .step-input-prepend {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            width: 96px;
-            height: 100%;
-            font-size: 12px;
-
-            .icon-AI {
-              margin-left: 8px;
-            }
-          }
-        }
-      }
-    }
-
     .ip-wrapper {
       display: flex;
       flex: 1;
       align-items: center;
       height: 52px;
-      margin-top: 24px;
+      margin-top: 16px;
       margin-right: 32px;
       border-top: 1px solid #dcdee5;
       border-radius: 2px;
@@ -212,7 +185,7 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-top: 8px;
+      margin-top: 16px;
 
       .tool-left {
         display: flex;
@@ -239,9 +212,10 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
         .metric-copy-btn {
           display: flex;
           align-items: center;
-          height: 26px;
+          height: 28px;
           padding: 0 8px;
           color: #63656e;
+
           // margin-left: 24px;
           cursor: pointer;
           background: #f0f1f5;
@@ -252,11 +226,24 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
           }
         }
       }
+
+      .tool-right {
+        line-height: 28px;
+
+        .metric-tab-right {
+          user-select: none;
+        }
+      }
     }
 
     .monitor-err-msg {
       margin-top: 10px;
       color: #ea3636;
+    }
+
+    /* promql 编辑器顶部间距由使用方配置，此处按编辑页排版为 16px */
+    .strategy-promql-query-editor {
+      margin-top: 16px;
     }
   }
 
@@ -272,7 +259,7 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
     align-items: center;
     height: 64px;
     padding-left: 30px;
-    margin: 0 -30px -30px -30px;
+    margin: 0 -30px -30px;
     color: #63656e;
     background: #f9fbfd;
 
@@ -302,5 +289,56 @@ $radioColorList: #ea3636 #ff9c01 #699df4;
   .info-url {
     color: #3a84ff;
     cursor: pointer;
+  }
+}
+
+/** Figma Dialog/delete-b：480 宽，圆角 4px，投影 0 4px 12px rgba(0, 0, 0, 20%)。 */
+.strategy-promql-mode-dialog.bk-dialog-wrapper {
+  .bk-dialog-content {
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 20%);
+  }
+
+  // 标题顶部 16px 由 tool(30px) + header-on-left(-14px) 得到，行高 28px，与内容间距 20px 由 body padding-top 承担
+  .bk-dialog-header {
+    height: 28px;
+    padding: 0 24px;
+    line-height: 28px;
+  }
+
+  .bk-dialog-body {
+    padding: 20px 24px 85px;
+  }
+
+  .source-mode-message {
+    padding: 0 8px;
+    line-height: 22px;
+    color: #63656e;
+    overflow-wrap: anywhere;
+
+    p {
+      margin: 0;
+    }
+  }
+
+  // 底部操作栏为白底无分割线，左右 32px、底部 24px，按钮右对齐
+  .bk-dialog-footer {
+    padding: 0 32px 24px;
+    background-color: #fff;
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+
+    .source-mode-cancel {
+      width: 160px;
+    }
+  }
+
+  // 关闭图标置于右上角 8px，颜色 #c4c6cc
+  .bk-dialog-close {
+    width: 30px;
+    height: 30px;
+    font-size: 28px;
+    line-height: 30px;
+    color: #c4c6cc;
   }
 }

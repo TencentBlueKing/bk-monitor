@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, onMounted, shallowRef, watch, watchEffect } from 'vue';
+import { type Ref, computed, onMounted, onScopeDispose, shallowRef, watchEffect } from 'vue';
 
 import { useStorage } from '@vueuse/core';
 
@@ -47,7 +47,7 @@ const chunkFields = <T>(fields: T[], size: number): T[][] => {
   return chunks;
 };
 
-export function useAlarmAnalysis() {
+export function useAlarmAnalysis(enabled: Ref<boolean>) {
   const alarmStore = useAlarmCenterStore();
   // 告警、故障、处理记录 分析Field TopN列表
   const analysisFieldTopNData = shallowRef<AnalysisTopNDataResponse<AnalysisListItem>>({
@@ -79,7 +79,12 @@ export function useAlarmAnalysis() {
   let dimensionAbortController: AbortController | null = null;
 
   const effectFunc = () => {
-    getAnalysisFieldData(analysisFields.value);
+    if (!enabled.value) {
+      fieldAbortController?.abort();
+      analysisFieldTopNLoading.value = false;
+      return;
+    }
+    return getAnalysisFieldData(analysisFields.value);
   };
 
   /** 获取分析字段TopN数据 */
@@ -93,25 +98,21 @@ export function useAlarmAnalysis() {
     fieldAbortController = new AbortController();
     const { signal } = fieldAbortController;
 
-    const analysisTopN = await getAnalysisDataByFields(fields, isAll, { signal });
-    // 检查请求是否已被中止，确保不会更新过期数据
-    if (signal.aborted) return;
-    analysisFieldTopNData.value = {
-      doc_count: analysisTopN.doc_count,
-      fields: analysisTopN.fields.map(item => ({
-        ...item,
-        name: analysisFieldsMap.value[item.field] || item.field,
-      })),
-    };
-    analysisFieldTopNLoading.value = false;
-  };
-
-  watch(
-    () => analysisSettings.value,
-    () => {
-      getAnalysisDimensionData();
+    try {
+      const analysisTopN = await getAnalysisDataByFields(fields, isAll, { signal });
+      // 检查请求是否已被中止，确保不会更新过期数据
+      if (signal.aborted) return;
+      analysisFieldTopNData.value = {
+        doc_count: analysisTopN.doc_count,
+        fields: analysisTopN.fields.map(item => ({
+          ...item,
+          name: analysisFieldsMap.value[item.field] || item.field,
+        })),
+      };
+    } finally {
+      if (!signal.aborted) analysisFieldTopNLoading.value = false;
     }
-  );
+  };
 
   /**
    * 获取分析 dimension Tag列表对应的TopN数据
@@ -127,17 +128,20 @@ export function useAlarmAnalysis() {
     dimensionAbortController = new AbortController();
     const { signal } = dimensionAbortController;
     analysisDimensionLoading.value = true;
-    const data = await getAnalysisDataByFields(fields, false, { signal });
-    // 检查请求是否已被中止，确保不会更新过期数据
-    if (signal.aborted) return;
-    analysisDimensionTopNData.value = {
-      doc_count: data.doc_count,
-      fields: data.fields.map(item => ({
-        ...item,
-        name: dimensionTags.value.find(tag => tag.id === item.field)?.name || item.field,
-      })),
-    };
-    analysisDimensionLoading.value = false;
+    try {
+      const data = await getAnalysisDataByFields(fields, false, { signal });
+      // 检查请求是否已被中止，确保不会更新过期数据
+      if (signal.aborted) return;
+      analysisDimensionTopNData.value = {
+        doc_count: data.doc_count,
+        fields: data.fields.map(item => ({
+          ...item,
+          name: dimensionTags.value.find(tag => tag.id === item.field)?.name || item.field,
+        })),
+      };
+    } finally {
+      if (!signal.aborted) analysisDimensionLoading.value = false;
+    }
   };
 
   /**
@@ -202,7 +206,19 @@ export function useAlarmAnalysis() {
 
   onMounted(() => {
     watchEffect(effectFunc);
-    getAnalysisDimensionData();
+    watchEffect(() => {
+      if (!enabled.value) {
+        dimensionAbortController?.abort();
+        analysisDimensionLoading.value = false;
+        return;
+      }
+      return getAnalysisDimensionData();
+    });
+  });
+
+  onScopeDispose(() => {
+    fieldAbortController?.abort();
+    dimensionAbortController?.abort();
   });
 
   return {

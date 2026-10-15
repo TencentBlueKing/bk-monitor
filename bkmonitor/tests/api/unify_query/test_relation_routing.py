@@ -131,6 +131,13 @@ def test_perform_request_routes_after_resolving_space_biz_and_tenant(monkeypatch
     assert sent_request["url"] == "http://unify-query/api/v1/relation/v1beta3/multi_resource"
     assert sent_request["headers"]["X-Bk-Tenant-Id"] == "tenant-a"
 
+    monkeypatch.setattr(module, "resolve_relation_query_path", resolve_relation_query_path)
+    with override_settings(GRAPH_RELATION_V4_BIZ_ID_WHITE_LIST=[]):
+        module.QueryMultiResourceV1Beta3().perform_request(
+            {"space_uid": "bkcc__2", "bk_tenant_id": "tenant-a", "query_list": []}
+        )
+    assert sent_request["url"] == "http://unify-query/api/v1/relation/v1beta3/multi_resource"
+
 
 def test_all_relation_resources_declare_v1_and_v1beta3_paths():
     source_path = Path(__file__).parents[3] / "api" / "unify_query" / "default.py"

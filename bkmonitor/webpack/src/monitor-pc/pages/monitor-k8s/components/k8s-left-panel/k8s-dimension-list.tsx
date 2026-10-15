@@ -23,12 +23,14 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import EmptyStatus from '../../../../components/empty-status/empty-status';
 import { K8sDimension } from '../../k8s-dimension';
 import { type GroupListItem, type ICommonParams, EDimensionKey } from '../../typings/k8s-new';
+import K8sLoading from '../k8s-loading/k8s-loading';
 import GroupItem from './group-item';
 
 import type { EmptyStatusOperationType } from '../../../../components/empty-status/types';
@@ -48,12 +50,14 @@ interface K8sDimensionListProps {
   commonParams: ICommonParams;
   filterBy: Record<string, string[]>;
   groupBy: string[];
+  initializing?: boolean;
 }
 
 @Component
 export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDimensionListEvents> {
-  @InjectReactive('refleshImmediate') refreshImmediate;
+  @InjectReactive('refreshImmediate') refreshImmediate;
 
+  @Prop({ type: Boolean, default: false }) initializing: boolean;
   @Prop({ type: Object, required: true }) commonParams: ICommonParams;
   @Prop({ type: Array, default: () => [] }) groupBy: string[];
   @Prop({ type: Object, default: () => ({}) }) filterBy: Record<string, string[]>;
@@ -69,7 +73,18 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   drillDownList = [];
 
   /** 一级维度列表初始化loading */
-  loading = false;
+  loading = true;
+  disposed = false;
+  loadedContext = '';
+  loadError = false;
+
+  get contextKey() {
+    return JSON.stringify([this.localCommonParams, this.searchValue]);
+  }
+
+  get showSkeleton() {
+    return this.initializing || (this.loading && this.loadedContext !== this.contextKey);
+  }
   /** 展开loading */
   expandLoading = {};
   /** 加载更多loading */
@@ -109,6 +124,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.init();
   }
 
+  @Watch('initializing')
   @Watch('localCommonParams')
   handleCommonParamsChange() {
     this.init();
@@ -123,10 +139,21 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
     this.init();
   }
 
+  beforeDestroy() {
+    this.disposed = true;
+    this.initCount++;
+  }
+
   async init() {
-    if (!this.localCommonParams.bcs_cluster_id) return;
-    this.initCount += 1;
-    const cacheInitCount = this.initCount;
+    const requestId = ++this.initCount;
+    if (this.disposed) return;
+    if (this.initializing || !this.localCommonParams.bcs_cluster_id) {
+      this.loading = this.initializing;
+      (this as any).dimension = null;
+      this.showDimensionList = [];
+      return;
+    }
+    const context = this.contextKey;
     const dimension = new K8sDimension({
       ...this.localCommonParams,
       query_string: this.searchValue,
@@ -134,13 +161,22 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
       page_type: 'scrolling',
     });
     (this as any).dimension = dimension;
+    this.expandLoading = {};
+    this.loadMoreLoading = {};
     this.loading = true;
-    await dimension.init();
-    this.loading = false;
-    // 因为这里接口会比较多，且请求时间不一致，需要通过变量确保接口顺序一致
-    if (cacheInitCount === this.initCount) {
+    this.loadError = false;
+    try {
+      await dimension.init();
+      if (requestId !== this.initCount || this.disposed) return;
       this.showDimensionList = dimension.showDimensionData;
+      this.loadedContext = context;
       this.initLoading(this.showDimensionList);
+    } catch {
+      if (requestId !== this.initCount || this.disposed) return;
+      this.loadError = true;
+      if (this.loadedContext !== context) this.showDimensionList = [];
+    } finally {
+      if (requestId === this.initCount && !this.disposed) this.loading = false;
     }
   }
 
@@ -157,11 +193,8 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 搜索 */
   async handleSearch(val: string) {
     this.searchValue = val;
-    this.loading = true;
-    await (this as any).dimension.search(val);
-    this.showDimensionList = (this as any).dimension.showDimensionData;
-    this.loading = false;
-    this.cacheSearchValue = this.searchValue;
+    this.cacheSearchValue = val;
+    await this.init();
   }
 
   handleBlur(val: string) {
@@ -175,7 +208,7 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   handleItemClick(id, dimension: EDimensionKey) {
-    if (this.filterBy[dimension].includes(id)) return;
+    if (this.filterBy[dimension]?.includes(id)) return;
     this.handleGroupSearch(
       {
         id,
@@ -210,14 +243,19 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   /** 首次展开workload的二级菜单后，请求数据 */
   async handleFirstExpand(dimension: string, parentDimension: EDimensionKey) {
     if (parentDimension === EDimensionKey.workload && dimension !== parentDimension) {
-      this.expandLoading[dimension] = true;
-      await (this as any).dimension.getWorkloadChildrenData({
-        filter_dict: {
-          workload: `${dimension}:`,
-        },
-      });
-      this.showDimensionList = (this as any).dimension.showDimensionData;
-      this.expandLoading[dimension] = false;
+      if (this.loading || this.expandLoading[dimension]) return;
+      const source = (this as any).dimension;
+      this.$set(this.expandLoading, dimension, true);
+      try {
+        await source.getWorkloadChildrenData({
+          filter_dict: {
+            workload: `${dimension}:`,
+          },
+        });
+        if (source === (this as any).dimension && !this.disposed) this.showDimensionList = source.showDimensionData;
+      } finally {
+        if (source === (this as any).dimension && !this.disposed) this.$set(this.expandLoading, dimension, false);
+      }
     }
   }
 
@@ -229,27 +267,21 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
       // workload 需要获取下级类目进行判断
       oldDimensionData = oldDimensionData.children.find(item => item.id === dimension);
     }
-    if (!oldDimensionData.showMore) return;
-    this.loadMoreLoading[dimension] = true;
-    await (this as any).dimension.loadNextPageData([parentDimension, dimension]);
-    this.showDimensionList = (this as any).dimension.showDimensionData;
-    this.loadMoreLoading[dimension] = false;
-  }
-
-  /** 渲染骨架屏 */
-  renderGroupSkeleton() {
-    return (
-      <div class='skeleton-element-group'>
-        <div class='skeleton-element group-title' />
-        <div class='skeleton-element group-content' />
-        <div class='skeleton-element group-content' />
-        <div class='skeleton-element group-content' />
-      </div>
-    );
+    if (!oldDimensionData?.showMore || this.loading || this.loadMoreLoading[dimension]) return;
+    const source = (this as any).dimension;
+    this.$set(this.loadMoreLoading, dimension, true);
+    try {
+      await source.loadNextPageData([parentDimension, dimension]);
+      if (source === (this as any).dimension && !this.disposed) this.showDimensionList = source.showDimensionData;
+    } finally {
+      if (source === (this as any).dimension && !this.disposed) this.$set(this.loadMoreLoading, dimension, false);
+    }
   }
 
   handleEmptyOperation(type: EmptyStatusOperationType) {
-    if (type === 'clear-filter') {
+    if (type === 'refresh') {
+      this.init();
+    } else if (type === 'clear-filter') {
       this.handleSearch('');
     }
   }
@@ -260,7 +292,14 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
   }
 
   renderContent() {
-    if (this.loading) return [this.renderGroupSkeleton(), this.renderGroupSkeleton()];
+    if (this.showSkeleton) return <K8sLoading type='sidebar' />;
+    if (this.loadError && !this.showDimensionList.length)
+      return (
+        <EmptyStatus
+          type='500'
+          onOperation={this.handleEmptyOperation}
+        />
+      );
 
     const total = Object.keys(this.dimensionTotal).reduce((pre, cur) => {
       return pre + this.dimensionTotal[cur];
@@ -298,8 +337,14 @@ export default class K8sDimensionList extends tsc<K8sDimensionListProps, K8sDime
 
   render() {
     return (
-      <div class='k8s-dimension-list'>
-        <div class='panel-title'>{this.$t('K8S对象')}</div>
+      <div
+        class='k8s-dimension-list'
+        aria-busy={this.loading || this.initializing}
+      >
+        <div class='panel-title'>
+          {this.$t('K8S对象')}
+          {this.loading && !this.showSkeleton ? <bk-spin size='mini' /> : null}
+        </div>
         <bk-input
           class='left-panel-search'
           placeholder={this.$tc('搜索')}

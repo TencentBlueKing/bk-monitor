@@ -40,7 +40,18 @@ class ListEventsResource(Resource):
         return GetDataSourceConfigResource().request(validated_request_data)
 
 
-class GetEventViewConfigResource(Resource):
+class EventScopeResource(Resource):
+    def validate_request_data(self, request_data):
+        # MCP 鉴权先于 Resource 序列化，不能把非空 APM 参数裁成空串后切换到普通事件分支。
+        # 在通用 Resource 包装序列化错误之前拒绝，保留明确的参数错误而非通用 503。
+        for field in ("app_name", "service_name"):
+            value = request_data.get(field)
+            if isinstance(value, str) and value and not value.strip():
+                raise serializers.ValidationError({field: "APM scope must not contain only whitespace."})
+        return super().validate_request_data(request_data)
+
+
+class GetEventViewConfigResource(EventScopeResource):
     """
     事件MCP--事件视图配置
     """
@@ -84,7 +95,7 @@ class GetEventViewConfigResource(Resource):
         return EventViewConfigResource().request(query_params)
 
 
-class SearchEventLogResource(Resource):
+class SearchEventLogResource(EventScopeResource):
     """
     事件MCP--事件日志查询
     """

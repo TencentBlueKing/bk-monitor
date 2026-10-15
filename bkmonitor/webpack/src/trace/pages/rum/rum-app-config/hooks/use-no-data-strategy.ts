@@ -24,10 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { type MaybeRef, onScopeDispose, shallowRef, watchEffect } from 'vue';
+import { type MaybeRef, watch } from 'vue';
 
 import { get } from '@vueuse/core';
 
+import { useRumRequest } from '../../hooks/use-rum-request';
 import { disableNoDataStrategy, enableNoDataStrategy, fetchNoDataStrategyInfo } from '../services/data-state';
 
 import type { AsyncDialogConfirmEvent, IRumAppBaseParams, IStrategyData } from '../../typings';
@@ -51,12 +52,11 @@ interface UseNoDataStrategyOptions {
  */
 export const useNoDataStrategy = (options: UseNoDataStrategyOptions) => {
   const { applicationId, bizId, appName } = options;
-  /** 告警策略信息 */
-  const strategyInfo = shallowRef<IStrategyData>(null);
-  /** 数据加载状态 */
-  const loading = shallowRef(false);
-  /** 请求中止控制器 */
-  let abortController: AbortController | null = null;
+  const request = useRumRequest<IStrategyData>(
+    signal => fetchNoDataStrategyInfo({ bk_biz_id: get(bizId), app_name: get(appName) }, { signal }),
+    null
+  );
+  const strategyInfo = request.data;
 
   /**
    * @description 处理无数据告警开关变化，通过 AsyncDialogConfirmEvent 的 resolve/reject 控制 Switcher 状态
@@ -69,53 +69,24 @@ export const useNoDataStrategy = (options: UseNoDataStrategyOptions) => {
       .then(() => {
         strategyInfo.value = { ...strategyInfo.value, is_enabled: event.payload.is_enabled };
         event.resolve();
-        fetchStrategyInfo();
+        request.run();
       })
       .catch(() => event.reject());
   };
 
-  /**
-   * @description 获取无数据策略信息
-   * @description 通过 Service 层获取数据，Hook 只负责状态管理
-   * @returns {Promise<void>}
-   */
-  const fetchStrategyInfo = async (): Promise<void> => {
-    if (!get(bizId) || !get(appName)) return;
-    if (abortController) {
-      abortController.abort();
-    }
-
-    loading.value = true;
-    abortController = new AbortController();
-    const { signal } = abortController;
-
-    const { data, isAborted } = await fetchNoDataStrategyInfo(
-      {
-        bk_biz_id: get(bizId),
-        app_name: get(appName),
-      },
-      { signal }
-    );
-
-    if (isAborted) return;
-    loading.value = false;
-    strategyInfo.value = data;
-  };
-
-  watchEffect(() => {
-    fetchStrategyInfo();
-  });
-
-  onScopeDispose(() => {
-    if (abortController) {
-      abortController.abort();
-      abortController = null;
-    }
-  });
+  watch(
+    () => [get(bizId), get(appName)],
+    () => {
+      if (get(bizId) && get(appName)) request.run();
+    },
+    { immediate: true }
+  );
 
   return {
     handleEnabledChange,
-    loading,
+    loading: request.loading,
+    error: request.error,
+    handleRefresh: request.run,
     strategyInfo,
   };
 };

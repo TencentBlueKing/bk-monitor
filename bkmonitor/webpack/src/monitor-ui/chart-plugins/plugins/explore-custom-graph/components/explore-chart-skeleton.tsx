@@ -31,51 +31,46 @@ import './explore-chart-skeleton.scss';
 
 @Component
 export default class ExploreChartSkeleton extends tsc<object> {
-  itemPercentList = [0.2, 0.7, 0.45, 0.57, 0.2, 0.4, 0.76, 0.34];
-  skeletonItemRender(percent: number, isFill = true) {
-    return (
-      <div
-        style={{ height: `${percent * 100}%` }}
-        class={`explore-chart-skeleton-item ${isFill ? 'skeleton-element' : ''}`}
-      />
-    );
-  }
+  itemPercentList = [22, 35, 29, 48, 62, 45, 38, 55, 74, 64, 47, 31, 42, 56, 68, 51, 36, 24, 39, 48, 33, 27, 41, 30];
+
   render() {
     return (
-      <div class='explore-chart-skeleton'>
-        <div class='explore-chart-skeleton-header'>
-          <div class='skeleton-header-container'>
-            <div class='header-trigger'>
-              <div
-                style={{ width: '16px', height: '100%' }}
-                class='skeleton-element'
-              />
-              <div
-                style={{ width: '220px', height: '100%' }}
-                class='skeleton-element'
-              />
-            </div>
-            <div class='header-custom'>
-              <div
-                style={{ width: '200px', height: '100%' }}
-                class='skeleton-element'
-              />
-              <div
-                style={{ width: '110px', height: '100%' }}
-                class='skeleton-element'
-              />
-            </div>
-          </div>
+      <div
+        class='explore-chart-skeleton'
+        aria-hidden='true'
+      >
+        <div class='explore-chart-skeleton-axis'>
+          {[0, 1, 2].map(index => (
+            <span
+              key={index}
+              class='skeleton-element'
+            />
+          ))}
         </div>
         <div class='explore-chart-skeleton-content'>
-          {this.itemPercentList.map(v => [this.skeletonItemRender(1, false), this.skeletonItemRender(v)])}
-          {this.skeletonItemRender(1, false)}
+          {this.itemPercentList.map((height, index) => (
+            <span
+              key={index}
+              style={{ height: `${height}%` }}
+              class='skeleton-element explore-chart-skeleton-item'
+            />
+          ))}
+        </div>
+        <div class='explore-chart-skeleton-ticks'>
+          {[0, 1, 2, 3, 4].map(index => (
+            <span
+              key={index}
+              class='skeleton-element'
+            />
+          ))}
         </div>
         <div class='explore-chart-skeleton-bottom'>
-          <div
-            style={{ width: '26px', height: '100%' }}
-            class='skeleton-element'
-          />
+          {[0, 1, 2].map(index => (
+            <span key={index}>
+              <i class='skeleton-element' />
+              <b class='skeleton-element' />
+            </span>
+          ))}
         </div>
       </div>
     );

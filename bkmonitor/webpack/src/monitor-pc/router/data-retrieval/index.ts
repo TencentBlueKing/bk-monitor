@@ -40,9 +40,25 @@ const LogRetrievalNew = () =>
 const TraceRetrieval = () =>
   import(/* webpackChunkName: 'TraceRetrieval'*/ '../../pages/trace-retrieval/trace-retrieval');
 const Profiling = () => import(/* webpackChunkName: 'Profiling'*/ '../../pages/profiling/profiling');
+const ProfilingExplore = () => import(/* webpackChunkName: 'ProfilingExplore' */ '../../pages/profiling-explore/profiling-explore');
 const Rum = () => import(/* webpackChunkName: 'Rum'*/ '../../pages/rum/rum');
 const RumExplore = () => import(/* webpackChunkName: 'RumExplore'*/ '../../pages/rum-explore/rum-explore');
 export default [
+  {
+    path: '/trace/profiling-explore',
+    name: 'profiling-explore',
+    components: { noCache: ProfilingExplore },
+    meta: {
+      title: 'Profiling 检索',
+      navId: 'profiling-explore',
+      navClass: 'profiling-explore-nav',
+      noChangeLoading: true,
+      noNavBar: true,
+      needClearQuery: true,
+      route: { parent: 'data' },
+      authority: { map: traceAuth, page: traceAuth.VIEW_AUTH },
+    },
+  },
   {
     path: '/data-retrieval',
     name: 'data-retrieval',

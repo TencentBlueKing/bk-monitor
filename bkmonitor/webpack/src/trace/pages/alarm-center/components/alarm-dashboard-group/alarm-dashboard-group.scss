@@ -8,7 +8,15 @@
   .alarm-dashboard-group-skeleton {
     display: grid;
     grid-template-columns: repeat(var(--dashboard-grid-col), minmax(0, 1fr));
-    gap: 70px 12px;
+    gap: 12px;
     padding-top: 12px;
+
+    .alarm-dashboard-group-skeleton-item {
+      display: flex;
+      height: 247px;
+      background: #fff;
+      border: 1px solid #e4e9f2;
+      border-radius: 8px;
+    }
   }
 }

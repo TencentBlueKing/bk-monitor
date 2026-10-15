@@ -18,6 +18,7 @@ from bkmonitor.commons.tools import is_ipv6_biz
 from bkmonitor.data_source import UnifyQuery, load_data_source
 from bkmonitor.documents import AlertDocument
 from bkmonitor.utils.common_utils import to_dict
+from bkmonitor.utils.nodeman import host_queries
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.alert import EventStatus
 from constants.cmdb import TargetNodeType
@@ -158,7 +159,7 @@ def get_agent_status(
         futures.append(
             (
                 pool.apply_async(
-                    api.node_man.ipchooser_host_detail,
+                    host_queries.details,
                     kwds={
                         "host_list": batch,
                         "scope_list": scope_list,
@@ -1102,9 +1103,9 @@ def parse_topo_target(bk_biz_id: int, dimensions: list[str], target: list[dict])
 
     # 处理返回值
     instances = []
-    if is_host_id:
+    if is_host_id and result["bk_host_id"]:
         instances = [{"bk_host_id": list(result["bk_host_id"])}]
-    elif is_service_instance:
+    elif is_service_instance and result["service_instance_id"]:
         if "bk_target_service_instance_id" in dimensions:
             instances = [{"bk_target_service_instance_id": list(result["service_instance_id"])}]
         else:

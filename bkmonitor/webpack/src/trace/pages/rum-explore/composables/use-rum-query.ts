@@ -34,7 +34,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { EMethod, EMode } from '../../../components/retrieval-filter/typing';
 import { mergeWhereList } from '../../../components/retrieval-filter/utils';
 import { useRumExploreStore } from '../../../store/modules/rum-explore';
-import { tryURLDecodeParse } from '../../trace-explore/utils';
+import { tryURLDecode, tryURLDecodeParse } from '../../trace-explore/utils';
 import { RumModeEnum } from '../constants';
 import { generateQueryString } from '../services/rum-search';
 
@@ -97,7 +97,8 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     setUrlParams();
   }
 
-  function setUrlParams() {
+  /** 当前可复现的查询状态对应的 URL 参数，setUrlParams 与新开页共用，避免两边字段不同步 */
+  function buildUrlQuery(params?: Record<string, string>): Record<string, string> {
     const query: Record<string, string> = {
       mode: store.mode,
       app_name: encodeURIComponent(store.appName || ''),
@@ -112,11 +113,16 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
       showResidentBtn: `${showResidentBtn.value}`,
       // 记录用户意图而非当前生效值，避免把回落的 default_sort 固化成显式排序
       sortBy: encodeURIComponent(JSON.stringify(store.userSort)),
+      ...(params || {}),
     };
     if (urlFavoriteId.value) {
       query.favorite_id = `${urlFavoriteId.value}`;
     }
-    router.replace({ query }).catch(() => {
+    return query;
+  }
+
+  function setUrlParams(params?: Record<string, string>) {
+    router.replace({ query: buildUrlQuery(params) }).catch(() => {
       // 相同路由重复跳转会 reject，这里忽略即可
     });
   }
@@ -127,9 +133,9 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     const urlSort = tryURLDecodeParse<null | string[]>(query.sortBy, null);
     store.init({
       mode: (query.mode as RumModeType) || RumModeEnum.SPAN,
-      appName: decodeURIComponent(query.app_name || ''),
+      appName: tryURLDecode(query.app_name),
       timeRange: query.timeRange ? tryURLDecodeParse<TimeRangeType>(query.timeRange, undefined) : undefined,
-      timezone: decodeURIComponent(query.timezone || '') || window.timezone,
+      timezone: tryURLDecode(query.timezone) || window.timezone,
       refreshInterval: query.refreshInterval ? Number(query.refreshInterval) : -1,
       spanType: query.spanType || '',
       // 三态透传：null 待视图配置就绪后回落 default_sort，[] 表示明确不排序
@@ -138,7 +144,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     filterMode.value = (query.filterMode as EMode) || EMode.ui;
     where.value = tryURLDecodeParse<IWhereItem[]>(query.where, []);
     commonWhere.value = tryURLDecodeParse<IWhereItem[]>(query.commonWhere, []);
-    queryString.value = decodeURIComponent(query.queryString || '');
+    queryString.value = tryURLDecode(query.queryString);
     if (typeof query.showResidentBtn === 'undefined') {
       showResidentBtn.value = true;
     } else {
@@ -252,6 +258,7 @@ export function useRumQuery({ extraFilters }: IUseRumQueryOptions) {
     where,
     generateQueryStringLoading,
     addCondition,
+    buildUrlQuery,
     clearQuery,
     handleQuery,
     initFromUrl,

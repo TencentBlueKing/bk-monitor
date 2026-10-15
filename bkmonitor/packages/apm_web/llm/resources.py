@@ -42,6 +42,7 @@ from apm_web.metric.resources import CalculateByRangeResource as MetricCalculate
 from apm_web.models import Application
 from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.data_source import get_auto_interval
+from bkmonitor.data_source.utils.statistics import process_growth_rates
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 
 
@@ -101,13 +102,18 @@ class ListTracesResource(Resource):
             name for name, span_type in SPAN_TYPES.items() if span_type in {SpanType.AGENT, SpanType.LLM}
         ]
         extra_filter: Q = operation_query(product, operations)
+        # Langfuse 的会话、用户与首轮问答只挂在应用根节点上，而子 Span 可能与根节点同时开始、晚于根节点结束，
+        # 仅按时间排序选不中根节点；未上报该字段的 Span 排在最后，没有根节点时退回按时间选取。
+        root_first: list[str] = (
+            ["attributes.langfuse.internal.is_app_root desc"] if product == LLMProduct.LANGFUSE.value else []
+        )
         # 统计按需查询并去重；get() 传播异常，不能把失败伪装成空预览或零 Token。
         cal_types = tuple(dict.fromkeys(cal_types))
         with ThreadPool(processes=3 + len(cal_types)) as pool:
             input_preview = pool.apply_async(
                 span_query.query_trace_preview,
                 (trace_ids,),
-                {"extra_filter": extra_filter, "sort": ["start_time asc"]},
+                {"extra_filter": extra_filter, "sort": [*root_first, "start_time asc"]},
             )
             output_preview = pool.apply_async(
                 span_query.query_trace_preview,
@@ -117,7 +123,7 @@ class ListTracesResource(Resource):
                     "extra_filter": extra_filter & Q(span_name__neq=["agent.execution"])
                     if product == LLMProduct.AIDEV.value
                     else extra_filter,
-                    "sort": ["end_time desc"],
+                    "sort": [*root_first, "end_time desc"],
                 },
             )
             token_queries = {
@@ -623,6 +629,6 @@ class CalculateByRangeResource(LLMMetricGroupMixin, MetricCalculateByRangeResour
         aliases: list[str] = list(alias_aggregated_records_map.keys())
         # 分组结果按基准列降序，概览页的 TopK 卡片直接取前 N 条
         merged_records.sort(key=lambda record: record.get(baseline) or 0, reverse=True)
-        self._process_growth_rates(baseline, aliases, merged_records)
+        process_growth_rates(baseline, aliases, merged_records)
 
         return {"total": len(merged_records), "data": self._process_sorted(merged_records)}

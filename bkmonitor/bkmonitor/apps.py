@@ -28,6 +28,10 @@ class Config(AppConfig):
     label = "bkmonitor"
 
     def ready(self):
+        from bkmonitor.utils.db_connection import install_discard_dead_db_connection
+
+        install_discard_dead_db_connection()
+
         # 动态配置库自动更新
         from bkmonitor.define import global_config
         from bkmonitor.models import CacheNode, GlobalConfig
