@@ -5,13 +5,73 @@
   overflow: auto;
   background: #f5f7fa;
 
-  > .bk-tab {
-    background: #fff;
+  &.has-tabs {
+    padding: 8px;
+    background: #f0f4fa;
+  }
+}
 
-    .bk-tab-content {
-      display: none;
+.profiling-collection > .collection-tabs {
+  .bk-tab-header-item {
+    height: 40px;
+    padding: 0 24px;
+    margin-right: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #4e5e7a;
+    background: #e4e9f2;
+    border-radius: 8px 8px 0 0;
+
+    &:hover {
+      color: #3a84ff;
+    }
+
+    &.bk-tab-header--active {
+      color: #3a84ff;
+      background: #fff;
+      box-shadow: 0 -1px 1px #1919290a;
     }
   }
+
+  .bk-tab-content {
+    display: none;
+  }
+
+  .collection-tab-label {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    height: 40px;
+    margin-top: 2px;
+    line-height: 40px;
+  }
+
+  .collection-tab-icon {
+    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+    background: currentcolor;
+    mask-repeat: no-repeat;
+    mask-position: center;
+
+    @each $tab in results, history, tasks {
+      &.is-#{$tab} {
+        mask-image: url('./assets/collection-tab-#{$tab}.svg');
+      }
+    }
+
+    &.is-tasks {
+      mask-position: 1.5px 0.5px;
+    }
+  }
+}
+
+.collection-tab-panel {
+  min-height: calc(100% - 40px);
+  background: #fff;
+  border-radius: 0 4px 4px;
+  box-shadow: 0 2px 2px #1919290d;
 }
 
 .collection-meta-state {
@@ -38,10 +98,7 @@
 }
 
 .collection-task-panel {
-  min-height: calc(100% - 58px);
   padding: 16px 24px;
-  margin: 8px;
-  background: #fff;
 
   .t-table {
     font-size: 12px;
@@ -92,7 +149,6 @@
   color: #979ba5;
 }
 
-.collection-task-form,
 .collection-task-detail {
   .bk-sideslider-content {
     height: 100%;
@@ -140,9 +196,71 @@
 
 .collection-host-selection {
   display: flex;
-  gap: 16px;
   align-items: center;
   font-size: 12px;
+}
+
+.collection-host-summary {
+  box-sizing: border-box;
+  display: inline-flex;
+  gap: 24px;
+  align-items: center;
+  height: 32px;
+  padding: 5px 12px 7px;
+  line-height: 20px;
+  color: #4d4f56;
+  white-space: nowrap;
+  background: #f0f1f5;
+  border-radius: 4px;
+
+  .collection-host-selected,
+  .collection-host-health {
+    display: inline-flex;
+    gap: 6px;
+    align-items: center;
+  }
+
+  .collection-host-selected strong {
+    color: #3a84ff;
+  }
+
+  .collection-host-health strong {
+    color: #21a380;
+  }
+
+  .collection-host-edit {
+    width: 16px;
+    height: 16px;
+
+    &:focus-visible {
+      outline: 2px solid #3a84ff;
+      outline-offset: 2px;
+    }
+  }
+
+  .collection-host-divider {
+    width: 1px;
+    height: 12px;
+    background: #c4c6cc;
+  }
+
+  .collection-host-status-icon {
+    position: relative;
+    width: 16px;
+    height: 16px;
+
+    .status-background {
+      position: absolute;
+      top: 2px;
+      left: 2px;
+    }
+
+    .status-dot {
+      position: absolute;
+      top: 5px;
+      left: 5px;
+    }
+  }
 }
 
 .collection-input-prefix,
@@ -332,10 +450,16 @@
 }
 
 .collection-form-footer {
-  // padding: 12px 40px;
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+  min-height: 48px;
+  padding: 8px 40px;
 
-  // background: #fafbfd;
-  // border-top: 1px solid #dcdee5;
+  &.is-sticky {
+    background: #fafbfd;
+    box-shadow: 0 -2px 4px 0 #0000000f;
+  }
 
   > .bk-alert {
     margin-bottom: 12px;
@@ -349,6 +473,10 @@
   .bk-button {
     min-width: 88px;
   }
+}
+
+.collection-form-footer-boundary {
+  height: 1px;
 }
 
 .collection-detail-header {
@@ -445,6 +573,11 @@
 @media (width <= 1000px) {
   .collection-form-body {
     padding: 24px;
+  }
+
+  .collection-form-footer {
+    padding-right: 24px;
+    padding-left: 24px;
   }
 
   .collection-process-query {

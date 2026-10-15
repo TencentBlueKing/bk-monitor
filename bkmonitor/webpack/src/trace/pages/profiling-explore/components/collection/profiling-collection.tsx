@@ -43,6 +43,12 @@ import type { CollectionQueryState, CollectionTask, ScheduleType } from '../../t
 
 import './profiling-collection.scss';
 
+const collectionTabs = [
+  { name: 'results', label: 'Profiling 结果' },
+  { name: 'history', label: '采集任务历史' },
+  { name: 'tasks', label: '任务管理' },
+] as const;
+
 export default defineComponent({
   name: 'ProfilingCollection',
   props: {
@@ -207,7 +213,7 @@ export default defineComponent({
       ),
     };
     return (
-      <section class='profiling-collection'>
+      <section class={['profiling-collection', { 'has-tabs': c.meta.value.enabled }]}>
         {!c.meta.value.enabled ? (
           <CollectionOnboarding
             disabled={c.readonly || c.loading.value}
@@ -217,25 +223,30 @@ export default defineComponent({
         ) : (
           <>
             <Tab
+              class='collection-tabs'
               active={state.tab}
-              type='unborder-card'
+              labelHeight={40}
+              type='card-grid'
               onChange={tab => this.patch({ tab: tab as CollectionQueryState['tab'] })}
             >
-              <Tab.TabPanel
-                label={this.t('Profiling 结果')}
-                name='results'
-              />
-              <Tab.TabPanel
-                label={this.t('采集任务历史')}
-                name='history'
-              />
-              <Tab.TabPanel
-                label={this.t('任务管理')}
-                name='tasks'
-              />
+              {collectionTabs.map(tab => (
+                <Tab.TabPanel
+                  key={tab.name}
+                  label={() => (
+                    <span class='collection-tab-label'>
+                      <span
+                        class={['collection-tab-icon', `is-${tab.name}`]}
+                        aria-hidden='true'
+                      />
+                      {this.t(tab.label)}
+                    </span>
+                  )}
+                  name={tab.name}
+                />
+              ))}
             </Tab>
             {state.tab === 'tasks' ? (
-              <div class='collection-task-panel'>
+              <div class='collection-tab-panel collection-task-panel'>
                 <Alert
                   class='collection-task-guide'
                   title={this.t(
@@ -313,7 +324,7 @@ export default defineComponent({
               </div>
             ) : (
               <div
-                class={`collection-${state.tab}-placeholder`}
+                class={['collection-tab-panel', `collection-${state.tab}-placeholder`]}
                 data-task-id={state.historyTaskId || undefined}
               />
             )}
