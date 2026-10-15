@@ -246,96 +246,244 @@ class TestResourceSpanBuilder:
         assert key_info["http_result"]["attributes.http.response.status_code"] == attrs["http.response.status_code"]
         assert key_info["http_result"]["attributes.outcome.type"] == attrs["outcome.type"]
 
-    def test_xhr_fetch_loading_timing_total(self):
-        span = _resource_span("xhr")
-        # 方案 0x04.b 通用：total_duration = download.start + download.duration
-        # 时序字段置于 attributes.resource.*，打平后为 attributes.resource.redirect.start 等
-        span["attributes"].update(
-            {
-                "resource.type": "xhr",
-                "resource.redirect.start": 0,
-                "resource.dns.start": 1.2,
-                "resource.dns.duration": 3.8,
-                "resource.connect.start": 5,
-                "resource.connect.duration": 10,
-                "resource.ssl.start": 9.1,
-                "resource.ssl.duration": 5.9,
-                "resource.first_byte.start": 15,
-                "resource.first_byte.duration": 86.7,
-                "resource.download.start": 101.7,
-                "resource.download.duration": 26.3,
-            }
-        )
-        result = build(span, [])
-        timing = _section(result, "loading_timing")["data"]
-        assert timing["unit"] == "ms"
-        assert timing["total_duration"] == pytest.approx(101.7 + 26.3)
-        keys = [p["key"] for p in timing["phases"]]
-        assert keys == ["prepare", "dns", "connect", "tls", "first_byte", "download"]
-        phases = {p["key"]: p for p in timing["phases"]}
-        assert phases["connect"]["duration"] == pytest.approx(4.1)
-        assert phases["tls"]["start"] == pytest.approx(9.1)
-        assert phases["tls"]["duration"] == pytest.approx(5.9)
-        for item in phases.values():
-            _assert_hover(item["hover"])
-        assert str(phases["prepare"]["hover"]["title"]) == "发起前等待"
-        _assert_no_calculation_fields(timing)
-
     def test_others_loading_timing_has_resource_info(self):
         span = _resource_span("img")
         result = build(span, [])
         assert _section(result, "resource_info") is not None
-        # 跨域资源无时序字段，整段加载时序省略（与「耗时为 0」区分）
+        # 未上报 resource.timing.* 时整段加载时序省略
         assert _section(result, "loading_timing") is None
 
-    def test_connect_duration_without_tls_is_preserved(self):
-        span = _resource_span()
-        span["attributes"].update({"resource.connect.start": 5, "resource.connect.duration": 10})
-        result = build(span)
-        phases = {p["key"]: p for p in _section(result, "loading_timing")["data"]["phases"]}
+
+# E 类基线：重定向 + DNS + TCP + TLS，时间点相对 timeOrigin
+NETWORK_TIMING = {
+    "start_time": 100,
+    "redirect_start": 100,
+    "redirect_end": 110,
+    "fetch_start": 112,
+    "domain_lookup_start": 115,
+    "domain_lookup_end": 120,
+    "connect_start": 120,
+    "secure_connection_start": 128,
+    "connect_end": 135,
+    "request_start": 136,
+    "response_start": 180,
+    "response_end": 200,
+}
+
+
+def _timing_span(timing, resource_type="script", **attrs):
+    span = _resource_span(resource_type)
+    span["attributes"].update(
+        {
+            **{f"resource.timing.{key}": value for key, value in timing.items()},
+            "resource.decoded_body_size": 1000,
+            "resource.transfer_size": 300,
+            **attrs,
+        }
+    )
+    return span
+
+
+def _timing(span):
+    section = _section(build(span), "loading_timing")
+    return section and section["data"]
+
+
+def _phases(data):
+    return [(item["key"], item["start"], item["duration"]) for item in data["phases"]]
+
+
+class TestResourceLoadingTiming:
+    def test_network_phases(self):
+        data = _timing(_timing_span(NETWORK_TIMING))
+        assert data["unit"] == "ms"
+        assert data["total_duration"] == 100
+        assert _phases(data) == [
+            ("redirect", 0, 10),
+            ("prepare", 10, 2),
+            ("dns", 15, 5),
+            ("connect", 20, 8),
+            ("tls", 28, 7),
+            ("first_byte", 35, 45),
+            ("download", 80, 20),
+        ]
+        assert all(item["alias"] for item in data["phases"])
+        _assert_hover(data["phases"][1]["hover"])
+        _assert_no_calculation_fields(data)
+
+    def test_network_optional_phases_are_omitted(self):
+        """无重定向从 start_time 起算发起前等待；DNS 缓存、无 TLS 时不画对应阶段。"""
+        timing = {
+            **NETWORK_TIMING,
+            "redirect_start": 0,
+            "redirect_end": 0,
+            "domain_lookup_start": 115,
+            "domain_lookup_end": 115,
+            "secure_connection_start": 0,
+        }
+        data = _timing(_timing_span(timing))
+        assert _phases(data) == [
+            ("prepare", 0, 12),
+            ("connect", 20, 15),
+            ("first_byte", 35, 45),
+            ("download", 80, 20),
+        ]
+
+    def test_clamped_tls_start_is_not_a_handshake(self):
+        """secureConnectionStart 被钳到 fetchStart 时，不画 TLS，连接建立计算到 connectEnd。"""
+        data = _timing(_timing_span({**NETWORK_TIMING, "secure_connection_start": 112}))
+        phases = {key: (start, duration) for key, start, duration in _phases(data)}
         assert "tls" not in phases
-        assert phases["connect"]["duration"] == 10
+        assert phases["connect"] == (20, 15)
+
+    def test_reused_connection_outputs_zero_phases(self):
+        """D 类：DNS/连接建立/TLS 以 0 耗时输出在 connect_end，前端合并为连接复用提示。"""
+        timing = {
+            **NETWORK_TIMING,
+            "domain_lookup_start": 115,
+            "domain_lookup_end": 115,
+            "connect_start": 115,
+            "secure_connection_start": 112,
+            "connect_end": 115,
+        }
+        data = _timing(_timing_span(timing))
+        assert _phases(data) == [
+            ("redirect", 0, 10),
+            ("prepare", 10, 2),
+            ("dns", 15, 0),
+            ("connect", 15, 0),
+            ("tls", 15, 0),
+            ("first_byte", 15, 65),
+            ("download", 80, 20),
+        ]
+
+    def test_cross_origin_only_total(self):
+        timing = {"start_time": 100, "fetch_start": 100, "response_end": 200}
+        data = _timing(_timing_span(timing, **{"resource.decoded_body_size": 0, "resource.transfer_size": 0}))
+        assert _phases(data) == [("total", 0, 100)]
+        assert data["total_duration"] == 100
 
     @pytest.mark.parametrize(
-        "tls",
+        "attrs,timing",
+        [
+            ({"resource.delivery_type": "cache", "resource.transfer_size": 0}, {}),
+            ({"resource.transfer_size": 0}, {}),
+            ({}, {"worker_start": 101, "worker_final_router_source": "cache"}),
+        ],
+        ids=["browser-cache", "inferred-cache", "sw-static-router-cache"],
+    )
+    def test_local_response(self, attrs, timing):
+        points = {
+            "start_time": 100,
+            "fetch_start": 102,
+            "domain_lookup_start": 102,
+            "domain_lookup_end": 102,
+            "connect_start": 102,
+            "connect_end": 102,
+            "request_start": 102,
+            "response_start": 103,
+            "response_end": 110,
+            **timing,
+        }
+        data = _timing(_timing_span(points, **attrs))
+        assert _phases(data) == [("prepare", 0, 2), ("first_byte", 2, 1), ("download", 3, 7)]
+
+    def test_missing_transfer_size_is_not_cache(self):
+        """未上报 transfer_size 的复用连接请求不能被推断为缓存命中。"""
+        points = {
+            "start_time": 100,
+            "fetch_start": 102,
+            "domain_lookup_start": 102,
+            "domain_lookup_end": 102,
+            "connect_start": 102,
+            "connect_end": 102,
+            "request_start": 102,
+            "response_start": 150,
+            "response_end": 160,
+        }
+        span = _timing_span(points)
+        del span["attributes"]["resource.transfer_size"]
+        assert _phases(_timing(span)) == [
+            ("prepare", 0, 2),
+            ("dns", 2, 0),
+            ("connect", 2, 0),
+            ("tls", 2, 0),
+            ("first_byte", 2, 48),
+            ("download", 50, 10),
+        ]
+
+    def test_service_worker_phases(self):
+        points = {
+            "start_time": 100,
+            "worker_start": 105,
+            "fetch_start": 110,
+            "request_start": 111,
+            "response_start": 150,
+            "response_end": 170,
+        }
+        data = _timing(_timing_span(points, **{"resource.timing.worker_matched_router_source": "fetch-event"}))
+        assert _phases(data) == [
+            ("queueing", 0, 5),
+            ("sw_startup", 5, 5),
+            ("sw_request", 10, 1),
+            ("sw_respond_with", 11, 39),
+            ("first_byte", 11, 39),
+            ("download", 50, 20),
+        ]
+
+    def test_service_worker_without_request_and_response_start(self):
+        """requestStart/responseStart 为 0：起点改用 fetchStart，respondWith 与内容下载改用 responseEnd。"""
+        points = {"start_time": 100, "worker_start": 105, "fetch_start": 110, "response_end": 170}
+        data = _timing(_timing_span(points))
+        assert _phases(data) == [
+            ("queueing", 0, 5),
+            ("sw_startup", 5, 5),
+            ("sw_respond_with", 10, 60),
+            ("download", 10, 60),
+        ]
+
+    def test_service_worker_start_after_fetch_only_drops_startup(self):
+        points = {"start_time": 100, "worker_start": 112, "fetch_start": 110, "response_end": 170}
+        keys = [key for key, _, _ in _phases(_timing(_timing_span(points)))]
+        assert "sw_startup" not in keys
+        assert keys[0] == "queueing"
+
+    def test_unmatched_falls_back_to_total(self):
+        """有时间点但不满足任何类型（如 connect 缺失且非缓存）时只画总耗时。"""
+        points = {
+            "start_time": 100,
+            "fetch_start": 102,
+            "request_start": 103,
+            "response_start": 150,
+            "response_end": 160,
+        }
+        data = _timing(_timing_span(points))
+        assert _phases(data) == [("total", 0, 60)]
+
+    def test_reversed_points_drop_only_invalid_phases(self):
+        data = _timing(
+            _timing_span({**NETWORK_TIMING, "domain_lookup_end": 113, "response_start": 140, "response_end": 130})
+        )
+        keys = [key for key, _, _ in _phases(data)]
+        assert "dns" not in keys
+        assert "download" not in keys
+        assert all(duration > 0 for _, _, duration in _phases(data))
+        assert "total_duration" in data
+
+    @pytest.mark.parametrize(
+        "timing",
         [
             {},
-            {"resource.ssl.duration": 5},
-            {"resource.ssl.start": 9},
-            {"resource.ssl.start": 9, "resource.ssl.duration": -5},
+            {"start_time": 100},
+            {"response_end": 200},
+            {"start_time": 100, "response_end": 100, "fetch_start": 100},
+            {"start_time": "invalid", "response_end": 200},
         ],
+        ids=["missing", "missing-end", "missing-start", "zero-total", "invalid-start"],
     )
-    def test_invalid_tls_does_not_reduce_connect_duration(self, tls):
-        span = _resource_span()
-        span["attributes"].update({"resource.connect.start": 5, "resource.connect.duration": 10, **tls})
-        timing = _section(build(span), "loading_timing")["data"]
-        phases = {phase["key"]: phase for phase in timing["phases"]}
-        assert "tls" not in phases
-        assert phases["connect"]["duration"] == 10
-
-    @pytest.mark.parametrize(
-        "attrs", [{}, {"resource.dns.start": 2}, {"resource.dns.start": 2, "resource.dns.duration": -1}]
-    )
-    def test_missing_or_invalid_timings_are_omitted(self, attrs):
-        span = _resource_span()
-        span["attributes"].update(attrs)
-        assert _section(build(span), "loading_timing") is None
-
-    def test_reversed_boundaries_omit_invalid_phases(self):
-        span = _resource_span()
-        span["attributes"].update(
-            {
-                "resource.redirect.start": 10,
-                "resource.dns.start": 5,
-                "resource.dns.duration": 2,
-                "resource.connect.start": 7,
-                "resource.connect.duration": 1,
-                "resource.ssl.start": 7,
-                "resource.ssl.duration": 3,
-            }
-        )
-        phases = {item["key"] for item in _section(build(span), "loading_timing")["data"]["phases"]}
-        assert phases == {"dns", "tls"}
+    def test_without_valid_timing_section_is_omitted(self, timing):
+        span = _timing_span(timing, **{"resource.decoded_body_size": 0})
+        assert _timing(span) is None
 
 
 class TestInteractionBuilders:
