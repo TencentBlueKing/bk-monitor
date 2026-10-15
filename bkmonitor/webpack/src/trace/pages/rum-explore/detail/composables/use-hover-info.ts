@@ -49,6 +49,7 @@ export function useHoverInfo() {
       clearTimeout(delayTimer);
       delayTimer = null;
     }
+    instance.value?.hide?.();
     instance.value?.destroy?.();
     instance.value = null;
   }
@@ -66,7 +67,7 @@ export function useHoverInfo() {
       offset: [10, 0],
       /** 卡片自带深色背景，浮层容器去底色与内边距，样式见 hover-info.scss */
       theme: 'rum-hover-info-popover',
-      onHide() {
+      onHidden() {
         hide();
       },
     });
