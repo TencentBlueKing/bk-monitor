@@ -30,6 +30,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { getApplications, getFavorite, getLabelKeys, getLabelValues, getServiceDetail } from '../services/profiling';
+import { createHistoryFilters } from '../utils/collection-history';
 import {
   buildProfileQuery,
   clampSelection,
@@ -54,6 +55,7 @@ import type {
   SelectionRange,
   ServiceDetail,
 } from '../types';
+import type { CollectionResultSelection } from '../types/collection-history';
 
 export type UseProfilingQueryReturn = ReturnType<typeof useProfilingQuery>;
 
@@ -75,6 +77,13 @@ export function useProfilingQuery() {
   const initialFavorite = shallowRef<null | ProfilingFavorite>(null);
   const revision = shallowRef(0);
   const refreshBusy = shallowRef(false);
+  const collectionRevision = shallowRef(0);
+  const collectionBusy = shallowRef(false);
+  const collectionRange = shallowRef<null | SelectionRange>(null);
+  const collectionError = shallowRef('');
+  const collectionActive = computed(
+    () => state.value.view.tab === 'collection' && state.value.collection.tab === 'history'
+  );
   const bounds = computed(() => state.value.resolvedTimeRange);
   const active = computed(() => state.value.view.tab === 'application');
   let controller: AbortController;
@@ -193,6 +202,20 @@ export function useProfilingQuery() {
   function executeQuery(refreshLabels = false, refreshTrends = true) {
     // 搜索按钮/快捷键已提交时，取消本轮条件变更排队的查询。
     filterQueryPending = false;
+    if (collectionActive.value) {
+      try {
+        const range = resolveRange();
+        collectionRange.value = range;
+        patch({ resolvedTimeRange: range });
+        collectionRevision.value += 1;
+        collectionError.value = '';
+        syncUrl();
+      } catch (e) {
+        collectionRange.value = null;
+        collectionError.value = t((e as Error).message);
+      }
+      return;
+    }
     if (files.active.value) {
       files.executeQuery(refreshLabels);
       if (refreshLabels) files.refreshRecords();
@@ -460,11 +483,20 @@ export function useProfilingQuery() {
 
   function scheduleRefresh() {
     clearTimeout(timer);
-    if (disposed || (!active.value && !files.active.value) || state.value.refreshInterval < 60000) return;
+    if (
+      disposed ||
+      (!active.value && !files.active.value && !collectionActive.value) ||
+      state.value.refreshInterval < 60000
+    )
+      return;
     timer = setTimeout(() => {
       if (
         !document.hidden &&
-        !(files.active.value ? files.refreshBusy.value || files.loading.value : refreshBusy.value)
+        !(collectionActive.value
+          ? collectionBusy.value
+          : files.active.value
+            ? files.refreshBusy.value || files.loading.value
+            : refreshBusy.value)
       ) {
         executeQuery();
         if (files.active.value) files.refreshRecords();
@@ -473,9 +505,41 @@ export function useProfilingQuery() {
     }, state.value.refreshInterval);
   }
 
+  function collectionCreated() {
+    patch({
+      timeRange: ['now-15m', 'now'],
+      collection: {
+        ...state.value.collection,
+        tab: 'history',
+        history: createHistoryFilters(),
+        historyTaskId: null,
+        historyTaskName: '',
+        result: null,
+      },
+    });
+  }
+
+  function openCollectionResult(result: CollectionResultSelection, newPage: boolean) {
+    const collection = { ...state.value.collection, tab: 'results' as const, result };
+    if (!newPage) {
+      patch({ collection });
+      return;
+    }
+    const range = bounds.value || resolveRange();
+    const snapshot = { ...state.value, collection, timeRange: range, resolvedTimeRange: range };
+    const { href } = router.resolve({
+      path: route.path,
+      query: { ...route.query, profiling: JSON.stringify(snapshot) },
+    });
+    window.open(`${location.pathname}?bizId=${app.bizId}${href}`, '_blank', 'noopener,noreferrer');
+  }
+
   // 展示状态与未提交的筛选条件同样可分享，但不驱动数据请求。
   watch([state, loading], syncUrl, { flush: 'post' });
-  watch(() => [state.value.refreshInterval, state.value.view.tab], scheduleRefresh);
+  watch(() => [state.value.refreshInterval, state.value.view.tab, state.value.collection.tab], scheduleRefresh);
+  watch([collectionActive, () => state.value.timeRange, () => state.value.timezone], () => {
+    if (collectionActive.value) executeQuery();
+  });
   watch(
     () => app.bizId,
     () => {
@@ -526,6 +590,12 @@ export function useProfilingQuery() {
     initialFavorite,
     revision,
     refreshBusy,
+    collectionRevision,
+    collectionBusy,
+    collectionRange,
+    collectionError,
+    collectionCreated,
+    openCollectionResult,
     bounds,
     patch,
     patchView,

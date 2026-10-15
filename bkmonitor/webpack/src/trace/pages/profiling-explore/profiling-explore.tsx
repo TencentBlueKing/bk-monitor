@@ -444,6 +444,12 @@ export default defineComponent({
             <ProfilingCollection
               state={q.state.value.collection}
               timezone={q.state.value.timezone}
+              range={q.collectionRange.value}
+              rangeError={q.collectionError.value}
+              revision={q.collectionRevision.value}
+              onCreated={q.collectionCreated}
+              onResult={q.openCollectionResult}
+              onBusy={value => { q.collectionBusy.value = value; }}
               onChange={value => q.patch({ collection: { ...q.state.value.collection, ...value } })}
             />
           )}
