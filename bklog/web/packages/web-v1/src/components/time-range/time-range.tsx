@@ -37,6 +37,15 @@ import '@blueking/date-picker/vue2/vue2.css';
 
 export type TimeRangeType = [string, string];
 
+type TippyLike = {
+  destroy?: () => void;
+  hide: () => void;
+  popper?: HTMLElement;
+  state?: { isDestroyed?: boolean };
+  unmount?: () => void;
+};
+type TippyHost = HTMLElement & { _tippy?: TippyLike };
+
 type TimeRangeDisplayType = 'normal' | 'simplicity';
 interface IProps {
   value: TimeRangeType;
@@ -65,6 +74,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
     this.$store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: [] });
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
+    this.dismissHoverTooltip();
     return v;
   }
 
@@ -84,7 +94,46 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   }
   mounted() {
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
+    this.$el?.addEventListener('mousedown', this.dismissHoverTooltip, true);
   }
+  beforeDestroy() {
+    this.$el?.removeEventListener('mousedown', this.dismissHoverTooltip, true);
+  }
+  /**
+   * DatePicker 第一次 hover+点击会 tooltipPanel.hide()；第二次再 hover 后 hide() 经常空操作，
+   * body 上的 tippy 就留着。这里用实例自己的 hide/unmount/destroy，不按 class 藏、不 key 重建。
+   */
+  dismissHoverTooltip = () => {
+    const host = this.$el as HTMLElement | undefined;
+    if (!host) {
+      return;
+    }
+    const doc = host.ownerDocument;
+    const trigger = host.querySelector('.date-content') as TippyHost | null;
+    const live = trigger?._tippy;
+    if (live && !live.state?.isDestroyed) {
+      live.hide();
+      live.unmount?.();
+    }
+    const dismissPopper = (node: Element) => {
+      const popperRoot = node.closest('[data-tippy-root]');
+      if (!popperRoot) {
+        return;
+      }
+      const inst = (node as TippyHost)._tippy || (popperRoot as TippyHost)._tippy;
+      if (inst && !inst.state?.isDestroyed) {
+        inst.hide();
+        inst.unmount?.();
+        if (inst !== live) {
+          inst.destroy?.();
+        }
+        return;
+      }
+      popperRoot.parentNode?.removeChild(popperRoot);
+    };
+    doc.querySelectorAll('.__date-tooltips__').forEach(dismissPopper);
+    doc.querySelectorAll('.tippy-box[data-theme*="bk-date-tips"]').forEach(dismissPopper);
+  };
   render() {
     return (
       <div style='display: inline-flex'>
