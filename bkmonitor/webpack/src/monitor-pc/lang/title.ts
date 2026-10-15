@@ -387,4 +387,7 @@ export default {
   链路上下文: 'Trace Context',
   页面加载时序: 'Page Load Timeline',
   核心结果: 'Core Results',
+  累计里程碑: 'Cumulative Milestone',
+  专业解释: 'Professional explanation',
+  用户感受: 'User experience',
 };

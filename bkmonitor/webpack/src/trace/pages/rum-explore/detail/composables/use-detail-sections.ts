@@ -215,6 +215,7 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
     segments.push({
       rating: config.rating,
       color: ratingMeta.barColor,
+      hover: config.hover,
       label: isLast
         ? `${config.alias || ratingMeta.alias} > ${formatValue(lower)}`
         : `${config.alias || ratingMeta.alias} ≦ ${formatValue(Number(upper))}`,
@@ -232,6 +233,7 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
 
   const hitMeta = RATING_META[hitRating] || RATING_FALLBACK_META;
   return {
+    hover: data.hover,
     metricLabel: meta?.label || metric.toUpperCase(),
     valueText: formatValue(value),
     rating: hitRating,
@@ -301,6 +303,7 @@ function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfal
     })
     .map((phase, index) => ({
       key: phase.key,
+      hover: phase.hover,
       label: phase.alias || phase.key,
       durationText: formatDuration(Number(phase.duration) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
       startPercent: Math.min((phase.start / total) * 100, 100),
@@ -315,6 +318,7 @@ function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfal
     ttfbBreakdown: buildTtfbBreakdown(data),
     markers: (data.markers || []).map(marker => ({
       key: marker.key,
+      hover: marker.hover,
       label: marker.field_name || marker.key,
       percent: Math.min((marker.value / total) * 100, 100),
       value: marker.value,
@@ -325,6 +329,7 @@ function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfal
       ?.filter(item => item.value)
       .map(item => ({
         key: item.key,
+        hover: item.hover,
         name: MILESTONES_KEY_MAP[item.key],
         value: formatDuration(item.value, '', 3, data.unit || 'us').replace(/ /g, ''),
       })),

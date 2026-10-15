@@ -23,14 +23,16 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, useTemplateRef } from 'vue';
 import type { PropType } from 'vue';
 
 import dayjs from 'dayjs';
 
+import { useHoverInfo } from '../../composables/use-hover-info';
 import { CARD_TONE_COLOR } from '../../constants';
 import { formatCount } from '../../registry/card-registry';
 import { RumCardToneEnum } from '../../typings';
+import HoverInfo from '../hover-info/hover-info';
 
 import type { IRumSparklinePoint, IRumSummaryCardGroupVM, IRumSummaryCardVM } from '../../typings';
 
@@ -56,6 +58,10 @@ export default defineComponent({
     },
   },
   setup(props) {
+    const hoverInfoRef = useTemplateRef<HTMLDivElement>('hoverInfo');
+    /** hover 标题时展示 hover-info 卡片，无 hover 数据的元素不加事件 */
+    const { hoverBindings, hoverData } = useHoverInfo();
+
     /** 单根柱子的 tips：时间桶起点 · 该桶的次数 */
     function sparklineTip(point: IRumSparklinePoint) {
       const bucketTime = dayjs.tz(point.time * 1000).format(SPARKLINE_TIME_FORMAT);
@@ -112,7 +118,12 @@ export default defineComponent({
           onClick={() => isLink && card.click?.()}
         >
           <div class='card-head'>
-            <span class='card-label'>{card.label}</span>
+            <span
+              class='card-label'
+              {...hoverBindings(hoverInfoRef.value, card.hover)}
+            >
+              {card.label}
+            </span>
             {card.operation ? (
               <span
                 class='card-operation'
@@ -211,6 +222,12 @@ export default defineComponent({
               </div>
             ))
           : props.rows.map((row, index) => renderRow(row, String(index)))}
+
+        <div style='display: none'>
+          <div ref='hoverInfo'>
+            <HoverInfo data={hoverData.value} />
+          </div>
+        </div>
       </div>
     );
   },
