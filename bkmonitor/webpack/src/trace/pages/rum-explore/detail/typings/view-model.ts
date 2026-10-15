@@ -25,6 +25,7 @@
  */
 
 import type { IRumField } from '../../typings';
+import type { IRumHoverInfo } from './detail';
 import type { RumCardToneType, RumRatingType, RumSectionType } from './enum';
 
 /** 徽标：标题右侧的关键指标与状态 */
@@ -145,6 +146,8 @@ export interface IRumOverviewItemVM {
 
 /** 评级条视图模型 */
 export interface IRumRatingBarVM {
+  /** Vital 指标整体的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   /** 指标全称，如「累积布局偏移（Cumulative Layout Shift，CLS）」 */
   metricLabel: string;
   /** 当前命中的评级 */
@@ -163,6 +166,8 @@ export interface IRumRatingBarVM {
 export interface IRumRatingSegmentVM {
   /** 分段颜色 */
   color: string;
+  /** 该评级的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   /** 分段文案，如「良好 ≦ 2500ms」 */
   label: string;
   rating: RumRatingType | string;
@@ -195,6 +200,8 @@ export interface IRumSummaryCardVM {
   footer?: IRumCardFooterPart[];
   /** 主值右侧的环比增长率（如 +300%），涨跌语义配色，与 unit（单位）互斥使用 */
   growthRate?: { text: string; tone?: RumCardToneType };
+  /** 该标记的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   key: string;
   /** 卡片标题 */
   label: string;
@@ -227,6 +234,8 @@ export interface IRumTtfbBreakdownVM {
 
 export interface IRumWaterfallMarkerVM {
   color?: string;
+  /** 该标记的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   key: string;
   label: string;
   percent: number;
@@ -241,6 +250,8 @@ export interface IRumWaterfallRowVM {
   /** 色块宽度百分比 */
   durationPercent: number;
   durationText: string;
+  /** 该阶段的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   key: string;
   label: string;
   /** 色块左偏移百分比 */
@@ -258,7 +269,7 @@ export interface IRumWaterfallVM {
   /** 被合并掉的阶段名（如 DNS、TCP、TLS），由瀑布图组件拼装成说明文案 */
   mergedNames?: string[];
   /** 累计里程碑 */
-  milestones?: { key: string; name: string; value: string }[];
+  milestones?: Array<{ hover?: IRumHoverInfo; key: string; name: string; value: string }>;
   rows: IRumWaterfallRowVM[];
   /** TTFB 分解说明，后端缺少 TTFB 时间点或子项时为空 */
   ttfbBreakdown?: IRumTtfbBreakdownVM;

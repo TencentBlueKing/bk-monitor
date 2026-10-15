@@ -23,10 +23,12 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, useTemplateRef } from 'vue';
 import type { PropType } from 'vue';
 
+import { useHoverInfo } from '../../composables/use-hover-info';
 import { RATING_FALLBACK_META, RATING_META } from '../../constants';
+import HoverInfo from '../hover-info/hover-info';
 
 import type { IRumRatingBarVM } from '../../typings';
 
@@ -42,6 +44,10 @@ export default defineComponent({
     },
   },
   setup(props) {
+    const hoverInfoRef = useTemplateRef<HTMLDivElement>('hoverInfo');
+    /** hover 标题时展示 hover-info 卡片，无 hover 数据的元素不加事件 */
+    const { hoverBindings, hoverData } = useHoverInfo();
+
     return () => {
       const { data } = props;
       if (!data) return null;
@@ -49,7 +55,12 @@ export default defineComponent({
       return (
         <div class='rum-rating-bar'>
           <div class='rating-summary'>
-            <span class='rating-metric'>{data.metricLabel}</span>
+            <span
+              class='rating-metric'
+              {...hoverBindings(hoverInfoRef.value, data.hover)}
+            >
+              {data.metricLabel}
+            </span>
             <div class='rating-value-row'>
               <span
                 style={{ color: hitMeta.color }}
@@ -95,12 +106,19 @@ export default defineComponent({
                   <span
                     style={{ color: (RATING_META[segment.rating] || RATING_FALLBACK_META).color }}
                     class='scale-label'
+                    {...hoverBindings(hoverInfoRef.value, segment.hover)}
                   >
                     {segment.label}
                   </span>
                   {segment.threshold ? <span class='scale-threshold'>{segment.threshold}</span> : null}
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div style='display: none'>
+            <div ref='hoverInfo'>
+              <HoverInfo data={hoverData.value} />
             </div>
           </div>
         </div>

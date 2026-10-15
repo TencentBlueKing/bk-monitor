@@ -28,7 +28,9 @@ import type { PropType } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
+import { useHoverInfo } from '../../composables/use-hover-info';
 import { RATING_META } from '../../constants';
+import HoverInfo from '../hover-info/hover-info';
 
 import type { IRumWaterfallMarkerVM, IRumWaterfallVM } from '../../typings';
 
@@ -73,6 +75,10 @@ export default defineComponent({
   },
   setup(props) {
     const { t } = useI18n();
+
+    const hoverInfoRef = useTemplateRef<HTMLDivElement>('hoverInfo');
+    /** hover 标题时展示 hover-info 卡片，无 hover 数据的元素不加事件 */
+    const { hoverBindings, hoverData } = useHoverInfo();
 
     /** marker 轨道容器：防重叠布局依赖其实际像素宽度 */
     const markerColumnsRef = useTemplateRef<HTMLDivElement>('markerColumns');
@@ -166,6 +172,7 @@ export default defineComponent({
                             <div
                               key={marker.key}
                               class='marker-item'
+                              {...hoverBindings(hoverInfoRef.value, marker.hover)}
                             >
                               <span class='marker-label'>{marker.label}</span>
                               <span class='marker-duration'>{marker.valueText}</span>
@@ -188,7 +195,10 @@ export default defineComponent({
                 key={row.key}
                 class='waterfall-row'
               >
-                <span class='row-label'>
+                <span
+                  class='row-label'
+                  {...hoverBindings(hoverInfoRef.value, row.hover)}
+                >
                   <span class='text'>{row.label}</span>
                 </span>
                 <span
@@ -241,6 +251,7 @@ export default defineComponent({
                   <div
                     key={item.key}
                     class='milestone-tag'
+                    {...hoverBindings(hoverInfoRef.value, item.hover)}
                   >
                     {`${item.name} ${item.value}`}
                   </div>
@@ -283,6 +294,12 @@ export default defineComponent({
           ) : (
             renderWaterfall()
           )}
+
+          <div style='display: none'>
+            <div ref='hoverInfo'>
+              <HoverInfo data={hoverData.value} />
+            </div>
+          </div>
         </div>
       );
     };
