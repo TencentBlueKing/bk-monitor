@@ -18,6 +18,7 @@ from typing import Any, cast
 from django.db import models, transaction
 
 from core.drf_resource import api
+from metadata import config
 from metadata.models.record_rule.constants import RecordRuleV4InputType
 from metadata.models.record_rule.v4.models import (
     CONDITION_FALSE,
@@ -114,7 +115,7 @@ class RecordRuleV4Resolver:
         resolved_config = {"records": [record["resolved_payload"] for record in runtime_records]}
         content_hash = stable_hash(resolved_config)
 
-        with transaction.atomic():
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
             self.reload_rule(for_update=True)
             if self.rule.current_spec_id != spec.pk or self.rule.generation != spec.generation:
                 return None
