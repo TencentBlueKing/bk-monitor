@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type PropType, defineComponent, shallowRef } from 'vue';
+import { type PropType, defineComponent, shallowRef, watch } from 'vue';
 
 import { Alert, Button, DatePicker, Exception, Form, Input, Radio, Select, Sideslider, Switcher } from 'bkui-vue';
 import dayjs from 'dayjs';
@@ -36,6 +36,9 @@ import {
   formatCollectionTime,
   scheduleLabels,
 } from '../../utils/collection';
+import hostEditIcon from './assets/collection-host-edit.svg';
+import hostNormalBackground from './assets/collection-host-normal-background.svg';
+import hostNormalDot from './assets/collection-host-normal-dot.svg';
 import CollectionCrontab from './collection-crontab';
 import CollectionHostSelector from './collection-host-selector';
 import CollectionProcessSelector from './collection-process-selector';
@@ -57,17 +60,39 @@ export default defineComponent({
       emit('saved', immediate)
     );
     const crontab = shallowRef<InstanceType<typeof CollectionCrontab>>();
+    const footerBoundary = shallowRef<HTMLElement>();
+    const footerSticky = shallowRef(false);
+    watch(
+      footerBoundary,
+      (target, _, onCleanup) => {
+        if (!target) return;
+        const observer = new IntersectionObserver(
+          ([entry]) => {
+            footerSticky.value = entry.intersectionRatio < 1;
+          },
+          { threshold: 1 }
+        );
+        observer.observe(target);
+        onCleanup(() => observer.disconnect());
+      },
+      { flush: 'post' }
+    );
     const close = () => {
       if (!form.loading.value) emit('close');
     };
-    const changeDate = (key: 'endAt' | 'executeAt' | 'startAt', value: string) => {
-      form.patch({ [key]: value ? dayjs.tz(value, form.draft.value.timezone).valueOf() : null });
+    const changeDate = (key: 'endAt' | 'executeAt' | 'startAt', value: string, type: string) => {
+      const date = value ? dayjs.tz(value, form.draft.value.timezone) : null;
+      const selectedDate = key === 'endAt' && type === 'date' ? date?.endOf('day').millisecond(0) : date;
+      form.patch({ [key]: selectedDate?.valueOf() ?? null });
     };
-    return { t, locale, form, crontab, close, changeDate };
+    return { t, locale, form, crontab, footerBoundary, footerSticky, close, changeDate };
   },
   render() {
     const f = this.form;
     const d = f.draft.value;
+    const healthyHostCount = d.hosts.some(host => host.alive === undefined)
+      ? '--'
+      : d.hosts.filter(host => host.alive === 1).length;
     const numericField = (key: 'duration_sec' | 'frequency_hz' | 'port', suffix: string) => (
       <Input
         modelValue={d.collector[key]}
@@ -82,7 +107,7 @@ export default defineComponent({
         modelValue={d[key] ? formatCollectionTime(d[key], d.timezone) : ''}
         placeholder={this.t('请选择日期时间')}
         type='datetime'
-        onChange={value => this.changeDate(key, value as string)}
+        onChange={(value, type) => this.changeDate(key, value as string, type)}
       />
     );
     return (
@@ -99,290 +124,329 @@ export default defineComponent({
       >
         {{
           default: () => (
-            <div class='collection-form-body'>
-              <Form
-                formType='vertical'
-                model={d}
-              >
-                <Form.FormItem
-                  label={this.t('任务名称')}
-                  required
+            <>
+              <div class='collection-form-body'>
+                <Form
+                  formType='vertical'
+                  model={d}
                 >
-                  <Input
-                    modelValue={d.name}
-                    placeholder={this.t('请输入任务名称')}
-                    onInput={name => f.patch({ name })}
-                  />
-                </Form.FormItem>
-                <Form.FormItem
-                  label={this.t('目标主机')}
-                  required
-                >
-                  <div class='collection-host-selection'>
-                    <Button
-                      onClick={() => {
-                        f.hostSelectorOpen.value = true;
-                      }}
-                    >
-                      {this.t(d.hosts.length ? '编辑主机' : '添加主机')}
-                    </Button>
-                    {!!d.hosts.length && (
-                      <span title={d.hosts.map(host => host.ip || host.ipv6 || `#${host.host_id}`).join(', ')}>
-                        {this.t('已选择 {n} 个主机', { n: d.hosts.length })}
-                      </span>
-                    )}
-                  </div>
-                  {f.hostError.value && (
-                    <div class='collection-error-text'>
-                      {f.hostError.value}{' '}
-                      <Button
-                        theme='primary'
-                        text
-                        onClick={f.hydrateHosts}
-                      >
-                        {this.t('重试')}
-                      </Button>
+                  <Form.FormItem
+                    label={this.t('任务名称')}
+                    required
+                  >
+                    <Input
+                      modelValue={d.name}
+                      placeholder={this.t('请输入任务名称')}
+                      onInput={name => f.patch({ name })}
+                    />
+                  </Form.FormItem>
+                  <Form.FormItem
+                    label={this.t('目标主机')}
+                    required
+                  >
+                    <div class='collection-host-selection'>
+                      {d.hosts.length ? (
+                        <div class='collection-host-summary'>
+                          <span class='collection-host-selected'>
+                            <Button
+                              class='collection-host-edit'
+                              aria-label={this.t('编辑主机')}
+                              text
+                              onClick={() => {
+                                f.hostSelectorOpen.value = true;
+                              }}
+                            >
+                              <img alt='' src={hostEditIcon} />
+                            </Button>
+                            <i18n-t
+                              keypath='已选择 {n} 个主机'
+                              tag='span'
+                              title={d.hosts.map(host => host.ip || host.ipv6 || `#${host.host_id}`).join(', ')}
+                            >
+                              {{ n: () => <strong>{d.hosts.length}</strong> }}
+                            </i18n-t>
+                          </span>
+                          <span class='collection-host-divider' aria-hidden='true' />
+                          <span class='collection-host-health'>
+                            <span class='collection-host-status-icon' aria-hidden='true'>
+                              <img class='status-background' alt='' src={hostNormalBackground} />
+                              <img class='status-dot' alt='' src={hostNormalDot} />
+                            </span>
+                            <i18n-t keypath='采集器正常 {n} / {total}' tag='span'>
+                              {{
+                                n: () => <strong>{healthyHostCount}</strong>,
+                                total: () => d.hosts.length,
+                              }}
+                            </i18n-t>
+                          </span>
+                        </div>
+                      ) : (
+                        <Button
+                          onClick={() => {
+                            f.hostSelectorOpen.value = true;
+                          }}
+                        >
+                          {this.t('添加主机')}
+                        </Button>
+                      )}
                     </div>
-                  )}
-                </Form.FormItem>
-                <div class='collection-form-columns'>
-                  <Form.FormItem
-                    label={this.t('采集方式')}
-                    required
-                  >
-                    <Select
-                      clearable={false}
-                      modelValue={d.method}
-                      onChange={f.changeMethod}
-                    >
-                      {this.meta.collection_methods.map(method => (
-                        <Select.Option
-                          id={method}
-                          key={method}
-                          name={collectionMethodLabels[method]}
-                        />
-                      ))}
-                    </Select>
+                    {f.hostError.value && (
+                      <div class='collection-error-text'>
+                        {f.hostError.value}{' '}
+                        <Button
+                          theme='primary'
+                          text
+                          onClick={f.hydrateHosts}
+                        >
+                          {this.t('重试')}
+                        </Button>
+                      </div>
+                    )}
                   </Form.FormItem>
-                  <Form.FormItem
-                    label={this.t('采集类型')}
-                    required
-                  >
-                    <Select
-                      clearable={false}
-                      modelValue={d.collectionType}
-                      onChange={f.changeType}
-                    >
-                      {this.meta.collection_types_by_method[d.method]?.map(type => (
-                        <Select.Option
-                          id={type}
-                          key={type}
-                          name={collectionTypeLabels[type]}
-                        />
-                      ))}
-                    </Select>
-                  </Form.FormItem>
-                  {d.collectionType !== 'go_heap' && (
-                    <Form.FormItem
-                      label={this.t('采集时长')}
-                      required
-                    >
-                      {numericField('duration_sec', this.t('秒'))}
-                    </Form.FormItem>
-                  )}
-                </div>
-                {d.method === 'golang' && (
                   <div class='collection-form-columns'>
                     <Form.FormItem
-                      label={this.t('采集地址')}
-                      required
-                    >
-                      <Input
-                        modelValue={d.collector.ip_address}
-                        onInput={ip_address => f.patch({ collector: { ...d.collector, ip_address } })}
-                      />
-                    </Form.FormItem>
-                    <Form.FormItem
-                      label={this.t('端口')}
-                      required
-                    >
-                      {numericField('port', '')}
-                    </Form.FormItem>
-                  </div>
-                )}
-                {d.method === 'perf' && (
-                  <div class='collection-form-columns'>
-                    <Form.FormItem
-                      label={this.t('采样频率')}
-                      required
-                    >
-                      {numericField('frequency_hz', 'Hz')}
-                    </Form.FormItem>
-                    <Form.FormItem
-                      label={this.t('栈展开方式')}
+                      label={this.t('采集方式')}
                       required
                     >
                       <Select
                         clearable={false}
-                        modelValue={d.collector.stack_unwind}
-                        onChange={stack_unwind => f.patch({ collector: { ...d.collector, stack_unwind } })}
+                        modelValue={d.method}
+                        onChange={f.changeMethod}
                       >
-                        {this.meta.stack_unwinds.map(value => (
+                        {this.meta.collection_methods.map(method => (
                           <Select.Option
-                            id={value}
-                            key={value}
-                            name={value}
+                            id={method}
+                            key={method}
+                            name={collectionMethodLabels[method]}
                           />
                         ))}
                       </Select>
                     </Form.FormItem>
-                  </div>
-                )}
-                {d.method !== 'golang' && (
-                  <Form.FormItem
-                    label={this.t('进程选择')}
-                    required
-                  >
-                    {d.hosts.length ? (
-                      <CollectionProcessSelector
-                        form={f}
-                        modes={this.meta.process_selector_types}
-                      />
-                    ) : (
-                      <div class='collection-process-empty'>
-                        <Exception
-                          scene='part'
-                          type='empty'
-                        >
-                          {this.t('请先选择目标主机')}
-                        </Exception>
-                      </div>
-                    )}
-                  </Form.FormItem>
-                )}
-                <Button
-                  class='collection-advanced-button'
-                  theme='primary'
-                  text
-                  onClick={() => {
-                    f.advancedOpen.value = !f.advancedOpen.value;
-                  }}
-                >
-                  {f.advancedOpen.value ? '▴' : '▾'} {this.t('高级设置')}
-                </Button>
-                {f.advancedOpen.value && (
-                  <Form.FormItem label={this.t('资源不足时提前终止')}>
-                    <Switcher
-                      modelValue={d.resourceGuard.auto_stop_on_resource_pressure}
-                      onChange={auto_stop_on_resource_pressure =>
-                        f.patch({ resourceGuard: { ...d.resourceGuard, auto_stop_on_resource_pressure } })
-                      }
-                    />
-                  </Form.FormItem>
-                )}
-                <Form.FormItem
-                  label={this.t('执行方式')}
-                  required
-                >
-                  <Radio.Group
-                    modelValue={d.scheduleType}
-                    onChange={scheduleType => f.patch({ scheduleType })}
-                  >
-                    {this.meta.schedule_types
-                      .filter(type => !this.task || type !== 'immediate')
-                      .map(type => (
-                        <Radio
-                          key={type}
-                          label={type}
-                        >
-                          {this.t(scheduleLabels[type])}
-                        </Radio>
-                      ))}
-                  </Radio.Group>
-                </Form.FormItem>
-                {d.scheduleType === 'immediate' && (
-                  <p class='collection-muted'>{this.t('立即执行仅支持 Linux 主机，提交后可在采集任务历史查看进度')}</p>
-                )}
-                {d.scheduleType !== 'immediate' && (
-                  <p class='collection-muted'>
-                    {this.t('时区')}：{d.timezone}
-                  </p>
-                )}
-                {d.scheduleType === 'once_at' && (
-                  <Form.FormItem
-                    label={this.t('执行时间')}
-                    required
-                  >
-                    {dateField('executeAt')}
-                  </Form.FormItem>
-                )}
-                {d.scheduleType === 'cron' && (
-                  <>
-                    <div class='collection-form-columns'>
-                      <Form.FormItem
-                        label={this.t('开始时间')}
-                        required
-                      >
-                        {dateField('startAt')}
-                      </Form.FormItem>
-                      <Form.FormItem
-                        label={this.t('结束时间')}
-                        required
-                      >
-                        {dateField('endAt')}
-                      </Form.FormItem>
-                    </div>
                     <Form.FormItem
-                      label={this.t('执行周期')}
+                      label={this.t('采集类型')}
                       required
                     >
-                      <CollectionCrontab
-                        ref='crontab'
-                        timezone={d.timezone}
-                        value={d.cron}
-                        onChange={cron => f.patch({ cron })}
+                      <Select
+                        clearable={false}
+                        modelValue={d.collectionType}
+                        onChange={f.changeType}
+                      >
+                        {this.meta.collection_types_by_method[d.method]?.map(type => (
+                          <Select.Option
+                            id={type}
+                            key={type}
+                            name={collectionTypeLabels[type]}
+                          />
+                        ))}
+                      </Select>
+                    </Form.FormItem>
+                    {d.collectionType !== 'go_heap' && (
+                      <Form.FormItem
+                        label={this.t('采集时长')}
+                        required
+                      >
+                        {numericField('duration_sec', this.t('秒'))}
+                      </Form.FormItem>
+                    )}
+                  </div>
+                  {d.method === 'golang' && (
+                    <div class='collection-form-columns'>
+                      <Form.FormItem
+                        label={this.t('采集地址')}
+                        required
+                      >
+                        <Input
+                          modelValue={d.collector.ip_address}
+                          onInput={ip_address => f.patch({ collector: { ...d.collector, ip_address } })}
+                        />
+                      </Form.FormItem>
+                      <Form.FormItem
+                        label={this.t('端口')}
+                        required
+                      >
+                        {numericField('port', '')}
+                      </Form.FormItem>
+                    </div>
+                  )}
+                  {d.method === 'perf' && (
+                    <div class='collection-form-columns'>
+                      <Form.FormItem
+                        label={this.t('采样频率')}
+                        required
+                      >
+                        {numericField('frequency_hz', 'Hz')}
+                      </Form.FormItem>
+                      <Form.FormItem
+                        label={this.t('栈展开方式')}
+                        required
+                      >
+                        <Select
+                          clearable={false}
+                          modelValue={d.collector.stack_unwind}
+                          onChange={stack_unwind => f.patch({ collector: { ...d.collector, stack_unwind } })}
+                        >
+                          {this.meta.stack_unwinds.map(value => (
+                            <Select.Option
+                              id={value}
+                              key={value}
+                              name={value}
+                            />
+                          ))}
+                        </Select>
+                      </Form.FormItem>
+                    </div>
+                  )}
+                  {d.method !== 'golang' && (
+                    <Form.FormItem
+                      label={this.t('进程选择')}
+                      required
+                    >
+                      {d.hosts.length ? (
+                        <CollectionProcessSelector
+                          form={f}
+                          modes={this.meta.process_selector_types}
+                        />
+                      ) : (
+                        <div class='collection-process-empty'>
+                          <Exception
+                            scene='part'
+                            type='empty'
+                          >
+                            {this.t('请先选择目标主机')}
+                          </Exception>
+                        </div>
+                      )}
+                    </Form.FormItem>
+                  )}
+                  <Button
+                    class='collection-advanced-button'
+                    theme='primary'
+                    text
+                    onClick={() => {
+                      f.advancedOpen.value = !f.advancedOpen.value;
+                    }}
+                  >
+                    {f.advancedOpen.value ? '▴' : '▾'} {this.t('高级设置')}
+                  </Button>
+                  {f.advancedOpen.value && (
+                    <Form.FormItem label={this.t('资源不足时提前终止')}>
+                      <Switcher
+                        modelValue={d.resourceGuard.auto_stop_on_resource_pressure}
+                        onChange={auto_stop_on_resource_pressure =>
+                          f.patch({ resourceGuard: { ...d.resourceGuard, auto_stop_on_resource_pressure } })
+                        }
                       />
                     </Form.FormItem>
-                  </>
+                  )}
+                  <Form.FormItem
+                    label={this.t('执行方式')}
+                    required
+                  >
+                    <Radio.Group
+                      modelValue={d.scheduleType}
+                      onChange={scheduleType => f.patch({ scheduleType })}
+                    >
+                      {this.meta.schedule_types
+                        .filter(type => !this.task || type !== 'immediate')
+                        .map(type => (
+                          <Radio
+                            key={type}
+                            label={type}
+                          >
+                            {this.t(scheduleLabels[type])}
+                          </Radio>
+                        ))}
+                    </Radio.Group>
+                  </Form.FormItem>
+                  {d.scheduleType === 'immediate' && (
+                    <p class='collection-muted'>
+                      {this.t('立即执行仅支持 Linux 主机，提交后可在采集任务历史查看进度')}
+                    </p>
+                  )}
+                  {d.scheduleType !== 'immediate' && (
+                    <p class='collection-muted'>
+                      {this.t('时区')}：{d.timezone}
+                    </p>
+                  )}
+                  {d.scheduleType === 'once_at' && (
+                    <Form.FormItem
+                      label={this.t('执行时间')}
+                      required
+                    >
+                      {dateField('executeAt')}
+                    </Form.FormItem>
+                  )}
+                  {d.scheduleType === 'cron' && (
+                    <>
+                      <div class='collection-form-columns'>
+                        <Form.FormItem
+                          label={this.t('开始时间')}
+                          required
+                        >
+                          {dateField('startAt')}
+                        </Form.FormItem>
+                        <Form.FormItem
+                          label={this.t('结束时间')}
+                          required
+                        >
+                          {dateField('endAt')}
+                        </Form.FormItem>
+                      </div>
+                      <Form.FormItem
+                        label={this.t('执行周期')}
+                        required
+                      >
+                        <CollectionCrontab
+                          ref='crontab'
+                          timezone={d.timezone}
+                          value={d.cron}
+                          onChange={cron => f.patch({ cron })}
+                        />
+                      </Form.FormItem>
+                    </>
+                  )}
+                </Form>
+                {f.hostSelectorOpen.value && (
+                  <CollectionHostSelector
+                    hosts={d.hosts}
+                    service={f.hostServices}
+                    onChange={f.changeHosts}
+                    onClose={() => {
+                      f.hostSelectorOpen.value = false;
+                    }}
+                  />
                 )}
-              </Form>
-              {f.hostSelectorOpen.value && (
-                <CollectionHostSelector
-                  hosts={d.hosts}
-                  service={f.hostServices}
-                  onChange={f.changeHosts}
-                  onClose={() => {
-                    f.hostSelectorOpen.value = false;
-                  }}
-                />
-              )}
-            </div>
-          ),
-          footer: () => (
-            <div class='collection-form-footer'>
-              {f.error.value && (
-                <Alert
-                  theme='danger'
-                  title={f.error.value}
-                />
-              )}
-              <div>
-                <Button
-                  disabled={!d.name.trim() || !d.hosts.length}
-                  loading={f.loading.value}
-                  theme='primary'
-                  onClick={() => f.submit(() => this.crontab?.validate())}
-                >
-                  {this.t('确定')}
-                </Button>
-                <Button
-                  disabled={f.loading.value}
-                  onClick={this.close}
-                >
-                  {this.t('取消')}
-                </Button>
               </div>
-            </div>
+              <div class={['collection-form-footer', { 'is-sticky': this.footerSticky }]}>
+                {f.error.value && (
+                  <Alert
+                    theme='danger'
+                    title={f.error.value}
+                  />
+                )}
+                <div>
+                  <Button
+                    disabled={!d.name.trim() || !d.hosts.length}
+                    loading={f.loading.value}
+                    theme='primary'
+                    onClick={() => f.submit(() => this.crontab?.validate())}
+                  >
+                    {this.t('确定')}
+                  </Button>
+                  <Button
+                    disabled={f.loading.value}
+                    onClick={this.close}
+                  >
+                    {this.t('取消')}
+                  </Button>
+                </div>
+              </div>
+              <div
+                ref='footerBoundary'
+                class='collection-form-footer-boundary'
+                aria-hidden='true'
+              />
+            </>
           ),
         }}
       </Sideslider>

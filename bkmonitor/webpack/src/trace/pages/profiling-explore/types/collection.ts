@@ -16,6 +16,7 @@ export interface CollectionDraft {
 }
 export interface CollectionHost {
   [key: string]: unknown;
+  alive?: number;
   cloud_area?: { id: number; name?: string };
   host_id: number;
   ip?: string;
@@ -30,6 +31,7 @@ export interface CollectionMeta {
   enabled: boolean;
   process_selector_types: ProcessMode[];
   resource_guard_config: ResourceGuardConfig;
+  schedule?: { cron?: { cron_expression: string } };
   schedule_types: ScheduleType[];
   stack_unwinds: string[];
 }

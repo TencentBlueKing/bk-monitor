@@ -23,13 +23,24 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent, shallowRef } from 'vue';
+import { defineComponent, shallowRef, watch } from 'vue';
 
 import BkCrontab from '@blueking/crontab';
 import { useI18n } from 'vue-i18n';
 import { Tippy } from 'vue-tippy';
 
 import '@blueking/crontab/vue3/vue3.css';
+
+// bk-weweb 把子应用挂在 Shadow DOM 中。input 派发结束后，event.target 会指向宿主节点，
+// 而 @blueking/crontab 在 100ms 防抖回调里才读取 event.target.value。
+function pinShadowInputTarget(event: Event) {
+  const input = event.composedPath()[0];
+  if (!(input instanceof HTMLInputElement)) return;
+  Object.defineProperty(event, 'target', {
+    configurable: true,
+    get: () => input,
+  });
+}
 
 export default defineComponent({
   name: 'CollectionCrontab',
@@ -39,15 +50,32 @@ export default defineComponent({
     timezone: { type: String, required: true },
   },
   emits: { change: (_value: string) => true },
-  setup() {
+  setup(props, { emit }) {
     const { t, locale } = useI18n();
     const editor = shallowRef<InstanceType<typeof BkCrontab>>();
+    const editorValue = shallowRef(props.value);
+    const editorKey = shallowRef(0);
+    let currentValue = props.value;
+    watch(
+      () => props.value,
+      value => {
+        if (value === currentValue) return;
+        currentValue = value;
+        editorValue.value = value;
+        editorKey.value += 1;
+      }
+    );
+    function handleChange(value: string) {
+      // 组件会合并连续空格，避免将自身 change 值回写到输入框，打断正在编辑的文本和光标。
+      currentValue = value;
+      emit('change', value);
+    }
     async function validate() {
       // beta.7 的 validate 返回错误状态；等待组件内部 100ms 输入防抖完成。
       await new Promise(resolve => setTimeout(resolve, 120));
       return !!editor.value && !(await editor.value.validate());
     }
-    return { t, locale, editor, validate };
+    return { t, locale, editor, editorValue, editorKey, handleChange, validate };
   },
   render() {
     const local = this.locale === 'en' ? 'en' : 'zh-CN';
@@ -74,20 +102,23 @@ export default defineComponent({
         </Tippy>
       );
     return (
-      <BkCrontab
-        ref='editor'
-        class='collection-cron-editor'
-        shortcuts={[
-          { label: this.t('每分钟'), value: '* * * * *' },
-          { label: this.t('每小时'), value: '0 * * * *' },
-          { label: this.t('每天'), value: '0 0 * * *' },
-          { label: this.t('每周'), value: '0 0 * * 1' },
-          { label: this.t('每月'), value: '0 0 1 * *' },
-        ]}
-        local={local}
-        modelValue={this.value}
-        onChange={value => this.$emit('change', value)}
-      />
+      <div onInputCapture={pinShadowInputTarget}>
+        <BkCrontab
+          key={this.editorKey}
+          ref='editor'
+          class='collection-cron-editor'
+          shortcuts={[
+            { label: this.t('每分钟'), value: '* * * * *' },
+            { label: this.t('每小时'), value: '0 * * * *' },
+            { label: this.t('每天'), value: '0 0 * * *' },
+            { label: this.t('每周'), value: '0 0 * * 1' },
+            { label: this.t('每月'), value: '0 0 1 * *' },
+          ]}
+          local={local}
+          modelValue={this.editorValue}
+          onChange={this.handleChange}
+        />
+      </div>
     );
   },
 });
