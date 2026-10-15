@@ -109,7 +109,13 @@ export default class TimeRange extends tsc<IProps, IEvents> {
       return;
     }
     const doc = host.ownerDocument;
-    const trigger = host.querySelector('.date-content') as TippyHost | null;
+    this.hideHoverTooltip(doc);
+    requestAnimationFrame(() => this.hideHoverTooltip(doc));
+    window.setTimeout(() => this.hideHoverTooltip(doc), 120);
+    window.setTimeout(() => this.hideHoverTooltip(doc), 360);
+  };
+  hideHoverTooltip = (doc: Document) => {
+    const trigger = doc.querySelector('.date-content') as TippyHost | null;
     const live = trigger?._tippy;
     if (live && !live.state?.isDestroyed) {
       live.hide();
@@ -127,12 +133,24 @@ export default class TimeRange extends tsc<IProps, IEvents> {
         if (inst !== live) {
           inst.destroy?.();
         }
-        return;
       }
-      popperRoot.parentNode?.removeChild(popperRoot);
+      if (popperRoot.isConnected) {
+        popperRoot.parentNode?.removeChild(popperRoot);
+      }
     };
     doc.querySelectorAll('.__date-tooltips__').forEach(dismissPopper);
     doc.querySelectorAll('.tippy-box[data-theme*="bk-date-tips"]').forEach(dismissPopper);
+    doc.querySelectorAll('.time-range-popover.time-range-pop2-content').forEach((node) => {
+      if (
+        node.classList.contains('__bk-date-picker-popover__')
+        || node.classList.contains('bk-date-picker-popover')
+        || !node.querySelector('.__date-tooltips__')
+      ) {
+        return;
+      }
+      node.classList.remove('visible');
+      node.classList.add('hidden');
+    });
   };
   render() {
     return (
