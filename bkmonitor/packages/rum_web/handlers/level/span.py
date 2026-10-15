@@ -30,13 +30,15 @@ from bkmonitor.data_source.format import flatten_dict_data
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import resource
-from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS
+from semconv.rum.constants import RumSpanType, SPAN_TYPE_COMMON_DISPLAY_FIELDS, ViewPhase
 from semconv.rum.trace import SpanSpec
 from constants.otel_query import FieldTypeEnum
 from rum_web.handlers.level.base import BaseRumLevelHandler
 from rum_web.handlers.query.span import SpanQuery
 from rum_web.constants import RUM_SEARCH_PAGE_GROUPS
 from rum_web.handlers.builder.span import build as build_span_detail
+from rum_web.handlers.builder.timeline import build as build_timeline
+from rum_web.handlers.builder.utils import get_safe_number
 
 
 class SpanLevelHandler(BaseRumLevelHandler):
@@ -432,6 +434,36 @@ class SpanLevelHandler(BaseRumLevelHandler):
             query_string=query_string,
         )
 
+    def timeline(self, session_id: str | None = None, view_id: str | None = None) -> dict[str, Any]:
+        """查询会话或单个 View 的时间线，单次最多读取 10000 条原始 Span，不分页。"""
+        filters: list[types.Filter] = [
+            {
+                "key": "attributes.session.id" if session_id else "attributes.view.id",
+                "value": [session_id or view_id],
+                "operator": FilterOperator.EQUAL,
+            }
+        ]
+        if view_id:
+            filters.append(
+                {
+                    "key": "attributes.span_type",
+                    "value": [RumSpanType.SESSION.value],
+                    "operator": FilterOperator.NOT_EQUAL,
+                }
+            )
+        spans = self.query.query_list(
+            start_time=None,
+            end_time=None,
+            offset=0,
+            limit=10000,
+            filters=filters,
+            sort=["start_time", "span_id"],
+        )
+        timeline = build_timeline(spans)
+        if view_id:
+            timeline["start_time"], timeline["end_time"] = self._view_time_range(spans)
+        return timeline
+
     # ---- 内部工具方法 ----
 
     def _query_related_spans(self, span: dict[str, Any]) -> list[dict[str, Any]]:
@@ -460,6 +492,25 @@ class SpanLevelHandler(BaseRumLevelHandler):
         ]
         return self.query.query_list(
             start_time=None, end_time=None, offset=0, limit=self.VIEW_RELATED_SPAN_LIMIT, filters=filters
+        )
+
+    @staticmethod
+    def _view_time_range(spans: list[dict[str, Any]]) -> tuple[int | None, int | None]:
+        """开始取最早导航时间（ms → us），结束取结束快照的最晚退出时间。"""
+        start_times: list[int | float] = []
+        end_times: list[int | float] = []
+        for span in spans:
+            view = flatten_dict_data(span)
+            if view.get("attributes.span_type") != RumSpanType.VIEW.value:
+                continue
+            if (started_at := get_safe_number(view.get("attributes.view.started_at"), None)) is not None:
+                start_times.append(started_at)
+            if view.get("attributes.view.phase") == ViewPhase.END.value:
+                if (end_time := get_safe_number(view.get("end_time"), None)) is not None:
+                    end_times.append(end_time)
+        return (
+            int(min(start_times) * 1000) if start_times else None,
+            int(max(end_times)) if end_times else None,
         )
 
     @staticmethod

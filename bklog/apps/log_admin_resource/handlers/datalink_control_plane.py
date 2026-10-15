@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+from django.conf import settings
+
 from apps.api import BkDataAccessApi, BkDataMetaApi, MonitorApi, TransferApi
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.log_admin_resource.handlers.inspection import (
@@ -403,7 +405,7 @@ def _project_resource(value, kind, name, namespace, tenant):
     metadata = value.get("metadata") or {}
     if value.get("kind") != kind or metadata.get("name") != name or metadata.get("namespace") != namespace:
         raise ValueError("V4 resource identity does not match requested reference")
-    if metadata.get("tenant") and metadata["tenant"] != tenant:
+    if settings.ENABLE_MULTI_TENANT_MODE and metadata.get("tenant") and metadata["tenant"] != tenant:
         raise ValueError("V4 resource tenant does not match requested tenant")
     status = value.get("status") or {}
     spec = value.get("spec") or {}
@@ -485,7 +487,7 @@ def _v4_branch(branch, data_id, tenant):
             binding_data.get(key) != expected
             for key, expected in (("kind", "ResultTable"), ("namespace", "bklog"), ("name", rt_name))
         )
-        or binding_data.get("tenant", tenant) != tenant
+        or (settings.ENABLE_MULTI_TENANT_MODE and binding_data.get("tenant", tenant) != tenant)
     ):
         result["association_status"] = "mismatch"
         result["reason"] = "Databus DataId or Binding ResultTable reference does not match the requested chain"
@@ -509,7 +511,7 @@ def _v4_branch(branch, data_id, tenant):
 def _resource_ref(ref, tenant, allowed_kinds):
     if not isinstance(ref, dict) or ref.get("kind") not in allowed_kinds:
         return probe_skipped("UNSUPPORTED_REFERENCE", "Data-link reference kind is unsupported")
-    if ref.get("tenant", tenant) != tenant:
+    if settings.ENABLE_MULTI_TENANT_MODE and ref.get("tenant", tenant) != tenant:
         return probe_skipped("CROSS_TENANT_REFERENCE", "Data-link reference belongs to another tenant")
     if ref.get("namespace") != "bklog":
         return probe_skipped("UNSUPPORTED_NAMESPACE", "Data-link reference is outside the BKLog namespace")

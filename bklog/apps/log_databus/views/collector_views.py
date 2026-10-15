@@ -2256,9 +2256,14 @@ class CollectorViewSet(ModelViewSet):
         bk_biz_id = request.GET.get("bk_biz_id")
         bcs_cluster_id = request.GET.get("bcs_cluster_id")
         namespace = request.GET.get("namespace", "")
+        namespaces_exclude = request.GET.get("namespaces_exclude", "")
         return Response(
             K8sCollectorHandler().list_topo(
-                topo_type=topo_type, bk_biz_id=bk_biz_id, bcs_cluster_id=bcs_cluster_id, namespace=namespace
+                topo_type=topo_type,
+                bk_biz_id=bk_biz_id,
+                bcs_cluster_id=bcs_cluster_id,
+                namespace=namespace,
+                namespaces_exclude=namespaces_exclude,
             )
         )
 
@@ -2342,10 +2347,16 @@ class CollectorViewSet(ModelViewSet):
     def get_workload(self, request):
         workload_type = request.GET.get("type")
         bcs_cluster_id = request.GET.get("bcs_cluster_id")
-        namespace = request.GET.get("namespace")
+        namespace = request.GET.get("namespace", "")
+        namespaces_exclude = request.GET.get("namespaces_exclude", "")
+        bk_biz_id = request.GET.get("bk_biz_id")
         return Response(
             K8sCollectorHandler().get_workload(
-                workload_type=workload_type, bcs_cluster_id=bcs_cluster_id, namespace=namespace
+                workload_type=workload_type,
+                bcs_cluster_id=bcs_cluster_id,
+                namespace=namespace,
+                namespaces_exclude=namespaces_exclude,
+                bk_biz_id=bk_biz_id,
             )
         )
 

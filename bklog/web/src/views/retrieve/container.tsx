@@ -27,7 +27,7 @@
 import { defineComponent, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router/composables';
 
-import { generateIframeSrcdoc, validateResources } from './helper';
+import { bindDateHoverTooltipDismiss, generateIframeSrcdoc, validateResources } from './helper';
 
 /**
  * Vue2 挂载容器组件
@@ -44,6 +44,7 @@ export default defineComponent({
     const loading = ref(true);
     const error = ref<string | null>(null);
     let messageHandler: ((_evt: MessageEvent) => void) | null = null;
+    let unbindDateHoverTooltip: (() => void) | null = null;
 
     const triggerDownload = (url: string) => {
       const iframe = document.createElement('iframe');
@@ -197,6 +198,8 @@ export default defineComponent({
           const iframeWindow = iframeRef.value?.contentWindow;
           if (iframeWindow) {
             setupIframeSync(iframeWindow);
+            unbindDateHoverTooltip?.();
+            unbindDateHoverTooltip = bindDateHoverTooltipDismiss(iframeWindow.document);
           }
           loading.value = false;
         };
@@ -234,6 +237,8 @@ export default defineComponent({
         window.removeEventListener('message', messageHandler);
         messageHandler = null;
       }
+      unbindDateHoverTooltip?.();
+      unbindDateHoverTooltip = null;
     });
 
     return () => (

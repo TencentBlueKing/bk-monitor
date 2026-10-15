@@ -304,49 +304,6 @@ $tree-step: 16px;
   @include ellipsis;
 }
 
-.llm-span-io-kvs,
-.llm-span-io-kv {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-
-  @include flex-align(center);
-}
-
-.llm-span-io-kv {
-  gap: 2px;
-  font-size: $font-size-base;
-  line-height: 20px;
-  white-space: nowrap;
-
-  &-key {
-    flex: 0 1 auto;
-    min-width: 0;
-    max-width: 120px;
-    padding: 0 3px;
-    font-weight: 500;
-    color: #313238;
-    background: #e9edf5;
-    border-radius: 4px;
-
-    @include ellipsis;
-  }
-
-  &-colon {
-    flex-shrink: 0;
-    margin: 0 2px;
-    color: #4e5e7a;
-  }
-
-  &-value {
-    flex: 1 1 auto;
-    min-width: 0;
-    color: #4e5e7a;
-
-    @include ellipsis;
-  }
-}
-
 .llm-span-io-arrow {
   flex-shrink: 0;
   font-size: $font-size-base;

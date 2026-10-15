@@ -40,6 +40,12 @@ import AIWhaleIcon from '../../../../components/ai-whale-icon/ai-whale-icon';
 import MetricSelector from '../../../../components/metric-selector/metric-selector';
 import { transformValueToMonitor } from '../../../../components/monitor-ip-selector/utils';
 import { handleSetTargetDesc as getTargetDesc } from '../../common';
+import {
+  type PromqlQuery,
+  isExistingMultiPromql,
+  isMultiPromqlBiz,
+} from '../../strategy-config-common/promql-query/model';
+import PromqlQueryEditor from '../../strategy-config-common/promql-query/promql-query-editor';
 import StrategyTargetTable from '../../strategy-config-detail/strategy-config-detail-table.vue';
 import StrategyIpv6 from '../../strategy-ipv6/strategy-ipv6';
 import { type dataModeType, type EditModeType, type MetricDetail, MetricType } from '../typings';
@@ -74,13 +80,11 @@ interface IMonitorDataEvent {
   onPromqlEnter: boolean;
   onShowExpress: boolean;
   onSouceStepChange: number;
-  onSourceChange: string;
   onSourceExpressionChange: string;
-  onSourceQueriesChange: { alias: string; promql: string }[];
+  onSourceQueriesChange: PromqlQuery[];
   onTargetChange: any;
   onTargetTypeChange: string;
   onDelete: () => void;
-  onPromqlFocus: () => void;
 }
 interface IMonitorDataProps {
   dataMode: dataModeType;
@@ -97,11 +101,10 @@ interface IMonitorDataProps {
   loading: boolean;
   metricData: MetricDetail[];
   metricTipType: string;
-  promqlError: boolean;
   readonly: boolean;
   showRealtimeStrategy?: boolean;
   source: string;
-  sourceQueries: { alias: string; promql: string }[];
+  sourceQueries: PromqlQuery[];
   sourceStep: number | string;
 }
 
@@ -110,8 +113,6 @@ interface IMonitorDataProps {
   components: {
     MonitorDialog,
     StrategyTargetTable,
-    PromqlMonacoEditor: () =>
-      import(/* webpackChunkName: 'PromqlMonacoEditor' */ '../../../../components/promql-editor/promql-editor'),
   },
 })
 export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEvent> {
@@ -122,11 +123,10 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   })
   readonly metricData: MetricDetail[];
   @Prop({ default: '', type: String }) source: string;
-  @Prop({ default: () => [], type: Array }) sourceQueries: { alias: string; promql: string }[];
+  @Prop({ default: () => [], type: Array }) sourceQueries: PromqlQuery[];
   @Prop({ default: false, type: Boolean }) readonly: boolean;
   @Prop({ default: false, type: Boolean }) loading: boolean;
   @Prop({ default: false, type: Boolean }) legacyMultiQuery: boolean;
-  @Prop({ default: false, type: Boolean }) promqlError: boolean;
   @Prop({ default: '', type: String }) expression: string;
   @Prop({ default: () => ({ target_detail: [] }), type: Object }) defaultCheckedTarget: any;
   @Prop({ default: 'converge', type: String }) dataMode: dataModeType;
@@ -147,7 +147,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   /* 是否智能算法支持函数 */
   @Prop({ default: false, type: Boolean }) isKpiAnomalySdkEnabled: boolean;
   @Ref('targetContainer') targetContainerRef: HTMLDivElement;
-  @Ref('promql-editor') promqlEditorRef: any;
+  @Ref('sourceEditor') sourceEditorRef: PromqlQueryEditor;
+  showSourceModeDialog = false;
   modeList: { id: string; name: TranslateResult }[];
   // editMode: EditModeType = 'Edit'
   showTopoSelector = false;
@@ -272,6 +273,22 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     );
   }
 
+  /** 非多 PromQL 业务下，已有多查询或非别名表达式不可改写。 */
+  get promqlMultiLocked() {
+    return (
+      this.editMode === 'Source' &&
+      !isMultiPromqlBiz(this.$store.getters.bizId) &&
+      isExistingMultiPromql(
+        {
+          sourceCode: this.source,
+          queryConfigs: this.sourceQueries,
+          step: this.sourceStep,
+          legacyMultiQuery: this.legacyMultiQuery,
+        },
+        this.expression
+      )
+    );
+  }
   /* 当前是否允许转为promql */
   get canToPromql() {
     if (this.editMode === 'Edit') {
@@ -280,7 +297,7 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
         .filter(item => !!item.metric_id)
         .every(item => ['custom', 'bk_monitor', 'bk_data'].includes(item.data_source_label));
     }
-    return !this.legacyMultiQuery && this.sourceQueries.length <= 1;
+    return !this.legacyMultiQuery && !this.promqlMultiLocked;
   }
   get targetDesc() {
     return this.handleSetTargetDesc(this.targetList, this.target?.targetType || this.metricData?.[0]?.targetType);
@@ -334,8 +351,13 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   handleEditModeChange() {
     if (this.dataMode === 'converge') {
       if (!this.canToPromql) return;
+      if (this.editMode === 'Source' && this.sourceQueries.length > 1) {
+        this.showSourceModeDialog = true;
+        return;
+      }
       const mode = this.editMode === 'Source' ? 'Edit' : 'Source';
-      const error = mode === 'Edit' ? this.promqlEditorRef.getLinterStatus() : false;
+      const error = mode === 'Edit' && this.source.trim() ? !this.validateSource() : false;
+      if (error) return;
       this.$emit('editModeChange', {
         mode,
         hasError: error,
@@ -388,37 +410,8 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     };
   }
 
-  /**
-   * @description: promql值更新
-   * @param {string} value
-   */
-  handlePromsqlChange(value: string) {
-    this.handleSourceQueryChange(this.sourceQueries[0]?.alias || 'a', value);
-  }
-  handleSourceQueryChange(alias: string, promql: string) {
-    if (this.legacyMultiQuery) return;
-    this.$emit(
-      'sourceQueriesChange',
-      this.sourceQueries.map(item => (item.alias === alias ? { ...item, promql } : item))
-    );
-  }
-  handleAddSourceQuery() {
-    if (this.legacyMultiQuery) return;
-    const alias = 'abcdefghijklmnopqrstuvwxyz'
-      .split('')
-      .find(value => !this.sourceQueries.some(item => item.alias.toLowerCase() === value));
-    if (!alias) return;
-    this.$emit('sourceQueriesChange', [...this.sourceQueries, { alias, promql: '' }]);
-    if (this.sourceQueries.length === 1 && this.expression === this.sourceQueries[0].alias) {
-      this.$emit('sourceExpressionChange', '');
-    }
-  }
-  handleDeleteSourceQuery(alias: string) {
-    if (this.legacyMultiQuery) return;
-    if (this.sourceQueries.length <= 1 || alias === this.sourceQueries[0].alias) return;
-    const remainingQueries = this.sourceQueries.filter(item => item.alias !== alias);
-    this.$emit('sourceQueriesChange', remainingQueries);
-    this.$emit('sourceExpressionChange', remainingQueries.length === 1 ? remainingQueries[0].alias : '');
+  validateSource() {
+    return this.sourceEditorRef?.validate() ?? true;
   }
   /* source step 更新 */
   @Emit('souceStepChange')
@@ -426,12 +419,6 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
     return value;
   }
 
-  /**
-   * @description: promql编辑器聚焦
-   */
-  handlePromqlFocus() {
-    this.$emit('promqlFocus');
-  }
   /**
    * @description: promql编辑器enter键事件
    */
@@ -474,10 +461,6 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
   @Emit('expFunctionsChange')
   handleFunctionsChange(functions: IFunctionsValue[]) {
     return functions;
-  }
-  @Emit('sourceChange')
-  handleSourceChange(value: string) {
-    return value;
   }
   @Emit('methodChange')
   emitMethodChange(val: string) {
@@ -686,11 +669,14 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
                 <span
                   class={['metric-tab-right', { 'mode-disable': this.dataMode === 'realtime' || !this.canToPromql }]}
                   v-bk-tooltips={{
-                    content: this.isShowExpress
-                      ? this.$t('存在表达式,暂不支持转换')
-                      : this.$t('目前仅支持{0}切换PromQL', [
-                          `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
-                        ]),
+                    content:
+                      this.promqlMultiLocked && !this.legacyMultiQuery
+                        ? this.$t('当前业务不支持配置多 PromQL，已有查询和表达式仅可查看。')
+                        : this.isShowExpress
+                          ? this.$t('存在表达式,暂不支持转换')
+                          : this.$t('目前仅支持{0}切换PromQL', [
+                              `${this.$t('监控采集指标')}、${this.$t('自定义指标')}、${this.$t('计算平台指标')}`,
+                            ]),
                     disabled: !(this.dataMode === 'realtime' || !this.canToPromql),
                   }}
                   on-click={this.handleEditModeChange}
@@ -727,114 +713,24 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
               />
             </div>
           ) : (
-            <div class='metric-source-wrap'>
-              {this.legacyMultiQuery && (
-                <div class='monitor-err-msg'>
-                  {this.$t('历史多 PromQL 查询配置仅可查看；其他策略设置可正常保存。查询请通过 API 或 as-code 修改。')}
-                </div>
-              )}
-              {this.legacyMultiQuery
-                ? this.sourceQueries.map(query => (
-                    <div key={query.alias}>
-                      <div>
-                        {this.$t('查询')} {query.alias}
-                      </div>
-                      <pre style='white-space: pre-wrap; overflow-wrap: anywhere;'>{query.promql}</pre>
-                    </div>
-                  ))
-                : this.loading
-                  ? undefined
-                  : this.sourceQueries.map((query, index) => (
-                      <div
-                        key={query.alias}
-                        style={{ marginTop: index > 0 ? '16px' : undefined }}
-                        class='source-query'
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            fontSize: '12px',
-                          }}
-                          class='source-query-title'
-                        >
-                          <span>
-                            {this.$t('查询')} {query.alias}
-                          </span>
-                          {!this.readonly && index > 0 && (
-                            <bk-button
-                              text
-                              onClick={() => this.handleDeleteSourceQuery(query.alias)}
-                            >
-                              {this.$t('删除')}
-                            </bk-button>
-                          )}
-                        </div>
-                        <promql-monaco-editor
-                          ref={index === 0 ? 'promql-editor' : `promql-editor-${index}`}
-                          class='mt-16'
-                          executeQuery={this.handlePromqlEnter}
-                          isError={this.promqlError}
-                          minHeight={80}
-                          value={query.promql}
-                          onChange={(value: string) => this.handleSourceQueryChange(query.alias, value)}
-                          onFocus={this.handlePromqlFocus}
-                        />
-                      </div>
-                    ))}
-              {/* <div class={['metric-source', { 'is-error': this.promqlError }]}>
-
-              </div> */}
-              {!this.legacyMultiQuery && (
-                <div class='source-options-wrap'>
-                  {!this.readonly && (
-                    <bk-button
-                      disabled={this.sourceQueries.length >= 26}
-                      text
-                      onClick={this.handleAddSourceQuery}
-                    >
-                      {this.$t('添加 PromQL 查询')}
-                    </bk-button>
-                  )}
-                  {this.sourceQueries.length > 1 && (
-                    <div
-                      style='margin: 12px 0;'
-                      class='source-expression'
-                    >
-                      <div class='source-query-title'>{this.$t('计算表达式（查询别名的 PromQL 即时向量运算）')}</div>
-                      <bk-input
-                        readonly={this.readonly}
-                        type='textarea'
-                        value={this.expression}
-                        onBlur={this.handleExpressionBlur}
-                        onChange={(value: string) => this.$emit('sourceExpressionChange', value)}
-                      />
-                    </div>
-                  )}
-                  <bk-input
-                    class='step-input'
-                    min={10}
-                    precision={0}
-                    type='number'
-                    value={this.sourceStep}
-                    onChange={this.handleSourceStepChange}
-                  >
-                    <div
-                      class='step-input-prepend'
-                      slot='prepend'
-                    >
-                      <span>{'Step'}</span>
-                      <AIWhaleIcon
-                        content='Step'
-                        tip={this.$t('数据步长').toString()}
-                        type='explanation'
-                      />
-                    </div>
-                  </bk-input>
-                </div>
-              )}
-            </div>
+            <PromqlQueryEditor
+              ref='sourceEditor'
+              sourceData={{
+                sourceCode: this.source,
+                queryConfigs: this.sourceQueries,
+                step: this.sourceStep,
+                legacyMultiQuery: this.legacyMultiQuery,
+              }}
+              expression={this.expression}
+              loading={this.loading}
+              readonly={this.readonly}
+              onBlur={this.handlePromqlBlur}
+              onExecute={this.handlePromqlEnter}
+              onExpressionBlur={this.handleExpressionBlur}
+              onExpressionChange={value => this.$emit('sourceExpressionChange', value)}
+              onQueriesChange={queries => this.$emit('sourceQueriesChange', queries)}
+              onStepChange={this.handleSourceStepChange}
+            />
           )}
           {this.supportSource && this.errMsg ? <div class='monitor-err-msg'>{this.errMsg}</div> : undefined}
           {this.canSetTarget &&
@@ -904,6 +800,33 @@ export default class MyComponent extends tsc<IMonitorDataProps, IMonitorDataEven
             )}
         </div>
         {this.metricData.some(item => item.canSetTarget) && this.ipSelect()}
+        <bk-dialog
+          width={480}
+          ext-cls='strategy-promql-mode-dialog'
+          header-position='left'
+          title={this.$t('无法无损切换为表单')}
+          value={this.showSourceModeDialog}
+          onCancel={() => {
+            this.showSourceModeDialog = false;
+          }}
+        >
+          <div class='source-mode-message'>
+            <p>{this.$t('当前查询包含表单无法完整表达的内容。')}</p>
+            <p>{this.$t('已保留全部 PromQL 与表达式，请继续在当前模式编辑。')}</p>
+          </div>
+          <div slot='footer'>
+            <bk-button
+              class='source-mode-cancel'
+              theme='primary'
+              outline
+              onClick={() => {
+                this.showSourceModeDialog = false;
+              }}
+            >
+              {this.$t('继续编辑 PromQL')}
+            </bk-button>
+          </div>
+        </bk-dialog>
         {this.metricData.slice(0, 1).map(
           item =>
             (item.metricMetaId === 'bk_monitor|event' || item.data_type_label === 'alert') && (

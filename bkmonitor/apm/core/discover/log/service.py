@@ -16,6 +16,7 @@ from apm.core.discover.log.base import Discover
 from apm.core.handlers.query.builder import QueryConfigBuilder, UnifyQuerySet
 from apm.models import TopoNode
 from bkmonitor.data_source.utils.query import BaseQuery
+from bkmonitor.utils.time_tools import parse_log_timestamp
 from constants.apm import TelemetryDataType
 from constants.data_source import DataSourceLabel, DataTypeLabel
 
@@ -60,7 +61,7 @@ class ServiceDiscover(Discover):
                     name = resource.get("server")
                 if not name:
                     continue
-                timestamp: int = int(log["time"]) // 1000
+                timestamp = parse_log_timestamp(log["time"], strict=True)
                 observed[name] = max(observed.get(name, 0), timestamp)
 
         TopoNode.upsert_telemetry_nodes(

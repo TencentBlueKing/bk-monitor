@@ -113,6 +113,11 @@ class BaseRumLevelHandler(ABC):
         ...
 
     @abstractmethod
+    def timeline(self, session_id: str | None = None, view_id: str | None = None) -> dict[str, Any]:
+        """查询会话或单个视图的时间线。"""
+        ...
+
+    @abstractmethod
     def generate_query_string(
         self,
         filters: list[types.Filter],

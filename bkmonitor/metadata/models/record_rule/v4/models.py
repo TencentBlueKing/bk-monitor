@@ -991,15 +991,15 @@ class RecordRuleV4Flow(BaseModelWithTime):
         resolved records 合并到同一个 RecordingRuleNode。
         """
 
-        src_result_table_names = sorted(
+        src_result_tables = sorted(
             {
-                config["bkbase_result_table_name"]
+                (config["bkbase_result_table_namespace"], config["bkbase_result_table_name"])
                 for record in records
                 for config in record.src_result_table_configs
                 if config.get("bkbase_result_table_name")
             }
         )
-        if not src_result_table_names:
+        if not src_result_tables:
             raise ValueError("resolved record src_result_table_configs is empty")
         if not rule.dst_vm_storage_name:
             raise ValueError("record rule dst_vm_storage_name is empty")
@@ -1007,8 +1007,8 @@ class RecordRuleV4Flow(BaseModelWithTime):
         bkbase_tenant = RecordRuleV4Flow.compose_bkbase_tenant(rule)
         source_nodes: list[dict[str, Any]] = []
         source_names: list[str] = []
-        for index, result_table_name in enumerate(src_result_table_names):
-            name = "vm_source" if len(src_result_table_names) == 1 else f"vm_source_{index + 1}"
+        for index, (namespace, result_table_name) in enumerate(src_result_tables):
+            name = "vm_source" if len(src_result_tables) == 1 else f"vm_source_{index + 1}"
             source_names.append(name)
             source_nodes.append(
                 {
@@ -1017,7 +1017,7 @@ class RecordRuleV4Flow(BaseModelWithTime):
                     "data": {
                         "kind": "ResultTable",
                         "tenant": bkbase_tenant,
-                        "namespace": RECORD_RULE_V4_BKMONITOR_NAMESPACE,
+                        "namespace": namespace,
                         "name": result_table_name,
                     },
                 }
