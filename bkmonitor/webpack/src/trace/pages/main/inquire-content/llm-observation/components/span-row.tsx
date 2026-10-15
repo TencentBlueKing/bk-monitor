@@ -31,6 +31,7 @@ import { Button } from 'bkui-vue';
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
 import { formatCompactToken, LLM_KIND_CLASS } from '../utils/transform';
 import SpanExpandPanel from './span-expand-panel';
+import SpanIoKvs, { sliceTooltipContent } from './span-io-kvs';
 
 import type { LlmIoPiece, LlmSpanRowView } from '../utils/typings';
 
@@ -76,11 +77,6 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    /** overflow-tips 内容过长时截断，避免 Popover 撑满视口 */
-    const sliceTooltipContent = (content: string): string => {
-      return content.length > 200 ? `${content.substring(0, 200)}...` : content;
-    };
-
     /** 行内只展示 1 类预览：优先 KV（全部字段），其次工具名，最后文本 */
     const pickPreviewPiece = (pieces: LlmIoPiece[]): LlmIoPiece | null => {
       const kv = pieces.find(piece => piece.type === 'kv' && piece.pairs.length);
@@ -111,30 +107,7 @@ export default defineComponent({
         );
       }
       if (piece.type === 'kv') {
-        return (
-          <div class='llm-span-io-kvs'>
-            {piece.pairs.map((item, index) => (
-              <span
-                key={`${item.key}-${index}`}
-                class='llm-span-io-kv'
-              >
-                <span
-                  class='llm-span-io-kv-key'
-                  v-overflow-tips={{ content: item.key, placement: 'top' }}
-                >
-                  {item.key}
-                </span>
-                <span class='llm-span-io-kv-colon'>:</span>
-                <span
-                  class='llm-span-io-kv-value'
-                  v-overflow-tips={{ content: item.value, placement: 'top' }}
-                >
-                  {item.value}
-                </span>
-              </span>
-            ))}
-          </div>
-        );
+        return <SpanIoKvs pairs={piece.pairs} />;
       }
       return (
         <span
