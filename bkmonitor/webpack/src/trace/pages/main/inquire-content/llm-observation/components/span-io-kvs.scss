@@ -1,0 +1,68 @@
+@import '../../../../../theme/theme';
+@import '../../../../../theme/mixin';
+
+.llm-span-io-kvs {
+  flex: 1 1 auto;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+
+  @include flex-align(center);
+}
+
+.llm-span-io-kv {
+  box-sizing: border-box;
+  flex: 0 0 auto;
+  width: max-content;
+  max-width: 100%;
+  overflow: hidden;
+  font-size: $font-size-base;
+  line-height: 20px;
+
+  @include flex-align(center);
+
+  &.is-hidden {
+    display: none;
+  }
+
+  &.is-clip-value,
+  &.is-clip-key {
+    min-width: 0;
+  }
+
+  &.is-clip-key {
+    .llm-span-io-kv-key {
+      flex: 1 1 auto;
+      min-width: 0;
+      max-width: 100%;
+    }
+
+    .llm-span-io-kv-value {
+      display: none;
+    }
+  }
+
+  &-key {
+    box-sizing: border-box;
+    flex-shrink: 0;
+    min-width: min(160px, max-content);
+    max-width: 160px;
+    padding: 0 3px;
+    font-weight: 500;
+    color: #313238;
+    background: #e9edf5;
+    border-radius: 4px;
+
+    @include ellipsis;
+  }
+
+  &-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-family: 'Roboto Mono', menlo, monaco, consolas, monospace;
+    font-size: $font-size-base;
+    color: #4e5e7a;
+
+    @include ellipsis;
+  }
+}

@@ -118,11 +118,11 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     })
   );
 
-  /** 会话时间线按 start_time 倒序；单 Trace 模式仍把当前 Trace 置顶 */
+  /** 会话时间线按 start_time 正序；单 Trace 模式仍把当前 Trace 置顶 */
   const sortTraces = (nextTraces: LlmFlowTrace[], currentTraceId: string, useSession: boolean) =>
     [...nextTraces].sort((left, right) => {
       if (useSession) {
-        return (right.start_time || 0) - (left.start_time || 0);
+        return (left.start_time || 0) - (right.start_time || 0);
       }
       if (left.trace_id === currentTraceId) return -1;
       if (right.trace_id === currentTraceId) return 1;
