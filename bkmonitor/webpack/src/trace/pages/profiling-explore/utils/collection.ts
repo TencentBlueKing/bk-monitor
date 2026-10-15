@@ -25,6 +25,8 @@
  */
 import dayjs from 'dayjs';
 
+import { createHistoryFilters, restoreExecutionSelection, restoreHistoryFilters } from './collection-history';
+
 import type {
   CollectionDraft,
   CollectionHost,
@@ -94,6 +96,8 @@ export function createCollectionDraft(meta: CollectionMeta, timezone: string, ta
 export function createCollectionQueryState(): CollectionQueryState {
   return {
     tab: 'tasks',
+    history: createHistoryFilters(),
+    result: null,
     keyword: '',
     scheduleTypes: [],
     statuses: [],
@@ -108,6 +112,8 @@ export function restoreCollectionQuery(value?: Partial<CollectionQueryState>): C
   if (!value) return defaults;
   return {
     ...defaults,
+    history: restoreHistoryFilters(value.history || { task_name: value.historyTaskName }),
+    result: restoreExecutionSelection(value.result),
     tab: ['tasks', 'history', 'results'].includes(value.tab) ? value.tab : defaults.tab,
     keyword: typeof value.keyword === 'string' ? value.keyword : '',
     scheduleTypes: Array.isArray(value.scheduleTypes)
