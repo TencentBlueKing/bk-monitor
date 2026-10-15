@@ -1,6 +1,6 @@
 ### 功能描述
 
-按 Trace ID 或 Span ID 查询 Span。AgentLens、Galileo、BKAIDev、Langfuse 等来源统一转换为 OTel GenAI Span，响应仅包含 Agent/LLM 观测字段。
+按 Trace ID 或 Span ID 查询 Span。AgentLens、BKAIDev、Langfuse 等来源统一转换为 OTel GenAI Span，响应仅包含 Agent/LLM 观测字段。
 
 ### 请求参数
 
@@ -99,11 +99,11 @@
 | gen_ai.tool.call.result | object | 工具调用结果 |
 | user.id | string | 用户 ID |
 
-#### Galileo 字段兼容
+#### 历史字段兼容
 
-响应的标准属性仅包含《LLM 核心字段》（`3-llm-semcov.md`）列出的字段。[Galileo 协议](https://iwiki.woa.com/p/4015969950) 中的历史字段按下表转换，未纳入核心字段规范的属性不输出：
+响应的标准属性仅包含《LLM 核心字段》（`3-llm-semcov.md`）列出的字段。历史字段按下表转换，未纳入核心字段规范的属性不输出：
 
-| Galileo 原始字段 | 响应中的标准字段 |
+| 原始字段 | 响应中的标准字段 |
 |---|---|
 | `gen_ai.server.time_to_first_token` | `gen_ai.response.time_to_first_chunk`，保留秒单位 |
 | `gen_ai.request.is_stream`、`gen_ai.is_stream` | `gen_ai.request.stream` |
