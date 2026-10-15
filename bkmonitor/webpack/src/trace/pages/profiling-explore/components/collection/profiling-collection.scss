@@ -158,6 +158,12 @@
   .bk-modal-content {
     min-height: 0;
   }
+
+  .bk-sideslider-title {
+    align-items: stretch;
+    min-width: 0;
+    padding-right: 0;
+  }
 }
 
 .collection-form-body {
@@ -508,50 +514,177 @@
   }
 }
 
+.collection-task-detail .collection-detail-header {
+  gap: 0;
+  justify-content: space-between;
+  height: 100%;
+  line-height: 24px;
+  color: #313238;
+
+  .collection-detail-name {
+    font-size: 14px;
+    line-height: 22px;
+  }
+
+  .collection-detail-actions {
+    height: 100%;
+    gap: 0;
+    padding-right: 0;
+    margin-left: 0;
+  }
+}
+
+.collection-detail-title {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+  padding-right: 16px;
+
+  > span:first-child {
+    flex-shrink: 0;
+  }
+}
+
+.collection-detail-divider {
+  flex-shrink: 0;
+  width: 1px;
+  height: 12px;
+  background: #dcdee5;
+}
+
+.collection-detail-actions > span {
+  display: flex;
+  height: 100%;
+}
+
+.collection-detail-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 72px;
+  height: 100%;
+  padding: 0;
+  font-size: 12px;
+  line-height: 20px;
+  color: #4d4f56;
+  cursor: pointer;
+  background: #fff;
+  border: 0;
+  border-left: 1px solid #eaebf0;
+
+  i {
+    font-size: 16px;
+    line-height: 16px;
+  }
+
+  &.is-danger {
+    color: #ea3636;
+  }
+
+  &:hover:not(:disabled) {
+    background: #f5f7fa;
+  }
+
+  &:disabled {
+    color: #c4c6cc;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 2px solid #3a84ff;
+    outline-offset: -2px;
+  }
+}
+
 .collection-detail-body {
-  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  padding: 24px 40px;
+
+  section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+  }
 
   h3 {
-    padding: 8px 12px;
-    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    height: 28px;
+    padding: 0 12px;
+    margin: 0;
     font-size: 14px;
-    font-weight: normal;
-    background: #f0f3fa;
-    border-radius: 2px;
+    font-weight: 500;
+    line-height: 22px;
+    color: #313238;
+    background: #f0f4fa;
+    border-radius: 4px;
   }
 
   dl {
-    margin: 0 0 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-left: 12px;
+    margin: 0;
   }
 }
 
 .collection-detail-row {
   display: flex;
-  margin: 0 0 16px;
+  gap: 6px;
+  align-items: flex-start;
+  margin: 0;
   font-size: 12px;
   line-height: 20px;
 
   dt {
     flex-shrink: 0;
-    width: 88px;
-    color: #979ba5;
-    text-align: right;
+    color: #8f9fbd;
   }
 
   dd {
-    flex: 1;
     min-width: 0;
     margin: 0;
+    color: #313238;
     overflow-wrap: anywhere;
   }
 }
 
+.collection-detail-count {
+  font-weight: 700;
+  color: #3a84ff;
+}
+
 .collection-detail-tag {
   display: inline-block;
-  padding: 0 4px;
-  margin-bottom: 4px;
+  max-width: 100%;
+  height: 22px;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+  line-height: 22px;
+  vertical-align: top;
+  color: #4d4f56;
+  white-space: nowrap;
   background: #f0f1f5;
   border-radius: 2px;
+}
+
+.collection-detail-check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+
+  i {
+    font-size: 16px;
+    line-height: 16px;
+  }
 }
 
 .collection-cron-editor .bk-crontab-datetime,
