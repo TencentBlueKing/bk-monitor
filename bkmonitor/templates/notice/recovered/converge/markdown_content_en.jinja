@@ -1,0 +1,6 @@
+<font color="info">{{gettext("Recovered")}}</font> {{gettext("%(collect_count)d %(level_name)s Alarms", collect_count=alarm.collect_count, level_name=level_name)}}
+{% if alarm.detail_url %}
+{{gettext("Detail: ")}}[{{gettext("Summary Details")}}]({{alarm.detail_url}})
+{% endif %}
+{{gettext("One of: ")}}{{alert.alert_name | safe}}
+{{user_content | safe}}
