@@ -68,7 +68,10 @@ export default defineComponent({
 
     return () => (
       <div
-        class='log-extract-container'
+        class={[
+          'log-extract-container',
+          { 'log-extract-create-page': ['extract-create', 'extract-clone'].includes(String(route.name)) },
+        ]}
         v-bkloading={{ isLoading: isLoading.value }}
       >
         <router-view />

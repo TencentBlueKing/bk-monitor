@@ -39,7 +39,6 @@ import http from '@/api';
 // #code const LogIpSelector = () => null;
 // #endif
 
-import FilesInput from './files-input.tsx';
 import PreviewFiles from './preview-files.tsx';
 import TextFilter from './text-filter.tsx';
 
@@ -49,7 +48,6 @@ export default defineComponent({
   name: 'ExtractCreate',
   components: {
     LogIpSelector,
-    FilesInput,
     TextFilter,
     PreviewFiles,
   },
@@ -72,6 +70,9 @@ export default defineComponent({
     const ipSelectorOriginalValue = ref<any>(null); // 编辑态ip选择器初始值
     const ipSelectNewNameList = ref<any[]>([]); // 生成新的展示所用的预览地址列表
     const isSubmitLoading = ref(false); // 提交按钮loading状态
+    const showPreviewDialog = ref(false);
+    const previewData = ref<any>(null);
+    const previewDirection = ref('forward');
 
     // 组件引用
     const textFilterRef = ref<any>(null);
@@ -81,8 +82,31 @@ export default defineComponent({
       return targetNodeType.value === 'INSTANCE' ? ipList.value.length : targetNodes.value.length;
     });
 
-    const canSubmit = computed(() => {
-      return !(selectedCount.value > 0 && downloadFiles.value.length) && linkId.value !== null;
+    const submitFiles = computed(() => previewRef.value?.getDownloadFiles?.() ?? downloadFiles.value);
+    const canSubmit = computed(() => !(selectedCount.value > 0 && submitFiles.value.length));
+    const previewHostIps = computed(
+      () =>
+        (previewData.value?.ip_list ?? [])
+          .map((host: any) => host.ip)
+          .filter(Boolean)
+          .join(', ') || '--',
+    );
+    const previewFilterText = computed(() => {
+      const content = previewData.value?.filter_content ?? {};
+      switch (previewData.value?.filter_type) {
+        case 'match_word': {
+          const modes = { keyword_and: t('与'), keyword_or: t('或'), keyword_not: t('非') };
+          return `${t('关键字过滤')}：${content.keyword}（${t('关键字匹配模式')}：${modes[content.keyword_type] ?? ''}）`;
+        }
+        case 'match_range':
+          return t('关键字范围: 从匹配{0}开始到匹配{1}之间的所有行', [content.start, content.end]);
+        case 'tail_line':
+          return t('最新行数：{0} 行', [content.line_num]);
+        case 'line_range':
+          return t('按行过滤: 从第{0}行到第{1}行', [content.start_line, content.end_line]);
+        default:
+          return t('不过滤');
+      }
     });
 
     const isClone = computed(() => {
@@ -207,7 +231,7 @@ export default defineComponent({
       } else {
         requestData.ip_list = cloneData.ip_list;
       }
-      http
+      return http
         .request('extract/getAvailableExplorerPath', {
           data: requestData,
         })
@@ -225,11 +249,6 @@ export default defineComponent({
     // 处理文件路径更新
     const handleFileOrPathUpdate = (newFileOrPath: string) => {
       fileOrPath.value = newFileOrPath;
-    };
-
-    // 处理文件选择
-    const handleFilesSelect = (newFileOrPath: string) => {
-      previewRef.value?.getExplorerList({ path: newFileOrPath });
     };
 
     // 根据 strategies 接口返回的 ip_list 请求 displayName 并设置预览地址列表
@@ -341,10 +360,11 @@ export default defineComponent({
       }
     };
 
-    // 处理提交下载任务
-    const handleSubmit = () => {
-      emit('loading', true);
-      isSubmitLoading.value = true;
+    // 预览与确认共用同一份参数快照，打开弹窗不创建任务。
+    const handlePreview = () => {
+      if (isSubmitLoading.value || canSubmit.value) {
+        return;
+      }
       const requestData: any = {
         bk_biz_id: store.state.bkBizId,
         ip_list: ipList.value,
@@ -356,18 +376,37 @@ export default defineComponent({
         preview_start_time: previewRef.value?.timeStringValue[0],
         preview_end_time: previewRef.value?.timeStringValue[1],
         preview_is_search_child: previewRef.value?.isSearchChild,
-        file_path: downloadFiles.value,
+        file_path: submitFiles.value,
         filter_type: textFilterRef.value.filterType,
         filter_content: textFilterRef.value.filterContent,
         remark: remark.value,
         link_id: linkId.value,
       };
+      previewData.value = JSON.parse(JSON.stringify(requestData));
+      previewDirection.value = previewRef.value?.extractionDirection ?? 'forward';
+      showPreviewDialog.value = true;
+    };
+
+    const closePreview = () => {
+      if (!isSubmitLoading.value) {
+        showPreviewDialog.value = false;
+      }
+    };
+
+    // 仅在预览弹窗确认后提交下载任务。
+    const handleSubmit = () => {
+      if (isSubmitLoading.value || !showPreviewDialog.value || !previewData.value) {
+        return;
+      }
+      emit('loading', true);
+      isSubmitLoading.value = true;
       http
         .request('extract/createDownloadTask', {
-          data: requestData,
+          data: previewData.value,
         })
         .then(() => {
           isSubmitLoading.value = false;
+          showPreviewDialog.value = false;
           goToHome();
         })
         .catch(err => {
@@ -396,165 +435,279 @@ export default defineComponent({
     // 主渲染函数
     return () => (
       <div
-        class={['main-container', 'create-task-container']}
+        class='create-task-container'
         v-en-class="'en-title'"
       >
-        {/* 文件来源主机 */}
-        <div class='row-container'>
-          <div class='title'>
-            {t('文件来源主机')}
-            <span class='required'>*</span>
-          </div>
-          <div class='content'>
-            <div class='flex-box'>
-              <bk-button
-                data-test-id='addNewExtraction_button_selectTheServer'
-                size='small'
-                theme='primary'
-                onClick={() => (showSelectDialog.value = true)}
-              >
-                {t('选择服务器')}
-              </bk-button>
-              <div class='select-text'>
-                <i18n path='已选择{0}个节点'>
-                  <span class={selectedCount.value ? 'primary' : 'error'}>{selectedCount.value}</span>
-                </i18n>
+        <div class='create-task-body'>
+          <section class='extract-card'>
+            <h3 class='extract-card-title'>{t('提取范围')}</h3>
+            <div class='row-container'>
+              <div class='title'>
+                {t('目标类型')}
+                <span class='required'>*</span>
+              </div>
+              <div class='content'>
+                <div class='bk-button-group target-type-group'>
+                  <bk-button
+                    class='is-selected'
+                    theme='primary'
+                    outline
+                  >
+                    {t('主机')}
+                  </bk-button>
+                  <bk-button disabled>{t('容器')}</bk-button>
+                </div>
               </div>
             </div>
-            <LogIpSelector
-              height={670}
-              mode='dialog'
-              original-value={ipSelectorOriginalValue.value}
-              panel-list={['staticTopo', 'dynamicTopo']}
-              show-dialog={showSelectDialog.value}
-              show-view-diff={isClone.value}
-              value={selectorNodes.value}
-              allow-host-list-miss-host-id
-              extract-scene
-              keep-host-field-output
-              {...{
-                on: {
-                  'update:show-dialog': (val: boolean) => (showSelectDialog.value = val),
-                  change: handleConfirm,
-                },
-              }}
-            />
-          </div>
-        </div>
-
-        {/* 目录或文件名 */}
-        <div class='row-container'>
-          <div class='title'>
-            {t('目录或文件名')}
-            <span class='required'>*</span>
-            <span
-              class='bklog-icon bklog-info-fill'
-              v-bk-tooltips={`${t('以')}/${t('结尾查询指定目录下内容，否则默认查询该目录及其子目录下所有文件')}`}
-            />
-          </div>
-          <div class='content'>
-            <FilesInput
-              availablePaths={availablePaths.value}
-              value={fileOrPath.value}
-              {...{
-                on: {
-                  'update:value': (val: string) => (fileOrPath.value = val),
-                  'update:select': handleFilesSelect,
-                },
-              }}
-            />
-          </div>
-        </div>
-
-        {/* 预览地址 */}
-        <div class='row-container'>
-          <div class='title'>{t('预览地址')}</div>
-          <PreviewFiles
-            ref={previewRef}
-            downloadFiles={downloadFiles.value}
-            fileOrPath={fileOrPath.value}
-            ipList={ipList.value}
-            ipSelectNewNameList={ipSelectNewNameList.value}
-            {...{
-              on: {
-                'update:downloadFiles': (val: any[]) => (downloadFiles.value = val),
-                'update:fileOrPath': handleFileOrPathUpdate,
-              },
-            }}
-          />
-        </div>
-
-        {/* 文本过滤 */}
-        <div class='row-container'>
-          <div class='title'>{t('文本过滤')}</div>
-          <div class='content'>
-            <TextFilter ref={textFilterRef} />
-          </div>
-        </div>
-
-        {/* 备注 */}
-        <div class='row-container'>
-          <div class='title'>{t('备注')}</div>
-          <div class='content'>
-            <bk-input
-              style='width: 261px'
-              value={remark.value}
-              {...{
-                on: {
-                  input: (val: string) => (remark.value = val),
-                },
-              }}
-            />
-          </div>
-        </div>
-
-        {/* 提取链路 */}
-        <div class='row-container'>
-          <div class='title'>{t('提取链路')}</div>
-          <div class='content'>
-            <bk-select
-              style='width: 250px; margin-right: 20px; background-color: #fff'
-              clearable={false}
-              data-test-id='addNewExtraction_select_selectLink'
-              value={linkId.value}
-              {...{
-                on: {
-                  change: (val: number) => (linkId.value = val),
-                },
-              }}
-            >
-              {extractLinks.value.map(link => (
-                <bk-option
-                  id={link.link_id}
-                  key={link.link_id}
-                  name={link.show_name}
+            <div class='row-container'>
+              <div class='title'>
+                {t('提取范围')}
+                <span class='required'>*</span>
+              </div>
+              <div class='content'>
+                <div class='target-selection'>
+                  <bk-button
+                    class='select-target-button'
+                    data-test-id='addNewExtraction_button_selectTheServer'
+                    icon='plus'
+                    onClick={() => (showSelectDialog.value = true)}
+                  >
+                    {t('选择目标')}
+                  </bk-button>
+                  <div class='select-text'>
+                    <i18n path='已选择{0}个节点'>
+                      <span class={selectedCount.value ? 'primary' : 'error'}>{selectedCount.value}</span>
+                    </i18n>
+                  </div>
+                </div>
+                <LogIpSelector
+                  height={670}
+                  mode='dialog'
+                  original-value={ipSelectorOriginalValue.value}
+                  panel-list={['staticTopo', 'dynamicTopo']}
+                  show-dialog={showSelectDialog.value}
+                  show-view-diff={isClone.value}
+                  value={selectorNodes.value}
+                  allow-host-list-miss-host-id
+                  extract-scene
+                  keep-host-field-output
+                  {...{
+                    on: {
+                      'update:show-dialog': (val: boolean) => (showSelectDialog.value = val),
+                      change: handleConfirm,
+                    },
+                  }}
                 />
-              ))}
-            </bk-select>
-          </div>
-          <div class='content'>{t('选择离你最近的提取链路')}</div>
+              </div>
+            </div>
+          </section>
+
+          <section class='extract-card'>
+            <h3 class='extract-card-title'>{t('日志文件')}</h3>
+            <div class='row-container files-row'>
+              <div class='title'>
+                {t('选择文件')}
+                <span class='required'>*</span>
+              </div>
+              <PreviewFiles
+                ref={previewRef}
+                availablePaths={availablePaths.value}
+                downloadFiles={downloadFiles.value}
+                fileOrPath={fileOrPath.value}
+                ipList={ipList.value}
+                ipSelectNewNameList={ipSelectNewNameList.value}
+                {...{
+                  on: {
+                    'update:downloadFiles': (val: any[]) => (downloadFiles.value = val),
+                    'update:fileOrPath': handleFileOrPathUpdate,
+                  },
+                }}
+              />
+            </div>
+          </section>
+
+          <section class='extract-card'>
+            <h3 class='extract-card-title'>{t('提取参数')}</h3>
+            <div class='row-container'>
+              <div class='title'>{t('过滤模式')}</div>
+              <div class='content filter-content'>
+                <TextFilter ref={textFilterRef} />
+              </div>
+            </div>
+            <div class='row-container'>
+              <div class='title'>{t('提取链路')}</div>
+              <div class='content extract-parameter-content'>
+                <bk-select
+                  clearable={false}
+                  data-test-id='addNewExtraction_select_selectLink'
+                  value={linkId.value}
+                  onChange={(val: number) => (linkId.value = val)}
+                >
+                  {extractLinks.value.map(link => (
+                    <bk-option
+                      id={link.link_id}
+                      key={link.link_id}
+                      name={link.show_name}
+                    />
+                  ))}
+                </bk-select>
+                <div class='extract-link-tips'>
+                  <span class='bk-icon icon-info-circle' />
+                  {t('选择离你最近的提取链路')}
+                </div>
+              </div>
+            </div>
+            <div class='row-container'>
+              <div class='title'>{t('备注')}</div>
+              <div class='content extract-parameter-content'>
+                <bk-input
+                  maxlength={255}
+                  type='textarea'
+                  value={remark.value}
+                  show-word-limit
+                  onInput={(val: string) => (remark.value = val)}
+                />
+              </div>
+            </div>
+          </section>
         </div>
 
-        {/* 按钮容器 */}
-        <div class='button-container'>
+        <div class='create-task-footer'>
           <bk-button
-            style='width: 120px; margin-right: 16px'
-            data-test-id='addNewExtraction_button_submitConfigure'
-            disabled={canSubmit.value}
+            class='preview-button'
+            disabled={canSubmit.value || isSubmitLoading.value}
             loading={isSubmitLoading.value}
             theme='primary'
-            onClick={handleSubmit}
+            outline
+            onClick={handlePreview}
           >
-            {t('提交下载任务')}
+            {t('预览')}
           </bk-button>
           <bk-button
-            style='width: 120px'
+            data-test-id='addNewExtraction_button_submitConfigure'
+            disabled={canSubmit.value || isSubmitLoading.value}
+            loading={isSubmitLoading.value}
+            theme='primary'
+            onClick={handlePreview}
+          >
+            {t('预览并下发')}
+          </bk-button>
+          <bk-button
+            class='cancel-button'
             data-test-id='addNewExtraction_button_cancel'
             onClick={goToHome}
           >
             {t('取消')}
           </bk-button>
         </div>
+        <bk-dialog
+          width={640}
+          auto-close={false}
+          beforeClose={() => !isSubmitLoading.value}
+          close-icon={!isSubmitLoading.value}
+          esc-close={!isSubmitLoading.value}
+          ext-cls='extract-task-preview-dialog'
+          header-position='left'
+          mask-close={false}
+          title={t('预览')}
+          value={showPreviewDialog.value}
+          on-value-change={(value: boolean) => !value && closePreview()}
+          onCancel={closePreview}
+        >
+          {previewData.value && (
+            <div class='extract-preview-content'>
+              <bk-alert
+                class='extract-preview-risk'
+                showIcon={false}
+                type='warning'
+              >
+                <template slot='title'>
+                  <span class='bk-icon icon-exclamation-circle' />
+                  <div>
+                    {t('风险提示：')}
+                    <ul>
+                      <li>{t('本次任务会从已授权的主机中临时提取日志，并生成有时效的下载链接')}</li>
+                      <li>{t('请确认目标范围、文件范围和过滤条件符合授权用途')}</li>
+                      <li>{t('下载链接过期后需要重新下发或重新生成')}</li>
+                    </ul>
+                  </div>
+                </template>
+              </bk-alert>
+              <dl
+                class='extract-preview-details'
+                v-en-class="'en-title'"
+              >
+                <div class='extract-preview-row'>
+                  <dt>{t('目标类型')}</dt>
+                  <dd>{t('主机')}</dd>
+                </div>
+                <div class='extract-preview-row'>
+                  <dt>{t('目标范围')}</dt>
+                  <dd>
+                    <div class='extract-preview-hosts'>
+                      <div class='extract-preview-host'>
+                        <span class='extract-preview-host-key'>
+                          {t('主机IP')}
+                          <span> = </span>
+                        </span>
+                        <span class='extract-preview-host-value'>{previewHostIps.value}</span>
+                      </div>
+                    </div>
+                  </dd>
+                </div>
+                <div class='extract-preview-row'>
+                  <dt>{t('命中目标')}</dt>
+                  <dd>
+                    <i18n path='{0} 个授权内主机'>
+                      <span class='extract-preview-count'>{previewData.value.ip_list.length}</span>
+                    </i18n>
+                  </dd>
+                </div>
+                <div class='extract-preview-row'>
+                  <dt>{t('文件范围')}</dt>
+                  <dd>{previewData.value.preview_directory}</dd>
+                </div>
+                <div class='extract-preview-row'>
+                  <dt>{t('提取方向')}</dt>
+                  <dd>{previewDirection.value === 'reverse' ? t('反向提取') : t('正向提取')}</dd>
+                </div>
+                <div class='extract-preview-row'>
+                  <dt>{previewDirection.value === 'reverse' ? t('提取文件') : t('已选文件')}</dt>
+                  <dd>
+                    <i18n path='{0} 个文件'>
+                      <span class='extract-preview-count'>{previewData.value.file_path.length}</span>
+                    </i18n>
+                  </dd>
+                </div>
+                <div class='extract-preview-row'>
+                  <dt>{t('文本过滤')}</dt>
+                  <dd class='extract-preview-filter'>{previewFilterText.value}</dd>
+                </div>
+              </dl>
+            </div>
+          )}
+          <div
+            class='extract-preview-footer'
+            slot='footer'
+          >
+            <bk-button
+              class='confirm-extract-button'
+              disabled={isSubmitLoading.value}
+              loading={isSubmitLoading.value}
+              theme='primary'
+              onClick={handleSubmit}
+            >
+              {t('确认下发')}
+            </bk-button>
+            <bk-button
+              class='modify-extract-button'
+              disabled={isSubmitLoading.value}
+              onClick={closePreview}
+            >
+              {t('返回修改')}
+            </bk-button>
+          </div>
+        </bk-dialog>
       </div>
     );
   },

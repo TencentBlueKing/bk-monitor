@@ -1490,4 +1490,21 @@ export default {
   开始下载: 'Start download',
   '批量下载：{n} 个文件下载失败': 'Batch download: {n} files failed to download',
   '文件下载失败，请稍后重试': 'Failed to download the file. Please try again later',
+  '风险提示：': 'Risk notice:',
+  '本次任务会从已授权的主机中临时提取日志，并生成有时效的下载链接':
+    'This task temporarily extracts logs from authorized hosts and generates a download link with an expiration time',
+  '请确认目标范围、文件范围和过滤条件符合授权用途':
+    'Confirm that the targets, files and text filters match the authorized purpose',
+  下载链接过期后需要重新下发或重新生成: 'Submit the task or generate the download link again after it expires',
+  '{0} 个授权内主机': '{0} authorized hosts',
+  '{0} 个文件': '{0} files',
+  '最新行数：{0} 行': 'Latest {0} lines',
+  '将向{0}符合提取范围的主机提取：以下{1}个文件':
+    'Extract the following {1} files from {0} hosts within the extraction scope',
+  '将向{0}符合提取范围的主机提取：': 'Extract files from {0} hosts within the extraction scope:',
+  '{0}之外的{1}文件': 'Extract {1} files except {0}',
+  '除去以下{0}个文件': 'the following {0} files',
+  '请在检索后，在文件列表选择日志文件': 'After searching, select log files from the file list',
+  '搜索文件名/最后修改时间': 'Search by file name / last modified time',
+  暂无已选文件: 'No files selected',
 };

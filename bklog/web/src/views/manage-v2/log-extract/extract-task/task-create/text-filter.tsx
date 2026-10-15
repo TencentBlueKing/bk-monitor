@@ -113,7 +113,7 @@ export default defineComponent({
 
     // 主渲染函数
     return () => (
-      <div style='display: flex; align-items: center'>
+      <div class='extract-text-filter'>
         {/* 过滤类型选择器 */}
         <bk-select
           style='width: 174px; margin-right: 20px; background-color: #fff'
@@ -161,66 +161,71 @@ export default defineComponent({
 
         {/* 关键字范围 */}
         {filterType.value === 'match_range' && (
-          <div>
-            <i18n
-              style='display: flex; align-items: center'
-              path='从匹配{0}开始到匹配{1}之间的所有行'
-            >
-              <bk-input
-                style='width: 180px; margin: 0 6px'
-                maxlength={64}
-                value={filterContent.value.start}
-                onChange={(val: string) => (filterContent.value.start = val)}
-              />
-              <bk-input
-                style='width: 180px; margin: 0 6px'
-                maxlength={64}
-                value={filterContent.value.end}
-                onChange={(val: string) => (filterContent.value.end = val)}
-              />
-            </i18n>
-          </div>
+          <i18n
+            class='filter-range-group keyword-range-group'
+            path='从匹配{0}开始到匹配{1}之间的所有行'
+            tag='div'
+          >
+            <bk-input
+              class='filter-range-input'
+              maxlength={64}
+              placeholder={t('请输入')}
+              value={filterContent.value.start}
+              onChange={(val: string) => (filterContent.value.start = val)}
+            />
+            <bk-input
+              class='filter-range-input'
+              maxlength={64}
+              placeholder={t('请输入')}
+              value={filterContent.value.end}
+              onChange={(val: string) => (filterContent.value.end = val)}
+            />
+          </i18n>
         )}
 
         {/* 最新行数 */}
         {filterType.value === 'tail_line' && (
-          <div style='display: flex; align-items: center'>
-            <bk-input
-              style='width: 120px'
-              placeholder={t('请输入整数')}
-              precision={0}
-              type='number'
-              value={filterContent.value.line_num}
-              onChange={(val: any) => handleChangeNumber('line_num', val)}
-            />
-          </div>
+          <bk-input
+            class='latest-lines-input'
+            placeholder={t('请输入整数')}
+            precision={0}
+            type='number'
+            value={filterContent.value.line_num}
+            onChange={(val: any) => handleChangeNumber('line_num', val)}
+          >
+            <div
+              class='group-text'
+              slot='append'
+            >
+              {t('行')}
+            </div>
+          </bk-input>
         )}
 
         {/* 按行过滤 */}
         {filterType.value === 'line_range' && (
-          <div>
-            <i18n
-              style='display: flex; align-items: center'
-              path='从第{0}行到第{1}行'
-            >
-              <bk-input
-                style='width: 120px; margin: 0 6px'
-                placeholder={t('请输入整数')}
-                precision={0}
-                type='number'
-                value={filterContent.value.start_line}
-                onChange={(val: any) => handleChangeNumber('start_line', val)}
-              />
-              <bk-input
-                style='width: 120px; margin: 0 6px'
-                placeholder={t('请输入整数')}
-                precision={0}
-                type='number'
-                value={filterContent.value.end_line}
-                onChange={(val: any) => handleChangeNumber('end_line', val)}
-              />
-            </i18n>
-          </div>
+          <i18n
+            class='filter-range-group line-range-group'
+            path='从第{0}行到第{1}行'
+            tag='div'
+          >
+            <bk-input
+              class='filter-range-input'
+              placeholder={t('请输入整数')}
+              precision={0}
+              type='number'
+              value={filterContent.value.start_line}
+              onChange={(val: any) => handleChangeNumber('start_line', val)}
+            />
+            <bk-input
+              class='filter-range-input'
+              placeholder={t('请输入整数')}
+              precision={0}
+              type='number'
+              value={filterContent.value.end_line}
+              onChange={(val: any) => handleChangeNumber('end_line', val)}
+            />
+          </i18n>
         )}
       </div>
     );
