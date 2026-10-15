@@ -43,6 +43,7 @@ interface IProps {
   type?: TimeRangeDisplayType;
   timezone?: string;
   needTimezone?: boolean;
+  maxDuration?: number;
 }
 interface IEvents {
   onChange: TimeRangeType;
@@ -53,12 +54,9 @@ interface IEvents {
 export default class TimeRange extends tsc<IProps, IEvents> {
   @Prop({ default: () => DEFAULT_TIME_RANGE, type: Array }) value: TimeRangeType; // 组件回显值
   @Prop({ default: 'simplicity', type: String }) type: TimeRangeDisplayType; // 组件回显值
-  @Prop({ default: window.timezone, type: String }) timezone: TimeRangeDisplayType; // 组件回显值
+  @Prop({ default: window.timezone, type: String }) timezone: string; // 组件回显值
   @Prop({ default: true, type: Boolean }) needTimezone: boolean; // 是否显示时区选择
-  // DatePicker 确认时间只关面板、不销毁 hover tooltip；trigger 重绘后 mouseleave 丢失。
-  // 用 key 卸载重建，走组件 onBeforeUnmount 里的 tippy.destroy，不按 class 强关。
-  pickerInstanceKey = 0;
-
+  @Prop({ type: Number }) maxDuration?: number; // 最大可选时间跨度（毫秒），默认不限制
   @Emit('change')
   handleModelValueChange(v: TimeRangeType) {
     if (v.every(item => typeof item === 'string')) {
@@ -67,7 +65,6 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
     this.$store.commit('updateStorage', { [BK_LOG_STORAGE.CACHED_BATCH_LIST]: [] });
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
-    this.recreateDatePicker();
     return v;
   }
 
@@ -75,6 +72,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
 
   @Emit('format-change')
   handleFormatChange(v: string) {
+    this.formatStr = v;
     localStorage.setItem('SEARCH_DEFAULT_TIME_FORMAT', v);
     return v;
   }
@@ -82,20 +80,15 @@ export default class TimeRange extends tsc<IProps, IEvents> {
   @Emit('timezone-change')
   handleTimezoneChange(timezone: string) {
     timezone && updateTimezone(timezone);
-    this.recreateDatePicker();
     return timezone;
   }
   mounted() {
     this.$store.commit('retrieve/updateCachePickerValue', this.value);
   }
-  recreateDatePicker() {
-    this.pickerInstanceKey += 1;
-  }
   render() {
     return (
       <div style='display: inline-flex'>
         <DatePicker
-          key={this.pickerInstanceKey}
           ref='datePicker'
           behavior={this.type}
           modelValue={this.value}
@@ -103,6 +96,7 @@ export default class TimeRange extends tsc<IProps, IEvents> {
           enableFormatClick={true}
           timezone={this.timezone}
           format={this.formatStr}
+          maxDuration={this.maxDuration}
           onChange={this.handleModelValueChange}
           onFormatChange={this.handleFormatChange}
           onTimezoneChange={this.handleTimezoneChange}
