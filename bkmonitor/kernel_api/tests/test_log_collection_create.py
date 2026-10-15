@@ -335,6 +335,85 @@ def patch_api_with_clusters(monkeypatch, clusters, created, queries=None):
 
 
 @pytest.mark.parametrize("payload_factory", [linux_payload, windows_payload, container_payload])
+@pytest.mark.parametrize(
+    "storage_options",
+    [
+        {},
+        {"retention": 14},
+        {"es_shards": 3},
+        {"storage_replies": 0},
+        {"retention": 14, "es_shards": 3, "storage_replies": 2},
+    ],
+)
+def test_fast_create_uses_selected_cluster_defaults(monkeypatch, payload_factory, storage_options):
+    cluster = {
+        "storage_cluster_id": 12,
+        "setup_config": {
+            "retention_days_max": 14,
+            "retention_days_default": 7,
+            "number_of_replicas_max": 3,
+            "number_of_replicas_default": 1,
+            "es_shards_default": 1,
+            "es_shards_max": 3,
+        },
+    }
+    created = []
+    patch_api_with_clusters(monkeypatch, [cluster], created)
+    serializer = FastCreateLogCollectorResource.RequestSerializer(
+        data=payload_factory(storage_cluster_id=12, **storage_options)
+    )
+    assert serializer.is_valid(), serializer.errors
+
+    FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    expected = {"storage_cluster_id": 12, "retention": 7, "es_shards": 1, "storage_replies": 1}
+    expected.update(storage_options)
+    forwarded = FastCreateLogCollectorAPIResource().validate_request_data(created[0])
+    for params in (created[0], forwarded):
+        assert {field: params[field] for field in expected} == expected
+    assert serializer.validated_data == payload_factory(storage_cluster_id=12, **storage_options)
+
+
+@pytest.mark.parametrize("payload_factory", [linux_payload, windows_payload, container_payload])
+def test_fast_create_uses_zero_replica_default(monkeypatch, payload_factory):
+    cluster = {
+        "storage_cluster_id": 12,
+        "setup_config": {"number_of_replicas_max": 0, "number_of_replicas_default": 0},
+    }
+    created = []
+    patch_api_with_clusters(monkeypatch, [cluster], created)
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=payload_factory(storage_cluster_id=12))
+    assert serializer.is_valid(), serializer.errors
+
+    FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert created[0]["storage_replies"] == 0
+    assert "retention" not in created[0]
+    assert "es_shards" not in created[0]
+
+
+@pytest.mark.parametrize(
+    ("field", "default_key", "limit_key", "default", "limit"),
+    [
+        ("retention", "retention_days_default", "retention_days_max", 7, 1),
+        ("es_shards", "es_shards_default", "es_shards_max", 3, 1),
+        ("storage_replies", "number_of_replicas_default", "number_of_replicas_max", 1, 0),
+    ],
+)
+def test_fast_create_rejects_cluster_defaults_above_limits(monkeypatch, field, default_key, limit_key, default, limit):
+    cluster = {"storage_cluster_id": 12, "setup_config": {default_key: default, limit_key: limit}}
+    created = []
+    patch_api_with_clusters(monkeypatch, [cluster], created)
+    serializer = FastCreateLogCollectorResource.RequestSerializer(data=linux_payload(storage_cluster_id=12))
+    assert serializer.is_valid(), serializer.errors
+
+    with pytest.raises(ValidationError, match=field):
+        FastCreateLogCollectorResource().perform_request(serializer.validated_data)
+
+    assert created == []
+
+
+@pytest.mark.parametrize("payload_factory", [linux_payload, windows_payload, container_payload])
 @pytest.mark.parametrize(("field", "value"), [("retention", 8), ("es_shards", 513), ("storage_replies", 2)])
 def test_fast_create_rejects_storage_settings_above_cluster_limits(monkeypatch, payload_factory, field, value):
     created = []
@@ -390,6 +469,8 @@ def test_fast_create_allows_storage_settings_within_default_cluster_limits(monke
 
     assert result["collector_config_id"] == 31
     assert created[0]["storage_replies"] == 0
+    assert "storage_cluster_id" not in created[0]
+    assert "es_shards" not in created[0]
 
 
 def test_fast_create_skips_limits_missing_from_cluster_setup_config(monkeypatch):

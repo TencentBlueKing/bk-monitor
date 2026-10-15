@@ -21,6 +21,11 @@ STORAGE_LIMIT_KEYS = {
     "es_shards": "es_shards_max",
     "storage_replies": "number_of_replicas_max",
 }
+STORAGE_DEFAULT_KEYS = {
+    "retention": "retention_days_default",
+    "es_shards": "es_shards_default",
+    "storage_replies": "number_of_replicas_default",
+}
 
 COMMON_CREATE_FIELDS = {
     "bk_biz_id",
@@ -244,8 +249,8 @@ def resolve_storage_cluster(bk_biz_id: int, storage_cluster_id: int | None) -> d
     raise serializers.ValidationError({"storage_cluster_id": ["Storage cluster is not available for this business."]})
 
 
-def validate_storage_settings(bk_biz_id: int, request_data: Mapping) -> None:
-    """校验存储参数的取值落在所选存储集群的上限内，避免 MCP 绕过控制台的资源限制。"""
+def validate_storage_settings(bk_biz_id: int, request_data: dict[str, Any]) -> None:
+    """补齐显式所选集群的默认存储参数，并校验存储上限。"""
     if all(request_data.get(field) is None for field in STORAGE_PARAM_FIELDS):
         return
     cluster = resolve_storage_cluster(bk_biz_id, request_data.get("storage_cluster_id"))
@@ -254,6 +259,11 @@ def validate_storage_settings(bk_biz_id: int, request_data: Mapping) -> None:
         return
     # 集群列表接口返回的是拍平后的集群信息，setup_config 在顶层（详见 /databus/storage/cluster_groups/ 接口）
     setup_config = cluster.get("setup_config") or {}
+    if request_data.get("storage_cluster_id") is not None:
+        for field, default_key in STORAGE_DEFAULT_KEYS.items():
+            default = setup_config.get(default_key)
+            if field not in request_data and default is not None:
+                request_data[field] = default
     exceed_errors = {}
     for field, limit_key in STORAGE_LIMIT_KEYS.items():
         value = request_data.get(field)
