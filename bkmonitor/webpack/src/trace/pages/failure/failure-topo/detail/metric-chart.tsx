@@ -184,7 +184,7 @@ export default defineComponent({
     };
 
     /** 生成ECharts系列数据 */
-    const getSeriesData = (data: Array<[number, number, number]>) => {
+    const getSeriesData = (data: Array<[number, number | null, number]>) => {
       return data.map(entry => ({
         value: [entry[0], entry[1], entry[2]],
         symbol: 'circle',
@@ -224,7 +224,7 @@ export default defineComponent({
           color = '#55D3F0';
         }
         // 带单位转换后的数据，精确度precision默认为2
-        const valueObj = unitFormatter(item.value[1], 2);
+        const valueObj = item.value[1] === null ? { text: '--', suffix: '' } : unitFormatter(item.value[1], 2);
 
         const itemValue =
           item.seriesId === 'scatter-event' ? item.value[1] : `${valueObj?.text} ${valueObj?.suffix || ''}`;
@@ -270,12 +270,13 @@ export default defineComponent({
     /** 创建折线series */
     const getLineSeries = () => {
       // 创建标记点markPoint
-      const createMarkPoints = (data: Array<[number, number, number]>) =>
+      const createMarkPoints = (data: Array<[number, number | null, number]>) =>
         data.filter(entry => entry[2] > 0).map(entry => ({ coord: [entry[0], entry[1]], name: '异常点' }));
 
       // 创建单条线配置
-      const createLineSeries = (name: string, dataSource: Array<[number, number, number]>) => ({
+      const createLineSeries = (name: string, dataSource: Array<[number, number | null, number]>) => ({
         ...baseLineSeriesConfig,
+        connectNulls: props.metricItem.metric_type === 'snapshot' ? false : baseLineSeriesConfig.connectNulls,
         name,
         id: `line-${name}`,
         data: getSeriesData(dataSource),
@@ -292,7 +293,7 @@ export default defineComponent({
 
       // 多维度数据处理，展示多条折线
       return Object.entries(props.metricItem.time_series).map(([key, value]) =>
-        createLineSeries(key, value.datapoints as Array<[number, number, number]>)
+        createLineSeries(key, value.datapoints)
       );
     };
 

@@ -218,7 +218,7 @@ export default defineComponent({
             />
             {t('节点概览')}
           </div>
-          {props.showViewResource && (
+          {props.showViewResource && (!node.graph_analysis || node.graph_analysis.capabilities?.context_expansion) && (
             <div
               class={['list-item', node.entity.entity_id.indexOf('Unknown') !== -1 ? 'is-disabled' : '']}
               v-bk-tooltips={{
