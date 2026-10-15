@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import Elkjs from 'elkjs';
+import { topologyEdgeId } from '../snapshot-analysis';
 
 import type { ITopoCombo } from '../types/topo';
 import type { Edge, VirtaulNode } from './format-topo-data';
@@ -41,7 +42,7 @@ const setSubCombosMap = (val: any) => {
  * @param id
  * @returns
  */
-const filterSubCombo = id => (subCombosMap[id] ?? 0) > 0;
+const filterSubCombo = id => id != null && id !== '' && (subCombosMap[id] ?? 0) > 0;
 
 const getRootCombos = data => {
   return (data.combos?.filter(combo => !combo.parentId) ?? []).map(combo =>
@@ -90,7 +91,7 @@ const convertToElkFormat = data => {
   // biome-ignore lint/complexity/noForEach: <explanation>
   data.edges.forEach(edge => {
     elkEdges.push({
-      id: `${edge.source}-${edge.target}`,
+      id: topologyEdgeId(edge),
       sources: [edge.source],
       targets: [edge.target],
     });
@@ -526,7 +527,7 @@ const getTopoRawData = (combos, edges, nodes) => {
     combos: combos.map(combo => ({ ...combo, id: combo.id.toString() })),
     edges: edges.map(edge => ({
       ...edge,
-      id: `${edge.source}-${edge.target}`,
+      id: topologyEdgeId(edge),
       sources: [edge.source],
       targets: [edge.target],
     })),

@@ -16,6 +16,7 @@ from semconv.constants import FieldUnit
 from semconv.rum.constants import RatingLevel
 from semconv.rum.field import RatingThreshold
 from semconv.rum.trace import SpanSpec
+from rum_web.handlers.builder.hover import Hover, get_rating_hover
 
 
 def get_safe_number(value: Any, default: int | float | None = 0) -> int | float | None:
@@ -42,11 +43,15 @@ def phase(
     duration: int | float | None,
     *,
     min_start: int | float | None = None,
+    hover: Hover | None = None,
 ) -> dict[str, Any] | None:
     """缺少起点或时长、时长为负或起点低于 min_start 时，整段省略。"""
     if start is None or duration is None or duration < 0 or (min_start is not None and start < min_start):
         return None
-    return {"key": key, "alias": alias, "start": start, "duration": duration}
+    result: dict[str, Any] = {"key": key, "alias": alias, "start": start, "duration": duration}
+    if hover is not None:
+        result["hover"] = hover
+    return result
 
 
 def waterfall(
@@ -69,6 +74,7 @@ def build_rating_config(metric: str) -> list[dict[str, Any]]:
             "rating": level.rating,
             **({"value": level.value} if level.value is not None else {}),
             "alias": RatingLevel(level.rating).label,
+            **({"hover": hover} if (hover := get_rating_hover(level.rating)) is not None else {}),
         }
         for level in SpanSpec.from_field(metric.upper()).rating_config
     ]

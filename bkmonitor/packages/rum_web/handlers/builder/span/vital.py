@@ -19,6 +19,7 @@ from rum_web.handlers.builder.span.base import (
     RatingConfigItem,
     SpanBuilder,
     SpanOverview,
+    VitalHoverItem,
     named,
 )
 from rum_web.handlers.builder.utils import get_safe_number, match_rating
@@ -54,6 +55,7 @@ class VitalRatingSection(BaseSection):
     DATA = (
         KeyValueItem(key="attributes.vital.metric"),
         KeyValueItem(key="attributes.vital.value"),
+        VitalHoverItem(),
         RatingConfigItem(),
     )
 

@@ -80,6 +80,7 @@ class CreateDataIdResource(MetaDataAPIGWResource):
         space_uid = serializers.CharField(required=False)
         bk_biz_id = serializers.IntegerField(required=False)
         is_platform_data_id = serializers.BooleanField(required=False)
+        created_from = serializers.ChoiceField(required=False, choices=["bkgse", "bkdata"], default="bkgse")
 
 
 class CreateResultTableResource(MetaDataAPIGWResource):

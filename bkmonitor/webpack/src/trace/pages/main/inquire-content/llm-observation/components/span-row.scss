@@ -304,68 +304,6 @@ $tree-step: 16px;
   @include ellipsis;
 }
 
-.llm-span-io-kvs {
-  gap: 8px;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  flex-wrap: nowrap;
-
-  @include flex-align(center);
-}
-
-.llm-span-io-kv {
-  flex: 0 0 auto;
-  width: max-content;
-  max-width: 100%;
-  overflow: hidden;
-  gap: 2px;
-  height: 20px;
-  padding: 0 6px;
-  font-size: $font-size-base;
-  line-height: 20px;
-  white-space: nowrap;
-  background: #e9edf5;
-  border-radius: 4px;
-
-  @include flex-align(center);
-
-  &-key {
-    flex: 0 0 auto;
-    max-width: 200px;
-    font-weight: 500;
-    color: #313238;
-
-    @include ellipsis;
-  }
-
-  &-colon {
-    flex-shrink: 0;
-    color: #4e5e7a;
-  }
-
-  &-value {
-    flex: 0 0 auto;
-    max-width: 160px;
-    color: #4e5e7a;
-
-    @include ellipsis;
-  }
-
-  /* 只有一对时放开值的上限，让超长内容吃掉列内剩余宽度 */
-  &:only-child {
-    flex: 0 1 auto;
-    width: auto;
-    min-width: 0;
-
-    .llm-span-io-kv-value {
-      flex: 1 1 auto;
-      min-width: 0;
-      max-width: none;
-    }
-  }
-}
-
 .llm-span-io-arrow {
   flex-shrink: 0;
   font-size: $font-size-base;

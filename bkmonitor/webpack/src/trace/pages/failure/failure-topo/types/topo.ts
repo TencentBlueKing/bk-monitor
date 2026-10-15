@@ -30,6 +30,7 @@
  */
 
 import type { ModelConfig } from '@antv/g6';
+import type { SnapshotAnalysis } from '../snapshot-analysis';
 
 /** 节点概览页类型切换tab，linkedEdge-关联边，metric-指标 */
 export type ActiveTab = 'linkedEdge' | 'metric';
@@ -70,6 +71,7 @@ export interface EventStatistics {
 
 /** 拓扑图边数据 */
 export interface IEdge {
+  graph_analysis?: SnapshotAnalysis | null;
   [key: string]: any;
   aggregated?: boolean;
   aggregated_edges?: IEdge[];
@@ -217,7 +219,7 @@ export interface IRank {
 /** 时间序列数据 */
 export interface ITimeSeries {
   [key: string]: any;
-  datapoints: Array<[number, number, number]>; // 指标数据
+  datapoints: Array<[number, number | null, number]>; // 指标数据，null 保留缺失时间点
   unit: string;
 }
 
@@ -247,6 +249,7 @@ export interface ITopoEdge extends ModelConfig {
 
 /** 拓扑图节点数据（G6 ModelConfig 扩展） */
 export interface ITopoNode extends ModelConfig {
+  graph_analysis?: SnapshotAnalysis | null;
   aggregated_nodes?: ITopoNode[];
   alert_all_recorved?: boolean;
   alert_ids?: string[];
@@ -268,6 +271,7 @@ export interface ITopoNode extends ModelConfig {
   /** 节点扩展属性（部分场景可缺省） */
   properties?: {
     aggregated_by?: string[];
+    aggregated_by_id?: string;
     entity_category?: string;
     entity_show_type?: string;
   };

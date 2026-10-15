@@ -32,6 +32,7 @@ import { fitPosition } from 'monitor-ui/chart-plugins/utils';
 import { useI18n } from 'vue-i18n';
 
 import ExceptionComp from '../../../../components/exception';
+import { allowsRealtimeEvents } from '../snapshot-analysis';
 import useMetrics from './useMetrics';
 import CustomEventMenu from './custom-event-menu';
 import MetricChart from './metric-chart';
@@ -85,9 +86,10 @@ export default defineComponent({
     // 指标类型
     const metricType = computed(() => (isNodeView.value ? 'node' : props.data.edge_type));
     // 节点类型
-    const nodeType = computed(() => props.data.entity.properties?.entity_category || props.data.entity.rank_name);
+    const nodeType = computed(() => props.data.entity?.properties?.entity_category || props.data.entity?.rank_name || '');
     // 边的指标数据
     const edgeMetricData = computed(() => props.data.events ?? []);
+    const snapshotAnalysis = computed(() => props.data.graph_analysis);
     // 数据自动刷新时间
     const refreshTime = computed(() => props.refreshTime);
     const showServiceOverview = computed(() => props.showServiceOverview);
@@ -131,6 +133,7 @@ export default defineComponent({
       loading,
       exceptionData,
       disableEventAnalysis,
+      eventDataMessage,
       getMetricsData,
       getEventsData,
       transformEventData,
@@ -145,7 +148,8 @@ export default defineComponent({
       refreshTime,
       showServiceOverview,
       props.getMetricsDataLength,
-      edgeMetricData
+      edgeMetricData,
+      snapshotAnalysis
     );
 
     /**
@@ -515,6 +519,8 @@ export default defineComponent({
 
     /** 处理事件点击（定位自定义事件菜单） */
     const handleClick = params => {
+      // Frozen event points must not open the live event-details query for a different observation.
+      if (!allowsRealtimeEvents(snapshotAnalysis.value)) return;
       const start_time = Math.floor(params.value[0] / 1000);
       const { clientX, clientY } = params.event.event;
       // 计算菜单位置，确保在可视区域内
@@ -631,6 +637,7 @@ export default defineComponent({
       exceptionData,
       nodeType,
       disableEventAnalysis,
+      eventDataMessage,
       handleException,
       handleShowPopover,
       handleCheckedAllChange,
@@ -663,7 +670,18 @@ export default defineComponent({
       );
     }
     if (this.exceptionData.showException) {
-      return this.handleException();
+      return (
+        <div>
+          {this.handleException()}
+          {this.isNodeView && this.eventDataMessage && <p>{this.eventDataMessage}</p>}
+          {this.isNodeView && this.allEventsData.map(event => (
+            <p key={JSON.stringify([event.event_source, event.event_level, event.event_name])}>
+              {event.event_name} · {event.event_source} · {event.event_level} · {this.t('事件数量')}：
+              {event.series[0].datapoints.length}
+            </p>
+          ))}
+        </div>
+      );
     }
     return (
       <div class='metric-wrap'>
@@ -672,7 +690,7 @@ export default defineComponent({
           <div
             class='event-analyze'
             v-bk-tooltips={{
-              content: this.t('暂无关联的事件数据'),
+              content: this.eventDataMessage || this.t('暂无关联的事件数据'),
               disabled: this.allEventsData.length > 0 && !this.disableEventAnalysis,
               extCls: 'failure-topo-dark-tooltip',
             }}
@@ -685,6 +703,7 @@ export default defineComponent({
               onChange={this.handleChangeSwitch}
             />
             <span class='event-analyze_title'>{this.t('事件分析')}</span>
+            {this.eventDataMessage && <span>{this.eventDataMessage}</span>}
             <Popover
               extCls='event-analyze-popover'
               arrow={false}
