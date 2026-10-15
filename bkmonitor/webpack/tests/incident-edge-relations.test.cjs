@@ -1,7 +1,15 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
-const { relations, drawMain, drawResource, animationStarts, renderEdge, renderList, readMetrics } =
-  require('./helpers/incident-edge-harness.cjs');
+const {
+  relations,
+  drawMain,
+  drawResource,
+  animationStarts,
+  renderEdge,
+  renderList,
+  readMetrics,
+  renderNode,
+} = require('./helpers/incident-edge-harness.cjs');
 const edge = (edge_type, properties = {}, is_anomaly = true) => ({
   id: 'edge',
   source: 'a',
@@ -123,4 +131,80 @@ test('legacy parallel edges keep their own saved metrics without any live fallba
   assert.deepEqual(ownershipResult.metrics, []);
   assert.deepEqual([...callResult.requests, ...ownershipResult.requests], []);
   assert.equal(JSON.stringify([call, ownership]), before);
+});
+
+test('node details hide analysis metadata while preserving business attributes, root marker and metric input', async () => {
+  const scores = [
+    'legacy_anomaly_score',
+    'self_anomaly',
+    'propagated_impact',
+    'explained_errors',
+    'entrance_error_explanation_ratio',
+  ].map(kind => ({ kind, value: 0 }));
+  const model = {
+    entity: {
+      entity_id: 'service-a',
+      entity_name: 'Service A',
+      entity_type: 'APMService',
+      rank_name: 'APMService',
+      rank: { rank_category: { category_alias: 'Application' } },
+      properties: { scores },
+      tags: { BcsService: { name: 'Business Service' } },
+    },
+    is_feedback_root: true,
+    bk_biz_id: 1,
+    bk_biz_name: 'Business A',
+    alert_ids: ['alert-a'],
+    alert_display: { alert_name: 'Error alert' },
+    graph_analysis: {
+      protocol: 'graph-rca-snapshot',
+      version: '1',
+      producer: { engine: 'graph_walk' },
+      root_causes: [{ entity_ref: 'service-a', rank: 1, scores, reason: 'Candidate explanation' }],
+      evidence: [{ evidence_id: 'metric-a' }],
+    },
+  };
+  const before = structuredClone(model);
+  const result = await renderNode(model);
+  for (const hidden of [
+    'snapshot-analysis-info',
+    '分析来源',
+    '候选排名',
+    '原始异常评分',
+    '自身异常程度',
+    '传播影响',
+    '解释错误数',
+    '入口错误解释比例',
+    '分析依据',
+    'Candidate explanation',
+  ]) {
+    assert.ok(!result.html.includes(hidden), hidden);
+  }
+  for (const visible of [
+    'Service A',
+    '根因',
+    '包含告警',
+    'Error alert',
+    'Application',
+    'APMService',
+    'Business A',
+    'Business Service',
+    '指标',
+    '关联边',
+    'metric-view-boundary',
+  ]) {
+    assert.ok(result.html.includes(visible), visible);
+  }
+  assert.deepEqual(result.metricInput, model);
+  result.clickAlert();
+  assert.deepEqual(result.emitted, [['alert', model]]);
+  assert.deepEqual(model, before);
+
+  const linkedEdge = edge('dependency', { relation: 0 });
+  const linked = await renderNode(model, 'linkedEdge', [linkedEdge]);
+  assert.ok(linked.html.includes('从属关系'));
+  assert.ok(linked.html.includes('关联边 (1)'));
+  assert.equal(linked.metricInput, undefined);
+  linked.clickEdge(linkedEdge);
+  assert.deepEqual(linked.emitted, [['edge', linkedEdge]]);
 });
