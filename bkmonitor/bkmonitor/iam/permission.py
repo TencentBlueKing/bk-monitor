@@ -582,6 +582,9 @@ class Permission:
         if check_iam_preflight(self.request, action, skip_check=self.skip_check):
             return True
 
+        # 与 V3 一致：未知动作是输入错误，不进入 Provider 的故障降级或申请流程。
+        get_action_by_id(action if isinstance(action, ActionMeta) else _to_business_action_id(action))
+
         resources = resources or []
 
         fw_resources = tuple(to_resource_instance(r) for r in resources)
