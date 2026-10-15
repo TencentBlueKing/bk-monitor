@@ -17,6 +17,7 @@ from django.utils.functional import Promise
 from django.utils.translation import gettext_lazy as _
 
 from rum_web.handlers.builder.base import BaseOverview, BaseSection, NamedKeyValueItem
+from rum_web.handlers.builder.hover import get_vital_hover
 from rum_web.handlers.builder.utils import build_rating_config
 from semconv.rum.constants import RumSpanType
 
@@ -40,6 +41,17 @@ class RatingConfigItem:
     def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
         metric = self.metric or flatten_data.get("attributes.vital.metric", "")
         return {self.key: build_rating_config(metric)}
+
+
+@dataclass(frozen=True, slots=True)
+class VitalHoverItem:
+    metric: str | None = None
+    key: str = "hover"
+
+    def render(self, flatten_data: dict[str, Any]) -> dict[str, Any]:
+        metric = self.metric or flatten_data.get("attributes.vital.metric", "")
+        hover = get_vital_hover(metric)
+        return {self.key: hover} if hover is not None else {}
 
 
 @dataclass(frozen=True, slots=True)

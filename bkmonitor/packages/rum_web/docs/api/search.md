@@ -20,6 +20,46 @@
 | is_wildcard    | Boolean | 否  | 是否使用通配符，默认 `false`            |
 | group_relation | String  | 否  | 分组关系，枚举值：`AND` / `OR`，默认 `OR` |
 
+### 1.2 Hover
+
+加载阶段、里程碑、Web Vitals 和评级使用统一的 Hover 结构：
+
+```json
+{
+  "hover": {
+    "title": "LCP（最大内容绘制）",
+    "description": "从打开页面到视窗内最大的图片、文本块或视频画面渲染完成的时间。",
+    "user_experience": "页面主要内容已经出现，用户能够判断页面内容。",
+    "source": {
+      "label": "web.dev · Largest Contentful Paint",
+      "url": "https://web.dev/articles/lcp"
+    }
+  }
+}
+```
+
+| 参数名称 | 类型 | 必填 | 描述 |
+| --- | --- | --- | --- |
+| title | String | 是 | Hover 标题 |
+| description | String | 是 | 专业解释，不包含计算方式、公式或原始字段表达式 |
+| user_experience | String | 否 | 用户可感知的页面表现 |
+| source | Object | 否 | 参考来源 |
+| source.label | String | source 存在时必填 | 来源名称 |
+| source.url | String | source 存在时必填 | 官方定义或规范链接 |
+
+`hover` 是可选字段，当前可能出现在以下位置：
+
+| 展示对象 | 字段路径 |
+| --- | --- |
+| Resource、View 加载阶段 | `sections.loading_timing.data.phases[].hover` |
+| View 指标标记 | `sections.loading_timing.data.markers[].hover` |
+| View 累计里程碑 | `sections.loading_timing.data.milestones[].hover` |
+| View Web Vital | `sections.web_vitals.data.<metric>.hover` |
+| Vital 详情 | `sections.vital_rating.data.hover` |
+| Web Vital 评级 | 上述对象内 `display.rating_config[].hover` |
+
+消费端仅在字段存在时为对应展示项增加虚线标识，并在 Hover 时展示内容；字段缺失时不展示虚线。
+
 ---
 
 ## 2 RUM 接口
@@ -1117,7 +1157,21 @@ POST /rum/search/record_detail/
         "unit": "ms",
         "total_duration": 128,
         "phases": [
-          {"key": "prepare", "alias": "浏览器准备", "start": 0, "duration": 1.2},
+          {
+            "key": "prepare",
+            "alias": "浏览器准备",
+            "start": 0,
+            "duration": 1.2,
+            "hover": {
+              "title": "发起前等待",
+              "description": "浏览器在发起网络请求前处理重定向、缓存、Service Worker 或连接复用等准备工作。",
+              "user_experience": "浏览器正在确定资源来源和请求方式，尚未开始接收内容。",
+              "source": {
+                "label": "W3C · Resource Timing",
+                "url": "https://www.w3.org/TR/resource-timing/"
+              }
+            }
+          },
           {"key": "dns", "alias": "DNS", "start": 1.2, "duration": 3.8},
           {"key": "connect", "alias": "TCP", "start": 5, "duration": 4.1},
           {"key": "tls", "alias": "TLS", "start": 9.1, "duration": 5.9},
@@ -1285,10 +1339,42 @@ POST /rum/search/record_detail/
       "data": {
         "attributes.vital.metric": "lcp",
         "attributes.vital.value": 2840,
+        "hover": {
+          "title": "LCP（最大内容绘制）",
+          "description": "从打开页面到视窗内最大的图片、文本块或视频画面渲染完成的时间。",
+          "user_experience": "页面主要内容已经出现，用户能够判断页面内容。",
+          "source": {
+            "label": "web.dev · Largest Contentful Paint",
+            "url": "https://web.dev/articles/lcp"
+          }
+        },
         "display.rating_config": [
-          {"rating": "good", "value": 2500, "alias": "良好"},
-          {"rating": "needs_improvement", "value": 4000, "alias": "需改进"},
-          {"rating": "poor", "alias": "差"}
+          {
+            "rating": "good",
+            "value": 2500,
+            "alias": "良好",
+            "hover": {
+              "title": "良好",
+              "description": "指标处于推荐区间，通常代表用户体验良好。"
+            }
+          },
+          {
+            "rating": "needs_improvement",
+            "value": 4000,
+            "alias": "需改进",
+            "hover": {
+              "title": "需改进",
+              "description": "指标处于中间区间，部分用户可能已经感受到性能问题。"
+            }
+          },
+          {
+            "rating": "poor",
+            "alias": "差",
+            "hover": {
+              "title": "差",
+              "description": "指标超出推荐区间，用户较可能感受到明显的性能问题。"
+            }
+          }
         ]
       }
     }
@@ -1338,6 +1424,15 @@ POST /rum/search/record_detail/
         "ttfb": {
           "attributes.vital.metric": "ttfb",
           "attributes.vital.value": 101.7,
+          "hover": {
+            "title": "TTFB（首字节响应）",
+            "description": "从用户开始打开页面，到浏览器收到服务器返回的第一小段数据。",
+            "user_experience": "页面多久开始得到服务器回应；过慢时会感觉页面一直没有反应。",
+            "source": {
+              "label": "web.dev · Time to First Byte",
+              "url": "https://web.dev/articles/ttfb"
+            }
+          },
           "attributes.vital.ttfb.waiting_duration": 1.2,
           "attributes.vital.ttfb.dns_duration": 3.8,
           "attributes.vital.ttfb.connection_duration": 10,
@@ -1393,7 +1488,21 @@ POST /rum/search/record_detail/
         "unit": "ms",
         "total_duration": 200,
         "phases": [
-          {"key": "prepare", "alias": "浏览器准备", "start": 0, "duration": 1.2},
+          {
+            "key": "prepare",
+            "alias": "浏览器准备",
+            "start": 0,
+            "duration": 1.2,
+            "hover": {
+              "title": "浏览器准备与重定向",
+              "description": "浏览器正式发出网络请求前的准备时间，包括地址重定向和 Service Worker 启动等工作。",
+              "user_experience": "浏览器正在确定最终地址和请求方式，尚未连接目标服务器。",
+              "source": {
+                "label": "web.dev · Time to First Byte",
+                "url": "https://web.dev/articles/ttfb"
+              }
+            }
+          },
           {"key": "dns", "alias": "DNS 查询", "start": 4.2, "duration": 3.8},
           {"key": "connect", "alias": "网络连接建立", "start": 8, "duration": 10},
           {"key": "first_byte", "alias": "等待首字节", "start": 18, "duration": 83.7},
@@ -1402,9 +1511,40 @@ POST /rum/search/record_detail/
           {"key": "page_stable", "alias": "页面趋于稳定", "start": 175, "duration": 25}
         ],
         "markers": [
-          {"key": "TTFB", "field_name": "TTFB", "value": 101.7},
+          {
+            "key": "TTFB",
+            "field_name": "TTFB",
+            "value": 101.7,
+            "hover": {
+              "title": "TTFB（首字节响应）",
+              "description": "从用户开始打开页面，到浏览器收到服务器返回的第一小段数据。",
+              "user_experience": "页面多久开始得到服务器回应；过慢时会感觉页面一直没有反应。",
+              "source": {
+                "label": "web.dev · Time to First Byte",
+                "url": "https://web.dev/articles/ttfb"
+              }
+            }
+          },
           {"key": "FCP", "field_name": "FCP", "value": 120},
           {"key": "LCP", "field_name": "LCP", "value": 250}
+        ],
+        "milestones": [
+          {
+            "key": "dom_complete",
+            "field_name": "attributes.view.dom_complete",
+            "value": 170,
+            "hover": {
+              "title": "DOM Complete",
+              "description": "浏览器认为文档和初始子资源已经加载完成，之后仍可能出现异步请求或页面变化。",
+              "user_experience": "页面主体已经出现，最后一批图片、样式或嵌入内容完成补齐。",
+              "source": {
+                "label": "W3C · Navigation Timing Level 2",
+                "url": "https://www.w3.org/TR/navigation-timing-2/"
+              }
+            }
+          },
+          {"key": "load_event", "field_name": "attributes.view.load_event", "value": 175},
+          {"key": "page_stable", "field_name": "attributes.view.loading_time", "value": 200}
         ]
       }
     }

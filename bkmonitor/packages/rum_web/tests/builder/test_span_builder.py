@@ -105,6 +105,29 @@ def _items(result, name="items"):
     return {item["field_name"]: item["value"] for item in result["overview"][name]}
 
 
+def _assert_hover(hover, *, optional=()):
+    assert {"title", "description"} <= hover.keys()
+    assert hover["title"]
+    assert hover["description"]
+    assert set(hover) <= {"title", "description", "user_experience", "source"}
+    if "source" in hover:
+        assert set(hover["source"]) == {"label", "url"}
+        assert hover["source"]["label"]
+        assert hover["source"]["url"].startswith("https://")
+    for key in optional:
+        assert key not in hover
+
+
+def _assert_no_calculation_fields(value):
+    if isinstance(value, dict):
+        assert not {"formula", "calculation"} & value.keys()
+        for child in value.values():
+            _assert_no_calculation_fields(child)
+    elif isinstance(value, list):
+        for child in value:
+            _assert_no_calculation_fields(child)
+
+
 class TestSpanBuilderDispatch:
     @pytest.mark.parametrize(
         "span_type,display,sections",
@@ -253,6 +276,10 @@ class TestResourceSpanBuilder:
         assert phases["connect"]["duration"] == pytest.approx(4.1)
         assert phases["tls"]["start"] == pytest.approx(9.1)
         assert phases["tls"]["duration"] == pytest.approx(5.9)
+        for item in phases.values():
+            _assert_hover(item["hover"])
+        assert str(phases["prepare"]["hover"]["title"]) == "发起前等待"
+        _assert_no_calculation_fields(timing)
 
     def test_others_loading_timing_has_resource_info(self):
         span = _resource_span("img")
@@ -394,9 +421,14 @@ class TestVitalSpanBuilder:
         config = data["display.rating_config"]
         if threshold is None:
             assert config == []
+            assert "hover" not in data
         else:
             assert config[0]["value"] == threshold
-            assert config[-1] == {"rating": "poor", "alias": "差"}
+            assert config[-1]["rating"] == "poor"
+            assert config[-1]["alias"] == "差"
+            _assert_hover(data["hover"])
+            _assert_hover(config[0]["hover"], optional=("user_experience", "source"))
+            _assert_no_calculation_fields(data)
 
 
 class TestViewSpanBuilder:
@@ -475,11 +507,11 @@ class TestViewSpanBuilder:
         assert loading["attributes.view.loading_time"] == 333
         assert loading["attributes.view.first_byte"] == 120
         timing = _section(result, "loading_timing")["data"]
-        assert timing["milestones"][0] == {
-            "key": "dom_complete",
-            "field_name": "attributes.view.dom_complete",
-            "value": 180,
-        }
+        milestone = timing["milestones"][0]
+        assert milestone["key"] == "dom_complete"
+        assert milestone["field_name"] == "attributes.view.dom_complete"
+        assert milestone["value"] == 180
+        _assert_hover(milestone["hover"])
 
     def test_latest_vitals_are_selected_case_insensitively(self):
         related = [
@@ -497,7 +529,13 @@ class TestViewSpanBuilder:
         assert data["lcp"]["attributes.vital.value"] == 2840
         assert data["ttfb"]["attributes.vital.ttfb.waiting_duration"] == 1.2
         assert data["cls"]["attributes.vital.value"] == 0.2
-        assert data["ttfb"]["display.rating_config"][-1] == {"rating": "poor", "alias": "差"}
+        assert data["ttfb"]["display.rating_config"][-1]["rating"] == "poor"
+        for metric in ("ttfb", "fcp", "lcp", "inp", "cls"):
+            _assert_hover(data[metric]["hover"])
+            for config in data[metric]["display.rating_config"]:
+                _assert_hover(config["hover"], optional=("user_experience", "source"))
+        assert data["lcp"]["hover"] == _section(build(_vital_span("lcp", 2840)), "vital_rating")["data"]["hover"]
+        _assert_no_calculation_fields(data)
 
     def test_related_spans_are_flattened_once(self, mocker):
         from bkmonitor.data_source.format import flatten_dict_data
@@ -530,11 +568,18 @@ class TestViewSpanBuilder:
             assert item["start"] == pytest.approx(start)
             assert item["duration"] == pytest.approx(duration)
             assert item["alias"]
+            _assert_hover(item["hover"])
         assert [(marker["key"], marker["value"]) for marker in timing["markers"]] == [
             ("TTFB", 101.7),
             ("FCP", 180),
             ("LCP", 250),
         ]
+        for marker in timing["markers"]:
+            _assert_hover(marker["hover"])
+        assert timing["markers"][0]["hover"] == _section(result, "web_vitals")["data"]["ttfb"]["hover"]
+        for milestone in timing["milestones"]:
+            _assert_hover(milestone["hover"])
+        _assert_no_calculation_fields(timing)
 
     @pytest.mark.parametrize(
         "source,loading,load_event,stable",
