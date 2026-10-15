@@ -37,6 +37,7 @@ import {
 } from '../services/collection';
 import { createCollectionHostServices } from '../services/collection-hosts';
 import { filterCollectionTasks, immediateCollectionPayload } from '../utils/collection';
+import { createHistoryFilters } from '../utils/collection-history';
 import { useAppReadonlyInject } from '@/pages/provider';
 
 import type { CollectionHost, CollectionMeta, CollectionQueryState, CollectionTask } from '../types/collection';
@@ -134,7 +135,12 @@ export function useProfilingCollection(
 
   function openHistory(task?: CollectionTask) {
     detailId.value = undefined;
-    patch({ tab: 'history', historyTaskId: task?.task_id || null, historyTaskName: task?.name || '' });
+    patch({
+      tab: 'history',
+      historyTaskId: task?.task_id || null,
+      historyTaskName: task?.name || '',
+      history: { ...createHistoryFilters(), task_name: task?.name || '' },
+    });
   }
 
   function saved(immediate: boolean) {

@@ -32,6 +32,7 @@ import { useI18n } from 'vue-i18n';
 import { useProfilingCollection } from '../../composables/use-profiling-collection';
 import { formatCollectionTime, scheduleLabels } from '../../utils/collection';
 import CollectionCrontab from './collection-crontab';
+import CollectionHistory from './collection-history';
 import CollectionOnboarding from './collection-onboarding';
 import CollectionSkeleton from './collection-skeleton';
 import CollectionTaskDetail from './collection-task-detail';
@@ -39,7 +40,9 @@ import CollectionTaskForm from './collection-task-form';
 import EmptyStatus from '@/components/empty-status/empty-status';
 import { useAppStore } from '@/store/modules/app';
 
+import type { SelectionRange } from '../../types';
 import type { CollectionQueryState, CollectionTask, ScheduleType } from '../../types/collection';
+import type { CollectionResultSelection } from '../../types/collection-history';
 
 import './profiling-collection.scss';
 
@@ -54,8 +57,16 @@ export default defineComponent({
   props: {
     state: { type: Object as PropType<CollectionQueryState>, required: true },
     timezone: { type: String, required: true },
+    range: { type: Array as unknown as PropType<SelectionRange>, default: null },
+    rangeError: { type: String, default: '' },
+    revision: { type: Number, default: 0 },
   },
-  emits: { change: (_value: Partial<CollectionQueryState>) => true },
+  emits: {
+    change: (_value: Partial<CollectionQueryState>) => true,
+    created: () => true,
+    result: (_value: CollectionResultSelection, _newPage: boolean) => true,
+    busy: (_value: boolean) => true,
+  },
   setup(props, { emit }) {
     const { t } = useI18n();
     const store = useAppStore();
@@ -213,7 +224,12 @@ export default defineComponent({
       ),
     };
     return (
-      <section class={['profiling-collection', { 'has-tabs': c.meta.value.enabled }]}>
+      <section
+        class={[
+          'profiling-collection',
+          { 'has-tabs': c.meta.value.enabled, 'is-history': c.meta.value.enabled && state.tab === 'history' },
+        ]}
+      >
         {!c.meta.value.enabled ? (
           <CollectionOnboarding
             disabled={c.readonly || c.loading.value}
@@ -322,6 +338,22 @@ export default defineComponent({
                   </>
                 )}
               </div>
+            ) : state.tab === 'history' ? (
+              <CollectionHistory
+                key={this.bizId}
+                bizId={this.bizId}
+                filters={state.history}
+                range={this.range}
+                rangeError={this.rangeError}
+                readonly={c.readonly}
+                revision={this.revision}
+                statusFilters={c.meta.value.execution_status_filters}
+                timezone={this.timezone}
+                onBusy={value => this.$emit('busy', value)}
+                onChange={history => this.patch({ history, historyTaskName: history.task_name, historyTaskId: null })}
+                onCreated={() => this.$emit('created')}
+                onResult={(value, newPage) => this.$emit('result', value, newPage)}
+              />
             ) : (
               <div
                 class={['collection-tab-panel', `collection-${state.tab}-placeholder`]}

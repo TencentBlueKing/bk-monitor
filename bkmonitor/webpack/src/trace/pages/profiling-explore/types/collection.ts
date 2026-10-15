@@ -1,3 +1,5 @@
+import type { CollectionHistoryFilters, CollectionResultSelection } from './collection-history';
+
 export interface CollectionDraft {
   collectionType: CollectionType;
   collector: CollectorConfig;
@@ -29,6 +31,7 @@ export interface CollectionMeta {
   collection_types_by_method: Record<CollectionMethod, CollectionType[]>;
   collector_config: Record<CollectionType, CollectorConfig>;
   enabled: boolean;
+  execution_status_filters?: string[];
   process_selector_types: ProcessMode[];
   resource_guard_config: ResourceGuardConfig;
   schedule?: { cron?: { cron_expression: string } };
@@ -75,9 +78,11 @@ export interface CollectionPayload {
 }
 
 export interface CollectionQueryState {
+  history: CollectionHistoryFilters;
   historyTaskId: null | number;
   historyTaskName: string;
   keyword: string;
+  result: CollectionResultSelection | null;
   scheduleTypes: ScheduleType[];
   sort: null | { descending: boolean; sortBy: string };
   statuses: string[];
