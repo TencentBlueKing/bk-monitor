@@ -364,7 +364,7 @@ def test_search_alert_events_apigw_contract():
     assert gateway_resource["backend"] == {
         "name": "default",
         "method": "post",
-        "path": "/api/v4/alert/event/search/",
+        "path": "/api/v4/alert/search_alert_events/",
         "matchSubpath": False,
     }
     assert gateway_resource["authConfig"] == {

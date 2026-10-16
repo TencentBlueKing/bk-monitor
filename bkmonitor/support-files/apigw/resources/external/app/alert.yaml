@@ -137,7 +137,7 @@ paths:
         backend:
           name: default
           method: post
-          path: /api/v4/alert/event/search/
+          path: /api/v4/alert/search_alert_events/
           matchSubpath: false
         authConfig:
           appVerifiedRequired: true
