@@ -124,6 +124,13 @@
   white-space: nowrap;
 }
 
+.collection-dialog-footer {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
 .collection-task-pagination {
   padding-top: 16px;
 }

@@ -25,8 +25,11 @@
  */
 
 import { createCollectionQueryState, restoreCollectionQuery } from './collection';
+import { createViewState, restoreViewState } from './profile-view';
 
-import type { ProfileQuery, ProfileViewState, QueryState, SelectionRange } from '../types';
+import type { ProfileQuery, QueryState, SelectionRange } from '../types';
+
+export { createViewState } from './profile-view';
 import type { FileQueryState } from '../types/file';
 import type { IWhereItem } from '@/components/retrieval-filter/typing';
 
@@ -105,22 +108,6 @@ export function createQueryState(timezone: string): QueryState {
     comparisonRange: null,
     resolvedTimeRange: null,
     view: createViewState(),
-  };
-}
-
-export function createViewState(): ProfileViewState {
-  return {
-    tab: 'application',
-    graphMode: 'combined',
-    traceMode: false,
-    trendCollapsed: false,
-    legend: {},
-    keyword: '',
-    highlight: '',
-    direction: 'ltr',
-    sort: { sortBy: 'total', descending: true },
-    flameFocus: [],
-    callGraph: { scale: 1, x: 0, y: 0 },
   };
 }
 
@@ -232,38 +219,4 @@ export function toFilterLabels(where: IWhereItem[]): ProfileQuery['filter_labels
     values.set(item.key, merged);
   }
   return Object.fromEntries([...values].map(([key, value]) => [key, value.length === 1 ? value[0] : value]));
-}
-
-function restoreViewState(value: Partial<ProfileViewState> = {}): ProfileViewState {
-  const defaults = createViewState();
-  const input = value || {};
-  const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
-  return {
-    tab: ['application', 'collection', 'file'].includes(input.tab) ? input.tab : defaults.tab,
-    graphMode: ['table', 'combined', 'flame', 'callgraph'].includes(input.graphMode)
-      ? input.graphMode
-      : defaults.graphMode,
-    traceMode: input.traceMode === true,
-    trendCollapsed: input.trendCollapsed === true,
-    legend:
-      input.legend && typeof input.legend === 'object'
-        ? Object.fromEntries(Object.entries(input.legend).filter(([, value]) => typeof value === 'boolean'))
-        : {},
-    keyword: typeof input.keyword === 'string' ? input.keyword : '',
-    highlight: typeof input.highlight === 'string' ? input.highlight : '',
-    direction: input.direction === 'rtl' ? 'rtl' : 'ltr',
-    sort:
-      input.sort && ['name', 'self', 'total', 'baseline', 'comparison', 'diff'].includes(input.sort.sortBy)
-        ? { sortBy: input.sort.sortBy, descending: input.sort.descending === true }
-        : defaults.sort,
-    flameFocus:
-      Array.isArray(input.flameFocus) && input.flameFocus.every(name => typeof name === 'string')
-        ? input.flameFocus
-        : [],
-    callGraph: {
-      scale: finite(input.callGraph?.scale) ? Math.min(8, Math.max(0.2, input.callGraph.scale)) : 1,
-      x: finite(input.callGraph?.x) ? input.callGraph.x : 0,
-      y: finite(input.callGraph?.y) ? input.callGraph.y : 0,
-    },
-  };
 }

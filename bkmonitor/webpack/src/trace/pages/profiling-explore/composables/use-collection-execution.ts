@@ -35,6 +35,7 @@ import type {
   CollectionExecution,
   CollectionExecutionAction,
   CollectionExecutionDetail,
+  CollectionExecutionKey,
 } from '../types/collection-history';
 
 export type UseCollectionExecutionReturn = ReturnType<typeof useCollectionExecution>;
@@ -53,7 +54,9 @@ export function useCollectionExecution({
   revision: Ref<number>;
 }) {
   const { t } = useI18n();
-  const selected = shallowRef<CollectionExecution | null>(null);
+  const selected = shallowRef<
+    (CollectionExecutionKey & Pick<CollectionExecution, 'execution_status' | 'task_name'>) | null
+  >(null);
   const detail = shallowRef<CollectionExecutionDetail | null>(null);
   const loading = shallowRef(false);
   const error = shallowRef('');
@@ -98,7 +101,7 @@ export function useCollectionExecution({
     }
   }
 
-  function open(execution: CollectionExecution) {
+  function open(execution: CollectionExecutionKey & Pick<CollectionExecution, 'execution_status' | 'task_name'>) {
     if (busy.value) return;
     selected.value = execution;
     detail.value = null;

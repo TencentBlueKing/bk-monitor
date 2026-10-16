@@ -27,16 +27,12 @@ import { type Ref, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
-import { getCollectionCandidates, getCollectionHistory } from '../services/collection-history';
+import { getCollectionHistory } from '../services/collection-history';
 import { executionRowKey } from '../utils/collection-history';
+import { useCollectionCandidates } from './use-collection-candidates';
 
 import type { SelectionRange } from '../types';
-import type {
-  CollectionCandidate,
-  CollectionCandidateField,
-  CollectionExecution,
-  CollectionHistoryFilters,
-} from '../types/collection-history';
+import type { CollectionExecution, CollectionHistoryFilters } from '../types/collection-history';
 
 export type UseCollectionHistoryReturn = ReturnType<typeof useCollectionHistory>;
 
@@ -56,11 +52,8 @@ export function useCollectionHistory({
   const loading = shallowRef(false);
   const error = shallowRef('');
   const hasMore = shallowRef(false);
-  const candidates = shallowRef<Partial<Record<CollectionCandidateField, CollectionCandidate[]>>>({});
-  const candidateLoading = shallowRef(false);
-  const candidateError = shallowRef('');
+  const candidateState = useCollectionCandidates(bizId, range);
   let controller: AbortController;
-  let candidateController: AbortController;
   let offset = 0;
 
   async function fetchPage() {
@@ -105,44 +98,17 @@ export function useCollectionHistory({
     if (hasMore.value) return fetchPage();
   }
 
-  async function loadCandidates() {
-    candidateController?.abort();
-    candidateController = new AbortController();
-    const current = candidateController;
-    candidates.value = {};
-    candidateError.value = '';
-    candidateLoading.value = false;
-    if (!range.value) return;
-    candidateLoading.value = true;
-    const fields: CollectionCandidateField[] = ['target', 'task_name', 'process_names', 'process_pids'];
-    const results = await Promise.allSettled(
-      fields.map(field => getCollectionCandidates(bizId.value, range.value, field, current.signal))
-    );
-    if (current.signal.aborted) return;
-    candidates.value = Object.fromEntries(
-      results.map((result, index) => [fields[index], result.status === 'fulfilled' ? result.value : []])
-    );
-    if (results.some(result => result.status === 'rejected'))
-      candidateError.value = t('部分筛选候选加载失败，可输入条件或重试');
-    candidateLoading.value = false;
-  }
-
   watch([bizId, filters, range, revision], refresh, { immediate: true });
-  watch([bizId, range], loadCandidates, { immediate: true });
   onScopeDispose(() => {
     controller?.abort();
-    candidateController?.abort();
   });
   return {
     rows,
     loading,
     error,
     hasMore,
-    candidates,
-    candidateLoading,
-    candidateError,
+    ...candidateState,
     refresh,
     loadMore,
-    loadCandidates,
   };
 }

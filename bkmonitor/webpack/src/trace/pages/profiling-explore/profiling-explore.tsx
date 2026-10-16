@@ -449,6 +449,7 @@ export default defineComponent({
               revision={q.collectionRevision.value}
               onCreated={q.collectionCreated}
               onResult={q.openCollectionResult}
+              onShare={q.shareCollectionResult}
               onBusy={value => { q.collectionBusy.value = value; }}
               onChange={value => q.patch({ collection: { ...q.state.value.collection, ...value } })}
             />

@@ -12,5 +12,9 @@ export const listExecutions = request('POST', `${prefix}executions/list/`);
 export const executionDetail = request('POST', `${prefix}executions/detail/`);
 export const cancelExecution = request('POST', `${prefix}executions/cancel/`);
 export const collectionTopk = request('GET', `${prefix}topk/`);
+export const queryHosts = request('POST', `${prefix}hosts/query/`);
+export const resultDataTypes = request('POST', `${prefix}results/data_types/`);
+export const queryResult = request('POST', `${prefix}results/query/`);
+export const exportResult = request('POST', `${prefix}results/export/`);
 
-export default { metaConfig, previewProcesses, listTasks, createTask, editTask, deleteTask, switchTask, listExecutions, executionDetail, cancelExecution, collectionTopk };
+export default { metaConfig, previewProcesses, listTasks, createTask, editTask, deleteTask, switchTask, listExecutions, executionDetail, cancelExecution, collectionTopk, queryHosts, resultDataTypes, queryResult, exportResult };
