@@ -1,0 +1,34 @@
+.metric-type-tag {
+  white-space: nowrap;
+  border: none;
+
+  &.is-small {
+    height: 20px;
+    line-height: 18px;
+  }
+
+  &.is-gauge {
+    color: #1768e5;
+    background: #e1ecff;
+  }
+
+  &.is-counter {
+    color: #07899b;
+    background: #e3f8fa;
+  }
+
+  &.is-histogram {
+    color: #7b4dd8;
+    background: #f0e7ff;
+  }
+
+  &.is-summary {
+    color: #169b85;
+    background: #e5f6ee;
+  }
+
+  &.is-unclassified {
+    color: #63656e;
+    background: #f0f1f5;
+  }
+}
