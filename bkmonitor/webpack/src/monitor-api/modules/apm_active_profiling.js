@@ -13,6 +13,7 @@ export const deleteTask = request('POST', 'apm/profile_api/active_collection/tas
 export const switchTask = request('POST', 'apm/profile_api/active_collection/tasks/switch/');
 export const queryHosts = request('POST', 'apm/profile_api/active_collection/hosts/query/');
 export const listExecutions = request('POST', 'apm/profile_api/active_collection/executions/list/');
+export const queryTopK = request('GET', 'apm/profile_api/active_collection/topk/');
 export const getExecutionDetail = request('POST', 'apm/profile_api/active_collection/executions/detail/');
 export const cancelExecution = request('POST', 'apm/profile_api/active_collection/executions/cancel/');
 export const queryResults = request('POST', 'apm/profile_api/active_collection/results/query/');
@@ -30,6 +31,7 @@ export default {
   switchTask,
   queryHosts,
   listExecutions,
+  queryTopK,
   getExecutionDetail,
   cancelExecution,
   queryResults,
