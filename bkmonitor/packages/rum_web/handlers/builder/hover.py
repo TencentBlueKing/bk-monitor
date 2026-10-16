@@ -71,7 +71,7 @@ RESOURCE_PHASE_HOVERS: dict[str, Hover] = {
     ),
     "prepare": _hover(
         _("发起前等待"),
-        _("资源进入 DNS 查询前的准备阶段，可能包含重定向、Service Worker、缓存或连接复用等浏览器处理。"),
+        _("资源进入 DNS 查询前的准备阶段，可能包含 Service Worker、缓存或连接复用等浏览器处理。"),
         user_experience=_("浏览器正在确定资源来源和请求方式，尚未开始接收内容。"),
         source=RESOURCE_TIMING_SOURCE,
     ),

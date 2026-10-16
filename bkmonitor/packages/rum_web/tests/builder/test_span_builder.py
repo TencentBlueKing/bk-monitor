@@ -250,7 +250,7 @@ class TestResourceSpanBuilder:
         span = _resource_span("img")
         result = build(span, [])
         assert _section(result, "resource_info") is not None
-        # 未上报 resource.timing.* 时整段加载时序省略
+        # 新旧时序字段均未上报时，整段加载时序省略。
         assert _section(result, "loading_timing") is None
 
 
@@ -294,13 +294,66 @@ def _phases(data):
 
 
 class TestResourceLoadingTiming:
+    @pytest.mark.parametrize("resource_type", ["xhr", "fetch", "img"])
+    def test_legacy_phases(self, resource_type):
+        span = _resource_span(resource_type)
+        span["attributes"].update(
+            {
+                "resource.redirect.start": 0,
+                "resource.dns.start": 2,
+                "resource.dns.duration": 3,
+                "resource.connect.start": 5,
+                "resource.connect.duration": 10,
+                "resource.ssl.start": 9,
+                "resource.ssl.duration": 6,
+                "resource.first_byte.start": 15,
+                "resource.first_byte.duration": 85,
+                "resource.download.start": 100,
+                "resource.download.duration": 28,
+            }
+        )
+        data = _timing(span)
+        assert data["unit"] == "ms"
+        assert data["total_duration"] == 128
+        assert _phases(data) == [
+            ("prepare", 0, 2),
+            ("dns", 2, 3),
+            ("connect", 5, 4),
+            ("tls", 9, 6),
+            ("first_byte", 15, 85),
+            ("download", 100, 28),
+        ]
+        for item in data["phases"]:
+            _assert_hover(item["hover"])
+
+    @pytest.mark.parametrize("timing", [{}, {"start_time": 1000}, {"response_end": 1200}])
+    def test_missing_new_boundaries_use_legacy_offsets(self, timing):
+        data = _timing(_timing_span(timing, **{"resource.download.start": 80, "resource.download.duration": 20}))
+        assert _phases(data) == [("download", 80, 20)]
+        assert data["total_duration"] == 100
+
+    @pytest.mark.parametrize("end", [100, 90])
+    def test_invalid_new_interval_does_not_fall_back(self, end):
+        span = _timing_span(
+            {"start_time": 100, "response_end": end},
+            **{"resource.download.start": 80, "resource.download.duration": 20},
+        )
+        assert _timing(span) is None
+
+    def test_new_timing_takes_precedence_over_legacy_fields(self):
+        data = _timing(
+            _timing_span(NETWORK_TIMING, **{"resource.download.start": 1, "resource.download.duration": 999})
+        )
+        assert data["total_duration"] == 100
+        assert _phases(data)[-1] == ("download", 80, 20)
+
     def test_network_phases(self):
         data = _timing(_timing_span(NETWORK_TIMING))
         assert data["unit"] == "ms"
         assert data["total_duration"] == 100
         assert _phases(data) == [
             ("redirect", 0, 10),
-            ("prepare", 10, 2),
+            ("prepare", 10, 5),
             ("dns", 15, 5),
             ("connect", 20, 8),
             ("tls", 28, 7),
@@ -323,11 +376,65 @@ class TestResourceLoadingTiming:
         }
         data = _timing(_timing_span(timing))
         assert _phases(data) == [
-            ("prepare", 0, 12),
+            ("prepare", 0, 15),
             ("connect", 20, 15),
             ("first_byte", 35, 45),
             ("download", 80, 20),
         ]
+
+    def test_network_prepare_includes_wait_before_dns(self):
+        timing = {
+            "start_time": 100,
+            "fetch_start": 100,
+            "domain_lookup_start": 600,
+            "domain_lookup_end": 610,
+            "connect_start": 610,
+            "connect_end": 630,
+            "request_start": 630,
+            "response_start": 680,
+            "response_end": 700,
+        }
+        data = _timing(_timing_span(timing))
+        assert _phases(data) == [
+            ("prepare", 0, 500),
+            ("dns", 500, 10),
+            ("connect", 510, 20),
+            ("first_byte", 530, 50),
+            ("download", 580, 20),
+        ]
+        assert sum(duration for _, _, duration in _phases(data)) == data["total_duration"] == 600
+
+    @pytest.mark.parametrize(
+        "tls_start,connection",
+        [
+            (0, [("connect", 10, 10)]),
+            (5, [("connect", 10, 10)]),
+            (15, [("connect", 10, 5), ("tls", 15, 5)]),
+            (20, [("connect", 10, 10)]),
+            (25, [("connect", 10, 10)]),
+        ],
+    )
+    def test_network_tls_with_zero_resource_start(self, tls_start, connection):
+        timing = {
+            "start_time": 0,
+            "fetch_start": 0,
+            "domain_lookup_start": 0,
+            "domain_lookup_end": 10,
+            "connect_start": 10,
+            "secure_connection_start": tls_start,
+            "connect_end": 20,
+            "request_start": 20,
+            "response_start": 30,
+            "response_end": 40,
+        }
+        data = _timing(_timing_span(timing))
+        assert _phases(data) == [
+            ("dns", 0, 10),
+            *connection,
+            ("first_byte", 20, 10),
+            ("download", 30, 10),
+        ]
+        assert sum(duration for _, _, duration in _phases(data)) == data["total_duration"] == 40
 
     def test_clamped_tls_start_is_not_a_handshake(self):
         """secureConnectionStart 被钳到 fetchStart 时，不画 TLS，连接建立计算到 connectEnd。"""
@@ -349,7 +456,7 @@ class TestResourceLoadingTiming:
         data = _timing(_timing_span(timing))
         assert _phases(data) == [
             ("redirect", 0, 10),
-            ("prepare", 10, 2),
+            ("prepare", 10, 5),
             ("dns", 15, 0),
             ("connect", 15, 0),
             ("tls", 15, 0),

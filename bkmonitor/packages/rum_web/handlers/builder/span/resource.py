@@ -27,7 +27,7 @@ from rum_web.handlers.builder.span.resource_timing import (
     ReusedLayout,
     ServiceWorkerLayout,
 )
-from rum_web.handlers.builder.utils import get_safe_number, waterfall
+from rum_web.handlers.builder.utils import get_safe_number, safe_diff, waterfall
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,7 +73,7 @@ class ResourceXhrAndFetchKeyInfoSection(KeyInfoSection):
 
 
 class LoadingTimingSection(WaterfallSection):
-    """按 A→E 瀑布图类型输出阶段，判定与阶段计算见 resource_timing。"""
+    """按 A→E 瀑布图类型输出阶段；缺少新时间点时独立兼容旧阶段字段。"""
 
     KEY = "loading_timing"
     PHASE_HOVERS = RESOURCE_PHASE_HOVERS
@@ -98,7 +98,9 @@ class LoadingTimingSection(WaterfallSection):
     def get_data(self) -> dict[str, Any] | None:
         start = self.numeric_or_none("attributes.resource.timing.start_time")
         end = self.numeric_or_none("attributes.resource.timing.response_end")
-        if start is None or end is None or end <= start:
+        if start is None or end is None:
+            return self._legacy_waterfall()
+        if end <= start:
             return None
         for layout_cls in self.LAYOUTS:
             if (layout := layout_cls(self.flatten_data)).matches():
@@ -109,6 +111,43 @@ class LoadingTimingSection(WaterfallSection):
         # 可选阶段（如未发生重定向）、乱序阶段在 span 中返回 None，这里统一过滤。
         specs = [spec for spec in layout.phases() if spec is not None]
         return waterfall(self.phases(specs), total=end - start)
+
+    def _legacy_waterfall(self) -> dict[str, Any] | None:
+        """兼容仅上报 resource.*.start / duration 的旧版 SDK。
+
+        旧 start 是相对资源 entry.startTime 的偏移，缺少还原到 timeOrigin 的基准，
+        不能传入 TimingLayout；此处直接按旧阶段字段构建瀑布图。
+        """
+        redirect_start = self.numeric_or_none("attributes.resource.redirect.start")
+        dns_start = self.numeric_or_none("attributes.resource.dns.start")
+        timings = {
+            "prepare": (redirect_start, safe_diff(dns_start, redirect_start)),
+            **{
+                key: (
+                    self.numeric_or_none(f"attributes.resource.{field}.start"),
+                    self.numeric_or_none(f"attributes.resource.{field}.duration"),
+                )
+                for key, field in (
+                    ("dns", "dns"),
+                    ("connect", "connect"),
+                    ("tls", "ssl"),
+                    ("first_byte", "first_byte"),
+                    ("download", "download"),
+                )
+            },
+        }
+        tls_start, tls_duration = timings["tls"]
+        connect_start, connect_duration = timings["connect"]
+        # 旧 connect.duration 包含 TLS；仅在 TLS 字段有效时扣除，避免缺失值导致误算。
+        if tls_start is not None and tls_duration is not None and tls_duration >= 0 and connect_duration is not None:
+            timings["connect"] = (connect_start, connect_duration - tls_duration)
+        download_start, download_duration = timings["download"]
+        total = (
+            download_start + download_duration
+            if download_start is not None and download_duration is not None and download_duration >= 0
+            else 0
+        )
+        return waterfall(self.phases((key, start, duration) for key, (start, duration) in timings.items()), total=total)
 
 
 class ResourceOthersKeyInfoSection(KeyInfoSection):

@@ -23,11 +23,20 @@ class TimingLayout(BaseComponent):
         return get_safe_number(self.flatten_data.get(f"{TIMING_PREFIX}{name}")) or 0
 
     def span(self, key: str, start: int | float, end: int | float) -> tuple[str, int | float, int | float] | None:
-        """起点早于 start_time（含 0 即未发生）或耗时 <= 0（含乱序）时返回 None。"""
+        """起点早于 start_time 或耗时 <= 0（含乱序）时返回 None；可选阶段由调用方判断是否发生。"""
         start_time = self.value("start_time")
         if not start_time <= start < end:
             return None
         return key, start - start_time, end - start
+
+    def redirect_and_wait_spans(
+        self, key: str, next_point: int | float
+    ) -> list[tuple[str, int | float, int | float] | None]:
+        """先展示重定向，后续等待从 redirect_end 起算；无重定向时回退到 start_time。"""
+        return [
+            self.span("redirect", self.value("redirect_start"), self.value("redirect_end")),
+            self.span(key, self.value("redirect_end") or self.value("start_time"), next_point),
+        ]
 
     def matches(self) -> bool:
         raise NotImplementedError
@@ -62,7 +71,7 @@ class ServiceWorkerLayout(TimingLayout):
         # 部分浏览器在 SW 场景不记录 requestStart / responseStart，按文档改用兜底时间点。
         request = self.value("request_start") or self.value("fetch_start")
         return [
-            self.span("queueing", self.value("start_time"), self.value("worker_start")),
+            *self.redirect_and_wait_spans("queueing", self.value("worker_start")),
             self.span("sw_startup", self.value("worker_start"), self.value("fetch_start")),
             self.span("sw_request", self.value("fetch_start"), self.value("request_start")),
             self.span("sw_respond_with", request, self.value("response_start") or self.value("response_end")),
@@ -92,7 +101,7 @@ class LocalLayout(TimingLayout):
 
     def phases(self) -> list[tuple[str, int | float, int | float] | None]:
         return [
-            self.span("prepare", self.value("start_time"), self.value("fetch_start")),
+            *self.redirect_and_wait_spans("prepare", self.value("fetch_start")),
             self.span("first_byte", self.value("fetch_start"), self.value("response_start")),
             self.span(
                 "download", self.value("response_start") or self.value("fetch_start"), self.value("response_end")
@@ -115,14 +124,12 @@ class NetworkLayout(TimingLayout):
             self.span("dns", self.value("domain_lookup_start"), self.value("domain_lookup_end")),
             # 有 TLS 时连接建立只算到握手开始。
             self.span("connect", self.value("connect_start"), tls or self.value("connect_end")),
-            self.span("tls", tls, self.value("connect_end")),
+            self.span("tls", tls, self.value("connect_end")) if tls else None,
         ]
 
     def phases(self) -> list[tuple[str, int | float, int | float] | None]:
         return [
-            self.span("redirect", self.value("redirect_start"), self.value("redirect_end")),
-            # 有重定向时从 redirect_end 起算，否则从 start_time 起算。
-            self.span("prepare", self.value("redirect_end") or self.value("start_time"), self.value("fetch_start")),
+            *self.redirect_and_wait_spans("prepare", self.value("domain_lookup_start")),
             *self.connection(),
             self.span("first_byte", self.value("connect_end"), self.value("response_start")),
             self.span("download", self.value("response_start"), self.value("response_end")),
