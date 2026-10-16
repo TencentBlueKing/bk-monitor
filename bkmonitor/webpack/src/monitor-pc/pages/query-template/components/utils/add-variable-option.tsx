@@ -33,6 +33,7 @@ import './add-variable-option.scss';
 
 interface IProps {
   allVariables?: { name: string }[];
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   popDistance?: number;
   onAdd?: (val: string) => void;
   onOpenChange?: (v: boolean) => void;
@@ -44,6 +45,8 @@ export default class AddVariableOption extends tsc<IProps> {
   /* 所有变量，用于校验变量名是否重复 */
   @Prop({ default: () => [] }) allVariables: { name: string }[];
   @Prop({ default: 7 }) popDistance: number;
+  /* 由外部接管变量创建（如宿主自带变量面板），传入时不再弹出内置的命名输入框 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
 
   inputValue = '';
 
@@ -51,6 +54,16 @@ export default class AddVariableOption extends tsc<IProps> {
   isShowPop = false;
 
   handleClick(e: Event) {
+    if (this.createVariableFn) {
+      /* 与内置命名弹层共用「创建中」状态：宿主面板打开期间点击外部不应收起上层弹层，
+         否则编辑态被丢弃，变量创建完就没有回填的目标了。名字为空表示宿主取消了创建 */
+      this.$emit('openChange', true);
+      this.createVariableFn((name: string) => {
+        if (name) this.$emit('add', name);
+        this.$emit('openChange', false);
+      });
+      return;
+    }
     this.handleShowPopover(e);
   }
 
