@@ -766,6 +766,16 @@ class TapdOAuthScope(str, enum.Enum):
         )
 
 
+# TAPD 单据"已完成"状态的关键词
+# 英文关键词（匹配 status_value，即 TAPD 状态的英文 key）
+TAPD_COMPLETED_STATUS_EN_KEYWORDS = {"closed", "done", "resolved", "verified"}
+# 中文关键词（匹配 display_name，即 TAPD 状态的显示名）
+TAPD_COMPLETED_STATUS_CN_KEYWORDS = {"已关闭", "已实现", "已解决", "已完成", "已验证", "done"}
+
+# TAPD Webhook 支持的单据类型（与 IssueTapdRelation.tapd_type choices 一致）
+TAPD_WEBHOOK_SUPPORTED_TYPES = {"story", "bug"}
+
+
 class TapdOauthEndpoint:
     """TAPD OAuth 端点（完整地址，基于 TAPD_OAUTH_BASE_URL）"""
 
