@@ -28,6 +28,7 @@ import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 import { Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { LLM_DETAIL_SLIDER_Z_INDEX } from '../../constants';
 import { parseToolObservation } from '../utils/parse-tool';
 import JsonCodeBlock from './json-code-block';
 import JsonView from './json-view';
@@ -90,6 +91,7 @@ export default defineComponent({
             isShow={true}
             quickClose={true}
             transfer={true}
+            zIndex={LLM_DETAIL_SLIDER_Z_INDEX}
             onClosed={closeDetail}
             onHidden={closeDetail}
             onUpdate:isShow={(val: boolean) => {

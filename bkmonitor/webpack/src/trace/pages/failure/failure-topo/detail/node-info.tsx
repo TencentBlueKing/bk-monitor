@@ -35,7 +35,6 @@ import { NODE_TYPE_ICON } from '../node-type-svg';
 import AggregatedEdgesList from '../tooltip/aggregated-edges-list';
 import { canJumpByType, getApmServiceType, handleToLink, truncateText, typeToLinkHandle } from '../utils';
 import MetricView from './metric-view';
-import SnapshotAnalysisInfo from './snapshot-analysis-info';
 
 import type { ActiveTab, IEdge, IncidentDetailData, ITopoNode } from '../types/topo';
 
@@ -284,7 +283,6 @@ export default defineComponent({
             </div>
           </div>
           <div class='node-info-content'>
-            <SnapshotAnalysisInfo analysis={node.graph_analysis} scores={node.entity?.properties?.scores} />
             {node.alert_display?.alert_name &&
               createCommonForm(`${t('包含告警')}：`, () => (
                 <>
@@ -446,7 +444,6 @@ export default defineComponent({
                 <AggregatedEdgesList
                   key={edge.id}
                   edge={edge}
-                  edgeType={edge.edge_type}
                   onClick={this.showEdgeDetail}
                 />
               ))}

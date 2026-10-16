@@ -20,6 +20,7 @@ from uuid import uuid4
 from django.db import transaction
 
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
+from metadata import config
 from metadata.models.record_rule.constants import (
     RecordRuleV4DesiredStatus,
     RecordRuleV4FlowStatus,
@@ -203,7 +204,7 @@ class RecordRuleV4Operator:
         data_label = str(data_label or "")
         bk_tenant_id = bk_tenant_id or space_uid_to_bk_tenant_id(f"{space_type}__{space_id}")
 
-        with transaction.atomic():
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
             temp_suffix = uuid4().hex
             rule = RecordRuleV4.objects.create(
                 bk_tenant_id=bk_tenant_id,
@@ -268,7 +269,7 @@ class RecordRuleV4Operator:
         desired_status、auto_refresh 只更新 group 主表。
         """
 
-        with transaction.atomic():
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
             self.reload_rule(for_update=True)
             current_spec = self.require_current_spec()
             next_records: list[RecordRuleV4RecordInput] = (
