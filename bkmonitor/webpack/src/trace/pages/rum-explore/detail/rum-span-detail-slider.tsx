@@ -163,6 +163,18 @@ export default defineComponent({
       }
     );
 
+    /** 抽屉关闭后重置交互态：tab、Events 搜索关键字与链路上下文的筛选，避免下次打开残留；嵌套抽屉复用本组件同样生效 */
+    watch(
+      () => props.isShow,
+      show => {
+        if (show) return;
+        activeTab.value = RumDetailTabEnum.BASIC;
+        eventKeyword.value = '';
+        traceContext.filterKeyword.value = '';
+        traceContext.filterCategory.value = 'all';
+      }
+    );
+
     const getTraceUrl = (info: IRumTraceInfo) =>
       location.href.replace(
         location.hash,

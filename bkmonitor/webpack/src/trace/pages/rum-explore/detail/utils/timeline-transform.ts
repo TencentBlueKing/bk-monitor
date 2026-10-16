@@ -67,7 +67,7 @@ export interface IRumTimelineBuildCtx {
   /** 已展开子节点的 Span */
   expandedNodes: Set<string>;
   recordMap: Map<string, IRumTimelineRecord>;
-  /** 筛选生效时的平铺模式：全部展示且不再折叠 */
+  /** 筛选生效时的平铺模式：不生成折叠段，子级展开仍由 expandedNodes 控制 */
   showAll?: boolean;
 }
 
@@ -99,13 +99,14 @@ export function buildTimelineItems(
   if (!nodes?.length) return [];
   if (ctx.showAll) {
     const items: IRumTimelineItemVM[] = [];
-    const pushAll = (list: IRumTimelineNode[] | undefined, lvl: number) => {
+    const pushExpanded = (list: IRumTimelineNode[] | undefined, lvl: number) => {
       for (const node of list ?? []) {
-        items.push({ kind: 'span', data: buildSpanVM(node, ctx, lvl) });
-        pushAll(node.children, lvl + 1);
+        const span = buildSpanVM(node, ctx, lvl);
+        items.push({ kind: 'span', data: span });
+        if (span.expanded) pushExpanded(node.children, lvl + 1);
       }
     };
-    pushAll(nodes, level);
+    pushExpanded(nodes, level);
     return items;
   }
   const anchorIndex = nodes.findIndex(node => ctx.currentPath.has(node.span_id));
@@ -217,7 +218,7 @@ function buildSpanVM(node: IRumTimelineNode, ctx: IRumTimelineBuildCtx, level: n
     traceId: origin.links?.[0]?.trace_id || '',
     isCurrent: node.span_id === ctx.currentSpanId,
     expandable,
-    expanded: expandable && (ctx.showAll || ctx.expandedNodes.has(node.span_id)),
+    expanded: expandable && ctx.expandedNodes.has(node.span_id),
   };
 }
 

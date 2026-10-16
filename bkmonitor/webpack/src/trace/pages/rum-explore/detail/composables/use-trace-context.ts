@@ -165,7 +165,7 @@ export function useTraceContext({ active, appName, currentSpanId, formatField, v
 
   const hasFilter = computed(() => filterKeyword.value.trim() !== '' || filterCategory.value !== 'all');
 
-  /** 筛选生效时只渲染过滤后的子树，并平铺展开，不再出现折叠段 */
+  /** 筛选生效时只渲染过滤后的子树，不再出现折叠段，子级展开仍由 expandedNodes 控制 */
   const filteredChildren = computed(() =>
     hasFilter.value ? filterNodes(viewNode.value?.children) : viewNode.value?.children
   );
@@ -183,6 +183,26 @@ export function useTraceContext({ active, appName, currentSpanId, formatField, v
     },
     { immediate: true }
   );
+
+  /** 筛选生效时默认展开过滤结果的全部祖先，保证命中可见，之后仍可手动收起；筛选取消时恢复默认展开状态 */
+  watch([hasFilter, filteredChildren], ([filterActive, nodes]) => {
+    if (!filterActive) {
+      expandedFolds.value = new Set();
+      expandedNodes.value = new Set(currentPath.value.slice(0, -1));
+      return;
+    }
+    const next = new Set<string>();
+    const collectExpandable = (list?: IRumTimelineNode[]) => {
+      for (const node of list ?? []) {
+        if (node.children?.length) {
+          next.add(node.span_id);
+          collectExpandable(node.children);
+        }
+      }
+    };
+    collectExpandable(nodes);
+    expandedNodes.value = next;
+  });
 
   const viewVM = computed<IRumTimelineViewVM | null>(() =>
     viewNode.value ? buildViewVM(viewNode.value, recordMap.value, unref(currentSpanId), formatField) : null
