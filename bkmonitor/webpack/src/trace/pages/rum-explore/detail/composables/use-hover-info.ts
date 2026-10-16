@@ -30,7 +30,7 @@ import { useTippy } from 'vue-tippy';
 import type { IRumHoverInfo } from '../typings';
 
 /** hover 展示延迟（毫秒），与全局 popover 交互习惯一致 */
-const SHOW_DELAY = 300;
+const SHOW_DELAY = 0;
 
 /**
  * 详情区块标题的 hover-info 卡片控制 hook

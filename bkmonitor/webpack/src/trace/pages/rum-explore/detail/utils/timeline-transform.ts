@@ -27,7 +27,7 @@ import dayjs from 'dayjs';
 import { hexToRgba } from 'monitor-common/utils/colorHelpers';
 
 import { SPAN_TYPE_META } from '../../constants';
-import { matchRating } from '../composables/use-detail-sections';
+import { buildWaterfall, matchRating } from '../composables/use-detail-sections';
 import {
   RATING_FALLBACK_META,
   RATING_META,
@@ -41,15 +41,17 @@ import {
   VITAL_METRIC_META,
 } from '../constants';
 import { getTimelineSpanTypeConfig } from '../registry/timeline-span-registry';
+import { RumSectionTypeEnum } from '../typings';
 import { formatDuration } from '@/components/trace-view/utils/date';
 
+import type { IRumWaterfallData } from '../typings';
 import type {
-  IRumTimelineClsVM,
   IRumTimelineItemVM,
   IRumTimelineNode,
   IRumTimelineRecord,
   IRumTimelineSpanVM,
   IRumTimelineViewVM,
+  IRumTimelineVitalVM,
 } from '../typings';
 
 /** 未登记类型的标签主色 */
@@ -65,6 +67,8 @@ export interface IRumTimelineBuildCtx {
   /** 已展开子节点的 Span */
   expandedNodes: Set<string>;
   recordMap: Map<string, IRumTimelineRecord>;
+  /** 筛选生效时的平铺模式：全部展示且不再折叠 */
+  showAll?: boolean;
 }
 
 const isValidNumber = (value: unknown) => value !== null && value !== undefined && Number.isFinite(Number(value));
@@ -93,6 +97,17 @@ export function buildTimelineItems(
   parentKey = 'root'
 ): IRumTimelineItemVM[] {
   if (!nodes?.length) return [];
+  if (ctx.showAll) {
+    const items: IRumTimelineItemVM[] = [];
+    const pushAll = (list: IRumTimelineNode[] | undefined, lvl: number) => {
+      for (const node of list ?? []) {
+        items.push({ kind: 'span', data: buildSpanVM(node, ctx, lvl) });
+        pushAll(node.children, lvl + 1);
+      }
+    };
+    pushAll(nodes, level);
+    return items;
+  }
   const anchorIndex = nodes.findIndex(node => ctx.currentPath.has(node.span_id));
   const [start, end] =
     anchorIndex >= 0
@@ -140,12 +155,18 @@ export function buildViewVM(
   const attributes = getAttributes(record);
   const children = viewNode.children ?? [];
   const duration = getSectionData(record, SectionKeyEnum.KEY_INFO)?.duration?.['display.view.duration'];
+  const waterfallData = record?.sections?.find(section => section.type === RumSectionTypeEnum.WATERFALL)?.data as
+    | IRumWaterfallData
+    | undefined;
   return {
     spanId: viewNode.span_id,
     title: record?.origin_data?.span_name || viewNode.span_id,
     isCurrent: viewNode.span_id === currentSpanId,
     loadingType: formatField('attributes.view.loading_type', attributes['view.loading_type']),
-    cls: buildClsVM(getSectionData(record, SectionKeyEnum.WEB_VITALS)?.cls),
+    vitalMetrics: buildVitalMetricsVM(getSectionData(record, SectionKeyEnum.WEB_VITALS)),
+    waterfall: waterfallData?.phases?.length
+      ? buildWaterfall(waterfallData, getAttributes(record).span_type)
+      : undefined,
     requestCount: countSubtree(children, recordMap, item =>
       TIMELINE_REQUEST_RESOURCE_TYPES.has(getAttributes(item)['resource.type'])
     ),
@@ -162,19 +183,6 @@ export function findSpanPath(nodes: IRumTimelineNode[] = [], spanId: string): st
     if (subPath.length) return [node.span_id, ...subPath];
   }
   return [];
-}
-
-function buildClsVM(data?: Record<string, any>): IRumTimelineClsVM | undefined {
-  const rawValue = data?.['attributes.vital.value'];
-  if (!data || !isValidNumber(rawValue)) return undefined;
-  const value = Number(rawValue);
-  const meta = RATING_META[matchRating(value, data['display.rating_config'] || [])] || RATING_FALLBACK_META;
-  const label = VITAL_METRIC_META.cls.label;
-  return {
-    text: `CLS ${value}`,
-    color: meta.color,
-    tip: meta.alias ? `${label}：${meta.alias}` : label,
-  };
 }
 
 function buildSpanVM(node: IRumTimelineNode, ctx: IRumTimelineBuildCtx, level: number): IRumTimelineSpanVM {
@@ -209,8 +217,30 @@ function buildSpanVM(node: IRumTimelineNode, ctx: IRumTimelineBuildCtx, level: n
     traceId: origin.links?.[0]?.trace_id || '',
     isCurrent: node.span_id === ctx.currentSpanId,
     expandable,
-    expanded: expandable && ctx.expandedNodes.has(node.span_id),
+    expanded: expandable && (ctx.showAll || ctx.expandedNodes.has(node.span_id)),
   };
+}
+
+/** 遍历 web_vitals 区块的所有指标 key，构造 View 头部的指标列表；数值口径与列表侧 vital 卡片一致 */
+function buildVitalMetricsVM(data?: Record<string, any>): IRumTimelineVitalVM[] {
+  if (!data) return [];
+  const metrics: IRumTimelineVitalVM[] = [];
+  for (const [key, vital] of Object.entries(data)) {
+    const rawValue = vital?.['attributes.vital.value'];
+    if (!vital || !isValidNumber(rawValue)) continue;
+    const value = Number(rawValue);
+    const meta = RATING_META[matchRating(value, vital['display.rating_config'] || [])] || RATING_FALLBACK_META;
+    const unit = VITAL_METRIC_META[key]?.unit ?? 'ms';
+    /** cls 为 0~1 的无量纲分数，原样展示；其余按 ms 自适应换算 */
+    const valueText = unit ? formatDuration(value, '', 2, 'ms') : String(value);
+    metrics.push({
+      key,
+      text: `${key.toUpperCase()} ${valueText}`,
+      color: meta.color,
+      hover: vital.hover,
+    });
+  }
+  return metrics;
 }
 
 /** 统计子树中满足条件的节点数 */

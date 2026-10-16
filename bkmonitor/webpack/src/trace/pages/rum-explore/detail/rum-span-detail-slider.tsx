@@ -33,6 +33,7 @@ import DetailHeader from './components/detail-header/detail-header';
 import DetailSections from './components/detail-sections/detail-sections';
 import DetailSkeleton from './components/detail-skeleton/detail-skeleton';
 import OriginDataPanel from './components/origin-data-panel/origin-data-panel';
+import TimelineFilterBar from './components/trace-context/timeline-filter-bar';
 import TraceContextPanel from './components/trace-context/trace-context-panel';
 import {
   useDetailFormatter,
@@ -307,6 +308,16 @@ export default defineComponent({
     function renderTraceContext() {
       return (
         <div class='rum-detail-card'>
+          <TimelineFilterBar
+            category={traceContext.filterCategory.value}
+            keyword={traceContext.filterKeyword.value}
+            onUpdate:category={value => {
+              traceContext.filterCategory.value = value;
+            }}
+            onUpdate:keyword={value => {
+              traceContext.filterKeyword.value = value;
+            }}
+          />
           <TraceContextPanel
             error={traceContext.error.value}
             items={traceContext.items.value}
