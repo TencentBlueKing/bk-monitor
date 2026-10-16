@@ -1591,7 +1591,7 @@ POST /rum/search/timeline/
 | 参数名称 | 类型 | 描述 |
 |----------|------|------|
 | span_id | String | 对应 `records[].span_id` |
-| children | Array[Node] | 可选，子节点，按开始时间升序 |
+| children | Array[Node] | [a] 可选，按开始时间升序<br />[b] 同一 View 内，非 Action 成员的 `attributes.action.id` 命中 Action 时挂到该 Action，否则挂到 View<br />[c] Action 只作为 View 的直接子节点 |
 
 ```json
 {
@@ -1601,9 +1601,11 @@ POST /rum/search/timeline/
     {
       "span_id": "34e3b6ff1943346c",
       "children": [
-        {"span_id": "e121536e5ae785a0", "children": [{"span_id": "7d2f09b6f8bc31aa"}]},
+        {
+          "span_id": "e121536e5ae785a0",
+          "children": [{"span_id": "7d2f09b6f8bc31aa"}, {"span_id": "c49ddfc2ac5214d7"}]
+        },
         {"span_id": "8e301ac709bd42bb"},
-        {"span_id": "c49ddfc2ac5214d7"},
         {"span_id": "9d199175096474e4"}
       ]
     }
