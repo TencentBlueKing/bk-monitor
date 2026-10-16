@@ -281,7 +281,7 @@ def fast_execute_script(mocker):
         "success": [
             {
                 "bk_host_id": 456,
-                "ip": "10.0.0.8",
+                "ip": "127.0.0.1",
                 "log_content": json.dumps({"processes": [MATCHED_PROCESS]}),
             }
         ],
@@ -295,25 +295,25 @@ def test_preview_processes_returns_matched_rows(fast_execute_script):
     result = PreviewProcessesResource().request(PROCESS_PREVIEW_REQUEST)
 
     assert result["columns"] == PROCESS_PREVIEW_COLUMNS
-    assert result["data"] == [{"bk_host_id": 456, "ip": "10.0.0.8", **MATCHED_PROCESS}]
+    assert result["data"] == [{"bk_host_id": 456, "ip": "127.0.0.1", **MATCHED_PROCESS}]
 
 
 def test_preview_processes_returns_host_row_when_nothing_matched(fast_execute_script):
     fast_execute_script.return_value["success"][0]["log_content"] = json.dumps({"processes": []})
 
     assert PreviewProcessesResource().request(PROCESS_PREVIEW_REQUEST)["data"] == [
-        {"bk_host_id": 456, "ip": "10.0.0.8"}
+        {"bk_host_id": 456, "ip": "127.0.0.1"}
     ]
 
 
 def test_preview_processes_reports_failed_hosts_with_beat_error(fast_execute_script):
     fast_execute_script.return_value["failed"] = [
-        {"bk_host_id": 457, "ip": "10.0.0.9", "errmsg": "invalid exclude_pattern", "exit_code": 1}
+        {"bk_host_id": 457, "ip": "127.0.0.2", "errmsg": "invalid exclude_pattern", "exit_code": 1}
     ]
 
     assert PreviewProcessesResource().request(PROCESS_PREVIEW_REQUEST)["data"] == [
-        {"bk_host_id": 456, "ip": "10.0.0.8", **MATCHED_PROCESS},
-        {"bk_host_id": 457, "ip": "10.0.0.9", "err_msg": "invalid exclude_pattern"},
+        {"bk_host_id": 456, "ip": "127.0.0.1", **MATCHED_PROCESS},
+        {"bk_host_id": 457, "ip": "127.0.0.2", "err_msg": "invalid exclude_pattern"},
     ]
 
 
@@ -425,7 +425,7 @@ def immediate_apis(mocker):
         "hosts": mocker.patch(
             "core.drf_resource.api.cmdb.get_host_by_id",
             return_value=[
-                SimpleNamespace(bk_host_id=456, bk_host_innerip="10.0.0.8", bk_host_innerip_v6=""),
+                SimpleNamespace(bk_host_id=456, bk_host_innerip="127.0.0.1", bk_host_innerip_v6=""),
                 SimpleNamespace(bk_host_id=457, bk_host_innerip="", bk_host_innerip_v6="fd00::9"),
             ],
         ),
@@ -490,7 +490,7 @@ def test_submit_immediate_task_reports_started_event_per_host(immediate_apis):
 
     first, second = sent_events(immediate_apis["report_tool"])
     assert first["event_name"] == "active_profiling_started"
-    assert (first["target"], second["target"]) == ("10.0.0.8", "fd00::9")
+    assert (first["target"], second["target"]) == ("127.0.0.1", "fd00::9")
     assert first["dimension"] == {
         "bk_tenant_id": "system",
         "bk_biz_id": "2",
@@ -944,7 +944,7 @@ def test_nodeman_deploy_creates_subscription_for_new_task(nodeman_apis):
     assert (step["id"], step["type"]) == ("bkmonitorbeat_active_profile", "PLUGIN")
     assert step["config"] == {
         "plugin_name": "bkmonitorbeat",
-        "plugin_version": "0.0.1",
+        "plugin_version": "0.0.4",
         "config_templates": [{"name": "bkmonitorbeat_active_profile.conf", "version": "latest"}],
     }
     assert step["params"]["context"] == {"host_tasks": {"456": [beat_task(1)]}}
@@ -1168,7 +1168,7 @@ UNKNOWN_WINDOW_MS = 600 * 1000
 
 
 def active_event(
-    event_name, content, status, bk_host_id=456, target="10.0.0.8", scheduled_at=1788411800000, task_id=None
+    event_name, content, status, bk_host_id=456, target="127.0.0.1", scheduled_at=1788411800000, task_id=None
 ):
     """按 ES 返回形态构造一条 Event，dimension 都是字符串"""
     dimensions = {
@@ -1259,7 +1259,7 @@ def sent_query_bodies(query):
 def test_query_hosts_pairs_events_into_host_execution_rows(host_query_apis):
     host_query_apis["events"].extend(
         [
-            started_event(1788411801000, bk_host_id=458, target="10.0.0.10"),
+            started_event(1788411801000, bk_host_id=458, target="127.0.0.3"),
             finished_event(
                 "succeed",
                 1788310801000,
@@ -1269,7 +1269,7 @@ def test_query_hosts_pairs_events_into_host_execution_rows(host_query_apis):
                 scheduled_at=1788310800000,
             ),
             started_event(1788310801000, task_id=123, scheduled_at=1788310800000),
-            started_event(1788210801000, bk_host_id=457, target="10.0.0.9", scheduled_at=1788210800000),
+            started_event(1788210801000, bk_host_id=457, target="127.0.0.2", scheduled_at=1788210800000),
             finished_event(
                 "partial_succeed", EXPIRE_BEFORE - 999, EXPIRE_BEFORE - 500, scheduled_at=EXPIRE_BEFORE - 1000
             ),
@@ -1282,7 +1282,7 @@ def test_query_hosts_pairs_events_into_host_execution_rows(host_query_apis):
     assert result["data"][:2] == [
         {
             "bk_host_id": 458,
-            "ip": "10.0.0.10",
+            "ip": "127.0.0.3",
             "processes": [],
             "task": {"name": "native-cpu", "schedule_type": "immediate"},
             "collection_method": "perf",
@@ -1296,7 +1296,7 @@ def test_query_hosts_pairs_events_into_host_execution_rows(host_query_apis):
         },
         {
             "bk_host_id": 456,
-            "ip": "10.0.0.8",
+            "ip": "127.0.0.1",
             "processes": [{"pid": 1234, "process_name": "java"}],
             "task": {"task_id": 123, "name": "java-cpu-daily", "schedule_type": "cron"},
             "collection_method": "perf",
@@ -1350,7 +1350,7 @@ def test_query_hosts_counts_go_heap_duration_as_zero(host_query_apis, elapsed_ms
 def test_query_hosts_pushes_filters_down_to_es(host_query_apis):
     QueryHostsResource().request(
         with_filters(
-            ips=["10.0.0.8"],
+            ips=["127.0.0.1"],
             task_name="cpu",
             process_names=["my,app", "java"],
             process_pids=["1234"],
@@ -1368,7 +1368,7 @@ def test_query_hosts_pushes_filters_down_to_es(host_query_apis):
         "bk_tenant_id": "system",
         "bk_biz_id": 2,
         "event_name": ["active_profiling_started", "active_profiling_finished"],
-        "target__include": ["10.0.0.8"],
+        "target__include": ["127.0.0.1"],
         # 同一筛选项的多个值命中任一即可，查询词里的逗号按采集端归一化为 _
         "process_names__include": ["my_app", "java"],
         "process_pids__include": ["1234"],
@@ -1540,14 +1540,14 @@ def test_list_executions_aggregates_all_hosts_into_execution_rows(host_query_api
         [
             finished_event("succeed", 1788411801000, 1788411832000),
             started_event(1788411801000),
-            started_event(1788411802000, bk_host_id=457, target="10.0.0.9"),
+            started_event(1788411802000, bk_host_id=457, target="127.0.0.2"),
             finished_event("succeed", 1788310801000, 1788310832000, task_id=123, scheduled_at=1788310800000),
             finished_event(
                 "failed",
                 1788310801000,
                 1788310840000,
                 bk_host_id=457,
-                target="10.0.0.9",
+                target="127.0.0.2",
                 task_id=123,
                 scheduled_at=1788310800000,
             ),
@@ -1578,7 +1578,7 @@ def test_list_executions_aggregates_all_hosts_into_execution_rows(host_query_api
             "execution_status": "running",
             "status_summary": {"succeed": 1, "running": 1},
             "target_count": 2,
-            "hosts": [{"bk_host_id": 456, "ip": "10.0.0.8"}, {"bk_host_id": 457, "ip": "10.0.0.9"}],
+            "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}, {"bk_host_id": 457, "ip": "127.0.0.2"}],
         },
         {
             "task_id": 123,
@@ -1594,7 +1594,7 @@ def test_list_executions_aggregates_all_hosts_into_execution_rows(host_query_api
             "execution_status": "partial_succeed",
             "status_summary": {"succeed": 1, "failed": 1},
             "target_count": 2,
-            "hosts": [{"bk_host_id": 456, "ip": "10.0.0.8"}, {"bk_host_id": 457, "ip": "10.0.0.9"}],
+            "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}, {"bk_host_id": 457, "ip": "127.0.0.2"}],
         },
     ]
     assert (result["data"][2]["execution_status"], result["data"][2]["status_summary"]) == (
@@ -1716,7 +1716,7 @@ def test_list_executions_reads_next_batch_until_last_execution_is_complete(host_
     ]
 
 
-@pytest.mark.parametrize("filters", [{"ips": ["10.0.0.9"]}, {"process_names": ["jav"]}, {"process_pids": ["81"]}])
+@pytest.mark.parametrize("filters", [{"ips": ["127.0.0.2"]}, {"process_names": ["jav"]}, {"process_pids": ["81"]}])
 def test_list_executions_selects_by_host_then_aggregates_all_hosts(host_query_apis, filters):
     matched_host = finished_event(
         "failed",
@@ -1724,12 +1724,12 @@ def test_list_executions_selects_by_host_then_aggregates_all_hosts(host_query_ap
         1788411802000,
         processes=[{"pid": 812, "process_name": "java"}],
         bk_host_id=457,
-        target="10.0.0.9",
+        target="127.0.0.2",
     )
     matched_host["dimensions"].update(process_names="java", process_pids="812")
     events = [
         # 同一毫秒的另一次执行，回查时按执行键排除
-        finished_event("succeed", 1788411801000, 1788411832000, bk_host_id=458, target="10.0.0.10", task_id=123),
+        finished_event("succeed", 1788411801000, 1788411832000, bk_host_id=458, target="127.0.0.3", task_id=123),
         finished_event("succeed", 1788411801000, 1788411832000),
         matched_host,
         finished_event("succeed", 1788310801000, 1788310832000, scheduled_at=1788310800000),
@@ -1755,7 +1755,7 @@ def test_list_executions_selects_by_host_then_aggregates_all_hosts(host_query_ap
 def test_list_executions_skips_fetch_when_no_execution_matches_host(host_query_apis):
     host_query_apis["query"].side_effect = es_filtered_query([finished_event("succeed", 1788411801000, 1788411832000)])
 
-    assert ListExecutionsResource().request(with_filters(ips=["10.0.0.99"]))["data"] == []
+    assert ListExecutionsResource().request(with_filters(ips=["127.0.1.10"]))["data"] == []
     assert host_query_apis["query"].call_count == 1
 
 
@@ -1764,13 +1764,13 @@ def test_list_executions_fetches_only_current_page_when_selecting_by_host(host_q
     host_query_apis["query"].side_effect = es_filtered_query(
         [
             finished_event(
-                "succeed", scheduled_at + 1000, scheduled_at + 31000, target="10.0.0.9", scheduled_at=scheduled_at
+                "succeed", scheduled_at + 1000, scheduled_at + 31000, target="127.0.0.2", scheduled_at=scheduled_at
             )
             for scheduled_at in scheduled_ats
         ]
     )
 
-    result = ListExecutionsResource().request({**with_filters(ips=["10.0.0.9"]), "offset": 1, "limit": 1})
+    result = ListExecutionsResource().request({**with_filters(ips=["127.0.0.2"]), "offset": 1, "limit": 1})
 
     assert [row["scheduled_at"] for row in result["data"]] == [scheduled_ats[1]]
     # 不筛状态时每个命中的执行就是一行，offset 之前的执行不用回查
@@ -1781,13 +1781,13 @@ def test_list_executions_fetches_only_current_page_when_selecting_by_host(host_q
 def test_list_executions_keeps_selecting_until_status_filter_fills_page(host_query_apis):
     host_query_apis["query"].side_effect = es_filtered_query(
         [
-            finished_event("succeed", 1788411801000, 1788411832000, target="10.0.0.9"),
-            finished_event("failed", 1788410801000, 1788410802000, target="10.0.0.9", scheduled_at=1788410800000),
-            finished_event("failed", 1788409801000, 1788409802000, target="10.0.0.9", scheduled_at=1788409800000),
+            finished_event("succeed", 1788411801000, 1788411832000, target="127.0.0.2"),
+            finished_event("failed", 1788410801000, 1788410802000, target="127.0.0.2", scheduled_at=1788410800000),
+            finished_event("failed", 1788409801000, 1788409802000, target="127.0.0.2", scheduled_at=1788409800000),
         ]
     )
 
-    result = ListExecutionsResource().request({**with_filters(ips=["10.0.0.9"], status="failed"), "limit": 2})
+    result = ListExecutionsResource().request({**with_filters(ips=["127.0.0.2"], status="failed"), "limit": 2})
 
     assert [row["scheduled_at"] for row in result["data"]] == [1788410800000, 1788409800000]
     # 回查后才知道执行状态，第一轮只命中一行，再接着找还缺的一个执行
@@ -1804,12 +1804,12 @@ def test_list_executions_rejects_when_fetched_events_exceed_limit(host_query_api
     host_query_apis["query"].side_effect = es_filtered_query(
         [
             finished_event("succeed", 1788411801000, 1788411832000),
-            finished_event("failed", 1788411801000, 1788411802000, bk_host_id=457, target="10.0.0.9"),
+            finished_event("failed", 1788411801000, 1788411802000, bk_host_id=457, target="127.0.0.2"),
         ]
     )
 
     with pytest.raises(ValueError):
-        ListExecutionsResource().request(with_filters(ips=["10.0.0.9"]))
+        ListExecutionsResource().request(with_filters(ips=["127.0.0.2"]))
 
 
 TOPK_REQUEST = {
@@ -1920,7 +1920,7 @@ def test_execution_detail_returns_all_hosts_of_execution(host_query_apis):
     host_query_apis["events"].extend(
         [
             finished_event("succeed", 1788411801000, 1788411832000, processes=[{"pid": 1234, "process_name": "java"}]),
-            started_event(1788411802000, bk_host_id=457, target="10.0.0.9"),
+            started_event(1788411802000, bk_host_id=457, target="127.0.0.2"),
         ]
     )
 
@@ -1948,7 +1948,7 @@ def test_execution_detail_returns_all_hosts_of_execution(host_query_apis):
         "hosts": [
             {
                 "bk_host_id": 456,
-                "ip": "10.0.0.8",
+                "ip": "127.0.0.1",
                 "processes": [{"pid": 1234, "process_name": "java"}],
                 "status": "succeed",
                 "message": "",
@@ -1958,7 +1958,7 @@ def test_execution_detail_returns_all_hosts_of_execution(host_query_apis):
             },
             {
                 "bk_host_id": 457,
-                "ip": "10.0.0.9",
+                "ip": "127.0.0.2",
                 "processes": [],
                 "status": "running",
                 "message": "",
@@ -1982,7 +1982,7 @@ def test_execution_detail_locates_planned_execution_by_task(host_query_apis):
                 1788310840000,
                 message="Profiling 发送失败",
                 bk_host_id=457,
-                target="10.0.0.9",
+                target="127.0.0.2",
                 task_id=123,
                 scheduled_at=1788310800000,
             ),
@@ -2107,7 +2107,7 @@ CANCEL_REQUEST = {
     "schedule_type": "cron",
     "task_id": 123,
     "scheduled_at": CANCEL_SCHEDULED_AT,
-    "hosts": [{"bk_host_id": 456, "ip": "10.0.0.8"}, {"bk_host_id": 457, "ip": "10.0.0.9"}],
+    "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}, {"bk_host_id": 457, "ip": "127.0.0.2"}],
 }
 
 
@@ -2123,7 +2123,7 @@ def cancel_apis(host_query_apis, mocker):
     }
 
 
-def running_cancel_event(bk_host_id=456, target="10.0.0.8", task_id=123):
+def running_cancel_event(bk_host_id=456, target="127.0.0.1", task_id=123):
     return started_event(
         CANCEL_SCHEDULED_AT + 1000,
         bk_host_id=bk_host_id,
@@ -2134,7 +2134,7 @@ def running_cancel_event(bk_host_id=456, target="10.0.0.8", task_id=123):
 
 
 def test_cancel_execution_dispatches_cli_per_running_host(cancel_apis):
-    cancel_apis["events"].extend([running_cancel_event(), running_cancel_event(457, "10.0.0.9")])
+    cancel_apis["events"].extend([running_cancel_event(), running_cancel_event(457, "127.0.0.2")])
 
     assert CancelExecutionResource().request(CANCEL_REQUEST) is None
 
@@ -2179,7 +2179,7 @@ def test_cancel_execution_skips_hosts_already_finished(cancel_apis):
                 scheduled_at=CANCEL_SCHEDULED_AT,
             ),
             running_cancel_event(),
-            running_cancel_event(457, "10.0.0.9"),
+            running_cancel_event(457, "127.0.0.2"),
         ]
     )
 
@@ -2191,7 +2191,7 @@ def test_cancel_execution_skips_hosts_already_finished(cancel_apis):
 def test_cancel_execution_rejects_host_outside_execution(cancel_apis):
     cancel_apis["events"].append(running_cancel_event())
 
-    with pytest.raises(ValueError, match="10.0.0.9"):
+    with pytest.raises(ValueError, match="127.0.0.2"):
         CancelExecutionResource().request(CANCEL_REQUEST)
 
     cancel_apis["job"].assert_not_called()
@@ -2205,7 +2205,7 @@ def test_cancel_immediate_execution_omits_task_id(cancel_apis):
             "bk_biz_id": 2,
             "schedule_type": "immediate",
             "scheduled_at": CANCEL_SCHEDULED_AT,
-            "hosts": [{"bk_host_id": 456, "ip": "10.0.0.8"}],
+            "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}],
         }
     )
 
@@ -2215,7 +2215,7 @@ def test_cancel_immediate_execution_omits_task_id(cancel_apis):
 
 
 def test_cancel_execution_reports_hosts_whose_job_failed(cancel_apis):
-    cancel_apis["events"].extend([running_cancel_event(), running_cancel_event(457, "10.0.0.9")])
+    cancel_apis["events"].extend([running_cancel_event(), running_cancel_event(457, "127.0.0.2")])
 
     def fail_first_host(**kwargs):
         if kwargs["target_server"] == {"host_id_list": [456]}:
@@ -2224,7 +2224,7 @@ def test_cancel_execution_reports_hosts_whose_job_failed(cancel_apis):
 
     cancel_apis["job"].side_effect = fail_first_host
 
-    with pytest.raises(ValueError, match="10.0.0.8"):
+    with pytest.raises(ValueError, match="127.0.0.1"):
         CancelExecutionResource().request(CANCEL_REQUEST)
 
     assert cancel_apis["job"].call_count == 2
@@ -2586,7 +2586,7 @@ def test_active_collection_routes_are_registered():
                 "bk_biz_id": 2,
                 "schedule_type": "immediate",
                 "scheduled_at": 1788310800000,
-                "hosts": [{"bk_host_id": 456, "ip": "10.0.0.8"}],
+                "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}],
             },
         ),
         (ResultQueryRequestSerializer, RESULT_QUERY_REQUEST),
@@ -2693,7 +2693,7 @@ def test_request_serializers_accept_doc_payload(serializer_cls, params):
                 "bk_biz_id": 2,
                 "schedule_type": "cron",
                 "scheduled_at": 1788310800000,
-                "hosts": [{"bk_host_id": 456, "ip": "10.0.0.8"}],
+                "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}],
             },
         ),
     ],

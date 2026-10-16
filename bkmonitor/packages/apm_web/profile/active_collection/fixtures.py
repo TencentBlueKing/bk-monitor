@@ -28,13 +28,13 @@ PROCESS_PREVIEW = {
     "data": [
         {
             "bk_host_id": 456,
-            "ip": "10.0.0.8",
+            "ip": "127.0.0.1",
             "pid": 2341,
             "process_name": "order-api",
             "command": "/data/order-api/bin/start",
             "started_at": 1788310800000,
         },
-        {"bk_host_id": 457, "ip": "10.0.0.9", "err_msg": "bkmonitorbeat: exclude_pattern is invalid"},
+        {"bk_host_id": 457, "ip": "127.0.0.2", "err_msg": "bkmonitorbeat: exclude_pattern is invalid"},
     ],
 }
 
@@ -93,7 +93,7 @@ HOST_QUERY = {
     "data": [
         {
             "bk_host_id": 457,
-            "ip": "10.0.0.9",
+            "ip": "127.0.0.2",
             "processes": [],
             "task": {"task_id": 12, "name": "go-cpu-daily", "schedule_type": "cron"},
             "collection_method": "golang",
@@ -107,7 +107,7 @@ HOST_QUERY = {
         },
         {
             "bk_host_id": 456,
-            "ip": "10.0.0.8",
+            "ip": "127.0.0.1",
             "processes": [{"pid": 1234, "process_name": "java"}],
             "task": {"task_id": 123, "name": "java-cpu-daily", "schedule_type": "cron"},
             "collection_method": "java",
@@ -121,7 +121,7 @@ HOST_QUERY = {
         },
         {
             "bk_host_id": 456,
-            "ip": "10.0.0.8",
+            "ip": "127.0.0.1",
             "processes": [{"pid": 1234, "process_name": "workload"}],
             "task": {"name": "native-cpu", "schedule_type": "immediate"},
             "collection_method": "perf",
@@ -152,7 +152,7 @@ EXECUTION_LIST = {
             "execution_status": "running",
             "target_count": 2,
             "status_summary": {"succeed": 1, "running": 1},
-            "hosts": [{"bk_host_id": 456, "ip": "10.0.0.8"}, {"bk_host_id": 457, "ip": "10.0.0.9"}],
+            "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}, {"bk_host_id": 457, "ip": "127.0.0.2"}],
         },
         {
             "task_id": 123,
@@ -168,7 +168,7 @@ EXECUTION_LIST = {
             "execution_status": "outdate",
             "target_count": 2,
             "status_summary": {"outdate": 2},
-            "hosts": [{"bk_host_id": 456, "ip": "10.0.0.8"}, {"bk_host_id": 457, "ip": "10.0.0.9"}],
+            "hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}, {"bk_host_id": 457, "ip": "127.0.0.2"}],
         },
     ],
 }
@@ -202,7 +202,7 @@ EXECUTION_DETAIL = {
     "hosts": [
         {
             "bk_host_id": 456,
-            "ip": "10.0.0.8",
+            "ip": "127.0.0.1",
             "processes": [{"pid": 1234, "process_name": "java"}],
             "status": "succeed",
             "message": "",
@@ -212,7 +212,7 @@ EXECUTION_DETAIL = {
         },
         {
             "bk_host_id": 457,
-            "ip": "10.0.0.9",
+            "ip": "127.0.0.2",
             "processes": [{"pid": 2345, "process_name": "java"}],
             "status": "failed",
             "message": "Profiling 发送失败",
@@ -258,7 +258,7 @@ RESULT_DATA_TYPES = [
 ]
 
 TOPK = {
-    "target": [{"value": "10.0.0.8", "alias": "10.0.0.8", "count": 2}],
+    "target": [{"value": "127.0.0.1", "alias": "127.0.0.1", "count": 2}],
     "process_pids": [{"value": "1234", "alias": "java:1234", "count": 2}],
 }
 
