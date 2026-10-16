@@ -22,12 +22,13 @@ repos:
   # 本地检查
   - repo: local
     hooks:
-      # 执行 preci 流水线
-      - id: check-pre-ci-pipeline
-        name: check pre ci pipeline
-        entry: python3 scripts/pre-commit/pre-push.py
+      # 推送前执行 PreCI 本地扫描，不启动远程流水线
+      - id: check-pre-ci-scan
+        name: check pre ci scan
+        entry: bash scripts/pre-commit/preci-push.sh
         language: system
         stages: [ pre-push ]
+        pass_filenames: false
         verbose: true
 
       # PreCI 检查
