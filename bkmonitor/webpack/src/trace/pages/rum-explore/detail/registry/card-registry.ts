@@ -25,7 +25,7 @@
  */
 // import { OUTCOME_TYPE_TONE_MAP, RUM_OUTCOME_TYPE_MAP } from '../../constants';
 import { formatUnitValueParts } from '../../utils';
-import { RumCardToneEnum, RumRatingEnum } from '../typings';
+import { RumCardToneEnum, RumDetailTabEnum, RumRatingEnum } from '../typings';
 
 import type {
   IRumCardDescriptor,
@@ -268,15 +268,18 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
 
   /* ---------------- Long Task ---------------- */
 
-  /** 关联交互：Action ID 命中时展示回查到的目标元素名 */
+  /** 关联交互：Action ID 命中时展示回查到的目标元素名，点击切换到链路上下文 */
   'long_task.key_info.action': (data, ctx) => {
     const actionName = String(ctx.related.actionName ?? '');
     const hasAction = !!data['attributes.action.id'];
+    const clickable = hasAction && !!actionName;
     return [
       {
         label: t('关联交互'),
         value: actionName || EMPTY_TEXT,
         footer: [{ text: hasAction && actionName ? String(ctx.related.actionType ?? '') : t('未关联 Action') }],
+        tone: clickable ? RumCardToneEnum.LINK : RumCardToneEnum.DEFAULT,
+        click: clickable ? () => ctx.handlers?.switchTab(RumDetailTabEnum.TRACE_CONTEXT) : undefined,
       },
     ];
   },
