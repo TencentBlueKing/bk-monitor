@@ -33,14 +33,13 @@ from bkmonitor.utils.tenant import is_biz_in_tenant
 from iam_engine.provider.requests import (
     ApplyURLRequest,
     AuthRequest,
-    BatchByResourceRequest,
     ResourceInstance as FwResource,
     Subject as FwSubject,
     SubjectType,
     to_action_id,
 )
 from bkmonitor.iam.permission import Permission
-from bkmonitor.iam.resource import to_resource_instance
+from bkmonitor.iam.resource import get_resource_by_id, to_resource_instance
 from iam_engine.exceptions import ProviderUnavailable
 from bkmonitor.iam.errors import build_legacy_permission_denied
 from core.errors.iam import ActionNotExistError, PermissionDeniedError
@@ -447,7 +446,12 @@ def insert_permission_field(
                     resource_by_id[rid_str] = (
                         _to_fw_resources([instance_create_func(item)])[0]
                         if instance_create_func is not None
-                        else FwResource(type=resource_type, id=rid_str)
+                        else to_resource_instance(
+                            get_resource_by_id(resource_type).create_simple_instance(
+                                instance_id=rid_str,
+                                attribute={k: item[k] for k in ("bk_biz_id", "space_uid") if k in item},
+                            )
+                        )
                     )
 
             if not resource_by_id:
@@ -463,17 +467,10 @@ def insert_permission_field(
             else:
                 # 批量鉴权
                 fw = Permission(request=request)
-                subject = FwSubject(id=fw.username, type=SubjectType.USER, tenant_id=fw.bk_tenant_id)
+                permissions_by_id = fw.batch_is_allowed(actions, [[r] for r in resource_by_id.values()])
                 for aid in action_ids:
-                    batch_result = fw._batch_by_resource(
-                        BatchByResourceRequest(
-                            subject=subject,
-                            action_id=aid,
-                            resources=tuple(resource_by_id.values()),
-                        )
-                    )
-                    for item_result in batch_result.items:
-                        allowed_map[(aid, item_result.resource_id)] = item_result.allowed
+                    for rid in resource_by_id:
+                        allowed_map[(aid, rid)] = permissions_by_id.get(rid, {}).get(get_action_by_id(aid).id, False)
 
             # 回填
             for idx, rid in item_resource_ids:
@@ -545,7 +542,12 @@ def filter_data_by_permission(
             resource_by_id[rid_str] = (
                 _to_fw_resources([instance_create_func(item)])[0]
                 if instance_create_func is not None
-                else FwResource(type=resource_type, id=rid_str)
+                else to_resource_instance(
+                    get_resource_by_id(resource_type).create_simple_instance(
+                        instance_id=rid_str,
+                        attribute={k: item[k] for k in ("bk_biz_id", "space_uid") if k in item},
+                    )
+                )
             )
 
     if not resource_by_id:
@@ -560,7 +562,6 @@ def filter_data_by_permission(
         request = get_request(peaceful=True)
         username = request.user.username if request else ""
     fw = Permission(username=username, bk_tenant_id=bk_tenant_id or "system", request=request)
-    subject = FwSubject(id=fw.username, type=SubjectType.USER, tenant_id=fw.bk_tenant_id)
     allowed_map: dict[tuple[str, str], bool] = {}
 
     # 前置豁免（复刻旧 Permission(...).batch_is_allowed 语义：username 显式传入时
@@ -571,16 +572,10 @@ def filter_data_by_permission(
             for rid in resource_by_id:
                 allowed_map[(aid, rid)] = exemption.get(aid, False)
     else:
+        permissions_by_id = fw.batch_is_allowed(actions, [[r] for r in resource_by_id.values()])
         for aid in action_ids:
-            batch_result = fw._batch_by_resource(
-                BatchByResourceRequest(
-                    subject=subject,
-                    action_id=aid,
-                    resources=tuple(resource_by_id.values()),
-                )
-            )
-            for item_result in batch_result.items:
-                allowed_map[(aid, item_result.resource_id)] = item_result.allowed
+            for rid in resource_by_id:
+                allowed_map[(aid, rid)] = permissions_by_id.get(rid, {}).get(get_action_by_id(aid).id, False)
 
     # 过滤/标注
     allowed_data = []

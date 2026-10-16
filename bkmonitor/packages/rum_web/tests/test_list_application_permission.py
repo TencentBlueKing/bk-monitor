@@ -11,8 +11,6 @@ specific language governing permissions and limitations under the License.
 from types import SimpleNamespace
 from unittest import mock
 
-from bkmonitor.iam.action import canonicalize_action_id
-from iam_engine.provider.requests import BatchAuthResult, ResourceAuthResult
 from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
 from iam_engine.core.requests import ResourceInstance
 
@@ -39,27 +37,6 @@ def init_permission(instance, *args, **kwargs):
     instance.bk_tenant_id = "system"
     instance.request = kwargs.get("request")
     instance.skip_check = False
-
-
-def scripted_batch(mapping):
-    def check(request):
-        return BatchAuthResult(
-            tuple(
-                ResourceAuthResult(
-                    str(request.action_id),
-                    str(resource.type),
-                    str(resource.id),
-                    next(
-                        allowed
-                        for aid, allowed in mapping[str(resource.id)].items()
-                        if canonicalize_action_id(aid) == request.action_id
-                    ),
-                )
-                for resource in request.resources
-            )
-        )
-
-    return check
 
 
 def expected_permissions(row):
@@ -126,9 +103,7 @@ def test_list_application_permission_reuses_response_metadata():
             "bkmonitor.iam.handlers.resolver.catalog.fetch_instance_info",
             side_effect=AssertionError("list metadata must skip lookup"),
         ) as application_lookup,
-        mock.patch.object(
-            Permission, "_batch_by_resource", side_effect=scripted_batch(permission_result)
-        ) as batch_is_allowed,
+        mock.patch.object(Permission, "batch_is_allowed", return_value=permission_result) as batch_is_allowed,
     ):
         response = decorated_view()
 
@@ -138,7 +113,9 @@ def test_list_application_permission_reuses_response_metadata():
     assert response.data["total"] == 2
     assert [item["application_id"] for item in response.data["data"]] == [1001, 1002]
 
-    resources = batch_is_allowed.call_args.args[0].resources
+    batch_is_allowed.assert_called_once()
+    assert batch_is_allowed.call_args.args[0] == ACTIONS
+    resources = [group[0] for group in batch_is_allowed.call_args.args[1]]
     assert len(resources) == 2
     assert resources[0].id == "1001"
     assert resources[0].attributes == {

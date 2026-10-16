@@ -409,8 +409,10 @@ class Permission:
                 return (data, url.strip()) if isinstance(url, str) and url.strip() else ({}, "")
             return data, url
         except Exception as error:
+            if mode is AuthMode.V3:
+                raise
             logger.warning("IAM application generation failed: %s", error)
-        return {}, settings.BK_IAM_SAAS_HOST if mode is AuthMode.V3 else ""
+        return {}, ""
 
     def _apply_url_request(self, request):
         return self._application_data(list(request.action_ids), request.resources)[1]
@@ -765,6 +767,8 @@ class Permission:
     # ================================================================
 
     def get_apply_url(self, action_ids: list[str], resources: list = None, system_id: str = settings.BK_IAM_SYSTEM_ID):
+        for action in action_ids:
+            get_action_by_id(_to_business_action_id(action))
         action_ids_biz = [_to_business_action_id(action_id) for action_id in action_ids]
         fw_resources = tuple(to_resource_instance(r) for r in (resources or []))
         try:
@@ -782,6 +786,8 @@ class Permission:
     def get_apply_data(self, actions, resources: list = None, *, mode=None):
         resources = resources or []
 
+        for action in actions:
+            get_action_by_id(action if isinstance(action, ActionMeta) else _to_business_action_id(action))
         action_ids_biz = [_to_business_action_id(action) for action in actions]
         fw_resources = [to_resource_instance(r) for r in resources]
 

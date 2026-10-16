@@ -511,8 +511,23 @@ class TestBuildActionResultItem:
 
 
 class TestActionCategories:
+    @pytest.mark.parametrize("backend", [None, ""])
+    @patch("kernel_api.rpc.functions.admin.permission._shared.Permission")
+    def test_default_v3_ids_need_no_provider_or_credentials(self, mock_permission, backend):
+        from bkmonitor.iam import definitions
+
+        fw = mock_permission.return_value
+        fw.schema = definitions
+        fw.get_provider.side_effect = AssertionError("static metadata must not construct a protocol client")
+        result = action_categories({"bk_tenant_id": "system", "backend": backend})["data"]
+        ids = {action["id"] for group in result["groups"] for action in group["actions"]}
+        business_ids = {action["id"] for group in result["business_groups"] for action in group["actions"]}
+        assert ids == business_ids == set(result["action_index"])
+        assert "view_business_v2" in ids and "view_business" not in ids
+        fw.get_provider.assert_not_called()
+
     def test_returns_groups_and_index(self):
-        """action_categories 直接走真实 产品静态定义，验证结构和 Business ID。"""
+        """默认元数据保留原 V3 ID，便于与权限查询结果关联。"""
         result = action_categories({"bk_tenant_id": "system"})
         data = result["data"]
         assert "groups" in data
@@ -523,10 +538,10 @@ class TestActionCategories:
         assert len(data["resource_types"]) > 0
         assert len(data["business_groups"]) > 0
 
-        # 空间分组 — 使用 Business ID
+        # 空间分组 — 默认使用 V3 ID
         space_group = next((g for g in data["groups"] if g["resource_type"] == "space"), None)
         assert space_group is not None
-        assert any(a["id"] == "view_business" for a in space_group["actions"])
+        assert any(a["id"] == "view_business_v2" for a in space_group["actions"])
         assert space_group["name"] == "空间"
         assert space_group["is_top_level"] is True
         assert space_group["parent_resource_type"] is None
@@ -546,8 +561,9 @@ class TestActionCategories:
             assert apm_group["is_top_level"] is False
             assert apm_group["parent_resource_type"] == "space"
 
-        # action_index 使用 Business ID
-        assert "view_business" in data["action_index"]
+        # action_index 和分组使用相同的 V3 ID
+        assert "view_business_v2" in data["action_index"]
+        assert "view_business" not in data["action_index"]
 
         # 资源类型元数据
         space_rt = next((rt for rt in data["resource_types"] if rt["id"] == "space"), None)
@@ -566,7 +582,7 @@ class TestActionCategories:
         from bkmonitor.iam.permission import Permission
 
         fw = Permission(username="offline", bk_tenant_id="system")
-        all_ids = {a.id for a in fw.schema.actions.values()}
+        all_ids = {fw.get_provider("v3").codec.encode_action(a.id) for a in fw.schema.actions.values()}
 
         result = action_categories({"bk_tenant_id": "system"})
         data = result["data"]
@@ -591,7 +607,7 @@ class TestActionCategories:
         assert grouped_ids == all_ids, f"分组覆盖不一致: 多出的={grouped_ids - all_ids}, 缺失的={all_ids - grouped_ids}"
 
     def test_business_groups_known_categories(self):
-        """验证已知业务分组使用 Business ID。"""
+        """验证默认业务分组使用 V3 ID。"""
         result = action_categories({"bk_tenant_id": "system"})
         business_groups = result["data"]["business_groups"]
 
@@ -601,20 +617,20 @@ class TestActionCategories:
         assert "监控平台MCP" in group_names
         assert "分析定位" in group_names
 
-        # 业务组包含 view_business（Business ID）
+        # 业务组保留原 V3 ID
         biz_group = next((g for g in business_groups if g["name"] == "业务"), None)
         assert biz_group is not None
-        assert any(a["id"] == "view_business" for a in biz_group["actions"])
+        assert any(a["id"] == "view_business_v2" for a in biz_group["actions"])
 
-        # 监控管理组包含策略操作（Business ID）
+        # 监控管理组的策略操作也使用 V3 ID
         mgmt_group = next((g for g in business_groups if g["name"] == "监控管理"), None)
         assert mgmt_group is not None
-        assert any(a["id"] == "view_rule" for a in mgmt_group["actions"])
+        assert any(a["id"] == "view_rule_v2" for a in mgmt_group["actions"])
 
         # 分析定位组
         analysis_group = next((g for g in business_groups if g["name"] == "分析定位"), None)
         assert analysis_group is not None
-        assert any(a["id"] == "view_dashboard" for a in analysis_group["actions"])
+        assert any(a["id"] == "view_dashboard_v2" for a in analysis_group["actions"])
         assert any(a["id"] == "view_incident" for a in analysis_group["actions"])
 
     @staticmethod
@@ -678,7 +694,7 @@ class TestActionCategories:
         from bkmonitor.iam.permission import Permission
 
         fw = Permission(username="offline", bk_tenant_id="system")
-        all_ids = {a.id for a in fw.schema.actions.values()}
+        all_ids = {fw.get_provider("v3").codec.encode_action(a.id) for a in fw.schema.actions.values()}
 
         result = action_categories({"bk_tenant_id": "system"})
         business_groups = result["data"]["business_groups"]

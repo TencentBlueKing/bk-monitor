@@ -149,7 +149,8 @@ class TestDrfSurface:
         )
         response = wrapped(view, view.request)
         assert response.data["data"][0]["permission"]["view_apm_application_v2"] is True
-        assert provider.batch_is_allowed.call_count == 2
+        assert provider.batch_is_allowed.call_count == 1
+        assert len(provider.batch_is_allowed.call_args.args[0].action_ids) == 2
         resource = provider.batch_is_allowed.call_args.args[0].resource_groups[0][0]
         assert resource.id == "1001"
         assert resource.name == "alpha"
@@ -463,8 +464,12 @@ class TestInsertPermissionField:
         # 无 id 的行不注入
         assert "permission" not in data[2]
 
-    def test_injects_registered_legacy_keys_without_extra_iam_queries(self, fake_permission):
+    def test_injects_registered_legacy_keys_without_extra_iam_queries(self, fake_permission, monkeypatch):
         """APM 保留原字段，并且不增加额外鉴权请求。"""
+        monkeypatch.setattr(
+            "monitor_web.iam.views.ApmApplicationProvider._get_app_simple_info_by_id_or_none",
+            lambda instance_id: {"application_id": instance_id, "app_name": "app", "bk_biz_id": 2},
+        )
         fw, provider = fake_permission
         provider.batch_result = _batch_result_for([("2", True)], action_id="view_apm_application")
         provider.batch_is_allowed = MagicMock(return_value=provider.batch_result)
@@ -486,7 +491,11 @@ class TestInsertPermissionField:
         }
         assert provider.batch_is_allowed.call_count == 1
 
-    def test_legacy_keys_follow_always_allowed_override(self, fake_permission):
+    def test_legacy_keys_follow_always_allowed_override(self, fake_permission, monkeypatch):
+        monkeypatch.setattr(
+            "monitor_web.iam.views.ApmApplicationProvider._get_app_simple_info_by_id_or_none",
+            lambda instance_id: {"application_id": instance_id, "app_name": "app", "bk_biz_id": 2},
+        )
         fw, provider = fake_permission
         provider.batch_result = _batch_result_for([("2", False)], action_id="manage_apm_application")
 

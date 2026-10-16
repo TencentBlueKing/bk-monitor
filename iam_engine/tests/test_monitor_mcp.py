@@ -102,13 +102,14 @@ def test_mcp_application_display_and_url_share_business_action_and_parent_chain(
         ],
     )
     framework = Mock()
-    framework._apply_data_request.return_value = {"system_id": "v4-display"}
-    framework._apply_url_request.return_value = "https://iam.example.test/apply/"
+    framework.mode_provider.get_mode.return_value = AuthMode.V4
+    framework._application_data.return_value = ({"system_id": "v4-display"}, "https://iam.example.test/apply/")
     client = MonitorMCPClient(framework, "tenant-a")
     assert client.get_apply_data(application) == {"system_id": "v4-display"}
     assert client.get_apply_url(application)[2] == "https://iam.example.test/apply/"
-    request = framework._apply_url_request.call_args.args[0]
-    assert request.action_ids == ("view_apm_application",)
-    assert request.resources[0].id == "42"
-    assert request.resources[0].ancestor_chain[0].id == "2"
-    assert request.subject.tenant_id == "tenant-a"
+    framework._application_data.assert_called_once()
+    actions, resources = framework._application_data.call_args.args
+    assert actions == ["view_apm_application"]
+    assert resources[0].id == "42"
+    assert resources[0].ancestor_chain[0].id == "2"
+    assert framework._application_data.call_args.kwargs["mode"] is AuthMode.V4

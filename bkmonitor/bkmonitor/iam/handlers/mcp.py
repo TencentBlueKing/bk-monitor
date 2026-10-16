@@ -5,7 +5,9 @@ the MCP native-permission fallback; an explicit union ALLOW still wins.
 """
 
 from iam_engine.exceptions import ProviderUnavailable
+from iam_engine.core.config import AuthMode
 from iam_engine.provider.requests import ApplyURLRequest, AuthRequest, ResourceInstance, Subject
+from bkmonitor.iam.action import get_action_by_id
 from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 
 
@@ -14,6 +16,7 @@ class MonitorMCPClient:
         self.permission = permission
         self.tenant_id = tenant_id
         self.codec = MonitorV3Codec()
+        self._application_cache = None
 
     @staticmethod
     def resource(resource):
@@ -71,8 +74,30 @@ class MonitorMCPClient:
 
     def get_apply_data(self, application):
         request = self._application_request(application)
-        return self.permission._apply_data_request(list(request.action_ids), list(request.resources), request.subject)
+        for action in request.action_ids:
+            get_action_by_id(action)
+        mode = self.permission.mode_provider.get_mode(request.resources)
+        if mode is AuthMode.V3:
+            # The original SDK exposes only get_apply_url; MCP already uses this
+            # application envelope as permission data. Do not generate a URL here.
+            return application.to_dict()
+        data, _ = self._get_application_result(application, request, mode)
+        return data
 
     def get_apply_url(self, application):
-        url = self.permission._apply_url_request(self._application_request(application))
+        request = self._application_request(application)
+        for action in request.action_ids:
+            get_action_by_id(action)
+        mode = self.permission.mode_provider.get_mode(request.resources)
+        if mode is AuthMode.V3:
+            # Keep the SDK success flag: a failed request is not a valid apply URL.
+            return self.permission.get_provider("v3").client.get_apply_url(application)
+        _, url = self._get_application_result(application, request, mode)
         return bool(url), "", url
+
+    def _get_application_result(self, application, request, mode):
+        key = (mode, application.to_dict())
+        if self._application_cache is None or self._application_cache[0] != key:
+            result = self.permission._application_data(list(request.action_ids), list(request.resources), mode=mode)
+            self._application_cache = (key, result)
+        return self._application_cache[1]

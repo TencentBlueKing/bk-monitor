@@ -1,10 +1,19 @@
 """Monitor product metadata and backend construction, without a framework singleton."""
 
+import json
+from threading import RLock
+
+from cachetools import LRUCache
 from django.conf import settings
 from config.tools.iam_credentials import get_saas_setting, saas_setting
 from bkmonitor.iam import definitions
 from iam_engine.settings import resolve_iam_gateway_url
 from iam_engine.v4.config import V4Options
+
+
+# Cache only clients, never per-user providers or a dynamic mode snapshot.
+_v3_clients = LRUCache(maxsize=128)
+_v3_clients_lock = RLock()
 
 
 def provider_options(name, tenant_id="system"):
@@ -52,7 +61,6 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
     """Explicitly inject native capabilities, codecs and clients, as in BKLog."""
     if name not in {"v3", "v4"}:
         raise ValueError(f"Unknown IAM provider: {name!r}")
-    from threading import RLock
     from bkmonitor.iam.handlers.resolver import MonitorResourceResolver
 
     options = options if options is not None else provider_options(name, tenant_id)
@@ -68,23 +76,25 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
 
         cfg = V3Options.from_dict(options)
         codec = MonitorV3Codec(**options.get("codec_kwargs", {}))
+        codec_key = json.dumps(options.get("codec_kwargs", {}), sort_keys=True)
+        compat = options.get("enable_v1_compat", is_v1_compat_enabled)
 
         def client_factory(request_tenant):
             tid = request_tenant or cfg.bk_tenant_id
             code, secret = str(cfg.credentials.app_code), str(cfg.credentials.app_secret)
-            key = (tid, code, secret)
-            with lock:
-                if key not in clients:
-                    clients[key] = V3Client(
+            key = (tid, code, secret, cfg.base_url, cfg.system.id, codec_key, compat)
+            with _v3_clients_lock:
+                if key not in _v3_clients:
+                    _v3_clients[key] = V3Client(
                         code,
                         secret,
                         cfg.base_url,
                         cfg.system.id,
                         codec,
                         bk_tenant_id=tid,
-                        enable_v1_compat=options.get("enable_v1_compat", is_v1_compat_enabled),
+                        enable_v1_compat=compat,
                     )
-                return clients[key]
+                return _v3_clients[key]
 
         return V3PermissionProvider(
             None,

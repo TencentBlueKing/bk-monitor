@@ -27,6 +27,7 @@ from collections import defaultdict
 from typing import Any
 
 from bkmonitor.iam.definitions import actions as product_actions
+from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 from iam_engine.exceptions import ProviderNotFound
 from iam_engine.core.config import AuthMode, DEFAULT_DUAL_STACK
 from iam_engine.core.exceptions import InvalidAuthModeError
@@ -213,7 +214,7 @@ def _visible_actions(schema, provider=None) -> list[ActionDef]:
 
 def _build_business_groups(schema, provider=None) -> list[dict[str, Any]]:
     """将 schema 中的操作按业务场景扁平分组（可选按 provider 可见性 + id 口径）。"""
-    codec = provider.codec if provider is not None else None
+    codec = provider.codec if provider is not None else MonitorV3Codec()
     groups_data: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
     for action in sorted(_visible_actions(schema, provider), key=lambda a: a.id):
@@ -254,7 +255,7 @@ def _build_action_groups(
 
     指定 provider 时按 provider 可见性过滤 action 并按 codec 编码 id（action_index 同源）。
     """
-    codec = provider.codec if provider is not None else None
+    codec = provider.codec if provider is not None else MonitorV3Codec()
     groups_data: dict[str, list[dict[str, Any]]] = defaultdict(list)
 
     for action in sorted(_visible_actions(schema, provider), key=lambda a: a.id):
@@ -327,7 +328,7 @@ def _build_action_groups(
         "bk_tenant_id": "可选，租户 ID",
         "backend": (
             "可选，后端 provider 名（如 v3 / v4）：按该 provider 可见性过滤，"
-            "action id 按其 codec 编码；缺省返回全量业务 ID"
+            "action id 按其 codec 编码；缺省保留 V3 ID"
         ),
     },
     example_params={"bk_tenant_id": "system"},
