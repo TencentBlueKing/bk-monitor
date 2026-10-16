@@ -1650,6 +1650,14 @@ AIDEV_AGENT_MCP_REQUEST_AGENT_CODE = "bkmonitor-mcp"
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True
 
+# 采集状态页主机告警 ES 聚合分批参数（消费方 monitor_web/datalink/resources.py，调用时读取）：
+# 批大小为安全参数（单批稠密响应桶数约 N×(2T+3)+4，运行时按时间桶数自动钳制到桶数预算内）；
+# 并发数为性能参数（瞬时下发 ES 的查询数 = 并发数 × 同时访问页面的用户数），按集群实测负载调整；
+# 桶数预算对齐 ES search.max_buckets（默认 65536，集群调整过该值时同步修改）
+ALERT_HOST_BATCH_SIZE = int(os.environ.get("BKAPP_ALERT_HOST_BATCH_SIZE", 200))
+ALERT_HOST_BATCH_CONCURRENCY = int(os.environ.get("BKAPP_ALERT_HOST_BATCH_CONCURRENCY", 5))
+ALERT_HOST_MAX_AGG_BUCKETS = int(os.environ.get("BKAPP_ALERT_HOST_MAX_AGG_BUCKETS", 65536))
+
 # 允许限制空间功能开关， 默认限制
 IS_RESTRICT_DS_BELONG_SPACE = True
 

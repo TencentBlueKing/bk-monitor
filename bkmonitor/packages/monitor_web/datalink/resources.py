@@ -17,11 +17,13 @@ from datetime import datetime, timezone
 from enum import Enum
 from typing import Any
 
+from django.conf import settings
 from django.db.models import Q
 
 from bkmonitor.action.serializers.strategy import UserGroupSlz
 from bkmonitor.models.strategy import UserGroup
 from bkmonitor.utils.request import get_request_tenant_id
+from bkmonitor.utils.thread_backend import ThreadPool
 from bkmonitor.utils.user import get_global_user
 from bkmonitor.views import serializers
 from common.log import logger
@@ -380,8 +382,10 @@ class CollectingTargetStatusResource(BaseStatusResource):
 
     def search_target_alert_histogram(self, targets: list[str], time_range: int = 3600) -> dict:
         """按照主机维度，检索最近的告警分布，默认取最近一小时"""
+        # 去重主机：同一主机可能归属多个拓扑分组而重复出现
+        targets = list(dict.fromkeys(targets))
         if len(targets) == 0:
-            return {"total": [], "targets": {}}
+            return {"targets": {}}
 
         request_data = {
             "bk_biz_ids": [self.collect_config.bk_biz_id],
@@ -389,69 +393,108 @@ class CollectingTargetStatusResource(BaseStatusResource):
         }
 
         handler = AlertQueryHandler(**request_data)
-        # 计算检索的时长和步长
+        # 计算检索的时长和步长，所有批次复用同一时间窗口
         start_time, end_time = int(time.time() - time_range), int(time.time())
         interval = handler.calculate_agg_interval(start_time, end_time, interval="auto")
         start_time = start_time // interval * interval
         end_time = end_time // interval * interval + interval
-        # 以 ElastcisartchDSL 提供的语法组装 DSL 语句
-        search_object = handler.get_search_object(start_time=start_time, end_time=end_time)
-        search_object = handler.add_query_string(search_object)
-        search_object.aggs.bucket("end_time", "filter", {"range": {"end_time": {"lte": end_time}}}).bucket(
-            "end_alert", "filter", {"terms": {"status": [EventStatus.RECOVERED, EventStatus.CLOSED]}}
-        ).bucket("targets", "terms", field="event.bk_host_id").bucket(
-            "time", "date_histogram", field="end_time", fixed_interval=f"{interval}s"
-        )
-        search_object.aggs.bucket(
-            "begin_time", "filter", {"range": {"begin_time": {"gte": start_time, "lte": end_time}}}
-        ).bucket("targets", "terms", field="event.bk_host_id").bucket(
-            "time", "date_histogram", field="begin_time", fixed_interval=f"{interval}s"
-        )
-        search_object.aggs.bucket("init_alert", "filter", {"range": {"begin_time": {"lt": start_time}}}).bucket(
-            "targets", "terms", field="event.bk_host_id"
-        )
-        logger.info(f"Search collecting alerts, statement = {json.dumps(search_object.to_dict())}")
-        search_result = search_object[:0].execute()
+
+        # ES 主机 terms 聚合默认 size=10，只统计文档数最多的前 10 台主机，导致告警统计漏计；
+        # 这里按主机分批查询：每批用 terms 过滤限定主机范围，三处主机聚合 size 设为本批主机数，
+        # 保证主机桶不截断；时间直方图 min_doc_count=1 只返回有事件变化的桶，Python 侧按缺失为 0 重建。
+        # 分批/并发参数在 config/default.py 注册（支持 BKAPP_ 环境变量覆盖），此处按调用时读取：
+        # - ALERT_HOST_BATCH_SIZE 批大小（安全参数）：单批稠密响应的桶数约 N×(2T+3)+4，
+        #   N=批内主机数、T=时间桶数，须不超过 ES search.max_buckets，运行时按实际 T 钳制安全上限；
+        # - ALERT_HOST_BATCH_CONCURRENCY 批次并发数（性能参数）：瞬时下发 ES 的查询数
+        #   = 并发数 × 同时访问该页面的用户数（部署轮询期间会叠加），按目标集群实测负载调整
+        batch_size_limit = getattr(settings, "ALERT_HOST_BATCH_SIZE", 200)
+        concurrency = max(1, getattr(settings, "ALERT_HOST_BATCH_CONCURRENCY", 5))
+        max_agg_buckets = getattr(settings, "ALERT_HOST_MAX_AGG_BUCKETS", 65536)
+        time_bucket_count = (end_time - start_time) // interval
+        # 运行时按实际时间桶数钳制批大小，确保 N×(2T+3)+4 ≤ max_agg_buckets，
+        # 防止配置调大后击穿 search.max_buckets 导致整个查询失败
+        max_safe_batch_size = max(1, (max_agg_buckets - 4) // (time_bucket_count * 2 + 3))
+        batch_size = min(batch_size_limit, max_safe_batch_size)
+        batches = [targets[i : i + batch_size] for i in range(0, len(targets), batch_size)]
+        # 批次以有界并发执行，避免串行等待累积请求开销，也不一次性把全部批次压到 ES
+        pool = ThreadPool(concurrency)
+        futures = [
+            pool.apply_async(
+                self._search_target_alert_batch,
+                args=(handler, batch_hosts, start_time, end_time, interval),
+            )
+            for batch_hosts in batches
+        ]
+        pool.close()
+        pool.join()
+
         # 检索后的数据整理后，按照主机ID分桶存放，启动和结束记录还需要按照时间分桶存放
         init_alerts: dict[str, int] = dict()
         begine_alerts: dict[str, dict[int][int]] = dict()
         end_alerts: dict[str, dict[int][int]] = dict()
-        if search_result.aggs:
-            for target_bucket in search_result.aggs.init_alert.targets.buckets:
-                init_alerts[target_bucket.key] = target_bucket.doc_count
-            for target_bucket in search_result.aggs.begin_time.targets.buckets:
-                begine_alerts[target_bucket.key] = {}
-                # 时间分桶的 KEY 默认是毫秒值
-                for time_bucket in target_bucket.time.buckets:
-                    begine_alerts[target_bucket.key][int(time_bucket.key_as_string) * 1000] = time_bucket.doc_count
-            for target_bucket in search_result.aggs.end_time.end_alert.targets.buckets:
-                end_alerts[target_bucket.key] = {}
-                for time_bucket in target_bucket.time.buckets:
-                    end_alerts[target_bucket.key][int(time_bucket.key_as_string) * 1000] = time_bucket.doc_count
+        for future in futures:
+            # 批次查询失败时异常直接抛出，不能把失败批次伪装成全零
+            search_result = future.get()
+            if search_result.aggs:
+                for target_bucket in search_result.aggs.init_alert.targets.buckets:
+                    init_alerts[target_bucket.key] = target_bucket.doc_count
+                for target_bucket in search_result.aggs.begin_time.targets.buckets:
+                    begine_alerts[target_bucket.key] = {}
+                    # 时间分桶的 KEY 默认是毫秒值
+                    for time_bucket in target_bucket.time.buckets:
+                        begine_alerts[target_bucket.key][int(time_bucket.key_as_string) * 1000] = time_bucket.doc_count
+                for target_bucket in search_result.aggs.end_time.end_alert.targets.buckets:
+                    end_alerts[target_bucket.key] = {}
+                    for time_bucket in target_bucket.time.buckets:
+                        end_alerts[target_bucket.key][int(time_bucket.key_as_string) * 1000] = time_bucket.doc_count
         logger.info(
             f"Search collecting alerts, init_alert={init_alerts}, begine_alerts={begine_alerts}, end_alerts={end_alerts}"
         )
 
         # 初始化主机分桶信息，每个分桶里按照时间分桶初始化 0
+        # 注意：无告警主机也必须保留全零序列，前端依赖 alert_histogram 字段是否为空决定"告警"列的显隐
         ts_buckets = range(start_time, end_time, interval)
         targets_series: dict[str, list] = {target: [[ts * 1000, 0] for ts in ts_buckets] for target in targets}
-        for target, series in targets_series.items():
-            init_cnt = init_alerts.get(target, 0)
+        # 只对存在告警记录的主机逐桶累计，无告警主机直接保持全零序列，跳过逐桶循环
+        for target in targets:
+            if target not in init_alerts and target not in begine_alerts and target not in end_alerts:
+                continue
             # 以一个主机例子，从最小时间开始迭代，比如初始3个告警，在第一个时间桶遇到2个新增，1个关闭，则最终为 3+2-1=4 个告警，以此类推
-            for item in series:
+            init_cnt = init_alerts.get(target, 0)
+            for item in targets_series[target]:
                 ts = item[0]
                 begine_cnt = begine_alerts.get(target, {}).get(ts, 0)
                 end_cnt = end_alerts.get(target, {}).get(ts, 0)
                 item[1] = init_cnt + begine_cnt - end_cnt
                 init_cnt = item[1]
-        # 汇总计算总的告警数
-        total_series: list = []
-        for idx, item in enumerate(next(iter(targets_series.values()))):
-            ts = item[0]
-            cnt = sum(targets_series[target][idx][1] for target in targets)
-            total_series.append([ts, cnt])
 
-        return {"total": total_series, "targets": targets_series}
+        return {"targets": targets_series}
+
+    def _search_target_alert_batch(
+        self, handler: AlertQueryHandler, batch_hosts: list[str], start_time: int, end_time: int, interval: int
+    ):
+        """查询单批主机的告警聚合：初始、新增、结束三路，主机桶不截断"""
+        # 以 ElastcisartchDSL 提供的语法组装 DSL 语句
+        search_object = handler.get_search_object(start_time=start_time, end_time=end_time)
+        search_object = handler.add_query_string(search_object)
+        # 限定本批主机范围，配合聚合 size 避免主机桶截断
+        search_object = search_object.filter("terms", **{"event.bk_host_id": batch_hosts})
+        search_object.aggs.bucket("end_time", "filter", {"range": {"end_time": {"lte": end_time}}}).bucket(
+            "end_alert", "filter", {"terms": {"status": [EventStatus.RECOVERED, EventStatus.CLOSED]}}
+        ).bucket("targets", "terms", field="event.bk_host_id", size=len(batch_hosts)).bucket(
+            "time", "date_histogram", field="end_time", fixed_interval=f"{interval}s", min_doc_count=1
+        )
+        search_object.aggs.bucket(
+            "begin_time", "filter", {"range": {"begin_time": {"gte": start_time, "lte": end_time}}}
+        ).bucket("targets", "terms", field="event.bk_host_id", size=len(batch_hosts)).bucket(
+            "time", "date_histogram", field="begin_time", fixed_interval=f"{interval}s", min_doc_count=1
+        )
+        search_object.aggs.bucket("init_alert", "filter", {"range": {"begin_time": {"lt": start_time}}}).bucket(
+            "targets", "terms", field="event.bk_host_id", size=len(batch_hosts)
+        )
+        logger.info(f"Search collecting alerts, statement = {json.dumps(search_object.to_dict())}")
+        # 查询失败时异常直接抛出，由调用方统一处理，不能把失败批次伪装成全零
+        return search_object[:0].execute()
 
 
 class IntervalOption(Enum):
