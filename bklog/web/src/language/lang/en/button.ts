@@ -235,4 +235,7 @@ export default {
   权限中心: 'Permission Center',
   个人中心: 'Personal Center',
   关联采集项管理: 'Related data collection item management',
+  确认下发: 'Confirm and submit',
+  返回修改: 'Back to edit',
+  预览并下发: 'Preview and submit',
 };

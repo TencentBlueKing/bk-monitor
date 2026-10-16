@@ -1,14 +1,36 @@
 /*提取任务表格页面*/
 .extract-task-list-container {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 16px;
+  overflow: hidden;
+  background: #fff;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px 0 #1919290d;
+
   /*新增任务样式*/
   .option-container {
     display: flex;
+    flex-shrink: 0;
+    gap: 16px;
     align-items: center;
     justify-content: space-between;
-    padding: 20px 0;
+    margin-bottom: 12px;
+
+    .create-task-button {
+      min-width: 64px;
+      height: 32px;
+      padding: 0 16px;
+      border-radius: 2px;
+    }
 
     .king-input-search {
-      width: 486px;
+      flex: 0 1 480px;
+      width: 480px;
+      min-width: 0;
 
       .icon-search {
         &:hover {
@@ -19,9 +41,107 @@
     }
   }
 
+  .extract-task-table-container {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
   /*表格内容样式*/
   .king-table {
+    font-size: 12px;
+    color: #4d4f56;
     background-color: #fff;
+
+    th,
+    td {
+      height: 42px;
+      padding: 0;
+      border-bottom-color: #dcdee5;
+    }
+
+    th {
+      color: #313238;
+      background: #f5f7fa;
+    }
+
+    .cell {
+      padding-right: 16px;
+      padding-left: 16px;
+      line-height: 20px;
+    }
+
+    .bk-table-header-wrapper {
+      border-radius: 4px 4px 0 0;
+
+      // 管理页全局 .cell 使用 block，表头需恢复 flex 以保持排序图标同行。
+      th > .cell {
+        display: flex;
+        align-items: center;
+        height: 42px;
+        font-weight: 400;
+        white-space: nowrap;
+      }
+
+      .bk-table-caret-wrapper {
+        flex-shrink: 0;
+      }
+    }
+
+    .authorized-target {
+      font-size: 14px;
+      line-height: 22px;
+      white-space: nowrap;
+
+      .authorized-target-count {
+        padding: 0;
+        font: inherit;
+        font-weight: 700;
+        color: #3a84ff;
+        cursor: pointer;
+        background: transparent;
+        border: 0;
+
+        &:hover {
+          color: #1768ef;
+        }
+
+        &:focus-visible {
+          outline: 2px solid #a3c5fd;
+          outline-offset: 2px;
+        }
+      }
+    }
+
+    .target-type-tag {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      padding: 0 8px;
+      line-height: 20px;
+      color: #e38b02;
+      background: #fdeed8;
+      border: 1px solid #f9d090;
+      border-radius: 4px;
+    }
+
+    .extract-file-tags {
+      min-width: 0;
+      height: 22px;
+      white-space: nowrap;
+
+      .tag-item,
+      .tag-more-indicator {
+        border-radius: 4px;
+      }
+
+      .tag-more-indicator {
+        flex-shrink: 0;
+        color: #3a84ff;
+        background: #e9edf5;
+      }
+    }
 
     /*分页下拉*/
     .bk-select-name {
@@ -31,10 +151,11 @@
 
     .task-operation-container {
       display: flex;
+      gap: 12px;
       align-items: center;
+      white-space: nowrap;
 
       .task-operation {
-        margin-right: 12px;
         color: #3a84ff;
         cursor: pointer;
       }
@@ -45,38 +166,45 @@
       }
     }
 
-    .task-status-warning {
+    .task-status {
       display: flex;
+      gap: 4px;
       align-items: center;
-      color: #ff9c01;
+      font-weight: 400;
+      color: #4d4f56;
+      white-space: nowrap;
 
-      .icon-info-fill {
-        margin-left: 2px;
-        cursor: pointer;
-      }
+      .task-status-icon {
+        display: flex;
+        flex: 0 0 16px;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
 
-      .icon-refresh {
-        margin-right: 2px;
-        animation: refresh-rotate 1s linear infinite;
+        .status-dot {
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
 
-        @keyframes refresh-rotate {
-          0% {
-            transform: rotate(0deg);
-          }
+        .status-success {
+          background: #cbf0da;
+          border: 1px solid #2caf5e;
+        }
 
-          100% {
-            transform: rotate(360deg);
-          }
+        .status-failed {
+          background: #fdd;
+          border: 1px solid #ea3636;
         }
       }
-    }
 
-    .task-status-success {
-      color: #2dcb56;
-    }
-
-    .task-status-error {
-      color: #ea3636;
+      .task-status-info {
+        flex-shrink: 0;
+        font-size: 16px;
+        color: #979ba5;
+        cursor: pointer;
+      }
     }
   }
 }
@@ -106,7 +234,7 @@
     }
 
     .bk-alert {
-      .icon-info{
+      .icon-info {
         margin-right: 8px;
       }
     }
@@ -159,4 +287,3 @@
     }
   }
 }
-
