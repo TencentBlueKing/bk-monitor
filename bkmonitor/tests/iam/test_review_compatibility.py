@@ -229,15 +229,29 @@ def test_apply_endpoints_keep_unknown_action_400(setup_v3, monkeypatch, endpoint
     assert body["error_details"]["code"] == 3399001
 
 
-def test_sdk_reported_apply_failure_gets_v3_fallback(setup_v3, monkeypatch):
+def test_sdk_reported_apply_failure_gets_v3_fallback(setup_v3, monkeypatch, caplog):
     p = permission()
     monkeypatch.setattr("iam.api.client.http_post", Mock(return_value=(False, "offline HTTP failure", None)))
     data, url = p.get_apply_data(["view_business"])
     assert data and url == setup_v3["fallback_apply_url"]
+    assert any(
+        record.levelname == "ERROR" and record.getMessage() == "iam generate apply url fail: offline HTTP failure"
+        for record in caplog.records
+    )
     provider = p.get_provider("v3")
     provider.application_builder.get_apply_data = Mock(side_effect=ValueError("invalid local model"))
     with pytest.raises(ValueError, match="invalid local model"):
         p.get_apply_data(["view_business"])
+
+
+@pytest.mark.parametrize("method", ["get_apply_data", "get_apply_url"])
+@pytest.mark.parametrize("response", [{}, {"url": ""}, {"url": None}, {"url": "https://iam.example.test/apply/"}])
+def test_v3_apply_keeps_successful_sdk_url_unchanged(setup_v3, monkeypatch, method, response):
+    post = Mock(return_value=(True, "ok", {"code": 0, "data": response}))
+    monkeypatch.setattr("iam.api.client.http_post", post)
+    result = getattr(permission(), method)(["view_business"])
+    assert (result[1] if method == "get_apply_data" else result) == response.get("url", "")
+    post.assert_called_once()
 
 
 @pytest.mark.parametrize("method", ["get_apply_data", "get_apply_url"])

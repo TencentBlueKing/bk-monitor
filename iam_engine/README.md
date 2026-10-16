@@ -73,8 +73,8 @@ V3 保留已有申请逻辑及其失败兜底；“获取申请链接失败”�
 
 仅 Union 同时尝试 V3、V4；单栈仅写对应协议。每个选定目标同步写入一次，
 不登记事务提交回调、不投递 Celery、不进行异步补偿。V4 默认有效期仍为 365 天。
-默认尽力写入并记录失败；严格调用抛错。监控 API 的 V4/Union 失败直接抛
-CreatorGrantFailed，默认 V3 的既有失败处理不变。授权调用方仍可按原业务契约捕获异常。
+默认尽力写入并记录失败；仅显式严格调用抛错。Web、API、Worker 不因角色改变
+失败契约，默认 V3 的既有失败处理不变。授权调用方仍可按原业务契约捕获异常。
 监控结果中的 retry_scheduled 只为兼容保留，始终为 False，不表示后台会补授权。
 本地业务事务回滚不撤销已经成功的 IAM 授权，与原 V3 的边界一致。
 
@@ -97,7 +97,6 @@ settings 保留 BKLog 的字符串类型默认值；使用时由共同 loader/no
 | BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS | BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS | 300 秒，0 关闭缓存 |
 | BK_IAM_V4_ADD_AUTHORIZATION_PATH | BKAPP_IAM_V4_ADD_AUTHORIZATION_PATH | api/v1/open/rbac/mgmt/systems/{system_id}/authorizations/ |
 | BK_IAM_V4_GRANT_EXPIRE_DAYS | BK_IAM_V4_GRANT_EXPIRE_DAYS | 365 天，上限 365 |
-|
 | BK_IAM_V4_MODEL_BASE_PATH | BKAPP_IAM_V4_MODEL_BASE_PATH | api/v1/open/rbac/model/systems/ |
 | BK_IAM_V4_MODEL_MANAGERS | BKAPP_IAM_V4_MODEL_MANAGERS | 空 |
 | BK_IAM_V4_CALLBACK_URL | BKAPP_IAM_V4_CALLBACK_URL | 空 |
@@ -161,6 +160,22 @@ Dockerfile 在构建时检查模块存在；本地 unit_test 复制也改为解�
 存量 V3 授权迁移由 IAM 自行完成，不在本次产品开发范围。不提供 Action→Role
 转换、批量存量补授权或授权回放脚本，也不将映射规则作为本次开发阻塞项。
 保留按模式进行 IAM 模型注册/更新和同步新建资源授权，这些不是存量迁移。
+
+### BKLog 升级前：排空旧创建者授权任务
+
+本次删除旧任务 `apps.iam.tasks.grant.grant_v4_creator_action`。旧版本只要配置
+V4 网关，即使处于 V3 模式也可能写 V4，并在失败后投递该任务。升级后，新 Worker
+不再注册此任务；尚未完成的消息可能按未注册任务丢弃。
+
+升级前需在实际部署对应的 broker/队列确认该任务的待消费、延迟/重试、reserved
+及 active 消息均已处理，并协调滚动发布期间的旧生产者，避免排空后再次入队。
+不能仅凭队列长度为零认定没有延迟或正在执行的任务。本次未检查真实队列，
+此处是发布风险提示，不代表已经发生授权丢失。
+
+若不能排空，需明确盘点尚未成功的授权意图及其租户、用户、资源，并确认后续处理。
+不能假定 IAM 存量授权迁移会覆盖从未写成功的补偿请求；这需要 IAM 单独确认。
+升级后保持 V3 不依赖 V4 授权，但这部分遗留请求仍可能影响未来切换 V4/Union。
+本次不保留兼容任务、不增加重放脚本，也不自动修改已有授权。
 
 ## 自测与真实验收
 

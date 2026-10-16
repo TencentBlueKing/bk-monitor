@@ -841,12 +841,10 @@ class Permission:
         新建实例关联权限授权（委托公共双写编排），返回逐写后端结果。
 
         所选目标各同步尝试一次，不投递异步补偿。默认记录逐侧失败并继续其他目标；
-        显式 raise_exception=True 时抛 CreatorGrantFailed。API 的 V4/Union 授权失败
-        也直接抛错，不在 eager 请求中重试；默认 V3 保持原有失败处理。
+        仅显式 raise_exception=True 时抛 CreatorGrantFailed，所有进程角色行为一致。
         """
         try:
             mode = self.mode_provider.get_mode()
-            raise_exception = raise_exception or (settings.ROLE == "api" and mode in {AuthMode.V4, AuthMode.UNION})
             grant_result = self._grant_creator_actions(resource, creator or self.username, mode=mode)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"[grant_creator_action] Failed! resource: {resource}, result: {e}")

@@ -72,25 +72,22 @@ def test_v4_failure_is_single_attempt_without_commit_callback(providers, setting
     settings.ROLE = role
     selected = [current] if mode == "v4" else [legacy, current]
     current._get_client.return_value.add_authorization.side_effect = ProviderUnavailable("offline timeout")
-    if role == "api":
-        with pytest.raises(CreatorGrantFailed):
-            grant_creator_actions(selected, "space", "-1", "user", tenant_id="tenant-b")
-    else:
-        result = grant_creator_actions(selected, "space", "-1", "user", tenant_id="tenant-b")
-        assert result.is_success is False
-        assert not result.failed[0].retry_scheduled
-        assert result.failed[0].error_type == "ProviderUnavailable"
+    result = grant_creator_actions(selected, "space", "-1", "user", tenant_id="tenant-b")
+    assert result.is_success is False
+    assert not result.failed[0].retry_scheduled
+    assert result.failed[0].error_type == "ProviderUnavailable"
     current._get_client.return_value.add_authorization.assert_called_once()
     assert legacy._get_client.return_value.grant_resource_creator_actions.call_count == (mode == "union")
     on_commit.assert_not_called()
 
 
-def test_strict_web_v4_failure_raises_without_retry(providers, settings):
+@pytest.mark.parametrize("role", ["web", "api", "worker"])
+def test_explicit_strict_v4_failure_raises_without_retry(providers, settings, role):
     from bkmonitor.iam.permission import Permission
     from iam import Resource
     from iam_engine.core.config import AuthMode
 
-    settings.ROLE = "web"
+    settings.ROLE = role
     _, current, on_commit = providers
     current._get_client.return_value.add_authorization.side_effect = ProviderUnavailable("offline timeout")
     permission = Permission(username="alice", bk_tenant_id="system")

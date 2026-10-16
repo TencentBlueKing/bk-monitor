@@ -15,7 +15,7 @@ from iam_engine.v4.exceptions import V4TransportError
         ("v4", True, "", "", ""),
         ("v4", True, "https://apply.test", "https://fallback.test", "https://apply.test"),
         ("v3", False, "", "https://fallback.test", "https://fallback.test"),
-        ("v3", True, "", "https://fallback.test", "https://fallback.test"),
+        ("v3", True, "", "https://fallback.test", ""),
         ("v3", False, "", "", ""),
         ("v3", True, "https://apply.test", "https://fallback.test", "https://apply.test"),
     ],
