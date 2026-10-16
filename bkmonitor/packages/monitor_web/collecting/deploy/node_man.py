@@ -852,13 +852,10 @@ class NodeManInstaller(BaseInstaller):
 
         return instances
 
-    def status(self, diff=False, need_detail=True) -> list[dict[str, Any]]:
+    def status(self, diff=False) -> list[dict[str, Any]]:
         """
         状态查询
         :param diff: 是否显示差异
-        :param need_detail: 是否需要节点管理返回步骤内的详细 log 文本；
-            仅需要 log/action 摘要时传 False（steps 骨架仍会返回，摘要可正常推导），
-            可减小节点管理接口的响应体
         """
         # 获取订阅任务状态，并将结果转换为需要的数据结构
         subscription_id = self.collect_config.deployment_config.subscription_id
@@ -866,11 +863,7 @@ class NodeManInstaller(BaseInstaller):
             return []
         try:
             result = api.node_man.batch_task_result(
-                bk_tenant_id=self.bk_tenant_id,
-                subscription_id=subscription_id,
-                need_detail=need_detail,
-                # 状态展示依赖 steps 骨架（node_name/status/sub_steps）推导 log/action 摘要
-                keep_steps=True,
+                bk_tenant_id=self.bk_tenant_id, subscription_id=subscription_id, need_detail=True
             )
         except BKAPIError as e:
             # 记录警告日志并返回空结果，避免因订阅没有关联任务导致整个接口失败

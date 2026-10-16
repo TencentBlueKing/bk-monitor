@@ -835,9 +835,6 @@ class BatchTaskResultResource(Resource):
         need_detail = serializers.BooleanField(default=False, label="是否需要详细log")
         need_aggregate_all_tasks = serializers.BooleanField(default=True, label="是否要合并任务")
         need_out_of_scope_snapshots = serializers.BooleanField(default=False, label="是否需要已移除的记录")
-        keep_steps = serializers.BooleanField(
-            default=False, label="是否保留steps字段供本地推导摘要（仅本地消费，不透传节点管理）"
-        )
 
     def perform_request(self, params):
         def get_data(result):
@@ -850,9 +847,6 @@ class BatchTaskResultResource(Resource):
                 return None
             return result.get("total")
 
-        # keep_steps 仅在本地消费，不透传给节点管理
-        params = params.copy()
-        keep_steps = params.pop("keep_steps", False)
         instance_list = batch_request(
             TaskResultResource().__call__,
             params,
@@ -861,7 +855,7 @@ class BatchTaskResultResource(Resource):
             limit=1000,
             app="nodeman",
         )
-        if not params.get("need_detail", False) and not keep_steps:
+        if not params.get("need_detail", False):
             for item in instance_list:
                 item.pop("steps", None)
         return instance_list

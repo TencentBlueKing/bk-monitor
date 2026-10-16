@@ -52,8 +52,7 @@ class CollectTargetStatusResource(Resource):
         installer = get_collect_installer(collect_config)
         return {
             "config_info": collect_config.get_info(),
-            # need_detail 由子类序列化器声明，未声明的入口保持默认 True（详细日志）
-            "contents": installer.status(diff=params["diff"], need_detail=params.get("need_detail", True)),
+            "contents": installer.status(diff=params["diff"]),
         }
 
 
@@ -78,9 +77,6 @@ class CollectInstanceStatusResource(CollectTargetStatusResource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         id = serializers.IntegerField(required=True, label="采集配置id")
         diff = serializers.BooleanField(required=False, label="是否只返回差异", default=False)
-        # 是否需要节点管理返回步骤内的详细 log 文本；仅需要 log/action 摘要时传 False，
-        # 可减小节点管理接口的响应体（steps 骨架仍保留，摘要可正常推导）
-        need_detail = serializers.BooleanField(required=False, label="是否需要步骤详细日志", default=True)
 
 
 class CollectTargetStatusTopoResource(Resource):

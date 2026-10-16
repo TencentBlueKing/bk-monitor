@@ -356,11 +356,7 @@ class CollectingTargetStatusResource(BaseStatusResource):
         )
 
         instance_status = resource.collecting.collect_instance_status(
-            id=self.collect_config_id,
-            bk_biz_id=self.collect_config.bk_biz_id,
-            # 页面仅展示 log/action 摘要（由 steps 骨架推导），无需步骤内的详细日志，
-            # 关闭后可减小节点管理接口的响应体；若实测节点管理缺少摘要所需字段，改回 True 即可回退
-            need_detail=False,
+            id=self.collect_config_id, bk_biz_id=self.collect_config.bk_biz_id
         )
         # 提取关联的所有主机ID
         bk_host_ids = []
