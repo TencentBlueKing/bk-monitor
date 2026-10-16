@@ -194,4 +194,87 @@ async function readMetrics(edge) {
   };
 }
 
-module.exports = { relations, drawMain, drawResource, animationStarts, renderEdge, renderList, readMetrics };
+async function renderNode(model, nodeActiveTab = 'metric', linkedEdges = []) {
+  let metricInput;
+  let nodeState;
+  let headerTree;
+  const emitted = [];
+  const component = load('detail/node-info.tsx', {
+    'bkui-vue': { Message() {}, OverflowTitle: empty },
+    'monitor-common/utils/utils': { copyText() {} },
+    '../../utils': { checkIsRoot: () => false },
+    '../node-type-svg': { NODE_TYPE_ICON: {} },
+    '../tooltip/aggregated-edges-list': { default: edgeList },
+    '../utils': {
+      canJumpByType: () => false,
+      getApmServiceType: () => 'APMService',
+      handleToLink() {},
+      truncateText: text => text,
+      typeToLinkHandle: {},
+    },
+    './metric-view': {
+      default: vue.defineComponent({
+        props: ['data'],
+        setup(props) {
+          metricInput = props.data;
+          return () => vue.h('div', { class: 'metric-view-boundary' });
+        },
+      }),
+    },
+    './snapshot-analysis-info': { default: load('detail/snapshot-analysis-info.tsx').default },
+  }).default;
+  const setup = component.setup;
+  component.setup = (props, context) => {
+    nodeState = setup(props, context);
+    const renderNodeInfo = nodeState.renderNodeInfo;
+    nodeState.renderNodeInfo = node => {
+      headerTree = renderNodeInfo(node);
+      return headerTree;
+    };
+    return nodeState;
+  };
+  const app = vue.createSSRApp({
+    setup() {
+      vue.provide('bkzIds', vue.ref(['1']));
+      vue.provide('incidentDetail', vue.ref({}));
+      return () =>
+        vue.h(component, {
+          model,
+          nodeActiveTab,
+          linkedEdges,
+          showViewResource: false,
+          onToDetailSlider: node => emitted.push(['alert', node]),
+          onShowEdgeDetail: edge => emitted.push(['edge', edge]),
+        });
+    },
+  });
+  for (const name of ['overflow-tips', 'bk-tooltips']) app.directive(name, {});
+  const html = await renderToString(app);
+  function find(vnode, className) {
+    if (vnode?.props?.class === className) return vnode;
+    if (Array.isArray(vnode?.children)) {
+      for (const child of vnode.children) {
+        const found = find(child, className);
+        if (found) return found;
+      }
+    }
+  }
+  return {
+    html,
+    metricInput,
+    emitted,
+    clickAlert: () => find(headerTree, 'flex-label').props.onClick(),
+    clickEdge: edge => nodeState.showEdgeDetail(edge),
+  };
+}
+
+module.exports = {
+  relations,
+  drawMain,
+  drawResource,
+  animationStarts,
+  renderEdge,
+  renderList,
+  readMetrics,
+  renderNode,
+};
