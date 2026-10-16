@@ -494,3 +494,15 @@ def refresh_record_rule_v4():
 7. flow observe
    - 查询 `applied_resolved.flow` 对应的 bkbase Flow。
    - Flow 状态记录在 `RecordRuleV4Flow`，group 汇总到 `FlowHealthy` condition。
+
+
+## Admin 配置管理
+
+`admin.record_rule_v4.config/create/update` 提供配置查看、新建与编辑，协议复用 AsCode 单 group（无外层 `groups`）。
+查看通过 `dump_rule()` 合并主表当前设置与 Spec，返回 `{rule, config}`，不会直接回放过期元信息。
+所有新接口必填 `bk_tenant_id`；新建另需 `space_uid` 并验证空间属于租户，编辑另需规则 `id`。
+写入先使用 `parse_group()` 转换，再调用 `RecordRuleV4Operator.declare()` 或 `update_declaration()`。
+名称和空间创建后不能通过该入口修改；删除中、已删除规则仅可查看。
+保存不调用解析、输出准备或下发；后台任务仍遵循 `auto_refresh`，立即执行使用已有 apply RPC。
+接口 schema 和示例通过 Kernel RPC `__meta__.detail` 查询；配置查看 safety 为 read，创建和更新为 write。
+无需新增数据库迁移。
