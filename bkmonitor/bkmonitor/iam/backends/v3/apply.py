@@ -1,7 +1,5 @@
 """V3 product application data; same tuple capability as BKLog."""
 
-import logging
-
 from iam.apply.models import (
     ActionWithoutResources,
     ActionWithResources,
@@ -13,8 +11,6 @@ from iam.apply.models import (
 from iam.utils import gen_perms_apply_data
 from bkmonitor.iam.action import canonicalize_action_id
 from iam_engine.core.requests import to_definition_id
-
-logger = logging.getLogger(__name__)
 
 
 class V3ApplicationBuilder:
@@ -81,9 +77,5 @@ class V3ApplicationBuilder:
             system=p.system_id, subject=client.make_subject(p.username), action_to_resources_list=action_resources
         )
         application = Application(p.system_id, actions=sdk_actions)
-        try:
-            ok, _, url = client.get_apply_url(application)
-        except Exception as error:
-            logger.warning("IAM V3 application URL generation failed: %s", type(error).__name__)
-            ok, url = False, ""
+        ok, _, url = client.get_apply_url(application)
         return data, (url if ok and url else p._cfg.fallback_apply_url)

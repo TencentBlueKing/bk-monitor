@@ -229,15 +229,42 @@ def test_apply_endpoints_keep_unknown_action_400(setup_v3, monkeypatch, endpoint
     assert body["error_details"]["code"] == 3399001
 
 
-def test_only_apply_url_failure_gets_v3_fallback(setup_v3, monkeypatch):
+def test_sdk_reported_apply_failure_gets_v3_fallback(setup_v3, monkeypatch):
     p = permission()
-    monkeypatch.setattr(V3Client, "get_apply_url", Mock(side_effect=AuthAPIError("offline")))
+    monkeypatch.setattr("iam.api.client.http_post", Mock(return_value=(False, "offline HTTP failure", None)))
     data, url = p.get_apply_data(["view_business"])
     assert data and url == setup_v3["fallback_apply_url"]
     provider = p.get_provider("v3")
     provider.application_builder.get_apply_data = Mock(side_effect=ValueError("invalid local model"))
     with pytest.raises(ValueError, match="invalid local model"):
         p.get_apply_data(["view_business"])
+
+
+@pytest.mark.parametrize("method", ["get_apply_data", "get_apply_url"])
+def test_v3_apply_keeps_actual_sdk_json_error(setup_v3, monkeypatch, method):
+    error = json.JSONDecodeError("invalid gateway response", "not json", 0)
+    post = Mock(side_effect=error)
+    monkeypatch.setattr("iam.api.client.http_post", post)
+    with pytest.raises(json.JSONDecodeError) as caught:
+        getattr(permission(), method)(["view_business"])
+    assert caught.value is error
+    post.assert_called_once()
+
+
+@pytest.mark.parametrize("method", ["get_apply_data", "get_apply_url"])
+def test_v3_apply_keeps_sdk_validation_error(setup_v3, monkeypatch, method):
+    from iam.apply.models import Application
+
+    error = ValueError("invalid application")
+    validate = Mock(side_effect=error)
+    monkeypatch.setattr(Application, "validate", validate)
+    post = Mock()
+    monkeypatch.setattr("iam.api.client.http_post", post)
+    with pytest.raises(ValueError) as caught:
+        getattr(permission(), method)(["view_business"])
+    assert caught.value is error
+    validate.assert_called_once()
+    post.assert_not_called()
 
 
 @pytest.mark.parametrize("ok,url", [(False, ""), (True, "https://iam.example.test/apply/")])

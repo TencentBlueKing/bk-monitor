@@ -1,12 +1,16 @@
-"""Execute the actual Celery task locally, never dispatch to a broker."""
+"""Offline task routing, in-memory messaging and frozen authorization retries."""
 
+from contextlib import nullcontext
 from unittest.mock import Mock, patch
 
 import pytest
 from celery.exceptions import Retry
+from celery import Celery, current_app
+from django.conf import settings
 from django.test import override_settings
 
-from bkmonitor.iam.tasks.grant import grant_v4_creator_action
+from bkmonitor.iam.tasks.grant import _backend_grant_app, grant_v4_creator_action
+from config.celery.backend import get_backend_celery_broker_config
 from iam_engine.exceptions import ProviderError, ProviderUnavailable
 
 
@@ -78,23 +82,26 @@ def test_commit_callback_does_not_dispatch_after_switch_to_v3(grant, monkeypatch
     dispatch.assert_not_called()
 
 
-@pytest.mark.parametrize("eager", [False, True])
-def test_grant_dispatch_is_broker_queued_even_for_eager_api(grant, eager):
+def test_web_grant_stays_on_saas_default_queue(grant):
     from bkmonitor.iam.tasks.grant import dispatch_v4_creator_grant
 
     app = grant_v4_creator_action.app
     previous = app.conf.task_always_eager
-    app.conf.task_always_eager = eager
+    app.conf.task_always_eager = False
     try:
-        with patch.object(app, "send_task") as send, patch.object(grant_v4_creator_action, "run") as run:
+        with (
+            patch.object(app, "send_task") as send,
+            patch.object(grant_v4_creator_action, "run") as run,
+            patch("bkmonitor.iam.tasks.grant._backend_grant_app") as backend,
+        ):
             dispatch_v4_creator_grant(grant[2])
         send.assert_called_once()
         assert send.call_args.args[0] == grant_v4_creator_action.name
-        sent_kwargs = send.call_args.kwargs["kwargs"] if eager else send.call_args.args[2]
-        assert sent_kwargs == grant[2]
-        assert send.call_args.kwargs["queue"] == "celery_cron"
+        assert send.call_args.args[2] == grant[2]
+        assert not send.call_args.kwargs.get("queue")
+        backend.assert_not_called()
         run.assert_not_called()
-        assert app.conf.task_always_eager is eager
+        assert app.conf.task_always_eager is False
     finally:
         app.conf.task_always_eager = previous
 
@@ -104,8 +111,16 @@ def test_eager_api_retry_preserves_delay_and_frozen_payload(grant):
     previous = app.conf.task_always_eager
     app.conf.task_always_eager = True
     try:
-        with patch.object(app, "send_task") as send:
-            grant_v4_creator_action.apply_async(kwargs=grant[2], countdown=60)
+        with _backend_grant_app() as backend:
+            with (
+                patch("bkmonitor.iam.tasks.grant._backend_grant_app", return_value=nullcontext(backend)),
+                patch.object(backend, "send_task") as send,
+                patch.object(app, "send_task") as saas_send,
+                patch.object(grant_v4_creator_action, "run") as run,
+            ):
+                grant_v4_creator_action.apply_async(kwargs=grant[2], countdown=60)
+            saas_send.assert_not_called()
+            run.assert_not_called()
         assert send.call_args.kwargs["countdown"] == 60
         assert send.call_args.kwargs["kwargs"] is grant[2]
         assert send.call_args.kwargs["queue"] == "celery_cron"
@@ -113,14 +128,21 @@ def test_eager_api_retry_preserves_delay_and_frozen_payload(grant):
         app.conf.task_always_eager = previous
 
 
-def test_worker_real_retry_requeues_with_backoff_and_frozen_request(grant):
+@pytest.mark.parametrize("queue", ["celery", "celery_cron"])
+def test_worker_real_retry_requeues_on_original_delivery_route(grant, queue):
     _, client, data = grant
     client.add_authorization.side_effect = ProviderUnavailable("offline timeout")
     app = grant_v4_creator_action.app
     previous = app.conf.task_always_eager
     app.conf.task_always_eager = False
     grant_v4_creator_action.push_request(
-        id="offline-grant", retries=1, called_directly=False, is_eager=False, args=(), kwargs=data, delivery_info={}
+        id="offline-grant",
+        retries=1,
+        called_directly=False,
+        is_eager=False,
+        args=(),
+        kwargs=data,
+        delivery_info={"exchange": "", "routing_key": queue},
     )
     try:
         with patch.object(app, "send_task") as send:
@@ -129,11 +151,114 @@ def test_worker_real_retry_requeues_with_backoff_and_frozen_request(grant):
         assert send.call_args.args[2] == data
         assert send.call_args.kwargs["countdown"] == 60
         assert send.call_args.kwargs["retries"] == 2
-        assert send.call_args.kwargs["queue"] == "celery_cron"
+        assert send.call_args.kwargs["queue"] == queue
         assert client.add_authorization.call_count == 1
     finally:
         grant_v4_creator_action.pop_request()
         app.conf.task_always_eager = previous
+
+
+@pytest.mark.parametrize("cluster_name", [None, "cluster-a"])
+@override_settings(
+    RABBITMQ_HOST="backend.example.test",
+    RABBITMQ_PORT=5673,
+    RABBITMQ_VHOST="backend-vhost",
+    RABBITMQ_USER="backend-user",
+    RABBITMQ_PASS="password@with:reserved",
+)
+def test_api_producer_uses_worker_broker_configuration(monkeypatch, cluster_name):
+    cluster = Mock(name=cluster_name)
+    cluster.name = cluster_name
+    cluster.is_default.return_value = cluster_name is None
+    monkeypatch.setattr("config.celery.backend.get_cluster", lambda: cluster)
+    current = current_app._get_current_object()
+    with _backend_grant_app() as backend:
+        expected = get_backend_celery_broker_config()
+        assert backend.conf.broker_url == expected["broker_url"]
+        assert backend.conf.broker_transport_options == expected["broker_transport_options"]
+        with backend.connection_for_write() as connection:
+            assert connection.hostname == "backend.example.test"
+            assert connection.port == 5673
+            assert connection.virtual_host == "backend-vhost"
+            assert connection.userid == "backend-user"
+            assert connection.password == "password@with:reserved"
+        route = backend.amqp.router.route({"queue": "celery_cron"}, grant_v4_creator_action.name)
+        assert route["queue"].name == "celery_cron"
+        assert route["queue"].exchange.name == "celery_cron"
+        if cluster_name:
+            assert expected["broker_transport_options"] == {"queue_name_prefix": "cluster-a-"}
+        else:
+            assert expected["broker_transport_options"] == {}
+    assert current_app._get_current_object() is current
+
+
+@pytest.mark.parametrize("eager", [False, True])
+def test_real_celery_publication_can_be_consumed_from_selected_queue(grant, monkeypatch, eager):
+    """Real Celery/Kombu message roundtrip; memory transport, not a live worker."""
+    from bkmonitor.iam.tasks import grant as module
+
+    with Celery("offline-saas", broker="memory://", set_as_current=False) as saas, _backend_grant_app() as backend:
+        backend.conf.broker_url = "memory://"
+        saas.conf.update(task_always_eager=eager, task_serializer="pickle", accept_content=["pickle"])
+        monkeypatch.setattr(module, "_backend_grant_app", lambda: nullcontext(backend))
+        task = saas.tasks[grant_v4_creator_action.name]
+        target_app = backend if eager else saas
+        queue_name = "celery_cron" if eager else saas.conf.task_default_queue
+        queue = target_app.amqp.queues[queue_name]
+        with target_app.connection_for_write() as connection:
+            bound = queue(connection)
+            bound.declare()
+            bound.purge()
+            task.apply_async(kwargs=grant[2])
+            message = bound.get(accept=["pickle"])
+            assert message is not None
+            assert message.headers["task"] == task.name
+            _, kwargs, _ = message.payload
+            assert kwargs == grant[2]
+            assert kwargs["expired_at"] == 1893456000
+            message.ack()
+            # The receiving app has the task registered, not just a matching queue.
+            received_task = target_app.tasks[message.headers["task"]]
+            received_task.push_request(
+                id=message.headers["id"],
+                retries=1,
+                called_directly=False,
+                is_eager=False,
+                args=(),
+                kwargs=kwargs,
+                delivery_info=message.delivery_info,
+            )
+            try:
+                grant[1].add_authorization.side_effect = ProviderUnavailable("offline timeout")
+                with pytest.raises(Retry):
+                    received_task.run(**kwargs)
+            finally:
+                received_task.pop_request()
+            retry_message = bound.get(accept=["pickle"])
+            assert retry_message is not None
+            assert retry_message.headers["retries"] == 2
+            assert retry_message.headers["eta"] is not None
+            assert retry_message.delivery_info["routing_key"] == message.delivery_info["routing_key"]
+            assert retry_message.payload[1] == kwargs
+            retry_message.ack()
+        grant[1].add_authorization.assert_called_once_with(items=grant[2]["payload"], operator="alice")
+
+
+@pytest.mark.skipif(settings.ROLE != "worker", reason="requires isolated Worker settings/bootstrap")
+def test_real_backend_worker_and_api_producer_share_delivery_config():
+    previous = current_app._get_current_object()
+    try:
+        from alarm_backends.service.scheduler.app import app as worker
+
+        with _backend_grant_app() as producer:
+            assert producer.conf.broker_url == worker.conf.broker_url
+            assert producer.conf.broker_transport_options == worker.conf.broker_transport_options
+            assert producer.amqp.queues["celery_cron"].as_dict() == worker.amqp.queues["celery_cron"].as_dict()
+            task = worker.tasks[grant_v4_creator_action.name]
+            assert task.app is worker
+            assert not task.app.conf.task_always_eager
+    finally:
+        previous.set_current()
 
 
 def test_transient_failure_retries_with_backoff(grant):
