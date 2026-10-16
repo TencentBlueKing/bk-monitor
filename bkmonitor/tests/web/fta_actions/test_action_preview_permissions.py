@@ -15,6 +15,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from bkmonitor.documents import AlertDocument, EventDocument
 from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.action import canonicalize_action_id
 from constants.action import ActionStatus
 from core.errors.alert import AlertNotFoundError
 from core.errors.iam import PermissionDeniedError
@@ -24,18 +25,17 @@ from fta_web.action.views import ActionInstanceViewSet
 
 @pytest.mark.parametrize("allowed_action", [ActionEnum.VIEW_RULE, ActionEnum.MANAGE_EVENT, ActionEnum.MANAGE_RULE])
 def test_preview_requires_manage_rule(mocker, allowed_action):
-    def is_allowed(action, **kwargs):
-        if action != allowed_action:
-            raise PermissionDeniedError(action_name=action.name)
-        return True
-
     mocker.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True)
-    mocker.patch("bkmonitor.iam.drf.Permission").return_value.is_allowed.side_effect = is_allowed
+    permission = mocker.patch("bkmonitor.iam.drf.Permission").return_value
+    permission.prepare_apply_for_saas.return_value = ([], [])
+    permission._is_allowed_request.side_effect = lambda query: query.action_id == canonicalize_action_id(allowed_action.id)
+    permission._apply_data_request.return_value = {}
+    permission._apply_url_request.return_value = ""
     view = ActionInstanceViewSet()
     view.action = "preview_demo_action_context"
     request = SimpleNamespace(
         biz_id=2,
-        user=SimpleNamespace(tenant_id="default"),
+        user=SimpleNamespace(username="operator", tenant_id="default"),
         method="POST",
         query_params={},
         data={"bk_biz_id": 2},
@@ -115,14 +115,17 @@ def test_event_operator_can_read_manual_action_result(mocker):
         return True
 
     mocker.patch("bkmonitor.iam.drf.is_biz_in_tenant", return_value=True)
-    mocker.patch("bkmonitor.iam.drf.Permission").return_value.is_allowed.side_effect = is_allowed
+    drf_permission = mocker.patch("bkmonitor.iam.drf.Permission").return_value
+    drf_permission._is_allowed_request.side_effect = lambda query: query.action_id in {canonicalize_action_id(a.id) for a in allowed_actions}
+    drf_permission._apply_data_request.return_value = {}
+    drf_permission._apply_url_request.return_value = ""
     permission = mocker.patch.object(frontend_resources, "Permission").return_value.is_allowed_by_biz
     permission.side_effect = lambda bk_biz_id, action, **kwargs: is_allowed(action)
     action = SimpleNamespace(bk_biz_id=2, status=ActionStatus.SUCCESS, get_content=lambda: {"result": "done"})
     mocker.patch.object(frontend_resources.ActionInstance.objects, "get", return_value=action)
     request = SimpleNamespace(
         biz_id=2,
-        user=SimpleNamespace(tenant_id="default"),
+        user=SimpleNamespace(username="operator", tenant_id="default"),
         method="POST",
         data={"bk_biz_id": 2},
         query_params={},

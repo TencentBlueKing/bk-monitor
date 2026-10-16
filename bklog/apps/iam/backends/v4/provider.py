@@ -13,7 +13,7 @@ from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID, BklogNameCod
 from apps.iam.backends.v4.concurrency import map_chunks_concurrently
 from apps.iam.backends.v4.config import V4Options, normalize_batch_chunk_size, normalize_batch_max_workers
 from apps.iam.backends.v4.exceptions import V4ClientError
-from apps.iam.iam_engine.core.requests import (
+from iam_engine.core.requests import (
     ActionDefinition,
     AuthRequest,
     BatchAuthRequest,
@@ -22,8 +22,8 @@ from apps.iam.iam_engine.core.requests import (
     ResourceTypeDefinition,
     to_definition_id,
 )
-from apps.iam.iam_engine.core.types import AuthResult, AuthorizedResourceScope, BatchAuthResult, BatchAuthResultItem
-from apps.iam.iam_engine.provider.base import PermissionProvider
+from iam_engine.core.types import AuthResult, AuthorizedResourceScope, BatchAuthResult, BatchAuthResultItem
+from iam_engine.provider.base import PermissionProvider
 
 
 WILDCARD_RESOURCE_ID = "*"

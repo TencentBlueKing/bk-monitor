@@ -448,6 +448,11 @@ def _apply_guide(client, spec, resource, request):
     result = {"permission": application.to_dict()}
     error_type = "InvalidResponse"
     try:
+        get_apply_data = getattr(client, "get_apply_data", None)
+        if callable(get_apply_data):
+            data = get_apply_data(application)
+            if isinstance(data, dict) and data:
+                result["permission"] = data
         ok, _, url = client.get_apply_url(application)
         if ok and isinstance(url, str) and url:
             result["apply_url"] = url

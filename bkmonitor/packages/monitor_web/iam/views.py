@@ -12,10 +12,16 @@ import abc
 import operator
 from functools import reduce
 
+from django.conf import settings
 from django.db.models import Q, QuerySet
+from typing import Any
+from iam import Resource
+from bkmonitor.utils.cache import lru_cache_with_ttl
+from bkm_space.utils import api as space_api
+from bkm_space.utils import bk_biz_id_to_space_uid
 from iam import DjangoQuerySetConverter
 from iam.resource.provider import ListResult, ResourceProvider
-from iam.contrib.django.dispatcher import DjangoBasicResourceApiDispatcher
+from iam_engine.v4.callback import V3ResourceApiDispatcher
 
 from apm_web.models import Application
 from bk_dataview.api import get_org_by_id, get_org_by_name
@@ -23,6 +29,8 @@ from bk_dataview.models import Dashboard, Org
 from bkm_space.define import SpaceTypeEnum
 from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import ResourceEnum
+from bkmonitor.iam.resource import Business
+from bkmonitor.iam.mode import get_mode_provider
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import resource
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
@@ -62,7 +70,10 @@ class ExternalViewSet(ResourceViewSet):
     ]
 
 
-class ResourceApiDispatcher(DjangoBasicResourceApiDispatcher):
+class ResourceApiDispatcher(V3ResourceApiDispatcher):
+    def __init__(self, iam, system):
+        super().__init__(iam, system, mode_loader=lambda: get_mode_provider().get_mode())
+
     def _get_options(self, request):
         options = super()._get_options(request)
         if not options.get("bk_tenant_id"):
@@ -71,6 +82,10 @@ class ResourceApiDispatcher(DjangoBasicResourceApiDispatcher):
 
 
 class BaseResourceProvider(ResourceProvider, metaclass=abc.ABCMeta):
+    @classmethod
+    def create_simple_instance(cls, instance_id, attribute=None):
+        return Resource(cls.system_id, cls.id, str(instance_id), attribute)
+
     def list_attr(self, **options):
         return ListResult(results=[], count=0)
 
@@ -79,27 +94,42 @@ class BaseResourceProvider(ResourceProvider, metaclass=abc.ABCMeta):
 
 
 class ApmApplicationProvider(BaseResourceProvider):
+    resource_type = "apm_application"
+
+    @staticmethod
+    def get_queryset():
+        return Application.objects
+
     def list_instance(self, filter, page, **options):
         bk_tenant_id = options["bk_tenant_id"]
-        queryset = []
+        tenant_queryset = self.get_queryset().filter(bk_tenant_id=bk_tenant_id)
+        queryset = tenant_queryset.none()
         with_path = False
         if not (filter.parent or filter.search or filter.resource_type_chain):
-            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
+            queryset = tenant_queryset.all()
         elif filter.parent:
             parent_id = filter.parent["id"]
             if parent_id:
-                queryset = Application.objects.filter(bk_biz_id=parent_id)
+                queryset = tenant_queryset.filter(bk_biz_id=parent_id)
         elif filter.search and filter.resource_type_chain:
             # 返回结果需要带上资源拓扑路径信息
             with_path = True
 
-            keywords = filter.search.get("apm_application", [])
+            keywords = filter.search.get(self.resource_type, [])
 
             q_filter = Q()
             for keyword in keywords:
                 q_filter |= Q(app_alias__icontains=keyword) | Q(app_name__icontains=keyword)
 
-            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).filter(q_filter)
+            queryset = tenant_queryset.filter(q_filter)
+
+        if options.get("include_resource_metadata"):
+            with_path = True
+            if filter.parent and filter.search:
+                q_filter = Q()
+                for keyword in filter.search.get(self.resource_type, []):
+                    q_filter |= Q(app_alias__icontains=keyword) | Q(app_name__icontains=keyword)
+                queryset = queryset.filter(q_filter)
 
         if not with_path:
             results = [
@@ -130,20 +160,29 @@ class ApmApplicationProvider(BaseResourceProvider):
     def fetch_instance_info(self, filter, **options):
         ids = []
         if filter.ids:
-            ids = [int(i) for i in filter.ids]
+            for identity in filter.ids:
+                try:
+                    ids.append(int(identity))
+                except (TypeError, ValueError):
+                    if not options.get("include_resource_metadata"):
+                        raise
 
-        queryset = Application.objects.filter(pk__in=ids, bk_tenant_id=options["bk_tenant_id"])
+        queryset = self.get_queryset().filter(pk__in=ids, bk_tenant_id=options["bk_tenant_id"])
 
         results = [{"id": str(item.pk), "display_name": item.app_alias} for item in queryset]
+        if options.get("include_resource_metadata"):
+            for result, item in zip(results, queryset):
+                result["name"] = item.app_name
+                result["_bk_iam_path_"] = f"/space,{item.bk_biz_id}/"
         return ListResult(results=results, count=queryset.count())
 
     def list_instance_by_policy(self, filter, page, **options):
         bk_tenant_id = options["bk_tenant_id"]
         if not filter.parent or "id" not in filter.parent:
-            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
+            queryset = self.get_queryset().filter(bk_tenant_id=bk_tenant_id).all()
         else:
             parent_id = filter.parent.get("id")
-            queryset = Application.objects.filter(bk_biz_id=parent_id)
+            queryset = self.get_queryset().filter(bk_tenant_id=bk_tenant_id, bk_biz_id=parent_id)
 
         if filter.keyword:
             queryset = queryset.filter(app_alias__icontains=filter.keyword)
@@ -157,10 +196,10 @@ class ApmApplicationProvider(BaseResourceProvider):
     def search_instance(self, filter, page, **options):
         bk_tenant_id = options["bk_tenant_id"]
         if not filter.parent or "id" not in filter.parent:
-            queryset = Application.objects.filter(bk_tenant_id=bk_tenant_id).all()
+            queryset = self.get_queryset().filter(bk_tenant_id=bk_tenant_id).all()
         else:
             parent_id = filter.parent.get("id")
-            queryset = Application.objects.filter(bk_biz_id=parent_id)
+            queryset = self.get_queryset().filter(bk_tenant_id=bk_tenant_id, bk_biz_id=parent_id)
 
         if filter.keyword:
             queryset = queryset.filter(app_alias__icontains=filter.keyword)
@@ -170,6 +209,81 @@ class ApmApplicationProvider(BaseResourceProvider):
             for item in queryset[page.slice_from : page.slice_to]
         ]
         return ListResult(results=results, count=queryset.count())
+
+    system_id = settings.BK_IAM_SYSTEM_ID
+    id = "apm_application"
+
+    @classmethod
+    def create_instance_by_info(cls, item: dict) -> Resource:
+        instance_id = item["application_id"]
+        bk_biz_id = str(item["bk_biz_id"])
+        resource = super().create_simple_instance(
+            instance_id=instance_id,
+            attribute={
+                "id": instance_id,
+                "name": item["app_name"],
+                "bk_biz_id": bk_biz_id,
+                "_bk_iam_path_": f"/{Business.id},{bk_biz_id}/",
+            },
+        )
+        return resource
+
+    @classmethod
+    @lru_cache_with_ttl(maxsize=128, ttl=60 * 60, decision_to_drop_func=lambda v: v is None)
+    def _get_app_simple_info_by_id_or_none(cls, application_id: str) -> dict[str, Any] | None:
+        """获取应用概要信息，不存在则返回 None。
+        应用概要信息不会修改，此处给 60 min 的内存缓存，以提高整体鉴权性能。
+        :param application_id: 应用 ID
+        :return:
+        """
+        return (
+            cls.get_queryset()
+            .filter(application_id=application_id)
+            .values("application_id", "app_name", "bk_biz_id")
+            .first()
+        )
+
+    @classmethod
+    def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
+        resource = super().create_simple_instance(instance_id, attribute)
+        app_simple_info: dict[str, Any] | None = cls._get_app_simple_info_by_id_or_none(instance_id)
+        if app_simple_info is None:
+            return resource
+
+        resource.attribute = {
+            "id": str(instance_id),
+            "name": app_simple_info["app_name"],
+            "bk_biz_id": str(app_simple_info["bk_biz_id"]),
+            "_bk_iam_path_": "/{},{}/".format(Business.id, app_simple_info["bk_biz_id"]),
+        }
+        return resource
+
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]) -> dict[str, str]:
+        if not instance_ids:
+            return {}
+        qs = cls.get_queryset().filter(application_id__in=instance_ids).values("application_id", "app_name")
+        return {str(row["application_id"]): row["app_name"] for row in qs}
+
+    @classmethod
+    def batch_get_parent(cls, instance_ids: set[str]) -> dict[str, str]:
+        if not instance_ids:
+            return {}
+        qs = cls.get_queryset().filter(application_id__in=instance_ids).values("application_id", "bk_biz_id")
+        return {str(row["application_id"]): str(row["bk_biz_id"]) for row in qs if row["bk_biz_id"] is not None}
+
+
+class RumApplicationProvider(ApmApplicationProvider):
+    resource_type = "rum_application"
+
+    @staticmethod
+    def get_queryset():
+        from rum_web.models.application import Application as RumApplication
+
+        return RumApplication.objects
+
+    system_id = settings.BK_IAM_SYSTEM_ID
+    id = "rum_application"
 
 
 class SpaceQuerySetConverter(DjangoQuerySetConverter):
@@ -230,7 +344,12 @@ class SpaceProvider(BaseResourceProvider):
     def fetch_instance_info(self, filter, **options):
         conditions = []
         for bk_biz_id in filter.ids:
-            bk_biz_id = int(bk_biz_id)
+            try:
+                bk_biz_id = int(bk_biz_id)
+            except (TypeError, ValueError):
+                if not options.get("include_resource_metadata"):
+                    raise
+                continue
             if bk_biz_id >= 0:
                 conditions.append(Q(space_type_id=SpaceTypeEnum.BKCC.value) & Q(space_id=bk_biz_id))
             else:
@@ -243,6 +362,9 @@ class SpaceProvider(BaseResourceProvider):
             reduce(operator.or_, conditions), bk_tenant_id=options["bk_tenant_id"]
         )
         results = self.generate_resources(queryset)
+        if options.get("include_resource_metadata"):
+            for item in results:
+                item["_bk_iam_path_"] = f"/space,{item['id']}/"
         return ListResult(results=results, count=queryset.count())
 
     def list_instance_by_policy(self, filter, page, **options):
@@ -264,6 +386,99 @@ class SpaceProvider(BaseResourceProvider):
         )
         results = self.generate_resources(queryset[page.slice_from : page.slice_to])
         return ListResult(results=results, count=queryset.count())
+
+    system_id = settings.BK_IAM_SYSTEM_ID
+    id = "space"
+
+    @classmethod
+    def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
+        """
+        创建简单资源实例
+        :param instance_id: 实例ID
+        :param attribute: 属性kv对
+        """
+
+        # 注意，此处 instance_id 有可能是 bk_biz_id，或者是space_uid，需要做统一转换
+        try:
+            bk_biz_id = int(instance_id)
+        except Exception:  # pylint: disable=broad-except
+            bk_biz_id = None
+
+        try:
+            if bk_biz_id is None:
+                space = space_api.SpaceApi.get_space_detail(space_uid=instance_id)
+            else:
+                space = space_api.SpaceApi.get_space_detail(space_uid=bk_biz_id_to_space_uid(bk_biz_id))
+            bk_biz_id = str(space_uid_to_bk_biz_id(space_uid=space.space_uid, id=space.id))
+            space_name = f"[{space.space_type_id}] {space.space_name}"
+        except Exception:  # pylint: disable=broad-except:
+            bk_biz_id = str(instance_id)
+            space_name = instance_id
+
+        attribute = attribute or {}
+        attribute.update({"id": bk_biz_id, "name": space_name})
+        return Resource(cls.system_id, cls.id, bk_biz_id, attribute)
+
+    @classmethod
+    def create_instance(cls, instance_id: str, attribute=None) -> Resource:
+        resource = cls.create_simple_instance(instance_id, attribute)
+        return resource
+
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]) -> dict[str, str]:
+        """返回 {bk_biz_id: "[空间类型中文] 空间名"}。
+
+        注意 instance_id 是 bk_biz_id 字符串，与 metadata.Space 的映射规则如下
+        （见 bkm_space.utils.space_uid_to_bk_biz_id / Space.get_bk_biz_id）：
+          - CMDB 业务(bkcc): bk_biz_id = int(Space.space_id)，为正数；
+          - 其他类型空间: bk_biz_id = -Space.pk，为负数。
+        因此需要按正/负数分别用不同字段回查；并且正数分支必须限定
+        space_type_id=bkcc，避免与其他类型下同值 space_id 的记录发生串扰。
+        """
+        from metadata.models import Space, SpaceType
+        from metadata.models.space.constants import SpaceTypes
+
+        if not instance_ids:
+            return {}
+
+        positive_ids: set[str] = set()
+        negative_pks: set[int] = set()
+        for raw in instance_ids:
+            try:
+                v = int(raw)
+            except (TypeError, ValueError):
+                continue
+            if v > 0:
+                positive_ids.add(str(v))
+            elif v < 0:
+                negative_pks.add(-v)
+
+        if not positive_ids and not negative_pks:
+            return {}
+
+        # 空间类型中文名映射（type_id -> type_name），用于拼接展示名前缀。
+        type_name_map = dict(SpaceType.objects.values_list("type_id", "type_name"))
+
+        result: dict[str, str] = {}
+
+        if positive_ids:
+            # CMDB 业务：以 space_id 反查，必须限定 bkcc 类型避免串扰。
+            qs = Space.objects.filter(
+                space_type_id=SpaceTypes.BKCC.value,
+                space_id__in=positive_ids,
+            ).values("space_id", "space_type_id", "space_name")
+            for row in qs:
+                type_display = type_name_map.get(row["space_type_id"], row["space_type_id"])
+                result[str(row["space_id"])] = f"[{type_display}] {row['space_name']}"
+
+        if negative_pks:
+            # 非 CMDB 空间：以主键 pk 反查，bk_biz_id = -pk。
+            qs = Space.objects.filter(id__in=negative_pks).values("id", "space_type_id", "space_name")
+            for row in qs:
+                type_display = type_name_map.get(row["space_type_id"], row["space_type_id"])
+                result[str(-row["id"])] = f"[{type_display}] {row['space_name']}"
+
+        return result
 
 
 class GrafanaDashboardProvider(BaseResourceProvider):
@@ -340,7 +555,7 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             }
 
             # 添加拓扑路径
-            if filter.resource_type_chain:
+            if filter.resource_type_chain or options.get("include_resource_metadata"):
                 org_id = item["org_id"]
                 if org_id not in org_map:
                     org_map[org_id] = item.get("org") or get_org_by_id(org_id)
@@ -362,6 +577,8 @@ class GrafanaDashboardProvider(BaseResourceProvider):
     def fetch_instance_info(self, filter, **options):
         """获取实例信息 - 支持目录和仪表盘"""
         results = []
+        metadata = options.get("include_resource_metadata", False)
+        instances = {}
         dashboard_uids = []
         folder_queries = []  # (instance_id, folder_id)
 
@@ -390,10 +607,15 @@ class GrafanaDashboardProvider(BaseResourceProvider):
         # 查询真实 folder
         if folder_queries:
             folder_id_list = [fid for _, fid in folder_queries]
-            folders = Dashboard.objects.filter(id__in=folder_id_list, is_folder=True)
+            folders = self.filter_by_options(Dashboard.objects.filter(id__in=folder_id_list, is_folder=True), options)
             folder_map = {f.id: f for f in folders}
             for instance_id, folder_id in folder_queries:
                 if folder_id in folder_map:
+                    if metadata:
+                        org_id = instance_id[len(self.FOLDER_PREFIX) :].partition("|")[0]
+                        if org_id != str(folder_map[folder_id].org_id):
+                            continue
+                        instances[instance_id] = folder_map[folder_id]
                     results.append(
                         {
                             "id": instance_id,
@@ -418,6 +640,10 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             for instance_id, uid in dashboard_uids:
                 if uid in dashboard_map:
                     d = dashboard_map[uid]
+                    if metadata:
+                        if "|" in instance_id and instance_id.partition("|")[0] != str(d.org_id):
+                            continue
+                        instances[instance_id] = d
                     folder_id = d.folder_id if d.folder_id else self.GENERAL_FOLDER_ID
                     folder_name = folder_names.get(folder_id, self.GENERAL_FOLDER_NAME)
                     results.append(
@@ -426,6 +652,15 @@ class GrafanaDashboardProvider(BaseResourceProvider):
                             "display_name": f"[仪表盘] {folder_name}/{d.title}",
                         }
                     )
+
+        if metadata:
+            org_names = {
+                org.id: org.name for org in Org.objects.filter(id__in={item.org_id for item in instances.values()})
+            }
+            for item in results:
+                model = instances[item["id"]]
+                if model.org_id in org_names:
+                    item["_bk_iam_path_"] = f"/space,{org_names[model.org_id]}/"
 
         return ListResult(results=results, count=len(results))
 
@@ -519,3 +754,106 @@ class GrafanaDashboardProvider(BaseResourceProvider):
             )
 
         return folder_results, dashboard_results
+
+    system_id = settings.BK_IAM_SYSTEM_ID
+    id = "grafana_dashboard"
+
+    @classmethod
+    def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
+        resource = super().create_simple_instance(instance_id, attribute)
+        dashboard = Dashboard.objects.filter(uid=instance_id).only("uid", "title", "org_id").first()
+        if not dashboard:
+            return resource
+
+        org = get_org_by_id(dashboard.org_id)
+        if not org:
+            return resource
+
+        resource.attribute = {
+            "id": str(instance_id),
+            "name": dashboard.title,
+            "bk_biz_id": org["name"],
+            "_bk_iam_path_": "/{},{}/".format(Business.id, org["name"]),
+        }
+        return resource
+
+    @classmethod
+    def batch_get_display_names(cls, instance_ids: set[str]) -> dict[str, str]:
+        """返回 {instance_id: display_name}。
+
+        instance_id 只有两种形态：
+          - Dashboard: "{org_id}|{uid}"
+          - Folder:    "folder:{org_id}|{folder_id}"
+
+        展示名与权限中心侧 GrafanaDashboardProvider 保持一致：
+          - Folder:    "[目录] {folder_title}"
+          - Dashboard: "[仪表盘] {folder_title}/{dashboard_title}"
+                       dashboard.folder_id=0 或对应 folder 查不到时，
+                       folder_title 兜底为 "General"（Grafana 虚拟目录）。
+        """
+        if not instance_ids:
+            return {}
+
+        # 在解析阶段就建立 uid/folder_id 到 raw_id 列表的反查映射，
+        # 避免后续在数据库结果与 instance_ids 之间做 O(N*M) 的双层循环匹配。
+        uid_to_raw_ids: dict[str, list[str]] = {}
+        folder_id_to_raw_ids: dict[int, list[str]] = {}
+        for raw_id in instance_ids:
+            prefix, sep, suffix = raw_id.partition("|")
+            if not sep:
+                continue
+            if prefix.startswith("folder:"):
+                try:
+                    folder_id_to_raw_ids.setdefault(int(suffix), []).append(raw_id)
+                except (ValueError, TypeError):
+                    continue
+            else:
+                if suffix:
+                    uid_to_raw_ids.setdefault(suffix, []).append(raw_id)
+
+        result: dict[str, str] = {}
+
+        # Dashboard 分支：额外拼上所在 folder 的名称（folder_id=0 或查不到时兜底为 General）
+        if uid_to_raw_ids:
+            dashboards = list(
+                Dashboard.objects.filter(uid__in=uid_to_raw_ids.keys()).values("uid", "title", "folder_id")
+            )
+            # folder_id=0 直接兜底为 General，不查库；只查真实的 folder_id
+            need_folder_ids = {d["folder_id"] for d in dashboards if d["folder_id"]}
+            folder_title_map: dict[int, str] = {}
+            if need_folder_ids:
+                folder_title_map = dict(
+                    Dashboard.objects.filter(id__in=need_folder_ids, is_folder=1).values_list("id", "title")
+                )
+            for d in dashboards:
+                folder_name = folder_title_map.get(d["folder_id"], cls.GENERAL_FOLDER_NAME)
+                display_name = f"[仪表盘] {folder_name}/{d['title']}"
+                for raw_id in uid_to_raw_ids.get(d["uid"], []):
+                    result[raw_id] = display_name
+
+        # Folder 分支：直接加 [目录] 前缀
+        if folder_id_to_raw_ids:
+            for row in Dashboard.objects.filter(id__in=folder_id_to_raw_ids.keys(), is_folder=1).values("id", "title"):
+                for raw_id in folder_id_to_raw_ids.get(row["id"], []):
+                    result[raw_id] = f"[目录] {row['title']}"
+
+        return result
+
+    @classmethod
+    def batch_get_parent(cls, instance_ids: set[str]) -> dict[str, str]:
+        if not instance_ids:
+            return {}
+
+        org_ids: set[int] = set()
+        id_to_org: dict[str, int] = {}
+        for raw_id in instance_ids:
+            try:
+                prefix = raw_id.split("|")[0]
+                org_id = int(prefix.replace("folder:", ""))
+                org_ids.add(org_id)
+                id_to_org[raw_id] = org_id
+            except (ValueError, IndexError):
+                continue
+
+        org_map = dict(Org.objects.filter(id__in=org_ids).values_list("id", "name"))
+        return {raw_id: str(org_map[oid]) for raw_id, oid in id_to_org.items() if oid in org_map}

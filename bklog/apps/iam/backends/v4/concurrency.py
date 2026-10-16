@@ -8,8 +8,7 @@ from __future__ import annotations
 # ---------------------------------------------------------------------------
 
 from collections.abc import Callable, Sequence
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import partial
+from iam_engine.concurrency import map_chunks_concurrently as _map_chunks
 from typing import TypeVar
 
 from apps.iam.concurrency import bind_current_context
@@ -28,18 +27,4 @@ def map_chunks_concurrently(
 
     max_workers <= 1 时串行执行，便于对照与调试。
     """
-    if not chunks:
-        return []
-    if max_workers <= 1 or len(chunks) == 1:
-        return [worker(chunk) for chunk in chunks]
-
-    workers = min(max_workers, len(chunks))
-    results: list[R | None] = [None] * len(chunks)
-    with ThreadPoolExecutor(max_workers=workers) as executor:
-        future_to_index = {
-            executor.submit(bind_current_context(partial(worker, chunk))): index for index, chunk in enumerate(chunks)
-        }
-        for future in as_completed(future_to_index):
-            index = future_to_index[future]
-            results[index] = future.result()
-    return results  # type: ignore[return-value]
+    return _map_chunks(chunks, worker, bind=bind_current_context, max_workers=max_workers)

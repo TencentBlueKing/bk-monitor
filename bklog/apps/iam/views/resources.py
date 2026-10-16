@@ -33,11 +33,15 @@ from iam import PathEqDjangoQuerySetConverter, make_expression, ObjectSet, Djang
 from iam.eval.constants import KEYWORD_BK_IAM_PATH_FIELD_SUFFIX, OP
 from iam.resource.provider import ResourceProvider, ListResult
 
-from iam.contrib.django.dispatcher import DjangoBasicResourceApiDispatcher
+from iam_engine.v4.callback import V3ResourceApiDispatcher
+from apps.iam.mode import get_mode_provider
 from django.conf import settings
 
 
-class ResourceApiDispatcher(DjangoBasicResourceApiDispatcher):
+class ResourceApiDispatcher(V3ResourceApiDispatcher):
+    def __init__(self, iam, system):
+        super().__init__(iam, system, mode_loader=lambda: get_mode_provider().get_mode())
+
     def _get_options(self, request):
         options = super()._get_options(request)
         options["bk_tenant_id"] = request.META.get("HTTP_X_BK_TENANT_ID", settings.BK_APP_TENANT_ID)
@@ -52,8 +56,83 @@ class BaseResourceProvider(ResourceProvider, metaclass=abc.ABCMeta):
         return ListResult(results=[], count=0)
 
 
+class SpaceResourceProvider(BaseResourceProvider):
+    """V4 cross-system space proxy reads only the BKLog local Space snapshot."""
+
+    @staticmethod
+    def get_instance_attributes(instance_id):
+        from apps.log_search.models import SpaceType
+
+        try:
+            int(instance_id)
+            lookup = {"bk_biz_id": instance_id}
+        except Exception:
+            lookup = {"space_uid": instance_id}
+        try:
+            space = Space.objects.get(**lookup)
+            return {
+                "id": str(space.bk_biz_id),
+                "name": f"[{SpaceType.get_name_by_id(space.space_type_id)}] {space.space_name}",
+            }
+        except Exception:
+            return {"id": str(instance_id), "name": instance_id}
+
+    @staticmethod
+    def _require_tenant_id(options):
+        tenant = str(options.get("bk_tenant_id") or "").strip()
+        if settings.ENABLE_MULTI_TENANT_MODE and not tenant:
+            raise ValueError("bk_tenant_id is required for the space provider")
+        return tenant or settings.BK_APP_TENANT_ID
+
+    @staticmethod
+    def _to_result_item(space):
+        return {
+            "id": str(space["bk_biz_id"]),
+            "display_name": f"[{space['space_type_name']}] {space['space_name']}",
+        }
+
+    def list_instance(self, filter, page, **options):
+        spaces, count = Space.get_spaces_page(
+            self._require_tenant_id(options),
+            offset=page.slice_from,
+            limit=page.slice_to - page.slice_from,
+            keywords=(filter.search.get("space", []) or []) if filter.search else [],
+        )
+        return ListResult(results=[self._to_result_item(space) for space in spaces], count=count)
+
+    def fetch_instance_info(self, filter, **options):
+        tenant = self._require_tenant_id(options)
+        if not filter.ids:
+            return ListResult(results=[], count=0)
+        spaces = Space.get_spaces_by_bk_biz_ids(tenant, filter.ids)
+        results = [self._to_result_item(space) for space in spaces]
+        for item in results:
+            # There is no stable local approver field; do not invent approvers.
+            item["_bk_iam_approvers_"] = []
+        return ListResult(results=results, count=len(results))
+
+    def search_instance(self, filter, page, **options):
+        raise NotImplementedError
+
+    def list_instance_by_policy(self, filter, page, **options):
+        raise NotImplementedError
+
+
 class CollectionResourceProvider(BaseResourceProvider):
     ENABLE_MULTI_TENANT_MODE = settings.ENABLE_MULTI_TENANT_MODE
+
+    @staticmethod
+    def get_instance_attributes(instance_id):
+        # Original V3 resource construction is an unscoped primary-key lookup,
+        # not callback enumeration. Keep its absence/error contract intact.
+        try:
+            item = CollectorConfig.objects.get(pk=instance_id)
+        except CollectorConfig.DoesNotExist:
+            return {}
+        return {
+            "id": str(instance_id), "name": item.collector_config_name,
+            "bk_biz_id": str(item.bk_biz_id), "_bk_iam_path_": f"/space,{item.bk_biz_id}/",
+        }
 
     def get_bk_tenant_objects(self, queryset: QuerySet, bk_tenant_id: str):
         if self.ENABLE_MULTI_TENANT_MODE:
@@ -87,6 +166,15 @@ class CollectionResourceProvider(BaseResourceProvider):
 
             queryset = CollectorConfig.objects.filter(q_filter)
             queryset = self.get_bk_tenant_objects(queryset, options["bk_tenant_id"])
+
+        if options.get("include_resource_metadata"):
+            with_path = True
+            queryset = self.get_bk_tenant_objects(queryset, options["bk_tenant_id"])
+            if filter.parent and filter.search:
+                q_filter = Q()
+                for keyword in filter.search.get("collection", []):
+                    q_filter |= Q(collector_config_name__icontains=keyword)
+                queryset = queryset.filter(q_filter)
 
         if not with_path:
             results = [
@@ -126,6 +214,9 @@ class CollectionResourceProvider(BaseResourceProvider):
             {"id": str(item.pk), "display_name": item.collector_config_name, "_bk_iam_approver_": item.created_by}
             for item in queryset
         ]
+        if options.get("include_resource_metadata"):
+            for result, item in zip(results, queryset):
+                result["_bk_iam_path_"] = f"/space,{item.bk_biz_id}/"
         return ListResult(results=results, count=queryset.count())
 
     def list_instance_by_policy(self, filter, page, **options):
@@ -177,6 +268,26 @@ class CollectionResourceProvider(BaseResourceProvider):
 
 
 class EsSourceResourceProvider(BaseResourceProvider):
+    @staticmethod
+    def query_clusters(**filters):
+        return TransferApi.get_cluster_info(filters)
+
+    @classmethod
+    def get_instance_attributes(cls, instance_id):
+        try:
+            result = cls.query_clusters(cluster_id=instance_id)
+            if not result:
+                return {}
+            config = result[0]["cluster_config"]
+            name = config.get("display_name") or config["cluster_name"]
+            biz_id = config["custom_option"].get("bk_biz_id", 0)
+        except Exception:
+            return {}
+        return {
+            "id": str(instance_id), "name": name,
+            "bk_biz_id": str(biz_id), "_bk_iam_path_": f"/space,{biz_id}/",
+        }
+
     @classmethod
     def list_clusters(cls, bk_tenant_id):
         """
@@ -213,7 +324,7 @@ class EsSourceResourceProvider(BaseResourceProvider):
         #     }
         # ]
 
-        clusters = TransferApi.get_cluster_info({"cluster_type": STORAGE_CLUSTER_TYPE, "no_request": True})
+        clusters = cls.query_clusters(cluster_type=STORAGE_CLUSTER_TYPE, no_request=True)
         # 过滤非内置集群，且业务ID不为空的集群
         clusters = [
             {
@@ -259,6 +370,12 @@ class EsSourceResourceProvider(BaseResourceProvider):
                         filtered_clusters.append(cluster)
             clusters = filtered_clusters
 
+        if options.get("include_resource_metadata"):
+            with_path = True
+            if filter.parent and filter.search:
+                keywords = filter.search.get("es_source", [])
+                clusters = [c for c in clusters if any(k.lower() in c["display_name"].lower() for k in keywords)]
+
         if not with_path:
             results = [
                 {"id": item["id"], "display_name": item["display_name"]}
@@ -297,6 +414,11 @@ class EsSourceResourceProvider(BaseResourceProvider):
             {"id": item["id"], "display_name": item["display_name"], "_bk_iam_approver_": item["owner"]}
             for item in clusters
         ]
+        if options.get("include_resource_metadata"):
+            if not filter.ids:
+                return ListResult(results=[], count=0)
+            for result, item in zip(results, clusters):
+                result["_bk_iam_path_"] = item["_bk_iam_path_"]
         return ListResult(results=results, count=len(clusters))
 
     def list_instance_by_policy(self, filter, page, **options):
@@ -353,6 +475,18 @@ class EsSourceResourceProvider(BaseResourceProvider):
 class IndicesResourceProvider(BaseResourceProvider):
     ENABLE_MULTI_TENANT_MODE = settings.ENABLE_MULTI_TENANT_MODE
 
+    @staticmethod
+    def get_instance_attributes(instance_id):
+        try:
+            item = LogIndexSet.objects.get(pk=instance_id)
+        except LogIndexSet.DoesNotExist:
+            return {}
+        biz_id = str(space_uid_to_bk_biz_id(item.space_uid))
+        return {
+            "id": str(instance_id), "name": item.index_set_name,
+            "bk_biz_id": biz_id, "_bk_iam_path_": f"/space,{biz_id}/",
+        }
+
     class PathInDjangoQuerySetConverter(DjangoQuerySetConverter):
         def operator_map(self, operator, field, value):
             if field.endswith(KEYWORD_BK_IAM_PATH_FIELD_SUFFIX) and operator == OP.STARTS_WITH:
@@ -386,6 +520,16 @@ class IndicesResourceProvider(BaseResourceProvider):
             if self.ENABLE_MULTI_TENANT_MODE:
                 space_uid_list = Space.get_space_uid_list(bk_tenant_id)
                 queryset = queryset.filter(space_uid__in=space_uid_list)
+
+        if options.get("include_resource_metadata"):
+            with_path = True
+            if self.ENABLE_MULTI_TENANT_MODE:
+                queryset = queryset.filter(space_uid__in=Space.get_space_uid_list(bk_tenant_id))
+            if filter.parent and filter.search:
+                q_filter = Q()
+                for keyword in filter.search.get("indices", []):
+                    q_filter |= Q(index_set_name__icontains=keyword)
+                queryset = queryset.filter(q_filter)
 
         if not with_path:
             results = [
@@ -424,12 +568,18 @@ class IndicesResourceProvider(BaseResourceProvider):
         queryset = LogIndexSet.objects.filter(pk__in=ids)
         if self.ENABLE_MULTI_TENANT_MODE:
             space_uid_list = Space.get_space_uid_list(options["bk_tenant_id"])
-            queryset.filter(space_uid__in=space_uid_list)
+            if options.get("include_resource_metadata"):
+                queryset = queryset.filter(space_uid__in=space_uid_list)
+            else:
+                queryset.filter(space_uid__in=space_uid_list)
 
         results = [
             {"id": str(item.pk), "display_name": item.index_set_name, "_bk_iam_approver_": item.created_by}
             for item in queryset
         ]
+        if options.get("include_resource_metadata"):
+            for result, item in zip(results, queryset):
+                result["_bk_iam_path_"] = f"/space,{space_uid_to_bk_biz_id(item.space_uid)}/"
         return ListResult(results=results, count=queryset.count())
 
     def list_instance_by_policy(self, filter, page, **options):
