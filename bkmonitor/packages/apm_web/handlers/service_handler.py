@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import copy
 import logging
+import time
 from collections import defaultdict
 from typing import Any
 
@@ -87,7 +88,9 @@ class ServiceHandler:
         return service_map
 
     @classmethod
-    def list_services(cls, application: Application | dict[str, Any]) -> list[dict[str, Any]]:
+    def list_services(
+        cls, application: Application | dict[str, Any], *, include_data_status: bool = False
+    ) -> list[dict[str, Any]]:
         """获取拓扑服务、组件及尚未发现的手动自定义服务。"""
         if isinstance(application, dict):
             bk_biz_id = application["bk_biz_id"]
@@ -128,7 +131,46 @@ class ServiceHandler:
                 }
             )
 
+        if include_data_status:
+            app = Application(**application) if isinstance(application, dict) else application
+            data_status_mapping = cls.build_service_data_status(app, services)
+            services = [{**node, "data_status": data_status_mapping[node["topo_key"]]} for node in services]
+
         return services
+
+    @classmethod
+    def build_service_data_status(cls, app: Application, nodes: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+        """按模块开关、服务心跳及关联日志生成当前数据状态。"""
+        if not nodes:
+            return {}
+
+        # 在无数据周期之外容忍一个 10 分钟发现周期。
+        earliest_data_at = int(time.time()) - (app.no_data_period + 10) * 60
+        status_mapping: dict[str, dict[str, str]] = {}
+        for node in nodes:
+            heartbeat = node.get("heartbeat") or {}
+            status = {}
+            for data_type in TelemetryDataType:
+                if not getattr(app, f"is_enabled_{data_type.value}"):
+                    status[data_type.value] = DataStatus.DISABLED
+                    continue
+
+                last_data_at = (heartbeat.get(data_type.value) or {}).get("last_data_at")
+                status[data_type.value] = (
+                    DataStatus.NORMAL
+                    if last_data_at is not None and last_data_at >= earliest_data_at
+                    else DataStatus.NO_DATA
+                )
+            status_mapping[node["topo_key"]] = status
+
+        log_services = [
+            name for name, status in status_mapping.items() if status[TelemetryDataType.LOG.value] == DataStatus.NO_DATA
+        ]
+        if log_services:
+            for name in ServiceLogHandler.list_available_related_services(app, log_services):
+                status_mapping[name][TelemetryDataType.LOG.value] = DataStatus.NORMAL
+
+        return status_mapping
 
     @classmethod
     def generate_remote_service_name(cls, name, category="http"):
