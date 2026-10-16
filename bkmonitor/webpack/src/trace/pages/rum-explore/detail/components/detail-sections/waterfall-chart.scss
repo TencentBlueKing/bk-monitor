@@ -131,10 +131,9 @@
       .waterfall-markers-wrap {
         position: absolute;
         top: 0;
-        left: 0;
-        width: 100%;
+        left: 200px;
+        width: calc(100% - 200px);
         height: 100%;
-        padding: 0 16px 0 200px;
 
         .marker-columns {
           position: relative;

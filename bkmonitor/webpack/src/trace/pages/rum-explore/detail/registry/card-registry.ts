@@ -105,6 +105,7 @@ const vitalCard = (): IRumCardDescriptor => (data, ctx) => {
     {
       label: metric,
       value: text(formatValue),
+      hover: data.hover,
       unit: { text: unit, tone: ratingToneMap[hitRating] },
       tone: ratingToneMap[hitRating],
       cardCls: `vital-card ${ratingToneMap[hitRating]}`,

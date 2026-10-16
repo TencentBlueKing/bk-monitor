@@ -13,11 +13,21 @@ def test_notice_variable_catalog_exposes_query_reference_values():
     variables = next(group["items"] for group in groups if group["group"] == "ALARM_VAR")
     by_name = {variable["name"]: variable for variable in variables}
 
-    assert by_name["alarm.ref_values"]["example"] == DEMO_CONTEXT["alarm"]["ref_values"]
-    for field, default in (("value", "--"), ("state", "MISSING")):
-        name = f'alarm.ref_values.get("A", {{}}).get("{field}", "{default}")'
-        variable = by_name[name]
-        assert Jinja2Renderer.render("{{ " + name + " }}", DEMO_CONTEXT) == str(variable["example"])
+    assert "alarm.ref_values" not in by_name
+    assert by_name["alarm.ref_values.a.value"]["example"] == "4"
+    assert by_name["alarm.ref_values.a.state"]["example"] == "SUCCESS"
+    assert not any("ref_values.get" in name for name in by_name)
+
+
+def preview_config():
+    return {
+        "response_contract": "named_outputs/v1",
+        "legacy_output_ref": "RESULT",
+        "output_list": [
+            {"reference_name": name, "expression": expression}
+            for name, expression in (("A", "a"), ("B", "b"), ("C", "c"), ("RESULT", "a + b"))
+        ],
+    }
 
 
 @pytest.fixture
@@ -29,9 +39,11 @@ def preview(monkeypatch):
         lambda: [{"type": way, "label": way, "is_active": True} for way in notice_ways],
     )
 
-    def render(template):
+    def render(template, **params):
         with translation.override("zh-hans"):
-            result = frontend_resources.RenderNoticeTemplate().perform_request({"template": template})
+            result = frontend_resources.RenderNoticeTemplate().perform_request(
+                {"template": template, "query_output_config": preview_config(), **params}
+            )
         assert len(result) == len(notice_ways)
         assert all(len(channel["messages"]) == 2 for channel in result)
         return [{"channel": channel["type"], **message} for channel in result for message in channel["messages"]]
@@ -42,17 +54,14 @@ def preview(monkeypatch):
 @pytest.mark.parametrize(
     ("template", "expected"),
     [
-        ("{{ alarm.ref_values }}", "SUCCESS"),
         (
-            'A={{ alarm.ref_values.get("A", {}).get("value", "--") }};'
-            'B={{ alarm.ref_values.get("B", {}).get("value", "--") }};'
-            'C={{ alarm.ref_values.get("C", {}).get("value", "--") }};'
-            'RESULT={{ alarm.ref_values.get("RESULT", {}).get("value", "--") }}',
+            "A={{ alarm.ref_values.a.value }};"
+            "B={{ alarm.ref_values.b.value }};"
+            "C={{ alarm.ref_values.c.value }};"
+            "RESULT={{ alarm.ref_values.result.value }}",
             "A=4;B=6;C=9;RESULT=10",
         ),
-        ('{{ alarm.ref_values.get("A", {}).get("state", "MISSING") }}', "SUCCESS"),
-        ('{{ alarm.ref_values.get("UNKNOWN", {}).get("value", "--") }}', "--"),
-        ('{{ alarm.ref_values.get("UNKNOWN", {}).get("state", "MISSING") }}', "MISSING"),
+        ("{{ alarm.ref_values.a.state }}", "SUCCESS"),
         ("current={{ alarm.current_value }}", "current=10"),
         ("{{ content.level }}", "致命"),
     ],
@@ -80,6 +89,27 @@ def test_notice_preview_keeps_reference_examples_read_only(preview):
 
 def test_demo_reference_values_preserve_missing_value_fallback():
     assert (
-        Jinja2Renderer.render('{{ alarm.ref_values.get("A", {}).get("value", "--") }}', {"alarm": {"ref_values": {}}})
+        Jinja2Renderer.render(
+            "{{ alarm.ref_values.a.value }}",
+            {"alarm": {"ref_values": {}}, "_query_output_config": preview_config()},
+        )
         == "--"
     )
+
+
+@pytest.mark.parametrize(
+    "template", ["{{alarm.ref_values}}", "{{alarm.ref_values.UNKNOWN.value}}", '{{alarm.ref_values.get("A")}}']
+)
+def test_preview_rejects_unconfigured_or_non_static_references(preview, template):
+    assert all(message["error"] for message in preview(template))
+
+
+def test_preview_does_not_grant_fixed_demo_names_without_config(preview):
+    assert all(message["error"] for message in preview("{{alarm.ref_values.A.value}}", query_output_config=None))
+
+
+def test_preview_accepts_custom_configured_names(preview):
+    config = preview_config()
+    config["output_list"][0]["reference_name"] = "ErrorRate"
+    for message in preview("{{alarm.ref_values.errorrate.state}}", query_output_config=config):
+        assert not message["error"]

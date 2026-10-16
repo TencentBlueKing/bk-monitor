@@ -20,6 +20,10 @@ Text = str | Promise
 Source = tuple[Text, str]
 
 RESOURCE_TIMING_SOURCE: Source = (_("W3C · Resource Timing"), "https://www.w3.org/TR/resource-timing/")
+SERVICE_WORKER_SOURCE: Source = (
+    _("W3C · Service Worker respondWith"),
+    "https://w3c.github.io/ServiceWorker/#fetch-event-respondwith",
+)
 NAVIGATION_TIMING_SOURCE: Source = (
     _("W3C · Navigation Timing Level 2"),
     "https://www.w3.org/TR/navigation-timing-2/",
@@ -53,11 +57,47 @@ def _hover(
 
 
 RESOURCE_PHASE_HOVERS: dict[str, Hover] = {
+    "total": _hover(
+        _("总耗时"),
+        _("从请求开始到收到响应最后一个字节的总时长。"),
+        user_experience=_("从这次请求开始，到浏览器收完全部内容为止。"),
+        source=RESOURCE_TIMING_SOURCE,
+    ),
+    "redirect": _hover(
+        _("重定向"),
+        _("服务器返回 3xx 和新地址后，浏览器立即请求新地址，可能经过多次跳转，每次都多一次往返。"),
+        user_experience=_("浏览器正在按服务器给出的新地址重新请求。"),
+        source=RESOURCE_TIMING_SOURCE,
+    ),
     "prepare": _hover(
         _("发起前等待"),
-        _("资源进入 DNS 查询前的准备阶段，可能包含重定向、Service Worker、缓存或连接复用等浏览器处理。"),
+        _("资源进入 DNS 查询前的准备阶段，可能包含 Service Worker、缓存或连接复用等浏览器处理。"),
         user_experience=_("浏览器正在确定资源来源和请求方式，尚未开始接收内容。"),
         source=RESOURCE_TIMING_SOURCE,
+    ),
+    "queueing": _hover(
+        _("[资源调度] 正在排队"),
+        _("请求在连接开始前被排入队列，原因可能是有更高优先级的请求，或者同一来源的连接数已满。"),
+        user_experience=_("浏览器正在排队，等待处理这次请求。"),
+        source=RESOURCE_TIMING_SOURCE,
+    ),
+    "sw_startup": _hover(
+        _("[ServiceWorker] 启动"),
+        _("浏览器启动 Service Worker，以便由它处理这次请求。"),
+        user_experience=_("浏览器正在启动 Service Worker。"),
+        source=RESOURCE_TIMING_SOURCE,
+    ),
+    "sw_request": _hover(
+        _("[ServiceWorker] 发送请求"),
+        _("浏览器把请求发送给 Service Worker 处理。"),
+        user_experience=_("浏览器正在把请求发送给 Service Worker。"),
+        source=RESOURCE_TIMING_SOURCE,
+    ),
+    "sw_respond_with": _hover(
+        _("[ServiceWorker] respondWith"),
+        _("Service Worker 拦截请求后自行提供响应，例如读缓存或访问网络。"),
+        user_experience=_("Service Worker 正在处理请求，浏览器在等它交回响应。"),
+        source=SERVICE_WORKER_SOURCE,
     ),
     "dns": _hover(
         _("DNS 查询"),

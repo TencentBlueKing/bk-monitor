@@ -2,6 +2,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from pytest_django.fixtures import SettingsWrapper
 
 from apm.core.discover.profile.service import ServiceDiscover as ProfileDiscover
 from apm.models import ProfileService, TopoNode
@@ -65,7 +66,7 @@ def test_profile_limit_result_only_updates_observed_services() -> None:
     assert unknown.heartbeat == {"profiling": {"last_data_at": 50, "checked_at": 60}}
 
 
-def test_profile_node_is_reused_by_metric_and_service_list(settings) -> None:
+def test_profile_node_is_reused_by_metric_and_service_list(settings: SettingsWrapper) -> None:
     settings.USE_TZ = False
     template = {"kind": "service", "category": "other", "predicate_value": "", "service_language": ""}
     TopoNode.upsert_telemetry_nodes(2, "app", "profiling", {"demo"}, template)
@@ -77,7 +78,8 @@ def test_profile_node_is_reused_by_metric_and_service_list(settings) -> None:
     assert node.source == ["profiling", "metric"]
     assert node.extra_data == template
     assert node.heartbeat == {"profiling": {"last_data_at": 100, "checked_at": 110}}
-    result = ServiceHandler._combine_profile_trace_service(
-        [{"topo_key": node.topo_key, "extra_data": node.extra_data}], [{"name": "demo"}]
-    )
+    with mock.patch.object(
+        ServiceHandler, "list_nodes", return_value=[{"topo_key": node.topo_key, "extra_data": node.extra_data}]
+    ):
+        result = ServiceHandler.list_services({"bk_biz_id": 2, "app_name": "app"})
     assert result == [{"topo_key": "demo", "extra_data": template}]

@@ -6,6 +6,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN dnf install -y curl vim gcc gcc-c++ python3-devel make
 
 COPY . /app/code
+# The BKLog-only build context must materialize shared symlinks (cp -RL / tar -h).
+# Fail at build time rather than deploy a broken runtime import.
+RUN test -f /app/code/iam_engine/core/config.py
 
 WORKDIR /app
 

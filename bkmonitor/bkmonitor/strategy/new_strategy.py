@@ -2970,9 +2970,31 @@ class Strategy(AbstractConfig):
         for action in self.actions:
             action.save()
 
+    def validate_notice_ref_values(self):
+        from bkmonitor.utils.template_ref_values import (
+            RefValueTemplateError,
+            output_references,
+            validate_ref_value_template,
+        )
+
+        templates = self.notice.config.get("template", [])
+        contents = [template.get(field, "") for template in templates for field in ("title_tmpl", "message_tmpl")]
+        if not any("ref_values" in content for content in contents):
+            return
+        names_by_item = [
+            output_references(item.get("query_output_config")) for item in self.get_history_content()["items"]
+        ]
+        for names in names_by_item or [[]]:
+            for content in contents:
+                try:
+                    validate_ref_value_template(content, names)
+                except RefValueTemplateError as error:
+                    raise ValidationError(detail=str(error)) from error
+
     @transaction.atomic
     def save_notice(self, rollback=False):
         """保存actions配置."""
+        self.validate_notice_ref_values()
         self.reuse_exists_records(
             RelationModel,
             RelationModel.objects.filter(strategy_id=self.id, relate_type=RelationModel.RelateType.NOTICE).only("id"),
@@ -2986,6 +3008,7 @@ class Strategy(AbstractConfig):
     @transaction.atomic
     def bulk_save_notice(self, relations, action_configs):
         """保存actions配置,循环结束后批量创建或更新."""
+        self.validate_notice_ref_values()
         self.reuse_exists_records(
             RelationModel,
             relations.get(self.id),

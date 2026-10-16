@@ -28,6 +28,7 @@ import { type PropType, computed, defineComponent, shallowRef } from 'vue';
 import { Sideslider } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import { LLM_DETAIL_SLIDER_Z_INDEX } from '../../constants';
 import { parseOutputObservation } from '../utils/parse-output';
 import { LLM_SEARCH_SECTION } from '../utils/search';
 import CollapseSection from './collapse-section';
@@ -177,6 +178,7 @@ export default defineComponent({
             isShow={true}
             quickClose={true}
             transfer={true}
+            zIndex={LLM_DETAIL_SLIDER_Z_INDEX}
             onClosed={closeDetail}
             onHidden={closeDetail}
             onUpdate:isShow={(val: boolean) => {

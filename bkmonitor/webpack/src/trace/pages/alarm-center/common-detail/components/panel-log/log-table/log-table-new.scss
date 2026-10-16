@@ -2,6 +2,14 @@
 .alarm-detail-log-table-new {
   position: relative;
 
+  .alarm-detail-log-table-scroll-loading {
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    margin: 8px auto 0;
+    color: #979ba5;
+  }
+
   .t-table__content {
     /* 纵向交给详情页滚动（无限加载），横向走原生滚动条才能拖动 */
     overflow: auto hidden;

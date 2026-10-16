@@ -30,6 +30,7 @@ import { OverflowTitle } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { checkIsRoot } from '../../utils';
+import { edgeRelationLabel, isDirectedEdge } from '../edge-relation';
 import { NODE_TYPE_ICON } from '../node-type-svg';
 import { canJumpByType, getApmServiceType, handleToLink } from '../utils';
 import MetricView from './metric-view';
@@ -125,13 +126,12 @@ export default defineComponent({
     };
 
     /**
-     * 为调用关系则创建流动线
+     * 为有向关系创建流动线
      * 线根据direction 渲染不同的流动方向
-     * ebpfCall为true表示调用关系，反之为从属关系
      */
     const createEdgeLink = () => {
-      const { is_anomaly, edge_type, events } = props.activeEdge;
-      const ebpfCall = edge_type === 'ebpf_call';
+      const { is_anomaly, events } = props.activeEdge;
+      const directedRelation = isDirectedEdge(props.activeEdge);
       const directionReverse = events[0]?.direction === 'reverse';
       /** 流动线创建 */
       const renderSvg = () => {
@@ -143,7 +143,7 @@ export default defineComponent({
               xmlns='http://www.w3.org/2000/svg'
             >
               <line
-                class={{ 'flowing-dash': ebpfCall }}
+                class={{ 'flowing-dash': directedRelation }}
                 stroke='#f55555'
                 stroke-dasharray='5,5'
                 stroke-width='2'
@@ -167,10 +167,10 @@ export default defineComponent({
             'node-link',
             !is_anomaly && 'node-link-normal',
             directionReverse && 'reverse-node-link',
-            ebpfCall && 'edpf-link-arrow',
+            directedRelation && 'edpf-link-arrow',
           ]}
         >
-          {ebpfCall && is_anomaly && renderSvg()}
+          {directedRelation && is_anomaly && renderSvg()}
         </div>
       );
     };
@@ -191,6 +191,7 @@ export default defineComponent({
     };
     return {
       renderEdgeInfo,
+      relationLabel: computed(() => edgeRelationLabel(props.activeEdge, t)),
       t,
     };
   },
@@ -198,10 +199,13 @@ export default defineComponent({
     return (
       <div class='edge-wrap'>
         <div class='edge-info'>{this.renderEdgeInfo()}</div>
-        <SnapshotAnalysisInfo analysis={this.activeEdge?.graph_analysis} scores={this.activeEdge?.properties?.scores} />
-        {this.activeEdge?.properties?.relation && (
-          <div>{this.t('关系类型')}：{this.activeEdge.properties.relation}</div>
-        )}
+        <SnapshotAnalysisInfo
+          analysis={this.activeEdge?.graph_analysis}
+          scores={this.activeEdge?.properties?.scores}
+        />
+        <div>
+          {this.t('关系类型')}：{this.relationLabel}
+        </div>
         <div class='edge-metrics'>
           <div class='edge-metrics_title'>{this.t('指标')}</div>
           <div class='edge-metrics_main'>

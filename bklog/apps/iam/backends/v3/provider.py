@@ -12,9 +12,9 @@ from apps.iam import metrics
 from apps.iam.backends.v3.apply import V3ApplicationBuilder
 from apps.iam.backends.v3.codec import V3RequestCodec
 from apps.iam.backends.v3.scope import V3AuthorizedScopeQuery
-from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance
-from apps.iam.iam_engine.core.types import AuthorizedResourceScope, AuthResult, BatchAuthResult, BatchAuthResultItem
-from apps.iam.iam_engine.provider.base import PermissionProvider
+from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance
+from iam_engine.core.types import AuthorizedResourceScope, AuthResult, BatchAuthResult, BatchAuthResultItem
+from iam_engine.provider.base import PermissionProvider
 
 
 class V3PermissionProvider(PermissionProvider):

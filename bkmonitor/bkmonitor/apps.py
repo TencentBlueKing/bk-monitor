@@ -48,8 +48,6 @@ class Config(AppConfig):
             if settings.ROLE == "worker":
                 CacheNode.refresh_from_settings()
 
-        # 注册iam migrate信号
-        post_migrate.connect(_migrate_iam, sender=self, dispatch_uid="bkmonitor iam")
         # Open 只在业务显式授权时换票；每次启动时确保断开框架的登录换票信号。
         if settings.RUN_VER == "open":
             patch_bkoauth_update_user_access_token()
@@ -100,17 +98,6 @@ def _refresh_cache_node(sender, **kwargs):
     from bkmonitor.models import CacheNode
 
     CacheNode.refresh_from_settings()
-
-
-def _migrate_iam(sender, **kwargs):
-    if settings.SKIP_IAM_PERMISSION_CHECK:
-        return
-
-    from bkmonitor.migrate import Migrator
-
-    if settings.RUN_MODE == "DEVELOP":
-        return
-    Migrator("iam", "bkmonitor.iam.migrations").migrate()
 
 
 def _register_builtin_templates(sender, **kwargs):

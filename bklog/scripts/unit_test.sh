@@ -2,7 +2,7 @@ SCRIPT_PATH=$(dirname "$0")
 rm -rf /tmp/bk_log
 mkdir -p /tmp/bk_log/test_unit/
 
-cp -r $SCRIPT_PATH/../ /tmp/bk_log/test_unit/
+cp -RL $SCRIPT_PATH/../ /tmp/bk_log/test_unit/
 cd /tmp/bk_log/test_unit/
 source scripts/test_env.sh
 pip install -r requirements_dev.txt
