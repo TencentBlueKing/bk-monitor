@@ -30,7 +30,6 @@ from apm_web.profile.active_collection.constants import (
     BKMONITORBEAT_RELATIVE_PATH,
     BUILTIN_EVENT_GROUP_NAME,
     BUILTIN_PROFILE_SERVICE_NAME,
-    BUILTIN_PROFILING_APP_NAME,
     DEPLOYMENT_STATUS_FAILED,
     DEPLOYMENT_STATUS_SUCCESS,
     EVENT_CONTENT_SCHEMA_VERSION,
@@ -45,6 +44,7 @@ from apm_web.profile.doris.querier import APIType
 from bkmonitor.data_source.unify_query.builder import QueryConfigBuilder, UnifyQuerySet
 from bkmonitor.utils.custom_report_tools import custom_report_tool
 from bkmonitor.utils.request import get_request_tenant_id
+from constants.apm import BUILTIN_PROFILING_APP_NAME
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from monitor_web.data_explorer.event.resources import EventTopKResource
@@ -381,8 +381,8 @@ class ActiveProfilingNodeManHandler(ActiveProfilingDeployMixin):
                     "type": "PLUGIN",
                     "config": {
                         "plugin_name": "bkmonitorbeat",
-                        # TODO: 测试包写死 0.0.3，正式发布前改回 latest
-                        "plugin_version": "0.0.3",
+                        # TODO: 测试包写死 0.0.4，正式发布前改回 latest
+                        "plugin_version": "0.0.4",
                         "config_templates": [{"name": ACTIVE_PROFILE_CONFIG_TEMPLATE_NAME, "version": "latest"}],
                     },
                     "params": {"context": {"host_tasks": host_tasks}},

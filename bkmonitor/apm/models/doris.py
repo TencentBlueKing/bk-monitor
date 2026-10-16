@@ -23,13 +23,12 @@ from pypinyin import lazy_pinyin
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
-from constants.apm import normalize_app_name
+from constants.apm import BUILTIN_PROFILING_APP_NAME, normalize_app_name
 from metadata.models.data_link.constants import (
     DataLinkKind,
     DataLinkResourceStatus,
     MATCH_DATA_NAME_PATTERN,
 )
-from apm_web.profile.active_collection.constants import BUILTIN_PROFILING_APP_NAME
 
 if TYPE_CHECKING:
     from .datasource import ApmDataSourceConfigBase, ProfileDataSource  # noqa

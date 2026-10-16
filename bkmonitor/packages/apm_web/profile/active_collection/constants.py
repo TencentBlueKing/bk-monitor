@@ -8,8 +8,8 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-# 内置资源只建后台数据源，不写 apm_web 应用表与 monitor_web 自定义事件表，对用户不可见
-BUILTIN_PROFILING_APP_NAME = "active_profiling_builtin_allocation_source"
+from constants.apm import BUILTIN_PROFILING_APP_NAME as BUILTIN_PROFILING_APP_NAME
+
 BUILTIN_PROFILE_SERVICE_NAME = "active_allocation"
 BUILTIN_EVENT_GROUP_NAME = "active_profiling_builtin_events"
 BUILTIN_EVENT_GROUP_LABEL = "application_check"

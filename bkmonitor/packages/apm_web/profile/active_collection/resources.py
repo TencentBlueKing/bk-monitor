@@ -24,7 +24,6 @@ from apm_web.profile.active_collection.constants import (
     BKMONITORBEAT_RELATIVE_PATH,
     BUILTIN_EVENT_GROUP_LABEL,
     BUILTIN_EVENT_GROUP_NAME,
-    BUILTIN_PROFILING_APP_NAME,
     CANCEL_EXECUTION_SCRIPT,
     DEPLOYMENT_STATUS_DEPLOYING,
     DEPLOYMENT_STATUS_EXPIRED,
@@ -76,6 +75,7 @@ from apm_web.profile.doris.converter import DorisProfileConverter
 from apm_web.profile.resources import QueryServicesDetailResource
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.user import get_request_username
+from constants.apm import BUILTIN_PROFILING_APP_NAME
 from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
 from core.errors.api import BKAPIError
