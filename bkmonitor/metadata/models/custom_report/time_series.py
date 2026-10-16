@@ -33,6 +33,7 @@ from bkmonitor.utils.db.fields import JsonField
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
+from metadata.builtin_metrics import SYSTEM_BASE_DATA_ID, SYSTEM_BASE_METRIC_UNITS
 from metadata.models.constants import (
     BULK_CREATE_BATCH_SIZE,
     BULK_UPDATE_BATCH_SIZE,
@@ -1989,16 +1990,36 @@ class TimeSeriesMetric(models.Model):
         return list(tags)
 
     @classmethod
-    def build_new_metric_config(cls, field_name: str) -> dict:
+    def build_new_metric_config(cls, field_name: str, default_units: dict | None = None) -> dict:
         """新发现指标的初始配置
 
         SDK 会把含中文等非法字符的指标名编码成 base62 标识符上报，查询必须继续使用编码后的名字，
         这里把解码出的原始名回填成别名，让各展示入口都能拿到可读的指标名。
         """
+        field_config = {}
         original_name = decode_metric_identifier(field_name)
-        if original_name == field_name:
+        if original_name != field_name:
+            field_config["alias"] = original_name
+        if default_units and field_name in default_units:
+            field_config["unit"] = default_units[field_name]
+        return field_config
+
+    @classmethod
+    def get_builtin_metric_units(cls, group: TimeSeriesGroup) -> dict:
+        if group.bk_data_id != SYSTEM_BASE_DATA_ID:
             return {}
-        return {"alias": original_name}
+        units = SYSTEM_BASE_METRIC_UNITS.copy()
+        # Preserve units configured through the legacy result-table fields.
+        units.update(
+            ResultTableField.objects.filter(
+                bk_tenant_id=group.bk_tenant_id,
+                table_id=group.table_id,
+                field_name__in=units,
+            )
+            .exclude(unit="")
+            .values_list("field_name", "unit")
+        )
+        return units
 
     @classmethod
     def _bulk_create_metrics(
@@ -2008,6 +2029,7 @@ class TimeSeriesMetric(models.Model):
         group_id: int,
         table_id: str,
         is_auto_discovery: bool,
+        default_units: dict | None = None,
     ) -> bool:
         """批量创建指标"""
         records = []
@@ -2029,7 +2051,7 @@ class TimeSeriesMetric(models.Model):
                 "field_scope": field_scope,
                 "scope_id": metric_info.get("scope_id"),
                 "is_active": True,  # 新创建的指标在返回列表中，标记为活跃
-                "field_config": cls.build_new_metric_config(field_name),
+                "field_config": cls.build_new_metric_config(field_name, default_units),
             }
             logger.info("create ts metric data: %s", json.dumps(params))
             records.append(cls(**params))
@@ -2045,6 +2067,7 @@ class TimeSeriesMetric(models.Model):
         need_update_metrics: list | set,
         group_id: int,
         is_auto_discovery: bool,
+        default_units: dict | None = None,
     ) -> bool:
         """批量更新指标，针对记录仅更新最后更新时间和 tag 字段"""
         records = []
@@ -2100,7 +2123,14 @@ class TimeSeriesMetric(models.Model):
             if obj.scope_id == cls.DISABLE_SCOPE_ID:
                 is_need_update = True
                 obj.scope_id = metric_info.get("scope_id")
-                obj.field_config = cls.build_new_metric_config(obj.field_name)
+                field_config = cls.build_new_metric_config(obj.field_name, default_units)
+                if default_units and obj.field_name in default_units:
+                    # Builtin metrics retain custom display settings when rediscovered.
+                    field_config.update(obj.field_config or {})
+                    field_config.pop("disabled", None)
+                    if not field_config.get("unit"):
+                        field_config["unit"] = default_units[obj.field_name]
+                obj.field_config = field_config
 
             # 更新 is_active 字段：指标在返回列表中，标记为活跃
             if not obj.is_active:
@@ -2207,17 +2237,18 @@ class TimeSeriesMetric(models.Model):
 
         table_id = group.table_id
         is_auto_discovery = group.is_auto_discovery()
+        default_units = cls.get_builtin_metric_units(group)
         # NOTE: 针对创建或者时间变动时，推送路由数据
         need_push_router = False
         # 如果存在，则批量创建
         if need_create_metrics:
             need_push_router = cls._bulk_create_metrics(
-                _metrics_dict, need_create_metrics, group_id, table_id, is_auto_discovery
+                _metrics_dict, need_create_metrics, group_id, table_id, is_auto_discovery, default_units
             )
         # 批量更新
         if need_update_metrics:
             need_push_router |= cls._bulk_update_metrics(
-                _metrics_dict, need_update_metrics, group_id, is_auto_discovery
+                _metrics_dict, need_update_metrics, group_id, is_auto_discovery, default_units
             )
 
         # 处理不在返回列表中的已存在指标，设置为非活跃

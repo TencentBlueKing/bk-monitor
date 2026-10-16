@@ -121,7 +121,11 @@ export default defineComponent({
     const originData = computed(() => detail.value?.origin_data || {});
     const { getField, formatField, copyText, resolveCtx } = useDetailFormatter(toRef(props, 'fields'), originData);
     const { headerVM } = useDetailOverview(detail, spanType, formatField, getField);
-    const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading);
+    const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading, {
+      switchTab: tab => {
+        activeTab.value = tab;
+      },
+    });
     const { blocks, eventKeyword } = useOriginData(originData, toRef(props, 'fields'));
 
     const isXhrOrFetch = computed(() => {
@@ -159,6 +163,14 @@ export default defineComponent({
         childContext.value = null;
         /** 嵌套抽屉被替换成另一个 Span 时，与首次打开一致展示基础信息 */
         if (props.nested) activeTab.value = RumDetailTabEnum.BASIC;
+      }
+    );
+
+    watch(
+      () => props.isShow,
+      isShow => {
+        /** 关闭后重新打开时，与首次打开一致展示基础信息 */
+        if (!isShow) activeTab.value = RumDetailTabEnum.BASIC;
       }
     );
 

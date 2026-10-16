@@ -23,6 +23,9 @@ FIVE_MIN_SECONDS = 5 * 60
 
 DEFAULT_DATA_LABEL = "APM"  # 数据标签，用来查询数据时三段式前缀(注意：不能随意更改)
 
+# 内置资源只建后台数据源，不写 apm_web 应用表与 monitor_web 自定义事件表，对用户不可见
+BUILTIN_PROFILING_APP_NAME = "active_profiling_builtin_allocation_source"
+
 APM_METRIC_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?metric_.*")
 
 APM_TRACE_TABLE_REGEX = re.compile(r"(?:.*_)?bkapm_(?:.*)?trace_.*")

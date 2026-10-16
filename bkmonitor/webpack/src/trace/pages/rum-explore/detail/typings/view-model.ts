@@ -26,7 +26,7 @@
 
 import type { IRumField } from '../../typings';
 import type { IRumHoverInfo } from './detail';
-import type { RumCardToneType, RumRatingType, RumSectionType } from './enum';
+import type { RumCardToneType, RumDetailTabType, RumRatingType, RumSectionType } from './enum';
 
 /** 徽标：标题右侧的关键指标与状态 */
 export interface IRumBadgeVM {
@@ -56,8 +56,16 @@ export interface IRumCardFooterPart {
   tone?: RumCardToneType;
 }
 
+/** 卡片可使用的抽屉交互能力，由 useDetailSections 注入，注册表通过 ctx.handlers 消费 */
+export interface IRumCardHandlers {
+  /** 切换详情抽屉的激活 tab */
+  switchTab: (tab: RumDetailTabType) => void;
+}
+
 /** 卡片描述符的推导上下文 */
 export interface IRumCardResolveCtx {
+  /** 抽屉交互能力，仅在详情区块构造时注入 */
+  handlers?: IRumCardHandlers;
   /** 当前 span 的原始数据，用于取分组外的字段 */
   originData: Record<string, any>;
   /** 关联接口拉回的补充数据，未就绪时为空对象 */
@@ -215,12 +223,11 @@ export interface IRumSummaryCardVM {
   tag?: { bgColor: string; color: string; text: string };
   /** 主值语义配色 */
   tone?: RumCardToneType;
-  type?: 'link' | 'text';
   /** 主值右侧的次要文本（单位） */
   unit?: { text: string; tone?: RumCardToneType };
   /** 主值 */
   value: string;
-  /** link 类型卡片的点击回调 */
+  /** 点击回调：有值时卡片按可点击样式呈现（主值下划线 + 手型光标），由注册表构造器通过 ctx.handlers 产出 */
   click?: () => void;
 }
 
