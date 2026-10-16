@@ -104,6 +104,7 @@ export default defineComponent({
               <div class='collection-detail-actions'>
                 <Button
                   class='collection-execution-result-action'
+                  v-tippy={this.t('查看本次执行各主机的采集结果')}
                   disabled={!detail || c.loading.value || !!c.error.value || !canViewExecution(detail)}
                   text
                   onClick={() => this.$emit('result', executionSelection(detail))}
@@ -163,7 +164,12 @@ export default defineComponent({
                     theme='danger'
                     title={c.error.value}
                   />
-                  <Button onClick={c.refresh}>{this.t('重试')}</Button>
+                  <Button
+                    v-tippy={this.t('重新加载任务执行详情')}
+                    onClick={c.refresh}
+                  >
+                    {this.t('重试')}
+                  </Button>
                 </div>
               ) : c.loading.value ? (
                 <CollectionExecutionSkeleton
@@ -212,6 +218,15 @@ export default defineComponent({
                     </dl>
                     <div class='collection-execution-toolbar'>
                       <Button
+                        v-tippy={this.t(
+                          this.readonly
+                            ? '暂无采集操作权限'
+                            : detail.execution_status === 'running'
+                              ? '采集中，暂不能重试失败项'
+                              : canRetryExecution(detail)
+                                ? '仅重新采集失败和超时主机'
+                                : '没有可重试的失败主机'
+                        )}
                         disabled={this.readonly || c.busy.value || !canRetryExecution(detail)}
                         theme='primary'
                         onClick={() => c.requestAction('retry', detail)}
@@ -296,6 +311,7 @@ export default defineComponent({
                         operations: ({ row }: { row: CollectionExecutionHost }) =>
                           ['failed', 'timeout'].includes(row.status) ? (
                             <Button
+                              v-tippy={this.t('查看当前主机的采集失败信息')}
                               theme='primary'
                               text
                               onClick={() => {
@@ -306,6 +322,11 @@ export default defineComponent({
                             </Button>
                           ) : (
                             <Button
+                              v-tippy={this.t(
+                                row.status === 'succeed' && row.started_at != null && row.finished_at != null
+                                  ? '查看当前主机的采集结果'
+                                  : '本次采集暂无可查看的结果'
+                              )}
                               disabled={row.status !== 'succeed' || row.started_at == null || row.finished_at == null}
                               theme='primary'
                               text
@@ -337,6 +358,7 @@ export default defineComponent({
                   ),
                   footer: () => (
                     <Button
+                      v-tippy={this.t('关闭失败信息')}
                       onClick={() => {
                         this.diagnosis = null;
                       }}

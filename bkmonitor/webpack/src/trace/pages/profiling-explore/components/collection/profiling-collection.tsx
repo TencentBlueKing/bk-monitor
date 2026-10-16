@@ -34,6 +34,7 @@ import { formatCollectionTime, scheduleLabels } from '../../utils/collection';
 import CollectionCrontab from './collection-crontab';
 import CollectionHistory from './collection-history';
 import CollectionOnboarding from './collection-onboarding';
+import CollectionResults from './collection-results';
 import CollectionSkeleton from './collection-skeleton';
 import CollectionTaskDetail from './collection-task-detail';
 import CollectionTaskForm from './collection-task-form';
@@ -66,6 +67,7 @@ export default defineComponent({
     created: () => true,
     result: (_value: CollectionResultSelection, _newPage: boolean) => true,
     busy: (_value: boolean) => true,
+    share: () => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -227,7 +229,11 @@ export default defineComponent({
       <section
         class={[
           'profiling-collection',
-          { 'has-tabs': c.meta.value.enabled, 'is-history': c.meta.value.enabled && state.tab === 'history' },
+          {
+            'has-tabs': c.meta.value.enabled,
+            'is-history': c.meta.value.enabled && state.tab === 'history',
+            'is-results': c.meta.value.enabled && state.tab === 'results',
+          },
         ]}
       >
         {!c.meta.value.enabled ? (
@@ -355,9 +361,25 @@ export default defineComponent({
                 onResult={(value, newPage) => this.$emit('result', value, newPage)}
               />
             ) : (
-              <div
-                class={['collection-tab-panel', `collection-${state.tab}-placeholder`]}
-                data-task-id={state.historyTaskId || undefined}
+              <CollectionResults
+                key={this.bizId}
+                bizId={this.bizId}
+                range={this.range}
+                rangeError={this.rangeError}
+                readonly={c.readonly}
+                revision={this.revision}
+                selection={state.result}
+                state={state.results}
+                timezone={this.timezone}
+                onBusy={value => this.$emit('busy', value)}
+                onChange={this.patch}
+                onCreate={() => {
+                  this.patch({ tab: 'tasks' });
+                  c.openEditor();
+                }}
+                onCreated={() => this.$emit('created')}
+                onResult={(value, newPage) => this.$emit('result', value, newPage)}
+                onShare={() => this.$emit('share')}
               />
             )}
           </>
@@ -407,8 +429,9 @@ export default defineComponent({
           {{
             default: () => <p>{c.deleting.value?.name}</p>,
             footer: () => (
-              <>
+              <div class='collection-dialog-footer'>
                 <Button
+                  v-tippy={this.t('确认删除当前任务')}
                   loading={!!c.busy.value}
                   theme='danger'
                   onClick={() => c.runAction(c.deleting.value, 'delete')}
@@ -416,6 +439,7 @@ export default defineComponent({
                   {this.t('删除')}
                 </Button>
                 <Button
+                  v-tippy={this.t('取消本次操作')}
                   disabled={!!c.busy.value}
                   onClick={() => {
                     c.deleting.value = undefined;
@@ -423,7 +447,7 @@ export default defineComponent({
                 >
                   {this.t('取消')}
                 </Button>
-              </>
+              </div>
             ),
           }}
         </Dialog>
@@ -446,8 +470,9 @@ export default defineComponent({
               </>
             ),
             footer: () => (
-              <>
+              <div class='collection-dialog-footer'>
                 <Button
+                  v-tippy={this.t('使用当前配置立即执行一次采集')}
                   loading={!!c.busy.value}
                   theme='primary'
                   onClick={() => c.runAction(c.executing.value, 'execute')}
@@ -455,6 +480,7 @@ export default defineComponent({
                   {this.t('确定')}
                 </Button>
                 <Button
+                  v-tippy={this.t('取消本次操作')}
                   disabled={!!c.busy.value}
                   onClick={() => {
                     c.executing.value = undefined;
@@ -462,7 +488,7 @@ export default defineComponent({
                 >
                   {this.t('取消')}
                 </Button>
-              </>
+              </div>
             ),
           }}
         </Dialog>

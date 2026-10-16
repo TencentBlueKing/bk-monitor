@@ -26,6 +26,7 @@
 import dayjs from 'dayjs';
 
 import { createHistoryFilters, restoreExecutionSelection, restoreHistoryFilters } from './collection-history';
+import { createCollectionResultsState, restoreCollectionResultsState } from './collection-results';
 
 import type {
   CollectionDraft,
@@ -77,7 +78,7 @@ export function createCollectionDraft(meta: CollectionMeta, timezone: string, ta
     executeAt: schedule && schedule.type !== 'cron' ? schedule.execute_at : null,
     startAt: schedule?.type === 'cron' ? schedule.effective_start_at : null,
     endAt: schedule?.type === 'cron' ? schedule.effective_end_at : null,
-    cron: schedule?.type === 'cron' ? schedule.cron_expression : meta.schedule?.cron?.cron_expression ?? '',
+    cron: schedule?.type === 'cron' ? schedule.cron_expression : (meta.schedule?.cron?.cron_expression ?? ''),
     timezone: schedule?.timezone || timezone,
   };
   if (selector) {
@@ -98,6 +99,7 @@ export function createCollectionQueryState(): CollectionQueryState {
     tab: 'tasks',
     history: createHistoryFilters(),
     result: null,
+    results: createCollectionResultsState(),
     keyword: '',
     scheduleTypes: [],
     statuses: [],
@@ -114,6 +116,7 @@ export function restoreCollectionQuery(value?: Partial<CollectionQueryState>): C
     ...defaults,
     history: restoreHistoryFilters(value.history || { task_name: value.historyTaskName }),
     result: restoreExecutionSelection(value.result),
+    results: restoreCollectionResultsState(value.results || (value.result ? { execution: value.result } : undefined)),
     tab: ['tasks', 'history', 'results'].includes(value.tab) ? value.tab : defaults.tab,
     keyword: typeof value.keyword === 'string' ? value.keyword : '',
     scheduleTypes: Array.isArray(value.scheduleTypes)

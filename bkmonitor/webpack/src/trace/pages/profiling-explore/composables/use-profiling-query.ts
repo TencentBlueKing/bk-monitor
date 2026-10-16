@@ -26,15 +26,19 @@
 import { computed, nextTick, onMounted, onScopeDispose, shallowRef, watch } from 'vue';
 
 import { type DateValue, DateRange } from '@blueking/date-picker';
+import { Message } from 'bkui-vue';
+import { copyText } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { getApplications, getFavorite, getLabelKeys, getLabelValues, getServiceDetail } from '../services/profiling';
-import { createHistoryFilters } from '../utils/collection-history';
+import { createHistoryFilters, executionKey } from '../utils/collection-history';
+import { createCollectionResultsState } from '../utils/collection-results';
 import {
   buildProfileQuery,
   clampSelection,
   createQueryState,
+  createViewState,
   restoreQueryState,
   restoreSelection,
 } from '../utils/query';
@@ -82,7 +86,7 @@ export function useProfilingQuery() {
   const collectionRange = shallowRef<null | SelectionRange>(null);
   const collectionError = shallowRef('');
   const collectionActive = computed(
-    () => state.value.view.tab === 'collection' && state.value.collection.tab === 'history'
+    () => state.value.view.tab === 'collection' && ['history', 'results'].includes(state.value.collection.tab)
   );
   const bounds = computed(() => state.value.resolvedTimeRange);
   const active = computed(() => state.value.view.tab === 'application');
@@ -515,12 +519,24 @@ export function useProfilingQuery() {
         historyTaskId: null,
         historyTaskName: '',
         result: null,
+        results: createCollectionResultsState(),
       },
     });
   }
 
   function openCollectionResult(result: CollectionResultSelection, newPage: boolean) {
-    const collection = { ...state.value.collection, tab: 'results' as const, result };
+    const collection = {
+      ...state.value.collection,
+      tab: 'results' as const,
+      result,
+      results: {
+        ...state.value.collection.results,
+        execution: executionKey(result),
+        filters: createHistoryFilters(),
+        dataType: '',
+        view: createViewState(),
+      },
+    };
     if (!newPage) {
       patch({ collection });
       return;
@@ -532,6 +548,21 @@ export function useProfilingQuery() {
       query: { ...route.query, profiling: JSON.stringify(snapshot) },
     });
     window.open(`${location.pathname}?bizId=${app.bizId}${href}`, '_blank', 'noopener,noreferrer');
+  }
+
+  function shareCollectionResult() {
+    const range = bounds.value || resolveRange();
+    const snapshot = { ...state.value, timeRange: range, resolvedTimeRange: range };
+    const { href } = router.resolve({
+      path: route.path,
+      query: { ...route.query, profiling: JSON.stringify(snapshot) },
+    });
+    let failed = false;
+    copyText(`${location.origin}${location.pathname}?bizId=${app.bizId}${href}`, (message: string) => {
+      failed = true;
+      Message({ theme: 'error', message });
+    });
+    if (!failed) Message({ theme: 'success', message: t('复制成功') });
   }
 
   // 展示状态与未提交的筛选条件同样可分享，但不驱动数据请求。
@@ -596,6 +627,7 @@ export function useProfilingQuery() {
     collectionError,
     collectionCreated,
     openCollectionResult,
+    shareCollectionResult,
     bounds,
     patch,
     patchView,
