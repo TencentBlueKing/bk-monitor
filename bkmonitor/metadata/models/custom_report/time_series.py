@@ -33,7 +33,7 @@ from bkmonitor.utils.db.fields import JsonField
 from constants.common import DEFAULT_TENANT_ID
 from core.drf_resource import api
 from metadata import config
-from metadata.builtin_metrics import SYSTEM_BASE_GROUP_FILTER, SYSTEM_BASE_METRIC_UNITS
+from metadata.builtin_metrics import SYSTEM_BASE_DATA_ID, SYSTEM_BASE_METRIC_UNITS
 from metadata.models.constants import (
     BULK_CREATE_BATCH_SIZE,
     BULK_UPDATE_BATCH_SIZE,
@@ -2006,7 +2006,7 @@ class TimeSeriesMetric(models.Model):
 
     @classmethod
     def get_builtin_metric_units(cls, group: TimeSeriesGroup) -> dict:
-        if not all(getattr(group, key) == value for key, value in SYSTEM_BASE_GROUP_FILTER.items()):
+        if group.bk_data_id != SYSTEM_BASE_DATA_ID:
             return {}
         units = SYSTEM_BASE_METRIC_UNITS.copy()
         # Preserve units configured through the legacy result-table fields.
