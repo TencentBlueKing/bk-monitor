@@ -96,7 +96,7 @@ export default defineComponent({
       switch (previewData.value?.filter_type) {
         case 'match_word': {
           const modes = { keyword_and: t('与'), keyword_or: t('或'), keyword_not: t('非') };
-          return `${t('关键字过滤')}：${content.keyword}（${t('关键字匹配模式')}：${modes[content.keyword_type] ?? ''}）`;
+          return t('关键字过滤：{0}（关键字匹配模式：{1}）', [content.keyword, modes[content.keyword_type] ?? '']);
         }
         case 'match_range':
           return t('关键字范围: 从匹配{0}开始到匹配{1}之间的所有行', [content.start, content.end]);

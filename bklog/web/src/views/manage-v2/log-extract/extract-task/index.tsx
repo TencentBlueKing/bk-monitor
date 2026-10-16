@@ -70,7 +70,10 @@ export default defineComponent({
       <div
         class={[
           'log-extract-container',
-          { 'log-extract-create-page': ['extract-create', 'extract-clone'].includes(String(route.name)) },
+          {
+            'log-extract-create-page': ['extract-create', 'extract-clone'].includes(String(route.name)),
+            'log-extract-list-page': route.name === 'extract-home',
+          },
         ]}
         v-bkloading={{ isLoading: isLoading.value }}
       >

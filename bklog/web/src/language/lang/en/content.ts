@@ -1507,4 +1507,6 @@ export default {
   '请在检索后，在文件列表选择日志文件': 'After searching, select log files from the file list',
   '搜索文件名/最后修改时间': 'Search by file name / last modified time',
   暂无已选文件: 'No files selected',
+  '{0} 个节点': '{0} nodes',
+  '关键字过滤：{0}（关键字匹配模式：{1}）': 'Keyword filtering: {0} (Keyword matching mode: {1})',
 };
