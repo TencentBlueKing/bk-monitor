@@ -65,6 +65,60 @@ import type {
 const t = (text: string) => window.i18n.t(text) as string;
 
 /**
+ * @description 瀑布图区块：把绝对时序换算成百分比布局
+ *
+ * DNS / TCP / TLS 耗时为 0 时说明连接被复用，这三段合并成一条说明线而不单独占行。
+ */
+export function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfallVM {
+  const phases = data.phases || [];
+  const total =
+    data.total_duration || phases.reduce((max, phase) => Math.max(max, phase.start + phase.duration), 0) || 1;
+  const mergedNames: string[] = [];
+  const rows = phases
+    .filter(phase => {
+      const mergedName = WATERFALL_MERGED_PHASES[phase.key];
+      if (mergedName && phase.duration <= 0) {
+        mergedNames.push(mergedName);
+        return false;
+      }
+      return true;
+    })
+    .map((phase, index) => ({
+      key: phase.key,
+      hover: phase.hover,
+      label: phase.alias || phase.key,
+      durationText: formatDuration(Number(phase.duration) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
+      startPercent: Math.min((phase.start / total) * 100, 100),
+      durationPercent: Math.max(Math.min((phase.duration / total) * 100, 100), phase.duration > 0 ? 1 : 0),
+      color: WATERFALL_PHASE_COLOR[phase.key] || WATERFALL_FALLBACK_COLORS[index % WATERFALL_FALLBACK_COLORS.length],
+    }));
+  return {
+    rows,
+    durationTotal: total,
+    mergedNames,
+    behavior: spanType === 'view' ? 'complex' : 'simplicity',
+    ttfbBreakdown: buildTtfbBreakdown(data),
+    markers: (data.markers || []).map(marker => ({
+      key: marker.key,
+      hover: marker.hover,
+      label: marker.field_name || marker.key,
+      percent: Math.min((marker.value / total) * 100, 100),
+      value: marker.value,
+      color: RATING_META[matchRating(marker.value, marker['display.rating_config'])].color,
+      valueText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
+    })),
+    milestones: data.milestones
+      ?.filter(item => item.value)
+      .map(item => ({
+        key: item.key,
+        hover: item.hover,
+        name: MILESTONES_KEY_MAP[item.key],
+        value: formatDuration(item.value, '', 3, data.unit || 'us').replace(/ /g, ''),
+      })),
+  };
+}
+
+/**
  * @description 按评级阈值配置匹配指标值的评级：value 不超过某个配置的上界（value ≦ config.value）时
  * 命中该配置的 rating，不带 value 的配置视为无上界兜底；配置为空时返回空串
  */
@@ -279,60 +333,6 @@ function buildTtfbBreakdown(data: IRumWaterfallData): IRumTtfbBreakdownVM | unde
   return {
     itemsTotalText: formatDuration(itemsTotal, '', 3, unit).replace(/ /g, ''),
     diffText: formatDuration(Math.abs(ttfbValue - itemsTotal), '', 3, unit).replace(/ /g, ''),
-  };
-}
-
-/**
- * @description 瀑布图区块：把绝对时序换算成百分比布局
- *
- * DNS / TCP / TLS 耗时为 0 时说明连接被复用，这三段合并成一条说明线而不单独占行。
- */
-function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfallVM {
-  const phases = data.phases || [];
-  const total =
-    data.total_duration || phases.reduce((max, phase) => Math.max(max, phase.start + phase.duration), 0) || 1;
-  const mergedNames: string[] = [];
-  const rows = phases
-    .filter(phase => {
-      const mergedName = WATERFALL_MERGED_PHASES[phase.key];
-      if (mergedName && phase.duration <= 0) {
-        mergedNames.push(mergedName);
-        return false;
-      }
-      return true;
-    })
-    .map((phase, index) => ({
-      key: phase.key,
-      hover: phase.hover,
-      label: phase.alias || phase.key,
-      durationText: formatDuration(Number(phase.duration) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
-      startPercent: Math.min((phase.start / total) * 100, 100),
-      durationPercent: Math.max(Math.min((phase.duration / total) * 100, 100), phase.duration > 0 ? 1 : 0),
-      color: WATERFALL_PHASE_COLOR[phase.key] || WATERFALL_FALLBACK_COLORS[index % WATERFALL_FALLBACK_COLORS.length],
-    }));
-  return {
-    rows,
-    durationTotal: total,
-    mergedNames,
-    behavior: spanType === 'view' ? 'complex' : 'simplicity',
-    ttfbBreakdown: buildTtfbBreakdown(data),
-    markers: (data.markers || []).map(marker => ({
-      key: marker.key,
-      hover: marker.hover,
-      label: marker.field_name || marker.key,
-      percent: Math.min((marker.value / total) * 100, 100),
-      value: marker.value,
-      color: RATING_META[matchRating(marker.value, marker['display.rating_config'])].color,
-      valueText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
-    })),
-    milestones: data.milestones
-      ?.filter(item => item.value)
-      .map(item => ({
-        key: item.key,
-        hover: item.hover,
-        name: MILESTONES_KEY_MAP[item.key],
-        value: formatDuration(item.value, '', 3, data.unit || 'us').replace(/ /g, ''),
-      })),
   };
 }
 

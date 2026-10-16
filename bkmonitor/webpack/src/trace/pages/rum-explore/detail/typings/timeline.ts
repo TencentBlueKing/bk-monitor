@@ -23,16 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import type { IRumDetailOverview, IRumDetailSection } from './detail';
-
-/** View 头部的 CLS 指标 */
-export interface IRumTimelineClsVM {
-  /** 按评级着色 */
-  color: string;
-  text: string;
-  /** hover 提示：指标全称 + 评级 */
-  tip: string;
-}
+import type { IRumDetailOverview, IRumDetailSection, IRumHoverInfo } from './detail';
+import type { IRumWaterfallVM } from './view-model';
 
 /** 被折叠的一段连续同级 Span */
 export interface IRumTimelineFoldVM {
@@ -101,7 +93,6 @@ export interface IRumTimelineSpanVM {
 export interface IRumTimelineViewVM {
   /** 子节点中的 Action 数 */
   actionCount: number;
-  cls?: IRumTimelineClsVM;
   /** 停留时长，缺失时为空串 */
   durationText: string;
   /** 当前详情的 Span 就是这个 View */
@@ -112,4 +103,22 @@ export interface IRumTimelineViewVM {
   requestCount: number;
   spanId: string;
   title: string;
+  /** Web Vitals 指标列表 */
+  vitalMetrics: IRumTimelineVitalVM[];
+  /** 页面加载时序瀑布图，View 区块缺 waterfall 数据时为空 */
+  waterfall?: IRumWaterfallVM;
 }
+
+/** View 头部的一个 Web Vitals 指标 */
+export interface IRumTimelineVitalVM {
+  /** 按评级着色 */
+  color: string;
+  /** hover 展示的指标说明 */
+  hover?: IRumHoverInfo;
+  /** 指标标识，如 lcp / cls */
+  key: string;
+  text: string;
+}
+
+/** 链路上下文列表的快捷筛选类别，取值口径见 timeline 接口协议 2.12.3 */
+export type RumTimelineFilterCategoryType = 'action' | 'all' | 'error' | 'request' | 'slow_node' | 'third_party';

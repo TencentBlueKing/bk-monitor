@@ -67,11 +67,6 @@ export default defineComponent({
       type: Object as PropType<IRumWaterfallVM | null>,
       default: null,
     },
-    /** span 类型（如 view）：view 时额外包一层标题与健康度图例 */
-    spanType: {
-      type: String,
-      default: null,
-    },
   },
   setup(props) {
     const { t } = useI18n();
