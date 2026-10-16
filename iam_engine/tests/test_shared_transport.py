@@ -99,7 +99,7 @@ def test_201_empty_grant_custom_path_and_operator(monkeypatch):
         (503, V4ClientError),
     ],
 )
-def test_monitor_error_mapping_is_consistent_with_grant_retry(monkeypatch, status, error):
+def test_monitor_error_mapping_preserves_http_failures(monkeypatch, status, error):
     monkeypatch.setattr(requests, "request", Mock(return_value=response(status=status)))
     client = MonitorClient(options(), bk_tenant_id="system")
     with pytest.raises(error):

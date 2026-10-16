@@ -7,12 +7,12 @@ BKLog 与监控实际引用根目录同一份 `iam_engine`；产品目录中的
 
 - `core/`：协议中立请求、允许/拒绝/错误结果与三种模式。
 - `provider/`：ModeRouter、Union 决策/范围合并、能力 Bundle 和执行器协议。
-- `migration/`：模式选边、Union 双写、注入式事务提交 hook、新建资源授权的冻结请求重试。
+- `migration/`：模式选边、Union 同步双写与授权有效期配置。
 - `model/`：公共 V4 模型校验、差异计划与非破坏性收敛；`django.py` 提供可选部署/命令适配。
 - `settings.py`、`v4/`：BKLog 既有环境变量映射、选项归一化、网关、HTTP 和响应校验。
 - 产品适配：保留各产品原有 Permission/DRF 公开入口，
-  `backends/v3/` 与 `backends/v4/` 提供原生能力。回调与重试的协议/编排共用公共实现，
-  产品仅注册原生 ResourceProvider、注入凭据和绑定 Celery。
+  `backends/v3/` 与 `backends/v4/` 提供原生能力。回调与同步授权编排共用公共实现，
+  产品仅注册原生 ResourceProvider、注入凭据和授权映射。
   Action、资源、角色、codec、租户/资源归属和原 V3 SDK 策略仍由产品负责。
 
 公共层不 import 任一产品业务模块。两平台保留 Permission/DRF 对外接口，
@@ -69,19 +69,14 @@ V4/Union 申请调用 `api/v1/open/application/permission-apply-urls/`，使用�
 不返回通用 SaaS Host 或网关根地址。沿用后端响应协议；没有修改前端。
 V3 保留已有申请逻辑及其失败兜底；“获取申请链接失败”并非 V4 才可能发生。
 
-## 双写与失败恢复
+## 同步授权与失败处理
 
-仅 Union 首次同时尝试 V3、V4；单栈仅写对应协议。V4 默认 365 天；冻结主体、角色、资源和 expired_at。
-V4 同步失败只在最外层事务提交后投递 Celery；事务回滚不会投递。重放不重算有效期。
-V3 的调用结果/失败和产品业务处理继续沿用已有边界，公共化不扩大角色或实例范围。
-
-默认最多尝试 12 次；退避从 30 秒翻倍，最多 600 秒。任务分类处理 4xx 终止、
-429/5xx 可重试和传输结果未知；终止或投递失败依靠日志发现与人工处理。
-没有 outbox、持久化补偿表或周期扫描；`retry_scheduled` 不是“授权成功”。
-
-人工恢复：确认业务实例仍存在、租户及主体正确，再使用原冻结 task kwargs 重放
-`grant_v4_creator_action`；不要重新生成 expired_at。超过有效期的请求不能盲目重放。
-真实补授权必须另行确认目标范围，本次离线自测未执行任何 IAM 写入。
+仅 Union 同时尝试 V3、V4；单栈仅写对应协议。每个选定目标同步写入一次，
+不登记事务提交回调、不投递 Celery、不进行异步补偿。V4 默认有效期仍为 365 天。
+默认尽力写入并记录失败；严格调用抛错。监控 API 的 V4/Union 失败直接抛
+CreatorGrantFailed，默认 V3 的既有失败处理不变。授权调用方仍可按原业务契约捕获异常。
+监控结果中的 retry_scheduled 只为兼容保留，始终为 False，不表示后台会补授权。
+本地业务事务回滚不撤销已经成功的 IAM 授权，与原 V3 的边界一致。
 
 ## 两平台相同的配置契约
 
@@ -102,7 +97,7 @@ settings 保留 BKLog 的字符串类型默认值；使用时由共同 loader/no
 | BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS | BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS | 300 秒，0 关闭缓存 |
 | BK_IAM_V4_ADD_AUTHORIZATION_PATH | BKAPP_IAM_V4_ADD_AUTHORIZATION_PATH | api/v1/open/rbac/mgmt/systems/{system_id}/authorizations/ |
 | BK_IAM_V4_GRANT_EXPIRE_DAYS | BK_IAM_V4_GRANT_EXPIRE_DAYS | 365 天，上限 365 |
-| BK_IAM_GRANT_MAX_ATTEMPTS | BK_IAM_GRANT_MAX_ATTEMPTS | 12 次 |
+|
 | BK_IAM_V4_MODEL_BASE_PATH | BKAPP_IAM_V4_MODEL_BASE_PATH | api/v1/open/rbac/model/systems/ |
 | BK_IAM_V4_MODEL_MANAGERS | BKAPP_IAM_V4_MODEL_MANAGERS | 空 |
 | BK_IAM_V4_CALLBACK_URL | BKAPP_IAM_V4_CALLBACK_URL | 空 |
@@ -165,7 +160,7 @@ Dockerfile 在构建时检查模块存在；本地 unit_test 复制也改为解�
 
 存量 V3 授权迁移由 IAM 自行完成，不在本次产品开发范围。不提供 Action→Role
 转换、批量存量补授权或授权回放脚本，也不将映射规则作为本次开发阻塞项。
-保留按模式进行 IAM 模型注册/更新、新建资源授权及冻结重试，这些不是存量迁移。
+保留按模式进行 IAM 模型注册/更新和同步新建资源授权，这些不是存量迁移。
 
 ## 自测与真实验收
 
@@ -173,10 +168,9 @@ Dockerfile 在构建时检查模块存在；本地 unit_test 复制也改为解�
 DB 仅内存 SQLite；不要把 `tests/run_*_offline.py` 的覆盖配置带到部署环境。
 
 真实验收仍需注册监控 V4 系统、授权接入配置/测试用户和资源范围，再验证仅 V3、
-仅 V4、两侧有权、两侧无权、申请、创建者授权及重试。用户已决定本阶段不跑真实数据。
+仅 V4、两侧有权、两侧无权、申请、同步创建者授权及失败处理。用户已决定本阶段不跑真实数据。
 回退到 v3 后，后续操作只用 V3，不再创建 V4 授权或同步请求；不删除已有模型或授权。
-已冻结投递的 V4 重试仍检查执行时的模式：切回 V3 后不执行 V4 请求；
-V4/Union 下保留原目标和有效期。投递回调也检查当前模式，不把回滚视为授权成功。
+不再创建异步授权补偿任务，也不因 Celery eager 模式内联重试。
 
 ## 回调与产品公开接口
 

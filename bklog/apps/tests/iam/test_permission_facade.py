@@ -14,7 +14,6 @@ from iam_engine.core.config import AuthMode, DualStackSpec
 from iam_engine.core.exceptions import InvalidAuthModeError
 from iam_engine.core.requests import ResourceInstance as EngineResourceInstance
 from iam_engine.core.types import AuthResult
-from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 from iam_engine.provider.router import ModeRouter
 
 
@@ -452,71 +451,38 @@ class PermissionFacadeTest(TestCase):
     def test_creator_grant_keeps_v3_return_value_and_grants_v4_synchronously(self):
         self.mode_provider.get_mode.return_value = AuthMode.UNION
         self.iam_client.grant_resource_creator_actions.return_value = "v3-result"
-        prepared = PreparedAuthorizationGrant(
-            payload=[{"role_id": "space_operator"}],
-            role_id="space_operator",
-            expired_at=1893456000,
-        )
-        v4_writer = Mock()
-        v4_writer.prepare_resource_creator_actions.return_value = prepared
+        writer = Mock()
         permission = self._make_permission()
-        permission.get_v4_authorization_writer = Mock(return_value=v4_writer)
+        permission.get_v4_authorization_writer = Mock(return_value=writer)
         resource = Resource("bk_log_search", "collection", "1", {"name": "collection-1"})
-
-        with patch("apps.iam.tasks.grant.grant_v4_creator_action.apply_async") as apply_async:
-            with self.captureOnCommitCallbacks(execute=True):
-                result = permission.grant_creator_action(resource, creator="admin")
-
-        application = {
-            "system": "bk_log_search",
-            "type": "collection",
-            "id": "1",
-            "name": "collection-1",
-            "creator": "admin",
-        }
+        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+            result = permission.grant_creator_action(resource, creator="admin")
         self.assertEqual(result, "v3-result")
-        self.iam_client.grant_resource_creator_actions.assert_called_once_with(application)
-        v4_writer.prepare_resource_creator_actions.assert_called_once_with(application)
-        # 首次授权同步完成，不进重试队列。
-        v4_writer.grant_prepared.assert_called_once_with(prepared)
-        apply_async.assert_not_called()
-
-    @override_settings(BK_IAM_PERMISSION_MODE="union")
-    def test_creator_grant_falls_back_to_the_retry_task_when_v4_sync_grant_fails(self):
-        self.mode_provider.get_mode.return_value = AuthMode.UNION
-        self.iam_client.grant_resource_creator_actions.return_value = "v3-result"
-        v4_writer = Mock()
-        v4_writer.prepare_resource_creator_actions.return_value = PreparedAuthorizationGrant(
-            payload=[{"role_id": "space_operator"}],
-            role_id="space_operator",
-            expired_at=1893456000,
-        )
-        v4_writer.grant_prepared.side_effect = RuntimeError("iam v4 timeout")
-        permission = self._make_permission()
-        permission.get_v4_authorization_writer = Mock(return_value=v4_writer)
-        resource = Resource("bk_log_search", "collection", "1", {"name": "collection-1"})
-
-        with patch("apps.iam.tasks.grant.grant_v4_creator_action.apply_async") as apply_async:
-            with self.captureOnCommitCallbacks(execute=True):
-                result = permission.grant_creator_action(resource, creator="admin")
-
-        # V4 同步失败不改变 V3 返回值，回落任务原样重放冻结请求。
-        self.assertEqual(result, "v3-result")
-        apply_async.assert_called_once_with(
-            kwargs={
-                "tenant_id": "tenant-1",
-                "operator": "admin",
-                "payload": [{"role_id": "space_operator"}],
-                "role_id": "space_operator",
-                "expired_at": 1893456000,
-                "resource_meta": {
-                    "subject_id": "admin",
-                    "resource_system": "bk_log_search",
-                    "resource_type": "collection",
-                    "resource_id": "1",
-                },
+        self.assertEqual(callbacks, [])
+        self.iam_client.grant_resource_creator_actions.assert_called_once()
+        writer.grant_resource_creator_actions.assert_called_once_with(
+            {
+                "system": "bk_log_search",
+                "type": "collection",
+                "id": "1",
+                "name": "collection-1",
+                "creator": "admin",
             }
         )
+
+    @override_settings(BK_IAM_PERMISSION_MODE="union")
+    def test_creator_grant_v4_failure_does_not_schedule_compensation(self):
+        self.mode_provider.get_mode.return_value = AuthMode.UNION
+        self.iam_client.grant_resource_creator_actions.return_value = "v3-result"
+        writer = Mock()
+        writer.grant_resource_creator_actions.side_effect = RuntimeError("iam v4 timeout")
+        permission = self._make_permission()
+        permission.get_v4_authorization_writer = Mock(return_value=writer)
+        resource = Resource("bk_log_search", "collection", "1", {"name": "collection-1"})
+        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+            self.assertEqual(permission.grant_creator_action(resource, creator="admin"), "v3-result")
+        writer.grant_resource_creator_actions.assert_called_once()
+        self.assertEqual(callbacks, [])
 
     def test_creator_grant_without_v4_writer_keeps_existing_v3_behavior(self):
         self.iam_client.grant_resource_creator_actions.return_value = "v3-result"
@@ -528,23 +494,21 @@ class PermissionFacadeTest(TestCase):
 
         self.iam_client.grant_resource_creator_actions.assert_called_once()
 
-    def test_creator_grant_propagates_v4_preparation_error_when_requested(self):
+    def test_creator_grant_propagates_v4_failure_when_requested(self):
         self.mode_provider.get_mode.return_value = AuthMode.UNION
         self.iam_client.grant_resource_creator_actions.return_value = "v3-result"
-        v4_writer = Mock()
-        v4_writer.prepare_resource_creator_actions.side_effect = RuntimeError("v4 prepare failed")
+        writer = Mock()
+        writer.grant_resource_creator_actions.side_effect = RuntimeError("v4 failed")
         permission = self._make_permission()
-        permission.get_v4_authorization_writer = Mock(return_value=v4_writer)
+        permission.get_v4_authorization_writer = Mock(return_value=writer)
         resource = Resource("bk_log_search", "collection", "1", {})
+        with self.captureOnCommitCallbacks(execute=True) as callbacks:
+            with self.assertRaisesMessage(RuntimeError, "v4 failed"):
+                permission.grant_creator_action(resource, raise_exception=True)
+        self.assertEqual(callbacks, [])
+        writer.grant_resource_creator_actions.assert_called_once()
 
-        with patch("apps.iam.tasks.grant.grant_v4_creator_action.apply_async") as apply_async:
-            with self.assertRaisesMessage(RuntimeError, "v4 prepare failed"):
-                with self.captureOnCommitCallbacks(execute=True):
-                    permission.grant_creator_action(resource, raise_exception=True)
-
-        apply_async.assert_not_called()
-
-    def test_creator_grant_rejects_non_v4_retry_target(self):
+    def test_creator_grant_has_no_retry_target_restriction(self):
         permission = self._make_permission()
         permission._mode_router = ModeRouter(
             mode_provider=self.mode_provider,
@@ -554,11 +518,8 @@ class PermissionFacadeTest(TestCase):
         )
         resource = Resource("bk_log_search", "collection", "1", {})
 
-        with self.assertRaises(NotImplementedError) as ctx:
-            permission.grant_creator_action(resource)
-
-        self.assertIn("v3", str(ctx.exception))
-        self.iam_client.grant_resource_creator_actions.assert_not_called()
+        permission.grant_creator_action(resource)
+        self.iam_client.grant_resource_creator_actions.assert_called_once()
 
     # ==================================================================
     # 「不限实例」授权探测：用哨兵实例把空间级授权与实例级授权区分开

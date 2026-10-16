@@ -36,7 +36,6 @@ import warnings
 from collections.abc import Mapping
 
 from django.conf import settings
-from django.db import transaction
 from iam import Resource
 
 from apps.iam import metrics
@@ -811,7 +810,7 @@ class Permission:
         )
 
     # ================================================================
-    # 创建者授权 —— 双写；current 同步失败才回落 Celery
+    # 创建者授权 —— 按模式同步写入，不进行异步补偿
     # ================================================================
 
     def grant_creator_action(self, resource: Resource, creator: str = None, raise_exception=False):
@@ -830,23 +829,13 @@ class Permission:
             "creator": creator or self.username,
         }
 
-        # 任务模块会加载 Celery app，延迟到实际授权入口再导入，避免和权限模块相互引用。
-        from apps.iam.tasks.grant import dispatch_v4_creator_grant
-
         stack = self.mode_router.stack
-        retry_target = stack.current
-        if retry_target is not AuthMode.V4:
-            raise NotImplementedError(f"retry dispatcher is still V4-only, got {retry_target.value}")
 
         orchestrator = DualWriteGrantOrchestrator(
             writers=MigrationPolicy.resolve_authorization_writers(
                 self._resolve_auth_mode(), self.provider_bundles, stack=stack
             ),
             tenant_id=self.bk_tenant_id,
-            operator=self.username,
-            dispatch_retry_grant=dispatch_v4_creator_grant,
-            on_commit=transaction.on_commit,
-            retry_target=retry_target.value,
             grant_observer=self._observe_grant,
         )
         return orchestrator.grant_creator_action(application, raise_exception=raise_exception)

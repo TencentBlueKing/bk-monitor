@@ -23,8 +23,8 @@ from kombu import Exchange, Queue
 from django.conf import settings
 from django.db import close_old_connections
 
+from alarm_backends.core.cluster import get_cluster
 from bkmonitor.utils.common_utils import package_contents
-from config.celery.backend import get_backend_celery_broker_config
 from core.prometheus.tools import celery_app_timer
 
 try:
@@ -96,7 +96,6 @@ def default_celery_worker_num():
 
 
 def rabbitmq_conf():
-    broker_config = get_backend_celery_broker_config()
     redis_celery_conf = settings.REDIS_CELERY_CONF
     redis_host = redis_celery_conf["host"]
     redis_port = redis_celery_conf["port"]
@@ -134,8 +133,11 @@ def rabbitmq_conf():
                 queue_arguments={"x-message-ttl": 600000, "x-max-length": 1000},
             ),
         ]
-        broker_url = broker_config["broker_url"]
-        broker_transport_options = broker_config["broker_transport_options"]
+        broker_url = f"amqp://{six.moves.urllib.parse.quote(settings.RABBITMQ_USER)}:{six.moves.urllib.parse.quote(settings.RABBITMQ_PASS)}@{settings.RABBITMQ_HOST}:{settings.RABBITMQ_PORT}/{settings.RABBITMQ_VHOST}"
+        if not get_cluster().is_default():
+            broker_transport_options = {
+                "queue_name_prefix": f"{get_cluster().name}-",
+            }
 
         beat_max_loop_interval = 60
         redbeat_lock_timeout = 300

@@ -1,76 +1,58 @@
 from unittest.mock import Mock
 
-from iam_engine.migration.dual_write import DualWriteGrantOrchestrator
-from iam_engine.provider.capabilities import PreparedAuthorizationGrant
+import pytest
 
+from iam_engine.migration.dual_write import DualWriteGrantOrchestrator
 
 APPLICATION = {"creator": "user", "system": "system", "type": "space", "id": "-1"}
 
 
 def build():
-    legacy, current, dispatch, observer = Mock(), Mock(), Mock(), Mock()
-    prepared = PreparedAuthorizationGrant(
-        payload=[{"expired_at": 2000000000}], role_id="space_operator", expired_at=2000000000
-    )
-    current.prepare_resource_creator_actions.return_value = prepared
-    callbacks = []
+    legacy, current, observer = Mock(), Mock(), Mock()
+    legacy.grant_resource_creator_actions.return_value = "legacy-result"
     engine = DualWriteGrantOrchestrator(
         writers=(("v3", legacy), ("v4", current)),
         tenant_id="tenant-a",
-        operator="user",
-        dispatch_retry_grant=dispatch,
         grant_observer=observer,
-        on_commit=callbacks.append,
     )
-    return engine, legacy, current, dispatch, observer, callbacks
+    return engine, legacy, current, observer
 
 
-def test_selected_union_writers_run_synchronously():
-    engine, legacy, current, dispatch, _, callbacks = build()
-    engine.grant_creator_action(APPLICATION)
+def test_selected_union_writers_each_run_once_synchronously():
+    engine, legacy, current, observer = build()
+    assert engine.grant_creator_action(APPLICATION) == "legacy-result"
     legacy.grant_resource_creator_actions.assert_called_once_with(APPLICATION)
-    current.grant_prepared.assert_called_once()
-    assert callbacks == []
-    dispatch.assert_not_called()
+    current.grant_resource_creator_actions.assert_called_once_with(APPLICATION)
+    observer.assert_any_call("v3", "space", "succeeded")
+    observer.assert_any_call("v4", "space", "succeeded")
 
 
-def test_current_failure_queues_after_commit_with_frozen_expiry():
-    engine, _, current, dispatch, observer, callbacks = build()
-    current.grant_prepared.side_effect = TimeoutError("offline")
-    engine.grant_creator_action(APPLICATION)
-    dispatch.assert_not_called()
-    assert len(callbacks) == 1
-    callbacks[0]()
-    kwargs = dispatch.call_args.args[0]
-    assert kwargs["tenant_id"] == "tenant-a"
-    assert kwargs["expired_at"] == kwargs["payload"][0]["expired_at"] == 2000000000
-    observer.assert_any_call("v4", "space", "fallback_dispatched")
-
-
-def test_rollback_never_runs_registered_callback():
-    engine, _, current, dispatch, _, callbacks = build()
-    current.grant_prepared.side_effect = TimeoutError("offline")
-    engine.grant_creator_action(APPLICATION)
-    # Transaction adapter discards callbacks on rollback, as Django.on_commit does.
-    callbacks.clear()
-    dispatch.assert_not_called()
-
-
-def test_preparation_error_is_terminal_and_cannot_replay_incomplete_request():
-    engine, legacy, current, dispatch, observer, callbacks = build()
-    current.prepare_resource_creator_actions.side_effect = ValueError("bad resource")
+@pytest.mark.parametrize("target", ["v3", "v4"])
+def test_failure_is_reported_once_without_automatic_replay(target):
+    engine, legacy, current, observer = build()
+    writer = legacy if target == "v3" else current
+    writer.grant_resource_creator_actions.side_effect = TimeoutError("offline")
     engine.grant_creator_action(APPLICATION)
     legacy.grant_resource_creator_actions.assert_called_once()
-    assert callbacks == []
-    dispatch.assert_not_called()
-    observer.assert_any_call("v4", "space", "prepare_failed")
+    current.grant_resource_creator_actions.assert_called_once()
+    observer.assert_any_call(target, "space", "failed")
 
 
-def test_observer_and_dispatch_errors_do_not_break_other_commit_callbacks():
-    engine, _, current, dispatch, observer, callbacks = build()
-    current.grant_prepared.side_effect = TimeoutError("offline")
-    dispatch.side_effect = RuntimeError("broker unavailable")
+@pytest.mark.parametrize("target", ["v3", "v4"])
+def test_strict_failure_propagates_original_error(target):
+    engine, legacy, current, _ = build()
+    error = ValueError("invalid grant")
+    writer = legacy if target == "v3" else current
+    writer.grant_resource_creator_actions.side_effect = error
+    with pytest.raises(ValueError) as caught:
+        engine.grant_creator_action(APPLICATION, raise_exception=True)
+    assert caught.value is error
+    writer.grant_resource_creator_actions.assert_called_once()
+
+
+def test_observer_failure_does_not_change_success():
+    engine, legacy, current, observer = build()
     observer.side_effect = RuntimeError("metrics unavailable")
-    engine.grant_creator_action(APPLICATION)
-    callbacks[0]()
-    dispatch.assert_called_once()
+    assert engine.grant_creator_action(APPLICATION, raise_exception=True) == "legacy-result"
+    legacy.grant_resource_creator_actions.assert_called_once()
+    current.grant_resource_creator_actions.assert_called_once()

@@ -116,8 +116,8 @@ def main():
             from celery import current_app
 
             current_app.finalize()
-            assert "bkmonitor.iam.tasks.grant.grant_v4_creator_action" in current_app.tasks
-            print("Frozen V4 grant task registered")
+            assert "bkmonitor.iam.tasks.grant.grant_v4_creator_action" not in current_app.tasks
+            print("No asynchronous IAM creator-grant task registered")
             return 0
         tests = tests or ["tests/iam", "-m", "not live"]
         with patch("bkmonitor.utils.common_utils.get_local_ip", return_value="127.0.0.1"):

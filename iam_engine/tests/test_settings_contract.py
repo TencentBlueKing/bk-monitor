@@ -46,7 +46,7 @@ def test_defaults_and_normalization_preserve_bklog_contract():
     assert values["BK_IAM_V4_BATCH_MAX_WORKERS"] == "4"
     assert values["BK_IAM_V4_AUTH_TOKEN_CACHE_SECONDS"] == "300"
     assert values["BK_IAM_V4_GRANT_EXPIRE_DAYS"] == "365"
-    assert values["BK_IAM_GRANT_MAX_ATTEMPTS"] == "12"
+    assert "BK_IAM_GRANT_MAX_ATTEMPTS" not in values
     assert load_iam_settings({"BKAPP_IAM_PERMISSION_MODE": " UnIoN "})["BK_IAM_PERMISSION_MODE"] == "union"
     assert (
         load_iam_settings({"BKAPP_IAM_V4_CALLBACK_URL": " https://example.test/callback/ "})["BK_IAM_V4_CALLBACK_URL"]

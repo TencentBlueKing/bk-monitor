@@ -18,7 +18,7 @@
 | SchemaRegistry 注册/冻结/loaders/snapshot/visibility | 删除，静态只读索引 | 没有运行时注册需求；模型由公开定义派生 |
 | 动态 ActionEnum / 第二份 Action 定义 | 删除；原生静态 ActionEnum 为权威源 | V3 SDK 的英文名、依赖/选择器和辅助接口保留 |
 | SDK dict → PolicyExpression → SDK dict | 删除；原 dict 直接交 SDK | 原 V3 数组、path、operator、异常语义不可替换 |
-| 双产品失败分类/重试编排 | common migration/grant_retry；产品只绑定任务 | 冻结请求/有效期、退避、事务边界和模式检查统一 |
+| 双产品同步授权编排 | common migration/dual_write；产品提供 Writer | 按模式各写一次、逐侧成功/失败；无异步补偿 |
 | 原 Monitor V4 Planner/Loader/Recorder/旧命令 | 删除，共同 model/convergence 与 iam_migrate_model | 同一 V4 期望态和生命周期，不迁就旧引擎 |
 | 原 V3 Migrator/MonitorMigration 与 BKLog SDK upsert | 保留产品适配，统一 ModelSyncService | 已有历史和执行语义不同，不重放或清表 |
 
@@ -35,7 +35,7 @@
 | 协议能力 | backends/v3、backends/v4 | backends/v3、backends/v4 | provider 协议、v4/config、client、并发 |
 | 资源查询 | views/resources.py | monitor_web/iam/views.py | 原 SDK ResourceProvider；无公共 ORM |
 | V4 回调 | views/resources_v4.py、callback_client | views/resources_v4.py、callback_client | v4/callback、v4/resource |
-| 新建授权/任务 | 产品角色映射、tasks/grant.py | 产品角色映射、tasks/grant.py | migration/dual_write、grant_retry |
+| 新建授权 | 产品角色映射、Writer | 产品角色映射、Writer | migration/dual_write |
 | 模型/运维 | JSON 模型及 V3 SDK adapter | 原 Action/Resource + 角色派生、V3 history adapter | model/convergence、sync、django |
 | 实际源码 | iam_engine → ../iam_engine | iam_engine → ../iam_engine | 仓库根 iam_engine，不是副本 |
 
@@ -65,7 +65,7 @@
 4. Monitor V3 迁移按 MonitorMigration 历史执行，BKLog JSON/SDK upsert 幂等执行。
    共用的是生命周期/V4 收敛；不是强行重写已有 V3 历史。
 5. Monitor SaaS 凭据来源和 BKLog 应用凭据来源不同，Celery/请求上下文框架也不同。
-   仅薄注入保留，Token/缓存/分类/重试算法不复制。
+   仅薄注入保留，Token/缓存算法不复制；授权不再绑定 Celery 或重试任务。
 6. 产品现有动态配置来源不同；公共选边/类型/默认值相同，部署严格读取各自权威配置表。
 
 ## 验证边界

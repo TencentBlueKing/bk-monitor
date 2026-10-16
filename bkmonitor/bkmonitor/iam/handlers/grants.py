@@ -37,8 +37,8 @@ class PermissionWriteTargetResult:
 class PermissionWriteResult:
     """一次权限写操作对全部写目标的结果快照。
 
-    本实现不持久化补偿任务。V4 同步失败仅在提交后尽力投递，
-    重试重放被冻结的主体、角色、资源和有效期，不重算 expired_at。
+    所选目标各同步写入一次，不进行异步补偿。
+    retry_scheduled 仅保留结果字段兼容性，始终为 False。
     """
 
     targets: tuple[PermissionWriteTargetResult, ...]

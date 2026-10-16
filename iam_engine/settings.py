@@ -27,7 +27,6 @@ IAM_ENVIRONMENT = {
         "api/v1/open/rbac/mgmt/systems/{system_id}/authorizations/",
     ),
     "BK_IAM_V4_GRANT_EXPIRE_DAYS": ("BK_IAM_V4_GRANT_EXPIRE_DAYS", "365"),
-    "BK_IAM_GRANT_MAX_ATTEMPTS": ("BK_IAM_GRANT_MAX_ATTEMPTS", "12"),
     "BK_IAM_V4_MODEL_BASE_PATH": ("BKAPP_IAM_V4_MODEL_BASE_PATH", "api/v1/open/rbac/model/systems/"),
     "BK_IAM_V4_MODEL_MANAGERS": ("BKAPP_IAM_V4_MODEL_MANAGERS", ""),
     "BK_IAM_V4_CALLBACK_URL": ("BKAPP_IAM_V4_CALLBACK_URL", ""),

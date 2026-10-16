@@ -14,15 +14,13 @@ specific language governing permissions and limitations under the License.
 # 覆盖：
 #   1. 写目标完全由 CreatorGrantOrchestration 的 Provider 集合决定；
 #   2. 一侧失败仍继续其余目标，逐侧结果和详细异常日志可观测；
-#   3. 重试会重放完整 desired state，恢复的后端会被再次写入；
+#   3. 每次调用仅同步尝试一次，不投递后台补偿；
 #   4. 配置非法（重复后端 / 未实现的失败策略）启动期拒绝。
 # ==============================================================================
 
 from unittest.mock import MagicMock
 
 from iam_engine.provider.codec import IdentityCodec
-
-import pytest
 
 from tests.iam.helpers import grant_creator_actions
 
@@ -37,12 +35,6 @@ def _make_provider(name: str, side_effect=None) -> MagicMock:
         else:
             provider._get_client.return_value.grant_resource_creator_actions.side_effect = side_effect
     return provider
-
-
-@pytest.fixture(autouse=True)
-def offline_dispatch(monkeypatch):
-    monkeypatch.setattr("bkmonitor.iam.tasks.grant.dispatch_v4_creator_grant", MagicMock())
-    monkeypatch.setattr("django.db.transaction.on_commit", lambda callback: callback())
 
 
 class TestCreatorGrantOrchestration:
@@ -78,8 +70,8 @@ class TestCreatorGrantOrchestration:
         v3._get_client.return_value.grant_resource_creator_actions.assert_called_once()
         assert result.is_success is False
         assert result.is_partial_failure is True
-        assert result.failed[0].retry_scheduled
-        assert result.failed[0].error_type == "RetryScheduled"
+        assert not result.failed[0].retry_scheduled
+        assert result.failed[0].error_type == "RuntimeError"
 
     def test_all_failure_returns_all_target_errors(self):
         v4 = _make_provider("v4", side_effect=RuntimeError("v4 unavailable"))
@@ -91,10 +83,10 @@ class TestCreatorGrantOrchestration:
         assert result.is_partial_failure is False
         assert [(target.provider_name, target.error_type) for target in result.failed] == [
             ("v3", "ValueError"),
-            ("v4", "RetryScheduled"),
+            ("v4", "RuntimeError"),
         ]
 
-    def test_retry_replays_all_targets_and_can_fill_previously_failed_target(self):
+    def test_explicit_new_call_retries_all_targets_without_background_recovery(self):
         v4 = _make_provider("v4")
         v3 = _make_provider("v3", side_effect=[RuntimeError("transient"), None])
 
@@ -103,6 +95,6 @@ class TestCreatorGrantOrchestration:
 
         assert first.is_partial_failure is True
         assert second.is_success is True
-        # 重试不是只补失败侧：它重放同一个幂等的 desired state 到所有写目标。
+        # 第二次是调用方主动发起的独立授权，不是自动补偿。
         assert v4._get_client.return_value.add_authorization.call_count == 2
         assert v3._get_client.return_value.grant_resource_creator_actions.call_count == 2

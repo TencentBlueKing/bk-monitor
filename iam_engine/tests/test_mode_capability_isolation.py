@@ -12,7 +12,6 @@ from iam_engine.core.exceptions import InvalidAuthModeError
 from iam_engine.core.requests import AuthRequest, Subject, ResourceInstance
 from iam_engine.core.types import AuthResult, BatchAuthResult, BatchAuthResultItem
 from iam_engine.provider.bundle import LazyProviderBundles, ProviderBundle
-from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 from iam_engine.provider.router import ModeRouter
 
 
@@ -29,9 +28,6 @@ def test_monitor_lazy_auth_and_writer_assembly_follows_mode_then_dynamic_switch(
     for version, provider in providers.items():
         provider.name = version.value
         provider.is_allowed.return_value = AuthResult.allow(version.value)
-        writers[version].prepare_resource_creator_actions.return_value = PreparedAuthorizationGrant(
-            payload=[], role_id="space_operator", expired_at=1893456000
-        )
     factories = {
         version: Mock(return_value=ProviderBundle(auth=provider, writer=writers[version]))
         for version, provider in providers.items()
@@ -43,12 +39,7 @@ def test_monitor_lazy_auth_and_writer_assembly_follows_mode_then_dynamic_switch(
     for version in providers:
         assert factories[version].call_count == (version in targets)
         assert providers[version].is_allowed.call_count == (version in targets)
-        method = (
-            writers[version].grant_prepared
-            if version is AuthMode.V4
-            else writers[version].grant_resource_creator_actions
-        )
-        assert method.call_count == (version in targets)
+        assert writers[version].grant_resource_creator_actions.call_count == (version in targets)
     selector.get_mode.return_value = AuthMode.V4 if mode is AuthMode.V3 else AuthMode.V3
     assert permission.is_allowed("view_business")
     assert selector.get_mode.call_count == 3

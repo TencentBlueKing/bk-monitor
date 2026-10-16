@@ -359,8 +359,9 @@ PreCI 包装提示系统未安装 PreCI 并跳过，不能计为实际 PreCI 扫
   删除 SDK dict → 中间 PolicyExpression → SDK dict，V3 原策略直接交 SDK 求值。
 - Monitor 删除额外 V4 config dataclass/TokenProvider/客户端模型包装；
   直接使用共同 V4Options、通信、Token、缓存和租户/凭据隔离规则。
-- 授权失败分类、冻结重试、退避、事务提交边界和当前模式检查集中在公共 grant_retry；
-  产品只绑定 Celery 和真实授权映射。默认有效期仍为 365 天。
+- 最新授权规则：公共编排仅同步调用选定 Writer，各尝试一次；已删除 Celery 补偿、
+  冻结重试、退避及提交回调。API V4/Union 失败直接抛错；默认 V3 契约不变。
+  产品只负责真实授权映射，默认有效期仍为 365 天。后文历史运行数量不代表本轮结果。
 - 原全局异常处理器恢复 master 原文；实际 IAM DRF → 原处理器测试确认三模式拒绝
   及 V4/Union 申请失败均为已处理的无权限响应，不误跳 V3、不产生未处理的 500。
 - 权限诊断 RPC 补齐共同模式目标检查：指定被禁用的协议或非法模式时，装配 Provider

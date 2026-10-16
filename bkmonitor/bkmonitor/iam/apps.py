@@ -18,7 +18,6 @@ class IAMConfig(AppConfig):
     verbose_name = "IAM"
 
     def ready(self):
-        from bkmonitor.iam.tasks import grant  # noqa: F401
         from bkmonitor.iam.model_sync import migrate_iam_models
         from bkmonitor.iam.mode import get_mode_provider
 

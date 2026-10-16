@@ -5,7 +5,6 @@ from datetime import timedelta
 from django.utils import timezone
 
 from iam_engine.migration.grant_config import AuthorizationGrantConfig
-from iam_engine.migration.grant_retry import classify_grant_failure
 from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 
 
@@ -52,5 +51,3 @@ class V4AuthorizationWriter:
         return self.provider._get_client(self.tenant_id).add_authorization(
             items=prepared.payload, operator=self.operator
         )
-
-    classify_failure = staticmethod(classify_grant_failure)

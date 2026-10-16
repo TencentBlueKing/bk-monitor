@@ -10,7 +10,6 @@ from apps.iam.backends.v4.client import V4Client
 from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID
 from apps.iam.backends.v4.config import V4Options
 from apps.iam.grant_config import AuthorizationGrantConfig
-from iam_engine.migration.grant_retry import classify_grant_failure
 from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 
 
@@ -98,5 +97,3 @@ class V4AuthorizationWriter:
 
         grant_config = AuthorizationGrantConfig.from_settings()
         return int((timezone.now() + timedelta(days=grant_config.v4_expire_days)).timestamp())
-
-    classify_failure = staticmethod(classify_grant_failure)

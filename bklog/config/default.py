@@ -251,7 +251,6 @@ CELERY_IMPORTS = (
     "apps.log_clustering.tasks.sync_pattern",
     "apps.log_clustering.tasks.subscription",
     "apps.log_extract.tasks.extract",
-    "apps.iam.tasks.grant",
 )
 
 if os.environ.get("BKAPP_FEATURE_TGPA_TASK", "off") == "on":

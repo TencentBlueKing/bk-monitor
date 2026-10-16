@@ -797,24 +797,18 @@ class Permission:
     # 创建者授权 — 框架委托
     # ================================================================
 
-    def _grant_creator_actions(self, resource, creator):
-        from django.db import transaction
+    def _grant_creator_actions(self, resource, creator, *, mode=None):
         from iam_engine.migration.dual_write import DualWriteGrantOrchestrator
         from iam_engine.error_summary import sanitize_error_summary
-        from bkmonitor.iam.tasks.grant import dispatch_v4_creator_grant
 
-        mode = self.mode_provider.get_mode()
+        mode = self.mode_provider.get_mode() if mode is None else mode
         writers = dict(MigrationPolicy.resolve_authorization_writers(mode, self.provider_bundles))
         results = {}
 
         def observe(version, resource_type, outcome):
             if outcome == "succeeded":
                 results[version] = PermissionWriteTargetResult(version, True)
-            elif outcome in {"sync_failed", "fallback_dispatched"}:
-                results[version] = PermissionWriteTargetResult(
-                    version, False, "RetryScheduled", "V4 synchronous grant failed; retry on commit", True
-                )
-            elif outcome in {"failed", "prepare_failed", "dispatch_failed"}:
+            elif outcome == "failed":
                 error = writers[version].last_error
                 results[version] = PermissionWriteTargetResult(
                     version,
@@ -826,9 +820,6 @@ class Permission:
         orchestrator = DualWriteGrantOrchestrator(
             writers=tuple(writers.items()),
             tenant_id=self.bk_tenant_id,
-            operator=self.username,
-            on_commit=transaction.on_commit,
-            dispatch_retry_grant=dispatch_v4_creator_grant,
             grant_observer=observe,
         )
         orchestrator.grant_creator_action(
@@ -849,15 +840,14 @@ class Permission:
         """
         新建实例关联权限授权（委托公共双写编排），返回逐写后端结果。
 
-        默认写入是尽力而为：一侧失败不会阻断业务创建，但会有
-        公共双写编排的异常日志和本方法的结果摘要日志；绝不再把部分失败
-        记录为 ``Success``。调用方显式传 ``raise_exception=True`` 时，无论是
-        底层直接抛异常，或后端返回不能重试的失败，都统一抛 ``CreatorGrantFailed``。
-        已登记提交后重试的 V4 失败不抛出，否则会回滚业务并取消自己的重试回调。
-        重试仅为尽力投递，不表示授权已完成，不提供持久化补偿保障。
+        所选目标各同步尝试一次，不投递异步补偿。默认记录逐侧失败并继续其他目标；
+        显式 raise_exception=True 时抛 CreatorGrantFailed。API 的 V4/Union 授权失败
+        也直接抛错，不在 eager 请求中重试；默认 V3 保持原有失败处理。
         """
         try:
-            grant_result = self._grant_creator_actions(resource, creator or self.username)
+            mode = self.mode_provider.get_mode()
+            raise_exception = raise_exception or (settings.ROLE == "api" and mode in {AuthMode.V4, AuthMode.UNION})
+            grant_result = self._grant_creator_actions(resource, creator or self.username, mode=mode)
         except Exception as e:  # pylint: disable=broad-except
             logger.exception(f"[grant_creator_action] Failed! resource: {resource}, result: {e}")
             if raise_exception:
@@ -879,7 +869,7 @@ class Permission:
             resource,
             grant_result.as_log_dict(),
         )
-        if raise_exception and any(not target.retry_scheduled for target in grant_result.failed):
+        if raise_exception:
             raise CreatorGrantFailed(
                 f"creator grant incomplete: resource_type={resource.type}, "
                 f"resource_id={resource.id}, result={grant_result.as_log_dict()}"

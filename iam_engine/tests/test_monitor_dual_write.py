@@ -6,10 +6,7 @@ import pytest
 from django.conf import settings
 from django.db import transaction
 
-from iam_engine.provider.capabilities import GrantFailureKind
-from bkmonitor.iam.tasks import grant as grant_tasks
-from bkmonitor.iam.backends.v4.writer import V4AuthorizationWriter
-from iam_engine.exceptions import ProviderError, ProviderUnavailable
+from iam_engine.exceptions import CreatorGrantFailed, ProviderUnavailable
 from tests.iam.helpers import grant_creator_actions
 from bkmonitor.iam.backends.config import build_provider
 
@@ -47,7 +44,7 @@ def providers(offline_django, monkeypatch):
     legacy._get_client, current._get_client = Mock(), Mock()
     legacy._get_client.return_value.grant_resource_creator_actions.return_value = (True, "success")
     dispatch = Mock()
-    monkeypatch.setattr(grant_tasks, "dispatch_v4_creator_grant", dispatch)
+    monkeypatch.setattr(transaction, "on_commit", dispatch)
     return legacy, current, dispatch
 
 
@@ -68,29 +65,53 @@ def test_real_providers_both_grant_before_commit(providers, monkeypatch):
         dispatch.assert_not_called()
 
 
-def test_real_django_on_commit_dispatch_and_frozen_payload(providers):
-    legacy, current, dispatch = providers
+@pytest.mark.parametrize("role", ["web", "api", "worker"])
+@pytest.mark.parametrize("mode", ["v4", "union"])
+def test_v4_failure_is_single_attempt_without_commit_callback(providers, settings, role, mode):
+    legacy, current, on_commit = providers
+    settings.ROLE = role
+    selected = [current] if mode == "v4" else [legacy, current]
     current._get_client.return_value.add_authorization.side_effect = ProviderUnavailable("offline timeout")
-    with transaction.atomic():
-        result = grant_creator_actions([legacy, current], "space", "-1", "user", tenant_id="tenant-b")
-        assert result.failed[0].retry_scheduled
-        dispatch.assert_not_called()
-        frozen = current._get_client.return_value.add_authorization.call_args.kwargs["items"]
-    dispatch.assert_called_once()
-    kwargs = dispatch.call_args.args[0]
-    assert kwargs["payload"] == frozen
-    assert kwargs["expired_at"] == frozen[0]["expired_at"]
-    assert kwargs["tenant_id"] == "tenant-b"
+    if role == "api":
+        with pytest.raises(CreatorGrantFailed):
+            grant_creator_actions(selected, "space", "-1", "user", tenant_id="tenant-b")
+    else:
+        result = grant_creator_actions(selected, "space", "-1", "user", tenant_id="tenant-b")
+        assert result.is_success is False
+        assert not result.failed[0].retry_scheduled
+        assert result.failed[0].error_type == "ProviderUnavailable"
+    current._get_client.return_value.add_authorization.assert_called_once()
+    assert legacy._get_client.return_value.grant_resource_creator_actions.call_count == (mode == "union")
+    on_commit.assert_not_called()
 
 
-def test_real_django_rollback_discards_fallback(providers):
-    legacy, current, dispatch = providers
+def test_strict_web_v4_failure_raises_without_retry(providers, settings):
+    from bkmonitor.iam.permission import Permission
+    from iam import Resource
+    from iam_engine.core.config import AuthMode
+
+    settings.ROLE = "web"
+    _, current, on_commit = providers
     current._get_client.return_value.add_authorization.side_effect = ProviderUnavailable("offline timeout")
-    with pytest.raises(RuntimeError):
-        with transaction.atomic():
-            grant_creator_actions([legacy, current], "space", "-1", "user", tenant_id="tenant-b")
-            raise RuntimeError("rollback")
-    dispatch.assert_not_called()
+    permission = Permission(username="alice", bk_tenant_id="system")
+    permission._providers = {"v4": current}
+    permission.mode_provider = SimpleNamespace(get_mode=lambda: AuthMode.V4)
+    with pytest.raises(CreatorGrantFailed):
+        permission.grant_creator_action(Resource("bk_monitorv3", "space", "2", {}), raise_exception=True)
+    current._get_client.return_value.add_authorization.assert_called_once()
+    on_commit.assert_not_called()
+
+
+def test_api_default_v3_failure_keeps_existing_non_strict_contract(providers, settings):
+    settings.ROLE = "api"
+    legacy, current, on_commit = providers
+    legacy._get_client.return_value.grant_resource_creator_actions.return_value = (False, "denied")
+    result = grant_creator_actions([legacy], "space", "-1", "user", tenant_id="tenant-b")
+    assert result.failed[0].provider_name == "v3"
+    assert not result.failed[0].retry_scheduled
+    legacy._get_client.return_value.grant_resource_creator_actions.assert_called_once()
+    current._get_client.assert_not_called()
+    on_commit.assert_not_called()
 
 
 def test_v3_false_response_is_failed_but_does_not_block_v4(providers):
@@ -101,20 +122,6 @@ def test_v3_false_response_is_failed_but_does_not_block_v4(providers):
     assert result.failed[0].provider_name == "v3"
     current._get_client.return_value.add_authorization.assert_called_once()
     dispatch.assert_not_called()
-
-
-@pytest.mark.parametrize(
-    "error,kind",
-    [
-        (ProviderUnavailable("timeout"), GrantFailureKind.UNKNOWN),
-        (ProviderUnavailable("rate limited", code=429), GrantFailureKind.RETRY_WAIT),
-        (ProviderUnavailable("server", code=503), GrantFailureKind.RETRY_WAIT),
-        (ProviderUnavailable("bad payload", code=400), GrantFailureKind.FAILED_FINAL),
-        (ProviderError("IAM rejection"), GrantFailureKind.FAILED_FINAL),
-    ],
-)
-def test_grant_failure_classification(error, kind):
-    assert V4AuthorizationWriter.classify_failure(error) is kind
 
 
 @pytest.mark.parametrize("mode", ["v3", "v4", "union"])

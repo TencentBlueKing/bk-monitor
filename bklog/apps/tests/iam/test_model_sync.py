@@ -21,7 +21,6 @@ from iam_engine.core.config import AuthMode
 from iam_engine.core.types import AuthResult
 from iam_engine.model.sync import ModelSyncError
 from iam_engine.provider.bundle import LazyProviderBundles, ProviderBundle
-from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 from iam_engine.provider.router import ModeRouter
 from apps.iam.concurrency import run_pair_concurrently
 
@@ -40,9 +39,6 @@ class ModeCapabilityIsolationTest(SimpleTestCase):
                 writers = {version: Mock() for version in providers}
                 for version, provider in providers.items():
                     provider.is_allowed.return_value = AuthResult.allow(version.value)
-                    writers[version].prepare_resource_creator_actions.return_value = PreparedAuthorizationGrant(
-                        payload=[], role_id="space_operator", expired_at=1893456000
-                    )
                 factories = {
                     version: Mock(return_value=ProviderBundle(auth=provider, writer=writers[version]))
                     for version, provider in providers.items()
@@ -63,7 +59,7 @@ class ModeCapabilityIsolationTest(SimpleTestCase):
                     assert factories[version].call_count == (version in targets)
                     assert providers[version].is_allowed.call_count == (version in targets)
                     writer = writers[version]
-                    method = writer.grant_prepared if version is AuthMode.V4 else writer.grant_resource_creator_actions
+                    method = writer.grant_resource_creator_actions
                     assert method.call_count == (version in targets)
                 selector.get_mode.return_value = AuthMode.V4 if mode is AuthMode.V3 else AuthMode.V3
                 assert permission.is_allowed(ActionEnum.MANAGE_GLOBAL_DESENSITIZE_RULE)
