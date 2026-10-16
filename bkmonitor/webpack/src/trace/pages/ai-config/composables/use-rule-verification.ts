@@ -1,0 +1,111 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { shallowRef } from 'vue';
+import type { Ref } from 'vue';
+
+import { useI18n } from 'vue-i18n';
+
+import { ErrorKeyEnum } from '../constants';
+
+import type { SourceAnalysisRuleVo } from '../typings';
+
+/** 优先级允许的最大值 */
+const PRIORITY_MAX = 10000;
+/** 优先级允许的最小值 */
+const PRIORITY_MIN = 1;
+
+/**
+ * @description 源码分析规则校验逻辑
+ * 仅负责匹配规则必填、优先级必填且在允许区间的校验与错误信息维护；
+ * 规则状态（conditions / priority / is_enabled）统一由 useSourceAnalysisRuleDetail.detail 持有。
+ * @param {Ref<null | SourceAnalysisRuleVo>} detail - 规则详情响应式引用
+ * @returns {{
+ *   errors: ShallowRef<Record<string, string>>;
+ *   clearErrorByKey: (key: string) => void;
+ *   resetErrors: () => void;
+ *   validate: () => boolean;
+ * }} 校验状态与方法集合
+ */
+export const useRuleVerification = (detail: Ref<null | SourceAnalysisRuleVo>) => {
+  const { t } = useI18n();
+
+  /** 校验错误信息 key-value 映射（key 对应 ErrorKeyEnum 字段） */
+  const errors = shallowRef<Record<string, string>>({});
+
+  /**
+   * @description 清除指定字段的校验错误
+   * @param {string} key - ErrorKeyEnum 对应的字段 key
+   */
+  const clearErrorByKey = (key: string) => {
+    if (!errors.value[key]) return;
+    const nextErrors = { ...errors.value };
+    delete nextErrors[key];
+    errors.value = nextErrors;
+  };
+
+  /**
+   * @description 清空全部校验错误
+   */
+  const resetErrors = () => {
+    if (!Object.keys(errors.value).length) return;
+    errors.value = {};
+  };
+
+  /**
+   * @description 校验规则基础信息
+   * 必填项包括：告警策略匹配规则（conditions）；
+   * 优先级（priority）必填且必须在 PRIORITY_MIN 与 PRIORITY_MAX 之间。
+   * @param {boolean} isDefault 是否为「默认策略」，默认策略无需配置匹配规则与优先级，对应校验项豁免
+   * @returns {boolean} 全部校验通过返回 true，否则返回 false 并写入 errors
+   */
+  const validate = (isDefault = false) => {
+    const nextErrors: Record<string, string> = {};
+    // 告警策略匹配规则：至少存在一条条件（默认策略豁免）
+    if (!detail.value?.conditions?.length && !isDefault) {
+      nextErrors[ErrorKeyEnum.CONDITIONS] = t('请添加告警策略匹配规则');
+    }
+    // 智能体、知识库、Skill 均为可选：后端三个字段都不强制，留空时流程实例参数
+    // 按「不传递」处理。智能体缺失会在触发分析时被拦截并记录失败原因，不在此拦截。
+    // 优先级仅对非默认策略校验：必填，且必须在允许区间
+    const priority = detail.value?.priority;
+    if (!isDefault) {
+      if (!priority) {
+        nextErrors[ErrorKeyEnum.PRIORITY] = t('请输入优先级');
+      } else if (priority < PRIORITY_MIN || priority > PRIORITY_MAX) {
+        nextErrors[ErrorKeyEnum.PRIORITY] = t('优先级需在1-10000之间');
+      }
+    }
+    errors.value = nextErrors;
+    return !Object.keys(nextErrors).length;
+  };
+
+  return {
+    errors,
+    clearErrorByKey,
+    resetErrors,
+    validate,
+  };
+};
