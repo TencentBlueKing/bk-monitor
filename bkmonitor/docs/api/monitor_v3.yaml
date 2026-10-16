@@ -2597,6 +2597,16 @@
 - api_type: query
   comp_codename: generic.v2.monitor_v3.monitor_v3_component
   dest_http_method: GET
+  dest_path: /api/v3/meta/get_negative_space_id_related_info/
+  is_hidden: true
+  label: 获取负数空间ID相关信息
+  label_en: get negative space id related info
+  name: metadata_get_negative_space_id_related_info
+  path: /v2/monitor_v3/metadata_get_negative_space_id_related_info/
+  method: GET
+- api_type: query
+  comp_codename: generic.v2.monitor_v3.monitor_v3_component
+  dest_http_method: GET
   dest_path: /api/v3/meta/list_sticky_spaces/
   is_hidden: true
   label: 查询置顶空间列表

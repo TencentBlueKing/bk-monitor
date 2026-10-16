@@ -410,6 +410,18 @@ def test_log_collection_create_mcp_contract():
     }
 
 
+def test_negative_space_id_related_info_apigw_contract():
+    """负数空间换正数业务必须保持内部应用态注册，并转到已有内核接口。"""
+    method_data = _load_paths(_METADATA_FILE)["/app/metadata/get_negative_space_id_related_info/"]["get"]
+    gateway_resource = method_data["x-bk-apigateway-resource"]
+
+    assert method_data["operationId"] == "metadata_get_negative_space_id_related_info"
+    assert gateway_resource["isPublic"] is False
+    assert gateway_resource["backend"]["method"] == "get"
+    assert gateway_resource["backend"]["path"] == "/api/v3/meta/get_negative_space_id_related_info/"
+    assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
+
+
 def test_result_table_storage_status_apigw_contract():
     """结果表存储状态接口必须保持内部应用态注册，并提供对应中文文档。"""
     method_data = _load_paths(_METADATA_FILE)["/app/metadata/get_result_table_storage_status/"]["get"]
