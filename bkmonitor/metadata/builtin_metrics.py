@@ -4,12 +4,8 @@ The values are reported by bkmonitorbeat's timesync and selfstats tasks. Match
 exact names: for example, a duration summary's count is not measured in seconds.
 """
 
-SYSTEM_BASE_GROUP_FILTER = {
-    "bk_tenant_id": "system",
-    "bk_biz_id": 0,
-    "bk_data_id": 1100030,
-    "table_id": "bkmonitor_time_series_1100030.__default__",
-}
+# DataSource.bk_data_id is the globally unique identity of system_base_metric.
+SYSTEM_BASE_DATA_ID = 1100030
 
 SYSTEM_BASE_METRIC_UNITS = {
     "host_timesync_query_seconds_min": "s",
