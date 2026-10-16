@@ -26,7 +26,7 @@ from constants.strategy import DATALINK_SOURCE
 from core.drf_resource import Resource, resource
 from fta_web.alert.resources import AlertTopNResource as FtaAlertTopNResource
 from fta_web.alert.resources import ListAlertTagsResource  # noqa
-from fta_web.alert.resources import SearchAlertByEventResource, SearchAlertResource  # noqa
+from fta_web.alert.resources import SearchAlertByEventResource, SearchAlertResource, SearchEventResource  # noqa
 from fta_web.alert.resources import StrategySnapshotResource as FtaStrategySnapshotResource
 from fta_web.alert_v2.resources import (
     AlertEventsResource as FtaAlertEventsResource,
@@ -500,6 +500,12 @@ class AlertRelatedResource(Resource):
         request_data = dict(validated_request_data)
         request_data.pop("bk_biz_id")
         return self.backend_resource_class().request(**request_data)
+
+
+class SearchAlertEventsResource(AlertRelatedResource):
+    """公开网关查询单条告警的关联异常事件，先校验告警归属再走旧查询。"""
+
+    backend_resource_class = SearchEventResource
 
 
 class ListAlertEventsResource(AlertRelatedResource):

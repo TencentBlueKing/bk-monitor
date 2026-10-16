@@ -508,6 +508,36 @@ def test_strategy_snapshot_rejects_cross_biz(monkeypatch):
         alert.ListStrategySnapshotResource().perform_request({"bk_biz_id": 2, "id": 10})
 
 
+def test_search_alert_events_rejects_cross_biz_before_query(monkeypatch):
+    called = False
+
+    class FakeBackendResource:
+        def request(self, **kwargs):
+            nonlocal called
+            called = True
+            return {"events": []}
+
+    monkeypatch.setattr(
+        alert.AlertDocument,
+        "get",
+        lambda _id: SimpleNamespace(event=SimpleNamespace(bk_biz_id=3)),
+    )
+    resource_instance = alert.SearchAlertEventsResource()
+    resource_instance.backend_resource_class = FakeBackendResource
+
+    with pytest.raises(ValidationError):
+        resource_instance.perform_request({"bk_biz_id": 2, "alert_id": "alert-b", "page": 1})
+
+    assert called is False
+
+
+def test_search_alert_events_requires_business_id():
+    serializer = alert.SearchAlertEventsResource.RequestSerializer(data={"alert_id": "alert-1"})
+
+    assert serializer.is_valid() is False
+    assert "bk_biz_id" in serializer.errors
+
+
 def test_alert_related_resource_checks_biz_and_strips_auth_param(monkeypatch):
     captured = {}
 
