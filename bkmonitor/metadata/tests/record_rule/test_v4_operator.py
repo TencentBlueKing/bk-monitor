@@ -113,15 +113,15 @@ def external_api(mocker):
         return_value=build_check_result(metricql="promql_metricql"),
     )
     apply_data_link = mocker.patch(
-        "metadata.models.record_rule.v4.runner.api.bkdata.apply_data_link",
+        "metadata.models.record_rule.v4.runner.api.bkdata.apply_record_rule_flow",
         return_value={"status": "ok"},
     )
     delete_data_link = mocker.patch(
-        "metadata.models.record_rule.v4.runner.api.bkdata.delete_data_link",
+        "metadata.models.record_rule.v4.runner.api.bkdata.delete_record_rule_flow",
         return_value={"status": "deleted"},
     )
     get_data_link = mocker.patch(
-        "metadata.models.record_rule.v4.runner.api.bkdata.get_data_link",
+        "metadata.models.record_rule.v4.runner.api.bkdata.get_record_rule_flow",
         return_value={"status": {"state": "ok"}},
     )
     space_redis = mocker.patch("metadata.models.record_rule.v4.output.SpaceTableIDRedis").return_value
