@@ -43,17 +43,16 @@ import type {
 } from '../types/collection';
 
 const options = (signal: AbortSignal) => ({ signal, needMessage: false });
-const mockParams = process.env.NODE_ENV === 'development' ? { is_mock: true } : {};
 
 export function getCollectionMeta(bizId: number, signal: AbortSignal): Promise<CollectionMeta> {
-  return metaConfig({ bk_biz_id: bizId, ...mockParams }, options(signal));
+  return metaConfig({ bk_biz_id: bizId }, options(signal));
 }
 
 export function getCollectionTasks(
   bizId: number,
   signal: AbortSignal
 ): Promise<{ data: CollectionTask[]; total: number }> {
-  return listTasks({ bk_biz_id: bizId, page: 1, page_size: 10000, ...mockParams }, options(signal));
+  return listTasks({ bk_biz_id: bizId, page: 1, page_size: 10000 }, options(signal));
 }
 
 export function getProcessPreview(
@@ -62,14 +61,11 @@ export function getProcessPreview(
   selector: PreviewSelector,
   signal: AbortSignal
 ): Promise<ProcessPreview> {
-  return previewProcesses(
-    { bk_biz_id: bizId, target_config: target, process_selector: selector, ...mockParams },
-    options(signal)
-  );
+  return previewProcesses({ bk_biz_id: bizId, target_config: target, process_selector: selector }, options(signal));
 }
 
 export function removeCollectionTask(bizId: number, taskId: number, signal: AbortSignal): Promise<void> {
-  return deleteTask({ bk_biz_id: bizId, task_id: taskId, ...mockParams }, options(signal));
+  return deleteTask({ bk_biz_id: bizId, task_id: taskId }, options(signal));
 }
 
 export function saveCollectionTask(
@@ -77,9 +73,7 @@ export function saveCollectionTask(
   taskId: number | undefined,
   signal: AbortSignal
 ): Promise<void> {
-  return taskId
-    ? editTask({ ...payload, task_id: taskId, ...mockParams }, options(signal))
-    : createTask({ ...payload, ...mockParams }, options(signal));
+  return taskId ? editTask({ ...payload, task_id: taskId }, options(signal)) : createTask(payload, options(signal));
 }
 
 export function toggleCollectionTask(
@@ -88,5 +82,5 @@ export function toggleCollectionTask(
   enabled: boolean,
   signal: AbortSignal
 ): Promise<void> {
-  return switchTask({ bk_biz_id: bizId, task_id: taskId, enabled, ...mockParams }, options(signal));
+  return switchTask({ bk_biz_id: bizId, task_id: taskId, enabled }, options(signal));
 }

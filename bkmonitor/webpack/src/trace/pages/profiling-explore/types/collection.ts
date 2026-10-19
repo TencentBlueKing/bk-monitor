@@ -1,4 +1,5 @@
 import type { CollectionHistoryFilters, CollectionResultSelection } from './collection-history';
+import type { CollectionResultsState } from './collection-results';
 
 export interface CollectionDraft {
   collectionType: CollectionType;
@@ -83,6 +84,7 @@ export interface CollectionQueryState {
   historyTaskName: string;
   keyword: string;
   result: CollectionResultSelection | null;
+  results: CollectionResultsState;
   scheduleTypes: ScheduleType[];
   sort: null | { descending: boolean; sortBy: string };
   statuses: string[];

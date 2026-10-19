@@ -47,8 +47,10 @@ export default defineComponent({
     view: { type: Object as PropType<ProfileViewState>, default: createViewState },
     callGraph: { type: String, default: '' },
     compared: Boolean,
+    allowCallGraph: { type: Boolean, default: true },
     dataType: { type: String, default: '' },
     loading: Boolean,
+    exporting: Boolean,
     error: { type: String, default: '' },
   },
   emits: {
@@ -67,7 +69,9 @@ export default defineComponent({
       { id: 'table', icon: 'table', label: t('表格') },
       { id: 'combined', icon: 'mc-fenping', label: t('表格和火焰图') },
       { id: 'flame', icon: 'mc-flame', label: t('火焰图') },
-      ...(!props.compared ? [{ id: 'callgraph', icon: 'Component', label: t('功能调用图') }] : []),
+      ...(!props.compared && props.allowCallGraph
+        ? [{ id: 'callgraph', icon: 'Component', label: t('功能调用图') }]
+        : []),
     ]);
     const empty = computed(() =>
       props.mode === 'callgraph'
@@ -104,10 +108,7 @@ export default defineComponent({
                 v-tippy={mode.label}
                 label={mode.id}
               >
-                <i
-                  class={`icon-monitor icon-${mode.icon}`}
-                  aria-label={mode.label}
-                />
+                <i class={`icon-monitor icon-${mode.icon}`} />
               </Radio.Button>
             ))}
           </Radio.Group>
@@ -152,30 +153,54 @@ export default defineComponent({
               />
             </Radio.Button>
           </Radio.Group>
-          <Dropdown
-            v-slots={{
-              content: () => (
-                <Dropdown.DropdownMenu>
-                  <Dropdown.DropdownItem onClick={() => this.$emit('export')}>pprof</Dropdown.DropdownItem>
-                  {showFlame && (
-                    <Dropdown.DropdownItem onClick={() => this.flame?.exportPng()}>
-                      {this.t('导出当前视图 PNG')}
-                    </Dropdown.DropdownItem>
-                  )}
-                </Dropdown.DropdownMenu>
-              ),
-            }}
-            disabled={this.loading || this.empty || !!this.error}
-            placement='bottom-end'
+          <span
+            class='profile-download-trigger'
+            v-tippy={this.t(
+              this.exporting
+                ? '正在生成 pprof 文件，请稍候'
+                : showFlame
+                  ? '下载采集数据或当前火焰图'
+                  : '下载 pprof 文件'
+            )}
           >
-            <Button
-              class='profile-download'
-              v-tippy={this.t('下载')}
-              aria-label={this.t('下载')}
+            <Dropdown
+              v-slots={{
+                content: () => (
+                  <Dropdown.DropdownMenu>
+                    <Dropdown.DropdownItem
+                      v-tippy={this.t('下载原始 pprof 文件')}
+                      onClick={() => {
+                        if (!this.exporting) this.$emit('export');
+                      }}
+                    >
+                      pprof
+                    </Dropdown.DropdownItem>
+                    {showFlame && (
+                      <Dropdown.DropdownItem
+                        v-tippy={this.t('将当前可见火焰图保存为 PNG 图片')}
+                        onClick={() => this.flame?.exportPng()}
+                      >
+                        {this.t('导出当前视图 PNG')}
+                      </Dropdown.DropdownItem>
+                    )}
+                  </Dropdown.DropdownMenu>
+                ),
+              }}
+              disabled={this.loading || this.empty || !!this.error || this.exporting}
+              placement='bottom-end'
             >
-              <i class='icon-monitor icon-xiazai1' />
-            </Button>
-          </Dropdown>
+              <Button
+                class='profile-download'
+                aria-busy={this.exporting}
+                aria-label={this.t(this.exporting ? '正在生成 pprof 文件，请稍候' : '下载')}
+                disabled={this.loading || this.empty || !!this.error || this.exporting}
+                loading={this.exporting}
+                loadingMode='spin'
+              >
+                <i class='icon-monitor icon-xiazai1' />
+              </Button>
+            </Dropdown>
+          </span>
         </div>
         <div
           class='profile-visualization-content'
@@ -208,6 +233,7 @@ export default defineComponent({
               type='500'
             >
               <Button
+                v-tippy={this.t('重新加载图表数据')}
                 theme='primary'
                 text
                 onClick={() => this.$emit('retry')}
