@@ -35,6 +35,31 @@ def test_compact_groups_send_each_member_list_once() -> None:
     assert len(result["original_data"]) == len(spans)
 
 
+@pytest.mark.parametrize("reduce_details", [None, False, True])
+def test_trace_resource_compacts_group_members_only_when_requested(reduce_details: bool | None) -> None:
+    from apm_web.trace.resources import TraceDetailResource
+
+    spans: list[dict] = copy.deepcopy(read_trace_list("simple"))
+    parameters: dict = {"bk_biz_id": 2, "app_name": "app", "trace_id": spans[0]["trace_id"]}
+    if reduce_details is not None:
+        parameters["reduce_span_details"] = reduce_details
+    with (
+        patch("apm_web.trace.resources.get_llm_entity_set", return_value=None),
+        patch(
+            "apm_web.trace.resources.api.apm_api.query_trace_detail",
+            return_value={"trace_data": spans, "relation_mapping": {}, "options": {}},
+        ),
+        patch("apm_web.trace.diagram.config.DiagramConfigController.read", return_value=None),
+    ):
+        result: dict = TraceDetailResource().request(parameters)
+
+    groups = [span["group_info"] for span in result["trace_tree"]["spans"] if span.get("group_info")]
+    members = {span["spanID"] for span in result["trace_tree"]["spans"] if span.get("group_info")}
+    assert len(groups) == len(members) == 3
+    assert all(not group["members"] or set(group["members"]) == members for group in groups)
+    assert sum(bool(group["members"]) for group in groups) == (1 if reduce_details else 3)
+
+
 def test_trace_original_timestamps_are_preserved_without_copying_attributes() -> None:
     spans = copy.deepcopy(read_trace_list("simple"))
     root = next(span for span in spans if not span["parent_span_id"])
@@ -70,7 +95,9 @@ def test_trace_resource_defers_large_trace_details_only_when_requested(
         span["span_id"] = f"{index + 1:016x}"
         span["parent_span_id"] = "0000000000000001" if index else ""
         spans.append(span)
-    full: dict = TraceHandler.handle_trace("app", copy.deepcopy(spans), template["trace_id"], {}, compact_groups=True)
+    full: dict = TraceHandler.handle_trace(
+        "app", copy.deepcopy(spans), template["trace_id"], {}, compact_groups=bool(reduce_details)
+    )
     with (
         patch("apm_web.trace.resources.get_llm_entity_set", return_value=None),
         patch(

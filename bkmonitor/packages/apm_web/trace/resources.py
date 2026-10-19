@@ -510,7 +510,7 @@ class TraceDetailResource(Resource):
             data["relation_mapping"],
             validated_request_data.get("displays"),
             validated_request_data.get("enabled_time_alignment"),
-            compact_groups=True,
+            compact_groups=validated_request_data["reduce_span_details"],
             detail_span_ids=detail_span_ids,
         )
         if not handled_data.get("original_data", []):
