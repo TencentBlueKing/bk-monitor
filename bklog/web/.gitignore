@@ -106,3 +106,6 @@ tests/
 # AAFE: local AI Coding state; do not commit.
 .aafe/
 packages/e2e-skills
+
+# OpenSpec drafts stay local.
+openspec/
