@@ -33,11 +33,18 @@ BKLog 继续使用自身 `apps.iam.handlers` 入口。不强求目录树相同�
 绑定/恢复本身的请求、租户、时区和 OTel 上下文。不要在公共层读取产品配置中心。
 配置 max_workers=1 时仍可串行对照；线程池结果按输入顺序归并。
 
-产品差异限于实际语义：监控的 Action/资源/角色、空间 ID 编码、V3 策略 AST，
+产品差异限于实际语义：监控的 Action/资源/角色、V3 策略 AST，
 Grafana 文件夹覆盖、模型注册命令，以及 SaaS 凭据和本地请求上下文来源。
 业务调用方传用户名、业务 ID、仪表盘 UID；不自行拼祖先资源或导入引擎 DTO。
 MCP 继续通过产品 Permission 的 `make_request` / `iam_client` 查询和生成申请信息，
 双栈客户端由 IAM 内部装配；明确需要 V3 SDK 的模型工具和回调使用 `get_iam_client`。
+
+V4 空间 ID 由 `v4.codec.SpaceResourceCodec` 统一编解码，两产品直接复用同一实现：
+正数和零保持数字字符串，负数 `-42` 编码为 `neg_42`，返回范围或回调过滤条件
+再解码成本地 `-42`。其他资源 ID 不变，V3 编码不变。两平台仍拥有各自的系统资源，
+编码相同不意味着授权互通。监控不再生成旧的 `space|...` 编码；已有测试授权和申请
+需要另行核对并重新准备，本次不自动修改真实 IAM 数据，也不提供双编码兼容分支。
+
 Grafana 对外保留 `(allowed, role, permissions)` 契约，父文件夹覆盖在权限服务展开；
 APM 旧 permission Action key 在 DRF 边界生成，无需逐个视图开启兼容开关。
 监控公开 `batch_is_allowed` 继续返回历史 V3 Action 键；默认 V3 直接保留 SDK 的完整资源组、

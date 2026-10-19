@@ -198,7 +198,7 @@ def callback(monkeypatch):
 @pytest.mark.parametrize("rt", ["space", "apm_application", "rum_application", "grafana_dashboard"])
 def test_v4_callback_queries_only_requested_tenant(resource_rows, callback, settings, tenant, ids, rt):
     settings.ENABLE_MULTI_TENANT_MODE = True
-    expected = [f"space|{i}" for i in ids] if rt == "space" else [str(i) for i in ids]
+    expected = [str(i) for i in ids]
     all_ids = ["1", "2", "3", "4"]
     if rt == "grafana_dashboard":
         expected = [f"folder:{100 + i}|{200 + i}" for i in ids] + [f"{100 + i}|dash-{i}" for i in ids]
@@ -218,9 +218,9 @@ def test_v4_callback_queries_only_requested_tenant(resource_rows, callback, sett
 @pytest.mark.parametrize("rt", ["apm_application", "rum_application", "grafana_dashboard"])
 def test_v4_parent_cannot_select_another_tenant(resource_rows, callback, settings, rt):
     settings.ENABLE_MULTI_TENANT_MODE = True
-    forbidden = callback(rt=rt, filter_data={"parent": {"type": "space", "id": "space|2"}})
+    forbidden = callback(rt=rt, filter_data={"parent": {"type": "space", "id": "2"}})
     assert forbidden.data["data"] == {"count": 0, "results": []}
-    own = callback(rt=rt, filter_data={"parent": {"type": "space", "id": "space|1"}})
+    own = callback(rt=rt, filter_data={"parent": {"type": "space", "id": "1"}})
     assert own.data["data"]["count"] == (2 if rt == "grafana_dashboard" else 1)
 
 
@@ -243,7 +243,7 @@ def test_callback_single_tenant_compatibility(callback, resource_rows, settings,
     settings.ENABLE_MULTI_TENANT_MODE = False
     result = callback(tenant=tenant)
     assert result.status_code == 200
-    assert result.data["data"]["results"][0]["id"] == ("space|4" if expected == "system" else "space|2")
+    assert result.data["data"]["results"][0]["id"] == ("4" if expected == "system" else "2")
 
 
 @pytest.mark.parametrize("multi_tenant", [False, True])

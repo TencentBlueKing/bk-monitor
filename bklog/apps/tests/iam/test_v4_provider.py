@@ -16,6 +16,12 @@ class BklogNameCodecTest(SimpleTestCase):
     def setUp(self):
         self.codec = BklogNameCodec()
 
+    def test_space_encoding_uses_shared_methods(self):
+        from iam_engine.v4.codec import SpaceResourceCodec
+
+        self.assertIs(BklogNameCodec.encode_resource_id, SpaceResourceCodec.encode_resource_id)
+        self.assertIs(BklogNameCodec.decode_resource_id, SpaceResourceCodec.decode_resource_id)
+
     def test_encode_action_strips_v2_suffix(self):
         self.assertEqual(self.codec.encode_action("view_collection_v2"), "view_collection")
 

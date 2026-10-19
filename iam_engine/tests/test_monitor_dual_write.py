@@ -59,7 +59,7 @@ def test_real_providers_both_grant_before_commit(providers, monkeypatch):
         current._get_client.return_value.add_authorization.assert_called_once()
         payload = current._get_client.return_value.add_authorization.call_args.kwargs["items"]
         assert payload[0]["expired_at"] - int(fixed.timestamp()) == 365 * 86400
-        assert payload[0]["resources"] == [{"type": "space", "id": "space|-1"}]
+        assert payload[0]["resources"] == [{"type": "space", "id": "neg_1"}]
         assert payload[0]["subject"] == {"type": "user", "id": "user"}
         current._get_client.assert_called_with("tenant-b")
         dispatch.assert_not_called()

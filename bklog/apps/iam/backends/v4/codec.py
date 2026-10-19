@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 
 from iam_engine.core.requests import ResourceInstance, to_definition_id
+from iam_engine.v4.codec import SpaceResourceCodec
 
 _IAM_PATH_SEGMENT_PATTERN = re.compile(r"(?:^|/)(?P<type>[^/,]+),(?P<id>[^/]+)(?=/|$)")
 
@@ -16,13 +17,6 @@ _V2_ACTION_SUFFIX = "_v2"
 # IAM V4 dev/bklog_test（2026-08-07 查询）均注册为 space。
 # 正式 bk_log_search V4 模型注册后，灰度前仍需在目标环境重新核对。
 BKLOG_ROOT_RESOURCE_TYPE_ID = "space"
-
-# IAM V4 要求资源 ID 以字母或数字开头，而 BKCI 等非 CMDB 空间的 bk_biz_id 是负数。
-# 本地 bk_biz_id 是整数，因此 ``neg_<absolute id>`` 不会与合法的原始空间 ID 冲突；
-# 正数保持原值，避免迁移既有 IAM V4 授权。
-NEGATIVE_SPACE_RESOURCE_ID_PREFIX = "neg_"
-_NEGATIVE_INTEGER_PATTERN = re.compile(r"^-(?P<absolute_id>\d+)$")
-_ENCODED_NEGATIVE_INTEGER_PATTERN = re.compile(rf"^{re.escape(NEGATIVE_SPACE_RESOURCE_ID_PREFIX)}(?P<absolute_id>\d+)$")
 
 
 class V4ResourceCodec:
@@ -138,7 +132,7 @@ class V4ResourceCodec:
         return []
 
 
-class BklogNameCodec(V4ResourceCodec):
+class BklogNameCodec(SpaceResourceCodec, V4ResourceCodec):
     """在通用 V4 编码上适配日志平台的 Action 命名。"""
 
     root_resource_type_id = BKLOG_ROOT_RESOURCE_TYPE_ID
@@ -149,23 +143,3 @@ class BklogNameCodec(V4ResourceCodec):
         if action_id.endswith(_V2_ACTION_SUFFIX):
             return action_id[: -len(_V2_ACTION_SUFFIX)]
         return action_id
-
-    def encode_resource_id(self, resource_type: str, resource_id: object) -> str:
-        normalized_type = self.encode_resource_type(resource_type)
-        normalized_id = str(resource_id)
-        if normalized_type != self.root_resource_type_id:
-            return normalized_id
-        match = _NEGATIVE_INTEGER_PATTERN.fullmatch(normalized_id)
-        if match is None:
-            return normalized_id
-        return f"{NEGATIVE_SPACE_RESOURCE_ID_PREFIX}{match.group('absolute_id')}"
-
-    def decode_resource_id(self, resource_type: str, resource_id: object) -> str:
-        normalized_type = self.encode_resource_type(resource_type)
-        normalized_id = str(resource_id)
-        if normalized_type != self.root_resource_type_id:
-            return normalized_id
-        match = _ENCODED_NEGATIVE_INTEGER_PATTERN.fullmatch(normalized_id)
-        if match is None:
-            return normalized_id
-        return f"-{match.group('absolute_id')}"
