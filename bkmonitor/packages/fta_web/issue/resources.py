@@ -1947,17 +1947,13 @@ class ListSourceAnalysisSkillsResource(BaseListSourceAnalysisAidevOptionsResourc
 
 
 class ListSourceAnalysisKnowledgeBasesResource(BaseListSourceAnalysisAidevOptionsResource):
-    """查询当前用户有权限的 AIDEV 知识库选项。"""
+    """蓝盾流水线插件暂不支持知识库，保留选项接口但返回空列表。"""
 
     id_field = "knowledgebase_code"
     name_field = "name"
 
     def perform_request(self, validated_request_data: dict) -> dict:
-        try:
-            items, space_name_map = self.query_visible_aidev_knowledge_bases()
-            return self.build_aidev_options(items, space_name_map)
-        except (BKAPIError, TypeError, ValueError) as error:
-            self.raise_upstream_unavailable(error)
+        return {"total": 0, "list": []}
 
 
 class GetSourceAnalysisConfigResource(SourceAnalysisBaseResource):

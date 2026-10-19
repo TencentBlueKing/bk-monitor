@@ -637,7 +637,7 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         self.assertEqual(result, ([], {}))
         list_knowledge_bases.assert_not_called()
 
-    def test_knowledge_base_option_fails_closed_when_one_space_query_fails(self):
+    def test_knowledge_base_query_fails_closed_when_one_space_query_fails(self):
         spaces = [
             {"space_id": "space-a", "space_name": "AIDEV Helper"},
             {"space_id": "space-b", "space_name": "Source Analysis"},
@@ -650,14 +650,34 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
                 "list_knowledge_bases",
                 side_effect=[{"count": 0, "results": []}, upstream_error],
             ),
+            self.assertRaises(BKAPIError),
+        ):
+            SourceAnalysisBaseResource.load_visible_aidev_knowledge_bases()
+
+    def test_knowledge_base_options_return_empty_without_calling_aidev(self):
+        with (
             patch.object(
                 ListSourceAnalysisKnowledgeBasesResource,
                 "query_visible_aidev_knowledge_bases",
-                side_effect=SourceAnalysisBaseResource.load_visible_aidev_knowledge_bases,
-            ),
-            self.assertRaises(SourceAnalysisUpstreamUnavailableError),
+                side_effect=AssertionError("unexpected knowledge base options query"),
+            ) as query_knowledge_bases,
+            patch.object(api.aidev, "list_spaces", side_effect=AssertionError("unexpected space query")) as list_spaces,
+            patch.object(
+                api.aidev, "list_knowledge_bases", side_effect=AssertionError("unexpected knowledge base query")
+            ) as list_knowledge_bases,
         ):
-            ListSourceAnalysisKnowledgeBasesResource().perform_request({"bk_biz_id": 2})
+            result = ListSourceAnalysisKnowledgeBasesResource().perform_request({"bk_biz_id": 2})
+
+        self.assertEqual(result, {"total": 0, "list": []})
+        query_knowledge_bases.assert_not_called()
+        list_spaces.assert_not_called()
+        list_knowledge_bases.assert_not_called()
+
+    def test_knowledge_base_options_still_require_business_id(self):
+        serializer = ListSourceAnalysisKnowledgeBasesResource.RequestSerializer(data={"bk_biz_id": 2})
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        self.assertEqual(dict(serializer.validated_data), {"bk_biz_id": 2})
+        self.assertFalse(ListSourceAnalysisKnowledgeBasesResource.RequestSerializer(data={}).is_valid())
 
     def test_invalid_aidev_shape_is_rejected(self):
         for upstream_data in (None, {}, {"count": 1, "results": ["invalid-item"]}):
