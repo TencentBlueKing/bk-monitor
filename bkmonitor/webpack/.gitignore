@@ -128,3 +128,4 @@ skills-lock.json
 
 # 一次性 E2E 用例、登录态与测试证据，仅保留在本地。
 .e2e-runs/
+/docs/

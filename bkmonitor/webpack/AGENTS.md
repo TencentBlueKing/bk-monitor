@@ -116,3 +116,19 @@ Git 根用 `git rev-parse --show-toplevel` 获取，不依赖本地目录名。�
 - 一次性测试与视觉证据 → `bkmonitor-e2e-test` / `bkmonitor-e2e-visual`
 - PR 正文与 TAPD 评论模板 → `blueking-tapd-dev`
 - 组件 API → 按实际包名选择组件 skill，包括基础组件、`blueking-tdesign-ui`、`blueking-date-picker`、`blueking-search-select-v3`
+
+---
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in TAPD workspace 10158081. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Five canonical triage roles; each label string equals its name. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: one `GLOSSARY.md` and `docs/adr/` in this directory (`bkmonitor/webpack`). See `docs/agents/domain.md`.
