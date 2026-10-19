@@ -164,7 +164,6 @@ export default defineComponent({
           <i18n
             class='filter-range-group keyword-range-group'
             path='从匹配{0}开始到匹配{1}之间的所有行'
-            tag='div'
           >
             <bk-input
               class='filter-range-input'
@@ -207,7 +206,6 @@ export default defineComponent({
           <i18n
             class='filter-range-group line-range-group'
             path='从第{0}行到第{1}行'
-            tag='div'
           >
             <bk-input
               class='filter-range-input'

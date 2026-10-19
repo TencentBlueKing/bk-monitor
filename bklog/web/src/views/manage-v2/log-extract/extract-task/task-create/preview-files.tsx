@@ -638,34 +638,28 @@ export default defineComponent({
                   <span class='bk-icon icon-info-circle extraction-tips-icon' />
                   <div class='extraction-tips-content'>
                     {extractionDirection.value === 'forward' ? (
-                      <i18n
-                        path='将向{0}符合提取范围的主机提取：以下{1}个文件'
-                        tag='div'
-                      >
+                      <i18n path='将向{0}符合提取范围的主机提取：以下{1}个文件'>
                         <strong class='extraction-tips-emphasis'>{t('所有')}</strong>
                         <span class='selected-files-count'>{selectedFiles.value.length}</span>
                       </i18n>
                     ) : (
                       [
-                        <i18n
-                          path='将向{0}符合提取范围的主机提取：'
-                          tag='div'
-                        >
-                          <strong class='extraction-tips-emphasis'>{t('所有')}</strong>
-                        </i18n>,
-                        <i18n
-                          path='{0}之外的{1}文件'
-                          tag='div'
-                        >
-                          <i18n
-                            class='excluded-files-text'
-                            path='除去以下{0}个文件'
-                            tag='span'
-                          >
-                            <span class='selected-files-count'>{selectedFiles.value.length}</span>
+                        <div>
+                          <i18n path='将向{0}符合提取范围的主机提取：'>
+                            <strong class='extraction-tips-emphasis'>{t('所有')}</strong>
                           </i18n>
-                          <strong class='extraction-tips-emphasis'>{t('所有')}</strong>
-                        </i18n>,
+                        </div>,
+                        <div>
+                          <i18n path='{0}之外的{1}文件'>
+                            <i18n
+                              class='excluded-files-text'
+                              path='除去以下{0}个文件'
+                            >
+                              <span class='selected-files-count'>{selectedFiles.value.length}</span>
+                            </i18n>
+                            <strong class='extraction-tips-emphasis'>{t('所有')}</strong>
+                          </i18n>
+                        </div>,
                       ]
                     )}
                   </div>
