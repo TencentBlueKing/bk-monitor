@@ -2032,6 +2032,7 @@ POST /rum/search/statistics/
 |----------|-----------------|
 | 触发请求数 | `[{"key":"attributes.span_type","operator":"equal","value":["resource"]},{"key":"attributes.resource.type","operator":"equal","value":["xhr","fetch"]}]` |
 | 错误数 | `[{"key":"attributes.span_type","operator":"equal","value":["error"]}]` |
+| Span 数 | `[{"key":"attributes.span_type","operator":"not_equal","value":["view","vital","session"]}]` |
 | 动作数 | `[{"key":"attributes.span_type","operator":"equal","value":["action"]}]` |
 
 ```json
