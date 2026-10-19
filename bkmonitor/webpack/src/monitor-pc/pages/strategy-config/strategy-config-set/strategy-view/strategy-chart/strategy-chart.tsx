@@ -25,6 +25,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { markRaw } from 'vue';
+
 import { Component, Emit, InjectReactive, Prop, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -35,6 +37,9 @@ import { handleThreshold } from 'monitor-ui/chart-plugins/utils';
 
 import { LETTERS } from '../../../../../common/constant';
 import { SET_DIMENSIONS_OF_SERIES } from '../../../../../store/modules/strategy-config';
+import { PromqlQueryController } from '../../../strategy-config-common/promql-query/controller';
+import { isMultiPromqlBiz } from '../../../strategy-config-common/promql-query/model';
+import { buildPromqlPreview } from '../../../strategy-config-common/promql-query/service';
 import { transformSensitivityValue } from '../../../util';
 import { EShortcutsType } from '../typing';
 
@@ -178,14 +183,20 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   }
 
   get promqlStr() {
-    return JSON.stringify(this.sourceData.queryConfigs || this.sourceData.sourceCode);
+    return JSON.stringify([
+      this.editMode,
+      this.sourceData.queryConfigs || this.sourceData.sourceCode,
+      this.sourceData.step,
+      this.expression,
+    ]);
   }
-  get promqlStep() {
-    return this.sourceData.step;
+  private sourceController = markRaw(new PromqlQueryController());
+
+  @Watch('promqlStr')
+  handlePromqlChange() {
+    if (this.editMode === 'Source') this.initPanel();
   }
 
-  @Watch('promqlStep')
-  @Watch('promqlStr')
   @Watch('expression')
   @Watch('metricData', { immediate: true })
   watchMetricDataChange(val: MetricDetail[]) {
@@ -215,6 +226,15 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   /** 初始化图表panel */
   @Debounce(1000)
   async initPanel() {
+    if (
+      this.editMode === 'Source' &&
+      this.sourceController.validate(this.sourceData, this.expression, {
+        allowMulti: isMultiPromqlBiz(this.$store.getters.bizId),
+      })
+    ) {
+      this.panel = null;
+      return;
+    }
     let panelData = null;
     if (this.hasTimeSeriesForecast) {
       panelData = await this.createTimeSeriesForecastPanelData();
@@ -249,19 +269,9 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   @Emit('logQuery')
   handleLogQuery() {}
 
-  /** 根据表达式生成指标图的title */
+  /** 图表 title：统一展示表达式（别名表达式），不做指标中文名解析 */
   getMetricName() {
-    // 字符串分隔成多个单词
-    const metricName = this.getExpression().replace(/\b\w+\b/g, alias => {
-      // 单词分隔成多个关键字
-      return alias.replace(/bool|and|or|\w/gi, keyword => {
-        if (['bool', 'or', 'and'].includes(keyword.toLocaleLowerCase())) return keyword;
-        const metric = this.metricData.find(item => item.alias === keyword);
-        if (metric) return metric.metric_field_name || alias;
-        return keyword || '';
-      });
-    });
-    return metricName === 'undefined' ? '' : metricName;
+    return this.getExpression()?.trim() || '';
   }
 
   /**
@@ -399,171 +409,157 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
    * @returns 图表查询配置
    */
   getQueryParams(isDetect = false, isMetric = true, metrics?) {
+    if (this.editMode === 'Source') {
+      return {
+        ...buildPromqlPreview(this.sourceData, this.expression),
+        functions: this.expression ? this.expFunctions : [],
+        target: this.strategyTarget || [],
+      };
+    }
     const params = {
-      ...(this.editMode === 'Source' && !this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
-        ? { promql_multi_expression: true }
-        : {}),
       expression: this.getExpression(),
       functions: this.expression ? this.expFunctions : [],
       target: this.strategyTarget || [],
-      query_configs:
-        this.editMode === 'Source'
-          ? (!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length
-              ? this.sourceData.queryConfigs
-              : [{ alias: 'a', promql: this.sourceData.sourceCode }]
-            ).map(item => ({
-              data_source_label: 'prometheus',
-              data_type_label: 'time_series',
-              promql: item.promql,
-              interval: this.sourceData.step,
-              ...(!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
-                ? { alias: item.alias }
-                : {}),
-            }))
-          : this.metricData.map(
-              ({
-                data_label,
-                data_source_label: dataSourceLabel,
-                index_set_id,
-                keywords_query_string,
-                agg_interval,
-                result_table_id: resultTableId,
-                agg_dimension,
-                agg_condition,
-                data_type_label: dataTypeLabel,
-                metric_field: metricField,
-                agg_method: aggMethod,
-                alias,
-                extend_fields: extendFields,
-                intelligent_detect,
-                functions = [],
-                metricMetaId,
-                time_field: timeField,
-                bkmonitor_strategy_id: bkmonitorStrategyId,
-                custom_event_name,
-                curRealMetric,
-              }) => {
-                dataSourceLabel = curRealMetric?.data_source_label || dataSourceLabel;
-                dataTypeLabel = curRealMetric?.data_type_label || dataTypeLabel;
-                resultTableId = curRealMetric?.result_table_id || resultTableId;
-                metricField = curRealMetric?.metric_field || metricField;
-                /** 原始的指标数据 避免跳转检索查不到原指标 */
-                const originMetricData = isDetect
-                  ? {
-                      dataSourceLabel,
-                      resultTableId,
-                      metricField,
-                      dataTypeLabel,
-                    }
-                  : {};
-                const fieldValue = () => {
-                  if (this.hasTimeSeriesForecast) return 'value';
-                  if (dataSourceLabel === 'bk_log_search' && dataTypeLabel === 'log') {
-                    return '_index'; // 此类情况field固定为_index
-                  }
-                  if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
-                    return custom_event_name ? CustomEventMetricAll : metricField;
-                  }
-                  return metricField || bkmonitorStrategyId;
-                };
-                const method = aggMethod === 'REAL_TIME' || this.dataMode === 'realtime' ? 'REAL_TIME' : aggMethod;
-                let localMetrics = this.hasIntelligentDetect
-                  ? this.createMetrics(isMetric)
-                  : [
-                      {
-                        field: fieldValue(),
-                        method,
-                        alias: alias || LETTERS.at(0),
-                        display: dataTypeLabel === 'alert',
-                      },
-                    ];
-                if (this.hasTimeSeriesForecast && metrics) {
-                  // 时序预测
-                  localMetrics = [...localMetrics, ...metrics];
-                }
-                const func = isDetect ? [...functions, { max_point_number: 0 }] : functions;
-                let logParam = {};
-                if (dataSourceLabel === 'bk_log_search') {
-                  logParam =
-                    metricMetaId === 'bk_log_search|log'
-                      ? {
-                          index_set_id,
-                          query_string: keywords_query_string,
-                        }
-                      : { index_set_id: extendFields.index_set_id || '' };
-                } else if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
-                  logParam = {
-                    query_string: keywords_query_string?.trim() || '*',
-                  };
-                }
-                const tableValue = () => {
-                  if (dataSourceLabel === 'bk_monitor' && dataTypeLabel === 'alert') {
-                    return 'strategy'; // 此类情况table固定为strategy
-                  }
-                  return !isDetect ? resultTableId : intelligent_detect?.result_table_id || resultTableId;
-                };
-                const getFieldDict = () => {
-                  const fieldDict: Record<string, string> =
-                    this.shortcutsType === EShortcutsType.NEAR
-                      ? {}
-                      : Object.keys(this.dimensions).reduce((pre, key) => {
-                          if (!typeTools.isNull(this.dimensions[key]) && agg_dimension.includes(key)) {
-                            pre[key] = this.dimensions[key];
-                          }
-                          return pre;
-                        }, {});
-                  if (
-                    dataSourceLabel === 'custom' &&
-                    dataTypeLabel === 'event' &&
-                    !typeTools.isNull(custom_event_name)
-                  ) {
-                    fieldDict.event_name = custom_event_name;
-                  }
-                  return fieldDict;
-                };
-                const result = {
-                  originMetricData: isDetect ? originMetricData : undefined,
-                  data_source_label: !isDetect ? dataSourceLabel : 'bk_data',
-                  data_type_label: dataTypeLabel,
-                  data_label: this.detectionConfig.data.some(item =>
-                    ['IntelligentDetect', 'TimeSeriesForecasting', 'AbnormalCluster', 'HostAnomalyDetection'].includes(
-                      item.type
-                    )
-                  )
-                    ? ''
-                    : data_label,
-                  metrics: localMetrics,
-                  table: tableValue(),
-                  group_by: isDetect ? intelligent_detect?.agg_dimension || [] : agg_dimension,
-                  where: isDetect
-                    ? intelligent_detect?.agg_condition || []
-                    : agg_condition.filter(item => item.key && item.value?.length),
-                  interval: agg_interval,
-                  time_field: isDetect ? 'dtEventTimeStamp' : timeField || 'time',
-                  filter_dict: getFieldDict(),
-                  functions: isDetect ? [] : func,
-                  target: this.strategyTarget || [],
-                  ...logParam,
-                };
-                const tempAggDimension = [...agg_dimension];
-                /** 指标带有智能检测算法的数据时候使用 */
-                if (this.hasIntelligentDetect && this.intelligentDetect) {
-                  const {
-                    data_source_label,
-                    data_type_label,
-                    result_table_id,
-                    agg_dimension = tempAggDimension,
-                    agg_condition,
-                  } = this.intelligentDetect;
-                  result.data_source_label = data_source_label;
-                  result.data_type_label = data_type_label;
-                  result.table = result_table_id;
-                  result.group_by = agg_dimension;
-                  result.where = agg_condition;
-                }
-                return result;
+      query_configs: this.metricData.map(
+        ({
+          data_label,
+          data_source_label: dataSourceLabel,
+          index_set_id,
+          keywords_query_string,
+          agg_interval,
+          result_table_id: resultTableId,
+          agg_dimension,
+          agg_condition,
+          data_type_label: dataTypeLabel,
+          metric_field: metricField,
+          agg_method: aggMethod,
+          alias,
+          extend_fields: extendFields,
+          intelligent_detect,
+          functions = [],
+          metricMetaId,
+          time_field: timeField,
+          bkmonitor_strategy_id: bkmonitorStrategyId,
+          custom_event_name,
+          curRealMetric,
+        }) => {
+          dataSourceLabel = curRealMetric?.data_source_label || dataSourceLabel;
+          dataTypeLabel = curRealMetric?.data_type_label || dataTypeLabel;
+          resultTableId = curRealMetric?.result_table_id || resultTableId;
+          metricField = curRealMetric?.metric_field || metricField;
+          /** 原始的指标数据 避免跳转检索查不到原指标 */
+          const originMetricData = isDetect
+            ? {
+                dataSourceLabel,
+                resultTableId,
+                metricField,
+                dataTypeLabel,
               }
-            ),
+            : {};
+          const fieldValue = () => {
+            if (this.hasTimeSeriesForecast) return 'value';
+            if (dataSourceLabel === 'bk_log_search' && dataTypeLabel === 'log') {
+              return '_index'; // 此类情况field固定为_index
+            }
+            if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
+              return custom_event_name ? CustomEventMetricAll : metricField;
+            }
+            return metricField || bkmonitorStrategyId;
+          };
+          const method = aggMethod === 'REAL_TIME' || this.dataMode === 'realtime' ? 'REAL_TIME' : aggMethod;
+          let localMetrics = this.hasIntelligentDetect
+            ? this.createMetrics(isMetric)
+            : [
+                {
+                  field: fieldValue(),
+                  method,
+                  alias: alias || LETTERS.at(0),
+                  display: dataTypeLabel === 'alert',
+                },
+              ];
+          if (this.hasTimeSeriesForecast && metrics) {
+            // 时序预测
+            localMetrics = [...localMetrics, ...metrics];
+          }
+          const func = isDetect ? [...functions, { max_point_number: 0 }] : functions;
+          let logParam = {};
+          if (dataSourceLabel === 'bk_log_search') {
+            logParam =
+              metricMetaId === 'bk_log_search|log'
+                ? {
+                    index_set_id,
+                    query_string: keywords_query_string,
+                  }
+                : { index_set_id: extendFields.index_set_id || '' };
+          } else if (dataSourceLabel === 'custom' && dataTypeLabel === 'event') {
+            logParam = {
+              query_string: keywords_query_string?.trim() || '*',
+            };
+          }
+          const tableValue = () => {
+            if (dataSourceLabel === 'bk_monitor' && dataTypeLabel === 'alert') {
+              return 'strategy'; // 此类情况table固定为strategy
+            }
+            return !isDetect ? resultTableId : intelligent_detect?.result_table_id || resultTableId;
+          };
+          const getFieldDict = () => {
+            const fieldDict: Record<string, string> =
+              this.shortcutsType === EShortcutsType.NEAR
+                ? {}
+                : Object.keys(this.dimensions).reduce((pre, key) => {
+                    if (!typeTools.isNull(this.dimensions[key]) && agg_dimension.includes(key)) {
+                      pre[key] = this.dimensions[key];
+                    }
+                    return pre;
+                  }, {});
+            if (dataSourceLabel === 'custom' && dataTypeLabel === 'event' && !typeTools.isNull(custom_event_name)) {
+              fieldDict.event_name = custom_event_name;
+            }
+            return fieldDict;
+          };
+          const result = {
+            originMetricData: isDetect ? originMetricData : undefined,
+            data_source_label: !isDetect ? dataSourceLabel : 'bk_data',
+            data_type_label: dataTypeLabel,
+            data_label: this.detectionConfig.data.some(item =>
+              ['IntelligentDetect', 'TimeSeriesForecasting', 'AbnormalCluster', 'HostAnomalyDetection'].includes(
+                item.type
+              )
+            )
+              ? ''
+              : data_label,
+            metrics: localMetrics,
+            table: tableValue(),
+            group_by: isDetect ? intelligent_detect?.agg_dimension || [] : agg_dimension,
+            where: isDetect
+              ? intelligent_detect?.agg_condition || []
+              : agg_condition.filter(item => item.key && item.value?.length),
+            interval: agg_interval,
+            time_field: isDetect ? 'dtEventTimeStamp' : timeField || 'time',
+            filter_dict: getFieldDict(),
+            functions: isDetect ? [] : func,
+            target: this.strategyTarget || [],
+            ...logParam,
+          };
+          const tempAggDimension = [...agg_dimension];
+          /** 指标带有智能检测算法的数据时候使用 */
+          if (this.hasIntelligentDetect && this.intelligentDetect) {
+            const {
+              data_source_label,
+              data_type_label,
+              result_table_id,
+              agg_dimension = tempAggDimension,
+              agg_condition,
+            } = this.intelligentDetect;
+            result.data_source_label = data_source_label;
+            result.data_type_label = data_type_label;
+            result.table = result_table_id;
+            result.group_by = agg_dimension;
+            result.where = agg_condition;
+          }
+          return result;
+        }
+      ),
     };
     if (this.shortcutsType === EShortcutsType.NEAR) {
       Object.assign(params, { series_num: this.nearNum });

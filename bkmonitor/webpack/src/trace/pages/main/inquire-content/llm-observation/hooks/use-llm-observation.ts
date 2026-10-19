@@ -118,9 +118,12 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     })
   );
 
-  /** 会话时间线中当前 Trace 固定排在首位，便于与详情页上下文对齐 */
-  const sortTraces = (nextTraces: LlmFlowTrace[], currentTraceId: string) =>
+  /** 会话时间线按 start_time 正序；单 Trace 模式仍把当前 Trace 置顶 */
+  const sortTraces = (nextTraces: LlmFlowTrace[], currentTraceId: string, useSession: boolean) =>
     [...nextTraces].sort((left, right) => {
+      if (useSession) {
+        return (left.start_time || 0) - (right.start_time || 0);
+      }
       if (left.trace_id === currentTraceId) return -1;
       if (right.trace_id === currentTraceId) return 1;
       return 0;
@@ -247,7 +250,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       );
       if (requestId !== overviewRequestId) return;
 
-      const nextTraces = sortTraces(data?.traces || [], traceId);
+      const nextTraces = sortTraces(data?.traces || [], traceId, useSession);
       const merged = useSession
         ? mergeSessionTraces(nextTraces, traces.value, flowLoadedTraceIds.value)
         : nextTraces.map(item => ({ ...item, flow: item.flow || [] }));

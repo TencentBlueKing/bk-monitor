@@ -1,5 +1,223 @@
 import logWebManifest from '@blueking/log-web';
 
+type TippyLike = {
+  destroy?: () => void;
+  hide?: () => void;
+  state?: { isDestroyed?: boolean };
+  unmount?: () => void;
+};
+type TippyHost = HTMLElement & { _tippy?: TippyLike };
+
+/**
+ * iframe 实际跑的是已发布 @blueking/log-web。
+ * DatePicker 第二次 hover 后 hide() 常空操作，tippy 挂在 iframe document.body。
+ * 必须在 iframe 文档里关实例，不能只改 packages/web-v1 源码。
+ */
+export const dismissDateHoverTooltip = (doc: Document) => {
+  if (!doc) {
+    return;
+  }
+  const trigger = doc.querySelector('.date-content') as TippyHost | null;
+  const live = trigger?._tippy;
+  if (live && !live.state?.isDestroyed) {
+    live.hide?.();
+    live.unmount?.();
+  }
+  const dismissPopper = (node: Element) => {
+    const popperRoot = node.closest('[data-tippy-root]');
+    if (!popperRoot) {
+      return;
+    }
+    const inst = (node as TippyHost)._tippy || (popperRoot as TippyHost)._tippy;
+    if (inst && !inst.state?.isDestroyed) {
+      inst.hide?.();
+      inst.unmount?.();
+      if (inst !== live) {
+        inst.destroy?.();
+      }
+    }
+    // hide() 第二次常空操作，popper 仍挂在 iframe body 上
+    if (popperRoot.isConnected) {
+      popperRoot.parentNode?.removeChild(popperRoot);
+    }
+  };
+  doc.querySelectorAll('.__date-tooltips__').forEach(dismissPopper);
+  doc.querySelectorAll('.tippy-box[data-theme*="bk-date-tips"]').forEach(dismissPopper);
+  // 已发布 log-web 内 DatePicker 用 pop2：visible / hidden，不是 tippy root
+};
+
+const isDatePanelPopper = (node: Element) =>
+  node.classList.contains('__bk-date-picker-popover__') || node.classList.contains('bk-date-picker-popover');
+
+const setPublishedTooltipHidden = (doc: Document, hidden: boolean) => {
+  doc.querySelectorAll('.__date-tooltips__').forEach(tip => {
+    const node = tip.closest('.time-range-pop2-content') as HTMLElement | null;
+    if (!node || isDatePanelPopper(node)) {
+      return;
+    }
+    node.classList.toggle('hidden', hidden);
+    node.classList.toggle('visible', !hidden);
+    // 已发布包用 is-show 写 inline display，普通 hidden 盖不住
+    if (hidden) {
+      node.style.setProperty('display', 'none', 'important');
+    } else {
+      node.style.removeProperty('display');
+    }
+  });
+};
+
+export const bindDateHoverTooltipDismiss = (doc: Document) => {
+  const marked = doc as Document & { __bklogDateHoverTooltipBound?: boolean };
+  if (!doc || marked.__bklogDateHoverTooltipBound) {
+    return () => {};
+  }
+  marked.__bklogDateHoverTooltipBound = true;
+  // 已发布包 z() 只在打开面板时清 tooltip；点关掉面板后 b 仍为 true。
+  // 点击后锁定隐藏，直到指针真正离开 .date-content，避免还在上面的 mouseover 把框再打开。
+  let locked = false;
+  let raf = 0;
+  const hide = () => {
+    dismissDateHoverTooltip(doc);
+    setPublishedTooltipHidden(doc, true);
+  };
+  const show = () => {
+    setPublishedTooltipHidden(doc, false);
+  };
+  const keepHidden = () => {
+    if (!locked) {
+      raf = 0;
+      return;
+    }
+    hide();
+    raf = window.requestAnimationFrame(keepHidden);
+  };
+  const lockHide = () => {
+    locked = true;
+    hide();
+    if (!raf) {
+      raf = window.requestAnimationFrame(keepHidden);
+    }
+  };
+  const onClick = (event: Event) => {
+    const target = event.target as Element | null;
+    if (target?.closest?.('.date-content')) {
+      lockHide();
+      return;
+    }
+    hide();
+  };
+  const onMouseOver = (event: Event) => {
+    const target = event.target as Element | null;
+    if (!target?.closest?.('.date-content')) {
+      return;
+    }
+    if (locked) {
+      hide();
+      return;
+    }
+    show();
+  };
+  const onMouseOut = (event: MouseEvent) => {
+    const from = (event.target as Element | null)?.closest?.('.date-content');
+    if (!from) {
+      return;
+    }
+    const to = event.relatedTarget as Element | null;
+    if (to?.closest?.('.date-content')) {
+      return;
+    }
+    locked = false;
+  };
+  // bubble：等发布包 z() 先跑完，再按锁定把 tooltip 按住
+  doc.addEventListener('click', onClick, false);
+  doc.addEventListener('mouseover', onMouseOver, true);
+  doc.addEventListener('mouseout', onMouseOut, true);
+  return () => {
+    doc.removeEventListener('click', onClick, false);
+    doc.removeEventListener('mouseover', onMouseOver, true);
+    doc.removeEventListener('mouseout', onMouseOut, true);
+    locked = false;
+    if (raf) {
+      window.cancelAnimationFrame(raf);
+    }
+    marked.__bklogDateHoverTooltipBound = false;
+  };
+};
+
+/** 注入 iframe srcdoc，与已发布 log-web 同文档执行 */
+export const DATE_HOVER_TOOLTIP_DISMISS_SCRIPT = `(function () {
+  if (document.__bklogDateHoverTooltipBound) return;
+  document.__bklogDateHoverTooltipBound = true;
+  var locked = false;
+  var raf = 0;
+  function setPop2Hidden(hidden) {
+    document.querySelectorAll('.__date-tooltips__').forEach(function (tip) {
+      var node = tip.closest('.time-range-pop2-content');
+      if (!node || node.classList.contains('__bk-date-picker-popover__') || node.classList.contains('bk-date-picker-popover')) return;
+      node.classList.toggle('hidden', hidden);
+      node.classList.toggle('visible', !hidden);
+      if (hidden) node.style.setProperty('display', 'none', 'important');
+      else node.style.removeProperty('display');
+    });
+  }
+  function dismiss() {
+    var trigger = document.querySelector('.date-content');
+    var live = trigger && trigger._tippy;
+    if (live && !(live.state && live.state.isDestroyed)) {
+      live.hide && live.hide();
+      live.unmount && live.unmount();
+    }
+    function dismissPopper(node) {
+      var popperRoot = node.closest('[data-tippy-root]');
+      if (!popperRoot) return;
+      var inst = node._tippy || popperRoot._tippy;
+      if (inst && !(inst.state && inst.state.isDestroyed)) {
+        inst.hide && inst.hide();
+        inst.unmount && inst.unmount();
+        if (inst !== live && inst.destroy) inst.destroy();
+      }
+      if (popperRoot.parentNode) popperRoot.parentNode.removeChild(popperRoot);
+    }
+    document.querySelectorAll('.__date-tooltips__').forEach(dismissPopper);
+    document.querySelectorAll('.tippy-box[data-theme*="bk-date-tips"]').forEach(dismissPopper);
+    setPop2Hidden(true);
+  }
+  function keepHidden() {
+    if (!locked) { raf = 0; return; }
+    dismiss();
+    raf = requestAnimationFrame(keepHidden);
+  }
+  function lockHide() {
+    locked = true;
+    dismiss();
+    if (!raf) raf = requestAnimationFrame(keepHidden);
+  }
+  function onClick(event) {
+    var target = event.target;
+    if (target && target.closest && target.closest('.date-content')) {
+      lockHide();
+      return;
+    }
+    dismiss();
+  }
+  function onMouseOver(event) {
+    var target = event.target;
+    if (!target || !target.closest || !target.closest('.date-content')) return;
+    if (locked) { dismiss(); return; }
+    setPop2Hidden(false);
+  }
+  function onMouseOut(event) {
+    var from = event.target && event.target.closest && event.target.closest('.date-content');
+    if (!from) return;
+    var to = event.relatedTarget;
+    if (to && to.closest && to.closest('.date-content')) return;
+    locked = false;
+  }
+  document.addEventListener('click', onClick, false);
+  document.addEventListener('mouseover', onMouseOver, true);
+  document.addEventListener('mouseout', onMouseOut, true);
+})();`;
+
 /**
  * 构建完整的资源 URL
  * @param relativePath 相对路径
@@ -485,7 +703,7 @@ export const generateIframeSrcdoc = (isDev: boolean) => {
   <div id="app">
     <div class="loading-container">加载中...</div>
   </div>
-  
+  <script>${DATE_HOVER_TOOLTIP_DISMISS_SCRIPT}</script>
 
   <script>
     // 预加载环境变量：从主站点注入到 iframe

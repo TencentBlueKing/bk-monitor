@@ -46,10 +46,12 @@ import { type ICombo, type IG6GraphEvent, type INode, type Item, Arrow, Graph } 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { debounce } from 'throttle-debounce';
 
+import { isDirectedEdge } from '../edge-relation';
 import ElkjsUtils from '../graph/elkjs-utils';
 import { clearAllG6Animations, registerAllAfterGraph, registerAllBeforeGraph } from '../graph/register-all';
 import { clearEdgeIntervals } from '../graph/topo-edge';
 import { createTruncateByTextWidth } from '../graph/topo-node';
+import { topologyEdgeId } from '../snapshot-analysis';
 import { canJumpByType, handleToLink } from '../utils';
 
 import type { G6TooltipInstance } from '../types/composable';
@@ -408,8 +410,8 @@ export function useTopoGraph(
       };
     });
     graph.edge((cfg: any) => {
-      const { is_anomaly, edge_type, anomaly_score, source, target } = cfg;
-      const isInvoke = edge_type === 'ebpf_call';
+      const { is_anomaly, anomaly_score, source, target } = cfg;
+      const isDirected = isDirectedEdge(cfg);
       const color = is_anomaly ? '#F55555' : '#63656E';
       const isSelfLoop = source === target;
 
@@ -419,17 +421,15 @@ export function useTopoGraph(
         style: {
           cursor: 'pointer',
           lineAppendWidth: 15,
-          endArrow:
-            isInvoke || is_anomaly
-              ? {
-                  path: Arrow.triangle(10, 10, 0),
-                  d: 0,
-                  fill: color,
-                  stroke: color,
-                  lineDash: [0, 0],
-                }
-              : false,
-          // fill: isInvoke ? '#F55555' : '#63656E',
+          endArrow: isDirected
+            ? {
+                path: Arrow.triangle(10, 10, 0),
+                d: 0,
+                fill: color,
+                stroke: color,
+                lineDash: [0, 0],
+              }
+            : false,
           stroke: color,
           lineWidth: is_anomaly ? (anomaly_score > 0 ? 3 : 1.5) : 1,
           lineDash: is_anomaly ? [4, 2] : false,
@@ -573,12 +573,13 @@ export function useTopoGraph(
     /** 设置边高亮状态 */
     graph.on('edge:click', ({ item }) => {
       graph.setAutoPaint(false);
-      const { source, target, count } = item.getModel();
+      const model = item.getModel();
+      const { count } = model;
       interaction.clearEdgeState(item, count === 1);
       graph.paint();
       graph.setAutoPaint(true);
       item.toFront();
-      state.resourceEdgeId.value = `${source}-${target}`;
+      state.resourceEdgeId.value = topologyEdgeId(model);
       if (count === 1) {
         graph.setItemState(item, 'highlight', true);
         graph.setItemState(item, 'dark', true);

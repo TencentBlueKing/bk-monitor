@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from apps.iam.iam_engine.core.requests import ResourceInstance, to_definition_id
+from iam_engine.core.requests import ResourceInstance, to_definition_id
 
 _IAM_PATH_SEGMENT_PATTERN = re.compile(r"(?:^|/)(?P<type>[^/,]+),(?P<id>[^/]+)(?=/|$)")
 

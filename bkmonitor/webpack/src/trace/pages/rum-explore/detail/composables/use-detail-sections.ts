@@ -1,0 +1,354 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+import { computed, unref } from 'vue';
+import type { MaybeRef } from 'vue';
+
+import {
+  CARD_GROUP_TITLE_MAP,
+  CARDS_PER_ROW,
+  MILESTONES_KEY_MAP,
+  RATING_FALLBACK_META,
+  RATING_META,
+  SECTION_TITLE_MAP,
+  VITAL_METRIC_META,
+  WATERFALL_FALLBACK_COLORS,
+  WATERFALL_MERGED_PHASES,
+  WATERFALL_PHASE_COLOR,
+  WATERFALL_TTFB_MARKER_KEY,
+} from '../constants';
+import { getCardDescriptor, itemToCard } from '../registry/card-registry';
+import { getSpanTypeDetailConfig } from '../registry/span-type-registry';
+import { RumSectionTypeEnum } from '../typings';
+import { formatDuration } from '@/components/trace-view/utils/date';
+
+import type { IRumExtraCardBuilder } from '../registry/span-type-registry';
+import type {
+  IRumCardHandlers,
+  IRumCardResolveCtx,
+  IRumDetailSection,
+  IRumDetailSectionVM,
+  IRumRatingBarData,
+  IRumRatingBarVM,
+  IRumRatingConfig,
+  IRumRatingSegmentVM,
+  IRumRecordDetail,
+  IRumRelatedData,
+  IRumSummaryCardVM,
+  IRumTtfbBreakdownVM,
+  IRumWaterfallData,
+  IRumWaterfallVM,
+  RumRatingType,
+} from '../typings';
+
+const t = (text: string) => window.i18n.t(text) as string;
+
+/**
+ * @description 瀑布图区块：把绝对时序换算成百分比布局
+ *
+ * DNS / TCP / TLS 耗时为 0 时说明连接被复用，这三段合并成一条说明线而不单独占行。
+ */
+export function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfallVM {
+  const phases = data.phases || [];
+  const total =
+    data.total_duration || phases.reduce((max, phase) => Math.max(max, phase.start + phase.duration), 0) || 1;
+  const mergedNames: string[] = [];
+  const rows = phases
+    .filter(phase => {
+      const mergedName = WATERFALL_MERGED_PHASES[phase.key];
+      if (mergedName && phase.duration <= 0) {
+        mergedNames.push(mergedName);
+        return false;
+      }
+      return true;
+    })
+    .map((phase, index) => ({
+      key: phase.key,
+      hover: phase.hover,
+      label: phase.alias || phase.key,
+      durationText: formatDuration(Number(phase.duration) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
+      startPercent: Math.min((phase.start / total) * 100, 100),
+      durationPercent: Math.max(Math.min((phase.duration / total) * 100, 100), phase.duration > 0 ? 1 : 0),
+      color: WATERFALL_PHASE_COLOR[phase.key] || WATERFALL_FALLBACK_COLORS[index % WATERFALL_FALLBACK_COLORS.length],
+    }));
+  return {
+    rows,
+    durationTotal: total,
+    mergedNames,
+    behavior: spanType === 'view' ? 'complex' : 'simplicity',
+    ttfbBreakdown: buildTtfbBreakdown(data),
+    markers: (data.markers || []).map(marker => ({
+      key: marker.key,
+      hover: marker.hover,
+      label: marker.field_name || marker.key,
+      percent: Math.min((marker.value / total) * 100, 100),
+      value: marker.value,
+      color: RATING_META[matchRating(marker.value, marker['display.rating_config'])].color,
+      valueText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
+    })),
+    milestones: data.milestones
+      ?.filter(item => item.value)
+      .map(item => ({
+        key: item.key,
+        hover: item.hover,
+        name: MILESTONES_KEY_MAP[item.key],
+        value: formatDuration(item.value, '', 3, data.unit || 'us').replace(/ /g, ''),
+      })),
+  };
+}
+
+/**
+ * @description 按评级阈值配置匹配指标值的评级：value 不超过某个配置的上界（value ≦ config.value）时
+ * 命中该配置的 rating，不带 value 的配置视为无上界兜底；配置为空时返回空串
+ */
+export function matchRating(value: number, ratingConfig: IRumRatingConfig[]): RumRatingType | string {
+  if (!ratingConfig.length) return '';
+  let hitRating = ratingConfig[ratingConfig.length - 1].rating;
+  for (const config of ratingConfig) {
+    if (config.value === undefined || value <= config.value) {
+      hitRating = config.rating;
+      break;
+    }
+  }
+  return hitRating;
+}
+
+/**
+ * @description 区块视图模型：接口区块归一化 + 按 span 类型注册的扩展卡片 / 扩展区块
+ *
+ * 渲染层只消费返回的 IRumDetailSectionVM[]，新增 span 类型或展示形态都不需要改这里。
+ * @param handlers 抽屉交互能力，注入 ctx.handlers 供注册表产出可点击卡片的回调
+ */
+export function useDetailSections(
+  detail: MaybeRef<IRumRecordDetail | null>,
+  spanType: MaybeRef<string>,
+  related: MaybeRef<IRumRelatedData>,
+  baseCtx: MaybeRef<IRumCardResolveCtx>,
+  relatedLoading: MaybeRef<boolean>,
+  handlers: IRumCardHandlers
+) {
+  const sectionVMs = computed<IRumDetailSectionVM[]>(() => {
+    const data = unref(detail);
+    if (!data) return [];
+    const type = unref(spanType);
+    const ctx: IRumCardResolveCtx = {
+      ...unref(baseCtx),
+      handlers,
+      originData: data.origin_data || {},
+      related: unref(related),
+    };
+    const { extraCards = {}, extraSections = [] } = getSpanTypeDetailConfig(type);
+    const isRelatedLoading = unref(relatedLoading);
+    const buildExtraCards = (builders: IRumExtraCardBuilder[], keyPrefix: string) =>
+      builders
+        .map((build, index) => {
+          const card = build(ctx);
+          return card ? { ...card, key: `${keyPrefix}_${index}` } : null;
+        })
+        .filter(Boolean) as IRumSummaryCardVM[];
+
+    const vms = (data?.sections || []).reduce((acc, section) => {
+      const base: IRumDetailSectionVM = {
+        key: section.key,
+        type: section.type,
+        title: SECTION_TITLE_MAP[section.key] || '',
+      };
+      switch (section.type) {
+        case RumSectionTypeEnum.SUMMARY_CARDS: {
+          const cards = buildSummaryCards(section, type, ctx);
+          /** 追加卡片依赖关联数据，未就绪时先展示占位值，不把整个区块挡在 loading 后面 */
+          const extras = extraCards[section.key]
+            ? buildExtraCards(extraCards[section.key], `${section.key}_extra`)
+            : [];
+          /** 登记了组标题的区块按分组形态渲染，标题由组标题栏承担，外层不再重复渲染标题行 */
+          const groupTitle = CARD_GROUP_TITLE_MAP[`${type}.${section.key}`] ?? CARD_GROUP_TITLE_MAP[section.key];
+          /** view的web_vitals需要前端特殊处理，把web_vitals放到key_info卡片中，横向展示 */
+          if (type === 'view' && section.key === 'web_vitals') {
+            const keyInfoCard = acc.find(item => item.key === 'key_info');
+            keyInfoCard.cardGroups.push({
+              key: section.key,
+              title: groupTitle,
+              rows: chunkCards([...cards, ...extras]),
+            });
+            return acc;
+          } else if (groupTitle) {
+            acc.push({
+              ...base,
+              cardGroups: [{ key: section.key, title: groupTitle, rows: chunkCards([...cards, ...extras]) }],
+            });
+          } else {
+            acc.push({ ...base, cardRows: chunkCards([...cards, ...extras]) });
+          }
+          break;
+        }
+        case RumSectionTypeEnum.WATERFALL: {
+          const waterfallData = (section.data || { phases: [], unit: 'ms' }) as IRumWaterfallData;
+          const waterfall = buildWaterfall(waterfallData, type);
+          acc.push({
+            ...base,
+            waterfall,
+            subTitle: waterfallData.total_duration
+              ? `${t('总耗时')}：${formatDuration(Number(waterfallData.total_duration) || 0, '', 3, waterfallData.unit || 'us').replace(/ /g, '')}`
+              : '',
+            spanType: type,
+          });
+          break;
+        }
+        case RumSectionTypeEnum.RATING_BAR:
+          acc.push({ ...base, ratingBar: buildRatingBar(section.data as IRumRatingBarData) });
+          break;
+        default:
+          acc.push(base);
+      }
+      return acc;
+    }, [] as IRumDetailSectionVM[]);
+    for (const extra of extraSections) {
+      const base: IRumDetailSectionVM = {
+        key: extra.key,
+        type: extra.type,
+        title: SECTION_TITLE_MAP[extra.key] || '',
+        loading: isRelatedLoading,
+      };
+      if (extra.type === RumSectionTypeEnum.KEY_VALUE_LIST) {
+        const keyValues = extra.keyValues?.(ctx) ?? [];
+        if (!keyValues.length && !isRelatedLoading) continue;
+        vms.push({ ...base, keyValues });
+        continue;
+      }
+      const cards = extra.cards ? buildExtraCards(extra.cards, extra.key) : [];
+      if (!cards.length && !isRelatedLoading) continue;
+      vms.push({ ...base, cardRows: chunkCards(cards) });
+    }
+
+    return vms;
+  });
+
+  return { sectionVMs };
+}
+
+/**
+ * @description 评级条区块：按 rating_config 的阈值切分等宽分段，并算出指标值在整条上的落点
+ */
+function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
+  const metric = String(data['attributes.vital.metric'] || '').toLowerCase();
+  const value = Number(data['attributes.vital.value'] ?? 0);
+  const configs = data['display.rating_config'] || [];
+  const meta = VITAL_METRIC_META[metric];
+  const unit = meta?.unit ?? 'ms';
+  /**
+   * 数值展示口径与列表侧 vital 值列一致（span-scenario）：
+   * lcp / fcp / inp / ttfb 为毫秒耗时，按 ms 自适应换算展示（如 2.5s、180ms）；
+   * cls 为 0~1 的无量纲分数，原样展示，不拼时间单位
+   */
+  const formatValue = (num: number) => (unit ? formatDuration(num, '', 2, 'ms') : String(num));
+  const segments: IRumRatingSegmentVM[] = [];
+  let thumbPercent = 0;
+  /** 指标值可能恰好落在 0%，不能用 thumbPercent 自身判断是否已定位 */
+  let thumbResolved = false;
+  const hitRating = matchRating(value, configs);
+
+  let lower = 0;
+  for (const [index, config] of configs.entries()) {
+    const ratingMeta = RATING_META[config.rating] || RATING_FALLBACK_META;
+    const upper = config.value;
+    const isLast = index === configs.length - 1;
+    segments.push({
+      rating: config.rating,
+      color: ratingMeta.barColor,
+      hover: config.hover,
+      label: isLast
+        ? `${config.alias || ratingMeta.alias} > ${formatValue(lower)}`
+        : `${config.alias || ratingMeta.alias} ≦ ${formatValue(Number(upper))}`,
+      threshold: isLast ? '' : formatValue(Number(upper)),
+    });
+    /** 落在本段内时按段内比例定位指针；最后一段无上界，按前一段阈值作为虚拟段宽 */
+    if (!thumbResolved && (isLast || value <= upper)) {
+      const span = isLast ? Math.max(lower, 1) : Math.max(upper - lower, 1);
+      const ratio = Math.min(Math.max((value - lower) / span, 0), 1);
+      thumbPercent = ((index + ratio) / configs.length) * 100;
+      thumbResolved = true;
+    }
+    lower = upper ?? lower;
+  }
+
+  const hitMeta = RATING_META[hitRating] || RATING_FALLBACK_META;
+  return {
+    hover: data.hover,
+    metricLabel: meta?.label || metric.toUpperCase(),
+    valueText: formatValue(value),
+    rating: hitRating,
+    ratingAlias: hitMeta.alias,
+    segments,
+    thumbPercent,
+  };
+}
+
+/**
+ * @description 统计卡片区块：data（字段分组）走描述符注册表，items（平铺字段）走通用映射
+ */
+function buildSummaryCards(section: IRumDetailSection, spanType: string, ctx: IRumCardResolveCtx) {
+  if (section.items?.length) {
+    return section.items.map(item => itemToCard(item, ctx));
+  }
+  const data = (section.data ?? {}) as Record<string, Record<string, unknown>>;
+  const cards: IRumSummaryCardVM[] = [];
+  for (const [groupKey, groupData] of Object.entries(data)) {
+    const descriptor = getCardDescriptor(spanType, section.key, groupKey);
+    if (!descriptor) continue;
+    for (const [index, card] of descriptor({ ...groupData, key: groupKey }, ctx).entries()) {
+      cards.push({ ...card, key: `${groupKey}_${index}` });
+    }
+  }
+  return cards;
+}
+
+/**
+ * @description TTFB 分解：把结束时间不晚于 TTFB 时间点的阶段（浏览器准备 / DNS / TCP / TLS / 等待首字节）作为分摊
+ * TTFB 的子项，给出子项合计与 TTFB 主值的差值
+ *
+ * 后端没返回 TTFB 时间点标记、或没有落在 TTFB 之前的阶段时不返回，UI 不展示该说明。
+ */
+function buildTtfbBreakdown(data: IRumWaterfallData): IRumTtfbBreakdownVM | undefined {
+  const unit = data.unit || 'us';
+  const ttfb = (data.markers || []).find(marker => marker.key === WATERFALL_TTFB_MARKER_KEY);
+  const ttfbValue = Number(ttfb?.value);
+  if (!Number.isFinite(ttfbValue)) return undefined;
+  const items = (data.phases || []).filter(phase => phase.start + phase.duration <= ttfbValue);
+  if (!items.length) return undefined;
+  const itemsTotal = items.reduce((sum, phase) => sum + (Number(phase.duration) || 0), 0);
+  return {
+    itemsTotalText: formatDuration(itemsTotal, '', 3, unit).replace(/ /g, ''),
+    diffText: formatDuration(Math.abs(ttfbValue - itemsTotal), '', 3, unit).replace(/ /g, ''),
+  };
+}
+
+/** 把卡片列表按每行固定张数切行 */
+function chunkCards(cards: IRumSummaryCardVM[]): IRumSummaryCardVM[][] {
+  const rows: IRumSummaryCardVM[][] = [];
+  for (let i = 0; i < cards.length; i += CARDS_PER_ROW) {
+    rows.push(cards.slice(i, i + CARDS_PER_ROW));
+  }
+  return rows;
+}

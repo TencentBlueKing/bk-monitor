@@ -54,6 +54,7 @@ import { feedbackIncidentRoot } from 'monitor-api/modules/incident';
 
 import { checkIsRoot } from '../../utils';
 import { getComboCanvasBounds } from '../graph/get-canvas-by-point';
+import { topologyEdgeId } from '../snapshot-analysis';
 import { typeToLinkHandle } from '../utils';
 
 import type { GraphAccess, RenderGraphAccess, TooltipAccess, TopoEmitFn } from '../types/composable';
@@ -217,8 +218,7 @@ export function useTopoInteraction(
     g.setAutoPaint(false);
     // biome-ignore lint/complexity/noForEach: <explanation>
     g.getEdges().forEach(edge => {
-      const { source, target } = edge.getModel();
-      if (`${source}-${target}` === state.resourceEdgeId.value) {
+      if (topologyEdgeId(edge.getModel()) === state.resourceEdgeId.value) {
         edge.toFront();
         return;
       }
@@ -317,13 +317,12 @@ export function useTopoInteraction(
     const g = graph();
     if (state.resourceEdgeId.value) {
       const edge = g.getEdges().find(edge => {
-        const { source, target } = edge.getModel();
-        return `${source}-${target}` === state.resourceEdgeId.value;
+        return topologyEdgeId(edge.getModel()) === state.resourceEdgeId.value;
       });
       highlight && edge && g.setItemState(edge, 'highlight', true);
       if (!highlight && edge) {
-        const statesToClear =
-          nodeId && state.resourceEdgeId.value.includes(nodeId) ? ['highlight'] : ['highlight', 'dark'];
+        const { source, target } = edge.getModel();
+        const statesToClear = nodeId && [source, target].includes(nodeId) ? ['highlight'] : ['highlight', 'dark'];
         g.clearItemStates(edge, statesToClear);
       }
     }
@@ -337,7 +336,12 @@ export function useTopoInteraction(
     const isAggregated = edge?.properties?.aggregated_by?.length > 0;
     const sourceId = isAggregated ? edge.properties.aggregated_by[0] : edge.source;
     const targetId = isAggregated ? edge.properties.aggregated_by[1] : edge.target;
-    state.resourceEdgeId.value = `${sourceId}-${targetId}`;
+    const legacyContainer = isAggregated && !edge.properties?.aggregated_by_id && g.getEdges().find(item => {
+      const model = item.getModel();
+      return model.source === sourceId && model.target === targetId && model.edge_type === edge.edge_type;
+    });
+    state.resourceEdgeId.value = edge.properties?.aggregated_by_id
+      || topologyEdgeId(legacyContainer ? legacyContainer.getModel() : edge);
     g.setAutoPaint(false);
     // biome-ignore lint/complexity/noForEach: <explanation>
     g.getNodes().forEach(function (node) {
@@ -349,9 +353,7 @@ export function useTopoInteraction(
     g.getEdges().forEach(curEdge => {
       g.clearItemStates(curEdge, ['dark', 'highlight']);
       g.setItemState(curEdge, 'dark', true);
-      const sourceNode = curEdge.getSource();
-      const targetNode = curEdge.getTarget();
-      if (sourceNode.getID() === sourceId && targetNode.getID() === targetId) {
+      if (topologyEdgeId(curEdge.getModel()) === state.resourceEdgeId.value) {
         g.setItemState(curEdge, 'dark', false);
         g.setItemState(curEdge, 'highlight', true);
         curEdge.toFront();
@@ -418,9 +420,14 @@ export function useTopoInteraction(
         // 遍历每个边，查找匹配的属性
         const edge = edges.find(edge => {
           const model = edge.getModel();
-          return model.source === srcNodes?.[0]?.entity?.entity_id && model.target === srcNodes?.[1]?.entity?.entity_id;
+          const selected = tooltipData as IEdge;
+          if (selected.properties?.aggregated_by_id) {
+            return topologyEdgeId(model) === selected.properties.aggregated_by_id;
+          }
+          return model.source === srcNodes?.[0]?.entity?.entity_id
+            && model.target === srcNodes?.[1]?.entity?.entity_id && model.edge_type === selected.edge_type;
         });
-        if (!edge.hasState('highlight')) {
+        if (edge && !edge.hasState('highlight')) {
           clearEdgeState(edge);
           g.setItemState(edge, 'highlight', true);
           g.setItemState(edge, 'dark', true);

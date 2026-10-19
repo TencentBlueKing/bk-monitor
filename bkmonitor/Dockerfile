@@ -61,6 +61,7 @@ RUN groupadd -r ${username}  \
 COPY --from=python-builder --chown=${username}:${username} /app/venv /app/venv
 COPY --from=node-builder --chown=${username}:${username} /app/dist/ /app/code/static/
 COPY --chown=${username}:${username} bkmonitor/ /app/code/
+COPY --chown=${username}:${username} iam_engine/ /app/iam_engine/
 COPY --chown=${username}:${username} bk-monitor-base/ /bk-monitor-base/
 
 ARG version

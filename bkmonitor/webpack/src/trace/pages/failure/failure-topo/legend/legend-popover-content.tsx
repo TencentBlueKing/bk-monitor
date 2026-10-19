@@ -103,15 +103,22 @@ export default defineComponent({
               <span
                 class='text-ellipse'
                 v-overflowText={{
-                  text: t('从属关系'),
+                  text: t('从属／未知关系'),
                 }}
               >
-                {t('从属关系')}
+                {t('从属／未知关系')}
               </span>
             </li>
             <li>
               <span class='line arrow' />
-              <span>{t('调用关系')}</span>
+              <span
+                class='text-ellipse'
+                v-overflowText={{
+                  text: t('有向关系（调用／传播）'),
+                }}
+              >
+                {t('有向关系（调用／传播）')}
+              </span>
             </li>
           </ul>
           <ul class='node-type'>

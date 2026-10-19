@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import ast
 import time
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock
 
@@ -12,7 +14,7 @@ from django.conf import settings
 from api.cmdb import client
 from api.cmdb.client import ListBizHosts
 from kernel_api.middlewares import authentication
-from kernel_api.rpc.functions.bkm_cli.platform_catalog import cmdb
+from kernel_api.rpc.functions.bkm_cli.platform_catalog import _authorization, cmdb
 from kernel_api.rpc.functions.bkm_cli.platform_catalog._catalog import (
     ParamsGuardRejected,
     PlatformSourceCatalog,
@@ -30,8 +32,8 @@ def catalog(mocker):
         biz_id=None,
         META={"HTTP_BK_APP_CODE": "test-app"},
     )
-    mocker.patch.object(cmdb, "get_request", return_value=request)
-    mocker.patch.object(cmdb, "bk_biz_id_to_bk_tenant_id", return_value="tenant-a")
+    mocker.patch.object(_authorization, "get_request", return_value=request)
+    mocker.patch.object(_authorization, "bk_biz_id_to_bk_tenant_id", return_value="tenant-a")
     mocker.patch.object(authentication, "APP_CODE_TOKENS", {"tenant-a": {"test-app": ["biz#2"]}})
     mocker.patch.object(authentication, "APP_CODE_UPDATE_TIME", {"tenant-a": time.time()})
     yield request
@@ -59,6 +61,35 @@ def handler():
     op = PlatformSourceCatalog.get_domain("cmdb").operations["list_biz_hosts"]
     op.handler = Mock(return_value={"count": 0, "info": []})
     return op.handler
+
+
+@pytest.mark.parametrize("consumer", ["unify_query.py", "strategy_management.py", "db.py"])
+def test_existing_consumers_import_business_authorization(consumer, catalog):
+    """Execute the consumers' real import statements without their unrelated dependencies."""
+    source_path = Path(__file__).resolve().parents[1] / "functions" / "bkm_cli" / consumer
+    source = ast.parse(source_path.read_text(encoding="utf-8"))
+    imports = [
+        node
+        for node in ast.walk(source)
+        if isinstance(node, ast.ImportFrom) and any(alias.name == "_authorize_business" for alias in node.names)
+    ]
+    assert len(imports) == 1
+    namespace = {"__package__": "kernel_api.rpc.functions.bkm_cli"}
+    exec(compile(ast.Module(body=imports, type_ignores=[]), str(source_path), "exec"), namespace)
+    assert namespace["_authorize_business"] is cmdb._authorize_business
+    assert namespace["_authorize_business"](2) == "tenant-a"
+    assert catalog.biz_id is None
+
+
+def test_compatible_authorization_preserves_business_denial():
+    with pytest.raises(ParamsGuardRejected, match="当前应用未获目标业务授权"):
+        cmdb._authorize_business(3)
+
+
+def test_compatible_authorization_requires_authenticated_request(mocker):
+    mocker.patch.object(_authorization, "get_request", return_value=None)
+    with pytest.raises(ParamsGuardRejected, match="CMDB 查询需要已认证"):
+        cmdb._authorize_business(2)
 
 
 def test_registration_binds_native_resource_and_fixed_contract():
@@ -246,7 +277,7 @@ def test_jwt_app_takes_priority_over_header(catalog):
 @pytest.mark.parametrize("missing", ["request", "authenticated", "tenant", "app"])
 def test_missing_trusted_context_is_rejected(mocker, catalog, missing):
     if missing == "request":
-        mocker.patch.object(cmdb, "get_request", return_value=None)
+        mocker.patch.object(_authorization, "get_request", return_value=None)
     elif missing == "authenticated":
         catalog.user.is_authenticated = False
     elif missing == "tenant":
@@ -259,7 +290,7 @@ def test_missing_trusted_context_is_rejected(mocker, catalog, missing):
 
 
 def test_foreign_tenant_is_rejected_before_provider(mocker):
-    mocker.patch.object(cmdb, "bk_biz_id_to_bk_tenant_id", return_value="tenant-b")
+    mocker.patch.object(_authorization, "bk_biz_id_to_bk_tenant_id", return_value="tenant-b")
     call = handler()
     assert invoke({"bk_biz_id": 2})["error"]["code"] == "unsafe_action_blocked"
     call.assert_not_called()
@@ -284,9 +315,9 @@ def test_outer_params_cannot_authorize_inner_business():
 )
 def test_bearer_token_rechecks_namespace_and_expiration(mocker, catalog, namespaces, expired, expected):
     catalog.META["HTTP_AUTHORIZATION"] = "Bearer local-test-token"
-    record = cmdb.ApiAuthToken(namespaces=namespaces)
+    record = _authorization.ApiAuthToken(namespaces=namespaces)
     mocker.patch.object(record, "is_expired", return_value=expired)
-    lookup = mocker.patch.object(cmdb.ApiAuthToken.objects, "filter")
+    lookup = mocker.patch.object(_authorization.ApiAuthToken.objects, "filter")
     lookup.return_value.first.return_value = record
     call = handler()
     result = invoke({"bk_biz_id": 2})
@@ -297,7 +328,7 @@ def test_bearer_token_rechecks_namespace_and_expiration(mocker, catalog, namespa
 
 def test_foreign_or_missing_bearer_token_does_not_fall_back_to_app(mocker, catalog):
     catalog.META["HTTP_AUTHORIZATION"] = "Bearer local-test-token"
-    lookup = mocker.patch.object(cmdb.ApiAuthToken.objects, "filter")
+    lookup = mocker.patch.object(_authorization.ApiAuthToken.objects, "filter")
     lookup.return_value.first.return_value = None
     call = handler()
     assert invoke({"bk_biz_id": 2})["error"]["code"] == "unsafe_action_blocked"
@@ -307,7 +338,7 @@ def test_foreign_or_missing_bearer_token_does_not_fall_back_to_app(mocker, catal
 @pytest.mark.parametrize("prefix", ["bearer", "bEaReR"])
 def test_nonstandard_bearer_cannot_change_the_middleware_auth_path(mocker, catalog, prefix):
     catalog.META["HTTP_AUTHORIZATION"] = f"{prefix} view-restricted-token"
-    lookup = mocker.patch.object(cmdb.ApiAuthToken.objects, "filter")
+    lookup = mocker.patch.object(_authorization.ApiAuthToken.objects, "filter")
     call = handler()
     # AuthenticationMiddleware ignores this header spelling, so the app's biz#2
     # restriction must still apply. No token lookup can replace that decision.
@@ -317,7 +348,7 @@ def test_nonstandard_bearer_cannot_change_the_middleware_auth_path(mocker, catal
 
 
 def test_permission_storage_failure_fails_closed(mocker):
-    mocker.patch.object(cmdb, "is_match_api_token", side_effect=RuntimeError("unavailable"))
+    mocker.patch.object(_authorization, "is_match_api_token", side_effect=RuntimeError("unavailable"))
     call = handler()
     assert invoke({"bk_biz_id": 2})["error"]["code"] == "unsafe_action_blocked"
     call.assert_not_called()

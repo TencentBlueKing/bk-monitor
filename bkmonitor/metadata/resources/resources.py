@@ -129,6 +129,12 @@ class CreateDataIDResource(Resource):
         authorized_spaces = serializers.JSONField(required=False, label="授权使用的空间 ID 列表", default=[])
         is_platform_data_id = serializers.BooleanField(required=False, label="是否为平台级 ID", default=False)
         space_type_id = serializers.CharField(required=False, label="数据源所属类型", default=SpaceTypes.ALL.value)
+        created_from = serializers.ChoiceField(
+            required=False,
+            label="数据源创建来源",
+            choices=[DataIdCreatedFromSystem.BKGSE.value, DataIdCreatedFromSystem.BKDATA.value],
+            default=DataIdCreatedFromSystem.BKGSE.value,
+        )
 
     def perform_request(self, validated_request_data):
         space_uid = validated_request_data.pop("space_uid", None)

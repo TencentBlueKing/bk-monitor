@@ -26,6 +26,8 @@
 import { Component, Prop } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
+import { escape as escapeHtml } from 'lodash';
+
 import SetMealAddModule from '../../../../../../store/modules/set-meal-add';
 
 import './variable-list.scss';
@@ -57,14 +59,15 @@ export default class VariableList extends tsc<IVariableListProps> {
     this.variableActive = name;
   }
   // tip
-  getContent(name) {
+  getContent(example: unknown) {
+    const text = example !== null && typeof example === 'object' ? JSON.stringify(example) : String(example);
     return `<div>
-      <div>${this.$tc('变量示例')}：${name}</div>
+      <div>${this.$tc('变量示例')}：${escapeHtml(text)}</div>
       <div>[${this.$tc('点击复制变量')}]</div>
     </div>`;
   }
   // 移入表格行内时
-  handleRowEnter(index, row, event) {
+  handleRowEnter(_index, row, event) {
     this.handleRowLeave();
     this.tablePopover =
       this.tablePopover ||

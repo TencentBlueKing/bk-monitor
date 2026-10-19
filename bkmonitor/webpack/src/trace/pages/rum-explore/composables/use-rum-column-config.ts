@@ -23,9 +23,10 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { type MaybeRef, type Ref, computed, shallowRef, watch } from 'vue';
+import { type MaybeRef, type Ref, computed, onScopeDispose, shallowRef, watch } from 'vue';
 
-import { get, useDebounceFn } from '@vueuse/core';
+import { get } from '@vueuse/core';
+import { debounce } from 'lodash';
 
 import {
   DEFAULT_COLUMN_WIDTH,
@@ -182,9 +183,11 @@ export function useRumColumnConfig(opts: {
    * 列宽属于字段级视觉偏好，受控态下同样落盘；展示列的写入已在 setter 处按受控态拦截，
    * 因此这里整体序列化缓存不会把类型专属的列写进全局配置（受控态下 displayFields 恒为加载时的值）。
    */
-  const saveColumnConfig = useDebounceFn(() => {
+  const saveColumnConfig = debounce(() => {
     handleSetUserConfig(JSON.stringify(columnConfigCache.value));
   }, 300);
+  // 提交尚未触发的列偏好保存，再由微前端卸载清理剩余定时器。
+  onScopeDispose(() => saveColumnConfig.flush());
 
   /**
    * @description 从用户常驻配置加载列配置

@@ -483,6 +483,11 @@ class StrategyCacheManager(CacheManager):
         """
         item = copy.deepcopy(item)
 
+        promql_multi_expression = len(item["query_configs"]) > 1 and all(
+            (config.get("data_source_label"), config.get("data_type_label"), config.get("expression_mode"))
+            == (DataSourceLabel.PROMETHEUS, DataTypeLabel.TIME_SERIES, "promql")
+            for config in item["query_configs"]
+        )
         configs = []
         for query_config in item["query_configs"]:
             params = {
@@ -504,6 +509,11 @@ class StrategyCacheManager(CacheManager):
 
             if query_config.get("promql"):
                 params["promql"] = query_config["promql"]
+
+            if promql_multi_expression:
+                # 仅新执行模式扩展身份；别名与原始查询绑定，避免复用不同表达式的结果。
+                params["expression_mode"] = query_config["expression_mode"]
+                params["alias"] = query_config.get("alias")
 
             # 日志平台来源数据需要加上index_set_id作为查询条件
             if params["data_source_label"] == DataSourceLabel.BK_LOG_SEARCH:

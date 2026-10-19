@@ -237,6 +237,11 @@ class GetPanelDetailResource(IncidentBaseResource):
         detail_ref = serializers.DictField(label="详情引用", required=True)
         page = serializers.IntegerField(label="页码", required=False, default=1, min_value=1)
         page_size = serializers.IntegerField(label="每页数量", required=False, default=30, min_value=1, max_value=1000)
+        sort_list = serializers.ListField(
+            required=False,
+            max_length=10,
+            child=serializers.ListField(child=serializers.CharField(), min_length=2, max_length=2),
+        )
 
 
 class GetIncidentDetailResource(IncidentBaseResource):

@@ -163,7 +163,7 @@ def test_inspect_strategy_config_detail_uses_strategy_aggregation(monkeypatch):
     from kernel_api.rpc.functions.bkm_cli import strategy
 
     model = SimpleNamespace(id=121950, bk_biz_id=7)
-    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(detail_row=model))
     strategy_obj = FakeStrategyObject(
         {
             "id": 121950,
@@ -246,7 +246,7 @@ def test_inspect_strategy_config_list_by_priority_group_returns_summary(monkeypa
         ),
     ]
     queryset = FakeStrategyQuerySet(rows)
-    strategy.StrategyModel.objects = FakeStrategyManager(list_queryset=queryset)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(list_queryset=queryset))
 
     result = BkmCliOpCallResource().perform_request(
         {
@@ -294,7 +294,7 @@ def test_inspect_strategy_config_detail_default_injects_strategy_group_key(monke
     from kernel_api.rpc.functions.bkm_cli import strategy
 
     model = SimpleNamespace(id=148631, bk_biz_id=100864)
-    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(detail_row=model))
     strategy_obj = FakeStrategyObject(
         {
             "id": 148631,
@@ -350,7 +350,7 @@ def test_inspect_strategy_config_detail_skips_ineligible_data_types(monkeypatch)
     from kernel_api.rpc.functions.bkm_cli import strategy
 
     model = SimpleNamespace(id=777, bk_biz_id=7)
-    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(detail_row=model))
     strategy_obj = FakeStrategyObject(
         {
             "id": 777,
@@ -460,7 +460,7 @@ def test_inspect_strategy_config_detail_silent_on_group_key_failure(monkeypatch)
     from kernel_api.rpc.functions.bkm_cli import strategy
 
     model = SimpleNamespace(id=999, bk_biz_id=7)
-    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(detail_row=model))
     strategy_obj = FakeStrategyObject(
         {
             "id": 999,
@@ -505,7 +505,7 @@ def test_inspect_strategy_config_detail_without_bk_biz_id(monkeypatch):
     from kernel_api.rpc.functions.bkm_cli import strategy
 
     model = SimpleNamespace(id=51, bk_biz_id=100900)
-    strategy.StrategyModel.objects = FakeStrategyManager(detail_row=model)
+    monkeypatch.setattr(strategy.StrategyModel, "objects", FakeStrategyManager(detail_row=model))
     strategy_obj = FakeStrategyObject(
         {
             "id": 51,

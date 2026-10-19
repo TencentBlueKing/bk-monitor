@@ -316,7 +316,7 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 - DataLink 主名称与 DataId 名独立，通过 BkBaseResultTable、DataBusConfig 保存关联。
 - 普通时序/插件/图谱/联邦始终复用已有组件身份，不受组件复用灰度开关关闭影响；歧义直接报错。
 - RT、Binding 和 DataBus 可以不同名，所有引用必须读取实际实例及保存的引用。
-- 预计算在规则声明时将输出身份保存于 dst_vm_table_id，后续 output / Flow 均复用。
+- 预计算在规则声明时将输出身份保存于 dst_vm_table_id，后续本地映射与 Flow 均复用；BKBase 输出 RT/Binding 由 Flow 自动创建。
 - 健康检查、采样和路由回填只读取已登记身份，不用生成函数推测资源。
 - 联邦优先使用正常组件关联，缺少关联时通过完整 VMRT 和实际 RT 引用兜底；Proxy 修复历史归属，Subset 只引用共享 Binding。
 - 联邦 V3 source 从实际登记或远端查询恢复，不再推测名称；正常链路不扫描无关的历史 VMRT 映射。

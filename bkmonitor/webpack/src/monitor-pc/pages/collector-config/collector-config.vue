@@ -58,6 +58,7 @@
         v-else-if="filterTabList.length"
         class="collector-config-panel"
       >
+        <div class="panel-scope">{{ $t('本业务') }}</div>
         <bk-tab
           class="panel-tab"
           :active="panel.active"
@@ -183,7 +184,12 @@
                       >{{ scope.row.name }}</span
                     >
                     <span
-                      v-if="scope.row.needUpdate && scope.$index !== table.editIndex && scope.row.status !== 'STOPPED'"
+                      v-if="
+                        scope.row.bizId === bizId &&
+                        scope.row.needUpdate &&
+                        scope.$index !== table.editIndex &&
+                        scope.row.status !== 'STOPPED'
+                      "
                       v-en-style="'flex: 0 0 50px'"
                       class="col-name-update"
                       @click="handleConfigUpdate(scope.row)"
@@ -247,6 +253,13 @@
               <template slot-scope="scope">
                 <div class="col-operator">
                   <span
+                    v-if="scope.row.bizId !== bizId"
+                    class="col-operator-btn"
+                    @click="handleShowDetail(scope.row)"
+                  >
+                    {{ $t('查看') }}
+                  </span>
+                  <span
                     v-if="scope.row.bizId === bizId"
                     v-authority="{
                       active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
@@ -259,7 +272,10 @@
                   </span>
                   <span
                     v-authority="{
-                      active: !authority.MANAGE_AUTH && !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
+                      active:
+                        scope.row.bizId === bizId &&
+                        !authority.MANAGE_AUTH &&
+                        !(scope.row.taskStatus === 'STOPPED' || scope.row.doingStatus),
                     }"
                     class="col-operator-btn"
                     :class="{ 'btn-disabled': scope.row.taskStatus === 'STOPPED' }"
@@ -423,7 +439,7 @@ import {
   // cloneCollectConfig,
   fetchCollectConfigStat,
 } from 'monitor-api/modules/collecting';
-import { commonPageSizeGet, commonPageSizeSet } from 'monitor-common/utils';
+import { commonPageSizeGet, commonPageSizeSet, getBizRouteHref } from 'monitor-common/utils';
 // import { isCancel } from 'axios'
 import { debounce } from 'throttle-debounce';
 import { createNamespacedHelpers } from 'vuex';
@@ -493,7 +509,6 @@ export default {
           vm.tableInstance.keyword = vm.panel.keword;
         }
       }
-      vm.initPageData();
     });
   },
   beforeRouteLeave(_to, _fromm, next) {
@@ -531,7 +546,7 @@ export default {
         columns: [
           { label: 'ID', prop: 'id', show: true, width: 70, sortable: true },
           { label: this.$tc('名称'), prop: 'name', show: true, minWidth: 150, tooltip: true },
-          { label: this.$tc('所属'), prop: 'space_name', show: false, minWidth: 90 },
+          { label: this.$tc('所属'), prop: 'space_name', show: true, minWidth: 90 },
           { label: this.$tc('方式'), prop: 'collectName', show: true, width: 100 },
           { label: this.$tc('运行状态'), prop: 'status', show: true, width: 140 },
           { label: this.$tc('对象'), prop: 'objectLabel', show: true, minWidth: 150 },
@@ -725,7 +740,7 @@ export default {
     this.lisenResize = debounce(100, this.handleTableWrapperChange);
   },
   activated() {
-    this.isLeave = false;
+    this.initPageData();
   },
   deactivated() {
     this.stopLoading();
@@ -755,10 +770,9 @@ export default {
         if (data && !this.isLeave && detailId && this.$route.query.id === detailId) {
           const row = this.table.data.find(item => String(item.id) === String(detailId));
           if (!row) return;
-          const { id, name, status } = row;
-          const params = { id, name, status };
           this.$router.replace({ name: 'collect-config' });
-          this.handleShowDetail(params);
+          // 直链在异步加载后进入详情，避免新窗口被浏览器拦截。
+          this.handleShowDetail(row, false);
         }
       });
     },
@@ -995,6 +1009,7 @@ export default {
       }, 50);
     },
     handleOperatorOver(data, e, index) {
+      if (data.bizId !== this.bizId) return;
       if (this.popover.index === index) {
         return;
       }
@@ -1054,6 +1069,7 @@ export default {
       return row.taskStatus === 'STOPPED' || row.doingStatus || row.collectType === 'K8S';
     },
     handleUpdateTarget(data) {
+      if (data.bizId !== this.bizId) return;
       if (this.checkUpdateTargetDisabled(data)) return;
       if (data.needUpdate) {
         this.updataInfo(data);
@@ -1069,7 +1085,7 @@ export default {
       });
     },
     handleCheckView(data) {
-      this.$router.push({
+      this.handleConfigNavigate(data, {
         name: 'collect-config-view',
         params: {
           id: data.id,
@@ -1085,6 +1101,7 @@ export default {
       });
     },
     handleConfigUpdate(data) {
+      if (data.bizId !== this.bizId) return;
       if (data.doingStatus) {
         this.$bkNotify({
           title: this.$t('配置升级'),
@@ -1100,21 +1117,37 @@ export default {
         update.data = data;
       }
     },
-    handleShowDetail({ id /*  name, status */ }) {
-      // this.side.data = { id, name, status };
-      // this.side.show = true;
-      this.$router.push({
-        name: 'collect-config-detail',
-        params: {
-          id,
+    handleConfigNavigate(data, routeLocation, openNewPage = true) {
+      if (data.bizId === this.bizId) {
+        this.$router.push(routeLocation);
+        return;
+      }
+      const { route } = this.$router.resolve(routeLocation);
+      const href = getBizRouteHref(route.fullPath, data.bizId);
+      if (openNewPage) {
+        window.open(href, '_blank', 'noopener');
+      } else {
+        window.location.replace(href);
+      }
+    },
+    handleShowDetail(data, openNewPage = true) {
+      this.handleConfigNavigate(
+        data,
+        {
+          name: 'collect-config-detail',
+          params: {
+            id: data.id,
+          },
         },
-      });
+        openNewPage
+      );
     },
     handleChangeCollectName(id, name) {
       const curCollect = this.table.data.find(item => item.id === id);
       curCollect && (curCollect.name = name);
     },
     handleShowAdd(mode, data) {
+      if (mode === 'edit' && (data || this.popover.data).bizId !== this.bizId) return;
       if (mode === 'edit' && data) this.popover.data = data;
       this[SET_ADD_MODE](mode);
       if (mode === 'edit' && this.popover.data.needUpdate) {
@@ -1204,6 +1237,7 @@ export default {
     },
     handleDeleteRow() {
       const { data } = this.popover;
+      if (data.bizId !== this.bizId) return;
       this.collectorTaskData.status = data.status;
       this.collectorTaskData.id = data.id;
       this.collectorTaskData.name = data.name;
@@ -1237,6 +1271,7 @@ export default {
     },
     // 克隆采集配置
     handleCloneConfig() {
+      if (this.popover.data.bizId !== this.bizId) return;
       this.$router.push({
         name: 'collect-config-clone',
         params: {
@@ -1246,6 +1281,7 @@ export default {
       });
     },
     handleSubmitDelete() {
+      if (this.popover.data.bizId !== this.bizId) return;
       const deleteData = this.dialog.delete;
       deleteData.loading = true;
       deleteCollectConfig({
@@ -1270,6 +1306,7 @@ export default {
     },
     handleOpenOrClose() {
       const { data } = this.popover;
+      if (data.bizId !== this.bizId) return;
       this.stopStart.type = data.status;
       this.$router.push({
         name: 'collect-config-update',
@@ -1280,6 +1317,7 @@ export default {
       });
     },
     handleOpenUpgradePage(params) {
+      if (this.dialog.update.data.bizId !== this.bizId) return;
       this.dialog.update.show = false;
       this.popover.data = this.dialog.update.data;
       this.stopStart.params = params;
@@ -1295,7 +1333,7 @@ export default {
     },
     handleCheckStatus(row) {
       if (row.status !== 'STOPPED') {
-        this.$router.push({
+        this.handleConfigNavigate(row, {
           name: 'collect-config-operate-detail',
           params: {
             id: row.id,
@@ -1395,10 +1433,15 @@ export default {
   }
 
   &-panel {
-    height: 170px;
     background: #fff;
     border: 1px solid #dcdee5;
     border-radius: 2px 2px 0 0;
+
+    .panel-scope {
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #979ba5;
+    }
 
     .panel-tab {
       padding: 0;

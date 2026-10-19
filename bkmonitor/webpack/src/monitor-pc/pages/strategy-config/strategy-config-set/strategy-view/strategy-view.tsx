@@ -24,6 +24,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { markRaw } from 'vue';
+
 import { Component, Emit, Prop, Provide, ProvideReactive, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
@@ -40,6 +42,9 @@ import MonitorDivider from '../../../../components/divider/divider.vue';
 import { handleTransformToTimestamp } from '../../../../components/time-range/utils';
 import { type ILogUrlParams, transformLogUrlQuery } from '../../../../utils/index';
 import CollectChart from '../../../data-retrieval/components/collect-chart.vue';
+import { PromqlQueryController } from '../../strategy-config-common/promql-query/controller';
+import { isMultiPromqlBiz } from '../../strategy-config-common/promql-query/model';
+import { buildPromqlPreview } from '../../strategy-config-common/promql-query/service';
 import GroupPanel from '../../strategy-config-set-new/components/group-panel';
 import {
   type dataModeType,
@@ -169,6 +174,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   @Prop({ default: null, type: Object }) multivariateAnomalyDetectionParams: IMultivariateAnomalyDetectionParams;
 
   @Ref('tool') toolRef!: StrategyViewTool;
+  @Ref('strategyChart') strategyChartRef!: StrategyChart;
 
   private tools: { refreshInterval: number; timeRange: TimeRangeType } = {
     timeRange: ['now-3h', 'now'],
@@ -385,6 +391,20 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   handleExpressionChange() {
     this.handleQueryChart();
   }
+  private sourceController = markRaw(new PromqlQueryController());
+
+  get sourceQueryKey() {
+    return JSON.stringify([
+      this.editMode,
+      this.sourceData.queryConfigs || this.sourceData.sourceCode,
+      this.sourceData.step,
+    ]);
+  }
+
+  @Watch('sourceQueryKey')
+  handleSourceQueryChange() {
+    if (this.editMode === 'Source') this.handleQueryChart();
+  }
   @Watch('dataMode')
   handleDataModeChange() {
     this.handleQueryChart();
@@ -532,6 +552,14 @@ export default class StrategyView extends tsc<IStrateViewProps> {
   // 获取策略辅助视图数据
   @asyncDebounceDecorator(200)
   async getSeriesData(startTime, endTime) {
+    if (
+      this.editMode === 'Source' &&
+      this.sourceController.validate(this.sourceData, this.expression, {
+        allowMulti: isMultiPromqlBiz(this.$store.getters.bizId),
+      })
+    ) {
+      return [];
+    }
     // 框选图表后更新时间框
     if (startTime && endTime) {
       const timeRange = [startTime, endTime] as TimeRangeType;
@@ -655,29 +683,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       end_time: typeof endTime === 'string' || String(startTime).length > 10 ? dayjs.tz(endTime).unix() : endTime,
     };
     if (this.editMode === 'Source') {
-      const params = {
+      return {
         ...timePrams,
-        ...(!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
-          ? { promql_multi_expression: true }
-          : {}),
-        expression:
-          !this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1 ? this.expression || 'a' : 'a',
-        query_configs: (!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length
-          ? this.sourceData.queryConfigs
-          : [{ alias: 'a', promql: this.sourceData.sourceCode }]
-        ).map(item => ({
-          data_source_label: 'prometheus',
-          data_type_label: 'time_series',
-          promql: item.promql,
-          ...(!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
-            ? { interval: this.sourceData.step }
-            : { agg_interval: this.sourceData.step }),
-          ...(!this.sourceData.legacyMultiQuery && this.sourceData.queryConfigs?.length > 1
-            ? { alias: item.alias }
-            : {}),
-        })),
+        ...buildPromqlPreview(this.sourceData, this.expression),
       };
-      return params;
     }
     const params = {
       ...timePrams,
@@ -895,6 +904,10 @@ export default class StrategyView extends tsc<IStrateViewProps> {
         alert_name: metricField,
       };
     }
+    const chart = this.strategyChartRef;
+    const queryConfigs = chart
+      ? chart.getQueryParams(chart.hasTimeSeriesForecast || chart.hasIntelligentDetect).query_configs
+      : this.getQueryParams(startTime, endTime).query_configs;
     this.isLoading = true;
     const data = await logQuery({
       data_source_label: dataSourceLabel,
@@ -907,6 +920,8 @@ export default class StrategyView extends tsc<IStrateViewProps> {
       end_time: endTime,
       limit: this.limit,
       filter_dict: filterDict,
+      target: this.strategyTarget || [],
+      group_by: [...new Set(queryConfigs.flatMap(item => item.group_by || []))],
       ...extendData,
     }).catch(() => []);
     this.isLoading = false;
@@ -1040,6 +1055,7 @@ export default class StrategyView extends tsc<IStrateViewProps> {
                   [
                     <StrategyChart
                       key={'chart'}
+                      ref='strategyChart'
                       aiopsChartType={this.aiopsChartType}
                       chartType={this.chartType}
                       detectionConfig={this.detectionConfig}

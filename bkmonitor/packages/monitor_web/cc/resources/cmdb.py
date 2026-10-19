@@ -1103,9 +1103,9 @@ def parse_topo_target(bk_biz_id: int, dimensions: list[str], target: list[dict])
 
     # 处理返回值
     instances = []
-    if is_host_id:
+    if is_host_id and result["bk_host_id"]:
         instances = [{"bk_host_id": list(result["bk_host_id"])}]
-    elif is_service_instance:
+    elif is_service_instance and result["service_instance_id"]:
         if "bk_target_service_instance_id" in dimensions:
             instances = [{"bk_target_service_instance_id": list(result["service_instance_id"])}]
         else:

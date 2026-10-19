@@ -2,6 +2,7 @@
 @import '@/scss/mixins/flex.scss';
 
 .filed-item {
+  min-width: max-content;
   padding: 0px 12px 0px 0px;
 
   .hidden-icon {
@@ -38,23 +39,31 @@
   .filed-title {
     position: relative;
     display: flex;
-    width: 100%;
+    flex-wrap: nowrap;
+    align-items: center;
+    width: max-content;
+    min-width: 100%;
     padding: 6px 0;
     line-height: 16px;
+    white-space: nowrap;
     cursor: pointer;
     border-radius: 2px;
 
     > div {
+      flex-shrink: 0;
+
       > span {
-        display: inline-block;
-        word-break: break-all;
-        white-space: pre-line;
+        display: inline-flex;
+        flex-shrink: 0;
+        align-items: center;
+        word-break: keep-all;
+        white-space: nowrap;
       }
     }
 
     > :first-child {
       display: flex;
-      flex: 1;
+      flex: 1 0 auto;
       align-items: center;
       justify-content: flex-start;
     }
@@ -108,13 +117,14 @@
     }
 
     .field-name {
-      width: calc(100% - 42px);
-      // padding-right: 12px;
+      flex-shrink: 0;
+      width: auto;
+      max-width: none;
       font-size: 12px;
       color: #16171a;
-      word-break: break-all;
-      overflow-wrap: break-word; /* 或者 word-wrap: break-word; */
-      // white-space: nowrap;
+      word-break: keep-all;
+      overflow-wrap: normal;
+      white-space: nowrap;
     }
 
     .field-badge {
@@ -243,6 +253,7 @@
 .agg-field-item-sideslider {
   .bk-sideslider-header {
     .bk-sideslider-title {
+      /* stylelint-disable-next-line declaration-no-important */
       padding-right: 40px !important;
     }
 

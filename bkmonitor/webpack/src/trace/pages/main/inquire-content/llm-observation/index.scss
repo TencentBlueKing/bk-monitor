@@ -3,7 +3,12 @@
 .trace-llm-observation {
   box-sizing: border-box;
   height: 100%;
+  padding-top: 24px;
   overflow: hidden;
+  // 工具栏行 32 + 与 Trace 头间距 16；Trace 头 42
+  --llm-exec-row-height: 32px;
+  --llm-exec-sticky-gap: 16px;
+  --llm-trace-header-height: 42px;
 
   @include flex-column;
 
@@ -18,16 +23,17 @@
   }
 
   &-timeline {
-    flex: 1;
-    gap: 16px;
-    min-height: 0;
+    // 按内容撑高，交给 &-main 滚动；flex:1 会锁死视口高，行溢出去穿吸顶
+    flex: 0 0 auto;
+    gap: 0;
+    min-height: auto;
 
     @include flex-column;
   }
 
   &-list {
-    flex: 1;
-    min-height: 0;
+    flex: 0 0 auto;
+    min-height: auto;
   }
 
   &-empty {

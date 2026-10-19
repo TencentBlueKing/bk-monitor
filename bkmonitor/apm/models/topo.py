@@ -9,8 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 import datetime
+import logging
+from typing import Any
 
-from django.db import models
+from django.db import OperationalError, models, router, transaction
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from apm.constants import DiscoverRuleType
@@ -18,6 +21,9 @@ from bkmonitor.utils.cache import CacheType, using_cache
 from bkmonitor.utils.db import JsonField
 from constants.apm import SpanKind
 from core.drf_resource.exceptions import CustomException
+
+
+logger = logging.getLogger("apm")
 
 
 class TopoBase(models.Model):
@@ -53,12 +59,11 @@ class TopoBase(models.Model):
 
 
 class TopoNode(TopoBase):
-
     # 节点过期时间（天）
     # 背景：之前节点过期时间设置为 Trace 数据的保留时间，但对于零星上报、活动类服务可能存在较长时间未上报 Trace 的情况，
     # 导致节点过早过期被删除，影响监控和展示。故调整为 180 天，兼顾数据时效性和完整性。
     EXPIRED_DAYS = 180
-    
+
     # extra_data会存储category类型
     # 如果这个Node是http类型，那么在extra_data数据：
     # {"category":"http","kind":"service","predicate_value":"POST","service_language":"python","instance":{}}
@@ -66,9 +71,97 @@ class TopoNode(TopoBase):
     system = models.JSONField("系统类型", null=True)
     platform = models.JSONField("部署平台", null=True)
     sdk = models.JSONField("上报sdk", null=True)
-    # source: 说明这个服务是由哪个数据源发现的，值为 TelemetryData，存储格式: ["trace", "metric"]
+    # source: 服务被发现或观测到数据的类型，值为 TelemetryDataType，存储格式: ["trace", "metric"]
     source = models.JSONField("服务发现来源", default=list)
+    # 按数据类型保存秒级 last_data_at / checked_at，独立于节点生命周期 updated_at。
+    heartbeat = models.JSONField("服务数据心跳", default=dict)
     is_permanent = models.BooleanField("是否永久保存", default=False)
+
+    @classmethod
+    def touch_heartbeat(
+        cls,
+        bk_biz_id: int,
+        app_name: str,
+        data_type: str,
+        last_data_at_mapping: dict[str, int | None],
+        checked_at: int,
+    ) -> bool:
+        """合并单类心跳，不改变节点存活时间。
+
+        在模型路由对应的事务内锁行、重读并合并 heartbeat，观测到有效数据时间时补齐 source。
+        last_data_at 和 checked_at 均单调前进，其他数据类型的子键保持不变。
+
+        :param last_data_at_mapping: 服务键到秒级数据时间的映射；显式 None 仅推进该服务的 checked_at，保留数据时间。
+            未包含的服务不更新，不存在的节点不创建。
+        :param checked_at: 本次输入覆盖服务的检查完成时间（秒），不代表应用全部服务已检查。
+        :return: 正常完成（包括无须更新）返回 True；锁超时或死锁回滚后返回 False，其他异常上抛。
+        """
+        if not last_data_at_mapping:
+            return True
+
+        database: str = router.db_for_write(cls)
+        try:
+            with transaction.atomic(using=database):
+                nodes: list[TopoNode] = list(
+                    cls.objects.using(database)
+                    .select_for_update()
+                    .filter(bk_biz_id=bk_biz_id, app_name=app_name, topo_key__in=last_data_at_mapping)
+                    .only("id", "topo_key", "heartbeat", "source")
+                    .order_by("id")
+                )
+                for node in nodes:
+                    prev: dict[str, int | None] = node.heartbeat.get(data_type) or {}
+                    new_last_data_at: int | None = last_data_at_mapping[node.topo_key]
+                    if new_last_data_at is not None:
+                        prev["last_data_at"] = max(prev.get("last_data_at") or 0, new_last_data_at)
+                        source: list[str] = list(node.source or [])
+                        if data_type not in source:
+                            source.append(data_type)
+                            node.source = source
+                    prev["checked_at"] = max(prev.get("checked_at") or 0, checked_at)
+                    node.heartbeat[data_type] = prev
+                cls.objects.using(database).bulk_update(nodes, fields=["heartbeat", "source"], batch_size=200)
+        except OperationalError as error:
+            # 在事务退出并回滚后处理可恢复的行锁失败，其他数据库异常继续上抛。
+            if not error.args or error.args[0] not in (1205, 1213):
+                raise
+            logger.warning(
+                "[ServiceHeartbeat] lock failed, keeping previous heartbeat: bk_biz_id=%s app_name=%s data_type=%s errno=%s",
+                bk_biz_id,
+                app_name,
+                data_type,
+                error.args[0],
+            )
+            return False
+        return True
+
+    @classmethod
+    def upsert_telemetry_nodes(
+        cls, bk_biz_id: int, app_name: str, data_type: str, service_names: set[str], extra_data: dict[str, Any]
+    ) -> None:
+        """日志和性能分析只补充节点与来源，不覆盖已有拓扑分类。
+
+        已有节点追加来源并刷新 updated_at，历史空来源保持为空；extra_data 仅用于新节点。
+        节点表没有服务键唯一约束，首建并发仍可能产生同名行；心跳入口覆盖全部同名行。
+        """
+        if not service_names:
+            return
+        nodes: list[TopoNode] = list(
+            cls.objects.filter(bk_biz_id=bk_biz_id, app_name=app_name, topo_key__in=service_names)
+        )
+        existing_names: set[str] = {node.topo_key for node in nodes}
+        for node in nodes:
+            if node.source and data_type not in node.source:
+                node.source.append(data_type)
+            node.updated_at = timezone.now()
+        cls.objects.bulk_update(nodes, fields=["source", "updated_at"], batch_size=200)
+        cls.objects.bulk_create(
+            [
+                cls(bk_biz_id=bk_biz_id, app_name=app_name, topo_key=name, source=[data_type], extra_data=extra_data)
+                for name in sorted(service_names - existing_names)
+            ],
+            batch_size=200,
+        )
 
     @classmethod
     @using_cache(CacheType.APM(60 * 10))

@@ -10,82 +10,58 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
-import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-from django.db import transaction
-
-from metadata.config import DATABASE_CONNECTION_NAME
-from core.drf_resource import api
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from metadata.models.data_link import utils as data_link_utils
 from metadata.models.data_link.constants import DataLinkNameScene
-from metadata.models.record_rule.constants import RECORD_RULE_V4_BKMONITOR_NAMESPACE
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 if TYPE_CHECKING:
     from metadata.models.record_rule.v4.models import RecordRuleV4, RecordRuleV4Spec
 
-logger = logging.getLogger("metadata")
-
 
 class RecordRuleV4OutputResources:
     """维护 V4 recording rule 输出侧 metadata。
 
-    ResultTable / AccessVMRecord 是 group 级资源，应该在 RecordRuleV4 创建
-    后立刻准备好；指标字段随着 spec 创建和变更按 metric_name 追加维护。
+    ResultTable / AccessVMRecord 是 group 级资源，在执行声明时准备；
+    指标字段随当前 spec 按 metric_name 追加维护。
 
-    output 资源和 Flow 是两类 bkbase 资源：output 必须先注册 ResultTable /
-    VmStorageBinding，Flow 才能引用目标 VMRT。因此 ensure_group_output 保持
-    “创建本地配置并 apply output”的语义，Flow apply 仍由 Runner 单独负责。
+    这里只维护本地查询元数据并固定输出 VMRT；BKBase ResultTable 和
+    VmStorageBinding 由 Flow 自动创建，不在这里创建或下发。
     """
 
     @classmethod
-    def ensure_group_output(cls, rule: RecordRuleV4, *, force_apply: bool = False) -> bool:
-        """创建 group 输出 RT、ResultTableConfig、RT option 及对应 VM 写入映射。
+    def ensure_group_output(cls, rule: RecordRuleV4) -> bool:
+        """准备本地输出 RT、RT option 和 AccessVMRecord，不下发外部资源。
 
-        返回值表示输出 ResultTable 是否首次创建，用于调用方决定是否刷新
-        space -> table_id 路由。该方法会在必要时调用 bkbase apply_data_link
-        下发 output 资源，但不会创建或下发 Flow；本地 output 配置已存在且未
-        处于 FAILED 时跳过重复 apply，FAILED 会触发后台自动重试，管理员也可
-        传 force_apply=True 强制重试。
+        返回输出 ResultTable 是否首次创建，供调用方刷新空间查询路由。
         """
 
         result_table_created = cls.ensure_result_table(rule)
         cls.ensure_result_table_options(rule)
-        # VMStorageBinding 依赖 VM 集群名，必须先确定 dst_vm_storage_name 再
-        # 下发链路配置，否则 output 资源会引用一个空存储名。
+        # Flow 需要固定的输出 VMRT 和 VM 集群引用。
         vm_storage_name = cls.ensure_vm_record(rule)
         if rule.dst_vm_storage_name != vm_storage_name:
             rule.dst_vm_storage_name = vm_storage_name
             rule.save(update_fields=["dst_vm_storage_name", "updated_at"])
-        cls.ensure_result_table_config(rule, force_apply=force_apply)
         return result_table_created
 
     @staticmethod
     def generate_result_table_config_name(rule_id: int) -> str:
-        """只在规则声明阶段分配一次；输出准备从 dst_vm_table_id 恢复。"""
-        from metadata import models as metadata_models
-
-        for _ in range(5):
-            name = data_link_utils.generate_bkdata_resource_name(DataLinkNameScene.RECORD_RULE, rule_id)
-            if not any(
-                model.objects.filter(name=name, namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE).exists()
-                for model in (metadata_models.ResultTableConfig, metadata_models.VMStorageBindingConfig)
-            ):
-                return name
-        raise ValueError(f"unable to allocate recording rule output name: {rule_id}")
+        """规则声明时分配一次输出名，后续从 dst_vm_table_id 复用。"""
+        return data_link_utils.generate_bkdata_resource_name(DataLinkNameScene.RECORD_RULE, rule_id)
 
     @staticmethod
     def compose_vm_result_table_id(bk_tenant_id: str, bk_biz_id: int, result_table_config_name: str) -> str:
-        """根据 ResultTableConfig.name 生成真实 VMRT。"""
+        """为 group 分配固定 VMRT，不创建 BKBase 资源。"""
 
         data_link_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
         return f"{data_link_biz_ids.data_biz_id}_{result_table_config_name}"
 
     @staticmethod
     def ensure_result_table(rule: RecordRuleV4) -> bool:
-        """创建输出 ResultTable，供后续 Flow output 引用。"""
+        """维护本地输出 ResultTable，供指标查询和空间路由使用。"""
 
         from metadata import models as metadata_models
 
@@ -141,137 +117,6 @@ class RecordRuleV4OutputResources:
                     "creator": "system",
                 },
             )
-
-    @staticmethod
-    def ensure_result_table_config(rule: RecordRuleV4, *, force_apply: bool = False) -> None:
-        """创建输出 ResultTableConfig + VMStorageBindingConfig 并下发到 bkbase。
-
-        本地 ResultTableConfig 维护 ``table_id <-> bkbase_table_id`` 映射；
-        VMStorageBindingConfig 把输出 RT 绑定到 VM 存储。两者一起下发后，bkbase
-        侧才会注册独立 ResultTable / VmStorageBinding 资源，DataLink 详情页的
-        ``component_config`` / ``status`` 也才会有值。Flow 仍单独下发，互不替代。
-
-        recording rule 输出走 VM 存储，schema 固定，这里不显式下发字段；字段随
-        Flow 的 RecordingRuleNode metric_name 在 bkbase 侧补齐。下发成功后把本地
-        ``status`` 置为 ``Pending``，表示已提交、等待 bkbase 调度完成。当前不
-        支持 output 配置变更自动重下发；只要本地两份配置都存在且未处于 FAILED，
-        后台调谐就不重复 apply。任一配置处于 FAILED 时后台会自动重试下发，
-        force_apply=True 则无条件强制重试。
-        """
-
-        from metadata import models as metadata_models
-        from metadata.models.data_link.constants import DataLinkResourceStatus
-
-        if not rule.dst_vm_storage_name:
-            raise ValueError("record rule dst_vm_storage_name is empty")
-
-        with transaction.atomic(using=DATABASE_CONNECTION_NAME):
-            type(rule).objects.select_for_update().get(pk=rule.pk)
-            scope = dict(bk_tenant_id=rule.bk_tenant_id, namespace=RECORD_RULE_V4_BKMONITOR_NAMESPACE)
-            # 先按输出监控 RT 找现有组件；缺失时仅从已保存 VMRT 拆出原名，不重新生成随机名。
-            rt_candidates = list(metadata_models.ResultTableConfig.objects.filter(**scope, table_id=rule.table_id)[:2])
-            if len(rt_candidates) > 1:
-                raise ValueError(f"ambiguous recording rule output: {rule.pk}")
-            result_table_config = rt_candidates[0] if rt_candidates else None
-            if result_table_config:
-                result_table_config_name = result_table_config.name
-            else:
-                prefix, sep, result_table_config_name = rule.dst_vm_table_id.partition("_")
-                if not sep or not prefix.isdigit() or not result_table_config_name:
-                    raise ValueError(f"recording rule has no persisted output identity: {rule.pk}")
-                result_table_config = metadata_models.ResultTableConfig.objects.filter(
-                    **scope, name=result_table_config_name
-                ).first()
-            # Binding 可能与 RT 不同名，先按 table_id 复用；同名兜底也必须检查其实际归属。
-            binding_candidates = list(
-                metadata_models.VMStorageBindingConfig.objects.filter(**scope, table_id=rule.table_id)[:2]
-            )
-            if len(binding_candidates) > 1:
-                raise ValueError(f"ambiguous recording rule binding: {rule.pk}")
-            vm_storage_binding = (
-                binding_candidates[0]
-                if binding_candidates
-                else (
-                    metadata_models.VMStorageBindingConfig.objects.filter(
-                        **scope, name=result_table_config_name
-                    ).first()
-                )
-            )
-            for instance in (result_table_config, vm_storage_binding):
-                if instance is not None and instance.table_id != rule.table_id:
-                    raise ValueError(f"recording rule output name belongs to another table: {instance.name}")
-            output_config_exists = bool(result_table_config and vm_storage_binding)
-            # 任一本地配置处于 FAILED 时说明上一次下发未成功，后台调谐应自动重试，
-            # 避免 output 资源永久卡在失败态、只能靠人工 force_apply 才能恢复。
-            output_apply_failed = any(
-                config_instance is not None and config_instance.status == DataLinkResourceStatus.FAILED.value
-                for config_instance in (result_table_config, vm_storage_binding)
-            )
-            should_apply = force_apply or not output_config_exists or output_apply_failed
-
-            result_table_config = result_table_config or metadata_models.ResultTableConfig(
-                **scope, name=result_table_config_name
-            )
-            vm_storage_binding = vm_storage_binding or metadata_models.VMStorageBindingConfig(
-                **scope, name=result_table_config_name
-            )
-            # 已找到的实例直接更新；缺失组件使用保存的输出身份补建。
-            common_fields = dict(
-                table_id=rule.table_id, data_link_name=result_table_config_name, bk_biz_id=rule.bk_biz_id
-            )
-            for instance, fields in (
-                (result_table_config, dict(common_fields, bkbase_table_id=rule.dst_vm_table_id)),
-                (
-                    vm_storage_binding,
-                    dict(
-                        common_fields,
-                        bkbase_result_table_name=result_table_config_name,
-                        vm_cluster_name=rule.dst_vm_storage_name,
-                    ),
-                ),
-            ):
-                for field, value in fields.items():
-                    setattr(instance, field, value)
-                instance.save(update_fields=[*fields, "last_modify_time"] if instance.pk else None)
-
-        # 两个组件的名称及引用先一起落库；远端失败仅标记状态，下次重试不会分配新输出。
-        if not should_apply:
-            logger.info(
-                "RecordRuleV4 ensure_result_table_config skip apply: rule_id->[%s], name->[%s], status->[%s/%s]",
-                rule.pk,
-                result_table_config.name,
-                result_table_config.status,
-                vm_storage_binding.status,
-            )
-            return
-
-        configs: list[dict[str, Any]] = [
-            result_table_config.compose_config(),
-            vm_storage_binding.compose_config(rt_name=result_table_config.name),
-        ]
-        # output 资源先于 Flow 独立 apply；调用方即使 auto_apply=False，也会
-        # 走到这里完成前置资源注册，只是不继续 apply Flow。重复执行时本地
-        # 已存在的 output 配置会被上方短路，避免 scheduler 周期性空下发。
-        try:
-            response = api.bkdata.apply_data_link(  # pyright: ignore[reportCallIssue]
-                bk_tenant_id=rule.bk_tenant_id, config=configs
-            )
-        except Exception:
-            for config_instance in (result_table_config, vm_storage_binding):
-                if config_instance.status != DataLinkResourceStatus.FAILED.value:
-                    config_instance.status = DataLinkResourceStatus.FAILED.value
-                    config_instance.save(update_fields=["status", "last_modify_time"])
-            raise
-        logger.info(
-            "RecordRuleV4 ensure_result_table_config: rule_id->[%s], name->[%s], response->[%s]",
-            rule.pk,
-            result_table_config.name,
-            response,
-        )
-        for config_instance in (result_table_config, vm_storage_binding):
-            if config_instance.status != DataLinkResourceStatus.PENDING.value:
-                config_instance.status = DataLinkResourceStatus.PENDING.value
-                config_instance.save(update_fields=["status", "last_modify_time"])
 
     @staticmethod
     def ensure_vm_record(rule: RecordRuleV4) -> str:

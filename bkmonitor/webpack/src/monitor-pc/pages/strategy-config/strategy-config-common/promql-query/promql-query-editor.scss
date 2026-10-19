@@ -1,0 +1,106 @@
+/** 顶部间距由各使用方按所在页面排版自行配置。 */
+.strategy-promql-query-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+
+  .source-query {
+    min-width: 0;
+  }
+
+  .promql-editor-component {
+    border-color: #c4c6cc;
+
+    // 组件内 .promql-editor-component.is-error 与本选择器同特异性且为旧错误色，此处提高特异性覆盖为 #ea3636
+    &.is-error {
+      border-color: #ea3636;
+    }
+  }
+
+  .source-query-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 22px;
+    margin-bottom: 8px;
+    font-size: 12px;
+    line-height: 22px;
+    color: #63656e;
+    white-space: pre-wrap;
+
+    .bk-button-text {
+      font-size: 12px;
+
+      &.is-disabled {
+        color: #3a84ff;
+        opacity: 0.35;
+      }
+    }
+  }
+
+  .source-expression-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    min-width: 0;
+    font-size: 12px;
+    line-height: 20px;
+    color: #63656e;
+  }
+
+  .source-expression-label {
+    flex-shrink: 0;
+  }
+
+  .source-expression-input {
+    flex: 1;
+    min-width: 0;
+
+    .bk-input-text {
+      input {
+        color: #4d4f56;
+      }
+    }
+  }
+
+  .source-add-query {
+    flex-shrink: 0;
+    min-width: 108px;
+    font-size: 12px;
+    color: #4d4f56;
+  }
+
+  .source-expression-hint,
+  .legacy-query-hint {
+    font-size: 12px;
+    line-height: 20px;
+    color: #979ba5;
+    overflow-wrap: anywhere;
+
+    &.is-error {
+      color: #ea3636;
+    }
+  }
+
+  .source-step-input {
+    width: 205px;
+    background-color: #f0f1f5;
+
+    .source-step-label {
+      .ai-whale-icon {
+        color: #4d4f56;
+      }
+    }
+  }
+
+  .source-step-label {
+    display: flex;
+    gap: 3px;
+    align-items: center;
+    justify-content: center;
+    width: 96px;
+    height: 100%;
+    font-size: 12px;
+  }
+}

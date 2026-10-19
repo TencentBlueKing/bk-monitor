@@ -1,0 +1,283 @@
+/*
+ * Tencent is pleased to support the open source community by making
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) available.
+ *
+ * Copyright (C) 2017-2025 Tencent.  All rights reserved.
+ *
+ * 蓝鲸智云PaaS平台 (BlueKing PaaS) is licensed under the MIT License.
+ *
+ * License for 蓝鲸智云PaaS平台 (BlueKing PaaS):
+ *
+ * ---------------------------------------------------
+ * Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated
+ * documentation files (the "Software"), to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and
+ * to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all copies or substantial portions of
+ * the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+ * THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF
+ * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
+ * IN THE SOFTWARE.
+ */
+
+import type { IRumField } from '../../typings';
+import type { IRumHoverInfo } from './detail';
+import type { RumCardToneType, RumDetailTabType, RumRatingType, RumSectionType } from './enum';
+
+/** 徽标：标题右侧的关键指标与状态 */
+export interface IRumBadgeVM {
+  /** 背景色 */
+  bgColor: string;
+  /** 文本色 */
+  color?: string;
+  /** 前置图标 class（如计时器） */
+  icon?: string;
+  key: string;
+  text: string;
+}
+
+/**
+ * 卡片描述符：把区块里的一个字段分组翻译成若干张统计卡片。
+ * 一个分组可以拆成多张卡（如 http_result 在 XHR 场景下拆成「HTTP 状态」与「业务结果」），
+ * 返回空数组表示该分组不渲染。这是新增 span 类型时最主要的扩展点，见 registry/card-registry。
+ */
+export type IRumCardDescriptor = (
+  data: Record<string, unknown>,
+  ctx: IRumCardResolveCtx
+) => Array<Omit<IRumSummaryCardVM, 'key'>>;
+
+/** 卡片底部辅助说明的一段文本 */
+export interface IRumCardFooterPart {
+  text: string;
+  tone?: RumCardToneType;
+}
+
+/** 卡片可使用的抽屉交互能力，由 useDetailSections 注入，注册表通过 ctx.handlers 消费 */
+export interface IRumCardHandlers {
+  /** 切换详情抽屉的激活 tab */
+  switchTab: (tab: RumDetailTabType) => void;
+}
+
+/** 卡片描述符的推导上下文 */
+export interface IRumCardResolveCtx {
+  /** 抽屉交互能力，仅在详情区块构造时注入 */
+  handlers?: IRumCardHandlers;
+  /** 当前 span 的原始数据，用于取分组外的字段 */
+  originData: Record<string, any>;
+  /** 关联接口拉回的补充数据，未就绪时为空对象 */
+  related: Record<string, unknown>;
+  /** 复制文本到剪贴板并给出提示 */
+  copyText: (value: string) => void;
+  /** 按字段元信息格式化值（单位换算 + 枚举别名） */
+  formatField: (fieldName: string, value: unknown) => string;
+  /** 按字段元信息格式化值并拆出单位（value 为值文本，unit 为单位后缀），用于数值与单位需分别排版的场景 */
+  formatFieldParts: (fieldName: string, value: unknown) => { unit: string; value: string };
+  /** 按字段名取字段元信息（别名、单位、枚举） */
+  getField: (fieldName: string) => IRumField | undefined;
+  /** 按字段名取展示别名，无别名时回退字段名 */
+  getFieldAlias: (fieldName: string) => string;
+}
+
+/** 标题区视图模型 */
+export interface IRumDetailHeaderVM {
+  badges: IRumBadgeVM[];
+  /** 公共信息按每行 5 项分组 */
+  items: IRumOverviewItemVM[];
+  /** 类型图标（svg 资源地址） */
+  logo: string;
+  title: string;
+}
+
+/** 归一化后的区块视图模型，渲染层只认这个结构 */
+export interface IRumDetailSectionVM {
+  /** 卡片分组形态（组标题栏 + 组内卡片平铺），与 cardRows 二选一 */
+  cardGroups?: IRumSummaryCardGroupVM[];
+  /** 卡片按行分组，一行内的卡片等宽平铺 */
+  cardRows?: IRumSummaryCardVM[][];
+  key: string;
+  /** 键值列表区块的数据 */
+  keyValues?: Array<{ label: string; value: string }>;
+  /** 是否处于关联数据加载中（骨架态） */
+  loading?: boolean;
+  /** 评级条区块的数据 */
+  ratingBar?: IRumRatingBarVM;
+  /** 当前详情的 span 类型（如 view），驱动瀑布图等区块的差异化渲染 */
+  spanType?: string;
+  /** 区块标题右侧的补充说明（如「总耗时：122.2ms」） */
+  subTitle?: string;
+  /** 区块标题，为空时不渲染标题行 */
+  title: string;
+  type: RumSectionType;
+  /** 瀑布图区块的数据 */
+  waterfall?: IRumWaterfallVM;
+}
+
+/** 原始数据面板的一个折叠块 */
+export interface IRumOriginBlockVM {
+  /** 分组块：Links 按 trace_id 分组、Events 按事件名分组，组内为键值列表 */
+  groups?: Array<{ name: string; rows: IRumOriginRowVM[] }>;
+  key: string;
+  /** 普通块：平铺键值列表 */
+  rows?: IRumOriginRowVM[];
+  /** 展开时标题右侧是否展示块内搜索框（当前仅 Events） */
+  searchable?: boolean;
+  /** 折叠时展示的单行摘要 */
+  summary: string;
+  title: string;
+}
+
+/** 原始数据面板的一行键值 */
+export interface IRumOriginRowVM {
+  /** 按字段元信息格式化后的展示文本（枚举别名 / 单位换算，形如「1.23 s(1234)」），未命中时与 value 一致 */
+  displayValue: string;
+  key: string;
+  /** 字段在原始数据里的完整路径（如 attributes.view.id），「添加为检索条件」回传上层时用它 */
+  originKey: string;
+  /** 展示用的值文本（保持原始值，回传检索条件与复制都用它） */
+  value: string;
+  /** 值的原始类型，决定前置的数据类型图标 */
+  valueType: 'boolean' | 'number' | 'object' | 'string';
+}
+
+/** 公共信息行里的一项 */
+export interface IRumOverviewItemVM {
+  /** 蓝色可点击（会话 / 视图 / View 详情） */
+  isLink?: boolean;
+  key: string;
+  label: string;
+  value: string;
+}
+
+/** 评级条视图模型 */
+export interface IRumRatingBarVM {
+  /** Vital 指标整体的 hover 展示信息 */
+  hover?: IRumHoverInfo;
+  /** 指标全称，如「累积布局偏移（Cumulative Layout Shift，CLS）」 */
+  metricLabel: string;
+  /** 当前命中的评级 */
+  rating: RumRatingType | string;
+  /** 评级别名，如「需改进」 */
+  ratingAlias: string;
+  /** 各评级分段 */
+  segments: IRumRatingSegmentVM[];
+  /** 指针在整条评级条上的百分比位置（0~100） */
+  thumbPercent: number;
+  /** 格式化后的指标值 */
+  valueText: string;
+}
+
+/** 评级条的一个分段 */
+export interface IRumRatingSegmentVM {
+  /** 分段颜色 */
+  color: string;
+  /** 该评级的 hover 展示信息 */
+  hover?: IRumHoverInfo;
+  /** 分段文案，如「良好 ≦ 2500ms」 */
+  label: string;
+  rating: RumRatingType | string;
+  /** 分段右侧的阈值刻度文案，最后一段为空 */
+  threshold: string;
+}
+
+/** 迷你柱状图的一个数据点 */
+export interface IRumSparklinePoint {
+  /** 时间桶起点，秒级时间戳 */
+  time: number;
+  /** 该时间桶内的统计值，用于柱高归一化与 tips 展示 */
+  value: number;
+}
+
+/** 统计卡片分组视图模型：登记了 title 时渲染组标题栏，组内卡片平铺 */
+export interface IRumSummaryCardGroupVM {
+  key: string;
+  /** 组内卡片按行切分，一行内的卡片等宽平铺 */
+  rows: IRumSummaryCardVM[][];
+  /** 组标题，为空时不渲染标题栏 */
+  title?: string;
+}
+
+/** 统计卡片视图模型 */
+export interface IRumSummaryCardVM {
+  /** 卡片的类名 */
+  cardCls?: string;
+  /** 卡片底部辅助说明，支持分段着色 */
+  footer?: IRumCardFooterPart[];
+  /** 主值右侧的环比增长率（如 +300%），涨跌语义配色，与 unit（单位）互斥使用 */
+  growthRate?: { text: string; tone?: RumCardToneType };
+  /** 该标记的 hover 展示信息 */
+  hover?: IRumHoverInfo;
+  key: string;
+  /** 卡片标题 */
+  label: string;
+  /** 主值右上角的操作入口（如「复制完整地址」） */
+  operation?: { label: string; onClick: () => void };
+  /** 主值前缀标签（如 HTTP Method 的 POST 色块） */
+  prefixTag?: { bgColor: string; text: string };
+  /** 以迷你柱状图代替主值展示（如 24 小时趋势），每根柱子的 tips 需要 time */
+  sparkline?: IRumSparklinePoint[];
+  /** 卡片右上角的状态标签（如「低可信度」） */
+  tag?: { bgColor: string; color: string; text: string };
+  /** 主值语义配色 */
+  tone?: RumCardToneType;
+  /** 主值右侧的次要文本（单位） */
+  unit?: { text: string; tone?: RumCardToneType };
+  /** 主值 */
+  value: string;
+  /** 点击回调：有值时卡片按可点击样式呈现（主值下划线 + 手型光标），由注册表构造器通过 ctx.handlers 产出 */
+  click?: () => void;
+}
+
+/** 瀑布图的 TTFB 分解说明 */
+export interface IRumTtfbBreakdownVM {
+  /** 子项合计与 TTFB 主值的差值文案 */
+  diffText: string;
+  /** 分摊 TTFB 的子项合计耗时文案 */
+  itemsTotalText: string;
+}
+
+export interface IRumWaterfallMarkerVM {
+  color?: string;
+  /** 该标记的 hover 展示信息 */
+  hover?: IRumHoverInfo;
+  key: string;
+  label: string;
+  percent: number;
+  value: number;
+  valueText: string;
+}
+
+/** 瀑布图的一行 */
+export interface IRumWaterfallRowVM {
+  /** 色块颜色 */
+  color: string;
+  /** 色块宽度百分比 */
+  durationPercent: number;
+  durationText: string;
+  /** 该阶段的 hover 展示信息 */
+  hover?: IRumHoverInfo;
+  key: string;
+  label: string;
+  /** 色块左偏移百分比 */
+  startPercent: number;
+}
+
+/** 瀑布图视图模型 */
+export interface IRumWaterfallVM {
+  /** 风格：带有标题的复杂风格 和 不带标题的简约风格  */
+  behavior?: 'complex' | 'simplicity';
+  /** 总耗时 */
+  durationTotal: number;
+  /** 时间点标记 */
+  markers?: Array<IRumWaterfallMarkerVM>;
+  /** 被合并掉的阶段名（如 DNS、TCP、TLS），由瀑布图组件拼装成说明文案 */
+  mergedNames?: string[];
+  /** 累计里程碑 */
+  milestones?: Array<{ hover?: IRumHoverInfo; key: string; name: string; value: string }>;
+  rows: IRumWaterfallRowVM[];
+  /** TTFB 分解说明，后端缺少 TTFB 时间点或子项时为空 */
+  ttfbBreakdown?: IRumTtfbBreakdownVM;
+}

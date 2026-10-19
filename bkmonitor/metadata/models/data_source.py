@@ -640,7 +640,9 @@ class DataSource(models.Model):
             from metadata.models.space.constants import ENABLE_V4_DATALINK_ETL_CONFIGS, EtlConfigs
 
             # 开启V4链路后，特定 etl_config 的 data_id 先由 GSE 分配，再注册到计算平台
-            if settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS:
+            if (
+                settings.ENABLE_V2_VM_DATA_LINK and etl_config in ENABLE_V4_DATALINK_ETL_CONFIGS
+            ) or created_from == DataIdCreatedFromSystem.BKDATA.value:
                 logger.info(
                     f"apply for data id from gse and register to bkbase,type_label->{type_label},etl_config->{etl_config}"
                 )

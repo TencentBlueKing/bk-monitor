@@ -61,7 +61,7 @@ from apps.log_search.constants import (
 )
 from apps.log_search.models import Scenario
 from apps.utils import is_match_variate
-from apps.utils.codecs import unicode_str_decode
+from apps.utils.codecs import unicode_str_decode, unicode_str_decode_keep_non_ascii
 from apps.utils.db import array_group
 
 
@@ -735,11 +735,18 @@ class EtlStorage:
 
             temp_output_id = f"__ext_json_temp_{self.separator_node_name}"
 
+            # bkbase 缺省 error_strategy 为 drop：保留清洗失败日志时 separator_node 可能为 null 或非对象，
+            # delete 会因输入类型不符整条丢弃，需与上游 json_de 的策略保持一致
+            delete_error_strategy = "null" if self.is_retain_content_enabled(etl_params) else "drop"
             rules.append(
                 {
                     "input_id": self.separator_node_name,
                     "output_id": temp_output_id,
-                    "operator": {"type": "delete", "key_index": exclude_keys},
+                    "operator": {
+                        "type": "delete",
+                        "key_index": exclude_keys,
+                        "error_strategy": delete_error_strategy,
+                    },
                 }
             )
 
@@ -771,6 +778,8 @@ class EtlStorage:
         field_list: list,
         built_in_config: dict,
         storage_cluster_type: str = STORAGE_CLUSTER_TYPE,
+        fields: list | None = None,
+        etl_params: dict | None = None,
     ) -> dict:
         """
         构建V4数据链路的存储配置，ES与Doris二选一
@@ -778,6 +787,8 @@ class EtlStorage:
         :param field_list: 结果表字段列表
         :param built_in_config: 内置配置
         :param storage_cluster_type: 存储类型
+        :param fields: 用户配置的清洗字段，用于提取 Doris 字段自定义分词符
+        :param etl_params: 清洗参数，用于提取原文自定义分词符
         :return: 待合入log_v4_data_link的存储配置；非ES/Doris时返回空字典
         """
         if storage_cluster_type == STORAGE_CLUSTER_TYPE:
@@ -799,14 +810,40 @@ class EtlStorage:
             field["field_name"] for field in field_list if (field.get("option") or {}).get("es_type") == "text"
         }
 
+        doris_storage_config = {
+            "storage_keys": built_in_config["option"]["es_unique_field_list"],
+            # 集合迭代顺序随进程变化，排序后下发避免同一份配置在bkbase侧反复产生无意义变更
+            "json_fields": sorted(json_fields),
+            "field_config_group": {"search_zh": sorted(need_analysis_fields)},
+            # "flush_timeout": None
+        }
+        tokenizers = self._build_doris_tokenizers_v4(fields or [], etl_params or {}, need_analysis_fields)
+        # 未配置自定义分词时不下发该键，避免存量采集项的 DorisBinding 产生变更
+        if tokenizers:
+            doris_storage_config["tokenizers"] = tokenizers
+
+        return {"doris_storage_config": doris_storage_config}
+
+    def _build_doris_tokenizers_v4(self, fields: list, etl_params: dict, analyzed_fields: set) -> dict:
+        """
+        构建 Doris 字段自定义分词规则，格式为 {字段名: 分词字符串}，如 {"log": "._=:,"}
+        :param fields: 用户配置的清洗字段
+        :param etl_params: 清洗参数
+        :param analyzed_fields: 入库为分词类型的字段名，自定义分词只对这些字段生效
+        """
+        tokenizers = {"log": etl_params.get("original_text_tokenize_on_chars", "")}
+        for field in fields:
+            if field.get("is_delete") or not field.get("is_analyzed"):
+                continue
+            target_field = field["field_name"]
+            if field.get("alias_name") and self.etl_config in [EtlConfig.BK_LOG_JSON]:
+                target_field = field["alias_name"]
+            tokenizers[target_field] = field.get("tokenize_on_chars", "")
+
         return {
-            "doris_storage_config": {
-                "storage_keys": built_in_config["option"]["es_unique_field_list"],
-                # 集合迭代顺序随进程变化，排序后下发避免同一份配置在bkbase侧反复产生无意义变更
-                "json_fields": sorted(json_fields),
-                "field_config_group": {"search_zh": sorted(need_analysis_fields)},
-                # "flush_timeout": None
-            }
+            field_name: unicode_str_decode_keep_non_ascii(tokenize_on_chars)
+            for field_name, tokenize_on_chars in sorted(tokenizers.items())
+            if tokenize_on_chars and field_name in analyzed_fields
         }
 
     @staticmethod

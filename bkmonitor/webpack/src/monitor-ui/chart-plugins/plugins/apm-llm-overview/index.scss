@@ -86,8 +86,15 @@
   .metric-card-trend {
     font-family: Arial, sans-serif;
     font-size: 14px;
-    font-weight: 700;
+    font-weight: 400;
     line-height: 22px;
+    color: #8f9fbd;
+
+    &.is-brand,
+    &.is-success,
+    &.is-warn {
+      font-weight: 700;
+    }
 
     &.is-brand {
       color: #3a84ff;
@@ -178,7 +185,7 @@
   display: flex;
   flex: 1;
   gap: 16px;
-  align-items: center;
+  align-items: flex-start;
   min-height: 0;
 }
 
@@ -186,9 +193,9 @@
   position: relative;
   display: flex;
   flex: 1;
-  align-self: stretch;
   min-width: 0;
-  max-height: 240px;
+  height: 240px;
+  max-height: 100%;
 }
 
 .llm-overview-pie-center {
@@ -222,7 +229,11 @@
   flex-shrink: 0;
   flex-direction: column;
   gap: 8px;
+  justify-content: safe center;
   width: 134px;
+  height: 240px;
+  max-height: 100%;
+  overflow: auto;
 }
 
 .pie-legend-item {
