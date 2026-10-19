@@ -1391,7 +1391,6 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         status = scene_state.get("status")
         terminal = scene_state["terminal"]
         if not terminal and status in cls.BKFARA_SCENE_ACTIVE_STATUSES:
-            cls._reset_upstream_retry_window(execution)
             return False, cls.get_poll_interval(scene_state)
         if terminal and status == "ready":
             return True, None
@@ -1502,10 +1501,6 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
 
         status = task_state.get("status")
         terminal = task_state["terminal"]
-        if (not terminal and status in cls.BKFARA_TASK_ACTIVE_STATUSES) or (
-            terminal and status in {"succeeded", "failed"}
-        ):
-            cls._reset_upstream_retry_window(execution)
         if not terminal and status in cls.BKFARA_TASK_ACTIVE_STATUSES:
             stage = cls.BKFARA_TASK_PHASE_STAGES.get(task_state.get("phase"))
             if stage is None:
@@ -1584,7 +1579,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         failure_stage: str,
         error: Exception,
     ) -> int | None:
-        """明确拒绝立即失败；临时错误只在持久化的连续异常窗口内重试。"""
+        """明确拒绝立即失败；临时错误按已有执行时间限制自动重试。"""
 
         error_data = getattr(error, "data", None)
         if isinstance(error_data, dict) and isinstance(error_data.get("error"), dict):
@@ -1622,16 +1617,10 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
             )
             return None
 
-        now = timezone.now()
-        IssueSourceAnalysisExecution.objects.filter(
-            pk=execution.pk,
-            status__in=SourceAnalysisStatus.ACTIVE_STATUSES,
-            upstream_error_started_at__isnull=True,
-        ).update(upstream_error_started_at=now)
-        execution.refresh_from_db(fields=["status", "upstream_error_started_at"])
-        if execution.status in SourceAnalysisStatus.TERMINAL_STATUSES:
-            return None
-        if now - execution.upstream_error_started_at >= cls.UPSTREAM_RETRY_TIMEOUT:
+        # 只在请求异常时检查时限；正常轮询不限制任务总时长。
+        # update_time 会被调度租约刷新，不能用来计算这个上限。
+        retry_started_at = execution.started_at or execution.create_time
+        if timezone.now() - retry_started_at >= cls.UPSTREAM_RETRY_TIMEOUT:
             cls._mark_failed(
                 execution,
                 failure_stage=failure_stage,
@@ -1648,14 +1637,6 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
             type(error).__name__,
         )
         return cls.DEFAULT_POLL_INTERVAL
-
-    @staticmethod
-    def _reset_upstream_retry_window(execution: IssueSourceAnalysisExecution) -> None:
-        if getattr(execution, "upstream_error_started_at", None) is not None:
-            IssueSourceAnalysisExecution.objects.filter(
-                pk=execution.pk, status__in=SourceAnalysisStatus.ACTIVE_STATUSES
-            ).update(upstream_error_started_at=None)
-            execution.upstream_error_started_at = None
 
     @staticmethod
     def _mark_running(execution: IssueSourceAnalysisExecution, stage: str) -> bool:

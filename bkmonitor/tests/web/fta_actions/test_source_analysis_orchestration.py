@@ -736,15 +736,14 @@ class TestSourceAnalysisOrchestration(TestCase):
                 self.assertEqual(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id), 10)
                 execution.refresh_from_db()
                 self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
-                self.assertIsNotNone(execution.upstream_error_started_at)
 
     @patch("fta_web.issue.resources.api.bk_incident.trigger_source_analysis", side_effect=TimeoutError())
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
-    def test_trigger_retry_window_survives_fresh_workers_and_ready_scene_polls(self, get_scene, trigger):
+    def test_trigger_retries_use_creation_time_despite_fresh_workers_and_lease_updates(self, get_scene, trigger):
         execution = self.create_execution()
         get_scene.return_value = self.ready_scene_state()
         resource = SourceAnalysisExecutionBaseResource
-        first_error_at = timezone.now()
+        created_at = execution.create_time
         for elapsed, expected_interval in (
             (timedelta(), 10),
             (timedelta(minutes=15, seconds=-1), 10),
@@ -752,12 +751,13 @@ class TestSourceAnalysisOrchestration(TestCase):
         ):
             with (
                 self.subTest(elapsed=elapsed),
-                patch("fta_web.issue.resources.timezone.now", return_value=first_error_at + elapsed),
+                patch("fta_web.issue.resources.timezone.now", return_value=created_at + elapsed),
             ):
-                # advance 每次重新读库，模拟不同 Worker 接管同一个任务。
+                # 每次重新读库且刷新 update_time，仍然以固定的创建时间计算上限。
                 self.assertEqual(resource.advance_bkfara_task(execution.analysis_id), expected_interval)
                 execution.refresh_from_db()
-                self.assertEqual(execution.upstream_error_started_at, first_error_at)
+                self.assertEqual(execution.create_time, created_at)
+                self.assertEqual(execution.update_time, created_at + elapsed)
         self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
         self.assertEqual(execution.failure_code, "BKFARA_UPSTREAM_RETRY_TIMEOUT")
         self.assertTrue(execution.failure_retryable)
@@ -765,11 +765,11 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(len({call.kwargs["client_request_id"] for call in trigger.call_args_list}), 1)
 
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task", side_effect=TimeoutError())
-    def test_task_query_errors_exhaust_the_window_without_retriggering(self, get_task):
+    def test_task_query_errors_exceed_retry_limit_without_retriggering(self, get_task):
         execution = self.create_execution(
             bkfara_task_id="task-1",
             status=SourceAnalysisStatus.RUNNING,
-            upstream_error_started_at=timezone.now() - timedelta(minutes=15),
+            started_at=timezone.now() - timedelta(minutes=15),
         )
         self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
         execution.refresh_from_db()
@@ -780,32 +780,56 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertIsNone(execution.active_key)
         get_task.assert_called_once_with(analysis_task_id="task-1", bk_tenant_id="system")
 
-    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
-    def test_valid_task_poll_resets_only_the_continuous_error_window(self, get_task):
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task", side_effect=TimeoutError())
+    def test_task_retries_prefer_started_time_over_older_creation_time(self, get_task):
+        started_at = timezone.now()
         execution = self.create_execution(
             bkfara_task_id="task-1",
             status=SourceAnalysisStatus.RUNNING,
-            upstream_error_started_at=timezone.now() - timedelta(minutes=14),
+            started_at=started_at,
+        )
+        IssueSourceAnalysisExecution.objects.filter(pk=execution.pk).update(create_time=started_at - timedelta(hours=1))
+        for elapsed, expected_interval in ((timedelta(minutes=15, seconds=-1), 10), (timedelta(minutes=15), None)):
+            with (
+                self.subTest(elapsed=elapsed),
+                patch("fta_web.issue.resources.timezone.now", return_value=started_at + elapsed),
+            ):
+                self.assertEqual(
+                    SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id), expected_interval
+                )
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_code, "BKFARA_UPSTREAM_RETRY_TIMEOUT")
+        self.assertTrue(execution.failure_retryable)
+        self.assertIsNone(execution.active_key)
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_healthy_long_running_task_continues_but_later_error_exceeds_retry_limit(self, get_task):
+        execution = self.create_execution(
+            bkfara_task_id="task-1",
+            status=SourceAnalysisStatus.RUNNING,
+            started_at=timezone.now() - timedelta(minutes=20),
         )
         get_task.return_value = {"status": "running", "terminal": False, "next_poll_after_seconds": 3}
         self.assertEqual(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id), 3)
         execution.refresh_from_db()
-        self.assertIsNone(execution.upstream_error_started_at)
-        get_task.side_effect = TimeoutError()
-        self.assertEqual(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id), 10)
-        execution.refresh_from_db()
         self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
-        self.assertGreater(execution.upstream_error_started_at, timezone.now() - timedelta(seconds=5))
+        get_task.side_effect = TimeoutError()
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_code, "BKFARA_UPSTREAM_RETRY_TIMEOUT")
 
     @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
-    def test_valid_provisioning_poll_resets_the_error_window(self, ensure):
-        execution = self.create_execution(
-            bkfara_provision_id=None, upstream_error_started_at=timezone.now() - timedelta(minutes=14)
+    def test_healthy_long_provisioning_is_not_timed_out(self, ensure):
+        execution = self.create_execution(bkfara_provision_id=None)
+        IssueSourceAnalysisExecution.objects.filter(pk=execution.pk).update(
+            create_time=timezone.now() - timedelta(hours=1)
         )
         ensure.return_value = {"provision_id": "provision-1", "status": "provisioning", "terminal": False}
         self.assertEqual(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id), 10)
         execution.refresh_from_db()
-        self.assertIsNone(execution.upstream_error_started_at)
+        self.assertEqual(execution.status, SourceAnalysisStatus.PENDING)
 
     @patch("fta_web.issue.resources.api.bk_incident.trigger_source_analysis", return_value={})
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")

@@ -208,9 +208,6 @@ class IssueSourceAnalysisExecution(AbstractRecordModel):
     bkfara_task_id = models.CharField(
         max_length=128, null=True, blank=True, default=None, verbose_name="BKFara 分析任务 ID"
     )
-    upstream_error_started_at = models.DateTimeField(
-        null=True, blank=True, default=None, verbose_name="连续上游异常开始时间"
-    )
     failure_stage = models.CharField(
         max_length=32,
         null=True,

@@ -179,7 +179,7 @@ class SourceAnalysisFailureMessage:
     BKFARA_TASK_FAILED = gettext_noop("BKFara 源码分析任务执行失败")
     BKFARA_REQUEST_FAILED = gettext_noop("BKFara 请求失败")
     BKFARA_REQUEST_REJECTED = gettext_noop("BKFara 接口拒绝请求，请检查鉴权、权限和请求参数后重试。")
-    BKFARA_UPSTREAM_RETRY_TIMEOUT = gettext_noop("BKFara 接口持续不可用，已停止自动重试，请稍后重新分析。")
+    BKFARA_UPSTREAM_RETRY_TIMEOUT = gettext_noop("BKFara 接口请求失败且任务已超过重试时限，请稍后重新分析。")
     USER_ACCESS_TOKEN_UNAVAILABLE = gettext_noop(
         "无法获取规则执行用户的访问凭证，请由规则配置人重新登录并保存规则后重试。"
     )
