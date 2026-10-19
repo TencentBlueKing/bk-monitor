@@ -44,6 +44,7 @@ export default defineComponent({
     status: { type: String, required: true },
     message: { type: String, default: '' },
     tag: { type: Boolean, default: false },
+    result: { type: Boolean, default: false },
   },
   setup() {
     return { t: useI18n().t };
@@ -72,7 +73,9 @@ export default defineComponent({
           </span>
         ) : (
           <CommonStatus
-            text={this.t(executionStatusLabels[this.status] || '未知')}
+            text={this.t(
+              this.result && this.status === 'succeed' ? '结果可用' : executionStatusLabels[this.status] || '未知'
+            )}
             type={statusTypes[this.status] || 'disabled'}
           />
         )}

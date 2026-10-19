@@ -38,10 +38,8 @@ import {
 
 import type { CollectionHost } from '../types/collection';
 
-const mockParams = process.env.NODE_ENV === 'development' ? { is_mock: true } : {};
-
 export function createCollectionHostServices(bizId: number, signal: AbortSignal) {
-  const scope = { scope_list: [{ scope_type: 'biz', scope_id: String(bizId) }], ...mockParams };
+  const scope = { scope_list: [{ scope_type: 'biz', scope_id: String(bizId) }] };
   const options = { signal };
   const params = (value: Record<string, unknown> = {}) => {
     const { search_content, ...rest } = value;
@@ -62,10 +60,10 @@ export function createCollectionHostServices(bizId: number, signal: AbortSignal)
     fetchHostCheck: value => checkIpChooserHost(params(value), options),
     fetchNodesQueryPath: value => queryPathIpChooserTopo(params(value), options),
     fetchHostAgentStatisticsNodes: value => agentStatisticsIpChooserTopo(params(value), options),
-    fetchCustomSettings: value => batchGetIpChooserConfig({ ...value, ...mockParams }, options),
-    updateCustomSettings: value => updateConfigIpChooserConfig({ ...value, ...mockParams }, options),
+    fetchCustomSettings: value => batchGetIpChooserConfig(value, options),
+    updateCustomSettings: value => updateConfigIpChooserConfig(value, options),
     fetchConfig: async () => {
-      const config = await globalConfigIpChooserConfig({ ...mockParams }, options);
+      const config = await globalConfigIpChooserConfig({}, options);
       return { bk_cmdb_static_topo_url: `${config.CC_ROOT_URL}/#/business/${bizId}/index` };
     },
   };

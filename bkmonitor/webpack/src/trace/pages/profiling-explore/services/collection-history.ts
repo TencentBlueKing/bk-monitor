@@ -42,7 +42,6 @@ import type {
   CollectionHistoryFilters,
 } from '../types/collection-history';
 
-const mockParams = process.env.NODE_ENV === 'development' ? { is_mock: true } : {};
 const options = (signal: AbortSignal) => ({ signal, needMessage: false });
 
 export function getCollectionCandidates(
@@ -52,7 +51,7 @@ export function getCollectionCandidates(
   signal: AbortSignal
 ): Promise<CollectionCandidate[]> {
   return collectionTopk(
-    { bk_biz_id: bizId, start_time: range[0], end_time: range[1], field, limit: 20, ...mockParams },
+    { bk_biz_id: bizId, start_time: range[0], end_time: range[1], field, limit: 20 },
     options(signal)
   );
 }
@@ -62,7 +61,7 @@ export function getCollectionExecution(
   key: CollectionExecutionKey,
   signal: AbortSignal
 ): Promise<CollectionExecutionDetail> {
-  return executionDetail({ bk_biz_id: bizId, ...executionKey(key), ...mockParams }, options(signal));
+  return executionDetail({ bk_biz_id: bizId, ...executionKey(key) }, options(signal));
 }
 
 export function getCollectionHistory(
@@ -73,7 +72,7 @@ export function getCollectionHistory(
   signal: AbortSignal
 ): Promise<{ data: CollectionExecution[] }> {
   return listExecutions(
-    { bk_biz_id: bizId, start_time: range[0], end_time: range[1], filters, offset, limit: 20, ...mockParams },
+    { bk_biz_id: bizId, start_time: range[0], end_time: range[1], filters, offset, limit: 20 },
     options(signal)
   );
 }
@@ -88,7 +87,6 @@ export function stopCollectionExecution(
       bk_biz_id: bizId,
       ...executionKey(execution),
       hosts: execution.hosts.map(({ bk_host_id, ip }) => ({ bk_host_id, ip })),
-      ...mockParams,
     },
     options(signal)
   );

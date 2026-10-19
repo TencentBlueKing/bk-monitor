@@ -26,7 +26,7 @@
 import { type PropType, computed, defineComponent, nextTick, shallowRef, watch } from 'vue';
 
 import { type TableProps, PrimaryTable } from '@blueking/tdesign-ui';
-import { Alert, Button, Dialog, Message, Radio, Select } from 'bkui-vue';
+import { Alert, Button, Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCollectionExecution } from '../../composables/use-collection-execution';
@@ -39,12 +39,11 @@ import {
   executionSelection,
   executionStatusLabels,
   formatExecutionDuration,
-  parseProcessSelection,
-  processCandidateOptions,
-  restoreProcessSelection,
 } from '../../utils/collection-history';
+import CollectionExecutionAction from './collection-execution-action';
 import CollectionExecutionDetail from './collection-execution-detail';
 import CollectionExecutionStatus from './collection-execution-status';
+import CollectionFilters from './collection-filters';
 import EmptyStatus from '@/components/empty-status/empty-status';
 import { TraceCellSkeleton } from '@/pages/trace-explore/components/trace-explore-skeleton';
 
@@ -82,8 +81,6 @@ export default defineComponent({
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    const draft = shallowRef(createHistoryFilters());
-    const processSelection = shallowRef<string[]>([]);
     const scrollContainer = shallowRef<HTMLElement>();
     const h = useCollectionHistory({
       bizId: computed(() => props.bizId),
@@ -104,47 +101,23 @@ export default defineComponent({
         emit('created');
       },
     });
-    function syncDraft() {
-      draft.value = { ...props.filters };
-      processSelection.value = restoreProcessSelection(props.filters, processSelection.value);
-    }
-    function changeProcesses(values: string[]) {
-      processSelection.value = values;
-      draft.value = { ...draft.value, ...parseProcessSelection(values) };
-    }
-    function submit() {
-      if (JSON.stringify(props.filters) === JSON.stringify(draft.value)) h.refresh();
-      else emit('change', { ...draft.value });
-    }
     function reset() {
-      draft.value = createHistoryFilters();
-      processSelection.value = [];
-      submit();
+      emit('change', createHistoryFilters());
     }
     function loadVisiblePage() {
       const element = scrollContainer.value;
       if (element && !h.error.value && element.scrollHeight - element.scrollTop - element.clientHeight < 80)
         h.loadMore();
     }
-    watch(() => props.filters, syncDraft, { immediate: true });
     watch([h.loading, h.hasMore], () => nextTick(loadVisiblePage));
     watch([h.loading, c.loading, c.busy], () => emit('busy', h.loading.value || c.loading.value || c.busy.value), {
       immediate: true,
     });
-    return { t, h, c, draft, processSelection, scrollContainer, changeProcesses, submit, reset, loadVisiblePage };
+    return { t, h, c, scrollContainer, reset, loadVisiblePage };
   },
   render() {
-    const { h, c, draft } = this;
+    const { h, c } = this;
     const showSkeleton = h.loading.value && !h.rows.value.length;
-    const options = (field: 'target' | 'task_name') =>
-      (h.candidates.value[field] || []).map((item, index) => (
-        <Select.Option
-          id={String(item.value)}
-          key={`${field}:${index}`}
-          name={item.alias || String(item.value)}
-        />
-      ));
-    const processOptions = processCandidateOptions(h.candidates.value, this.processSelection);
     const columns: TableProps['columns'] = [
       { colKey: 'task_name', title: this.t('任务名称'), minWidth: 220, ellipsis: true, cell: 'name' },
       {
@@ -194,94 +167,20 @@ export default defineComponent({
       this.filters.process_pids.length;
     return (
       <section class='collection-tab-panel collection-history-panel'>
-        <div class='collection-history-filters'>
-          <label>
-            <span>IP</span>
-            <Select
-              loading={h.candidateLoading.value}
-              modelValue={draft.ips}
-              allowCreate
-              collapseTags
-              filterable
-              multiple
-              onChange={value => {
-                this.draft = { ...draft, ips: value || [] };
-              }}
-            >
-              {options('target')}
-            </Select>
-          </label>
-          <label>
-            <span v-tippy={this.t('任务名称按关键词匹配，可能包含同名或近似名称任务')}>{this.t('任务')}</span>
-            <Select
-              loading={h.candidateLoading.value}
-              modelValue={draft.task_name}
-              allowCreate
-              filterable
-              onChange={value => {
-                this.draft = { ...draft, task_name: String(value || '') };
-              }}
-            >
-              {options('task_name')}
-            </Select>
-          </label>
-          <label>
-            <span>{this.t('进程')}</span>
-            <Select
-              loading={h.candidateLoading.value}
-              modelValue={this.processSelection}
-              placeholder={this.t('进程名或 PID')}
-              allowCreate
-              collapseTags
-              filterable
-              multiple
-              onChange={value => this.changeProcesses(value || [])}
-            >
-              {processOptions.map(option => (
-                <Select.Option
-                  id={option.id}
-                  key={option.id}
-                  name={option.name}
-                />
-              ))}
-            </Select>
-          </label>
-          <div class='collection-history-status-filter'>
-            <span>{this.t('状态')}</span>
-            <Radio.Group
-              class='collection-history-status-options'
-              modelValue={draft.status}
-              type='capsule'
-              onChange={value => {
-                this.draft = { ...draft, status: String(value) };
-              }}
-            >
-              {['', 'running', 'succeed', 'partial_succeed', 'failed'].map(status => (
-                <Radio.Button
-                  key={status}
-                  label={status}
-                >
-                  {status ? <CollectionExecutionStatus status={status} /> : this.t('全部')}
-                </Radio.Button>
-              ))}
-            </Radio.Group>
-          </div>
-          <div class='collection-history-query'>
-            <Button
-              theme='primary'
-              onClick={this.submit}
-            >
-              {this.t('查询')}
-            </Button>
-            <Button onClick={this.reset}>{this.t('重置')}</Button>
-          </div>
-        </div>
+        <CollectionFilters
+          candidates={h.candidates.value}
+          filters={this.filters}
+          loading={h.candidateLoading.value}
+          onChange={value => this.$emit('change', value)}
+          onRefresh={h.refresh}
+        />
         {h.candidateError.value && (
           <Alert
             theme='warning'
             title={h.candidateError.value}
           >
             <Button
+              v-tippy={this.t('重新加载筛选候选项')}
               theme='primary'
               text
               onClick={h.loadCandidates}
@@ -333,6 +232,7 @@ export default defineComponent({
                 ),
               name: ({ row }: { row: CollectionExecution }) => (
                 <Button
+                  v-tippy={this.t('查看本次任务执行详情')}
                   theme='primary'
                   text
                   onClick={() => c.open(row)}
@@ -351,6 +251,9 @@ export default defineComponent({
               operations: ({ row }: { row: CollectionExecution }) => (
                 <div class='collection-row-actions'>
                   <Button
+                    v-tippy={this.t(
+                      canViewExecution(row) ? '查看本次执行各主机的采集结果' : '本次采集暂无可查看的结果'
+                    )}
                     disabled={!canViewExecution(row)}
                     theme='primary'
                     text
@@ -359,6 +262,13 @@ export default defineComponent({
                     {this.t('查看结果')}
                   </Button>
                   <Button
+                    v-tippy={this.t(
+                      this.readonly
+                        ? '暂无采集操作权限'
+                        : row.execution_status === 'running'
+                          ? '仅终止本次采集，保留原有执行计划'
+                          : '使用历史配置重新执行本次采集'
+                    )}
                     disabled={this.readonly || c.busy.value}
                     theme='primary'
                     text
@@ -376,13 +286,19 @@ export default defineComponent({
                 theme='danger'
                 title={h.error.value}
               />
-              <Button onClick={h.rows.value.length ? h.loadMore : h.refresh}>{this.t('重试')}</Button>
+              <Button
+                v-tippy={this.t('重新加载采集任务历史')}
+                onClick={h.rows.value.length ? h.loadMore : h.refresh}
+              >
+                {this.t('重试')}
+              </Button>
             </div>
           )}
           {!!h.rows.value.length && (
             <div class='collection-history-more'>
               {h.hasMore.value ? (
                 <Button
+                  v-tippy={this.t('加载下一批任务执行记录')}
                   loading={h.loading.value}
                   theme='primary'
                   text
@@ -404,60 +320,10 @@ export default defineComponent({
             onResult={value => this.$emit('result', value, true)}
           />
         )}
-        <Dialog
-          title={this.t(
-            c.pending.value?.action === 'cancel'
-              ? '确认终止本次采集？'
-              : c.pending.value?.action === 'retry'
-                ? '确认仅重试失败项？'
-                : '确认重新执行？'
-          )}
-          beforeClose={() => !c.busy.value}
-          isShow={!!c.pending.value}
-          quickClose={false}
-          transfer={false}
-          onClosed={c.dismissAction}
-        >
-          {{
-            default: () => (
-              <>
-                <p>{c.pending.value?.execution.task_name}</p>
-                <p>
-                  {this.t(
-                    c.pending.value?.action === 'cancel'
-                      ? '仅终止当前执行轮次，不影响后续执行计划。'
-                      : '将使用本次执行的历史配置创建一次立即采集，原有执行计划保持不变。'
-                  )}
-                </p>
-                {c.pending.value?.action === 'retry' && <p>{this.t('只重新采集失败和超时主机。')}</p>}
-                {c.actionError.value && (
-                  <Alert
-                    theme='danger'
-                    title={c.actionError.value}
-                  />
-                )}
-              </>
-            ),
-            footer: () => (
-              <>
-                <Button
-                  disabled={this.readonly}
-                  loading={c.busy.value}
-                  theme='primary'
-                  onClick={c.confirmAction}
-                >
-                  {this.t('确定')}
-                </Button>
-                <Button
-                  disabled={c.busy.value}
-                  onClick={c.dismissAction}
-                >
-                  {this.t('取消')}
-                </Button>
-              </>
-            ),
-          }}
-        </Dialog>
+        <CollectionExecutionAction
+          controller={c}
+          readonly={this.readonly}
+        />
       </section>
     );
   },

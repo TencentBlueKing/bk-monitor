@@ -63,6 +63,11 @@
     border-radius: 4px;
   }
 
+  .profile-download-trigger {
+    display: inline-flex;
+    flex: none;
+  }
+
   &-content {
     display: flex;
     flex: 1;
@@ -108,8 +113,8 @@
     display: flex;
     align-items: center;
     overflow: hidden;
-    direction: ltr;
     cursor: pointer;
+    direction: ltr;
 
     &.selected {
       color: #3a84ff;
@@ -127,8 +132,8 @@
       flex: 1;
       min-width: 0;
       overflow: hidden;
-      text-align: left;
       text-overflow: ellipsis;
+      text-align: left;
       white-space: nowrap;
     }
   }
@@ -192,13 +197,22 @@
     position: relative;
     flex: 1;
     min-height: 0;
-    overflow: auto;
+    overflow: hidden auto;
     background: #f5f7fa;
+
+    .flame-scroll-content {
+      position: relative;
+      min-height: 100%;
+
+      // 画布像素取整后的尺寸不能撑大滚动区；滚动高度只由堆栈深度决定。
+      overflow: hidden;
+    }
 
     canvas {
       position: absolute;
       top: 0;
       left: 0;
+      display: block;
       cursor: pointer;
     }
   }
