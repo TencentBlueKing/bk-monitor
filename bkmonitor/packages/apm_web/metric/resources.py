@@ -1104,11 +1104,17 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
 
     @classmethod
     def _get_data_status_mapping(
-        cls, application: Application, data_status_type: str | None = None, filter_keys: list[str] | None = None
+        cls,
+        application: Application,
+        service_names: list[str],
+        data_status_type: str | None = None,
+        filter_keys: list[str] | None = None,
     ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         """获取服务的数据状态"""
-        services = ServiceHandler.list_services(application, include_data_status=True)
-        data_status_mapping = {service["topo_key"]: service["data_status"] for service in services}
+        services = ServiceHandler.list_services(application)
+        data_status_mapping = ServiceHandler.build_service_data_status(
+            application, services, data_type=data_status_type if not filter_keys else None
+        )
         filter_fields = []
         if filter_keys:
             res = [
@@ -1117,10 +1123,20 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             ]
             filter_fields = ServiceListResource()._get_filter_fields_by_services(res, mode="async")
 
-        if data_status_type:
-            data_status_mapping = {name: status[data_status_type] for name, status in data_status_mapping.items()}
+        # 列表和异步状态是两次独立请求，期间其他页面可能删除手动服务或关闭 Profiling，导致服务集合变化。
+        # 对请求中已不在当前服务集合的名称补齐默认状态，保证响应字段完整；筛选计数仍只统计上面重新读取的当前服务集合。
+        default_status = {
+            data_type.value: DataStatus.NO_DATA
+            if getattr(application, f"is_enabled_{data_type.value}")
+            else DataStatus.DISABLED
+            for data_type in TelemetryDataType
+        }
+        response_mapping: dict[str, Any] = {}
+        for name in service_names:
+            status = data_status_mapping.get(name, default_status)
+            response_mapping[name] = status[data_status_type] if data_status_type else status
 
-        return data_status_mapping, filter_fields
+        return response_mapping, filter_fields
 
     @classmethod
     def _get_service_strategy_mapping(cls, column, application, start_time, end_time):
@@ -1219,13 +1235,13 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         filter_keys = validated_data.get("filter_keys", [])
 
         if column in ["data_status"]:
-            info_mapping, filter_fields = self._get_data_status_mapping(app, filter_keys=filter_keys)
+            info_mapping, filter_fields = self._get_data_status_mapping(app, service_names, filter_keys=filter_keys)
             multi_sub_columns = TelemetryDataType.values()
             default_value = DataStatus.DISABLED
         elif column in [f"{data_type}_data_status" for data_type in TelemetryDataType.values()]:
             data_status_type = column.split("_data_status")[0]
             info_mapping, filter_fields = self._get_data_status_mapping(
-                app, data_status_type=data_status_type, filter_keys=filter_keys
+                app, service_names, data_status_type=data_status_type, filter_keys=filter_keys
             )
         elif column in ["strategy_count", "alert_status"]:
             info_mapping = self._get_service_strategy_mapping(column, **metric_params)

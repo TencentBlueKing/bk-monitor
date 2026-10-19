@@ -139,32 +139,48 @@ class ServiceHandler:
         return services
 
     @classmethod
-    def build_service_data_status(cls, app: Application, nodes: list[dict[str, Any]]) -> dict[str, dict[str, str]]:
+    def build_service_data_status(
+        cls, app: Application, nodes: list[dict[str, Any]], *, data_type: str | None = None
+    ) -> dict[str, dict[str, str]]:
         """按模块开关、服务心跳及关联日志生成当前数据状态。"""
         if not nodes:
             return {}
 
         # 在无数据周期之外容忍一个 10 分钟发现周期。
         earliest_data_at = int(time.time()) - (app.no_data_period + 10) * 60
+        data_types = (TelemetryDataType(data_type),) if data_type is not None else TelemetryDataType
         status_mapping: dict[str, dict[str, str]] = {}
+        missing_heartbeat_counts: defaultdict[str, int] = defaultdict(int)
         for node in nodes:
             heartbeat = node.get("heartbeat") or {}
             status = {}
-            for data_type in TelemetryDataType:
-                if not getattr(app, f"is_enabled_{data_type.value}"):
-                    status[data_type.value] = DataStatus.DISABLED
+            for telemetry_type in data_types:
+                if not getattr(app, f"is_enabled_{telemetry_type.value}"):
+                    status[telemetry_type.value] = DataStatus.DISABLED
                     continue
 
-                last_data_at = (heartbeat.get(data_type.value) or {}).get("last_data_at")
-                status[data_type.value] = (
+                last_data_at = (heartbeat.get(telemetry_type.value) or {}).get("last_data_at")
+                if last_data_at is None:
+                    missing_heartbeat_counts[telemetry_type.value] += 1
+                status[telemetry_type.value] = (
                     DataStatus.NORMAL
                     if last_data_at is not None and last_data_at >= earliest_data_at
                     else DataStatus.NO_DATA
                 )
             status_mapping[node["topo_key"]] = status
 
+        if missing_heartbeat_counts:
+            logger.info(
+                "[BUILD_SERVICE_DATA_STATUS] missing last_data_at: bk_biz_id=%s app_name=%s missing_heartbeat_counts=%s",
+                app.bk_biz_id,
+                app.app_name,
+                dict(missing_heartbeat_counts),
+            )
+
         log_services = [
-            name for name, status in status_mapping.items() if status[TelemetryDataType.LOG.value] == DataStatus.NO_DATA
+            name
+            for name, status in status_mapping.items()
+            if status.get(TelemetryDataType.LOG.value) == DataStatus.NO_DATA
         ]
         if log_services:
             for name in ServiceLogHandler.list_available_related_services(app, log_services):

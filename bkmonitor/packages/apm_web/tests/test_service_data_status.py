@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 import copy
+import logging
 from typing import Any
 
 import pytest
@@ -50,8 +51,13 @@ def application(mocker: MockerFixture) -> Application:
     ],
 )
 def test_heartbeat_fresh_tolerates_one_cycle(
-    application: Application, mocker: MockerFixture, age_seconds: int, expected: str
+    application: Application,
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+    age_seconds: int,
+    expected: str,
 ) -> None:
+    caplog.set_level(logging.INFO, logger="apm_web.handlers.service_handler")
     related_services = mocker.patch(
         "apm_web.handlers.service_handler.ServiceLogHandler.list_available_related_services",
         return_value=set(),
@@ -69,6 +75,7 @@ def test_heartbeat_fresh_tolerates_one_cycle(
     }
     if expected == DataStatus.NORMAL:
         related_services.assert_not_called()
+    assert not caplog.records
 
 
 @pytest.mark.parametrize("disabled_type", TelemetryDataType.values())
@@ -95,12 +102,23 @@ def test_build_service_data_status_disabled_first(
 
 
 @pytest.mark.parametrize(
-    "heartbeat_entry",
-    [None, {}, {"checked_at": NOW}, {"last_data_at": None, "checked_at": NOW}, {"last_data_at": 0, "checked_at": NOW}],
+    ("heartbeat_entry", "missing_count"),
+    [
+        (None, 3),
+        ({}, 3),
+        ({"checked_at": NOW}, 3),
+        ({"last_data_at": None, "checked_at": NOW}, 3),
+        ({"last_data_at": 0, "checked_at": NOW}, 2),
+    ],
 )
 def test_build_service_data_status_missing_data_time_is_no_data(
-    application: Application, mocker: MockerFixture, heartbeat_entry: dict[str, Any] | None
+    application: Application,
+    mocker: MockerFixture,
+    caplog: pytest.LogCaptureFixture,
+    heartbeat_entry: dict[str, Any] | None,
+    missing_count: int,
 ) -> None:
+    caplog.set_level(logging.INFO, logger="apm_web.handlers.service_handler")
     mocker.patch(
         "apm_web.handlers.service_handler.ServiceLogHandler.list_available_related_services", return_value=set()
     )
@@ -117,6 +135,49 @@ def test_build_service_data_status_missing_data_time_is_no_data(
     assert ServiceHandler.build_service_data_status(application, nodes) == {
         node["topo_key"]: {data_type.value: DataStatus.NO_DATA for data_type in TelemetryDataType} for node in nodes
     }
+    expected_counts = {data_type.value: missing_count for data_type in TelemetryDataType}
+    assert len(caplog.records) == 1
+    record = caplog.records[0]
+    assert record.args == (BK_BIZ_ID, APP_NAME, expected_counts)
+    assert "missing_heartbeat_counts" in record.msg
+
+
+@pytest.mark.parametrize("enabled", [False, True])
+def test_build_service_data_status_logs_only_requested_enabled_type(
+    application: Application, mocker: MockerFixture, caplog: pytest.LogCaptureFixture, enabled: bool
+) -> None:
+    caplog.set_level(logging.INFO, logger="apm_web.handlers.service_handler")
+    application.is_enabled_trace = enabled
+    related_services = mocker.patch(
+        "apm_web.handlers.service_handler.ServiceLogHandler.list_available_related_services"
+    )
+
+    assert ServiceHandler.build_service_data_status(application, [{"topo_key": "orders"}], data_type="trace") == {
+        "orders": {"trace": DataStatus.NO_DATA if enabled else DataStatus.DISABLED}
+    }
+    related_services.assert_not_called()
+    if enabled:
+        assert len(caplog.records) == 1
+        assert caplog.records[0].args == (BK_BIZ_ID, APP_NAME, {"trace": 1})
+        assert "missing_heartbeat_counts" in caplog.records[0].msg
+    else:
+        assert not caplog.records
+
+
+def test_build_service_data_status_logs_missing_log_heartbeat_when_relation_is_available(
+    application: Application, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO, logger="apm_web.handlers.service_handler")
+    mocker.patch(
+        "apm_web.handlers.service_handler.ServiceLogHandler.list_available_related_services", return_value={"orders"}
+    )
+
+    assert ServiceHandler.build_service_data_status(application, [{"topo_key": "orders"}], data_type="log") == {
+        "orders": {"log": DataStatus.NORMAL}
+    }
+    assert len(caplog.records) == 1
+    assert caplog.records[0].args == (BK_BIZ_ID, APP_NAME, {"log": 1})
+    assert "missing_heartbeat_counts" in caplog.records[0].msg
 
 
 def test_build_service_data_status_log_dual_source(application: Application, mocker: MockerFixture) -> None:
@@ -142,14 +203,16 @@ def test_build_service_data_status_log_dual_source(application: Application, moc
 
 
 def test_build_service_data_status_empty_nodes_skips_related_logs(
-    application: Application, mocker: MockerFixture
+    application: Application, mocker: MockerFixture, caplog: pytest.LogCaptureFixture
 ) -> None:
+    caplog.set_level(logging.INFO, logger="apm_web.handlers.service_handler")
     related_services = mocker.patch(
         "apm_web.handlers.service_handler.ServiceLogHandler.list_available_related_services"
     )
 
     assert ServiceHandler.build_service_data_status(application, []) == {}
     related_services.assert_not_called()
+    assert not caplog.records
 
 
 @pytest.mark.django_db
