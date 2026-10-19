@@ -192,21 +192,27 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
     ];
   },
 
-  /** 传输大小：主值取传输体积，副文案给出解压后体积与压缩率 */
+  /** 响应大小：主值取编码后的响应体大小，体积比为编码后大小与解码后大小之比 */
   'key_info.transfer': data => {
-    const { text: value, suffix } = formatUnitValueParts(data['attributes.resource.transfer_size'], 'bytes');
-    const decoded = formatUnitValueParts(data['attributes.resource.decoded_body_size'], 'bytes');
-    const ratio = Number(data['display.compression_ratio'] ?? 0);
-    const footer: IRumCardFooterPart[] = [{ text: `${t('解压后')} ${decoded.text}${decoded.suffix} ·` }];
-    if (Number.isFinite(ratio)) {
+    const encodedSize = data['attributes.resource.encoded_body_size'];
+    const decodedSize = data['attributes.resource.decoded_body_size'];
+    const { text: value, suffix } = formatUnitValueParts(encodedSize, 'bytes');
+    const decoded = formatUnitValueParts(decodedSize, 'bytes');
+    const hasValidSizes = [encodedSize, decodedSize].every(
+      size =>
+        (typeof size === 'number' || (typeof size === 'string' && size.trim() !== '')) && Number.isFinite(Number(size))
+    );
+    const sizeRatio = Number(encodedSize) / Number(decodedSize);
+    const footer: IRumCardFooterPart[] = [{ text: `${t('解压后')} ${text(decoded.text)}${decoded.suffix}` }];
+    if (hasValidSizes && Number(encodedSize) >= 0 && Number(decodedSize) > 0 && Number.isFinite(sizeRatio)) {
       footer.push({
-        text: ` ${t('压缩')} ${(ratio * 100).toFixed(1)}%`,
-        tone: ratio > 0 ? RumCardToneEnum.SUCCESS : RumCardToneEnum.DEFAULT,
+        text: ` · ${t('体积比')} ${(sizeRatio * 100).toFixed(2)}%`,
+        tone: sizeRatio < 1 ? RumCardToneEnum.SUCCESS : RumCardToneEnum.DEFAULT,
       });
     }
     return [
       {
-        label: t('传输大小'),
+        label: t('响应大小'),
         value: text(value),
         unit: suffix ? { text: suffix.trim() } : undefined,
         footer,

@@ -562,6 +562,7 @@ export default {
   '业务码、状态与消息均未上报': 'Business code, status and message are not reported',
   解压后: 'Decompressed',
   压缩: 'Compression',
+  体积比: 'Size Ratio',
   缓存命中: 'Cache Hit',
   命中: 'Hit',
   未命中: 'Miss',

@@ -33,6 +33,7 @@ import DetailHeader from './components/detail-header/detail-header';
 import DetailSections from './components/detail-sections/detail-sections';
 import DetailSkeleton from './components/detail-skeleton/detail-skeleton';
 import OriginDataPanel from './components/origin-data-panel/origin-data-panel';
+import TimelineFilterBar from './components/trace-context/timeline-filter-bar';
 import TraceContextPanel from './components/trace-context/trace-context-panel';
 import {
   useDetailFormatter,
@@ -166,11 +167,15 @@ export default defineComponent({
       }
     );
 
+    /** 抽屉关闭后重置交互态：tab、Events 搜索关键字与链路上下文的筛选，避免下次打开残留；嵌套抽屉复用本组件同样生效 */
     watch(
       () => props.isShow,
-      isShow => {
-        /** 关闭后重新打开时，与首次打开一致展示基础信息 */
-        if (!isShow) activeTab.value = RumDetailTabEnum.BASIC;
+      show => {
+        if (show) return;
+        activeTab.value = RumDetailTabEnum.BASIC;
+        eventKeyword.value = '';
+        traceContext.filterKeyword.value = '';
+        traceContext.filterCategory.value = 'all';
       }
     );
 
@@ -319,6 +324,16 @@ export default defineComponent({
     function renderTraceContext() {
       return (
         <div class='rum-detail-card'>
+          <TimelineFilterBar
+            category={traceContext.filterCategory.value}
+            keyword={traceContext.filterKeyword.value}
+            onUpdate:category={value => {
+              traceContext.filterCategory.value = value;
+            }}
+            onUpdate:keyword={value => {
+              traceContext.filterKeyword.value = value;
+            }}
+          />
           <TraceContextPanel
             error={traceContext.error.value}
             items={traceContext.items.value}

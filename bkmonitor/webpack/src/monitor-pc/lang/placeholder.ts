@@ -398,4 +398,5 @@ export default {
   '搜索 IP / 主机名 / 节点名称': 'Search IP / Hostname / Node Name',
   '输入 进程名': 'Enter Process Name',
   '搜索 名称、模型、Span ID': 'Search Name, Model, Span ID',
+  '搜索 Span': 'Search Span',
 };
