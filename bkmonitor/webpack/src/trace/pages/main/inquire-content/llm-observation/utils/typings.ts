@@ -34,30 +34,39 @@ import type { LlmKvPair } from '../../../llm-observation/utils/typings';
 /** Agent 执行线类型筛选 */
 export type LlmExecutionFilter = 'agent' | 'all' | 'error' | 'llm' | 'tool';
 
-/**
- * 页面节点类型，由 attributes.gen_ai.operation.name 归类。
- * 未命中 Agent / 模型 / Tool 时不归类，按通用 GenAI Span 展示。
- */
-export type LlmSpanKind = 'AGENT' | 'LLM' | 'TOOL';
-
 /** list_llm_flows 树节点，字段与 list_llm_spans 的 spans 元素一致，childs 为直接子 Span */
 export interface LlmFlowSpan {
   attributes?: Record<string, unknown>;
   childs?: LlmFlowSpan[];
   elapsed_time: number;
   end_time: number;
-  input?: string | Record<string, string>;
-  output?: string | Record<string, string>;
+  input?: Record<string, string> | string;
+  output?: Record<string, string> | string;
   parent_span_id?: string;
   resource?: Record<string, unknown>;
   span_id: string;
   span_name: string;
   start_time: number;
+  trace_id: string;
   status?: {
     code?: number;
     message?: string;
   };
-  trace_id: string;
+}
+
+/** list_llm_flows data */
+export interface LlmFlowsResponse {
+  cache_read_input_tokens?: number;
+  cache_write_input_tokens?: number;
+  elapsed_time?: number;
+  end_time?: number;
+  group_field?: string;
+  group_id?: string;
+  input_tokens?: number;
+  output_tokens?: number;
+  start_time?: number;
+  total_tokens?: number;
+  traces: LlmFlowTrace[];
 }
 
 /** list_llm_flows traces 元素 */
@@ -83,20 +92,29 @@ export interface LlmFlowTrace {
   user_id?: string;
 }
 
-/** list_llm_flows data */
-export interface LlmFlowsResponse {
-  cache_read_input_tokens?: number;
-  cache_write_input_tokens?: number;
-  elapsed_time?: number;
-  end_time?: number;
-  group_field?: string;
-  group_id?: string;
-  input_tokens?: number;
-  output_tokens?: number;
-  start_time?: number;
-  total_tokens?: number;
-  traces: LlmFlowTrace[];
-}
+/**
+ * 执行线一行某一侧的预览片段。
+ * text：消息 / 推理 / 非对象工具值；name：工具名；kv：对象参数或返回的顶层字段。
+ */
+export type LlmIoPiece =
+  | {
+      pairs: LlmKvPair[];
+      type: 'kv';
+    }
+  | {
+      text: string;
+      type: 'name';
+    }
+  | {
+      text: string;
+      type: 'text';
+    };
+
+/** 输入列、输出列预览。同一侧可并列多段，避免只保留最后一条文本或第一组 KV */
+export type LlmIoPreview = {
+  input: LlmIoPiece[];
+  output: LlmIoPiece[];
+};
 
 /** 会话 / 单 Trace 概览汇总，供统计卡使用 */
 export type LlmOverviewStats = Pick<
@@ -110,37 +128,10 @@ export type LlmOverviewStats = Pick<
 >;
 
 /**
- * 执行线一行某一侧的预览片段。
- * text：消息 / 推理 / 非对象工具值；name：工具名；kv：对象参数或返回的顶层字段。
+ * 页面节点类型，由 attributes.gen_ai.operation.name 归类。
+ * 未命中 Agent / 模型 / Tool 时不归类，按通用 GenAI Span 展示。
  */
-export type LlmIoPiece =
-  | {
-      text: string;
-      type: 'text';
-    }
-  | {
-      text: string;
-      type: 'name';
-    }
-  | {
-      pairs: LlmKvPair[];
-      type: 'kv';
-    };
-
-/** 输入列、输出列预览。同一侧可并列多段，避免只保留最后一条文本或第一组 KV */
-export type LlmIoPreview = {
-  input: LlmIoPiece[];
-  output: LlmIoPiece[];
-};
-
-/** 统计卡片 */
-export interface LlmStatCard {
-  key: string;
-  label: string;
-  theme?: 'success';
-  unit?: string;
-  value: string;
-}
+export type LlmSpanKind = 'AGENT' | 'LLM' | 'TOOL';
 
 /** 扁平化后的 Span 行 */
 export interface LlmSpanRowView {
@@ -155,9 +146,9 @@ export interface LlmSpanRowView {
   ioLoading?: boolean;
   isError: boolean;
   isLast: boolean;
+  kind?: LlmSpanKind;
   /** 关系列竖线层级：根下子节点为 0，嵌套 Agent 展开后的子级递增 */
   lineGuideLevel: number;
-  kind?: LlmSpanKind;
   /** 模型、工具或 Agent 名称；缺失时回退到 SpanName。 */
   name: string;
   outputTokens: number;
@@ -166,6 +157,15 @@ export interface LlmSpanRowView {
   /** 与主名称不同的 SpanName。 */
   subtitle: string;
   traceId: string;
+}
+
+/** 统计卡片 */
+export interface LlmStatCard {
+  key: string;
+  label: string;
+  theme?: 'success';
+  unit?: string;
+  value: string;
 }
 
 /** Trace 分组视图 */

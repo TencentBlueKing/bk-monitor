@@ -54,17 +54,17 @@ import type {
 /** 供 TraceLlmObservation 解构的 hook 返回值类型 */
 export type UseLlmObservationReturn = ReturnType<typeof useLlmObservation>;
 
+/** 面板渲染用的 Trace 块：在 LlmTraceView 上附加懒加载状态与当前可见 Span 行 */
+type TraceBlockView = LlmTraceView & {
+  flowLoading: boolean;
+  rows: LlmSpanRowView[];
+};
+
 /** 与 Trace 详情传入的 app / biz / trace 上下文绑定 */
 type UseLlmObservationOptions = {
   appName: MaybeRef<string>;
   bizId: MaybeRef<number>;
   traceId: MaybeRef<string>;
-};
-
-/** 面板渲染用的 Trace 块：在 LlmTraceView 上附加懒加载状态与当前可见 Span 行 */
-type TraceBlockView = LlmTraceView & {
-  flowLoading: boolean;
-  rows: LlmSpanRowView[];
 };
 
 /** 按会话维度聚合 Trace 列表（同 gen_ai.conversation.id） */

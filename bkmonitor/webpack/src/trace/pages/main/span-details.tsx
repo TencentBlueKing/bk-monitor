@@ -2157,9 +2157,9 @@ export default defineComponent({
           ),
         }}
         transfer={(document.querySelector('.trace-list-wrapper') as HTMLDivElement) ?? true}
+        zIndex={SPAN_DETAILS_Z_INDEX}
         quick-close
         show-mask
-        zIndex={SPAN_DETAILS_Z_INDEX}
         onHidden={handleHiddenChange}
       >
         {detailsMain()}

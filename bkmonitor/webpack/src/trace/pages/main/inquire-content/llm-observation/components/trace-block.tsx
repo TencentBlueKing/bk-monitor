@@ -89,17 +89,17 @@ export default defineComponent({
               {/* startTime 为微秒时间戳，与 trace-view 其它模块一致 */}
               <span class='llm-trace-time'>{dayjs(trace.startTime / 1000).format('YYYY-MM-DD HH:mm:ss')}</span>
               <Popover
+                width={600}
+                extCls='llm-trace-io-popover'
                 v-slots={{
                   default: () => <span class='llm-trace-title'>{title}</span>,
                   content: () => <TraceIoPopover trace={trace} />,
                 }}
                 boundary='body'
-                extCls='llm-trace-io-popover'
                 padding={16}
                 placement='top'
                 popoverDelay={[400, 200]}
                 theme='light'
-                width={600}
               />
             </div>
             <div class='llm-trace-header-meta'>

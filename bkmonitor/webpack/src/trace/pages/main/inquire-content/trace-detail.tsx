@@ -28,24 +28,24 @@ import {
   defineAsyncComponent,
   defineComponent,
   inject,
-  provide,
   nextTick,
   onBeforeUnmount,
   onMounted,
+  provide,
   reactive,
   ref,
   toRefs,
   watch,
 } from 'vue';
 
-import { Checkbox, Loading, Message, Popover, ResizeLayout, Switcher, Tab, Button } from 'bkui-vue';
+import { Button, Checkbox, Loading, Message, Popover, ResizeLayout, Switcher, Tab } from 'bkui-vue';
+import dayjs from 'dayjs';
 import { CancelToken } from 'monitor-api/cancel';
 import { traceDetail } from 'monitor-api/modules/apm_trace';
 import { formatWithTimezone } from 'monitor-common/utils/timezone';
 import { typeTools } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import dayjs from 'dayjs';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
 import EmptyStatus from '../../../components/empty-status/empty-status';
@@ -62,6 +62,7 @@ import { toUnixMilliseconds } from '../../../utils/date';
 import TraceLlmObservation from './llm-observation';
 import { useLlmObservation } from './llm-observation/hooks/use-llm-observation';
 import { useTracePanelPreference } from './llm-observation/hooks/use-trace-panel-preference';
+
 import type { LlmSpanRowView } from './llm-observation/utils/typings';
 const MonitorTraceLog = defineAsyncComponent(
   () =>
@@ -291,9 +292,7 @@ export default defineComponent({
       llmLoading: llmObservation.loading,
       traceLoading: computed(() => isLoading.value || store.loading || !traceTree.value.spans.length),
     });
-    const traceInfoReady = computed(() =>
-      !isLoading.value && !store.loading && traceTree.value.spans.length > 0
-    );
+    const traceInfoReady = computed(() => !isLoading.value && !store.loading && traceTree.value.spans.length > 0);
     const isEmpty = computed(
       () =>
         !isLoading.value &&
@@ -690,18 +689,20 @@ export default defineComponent({
       if (typeTools.isString(span)) {
         const found = traceTree.value.spans.find(item => item.span_id === span);
         // 当前 Trace 瀑布图能命中则直接复用；关联 Trace 的 span 不在这棵树上，只传 stub 交给 SpanDetails 按 span_id 拉取
-        spanDetails.value = (found || ({ span_id: span } as Span)) as Span;
+        const stub: Partial<Span> = { span_id: span as string };
+        spanDetails.value = (found || stub) as Span;
       } else spanDetails.value = span as Span;
       showSpanDetails.value = true;
     };
     const handleShowLlmSpanDetails = (row: LlmSpanRowView) => {
-      handleShowSpanDetails({
+      const span: Partial<Span> = {
         span_id: row.spanId,
         spanID: row.spanId,
         traceID: row.traceId,
         app_name: appName.value,
         bk_biz_id: resolvedBizId.value,
-      } as Span);
+      };
+      handleShowSpanDetails(span as Span);
     };
     /** 计算 span list 赋值的定位 */
     const setSpanListPosition = () => {
@@ -940,7 +941,8 @@ export default defineComponent({
         if (panelPreference.panel.value === panel) handleTabChange(panel as IPanelEnum);
       });
     });
-    if (panelPreference.panel.value !== state.activePanel) state.activePanel = panelPreference.panel.value as IPanelEnum;
+    if (panelPreference.panel.value !== state.activePanel)
+      state.activePanel = panelPreference.panel.value as IPanelEnum;
     return {
       ...toRefs(state),
       llmObservation,
@@ -1016,9 +1018,16 @@ export default defineComponent({
       return (
         <div class='trace-detail-wrapper'>
           {!this.isInTable && (
-            <TraceDetailHeader appName={this.appName} hasFullscreen={false} traceId={this.traceID || traceId} />
+            <TraceDetailHeader
+              appName={this.appName}
+              hasFullscreen={false}
+              traceId={this.traceID || traceId}
+            />
           )}
-          <EmptyStatus type='search-empty' />
+          <EmptyStatus
+            showOperation={false}
+            type='search-empty'
+          />
         </div>
       );
     }
@@ -1053,7 +1062,7 @@ export default defineComponent({
         >
           <div class='message-item'>
             <span>{this.t('产生时间')}</span>
-            <span>{this.traceInfoReady ? formatWithTimezone(traceInfo?.product_time) as string : '--'}</span>
+            <span>{this.traceInfoReady ? (formatWithTimezone(traceInfo?.product_time) as string) : '--'}</span>
           </div>
           <div class='message-item'>
             <span>{this.t('总耗时')}</span>
@@ -1091,7 +1100,11 @@ export default defineComponent({
           </div>
           <div class='message-item'>
             <span>{this.t('耗时分布')}</span>
-            <span>{this.traceInfoReady ? `${formatDuration(traceInfo?.min_duration)} - ${formatDuration(traceInfo?.max_duration)}` : '--'}</span>
+            <span>
+              {this.traceInfoReady
+                ? `${formatDuration(traceInfo?.min_duration)} - ${formatDuration(traceInfo?.max_duration)}`
+                : '--'}
+            </span>
           </div>
           <div class='message-item'>
             <span>{this.t('服务数')}</span>
@@ -1220,8 +1233,8 @@ export default defineComponent({
                           class='quick-jump'
                           size='small'
                           theme='primary'
-                          text
                           outline
+                          text
                           onClick={this.handleConfigQuickJump}
                         >
                           {this.t('关联配置')}
@@ -1231,9 +1244,9 @@ export default defineComponent({
                       <Button
                         class='quick-jump'
                         size='small'
-                        text
                         theme='primary'
                         outline
+                        text
                         onClick={this.handleLogQuickJump}
                       >
                         {this.exploreButtonName}

@@ -125,7 +125,7 @@ const HEADER_HEIGHT = 48;
 export default defineComponent({
   name: 'Inquire',
   directives: { monitorDrag },
-  setup(props, { expose }) {
+  setup(_props, { expose }) {
     const route = useRoute();
     const router = useRouter();
     const store = useTraceStore();
@@ -508,7 +508,9 @@ export default defineComponent({
             value: [],
           },
         };
-        store.traceType.forEach(item => filters.push(filterTypeMapping[item]));
+        store.traceType.forEach(item => {
+          filters.push(filterTypeMapping[item]);
+        });
       }
       // TODO：后面回来还需要收集侧边栏的信息
       // 收集 Span 视角 里的 SpanType 对应的固定过滤。
@@ -564,8 +566,12 @@ export default defineComponent({
             value: ['0'],
           },
         };
-        store.serviceStatisticsType.contain.forEach(item => filters.push(filterTypeMapping[item]));
-        store.serviceStatisticsType.interfaceType.forEach(item => filters.push(filterTypeMapping[item]));
+        store.serviceStatisticsType.contain.forEach(item => {
+          filters.push(filterTypeMapping[item]);
+        });
+        store.serviceStatisticsType.interfaceType.forEach(item => {
+          filters.push(filterTypeMapping[item]);
+        });
       }
       const params = {
         app_name: state.app,
@@ -650,6 +656,7 @@ export default defineComponent({
             store.setTraceList(data);
           }
         } catch {
+          // 保留当前列表，统一在 finally 结束加载状态。
         } finally {
           store.setTraceLoading(false);
         }
@@ -669,6 +676,7 @@ export default defineComponent({
             store.setSpanList(data);
           }
         } catch {
+          // 保留当前列表，统一在 finally 结束加载状态。
         } finally {
           store.setTraceLoading(false);
         }
@@ -692,6 +700,7 @@ export default defineComponent({
           }
           // store.setTraceTotalCount(store.interfaceStatisticsList.length);
         } catch {
+          // 保留当前列表，统一在 finally 结束加载状态。
         } finally {
           store.setTraceLoading(false);
         }
@@ -712,6 +721,7 @@ export default defineComponent({
             store.setServiceStatisticsList(serviceStatisticList);
           }
         } catch {
+          // 保留当前列表，统一在 finally 结束加载状态。
         } finally {
           store.setTraceLoading(false);
         }
@@ -739,7 +749,9 @@ export default defineComponent({
       if (route.query?.incident_query) {
         try {
           query.incident_query = route.query?.incident_query;
-        } catch {}
+        } catch {
+          // 路由参数不可用时保留当前查询条件。
+        }
       }
       Object.keys(scopeSelects.value).forEach(key => {
         if (key === 'service') {
@@ -747,7 +759,9 @@ export default defineComponent({
             filters[scopeSelects.value[key].id] = scopeSelects.value[key].value;
           }
         } else if (searchSelectValue.value.length) {
-          searchSelectValue.value.forEach(opt => (filters[opt.id] = opt.values.map(val => val.id)));
+          searchSelectValue.value.forEach(opt => {
+            filters[opt.id] = opt.values.map(val => val.id);
+          });
         }
       });
 
@@ -1543,7 +1557,7 @@ export default defineComponent({
     const checkHasRepeatConditionValue = (): boolean => {
       let isRepeatConditionValue = true;
       // 前后选择的条件不同，不需要再对比。
-      if (lastCollectConditionFilter.length !== conditionFilter.length) return (isRepeatConditionValue = false);
+      if (lastCollectConditionFilter.length !== conditionFilter.length) return false;
       conditionFilter.forEach((item: any) => {
         const target = lastCollectConditionFilter.find(lastFilterItem => lastFilterItem.key === item.key);
         // 如果没找到原先的条件，说明有新增。

@@ -382,7 +382,7 @@ export default defineComponent({
         field: 'root_service_category',
         width: 120,
 
-        render: ({ cell, data }: { cell: { text: string; value: string }; data: ITraceListItem }) => (
+        render: ({ cell }: { cell: { text: string; value: string }; data: ITraceListItem }) => (
           <div>{cell.text || '--'}</div>
         ),
         filter: isPreCalculationMode.value
@@ -413,7 +413,7 @@ export default defineComponent({
           // btnSave: !!traceListFilter.root_service_status_code.length ? t('确定') : false
         },
 
-        render: ({ cell, data }: { cell: number; data: ITraceListItem }) => (
+        render: ({ data }: { cell: number; data: ITraceListItem }) => (
           <div class={`status-code status-${data.root_service_status_code?.type}`}>
             {data.root_service_status_code?.value || '--'}
           </div>
@@ -439,7 +439,7 @@ export default defineComponent({
         settingsLabel: `${t('耗时')}`,
         field: 'trace_duration',
 
-        render: ({ cell, data }: { cell: number; data: ITraceListItem }) => (
+        render: ({ cell }: { cell: number; data: ITraceListItem }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
@@ -1069,7 +1069,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
+        render: ({ cell }: { cell: string; data: ISpanListItem }) => (
           <div>
             <span title={cell}>{cell}</span>
           </div>
@@ -1091,7 +1091,7 @@ export default defineComponent({
           sortFn: () => false,
         },
 
-        render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
+        render: ({ cell }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
           </div>
@@ -1113,7 +1113,7 @@ export default defineComponent({
           sortFn: () => false,
         },
 
-        render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
+        render: ({ cell }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
           </div>
@@ -1136,7 +1136,7 @@ export default defineComponent({
           sortFn: () => false,
         },
 
-        render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
+        render: ({ cell }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{formatDuration(cell, ' ')}</span>
           </div>
@@ -1160,7 +1160,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
+        render: ({ data }: { cell: number; data: ISpanListItem }) => (
           // TODO: 需要补上 圆点 样式
           <div style='display: flex; align-items: center'>
             <span class={`span-status-code-${data.status_code.type}`} />
@@ -1186,7 +1186,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
+        render: ({ data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{SPAN_KIND_MAPS[data.kind]}</span>
           </div>
@@ -1209,7 +1209,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
+        render: ({ data }: { cell: string; data: ISpanListItem }) => (
           <div
             class='link-column'
             onClick={() => handleOpenService(data.resource['service.name'])}
@@ -1236,7 +1236,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
+        render: ({ data }: { cell: string; data: ISpanListItem }) => (
           <div>
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['bk.instance.id']}>{data.resource['bk.instance.id']}</span>
@@ -1256,7 +1256,7 @@ export default defineComponent({
         ),
         field: 'resource.telemetry.sdk.name',
 
-        render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
+        render: ({ data }: { cell: string; data: ISpanListItem }) => (
           <div>
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['telemetry.sdk.name']}>{data.resource['telemetry.sdk.name']}</span>
@@ -1280,7 +1280,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
+        render: ({ data }: { cell: string; data: ISpanListItem }) => (
           <div>
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['telemetry.sdk.version']}>{data.resource['telemetry.sdk.version']}</span>
@@ -1300,7 +1300,7 @@ export default defineComponent({
         ),
         field: 'trace_id',
 
-        render: ({ cell, data }: { cell: string; data: any[] }) => (
+        render: ({ cell }: { cell: string; data: any[] }) => (
           <div class='link-column'>
             <span
               class='link-text'

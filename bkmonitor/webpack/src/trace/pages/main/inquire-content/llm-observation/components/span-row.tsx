@@ -25,9 +25,11 @@
  */
 
 import { type PropType, defineComponent } from 'vue';
+
+import { Button } from 'bkui-vue';
 import dayjs from 'dayjs';
 import { useI18n } from 'vue-i18n';
-import { Button } from 'bkui-vue';
+
 import { formatDuration } from '../../../../../components/trace-view/utils/date';
 import { formatCompactToken, LLM_KIND_CLASS } from '../utils/transform';
 import SpanIoKvs, { sliceTooltipContent } from './span-io-kvs';
@@ -37,7 +39,7 @@ import type { LlmIoPiece, LlmSpanRowView } from '../utils/typings';
 import './span-row.scss';
 
 /** 关系列展开按钮的竖线层级：根节点与嵌套 Agent 分支规则不同 */
-const resolveTreeToggleLevel = (row: LlmSpanRowView): number | null => {
+const resolveTreeToggleLevel = (row: LlmSpanRowView): null | number => {
   if (!row.hasChildren) return null;
   if (row.depth === 0) return row.lineGuideLevel;
   if (row.kind === 'AGENT') return row.lineGuideLevel + 1;
@@ -135,10 +137,10 @@ export default defineComponent({
       const hasTokens = row.inputTokens > 0 || row.outputTokens > 0;
       const toggleLevel = resolveTreeToggleLevel(row);
       const isNestedAgentBranch = row.depth > 0 && row.kind === 'AGENT' && row.hasChildren;
-      const treeStyle = {
+      const treeStyle: Record<string, string> = {
         '--tree-line-level': String(row.lineGuideLevel),
         ...(toggleLevel !== null ? { '--tree-toggle-level': String(toggleLevel) } : {}),
-      } as Record<string, string>;
+      };
 
       return (
         <div class='llm-span-item'>
@@ -153,6 +155,7 @@ export default defineComponent({
               <span class='llm-span-date'>{time.format('MM/DD')}</span>
             </div>
             <div
+              style={treeStyle}
               class={[
                 'llm-span-col',
                 'is-tree',
@@ -161,7 +164,6 @@ export default defineComponent({
                   'is-nested-agent-branch': isNestedAgentBranch,
                 },
               ]}
-              style={treeStyle}
             >
               <span
                 class={[
@@ -173,9 +175,7 @@ export default defineComponent({
                 ]}
               />
               {row.depth > 0 ? (
-                <span
-                  class={['llm-span-tree-branch', { 'is-to-toggle': isNestedAgentBranch }]}
-                />
+                <span class={['llm-span-tree-branch', { 'is-to-toggle': isNestedAgentBranch }]} />
               ) : null}
               {toggleLevel !== null ? (
                 <span
@@ -248,9 +248,9 @@ export default defineComponent({
             </div>
             <div class='llm-span-col is-action'>
               <Button
-                theme='primary'
                 size='small'
                 text={true}
+                theme='primary'
                 onClick={e => {
                   e.stopPropagation();
                   emit('view-detail', row);
