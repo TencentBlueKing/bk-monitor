@@ -73,6 +73,7 @@ class V3Client(IAM):
         codec: NameCodec,
         bk_tenant_id: str = "",
         enable_v1_compat: bool | Callable[[], bool] = True,
+        request_getter: Callable[[], object | None] | None = None,
     ):
         """初始化 V3 客户端。
 
@@ -84,11 +85,13 @@ class V3Client(IAM):
             codec: NameCodec 实例，用于 action_id 编解码
             bk_tenant_id: 租户 ID
             enable_v1_compat: 是否启用 V1→V2 兼容模式（默认 True，后续可关闭）
+            request_getter: 当前 HTTP 请求；未提供时不启用请求内策略复用。
         """
         super().__init__(app_code, app_secret, bk_apigateway_url, bk_tenant_id=bk_tenant_id)
         self._system_id = system_id
         self._codec = codec
         self._enable_v1_compat = enable_v1_compat
+        self._request_getter = request_getter
         # SDK 默认缓存跨实例共享且忽略租户；在租户/凭据独立的客户端内持有缓存。
         self._allowed_cache = TTLCache(maxsize=1024, ttl=10)
         self._policy_cache = TTLCache(maxsize=1024, ttl=60)
@@ -105,6 +108,33 @@ class V3Client(IAM):
     @cachedmethod(lambda self: self._policy_cache, key=_request_cache_key, lock=lambda self: self._cache_lock)
     def _do_policy_query_with_cache(self, request):
         return self._do_policy_query(request)
+
+    def _query_policy(self, method, data):
+        """Reuse successful read-policy responses only for the current HTTP request.
+
+        Cache raw responses before compatibility/alias processing: those paths
+        mutate policies and may tolerate a failed subquery. Failed responses must
+        remain retryable. SDK validation and resource evaluation still run on
+        every call, including when resource-free batch queries share a policy.
+        """
+        actions = data.get("actions", [data.get("action", {})])
+        http_request = self._request_getter() if self._request_getter else None
+        cache = None
+        if http_request is not None and actions and all(self._codec.is_read_action(a["id"]) for a in actions):
+            cache = getattr(http_request, "_iam_read_policy_cache", None)
+            if cache is None:
+                cache = {}
+                http_request._iam_read_policy_cache = cache
+            # The client identity also isolates credentials, tenant and endpoint.
+            key = (self, method, json.dumps(data, sort_keys=True))
+            if key in cache:
+                return copy.deepcopy(cache[key])
+
+        query = getattr(self._client, method)
+        result = query(data["system"], data) if method.startswith("v2_") else query(data)
+        if cache is not None and result[0]:
+            cache[key] = copy.deepcopy(result)
+        return result
 
     # ================================================================
     # SDK 对象构造（封装 IAM SDK 原生类型，Provider 不直接 import SDK）
@@ -243,20 +273,21 @@ class V3Client(IAM):
     # ================================================================
 
     def _do_policy_query(self, request, with_resources: bool = True):
-        # 未开启兼容模式 → 标准查询 + alias
-        if not (self._enable_v1_compat() if callable(self._enable_v1_compat) else self._enable_v1_compat):
-            policies = super()._do_policy_query(request, with_resources)
-            return self._merge_alias_policies(request, policies, with_resources)
-
         data = request.to_dict()
-        logger.debug(f"the request: {data}")
-
-        # NOTE: 不向服务端传任何 resource，用于统一类资源的批量鉴权
-        # 将会返回所有策略，然后遍历资源列表和策略列表逐一计算
         if not with_resources:
             data["resources"] = []
 
-        ok, message, policies = self._client.policy_query(data)
+        # 未开启兼容模式 → 标准查询 + alias
+        if not (self._enable_v1_compat() if callable(self._enable_v1_compat) else self._enable_v1_compat):
+            method = "v2_policy_query" if self._api_version == "v2" else "policy_query"
+            ok, message, policies = self._query_policy(method, data)
+            if not ok:
+                raise AuthAPIError(message)
+            return self._merge_alias_policies(request, policies, with_resources)
+
+        logger.debug(f"the request: {data}")
+
+        ok, message, policies = self._query_policy("policy_query", data)
 
         # ---- V1 兼容双查 ----
         if data["action"]["id"].endswith("_v2"):
@@ -274,7 +305,7 @@ class V3Client(IAM):
                 if "space" in iam_path:
                     resource["attribute"]["_bk_iam_path_"] = iam_path.replace("space", "biz")
 
-            v1_ok, v1_message, v1_policies = self._client.policy_query(v1_data)
+            v1_ok, v1_message, v1_policies = self._query_policy("policy_query", v1_data)
             self._patch_policy_expression(v1_policies)
 
             if v1_policies:
@@ -295,16 +326,20 @@ class V3Client(IAM):
     # ================================================================
 
     def _do_policy_query_by_actions(self, request, with_resources: bool = True):
-        if not (self._enable_v1_compat() if callable(self._enable_v1_compat) else self._enable_v1_compat):
-            return super()._do_policy_query_by_actions(request, with_resources)
-
         data = request.to_dict()
-        logger.debug(f"the request: {data}")
-
         if not with_resources:
             data["resources"] = []
 
-        ok, message, action_policies = self._client.policy_query_by_actions(data)
+        if not (self._enable_v1_compat() if callable(self._enable_v1_compat) else self._enable_v1_compat):
+            method = "v2_policy_query_by_actions" if self._api_version == "v2" else "policy_query_by_actions"
+            ok, message, action_policies = self._query_policy(method, data)
+            if not ok:
+                raise AuthAPIError(message)
+            return action_policies
+
+        logger.debug(f"the request: {data}")
+
+        ok, message, action_policies = self._query_policy("policy_query_by_actions", data)
 
         # ---- V1 兼容双查（批量） ----
         v2_actions = [action["id"] for action in data["actions"] if action["id"].endswith("_v2")]
@@ -315,7 +350,7 @@ class V3Client(IAM):
             # 替换 action_id（去掉 _v2 后缀）
             v1_data["actions"] = [{"id": action_id.replace("_v2", "")} for action_id in v2_actions]
 
-            v1_ok, v1_message, v1_action_policies = self._client.policy_query_by_actions(v1_data)
+            v1_ok, v1_message, v1_action_policies = self._query_policy("policy_query_by_actions", v1_data)
             for v1_policy in v1_action_policies or []:
                 v1_policy["action"]["id"] += "_v2"
                 self._patch_policy_expression(v1_policy["condition"])

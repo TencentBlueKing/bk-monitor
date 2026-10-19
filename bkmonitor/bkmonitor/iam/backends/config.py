@@ -7,6 +7,7 @@ from cachetools import LRUCache
 from django.conf import settings
 from config.tools.iam_credentials import get_saas_setting, saas_setting
 from bkmonitor.iam import definitions
+from bkmonitor.utils.request import get_request
 from iam_engine.settings import resolve_iam_gateway_url
 from iam_engine.v4.config import V4Options
 
@@ -98,6 +99,7 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
                         codec,
                         bk_tenant_id=tid,
                         enable_v1_compat=compat,
+                        request_getter=lambda: get_request(peaceful=True),
                     )
                 return _v3_clients[key]
 
