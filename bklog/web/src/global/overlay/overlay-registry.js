@@ -277,6 +277,43 @@ class OverlayRegistry {
     this.hide(id);
   }
 
+  findParentIdByElement(el) {
+    if (!el || typeof el.closest !== 'function') {
+      return null;
+    }
+
+    const records = [...this.records.values()];
+    for (let index = records.length - 1; index >= 0; index -= 1) {
+      const record = records[index];
+      if (!record.visible || !record.rootSelector) {
+        continue;
+      }
+
+      try {
+        if (el.closest(record.rootSelector)) {
+          return record.id;
+        }
+      } catch {
+        // invalid selector should not break open()
+      }
+    }
+
+    return null;
+  }
+
+  isClickInsideRecord(event, id) {
+    const record = this.get(id);
+    if (!record) {
+      return false;
+    }
+
+    if (isClickInsideClosest(event, [record.rootSelector, record.ignoreSelector])) {
+      return true;
+    }
+
+    return [...record.children].some(childId => this.isClickInsideRecord(event, childId));
+  }
+
   dispose(id) {
     const record = this.get(id);
     this.hide(id);

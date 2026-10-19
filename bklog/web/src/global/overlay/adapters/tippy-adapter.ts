@@ -38,7 +38,17 @@ export interface OverlayTippyOptions extends OverlayRegisterOptions {
  * P1 热点调用点应走这里，而不是业务里直接 new PopInstanceUtil。
  */
 export const createOverlayTippy = (options: OverlayTippyOptions) => {
-  const instance = new PopInstanceUtil(options.tippy ?? {});
+  const tippyOptions = {
+    ...(options.tippy?.tippyOptions ?? {}),
+    onHidden: (...args: any[]) => {
+      options.tippy?.tippyOptions?.onHidden?.(...args);
+      overlayRegistry.hide(options.id);
+    },
+  };
+  const instance = new PopInstanceUtil({
+    ...(options.tippy ?? {}),
+    tippyOptions,
+  });
 
   overlayRegistry.register(options.id, {
     ...options,

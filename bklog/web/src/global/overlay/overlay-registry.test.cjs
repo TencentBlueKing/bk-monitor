@@ -151,6 +151,21 @@ test('z-index comes from bk manager or registry fallback, never a hardcoded 9999
   assert.equal([99999, 100000].includes(fallbackRecord.zIndex), false);
 });
 
+test('findParentIdByElement resolves the visible ancestor overlay', () => {
+  const registry = createRegistry();
+  const child = {
+    closest(selector) {
+      return selector === '[data-overlay-id="outer"]' ? child : null;
+    },
+  };
+
+  registry.register('outer', { rootSelector: '[data-overlay-id="outer"]' });
+  registry.open('outer');
+
+  assert.equal(registry.findParentIdByElement(child), 'outer');
+  assert.equal(registry.isClickInsideRecord({ target: child }, 'outer'), true);
+});
+
 test('dialog visible writes back false so the next open is a real change', () => {
   const events = [];
   const state = createDialogVisibleState(true, {

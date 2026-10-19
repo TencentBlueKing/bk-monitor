@@ -48,6 +48,8 @@ export class OverlayRegistry {
   hideChildren(id: string): void;
   hideGroup(group: string, exceptId?: string): void;
   notifyAnchorLost(id: string): void;
+  findParentIdByElement(el?: Element | null): string | null;
+  isClickInsideRecord(event: { target?: EventTarget | null }, id: string): boolean;
   dispose(id: string): void;
 }
 
