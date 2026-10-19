@@ -86,9 +86,7 @@ class V4CallbackEntryTest(SimpleTestCase):
                 HTTP_X_BK_TENANT_ID="tenant-a",
             )
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(
-            payload, {"data": {"count": 1, "results": [{"id": "neg_5423", "display_name": "[项目] demo"}]}}
-        )
+        self.assertEqual(payload, {"data": {"count": 1, "results": [{"id": "-5423", "display_name": "[项目] demo"}]}})
         self.assertEqual(response["X-Request-Id"], "bklog-callback-test")
         query.assert_called_once_with("tenant-a", offset=10, limit=10, keywords=["demo"])
 
@@ -98,10 +96,10 @@ class V4CallbackEntryTest(SimpleTestCase):
             return_value=[{"bk_biz_id": -5423, "space_type_name": "项目", "space_name": "demo"}],
         ) as query:
             response, payload = self.request(
-                {"type": "space", "method": "fetch_instance_info", "filter": {"ids": ["neg_5423"]}}
+                {"type": "space", "method": "fetch_instance_info", "filter": {"ids": ["-5423"]}}
             )
             self.assertEqual(response.status_code, 200)
-            self.assertEqual(payload["data"][0]["id"], "neg_5423")
+            self.assertEqual(payload["data"][0]["id"], "-5423")
             query.assert_called_once_with("system", ["-5423"])
             query.reset_mock()
             response, payload = self.request({"type": "space", "method": "fetch_instance_info", "filter": {"ids": []}})

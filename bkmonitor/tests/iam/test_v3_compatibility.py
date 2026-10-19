@@ -182,7 +182,7 @@ def test_space_uid_normalizes_before_v3_sdk_encoding(monkeypatch):
     assert MonitorV3Codec().encode_resource(resolved, client).id == "-42"
     from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
 
-    assert MonitorV4Codec().encode_resource_for_auth(resolved)["id"] == "neg_42"
+    assert MonitorV4Codec().encode_resource_for_auth(resolved)["id"] == "-42"
 
 
 @pytest.mark.parametrize("mode", ["v3", "v4"])
@@ -200,7 +200,7 @@ def test_batch_normalized_space_uid_keeps_original_request_result_key(monkeypatc
         client.make_resource = lambda rt, rid, **kwargs: SimpleNamespace(id=rid)
         client.batch_resource_multi_actions_allowed.return_value = {"-42": {"view_business_v2": True}}
     else:
-        client.direct_auth_by_resources.return_value = {"neg_42": True}
+        client.direct_auth_by_resources.return_value = {"-42": True}
     provider.client_factory = lambda tid: client
     request = BatchAuthRequest(
         Subject(id="alice"), ("view_business",), ((ResourceInstance(type="space", id="bcs__cluster-a"),),)

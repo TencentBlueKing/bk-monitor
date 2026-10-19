@@ -117,7 +117,7 @@ def test_negative_space_callback_decodes_filters_and_encodes_results(monkeypatch
             {
                 "method": "fetch_instance_info",
                 "type": "space",
-                "filter": {"ids": ["neg_42"]},
+                "filter": {"ids": ["-42"]},
                 "requires": ["_bk_iam_path_"],
             }
         ),
@@ -127,7 +127,7 @@ def test_negative_space_callback_decodes_filters_and_encodes_results(monkeypatch
     response = dispatcher.as_view()(request)
     assert response.status_code == 200
     assert json.loads(response.content) == {
-        "data": [{"id": "neg_42", "display_name": "project", "_bk_iam_path_": "/space,neg_42/"}]
+        "data": [{"id": "-42", "display_name": "project", "_bk_iam_path_": "/space,-42/"}]
     }
     assert native.fetch_instance_info.call_args.args[0].ids == ["-42"]
     assert native.fetch_instance_info.call_args.kwargs["bk_tenant_id"] == "tenant-a"
@@ -147,7 +147,7 @@ def test_negative_parent_callback_uses_local_id_and_encoded_ancestor_path(monkey
             {
                 "method": "list_instance",
                 "type": "apm_application",
-                "filter": {"parent": {"type": "space", "id": "neg_42"}},
+                "filter": {"parent": {"type": "space", "id": "-42"}},
                 "page": {"page": 1, "page_size": 20},
             }
         ),
@@ -157,7 +157,7 @@ def test_negative_parent_callback_uses_local_id_and_encoded_ancestor_path(monkey
     response = dispatcher.as_view()(request)
     assert response.status_code == 200
     assert json.loads(response.content)["data"]["results"] == [
-        {"id": "7", "display_name": "application", "_bk_iam_path_": "/space,neg_42/"},
+        {"id": "7", "display_name": "application", "_bk_iam_path_": "/space,-42/"},
     ]
     assert native.list_instance.call_args.args[0].parent == {"type": "space", "id": "-42"}
     assert native.list_instance.call_args.kwargs["bk_tenant_id"] == "tenant-a"

@@ -19,7 +19,7 @@ _V2_ACTION_SUFFIX = "_v2"
 BKLOG_ROOT_RESOURCE_TYPE_ID = "space"
 
 
-class V4ResourceCodec:
+class V4ResourceCodec(SpaceResourceCodec):
     """将引擎资源编码成 IAM V4 鉴权和申请接口需要的格式。"""
 
     root_resource_type_id = ""
@@ -30,14 +30,6 @@ class V4ResourceCodec:
 
     def encode_resource_type(self, resource_type: str) -> str:
         return to_definition_id(resource_type)
-
-    def encode_resource_id(self, resource_type: str, resource_id: object) -> str:
-        del resource_type
-        return str(resource_id)
-
-    def decode_resource_id(self, resource_type: str, resource_id: object) -> str:
-        del resource_type
-        return str(resource_id)
 
     def encode_resource_for_auth(self, resource: ResourceInstance) -> dict:
         resource_type = self.encode_resource_type(to_definition_id(resource.type))
@@ -132,7 +124,7 @@ class V4ResourceCodec:
         return []
 
 
-class BklogNameCodec(SpaceResourceCodec, V4ResourceCodec):
+class BklogNameCodec(V4ResourceCodec):
     """在通用 V4 编码上适配日志平台的 Action 命名。"""
 
     root_resource_type_id = BKLOG_ROOT_RESOURCE_TYPE_ID

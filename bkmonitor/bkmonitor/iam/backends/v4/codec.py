@@ -16,8 +16,8 @@ specific language governing permissions and limitations under the License.
 #
 #   resource_id：
 #       - space:           "3"  <-> "3"
-#                          "-42" <-> "neg_42"
-#         与 BKLog 共用空间编解码，正数不变，负数使用可逆的 neg_ 前缀。
+#                          "-42" <-> "-42"
+#         与 BKLog 共用空间编解码，原始数字字符串不添加前缀。
 #       - apm_application / grafana_dashboard / rum_application: 恒等
 #
 # 产品装配显式注入本 Codec；Provider 不再动态加载 dotted path。
@@ -32,7 +32,7 @@ from iam_engine.v4.codec import SpaceResourceCodec
 class MonitorV4Codec(SpaceResourceCodec, IdentityCodec):
     """监控平台 v4 命名编解码器。
 
-    仅覆盖 resource_id 的 space 分支；其他符号均恒等。
+    资源 ID 共用字符串归一化；其他符号均恒等。
     """
 
     def encode_resource_for_auth(self, resource):
