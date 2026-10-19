@@ -3,6 +3,7 @@
 import copy
 import json
 from contextlib import contextmanager
+from dataclasses import replace
 from io import StringIO
 from unittest.mock import Mock, patch
 
@@ -13,6 +14,7 @@ from django.core.management.base import CommandError
 from django.db.models.signals import post_migrate
 
 from bkmonitor.iam import model_sync as monitor
+from bkmonitor.iam.backends.config import provider_options
 from iam_engine.core.config import AuthMode
 from iam_engine.core.exceptions import InvalidAuthModeError
 from iam_engine.mode import FeatureToggleModeProvider
@@ -22,6 +24,78 @@ from iam_engine.model.definition import build_model_definition
 from iam_engine.model.django import model_sync_lock
 from iam_engine.model.sync import ModelSyncError, ModelSyncService
 from iam_engine.v4.exceptions import V4ResponseError
+
+
+@pytest.mark.parametrize("app_code", ["custom-saas", "bk_monitorv3", "bkci"])
+def test_monitor_v4_inherits_complete_v3_clients_without_changing_v3(settings, app_code):
+    settings.SAAS_APP_CODE = app_code
+    legacy = provider_options("v3")["system"]["clients"]
+    assert legacy == [app_code, "bk_monitorv3", "bkci", "bk_paas3", "paasv3cli"]
+    assert monitor.expected_v4_model().system.clients == tuple(dict.fromkeys(legacy))
+
+
+def test_monitor_clients_follow_current_saas_identity_and_return_fresh_lists(settings):
+    settings.SAAS_APP_CODE = "first-saas"
+    first = provider_options("v3")["system"]["clients"]
+    assert monitor.expected_v4_model().system.clients[0] == "first-saas"
+    first.append("caller-local-mutation")
+    settings.SAAS_APP_CODE = "second-saas"
+    expected = ("second-saas", "bk_monitorv3", "bkci", "bk_paas3", "paasv3cli")
+    assert monitor.expected_v4_model().system.clients == expected
+    assert provider_options("v3")["system"]["clients"] == list(expected)
+
+
+def test_monitor_v4_model_does_not_construct_v3_options_or_providers(settings):
+    settings.SAAS_APP_CODE = "model-saas"
+    with (
+        patch.object(monitor, "provider_options", side_effect=AssertionError("must not construct V3 options")),
+        patch("bkmonitor.iam.backends.config.build_provider", side_effect=AssertionError("must not build a provider")),
+    ):
+        assert monitor.expected_v4_model().system.clients == (
+            "model-saas",
+            "bk_monitorv3",
+            "bkci",
+            "bk_paas3",
+            "paasv3cli",
+        )
+
+
+@pytest.mark.parametrize("existing", [False, True])
+def test_monitor_system_sync_sends_full_clients_and_preserves_remote_additions(settings, existing):
+    settings.SAAS_APP_CODE = "model-saas"
+    settings.BK_COMPONENT_API_URL = "https://components.example.test/"
+    settings.BK_IAM_V4_APIGATEWAY_URL = ""
+    model = replace(monitor.expected_v4_model(), resource_types=(), actions=(), roles=())
+    actual = ActualModel()
+    if existing:
+        actual = ActualModel(
+            system={
+                "name": model.system.name,
+                "description": model.system.description,
+                "callback_url": model.system.callback_url,
+                "clients": ["model-saas", "remote-extra"],
+            }
+        )
+    plan = build_plan(model, actual)
+    response = Mock(status_code=204 if existing else 201, content=b"" if existing else b"body")
+    response.json.return_value = {"data": {"id": model.system.id}}
+    with patch("iam_engine.v4.client.requests.request", return_value=response) as send:
+        V4ModelMigrator(monitor.v4_migrator().client, model).apply(plan)
+    send.assert_called_once()
+    call = send.call_args.kwargs
+    assert call["method"] == ("PUT" if existing else "POST")
+    assert "/api/bkiam/" in call["url"]
+    assert call["json"]["clients"] == [
+        "model-saas",
+        "bk_monitorv3",
+        "bkci",
+        "bk_paas3",
+        "paasv3cli",
+        *(["remote-extra"] if existing else []),
+    ]
+    if existing:
+        remote = dict(actual.system, **plan.update_system)
+        assert not build_plan(model, ActualModel(system=remote)).has_changes()
 
 
 def test_monitor_model_entry_uses_shared_transport_and_materialized_saas_credentials(settings):
