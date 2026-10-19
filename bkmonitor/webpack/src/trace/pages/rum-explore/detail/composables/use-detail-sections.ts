@@ -46,6 +46,7 @@ import { formatDuration } from '@/components/trace-view/utils/date';
 
 import type { IRumExtraCardBuilder } from '../registry/span-type-registry';
 import type {
+  IRumCardHandlers,
   IRumCardResolveCtx,
   IRumDetailSection,
   IRumDetailSectionVM,
@@ -138,19 +139,26 @@ export function matchRating(value: number, ratingConfig: IRumRatingConfig[]): Ru
  * @description 区块视图模型：接口区块归一化 + 按 span 类型注册的扩展卡片 / 扩展区块
  *
  * 渲染层只消费返回的 IRumDetailSectionVM[]，新增 span 类型或展示形态都不需要改这里。
+ * @param handlers 抽屉交互能力，注入 ctx.handlers 供注册表产出可点击卡片的回调
  */
 export function useDetailSections(
   detail: MaybeRef<IRumRecordDetail | null>,
   spanType: MaybeRef<string>,
   related: MaybeRef<IRumRelatedData>,
   baseCtx: MaybeRef<IRumCardResolveCtx>,
-  relatedLoading: MaybeRef<boolean>
+  relatedLoading: MaybeRef<boolean>,
+  handlers: IRumCardHandlers
 ) {
   const sectionVMs = computed<IRumDetailSectionVM[]>(() => {
     const data = unref(detail);
     if (!data) return [];
     const type = unref(spanType);
-    const ctx: IRumCardResolveCtx = { ...unref(baseCtx), originData: data.origin_data || {}, related: unref(related) };
+    const ctx: IRumCardResolveCtx = {
+      ...unref(baseCtx),
+      handlers,
+      originData: data.origin_data || {},
+      related: unref(related),
+    };
     const { extraCards = {}, extraSections = [] } = getSpanTypeDetailConfig(type);
     const isRelatedLoading = unref(relatedLoading);
     const buildExtraCards = (builders: IRumExtraCardBuilder[], keyPrefix: string) =>

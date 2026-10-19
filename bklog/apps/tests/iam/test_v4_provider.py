@@ -8,8 +8,8 @@ from apps.iam.backends.v4.exceptions import V4ResponseError, V4TimeoutError
 from apps.iam.backends.v4.provider import V4PermissionProvider
 from apps.iam.handlers.actions import ActionEnum, get_action_by_id
 from apps.iam.handlers.resources import ResourceEnum
-from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
-from apps.iam.iam_engine.core.types import AuthStatus
+from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
+from iam_engine.core.types import AuthStatus
 
 
 class BklogNameCodecTest(SimpleTestCase):

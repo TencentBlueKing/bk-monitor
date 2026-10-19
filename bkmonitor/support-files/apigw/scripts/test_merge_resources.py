@@ -28,6 +28,7 @@ _INTERNAL_APM_FILE = _RESOURCES_DIR / "internal/app/apm.yaml"
 _EXTERNAL_APM_FILE = _RESOURCES_DIR / "external/app/apm.yaml"
 _METADATA_FILE = _RESOURCES_DIR / "internal/app/metadata.yaml"
 _ALARM_STRATEGY_FILE = _RESOURCES_DIR / "external/app/alarm_strategy.yaml"
+_ALERT_FILE = _RESOURCES_DIR / "external/app/alert.yaml"
 _ALERT_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_mcp.yaml"
 _ALERT_HANDLING_MCP_FILE = _RESOURCES_DIR / "internal/user/alert_handling_mcp.yaml"
 _LOG_COLLECTION_MCP_FILE = _RESOURCES_DIR / "internal/user/log_collection_mcp.yaml"
@@ -353,6 +354,27 @@ def test_promql_query_config_apigw_contract():
         assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
 
 
+def test_search_alert_events_apigw_contract():
+    """旧告警关联异常事件查询必须按原语义迁移到公开应用态网关。"""
+    method_data = _load_paths(_ALERT_FILE)["/app/alert/search_alert_events/"]["post"]
+    gateway_resource = method_data["x-bk-apigateway-resource"]
+
+    assert method_data["operationId"] == "search_alert_events"
+    assert gateway_resource["isPublic"] is True
+    assert gateway_resource["backend"] == {
+        "name": "default",
+        "method": "post",
+        "path": "/api/v4/alert/search_alert_events/",
+        "matchSubpath": False,
+    }
+    assert gateway_resource["authConfig"] == {
+        "appVerifiedRequired": True,
+        "userVerifiedRequired": False,
+        "resourcePermissionRequired": True,
+    }
+    assert (_DOCS_DIR / "search_alert_events.md").is_file()
+
+
 def test_log_collection_create_mcp_contract():
     """采集创建 MCP 只提供 Fast Create，并显式锁定写操作、权限和默认基础设施选择。"""
     create_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_create_mcp.yaml"
@@ -386,6 +408,18 @@ def test_log_collection_create_mcp_contract():
         "appVerifiedRequired": False,
         "resourcePermissionRequired": True,
     }
+
+
+def test_negative_space_id_related_info_apigw_contract():
+    """负数空间换正数业务必须保持内部应用态注册，并转到已有内核接口。"""
+    method_data = _load_paths(_METADATA_FILE)["/app/metadata/get_negative_space_id_related_info/"]["get"]
+    gateway_resource = method_data["x-bk-apigateway-resource"]
+
+    assert method_data["operationId"] == "metadata_get_negative_space_id_related_info"
+    assert gateway_resource["isPublic"] is False
+    assert gateway_resource["backend"]["method"] == "get"
+    assert gateway_resource["backend"]["path"] == "/api/v3/meta/get_negative_space_id_related_info/"
+    assert (_DOCS_DIR / f"{method_data['operationId']}.md").is_file()
 
 
 def test_result_table_storage_status_apigw_contract():

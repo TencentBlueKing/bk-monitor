@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import pytest
 from rest_framework.request import Request
+from rest_framework.parsers import JSONParser
 from rest_framework.test import APIRequestFactory
 
 from apm_web.trace.views import TraceQueryViewSet
@@ -26,7 +27,7 @@ def build_viewset(params: dict, method: str = "post"):
         raw_request = factory.post("/", params, format="json")
 
     viewset = TraceQueryViewSet()
-    viewset.request = Request(raw_request)
+    viewset.request = Request(raw_request, parsers=[JSONParser()])
     return viewset
 
 

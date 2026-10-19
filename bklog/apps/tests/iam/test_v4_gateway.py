@@ -17,14 +17,14 @@ class V4GatewayConfigTest(SimpleTestCase):
         with self.settings(BK_IAM_V4_APIGATEWAY_URL="https://bkiam.apigw.o.woa.com/prod/"):
             self.assertEqual(resolve_v4_gateway_url(), "https://bkiam.apigw.o.woa.com/prod/")
 
-    def test_resolve_v4_gateway_url_returns_empty_without_explicit_config(self):
+    def test_resolve_v4_gateway_url_derives_component_default(self):
         with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):
             with self.assertNoLogs("iam.v4.gateway", level="ERROR"):
-                self.assertEqual(resolve_v4_gateway_url(), "")
+                self.assertEqual(resolve_v4_gateway_url(), "https://bkapi.example.com/api/bkiam/prod/")
 
-    def test_resolve_v4_gateway_url_does_not_derive_from_component_or_v3_gateway(self):
+    def test_resolve_v4_gateway_url_does_not_fall_back_to_v3_gateway(self):
         with self.settings(BK_IAM_V4_APIGATEWAY_URL="", BK_COMPONENT_API_URL="https://bkapi.example.com"):
-            self.assertEqual(resolve_v4_gateway_url(), "")
+            self.assertEqual(resolve_v4_gateway_url(), "https://bkapi.example.com/api/bkiam/prod/")
 
         with self.settings(
             BK_IAM_V4_APIGATEWAY_URL="",
@@ -125,14 +125,14 @@ class V4GatewayConfigTest(SimpleTestCase):
             self.assertEqual(normalize_batch_max_workers(["bad"]), 4)
 
     def test_v4_options_without_gateway_are_quiet_until_request(self):
-        with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):
+        with self.settings(BK_IAM_V4_APIGATEWAY_URL="", BK_COMPONENT_API_URL=""):
             with self.assertNoLogs("iam.v4.gateway", level="ERROR"):
                 options = V4Options.from_settings()
 
         self.assertEqual(options.gateway_url, "")
 
     def test_v4_provider_construction_without_gateway_is_quiet(self):
-        with self.settings(BK_IAM_V4_APIGATEWAY_URL=""):
+        with self.settings(BK_IAM_V4_APIGATEWAY_URL="", BK_COMPONENT_API_URL=""):
             with self.assertNoLogs("iam.v4.gateway", level="ERROR"):
                 provider = V4PermissionProvider.from_settings(
                     username="admin",

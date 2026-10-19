@@ -1242,6 +1242,30 @@ class DeleteDataLink(DataAccessAPIResource):
         name = serializers.CharField(label="资源名称")
 
 
+class ApplyRecordRuleFlow(ApplyDataLink):
+    """通过预计算专用网关创建或更新 Flow"""
+
+    @property
+    def base_url(self):
+        return settings.BKDATA_RECORD_RULE_API_BASE_URL or BkDataAPIGWResource.base_url
+
+
+class GetRecordRuleFlow(GetDataLink):
+    """通过预计算专用网关查询 Flow"""
+
+    @property
+    def base_url(self):
+        return settings.BKDATA_RECORD_RULE_API_BASE_URL or BkDataAPIGWResource.base_url
+
+
+class DeleteRecordRuleFlow(DeleteDataLink):
+    """通过预计算专用网关删除 Flow"""
+
+    @property
+    def base_url(self):
+        return settings.BKDATA_RECORD_RULE_API_BASE_URL or BkDataAPIGWResource.base_url
+
+
 class NotifyLogDataIdChanged(DataAccessAPIResource):
     action = "/v4/tmp/notify_log_dataid_changed/"
     method = "PUT"

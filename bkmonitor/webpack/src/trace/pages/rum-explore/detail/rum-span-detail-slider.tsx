@@ -122,7 +122,11 @@ export default defineComponent({
     const originData = computed(() => detail.value?.origin_data || {});
     const { getField, formatField, copyText, resolveCtx } = useDetailFormatter(toRef(props, 'fields'), originData);
     const { headerVM } = useDetailOverview(detail, spanType, formatField, getField);
-    const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading);
+    const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading, {
+      switchTab: tab => {
+        activeTab.value = tab;
+      },
+    });
     const { blocks, eventKeyword } = useOriginData(originData, toRef(props, 'fields'));
 
     const isXhrOrFetch = computed(() => {
