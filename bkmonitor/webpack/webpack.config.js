@@ -66,6 +66,15 @@ const setupTraceWorkerWebpack = config => {
   config.module.rules.unshift(workerRawRule);
 };
 
+/** 两份预编译日志 SDK 内置了不同 Dexie patch，去掉双版本 throw，复用先注册的实例 */
+const setupDexieDedupeWebpack = config => {
+  config.module.rules.unshift({
+    test: /[\\/]@blueking[\\/]monitor-(?:apm|trace)-log[\\/]main\.js$/,
+    enforce: 'pre',
+    loader: path.resolve(__dirname, './webpack/dexie-dedupe-loader.js'),
+  });
+};
+
 const AUTH_HEADER_NAMES = new Set(['cookie', 'x-csrftoken']);
 /** 主应用 7001；weweb 子应用同时跑时各占一个固定口 */
 const DEV_APP_PORTS = {
@@ -146,6 +155,7 @@ module.exports = async (baseConfig, { production, app }) => {
   const config = baseConfig;
   let activePort = devConfig.port;
 
+  setupDexieDedupeWebpack(config);
   if (app === 'trace') {
     setupTraceWorkerWebpack(config);
   }
