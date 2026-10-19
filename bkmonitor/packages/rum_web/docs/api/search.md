@@ -2032,7 +2032,7 @@ POST /rum/search/statistics/
 |----------|-----------------|
 | 触发请求数 | `[{"key":"attributes.span_type","operator":"equal","value":["resource"]},{"key":"attributes.resource.type","operator":"equal","value":["xhr","fetch"]}]` |
 | 错误数 | `[{"key":"attributes.span_type","operator":"equal","value":["error"]}]` |
-| Span 数 | `[{"key":"attributes.span_type","operator":"not_equal","value":["view","vital","session"]}]` |
+| 动作数 | `[{"key":"attributes.span_type","operator":"equal","value":["action"]}]` |
 
 ```json
 {
@@ -2058,6 +2058,7 @@ POST /rum/search/statistics/
 
 - *[1] 查询时间范围：`[end_time - 1d, end_time + 1d]`。*
 - *[2] 保留示例中的 View、Session 条件，其余 `filters` 按表替换。*
+- *[3] 除 `view`、`session` 外，其他 Span 类型均可通过 `attributes.span_type` 等值过滤，统计当前 View 下对应类型的数量。*
 
 响应示例（触发请求数）：
 
