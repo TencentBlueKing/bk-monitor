@@ -9,7 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import resolve
@@ -140,71 +140,6 @@ class TestSourceAnalysisRuleSerializers(SimpleTestCase):
 
         self.assertEqual([condition["condition"] for condition in data["conditions"]], ["and", "or"])
 
-    def test_aidev_validation_reads_all_pages(self):
-        list_resources = Mock(
-            side_effect=[
-                {"count": 201, "results": [{"id": index} for index in range(200)]},
-                {"count": 201, "results": [{"id": 200}]},
-            ]
-        )
-
-        ids = SourceAnalysisBaseResource.list_visible_aidev_ids(list_resources, "id")
-
-        self.assertEqual(len(ids), 201)
-        self.assertEqual(list_resources.call_count, 2)
-        list_resources.assert_any_call(space_id="all", page=2, page_size=200)
-
-    @patch.object(
-        SourceAnalysisBaseResource,
-        "load_visible_aidev_knowledge_bases",
-        return_value=([{"id": 10, "knowledgebase_code": "knowledge-a"}], {"space-a": "AIDEV Helper"}),
-    )
-    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"agent-a", "skill-a"})
-    def test_visible_resource_codes_pass_validation(self, list_visible, load_knowledge_bases):
-        rule = IssueSourceAnalysisRule(
-            bk_biz_id=2,
-            priority=1,
-            agent_id="agent-a",
-            skill_ids=["skill-a"],
-            knowledge_base_ids=["knowledge-a"],
-        )
-
-        SourceAnalysisBaseResource.validate_resources(rule)
-
-        load_knowledge_bases.assert_called_once_with()
-        list_visible.assert_any_call(api.aidev.list_agents, "agent_code")
-        list_visible.assert_any_call(api.aidev.list_skills, "skill_code")
-
-    @patch.object(
-        SourceAnalysisBaseResource,
-        "load_visible_aidev_knowledge_bases",
-        return_value=([{"id": 10, "knowledgebase_code": "knowledge-a"}], {"space-a": "AIDEV Helper"}),
-    )
-    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"agent-a"})
-    def test_invisible_knowledge_base_is_rejected(self, _list_visible, _load_knowledge_bases):
-        rule = IssueSourceAnalysisRule(
-            bk_biz_id=2,
-            priority=1,
-            agent_id="agent-a",
-            knowledge_base_ids=["knowledge-missing"],
-        )
-
-        with self.assertRaises(SourceAnalysisResourceNotFoundError):
-            SourceAnalysisBaseResource.validate_resources(rule)
-
-    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"agent-a", "agent-b"})
-    def test_visible_agent_passes_validation(self, _list_visible):
-        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="agent-b")
-
-        SourceAnalysisBaseResource.validate_resources(rule)
-
-    @patch.object(SourceAnalysisBaseResource, "list_visible_aidev_ids", return_value={"agent-a", "agent-b"})
-    def test_invisible_agent_is_rejected(self, _list_visible):
-        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="agent-missing")
-
-        with self.assertRaises(SourceAnalysisResourceNotFoundError):
-            SourceAnalysisBaseResource.validate_resources(rule)
-
     @patch("fta_web.issue.resources.get_request_username", return_value="alice")
     @patch("fta_web.issue.resources.get_request", return_value=object())
     @patch("fta_web.issue.resources.oauth_client.get_access_token")
@@ -283,9 +218,65 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
     def setUp(self):
         set_local_username("alice")
+        self.aidev_calls = []
+        for api_name in ("list_agents", "list_skills", "list_spaces", "list_knowledge_bases"):
+            mock = self.enterContext(
+                patch.object(api.aidev, api_name, side_effect=AssertionError("rule writes must not query AIDEV"))
+            )
+            self.aidev_calls.append(mock)
 
     def tearDown(self):
         set_local_username(None)
+        for mock in self.aidev_calls:
+            mock.assert_not_called()
+
+    @patch.object(SourceAnalysisBaseResource, "prepare_rule_run_as_user", return_value="alice")
+    def test_create_update_enable_and_disable_do_not_query_aidev(self, prepare_run_as_user):
+        self.create_config()
+        result = CreateSourceAnalysisRuleResource().perform_request(
+            validate(
+                SourceAnalysisRuleWriteSerializer,
+                {
+                    "bk_biz_id": 2,
+                    "priority": 10,
+                    "is_enabled": True,
+                    "conditions": [{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}],
+                    "agent_id": "agent-unchecked",
+                    "skill_ids": ["skill-unchecked"],
+                    "knowledge_base_ids": ["knowledge-unchecked"],
+                },
+            )
+        )
+        self.assertTrue(result["is_enabled"])
+        for payload in ({"priority": 20}, {"is_enabled": False}, {"is_enabled": True}):
+            with self.subTest(payload=payload):
+                prepare_run_as_user.reset_mock()
+                data = validate(SourceAnalysisRulePatchSerializer, {"bk_biz_id": 2, **payload})
+                data["rule_id"] = result["id"]
+                result = UpdateSourceAnalysisRuleResource().perform_request(data)
+                if result["is_enabled"]:
+                    prepare_run_as_user.assert_called_once_with()
+                    self.assertEqual(result["run_as_user"], "alice")
+                else:
+                    prepare_run_as_user.assert_not_called()
+
+    @patch.object(
+        SourceAnalysisBaseResource,
+        "prepare_rule_run_as_user",
+        side_effect=SourceAnalysisExecutionCredentialUnavailableError(),
+    )
+    def test_enabling_rule_rejects_unavailable_credentials(self, prepare_run_as_user):
+        self.create_config()
+        rule = self.create_rule(
+            conditions=[{"field": "alert.strategy_id", "value": ["1"], "method": "eq", "condition": "and"}]
+        )
+        data = validate(SourceAnalysisRulePatchSerializer, {"bk_biz_id": 2, "is_enabled": True})
+        data["rule_id"] = rule.id
+        with self.assertRaises(SourceAnalysisExecutionCredentialUnavailableError):
+            UpdateSourceAnalysisRuleResource().perform_request(data)
+        prepare_run_as_user.assert_called_once_with()
+        rule.refresh_from_db()
+        self.assertFalse(rule.is_enabled)
 
     @staticmethod
     def create_config(project_id="project-a", repository_alias="repo-a"):
@@ -407,9 +398,8 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         self.assertFalse(IssueSourceAnalysisRule.objects.exists())
 
-    @patch.object(SourceAnalysisBaseResource, "validate_resources")
     @patch.object(SourceAnalysisBaseResource, "prepare_rule_run_as_user", return_value="alice")
-    def test_enabled_rule_validates_resources_and_records_run_as_user(self, prepare_run_as_user, validate_resources):
+    def test_enabled_rule_records_run_as_user(self, prepare_run_as_user):
         self.create_config()
         data = validate(
             SourceAnalysisRuleWriteSerializer,
@@ -424,15 +414,13 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         result = CreateSourceAnalysisRuleResource().perform_request(data)
 
-        validate_resources.assert_called_once()
         prepare_run_as_user.assert_called_once_with()
         self.assertTrue(result["is_enabled"])
         self.assertEqual(result["run_as_user"], "alice")
         self.assertEqual((result["bkci_project_id"], result["repository_alias"]), ("project-a", "repo-a"))
 
-    @patch.object(SourceAnalysisBaseResource, "validate_resources")
     @patch.object(SourceAnalysisBaseResource, "prepare_rule_run_as_user", return_value="bob")
-    def test_enabled_rule_uses_current_configurer_as_run_as_user(self, prepare_run_as_user, validate_resources):
+    def test_enabled_rule_uses_current_configurer_as_run_as_user(self, prepare_run_as_user):
         self.create_config()
         data = validate(
             SourceAnalysisRuleWriteSerializer,
@@ -447,20 +435,16 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         result = CreateSourceAnalysisRuleResource().perform_request(data)
 
-        validate_resources.assert_called_once()
         prepare_run_as_user.assert_called_once_with()
         self.assertTrue(result["is_enabled"])
         self.assertEqual(result["run_as_user"], "bob")
 
-    @patch.object(SourceAnalysisBaseResource, "validate_resources")
     @patch.object(
         SourceAnalysisBaseResource,
         "prepare_rule_run_as_user",
         side_effect=SourceAnalysisExecutionCredentialUnavailableError(),
     )
-    def test_enabled_rule_save_fails_when_configurer_token_is_unavailable(
-        self, _prepare_run_as_user, _validate_resources
-    ):
+    def test_enabled_rule_save_fails_when_configurer_token_is_unavailable(self, _prepare_run_as_user):
         self.create_config()
         data = validate(
             SourceAnalysisRuleWriteSerializer,
@@ -508,9 +492,8 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         with self.assertRaises(SourceAnalysisDefaultRulePriorityImmutableError):
             UpdateSourceAnalysisRuleResource().perform_request(data)
 
-    @patch.object(SourceAnalysisBaseResource, "validate_resources")
     @patch.object(SourceAnalysisBaseResource, "prepare_rule_run_as_user", return_value="bob")
-    def test_enabled_rule_patch_refreshes_run_as_user(self, prepare_run_as_user, validate_resources):
+    def test_enabled_rule_patch_refreshes_run_as_user(self, prepare_run_as_user):
         self.create_config()
         rule = self.create_rule(
             is_enabled=True,
@@ -535,16 +518,14 @@ class TestSourceAnalysisConfigAndRules(TestCase):
 
         result = UpdateSourceAnalysisRuleResource().perform_request(data)
 
-        validate_resources.assert_called_once()
         prepare_run_as_user.assert_called_once_with()
         self.assertEqual(result["agent_id"], "ai-log-to-code")
         self.assertEqual(result["skill_ids"], ["bk-data-fetcher"])
         self.assertEqual(result["knowledge_base_ids"], ["bkmonitor_terms_base"])
         self.assertEqual(result["run_as_user"], "bob")
 
-    @patch.object(SourceAnalysisBaseResource, "validate_resources")
     @patch.object(SourceAnalysisBaseResource, "prepare_rule_run_as_user", return_value="alice")
-    def test_enabled_rule_patch_does_not_initialize_scene(self, prepare_run_as_user, _validate_resources):
+    def test_enabled_rule_patch_does_not_initialize_scene(self, prepare_run_as_user):
         self.create_config()
         rule = self.create_rule(
             is_enabled=True,

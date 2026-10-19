@@ -28,7 +28,6 @@ from api.aidev.default import (
 )
 from bkmonitor.iam import ActionEnum
 from bkmonitor.iam.drf import BusinessActionPermission
-from bkmonitor.models import IssueSourceAnalysisRule
 from bkmonitor.utils.cache import CacheType
 from core.drf_resource import api
 from core.errors.api import BKAPIError
@@ -541,23 +540,6 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
 
             SourceAnalysisBaseResource.query_visible_aidev_items.cacheless("skills", "skill_code")
             list_skills.assert_called_once_with(space_id="all", page=1, page_size=200)
-
-    def test_enable_validation_does_not_reuse_option_cache(self):
-        """启用校验决定规则能否保存，必须实时遍历：用选项缓存会把刚建好的资源判为无效。"""
-
-        rule = IssueSourceAnalysisRule(bk_biz_id=2, priority=1, agent_id="agent-1")
-        with (
-            patch.object(SourceAnalysisBaseResource, "query_visible_aidev_items") as query_items,
-            patch.object(
-                api.aidev,
-                "list_agents",
-                return_value={"count": 1, "results": [{"id": 1, "agent_code": "agent-1"}]},
-            ) as list_agents,
-        ):
-            SourceAnalysisBaseResource.validate_resources(rule)
-
-        query_items.assert_not_called()
-        list_agents.assert_called_once_with(space_id="all", page=1, page_size=200)
 
     def test_aidev_options_return_empty_list_without_querying_spaces(self):
         with (

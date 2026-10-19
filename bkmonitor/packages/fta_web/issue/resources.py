@@ -88,7 +88,6 @@ from core.errors.issue import (
     SourceAnalysisInvalidStatusTransitionError,
     SourceAnalysisOperationConflictError,
     SourceAnalysisRepositoryInvalidError,
-    SourceAnalysisResourceNotFoundError,
     SourceAnalysisRuleIncompleteError,
     SourceAnalysisRulePriorityConflictError,
     SourceAnalysisUpstreamUnavailableError,
@@ -320,20 +319,11 @@ class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
         叠加后单次打开规则编辑侧弹的开销可观，因此按登录用户短期缓存整份列表。
         CacheType.AIDEV 是 user_related，缓存键带用户名，与 AIDEV 按当前用户登录态
         过滤资源的口径一致，不会跨用户串数据。
-
-        启用校验刻意不复用这份缓存：校验结果决定规则能否保存，用陈旧列表会把用户
-        刚在 AIDEV 建好的资源判为无效，因此那条路径继续走实时遍历。
         """
 
         base = SourceAnalysisBaseResource
         list_resources = getattr(api.aidev, base.AIDEV_LIST_APIS[resource_type])
         return base.list_visible_aidev_items(list_resources, id_field)
-
-    @classmethod
-    def list_visible_aidev_ids(cls, list_resources: Callable, id_field: str) -> set[str]:
-        """启用校验只需要资源编码集合，复用全量遍历结果，避免只校验列表第一页。"""
-
-        return {str(item[id_field]) for item in cls.list_visible_aidev_items(list_resources, id_field)}
 
     @staticmethod
     def list_visible_aidev_space_name_map() -> dict[str, str]:
@@ -380,35 +370,9 @@ class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
     @staticmethod
     @using_cache(CacheType.AIDEV)
     def query_visible_aidev_knowledge_bases() -> tuple[list[dict], dict[str, str]]:
-        """知识库选择器专用的用户维度缓存；规则启用校验仍走实时查询。"""
+        """知识库选择器专用的用户维度缓存。"""
 
         return SourceAnalysisBaseResource.load_visible_aidev_knowledge_bases()
-
-    @classmethod
-    def validate_resources(cls, rule: IssueSourceAnalysisRule) -> None:
-        """校验规则引用的 AI 资源当前用户是否可见。
-
-        会向 AIDEV 发起分页请求，耗时不可控，调用方必须在数据库事务外执行。
-        """
-
-        try:
-            visible_agents = cls.list_visible_aidev_ids(api.aidev.list_agents, "agent_code") if rule.agent_id else set()
-            visible_skills = (
-                cls.list_visible_aidev_ids(api.aidev.list_skills, "skill_code") if rule.skill_ids else set()
-            )
-            if rule.knowledge_base_ids:
-                knowledge_bases, _space_name_map = cls.load_visible_aidev_knowledge_bases()
-                visible_knowledge_bases = {str(item["knowledgebase_code"]) for item in knowledge_bases}
-            else:
-                visible_knowledge_bases = set()
-        except (BKAPIError, TypeError, ValueError) as error:
-            cls.raise_upstream_unavailable(error)
-
-        agent_visible = not rule.agent_id or rule.agent_id in visible_agents
-        skills_visible = set(rule.skill_ids).issubset(visible_skills)
-        knowledge_bases_visible = set(rule.knowledge_base_ids).issubset(visible_knowledge_bases)
-        if not agent_visible or not skills_visible or not knowledge_bases_visible:
-            raise SourceAnalysisResourceNotFoundError()
 
     @staticmethod
     def is_rule_complete(rule: IssueSourceAnalysisRule) -> bool:
@@ -432,13 +396,6 @@ class SourceAnalysisBaseResource(IssueAIAnalysisWhitelistMixin, Resource):
         cls.validate_rule_definition(rule, config)
         if not rule.run_as_user:
             raise SourceAnalysisExecutionCredentialUnavailableError()
-
-    @classmethod
-    def validate_rule_ready(cls, rule: IssueSourceAnalysisRule, config: IssueSourceAnalysisConfig | None) -> None:
-        """启用规则的完整校验。含上游调用，必须在事务外执行。"""
-
-        cls.validate_rule_local(rule, config)
-        cls.validate_resources(rule)
 
     @classmethod
     def prepare_rule_run_as_user(cls) -> str:
@@ -2093,13 +2050,12 @@ class CreateSourceAnalysisRuleResource(SourceAnalysisBaseResource):
         bk_biz_id = validated_request_data.pop("bk_biz_id")
         rule = IssueSourceAnalysisRule(bk_biz_id=bk_biz_id, is_default=False, **validated_request_data)
 
-        # 启用校验会向 AIDEV 分页拉取用户可见资源，耗时不可控，必须在事务外完成，
-        # 否则会在持有配置行锁的状态下等待上游响应。事务内再用 validate_rule_local 复核。
+        # 凭证准备可能调用 OAuth，在事务外完成，避免持有配置行锁等待上游响应。
+        # 保存规则不查询 AIDEV 资源可见性，事务内只复核本地配置与执行身份。
         if rule.is_enabled:
             config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
             self.validate_rule_definition(rule, config)
             rule.run_as_user = self.prepare_rule_run_as_user()
-            self.validate_rule_ready(rule, config)
 
         try:
             with transaction.atomic(using=self.db_alias()):
@@ -2146,15 +2102,13 @@ class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
         bk_biz_id = validated_request_data.pop("bk_biz_id")
         rule_id = validated_request_data.pop("rule_id")
 
-        # 同 Create：先在事务外用未加锁的快照跑完含上游调用的完整校验，事务内只做本地复核。
+        # 同 Create：先在事务外校验规则结构并准备凭证，事务内只做本地复核。
         unlocked_config = IssueSourceAnalysisConfig.objects.filter(bk_biz_id=bk_biz_id).first()
         preview = self.apply_rule_patch(self.get_rule(bk_biz_id, rule_id), validated_request_data, unlocked_config)
         run_as_user = None
         if preview.is_enabled:
             self.validate_rule_definition(preview, unlocked_config)
             run_as_user = self.prepare_rule_run_as_user()
-            preview.run_as_user = run_as_user
-            self.validate_rule_ready(preview, unlocked_config)
 
         try:
             with transaction.atomic(using=self.db_alias()):
