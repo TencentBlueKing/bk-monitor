@@ -5,11 +5,13 @@ import random
 import string
 
 from django.conf import settings
+from django.db import transaction
 from pydantic import ValidationError
 
 from alarm_backends.service.scheduler.app import app
 from bkmonitor.utils.tenant import get_tenant_default_biz_id
 from constants.common import DEFAULT_TENANT_ID
+from metadata.config import DATABASE_CONNECTION_NAME
 from metadata.models import (
     AccessVMRecord,
     DataSource,
@@ -326,57 +328,73 @@ def apply_graph_relation_v4_datalink(bk_tenant_id: str, table_id: str) -> None:
     # 4. 优先复用该 RT 已有的普通 VM 或 Graph DataLink，避免双写时额外创建
     # 一条并行 VM 链路。旧配置生成的 Graph DataLink 也可以直接认领；
     # ResultTableOption 会让复用后的链路在本次 apply 中进入 V4 compose。
-    configured_rt = None
-    candidates = BkBaseResultTable.objects.filter(
-        bk_tenant_id=bk_tenant_id,
-        monitor_table_id=table_id,
-    ).order_by("-last_modify_time", "-create_time")
-    for candidate in candidates:
-        strategy = (
-            DataLink.objects.filter(
-                bk_tenant_id=bk_tenant_id,
-                data_link_name=candidate.data_link_name,
-            )
-            .values_list("data_link_strategy", flat=True)
-            .first()
-        )
-        if strategy in {DataLink.BK_STANDARD_V2_TIME_SERIES, DataLink.GRAPH_RELATION_TIME_SERIES}:
-            configured_rt = candidate
-            break
-
-    datalink_query = DataLink.objects.filter(bk_tenant_id=bk_tenant_id, namespace="bkmonitor")
-    if configured_rt:
-        datalink = datalink_query.filter(data_link_name=configured_rt.data_link_name).first()
-    else:
-        get_registered_bkdata_data_id_name(data_source, namespace="bkmonitor")
-        datalink = datalink_query.filter(
-            bk_data_id=data_source.bk_data_id,
-            table_ids__contains=[table_id],
-            data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
-        ).first()
-    if datalink is None:
-        datalink = DataLink.objects.create(
+    storage_type = ClusterInfo.TYPE_VM if option.should_write_vm else ClusterInfo.TYPE_SURREALDB
+    # 与普通 VM 入口锁同一 RT，锁内重新查建并保存映射，避免并发分配多个随机主名称。
+    with transaction.atomic(using=DATABASE_CONNECTION_NAME):
+        ResultTable.objects.select_for_update().get(bk_tenant_id=bk_tenant_id, table_id=table_id)
+        configured_rt = None
+        candidates = BkBaseResultTable.objects.filter(
             bk_tenant_id=bk_tenant_id,
-            # 仅新建时分配主名称；已有映射指向缺失主记录时仍按保存的原名补建。
-            data_link_name=configured_rt.data_link_name
-            if configured_rt
-            else generate_bkdata_resource_name(DataLinkNameScene.GRAPH, data_source.bk_data_id),
-            namespace="bkmonitor",
-            data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
-            bk_data_id=data_source.bk_data_id,
-            table_ids=[table_id],
+            monitor_table_id=table_id,
+        ).order_by("-last_modify_time", "-create_time")
+        for candidate in candidates:
+            strategy = (
+                DataLink.objects.filter(
+                    bk_tenant_id=bk_tenant_id,
+                    data_link_name=candidate.data_link_name,
+                )
+                .values_list("data_link_strategy", flat=True)
+                .first()
+            )
+            if strategy in {DataLink.BK_STANDARD_V2_TIME_SERIES, DataLink.GRAPH_RELATION_TIME_SERIES}:
+                configured_rt = candidate
+                break
+
+        datalink_query = DataLink.objects.filter(bk_tenant_id=bk_tenant_id, namespace="bkmonitor")
+        if configured_rt:
+            datalink = datalink_query.filter(data_link_name=configured_rt.data_link_name).first()
+        else:
+            bkbase_data_name = get_registered_bkdata_data_id_name(data_source, namespace="bkmonitor")
+            datalink = datalink_query.filter(
+                bk_data_id=data_source.bk_data_id,
+                table_ids__contains=[table_id],
+                data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+            ).first()
+            if datalink is None:
+                # 与普通 VM 入口一致，兼容尚未回填来源字段、且 RT 映射缺失的旧链路。
+                datalink = datalink_query.filter(
+                    data_link_name=bkbase_data_name,
+                    data_link_strategy__in=[DataLink.BK_STANDARD_V2_TIME_SERIES, DataLink.GRAPH_RELATION_TIME_SERIES],
+                ).first()
+        if datalink is None:
+            datalink = DataLink.objects.create(
+                bk_tenant_id=bk_tenant_id,
+                # 仅新建时分配主名称；已有映射指向缺失主记录时仍按保存的原名补建。
+                data_link_name=configured_rt.data_link_name
+                if configured_rt
+                else generate_bkdata_resource_name(DataLinkNameScene.GRAPH, data_source.bk_data_id),
+                namespace="bkmonitor",
+                data_link_strategy=DataLink.GRAPH_RELATION_TIME_SERIES,
+                bk_data_id=data_source.bk_data_id,
+                table_ids=[table_id],
+            )
+        else:
+            datalink.namespace = "bkmonitor"
+            datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
+            datalink.bk_data_id = data_source.bk_data_id
+            datalink.table_ids = [table_id]
+            datalink.save(
+                update_fields=["namespace", "data_link_strategy", "bk_data_id", "table_ids", "last_modify_time"]
+            )
+        BkBaseResultTable.objects.get_or_create(
+            bk_tenant_id=bk_tenant_id,
+            data_link_name=datalink.pk,
+            defaults={"monitor_table_id": table_id, "storage_type": storage_type},
         )
-    else:
-        datalink.namespace = "bkmonitor"
-        datalink.data_link_strategy = DataLink.GRAPH_RELATION_TIME_SERIES
-        datalink.bk_data_id = data_source.bk_data_id
-        datalink.table_ids = [table_id]
-        datalink.save(update_fields=["namespace", "data_link_strategy", "bk_data_id", "table_ids", "last_modify_time"])
 
     # 5. Graph V4 复用原 graph_relation_time_series strategy；ResultTableOption
     # 决定 compose 走普通组件路径。包含 VM 时 VM 是查询主存储，SurrealDB-only
-    # 才将 SurrealDB 记录为主存储。
-    storage_type = ClusterInfo.TYPE_VM if option.should_write_vm else ClusterInfo.TYPE_SURREALDB
+    # 才将 SurrealDB 记录为主存储。远端下发放在事务提交之后。
     datalink.apply_data_link(
         bk_biz_id=target_bk_biz_id,
         data_source=data_source,

@@ -1059,7 +1059,7 @@ def test_run_check_converts_structured_query_config_to_query_ts(v4_base_data, ex
     assert kwargs["start_time"] == "1778935339"
     assert kwargs["end_time"] == "1778938939"
     assert kwargs["step"] == "60s"
-    assert kwargs["order_by"] == ["-time"]
+    assert kwargs["order_by"] == ["-_time"]
     assert kwargs["metric_merge"] == "a / b"
     assert kwargs["not_time_align"] is False
     for skipped_field in (

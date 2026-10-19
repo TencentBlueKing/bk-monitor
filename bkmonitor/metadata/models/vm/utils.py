@@ -837,8 +837,18 @@ def create_bkbase_data_link(
                 )
                 data_link_name = existing_link.data_link_name
             except DataLink.DoesNotExist:
-                data_link_name = data_link_utils.generate_bkdata_resource_name(
-                    data_link_utils.RANDOM_NAME_STRATEGIES[data_link_strategy], data_source.bk_data_id
+                # 旧链路可能尚未回填 bk_data_id/table_ids，沿用原来按已登记 DataId 名定位的方式。
+                existing_link = DataLink.objects.filter(
+                    bk_tenant_id=data_source.bk_tenant_id,
+                    namespace=namespace,
+                    data_link_name=bkbase_data_name,
+                ).first()
+                data_link_name = (
+                    existing_link.data_link_name
+                    if existing_link
+                    else data_link_utils.generate_bkdata_resource_name(
+                        data_link_utils.RANDOM_NAME_STRATEGIES[data_link_strategy], data_source.bk_data_id
+                    )
                 )
             logger.info(
                 "create_bkbase_data_link:try to access bkbase, data_id->[%s],bkbase_data_name->[%s]",

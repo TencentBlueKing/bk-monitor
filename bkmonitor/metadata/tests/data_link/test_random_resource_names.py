@@ -156,6 +156,66 @@ def test_missing_mapping_recovers_link_by_source_and_table(source, mocker):
     generator.assert_not_called()
 
 
+@pytest.mark.parametrize("legacy_table_id", ["", "random_name.metric"])
+@pytest.mark.parametrize(
+    "legacy_strategy", [models.DataLink.BK_STANDARD_V2_TIME_SERIES, models.DataLink.GRAPH_RELATION_TIME_SERIES]
+)
+def test_missing_mapping_recovers_legacy_link_without_source_fields(source, mocker, legacy_table_id, legacy_strategy):
+    registered = register(source)
+    link = models.DataLink.objects.create(
+        bk_tenant_id=source.bk_tenant_id,
+        namespace="bkmonitor",
+        data_link_name=registered.name,
+        data_link_strategy=legacy_strategy,
+        bk_data_id=0,
+        table_ids=[],
+    )
+    original_rt = models.ResultTableConfig.objects.create(
+        bk_tenant_id=source.bk_tenant_id,
+        namespace="bkmonitor",
+        name="legacy_metric_rt",
+        data_link_name=link.pk,
+        bk_biz_id=2,
+        table_id=legacy_table_id,
+    )
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id=source.bk_tenant_id,
+        result_table_id="random_name.metric",
+        bk_base_data_id=source.pk,
+        vm_result_table_id="2_legacy_metric_rt",
+    )
+    generator = mocker.patch.object(utils, "generate_bkdata_resource_name", side_effect=AssertionError("regenerated"))
+
+    restored = create_link_before_apply(source)
+    assert restored.pk == link.pk
+    assert restored.bk_data_id == source.pk
+    assert restored.table_ids == ["random_name.metric"]
+    assert models.DataLink.objects.count() == 1
+    assert models.BkBaseResultTable.objects.get(data_link_name=link.pk).monitor_table_id == "random_name.metric"
+    assert compose(restored, source)[0] == original_rt.name
+    generator.assert_not_called()
+
+
+@pytest.mark.parametrize("other_scope", [{"bk_tenant_id": "other"}, {"namespace": "bklog"}])
+def test_legacy_link_recovery_respects_tenant_and_namespace(source, other_scope):
+    registered = register(source)
+    fields = dict(bk_tenant_id=source.bk_tenant_id, namespace="bkmonitor")
+    fields.update(other_scope)
+    legacy_link = models.DataLink.objects.create(
+        **fields,
+        data_link_name=registered.name,
+        data_link_strategy=models.DataLink.BK_STANDARD_V2_TIME_SERIES,
+        bk_data_id=0,
+        table_ids=[],
+    )
+
+    created = create_link_before_apply(source)
+    assert created.pk != legacy_link.pk
+    legacy_link.refresh_from_db()
+    assert legacy_link.bk_data_id == 0
+    assert legacy_link.table_ids == []
+
+
 def test_missing_components_restore_saved_references(source, mocker):
     link = make_link(source)
     names = compose(link, source)

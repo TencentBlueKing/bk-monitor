@@ -1064,7 +1064,7 @@ class DataLink(models.Model):
             type(self).objects.select_for_update().get(pk=self.pk)
             existing_context = ExistingComponentContext.from_datalink(self)
 
-        from metadata.models import ResultTableOption
+        from metadata.models import BkBaseResultTable, ResultTableOption
         from metadata.models.result_table import GraphRelationV4DataLinkOption
 
         option_record = ResultTableOption.objects.get(
@@ -1177,6 +1177,22 @@ class DataLink(models.Model):
                 if existing_rt
                 else (existing_binding.bkbase_result_table_name if existing_binding else "")
             )
+            graph_rt_defaults = {"table_id": table_id, "data_type": "graph"}
+            if not graph_rt_name:
+                # RT 和 Binding 都丢失时，映射仍保存原图谱身份；不能将存活 DataBus 改接新表。
+                # 双写时映射可能指向 VM，只恢复明确属于 SurrealDB 的记录。
+                graph_relation = BkBaseResultTable.objects.filter(
+                    bk_tenant_id=self.bk_tenant_id,
+                    data_link_name=self.pk,
+                    monitor_table_id=table_id,
+                    storage_type=ClusterInfo.TYPE_SURREALDB,
+                ).first()
+                if graph_relation:
+                    graph_rt_name = graph_relation.bkbase_rt_name or self._strip_bkbase_biz_prefix(
+                        graph_relation.bkbase_table_id or ""
+                    )
+                    if graph_relation.bkbase_table_id:
+                        graph_rt_defaults["bkbase_table_id"] = graph_relation.bkbase_table_id
             saved_bindings = (
                 {
                     name.split(":", 1)[1]
@@ -1203,7 +1219,7 @@ class DataLink(models.Model):
                     namespace=self.namespace,
                     bk_biz_id=bk_biz_id,
                     bk_tenant_id=self.bk_tenant_id,
-                    defaults={"table_id": table_id, "data_type": "graph"},
+                    defaults=graph_rt_defaults,
                 )
             else:
                 graph_rt = utils.create_resource_with_random_name(
