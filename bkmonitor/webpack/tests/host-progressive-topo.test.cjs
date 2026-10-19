@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const ts = require('typescript');
+
 const vue = require('../src/trace/node_modules/vue');
 
 const root = path.join(__dirname, '../src/trace/pages/host');
@@ -30,79 +31,8 @@ const inst = (id, children = []) => ({
 const skeleton = () => [inst('biz|1', [inst('set|2', [inst('module|3'), inst('module|4')])])];
 const fullTree = () => [inst('biz|1', [inst('set|2', [inst('module|3', [leaf(11), leaf(12)]), inst('module|4')])])];
 
-function rawWorker(file) {
-  let output;
-  const self = {
-    postMessage: value => {
-      output = structuredClone(value);
-    },
-  };
-  vm.runInNewContext(fs.readFileSync(`${root}/workers/${file}.worker.raw.js`, 'utf8'), { self });
-  let requestId = 0;
-  return message => {
-    self.onmessage({ data: structuredClone({ ...message, requestId: ++requestId }) });
-    return output;
-  };
-}
-function treeClient(workerResponse = value => Promise.resolve(value)) {
-  const send = rawWorker('host-topo-tree');
-  return {
-    init: (treeData, hideEmptyNode, searchValue, selectedId, complete = true, preserve = false, anchorId = '') =>
-      Promise.resolve(
-        send({
-          type: preserve ? 'REPLACE' : 'INIT',
-          treeData,
-          hideEmptyNode,
-          searchValue,
-          selectedId,
-          complete,
-          anchorId,
-        })
-      ),
-    select: id => workerResponse(send({ type: 'SELECT', id })),
-    getRange: (start, end) => workerResponse(send({ type: 'GET_RANGE', start, end })),
-    toggle: (id, expanded, start, end) => Promise.resolve(send({ type: 'TOGGLE', id, expanded, start, end })),
-    setFilter: (hideEmptyNode, searchValue, start, end) =>
-      Promise.resolve(send({ type: 'SET_FILTER', hideEmptyNode, searchValue, start, end })),
-    upsertChildren: (parentId, children, page, anchorId = '') =>
-      Promise.resolve(send({ type: 'UPSERT_CHILDREN', parentId, children, page, anchorId })),
-    expandAll: (start, end) => Promise.resolve(send({ type: 'EXPAND_ALL', start, end })),
-    collapseAll: (start, end) => Promise.resolve(send({ type: 'COLLAPSE_ALL', start, end })),
-  };
-}
-function renderer() {
-  const element = type => ({ type, children: [], props: {}, parent: null, clientHeight: 640, scrollTop: 0 });
-  return vue.createRenderer({
-    createElement: element,
-    createText: text => ({ ...element('#text'), text }),
-    createComment: text => ({ ...element('#comment'), text }),
-    insert(child, parent, anchor = null) {
-      if (child.parent) this.remove(child);
-      child.parent = parent;
-      const at = anchor ? parent.children.indexOf(anchor) : -1;
-      parent.children.splice(at < 0 ? parent.children.length : at, 0, child);
-    },
-    remove(child) {
-      const siblings = child.parent?.children;
-      if (siblings) siblings.splice(siblings.indexOf(child), 1);
-      child.parent = null;
-    },
-    setText(node, text) {
-      node.text = text;
-    },
-    setElementText(node, text) {
-      node.text = text;
-    },
-    parentNode: node => node.parent,
-    nextSibling: node => node.parent?.children[node.parent.children.indexOf(node) + 1],
-    patchProp(node, key, old, value) {
-      node.props[key] = value;
-    },
-  });
-}
-
-function harness(query = {}, readonly = false, workerResponse) {
-  global.window = { cc_biz_id: 1, timezone: 'UTC', i18n: { t: value => value } };
+function harness(query = {}, readonly = false, workerResponse, requestOwner) {
+  global.window = { cc_biz_id: 1, timezone: 'UTC', i18n: { t: value => value }, rawWindow: requestOwner };
   global.ResizeObserver = class {
     observe() {}
     disconnect() {}
@@ -141,10 +71,10 @@ function harness(query = {}, readonly = false, workerResponse) {
     ].map(name => [name, (...args) => new Promise((resolve, reject) => calls.push({ name, args, resolve, reject }))])
   );
   const chartTargets = [];
-  let topo,
-    processTable,
+  let processTable,
+    restores = 0,
     table,
-    restores = 0;
+    topo;
   const listSend = rawWorker('host-list');
   const listWorker = {
     initBaseData: baseList => Promise.resolve(listSend({ type: 'INIT_BASE', baseList })),
@@ -206,7 +136,7 @@ function harness(query = {}, readonly = false, workerResponse) {
   });
   const cache = new Map();
   const own =
-    /(?:host\.tsx|host-content-tabs\.tsx|host-list\.tsx|host-topo-tree\.tsx|host-process\.tsx|host-metric\.tsx|process-detail\.tsx|use-process-list\.ts|process-service\.ts|use-metric-aggregation\.ts|constants\/process\.ts|utils\/process\.ts|variables\/resolve\.ts|use-host-topo-tree\.ts|use-host-url-params\.ts|use-host-list\.ts|use-host-list-data\.ts|host-list-core\.ts|share-scope\.ts|topo-tree\.ts|constants\/enum\.ts|constants\/constants\.ts)$/;
+    /(?:host\.tsx|host-content-tabs\.tsx|host-list\.tsx|host-topo-tree\.tsx|host-process\.tsx|host-metric\.tsx|process-detail\.tsx|use-process-list\.ts|process-service\.ts|host-request\.ts|use-metric-aggregation\.ts|constants\/process\.ts|utils\/process\.ts|variables\/resolve\.ts|use-host-topo-tree\.ts|use-host-url-params\.ts|use-host-list\.ts|use-host-list-data\.ts|host-list-core\.ts|share-scope\.ts|topo-tree\.ts|constants\/enum\.ts|constants\/constants\.ts)$/;
   const load = file => {
     if (cache.has(file)) return cache.get(file);
     const module = { exports: {} };
@@ -234,11 +164,7 @@ function harness(query = {}, readonly = false, workerResponse) {
       if (id.endsWith('/store/modules/app')) return { useAppStore: () => appStore };
       if (id.endsWith('/use-host-topo-tree-worker')) return { useHostTopoTreeWorker: () => treeClient(workerResponse) };
       if (id.endsWith('/use-host-list-worker')) return { useHostListWorker: () => listWorker };
-      if (id.endsWith('/host-service')) return {
-        ...services,
-        getHostListQuery: () => null,
-        clearHostListQueryCache: () => {},
-      };
+      if (id.endsWith('/host-service')) return services;
       if (id === 'monitor-api/modules/scene_view') return services;
       if (id.endsWith('/process-table')) return { default: ProcessTable };
       if (id.endsWith('/use-metric-groups')) return { useMetricGroups: metricGroups };
@@ -261,7 +187,7 @@ function harness(query = {}, readonly = false, workerResponse) {
         };
       }
       if (id === 'lodash') return { cloneDeep: structuredClone };
-      if (id === 'dayjs') return require('dayjs');
+      if (id === 'dayjs') return { default: require('dayjs') };
       if (id.endsWith('/template-srv')) return { getTemplateSrv: () => ({ replace: value => value }) };
       if (id === 'monitor-ui/chart-plugins/typings')
         return {
@@ -285,6 +211,7 @@ function harness(query = {}, readonly = false, workerResponse) {
         return {
           isObject: value => !!value && typeof value === 'object',
           commonPageSizeGet: () => 100,
+          parseBizId: Number,
           tryURLDecodeParse: (value, fallback) => {
             try {
               return JSON.parse(decodeURIComponent(value));
@@ -306,6 +233,7 @@ function harness(query = {}, readonly = false, workerResponse) {
       return { default: empty };
     };
     const code = ts.transpileModule(fs.readFileSync(file, 'utf8'), {
+      fileName: file,
       compilerOptions: {
         target: ts.ScriptTarget.ES2022,
         module: ts.ModuleKind.CommonJS,
@@ -382,6 +310,90 @@ function harness(query = {}, readonly = false, workerResponse) {
     load,
   };
 }
+function rawWorker(file) {
+  let output;
+  const self = {
+    postMessage: value => {
+      output = structuredClone(value);
+    },
+  };
+  vm.runInNewContext(fs.readFileSync(`${root}/workers/${file}.worker.raw.js`, 'utf8'), { self });
+  let requestId = 0;
+  return message => {
+    self.onmessage({ data: structuredClone({ ...message, requestId: ++requestId }) });
+    return output;
+  };
+}
+function renderer() {
+  const element = type => ({ type, children: [], props: {}, parent: null, clientHeight: 640, scrollTop: 0 });
+  return vue.createRenderer({
+    createElement: element,
+    createText: text => ({ ...element('#text'), text }),
+    createComment: text => ({ ...element('#comment'), text }),
+    insert(child, parent, anchor = null) {
+      if (child.parent) this.remove(child);
+      child.parent = parent;
+      const at = anchor ? parent.children.indexOf(anchor) : -1;
+      parent.children.splice(at < 0 ? parent.children.length : at, 0, child);
+    },
+    remove(child) {
+      const siblings = child.parent?.children;
+      if (siblings) siblings.splice(siblings.indexOf(child), 1);
+      child.parent = null;
+    },
+    setText(node, text) {
+      node.text = text;
+    },
+    setElementText(node, text) {
+      node.text = text;
+    },
+    parentNode: node => node.parent,
+    nextSibling: node => node.parent?.children[node.parent.children.indexOf(node) + 1],
+    patchProp(node, key, old, value) {
+      node.props[key] = value;
+    },
+  });
+}
+
+function treeClient(workerResponse = value => Promise.resolve(value)) {
+  const send = rawWorker('host-topo-tree');
+  return {
+    init: (treeData, hideEmptyNode, searchValue, selectedId, complete = true, preserve = false, anchorId = '') =>
+      Promise.resolve(
+        send({
+          type: preserve ? 'REPLACE' : 'INIT',
+          treeData,
+          hideEmptyNode,
+          searchValue,
+          selectedId,
+          complete,
+          anchorId,
+        })
+      ),
+    select: id => workerResponse(send({ type: 'SELECT', id })),
+    getRange: (start, end) => workerResponse(send({ type: 'GET_RANGE', start, end })),
+    toggle: (id, expanded, start, end) => Promise.resolve(send({ type: 'TOGGLE', id, expanded, start, end })),
+    setFilter: (hideEmptyNode, searchValue, start, end) =>
+      Promise.resolve(send({ type: 'SET_FILTER', hideEmptyNode, searchValue, start, end })),
+    upsertChildren: (parentId, children, page, anchorId = '') =>
+      Promise.resolve(send({ type: 'UPSERT_CHILDREN', parentId, children, page, anchorId })),
+    expandAll: (start, end) => Promise.resolve(send({ type: 'EXPAND_ALL', start, end })),
+    collapseAll: (start, end) => Promise.resolve(send({ type: 'COLLAPSE_ALL', start, end })),
+  };
+}
+
+test('topology initialization does not mutate a response shared with another consumer', async () => {
+  const h = harness({ from: '100', to: '200' });
+  const tree = skeleton();
+  Object.freeze(tree[0]);
+  h.respond('getHostTopoTreeByBizId', tree, args => args[2] === false);
+  await flush();
+  assert.equal(h.topo.loading.value, false);
+  assert.equal(h.topo.loadError.value, false);
+  assert.ok(h.topo.visibleRows.value.length > 0);
+  assert.equal(tree[0].isOpen, undefined);
+  h.app.unmount();
+});
 
 test('actual HostPage mounts list before either topology response and restores URL once', async () => {
   const h = harness({ nodeId: 'module|3', from: '100', to: '200', activeTab: 'list' });
@@ -680,7 +692,7 @@ test('actual HostProcess service requests ID before metadata, then mounts detail
   const h = harness({ nodeId: '11', activeTab: 'process', hostProcessName: 'fixture-process', from: '100', to: '200' });
   await flush();
   const processCall = h.pending('getHostProcessList');
-  assert.deepEqual(processCall.args[0], { bk_host_id: 11, start_time: 100, end_time: 200 });
+  assert.deepEqual(processCall.args[0], { bk_biz_id: 1, bk_host_id: 11, start_time: 100, end_time: 200 });
   h.respond('getHostProcessList', [{ name: 'fixture-process', ports: [], hostIp: '127.0.0.11' }]);
   await flush();
   assert.equal(h.processTable.data.length, 1);
@@ -692,6 +704,33 @@ test('actual HostProcess service requests ID before metadata, then mounts detail
   assert.equal(h.calls.filter(call => call.name === 'getHostProcessList').length, 1);
   assert.equal(h.pending('getHostProcessUptime').args[0].bk_host_id, 11);
   h.app.unmount();
+});
+
+test('actual process detail remount shares pending uptime through its service', async () => {
+  const owner = {};
+  const query = { nodeId: '11', activeTab: 'process', hostProcessName: 'fixture-process', from: '100', to: '200' };
+  const open = async () => {
+    const h = harness({ ...query }, false, undefined, owner);
+    await flush();
+    h.respond('getHostProcessList', [{ name: 'fixture-process', ports: [], hostIp: '127.0.0.11' }]);
+    h.respond('getHostInfoPage', { items: [{ ...host(11), bk_cloud_id: 7 }], page: 1, page_size: 1, total: 1 });
+    await flush();
+    return h;
+  };
+  const first = await open();
+  assert.equal(first.pending('getHostProcessUptime').args[0].bk_host_id, 11);
+  assert.deepEqual(first.pending('getHostProcessUptime').args[1], { needMessage: false });
+  first.app.unmount();
+  const second = await open();
+  assert.equal(second.calls.filter(call => call.name === 'getHostProcessUptime').length, 0);
+  first.respond('getHostProcessUptime', { value: 60 });
+  await flush();
+  second.app.unmount();
+  const third = await open();
+  assert.equal(third.calls.filter(call => call.name === 'getHostProcessUptime').length, 1);
+  third.respond('getHostProcessUptime', { value: 70 });
+  await flush();
+  third.app.unmount();
 });
 
 const findElement = (element, predicate) =>
@@ -805,15 +844,12 @@ for (const transition of ['business', 'share', 'unmount']) {
 for (const shared of [false, true]) {
   test(`late Worker selection cannot complete the new ${shared ? 'shared host' : 'business'} tree`, async () => {
     let release;
-    const h = harness(
-      shared ? { shareTargetType: 'host', shareBkHostId: '11' } : {},
-      shared,
-      result =>
-        result.type === 'SELECT_DONE'
-          ? new Promise(resolve => {
-              release = () => resolve(result);
-            })
-          : Promise.resolve(result)
+    const h = harness(shared ? { shareTargetType: 'host', shareBkHostId: '11' } : {}, shared, result =>
+      result.type === 'SELECT_DONE'
+        ? new Promise(resolve => {
+            release = () => resolve(result);
+          })
+        : Promise.resolve(result)
     );
     await flush();
     h.respond('getHostTopoTreeByBizId', shared ? fullTree() : skeleton(), args => shared || args[2] === false);
@@ -834,9 +870,11 @@ for (const shared of [false, true]) {
 
 test('topology skeleton stays visible until Worker viewport rows are ready', async () => {
   const releases = [];
-  const h = harness({}, false, result => result.type === 'GET_RANGE_DONE'
-    ? new Promise(resolve => releases.push(() => resolve(result)))
-    : Promise.resolve(result));
+  const h = harness({}, false, result =>
+    result.type === 'GET_RANGE_DONE'
+      ? new Promise(resolve => releases.push(() => resolve(result)))
+      : Promise.resolve(result)
+  );
   await flush();
   assert.equal(h.topo.loading.value, true);
   h.respond('getHostTopoTreeByBizId', skeleton(), args => args[2] === false);
@@ -853,8 +891,9 @@ test('topology skeleton stays visible until Worker viewport rows are ready', asy
 });
 
 test('topology Worker viewport failure ends loading and shows an error instead of an endless skeleton', async () => {
-  const h = harness({}, false, result => result.type === 'GET_RANGE_DONE'
-    ? Promise.reject(new Error('viewport failed')) : Promise.resolve(result));
+  const h = harness({}, false, result =>
+    result.type === 'GET_RANGE_DONE' ? Promise.reject(new Error('viewport failed')) : Promise.resolve(result)
+  );
   await flush();
   h.respond('getHostTopoTreeByBizId', new Error('skeleton unavailable'), args => args[2] === false, true);
   h.respond('getHostTopoTreeByBizId', fullTree(), args => args.length === 2);

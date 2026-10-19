@@ -26,17 +26,10 @@
 import { onScopeDispose, shallowRef } from 'vue';
 import type { ShallowRef } from 'vue';
 
-import {
-  clearHostListQueryCache,
-  getHostInfoList,
-  getHostInfoPage,
-  getHostListQuery,
-  getHostMetricInfoList,
-  getHostMetricStats,
-} from '../services/host-service';
+import { getHostInfoList, getHostInfoPage, getHostMetricInfoList, getHostMetricStats } from '../services/host-service';
 import { createHostListRow } from '../utils/host-list-core';
 
-import type { HostListQuery } from '../services/host-service';
+import type { HostRequestTimeContext } from '../services/host-request';
 import type { IHostBaseInfo, IHostMetricInfo } from '../types/host';
 import type { EHostQuickCategory, IHostListRow, IHostQuickCardStats } from '../types/host-list';
 import type { HostScopeParams } from '../utils/share-scope';
@@ -48,8 +41,8 @@ interface HostListDataOptions {
   worker: ReturnType<typeof useHostListWorker>;
   getComputeParams: () => IHostListComputeParams;
   getPageScope: () => HostScopeParams;
-  getQueryKey?: () => null | string;
   getScope: () => HostScopeParams;
+  getTimeContext: () => HostRequestTimeContext;
   getTimeParams: () => { end_time: number; start_time: number };
 }
 
@@ -93,8 +86,8 @@ export const useHostListData = (options: HostListDataOptions) => {
   let fullBase: IHostBaseInfo[] | null = null;
   let fullMetrics: null | Record<string, IHostMetricInfo> = null;
   let fullRowCount = 0;
-  let sharedQuery: HostListQuery | null = null;
   let timeParams: ReturnType<HostListDataOptions['getTimeParams']>;
+  let timeContext: HostRequestTimeContext;
   let fullScope: HostScopeParams;
   const categoryRequests: Record<EHostQuickCategory, number> = { alarm: 0, cpu: 0, disk: 0, mem: 0 };
   const isCurrent = (value: number) => !disposed && generation === value;
@@ -111,7 +104,7 @@ export const useHostListData = (options: HostListDataOptions) => {
       isCurrent(currentGeneration) && requestId === categoryRequests[category] && !fullDataReady.value;
     setCategoryState(category, true, false);
     try {
-      const result = await getHostMetricStats({ ...options.getPageScope(), ...timeParams, category });
+      const result = await getHostMetricStats({ ...options.getPageScope(), ...timeParams, category }, timeContext);
       if (!isLatest()) return;
       if (!result.complete || result.value === null) {
         setCategoryState(category, false, true);
@@ -153,11 +146,14 @@ export const useHostListData = (options: HostListDataOptions) => {
     metricLoading.value = true;
     metricLoadError.value = false;
     try {
-      const metrics = await getHostMetricInfoList({
-        ...fullScope,
-        ...timeParams,
-        bk_host_ids: base.map(row => row.bk_host_id),
-      });
+      const metrics = await getHostMetricInfoList(
+        {
+          ...fullScope,
+          ...timeParams,
+          bk_host_ids: base.map(row => row.bk_host_id),
+        },
+        timeContext
+      );
       if (isLatest()) pagedRows.value = base.map(row => createHostListRow(row, metrics[row.bk_host_id]));
     } catch {
       if (isLatest()) metricLoadError.value = true;
@@ -237,7 +233,6 @@ export const useHostListData = (options: HostListDataOptions) => {
       pendingHandoff = false;
       fullBase = null;
       fullMetrics = null;
-      sharedQuery = null;
       fullDataReady.value = true;
       retainingData.value = false;
       fullLoading.value = false;
@@ -249,8 +244,6 @@ export const useHostListData = (options: HostListDataOptions) => {
       pageBase = [];
     } catch {
       if (!isLatest()) return;
-      clearHostListQueryCache(sharedQuery);
-      sharedQuery = null;
       prepared = false;
       fullDataReady.value = false;
       fullLoading.value = false;
@@ -274,11 +267,11 @@ export const useHostListData = (options: HostListDataOptions) => {
     if (!fullDataReady.value) setCategoryState('alarm', true, false);
     const scope = fullScope;
     const range = timeParams;
-    const query = sharedQuery;
+    const rangeContext = timeContext;
     // 分享仍沿用明确 ID 子集的查询协议；普通业务全量指标立即并发且省略 ID。
     const basePromise = fullBase
       ? Promise.resolve(fullBase)
-      : (query?.basePromise ?? getHostInfoList(scope)).then(rows => {
+      : getHostInfoList(scope).then(rows => {
           if (isLatest()) fullBase = rows;
           return rows;
         });
@@ -288,10 +281,13 @@ export const useHostListData = (options: HostListDataOptions) => {
       : (scoped
           ? basePromise.then(rows =>
               rows.length
-                ? getHostMetricInfoList({ ...scope, ...range, bk_host_ids: rows.map(row => row.bk_host_id) })
+                ? getHostMetricInfoList(
+                    { ...scope, ...range, bk_host_ids: rows.map(row => row.bk_host_id) },
+                    rangeContext
+                  )
                 : {}
             )
-          : (query?.metricPromise ?? getHostMetricInfoList({ ...scope, ...range }))
+          : getHostMetricInfoList({ ...scope, ...range }, rangeContext)
         ).then(metrics => {
           if (isLatest()) fullMetrics = metrics;
           return metrics;
@@ -313,11 +309,9 @@ export const useHostListData = (options: HostListDataOptions) => {
       await refreshList();
     } catch {
       if (!isLatest()) return;
-      clearHostListQueryCache(query);
-      sharedQuery = null;
       fullLoading.value = false;
       fullLoadError.value = true;
-      if (workerChanged && (fullDataReady.value || query?.resolved)) {
+      if (workerChanged && fullDataReady.value) {
         fullDataReady.value = false;
         void loadPageData();
         void loadCategoryStats();
@@ -326,7 +320,7 @@ export const useHostListData = (options: HostListDataOptions) => {
     }
   };
 
-  const loadData = (preserve = false, forceRefresh = true) => {
+  const loadData = (preserve = false) => {
     retainingData.value = preserve && fullDataReady.value && prepared;
     pageRequest += 1;
     metricRequest += 1;
@@ -344,9 +338,9 @@ export const useHostListData = (options: HostListDataOptions) => {
       categoryStates.value = emptyCategoryStates();
     }
     fullScope = options.getScope();
-    sharedQuery = getHostListQuery(options.getQueryKey?.() ?? null, fullScope, options.getTimeParams, forceRefresh);
-    timeParams = sharedQuery?.timeParams ?? options.getTimeParams();
-    if (retainingData.value || sharedQuery?.resolved) {
+    timeParams = options.getTimeParams();
+    timeContext = options.getTimeContext();
+    if (retainingData.value) {
       loading.value = !retainingData.value;
       metricLoading.value = false;
       return retryFullData();
@@ -360,7 +354,6 @@ export const useHostListData = (options: HostListDataOptions) => {
     pageBase = [];
     fullBase = null;
     fullMetrics = null;
-    sharedQuery = null;
   });
 
   return {
