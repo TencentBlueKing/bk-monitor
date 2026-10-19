@@ -99,6 +99,7 @@ export default defineComponent({
               })}
             </span>
             <Button
+              disabled={this.loading.retryAnalysis}
               loading={this.loading.retryAnalysis}
               theme='primary'
               text

@@ -32,23 +32,23 @@ import {
   startSourceAnalysis,
 } from 'monitor-api/modules/issue';
 
-import type { RequestOptions } from '../../services/base';
 import type {
   AIAnalysisBaseParams,
   AIAnalysisOverview,
   SourceAnalysisRetryParams,
   SourceAnalysisView,
 } from '../typing';
+import type { RequestConfig } from 'monitor-api/base';
 
 /**
  * @description 查询 AI 分析快览（聚合接口），汇总右侧常驻模块需要的全部 AI 能力摘要
  * @param {AIAnalysisBaseParams} params - 查询请求参数（bk_biz_id / issue_id）
- * @param {RequestOptions} options - 请求配置选项
+ * @param {RequestConfig} options - 请求配置选项
  * @returns {Promise<AIAnalysisOverview>} AI 分析快览聚合数据
  */
 export const getIssueAiAnalysisOverview = (
   params: AIAnalysisBaseParams,
-  options?: RequestOptions
+  options?: RequestConfig
 ): Promise<AIAnalysisOverview> => {
   return aiAnalysisOverview(params, options);
 };
@@ -56,12 +56,12 @@ export const getIssueAiAnalysisOverview = (
 /**
  * @description 查询最新源码分析状态/结果，进入 AI 分析页签与完整结果轮询共用
  * @param {AIAnalysisBaseParams} params - 查询请求参数（bk_biz_id / issue_id）
- * @param {RequestOptions} options - 请求配置选项
+ * @param {RequestConfig} options - 请求配置选项
  * @returns {Promise<SourceAnalysisView>} 源码分析视图数据
  */
 export const getIssueSourceAnalysis = (
   params: AIAnalysisBaseParams,
-  options?: RequestOptions
+  options?: RequestConfig
 ): Promise<SourceAnalysisView> => {
   return sourceAnalysis(params, options);
 };
@@ -69,12 +69,12 @@ export const getIssueSourceAnalysis = (
 /**
  * @description 首次源码分析，仅在已配置且从未执行时可用
  * @param {AIAnalysisBaseParams} params - 触发请求参数（bk_biz_id / issue_id）
- * @param {RequestOptions} options - 请求配置选项
+ * @param {RequestConfig} options - 请求配置选项
  * @returns {Promise<SourceAnalysisView>} 源码分析视图数据
  */
 export const startIssueSourceAnalysis = (
   params: AIAnalysisBaseParams,
-  options?: RequestOptions
+  options?: RequestConfig
 ): Promise<SourceAnalysisView> => {
   return startSourceAnalysis(params, options);
 };
@@ -82,12 +82,12 @@ export const startIssueSourceAnalysis = (
 /**
  * @description 失败重试源码分析，复用目标失败记录的 alert_id
  * @param {SourceAnalysisRetryParams} params - 重试请求参数（bk_biz_id / issue_id / analysis_id）
- * @param {RequestOptions} options - 请求配置选项
+ * @param {RequestConfig} options - 请求配置选项
  * @returns {Promise<SourceAnalysisView>} 源码分析视图数据
  */
 export const retryIssueSourceAnalysis = (
   params: SourceAnalysisRetryParams,
-  options?: RequestOptions
+  options?: RequestConfig
 ): Promise<SourceAnalysisView> => {
   return retrySourceAnalysis(params, options);
 };
@@ -95,12 +95,12 @@ export const retryIssueSourceAnalysis = (
 /**
  * @description 重新分析源码分析，只允许从成功终态发起，重新选择当前最新告警
  * @param {AIAnalysisBaseParams} params - 重新分析请求参数（bk_biz_id / issue_id）
- * @param {RequestOptions} options - 请求配置选项
+ * @param {RequestConfig} options - 请求配置选项
  * @returns {Promise<SourceAnalysisView>} 源码分析视图数据
  */
 export const reanalyzeIssueSourceAnalysis = (
   params: AIAnalysisBaseParams,
-  options?: RequestOptions
+  options?: RequestConfig
 ): Promise<SourceAnalysisView> => {
   return reanalyzeSourceAnalysis(params, options);
 };

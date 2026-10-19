@@ -187,6 +187,7 @@ export default defineComponent({
             <div>{sourceAnalysisData.value.latest.failure.message}</div>
             <Button
               style='margin-top: 10px'
+              disabled={analysisLoading.retryAnalysis}
               loading={analysisLoading.retryAnalysis}
               theme='primary'
               text
@@ -223,26 +224,21 @@ export default defineComponent({
               {t('查看完整报告')}
             </Button>
             <div class='divider' />
-            <Loading
+            <Button
+              disabled={analysisLoading.retryAnalysis}
               loading={analysisLoading.retryAnalysis}
-              mode='spin'
-              size='mini'
               theme='primary'
+              text
+              onClick={() => {
+                handleReanalyzeSourceAnalysis({
+                  bk_biz_id: props.detail.bk_biz_id,
+                  issue_id: props.detail.id,
+                });
+              }}
             >
-              <Button
-                theme='primary'
-                text
-                onClick={() => {
-                  handleReanalyzeSourceAnalysis({
-                    bk_biz_id: props.detail.bk_biz_id,
-                    issue_id: props.detail.id,
-                  });
-                }}
-              >
-                <i class='icon-monitor icon-shuaxin' />
-                {t('重新分析')}
-              </Button>
-            </Loading>
+              <i class='icon-monitor icon-shuaxin' />
+              {t('重新分析')}
+            </Button>
           </div>
         </div>
       );

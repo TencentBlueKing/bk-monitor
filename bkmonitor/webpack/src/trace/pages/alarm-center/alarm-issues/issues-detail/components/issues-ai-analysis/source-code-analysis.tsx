@@ -314,6 +314,7 @@ export default defineComponent({
             />
             <div class='guide-btns'>
               <Button
+                disabled={loading.retryAnalysis}
                 loading={loading.retryAnalysis}
                 theme='primary'
                 onClick={() => {

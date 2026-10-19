@@ -26,6 +26,8 @@
 import { computed, reactive, shallowRef } from 'vue';
 
 import { createGlobalState } from '@vueuse/core';
+import { bkUiMessage } from 'trace/common/message';
+import { useI18n } from 'vue-i18n';
 
 import {
   getIssueAiAnalysisOverview,
@@ -44,6 +46,7 @@ import type {
 } from '../typing';
 
 export const useIssuesAiAnalysis = createGlobalState(() => {
+  const { t } = useI18n();
   const sourceAnalysisData = shallowRef<SourceAnalysisOverview | SourceAnalysisView>(null);
   const loopStatus = ['pending', 'running'];
   const loading = reactive({
@@ -120,20 +123,33 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
   const handleReanalyzeSourceAnalysis = async (params: AIAnalysisBaseParams | SourceAnalysisRetryParams) => {
     if (loading.retryAnalysis) return;
     loading.retryAnalysis = true;
-    if (sourceAnalysisData.value.latest.status === 'failed') {
-      sourceAnalysisData.value = await retryIssueSourceAnalysis(params as SourceAnalysisRetryParams).finally(() => {
-        loading.retryAnalysis = false;
+    try {
+      const options = { needMessage: false };
+      sourceAnalysisData.value =
+        sourceAnalysisData.value.latest.status === 'failed'
+          ? await retryIssueSourceAnalysis(params as SourceAnalysisRetryParams, options)
+          : await reanalyzeIssueSourceAnalysis(params, options);
+      bkUiMessage({ theme: 'success', message: t('分析任务已提交') });
+      if (sourceAnalysisIsPending.value) {
+        await getSourceAnalysisData({
+          bk_biz_id: params.bk_biz_id,
+          issue_id: params.issue_id,
+        });
+      }
+    } catch (err) {
+      const error = err?.data ?? err;
+      const details = error?.error_details || (typeof error?.message === 'object' ? error.message : null);
+      bkUiMessage({
+        theme: 'error',
+        message:
+          (details?.popup_message && details) ||
+          details?.overview ||
+          (typeof error?.message === 'string' && error.message) ||
+          (typeof error === 'string' && error) ||
+          t('重新分析失败，请稍后重试'),
       });
-    } else {
-      sourceAnalysisData.value = await reanalyzeIssueSourceAnalysis(params).finally(() => {
-        loading.retryAnalysis = false;
-      });
-    }
-    if (sourceAnalysisIsPending.value) {
-      await getSourceAnalysisData({
-        bk_biz_id: params.bk_biz_id,
-        issue_id: params.issue_id,
-      });
+    } finally {
+      loading.retryAnalysis = false;
     }
   };
 

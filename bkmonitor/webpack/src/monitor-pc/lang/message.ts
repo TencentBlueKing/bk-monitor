@@ -174,6 +174,8 @@ export default {
   全部失败: 'All failed',
   共享成功: 'Shared successful',
   操作成功: 'Operation successful',
+  分析任务已提交: 'Analysis task submitted',
+  '重新分析失败，请稍后重试': 'Failed to submit analysis. Please try again later',
   导出出错了: 'Export error',
   系统出错了: 'System error',
   获取数据出错了: 'Getting data error',
