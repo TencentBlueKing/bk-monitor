@@ -27,6 +27,7 @@
 export type { OverlayOpenOptions, OverlayRecord, OverlayRegisterOptions, OverlayType } from './overlay-types';
 export {
   createDialogVisibleState,
+  createRawTippyLifecycle,
   isClickInsideClosest,
   isValidAnchorRect,
   overlayRegistry,
@@ -37,5 +38,5 @@ export {
 } from './overlay-registry';
 export { useOverlay } from './use-overlay';
 export { useDialogVisible } from './use-dialog-visible';
-export { createOverlayTippy } from './adapters/tippy-adapter';
+export { createOverlayTippy, createRawTippyOverlay } from './adapters/tippy-adapter';
 export { bindDialogToOverlay } from './adapters/dialog-adapter';

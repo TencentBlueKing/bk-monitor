@@ -328,6 +328,55 @@ class OverlayRegistry {
 
 const overlayRegistry = new OverlayRegistry();
 
+/**
+ * 给检索目录里仍直接 tippy() 的调用点提供统一生命周期。
+ * 业务继续拿 tippy instance 调 show/hide/destroy，Registry 负责关栈、锚点丢失和 z-index。
+ */
+const createRawTippyLifecycle = (id, options = {}, registry = overlayRegistry) => {
+  if (!id) {
+    throw new Error('[overlay-registry] id is required');
+  }
+
+  let instance = null;
+
+  const hideInstance = () => {
+    if (Array.isArray(instance)) {
+      instance.forEach(item => item?.hide?.());
+      return;
+    }
+    instance?.hide?.();
+  };
+
+  registry.register(id, {
+    ...options,
+    type: options.type || 'popover',
+    hide: hideInstance,
+  });
+
+  return {
+    setInstance(next) {
+      instance = next;
+    },
+    nextZIndex: () => registry.nextZIndex(),
+    onShow(reference) {
+      const rect = reference?.getBoundingClientRect?.();
+      if (rect && !isValidAnchorRect(rect)) {
+        hideInstance();
+        registry.notifyAnchorLost(id);
+        return false;
+      }
+      registry.open(id, { anchor: reference ?? null });
+      return true;
+    },
+    onHidden() {
+      registry.hide(id);
+    },
+    onDestroy() {
+      registry.dispose(id);
+    },
+  };
+};
+
 module.exports = {
   FALLBACK_ZINDEX_START,
   OVERLAY_RULES,
@@ -338,4 +387,5 @@ module.exports = {
   isValidAnchorRect,
   resolvePopperPlacementRect,
   createDialogVisibleState,
+  createRawTippyLifecycle,
 };

@@ -30,6 +30,7 @@ const test = require('node:test');
 const {
   OverlayRegistry,
   createDialogVisibleState,
+  createRawTippyLifecycle,
   isClickInsideClosest,
   isValidAnchorRect,
   resolvePopperPlacementRect,
@@ -164,6 +165,38 @@ test('findParentIdByElement resolves the visible ancestor overlay', () => {
 
   assert.equal(registry.findParentIdByElement(child), 'outer');
   assert.equal(registry.isClickInsideRecord({ target: child }, 'outer'), true);
+});
+
+test('raw tippy lifecycle hides when the anchor rect is invalid', () => {
+  const registry = createRegistry();
+  const hidden = [];
+  const lifecycle = createRawTippyLifecycle('raw-tip', {
+    hide: () => hidden.push('raw-tip'),
+  }, registry);
+  const fakeInstance = { hide: () => hidden.push('instance') };
+
+  lifecycle.setInstance(fakeInstance);
+  assert.equal(lifecycle.onShow({ getBoundingClientRect: () => ({ width: 0, height: 0 }) }), false);
+  assert.equal(registry.isOpen('raw-tip'), false);
+  assert.deepEqual(hidden, ['instance']);
+});
+
+test('raw tippy lifecycle opens, hides and disposes through the registry', () => {
+  const registry = createRegistry();
+  const lifecycle = createRawTippyLifecycle('raw-ok', {}, registry);
+  const fakeInstance = {
+    hide() {
+      lifecycle.onHidden();
+    },
+  };
+
+  lifecycle.setInstance(fakeInstance);
+  assert.equal(lifecycle.onShow({ getBoundingClientRect: () => ({ width: 12, height: 8 }) }), true);
+  assert.equal(registry.isOpen('raw-ok'), true);
+  lifecycle.onHidden();
+  assert.equal(registry.isOpen('raw-ok'), false);
+  lifecycle.onDestroy();
+  assert.equal(registry.get('raw-ok'), null);
 });
 
 test('dialog visible writes back false so the next open is a real change', () => {

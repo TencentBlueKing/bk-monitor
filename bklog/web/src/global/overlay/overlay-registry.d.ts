@@ -63,3 +63,17 @@ export function shouldHideOnOutsideClick(
 export function isValidAnchorRect(rect?: { width?: number; height?: number } | null): boolean;
 export function resolvePopperPlacementRect<T extends { width?: number; height?: number }>(rect?: T | null): T | null;
 export function createDialogVisibleState(initial?: boolean, hooks?: DialogVisibleHooks): DialogVisibleState;
+
+export interface RawTippyLifecycle {
+  setInstance: (_instance: unknown) => void;
+  nextZIndex: () => number;
+  onShow: (_reference?: Element | null) => boolean;
+  onHidden: () => void;
+  onDestroy: () => void;
+}
+
+export function createRawTippyLifecycle(
+  id: string,
+  options?: OverlayRegisterOptions,
+  registry?: OverlayRegistry,
+): RawTippyLifecycle;

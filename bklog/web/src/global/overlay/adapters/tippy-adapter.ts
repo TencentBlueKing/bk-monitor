@@ -24,8 +24,10 @@
  * IN THE SOFTWARE.
  */
 
+import tippy, { type Instance, type Props } from 'tippy.js';
+
 import PopInstanceUtil from '../../pop-instance-util';
-import { overlayRegistry, resolvePopperPlacementRect } from '../overlay-registry';
+import { createRawTippyLifecycle, overlayRegistry, resolvePopperPlacementRect } from '../overlay-registry';
 import type { OverlayRegisterOptions } from '../overlay-types';
 
 export interface OverlayTippyOptions extends OverlayRegisterOptions {
@@ -78,6 +80,48 @@ export const createOverlayTippy = (options: OverlayTippyOptions) => {
     },
     resolvePlacementRect: resolvePopperPlacementRect,
   };
+};
+
+export interface RawTippyOverlayOptions extends OverlayRegisterOptions {
+  id: string;
+}
+
+/**
+ * 包住检索目录里仍直接 tippy() 的调用点。返回值与 tippy() 相同，业务仍可 show/hide/destroy。
+ */
+export const createRawTippyOverlay = (
+  target: Parameters<typeof tippy>[0],
+  tippyOptions: Partial<Props> = {},
+  overlayOptions: RawTippyOverlayOptions,
+) => {
+  const lifecycle = createRawTippyLifecycle(overlayOptions.id, overlayOptions);
+  const created = tippy(target, {
+    appendTo: () => document.body,
+    ...tippyOptions,
+    zIndex: tippyOptions.zIndex ?? lifecycle.nextZIndex(),
+    onShow(instance: Instance) {
+      if (lifecycle.onShow(instance.reference) === false) {
+        return false;
+      }
+      const userResult = tippyOptions.onShow?.(instance);
+      if (userResult === false) {
+        lifecycle.onHidden();
+        return false;
+      }
+      return userResult;
+    },
+    onHidden(instance: Instance) {
+      lifecycle.onHidden();
+      tippyOptions.onHidden?.(instance);
+    },
+    onDestroy(instance: Instance) {
+      lifecycle.onDestroy();
+      tippyOptions.onDestroy?.(instance);
+    },
+  });
+
+  lifecycle.setInstance(created);
+  return created;
 };
 
 export default createOverlayTippy;
