@@ -1,12 +1,12 @@
 import copy
 import gzip
-import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
-from django.http import HttpResponse
 from django.test import RequestFactory
+from rest_framework.renderers import JSONRenderer
+from rest_framework.response import Response
 
 from apm.core.handlers.query.span_query import SpanQuery
 from apm_web.handlers.trace_handler.base import TraceHandler
@@ -57,7 +57,10 @@ def test_trace_original_timestamps_are_preserved_without_copying_attributes() ->
 
 
 @pytest.mark.parametrize("span_count", [500, 501])
-def test_trace_resource_automatically_defers_details_above_threshold(span_count: int) -> None:
+@pytest.mark.parametrize("reduce_details", [None, False, True])
+def test_trace_resource_defers_large_trace_details_only_when_requested(
+    span_count: int, reduce_details: bool | None
+) -> None:
     from apm_web.trace.resources import SpanDetailResource, TraceDetailResource
 
     template: dict = copy.deepcopy(read_trace_list("simple")[0])
@@ -77,9 +80,10 @@ def test_trace_resource_automatically_defers_details_above_threshold(span_count:
         patch("apm_web.trace.resources.api.apm_api.query_span_detail", return_value=spans[0]),
         patch("apm_web.trace.diagram.config.DiagramConfigController.read", return_value=None),
     ):
-        serializer = TraceDetailResource.RequestSerializer(
-            data={"bk_biz_id": 2, "app_name": "app", "trace_id": template["trace_id"]}
-        )
+        parameters: dict = {"bk_biz_id": 2, "app_name": "app", "trace_id": template["trace_id"]}
+        if reduce_details is not None:
+            parameters["reduce_span_details"] = reduce_details
+        serializer = TraceDetailResource.RequestSerializer(data=parameters)
         serializer.is_valid(raise_exception=True)
         result: dict = TraceDetailResource().perform_request(serializer.validated_data)
         restored: dict = SpanDetailResource().perform_request(
@@ -90,8 +94,8 @@ def test_trace_resource_automatically_defers_details_above_threshold(span_count:
     for actual, expected in zip(result["trace_tree"]["spans"], full["trace_tree"]["spans"], strict=True):
         for field in ("spanID", "operationName", "startTime", "duration", "references", "group_info"):
             assert actual.get(field) == expected.get(field)
-        assert bool(actual["attributes"]) is (span_count <= 500)
-    if span_count > 500:
+        assert bool(actual["attributes"]) is not (bool(reduce_details) and span_count > 500)
+    if reduce_details and span_count > 500:
         assert all(not span["attributes"] and not span["events"] for span in result["original_data"])
         assert all(not process["tags"] for process in result["trace_tree"]["processes"].values())
         assert result["original_data"][0]["resource"] == {"service.name": template["resource"]["service.name"]}
@@ -103,12 +107,13 @@ def test_trace_resource_automatically_defers_details_above_threshold(span_count:
     assert spans[0]["resource"] == template["resource"]
 
 
-def test_cross_app_and_llm_spans_share_deferred_details_with_large_traces() -> None:
+@pytest.mark.parametrize("reduce_details", [False, True])
+def test_cross_app_and_llm_details_are_independent_of_large_trace_opt_in(reduce_details: bool) -> None:
     spans: list[dict] = copy.deepcopy(read_trace_list("simple"))
     spans[0]["app_name"] = "other-app"
     spans[1]["bk_biz_id"] = 3
     spans[2]["llm_detail"] = {"span_type": "LLM"}
-    deferred: set[str] = TraceHandler.get_deferred_span_ids(spans, 2, "app")
+    deferred: set[str] = TraceHandler.get_deferred_span_ids(spans, 2, "app", reduce_span_details=reduce_details)
     assert deferred == {span["span_id"] for span in spans[:3]}
     compact: dict = TraceHandler.handle_trace("app", spans, spans[0]["trace_id"], {}, detail_span_ids=deferred)
     TraceHandler.sanitize_span_details(compact, 2, "app", detail_span_ids=deferred)
@@ -122,9 +127,16 @@ def test_large_trace_preserves_virtual_details_without_storage_lookup() -> None:
     virtual: dict = copy.deepcopy(read_trace_list("simple")[0])
     virtual["is_virtual"] = True
     spans: list[dict] = [{"span_id": str(index)} for index in range(501)] + [virtual]
-    assert virtual["span_id"] not in TraceHandler.get_deferred_span_ids(spans, 2, "app")
+    assert virtual["span_id"] not in TraceHandler.get_deferred_span_ids(spans, 2, "app", reduce_span_details=True)
     converted: dict = TraceHandler._convert_span("app", virtual, defer_details=True)
     assert converted["attributes"]
+
+
+def test_large_trace_keeps_existing_llm_and_cross_app_selection_without_opt_in() -> None:
+    spans = [{"span_id": str(index)} for index in range(501)]
+    spans[0]["llm_detail"] = {"span_type": "LLM"}
+    spans[1]["app_name"] = "other-app"
+    assert TraceHandler.get_deferred_span_ids(spans, 2, "app") == {"0", "1"}
 
 
 def test_trace_query_keeps_single_page_limit() -> None:
@@ -188,7 +200,7 @@ def test_topology_preserves_virtual_return_branches() -> None:
     assert "0000000000000015" in {node["id"] for node in result["nodes"]}
 
 
-def test_trace_span_query_batches_without_losing_app_scope() -> None:
+def test_trace_span_query_preserves_app_scope_without_batch_opt_in() -> None:
     source = SimpleNamespace(app=SimpleNamespace(bk_biz_id=2, app_name="app"))
     query = SpanQuery([source])
     guarded = (
@@ -201,21 +213,42 @@ def test_trace_span_query_batches_without_losing_app_scope() -> None:
     ):
         assert query.query_by_trace_id("trace-id", 100, 200) == []
     body = request.call_args.kwargs["query_body"]
-    assert body["is_es_batch"] is True
+    assert body["is_es_batch"] is False
     assert body["bk_biz_id"] == 2
     assert "app_name" in str(body["query_configs"][0]["filter_dict"])
     assert "trace-id" in str(body["query_configs"][0]["filter_dict"])
 
 
-def test_trace_gzip_route_preserves_json_content() -> None:
+@pytest.mark.parametrize("endpoint", ["trace_detail", "span_detail"])
+@pytest.mark.parametrize("ajax", [False, True])
+@pytest.mark.parametrize("accept_encoding", ["", "br", "gzip, deflate, br", "gzip;q=0", "gzip;q=0.5", "gzip;q=invalid"])
+def test_detail_gzip_requires_frontend_request_and_negotiation(endpoint: str, ajax: bool, accept_encoding: str) -> None:
     from apm_web.trace.views import TraceQueryViewSet
 
-    route = next(route for route in TraceQueryViewSet.resource_routes if route.endpoint == "trace_detail")
-    raw = json.dumps({"trace_id": "trace-id", "spans": [{"span_id": "span-id"}] * 100}).encode()
-    response = HttpResponse(raw, content_type="application/json")
-    response.content_encoding = route.content_encoding
-    request = RequestFactory().post("/trace_detail/")
+    route = next(route for route in TraceQueryViewSet.resource_routes if route.endpoint == endpoint)
+    assert not route.content_encoding
+    payload = {"trace_id": "trace-id", "spans": [{"span_id": "span-id"}] * 100}
+    raw = JSONRenderer().render(payload)
+    response = Response(payload)
+    request = RequestFactory().post(
+        f"/{endpoint}/",
+        HTTP_ACCEPT_ENCODING=accept_encoding,
+        HTTP_X_REQUESTED_WITH="XMLHttpRequest" if ajax else "",
+    )
+    request.accepted_renderer = JSONRenderer()
+    request.accepted_media_type = "application/json"
+    view = TraceQueryViewSet()
+    view.action = endpoint
+    view.headers = {}
+    response = view.finalize_response(request, response)
+    response.render()
     compressed = MonitorAPIMiddleware(lambda request: response).process_response(request, response)
-    assert compressed["Content-Encoding"] == "gzip"
-    assert len(compressed.content) < len(raw)
-    assert gzip.decompress(compressed.content) == raw
+    assert {"X-Requested-With", "Accept-Encoding"} <= set(compressed["Vary"].split(", "))
+    if ajax and accept_encoding in {"gzip, deflate, br", "gzip;q=0.5"}:
+        assert compressed["Content-Encoding"] == "gzip"
+        assert len(compressed.content) < len(raw)
+        assert int(compressed["Content-Length"]) == len(compressed.content)
+        assert gzip.decompress(compressed.content) == raw
+    else:
+        assert not compressed.has_header("Content-Encoding")
+        assert compressed.content == raw

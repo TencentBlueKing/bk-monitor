@@ -104,7 +104,11 @@ function createObservation(instrument) {
   }, instrument);
   const { useLlmObservation } = load(path.join(root, 'inquire-content/llm-observation/hooks/use-llm-observation.ts'));
   const scope = vue.effectScope();
-  const context = { appName: vue.shallowRef('app-a'), bizId: vue.shallowRef(11), traceId: vue.shallowRef('trace-a') };
+  const context = {
+    appName: vue.shallowRef('app-a'),
+    bizId: vue.shallowRef(11),
+    traceId: vue.shallowRef('trace-a'),
+  };
   const result = scope.run(() => useLlmObservation(context));
   return { result, context, requests, stop: () => scope.stop() };
 }
@@ -262,7 +266,7 @@ function loadFunction(file, name, dependencies, prelude = '') {
   find(source);
   assert.ok(initializer, name);
   const code = ts.transpileModule(`${prelude}\nmodule.exports = ${initializer}`, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
+    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.React, jsxFactory: 'h' },
   }).outputText;
   const module = { exports: {} };
   new Function(...Object.keys(dependencies), 'module', code)(...Object.values(dependencies), module);
@@ -352,6 +356,7 @@ test('virtualized Trace list redraws through the public Vue instance in producti
 
 test('precise Trace query mounts detail and publishes context before trace_detail resolves', async () => {
   const pending = deferred();
+  const requests = [];
   const state = { app: 'app-a', searchType: 'accurate', isAlreadyAccurateQuery: false };
   const store = {
     loading: false,
@@ -374,7 +379,10 @@ test('precise Trace query mounts detail and publishes context before trace_detai
       searchIdType: { value: 'traceID' },
       router: { replace() {} },
       route: { name: 'home' },
-      traceDetail: () => pending.promise,
+      traceDetail: params => {
+        requests.push(params);
+        return pending.promise;
+      },
       spanDetail() {},
       traceViewFilters: { value: [] },
       searchResultIdType: { value: 'spanID' },
@@ -388,6 +396,7 @@ test('precise Trace query mounts detail and publishes context before trace_detai
   assert.equal(store.traceData.trace_id, 'trace-a');
   assert.equal(store.traceData.appName, 'app-a');
   assert.equal(store.loading, true);
+  assert.equal(requests[0].reduce_span_details, true);
   pending.resolve({ original_data: [{ span_id: 'span-a' }] });
   await run;
   assert.equal(store.loading, false);
@@ -1168,6 +1177,55 @@ test('server preview objects retain KV values and JSON text is displayed without
   });
 });
 
+test('only tools add name tags and Agent previews remain unchanged', () => {
+  const { buildIoPreviews } = sourceLoader()(path.join(root, 'inquire-content/llm-observation/utils/transform.ts'));
+  const span = {
+    span_id: 'model-a',
+    attributes: { 'gen_ai.operation.name': 'chat' },
+    input: '继续',
+    output: 'old flattened tool output',
+    input_preview: { source: 'user', value: '最新要求' },
+    output_preview: { source: 'tool', tools: [{ tool_name: 'functions.exec', value: '{"value":"run()","count":2}' }] },
+  };
+  const result = buildIoPreviews([
+    {
+      trace_id: 'trace-a',
+      flow: [span, { ...span, span_id: 'agent-a', attributes: { 'gen_ai.operation.name': 'invoke_agent' } }],
+    },
+  ]);
+  assert.deepEqual(result.get('trace-a:model-a'), {
+    input: [{ type: 'text', text: '最新要求' }],
+    output: [{ type: 'tools', tools: [{ tool_name: 'functions.exec', value: '{"value":"run()","count":2}' }] }],
+  });
+  assert.deepEqual(result.get('trace-a:agent-a'), {
+    input: [{ type: 'text', text: '继续' }],
+    output: [{ type: 'text', text: 'old flattened tool output' }],
+  });
+});
+
+test('user, assistant and system previews have no tags while model tool JSON stays plain text', () => {
+  const { buildIoPreviews } = sourceLoader()(path.join(root, 'inquire-content/llm-observation/utils/transform.ts'));
+  for (const source of ['user', 'assistant', 'system']) {
+    const result = buildIoPreviews([
+      {
+        trace_id: 'trace-a',
+        flow: [
+          {
+            span_id: 'model-a',
+            attributes: { 'gen_ai.operation.name': 'chat' },
+            input_preview: { source: 'tool', tools: [{ tool_name: 'functions.exec', value: '{"text":"result","count":2}' }] },
+            output_preview: { source, value: 'plain text' },
+          },
+        ],
+      },
+    ]);
+    assert.deepEqual(result.get('trace-a:model-a'), {
+      input: [{ type: 'tools', tools: [{ tool_name: 'functions.exec', value: '{"text":"result","count":2}' }] }],
+      output: [{ type: 'text', text: 'plain text' }],
+    });
+  }
+});
+
 test('outer time metadata stays unavailable while Trace is pending, then accepts real zero duration', () => {
   const store = vue.reactive({ loading: true });
   const traceTree = vue.shallowRef({ spans: [] });
@@ -1182,4 +1240,72 @@ test('outer time metadata stays unavailable while Trace is pending, then accepts
   assert.equal(ready.value, false);
   traceTree.value = { spans: [{ duration: 0 }] };
   assert.equal(ready.value, true);
+});
+
+test('model preview keeps repeated tool calls in order instead of flattening them into KV', () => {
+  const { buildIoPreviews } = sourceLoader()(path.join(root, 'inquire-content/llm-observation/utils/transform.ts'));
+  const tools = [
+    { tool_name: 'exec', value: '{"cmd":"first"}' },
+    { tool_name: 'exec', value: '{"cmd":"second"}' },
+    { tool_name: '', value: '[1,2,3]' },
+  ];
+  const result = buildIoPreviews([{
+    trace_id: 'trace-a',
+    flow: [{ span_id: 'model-a', attributes: { 'gen_ai.operation.name': 'chat' }, input_preview: { source: 'tool', tools } }],
+  }]);
+  assert.deepEqual(result.get('trace-a:model-a').input, [{ type: 'tools', tools }]);
+});
+
+test('tool previews reuse KV packing, expand values and expose another pair before hiding it', () => {
+  const file = path.join(root, 'inquire-content/llm-observation/components/span-io-kvs.tsx');
+  const layout = loadFunction(file, 'layoutKvs', {});
+  const isFullLayout = loadFunction(file, 'isFullLayout', {});
+  const valueCap = loadFunction(file, 'resolveValueMaxWidth', {
+    MIN_VALUE_MAX_WIDTH: 120,
+    isFullLayout,
+    layoutKvs: layout,
+  });
+  const cap = valueCap(571, 4, [80, 80], [2000, 2000]);
+  assert.ok(cap > 200 && cap < 204);
+  assert.equal(isFullLayout(layout(571, 4, [80, 80], [2000, 2000], cap)), true);
+  const threeCap = valueCap(571, 4, [80, 80, 80], [2000, 2000, 2000]);
+  assert.equal(threeCap, 120);
+  assert.deepEqual(layout(571, 4, [80, 80, 80], [2000, 2000, 2000], threeCap), {
+    clipIndex: 2,
+    clipPart: 'value',
+    clipWidth: 163,
+    hiddenFrom: 3,
+  });
+  assert.equal(valueCap(571, 4, [80], [2000]), Number.POSITIVE_INFINITY);
+  assert.deepEqual(layout(571, 4, [80], [2000]), {
+    clipIndex: 0,
+    clipPart: 'value',
+    clipWidth: 571,
+    hiddenFrom: 1,
+  });
+  assert.equal(layout(527, 4, [80, 80, 80, 80], [2000, 2000, 2000, 2000], 120).hiddenFrom, 3);
+});
+
+test('text, KV and model tool previews share the same equal-width side container', () => {
+  const render = loadFunction(
+    path.join(root, 'inquire-content/llm-observation/components/span-row.tsx'),
+    'renderIoSide',
+    {
+      h: vue.h,
+      pickPreviewPiece: pieces => pieces[0] || null,
+      formatPiecesTooltip: () => '',
+      renderIoPiece: () => vue.h('span', 'preview'),
+    }
+  );
+  for (const preview of [
+    { type: 'text', text: 'hello' },
+    { type: 'kv', pairs: [{ key: 'path', value: '/example' }] },
+    { type: 'tools', tools: [{ tool_name: 'exec', value: '{"cmd":"pwd"}' }] },
+  ]) {
+    const side = render([preview]);
+    assert.equal(side.type, 'div');
+    assert.equal(side.props.class, 'llm-span-io-pieces');
+    assert.equal(side.children.length, 1);
+  }
+  assert.equal(render([]).props.class, 'llm-span-io-empty');
 });

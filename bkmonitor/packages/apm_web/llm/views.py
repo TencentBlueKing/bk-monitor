@@ -51,7 +51,11 @@ class LLMViewSet(ResourceViewSet):
             ListFlowsResource,
             endpoint="list_flows",
             decorators=[
-                user_visit_record,
+                user_visit_record(
+                    response_condition=lambda response: any(
+                        trace.get("flow") for trace in response.data.get("traces", [])
+                    )
+                ),
             ],
         ),
         ResourceRoute("POST", TokenStatisticsResource, endpoint="token_statistics"),

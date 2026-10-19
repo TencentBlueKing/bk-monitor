@@ -809,6 +809,7 @@ export default defineComponent({
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
         trace_id: traceId,
+        reduce_span_details: true,
       };
 
       if (

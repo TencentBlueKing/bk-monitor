@@ -33,7 +33,7 @@ class TraceSummary:
             return str(value).strip()
 
     @classmethod
-    def _part_preview(cls, part: dict[str, Any], expected: str) -> str:
+    def part_preview(cls, part: dict[str, Any], expected: str) -> str:
         part_type = str(part.get("type") or "")
         if expected == "text" and part_type in cls._TEXT_PART_TYPES:
             return cls._preview_text(part.get("content", part.get("text")))
@@ -59,7 +59,7 @@ class TraceSummary:
             if not isinstance(parts, list):
                 continue
             for part in reversed(parts):
-                if isinstance(part, dict) and (preview := cls._part_preview(part, expected)):
+                if isinstance(part, dict) and (preview := cls.part_preview(part, expected)):
                     return [preview]
         return previews
 
@@ -79,21 +79,21 @@ class TraceSummary:
                 for part in reversed(parts):
                     if isinstance(part, dict):
                         for kind in ("tool_result", "tool_call"):
-                            if text := cls._part_preview(part, kind):
+                            if text := cls.part_preview(part, kind):
                                 return 2, text
         if arguments := cls._preview_text(attributes.get("gen_ai.tool.call.arguments")):
             return 2, arguments
         instructions = attributes.get("gen_ai.system_instructions")
         if isinstance(instructions, list):
             for part in reversed(instructions):
-                if isinstance(part, dict) and (text := cls._part_preview(part, "text")):
+                if isinstance(part, dict) and (text := cls.part_preview(part, "text")):
                     return 3, text
         if texts := cls._message_previews(messages, "text", roles={"system"}):
             return 3, texts[0]
         return 4, ""
 
     @classmethod
-    def _trace_previews(cls, spans: list[dict[str, Any]], *, latest_input: bool = False) -> tuple[str, str]:
+    def trace_previews(cls, spans: list[dict[str, Any]], *, latest_input: bool = False) -> tuple[str, str]:
         """消息倒序取最新内容；Trace 输入默认取最早 Span，执行线可选择最新 Span。"""
         inputs: dict[int, list[tuple[int, int, str]]] = {}
         outputs: dict[str, list[tuple[int, int, str]]] = {key: [] for key in cls._OUTPUT_PREVIEW_KEYS}
@@ -134,7 +134,7 @@ class TraceSummary:
         tokens: Mapping[str, float],
         has_error: bool = False,
     ) -> dict[str, Any]:
-        input_text, output_text = cls._trace_previews(converted_spans)
+        input_text, output_text = cls.trace_previews(converted_spans)
         start_time: int = min((span.get(OtlpKey.START_TIME, 0) for span in raw_spans), default=0)
         end_time: int = max((span.get(OtlpKey.END_TIME, start_time) for span in raw_spans), default=start_time)
 

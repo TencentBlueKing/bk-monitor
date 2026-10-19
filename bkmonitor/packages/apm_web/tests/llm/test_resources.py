@@ -2215,7 +2215,7 @@ class ListFlowsResourceTestCase(TestCase):
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
             group_ids=["missing-trace"],
-            fields=flow_query_fields(True, True, products=("default",)),
+            fields=flow_query_fields(True, False, products=("default",)),
         )
 
 

@@ -84,9 +84,7 @@ class SpanQuery(BaseQuery):
         ]
         # 跨业务目标无法收敛到同一空间，需要全局查询
         bk_biz_ids: set[int] = {data_source.app.bk_biz_id for data_source in self.data_sources}
-        qs: UnifyQuerySet = (
-            self.get_qs(start_time, end_time, using_scope=len(bk_biz_ids) == 1).is_es_batch().limit(limit)
-        )
+        qs: UnifyQuerySet = self.get_qs(start_time, end_time, using_scope=len(bk_biz_ids) == 1).limit(limit)
         return list(self._add_query(qs, queries))
 
     def _cross_query_by_trace_id(

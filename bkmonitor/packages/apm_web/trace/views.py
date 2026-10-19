@@ -8,6 +8,9 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from django.middleware.gzip import GZipMiddleware
+from django.utils.cache import patch_vary_headers
+from django.utils.http import parse_header_parameters
 from rest_framework.decorators import action
 
 from apm_web.decorators import user_visit_record
@@ -44,6 +47,7 @@ from apm_web.trace.serializers import TraceFieldsTopkRequestSerializer
 from bkmonitor.utils.csv import generate_csv_file_download_response
 from bkmonitor.iam import ActionEnum, ResourceEnum
 from bkmonitor.iam.drf import InstanceActionForDataPermission, ViewBusinessPermission
+from bkmonitor.utils.request import is_ajax_request
 from core.drf_resource.viewsets import ResourceRoute, ResourceViewSet
 from packages.apm_web.handlers.trace_handler.dimension_statistics import (
     DimensionStatisticsAPIHandler,
@@ -52,6 +56,35 @@ from packages.apm_web.handlers.trace_handler.dimension_statistics import (
 
 class TraceQueryViewSet(ResourceViewSet):
     INSTANCE_ID = "app_name"
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        if self.action not in {"trace_detail", "span_detail"}:
+            return response
+
+        patch_vary_headers(response, ("X-Requested-With", "Accept-Encoding"))
+        if not is_ajax_request(request):
+            return response
+        for encoding in request.META.get("HTTP_ACCEPT_ENCODING", "").split(","):
+            name, parameters = parse_header_parameters(encoding)
+            if name != "gzip":
+                continue
+            try:
+                accepts_gzip = 0 < float(parameters.get("q", "1")) <= 1
+            except ValueError:
+                accepts_gzip = False
+            if accepts_gzip:
+                middleware = GZipMiddleware(lambda request: None)
+
+                def compress(rendered):
+                    return middleware.process_response(request, rendered)
+
+                if hasattr(response, "add_post_render_callback"):
+                    response.add_post_render_callback(compress)
+                else:
+                    response = compress(response)
+            break
+        return response
 
     def get_permissions(self):
         """默认按 APM 应用实例鉴权。
@@ -125,7 +158,6 @@ class TraceQueryViewSet(ResourceViewSet):
             "POST",
             TraceDetailResource,
             endpoint="trace_detail",
-            content_encoding="gzip",
             decorators=[
                 user_visit_record,
             ],

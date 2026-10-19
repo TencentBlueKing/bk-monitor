@@ -270,6 +270,7 @@ $tree-step: 16px;
 }
 
 .llm-span-io-pieces {
+  gap: 6px;
   overflow: hidden;
 
   @include flex-align(center);
@@ -289,22 +290,6 @@ $tree-step: 16px;
 
 .llm-span-io-text {
   flex: 1;
-}
-
-.llm-span-io-name {
-  flex: 0 1 auto;
-  min-width: 0;
-  max-width: 120px;
-  padding: 0 3px;
-  font-family: menlo, monaco, monospace;
-  font-size: $font-size-base;
-  font-weight: 700;
-  line-height: 20px;
-  color: #313238;
-  background: #e9edf5;
-  border-radius: 4px;
-
-  @include ellipsis;
 }
 
 .llm-span-io-arrow {

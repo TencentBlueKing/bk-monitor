@@ -189,9 +189,11 @@ class TraceHandler:
         return is_current_biz and is_current_app
 
     @classmethod
-    def get_deferred_span_ids(cls, spans: list[dict[str, Any]], bk_biz_id: int, app_name: str) -> set[str]:
-        """大 Trace、跨应用和 LLM Span 共用按需加载详情的路径。"""
-        large_trace: bool = len(spans) > cls.SPAN_DETAIL_THRESHOLD
+    def get_deferred_span_ids(
+        cls, spans: list[dict[str, Any]], bk_biz_id: int, app_name: str, reduce_span_details: bool = False
+    ) -> set[str]:
+        """显式开启的大 Trace 裁剪与跨应用、LLM Span 共用按需加载详情的路径。"""
+        large_trace: bool = reduce_span_details and len(spans) > cls.SPAN_DETAIL_THRESHOLD
         return {
             span[OtlpKey.SPAN_ID]
             for span in spans

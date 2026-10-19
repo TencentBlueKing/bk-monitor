@@ -41,7 +41,9 @@ export interface LlmFlowSpan {
   elapsed_time: number;
   end_time: number;
   input?: Record<string, string> | string;
+  input_preview?: LlmMessagePreview;
   output?: Record<string, string> | string;
+  output_preview?: LlmMessagePreview;
   parent_span_id?: string;
   resource?: Record<string, unknown>;
   span_id: string;
@@ -94,7 +96,7 @@ export interface LlmFlowTrace {
 
 /**
  * 执行线一行某一侧的预览片段。
- * text：消息 / 推理 / 非对象工具值；name：工具名；kv：对象参数或返回的顶层字段。
+ * text：消息 / 推理；tools：模型交互中的工具批次；kv：工具 Span 参数或返回的顶层字段。
  */
 export type LlmIoPiece =
   | {
@@ -103,11 +105,11 @@ export type LlmIoPiece =
     }
   | {
       text: string;
-      type: 'name';
+      type: 'text';
     }
   | {
-      text: string;
-      type: 'text';
+      tools: LlmToolPreview[];
+      type: 'tools';
     };
 
 /** 输入列、输出列预览。同一侧可并列多段，避免只保留最后一条文本或第一组 KV */
@@ -115,6 +117,11 @@ export type LlmIoPreview = {
   input: LlmIoPiece[];
   output: LlmIoPiece[];
 };
+
+/** 模型行最近一次交互；工具批次按顺序展示，每项包含名称和有界 JSON 预览。 */
+export type LlmMessagePreview =
+  | { source: 'assistant' | 'system' | 'user'; value: string }
+  | { source: 'tool'; tools: LlmToolPreview[] };
 
 /** 会话 / 单 Trace 概览汇总，供统计卡使用 */
 export type LlmOverviewStats = Pick<
@@ -165,6 +172,11 @@ export interface LlmStatCard {
   label: string;
   theme?: 'success';
   unit?: string;
+  value: string;
+}
+
+export interface LlmToolPreview {
+  tool_name: string;
   value: string;
 }
 

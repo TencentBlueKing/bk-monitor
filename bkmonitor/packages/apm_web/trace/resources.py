@@ -469,6 +469,9 @@ class TraceDetailResource(Resource):
         )
         query_trace_relation_app = serializers.BooleanField(required=False, default=False)
         enabled_time_alignment = serializers.BooleanField(required=False, default=False, label="是否开启时间对齐")
+        reduce_span_details = serializers.BooleanField(
+            required=False, default=False, label="超过 500 个 Span 时按需加载详情"
+        )
 
     def perform_request(self, validated_request_data):
         data = api.apm_api.query_trace_detail(
@@ -495,7 +498,10 @@ class TraceDetailResource(Resource):
         )
         data["trace_data"] = raw_spans
         detail_span_ids: set[str] = TraceHandler.get_deferred_span_ids(
-            raw_spans, validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+            raw_spans,
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            reduce_span_details=validated_request_data["reduce_span_details"],
         )
         handled_data = TraceHandler.handle_trace(
             validated_request_data["app_name"],

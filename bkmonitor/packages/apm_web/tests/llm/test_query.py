@@ -625,8 +625,8 @@ class TracePreviewQueryTestCase(TestCase):
                     outputs = self.preview(["trace-1"], product, "output")
                 self.assertEqual(inputs, [span])
                 self.assertEqual(outputs, [span])
-                self.assertEqual(TraceSummary._trace_previews(adapt_spans(inputs, entity_set))[0], "question", product)
-                self.assertEqual(TraceSummary._trace_previews(adapt_spans(outputs, entity_set))[1], "answer", product)
+                self.assertEqual(TraceSummary.trace_previews(adapt_spans(inputs, entity_set))[0], "question", product)
+                self.assertEqual(TraceSummary.trace_previews(adapt_spans(outputs, entity_set))[1], "answer", product)
 
     def test_error_query_only_returns_collapsed_trace_id_and_status(self):
         spans = [

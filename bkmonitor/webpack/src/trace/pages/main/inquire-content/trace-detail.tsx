@@ -637,6 +637,7 @@ export default defineComponent({
           bk_biz_id: resolveBizId(),
           app_name: props.appName,
           trace_id: traceId,
+          reduce_span_details: true,
           displays,
           enabled_time_alignment: enabledTimeAlignment.value,
         };
@@ -906,6 +907,7 @@ export default defineComponent({
         bk_biz_id: resolveBizId(),
         app_name: props.appName,
         trace_id: traceId,
+        reduce_span_details: true,
         enabled_time_alignment: enabledTimeAlignment.value,
       };
       const data = await traceDetail(params, {

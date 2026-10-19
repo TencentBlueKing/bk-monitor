@@ -116,6 +116,7 @@ interface Params {
   app_name: string;
   bk_biz_id: number | string;
   query_trace_relation_app?: boolean;
+  reduce_span_details?: boolean;
   span_id?: number | string;
   trace_id?: number | string;
 }
@@ -388,6 +389,7 @@ export default defineComponent({
       }
       searchResultIdType.value = searchIdType.value;
       if (isTraceIDSearch) {
+        params.reduce_span_details = true;
         store.setTraceData({ ...DEFAULT_TRACE_DATA, appName: queryApp, trace_id: queryId });
       }
       state.isAlreadyAccurateQuery = true;

@@ -73,11 +73,11 @@ export default defineComponent({
   setup(props, { emit }) {
     const { t } = useI18n();
 
-    /** 行内只展示 1 类预览：优先 KV（全部字段），其次工具名，最后文本 */
+    /** 模型工具交互独立展示，工具 Span 继续使用既有 KV 预览。 */
     const pickPreviewPiece = (pieces: LlmIoPiece[]): LlmIoPiece | null => {
       const kv = pieces.find(piece => piece.type === 'kv' && piece.pairs.length);
       if (kv?.type === 'kv') return kv;
-      return pieces.find(piece => piece.type === 'name') || pieces.find(piece => piece.type === 'text') || null;
+      return pieces.find(piece => piece.type === 'tools') || pieces.find(piece => piece.type === 'text') || null;
     };
 
     const formatPiecesTooltip = (pieces: LlmIoPiece[]): string => {
@@ -85,6 +85,7 @@ export default defineComponent({
         if (piece.type === 'kv') {
           return piece.pairs.map(item => `${item.key}: ${item.value}`);
         }
+        if (piece.type === 'tools') return [];
         return piece.text ? [piece.text] : [];
       });
       return sliceTooltipContent(parts.join(' · '));
@@ -92,14 +93,12 @@ export default defineComponent({
 
     const renderIoPiece = (piece: LlmIoPiece, tooltip: string) => {
       const tips = { content: tooltip, placement: 'top' as const };
-      if (piece.type === 'name') {
+      if (piece.type === 'tools') {
         return (
-          <span
-            class='llm-span-io-name'
-            v-overflow-tips={tips}
-          >
-            {piece.text}
-          </span>
+          <SpanIoKvs
+            pairs={piece.tools.map(tool => ({ key: tool.tool_name || String(t('工具')), value: tool.value }))}
+            toolPreview
+          />
         );
       }
       if (piece.type === 'kv') {
@@ -123,7 +122,7 @@ export default defineComponent({
       return (
         <div
           class='llm-span-io-pieces'
-          v-overflow-tips={{ content: tooltip, placement: 'top' }}
+          v-overflow-tips={{ content: tooltip, disabled: preview.type === 'tools', placement: 'top' }}
         >
           {renderIoPiece(preview, tooltip)}
         </div>

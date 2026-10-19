@@ -33,6 +33,7 @@ import type {
   LlmFlowTrace,
   LlmIoPiece,
   LlmIoPreview,
+  LlmMessagePreview,
   LlmOverviewStats,
   LlmSpanKind,
   LlmSpanRowView,
@@ -309,6 +310,11 @@ export function splitDuration(microseconds: number): { unit: string; value: stri
   return { value: matched[1], unit: matched[2] };
 }
 
+function messageToPieces(preview: LlmMessagePreview): LlmIoPiece[] {
+  if (preview.source !== 'tool') return valueToPieces(preview.value);
+  return [{ type: 'tools', tools: preview.tools }];
+}
+
 /** 节点自身或任一后代命中筛选/关键字时保留，以便祖先链仍可见 */
 function nodeMatchesOrHasMatch(node: SpanTreeNode, filter: LlmExecutionFilter, keyword: string): boolean {
   if (spanMatches(node.span, filter, keyword)) return true;
@@ -317,6 +323,12 @@ function nodeMatchesOrHasMatch(node: SpanTreeNode, filter: LlmExecutionFilter, k
 
 /** 后端已完成语义选择和截断；前端只映射到既有 KV / 文本展示。 */
 function pickIoPreview(span: LlmFlowSpan): LlmIoPreview {
+  if (resolveSpanKind(span) === 'LLM') {
+    return {
+      input: span.input_preview ? messageToPieces(span.input_preview) : valueToPieces(span.input),
+      output: span.output_preview ? messageToPieces(span.output_preview) : valueToPieces(span.output),
+    };
+  }
   return { input: valueToPieces(span.input), output: valueToPieces(span.output) };
 }
 

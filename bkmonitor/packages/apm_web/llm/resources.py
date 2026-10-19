@@ -404,7 +404,7 @@ class ListFlowsResource(Resource):
         group_field = serializers.CharField(required=True, label="分组字段")
         group_id = serializers.CharField(required=True, label="分组值")
         include_input_output = serializers.BooleanField(required=False, default=True, label="包含输入输出")
-        input_output_preview = serializers.BooleanField(required=False, default=True, label="仅返回输入输出预览")
+        input_output_preview = serializers.BooleanField(required=False, default=False, label="仅返回输入输出预览")
 
     @staticmethod
     def build_trace_flow(
