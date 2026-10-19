@@ -6,9 +6,8 @@ from functools import partial
 
 from django.conf import settings
 
-from bkmonitor.iam.backends.config import provider_options
+from bkmonitor.iam.backends.config import get_system_clients, provider_options
 from bkmonitor.iam import definitions
-from config.tools.iam_credentials import get_saas_setting
 from bkmonitor.iam.mode import get_deployment_mode_provider
 from iam_engine.core.config import AuthMode
 from iam_engine.model.client import V4ModelClient
@@ -29,7 +28,7 @@ def expected_v4_model():
         "callback_url": settings.BK_IAM_V4_CALLBACK_URL
         or f"{settings.BK_IAM_RESOURCE_API_HOST.rstrip('/')}/rest/v2/iam/v4/callback/",
         "managers": [m.strip() for m in settings.BK_IAM_V4_MODEL_MANAGERS.split(",") if m.strip()],
-        "clients": [get_saas_setting("SAAS_APP_CODE")],
+        "clients": get_system_clients(),
     }
 
     payload = {
@@ -49,8 +48,7 @@ def expected_v4_model():
                 "name": role.name,
                 "description": role.description,
                 "actions": [
-                    {"id": action.action_id, "resource_type_id": action.resource_type}
-                    for action in role.actions
+                    {"id": action.action_id, "resource_type_id": action.resource_type} for action in role.actions
                 ],
             }
             for role in schema.roles.values()
