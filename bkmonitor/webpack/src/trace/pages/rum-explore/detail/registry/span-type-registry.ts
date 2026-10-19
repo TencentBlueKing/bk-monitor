@@ -25,7 +25,7 @@
  */
 import { SectionKeyEnum } from '../constants';
 import { getActionRelated, getErrorRelated, getLongTaskRelated, getViewRelated } from '../services';
-import { RumCardToneEnum, RumDetailTabEnum, RumSectionTypeEnum } from '../typings';
+import { RumCardToneEnum, RumSectionTypeEnum, RumTimelineFilterCategoryEnum } from '../typings';
 import { EMPTY_TEXT, formatCount } from './card-registry';
 
 import type { IRumFilter, IRumTimeRange, RumModeType } from '../../typings';
@@ -37,6 +37,7 @@ import type {
   IRumSparklinePoint,
   IRumSummaryCardVM,
   RumSectionType,
+  RumTimelineFilterCategoryType,
 } from '../typings';
 
 const t = (text: string) => window.i18n.t(text) as string;
@@ -96,8 +97,11 @@ const countCard =
     };
   };
 
-/** 点击后切到「链路上下文」tab */
-const switchTraceContext = (ctx: IRumCardResolveCtx) => ctx.handlers?.switchTab(RumDetailTabEnum.TRACE_CONTEXT);
+/** 点击后切到「链路上下文」tab 并套用对应类别的快捷筛选 */
+const switchTraceContext =
+  (category: RumTimelineFilterCategoryType): ((ctx: IRumCardResolveCtx) => void) =>
+  ctx =>
+    ctx.handlers?.switchTraceContext(category);
 
 /** 从 Error 详情的关键信息里还原「同一个错误」的过滤条件 */
 function buildErrorFilters(detail: IRumRecordDetail): IRumFilter[] {
@@ -121,9 +125,21 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
   action: {
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
-        countCard({ label: t('触发请求数'), tone: RumCardToneEnum.LINK }, 'resourceCount', switchTraceContext),
-        countCard({ label: t('错误数'), tone: RumCardToneEnum.DANGER }, 'errorCount', switchTraceContext),
-        countCard({ label: t('Long Tasks 数'), tone: RumCardToneEnum.LINK }, 'longTaskCount', switchTraceContext),
+        countCard(
+          { label: t('触发请求数'), tone: RumCardToneEnum.LINK },
+          'resourceCount',
+          switchTraceContext(RumTimelineFilterCategoryEnum.REQUEST)
+        ),
+        countCard(
+          { label: t('错误数'), tone: RumCardToneEnum.DANGER },
+          'errorCount',
+          switchTraceContext(RumTimelineFilterCategoryEnum.ERROR)
+        ),
+        countCard(
+          { label: t('Long Tasks 数'), tone: RumCardToneEnum.LINK },
+          'longTaskCount',
+          switchTraceContext(RumTimelineFilterCategoryEnum.SLOW_NODE)
+        ),
       ],
     },
     loadRelated: (context, mode, detail) => getActionRelated(context, mode, detail),
@@ -213,14 +229,18 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
         countCard(
           { label: t('请求'), tone: RumCardToneEnum.LINK, cardCls: 'view-card' },
           'resourceCount',
-          switchTraceContext
+          switchTraceContext(RumTimelineFilterCategoryEnum.REQUEST)
         ),
         countCard(
           { label: t('错误'), tone: RumCardToneEnum.DANGER, cardCls: 'view-card' },
           'errorCount',
-          switchTraceContext
+          switchTraceContext(RumTimelineFilterCategoryEnum.ERROR)
         ),
-        countCard({ label: 'Span', tone: RumCardToneEnum.LINK, cardCls: 'view-card' }, 'spanCount', switchTraceContext),
+        countCard(
+          { label: t('动作'), tone: RumCardToneEnum.LINK, cardCls: 'view-card' },
+          'spanCount',
+          switchTraceContext(RumTimelineFilterCategoryEnum.ACTION)
+        ),
       ],
     },
     loadRelated: (context, mode, detail) => {

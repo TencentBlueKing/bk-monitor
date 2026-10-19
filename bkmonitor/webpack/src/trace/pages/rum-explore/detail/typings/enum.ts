@@ -62,6 +62,25 @@ export const RumRatingEnum = {
 
 export type RumRatingType = (typeof RumRatingEnum)[keyof typeof RumRatingEnum];
 
+/** 链路上下文列表的快捷筛选类别，取值口径见 timeline 接口协议 2.12.3 */
+export const RumTimelineFilterCategoryEnum = {
+  /** 全部 */
+  ALL: 'all',
+  /** 动作 */
+  ACTION: 'action',
+  /** 慢节点 */
+  SLOW_NODE: 'slow_node',
+  /** 请求 */
+  REQUEST: 'request',
+  /** 第三方资源 */
+  THIRD_PARTY: 'third_party',
+  /** 异常 */
+  ERROR: 'error',
+} as const;
+
+export type RumTimelineFilterCategoryType =
+  (typeof RumTimelineFilterCategoryEnum)[keyof typeof RumTimelineFilterCategoryEnum];
+
 /** 统计卡片主值的语义配色，卡片描述符声明语义、样式层决定具体色值 */
 export const RumCardToneEnum = {
   /** 默认（深灰文本） */
