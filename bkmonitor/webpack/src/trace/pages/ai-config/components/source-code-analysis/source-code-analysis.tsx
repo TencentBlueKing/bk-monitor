@@ -98,6 +98,7 @@ export default defineComponent({
     /** 规则列表加载中 */
     const rulesLoading = shallowRef(false);
     const saveLoading = shallowRef(false);
+    const saveConfirmVisible = shallowRef(false);
 
     /** 匹配规则字段与候选值（与侧弹窗共享） */
     const {
@@ -163,26 +164,31 @@ export default defineComponent({
       }
     };
 
+    const validateConfig = () => {
+      projectErrMsg.value = bkciProjectId.value ? '' : t('必填项');
+      repositoryErrMsg.value = repositoryAlias.value ? '' : t('必填项');
+      return !!bkciProjectId.value && !!repositoryAlias.value;
+    };
+
     /**
      * @description 保存配置，校验必填项
      */
     const handleSaveConfig = async () => {
-      projectErrMsg.value = bkciProjectId.value ? '' : t('必填项');
-      repositoryErrMsg.value = repositoryAlias.value ? '' : t('必填项');
-      if (!bkciProjectId.value || !repositoryAlias.value || saveLoading.value) return false;
-      saveLoading.value = true;
-      const success = await setSaveSourceAnalysisConfig({
+      if (!validateConfig() || saveLoading.value) return false;
+      const params = {
         bkci_project_id: bkciProjectId.value,
         repository_alias: repositoryAlias.value,
-      })
+      };
+      saveLoading.value = true;
+      const success = await setSaveSourceAnalysisConfig(params)
         .then(() => true)
         .catch(() => false);
       saveLoading.value = false;
       if (success) {
         Message({ theme: 'success', message: t('保存成功') });
         // 保存成功后更新初始快照，使 isEdited 归位为未编辑状态
-        initialBkciProjectId.value = `${bkciProjectId.value}`;
-        initialRepositoryAlias.value = `${repositoryAlias.value}`;
+        initialBkciProjectId.value = `${params.bkci_project_id}`;
+        initialRepositoryAlias.value = `${params.repository_alias}`;
       }
       return success;
     };
@@ -257,6 +263,36 @@ export default defineComponent({
       );
     });
 
+    const handleAddRule = () => {
+      if (configLoading.value || saveLoading.value || saveConfirmVisible.value || !validateConfig()) return;
+      if (initialBkciProjectId.value && initialRepositoryAlias.value && !isEdited.value) {
+        handleRuleSliderChange(true);
+        return;
+      }
+
+      saveConfirmVisible.value = true;
+      InfoBox({
+        title: t('项目和代码库配置尚未保存，是否保存并继续？'),
+        subTitle: t('保存项目和代码库会同步更新已有规则。'),
+        confirmText: t('保存并继续'),
+        cancelText: t('取消'),
+        beforeClose: async action => {
+          if (saveLoading.value) return false;
+          if (action !== 'confirm') return true;
+          const success = await handleSaveConfig();
+          return success && !isEdited.value;
+        },
+        onConfirm: () => {
+          saveConfirmVisible.value = false;
+          handleFetchRules();
+          handleRuleSliderChange(true);
+        },
+        onCancel: () => {
+          saveConfirmVisible.value = false;
+        },
+      });
+    };
+
     /** 规则局部更新（启停等）：将更新后的规则回写到列表对应项 */
     const handleTableUpdateRule = (rule: SourceAnalysisRuleDto) => {
       sourceAnalysisRules.value = sourceAnalysisRules.value.map(item => (item.id === rule.id ? rule : item));
@@ -329,6 +365,7 @@ export default defineComponent({
       handleRepositoriesToggle,
       handleRuleSliderChange,
       handleBindConfirm,
+      handleAddRule,
       handleSaveConfig,
       handleClearSearch,
       handleTableUpdateRule,
@@ -339,6 +376,7 @@ export default defineComponent({
       getMatchRuleTagValueDisplayFormatter,
       fetchMatchRuleStrategyDimensions,
       saveLoading,
+      saveConfirmVisible,
       handleChangeBkciProjectId,
       save: handleSaveConfig,
       isEdited,
@@ -543,9 +581,10 @@ export default defineComponent({
               <div class='analysis-rules-wrap'>
                 <span class='analysis-rules-wrap-header'>
                   <Button
+                    disabled={this.configLoading || this.saveLoading || this.saveConfirmVisible}
                     outline={true}
                     theme='primary'
-                    onClick={() => this.handleRuleSliderChange(true)}
+                    onClick={this.handleAddRule}
                   >
                     <Plus style='font-size: 20px; margin-right: 4px;' />
                     {this.t('新增绑定配置')}

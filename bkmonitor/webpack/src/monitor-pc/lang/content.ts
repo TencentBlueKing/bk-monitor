@@ -497,6 +497,10 @@ export default {
   '「被调」类型无需填写「被调服务」':
     'For the "Callee" type, the "Callee Service" field does not need to be filled in.',
   '当前已有配置正在编辑，请先保存或取消': 'A configuration is currently being edited; please save or cancel first.',
+  '项目和代码库配置尚未保存，是否保存并继续？':
+    'The project and repository configuration is not saved. Save and continue?',
+  '保存项目和代码库会同步更新已有规则。': 'Saving the project and repository will also update existing rules.',
+  保存并继续: 'Save and continue',
   保存并应用为全局: 'Save and Apply Globally',
   批量编辑: 'Batch Edit',
   '请联系{0}开启拓扑分析 或 查看 {1}': 'Please contact {0} to enable topology analysis or view {1}',
