@@ -43,8 +43,15 @@ export default defineComponent({
       type: Object as PropType<IRumTimelineViewVM>,
       required: true,
     },
+    spanType: {
+      type: String,
+    },
   },
-  setup(props) {
+  emits: {
+    /** 点击「View 详情」，打开该 View 的详情抽屉 */
+    viewClick: (_view: IRumTimelineViewVM) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
 
     const hoverInfoRef = useTemplateRef<HTMLDivElement>('hoverInfo');
@@ -92,6 +99,15 @@ export default defineComponent({
               {data.title}
             </span>
             {data.isCurrent ? <span class='current-span-tag'>{t('当前 Span')}</span> : null}
+            {props.spanType !== 'view' && (
+              <span
+                class='view-detail-link'
+                onClick={() => emit('viewClick', data)}
+              >
+                <i class='icon-monitor icon-xiangqing1' />
+                {t('View 详情')}
+              </span>
+            )}
           </div>
           <div class='view-detail'>
             {data.loadingType ? <span class='view-loading-type'>{data.loadingType}</span> : null}
