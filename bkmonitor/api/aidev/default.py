@@ -13,6 +13,7 @@ from json import JSONDecodeError
 
 from django.conf import settings
 from django.http import StreamingHttpResponse
+from django.utils import translation
 from django.utils.translation import gettext as _
 from requests.exceptions import RequestException
 from rest_framework import serializers
@@ -42,11 +43,25 @@ class AidevAPIGWResource(APIResource):
 
 
 class AidevPrivateAPIGWResource(APIResource):
-    """使用 BKM 应用凭据和当前用户登录态调用 AIDEV 用户态接口。"""
+    """优先使用配置的跨环境 Token，否则沿用 BKM 应用凭据和当前用户登录态。"""
 
     base_url = settings.AIDEV_API_BASE_URL
     module_name = "aidev"
     INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+
+    def get_headers(self):
+        if not settings.AIDEV_ACCESS_TOKEN:
+            return super().get_headers()
+
+        # Access Token 自带目标环境应用与用户身份，不能混入本环境应用凭据或 Cookie。
+        headers = {
+            "x-bkapi-authorization": json.dumps({"access_token": settings.AIDEV_ACCESS_TOKEN}),
+            "X-Bk-Tenant-Id": self._get_tenant_id(),
+        }
+        language = translation.get_language()
+        if language:
+            headers["blueking-language"] = language
+        return headers
 
     def perform_request(self, validated_request_data):
         try:

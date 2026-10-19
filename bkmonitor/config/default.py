@@ -1315,6 +1315,8 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
+# 跨环境资源查询可指定目标环境用户的 Token；未配置时沿用当前请求登录态。
+AIDEV_ACCESS_TOKEN = os.getenv("BKAPP_AIDEV_ACCESS_TOKEN", "").strip()
 
 # TAPD API 基础URL（部署环境通过 BKAPP_TAPD_API_BASE_URL / TAPD_API_BASE_URL 注入，公开仓不放默认主机）
 TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))

@@ -9,10 +9,11 @@ specific language governing permissions and limitations under the License.
 """
 
 import json
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import requests
 from django.test import SimpleTestCase
+from django.utils import translation
 
 from api.devops.default import (
     ListUserProjectResource,
@@ -151,6 +152,7 @@ class TestAidevResources(SimpleTestCase):
         self.assertTrue(knowledge_base_serializer.validated_data["with_private"])
         self.assertFalse(ListKnowledgeBasesResource.RequestSerializer(data={}).is_valid())
 
+    @patch("api.aidev.default.settings.AIDEV_ACCESS_TOKEN", "")
     def test_private_gateway_preserves_application_credentials_and_current_user_ticket(self):
         request = object()
         resource = ListAgentsResource()
@@ -182,6 +184,71 @@ class TestAidevResources(SimpleTestCase):
         self.assertEqual(headers["X-Bk-Tenant-Id"], "tenant-a")
         get_bk_login_ticket.assert_called_once_with(request)
         make_userinfo.assert_called_once_with(bk_tenant_id="tenant-a")
+
+    @patch("api.aidev.default.settings.AIDEV_ACCESS_TOKEN", "configured-aidev-token")
+    def test_private_gateway_uses_only_configured_token_for_all_resources(self):
+        for resource_class in (ListSpacesResource, ListAgentsResource, ListSkillsResource, ListKnowledgeBasesResource):
+            with self.subTest(resource=resource_class.__name__):
+                resource = resource_class()
+                resource.bk_tenant_id = "tenant-a"
+                with (
+                    patch.object(APIResource, "get_headers", side_effect=AssertionError("must not read login state")),
+                    translation.override("en"),
+                ):
+                    headers = resource.get_headers()
+
+                self.assertEqual(
+                    json.loads(headers["x-bkapi-authorization"]),
+                    {"access_token": "configured-aidev-token"},
+                )
+                self.assertEqual(headers["X-Bk-Tenant-Id"], "tenant-a")
+                self.assertEqual(headers["blueking-language"], "en")
+
+    @patch("api.aidev.default.settings.AIDEV_ACCESS_TOKEN", "configured-aidev-token")
+    def test_private_gateway_token_stays_in_header_for_get_and_post(self):
+        cases = (
+            (ListAgentsResource, {"space_id": "all", "page": 1, "page_size": 200}, "get", "params"),
+            (ListKnowledgeBasesResource, {"space_id": "space-a", "page": 1}, "request", "json"),
+        )
+        for resource_class, params, session_method, payload_key in cases:
+            with self.subTest(resource=resource_class.__name__):
+                resource = resource_class()
+                resource.bk_tenant_id = "tenant-a"
+                response = Mock()
+                response.json.return_value = {"result": True, "code": 0, "data": []}
+                with (
+                    patch.object(resource.session, session_method, return_value=response) as send,
+                    patch.object(resource, "report_api_request_count_metric"),
+                    patch.object(APIResource, "get_headers", side_effect=AssertionError("must not read login state")),
+                ):
+                    self.assertEqual(resource.perform_request(params), [])
+
+                kwargs = send.call_args.kwargs
+                self.assertEqual(kwargs[payload_key], params)
+                self.assertNotIn("configured-aidev-token", kwargs["url"])
+                self.assertEqual(
+                    json.loads(kwargs["headers"]["x-bkapi-authorization"]),
+                    {"access_token": "configured-aidev-token"},
+                )
+
+    @patch("api.aidev.default.settings.AIDEV_ACCESS_TOKEN", "expired-aidev-token")
+    def test_private_gateway_does_not_fallback_when_configured_token_is_rejected(self):
+        resource = ListAgentsResource()
+        resource.bk_tenant_id = "tenant-a"
+        response = requests.Response()
+        response.status_code = 400
+        response.url = "https://aidev.example.com/agents/"
+        response._content = b'{"result":false,"code":1640001,"message":"invalid access_token"}'
+        with (
+            patch.object(resource.session, "get", return_value=response) as send,
+            patch.object(resource, "report_api_failure_metric"),
+            patch.object(APIResource, "get_headers", side_effect=AssertionError("must not read login state")) as base,
+            self.assertRaises(BKAPIError),
+        ):
+            resource.perform_request({"space_id": "all"})
+
+        send.assert_called_once()
+        base.assert_not_called()
 
     def test_private_gateway_converts_connection_error(self):
         resource = ListAgentsResource()
