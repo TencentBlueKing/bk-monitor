@@ -297,6 +297,40 @@ class TestSourceAnalysisConfigAndRules(TestCase):
         defaults.update(kwargs)
         return IssueSourceAnalysisRule.objects.create(**defaults)
 
+    @patch.object(SourceAnalysisBaseResource, "validate_repository")
+    def test_config_save_and_rule_update_lock_config_before_rules(self, _validate_repository):
+        self.create_config()
+        rule = self.create_rule()
+        lock_order = []
+        update_config = IssueSourceAnalysisConfig.objects.update_or_create
+        lock_config = IssueSourceAnalysisConfig.objects.select_for_update
+        lock_rules = IssueSourceAnalysisRule.objects.select_for_update
+
+        def record_update_config(*args, **kwargs):
+            lock_order.append("config")
+            return update_config(*args, **kwargs)
+
+        def record_lock_config(*args, **kwargs):
+            lock_order.append("config")
+            return lock_config(*args, **kwargs)
+
+        def record_lock_rules(*args, **kwargs):
+            lock_order.append("rule")
+            return lock_rules(*args, **kwargs)
+
+        with (
+            patch.object(IssueSourceAnalysisConfig.objects, "update_or_create", side_effect=record_update_config),
+            patch.object(IssueSourceAnalysisConfig.objects, "select_for_update", side_effect=record_lock_config),
+            patch.object(IssueSourceAnalysisRule.objects, "select_for_update", side_effect=record_lock_rules),
+        ):
+            SaveSourceAnalysisConfigResource().perform_request(
+                {"bk_biz_id": 2, "bkci_project_id": "project-a", "repository_alias": "repo-a"}
+            )
+            self.assertEqual(lock_order, ["config", "rule"])
+            lock_order.clear()
+            UpdateSourceAnalysisRuleResource().perform_request({"bk_biz_id": 2, "rule_id": rule.id, "priority": 2})
+            self.assertEqual(lock_order, ["config", "rule"])
+
     def test_get_missing_config_returns_fixed_shape(self):
         result = GetSourceAnalysisConfigResource().perform_request({"bk_biz_id": 2})
 

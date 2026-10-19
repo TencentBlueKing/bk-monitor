@@ -21,6 +21,7 @@ import time
 from urllib.parse import quote
 import uuid
 
+from bkapi_client_core.exceptions import ResponseError
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.http import HttpResponseRedirect
@@ -455,6 +456,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
     RECOVERY_BATCH_SIZE = 200
 
     DEFAULT_POLL_INTERVAL = 10
+    UPSTREAM_RETRY_TIMEOUT = timedelta(minutes=15)
     BKFARA_SCENE_ACTIVE_STATUSES = {"pending", "provisioning"}
     BKFARA_TASK_ACTIVE_STATUSES = {"queued", "running"}
     BKFARA_TASK_PHASE_STAGES = {
@@ -1389,6 +1391,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         status = scene_state.get("status")
         terminal = scene_state["terminal"]
         if not terminal and status in cls.BKFARA_SCENE_ACTIVE_STATUSES:
+            cls._reset_upstream_retry_window(execution)
             return False, cls.get_poll_interval(scene_state)
         if terminal and status == "ready":
             return True, None
@@ -1499,6 +1502,10 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
 
         status = task_state.get("status")
         terminal = task_state["terminal"]
+        if (not terminal and status in cls.BKFARA_TASK_ACTIVE_STATUSES) or (
+            terminal and status in {"succeeded", "failed"}
+        ):
+            cls._reset_upstream_retry_window(execution)
         if not terminal and status in cls.BKFARA_TASK_ACTIVE_STATUSES:
             stage = cls.BKFARA_TASK_PHASE_STAGES.get(task_state.get("phase"))
             if stage is None:
@@ -1577,28 +1584,78 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         failure_stage: str,
         error: Exception,
     ) -> int | None:
-        """未知网络错误默认保留活动态；仅显式 retryable=false 的业务错误进入失败终态。"""
+        """明确拒绝立即失败；临时错误只在持久化的连续异常窗口内重试。"""
 
         error_data = getattr(error, "data", None)
         if isinstance(error_data, dict) and isinstance(error_data.get("error"), dict):
             error_data = error_data["error"]
-        if not isinstance(error_data, dict) or error_data.get("retryable") is not False:
-            logger.warning(
-                "BKFara source analysis request failed and will retry: analysis_id=%s, error=%s",
-                execution.analysis_id,
-                type(error).__name__,
+        if not isinstance(error_data, dict):
+            error_data = {}
+        if error_data.get("retryable") is False:
+            cls._mark_failed(
+                execution,
+                failure_stage=failure_stage,
+                failure_code=str(error_data.get("code") or type(error).__name__),
+                failure_message=str(error_data.get("message") or SourceAnalysisFailureMessage.BKFARA_REQUEST_FAILED),
+                failure_retryable=False,
+                failure_request_id=error_data.get("request_id"),
             )
-            return cls.DEFAULT_POLL_INTERVAL
+            return None
 
-        cls._mark_failed(
-            execution,
-            failure_stage=failure_stage,
-            failure_code=str(error_data.get("code") or type(error).__name__),
-            failure_message=str(error_data.get("message") or SourceAnalysisFailureMessage.BKFARA_REQUEST_FAILED),
-            failure_retryable=False,
-            failure_request_id=error_data.get("request_id"),
+        # SDK 的 HTTP 状态保留在异常链中，不解析或展示可能含敏感内容的 HTML body。
+        response_error = error if isinstance(error, ResponseError) else error.__cause__
+        http_status = response_error.response_status_code if isinstance(response_error, ResponseError) else None
+        request_id = error_data.get("request_id") or (
+            response_error.request_id if isinstance(response_error, ResponseError) else None
         )
-        return None
+        request_rejected = (
+            http_status is not None and 400 <= http_status < 500 and http_status not in {408, 429}
+        ) or str(error_data.get("code")) in {"1640001", "1640301"}
+        if error_data.get("retryable") is not True and request_rejected:
+            cls._mark_failed(
+                execution,
+                failure_stage=failure_stage,
+                failure_code=str(error_data.get("code") or f"BKFARA_HTTP_{http_status}"),
+                failure_message=SourceAnalysisFailureMessage.BKFARA_REQUEST_REJECTED,
+                failure_retryable=False,
+                failure_request_id=request_id,
+            )
+            return None
+
+        now = timezone.now()
+        IssueSourceAnalysisExecution.objects.filter(
+            pk=execution.pk,
+            status__in=SourceAnalysisStatus.ACTIVE_STATUSES,
+            upstream_error_started_at__isnull=True,
+        ).update(upstream_error_started_at=now)
+        execution.refresh_from_db(fields=["status", "upstream_error_started_at"])
+        if execution.status in SourceAnalysisStatus.TERMINAL_STATUSES:
+            return None
+        if now - execution.upstream_error_started_at >= cls.UPSTREAM_RETRY_TIMEOUT:
+            cls._mark_failed(
+                execution,
+                failure_stage=failure_stage,
+                failure_code="BKFARA_UPSTREAM_RETRY_TIMEOUT",
+                failure_message=SourceAnalysisFailureMessage.BKFARA_UPSTREAM_RETRY_TIMEOUT,
+                failure_retryable=True,
+                failure_request_id=request_id,
+            )
+            return None
+
+        logger.warning(
+            "BKFara source analysis request failed and will retry: analysis_id=%s, error=%s",
+            execution.analysis_id,
+            type(error).__name__,
+        )
+        return cls.DEFAULT_POLL_INTERVAL
+
+    @staticmethod
+    def _reset_upstream_retry_window(execution: IssueSourceAnalysisExecution) -> None:
+        if getattr(execution, "upstream_error_started_at", None) is not None:
+            IssueSourceAnalysisExecution.objects.filter(
+                pk=execution.pk, status__in=SourceAnalysisStatus.ACTIVE_STATUSES
+            ).update(upstream_error_started_at=None)
+            execution.upstream_error_started_at = None
 
     @staticmethod
     def _mark_running(execution: IssueSourceAnalysisExecution, stage: str) -> bool:
@@ -2108,8 +2165,8 @@ class UpdateSourceAnalysisRuleResource(GetSourceAnalysisRuleResource):
 
         try:
             with transaction.atomic(using=self.db_alias()):
-                rule = self.get_rule(bk_biz_id, rule_id, for_update=True)
                 config = IssueSourceAnalysisConfig.objects.select_for_update().filter(bk_biz_id=bk_biz_id).first()
+                rule = self.get_rule(bk_biz_id, rule_id, for_update=True)
                 rule = self.apply_rule_patch(rule, validated_request_data, config)
                 if rule.is_enabled:
                     rule.run_as_user = run_as_user

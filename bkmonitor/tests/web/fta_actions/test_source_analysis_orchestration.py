@@ -13,12 +13,13 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
+from bkapi_client_core.exceptions import ResponseError
 from bkoauth.client import oauth_client
 from bkoauth.exceptions import TokenException, TokenNotExist
 from django.db import DatabaseError
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
-from requests import Request
+from requests import Request, Response
 
 from api.bk_incident.default import (
     BkFaraSourceAnalysisBaseResource,
@@ -38,6 +39,7 @@ from constants.issue import (
     SourceAnalysisStage,
     SourceAnalysisStatus,
 )
+from core.errors.api import BKAPIError
 from fta_web.issue.resources import (
     SourceAnalysisExecutionBaseResource,
     build_bkfara_client_request_id,
@@ -684,6 +686,126 @@ class TestSourceAnalysisOrchestration(TestCase):
         self.assertEqual(execution.failure_stage, SourceAnalysisFailureStage.TASK_CREATE)
         self.assertEqual(execution.failure_code, "INVALID_ARGUMENT")
         self.assertFalse(execution.failure_retryable)
+
+    @staticmethod
+    def http_error(status, data=None):
+        response = Response()
+        response.status_code = status
+        response._content = b"<html>sensitive upstream response</html>"
+        error = BKAPIError(system_name="bkfara", result=data or {"message": response.text})
+        error.__cause__ = ResponseError(response=response)
+        return error
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
+    def test_gateway_authentication_errors_without_retryable_release_active_slot(self, get_scene):
+        for code in (1640001, "1640301"):
+            with self.subTest(code=code):
+                execution = self.create_execution()
+                get_scene.side_effect = BKAPIError(
+                    system_name="bkfara", result={"code": code, "message": "gateway rejection"}
+                )
+                self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+                execution.refresh_from_db()
+                self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+                self.assertIsNone(execution.active_key)
+                self.assertEqual(execution.failure_code, str(code))
+                self.assertEqual(execution.failure_message, SourceAnalysisFailureMessage.BKFARA_REQUEST_REJECTED)
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_http_rejections_without_protocol_error_fail_without_exposing_body(self, get_task):
+        for status in (400, 401, 403, 404, 422):
+            with self.subTest(status=status):
+                execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)
+                get_task.side_effect = self.http_error(status)
+                self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+                execution.refresh_from_db()
+                self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+                self.assertEqual(execution.failure_stage, SourceAnalysisFailureStage.TASK_EXECUTE)
+                self.assertEqual(execution.failure_code, f"BKFARA_HTTP_{status}")
+                self.assertEqual(execution.failure_message, SourceAnalysisFailureMessage.BKFARA_REQUEST_REJECTED)
+                self.assertIsNone(execution.active_key)
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_timeouts_rate_limits_server_errors_and_explicit_retryable_errors_keep_bounded_retries(self, get_task):
+        for status, data in ((408, None), (429, None), (503, None), (409, {"retryable": True, "code": "BUSY"})):
+            with self.subTest(status=status):
+                execution = self.create_execution(
+                    issue_id=f"issue-{status}", bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING
+                )
+                get_task.side_effect = self.http_error(status, data)
+                self.assertEqual(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id), 10)
+                execution.refresh_from_db()
+                self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
+                self.assertIsNotNone(execution.upstream_error_started_at)
+
+    @patch("fta_web.issue.resources.api.bk_incident.trigger_source_analysis", side_effect=TimeoutError())
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
+    def test_trigger_retry_window_survives_fresh_workers_and_ready_scene_polls(self, get_scene, trigger):
+        execution = self.create_execution()
+        get_scene.return_value = self.ready_scene_state()
+        resource = SourceAnalysisExecutionBaseResource
+        first_error_at = timezone.now()
+        for elapsed, expected_interval in (
+            (timedelta(), 10),
+            (timedelta(minutes=15, seconds=-1), 10),
+            (timedelta(minutes=15), None),
+        ):
+            with (
+                self.subTest(elapsed=elapsed),
+                patch("fta_web.issue.resources.timezone.now", return_value=first_error_at + elapsed),
+            ):
+                # advance 每次重新读库，模拟不同 Worker 接管同一个任务。
+                self.assertEqual(resource.advance_bkfara_task(execution.analysis_id), expected_interval)
+                execution.refresh_from_db()
+                self.assertEqual(execution.upstream_error_started_at, first_error_at)
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_code, "BKFARA_UPSTREAM_RETRY_TIMEOUT")
+        self.assertTrue(execution.failure_retryable)
+        self.assertIsNone(execution.active_key)
+        self.assertEqual(len({call.kwargs["client_request_id"] for call in trigger.call_args_list}), 1)
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task", side_effect=TimeoutError())
+    def test_task_query_errors_exhaust_the_window_without_retriggering(self, get_task):
+        execution = self.create_execution(
+            bkfara_task_id="task-1",
+            status=SourceAnalysisStatus.RUNNING,
+            upstream_error_started_at=timezone.now() - timedelta(minutes=15),
+        )
+        self.assertIsNone(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id))
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.FAILED)
+        self.assertEqual(execution.failure_stage, SourceAnalysisFailureStage.TASK_EXECUTE)
+        self.assertEqual(execution.failure_message, SourceAnalysisFailureMessage.BKFARA_UPSTREAM_RETRY_TIMEOUT)
+        self.assertEqual(execution.bkfara_task_id, "task-1")
+        self.assertIsNone(execution.active_key)
+        get_task.assert_called_once_with(analysis_task_id="task-1", bk_tenant_id="system")
+
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_task")
+    def test_valid_task_poll_resets_only_the_continuous_error_window(self, get_task):
+        execution = self.create_execution(
+            bkfara_task_id="task-1",
+            status=SourceAnalysisStatus.RUNNING,
+            upstream_error_started_at=timezone.now() - timedelta(minutes=14),
+        )
+        get_task.return_value = {"status": "running", "terminal": False, "next_poll_after_seconds": 3}
+        self.assertEqual(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id), 3)
+        execution.refresh_from_db()
+        self.assertIsNone(execution.upstream_error_started_at)
+        get_task.side_effect = TimeoutError()
+        self.assertEqual(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id), 10)
+        execution.refresh_from_db()
+        self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
+        self.assertGreater(execution.upstream_error_started_at, timezone.now() - timedelta(seconds=5))
+
+    @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")
+    def test_valid_provisioning_poll_resets_the_error_window(self, ensure):
+        execution = self.create_execution(
+            bkfara_provision_id=None, upstream_error_started_at=timezone.now() - timedelta(minutes=14)
+        )
+        ensure.return_value = {"provision_id": "provision-1", "status": "provisioning", "terminal": False}
+        self.assertEqual(SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id), 10)
+        execution.refresh_from_db()
+        self.assertIsNone(execution.upstream_error_started_at)
 
     @patch("fta_web.issue.resources.api.bk_incident.trigger_source_analysis", return_value={})
     @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")

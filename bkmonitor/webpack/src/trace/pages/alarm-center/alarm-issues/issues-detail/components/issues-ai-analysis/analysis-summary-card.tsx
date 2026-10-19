@@ -111,7 +111,7 @@ export default defineComponent({
             </Button>
           </div>
 
-          {result.result_card.responsibility.bk_username && (
+          {result.result_card.responsibility?.bk_username && (
             <PopConfirm
               width='320'
               v-slots={{

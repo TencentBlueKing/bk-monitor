@@ -243,7 +243,7 @@ test('status refresh failure after acceptance does not report submission failure
   assert.equal(ctx.state.loading.retryAnalysis, false);
 });
 
-test('full-report summary uses the same loading and disabled state', () => {
+function summaryCard(props) {
   const component = load(
     `${components}analysis-summary-card.tsx`,
     {
@@ -255,11 +255,33 @@ test('full-report summary uses the same loading and disabled state', () => {
     },
     { window: { timezone: 'UTC' } }
   ).default;
-  const props = { sourceAnalysisData: analysis(), loading: { retryAnalysis: true } };
   const state = component.setup(props);
-  const button = buttons(component.render.call(vue.proxyRefs({ ...props, ...state, $emit() {} })))[0];
+  return component.render.call(vue.proxyRefs({ ...props, ...state, $emit() {} }));
+}
+
+test('full-report summary uses the same loading and disabled state', () => {
+  const button = buttons(summaryCard({ sourceAnalysisData: analysis(), loading: { retryAnalysis: true } }))[0];
   assert.equal(button.props.disabled, true);
   assert.equal(button.props.loading, true);
+});
+
+for (const resultType of ['HIGH_CONFIDENCE', 'INSUFFICIENT_EVIDENCE']) {
+  test(`${resultType}: null responsibility renders the report without assignment controls`, () => {
+    const data = analysis();
+    data.latest.result.result_type = resultType;
+    data.latest.result.result_card.responsibility = null;
+    const tree = summaryCard({ sourceAnalysisData: data, loading: { retryAnalysis: false } });
+    assert.ok(nodes(tree).some(node => node.children.includes('old report')));
+    assert.equal(buttons(tree).length, 1);
+    assert.equal(nodes(tree).filter(node => node.type === 'PopConfirm').length, 0);
+  });
+}
+
+test('full-report summary preserves assignment controls when responsibility has a user', () => {
+  const data = analysis();
+  data.latest.result.result_card.responsibility = { bk_username: 'review-user' };
+  const tree = summaryCard({ sourceAnalysisData: data, loading: { retryAnalysis: false } });
+  assert.equal(nodes(tree).filter(node => node.type === 'PopConfirm').length, 1);
 });
 
 test('service wrappers forward the standard request configuration to both APIs', async () => {
