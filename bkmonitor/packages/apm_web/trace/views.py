@@ -125,6 +125,7 @@ class TraceQueryViewSet(ResourceViewSet):
             "POST",
             TraceDetailResource,
             endpoint="trace_detail",
+            content_encoding="gzip",
             decorators=[
                 user_visit_record,
             ],

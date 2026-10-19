@@ -48,6 +48,7 @@ import { useRoute } from 'vue-router';
 import dayjs from 'dayjs';
 
 import CompareSelect from '../../../components/compare-select/compare-select';
+import EmptyStatus from '../../../components/empty-status/empty-status';
 import MonitorTab from '../../../components/monitor-tab/monitor-tab';
 import StatisticsTable, { type IFilterItem } from '../../../components/statistics-table/statistics-table';
 import TraceView from '../../../components/trace-view';
@@ -60,6 +61,8 @@ import { useSpanDetailQueryStore } from '../../../store/modules/span-detail-quer
 import { toUnixMilliseconds } from '../../../utils/date';
 import TraceLlmObservation from './llm-observation';
 import { useLlmObservation } from './llm-observation/hooks/use-llm-observation';
+import { useTracePanelPreference } from './llm-observation/hooks/use-trace-panel-preference';
+import type { LlmSpanRowView } from './llm-observation/utils/typings';
 const MonitorTraceLog = defineAsyncComponent(
   () =>
     import(/* webpackChunkName: "monitor-trace-log" */ '../../../plugins/charts/monitor-trace-log/monitor-trace-log')
@@ -181,13 +184,13 @@ export default defineComponent({
       traceMainStyle: '',
       /** tab panel 配置 */
       tabPanels: [
+        { id: 'llm', name: t('LLM 观测'), icon: 'LLM' },
         { id: 'timeline', name: t('瀑布列表'), icon: 'Waterfall' },
         { id: 'topo', name: t('节点拓扑'), icon: 'Component' },
         { id: 'statistics', name: t('表格统计'), icon: 'table' },
         { id: 'sequence', name: t('时序图'), icon: 'Sequence' },
         { id: 'flame', name: t('火焰图'), icon: 'Flame' },
         { id: 'log', name: t('日志'), icon: 'a-logrizhi' },
-        { id: 'llm', name: t('LLM 观测'), icon: 'LLM' },
       ],
       isClassifyFilter: false,
       filterSpanIds: [],
@@ -255,13 +258,11 @@ export default defineComponent({
     );
     // 层级数
 
-    const spanDepth = computed<number>(
-      () =>
-        Math.max.apply(
-          Math,
-          traceTree.value.spans.map(item => item.depth)
-        ) + 1
-    );
+    const spanDepth = computed<number>(() => {
+      let maxDepth = -1;
+      for (const span of traceTree.value.spans) maxDepth = Math.max(maxDepth, span.depth);
+      return maxDepth + 1;
+    });
     /** 工具栏过滤选项 */
     const filterToolList = computed(() =>
       TRACE_INFO_TOOL_FILTERS.filter(item => item.show && item.effect.includes(state.activePanel))
@@ -281,6 +282,33 @@ export default defineComponent({
     const llmObservation = useLlmObservation({ appName, bizId: resolvedBizId, traceId: currentTraceId });
     const visibleTabPanels = computed(() =>
       state.tabPanels.filter(item => item.id !== 'llm' || llmObservation.hasTraces.value)
+    );
+    const panelPreference = useTracePanelPreference({
+      appName,
+      bizId: resolvedBizId,
+      traceId: currentTraceId,
+      hasLlmTraces: llmObservation.hasTraces,
+      llmLoading: llmObservation.loading,
+      traceLoading: computed(() => isLoading.value || store.loading || !traceTree.value.spans.length),
+    });
+    const traceInfoReady = computed(() =>
+      !isLoading.value && !store.loading && traceTree.value.spans.length > 0
+    );
+    const isEmpty = computed(
+      () =>
+        !isLoading.value &&
+        !store.loading &&
+        !llmObservation.loading.value &&
+        !llmObservation.ioLoading.value &&
+        !llmObservation.hasTraces.value &&
+        !traceTree.value.spans.length
+    );
+    const pageLoading = computed(() =>
+      state.activePanel === 'llm' && llmObservation.hasTraces.value
+        ? false
+        : isLoading.value ||
+          store.loading ||
+          (!traceTree.value.spans.length && (llmObservation.loading.value || llmObservation.ioLoading.value))
     );
     provide('traceId', currentTraceId);
     provide('appName', appName);
@@ -450,7 +478,7 @@ export default defineComponent({
         }
       });
       store.updateTraceViewFilterTab(v);
-      (traceDetailElem.value as any).scrollTop = 0;
+      if (traceDetailElem.value) (traceDetailElem.value as any).scrollTop = 0;
       handleResize();
       cancelFilter();
 
@@ -537,7 +565,7 @@ export default defineComponent({
     };
     // 根据窗口大小变化自适应视图高度
     const handleResize = () => {
-      if (traceMainElem.value && !isLoading.value) {
+      if (traceMainElem.value && (!isLoading.value || state.activePanel === 'llm')) {
         let containerHeight = document.querySelector('.trace-detail-wrapper')?.clientHeight as number; // 详情容器高度
         const { offsetTop, clientWidth } = traceMainElem.value as any; // 视图容器举例详情容器顶部高度
         const baseMessageRect = baseMessage.value?.getBoundingClientRect();
@@ -659,22 +687,21 @@ export default defineComponent({
     };
     /** 侧栏查看 span 详情 */
     const handleShowSpanDetails = (span: Span | string) => {
-      let fromRelatedTrace = false;
       if (typeTools.isString(span)) {
         const found = traceTree.value.spans.find(item => item.span_id === span);
         // 当前 Trace 瀑布图能命中则直接复用；关联 Trace 的 span 不在这棵树上，只传 stub 交给 SpanDetails 按 span_id 拉取
         spanDetails.value = (found || ({ span_id: span } as Span)) as Span;
-        fromRelatedTrace = !found;
       } else spanDetails.value = span as Span;
-      if (fromRelatedTrace && showSpanDetails.value) {
-        // SpanDetails 主要在 show 从 false→true 时 prepare；侧栏已打开时先关再开才能重新拉数
-        showSpanDetails.value = false;
-        nextTick(() => {
-          showSpanDetails.value = true;
-        });
-        return;
-      }
       showSpanDetails.value = true;
+    };
+    const handleShowLlmSpanDetails = (row: LlmSpanRowView) => {
+      handleShowSpanDetails({
+        span_id: row.spanId,
+        spanID: row.spanId,
+        traceID: row.traceId,
+        app_name: appName.value,
+        bk_biz_id: resolvedBizId.value,
+      } as Span);
     };
     /** 计算 span list 赋值的定位 */
     const setSpanListPosition = () => {
@@ -732,8 +759,7 @@ export default defineComponent({
         clearCompareParams();
         nextTick(() => handleResize());
         compareSelect.value?.handleCancelCompare();
-      },
-      { deep: true }
+      }
     );
 
     watch(
@@ -909,13 +935,20 @@ export default defineComponent({
       const url = location.href.replace(location.hash, `#/apm/application/config/${props.appName}`);
       window.open(url, '_blank');
     };
-    watch(llmObservation.hasTraces, hasTraces => {
-      if (!hasTraces && state.activePanel === 'llm') handleTabChange('timeline');
+    watch(panelPreference.panel, panel => {
+      nextTick(() => {
+        if (panelPreference.panel.value === panel) handleTabChange(panel as IPanelEnum);
+      });
     });
+    if (panelPreference.panel.value !== state.activePanel) state.activePanel = panelPreference.panel.value as IPanelEnum;
     return {
       ...toRefs(state),
       llmObservation,
       visibleTabPanels,
+      pageLoading,
+      traceInfoReady,
+      isEmpty,
+      handleShowLlmSpanDetails,
       isLoading,
       contentLoading,
       traceView,
@@ -927,7 +960,7 @@ export default defineComponent({
       searchBarElem,
       exploreButtonName,
       handleSelectFilters,
-      handleTabChange,
+      handleTabChange: panelPreference.selectPanel,
       trackFilter,
       clearSearch,
       nextResult,
@@ -979,12 +1012,22 @@ export default defineComponent({
   render() {
     const { trace_id: traceId, trace_info: traceInfo, span_classify: spanClassify } = this.traceData;
     const isStatisticsPanel = this.activePanel === 'statistics';
+    if (this.isEmpty) {
+      return (
+        <div class='trace-detail-wrapper'>
+          {!this.isInTable && (
+            <TraceDetailHeader appName={this.appName} hasFullscreen={false} traceId={this.traceID || traceId} />
+          )}
+          <EmptyStatus type='search-empty' />
+        </div>
+      );
+    }
 
     return (
       <Loading
         ref='traceDetailElem'
         class={`trace-detail-wrapper is-fix ${this.isInTable ? 'is-table-detail' : ''} ${this.isSticky ? 'is-sticky' : ''}`}
-        loading={this.isLoading}
+        loading={this.pageLoading}
         zIndex={99999}
       >
         {/* {this.isInTable && (
@@ -1010,11 +1053,11 @@ export default defineComponent({
         >
           <div class='message-item'>
             <span>{this.t('产生时间')}</span>
-            <span>{formatWithTimezone(traceInfo?.product_time) as string}</span>
+            <span>{this.traceInfoReady ? formatWithTimezone(traceInfo?.product_time) as string : '--'}</span>
           </div>
           <div class='message-item'>
             <span>{this.t('总耗时')}</span>
-            <span>{formatDuration(traceInfo?.trace_duration)}</span>
+            <span>{this.traceInfoReady ? formatDuration(traceInfo?.trace_duration) : '--'}</span>
             {traceInfo?.time_error && [
               this.enabledTimeAlignment ? (
                 <span
@@ -1048,7 +1091,7 @@ export default defineComponent({
           </div>
           <div class='message-item'>
             <span>{this.t('耗时分布')}</span>
-            <span>{`${formatDuration(traceInfo?.min_duration)} - ${formatDuration(traceInfo?.max_duration)}`}</span>
+            <span>{this.traceInfoReady ? `${formatDuration(traceInfo?.min_duration)} - ${formatDuration(traceInfo?.max_duration)}` : '--'}</span>
           </div>
           <div class='message-item'>
             <span>{this.t('服务数')}</span>
@@ -1298,7 +1341,7 @@ export default defineComponent({
               class='tab-panel-content'
             >
               <Loading
-                loading={this.contentLoading}
+                loading={this.activePanel !== 'llm' && this.contentLoading}
                 zIndex={9999999}
               >
                 {/* 瀑布图 */}
@@ -1367,7 +1410,7 @@ export default defineComponent({
                 {this.activePanel === 'llm' && (
                   <TraceLlmObservation
                     observation={this.llmObservation}
-                    onShowSpanDetail={this.handleShowSpanDetails}
+                    onShowSpanDetail={this.handleShowLlmSpanDetails}
                   />
                 )}
               </Loading>

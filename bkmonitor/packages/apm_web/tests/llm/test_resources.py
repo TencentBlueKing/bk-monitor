@@ -7,7 +7,13 @@ from django.test import override_settings
 
 from apm_web.handlers.metric_group.define import CalculationType as MetricCalculationType
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.adapter.fields import AGENT_CANDIDATE_Q, SPAN_TYPES, operation_query, resolve_query_fields
+from apm_web.llm.adapter.fields import (
+    AGENT_CANDIDATE_Q,
+    SPAN_TYPES,
+    flow_query_fields,
+    operation_query,
+    resolve_query_fields,
+)
 from apm_web.llm.builders.flow import FlowBuilder
 from apm_web.llm.builders.summary import TraceSummary
 from apm_web.llm.constants import CalculationType
@@ -1571,6 +1577,7 @@ class ListFlowsResourceTestCase(TestCase):
                     "bk_biz_id": 11,
                     "app_name": "agent-app",
                     "group_field": "trace_id",
+                    "input_output_preview": False,
                     "group_id": trace_id,
                 }
             )
@@ -1979,7 +1986,9 @@ class ListFlowsResourceTestCase(TestCase):
                 },
             },
         )
-        span_query.query_by_group_ids.assert_called_once_with(group_field="trace_id", group_ids=["trace-1"])
+        span_query.query_by_group_ids.assert_called_once_with(
+            group_field="trace_id", group_ids=["trace-1"], fields=flow_query_fields(False, products=("default",))
+        )
 
     def test_session_returns_trace_summaries_without_loading_full_spans(self):
         group_field = "attributes.gen_ai.conversation.id"
@@ -2206,6 +2215,7 @@ class ListFlowsResourceTestCase(TestCase):
         span_query.query_by_group_ids.assert_called_once_with(
             group_field="trace_id",
             group_ids=["missing-trace"],
+            fields=flow_query_fields(True, True, products=("default",)),
         )
 
 

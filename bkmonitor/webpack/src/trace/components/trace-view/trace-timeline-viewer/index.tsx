@@ -193,16 +193,25 @@ export default defineComponent({
       const fontFamily = getComputedStyle(wrapperRef.value as HTMLElement).fontFamily;
       const serviceFont = `14px ${fontFamily}`;
       const operationFont = `12px ${fontFamily}`;
+      const serviceWidths = new Map<string, number>();
+      const operationWidths = new Map<string, number>();
+      const maxColumnWidth = elemWidth * AUTO_FIT_MAX_RATIO;
+      const measure = (text: string, font: string, widths: Map<string, number>) => {
+        if (!widths.has(text)) widths.set(text, measureTextWidth(text, font));
+        return widths.get(text) as number;
+      };
       let maxContentWidth = 0;
       for (const s of spans.value) {
         const serviceName = s.service_name || s.process?.serviceName || '';
         const operationName = s.operationName || '';
         const indentWidth = (s.depth + 1) * INDENT_PER_DEPTH;
-        const textWidth = measureTextWidth(serviceName, serviceFont) + measureTextWidth(operationName, operationFont);
+        const textWidth =
+          measure(serviceName, serviceFont, serviceWidths) + measure(operationName, operationFont, operationWidths);
         const contentWidth = indentWidth + textWidth + SPAN_NAME_EXTRA_WIDTH;
         if (contentWidth > maxContentWidth) {
           maxContentWidth = contentWidth;
         }
+        if (maxContentWidth >= maxColumnWidth) break;
       }
       const fitRatio = maxContentWidth / elemWidth;
       const ratio = Math.min(Math.max(fitRatio, minSpanNameColumnWidth.value), AUTO_FIT_MAX_RATIO);

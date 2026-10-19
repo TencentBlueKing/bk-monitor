@@ -198,6 +198,7 @@ export default defineComponent({
     const spanDetailLoading = shallowRef(false);
     let spanDetailRequestKey = '';
     let spanDetailRequestSeq = 0;
+    let spanDetailCancel: (() => void) | null = null;
     let spanDetailResponseCache: null | SpanDetailResponseCache = null;
 
     const detailSpan = computed<Span>(() => loadedSpan.value || props.spanDetails);
@@ -209,15 +210,15 @@ export default defineComponent({
       if (!span) return false;
       const sourceSpanId = span.span_id || span.spanID;
       if (!sourceSpanId) return false;
-      // 关联 Trace / 检索入口可能只传入 span_id stub，当前瀑布图树与 original_data 都没有这条 Span
-      const incomplete = !span.operationName && !span.startTime;
+      // 首屏可省略详情字段；关联 Trace / 检索入口也可能只传入 span_id stub。
+      const incomplete = (!span.operationName && !span.startTime) || !span.attributes?.length;
       const appMismatch = Boolean(span.app_name && viewAppName.value && span.app_name !== viewAppName.value);
       const bizMismatch =
         span.bk_biz_id != null &&
         span.bk_biz_id !== '' &&
         Boolean(viewBizId.value) &&
         String(span.bk_biz_id) !== String(viewBizId.value);
-      return incomplete || appMismatch || bizMismatch;
+      return Boolean(span.llm_detail && !span.llm_detail.attributes) || incomplete || appMismatch || bizMismatch;
     }
 
     /** 详情及其所有 Tab 统一使用 Span 自带上下文，存量数据缺字段时回退页面上下文。 */
@@ -336,7 +337,7 @@ export default defineComponent({
 
     /** 获取 span 类型描述 */
     function getTypeText() {
-      const { kind, source, ebpf_kind: ebpfKind, is_virtual: isVirtual } = props.spanDetails;
+      const { kind, source, ebpf_kind: ebpfKind, is_virtual: isVirtual } = detailSpan.value;
       if (isVirtual) return t('推断');
       if (source === 'ebpf') return ebpfKind;
       return SPAN_KIND_MAPS[kind];
@@ -457,6 +458,10 @@ export default defineComponent({
 
       const requestKey = JSON.stringify([sourceBizId, sourceAppName, sourceSpanId]);
       if (requestKey === spanDetailResponseCache?.key) {
+        spanDetailCancel?.();
+        spanDetailRequestSeq += 1;
+        spanDetailRequestKey = '';
+        spanDetailLoading.value = false;
         loadedSpan.value = {
           ...sourceSpan,
           ...spanDetailResponseCache.span,
@@ -465,14 +470,18 @@ export default defineComponent({
       }
       if (requestKey === spanDetailRequestKey) return null;
 
+      spanDetailCancel?.();
       spanDetailRequestKey = requestKey;
       const requestSeq = ++spanDetailRequestSeq;
       spanDetailLoading.value = true;
-      const result = await spanDetail({
-        bk_biz_id: sourceBizId,
-        app_name: sourceAppName,
-        span_id: sourceSpanId,
-      }).catch(() => null);
+      const result = await spanDetail(
+        { bk_biz_id: sourceBizId, app_name: sourceAppName, span_id: sourceSpanId },
+        {
+          cancelToken: new CancelToken((cancel: () => void) => {
+            spanDetailCancel = cancel;
+          }),
+        }
+      ).catch(() => null);
 
       if (requestSeq !== spanDetailRequestSeq) return null;
 
@@ -510,6 +519,7 @@ export default defineComponent({
       }
 
       const loadedOriginData = await loadSpanDetail(sourceSpan);
+      if (!props.show || props.spanDetails !== sourceSpan || (!loadedOriginData && !loadedSpan.value)) return;
       getDetails(loadedOriginData);
     }
 
@@ -2174,6 +2184,10 @@ export default defineComponent({
             document.querySelector('.span-details-sideslider')?.appendChild(maskEle);
           }
         } else {
+          spanDetailCancel?.();
+          spanDetailRequestSeq += 1;
+          spanDetailRequestKey = '';
+          spanDetailLoading.value = false;
           hideSelectionDecoder();
           resetSpanLinksRequestState();
           isInvokeOnceFlag = true;
@@ -2230,7 +2244,7 @@ export default defineComponent({
       () => props.spanDetails,
       val => {
         // 仅当详情面板显示时才加载数据，避免隐藏状态下的无效加载
-        if (val && props.show && (!props.withSideSlider || (props.isShowPrevNextButtons && Object.keys(val).length))) {
+        if (val && props.show && !props.isPageLoading) {
           prepareDetails();
         }
       },
@@ -2266,6 +2280,8 @@ export default defineComponent({
     });
 
     onBeforeUnmount(() => {
+      spanDetailCancel?.();
+      spanDetailRequestSeq += 1;
       unbindInfoTabSticky?.();
       hideSelectionDecoder();
     });

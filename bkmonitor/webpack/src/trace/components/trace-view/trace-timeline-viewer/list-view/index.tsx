@@ -188,7 +188,7 @@ export default defineComponent({
 
     const yPositions = new Positions(200);
     const internalInstance = getCurrentInstance() as any;
-    const forceUpdate = internalInstance?.ctx.$forceUpdate;
+    const forceUpdate = () => internalInstance?.proxy?.$forceUpdate();
 
     const spans = computed(() => useTraceStore().spanGroupTree);
     const getRowStates = computed<RowState[]>(() => {

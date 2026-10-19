@@ -28,12 +28,14 @@ from apm_web.llm.adapter import adapt_spans
 from apm_web.llm.adapter.fields import (
     AGENT_CANDIDATE_Q,
     SPAN_TYPES,
+    flow_query_fields,
     operation_query,
     resolve_product,
     resolve_query_field,
     resolve_query_fields,
 )
 from apm_web.llm.builders.flow import TOKEN_FIELDS, FlowBuilder
+from apm_web.llm.builders.preview import PREVIEW_LENGTH, prepare_flow_spans
 from apm_web.llm.builders.summary import TraceSummary
 from apm_web.llm.constants import CalculationType, SpanType
 from apm_web.llm.metric_group import LLMMetricGroup
@@ -85,6 +87,8 @@ class ListTracesResource(Resource):
         trace_ids: list[str],
         product: str,
         cal_types: Sequence[CalculationType] = (CalculationType.INPUT_TOKENS, CalculationType.OUTPUT_TOKENS),
+        include_input_output: bool = True,
+        input_output_preview: bool = False,
     ) -> Iterator[dict[str, Any]]:
         """按 Trace 折叠查询预览及统计，不加载完整调用链。"""
         if not trace_ids:
@@ -109,11 +113,21 @@ class ListTracesResource(Resource):
         )
         # 统计按需查询并去重；get() 传播异常，不能把失败伪装成空预览或零 Token。
         cal_types = tuple(dict.fromkeys(cal_types))
+        preview_options: dict[str, Any] = {}
+        if not include_input_output or input_output_preview:
+            preview_options["fields"] = tuple(
+                dict.fromkeys(
+                    (
+                        *flow_query_fields(include_input_output, input_output_preview, products=(product,)),
+                        resolve_query_field(product, "attributes.gen_ai.conversation.id"),
+                    )
+                )
+            )
         with ThreadPool(processes=3 + len(cal_types)) as pool:
             input_preview = pool.apply_async(
                 span_query.query_trace_preview,
                 (trace_ids,),
-                {"extra_filter": extra_filter, "sort": [*root_first, "start_time asc"]},
+                {"extra_filter": extra_filter, "sort": [*root_first, "start_time asc"], **preview_options},
             )
             output_preview = pool.apply_async(
                 span_query.query_trace_preview,
@@ -124,6 +138,7 @@ class ListTracesResource(Resource):
                     if product == LLMProduct.AIDEV.value
                     else extra_filter,
                     "sort": [*root_first, "end_time desc"],
+                    **preview_options,
                 },
             )
             token_queries = {
@@ -148,18 +163,33 @@ class ListTracesResource(Resource):
             for record in records:
                 tokens_by_trace[record[OtlpKey.TRACE_ID]][name] = record["_result_"]
 
+        if previews:
+            del span
+        del previews, input_preview, output_preview
         for trace_id in trace_ids:
-            spans: dict[str, dict[str, Any]] = spans_by_trace.get(trace_id, {})
+            spans: dict[str, dict[str, Any]] = spans_by_trace.pop(trace_id, {})
             if not spans:
                 continue
             raw_spans: list[dict[str, Any]] = list(spans.values())
-            yield TraceSummary.build(
+            del spans
+            converted_spans = (
+                adapt_spans(raw_spans, entity_set)
+                if include_input_output and not input_output_preview
+                else prepare_flow_spans(
+                    raw_spans, entity_set, include_input_output=include_input_output, preview=input_output_preview
+                )
+            )
+            item: dict[str, Any] = TraceSummary.build(
                 trace_id,
                 raw_spans,
-                adapt_spans(raw_spans, entity_set),
+                converted_spans,
                 {name: tokens_by_trace[trace_id].get(name, 0) for name in token_results},
                 has_error=trace_id in error_trace_ids,
             )
+            if input_output_preview:
+                item["input"] = item["input"][:PREVIEW_LENGTH]
+                item["output"] = item["output"][:PREVIEW_LENGTH]
+            yield item
 
     @classmethod
     def _assemble_group_items(
@@ -373,22 +403,39 @@ class ListFlowsResource(Resource):
         app_name = serializers.CharField(required=True, label="应用名称")
         group_field = serializers.CharField(required=True, label="分组字段")
         group_id = serializers.CharField(required=True, label="分组值")
+        include_input_output = serializers.BooleanField(required=False, default=True, label="包含输入输出")
+        input_output_preview = serializers.BooleanField(required=False, default=True, label="仅返回输入输出预览")
 
     @staticmethod
     def build_trace_flow(
-        bk_biz_id: int, app_name: str, trace_id: str, entity_set: EntitySet | None = None
+        bk_biz_id: int,
+        app_name: str,
+        trace_id: str,
+        entity_set: EntitySet | None = None,
+        include_input_output: bool = True,
+        input_output_preview: bool = False,
     ) -> FlowBuilder | None:
-        """仅加载单个 Trace 的完整 Span，执行线与 Agent Token 统计共用一次构造。"""
+        """按需加载单个 Trace 的 Span 字段，执行线与 Agent Token 统计共用一次构造。"""
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
-        raw_spans: list[dict[str, Any]] = get_query(application.build_data_sources()).query_by_group_ids(
+        if entity_set is None:
+            entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
+        fields = flow_query_fields(
+            include_input_output,
+            input_output_preview,
+            products=tuple(resolve_product(entity_set, service) for service in entity_set.service_names),
+        )
+        span_query = get_query(application.build_data_sources())
+        raw_spans: list[dict[str, Any]] = span_query.query_by_group_ids(
             group_field=OtlpKey.TRACE_ID,
             group_ids=[trace_id],
+            fields=fields,
         )
         if not raw_spans:
             return None
-        if entity_set is None:
-            entity_set = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
-        builder = FlowBuilder(raw_spans, adapt_spans(raw_spans, entity_set))
+        spans = prepare_flow_spans(
+            raw_spans, entity_set, include_input_output=include_input_output, preview=input_output_preview
+        )
+        builder = FlowBuilder(raw_spans, spans)
         builder.build()
         return builder
 
@@ -431,6 +478,8 @@ class ListFlowsResource(Resource):
                 trace_ids=trace_ids,
                 product=product,
                 cal_types=tuple(CalculationType(name) for name in TOKEN_FIELDS),
+                include_input_output=validated_request_data["include_input_output"],
+                input_output_preview=validated_request_data["input_output_preview"],
             ):
                 items[item["trace_id"]] = {**item, "flow": []}
 
@@ -451,7 +500,11 @@ class ListFlowsResource(Resource):
             traces = self.list_session_traces(validated_request_data, entity_set)
         else:
             trace_id: str = validated_request_data["group_id"]
-            builder = self.build_trace_flow(bk_biz_id, app_name, trace_id, entity_set)
+            include_input_output: bool = validated_request_data["include_input_output"]
+            input_output_preview: bool = validated_request_data["input_output_preview"]
+            builder = self.build_trace_flow(
+                bk_biz_id, app_name, trace_id, entity_set, include_input_output, input_output_preview
+            )
             if builder is None or not builder.flow:
                 return empty_result
             item: dict[str, Any] = TraceSummary.build(
@@ -464,6 +517,9 @@ class ListFlowsResource(Resource):
                 ),
             )
             item["flow"] = builder.flow
+            if input_output_preview:
+                item["input"] = item["input"][:PREVIEW_LENGTH]
+                item["output"] = item["output"][:PREVIEW_LENGTH]
             traces.append(item)
         if not traces:
             return empty_result
@@ -495,7 +551,10 @@ class TokenStatisticsResource(Resource):
     def perform_request(self, validated_request_data):
         trace_id = validated_request_data["trace_id"]
         builder = ListFlowsResource.build_trace_flow(
-            validated_request_data["bk_biz_id"], validated_request_data["app_name"], trace_id
+            validated_request_data["bk_biz_id"],
+            validated_request_data["app_name"],
+            trace_id,
+            include_input_output=False,
         )
         return {"trace_id": trace_id, "statistics": builder.statistics if builder else {}}
 

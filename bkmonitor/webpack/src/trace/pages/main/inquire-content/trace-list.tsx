@@ -56,7 +56,7 @@ import transformTraceTree from '../../../components/trace-view/model/transform-t
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import { useTimeRangeInject } from '../../../plugins/hooks';
-import { QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constant';
+import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constant';
 import { useSearchStore } from '../../../store/modules/search';
 import { type ListType, useTraceStore } from '../../../store/modules/trace';
 import SpanDetails from '../span-details';
@@ -796,11 +796,14 @@ export default defineComponent({
         getTraceDetails(traceId);
       }
     };
+    let detailRequestId = 0;
     const getTraceDetails = async (traceId: string) => {
+      const requestId = ++detailRequestId;
       searchCancelFn();
       curTraceId.value = traceId;
       store.setTraceDetail(true);
       store.setTraceLoaidng(true);
+      store.setTraceData({ ...DEFAULT_TRACE_DATA, appName: props.appName, trace_id: traceId });
 
       const params: any = {
         bk_biz_id: window.bk_biz_id,
@@ -819,14 +822,15 @@ export default defineComponent({
       if (traceDetailElem.value?.activePanel === 'timeline') {
         params[QUERY_TRACE_RELATION_APP] = store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP);
       }
-      await traceDetail(params, {
-        cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
-      })
-        .then(async data => {
-          await store.setTraceData({ ...data, appName: props.appName, trace_id: traceId });
-          store.setTraceLoaidng(false);
-        })
-        .catch(() => null);
+      try {
+        const data = await traceDetail(params, {
+          cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
+        }).catch(() => null);
+        if (requestId !== detailRequestId || curTraceId.value !== traceId) return;
+        await store.setTraceData({ ...DEFAULT_TRACE_DATA, ...data, appName: props.appName, trace_id: traceId });
+      } finally {
+        if (requestId === detailRequestId) store.setTraceLoaidng(false);
+      }
     };
     const handleCloseDetail = () => {
       if (!isFullscreen.value) return;

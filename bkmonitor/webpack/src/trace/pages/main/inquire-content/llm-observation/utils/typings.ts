@@ -46,6 +46,8 @@ export interface LlmFlowSpan {
   childs?: LlmFlowSpan[];
   elapsed_time: number;
   end_time: number;
+  input?: string | Record<string, string>;
+  output?: string | Record<string, string>;
   parent_span_id?: string;
   resource?: Record<string, unknown>;
   span_id: string;
@@ -142,28 +144,26 @@ export interface LlmStatCard {
 
 /** 扁平化后的 Span 行 */
 export interface LlmSpanRowView {
-  attributes: Record<string, unknown>;
   childCount: number;
   depth: number;
-  /** Agent / 工具描述，模型行通常为空 */
-  description: string;
   elapsedTime: number;
   /** status.message，status.code === 2 时用于错误 icon tooltip */
   errorMessage: string;
   hasChildren: boolean;
   inputTokens: number;
   io: LlmIoPreview;
+  ioLoading?: boolean;
   isError: boolean;
   isLast: boolean;
   /** 关系列竖线层级：根下子节点为 0，嵌套 Agent 展开后的子级递增 */
   lineGuideLevel: number;
   kind?: LlmSpanKind;
+  /** 模型、工具或 Agent 名称；缺失时回退到 SpanName。 */
   name: string;
   outputTokens: number;
-  /** 原始 Span JSON（不含子节点） */
-  rawSpan: Record<string, unknown>;
   spanId: string;
   startTime: number;
+  /** 与主名称不同的 SpanName。 */
   subtitle: string;
   traceId: string;
 }

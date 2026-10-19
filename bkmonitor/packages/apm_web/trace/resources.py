@@ -34,7 +34,7 @@ from apm_web.handlers.trace_handler.query import (
     TraceQueryTransformer,
 )
 from apm_web.handlers.trace_handler.view_config import TraceFieldsHandler
-from apm_web.llm.builders.detail import attach_llm_detail
+from apm_web.llm.builders.detail import attach_llm_detail, get_llm_entity_set, prepare_llm_spans
 from apm_web.models import Application
 from apm_web.models.trace import TraceComparison
 from apm_web.trace.serializers import (
@@ -482,13 +482,30 @@ class TraceDetailResource(Resource):
         )
         if not data.get("trace_data"):
             raise CustomException(_lazy(f"trace_id: {validated_request_data['trace_id']} 不存在"))
+        entity_set = get_llm_entity_set(validated_request_data["bk_biz_id"], validated_request_data["app_name"])
+        raw_spans: list[dict[str, Any]] = (
+            prepare_llm_spans(
+                validated_request_data["bk_biz_id"],
+                validated_request_data["app_name"],
+                data["trace_data"],
+                entity_set=entity_set,
+            )
+            if entity_set
+            else data["trace_data"]
+        )
+        data["trace_data"] = raw_spans
+        detail_span_ids: set[str] = TraceHandler.get_deferred_span_ids(
+            raw_spans, validated_request_data["bk_biz_id"], validated_request_data["app_name"]
+        )
         handled_data = TraceHandler.handle_trace(
             validated_request_data["app_name"],
-            data["trace_data"],
+            raw_spans,
             validated_request_data["trace_id"],
             data["relation_mapping"],
             validated_request_data.get("displays"),
             validated_request_data.get("enabled_time_alignment"),
+            compact_groups=True,
+            detail_span_ids=detail_span_ids,
         )
         if not handled_data.get("original_data", []):
             raise CustomException(
@@ -505,13 +522,17 @@ class TraceDetailResource(Resource):
             handled_data,
             validated_request_data["bk_biz_id"],
             validated_request_data["app_name"],
+            detail_span_ids=detail_span_ids,
         )
-        attach_llm_detail(
-            validated_request_data["bk_biz_id"],
-            validated_request_data["app_name"],
-            handled_data["trace_tree"],
-            handled_data["original_data"],
-        )
+        if entity_set is not None:
+            attach_llm_detail(
+                validated_request_data["bk_biz_id"],
+                validated_request_data["app_name"],
+                handled_data["trace_tree"],
+                handled_data["original_data"],
+                compact=True,
+                entity_set=entity_set,
+            )
         return handled_data
 
 

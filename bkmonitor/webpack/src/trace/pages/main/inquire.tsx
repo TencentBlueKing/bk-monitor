@@ -323,6 +323,10 @@ export default defineComponent({
       state.autoQuery = val;
     };
     async function handleAppSelectChange(val: string, isClickQueryBtn = false) {
+      if (state.searchType === 'accurate' && state.app !== val) {
+        accurateRequestId += 1;
+        store.setPageLoading(false);
+      }
       state.app = val;
       traceListPagination.offset = 0;
       traceColumnFilters.value = {};
@@ -350,6 +354,7 @@ export default defineComponent({
     const handleChangeSearchIdType = () => {
       traceIDSearchValue.value = '';
     };
+    let accurateRequestId = 0;
     /** ID 查询 */
     const handleQueryTraceId = async () => {
       if (!state.app || isLoading.value || !traceIDSearchValue.value.trim?.().length) {
@@ -366,35 +371,40 @@ export default defineComponent({
         },
       });
       store.setPageLoading(true);
-      /** 记录当前搜索的应用 */
-      localStorage.setItem('trace_query_app', state.app);
+      const requestId = ++accurateRequestId;
+      const queryApp = state.app;
+      const queryId = traceIDSearchValue.value;
+      localStorage.setItem('trace_query_app', queryApp);
 
       const isTraceIDSearch = searchIdType.value === 'traceID';
       const requestFn = isTraceIDSearch ? traceDetail : spanDetail;
       const params: Params = {
         bk_biz_id: window.bk_biz_id,
-        app_name: state.app,
-        [isTraceIDSearch ? 'trace_id' : 'span_id']: traceIDSearchValue.value,
+        app_name: queryApp,
+        [isTraceIDSearch ? 'trace_id' : 'span_id']: queryId,
       };
       if (isTraceIDSearch && (!store.selectedTraceViewFilterTab || store.selectedTraceViewFilterTab === 'timeline')) {
         params[QUERY_TRACE_RELATION_APP] = traceViewFilters.value.includes(QUERY_TRACE_RELATION_APP);
       }
-      const resultData = await requestFn(params).catch(() => null);
       searchResultIdType.value = searchIdType.value;
       if (isTraceIDSearch) {
-        store.setTraceData({ ...resultData, appName: state.app, trace_id: traceIDSearchValue.value });
-      } else {
-        if (resultData && Object.keys(resultData).length) {
+        store.setTraceData({ ...DEFAULT_TRACE_DATA, appName: queryApp, trace_id: queryId });
+      }
+      state.isAlreadyAccurateQuery = true;
+      try {
+        const resultData = await requestFn(params).catch(() => null);
+        if (requestId !== accurateRequestId || state.app !== queryApp || state.searchType !== 'accurate') return;
+        if (isTraceIDSearch) {
+          store.setTraceData({ ...DEFAULT_TRACE_DATA, ...resultData, appName: queryApp, trace_id: queryId });
+        } else if (resultData && Object.keys(resultData).length) {
           store.setSpanDetailData(resultData);
           resultData.trace_tree.traceID = resultData?.trace_tree?.spans?.[0]?.traceID;
           spanDetails.value = transformTraceTree(resultData.trace_tree)?.spans?.[0];
         } else {
           spanDetails.value = null;
         }
-      }
-      store.setPageLoading(false);
-      if (!state.isAlreadyAccurateQuery) {
-        state.isAlreadyAccurateQuery = true;
+      } finally {
+        if (requestId === accurateRequestId) store.setPageLoading(false);
       }
     };
     /** 精确查询输入框失焦 */
@@ -813,6 +823,7 @@ export default defineComponent({
     }
     /* 切换查询方式 */
     async function handleSearchTypeChange(id: string) {
+      accurateRequestId += 1;
       store.setTraceDetail(false);
       cancelTokenSource?.cancel?.();
       cancelTokenSource = axios.CancelToken.source();

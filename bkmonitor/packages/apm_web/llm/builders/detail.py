@@ -19,11 +19,54 @@ from opentelemetry.semconv.resource import ResourceAttributes
 from constants.apm import OtlpKey
 
 from apm_web.llm.adapter import adapt_spans
-from apm_web.llm.adapter.fields import resolve_product
+from apm_web.llm.adapter.fields import flow_attribute_fields, resolve_product
 from apm_web.strategy.dispatch.entity import EntitySet
 from bkmonitor.utils.request import get_request_username
 
 logger = logging.getLogger(__name__)
+
+
+def get_llm_entity_set(bk_biz_id: int, app_name: str) -> EntitySet | None:
+    if not (0 in settings.LLM_BIZ_LIST or bk_biz_id in settings.LLM_BIZ_LIST):
+        return None
+    try:
+        return EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
+    except Exception:
+        logger.exception("[LLM] 拓扑查询失败，跳过 LLM 详情: %s/%s", bk_biz_id, app_name)
+        return None
+
+
+def prepare_llm_spans(
+    bk_biz_id: int,
+    app_name: str,
+    raw_spans: list[dict[str, Any]],
+    entity_set: EntitySet | None = None,
+) -> list[dict[str, Any]]:
+    """用必要字段经过正常 Adapter 识别类型，所有产品统一延后加载详情。"""
+    entity_set = entity_set or get_llm_entity_set(bk_biz_id, app_name)
+    if not raw_spans or entity_set is None:
+        return raw_spans
+    fields: set[str] = flow_attribute_fields()
+    result: list[dict[str, Any]] = []
+    for source in raw_spans:
+        service: str = (source.get(OtlpKey.RESOURCE) or {}).get(ResourceAttributes.SERVICE_NAME, "")
+        if not resolve_product(entity_set, service):
+            result.append(source)
+            continue
+        projected = {
+            **source,
+            OtlpKey.ATTRIBUTES: {
+                key: value for key, value in (source.get(OtlpKey.ATTRIBUTES) or {}).items() if key in fields
+            },
+            OtlpKey.EVENTS: [],
+        }
+        converted = adapt_spans([projected], entity_set)
+        if converted and (span_type := converted[0].get("span_type")):
+            projected["llm_detail"] = {"span_type": span_type}
+            result.append(projected)
+        else:
+            result.append(source)
+    return result
 
 
 def attach_llm_detail(
@@ -31,6 +74,8 @@ def attach_llm_detail(
     app_name: str,
     trace_tree: dict[str, Any],
     raw_spans: list[dict[str, Any]],
+    compact: bool = False,
+    entity_set: EntitySet | None = None,
 ) -> None:
     """给瀑布列表的 Span 挂上标准 LLM Span。
 
@@ -45,21 +90,21 @@ def attach_llm_detail(
         app_name,
         get_request_username() or "",
     )
-    try:
-        entity_set: EntitySet = EntitySet(bk_biz_id=bk_biz_id, app_name=app_name)
-    except Exception:
-        # LLM 观测是详情接口的附加信息，拓扑取不到时跳过即可，不能让整个详情不可用
-        logger.exception("[LLM] 拓扑查询失败，跳过 llm_detail: %s/%s", bk_biz_id, app_name)
+    entity_set = entity_set or get_llm_entity_set(bk_biz_id, app_name)
+    if entity_set is None:
         return
 
-    llm_raw_spans: list[dict[str, Any]] = [
-        span
-        for span in raw_spans
-        if resolve_product(entity_set, span.get(OtlpKey.RESOURCE, {}).get(ResourceAttributes.SERVICE_NAME, ""))
-    ]
-    details: dict[str, dict[str, Any]] = {
-        span[OtlpKey.SPAN_ID]: span for span in adapt_spans(llm_raw_spans, entity_set) if "span_type" in span
-    }
+    if compact:
+        details = {span[OtlpKey.SPAN_ID]: span["llm_detail"] for span in raw_spans if span.get("llm_detail")}
+    else:
+        llm_raw_spans = [
+            span
+            for span in raw_spans
+            if resolve_product(entity_set, (span.get(OtlpKey.RESOURCE) or {}).get(ResourceAttributes.SERVICE_NAME, ""))
+        ]
+        details = {
+            span[OtlpKey.SPAN_ID]: span for span in adapt_spans(llm_raw_spans, entity_set) if "span_type" in span
+        }
     for span in trace_tree.get("spans") or []:
         if detail := details.get(span.get("spanID")):
             span["llm_detail"] = detail

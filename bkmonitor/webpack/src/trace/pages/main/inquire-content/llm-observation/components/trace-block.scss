@@ -225,7 +225,7 @@
   }
 
   .is-span {
-    width: 259px;
+    flex: 0 0 clamp(280px, 28%, 400px);
   }
 
   .is-io {
@@ -234,17 +234,24 @@
     padding-left: 16px;
   }
 
+  .is-duration,
+  .is-token,
+  .is-action {
+    box-sizing: border-box;
+    flex-shrink: 0;
+  }
+
   .is-duration {
-    width: 78px;
+    width: 104px;
   }
 
   .is-token {
-    width: 200px;
+    width: 152px;
   }
 
   .is-action {
-    width: 40px;
-    padding: 0;
+    width: 64px;
+    text-align: center;
   }
 }
 

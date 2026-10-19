@@ -28,14 +28,9 @@ import { formatDuration } from '../../../../../components/trace-view/utils/date'
 import {
   formatTokenCount,
   getByPath,
-  isRecord,
-  parseJsonValue,
   pickNumber,
   stringifyContent,
 } from '../../../llm-observation/utils/helpers';
-import { parseInputObservation } from '../../../llm-observation/utils/parse-input';
-import { parseOutputObservation } from '../../../llm-observation/utils/parse-output';
-import { parseToolObservation } from '../../../llm-observation/utils/parse-tool';
 
 import type {
   LlmExecutionFilter,
@@ -52,7 +47,7 @@ import type {
 
 /**
  * list_llm_flows 响应 → 页面视图模型：Span 归类、统计、筛选扁平化与 I/O 预览。
- * 解析逻辑复用 main/llm-observation 下的 parse-* 工具。
+ * 输入输出直接使用后端生成的 KV / 文本预览。
  */
 
 /** OTLP StatusCode: 0 UNSET, 1 OK, 2 ERROR */
@@ -99,6 +94,7 @@ const TOKEN_UNITS: [number, string][] = [
 /** flattenVisibleSpanRows 内部使用的 Span 树节点 */
 type SpanTreeNode = {
   children: SpanTreeNode[];
+  descendantCount: number;
   span: LlmFlowSpan;
 };
 
@@ -156,7 +152,18 @@ export function pickConversationId(traces: LlmFlowTrace[]): string {
     const value = String(trace.conversation_id || '').trim();
     if (value) return value;
   }
-  return extractConversationId(traces.flatMap(item => collectSpanList(item.flow)));
+  return extractConversationId(traces.flatMap(item => item.flow || []));
+}
+
+/** 完整响应仅保留行内预览，原始输入输出由 Span 详情按需查询。 */
+export function buildIoPreviews(traces: LlmFlowTrace[]): Map<string, LlmIoPreview> {
+  const result = new Map<string, LlmIoPreview>();
+  for (const trace of traces) {
+    for (const span of collectSpanList(trace.flow)) {
+      result.set(`${trace.trace_id}:${span.span_id}`, pickIoPreview(span));
+    }
+  }
+  return result;
 }
 
 /** 统计卡：耗时 / Token / 缓存优先用概览汇总，模型与工具次数只统计已拉取 flow */
@@ -325,15 +332,10 @@ function* walkSpans(nodes: LlmFlowSpan[]): Generator<LlmFlowSpan> {
 }
 
 function toTree(nodes: LlmFlowSpan[]): SpanTreeNode[] {
-  return (nodes || []).map(span => ({
-    span,
-    children: toTree(span.childs || []),
-  }));
-}
-
-/** Agent 行角标：直接 + 间接子 Span 数量 */
-function countDescendants(node: SpanTreeNode): number {
-  return node.children.reduce((total, child) => total + 1 + countDescendants(child), 0);
+  return (nodes || []).map(span => {
+    const children = toTree(span.childs || []);
+    return { span, children, descendantCount: children.reduce((total, child) => total + 1 + child.descendantCount, 0) };
+  });
 }
 
 /** 节点自身或任一后代命中筛选/关键字时保留，以便祖先链仍可见 */
@@ -378,8 +380,7 @@ function toSpanRowView(
     kind,
     name: pickSpanName(span, kind),
     subtitle: pickSpanSubtitle(span, kind),
-    description: pickDescription(span, kind),
-    childCount: countDescendants(node),
+    childCount: node.descendantCount,
     startTime: span.start_time,
     elapsedTime: span.elapsed_time,
     inputTokens: pickNumber(attrs, INPUT_TOKEN_KEYS),
@@ -390,116 +391,30 @@ function toSpanRowView(
     hasChildren: node.children.length > 0,
     isLast,
     lineGuideLevel,
-    io: pickIoPreview(span, kind),
-    attributes: attrs,
-    rawSpan: toRawSpan(span),
+    io: pickIoPreview(span),
   };
 }
 
-function pickDescription(span: LlmFlowSpan, kind = resolveSpanKind(span)): string {
-  const attrs = span.attributes || {};
-  if (kind === 'AGENT') {
-    return stringifyContent(getByPath(attrs, 'gen_ai.agent.description')).trim();
-  }
-  if (kind === 'TOOL') {
-    return parseToolObservation(attrs).description;
-  }
-  return '';
+/** 后端已完成语义选择和截断；前端只映射到既有 KV / 文本展示。 */
+function pickIoPreview(span: LlmFlowSpan): LlmIoPreview {
+  return { input: valueToPieces(span.input), output: valueToPieces(span.output) };
 }
 
-/**
- * 执行线输入/输出列。
- * 对齐 list_llm_flows：消息按 role/part 归类后都进入对应列，不再只留最后一条文本。
- * 系统 Prompt、可用工具定义仍在展开面板。
- * 没有任何消息和工具记录时，行内才回退到系统 Prompt。
- */
-function pickIoPreview(span: LlmFlowSpan, kind = resolveSpanKind(span)): LlmIoPreview {
-  const attrs = span.attributes || {};
-  if (kind === 'TOOL') {
-    const tool = parseToolObservation(attrs);
-    return {
-      input: valueToPieces(tool.arguments),
-      output: valueToPieces(tool.result),
-    };
-  }
-  return pickMessageIo(attrs);
+function valueToPieces(value: LlmFlowSpan['input']): LlmIoPiece[] {
+  if (typeof value === 'string') return value ? [{ type: 'text', text: value }] : [];
+  if (!value) return [];
+  const pairs = Object.entries(value).map(([key, text]) => ({ key, value: text }));
+  return pairs.length ? [{ type: 'kv', pairs }] : [];
 }
 
-/** LLM / Agent / 未归类：主文本在左，工具调用与推理接在后面 */
-function pickMessageIo(attrs: Record<string, unknown>): LlmIoPreview {
-  const inputObs = parseInputObservation(attrs);
-  const outputObs = parseOutputObservation(attrs);
-  const input: LlmIoPiece[] = [];
-  pushText(input, joinPreviewText(inputObs.userMessages));
-  pushText(input, joinPreviewText(inputObs.modelMessages));
-  for (const call of inputObs.toolCalls) {
-    pushToolPayload(input, call.name, call.arguments, call.response);
-  }
-  pushText(input, joinPreviewText(inputObs.reasoningMessages));
-  if (!input.length) pushText(input, joinPreviewText(inputObs.systemPrompts));
-
-  const output: LlmIoPiece[] = [];
-  pushText(output, joinPreviewText(outputObs.modelOutputs));
-  for (const call of outputObs.plannedToolCalls) {
-    pushToolPayload(output, call.name, call.arguments);
-  }
-  pushText(output, joinPreviewText(outputObs.reasoningMessages));
-  return { input, output };
-}
-
-function pushText(pieces: LlmIoPiece[], text: string) {
-  const normalized = text.replace(/\s+/g, ' ').trim();
-  if (normalized) pieces.push({ type: 'text', text: normalized });
-}
-
-function joinPreviewText(items: { content: string }[]): string {
-  return items
-    .map(item => item.content.replace(/\s+/g, ' ').trim())
-    .filter(Boolean)
-    .join(' ');
-}
-
-/** 工具名单独成段；参数、返回各自展开，避免合并后只看见其中一侧 */
-function pushToolPayload(pieces: LlmIoPiece[], name: string, args: unknown, response?: unknown) {
-  const payload = [...valueToPieces(args), ...valueToPieces(response)];
-  if (!name && !payload.length) return;
-  if (name) pieces.push({ type: 'name', text: name });
-  pieces.push(...payload);
-}
-
-/**
- * 对象展开全部顶层字段（不再截到 4 个）。
- * 数组、字符串、数字等不再因为不是对象而显示成空。
- */
-function valueToPieces(value: unknown): LlmIoPiece[] {
-  if (value == null || value === '') return [];
-  const parsed = parseJsonValue(value);
-  if (parsed == null || parsed === '') return [];
-  if (isRecord(parsed)) {
-    const pairs = Object.entries(parsed)
-      .map(([key, val]) => ({ key, value: compactPreviewText(val) }))
-      .filter(item => item.value !== '');
-    return pairs.length ? [{ type: 'kv', pairs }] : [];
-  }
-  const text = compactPreviewText(parsed);
-  return text ? [{ type: 'text', text }] : [];
-}
-
-/** 单行预览：嵌套值用紧凑 JSON，避免缩进换行撑开 42px 行高 */
-function compactPreviewText(value: unknown): string {
-  if (value == null) return '';
-  if (typeof value === 'string') return value.replace(/\s+/g, ' ').trim();
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-/** 展示名：Tool/Agent 优先 gen_ai.*.name，LLM 用 span_name */
+/** 主名称优先展示模型、工具或 Agent 名称，缺失时回退到 SpanName。 */
 function pickSpanName(span: LlmFlowSpan, kind = resolveSpanKind(span)): string {
   const attrs = span.attributes || {};
+  if (kind === 'LLM') {
+    return String(
+      getByPath(attrs, 'gen_ai.response.model') || getByPath(attrs, 'gen_ai.request.model') || span.span_name || ''
+    ).trim();
+  }
   if (kind === 'TOOL') {
     return String(getByPath(attrs, 'gen_ai.tool.name') || span.span_name || '').trim();
   }
@@ -509,33 +424,13 @@ function pickSpanName(span: LlmFlowSpan, kind = resolveSpanKind(span)): string {
   return span.span_name || '';
 }
 
-/** LLM 行副标题为 request/response model；Tool 固定 tool */
+/** SpanName 作为次要信息；与主名称相同时不重复展示。 */
 function pickSpanSubtitle(span: LlmFlowSpan, kind = resolveSpanKind(span)): string {
-  const attrs = span.attributes || {};
-  if (kind === 'LLM') {
-    return String(getByPath(attrs, 'gen_ai.response.model') || getByPath(attrs, 'gen_ai.request.model') || '').trim();
-  }
-  if (kind === 'TOOL') return 'tool';
-  return '';
+  const spanName = (span.span_name || '').trim();
+  return spanName === pickSpanName(span, kind) ? '' : spanName;
 }
 
-/** Trace 卡片标题：首个非 Tool Span 的用户消息，其次模型消息 / 系统 Prompt */
+/** 无摘要时使用 Span 名称，不在前端再次解析消息。 */
 function pickTraceTitle(flow: LlmFlowSpan[]): string {
-  for (const span of walkSpans(flow)) {
-    if (resolveSpanKind(span) === 'TOOL') continue;
-    const input = parseInputObservation(span.attributes || {});
-    const text =
-      input.userMessages.at(-1)?.content.trim() ||
-      input.modelMessages.at(-1)?.content.trim() ||
-      input.systemPrompts.at(-1)?.content.trim() ||
-      '';
-    if (text) return text.replace(/\s+/g, ' ').trim();
-  }
   return flow[0]?.span_name || '';
-}
-
-/** 展开面板「原始 JSON」不含子树，避免体积过大 */
-function toRawSpan(span: LlmFlowSpan): Record<string, unknown> {
-  const { childs: _childs, ...rest } = span;
-  return rest;
 }

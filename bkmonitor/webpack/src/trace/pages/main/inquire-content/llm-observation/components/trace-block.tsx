@@ -44,10 +44,6 @@ import './trace-block.scss';
 export default defineComponent({
   name: 'LlmTraceBlock',
   props: {
-    detailExpandedSpanIds: {
-      type: Object as PropType<Set<string>>,
-      default: () => new Set<string>(),
-    },
     expanded: {
       type: Boolean,
       default: false,
@@ -70,10 +66,9 @@ export default defineComponent({
     },
   },
   emits: {
-    'toggle-detail': (_spanId: string) => true,
     'toggle-span': (_spanId: string) => true,
     'toggle-trace': (_traceId: string) => true,
-    'view-detail': (_spanId: string) => true,
+    'view-detail': (_span: LlmSpanRowView) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -156,12 +151,10 @@ export default defineComponent({
                   props.rows.map(row => (
                     <SpanRow
                       key={row.spanId}
-                      detailExpanded={props.detailExpandedSpanIds.has(row.spanId)}
                       expanded={props.expandedSpanIds.has(row.spanId)}
                       row={row}
-                      onToggle-detail={spanId => emit('toggle-detail', spanId)}
                       onToggle-expand={spanId => emit('toggle-span', spanId)}
-                      onView-detail={spanId => emit('view-detail', spanId)}
+                      onView-detail={span => emit('view-detail', span)}
                     />
                   ))
                 )}
