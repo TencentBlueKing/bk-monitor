@@ -123,6 +123,11 @@ NATIVE_PERMISSIONS["search_logs"]["conditional"] = {
     "equals": "scene",
     "permission": _log_scene_permission,
 }
+NATIVE_PERMISSIONS["analyze_field"]["conditional"] = {
+    "arg": "target_type",
+    "equals": "scene",
+    "permission": _log_scene_permission,
+}
 for _name in ("list_index_sets", "list_log_scenes", "list_scene_dimension_values", "get_scene_log_fields"):
     NATIVE_PERMISSIONS[_name] = deepcopy(_log_scene_permission)
 
@@ -986,6 +991,11 @@ def _build_guidelines(tool: ToolDefinition) -> list[str]:
     properties = tool.input_schema.get("properties") or {}
     if "start_time" in properties or "end_time" in properties:
         guidelines.append("start_time 和 end_time 必须按当前时间动态计算，不能使用固定历史时间戳。")
+    if tool.name == "analyze_field":
+        guidelines.append(
+            "target_type=index_set 时前置工具为 list_index_sets、get_index_set_fields；"
+            "target_type=scene 时前置工具为 list_log_scenes、list_scene_dimension_values、get_scene_log_fields。"
+        )
     if tool.prerequisites:
         guidelines.append("标识和字段必须来自前置工具返回，不能自行猜测。")
     if tool.backend_derived_fields:

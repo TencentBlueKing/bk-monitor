@@ -322,7 +322,9 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # ------------------------------------------------------------------
 
     def _verify_scene_permission(self, result) -> None:
-        self.verify_result_table_search_permission((result or {}).get("result_table_id"))
+        # DataAPI 会把 unify-query 响应包在 data 内，鉴权所需的结果表列表在 data 层。
+        payload = result.get("data", result) if isinstance(result, dict) else {}
+        self.verify_result_table_search_permission((payload or {}).get("result_table_id"))
 
     def query_ts(self, search_dict, raise_exception=True):
         result = super().query_ts(search_dict, raise_exception=raise_exception)
@@ -833,6 +835,61 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
 
         logger.info("[scene_agg_field] space_uid=%s, field=%s", self.space_uid, agg_field)
         return self.query_ts_reference(query_body)
+
+    def analyze_field(
+        self,
+        field_name: str,
+        group_by: bool = True,
+        order_by: str = "time",
+        limit: int | None = None,
+        step: str = "1h",
+    ) -> dict:
+        """场景化字段分析，语义与 MCP analyze_field 的索引集模式保持一致。"""
+        conditions = self._transform_scene_additions()
+        query_item = {
+            "data_source": "bklog",
+            "table_id": "",
+            "table_id_conditions": self.table_id_conditions,
+            "query_string": self.query_string or "*",
+            "time_field": "dtEventTimeStamp",
+            "conditions": conditions,
+            "field_name": field_name,
+            "dimensions": [],
+            "function": ([{"method": "count", "dimensions": [field_name]}] if group_by else [{"method": "count"}]),
+            "reference_name": "a",
+        }
+        if limit is not None:
+            query_item["limit"] = limit
+
+        query_body = {
+            "space_uid": self.space_uid,
+            "query_list": [query_item],
+            "metric_merge": "a",
+            "order_by": (["-_value"] if order_by == "value" else ["-dtEventTimeStamp", "-gseIndex", "-iterationIndex"]),
+            "step": step or "1h",
+            "start_time": str(self.start_time),
+            "end_time": str(self.end_time),
+        }
+        if self.bk_biz_id:
+            query_body["bk_biz_id"] = self.bk_biz_id
+
+        logger.info(
+            "[scene_analyze_field] space_uid=%s, field=%s, group_by=%s, order_by=%s, limit=%s",
+            self.space_uid,
+            field_name,
+            group_by,
+            order_by,
+            limit,
+        )
+        result = self.query_ts_reference(query_body)
+
+        # unify-query 的 limit 按单表生效，多表合并后需要裁剪到全局 limit。
+        payload = result.get("data", result) if isinstance(result, dict) else None
+        if group_by and limit is not None and isinstance(payload, dict):
+            series = payload.get("series") or []
+            if len(series) > limit:
+                payload["series"] = series[:limit]
+        return result
 
     def total(self) -> dict:
         search_dict = copy.deepcopy(self.base_dict)

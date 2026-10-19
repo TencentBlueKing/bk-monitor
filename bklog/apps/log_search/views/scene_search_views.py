@@ -343,6 +343,20 @@ class SceneFetchStatisticsGraphSerializer(SceneFieldBaseSerializer):
     distinct_count = serializers.IntegerField(required=False)
 
 
+class SceneAnalyzeFieldSerializer(_SceneRouteMixin):
+    """场景化字段分析，对齐 MCP analyze_field 的场景模式入参。"""
+
+    keyword = serializers.CharField(allow_null=True, allow_blank=True, required=False, default="*")
+    addition = serializers.ListField(allow_empty=True, required=False, default=list)
+    field_name = serializers.CharField(required=True)
+    group_by = serializers.BooleanField(required=False, default=True)
+    order_by = serializers.ChoiceField(choices=["value", "time"], required=False, default="time")
+    limit = serializers.IntegerField(required=False, allow_null=True)
+    step = serializers.CharField(required=False, default="1h", max_length=16)
+    start_time = serializers.CharField(required=True)
+    end_time = serializers.CharField(required=True)
+
+
 # ---------------------------------------------------------------------------
 # Aggs serializers
 # ---------------------------------------------------------------------------
@@ -1100,6 +1114,27 @@ class SceneSearchViewSet(APIViewSet):
                 return Response(handler.get_bucket_data(params["min"], params["max"]))
         else:
             return Response(handler.get_topk_ts_data(params["limit"]))
+
+    @list_route(methods=["POST"], url_path="field/analyze")
+    def analyze_field(self, request):
+        """
+        @api {post} /search/scene/field/analyze/ 场景化检索-字段分析
+        @apiName scene_analyze_field
+        @apiGroup 14_SceneSearch
+        @apiDescription 按场景路由执行字段聚合，供 MCP analyze_field 场景模式使用。
+        """
+        params = self.params_valid(SceneAnalyzeFieldSerializer)
+        params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
+        params = _merge_scene_filters_to_addition(params)
+        handler = SceneUnifyQueryHandler(params)
+        result = handler.analyze_field(
+            field_name=params["field_name"],
+            group_by=params["group_by"],
+            order_by=params["order_by"],
+            limit=params.get("limit"),
+            step=params["step"],
+        )
+        return Response(result.get("data", {}))
 
     # ------------------------------------------------------------------
     # Export endpoints
