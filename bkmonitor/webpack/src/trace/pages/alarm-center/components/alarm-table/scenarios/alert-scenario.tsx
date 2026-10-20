@@ -26,6 +26,7 @@
 
 import { bkMessage } from 'monitor-api/utils';
 import { copyText } from 'monitor-common/utils';
+import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
 import { transformLogUrlQuery } from 'monitor-pc/utils';
 
 import {
@@ -452,7 +453,9 @@ export class AlertScenario extends BaseScenario {
           extendInfo.bk_host_id ??
           `${extendInfo.ip}-${extendInfo.bk_cloud_id === undefined ? 0 : extendInfo.bk_cloud_id}`;
         window.open(
-          `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/performance/detail/${detailId}`,
+          `${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}${resolveLegacyHostHash({
+            id: String(detailId),
+          })}`,
           '_blank'
         );
         return;

@@ -48,6 +48,7 @@ import { CancelToken } from 'monitor-api/cancel';
 import { query as apmProfileQuery } from 'monitor-api/modules/apm_profile';
 import { listLinks, spanDetail } from 'monitor-api/modules/apm_trace';
 import { getSceneView } from 'monitor-api/modules/scene_view';
+import { buildHostMonitorTarget, hostMonitorHash } from 'monitor-common/utils/host-monitor-url';
 import { copyText, deepClone, random } from 'monitor-common/utils/utils';
 import { useI18n } from 'vue-i18n';
 import VueJsonPretty from 'vue-json-pretty';
@@ -1539,7 +1540,12 @@ export default defineComponent({
         }
         case 'Host': {
           if (!spanDetailQueryStore.queryData?.bk_host_id) return;
-          window.open(`#/performance/detail/${spanDetailQueryStore.queryData.bk_host_id}`, '_blank');
+          window.open(
+            hostMonitorHash(
+              buildHostMonitorTarget({ bkHostId: String(spanDetailQueryStore.queryData.bk_host_id) })
+            ),
+            '_blank'
+          );
           return;
         }
         case 'Container': {

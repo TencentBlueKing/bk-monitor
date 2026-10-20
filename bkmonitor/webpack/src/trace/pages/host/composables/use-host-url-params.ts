@@ -24,9 +24,11 @@
  * IN THE SOFTWARE.
  */
 
-import { computed } from 'vue';
+import { computed, onScopeDispose, watch } from 'vue';
 
+import { getHostInfo } from 'monitor-api/modules/scene_view';
 import { tryURLDecodeParse } from 'monitor-common/utils';
+import { isBkHostId, LEGACY_IPV4_QUERY, splitLegacyIpv4HostId } from 'monitor-common/utils/host-monitor-url';
 import { useRoute, useRouter } from 'vue-router';
 
 import { DEFAULT_AGGREGATION_STATE } from '../constants/aggregation';
@@ -43,6 +45,11 @@ export const useHostUrlParams = () => {
 
   const router = useRouter();
   const route = useRoute();
+  let legacyResolveVersion = 0;
+  let legacyResolvePending = false;
+  onScopeDispose(() => {
+    legacyResolveVersion += 1;
+  });
 
   const urlParams = computed(() => {
     return {
@@ -70,12 +77,55 @@ export const useHostUrlParams = () => {
     };
   });
 
+  function readLegacyIpv4Host() {
+    const fromQuery = splitLegacyIpv4HostId(String(route.query[LEGACY_IPV4_QUERY] || ''));
+    if (fromQuery) return fromQuery;
+    const rawId = String(route.params.id || '');
+    if (!rawId || isBkHostId(rawId)) return null;
+    return splitLegacyIpv4HostId(rawId);
+  }
+
+  /** 页面打开后再把 ip-云区域换成 bk_host_id，失败时退回列表并用 IP 当关键字。 */
+  async function resolveLegacyIpv4Host(ip: string, cloudId: string) {
+    const version = ++legacyResolveVersion;
+    legacyResolvePending = true;
+    let bkHostId = '';
+    try {
+      const data = (await getHostInfo({ ip, bk_cloud_id: cloudId })) as null | { bk_host_id?: number | string };
+      const id = data?.bk_host_id == null ? '' : String(data.bk_host_id);
+      if (isBkHostId(id)) bkHostId = id;
+    } catch {
+      bkHostId = '';
+    }
+    if (version !== legacyResolveVersion) return;
+    if (bkHostId) {
+      hostStore.nodeId = bkHostId;
+      const query: Record<string, string> = {};
+      Object.entries({ ...route.query, ...urlParams.value }).forEach(([key, value]) => {
+        const text = queryText(value);
+        if (!text || key === LEGACY_IPV4_QUERY) return;
+        query[key] = text;
+      });
+      await router.replace({
+        path: `/trace/host/${bkHostId}`,
+        query,
+      });
+      legacyResolvePending = false;
+      return;
+    }
+    legacyResolvePending = false;
+    if (!hostStore.keyword) hostStore.keyword = ip;
+    setUrlParams();
+  }
+
   function setUrlParams(otherParams: Record<string, unknown> = {}) {
+    if (legacyResolvePending) return;
     const queryParams = {
       ...route.query,
       ...urlParams.value,
       ...otherParams,
     };
+    if (!legacyResolvePending) delete queryParams[LEGACY_IPV4_QUERY];
     const targetRoute = router.resolve({
       query: queryParams,
     });
@@ -113,13 +163,14 @@ export const useHostUrlParams = () => {
       hostProcessName,
       hostProcessKeyword,
     } = route.query;
-    hostStore.nodeId = (nodeId || route.params.id || '') as string;
-    // 兼容旧版本dashboardId
-    const activeTabKeyMap = {
-      host: 'system',
-      process: 'process',
-    };
-    hostStore.activeTab = (activeTab || activeTabKeyMap?.[dashboardId as string] || '') as string;
+    const legacyIpv4 = readLegacyIpv4Host();
+    if (legacyIpv4) {
+      hostStore.nodeId = '';
+      void resolveLegacyIpv4Host(legacyIpv4.ip, legacyIpv4.cloudId);
+    } else {
+      hostStore.nodeId = (nodeId || route.params.id || '') as string;
+    }
+    hostStore.activeTab = queryText(activeTab) || legacyDashboardTab(dashboardId);
     getWhereParams();
     hostStore.keyword = (keyword || queryString || '') as string;
     hostStore.filterExpanded = filterExpanded === 'true' || !!hostStore.where.length;
@@ -132,8 +183,7 @@ export const useHostUrlParams = () => {
       diskData: 'disk',
     };
     hostStore.activeCategory = (activeCategory || panelKeyMap?.[panelKey as string] || '') as '' | EHostQuickCategory;
-    /** 恢复主机进程名称 */
-    hostStore.hostProcessName = (hostProcessName || '') as string;
+    hostStore.hostProcessName = queryText(hostProcessName);
     /** 恢复进程列表搜索关键词 */
     hostStore.hostProcessKeyword = (hostProcessKeyword || '') as string;
     hostStore.timeRange = from && to ? [from as string, to as string] : ['now-1h', 'now'];
@@ -266,10 +316,55 @@ export const useHostUrlParams = () => {
     }
   }
 
+  // 列表页和 legacyIpv4 详情是同一条 /host 路由，组件会复用，需要在查询参数出现时再解析。
+  watch(
+    () => {
+      const fromQuery = queryText(route.query[LEGACY_IPV4_QUERY]);
+      if (fromQuery) return fromQuery;
+      const rawId = queryText(route.params.id);
+      if (!rawId || isBkHostId(rawId)) return '';
+      return rawId;
+    },
+    value => {
+      const legacy = splitLegacyIpv4HostId(value);
+      if (!legacy) return;
+      void resolveLegacyIpv4Host(legacy.ip, legacy.cloudId);
+    }
+  );
+
+  // 主机页路由组件会复用。再次进入详情时，用地址上的页签和进程名覆盖列表页留下的 store。
+  watch(
+    () =>
+      [
+        queryText(route.params.id),
+        queryText(route.query.activeTab),
+        queryText(route.query.dashboardId),
+        queryText(route.query.hostProcessName),
+      ].join('\n'),
+    () => {
+      const nextTab = queryText(route.query.activeTab) || legacyDashboardTab(route.query.dashboardId);
+      if (nextTab) hostStore.activeTab = nextTab;
+      hostStore.hostProcessName = queryText(route.query.hostProcessName);
+    }
+  );
+
   return {
     urlParams,
     setUrlParams,
     getUrlParams,
     handleSelectNode,
   };
+};
+
+const queryText = (value: unknown) => {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw == null ? '' : String(raw);
+};
+
+/** 旧版 dashboardId=host|process 对应新版详情页签。 */
+const legacyDashboardTab = (dashboardId: unknown) => {
+  const value = queryText(dashboardId);
+  if (value === 'host') return 'system';
+  if (value === 'process') return 'process';
+  return '';
 };

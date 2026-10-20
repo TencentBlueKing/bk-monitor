@@ -24,6 +24,7 @@
  * IN THE SOFTWARE.
  */
 import { commonPageSizeGet } from 'monitor-common/utils';
+import { buildHostMonitorTarget, hostMonitorHash } from 'monitor-common/utils/host-monitor-url';
 import { padIPv6 } from 'monitor-common/utils/ip-utils';
 import { deepClone } from 'monitor-common/utils/utils';
 
@@ -391,7 +392,9 @@ export const nodesToTableData = (nodes: INodeData[]): ICommonTableProps['data'] 
       ip_type: transformIpTypeToText(item.ip_type),
       ip: {
         value: item.ip,
-        url: `${location.origin}${location.pathname}?bizId=${item.bk_biz_id}#/performance/detail/${item.bk_host_id}`,
+        url: `${location.origin}${location.pathname}?bizId=${item.bk_biz_id}${hostMonitorHash(
+          buildHostMonitorTarget({ bkHostId: String(item.bk_host_id) })
+        )}`,
       },
       type: item.is_common ? window.i18n.tc('自建节点(公共)') : window.i18n.tc('自建节点(私有)'),
       task_num_text: {
