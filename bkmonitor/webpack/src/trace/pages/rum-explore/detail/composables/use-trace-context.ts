@@ -28,6 +28,7 @@ import type { MaybeRef } from 'vue';
 
 import { TIMELINE_REQUEST_RESOURCE_TYPES } from '../constants';
 import { getViewTimeline } from '../services';
+import { RumTimelineFilterCategoryEnum } from '../typings';
 import { buildRecordMap, buildTimelineItems, buildViewVM, findSpanPath } from '../utils/timeline-transform';
 
 import type {
@@ -104,18 +105,19 @@ export function useTraceContext({ active, appName, currentSpanId, formatField, v
 
   /** 快捷筛选：Span 名称关键字与类别，均为前端过滤 */
   const filterKeyword = shallowRef('');
-  const filterCategory = shallowRef<RumTimelineFilterCategoryType>('all');
+  const filterCategory = shallowRef<RumTimelineFilterCategoryType>(RumTimelineFilterCategoryEnum.ALL);
 
   /** 慢节点阈值：耗时超过 500ms（elapsed_time 以微秒存储） */
   const SLOW_NODE_THRESHOLD_US = 500 * 1000;
 
   /** 类别筛选谓词，口径同 timeline 接口协议 2.12.3 */
   const CATEGORY_PREDICATES: Record<
-    Exclude<RumTimelineFilterCategoryType, 'all'>,
+    Exclude<RumTimelineFilterCategoryType, typeof RumTimelineFilterCategoryEnum.ALL>,
     (record: IRumTimelineRecord | undefined) => boolean
   > = {
-    action: record => String(record?.origin_data?.attributes?.span_type ?? '') === 'action',
-    error: record => {
+    [RumTimelineFilterCategoryEnum.ACTION]: record =>
+      String(record?.origin_data?.attributes?.span_type ?? '') === RumTimelineFilterCategoryEnum.ACTION,
+    [RumTimelineFilterCategoryEnum.ERROR]: record => {
       const attributes: Record<string, unknown> = record?.origin_data?.attributes ?? {};
       return (
         String(attributes.span_type ?? '') === 'error' ||
@@ -123,12 +125,13 @@ export function useTraceContext({ active, appName, currentSpanId, formatField, v
         attributes['outcome.type'] === 'error'
       );
     },
-    slow_node: record => {
+    [RumTimelineFilterCategoryEnum.SLOW_NODE]: record => {
       const elapsed = record?.origin_data?.elapsed_time;
       return elapsed !== null && elapsed !== undefined && Number(elapsed) > SLOW_NODE_THRESHOLD_US;
     },
-    request: record => TIMELINE_REQUEST_RESOURCE_TYPES.has(record?.origin_data?.attributes?.['resource.type']),
-    third_party: record => {
+    [RumTimelineFilterCategoryEnum.REQUEST]: record =>
+      TIMELINE_REQUEST_RESOURCE_TYPES.has(record?.origin_data?.attributes?.['resource.type']),
+    [RumTimelineFilterCategoryEnum.THIRD_PARTY]: record => {
       const attributes: Record<string, unknown> = record?.origin_data?.attributes ?? {};
       return (
         String(attributes.span_type ?? '') === 'resource' &&
@@ -147,7 +150,11 @@ export function useTraceContext({ active, appName, currentSpanId, formatField, v
         .includes(keyword)
     )
       return false;
-    if (filterCategory.value !== 'all' && !CATEGORY_PREDICATES[filterCategory.value](record)) return false;
+    if (
+      filterCategory.value !== RumTimelineFilterCategoryEnum.ALL &&
+      !CATEGORY_PREDICATES[filterCategory.value](record)
+    )
+      return false;
     return true;
   }
 
@@ -163,7 +170,9 @@ export function useTraceContext({ active, appName, currentSpanId, formatField, v
     return result;
   }
 
-  const hasFilter = computed(() => filterKeyword.value.trim() !== '' || filterCategory.value !== 'all');
+  const hasFilter = computed(
+    () => filterKeyword.value.trim() !== '' || filterCategory.value !== RumTimelineFilterCategoryEnum.ALL
+  );
 
   /** 筛选生效时只渲染过滤后的子树，不再出现折叠段，子级展开仍由 expandedNodes 控制 */
   const filteredChildren = computed(() =>

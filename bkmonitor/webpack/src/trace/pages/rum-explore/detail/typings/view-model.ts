@@ -26,7 +26,7 @@
 
 import type { IRumField } from '../../typings';
 import type { IRumHoverInfo } from './detail';
-import type { RumCardToneType, RumDetailTabType, RumRatingType, RumSectionType } from './enum';
+import type { RumCardToneType, RumRatingType, RumSectionType, RumTimelineFilterCategoryType } from './enum';
 
 /** 徽标：标题右侧的关键指标与状态 */
 export interface IRumBadgeVM {
@@ -58,8 +58,8 @@ export interface IRumCardFooterPart {
 
 /** 卡片可使用的抽屉交互能力，由 useDetailSections 注入，注册表通过 ctx.handlers 消费 */
 export interface IRumCardHandlers {
-  /** 切换详情抽屉的激活 tab */
-  switchTab: (tab: RumDetailTabType) => void;
+  /** 切到「链路上下文」tab 并套用指定的快捷筛选类别 */
+  switchTraceContext: (category: RumTimelineFilterCategoryType) => void;
 }
 
 /** 卡片描述符的推导上下文 */

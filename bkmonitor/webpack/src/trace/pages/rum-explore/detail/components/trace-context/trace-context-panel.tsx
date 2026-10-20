@@ -65,12 +65,16 @@ export default defineComponent({
       type: Array as PropType<IRumTimelineItemVM[]>,
       default: () => [],
     },
+    spanType: {
+      type: String,
+    },
   },
   emits: {
     expandFold: (_key: string) => true,
     toggleNode: (_spanId: string) => true,
     spanClick: (_span: IRumTimelineSpanVM) => true,
     traceClick: (_traceId: string) => true,
+    viewClick: (_view: IRumTimelineViewVM) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -151,7 +155,11 @@ export default defineComponent({
       }
       return (
         <div class='trace-context-card'>
-          <TimelineViewHeader data={props.view} />
+          <TimelineViewHeader
+            data={props.view}
+            spanType={props.spanType}
+            onViewClick={view => emit('viewClick', view)}
+          />
           {props.view.waterfall ? <WaterfallChart data={props.view.waterfall} /> : null}
           <div class='trace-context-timeline'>{renderItems()}</div>
         </div>

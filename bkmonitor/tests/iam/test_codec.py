@@ -13,7 +13,7 @@ specific language governing permissions and limitations under the License.
 #
 # 覆盖：
 #   1. IdentityCodec 全恒等
-#   2. MonitorV4Codec 双射 & 边界（space 加前缀、非 space 恒等、decode 兜底）
+#   2. MonitorV4Codec 双射 & 边界（数字字符串不变、非 space 恒等）
 # ==============================================================================
 
 from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
@@ -55,7 +55,7 @@ class TestIdentityCodec:
 
 
 class TestMonitorV4Codec:
-    """MonitorV4Codec 只对 space 加 "space|" 前缀。"""
+    """MonitorV4Codec 复用公共空间 ID 编码。"""
 
     def setup_method(self):
         self.c: NameCodec = MonitorV4Codec()
@@ -63,17 +63,18 @@ class TestMonitorV4Codec:
     # ---- space ----
 
     def test_space_encode(self):
-        assert self.c.encode_resource_id("space", "3") == "space|3"
+        assert self.c.encode_resource_id("space", "3") == "3"
 
     def test_space_encode_negative(self):
-        assert self.c.encode_resource_id("space", "-42") == "space|-42"
+        assert self.c.encode_resource_id("space", "-42") == "-42"
 
     def test_space_encode_idempotent(self):
-        assert self.c.encode_resource_id("space", "space|3") == "space|3"
+        encoded = self.c.encode_resource_id("space", "-42")
+        assert self.c.encode_resource_id("space", encoded) == encoded
 
     def test_space_decode(self):
-        assert self.c.decode_resource_id("space", "space|3") == "3"
-        assert self.c.decode_resource_id("space", "space|-42") == "-42"
+        assert self.c.decode_resource_id("space", "3") == "3"
+        assert self.c.decode_resource_id("space", "-42") == "-42"
 
     def test_space_decode_no_prefix_fallback(self):
         assert self.c.decode_resource_id("space", "3") == "3"

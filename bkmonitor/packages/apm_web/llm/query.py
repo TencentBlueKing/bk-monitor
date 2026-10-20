@@ -169,6 +169,8 @@ class LLMQuery(SpanQuery):
         start_time: int | None = None,
         end_time: int | None = None,
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
+        fields: Sequence[str] = (),
+        extra_filter: Q | None = None,
     ) -> Iterator[list[dict[str, Any]]]:
         """按 ID 分片拉取 Span，每完成一批就交给调用方。
 
@@ -189,7 +191,12 @@ class LLMQuery(SpanQuery):
                 query.order_by(OtlpKey.START_TIME).filter(**{f"{group_field}__eq": chunk})
                 for query in self.build_queries(time_field=OtlpKey.START_TIME)
             ]
-            return self._query_list(queries, start_time, end_time, 0, limit)
+            if extra_filter:
+                queries = [query.filter(extra_filter) for query in queries]
+            if fields:
+                queries = [query.values(*fields) for query in queries]
+            qs = self.get_qs(start_time, end_time).is_es_batch().limit(limit)
+            return list(self._add_query(qs, queries))
 
         if len(chunks) == 1:
             yield _query_chunk(chunks[0])
@@ -207,10 +214,18 @@ class LLMQuery(SpanQuery):
         start_time: int | None = None,
         end_time: int | None = None,
         limit: int = SpanQuery.QUERY_MAX_LIMIT,
+        fields: Sequence[str] = (),
+        extra_filter: Q | None = None,
     ) -> list[dict[str, Any]]:
         """拉取指定 ID 的全部 Span。用于需要完整调用链的详情接口。"""
         spans: list[dict[str, Any]] = []
-        for batch in self.iter_by_group_ids(group_field, group_ids, start_time, end_time, limit):
+        for batch in self.iter_by_group_ids(
+            group_field, group_ids, start_time, end_time, limit, fields=fields, extra_filter=extra_filter
+        ):
+            if fields:
+                for span in batch:
+                    for field in (OtlpKey.ATTRIBUTES, OtlpKey.RESOURCE, OtlpKey.STATUS):
+                        span.setdefault(field, {})
             spans.extend(batch)
         return spans
 
@@ -220,6 +235,7 @@ class LLMQuery(SpanQuery):
         *,
         extra_filter: Q,
         sort: list[str],
+        fields: Sequence[str] = (),
     ) -> list[dict[str, Any]]:
         """按调用方指定的过滤与排序，每个 Trace 返回一个完整 Span。"""
         if not trace_ids:
@@ -228,6 +244,8 @@ class LLMQuery(SpanQuery):
             query.filter(trace_id__eq=trace_ids).filter(extra_filter).distinct(OtlpKey.TRACE_ID).order_by(*sort)
             for query in self.build_queries(time_field=OtlpKey.START_TIME)
         ]
+        if fields:
+            queries = [query.values(*fields) for query in queries]
         return self._query_list(queries, None, None, 0, len(trace_ids))
 
     def query_trace_errors(self, trace_ids: list[str]) -> list[dict[str, Any]]:

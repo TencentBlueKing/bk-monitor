@@ -14,7 +14,7 @@
 #
 # 协议方言留在两平台产品适配层，公共层不能反向 import 业务模块：
 #   引擎说普通话（view_business、space、3），方言层负责编码成
-#   view_business_v2 / neg_3 后再打网关。
+#   view_business_v2 等协议命名后再打网关；空间 ID 保留原数字字符串。
 #
 # 换代要同时改 AuthMode 枚举、默认拓扑和 Bundle 注入；退出的协议名会变成非法配置。
 # 不要在 Router / Policy 里再写死版本名。

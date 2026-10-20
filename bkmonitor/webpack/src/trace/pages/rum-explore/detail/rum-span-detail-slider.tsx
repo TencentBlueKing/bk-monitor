@@ -44,13 +44,13 @@ import {
   useTraceContext,
 } from './composables';
 import { searchTraceInfo } from './services';
-import { RumDetailTabEnum } from './typings';
+import { RumDetailTabEnum, RumTimelineFilterCategoryEnum } from './typings';
 import SliderHeader from '@/components/slider-header/slider-header';
 import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
 
 import type { IRumField, IRumTimeRange, RumModeType } from '../typings';
 import type { IRumTraceInfo } from './services';
-import type { IRumDetailContext, IRumTimelineSpanVM, RumDetailTabType } from './typings';
+import type { IRumDetailContext, IRumTimelineSpanVM, IRumTimelineViewVM, RumDetailTabType } from './typings';
 
 import './rum-span-detail-slider.scss';
 
@@ -123,8 +123,11 @@ export default defineComponent({
     const { getField, formatField, copyText, resolveCtx } = useDetailFormatter(toRef(props, 'fields'), originData);
     const { headerVM } = useDetailOverview(detail, spanType, formatField, getField);
     const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading, {
-      switchTab: tab => {
-        activeTab.value = tab;
+      /** 跳到链路上下文并套用来源卡片对应的快捷筛选类别，清空关键字避免与类别叠加后筛空 */
+      switchTraceContext: category => {
+        activeTab.value = RumDetailTabEnum.TRACE_CONTEXT;
+        traceContext.filterCategory.value = category;
+        traceContext.filterKeyword.value = '';
       },
     });
     const { blocks, eventKeyword } = useOriginData(originData, toRef(props, 'fields'));
@@ -175,7 +178,7 @@ export default defineComponent({
         activeTab.value = RumDetailTabEnum.BASIC;
         eventKeyword.value = '';
         traceContext.filterKeyword.value = '';
-        traceContext.filterCategory.value = 'all';
+        traceContext.filterCategory.value = RumTimelineFilterCategoryEnum.ALL;
       }
     );
 
@@ -211,6 +214,18 @@ export default defineComponent({
     const handleTimelineSpanClick = (span: IRumTimelineSpanVM) => {
       if (!props.context) return;
       const context: IRumDetailContext = { ...props.context, record_id: span.spanId, span_type: span.spanType };
+      if (props.nested) {
+        emit('spanOpen', context);
+        return;
+      }
+      childContext.value = context;
+      childShow.value = true;
+    };
+
+    /** 链路上下文头部点击「View 详情」，与 Span 行点击一致打开嵌套抽屉 */
+    const handleTimelineViewClick = (view: IRumTimelineViewVM) => {
+      if (!props.context) return;
+      const context: IRumDetailContext = { ...props.context, record_id: view.spanId, span_type: 'view' };
       if (props.nested) {
         emit('spanOpen', context);
         return;
@@ -338,11 +353,13 @@ export default defineComponent({
             error={traceContext.error.value}
             items={traceContext.items.value}
             loading={traceContext.loading.value}
+            spanType={spanType.value}
             view={traceContext.viewVM.value}
             onExpandFold={traceContext.handleExpandFold}
             onSpanClick={handleTimelineSpanClick}
             onToggleNode={traceContext.handleToggleNode}
             onTraceClick={handleTimelineTraceClick}
+            onViewClick={handleTimelineViewClick}
           />
         </div>
       );

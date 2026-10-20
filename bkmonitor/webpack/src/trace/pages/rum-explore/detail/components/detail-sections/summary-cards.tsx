@@ -115,7 +115,6 @@ export default defineComponent({
         <div
           key={card.key}
           class={['rum-summary-card', card.cardCls, { 'clickable-card': isClickable }]}
-          onClick={() => isClickable && card.click?.()}
         >
           <div class='card-head'>
             <span
@@ -160,6 +159,7 @@ export default defineComponent({
                 v-overflow-tips={{
                   content: `${card.value}${card.growthRate ? card.growthRate.text : ''}${card.unit ? card.unit.text : ''}`,
                 }}
+                onClick={card.click}
               >
                 {card.value}
               </span>
