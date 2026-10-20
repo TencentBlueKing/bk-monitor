@@ -337,7 +337,7 @@
   .bk-dialog-content {
     display: flex;
     flex-direction: column;
-    max-height: calc(100vh - 64px);
+    max-height: calc(100vh - 200px - 32px);
   }
 
   .bk-dialog-tool,
