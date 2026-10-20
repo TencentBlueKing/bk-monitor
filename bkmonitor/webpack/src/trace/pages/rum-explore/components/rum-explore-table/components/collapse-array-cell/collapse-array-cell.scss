@@ -1,5 +1,11 @@
-/** 强调色默认洋红，各场景可通过 --collapse-array-accent-color 覆盖 */
-.collapse-array-col {
+/**
+ * 强调色默认洋红，各场景可通过 --collapse-array-accent-color 覆盖
+ *
+ * 根选择器复合 CollapseTags 自身的 .bk-common-tag-show：其 column-gap、.item-tags（flex-wrap: wrap）、
+ * .collapse-tag（灰底 pill）与本文件子规则同特异性，胜负只由产物 CSS 顺序决定，而 mini-css-extract
+ * 下 chunk 加载顺序不稳定，覆盖会随机失效。复合一层类名把整块提到 (0,3,0)，与打包顺序解耦
+ */
+.collapse-array-col.bk-common-tag-show {
   --collapse-array-accent-color: #f239c1;
 
   // 间距移交 item-tags 的右内边距，让 hover 下划线连成一条
