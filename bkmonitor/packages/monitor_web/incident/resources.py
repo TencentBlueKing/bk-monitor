@@ -21,6 +21,7 @@ from django.utils.translation import gettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
 from bkmonitor.aiops.incident.graph_snapshot import edge_identity, graph_analysis, target_analysis
+from bkmonitor.aiops.incident.topology_validation import snapshot_display_status
 from bkmonitor.aiops.incident.models import (
     IncidentGraphEdge,
     IncidentGraphEdgeType,
@@ -784,12 +785,20 @@ class IncidentTopologyResource(IncidentBaseResource):
                 "message": _("所选时间范围内暂无可用图谱快照"),
             }
 
+        for stored_snapshot in incident_snapshots:
+            status = snapshot_display_status(stored_snapshot.content.to_dict())
+            if status in ("SYNC_FAILED", "INVALID_DATA"):
+                return self.snapshot_error_response(validated_request_data["only_diff"], status)
+
         # 根据实体加入的时间生成实体ID到时间的映射
         entities_orders = self.generate_entities_orders(incident_snapshots)
 
         snapshots = {}
         for incident_snapshot in incident_snapshots:
-            snapshot = IncidentSnapshot(incident_snapshot.content.to_dict())
+            try:
+                snapshot = IncidentSnapshot(incident_snapshot.content.to_dict())
+            except (KeyError, TypeError, ValueError):
+                return self.snapshot_error_response(validated_request_data["only_diff"], "INVALID_DATA")
             if auto_aggregate or aggregate_config or aggregate_version or aggregate_cluster:
                 snapshot.aggregate_graph(
                     incident,
@@ -831,6 +840,16 @@ class IncidentTopologyResource(IncidentBaseResource):
                 "sub_combos": list(complete_topologies["sub_combos"].values()),
                 "combos": list(complete_topologies["combos"].values()),
             },
+        }
+
+    @staticmethod
+    def snapshot_error_response(only_diff, status):
+        return {
+            "latest": {"nodes": [], "edges": [], "combos": [], "sub_combos": []},
+            "diff" if only_diff else "full": [],
+            "complete": {"nodes": [], "edges": [], "sub_combos": [], "combos": []},
+            "status": status,
+            "message": _("图谱快照同步失败") if status == "SYNC_FAILED" else _("图谱快照数据异常"),
         }
 
     def generate_entities_orders(self, incident_snapshots: list[IncidentSnapshotDocument]) -> dict:
