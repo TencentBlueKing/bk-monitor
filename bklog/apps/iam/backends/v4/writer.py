@@ -83,7 +83,7 @@ class V4AuthorizationWriter:
             "subject": {"type": "user", "id": str(subject_id)},
             "role_id": SPACE_ACCESS_ROLE_ID,
             "related_resource_type_id": BKLOG_ROOT_RESOURCE_TYPE_ID,
-            # 负数空间 ID 由 client 按 codec 编码成 neg_<id>，这里保持本地原值
+            # 与公共 codec 一致，空间 ID 保持本地数字字符串（含负数）。
             "resources": [{"type": BKLOG_ROOT_RESOURCE_TYPE_ID, "id": str(space_id)}],
             "expired_at": self._resolve_expired_at(),
         }

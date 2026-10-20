@@ -56,7 +56,7 @@ class Subject:
 
 @dataclass(frozen=True, slots=True)
 class ResourceInstance:
-    """资源实例。type/id 用业务命名；V4 的 neg_ 编码、V3 的 _v2 后缀都在 codec 里做。"""
+    """资源实例。type/id 用业务命名；协议命名转换由 codec 负责，空间 ID 保持原数字字符串。"""
 
     type: DefinitionRef
     id: str
