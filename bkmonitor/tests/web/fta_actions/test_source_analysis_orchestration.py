@@ -64,7 +64,8 @@ class TestSourceAnalysisContract(SimpleTestCase):
         self.assertEqual(SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER, "__BKAICLI_ACCESS_TOKEN__")
         self.assertEqual(SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER, "__BKAIDEV_ACCESS_TOKEN__")
 
-    def test_failed_task_trace_is_normalized_before_persistence(self):
+    @patch("fta_web.issue.resources.transaction.on_commit")
+    def test_failed_task_trace_is_normalized_before_persistence(self, on_commit):
         execution = SimpleNamespace(analysis_id="analysis-1", mark_failed=MagicMock())
         task_state = {
             "status": "failed",
@@ -102,6 +103,7 @@ class TestSourceAnalysisContract(SimpleTestCase):
                 },
             },
         )
+        on_commit.assert_called_once()
 
     def test_incomplete_task_trace_does_not_create_execution_reference(self):
         task_state = {

@@ -100,6 +100,7 @@ from fta_web.issue.handlers.issue import (
 )
 from fta_web.issue.serializers import IssueSearchSerializer
 from fta_web.issue.source_analysis import is_issue_ai_analysis_enabled_for_biz
+from fta_web.issue.source_analysis_notice import send_source_analysis_notice
 from fta_web.issue.source_analysis_result import (
     SOURCE_ANALYSIS_RESULT_SCHEMA_VERSION,
     SourceAnalysisResultValidationError,
@@ -1578,6 +1579,8 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
             )
         except SourceAnalysisInvalidStatusTransitionError:
             execution.refresh_from_db()
+        else:
+            transaction.on_commit(lambda: send_source_analysis_notice(execution), using=cls.db_alias())
         return None
 
     @classmethod
@@ -1655,12 +1658,14 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
             execution.refresh_from_db()
             return False
 
-    @staticmethod
-    def _mark_failed(execution: IssueSourceAnalysisExecution, **failure) -> None:
+    @classmethod
+    def _mark_failed(cls, execution: IssueSourceAnalysisExecution, **failure) -> None:
         try:
             execution.mark_failed(**failure)
         except SourceAnalysisInvalidStatusTransitionError:
             execution.refresh_from_db()
+        else:
+            transaction.on_commit(lambda: send_source_analysis_notice(execution), using=cls.db_alias())
 
 
 class SourceAnalysisIssueRequestSerializer(serializers.Serializer):
