@@ -23,7 +23,7 @@ def expected_v4_model():
     schema = definitions
     info = {
         "id": settings.BK_IAM_V4_SYSTEM_ID or settings.BK_IAM_SYSTEM_ID,
-        "name": "蓝鲸监控平台",
+        "name": "监控平台",
         "description": "蓝鲸监控平台-IAMv4 权限系统",
         "callback_url": settings.BK_IAM_V4_CALLBACK_URL
         or f"{settings.BK_IAM_RESOURCE_API_HOST.rstrip('/')}/rest/v2/iam/v4/callback/",
