@@ -134,6 +134,13 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
                         current,
                         username=username,
                         bk_tenant_id=tid,
+                        request_getter=lambda: get_request(peaceful=True),
+                        # The shared product schema retains ActionMeta.type here.
+                        read_action_ids={
+                            action.id
+                            for action in schema.actions.values()
+                            if action.extensions.get("v3", {}).get("type") == "view"
+                        },
                     )
                 return clients[key]
 
