@@ -328,7 +328,7 @@ class OverlayRegistry {
 
 const overlayRegistry = new OverlayRegistry();
 
-module.exports = {
+export {
   FALLBACK_ZINDEX_START,
   OVERLAY_RULES,
   OverlayRegistry,
