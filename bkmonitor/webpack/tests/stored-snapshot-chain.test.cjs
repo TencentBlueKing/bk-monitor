@@ -15,6 +15,9 @@ async function verify(payload) {
   const original = JSON.stringify(payload);
   const result = render(payload);
   assert.equal(result.history.status, undefined);
+  assert.ok(result.history.latest.nodes.length > 0, 'positive snapshot lost all visible nodes');
+  assert.ok(result.history.latest.edges.length > 0, 'positive snapshot lost all visible edges');
+  if (payload.expected_frames) assert.deepEqual(result.full.full.map(frame => ({ nodes: frame.content.nodes.length, edges: frame.content.edges.length })), payload.expected_frames);
   assert.deepEqual(result.history.latest, result.latest.latest);
   assert.deepEqual(result.history.complete, result.full.complete);
   for (const response of [result.history, result.latest]) {
