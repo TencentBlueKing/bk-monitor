@@ -38,7 +38,7 @@ type PanelContext = {
 /** 每个业务、应用记住 LLM/瀑布偏好，异步结果不覆盖用户本次手动选择。 */
 export function useTracePanelPreference(context: PanelContext) {
   const panel = shallowRef('timeline');
-  const storageKey = computed(() => `trace_detail_panel:${unref(context.bizId)}:${unref(context.appName)}`);
+  const storageKey = computed(() => `TRACE_DETAIL_LLM_PREFERENCE:${unref(context.bizId)}-${unref(context.appName)}`);
   let preferredPanel = 'llm';
   let hasSelected = false;
   let usedFallback = false;

@@ -865,7 +865,7 @@ test('an explicit waterfall choice made while LLM data is pending is cached for 
   };
   const preference = scope.run(() => useTracePanelPreference(context));
   preference.selectPanel('timeline');
-  assert.equal(localStorage.getItem('trace_detail_panel:11:pending-app'), 'timeline');
+  assert.equal(localStorage.getItem('TRACE_DETAIL_LLM_PREFERENCE:11-pending-app'), 'timeline');
   context.hasLlmTraces.value = true;
   await flush();
   assert.equal(preference.panel.value, 'timeline');
@@ -1105,7 +1105,7 @@ test('IO completion reuses structure work while filters and expansion still upda
 
 function createPreference() {
   localStorage.values.clear();
-  localStorage.setItem('trace_detail_panel:11:app-a', 'timeline');
+  localStorage.setItem('TRACE_DETAIL_LLM_PREFERENCE:11-app-a', 'timeline');
   const load = sourceLoader();
   const { useTracePanelPreference } = load(
     path.join(root, 'inquire-content/llm-observation/hooks/use-trace-panel-preference.ts')
@@ -1131,7 +1131,7 @@ test('saved waterfall waits 500 ms then uses ready LLM without changing saved pr
   assert.equal(result.panel.value, 'timeline');
   await new Promise(resolve => setTimeout(resolve, 300));
   assert.equal(result.panel.value, 'llm');
-  assert.equal(localStorage.getItem('trace_detail_panel:11:app-a'), 'timeline');
+  assert.equal(localStorage.getItem('TRACE_DETAIL_LLM_PREFERENCE:11-app-a'), 'timeline');
   context.traceLoading.value = false;
   await flush();
   assert.equal(result.panel.value, 'llm');
