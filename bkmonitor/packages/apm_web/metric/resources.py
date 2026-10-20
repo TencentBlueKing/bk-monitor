@@ -1112,6 +1112,9 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
     ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         """获取服务的数据状态"""
         services = ServiceHandler.list_services(application)
+        if not filter_keys:
+            requested = set(service_names)
+            services = [node for node in services if node["topo_key"] in requested]
         data_status_mapping = ServiceHandler.build_service_data_status(
             application, services, data_type=data_status_type if not filter_keys else None
         )

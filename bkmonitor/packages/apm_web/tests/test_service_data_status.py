@@ -13,6 +13,7 @@ import logging
 from typing import Any
 
 import pytest
+from django.test import override_settings
 from pytest_mock import MockerFixture
 
 from apm_web.constants import CategoryEnum, CustomServiceMatchType, CustomServiceType, DataStatus, TopoNodeKind
@@ -46,17 +47,21 @@ def application(mocker: MockerFixture) -> Application:
     [
         (0, DataStatus.NORMAL),
         (5 * 60, DataStatus.NORMAL),
-        (15 * 60, DataStatus.NORMAL),
-        (15 * 60 + 1, DataStatus.NO_DATA),
+        (20 * 60 + 1, DataStatus.NORMAL),
+        (60 * 60, DataStatus.NORMAL),
+        (60 * 60 + 1, DataStatus.NO_DATA),
     ],
 )
-def test_heartbeat_fresh_tolerates_one_cycle(
+@pytest.mark.parametrize("no_data_period", [5, 120])
+def test_heartbeat_fresh_uses_service_lookback(
     application: Application,
     mocker: MockerFixture,
     caplog: pytest.LogCaptureFixture,
     age_seconds: int,
     expected: str,
+    no_data_period: int,
 ) -> None:
+    application.no_data_period = no_data_period
     caplog.set_level(logging.INFO, logger="apm_web.handlers.service_handler")
     related_services = mocker.patch(
         "apm_web.handlers.service_handler.ServiceLogHandler.list_available_related_services",
@@ -76,6 +81,16 @@ def test_heartbeat_fresh_tolerates_one_cycle(
     if expected == DataStatus.NORMAL:
         related_services.assert_not_called()
     assert not caplog.records
+
+
+@override_settings(APM_SERVICE_DATA_STATUS_LOOKBACK_SECONDS=30 * 60)
+@pytest.mark.parametrize(("age_seconds", "expected"), [(30 * 60, DataStatus.NORMAL), (30 * 60 + 1, DataStatus.NO_DATA)])
+def test_heartbeat_fresh_uses_configured_lookback(application: Application, age_seconds: int, expected: str) -> None:
+    node = {"topo_key": "orders", "heartbeat": {"trace": {"last_data_at": NOW - age_seconds}}}
+
+    assert ServiceHandler.build_service_data_status(application, [node], data_type="trace") == {
+        "orders": {"trace": expected}
+    }
 
 
 @pytest.mark.parametrize("disabled_type", TelemetryDataType.values())
@@ -187,7 +202,7 @@ def test_build_service_data_status_log_dual_source(application: Application, moc
     )
     nodes = [
         {"topo_key": "heartbeat", "heartbeat": {"log": {"last_data_at": NOW}}},
-        {"topo_key": "related", "heartbeat": {"log": {"last_data_at": NOW - 16 * 60, "checked_at": NOW}}},
+        {"topo_key": "related", "heartbeat": {"log": {"last_data_at": NOW - 61 * 60, "checked_at": NOW}}},
         {"topo_key": "missing"},
     ]
 

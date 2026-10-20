@@ -146,8 +146,7 @@ class ServiceHandler:
         if not nodes:
             return {}
 
-        # 在无数据周期之外容忍一个 10 分钟发现周期。
-        earliest_data_at = int(time.time()) - (app.no_data_period + 10) * 60
+        earliest_data_at = int(time.time()) - settings.APM_SERVICE_DATA_STATUS_LOOKBACK_SECONDS
         data_types = (TelemetryDataType(data_type),) if data_type is not None else TelemetryDataType
         status_mapping: dict[str, dict[str, str]] = {}
         missing_heartbeat_counts: defaultdict[str, int] = defaultdict(int)

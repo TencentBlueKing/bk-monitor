@@ -258,19 +258,52 @@ def test_async_single_non_log_status_ignores_related_log_failure(
     related_logs.assert_not_called()
 
 
-def test_async_single_log_status_keeps_related_index_availability(
+@pytest.mark.parametrize("column", ["data_status", "log_data_status"])
+@pytest.mark.parametrize("service_names", [["unknown", "orders"], ["unknown"]])
+def test_async_status_without_filters_skips_unrequested_log_lookup(
     service_status_context: tuple[Application, mock.Mock],
+    mocker: MockerFixture,
+    column: str,
+    service_names: list[str],
 ) -> None:
-    app, _ = service_status_context
+    app, topo_query = service_status_context
+    topo_query.return_value[0]["heartbeat"]["log"] = {"last_data_at": 2_000_000_000}
+    related_logs = mocker.patch.object(
+        ServiceLogHandler, "list_available_related_services", side_effect=RuntimeError("无关服务的日志关联不可用")
+    )
 
-    result = async_request(app, "log_data_status", ["logs", "orders"])
+    result = async_request(app, column, service_names)
 
+    kinds = TelemetryDataType.values() if column == "data_status" else ["log"]
+    default_status = {
+        kind: DataStatus.DISABLED if kind == "profiling" else DataStatus.NO_DATA for kind in TelemetryDataType.values()
+    }
+    expected_statuses = {
+        "unknown": default_status,
+        "orders": {**default_status, "trace": DataStatus.NORMAL, "log": DataStatus.NORMAL},
+    }
     assert result == {
         "data": [
-            {"service_name": "logs", "log_data_status": {"icon": DataStatus.NORMAL}},
-            {"service_name": "orders", "log_data_status": {"icon": DataStatus.NO_DATA}},
+            {
+                "service_name": name,
+                **{f"{kind}_data_status": {"icon": expected_statuses[name][kind]} for kind in kinds},
+            }
+            for name in service_names
         ]
     }
+    related_logs.assert_not_called()
+
+
+def test_async_single_log_status_keeps_related_index_availability(
+    service_status_context: tuple[Application, mock.Mock], mocker: MockerFixture
+) -> None:
+    app, _ = service_status_context
+    related_logs = mocker.patch.object(ServiceLogHandler, "list_available_related_services", return_value={"logs"})
+
+    result = async_request(app, "log_data_status", ["logs"])
+
+    assert result == {"data": [{"service_name": "logs", "log_data_status": {"icon": DataStatus.NORMAL}}]}
+    related_logs.assert_called_once_with(app, ["logs"])
 
 
 def test_sync_status_columns_reuse_nodes_and_keep_total_count(
