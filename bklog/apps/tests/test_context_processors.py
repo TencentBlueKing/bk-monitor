@@ -74,6 +74,15 @@ class LogAccessGuideContextTest(SimpleTestCase):
                         f"{COMMUNITY_DOC_URL}{COMMUNITY_PERMISSION_GUIDE_PATH}",
                     )
 
+    def test_unknown_external_header_uses_document_center(self):
+        for is_external in ("True", "TRUE", "False", "", "invalid", " false "):
+            with self.subTest(is_external=is_external):
+                self._assert_guide_urls(
+                    self._context(is_external),
+                    f"{COMMUNITY_DOC_URL}{COMMUNITY_GUIDE_PATH}",
+                    f"{COMMUNITY_DOC_URL}{COMMUNITY_PERMISSION_GUIDE_PATH}",
+                )
+
     @override_settings(BK_LOG_ACCESS_GUIDE_URL="", BK_LOG_PERMISSION_GUIDE_URL="")
     def test_ordinary_requests_without_configuration_use_document_center_for_all_versions(self):
         for run_ver in ("tencent", "ee", "ce", "open"):

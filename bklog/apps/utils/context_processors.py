@@ -34,7 +34,7 @@ from django.utils.translation import gettext_lazy as _  # noqa
 
 
 def _get_guide_url(request, configured_url, doc_path):
-    if request.headers.get("Is-External", "false") != "true" and configured_url:
+    if request.headers.get("Is-External", "false") == "false" and configured_url:
         return configured_url
     doc_url = (settings.BK_DOC_URL or "").rstrip("/")
     return f"{doc_url}/{doc_path}" if doc_url else ""
