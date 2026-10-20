@@ -1,3 +1,4 @@
+import json
 from unittest import TestCase, mock
 from copy import deepcopy
 
@@ -14,6 +15,64 @@ from apm_web.llm.query import LLMQuery
 
 
 class LLMQueryTestCase(TestCase):
+    def test_service_fallback_filter_keeps_trace_and_application_scope(self):
+        original_add_query = self.query._add_query
+        service_filter = Q(**{"resource.service.name__eq": ["dynamic-service"]})
+
+        def query_list(qs, queries):
+            config = original_add_query(qs, queries).config
+            serialized = json.dumps(config)
+            self.assertIn("dynamic-service", serialized)
+            self.assertIn("trace-1", serialized)
+            self.assertIn("demo", serialized)
+            self.assertEqual(config["bk_biz_id"], 11)
+            self.assertTrue(qs.query.is_es_batch)
+            return []
+
+        with mock.patch.object(self.query, "_add_query", side_effect=query_list):
+            self.query.query_by_group_ids("trace_id", ["trace-1"], extra_filter=service_filter)
+
+    def test_projected_flow_query_serializes_only_requested_fields(self):
+        fields = ("span_id", "attributes.gen_ai.operation.name", "attributes.gen_ai.usage.input_tokens")
+
+        original_add_query = self.query._add_query
+
+        def query_list(qs, queries):
+            config = original_add_query(qs, queries).config
+            self.assertEqual(config["query_configs"][0]["select"], list(fields))
+            self.assertNotIn("attributes", config["query_configs"][0]["select"])
+            self.assertTrue(qs.query.is_es_batch)
+            return [{"span_id": "span-1"}]
+
+        with mock.patch.object(self.query, "_add_query", side_effect=query_list):
+            result = self.query.query_by_group_ids("trace_id", ["trace-1"], fields=fields)
+        self.assertEqual(result, [{"span_id": "span-1", "attributes": {}, "resource": {}, "status": {}}])
+
+    def test_projected_data_source_preserves_nested_and_flat_objects(self):
+        from bkmonitor.data_source.data_source import BkApmTraceDataSource
+
+        source = object.__new__(BkApmTraceDataSource)
+        source.select = ["span_id", "resource", "status", "attributes.gen_ai.operation.name"]
+        records = [
+            {
+                "span_id": "span-1",
+                "resource": {"service.name": "demo"},
+                "status": {"code": 2},
+                "attributes.gen_ai.operation.name": "chat",
+            },
+            {
+                "span_id": "span-2",
+                "resource.service.name": "demo",
+                "status.code": 2,
+                "attributes.gen_ai.operation.name": "chat",
+            },
+        ]
+        result = source.process_unify_query_log(records)
+        for record in result:
+            self.assertEqual(record["resource"], {"service.name": "demo"})
+            self.assertEqual(record["status"], {"code": 2})
+            self.assertEqual(record["attributes"], {"gen_ai.operation.name": "chat"})
+
     def setUp(self):
         self.query = LLMQuery(
             [
@@ -130,7 +189,7 @@ class LLMQueryTestCase(TestCase):
 
         with (
             mock.patch.object(self.query, "build_queries", return_value=[query_builder]) as build_queries,
-            mock.patch.object(self.query, "_query_list", return_value=spans) as query_list,
+            mock.patch.object(self.query, "_add_query", return_value=spans) as query_list,
         ):
             result = self.query.query_by_group_ids(
                 group_field="attributes.session.id",
@@ -143,10 +202,11 @@ class LLMQueryTestCase(TestCase):
         build_queries.assert_called_once_with(time_field="start_time")
         query_builder.order_by.assert_called_once_with("start_time")
         query_builder.filter.assert_called_once_with(**{"attributes.session.id__eq": ["session-1", "session-2"]})
-        query_list.assert_called_once_with([query_builder], 1, 2, 0, 10000)
+        self.assertEqual(query_list.call_args.args[1], [query_builder])
+        self.assertTrue(query_list.call_args.args[0].query.is_es_batch)
 
     def test_query_by_group_ids_returns_empty_without_query(self):
-        with mock.patch.object(self.query, "_query_list") as query_list:
+        with mock.patch.object(self.query, "_add_query") as query_list:
             result = self.query.query_by_group_ids(group_field=OtlpKey.TRACE_ID, group_ids=[])
 
         self.assertEqual(result, [])
@@ -168,12 +228,12 @@ class LLMQueryTestCase(TestCase):
             builders.append(builder)
             return [builder]
 
-        def _query_list(queries, start_time, end_time, offset, limit):
+        def _query_list(qs, queries):
             return [{"trace_id": trace_id} for trace_id in queries[0].filtered_ids]
 
         with (
             mock.patch.object(self.query, "build_queries", side_effect=_build_queries) as build_queries,
-            mock.patch.object(self.query, "_query_list", side_effect=_query_list) as query_list,
+            mock.patch.object(self.query, "_add_query", side_effect=_query_list) as query_list,
         ):
             result = self.query.query_by_group_ids(
                 group_field=OtlpKey.TRACE_ID,
@@ -190,7 +250,7 @@ class LLMQueryTestCase(TestCase):
             [tuple(group_ids[: self.query.GROUP_ID_BATCH_SIZE]), tuple(group_ids[self.query.GROUP_ID_BATCH_SIZE :])],
         )
         for call in query_list.call_args_list:
-            self.assertEqual(call.args[1:], (1, 2, 0, 10000))
+            self.assertTrue(call.args[0].query.is_es_batch)
 
     def test_iter_by_group_ids_yields_one_batch_per_chunk(self):
         group_ids = [f"trace-{index}" for index in range(self.query.GROUP_ID_BATCH_SIZE + 1)]
@@ -206,12 +266,12 @@ class LLMQueryTestCase(TestCase):
             builder.filter.side_effect = _filter
             return [builder]
 
-        def _query_list(queries, start_time, end_time, offset, limit):
+        def _query_list(qs, queries):
             return [{"trace_id": trace_id} for trace_id in queries[0].filtered_ids]
 
         with (
             mock.patch.object(self.query, "build_queries", side_effect=_build_queries),
-            mock.patch.object(self.query, "_query_list", side_effect=_query_list),
+            mock.patch.object(self.query, "_add_query", side_effect=_query_list),
         ):
             batches = list(
                 self.query.iter_by_group_ids(
@@ -565,8 +625,8 @@ class TracePreviewQueryTestCase(TestCase):
                     outputs = self.preview(["trace-1"], product, "output")
                 self.assertEqual(inputs, [span])
                 self.assertEqual(outputs, [span])
-                self.assertEqual(TraceSummary._trace_previews(adapt_spans(inputs, entity_set))[0], "question", product)
-                self.assertEqual(TraceSummary._trace_previews(adapt_spans(outputs, entity_set))[1], "answer", product)
+                self.assertEqual(TraceSummary.trace_previews(adapt_spans(inputs, entity_set))[0], "question", product)
+                self.assertEqual(TraceSummary.trace_previews(adapt_spans(outputs, entity_set))[1], "answer", product)
 
     def test_error_query_only_returns_collapsed_trace_id_and_status(self):
         spans = [

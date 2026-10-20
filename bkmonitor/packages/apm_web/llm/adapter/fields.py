@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
 from django.db.models import Q
@@ -29,6 +30,117 @@ AGENT_CANDIDATE_FIELDS: tuple[str, ...] = (
     "attributes.langfuse.observation.type",
 )
 AGENT_CANDIDATE_Q: Q = Q(*(Q(**{f"{field}__exists": [""]}) for field in AGENT_CANDIDATE_FIELDS), _connector=Q.OR)
+
+LANGFUSE_FLOW_FIELDS: tuple[str, ...] = (
+    "session.id",
+    "langfuse.observation.type",
+    "langfuse.internal.is_app_root",
+    "langfuse.observation.model.name",
+    "langfuse.observation.metadata.reasoningEffort",
+    "langfuse.observation.metadata.temperature",
+    "langfuse.observation.usage_details",
+)
+FLOW_ATTRIBUTE_FIELDS: tuple[str, ...] = (
+    "error.type",
+    "user.id",
+    "gen_ai.operation.name",
+    "gen_ai.provider.name",
+    "gen_ai.conversation.id",
+    "gen_ai.agent.id",
+    "gen_ai.agent.name",
+    "gen_ai.request.model",
+    "gen_ai.response.model",
+    "gen_ai.response.time_to_first_chunk",
+    "gen_ai.tool.name",
+    "gen_ai.tool.type",
+    "gen_ai.usage.input_tokens",
+    "gen_ai.usage.output_tokens",
+    "gen_ai.usage.cache_read.input_tokens",
+    "gen_ai.usage.cache_write.input_tokens",
+)
+
+
+def flow_attribute_fields(products: Sequence[str] = ()) -> set[str]:
+    """结构、分类和 Token 所需字段；产品差异仅在查询投影层处理。"""
+    from . import adapter_agentlens, adapter_bkaidev, adapter_galileo, adapter_langfuse
+
+    adapters = {
+        LLMProduct.AGENTLENS.value: adapter_agentlens,
+        LLMProduct.AIDEV.value: adapter_bkaidev,
+        LLMProduct.GALILEO.value: adapter_galileo,
+        LLMProduct.LANGFUSE.value: adapter_langfuse,
+    }
+    attributes: set[str] = set(FLOW_ATTRIBUTE_FIELDS)
+    product_fields = {
+        LLMProduct.AGENTLENS.value: ("gen_ai.span.kind",),
+        LLMProduct.AIDEV.value: ("llm.request.type", "traceloop.span.kind", "chain.type", "traceloop.entity.name"),
+        LLMProduct.LANGFUSE.value: LANGFUSE_FLOW_FIELDS,
+    }
+    for product in products or tuple(adapters):
+        attributes.update(product_fields.get(product, ()))
+        if adapter := adapters.get(product):
+            for target, aliases in adapter.ALIASES.items():
+                if target in attributes:
+                    attributes.update((aliases,) if isinstance(aliases, str) else aliases)
+    return attributes
+
+
+def flow_query_fields(
+    include_input_output: bool, input_output_preview: bool = False, products: Sequence[str] = ()
+) -> tuple[str, ...]:
+    if include_input_output and not input_output_preview:
+        return ()
+    attributes: set[str] = flow_attribute_fields(products)
+    extra_fields: set[str] = set()
+    if include_input_output:
+        from .utils import CONTENT_FIELDS
+
+        attributes.update(field for field in CONTENT_FIELDS if field != "gen_ai.tool.definitions")
+        content_fields = {
+            LLMProduct.AGENTLENS.value: (
+                "gen_ai.prompts.*",
+                "gen_ai.completion.*",
+                "input.value",
+                "output.value",
+                "tool.input",
+                "tool.output",
+                "traceloop.entity.input",
+                "traceloop.entity.output",
+            ),
+            LLMProduct.AIDEV.value: (
+                "llm.input",
+                "llm.output",
+                "agent.session.input",
+                "agent.session.output",
+                "traceloop.entity.input",
+                "traceloop.entity.output",
+                "tool.input",
+                "tool.output",
+                "input.value",
+                "output.value",
+            ),
+            LLMProduct.GALILEO.value: ("trpc.python.agent.llm_response",),
+            LLMProduct.LANGFUSE.value: ("langfuse.observation.input", "langfuse.observation.output"),
+        }
+        for product in products or tuple(content_fields):
+            attributes.update(content_fields.get(product, ()))
+            if product == LLMProduct.GALILEO.value:
+                extra_fields.add("events")
+    return (
+        "trace_id",
+        "span_id",
+        "parent_span_id",
+        "span_name",
+        "start_time",
+        "end_time",
+        "elapsed_time",
+        "status",
+        "resource",
+        "bk_biz_id",
+        "app_name",
+        *sorted(extra_fields),
+        *(f"attributes.{name}" for name in sorted(attributes)),
+    )
 
 
 def resolve_product(entity_set: EntitySet, service_name: str) -> str:
