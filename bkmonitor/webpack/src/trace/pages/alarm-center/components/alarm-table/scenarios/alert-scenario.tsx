@@ -324,12 +324,12 @@ export class AlertScenario extends BaseScenario {
           <div class='alarm-name-popover-item-value'>
             <a
               style='color: inherit'
-              href={this.getStrategyUrl(row?.strategy_id, row?.bk_biz_id)}
+              href={row?.strategy_name ? this.getStrategyUrl(row?.strategy_id, row?.bk_biz_id) : undefined}
               rel='noopener noreferrer'
               target='_blank'
             >
               <span class='alarm-name-popover-item-value'>{row?.strategy_name || '--'}</span>
-              <i class='icon-monitor icon-mc-goto' />
+              {row?.strategy_name && <i class='icon-monitor icon-mc-goto' />}
             </a>
           </div>
         </div>
