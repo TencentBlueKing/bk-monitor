@@ -135,9 +135,14 @@ def test_nested_dashboard_uid_keeps_v3_scope_without_local_candidate(operator):
 )
 def test_simple_resource_keeps_explicit_v3_attributes(resource_meta, monkeypatch):
     from monitor_web.iam.views import ApmApplicationProvider, RumApplicationProvider, Dashboard
+
     monkeypatch.setattr(ApmApplicationProvider, "_get_app_simple_info_by_id_or_none", lambda id: None)
     monkeypatch.setattr(RumApplicationProvider, "_get_app_simple_info_by_id_or_none", lambda id: None)
-    monkeypatch.setattr(Dashboard, "objects", Mock(filter=Mock(return_value=Mock(only=Mock(return_value=Mock(first=Mock(return_value=None)))))))
+    monkeypatch.setattr(
+        Dashboard,
+        "objects",
+        Mock(filter=Mock(return_value=Mock(only=Mock(return_value=Mock(first=Mock(return_value=None)))))),
+    )
     attributes = {"owner": "alice", "_bk_iam_path_": "/space,2/"}
     resource = resource_meta.create_simple_instance("7", attributes)
     client = V3Client("offline", "offline", "https://iam.example.test", "bk_monitorv3", MonitorV3Codec())
@@ -177,7 +182,7 @@ def test_space_uid_normalizes_before_v3_sdk_encoding(monkeypatch):
     assert MonitorV3Codec().encode_resource(resolved, client).id == "-42"
     from bkmonitor.iam.backends.v4.codec import MonitorV4Codec
 
-    assert MonitorV4Codec().encode_resource_for_auth(resolved)["id"] == "space|-42"
+    assert MonitorV4Codec().encode_resource_for_auth(resolved)["id"] == "-42"
 
 
 @pytest.mark.parametrize("mode", ["v3", "v4"])
@@ -195,7 +200,7 @@ def test_batch_normalized_space_uid_keeps_original_request_result_key(monkeypatc
         client.make_resource = lambda rt, rid, **kwargs: SimpleNamespace(id=rid)
         client.batch_resource_multi_actions_allowed.return_value = {"-42": {"view_business_v2": True}}
     else:
-        client.direct_auth_by_resources.return_value = {"space|-42": True}
+        client.direct_auth_by_resources.return_value = {"-42": True}
     provider.client_factory = lambda tid: client
     request = BatchAuthRequest(
         Subject(id="alice"), ("view_business",), ((ResourceInstance(type="space", id="bcs__cluster-a"),),)

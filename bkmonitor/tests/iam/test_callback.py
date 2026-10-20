@@ -13,7 +13,12 @@ from bkmonitor.iam.backends.v4.callback_client import build_callback_client
 from bkmonitor.iam.views.resources_v4 import build_resource_dispatcher
 from iam_engine.v4.callback import V4CallbackIAM, V4ResourceApiDispatcher
 from iam_engine.v4.resource import V4ResourceProvider
-from monitor_web.iam.views import ApmApplicationProvider, GrafanaDashboardProvider, RumApplicationProvider, SpaceProvider
+from monitor_web.iam.views import (
+    ApmApplicationProvider,
+    GrafanaDashboardProvider,
+    RumApplicationProvider,
+    SpaceProvider,
+)
 
 
 def test_monitor_registers_native_providers_without_a_second_framework():
@@ -56,22 +61,33 @@ def test_monitor_callback_uses_request_tenant_saas_credentials_and_native_provid
     ):
         dispatcher = build_resource_dispatcher()
         provider = dispatcher._provider["apm_application"].provider
-        provider.fetch_instance_info = MagicMock(return_value=ListResult([
-            {"id": "42", "display_name": "application", "name": "internal-name", "_bk_iam_path_": "/space,3/"}
-        ], 1))
-        request = RequestFactory().post("/", json.dumps({
-            "method": "fetch_instance_info", "type": "apm_application",
-            "filter": {"ids": ["42"]}, "requires": ["_bk_iam_path_"],
-        }), content_type="application/json", HTTP_X_BK_TENANT_ID="tenant-a",
-            HTTP_AUTHORIZATION="Basic " + base64.b64encode(b"bk_iam:test-token").decode())
+        provider.fetch_instance_info = MagicMock(
+            return_value=ListResult(
+                [{"id": "42", "display_name": "application", "name": "internal-name", "_bk_iam_path_": "/space,3/"}], 1
+            )
+        )
+        request = RequestFactory().post(
+            "/",
+            json.dumps(
+                {
+                    "method": "fetch_instance_info",
+                    "type": "apm_application",
+                    "filter": {"ids": ["42"]},
+                    "requires": ["_bk_iam_path_"],
+                }
+            ),
+            content_type="application/json",
+            HTTP_X_BK_TENANT_ID="tenant-a",
+            HTTP_AUTHORIZATION="Basic " + base64.b64encode(b"bk_iam:test-token").decode(),
+        )
         factory = MagicMock(wraps=dispatcher.iam.client_factory)
         dispatcher.iam.client_factory = factory
         with patch("iam_engine.v4.client.V4Client.retrieve_system_auth_token", return_value="test-token") as retrieve:
             response = dispatcher.as_view()(request)
         assert response.status_code == 200
-        assert json.loads(response.content) == {"data": [{
-            "id": "42", "display_name": "application", "_bk_iam_path_": "/space,space|3/"
-        }]}
+        assert json.loads(response.content) == {
+            "data": [{"id": "42", "display_name": "application", "_bk_iam_path_": "/space,3/"}]
+        }
         retrieve.assert_called_once_with("bk_monitorv3")
         assert provider.fetch_instance_info.call_args.kwargs["bk_tenant_id"] == "tenant-a"
         options = factory.call_args.args[0]
@@ -85,3 +101,63 @@ def test_callback_disabled_before_any_options_or_token_lookup(monkeypatch):
     client.options_loader = MagicMock(side_effect=AssertionError("disabled V4 must not load credentials"))
     assert client.get_token("bk_monitorv3")[0] is False
     client.options_loader.assert_not_called()
+
+
+def test_negative_space_callback_decodes_filters_and_encodes_results(monkeypatch):
+    monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", "v4")
+    dispatcher = build_resource_dispatcher()
+    monkeypatch.setattr(dispatcher.iam, "is_basic_auth_allowed", lambda *args, **kwargs: True)
+    native = dispatcher._provider["space"].provider
+    native.fetch_instance_info = MagicMock(
+        return_value=ListResult([{"id": "-42", "display_name": "project", "_bk_iam_path_": "/space,-42/"}], 1)
+    )
+    request = RequestFactory().post(
+        "/",
+        json.dumps(
+            {
+                "method": "fetch_instance_info",
+                "type": "space",
+                "filter": {"ids": ["-42"]},
+                "requires": ["_bk_iam_path_"],
+            }
+        ),
+        content_type="application/json",
+        HTTP_X_BK_TENANT_ID="tenant-a",
+    )
+    response = dispatcher.as_view()(request)
+    assert response.status_code == 200
+    assert json.loads(response.content) == {
+        "data": [{"id": "-42", "display_name": "project", "_bk_iam_path_": "/space,-42/"}]
+    }
+    assert native.fetch_instance_info.call_args.args[0].ids == ["-42"]
+    assert native.fetch_instance_info.call_args.kwargs["bk_tenant_id"] == "tenant-a"
+
+
+def test_negative_parent_callback_uses_local_id_and_encoded_ancestor_path(monkeypatch):
+    monkeypatch.setenv("BKAPP_IAM_PERMISSION_MODE", "v4")
+    dispatcher = build_resource_dispatcher()
+    monkeypatch.setattr(dispatcher.iam, "is_basic_auth_allowed", lambda *args, **kwargs: True)
+    native = dispatcher._provider["apm_application"].provider
+    native.list_instance = MagicMock(
+        return_value=ListResult([{"id": "7", "display_name": "application", "_bk_iam_path_": "/space,-42/"}], 1)
+    )
+    request = RequestFactory().post(
+        "/",
+        json.dumps(
+            {
+                "method": "list_instance",
+                "type": "apm_application",
+                "filter": {"parent": {"type": "space", "id": "-42"}},
+                "page": {"page": 1, "page_size": 20},
+            }
+        ),
+        content_type="application/json",
+        HTTP_X_BK_TENANT_ID="tenant-a",
+    )
+    response = dispatcher.as_view()(request)
+    assert response.status_code == 200
+    assert json.loads(response.content)["data"]["results"] == [
+        {"id": "7", "display_name": "application", "_bk_iam_path_": "/space,-42/"},
+    ]
+    assert native.list_instance.call_args.args[0].parent == {"type": "space", "id": "-42"}
+    assert native.list_instance.call_args.kwargs["bk_tenant_id"] == "tenant-a"

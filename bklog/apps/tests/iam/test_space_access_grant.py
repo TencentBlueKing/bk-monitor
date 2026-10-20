@@ -38,7 +38,7 @@ class SpaceAccessWriterTest(SimpleTestCase):
         )
 
     def test_v4_keeps_negative_space_id_for_client_codec(self):
-        """负数空间 ID 的 neg_ 编码由 client 的 codec 负责，writer 不得提前编码成两套口径。"""
+        """Writer 与公共 codec 均保留负数空间原始 ID，不添加协议前缀。"""
         client = Mock()
         writer = V4AuthorizationWriter(client, operator="operator")
 
