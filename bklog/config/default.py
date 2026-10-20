@@ -417,6 +417,9 @@ BK_DOC_URL = "https://bk.tencent.com/docs/"
 BK_DOC_STATIC_URL = ""
 BK_DOC_QUERY_URL = "https://bk.tencent.com/docs/document/5.1/90/3822/"
 BK_FAQ_URL = "https://bk.tencent.com/s-mart/community"
+# 未授权页引导链接，未配置时保持空值。
+BK_LOG_ACCESS_GUIDE_URL = os.getenv("BKAPP_LOG_ACCESS_GUIDE_URL", "")
+BK_LOG_PERMISSION_GUIDE_URL = os.getenv("BKAPP_LOG_PERMISSION_GUIDE_URL", "")
 
 # SaaS访问域名
 BK_BKLOG_HOST = os.environ.get("BK_BKLOG_HOST", f"{BK_PAAS_HOST}/o/bk_log_search/")
