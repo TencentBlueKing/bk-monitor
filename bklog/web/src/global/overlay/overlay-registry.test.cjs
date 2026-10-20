@@ -25,7 +25,23 @@
  */
 
 const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const Module = require('node:module');
 const test = require('node:test');
+const babel = require('@babel/core');
+
+const filename = path.join(__dirname, 'overlay-registry.js');
+const { code } = babel.transformSync(fs.readFileSync(filename, 'utf8'), {
+  filename,
+  babelrc: false,
+  configFile: false,
+  presets: [['@babel/preset-env', { modules: 'commonjs', targets: { node: 'current' } }]],
+});
+const registryModule = new Module(filename);
+registryModule.filename = filename;
+registryModule.paths = Module._nodeModulePaths(__dirname);
+registryModule._compile(code, filename);
 
 const {
   OverlayRegistry,
@@ -35,7 +51,7 @@ const {
   isValidAnchorRect,
   resolvePopperPlacementRect,
   shouldHideOnOutsideClick,
-} = require('./overlay-registry.js');
+} = registryModule.exports;
 
 const createRegistry = () => new OverlayRegistry();
 

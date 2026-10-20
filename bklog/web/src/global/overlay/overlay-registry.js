@@ -377,7 +377,7 @@ const createRawTippyLifecycle = (id, options = {}, registry = overlayRegistry) =
   };
 };
 
-module.exports = {
+export {
   FALLBACK_ZINDEX_START,
   OVERLAY_RULES,
   OverlayRegistry,
