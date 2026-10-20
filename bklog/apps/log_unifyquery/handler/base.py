@@ -74,6 +74,7 @@ from apps.api import MonitorApi
 from apps.log_databus.models import CollectorConfig
 from apps.log_databus.constants import EtlConfig
 from apps.log_search.constants import ASYNC_SORTED
+from bkm_space.utils import space_uid_to_bk_biz_id
 
 
 def fields_config(name: str, is_active: bool = False):
