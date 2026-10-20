@@ -544,6 +544,8 @@ export default {
   协议层请求失败: 'Protocol layer request failed',
   加载成功: 'Load Succeeded',
   加载失败: 'Load Failed',
+  '变量列表加载中，请稍后重试': 'Variable list is loading, please try again later',
+  '变量列表加载失败，请重试': 'Failed to load the variable list, please try again',
   未采集: 'Not Collected',
   '业务码、状态与消息均未上报': 'Business code, status and message are not reported',
   解压后: 'Decompressed',
