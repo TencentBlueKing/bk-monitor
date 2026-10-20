@@ -27,9 +27,9 @@
 import { type InjectionKey, type ShallowRef, computed, onScopeDispose, provide, shallowRef, watch } from 'vue';
 
 import { useDebounceFn } from '@vueuse/core';
-import { getHostOrTopoNodeDetail } from 'monitor-api/modules/scene_view';
 import { storeToRefs } from 'pinia';
 
+import { getHostOrTopoNodeDetail } from '../services/host-service';
 import { isHostNode } from '../utils/topo-tree';
 import { useHostStore } from '@/store/modules/host';
 
@@ -79,8 +79,7 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
       detailData.value =
         data.map?.((item: IDetailItem) => {
           if (item.type === 'list') {
-            item.isExpand = false;
-            item.isOverflow = false;
+            return { ...item, isExpand: false, isOverflow: false };
           }
           return item;
         }) || [];
@@ -115,9 +114,15 @@ export const useHostDetail = (selectedNode: ShallowRef<IHostTopoTreeNode | null>
 
   const nodeKey = computed(() => {
     const node = selectedNode.value;
-    return node ? JSON.stringify(isHostNode(node) ? [node.bk_biz_id, node.bk_host_id] : [node.bk_biz_id, node.bk_obj_id, node.bk_inst_id]) : '';
+    return node
+      ? JSON.stringify(
+          isHostNode(node) ? [node.bk_biz_id, node.bk_host_id] : [node.bk_biz_id, node.bk_obj_id, node.bk_inst_id]
+        )
+      : '';
   });
-  onScopeDispose(() => { latestRequestId += 1; });
+  onScopeDispose(() => {
+    latestRequestId += 1;
+  });
 
   /** 监听选中节点变化 */
   watch(
