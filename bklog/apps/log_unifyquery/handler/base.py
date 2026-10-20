@@ -1275,6 +1275,25 @@ class UnifyQueryHandler:
 
         return user_sort_list
 
+    @classmethod
+    def verify_sort_list_item(cls, index_set_id: int, sort_list: list):
+        """只获取字段并校验排序，避免初始化检索时生成默认字段配置。"""
+        index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
+        end_time = arrow.now()
+        mapping_handler = UnifyQueryMappingHandler(
+            indices=",".join(index["result_table_id"] for index in index_set.get_indexes(has_applied=True)),
+            index_set_id=index_set_id,
+            scenario_id=index_set.scenario_id,
+            storage_cluster_id=index_set.storage_cluster_id,
+            time_field=UnifyQueryMappingHandler.get_time_field(index_set_id, index_set),
+            start_time=end_time.shift(days=-1).int_timestamp * 1000,
+            end_time=end_time.int_timestamp * 1000,
+            bk_biz_id=space_uid_to_bk_biz_id(index_set.space_uid),
+            only_search=True,
+            index_set=index_set,
+        )
+        cls.check_sort_list(mapping_handler.final_fields, sort_list)
+
     def fields(self, scope="default"):
         index_info = self.index_info_list[0]
         index_set_id = index_info["index_set_id"]
