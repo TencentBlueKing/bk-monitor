@@ -571,6 +571,9 @@ APM_APPLICATION_QUICK_REFRESH_DELTA = 30
 # 指标数据源数据发现时需要将周期切分为每批查询几分钟的数据 默认 200s
 APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA = 200
 
+# 服务数据状态的观测窗口（独立于应用级无数据周期），单位：秒。
+APM_SERVICE_DATA_STATUS_LOOKBACK_SECONDS = 60 * 60
+
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
     os.getenv("BKAPP_APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG", "false").lower() == "true"

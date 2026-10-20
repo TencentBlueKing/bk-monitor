@@ -16,11 +16,9 @@ import logging
 import operator
 from collections import defaultdict
 from collections.abc import Callable
-from json import JSONDecodeError
 from typing import Any
 
 
-from django.core.cache import cache
 from django.db.models import Q
 from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy as _lazy
@@ -34,7 +32,6 @@ from apm_web.constants import (
     AlertLevel,
     AlertStatus,
     ApdexCachedEnum,
-    ApmCacheKey,
     CategoryCachedEnum,
     DataStatus,
     SceneEventKey,
@@ -81,7 +78,7 @@ from bkmonitor.share.api_auth_resource import ApiAuthResource
 from bkmonitor.utils import group_by
 from bkmonitor.utils.common_utils import format_percent
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
-from bkmonitor.utils.time_tools import get_datetime_range, parse_time_compare_abbreviation
+from bkmonitor.utils.time_tools import parse_time_compare_abbreviation
 from constants.apm import (
     TraceMetric,
     OtlpKey,
@@ -929,7 +926,7 @@ class ServiceListResource(PageListResource):
 
         return list({i["service_name"]: i for i in res}.values())
 
-    def perform_request(self, validate_data):
+    def perform_request(self, validate_data: dict[str, Any]) -> dict[str, Any]:
         bk_biz_id = validate_data["bk_biz_id"]
         app_name = validate_data["app_name"]
         application = Application.objects.get(bk_biz_id=bk_biz_id, app_name=app_name)
@@ -947,8 +944,12 @@ class ServiceListResource(PageListResource):
             paginated_data["filter"] = filter_fields
             return paginated_data
 
-        # 1. 获取服务列表
-        services = ServiceHandler.list_services(application)
+        # 1. 获取服务列表，状态筛选复用本次读取的节点。
+        field_condition_keys = {condition.get("key") for condition in validate_data["field_conditions"]}
+        include_data_status = validate_data["include_data_status"] or not field_condition_keys.isdisjoint(
+            {"apply_module", "have_data"}
+        )
+        services = ServiceHandler.list_services(application, include_data_status=include_data_status)
         service_names = [i["topo_key"] for i in services]
 
         # 主动更新一下缓存，防止出现服务数和缓存里数量不一致的问题
@@ -961,25 +962,6 @@ class ServiceListResource(PageListResource):
         collects = CollectServiceResource.get_collect_config(application).config_value
 
         res = []
-        data_status_mapping = {}
-        # 如果存在数据状态相关的filter筛选, 加载data_status数据
-        field_condition_keys = {condition.get("key") for condition in validate_data["field_conditions"]}
-        if validate_data["include_data_status"] or not field_condition_keys.isdisjoint({"apply_module", "have_data"}):
-            data_status_list = (
-                ServiceListAsyncResource()
-                .perform_request(
-                    validated_data={
-                        "bk_biz_id": validate_data["bk_biz_id"],
-                        "app_name": validate_data["app_name"],
-                        "start_time": validate_data["start_time"],
-                        "end_time": validate_data["end_time"],
-                        "column": "data_status",
-                        "service_names": service_names,
-                    }
-                )
-                .get("data", [])
-            )
-            data_status_mapping = {data_status["service_name"]: data_status for data_status in data_status_list}
         labels_mapping = group_by(
             ApmMetaConfig.list_service_config_values(bk_biz_id, app_name, service_names, "labels"),
             operator.attrgetter("level_key"),
@@ -1009,22 +991,9 @@ class ServiceListResource(PageListResource):
                 "kind": service["extra_data"]["kind"],
                 "labels": labels,
             }
-            if data_status_mapping:
+            if include_data_status:
                 res_item.update(
-                    {
-                        "metric_data_status": data_status_mapping.get(name, {})
-                        .get(f"{TelemetryDataType.METRIC.value}_data_status", {})
-                        .get("icon", DataStatus.DISABLED),
-                        "log_data_status": data_status_mapping.get(name, {})
-                        .get(f"{TelemetryDataType.LOG.value}_data_status", {})
-                        .get("icon", DataStatus.DISABLED),
-                        "trace_data_status": data_status_mapping.get(name, {})
-                        .get(f"{TelemetryDataType.TRACE.value}_data_status", {})
-                        .get("icon", DataStatus.DISABLED),
-                        "profiling_data_status": data_status_mapping.get(name, {})
-                        .get(f"{TelemetryDataType.PROFILING.value}_data_status", {})
-                        .get("icon", DataStatus.DISABLED),
-                    }
+                    {f"{data_type}_data_status": status for data_type, status in service["data_status"].items()}
                 )
             res.append(res_item)
 
@@ -1134,65 +1103,43 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         return service_names
 
     @classmethod
-    def _get_data_status_mapping(cls, service_names, application, **kwargs) -> tuple:
+    def _get_data_status_mapping(
+        cls,
+        application: Application,
+        service_names: list[str],
+        data_status_type: str | None = None,
+        filter_keys: list[str] | None = None,
+    ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
         """获取服务的数据状态"""
-        # 先获取缓存数据
-        data_status_type = kwargs.get("data_status_type")
-        filter_keys = kwargs.get("filter_keys", [])
+        services = ServiceHandler.list_services(application)
+        if not filter_keys:
+            requested = set(service_names)
+            services = [node for node in services if node["topo_key"] in requested]
+        data_status_mapping = ServiceHandler.build_service_data_status(
+            application, services, data_type=data_status_type if not filter_keys else None
+        )
         filter_fields = []
-        # 需要异步加载数据状态filter时, 全量查询，设置缓存
-        fetch_service_names = service_names
         if filter_keys:
-            fetch_service_names = [i["topo_key"] for i in ServiceHandler.list_services(application)]
-        cache_key = ApmCacheKey.APP_SERVICE_STATUS_KEY.format(application_id=application.application_id)
-        data_status_mapping = cache.get(cache_key)
-        if data_status_mapping:
-            try:
-                data_status_mapping = json.loads(data_status_mapping)
-            except JSONDecodeError:
-                pass
-        if not data_status_mapping:
-            # 数据状态是指最新的一个状态，所以这里使用无数据周期配置，而不是页面选择的起止时间
-            start_time, end_time = get_datetime_range("minute", application.no_data_period)
-            start_time, end_time = int(start_time.timestamp()), int(end_time.timestamp())
-            data_status_mapping = ServiceHandler.get_service_data_status_mapping(
-                application,
-                start_time,
-                end_time,
-                [{"topo_key": service_name} for service_name in fetch_service_names],
-                data_status_type=data_status_type,
-            )
-            if filter_keys:
-                cache.set(cache_key, json.dumps(data_status_mapping), application.no_data_period * 60)
+            res = [
+                {f"{data_type}_data_status": status for data_type, status in statuses.items()}
+                for statuses in data_status_mapping.values()
+            ]
+            filter_fields = ServiceListResource()._get_filter_fields_by_services(res, mode="async")
 
-        if data_status_type:
-            filtered_mapping = {}
-            for service_name, status_mapping in data_status_mapping.items():
-                filtered_mapping[service_name] = status_mapping[data_status_type]
-            data_status_mapping = filtered_mapping
+        # 列表和异步状态是两次独立请求，期间其他页面可能删除手动服务或关闭 Profiling，导致服务集合变化。
+        # 对请求中已不在当前服务集合的名称补齐默认状态，保证响应字段完整；筛选计数仍只统计上面重新读取的当前服务集合。
+        default_status = {
+            data_type.value: DataStatus.NO_DATA
+            if getattr(application, f"is_enabled_{data_type.value}")
+            else DataStatus.DISABLED
+            for data_type in TelemetryDataType
+        }
+        response_mapping: dict[str, Any] = {}
+        for name in service_names:
+            status = data_status_mapping.get(name, default_status)
+            response_mapping[name] = status[data_status_type] if data_status_type else status
 
-        if filter_keys:
-            res = []
-            for name in fetch_service_names:
-                res.append(
-                    {
-                        "metric_data_status": data_status_mapping.get(name, {}).get(
-                            TelemetryDataType.METRIC.value, DataStatus.DISABLED
-                        ),
-                        "log_data_status": data_status_mapping.get(name, {}).get(
-                            TelemetryDataType.LOG.value, DataStatus.DISABLED
-                        ),
-                        "trace_data_status": data_status_mapping.get(name, {}).get(
-                            TelemetryDataType.TRACE.value, DataStatus.DISABLED
-                        ),
-                        "profiling_data_status": data_status_mapping.get(name, {}).get(
-                            TelemetryDataType.PROFILING.value, DataStatus.DISABLED
-                        ),
-                    }
-                )
-            filter_fields = ServiceListResource()._get_filter_fields_by_services(res, mode="async")  #
-
-        return data_status_mapping, filter_fields
+        return response_mapping, filter_fields
 
     @classmethod
     def _get_service_strategy_mapping(cls, column, application, start_time, end_time):
@@ -1269,7 +1216,7 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
             column, {}
         )
 
-    def perform_request(self, validated_data) -> dict:
+    def perform_request(self, validated_data: dict[str, Any]) -> dict[str, Any]:
         result_data = {"data": []}
         column = validated_data["column"]
         if column not in self.METRIC_MAP or not validated_data.get("service_names"):
@@ -1291,15 +1238,13 @@ class ServiceListAsyncResource(AsyncColumnsListResource):
         filter_keys = validated_data.get("filter_keys", [])
 
         if column in ["data_status"]:
-            info_mapping, filter_fields = self._get_data_status_mapping(
-                service_names, filter_keys=filter_keys, **metric_params
-            )
+            info_mapping, filter_fields = self._get_data_status_mapping(app, service_names, filter_keys=filter_keys)
             multi_sub_columns = TelemetryDataType.values()
             default_value = DataStatus.DISABLED
         elif column in [f"{data_type}_data_status" for data_type in TelemetryDataType.values()]:
             data_status_type = column.split("_data_status")[0]
             info_mapping, filter_fields = self._get_data_status_mapping(
-                service_names, data_status_type=data_status_type, **metric_params
+                app, service_names, data_status_type=data_status_type, filter_keys=filter_keys
             )
         elif column in ["strategy_count", "alert_status"]:
             info_mapping = self._get_service_strategy_mapping(column, **metric_params)
