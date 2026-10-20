@@ -30,6 +30,7 @@ from bkmonitor.action.utils import (
     get_user_group_assign_rules,
     get_user_group_strategies,
 )
+from bkmonitor.as_code import recording_rule
 from bkmonitor.as_code.parse_yaml import (
     ActionConfigParser,
     AssignGroupRuleParser,
@@ -576,14 +577,20 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
     assign_snippets = {}
     duty_snippets = {}
     duty_configs = {}
+    recording_rule_configs = {}
 
     for path, data in configs.items():
-        if path.endswith(".yaml") or path.endswith(".yml"):
-            config = yaml.safe_load(data)
-        elif path.endswith(".json"):
-            config = json.loads(data)
-        else:
-            raise ValueError(f"parse {path} error, only allow yaml or json files")
+        try:
+            if path.endswith(".yaml") or path.endswith(".yml"):
+                config = yaml.safe_load(data)
+            elif path.endswith(".json"):
+                config = json.loads(data)
+            else:
+                raise ValueError(f"parse {path} error, only allow yaml or json files")
+        except (ValueError, yaml.YAMLError) as error:
+            if path.startswith("recording_rule/"):
+                return {path: str(error)}
+            raise
 
         if path.startswith("rule/snippets/"):
             rule_snippets[path[len("rule/snippets/") :]] = config
@@ -607,6 +614,18 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
             assign_configs[path[len("assign_group/") :]] = config
         elif path.startswith("assign_group/snippets"):
             assign_snippets[path[len("assign_group/snippets") :]] = config
+        elif path.startswith("recording_rule/"):
+            recording_rule_configs[path[len("recording_rule/") :]] = config
+
+    recording_import = None
+    if recording_rule_configs:
+        try:
+            space, records, errors = recording_rule.prepare_import(bk_biz_id, app, recording_rule_configs, overwrite)
+        except ValidationError as error:
+            return {"recording_rule": str(error)}
+        if errors:
+            return errors
+        recording_import = (space, records)
 
     # 配置转换及检查
     # 轮值规则
@@ -720,6 +739,13 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
             app=app, snippet=record["snippet"], hash=record["hash"], path=record["path"]
         )
         saved_assign_group_ids.add(data["assign_group_id"])
+
+    if recording_import is not None:
+        space, records = recording_import
+        errors = recording_rule.import_recording_rules(space, app, records, incremental=incremental)
+        if errors:
+            return errors
+
     # 删除多余策略
     if not incremental:
         # path 可能被数据库截断，本次成功保存的资源还需通过 ID 排除，避免误清理。

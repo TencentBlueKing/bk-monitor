@@ -506,3 +506,54 @@ def refresh_record_rule_v4():
 保存不调用解析、输出准备或下发；后台任务仍遵循 `auto_refresh`，立即执行使用已有 apply RPC。
 接口 schema 和示例通过 Kernel RPC `__meta__.detail` 查询；配置查看 safety 为 read，创建和更新为 write。
 无需新增数据库迁移。
+
+## AsCode 与公共配置 API
+
+公共配置入口使用 `/app/recording_rule/`，后端对应 `/api/v4/recording_rule/`：
+
+| 接口 | 方法 | 用途 |
+| --- | --- | --- |
+| preview_config | POST | 预解析单 group，返回 MetricQL、来源 VMRT 和资源信息；不写库或下发 |
+| create_config | POST | 新建声明，apply 默认 false |
+| update_config | POST | 按 ID 完整修改声明，名称和空间不变；apply 默认 false |
+| delete_config | POST | 软删除并执行 Flow 删除 |
+| get_config | GET | 读取配置，with_status=true 时观测已下发 Flow |
+| apply_config | POST | 解析并下发当前声明 |
+| list_configs | GET | 分页列表，支持 name、app、status 筛选 |
+
+请求提供 bk_biz_id 或 space_uid，租户来自认证上下文。配置参数 config 使用单 group 对象或其 YAML 字符串，无外层 groups；预解析可以附带已有规则 ID，以排除自身输出表。预解析仅构造内存中的声明输入，调用 Resolver 的只读解析方法，不创建数据库记录、输出元数据或 Flow。
+
+新建／修改返回 saved、rule、config、execution。apply=true 时执行解析下发；execution.succeeded 表示执行结果，error 提供失败原因。下发失败保留已保存声明，可按 ID 重试。apply=false 只关闭本次请求的立即下发，auto_refresh 仍决定后台是否自动下发；需要人工发布时应在配置中设置 auto_refresh=false。
+
+get_config 默认不查询 BKBase。开启 with_status 后，observation 返回 succeeded、flow_status、error，观测过程沿用既有状态和事件记录；没有已下发 Flow 时直接返回“尚未下发 Flow”。列表只查询本地状态，不逐条访问 BKBase。
+
+### 通用 AsCode 导入导出
+
+通用导入识别 recording_rule/ 目录，文件使用多 group 格式：
+
+```yaml
+groups:
+  - name: cpu_summary
+    interval: 1min
+    bkmonitor:
+      description: CPU 平均使用率
+      auto_refresh: false
+      desired_status: running
+    rules:
+      - record: cpu_usage_avg
+        expr: avg(system_cpu_usage)
+```
+
+导入先解析本批 RecordingRule 文件，随后保存并立即下发；auto_refresh 控制后续后台行为。规则保存 app 和来源 path，按租户、空间、app、group 名称匹配，因此移动文件不重建规则。同一批不能出现重复 group 名称。overwrite=true 可接管同空间其他 app 的同名有效规则；有多个候选时返回错误。
+
+incremental=false 且本次包含 recording_rule 文件时，在新增／更新和下发均成功后，软删除当前 app 下未出现的规则。未包含该类型时不清理 RecordingRule。失败按文件和 group 位置返回，已保存声明和已成功下发的其他 group 保留，不执行本次旧规则清理。
+
+导出新增 recording_rule_ids，支持 JSON 响应与压缩包入口；None 表示全部，空列表表示不导出，非空列表按 ID 筛选。导出过滤租户、空间、app 和软删除状态，保留原始表达方式。默认保留来源文件路径，lock_filename=true 使用稳定输出表名生成文件名；同文件多个 group 一并导出。RecordingRule 配置不携带数据库 ID，with_id 不改变它的格式。
+
+### 软删除边界
+
+is_deleted 仅由 AsCode／公共配置 API 使用。删除入口在同一事务内设置 is_deleted=true 并声明 desired_status=deleted，提交后执行 Flow 删除。所有公共查询、修改、预解析已有对象、下发、导入匹配和导出都过滤 is_deleted=false。重复删除返回对象不存在；重新导入同名配置创建新对象。
+
+外部 Flow 删除失败时仍保持 is_deleted=true，由原有后台任务重试。deleted_at 继续表示 Flow 删除完成时间；规则、Spec、Resolved、Flow 和事件保留。全局 Manager、Admin 接口、后台调度条件及历史查询窗口不变。
+
+数据库迁移新增 app、path、is_deleted，并将已有删除声明或已完成删除的记录标为软删除。部署需先应用 Metadata 迁移，再启用公共入口和同步网关资源。

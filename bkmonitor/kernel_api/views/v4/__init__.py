@@ -33,6 +33,7 @@ from .openclaw import *  # noqa
 from .operation import *  # noqa
 from .plugin import *  # noqa
 from .relation import *  # noqa
+from .recording_rule import *  # noqa
 from .shield import *  # noqa
 from .strategy import *  # noqa
 from .strategy_v2 import *  # noqa
