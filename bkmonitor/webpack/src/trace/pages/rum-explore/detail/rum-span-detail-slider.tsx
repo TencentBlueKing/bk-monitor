@@ -44,7 +44,7 @@ import {
   useTraceContext,
 } from './composables';
 import { searchTraceInfo } from './services';
-import { RumDetailTabEnum } from './typings';
+import { RumDetailTabEnum, RumTimelineFilterCategoryEnum } from './typings';
 import SliderHeader from '@/components/slider-header/slider-header';
 import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
 
@@ -123,8 +123,11 @@ export default defineComponent({
     const { getField, formatField, copyText, resolveCtx } = useDetailFormatter(toRef(props, 'fields'), originData);
     const { headerVM } = useDetailOverview(detail, spanType, formatField, getField);
     const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading, {
-      switchTab: tab => {
-        activeTab.value = tab;
+      /** 跳到链路上下文并套用来源卡片对应的快捷筛选类别，清空关键字避免与类别叠加后筛空 */
+      switchTraceContext: category => {
+        activeTab.value = RumDetailTabEnum.TRACE_CONTEXT;
+        traceContext.filterCategory.value = category;
+        traceContext.filterKeyword.value = '';
       },
     });
     const { blocks, eventKeyword } = useOriginData(originData, toRef(props, 'fields'));
@@ -175,7 +178,7 @@ export default defineComponent({
         activeTab.value = RumDetailTabEnum.BASIC;
         eventKeyword.value = '';
         traceContext.filterKeyword.value = '';
-        traceContext.filterCategory.value = 'all';
+        traceContext.filterCategory.value = RumTimelineFilterCategoryEnum.ALL;
       }
     );
 
