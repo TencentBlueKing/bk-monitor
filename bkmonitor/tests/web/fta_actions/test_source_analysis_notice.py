@@ -14,9 +14,10 @@ from unittest.mock import patch
 from urllib.parse import parse_qs, urlsplit
 
 from bkoauth.exceptions import TokenNotExist
+from django.conf import settings
 from django.db import DatabaseError, transaction
 from django.test import TestCase, override_settings
-from django.utils import translation
+from django.utils import timezone, translation
 
 from bkmonitor.models import IssueSourceAnalysisExecution
 from bkmonitor.utils.user import set_local_username
@@ -35,7 +36,7 @@ from fta_web.tasks import run_source_analysis_execution
 @override_settings(
     BK_MONITOR_HOST="https://monitor.example.com/monitor/",
     TIME_ZONE="Asia/Shanghai",
-    DEFAULT_LOCALE="zh_Hans",
+    LANGUAGE_CODE="zh-hans",
     MD_SUPPORTED_NOTICE_WAYS=["wxwork-bot"],
     NOTICE_MESSAGE_MAX_LENGTH={},
 )
@@ -50,13 +51,10 @@ class TestSourceAnalysisNotice(TestCase):
             patch("fta_web.issue.source_analysis_notice.IssueDocument.get_issue_or_raise")
         )
         self.issue_lookup.return_value = SimpleNamespace(name="异常登录日志告警")
-        self.enterContext(patch("bkmonitor.utils.send.GlobalConfig.get", return_value="蓝鲸监控"))
-        self.i18n = self.enterContext(patch("bkmonitor.utils.send.i18n"))
-        self.i18n.get_locale.return_value = "zh_Hans"
         self.tenant = self.enterContext(
             patch("fta_web.issue.source_analysis_notice.bk_biz_id_to_bk_tenant_id", return_value="tenant-a")
         )
-        self.send = self.enterContext(patch("bkmonitor.utils.send.api.cmsi.send_msg"))
+        self.send = self.enterContext(patch("fta_web.issue.source_analysis_notice.api.cmsi.send_msg"))
         self.send.return_value = {"username_check": {"invalid": []}, "message": "OK"}
 
     @staticmethod
@@ -160,14 +158,48 @@ class TestSourceAnalysisNotice(TestCase):
         self.assertIn("查看详情并重新分析：https://monitor.example.com/monitor/", params["content"])
         self.assertNotIn("置信度", params["content"])
 
-    def test_english_business_uses_english_templates(self):
-        self.i18n.get_locale.return_value = "en"
+    @override_settings(LANGUAGE_CODE="en")
+    def test_application_default_language_uses_english_templates(self):
         send_source_analysis_notice(self.successful_execution())
         params = self.send.call_args.kwargs
         self.assertIn("✅【BlueKing Monitor】Source analysis completed", params["title"])
         self.assertIn("The source analysis you started at 15:40 has completed.", params["content"])
         self.assertIn("View full report:", params["content"])
         self.assertNotIn("你于", params["content"])
+
+    def test_web_role_sends_success_and_failure_without_mocking_i18n(self):
+        self.assertEqual(settings.ROLE, "web")
+        self.assertFalse(hasattr(settings, "REDIS_CELERY_CONF"))
+        # 真实模板、翻译和 CMSI 调用链；仅隔离 Issue 查询、租户解析及消息外部调用。
+        send_source_analysis_notice(self.successful_execution())
+        failed = self.create_execution(status=SourceAnalysisStatus.FAILED, failure_message="pipeline failed")
+        send_source_analysis_notice(failed)
+        self.assertEqual(self.send.call_count, 2)
+        self.assertTrue(self.send.call_args_list[0].kwargs["title"].startswith("✅"))
+        self.assertTrue(self.send.call_args_list[1].kwargs["title"].startswith("❌"))
+
+    @override_settings(LANGUAGE_CODE="en")
+    def test_rendering_restores_callers_language_and_timezone(self):
+        with translation.override("zh-hans"), timezone.override("Europe/Paris"):
+            original_language = translation.get_language()
+            original_timezone = timezone.get_current_timezone_name()
+            send_source_analysis_notice(self.successful_execution())
+            self.assertEqual(translation.get_language(), original_language)
+            self.assertEqual(timezone.get_current_timezone_name(), original_timezone)
+        self.assertIn("Source analysis completed", self.send.call_args.kwargs["title"])
+
+    @override_settings(LANGUAGE_CODE="en")
+    def test_rendering_failure_restores_language_and_does_not_send(self):
+        with (
+            translation.override("zh-hans"),
+            patch(
+                "fta_web.issue.source_analysis_notice.AlarmNoticeTemplate.render", side_effect=RuntimeError("failed")
+            ),
+            self.assertLogs("fta_web.issue.source_analysis_notice", level="WARNING"),
+        ):
+            send_source_analysis_notice(self.successful_execution())
+            self.assertEqual(translation.get_language(), "zh-hans")
+        self.send.assert_not_called()
 
     def test_missing_receiver_and_active_state_do_not_send(self):
         execution = self.successful_execution()
@@ -223,6 +255,18 @@ class TestSourceAnalysisNotice(TestCase):
 
     def test_sender_failure_response_is_logged(self):
         self.send.return_value = {"username_check": {"invalid": ["clicker"]}, "message": "failed"}
+        with self.assertLogs("fta_web.issue.source_analysis_notice", level="WARNING") as logs:
+            send_source_analysis_notice(self.successful_execution())
+        self.assertIn("notification was not sent", " ".join(logs.output))
+
+    def test_cmsi_message_detail_failure_is_not_treated_as_success(self):
+        self.send.return_value = {"username_check": {"invalid": []}, "message_detail": {"clicker": "failed"}}
+        with self.assertLogs("fta_web.issue.source_analysis_notice", level="WARNING") as logs:
+            send_source_analysis_notice(self.successful_execution())
+        self.assertIn("notification was not sent", " ".join(logs.output))
+
+    def test_missing_cmsi_delivery_status_is_not_treated_as_success(self):
+        self.send.return_value = {}
         with self.assertLogs("fta_web.issue.source_analysis_notice", level="WARNING") as logs:
             send_source_analysis_notice(self.successful_execution())
         self.assertIn("notification was not sent", " ".join(logs.output))
