@@ -159,7 +159,7 @@ class TestSourceAnalysisFrontendResources(TestCase):
             },
         )
 
-    def test_retryable_failure_returns_failed_execution_snapshot(self):
+    def test_retryable_failure_previews_current_rule_instead_of_failed_snapshot(self):
         execution = self.create_execution(
             status=SourceAnalysisStatus.FAILED,
             stage=None,
@@ -171,22 +171,26 @@ class TestSourceAnalysisFrontendResources(TestCase):
             skill_ids=["snapshot-skill"],
         )
 
-        with patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert") as get_latest_alert:
+        rule = self.create_rule(agent_id="updated-agent", skill_ids=["updated-skill"])
+        with (
+            patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=SimpleNamespace()),
+            patch.object(SourceAnalysisExecutionBaseResource, "get_matched_rule", return_value=rule),
+        ):
             result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
 
         self.assertEqual(
             result["next_execution_context"],
             {
                 "trigger_type": SourceAnalysisTriggerType.RETRY,
-                "source": "execution_snapshot",
-                "bkci_project_id": execution.bkci_project_id,
-                "repository_alias": execution.repository_alias,
-                "agent_id": execution.agent_id,
-                "knowledge_base_ids": execution.knowledge_base_ids,
-                "skill_ids": execution.skill_ids,
+                "source": "matched_rule_preview",
+                "bkci_project_id": rule.bkci_project_id,
+                "repository_alias": rule.repository_alias,
+                "agent_id": rule.agent_id,
+                "knowledge_base_ids": rule.knowledge_base_ids,
+                "skill_ids": rule.skill_ids,
             },
         )
-        get_latest_alert.assert_not_called()
+        self.assertEqual(result["latest"]["analysis_id"], execution.analysis_id)
 
     @patch("fta_web.issue.resources._", side_effect=lambda message: f"translated:{message}")
     def test_local_failure_message_is_translated_when_serialized(self, translate):
@@ -365,28 +369,50 @@ class TestSourceAnalysisFrontendResources(TestCase):
         get_latest_alert.assert_not_called()
 
     def test_failure_not_recommended_for_automatic_retry_still_returns_retry_context(self):
-        execution = self.create_execution(
+        self.create_execution(
             status=SourceAnalysisStatus.FAILED,
             stage=None,
             failure_retryable=False,
         )
 
-        with patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert") as get_latest_alert:
+        rule = self.create_rule()
+        with (
+            patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=SimpleNamespace()),
+            patch.object(SourceAnalysisExecutionBaseResource, "get_matched_rule", return_value=rule),
+        ):
             result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
 
         self.assertEqual(
             result["next_execution_context"],
             {
                 "trigger_type": SourceAnalysisTriggerType.RETRY,
-                "source": "execution_snapshot",
-                "bkci_project_id": execution.bkci_project_id,
-                "repository_alias": execution.repository_alias,
-                "agent_id": execution.agent_id,
-                "knowledge_base_ids": execution.knowledge_base_ids,
-                "skill_ids": execution.skill_ids,
+                "source": "matched_rule_preview",
+                "bkci_project_id": rule.bkci_project_id,
+                "repository_alias": rule.repository_alias,
+                "agent_id": rule.agent_id,
+                "knowledge_base_ids": rule.knowledge_base_ids,
+                "skill_ids": rule.skill_ids,
             },
         )
-        get_latest_alert.assert_not_called()
+
+    def test_failed_view_preserves_failure_when_current_rule_preview_is_unavailable(self):
+        failed = self.create_execution(
+            status=SourceAnalysisStatus.FAILED,
+            failure_code="AI_FAILED",
+            failure_message="original failure",
+        )
+        with (
+            patch.object(
+                SourceAnalysisExecutionBaseResource, "get_latest_alert", side_effect=RuntimeError("unavailable")
+            ),
+            patch("fta_web.issue.resources.logger.exception") as log_exception,
+        ):
+            result = SourceAnalysisResource().perform_request({"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID})
+
+        self.assertIsNone(result["next_execution_context"])
+        self.assertEqual(result["latest"]["analysis_id"], failed.analysis_id)
+        self.assertEqual(result["latest"]["failure"]["message"], "original failure")
+        log_exception.assert_called_once()
 
     @patch.object(SourceAnalysisExecutionBaseResource, "get_rule_availability", return_value=(None, "no_matched_rule"))
     @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=None)
@@ -555,19 +581,35 @@ class TestSourceAnalysisFrontendResources(TestCase):
         dispatch.assert_called_once_with(execution)
 
     @patch.object(SourceAnalysisExecutionBaseResource, "dispatch_execution")
-    def test_retry_copies_failed_snapshot_and_increments_attempt(self, dispatch):
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_matched_rule")
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
+    def test_retry_uses_current_rule_and_latest_alert_and_increments_attempt(
+        self, get_latest_alert, get_matched_rule, dispatch
+    ):
         failed = self.create_execution(
             status=SourceAnalysisStatus.FAILED,
             stage=None,
             trigger_type=SourceAnalysisTriggerType.INITIAL,
             attempt=1,
-            failure_stage=SourceAnalysisFailureStage.AI_ANALYSIS,
-            failure_code="AI_FAILED",
-            failure_message="分析失败",
-            failure_retryable=True,
+            failure_stage=SourceAnalysisFailureStage.TASK_CREATE,
+            failure_code="SOURCE_ANALYSIS_AGENT_MISSING",
+            failure_message=SourceAnalysisFailureMessage.RULE_AGENT_MISSING,
+            failure_retryable=False,
             bkfara_provision_id="failed-provision",
             bkfara_task_id="failed-task",
+            agent_id="",
         )
+        rule = self.create_rule(
+            priority=10,
+            bkci_project_id="updated-project",
+            repository_alias="updated-repo",
+            agent_id="updated-agent",
+            skill_ids=["updated-skill"],
+            knowledge_base_ids=["updated-knowledge"],
+            run_as_user="new-configurator",
+        )
+        get_latest_alert.return_value = SimpleNamespace(id="latest-alert")
+        get_matched_rule.return_value = rule
 
         result = RetrySourceAnalysisResource().perform_request(
             {
@@ -581,21 +623,72 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertEqual(retry.trigger_type, SourceAnalysisTriggerType.RETRY)
         self.assertEqual(retry.retry_of_analysis_id, failed.analysis_id)
         self.assertEqual(retry.attempt, 2)
-        self.assertEqual(retry.alert_id, failed.alert_id)
-        self.assertEqual(retry.run_as_user, failed.run_as_user)
+        self.assertEqual(retry.alert_id, "latest-alert")
+        for field in (
+            "rule_priority",
+            "bkci_project_id",
+            "repository_alias",
+            "agent_id",
+            "skill_ids",
+            "knowledge_base_ids",
+            "run_as_user",
+        ):
+            expected = rule.priority if field == "rule_priority" else getattr(rule, field)
+            self.assertEqual(getattr(retry, field), expected)
+        self.assertEqual(retry.rule_id, rule.id)
+        self.assertEqual(retry.create_user, "alice")
+        failed.refresh_from_db()
+        self.assertEqual(failed.agent_id, "")
+        self.assertEqual(failed.alert_id, self.ALERT_ID)
+        self.assertEqual(failed.run_as_user, "configurator")
+        self.assertEqual(failed.bkfara_task_id, "failed-task")
         self.assertNotEqual(retry.analysis_id, failed.analysis_id)
         self.assertIsNone(retry.bkfara_provision_id)
         self.assertIsNone(retry.bkfara_task_id)
         self.assertEqual(result["latest"]["analysis_id"], retry.analysis_id)
         dispatch.assert_called_once_with(retry)
 
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_matched_rule")
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
+    def test_retry_after_credential_failure_uses_current_rule_user_for_bkfara(self, get_latest_alert, get_matched_rule):
+        failed = self.create_execution(
+            status=SourceAnalysisStatus.FAILED,
+            failure_code="USER_ACCESS_TOKEN_UNAVAILABLE",
+            failure_message=SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE,
+            failure_retryable=False,
+        )
+        rule = self.create_rule(run_as_user="new-configurator")
+        get_latest_alert.return_value = SimpleNamespace(id=self.ALERT_ID)
+        get_matched_rule.return_value = rule
+
+        retry, created = SourceAnalysisExecutionBaseResource.create_retry_execution(
+            self.BK_BIZ_ID, self.ISSUE_ID, failed.analysis_id, "alice"
+        )
+
+        self.assertTrue(created)
+        self.assertEqual(retry.create_user, "alice")
+        self.assertEqual(
+            SourceAnalysisExecutionBaseResource.build_ensure_scene_params(retry)["bk_username"], "new-configurator"
+        )
+        self.assertEqual(
+            SourceAnalysisExecutionBaseResource.build_trigger_params(retry)["bk_username"], "new-configurator"
+        )
+        failed.refresh_from_db()
+        self.assertEqual(failed.run_as_user, "configurator")
+
     @patch.object(SourceAnalysisExecutionBaseResource, "dispatch_execution")
-    def test_retry_accepts_failure_not_recommended_for_automatic_retry(self, dispatch):
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_matched_rule")
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
+    def test_retry_accepts_failure_not_recommended_for_automatic_retry(
+        self, get_latest_alert, get_matched_rule, dispatch
+    ):
         failed = self.create_execution(
             status=SourceAnalysisStatus.FAILED,
             stage=None,
             failure_retryable=False,
         )
+        get_latest_alert.return_value = SimpleNamespace(id=self.ALERT_ID)
+        get_matched_rule.return_value = self.create_rule()
 
         result = RetrySourceAnalysisResource().perform_request(
             {
@@ -610,6 +703,47 @@ class TestSourceAnalysisFrontendResources(TestCase):
         self.assertNotEqual(retry.analysis_id, failed.analysis_id)
         self.assertEqual(result["latest"]["analysis_id"], retry.analysis_id)
         dispatch.assert_called_once_with(retry)
+
+    @patch.object(SourceAnalysisExecutionBaseResource, "dispatch_execution")
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_matched_rule")
+    @patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert")
+    def test_duplicate_retry_reuses_execution_without_resolving_changed_rule(
+        self, get_latest_alert, get_matched_rule, dispatch
+    ):
+        failed = self.create_execution(status=SourceAnalysisStatus.FAILED)
+        get_latest_alert.return_value = SimpleNamespace(id=self.ALERT_ID)
+        get_matched_rule.return_value = self.create_rule()
+        params = {"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID, "analysis_id": failed.analysis_id}
+
+        first = RetrySourceAnalysisResource().perform_request(params)
+        get_latest_alert.reset_mock()
+        get_matched_rule.reset_mock()
+        get_matched_rule.return_value = None
+        duplicate = RetrySourceAnalysisResource().perform_request(params)
+
+        self.assertEqual(first["latest"]["analysis_id"], duplicate["latest"]["analysis_id"])
+        self.assertEqual(IssueSourceAnalysisExecution.objects.count(), 2)
+        get_latest_alert.assert_not_called()
+        get_matched_rule.assert_not_called()
+        dispatch.assert_called_once()
+
+    @patch.object(SourceAnalysisExecutionBaseResource, "dispatch_execution")
+    def test_retry_rejects_missing_current_alert_or_rule_without_using_old_snapshot(self, dispatch):
+        failed = self.create_execution(status=SourceAnalysisStatus.FAILED)
+        for alert in (None, SimpleNamespace(id=self.ALERT_ID)):
+            with (
+                self.subTest(alert=alert),
+                patch.object(SourceAnalysisExecutionBaseResource, "get_latest_alert", return_value=alert),
+                patch.object(SourceAnalysisExecutionBaseResource, "get_matched_rule", return_value=None),
+                self.assertRaises(SourceAnalysisOperationConflictError) as context,
+            ):
+                RetrySourceAnalysisResource().perform_request(
+                    {"bk_biz_id": self.BK_BIZ_ID, "issue_id": self.ISSUE_ID, "analysis_id": failed.analysis_id}
+                )
+            self.assertEqual(context.exception.data, {"reason": "source_analysis_not_configured"})
+
+        self.assertEqual(IssueSourceAnalysisExecution.objects.count(), 1)
+        dispatch.assert_not_called()
 
     def test_retry_rejects_old_target_after_later_execution(self):
         failed = self.create_execution(

@@ -778,6 +778,8 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         bk_biz_id: int,
         issue_id: str,
         issue_ids: list[str],
+        *,
+        trigger_type: str = SourceAnalysisTriggerType.REANALYZE,
     ) -> dict | None:
         """按当前规则构造重新分析参数预览；实时依赖异常时不阻断已持久化结果展示。"""
 
@@ -788,7 +790,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
                 return None
             return cls.build_next_execution_context(
                 rule,
-                trigger_type=SourceAnalysisTriggerType.REANALYZE,
+                trigger_type=trigger_type,
                 source="matched_rule_preview",
             )
         except Exception:  # NOCC:broad-except(参数预览是可降级的辅助信息)
@@ -814,7 +816,7 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         canonical_issue_id, issue_ids = cls.resolve_display_scope(bk_biz_id, issue_id)
         latest = cls.get_latest_execution(bk_biz_id, issue_ids)
         if latest is not None:
-            # 已有执行记录时应持续可见；重试复用快照，重新分析会在写入口重新匹配当前规则。
+            # 已有执行记录时应持续可见；重试和重新分析都会在写入口重新匹配当前规则。
             result = {
                 "is_repository_configured": is_repository_configured,
                 "is_configured": True,
@@ -827,10 +829,11 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
                 if latest.status == SourceAnalysisStatus.FAILED:
                     # 手动重试始终创建新的执行并重新发起 BKFara trigger；上游
                     # retryable 只描述原任务是否适合自动重试，不限制用户操作。
-                    next_execution_context = cls.build_next_execution_context(
-                        latest,
+                    next_execution_context = cls.build_reanalysis_context_preview(
+                        bk_biz_id,
+                        canonical_issue_id,
+                        issue_ids,
                         trigger_type=SourceAnalysisTriggerType.RETRY,
-                        source="execution_snapshot",
                     )
                 elif latest.status == SourceAnalysisStatus.SUCCESS:
                     # 重新分析会重新选择最新告警并匹配当前规则；这里返回同口径的确认前预览。
@@ -1054,8 +1057,8 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         issue_id: str,
         analysis_id: str,
         operator: str,
-    ) -> tuple[IssueSourceAnalysisExecution, bool]:
-        """为当前最新的失败记录创建一次新执行，并复用原始输入快照。"""
+    ) -> tuple[IssueSourceAnalysisExecution | None, bool]:
+        """为当前最新的失败记录创建新执行，使用最新告警与当前匹配规则。"""
 
         canonical_issue_id, issue_ids = cls.resolve_issue_scope(bk_biz_id, issue_id)
         target = IssueSourceAnalysisExecution.objects.filter(
@@ -1084,6 +1087,11 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
         if active_execution is not None:
             return active_execution, False
 
+        alert = cls.get_latest_alert(bk_biz_id, canonical_issue_id, issue_ids)
+        rule = cls.get_matched_rule(bk_biz_id, alert) if alert is not None else None
+        if rule is None:
+            return None, False
+
         try:
             with transaction.atomic(using=cls.db_alias()):
                 target = IssueSourceAnalysisExecution.objects.select_for_update().get(pk=target.pk)
@@ -1103,16 +1111,16 @@ class SourceAnalysisExecutionBaseResource(IssueAIAnalysisWhitelistMixin, Resourc
                     trigger_type=SourceAnalysisTriggerType.RETRY,
                     attempt=target.attempt + 1,
                     retry_of_analysis_id=target.analysis_id,
-                    alert_id=target.alert_id,
-                    rule_id=target.rule_id,
-                    rule_priority=target.rule_priority,
-                    bkci_project_id=target.bkci_project_id,
-                    repository_alias=target.repository_alias,
-                    agent_id=target.agent_id,
-                    skill_ids=list(target.skill_ids),
-                    knowledge_base_ids=list(target.knowledge_base_ids),
-                    run_as_user=target.run_as_user,
-                    # 重试复用分析输入，但不复用旧场景绑定；执行前重新 ensure。
+                    alert_id=alert.id,
+                    rule_id=rule.id,
+                    rule_priority=rule.priority,
+                    bkci_project_id=rule.bkci_project_id,
+                    repository_alias=rule.repository_alias,
+                    agent_id=rule.agent_id,
+                    skill_ids=list(rule.skill_ids),
+                    knowledge_base_ids=list(rule.knowledge_base_ids),
+                    run_as_user=rule.run_as_user,
+                    # 重试使用当前配置且不复用旧场景绑定；执行前重新 ensure。
                     bkfara_provision_id=None,
                     create_user=operator,
                     update_user=operator,
@@ -1722,7 +1730,7 @@ class StartSourceAnalysisResource(SourceAnalysisExecutionBaseResource):
 
 
 class RetrySourceAnalysisResource(SourceAnalysisExecutionBaseResource):
-    """重试当前最新的失败记录，并复用该记录的输入快照。"""
+    """重试当前最新的失败记录，重新选择最新告警与当前匹配规则。"""
 
     RequestSerializer = SourceAnalysisRetryRequestSerializer
 
@@ -1735,6 +1743,11 @@ class RetrySourceAnalysisResource(SourceAnalysisExecutionBaseResource):
             validated_request_data["analysis_id"],
             get_request_username(),
         )
+        if execution is None:
+            self.raise_operation_conflict(
+                "source_analysis_not_configured",
+                _("当前 Issue 未匹配到可用的源码分析规则。"),
+            )
         if created:
             self.dispatch_execution(execution)
         return self.build_source_analysis_view(bk_biz_id, issue_id)
