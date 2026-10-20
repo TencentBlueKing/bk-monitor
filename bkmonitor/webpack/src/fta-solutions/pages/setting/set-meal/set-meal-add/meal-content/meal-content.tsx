@@ -160,9 +160,13 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
       mealTypes.push(...item.children);
     });
     const mealTypeItem = mealTypes.find(item => item.id === id);
+    if (!mealTypeItem) return;
     this.data.id = id;
     this.data.name = mealTypeItem.name;
     this.data.pluginType = mealTypeItem.pluginType;
+    // 选型后立即同步给父组件：保存参数取父组件的 mealData（pluginId/pluginType），
+    // 缺这一步会在"选完类型直接保存"时提交 pluginId=0
+    this.handleChange();
     const isPeripheral = ![mealType.callback, mealType.notice].includes(mealTypeItem.pluginType);
     await this.$nextTick();
     if (this.peripheralSystemRef && isPeripheral) {
