@@ -43,10 +43,13 @@
 
 import { type Ref, ref as deepRef } from 'vue';
 
+import { useI18n } from 'vue-i18n';
+
 import { incidentTopology } from 'monitor-api/modules/incident';
 import { deepClone } from 'monitor-common/utils/utils.js';
 
 import ElkjsUtils from '../graph/elkjs-utils';
+import { historyCombos, prepareHistoryFrames, validateTopology } from '../graph/topology-history';
 import { topologyEdgeId } from '../snapshot-analysis';
 import formatTopoData, { type NodeArgs } from '../graph/format-topo-data';
 
@@ -99,6 +102,7 @@ type ResolveLayoutResult = {
 };
 
 export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
+  const { t } = useI18n();
   // ---------------------------------------------------------------------------
   // 数据状态（从 use-topo-state 迁移而来）
   // ---------------------------------------------------------------------------
@@ -323,7 +327,8 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
       .then(res => {
         const { latest, diff, complete } = res;
         if (isAutoRefresh && diff.length === 0 && lastFrame) return;
-        complete.combos = latest.combos;
+        complete.combos = historyCombos(complete, latest);
+        validateTopology(complete);
         formatResponseData(complete);
         const { combos = [], edges = [], nodes = [], sub_combos = [] } = complete || {};
         state.errorData.value.isNoData = combos.length === 0;
@@ -331,36 +336,7 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
         state.errorData.value.msg = res.message || '';
         ElkjsUtils.setSubCombosMap(ElkjsUtils.getSubComboCountMap(nodes));
         const resolvedCombos = [...combos, ...ElkjsUtils.resolveSumbCombos(sub_combos)];
-        const processedNodes = [];
-        const processedEdges = [];
-        const processedSubCombos = [];
-        // biome-ignore lint/complexity/noForEach: <explanation>
-        diff.forEach(item => {
-          item.showNodes = [...processedNodes];
-          // biome-ignore lint/complexity/noForEach: <explanation>
-          item.content.nodes.forEach(showNode => {
-            const index = processedNodes.findIndex(node => node.id === showNode.id);
-            if (index !== -1) {
-              processedNodes[index] = showNode;
-            } else {
-              processedNodes.push(showNode);
-            }
-          });
-          processedNodes.push(item.content.nodes);
-          // biome-ignore lint/complexity/noForEach: <explanation>
-          item.content.edges.forEach(edge => {
-            const key = topologyEdgeId(edge);
-            const index = processedEdges.findIndex(item => topologyEdgeId(item) === key);
-            if (index !== -1) {
-              processedEdges[index] = edge;
-            } else {
-              processedEdges.push(edge);
-            }
-          });
-          item.showSubCombos = [...processedSubCombos];
-          processedSubCombos.push(...item.content.sub_combos);
-          item.showEdges = [...processedEdges];
-        });
+        prepareHistoryFrames(diff);
         topoRawDataCache.value.diff = diff;
         topoRawDataCache.value.latest = latest;
         topoRawDataCache.value.complete = { ...complete, combos: resolvedCombos };
@@ -375,7 +351,9 @@ export function useTopoData(state: TopoDataState, graphAccess: GraphAccess) {
           return;
         }
         state.errorData.value.isError = true;
-        state.errorData.value.msg = err.data?.error_details ? err.data.error_details.overview : err.message;
+        state.errorData.value.msg = err.message === 'INVALID_TOPOLOGY_HISTORY'
+          ? t('图谱数据不完整，请刷新重试')
+          : err.data?.error_details ? err.data.error_details.overview : err.message;
         state.errorData.value.isNoData = false;
       })
       .finally(() => {

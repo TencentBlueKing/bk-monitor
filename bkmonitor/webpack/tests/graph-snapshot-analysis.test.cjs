@@ -202,6 +202,7 @@ test('empty topology history and refresh are safe, and sidebar edges keep their 
     },
     'monitor-common/utils/utils.js': { deepClone: value => JSON.parse(JSON.stringify(value)) },
     '../graph/elkjs-utils': { default: layout },
+    '../graph/topology-history': require('./helpers/topology-history-harness.cjs').history,
     '../graph/format-topo-data': { default: () => ({}) },
   });
   const state = {
