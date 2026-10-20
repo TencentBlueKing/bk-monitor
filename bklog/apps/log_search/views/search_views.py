@@ -1246,6 +1246,14 @@ class SearchViewSet(APIViewSet):
             )
         return Response(result)
 
+    def _verify_sort_list_item(self, index_set_id, sort_list):
+        index_set = LogIndexSet.objects.get(index_set_id=index_set_id)
+        bk_biz_id = space_uid_to_bk_biz_id(index_set.space_uid)
+        if FeatureToggleObject.switch(UNIFY_QUERY_SEARCH, bk_biz_id):
+            UnifyQueryHandler.verify_sort_list_item(index_set_id, sort_list)
+        else:
+            SearchHandlerEsquery(index_set_id, {}, pre_check_enable=False).verify_sort_list_item(sort_list)
+
     @list_route(methods=["POST"], url_path="create_config")
     def create_config(self, request, *args, **kwargs):
         """
@@ -1272,7 +1280,7 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(CreateIndexSetFieldsConfigSerializer)
         if data.get("index_set_type") == IndexSetType.SINGLE.value:
-            SearchHandlerEsquery(data["index_set_id"], {}).verify_sort_list_item(data["sort_list"])
+            self._verify_sort_list_item(data["index_set_id"], data["sort_list"])
             init_params = {
                 "index_set_id": data["index_set_id"],
                 "index_set_type": data["index_set_type"],
@@ -1313,7 +1321,7 @@ class SearchViewSet(APIViewSet):
         """
         data = self.params_valid(UpdateIndexSetFieldsConfigSerializer)
         if data.get("index_set_type") == IndexSetType.SINGLE.value:
-            SearchHandlerEsquery(data["index_set_id"], {}).verify_sort_list_item(data["sort_list"])
+            self._verify_sort_list_item(data["index_set_id"], data["sort_list"])
             init_params = {
                 "index_set_id": data["index_set_id"],
                 "index_set_type": data["index_set_type"],
