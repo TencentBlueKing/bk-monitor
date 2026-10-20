@@ -1053,4 +1053,5 @@ export default {
   开启: 'Turn on',
   冲突: 'Conflict',
   空值: 'Empty value',
+  未知: 'Unknown',
 };
