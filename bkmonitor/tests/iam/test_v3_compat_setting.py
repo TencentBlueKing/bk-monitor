@@ -2,6 +2,8 @@
 
 from unittest.mock import Mock
 
+from iam import IAM
+
 from bkmonitor.iam.backends.v3.compat import is_v1_compat_enabled
 from bkmonitor.iam.backends.v3.codec import MonitorV3Codec
 from bkmonitor.iam.backends.v3.client import V3Client
@@ -24,12 +26,12 @@ def test_persisted_false_disables_old_action_double_query(monkeypatch):
     config = Mock(return_value=False)
     monkeypatch.setattr(GlobalConfig, "get", config)
     client = make_client()
-    policy = {"op": "eq", "field": "space.id", "value": "2"}
+    parent = Mock(return_value={"op": "eq", "field": "space.id", "value": "2"})
+    monkeypatch.setattr(IAM, "_do_policy_query", parent)
     client._client = Mock()
-    client._client.v2_policy_query.return_value = (True, "", policy)
     query = client.make_request("alice", "view_business_v2")
-    assert client._do_policy_query(query) == policy
-    client._client.v2_policy_query.assert_called_once_with(query.system, query.to_dict())
+    assert client._do_policy_query(query) == parent.return_value
+    parent.assert_called_once_with(query, True)
     client._client.policy_query.assert_not_called()
     config.assert_called_with("IAM_V1_COMPATIBLE", True)
 

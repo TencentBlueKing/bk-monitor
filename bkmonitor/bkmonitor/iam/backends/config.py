@@ -99,7 +99,6 @@ def build_provider(name, tenant_id="system", *, username="", schema=None, option
                         codec,
                         bk_tenant_id=tid,
                         enable_v1_compat=compat,
-                        request_getter=lambda: get_request(peaceful=True),
                     )
                 return _v3_clients[key]
 

@@ -135,9 +135,14 @@ def test_nested_dashboard_uid_keeps_v3_scope_without_local_candidate(operator):
 )
 def test_simple_resource_keeps_explicit_v3_attributes(resource_meta, monkeypatch):
     from monitor_web.iam.views import ApmApplicationProvider, RumApplicationProvider, Dashboard
+
     monkeypatch.setattr(ApmApplicationProvider, "_get_app_simple_info_by_id_or_none", lambda id: None)
     monkeypatch.setattr(RumApplicationProvider, "_get_app_simple_info_by_id_or_none", lambda id: None)
-    monkeypatch.setattr(Dashboard, "objects", Mock(filter=Mock(return_value=Mock(only=Mock(return_value=Mock(first=Mock(return_value=None)))))))
+    monkeypatch.setattr(
+        Dashboard,
+        "objects",
+        Mock(filter=Mock(return_value=Mock(only=Mock(return_value=Mock(first=Mock(return_value=None)))))),
+    )
     attributes = {"owner": "alice", "_bk_iam_path_": "/space,2/"}
     resource = resource_meta.create_simple_instance("7", attributes)
     client = V3Client("offline", "offline", "https://iam.example.test", "bk_monitorv3", MonitorV3Codec())
@@ -155,8 +160,11 @@ def test_grafana_read_gate_keeps_request_bypass(is_superuser, skip_check):
 
 
 def test_grafana_gate_uses_current_business_not_global_policy(monkeypatch):
+    from django.core.cache.backends.locmem import LocMemCache
+
     check = Mock(return_value=(True, GrafanaRole.Anonymous, {}))
     monkeypatch.setattr(grafana.DashboardPermission, "has_permission", check)
+    monkeypatch.setattr(grafana, "cache", LocMemCache("grafana-gate-test", {}))
     request = SimpleNamespace(biz_id=20, user=SimpleNamespace(username="alice"))
     fallback = Mock(has_permission=Mock(return_value=False))
     assert grafana.GrafanaReadPermission(fallback).has_permission(request, None) is False

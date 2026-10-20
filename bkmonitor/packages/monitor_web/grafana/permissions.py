@@ -10,6 +10,7 @@ specific language governing permissions and limitations under the License.
 
 import logging
 
+from django.core.cache import cache
 from django.utils import timezone
 from django.conf import settings
 from iam.exceptions import AuthAPIError, AuthInvalidParam
@@ -19,6 +20,7 @@ from bk_dataview.api import get_or_create_org
 from bk_dataview.models import Dashboard
 from bk_dataview.permissions import BasePermission, GrafanaPermission, GrafanaRole
 from bkmonitor.iam import ActionEnum, Permission
+from bkmonitor.iam.mode import get_mode_provider
 from iam_engine.exceptions import ProviderError
 from bkmonitor.models.external_iam import ExternalPermission
 from bkmonitor.utils.request import get_request_tenant_id
@@ -328,15 +330,35 @@ class DashboardPermission(BasePermission):
 
 
 class GrafanaReadPermission:
+    # Shared across processes: one dashboard fans out into many panel requests from the same user.
+    # Only grants are cached, so a revoked permission stays readable for at most this long.
+    ALLOW_CACHE_SECONDS = 10
+
     def __init__(self, permission: permissions.BasePermission = None):
         self.permission = permission
+
+    @staticmethod
+    def _allow_cache_key(request):
+        # Request-scoped grants (bypass, share tokens, external users) must not leak to the user's other requests.
+        if any(getattr(request, attr, None) for attr in ("skip_check", "token", "external_user")):
+            return None
+        if getattr(request.user, "is_superuser", False):
+            return None
+        mode = get_mode_provider().get_mode().value
+        return f"grafana_read_allowed:{mode}:{get_request_tenant_id()}:{request.user.username}:{request.biz_id}"
 
     def has_permission(self, request, view):
         if not request.biz_id:
             return True
 
+        cache_key = self._allow_cache_key(request)
+        if cache_key and cache.get(cache_key):
+            return True
+
         ok, role, dashboard_permissions = DashboardPermission.has_permission(request, view, request.biz_id)
         if ok and (role != GrafanaRole.Anonymous or dashboard_permissions):
+            if cache_key:
+                cache.set(cache_key, True, self.ALLOW_CACHE_SECONDS)
             return True
 
         if self.permission is None:
