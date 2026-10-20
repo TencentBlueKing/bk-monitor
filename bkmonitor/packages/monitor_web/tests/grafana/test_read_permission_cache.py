@@ -103,3 +103,13 @@ def test_request_scoped_grants_are_not_shared(env, elevated):
     env.check.return_value = (True, GrafanaRole.Anonymous, {})
     assert not allowed(request())
     assert env.check.call_count == 2
+
+
+@pytest.mark.parametrize("granted", [True, False])
+def test_cache_failure_keeps_real_authorization_result(env, monkeypatch, granted):
+    broken = Mock(get=Mock(side_effect=ConnectionError), set=Mock(side_effect=ConnectionError))
+    monkeypatch.setattr(grafana, "cache", broken)
+    env.check.return_value = (True, GrafanaRole.Viewer if granted else GrafanaRole.Anonymous, {})
+    assert allowed(request()) is granted
+    env.check.assert_called_once()
+    assert broken.set.called is granted

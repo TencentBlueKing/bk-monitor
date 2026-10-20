@@ -372,14 +372,21 @@ class GrafanaReadPermission:
         if not request.biz_id:
             return True
 
+        # The cache only saves IAM round trips; its failures must not change the authorization result.
         cache_key = self._allow_cache_key(request)
-        if cache_key and cache.get(cache_key):
-            return True
+        try:
+            if cache_key and cache.get(cache_key):
+                return True
+        except Exception:  # noqa
+            logger.exception("[GrafanaReadPermission] read allow cache failed")
 
         ok, role, dashboard_permissions = DashboardPermission.has_permission(request, view, request.biz_id)
         if ok and (role != GrafanaRole.Anonymous or dashboard_permissions):
             if cache_key:
-                cache.set(cache_key, True, self.ALLOW_CACHE_SECONDS)
+                try:
+                    cache.set(cache_key, True, self.ALLOW_CACHE_SECONDS)
+                except Exception:  # noqa
+                    logger.exception("[GrafanaReadPermission] write allow cache failed")
             return True
 
         if self.permission is None:
