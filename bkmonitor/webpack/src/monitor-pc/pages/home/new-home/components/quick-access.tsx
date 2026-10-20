@@ -29,7 +29,12 @@ import { deepClone } from 'monitor-common/utils';
 import Component from 'vue-class-component';
 
 import UserConfigMixin from '../../../../mixins/userStoreConfig';
-import { COMMON_ROUTE_LIST, COMMON_ROUTE_STORE_KEY, DEFAULT_ROUTE_LIST } from '../../../../router/router-config';
+import {
+  COMMON_ROUTE_LIST,
+  COMMON_ROUTE_STORE_KEY,
+  DEFAULT_ROUTE_LIST,
+  normalizeStoredRouteIds,
+} from '../../../../router/router-config';
 import emptyImageSrc from '../../../../static/images/png/empty.png';
 import AiWhaleInput from './ai-whale-input';
 import HeaderSettingModal from './header-setting-modal';
@@ -59,7 +64,9 @@ export default class QuickAccess extends Mixins(UserConfigMixin) {
       this.loadingQuickList = true;
       /** 根据当前bizId区分是要展示新版的k8s还是旧版的k8s, 当isEnableK8sV2为true时，不展示旧版 */
       const filterKey = this.$store.getters.isEnableK8sV2 ? 'k8s' : 'k8s-new';
-      const data = (await this.handleGetUserConfig<string[]>(COMMON_ROUTE_STORE_KEY, { reject403: true })) || [];
+      const data = normalizeStoredRouteIds(
+        (await this.handleGetUserConfig<string[]>(COMMON_ROUTE_STORE_KEY, { reject403: true })) || []
+      );
       const routes = [];
       for (const item of COMMON_ROUTE_LIST) {
         const list = item.children?.filter(set => data.includes(set.id));

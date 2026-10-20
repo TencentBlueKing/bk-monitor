@@ -39,8 +39,8 @@ import {
   resolveHostContentTab,
 } from '../../constants/constants';
 import { isHostNode } from '../../utils/topo-tree';
-import HostLoading from '../host-loading/host-loading';
 import HostList from '../host-list/host-list';
+import HostLoading from '../host-loading/host-loading';
 import HostMetric from '../host-metric/host-metric';
 import HostProcess from '../host-process/host-process';
 
@@ -92,8 +92,24 @@ export default defineComponent({
     /** 当前视角对应的 Tab 列表 */
     const tabList = computed(() => getHostPerspectiveTabList(perspective.value, !!window.enable_cmdb_level));
 
+    const queryTab = () => {
+      const value = route.query.activeTab;
+      const raw = Array.isArray(value) ? value[0] : value;
+      return raw == null ? '' : String(raw);
+    };
+
+    /** 地址上的页签优先于 store，避免同页复用时被上一次的列表页签盖住。 */
+    const resolveRequestedTab = () => {
+      const fromQuery = queryTab();
+      const requested = fromQuery || hostActiveTab.value;
+      const matched = tabList.value.find(tab => tab.value === requested)?.value;
+      // 视角还在拓扑时，地址指定的详情页签先保留，等主机节点到达后再校验。
+      if (!matched && (fromQuery === 'system' || fromQuery === 'process')) return fromQuery;
+      return resolveHostContentTab(requested, tabList.value);
+    };
+
     /** 当前激活 Tab */
-    const activeTab = shallowRef<HostContentTab>(resolveHostContentTab(route.query.activeTab, tabList.value));
+    const activeTab = shallowRef<HostContentTab>(resolveRequestedTab());
 
     watch(activeTab, value => {
       if (hostActiveTab.value !== value) {
@@ -103,18 +119,9 @@ export default defineComponent({
 
     // URL 参数会在父组件挂载时写入 store；同步校验视角和能力，避免恢复到不可用 Tab。
     watch(
-      [() => props.selectedNode, perspective, hostActiveTab],
+      [() => props.selectedNode, perspective, hostActiveTab, () => route.query.activeTab],
       () => {
-        const requestedTab = hostActiveTab.value || route.query.activeTab;
-        // 拓扑尚未返回时无法判断 nodeId 是否为主机，先保留合法的主机详情直达 Tab。
-        if (!props.selectedNode && (requestedTab === 'system' || requestedTab === 'process')) {
-          activeTab.value = requestedTab;
-          if (hostActiveTab.value !== requestedTab) {
-            hostActiveTab.value = requestedTab;
-          }
-          return;
-        }
-        const nextActiveTab = resolveHostContentTab(requestedTab, tabList.value);
+        const nextActiveTab = resolveRequestedTab();
         activeTab.value = nextActiveTab;
         if (hostActiveTab.value !== nextActiveTab) {
           hostActiveTab.value = nextActiveTab;
@@ -190,7 +197,13 @@ export default defineComponent({
           );
         case 'metric':
         case 'system':
-          if (hostMetadataPending.value) return props.hostMetadataError ? null : <HostLoading variant='dashboard' columns={metricAggregationState.value.columns} />;
+          if (hostMetadataPending.value)
+            return props.hostMetadataError ? null : (
+              <HostLoading
+                columns={metricAggregationState.value.columns}
+                variant='dashboard'
+              />
+            );
           // 指标汇聚（topo）与系统指标（host）视觉一致，复用同一组件
           return (
             <HostMetric
