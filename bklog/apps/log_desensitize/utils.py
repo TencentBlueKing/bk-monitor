@@ -120,11 +120,14 @@ def path_aware_expand(
         expanded = {}
         restore_metadata = {}
 
-        def _try_parse_json(current_path: str, value: str):
+        def _try_parse_json(current_path: str, value):
             """
             判断是否应该尝试解析该路径的 JSON 字符串。
             仅当路径在祖先路径集合中、未超过大小限制、且形似 JSON object 时返回 True。
+            非字符串值（list/int/bool/None 等）直接跳过，避免 encode() 抛 AttributeError。
             """
+            if not isinstance(value, str):
+                return False
             if current_path not in ancestor_paths:
                 return False
             if len(value.encode("utf-8")) > max_json_bytes:
