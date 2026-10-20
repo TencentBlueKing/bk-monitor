@@ -49,6 +49,7 @@ import isEqual from 'lodash/isEqual';
 import { random } from 'monitor-common/utils/utils.js';
 
 import ServiceCombo from '../graph/service-combo';
+import { frameEdges } from '../graph/topology-history';
 
 import type { GraphAccess, TopoEmitFn } from '../types/composable';
 import type { PlayOption, TopoRawDataCache } from '../types/g6';
@@ -110,6 +111,22 @@ export function useTopoTimeline(
   // ---------------------------------------------------------------------------
 
   /** 渲染时间轴帧数据，播放某一帧的图（播放队列 + 手动切换帧都调用此函数） */
+  const applyFrameEdgeVisibility = (index: number) => {
+    const graph = graphAccess.getGraph();
+    const frame = data.topoRawDataCache.value.diff[index];
+    if (!graph || !frame) return;
+    const visibleEdges = frameEdges(frame);
+    graph.getEdges().forEach(edge => {
+      const current = data.findEdges(visibleEdges, edge.getModel() as IEdge);
+      if (current) {
+        graph.updateItem(edge, { ...current, is_deleted: false });
+        graph.showItem(edge);
+      } else {
+        graph.hideItem(edge);
+      }
+    });
+  };
+
   const handleRenderTimeline = () => {
     /** 播放时关闭查看资源态 */
     state.showResourceGraph.value = false;
@@ -137,13 +154,13 @@ export function useTopoTimeline(
       const edgeModel = edge.getModel() as IEdge;
       const targetEdge = data.findEdges(updateEdges, edgeModel);
       if (targetEdge) {
-        g.updateItem(edge, { ...edge, ...targetEdge });
+        g.updateItem(edge, { ...edgeModel, ...targetEdge });
       } else {
         // 如果当前帧没有该边，尝试从 showEdges 或 complete.edges 中恢复
         const currEdges =
           data.findEdges(showEdges, edgeModel) || data.findEdges(data.topoRawDataCache.value.complete.edges, edgeModel);
         if (currEdges && edgeModel && !isEqual(currEdges, edgeModel)) {
-          g.updateItem(edge, { ...edge, ...currEdges });
+          g.updateItem(edge, { ...edgeModel, ...currEdges });
         }
       }
     });
@@ -155,7 +172,7 @@ export function useTopoTimeline(
       // 查找节点：与 handleTimelineChange 的逻辑保持一致
       // showNode: 在 showNodes 和 currNodes 的合并数组中查找（用于获取节点数据）
       const showNode = [...showNodes, ...currNodes].reverse().find(item => item.id === id);
-      const deleteNodeIds = showNodes.filter(item => item.is_deleted).map(item => item.id);
+
       const diffNode = currNodes.find(item => item.id === id);
       // nodeInShowNodes: 单独在 showNodes 中查找，用于判断节点是否之前存在
       const nodeInShowNodes = showNodes.find(item => item.id === id);
@@ -163,7 +180,7 @@ export function useTopoTimeline(
       const diffData = !diffNode && nodeInShowNodes;
       const updateNode = diffData ? showNode : diffNode;
 
-      if ((!nodeInShowNodes && !diffNode) || deleteNodeIds.includes(id)) {
+      if (!showNode || showNode.is_deleted) {
         // 节点应该隐藏：既不在 showNodes 中，也不在 currNodes 中，或者被标记为删除
         const node = g.findById(id);
         node && g.hideItem(node);
@@ -221,6 +238,8 @@ export function useTopoTimeline(
         }
       }
     });
+
+    applyFrameEdgeVisibility(state.timelinePosition.value);
 
     // 处理 combo 的更新，与 handleTimelineChange 保持一致
     const combos = g.getCombos().filter(combo => combo.getModel().parentId);
@@ -478,7 +497,7 @@ export function useTopoTimeline(
         // 查找节点：与 handleRenderTimeline 的逻辑保持一致
         // showNode: 在 showNodes 和 content.nodes 的合并数组中查找（用于获取节点数据）
         const showNode = [...showNodes, ...content.nodes].reverse().find(item => item.id === id);
-        const deleteNodeIds = showNodes.filter(item => item.is_deleted).map(item => item.id);
+
         const diffNode = content.nodes.find(item => item.id === id);
         // nodeInShowNodes: 单独在 showNodes 中查找，用于判断节点是否之前存在
         const nodeInShowNodes = showNodes.find(item => item.id === id);
@@ -486,7 +505,7 @@ export function useTopoTimeline(
         const diffData = !diffNode && nodeInShowNodes;
         const updateNode = diffData ? showNode : diffNode;
 
-        if ((!nodeInShowNodes && !diffNode) || deleteNodeIds.includes(id)) {
+        if (!showNode || showNode.is_deleted) {
           // 节点应该隐藏：既不在 showNodes 中，也不在 content.nodes 中，或者被标记为删除
           const node = g.findById(id);
           node && g.hideItem(node);
@@ -502,7 +521,7 @@ export function useTopoTimeline(
             }
             // 更新节点数据
             g.showItem(node);
-            g.updateItem(node, { ...updateNode, comboId: model.comboId, subComboId: model.subComboId });
+            g.updateItem(node, { ...updateNode, is_deleted: false, comboId: model.comboId, subComboId: model.subComboId });
           }
         }
       });
@@ -514,16 +533,17 @@ export function useTopoTimeline(
 
         const targetEdge = data.findEdges(updateEdges, edgeModel);
         if (targetEdge) {
-          g.updateItem(edge, { ...edge, ...targetEdge });
+          g.updateItem(edge, { ...edgeModel, ...targetEdge });
         } else {
           const currEdges =
             data.findEdges(showEdges, edgeModel) ||
             data.findEdges(data.topoRawDataCache.value.complete.edges, edgeModel);
           if (currEdges && edgeModel && !isEqual(currEdges, edgeModel)) {
-            g.updateItem(edge, { ...edge, ...currEdges });
+            g.updateItem(edge, { ...edgeModel, ...currEdges });
           }
         }
       });
+      applyFrameEdgeVisibility(value);
       /** 子combo需要根据节点时候有展示来决定 */
       const combos = g.getCombos().filter(combo => combo.getModel().parentId);
       // biome-ignore lint/complexity/noForEach: <explanation>
