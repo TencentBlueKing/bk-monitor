@@ -236,6 +236,8 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
 
   /* 调试内容start */
   handleDebug(type: 'peripheral' | 'webhook') {
+    // HTTP 回调与周边系统共用此入口，变量未就绪时统一不出快照
+    if (!this.assertVariablesReady()) return;
     switch (type) {
       case 'peripheral':
         this.debugData.peripheral = deepClone(this.data.peripheral);
@@ -248,6 +250,30 @@ export default class MealContentNew extends tsc<IMealContentNewProps, IMealConte
     }
     this.debugData.type = type;
     this.isShowDebug = true;
+  }
+
+  /**
+   * 变量未就绪时禁止生成调试快照：变量映射为空会把 {{var}} 替换成空串，调试请求内容随之失真。
+   * 加载中提示稍后重试；失败给出原因并重新拉取，下次点击即可继续。
+   */
+  protected assertVariablesReady() {
+    if (SetMealAddModule.isVariableReady) return true;
+    if (SetMealAddModule.variableStatus === 'error') {
+      this.$bkMessage({
+        theme: 'error',
+        message: SetMealAddModule.variableError || this.$t('变量列表加载失败，请重试'),
+      });
+      SetMealAddModule.getVariableDataList();
+      return false;
+    }
+    if (SetMealAddModule.variableStatus !== 'loading') {
+      SetMealAddModule.getVariableDataList();
+    }
+    this.$bkMessage({
+      theme: 'warning',
+      message: this.$t('变量列表加载中，请稍后重试'),
+    });
+    return false;
   }
 
   /* 获取http回调变量数据 */
