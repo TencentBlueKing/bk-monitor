@@ -83,6 +83,22 @@
       height: 28px;
       overflow: visible;
       white-space: nowrap;
+
+      &:hover {
+        background-color: #f4f5f8;
+
+        .expand {
+          opacity: 1;
+        }
+
+        .field-badge {
+          background-color: white;
+        }
+
+        .operation-text {
+          visibility: visible;
+        }
+      }
     }
 
     .is-leaf {
@@ -97,10 +113,41 @@
 
     .node-content {
       display: flex;
-      flex-shrink: 0;
+      flex: 1;
       align-items: center;
-      min-width: max-content;
+      min-width: 0;
       overflow: visible;
+    }
+
+    .filed-item {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .filed-title {
+      width: 100%;
+      min-width: max-content;
+      height: 28px;
+      padding-top: 0;
+      padding-bottom: 0;
+
+      // 按钮保留占位，横向滚动时仍停留在可视区域右侧。
+      .operation-text {
+        position: sticky;
+        right: 12px;
+
+        /* stylelint-disable-next-line declaration-no-important */
+        display: flex !important;
+        align-self: center;
+        height: 20px;
+        margin-left: 8px;
+        visibility: hidden;
+        background: #f4f5f8;
+
+        &.analysis-active {
+          visibility: visible;
+        }
+      }
     }
   }
 
@@ -124,6 +171,13 @@
     .fields-container {
       padding-bottom: 4px;
       margin-bottom: 9px;
+
+      &.is-selected {
+        .field-badge,
+        .expand {
+          display: none;
+        }
+      }
 
       &.inside-fields {
         position: sticky;
