@@ -11,6 +11,22 @@ specific language governing permissions and limitations under the License.
 from enum import Enum
 
 
+class DataLinkNameScene(Enum):
+    """BKBase 资源命名场景；短码用于资源名，调用方使用有业务含义的枚举成员。"""
+
+    # bkm_ + 场景 + _ + 最长 19 位来源 ID + _ + 12 位随机串，总长不超过 40。
+    DATA_ID = "did"  # 已有 DataId 注册
+    STANDARD_V2_TIME_SERIES = "ts"  # 标准 V2 时序
+    STANDARD_PLUGIN = "std"  # 标准插件
+    EXPORTER_PLUGIN = "exp"  # Exporter 插件
+    GRAPH = "gr"  # 图谱 DataLink
+    GRAPH_VM = "gvm"  # 图谱 VM 输出
+    GRAPH_SURREALDB = "gdb"  # 图谱 SurrealDB 输出
+    RECORD_RULE = "rr"  # 预计算输出
+    FEDERAL_PROXY = "fp"  # 联邦父集群
+    FEDERAL_SUBSET = "fs"  # 联邦子集群
+
+
 class DataLinkKind(Enum):
     """数据链路资源类型"""
 

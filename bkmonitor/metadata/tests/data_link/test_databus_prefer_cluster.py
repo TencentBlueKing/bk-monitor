@@ -17,7 +17,7 @@ CLUSTER_NAME = "eslog-tencent-gamelifeapm-1"
 def data_link(settings):
     settings.ENABLE_MULTI_TENANT_MODE = True
     settings.DATA_LINK_COMPONENT_REUSE_STRATEGIES = []
-    return DataLink(
+    return DataLink.objects.create(
         data_link_name="prefer_cluster_test",
         bk_tenant_id="tencent",
         namespace="bklog",
