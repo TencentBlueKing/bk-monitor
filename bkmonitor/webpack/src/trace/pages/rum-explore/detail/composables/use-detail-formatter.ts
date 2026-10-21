@@ -99,8 +99,15 @@ export function useDetailFormatter(fields: MaybeRef<IRumField[]>, originData: Ma
   };
 
   const copyText = (value: string) => {
-    copyToClipboard(value);
-    Message({ theme: 'success', message: t('复制成功') });
+    let success = true;
+    copyToClipboard(value, msg => {
+      Message({
+        message: msg,
+        theme: 'error',
+      });
+      success = false;
+    });
+    success && Message({ theme: 'success', message: t('复制成功') });
   };
 
   const resolveCtx = computed<IRumCardResolveCtx>(() => ({
