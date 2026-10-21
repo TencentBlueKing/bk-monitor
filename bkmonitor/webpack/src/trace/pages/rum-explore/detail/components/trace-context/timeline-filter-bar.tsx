@@ -41,8 +41,8 @@ const CATEGORY_OPTIONS: { id: RumTimelineFilterCategoryType; label: string }[] =
   { id: RumTimelineFilterCategoryEnum.ACTION, label: window.i18n.t('动作') },
   { id: RumTimelineFilterCategoryEnum.SLOW_NODE, label: window.i18n.t('慢节点') },
   { id: RumTimelineFilterCategoryEnum.REQUEST, label: window.i18n.t('请求') },
+  { id: RumTimelineFilterCategoryEnum.ERROR, label: window.i18n.t('错误') },
   { id: RumTimelineFilterCategoryEnum.THIRD_PARTY, label: window.i18n.t('第三方资源') },
-  { id: RumTimelineFilterCategoryEnum.ERROR, label: window.i18n.t('异常') },
 ];
 
 /**

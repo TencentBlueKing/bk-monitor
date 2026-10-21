@@ -94,8 +94,8 @@
     .card-value {
       overflow: hidden;
       text-overflow: ellipsis;
-      font-size: 24px;
-      font-weight: 700;
+      font-size: 20px;
+      font-weight: 500;
       line-height: 32px;
       color: #313238;
       white-space: nowrap;
@@ -139,6 +139,7 @@
     &.request-method {
       .card-value {
         font-size: 16px;
+        font-weight: 700;
       }
     }
 
