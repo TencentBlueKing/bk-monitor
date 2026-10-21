@@ -36,6 +36,7 @@ import { useFavorite } from '../../hooks/use-favorite';
 import { IFavoriteItem, IGroupItem, IMenuItem } from '../../types';
 import { getGroupNameRules } from '../../utils';
 import AddGroup from './add-group';
+import { createFavoriteMenuHoverState } from './collect-list-menu-hover';
 import EditDialog from './edit-dialog';
 
 import './collect-list.scss';
@@ -74,8 +75,7 @@ export default defineComponent({
     const delData = ref({});
     /** 操作菜单（含「移动至分组」二级菜单）展开时保持对应收藏项 Hover 背景 */
     const menuOpenFavoriteId = ref<IFavoriteItem['id'] | null>(null);
-    let menuHideTimer: ReturnType<typeof setTimeout> | null = null;
-    const FAVORITE_MENU_HIDE_DELAY = 160;
+    const favoriteMenuHover = createFavoriteMenuHoverState();
     const {
       visible: delDialogShow,
       setVisible: setDelDialogVisible,
@@ -283,24 +283,16 @@ export default defineComponent({
         false,
       );
     };
-    const clearFavoriteMenuHideTimer = () => {
-      if (menuHideTimer) {
-        clearTimeout(menuHideTimer);
-        menuHideTimer = null;
-      }
+    const syncFavoriteMenuHover = () => {
+      menuOpenFavoriteId.value = favoriteMenuHover.getOpenId();
     };
     const handleFavoriteMenuShown = (id: IFavoriteItem['id']) => {
-      clearFavoriteMenuHideTimer();
-      menuOpenFavoriteId.value = id;
+      favoriteMenuHover.shown(id);
+      syncFavoriteMenuHover();
     };
     const handleFavoriteMenuHidden = (id: IFavoriteItem['id']) => {
-      clearFavoriteMenuHideTimer();
-      menuHideTimer = setTimeout(() => {
-        if (menuOpenFavoriteId.value === id) {
-          menuOpenFavoriteId.value = null;
-        }
-        menuHideTimer = null;
-      }, FAVORITE_MENU_HIDE_DELAY);
+      favoriteMenuHover.hidden(id);
+      setTimeout(syncFavoriteMenuHover, favoriteMenuHover.delay);
     };
     const getFavoriteMenuTippyOptions = (id: IFavoriteItem['id'], extra: Record<string, unknown> = {}) =>
       ({
@@ -309,7 +301,7 @@ export default defineComponent({
         onHidden: () => handleFavoriteMenuHidden(id),
       }) as any;
     onUnmounted(() => {
-      clearFavoriteMenuHideTimer();
+      favoriteMenuHover.dispose();
     });
     /** 刷新列表并关闭menu */
     const handleRefreshMenu = (item: IFavoriteItem, isGroup = false) => {
