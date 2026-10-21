@@ -1053,6 +1053,7 @@ export default {
   开启: 'Turn on',
   冲突: 'Conflict',
   空值: 'Empty value',
+  未知: 'Unknown',
   目标范围: 'Target scope',
   命中目标: 'Matched targets',
   文件范围: 'File scope',
