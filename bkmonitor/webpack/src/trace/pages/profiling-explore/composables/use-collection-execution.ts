@@ -61,6 +61,8 @@ export function useCollectionExecution({
   const loading = shallowRef(false);
   const error = shallowRef('');
   const keyword = shallowRef('');
+  // 主机状态筛选，取 status_summary 的状态 key，空串表示不筛选
+  const hostStatus = shallowRef('');
   const hostSort = shallowRef<'' | 'asc' | 'desc'>('');
   const tab = shallowRef('results');
   const pending = shallowRef<null | { action: CollectionExecutionAction; execution: CollectionExecution }>(null);
@@ -70,12 +72,14 @@ export function useCollectionExecution({
   let actionController: AbortController;
   const hosts = computed(() => {
     const search = keyword.value.trim().toLowerCase();
+    const status = hostStatus.value;
     const filtered = (detail.value?.hosts || []).filter(
       host =>
-        !search ||
-        [host.ip, ...host.processes.flatMap(process => [process.process_name, String(process.pid)])].some(value =>
-          value.toLowerCase().includes(search)
-        )
+        (!status || host.status === status) &&
+        (!search ||
+          [host.ip, ...host.processes.flatMap(process => [process.process_name, String(process.pid)])].some(value =>
+            value.toLowerCase().includes(search)
+          ))
     );
     if (!hostSort.value) return filtered;
     return filtered.sort(
@@ -106,6 +110,7 @@ export function useCollectionExecution({
     selected.value = execution;
     detail.value = null;
     keyword.value = '';
+    hostStatus.value = '';
     hostSort.value = '';
     tab.value = 'results';
     return refresh();
@@ -197,6 +202,7 @@ export function useCollectionExecution({
     detail,
     hosts,
     keyword,
+    hostStatus,
     hostSort,
     tab,
     loading,

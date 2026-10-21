@@ -144,7 +144,9 @@ export default defineComponent({
     function reset() {
       patch({ filters: createHistoryFilters() });
     }
-    watch([h.loading, h.hasMore], () => nextTick(loadVisiblePage));
+    watch([h.loading, h.hasMore], () => {
+      nextTick(() => loadVisiblePage());
+    });
     watch(
       [h.loading, h.busy, c.loading, c.busy],
       () => emit('busy', h.loading.value || h.busy.value || c.loading.value || c.busy.value),
@@ -237,19 +239,27 @@ export default defineComponent({
             </Button>
           </div>
         )}
+        {/* 重试按钮作为插槽传入文案，保持各语言的语序 */}
         {h.candidateError.value && (
-          <Alert
-            theme='warning'
-            title={h.candidateError.value}
-          >
-            <Button
-              v-tippy={this.t('重新加载筛选候选项')}
-              theme='primary'
-              text
-              onClick={h.loadCandidates}
-            >
-              {this.t('重试')}
-            </Button>
+          <Alert theme='warning'>
+            {{
+              title: () => (
+                <i18n-t keypath='部分筛选候选加载失败，可手动输入条件或 {retry}'>
+                  {{
+                    retry: () => (
+                      <Button
+                        v-tippy={this.t('重新加载筛选候选项')}
+                        theme='primary'
+                        text
+                        onClick={h.loadCandidates}
+                      >
+                        {this.t('重试')}
+                      </Button>
+                    ),
+                  }}
+                </i18n-t>
+              ),
+            }}
           </Alert>
         )}
         {this.rangeError && (

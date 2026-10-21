@@ -64,6 +64,10 @@ export default defineComponent({
       const value = appName && serviceName ? [appName, serviceName] : [];
       return value.length === previous?.length && value.every((id, index) => id === previous[index]) ? previous : value;
     });
+    // 主动采集只有历史和结果视图依赖全局时间范围，任务管理不查询时间维度。
+    const showTimeTools = computed(
+      () => props.tab !== 'collection' || ['history', 'results'].includes(props.state.collection.tab)
+    );
     useSelectorShortcut(
       () => {
         // 选择器触发器是 Popover 的 click reference，菜单里的搜索框在打开前不在页面上。
@@ -83,6 +87,7 @@ export default defineComponent({
       serviceSelector,
       createApplication: () => serviceSelector.value?.goToApplication(true),
       serviceValue,
+      showTimeTools,
       changeTime,
       formatTime: (time: null | number) =>
         time
@@ -179,7 +184,7 @@ export default defineComponent({
             {this.$slots.fileTools?.()}
           </>
         )}
-        {this.tab !== 'collection' && (
+        {this.showTimeTools && (
           <div class='profiling-time-tools'>
             <TimeRangePicker
               modelValue={this.state.timeRange}

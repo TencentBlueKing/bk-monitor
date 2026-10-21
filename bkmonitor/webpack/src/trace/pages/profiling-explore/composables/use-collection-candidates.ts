@@ -25,18 +25,16 @@
  */
 import { type Ref, onScopeDispose, shallowRef, watch } from 'vue';
 
-import { useI18n } from 'vue-i18n';
-
 import { getCollectionCandidates } from '../services/collection-history';
 
 import type { SelectionRange } from '../types';
 import type { CollectionCandidate, CollectionCandidateField } from '../types/collection-history';
 
 export function useCollectionCandidates(bizId: Ref<number>, range: Ref<SelectionRange>) {
-  const { t } = useI18n();
   const candidates = shallowRef<Partial<Record<CollectionCandidateField, CollectionCandidate[]>>>({});
   const candidateLoading = shallowRef(false);
-  const candidateError = shallowRef('');
+  // 任一候选接口失败即置位，具体提示与重试入口由使用方渲染
+  const candidateError = shallowRef(false);
   let controller: AbortController;
 
   async function loadCandidates() {
@@ -44,7 +42,7 @@ export function useCollectionCandidates(bizId: Ref<number>, range: Ref<Selection
     const current = new AbortController();
     controller = current;
     candidates.value = {};
-    candidateError.value = '';
+    candidateError.value = false;
     candidateLoading.value = false;
     if (!range.value) return;
     candidateLoading.value = true;
@@ -56,8 +54,7 @@ export function useCollectionCandidates(bizId: Ref<number>, range: Ref<Selection
     candidates.value = Object.fromEntries(
       results.map((result, index) => [fields[index], result.status === 'fulfilled' ? result.value : []])
     );
-    if (results.some(result => result.status === 'rejected'))
-      candidateError.value = t('部分筛选候选加载失败，可输入条件或重试');
+    candidateError.value = results.some(result => result.status === 'rejected');
     candidateLoading.value = false;
   }
 

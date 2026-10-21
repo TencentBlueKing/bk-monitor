@@ -69,7 +69,7 @@ export function compareExecutionHostStatus(left: CollectionExecutionHost, right:
 }
 
 export function createHistoryFilters(): CollectionHistoryFilters {
-  return { ips: [], task_name: '', process_names: [], process_pids: [], status: '' };
+  return { ips: [], task_name: '', process_names: [], process_pids: [], schedule_types: [], status: '' };
 }
 
 export function executionKey(value: CollectionExecutionKey): CollectionExecutionKey {
@@ -121,6 +121,8 @@ export function restoreHistoryFilters(value?: Partial<CollectionHistoryFilters>)
     task_name: typeof value?.task_name === 'string' ? value.task_name : '',
     process_names: strings(value?.process_names),
     process_pids: strings(value?.process_pids),
+    // 仅保留后端支持的执行方式，过滤掉历史数据或异常取值
+    schedule_types: strings(value?.schedule_types).filter(type => ['immediate', 'once_at', 'cron'].includes(type)),
     status: Object.hasOwn(executionStatusLabels, value?.status || '') ? value.status : '',
   };
 }
