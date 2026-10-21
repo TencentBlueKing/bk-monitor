@@ -78,6 +78,29 @@ class TestCleanDocumentTagsBoundToDimensions:
         assert cleaned["tags"] == dimensions, "tags 应与 dimensions 同源（修复列表/详情维度不一致 bug）"
         assert cleaned["dimensions"] == dimensions
 
+    def test_legacy_dimension_names_are_readable_without_rewriting_document(self):
+        dimension = {
+            "key": "tags.base62L6Z57G75BOZ5pm45",
+            "value": "22",
+            "display_key": "base62L6Z57G75BOZ5pm45",
+            "display_value": "22",
+        }
+        doc = _build_doc([dimension], [])
+        doc.to_dict.return_value["extra_info"] = {
+            "strategy": {"items": [{"query_configs": [{"agg_dimension": ["base62L6Z57G75BOZ5pm45"]}]}]}
+        }
+
+        cleaned = self._clean(doc)
+
+        assert cleaned["dimensions"][0]["display_key"] == "物品类型"
+        assert cleaned["dimensions"][0]["key"] == dimension["key"]
+        assert cleaned["dimensions"][0]["value"] == "22"
+        assert (
+            cleaned["items"][0]["query_configs"][0]["agg_dimension"]["base62L6Z57G75BOZ5pm45"]["display_name"]
+            == "物品类型"
+        )
+        assert dimension["display_key"] == "base62L6Z57G75BOZ5pm45"
+
     def test_tags_falls_back_to_event_tags_when_dimensions_empty(self):
         """dimensions 为空但 event.tags 非空 → 回退用 event.tags（兼容仅有 tags 的旧数据）。"""
         event_tags = [{"key": "legacy", "value": "v", "display_key": "legacy", "display_value": "v"}]

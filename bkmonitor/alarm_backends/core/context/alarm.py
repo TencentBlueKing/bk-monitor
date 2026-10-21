@@ -29,6 +29,7 @@ from bkmonitor.aiops.utils import ReadOnlyAiSetting
 from bkmonitor.documents import AlertDocument, AlertLog
 from bkmonitor.models.aiops import AIFeatureSettings
 from bkmonitor.utils import time_tools
+from bkmonitor.utils.base62 import get_dimension_display_name
 from bkmonitor.utils.event_related_info import get_alert_relation_info
 from bkmonitor.utils.time_tools import (
     hms_string,
@@ -198,7 +199,9 @@ class Alarm(BaseContextObject):
         """
         if self.parent.alert and self.parent.alert.origin_alarm:
             return {
-                key: AttrDict(dimension)
+                key: AttrDict(
+                    {**dimension, "display_name": get_dimension_display_name(key, dimension.get("display_name"))}
+                )
                 for key, dimension in self.parent.alert.origin_alarm["dimension_translation"].items()
             }
         return {}
@@ -209,15 +212,16 @@ class Alarm(BaseContextObject):
         维度字典
         """
         strategy_dimensions = getattr(self.parent.action, "dimensions", [])
-        if strategy_dimensions:
-            # 默认从当前处理事件获取维度信息，如果不存在，则从alert获取
-            return {
-                dimension["key"]: dimension if isinstance(dimension, AttrDict) else AttrDict(dimension)
-                for dimension in strategy_dimensions
-            }
-        if self.parent.alert:
-            return {dimension.key: dimension for dimension in self.parent.alert.dimensions}
-        return {}
+        # 默认从当前处理事件获取维度信息，如果不存在，则从 alert 获取。
+        dimensions = strategy_dimensions or (self.parent.alert.dimensions if self.parent.alert else [])
+        result: dict[str, AttrDict] = {}
+        for dimension in dimensions:
+            dimension = dimension.to_dict() if isinstance(dimension, AttrDict) else dimension
+            display_key: str = get_dimension_display_name(dimension["key"], dimension.get("display_key"))
+            if display_key != dimension.get("display_key"):
+                dimension = {**dimension, "display_key": display_key}
+            result[dimension["key"]] = AttrDict(dimension)
+        return result
 
     @cached_property
     def origin_dimensions(self):

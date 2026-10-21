@@ -26,6 +26,7 @@ from bkmonitor.models import (
     ConvergeRelation,
     GlobalConfig,
 )
+from bkmonitor.utils.base62 import get_dimension_display_name
 from bkmonitor.utils.common_utils import count_md5
 from constants import alert as alert_constants
 from constants.action import (
@@ -563,7 +564,11 @@ class ActionContext:
                     "id": alert.id,
                     "name": strategy.get("name", "-"),
                     "target": alert.event_document.target,
-                    "dimension": ",".join([f"{d.display_key}={d.display_value}" for d in alert.dimensions]) or "-",
+                    "dimension": ",".join(
+                        f"{get_dimension_display_name(d.key, d.display_key)}={d.display_value}"
+                        for d in alert.dimensions
+                    )
+                    or "-",
                     "current_value": current_value,
                 }
             )

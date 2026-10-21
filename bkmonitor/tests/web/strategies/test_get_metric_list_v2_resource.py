@@ -14,6 +14,20 @@ from monitor_web.strategies.resources.v2 import GetMetricListV2Resource
 
 
 class TestGetMetricListV2Resource:
+    def test_dimension_names_are_readable_without_changing_cached_fields(self):
+        dimensions = [
+            {"id": "base62Mm45BOZ5eM2yBMRzB", "name": "base62Mm45BOZ5eM2yBMRzB"},
+            {"id": "base62L6Z57G75BOZ5pm45", "name": "业务自定义名称"},
+        ]
+
+        result = GetMetricListV2Resource.translate_metric({"dimensions": dimensions})
+
+        assert result["dimensions"] == [
+            {"id": "base62Mm45BOZ5eM2yBMRzB", "name": "所属品牌"},
+            {"id": "base62L6Z57G75BOZ5pm45", "name": "业务自定义名称"},
+        ]
+        assert dimensions[0]["name"] == dimensions[0]["id"]
+
     def test_serializer_accepts_zero_page_for_compatibility(self):
         serializer = GetMetricListV2Resource.RequestSerializer(
             data={

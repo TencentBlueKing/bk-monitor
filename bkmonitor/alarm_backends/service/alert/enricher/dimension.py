@@ -27,6 +27,7 @@ from alarm_backends.service.alert.enricher import (
     Event,
 )
 from alarm_backends.service.alert.enricher.translator import TranslatorFactory
+from bkmonitor.utils.base62 import get_dimension_display_name
 from constants.alert import EventTargetType
 
 logger = logging.getLogger("alert.enricher")
@@ -122,6 +123,8 @@ class MonitorTranslateEnricher(BaseAlertEnricher):
         dimensions = origin_alarm.get("data", {}).get("dimensions", {})
         translator = TranslatorFactory(strategy)
         dimension_translation = translator.translate(dimensions)
+        for key, translation in dimension_translation.items():
+            translation["display_name"] = get_dimension_display_name(key, translation.get("display_name"))
 
         for dimension in alert.dimensions:
             if not dimension["key"].startswith("tags."):
