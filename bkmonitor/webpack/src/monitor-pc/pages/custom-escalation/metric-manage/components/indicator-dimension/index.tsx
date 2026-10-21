@@ -44,6 +44,7 @@ import {
   previewGroupingRule,
 } from '../../../service';
 import { type IGroupListItem, type RequestHandlerMap, ALL_LABEL, NULL_LABEL } from '../../type';
+import { type MetricTypeValue, METRIC_TYPE_ALL } from '../../metric-type';
 import { matchRuleFn } from '../../utils';
 import DimensionList from './components/dimension-list';
 import GroupList from './components/group-list';
@@ -129,6 +130,8 @@ export default class IndicatorDimension extends tsc<IProps, any> {
   groupFilterList: string[] = [];
   /** 当前选中的分组信息 */
   selectedGroupInfo = { id: 0, name: '' };
+  /** 当前选中的指标类型（与分组 AND） */
+  selectedMetricType: MetricTypeValue | typeof METRIC_TYPE_ALL = METRIC_TYPE_ALL;
   /** 分组管理列表 */
   groupList: IGroupListItem[] = [];
   /** 每个指标包含的组映射，key 为指标名称，value 为分组信息 */
@@ -372,6 +375,13 @@ export default class IndicatorDimension extends tsc<IProps, any> {
   }
 
   /**
+   * 更改指标类型过滤（与自定义分组 AND）
+   */
+  changeMetricTypeFilter(metricType: MetricTypeValue | typeof METRIC_TYPE_ALL): void {
+    this.selectedMetricType = metricType;
+  }
+
+  /**
    * 提交分组信息
    * @param config 分组配置
    */
@@ -579,6 +589,7 @@ export default class IndicatorDimension extends tsc<IProps, any> {
             groupList={this.groupList}
             isSearchMode={false}
             onChangeGroup={this.changeGroupFilterList}
+            onChangeMetricType={this.changeMetricTypeFilter}
             onEditGroupSuccess={this.handleEditGroupSuccess}
             onGroupDelByName={this.handleDelGroup}
           />
@@ -631,6 +642,7 @@ export default class IndicatorDimension extends tsc<IProps, any> {
               metricGroupsMap={this.metricGroupsMap}
               timeSeriesGroupId={this.timeSeriesGroupId}
               selectedGroupInfo={this.selectedGroupInfo}
+              selectedMetricType={this.selectedMetricType}
               unitList={this.unitList}
               onAliasChange={this.handleAliasChange}
               onHandleBatchAddGroup={this.handleBatchAddGroup}
