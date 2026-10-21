@@ -94,7 +94,11 @@ class ExportNotificationTests(TestCase):
             storage.return_value.generate_download_url.return_value = "https://storage.example/full"
             send_export_notification(job)
         self.channel.send.assert_called_once_with(
-            receivers="tester", title="【日志平台】场景化检索导出", content="email-body", is_external=False
+            receivers="tester",
+            title="【日志平台】场景化检索导出",
+            content="email-body",
+            is_external=False,
+            bk_tenant_id=settings.BK_APP_TENANT_ID,
         )
         call = storage.return_value.generate_download_url.call_args.kwargs
         self.assertEqual(call["file_name"], job.merged_object_key)

@@ -64,7 +64,7 @@ def _sha256(path):
     return digest.hexdigest()
 
 
-def _write_rows(handler, payload):
+def _write_rows(handler, payload, *, session_id):
     """
     把分片区间内的日志流式写成 JSONL。
 
@@ -77,6 +77,8 @@ def _write_rows(handler, payload):
             "scroll": ASYNC_EXPORT_SCROLL,
             "slice_max": 0,
             "highlight": {"enable": False},
+            # UQ 的 scroll key 包含来源 Name；同参数 Job、重试及过期执行不能共享游标。
+            "Bk-Query-Source": f"backend:{session_id}",
         }
     )
     deadline = time.monotonic() + settings.ASYNC_EXPORT_PART_FETCH_TIMEOUT
@@ -165,7 +167,8 @@ def _execute(job, part, fence):
     with tempfile.TemporaryDirectory(prefix=f"bklog-export-{job.pk}-") as directory:
         directory = Path(directory)
         handler = build_handler(job, part.start_time, part.end_time)
-        rows, size = _write_rows(handler, directory / "logs.jsonl")
+        session_id = f"bklog-export-{job.pk}-{part.pk}-{fence.task_id}-{fence.attempts}"
+        rows, size = _write_rows(handler, directory / "logs.jsonl", session_id=session_id)
         if not _set_stage(part, fence, ExportStage.PACKAGE):
             return
         archive = _pack(directory, part)
