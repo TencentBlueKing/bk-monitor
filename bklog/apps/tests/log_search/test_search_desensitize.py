@@ -611,15 +611,16 @@ class TestSearchHandlerDesensitize(TestCase):
     # ==================================================================
 
     def test_flattened_object_subpath_desensitized_via_log_desensitize(self):
-        """flattened 嵌套 object 子路径脱敏生效（_log_desensitize 单元验证）"""
+        """JSON 字符串嵌套 object 子路径脱敏生效，结果仍为字符串（_log_desensitize 验证）"""
         self._put_config(field_configs=[NESTED_MASK_CONFIG])
 
         handler = self._build_handler()
-        log = {"body": {"player": {"id": "12345"}}}
+        log = {"body": '{"player":{"id":"12345"}}'}
         desensitized = handler._log_desensitize(log)
 
-        self.assertIsInstance(desensitized["body"], dict)
-        self.assertEqual(desensitized["body"]["player"]["id"], "1***5")
+        self.assertIsInstance(desensitized["body"], str)
+        parsed = json.loads(desensitized["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
 
     def test_json_string_subpath_desensitized_via_log_desensitize(self):
         """JSON 字符串子路径脱敏生效，且结果仍为字符串（_log_desensitize 单元验证）"""
@@ -636,18 +637,19 @@ class TestSearchHandlerDesensitize(TestCase):
         self.assertEqual(parsed["server"]["ip"], "10.0.0.1")
 
     def test_flattened_subpath_via_deal_query_result(self):
-        """通过 _deal_query_result 完整链路验证 flattened 子路径脱敏"""
+        """通过 _deal_query_result 完整链路验证 JSON 字符串子路径脱敏"""
         self._put_config(field_configs=[NESTED_MASK_CONFIG])
 
         handler = self._build_handler()
         result = handler._deal_query_result(
-            fake_hits_nested(body={"player": {"id": "12345"}})
+            fake_hits_nested(body='{"player":{"id":"12345"}}')
         )
 
         logs = result["list"]
         self.assertEqual(len(logs), 1)
-        self.assertIsInstance(logs[0]["body"], dict)
-        self.assertEqual(logs[0]["body"]["player"]["id"], "1***5")
+        self.assertIsInstance(logs[0]["body"], str)
+        parsed = json.loads(logs[0]["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
 
     def test_json_string_subpath_via_deal_query_result(self):
         """通过 _deal_query_result 完整链路验证 JSON 字符串子路径脱敏"""
@@ -666,7 +668,7 @@ class TestSearchHandlerDesensitize(TestCase):
         self.assertEqual(parsed["server"]["ip"], "10.0.0.1")
 
     def test_text_fields_with_subpath_desensitize(self):
-        """text_fields 原文替换 + 子路径脱敏同时生效"""
+        """text_fields 原文替换 + JSON 字符串子路径脱敏同时生效"""
         self._put_config(
             field_configs=[
                 NESTED_MASK_CONFIG,
@@ -677,19 +679,20 @@ class TestSearchHandlerDesensitize(TestCase):
 
         handler = self._build_handler()
         log = {
-            "body": {"player": {"id": "12345"}},
+            "body": '{"player":{"id":"12345"}}',
             "log": "user id is 12345",
         }
         desensitized = handler._log_desensitize(log)
 
-        # 子路径脱敏生效
-        self.assertIsInstance(desensitized["body"], dict)
-        self.assertEqual(desensitized["body"]["player"]["id"], "1***5")
+        # JSON 字符串子路径脱敏生效，结果仍为字符串
+        self.assertIsInstance(desensitized["body"], str)
+        parsed = json.loads(desensitized["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
         # text_fields 自身脱敏生效（text_replace 整体替换）
         self.assertEqual(desensitized["log"], "[FILTERED]")
 
     def test_text_fields_with_subpath_via_deal_query_result(self):
-        """通过完整链路验证 text_fields + 子路径脱敏同时生效"""
+        """通过完整链路验证 text_fields + JSON 字符串子路径脱敏同时生效"""
         self._put_config(
             field_configs=[
                 NESTED_MASK_CONFIG,
@@ -700,30 +703,30 @@ class TestSearchHandlerDesensitize(TestCase):
 
         handler = self._build_handler()
         result = handler._deal_query_result(
-            fake_hits_nested(body={"player": {"id": "12345"}}, log="user id is 12345")
+            fake_hits_nested(body='{"player":{"id":"12345"}}', log="user id is 12345")
         )
 
         logs = result["list"]
         self.assertEqual(len(logs), 1)
-        # 子路径脱敏
-        self.assertIsInstance(logs[0]["body"], dict)
-        self.assertEqual(logs[0]["body"]["player"]["id"], "1***5")
+        # JSON 字符串子路径脱敏
+        self.assertIsInstance(logs[0]["body"], str)
+        parsed = json.loads(logs[0]["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
         # text_fields 自身脱敏生效
         self.assertEqual(logs[0]["log"], "[FILTERED]")
 
     def test_no_config_preserves_original_structure(self):
-        """无脱敏配置时，嵌套结构保持不变（退化为仅展开 dict 后还原）"""
+        """无脱敏配置时，JSON 字符串保持原值不被解析"""
         handler = self._build_handler()
-        log = {"body": {"player": {"id": "12345"}}}
+        log = {"body": '{"player":{"id":"12345"}}'}
         desensitized = handler._log_desensitize(log)
 
-        # 无配置时 path_aware_expand 展开为 body.player.id，
-        # restore_by_metadata 默认按 dict 还原，结构应保持
-        self.assertIsInstance(desensitized["body"], dict)
-        self.assertEqual(desensitized["body"]["player"]["id"], "12345")
+        # 无配置时 path_aware_expand 不会解析 JSON 字符串（不在祖先路径中），
+        # restore_by_metadata 按 scalar 还原，字符串保持原值
+        self.assertEqual(desensitized["body"], '{"player":{"id":"12345"}}')
 
     def test_normal_object_nested_no_regression(self):
-        """普通 object 嵌套字段的现有脱敏不回退"""
+        """普通 object 嵌套字段（JSON 字符串形态）的脱敏不回退"""
         normal_config = {
             "field_name": "user.phone",
             "rule_id": 0,
@@ -735,15 +738,16 @@ class TestSearchHandlerDesensitize(TestCase):
         self._put_config(field_configs=[normal_config])
 
         handler = self._build_handler()
-        log = {"user": {"name": "alice", "phone": "13234345678"}}
+        log = {"user": '{"name":"alice","phone":"13234345678"}'}
         desensitized = handler._log_desensitize(log)
 
-        self.assertIsInstance(desensitized["user"], dict)
-        self.assertEqual(desensitized["user"]["name"], "alice")
-        self.assertEqual(desensitized["user"]["phone"], "13*******78")
+        self.assertIsInstance(desensitized["user"], str)
+        parsed = json.loads(desensitized["user"])
+        self.assertEqual(parsed["name"], "alice")
+        self.assertEqual(parsed["phone"], "13*******78")
 
     def test_match_pattern_no_match_skips_desensitize(self):
-        """正则不匹配时跳过脱敏，子路径值保持原值"""
+        """正则不匹配时跳过脱敏，JSON 字符串内子路径值保持原值"""
         strict_config = {
             "field_name": "body.player.id",
             "rule_id": 0,
@@ -755,7 +759,131 @@ class TestSearchHandlerDesensitize(TestCase):
         self._put_config(field_configs=[strict_config])
 
         handler = self._build_handler()
-        log = {"body": {"player": {"id": "abc"}}}  # 非纯数字，不匹配
+        log = {"body": '{"player":{"id":"abc"}}'}  # 非纯数字，不匹配
         desensitized = handler._log_desensitize(log)
 
-        self.assertEqual(desensitized["body"]["player"]["id"], "abc")
+        self.assertIsInstance(desensitized["body"], str)
+        parsed = json.loads(desensitized["body"])
+        self.assertEqual(parsed["player"]["id"], "abc")
+
+    # ==================================================================
+    # 补充关键场景：dot 1 缺陷修复验证
+    # ==================================================================
+
+    def test_json_string_with_text_fields_end_to_end(self):
+        """缺失场景 1：JSON 字符串 + text_fields 原文替换端到端验证。
+
+        当 body 为 JSON 字符串且配置了 text_fields 时，
+        body 内部子路径脱敏后，脱敏结果应同步替换到 log 原文中，
+        且 body 仍保持为 JSON 字符串。
+        """
+        self._put_config(
+            field_configs=[
+                NESTED_MASK_CONFIG,
+                TEXT_REPLACE_CONFIG,
+            ],
+            text_fields=["log"],
+        )
+
+        handler = self._build_handler()
+        result = handler._deal_query_result(
+            fake_hits_nested(
+                body='{"player":{"id":"12345"}}',
+                log="user id is 12345",
+            )
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # body 仍为 JSON 字符串，内部值被脱敏
+        self.assertIsInstance(logs[0]["body"], str)
+        parsed_body = json.loads(logs[0]["body"])
+        self.assertEqual(parsed_body["player"]["id"], "1***5")
+        # text_fields 原文替换生效：log 中的 12345 被替换为脱敏后的值
+        self.assertEqual(logs[0]["log"], "[FILTERED]")
+
+    def test_multi_layer_json_string_nesting_end_to_end(self):
+        """缺失场景 2：多层 JSON 字符串嵌套端到端验证。
+
+        body 是 JSON 字符串，其内部某字段值又是 JSON 字符串（多层嵌套），
+        脱敏应递归穿透所有层级，最终 body 仍为 JSON 字符串。
+        """
+        inner_config = {
+            "field_name": "body.inner.secret",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 1, "preserve_tail": 1, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[inner_config])
+
+        handler = self._build_handler()
+        # body 是 JSON 字符串，inner 也是 JSON 字符串
+        log = {"body": '{"outer":"hello","inner":"{\\"secret\\":\\"99999\\"}"}'}
+        desensitized = handler._log_desensitize(log)
+
+        # body 仍为 JSON 字符串
+        self.assertIsInstance(desensitized["body"], str)
+        parsed_body = json.loads(desensitized["body"])
+        # outer 未配置脱敏，保持原值
+        self.assertEqual(parsed_body["outer"], "hello")
+        # inner 在 restore 后变为嵌套 dict（path_aware_expand 递归解析了多层），
+        # secret 被脱敏
+        self.assertEqual(parsed_body["inner"]["secret"], "9***9")
+
+    def test_json_string_top_level_field_with_regex_partial_match(self):
+        """缺失场景 3：JSON 字符串顶层字段 + 正则匹配部分内容。
+
+        配置 field_name 为顶层字段（如 message），值为 JSON 字符串，
+        正则匹配 JSON 字符串中部分内容进行脱敏，其余内容保持不变。
+        """
+        regex_config = {
+            "field_name": "message",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 0, "preserve_tail": 0, "replace_mark": "*"},
+            "match_pattern": r"\d{5}",  # 匹配连续 5 位数字
+            "sort_index": 0,
+        }
+        self._put_config(field_configs=[regex_config])
+
+        handler = self._build_handler()
+        # message 值为 JSON 字符串，内含 5 位数字
+        result = handler._deal_query_result(
+            fake_hits(message='{"uid":"12345","name":"test"}')
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # 12345 被匹配并脱敏为 *****，JSON 字符串其余内容不变
+        self.assertEqual(logs[0]["message"], '{"uid":"*****","name":"test"}')
+
+    def test_json_string_top_level_field_with_text_fields_self_desensitize(self):
+        """缺失场景 3 补充：JSON 字符串顶层字段自身在 text_fields 中。
+
+        当 text_field 自身也是 JSON 字符串，且配置了子路径脱敏规则时，
+        验证 text_fields 原文替换逻辑对 JSON 字符串顶层字段的处理。
+        """
+        top_level_config = {
+            "field_name": "message",
+            "rule_id": 0,
+            "operator": "mask_shield",
+            "params": {"preserve_head": 2, "preserve_tail": 2, "replace_mark": "*"},
+            "match_pattern": ".*",
+            "sort_index": 0,
+        }
+        self._put_config(
+            field_configs=[top_level_config],
+            text_fields=["message"],
+        )
+
+        handler = self._build_handler()
+        result = handler._deal_query_result(
+            fake_hits(message="Hello World1234")
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # message 在 text_fields 中，自身脱敏规则生效
+        self.assertEqual(logs[0]["message"], "He***********34")

@@ -312,3 +312,28 @@ class TestRestoreByMetadata(SimpleTestCase):
         parsed = json.loads(restored["body"])
         self.assertEqual(parsed["player"]["id"], "***")
         self.assertEqual(parsed["server"]["ip"], "10.0.0.1")
+
+    def test_restore_json_string_preserves_key_order(self):
+        """缺失场景 4：restore_by_metadata 对 JSON 字符串内 key 顺序保持。
+
+        验证还原后的 JSON 字符串中 key 顺序与 expanded_data 中的插入顺序一致，
+        确保 json.dumps 不会随机打乱字段顺序。
+        """
+        expanded = {"body.zebra": "z_value", "body.apple": "a_value", "body.mango": "m_value"}
+        metadata = {"body": {"type": "json_string"}}
+        restored = restore_by_metadata(expanded, metadata)
+
+        self.assertIsInstance(restored["body"], str)
+        parsed = json.loads(restored["body"])
+        # key 顺序应保持与 expanded_data 插入顺序一致
+        self.assertEqual(list(parsed.keys()), ["zebra", "apple", "mango"])
+
+    def test_restore_dict_preserves_key_order(self):
+        """缺失场景 4 补充：dict 类型还原时 key 顺序保持"""
+        expanded = {"body.c": "3", "body.a": "1", "body.b": "2"}
+        metadata = {"body": {"type": "dict"}}
+        restored = restore_by_metadata(expanded, metadata)
+
+        self.assertIsInstance(restored["body"], dict)
+        # key 顺序应保持
+        self.assertEqual(list(restored["body"].keys()), ["c", "a", "b"])

@@ -275,15 +275,16 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
     # ==================================================================
 
     def test_flattened_object_subpath_desensitized(self):
-        """flattened 嵌套 object 子路径脱敏生效"""
+        """JSON 字符串嵌套 object 子路径脱敏生效，结果仍为字符串"""
         self._put_config(field_configs=[NESTED_MASK_CONFIG])
 
         handler = self._build_handler()
-        log = {"body": {"player": {"id": "12345"}}}
+        log = {"body": '{"player":{"id":"12345"}}'}
         desensitized = handler._log_desensitize(log)
 
-        self.assertIsInstance(desensitized["body"], dict)
-        self.assertEqual(desensitized["body"]["player"]["id"], "1***5")
+        self.assertIsInstance(desensitized["body"], str)
+        parsed = json.loads(desensitized["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
 
     def test_json_string_subpath_desensitized(self):
         """JSON 字符串子路径脱敏生效，且结果仍为字符串"""
@@ -300,18 +301,19 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         self.assertEqual(parsed["server"]["ip"], "10.0.0.1")
 
     def test_flattened_subpath_via_deal_query_result(self):
-        """通过 _deal_query_result 完整链路验证 flattened 子路径脱敏"""
+        """通过 _deal_query_result 完整链路验证 JSON 字符串子路径脱敏"""
         self._put_config(field_configs=[NESTED_MASK_CONFIG])
 
         handler = self._build_handler()
         result = handler._deal_query_result(
-            fake_unify_result_nested(body={"player": {"id": "12345"}})
+            fake_unify_result_nested(body='{"player":{"id":"12345"}}')
         )
 
         logs = result["list"]
         self.assertEqual(len(logs), 1)
-        self.assertIsInstance(logs[0]["body"], dict)
-        self.assertEqual(logs[0]["body"]["player"]["id"], "1***5")
+        self.assertIsInstance(logs[0]["body"], str)
+        parsed = json.loads(logs[0]["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
 
     def test_json_string_subpath_via_deal_query_result(self):
         """通过 _deal_query_result 完整链路验证 JSON 字符串子路径脱敏"""
@@ -330,7 +332,7 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         self.assertEqual(parsed["server"]["ip"], "10.0.0.1")
 
     def test_text_fields_with_subpath_desensitize(self):
-        """text_fields 原文替换 + 子路径脱敏同时生效"""
+        """text_fields 原文替换 + JSON 字符串子路径脱敏同时生效"""
         self._put_config(
             field_configs=[
                 NESTED_MASK_CONFIG,
@@ -341,19 +343,20 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
 
         handler = self._build_handler()
         log = {
-            "body": {"player": {"id": "12345"}},
+            "body": '{"player":{"id":"12345"}}',
             "log": "user id is 12345",
         }
         desensitized = handler._log_desensitize(log)
 
-        # 子路径脱敏生效
-        self.assertIsInstance(desensitized["body"], dict)
-        self.assertEqual(desensitized["body"]["player"]["id"], "1***5")
+        # JSON 字符串子路径脱敏生效，结果仍为字符串
+        self.assertIsInstance(desensitized["body"], str)
+        parsed = json.loads(desensitized["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
         # text_fields 自身脱敏生效（text_replace 整体替换）
         self.assertEqual(desensitized["log"], "[FILTERED]")
 
     def test_text_fields_with_subpath_via_deal_query_result(self):
-        """通过完整链路验证 text_fields + 子路径脱敏同时生效"""
+        """通过完整链路验证 text_fields + JSON 字符串子路径脱敏同时生效"""
         self._put_config(
             field_configs=[
                 NESTED_MASK_CONFIG,
@@ -364,23 +367,25 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
 
         handler = self._build_handler()
         result = handler._deal_query_result(
-            fake_unify_result_nested(body={"player": {"id": "12345"}}, log="user id is 12345")
+            fake_unify_result_nested(body='{"player":{"id":"12345"}}', log="user id is 12345")
         )
 
         logs = result["list"]
         self.assertEqual(len(logs), 1)
-        self.assertIsInstance(logs[0]["body"], dict)
-        self.assertEqual(logs[0]["body"]["player"]["id"], "1***5")
+        self.assertIsInstance(logs[0]["body"], str)
+        parsed = json.loads(logs[0]["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
         self.assertEqual(logs[0]["log"], "[FILTERED]")
 
     def test_no_config_preserves_original_structure(self):
-        """无脱敏配置时，嵌套结构保持不变"""
+        """无脱敏配置时，JSON 字符串保持原值不被解析"""
         handler = self._build_handler()
-        log = {"body": {"player": {"id": "12345"}}}
+        log = {"body": '{"player":{"id":"12345"}}'}
         desensitized = handler._log_desensitize(log)
 
-        self.assertIsInstance(desensitized["body"], dict)
-        self.assertEqual(desensitized["body"]["player"]["id"], "12345")
+        # 无配置时 path_aware_expand 不会解析 JSON 字符串（不在祖先路径中），
+        # restore_by_metadata 按 scalar 还原，字符串保持原值
+        self.assertEqual(desensitized["body"], '{"player":{"id":"12345"}}')
 
     @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
     def test_consistency_with_search_handler(self):

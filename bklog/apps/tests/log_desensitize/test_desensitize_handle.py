@@ -83,8 +83,8 @@ class TestPreviewConsistency(TestCase):
     """预览与查询一致性测试"""
 
     def test_preview_flattened_subpath(self):
-        """预览能正确处理 flattened 子路径"""
-        logs = [{"body": {"player": {"id": "12345"}}}]
+        """预览能正确处理 JSON 字符串子路径，结果返回脱敏后的值"""
+        logs = [{"body": '{"player":{"id":"12345"}}'}]
         field_configs = [
             {
                 "field_name": "body.player.id",
@@ -131,8 +131,8 @@ class TestPreviewConsistency(TestCase):
         self.assertNotIn("body", result)
 
     def test_preview_with_text_fields(self):
-        """预览带 text_fields 时，子路径脱敏仍正确返回"""
-        logs = [{"body": {"player": {"id": "12345"}}, "log": "player id 12345"}]
+        """预览带 text_fields 时，JSON 字符串子路径脱敏仍正确返回"""
+        logs = [{"body": '{"player":{"id":"12345"}}', "log": "player id 12345"}]
         field_configs = [
             {
                 "field_name": "body.player.id",
@@ -150,13 +150,13 @@ class TestPreviewConsistency(TestCase):
 
         result = DesensitizeRuleHandler.preview(logs, field_configs, text_fields)
 
-        # 子路径脱敏结果正确返回
+        # JSON 字符串子路径脱敏结果正确返回
         self.assertIn("body.player.id", result)
         self.assertEqual(result["body.player.id"][0], "1***5")
 
     def test_expand_restore_consistency(self):
-        """展开-脱敏-还原与直接查询结果一致（普通 object）"""
-        original = {"body": {"player": {"id": "12345"}}}
+        """展开-脱敏-还原与直接查询结果一致（JSON 字符串数据还原为字符串）"""
+        original = {"body": '{"player":{"id":"12345"}}'}
         paths = ["body.player.id"]
 
         # 模拟查询链路
@@ -173,9 +173,10 @@ class TestPreviewConsistency(TestCase):
         desensitized = handler.transform_dict(expanded)
         restored = restore_by_metadata(desensitized, metadata)
 
-        # 结果应为嵌套 dict，且值被脱敏
-        self.assertIsInstance(restored["body"], dict)
-        self.assertEqual(restored["body"]["player"]["id"], "1***5")
+        # 结果应为 JSON 字符串，且内部值被脱敏
+        self.assertIsInstance(restored["body"], str)
+        parsed = json.loads(restored["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
 
     def test_expand_restore_consistency_json_string(self):
         """展开-脱敏-还原完整回路：JSON 字符串数据还原为字符串"""
