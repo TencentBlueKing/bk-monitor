@@ -45,6 +45,8 @@ export class OverlayRegistry {
   register(id: string, options?: OverlayRegisterOptions): OverlayRecord;
   open(id: string, extra?: OverlayOpenOptions): OverlayRecord;
   hide(id: string): void;
+  hideTop(): boolean;
+  handleEscape(event?: { type?: string; key?: string; keyCode?: number }): boolean;
   hideChildren(id: string): void;
   hideGroup(group: string, exceptId?: string): void;
   notifyAnchorLost(id: string): void;
@@ -55,6 +57,7 @@ export class OverlayRegistry {
 
 export const overlayRegistry: OverlayRegistry;
 
+export function isEscapeEvent(event?: { key?: string; keyCode?: number } | null): boolean;
 export function isClickInsideClosest(event: { target?: EventTarget | null }, selectors?: string[]): boolean;
 export function shouldHideOnOutsideClick(
   event: { target?: EventTarget | null },
