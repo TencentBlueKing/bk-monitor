@@ -10,10 +10,51 @@ specific language governing permissions and limitations under the License.
 
 from bkmonitor.models.metric_list_cache import MetricListCache
 from django.db.models.query import QuerySet
-from monitor_web.strategies.resources.v2 import GetMetricListV2Resource
+from monitor_web.strategies.resources.v2 import GetMetricListV2Resource, GetStrategyV2Resource
 
 
 class TestGetMetricListV2Resource:
+    def test_saved_dimensions_get_names_without_metric_metadata(self):
+        query = {
+            "metric_id": "custom.demo.__default__.count",
+            "agg_dimension": ["base62Mm45BOZ5eM2yBMRzB", "app_name"],
+            "agg_condition": [{"key": "status", "method": "eq", "value": ["failed"]}],
+        }
+        config = {"items": [{"query_configs": [query]}]}
+
+        result = GetStrategyV2Resource.fill_dimension_names(config)
+
+        assert result["items"][0]["query_configs"][0]["agg_dimension_names"] == {
+            "base62Mm45BOZ5eM2yBMRzB": "所属品牌",
+            "app_name": "app_name",
+        }
+        assert query["agg_dimension"] == ["base62Mm45BOZ5eM2yBMRzB", "app_name"]
+        assert query["agg_condition"] == [{"key": "status", "method": "eq", "value": ["failed"]}]
+
+    def test_dimension_display_paths_do_not_execute_sql(self):
+        from contextlib import ExitStack
+
+        from django.db import connections
+
+        queries: list[str] = []
+
+        def record_query(execute, sql, params, many, context):
+            queries.append(sql)
+            return execute(sql, params, many, context)
+
+        with ExitStack() as stack:
+            for connection in connections.all():
+                stack.enter_context(connection.execute_wrapper(record_query))
+            for count in (1, 100, 1000):
+                GetStrategyV2Resource.fill_dimension_names(
+                    {"items": [{"query_configs": [{"agg_dimension": ["base62Mm45BOZ5eM2yBMRzB"]}] * count}]}
+                )
+                GetMetricListV2Resource.translate_metric(
+                    {"dimensions": [{"id": "base62Mm45BOZ5eM2yBMRzB", "name": ""}] * count}
+                )
+
+        assert queries == []
+
     def test_dimension_names_are_readable_without_changing_cached_fields(self):
         dimensions = [
             {"id": "base62Mm45BOZ5eM2yBMRzB", "name": "base62Mm45BOZ5eM2yBMRzB"},

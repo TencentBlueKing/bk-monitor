@@ -1401,6 +1401,15 @@ class GetStrategyV2Resource(Resource):
         bk_biz_id = serializers.IntegerField(required=True, label="业务ID")
         id = serializers.IntegerField(required=True, label="策略ID")
 
+    @staticmethod
+    def fill_dimension_names(config: dict) -> dict:
+        for item in config.get("items", []):
+            for query in item.get("query_configs", []):
+                query["agg_dimension_names"] = {
+                    field: get_dimension_display_name(field) for field in query.get("agg_dimension", [])
+                }
+        return config
+
     def perform_request(self, params):
         try:
             strategy = StrategyModel.objects.get(bk_biz_id=params["bk_biz_id"], id=params["id"])
@@ -1413,7 +1422,7 @@ class GetStrategyV2Resource(Resource):
 
         # 补充告警组配置
         Strategy.fill_user_groups([config])
-        return config
+        return self.fill_dimension_names(config)
 
 
 class PlainStrategyListV2Resource(Resource):

@@ -50,6 +50,7 @@ export interface ICommonItem {
 export interface IMetricDetail {
   agg_condition: ICommonItem[];
   agg_dimension: string[];
+  agg_dimension_names?: Record<string, string>;
   agg_interval: number;
   agg_interval_list: { id: number; name: string }[];
   agg_method: string;
@@ -366,15 +367,21 @@ export class MetricDetail {
         : metricDetail.default_condition || []);
     // 可选维度不包含业务id(默认为当前业务)
     // 如果agg_dimensions包含业务id则不筛选出业务id
-    if (metricDetail?.dimensions) {
+    if (metricDetail?.dimensions || metricDetail.agg_dimension_names) {
+      const dimensions = [...(metricDetail.dimensions || [])];
+      const dimensionIds = new Set(dimensions.map(item => item.id));
+      const selectedDimensions = new Set(this.agg_dimension);
+      for (const [id, name] of Object.entries(metricDetail.agg_dimension_names || {})) {
+        if (selectedDimensions.has(id) && !dimensionIds.has(id)) dimensions.push({ id, name });
+      }
       /** 自定义时序指标的都可以配业务维度 */
       const needBizId = this.data_source_label === 'custom' && this.data_type_label === 'time_series';
       const hasbizId = this.agg_dimension.includes('bk_biz_id');
-      this.dimensions = metricDetail.dimensions.filter(
+      this.dimensions = dimensions.filter(
         item =>
           (needBizId || hasbizId || item.id !== 'bk_biz_id') && (item.is_dimension || item.is_dimension === undefined)
       );
-      this.rawDimensions = metricDetail.dimensions.filter(item => needBizId || hasbizId || item.id !== 'bk_biz_id');
+      this.rawDimensions = dimensions.filter(item => needBizId || hasbizId || item.id !== 'bk_biz_id');
     }
     if (
       this.metric_type === MetricType.LOG &&
