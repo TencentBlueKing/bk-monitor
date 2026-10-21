@@ -307,6 +307,7 @@
     buildExportRetryRequest,
     EXPORT_SUBMITTED_MESSAGE,
     getExportDownloadFileName,
+    submitExportWithSortConfirmation,
     getExportTaskKey,
   } from './download/exportTask';
   import {
@@ -527,10 +528,9 @@
        */
       downloadAsync(task) {
         const request = buildExportRetryRequest(task);
-        return this.$http
-          .request(request.url, request.config)
+        return submitExportWithSortConfirmation(this, request.url, request.config)
           .then(res => {
-            if (res.result) {
+            if (res?.result) {
               this.$bkMessage({
                 theme: 'success',
                 message: res.data?.prompt || this.$t(EXPORT_SUBMITTED_MESSAGE),

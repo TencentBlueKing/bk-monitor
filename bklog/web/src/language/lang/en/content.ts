@@ -1610,4 +1610,9 @@ export default {
     'Wait for the data to be stored, select the corresponding index set, and confirm that you can find the expected logs.',
   '具体可用采集类型和配置方式，以当前环境的采集管理功能为准。':
     'Available collection types and configuration methods depend on the collection management features in this environment.',
+  确认调整导出排序: 'Confirm export sort order',
+  按此排序导出: 'Export with this order',
+  '为支持分片并行导出，将优先按日志时间降序排列，同一时间内保留其他字段的排序规则。筛选条件、导出字段和数据范围不变。实际导出排序：{sort}':
+    'For parallel export, logs will be sorted by log time descending first, retaining the other sort rules for equal timestamps. Filters, exported fields, and the data range remain unchanged. Export order: {sort}',
+  '导出排序已变化，请重新提交并确认': 'The export sort order has changed. Please submit again and confirm.',
 };

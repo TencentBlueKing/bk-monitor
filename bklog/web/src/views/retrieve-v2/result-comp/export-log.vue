@@ -260,6 +260,7 @@
     EXPORT_SUBMITTED_MESSAGE,
     getExportDownloadFileName,
     getExportTaskKey,
+    submitExportWithSortConfirmation,
   } from './download/exportTask';
   import {
     calculateProgress,
@@ -593,10 +594,12 @@
         this.showHistoryExport = true;
       },
       handleClickSubmit() {
+        if (this.exportLoading) return;
         if (this.downloadType === 'quick') {
           this.quickDownload();
         } else if (this.downloadType === 'all') {
           this.downloadAsync();
+          return;
         } else {
           this.openDownloadUrl();
         }
@@ -731,10 +734,10 @@
                 params: { index_set_id: this.routerIndexSet },
                 data,
               };
-        this.$http
-          .request(downRequestUrl, requestConfig)
+        return submitExportWithSortConfirmation(this, downRequestUrl, requestConfig)
           .then(res => {
-            if (res.result) {
+            if (res?.result) {
+              this.isShowExportDialog = false;
               this.$bkMessage({
                 theme: 'success',
                 ellipsisLine: 2,
@@ -748,8 +751,6 @@
           })
           .finally(() => {
             this.exportLoading = false;
-            this.isShowExportDialog = false;
-            this.selectFiledList = [];
           });
       },
       closeExportDialog() {
@@ -793,8 +794,8 @@
             const res = await axiosInstance.post(request.url, request.config.data, { responseType: 'blob' });
             blobDownload(res.data, getExportDownloadFileName(task, this.indexSetList));
           } else {
-            const res = await this.$http.request(request.url, request.config);
-            if (!res.result) return;
+            const res = await submitExportWithSortConfirmation(this, request.url, request.config);
+            if (!res?.result) return;
             this.$bkMessage({ theme: 'success', message: res.data?.prompt || this.$t(EXPORT_SUBMITTED_MESSAGE) });
           }
           const taskKey = getExportTaskKey(task);
