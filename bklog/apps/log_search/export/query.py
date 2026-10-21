@@ -9,6 +9,14 @@ from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 
 
+class UnsupportedExportTimeField(ValueError):
+    """可向用户解释的时间字段类型错误，与上游内部 ValueError 区分。"""
+
+    def __init__(self, field_name):
+        self.field_name = field_name
+        super().__init__(f"无法确认导出时间字段 {field_name} 的实际类型")
+
+
 def snapshot_time_fields(handler, search_type):
     """按 query_list 顺序冻结真实时间字段；不能使用占位的 query.time_field。"""
     if search_type == ExportSearchType.SCENE:
@@ -45,7 +53,7 @@ def snapshot_time_fields(handler, search_type):
         physical_type = physical_type.strip().lower() if isinstance(physical_type, str) else ""
         physical_type = DorisFieldTypeEnum.get_es_field_type({"field_type": physical_type})
         if physical_type not in ("long", "date", "date_nanos"):
-            raise ValueError(f"无法确认导出时间字段 {field['name']} 的实际类型")
+            raise UnsupportedExportTimeField(field["name"])
         field["type"] = UnifyQueryMappingHandler.normalize_dt_event_timestamp_field_type(field["name"], physical_type)
     return fields
 

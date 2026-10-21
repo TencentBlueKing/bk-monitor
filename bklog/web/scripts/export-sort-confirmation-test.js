@@ -5,6 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const ts = require('typescript');
 const cloneDeep = require('lodash/cloneDeep');
+const { parseComponent } = require('vue/compiler-sfc');
 
 const root = path.resolve(__dirname, '../src/views/retrieve-v2/result-comp');
 function loadSource(source, filename, dependencies) {
@@ -51,9 +52,12 @@ const success = { result: true, data: { engine: 'sharded', task_id: 123 } };
 function context(responses, action = 'confirmFn') {
   const requests = [];
   const dialogs = [];
+  const messages = [];
   return {
     requests,
     dialogs,
+    messages,
+    $bkMessage: message => messages.push(message),
     $t: (text, values = {}) => text.replace('{sort}', values.sort ?? ''),
     $http: {
       request: async (url, config) => {
@@ -140,8 +144,11 @@ async function run() {
     count++;
   }
   const stale = context([proposal, proposal]);
-  await assert.rejects(submitExportWithSortConfirmation(stale, 'retrieve/exportAsync', { data: {} }), /导出排序已变化/);
+  assert.equal(await submitExportWithSortConfirmation(stale, 'retrieve/exportAsync', { data: {} }), null);
   assert.equal(stale.requests.length, 2);
+  assert.equal(stale.messages.length, 1);
+  assert.equal(stale.messages[0].theme, 'error');
+  assert.equal(stale.messages[0].message, '导出排序已变化，请重新提交并确认');
   count++;
   const failed = context([new Error('network failed')]);
   await assert.rejects(
@@ -149,6 +156,18 @@ async function run() {
     /network failed/,
   );
   assert.equal(failed.dialogs.length, 0);
+  assert.equal(failed.messages.length, 0, 'API failures must not get a duplicate helper toast');
+  count++;
+  const secondFailed = context([proposal, new Error('network failed')]);
+  await assert.rejects(
+    submitExportWithSortConfirmation(secondFailed, 'retrieve/exportAsync', { data: {} }),
+    /network failed/,
+  );
+  assert.equal(secondFailed.messages.length, 0, 'second-request API failures use the existing global handler');
+  count++;
+  const sfc = parseComponent('<template><div>script</div></template><script lang="ts">export default {};</script>');
+  assert.equal(sfc.script.content, 'export default {};');
+  assert.equal(sfc.script.lang, 'ts');
   count++;
 
   const history = {
@@ -168,8 +187,9 @@ async function run() {
 
   // Execute the real Vue methods with side effects mocked; do not duplicate their implementation.
   for (const componentName of ['export-log.vue', 'export-history.vue']) {
-    const source = fs.readFileSync(path.join(root, componentName), 'utf8').match(/<script>([\s\S]*?)<\/script>/)[1];
-    const component = loadSource(source, componentName, {
+    const { script } = parseComponent(fs.readFileSync(path.join(root, componentName), 'utf8'));
+    assert.ok(script, `${componentName} must have a script block`);
+    const component = loadSource(script.content, componentName, {
       vuex: { mapState: () => ({}), mapGetters: () => ({}) },
       './download/exportTask': task,
     }).default;
@@ -193,6 +213,19 @@ async function run() {
         assert.equal(ctx.requests.length, 2);
         assert.equal(ctx.isShowExportDialog, false);
         assert.equal(ctx.exportLoading, false);
+        count++;
+        const staleCtx = {
+          ...ctx,
+          ...context([proposal, proposal]),
+          isShowExportDialog: true,
+          fetchCurrentTasks: () => assert.fail('stale sort must not refresh tasks'),
+        };
+        await component.methods.downloadAsync.call(staleCtx);
+        assert.equal(staleCtx.requests.length, 2);
+        assert.equal(staleCtx.messages.length, 1, 'stale sort must show exactly one error, not success');
+        assert.equal(staleCtx.messages[0].theme, 'error');
+        assert.equal(staleCtx.isShowExportDialog, true);
+        assert.equal(staleCtx.exportLoading, false);
         count++;
       }
       const ctx = Object.assign(context([proposal], 'cancelFn'), {
@@ -219,6 +252,16 @@ async function run() {
       assert.equal(retryCtx.dialogs.length, 1);
       assert.deepEqual(retryCtx.failedTaskIds, ['sharded:9'], 'cancel must not hide failed task');
       count++;
+      const staleRetryCtx = Object.assign(context([proposal, proposal]), {
+        failedTaskIds: ['sharded:9'],
+        fetchCurrentTasks: () => assert.fail('stale sort must not refresh tasks'),
+      });
+      await component.methods.handleRetryExport.call(staleRetryCtx, history);
+      assert.equal(staleRetryCtx.requests.length, 2);
+      assert.equal(staleRetryCtx.messages.length, 1);
+      assert.equal(staleRetryCtx.messages[0].theme, 'error');
+      assert.deepEqual(staleRetryCtx.failedTaskIds, ['sharded:9']);
+      count++;
     } else {
       const ctx = Object.assign(context([proposal], 'cancelFn'), {
         $bkMessage: () => assert.fail('cancel must not show success'),
@@ -226,6 +269,12 @@ async function run() {
       });
       assert.equal(await component.methods.downloadAsync.call(ctx, history), false);
       assert.equal(ctx.requests.length, 1);
+      count++;
+      const staleCtx = Object.assign(context([proposal, proposal]), { refreshAfterDownload: () => {} });
+      assert.equal(await component.methods.downloadAsync.call(staleCtx, history), false);
+      assert.equal(staleCtx.requests.length, 2);
+      assert.equal(staleCtx.messages.length, 1);
+      assert.equal(staleCtx.messages[0].theme, 'error');
       count++;
     }
   }

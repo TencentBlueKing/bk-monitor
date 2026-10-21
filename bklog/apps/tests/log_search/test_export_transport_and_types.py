@@ -9,8 +9,9 @@ from unittest.mock import Mock, patch
 
 import requests
 from django.test import SimpleTestCase, TestCase
-from rest_framework.exceptions import ValidationError
+from rest_framework.exceptions import APIException, ValidationError
 
+from apps.generic import custom_exception_handler
 from apps.log_search.constants import ExportSearchType
 from apps.log_search.export.api import create_export_job
 from apps.log_search.export.models import ExportJob
@@ -226,6 +227,7 @@ class TimeTypeCreationTests(TestCase):
             patch(
                 "apps.log_search.export.query.UnifyQueryApi.query_field_map",
                 return_value={"data": [{"field_name": "ts", "field_type": physical}]},
+                side_effect=physical if isinstance(physical, Exception) else None,
             ),
         ):
             return create_export_job(
@@ -251,4 +253,26 @@ class TimeTypeCreationTests(TestCase):
         with self.assertRaises(ValidationError) as error:
             self.create("binary")
         self.assertIn("ts", str(error.exception))
+        response = custom_exception_handler(error.exception, {"request": Mock()})
+        body = json.loads(response.content)
+        self.assertFalse(body["result"])
+        self.assertIn("无法确认导出时间字段 ts 的实际类型", body["message"])
+        self.assertFalse(ExportJob.objects.exists())
+
+    def test_internal_field_map_value_error_is_logged_but_not_returned(self):
+        marker = "INTERNAL_METADATA_DETAIL:/srv/internal/metadata.py:123"
+        with (
+            patch("apps.log_search.export.api.logger.exception") as log_error,
+            self.assertRaises(APIException) as error,
+        ):
+            self.create(ValueError(marker))
+        self.assertNotIsInstance(error.exception, ValidationError)
+        self.assertEqual(error.exception.status_code, 500)
+        log_error.assert_called_once()
+        self.assertIsInstance(error.exception.__cause__, ValueError)
+        response = custom_exception_handler(error.exception, {"request": Mock()})
+        body = json.loads(response.content)
+        self.assertFalse(body["result"])
+        self.assertIn("获取导出时间字段失败，请稍后重试", body["message"])
+        self.assertNotIn(marker, response.content.decode())
         self.assertFalse(ExportJob.objects.exists())
