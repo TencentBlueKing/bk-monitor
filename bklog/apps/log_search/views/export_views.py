@@ -64,8 +64,8 @@ class ExportJobViewSet(APIViewSet):
 
     def get_permissions(self):
         business_permission = ViewBusinessPermission()
-        if self.action == "retrieve":
-            # 详情仅需传空间，显式绑定业务权限范围，避免因缺少 bk_biz_id 跳过校验。
+        if self.action in ("retrieve", "download_link"):
+            # 详情和下载仅需传空间，显式绑定业务权限范围，避免缺少 bk_biz_id 时跳过校验。
             business_permission.space_uid = self.request.data.get("space_uid") or self.request.query_params.get(
                 "space_uid"
             )

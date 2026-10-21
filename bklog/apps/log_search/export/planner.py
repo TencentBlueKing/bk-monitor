@@ -29,6 +29,7 @@ from apps.api import UnifyQueryApi
 from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportSearchType
 from apps.log_search.export import state
 from apps.log_search.export.config import policy_from_snapshot
+from apps.log_search.export.query import apply_time_range, snapshot_time_fields, time_order
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.scene_search import SceneUnifyQueryHandler
 from apps.utils.log import logger
@@ -48,11 +49,6 @@ def encode_export_row(row):
     return (ujson.dumps(row, ensure_ascii=False) + "\n").encode("utf-8")
 
 
-def query_range(start, end):
-    """把左闭右开的分片区间映射成查询区间：unify-query 的时间过滤是闭区间，右端点必须收窄 1 毫秒。"""
-    return start, max(start, end - 1)
-
-
 def build_handler(job, start=None, end=None):
     """
     用任务创建时冻结的快照重建查询 Handler
@@ -62,19 +58,21 @@ def build_handler(job, start=None, end=None):
     else:
         handler = UnifyQueryHandler(copy.deepcopy(job.search_params))
     base_dict = copy.deepcopy(job.base_dict)
+    fields = job.search_params.get("export_time_fields")
+    if fields is None:
+        fields = snapshot_time_fields(handler, job.search_type)
+    handler.export_time_fields = fields
     if start is not None:
-        base_dict["start_time"], base_dict["end_time"] = (str(value) for value in query_range(start, end))
+        apply_time_range(base_dict, fields, start, end)
     handler.base_dict = base_dict
     return handler
 
 
 def _statistics_params(handler, start, end):
-    start, end = query_range(start, end)
     params = copy.deepcopy(handler.base_dict)
+    apply_time_range(params, handler.export_time_fields, start, end)
     params.update(
         {
-            "start_time": str(start),
-            "end_time": str(end),
             "from": 0,
             # 一期只做应用层时间分片，明确关闭 ES slice
             "slice_max": 0,
@@ -119,12 +117,11 @@ def sample_rows(handler, start, end, limit):
 def histogram(handler, start, end, interval):
     """按 interval 统计时间密度，用于定位热点区间。返回 {桶起始毫秒: 条数}。"""
     window = f"{interval}ms"
-    start, end = query_range(start, end)
-    params = copy.deepcopy(handler.base_dict)
+    params = _statistics_params(handler, start, end)
     for query in params.get("query_list", []):
         query["function"] = [{"method": "count"}, {"method": "date_histogram", "window": window}]
         query["time_aggregation"] = {}
-    params.update({"step": window, "order_by": [], "start_time": str(start), "end_time": str(end)})
+    params.update({"step": window, "order_by": []})
     result = UnifyQueryApi.query_ts_reference(params)
     buckets = {}
     for timestamp, value in _series_points(result, "直方图"):
@@ -309,6 +306,14 @@ def build_parts(job, policy):
     sample = sample_rows(handler, job.start_time, job.end_time, policy.sample_rows)
     if sample:
         avg_bytes = max(1, sum(len(row) for row in sample) // len(sample))
+
+    if time_order(job) is None:
+        # 非时间主排序必须交给 UQ 在完整范围排序，不能拼接时间片后悄悄改变用户顺序。
+        return (
+            [PartSpec(job.start_time, job.end_time, total, total * avg_bytes)],
+            total,
+            _plan_result(total, avg_bytes, interval),
+        )
 
     buckets = histogram(handler, job.start_time, job.end_time, interval)
     if not buckets:
