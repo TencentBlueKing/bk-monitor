@@ -88,8 +88,9 @@ def _write_rows(handler, payload, *, session_id):
             if time.monotonic() >= deadline:
                 raise PartError(ExportErrorCode.FETCH_TIMEOUT, "分片执行超过时间预算")
             # 与旧异步导出链路一致：首轮清空缓存，后续滚动复用同一份查询上下文
-            params["clear_cache"] = rows == 0
-            batch, done = handler.export_scroll_batch(params)
+            # DataAPI 会原地提取并删除 header 键；每一批都用独立请求，不能污染滚动模板。
+            request_params = {**params, "clear_cache": rows == 0}
+            batch, done = handler.export_scroll_batch(request_params)
             if not batch:
                 break
             for row in batch:
