@@ -29,7 +29,6 @@ from bkmonitor.documents import ActionInstanceDocument, AlertDocument, AlertLog
 from bkmonitor.models import ActionInstance, ConvergeRelation, MetricListCache, Shield
 from bkmonitor.models.fta.action import ActionConfig
 from bk_monitor_base.strategy import get_metric_id
-from bkmonitor.utils.base62 import get_dimension_display_name
 from bkmonitor.utils.ip import exploded_ip
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.time_tools import hms_string
@@ -1740,18 +1739,20 @@ class AlertQueryHandler(BaseBizQueryHandler):
         for item in data.get("extra_info", {}).get("strategy", {}).get("items", []):
             query_configs = []
             for config in item.get("query_configs", []):
-                agg_dimension = {}
-                for dimension in config.get("agg_dimension", []):
-                    translation = dimension_translation.get(dimension, {"value": dimension, "display_value": dimension})
-                    agg_dimension[dimension] = {
-                        **translation,
-                        "display_name": get_dimension_display_name(dimension, translation.get("display_name")),
-                    }
+                agg_dimension = {
+                    d: dimension_translation.get(
+                        d,
+                        {
+                            "value": d,
+                            "display_name": d,
+                            "display_value": d,
+                        },
+                    )
+                    for d in config.get("agg_dimension", [])
+                }
 
                 for condition in config.get("agg_condition", []):
-                    condition["dimension_name"] = get_dimension_display_name(
-                        condition["key"], condition_mapping.get(condition["key"], condition.get("dimension_name"))
-                    )
+                    condition["dimension_name"] = condition_mapping.get(condition["key"], condition["key"])
 
                 query_configs.append(
                     {
@@ -1784,12 +1785,7 @@ class AlertQueryHandler(BaseBizQueryHandler):
         # 历史链路：QueryField("tags", es_field="event.tags") 仍保留供 query_string 检索（向后兼容
         # SavedSearch / 通知模板等），仅修改列表 row 的展示值。
         # 兼容回退：dimensions 为空时回退 event.tags（极少数旧数据可能仅有 tags 没 dimensions）。
-        dimensions_value: list[dict] = []
-        for dimension in data.get("dimensions") or []:
-            display_key: str = get_dimension_display_name(dimension["key"], dimension.get("display_key"))
-            if display_key != dimension.get("display_key", dimension["key"]):
-                dimension = {**dimension, "display_key": display_key}
-            dimensions_value.append(dimension)
+        dimensions_value = data.get("dimensions") or []
         cleaned_data.update(
             {
                 # "strategy_name": doc.strategy.get("name") if doc.strategy else None,

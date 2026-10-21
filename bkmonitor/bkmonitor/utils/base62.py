@@ -9,7 +9,6 @@ specific language governing permissions and limitations under the License.
 """
 
 import logging
-from functools import lru_cache
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +77,6 @@ class Base62Decoder:
         return bytes(dst[idx:])
 
 
-@lru_cache(maxsize=1024)
 def decode_identifier(name: str) -> str:
     """还原 SDK 编码前的原始字段名，非编码字段名原样返回。
 
@@ -92,18 +90,6 @@ def decode_identifier(name: str) -> str:
     if not decoded or decoded == name or not decoded.isprintable():
         return name
     return decoded
-
-
-def get_dimension_display_name(name: str, display_name: str | None = None) -> str:
-    """保留已有别名，仅在缺少名称时还原 SDK 编码的维度名。"""
-    field_name: str = name.removeprefix("tags.")
-    if display_name and display_name not in (name, field_name):
-        return display_name
-    if field_name.startswith(Base62Decoder.prefix):
-        decoded: str = decode_identifier(field_name)
-        if decoded != field_name:
-            return decoded
-    return display_name or name
 
 
 def decode_metric_identifier(field_name: str) -> str:

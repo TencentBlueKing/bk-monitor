@@ -61,7 +61,6 @@ from bkmonitor.strategy.new_strategy import (
     parse_metric_id,
 )
 from bkmonitor.strategy.partial_update import StrategyConfigPatch, StrategyConfigPatchSerializer, StrategyConfigUpdater
-from bkmonitor.utils.base62 import get_dimension_display_name
 from bkmonitor.utils.cache import CacheType
 from bkmonitor.utils.metric_id import build_metric_id_filter_queries
 from bkmonitor.utils.request import get_request_tenant_id, get_request_username, get_source_app
@@ -1881,10 +1880,8 @@ class GetMetricListV2Resource(Resource):
             if field in metric:
                 metric[field] = _(metric[field])
 
-        metric["dimensions"] = [
-            {**dimension, "name": _(get_dimension_display_name(dimension["id"], dimension.get("name")))}
-            for dimension in metric["dimensions"]
-        ]
+        for dimension in metric["dimensions"]:
+            dimension["name"] = _(dimension["name"])
 
         return metric
 

@@ -84,6 +84,10 @@ def test_custom_metric_refresh_merges_scopes_before_cache_deduplication(
     manager.run(delay=False)
 
     [cached] = writes
+    assert {dimension["id"]: dimension["name"] for dimension in cached.dimensions} == {
+        "item_type": expected_name,
+        "base62Mm45BOZ5eM2yBMRzB": "所属品牌",
+    }
     [result] = GetMetricListV2Resource.get_metric_list(2, [cached])
     assert {dimension["id"]: dimension["name"] for dimension in result["dimensions"]} == {
         "item_type": expected_name,
