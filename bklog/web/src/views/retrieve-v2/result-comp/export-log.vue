@@ -247,6 +247,7 @@
   import axios from 'axios';
   import { blobDownload } from '@/common/util';
   import { mapGetters, mapState } from 'vuex';
+  import { isFeatureToggleOn } from '@/hooks/use-feature-toggle';
   import useFieldNameHook from '@/hooks/use-field-name';
   import exportHistory from './export-history';
   import { axiosInstance } from '@/api';
@@ -332,18 +333,6 @@
           specify: this.$t('指定字段'),
         },
         downloadType: 'all',
-        downloadTypeRadioMap: {
-          all: this.$t('全文下载'),
-          quick: this.$t('快速下载(提速100%+)'),
-          sampling: this.$t('取样下载(前1万条)'),
-        },
-        typeTipsMap: {
-          quick: this.$t(
-            '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序；日志无法包含平台补充字段：如集群名、模块名等信息。该模式的日志导出上限为500万条',
-          ),
-          all: this.$t('该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条'),
-          sampling: '',
-        },
         timeCalculateMap: {
           all: 200000,
           quick: 400000,
@@ -401,6 +390,33 @@
         unionIndexList: 'unionIndexList',
         isUnionSearch: 'isUnionSearch',
       }),
+      isShardedAsyncExportEnabled() {
+        return isFeatureToggleOn('feature_async_export_sharded', this.bkBizId);
+      },
+      typeTipsMap() {
+        return {
+          quick: this.$t(
+            '该模式下，仅下载您上报的无序日志原文，您可以通过日志时间进行本地排序；日志无法包含平台补充字段：如集群名、模块名等信息。该模式的日志导出上限为500万条',
+          ),
+          all: this.isShardedAsyncExportEnabled
+            ? this.$t('该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。')
+            : this.$t('该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条'),
+          sampling: '',
+        };
+      },
+      downloadTypeRadioMap() {
+        if (this.isShardedAsyncExportEnabled) {
+          return {
+            all: this.$t('全文下载'),
+            sampling: this.$t('取样下载(前1万条)'),
+          };
+        }
+        return {
+          all: this.$t('全文下载'),
+          quick: this.$t('快速下载(提速100%+)'),
+          sampling: this.$t('取样下载(前1万条)'),
+        };
+      },
       sizDownload() {
         if (this.downloadType === 'sampling') return '< 1';
         return Math.ceil(this.totalCount / this.timeCalculateMap[this.downloadType]);
@@ -455,14 +471,13 @@
       },
     },
     watch: {
-      totalCount(val) {
-        if (val < 10000) {
-          this.downloadType = 'sampling';
-        } else if (val < 2000000) {
-          this.downloadType = 'all';
-        } else {
-          this.downloadType = 'quick';
+      totalCount() {
+        if (!this.isShardedAsyncExportEnabled) {
+          this.resetDownloadType();
         }
+      },
+      bkBizId() {
+        this.resetDownloadType();
       },
       routerIndexSet: {
         immediate: true,
@@ -514,6 +529,17 @@
     },
     methods: {
       getExportTaskKey,
+      resetDownloadType() {
+        if (this.isShardedAsyncExportEnabled) {
+          this.downloadType = 'all';
+        } else if (this.totalCount < 10000) {
+          this.downloadType = 'sampling';
+        } else if (this.totalCount < 2000000) {
+          this.downloadType = 'all';
+        } else {
+          this.downloadType = 'quick';
+        }
+      },
       // 原handleShowAlarmPopover方法已移除，点击下载按钮直接打开下载日志弹窗
       // handleShowAlarmPopover(e) {
       //   if (this.popoverInstance || !this.queueStatus) return;

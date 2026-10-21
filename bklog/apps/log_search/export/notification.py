@@ -21,7 +21,7 @@ from apps.log_search.constants import (
 )
 from apps.log_search.export import state
 from apps.log_search.export.storage import build_storage
-from apps.log_search.models import LogIndexSet
+from apps.log_search.models import LogIndexSet, Space
 from apps.utils.local import get_local_param, get_request, get_request_external_user_email, get_request_language_code
 from apps.utils.log import logger
 from apps.utils.notify import NotifyType
@@ -145,7 +145,13 @@ def send_export_notification(job):
                     "download_url": download_url,
                 },
             )
-            notify.send(receivers=receivers, title=title, content=content, is_external=job.is_external)
+            notify.send(
+                receivers=receivers,
+                title=title,
+                content=content,
+                is_external=job.is_external,
+                bk_tenant_id=Space.get_tenant_id(space_uid=job.space_uid),
+            )
         logger.info("[sharded_export_notification_sent] job_id=%s status=%s", job.pk, job.status)
     except Exception:  # pylint: disable=broad-except
         logger.exception("[sharded_export_notification_failure] job_id=%s status=%s", job.pk, job.status)
