@@ -183,13 +183,13 @@ class TestSourceAnalysisNotice(TestCase):
     def test_failed_notice_contains_reason_and_not_success_fields(self):
         execution = self.create_execution(
             status=SourceAnalysisStatus.FAILED,
-            failure_message=SourceAnalysisFailureMessage.RULE_AGENT_MISSING,
+            failure_message=SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE,
         )
         send_source_analysis_notice(execution)
         params = self.send.call_args.kwargs
         self.assertEqual(params["title"], "❌【蓝鲸监控】源码分析失败｜异常登录日志告警")
         self.assertIn("发起的源码关联分析失败", params["content"])
-        self.assertIn(SourceAnalysisFailureMessage.RULE_AGENT_MISSING, params["content"])
+        self.assertIn(SourceAnalysisFailureMessage.USER_ACCESS_TOKEN_UNAVAILABLE, params["content"])
         self.assertIn("查看详情并重新分析：https://monitor.example.com/monitor/", params["content"])
         self.assertNotIn("置信度", params["content"])
 
@@ -356,14 +356,28 @@ class TestSourceAnalysisNotice(TestCase):
         execution.refresh_from_db()
         self.assertEqual(execution.failure_code, "USER_ACCESS_TOKEN_UNAVAILABLE")
 
-    def test_missing_agent_during_inline_trigger_also_notifies(self):
+    @patch("fta_web.issue.resources.api.bk_incident.trigger_source_analysis")
+    def test_missing_agent_during_inline_trigger_does_not_notify_failure(self, trigger):
         execution = self.create_execution(agent_id="")
+        trigger.return_value = {
+            "analysis_task_id": "task-1",
+            "status": "running",
+            "terminal": False,
+            "phase": "devops_running",
+            "next_poll_after_seconds": 4,
+        }
         alias = SourceAnalysisExecutionBaseResource.db_alias()
-        with self.captureOnCommitCallbacks(using=alias, execute=True):
-            SourceAnalysisExecutionBaseResource._trigger_bkfara_task(execution)
-        self.send.assert_called_once()
+        with self.captureOnCommitCallbacks(using=alias, execute=True) as callbacks:
+            interval = SourceAnalysisExecutionBaseResource._trigger_bkfara_task(execution)
+        self.assertEqual(interval, 4)
+        trigger.assert_called_once()
+        self.assertEqual(trigger.call_args.kwargs["inputs"]["agent_id"], "")
+        self.assertEqual(callbacks, [])
+        self.send.assert_not_called()
         execution.refresh_from_db()
-        self.assertEqual(execution.failure_code, "SOURCE_ANALYSIS_AGENT_MISSING")
+        self.assertEqual(execution.bkfara_task_id, "task-1")
+        self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
+        self.assertIsNone(execution.failure_code)
 
     def test_celery_sender_exception_does_not_reschedule_analysis(self):
         execution = self.create_execution(bkfara_task_id="task-1", status=SourceAnalysisStatus.RUNNING)

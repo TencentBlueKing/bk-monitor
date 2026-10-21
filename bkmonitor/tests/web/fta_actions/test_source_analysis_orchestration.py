@@ -59,6 +59,32 @@ class NonRetryableBKFaraError(Exception):
 class TestSourceAnalysisContract(SimpleTestCase):
     CLIENT_REQUEST_ID = "43c3ca39-d60f-4482-854d-00f771e149fb"
 
+    def test_trigger_inputs_allow_missing_or_blank_agent(self):
+        inputs = {
+            "bk_biz_id": 2,
+            "bk_tenant_id": "system",
+            "repository_alias": "repo-a",
+            "alert_id": "alert-1",
+            "BKFARA_TASK_ID": SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER,
+            "BKAPI_ACCESS_TOKEN": SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER,
+            "AIDEV_ACCESS_TOKEN": SOURCE_ANALYSIS_AIDEV_ACCESS_TOKEN_PLACEHOLDER,
+            "BKAI_MCP_ENV": "bkop",
+        }
+        for agent in ({}, {"agent_id": ""}, {"agent_id": "agent-a"}):
+            with self.subTest(agent=agent):
+                request = TriggerSourceAnalysisResource.RequestSerializer(
+                    data={
+                        "issue_id": "issue-1",
+                        "bk_biz_id": 2,
+                        "bk_tenant_id": "system",
+                        "devops_project_id": "project-a",
+                        "client_request_id": self.CLIENT_REQUEST_ID,
+                        "inputs": {**inputs, **agent},
+                    }
+                )
+                self.assertTrue(request.is_valid(), request.errors)
+                self.assertEqual(request.validated_data["inputs"]["agent_id"], agent.get("agent_id", ""))
+
     def test_bkfara_runtime_placeholders_match_protocol(self):
         self.assertEqual(SOURCE_ANALYSIS_BKFARA_TASK_ID_PLACEHOLDER, "__BKFARA_TASK_ID__")
         self.assertEqual(SOURCE_ANALYSIS_BKAPI_ACCESS_TOKEN_PLACEHOLDER, "__BKAICLI_ACCESS_TOKEN__")
@@ -553,6 +579,33 @@ class TestSourceAnalysisOrchestration(TestCase):
         trigger.assert_not_called()
         execution.refresh_from_db()
         self.assertEqual(execution.status, SourceAnalysisStatus.PENDING)
+
+    @patch("fta_web.issue.resources.api.bk_incident.trigger_source_analysis")
+    @patch("fta_web.issue.resources.api.bk_incident.get_source_analysis_scene_status")
+    def test_ready_scene_without_agent_triggers_and_keeps_polling(self, get_scene, trigger):
+        execution = self.create_execution(agent_id="")
+        get_scene.return_value = self.ready_scene_state()
+        trigger.return_value = {
+            "analysis_task_id": "task-1",
+            "status": "running",
+            "terminal": False,
+            "phase": "devops_running",
+            "next_poll_after_seconds": 4,
+        }
+
+        poll_interval = SourceAnalysisExecutionBaseResource.advance_bkfara_task(execution.analysis_id)
+
+        self.assertEqual(poll_interval, 4)
+        trigger.assert_called_once()
+        inputs = trigger.call_args.kwargs["inputs"]
+        self.assertEqual(inputs["agent_id"], "")
+        self.assertEqual(inputs["skill_ids"], "skill-a,skill-b")
+        request = TriggerSourceAnalysisResource.RequestSerializer(data=trigger.call_args.kwargs)
+        self.assertTrue(request.is_valid(), request.errors)
+        execution.refresh_from_db()
+        self.assertEqual(execution.bkfara_task_id, "task-1")
+        self.assertEqual(execution.status, SourceAnalysisStatus.RUNNING)
+        self.assertIsNone(execution.failure_code)
 
     @patch("fta_web.issue.resources.api.bk_incident.trigger_source_analysis")
     @patch("fta_web.issue.resources.api.bk_incident.ensure_source_analysis_scene")

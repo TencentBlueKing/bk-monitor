@@ -88,7 +88,7 @@ export const useRuleVerification = (detail: Ref<null | SourceAnalysisRuleVo>) =>
       nextErrors[ErrorKeyEnum.CONDITIONS] = t('请添加告警策略匹配规则');
     }
     // 智能体、知识库、Skill 均为可选：后端三个字段都不强制，留空时流程实例参数
-    // 按「不传递」处理。智能体缺失会在触发分析时被拦截并记录失败原因，不在此拦截。
+    // 按「不传递」处理。
     // 优先级仅对非默认策略校验：必填，且必须在允许区间
     const priority = detail.value?.priority;
     if (!isDefault) {

@@ -183,7 +183,6 @@ class SourceAnalysisFailureMessage:
     USER_ACCESS_TOKEN_UNAVAILABLE = gettext_noop(
         "无法获取规则执行用户的访问凭证，请由规则配置人重新登录并保存规则后重试。"
     )
-    RULE_AGENT_MISSING = gettext_noop("命中的规则未配置智能体，请在 AI 设置中补充后重新分析。")
     RESULT_NOT_JSON = gettext_noop("分析结果不是有效的 JSON，请重试；若持续失败请联系管理员。")
     RESULT_SCHEMA_UNSUPPORTED = gettext_noop("分析结果版本暂不受支持，请重试；若持续失败请联系管理员。")
     RESULT_SCHEMA_INVALID = gettext_noop("分析结果格式校验失败，请重试；若持续失败请联系管理员。")
@@ -203,7 +202,6 @@ class SourceAnalysisFailureMessage:
             BKFARA_REQUEST_REJECTED,
             BKFARA_UPSTREAM_RETRY_TIMEOUT,
             USER_ACCESS_TOKEN_UNAVAILABLE,
-            RULE_AGENT_MISSING,
             RESULT_NOT_JSON,
             RESULT_SCHEMA_UNSUPPORTED,
             RESULT_SCHEMA_INVALID,

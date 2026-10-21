@@ -239,7 +239,7 @@ class SourceAnalysisInputsSerializer(serializers.Serializer):
     repository_alias = serializers.CharField(label="蓝盾代码库别名", max_length=255)
     # 为兼容已定稿的 BKFara/蓝盾变量名，key 继续使用 *_id(s)；值语义是
     # AIDEV 稳定英文编码，不是上游数据库数字主键。
-    agent_id = serializers.CharField(label="智能体编码", max_length=64)
+    agent_id = serializers.CharField(label="智能体编码", max_length=64, required=False, allow_blank=True, default="")
     # 多值字段以英文逗号分隔而非 JSON 数组：inputs 会原样透传成蓝盾流水线变量，
     # 而流水线变量只能是字符串。直接给出分隔好的字符串，模板可原样转手给下游插件，
     # 既不依赖 BKFara 的数组序列化方式，也免去模板解析后再拼接。
