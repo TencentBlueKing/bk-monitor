@@ -28,6 +28,7 @@ import { computed, defineComponent, provide, shallowRef } from 'vue';
 import { watch } from 'vue';
 
 import { ResizeLayout } from 'bkui-vue';
+import { splitLegacyIpv4HostId } from 'monitor-common/utils/host-monitor-url';
 import { storeToRefs } from 'pinia';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -91,7 +92,9 @@ export default defineComponent({
     watch(
       () => route.query.nodeId || route.params.id || '',
       value => {
-        if (nodeId.value !== value) nodeId.value = String(value);
+        const next = String(value);
+        if (splitLegacyIpv4HostId(next)) return;
+        if (nodeId.value !== next) nodeId.value = next;
       }
     );
 

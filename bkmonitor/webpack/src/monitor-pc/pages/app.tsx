@@ -615,7 +615,9 @@ export default class App extends tsc<object> {
           }
           const navList = this.routeList.find(item => item.id === this.headerNav).children;
           if (navList?.length) {
-            const storeRoute = storeVal[this.headerNav];
+            const storedMenu = storeVal[this.headerNav];
+            const storeRoute =
+              storedMenu?.name === 'performance' || storedMenu?.path === '/performance' ? { name: 'host' } : storedMenu;
             const hasRoute = navList.find(
               item => item.id === storeRoute?.name || item?.children?.some(set => set.id === storeRoute?.name)
             );

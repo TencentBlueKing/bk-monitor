@@ -25,6 +25,8 @@
  */
 // trace 应用 中英文对照
 export default {
+  '图谱数据不完整，请刷新重试': 'Graph data is incomplete. Please refresh and try again.',
+  '图谱布局失败，请刷新重试': 'Graph layout failed. Please refresh and try again.',
   '快捷键 / ，可直接输入': 'Press / to input',
   返回新版: 'Back to new version',
   最小耗时: 'Min Duration',
