@@ -80,8 +80,22 @@
 
         .span-type-icon {
           flex-shrink: 0;
-          width: 12px;
-          height: 12px;
+          width: 14px;
+          height: 14px;
+        }
+
+        /* 无 svg 图标的类型（如会话）走图标字体：与 svg 图标同为 14×14 定尺盒，
+         * 字形在盒内双向居中，避免只靠字体行盒导致的垂直偏移，配色取该类型主色 */
+        .span-type-font-icon {
+          display: flex;
+          flex-shrink: 0;
+          align-items: center;
+          justify-content: center;
+          width: 14px;
+          height: 14px;
+          font-size: 14px;
+          line-height: 1;
+          color: #3a84ff;
         }
       }
 
@@ -149,10 +163,6 @@
       &:has([data-col-id='attributes.http.response.status_code']) {
         @extend %condition-menu-inherit-color;
       }
-    }
-
-    &.explore-duration-col {
-      font-weight: 700;
     }
   }
 }
