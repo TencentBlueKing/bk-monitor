@@ -557,3 +557,51 @@ is_deleted 仅由 AsCode／公共配置 API 使用。删除入口在同一事务
 外部 Flow 删除失败时仍保持 is_deleted=true，由原有后台任务重试。deleted_at 继续表示 Flow 删除完成时间；规则、Spec、Resolved、Flow 和事件保留。全局 Manager、Admin 接口、后台调度条件及历史查询窗口不变。
 
 数据库迁移新增 app、path、is_deleted，并将已有删除声明或已完成删除的记录标为软删除。部署需先应用 Metadata 迁移，再启用公共入口和同步网关资源。
+
+
+## MCP 用户入口与业务权限
+
+MCP 提供独立的 `/mcp/<tool_name>/` 入口，统一使用 POST，后端为 `/api/v4/recording_rule_mcp/<endpoint>/`。
+同一组工具也注册到统一 MCP 的 `recording_rule` 分类，支持工具检索、Schema 查询、权限探测及执行。
+
+网关强制用户鉴权（`userVerifiedRequired=true`）。后端复用 MCP 的网关用户、租户和业务归属检查，并按当前请求用户执行 IAM 鉴权。
+`bk_biz_id` 必填，不能通过应用身份、请求体中的用户名或权限请求头代替用户授权。原有应用 API 与 Admin 行为保持不变。
+
+业务权限按读写拆分，在权限中心的“数据集成 / 预计算规则”下注册：
+
+| 工具 | 功能 | 业务权限 |
+|---|---|---|
+| `preview_recording_rule` | 预解析 | `view_recording_rule_v2` |
+| `create_recording_rule` | 新建 | `manage_recording_rule_v2` |
+| `update_recording_rule` | 修改 | `manage_recording_rule_v2` |
+| `delete_recording_rule` | 软删除 | `manage_recording_rule_v2` |
+| `get_recording_rule` | 详情 | `view_recording_rule_v2` |
+| `apply_recording_rule` | 解析下发 | `manage_recording_rule_v2` |
+| `list_recording_rules` | 分页列表 | `view_recording_rule_v2` |
+
+`manage_recording_rule_v2` 关联 `view_business_v2` 和 `view_recording_rule_v2`。
+V4 业务查看角色包含查看权限；业务运维和业务管理角色同时包含查看和管理权限。
+写操作沿用现有 MCP 约定：用户确认后传 `confirm=true`；预解析、详情和列表不需要该参数。
+MCP 复用公共配置执行链路和软删除过滤，`apply`、`auto_refresh`、`with_status` 及失败返回语义相同。
+
+统一 MCP 新建示例：
+
+```json
+{
+  "tool_name": "create_recording_rule",
+  "tool_args": {
+    "bk_biz_id": "2",
+    "config": {
+      "name": "cpu_summary",
+      "interval": "1min",
+      "bkmonitor": {"auto_refresh": false},
+      "rules": [{"record": "cpu_avg", "expr": "avg(system_cpu_usage)"}]
+    },
+    "apply": false,
+    "confirm": true
+  }
+}
+```
+
+部署时执行 IAM 注册迁移 `0017_recording_rule_mcp` 并同步 APIGW 资源。
+独立 MCP Server 使用 `recording-rule` 后缀及 `recording_rule_mcp` 资源标签；同一 Server 的读写操作按工具路由分别鉴权。

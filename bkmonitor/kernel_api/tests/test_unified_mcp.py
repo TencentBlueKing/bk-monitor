@@ -60,7 +60,7 @@ def test_registry_loads_all_repository_mcp_tools():
     root = Path(__file__).resolve().parents[2] / "support-files" / "apigw" / "resources" / "internal" / "user"
     registry = load_tool_registry(root)
 
-    assert len(registry) == 89
+    assert len(registry) == 96
     expected_category_counts = {
         "metrics": 4,
         "log": 9,
@@ -73,6 +73,7 @@ def test_registry_loads_all_repository_mcp_tools():
         "log_collection": 17,
         "log_extract": 7,
         "metadata": 2,
+        "recording_rule": 7,
     }
     assert {category: len(registry.list(category=category)) for category in unified_registry.CATEGORIES} == (
         expected_category_counts
@@ -388,7 +389,9 @@ def test_apm_web_dispatchers_preserve_application_permission(monkeypatch, tool_n
     captured = {}
     app_query = SimpleNamespace(
         values_list=lambda *_args, **_kwargs: SimpleNamespace(first=lambda: 9),
-        values=lambda *_args: SimpleNamespace(first=lambda: {"application_id": 9, "app_name": "demo", "bk_biz_id": 789}),
+        values=lambda *_args: SimpleNamespace(
+            first=lambda: {"application_id": 9, "app_name": "demo", "bk_biz_id": 789}
+        ),
     )
     monkeypatch.setattr(dispatcher.Application.objects, "filter", lambda **kwargs: app_query)
 
