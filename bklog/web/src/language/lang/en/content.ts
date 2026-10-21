@@ -998,6 +998,8 @@ export default {
     'In this mode, only the original text of the unordered log reported by you is downloaded, and you can sort it locally by log time; the log cannot contain platform supplementary fields: such as cluster name, module name and other information. The maximum number of log exports in this mode is 5 million.',
   '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。该模式的日志导出上限为200万条':
     'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer. The maximum number of log exports in this mode is 2 million.',
+  '该模式下，下载的日志有序，可包含平台补充字段，但下载时间较长。':
+    'In this mode, the downloaded logs are in order and can contain platform supplementary fields, but the download time is longer.',
   全文下载: 'Full text download',
   暂未保留原始日志: 'The original log has not been kept yet',
   '超出集群最大可保存天数，当前最大可保存{n}天':
