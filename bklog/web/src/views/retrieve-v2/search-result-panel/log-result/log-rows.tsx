@@ -38,6 +38,7 @@ import { UseSegmentProp } from '@/hooks/use-segment-pop';
 import useStore from '@/hooks/use-store';
 import useWheel from '@/hooks/use-wheel';
 
+import { overlayRegistry, resolvePopperPlacementRect } from '@/global/overlay';
 import PopInstanceUtil from '@/global/pop-instance-util';
 import { BK_LOG_STORAGE } from '@/store/store.type';
 import { buildHighlightHtml, pageHighlightState, parseResultMarkedText } from '@/views/retrieve-core/page-highlight';
@@ -156,8 +157,10 @@ export default defineComponent({
         selectionReferenceRect = getSelectionReferenceRect(savedSelection, selectionAnchorPoint);
       }
 
-      return selectionReferenceRect ?? new DOMRect(0, 0, 1, 1);
+      return selectionReferenceRect ?? null;
     };
+
+    const selectionOverlayId = 'retrieve-log-selection';
 
     /** 划词 tippy 实例：挂载到 body，fixed 策略兼容 monitor 宿主 */
     const popInstanceUtil = new PopInstanceUtil({
@@ -173,11 +176,25 @@ export default defineComponent({
          * monitor 宿主（__IS_MONITOR_TRACE__）里弹层会被丢到视口左上角。
          * 与 search-bar 的 ui-input / sql-query 保持同一套宿主兼容策略。
          */
-        getReferenceClientRect: () => resolveSelectionReferenceRect(),
+        getReferenceClientRect: () => {
+          const validRect = resolvePopperPlacementRect(resolveSelectionReferenceRect());
+          if (!validRect) {
+            overlayRegistry.notifyAnchorLost(selectionOverlayId);
+            return new DOMRect(-9999, -9999, 1, 1);
+          }
+          return validRect;
+        },
         popperOptions: {
           strategy: 'fixed',
         },
+        onHidden: () => overlayRegistry.hide(selectionOverlayId),
       },
+    });
+
+    overlayRegistry.register(selectionOverlayId, {
+      type: 'popover',
+      group: 'retrieve-segment',
+      hide: () => popInstanceUtil.hide(),
     });
 
     /**
@@ -271,7 +288,7 @@ export default defineComponent({
         // 复制只处理剪贴板，不参与任何检索条件添加；显式提前返回，避免后续事件链误落到“添加到本次检索”。
         if (type === 'copy') {
           handleOperation('copy', { value: selectionValue });
-          popInstanceUtil.hide();
+          overlayRegistry.hide(selectionOverlayId);
           return;
         }
         if (type === 'add-to-ai') {
@@ -290,7 +307,7 @@ export default defineComponent({
         } else {
           handleOperation(type, { value: selectionValue, operation: type });
         }
-        popInstanceUtil.hide();
+        overlayRegistry.hide(selectionOverlayId);
         restoreSelectionRange(savedSelection);
 
         // 添加到检索后必须清空选区：若还原划选，下次点击会被判定为“点在选区上”
@@ -2110,6 +2127,7 @@ export default defineComponent({
           savedSelection = selectionRange;
           selectionAnchorPoint = { x: e.clientX, y: e.clientY };
           selectionReferenceRect = getSelectionReferenceRect(savedSelection, selectionAnchorPoint);
+          overlayRegistry.open(selectionOverlayId, { anchor: getSelectionPopAnchor() });
           popInstanceUtil.uninstallInstance();
           popInstanceUtil.show(getSelectionPopAnchor(), true, true);
         }
@@ -2402,6 +2420,7 @@ export default defineComponent({
       renderTaskToken += 1;
       paginationRequestToken += 1;
       clearHoverOperatorHideTimer();
+      overlayRegistry.dispose(selectionOverlayId);
       popInstanceUtil.uninstallInstance();
       selectionPopAnchorEl?.remove();
       selectionPopAnchorEl = null;

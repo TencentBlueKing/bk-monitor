@@ -9,7 +9,7 @@
 
 业务未开启 LLM 灰度、查询范围内不包含 LLM 服务，或按 Trace ID 查询得到的执行线为空时，仅返回 `{"traces": []}`。
 
-前端打开 Trace 详情时即按 Trace ID 请求 `list_flows`，仅在 `traces` 非空时展示「LLM 观测」Tab。面板复用本次查询结果，切换 Tab 无需重复请求。
+前端打开 Trace 详情时即按 Trace ID 请求 `list_flows`，仅在 `traces` 非空时展示「LLM 观测」Tab。前端使用 `include_input_output=false` 获取结构，再使用 `include_input_output=true`、`input_output_preview=true` 获取输入输出概要；面板复用查询结果，切换 Tab 无需重复请求。
 
 ### 查看同会话完整时间线
 
@@ -28,6 +28,10 @@
 | app_name | string | 是 | APM 应用名称 |
 | group_field | string | 是 | 分组字段，例如 `trace_id`、`attributes.gen_ai.conversation.id` |
 | group_id | string | 是 | 分组值，精确匹配 |
+| include_input_output | bool | 否 | 是否包含输入输出，默认 `true`。设为 `false` 时仅返回结构、元数据和统计，不返回输入输出正文 |
+| input_output_preview | bool | 否 | 是否仅返回输入输出概要，默认 `false`。仅在 `include_input_output=true` 时生效；设为 `true` 时文本和工具参数值最多保留 255 个字符，并移除原始正文属性 |
+
+不传这两个参数时，按 Trace ID 查询默认返回完整输入输出和属性，兼容 API/MCP 调用。会话查询仍只返回 Trace 概览。
 
 ### 请求参数示例
 

@@ -6,7 +6,7 @@ from django.test import SimpleTestCase, override_settings
 from apps.exceptions import PermissionError as BklogPermissionError
 from apps.exceptions import ValidationError
 from apps.iam.handlers.actions import ActionEnum
-from apps.iam.iam_engine.core.types import AuthDecision
+from iam_engine.core.types import AuthDecision
 from apps.log_admin_resource.handlers.iam_decision import FUNC_NAME, FUNCTIONS, evaluate_iam_decisions
 from apps.log_admin_resource.registry import AdminResourceRegistry
 from apps.log_admin_resource.schema import validate_params

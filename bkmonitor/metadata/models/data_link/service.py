@@ -23,6 +23,29 @@ from metadata.models.data_link.constants import DataLinkKind, DataLinkResourceSt
 logger = logging.getLogger("metadata")
 
 
+def get_data_id_status_by_name(bk_tenant_id: str, namespace: str, name: str, with_detail: bool = False) -> dict:
+    """查询已经登记的资源身份，不参与 DataId 申请时的名称推导。"""
+    instance = DataIdConfig.objects.get(bk_tenant_id=bk_tenant_id, namespace=namespace, name=name)
+    resource = api.bkdata.get_data_link(
+        kind=DataLinkKind.get_choice_value(DataLinkKind.DATAID.value),
+        namespace=namespace,
+        name=instance.name,
+        bk_tenant_id=bk_tenant_id,
+    )
+    phase = resource.get("status", {}).get("phase")
+    data_id = None
+    if phase == DataLinkResourceStatus.OK.value:
+        data_id = int(resource.get("metadata", {}).get("annotations", {}).get("dataId", 0))
+        if instance.bk_data_id and data_id != instance.bk_data_id:
+            raise ValueError(f"DataId({name}) returned unexpected dataId({data_id})")
+    instance.status = phase
+    instance.save(update_fields=["status"])
+    result = {"status": phase, "data_id": data_id}
+    if with_detail:
+        result["data_id_config"] = resource
+    return result
+
+
 def apply_data_source_config(bk_tenant_id: str, data_source_config: dict) -> bool:
     """尝试下发 DataSource 资源；失败不影响主 DataId 流程。"""
     try:

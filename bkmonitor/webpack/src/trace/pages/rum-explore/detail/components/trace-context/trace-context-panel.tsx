@@ -29,6 +29,7 @@ import type { PropType } from 'vue';
 import { Exception } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
+import WaterfallChart from '../detail-sections/waterfall-chart';
 import TimelineFoldRow from './timeline-fold-row';
 import TimelineSpanRow from './timeline-span-row';
 import TimelineViewHeader from './timeline-view-header';
@@ -64,12 +65,16 @@ export default defineComponent({
       type: Array as PropType<IRumTimelineItemVM[]>,
       default: () => [],
     },
+    spanType: {
+      type: String,
+    },
   },
   emits: {
     expandFold: (_key: string) => true,
     toggleNode: (_spanId: string) => true,
     spanClick: (_span: IRumTimelineSpanVM) => true,
     traceClick: (_traceId: string) => true,
+    viewClick: (_view: IRumTimelineViewVM) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
@@ -84,6 +89,7 @@ export default defineComponent({
           <div class='trace-context-timeline'>
             {Array.from({ length: SKELETON_ROW_COUNT }, (_, index) => (
               <div
+                // biome-ignore lint/suspicious/noArrayIndexKey: 骨架屏为静态占位行，不增删、不重排。
                 key={index}
                 class='trace-context-skeleton-row'
               >
@@ -149,7 +155,12 @@ export default defineComponent({
       }
       return (
         <div class='trace-context-card'>
-          <TimelineViewHeader data={props.view} />
+          <TimelineViewHeader
+            data={props.view}
+            spanType={props.spanType}
+            onViewClick={view => emit('viewClick', view)}
+          />
+          {props.view.waterfall ? <WaterfallChart data={props.view.waterfall} /> : null}
           <div class='trace-context-timeline'>{renderItems()}</div>
         </div>
       );

@@ -27,8 +27,10 @@
 import { type PropType, computed, defineComponent, nextTick, shallowRef, watch } from 'vue';
 
 import { useResizeObserver } from '@vueuse/core';
+import { Tag } from 'bkui-vue';
 
 import type { LlmKvPair } from '../../../llm-observation/utils/typings';
+import type { Instance } from 'tippy.js';
 
 import './span-io-kvs.scss';
 
@@ -116,6 +118,7 @@ export default defineComponent({
       type: Array as PropType<LlmKvPair[]>,
       required: true,
     },
+    toolPreview: { type: Boolean, default: false },
   },
   setup(props) {
     const rootRef = shallowRef<HTMLElement>();
@@ -126,6 +129,9 @@ export default defineComponent({
     const valueMaxWidth = shallowRef(Number.POSITIVE_INFINITY);
     const keyWidths = shallowRef<number[]>([]);
     const valueWidths = shallowRef<number[]>([]);
+    const hiddenCount = computed(() =>
+      Number.isFinite(hiddenFrom.value) ? Math.max(0, props.pairs.length - hiddenFrom.value) : 0
+    );
 
     const pairsSignature = computed(() => props.pairs.map(pair => `${pair.key}\0${pair.value}`).join('\0'));
 
@@ -143,7 +149,7 @@ export default defineComponent({
     const measure = () => {
       const root = rootRef.value;
       if (!root) return;
-      const items = Array.from(root.children) as HTMLElement[];
+      const items = Array.from(root.querySelectorAll<HTMLElement>('.llm-span-io-kv'));
       if (!items.length) {
         clipIndex.value = -1;
         clipPart.value = '';
@@ -181,8 +187,16 @@ export default defineComponent({
       keyWidths.value = nextKeys;
       valueWidths.value = nextValues;
 
-      const nextValueMaxWidth = resolveValueMaxWidth(available, gap, nextKeys, nextValues);
-      const nextLayout = layoutKvs(available, gap, nextKeys, nextValues, nextValueMaxWidth);
+      const pairGap = Number.parseFloat(getComputedStyle(items[0]).columnGap) || 0;
+      const layoutKeys = nextKeys.map(width => width + pairGap);
+      let nextValueMaxWidth = resolveValueMaxWidth(available, gap, layoutKeys, nextValues);
+      let nextLayout = layoutKvs(available, gap, layoutKeys, nextValues, nextValueMaxWidth);
+      if (props.toolPreview && nextLayout.hiddenFrom < items.length) {
+        const moreWidth = root.querySelector('.llm-span-io-more')?.getBoundingClientRect().width || 0;
+        const contentWidth = Math.max(0, available - moreWidth - gap);
+        nextValueMaxWidth = resolveValueMaxWidth(contentWidth, gap, layoutKeys, nextValues);
+        nextLayout = layoutKvs(contentWidth, gap, layoutKeys, nextValues, nextValueMaxWidth);
+      }
       const sameValueMaxWidth =
         nextValueMaxWidth === valueMaxWidth.value || Math.abs(nextValueMaxWidth - valueMaxWidth.value) < 0.5;
       if (
@@ -213,10 +227,20 @@ export default defineComponent({
       nextTick(measure);
     });
 
+    const hiddenToolNames = () => {
+      const content = document.createElement('div');
+      content.className = 'llm-span-io-tools-tooltip';
+      content.textContent = props.pairs
+        .slice(hiddenFrom.value)
+        .map(pair => pair.key)
+        .join('\n');
+      return content;
+    };
+
     return () => (
       <div
         ref={rootRef}
-        class='llm-span-io-kvs'
+        class={['llm-span-io-kvs', { 'is-tool-preview': props.toolPreview }]}
       >
         {props.pairs.map((item, index) => {
           const hidden = index >= hiddenFrom.value;
@@ -227,7 +251,7 @@ export default defineComponent({
             : undefined;
           return (
             <span
-              key={`${item.key}-${index}`}
+              key={props.toolPreview ? `${item.key}-${item.value}-${index}` : `${item.key}-${index}`}
               style={
                 isClipValue || isClipKey
                   ? { width: `${clipWidth.value}px`, maxWidth: `${clipWidth.value}px` }
@@ -249,11 +273,30 @@ export default defineComponent({
                 class='llm-span-io-kv-value'
                 v-overflow-tips={{ content: sliceTooltipContent(item.value), placement: 'top' }}
               >
-                :{item.value}
+                {props.toolPreview ? '' : ':'}
+                {item.value}
               </span>
             </span>
           );
         })}
+        {props.toolPreview && props.pairs.length > 1 ? (
+          <Tag
+            style={{ minWidth: `${String(props.pairs.length - 1).length + 1}ch` }}
+            class={['llm-span-io-more', { 'is-hidden': !hiddenCount.value }]}
+            v-tippy={{
+              content: '',
+              appendTo: () => document.body,
+              onShow: (instance: Instance) => instance.setContent(hiddenToolNames()),
+              placement: 'top',
+              interactive: true,
+              maxWidth: 360,
+            }}
+            size='small'
+            tabIndex={hiddenCount.value ? 0 : -1}
+          >
+            +{hiddenCount.value}
+          </Tag>
+        ) : null}
       </div>
     );
   },

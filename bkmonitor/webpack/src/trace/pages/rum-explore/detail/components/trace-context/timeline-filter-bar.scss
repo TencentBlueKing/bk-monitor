@@ -1,0 +1,16 @@
+.timeline-filter-bar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+
+  .filter-search {
+    flex: 1;
+  }
+
+  .filter-categories {
+    display: flex;
+    align-items: center;
+  }
+}

@@ -32,6 +32,7 @@ import { listFlows } from 'monitor-api/modules/llm_web';
 import { useI18n } from 'vue-i18n';
 
 import {
+  buildIoPreviews,
   buildStatCards,
   buildTraceView,
   collectSpanList,
@@ -44,6 +45,7 @@ import type {
   LlmExecutionFilter,
   LlmFlowsResponse,
   LlmFlowTrace,
+  LlmIoPreview,
   LlmOverviewStats,
   LlmSpanRowView,
   LlmTraceView,
@@ -52,17 +54,17 @@ import type {
 /** 供 TraceLlmObservation 解构的 hook 返回值类型 */
 export type UseLlmObservationReturn = ReturnType<typeof useLlmObservation>;
 
+/** 面板渲染用的 Trace 块：在 LlmTraceView 上附加懒加载状态与当前可见 Span 行 */
+type TraceBlockView = LlmTraceView & {
+  flowLoading: boolean;
+  rows: LlmSpanRowView[];
+};
+
 /** 与 Trace 详情传入的 app / biz / trace 上下文绑定 */
 type UseLlmObservationOptions = {
   appName: MaybeRef<string>;
   bizId: MaybeRef<number>;
   traceId: MaybeRef<string>;
-};
-
-/** 面板渲染用的 Trace 块：在 LlmTraceView 上附加懒加载状态与当前可见 Span 行 */
-type TraceBlockView = LlmTraceView & {
-  flowLoading: boolean;
-  rows: LlmSpanRowView[];
 };
 
 /** 按会话维度聚合 Trace 列表（同 gen_ai.conversation.id） */
@@ -75,11 +77,13 @@ const SESSION_FLOW_PRELOAD_LIMIT = 5;
 /**
  * Trace 详情 LLM 观测的数据与交互状态。
  * - 默认按 trace_id 拉 overview + flow；开启「同会话」后按 conversation.id 拉多 Trace，flow 懒加载。
- * - Trace / Span 详情展开均为手风琴（同时仅一项展开）。
+ * - Trace 块为手风琴，Span 输入输出异步补齐，完整内容在 Span 详情查看。
  */
 export function useLlmObservation(options: UseLlmObservationOptions) {
   const { t } = useI18n();
   const loading = shallowRef(false);
+  const pendingIoCount = shallowRef(0);
+  const ioLoading = computed(() => pendingIoCount.value > 0);
   const traces = shallowRef<LlmFlowTrace[]>([]);
   const hasTraces = computed(() => traces.value.length > 0);
   const overviewStats = shallowRef<LlmOverviewStats | null>(null);
@@ -89,18 +93,22 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   const keyword = shallowRef('');
   const expandedTraceIds = shallowRef<Set<string>>(new Set());
   const expandedSpanIds = shallowRef<Set<string>>(new Set());
-  const detailExpandedSpanIds = shallowRef<Set<string>>(new Set());
+  const ioPreviews = shallowRef<Map<string, LlmIoPreview>>(new Map());
+  const traceIoPreviews = shallowRef<Map<string, { input: string; output: string }>>(new Map());
+  const ioLoadingTraceIds = shallowRef<Set<string>>(new Set());
   const flowLoadedTraceIds = shallowRef<Set<string>>(new Set());
   const loadingTraceIds = shallowRef<Set<string>>(new Set());
   let cancelFetch = () => {};
+  let cancelIoFetch = () => {};
   const cancelDetailFetches = new Map<string, () => void>();
   /** 递增以丢弃过期的 overview / 懒加载响应 */
   let overviewRequestId = 0;
+  let appliedOverviewRequestId = 0;
 
   const stats = computed(() => buildStatCards(traces.value, t, overviewStats.value));
   const kindCounts = computed(() => countSpanKinds(traces.value));
   /** 仅对已展开的 Trace 计算 flatten 行；筛选/关键字变化时复算 rows，不重复请求接口 */
-  const traceBlocks = computed<TraceBlockView[]>(() =>
+  const structureBlocks = computed<TraceBlockView[]>(() =>
     traces.value.map(item => {
       const view = buildTraceView(item, get(options.traceId), flowLoadedTraceIds.value.has(item.trace_id));
       const expanded = expandedTraceIds.value.has(item.trace_id);
@@ -116,6 +124,18 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
           : [],
       };
     })
+  );
+  const traceBlocks = computed<TraceBlockView[]>(() =>
+    structureBlocks.value.map(block => ({
+      ...block,
+      ...traceIoPreviews.value.get(block.traceId),
+      title: traceIoPreviews.value.get(block.traceId)?.input || block.title,
+      rows: block.rows.map(row => ({
+        ...row,
+        io: ioPreviews.value.get(`${block.traceId}:${row.spanId}`) || row.io,
+        ioLoading: ioLoadingTraceIds.value.has(block.traceId),
+      })),
+    }))
   );
 
   /** 会话时间线按 start_time 正序；单 Trace 模式仍把当前 Trace 置顶 */
@@ -155,6 +175,103 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     });
   };
 
+  const applyOverviewResponse = (data: LlmFlowsResponse, traceId: string, useSession: boolean, requestId: number) => {
+    appliedOverviewRequestId = requestId;
+    const nextTraces = sortTraces(data?.traces || [], traceId, useSession);
+    const merged = useSession
+      ? mergeSessionTraces(nextTraces, traces.value, flowLoadedTraceIds.value)
+      : nextTraces.map(item => ({ ...item, flow: item.flow || [] }));
+    traces.value = merged;
+    overviewStats.value = data
+      ? {
+          cache_read_input_tokens: data.cache_read_input_tokens,
+          cache_write_input_tokens: data.cache_write_input_tokens,
+          elapsed_time: data.elapsed_time,
+          input_tokens: data.input_tokens,
+          output_tokens: data.output_tokens,
+          total_tokens: data.total_tokens,
+        }
+      : null;
+    if (!conversationId.value) {
+      conversationId.value = pickConversationId(merged);
+    }
+
+    const loaded = new Set<string>();
+    if (useSession) {
+      for (const item of merged) {
+        if (item.flow?.length || flowLoadedTraceIds.value.has(item.trace_id)) {
+          loaded.add(item.trace_id);
+        }
+      }
+    } else {
+      for (const item of merged) loaded.add(item.trace_id);
+    }
+    flowLoadedTraceIds.value = loaded;
+    syncExpandedState(merged, traceId);
+
+    if (useSession) {
+      loadMissingSessionFlows(merged, traceId, loaded);
+    }
+  };
+
+  const applyIoPreviews = (data: LlmFlowsResponse) => {
+    const nextIo = new Map(ioPreviews.value);
+    for (const [key, value] of buildIoPreviews(data?.traces || [])) nextIo.set(key, value);
+    ioPreviews.value = nextIo;
+    const nextTraceIo = new Map(traceIoPreviews.value);
+    for (const trace of data?.traces || []) {
+      nextTraceIo.set(trace.trace_id, {
+        input: (trace.input || '').slice(0, 1024),
+        output: (trace.output || '').slice(0, 1024),
+      });
+    }
+    traceIoPreviews.value = nextTraceIo;
+  };
+
+  const loadIoPreviews = async (params: Record<string, unknown>, requestId: number, traceId?: string) => {
+    pendingIoCount.value += 1;
+    if (traceId) ioLoadingTraceIds.value = new Set([...ioLoadingTraceIds.value, traceId]);
+    try {
+      const data: LlmFlowsResponse = await listFlows(
+        { ...params, include_input_output: true, input_output_preview: true },
+        {
+          cancelToken: new CancelToken((cancel: () => void) => {
+            if (traceId) cancelDetailFetches.set(`${traceId}:io`, cancel);
+            else cancelIoFetch = cancel;
+          }),
+        }
+      );
+      if (requestId === overviewRequestId) {
+        applyIoPreviews(data);
+        if (!traceId && appliedOverviewRequestId !== requestId && data?.traces?.length) {
+          applyOverviewResponse(
+            data,
+            get(options.traceId),
+            params.group_field === LLM_CONVERSATION_GROUP_FIELD,
+            requestId
+          );
+          loading.value = false;
+        }
+      }
+    } catch {
+      // I/O 失败不影响执行线，完整内容仍可通过 Span 详情查看。
+    } finally {
+      if (requestId === overviewRequestId) {
+        pendingIoCount.value = Math.max(0, pendingIoCount.value - 1);
+        if (traceId) {
+          cancelDetailFetches.delete(`${traceId}:io`);
+          const next = new Set(ioLoadingTraceIds.value);
+          next.delete(traceId);
+          ioLoadingTraceIds.value = next;
+        } else if (params.group_field === LLM_TRACE_GROUP_FIELD) {
+          const next = new Set(ioLoadingTraceIds.value);
+          next.delete(String(params.group_id));
+          ioLoadingTraceIds.value = next;
+        }
+      }
+    }
+  };
+
   /** 会话模式下按 trace_id 二次请求，补齐该 Trace 的 Span 树 */
   const loadTraceFlow = async (traceId: string) => {
     const appName = get(options.appName);
@@ -164,6 +281,8 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
 
     const requestId = overviewRequestId;
     markTraceLoading(traceId, true);
+    const params = { bk_biz_id: bizId, app_name: appName, group_field: LLM_TRACE_GROUP_FIELD, group_id: traceId };
+    void loadIoPreviews(params, requestId, traceId);
     try {
       const data: LlmFlowsResponse = await listFlows(
         {
@@ -171,6 +290,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
           app_name: appName,
           group_field: LLM_TRACE_GROUP_FIELD,
           group_id: traceId,
+          include_input_output: false,
         },
         {
           cancelToken: new CancelToken((cancel: () => void) => {
@@ -219,8 +339,10 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   /** 拉 overview：单 Trace 模式一次带回 flow；会话模式仅 Trace 列表，flow 另走 loadTraceFlow */
   const fetchFlows = async () => {
     cancelFetch();
+    cancelIoFetch();
     cancelAllDetailFetches();
     const requestId = ++overviewRequestId;
+    pendingIoCount.value = 0;
     const appName = get(options.appName);
     const traceId = get(options.traceId);
     const bizId = get(options.bizId);
@@ -233,14 +355,23 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     }
 
     loading.value = true;
+    const useSession = showSession.value && Boolean(conversationId.value);
+    const params = {
+      bk_biz_id: bizId,
+      app_name: appName,
+      group_field: useSession ? LLM_CONVERSATION_GROUP_FIELD : LLM_TRACE_GROUP_FIELD,
+      group_id: useSession ? conversationId.value : traceId,
+    };
+    ioLoadingTraceIds.value = new Set(useSession ? [] : [traceId]);
+    void loadIoPreviews(params, requestId);
     try {
-      const useSession = showSession.value && Boolean(conversationId.value);
       const data: LlmFlowsResponse = await listFlows(
         {
           bk_biz_id: bizId,
           app_name: appName,
           group_field: useSession ? LLM_CONVERSATION_GROUP_FIELD : LLM_TRACE_GROUP_FIELD,
           group_id: useSession ? conversationId.value : traceId,
+          include_input_output: false,
         },
         {
           cancelToken: new CancelToken((cancel: () => void) => {
@@ -250,34 +381,9 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
       );
       if (requestId !== overviewRequestId) return;
 
-      const nextTraces = sortTraces(data?.traces || [], traceId, useSession);
-      const merged = useSession
-        ? mergeSessionTraces(nextTraces, traces.value, flowLoadedTraceIds.value)
-        : nextTraces.map(item => ({ ...item, flow: item.flow || [] }));
-      traces.value = merged;
-      overviewStats.value = data || null;
-      if (!conversationId.value) {
-        conversationId.value = pickConversationId(merged);
-      }
-
-      const loaded = new Set<string>();
-      if (useSession) {
-        for (const item of merged) {
-          if (item.flow?.length || flowLoadedTraceIds.value.has(item.trace_id)) {
-            loaded.add(item.trace_id);
-          }
-        }
-      } else {
-        for (const item of merged) loaded.add(item.trace_id);
-      }
-      flowLoadedTraceIds.value = loaded;
-      syncExpandedState(merged, traceId);
-
-      if (useSession) {
-        loadMissingSessionFlows(merged, traceId, loaded);
-      }
+      if (appliedOverviewRequestId !== requestId) applyOverviewResponse(data, traceId, useSession, requestId);
     } catch {
-      if (requestId !== overviewRequestId) return;
+      if (requestId !== overviewRequestId || appliedOverviewRequestId === requestId) return;
       traces.value = [];
       overviewStats.value = null;
       flowLoadedTraceIds.value = new Set();
@@ -301,7 +407,6 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     }
     expandedTraceIds.value = nextTraceIds;
     expandedSpanIds.value = nextSpanIds;
-    detailExpandedSpanIds.value = new Set();
   };
 
   const handleSessionChange = (checked: boolean) => {
@@ -328,7 +433,7 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     }
   };
 
-  /** Span 子树可多选展开；与 Trace 块、行内详情的手风琴互不影响 */
+  /** Span 子树可同时展开多个，Trace 块仅展开一项。 */
   const toggleSpan = (spanId: string) => {
     const next = new Set(expandedSpanIds.value);
     if (next.has(spanId)) next.delete(spanId);
@@ -336,20 +441,14 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     expandedSpanIds.value = next;
   };
 
-  /** Span 行内详情面板手风琴 */
-  const toggleDetail = (spanId: string) => {
-    if (detailExpandedSpanIds.value.has(spanId)) {
-      detailExpandedSpanIds.value = new Set();
-      return;
-    }
-    detailExpandedSpanIds.value = new Set([spanId]);
-  };
-
   /** 切换 Trace / 应用 / 空间时清空会话模式与筛选，避免沿用上一 Trace 的 UI 状态 */
   watch(
     () => [get(options.appName), get(options.traceId), get(options.bizId)] as const,
     () => {
       traces.value = [];
+      ioPreviews.value = new Map();
+      traceIoPreviews.value = new Map();
+      ioLoadingTraceIds.value = new Set();
       conversationId.value = '';
       showSession.value = false;
       filter.value = 'all';
@@ -370,12 +469,12 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
   onScopeDispose(() => {
     ++overviewRequestId;
     cancelFetch();
+    cancelIoFetch();
     cancelAllDetailFetches();
   });
 
   return {
     conversationId,
-    detailExpandedSpanIds,
     expandedSpanIds,
     expandedTraceIds,
     filter,
@@ -386,9 +485,9 @@ export function useLlmObservation(options: UseLlmObservationOptions) {
     keyword,
     kindCounts,
     loading,
+    ioLoading,
     showSession,
     stats,
-    toggleDetail,
     toggleSpan,
     toggleTrace,
     traceBlocks,

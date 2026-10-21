@@ -5,7 +5,7 @@ from apps.iam.backends.v4.apply import build_apply_data
 from apps.iam.backends.v4.codec import BklogNameCodec
 from apps.iam.handlers.actions import ActionEnum
 from apps.iam.handlers.resources import ResourceEnum
-from apps.iam.iam_engine.core.requests import ResourceInstance
+from iam_engine.core.requests import ResourceInstance
 
 SYSTEM_ID = "bk_log_search"
 SYSTEM_NAME = "日志平台"

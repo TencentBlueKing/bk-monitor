@@ -566,6 +566,13 @@ ADVANCED_OPTIONS = OrderedDict(
             "OPERATION_MCP_STAT_BIZ_IDS",
             slz.JSONField(label="运营MCP按指标族的统计业务ID(形如{default:id,logbeat:id})", default={}),
         ),
+        # ------------------------------------------------------------------
+        # Runtime read mode only. It must not control provider loading or dual writes.
+        # Explicit BKAPP_IAM_PERMISSION_MODE overrides this configuration-center value.
+        (
+            "BK_IAM_PERMISSION_MODE",
+            slz.ChoiceField(label="IAM鉴权模式", choices=["v3", "v4", "union"], default="v3"),
+        ),
     ]
 )
 

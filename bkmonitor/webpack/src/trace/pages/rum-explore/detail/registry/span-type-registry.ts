@@ -25,7 +25,7 @@
  */
 import { SectionKeyEnum } from '../constants';
 import { getActionRelated, getErrorRelated, getLongTaskRelated, getViewRelated } from '../services';
-import { RumCardToneEnum, RumSectionTypeEnum } from '../typings';
+import { RumCardToneEnum, RumSectionTypeEnum, RumTimelineFilterCategoryEnum } from '../typings';
 import { EMPTY_TEXT, formatCount } from './card-registry';
 
 import type { IRumFilter, IRumTimeRange, RumModeType } from '../../typings';
@@ -37,6 +37,7 @@ import type {
   IRumSparklinePoint,
   IRumSummaryCardVM,
   RumSectionType,
+  RumTimelineFilterCategoryType,
 } from '../typings';
 
 const t = (text: string) => window.i18n.t(text) as string;
@@ -72,18 +73,35 @@ interface IRumExtraSection {
   keyValues?: (ctx: IRumCardResolveCtx) => Array<{ label: string; value: string }>;
 }
 
-/** 计数类卡片：有值时以蓝色可点击样式呈现，0 或缺失时为普通文本 */
+/**
+ * 计数类卡片：传了 onClick 的卡片有值时以可点击样式呈现（主值下划线 + 手型光标），
+ * 0 或缺失时退化为普通文本且不可点击。
+ * @param onClick 点击处理，通过 ctx.handlers 使用抽屉的交互能力
+ */
 const countCard =
-  (config: Omit<IRumSummaryCardVM, 'key' | 'value'>, relatedKey: keyof IRumRelatedData): IRumExtraCardBuilder =>
+  (
+    config: Omit<IRumSummaryCardVM, 'key' | 'value'>,
+    relatedKey: keyof IRumRelatedData,
+    onClick?: (ctx: IRumCardResolveCtx) => void
+  ): IRumExtraCardBuilder =>
   ctx => {
     const count = Number(ctx.related[relatedKey] ?? Number.NaN);
-    if (!Number.isFinite(count)) return { ...config, value: EMPTY_TEXT };
+    const hasValue = Number.isFinite(count);
+    const clickable = hasValue && count > 0 && !!onClick;
+    const click = clickable && onClick ? () => onClick(ctx) : undefined;
     return {
-      value: formatCount(count),
-      tone: count > 0 ? RumCardToneEnum.LINK : RumCardToneEnum.DEFAULT,
       ...config,
+      value: hasValue ? formatCount(count) : EMPTY_TEXT,
+      tone: clickable ? (config.tone ?? RumCardToneEnum.LINK) : RumCardToneEnum.DEFAULT,
+      click,
     };
   };
+
+/** 点击后切到「链路上下文」tab 并套用对应类别的快捷筛选 */
+const switchTraceContext =
+  (category: RumTimelineFilterCategoryType): ((ctx: IRumCardResolveCtx) => void) =>
+  ctx =>
+    ctx.handlers?.switchTraceContext(category);
 
 /** 从 Error 详情的关键信息里还原「同一个错误」的过滤条件 */
 function buildErrorFilters(detail: IRumRecordDetail): IRumFilter[] {
@@ -107,10 +125,21 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
   action: {
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
-        // TODO(2026-09-21): 有值时本应可点击跳转「链路上下文」tab，该 tab 本期未实现，暂按普通样式渲染
-        countCard({ label: t('触发请求数'), tone: RumCardToneEnum.LINK }, 'resourceCount'),
-        countCard({ label: t('错误数'), tone: RumCardToneEnum.DANGER }, 'errorCount'),
-        countCard({ label: t('Long Tasks 数'), tone: RumCardToneEnum.LINK }, 'longTaskCount'),
+        countCard(
+          { label: t('触发请求数'), tone: RumCardToneEnum.LINK },
+          'resourceCount',
+          switchTraceContext(RumTimelineFilterCategoryEnum.REQUEST)
+        ),
+        countCard(
+          { label: t('错误数'), tone: RumCardToneEnum.DANGER },
+          'errorCount',
+          switchTraceContext(RumTimelineFilterCategoryEnum.ERROR)
+        ),
+        countCard(
+          { label: t('Long Tasks 数'), tone: RumCardToneEnum.LINK },
+          'longTaskCount',
+          switchTraceContext(RumTimelineFilterCategoryEnum.SLOW_NODE)
+        ),
       ],
     },
     loadRelated: (context, mode, detail) => getActionRelated(context, mode, detail),
@@ -198,31 +227,19 @@ export const SPAN_TYPE_DETAIL_CONFIG: Record<string, IRumSpanTypeDetailConfig> =
     extraCards: {
       [SectionKeyEnum.KEY_INFO]: [
         countCard(
-          {
-            label: t('请求'),
-            tone: RumCardToneEnum.LINK,
-            type: 'link',
-            cardCls: 'view-card',
-          },
-          'resourceCount'
+          { label: t('请求'), tone: RumCardToneEnum.LINK, cardCls: 'view-card' },
+          'resourceCount',
+          switchTraceContext(RumTimelineFilterCategoryEnum.REQUEST)
         ),
         countCard(
-          {
-            label: t('错误'),
-            tone: RumCardToneEnum.DANGER,
-            type: 'link',
-            cardCls: 'view-card',
-          },
-          'errorCount'
+          { label: t('错误'), tone: RumCardToneEnum.DANGER, cardCls: 'view-card' },
+          'errorCount',
+          switchTraceContext(RumTimelineFilterCategoryEnum.ERROR)
         ),
         countCard(
-          {
-            label: 'Span',
-            tone: RumCardToneEnum.LINK,
-            type: 'link',
-            cardCls: 'view-card',
-          },
-          'spanCount'
+          { label: t('动作'), tone: RumCardToneEnum.LINK, cardCls: 'view-card' },
+          'spanCount',
+          switchTraceContext(RumTimelineFilterCategoryEnum.ACTION)
         ),
       ],
     },

@@ -3,29 +3,45 @@ const fs = require('node:fs');
 const path = require('node:path');
 const test = require('node:test');
 const ts = require('typescript');
+
 const vue = require('../src/trace/node_modules/vue');
 const root = path.resolve(__dirname, '../src/trace/pages/host');
 const flush = () => new Promise(resolve => setImmediate(resolve));
 const deferred = () => {
-  let resolve, reject;
-  const promise = new Promise((yes, no) => { resolve = yes; reject = no; });
+  let reject, resolve;
+  const promise = new Promise((yes, no) => {
+    resolve = yes;
+    reject = no;
+  });
   return { promise, resolve, reject };
 };
 function load(file, deps = {}) {
   const code = ts.transpileModule(fs.readFileSync(path.join(root, file), 'utf8'), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React, jsxFactory: 'h', jsxFragmentFactory: 'Fragment' },
+    compilerOptions: {
+      module: ts.ModuleKind.CommonJS,
+      target: ts.ScriptTarget.ES2022,
+      jsx: ts.JsxEmit.React,
+      jsxFactory: 'h',
+      jsxFragmentFactory: 'Fragment',
+    },
     fileName: file,
     reportDiagnostics: true,
   });
   assert.equal(code.diagnostics.length, 0, file);
   const module = { exports: {} };
-  new Function('require', 'module', 'exports', 'h', 'Fragment', code.outputText)(id => {
-    if (id in deps) return deps[id];
-    if (id === 'vue') return vue;
-    if (id === 'vue-i18n') return { useI18n: () => ({ t: value => value }) };
-    if (id.endsWith('.scss')) return {};
-    throw new Error(`Unexpected dependency ${id} in ${file}`);
-  }, module, module.exports, vue.h, vue.Fragment);
+  new Function('require', 'module', 'exports', 'h', 'Fragment', code.outputText)(
+    id => {
+      if (id in deps) return deps[id];
+      if (id === 'vue') return vue;
+      if (id === 'vue-i18n') return { useI18n: () => ({ t: value => value }) };
+      if (id.endsWith('.scss')) return {};
+      throw new Error(`Unexpected dependency ${id} in ${file}`);
+    },
+    module,
+    module.exports,
+    vue.h,
+    vue.Fragment
+  );
   return module.exports;
 }
 
@@ -34,13 +50,24 @@ for (const [file, factory, panelApi, orderApi] of [
   ['use-process-metric', 'useProcessMetric', 'getProcessViewsPanelsApi', 'getProcessMetricGroupPanelOrderApi'],
 ]) {
   function harness() {
-    const requests = [], saves = [];
+    const requests = [],
+      saves = [];
     const controller = load(`composables/${file}.ts`, {
       '../services/graph-service': {
-        [panelApi]: () => { const request = deferred(); requests.push(request); return request.promise; },
+        [panelApi]: () => {
+          const request = deferred();
+          requests.push(request);
+          return request.promise;
+        },
         [orderApi]: () => Promise.resolve([]),
       },
-      'monitor-api/modules/scene_view': { updateSceneView: () => { const save = deferred(); saves.push(save); return save.promise; } },
+      'monitor-api/modules/scene_view': {
+        updateSceneView: () => {
+          const save = deferred();
+          saves.push(save);
+          return save.promise;
+        },
+      },
     })[factory];
     const scope = vue.effectScope();
     const state = scope.run(() => controller({ keyword: '', ungroupTitle: '' }));
@@ -101,17 +128,24 @@ for (const [file, factory, panelApi, orderApi] of [
   });
 }
 
-test('process refresh retains rows, range/host changes reset them, aborted results cannot complete a newer request', async () => {
+test('process refresh retains rows, range/host changes reset them, stale results cannot complete a newer request', async () => {
   const requests = [];
   const host = vue.shallowRef({ bk_host_id: 1, bk_biz_id: 2 });
   const store = {
-    timeRange: vue.shallowRef(['now-1h', 'now']), timezone: vue.shallowRef('UTC'),
+    timeRange: vue.shallowRef(['now-1h', 'now']),
+    timezone: vue.shallowRef('UTC'),
     timeRangeTimestamp: vue.shallowRef({ start_time: 1, end_time: 2 }),
   };
   const { useProcessList } = load('composables/use-process-list.ts', {
     pinia: { storeToRefs: value => value },
     '../../../store/modules/host': { useHostStore: () => store },
-    '../services/process-service': { getHostProcessList: (_, config) => { const request = deferred(); requests.push({ ...request, signal: config.signal }); return request.promise; } },
+    '../services/process-service': {
+      getHostProcessList: () => {
+        const request = deferred();
+        requests.push(request);
+        return request.promise;
+      },
+    },
   });
   const scope = vue.effectScope();
   const state = scope.run(() => useProcessList({ host, keyword: vue.shallowRef('') }));
@@ -127,7 +161,6 @@ test('process refresh retains rows, range/host changes reset them, aborted resul
   assert.equal(state.displayList.value.length, 1);
   void state.loadData();
   host.value = { bk_host_id: 2, bk_biz_id: 2 };
-  assert.equal(requests[2].signal.aborted, true);
   assert.equal(state.loading.value, true);
   assert.equal(state.displayList.value.length, 0);
   requests[2].resolve([{ name: 'obsolete' }]);
@@ -141,20 +174,34 @@ test('process refresh retains rows, range/host changes reset them, aborted resul
   assert.equal(state.displayList.value.length, 0);
   assert.equal(state.loading.value, true);
   scope.stop();
-  assert.equal(requests[4].signal.aborted, true);
+  requests[4].resolve([{ name: 'disposed' }]);
+  await flush();
+  assert.deepEqual(state.displayList.value, []);
 });
 
 test('detail debounce cannot issue requests after disposal and stable identity avoids metadata reloads', async () => {
-  const requests = [], timers = [];
+  const requests = [],
+    timers = [];
   const refreshGeneration = vue.shallowRef(0);
   const node = vue.shallowRef({ bk_biz_id: 1, bk_host_id: 1 });
   const { useHostDetail } = load('composables/use-host-detail.ts', {
     vue: { ...vue, provide() {} },
-    '@vueuse/core': { useDebounceFn: fn => (...args) => timers.push(() => fn(...args)) },
+    '@vueuse/core': {
+      useDebounceFn:
+        fn =>
+        (...args) =>
+          timers.push(() => fn(...args)),
+    },
     pinia: { storeToRefs: value => value },
     '@/store/modules/host': { useHostStore: () => ({ refreshGeneration }) },
     '../utils/topo-tree': { isHostNode: value => 'bk_host_id' in value },
-    'monitor-api/modules/scene_view': { getHostOrTopoNodeDetail: () => { const request = deferred(); requests.push(request); return request.promise; } },
+    '../services/host-service': {
+      getHostOrTopoNodeDetail: () => {
+        const request = deferred();
+        requests.push(request);
+        return request.promise;
+      },
+    },
   });
   const scope = vue.effectScope();
   const state = scope.run(() => useHostDetail(node));
@@ -179,21 +226,44 @@ test('detail debounce cannot issue requests after disposal and stable identity a
 });
 
 const named = name => ({ name });
-const find = (node, type) => node?.type === type ? node : Array.isArray(node?.children) ? node.children.map(child => find(child, type)).find(Boolean) : undefined;
+const find = (node, type) =>
+  node?.type === type
+    ? node
+    : Array.isArray(node?.children)
+      ? node.children.map(child => find(child, type)).find(Boolean)
+      : undefined;
 
 test('chart refresh keeps the rendered snapshot, query changes replace it with a skeleton, failure allows retry', async () => {
   const hook = {
-    options: vue.shallowRef(null), loading: vue.shallowRef(true), loadError: vue.shallowRef(false),
-    metricList: vue.shallowRef([]), targets: vue.shallowRef([]), series: vue.shallowRef([]), chartId: vue.shallowRef('chart'),
+    options: vue.shallowRef(null),
+    loading: vue.shallowRef(true),
+    loadError: vue.shallowRef(false),
+    metricList: vue.shallowRef([]),
+    targets: vue.shallowRef([]),
+    series: vue.shallowRef([]),
+    chartId: vue.shallowRef('chart'),
     getEchartOptions: async () => hook.options.value,
   };
   const timeRange = vue.shallowRef(['now-1h', 'now']);
-  const Chart = named('VueEcharts'), Skeleton = named('HostLoading'), Status = named('HostRefreshStatus'), Empty = named('EmptyStatus');
-  const props = vue.reactive({ panel: { targets: [], collect_interval: 60 }, scopedVars: { host: 1 }, customOptions: {}, downSampleRange: 'auto' });
+  const Chart = named('VueEcharts'),
+    Empty = named('EmptyStatus'),
+    Skeleton = named('HostLoading'),
+    Status = named('HostRefreshStatus');
+  const props = vue.reactive({
+    panel: { targets: [], collect_interval: 60 },
+    scopedVars: { host: 1 },
+    customOptions: {},
+    downSampleRange: 'auto',
+  });
   const Component = load('components/dashbords/components/time-series-card.tsx', {
-    vue: { ...vue, getCurrentInstance: () => ({ appContext: { config: { globalProperties: { $api: {} } } } }), useTemplateRef: () => vue.shallowRef(null), inject: (key, fallback) => key === 'timeRange' ? timeRange : fallback },
+    vue: {
+      ...vue,
+      getCurrentInstance: () => ({ appContext: { config: { globalProperties: { $api: {} } } } }),
+      useTemplateRef: () => vue.shallowRef(null),
+      inject: (key, fallback) => (key === 'timeRange' ? timeRange : fallback),
+    },
     'bkui-vue': { ResizeLayout: named('ResizeLayout') },
-    'dayjs': { default: { tz: () => ({ unix: () => 1 }) } },
+    dayjs: { default: { tz: () => ({ unix: () => 1 }) } },
     'monitor-common/utils': { random: () => 'chart' },
     'vue-echarts': { default: Chart },
     '../../../../provider': { useAppReadonlyInject: () => false },
@@ -201,7 +271,9 @@ test('chart refresh keeps the rendered snapshot, query changes replace it with a
     '@/components/empty-status/empty-status': { default: Empty },
     '../../host-loading/host-loading': { default: Skeleton, HostRefreshStatus: Status },
     '@/components/time-range/utils': { DEFAULT_TIME_RANGE: [], handleTransformToTimestamp: () => [0, 1] },
-    '@/pages/trace-explore/components/explore-chart/use-chart-legend': { useChartLegend: () => ({ legendData: vue.shallowRef([]), handleSelectLegend() {} }) },
+    '@/pages/trace-explore/components/explore-chart/use-chart-legend': {
+      useChartLegend: () => ({ legendData: vue.shallowRef([]), handleSelectLegend() {} }),
+    },
     '@/pages/trace-explore/components/explore-chart/use-chart-title-event': { useChartTitleEvent: () => ({}) },
     '@/pages/trace-explore/components/explore-chart/use-echarts': { useEcharts: () => hook },
     '@/plugins/components/chart-title': { default: named('ChartTitle') },
@@ -211,33 +283,41 @@ test('chart refresh keeps the rendered snapshot, query changes replace it with a
   }).default;
   const scope = vue.effectScope();
   const state = vue.proxyRefs(scope.run(() => Component.setup(props)));
-  const context = new Proxy(state, { get: (target, key) => key in target ? target[key] : props[key] });
+  const context = new Proxy(state, { get: (target, key) => (key in target ? target[key] : props[key]) });
   const render = () => Component.render.call(context);
   assert.ok(find(render(), Skeleton));
   const snapshot = { series: [{ data: [1, 2] }] };
-  hook.options.value = snapshot; hook.loading.value = false;
+  hook.options.value = snapshot;
+  hook.loading.value = false;
   await vue.nextTick();
   assert.equal(find(render(), Chart).props.option, snapshot);
   hook.loading.value = true;
   await vue.nextTick();
   assert.equal(find(render(), Chart).props.option, snapshot);
   assert.equal(find(render(), Skeleton), undefined);
-  hook.options.value = null; hook.loadError.value = true; hook.loading.value = false;
+  hook.options.value = null;
+  hook.loadError.value = true;
+  hook.loading.value = false;
   await vue.nextTick();
   assert.equal(find(render(), Chart).props.option, snapshot);
   assert.equal(find(render(), Status).props.error, true);
-  props.scopedVars = { host: 2 }; hook.loadError.value = false; hook.loading.value = true;
+  props.scopedVars = { host: 2 };
+  hook.loadError.value = false;
+  hook.loading.value = true;
   await vue.nextTick();
   assert.ok(find(render(), Skeleton));
   assert.equal(find(render(), Chart), undefined);
-  hook.loadError.value = true; hook.loading.value = false;
+  hook.loadError.value = true;
+  hook.loading.value = false;
   await vue.nextTick();
   assert.ok(find(render(), Empty));
   scope.stop();
 });
 
 test('dashboard placeholders preserve the selected chart column layout and expose one loading status', () => {
-  const Component = load('components/host-loading/host-loading.tsx', { 'bkui-vue': { Button: named('Button') } }).default;
+  const Component = load('components/host-loading/host-loading.tsx', {
+    'bkui-vue': { Button: named('Button') },
+  }).default;
   const flatten = node => [node, ...(Array.isArray(node?.children) ? node.children.flatMap(flatten) : [])];
   for (const columns of [1, 2, 3]) {
     const render = Component.setup({ variant: 'dashboard', columns, title: true });
@@ -254,10 +334,34 @@ test('dashboard placeholders preserve the selected chart column layout and expos
 test('port panels use a matching skeleton and retain same-query values through refresh failure', async () => {
   const requests = [];
   const refresh = vue.shallowRef(0);
-  const Skeleton = named('HostLoading'), Status = named('HostRefreshStatus');
-  const props = vue.reactive({ panel: { title: 'Ports', type: 'port-status', targets: [{ api: 'host.ports', data: {} }] }, scopedVars: { bk_biz_id: 1, host: 1 } });
+  const Skeleton = named('HostLoading'),
+    Status = named('HostRefreshStatus');
+  const props = vue.reactive({
+    panel: { title: 'Ports', type: 'port-status', targets: [{ api: 'host.ports', data: {} }] },
+    scopedVars: { bk_biz_id: 1, host: 1 },
+  });
   const Component = load('components/dashbords/components/external-panel-card.tsx', {
-    vue: { ...vue, getCurrentInstance: () => ({ appContext: { config: { globalProperties: { $api: { host: { ports: () => { const request = deferred(); requests.push(request); return request.promise; } } } } } } }), inject: (key, fallback) => key === 'refreshImmediate' ? refresh : fallback },
+    vue: {
+      ...vue,
+      getCurrentInstance: () => ({
+        appContext: {
+          config: {
+            globalProperties: {
+              $api: {
+                host: {
+                  ports: () => {
+                    const request = deferred();
+                    requests.push(request);
+                    return request.promise;
+                  },
+                },
+              },
+            },
+          },
+        },
+      }),
+      inject: (key, fallback) => (key === 'refreshImmediate' ? refresh : fallback),
+    },
     'monitor-ui/monitor-echarts/valueFormats': { getValueFormat: () => value => ({ text: String(value), suffix: '' }) },
     '../../host-loading/host-loading': { default: Skeleton, HostRefreshStatus: Status },
     '../variables/resolve': { resolveVariables: value => value },

@@ -33,7 +33,7 @@ class TraceSummary:
             return str(value).strip()
 
     @classmethod
-    def _part_preview(cls, part: dict[str, Any], expected: str) -> str:
+    def part_preview(cls, part: dict[str, Any], expected: str) -> str:
         part_type = str(part.get("type") or "")
         if expected == "text" and part_type in cls._TEXT_PART_TYPES:
             return cls._preview_text(part.get("content", part.get("text")))
@@ -52,48 +52,76 @@ class TraceSummary:
         if not isinstance(messages, list):
             return []
         previews: list[str] = []
-        for message in messages:
+        for message in reversed(messages):
             if not isinstance(message, dict) or message.get("role") not in roles:
                 continue
             parts = message.get("parts")
             if not isinstance(parts, list):
                 continue
-            for part in parts:
-                if isinstance(part, dict) and (preview := cls._part_preview(part, expected)):
-                    previews.append(preview)
+            for part in reversed(parts):
+                if isinstance(part, dict) and (preview := cls.part_preview(part, expected)):
+                    return [preview]
         return previews
 
     @classmethod
-    def _trace_previews(cls, spans: list[dict[str, Any]]) -> tuple[str, str]:
-        """输入取最早的用户文本；输出按 模型文本 → 推理 → 规划工具调用 → 工具返回 取最新一条。"""
-        user_inputs: list[tuple[int, int, str]] = []
-        tool_inputs: list[tuple[int, int, str]] = []
-        output_buckets: dict[str, list[tuple[int, int, str]]] = {key: [] for key in cls._OUTPUT_PREVIEW_KEYS}
+    def _input_preview(cls, attributes: dict[str, Any]) -> tuple[int, str]:
+        messages = attributes.get("gen_ai.input.messages")
+        for priority, roles in enumerate(({"user"}, {"assistant", "model"})):
+            if texts := cls._message_previews(messages, "text", roles=roles):
+                return priority, texts[0]
+        if isinstance(messages, list):
+            for message in reversed(messages):
+                if not isinstance(message, dict) or message.get("role") not in {"tool", "assistant"}:
+                    continue
+                parts = message.get("parts")
+                if not isinstance(parts, list):
+                    continue
+                for part in reversed(parts):
+                    if isinstance(part, dict):
+                        for kind in ("tool_result", "tool_call"):
+                            if text := cls.part_preview(part, kind):
+                                return 2, text
+        if arguments := cls._preview_text(attributes.get("gen_ai.tool.call.arguments")):
+            return 2, arguments
+        instructions = attributes.get("gen_ai.system_instructions")
+        if isinstance(instructions, list):
+            for part in reversed(instructions):
+                if isinstance(part, dict) and (text := cls.part_preview(part, "text")):
+                    return 3, text
+        if texts := cls._message_previews(messages, "text", roles={"system"}):
+            return 3, texts[0]
+        return 4, ""
 
+    @classmethod
+    def trace_previews(cls, spans: list[dict[str, Any]], *, latest_input: bool = False) -> tuple[str, str]:
+        """消息倒序取最新内容；Trace 输入默认取最早 Span，执行线可选择最新 Span。"""
+        inputs: dict[int, list[tuple[int, int, str]]] = {}
+        outputs: dict[str, list[tuple[int, int, str]]] = {key: [] for key in cls._OUTPUT_PREVIEW_KEYS}
         for index, span in enumerate(spans):
-            attributes = span.get(OtlpKey.ATTRIBUTES)
-            if not isinstance(attributes, dict):
-                continue
+            attributes = span.get(OtlpKey.ATTRIBUTES) or {}
             start_time = span.get(OtlpKey.START_TIME) or 0
             end_time = span.get(OtlpKey.END_TIME) or start_time
-            user_texts = cls._message_previews(attributes.get("gen_ai.input.messages"), "text", roles={"user"})
-            if user_texts:
-                user_inputs.append((start_time, index, user_texts[-1]))
-            elif arguments := cls._preview_text(attributes.get("gen_ai.tool.call.arguments")):
-                tool_inputs.append((start_time, index, arguments))
-
-            for key in cls._OUTPUT_PREVIEW_KEYS:
-                roles = {"assistant", "tool"} if key == "tool_result" else {"assistant"}
-                previews = cls._message_previews(attributes.get("gen_ai.output.messages"), key, roles=roles)
-                if key == "tool_result":
+            priority, text = cls._input_preview(attributes)
+            if "input" in span:
+                text = cls._preview_text(span["input"])
+            if text:
+                inputs.setdefault(priority, []).append((start_time, index, text))
+            for kind in cls._OUTPUT_PREVIEW_KEYS:
+                roles = {"assistant", "model", "tool"} if kind == "tool_result" else {"assistant", "model"}
+                previews = cls._message_previews(attributes.get("gen_ai.output.messages"), kind, roles=roles)
+                if kind == "tool_result" and not previews:
                     if result := cls._preview_text(attributes.get("gen_ai.tool.call.result")):
-                        previews.append(result)
-                if previews:
-                    output_buckets[key].append((end_time, index, previews[-1]))
-
-        input_text = min(user_inputs)[2] if user_inputs else (min(tool_inputs)[2] if tool_inputs else "")
-        for key in cls._OUTPUT_PREVIEW_KEYS:
-            if candidates := output_buckets[key]:
+                        previews = [result]
+                if kind == "text" and "output" in span:
+                    previews = [cls._preview_text(span["output"])]
+                if previews and previews[0]:
+                    outputs[kind].append((end_time, index, previews[0]))
+        input_text = ""
+        if inputs:
+            candidates = inputs[min(inputs)]
+            input_text = (max(candidates) if latest_input else min(candidates))[2]
+        for kind in cls._OUTPUT_PREVIEW_KEYS:
+            if candidates := outputs[kind]:
                 return input_text, max(candidates)[2]
         return input_text, ""
 
@@ -106,7 +134,7 @@ class TraceSummary:
         tokens: Mapping[str, float],
         has_error: bool = False,
     ) -> dict[str, Any]:
-        input_text, output_text = cls._trace_previews(converted_spans)
+        input_text, output_text = cls.trace_previews(converted_spans)
         start_time: int = min((span.get(OtlpKey.START_TIME, 0) for span in raw_spans), default=0)
         end_time: int = max((span.get(OtlpKey.END_TIME, start_time) for span in raw_spans), default=start_time)
 

@@ -56,7 +56,7 @@ import transformTraceTree from '../../../components/trace-view/model/transform-t
 import { formatDate, formatDuration, formatTime } from '../../../components/trace-view/utils/date';
 import TimeSeries from '../../../plugins/charts/time-series/time-series';
 import { useTimeRangeInject } from '../../../plugins/hooks';
-import { QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constant';
+import { DEFAULT_TRACE_DATA, QUERY_TRACE_RELATION_APP, SPAN_KIND_MAPS } from '../../../store/constant';
 import { useSearchStore } from '../../../store/modules/search';
 import { type ListType, useTraceStore } from '../../../store/modules/trace';
 import SpanDetails from '../span-details';
@@ -382,7 +382,7 @@ export default defineComponent({
         field: 'root_service_category',
         width: 120,
 
-        render: ({ cell, data }: { cell: { text: string; value: string }; data: ITraceListItem }) => (
+        render: ({ cell }: { cell: { text: string; value: string }; data: ITraceListItem }) => (
           <div>{cell.text || '--'}</div>
         ),
         filter: isPreCalculationMode.value
@@ -413,7 +413,7 @@ export default defineComponent({
           // btnSave: !!traceListFilter.root_service_status_code.length ? t('确定') : false
         },
 
-        render: ({ cell, data }: { cell: number; data: ITraceListItem }) => (
+        render: ({ data }: { cell: number; data: ITraceListItem }) => (
           <div class={`status-code status-${data.root_service_status_code?.type}`}>
             {data.root_service_status_code?.value || '--'}
           </div>
@@ -439,7 +439,7 @@ export default defineComponent({
         settingsLabel: `${t('耗时')}`,
         field: 'trace_duration',
 
-        render: ({ cell, data }: { cell: number; data: ITraceListItem }) => (
+        render: ({ cell }: { cell: number; data: ITraceListItem }) => (
           <div>
             <span>{formatDuration(cell)}</span>
           </div>
@@ -796,16 +796,20 @@ export default defineComponent({
         getTraceDetails(traceId);
       }
     };
+    let detailRequestId = 0;
     const getTraceDetails = async (traceId: string) => {
+      const requestId = ++detailRequestId;
       searchCancelFn();
       curTraceId.value = traceId;
       store.setTraceDetail(true);
       store.setTraceLoaidng(true);
+      store.setTraceData({ ...DEFAULT_TRACE_DATA, appName: props.appName, trace_id: traceId });
 
       const params: any = {
         bk_biz_id: window.bk_biz_id,
         app_name: props.appName,
         trace_id: traceId,
+        reduce_span_details: true,
       };
 
       if (
@@ -819,14 +823,15 @@ export default defineComponent({
       if (traceDetailElem.value?.activePanel === 'timeline') {
         params[QUERY_TRACE_RELATION_APP] = store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP);
       }
-      await traceDetail(params, {
-        cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
-      })
-        .then(async data => {
-          await store.setTraceData({ ...data, appName: props.appName, trace_id: traceId });
-          store.setTraceLoaidng(false);
-        })
-        .catch(() => null);
+      try {
+        const data = await traceDetail(params, {
+          cancelToken: new CancelToken((c: any) => (searchCancelFn = c)),
+        }).catch(() => null);
+        if (requestId !== detailRequestId || curTraceId.value !== traceId) return;
+        await store.setTraceData({ ...DEFAULT_TRACE_DATA, ...data, appName: props.appName, trace_id: traceId });
+      } finally {
+        if (requestId === detailRequestId) store.setTraceLoaidng(false);
+      }
     };
     const handleCloseDetail = () => {
       if (!isFullscreen.value) return;
@@ -1065,7 +1070,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
+        render: ({ cell }: { cell: string; data: ISpanListItem }) => (
           <div>
             <span title={cell}>{cell}</span>
           </div>
@@ -1087,7 +1092,7 @@ export default defineComponent({
           sortFn: () => false,
         },
 
-        render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
+        render: ({ cell }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
           </div>
@@ -1109,7 +1114,7 @@ export default defineComponent({
           sortFn: () => false,
         },
 
-        render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
+        render: ({ cell }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{`${formatDate(cell)} ${formatTime(cell)}`}</span>
           </div>
@@ -1132,7 +1137,7 @@ export default defineComponent({
           sortFn: () => false,
         },
 
-        render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
+        render: ({ cell }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{formatDuration(cell, ' ')}</span>
           </div>
@@ -1156,7 +1161,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
+        render: ({ data }: { cell: number; data: ISpanListItem }) => (
           // TODO: 需要补上 圆点 样式
           <div style='display: flex; align-items: center'>
             <span class={`span-status-code-${data.status_code.type}`} />
@@ -1182,7 +1187,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: number; data: ISpanListItem }) => (
+        render: ({ data }: { cell: number; data: ISpanListItem }) => (
           <div>
             <span>{SPAN_KIND_MAPS[data.kind]}</span>
           </div>
@@ -1205,7 +1210,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
+        render: ({ data }: { cell: string; data: ISpanListItem }) => (
           <div
             class='link-column'
             onClick={() => handleOpenService(data.resource['service.name'])}
@@ -1232,7 +1237,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
+        render: ({ data }: { cell: string; data: ISpanListItem }) => (
           <div>
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['bk.instance.id']}>{data.resource['bk.instance.id']}</span>
@@ -1252,7 +1257,7 @@ export default defineComponent({
         ),
         field: 'resource.telemetry.sdk.name',
 
-        render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
+        render: ({ data }: { cell: string; data: ISpanListItem }) => (
           <div>
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['telemetry.sdk.name']}>{data.resource['telemetry.sdk.name']}</span>
@@ -1276,7 +1281,7 @@ export default defineComponent({
           filterFn: () => true as any,
         },
 
-        render: ({ cell, data }: { cell: string; data: ISpanListItem }) => (
+        render: ({ data }: { cell: string; data: ISpanListItem }) => (
           <div>
             {/* // eslint-disable-next-line @typescript-eslint/quotes */}
             <span title={data.resource['telemetry.sdk.version']}>{data.resource['telemetry.sdk.version']}</span>
@@ -1296,7 +1301,7 @@ export default defineComponent({
         ),
         field: 'trace_id',
 
-        render: ({ cell, data }: { cell: string; data: any[] }) => (
+        render: ({ cell }: { cell: string; data: any[] }) => (
           <div class='link-column'>
             <span
               class='link-text'

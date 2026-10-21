@@ -24,6 +24,27 @@
     white-space: nowrap;
   }
 
+  .view-detail-link {
+    display: none;
+    flex-shrink: 0;
+    gap: 2px;
+    align-items: center;
+    margin-left: 12px;
+    font-size: 12px;
+    color: #3a84ff;
+    cursor: pointer;
+
+    .icon-monitor {
+      font-size: 12px;
+    }
+  }
+
+  &:hover {
+    .view-detail-link {
+      display: inline-flex;
+    }
+  }
+
   .view-detail {
     display: flex;
     gap: 8px;
@@ -51,13 +72,13 @@
     border-radius: 50%;
   }
 
-  .view-cls {
+  .vital-metric {
     font-family: Arial, sans-serif;
     font-size: 11px;
     font-weight: 700;
     text-decoration: underline dotted;
     text-underline-offset: 2px;
-    cursor: default;
+    cursor: pointer;
   }
 
   .metric-value {

@@ -35,6 +35,7 @@
       boundary="viewport"
       ext-cls="batch-operation-menu"
       :interactive="true"
+      @hide="handleOuterMenuHide"
     >
       <bk-button :disabled="selectFavoriteList.length === 0">
         {{ $t('批量操作') }} <i class="bk-icon icon-angle-down" />
@@ -126,9 +127,10 @@
 
     <!-- 批量删除对话框 -->
     <bk-dialog
-      v-model="batchDeleteDialogVisible"
+      :value="batchDeleteDialogVisible"
       :width="480"
       ext-cls="batch-delete-dialog"
+      @value-change="onBatchDeleteDialogChange"
     >
       <template #header>
         <div class="dialog-content">
@@ -163,7 +165,7 @@
           >
             {{ $t('删除') }}
           </bk-button>
-          <bk-button @click="() => (batchDeleteDialogVisible = false)">
+          <bk-button @click="() => setBatchDeleteDialogVisible(false)">
             {{ $t('取消') }}
           </bk-button>
         </div>
@@ -175,6 +177,7 @@
 <script setup>
   import { ref, watch, computed, nextTick } from 'vue';
   import { bkMessage } from 'bk-magic-vue';
+  import { useDialogVisible } from '@/global/overlay';
   import useLocale from '@/hooks/use-locale';
   import useStore from '@/hooks/use-store';
   import $http from '@/api';
@@ -201,7 +204,14 @@
   const moveToGroupInputRef = ref(null);
   const checkInputAddFormRef = ref(null);
   const batchOperatePopoverRef = ref(null);
-  const batchDeleteDialogVisible = ref(false);
+  const {
+    visible: batchDeleteDialogVisible,
+    setVisible: setBatchDeleteDialogVisible,
+    onValueChange: onBatchDeleteDialogChange,
+  } = useDialogVisible(false, {
+    id: 'retrieve-batch-delete-dialog',
+    group: 'retrieve-dialog',
+  });
   const moveToGroupAddGroup = ref(false);
 
   const addGroupData = ref({
@@ -229,8 +239,12 @@
   }
 
   // 显示批量删除对话框
+  function handleOuterMenuHide() {
+    operationMenuRef.value?.hideHandler();
+  }
+
   function handleShowBatchDeleteDialog() {
-    batchDeleteDialogVisible.value = true;
+    setBatchDeleteDialogVisible(true);
     batchOperatePopoverRef.value?.hideHandler();
   }
 
@@ -244,7 +258,7 @@
       });
       if (res.result) {
         bkMessage({ theme: 'success', message: $t('批量删除成功') });
-        batchDeleteDialogVisible.value = false;
+        setBatchDeleteDialogVisible(false);
         emit('operateChange');
       }
     } catch (error) {
@@ -344,6 +358,7 @@
       }
     }
   }
+
   .tippy-popper.batch-move-to-group-menu {
     .tippy-tooltip {
       padding: 0;
@@ -351,6 +366,7 @@
       box-shadow: 0 2px 6px 0 #0000001a;
     }
   }
+
   .batch-move-to-group-menu-content {
     width: 240px;
     background-color: #fff;
@@ -426,6 +442,7 @@
       box-shadow: 0 2px 6px 0 #0000001a;
     }
   }
+
   .batch-move-to-group-menu {
     .tippy-tooltip {
       padding: 0;
@@ -433,10 +450,12 @@
       box-shadow: 0 2px 6px 0 #0000001a;
     }
   }
+
   .bk-dialog-wrapper.batch-delete-dialog {
     .dialog-content {
       padding: 0 32px;
       text-align: left;
+
       .title {
         margin: 18px 0 24px;
         font-size: 20px;
@@ -447,11 +466,11 @@
       .tips {
         padding: 0 16px;
         margin-bottom: 16px;
+        font-size: 14px;
         line-height: 46px;
+        color: #63656e;
         background: #f5f7fa;
         border-radius: 2px;
-        color: #63656e;
-        font-size: 14px;
       }
 
       .favorite-list {

@@ -23,7 +23,7 @@ from pypinyin import lazy_pinyin
 from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 from core.drf_resource import api
-from constants.apm import normalize_app_name
+from constants.apm import BUILTIN_PROFILING_APP_NAME, normalize_app_name
 from metadata.models.data_link.constants import (
     DataLinkKind,
     DataLinkResourceStatus,
@@ -818,6 +818,12 @@ class BkDataDorisV4Provider:
             },
         }
 
+    def _flush_timeout(self) -> int:
+        """主动 Profiling 内置数据源缩短刷盘等待，其余 Profiling 使用 60 秒。"""
+        if self.app_name == BUILTIN_PROFILING_APP_NAME:
+            return 30
+        return 60
+
     def _build_doris_binding_config(self, bk_data_id: int) -> dict:
         dorisbinding_name = self._doris_binding_name(bk_data_id)
         rt_name = self._result_table_name(bk_data_id)
@@ -857,7 +863,7 @@ class BkDataDorisV4Provider:
                     "expires": self.config.expires,
                     "sample_table_name": f"{rt_name}_sample_{self.bkbase_biz_id}",
                     "label_table_name": f"{rt_name}_label_{self.bkbase_biz_id}",
-                    "flush_timeout": 300,
+                    "flush_timeout": self._flush_timeout(),
                 },
             },
         }

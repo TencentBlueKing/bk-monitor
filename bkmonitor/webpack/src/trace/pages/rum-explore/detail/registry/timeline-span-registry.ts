@@ -41,7 +41,7 @@ const TIMELINE_SPAN_TYPE_CONFIG: Record<string, IRumTimelineSpanTypeConfig> = {
     showStatusCode: true,
     tagLabel: attributes => {
       const resourceType = attributes['resource.type'];
-      return resourceType ? `Resource(${resourceType})` : SPAN_TYPE_META.resource.label;
+      return resourceType ? `Resource(${resourceType})` : (SPAN_TYPE_META.resource.label ?? 'Resource');
     },
   },
 };

@@ -257,7 +257,10 @@ export const useHostTopoTree = (nodeId: ShallowRef<string>, readonly = false) =>
     const firstVisible = Math.floor(anchorScrollTop / TOPO_ROW_HEIGHT);
     const anchorId = visibleRows.value[firstVisible - visibleStart.value]?.id || '';
     const currentId = selectedNode.value?.id || nodeId.value;
-    if (!preserve && tree[0]) (tree[0] as IHostTopoTreeNode & { isOpen?: boolean }).isOpen = true;
+    if (!preserve && tree[0]) {
+      tree = [...tree];
+      tree[0] = { ...tree[0], isOpen: true } as IHostTopoTreeNode & { isOpen?: boolean };
+    }
     const result = await topoTreeWorker.init(
       tree,
       hideEmptyNode.value,

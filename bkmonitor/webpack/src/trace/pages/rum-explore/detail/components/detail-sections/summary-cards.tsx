@@ -110,12 +110,11 @@ export default defineComponent({
 
     function renderCard(card: IRumSummaryCardVM) {
       const toneColor = CARD_TONE_COLOR[card.tone ?? RumCardToneEnum.DEFAULT];
-      const isLink = card.type === 'link';
+      const isClickable = !!card.click;
       return (
         <div
           key={card.key}
-          class={['rum-summary-card', card.cardCls, { 'link-type': isLink }]}
-          onClick={() => isLink && card.click?.()}
+          class={['rum-summary-card', card.cardCls, { 'clickable-card': isClickable }]}
         >
           <div class='card-head'>
             <span
@@ -160,6 +159,7 @@ export default defineComponent({
                 v-overflow-tips={{
                   content: `${card.value}${card.growthRate ? card.growthRate.text : ''}${card.unit ? card.unit.text : ''}`,
                 }}
+                onClick={card.click}
               >
                 {card.value}
               </span>

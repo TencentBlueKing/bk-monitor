@@ -1,0 +1,240 @@
+[
+  {
+    "span_id": "0000000000000003",
+    "parent_span_id": "0000000000000002",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 100200,
+    "end_time": 101008,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000016",
+    "parent_span_id": "0000000000000014",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 102100,
+    "end_time": 103045,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000002",
+    "parent_span_id": "0000000000000001",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 100100,
+    "end_time": 100608,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000006",
+    "parent_span_id": "0000000000000003",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 100500,
+    "end_time": 101281,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 2
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000017",
+    "parent_span_id": "0000000000000014",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 102200,
+    "end_time": 102391,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000007",
+    "parent_span_id": "0000000000000003",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 100600,
+    "end_time": 101313,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000004",
+    "parent_span_id": "0000000000000003",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 100300,
+    "end_time": 100330,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000015",
+    "parent_span_id": "0000000000000014",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 102000,
+    "end_time": 102858,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000019",
+    "parent_span_id": "0000000000000014",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 102400,
+    "end_time": 103318,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000014",
+    "parent_span_id": "0000000000000002",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 101900,
+    "end_time": 102876,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000005",
+    "parent_span_id": "0000000000000003",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 100400,
+    "end_time": 100844,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000018",
+    "parent_span_id": "0000000000000014",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 102300,
+    "end_time": 102424,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000008",
+    "parent_span_id": "0000000000000003",
+    "trace_id": "trace",
+    "span_name": "op0",
+    "start_time": 100700,
+    "end_time": 100973,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  },
+  {
+    "span_id": "0000000000000001",
+    "parent_span_id": "",
+    "trace_id": "trace",
+    "span_name": "root0",
+    "start_time": 100000,
+    "end_time": 100868,
+    "elapsed_time": 100,
+    "kind": 1,
+    "resource": {
+      "service.name": "s0"
+    },
+    "status": {
+      "code": 1
+    },
+    "attributes": {}
+  }
+]
