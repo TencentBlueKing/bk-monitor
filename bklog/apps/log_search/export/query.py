@@ -4,8 +4,9 @@ import copy
 from datetime import datetime, timezone
 
 from apps.api import UnifyQueryApi
-from apps.log_search.constants import ExportSearchType
+from apps.log_search.constants import DorisFieldTypeEnum, ExportSearchType
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
+from apps.log_unifyquery.handler.mapping import UnifyQueryMappingHandler
 
 
 def snapshot_time_fields(handler, search_type):
@@ -20,6 +21,9 @@ def snapshot_time_fields(handler, search_type):
     for query, field in zip(handler.base_dict.get("query_list", []), fields):
         if field["type"] not in ("date", "date_nanos"):
             continue
+        # 与路由注册一致：逻辑 date 使用毫秒，即使物理字段为 long，或配置未保存单位。
+        if field["type"] == "date":
+            field["unit"] = "millisecond"
         # Handler 的逻辑 date 可能实际是 long/date/date_nanos。复用 UQ 的 field_map 入口，
         # 在创建时确定字面量格式；否则 date_nanos 的数字转日期可能受 UQ 本地时区影响。
         params = {
@@ -37,9 +41,12 @@ def snapshot_time_fields(handler, search_type):
         else:
             info = raw.get(field["name"], {})
             physical_type = info.get("type") or info.get("field_type")
+        # Doris/BKDATA 可能返回原生 BIGINT、datetime(3)；复用现有映射，不把类型白名单局限为 ES。
+        physical_type = physical_type.strip().lower() if isinstance(physical_type, str) else ""
+        physical_type = DorisFieldTypeEnum.get_es_field_type({"field_type": physical_type})
         if physical_type not in ("long", "date", "date_nanos"):
             raise ValueError(f"无法确认导出时间字段 {field['name']} 的实际类型")
-        field["type"] = physical_type
+        field["type"] = UnifyQueryMappingHandler.normalize_dt_event_timestamp_field_type(field["name"], physical_type)
     return fields
 
 
