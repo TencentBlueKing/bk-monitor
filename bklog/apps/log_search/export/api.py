@@ -20,6 +20,7 @@ the project delivered to anyone in the future.
 """
 
 import copy
+from dataclasses import dataclass
 from datetime import timedelta
 
 from django.shortcuts import get_object_or_404
@@ -36,7 +37,7 @@ from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.export.config import current_policy, is_sharded_export_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.log_search.export.notification import build_notification_context
-from apps.log_search.export.query import snapshot_time_fields
+from apps.log_search.export.query import normalize_export_sort, snapshot_time_fields
 from apps.log_search.export.storage import build_storage
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -68,6 +69,13 @@ class ExportStorageUnavailable(APIException):
     default_code = "EXPORT_STORAGE_UNAVAILABLE"
 
 
+@dataclass(frozen=True)
+class ExportSortConfirmation:
+    """只返回排序建议，不创建任务；客户端确认后携带完整 sort_list 重新提交。"""
+
+    sort_list: list
+
+
 def normalize_legacy_export_params(data, *, search_type=ExportSearchType.INDEX_SET):
     """将旧入口的公共参数转换为分片任务参数。"""
     start_time, end_time = data["start_time"], data["end_time"]
@@ -89,11 +97,12 @@ def normalize_legacy_export_params(data, *, search_type=ExportSearchType.INDEX_S
         "sort_list": data.get("sort_list") or [],
         "export_fields": data.get("export_fields", []),
         "is_desensitize": data.get("is_desensitize", True),
+        "supports_sort_confirmation": data.get("supports_sort_confirmation", False),
     }
 
 
-def create_export_job(data, raw_params=None, job_bk_biz_id=None):
-    """创建分片导出任务；raw_params 为创建时的原始请求参数，未传时回退用 data 本身。"""
+def create_export_job(data, raw_params=None, job_bk_biz_id=None) -> ExportJob | ExportSortConfirmation:
+    """创建任务，需调整排序时仅返回确认建议；raw_params 默认使用 data。"""
     raw_params = raw_params if raw_params is not None else data
     username = get_request_external_username() or get_request_username(default="")
     space = Space.objects.get(space_uid=data["space_uid"])
@@ -152,6 +161,16 @@ def create_export_job(data, raw_params=None, job_bk_biz_id=None):
     # 先按当前额度快速拒绝，避免为必然失败的任务发起查询；真正占额度在落库时锁内复检
     AsyncTask.check_running_count_by_user(username, is_scene=is_scene)
 
+    try:
+        params["export_time_fields"] = snapshot_time_fields(handler, search_type)
+    except ValueError as error:
+        raise ValidationError({"export_time_fields": str(error)}) from error
+    export_sort = normalize_export_sort(params["sort_list"], params["export_time_fields"])
+    if data.get("supports_sort_confirmation") and export_sort != params["sort_list"]:
+        return ExportSortConfirmation(export_sort)
+    # 历史重试也使用最终确认的完整排序，不能回退到可变化的用户默认配置。
+    raw_params = {**raw_params, "sort_list": copy.deepcopy(params["sort_list"])}
+
     policy = current_policy()
     requested_parallelism = data.get("requested_parallelism", policy.default_parallelism)
     if requested_parallelism > policy.max_parallelism:
@@ -170,11 +189,6 @@ def create_export_job(data, raw_params=None, job_bk_biz_id=None):
         raise PreCheckAsyncExportException(f"导出预检查查询失败：{error}") from error
     if not result.get("list"):
         raise PreCheckAsyncExportException()
-
-    try:
-        params["export_time_fields"] = snapshot_time_fields(handler, search_type)
-    except ValueError as error:
-        raise ValidationError({"export_time_fields": str(error)}) from error
 
     # 额度复检与落库必须在同一把用户级锁内：两个并发请求都通过上面的检查时，
     # 只有一个能在锁内看到对方的任务并真正占住额度

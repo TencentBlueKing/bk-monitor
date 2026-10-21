@@ -67,6 +67,18 @@ def time_order(job):
     return "desc" if first.startswith("-") else "asc"
 
 
+def normalize_export_sort(sort_list, fields):
+    """仅将非时间主排序提升为时间降序；异构时间路由仍沿用原兼容策略。"""
+    result = copy.deepcopy(sort_list)
+    if not fields or len({(field["name"], field["type"], field["unit"]) for field in fields}) != 1:
+        return result
+    time_field = fields[0]["name"]
+    if result and result[0][0] == time_field:
+        return result
+    # 时间字段可能原本在次排序位置；提升后去掉旧项，避免同一字段出现相反方向。
+    return [[time_field, "desc"], *(item for item in result if item[0] != time_field)]
+
+
 def _time_value(milliseconds, field):
     if field["type"] == "date_nanos":
         seconds, remainder = divmod(milliseconds, 1000)

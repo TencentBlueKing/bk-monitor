@@ -2808,8 +2808,8 @@ class CrossBusinessExportOwnershipTests(TestCase):
         self.assertEqual(job.space_uid, self.OWNER_SPACE_UID)
         self.assertEqual(job.bk_biz_id, 10)
         self.assertEqual(job.search_params["bk_biz_id"], 10)
-        # 未指定任务归属时原样保留请求参数，不做业务回填
-        self.assertEqual(job.raw_params, self.job_params())
+        # 未指定任务归属时不做业务回填；排序仍冻结为创建时的实际排序。
+        self.assertEqual(job.raw_params, {**self.job_params(), "sort_list": [["dtEventTimeStamp", "desc"]]})
 
     def test_single_index_set_export_history_stays_in_the_request_business(self):
         """检索参数被解析成归属业务后，导出历史仍需能在请求方业务查到该任务。"""
@@ -2967,7 +2967,7 @@ class CreateJobRangeTests(TestCase):
                 self.assertEqual((job.search_params["start_time"], job.search_params["end_time"]), (1500, 3701))
                 self.assertEqual(job.index_set_type, index_type)
                 self.assertEqual(job.index_set_ids, [] if is_scene else [self.index_set.pk])
-                self.assertEqual(job.raw_params, raw_params)
+                self.assertEqual(job.raw_params, {**raw_params, "sort_list": handler.origin_order_by})
                 self.assertEqual(data, raw_params)
                 self.assertEqual(job.search_params["keyword"], "*")
                 self.assertEqual(job.search_params["addition"], [])
