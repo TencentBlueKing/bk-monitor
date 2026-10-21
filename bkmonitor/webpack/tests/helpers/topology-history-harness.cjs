@@ -40,17 +40,18 @@ function timelineHarness(response) {
   history.prepareHistoryFrames(cache.diff);
   const items = new Map();
   const makeItem = model => {
-    const item = { model: { ...model }, _cfg: { visible: true }, getModel() { return this.model; }, getEdges() { return edges.filter(e => e.model.source === model.id || e.model.target === model.id); }, show() { this._cfg.visible = true; }, hide() { this._cfg.visible = false; } };
+    const item = { model: { ...model }, _cfg: { visible: true }, getModel() { return this.model; }, isVisible() { return this._cfg.visible; }, getEdges() { return edges.filter(e => e.model.source === model.id || e.model.target === model.id); }, show() { this._cfg.visible = true; }, hide() { this._cfg.visible = false; } };
     items.set(model.id, item);
     return item;
   };
   const nodes = cache.complete.nodes.map(makeItem);
   const edges = cache.complete.edges.map(e => makeItem({ ...e, id: load('snapshot-analysis.ts').topologyEdgeId(e) }));
-  const graph = { findById: id => items.get(id), getEdges: () => edges, getCombos: () => [], showItem: i => i.show(), hideItem: i => i.hide(), updateItem: (i, m) => { i.model = { ...i.model, ...m }; } };
-  const state = Object.fromEntries(['isPlay', 'showResourceGraph', 'showServiceOverview', 'timelinePosition'].map(k => [k, { value: false }]));
+  const combos = history.historyCombos(cache.complete, cache.latest).map(makeItem);
+  const graph = { getNodes: () => nodes, setItemState(item, state) { if (state === "show-animate") item.show(); }, findById: id => items.get(id), getEdges: () => edges, getCombos: () => combos, showItem: i => { i.show(); if (combos.includes(i)) nodes.filter(n => n.model.comboId === i.model.id).forEach(n => n.show()); }, hideItem: i => { i.hide(); if (combos.includes(i)) nodes.filter(n => n.model.comboId === i.model.id).forEach(n => n.hide()); }, updateItem: (i, m) => { i.model = { ...i.model, ...m }; } };
+  const state = Object.fromEntries(['refreshTime', 'isPlay', 'showResourceGraph', 'showServiceOverview', 'timelinePosition'].map(k => [k, { value: false }]));
   const { useTopoTimeline } = load('composables/use-topo-timeline.ts');
   const identity = load('snapshot-analysis.ts').topologyEdgeId;
   const timeline = useTopoTimeline(state, { topoRawDataCache: { value: cache }, findEdges: (es, e) => es.find(x => identity(x) === identity(e)), clearRefreshTimeout() {}, handleChangeRefleshTime() {} }, { getGraph: () => graph }, () => {});
-  return { timeline, nodes, edges, cache };
+  return { timeline, nodes, edges, combos, cache, state };
 }
 module.exports = { load, history, layout, timelineHarness };

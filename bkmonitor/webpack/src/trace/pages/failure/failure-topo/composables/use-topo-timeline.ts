@@ -127,6 +127,29 @@ export function useTopoTimeline(
     });
   };
 
+  const applyRootComboVisibility = () => {
+    const graph = graphAccess.getGraph();
+    if (!graph) return;
+    const combos = new Map(graph.getCombos().map(combo => [String(combo.getModel().id), combo]));
+    const occupied = new Set<string>();
+    for (const node of graph.getNodes()) {
+      if (!node.isVisible()) continue;
+      let id = node.getModel().comboId;
+      const visited = new Set<string>();
+      while (id != null && !visited.has(String(id))) {
+        const key = String(id);
+        visited.add(key);
+        occupied.add(key);
+        id = combos.get(key)?.getModel().parentId;
+      }
+    }
+    for (const [id, combo] of combos) {
+      if (combo.getModel().parentId) continue;
+      // G6 graph.showItem recursively restores deleted descendants; only toggle the category itself.
+      combo[occupied.has(id) ? 'show' : 'hide']();
+    }
+  };
+
   const handleRenderTimeline = () => {
     /** 播放时关闭查看资源态 */
     state.showResourceGraph.value = false;
@@ -271,6 +294,7 @@ export function useTopoTimeline(
 
       g[showNodes.length > 0 ? 'showItem' : 'hideItem'](combo);
     });
+    applyRootComboVisibility();
     return currNodes.length === 0 || !next;
   };
 
@@ -572,6 +596,7 @@ export function useTopoTimeline(
         updateCombo && ServiceCombo.labelChange(combo);
         g[showNodes.length > 0 ? 'showItem' : 'hideItem'](combo);
       });
+      applyRootComboVisibility();
     }
   };
 
