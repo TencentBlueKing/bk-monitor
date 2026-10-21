@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from .aiops import *  # noqa
+from .incident_delivery import IncidentDeliveryReceipt  # noqa
 from .as_code import *  # noqa
 from .base import *  # noqa
 from .bcs_base import *  # noqa

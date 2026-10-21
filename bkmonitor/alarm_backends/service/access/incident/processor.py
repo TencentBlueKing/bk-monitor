@@ -19,8 +19,15 @@ from pika.spec import Basic
 from alarm_backends.core.cache.strategy import StrategyCacheManager
 from alarm_backends.core.storage.rabbitmq import RabbitMQClient
 from alarm_backends.service.access.base import BaseAccessProcess
+from alarm_backends.service.access.incident.delivery import (
+    DeliveryBusy,
+    DeliveryConflict,
+    DeliveryUncertain,
+    consume_once,
+)
 from alarm_backends.service.composite.tasks import check_incident_action_and_composite
 from bkmonitor.aiops.incident.models import IncidentSnapshot
+from bkmonitor.aiops.incident.consumption import strict_incident_delivery
 from bkmonitor.aiops.incident.operation import IncidentOperationManager
 from bkmonitor.documents.alert import AlertDocument
 from bkmonitor.documents.base import BulkActionType
@@ -71,6 +78,11 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             try:
                 self.handle_sync_info(sync_info)
                 ch.basic_ack(method.delivery_tag)
+            except DeliveryBusy:
+                ch.basic_nack(method.delivery_tag, requeue=True)
+            except (DeliveryConflict, DeliveryUncertain):
+                logger.exception("Incident event rejected: event_id=%s", sync_info.get("event_id"))
+                ch.basic_nack(method.delivery_tag, requeue=False)
             finally:
                 logger.info(
                     "[PERF] incident_id=%s sync_type=%s alert_count=%s stage=callback cost_ms=%s",
@@ -169,6 +181,9 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
 
         :param sync_info: 同步内容
         """
+        return consume_once(sync_info, self._handle_sync_info)
+
+    def _handle_sync_info(self, sync_info: dict) -> None:
         if sync_info["sync_type"] == IncidentSyncType.CREATE.value:
             self.create_incident(sync_info)
         elif sync_info["sync_type"] == IncidentSyncType.UPDATE.value:
@@ -291,6 +306,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             logger.info(f"[CREATE]Success to init incident[{sync_info['incident_id']}] data")
         except Exception as e:
             logger.error(f"[CREATE]Access incident error: {e}", exc_info=True)
+            if self.is_bkfara_notice(sync_info) and "event_id" in sync_info:
+                raise
             return
 
         # 生成版本ID
@@ -365,6 +382,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             )
         except Exception as e:
             logger.error(f"[CREATE]Access incident as document error: {e}", exc_info=True)
+            if self.is_bkfara_notice(sync_info) and "event_id" in sync_info:
+                raise
             return
 
         # 记录故障流转
@@ -386,6 +405,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             )
         except Exception as e:
             logger.error(f"[CREATE]Record incident operations error: {e}", exc_info=True)
+            if self.is_bkfara_notice(sync_info) and "event_id" in sync_info:
+                raise
             return
 
     def update_alert_incident_relations(
@@ -427,6 +448,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 continue
             except Exception as e:
                 logger.error(f"Failed to get alert document {alert_id}: {e}")
+                if strict_incident_delivery.get():
+                    raise
                 continue
 
         if update_alerts:
@@ -525,6 +548,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             return
         except Exception as e:
             logger.error(f"[UPDATE]Access incident error: {e}", exc_info=True)
+            if self.is_bkfara_notice(sync_info) and "event_id" in sync_info:
+                raise
             return
 
         # 生成故障快照记录
@@ -611,6 +636,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
             )
         except Exception as e:
             logger.error(f"[UPDATE]Access incident as document error: {e}", exc_info=True)
+            if self.is_bkfara_notice(sync_info) and "event_id" in sync_info:
+                raise
             return
 
         # 记录故障流转
@@ -663,6 +690,8 @@ class AccessIncidentProcess(BaseAccessIncidentProcess):
                 )
         except Exception as e:
             logger.error(f"[UPDATE]Record incident operations error: {e}", exc_info=True)
+            if self.is_bkfara_notice(sync_info) and "event_id" in sync_info:
+                raise
             return
 
     def generate_incident_labels(self, incident, snapshot) -> None:
