@@ -17,9 +17,9 @@
 
     h1 {
       margin: 20px 0;
-      font-size: 28px;
-      font-weight: 700;
-      line-height: 40px;
+      font-size: 20px;
+      font-weight: 500;
+      line-height: 28px;
       color: #313238;
     }
   }
@@ -46,8 +46,8 @@
   }
 
   .un-authorized-description {
-    font-size: 16px;
-    line-height: 28px;
+    font-size: 14px;
+    line-height: 22px;
   }
 
   .un-authorized-actions {
@@ -58,11 +58,6 @@
     margin-top: 28px;
 
     .bk-button {
-      height: 40px;
-      padding: 0 24px;
-      font-size: 16px;
-      line-height: 38px;
-
       .bklog-jump {
         margin-left: 8px;
       }
@@ -94,7 +89,7 @@
     flex-shrink: 0;
     gap: 6px;
     align-items: center;
-    color: #347de3;
+    color: #3a84ff;
     text-decoration: none;
 
     .bklog-jump {
@@ -107,7 +102,7 @@
   }
 
   .un-authorized-guide {
-    margin-top: 56px;
+    margin-top: 32px;
     background: #fff;
     border: 1px solid #e2e6ed;
     border-radius: 4px;
@@ -132,7 +127,7 @@
     h2 {
       margin: 0;
       font-size: 16px;
-      font-weight: 700;
+      font-weight: 500;
       line-height: 24px;
       color: #313238;
     }
@@ -163,7 +158,7 @@
     width: 32px;
     height: 32px;
     font-size: 16px;
-    color: #347de3;
+    color: #3a84ff;
     background: #edf4ff;
     border-radius: 50%;
   }
@@ -173,16 +168,16 @@
 
     h3 {
       margin: 4px 0 10px;
-      font-size: 16px;
-      font-weight: 400;
-      line-height: 24px;
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 22px;
       color: #313238;
     }
 
     p {
-      font-size: 13px;
-      line-height: 24px;
-      color: #979ba5;
+      font-size: 12px;
+      line-height: 20px;
+      color: #63656e;
       overflow-wrap: anywhere;
     }
   }
@@ -251,13 +246,13 @@
       font-size: 14px;
       font-weight: 400;
       line-height: 22px;
-      color: #3b5f86;
+      color: #313238;
     }
 
     p {
       font-size: 12px;
       line-height: 20px;
-      color: #7894b8;
+      color: #63656e;
     }
 
     .un-authorized-assistant-inline {
@@ -284,8 +279,8 @@
     align-items: center;
     justify-content: center;
     margin-top: 32px;
-    font-size: 16px;
-    line-height: 28px;
+    font-size: 14px;
+    line-height: 22px;
 
     .bklog-user-group {
       font-size: 24px;
@@ -295,8 +290,8 @@
 
   .un-authorized-external-hint {
     margin-top: 24px;
-    font-size: 13px;
-    line-height: 24px;
+    font-size: 12px;
+    line-height: 20px;
     color: #979ba5;
   }
 
@@ -322,7 +317,7 @@
 .un-authorized-fallback .un-authorized-assistant {
   padding: 0;
   font: inherit;
-  color: #347de3;
+  color: #3a84ff;
   text-decoration: none;
   cursor: pointer;
   background: none;
@@ -350,7 +345,7 @@
     min-height: 0;
     padding-top: 6px;
     overflow-y: auto;
-    line-height: 26px;
+    line-height: 22px;
     overflow-wrap: anywhere;
   }
 
@@ -361,7 +356,7 @@
 
   .un-authorized-help-intro {
     margin: 0 0 20px;
-    font-size: 16px;
+    font-size: 14px;
   }
 
   .un-authorized-permission-guide {
@@ -375,7 +370,7 @@
   .un-authorized-help-card {
     padding: 16px 18px;
     margin-bottom: 18px;
-    color: #7a8194;
+    color: #63656e;
     border: 1px solid #dfe5ee;
     border-radius: 4px;
 
@@ -384,8 +379,8 @@
       gap: 8px;
       align-items: center;
       margin: 0 0 12px;
-      font-size: 16px;
-      font-weight: 400;
+      font-size: 14px;
+      font-weight: 500;
       color: #313238;
     }
 
@@ -396,7 +391,7 @@
     .un-authorized-help-path {
       padding: 8px 12px;
       margin: 0 0 14px;
-      color: #347de3;
+      color: #3a84ff;
       background: #f4f8ff;
     }
   }
@@ -408,9 +403,9 @@
 
   .un-authorized-help-recommended {
     padding: 0 6px;
-    font-size: 10px;
+    font-size: 12px;
     line-height: 18px;
-    color: #347de3;
+    color: #3a84ff;
     background: #edf4ff;
     border-radius: 2px;
   }
@@ -418,7 +413,7 @@
   .un-authorized-help-notice {
     padding: 12px 16px;
     margin: 0;
-    color: #5079b4;
+    color: #63656e;
     background: #f0f6ff;
     border: 1px solid #d6e5ff;
     border-radius: 4px;
@@ -433,21 +428,21 @@
       display: list-item;
       padding-left: 0;
       margin-bottom: 16px;
-      font-size: 16px;
+      font-size: 14px;
       list-style: inherit;
     }
 
     h3 {
       margin: 0 0 6px;
-      font-size: 16px;
-      font-weight: 400;
+      font-size: 14px;
+      font-weight: 500;
       color: #313238;
     }
 
     p {
       margin: 0;
       font-size: 14px;
-      color: #7a8194;
+      color: #63656e;
     }
   }
 
@@ -463,7 +458,7 @@
     display: inline-flex;
     gap: 4px;
     align-items: center;
-    color: #347de3;
+    color: #3a84ff;
     text-decoration: none;
 
     &[href] {
