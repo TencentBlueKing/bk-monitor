@@ -25,6 +25,7 @@ from datetime import timedelta
 
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from rest_framework.exceptions import APIException, ValidationError
 
 from apps.log_search.constants import (
@@ -37,7 +38,7 @@ from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.export.config import current_policy, is_sharded_export_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.log_search.export.notification import build_notification_context
-from apps.log_search.export.query import normalize_export_sort, snapshot_time_fields
+from apps.log_search.export.query import UnsupportedExportTimeField, normalize_export_sort, snapshot_time_fields
 from apps.log_search.export.storage import build_storage
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -163,8 +164,20 @@ def create_export_job(data, raw_params=None, job_bk_biz_id=None) -> ExportJob | 
 
     try:
         params["export_time_fields"] = snapshot_time_fields(handler, search_type)
+    except UnsupportedExportTimeField as error:
+        raise ValidationError(
+            {
+                "export_time_fields": _("无法确认导出时间字段 {field_name} 的实际类型").format(
+                    field_name=error.field_name
+                )
+            }
+        ) from error
     except ValueError as error:
-        raise ValidationError({"export_time_fields": str(error)}) from error
+        # 通用异常处理也会透传 ValueError，必须在此阻断上游内部信息的返回。
+        logger.exception(
+            "[sharded_export_time_fields_failure] space_uid=%s search_type=%s", space.space_uid, search_type
+        )
+        raise APIException(_("获取导出时间字段失败，请稍后重试")) from error
     export_sort = normalize_export_sort(params["sort_list"], params["export_time_fields"])
     if data.get("supports_sort_confirmation") and export_sort != params["sort_list"]:
         return ExportSortConfirmation(export_sort)
