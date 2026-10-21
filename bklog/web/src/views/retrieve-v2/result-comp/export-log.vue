@@ -449,6 +449,15 @@
       },
     },
     watch: {
+      totalCount(val) {
+        if (val < 10000) {
+          this.downloadType = 'sampling';
+        } else if (val < 2000000) {
+          this.downloadType = 'all';
+        } else {
+          this.downloadType = 'quick';
+        }
+      },
       routerIndexSet: {
         immediate: true,
         handler(newVal) {
@@ -1008,7 +1017,6 @@
   @import '@/scss/mixins/flex.scss';
 
   .operation-icon {
-    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1020,6 +1028,7 @@
     border-radius: 2px;
     outline: none;
     transition: boder-color 0.2s;
+    position: relative;
 
     &:hover {
       border-color: #4d4f56;
@@ -1040,9 +1049,9 @@
     .progress-mask {
       position: absolute;
       top: 0;
+      left: 0;
       right: 0;
       bottom: 0;
-      left: 0;
       background: conic-gradient(from 0deg, rgba(0, 0, 0, 0) var(--progress, 0%), rgba(0, 0, 0, 0.3) 0);
       transition: background 0.25s ease;
     }
@@ -1242,12 +1251,12 @@
       width: 100%;
 
       .view-history-btn {
-        z-index: 10;
-        padding-left: 12px;
         margin-left: 16px;
+        padding-left: 12px;
         font-size: 14px;
         color: #3a84ff;
         cursor: pointer;
+        z-index: 10;
         border-left: 1px solid #dcdee5;
 
         &:hover {
@@ -1264,13 +1273,13 @@
         .failed-task-count {
           width: 20px;
           height: 20px;
-          margin-right: 4px;
-          font-size: 12px;
-          line-height: 20px;
-          color: #fff;
           text-align: center;
+          line-height: 20px;
+          font-size: 12px;
           background-color: #ea3636;
           border-radius: 50%;
+          color: #fff;
+          margin-right: 4px;
         }
 
         .failed-task-text {
@@ -1283,8 +1292,8 @@
         width: 16px;
         height: 16px;
         margin-left: 8px;
-        background: conic-gradient(from 0deg, rgba(233, 237, 245, 1) var(--progress, 0%), rgba(0, 0, 0, 0.3) 0);
         border-radius: 50%;
+        background: conic-gradient(from 0deg, rgba(233, 237, 245, 1) var(--progress, 0%), rgba(0, 0, 0, 0.3) 0);
       }
     }
   }
@@ -1317,10 +1326,10 @@
   }
 
   .download-progress-content {
+    padding: 16px 0;
     display: flex;
     flex-direction: column;
     gap: 24px;
-    padding: 16px 0;
     cursor: pointer;
   }
 </style>
