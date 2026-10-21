@@ -574,9 +574,17 @@ JSON 导出保留来源目录层级；压缩包沿用目录分隔符转连字符
 
 预解析业务错误使用统一的 `{code, message, path}` 条目：`INVALID_CONFIG`、`INVALID_SPACE`、`RULE_NOT_FOUND`、`RESOLVE_FAILED` 沿用后台 API 的 HTTP 200 / `result=false` / `code=3300004`，详情在 `data.errors`。解析成功但超限时，`deployment_check.errors` 返回 `SOURCE_LIMIT_EXCEEDED` 或 `RULE_LIMIT_EXCEEDED`，并提供 `actual` 和 `limit`。API 和 MCP 错误码与处理方式一致，完整示例见各自预解析接口文档。
 
+### 指标选择器
+
+执行声明准备好输出 ResultTable 和指标字段后，V4 指标会随现有指标缓存刷新进入“监控采集 / 预计算指标”，支持单租户和多租户。可按输出指标名、规则组名称、结果表 ID 或 `data_label` 搜索；配置了 `data_label` 时可使用 `data_label.metric_name` 形式的可读指标名。
+
+结果表列表包含 V4 和旧版预计算，并统一参与分页。缓存保留真实业务 ID，按租户及空间隔离；非 bkcc 空间沿用负数业务 ID，可通过现有手动刷新入口更新指标目录。仅保存声明、尚未准备输出元数据的规则不会生成指标目录项。目录来自输出元数据，运行情况通过 Flow 状态查询。
+
+软删除、删除声明或 Flow 删除完成的规则不再进入目录，下次周期刷新或手动刷新后移除对应缓存；历史元数据和已有历史查询窗口保留。
+
 ### 软删除边界
 
-is_deleted 仅由 AsCode／公共配置 API 使用。删除入口在同一事务内设置 is_deleted=true 并声明 desired_status=deleted，提交后执行 Flow 删除。所有公共查询、修改、预解析已有对象、下发、导入匹配和导出都过滤 is_deleted=false。重复删除返回对象不存在；重新导入同名配置创建新对象。
+is_deleted 由 AsCode／公共配置 API 和指标目录入口过滤。删除入口在同一事务内设置 is_deleted=true 并声明 desired_status=deleted，提交后执行 Flow 删除。所有公共查询、修改、预解析已有对象、下发、导入匹配和导出都过滤 is_deleted=false。重复删除返回对象不存在；重新导入同名配置创建新对象。
 
 外部 Flow 删除失败时仍保持 is_deleted=true，由原有后台任务重试。deleted_at 继续表示 Flow 删除完成时间；规则、Spec、Resolved、Flow 和事件保留。全局 Manager、Admin 接口、后台调度条件及历史查询窗口不变。
 

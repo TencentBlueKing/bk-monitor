@@ -338,16 +338,6 @@ class ListResultTableResource(Resource):
             .distinct()
         ]
 
-        # 只查询不属于bcs指标的信息
-        result_table_queryset = models.ResultTable.objects.filter(
-            bk_tenant_id=bk_tenant_id, is_deleted=False, table_id__in=table_ids
-        )
-
-        # 判断是否有结果表类型的过滤
-        datasource_type = request_data["datasource_type"]
-        if datasource_type is not None:
-            result_table_queryset = result_table_queryset.filter(table_id__startswith=f"{datasource_type}.")
-
         # 判断是否有全业务和单业务的过滤需求
         bk_biz_id = []
         if request_data["is_public_include"] is not None and request_data["is_public_include"]:
@@ -356,55 +346,51 @@ class ListResultTableResource(Resource):
         if request_data["bk_biz_id"] is not None:
             bk_biz_id.append(request_data["bk_biz_id"])
 
-        record_rule_metrics = []
-        if len(bk_biz_id) != 0:
+        # 预计算输出不依赖 DataSourceResultTable，与普通结果表一起筛选、计数和分页。
+        record_rule_tables = {
+            table["table_id"]: table
+            for biz_id in (bk_biz_id or [None])
+            for table in get_record_rule_metrics_by_biz_id(
+                bk_biz_id=biz_id, bk_tenant_id=bk_tenant_id, with_option=request_data["with_option"]
+            )
+        }
+        result_table_queryset = models.ResultTable.objects.filter(
+            bk_tenant_id=bk_tenant_id,
+            is_deleted=False,
+            table_id__in=set(table_ids) | record_rule_tables.keys(),
+        )
+        if bk_biz_id:
             result_table_queryset = result_table_queryset.filter(bk_biz_id__in=bk_biz_id)
-            # 拼接预计算指标信息
-            logger.info("ListResultTableResource: try to get precal metrics for bk_biz_ids->[%s]", bk_biz_id)
-            for biz_id in bk_biz_id:
-                logger.info("ListResultTableResource: try to get precal metrics for bk_biz_id->[%s]", biz_id)
-                try:
-                    precal_metrics = get_record_rule_metrics_by_biz_id(bk_biz_id=biz_id)
-                except Exception as e:
-                    logger.error(
-                        "ListResultTableResource: get_record_rule_metrics_by_biz_id failed, "
-                        "bk_biz_id->[%s], error->[%s]",
-                        bk_biz_id,
-                        e,
-                    )
-                    precal_metrics = []
-                record_rule_metrics.extend(precal_metrics)
+
+        datasource_type = request_data["datasource_type"]
+        if datasource_type is not None:
+            result_table_queryset = result_table_queryset.filter(table_id__startswith=f"{datasource_type}.")
 
         # 判断是否需要带上非用户字段的内容
         if request_data["is_config_by_user"]:
             result_table_queryset = result_table_queryset.filter(~Q(table_id__endswith="_cmdb_level"))
 
+        result_table_queryset = result_table_queryset.order_by("table_id")
         if request_data["page_size"] > 0:
             # page_size > 0 才分页
             count = result_table_queryset.count()
             limit = request_data["page_size"]
             offset = (request_data["page"] - 1) * request_data["page_size"]
 
-            result_table_id_list = list(
-                result_table_queryset.values_list("table_id", flat=True)[offset : offset + limit]
-            )
-            result_list = models.ResultTable.batch_to_json(
-                bk_tenant_id=bk_tenant_id,
-                result_table_id_list=result_table_id_list,
-                with_option=request_data["with_option"],
-            )
-            return {"count": count, "info": result_list}
+            result_table_queryset = result_table_queryset[offset : offset + limit]
 
         result_table_id_list = list(result_table_queryset.values_list("table_id", flat=True))
         result_list = models.ResultTable.batch_to_json(
             bk_tenant_id=bk_tenant_id,
-            result_table_id_list=result_table_id_list,
+            result_table_id_list=[table_id for table_id in result_table_id_list if table_id not in record_rule_tables],
             with_option=request_data["with_option"],
         )
 
-        if record_rule_metrics:
-            logger.info("ListResultTableResource: bk_biz_ids->[%s] get precal metrics,try to extend them", bk_biz_id)
-            result_list.extend(record_rule_metrics)
+        table_map = {table["table_id"]: table for table in result_list}
+        table_map.update(record_rule_tables)
+        result_list = [table_map[table_id] for table_id in result_table_id_list]
+        if request_data["page_size"] > 0:
+            return {"count": count, "info": result_list}
         return result_list
 
 
