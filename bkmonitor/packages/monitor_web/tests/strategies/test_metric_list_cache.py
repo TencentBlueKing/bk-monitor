@@ -51,9 +51,15 @@ def custom_scope_tables():
 
 @pytest.mark.parametrize("reverse", [False, True])
 @pytest.mark.parametrize("existing", [False, True])
+@pytest.mark.parametrize(
+    "first_description,expected_name",
+    [("物品类型", "物品类型"), ("", "自定义物品别名"), (None, "自定义物品别名")],
+)
 def test_custom_metric_refresh_merges_scopes_before_cache_deduplication(
-    monkeypatch, custom_scope_tables, reverse, existing
+    monkeypatch, custom_scope_tables, reverse, existing, first_description, expected_name
 ):
+    custom_scope_tables[0]["metric_info_list"][0]["tag_list"][0]["description"] = first_description
+    custom_scope_tables[1]["metric_info_list"][0]["tag_list"][0]["description"] = expected_name
     tables = custom_scope_tables[::-1] if reverse else custom_scope_tables
     monkeypatch.setattr(metric_list_cache.api.metadata, "query_time_series_group", lambda **kwargs: tables)
     plugins = MagicMock()
@@ -80,7 +86,7 @@ def test_custom_metric_refresh_merges_scopes_before_cache_deduplication(
     [cached] = writes
     [result] = GetMetricListV2Resource.get_metric_list(2, [cached])
     assert {dimension["id"]: dimension["name"] for dimension in result["dimensions"]} == {
-        "item_type": "物品类型",
+        "item_type": expected_name,
         "base62Mm45BOZ5eM2yBMRzB": "所属品牌",
     }
     assert result["result_table_id"] == "2_bkapm_metric_demo.__default__"
@@ -115,6 +121,25 @@ def test_custom_metric_dimension_merge_preserves_aliases_and_other_metrics(custo
     assert len(first["tag_list"]) == 2
     assert len(second["tag_list"]) == 2
     assert other["tag_list"] == [{"field_name": "other_tag", "description": "其他维度"}]
+
+
+@pytest.mark.parametrize("description_fields", [{}, {"description": ""}, {"description": None}])
+def test_custom_metric_dimension_merge_keeps_first_nonempty_description(custom_scope_tables, description_fields):
+    first = custom_scope_tables[0]["metric_info_list"][0]
+    original_tag = {"field_name": "item_type", **description_fields}
+    first["tag_list"] = [original_tag]
+    second = custom_scope_tables[1]["metric_info_list"][0]
+    second["tag_list"][0]["description"] = "自定义物品别名"
+    third = deepcopy(custom_scope_tables[1])
+    third["metric_info_list"][0]["tag_list"][0]["description"] = "后续物品别名"
+    original_tags = deepcopy([original_tag, *second["tag_list"]])
+
+    CustomMetricCacheManager.merge_metric_dimensions([*custom_scope_tables, third])
+
+    assert first["tag_list"][0] == {"field_name": "item_type", "description": "自定义物品别名"}
+    assert len(first["tag_list"]) == 2
+    assert [original_tag, *second["tag_list"]] == original_tags
+    assert third["metric_info_list"][0]["tag_list"][0]["description"] == "后续物品别名"
 
 
 def test_custom_metric_dimension_merge_does_not_execute_sql(custom_scope_tables):

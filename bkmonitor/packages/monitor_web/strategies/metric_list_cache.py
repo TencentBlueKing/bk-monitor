@@ -540,7 +540,12 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
                 key = (table["bk_biz_id"], table["time_series_group_id"], table["table_id"], metric["field_name"])
                 _, tags = metrics.setdefault(key, (metric, {}))
                 for tag in metric.get("tag_list", []):
-                    tags.setdefault(tag["field_name"], tag)
+                    field_name: str = tag["field_name"]
+                    current: dict | None = tags.get(field_name)
+                    if current is None:
+                        tags[field_name] = dict(tag)
+                    elif not current.get("description") and tag.get("description"):
+                        current["description"] = tag["description"]
 
         for metric, tags in metrics.values():
             metric["tag_list"] = list(tags.values())
