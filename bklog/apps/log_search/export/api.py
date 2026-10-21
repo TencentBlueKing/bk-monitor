@@ -171,7 +171,10 @@ def create_export_job(data, raw_params=None, job_bk_biz_id=None):
     if not result.get("list"):
         raise PreCheckAsyncExportException()
 
-    params["export_time_fields"] = snapshot_time_fields(handler, search_type)
+    try:
+        params["export_time_fields"] = snapshot_time_fields(handler, search_type)
+    except ValueError as error:
+        raise ValidationError({"export_time_fields": str(error)}) from error
 
     # 额度复检与落库必须在同一把用户级锁内：两个并发请求都通过上面的检查时，
     # 只有一个能在锁内看到对方的任务并真正占住额度
