@@ -11,7 +11,7 @@ specific language governing permissions and limitations under the License.
 import itertools
 import logging
 from collections import defaultdict
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.cache import caches
 
@@ -23,6 +23,9 @@ from bkmonitor.utils.common_utils import deserialize_and_decompress
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.apm import FIVE_MIN_SECONDS
 from core.drf_resource import api
+
+if TYPE_CHECKING:
+    from apm_web.models import Application
 
 logger = logging.getLogger("apm")
 
@@ -61,6 +64,63 @@ class ServiceLogHandler:
     SERVICE_MAX_SIZE = 1000
     # log 默认查询语句最大 value 数量
     LOG_DEFAULT_QUERY_CONDITION_MAX_SIZE = 20
+
+    @classmethod
+    def list_available_related_services(cls, app: "Application", service_names: list[str]) -> set[str]:
+        """根据关联索引集标签，批量获取存在可用日志关联的服务。"""
+        all_service_names = set(service_names)
+        if not all_service_names:
+            return set()
+
+        index_services: defaultdict[tuple[int, str], set[str]] = defaultdict(set)
+        for relation in cls.get_log_relations(app.bk_biz_id, app.app_name, service_names, include_global=True):
+            related_services = all_service_names if relation.is_global else {relation.service_name}
+            for index_set_id in [*relation.value_list, relation.value]:
+                if index_set_id:
+                    index_services[(relation.related_bk_biz_id, str(index_set_id))].update(related_services)
+
+        service_indexes: dict[str, list[dict[str, Any]]] = {}
+        if "redis" in caches:
+            cache_key = ApmCacheKey.APP_SERVICE_K8S_RELATED_LOG_INDEXES_KEY.format(
+                bk_biz_id=app.bk_biz_id, app_name=app.app_name
+            )
+            try:
+                cached_data: bytes | None = caches["redis"].get(cache_key)
+                if cached_data:
+                    service_indexes = deserialize_service_related_log_indexes(cached_data)
+            except Exception:  # noqa
+                logger.exception(
+                    "[LIST_AVAILABLE_RELATED_SERVICES] cache read failed: %s-%s", app.bk_biz_id, app.app_name
+                )
+
+        for service_name in all_service_names:
+            for index in service_indexes.get(service_name, []):
+                if index.get("bk_biz_id") is not None:
+                    index_services[(index["bk_biz_id"], str(index["index_set_id"]))].add(service_name)
+
+        if not index_services:
+            return set()
+
+        pool = ThreadPool()
+        futures = {
+            bk_biz_id: pool.apply_async(get_biz_index_sets_with_cache, kwds={"bk_biz_id": bk_biz_id})
+            for bk_biz_id in {key[0] for key in index_services}
+        }
+        available_services: set[str] = set()
+        for bk_biz_id, future in futures.items():
+            for index in future.get():
+                related_services = index_services.get((bk_biz_id, str(index["index_set_id"])))
+                if not related_services:
+                    continue
+
+                # 日志平台返回内置标签的展示名，索引集元数据缓存可能来自中英文请求。
+                tags = index.get("tags") or []
+                if tags and not any(
+                    tag.get("tag_type", "inner") == "inner" and tag.get("name") in {"无数据", "No Data"} for tag in tags
+                ):
+                    available_services.update(related_services)
+
+        return available_services
 
     @classmethod
     def get_log_count_mapping(cls, bk_biz_id, app_name, start_time, end_time):

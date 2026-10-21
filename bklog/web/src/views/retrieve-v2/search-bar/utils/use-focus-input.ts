@@ -30,7 +30,7 @@ import { getCharLength } from '@/common/util';
 import RetrieveHelper from '@/views/retrieve-helper';
 import { isElement } from 'lodash-es';
 
-import PopInstanceUtil from '@/global/pop-instance-util';
+import { createOverlayTippy } from '@/global/overlay';
 
 export default (
   props,
@@ -64,9 +64,14 @@ export default (
 
   let resizeObserver: ResizeObserver = null;
   const INPUT_MIN_WIDTH = 12;
-  const popInstanceUtil = new PopInstanceUtil({ refContent, onShowFn, onHiddenFn, arrow, newInstance, tippyOptions });
+  const overlayTippy = createOverlayTippy({
+    id: `retrieve-search-suggest-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    group: 'retrieve-search-suggest',
+    tippy: { refContent, onShowFn, onHiddenFn, arrow, newInstance, tippyOptions },
+  });
+  const popInstanceUtil = overlayTippy.instance;
 
-  const uninstallInstance = () => popInstanceUtil.uninstallInstance();
+  const uninstallInstance = () => overlayTippy.uninstall();
   const getTippyInstance = () => popInstanceUtil.getTippyInstance();
 
   /**
@@ -173,6 +178,10 @@ export default (
 
   const hideTippyInstance = () => {
     popInstanceUtil?.hide(180);
+  };
+
+  const hideTippyInstanceImmediate = () => {
+    overlayTippy.notifyAnchorLost();
   };
 
   const resizeHeightObserver = target => {
@@ -292,6 +301,7 @@ export default (
     setIsDocumentMousedown,
     repositionTippyInstance,
     hideTippyInstance,
+    hideTippyInstanceImmediate,
     getTippyInstance,
     handleContainerClick,
     handleInputBlur,

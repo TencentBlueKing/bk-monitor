@@ -28,6 +28,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { getSceneView } from 'monitor-api/modules/scene_view';
 import { random } from 'monitor-common/utils/utils';
+import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
 import { DEFAULT_TIME_RANGE } from 'monitor-pc/components/time-range/utils';
 import DashboardPanel from 'monitor-ui/chart-plugins/components/dashboard-panel';
 import { type IBookMark, type IPanelModel, type IViewOptions, BookMarkModel } from 'monitor-ui/chart-plugins/typings';
@@ -192,13 +193,13 @@ export default class PerformanceView extends tsc<IProps> {
 
   handleToPerformance() {
     const detailId = this.bkHostId ? this.bkHostId : `${this.ip}-${this.cloudId}`;
-    window.open(
-      `${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/performance/detail/${detailId}`
-    );
+    const hash = resolveLegacyHostHash({ id: String(detailId) });
+    window.open(`${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}${hash}`);
   }
 
   handleToPerformanceList() {
-    window.open(`${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}#/performance`);
+    const hash = resolveLegacyHostHash({});
+    window.open(`${location.origin}${location.pathname}?bizId=${this.detail.bk_biz_id}${hash}`);
   }
 
   handleToNodemanHost() {

@@ -376,7 +376,7 @@ def test_search_alert_events_apigw_contract():
 
 
 def test_log_collection_create_mcp_contract():
-    """采集创建 MCP 只提供 Fast Create，并显式锁定写操作、权限和默认基础设施选择。"""
+    """采集创建 MCP 的可选存储参数应保留底层默认值与写操作权限约束。"""
     create_mcp_file = _RESOURCES_DIR / "internal/user/log_collection_create_mcp.yaml"
     paths = _load_paths(create_mcp_file)
 
@@ -388,7 +388,12 @@ def test_log_collection_create_mcp_contract():
     assert schema["additionalProperties"] is False
     assert schema["properties"]["environment"]["enum"] == ["linux", "windows", "container"]
     assert schema["properties"]["confirm"]["enum"] == [True]
-    assert "storage_cluster_id" not in schema["properties"]
+    for name, minimum in {"storage_cluster_id": 1, "retention": 1, "es_shards": 1, "storage_replies": 0}.items():
+        field_schema = schema["properties"][name]
+        assert field_schema["type"] == "integer"
+        assert field_schema["minimum"] == minimum
+        assert name not in schema["required"]
+        assert "default" not in field_schema
     assert "data_link_id" not in schema["properties"]
     assert "bk_username" not in schema["properties"]
     assert schema["properties"]["target_nodes"]["items"]["additionalProperties"] is False

@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import { fetchRobotInfo } from 'monitor-api/modules/commons';
 import { getAlarmCenterListUrl } from 'monitor-common/utils/alarm-center-router';
+import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
 import { copyText } from 'monitor-common/utils/utils';
 import { throttle } from 'throttle-debounce';
 
@@ -371,9 +372,13 @@ export default class AiWhale extends tsc<{
   /* 跳转到主机详情 */
   handleToPerformance(ip, bkCloudId) {
     const fetchRange = this.data?.fetch_range || '24h';
+    const hash = resolveLegacyHostHash({
+      id: `${ip}-${bkCloudId || 0}`,
+      query: { from: `now-${fetchRange}`, to: 'now' },
+    });
     const url = `${location.origin}${location.pathname}?bizId=${
       this.$store.getters.bizId || window.cc_biz_id
-    }#/performance/detail/${ip}-${bkCloudId || 0}?from=now-${fetchRange}&to=now`;
+    }${hash}`;
     window.open(url);
   }
 
