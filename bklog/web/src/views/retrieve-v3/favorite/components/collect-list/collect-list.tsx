@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { defineComponent, ref, watch, computed } from 'vue';
+import { defineComponent, ref, watch, computed, onUnmounted } from 'vue';
 
 import BklogPopover from '@/components/bklog-popover';
 import { useDialogVisible } from '@/global/overlay';
@@ -72,6 +72,10 @@ export default defineComponent({
     const currentFavorite = ref();
     const listMenuPopoverMap = ref({});
     const delData = ref({});
+    /** 操作菜单（含「移动至分组」二级菜单）展开时保持对应收藏项 Hover 背景 */
+    const menuOpenFavoriteId = ref<IFavoriteItem['id'] | null>(null);
+    let menuHideTimer: ReturnType<typeof setTimeout> | null = null;
+    const FAVORITE_MENU_HIDE_DELAY = 160;
     const {
       visible: delDialogShow,
       setVisible: setDelDialogVisible,
@@ -279,6 +283,34 @@ export default defineComponent({
         false,
       );
     };
+    const clearFavoriteMenuHideTimer = () => {
+      if (menuHideTimer) {
+        clearTimeout(menuHideTimer);
+        menuHideTimer = null;
+      }
+    };
+    const handleFavoriteMenuShown = (id: IFavoriteItem['id']) => {
+      clearFavoriteMenuHideTimer();
+      menuOpenFavoriteId.value = id;
+    };
+    const handleFavoriteMenuHidden = (id: IFavoriteItem['id']) => {
+      clearFavoriteMenuHideTimer();
+      menuHideTimer = setTimeout(() => {
+        if (menuOpenFavoriteId.value === id) {
+          menuOpenFavoriteId.value = null;
+        }
+        menuHideTimer = null;
+      }, FAVORITE_MENU_HIDE_DELAY);
+    };
+    const getFavoriteMenuTippyOptions = (id: IFavoriteItem['id'], extra: Record<string, unknown> = {}) =>
+      ({
+        ...extra,
+        onShown: () => handleFavoriteMenuShown(id),
+        onHidden: () => handleFavoriteMenuHidden(id),
+      }) as any;
+    onUnmounted(() => {
+      clearFavoriteMenuHideTimer();
+    });
     /** 刷新列表并关闭menu */
     const handleRefreshMenu = (item: IFavoriteItem, isGroup = false) => {
       listMenuPopoverMap.value[isGroup ? item.group_id : item.id]?.hide();
@@ -405,7 +437,11 @@ export default defineComponent({
             if (menu.key === 'move-group') {
               return (
                 <BklogPopover
-                  options={{ offset: [0, 1], placement: 'right', arrow: false } as any}
+                  options={getFavoriteMenuTippyOptions(item.id, {
+                    offset: [0, 1],
+                    placement: 'right',
+                    arrow: false,
+                  })}
                   trigger='hover'
                   {...{
                     scopedSlots: { content: () => moveGroupRender(item) },
@@ -561,6 +597,7 @@ export default defineComponent({
                         'child-item',
                         { 'is-active': child.id === selectedId.value },
                         { 'is-disabled': isFailFavorite(child) },
+                        { 'is-menu-open': child.id === menuOpenFavoriteId.value },
                       ]}
                       onClick={() => handleSelectItem(child)}
                     >
@@ -573,9 +610,12 @@ export default defineComponent({
                       {/* 数据源不存在 */}
                       <BklogPopover
                         ref={el => (listMenuPopoverMap.value[child.id] = el)}
-                        options={
-                          { offset: [30, 5], placement: 'bottom-end', appendTo: document.body, arrow: false } as any
-                        }
+                        options={getFavoriteMenuTippyOptions(child.id, {
+                          offset: [30, 5],
+                          placement: 'bottom-end',
+                          appendTo: document.body,
+                          arrow: false,
+                        })}
                         trigger='hover'
                         {...{
                           scopedSlots: { content: () => renderMenu(childMenu.value, child) },
