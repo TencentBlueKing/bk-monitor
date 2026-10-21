@@ -439,6 +439,9 @@ def decode_cli_config(call):
     return json.loads(base64.b64decode(base64.b64decode(call.kwargs["script_param"])))
 
 
+TWO_TARGET_HOSTS = [{"bk_host_id": 456, "ip": "127.0.0.1"}, {"bk_host_id": 457, "ip": "fd00::9"}]
+
+
 def sent_events(report_tool):
     return [call.args[0][0] for call in report_tool.return_value.send_data_by_http.call_args_list]
 
@@ -515,7 +518,10 @@ def test_submit_immediate_task_reports_started_event_per_host(immediate_apis):
             "collector_config": TASK_SUBMIT_REQUEST["collector_config"],
             "resource_guard_config": RESOURCE_GUARD_CONFIG,
         },
+        # 每条 Event 都带本次全部目标主机，没上报的主机靠它补出来
+        "target_hosts": TWO_TARGET_HOSTS,
     }
+    assert event_content(second)["target_hosts"] == TWO_TARGET_HOSTS
 
 
 @pytest.mark.parametrize(
@@ -589,11 +595,13 @@ def test_submit_immediate_job_failure_reports_failed_finished_and_continues(imme
     assert content["started_at"] == content["finished_at"] == failed["timestamp"]
     assert (content["execution_duration_ms"], content["processes"]) == (0, [])
     assert "agent not ready" in content["message"]
+    assert content["target_hosts"] == TWO_TARGET_HOSTS
     assert (started["event_name"], started["dimension"]["bk_host_id"]) == ("active_profiling_started", "457")
 
 
-def test_submit_immediate_event_report_failure_does_not_block_other_hosts(immediate_apis):
-    immediate_apis["report_tool"].return_value.send_data_by_http.side_effect = ConnectionError("proxy down")
+def test_submit_immediate_retries_event_report_until_success(immediate_apis):
+    send = immediate_apis["report_tool"].return_value.send_data_by_http
+    send.side_effect = [ConnectionError("proxy down"), ConnectionError("proxy down"), None, None]
 
     assert (
         SubmitTaskResource().request({**IMMEDIATE_TASK_SUBMIT_REQUEST, "target_config": TWO_HOSTS_TARGET_CONFIG})
@@ -601,6 +609,23 @@ def test_submit_immediate_event_report_failure_does_not_block_other_hosts(immedi
     )
 
     assert immediate_apis["job"].call_count == 2
+    assert [event["dimension"]["bk_host_id"] for event in sent_events(immediate_apis["report_tool"])] == [
+        "456",
+        "456",
+        "456",
+        "457",
+    ]
+
+
+def test_submit_immediate_stops_dispatching_when_event_report_keeps_failing(immediate_apis):
+    immediate_apis["report_tool"].return_value.send_data_by_http.side_effect = ConnectionError("proxy down")
+
+    with pytest.raises(ValueError):
+        SubmitTaskResource().request({**IMMEDIATE_TASK_SUBMIT_REQUEST, "target_config": TWO_HOSTS_TARGET_CONFIG})
+
+    # 首次发送加 3 次重试都失败后中止，第二台主机不再下发
+    assert immediate_apis["job"].call_count == 1
+    assert immediate_apis["report_tool"].return_value.send_data_by_http.call_count == 4
 
 
 def test_submit_immediate_requires_enabled_event_group(immediate_apis):
@@ -626,7 +651,9 @@ def test_submit_immediate_leaves_target_empty_when_host_query_fails(immediate_ap
 
     SubmitTaskResource().request(IMMEDIATE_TASK_SUBMIT_REQUEST)
 
-    assert sent_events(immediate_apis["report_tool"])[0]["target"] == ""
+    event = sent_events(immediate_apis["report_tool"])[0]
+    assert event["target"] == ""
+    assert event_content(event)["target_hosts"] == [{"bk_host_id": 456, "ip": ""}]
 
 
 def test_submit_immediate_task_keeps_user_input_out_of_the_script(immediate_apis):
@@ -667,6 +694,13 @@ def planned_apis(mocker):
         "update": mocker.patch("core.drf_resource.api.node_man.update_subscription"),
         "switch": mocker.patch("core.drf_resource.api.node_man.switch_subscription"),
         "run": mocker.patch("core.drf_resource.api.node_man.run_subscription"),
+        "hosts": mocker.patch(
+            "core.drf_resource.api.cmdb.get_host_by_id",
+            return_value=[
+                SimpleNamespace(bk_host_id=456, bk_host_innerip="127.0.0.1", bk_host_innerip_v6=""),
+                SimpleNamespace(bk_host_id=457, bk_host_innerip="", bk_host_innerip_v6="fd00::9"),
+            ],
+        ),
         "profile_datasource": profile_datasource,
     }
 
@@ -944,10 +978,13 @@ def test_nodeman_deploy_creates_subscription_for_new_task(nodeman_apis):
     assert (step["id"], step["type"]) == ("bkmonitorbeat_active_profile", "PLUGIN")
     assert step["config"] == {
         "plugin_name": "bkmonitorbeat",
-        "plugin_version": "0.0.4",
+        "plugin_version": "0.0.5",
         "config_templates": [{"name": "bkmonitorbeat_active_profile.conf", "version": "latest"}],
     }
-    assert step["params"]["context"] == {"host_tasks": {"456": [beat_task(1)]}}
+    assert step["params"]["context"] == {
+        "host_tasks": {"456": [beat_task(1)]},
+        "target_hosts": [{"bk_host_id": 456, "ip": "127.0.0.1"}],
+    }
     assert task.subscription_id == 9001
     nodeman_apis["switch"].assert_called_once_with(bk_tenant_id="system", subscription_id=9001, action="enable")
     nodeman_apis["update"].assert_not_called()
@@ -969,6 +1006,18 @@ def test_nodeman_deploy_puts_all_hosts_into_one_subscription(nodeman_apis):
         "456": [beat_task(1, process_selector={"type": "pid", "pids": "2341;2342"})],
         "457": [beat_task(1, bk_host_id=457, process_selector={"type": "pid", "pids": "2341;2342"})],
     }
+    # 目标主机快照在公共上下文里只放一份，不进每台主机的 task
+    context = nodeman_apis["create"].call_args.kwargs["steps"][0]["params"]["context"]
+    assert context["target_hosts"] == TWO_TARGET_HOSTS
+
+
+def test_nodeman_deploy_leaves_target_ip_empty_when_host_query_fails(nodeman_apis):
+    nodeman_apis["hosts"].side_effect = BKAPIError(system_name="cmdb", url="", result={})
+
+    assert ActiveProfilingNodeManHandler(2).deploy(planned_task(1)) is True
+
+    context = nodeman_apis["create"].call_args.kwargs["steps"][0]["params"]["context"]
+    assert context["target_hosts"] == [{"bk_host_id": 456, "ip": ""}]
 
 
 @pytest.mark.parametrize(("is_enabled", "run_immediately"), [(True, True), (False, False)])
@@ -1066,6 +1115,9 @@ def test_edit_task_updates_subscription_to_new_hosts(nodeman_apis, mocker):
     # 移出范围的主机由节点管理移除本订阅的配置文件
     assert nodeman_apis["update"].call_args.kwargs["scope"]["nodes"] == [{"bk_host_id": 457}]
     assert sent_host_tasks(nodeman_apis["update"].call_args) == {"457": [beat_task(1, bk_host_id=457)]}
+    assert nodeman_apis["update"].call_args.kwargs["steps"][0]["params"]["context"]["target_hosts"] == [
+        {"bk_host_id": 457, "ip": "fd00::9"}
+    ]
 
 
 def test_delete_task_keeps_row_when_nodeman_uninstall_fails(nodeman_apis, mocker):

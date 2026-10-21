@@ -35,6 +35,7 @@ from apm_web.profile.active_collection.constants import (
     EVENT_CONTENT_SCHEMA_VERSION,
     EVENT_ERROR_MESSAGE_MAX_LENGTH,
     EVENT_QUERY_MAX_SIZE,
+    EVENT_REPORT_MAX_RETRIES,
     EXECUTION_UNKNOWN_GRACE_SEC,
     RUNNING_EXECUTION_WINDOW_MS,
     SUCCEED_STATUSES,
@@ -75,6 +76,20 @@ class ActiveProfilingDeployMixin:
 
     def _get_profile_data_id(self, bk_biz_id):
         return self._get_profile_datasource(bk_biz_id).bk_data_id
+
+    def _get_host_ips(self, bk_biz_id, bk_host_ids):
+        """Event target 取执行时内网 IP；查不到或 CMDB 异常时留空，不阻塞下发"""
+        try:
+            hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=bk_host_ids)
+        except Exception:  # pylint: disable=broad-except
+            logger.exception("[ActiveProfiling] query host ip failed, bk_biz_id->[%s]", bk_biz_id)
+            return {}
+        return {host.bk_host_id: host.bk_host_innerip or host.bk_host_innerip_v6 for host in hosts}
+
+    @staticmethod
+    def _build_target_hosts(bk_host_ids, host_ips):
+        """本次执行全部目标主机的快照，随每条 Event 上报，没上报 Event 的主机靠它补出来"""
+        return [{"bk_host_id": bk_host_id, "ip": host_ips.get(bk_host_id, "")} for bk_host_id in bk_host_ids]
 
     def _build_host_configs(self, validated_request_data, bk_tenant_id, creator, event_data_id, profile_data_id):
         """逐主机生成下发给采集端的单机配置与写入 Event 的配置快照。
@@ -203,9 +218,9 @@ class ActiveProfilingEventHandler(ActiveProfilingDeployMixin):
     def __init__(self, bk_tenant_id, creator, validated_request_data):
         bk_biz_id = validated_request_data["bk_biz_id"]
         self.event_group = self._get_event_group(bk_biz_id)
-        self.host_ips = self._get_host_ips(
-            bk_biz_id, [node["bk_host_id"] for node in validated_request_data["target_config"]["nodes"]]
-        )
+        bk_host_ids = [node["bk_host_id"] for node in validated_request_data["target_config"]["nodes"]]
+        self.host_ips = self._get_host_ips(bk_biz_id, bk_host_ids)
+        self.target_hosts = self._build_target_hosts(bk_host_ids, self.host_ips)
         # 自定义事件的 dimension 只接受标量字符串
         self.base_dimension = {
             "bk_tenant_id": bk_tenant_id,
@@ -246,32 +261,34 @@ class ActiveProfilingEventHandler(ActiveProfilingDeployMixin):
         }
         self._send(self._build_event(ACTIVE_PROFILING_FINISHED_EVENT, "failed", now, bk_host_id, content))
 
-    def _get_host_ips(self, bk_biz_id, bk_host_ids):
-        """Event target 取执行时内网 IP；查不到或 CMDB 异常时留空，不阻塞下发"""
-        try:
-            hosts = api.cmdb.get_host_by_id(bk_biz_id=bk_biz_id, bk_host_ids=bk_host_ids)
-        except Exception:  # pylint: disable=broad-except
-            logger.exception("[ActiveProfiling] query host ip failed, bk_biz_id->[%s]", bk_biz_id)
-            return {}
-        return {host.bk_host_id: host.bk_host_innerip or host.bk_host_innerip_v6 for host in hosts}
-
     def _build_event(self, event_name, status, timestamp, bk_host_id, content):
+        content = {"schema_version": EVENT_CONTENT_SCHEMA_VERSION, **content, "target_hosts": self.target_hosts}
         return {
             "event_name": event_name,
             "target": self.host_ips.get(bk_host_id, ""),
             "timestamp": timestamp,
             "dimension": {**self.base_dimension, "bk_host_id": str(bk_host_id), "status": status},
-            "event": {"content": json.dumps({"schema_version": EVENT_CONTENT_SCHEMA_VERSION, **content})},
+            "event": {"content": json.dumps(content)},
         }
 
     def _send(self, event):
-        """发送失败只记日志，不影响后续主机下发"""
-        try:
-            custom_report_tool(self.event_data_id).send_data_by_http([event], self.event_group["token"], parallel=False)
-        except Exception:  # pylint: disable=broad-except
-            logger.exception(
-                "[ActiveProfiling] report %s failed, dimension->[%s]", event["event_name"], event["dimension"]
-            )
+        """发送失败重试，仍失败说明上报链路异常，抛错中止后续主机下发。
+        代理返回非 200 时发送接口只记日志、不抛错，这里感知不到"""
+        for retry in range(EVENT_REPORT_MAX_RETRIES + 1):
+            try:
+                custom_report_tool(self.event_data_id).send_data_by_http(
+                    [event], self.event_group["token"], parallel=False
+                )
+                return
+            except Exception as error:  # pylint: disable=broad-except
+                logger.exception(
+                    "[ActiveProfiling] report %s failed, retry->[%s], dimension->[%s]",
+                    event["event_name"],
+                    retry,
+                    event["dimension"],
+                )
+                if retry == EVENT_REPORT_MAX_RETRIES:
+                    raise ValueError(_("采集事件上报失败，已停止下发后续主机")) from error
 
 
 class ActiveProfilingNodeManHandler(ActiveProfilingDeployMixin):
@@ -357,6 +374,9 @@ class ActiveProfilingNodeManHandler(ActiveProfilingDeployMixin):
 
     def _build_subscription_params(self, task):
         config = {field: getattr(task, field) for field in ActiveProfilingTask.CONFIG_FIELDS}
+        bk_host_ids = [node["bk_host_id"] for node in task.target_config["nodes"]]
+        # 全部主机共用一份快照，放进公共上下文由模板渲染进每个 task，不随 host_tasks 按主机重复
+        target_hosts = self._build_target_hosts(bk_host_ids, self._get_host_ips(self.bk_biz_id, bk_host_ids))
         # 模板按 cmdb_instance.host.bk_host_id 的字符串形式取当前主机的 task 列表
         host_tasks = {
             str(bk_host_id): [{**cli_config, "task_id": task.id}]
@@ -381,11 +401,11 @@ class ActiveProfilingNodeManHandler(ActiveProfilingDeployMixin):
                     "type": "PLUGIN",
                     "config": {
                         "plugin_name": "bkmonitorbeat",
-                        # TODO: 测试包写死 0.0.4，正式发布前改回 latest
-                        "plugin_version": "0.0.4",
+                        # TODO: 测试包写死 0.0.5，正式发布前改回 latest
+                        "plugin_version": "0.0.5",
                         "config_templates": [{"name": ACTIVE_PROFILE_CONFIG_TEMPLATE_NAME, "version": "latest"}],
                     },
-                    "params": {"context": {"host_tasks": host_tasks}},
+                    "params": {"context": {"host_tasks": host_tasks, "target_hosts": target_hosts}},
                 }
             ],
             # 停用中的计划只更新订阅内容，等启用时再由 START 下发到主机

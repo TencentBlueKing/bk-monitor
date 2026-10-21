@@ -98,6 +98,8 @@ ACTIVE_PROFILING_STARTED_EVENT = "active_profiling_started"
 ACTIVE_PROFILING_FINISHED_EVENT = "active_profiling_finished"
 EVENT_CONTENT_SCHEMA_VERSION = 1
 EVENT_ERROR_MESSAGE_MAX_LENGTH = 2048
+# 立即执行的 Event 上报失败后的重试次数，仍失败就停止下发后续主机
+EVENT_REPORT_MAX_RETRIES = 3
 
 # SaaS 侧先按 5 分钟封顶，采集器另有自身上限
 COLLECTOR_MAX_DURATION_SEC = 300
