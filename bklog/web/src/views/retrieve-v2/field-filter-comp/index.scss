@@ -73,16 +73,10 @@
   }
 
   .big-tree {
-    min-width: max-content;
-    overflow: visible;
+    overflow-y: hidden;
 
     .bk-big-tree-node {
-      display: flex;
-      align-items: center;
-      min-width: max-content;
       height: 28px;
-      overflow: visible;
-      white-space: nowrap;
 
       &:hover {
         background-color: #f4f5f8;
@@ -96,64 +90,26 @@
         }
 
         .operation-text {
-          visibility: visible;
+          /* stylelint-disable-next-line declaration-no-important */
+          display: flex !important;
         }
       }
     }
 
     .is-leaf {
-      height: 28px;
+      height: auto;
       padding-left: calc(var(--level) * var(--padding) + 2px);
-      line-height: 28px;
+      line-height: normal;
     }
 
     .node-options {
       display: none;
     }
-
-    .node-content {
-      display: flex;
-      flex: 1;
-      align-items: center;
-      min-width: 0;
-      overflow: visible;
-    }
-
-    .filed-item {
-      flex: 1;
-      min-width: 0;
-    }
-
-    .filed-title {
-      width: 100%;
-      min-width: max-content;
-      height: 28px;
-      padding-top: 0;
-      padding-bottom: 0;
-
-      // 按钮保留占位，横向滚动时仍停留在可视区域右侧。
-      .operation-text {
-        position: sticky;
-        right: 12px;
-
-        /* stylelint-disable-next-line declaration-no-important */
-        display: flex !important;
-        align-self: center;
-        height: 20px;
-        margin-left: 8px;
-        visibility: hidden;
-        background: #f4f5f8;
-
-        &.analysis-active {
-          visibility: visible;
-        }
-      }
-    }
   }
 
   .field-filter-container-new {
     height: calc(100vh - var(--top-searchbar-height) - 210px);
-    overflow: auto;
+    overflow-y: auto;
     font-family: Roboto-Regular;
     font-size: 12px;
     line-height: 20px;
@@ -231,10 +187,6 @@
         margin: 0 0 7px 20px;
         line-height: 26px;
         color: #63656e;
-      }
-
-      .filed-list {
-        min-width: max-content;
       }
 
       .filed-item + .expand-all {
