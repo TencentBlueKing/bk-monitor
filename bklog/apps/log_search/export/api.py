@@ -36,6 +36,7 @@ from apps.log_search.exceptions import PreCheckAsyncExportException
 from apps.log_search.export.config import current_policy, is_sharded_export_enabled, policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.log_search.export.notification import build_notification_context
+from apps.log_search.export.query import snapshot_time_fields
 from apps.log_search.export.storage import build_storage
 from apps.log_search.models import AsyncTask, LogIndexSet, Space
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
@@ -169,6 +170,8 @@ def create_export_job(data, raw_params=None, job_bk_biz_id=None):
         raise PreCheckAsyncExportException(f"导出预检查查询失败：{error}") from error
     if not result.get("list"):
         raise PreCheckAsyncExportException()
+
+    params["export_time_fields"] = snapshot_time_fields(handler, search_type)
 
     # 额度复检与落库必须在同一把用户级锁内：两个并发请求都通过上面的检查时，
     # 只有一个能在锁内看到对方的任务并真正占住额度

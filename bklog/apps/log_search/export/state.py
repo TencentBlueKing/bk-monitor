@@ -38,6 +38,7 @@ from apps.log_search.constants import (
 )
 from apps.log_search.export.config import policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
+from apps.log_search.export.query import time_order
 from apps.utils.log import logger
 
 
@@ -517,6 +518,8 @@ def _can_split(job, part, error_code):
     if job.status not in (ExportJobStatus.READY, ExportJobStatus.RUNNING):
         return False
     if error_code not in WORKLOAD_ERROR_CODES:
+        return False
+    if time_order(job) is None:
         return False
     if part.end_time - part.start_time <= _split_step(job):
         return False
