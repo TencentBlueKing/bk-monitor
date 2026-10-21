@@ -41,7 +41,7 @@ from jinja2.sandbox import SandboxedEnvironment as Environment
 from redis.exceptions import RedisError
 
 from apps.api import TransferApi
-from apps.constants import SpacePropertyEnum
+from apps.constants import USERNAME_MAX_LENGTH, SpacePropertyEnum
 from apps.exceptions import BizNotExistError
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.log_clustering.constants import PatternEnum, YearOnYearEnum
@@ -1927,7 +1927,7 @@ class EmailTemplate(OperateRecordModel):
 
 
 class UserMetaConf(models.Model):
-    username = models.CharField(_("创建者"), max_length=32, default="")
+    username = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
     conf = models.JSONField(_("用户meta配置"), default=dict)
     type = models.CharField(_("数据类型"), max_length=64)
 
@@ -2287,7 +2287,7 @@ class UserIndexSetFieldsConfig(models.Model):
 
     index_set_id = models.IntegerField(_("索引集ID"), null=True, blank=True, db_index=True)
     config_id = models.IntegerField(_("索引集配置ID"), db_index=True)
-    username = models.CharField(_("用户名"), max_length=32, default="", db_index=True)
+    username = models.CharField(_("用户名"), max_length=USERNAME_MAX_LENGTH, default="", db_index=True)
     scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
     source_app_code = models.CharField(
         verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True

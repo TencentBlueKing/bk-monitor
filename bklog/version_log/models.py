@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云PaaS平台社区版 (BlueKing PaaS Community
 Edition) available.
@@ -38,10 +37,10 @@ class VersionLogVisitedManager(models.Manager):
 
 
 class VersionLogVisited(models.Model):
-    username = models.CharField(primary_key=True, max_length=50, verbose_name=_(u"用户名"))
-    visited_version = models.CharField(max_length=20, verbose_name=_(u"访问版本"))
+    username = models.CharField(primary_key=True, max_length=64, verbose_name=_("用户名"))
+    visited_version = models.CharField(max_length=20, verbose_name=_("访问版本"))
 
     objects = VersionLogVisitedManager()
 
     class Meta:
-        verbose_name = verbose_name_plural = _(u"版本日志访问记录")
+        verbose_name = verbose_name_plural = _("版本日志访问记录")

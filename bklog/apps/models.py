@@ -27,6 +27,7 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from apps.constants import USERNAME_MAX_LENGTH
 from apps.utils.base_crypt import BaseCrypt
 from apps.utils.local import get_request_username
 
@@ -216,9 +217,9 @@ class OperateRecordModel(models.Model):
     objects = OperateRecordModelManager()
 
     created_at = models.DateTimeField(_("创建时间"), auto_now_add=True, db_index=True)
-    created_by = models.CharField(_("创建者"), max_length=32, default="")
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
     updated_at = models.DateTimeField(_("更新时间"), blank=True, null=True, auto_now=True, db_index=True)
-    updated_by = models.CharField(_("修改者"), max_length=32, blank=True, default="")
+    updated_by = models.CharField(_("修改者"), max_length=USERNAME_MAX_LENGTH, blank=True, default="")
 
     def save(self, *args, **kwargs):
         if self._state.adding:
@@ -283,7 +284,7 @@ class SoftDeleteModel(OperateRecordModel):
 
     is_deleted = models.BooleanField(_("是否删除"), default=False)
     deleted_at = models.DateTimeField(_("删除时间"), blank=True, null=True)
-    deleted_by = models.CharField(_("删除者"), max_length=32, blank=True, null=True)
+    deleted_by = models.CharField(_("删除者"), max_length=USERNAME_MAX_LENGTH, blank=True, null=True)
 
     def delete(self, *args, **kwargs):
         """

@@ -22,6 +22,7 @@ the project delivered to anyone in the future.
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+from apps.constants import USERNAME_MAX_LENGTH
 from apps.tgpa.constants import TGPATaskProcessStatusEnum, TGPAReportSyncStatusEnum, TGPATaskTypeEnum
 
 
@@ -57,7 +58,7 @@ class TGPAReportSyncRecord(models.Model):
     status = models.CharField(_("状态"), max_length=64, default=TGPAReportSyncStatusEnum.PENDING.value)
     error_message = models.TextField(_("错误信息"), null=True, blank=True)
     created_at = models.DateTimeField(_("创建时间"), auto_now_add=True, db_index=True)
-    created_by = models.CharField(_("创建者"), max_length=32, default="")
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
 
     class Meta:
         verbose_name = _("客户端上报同步记录")
