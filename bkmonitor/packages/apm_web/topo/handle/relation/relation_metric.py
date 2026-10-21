@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -9,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from api.unify_query.relation_result import ensure_complete_relation
 from apm_web.constants import TopoNodeKind
 from apm_web.handlers.service_handler import ServiceHandler
 from core.drf_resource import api
@@ -34,6 +34,7 @@ class RelationMetricHandler:
             "source_info": source_params,
         }
         response = api.unify_query.query_multi_resource_range(bk_biz_ids=[bk_biz_id], query_list=[params])
+        ensure_complete_relation(response)
         res = []
 
         for item in response.get("data", []):

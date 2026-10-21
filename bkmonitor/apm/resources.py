@@ -22,6 +22,7 @@ from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from api.unify_query.relation_result import ensure_complete_relation
 from apm.constants import (
     GLOBAL_CONFIG_BK_BIZ_ID,
     ApmCacheType,
@@ -1844,6 +1845,7 @@ class QueryLogRelationByIndexSetIdResource(Resource):
                 ],
             )
             if response:
+                ensure_complete_relation(response)
                 for each_data in response.get("data", []):
                     for target in each_data.get("target_list", []):
                         for item in target.get("items", []):

@@ -20,6 +20,7 @@ from alarm_backends.core.alert import Alert
 from alarm_backends.core.cache.cmdb import HostIPManager, HostManager
 from alarm_backends.service.alert.enricher.base import BaseAlertEnricher
 from api.cmdb.define import Host
+from api.unify_query.relation_result import is_incomplete_relation
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import ThreadPool
 from core.drf_resource import api
@@ -203,6 +204,14 @@ class KubernetesCMDBEnricher(BaseAlertEnricher):
             biz_alerts = self.kubernetes_alerts[bk_biz_id]
             for index, result in enumerate(biz_results):
                 alert = biz_alerts[index]
+                if is_incomplete_relation(result):
+                    logger.warning(
+                        "incomplete host relation for alert(%s): partial=%s, partial_reason=%s, truncated=%s",
+                        alert.id,
+                        result.get("partial", False),
+                        result.get("partial_reason", ""),
+                        result.get("truncated", False),
+                    )
                 if result["code"] != 200 or len(result.get("target_list", []) or []) == 0:
                     # 没有查到的内容，直接忽略
                     # 如果返回的ip数量为0，直接忽略
