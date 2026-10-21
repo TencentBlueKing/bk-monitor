@@ -8,13 +8,14 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from django.test import SimpleTestCase, TestCase
+from rest_framework.exceptions import ValidationError
 
 from apps.log_search.constants import ExportJobStatus, ExportPartStatus, ExportSearchType
 from apps.log_search.export import state
 from apps.log_search.export.api import ExportSortConfirmation, create_export_job
 from apps.log_search.export.models import ExportJob, ExportPart
 from apps.log_search.export.planner import PartSpec, build_handler, build_parts
-from apps.log_search.export.query import normalize_export_sort, time_order
+from apps.log_search.export.query import UnsupportedExportTimeField, normalize_export_sort, time_order
 from apps.log_search.export.scheduler import finalize_export
 from apps.log_search.export.worker import _write_rows
 from apps.log_search.models import LogIndexSet, Scenario, Space
@@ -120,6 +121,19 @@ class ExportSortCreationTests(TestCase):
         self.assertFalse(ExportPart.objects.exists())
         self.handlers[-1].pre_get_result.assert_not_called()
         self.assertEqual(self.params, original)
+
+    def test_public_time_field_error_uses_a_fixed_template_not_exception_text(self):
+        failure = UnsupportedExportTimeField("event_time")
+        failure.args = ("INTERNAL_METADATA_DETAIL",)
+        with (
+            patch("apps.log_search.export.api.snapshot_time_fields", side_effect=failure),
+            self.assertRaises(ValidationError) as error,
+        ):
+            create_export_job(self.params)
+        self.assertIn("无法确认导出时间字段 event_time 的实际类型", str(error.exception))
+        self.assertNotIn("INTERNAL_METADATA_DETAIL", str(error.exception))
+        self.assertFalse(ExportJob.objects.exists())
+        self.assertFalse(ExportPart.objects.exists())
 
     def test_old_client_keeps_the_original_response_and_sort(self):
         params = {key: value for key, value in self.params.items() if key != "supports_sort_confirmation"}

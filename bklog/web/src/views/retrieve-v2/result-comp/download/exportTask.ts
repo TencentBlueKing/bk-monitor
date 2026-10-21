@@ -37,6 +37,7 @@ interface ExportSubmitContext {
   $http: { request: (url: string, config: Record<string, any>) => Promise<any> };
   $t: (key: string, values?: Record<string, string>) => string;
   $bkInfo: (options: Record<string, any>) => void;
+  $bkMessage: (options: Record<string, any>) => void;
 }
 
 /** 后端预检排序，确认前不创建任务；始终提交独立快照，不能修改页面或历史记录的排序。 */
@@ -75,7 +76,10 @@ export async function submitExportWithSortConfirmation(
   request.data.sort_list = cloneDeep(sortList);
   const result = await context.$http.request(url, request);
   // 不循环确认或静默创建：路由配置变化时应重新打开导出流程。
-  if (result.data?.requires_sort_confirmation) throw new Error(context.$t('导出排序已变化，请重新提交并确认'));
+  if (result.data?.requires_sort_confirmation) {
+    context.$bkMessage({ theme: 'error', message: context.$t('导出排序已变化，请重新提交并确认') });
+    return null;
+  }
   return result;
 }
 
