@@ -377,18 +377,22 @@ export class SpanScenario extends BaseScenario {
    */
   private getSpanTypeRenderValue(value: unknown) {
     const meta = SPAN_TYPE_META[value as string];
+    /** 与「类型选择」芯片保持同样的取值优先级：有设计稿 svg 用 svg，没有才走内置图标字体（图标类尺寸配色见 span-table-theme.scss） */
+    const prefixIcon = meta?.icon
+      ? () =>
+          (
+            <img
+              class='span-type-icon'
+              alt=''
+              src={meta.icon}
+            />
+          ) as unknown as SlotReturnValue
+      : meta?.fontIcon
+        ? `${meta.fontIcon} span-type-font-icon`
+        : '';
     return {
       alias: meta?.label || value,
-      prefixIcon: meta?.icon
-        ? () =>
-            (
-              <img
-                class='span-type-icon'
-                alt=''
-                src={meta.icon}
-              />
-            ) as unknown as SlotReturnValue
-        : '',
+      prefixIcon,
     };
   }
 
