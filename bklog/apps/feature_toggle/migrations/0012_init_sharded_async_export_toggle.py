@@ -40,11 +40,11 @@ def forwards_func(apps, schema_editor):
         defaults={
             "alias": "分片异步日志导出",
             "status": "off",
-            "is_viewed": False,
+            "is_viewed": True,
             "description": "控制新建日志导出是否进入 ExportJob 分片链路；关闭不影响存量任务收尾。",
             "feature_config": DEFAULT_CONFIG,
-            "biz_id_white_list": None,
-            "biz_id_black_list": None,
+            "biz_id_white_list": [],
+            "biz_id_black_list": [],
         },
     )
 
