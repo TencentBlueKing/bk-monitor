@@ -111,3 +111,6 @@ openspec/
 # AAFE-END
 # AAFE: local AI Coding state; do not commit.
 packages/e2e-skills
+
+# OpenSpec drafts stay local.
+openspec/
