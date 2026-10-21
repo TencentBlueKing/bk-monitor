@@ -1626,6 +1626,8 @@ MCP_NATIVE_PERMISSION_TOOLS: list[str] = []
 # {"mode": "v3-current", "gateway_url": "https://.../api/bk-iam/prod/"}
 MCP_LOG_IAM_PROFILE: dict = {}
 MCP_MAX_TIME_SPAN_SECONDS = 86400  # MCP 查询跨度限制
+# MCP Resource 专用 JSON 响应大小上限，单位为字节。
+MCP_MAX_RESPONSE_BYTES = 5 * 1024 * 1024
 # APM Profiling 数据密度高(秒级采样, 单服务每分钟可达数 MB), 单独收紧 MCP 查询跨度上限
 # 避免: 数据量爆炸 / LLM 上下文超限 / 下游 doris 查询超时
 APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS = 30 * 60

@@ -15,7 +15,7 @@ from datetime import datetime
 from django.conf import settings
 from rest_framework import serializers
 
-from core.drf_resource import Resource
+from kernel_api.resource.mcp_response import MCPResource as Resource
 
 logger = logging.getLogger(__name__)
 
