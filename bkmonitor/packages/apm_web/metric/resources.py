@@ -43,7 +43,6 @@ from apm_web.constants import (
 )
 from apm_web.db.db_utils import get_service_from_params
 from apm_web.handlers import metric_group
-from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.host_handler import HostHandler
 from apm_web.handlers.metric_group import PreCalculateHelper
@@ -1745,7 +1744,7 @@ class ApdexQueryResource(ApiAuthResource):
         start_time = serializers.IntegerField(label="开始时间")
         end_time = serializers.IntegerField(label="结束时间")
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
         start_time = validated_request_data["start_time"]
@@ -1755,21 +1754,12 @@ class ApdexQueryResource(ApiAuthResource):
         except Application.DoesNotExist:
             raise ValueError("Application does not exist")
 
-        if ApplicationHandler.have_data(application, start_time, end_time):
-            response = ApdexRange(
-                application, start_time, end_time, interval=get_bar_interval_number(start_time, end_time)
-            ).query_range()
-            return {
-                "metrics": [],
-                "series": fill_series(
-                    response.get("series", []),
-                    start_time,
-                    end_time,
-                    interval=get_bar_interval_number(start_time, end_time),
-                ),
-            }
-
-        return {"metrics": [], "series": []}
+        interval = get_bar_interval_number(start_time, end_time)
+        response = ApdexRange(application, start_time, end_time, interval=interval).query_range()
+        return {
+            "metrics": [],
+            "series": fill_series(response.get("series", []), start_time, end_time, interval=interval),
+        }
 
 
 class EndpointDetailListResource(Resource):
@@ -2524,21 +2514,22 @@ class AlertQueryResource(Resource):
             para["conditions"].append({"key": "strategy_id", "value": [strategy_id]})
         return para
 
-    def get_alert_data(self, *params):
-        application, bk_biz_id, start_time, end_time, strategy_id = params
-        alert_level = [AlertLevel.ERROR, AlertLevel.WARN, AlertLevel.INFO]
+    def get_alert_data(
+        self,
+        application: Application,
+        bk_biz_id: int,
+        start_time: int,
+        end_time: int,
+        strategy_id: int | None,
+    ) -> dict[int, dict[str, Any]]:
         alert_level_result = {}
-        for level in alert_level:
+        for level in (AlertLevel.ERROR, AlertLevel.WARN, AlertLevel.INFO):
             para = self.get_alert_params(application, bk_biz_id, start_time, end_time, level, strategy_id)
             response = resource.fta_web.alert.alert_date_histogram(para)
-            series = []
-            for i in response["series"]:
-                # 查询告警这个接口会返回多一个点 这里将时间点控制为符合 bar_size 的个数
-                series.append({**i, "data": i["data"]})
-            alert_level_result[level] = {"series": series, "unit": ""}
+            alert_level_result[level] = {"series": response["series"], "unit": ""}
         return alert_level_result
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         bk_biz_id = validated_request_data["bk_biz_id"]
         app_name = validated_request_data["app_name"]
         start_time = validated_request_data["start_time"]
@@ -2549,15 +2540,13 @@ class AlertQueryResource(Resource):
         except Application.DoesNotExist:
             raise ValueError("Application does not exist")
 
-        series = []
-        if ApplicationHandler.have_data(application, start_time, end_time):
-            format_alert_data = self.get_alert_data(application, bk_biz_id, start_time, end_time, strategy_id)
-            time_list = self.format_alert_data(format_alert_data)
-            series = [{"datapoints": time_list[:-1], "dimensions": {}, "target": "alert", "type": "bar", "unit": ""}]
+        format_alert_data = self.get_alert_data(application, bk_biz_id, start_time, end_time, strategy_id)
+        time_list = self.format_alert_data(format_alert_data)
 
+        # 告警直方图会多返回一个时间点，去掉尾点以匹配柱状图数量。
         return {
             "metrics": [],
-            "series": series,
+            "series": [{"datapoints": time_list[:-1], "dimensions": {}, "target": "alert", "type": "bar", "unit": ""}],
         }
 
 

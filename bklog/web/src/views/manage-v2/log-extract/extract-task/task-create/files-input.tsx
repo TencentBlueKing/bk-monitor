@@ -111,12 +111,11 @@ export default defineComponent({
     return () => (
       <bk-popover
         ref={selectDropdownRef}
-        class='bk-select-dropdown'
+        class='bk-select-dropdown extract-files-input'
         scopedSlots={{
           // 默认插槽：输入框
           default: () => (
             <bk-input
-              style='width: 669px'
               class={isError.value ? 'is-error' : ''}
               data-test-id='addNewExtraction_input_specifyFolder'
               value={showValue.value}

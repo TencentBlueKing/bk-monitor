@@ -192,9 +192,10 @@ export default defineComponent({
             ref='typeSelectRef'
             class='workload-type-select'
             value={formData.workload_type}
+            allow-create
             clearable
             searchable
-            on-selected={(val: string) => {
+            on-change={(val: string) => {
               formData.workload_type = val;
             }}
           >
