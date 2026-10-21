@@ -21,7 +21,7 @@ from apm_web.profile.resources import (
     QueryServicesDetailResource,
 )
 from apm_web.trace.resources import ListTraceViewConfigResource, ListFlattenSpanResource
-from core.drf_resource import Resource
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
 
 logger = logging.getLogger(__name__)
