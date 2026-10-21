@@ -37,6 +37,7 @@ import type { IFunctionOptionsItem } from '../type/query-config';
 import './expression-panel.scss';
 
 interface IProps {
+  createVariableFn?: (onCreated: (name: string) => void) => void;
   expressionConfig?: Expression;
   metricFunctions?: IFunctionOptionsItem[];
   variables?: VariableModelType[];
@@ -49,6 +50,8 @@ export default class ExpressionPanel extends tsc<IProps> {
   @Prop({ default: () => [] }) metricFunctions: IFunctionOptionsItem[];
   @Prop({ default: () => [] }) variables: VariableModelType[];
   @Prop({ default: () => null }) expressionConfig: Expression;
+  /* 由外部接管变量创建（如宿主自带变量面板），未传时走监控内置的命名输入面板 */
+  @Prop({ default: null, type: Function }) createVariableFn: (onCreated: (name: string) => void) => void;
 
   handleCreateVariable(val: IVariableModel) {
     this.$emit('createVariable', val);
@@ -66,6 +69,7 @@ export default class ExpressionPanel extends tsc<IProps> {
       <div class='template-expression-panel-component'>
         <div class='template-expression-panel'>
           <ExpressionConfigCreator
+            createVariableFn={this.createVariableFn}
             expressionConfig={this.expressionConfig}
             metricFunctions={this.metricFunctions}
             variables={this.variables}
