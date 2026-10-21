@@ -22,7 +22,7 @@ from apps.log_search.constants import (
 from apps.log_search.export import state
 from apps.log_search.export.storage import build_storage
 from apps.log_search.models import LogIndexSet, Space
-from apps.utils.local import get_request, get_request_external_user_email, get_request_language_code
+from apps.utils.local import get_local_param, get_request, get_request_external_user_email, get_request_language_code
 from apps.utils.log import logger
 from apps.utils.notify import NotifyType
 
@@ -49,6 +49,8 @@ def build_notification_context(search_params, space_uid, index_set_type, index_s
     return {
         "language": get_request_language_code(),
         "external_user_email": get_request_external_user_email(),
+        # 邮件在异步任务中发送，创建时固化用户时区，避免只能使用部署时区
+        "time_zone": get_local_param("time_zone"),
         "search_url": search_url,
     }
 
@@ -115,6 +117,7 @@ def send_export_notification(job):
             logger.warning("[sharded_export_notification_skipped] job_id=%s missing receiver", job.pk)
             return
         language = context["language"]
+        time_zone = context.get("time_zone") or settings.TIME_ZONE
         success = job.status == ExportJobStatus.SUCCESS
         with translation.override(language):
             platform = settings.EMAIL_TITLE["en"] if language == "en" else settings.EMAIL_TITLE["zh"]
@@ -132,7 +135,7 @@ def send_export_notification(job):
                 language=language,
                 file={
                     "platform": platform,
-                    "created_at": arrow.get(job.created_at).format("YYYY-MM-DD HH:mm:ss"),
+                    "created_at": arrow.get(job.created_at).to(time_zone).format("YYYY-MM-DD HH:mm:ss"),
                     "index_set_name": index_set_name,
                     "index": ",".join(indexes),
                     "create_by": job.created_by,
