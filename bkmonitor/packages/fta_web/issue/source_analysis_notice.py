@@ -90,7 +90,8 @@ def send_source_analysis_notice(execution: IssueSourceAnalysisExecution) -> None
             )
         results = api.cmsi.send_msg(
             bk_tenant_id=bk_biz_id_to_bk_tenant_id(execution.bk_biz_id),
-            msg_type=NoticeWay.QY_WEIXIN,
+            # CMSI 企业微信渠道编码为 rtx，不是模板内部的 qy_weixin。
+            msg_type="rtx",
             receiver__username=execution.create_user,
             title=title,
             content=content,

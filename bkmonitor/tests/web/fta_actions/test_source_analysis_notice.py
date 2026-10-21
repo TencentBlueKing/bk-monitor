@@ -18,10 +18,11 @@ from django.conf import settings
 from django.db import DatabaseError, transaction
 from django.test import TestCase, override_settings
 from django.utils import timezone, translation
+from requests import Response
 
+from api.cmsi.default import SendMsg
 from bkmonitor.models import IssueSourceAnalysisExecution
 from bkmonitor.utils.user import set_local_username
-from constants.action import NoticeWay
 from constants.issue import (
     SourceAnalysisFailureMessage,
     SourceAnalysisFailureStage,
@@ -101,7 +102,7 @@ class TestSourceAnalysisNotice(TestCase):
         execution.create_time = datetime(2026, 10, 20, 7, 40, tzinfo=dt_timezone.utc)
         return execution
 
-    def fail(self, execution):
+    def mark_execution_failed(self, execution):
         SourceAnalysisExecutionBaseResource._mark_failed(
             execution,
             failure_stage=SourceAnalysisFailureStage.TASK_EXECUTE,
@@ -116,7 +117,7 @@ class TestSourceAnalysisNotice(TestCase):
 
         params = self.send.call_args.kwargs
         self.assertEqual(params["title"], "✅【蓝鲸监控】源码分析完成｜异常登录日志告警")
-        self.assertEqual(params["msg_type"], NoticeWay.QY_WEIXIN)
+        self.assertEqual(params["msg_type"], "rtx")
         self.assertEqual(params["receiver__username"], "clicker")
         self.assertEqual(params["bk_tenant_id"], "tenant-a")
         self.assertIn("你于 15:40 发起的源码关联分析已完成", params["content"])
@@ -144,6 +145,40 @@ class TestSourceAnalysisNotice(TestCase):
         self.assertTrue(params["title"].startswith("✅"))
         self.assertIn("置信度：证据不足", params["content"])
         self.assertNotIn("责任提交", params["content"])
+
+    @override_settings(BK_COMPONENT_API_URL="https://components.example.com", ENABLE_MULTI_TENANT_MODE=False)
+    def test_terminal_notices_send_rtx_in_cmsi_http_payload(self):
+        """只替换 HTTP 发送，防止内部通知枚举再次被误当作 CMSI 渠道编码。"""
+        for status in (SourceAnalysisStatus.SUCCESS, SourceAnalysisStatus.FAILED):
+            execution = self.successful_execution()
+            execution.status = status
+            execution.failure_message = "流水线执行失败"
+            for cmsi_url in ("", "https://cmsi.example.com/"):
+                with self.subTest(status=status, cmsi_url=cmsi_url), override_settings(CMSI_API_BASE_URL=cmsi_url):
+                    send_msg = SendMsg()
+                    response = Response()
+                    response.status_code = 200
+                    response._content = b'{"result": true, "code": 0, "data": {}}'
+                    with (
+                        patch("fta_web.issue.source_analysis_notice.api.cmsi.send_msg", new=send_msg),
+                        patch("requests.sessions.Session.request", return_value=response) as request,
+                        self.assertNoLogs("fta_web.issue.source_analysis_notice", level="WARNING"),
+                    ):
+                        send_source_analysis_notice(execution)
+
+                    request.assert_called_once()
+                    params = request.call_args.kwargs
+                    self.assertEqual(params["method"], "POST")
+                    self.assertEqual(
+                        params["url"],
+                        (cmsi_url or "https://components.example.com/api/c/compapi/v2/cmsi/") + "send_msg",
+                    )
+                    self.assertEqual(params["json"]["msg_type"], "rtx")
+                    self.assertEqual(params["json"]["receiver__username"], "clicker")
+                    self.assertEqual(params["headers"]["X-Bk-Tenant-Id"], "tenant-a")
+                    self.assertTrue(
+                        params["json"]["title"].startswith("✅" if status == SourceAnalysisStatus.SUCCESS else "❌")
+                    )
 
     def test_failed_notice_contains_reason_and_not_success_fields(self):
         execution = self.create_execution(
@@ -289,8 +324,8 @@ class TestSourceAnalysisNotice(TestCase):
         stale = IssueSourceAnalysisExecution.objects.get(pk=execution.pk)
         alias = SourceAnalysisExecutionBaseResource.db_alias()
         with self.captureOnCommitCallbacks(using=alias, execute=True) as callbacks:
-            self.fail(execution)
-            self.fail(stale)
+            self.mark_execution_failed(execution)
+            self.mark_execution_failed(stale)
             self.send.assert_not_called()
         self.assertEqual(len(callbacks), 1)
         self.send.assert_called_once()
@@ -300,7 +335,7 @@ class TestSourceAnalysisNotice(TestCase):
         alias = SourceAnalysisExecutionBaseResource.db_alias()
         with self.captureOnCommitCallbacks(using=alias, execute=True) as callbacks:
             with self.assertRaisesMessage(RuntimeError, "rollback"), transaction.atomic(using=alias):
-                self.fail(execution)
+                self.mark_execution_failed(execution)
                 raise RuntimeError("rollback")
         self.assertEqual(callbacks, [])
         self.send.assert_not_called()
