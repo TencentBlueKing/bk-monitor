@@ -2128,12 +2128,14 @@ class CollectStatusEnum(ChoicesEnum):
     SUCCESS = "success"
     FAILED = "failed"
     TERMINATED = "terminated"
+    UNKNOWN = "unknown"
 
     _choices_labels = (
         (RUNNING, _("部署中")),
         (SUCCESS, _("正常")),
         (FAILED, _("异常")),
         (TERMINATED, _("停用")),
+        (UNKNOWN, _("未知")),
     )
 
     @classmethod
@@ -2147,5 +2149,7 @@ class CollectStatusEnum(ChoicesEnum):
             return cls.FAILED.value
         elif original_status == CollectStatus.TERMINATED:
             return cls.TERMINATED.value
+        elif original_status == CollectStatus.UNKNOWN:
+            return cls.UNKNOWN.value
         else:
             return cls.RUNNING.value

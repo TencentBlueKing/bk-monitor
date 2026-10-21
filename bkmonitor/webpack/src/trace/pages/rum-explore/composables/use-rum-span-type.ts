@@ -32,6 +32,8 @@ import { ALL_SPAN_TYPE, SPAN_TYPE_FIELD, SPAN_TYPE_META } from '../constants';
 import type { IRumFieldGroup, IRumFilter, IRumViewConfig } from '../typings';
 
 export interface IRumSpanTypeChip {
+  /** 无 svg 图标的类型走图标字体，取值为类名 */
+  fontIcon: string;
   icon: string;
   label: string;
   value: string;
@@ -58,6 +60,7 @@ export function useRumSpanType(viewConfig: Ref<IRumViewConfig>) {
     spanTypeList.value.map(type => ({
       value: type,
       icon: SPAN_TYPE_META[type]?.icon || '',
+      fontIcon: SPAN_TYPE_META[type]?.fontIcon || '',
       label: SPAN_TYPE_META[type]?.label || optionAliasMap.value.get(type) || type,
     }))
   );

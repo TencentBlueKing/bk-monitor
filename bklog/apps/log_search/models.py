@@ -41,7 +41,7 @@ from jinja2.sandbox import SandboxedEnvironment as Environment
 from redis.exceptions import RedisError
 
 from apps.api import TransferApi
-from apps.constants import SpacePropertyEnum
+from apps.constants import USERNAME_MAX_LENGTH, SpacePropertyEnum
 from apps.exceptions import BizNotExistError
 from apps.feature_toggle.handlers.toggle import feature_switch
 from apps.log_clustering.constants import PatternEnum, YearOnYearEnum
@@ -1165,6 +1165,9 @@ class UserIndexSetConfig(SoftDeleteModel):
 
 
 class UserIndexSetSearchHistory(SoftDeleteModel):
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
+    updated_by = models.CharField(_("修改者"), max_length=USERNAME_MAX_LENGTH, blank=True, default="")
+    deleted_by = models.CharField(_("删除者"), max_length=USERNAME_MAX_LENGTH, blank=True, null=True)
     index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
     params = JsonField(_("检索条件"), null=True, default=None)
     search_type = models.CharField(_("检索类型"), max_length=32, default="default")
@@ -1287,6 +1290,8 @@ class FavoriteSearch(SoftDeleteModel):
 
 
 class Favorite(OperateRecordModel):
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
+    updated_by = models.CharField(_("修改者"), max_length=USERNAME_MAX_LENGTH, blank=True, default="")
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
     index_set_id = models.IntegerField(_("索引集ID"), null=True, default=None)
     name = models.CharField(_("收藏名称"), max_length=255)
@@ -1432,6 +1437,8 @@ class Favorite(OperateRecordModel):
 class FavoriteGroup(OperateRecordModel):
     """收藏组"""
 
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
+    updated_by = models.CharField(_("修改者"), max_length=USERNAME_MAX_LENGTH, blank=True, default="")
     name = models.CharField(_("收藏组名称"), max_length=64)
     group_type = models.CharField(_("收藏组类型"), max_length=64, choices=FavoriteGroupType.get_choices())
     space_uid = models.CharField(_("空间唯一标识"), blank=True, default="", max_length=256, db_index=True)
@@ -1769,6 +1776,8 @@ class AsyncTask(OperateRecordModel):
     导出任务状态表
     """
 
+    created_by = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
+    updated_by = models.CharField(_("修改者"), max_length=USERNAME_MAX_LENGTH, blank=True, default="")
     request_param = models.JSONField(_("检索请求参数"))
     sorted_param = models.JSONField(_("异步导出排序字段"), null=True, blank=True)
     scenario_id = models.CharField(_("接入场景"), max_length=64, null=True, blank=True)
@@ -1927,7 +1936,7 @@ class EmailTemplate(OperateRecordModel):
 
 
 class UserMetaConf(models.Model):
-    username = models.CharField(_("创建者"), max_length=32, default="")
+    username = models.CharField(_("创建者"), max_length=USERNAME_MAX_LENGTH, default="")
     conf = models.JSONField(_("用户meta配置"), default=dict)
     type = models.CharField(_("数据类型"), max_length=64)
 
@@ -2287,7 +2296,7 @@ class UserIndexSetFieldsConfig(models.Model):
 
     index_set_id = models.IntegerField(_("索引集ID"), null=True, blank=True, db_index=True)
     config_id = models.IntegerField(_("索引集配置ID"), db_index=True)
-    username = models.CharField(_("用户名"), max_length=32, default="", db_index=True)
+    username = models.CharField(_("用户名"), max_length=USERNAME_MAX_LENGTH, default="", db_index=True)
     scope = models.CharField(_("范围"), max_length=16, default=SearchScopeEnum.DEFAULT.value, db_index=True)
     source_app_code = models.CharField(
         verbose_name=_("来源系统"), default=get_request_app_code, max_length=32, blank=True

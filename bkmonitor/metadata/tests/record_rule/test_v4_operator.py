@@ -462,7 +462,9 @@ def test_create_group_with_two_records_applies_single_flow(v4_base_data, externa
     assert not models.ResultTableConfig.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).exists()
     assert not models.VMStorageBindingConfig.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).exists()
     assert rule.dst_vm_table_id == RecordRuleV4OutputResources.compose_vm_result_table_id(
-        bk_tenant_id=TENANT_ID, bk_biz_id=int(SPACE_ID), table_id=rule.table_id
+        bk_tenant_id=TENANT_ID,
+        bk_biz_id=int(SPACE_ID),
+        result_table_config_name=rule.dst_vm_table_id.split("_", 1)[1],
     )
     output_table = models.ResultTable.objects.get(table_id=rule.table_id, bk_tenant_id=TENANT_ID)
     assert output_table.table_name_zh == RULE_NAME
@@ -722,7 +724,9 @@ def test_create_prepares_output_metadata_before_apply(v4_base_data, external_api
     assert not models.ResultTableConfig.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).exists()
     assert not models.VMStorageBindingConfig.objects.filter(table_id=rule.table_id, bk_tenant_id=TENANT_ID).exists()
     assert rule.dst_vm_table_id == RecordRuleV4OutputResources.compose_vm_result_table_id(
-        bk_tenant_id=TENANT_ID, bk_biz_id=int(SPACE_ID), table_id=rule.table_id
+        bk_tenant_id=TENANT_ID,
+        bk_biz_id=int(SPACE_ID),
+        result_table_config_name=rule.dst_vm_table_id.split("_", 1)[1],
     )
     assert rule.dst_vm_storage_name == "monitor-opsystem"
     assert models.AccessVMRecord.objects.filter(
@@ -780,9 +784,13 @@ def test_reconcile_only_applies_changed_flow(v4_base_data, external_api):
     assert_flow_apply_only(external_api)
 
 
-def test_prepare_output_keeps_vmrt_without_creating_external_resources(v4_base_data, external_api):
+def test_prepare_output_keeps_vmrt_without_creating_external_resources(v4_base_data, external_api, mocker):
     rule = create_rule(apply_immediately=False)
     vmrt = rule.dst_vm_table_id
+    assert vmrt.split("_", 1)[1].startswith(f"bkm_rr_{rule.pk}_")
+    mocker.patch.object(
+        RecordRuleV4OutputResources, "generate_result_table_config_name", side_effect=AssertionError("regenerated")
+    )
     external_api.apply_data_link.reset_mock()
 
     assert RecordRuleV4Operator(rule).execute_declaration(auto_apply=False) is True
@@ -1051,7 +1059,7 @@ def test_run_check_converts_structured_query_config_to_query_ts(v4_base_data, ex
     assert kwargs["start_time"] == "1778935339"
     assert kwargs["end_time"] == "1778938939"
     assert kwargs["step"] == "60s"
-    assert kwargs["order_by"] == ["-time"]
+    assert kwargs["order_by"] == ["-_time"]
     assert kwargs["metric_merge"] == "a / b"
     assert kwargs["not_time_align"] is False
     for skipped_field in (

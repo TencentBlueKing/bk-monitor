@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING
 
 from bkmonitor.utils.tenant import get_tenant_datalink_biz_id
 from metadata.models.data_link import utils as data_link_utils
+from metadata.models.data_link.constants import DataLinkNameScene
 from metadata.models.space.space_table_id_redis import SpaceTableIDRedis
 
 if TYPE_CHECKING:
@@ -47,12 +48,16 @@ class RecordRuleV4OutputResources:
         return result_table_created
 
     @staticmethod
-    def compose_vm_result_table_id(bk_tenant_id: str, bk_biz_id: int, table_id: str) -> str:
+    def generate_result_table_config_name(rule_id: int) -> str:
+        """规则声明时分配一次输出名，后续从 dst_vm_table_id 复用。"""
+        return data_link_utils.generate_bkdata_resource_name(DataLinkNameScene.RECORD_RULE, rule_id)
+
+    @staticmethod
+    def compose_vm_result_table_id(bk_tenant_id: str, bk_biz_id: int, result_table_config_name: str) -> str:
         """为 group 分配固定 VMRT，不创建 BKBase 资源。"""
 
         data_link_biz_ids = get_tenant_datalink_biz_id(bk_tenant_id=bk_tenant_id, bk_biz_id=bk_biz_id)
-        table_name = data_link_utils.compose_bkdata_table_id(table_id)
-        return f"{data_link_biz_ids.data_biz_id}_{table_name}"
+        return f"{data_link_biz_ids.data_biz_id}_{result_table_config_name}"
 
     @staticmethod
     def ensure_result_table(rule: RecordRuleV4) -> bool:

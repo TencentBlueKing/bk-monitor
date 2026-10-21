@@ -83,12 +83,14 @@ export default defineComponent({
               class={['type-chip', { active: this.value === item.value }]}
               onClick={() => this.handleSelect(item.value)}
             >
-              {item.icon && (
+              {item.icon ? (
                 <img
                   class='chip-icon'
                   alt=''
                   src={item.icon}
                 />
+              ) : (
+                item.fontIcon && <i class={['chip-icon', item.fontIcon]} />
               )}
               <span class='chip-label'>{item.label}</span>
             </div>

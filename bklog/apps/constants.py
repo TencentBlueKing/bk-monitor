@@ -26,6 +26,7 @@ from django.utils.translation import gettext_lazy as _
 from apps.utils import ChoicesEnum
 
 DEFAULT_MAX_WORKERS = 5
+USERNAME_MAX_LENGTH = 64
 
 
 class NotifyType(ChoicesEnum):

@@ -14,7 +14,9 @@ from typing import Any
 from rest_framework import serializers
 
 from bkm_space.utils import bk_biz_id_to_space_uid
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
+from kernel_api.resource.mcp_response import is_mcp_request
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
 from kernel_api.unified_mcp.permissions import call_log_api
 
@@ -369,6 +371,10 @@ class SearchLogResource(Resource):
         if order_by:
             query_params["order_by"] = order_by
 
+        if is_mcp_request():
+            from kernel_api.resource.mcp_uq import query_uq
+
+            return query_uq("query_raw", query_params)
         result = api.unify_query.query_raw(**query_params)
         return result
 
@@ -523,6 +529,10 @@ class FieldAnalyzeResource(Resource):
             "space_uid": space_uid,
         }
 
+        if is_mcp_request():
+            from kernel_api.resource.mcp_uq import query_uq
+
+            return query_uq("query_reference", query_params)
         return api.unify_query.query_reference(**query_params)
 
 

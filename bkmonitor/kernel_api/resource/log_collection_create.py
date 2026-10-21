@@ -7,7 +7,8 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 
 from bkmonitor.utils.user import get_backend_username
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.resource.log_collection_common import StrictMCPSerializer, normalize_task_ids
 
 ENVIRONMENT_LINUX = "linux"

@@ -196,6 +196,10 @@ ADVANCED_OPTIONS = OrderedDict(
         ),
         ("MCP_MAX_TIME_SPAN_SECONDS", slz.IntegerField(label="MCP查询跨度限制", default=86400)),
         (
+            "MCP_MAX_RESPONSE_BYTES",
+            slz.IntegerField(label="MCP最大JSON响应体大小（字节）", default=5 * 1024 * 1024, min_value=1),
+        ),
+        (
             "APM_PROFILING_MCP_MAX_TIME_SPAN_SECONDS",
             slz.IntegerField(label="APM Profiling MCP 查询跨度限制(秒)", default=30 * 60),
         ),

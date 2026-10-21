@@ -28,6 +28,10 @@ class Config(AppConfig):
     label = "bkmonitor"
 
     def ready(self):
+        from patches.blueapps import patch_ticket_authenticate
+
+        patch_ticket_authenticate()
+
         from bkmonitor.utils.db_connection import install_discard_dead_db_connection
 
         install_discard_dead_db_connection()
