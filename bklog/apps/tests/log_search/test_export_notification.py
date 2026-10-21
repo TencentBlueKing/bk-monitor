@@ -69,6 +69,11 @@ class NotificationContextTests(SimpleTestCase):
                         self.assertEqual(query["unionList"], ["[3, 4]"])
         self.assertEqual(params["addition"], [{"field": "host", "value": "a"}])
 
+    @patch("apps.log_search.export.notification.get_local_param", return_value="America/New_York")
+    def test_context_captures_user_timezone(self, time_zone_mock):
+        context = build_notification_context({}, "bkcc__2", IndexSetType.SINGLE.value, [3])
+        self.assertEqual(context["time_zone"], "America/New_York")
+
 
 @override_settings(EMAIL_TITLE={"en": "Logs", "zh": "日志平台"})
 class ExportNotificationTests(TestCase):
@@ -106,8 +111,9 @@ class ExportNotificationTests(TestCase):
         self.assertEqual(content["file"]["download_url"], "https://storage.example/full")
         self.assertEqual(content["file"]["size"], 1)
 
-    def test_created_at_is_rendered_in_project_timezone(self):
-        """导出时间按项目时区展示，不能直接输出数据库中的 UTC 时间。"""
+    @override_settings(TIME_ZONE="Asia/Shanghai")
+    def test_created_at_falls_back_to_project_timezone(self):
+        """任务没有用户时区快照时，按项目时区展示。"""
         job = make_job(status=ExportJobStatus.FAILED, search_type=ExportSearchType.SCENE)
         ExportJob.objects.filter(pk=job.pk).update(created_at=datetime(2026, 10, 21, 2, 0, tzinfo=dt_timezone.utc))
         job.refresh_from_db()
@@ -115,6 +121,21 @@ class ExportNotificationTests(TestCase):
         send_export_notification(job)
 
         self.assertEqual(self.channel.content.call_args.kwargs["file"]["created_at"], "2026-10-21 10:00:00")
+
+    @override_settings(TIME_ZONE="Asia/Shanghai")
+    def test_created_at_uses_timezone_captured_at_creation(self):
+        """用户个人时区与部署时区不同时，按创建任务时的用户时区展示。"""
+        job = make_job(
+            status=ExportJobStatus.FAILED,
+            search_type=ExportSearchType.SCENE,
+            notification_context={"language": "zh-cn", "time_zone": "UTC"},
+        )
+        ExportJob.objects.filter(pk=job.pk).update(created_at=datetime(2026, 10, 21, 2, 0, tzinfo=dt_timezone.utc))
+        job.refresh_from_db()
+
+        send_export_notification(job)
+
+        self.assertEqual(self.channel.content.call_args.kwargs["file"]["created_at"], "2026-10-21 02:00:00")
 
     def test_scene_failure_uses_the_legacy_title(self):
         send_export_notification(make_job(status=ExportJobStatus.FAILED, search_type=ExportSearchType.SCENE))
