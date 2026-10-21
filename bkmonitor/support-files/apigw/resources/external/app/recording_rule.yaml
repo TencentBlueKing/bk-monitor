@@ -2,7 +2,7 @@ paths:
   /app/recording_rule/preview_config/:
     post:
       operationId: recording_rule_preview_config
-      description: 预解析 RecordingRule 配置
+      description: 预解析 RecordingRule 配置；返回 deployment_check，包含数量、上限、是否可下发和结构化 errors。解析业务失败返回 HTTP 200、result=false、code=3300004、data.errors（code/message/path）；超限返回 HTTP 200，can_apply=false。
       requestBody:
         required: true
         content:

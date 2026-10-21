@@ -6,7 +6,10 @@ from bkmonitor.as_code import recording_rule
 from bkmonitor.utils.request import get_request_username
 from bkmonitor.utils.serializers import BkBizIdSerializer
 from core.drf_resource import Resource
+from core.errors.common import DrfApiError
+from core.errors.recording_rule import RecordingRulePreviewError
 from metadata.models.record_rule.v4.as_code import dump_rule
+from metadata.models.record_rule.v4.limits import check_deployment_limits
 from metadata.models.record_rule.v4.models import RecordRuleV4, RecordRuleV4Spec, RecordRuleV4SpecRecord
 from metadata.models.record_rule.v4.operator import RecordRuleV4Operator
 from metadata.models.record_rule.v4.resolver import RecordRuleV4Resolver
@@ -68,14 +71,32 @@ class PreviewConfigResource(RecordingRuleResource):
     class RequestSerializer(ConfigSerializer):
         id = serializers.IntegerField(min_value=1, required=False)
 
+        def validate_config(self, value):
+            try:
+                return super().validate_config(value)
+            except serializers.ValidationError as error:
+                raise RecordingRulePreviewError(
+                    "INVALID_CONFIG", DrfApiError.drf_error_processor(error.detail), "config"
+                ) from error
+
     def perform_request(self, params):
         declaration = params["config"]
-        if "id" in params:
-            rule = self.get_rule(params)
-            if declaration["name"] != rule.name:
-                raise serializers.ValidationError("规则组名称不可修改")
-        else:
+        try:
             space = self.get_space(params)
+        except serializers.ValidationError as error:
+            raise RecordingRulePreviewError(
+                "INVALID_SPACE",
+                DrfApiError.drf_error_processor(error.detail),
+                "space_uid" if params.get("space_uid") else "bk_biz_id",
+            ) from error
+        if "id" in params:
+            try:
+                rule = recording_rule.active_rules(space).get(pk=params["id"])
+            except RecordRuleV4.DoesNotExist as error:
+                raise RecordingRulePreviewError("RULE_NOT_FOUND", "RecordingRule 不存在", "id") from error
+            if declaration["name"] != rule.name:
+                raise RecordingRulePreviewError("INVALID_CONFIG", "规则组名称不可修改", "config.name")
+        else:
             rule = RecordRuleV4(
                 bk_tenant_id=space.bk_tenant_id, space_type=space.space_type_id, space_id=space.space_id
             )
@@ -88,10 +109,21 @@ class PreviewConfigResource(RecordingRuleResource):
             try:
                 resolved = resolver.resolve_record(spec_record)
             except Exception as error:
-                raise serializers.ValidationError({f"config.rules[{index}]": str(error)}) from error
+                raise RecordingRulePreviewError("RESOLVE_FAILED", str(error), f"config.rules[{index}]") from error
             resolved.pop("record_key")
             records.append({"record": record["metric_name"], **resolved})
-        return {"config": declaration["raw_config"], "records": records}
+        # 与 Flow 的 source 生成口径一致：按 BKBase ResultTable 的 namespace/name 去重。
+        sources = {
+            (config["bkbase_result_table_namespace"], config["bkbase_result_table_name"])
+            for record in records
+            for config in record["src_result_table_configs"]
+            if config.get("bkbase_result_table_name")
+        }
+        return {
+            "config": declaration["raw_config"],
+            "records": records,
+            "deployment_check": check_deployment_limits(source_count=len(sources), rule_count=len(records)),
+        }
 
 
 class CreateConfigResource(RecordingRuleResource):

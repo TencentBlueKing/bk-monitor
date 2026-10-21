@@ -101,7 +101,7 @@ def test_preview_failure_and_edit_self_reference(public_context):
     result = call(api.PreviewConfigResource, config=group(), id=rule_id)
     assert result["records"][0]["src_vm_table_ids"] == [SOURCE_VM_TABLE_ID]
     public_context.check_promql.side_effect = RuntimeError("query unavailable")
-    with pytest.raises(ValidationError, match=r"config.rules\[0\].*query unavailable"):
+    with pytest.raises(api.RecordingRulePreviewError, match=r"config.rules\[0\].*query unavailable"):
         call(api.PreviewConfigResource, config=group(), id=rule_id)
     rule = RecordRuleV4.objects.get(pk=rule_id)
     assert rule.specs.count() == rule.resolved.count() == 1
@@ -228,7 +228,8 @@ def test_soft_delete_hidden_and_scheduler_retries_without_admin_filter(public_co
         (api.ApplyConfigResource, {}),
         (api.DeleteConfigResource, {}),
     ]:
-        with pytest.raises(ValidationError, match="不存在"):
+        error_type = api.RecordingRulePreviewError if resource is api.PreviewConfigResource else ValidationError
+        with pytest.raises(error_type, match="不存在"):
             call(resource, id=rule_id, **params)
     assert call(api.ListConfigsResource)["total"] == 0
     assert admin.get_record_rule_v4_config({"bk_tenant_id": TENANT_ID, "id": rule_id})["data"]["rule"]["id"] == rule_id

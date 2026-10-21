@@ -552,6 +552,28 @@ incremental=false 且本次包含 recording_rule 文件时，在新增／更新�
 
 JSON 导出保留来源目录层级；压缩包沿用目录分隔符转连字符的规则，转换后路径相同的文件会合并 group，避免相互覆盖。
 
+### 部署规模上限
+
+在全局动态配置中统一使用 `RECORD_RULE_V4_CONFIG`：
+
+```json
+{
+  "max_sources": 20,
+  "max_rules": 20
+}
+```
+
+两个值均使用正整数，未配置的键默认取 20，可按环境调整。`max_sources` 限制单个 Flow 的来源数量，按 BKBase ResultTable 的 namespace/name 去重；`max_rules` 限制 group 下的规则条数。一个 group 仍合并成一个 RecordingRuleNode，规则条数按节点的 config 项数计算，不改变现有 Flow 协议。
+
+- 保存声明和正式解析不因超限失败，仍保留 Spec、Resolved 及 Flow 快照。
+- 预解析仍返回规范化配置和解析记录，额外返回 `deployment_check`，包含 `can_apply`、实际数量、当前上限和 `errors`。超限时 `can_apply=false`，预解析本身不写库或下发。
+- 每次真正下发前按当前生效的动态配置重新检查。超限时不调用 BKBase，记录下发失败及原因；此前已生效的 Flow 保留。API/MCP、AsCode、Admin 和后台任务共用该限制。
+- 调整上限不会主动停止已有 Flow。调整后可重试下发，已有解析快照可继续使用；删除 Flow 不受上限影响。
+
+监控侧配置应与当前 BKBase 环境的实际限制保持一致，配置变更遵循现有动态配置缓存刷新机制。
+
+预解析业务错误使用统一的 `{code, message, path}` 条目：`INVALID_CONFIG`、`INVALID_SPACE`、`RULE_NOT_FOUND`、`RESOLVE_FAILED` 沿用后台 API 的 HTTP 200 / `result=false` / `code=3300004`，详情在 `data.errors`。解析成功但超限时，`deployment_check.errors` 返回 `SOURCE_LIMIT_EXCEEDED` 或 `RULE_LIMIT_EXCEEDED`，并提供 `actual` 和 `limit`。API 和 MCP 错误码与处理方式一致，完整示例见各自预解析接口文档。
+
 ### 软删除边界
 
 is_deleted 仅由 AsCode／公共配置 API 使用。删除入口在同一事务内设置 is_deleted=true 并声明 desired_status=deleted，提交后执行 Flow 删除。所有公共查询、修改、预解析已有对象、下发、导入匹配和导出都过滤 is_deleted=false。重复删除返回对象不存在；重新导入同名配置创建新对象。

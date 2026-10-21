@@ -1280,6 +1280,8 @@ NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
 # RecordRule V4 Flow 专用网关，未配置时沿用公共 BKBase 网关
 BKDATA_RECORD_RULE_API_BASE_URL = os.getenv("BKAPP_BKDATA_RECORD_RULE_API_BASE_URL", "")
+# RecordingRule V4 动态配置的静态默认值，source 按实际 Flow 去重，rules 按 group 条数计数。
+RECORD_RULE_V4_CONFIG = {"max_sources": 20, "max_rules": 20}
 # bkdata api only for query data (not required)
 BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
 BKDATA_PROFILE_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_PROFILE_QUERY_API_BASE_URL", "")

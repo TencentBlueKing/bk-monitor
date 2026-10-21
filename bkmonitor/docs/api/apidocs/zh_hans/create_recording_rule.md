@@ -50,3 +50,5 @@
 新建、修改的 `apply` 默认 `false`；保存成功与下发成功分别返回，需检查 `execution.succeeded`。后台仍遵循 `auto_refresh`。详情的 `with_status` 默认 `false`；启用时观测错误单独返回。软删除后规则立即对 MCP 不可见，Flow 删除失败由后台重试，历史保留。
 
 统一 MCP 可通过 `lookup_tool` 检索 `recording_rule` 分类，再通过 `execute_tool` 调用相同工具和参数。写操作沿用 MCP 约定，需要用户确认并传 `confirm=true`。
+
+下发前检查动态 JSON 配置 `RECORD_RULE_V4_CONFIG`（默认 `{"max_sources": 20, "max_rules": 20}`）。超限返回 `execution.succeeded=false`，`execution.error` 包含实际数量和上限；声明、成功解析的快照与此前已生效的 Flow 保留，不向 BKBase 提交本次 Flow。调整上限或配置后可再次调用 `apply_config`。

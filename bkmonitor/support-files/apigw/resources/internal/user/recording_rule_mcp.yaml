@@ -2,7 +2,7 @@ paths:
   /mcp/preview_recording_rule/:
     post:
       operationId: preview_recording_rule
-      description: 'Preview a RecordingRule without saving or applying it. 预解析预计算规则。 Requires a verified gateway
+      description: 'Preview a RecordingRule without saving or applying it. Returns deployment_check with counts, limits and can_apply; over-limit configurations remain parseable. Business errors use HTTP 200 with result=false, code=3300004 and data.errors entries with code/message/path. Deployment errors are SOURCE_LIMIT_EXCEEDED or RULE_LIMIT_EXCEEDED with actual/limit; inspect can_apply before applying. 预解析预计算规则，deployment_check 返回数量、上限和是否可下发，超限仍返回解析结果。解析业务错误使用 HTTP 200、result=false、code=3300004 和 data.errors（code/message/path），部署超限返回 SOURCE_LIMIT_EXCEEDED 或 RULE_LIMIT_EXCEEDED（含 actual/limit），调用方需检查 can_apply。 Requires a verified gateway
         user and business-scoped RecordingRule permission. 必须通过网关用户鉴权并拥有当前业务的预计算规则权限。 Required IAM action: view_recording_rule_v2.
         所需业务权限：view_recording_rule_v2。'
       requestBody:
