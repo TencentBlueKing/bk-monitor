@@ -8,8 +8,131 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from monitor_web.strategies.metric_list_cache import BaseMetricCacheManager, BkmonitorMetricCacheManager
+from contextlib import ExitStack
+from copy import deepcopy
+from unittest.mock import MagicMock
+
+import pytest
+from django.db import connections
+
+from bkmonitor.models.metric_list_cache import MetricListCache
+from monitor_web.strategies import metric_list_cache
+from monitor_web.strategies.metric_list_cache import (
+    BaseMetricCacheManager,
+    BkmonitorMetricCacheManager,
+    CustomMetricCacheManager,
+)
+from monitor_web.strategies.resources.v2 import GetMetricListV2Resource
 from monitor_web.strategies.metric_cache.built_in_metrics import PROCESS_METRICS, SYSTEM_HOST_METRICS
+
+
+@pytest.fixture
+def custom_scope_tables():
+    table = {
+        "bk_biz_id": 2,
+        "time_series_group_id": 10,
+        "table_id": "2_bkapm_metric_demo.count",
+        "time_series_group_name": "bkapm_demo_metric",
+        "bk_data_id": 100,
+        "label": "apm",
+    }
+    metric = {
+        "field_name": "count",
+        "description": "失败数",
+        "tag_list": [{"field_name": "item_type", "description": "物品类型"}],
+    }
+    first = {**table, "metric_info_list": [deepcopy(metric)]}
+    second = {**table, "metric_info_list": [deepcopy(metric)]}
+    second["metric_info_list"][0]["tag_list"].append(
+        {"field_name": "base62Mm45BOZ5eM2yBMRzB", "description": "所属品牌"}
+    )
+    return [first, second]
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("existing", [False, True])
+def test_custom_metric_refresh_merges_scopes_before_cache_deduplication(
+    monkeypatch, custom_scope_tables, reverse, existing
+):
+    tables = custom_scope_tables[::-1] if reverse else custom_scope_tables
+    monkeypatch.setattr(metric_list_cache.api.metadata, "query_time_series_group", lambda **kwargs: tables)
+    plugins = MagicMock()
+    plugins.exclude.return_value.values_list.return_value = []
+    monkeypatch.setattr(metric_list_cache.CollectorPluginMeta.objects, "filter", lambda **kwargs: plugins)
+    monkeypatch.setattr(MetricListCache, "get_human_readable_name", lambda self: "demo.count")
+
+    manager = CustomMetricCacheManager(bk_tenant_id="system", bk_biz_id=2)
+    monkeypatch.setattr(manager, "get_label_name", lambda label: label)
+    monkeypatch.setattr(manager, "refresh_metric_use_frequency", lambda: None)
+    old_metric = MetricListCache(
+        id=1, bk_biz_id=2, result_table_id="2_bkapm_metric_demo.__default__", metric_field="count", related_id="10"
+    )
+    pool = MagicMock()
+    pool.filter.return_value = pool
+    pool.only.return_value = [old_metric] if existing else []
+    monkeypatch.setattr(manager, "get_metric_pool", lambda: pool)
+    writes = []
+    monkeypatch.setattr(MetricListCache.objects, "bulk_create", lambda metrics, **kwargs: writes.extend(metrics))
+    monkeypatch.setattr(MetricListCache.objects, "bulk_update", lambda metrics, *args, **kwargs: writes.extend(metrics))
+
+    manager.run(delay=False)
+
+    [cached] = writes
+    [result] = GetMetricListV2Resource.get_metric_list(2, [cached])
+    assert {dimension["id"]: dimension["name"] for dimension in result["dimensions"]} == {
+        "item_type": "物品类型",
+        "base62Mm45BOZ5eM2yBMRzB": "所属品牌",
+    }
+    assert result["result_table_id"] == "2_bkapm_metric_demo.__default__"
+    assert result["metric_field"] == "count"
+    assert cached.metric_md5
+
+    pool.only.return_value = [cached]
+    writes.clear()
+    manager.run(delay=False)
+    assert writes == []
+
+
+@pytest.mark.parametrize("field,value", [("bk_biz_id", 3), ("time_series_group_id", 11), ("table_id", "other.count")])
+def test_custom_metric_dimensions_do_not_cross_data_sources(custom_scope_tables, field, value):
+    custom_scope_tables[1][field] = value
+
+    CustomMetricCacheManager.merge_metric_dimensions(custom_scope_tables)
+
+    assert len(custom_scope_tables[0]["metric_info_list"][0]["tag_list"]) == 1
+
+
+def test_custom_metric_dimension_merge_preserves_aliases_and_other_metrics(custom_scope_tables):
+    first = custom_scope_tables[0]["metric_info_list"][0]
+    second = custom_scope_tables[1]["metric_info_list"][0]
+    first["tag_list"][0]["description"] = "已有物品别名"
+    other = {"field_name": "other_count", "tag_list": [{"field_name": "other_tag", "description": "其他维度"}]}
+    custom_scope_tables[1]["metric_info_list"].extend([other, None])
+
+    CustomMetricCacheManager.merge_metric_dimensions(custom_scope_tables)
+
+    assert first["tag_list"][0]["description"] == "已有物品别名"
+    assert len(first["tag_list"]) == 2
+    assert len(second["tag_list"]) == 2
+    assert other["tag_list"] == [{"field_name": "other_tag", "description": "其他维度"}]
+
+
+def test_custom_metric_dimension_merge_does_not_execute_sql(custom_scope_tables):
+    queries = []
+
+    def record_query(execute, sql, params, many, context):
+        queries.append(sql)
+        return execute(sql, params, many, context)
+
+    with ExitStack() as stack:
+        for connection in connections.all():
+            stack.enter_context(connection.execute_wrapper(record_query))
+        for count in (1, 100, 1000):
+            tables = deepcopy(custom_scope_tables) + [deepcopy(custom_scope_tables[1]) for _ in range(count)]
+            CustomMetricCacheManager.merge_metric_dimensions(tables)
+            assert len(tables[0]["metric_info_list"][0]["tag_list"]) == 2
+
+    assert queries == []
 
 
 def test_process_cpu_time_metrics_use_millisecond_unit():
