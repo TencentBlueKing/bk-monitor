@@ -914,6 +914,8 @@ class SearchViewSet(APIViewSet):
             params["index_set_id"] = int(index_set_id)
             params["index_set_type"] = IndexSetType.SINGLE.value
         job = sharded_export_api.create_export_job(params, raw_params=data, job_bk_biz_id=request_bk_biz_id)
+        if isinstance(job, sharded_export_api.ExportSortConfirmation):
+            return Response({"engine": "sharded", "requires_sort_confirmation": True, "sort_list": job.sort_list})
         return Response({"task_id": job.pk, "engine": "sharded"})
 
     @list_route(methods=["POST"], url_path="union_async_export")

@@ -387,6 +387,7 @@ class SceneAggsDateHistogramSerializer(_SceneRouteMixin):
 class SceneExportSerializer(_SceneRouteMixin):
     """场景化异步导出 — 对标 SearchExportSerializer"""
 
+    supports_sort_confirmation = serializers.BooleanField(required=False, default=False)
     keyword = serializers.CharField(required=False, allow_null=True, allow_blank=True, default="*")
     addition = serializers.ListField(allow_empty=True, required=False, default=list)
     start_time = serializers.CharField(required=True)
@@ -1198,6 +1199,8 @@ class SceneSearchViewSet(APIViewSet):
         params = sharded_export_api.normalize_legacy_export_params(data, search_type=ExportSearchType.SCENE)
         params.update(space_uid=data["space_uid"], table_id_conditions=data["table_id_conditions"])
         job = sharded_export_api.create_export_job(params, raw_params=data)
+        if isinstance(job, sharded_export_api.ExportSortConfirmation):
+            return Response({"engine": "sharded", "requires_sort_confirmation": True, "sort_list": job.sort_list})
         return Response({"task_id": job.pk, "engine": "sharded"})
 
     @list_route(methods=["POST"], url_path="export/history")
