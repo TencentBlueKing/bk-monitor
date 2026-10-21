@@ -31,6 +31,13 @@ import { echarts } from 'monitor-ui/monitor-echarts/types/monitor-echarts';
 import { debounce } from 'throttle-debounce';
 import { useI18n } from 'vue-i18n';
 
+import {
+  allowsRealtimeEvents,
+  allowsRealtimeMetrics,
+  snapshotEvents,
+  snapshotMetrics,
+  type SnapshotAnalysis,
+} from '../snapshot-analysis';
 import { handleEndTime, scaleArrayToRange } from '../utils';
 
 import type { IncidentDetailData } from '../types/topo';
@@ -65,7 +72,8 @@ export default function useMetrics(
   refreshTime: Ref<number>,
   showServiceOverview: Ref<boolean>,
   getMetricsDataLength: (length: number) => void,
-  edgeMetricData: Ref<Array<any>> // 边的指标数据
+  edgeMetricData: Ref<Array<any>>, // 边的指标数据
+  snapshotAnalysis?: Ref<SnapshotAnalysis | null | undefined>
 ) {
   const { t } = useI18n();
   const loading = deepRef<boolean>(false);
@@ -102,6 +110,7 @@ export default function useMetrics(
   const refreshTimeout = deepRef<NodeJS.Timeout | null>(null);
   // 是否禁用事件分析弹窗相关功能
   const disableEventAnalysis = deepRef(false);
+  const eventDataMessage = deepRef('');
   // 故障结束时间戳
   const endTime = shallowRef(null);
   const metricInterval = shallowRef(0);
@@ -156,7 +165,9 @@ export default function useMetrics(
     clearRefreshTimer();
 
     // 只有在侧滑菜单打开且需要定时刷新时才启动新定时器
-    if (showServiceOverview.value && refreshTime.value !== -1) {
+    if (showServiceOverview.value && refreshTime.value !== -1 && (
+      allowsRealtimeMetrics(snapshotAnalysis?.value) || allowsRealtimeEvents(snapshotAnalysis?.value)
+    )) {
       refreshTimeout.value = setTimeout(() => {
         getMetricsData();
         getEventsData();
@@ -179,6 +190,14 @@ export default function useMetrics(
     try {
       loading.value = true;
       clearRefreshTimer();
+      metricsData.value = [];
+      const saved = snapshotMetrics(snapshotAnalysis?.value);
+      if (saved?.length || (saved !== null && !allowsRealtimeMetrics(snapshotAnalysis?.value))) {
+        metricsData.value = saved || [];
+        exceptionData.value.showException = !metricsData.value.length;
+        if (!metricsData.value.length) handleExceptionData('noData', t('该分析快照未提供指标数据'));
+        return;
+      }
 
       const { begin_time, end_time } = incidentDetailData.value;
       // 获取最新的故障结束时间戳
@@ -201,7 +220,7 @@ export default function useMetrics(
           return {
             display_by_dimensions: false,
             metric_alias: event.event_name,
-            metric_name: event.event_name,
+            metric_name: event.metric_name || event.event_name,
             metric_type: 'edge',
             time_series: {
               default: {
@@ -424,16 +443,32 @@ export default function useMetrics(
 
   /** 获取事件分析数据 */
   const getEventsData = debounce(100, async () => {
+    eventDataMessage.value = '';
+    const saved = snapshotEvents(snapshotAnalysis?.value, t('未提供'));
     // 边概览不需要事件分析相关功能
-    if (metricType.value !== 'node') return;
+    if (metricType.value !== 'node' || (!saved?.events.length && !allowsRealtimeEvents(snapshotAnalysis?.value))) {
+      allEventsData.value = [];
+      eventsData.value = [];
+      eventColumns.value = [];
+      if (metricType.value === 'node' && saved !== null) eventDataMessage.value = t('本快照未提供事件数据');
+      disableEventAnalysis.value = true;
+      isEventsLoaded.value = true;
+      return;
+    }
 
     try {
-      const res = await incidentEventsSearch({
-        ...commonParams.value,
-        start_time: incidentDetailData.value.begin_time,
-        end_time: endTime.value,
-        interval: eventInterval.value,
-      });
+      let res = saved;
+      if (!saved?.events.length) {
+        const { begin_time, end_time } = incidentDetailData.value;
+        endTime.value = handleEndTime(begin_time, end_time);
+        eventInterval.value = Math.ceil((endTime.value - begin_time) / 60 / 5) * 60;
+        res = await incidentEventsSearch({
+          ...commonParams.value,
+          start_time: begin_time,
+          end_time: endTime.value,
+          interval: eventInterval.value,
+        });
+      }
       const { statistics, events } = res;
 
       // 处理事件分析弹窗配置
@@ -504,6 +539,7 @@ export default function useMetrics(
     loading,
     exceptionData,
     disableEventAnalysis,
+    eventDataMessage,
     getMetricsData,
     getEventsData,
     handleChartInit,

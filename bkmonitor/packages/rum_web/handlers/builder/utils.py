@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import math
 from collections.abc import Iterable
 from typing import Any
 
@@ -15,14 +16,17 @@ from semconv.constants import FieldUnit
 from semconv.rum.constants import RatingLevel
 from semconv.rum.field import RatingThreshold
 from semconv.rum.trace import SpanSpec
+from rum_web.handlers.builder.hover import Hover, get_rating_hover
 
 
 def get_safe_number(value: Any, default: int | float | None = 0) -> int | float | None:
-    """default=None 用于区分字段缺失和有效的零值。"""
+    """将输入转为有限数值，非法值返回 default；default=None 可区分字段缺失和有效零值。"""
     if value is None:
         return default
     try:
         number = float(value)
+        if not math.isfinite(number):
+            return default
         return int(number) if number.is_integer() else number
     except (TypeError, ValueError):
         return default
@@ -39,11 +43,15 @@ def phase(
     duration: int | float | None,
     *,
     min_start: int | float | None = None,
+    hover: Hover | None = None,
 ) -> dict[str, Any] | None:
     """缺少起点或时长、时长为负或起点低于 min_start 时，整段省略。"""
     if start is None or duration is None or duration < 0 or (min_start is not None and start < min_start):
         return None
-    return {"key": key, "alias": alias, "start": start, "duration": duration}
+    result: dict[str, Any] = {"key": key, "alias": alias, "start": start, "duration": duration}
+    if hover is not None:
+        result["hover"] = hover
+    return result
 
 
 def waterfall(
@@ -66,6 +74,7 @@ def build_rating_config(metric: str) -> list[dict[str, Any]]:
             "rating": level.rating,
             **({"value": level.value} if level.value is not None else {}),
             "alias": RatingLevel(level.rating).label,
+            **({"hover": hover} if (hover := get_rating_hover(level.rating)) is not None else {}),
         }
         for level in SpanSpec.from_field(metric.upper()).rating_config
     ]

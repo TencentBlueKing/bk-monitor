@@ -28,6 +28,10 @@ class Config(AppConfig):
     label = "bkmonitor"
 
     def ready(self):
+        from patches.blueapps import patch_ticket_authenticate
+
+        patch_ticket_authenticate()
+
         from bkmonitor.utils.db_connection import install_discard_dead_db_connection
 
         install_discard_dead_db_connection()
@@ -48,8 +52,6 @@ class Config(AppConfig):
             if settings.ROLE == "worker":
                 CacheNode.refresh_from_settings()
 
-        # 注册iam migrate信号
-        post_migrate.connect(_migrate_iam, sender=self, dispatch_uid="bkmonitor iam")
         # 调用自定义实现的patch_bkoauth方法，消除大量的MissingSchema异常堆栈，之所以在这里调用，是因为bkoauth的初始化依赖于Django的初始化
         post_migrate.connect(patch_bkoauth_update_user_access_token, sender=self, dispatch_uid="bkoauth")
 
@@ -97,17 +99,6 @@ def _refresh_cache_node(sender, **kwargs):
     from bkmonitor.models import CacheNode
 
     CacheNode.refresh_from_settings()
-
-
-def _migrate_iam(sender, **kwargs):
-    if settings.SKIP_IAM_PERMISSION_CHECK:
-        return
-
-    from bkmonitor.migrate import Migrator
-
-    if settings.RUN_MODE == "DEVELOP":
-        return
-    Migrator("iam", "bkmonitor.iam.migrations").migrate()
 
 
 def _register_builtin_templates(sender, **kwargs):

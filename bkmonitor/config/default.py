@@ -64,6 +64,7 @@ INSTALLED_APPS = (
     # account app
     "blueapps.account",
     "apigw_manager.apigw",
+    "bkmonitor.iam.apps.IAMConfig",
 )
 
 # 这里是默认的中间件，大部分情况下，不需要改动
@@ -569,6 +570,9 @@ APM_APPLICATION_QUICK_REFRESH_INTERVAL = 2
 APM_APPLICATION_QUICK_REFRESH_DELTA = 30
 # 指标数据源数据发现时需要将周期切分为每批查询几分钟的数据 默认 200s
 APM_APPLICATION_METRIC_DISCOVER_SPLIT_DELTA = 200
+
+# 服务数据状态的观测窗口（独立于应用级无数据周期），单位：秒。
+APM_SERVICE_DATA_STATUS_LOOKBACK_SECONDS = 60 * 60
 
 # 是否下发平台级别api_name构成配置
 APM_IS_DISTRIBUTE_PLATFORM_API_NAME_CONFIG = (
@@ -1274,6 +1278,8 @@ MONITOR_API_BASE_URL = os.getenv("BKAPP_MONITOR_API_BASE_URL", "")
 NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
 # bkdata api base url
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
+# RecordRule V4 Flow 专用网关，未配置时沿用公共 BKBase 网关
+BKDATA_RECORD_RULE_API_BASE_URL = os.getenv("BKAPP_BKDATA_RECORD_RULE_API_BASE_URL", "")
 # bkdata api only for query data (not required)
 BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
 BKDATA_PROFILE_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_PROFILE_QUERY_API_BASE_URL", "")
@@ -1291,7 +1297,11 @@ BK_USERINFO_API_BASE_URL = os.getenv("BKAPP_USERINFO_API_BASE_URL", "")
 BK_USER_API_BASE_URL = os.getenv("BKAPP_USER_API_BASE_URL", "")
 MONITOR_WORKER_API_BASE_URL = os.getenv("BKAPP_MONITOR_WORKER_API_BASE_URL", "")
 APIGATEWAY_API_BASE_URL = os.getenv("BKAPP_APIGATEWAY_API_BASE_URL", "")
-BK_IAM_APIGATEWAY_URL = os.getenv("BKAPP_IAM_API_BASE_URL") or f"{BK_COMPONENT_API_URL}/api/bk-iam/prod/"
+from iam_engine.settings import load_iam_settings, resolve_iam_gateway_url
+
+BK_IAM_APIGATEWAY_URL = resolve_iam_gateway_url(BK_COMPONENT_API_URL, os.getenv("BKAPP_IAM_API_BASE_URL"), version="v3")
+
+globals().update(load_iam_settings(component_api_url=BK_COMPONENT_API_URL))
 
 # 以下是bkchat的apigw
 BKCHAT_API_BASE_URL = os.getenv("BKAPP_BKCHAT_API_BASE_URL", "")
@@ -1359,11 +1369,10 @@ ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lowe
 ENABLE_BK_INCIDENT_NOTICE = os.getenv("ENABLE_BK_INCIDENT_NOTICE", "false").lower() == "true"
 
 # IAM
-BK_IAM_SYSTEM_ID = "bk_monitorv3"
+
 BK_IAM_SYSTEM_NAME = _("监控平台")
 
 BK_IAM_MIGRATION_APP_NAME = "bkmonitor"
-BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
 
 # 是否跳过 iam migrate
 BK_IAM_SKIP = os.getenv("BK_IAM_SKIP", "false").lower() == "true"
@@ -1378,6 +1387,22 @@ OFFICIAL_PLUGINS_MANAGERS = []
 
 # 跳过权限中心
 SKIP_IAM_PERMISSION_CHECK = False
+
+# IAM V4 settings are loaded by the shared BKLog-compatible mapping above.
+
+# ---- IAM v3 鉴权 ----
+BK_IAM_SYSTEM_ID = "bk_monitorv3"
+BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
+BK_IAM_V3_API_BASE_URL = resolve_iam_gateway_url(
+    BK_COMPONENT_API_URL, os.getenv("BK_IAM_V3_API_BASE_URL"), BK_IAM_APIGATEWAY_URL, version="v3"
+)
+
+# ---- IAM 申请 URL 兜底 ----
+BK_IAM_V3_FALLBACK_APPLY_URL = os.getenv("BK_IAM_V3_FALLBACK_APPLY_URL", "") or BK_IAM_SAAS_HOST
+
+# IAM's historical files are model registrations, not Django DB migrations.
+MIGRATION_MODULES = {"bkmonitor_iam": None}
+
 
 # 聚合网关默认业务ID
 AGGREGATION_BIZ_ID = int(os.getenv("BKAPP_AGGREGATION_BIZ_ID", 2))
@@ -1627,6 +1652,14 @@ AIDEV_AGENT_MCP_REQUEST_AGENT_CODE = "bkmonitor-mcp"
 
 # 采集订阅巡检配置，默认开启
 IS_SUBSCRIPTION_ENABLED = True
+
+# 采集状态页主机告警 ES 聚合分批参数（消费方 monitor_web/datalink/resources.py，调用时读取）：
+# 批大小为安全参数（单批稠密响应桶数约 N×(2T+3)+4，运行时按时间桶数自动钳制到桶数预算内）；
+# 并发数为性能参数（瞬时下发 ES 的查询数 = 并发数 × 同时访问页面的用户数），按集群实测负载调整；
+# 桶数预算对齐 ES search.max_buckets（默认 65536，集群调整过该值时同步修改）
+ALERT_HOST_BATCH_SIZE = int(os.environ.get("BKAPP_ALERT_HOST_BATCH_SIZE", 200))
+ALERT_HOST_BATCH_CONCURRENCY = int(os.environ.get("BKAPP_ALERT_HOST_BATCH_CONCURRENCY", 5))
+ALERT_HOST_MAX_AGG_BUCKETS = int(os.environ.get("BKAPP_ALERT_HOST_MAX_AGG_BUCKETS", 65536))
 
 # 允许限制空间功能开关， 默认限制
 IS_RESTRICT_DS_BELONG_SPACE = True

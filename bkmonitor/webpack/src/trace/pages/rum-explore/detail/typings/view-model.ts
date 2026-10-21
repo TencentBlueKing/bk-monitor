@@ -25,7 +25,8 @@
  */
 
 import type { IRumField } from '../../typings';
-import type { RumCardToneType, RumRatingType, RumSectionType } from './enum';
+import type { IRumHoverInfo } from './detail';
+import type { RumCardToneType, RumRatingType, RumSectionType, RumTimelineFilterCategoryType } from './enum';
 
 /** 徽标：标题右侧的关键指标与状态 */
 export interface IRumBadgeVM {
@@ -55,8 +56,16 @@ export interface IRumCardFooterPart {
   tone?: RumCardToneType;
 }
 
+/** 卡片可使用的抽屉交互能力，由 useDetailSections 注入，注册表通过 ctx.handlers 消费 */
+export interface IRumCardHandlers {
+  /** 切到「链路上下文」tab 并套用指定的快捷筛选类别 */
+  switchTraceContext: (category: RumTimelineFilterCategoryType) => void;
+}
+
 /** 卡片描述符的推导上下文 */
 export interface IRumCardResolveCtx {
+  /** 抽屉交互能力，仅在详情区块构造时注入 */
+  handlers?: IRumCardHandlers;
   /** 当前 span 的原始数据，用于取分组外的字段 */
   originData: Record<string, any>;
   /** 关联接口拉回的补充数据，未就绪时为空对象 */
@@ -65,6 +74,8 @@ export interface IRumCardResolveCtx {
   copyText: (value: string) => void;
   /** 按字段元信息格式化值（单位换算 + 枚举别名） */
   formatField: (fieldName: string, value: unknown) => string;
+  /** 按字段元信息格式化值并拆出单位（value 为值文本，unit 为单位后缀），用于数值与单位需分别排版的场景 */
+  formatFieldParts: (fieldName: string, value: unknown) => { unit: string; value: string };
   /** 按字段名取字段元信息（别名、单位、枚举） */
   getField: (fieldName: string) => IRumField | undefined;
   /** 按字段名取展示别名，无别名时回退字段名 */
@@ -98,8 +109,6 @@ export interface IRumDetailSectionVM {
   spanType?: string;
   /** 区块标题右侧的补充说明（如「总耗时：122.2ms」） */
   subTitle?: string;
-  /** 区块顶部的提示条 */
-  tip?: string;
   /** 区块标题，为空时不渲染标题行 */
   title: string;
   type: RumSectionType;
@@ -123,10 +132,12 @@ export interface IRumOriginBlockVM {
 
 /** 原始数据面板的一行键值 */
 export interface IRumOriginRowVM {
+  /** 按字段元信息格式化后的展示文本（枚举别名 / 单位换算，形如「1.23 s(1234)」），未命中时与 value 一致 */
+  displayValue: string;
   key: string;
   /** 字段在原始数据里的完整路径（如 attributes.view.id），「添加为检索条件」回传上层时用它 */
   originKey: string;
-  /** 展示用的值文本 */
+  /** 展示用的值文本（保持原始值，回传检索条件与复制都用它） */
   value: string;
   /** 值的原始类型，决定前置的数据类型图标 */
   valueType: 'boolean' | 'number' | 'object' | 'string';
@@ -143,6 +154,8 @@ export interface IRumOverviewItemVM {
 
 /** 评级条视图模型 */
 export interface IRumRatingBarVM {
+  /** Vital 指标整体的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   /** 指标全称，如「累积布局偏移（Cumulative Layout Shift，CLS）」 */
   metricLabel: string;
   /** 当前命中的评级 */
@@ -161,6 +174,8 @@ export interface IRumRatingBarVM {
 export interface IRumRatingSegmentVM {
   /** 分段颜色 */
   color: string;
+  /** 该评级的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   /** 分段文案，如「良好 ≦ 2500ms」 */
   label: string;
   rating: RumRatingType | string;
@@ -193,6 +208,8 @@ export interface IRumSummaryCardVM {
   footer?: IRumCardFooterPart[];
   /** 主值右侧的环比增长率（如 +300%），涨跌语义配色，与 unit（单位）互斥使用 */
   growthRate?: { text: string; tone?: RumCardToneType };
+  /** 该标记的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   key: string;
   /** 卡片标题 */
   label: string;
@@ -210,6 +227,8 @@ export interface IRumSummaryCardVM {
   unit?: { text: string; tone?: RumCardToneType };
   /** 主值 */
   value: string;
+  /** 点击回调：有值时卡片按可点击样式呈现（主值下划线 + 手型光标），由注册表构造器通过 ctx.handlers 产出 */
+  click?: () => void;
 }
 
 /** 瀑布图的 TTFB 分解说明 */
@@ -222,6 +241,8 @@ export interface IRumTtfbBreakdownVM {
 
 export interface IRumWaterfallMarkerVM {
   color?: string;
+  /** 该标记的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   key: string;
   label: string;
   percent: number;
@@ -236,6 +257,8 @@ export interface IRumWaterfallRowVM {
   /** 色块宽度百分比 */
   durationPercent: number;
   durationText: string;
+  /** 该阶段的 hover 展示信息 */
+  hover?: IRumHoverInfo;
   key: string;
   label: string;
   /** 色块左偏移百分比 */
@@ -248,13 +271,12 @@ export interface IRumWaterfallVM {
   behavior?: 'complex' | 'simplicity';
   /** 总耗时 */
   durationTotal: number;
-  durationTotalText: string;
   /** 时间点标记 */
   markers?: Array<IRumWaterfallMarkerVM>;
   /** 被合并掉的阶段名（如 DNS、TCP、TLS），由瀑布图组件拼装成说明文案 */
   mergedNames?: string[];
   /** 累计里程碑 */
-  milestones?: { key: string; name: string; value: string }[];
+  milestones?: Array<{ hover?: IRumHoverInfo; key: string; name: string; value: string }>;
   rows: IRumWaterfallRowVM[];
   /** TTFB 分解说明，后端缺少 TTFB 时间点或子项时为空 */
   ttfbBreakdown?: IRumTtfbBreakdownVM;

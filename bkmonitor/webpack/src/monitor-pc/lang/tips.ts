@@ -274,6 +274,10 @@ export default {
   边图例: 'Edge Legend',
   从属关系: 'Subordinate',
   调用关系: 'Call',
+  传播关系: 'Propagation',
+  未知关系: 'Unknown relationship',
+  '从属／未知关系': 'Subordinate / unknown relationship',
+  '有向关系（调用／传播）': 'Directed relationship (call / propagation)',
   故障传播: 'Incident Spread',
   无故障传播: 'No Incident Spread',
   指向性: 'Directional',
@@ -544,8 +548,4 @@ export default {
     'After the group is deleted, the related metrics will be moved to <{name}>',
   '触发规则：仅当对应数据值大于 {threshold} 时触发告警':
     'Trigger rule: alarm is triggered only when the corresponding data value is greater than {threshold}',
-
-  // RUM 检索--详情
-  'TTFB 表示从请求发出到收到响应首字节的时间，包含请求传输、服务端处理和排队时间；仅凭浏览器时序不能直接判定服务端处理，需结合 Trace 或 Server-Timing。':
-    'TTFB is the time from sending the request to receiving the first byte of the response, including request transfer, server-side processing and queuing time. Browser timing alone cannot determine server-side processing, it needs to be combined with Trace or Server-Timing.',
 };

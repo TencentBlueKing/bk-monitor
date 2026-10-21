@@ -302,15 +302,15 @@ export default {
     gotoPerformace(target) {
       // agent状态默认为正常
       this.$router.push({
-        name: 'performance',
-        params: {
-          search: [
+        name: 'host',
+        query: {
+          search: JSON.stringify([
             target,
             {
               id: 'status',
               value: [0],
             },
-          ],
+          ]),
         },
       });
     },

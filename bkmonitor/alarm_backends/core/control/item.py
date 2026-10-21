@@ -33,6 +33,9 @@ def gen_condition_matcher(agg_condition):
     and_cond = []
     for cond in agg_condition:
         t = {"field": cond["key"], "method": cond["method"], "value": cond["value"]}
+        # 日志数据源会转换 eq/neq，保留原操作符供条件加载器还原语义。
+        if "_origin_method" in cond:
+            t["_origin_method"] = cond["_origin_method"]
         connector = cond.get("condition") or AND
         if connector.upper() == AND:
             and_cond.append(t)

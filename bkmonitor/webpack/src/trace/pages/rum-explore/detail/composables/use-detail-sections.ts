@@ -46,6 +46,7 @@ import { formatDuration } from '@/components/trace-view/utils/date';
 
 import type { IRumExtraCardBuilder } from '../registry/span-type-registry';
 import type {
+  IRumCardHandlers,
   IRumCardResolveCtx,
   IRumDetailSection,
   IRumDetailSectionVM,
@@ -64,9 +65,59 @@ import type {
 
 const t = (text: string) => window.i18n.t(text) as string;
 
-/** 请求时序区块的 TTFB 口径说明 */
-const TTFB_TIP =
-  'TTFB 表示从请求发出到收到响应首字节的时间，包含请求传输、服务端处理和排队时间；仅凭浏览器时序不能直接判定服务端处理，需结合 Trace 或 Server-Timing。';
+/**
+ * @description 瀑布图区块：把绝对时序换算成百分比布局
+ *
+ * DNS / TCP / TLS 耗时为 0 时说明连接被复用，这三段合并成一条说明线而不单独占行。
+ */
+export function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfallVM {
+  const phases = data.phases || [];
+  const total =
+    data.total_duration || phases.reduce((max, phase) => Math.max(max, phase.start + phase.duration), 0) || 1;
+  const mergedNames: string[] = [];
+  const rows = phases
+    .filter(phase => {
+      const mergedName = WATERFALL_MERGED_PHASES[phase.key];
+      if (mergedName && phase.duration <= 0) {
+        mergedNames.push(mergedName);
+        return false;
+      }
+      return true;
+    })
+    .map((phase, index) => ({
+      key: phase.key,
+      hover: phase.hover,
+      label: phase.alias || phase.key,
+      durationText: formatDuration(Number(phase.duration) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
+      startPercent: Math.min((phase.start / total) * 100, 100),
+      durationPercent: Math.max(Math.min((phase.duration / total) * 100, 100), phase.duration > 0 ? 1 : 0),
+      color: WATERFALL_PHASE_COLOR[phase.key] || WATERFALL_FALLBACK_COLORS[index % WATERFALL_FALLBACK_COLORS.length],
+    }));
+  return {
+    rows,
+    durationTotal: total,
+    mergedNames,
+    behavior: spanType === 'view' ? 'complex' : 'simplicity',
+    ttfbBreakdown: buildTtfbBreakdown(data),
+    markers: (data.markers || []).map(marker => ({
+      key: marker.key,
+      hover: marker.hover,
+      label: marker.field_name || marker.key,
+      percent: Math.min((marker.value / total) * 100, 100),
+      value: marker.value,
+      color: RATING_META[matchRating(marker.value, marker['display.rating_config'])].color,
+      valueText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
+    })),
+    milestones: data.milestones
+      ?.filter(item => item.value)
+      .map(item => ({
+        key: item.key,
+        hover: item.hover,
+        name: MILESTONES_KEY_MAP[item.key],
+        value: formatDuration(item.value, '', 3, data.unit || 'us').replace(/ /g, ''),
+      })),
+  };
+}
 
 /**
  * @description 按评级阈值配置匹配指标值的评级：value 不超过某个配置的上界（value ≦ config.value）时
@@ -88,19 +139,26 @@ export function matchRating(value: number, ratingConfig: IRumRatingConfig[]): Ru
  * @description 区块视图模型：接口区块归一化 + 按 span 类型注册的扩展卡片 / 扩展区块
  *
  * 渲染层只消费返回的 IRumDetailSectionVM[]，新增 span 类型或展示形态都不需要改这里。
+ * @param handlers 抽屉交互能力，注入 ctx.handlers 供注册表产出可点击卡片的回调
  */
 export function useDetailSections(
   detail: MaybeRef<IRumRecordDetail | null>,
   spanType: MaybeRef<string>,
   related: MaybeRef<IRumRelatedData>,
   baseCtx: MaybeRef<IRumCardResolveCtx>,
-  relatedLoading: MaybeRef<boolean>
+  relatedLoading: MaybeRef<boolean>,
+  handlers: IRumCardHandlers
 ) {
   const sectionVMs = computed<IRumDetailSectionVM[]>(() => {
     const data = unref(detail);
     if (!data) return [];
     const type = unref(spanType);
-    const ctx: IRumCardResolveCtx = { ...unref(baseCtx), originData: data.origin_data || {}, related: unref(related) };
+    const ctx: IRumCardResolveCtx = {
+      ...unref(baseCtx),
+      handlers,
+      originData: data.origin_data || {},
+      related: unref(related),
+    };
     const { extraCards = {}, extraSections = [] } = getSpanTypeDetailConfig(type);
     const isRelatedLoading = unref(relatedLoading);
     const buildExtraCards = (builders: IRumExtraCardBuilder[], keyPrefix: string) =>
@@ -148,15 +206,12 @@ export function useDetailSections(
         case RumSectionTypeEnum.WATERFALL: {
           const waterfallData = (section.data || { phases: [], unit: 'ms' }) as IRumWaterfallData;
           const waterfall = buildWaterfall(waterfallData, type);
-          /** 含等待首字节阶段时补一条口径说明，避免把 TTFB 直接当作服务端处理耗时 */
-          const hasFirstByte = waterfallData.phases?.some(phase => phase.key === 'first_byte');
           acc.push({
             ...base,
             waterfall,
             subTitle: waterfallData.total_duration
               ? `${t('总耗时')}：${formatDuration(Number(waterfallData.total_duration) || 0, '', 3, waterfallData.unit || 'us').replace(/ /g, '')}`
               : '',
-            tip: hasFirstByte ? t(TTFB_TIP) : '',
             spanType: type,
           });
           break;
@@ -222,6 +277,7 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
     segments.push({
       rating: config.rating,
       color: ratingMeta.barColor,
+      hover: config.hover,
       label: isLast
         ? `${config.alias || ratingMeta.alias} > ${formatValue(lower)}`
         : `${config.alias || ratingMeta.alias} ≦ ${formatValue(Number(upper))}`,
@@ -239,6 +295,7 @@ function buildRatingBar(data: IRumRatingBarData): IRumRatingBarVM {
 
   const hitMeta = RATING_META[hitRating] || RATING_FALLBACK_META;
   return {
+    hover: data.hover,
     metricLabel: meta?.label || metric.toUpperCase(),
     valueText: formatValue(value),
     rating: hitRating,
@@ -284,58 +341,6 @@ function buildTtfbBreakdown(data: IRumWaterfallData): IRumTtfbBreakdownVM | unde
   return {
     itemsTotalText: formatDuration(itemsTotal, '', 3, unit).replace(/ /g, ''),
     diffText: formatDuration(Math.abs(ttfbValue - itemsTotal), '', 3, unit).replace(/ /g, ''),
-  };
-}
-
-/**
- * @description 瀑布图区块：把绝对时序换算成百分比布局
- *
- * DNS / TCP / TLS 耗时为 0 时说明连接被复用，这三段合并成一条说明线而不单独占行。
- */
-function buildWaterfall(data: IRumWaterfallData, spanType: string): IRumWaterfallVM {
-  const phases = data.phases || [];
-  const total =
-    data.total_duration || phases.reduce((max, phase) => Math.max(max, phase.start + phase.duration), 0) || 1;
-  const mergedNames: string[] = [];
-  const rows = phases
-    .filter(phase => {
-      const mergedName = WATERFALL_MERGED_PHASES[phase.key];
-      if (mergedName && phase.duration <= 0) {
-        mergedNames.push(mergedName);
-        return false;
-      }
-      return true;
-    })
-    .map((phase, index) => ({
-      key: phase.key,
-      label: phase.alias || phase.key,
-      durationText: formatDuration(Number(phase.duration) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
-      startPercent: Math.min((phase.start / total) * 100, 100),
-      durationPercent: Math.max(Math.min((phase.duration / total) * 100, 100), phase.duration > 0 ? 1 : 0),
-      color: WATERFALL_PHASE_COLOR[phase.key] || WATERFALL_FALLBACK_COLORS[index % WATERFALL_FALLBACK_COLORS.length],
-    }));
-  return {
-    rows,
-    durationTotal: total,
-    durationTotalText: formatDuration(Number(total) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
-    mergedNames,
-    behavior: spanType === 'view' ? 'complex' : 'simplicity',
-    ttfbBreakdown: buildTtfbBreakdown(data),
-    markers: (data.markers || []).map(marker => ({
-      key: marker.key,
-      label: marker.field_name || marker.key,
-      percent: Math.min((marker.value / total) * 100, 100),
-      value: marker.value,
-      color: RATING_META[matchRating(marker.value, marker['display.rating_config'])].color,
-      valueText: formatDuration(Number(marker.value) || 0, '', 3, data.unit || 'us').replace(/ /g, ''),
-    })),
-    milestones: data.milestones
-      ?.filter(item => item.value)
-      .map(item => ({
-        key: item.key,
-        name: MILESTONES_KEY_MAP[item.key],
-        value: formatDuration(item.value, '', 3, data.unit || 'us').replace(/ /g, ''),
-      })),
   };
 }
 

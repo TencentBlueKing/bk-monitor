@@ -20,6 +20,7 @@ from uuid import uuid4
 from django.db import transaction
 
 from bkmonitor.utils.tenant import space_uid_to_bk_tenant_id
+from metadata import config
 from metadata.models.record_rule.constants import (
     RecordRuleV4DesiredStatus,
     RecordRuleV4FlowStatus,
@@ -203,7 +204,7 @@ class RecordRuleV4Operator:
         data_label = str(data_label or "")
         bk_tenant_id = bk_tenant_id or space_uid_to_bk_tenant_id(f"{space_type}__{space_id}")
 
-        with transaction.atomic():
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
             temp_suffix = uuid4().hex
             rule = RecordRuleV4.objects.create(
                 bk_tenant_id=bk_tenant_id,
@@ -222,11 +223,10 @@ class RecordRuleV4Operator:
             )
             table_id = RecordRuleV4.compose_table_id(pk=rule.pk, name=name)
             flow_name = RecordRuleV4.compose_group_flow_name(pk=rule.pk, name=name, table_id=table_id)
-            result_table_config_name = RecordRuleV4OutputResources.compose_result_table_config_name(table_id)
             dst_vm_table_id = RecordRuleV4OutputResources.compose_vm_result_table_id(
                 bk_tenant_id=bk_tenant_id,
                 bk_biz_id=RecordRuleV4.resolve_bk_biz_id(space_type, space_id),
-                result_table_config_name=result_table_config_name,
+                table_id=table_id,
             )
             rule.table_id = table_id
             rule.flow_name = flow_name
@@ -269,7 +269,7 @@ class RecordRuleV4Operator:
         desired_status、auto_refresh 只更新 group 主表。
         """
 
-        with transaction.atomic():
+        with transaction.atomic(using=config.DATABASE_CONNECTION_NAME):
             self.reload_rule(for_update=True)
             current_spec = self.require_current_spec()
             next_records: list[RecordRuleV4RecordInput] = (
@@ -397,12 +397,11 @@ class RecordRuleV4Operator:
     def _refresh_resolved_unlocked(self, force: bool = False) -> RecordRuleV4Resolved | None:
         return self.resolver.resolve_current(force=force)
 
-    def execute_declaration(self, auto_apply: bool | None = True, force_output_apply: bool = False) -> bool:
+    def execute_declaration(self, auto_apply: bool | None = True) -> bool:
         """执行当前声明：准备输出资源、resolve、准备 Flow，并按需 apply/delete。
 
-        auto_apply 只控制 Flow 的 apply/delete，不阻止 output 资源准备。
-        ensure_group_output 本身保持“必要时下发输出 RT / VM binding”的语义；
-        force_output_apply=True 用于管理员显式重试 output 下发。
+        auto_apply 控制 Flow 下发；输出准备只维护本地查询元数据，
+        BKBase ResultTable / VmStorageBinding 由 Flow 自动创建。
         """
 
         result = self.run_with_operation_lock(
@@ -410,7 +409,6 @@ class RecordRuleV4Operator:
             lambda: self._execute_declaration_unlocked(
                 auto_apply=auto_apply,
                 force_apply=True,
-                force_output_apply=force_output_apply,
             ),
             RecordRuleV4DeclarationExecutionResult(succeeded=False),
         )
@@ -419,9 +417,8 @@ class RecordRuleV4Operator:
     def reconcile(self, auto_apply: bool | None = None) -> bool:
         """后台调谐入口，复用声明执行链路，默认尊重 rule.auto_refresh。
 
-        与 execute_declaration 一样，reconcile 会执行 output 准备；本地 output
-        配置已存在时不会重复 apply。auto_apply=None 表示是否 apply Flow 由
-        rule.auto_refresh 决定。
+        与 execute_declaration 一样，reconcile 会准备本地输出元数据。
+        auto_apply=None 表示是否 apply Flow 由 rule.auto_refresh 决定。
         """
 
         result = self.run_with_operation_lock(
@@ -429,7 +426,6 @@ class RecordRuleV4Operator:
             lambda: self._execute_declaration_unlocked(
                 auto_apply=auto_apply,
                 force_apply=False,
-                force_output_apply=False,
             ),
             RecordRuleV4DeclarationExecutionResult(succeeded=False),
         )
@@ -440,7 +436,6 @@ class RecordRuleV4Operator:
         *,
         auto_apply: bool | None,
         force_apply: bool,
-        force_output_apply: bool = False,
     ) -> RecordRuleV4DeclarationExecutionResult:
         result = RecordRuleV4DeclarationExecutionResult()
         self.reload_rule()
@@ -455,9 +450,7 @@ class RecordRuleV4Operator:
             return result
 
         try:
-            # prepare_output_resources 会确保输出侧 ResultTable / VM binding 的
-            # 本地配置存在，并在首次缺失或强制重试时 apply output。
-            self.prepare_output_resources(force_output_apply=force_output_apply)
+            self.prepare_output_resources()
         except Exception as err:  # pylint: disable=broad-except
             self.record_prepare_failure(
                 condition_type=CONDITION_RECONCILED,
@@ -520,13 +513,8 @@ class RecordRuleV4Operator:
             result.succeeded = result.apply_succeeded
         return result
 
-    def prepare_output_resources(self, force_output_apply: bool = False) -> None:
-        """准备 output RT / VM binding / metric fields，并刷新必要的 Redis 路由。
-
-        这里的 ensure_group_output 会在必要时下发 output 侧 bkbase 资源；本地
-        配置已存在时跳过重复 apply。metric fields 仍只维护本地 metadata，
-        供查询路由和导出查看使用。
-        """
+    def prepare_output_resources(self) -> None:
+        """准备本地输出 RT、VMRT 映射和指标字段，并刷新必要的 Redis 路由。"""
 
         from metadata import models as metadata_models
 
@@ -536,10 +524,7 @@ class RecordRuleV4Operator:
             bk_tenant_id=self.rule.bk_tenant_id,
         ).first()
         previous_data_label = output_table.data_label if output_table else ""
-        output_created = RecordRuleV4OutputResources.ensure_group_output(
-            self.rule,
-            force_apply=force_output_apply,
-        )
+        output_created = RecordRuleV4OutputResources.ensure_group_output(self.rule)
         self.reload_rule()
         metric_fields_created = RecordRuleV4OutputResources.ensure_spec_metric_fields(self.rule, current_spec)
         output_detail_changed = bool(self.rule.data_label and previous_data_label != self.rule.data_label)

@@ -363,7 +363,7 @@ export default {
   加载结果: 'Load Result',
   'HTTP 状态': 'HTTP Status',
   业务结果: 'Business Result',
-  传输大小: 'Transfer Size',
+  响应大小: 'Response Size',
   交付类型: 'Delivery Type',
   渲染影响: 'Render Impact',
   交互类型: 'Interaction Type',
@@ -387,4 +387,7 @@ export default {
   链路上下文: 'Trace Context',
   页面加载时序: 'Page Load Timeline',
   核心结果: 'Core Results',
+  累计里程碑: 'Cumulative Milestone',
+  专业解释: 'Professional explanation',
+  用户感受: 'User experience',
 };

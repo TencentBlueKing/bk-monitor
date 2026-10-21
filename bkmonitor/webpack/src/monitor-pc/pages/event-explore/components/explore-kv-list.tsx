@@ -29,6 +29,7 @@ import { Component as tsc } from 'vue-tsx-support';
 
 import dayjs from 'dayjs';
 import { isHttpUrl } from 'monitor-common/regex/url';
+import { finalizeHostMonitorUrl } from 'monitor-pc/common/legacy-host-url';
 
 import { APIType } from '../api-utils';
 import {
@@ -266,6 +267,7 @@ export default class ExploreKvList extends tsc<IExploreKvListProps, IExploreKvLi
       if (!isHttpUrl(url)) {
         url = `${location.origin}${location.pathname}${location.search}${url}`;
       }
+      url = finalizeHostMonitorUrl(url);
       // 容器监控就地侧滑打开，其余入口保持新开页
       if (this.openK8sSlider?.(url, entitiesItem.alias)) return;
       window.open(url, '_blank');

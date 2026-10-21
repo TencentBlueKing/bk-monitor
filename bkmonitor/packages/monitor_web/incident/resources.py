@@ -20,7 +20,9 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 
 from bkmonitor.aiops.alert.utils import AIOPSManager
+from bkmonitor.aiops.incident.graph_snapshot import edge_identity, graph_analysis, target_analysis
 from bkmonitor.aiops.incident.models import (
+    IncidentGraphEdge,
     IncidentGraphEdgeType,
     IncidentGraphEntity,
     IncidentSnapshot,
@@ -252,6 +254,7 @@ class IncidentBaseResource(Resource):
         alert_ids = snapshot.entity_alerts(entity.entity_id)
         return {
             "entity": {key: value for key, value in entity.to_src_dict().items() if key != "aggregated_entities"},
+            "graph_analysis": target_analysis(snapshot.incident_snapshot_content, entity_ref=entity.entity_id),
             "anomaly_count": self.get_anomaly_entity_count(entity),
             "bk_biz_id": bk_biz_id,
             "bk_biz_name": bk_biz_name,
@@ -362,8 +365,9 @@ class IncidentBaseResource(Resource):
         ]
         topology_data = {
             "nodes": nodes,
+            "graph_analysis": copy.deepcopy(graph_analysis(snapshot.incident_snapshot_content)),
             "edges": [
-                edge.to_src_dict()
+                self.generate_edge_info(snapshot, edge)
                 for edge in snapshot.incident_graph_edges.values()
                 if edge.source.entity_type not in ("BcsWorkload", "BcsService")
                 and edge.target.entity_type not in ("BcsWorkload", "BcsService")
@@ -380,6 +384,16 @@ class IncidentBaseResource(Resource):
             ],
         }
         return topology_data
+
+    def generate_edge_info(self, snapshot: IncidentSnapshot, edge: IncidentGraphEdge, container_id: str = None) -> dict:
+        result = edge.to_src_dict()
+        result["graph_analysis"] = target_analysis(snapshot.incident_snapshot_content, edge_ref=result["id"])
+        if container_id:
+            result["properties"] = {**result["properties"], "aggregated_by_id": container_id}
+        result["aggregated_edges"] = [
+            self.generate_edge_info(snapshot, item, container_id or result["id"]) for item in edge.aggregated_edges
+        ]
+        return result
 
     def filter_one_hop_snapshot(self, snapshot_content: dict) -> dict:
         """过滤故障根因拓扑图中超过一跳的节点.
@@ -760,6 +774,16 @@ class IncidentTopologyResource(IncidentBaseResource):
             if all([snapshot.fpp_snapshot_id != "fpp:None", not snapshot.fpp_snapshot_id.endswith(":llm_summary")])
         ]
 
+        if not incident_snapshots:
+            # A selected window may contain only summaries or no retained graph snapshots.
+            return {
+                "latest": {"nodes": [], "edges": [], "combos": [], "sub_combos": []},
+                "diff" if validated_request_data["only_diff"] else "full": [],
+                "complete": {"nodes": [], "edges": [], "sub_combos": [], "combos": []},
+                "status": "NO_DATA",
+                "message": _("所选时间范围内暂无可用图谱快照"),
+            }
+
         # 根据实体加入的时间生成实体ID到时间的映射
         entities_orders = self.generate_entities_orders(incident_snapshots)
 
@@ -782,18 +806,13 @@ class IncidentTopologyResource(IncidentBaseResource):
         )
         last_snapshot_content = None
         topologies_data = []
-        complete_topologies = {"nodes": {}, "edges": {}, "sub_combos": {}}
+        complete_topologies = {"nodes": {}, "edges": {}, "sub_combos": {}, "combos": {}}
         for incident_snapshot in incident_snapshots:
             snapshot = snapshots[incident_snapshot.id]
-            if validated_request_data["only_diff"]:
-                last_snapshot_content, topo_data = self.generate_topology_diff_from_snapshot(
-                    incident,
-                    snapshot,
-                    last_snapshot_content,
-                    complete_topologies,
-                )
-            else:
-                topo_data = self.generate_topology_data_from_snapshot(incident, snapshot)
+            last_snapshot_content, diff_data = self.generate_topology_diff_from_snapshot(
+                incident, snapshot, last_snapshot_content, complete_topologies
+            )
+            topo_data = diff_data if validated_request_data["only_diff"] else last_snapshot_content
             topologies_data.append(
                 {
                     "incident_id": incident_snapshot.incident_id,
@@ -810,6 +829,7 @@ class IncidentTopologyResource(IncidentBaseResource):
                 "nodes": list(complete_topologies["nodes"].values()),
                 "edges": list(complete_topologies["edges"].values()),
                 "sub_combos": list(complete_topologies["sub_combos"].values()),
+                "combos": list(complete_topologies["combos"].values()),
             },
         }
 
@@ -831,11 +851,13 @@ class IncidentTopologyResource(IncidentBaseResource):
         complete_topologies: dict,
     ) -> dict:
         current = self.generate_topology_data_from_snapshot(incident, snapshot)
+        # Layout includes historical nodes even when their category disappears in the latest frame.
+        complete_topologies.setdefault("combos", {}).update(
+            {combo["id"]: copy.deepcopy(combo) for combo in current.get("combos", [])}
+        )
 
         last_nodes = self.generate_sub_content(last_snapshot_content, "nodes", lambda obj: obj["id"])
-        last_edges = self.generate_sub_content(
-            last_snapshot_content, "edges", lambda obj: (obj["source"], obj["target"], obj["edge_type"])
-        )
+        last_edges = self.generate_sub_content(last_snapshot_content, "edges", edge_identity)
         last_sub_combos = self.generate_sub_content(last_snapshot_content, "sub_combos", lambda obj: obj["id"])
 
         # 找出所有在上一帧没有出现过的节点(边)或者出现过但是已经修改的节点(边)
@@ -847,7 +869,7 @@ class IncidentTopologyResource(IncidentBaseResource):
             "edges",
             last_edges,
             complete_topologies,
-            lambda obj: (obj["source"], obj["target"], obj["edge_type"]),
+            edge_identity,
             self.check_edge_diff,
         )
         new_sub_combos = self.generate_new_objs(
@@ -856,9 +878,7 @@ class IncidentTopologyResource(IncidentBaseResource):
 
         # 找出所有在之前帧出现过，且未删除，但是在当前帧没有的节点(边)节点(边)
         current_nodes = self.generate_sub_content(current, "nodes", lambda obj: obj["id"])
-        current_edges = self.generate_sub_content(
-            current, "edges", lambda obj: (obj["source"], obj["target"], obj["edge_type"])
-        )
+        current_edges = self.generate_sub_content(current, "edges", edge_identity)
         current_sub_combos = self.generate_sub_content(current, "sub_combos", lambda obj: obj["id"])
 
         # 增加删除标记位
@@ -866,7 +886,12 @@ class IncidentTopologyResource(IncidentBaseResource):
         self.generate_delete_tag("edges", current_edges, complete_topologies, new_edges)
         self.generate_delete_tag("sub_combos", current_sub_combos, complete_topologies, new_sub_combos)
 
-        return current, {"nodes": new_nodes, "edges": new_edges, "sub_combos": new_sub_combos}
+        return current, {
+            "nodes": new_nodes,
+            "edges": new_edges,
+            "sub_combos": new_sub_combos,
+            "combos": current.get("combos", []),
+        }
 
     def generate_sub_content(self, snapshot_content: dict, content_key: str, id_func: callable) -> dict:
         return (
@@ -887,12 +912,12 @@ class IncidentTopologyResource(IncidentBaseResource):
             obj_id = id_func(current_obj)
             if obj_id not in last_objs:
                 new_objs.append(current_obj)
-                complete_content[content_key][obj_id] = current_obj
+                complete_content[content_key][obj_id] = copy.deepcopy(current_obj)
             elif diff_func(current_obj, last_objs[obj_id]):
                 new_objs.append(current_obj)
-                complete_content[content_key][obj_id] = current_obj
+                complete_content[content_key][obj_id] = copy.deepcopy(current_obj)
             elif obj_id not in complete_content[content_key]:
-                complete_content[content_key][obj_id] = current_obj
+                complete_content[content_key][obj_id] = copy.deepcopy(current_obj)
 
         return new_objs
 
@@ -904,8 +929,10 @@ class IncidentTopologyResource(IncidentBaseResource):
                 continue
 
             if complete_obj_id not in current_objs:
-                complete_obj["is_deleted"] = True
-                new_objs.append(complete_obj)
+                # Deletion belongs to this frame; never retroactively mutate an earlier snapshot.
+                deleted_obj = {**copy.deepcopy(complete_obj), "is_deleted": True}
+                complete_content[content_key][complete_obj_id] = deleted_obj
+                new_objs.append(deleted_obj)
 
     def check_node_diff(self, current_node: dict, last_node: dict):
         """判断节点是否发生变化."""
@@ -916,11 +943,12 @@ class IncidentTopologyResource(IncidentBaseResource):
             "alert_ids",
             "aggregated_nodes",
             "alert_all_recorved",
+            "graph_analysis",
         ]:
             if node_key not in current_node and node_key not in last_node:
                 continue
 
-            if current_node[node_key] != last_node[node_key]:
+            if current_node.get(node_key) != last_node.get(node_key):
                 return True
 
         return False
@@ -934,10 +962,11 @@ class IncidentTopologyResource(IncidentBaseResource):
             "is_anomaly",
             "source_is_anomaly",
             "target_is_anomaly",
+            "graph_analysis",
             "source_is_on_alert",
             "target_is_on_alert",
         ]:
-            if current_edge[edge_key] != last_edge[edge_key]:
+            if current_edge.get(edge_key) != last_edge.get(edge_key):
                 return True
 
         return False
@@ -1086,22 +1115,27 @@ class IncidentTopologyUpstreamResource(IncidentBaseResource):
             validated_request_data["entity_id"],
             incident.snapshot.fpp_snapshot_id,
         )
+        if sub_snapshot is None:
+            return {
+                "ranks": [],
+                "edges": [],
+                "status": "NOT_SUPPORTED",
+                "message": _("该分析快照未提供资源展开数据"),
+            }
         sub_snapshot.aggregate_graph(incident)
         ranks = sub_snapshot.group_by_rank()
 
         for rank_info in ranks:
             rank_info["nodes"] = self.generate_nodes_by_entites(incident, sub_snapshot, rank_info["entities"])
-            for index, entity_info in enumerate(rank_info["entities"]):
-                rank_info["nodes"][index]["aggregated_nodes"] = self.generate_nodes_by_entites(
-                    incident, sub_snapshot, entity_info.aggregated_entities
-                )
             rank_info.pop("entities")
 
         return {
             "ranks": sorted(
                 [rank_info for rank_info in ranks if len(rank_info["nodes"]) > 0], key=lambda x: x["rank_id"]
             ),
-            "edges": [edge.to_src_dict() for edge in sub_snapshot.incident_graph_edges.values()],
+            "edges": [
+                self.generate_edge_info(sub_snapshot, edge) for edge in sub_snapshot.incident_graph_edges.values()
+            ],
         }
 
 

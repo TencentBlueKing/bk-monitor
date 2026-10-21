@@ -1,0 +1,25 @@
+name: Incident timeline category regression
+on:
+  pull_request:
+    branches: [master, feat/troubleshooting_op]
+    paths:
+      - 'bkmonitor/webpack/src/trace/pages/failure/failure-topo/**'
+      - 'bkmonitor/webpack/tests/**'
+      - '.github/workflows/incident-empty-groups.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  timeline-categories:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated test dependencies
+        run: npm install --prefix "$RUNNER_TEMP/topology-runtime" --ignore-scripts typescript@5.5.3 elkjs@0.8.2 lodash@4.17.21 vue@3.4.31
+      - name: Timeline category visibility
+        working-directory: bkmonitor/webpack
+        run: NODE_PATH="$RUNNER_TEMP/topology-runtime/node_modules" node --test tests/topology-empty-groups.test.cjs

@@ -6,7 +6,7 @@ from unittest import TestCase, mock
 
 from django.test import override_settings
 
-from apm_web.llm.builders.detail import attach_llm_detail
+from apm_web.llm.builders.detail import attach_llm_detail, prepare_llm_spans
 
 DETAIL_MODULE = "apm_web.llm.builders.detail"
 
@@ -39,6 +39,147 @@ def entity_set(*llm_service_names: str) -> mock.Mock:
 
 
 class AttachLLMDetailTests(TestCase):
+    @override_settings(LLM_BIZ_LIST=[11])
+    def test_trace_topology_failure_is_not_retried_by_lazy_helpers(self):
+        from apm_web.trace.resources import TraceDetailResource
+
+        source = raw_span("1" * 16, "chat")
+        source.update({"kind": 1, "trace_state": "", "links": []})
+        with (
+            mock.patch(f"{DETAIL_MODULE}.EntitySet", side_effect=ValueError("topology unavailable")) as topology,
+            mock.patch(
+                "apm_web.trace.resources.api.apm_api.query_trace_detail",
+                return_value={"trace_data": [source], "relation_mapping": {}, "options": {}},
+            ),
+            mock.patch("apm_web.trace.diagram.config.DiagramConfigController.read", return_value=None),
+        ):
+            serializer = TraceDetailResource.RequestSerializer(
+                data={"bk_biz_id": 11, "app_name": "agent-app", "trace_id": source["trace_id"]}
+            )
+            serializer.is_valid(raise_exception=True)
+            result = TraceDetailResource().perform_request(serializer.validated_data)
+        topology.assert_called_once()
+        self.assertEqual(len(result["trace_tree"]["spans"]), 1)
+        self.assertNotIn("lazy", result["trace_tree"]["spans"][0])
+
+    @override_settings(LLM_BIZ_LIST=[11])
+    def test_trace_resource_is_lean_and_span_resource_returns_complete_content(self):
+        import json
+
+        from django.core.serializers.json import DjangoJSONEncoder
+
+        from apm_web.trace.resources import SpanDetailResource, TraceDetailResource
+
+        source = raw_span("1" * 16, "chat")
+        source.update({"kind": 1, "trace_state": "", "links": []})
+        text = "大正文🦋" * 100_000
+        source["attributes"]["gen_ai.input.messages"] = [{"role": "user", "parts": [{"type": "text", "content": text}]}]
+        source["attributes"]["gen_ai.output.messages"] = [
+            {"role": "assistant", "parts": [{"type": "text", "content": text}]}
+        ]
+        with (
+            mock.patch(f"{DETAIL_MODULE}.EntitySet", return_value=entity_set("agent-service")) as topology,
+            mock.patch(
+                "apm_web.trace.resources.api.apm_api.query_trace_detail",
+                return_value={"trace_data": [source], "relation_mapping": {}, "options": {}},
+            ),
+            mock.patch("apm_web.trace.resources.api.apm_api.query_span_detail", return_value=source),
+            mock.patch("apm_web.trace.diagram.config.DiagramConfigController.read", return_value=None),
+        ):
+            serializer = TraceDetailResource.RequestSerializer(
+                data={"bk_biz_id": 11, "app_name": "agent-app", "trace_id": source["trace_id"]}
+            )
+            serializer.is_valid(raise_exception=True)
+            trace = TraceDetailResource().perform_request(serializer.validated_data)
+            topology.assert_called_once()
+            detail = SpanDetailResource().perform_request(
+                {"bk_biz_id": 11, "app_name": "agent-app", "span_id": source["span_id"]}
+            )
+        payload = json.dumps(trace, cls=DjangoJSONEncoder, ensure_ascii=False)
+        self.assertLess(len(payload), 20_000)
+        self.assertNotIn("gen_ai.input.messages", payload)
+        self.assertNotIn(text[:1000], payload)
+        self.assertNotIn("lazy", trace["trace_tree"]["spans"][0])
+        self.assertEqual(trace["trace_tree"]["spans"][0]["attributes"], [])
+        self.assertEqual(
+            detail["origin_data"]["attributes"]["gen_ai.input.messages"], source["attributes"]["gen_ai.input.messages"]
+        )
+        self.assertEqual(
+            detail["trace_tree"]["spans"][0]["llm_detail"]["attributes"]["gen_ai.input.messages"],
+            source["attributes"]["gen_ai.input.messages"],
+        )
+
+    @override_settings(LLM_BIZ_LIST=[11])
+    def test_lazy_trace_removes_all_copies_of_content_and_span_detail_stays_complete(self):
+        import json
+
+        original = raw_span("1" * 16, "chat")
+        original["attributes"]["gen_ai.input.messages"] = [
+            {"role": "user", "parts": [{"type": "text", "content": "大输入" * 100_000}]}
+        ]
+        original["attributes"]["gen_ai.output.messages"] = [
+            {"role": "assistant", "parts": [{"type": "text", "content": "大输出" * 100_000}]}
+        ]
+        tree = trace_tree("1" * 16)
+        with mock.patch(f"{DETAIL_MODULE}.EntitySet", return_value=entity_set("agent-service")):
+            reduced = prepare_llm_spans(11, "agent-app", [original])
+            attach_llm_detail(11, "agent-app", tree, reduced, compact=True)
+            complete = trace_tree("1" * 16)
+            attach_llm_detail(11, "agent-app", complete, [original])
+
+        self.assertLess(len(json.dumps({"raw": reduced, "tree": tree})), 1000)
+        self.assertEqual(tree["spans"][0]["llm_detail"], {"span_type": "LLM"})
+        self.assertNotIn("lazy", tree["spans"][0])
+        self.assertIn("gen_ai.input.messages", original["attributes"])
+        self.assertEqual(
+            complete["spans"][0]["llm_detail"]["attributes"]["gen_ai.input.messages"],
+            original["attributes"]["gen_ai.input.messages"],
+        )
+        self.assertNotIn("lazy", complete["spans"][0])
+
+    @override_settings(LLM_BIZ_LIST=[11])
+    def test_langfuse_lazy_classification_does_not_parse_large_input(self):
+        source = raw_span("1" * 16, "")
+        source["attributes"] = {
+            "langfuse.observation.type": "generation",
+            "langfuse.observation.input": "输入" * 1_000_000,
+        }
+        topology = entity_set("agent-service")
+        topology.get_system = lambda _: {"is_support_llm": True, "product": "langfuse"}
+        with mock.patch(f"{DETAIL_MODULE}.EntitySet", return_value=topology):
+            result = prepare_llm_spans(11, "agent-app", [source])
+        self.assertEqual(result[0]["llm_detail"]["span_type"], "LLM")
+        self.assertNotIn("langfuse.observation.input", result[0]["attributes"])
+
+    @override_settings(LLM_BIZ_LIST=[11])
+    def test_dynamic_product_trace_uses_same_compact_path(self):
+        source = raw_span("1" * 16, "chat")
+        source["attributes"]["gen_ai.prompts.0.content"] = "keep me"
+        topology = entity_set("agent-service")
+        topology.get_system = lambda _: {"is_support_llm": True, "product": "agentlens"}
+        with mock.patch(f"{DETAIL_MODULE}.EntitySet", return_value=topology):
+            result = prepare_llm_spans(11, "agent-app", [source])
+        self.assertEqual(result[0]["llm_detail"], {"span_type": "LLM"})
+        self.assertNotIn("gen_ai.prompts.0.content", result[0]["attributes"])
+
+    @override_settings(LLM_BIZ_LIST=[11])
+    def test_partial_aidev_and_galileo_spans_use_normal_adapter_and_compact_details(self):
+        for product, attributes in [
+            ("aidev", {"llm.request.type": "chat", "llm.input": "large input"}),
+            ("galileo", {"gen_ai.operation.name": "chat", "gen_ai.input.messages": "large input"}),
+        ]:
+            with self.subTest(product=product):
+                source = raw_span("1" * 16, "")
+                source["attributes"] = attributes
+                topology = entity_set("agent-service")
+                topology.get_system = lambda _, product=product: {"is_support_llm": True, "product": product}
+                result = prepare_llm_spans(11, "agent-app", [source], entity_set=topology)
+                tree = trace_tree(source["span_id"])
+                attach_llm_detail(11, "agent-app", tree, result, compact=True, entity_set=topology)
+                self.assertEqual(tree["spans"][0]["llm_detail"], {"span_type": "LLM"})
+                self.assertNotIn("lazy", result[0])
+                self.assertNotIn("large input", str(result[0]))
+
     @override_settings(LLM_BIZ_LIST=[11])
     def test_attaches_span_type_to_matching_waterfall_spans(self):
         tree = trace_tree("1" * 16, "2" * 16)

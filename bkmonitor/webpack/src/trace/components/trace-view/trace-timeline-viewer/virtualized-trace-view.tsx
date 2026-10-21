@@ -334,7 +334,7 @@ export default defineComponent({
      * @param {'down' | 'up'} direction - 滚动方向，up 向上导航需处理吸顶遮挡，down 向下导航无需额外处理
      * @returns {void}
      */
-    function scrollToSpan(spanID: string, direction: 'down' | 'up'): void {
+    function scrollToSpan(spanID: string, _direction: 'down' | 'up'): void {
       const targetElem = getRootNode().getElementById(spanID);
       if (!targetElem) return;
 
@@ -401,6 +401,7 @@ export default defineComponent({
           app_name: appName,
           trace_id: traceId,
           bk_biz_id: bkBizId,
+          reduce_span_details: true,
           [QUERY_TRACE_RELATION_APP]: store.traceViewFilters.includes(QUERY_TRACE_RELATION_APP),
         };
         const data = await traceDetail(params).catch(() => null);

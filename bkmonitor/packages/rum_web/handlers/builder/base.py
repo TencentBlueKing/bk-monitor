@@ -8,13 +8,14 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, Protocol
 
 from django.utils.functional import Promise
 
 from rum_web.handlers.builder.constants import SectionType
+from rum_web.handlers.builder.hover import Hover, clone_hover
 from rum_web.handlers.builder.utils import get_safe_number, phase
 
 
@@ -103,12 +104,20 @@ class KeyInfoSection(BaseSection):
 class WaterfallSection(BaseSection):
     TYPE = SectionType.WATERFALL.value
     PHASE_ALIASES: dict[str, Any]
+    PHASE_HOVERS: Mapping[str, Hover] = {}
     MIN_START: int | None = None
 
     def phases(
         self, specs: Iterable[tuple[str, int | float | None, int | float | None]]
     ) -> list[dict[str, Any] | None]:
         return [
-            phase(key, self.PHASE_ALIASES[key], start, duration, min_start=self.MIN_START)
+            phase(
+                key,
+                self.PHASE_ALIASES[key],
+                start,
+                duration,
+                min_start=self.MIN_START,
+                hover=clone_hover(self.PHASE_HOVERS.get(key)),
+            )
             for key, start, duration in specs
         ]

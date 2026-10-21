@@ -33,11 +33,13 @@ import ExecutionToolbar from './components/execution-toolbar';
 import LlmSkeleton from './components/llm-skeleton';
 import StatisticCards from './components/statistic-cards';
 import TraceBlock from './components/trace-block';
+
 import type { UseLlmObservationReturn } from './hooks/use-llm-observation';
+import type { LlmSpanRowView } from './utils/typings';
 
 import './index.scss';
 
-/** Trace 详情侧栏「LLM 观测」面板：统计概览、Agent 执行线与 Span 展开详情 */
+/** Trace 详情侧栏「LLM 观测」面板：统计概览、Agent 执行线与 Span 详情入口 */
 export default defineComponent({
   name: 'TraceLlmObservation',
   props: {
@@ -48,12 +50,12 @@ export default defineComponent({
   },
   emits: {
     /** 跳转 Trace 详情已有 Span 侧栏 */
-    showSpanDetail: (_spanId: string) => true,
+    showSpanDetail: (_span: LlmSpanRowView) => true,
   },
   setup(props, { emit }) {
     const { t } = useI18n();
-    const handleViewDetail = (spanId: string) => {
-      emit('showSpanDetail', spanId);
+    const handleViewDetail = (span: LlmSpanRowView) => {
+      emit('showSpanDetail', span);
     };
 
     return {
@@ -87,13 +89,11 @@ export default defineComponent({
                 {this.traceBlocks.map(block => (
                   <TraceBlock
                     key={block.traceId}
-                    detailExpandedSpanIds={this.detailExpandedSpanIds}
                     expanded={this.expandedTraceIds.has(block.traceId)}
                     expandedSpanIds={this.expandedSpanIds}
                     flowLoading={block.flowLoading}
                     rows={block.rows}
                     trace={block}
-                    onToggle-detail={this.toggleDetail}
                     onToggle-span={this.toggleSpan}
                     onToggle-trace={this.toggleTrace}
                     onView-detail={this.handleViewDetail}

@@ -8,8 +8,8 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from apps.iam.backends.v3.writer import V3AuthorizationWriter
 from apps.iam.backends.v4.writer import SPACE_ACCESS_ROLE_ID, V4AuthorizationWriter
 from apps.iam.handlers.permission import Permission
-from apps.iam.iam_engine.core.config import AuthMode
-from apps.iam.iam_engine.provider.bundle import ProviderBundle
+from iam_engine.core.config import AuthMode
+from iam_engine.provider.bundle import ProviderBundle
 from apps.log_search.models import Space, SpaceType
 
 
@@ -38,7 +38,7 @@ class SpaceAccessWriterTest(SimpleTestCase):
         )
 
     def test_v4_keeps_negative_space_id_for_client_codec(self):
-        """负数空间 ID 的 neg_ 编码由 client 的 codec 负责，writer 不得提前编码成两套口径。"""
+        """Writer 与公共 codec 均保留负数空间原始 ID，不添加协议前缀。"""
         client = Mock()
         writer = V4AuthorizationWriter(client, operator="operator")
 
@@ -122,6 +122,7 @@ class SpaceAccessBatchGrantTest(TestCase):
         self.assertEqual(permission.provider_bundles[AuthMode.V3].writer.bk_tenant_id, "tenant-1")
 
     def test_grants_on_both_stacks_and_dedupes_subjects(self):
+        self.mode_provider.get_mode.return_value = AuthMode.UNION
         permission = self._make_permission()
 
         failed = permission.grant_space_access_batch(2, ["owner1", "owner1", "owner2", "", None])
@@ -155,6 +156,7 @@ class SpaceAccessBatchGrantTest(TestCase):
         )
 
     def test_reports_subject_when_any_stack_fails(self):
+        self.mode_provider.get_mode.return_value = AuthMode.UNION
         self.v4_writer.grant_space_access.side_effect = [RuntimeError("iam v4 timeout"), None]
         permission = self._make_permission()
 

@@ -283,7 +283,7 @@ export default defineComponent({
             </div>
           </div>
           <div class='node-info-content'>
-            {node.alert_display.alert_name &&
+            {node.alert_display?.alert_name &&
               createCommonForm(`${t('包含告警')}：`, () => (
                 <>
                   <span
@@ -444,7 +444,6 @@ export default defineComponent({
                 <AggregatedEdgesList
                   key={edge.id}
                   edge={edge}
-                  edgeType={edge.edge_type}
                   onClick={this.showEdgeDetail}
                 />
               ))}

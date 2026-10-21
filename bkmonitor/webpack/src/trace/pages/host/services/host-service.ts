@@ -27,20 +27,28 @@
 import { request } from 'monitor-api/base';
 import { getTopoTree } from 'monitor-api/modules/commons';
 import { searchHostInfo, searchHostMetric } from 'monitor-api/modules/performance';
+import { getHostOrTopoNodeDetail as getHostOrTopoNodeDetailApi } from 'monitor-api/modules/scene_view';
 
+import { requestHost } from './host-request';
+
+import type { IDetailItem } from '../../../components/common-detail/typing';
 import type { IHostTopoTree } from '../types';
 import type { IHostBaseInfo, IHostMetricInfo } from '../types/host';
 import type { EHostQuickCategory } from '../types/host-list';
 import type { HostScopeParams } from '../utils/share-scope';
+import type { HostRequestTimeContext } from './host-request';
+
+export const getHostOrTopoNodeDetail = (params: HostScopeParams): Promise<IDetailItem[]> =>
+  requestHost('scene_view/get_host_or_topo_node_detail', params, data => getHostOrTopoNodeDetailApi(data));
 
 /**
  * @description: 获取基础主机列表, 这个 API 要更快，但是不包含指标数据, 用于主机列表第一屏渲染
  * @returns {Promise<IHostBaseInfo[]>} 基础主机列表
  */
-export const getHostInfoList = async (scope: HostScopeParams = {}) => {
-  const data: IHostBaseInfo[] = await searchHostInfo(scope, { needMessage: false, reject403: true });
-  return data;
-};
+export const getHostInfoList = (scope: HostScopeParams = {}): Promise<IHostBaseInfo[]> =>
+  requestHost('performance/search_host_info', scope, params =>
+    searchHostInfo(params, { needMessage: false, reject403: true })
+  );
 
 export interface IHostInfoPage {
   items: IHostBaseInfo[];
@@ -49,111 +57,67 @@ export interface IHostInfoPage {
   total: number;
 }
 
-export const getHostInfoPage = async (params: HostScopeParams & { page: number; page_size: number }) => {
-  const data: IHostInfoPage = await searchHostInfo(params, { needMessage: false, reject403: true });
-  return data;
-};
+export const getHostInfoPage = (
+  params: HostScopeParams & { page: number; page_size: number }
+): Promise<IHostInfoPage> =>
+  requestHost('performance/search_host_info', params, data =>
+    searchHostInfo(data, { needMessage: false, reject403: true })
+  );
 
 const searchHostMetricStats = request('post', 'rest/v2/performance/search_host_metric_stats/');
 
-export const getHostMetricStats = async (
+export const getHostMetricStats = (
   params: HostScopeParams & {
     category: Exclude<EHostQuickCategory, 'alarm'>;
     end_time: number;
     start_time: number;
-  }
-): Promise<{ complete: boolean; value: null | number }> => {
-  return await searchHostMetricStats(params, { needMessage: false, reject403: true });
-};
+  },
+  timeContext?: HostRequestTimeContext
+): Promise<{ complete: boolean; value: null | number }> =>
+  requestHost(
+    'performance/search_host_metric_stats',
+    params,
+    data => searchHostMetricStats(data, { needMessage: false, reject403: true }),
+    { timeContext }
+  );
 
 /**
  * @description: 获取带指标数据的主机列表 , 这个 API 要慢一些，但是包含所有的 host 指标数据，用于主机列表补充渲染
  * @returns {Promise<IHostMetricInfo[]>} 带指标数据的主机列表
  */
-export const getHostMetricInfoList = async (
+export const getHostMetricInfoList = (
   params: HostScopeParams & {
     bk_host_ids?: number[];
     end_time: number;
     start_time: number;
-  }
-): Promise<Record<string, IHostMetricInfo>> => {
-  return await searchHostMetric(params, { needMessage: false, reject403: true });
-};
+  },
+  timeContext?: HostRequestTimeContext
+): Promise<Record<string, IHostMetricInfo>> =>
+  requestHost(
+    'performance/search_host_metric',
+    params,
+    data => searchHostMetric(data, { needMessage: false, reject403: true }),
+    { timeContext }
+  );
 
 /**
  * @description: 获取主机拓扑树, 根据业务ID获取主机拓扑树
  * @param bizId 业务ID
  * @returns {Promise<IHostTopoTree[]>} 主机拓扑树
  */
-export const getHostTopoTreeByBizId = async (
+export const getHostTopoTreeByBizId = (
   bizId: number | string = window.cc_biz_id,
   scope: HostScopeParams = {},
   includeHosts = true
-) => {
-  const data: IHostTopoTree[] = await getTopoTree({
-    bk_biz_id: bizId,
-    ...scope,
-    condition_list: [],
-    ...(includeHosts ? { instance_type: 'host' } : {}),
-    remove_empty_nodes: false,
-  });
-  return data;
-};
-
-export interface HostListQuery {
-  basePromise: Promise<IHostBaseInfo[]>;
-  expiresAt: number;
-  key: string;
-  metricPromise: Promise<Record<string, IHostMetricInfo>>;
-  resolved: boolean;
-  timeParams: TimeParams;
-  timer?: number;
-}
-
-type CacheWindow = Window & { __MONITOR_HOST_LIST_QUERY__?: HostListQuery };
-type TimeParams = { end_time: number; start_time: number };
-
-const getCacheWindow = () => (window.rawWindow || window) as CacheWindow;
-
-export const clearHostListQueryCache = (query: HostListQuery | null) => {
-  if (!query) return;
-  const owner = getCacheWindow();
-  if (owner.__MONITOR_HOST_LIST_QUERY__ !== query) return;
-  owner.clearTimeout(query.timer);
-  delete owner.__MONITOR_HOST_LIST_QUERY__;
-};
-
-export const getHostListQuery = (
-  key: null | string,
-  scope: HostScopeParams,
-  getTimeParams: () => TimeParams,
-  forceRefresh: boolean
-): HostListQuery | null => {
-  if (!key || scope.bk_host_id != null || (scope.bk_obj_id && scope.bk_inst_id != null)) return null;
-  const owner = getCacheWindow();
-  const cached = owner.__MONITOR_HOST_LIST_QUERY__;
-  const now = Date.now();
-  if (!forceRefresh && cached?.key === key && cached.expiresAt > now) return cached;
-  clearHostListQueryCache(cached);
-
-  const timeParams = getTimeParams();
-  const query: HostListQuery = {
-    key,
-    // 从查询发起计时，命中不续期，避免相对时间窗口不断变旧。
-    expiresAt: now + 60_000,
-    timeParams,
-    basePromise: getHostInfoList(scope),
-    metricPromise: getHostMetricInfoList({ ...scope, ...timeParams }),
-    resolved: false,
-  };
-  // 宿主 window 保留一份查询，子应用及 Worker 仍按原生命周期销毁。
-  owner.__MONITOR_HOST_LIST_QUERY__ = query;
-  query.timer = owner.setTimeout(() => clearHostListQueryCache(query), query.expiresAt - now);
-  void Promise.all([query.basePromise, query.metricPromise]).then(
-    () => {
-      query.resolved = true;
+): Promise<IHostTopoTree[]> =>
+  requestHost(
+    'commons/get_topo_tree',
+    {
+      bk_biz_id: bizId,
+      ...scope,
+      condition_list: [],
+      ...(includeHosts ? { instance_type: 'host' } : {}),
+      remove_empty_nodes: false,
     },
-    () => clearHostListQueryCache(query)
+    params => getTopoTree(params)
   );
-  return query;
-};

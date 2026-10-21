@@ -28,7 +28,9 @@ import type { PropType } from 'vue';
 
 import { useI18n } from 'vue-i18n';
 
+import { useHoverInfo } from '../../composables/use-hover-info';
 import { RATING_META } from '../../constants';
+import HoverInfo from '../hover-info/hover-info';
 
 import type { IRumWaterfallMarkerVM, IRumWaterfallVM } from '../../typings';
 
@@ -65,14 +67,13 @@ export default defineComponent({
       type: Object as PropType<IRumWaterfallVM | null>,
       default: null,
     },
-    /** span 类型（如 view）：view 时额外包一层标题与健康度图例 */
-    spanType: {
-      type: String,
-      default: null,
-    },
   },
   setup(props) {
     const { t } = useI18n();
+
+    const hoverInfoRef = useTemplateRef<HTMLDivElement>('hoverInfo');
+    /** hover 标题时展示 hover-info 卡片，无 hover 数据的元素不加事件 */
+    const { hoverBindings, hoverData } = useHoverInfo();
 
     /** marker 轨道容器：防重叠布局依赖其实际像素宽度 */
     const markerColumnsRef = useTemplateRef<HTMLDivElement>('markerColumns');
@@ -166,6 +167,7 @@ export default defineComponent({
                             <div
                               key={marker.key}
                               class='marker-item'
+                              {...hoverBindings(hoverInfoRef.value, marker.hover)}
                             >
                               <span class='marker-label'>{marker.label}</span>
                               <span class='marker-duration'>{marker.valueText}</span>
@@ -178,23 +180,6 @@ export default defineComponent({
                 </div>
               </div>
             ) : null}
-            <div class='waterfall-row timestamp-row'>
-              <span class='row-label'>{t('时间轴')}</span>
-              <span class='row-duration'>{data.durationTotalText}</span>
-              <div class='row-track'>
-                {data.rows.map(row => (
-                  <span
-                    key={row.key}
-                    style={{
-                      left: `${row.startPercent}%`,
-                      width: `${row.durationPercent}%`,
-                      backgroundColor: row.color,
-                    }}
-                    class='row-block'
-                  />
-                ))}
-              </div>
-            </div>
             {data.ttfbBreakdown ? (
               <div class='waterfall-ttfb-breakdown'>
                 {`${t('TTFB 分解（RUM 协议）')} · ${t('子项合计')} ${data.ttfbBreakdown.itemsTotalText} · ${t('与 TTFB 相差')} ${data.ttfbBreakdown.diffText}`}
@@ -205,8 +190,18 @@ export default defineComponent({
                 key={row.key}
                 class='waterfall-row'
               >
-                <span class='row-label'>{row.label}</span>
-                <span class='row-duration'>{row.durationText}</span>
+                <span
+                  class='row-label'
+                  {...hoverBindings(hoverInfoRef.value, row.hover)}
+                >
+                  <span class='text'>{row.label}</span>
+                </span>
+                <span
+                  class='row-duration'
+                  v-overflow-tips
+                >
+                  {row.durationText}
+                </span>
                 <div class='row-track'>
                   <span
                     style={{
@@ -243,7 +238,7 @@ export default defineComponent({
             ])}
           </div>
 
-          {data.milestones?.length && (
+          {data.milestones?.length > 0 && (
             <div class='milestones-wrap'>
               <div class='milestones-wrap-title'>{t('累计里程碑')}</div>
               <div class='milestones-list'>
@@ -251,6 +246,7 @@ export default defineComponent({
                   <div
                     key={item.key}
                     class='milestone-tag'
+                    {...hoverBindings(hoverInfoRef.value, item.hover)}
                   >
                     {`${item.name} ${item.value}`}
                   </div>
@@ -293,6 +289,12 @@ export default defineComponent({
           ) : (
             renderWaterfall()
           )}
+
+          <div style='display: none'>
+            <div ref='hoverInfo'>
+              <HoverInfo data={hoverData.value} />
+            </div>
+          </div>
         </div>
       );
     };

@@ -2606,6 +2606,8 @@ class BkApmTraceDataSource(BaseBkMonitorLogDataSource):
                 if self.OBJECT_FIELD_SEPERATOR not in field:
                     # 不包含分隔符，设置 kv 并提前返回。
                     processed_record[field] = value
+                    if field in self.OBJECT_FIELDS:
+                        exists_object_fields.add(field)
                     continue
 
                 root_field, attr_field = field.split(".", 1)

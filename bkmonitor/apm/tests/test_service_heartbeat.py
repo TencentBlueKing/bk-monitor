@@ -43,29 +43,61 @@ def test_heartbeat_monotonic_and_preserves_unrequested_fields() -> None:
         "trace": {"last_data_at": 150, "checked_at": 200},
     }
     assert node.updated_at == updated_at
-    assert node.source == []
+    assert node.source == ["trace"]
+
+
+@pytest.mark.parametrize("data_type", ["trace", "metric", "log", "profiling"])
+@pytest.mark.parametrize("last_data_at", [0, 80])
+def test_heartbeat_observation_repairs_source(data_type: str, last_data_at: int) -> None:
+    original_source = ["metric"] if data_type != "metric" else ["trace"]
+    node = make_node(source=original_source, heartbeat={data_type: {"last_data_at": 100, "checked_at": 110}})
+    updated_at = node.updated_at
+
+    assert TopoNode.touch_heartbeat(2, "app", data_type, {"demo": None}, 120)
+    node.refresh_from_db()
+    assert node.source == original_source
+    assert node.heartbeat == {data_type: {"last_data_at": 100, "checked_at": 120}}
+
+    for checked_at in (130, 140):
+        assert TopoNode.touch_heartbeat(2, "app", data_type, {"demo": last_data_at}, checked_at)
+    node.refresh_from_db()
+    assert node.source == [*original_source, data_type]
+    assert node.heartbeat == {data_type: {"last_data_at": 100, "checked_at": 140}}
+    assert node.updated_at == updated_at
 
 
 def test_heartbeat_scope_duplicates_empty_and_missing_nodes() -> None:
     nodes = [make_node(), make_node()]
     other_app = make_node(app_name="other")
     other_biz = make_node(bk_biz_id=3)
+    unobserved = make_node("unobserved", source=["trace"])
     TopoNode.touch_heartbeat(2, "app", "log", {"demo": None, "missing": 200}, 300)
     for node in nodes:
         node.refresh_from_db()
         assert node.heartbeat == {"log": {"checked_at": 300}}
-    for node in (other_app, other_biz):
+        assert node.source == []
+    TopoNode.touch_heartbeat(2, "app", "log", {"demo": 200, "missing": 200}, 310)
+    for node in nodes:
+        node.refresh_from_db()
+        assert node.heartbeat == {"log": {"last_data_at": 200, "checked_at": 310}}
+        assert node.source == ["log"]
+    for node in (other_app, other_biz, unobserved):
+        source = node.source
+        updated_at = node.updated_at
         node.refresh_from_db()
         assert node.heartbeat == {}
-    assert TopoNode.objects.count() == 4
+        assert node.source == source
+        assert node.updated_at == updated_at
+    assert TopoNode.objects.count() == 5
     TopoNode.touch_heartbeat(2, "app", "log", {}, 400)
     nodes[0].refresh_from_db()
-    assert nodes[0].heartbeat["log"]["checked_at"] == 300
+    assert nodes[0].heartbeat["log"]["checked_at"] == 310
+    assert nodes[0].source == ["log"]
 
 
 @pytest.mark.django_db(databases="__all__", transaction=True)
 def test_heartbeat_locks_and_rolls_back_on_routed_database() -> None:
-    node = make_node()
+    node = make_node(source=["metric"])
     database = router.db_for_write(TopoNode)
     assert not connections[database].in_atomic_block
     select_for_update = QuerySet.select_for_update
@@ -88,40 +120,103 @@ def test_heartbeat_locks_and_rolls_back_on_routed_database() -> None:
             TopoNode.touch_heartbeat(2, "app", "trace", {"demo": 100}, 110)
     node.refresh_from_db()
     assert node.heartbeat == {}
+    assert node.source == ["metric"]
 
 
-def log_response(name: str = "demo", timestamp: int = 150000) -> list[dict[str, Any]]:
+def log_response(name: str = "demo", timestamp: int | str | None = 1791877020000) -> list[dict[str, Any]]:
     return [{"resource": {"service": {"name": name}, "server": name}, "time": timestamp}]
 
 
-def test_log_discover_creates_nodes_and_merges_fields() -> None:
+@pytest.mark.parametrize(
+    ("first_time", "second_time", "expected_last_data_at"),
+    [
+        pytest.param(1791877019000, 1791877020128, 1791877020, id="millisecond_timestamps"),
+        pytest.param("1791877019000", "1791877020128", 1791877020, id="millisecond_strings"),
+        pytest.param(1791877019, 1791877020, 1791877020, id="second_timestamps"),
+        pytest.param("1791877019", "1791877020", 1791877020, id="second_strings"),
+        pytest.param("1791877019.999", "1791877020.128", 1791877020, id="fractional_second_strings"),
+        pytest.param(0, 0, 0, id="zero_timestamp"),
+        pytest.param(
+            "2026-10-13T07:37:00.128000000Z",
+            "2026-10-13T07:36:59.999999999Z",
+            1791877020,
+            id="iso_utc",
+        ),
+        pytest.param(
+            "2026-10-13T15:36:59.999999999+08:00",
+            "2026-10-13T15:37:00.128000000+08:00",
+            1791877020,
+            id="iso_timezone_offset",
+        ),
+        pytest.param(1791877021128, "2026-10-13T07:37:00.128000000Z", 1791877021, id="mixed_formats"),
+    ],
+)
+def test_log_discover_creates_nodes_and_merges_fields(
+    first_time: int | str, second_time: int | str, expected_last_data_at: int
+) -> None:
     existing = make_node("existing", source=["trace"], heartbeat={"trace": {"last_data_at": 80, "checked_at": 90}})
     with (
         mock.patch(
             "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
-            side_effect=[log_response(timestamp=150000), log_response(timestamp=190000)],
+            side_effect=[log_response(timestamp=first_time), log_response(timestamp=second_time)],
         ) as query,
         mock.patch.object(TopoNode, "get_empty_extra_data", return_value={"kind": "service", "category": "other"}),
     ):
         LogServiceDiscover(datasource()).discover(100, 200)
     created = TopoNode.objects.get(topo_key="demo")
     assert created.source == ["log"]
-    assert created.heartbeat["log"]["last_data_at"] == 190
+    assert created.heartbeat["log"]["last_data_at"] == expected_last_data_at
     assert query.call_count == 2
     existing.refresh_from_db()
     assert "log" not in existing.heartbeat
     assert existing.heartbeat["trace"] == {"last_data_at": 80, "checked_at": 90}
 
 
-def test_log_failure_does_not_write_or_renew() -> None:
+def test_log_discover_iso_time_updates_existing_node() -> None:
+    previous = {
+        "trace": {"last_data_at": 1791877010, "checked_at": 1791877020},
+        "metric": {"last_data_at": 1791877000, "checked_at": 1791877030},
+    }
+    node = make_node("bkm.web", source=["trace", "metric"], heartbeat=previous)
+    with (
+        mock.patch(
+            "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
+            side_effect=[
+                [{"resource": {"service.name": "bkm.web"}, "time": "2026-10-13T07:37:00.128000000Z"}],
+                [{"resource": {"server": "bkm.web"}, "time": 1791877019000}],
+            ],
+        ),
+        mock.patch.object(TopoNode, "get_empty_extra_data", return_value={"kind": "service", "category": "other"}),
+        mock.patch("apm.core.discover.log.service.time.time", return_value=1791877449),
+    ):
+        LogServiceDiscover(datasource()).discover(1791876420, 1791877020)
+    node.refresh_from_db()
+    assert node.source == ["trace", "metric", "log"]
+    assert node.heartbeat == {**previous, "log": {"last_data_at": 1791877020, "checked_at": 1791877449}}
+    assert TopoNode.objects.count() == 1
+
+
+@pytest.mark.parametrize(
+    ("second_response", "error_type"),
+    [
+        (RuntimeError("failed"), RuntimeError),
+        (log_response("new", timestamp="invalid-time"), ValueError),
+        (log_response("new", timestamp="2026-10-13"), ValueError),
+        (log_response("new", timestamp="2026-10-13T07:37:00"), ValueError),
+        (log_response("new", timestamp=None), ValueError),
+    ],
+)
+def test_log_failure_does_not_write_or_renew(
+    second_response: Exception | list[dict[str, Any]], error_type: type[Exception]
+) -> None:
     previous = {"log": {"last_data_at": 90, "checked_at": 100}}
     node = make_node(heartbeat=previous)
     with (
         mock.patch(
             "bkmonitor.data_source.unify_query.builder.QueryHelper.query",
-            side_effect=[log_response("new"), RuntimeError("failed")],
+            side_effect=[log_response("new"), second_response],
         ),
-        pytest.raises(RuntimeError),
+        pytest.raises(error_type),
     ):
         LogServiceDiscover(datasource()).discover(100, 200)
     node.refresh_from_db()
@@ -160,9 +255,13 @@ def test_metric_heartbeat_uses_sample_times_for_all_service_keys() -> None:
         "http:remote": 180,
     }
     assert TopoNode.objects.get(topo_key="empty").heartbeat == {}
+    assert TopoNode.objects.get(topo_key="empty").source == []
+    assert TopoNode.objects.get(topo_key="demo").source == ["metric"]
     assert "trace" not in TopoNode.objects.get(topo_key="demo").heartbeat
     for name, timestamp in (("demo-redis", 160), ("demo-kafka", 170), ("http:remote", 180)):
-        assert TopoNode.objects.get(topo_key=name).heartbeat["trace"]["last_data_at"] == timestamp
+        node = TopoNode.objects.get(topo_key=name)
+        assert node.heartbeat["trace"]["last_data_at"] == timestamp
+        assert node.source == ["metric", "trace"]
     query.assert_called_once()
     query_params = query.call_args.args[0]
     assert query_params["step"] == "100s"
@@ -340,7 +439,7 @@ def test_log_limit_result_only_updates_observed_services() -> None:
         LogServiceDiscover(datasource()).discover(100, 200)
     unknown.refresh_from_db()
     assert unknown.heartbeat == {"log": {"last_data_at": 90, "checked_at": 100}}
-    assert TopoNode.objects.get(topo_key="demo").heartbeat["log"]["last_data_at"] == 150
+    assert TopoNode.objects.get(topo_key="demo").heartbeat["log"]["last_data_at"] == 1791877020
 
 
 def test_log_without_index_set_does_not_query_or_renew() -> None:
@@ -356,7 +455,7 @@ def test_log_without_index_set_does_not_query_or_renew() -> None:
 
 @pytest.mark.parametrize("error_code", [1205, 1213, 2006])
 def test_database_lock_failure_rolls_back_but_other_errors_propagate(error_code: int) -> None:
-    node = make_node(heartbeat={"trace": {"last_data_at": 80, "checked_at": 90}})
+    node = make_node(source=["metric"], heartbeat={"trace": {"last_data_at": 80, "checked_at": 90}})
     original = QuerySet.bulk_update
 
     def fail_after_write(queryset: QuerySet, *args: Any, **kwargs: Any) -> None:
@@ -371,6 +470,7 @@ def test_database_lock_failure_rolls_back_but_other_errors_propagate(error_code:
             assert TopoNode.touch_heartbeat(2, "app", "trace", {"demo": 100}, 110) is False
     node.refresh_from_db()
     assert node.heartbeat == {"trace": {"last_data_at": 80, "checked_at": 90}}
+    assert node.source == ["metric"]
 
 
 def test_empty_profile_result_keeps_heartbeat_unchanged() -> None:
@@ -461,6 +561,7 @@ def test_sparse_heartbeat_only_updates_observed_nodes() -> None:
         assert node.heartbeat == (
             {"log": {"last_data_at": 100, "checked_at": 110}} if int(node.topo_key) < 10 else previous
         )
+        assert node.source == (["log"] if int(node.topo_key) < 10 else [])
     with mock.patch.object(TopoNode.objects, "using") as query:
         assert TopoNode.touch_heartbeat(2, "app", "log", {}, 200)
         query.assert_not_called()

@@ -18,7 +18,15 @@ from bkmonitor.data_source.format import flatten_dict_data
 from semconv.rum.constants import ResourceType
 from rum_web.handlers.builder.base import BaseSection, KeyInfoSection, KeyValueItem, WaterfallSection, group
 from rum_web.handlers.builder.constants import SectionType
+from rum_web.handlers.builder.hover import RESOURCE_PHASE_HOVERS
 from rum_web.handlers.builder.span.base import SpanBuilder, SpanOverview, named
+from rum_web.handlers.builder.span.resource_timing import (
+    CrossOriginLayout,
+    LocalLayout,
+    NetworkLayout,
+    ReusedLayout,
+    ServiceWorkerLayout,
+)
 from rum_web.handlers.builder.utils import get_safe_number, safe_diff, waterfall
 
 
@@ -65,24 +73,51 @@ class ResourceXhrAndFetchKeyInfoSection(KeyInfoSection):
 
 
 class LoadingTimingSection(WaterfallSection):
+    """按 A→E 瀑布图类型输出阶段；缺少新时间点时独立兼容旧阶段字段。"""
+
     KEY = "loading_timing"
+    PHASE_HOVERS = RESOURCE_PHASE_HOVERS
     PHASE_ALIASES = {
-        "prepare": _("浏览器准备"),
+        "total": _("总耗时"),
+        "redirect": _("重定向"),
+        "prepare": _("发起前等待"),
+        "queueing": _("[资源调度] 正在排队"),
+        "sw_startup": _("[ServiceWorker] 启动"),
+        "sw_request": _("[ServiceWorker] 发送请求"),
+        "sw_respond_with": _("[ServiceWorker] respondWith"),
         "dns": _("DNS"),
-        "connect": _("TCP"),
+        "connect": _("连接建立"),
         "tls": _("TLS"),
         "first_byte": _("等待首字节"),
         "download": _("内容下载"),
     }
-    PHASE_FIELDS = (
-        ("dns", "dns"),
-        ("connect", "connect"),
-        ("tls", "ssl"),
-        ("first_byte", "first_byte"),
-        ("download", "download"),
-    )
+
+    # 按 A→E 顺序匹配，E 的「未匹配 A–D」由顺序保证；ReusedLayout 继承 NetworkLayout，必须排在其前。
+    LAYOUTS = (CrossOriginLayout, ServiceWorkerLayout, LocalLayout, ReusedLayout, NetworkLayout)
 
     def get_data(self) -> dict[str, Any] | None:
+        start = self.numeric_or_none("attributes.resource.timing.start_time")
+        end = self.numeric_or_none("attributes.resource.timing.response_end")
+        if start is None or end is None:
+            return self._legacy_waterfall()
+        if end <= start:
+            return None
+        for layout_cls in self.LAYOUTS:
+            if (layout := layout_cls(self.flatten_data)).matches():
+                break
+        else:
+            # 未匹配任何类型时只展示总耗时。
+            layout = CrossOriginLayout(self.flatten_data)
+        # 可选阶段（如未发生重定向）、乱序阶段在 span 中返回 None，这里统一过滤。
+        specs = [spec for spec in layout.phases() if spec is not None]
+        return waterfall(self.phases(specs), total=end - start)
+
+    def _legacy_waterfall(self) -> dict[str, Any] | None:
+        """兼容仅上报 resource.*.start / duration 的旧版 SDK。
+
+        旧 start 是相对资源 entry.startTime 的偏移，缺少还原到 timeOrigin 的基准，
+        不能传入 TimingLayout；此处直接按旧阶段字段构建瀑布图。
+        """
         redirect_start = self.numeric_or_none("attributes.resource.redirect.start")
         dns_start = self.numeric_or_none("attributes.resource.dns.start")
         timings = {
@@ -92,12 +127,18 @@ class LoadingTimingSection(WaterfallSection):
                     self.numeric_or_none(f"attributes.resource.{field}.start"),
                     self.numeric_or_none(f"attributes.resource.{field}.duration"),
                 )
-                for key, field in self.PHASE_FIELDS
+                for key, field in (
+                    ("dns", "dns"),
+                    ("connect", "connect"),
+                    ("tls", "ssl"),
+                    ("first_byte", "first_byte"),
+                    ("download", "download"),
+                )
             },
         }
         tls_start, tls_duration = timings["tls"]
         connect_start, connect_duration = timings["connect"]
-        # TLS 段有效时才扣除握手耗时，缺少字段不能视为发生或未发生握手。
+        # 旧 connect.duration 包含 TLS；仅在 TLS 字段有效时扣除，避免缺失值导致误算。
         if tls_start is not None and tls_duration is not None and tls_duration >= 0 and connect_duration is not None:
             timings["connect"] = (connect_start, connect_duration - tls_duration)
         download_start, download_duration = timings["download"]

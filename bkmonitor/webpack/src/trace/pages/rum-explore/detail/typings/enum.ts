@@ -40,7 +40,7 @@ export const RumSectionTypeEnum = {
 
 export type RumSectionType = (typeof RumSectionTypeEnum)[keyof typeof RumSectionTypeEnum];
 
-/** 详情抽屉的 Tab，「链路上下文」本期未实现，渲染为禁用态 */
+/** 详情抽屉的 Tab */
 export const RumDetailTabEnum = {
   /** 基础信息 */
   BASIC: 'basic',
@@ -61,6 +61,25 @@ export const RumRatingEnum = {
 } as const;
 
 export type RumRatingType = (typeof RumRatingEnum)[keyof typeof RumRatingEnum];
+
+/** 链路上下文列表的快捷筛选类别，取值口径见 timeline 接口协议 2.12.3 */
+export const RumTimelineFilterCategoryEnum = {
+  /** 全部 */
+  ALL: 'all',
+  /** 动作 */
+  ACTION: 'action',
+  /** 慢节点 */
+  SLOW_NODE: 'slow_node',
+  /** 请求 */
+  REQUEST: 'request',
+  /** 第三方资源 */
+  THIRD_PARTY: 'third_party',
+  /** 异常 */
+  ERROR: 'error',
+} as const;
+
+export type RumTimelineFilterCategoryType =
+  (typeof RumTimelineFilterCategoryEnum)[keyof typeof RumTimelineFilterCategoryEnum];
 
 /** 统计卡片主值的语义配色，卡片描述符声明语义、样式层决定具体色值 */
 export const RumCardToneEnum = {

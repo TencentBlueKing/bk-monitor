@@ -25,9 +25,12 @@ from kernel_api.rpc.functions.admin.common import (
     normalize_ordering,
     normalize_pagination,
     paginate_queryset,
+    require_bk_tenant_id,
     serialize_value,
 )
+from metadata.models import Space
 from metadata.models.record_rule.constants import RecordRuleV4DesiredStatus
+from metadata.models.record_rule.v4.as_code import dump_rule, parse_group
 from metadata.models.record_rule.v4.models import (
     RecordRuleV4,
     RecordRuleV4Event,
@@ -56,6 +59,77 @@ OPERATION_RECORD_RULE_V4_MANUAL_REFRESH = "record_rule_v4.manual_refresh"
 OPERATION_RECORD_RULE_V4_APPLY = "record_rule_v4.apply"
 OPERATION_RECORD_RULE_V4_SET_DESIRED_STATUS = "record_rule_v4.set_desired_status"
 OPERATION_RECORD_RULE_V4_REFRESH_FLOW_HEALTH = "record_rule_v4.refresh_flow_health"
+
+# 配置沿用 AsCode 单 group 协议；租户和空间由 RPC 上下文提供。
+QUERY_CONFIG_SCHEMA = {
+    "type": "object",
+    "required": ["metric"],
+    "additionalProperties": False,
+    "properties": {
+        **{
+            key: {"type": "string"}
+            for key in ("metric", "method", "alias", "where", "time_field", "unit", "query_string")
+        },
+        "interval": {"type": "integer"},
+        **{key: {"type": "array", "items": {"type": "string"}} for key in ("group_by", "functions")},
+    },
+}
+GROUP_CONFIG_SCHEMA = {
+    "type": "object",
+    "required": ["name", "rules"],
+    "additionalProperties": False,
+    "properties": {
+        "name": {"type": "string", "minLength": 1, "maxLength": 128},
+        "interval": {"type": "string", "description": "默认 1min，支持 1min/2min/5min/10min 及对应秒/分钟格式"},
+        "labels": {"type": "object"},
+        "bkmonitor": {
+            "type": "object",
+            "additionalProperties": False,
+            "properties": {
+                "description": {"type": "string"},
+                "data_label": {"type": "string"},
+                "auto_refresh": {"type": "boolean", "default": True},
+                "desired_status": {"type": "string", "enum": ["running", "stopped"], "default": "running"},
+            },
+        },
+        "rules": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "required": ["record"],
+                "additionalProperties": False,
+                "oneOf": [{"required": ["expr"]}, {"required": ["query"]}],
+                "properties": {
+                    "record": {"type": "string", "minLength": 1},
+                    "expr": {"type": "string", "minLength": 1},
+                    "labels": {"type": "object"},
+                    "query": {
+                        "type": "object",
+                        "required": ["data_source", "data_type", "query_configs"],
+                        "additionalProperties": False,
+                        "properties": {
+                            "data_source": {"type": "string", "minLength": 1},
+                            "data_type": {"type": "string", "minLength": 1},
+                            "expression": {"type": "string"},
+                            "query_configs": {"type": "array", "minItems": 1, "items": QUERY_CONFIG_SCHEMA},
+                            **{
+                                key: {"type": "array", "items": {"type": "string"}} for key in ("functions", "order_by")
+                            },
+                        },
+                    },
+                },
+            },
+        },
+    },
+}
+CONFIG_EXAMPLE = {
+    "name": "cpu_usage",
+    "interval": "1min",
+    "labels": {},
+    "bkmonitor": {"description": "CPU 预计算", "data_label": "", "auto_refresh": True, "desired_status": "running"},
+    "rules": [{"record": "cpu_usage_avg", "expr": "avg(system_cpu_usage)"}],
+}
 
 RULE_ORDERING_FIELDS = {
     "id",
@@ -392,6 +466,111 @@ def get_record_rule_v4_detail(params: dict[str, Any]) -> dict[str, Any]:
     )
 
 
+def _config_response(rule: RecordRuleV4, operation: str, *, write: bool = False) -> dict[str, Any]:
+    return build_response(
+        operation=operation,
+        func_name=f"admin.{operation}",
+        bk_tenant_id=rule.bk_tenant_id,
+        data={"rule": _serialize_rule(rule), "config": dump_rule(rule)},
+        safety_level=SAFETY_LEVEL_WRITE if write else "read",
+    )
+
+
+def _parse_group_config(params: dict[str, Any]) -> dict[str, Any]:
+    try:
+        declaration = parse_group(params.get("config"), source_path="config")
+    except (ValueError, TypeError) as error:
+        raise CustomException(message=str(error)) from error
+    if len(declaration["name"]) > 128:
+        raise CustomException(message="name 最多 128 个字符")
+    declaration.pop("source_path")
+    return declaration
+
+
+@KernelRPCRegistry.register(
+    "admin.record_rule_v4.config",
+    summary="Admin 查看 RecordRule V4 当前配置",
+    description="read：导出当前有效 AsCode 单 group 配置，包含当前运行设置。返回 data={rule, config}。",
+    params_schema={
+        "type": "object",
+        "required": ["bk_tenant_id", "id"],
+        "properties": {"bk_tenant_id": {"type": "string", "minLength": 1}, "id": {"type": "integer", "minimum": 1}},
+        "additionalProperties": False,
+    },
+    example_params={"bk_tenant_id": "system", "id": 1},
+)
+def get_record_rule_v4_config(params: dict[str, Any]) -> dict[str, Any]:
+    rule = _get_rule_or_raise(params, require_bk_tenant_id(params))
+    return _config_response(rule, "record_rule_v4.config")
+
+
+@KernelRPCRegistry.register(
+    "admin.record_rule_v4.create",
+    summary="Admin 新建 RecordRule V4 声明",
+    description="write：仅保存声明，不解析或下发；后台仍遵循 auto_refresh。返回 data={rule, config}。",
+    params_schema={
+        "type": "object",
+        "required": ["bk_tenant_id", "space_uid", "config"],
+        "additionalProperties": False,
+        "properties": {
+            "bk_tenant_id": {"type": "string", "minLength": 1},
+            "space_uid": {"type": "string", "minLength": 1},
+            "config": GROUP_CONFIG_SCHEMA,
+            "operator": {"type": "string"},
+        },
+    },
+    example_params={"bk_tenant_id": "system", "space_uid": "bkcc__2", "config": CONFIG_EXAMPLE},
+)
+def create_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
+    bk_tenant_id = require_bk_tenant_id(params)
+    space_uid = _normalize_text(params.get("space_uid"), "space_uid", required=True)
+    space_type, separator, space_id = space_uid.partition("__")
+    if not separator or not space_type or not space_id:
+        raise CustomException(message="space_uid 格式应为 space_type__space_id")
+    if not Space.objects.filter(bk_tenant_id=bk_tenant_id, space_type_id=space_type, space_id=space_id).exists():
+        raise CustomException(message=f"当前租户下空间不存在: {space_uid}")
+    declaration = _parse_group_config(params)
+    rule = RecordRuleV4Operator.declare(
+        bk_tenant_id=bk_tenant_id,
+        space_type=space_type,
+        space_id=space_id,
+        source="manual",
+        operator=_normalize_text(params.get("operator"), "operator") or "admin",
+        **declaration,
+    )
+    return _config_response(rule, "record_rule_v4.create", write=True)
+
+
+@KernelRPCRegistry.register(
+    "admin.record_rule_v4.update",
+    summary="Admin 编辑 RecordRule V4 声明",
+    description="write：完整替换可编辑声明字段，名称和空间不可修改；不解析或下发。返回 data={rule, config}。",
+    params_schema={
+        "type": "object",
+        "required": ["bk_tenant_id", "id", "config"],
+        "additionalProperties": False,
+        "properties": {
+            "bk_tenant_id": {"type": "string", "minLength": 1},
+            "id": {"type": "integer", "minimum": 1},
+            "config": GROUP_CONFIG_SCHEMA,
+            "operator": {"type": "string"},
+        },
+    },
+    example_params={"bk_tenant_id": "system", "id": 1, "config": CONFIG_EXAMPLE},
+)
+def update_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
+    rule = _get_rule_or_raise(params, require_bk_tenant_id(params))
+    if rule.deleted_at or rule.desired_status == "deleted" or rule.status in {"deleting", "deleted"}:
+        raise CustomException(message="删除中或已删除的 RecordRule V4 不能编辑")
+    declaration = _parse_group_config(params)
+    if declaration.pop("name") != rule.name:
+        raise CustomException(message="规则组名称不可修改")
+    rule = RecordRuleV4Operator(
+        rule, source="manual", operator=_normalize_text(params.get("operator"), "operator") or "admin"
+    ).update_declaration(**declaration)
+    return _config_response(rule, "record_rule_v4.update", write=True)
+
+
 @KernelRPCRegistry.register(
     FUNC_RECORD_RULE_V4_VERSION_LIST,
     summary="Admin 查询 RecordRule V4 版本历史",
@@ -514,26 +693,21 @@ def manual_refresh_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
 @KernelRPCRegistry.register(
     FUNC_RECORD_RULE_V4_APPLY,
     summary="Admin 执行 RecordRule V4 当前声明",
-    description=(
-        "调用 RecordRuleV4Operator.execute_declaration(auto_apply=True)，完成输出资源、解析、Flow 准备和下发；"
-        "force_output_apply=true 时强制重试 output 下发。"
-    ),
+    description="调用 RecordRuleV4Operator.execute_declaration(auto_apply=True)，准备本地输出元数据、解析并下发 Flow。",
     params_schema={
         "bk_tenant_id": "可选，租户 ID",
         "id": "必填，规则组 ID",
         "operator": "可选，操作人",
-        "force_output_apply": "可选，是否强制重试 output 资源下发，默认 false",
     },
-    example_params={"bk_tenant_id": "system", "id": 1, "operator": "admin", "force_output_apply": False},
+    example_params={"bk_tenant_id": "system", "id": 1, "operator": "admin"},
 )
 def apply_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
     bk_tenant_id = get_bk_tenant_id(params)
     rule = _get_rule_or_raise(params, bk_tenant_id)
     before = _serialize_rule(rule)
-    force_output_apply = bool(normalize_optional_bool(params.get("force_output_apply"), "force_output_apply"))
     ok = RecordRuleV4Operator(
         rule, source="manual", operator=_normalize_text(params.get("operator"), "operator") or "admin"
-    ).execute_declaration(auto_apply=True, force_output_apply=force_output_apply)
+    ).execute_declaration(auto_apply=True)
     return _build_action_response(
         operation=OPERATION_RECORD_RULE_V4_APPLY,
         func_name=FUNC_RECORD_RULE_V4_APPLY,
@@ -542,7 +716,7 @@ def apply_record_rule_v4(params: dict[str, Any]) -> dict[str, Any]:
         before=before,
         action="execute_declaration",
         succeeded=ok,
-        result={"ok": ok, "force_output_apply": force_output_apply},
+        result={"ok": ok},
     )
 
 

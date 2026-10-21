@@ -17,7 +17,7 @@ pytestmark = pytest.mark.django_db(databases="__all__", transaction=True)
 def test_mysql_concurrent_heartbeat_merges_preserve_both_data_types() -> None:
     database = router.db_for_write(TopoNode)
     assert connections[database].vendor == "mysql", "并发与锁超时测试必须使用 MySQL"
-    node = make_node()
+    node = make_node(source=["log"])
     initial_updated_at = node.updated_at
     locked = Event()
     release = Event()
@@ -72,6 +72,7 @@ def test_mysql_concurrent_heartbeat_merges_preserve_both_data_types() -> None:
         "trace": {"last_data_at": 100, "checked_at": 110},
         "metric": {"last_data_at": 120, "checked_at": 130},
     }
+    assert node.source == ["log", "trace", "metric"]
     assert node.updated_at == initial_updated_at
 
 
@@ -79,7 +80,7 @@ def test_mysql_lock_timeout_keeps_previous_heartbeat() -> None:
     database = router.db_for_write(TopoNode)
     assert connections[database].vendor == "mysql", "并发与锁超时测试必须使用 MySQL"
     previous: dict[str, Any] = {"trace": {"last_data_at": 100, "checked_at": 110}}
-    node = make_node(heartbeat=previous)
+    node = make_node(source=["trace"], heartbeat=previous)
 
     def blocked_writer() -> bool:
         try:
@@ -95,17 +96,19 @@ def test_mysql_lock_timeout_keeps_previous_heartbeat() -> None:
             assert pool.submit(blocked_writer).result(timeout=5) is False
     node.refresh_from_db()
     assert node.heartbeat == previous
+    assert node.source == ["trace"]
     assert TopoNode.touch_heartbeat(2, "app", "log", {"demo": 200}, 210)
     node.refresh_from_db()
     assert node.heartbeat["log"] == {"last_data_at": 200, "checked_at": 210}
+    assert node.source == ["trace", "log"]
 
 
 def test_mysql_deadlock_keeps_victims_previous_heartbeat(caplog: pytest.LogCaptureFixture) -> None:
     database = router.db_for_write(TopoNode)
     assert connections[database].vendor == "mysql", "死锁测试必须使用 MySQL"
     previous = {"log": {"last_data_at": 80, "checked_at": 90}}
-    first = make_node("first", heartbeat=previous)
-    second = make_node("second", heartbeat=previous)
+    first = make_node("first", source=["log"], heartbeat=previous)
+    second = make_node("second", source=["log"], heartbeat=previous)
     both_locked = Barrier(2, timeout=5)
     caplog.set_level(logging.WARNING, logger="apm")
 
@@ -131,3 +134,4 @@ def test_mysql_deadlock_keeps_victims_previous_heartbeat(caplog: pytest.LogCaptu
         if succeeded:
             expected["trace"] = {"last_data_at": 100, "checked_at": 110}
         assert target.heartbeat == expected
+        assert target.source == (["log", "trace"] if succeeded else ["log"])

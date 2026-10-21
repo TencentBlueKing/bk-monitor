@@ -218,7 +218,7 @@ export default defineComponent({
             />
             {t('节点概览')}
           </div>
-          {props.showViewResource && (
+          {props.showViewResource && (!node.graph_analysis || node.graph_analysis.capabilities?.context_expansion) && (
             <div
               class={['list-item', node.entity.entity_id.indexOf('Unknown') !== -1 ? 'is-disabled' : '']}
               v-bk-tooltips={{
@@ -262,7 +262,7 @@ export default defineComponent({
 
     /** 聚合边的Tooltips */
     const createEdgeToolTipList = (edge: IEdge) => {
-      const { aggregated_edges: aggregatedList, edge_type } = edge;
+      const { aggregated_edges: aggregatedList } = edge;
       return (
         <div class='edge-tooltips-list-wrap'>
           <span class='title-wrap'>
@@ -278,14 +278,12 @@ export default defineComponent({
           <ul class='tool-tips-list'>
             <AggregatedEdgesList
               edge={edge}
-              edgeType={edge_type as string}
               onClick={handleViewService}
             />
             {aggregatedList.map(aggEdge => (
               <AggregatedEdgesList
                 key={aggEdge.id}
                 edge={aggEdge}
-                edgeType={edge_type as string}
                 onClick={handleViewService}
               />
             ))}

@@ -281,11 +281,11 @@ class RecordRuleV4Runner:
     def apply_flow(self, flow_config: dict[str, Any]) -> Any:
         """调用 bkbase v4 apply 接口创建或更新 Flow。
 
-        这里只提交 Flow payload；output ResultTable / VmStorageBinding 已在
-        Operator.prepare_output_resources 阶段由 RecordRuleV4OutputResources 下发。
+        这里只提交 Flow payload；BKBase 自动创建输出 ResultTable / VmStorageBinding。
+        Operator.prepare_output_resources 仅准备本地查询元数据和 VMRT 映射。
         """
 
-        response = api.bkdata.apply_data_link(bk_tenant_id=self.rule.bk_tenant_id, config=[flow_config])
+        response = api.bkdata.apply_record_rule_flow(bk_tenant_id=self.rule.bk_tenant_id, config=[flow_config])
         self.rule.last_refresh_time = now()
         return response
 
@@ -293,7 +293,7 @@ class RecordRuleV4Runner:
         """调用 bkbase 删除 Flow；可把 Not Found 视为删除成功。"""
 
         try:
-            return api.bkdata.delete_data_link(
+            return api.bkdata.delete_record_rule_flow(
                 bk_tenant_id=self.rule.bk_tenant_id,
                 namespace=RECORD_RULE_V4_BKBASE_NAMESPACE,
                 kind="flows",
@@ -316,7 +316,7 @@ class RecordRuleV4Runner:
             return RecordRuleV4FlowStatus.ABNORMAL.value
 
         try:
-            flow_info = api.bkdata.get_data_link(
+            flow_info = api.bkdata.get_record_rule_flow(
                 bk_tenant_id=self.rule.bk_tenant_id,
                 namespace=RECORD_RULE_V4_BKBASE_NAMESPACE,
                 kind="flows",

@@ -102,6 +102,8 @@ export const RUM_TABLE_PAGE_LIMIT = 30;
 export const RUM_TOPK_LIMIT = 5;
 
 interface ISpanTypeMeta {
+  /** 类型主色，与 icon 内置填充色一致，类型标签底色按该色降低透明度得到 */
+  color: string;
   /** 类型图标，取自设计稿导出的 svg 资源，颜色已内置在 svg 中 */
   icon: string;
   label: string;
@@ -114,14 +116,14 @@ interface ISpanTypeMeta {
  * 接口新增类型时未命中的走 attributes.span_type 的 option_values 别名兜底，不影响功能。
  */
 export const SPAN_TYPE_META: Record<string, ISpanTypeMeta> = {
-  view: { icon: ViewIcon, label: 'View' },
-  resource: { icon: ResourceIcon, label: 'Resource' },
-  error: { icon: ErrorIcon, label: 'Error' },
-  vital: { icon: VitalIcon, label: 'Vital' },
-  long_task: { icon: LongTaskIcon, label: 'Long task' },
-  action: { icon: ActionIcon, label: 'Action' },
-  websocket: { icon: WebsocketIcon, label: 'Websocket' },
-  custom: { icon: CustomIcon, label: 'Custom' },
+  view: { icon: ViewIcon, label: 'View', color: '#49B4D8' },
+  resource: { icon: ResourceIcon, label: 'Resource', color: '#A07CDE' },
+  error: { icon: ErrorIcon, label: 'Error', color: '#EA3636' },
+  vital: { icon: VitalIcon, label: 'Vital', color: '#5DA7A2' },
+  long_task: { icon: LongTaskIcon, label: 'Long task', color: '#F59500' },
+  action: { icon: ActionIcon, label: 'Action', color: '#DE7CC7' },
+  websocket: { icon: WebsocketIcon, label: 'Websocket', color: '#6DA861' },
+  custom: { icon: CustomIcon, label: 'Custom', color: '#8F9FBD' },
 };
 
 export const SPAN_TYPE_META_ICON = {

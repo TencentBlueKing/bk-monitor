@@ -25,7 +25,7 @@
  */
 // import { OUTCOME_TYPE_TONE_MAP, RUM_OUTCOME_TYPE_MAP } from '../../constants';
 import { formatUnitValueParts } from '../../utils';
-import { RumCardToneEnum, RumRatingEnum } from '../typings';
+import { RumCardToneEnum, RumRatingEnum, RumTimelineFilterCategoryEnum } from '../typings';
 
 import type {
   IRumCardDescriptor,
@@ -76,13 +76,13 @@ const isXhrLike = (ctx: IRumCardResolveCtx) => {
  * Web Vitals 指标卡描述符工厂：主值为指标值，右上角按 rating_config 阈值挂评级标签，
  * 副文案为指标全称；extraFooter 用于 TTFB 追加分段耗时说明。
  */
-const vitalCard = (): IRumCardDescriptor => data => {
-  const metric = String(data['attributes.vital.metric'] || data.key || '').toLowerCase();
+const vitalCard = (): IRumCardDescriptor => (data, ctx) => {
+  const metric = String(data['attributes.vital.metric'] || data.key || '').toUpperCase();
   const value = data['attributes.vital.value'];
   const hasValue = value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value));
   const configs = (data['display.rating_config'] ?? []) as IRumRatingConfig[];
   /** 按阈值命中评级，最后一段无上界，与评级条（buildRatingBar）同一口径 */
-  let hitRating = RumRatingEnum.GOOD;
+  let hitRating: string = RumRatingEnum.GOOD;
   if (hasValue && configs.length) {
     hitRating = configs[configs.length - 1].rating;
     for (const config of configs) {
@@ -99,11 +99,14 @@ const vitalCard = (): IRumCardDescriptor => data => {
     [RumRatingEnum.POOR]: RumCardToneEnum.DANGER,
   };
 
+  const { value: formatValue, unit } = ctx.formatFieldParts(metric, value);
+
   return [
     {
-      label: metric.toUpperCase(),
-      value: text(value),
-      unit: { text: 'ms', tone: ratingToneMap[hitRating] },
+      label: metric,
+      value: text(formatValue),
+      hover: data.hover,
+      unit: { text: unit, tone: ratingToneMap[hitRating] },
       tone: ratingToneMap[hitRating],
       cardCls: `vital-card ${ratingToneMap[hitRating]}`,
     },
@@ -189,21 +192,27 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
     ];
   },
 
-  /** 传输大小：主值取传输体积，副文案给出解压后体积与压缩率 */
+  /** 响应大小：主值取编码后的响应体大小，体积比为编码后大小与解码后大小之比 */
   'key_info.transfer': data => {
-    const { text: value, suffix } = formatUnitValueParts(data['attributes.resource.transfer_size'], 'bytes');
-    const decoded = formatUnitValueParts(data['attributes.resource.decoded_body_size'], 'bytes');
-    const ratio = Number(data['display.compression_ratio'] ?? 0);
-    const footer: IRumCardFooterPart[] = [{ text: `${t('解压后')} ${decoded.text}${decoded.suffix} ·` }];
-    if (Number.isFinite(ratio)) {
+    const encodedSize = data['attributes.resource.encoded_body_size'];
+    const decodedSize = data['attributes.resource.decoded_body_size'];
+    const { text: value, suffix } = formatUnitValueParts(encodedSize, 'bytes');
+    const decoded = formatUnitValueParts(decodedSize, 'bytes');
+    const hasValidSizes = [encodedSize, decodedSize].every(
+      size =>
+        (typeof size === 'number' || (typeof size === 'string' && size.trim() !== '')) && Number.isFinite(Number(size))
+    );
+    const sizeRatio = Number(encodedSize) / Number(decodedSize);
+    const footer: IRumCardFooterPart[] = [{ text: `${t('解压后')} ${text(decoded.text)}${decoded.suffix}` }];
+    if (hasValidSizes && Number(encodedSize) >= 0 && Number(decodedSize) > 0 && Number.isFinite(sizeRatio)) {
       footer.push({
-        text: ` ${t('压缩')} ${(ratio * 100).toFixed(1)}%`,
-        tone: ratio > 0 ? RumCardToneEnum.SUCCESS : RumCardToneEnum.DEFAULT,
+        text: ` · ${t('体积比')} ${(sizeRatio * 100).toFixed(2)}%`,
+        tone: sizeRatio < 1 ? RumCardToneEnum.SUCCESS : RumCardToneEnum.DEFAULT,
       });
     }
     return [
       {
-        label: t('传输大小'),
+        label: t('响应大小'),
         value: text(value),
         unit: suffix ? { text: suffix.trim() } : undefined,
         footer,
@@ -265,15 +274,18 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
 
   /* ---------------- Long Task ---------------- */
 
-  /** 关联交互：Action ID 命中时展示回查到的目标元素名 */
+  /** 关联交互：Action ID 命中时展示回查到的目标元素名，点击切换到链路上下文 */
   'long_task.key_info.action': (data, ctx) => {
     const actionName = String(ctx.related.actionName ?? '');
     const hasAction = !!data['attributes.action.id'];
+    const clickable = hasAction && !!actionName;
     return [
       {
         label: t('关联交互'),
         value: actionName || EMPTY_TEXT,
         footer: [{ text: hasAction && actionName ? String(ctx.related.actionType ?? '') : t('未关联 Action') }],
+        tone: clickable ? RumCardToneEnum.LINK : RumCardToneEnum.DEFAULT,
+        click: clickable ? () => ctx.handlers?.switchTraceContext(RumTimelineFilterCategoryEnum.ACTION) : undefined,
       },
     ];
   },
@@ -287,24 +299,19 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
         label: t('任务耗时'),
         value: text(value),
         unit: suffix ? { text: suffix.trim() } : undefined,
-        footer: [{ text: `${t('阻塞贡献')} ${blocking}ms · ${t('超出 50ms 阈值')}` }],
+        footer: [{ text: `${t('阻塞贡献')} ${blocking}ms` }],
       },
     ];
   },
 
-  /**
-   * 主要归因：Performance Entry 名称。
-   * 名称与 entry_type 相同说明浏览器没有给出更具体的归因目标，标注为低可信度。
-   */
+  /** 主要归因：Performance Entry 名称 */
   'key_info.attribution': data => {
     const name = String(data['attributes.long_task.name'] ?? '');
-    const entryType = String(data['attributes.long_task.entry_type'] ?? '');
     return [
       {
         label: t('主要归因'),
         value: name || EMPTY_TEXT,
         footer: [{ text: 'Performance Entry name' }],
-        tag: name && name !== entryType ? undefined : { text: t('低可信度'), color: '#E38B02', bgColor: '#FDF4E8' },
       },
     ];
   },
@@ -346,6 +353,7 @@ const CARD_DESCRIPTORS: Record<string, IRumCardDescriptor> = {
         label: t('停留时长'),
         value: text(value),
         unit: suffix ? { text: suffix.trim() } : undefined,
+        cardCls: 'view-card',
       },
     ];
   },

@@ -27,7 +27,7 @@
 import { computed, defineComponent, ref, nextTick, watch } from 'vue';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
-import tippy from 'tippy.js';
+import { createRawTippyOverlay, useDialogVisible } from '@/global/overlay';
 import RegexTable, { type RowData } from './regex-table';
 import { bkMessage } from 'bk-magic-vue';
 import $http from '@/api';
@@ -74,7 +74,15 @@ export default defineComponent({
     const regexPreviewRef = ref<any>(null);
     const tableRef = ref<any>(null);
     const occupyRef = ref<any>(null);
-    const isShowRuleDialog = ref(false);
+    const {
+      id: regexDialogId,
+      visible: isShowRuleDialog,
+      setVisible: setRuleDialogVisible,
+      onValueChange: onRuleDialogValueChange,
+    } = useDialogVisible(false, {
+      type: 'dialog',
+      group: 'retrieve-dialog',
+    });
     const isConfigChanged = ref(false);
     const isConfirmLoading = ref(false);
     const regexList = ref<RowData[]>([]);
@@ -121,7 +129,7 @@ export default defineComponent({
       () => props.value,
       () => {
         if (props.value) {
-          isShowRuleDialog.value = true;
+          setRuleDialogVisible(true);
         }
       },
     );
@@ -178,7 +186,7 @@ export default defineComponent({
     };
 
     const handleCancel = () => {
-      isShowRuleDialog.value = false;
+      setRuleDialogVisible(false);
       emit('change', false);
     };
 
@@ -188,18 +196,26 @@ export default defineComponent({
         .then(data => {
           isConfirmLoading.value = true;
           if (logConfigInfo.type === 'template') {
-            secondConfirmPopoverInstance = tippy(confirmBtnRef.value!, {
-              appendTo: () => document.body,
-              content: secondConfirmRef.value.getRef(),
-              maxWidth: 360,
-              arrow: true,
-              trigger: 'manual',
-              theme: 'light second-confirm-popover',
-              placement: 'bottom-start',
-              hideOnClick: false,
-              interactive: true,
-              allowHTML: true,
-            });
+            secondConfirmPopoverInstance = createRawTippyOverlay(
+              confirmBtnRef.value!,
+              {
+                content: secondConfirmRef.value.getRef(),
+                maxWidth: 360,
+                arrow: true,
+                trigger: 'manual',
+                theme: 'light second-confirm-popover',
+                placement: 'bottom-start',
+                hideOnClick: false,
+                interactive: true,
+                allowHTML: true,
+              },
+              {
+                id: `${regexDialogId}-second-confirm`,
+                parentId: regexDialogId,
+                group: `${regexDialogId}-nested`,
+                rootSelector: '.second-confirm-popover',
+              },
+            );
             secondConfirmPopoverInstance.show();
           } else {
             // 直接调用更新聚类配置接口
@@ -242,17 +258,24 @@ export default defineComponent({
 
     const occupyTargetEvent = (e: Event, wrapper: HTMLSpanElement) => {
       destroyOccupyPopover();
-      occupyPopoverInstance = tippy(e.target as Element, {
-        appendTo: () => document.body,
-        content: occupyRef.value.getRef(),
-        arrow: true,
-        trigger: 'manual',
-        theme: 'light',
-        placement: 'bottom-start',
-        hideOnClick: false,
-        interactive: true,
-        allowHTML: true,
-      });
+      occupyPopoverInstance = createRawTippyOverlay(
+        e.target as Element,
+        {
+          content: occupyRef.value.getRef(),
+          arrow: true,
+          trigger: 'manual',
+          theme: 'light',
+          placement: 'bottom-start',
+          hideOnClick: false,
+          interactive: true,
+          allowHTML: true,
+        },
+        {
+          id: `${regexDialogId}-occupy`,
+          parentId: regexDialogId,
+          group: `${regexDialogId}-nested`,
+        },
+      );
       occupyOriginStr = wrapper.innerText;
       occupyPopoverInstance.show();
     };
@@ -313,19 +336,26 @@ export default defineComponent({
         .getData()
         .then(() => {
           isConfigChanged.value = false;
-          regexPreviewPopoverInstance = tippy(previewBtnRef.value!, {
-            appendTo: () => document.body,
-            content: regexPreviewRef.value.getRef(),
-            maxWidth: 962,
-            arrow: true,
-            trigger: 'manual',
-            theme: 'light',
-            placement: 'bottom-start',
-            hideOnClick: false,
-            interactive: true,
-            allowHTML: true,
-            offset: [170, 20],
-          });
+          regexPreviewPopoverInstance = createRawTippyOverlay(
+            previewBtnRef.value!,
+            {
+              content: regexPreviewRef.value.getRef(),
+              maxWidth: 962,
+              arrow: true,
+              trigger: 'manual',
+              theme: 'light',
+              placement: 'bottom-start',
+              hideOnClick: false,
+              interactive: true,
+              allowHTML: true,
+              offset: [170, 20],
+            },
+            {
+              id: `${regexDialogId}-preview`,
+              parentId: regexDialogId,
+              group: `${regexDialogId}-nested`,
+            },
+          );
           regexPreviewPopoverInstance.show();
           regexPreviewRef.value.onShow();
         })
@@ -345,6 +375,7 @@ export default defineComponent({
     };
 
     const handleDialogChangeShow = (isShow: boolean) => {
+      onRuleDialogValueChange(isShow);
       if (isShow) {
         requestCluster();
       } else {

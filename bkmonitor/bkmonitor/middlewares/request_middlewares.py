@@ -36,7 +36,8 @@ class RequestProvider(MiddlewareMixin):
         request.biz_id = biz_id
         # 记录非monitor_api未获取到biz_id的请求
         if biz_id and request.resolver_match.namespace == "monitor_web":
-            request.session["bk_biz_id"] = biz_id
+            if request.session.get("bk_biz_id") != biz_id:
+                request.session["bk_biz_id"] = biz_id
             return None
 
         if request.resolver_match.namespace == "monitor_adapter":

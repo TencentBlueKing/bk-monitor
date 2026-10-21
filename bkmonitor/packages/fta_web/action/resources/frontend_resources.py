@@ -36,12 +36,14 @@ from bkmonitor.iam import ActionEnum, Permission
 from bkmonitor.models.fta import ActionConfig, ActionInstance, ActionPlugin
 from bkmonitor.utils.request import get_request, get_request_username
 from bkmonitor.utils.template import AlarmNoticeTemplate, NoticeRowRenderer
+from bkmonitor.utils.template_ref_values import output_references
 from bkmonitor.utils.user import get_user_display_name
 from bkmonitor.views import serializers
 from constants.action import (
     CONVERGE_DIMENSION,
     CONVERGE_FUNCTION,
     CONVERGE_FUNCTION_DESCRIPTION,
+    DEMO_CONTEXT,
     VARIABLES,
     ActionPluginType,
     ActionStatus,
@@ -69,9 +71,52 @@ class RenderNoticeTemplate(Resource):
     """
 
     class RequestSerializer(serializers.Serializer):
+        class PreviewItemSerializer(serializers.Serializer):
+            id = serializers.IntegerField(required=False, min_value=0)
+            expression = serializers.CharField(allow_blank=True)
+            functions = serializers.ListField(child=serializers.DictField(), default=list)
+            query_configs = serializers.ListField(child=serializers.DictField())
+            query_output_config = serializers.DictField(required=False, allow_null=True)
+
         template = serializers.CharField(required=True, label="消息模板", allow_blank=True)
+        query_output_config = serializers.DictField(required=False, allow_null=True)
+        preview_item = PreviewItemSerializer(required=False)
+        strategy_id = serializers.IntegerField(required=False, min_value=0, default=0)
+        bk_biz_id = serializers.IntegerField(required=False)
+
+    @staticmethod
+    def get_output_config(params):
+        from bkmonitor.models import ItemModel, StrategyModel
+        from bkmonitor.strategy.new_strategy import Item
+        from monitor_web.strategies.resources.v2 import SaveStrategyForPageResource
+
+        config = params.get("query_output_config")
+        if "preview_item" in params:
+            if "bk_biz_id" not in params:
+                raise serializers.ValidationError("preview_item requires bk_biz_id")
+            item = params["preview_item"]
+            if SaveStrategyForPageResource.is_multi_promql(item):
+                for query in item["query_configs"]:
+                    if not isinstance(query.get("alias"), str) or not query["alias"]:
+                        raise serializers.ValidationError("preview query alias is required")
+            prepared = SaveStrategyForPageResource.add_page_defaults(
+                {"id": params.get("strategy_id", 0), "bk_biz_id": params["bk_biz_id"], "items": [item]}
+            )["items"][0]
+            config = prepared.get("query_output_config", serializers.empty)
+            if config is serializers.empty:
+                config = None
+                if (
+                    params.get("strategy_id")
+                    and StrategyModel.objects.filter(id=params["strategy_id"], bk_biz_id=params["bk_biz_id"]).exists()
+                ):
+                    old_items = list(ItemModel.objects.filter(strategy_id=params["strategy_id"]).only("id", "meta"))
+                    old_item = SaveStrategyForPageResource.match_old_items([item], old_items)[0]
+                    if old_item and isinstance(old_item.meta, dict):
+                        config = old_item.meta.get("query_output_config")
+        return Item.normalize_query_output_config(config) if config is not None else None
 
     def perform_request(self, validated_request_data):
+        config = self.get_output_config(validated_request_data)
         language_suffix = ""
         language = translation.get_language()
         if language and language not in [settings.DEFAULT_LOCALE, "zh-cn", "zh-hans"]:
@@ -80,6 +125,7 @@ class RenderNoticeTemplate(Resource):
         custom_template = validated_request_data["template"]
 
         context = {
+            "_query_output_config": config,
             "content_template": custom_template,
             "level_name": _("致命"),
             "title_template": "{{business.bk_biz_name}} - {{alert.alert_name}}{{alarm.display_type}}",
@@ -92,6 +138,12 @@ class RenderNoticeTemplate(Resource):
                 "data_source_name": _("蓝鲸监控"),
                 "data_source": "BKMONITOR",
                 "current_value": 10,
+                "ref_values": {
+                    reference: DEMO_CONTEXT["alarm"]["ref_values"].get(
+                        reference, {"value": index + 1, "state": "SUCCESS"}
+                    )
+                    for index, reference in enumerate(output_references(config))
+                },
                 "detail_url": "http://example.com/",
                 "notice_from": _("蓝鲸监控"),
                 "company": _("蓝鲸"),

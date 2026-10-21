@@ -4,6 +4,7 @@ const path = require('node:path');
 const test = require('node:test');
 const vm = require('node:vm');
 const ts = require('typescript');
+
 const vue = require('../src/trace/node_modules/vue');
 
 const root = path.join(__dirname, '../src/trace/pages/host');
@@ -33,7 +34,7 @@ const { createHostListRow } = load(`${root}/utils/host-list-core.ts`, {
   'monitor-common/utils': { isObject: value => value !== null && typeof value === 'object' },
 });
 
-test('controller isolates reusable contexts and full handoff retains newly selected rows', async () => {
+test('controller full handoff retains newly selected rows', async () => {
   let finishValidation;
   let dataOptions;
   const appStore = { bizId: 1, userName: 'test-user', siteUrl: '/' };
@@ -72,7 +73,12 @@ test('controller isolates reusable contexts and full handoff retains newly selec
     '../constants/enum': load(`${root}/constants/enum.ts`),
     '../constants/host-list': { HOST_FILTER_FIELDS: [], HOST_LIST_COLUMNS: [], HOST_LIST_DEFAULT_PAGE_SIZE: 50 },
     '../utils/share-scope': load(`${root}/utils/share-scope.ts`),
-    './use-host-list-data': { useHostListData: options => { dataOptions = options; return data; } },
+    './use-host-list-data': {
+      useHostListData: options => {
+        dataOptions = options;
+        return data;
+      },
+    },
     './use-host-list-worker': {
       useHostListWorker: () => ({
         getSelectedRows: keys => {
@@ -96,23 +102,10 @@ test('controller isolates reusable contexts and full handoff retains newly selec
       where: vue.shallowRef([]),
     })
   );
-  const originalKey = dataOptions.getQueryKey();
-  for (const [object, key, value] of [
-    [appStore, 'userName', 'other-user'],
-    [appStore, 'siteUrl', '/other/'],
-    [appStore, 'bizId', 2],
-    [hostStore.timeRange, 'value', ['now-2h', 'now']],
-    [hostStore.timezone, 'value', 'Asia/Shanghai'],
-  ]) {
-    const original = object[key];
-    object[key] = value;
-    assert.notEqual(dataOptions.getQueryKey(), originalKey, key);
-    object[key] = original;
-  }
-  assert.equal(dataOptions.getQueryKey(), originalKey);
-  appStore.userName = '';
-  assert.equal(dataOptions.getQueryKey(), null);
-  appStore.userName = 'test-user';
+  assert.deepEqual(dataOptions.getScope(), { bk_biz_id: 1 });
+  const timeContext = dataOptions.getTimeContext();
+  assert.deepEqual(timeContext, { timeRange: ['now-1h', 'now'], timezone: 'UTC' });
+  assert.notEqual(timeContext.timeRange, hostStore.timeRange.value);
   controller.handleRowCheck('1', true);
   controller.handleRowCheck('missing', true);
   data.fullDataReady.value = true;
@@ -126,16 +119,21 @@ test('controller isolates reusable contexts and full handoff retains newly selec
   await vue.nextTick();
   finishValidation({ rows: [{ id: '2' }] });
   await flush();
-  assert.deepEqual([...controller.selectedRowKeys.value], ['2'], 'background snapshot also validates selections without toggling readiness');
+  assert.deepEqual(
+    [...controller.selectedRowKeys.value],
+    ['2'],
+    'background snapshot also validates selections without toggling readiness'
+  );
   effect.stop();
 });
 
-function harness(scope = {}, cacheWindow = null, getQueryKey = () => null) {
+function harness(scope = {}, cacheWindow = null) {
   const calls = [];
   const services = Object.fromEntries(
     ['getHostInfoList', 'getHostInfoPage', 'getHostMetricInfoList', 'getHostMetricStats'].map(name => [
       name,
-      params => new Promise((resolve, reject) => calls.push({ name, params, resolve, reject })),
+      (params, timeContext) =>
+        new Promise((resolve, reject) => calls.push({ name, params, timeContext, resolve, reject })),
     ])
   );
   const pending = (name, predicate = () => true) =>
@@ -164,20 +162,24 @@ function harness(scope = {}, cacheWindow = null, getQueryKey = () => null) {
     mergeMetrics: metricListMap => send({ type: 'MERGE_METRICS', metricListMap }),
     compute: params => send({ type: 'COMPUTE', params }),
   };
-  const queryServices = load(`${root}/services/host-service.ts`, {
-    'monitor-api/base': { request: () => () => {} },
-    'monitor-api/modules/commons': {},
-    'monitor-api/modules/performance': {
-      searchHostInfo: services.getHostInfoList,
-      searchHostMetric: services.getHostMetricInfoList,
-    },
-  }, { window: cacheWindow });
+  let requestServices = services;
+  if (cacheWindow) {
+    const { requestHost } = load(
+      `${root}/services/host-request.ts`,
+      {
+        'monitor-common/utils': { parseBizId: Number },
+      },
+      { window: { rawWindow: cacheWindow, cc_biz_id: 1, user_name: 'test-user', site_url: '/' } }
+    );
+    requestServices = Object.fromEntries(
+      Object.entries(services).map(([name, request]) => [
+        name,
+        (params, timeContext) => requestHost(name, params, request, { timeContext }),
+      ])
+    );
+  }
   const { useHostListData } = load(`${root}/composables/use-host-list-data.ts`, {
-    '../services/host-service': {
-      ...services,
-      clearHostListQueryCache: queryServices.clearHostListQueryCache,
-      getHostListQuery: queryServices.getHostListQuery,
-    },
+    '../services/host-service': requestServices,
     '../utils/host-list-core': { createHostListRow },
   });
   const page = vue.shallowRef(1);
@@ -186,12 +188,16 @@ function harness(scope = {}, cacheWindow = null, getQueryKey = () => null) {
   const filters = { keyword: '', activeCategory: '', sortInfo: '', stickyValue: {}, where: [] };
   let anchor = 1000;
   let anchorCalls = 0;
+  let timeContext;
   const effect = vue.effectScope();
   const data = effect.run(() =>
     useHostListData({
-      getQueryKey,
       getScope: () => ({ ...scope }),
       getPageScope: () => (currentNode.value ? { bk_obj_id: 'module', bk_inst_id: 10 } : { ...scope }),
+      getTimeContext: () => ({
+        timeRange: timeContext ? [...timeContext.timeRange] : [anchor - 60, anchor],
+        timezone: timeContext?.timezone || 'UTC',
+      }),
       getTimeParams: () => {
         anchorCalls += 1;
         return { start_time: anchor - 60, end_time: anchor };
@@ -236,6 +242,9 @@ function harness(scope = {}, cacheWindow = null, getQueryKey = () => null) {
     completeFull,
     setAnchor: value => {
       anchor = value;
+    },
+    setTimeContext: value => {
+      timeContext = value;
     },
     getAnchorCalls: () => anchorCalls,
   };
@@ -531,7 +540,10 @@ test('same-query refresh retains rows, statistics and filtering until the new sn
   h.filters.keyword = '127.0.0.1';
   h.data.invalidateView();
   await h.data.refreshList();
-  assert.deepEqual(h.data.pagedRows.value.map(row => row.id), ['1']);
+  assert.deepEqual(
+    h.data.pagedRows.value.map(row => row.id),
+    ['1']
+  );
   assert.equal(h.data.fullLoading.value, true, 'local filtering must not finish the background refresh');
   await h.completeFull([1, 2, 3], { 1: { cpu_usage: 42 } });
   assert.equal(h.data.fullLoading.value, false);
@@ -580,136 +592,171 @@ test('query change discards refresh presentation and late refresh cannot finish 
   await flush();
   assert.equal(h.data.loading.value, true);
   await h.completeFull([2]);
-  assert.deepEqual(h.data.pagedRows.value.map(row => row.id), ['2']);
+  assert.deepEqual(
+    h.data.pagedRows.value.map(row => row.id),
+    ['2']
+  );
   h.effect.stop();
 });
 
-const cacheOwner = () => ({
-  setTimeout: (...args) => setTimeout(...args).unref(),
-  clearTimeout,
-});
-
-test('remount during loading reuses full requests and their anchor across fresh module instances', async () => {
-  const owner = cacheOwner();
-  const first = harness({}, { rawWindow: owner }, () => 'same-query');
-  void first.data.loadData(false, false);
-  first.effect.stop();
-  const second = harness({}, { rawWindow: owner }, () => 'same-query');
-  second.setAnchor(2000);
-  void second.data.loadData(false, false);
-  assert.equal(second.getAnchorCalls(), 0);
-  assert.equal(second.calls.filter(c => c.name === 'getHostInfoList').length, 0);
-  assert.equal(second.calls.filter(c => c.name === 'getHostMetricInfoList').length, 0);
-  assert.ok(second.calls.filter(c => c.name === 'getHostMetricStats').every(c => c.params.end_time === 1000));
-  second.respond('getHostInfoPage', pageResult([1]));
+test('remount with the same relative range shares pending requests despite timestamp drift', async () => {
+  const owner = {};
+  const first = harness({}, owner);
+  first.setTimeContext({ timeRange: ['now-1h', 'now'], timezone: 'UTC' });
+  void first.data.loadData();
   await flush();
-  assert.equal(second.pending('getHostMetricInfoList').params.end_time, 1000);
+  first.effect.stop();
+  const second = harness({}, owner);
+  second.setTimeContext({ timeRange: ['now-1h', 'now'], timezone: 'UTC' });
+  second.setAnchor(1010);
+  void second.data.loadData();
+  await flush();
+  assert.equal(first.calls.length, 6);
+  assert.equal(second.calls.length, 0);
   await first.completeFull([1], { 1: { cpu_usage: 42 } });
   assert.equal(first.data.fullDataReady.value, false);
   assert.equal(second.data.fullDataReady.value, true);
   assert.equal(second.data.pagedRows.value[0].cpu_usage, 42);
   second.effect.stop();
-  owner.clearTimeout(owner.__MONITOR_HOST_LIST_QUERY__.timer);
 });
 
-test('successful remount skips fallback page and statistics, recomputing the current view', async () => {
-  const owner = cacheOwner();
-  const first = harness({}, owner, () => 'same-query');
-  void first.data.loadData(false, false);
-  await first.completeFull([1, 2], { 2: { cpu_usage: 95 } });
+test('remount shares pending page metrics and card stats for the same relative range', async () => {
+  const owner = {};
+  const first = harness({}, owner);
+  first.setTimeContext({ timeRange: ['now-1h', 'now'], timezone: 'UTC' });
+  void first.data.loadData();
+  first.respond('getHostInfoPage', pageResult([1]));
+  await flush();
+  assert.equal(first.calls.length, 7);
   first.effect.stop();
-  const second = harness({}, owner, () => 'same-query');
-  second.filters.keyword = '127.0.0.2';
-  await second.data.loadData(false, false);
-  assert.equal(second.calls.length, 0);
+
+  const second = harness({}, owner);
+  second.setAnchor(1010);
+  second.setTimeContext({ timeRange: ['now-1h', 'now'], timezone: 'UTC' });
+  void second.data.loadData();
+  second.respond('getHostInfoPage', pageResult([1]));
+  await flush();
+  assert.deepEqual(
+    second.calls.map(call => call.name),
+    ['getHostInfoPage']
+  );
+  first.respond('getHostMetricInfoList', { 1: { cpu_usage: 41 } }, p => !!p.bk_host_ids);
+  first.respond('getHostMetricStats', { complete: true, value: 9 }, p => p.category === 'cpu');
+  await flush();
+  assert.equal(second.data.pagedRows.value[0].cpu_usage, 41);
+  assert.equal(second.data.categoryStats.value.cpu, 9);
+  assert.equal(second.data.fullDataReady.value, false);
+  await first.completeFull([1], { 1: { cpu_usage: 42 } });
   assert.equal(second.data.fullDataReady.value, true);
-  assert.deepEqual(second.data.pagedRows.value.map(row => row.id), ['2']);
+  assert.equal(second.data.pagedRows.value[0].cpu_usage, 42);
+  second.effect.stop();
+});
+
+test('delayed scoped metrics retain the relative range of their own request batch', async () => {
+  const h = harness({ bk_host_id: 1 }, {});
+  h.setTimeContext({ timeRange: ['now-1h', 'now'], timezone: 'UTC' });
+  void h.data.loadData();
+  h.setAnchor(2000);
+  h.setTimeContext({ timeRange: ['now-24h', 'now'], timezone: 'UTC' });
+  void h.data.loadData();
+  h.respond('getHostInfoList', [host(1)]);
+  await flush();
+  assert.deepEqual(
+    h.calls.filter(call => call.name === 'getHostMetricInfoList').map(call => call.params.end_time),
+    [1000, 2000]
+  );
+  h.respond('getHostMetricInfoList', { 1: { cpu_usage: 99 } }, p => p.end_time === 1000);
+  await flush();
+  assert.equal(h.data.fullDataReady.value, false);
+  h.respond('getHostMetricInfoList', { 1: { cpu_usage: 20 } }, p => p.end_time === 2000);
+  await flush();
+  assert.equal(h.data.pagedRows.value[0].cpu_usage, 20);
+  h.effect.stop();
+});
+
+test('remount after full requests settle fetches new base and metrics instead of restoring results', async () => {
+  const owner = {};
+  const first = harness({}, owner);
+  void first.data.loadData();
+  await flush();
+  await first.completeFull([1]);
+  first.effect.stop();
+  const second = harness({}, owner);
+  void second.data.loadData();
+  await flush();
+  assert.ok(second.pending('getHostInfoList'));
+  assert.ok(second.pending('getHostMetricInfoList'));
+  assert.equal(second.data.fullDataReady.value, false);
+  assert.deepEqual(second.data.pagedRows.value, []);
+  await second.completeFull([2], { 2: { cpu_usage: 95 } });
+  assert.deepEqual(
+    second.data.pagedRows.value.map(row => row.id),
+    ['2']
+  );
   assert.equal(second.data.pagedRows.value[0].cpu_usage, 95);
   second.effect.stop();
-  owner.clearTimeout(owner.__MONITOR_HOST_LIST_QUERY__.timer);
 });
 
-test('manual or automatic refresh bypasses a recent successful query and advances its anchor', async () => {
-  const owner = cacheOwner();
-  const h = harness({}, owner, () => 'same-query');
-  void h.data.loadData(false, false);
+test('a new time range shares only pending base data and uses fresh metrics', async () => {
+  const owner = {};
+  const first = harness({}, owner);
+  void first.data.loadData();
+  await flush();
+  first.effect.stop();
+  const second = harness({}, owner);
+  second.setAnchor(2000);
+  void second.data.loadData();
+  await flush();
+  assert.equal(second.calls.filter(c => c.name === 'getHostInfoList').length, 0);
+  assert.equal(second.pending('getHostMetricInfoList').params.end_time, 2000);
+  await first.completeFull([1], { 1: { cpu_usage: 90 } });
+  assert.equal(second.data.fullDataReady.value, false);
+  second.respond('getHostMetricInfoList', { 1: { cpu_usage: 20 } });
+  await flush();
+  assert.equal(second.data.pagedRows.value[0].cpu_usage, 20);
+  second.effect.stop();
+});
+
+test('refresh shares identical pending HTTP but fetches again after completion', async () => {
+  const h = harness({}, {});
+  h.setTimeContext({ timeRange: ['now-1h', 'now'], timezone: 'UTC' });
+  void h.data.loadData();
+  h.setAnchor(1010);
+  void h.data.loadData();
+  await flush();
+  assert.equal(h.calls.length, 6);
   await h.completeFull([1], { 1: { cpu_usage: 90 } });
   h.setAnchor(2000);
   void h.data.loadData(true);
-  assert.equal(h.pending('getHostMetricInfoList', p => !p.bk_host_ids).params.end_time, 2000);
+  await flush();
   assert.equal(h.calls.filter(c => c.name === 'getHostInfoList').length, 2);
+  assert.equal(h.pending('getHostMetricInfoList', p => !p.bk_host_ids).params.end_time, 2000);
   assert.equal(h.data.pagedRows.value[0].cpu_usage, 90);
   await h.completeFull([1], { 1: { cpu_usage: 20 } });
   assert.equal(h.data.pagedRows.value[0].cpu_usage, 20);
   h.effect.stop();
-  owner.clearTimeout(owner.__MONITOR_HOST_LIST_QUERY__.timer);
 });
 
-test('a full HTTP failure after disposal is not reused on return', async () => {
-  const owner = cacheOwner();
-  const first = harness({}, owner, () => 'same-query');
-  void first.data.loadData(false, false);
+test('a failed metric request after disposal is retried while pending base data remains reusable', async () => {
+  const owner = {};
+  const first = harness({}, owner);
+  void first.data.loadData();
+  await flush();
   first.effect.stop();
   first.respond('getHostMetricInfoList', new Error('failed'), p => !p.bk_host_ids, true);
   await flush();
-  assert.equal(owner.__MONITOR_HOST_LIST_QUERY__, undefined);
-  const second = harness({}, owner, () => 'same-query');
-  second.setAnchor(2000);
-  void second.data.loadData(false, false);
-  assert.equal(second.pending('getHostMetricInfoList', p => !p.bk_host_ids).params.end_time, 2000);
-  await second.completeFull([2]);
-  assert.deepEqual(second.data.pagedRows.value.map(row => row.id), ['2']);
+  const second = harness({}, owner);
+  void second.data.loadData();
+  await flush();
+  assert.equal(second.calls.length, 1);
+  assert.equal(second.calls[0].name, 'getHostMetricInfoList');
+  first.respond('getHostInfoList', [host(2)]);
+  second.respond('getHostMetricInfoList', { 2: { cpu_usage: 42 } });
+  await flush();
+  assert.equal(second.data.fullDataReady.value, true);
+  assert.deepEqual(
+    second.data.pagedRows.value.map(row => row.id),
+    ['2']
+  );
   second.effect.stop();
-  owner.clearTimeout(owner.__MONITOR_HOST_LIST_QUERY__.timer);
 });
-
-for (const method of ['initBaseData', 'mergeMetrics', 'compute']) {
-  test(`cached return keeps the skeleton until Worker ${method} completes`, async () => {
-    const owner = cacheOwner();
-    const first = harness({}, owner, () => 'same-query');
-    void first.data.loadData(false, false);
-    await first.completeFull([1]);
-    first.effect.stop();
-    const second = harness({}, owner, () => 'same-query');
-    let finish;
-    const original = second.worker[method];
-    second.worker[method] = (...args) => new Promise(resolve => { finish = () => original(...args).then(resolve); });
-    const restoring = second.data.loadData(false, false);
-    await flush();
-    assert.equal(second.data.loading.value, true);
-    assert.equal(second.data.fullLoading.value, true);
-    assert.equal(second.data.fullDataReady.value, false);
-    assert.equal(second.data.pagedRows.value.length, 0);
-    assert.equal(second.calls.length, 0);
-    await finish();
-    await restoring;
-    assert.equal(second.data.loading.value, false);
-    assert.equal(second.data.fullDataReady.value, true);
-    assert.deepEqual(second.data.pagedRows.value.map(row => row.id), ['1']);
-    second.effect.stop();
-    owner.clearTimeout(owner.__MONITOR_HOST_LIST_QUERY__.timer);
-  });
-
-  test(`cached return recovers pagination when Worker ${method} fails`, async () => {
-    const owner = cacheOwner();
-    const first = harness({}, owner, () => 'same-query');
-    void first.data.loadData(false, false);
-    await first.completeFull([1]);
-    first.effect.stop();
-    const second = harness({}, owner, () => 'same-query');
-    second.worker[method] = () => Promise.reject(new Error('worker failed'));
-    await second.data.loadData(false, false);
-    assert.equal(second.data.fullLoadError.value, true);
-    assert.equal(second.data.fullLoading.value, false);
-    assert.equal(second.data.fullDataReady.value, false);
-    assert.equal(owner.__MONITOR_HOST_LIST_QUERY__, undefined);
-    second.respond('getHostInfoPage', pageResult([2]));
-    await flush();
-    second.respond('getHostMetricInfoList', { 2: { cpu_usage: 42 } }, p => p.bk_host_ids);
-    await flush();
-    assert.equal(second.data.loading.value, false);
-    assert.equal(second.data.pagedRows.value[0].cpu_usage, 42);
-    assert.equal(second.calls.filter(c => c.name === 'getHostMetricStats').length, 3);
-    second.effect.stop();
-  });
-}

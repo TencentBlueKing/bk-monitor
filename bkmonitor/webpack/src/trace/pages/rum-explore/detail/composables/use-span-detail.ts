@@ -27,10 +27,10 @@ import { shallowRef, watch } from 'vue';
 import type { Ref } from 'vue';
 
 import { getSpanTypeDetailConfig } from '../registry/span-type-registry';
-import { getRecordDetail } from '../services';
-import { fetchEventStream } from '@/utils';
+import { getRecordDetail, searchTraceInfo } from '../services';
 
 import type { IRumTimeRange, RumModeType } from '../../typings';
+import type { IRumTraceInfo } from '../services';
 import type { IRumDetailContext, IRumRecordDetail, IRumRelatedData } from '../typings';
 
 interface IUseSpanDetailOptions {
@@ -49,7 +49,7 @@ interface IUseSpanDetailOptions {
  */
 export function useSpanDetail({ context, mode, timeRange }: IUseSpanDetailOptions) {
   const detail = shallowRef<IRumRecordDetail | null>(null);
-  const traceInfo = shallowRef(null);
+  const traceInfo = shallowRef<IRumTraceInfo | null>(null);
   const related = shallowRef<IRumRelatedData>({});
   const loading = shallowRef(false);
   const relatedLoading = shallowRef(false);
@@ -89,9 +89,8 @@ export function useSpanDetail({ context, mode, timeRange }: IUseSpanDetailOption
       traceInfo.value = null;
     } else {
       const { links, bk_biz_id } = detail.origin_data;
-      const url = `${location.origin}${window.site_url}rest/v2/overview/search/?query=${encodeURIComponent(links?.[0]?.trace_id)}&bk_biz_id=${encodeURIComponent(String(bk_biz_id))}`;
-      fetchEventStream(url).then(res => {
-        traceInfo.value = res[0]?.items?.[0];
+      searchTraceInfo(links?.[0]?.trace_id, bk_biz_id).then(res => {
+        traceInfo.value = res;
       });
     }
   }

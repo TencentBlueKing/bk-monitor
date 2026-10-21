@@ -9,15 +9,8 @@ from django.utils import timezone
 from apps.iam.backends.v4.client import V4Client
 from apps.iam.backends.v4.codec import BKLOG_ROOT_RESOURCE_TYPE_ID
 from apps.iam.backends.v4.config import V4Options
-from apps.iam.backends.v4.exceptions import (
-    V4ClientError,
-    V4RateLimitError,
-    V4ResponseError,
-    V4TimeoutError,
-    V4TransportError,
-)
 from apps.iam.grant_config import AuthorizationGrantConfig
-from apps.iam.iam_engine.provider.capabilities import GrantFailureKind, PreparedAuthorizationGrant
+from iam_engine.provider.capabilities import PreparedAuthorizationGrant
 
 
 # 日志平台 IAM V4 权限矩阵（iWiki 4029400600，2026-08-12 核对）确认了三类子资源的
@@ -90,7 +83,7 @@ class V4AuthorizationWriter:
             "subject": {"type": "user", "id": str(subject_id)},
             "role_id": SPACE_ACCESS_ROLE_ID,
             "related_resource_type_id": BKLOG_ROOT_RESOURCE_TYPE_ID,
-            # 负数空间 ID 由 client 按 codec 编码成 neg_<id>，这里保持本地原值
+            # 与公共 codec 一致，空间 ID 保持本地数字字符串（含负数）。
             "resources": [{"type": BKLOG_ROOT_RESOURCE_TYPE_ID, "id": str(space_id)}],
             "expired_at": self._resolve_expired_at(),
         }
@@ -104,21 +97,3 @@ class V4AuthorizationWriter:
 
         grant_config = AuthorizationGrantConfig.from_settings()
         return int((timezone.now() + timedelta(days=grant_config.v4_expire_days)).timestamp())
-
-    @staticmethod
-    def classify_failure(error: Exception) -> GrantFailureKind:
-        if isinstance(error, V4TimeoutError | V4TransportError):
-            # add_authorization 的生产契约没有幂等键；05 需求决定 UNKNOWN 可按冻结请求重试，
-            # 重复授予同一主体、角色和资源可接受，但不得重新计算 expired_at。
-            return GrantFailureKind.UNKNOWN
-        if isinstance(error, V4RateLimitError):
-            return GrantFailureKind.RETRY_WAIT
-        if isinstance(error, V4ResponseError | ValueError):
-            return GrantFailureKind.FAILED_FINAL
-        if isinstance(error, V4ClientError):
-            status_code = error.status_code or 0
-            if status_code >= 500:
-                return GrantFailureKind.RETRY_WAIT
-            if 400 <= status_code < 500:
-                return GrantFailureKind.FAILED_FINAL
-        return GrantFailureKind.RETRY_WAIT

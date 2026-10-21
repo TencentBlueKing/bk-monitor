@@ -64,9 +64,7 @@ export function useMetricGroups(options: UseHostMetricOptions) {
 
   /**
    * 加载面板与排序配置
-   * @param forceRefresh 是否强制刷新排序配置（默认 false）：
-   * - false：复用排序配置的模块级缓存
-   * - true：忽略缓存，强制重新拉取最新排序配置（保存/重置后使用）
+   * @param forceRefresh 保存/重置后等待旧读取结束，再请求最新配置。
    */
   const load = async (forceRefresh = false) => {
     if (disposed) return false;
@@ -75,7 +73,7 @@ export function useMetricGroups(options: UseHostMetricOptions) {
     loadError.value = false;
     try {
       const [panelsRes, orderRes] = await Promise.all([
-        getHostViewsPanelsApi(),
+        getHostViewsPanelsApi(forceRefresh),
         getHostMetricGroupPanelOrderApi(forceRefresh),
       ]);
       if (disposed || loadId !== latestLoadId) return false;
@@ -159,7 +157,10 @@ export function useMetricGroups(options: UseHostMetricOptions) {
     return result;
   });
 
-  onScopeDispose(() => { disposed = true; latestLoadId += 1; });
+  onScopeDispose(() => {
+    disposed = true;
+    latestLoadId += 1;
+  });
 
   return {
     rows,

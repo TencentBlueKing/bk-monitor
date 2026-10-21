@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { computed, defineComponent, isRef, nextTick, onMounted, ref, type PropType } from 'vue';
+import { computed, defineComponent, isRef, nextTick, onBeforeUnmount, onMounted, ref, type PropType } from 'vue';
 import TextHighlight from 'vue-text-highlight';
 
 import useLocale from '@/hooks/use-locale';
@@ -32,7 +32,7 @@ import useStore from '@/hooks/use-store';
 // import { BK_LOG_STORAGE } from '@/store/store.type';
 import BkUserSelector from '@blueking/user-selector';
 import { bkInfoBox, bkMessage } from 'bk-magic-vue';
-import tippy from 'tippy.js';
+import { createRawTippyOverlay } from '@/global/overlay';
 
 import ClusterEventPopover from './cluster-popover';
 import RemarkEditTip from './remark-edit-tip';
@@ -167,6 +167,13 @@ export default defineComponent({
         .then(res => {
           clusteringConfigData.value = res.data as ClusteringConfigData;
         });
+    });
+
+    onBeforeUnmount(() => {
+      clearTimeout(remarkPopoverTimer);
+      popoverInstance?.hide();
+      popoverInstance?.destroy?.();
+      popoverInstance = null;
     });
 
     const handleMarkClick = (markIndex: number, markText: string, row: ITableItem) => {
@@ -426,23 +433,30 @@ export default defineComponent({
       activeMarkElement = e.target as HTMLElement;
       remarkPopoverTimer = setTimeout(() => {
         if (!popoverInstance) {
-          popoverInstance = tippy(activeMarkElement, {
-            appendTo: () => document.body,
-            content: remarkTipsRef.value.tipRef,
-            allowHTML: true,
-            arrow: true,
-            theme: 'light remark-edit-tip-popover',
-            sticky: true,
-            maxWidth: 340,
-            // duration: [500, 0],
-            offset: [0, 5],
-            interactive: true,
-            placement: 'top',
-            onHidden: () => {
-              popoverInstance?.destroy();
-              popoverInstance = null;
+          popoverInstance = createRawTippyOverlay(
+            activeMarkElement,
+            {
+              content: remarkTipsRef.value.tipRef,
+              allowHTML: true,
+              arrow: true,
+              theme: 'light remark-edit-tip-popover',
+              sticky: true,
+              maxWidth: 340,
+              offset: [0, 5],
+              interactive: true,
+              placement: 'top',
+              onHidden: () => {
+                popoverInstance?.destroy();
+                popoverInstance = null;
+              },
             },
-          });
+            {
+              id: 'cluster-remark-tip',
+              type: 'popover',
+              group: 'cluster-remark',
+              rootSelector: '.remark-edit-tip-popover',
+            },
+          );
         }
         popoverInstance.show();
       }, 500);
