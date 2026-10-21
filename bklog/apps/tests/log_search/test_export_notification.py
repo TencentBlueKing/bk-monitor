@@ -1,4 +1,5 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
+from datetime import timezone as dt_timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 from urllib.parse import parse_qs, urlsplit
@@ -104,6 +105,16 @@ class ExportNotificationTests(TestCase):
         self.assertEqual(content["name"], ASYNC_EXPORT_EMAIL_TEMPLATE)
         self.assertEqual(content["file"]["download_url"], "https://storage.example/full")
         self.assertEqual(content["file"]["size"], 1)
+
+    def test_created_at_is_rendered_in_project_timezone(self):
+        """导出时间按项目时区展示，不能直接输出数据库中的 UTC 时间。"""
+        job = make_job(status=ExportJobStatus.FAILED, search_type=ExportSearchType.SCENE)
+        ExportJob.objects.filter(pk=job.pk).update(created_at=datetime(2026, 10, 21, 2, 0, tzinfo=dt_timezone.utc))
+        job.refresh_from_db()
+
+        send_export_notification(job)
+
+        self.assertEqual(self.channel.content.call_args.kwargs["file"]["created_at"], "2026-10-21 10:00:00")
 
     def test_scene_failure_uses_the_legacy_title(self):
         send_export_notification(make_job(status=ExportJobStatus.FAILED, search_type=ExportSearchType.SCENE))

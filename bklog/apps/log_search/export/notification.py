@@ -132,7 +132,7 @@ def send_export_notification(job):
                 language=language,
                 file={
                     "platform": platform,
-                    "created_at": arrow.get(job.created_at).format("YYYY-MM-DD HH:mm:ss"),
+                    "created_at": arrow.get(job.created_at).to(settings.TIME_ZONE).format("YYYY-MM-DD HH:mm:ss"),
                     "index_set_name": index_set_name,
                     "index": ",".join(indexes),
                     "create_by": job.created_by,
