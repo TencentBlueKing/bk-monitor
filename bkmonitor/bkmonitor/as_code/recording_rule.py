@@ -84,6 +84,10 @@ def save_declaration(
                 **fields,
             )
         else:
+            try:
+                rule = active_rules(space).select_related(None).select_for_update().get(pk=rule.pk)
+            except RecordRuleV4.DoesNotExist as error:
+                raise ValidationError("RecordingRule 不存在") from error
             if fields.pop("name") != rule.name:
                 raise ValidationError("规则组名称不可修改")
             rule = RecordRuleV4Operator(rule, source=source, operator=operator).update_declaration(**fields)
@@ -212,6 +216,7 @@ def export_recording_rules(
     recording_rule_ids: list[int] | None = None,
     app: str | None = None,
     lock_filename: bool = False,
+    flatten_folders: bool = False,
 ):
     if recording_rule_ids == []:
         return
@@ -227,7 +232,10 @@ def export_recording_rules(
         path = rule.path if rule.path and not lock_filename else entry.filename
         # 合并转换扩展名后重合的来源文件，避免 JSON/YAML 同名文件覆盖丢失 group。
         path = os.path.splitext(path)[0] + ".yaml"
-        configs.setdefault(path, {"groups": []})["groups"].append(dump_rule(rule))
-    for path, content in configs.items():
         folder, filename = os.path.split(path)
+        if flatten_folders:
+            # 压缩包会将目录分隔符替换为连字符，需要按最终路径合并；JSON 导出保留原目录。
+            folder = folder.replace("/", "-")
+        configs.setdefault((folder, filename), {"groups": []})["groups"].append(dump_rule(rule))
+    for (folder, filename), content in configs.items():
         yield folder, filename, yaml.safe_dump(content, allow_unicode=True, sort_keys=False)

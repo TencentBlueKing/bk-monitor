@@ -66,6 +66,30 @@ def test_full_import_soft_deletes_only_current_scope_and_app(public_context):
     assert replacement.pk != removed.pk
 
 
+@pytest.mark.parametrize("overwrite", [False, True])
+def test_import_rejects_candidate_deleted_after_prepare(public_context, overwrite):
+    assert not import_groups("cpu")
+    rule = RecordRuleV4.objects.get()
+    original_path = rule.path
+    app = "new-app" if overwrite else "test-app"
+    value = group()
+    value["bkmonitor"]["auto_refresh"] = True
+    space, records, errors = recording_rule.prepare_import(
+        2, app, {"moved.yaml": {"groups": [value]}}, overwrite=overwrite
+    )
+    assert not errors and records[0]["rule"].pk == rule.pk
+    assert recording_rule.soft_delete_rule(rule)["succeeded"]
+    public_context.apply_data_link.reset_mock()
+
+    errors = recording_rule.import_recording_rules(space, app, records, incremental=False)
+    assert "RecordingRule 不存在" in errors["recording_rule/moved.yaml.groups[0]"]
+    rule.refresh_from_db()
+    assert rule.is_deleted and rule.desired_status == "deleted" and rule.deleted_at is not None
+    assert rule.app == "test-app" and rule.path == original_path
+    assert rule.specs.count() == 1
+    public_context.apply_data_link.assert_not_called()
+
+
 def test_missing_type_does_not_cleanup_recording_rules(public_context):
     assert not import_groups("cpu")
     assert not parse.import_code_config(2, "test-app", {}, incremental=False)
@@ -215,3 +239,47 @@ def test_json_and_archive_export_import(public_context, mocker, tmp_path, settin
     )
     assert result["result"]
     assert RecordRuleV4.objects.filter(is_deleted=False).count() == 2
+
+
+@pytest.mark.parametrize("source_path", ["a/b/cpu.yaml", "a/b/cpu.json"])
+def test_archive_merges_normalized_folders_and_restores_all_groups(
+    public_context, mocker, tmp_path, settings, source_path
+):
+    mocker.patch.object(resources, "send_frontend_report_event")
+    storage = FileSystemStorage(location=str(tmp_path), base_url="/media/")
+    mocker.patch.object(resources, "default_storage", storage)
+    mocker.patch.object(resources.AsCodeImportTask._meta.get_field("file"), "storage", storage)
+    settings.BK_MONITOR_HOST = "http://localhost"
+    assert not import_groups("cpu", path=source_path)
+    assert not import_groups("disk", path="a-b/cpu.yaml", incremental=True)
+    ids = list(RecordRuleV4.objects.values_list("id", flat=True))
+
+    exported = resources.ExportConfigResource().request(
+        bk_biz_id=2,
+        recording_rule_ids=ids,
+        rule_ids=[],
+        notice_group_ids=[],
+        action_ids=[],
+        assign_group_ids=[],
+        dashboard_uids=[],
+    )["recording_rule"]
+    assert set(exported) == {"a/b|cpu.yaml", "a-b|cpu.yaml"}
+    expected = {group["name"]: group for content in exported.values() for group in yaml.safe_load(content)["groups"]}
+    resources.ExportConfigFileResource().request(bk_biz_id=2, recording_rule_ids=ids, app="test-app")
+    archive_path = next(Path(tmp_path).glob("as_code/export/*.tar.gz"))
+    with tarfile.open(archive_path) as archive:
+        files = [entry for entry in archive.getmembers() if entry.isfile()]
+        assert [entry.name for entry in files] == ["configs/recording_rule/a-b/cpu.yaml"]
+        groups = yaml.safe_load(archive.extractfile(files[0]).read())["groups"]
+    assert {group["name"]: group for group in groups} == expected
+
+    result = resources.ImportConfigFileResource().request(
+        bk_biz_id=2,
+        app="restored-app",
+        incremental=True,
+        file=SimpleUploadedFile("configs.tar.gz", archive_path.read_bytes()),
+    )
+    assert result["result"]
+    restored = RecordRuleV4.objects.filter(app="restored-app", is_deleted=False)
+    assert set(restored.values_list("name", flat=True)) == {"cpu", "disk"}
+    assert {rule.name: recording_rule.dump_rule(rule) for rule in restored} == expected

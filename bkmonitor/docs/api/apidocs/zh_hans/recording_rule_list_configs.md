@@ -17,8 +17,8 @@
 | name | string | 否 | 规则组名称，包含匹配 |
 | app | string | 否 | AsCode 配置分组，精确匹配；空串表示非托管配置 |
 | status | string | 否 | 本地聚合状态，精确匹配 |
-| page | integer | 否 | ；默认 1 |
-| page_size | integer | 否 | ；默认 20 |
+| page | integer | 否 | 页码，从 1 开始，默认 1 |
+| page_size | integer | 否 | 每页数量，默认 20，最大 100 |
 
 bk_biz_id 与 space_uid 至少提供一个。租户取认证上下文，配置内容中不填写租户或空间字段。ID 必须属于当前租户、指定空间且未软删除。
 

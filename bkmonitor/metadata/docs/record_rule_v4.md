@@ -550,6 +550,8 @@ incremental=false 且本次包含 recording_rule 文件时，在新增／更新�
 
 导出新增 recording_rule_ids，支持 JSON 响应与压缩包入口；None 表示全部，空列表表示不导出，非空列表按 ID 筛选。导出过滤租户、空间、app 和软删除状态，保留原始表达方式。默认保留来源文件路径，lock_filename=true 使用稳定输出表名生成文件名；同文件多个 group 一并导出。RecordingRule 配置不携带数据库 ID，with_id 不改变它的格式。
 
+JSON 导出保留来源目录层级；压缩包沿用目录分隔符转连字符的规则，转换后路径相同的文件会合并 group，避免相互覆盖。
+
 ### 软删除边界
 
 is_deleted 仅由 AsCode／公共配置 API 使用。删除入口在同一事务内设置 is_deleted=true 并声明 desired_status=deleted，提交后执行 Flow 删除。所有公共查询、修改、预解析已有对象、下发、导入匹配和导出都过滤 is_deleted=false。重复删除返回对象不存在；重新导入同名配置创建新对象。

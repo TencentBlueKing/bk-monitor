@@ -152,6 +152,33 @@ def test_output_preparation_failure_reports_cause(public_context, mocker):
     assert created["execution"]["error"] == "output unavailable"
 
 
+@pytest.mark.parametrize("apply", [False, True])
+@pytest.mark.parametrize("delete_succeeded", [False, True])
+def test_update_rechecks_soft_deletion_after_loading_rule(public_context, mocker, apply, delete_succeeded):
+    value = group()
+    value["bkmonitor"]["auto_refresh"] = True
+    rule_id = call(api.CreateConfigResource, config=value, apply=True)["rule"]["id"]
+    save_declaration = recording_rule.save_declaration
+    if not delete_succeeded:
+        public_context.delete_data_link.side_effect = RuntimeError("delete failed")
+
+    def delete_before_save(space, declaration, *, rule, **kwargs):
+        # 模拟更新已读取对象后，另一个删除请求完成声明或 Flow 删除。
+        call(api.DeleteConfigResource, id=rule.pk)
+        return save_declaration(space, declaration, rule=rule, **kwargs)
+
+    public_context.apply_data_link.reset_mock()
+    mocker.patch.object(recording_rule, "save_declaration", side_effect=delete_before_save)
+    with pytest.raises(ValidationError, match="RecordingRule 不存在"):
+        call(api.UpdateConfigResource, id=rule_id, config=value, apply=apply)
+
+    rule = RecordRuleV4.objects.get(pk=rule_id)
+    assert rule.is_deleted and rule.desired_status == "deleted"
+    assert (rule.deleted_at is not None) == delete_succeeded
+    assert rule.specs.count() == 1
+    public_context.apply_data_link.assert_not_called()
+
+
 def test_soft_delete_and_declaration_are_atomic(public_context, mocker):
     rule_id = call(api.CreateConfigResource, config=group())["rule"]["id"]
     mocker.patch.object(

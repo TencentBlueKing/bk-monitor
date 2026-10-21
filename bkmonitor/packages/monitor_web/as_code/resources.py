@@ -755,6 +755,7 @@ class ExportConfigFileResource(ExportConfigResource):
                 recording_rule_ids=recording_rule_ids,
                 app=app,
                 lock_filename=params["lock_filename"],
+                flatten_folders=True,
             ),
             "rule": self.export_rules(
                 bk_biz_id=bk_biz_id,
