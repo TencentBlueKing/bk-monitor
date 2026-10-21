@@ -247,6 +247,7 @@ def test_read_db_model_filters_limits_and_returns_allowed_fields(monkeypatch):
         ("bkmonitor.models.report.Report", "id", {"name", "content_config", "scenario_config"}),
         ("bkmonitor.models.report.ReportChannel", "report_id", {"subscribers", "send_text"}),
         ("bkmonitor.models.report.ReportSendRecord", "report_id", {"send_results"}),
+        ("monitor.models.UptimeCheckTask", "id", {"config", "labels", "location"}),
     ],
 )
 def test_report_models_require_exact_subscription_and_hide_private_fields(
@@ -292,7 +293,7 @@ def test_report_models_require_exact_subscription_and_hide_private_fields(
     assert queryset.filter_kwargs == {subscription_field: 7}
     if model.startswith("bkmonitor.models.base."):
         assert queryset.filter_calls == [{"bk_tenant_id": "tenant-a"}, {subscription_field: 7}]
-    elif model == "bkmonitor.models.report.Report":
+    elif model in {"bkmonitor.models.report.Report", "monitor.models.UptimeCheckTask"}:
         assert queryset.filter_calls == [{"bk_biz_id": 2}, {subscription_field: 7}]
     assert spec.required_exact_filter == subscription_field
 
@@ -355,6 +356,52 @@ def test_report_child_rejects_subscription_owned_by_other_business(monkeypatch):
     assert queryset.filter_calls == []
 
 
+@pytest.mark.parametrize("task_exists", [True, False])
+def test_uptime_check_subscription_scoped_by_task_business(monkeypatch, task_exists):
+    """订阅行 bk_biz_id 是节点业务：只校验任务归属，不按行内业务过滤，以免漏掉公共节点订阅。"""
+    from kernel_api.rpc.functions.bkm_cli import db
+    from kernel_api.rpc.functions.bkm_cli.platform_catalog import cmdb
+    from monitor.models import UptimeCheckTask
+
+    model = "monitor.models.UptimeCheckTaskSubscription"
+    rows = [
+        SimpleNamespace(uptimecheck_id=7, subscription_id=101, bk_biz_id=2, is_deleted=True),
+        SimpleNamespace(uptimecheck_id=7, subscription_id=102, bk_biz_id=3, is_deleted=False),
+    ]
+    queryset = FakeQuerySet(rows)
+    FakeModel.origin_objects = FakeManager(queryset)
+    monkeypatch.setattr(db, "import_string", lambda _model_path: FakeModel)
+    monkeypatch.setattr(cmdb, "_authorize_business", lambda _bk_biz_id: "tenant-a")
+    checked = []
+
+    def task_lookup(**kwargs):
+        checked.append(kwargs)
+        return SimpleNamespace(exists=lambda: task_exists)
+
+    monkeypatch.setattr(UptimeCheckTask.origin_objects, "filter", task_lookup)
+
+    with pytest.raises(CustomException, match="精确条件"):
+        db.read_db_model({"model": model, "bk_biz_id": 2, "filter": {}})
+    with pytest.raises(CustomException, match="bk_biz_id"):
+        db.read_db_model({"model": model, "filter": {"uptimecheck_id": 7}})
+
+    request = {
+        "model": model,
+        "bk_biz_id": 2,
+        "filter": {"uptimecheck_id": 7},
+        "fields": ["subscription_id", "bk_biz_id", "is_deleted"],
+    }
+    if not task_exists:
+        with pytest.raises(CustomException, match="不属于已授权业务"):
+            db.read_db_model(request)
+        assert queryset.filter_calls == []
+    else:
+        result = db.read_db_model(request)
+        assert [item["subscription_id"] for item in result["items"]] == [101, 102]
+        assert queryset.filter_calls == [{"uptimecheck_id": 7}]
+    assert checked == [{"id": 7, "bk_biz_id": 2}]
+
+
 def test_report_model_projection_fields_exist():
     """固定投影使用真实 ORM 字段，模型迁移时能直接报出漂移。"""
     from django.utils.module_loading import import_string
@@ -369,6 +416,8 @@ def test_report_model_projection_fields_exist():
             "bkmonitor.models.report.Report",
             "bkmonitor.models.report.ReportChannel",
             "bkmonitor.models.report.ReportSendRecord",
+            "monitor.models.UptimeCheckTask",
+            "monitor.models.UptimeCheckTaskSubscription",
         }:
             continue
         model_fields = {field.name for field in import_string(model_path)._meta.get_fields()}
