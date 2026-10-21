@@ -141,7 +141,10 @@ def create_job(**overrides):
         "created_by": "tester",
         "index_set_ids": index_set_ids,
         "search_params": {"index_set_ids": index_set_ids},
-        "base_dict": {"query_list": [{"reference_name": "a"}]},
+        "base_dict": {
+            "query_list": [{"reference_name": "a", "field_name": "dtEventTimeStamp"}],
+            "order_by": ["dtEventTimeStamp"],
+        },
         "policy": ExportPolicy().snapshot(),
         "start_time": 0,
         "end_time": 4000,
@@ -162,6 +165,7 @@ class FakeHandler:
     def __init__(self, result_window=100):
         self.index_info_list = [{"index_set_obj": SimpleNamespace(result_window=result_window)}]
         self.base_dict = {"query_list": [], "start_time": "0", "end_time": "1"}
+        self.export_time_fields = []
 
     # 复用真实 Handler 的导出原语，让 mock 目标与生产调用路径保持一致
     export_result_window = UnifyQueryHandler.export_result_window
@@ -346,7 +350,12 @@ class HotSegmentTests(SimpleTestCase):
 
 class PlannerFlowTests(SimpleTestCase):
     def plan(self, initial, refined, policy, *, interval, end, total):
-        job = SimpleNamespace(start_time=0, end_time=end)
+        job = SimpleNamespace(
+            start_time=0,
+            end_time=end,
+            search_params={},
+            base_dict={"query_list": [{"field_name": "time"}], "order_by": ["time"]},
+        )
         with (
             patch("apps.log_search.export.planner.build_handler"),
             patch("apps.log_search.export.planner.count_rows", return_value=total),
@@ -422,7 +431,15 @@ class PlannerFlowTests(SimpleTestCase):
             ) as histogram_mock,
         ):
             with self.assertRaises(PlanError) as context:
-                build_parts(SimpleNamespace(start_time=0, end_time=8000), policy)
+                build_parts(
+                    SimpleNamespace(
+                        start_time=0,
+                        end_time=8000,
+                        search_params={},
+                        base_dict={"query_list": [{"field_name": "time"}], "order_by": ["time"]},
+                    ),
+                    policy,
+                )
 
         self.assertEqual(context.exception.code, "PART_LIMIT_EXCEEDED")
         self.assertEqual([call.args[1:3] for call in histogram_mock.call_args_list], [(0, 8000), (0, 4000)])
@@ -588,13 +605,17 @@ class BuildHandlerTests(TestCase):
         with patch("apps.log_search.export.planner.UnifyQueryHandler") as handler_cls:
             handler = build_handler(job, 1000, 2000)
 
-        # 查询侧右端点收窄 1 毫秒
-        self.assertEqual((handler.base_dict["start_time"], handler.base_dict["end_time"]), ("1000", "1999"))
+        self.assertEqual((handler.base_dict["start_time"], handler.base_dict["end_time"]), ("1000", "2000"))
         self.assertEqual(handler_cls.call_args.args[0]["start_time"], 0)
 
     def test_union_part_keeps_all_routes_when_time_is_narrowed(self):
         job = create_job(
-            search_params={"index_set_ids": [11, 12], "start_time": 0, "end_time": 4000},
+            search_params={
+                "index_set_ids": [11, 12],
+                "start_time": 0,
+                "end_time": 4000,
+                "export_time_fields": [{"name": "time", "type": "long", "unit": "millisecond"}] * 2,
+            },
             base_dict={
                 "start_time": "0",
                 "end_time": "4000",
@@ -608,8 +629,7 @@ class BuildHandlerTests(TestCase):
         self.assertEqual(handler_cls.call_args.args[0]["index_set_ids"], [11, 12])
         self.assertEqual(len(handler.base_dict["query_list"]), 2)
         self.assertEqual(handler.base_dict["metric_merge"], "a + b")
-        # 查询侧右端点收窄 1 毫秒
-        self.assertEqual((handler.base_dict["start_time"], handler.base_dict["end_time"]), ("1000", "1999"))
+        self.assertEqual((handler.base_dict["start_time"], handler.base_dict["end_time"]), ("1000", "2000"))
 
 
 class RunPlanningTests(TestCase):
@@ -668,7 +688,7 @@ class PartRunnerTests(TestCase):
             payload = Path(directory) / "logs.jsonl"
             with patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api:
                 api.query_ts_raw_with_scroll.side_effect = responses
-                rows, size = _write_rows(FakeHandler(), payload)
+                rows, size = _write_rows(FakeHandler(), payload, session_id="test-session")
             lines = payload.read_text(encoding="utf-8").strip().split("\n")
         self.assertEqual(rows, 3)
         self.assertEqual(len(lines), 3)
@@ -679,7 +699,7 @@ class PartRunnerTests(TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api:
                 api.query_ts_raw_with_scroll.side_effect = [{"list": [], "done": False}]
-                rows, size = _write_rows(FakeHandler(), Path(directory) / "logs.jsonl")
+                rows, size = _write_rows(FakeHandler(), Path(directory) / "logs.jsonl", session_id="test-session")
         self.assertEqual((rows, size), (0, 0))
 
     def test_pack_puts_single_log_member(self):
@@ -818,7 +838,7 @@ class PartRunnerTests(TestCase):
             ):
                 api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": False}]
                 with self.assertRaises(PartError) as raised:
-                    _write_rows(FakeHandler(), Path(directory) / "logs.jsonl")
+                    _write_rows(FakeHandler(), Path(directory) / "logs.jsonl", session_id="test-session")
         self.assertEqual(raised.exception.code, ExportErrorCode.FETCH_TIMEOUT)
         self.assertEqual(api.query_ts_raw_with_scroll.call_count, 1)
 

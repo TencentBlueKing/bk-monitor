@@ -42,7 +42,7 @@ class _DigestWriter:
 
 def merge_export_parts(job, parts):
     """
-    把已成功分片按传入顺序（调用方按 start_time, part_no 排序）字节拼接成单个 jsonl.gz 并上传。
+    把已成功分片按传入顺序（调用方按冻结的时间升／降序排列）字节拼接成单个 jsonl.gz 并上传。
 
     分片产物是裸 gzip，gzip 支持多 member 拼接：合并即按序字节拷贝，不需要解压或重压缩，
     内存占用与单次读块同阶。返回 (object_key, bytes, checksum)。

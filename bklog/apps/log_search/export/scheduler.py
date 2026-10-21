@@ -49,6 +49,7 @@ from apps.log_search.export.config import (
 )
 from apps.log_search.export.merger import merge_export_parts
 from apps.log_search.export.models import ExportJob, ExportPart
+from apps.log_search.export.query import time_order
 from apps.log_search.export.storage import build_storage, manifest_name
 from apps.utils.log import logger
 
@@ -173,6 +174,13 @@ def dispatch_ready_parts(deadline=None):
     # 有 oversized 分片在排队的任务，供额度不足时判断谁被挡下
     oversized_waiting_jobs = {row["job_id"] for row in waiting_rows if row["oversized"]}
     remaining_jobs = len(waiting_jobs)
+    waiting_inflight = dict(
+        ExportPart.objects.filter(job_id__in=waiting_jobs, status__in=ExportPartStatus.INFLIGHT)
+        .values("job_id")
+        .annotate(total=Count("pk"))
+        .values_list("job_id", "total")
+    )
+    remaining_inflight = sum(waiting_inflight.values())
     # 本轮因 oversized 额度不足而没投出超大分片的任务，按轮汇总告警
     held_oversized_jobs = set()
     # 轮次时间预算用尽：不再开始新的投递，剩余分片等下一个调度周期
@@ -183,7 +191,9 @@ def dispatch_ready_parts(deadline=None):
             break
         if job.pk not in waiting_jobs:
             continue
-        shared_limit = max(1, (global_limit - global_inflight) // max(1, remaining_jobs))
+        # 均分的是候选任务的总容量（已有在途 + 空闲），不是把增量空槽当总上限再扣一次在途。
+        shared_limit = max(1, (global_limit - global_inflight + remaining_inflight) // max(1, remaining_jobs))
+        remaining_inflight -= waiting_inflight.get(job.pk, 0)
         remaining_jobs -= 1
         job_inflight_counts = ExportPart.objects.filter(job=job, status__in=ExportPartStatus.INFLIGHT).aggregate(
             total=Count("pk"), oversized=Count("pk", filter=Q(oversized=True))
@@ -355,11 +365,15 @@ def finalize_export(job_id):
     job = state.claim_finalization(job_id)
     if job is None:
         return None
-    parts = list(state.leaf_parts(job).order_by("start_time", "part_no"))
+    order = time_order(job)
+    ordering = ("-start_time", "-part_no") if order == "desc" else ("start_time", "part_no")
+    parts = list(state.leaf_parts(job).order_by(*ordering))
     if not parts or any(part.status != ExportPartStatus.SUCCESS for part in parts):
         state.fail_finalization(job_id, job.finalization_attempts, "分片尚未全部成功")
         return None
     try:
+        if len(parts) > 1 and order is None:
+            raise ValueError("非时间主排序的任务不能按时间分片归并，请重新创建导出")
         merged_key, merged_bytes, merged_checksum = merge_export_parts(job, parts)
     except Exception as error:  # pylint: disable=broad-except
         logger.exception("[finalize_export] job=%s merge failed: %s", job.pk, error)
