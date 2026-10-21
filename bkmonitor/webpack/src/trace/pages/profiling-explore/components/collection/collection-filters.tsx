@@ -55,6 +55,8 @@ export default defineComponent({
     },
     loading: Boolean,
     results: Boolean,
+    // 表格列已提供状态筛选时，面板内不再重复展示
+    statusFilter: { type: Boolean, default: true },
   },
   emits: { change: (_value: CollectionHistoryFilters) => true, refresh: () => true },
   setup(props, { emit }) {
@@ -149,37 +151,39 @@ export default defineComponent({
             ))}
           </Select>
         </label>
-        <div class='collection-history-status-filter'>
-          <span>{this.t('状态')}</span>
-          <Radio.Group
-            class='collection-history-status-options'
-            modelValue={draft.status || ALL_STATUS}
-            type='capsule'
-            onChange={status => {
-              this.draft = { ...draft, status: status === ALL_STATUS ? '' : String(status) };
-            }}
-          >
-            {(this.results
-              ? ['', 'running', 'succeed', 'outdated']
-              : ['', 'running', 'succeed', 'partial_succeed', 'failed']
-            ).map(status => (
-              <Radio.Button
-                key={status || ALL_STATUS}
-                v-tippy={this.t('选择状态后点击查询生效')}
-                label={status || ALL_STATUS}
-              >
-                {status ? (
-                  <CollectionExecutionStatus
-                    result={this.results}
-                    status={status}
-                  />
-                ) : (
-                  this.t('全部')
-                )}
-              </Radio.Button>
-            ))}
-          </Radio.Group>
-        </div>
+        {this.statusFilter && (
+          <div class='collection-history-status-filter'>
+            <span>{this.t('状态')}</span>
+            <Radio.Group
+              class='collection-history-status-options'
+              modelValue={draft.status || ALL_STATUS}
+              type='capsule'
+              onChange={status => {
+                this.draft = { ...draft, status: status === ALL_STATUS ? '' : String(status) };
+              }}
+            >
+              {(this.results
+                ? ['', 'running', 'succeed', 'outdated']
+                : ['', 'running', 'succeed', 'partial_succeed', 'failed']
+              ).map(status => (
+                <Radio.Button
+                  key={status || ALL_STATUS}
+                  v-tippy={this.t('选择状态后点击查询生效')}
+                  label={status || ALL_STATUS}
+                >
+                  {status ? (
+                    <CollectionExecutionStatus
+                      result={this.results}
+                      status={status}
+                    />
+                  ) : (
+                    this.t('全部')
+                  )}
+                </Radio.Button>
+              ))}
+            </Radio.Group>
+          </div>
+        )}
         <div class='collection-history-query'>
           <Button
             v-tippy={this.t('按当前筛选条件查询')}

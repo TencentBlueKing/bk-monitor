@@ -286,7 +286,8 @@ export default {
   '选择的应用服务不存在，请重新选择': 'The selected application service does not exist. Please select another.',
   条件对比: 'Condition Comparison',
   差异图例: 'Difference legend',
-  复制函数名: 'Copy function name',
   高亮相似堆栈: 'Highlight similar stacks',
   重置视图: 'Reset view',
+  '部分筛选候选加载失败，可手动输入条件或 {retry}':
+    'Failed to load some filter candidates. Enter the conditions manually or {retry}',
 };

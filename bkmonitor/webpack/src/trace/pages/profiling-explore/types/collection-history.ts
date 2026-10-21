@@ -49,8 +49,17 @@ export interface CollectionExecution extends CollectionExecutionKey {
 
 export type CollectionExecutionAction = 'cancel' | 'rerun' | 'retry';
 
+// 后端下发的执行详情表头列定义，field 对应主机对象上的字段
+export interface CollectionExecutionColumn {
+  field: string;
+  name: string;
+  type: 'datetime' | 'duration' | 'process_list' | 'status' | 'text';
+}
+
 export interface CollectionExecutionDetail extends CollectionExecution {
   config: Omit<CollectionPayload, 'bk_biz_id' | 'collection_method' | 'collection_type' | 'name'>;
+  // 缺省时前端回退到默认列，兼容未下发列定义的后端版本
+  host_columns?: CollectionExecutionColumn[];
   hosts: CollectionExecutionHost[];
   total_hosts: number;
 }
@@ -76,6 +85,8 @@ export interface CollectionHistoryFilters {
   ips: string[];
   process_names: string[];
   process_pids: string[];
+  // 执行方式筛选，取值为 immediate / once_at / cron
+  schedule_types: string[];
   status: string;
   task_name: string;
 }

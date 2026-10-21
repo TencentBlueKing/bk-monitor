@@ -43,7 +43,31 @@ import CollectionExecutionStatus from './collection-execution-status';
 import EmptyStatus from '@/components/empty-status/empty-status';
 
 import type { UseCollectionExecutionReturn } from '../../composables/use-collection-execution';
-import type { CollectionExecutionHost, CollectionResultSelection } from '../../types/collection-history';
+import type {
+  CollectionExecutionColumn,
+  CollectionExecutionHost,
+  CollectionResultSelection,
+} from '../../types/collection-history';
+
+// 详情加载完成前先用接口文档的默认列表撑起骨架
+const fallbackHostColumns: CollectionExecutionColumn[] = [
+  { field: 'ip', name: '目标 IP', type: 'text' },
+  { field: 'processes', name: '采集进程', type: 'process_list' },
+  { field: 'status', name: '状态', type: 'status' },
+  { field: 'message', name: '执行信息', type: 'text' },
+  { field: 'started_at', name: '开始时间', type: 'datetime' },
+  { field: 'finished_at', name: '结束时间', type: 'datetime' },
+  { field: 'duration_ms', name: '耗时', type: 'duration' },
+];
+
+// 后端只下发列类型，最小宽度按类型兜底，避免动态列被内容挤压
+const hostColumnMinWidths: Record<CollectionExecutionColumn['type'], number> = {
+  datetime: 180,
+  duration: 100,
+  process_list: 200,
+  status: 120,
+  text: 160,
+};
 
 export default defineComponent({
   name: 'CollectionExecutionDetail',
@@ -67,12 +91,51 @@ export default defineComponent({
     const c = this.controller;
     const detail = c.detail.value;
     const execution = detail || c.selected.value;
+    // 优先使用后端下发的列定义，旧接口无该字段时回退默认列并翻译列名
+    const hostColumns = detail?.host_columns?.length
+      ? detail.host_columns
+      : fallbackHostColumns.map(column => ({ ...column, name: this.t(column.name) }));
+    const renderHostProcesses = (row: CollectionExecutionHost) =>
+      row.processes.length ? (
+        <div class='collection-execution-processes'>
+          {row.processes.map(process => (
+            <span
+              key={`${process.pid}:${process.process_name}`}
+              title={`${process.process_name} (${process.pid})`}
+            >
+              {process.process_name} ({process.pid})
+            </span>
+          ))}
+        </div>
+      ) : (
+        '--'
+      );
+    // 按后端声明的列类型渲染单元格，未知类型统一按文本处理
+    const renderHostCell = (column: CollectionExecutionColumn, row: CollectionExecutionHost) => {
+      const value = (row as unknown as Record<string, unknown>)[column.field];
+      if (column.type === 'process_list') return renderHostProcesses(row);
+      if (column.type === 'status')
+        return (
+          <CollectionExecutionStatus
+            class={{ 'has-failure-message': !!row.message && ['failed', 'timeout'].includes(row.status) }}
+            message={row.message}
+            status={String(value ?? '')}
+          />
+        );
+      if (column.type === 'datetime') return value ? formatCollectionTime(value as number, this.timezone) : '--';
+      if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
+      return value ? String(value) : '--';
+    };
     const columns: TableProps['columns'] = [
-      { colKey: 'ip', title: this.t('主机 IP'), width: '20%', ellipsis: true },
-      { colKey: 'processes', title: this.t('进程名'), width: '20%', cell: 'processes' },
-      { colKey: 'status', title: this.t('状态'), width: '20%', cell: 'status', sorter: true },
-      { colKey: 'engine', title: this.t('实际引擎'), width: '20%', cell: () => '--' },
-      { colKey: 'operations', title: this.t('操作'), width: '20%', cell: 'operations' },
+      ...hostColumns.map<NonNullable<TableProps['columns']>[number]>(column => ({
+        colKey: column.field,
+        title: column.name,
+        minWidth: hostColumnMinWidths[column.type],
+        cell: (_, { row }) => renderHostCell(column, row as CollectionExecutionHost),
+        ...(column.type === 'status' ? { sorter: true } : {}),
+        ...(column.type === 'text' ? { ellipsis: true } : {}),
+      })),
+      { colKey: 'operations', title: this.t('操作'), width: 120, fixed: 'right', cell: 'operations' },
     ];
     return (
       <Sideslider
@@ -233,14 +296,30 @@ export default defineComponent({
                       >
                         {this.t('仅重试失败项')}
                       </Button>
+                      {/* 状态计数条：点击按主机状态过滤下方表格 */}
                       <div class='collection-execution-counts'>
-                        <span class='collection-execution-count-all'>{this.t('全部')}</span>
+                        <button
+                          class={['collection-execution-count-all', { 'is-active': !c.hostStatus.value }]}
+                          type='button'
+                          onClick={() => {
+                            c.hostStatus.value = '';
+                          }}
+                        >
+                          {this.t('全部')}
+                        </button>
                         {Object.entries(detail.status_summary)
                           .filter(([, count]) => count > 0)
                           .map(([status, count]) => (
-                            <span key={status}>
+                            <button
+                              key={status}
+                              class={{ 'is-active': c.hostStatus.value === status }}
+                              type='button'
+                              onClick={() => {
+                                c.hostStatus.value = c.hostStatus.value === status ? '' : status;
+                              }}
+                            >
                               <CollectionExecutionStatus status={status} /> ({count})
-                            </span>
+                            </button>
                           ))}
                       </div>
                       <Input
@@ -278,34 +357,11 @@ export default defineComponent({
                       {{
                         empty: () => (
                           <EmptyStatus
-                            type={c.keyword.value ? 'search-empty' : 'empty'}
+                            type={c.keyword.value || c.hostStatus.value ? 'search-empty' : 'empty'}
                             onOperation={() => {
                               c.keyword.value = '';
+                              c.hostStatus.value = '';
                             }}
-                          />
-                        ),
-                        processes: ({ row }: { row: CollectionExecutionHost }) =>
-                          row.processes.length ? (
-                            <div class='collection-execution-processes'>
-                              {row.processes.map(process => (
-                                <span
-                                  key={`${process.pid}:${process.process_name}`}
-                                  title={`${process.process_name} (${process.pid})`}
-                                >
-                                  {process.process_name} ({process.pid})
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            '--'
-                          ),
-                        status: ({ row }: { row: CollectionExecutionHost }) => (
-                          <CollectionExecutionStatus
-                            class={{
-                              'has-failure-message': !!row.message && ['failed', 'timeout'].includes(row.status),
-                            }}
-                            message={row.message}
-                            status={row.status}
                           />
                         ),
                         operations: ({ row }: { row: CollectionExecutionHost }) =>

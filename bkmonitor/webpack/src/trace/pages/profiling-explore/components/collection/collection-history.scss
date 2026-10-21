@@ -1,3 +1,6 @@
+/* stylelint-disable no-descending-specificity */
+
+/* stylelint-disable selector-class-pattern */
 @use 'monitor-static/styles/skeleton-theme' as skeleton;
 
 .profiling-collection.is-history {
@@ -19,6 +22,11 @@
 
   .t-table {
     font-size: 12px;
+  }
+
+  > .bk-alert {
+    flex-shrink: 0;
+    margin-bottom: 12px;
   }
 }
 
@@ -427,14 +435,23 @@
   background: #f0f1f5;
   border-radius: 2px;
 
-  > span {
+  > button {
     position: relative;
     display: inline-flex;
     gap: 4px;
     align-items: center;
     height: 24px;
     padding: 0 8px;
+    font: inherit;
+    color: inherit;
     white-space: nowrap;
+    cursor: pointer;
+    background: transparent;
+    border: 0;
+
+    &:hover {
+      color: #3a84ff;
+    }
 
     &:not(:first-child, :last-child)::after {
       position: absolute;
@@ -447,8 +464,19 @@
     }
   }
 
+  > button.is-active::after {
+    display: none;
+  }
+
+  > button:not(.is-active):has(+ .is-active)::after {
+    display: none;
+  }
+
   .collection-execution-count-all {
     padding: 0 12px;
+  }
+
+  .is-active {
     color: #3a84ff;
     background: #fff;
     border-radius: 2px;

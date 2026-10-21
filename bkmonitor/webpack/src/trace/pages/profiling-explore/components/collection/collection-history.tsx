@@ -109,15 +109,38 @@ export default defineComponent({
       if (element && !h.error.value && element.scrollHeight - element.scrollTop - element.clientHeight < 80)
         h.loadMore();
     }
-    watch([h.loading, h.hasMore], () => nextTick(loadVisiblePage));
+    watch([h.loading, h.hasMore], async () => {
+      await nextTick();
+      loadVisiblePage();
+    });
     watch([h.loading, c.loading, c.busy], () => emit('busy', h.loading.value || c.loading.value || c.busy.value), {
       immediate: true,
     });
-    return { t, h, c, scrollContainer, reset, loadVisiblePage };
+    // 面板与表格列任一筛选生效时，空态区分无匹配结果与暂无数据
+    const filtered = computed(
+      () =>
+        !!props.filters.task_name ||
+        !!props.filters.status ||
+        props.filters.schedule_types.length ||
+        props.filters.ips.length ||
+        props.filters.process_names.length ||
+        props.filters.process_pids.length
+    );
+    return {
+      t,
+      h,
+      c,
+      filtered,
+      scrollContainer,
+      reset,
+      loadVisiblePage,
+    };
   },
   render() {
     const { h, c } = this;
     const showSkeleton = h.loading.value && !h.rows.value.length;
+    // 结果为空时由 empty 插槽接管；否则 tdesign 会注入筛选结果行，导致空态不渲染
+    const emptyResult = !showSkeleton && !h.rows.value.length;
     const columns: TableProps['columns'] = [
       { colKey: 'task_name', title: this.t('任务名称'), minWidth: 220, ellipsis: true, cell: 'name' },
       {
@@ -132,6 +155,12 @@ export default defineComponent({
         title: this.t('执行方式'),
         width: 140,
         cell: (_, { row }) => this.t(scheduleLabels[row.schedule_type]),
+        filter: {
+          type: 'multiple',
+          resetValue: [],
+          showConfirmAndReset: true,
+          list: Object.keys(scheduleLabels).map(value => ({ value, label: this.t(scheduleLabels[value]) })),
+        },
       },
       {
         colKey: 'started_at',
@@ -159,35 +188,39 @@ export default defineComponent({
       },
       { colKey: 'operations', title: this.t('操作'), width: 180, fixed: 'right', cell: 'operations' },
     ];
-    const filtered =
-      !!this.filters.task_name ||
-      !!this.filters.status ||
-      this.filters.ips.length ||
-      this.filters.process_names.length ||
-      this.filters.process_pids.length;
     return (
       <section class='collection-tab-panel collection-history-panel'>
         <CollectionFilters
           candidates={h.candidates.value}
           filters={this.filters}
           loading={h.candidateLoading.value}
+          statusFilter={false}
           onChange={value => this.$emit('change', value)}
           onRefresh={h.refresh}
         />
         {h.candidateError.value && (
           <Alert
+            v-slots={{
+              title: () => (
+                <i18n-t
+                  v-slots={{
+                    retry: () => (
+                      <Button
+                        v-tippy={this.t('重新加载筛选候选项')}
+                        theme='primary'
+                        text
+                        onClick={h.loadCandidates}
+                      >
+                        {this.t('重试')}
+                      </Button>
+                    ),
+                  }}
+                  keypath='部分筛选候选加载失败，可手动输入条件或 {retry}'
+                />
+              ),
+            }}
             theme='warning'
-            title={h.candidateError.value}
-          >
-            <Button
-              v-tippy={this.t('重新加载筛选候选项')}
-              theme='primary'
-              text
-              onClick={h.loadCandidates}
-            >
-              {this.t('重试')}
-            </Button>
-          </Alert>
+          />
         )}
         {this.rangeError && (
           <Alert
@@ -201,32 +234,13 @@ export default defineComponent({
           aria-busy={h.loading.value}
           onScroll={this.loadVisiblePage}
         >
+          {/* 表格内置的列筛选与外部 filters 保持同步，任一列变更都整体回传 */}
           <PrimaryTable
-            columns={columns.map(column =>
-              showSkeleton
-                ? {
-                    ...column,
-                    cell: (render, { rowIndex }) =>
-                      render(TraceCellSkeleton, { field: column.colKey, index: rowIndex }),
-                  }
-                : column
-            )}
-            data={
-              showSkeleton ? skeletonRows : h.rows.value.map(row => ({ ...row, executionKey: executionRowKey(row) }))
-            }
-            filterValue={{ execution_status: this.filters.status }}
-            hover={!showSkeleton}
-            rowKey='executionKey'
-            size='small'
-            onFilterChange={value =>
-              this.$emit('change', { ...this.filters, status: String(value.execution_status || '') })
-            }
-          >
-            {{
+            v-slots={{
               empty: () =>
                 h.error.value ? null : (
                   <EmptyStatus
-                    type={filtered ? 'search-empty' : 'empty'}
+                    type={this.filtered ? 'search-empty' : 'empty'}
                     onOperation={this.reset}
                   />
                 ),
@@ -279,7 +293,34 @@ export default defineComponent({
                 </div>
               ),
             }}
-          </PrimaryTable>
+            columns={columns.map(column =>
+              showSkeleton
+                ? {
+                    ...column,
+                    cell: (render, { rowIndex }) =>
+                      render(TraceCellSkeleton, { field: column.colKey, index: rowIndex }),
+                  }
+                : column
+            )}
+            data={
+              showSkeleton ? skeletonRows : h.rows.value.map(row => ({ ...row, executionKey: executionRowKey(row) }))
+            }
+            filterValue={{
+              execution_status: this.filters.status,
+              schedule_type: this.filters.schedule_types,
+            }}
+            filterRow={emptyResult ? () => null : undefined}
+            hover={!showSkeleton}
+            rowKey='executionKey'
+            size='small'
+            onFilterChange={value =>
+              this.$emit('change', {
+                ...this.filters,
+                status: String(value.execution_status || ''),
+                schedule_types: (value.schedule_type || []) as string[],
+              })
+            }
+          />
           {h.error.value && (
             <div class='collection-history-error'>
               <Alert
