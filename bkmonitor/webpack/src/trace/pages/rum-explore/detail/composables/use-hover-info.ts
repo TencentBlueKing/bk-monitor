@@ -65,7 +65,6 @@ export function useHoverInfo() {
       arrow: false,
       interactive: true,
       offset: [10, 0],
-      delay: [600, null],
       /** 卡片自带深色背景，浮层容器去底色与内边距，样式见 hover-info.scss */
       theme: 'rum-hover-info-popover',
       onHidden() {
