@@ -202,3 +202,41 @@ def test_non_gateway_request_does_not_check_app_authorization(render_context, mo
     assert validate_render(bk_biz_id=3)["options"]["bk_biz_id"] == 3
     check.assert_not_called()
     permission.batch_is_allowed.assert_called_once()
+
+
+@pytest.mark.parametrize(
+    "jwt",
+    [
+        None,
+        SimpleNamespace(),
+        SimpleNamespace(app=None),
+        SimpleNamespace(app={}),
+        SimpleNamespace(app=authentication.BkJWTClient.AttrDict()),
+        SimpleNamespace(app={"app_code": None}),
+        SimpleNamespace(app={"app_code": ""}),
+    ],
+    ids=["null-jwt", "missing-app", "null-app", "empty-app", "empty-attrdict", "null-app-code", "empty-app-code"],
+)
+def test_missing_gateway_app_identity_preserves_existing_permissions(render_context, mocker, jwt):
+    request, permission = render_context
+    request.jwt = jwt
+    check = mocker.patch.object(mail_report, "is_match_api_token")
+
+    validate_render(bk_biz_id=3)
+
+    check.assert_not_called()
+    permission.batch_is_allowed.assert_called_once()
+    permission.batch_is_allowed.return_value = {"dashboard": {ActionEnum.VIEW_SINGLE_DASHBOARD.id: False}}
+    with pytest.raises(PermissionDenied, match="view this dashboard"):
+        validate_render(bk_biz_id=3)
+
+
+def test_missing_jwt_attribute_does_not_raise(render_context, mocker):
+    request, permission = render_context
+    del request.jwt
+    check = mocker.patch.object(mail_report, "is_match_api_token")
+
+    validate_render(bk_biz_id=3)
+
+    check.assert_not_called()
+    permission.batch_is_allowed.assert_called_once()
