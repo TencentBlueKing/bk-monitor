@@ -908,12 +908,11 @@ class GetVariableValue(Resource):
             obj_id_to_obj_name = {n.bk_obj_id: n.bk_obj_name for n in topo_tree.convert_to_flat_nodes()}
             result = [{"label": obj_id_to_obj_name.get(str(v), v), "value": v} for v in dimensions]
         elif dimension_field == "bk_target_service_instance_id":
-            bk_target_service_instance_list = api.cmdb.get_service_instance_by_id(
-                bk_biz_id=bk_biz_id, service_instance_ids=dimensions
+            service_instances = api.cmdb.get_service_instance_by_id(
+                bk_biz_id=bk_biz_id, service_instance_ids=[v for v in dimensions if str(v).isdigit()]
             )
-            result = [
-                {"label": item.name, "value": item.service_instance_id} for item in bk_target_service_instance_list
-            ]
+            id_to_names = {str(item.service_instance_id): item.name for item in service_instances}
+            result = [{"label": id_to_names.get(str(v), v), "value": v} for v in dimensions]
         elif dimension_field == "bk_inst_id":
             topo_tree = api.cmdb.get_topo_tree(bk_biz_id=bk_biz_id)
             id_to_names = {}

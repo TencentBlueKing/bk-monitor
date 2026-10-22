@@ -1124,7 +1124,9 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
             return data
 
         # 主机ID
-        host_id_list = {row["dimensions"]["bk_host_id"] for row in data if row["dimensions"].get("bk_host_id")}
+        host_id_list = {
+            row["dimensions"]["bk_host_id"] for row in data if str(row["dimensions"].get("bk_host_id", "")).isdigit()
+        }
         if host_id_list:
             try:
                 hosts = api.cmdb.get_host_by_id(bk_biz_id=params["bk_biz_id"], bk_host_ids=host_id_list)
@@ -1137,9 +1139,9 @@ class GraphUnifyQueryResource(UnifyQueryRawResource):
         service_instance_id_list = set()  # 服务实例
         bcs_cluster_id_list = set()  # BCS集群
         for row in data:
-            if row["dimensions"].get("bk_service_instance_id"):
+            if str(row["dimensions"].get("bk_service_instance_id", "")).isdigit():
                 service_instance_id_list.add(row["dimensions"]["bk_service_instance_id"])
-            if row["dimensions"].get("bk_target_service_instance_id"):
+            if str(row["dimensions"].get("bk_target_service_instance_id", "")).isdigit():
                 service_instance_id_list.add(row["dimensions"]["bk_target_service_instance_id"])
             if row["dimensions"].get("bcs_cluster_id"):
                 bcs_cluster_id_list.add(row["dimensions"]["bcs_cluster_id"])
