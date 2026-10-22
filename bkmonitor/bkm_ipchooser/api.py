@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import abc
 
 from django.conf import settings
@@ -99,6 +98,11 @@ class AbstractBkApi(metaclass=abc.ABCMeta):
     @staticmethod
     def list_service_instance_detail(params: dict = None):
         """查询服务实例列表"""
+        raise NotImplementedError
+
+    @staticmethod
+    def get_service_instance_module_index(bk_biz_id: int) -> dict[int, list[int]] | None:
+        """查询「模块 -> 服务实例 ID」索引，仅含 ID 不含明细"""
         raise NotImplementedError
 
     @staticmethod

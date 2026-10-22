@@ -11,6 +11,7 @@ specific language governing permissions and limitations under the License.
 from bkm_ipchooser.api import AbstractBkApi
 from bkmonitor.commons.tools import batch_request
 from bkmonitor.utils.nodeman import host_queries
+from core.drf_resource import api
 
 from . import client
 
@@ -126,6 +127,22 @@ class IpChooserApi(AbstractBkApi):
     def list_service_instance_detail(params: dict = None):
         """查询服务实例列表"""
         return client.list_service_instance_detail(params)
+
+    @staticmethod
+    def get_service_instance_module_index(bk_biz_id: int) -> dict[int, list[int]] | None:
+        """
+        查询「模块 -> 服务实例 ID」索引，仅含 ID 不含明细
+
+        优先读现成索引；未命中时借 get_service_instance_by_biz 拉取明细后构建，
+        该函数自带 1 小时缓存（由后台 cron 周期刷新），索引由 cron 刷新或明细
+        冷启动时顺带回写，因此回退路径通常不是真正的冷请求。
+        """
+        module_index = api.cmdb.ServiceInstanceModuleIndex.get(bk_biz_id)
+        if module_index is None:
+            service_instances = api.cmdb.get_service_instance_by_biz(bk_biz_id)
+            module_index = api.cmdb.ServiceInstanceModuleIndex.build(service_instances)
+        # 索引持久化时以 str 作为模块 ID 键，此处统一转回 int，便于上层按 bk_inst_id 直接查找
+        return {int(module_id): service_instance_ids for module_id, service_instance_ids in module_index.items()}
 
     @staticmethod
     def list_service_instance_by_set_template(params: dict = None):
