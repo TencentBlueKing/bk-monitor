@@ -51,8 +51,8 @@ export interface PromqlSourceData {
   step: number | string;
 }
 
-/** 仅该业务允许配置多 PromQL。 */
-export const MULTI_PROMQL_BIZ_ID = 2;
+/** 这些业务允许配置多 PromQL。 */
+export const MULTI_PROMQL_BIZ_IDS = [2, 641];
 
 export function createPromqlSourceData(
   queries: PromqlQuery[],
@@ -100,5 +100,5 @@ export function isExistingMultiPromql(source: PromqlSourceData, expression = '')
 }
 
 export function isMultiPromqlBiz(bizId: null | number | string | undefined) {
-  return Number(bizId) === MULTI_PROMQL_BIZ_ID;
+  return MULTI_PROMQL_BIZ_IDS.includes(Number(bizId));
 }
