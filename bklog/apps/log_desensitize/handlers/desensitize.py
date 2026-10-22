@@ -36,7 +36,7 @@ from apps.log_desensitize.exceptions import (
 )
 from apps.log_desensitize.handlers.desensitize_operator import OPERATOR_MAPPING
 from apps.log_desensitize.models import DesensitizeFieldConfig, DesensitizeRule
-from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_desensitize.utils import expand_nested_data, path_aware_expand, restore_by_metadata
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
@@ -656,9 +656,12 @@ class DesensitizeRuleHandler:
 
         all_field_names = field_names.union(set(text_fields))
 
+        # 提取已配置字段的 dotted path 列表，用于路径感知展开
+        configured_paths = list(field_names)
+
         # 日志原文脱敏处理
         for _log in logs:
-            _log = expand_nested_data(_log)
+            _log, restore_metadata = path_aware_expand(_log, configured_paths)
             log_content_tmp = copy.deepcopy(_log)
 
             result = desensitize_handler.transform_dict(_log)
@@ -678,14 +681,14 @@ class DesensitizeRuleHandler:
 
             # 处理日志原文字段自身的脱敏逻辑
             result = text_fields_desensitize_handler.transform_dict(_log)
-            merged_result = merge_nested_data(result)  # 用于处理flattened字段类型，合并成一个字段
+            restored_result = restore_by_metadata(result, restore_metadata)  # 按原始类型还原
 
             for _field_name in all_field_names:
                 if _field_name not in res:
                     res[_field_name] = list()
 
                 res[_field_name].append(
-                    str(merged_result[_field_name]) if merged_result.get(_field_name) else result.get(_field_name)
+                    str(restored_result[_field_name]) if _field_name in restored_result else result.get(_field_name)
                 )
 
         return res

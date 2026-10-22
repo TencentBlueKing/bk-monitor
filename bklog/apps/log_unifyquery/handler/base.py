@@ -21,7 +21,7 @@ from apps.feature_toggle.plugins.constants import LOG_DESENSITIZE
 from apps.log_clustering.models import ClusteringConfig
 from apps.log_desensitize.handlers.desensitize import DesensitizeHandler
 from apps.log_desensitize.models import DesensitizeConfig, DesensitizeFieldConfig
-from apps.log_desensitize.utils import expand_nested_data, merge_nested_data
+from apps.log_desensitize.utils import merge_nested_data, path_aware_expand, restore_by_metadata
 from apps.log_esquery.esquery.builder.query_string_builder import QueryStringBuilder
 from apps.log_esquery.exceptions import (
     BaseSearchIndexSetDataDoseNotExists,
@@ -772,8 +772,11 @@ class UnifyQueryHandler:
         if not log:
             return log
 
-        # 展开object对象
-        log = expand_nested_data(log)
+        # 提取已配置字段的 dotted path 列表，用于路径感知展开
+        configured_paths = [c["field_name"] for c in self.field_configs if c.get("field_name")]
+
+        # 路径感知展开（支持 flattened / JSON 字符串子路径）
+        log, restore_metadata = path_aware_expand(log, configured_paths)
         # 保存一份未处理之前的log字段 用于脱敏之后的日志原文处理
         log_content_tmp = copy.deepcopy(log)
 
@@ -781,25 +784,25 @@ class UnifyQueryHandler:
         log = self.desensitize_handler.transform_dict(log)
 
         # 原文字段应用其他字段的脱敏结果
-        if not self.text_fields:
-            return log
-
-        for text_field in self.text_fields:  # ["log"]
-            # 判断原文字段是否存在log中
-            if text_field not in log.keys():
-                continue
-
-            for _config in self.field_configs:
-                field_name = _config["field_name"]
-                if field_name not in log.keys() or field_name == text_field:
-                    continue
-                log[text_field] = log[text_field].replace(str(log_content_tmp[field_name]), str(log[field_name]))
-
-        # 处理原文字段自身绑定的脱敏逻辑
         if self.text_fields:
+            for text_field in self.text_fields:  # ["log"]
+                # 判断原文字段是否存在log中
+                if text_field not in log.keys():
+                    continue
+
+                for _config in self.field_configs:
+                    field_name = _config["field_name"]
+                    if field_name not in log.keys() or field_name == text_field:
+                        continue
+                    log[text_field] = log[text_field].replace(
+                        str(log_content_tmp[field_name]), str(log[field_name])
+                    )
+
+            # 处理原文字段自身绑定的脱敏逻辑
             log = self.text_fields_desensitize_handler.transform_dict(log)
-        # 折叠object对象
-        log = merge_nested_data(log)
+
+        # 按原始容器类型还原（dict 保持 dict，JSON 字符串保持字符串）
+        log = restore_by_metadata(log, restore_metadata)
         return log
 
     @classmethod
