@@ -788,9 +788,10 @@ class GetServiceInstanceByID(Resource):
         service_instance_ids = serializers.ListField(label="服务实例列表", child=serializers.IntegerField())
 
     def perform_request(self, validated_request_data):
+        if not validated_request_data["service_instance_ids"]:
+            return []
         params = {
             "bk_biz_id": validated_request_data["bk_biz_id"],
-            "with_name": True,
             "service_instance_ids": validated_request_data["service_instance_ids"],
         }
         service_instances = batch_request(client.list_service_instance_detail, params, limit=500)
