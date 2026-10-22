@@ -9,7 +9,7 @@ from unittest.mock import Mock
 
 import pytest
 import test_delivery
-from test_delivery import SOURCE, Receipt, delivery
+from test_delivery import SOURCE, Receipt, delivery, diagnosis_payload
 
 payload = test_delivery.payload
 
@@ -128,6 +128,54 @@ def test_legacy_processor_still_handles_errors_without_receipt(processor, payloa
     assert not Receipt.objects.exists()
 
 
+def test_diagnosis_message_never_runs_full_incident_sync(processor, payload):
+    _, instance = processor
+    diagnosis_payload(payload)
+    instance.update_diagnosis = Mock()
+    instance.create_incident = Mock()
+    instance.update_incident = Mock()
+    instance.handle_sync_info(payload)
+    instance.handle_sync_info(payload)
+    instance.update_diagnosis.assert_called_once_with(payload)
+    instance.create_incident.assert_not_called()
+    instance.update_incident.assert_not_called()
+
+
+def test_legacy_sync_preserves_optional_diagnosis_and_tenant(processor, payload):
+    _, instance = processor
+    payload["incident_info"].update(diagnosis_status="finished", analysis={"task_id": 7, "execution_backend": "bkflow"})
+    values = instance.extract_bkfara_process_info(payload, payload["incident_info"], True)
+    document = SimpleNamespace(extra_info={"unrelated": 1})
+    instance.mark_incident_source(payload, document, values)
+    assert document.extra_info["diagnosis_status"] == "finished"
+    assert document.extra_info["analysis"]["execution_backend"] == "bkflow"
+    assert document.extra_info["bk_tenant_id"] == payload["bk_tenant_id"]
+    assert document.extra_info["unrelated"] == 1
+
+
+def test_diagnosis_projection_only_sends_guarded_partial_update(processor, payload):
+    spec = importlib.util.spec_from_file_location(
+        "diagnosis_projection", SOURCE / "alarm_backends/service/access/incident/diagnosis.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    payload.update(aggregate_revision=3)
+    payload["incident_info"].update(create_time=1700000000, diagnosis_status="finished", analysis={"task_id": 7})
+    documents = Mock()
+    documents.search.return_value.filter.return_value.execute.return_value.hits = [
+        SimpleNamespace(meta=SimpleNamespace(index="test-index", id="17000000001")),
+    ]
+    module.update_diagnosis(payload, documents)
+    call = documents._index._get_connection.return_value.update.call_args.kwargs
+    assert call["index"] == "test-index" and call["retry_on_conflict"] == 3
+    assert set(call["body"]) == {"script"}
+    script = call["body"]["script"]
+    assert script["params"]["snapshot"]["revision"] == 3
+    assert script["params"]["bk_tenant_id"] == payload["bk_tenant_id"]
+    assert "previous.revision < params.snapshot.revision" in script["source"]
+    documents.bulk_create.assert_not_called()
+
+
 @pytest.mark.parametrize("operation", ["create", "update"])
 @pytest.mark.parametrize("notice_fails", [False, True])
 def test_real_handler_external_effects_are_not_repeated(processor, payload, operation, notice_fails):
@@ -221,3 +269,66 @@ def test_real_notice_helper_failure_blocks_receipt_completion(processor, payload
     assert Receipt.objects.get().status == "uncertain"
     # Context must be reset; the legacy best-effort path remains compatible.
     send(payload)
+
+
+@pytest.mark.parametrize("body", ["{", "[]", "null", '{"schema_version":"2.0","scope":[]}'])
+def test_poison_message_is_rejected_without_crashing_callback(processor, body):
+    _, instance = processor
+    instance.process()
+    callback = instance.client.start_consuming.call_args.kwargs["callback"]
+    channel = Mock()
+    callback(channel, SimpleNamespace(delivery_tag=17), {}, body)
+    channel.basic_ack.assert_not_called()
+    channel.basic_nack.assert_called_once_with(17, requeue=False)
+    assert not Receipt.objects.exists()
+
+
+def test_lifecycle_write_cannot_overwrite_newer_diagnosis_even_from_stale_cache(processor, payload):
+    module, instance = processor
+    document = SimpleNamespace(
+        extra_info={
+            "diagnosis_status": "running",
+            "analysis": {"task_id": 7},
+            "diagnosis_notification": {"revision": 2, "event_id": "old"},
+            "unrelated": 1,
+        }
+    )
+    # Simulate a new diagnosis delta arriving after this document was loaded.
+    stored = {
+        "diagnosis_status": "finished",
+        "analysis": {"task_id": 7},
+        "diagnosis_notification": {"revision": 3, "event_id": "new"},
+        "unrelated": 0,
+    }
+
+    def write(documents, **kwargs):
+        stored.update(documents[0].extra_info)
+
+    module.IncidentDocument.bulk_create.side_effect = write
+    instance.persist_incident_update(payload, document)
+    assert stored["diagnosis_status"] == "finished"
+    assert stored["diagnosis_notification"]["revision"] == 3
+    assert stored["unrelated"] == 1
+    assert document.extra_info["diagnosis_status"] == "running"
+
+
+def test_non_bkfara_updates_keep_original_fields(processor, payload):
+    module, instance = processor
+    payload["notice_source"] = "other"
+    document = SimpleNamespace(extra_info={"analysis": {"custom": 1}})
+    instance.persist_incident_update(payload, document)
+    assert module.IncidentDocument.bulk_create.call_args.args[0] == [document]
+
+
+def test_missing_projection_is_retryable_before_any_write(processor, payload):
+    spec = importlib.util.spec_from_file_location(
+        "missing_diagnosis_projection", SOURCE / "alarm_backends/service/access/incident/diagnosis.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    diagnosis_payload(payload)
+    documents = Mock()
+    documents.search.return_value.filter.return_value.execute.return_value.hits = []
+    with pytest.raises(delivery.DeliveryBusy):
+        module.update_diagnosis(payload, documents)
+    documents._index._get_connection.assert_not_called()

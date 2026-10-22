@@ -8,7 +8,7 @@ from unittest.mock import Mock
 
 import pytest
 from django.apps import apps
-from django.db import close_old_connections, connection
+from django.db import close_old_connections, connection, transaction
 from django.utils import timezone
 
 SOURCE = Path(__file__).resolve().parents[2] / "bkmonitor"
@@ -36,6 +36,63 @@ def payload():
 
 def consume(payload, handler):
     return delivery.consume_once(payload, handler, receipt_model=Receipt)
+
+
+def diagnosis_payload(payload, status="running"):
+    event, operation, task_status = {
+        "todo": ("diagnosis.initialized", "diagnosis_pending", None),
+        "running": ("diagnosis.requested", "diagnosis_started", "ready"),
+        "finished": ("diagnosis.succeeded", "diagnosis_succeeded", "finished"),
+        "failed": ("diagnosis.failed", "diagnosis_failed", "failed"),
+    }[status]
+    payload.update(
+        schema_version="1.0",
+        sync_type="diagnosis",
+        destination="bkfara_internal",
+        notification_kind="diagnosis",
+        aggregate_revision=1,
+        event_id="a" * 64,
+        policy_revision="b" * 64,
+        event_types=[event],
+        operation=operation,
+        changes={},
+    )
+    payload["incident_info"].update(
+        create_time=1700000000,
+        diagnosis_status=status,
+        analysis={"task_id": 17, "task_status": task_status, "execution_backend": "runtime"} if task_status else {},
+    )
+    return payload
+
+
+def test_receipt_rejects_outer_transaction_before_any_effect(payload):
+    handler = Mock()
+    with transaction.atomic(), pytest.raises(RuntimeError, match="independent commit"):
+        consume(payload, handler)
+    handler.assert_not_called()
+    assert not Receipt.objects.exists()
+
+
+def test_receipt_rejects_manual_transaction_before_any_effect(payload):
+    handler = Mock()
+    connection.set_autocommit(False)
+    try:
+        with pytest.raises(RuntimeError, match="independent commit"):
+            consume(payload, handler)
+    finally:
+        connection.rollback()
+        connection.set_autocommit(True)
+    handler.assert_not_called()
+    assert not Receipt.objects.exists()
+
+
+def test_receipt_reads_stay_on_write_database(payload, monkeypatch):
+    # A replica must not decide whether an external effect can run again.
+    monkeypatch.setattr(delivery.router, "db_for_read", lambda *a, **kw: "unavailable_replica")
+    handler = Mock()
+    consume(payload, handler)
+    consume(payload, handler)
+    assert handler.call_count == 1
 
 
 def test_success_and_ack_loss_redelivery_are_noops(payload):
@@ -162,3 +219,160 @@ def test_concurrent_redelivery_executes_only_one_handler(payload):
         pending.result(timeout=10)
     consume(payload, handler)
     assert effects == ["event-1"]
+
+
+@pytest.mark.parametrize("reference", ["task:17:attempt:1", "task:17:attempt:2:action:incident.lifecycle"])
+def test_compact_task_audit_references_do_not_change_message_identity(payload, reference):
+    # Producer no longer has result/action tables. Their opaque references remain
+    # audit data; only the envelope event ID controls consumer deduplication.
+    payload["incident_info"]["analysis_action"] = {"effect_id": reference, "task_id": 17}
+    handler = Mock()
+    consume(payload, handler)
+    consume(copy.deepcopy(payload), handler)
+    assert handler.call_count == 1
+
+    assert Receipt.objects.get().payload["incident_info"]["analysis_action"]["effect_id"] == reference
+    changed = copy.deepcopy(payload)
+    changed["incident_info"]["analysis_action"]["effect_id"] = "different"
+    with pytest.raises(delivery.DeliveryConflict):
+        consume(changed, handler)
+    assert handler.call_count == 1
+
+
+def test_receiver_misrouting_fails_before_side_effects(payload):
+    payload["destination"] = "jingyan"
+    handler = Mock()
+    with pytest.raises(delivery.DeliveryConflict, match="wrong receiver"):
+        consume(payload, handler)
+    handler.assert_not_called()
+    assert not Receipt.objects.exists()
+
+
+@pytest.mark.parametrize("status", ["todo", "running", "finished", "failed"])
+def test_diagnosis_status_contract_and_duplicate_delivery(payload, status):
+    diagnosis_payload(payload, status)
+    handler = Mock()
+    consume(payload, handler)
+    consume(copy.deepcopy(payload), handler)
+    assert handler.call_count == 1
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"event_id": ""},
+        {"aggregate_revision": True},
+        {"aggregate_revision": 0},
+        {"notice_source": "other"},
+    ],
+)
+def test_invalid_diagnosis_envelope_has_no_effect(payload, change):
+    diagnosis_payload(payload)
+    payload.update(change)
+    handler = Mock()
+    with pytest.raises(delivery.DeliveryConflict):
+        consume(payload, handler)
+    handler.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"schema_version": "2.0"},
+        {"schema_version": None},
+        {"notification_kind": "lifecycle"},
+        {"operation": "fault_occurred"},
+        {"event_types": ["incident.created"]},
+        {"event_types": []},
+        {"event_types": [["diagnosis.requested"]]},
+        {"sync_type": "create"},
+        {"destination": []},
+        {"incident_id": True},
+        {"incident_info": []},
+        {"policy_revision": "invalid"},
+        {"changes": []},
+    ],
+)
+def test_malformed_versioned_protocol_never_reaches_handler(payload, change):
+    diagnosis_payload(payload)
+    payload.update(change)
+    handler = Mock()
+    with pytest.raises(delivery.DeliveryConflict):
+        consume(payload, handler)
+    handler.assert_not_called()
+    assert not Receipt.objects.exists()
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"diagnosis_status": "finished"},
+        {"analysis": {"task_id": 1, "task_status": "finished", "execution_backend": "runtime"}},
+        {"analysis": {"task_id": 1, "task_status": "ready", "execution_backend": []}},
+        {"create_time": True},
+        {"scope_id": "wrong"},
+    ],
+)
+def test_diagnosis_snapshot_must_agree_with_its_event(payload, change):
+    diagnosis_payload(payload)
+    payload["incident_info"].update(change)
+    with pytest.raises(delivery.DeliveryConflict):
+        consume(payload, Mock())
+    assert not Receipt.objects.exists()
+
+
+def test_missing_document_can_retry_after_default_creation_without_duplicate_effect(payload):
+    diagnosis_payload(payload)
+    handler = Mock(side_effect=[delivery.DeliveryBusy("not synchronized"), None])
+    with pytest.raises(delivery.DeliveryBusy):
+        consume(payload, handler)
+    assert Receipt.objects.get().status == "retry"
+    consume(payload, handler)
+    consume(payload, handler)
+    assert handler.call_count == 2
+    assert Receipt.objects.get().status == "succeeded"
+
+
+def test_diagnosis_retry_claim_is_exclusive(payload):
+    diagnosis_payload(payload)
+    with pytest.raises(delivery.DeliveryBusy):
+        consume(payload, Mock(side_effect=delivery.DeliveryBusy("not synchronized")))
+    entered, release = Event(), Event()
+
+    def process():
+        close_old_connections()
+        try:
+
+            def handler(message):
+                entered.set()
+                assert release.wait(timeout=10)
+
+            consume(payload, handler)
+        finally:
+            close_old_connections()
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        worker = pool.submit(process)
+        try:
+            assert entered.wait(timeout=10)
+            with pytest.raises(delivery.DeliveryBusy):
+                consume(payload, Mock())
+        finally:
+            release.set()
+        worker.result(timeout=10)
+    assert Receipt.objects.get().status == "succeeded"
+
+
+def test_other_producer_legacy_schema_remains_unchanged(payload):
+    payload.update(notice_source="other", schema_version="custom")
+    handler = Mock()
+    consume(payload, handler)
+    handler.assert_called_once_with(payload)
+    assert not Receipt.objects.exists()
+
+
+def test_nonfinite_json_is_rejected_before_receipt_or_effect(payload):
+    payload["unexpected_float"] = float("nan")
+    with pytest.raises(delivery.DeliveryConflict, match="finite JSON"):
+        consume(payload, Mock())
+    assert not Receipt.objects.exists()
