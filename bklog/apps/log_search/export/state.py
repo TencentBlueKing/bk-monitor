@@ -39,6 +39,7 @@ from apps.log_search.constants import (
 from apps.log_search.export.config import policy_from_snapshot
 from apps.log_search.export.models import ExportJob, ExportPart, ExportPlan
 from apps.log_search.export.query import time_order
+from apps.log_search.export.storage import merged_name
 from apps.utils.log import logger
 
 
@@ -657,6 +658,8 @@ def claim_finalization(job_id):
             status=ExportJobStatus.FINALIZING,
             finalization_started_at=now,
             finalization_attempts=job.finalization_attempts + 1,
+            # 重试复用同一对象名，避免旧尝试延迟上传的清单与数据库不一致。
+            merged_object_key=job.merged_object_key or merged_name(job),
         )
         logger.info(
             "[sharded_export_finalization_started] job_id=%s plan_version=%s finalization_attempts=%s "
