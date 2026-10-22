@@ -162,6 +162,7 @@
       <div class="favorite-table-container">
         <div class="table-header-operation">
           <BatchOperationMenu
+            ref="batchOperationMenuRef"
             :favorite-group-list="localFavoriteList"
             :favorite-type="favoriteType"
             :select-favorite-list="selectFavoriteList"
@@ -375,6 +376,7 @@
   const favoriteType = ref('event');
 
   const addGroupPopoverRef = ref(null);
+  const batchOperationMenuRef = ref(null);
   const checkInputFormRef = ref(null);
   const favoriteTableRef = ref(null);
   const editFavoriteNameInputRef = ref(null);
@@ -404,12 +406,17 @@
   };
 
   watch(
-    () => [props.modelValue],
-    () => {
-      setFavoriteManageVisible(props.modelValue);
-      if (props.modelValue) {
+    () => props.modelValue,
+    (visible, wasVisible) => {
+      setFavoriteManageVisible(visible);
+      if (visible) {
         window.addEventListener('keydown', handleKeydown);
       } else {
+        if (wasVisible) {
+          handleAddGroupPopoverHidden();
+          batchOperationMenuRef.value?.closePopovers();
+          favoriteTableRef.value?.clearFilter();
+        }
         nextTick(() => {
           window.removeEventListener('keydown', handleKeydown);
         });
