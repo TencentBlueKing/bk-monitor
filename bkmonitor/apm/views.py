@@ -20,6 +20,7 @@ from apm.resources import (
     DeleteAppConfigResource,
     DeleteApplicationResource,
     DeleteApplicationSimpleResource,
+    EnableActiveProfilingResource,
     GetBkDataFlowDetailResource,
     ListApplicationResources,
     ListEsClusterInfoResource,
@@ -133,6 +134,7 @@ class TopoViewSet(ResourceViewSet):
 class ProfilingViewSet(ResourceViewSet):
     resource_routes = [
         ResourceRoute("GET", QueryBuiltinProfileDatasourceResource, endpoint="builtin_profile_datasource"),
+        ResourceRoute("POST", EnableActiveProfilingResource, endpoint="enable_active_profiling"),
         ResourceRoute("GET", QueryProfileServiceDetailResource, endpoint="services_detail"),
         ResourceRoute("POST", QueryEbpfServiceListResource, endpoint="ebpf_service_list"),
         ResourceRoute("POST", QueryEbpfProfileResource, endpoint="ebpf_profile"),

@@ -22,8 +22,6 @@ from apm.models import ProfileDataSource
 from apm_web.models import ActiveProfilingTask
 from apm_web.profile.active_collection.constants import (
     BKMONITORBEAT_RELATIVE_PATH,
-    BUILTIN_EVENT_GROUP_LABEL,
-    BUILTIN_EVENT_GROUP_NAME,
     CANCEL_EXECUTION_SCRIPT,
     DEPLOYMENT_STATUS_DEPLOYING,
     DEPLOYMENT_STATUS_EXPIRED,
@@ -76,10 +74,7 @@ from apm_web.profile.resources import QueryServicesDetailResource
 from bkmonitor.utils.request import get_request_tenant_id
 from bkmonitor.utils.user import get_request_username
 from constants.apm import BUILTIN_PROFILING_APP_NAME
-from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import Resource, api, resource
-from core.errors.api import BKAPIError
-from monitor_web.constants import ETL_CONFIG
 
 logger = logging.getLogger("apm")
 
@@ -103,7 +98,7 @@ class ActiveProfilingMetaConfigResource(Resource):
 
 
 class EnableActiveCollectionResource(Resource):
-    """按业务幂等创建 Event DataID、Profiling DataID 及存储资源"""
+    """按业务幂等创建 Event DataID、Profiling DataID 及存储资源，由后台 apm 完成"""
 
     RequestSerializer = EnableRequestSerializer
 
@@ -111,47 +106,7 @@ class EnableActiveCollectionResource(Resource):
         if validated_request_data.get("is_mock"):
             return
 
-        bk_biz_id = validated_request_data["bk_biz_id"]
-        operator = get_request_username()
-        self._enable_profiling_datasource(bk_biz_id)
-        self._enable_event_datasource(bk_biz_id, operator)
-
-    def _enable_profiling_datasource(self, bk_biz_id):
-        """开通业务的 Profiling 数据源，只建数据源不建应用，重复调用由 apply_datasource 内部短路"""
-        ProfileDataSource.apply_datasource(bk_biz_id=bk_biz_id, app_name=BUILTIN_PROFILING_APP_NAME, option=True)
-
-    def _enable_event_datasource(self, bk_biz_id, operator):
-        """开通业务的事件分组，不写 monitor_web 自定义事件表"""
-        if api.metadata.single_query_event_group(bk_biz_id=bk_biz_id, event_group_name=BUILTIN_EVENT_GROUP_NAME):
-            return
-
-        api.metadata.create_event_group(
-            operator=operator,
-            bk_data_id=self._get_or_create_event_data_id(bk_biz_id, operator),
-            bk_biz_id=bk_biz_id,
-            event_group_name=BUILTIN_EVENT_GROUP_NAME,
-            label=BUILTIN_EVENT_GROUP_LABEL,
-            data_label=BUILTIN_EVENT_GROUP_NAME,
-        )
-
-    def _get_or_create_event_data_id(self, bk_biz_id, operator):
-        """DataID 与事件分组分两次调用创建，先复用上一次可能已创建成功的 DataID"""
-        data_name = f"{bk_biz_id}_{BUILTIN_EVENT_GROUP_NAME}"
-        try:
-            return api.metadata.get_data_id(data_name=data_name, with_rt_info=False)["bk_data_id"]
-        except BKAPIError:
-            pass
-
-        return api.metadata.create_data_id(
-            bk_biz_id=bk_biz_id,
-            data_name=data_name,
-            data_description="主动 Profiling 内置资源，请勿删除",
-            etl_config=ETL_CONFIG.CUSTOM_EVENT,
-            operator=operator,
-            type_label=DataTypeLabel.EVENT,
-            source_label=DataSourceLabel.CUSTOM,
-            option={"inject_local_time": True},
-        )["bk_data_id"]
+        api.apm_api.enable_active_profiling(bk_biz_id=validated_request_data["bk_biz_id"])
 
 
 class PreviewProcessesResource(Resource):

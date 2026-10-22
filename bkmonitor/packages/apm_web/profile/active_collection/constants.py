@@ -8,11 +8,10 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from constants.apm import BUILTIN_EVENT_GROUP_NAME as BUILTIN_EVENT_GROUP_NAME
 from constants.apm import BUILTIN_PROFILING_APP_NAME as BUILTIN_PROFILING_APP_NAME
 
 BUILTIN_PROFILE_SERVICE_NAME = "active_allocation"
-BUILTIN_EVENT_GROUP_NAME = "active_profiling_builtin_events"
-BUILTIN_EVENT_GROUP_LABEL = "application_check"
 
 COLLECTION_METHOD_CHOICES = (
     ("perf", "perf"),

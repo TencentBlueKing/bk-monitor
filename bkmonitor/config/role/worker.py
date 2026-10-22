@@ -174,6 +174,8 @@ DEFAULT_CRONTAB = [
     ("apm.task.tasks.check_pre_calculate_fields_update", "0 */1 * * *", "global"),
     # apm 检查consul配置是否有更新 1小时执行检测一次
     ("apm.task.tasks.check_apm_consul_config", "0 */1 * * *", "global"),
+    # apm 主动 Profiling 事件分组 DataID 的 consul 配置对账 1小时执行一次
+    ("apm.task.tasks.check_active_profiling_consul_config", "0 */1 * * *", "global"),
     # apm Trace 数据源域索引集兜底同步 每 3 小时触发
     ("apm.task.tasks.sync_trace_scope_index_sets", "0 */3 * * *", "global"),
     # apm_ebpf 定时检查业务集群是否安装DeepFlow 每15分钟触发

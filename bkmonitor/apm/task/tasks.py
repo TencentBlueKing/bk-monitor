@@ -32,6 +32,7 @@ from apm.core.discover.profile.base import DiscoverHandler as ProfileDiscoverHan
 from apm.core.handlers.apm_cache_handler import ApmCacheHandler
 from apm.core.handlers.bk_data.tail_sampling import TailSamplingFlow
 from apm.core.handlers.bk_data.virtual_metric import VirtualMetricFlow
+from apm.core.handlers.profile.active_profiling import ActiveProfilingConsulHandler
 from apm.core.handlers.trace_index_set import TraceScopeIndexSetHandler
 from apm.core.platform_config import PlatformConfig
 from apm.models import (
@@ -258,6 +259,20 @@ def check_apm_consul_config():
     logger.info(f"[check_apm_consul_config] start {datetime.datetime.now()}")
     ConsulHandler.check_update()
     logger.info(f"[check_apm_consul_config] end {datetime.datetime.now()}")
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def refresh_active_profiling_consul_config(bk_biz_id: int):
+    """业务开通主动 Profiling 后，同步其事件分组 DataID 的 Kafka 信息到 consul"""
+    ActiveProfilingConsulHandler.refresh(bk_biz_id)
+
+
+@app.task(ignore_result=True, queue="celery_cron")
+def check_active_profiling_consul_config():
+    """遍历开通主动 Profiling 的业务，对账 consul 中的事件分组 DataID 配置"""
+    logger.info(f"[check_active_profiling_consul_config] start {datetime.datetime.now()}")
+    ActiveProfilingConsulHandler.check_update()
+    logger.info(f"[check_active_profiling_consul_config] end {datetime.datetime.now()}")
 
 
 @app.task(ignore_result=True, queue="celery_cron")

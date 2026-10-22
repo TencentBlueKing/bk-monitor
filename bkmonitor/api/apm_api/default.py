@@ -339,6 +339,15 @@ class QueryBuiltinProfileDatasourceResource(ApmAPIGWResource):
     method = "GET"
 
 
+class EnableActiveProfilingResource(ApmAPIGWResource):
+    """
+    开通业务的主动 Profiling 资源
+    """
+
+    action = "/app/apm/profiling/enable_active_profiling/"
+    method = "POST"
+
+
 class QueryEbpfServiceListResource(ApmAPIGWResource):
     """
     获取 ebpf 相关应用服务列表

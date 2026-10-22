@@ -72,7 +72,11 @@ from apm.serializers import (
     TraceFieldStatisticsInfoRequestSerializer,
     TraceFieldsTopkRequestSerializer,
 )
-from apm.task.tasks import create_or_update_tail_sampling, delete_application_async
+from apm.task.tasks import (
+    create_or_update_tail_sampling,
+    delete_application_async,
+    refresh_active_profiling_consul_config,
+)
 from apm.utils.ui_optimizations import HistogramNiceNumberGenerator
 from bkm_space.api import SpaceApi
 from bkm_space.utils import space_uid_to_bk_biz_id
@@ -82,6 +86,9 @@ from bkmonitor.utils.request import get_request_tenant_id, get_request_username
 from bkmonitor.utils.tenant import bk_biz_id_to_bk_tenant_id
 from bkmonitor.utils.thread_backend import InheritParentThread, ThreadPool, run_threads
 from constants.apm import (
+    BUILTIN_EVENT_GROUP_LABEL,
+    BUILTIN_EVENT_GROUP_NAME,
+    BUILTIN_PROFILING_APP_NAME,
     DataSamplingLogTypeChoices,
     FlowType,
     TailSamplingSupportMethod,
@@ -89,11 +96,13 @@ from constants.apm import (
     TraceListQueryMode,
     TraceWaterFallDisplayKey,
 )
+from constants.data_source import DataSourceLabel, DataTypeLabel
 from constants.otel_query import EnabledStatisticsDimension, AggregatedMethod, StatisticsProperty
 from core.drf_resource import Resource, api, resource
 from core.drf_resource.exceptions import CustomException
 from metadata import models
 from metadata.models import DataSource
+from metadata.models.space.constants import EtlConfigs
 
 logger = logging.getLogger("apm")
 
@@ -1946,6 +1955,56 @@ class QueryBuiltinProfileDatasourceResource(Resource):
             raise ValueError(_("未找到内置数据源，请联系管理员创建"))
 
         return self.ProfileDataSourceSerializer(builtin_source).data
+
+
+class EnableActiveProfilingResource(Resource):
+    """按业务幂等创建主动 Profiling 的 Profiling 数据源与事件分组，并同步事件分组 DataID 到 consul"""
+
+    class RequestSerializer(serializers.Serializer):
+        bk_biz_id = serializers.IntegerField(label="业务ID")
+
+    def perform_request(self, validated_request_data):
+        bk_biz_id = validated_request_data["bk_biz_id"]
+        self._enable_profiling_datasource(bk_biz_id)
+        self._enable_event_datasource(bk_biz_id, get_request_username())
+        refresh_active_profiling_consul_config.delay(bk_biz_id)
+
+    def _enable_profiling_datasource(self, bk_biz_id):
+        """开通业务的 Profiling 数据源，只建数据源不建应用，重复调用由 apply_datasource 内部短路"""
+        ProfileDataSource.apply_datasource(bk_biz_id=bk_biz_id, app_name=BUILTIN_PROFILING_APP_NAME, option=True)
+
+    def _enable_event_datasource(self, bk_biz_id, operator):
+        """开通业务的事件分组，不写 monitor_web 自定义事件表"""
+        if resource.metadata.query_event_group(bk_biz_id=bk_biz_id, event_group_name=BUILTIN_EVENT_GROUP_NAME):
+            return
+
+        resource.metadata.create_event_group(
+            operator=operator,
+            bk_data_id=self._get_or_create_event_data_id(bk_biz_id, operator),
+            bk_biz_id=bk_biz_id,
+            event_group_name=BUILTIN_EVENT_GROUP_NAME,
+            label=BUILTIN_EVENT_GROUP_LABEL,
+            data_label=BUILTIN_EVENT_GROUP_NAME,
+        )
+
+    def _get_or_create_event_data_id(self, bk_biz_id, operator):
+        """DataID 与事件分组分两次调用创建，先复用上一次可能已创建成功的 DataID"""
+        data_name = f"{bk_biz_id}_{BUILTIN_EVENT_GROUP_NAME}"
+        try:
+            return resource.metadata.query_data_source(data_name=data_name, with_rt_info=False)["bk_data_id"]
+        except DataSource.DoesNotExist:
+            pass
+
+        return resource.metadata.create_data_id(
+            bk_biz_id=bk_biz_id,
+            data_name=data_name,
+            data_description="主动 Profiling 内置资源，请勿删除",
+            etl_config=EtlConfigs.BK_STANDARD_V2_EVENT.value,
+            operator=operator,
+            type_label=DataTypeLabel.EVENT,
+            source_label=DataSourceLabel.CUSTOM,
+            option={"inject_local_time": True},
+        )["bk_data_id"]
 
 
 class GetBkDataFlowDetailResource(Resource):

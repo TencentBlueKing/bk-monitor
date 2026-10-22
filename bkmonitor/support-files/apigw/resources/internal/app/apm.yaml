@@ -287,6 +287,24 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: query builtin profile datasource
+  /app/apm/profiling/enable_active_profiling/:
+    post:
+      operationId: enable_active_profiling
+      description: 开通业务的主动 Profiling 资源
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: post
+          path: /apm_api/v1/profiling/enable_active_profiling/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: enable active profiling resources of business
   /app/apm/query_apm_topo_relation/:
     post:
       operationId: query_apm_topo_relation

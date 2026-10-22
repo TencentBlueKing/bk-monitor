@@ -25,8 +25,6 @@ from apm.models import ProfileDataSource
 from apm_web.models import ActiveProfilingTask
 from apm_web.profile.active_collection.constants import META_CONFIG
 from apm_web.profile.active_collection.constants import (
-    BUILTIN_EVENT_GROUP_LABEL,
-    BUILTIN_EVENT_GROUP_NAME,
     BUILTIN_PROFILING_APP_NAME,
     EXECUTION_DETAIL_HOST_COLUMNS,
     EXECUTION_LIST_TASK_COLUMNS,
@@ -214,56 +212,12 @@ def test_meta_config_disabled_until_profile_data_id_exists(mocker, bk_data_id):
     assert ActiveProfilingMetaConfigResource().request({"bk_biz_id": 2})["enabled"] is False
 
 
-@pytest.fixture
-def enable_apis(mocker):
-    mocker.patch("apm_web.profile.active_collection.resources.get_request_username", return_value="admin")
-    mocks = {
-        name: mocker.patch(f"core.drf_resource.api.metadata.{name}", return_value=return_value)
-        for name, return_value in [
-            ("single_query_event_group", []),
-            ("get_data_id", {"bk_data_id": 1001}),
-            ("create_data_id", {"bk_data_id": 1002}),
-            ("create_event_group", {"event_group_id": 555}),
-        ]
-    }
-    mocks["apply_datasource"] = mocker.patch.object(ProfileDataSource, "apply_datasource")
-    return mocks
-
-
-def test_enable_creates_builtin_profiling_datasource_and_event_group(enable_apis):
-    enable_apis["get_data_id"].side_effect = BKAPIError(system_name="metadata", url="", result={})
+def test_enable_delegates_to_backend_apm(mocker):
+    enable = mocker.patch("core.drf_resource.api.apm_api.enable_active_profiling")
 
     assert EnableActiveCollectionResource().request({"bk_biz_id": 2}) is None
 
-    enable_apis["apply_datasource"].assert_called_once_with(
-        bk_biz_id=2, app_name=BUILTIN_PROFILING_APP_NAME, option=True
-    )
-    assert enable_apis["create_data_id"].call_args.kwargs["data_name"] == f"2_{BUILTIN_EVENT_GROUP_NAME}"
-    enable_apis["create_event_group"].assert_called_once_with(
-        operator="admin",
-        bk_data_id=1002,
-        bk_biz_id=2,
-        event_group_name=BUILTIN_EVENT_GROUP_NAME,
-        label=BUILTIN_EVENT_GROUP_LABEL,
-        data_label=BUILTIN_EVENT_GROUP_NAME,
-    )
-
-
-def test_enable_skips_existing_event_group(enable_apis):
-    enable_apis["single_query_event_group"].return_value = [{"event_group_id": 555}]
-
-    assert EnableActiveCollectionResource().request({"bk_biz_id": 2}) is None
-
-    enable_apis["get_data_id"].assert_not_called()
-    enable_apis["create_data_id"].assert_not_called()
-    enable_apis["create_event_group"].assert_not_called()
-
-
-def test_enable_reuses_existing_event_data_id(enable_apis):
-    EnableActiveCollectionResource().request({"bk_biz_id": 2})
-
-    enable_apis["create_data_id"].assert_not_called()
-    assert enable_apis["create_event_group"].call_args.kwargs["bk_data_id"] == 1001
+    enable.assert_called_once_with(bk_biz_id=2)
 
 
 MATCHED_PROCESS = {
@@ -757,8 +711,9 @@ def sent_host_tasks(call):
 
 
 def create_planned_task(**overrides):
-    SubmitTaskResource().request({**TASK_SUBMIT_REQUEST, **overrides})
-    return ActiveProfilingTask.objects.get(bk_biz_id=2, name=overrides.get("name", TASK_SUBMIT_REQUEST["name"]))
+    request = {**TASK_SUBMIT_REQUEST, **overrides}
+    SubmitTaskResource().request(request)
+    return ActiveProfilingTask.objects.get(bk_biz_id=request["bk_biz_id"], name=request["name"])
 
 
 @pytest.mark.django_db
@@ -929,6 +884,7 @@ def test_delete_task_requires_disabled_first(planned_apis):
 
 
 @pytest.mark.django_db
+@pytest.mark.filterwarnings("ignore:DateTimeField.*received a naive datetime:RuntimeWarning")
 def test_delete_task_soft_deletes_and_frees_name(planned_apis):
     task = create_planned_task()
     SwitchTaskResource().request({"bk_biz_id": 2, "task_id": task.id, "enabled": False})
