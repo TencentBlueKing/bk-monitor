@@ -50,6 +50,7 @@ from apps.log_search.models import LogIndexSet, Scenario
 from apps.log_unifyquery.handler.agg import UnifyQueryAggHandler
 from apps.log_unifyquery.handler.base import UnifyQueryHandler
 from apps.log_unifyquery.handler.terms_aggs import UnifyQueryTermsAggsHandler
+from apps.utils.local import get_request
 from apps.utils.log import logger
 from bk_dataview.grafana import client
 from bkm_ipchooser.constants import ObjectType
@@ -235,6 +236,10 @@ class GrafanaQueryHandler:
         return index_set_id in valid_index_set_ids
 
     def check_panel_permission(self, dashboard_id, panel_id, index_set_id):
+        # token 请求由 token 预授权，外部 Grafana 的仪表盘不在本平台，跳过面板配置校验
+        if getattr(get_request(), "skip_check", False):
+            return
+
         # api module not validate
         if not settings.BKAPP_IS_BKLOG_API:
             is_valid = self.validate_panel_config(dashboard_id, panel_id, index_set_id)

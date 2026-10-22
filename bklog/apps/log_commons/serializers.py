@@ -87,7 +87,13 @@ class GetShareParamsSerializer(serializers.Serializer):
 
 
 class GetApiTokenSerializer(serializers.Serializer):
-    space_uid = serializers.CharField(required=True, label="空间ID")
+    space_uid = serializers.CharField(required=False, label="空间ID")
+    bk_biz_id = serializers.IntegerField(required=False, label="业务ID")
     type = serializers.ChoiceField(
         choices=ApiTokenAuthType.get_choices(), default=ApiTokenAuthType.CODECC.value, required=False, label="令牌类型"
     )
+
+    def validate(self, attrs):
+        if not attrs.get("space_uid") and attrs.get("bk_biz_id") is None:
+            raise serializers.ValidationError("space_uid 与 bk_biz_id 至少提供一个")
+        return attrs

@@ -26,6 +26,7 @@ import sys
 
 from bkcrypto import constants as bkcrypto_constants
 from blueapps.conf.default_settings import *  # noqa
+from corsheaders.defaults import default_headers
 from django.http import HttpResponseRedirect
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -1314,15 +1315,20 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 # ==============================================================================
 
 # ==============================================================================
-# 支持监控跨域
-allowed_cors_from_settings = os.environ.get("BKAPP_ALLOWED_CORS_ORIGINS", "").split(",")
+# 跨域配置
+# 外部 Grafana 数据源以 direct 模式直连，需要放行其浏览器来源；仅在配置白名单后启用中间件
+allowed_cors_from_settings = [
+    origin for origin in os.environ.get("BKAPP_ALLOWED_CORS_ORIGINS", "").split(",") if origin
+]
 # 监控默认域名
 default_allowed_bkmonitor_origin = BK_BKLOG_HOST.replace("bklog", "bkmonitor")
 # 中间件CorsMiddleware中支持跨域的域名配置
-CORS_ALLOWED_ORIGINS = [default_allowed_bkmonitor_origin]
-for origin in allowed_cors_from_settings:
-    if origin:
-        CORS_ALLOWED_ORIGINS.append(origin)
+CORS_ALLOWED_ORIGINS = [default_allowed_bkmonitor_origin, *allowed_cors_from_settings]
+
+if allowed_cors_from_settings:
+    CORS_ALLOW_HEADERS = [*default_headers, "x-bklog-token", "x-bklog-space-uid", "authorization"]
+    if "corsheaders.middleware.CorsMiddleware" not in MIDDLEWARE:
+        MIDDLEWARE = ("corsheaders.middleware.CorsMiddleware", *MIDDLEWARE)
 
 #  通知中心配置
 BK_NOTICE = {

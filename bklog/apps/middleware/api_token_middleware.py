@@ -1,3 +1,5 @@
+import json
+
 from blueapps.account import get_user_model
 from blueapps.account.middlewares import LoginRequiredMiddleware
 from django.contrib import auth
@@ -5,6 +7,7 @@ from django.contrib.auth.backends import ModelBackend
 from django.http import HttpResponseForbidden
 
 from apps.log_commons.models import ApiAuthToken
+from bkm_space.utils import bk_biz_id_to_space_uid
 
 
 class ApiTokenAuthBackend(ModelBackend):
@@ -22,28 +25,65 @@ class ApiTokenAuthBackend(ModelBackend):
 class ApiTokenAuthenticationMiddleware(LoginRequiredMiddleware):
     def process_view(self, request, view, *args, **kwargs):
         # 支持两种方式：1. 同时传 space_uid 和 token；2. 只传 token
-        if "HTTP_X_BKLOG_TOKEN" not in request.META:
+        token = request.META.get("HTTP_X_BKLOG_TOKEN")
+        if not token:
             return super().process_view(request, view, *args, **kwargs)
-
-        token = request.META["HTTP_X_BKLOG_TOKEN"]
 
         # 构建查询条件
         query_kwargs = {"token": token}
-        if "HTTP_X_BKLOG_SPACE_UID" in request.META:
-            query_kwargs["space_uid"] = request.META["HTTP_X_BKLOG_SPACE_UID"]
+        space_uid = request.META.get("HTTP_X_BKLOG_SPACE_UID")
+        if space_uid:
+            query_kwargs["space_uid"] = space_uid
 
-        # 统一查询逻辑
-        try:
-            record = ApiAuthToken.objects.get(**query_kwargs)
-        except ApiAuthToken.DoesNotExist:
+        record = ApiAuthToken.objects.filter(**query_kwargs).first()
+        if not record:
             return HttpResponseForbidden("not valid token")
-
-            if record.is_expired():
-                return HttpResponseForbidden("token has expired")
+        if record.is_expired():
+            return HttpResponseForbidden("token has expired")
+        if not self._is_view_allowed(view, record):
+            return HttpResponseForbidden("token not allowed for this view")
+        if not self._is_biz_allowed(request, record):
+            return HttpResponseForbidden("token not allowed for this business")
 
         # 统一处理认证逻辑
         self._handle_authentication(request, record, token)
         return
+
+    @staticmethod
+    def _is_view_allowed(view, record):
+        """Grafana 类型 token 限定只能访问 grafana 视图"""
+        if record.type.lower() != "grafana":
+            return True
+        view_cls = getattr(view, "cls", None)
+        return getattr(view_cls, "__module__", "") == "apps.grafana.views"
+
+    @staticmethod
+    def _get_request_biz_id(request):
+        """从查询参数或 JSON 请求体中获取 bk_biz_id"""
+        biz_id = request.GET.get("bk_biz_id") or request.POST.get("bk_biz_id")
+        if biz_id:
+            return biz_id
+        if request.method in ("GET", "HEAD", "OPTIONS"):
+            return None
+        try:
+            body = json.loads(request.body or b"{}")
+        except (TypeError, ValueError):
+            return None
+        return body.get("bk_biz_id") if isinstance(body, dict) else None
+
+    @classmethod
+    def _is_biz_allowed(cls, request, record):
+        """校验请求业务与 token 绑定空间一致，避免跨业务访问"""
+        if not record.space_uid:
+            return True
+        biz_id = cls._get_request_biz_id(request)
+        # 不涉及业务数据的接口不携带 bk_biz_id，无需校验
+        if biz_id is None:
+            return True
+        try:
+            return str(bk_biz_id_to_space_uid(biz_id)) == str(record.space_uid)
+        except Exception:  # pylint: disable=broad-except
+            return False
 
     def _handle_authentication(self, request, record, token):
         """处理认证逻辑"""

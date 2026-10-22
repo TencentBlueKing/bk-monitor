@@ -266,6 +266,16 @@ class GrafanaViewSet(APIViewSet):
         return Response(data)
 
     @list_route(methods=["get"])
+    def test(self, request):
+        """
+        @api {get} /grafana/test/ 01_连通性检查
+        @apiName grafana_test
+        @apiDescription 供 Grafana 数据源 Save&Test 使用
+        @apiGroup 30_Grafana
+        """
+        return Response("OK")
+
+    @list_route(methods=["get"])
     def options(self, request):
         """
         @api {get} /grafana/options/ 03_获取配置

@@ -31,8 +31,10 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.api import BKLoginApi
-from apps.constants import ExternalPermissionActionEnum
+from apps.constants import ApiTokenAuthType, ExternalPermissionActionEnum
+from apps.exceptions import ValidationError
 from apps.generic import APIViewSet
+from apps.iam import ActionEnum, Permission
 from apps.log_commons.cc import get_maintainers
 from apps.log_commons.exceptions import BaseCommonsException
 from apps.log_commons.handlers.external_permission import ExternalPermissionHandler
@@ -58,6 +60,7 @@ from apps.log_commons.serializers import (
 from apps.log_commons.share import ShareHandler
 from apps.utils.drf import list_route
 from apps.log_commons.token import TokenHandlerFactory
+from bkm_space.utils import bk_biz_id_to_space_uid, space_uid_to_bk_biz_id
 
 # 用户白皮书在文档中心的根路径
 DOCS_USER_GUIDE_ROOT = f"LogSearch/{settings.VERSION[:3]}"
@@ -395,8 +398,8 @@ class GetApiTokenViewSet(APIViewSet):
         @api {get} /get_api_token/ 获取 API 令牌
         @apiName get_api_token
         @apiGroup api_token
-        @apiParam {String} space_uid 空间ID
-        @apiParam {Integer} index_set_id 索引集ID
+        @apiParam {String} [space_uid] 空间ID
+        @apiParam {Integer} [bk_biz_id] 业务ID
         @apiParam {String} [type] 令牌类型，默认为CodeCC
         @apiSuccessExample {json} 成功返回:
         {
@@ -411,5 +414,25 @@ class GetApiTokenViewSet(APIViewSet):
         """
         data = self.params_valid(GetApiTokenSerializer)
         token_type = data.pop("type")
+        bk_biz_id = data.pop("bk_biz_id", None)
+
+        if bk_biz_id is None:
+            bk_biz_id = space_uid_to_bk_biz_id(data.get("space_uid"))
+            if not bk_biz_id:
+                raise ValidationError(_("空间不存在: {}").format(data.get("space_uid")))
+        else:
+            space_uid = bk_biz_id_to_space_uid(bk_biz_id)
+            if not space_uid:
+                raise ValidationError(_("业务不存在: {}").format(bk_biz_id))
+            data["space_uid"] = space_uid
+
+        # Grafana 数据源使用业务级免登录 token，需要具备仪表盘查看权限
+        if token_type == ApiTokenAuthType.GRAFANA.value:
+            self._assert_biz_permission(bk_biz_id)
+
         handler = TokenHandlerFactory.get_handler(token_type)
         return Response(handler.generate_token(**data))
+
+    @staticmethod
+    def _assert_biz_permission(bk_biz_id):
+        Permission().is_allowed_by_biz(bk_biz_id, ActionEnum.VIEW_DASHBOARD, raise_exception=True)

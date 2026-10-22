@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making BK-LOG 蓝鲸日志平台 available.
 Copyright (C) 2021 THL A29 Limited, a Tencent company.  All rights reserved.
@@ -19,6 +18,8 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 We undertake not to change the open source license (MIT license) applicable to the current version of
 the project delivered to anyone in the future.
 """
+
+# ruff: noqa: F405
 
 from django.utils.translation import gettext_lazy as _
 
@@ -67,7 +68,8 @@ CORS_ORIGIN_ALLOW_ALL = True
 # cookies will be allowed to be included in cross-site HTTP requests
 CORS_ALLOW_CREDENTIALS = True
 
-MIDDLEWARE += ("corsheaders.middleware.CorsMiddleware",)
+if "corsheaders.middleware.CorsMiddleware" not in MIDDLEWARE:
+    MIDDLEWARE += ("corsheaders.middleware.CorsMiddleware",)
 
 # 该配置需要等待SITE_URL被patch掉才能正确配置，因此放在patch逻辑后面
 GRAFANA = {
@@ -91,7 +93,7 @@ BK_IAM_SYSTEM_NAME = _("日志平台")
 
 BK_IAM_INNER_HOST = os.getenv("BK_IAM_HOST", os.getenv("BK_IAM_V3_INNER_HOST", "http://iam.service.consul"))
 
-BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", "{}{}".format(BK_PAAS_INNER_HOST, SITE_URL))
+BK_IAM_RESOURCE_API_HOST = os.getenv("BKAPP_IAM_RESOURCE_API_HOST", f"{BK_PAAS_INNER_HOST}{SITE_URL}")
 
 # 权限中心 SaaS host
 BK_IAM_APP_CODE = os.getenv("BK_IAM_V3_APP_CODE", "bk_iam")

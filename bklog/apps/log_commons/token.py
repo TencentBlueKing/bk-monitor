@@ -13,6 +13,9 @@ class BaseTokenHandler(ABC):
     Token处理器抽象基类
     """
 
+    # token 是否在业务内跨用户复用
+    reuse_across_users = False
+
     @abstractmethod
     def get_token_type(self) -> str:
         """获取token类型"""
@@ -28,12 +31,15 @@ class BaseTokenHandler(ABC):
         token_params = self.create_token_params(**kwargs)
 
         # 查找现有令牌
-        token_obj = ApiAuthToken.objects.filter(
-            space_uid=space_uid,
-            type=self.get_token_type(),
-            params__contains=token_params,
-            created_by=username,
-        ).first()
+        query = {
+            "space_uid": space_uid,
+            "type": self.get_token_type(),
+            "params__contains": token_params,
+        }
+        if not self.reuse_across_users:
+            query["created_by"] = username
+
+        token_obj = ApiAuthToken.objects.filter(**query).first()
 
         if token_obj:
             return token_obj.token
@@ -71,11 +77,22 @@ class CodeccTokenHandler(BaseTokenHandler):
         return ApiTokenAuthType.CODECC.value
 
 
+class GrafanaTokenHandler(BaseTokenHandler):
+    """Grafana 数据源 Token 处理器"""
+
+    # 业务级 token 在业务内复用，与监控保持一致
+    reuse_across_users = True
+
+    def get_token_type(self) -> str:
+        return ApiTokenAuthType.GRAFANA.value
+
+
 class TokenHandlerFactory:
     """Token处理器工厂类"""
 
     _HANDLERS = {
         ApiTokenAuthType.CODECC.value: CodeccTokenHandler,
+        ApiTokenAuthType.GRAFANA.value: GrafanaTokenHandler,
     }
 
     @classmethod
