@@ -37,7 +37,7 @@ def batch_request(
     params = params.copy()
     refresh_params = {
         "cmdb": lambda origin_params, _start, _limit: origin_params.update(
-            {"page": {"start": _start, "limit": _limit}}
+            {"page": {**origin_params.get("page", {}), "start": _start, "limit": _limit}}
         ),
         "nodeman": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "pagesize": _limit}),
         "metadata": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "page_size": _limit}),
