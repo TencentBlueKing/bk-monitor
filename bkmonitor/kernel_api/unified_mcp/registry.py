@@ -543,6 +543,11 @@ TITLES.update(
     }
 )
 
+ANALYZE_FIELD_PREREQUISITES = {
+    "index_set": ("list_index_sets", "get_index_set_fields"),
+    "scene": ("list_log_scenes", "list_scene_dimension_values", "get_scene_log_fields"),
+}
+
 # 参数应从哪些前置工具取得；这是调用建议，不是绕过最终校验的凭据。
 PREREQUISITES: dict[str, tuple[str, ...]] = {
     "list_time_series_metrics": ("list_time_series_groups",),
@@ -553,7 +558,7 @@ PREREQUISITES: dict[str, tuple[str, ...]] = {
     "search_index_set_context": ("search_logs",),
     "list_scene_dimension_values": ("list_log_scenes",),
     "get_scene_log_fields": ("list_log_scenes", "list_scene_dimension_values"),
-    "analyze_field": ("list_index_sets", "get_index_set_fields"),
+    "analyze_field": tuple(name for names in ANALYZE_FIELD_PREREQUISITES.values() for name in names),
     "search_log_clustering_pattern": ("list_index_sets",),
     "get_alert_top_n": ("list_alerts",),
     "get_strategy_snapshot": ("list_alerts",),
@@ -759,7 +764,10 @@ class ToolDefinition:
         properties = self.input_schema.get("properties", {})
         context_fields = [self.resource_arg]
         if self.native_permission:
-            context_fields.append(self.native_permission.get("resource_arg", ""))
+            resource_arg = self.native_permission.get("resource_arg", "")
+            # 条件鉴权的可选资源不能提升为工具的全局必需上下文。
+            if resource_arg in self.input_schema.get("required", []):
+                context_fields.append(resource_arg)
         required_context = list(dict.fromkeys(name for name in context_fields if name and name in properties))
         return {
             "name": self.name,
@@ -783,14 +791,7 @@ class ToolDefinition:
             "description": self.description,
             "input_schema": deepcopy(self.input_schema),
             "guidelines": _build_guidelines(self),
-            "prerequisites": [
-                {
-                    "tool": tool_name,
-                    "kind": "conditional",
-                    "condition": f"缺少 {tool_name} 提供的参数时",
-                }
-                for tool_name in self.prerequisites
-            ],
+            "prerequisites": _build_prerequisites(self),
             "permission": self.permission_payload(),
             "execution": {
                 "status": "executable",
@@ -968,6 +969,23 @@ def _extract_limits(schema: dict[str, Any]) -> dict[str, Any]:
     if "1800" in description:
         limits["max_time_span_seconds"] = 1800
     return limits
+
+
+def _build_prerequisites(tool: ToolDefinition) -> list[dict[str, Any]]:
+    if tool.name == "analyze_field":
+        return [
+            {
+                "tool": tool_name,
+                "kind": "conditional",
+                "condition": f"target_type={target_type} 且缺少 {tool_name} 提供的参数时",
+            }
+            for target_type, tool_names in ANALYZE_FIELD_PREREQUISITES.items()
+            for tool_name in tool_names
+        ]
+    return [
+        {"tool": tool_name, "kind": "conditional", "condition": f"缺少 {tool_name} 提供的参数时"}
+        for tool_name in tool.prerequisites
+    ]
 
 
 def _build_guidelines(tool: ToolDefinition) -> list[str]:
@@ -1152,6 +1170,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                 "capabilities": CAPABILITIES,
                 "titles": TITLES,
                 "prerequisites": PREREQUISITES,
+                "analyze_field_prerequisites": ANALYZE_FIELD_PREREQUISITES,
                 "backend_derived_fields": BACKEND_DERIVED_FIELDS,
                 "unified_hidden_fields": UNIFIED_HIDDEN_FIELDS,
             },

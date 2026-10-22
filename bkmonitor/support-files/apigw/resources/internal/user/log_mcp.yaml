@@ -444,7 +444,7 @@ paths:
   /mcp/analyze_field/:
     post:
       operationId: analyze_field
-      description: Analyze field distribution and statistics by index set or scene. For target_type=index_set (default), provide index_set_id after list_index_sets and get_index_set_fields. For target_type=scene, provide table_id_conditions after list_log_scenes and get_scene_log_fields; structured conditions are not supported, use query_string instead. Supports Top K (most frequent), time series, overall stats, and distribution analysis. Timestamps must be calculated dynamically. ⚠️ Query span must NOT exceed 1 day (86400s). If >1 day, split into batch queries (each ≤24h), then merge. 按索引集或场景分析字段分布和统计。target_type=index_set（默认）时提供 index_set_id；target_type=scene 时提供 table_id_conditions，场景模式不支持结构化 conditions，请使用 query_string 过滤。支持Top K、时间序列、总体统计、分布分析。时间戳需动态计算。⚠️ 查询跨度不得超过1天(86400秒),超过需分批查询(每批≤24h)后合并。
+      description: Analyze field distribution and statistics by index set or scene. For target_type=index_set (default), provide index_set_id after list_index_sets and get_index_set_fields. For target_type=scene, provide table_id_conditions after list_log_scenes, list_scene_dimension_values and get_scene_log_fields; structured conditions are not supported, use query_string instead. Scene Top K follows the existing candidate aggregation (2K+10 candidates per table) and is approximate; storage limits may truncate distributions even when limit is omitted. Supports Top K (most frequent), time series, overall stats, and distribution analysis. Timestamps must be calculated dynamically. ⚠️ Query span must NOT exceed 1 day (86400s). If >1 day, split into batch queries (each ≤24h), then merge. 按索引集或场景分析字段分布和统计。target_type=index_set（默认）时提供 index_set_id；target_type=scene 时提供 table_id_conditions，场景模式不支持结构化 conditions，请使用 query_string 过滤。场景 Top K 沿用每表 2K+10 个候选的近似聚合口径；分布分析受存储上限约束，不传 limit 也不保证全量枚举。支持Top K、时间序列、总体统计、分布分析。时间戳需动态计算。⚠️ 查询跨度不得超过1天(86400秒),超过需分批查询(每批≤24h)后合并。
       tags:
       - log_mcp
       requestBody:
@@ -471,7 +471,8 @@ paths:
                 limit:
                   type: string
                   default: '20'
-                  description: Maximum number of results to return. Used for Top K analysis to limit results. If not specified, returns all results (for distribution analysis). 返回的最大结果数。用于Top K分析限制结果数量。如未指定,返回所有结果(用于分布分析)。
+                  nullable: true
+                  description: Maximum number of results to return. Scene Top K expands candidates per table before merging and selecting K, so ranking and counts may be approximate. Omitting limit requests distribution analysis subject to storage limits. 返回的最大结果数。场景 Top K 扩大每表候选后合并取 K，排名和计数可能存在误差；不传 limit 时进行分布分析，仍受存储上限约束。
                 end_time:
                   type: string
                   description: 'End timestamp in seconds (Unix timestamp). CRITICAL: MUST use current timestamp - NEVER use historical values! If user doesn''t specify, calculate current time dynamically. Example in Python: import time; end_time = int(time.time()). Example in JavaScript: Math.floor(Date.now() / 1000). Example in Bash: date +%s. Always execute code to get current timestamp instead of using fixed numbers from training data. 结束时间戳(秒,Unix时间戳)。关键:必须使用当前时间戳 - 绝不使用历史值！ 如用户未指定,动态计算当前时间。Python示例: import time; end_time = int(time.time())。JavaScript示例: Math.floor(Date.now() / 1000)。Bash示例: date +%s。始终执行代码获取当前时间戳,而非使用训练数据中的固定数字。'

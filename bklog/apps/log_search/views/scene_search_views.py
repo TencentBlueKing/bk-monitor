@@ -351,7 +351,7 @@ class SceneAnalyzeFieldSerializer(_SceneRouteMixin):
     field_name = serializers.CharField(required=True)
     group_by = serializers.BooleanField(required=False, default=True)
     order_by = serializers.ChoiceField(choices=["value", "time"], required=False, default="time")
-    limit = serializers.IntegerField(required=False, allow_null=True)
+    limit = serializers.IntegerField(required=False, allow_null=True, min_value=1)
     step = serializers.CharField(required=False, default="1h", max_length=16)
     start_time = serializers.CharField(required=True)
     end_time = serializers.CharField(required=True)
@@ -1126,15 +1126,15 @@ class SceneSearchViewSet(APIViewSet):
         params = self.params_valid(SceneAnalyzeFieldSerializer)
         params["table_id_conditions"] = AllConditionsBuilder.from_raw(params["table_id_conditions"])
         params = _merge_scene_filters_to_addition(params)
-        handler = SceneUnifyQueryHandler(params)
+        params["agg_field"] = params["field_name"]
+        params["interval"] = params["step"]
+        handler = SceneFieldHandler(params)
         result = handler.analyze_field(
-            field_name=params["field_name"],
             group_by=params["group_by"],
             order_by=params["order_by"],
             limit=params.get("limit"),
-            step=params["step"],
         )
-        return Response(result.get("data", {}))
+        return Response(result)
 
     # ------------------------------------------------------------------
     # Export endpoints
