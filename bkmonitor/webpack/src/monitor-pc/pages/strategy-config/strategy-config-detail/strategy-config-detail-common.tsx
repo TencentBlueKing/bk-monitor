@@ -1674,7 +1674,10 @@ export default class StrategyConfigDetailCommon extends tsc<object> {
                         <pre>{this.templateData.message_tmpl}</pre>
                       </div>
                       <StrategyTemplatePreview
+                        bkBizId={this.detailData.bk_biz_id}
                         dialogShow={this.isShowTemplate}
+                        previewItem={this.detailData?.items?.[0]}
+                        strategyId={this.strategyId}
                         template={this.templateData.message_tmpl}
                         {...{
                           on: {

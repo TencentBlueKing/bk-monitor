@@ -55,7 +55,6 @@ from apm_web.constants import (
     nodata_error_strategy_config_mapping,
 )
 from apm_web.db.db_utils import build_filter_params, get_service_from_params
-from apm_web.handlers.application_handler import ApplicationHandler
 from apm_web.handlers.backend_data_handler import telemetry_handler_registry
 from apm_web.handlers.component_handler import ComponentHandler
 from apm_web.handlers.config_handler.code import CodeRemarkHandler
@@ -521,7 +520,7 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
         start_time = serializers.IntegerField(label="开始时间", required=False)
         end_time = serializers.IntegerField(label="结束时间", required=False)
 
-    def perform_request(self, validated_request_data):
+    def perform_request(self, validated_request_data: dict[str, Any]) -> dict[str, Any]:
         try:
             application = Application.objects.get(
                 app_name=validated_request_data["app_name"], bk_biz_id=validated_request_data["bk_biz_id"]
@@ -529,12 +528,6 @@ class ApplicationInfoByAppNameResource(ApiAuthResource):
         except Application.DoesNotExist:
             raise ValueError("Application does not exist")
         data = ApplicationInfoResource().request({"application_id": application.application_id})
-        start_time = validated_request_data.get("start_time")
-        end_time = validated_request_data.get("end_time")
-        if start_time and end_time:
-            data["trace_data_status"] = DataStatus.NO_DATA
-            if ApplicationHandler.have_data(application, start_time, end_time):
-                data["trace_data_status"] = DataStatus.NORMAL
 
         # 增加一个信息给到页面，是否需要提供尾部采样的选项。
         # 如果没有 bk base 等相关配置，则不提供尾部采样选项

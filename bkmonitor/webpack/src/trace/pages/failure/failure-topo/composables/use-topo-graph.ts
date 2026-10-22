@@ -46,6 +46,10 @@ import { type ICombo, type IG6GraphEvent, type INode, type Item, Arrow, Graph } 
 import { addListener, removeListener } from '@blueking/fork-resize-detector';
 import { debounce } from 'throttle-debounce';
 
+import { useI18n } from 'vue-i18n';
+
+import { isDirectedEdge } from '../edge-relation';
+
 import ElkjsUtils from '../graph/elkjs-utils';
 import { clearAllG6Animations, registerAllAfterGraph, registerAllBeforeGraph } from '../graph/register-all';
 import { clearEdgeIntervals } from '../graph/topo-edge';
@@ -54,7 +58,7 @@ import { topologyEdgeId } from '../snapshot-analysis';
 import { canJumpByType, handleToLink } from '../utils';
 
 import type { G6TooltipInstance } from '../types/composable';
-import type { CanvasByPointResult, ComboLabelPoint, NavSelectNodeItem, TopoRawDataCache } from '../types/g6';
+import type { CanvasByPointResult, ComboLabelPoint, ErrorData, NavSelectNodeItem, TopoRawDataCache } from '../types/g6';
 import type { IncidentDetailData, ITopoCombo, ITopoData, ITopoNode } from '../types/topo';
 import type { TooltipCompExpose } from './use-topo-state';
 import type { GraphData } from '@antv/g6';
@@ -101,6 +105,7 @@ export interface TopoGraphInteraction {
 
 /** useTopoGraph 需要从 useTopoState 接收的状态子集 */
 export interface TopoGraphState {
+  errorData: Ref<ErrorData>;
   /** 当前选中的业务 ID 列表 */
   bkzIds: Ref<string[]>;
   /** 标记当前是否在 resize 过程中 */
@@ -191,6 +196,7 @@ export function useTopoGraph(
   timeline: TopoGraphTimeline,
   tooltip: TopoGraphTooltip
 ) {
+  const { t } = useI18n();
   // ---------------------------------------------------------------------------
   // Graph 实例便捷访问
   // ---------------------------------------------------------------------------
@@ -207,7 +213,7 @@ export function useTopoGraph(
     const graph = getGraph();
     if (!graph) return;
     clearEdgeIntervals();
-    topoData.resolveLayout(renderData).then(resp => {
+    return Promise.resolve().then(() => topoData.resolveLayout(renderData)).then(resp => {
       // LayoutInput 与 G6 GraphData 字段对齐，断言后写入画布
       graph.data(resp.data as GraphData);
       graph.render();
@@ -242,6 +248,8 @@ export function useTopoGraph(
       });
       /** 布局渲染完将边置于顶层 */
       setTimeout(interaction.toFrontAnomalyEdge, 500);
+    }).catch(() => {
+      state.errorData.value = { isError: true, isNoData: false, msg: t('图谱布局失败，请刷新重试') };
     });
   };
 
@@ -409,8 +417,8 @@ export function useTopoGraph(
       };
     });
     graph.edge((cfg: any) => {
-      const { is_anomaly, edge_type, anomaly_score, source, target } = cfg;
-      const isInvoke = edge_type === 'ebpf_call';
+      const { is_anomaly, anomaly_score, source, target } = cfg;
+      const isDirected = isDirectedEdge(cfg);
       const color = is_anomaly ? '#F55555' : '#63656E';
       const isSelfLoop = source === target;
 
@@ -420,17 +428,15 @@ export function useTopoGraph(
         style: {
           cursor: 'pointer',
           lineAppendWidth: 15,
-          endArrow:
-            isInvoke || is_anomaly
-              ? {
-                  path: Arrow.triangle(10, 10, 0),
-                  d: 0,
-                  fill: color,
-                  stroke: color,
-                  lineDash: [0, 0],
-                }
-              : false,
-          // fill: isInvoke ? '#F55555' : '#63656E',
+          endArrow: isDirected
+            ? {
+                path: Arrow.triangle(10, 10, 0),
+                d: 0,
+                fill: color,
+                stroke: color,
+                lineDash: [0, 0],
+              }
+            : false,
           stroke: color,
           lineWidth: is_anomaly ? (anomaly_score > 0 ? 3 : 1.5) : 1,
           lineDash: is_anomaly ? [4, 2] : false,

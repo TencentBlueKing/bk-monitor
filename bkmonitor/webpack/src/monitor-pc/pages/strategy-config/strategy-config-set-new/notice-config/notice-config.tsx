@@ -127,9 +127,12 @@ interface INoticeConfigNewEvent {
 interface INoticeConfigNewProps {
   alarmGroupLoading?: boolean;
   allAction?: IGroupItem[]; // 套餐列表
+  bkBizId?: number | string;
   dataTypeLabel?: string;
   isExecuteDisable?: boolean;
   legalDimensionList?: ICommonItem[];
+  previewItem?: Record<string, unknown>;
+  previewStrategyId?: number | string;
   readonly?: boolean;
   strategyId?: number | string;
   userList?: IAlarmGroupList[]; // 告警组
@@ -145,6 +148,9 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
   @Prop({ type: Object, default: () => ({}) }) value: INoticeValue;
   @Prop({ type: Array, default: () => [] }) allAction: IGroupItem[];
   @Prop({ type: Array, default: () => [] }) userList: IAlarmGroupList[];
+  @Prop({ type: [Number, String] }) bkBizId: number | string;
+  @Prop({ type: Object }) previewItem: Record<string, unknown>;
+  @Prop({ type: [Number, String], default: 0 }) previewStrategyId: number | string;
   @Prop({ type: Boolean, default: false }) readonly: boolean;
   @Prop({ default: '', type: [Number, String] }) strategyId: number;
   @Prop({ default: false, type: Boolean }) isExecuteDisable: boolean;
@@ -1128,7 +1134,10 @@ export default class NoticeConfigNew extends tsc<INoticeConfigNewProps, INoticeC
               )}
             </div>
             <StrategyTemplatePreview
+              bkBizId={this.bkBizId}
               dialogShow={this.isShowTemplate}
+              previewItem={this.previewItem}
+              strategyId={this.previewStrategyId}
               template={this.templateData.message_tmpl}
               {...{ on: { 'update:dialogShow': v => (this.isShowTemplate = v) } }}
             />

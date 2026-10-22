@@ -823,20 +823,24 @@ class ProfileQueryViewSet(ProfileBaseViewSet):
 
         # transfer data
         export_format = validated_data.get("export_format", DEFAULT_EXPORT_FORMAT)
+        return self.build_export_response(doris_converter, app_name, validated_data["data_type"], export_format)
+
+    @staticmethod
+    def build_export_response(doris_converter, app_name, data_type, export_format):
+        """把已转换的 Profile 打成与检索导出相同的 gzip pprof 响应"""
         if export_format not in EXPORT_FORMAT_MAP:
             raise ValueError(f"({export_format}) format is currently not supported")
         now_str = timezone.localtime(timezone.now()).strftime("%Y-%m-%d-%H-%M-%S")
         file_name = PROFILE_EXPORT_FILE_NAME.format(
-            app_name=app_name, data_type=validated_data["data_type"], time=now_str, format=export_format
+            app_name=app_name, data_type=data_type, time=now_str, format=export_format
         )
 
         if not doris_converter or not doris_converter.profile.sample_type or not doris_converter.profile.sample:
             raise ValueError(_("当前查询条件未查询到有效 Profiling 数据，无法导出"))
 
-        serialized_data = doris_converter.profile.SerializeToString()
-        compressed_data = gzip.compress(serialized_data)
-
-        response = HttpResponse(compressed_data, content_type="application/octet-stream")
+        response = HttpResponse(
+            gzip.compress(doris_converter.profile.SerializeToString()), content_type="application/octet-stream"
+        )
         response["Content-Encoding"] = "gzip"
         response["Content-Disposition"] = f'attachment; filename="{file_name}"'
 

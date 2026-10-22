@@ -25,10 +25,11 @@
  */
 import { getStrategyAndEventCount } from 'monitor-api/modules/scene_view';
 
+import { requestHost } from './host-request';
+
 /** 获取主机场景告警、策略数量 */
-export const getStrategyAndEventCountApi = async (params: {
+export const getStrategyAndEventCountApi = (params: {
   scene_id: 'host';
   target?: unknown;
-}): Promise<{ event_counts: number; strategy_counts: number }> => {
-  return await getStrategyAndEventCount(params);
-};
+}): Promise<{ event_counts: number; strategy_counts: number }> =>
+  requestHost('scene_view/get_strategy_and_event_count', params, data => getStrategyAndEventCount(data));

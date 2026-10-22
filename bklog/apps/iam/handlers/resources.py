@@ -26,7 +26,6 @@ from django.utils.translation import gettext as _
 from django.utils.translation import gettext_lazy
 from iam import Resource
 
-from apps.api import TransferApi
 from apps.iam.exceptions import ResourceNotExistError
 from bkm_space.utils import space_uid_to_bk_biz_id
 
@@ -95,29 +94,12 @@ class Business(ResourceMeta):
         :param instance_id: 实例ID
         :param attribute: 属性kv对
         """
-        from apps.log_search.models import Space, SpaceType
+        from apps.iam.views.resources import SpaceResourceProvider
 
-        # 注意，此处 instance_id 有可能是 bk_biz_id，或者是space_uid，需要做统一转换
-        try:
-            bk_biz_id = int(instance_id)
-        except Exception:  # pylint: disable=broad-except
-            bk_biz_id = None
-
-        try:
-            if bk_biz_id is None:
-                # 不是数字，那就是space_uid
-                space = Space.objects.get(space_uid=instance_id)
-            else:
-                space = Space.objects.get(bk_biz_id=instance_id)
-            bk_biz_id = str(space.bk_biz_id)
-            space_name = f"[{SpaceType.get_name_by_id(space.space_type_id)}] {space.space_name}"
-        except Exception:  # pylint: disable=broad-except:
-            bk_biz_id = str(instance_id)
-            space_name = instance_id
-
+        metadata = SpaceResourceProvider.get_instance_attributes(instance_id)
         attribute = attribute or {}
-        attribute.update({"id": bk_biz_id, "name": space_name})
-        return Resource(cls.system_id, cls.id, bk_biz_id, attribute)
+        attribute.update(metadata)
+        return Resource(cls.system_id, cls.id, metadata["id"], attribute)
 
     @classmethod
     def create_instance(cls, instance_id: str, attribute=None) -> Resource:
@@ -134,23 +116,11 @@ class Collection(ResourceMeta):
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
-        from apps.log_databus.models import CollectorConfig
+        from apps.iam.views.resources import CollectionResourceProvider
 
         resource = super().create_simple_instance(instance_id, attribute)
-        if resource.attribute:
-            return resource
-
-        try:
-            config = CollectorConfig.objects.get(pk=instance_id)
-        except CollectorConfig.DoesNotExist:
-            return resource
-
-        resource.attribute = {
-            "id": str(instance_id),
-            "name": config.collector_config_name,
-            "bk_biz_id": str(config.bk_biz_id),
-            "_bk_iam_path_": f"/{Business.id},{config.bk_biz_id}/",
-        }
+        if not resource.attribute:
+            resource.attribute = CollectionResourceProvider.get_instance_attributes(instance_id)
         return resource
 
 
@@ -163,26 +133,11 @@ class EsSource(ResourceMeta):
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
+        from apps.iam.views.resources import EsSourceResourceProvider
+
         resource = super().create_simple_instance(instance_id, attribute)
-        if resource.attribute:
-            return resource
-
-        try:
-            result = TransferApi.get_cluster_info({"cluster_id": instance_id})
-            if not result:
-                return resource
-            cluster_info = result[0]
-            name = cluster_info["cluster_config"].get("display_name") or cluster_info["cluster_config"]["cluster_name"]
-            bk_biz_id = cluster_info["cluster_config"]["custom_option"].get("bk_biz_id", 0)
-        except Exception:  # pylint: disable=broad-except
-            return resource
-
-        resource.attribute = {
-            "id": str(instance_id),
-            "name": name,
-            "bk_biz_id": str(bk_biz_id),
-            "_bk_iam_path_": f"/{Business.id},{bk_biz_id}/",
-        }
+        if not resource.attribute:
+            resource.attribute = EsSourceResourceProvider.get_instance_attributes(instance_id)
         return resource
 
 
@@ -195,23 +150,11 @@ class Indices(ResourceMeta):
 
     @classmethod
     def create_simple_instance(cls, instance_id: str, attribute=None) -> Resource:
-        from apps.log_search.models import LogIndexSet
+        from apps.iam.views.resources import IndicesResourceProvider
 
         resource = super().create_simple_instance(instance_id, attribute)
-        if resource.attribute:
-            return resource
-
-        try:
-            index_set = LogIndexSet.objects.get(pk=instance_id)
-        except LogIndexSet.DoesNotExist:
-            return resource
-        bk_biz_id = str(space_uid_to_bk_biz_id(index_set.space_uid))
-        resource.attribute = {
-            "id": str(instance_id),
-            "name": index_set.index_set_name,
-            "bk_biz_id": bk_biz_id,
-            "_bk_iam_path_": f"/{Business.id},{bk_biz_id}/",
-        }
+        if not resource.attribute:
+            resource.attribute = IndicesResourceProvider.get_instance_attributes(instance_id)
         return resource
 
 

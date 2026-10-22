@@ -88,6 +88,18 @@ export default {
       type: [String, Number],
       required: false,
     },
+    previewItem: {
+      type: Object,
+      required: false,
+    },
+    strategyId: {
+      type: [String, Number],
+      default: 0,
+    },
+    bkBizId: {
+      type: [String, Number],
+      required: false,
+    },
   },
   data() {
     return {
@@ -97,6 +109,7 @@ export default {
       loading: false,
       oldTemplate: '',
       oldScenario: null,
+      oldPreviewContext: '',
       previewError: '',
       requestId: 0,
     };
@@ -142,6 +155,18 @@ export default {
     scenario() {
       if (this.show) this.loadPreview();
     },
+    previewItem: {
+      handler() {
+        if (this.show) this.loadPreview();
+      },
+      deep: true,
+    },
+    strategyId() {
+      if (this.show) this.loadPreview();
+    },
+    bkBizId() {
+      if (this.show) this.loadPreview();
+    },
   },
   beforeDestroy() {
     this.handleConfirm();
@@ -152,8 +177,18 @@ export default {
       const requestId = ++this.requestId;
       const template = this.template;
       const scenario = this.scenario;
-      if (template && this.oldTemplate === template && this.oldScenario === scenario) return;
+      const params = scenario
+        ? { scenario, template }
+        : {
+            template,
+            ...(this.previewItem
+              ? { preview_item: this.previewItem, strategy_id: Number(this.strategyId) || 0, bk_biz_id: this.bkBizId }
+              : {}),
+          };
+      const previewContext = JSON.stringify(params);
+      if (template && this.oldPreviewContext === previewContext) return;
       this.oldTemplate = '';
+      this.oldPreviewContext = '';
       this.renderData = [];
       this.previewError = '';
       if (!template) {
@@ -163,13 +198,14 @@ export default {
       this.loading = true;
       try {
         const data = scenario
-          ? await this.getRenderNoticeTemplate({ scenario, template })
-          : await renderNoticeTemplate({ template });
+          ? await this.getRenderNoticeTemplate(params)
+          : await renderNoticeTemplate(params);
         if (requestId !== this.requestId) return;
         this.renderData = data || [];
         this.tabActive = 0;
         this.oldTemplate = template;
         this.oldScenario = scenario;
+        this.oldPreviewContext = previewContext;
       } catch (error) {
         if (requestId !== this.requestId) return;
         this.renderData = [];

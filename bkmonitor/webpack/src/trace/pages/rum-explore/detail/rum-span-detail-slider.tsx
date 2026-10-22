@@ -33,6 +33,7 @@ import DetailHeader from './components/detail-header/detail-header';
 import DetailSections from './components/detail-sections/detail-sections';
 import DetailSkeleton from './components/detail-skeleton/detail-skeleton';
 import OriginDataPanel from './components/origin-data-panel/origin-data-panel';
+import TimelineFilterBar from './components/trace-context/timeline-filter-bar';
 import TraceContextPanel from './components/trace-context/trace-context-panel';
 import {
   useDetailFormatter,
@@ -43,13 +44,13 @@ import {
   useTraceContext,
 } from './composables';
 import { searchTraceInfo } from './services';
-import { RumDetailTabEnum } from './typings';
+import { RumDetailTabEnum, RumTimelineFilterCategoryEnum } from './typings';
 import SliderHeader from '@/components/slider-header/slider-header';
 import TemporaryShareNew from '@/components/temporary-share/temporary-share-new';
 
 import type { IRumField, IRumTimeRange, RumModeType } from '../typings';
 import type { IRumTraceInfo } from './services';
-import type { IRumDetailContext, IRumTimelineSpanVM, RumDetailTabType } from './typings';
+import type { IRumDetailContext, IRumTimelineSpanVM, IRumTimelineViewVM, RumDetailTabType } from './typings';
 
 import './rum-span-detail-slider.scss';
 
@@ -121,7 +122,14 @@ export default defineComponent({
     const originData = computed(() => detail.value?.origin_data || {});
     const { getField, formatField, copyText, resolveCtx } = useDetailFormatter(toRef(props, 'fields'), originData);
     const { headerVM } = useDetailOverview(detail, spanType, formatField, getField);
-    const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading);
+    const { sectionVMs } = useDetailSections(detail, spanType, related, resolveCtx, relatedLoading, {
+      /** 跳到链路上下文并套用来源卡片对应的快捷筛选类别，清空关键字避免与类别叠加后筛空 */
+      switchTraceContext: category => {
+        activeTab.value = RumDetailTabEnum.TRACE_CONTEXT;
+        traceContext.filterCategory.value = category;
+        traceContext.filterKeyword.value = '';
+      },
+    });
     const { blocks, eventKeyword } = useOriginData(originData, toRef(props, 'fields'));
 
     const isXhrOrFetch = computed(() => {
@@ -162,11 +170,27 @@ export default defineComponent({
       }
     );
 
+    /** 抽屉关闭后重置交互态：tab、Events 搜索关键字与链路上下文的筛选，避免下次打开残留；嵌套抽屉复用本组件同样生效 */
+    watch(
+      () => props.isShow,
+      show => {
+        if (show) return;
+        activeTab.value = RumDetailTabEnum.BASIC;
+        eventKeyword.value = '';
+        traceContext.filterKeyword.value = '';
+        traceContext.filterCategory.value = RumTimelineFilterCategoryEnum.ALL;
+      }
+    );
+
     const getTraceUrl = (info: IRumTraceInfo) =>
       location.href.replace(
         location.hash,
         `#/trace/home?app_name=${info.app_name}&trace_id=${info.trace_id}&sceneMode=trace&filterMode=ui`
       );
+
+    const handleCopyTraceId = () => {
+      copyText(originData.value.links?.[0]?.trace_id);
+    };
 
     const handleJumpTrace = () => {
       if (traceInfo.value) {
@@ -194,6 +218,18 @@ export default defineComponent({
     const handleTimelineSpanClick = (span: IRumTimelineSpanVM) => {
       if (!props.context) return;
       const context: IRumDetailContext = { ...props.context, record_id: span.spanId, span_type: span.spanType };
+      if (props.nested) {
+        emit('spanOpen', context);
+        return;
+      }
+      childContext.value = context;
+      childShow.value = true;
+    };
+
+    /** 链路上下文头部点击「View 详情」，与 Span 行点击一致打开嵌套抽屉 */
+    const handleTimelineViewClick = (view: IRumTimelineViewVM) => {
+      if (!props.context) return;
+      const context: IRumDetailContext = { ...props.context, record_id: view.spanId, span_type: 'view' };
       if (props.nested) {
         emit('spanOpen', context);
         return;
@@ -272,9 +308,14 @@ export default defineComponent({
               class='related-trace-alert'
               v-slots={{
                 title: () => (
-                  <div>
+                  <div class='related-trace-alert-content'>
                     <span>{t('已有关联 Trace：')}</span>
-                    <span>{originData.value.links?.[0]?.trace_id || '--'}，</span>
+                    <span>{originData.value.links?.[0]?.trace_id || '--'}</span>
+                    <i
+                      class='icon-monitor icon-mc-copy copy-icon'
+                      v-bk-tooltips={{ content: t('复制') }}
+                      onClick={handleCopyTraceId}
+                    />
                     <Button
                       class='jump-btn'
                       theme='primary'
@@ -307,15 +348,27 @@ export default defineComponent({
     function renderTraceContext() {
       return (
         <div class='rum-detail-card'>
+          <TimelineFilterBar
+            category={traceContext.filterCategory.value}
+            keyword={traceContext.filterKeyword.value}
+            onUpdate:category={value => {
+              traceContext.filterCategory.value = value;
+            }}
+            onUpdate:keyword={value => {
+              traceContext.filterKeyword.value = value;
+            }}
+          />
           <TraceContextPanel
             error={traceContext.error.value}
             items={traceContext.items.value}
             loading={traceContext.loading.value}
+            spanType={spanType.value}
             view={traceContext.viewVM.value}
             onExpandFold={traceContext.handleExpandFold}
             onSpanClick={handleTimelineSpanClick}
             onToggleNode={traceContext.handleToggleNode}
             onTraceClick={handleTimelineTraceClick}
+            onViewClick={handleTimelineViewClick}
           />
         </div>
       );

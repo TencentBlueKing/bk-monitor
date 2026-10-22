@@ -269,13 +269,9 @@ export default class StrategyChart extends tsc<IProps, IEvent> {
   @Emit('logQuery')
   handleLogQuery() {}
 
-  /** 图表 title：存在表达式时直接展示表达式，单指标展示指标名 */
+  /** 图表 title：统一展示表达式（别名表达式），不做指标中文名解析 */
   getMetricName() {
-    // 单指标时表达式就是该指标的别名，展示指标名
-    if (this.metricData?.length === 1) {
-      return this.metricData[0].metric_field_name || this.getExpression();
-    }
-    return this.getExpression();
+    return this.getExpression()?.trim() || '';
   }
 
   /**

@@ -12,7 +12,7 @@ from bkm_space.utils import space_uid_to_bk_biz_id
 from bkmonitor.iam import Permission, ResourceEnum
 from bkmonitor.iam.action import get_action_by_id
 from bkmonitor.utils.request import get_request
-from core.drf_resource import Resource
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.unified_mcp.dispatcher import dispatch_tool
 from kernel_api.unified_mcp.registry import CATEGORIES, get_tool_registry
 from kernel_api.unified_mcp.permissions import execute_native_tool, permission_state

@@ -230,13 +230,11 @@ export default class PerformanceTool extends Vue<MonitorVue> {
       return total;
     }, []);
     this.$router.push({
-      name: 'performance-detail',
+      name: 'host',
       query: {
-        compares: encodeURIComponent(
-          JSON.stringify({
-            targets: compares,
-          })
-        ),
+        compares: JSON.stringify({
+          targets: compares,
+        }),
       },
       params: {
         id: firstRow.bk_host_id.toString(),

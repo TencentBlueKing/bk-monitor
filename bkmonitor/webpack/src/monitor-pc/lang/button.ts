@@ -563,4 +563,5 @@ export default {
 
   // RUM 检索--详情
   复制完整地址: 'Copy Full Address',
+  查看官方定义: 'Check the official definition',
 };

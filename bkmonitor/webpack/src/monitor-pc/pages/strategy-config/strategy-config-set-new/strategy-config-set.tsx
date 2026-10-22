@@ -170,7 +170,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   @ProvideReactive('strategyId') strategyId = 0;
   /** 当前编辑的策略是否存在智能异常检测算法 */
   @ProvideReactive('editStrategyIntelligentDetectList') editStrategyIntelligentDetectList: string[] = [];
-  queryOutputConfig: Record<string, unknown> | undefined = undefined;
+  queryOutputConfig: null | Record<string, unknown> | undefined = undefined;
 
   @Ref('judgingCondition') readonly judgingConditionEl: InstanceType<typeof JudgingCondition>;
   @Ref('base-config') readonly baseConfigEl: InstanceType<typeof BaseConfig>;
@@ -446,6 +446,25 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
   }
   get allowMultiPromql() {
     return isMultiPromqlBiz(this.bizId);
+  }
+  get noticePreviewItem() {
+    if (this.isMultivariateAnomalyDetection) {
+      return {
+        expression: 'a',
+        query_configs: (this.metricData[0] as IMetricDetail)?.sceneConfig?.query_configs || [],
+        functions: [],
+        query_output_config: this.queryOutputConfig,
+      };
+    }
+    const item =
+      this.monitorDataEditMode === 'Source'
+        ? buildPromqlItem(this.sourceData, this.expression, { preserveMulti: this.promqlMultiLocked })
+        : {
+            expression: this.expression?.toLocaleLowerCase?.() || LETTERS.at(0),
+            origin_sql: this.sourceData.sourceCode,
+            query_configs: this.handleQueryConfig(),
+          };
+    return { ...item, functions: this.localExpFunctions, query_output_config: this.queryOutputConfig };
   }
   /** 非多 PromQL 业务下，已有多查询或非别名表达式不可改写。 */
   get promqlMultiLocked() {
@@ -1279,7 +1298,7 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
       metric_type,
       // actions: [{ notice_template: template = noticeTemplate }]
     } = data;
-    this.queryOutputConfig = queryOutputConfig ?? undefined;
+    this.queryOutputConfig = queryOutputConfig;
     this.expression =
       queryConfigs?.[0]?.data_source_label === PROMETHEUS ? expression || 'a' : (expression || '').toLocaleLowerCase();
     this.localExpress = this.expression;
@@ -2982,8 +3001,11 @@ export default class StrategyConfigSet extends tsc<IStrategyConfigSetProps, IStr
                   ref='noticeConfigNew'
                   alarmGroupLoading={this.alarmGroupLoading}
                   allAction={actionConfigGroupList(this.actionConfigList)}
+                  bkBizId={this.bizId}
                   isExecuteDisable={!this.isActionEnabled}
                   legalDimensionList={this.legalDimensionList}
+                  previewItem={this.noticePreviewItem}
+                  previewStrategyId={this.id && !this.isClone ? this.id : 0}
                   readonly={this.isDetailMode}
                   strategyId={this.id ? +this.id : ''}
                   userList={this.alarmGroupList}

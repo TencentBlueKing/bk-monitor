@@ -8,13 +8,19 @@ from apps.iam.backends.v4.exceptions import V4ResponseError, V4TimeoutError
 from apps.iam.backends.v4.provider import V4PermissionProvider
 from apps.iam.handlers.actions import ActionEnum, get_action_by_id
 from apps.iam.handlers.resources import ResourceEnum
-from apps.iam.iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
-from apps.iam.iam_engine.core.types import AuthStatus
+from iam_engine.core.requests import AuthRequest, BatchAuthRequest, ResourceInstance, Subject
+from iam_engine.core.types import AuthStatus
 
 
 class BklogNameCodecTest(SimpleTestCase):
     def setUp(self):
         self.codec = BklogNameCodec()
+
+    def test_space_encoding_uses_shared_methods(self):
+        from iam_engine.v4.codec import SpaceResourceCodec
+
+        self.assertIs(BklogNameCodec.encode_resource_id, SpaceResourceCodec.encode_resource_id)
+        self.assertIs(BklogNameCodec.decode_resource_id, SpaceResourceCodec.decode_resource_id)
 
     def test_encode_action_strips_v2_suffix(self):
         self.assertEqual(self.codec.encode_action("view_collection_v2"), "view_collection")
@@ -22,10 +28,10 @@ class BklogNameCodecTest(SimpleTestCase):
     def test_encode_action_keeps_action_without_v2_suffix(self):
         self.assertEqual(self.codec.encode_action("manage_desensitize_rule"), "manage_desensitize_rule")
 
-    def test_negative_space_id_uses_reversible_iam_safe_encoding(self):
+    def test_negative_space_id_keeps_original_numeric_string(self):
         encoded = self.codec.encode_resource_id("space", "-5423")
 
-        self.assertEqual(encoded, "neg_5423")
+        self.assertEqual(encoded, "-5423")
         self.assertEqual(self.codec.decode_resource_id("space", encoded), "-5423")
 
     def test_space_id_encoding_keeps_positive_ids_and_other_resource_types(self):
@@ -63,7 +69,7 @@ class BklogNameCodecTest(SimpleTestCase):
             attributes={"_bk_iam_path_": "/space,-5423/"},
         )
 
-        self.assertEqual(self.codec.build_ancestors(resource), [{"type": "space", "id": "neg_5423"}])
+        self.assertEqual(self.codec.build_ancestors(resource), [{"type": "space", "id": "-5423"}])
 
     def test_build_ancestors_uses_resource_type_from_iam_path(self):
         resource = ResourceInstance(
@@ -120,7 +126,7 @@ class BklogNameCodecTest(SimpleTestCase):
     def test_encode_negative_space_resource_for_auth(self):
         resource = ResourceInstance(type="space", id="-5423")
 
-        self.assertEqual(self.codec.encode_resource_for_auth(resource), {"id": "neg_5423", "attributes": {}})
+        self.assertEqual(self.codec.encode_resource_for_auth(resource), {"id": "-5423", "attributes": {}})
 
     def test_encode_auth_resource_encodes_negative_space_id_in_path(self):
         resource = ResourceInstance(
@@ -131,7 +137,7 @@ class BklogNameCodecTest(SimpleTestCase):
 
         self.assertEqual(
             self.codec.encode_resource_for_auth(resource),
-            {"id": "28", "attributes": {"_bk_iam_path_": "/space,neg_5423/"}},
+            {"id": "28", "attributes": {"_bk_iam_path_": "/space,-5423/"}},
         )
 
     def test_build_ancestors_accepts_path_collection(self):
@@ -165,7 +171,7 @@ class BklogNameCodecTest(SimpleTestCase):
 
         self.assertEqual(
             self.codec.encode_resource_for_apply(resource),
-            {"type": "space", "id": "neg_5423"},
+            {"type": "space", "id": "-5423"},
         )
 
 
@@ -210,7 +216,7 @@ class V4PermissionProviderTest(SimpleTestCase):
         self.client.direct_auth.assert_called_once_with(
             subject={"type": "user", "id": "admin"},
             action_id="view_business",
-            resource={"id": "neg_5423", "attributes": {}},
+            resource={"id": "-5423", "attributes": {}},
         )
 
     def test_single_deny_result(self):
@@ -262,7 +268,7 @@ class V4PermissionProviderTest(SimpleTestCase):
         self.client.direct_auth.assert_not_called()
 
     def test_batch_maps_encoded_negative_space_result_back_to_local_id(self):
-        self.client.direct_auth_by_resources.return_value = {"neg_5423": True}
+        self.client.direct_auth_by_resources.return_value = {"-5423": True}
         request = BatchAuthRequest(
             subject=Subject(id="admin"),
             action_ids=(ActionEnum.VIEW_BUSINESS,),
@@ -437,11 +443,11 @@ class V4PermissionProviderTest(SimpleTestCase):
         permissions = self.client.generate_perm_apply_url.call_args.kwargs["permissions"]
         self.assertEqual(
             permissions,
-            [{"action_id": "view_business", "resources": [{"type": "space", "id": "neg_5423"}]}],
+            [{"action_id": "view_business", "resources": [{"type": "space", "id": "-5423"}]}],
         )
         self.assertEqual(
             apply_data["actions"][0]["related_resource_types"][0]["instances"][0][0]["id"],
-            "neg_5423",
+            "-5423",
         )
 
     def test_apply_data_propagates_v4_error(self):
@@ -585,11 +591,11 @@ class V4PermissionProviderTest(SimpleTestCase):
                         {
                             "type": "collection",
                             "id": "17",
-                            "ancestors": [{"type": "space", "id": "neg_5423"}],
+                            "ancestors": [{"type": "space", "id": "-5423"}],
                         }
                     ],
                 },
-                {"action_id": "view_business", "resources": [{"type": "space", "id": "neg_5423"}]},
+                {"action_id": "view_business", "resources": [{"type": "space", "id": "-5423"}]},
             ],
         )
 
@@ -711,11 +717,21 @@ class V4PermissionProviderTest(SimpleTestCase):
 
     def test_list_authorized_resources_decodes_negative_space_ids(self):
         self.client.username = "admin"
-        self.client.list_authorized_resource.return_value = {"type": "space", "ids": ["neg_5423", "2"]}
+        self.client.list_authorized_resource.return_value = {"type": "space", "ids": ["-5423", "2"]}
 
         scope = self.provider.list_authorized_resources(action_id="view_business")
 
         self.assertEqual(scope.ids, frozenset({"-5423", "2"}))
+
+    def test_list_authorized_resources_does_not_merge_old_prefixes(self):
+        self.client.username = "admin"
+        self.client.list_authorized_resource.return_value = {"type": "space", "ids": ["neg_5423", "space|-5423"]}
+
+        scope = self.provider.list_authorized_resources(action_id="view_business")
+
+        self.assertTrue(scope.ok)
+        self.assertEqual(scope.ids, frozenset({"neg_5423", "space|-5423"}))
+        self.assertNotIn("-5423", scope.ids)
 
     def test_list_authorized_resources_returns_wildcard_scope(self):
         self.client.username = "admin"

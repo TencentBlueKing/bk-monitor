@@ -114,9 +114,9 @@ export default defineComponent({
     if (props.id && String(props.id).length < 11) {
       idResolving.value = true;
       idResolvePromise = getIncidentDocId({ incident_id: props.id })
-        .then(res => {
+        .then(async res => {
           resolvedId.value = res.id;
-          router.replace({
+          await router.replace({
             name: route.name as string,
             params: { ...route.params, id: res.id },
             query: { ...route.query },
@@ -157,6 +157,22 @@ export default defineComponent({
     const isShowDiagnosis = shallowRef(false);
     const currentAlertList = deepRef({});
     const isCollapsed = deepRef(false);
+
+    // 短 ID 解析期间内容组件尚未挂载，待其可用后再消费外部指定的页签。
+    watch(
+      [refContent, () => route.query.activeTab],
+      ([content, queryTab]) => {
+        const activeTab = Array.isArray(queryTab) ? queryTab[0] : queryTab;
+        if (!content || !activeTab) return;
+        if (activeTab === 'FailureTopo' || activeTab === 'FailureView') {
+          content.handleChangeActive(activeTab);
+        }
+        const restQuery = { ...route.query };
+        delete restQuery.activeTab;
+        router.replace({ query: restQuery });
+      },
+      { flush: 'post' }
+    );
 
     const { updateAlarmDetailShow, alarmDetailShow, alarmDetailData } = useIncidentAlarmDetail();
 
@@ -355,18 +371,6 @@ export default defineComponent({
           getIncidentOperations();
           getIncidentOperationTypes();
           handleGetSearchTopNList();
-          /** 仅处理外部指定的一级 Tab；未指定时由 FailureContent 按原有规则决定默认 Tab */
-          const activeTab = Array.isArray(route.query?.activeTab) ? route.query.activeTab[0] : route.query?.activeTab;
-          if (activeTab) {
-            if (['FailureTopo', 'FailureView'].includes(activeTab)) {
-              changeTab(activeTab);
-            }
-            nextTick(() => {
-              const restQuery = { ...route.query };
-              delete restQuery.activeTab;
-              router.replace({ query: restQuery });
-            });
-          }
         })
         .catch(err => {
           console.log(err);
@@ -452,8 +456,8 @@ export default defineComponent({
     const handleChangeSpace = (space: string[]) => {
       bkzIds.value = space || [window.bk_biz_id];
     };
-    const changeTab = (activeTab = 'FailureView') => {
-      refContent.value?.handleChangeActive(activeTab);
+    const changeTab = () => {
+      refContent.value?.handleChangeActive('FailureView');
     };
     const goAlertList = data => {
       refContent.value?.goAlertDetail(data);

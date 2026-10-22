@@ -6,7 +6,8 @@ from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
 from bkmonitor.utils.request import get_request_username
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from kernel_api.resource.log_collection_common import StrictMCPSerializer, normalize_json_list, normalize_json_object
 
 SUPPORTED_ETL_CONFIGS = (

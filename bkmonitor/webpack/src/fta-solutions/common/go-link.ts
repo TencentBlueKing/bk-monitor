@@ -23,6 +23,8 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
+import { resolveLegacyHostHash } from 'monitor-pc/common/legacy-host-url';
+
 type LogSearchFunction = (indexSetId: number, bizId: number, params: any) => void;
 
 const { bklogsearch_host: bklogsearchHost } = window;
@@ -51,7 +53,8 @@ type PerformanceDetailFunction = (bizId: number, id: string) => void;
  * @param id
  */
 const toPerformanceDetail: PerformanceDetailFunction = (bizId, id) => {
-  window.open(`${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}#/performance/detail/${id}`);
+  const hash = resolveLegacyHostHash({ id });
+  window.open(`${origin}${location.pathname.toString().replace('fta/', '')}?bizId=${bizId}${hash}`);
 };
 
 /**

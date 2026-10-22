@@ -186,7 +186,7 @@ class V4ClientTest(SimpleTestCase):
         self.client.generate_perm_apply_url(permissions=permissions)
 
         sent_resources = request_mock.call_args.kwargs["json"]["permissions"][0]["resources"]
-        self.assertEqual(sent_resources[0]["ancestors"], [{"type": "space", "id": "neg_5423"}])
+        self.assertEqual(sent_resources[0]["ancestors"], [{"type": "space", "id": "-5423"}])
         self.assertEqual(permissions[0]["resources"][0]["ancestors"], [{"type": "space", "id": "-5423"}])
 
     @patch("apps.iam.backends.v4.client.requests.request")
@@ -310,7 +310,7 @@ class V4ClientTest(SimpleTestCase):
         self.client.add_authorization(items=items, operator="colecai")
 
         sent_items = request_mock.call_args.kwargs["json"]
-        self.assertEqual(sent_items[0]["resources"], [{"type": "space", "id": "neg_5423"}])
+        self.assertEqual(sent_items[0]["resources"], [{"type": "space", "id": "-5423"}])
         self.assertEqual(items[0]["resources"], [{"type": "space", "id": "-5423"}])
 
     @patch("apps.iam.backends.v4.client.requests.request")
@@ -460,7 +460,7 @@ class V4ClientTest(SimpleTestCase):
 
     def test_list_authorized_resource_mixed_wildcard_collapses_to_wildcard(self):
         result = self.client._extract_authorized_resource_scope(
-            [{"type": "space", "ids": ["*", "2", "neg_637836"]}],
+            [{"type": "space", "ids": ["*", "2", "-637836"]}],
             resource_type="space",
         )
         self.assertEqual(result, {"type": "space", "ids": ["*"]})

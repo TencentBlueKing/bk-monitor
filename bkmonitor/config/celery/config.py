@@ -149,6 +149,12 @@ class Config:
             "schedule": crontab(minute="*/30"),
             "enabled": True,
         },
+        # 主动 Profiling 过期停用先不调度，测试环境手动验证后再打开
+        # "apm_web.tasks.stop_expired_active_profiling_tasks": {
+        #     "task": "apm_web.tasks.stop_expired_active_profiling_tasks",
+        #     "schedule": crontab(minute=30, hour=2),  # 每天凌晨2点半执行
+        #     "enabled": True,
+        # },
         "fta_web.tasks.sync_tapd_issue_status": {
             "task": "fta_web.tasks.sync_tapd_issue_status",
             "schedule": crontab(minute="*/10"),

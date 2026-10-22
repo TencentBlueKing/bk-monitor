@@ -23,16 +23,19 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { defineComponent } from 'vue';
+import { defineComponent, useTemplateRef } from 'vue';
 import type { PropType } from 'vue';
 
 import { useI18n } from 'vue-i18n';
+
+import { useHoverInfo } from '../../composables/use-hover-info';
+import HoverInfo from '../hover-info/hover-info';
 
 import type { IRumTimelineViewVM } from '../../typings';
 
 import './timeline-view-header.scss';
 
-/** 链路上下文顶部的 View 头部：路由标题、路由类型、CLS、请求数、操作数与停留时长 */
+/** 链路上下文顶部的 View 头部：路由标题、路由类型、Web Vitals 指标、请求数、操作数与停留时长 */
 export default defineComponent({
   name: 'TimelineViewHeader',
   props: {
@@ -40,9 +43,27 @@ export default defineComponent({
       type: Object as PropType<IRumTimelineViewVM>,
       required: true,
     },
+    spanType: {
+      type: String,
+    },
+    /** 卡片是否展开：折叠时只保留头部摘要 */
+    expanded: {
+      type: Boolean,
+      default: true,
+    },
   },
-  setup(props) {
+  emits: {
+    /** 点击右上角按钮，切换卡片展开 / 折叠 */
+    toggle: () => true,
+    /** 点击「View 详情」，打开该 View 的详情抽屉 */
+    viewClick: (_view: IRumTimelineViewVM) => true,
+  },
+  setup(props, { emit }) {
     const { t } = useI18n();
+
+    const hoverInfoRef = useTemplateRef<HTMLDivElement>('hoverInfo');
+    /** hover 指标时展示 hover-info 卡片，无 hover 数据的元素不加事件 */
+    const { hoverBindings, hoverData } = useHoverInfo();
 
     /** 数字加粗的统计项，如「42 个请求」 */
     function renderMetric(key: string, keypath: string, value: number | string) {
@@ -60,23 +81,26 @@ export default defineComponent({
     return () => {
       const { data } = props;
       const metrics = [
-        data.cls ? (
+        ...data.vitalMetrics.map(vital => (
           <span
-            key='cls'
-            style={{ color: data.cls.color }}
-            class='view-cls'
-            v-bk-tooltips={{ content: data.cls.tip }}
+            key={vital.key}
+            style={{ color: vital.color }}
+            class='vital-metric'
+            {...hoverBindings(hoverInfoRef.value, vital.hover)}
           >
-            {data.cls.text}
+            {vital.text}
           </span>
-        ) : null,
+        )),
         renderMetric('request', '{0} 个请求', data.requestCount),
         renderMetric('action', '{0} 个操作', data.actionCount),
         data.durationText ? renderMetric('duration', '停留 {0}', data.durationText) : null,
       ].filter(Boolean);
 
       return (
-        <div class='timeline-view-header'>
+        <div
+          class={{ 'timeline-view-header': true, 'is-collapsed': !props.expanded }}
+          onClick={() => emit('toggle')}
+        >
           <div class='view-title-row'>
             <span
               class='view-title'
@@ -85,11 +109,36 @@ export default defineComponent({
               {data.title}
             </span>
             {data.isCurrent ? <span class='current-span-tag'>{t('当前 Span')}</span> : null}
+            {props.spanType !== 'view' && (
+              <span
+                class='view-detail-link'
+                onClick={() => emit('viewClick', data)}
+              >
+                <i class='icon-monitor icon-xiangqing1' />
+                {t('View 详情')}
+              </span>
+            )}
           </div>
           <div class='view-detail'>
             {data.loadingType ? <span class='view-loading-type'>{data.loadingType}</span> : null}
             {/* 每个统计项前带分隔点，没有路由类型标签时首项不带 */}
-            {metrics.map((metric, index) => [index > 0 || data.loadingType ? <i class='view-dot' /> : null, metric])}
+            {metrics.map((metric, index) => [
+              index > 0 || data.loadingType ? (
+                <i
+                  key={`dot-${index}`}
+                  class='view-dot'
+                />
+              ) : null,
+              metric,
+            ])}
+          </div>
+          <div class='view-expand-btn'>
+            <i class={['icon-monitor icon-arrow-right-copy', { expand: props.expanded }]} />
+          </div>
+          <div style='display: none'>
+            <div ref='hoverInfo'>
+              <HoverInfo data={hoverData.value} />
+            </div>
           </div>
         </div>
       );

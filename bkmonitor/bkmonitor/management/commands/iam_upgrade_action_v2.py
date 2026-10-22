@@ -24,6 +24,7 @@ import time
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
+from iam import IAM
 from iam.api.http import http_post
 from iam.auth.models import Action
 from iam.auth.models import ApiBatchAuthRequest as OldApiBatchAuthRequest
@@ -35,7 +36,6 @@ from apm_web.models import Application
 from bkm_space.api import SpaceApi
 from bkmonitor.iam import ActionEnum, Permission, ResourceEnum
 from bkmonitor.iam.action import ActionMeta, get_action_by_id
-from bkmonitor.iam.compatible import CompatibleIAM
 from bkmonitor.utils.thread_backend import ThreadPool
 from constants.common import DEFAULT_TENANT_ID
 
@@ -104,7 +104,7 @@ class Command(BaseCommand):
             for app in Application.objects.values("application_id", "app_alias")
         }
 
-        self.iam_client: CompatibleIAM | None = None
+        self.iam_client: IAM | None = None
         self.system_id = settings.BK_IAM_SYSTEM_ID
         self.username = ""
 

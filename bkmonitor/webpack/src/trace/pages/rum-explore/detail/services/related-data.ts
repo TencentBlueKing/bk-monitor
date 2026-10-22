@@ -211,7 +211,7 @@ export async function getLongTaskRelated(
 }
 
 /**
- * @description View 详情的关联数据：统计当前视图下触发的请求数（xhr / fetch）、错误数与 Span 总数
+ * @description View 详情的关联数据：统计当前视图下触发的请求数（xhr / fetch）、错误数与动作数
  * 按 view.id + session.id 定位，查询时间范围按协议取 [end_time - 1d, end_time + 1d]，
  * session_id 缺失时不请求，卡片侧展示占位值
  */
@@ -250,10 +250,7 @@ export async function getViewRelated(
     fetchStatistics(context, mode, timeRange, {
       cal_type: 'count',
       field: 'attributes.span_type',
-      filters: [
-        ...baseFilters,
-        { key: 'attributes.span_type', operator: 'not_equal', value: ['view', 'vital', 'session'] },
-      ],
+      filters: [...baseFilters, { key: 'attributes.span_type', operator: 'equal', value: ['action'] }],
       group_by: [],
     }),
   ]);

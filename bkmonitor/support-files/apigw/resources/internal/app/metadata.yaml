@@ -1449,6 +1449,26 @@ paths:
           userVerifiedRequired: false
           resourcePermissionRequired: true
         descriptionEn: get space detail
+  /app/metadata/get_negative_space_id_related_info/:
+    get:
+      operationId: metadata_get_negative_space_id_related_info
+      description: 获取负数空间ID相关信息
+      tags:
+      - metadata
+      x-bk-apigateway-resource:
+        isPublic: false
+        allowApplyPermission: true
+        matchSubpath: false
+        backend:
+          name: default
+          method: get
+          path: /api/v3/meta/get_negative_space_id_related_info/
+          matchSubpath: false
+        authConfig:
+          appVerifiedRequired: true
+          userVerifiedRequired: false
+          resourcePermissionRequired: true
+        descriptionEn: get negative space id related info
   /app/metadata/list_sticky_spaces/:
     get:
       operationId: metadata_list_sticky_spaces

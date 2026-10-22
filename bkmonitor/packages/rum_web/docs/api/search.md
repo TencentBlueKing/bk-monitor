@@ -1157,11 +1157,12 @@ POST /rum/search/record_detail/
         "unit": "ms",
         "total_duration": 128,
         "phases": [
+          {"key": "redirect", "alias": "重定向", "start": 0, "duration": 10},
           {
             "key": "prepare",
-            "alias": "浏览器准备",
-            "start": 0,
-            "duration": 1.2,
+            "alias": "发起前等待",
+            "start": 10,
+            "duration": 2,
             "hover": {
               "title": "发起前等待",
               "description": "浏览器在发起网络请求前处理重定向、缓存、Service Worker 或连接复用等准备工作。",
@@ -1172,11 +1173,11 @@ POST /rum/search/record_detail/
               }
             }
           },
-          {"key": "dns", "alias": "DNS", "start": 1.2, "duration": 3.8},
-          {"key": "connect", "alias": "TCP", "start": 5, "duration": 4.1},
-          {"key": "tls", "alias": "TLS", "start": 9.1, "duration": 5.9},
-          {"key": "first_byte", "alias": "等待首字节", "start": 15, "duration": 86.7},
-          {"key": "download", "alias": "内容下载", "start": 101.7, "duration": 26.3}
+          {"key": "dns", "alias": "DNS", "start": 15, "duration": 5},
+          {"key": "connect", "alias": "连接建立", "start": 20, "duration": 8},
+          {"key": "tls", "alias": "TLS", "start": 28, "duration": 7},
+          {"key": "first_byte", "alias": "等待首字节", "start": 35, "duration": 45},
+          {"key": "download", "alias": "内容下载", "start": 80, "duration": 20}
         ]
       }
     }
@@ -1230,7 +1231,7 @@ POST /rum/search/record_detail/
     {
       "key": "loading_timing",
       "type": "waterfall"
-      // data 结构同示例 1，包含 DNS、TCP、TLS 等完整阶段，取当前资源的时序值。
+      // data 结构同示例 1，具体阶段随资源加载情况（跨域不可见、Service Worker、缓存、连接复用、网络请求）而变化，取当前资源的时序值。
     }
   ]
 }
@@ -1590,7 +1591,7 @@ POST /rum/search/timeline/
 | 参数名称 | 类型 | 描述 |
 |----------|------|------|
 | span_id | String | 对应 `records[].span_id` |
-| children | Array[Node] | 可选，子节点，按开始时间升序 |
+| children | Array[Node] | [a] 可选，按开始时间升序<br />[b] 同一 View 内，非 Action 成员的 `attributes.action.id` 命中 Action 时挂到该 Action，否则挂到 View<br />[c] Action 只作为 View 的直接子节点 |
 
 ```json
 {
@@ -1600,9 +1601,11 @@ POST /rum/search/timeline/
     {
       "span_id": "34e3b6ff1943346c",
       "children": [
-        {"span_id": "e121536e5ae785a0", "children": [{"span_id": "7d2f09b6f8bc31aa"}]},
+        {
+          "span_id": "e121536e5ae785a0",
+          "children": [{"span_id": "7d2f09b6f8bc31aa"}, {"span_id": "c49ddfc2ac5214d7"}]
+        },
         {"span_id": "8e301ac709bd42bb"},
-        {"span_id": "c49ddfc2ac5214d7"},
         {"span_id": "9d199175096474e4"}
       ]
     }
