@@ -2,9 +2,11 @@
 
 import time
 from types import SimpleNamespace
+from unittest.mock import Mock
 
 import pytest
 from django.core.exceptions import PermissionDenied
+from django.test import RequestFactory
 
 from bkmonitor.iam.action import ActionEnum
 from kernel_api.middlewares import authentication
@@ -13,12 +15,15 @@ from kernel_api.views.v4 import mail_report
 
 @pytest.fixture
 def render_context(mocker):
-    request = SimpleNamespace(
-        META={"HTTP_BK_APP_CODE": "render-app"},
-        biz_id=None,
-        user=SimpleNamespace(username="admin", tenant_id="tenant-a"),
-        skip_check=True,
+    request = RequestFactory().post(
+        "/api/v4/render_image/render/",
+        data={},
+        content_type="application/json",
+        HTTP_BK_APP_CODE="render-app",
     )
+    request.biz_id = None
+    request.user = SimpleNamespace(username="admin", tenant_id="tenant-a")
+    request.skip_check = True
     mocker.patch.object(mail_report, "get_request", return_value=request)
     mocker.patch.object(mail_report, "get_request_tenant_id", return_value="tenant-a")
     mocker.patch.object(authentication, "APP_CODE_TOKENS", {"tenant-a": {"render-app": ["biz#2"]}})
@@ -120,3 +125,60 @@ def test_app_authorization_does_not_bypass_dashboard_permission(render_context):
 
     with pytest.raises(PermissionDenied, match="view this dashboard"):
         validate_render()
+
+
+@pytest.mark.parametrize("bk_biz_id", [2, "2", -2, "-2"])
+def test_accepts_existing_business_id_formats(render_context, bk_biz_id):
+    authentication.APP_CODE_TOKENS["tenant-a"]["render-app"] = ["biz#2", "biz#-2"]
+
+    assert validate_render(bk_biz_id)["options"]["bk_biz_id"] == int(bk_biz_id)
+
+
+def test_authorized_gateway_app_is_not_rejected_by_header_identity(render_context):
+    request, _ = render_context
+    request.jwt = authentication.BkJWTClient.AttrDict(app=authentication.BkJWTClient.AttrDict(app_code="render-app"))
+    request.META["HTTP_BK_APP_CODE"] = "restricted-app"
+    authentication.APP_CODE_TOKENS["tenant-a"]["restricted-app"] = ["biz#3"]
+
+    assert validate_render()["options"]["bk_biz_id"] == 2
+
+
+@pytest.mark.parametrize("configured", [False, True])
+def test_loads_current_tenant_authorizations_on_first_request(render_context, mocker, configured):
+    authentication.APP_CODE_TOKENS.clear()
+    authentication.APP_CODE_UPDATE_TIME.clear()
+    records = [SimpleNamespace(params={"app_code": "render-app"}, namespaces=["biz#2"])] if configured else []
+    query = mocker.patch.object(authentication.ApiAuthToken.objects, "filter", return_value=records)
+
+    assert validate_render()["options"]["bk_biz_id"] == 2
+
+    query.assert_called_once_with(type=authentication.AuthType.API, bk_tenant_id="tenant-a")
+
+
+def test_preserves_authenticated_bearer_token_authorization(render_context, mocker):
+    request, permission = render_context
+    request.META["HTTP_AUTHORIZATION"] = "Bearer share-token"
+    request.biz_id = 3
+    record = SimpleNamespace(
+        type="dashboard",
+        namespaces=["biz#3"],
+        is_expired=Mock(return_value=False),
+        is_allowed_view=Mock(return_value=True),
+        is_allowed_namespace=Mock(side_effect=lambda namespace: namespace == "biz#3"),
+    )
+    mocker.patch.object(authentication.ApiAuthToken.objects, "get", return_value=record)
+
+    middleware = authentication.AuthenticationMiddleware(lambda _: None)
+    assert middleware._handle_api_token_auth(request, Mock()) is None
+    assert request.token == "share-token"
+    assert validate_render(bk_biz_id=3)["options"]["bk_biz_id"] == 3
+    record.is_allowed_namespace.assert_called_once_with("biz#3")
+    permission.batch_is_allowed.assert_called_once()
+
+
+def test_bearer_header_alone_does_not_skip_app_authorization(render_context):
+    request, _ = render_context
+    request.META["HTTP_AUTHORIZATION"] = "Bearer unverified-token"
+
+    with pytest.raises(PermissionDenied, match="access this business"):
+        validate_render(bk_biz_id=3)

@@ -205,7 +205,8 @@ class RenderImageResource(Resource):
             def validate(self, attrs):
                 # 业务 ID 位于 options 中，需按实际渲染业务补充应用授权校验。
                 request = get_request(peaceful=True)
-                if request:
+                # 已认证的分享令牌使用独立授权规则，不叠加应用授权限制。
+                if request and not getattr(request, "token", None):
                     jwt_app = getattr(getattr(request, "jwt", None), "app", None)
                     app_code = getattr(jwt_app, "app_code", None) or get_app_code_by_request(request)
                     if app_code:
