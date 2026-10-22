@@ -314,7 +314,7 @@ class FinalizationNotificationTests(TestCase):
     """收尾成功只落终态，发信交给扫描，避免收尾 worker 阻塞在通知链路上。"""
 
     def test_finalize_export_leaves_the_job_for_the_scan(self, send_mock):
-        job = make_job(status=ExportJobStatus.RUNNING, actual_total=1, end_time=1000)
+        job = make_job(status=ExportJobStatus.RUNNING, index_set_ids=[1], actual_total=1, end_time=1000)
         ExportPart.objects.create(
             job=job,
             part_no=1,

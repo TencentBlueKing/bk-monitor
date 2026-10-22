@@ -23,7 +23,7 @@ import hashlib
 import tempfile
 from pathlib import Path
 
-from apps.log_search.export.storage import build_storage, merged_name
+from apps.log_search.export.storage import build_storage
 
 
 class _DigestWriter:
@@ -48,10 +48,10 @@ def merge_export_parts(job, parts):
     内存占用与单次读块同阶。返回 (object_key, bytes, checksum)。
     """
     storage = build_storage(external=job.is_external)
-    name = merged_name(job)
+    name = job.merged_object_key
     digest = hashlib.sha256()
     with tempfile.TemporaryDirectory(prefix=f"bklog-export-merge-{job.pk}-") as directory:
-        path = Path(directory) / "full.jsonl.gz"
+        path = Path(directory) / Path(name).name
         with path.open("wb") as raw:
             writer = _DigestWriter(raw, digest)
             for part in parts:

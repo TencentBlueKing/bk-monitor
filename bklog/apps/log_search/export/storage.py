@@ -19,12 +19,18 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+import arrow
+from django.utils.crypto import get_random_string
+
 from apps.constants import RemoteStorageType
 from apps.feature_toggle.handlers.toggle import FeatureToggleObject
 from apps.log_search.constants import (
+    ASYNC_APP_CODE,
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
     FEATURE_ASYNC_EXPORT_STORAGE_TYPE,
+    ExportSearchType,
+    IndexSetType,
 )
 from apps.utils.remote_storage import StorageType
 
@@ -69,8 +75,16 @@ def artifact_name(job, part, attempts):
 
 
 def merged_name(job):
-    """整包合并产物名，是单文件下载的入口对象。"""
-    return f"{job_object_prefix(job.pk)}full.jsonl.gz"
+    """沿用旧版导出命名规则，扩展名保留实际的 JSONL gzip 格式。"""
+    random_hash = get_random_string(length=10)
+    time_now = arrow.now().format("YYYYMMDDHHmmss")
+    if job.search_type == ExportSearchType.SCENE:
+        prefix = f"{ASYNC_APP_CODE}_scene_{job.bk_biz_id or 0}"
+    elif job.index_set_type == IndexSetType.UNION.value:
+        prefix = ASYNC_APP_CODE
+    else:
+        prefix = f"{ASYNC_APP_CODE}_{job.index_set_ids[0]}"
+    return f"{job_object_prefix(job.pk)}{prefix}_{time_now}_{random_hash}.jsonl.gz"
 
 
 def manifest_name(job):
