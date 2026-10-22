@@ -1265,6 +1265,7 @@ class SearchDynamicGroup(Resource):
                                 "bk_biz_id": params["bk_biz_id"],
                                 "id": dg["id"],
                                 "fields": [instance_field],
+                                "page": {"sort": instance_field},
                             },
                         },
                     )
@@ -1327,7 +1328,12 @@ class ExecuteDynamicGroup(Resource):
 
         instances = batch_request(
             client.execute_dynamic_group,
-            params={"bk_biz_id": params["bk_biz_id"], "id": params["id"], "fields": fields},
+            params={
+                "bk_biz_id": params["bk_biz_id"],
+                "id": params["id"],
+                "fields": fields,
+                "page": {"sort": "bk_host_id" if params["bk_obj_id"] == "host" else "bk_set_id"},
+            },
         )
 
         if params["bk_obj_id"] == "host":

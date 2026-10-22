@@ -40,6 +40,8 @@ class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
     return_type = list
     # CMDB API 已在请求头的 x-bkapi-authorization 中包含了 bk_username，不需要在请求参数中重复添加
     INSERT_BK_USERNAME_TO_REQUEST_DATA = False
+    # 分页缺省排序在 CMDB 侧不唯一或没有排序，跨页会漏查或重复，分页接口需声明唯一字段排序
+    page_sort = ""
 
     def use_apigw(self):
         """
@@ -65,6 +67,9 @@ class CMDBBaseResource(APIResource, metaclass=abc.ABCMeta):
         setattr(self, "bk_username", get_backend_username(bk_tenant_id=self.bk_tenant_id))
         validated_request_data = super().full_request_data(validated_request_data)
         validated_request_data.update(bk_supplier_account=settings.BK_SUPPLIER_ACCOUNT)
+        page = validated_request_data.get("page")
+        if self.page_sort and isinstance(page, dict) and not page.get("sort"):
+            validated_request_data["page"] = {**page, "sort": self.page_sort}
         # 业务id判定
         if "bk_biz_id" not in validated_request_data:
             return validated_request_data
@@ -91,6 +96,7 @@ class SearchSet(CMDBBaseResource):
 
     cache_type = CacheType.CC_BACKEND
     method = "POST"
+    page_sort = "bk_set_id"
 
     @property
     def action(self):
@@ -113,6 +119,7 @@ class SearchModule(CMDBBaseResource):
         )
 
     method = "POST"
+    page_sort = "bk_module_id"
 
     def get_request_url(self, params: dict):
         if "bk_set_id" not in params:
@@ -260,14 +267,7 @@ class ListServiceInstanceDetail(CMDBBaseResource):
         )
 
     method = "POST"
-
-    def full_request_data(self, validated_request_data):
-        validated_request_data = super().full_request_data(validated_request_data)
-        # CMDB 缺省按可重复的 create_time 排序，跨页会漏查或重复，分页必须指定唯一字段排序
-        page = validated_request_data.get("page")
-        if isinstance(page, dict) and not page.get("sort"):
-            validated_request_data["page"] = {**page, "sort": "-id"}
-        return validated_request_data
+    page_sort = "-id"
 
 
 class ListServiceInstanceBySetTemplate(CMDBBaseResource):
@@ -321,6 +321,7 @@ class SearchBusiness(CMDBBaseResource):
         return "/api/v3/biz/search/{bk_supplier_account}" if self.use_apigw() else "/search_business/"
 
     method = "POST"
+    page_sort = "bk_biz_id"
 
 
 def return_info_with_list(*args):
@@ -497,6 +498,7 @@ class SearchDynamicGroup(CMDBBaseResource):
         return "/api/v3/dynamicgroup/search/{bk_biz_id}" if self.use_apigw() else "/search_dynamic_group/"
 
     method = "POST"
+    page_sort = "id"
 
 
 class ExecuteDynamicGroup(CMDBBaseResource):
