@@ -31,6 +31,8 @@ import { useI18n } from 'vue-i18n';
 import { executionStatusLabels } from '../../utils/collection-history';
 import CommonStatus, { type CommonStatusType } from '@/components/common-detail/common-status/common-status';
 
+import './collection-execution-status.scss';
+
 const statusTypes: Record<string, CommonStatusType> = {
   succeed: 'success',
   failed: 'failed',

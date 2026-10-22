@@ -53,6 +53,9 @@ const collectionTabs = [
   { name: 'tasks', label: '任务管理' },
 ] as const;
 
+/** 表格固定配置项（表头吸顶、横向滚动条吸底），滚动容器为任务列表面板 .collection-task-panel */
+const taskTableAffixed = { container: '.collection-task-panel' };
+
 export default defineComponent({
   name: 'ProfilingCollection',
   props: {
@@ -114,10 +117,10 @@ export default defineComponent({
       );
     }
     const columns: TableProps['columns'] = [
-      { colKey: 'name', title: this.t('定时任务名称'), minWidth: 240, sorter: true, ellipsis: true, cell: 'taskName' },
+      { colKey: 'name', title: this.t('定时任务名称'), minWidth: 240, ellipsis: true, cell: 'taskName' },
       {
         colKey: 'schedule_type',
-        title: this.t('定时类型'),
+        title: this.t('定期类型'),
         width: 160,
         filter: {
           type: 'multiple' as const,
@@ -128,7 +131,7 @@ export default defineComponent({
       { colKey: 'schedule', title: this.t('执行时间'), minWidth: 220, sorter: true, cell: 'schedule' },
       {
         colKey: 'task_status',
-        title: this.t('启/停'),
+        title: this.t('启 / 停'),
         width: 100,
         filter: {
           type: 'multiple' as const,
@@ -142,13 +145,20 @@ export default defineComponent({
       { colKey: 'operations', title: this.t('操作'), width: 295, fixed: 'right', cell: 'operations' },
     ];
     const tableSlots = {
-      empty: () => (
-        <EmptyStatus
-          textMap={{ empty: this.t('暂无定时任务'), 'search-empty': this.t('暂无匹配任务') }}
-          type={state.keyword || state.scheduleTypes.length || state.statuses.length ? 'search-empty' : 'empty'}
-          onOperation={() => this.patch({ keyword: '', scheduleTypes: [], statuses: [] })}
-        />
-      ),
+      // 空态类型必须经 this.state 走 props 代理读取：slot 在表格渲染时执行，
+      // 闭包捕获的 state 是脱壳后的原生对象，读了不会被订阅
+      empty: () => {
+        const { keyword, scheduleTypes, statuses } = this.state;
+        return (
+          <div class='collection-task-empty'>
+            <EmptyStatus
+              textMap={{ empty: this.t('暂无定时任务'), 'search-empty': this.t('暂无匹配任务') }}
+              type={keyword || scheduleTypes.length || statuses.length ? 'search-empty' : 'empty'}
+              onOperation={() => this.patch({ keyword: '', scheduleTypes: [], statuses: [] })}
+            />
+          </div>
+        );
+      },
       taskName: ({ row }: { row: CollectionTask }) => (
         <Button
           theme='primary'
@@ -177,6 +187,7 @@ export default defineComponent({
           disabled={c.readonly || !!c.busy.value}
           modelValue={row.task_status === 'enabled'}
           size='small'
+          theme='primary'
           onChange={() => c.runAction(row, 'switch')}
         />
       ),
@@ -254,15 +265,17 @@ export default defineComponent({
               {collectionTabs.map(tab => (
                 <Tab.TabPanel
                   key={tab.name}
-                  label={() => (
-                    <span class='collection-tab-label'>
-                      <span
-                        class={['collection-tab-icon', `is-${tab.name}`]}
-                        aria-hidden='true'
-                      />
-                      {this.t(tab.label)}
-                    </span>
-                  )}
+                  v-slots={{
+                    label: () => (
+                      <span class='collection-tab-label'>
+                        <span
+                          class={['collection-tab-icon', `is-${tab.name}`]}
+                          aria-hidden='true'
+                        />
+                        {this.t(tab.label)}
+                      </span>
+                    ),
+                  }}
                   name={tab.name}
                 />
               ))}
@@ -271,18 +284,28 @@ export default defineComponent({
               <div class='collection-tab-panel collection-task-panel'>
                 <Alert
                   class='collection-task-guide'
-                  title={this.t(
-                    '新建任务：选择「立即执行」后进入采集任务历史；选择「指定时间 / 周期执行」后进入下方的定时任务列表。'
-                  )}
+                  v-slots={{
+                    title: () => (
+                      <i18n-t keypath='新建任务：如果选择 <{0}> 提交后将马上进入<采集任务历史>；如果选择 <{1} / {2}> 将进入下方的 <定时任务列表>。'>
+                        <b>{this.t('立即执行')}</b>
+                        <b>{this.t('指定时间')}</b>
+                        <b>{this.t('周期执行')}</b>
+                      </i18n-t>
+                    ),
+                  }}
                   theme='info'
                 />
                 <div class='collection-task-toolbar'>
                   <Button
+                    class='collection-task-toolbar-btn'
                     disabled={c.readonly || !c.meta.value}
                     theme='primary'
                     onClick={() => c.openEditor()}
                   >
-                    {this.t('新建任务')}
+                    <span class='collection-task-toolbar-btn-inner'>
+                      <i class='icon-monitor icon-a-1jiahao' />
+                      {this.t('新建应用')}
+                    </span>
                   </Button>
                   <Input
                     class='collection-task-search'
@@ -290,6 +313,7 @@ export default defineComponent({
                     placeholder={this.t('搜索任务名称')}
                     type='search'
                     clearable
+                    onClear={() => this.patch({ keyword: '' })}
                     onInput={keyword => this.patch({ keyword })}
                   />
                   <Button
@@ -306,15 +330,17 @@ export default defineComponent({
                     title={c.error.value}
                   />
                 )}
-                {c.loading.value ? (
-                  <CollectionSkeleton />
-                ) : (
-                  <>
+                <div class={['collection-task-table', { 'is-empty': !c.loading.value && !c.rows.value.length }]}>
+                  {c.loading.value ? (
+                    <CollectionSkeleton />
+                  ) : (
                     <PrimaryTable
                       v-slots={tableSlots}
                       columns={columns}
                       data={c.rows.value}
                       filterValue={{ schedule_type: state.scheduleTypes, task_status: state.statuses }}
+                      headerAffixedTop={taskTableAffixed}
+                      needCustomScroll={false}
                       rowKey='task_id'
                       size='small'
                       sort={state.sort || undefined}
@@ -326,22 +352,26 @@ export default defineComponent({
                       }
                       onSortChange={sort => this.patch({ sort: (Array.isArray(sort) ? sort[0] : sort) || null })}
                     />
-                    <Pagination
-                      class='collection-task-pagination'
-                      align='right'
-                      count={c.filtered.value.length}
-                      layout={['total', 'limit', 'list']}
-                      limit={c.pageSize.value}
-                      limitList={[10, 20, 50, 100]}
-                      modelValue={c.page.value}
-                      onChange={value => {
-                        c.page.value = value;
-                      }}
-                      onLimitChange={value => {
-                        c.pageSize.value = value;
-                      }}
-                    />
-                  </>
+                  )}
+                </div>
+                {!c.loading.value && !!c.rows.value.length && (
+                  <Pagination
+                    class='collection-task-pagination'
+                    align='right'
+                    count={c.filtered.value.length}
+                    layout={['total', 'limit', 'list']}
+                    limit={c.pageSize.value}
+                    limitList={[10, 20, 50, 100]}
+                    location='right'
+                    modelValue={c.page.value}
+                    small
+                    onChange={value => {
+                      c.page.value = value;
+                    }}
+                    onLimitChange={value => {
+                      c.pageSize.value = value;
+                    }}
+                  />
                 )}
               </div>
             ) : state.tab === 'history' ? (

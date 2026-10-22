@@ -45,6 +45,8 @@ import CollectionProcessSelector from './collection-process-selector';
 
 import type { CollectionMeta, CollectionTask } from '../../types/collection';
 
+import './collection-task-form.scss';
+
 export default defineComponent({
   name: 'CollectionTaskForm',
   props: {
@@ -156,7 +158,10 @@ export default defineComponent({
                                 f.hostSelectorOpen.value = true;
                               }}
                             >
-                              <img alt='' src={hostEditIcon} />
+                              <img
+                                alt=''
+                                src={hostEditIcon}
+                              />
                             </Button>
                             <i18n-t
                               keypath='已选择 {n} 个主机'
@@ -166,13 +171,30 @@ export default defineComponent({
                               {{ n: () => <strong>{d.hosts.length}</strong> }}
                             </i18n-t>
                           </span>
-                          <span class='collection-host-divider' aria-hidden='true' />
+                          <span
+                            class='collection-host-divider'
+                            aria-hidden='true'
+                          />
                           <span class='collection-host-health'>
-                            <span class='collection-host-status-icon' aria-hidden='true'>
-                              <img class='status-background' alt='' src={hostNormalBackground} />
-                              <img class='status-dot' alt='' src={hostNormalDot} />
+                            <span
+                              class='collection-host-status-icon'
+                              aria-hidden='true'
+                            >
+                              <img
+                                class='status-background'
+                                alt=''
+                                src={hostNormalBackground}
+                              />
+                              <img
+                                class='status-dot'
+                                alt=''
+                                src={hostNormalDot}
+                              />
                             </span>
-                            <i18n-t keypath='采集器正常 {n} / {total}' tag='span'>
+                            <i18n-t
+                              keypath='采集器正常 {n} / {total}'
+                              tag='span'
+                            >
                               {{
                                 n: () => <strong>{healthyHostCount}</strong>,
                                 total: () => d.hosts.length,
@@ -182,11 +204,15 @@ export default defineComponent({
                         </div>
                       ) : (
                         <Button
+                          class='collection-host-add'
                           onClick={() => {
                             f.hostSelectorOpen.value = true;
                           }}
                         >
-                          {this.t('添加主机')}
+                          <span class='collection-host-add-inner'>
+                            <i class='icon-monitor icon-a-1jiahao' />
+                            {this.t('添加主机')}
+                          </span>
                         </Button>
                       )}
                     </div>

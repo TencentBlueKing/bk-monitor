@@ -49,6 +49,8 @@ import type {
   CollectionResultSelection,
 } from '../../types/collection-history';
 
+import './collection-execution-detail.scss';
+
 // 详情加载完成前先用接口文档的默认列表撑起骨架
 const fallbackHostColumns: CollectionExecutionColumn[] = [
   { field: 'ip', name: '目标 IP', type: 'text' },
@@ -148,14 +150,14 @@ export default defineComponent({
       >
         {{
           header: () => (
-            <div class='collection-detail-header'>
+            <div class='collection-execution-detail-header'>
               <span>{this.t('任务执行详情')}</span>
               <span
                 class='collection-execution-title-divider'
                 aria-hidden='true'
               />
               <span
-                class='collection-detail-name'
+                class='collection-execution-detail-name'
                 title={execution.task_name}
               >
                 {execution.task_name}
@@ -164,7 +166,7 @@ export default defineComponent({
                 status={execution.execution_status}
                 tag
               />
-              <div class='collection-detail-actions'>
+              <div class='collection-execution-detail-actions'>
                 <Button
                   class='collection-execution-result-action'
                   v-tippy={this.t('查看本次执行各主机的采集结果')}
@@ -197,27 +199,31 @@ export default defineComponent({
                 }}
               >
                 <Tab.TabPanel
-                  label={() => (
-                    <span class='collection-execution-tab-label'>
-                      <i
-                        class='collection-execution-icon is-results'
-                        aria-hidden='true'
-                      />
-                      {this.t('执行结果')}
-                    </span>
-                  )}
+                  v-slots={{
+                    label: () => (
+                      <span class='collection-execution-tab-label'>
+                        <i
+                          class='collection-execution-icon is-results'
+                          aria-hidden='true'
+                        />
+                        {this.t('执行结果')}
+                      </span>
+                    ),
+                  }}
                   name='results'
                 />
                 <Tab.TabPanel
-                  label={() => (
-                    <span class='collection-execution-tab-label'>
-                      <i
-                        class='collection-execution-icon is-snapshot'
-                        aria-hidden='true'
-                      />
-                      {this.t('配置快照')}
-                    </span>
-                  )}
+                  v-slots={{
+                    label: () => (
+                      <span class='collection-execution-tab-label'>
+                        <i
+                          class='collection-execution-icon is-snapshot'
+                          aria-hidden='true'
+                        />
+                        {this.t('配置快照')}
+                      </span>
+                    ),
+                  }}
                   name='snapshot'
                 />
               </Tab>
