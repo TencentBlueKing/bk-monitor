@@ -261,6 +261,14 @@ class ListServiceInstanceDetail(CMDBBaseResource):
 
     method = "POST"
 
+    def full_request_data(self, validated_request_data):
+        validated_request_data = super().full_request_data(validated_request_data)
+        # CMDB 缺省按可重复的 create_time 排序，跨页会漏查或重复，分页必须指定唯一字段排序
+        page = validated_request_data.get("page")
+        if isinstance(page, dict) and not page.get("sort"):
+            validated_request_data["page"] = {**page, "sort": "-id"}
+        return validated_request_data
+
 
 class ListServiceInstanceBySetTemplate(CMDBBaseResource):
     """
