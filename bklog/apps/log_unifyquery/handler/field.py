@@ -141,7 +141,7 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
 
         return self.get_agg_value_by_agg_method(field_value_list, agg_method)
 
-    def get_topk_data(self, limit: int = 5):
+    def get_topk_data(self, limit: int = 5, raise_exception: bool = False):
         """获取 Top K 原始聚合结果，保留查询状态和结果表信息。"""
         search_dict = copy.deepcopy(self.result_merge_base_dict)
         for query in search_dict["query_list"]:
@@ -154,8 +154,14 @@ class UnifyQueryFieldHandler(UnifyQueryHandler):
                 {"field_name": self.search_params["agg_field"], "value": [""], "op": "ne"}
             )
         search_dict.update({"order_by": ["-_value"]})
-        data = self.query_ts_reference(search_dict)
-        data["series"] = sorted(data["series"], key=lambda x: x["values"][0][1], reverse=True)[:limit]
+        data = self.query_ts_reference(search_dict, raise_exception=raise_exception)
+        if not isinstance(data, dict):
+            data = {}
+        data["series"] = sorted(
+            data.get("series") or [],
+            key=lambda x: (x.get("values") or [[0, 0]])[0][1],
+            reverse=True,
+        )[:limit]
         return data
 
     def get_topk_list(self, limit: int = 5):

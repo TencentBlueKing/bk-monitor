@@ -34,9 +34,13 @@ class SceneFieldHandler(SceneUnifyQueryHandler):
     get_field_value_list = staticmethod(UnifyQueryFieldHandler.get_field_value_list)
 
     def analyze_field(self, group_by: bool = True, order_by: str = "time", limit: int | None = None) -> dict:
-        """适配 MCP 字段分析，Top K 复用页面已有的候选聚合口径。"""
+        """适配 MCP 字段分析。
+
+        Top K 复用基线页面口径：每表按 limit*2+10 取候选并过滤空值，
+        多表合并后按值排序取 K，结果为近似 Top K。
+        """
         if group_by and order_by == "value" and limit is not None:
-            return self.get_topk_data(limit)
+            return self.get_topk_data(limit, raise_exception=True)
 
         query_body = copy.deepcopy(self.result_merge_base_dict)
         for query in query_body["query_list"]:
@@ -50,7 +54,9 @@ class SceneFieldHandler(SceneUnifyQueryHandler):
         query_body["order_by"] = (
             ["-_value"] if order_by == "value" else ["-dtEventTimeStamp", "-gseIndex", "-iterationIndex"]
         )
-        result = self.query_ts_reference(query_body)
+        result = self.query_ts_reference(query_body, raise_exception=True)
+        if not isinstance(result, dict):
+            result = {}
         if group_by and limit is not None:
             result["series"] = (result.get("series") or [])[:limit]
         return result

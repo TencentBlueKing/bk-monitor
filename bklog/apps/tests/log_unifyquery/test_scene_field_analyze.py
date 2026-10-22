@@ -43,12 +43,12 @@ class TestSceneAnalyzeField(TestCase):
     def make_handler():
         return SceneFieldHandler({**PARAMS, "agg_field": "level", "interval": "5m"})
 
-    def test_endpoint_merges_expanded_candidates_and_preserves_unwrapped_data(self):
+    def test_endpoint_merges_per_table_candidates_and_preserves_unwrapped_data(self):
         table_counts = [{"A": 100, "X": 99}, {"B": 100, "X": 99}]
 
         def query_reference(query_body, *_args):
             merged_counts = Counter()
-            candidate_limit = query_body["query_list"][0]["limit"]
+            candidate_limit = query_body["query_list"][0].get("limit")
             for counts in table_counts:
                 merged_counts.update(dict(Counter(counts).most_common(candidate_limit)))
             payload = {
@@ -61,7 +61,7 @@ class TestSceneAnalyzeField(TestCase):
 
         request = APIRequestFactory().post(
             "/api/v1/search/scene/field/analyze/",
-            {**PARAMS, "field_name": "level", "order_by": "value", "limit": 1, "step": "5m"},
+            {**PARAMS, "field_name": "level", "order_by": "value", "limit": 2, "step": "5m"},
             format="json",
         )
         with (
@@ -73,13 +73,13 @@ class TestSceneAnalyzeField(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIs(response.data["result"], True)
         payload = response.data["data"]
-        self.assertEqual(payload["series"], [make_series("X", 198)])
+        self.assertEqual(payload["series"], [make_series("X", 198), make_series("A", 100)])
         self.assertEqual(payload["trace_id"], "scene-query")
         self.assertEqual(payload["result_table_id"], ["bklog_index_set_1", "bklog_index_set_2"])
         self.assertIs(payload["is_partial"], False)
         query_body = query.call_args.args[0]
         query_item = query_body["query_list"][0]
-        self.assertEqual(query_item["limit"], 12)
+        self.assertEqual(query_item["limit"], 14)
         self.assertEqual(query_item["table_id"], "")
         self.assertEqual(query_item["table_id_conditions"], SCENE_CONDITIONS)
         self.assertEqual(query_item["field_name"], "level")
@@ -90,17 +90,27 @@ class TestSceneAnalyzeField(TestCase):
         self.assertEqual(query_body["space_uid"], "bkcc__2")
         self.assertEqual(query_body["bk_biz_id"], 2)
 
-    def test_existing_topk_list_keeps_its_response_format(self):
+    def test_topk_reuses_baseline_candidate_aggregation(self):
         handler = self.make_handler()
         payload = {"series": [make_series("A", 100), make_series("X", 198), make_series("B", 50)]}
-        handler.query_ts_reference = Mock(side_effect=lambda _body: copy.deepcopy(payload))
+        handler.query_ts_reference = Mock(side_effect=lambda _body, **_kwargs: copy.deepcopy(payload))
 
         self.assertEqual(handler.get_topk_list(2), [["X", 198], ["A", 100]])
+        page_body = handler.query_ts_reference.call_args.args[0]
+
         self.assertEqual(
             handler.analyze_field(group_by=True, order_by="value", limit=2)["series"],
             [make_series("X", 198), make_series("A", 100)],
         )
-        self.assertEqual(handler.query_ts_reference.call_args_list[0], handler.query_ts_reference.call_args_list[1])
+        mcp_body = handler.query_ts_reference.call_args.args[0]
+
+        self.assertEqual(page_body, mcp_body)
+        self.assertEqual(mcp_body["query_list"][0]["limit"], 14)
+        self.assertIn(
+            {"field_name": "level", "value": [""], "op": "ne"},
+            mcp_body["query_list"][0]["conditions"]["field_list"],
+        )
+        self.assertIs(handler.query_ts_reference.call_args.kwargs["raise_exception"], True)
 
     def test_topk_preserves_empty_result_and_partial_status(self):
         handler = self.make_handler()
@@ -121,6 +131,7 @@ class TestSceneAnalyzeField(TestCase):
         self.assertEqual(query_item["function"], [{"method": "count"}])
         self.assertNotIn("limit", query_item)
         self.assertEqual(query_body["order_by"], ["-dtEventTimeStamp", "-gseIndex", "-iterationIndex"])
+        self.assertIs(handler.query_ts_reference.call_args.kwargs["raise_exception"], True)
 
     def test_distribution_does_not_add_a_candidate_limit(self):
         handler = self.make_handler()
@@ -141,17 +152,18 @@ class TestSceneAnalyzeField(TestCase):
             handler.analyze_field(group_by=True, order_by="time", limit=1)["series"], [make_series("A", 100)]
         )
 
-    def test_serializer_rejects_nonpositive_limits(self):
-        for limit in (0, -1):
+    def test_serializer_rejects_limits_out_of_range(self):
+        for limit in (0, -1, 1001):
             with self.subTest(limit=limit):
                 serializer = SceneAnalyzeFieldSerializer(data={**PARAMS, "field_name": "level", "limit": limit})
                 self.assertFalse(serializer.is_valid())
                 self.assertIn("limit", serializer.errors)
 
-    def test_verify_scene_permission_accepts_both_response_shapes(self):
+    def test_verify_scene_permission_prefers_top_level_result_table_id(self):
         for result in (
             {"result_table_id": ["bklog_index_set_1"]},
             {"data": {"result_table_id": ["bklog_index_set_1"]}},
+            {"result_table_id": ["top_level"], "data": {"result_table_id": ["nested"]}},
         ):
             with self.subTest(result=result):
                 handler = SceneUnifyQueryHandler.__new__(SceneUnifyQueryHandler)
@@ -159,4 +171,5 @@ class TestSceneAnalyzeField(TestCase):
 
                 handler._verify_scene_permission(result)
 
-                handler.verify_result_table_search_permission.assert_called_once_with(["bklog_index_set_1"])
+                expected = result.get("result_table_id") or result["data"]["result_table_id"]
+                handler.verify_result_table_search_permission.assert_called_once_with(expected)

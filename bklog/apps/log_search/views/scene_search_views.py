@@ -351,7 +351,7 @@ class SceneAnalyzeFieldSerializer(_SceneRouteMixin):
     field_name = serializers.CharField(required=True)
     group_by = serializers.BooleanField(required=False, default=True)
     order_by = serializers.ChoiceField(choices=["value", "time"], required=False, default="time")
-    limit = serializers.IntegerField(required=False, allow_null=True, min_value=1)
+    limit = serializers.IntegerField(required=False, allow_null=True, min_value=1, max_value=1000)
     step = serializers.CharField(required=False, default="1h", max_length=16)
     start_time = serializers.CharField(required=True)
     end_time = serializers.CharField(required=True)

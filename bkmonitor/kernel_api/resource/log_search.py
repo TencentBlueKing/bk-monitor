@@ -415,6 +415,9 @@ class FieldAnalyzeResource(Resource):
     """
     日志查询服务 -- 字段分析
 
+    target_type=index_set 时直查 unify-query；target_type=scene 时转调日志平台，
+    由日志平台按 table_id_conditions 路由多结果表并合并聚合结果后返回。
+
     支持多种字段分析场景：
     1. Top K 分析：按字段值分组统计，按值排序，限制条数
        示例：{"group_by": true, "order_by": "value", "limit": 20}
@@ -454,7 +457,9 @@ class FieldAnalyzeResource(Resource):
             default="time",
             label="排序方式：value-按值排序，time-按时间排序",
         )
-        limit = serializers.IntegerField(required=False, default=None, allow_null=True, label="限制返回条数")
+        limit = serializers.IntegerField(
+            required=False, default=None, allow_null=True, min_value=1, max_value=1000, label="限制返回条数"
+        )
         step = serializers.CharField(required=False, default="1h", label="时间步长")
         # 过滤条件，格式：{"field_list": [{"field_name": "xxx", "value": ["xxx"], "op": "eq"}], "condition_list": []}
         conditions = serializers.DictField(required=False, allow_null=True, label="过滤条件")

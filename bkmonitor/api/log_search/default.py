@@ -329,7 +329,9 @@ class SceneFieldAnalyzeResource(LogSearchAPIGWResource):
         keyword = serializers.CharField(required=False, default="*", allow_blank=True, label="查询字符串")
         group_by = serializers.BooleanField(required=False, default=True, label="是否按字段分组")
         order_by = serializers.ChoiceField(choices=["value", "time"], required=False, default="time", label="排序方式")
-        limit = serializers.IntegerField(required=False, allow_null=True, label="限制返回条数")
+        limit = serializers.IntegerField(
+            required=False, allow_null=True, min_value=1, max_value=1000, label="限制返回条数"
+        )
         step = serializers.CharField(required=False, default="1h", label="时间步长")
         start_time = serializers.CharField(label="开始时间")
         end_time = serializers.CharField(label="结束时间")
