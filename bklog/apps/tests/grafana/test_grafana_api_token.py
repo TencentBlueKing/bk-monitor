@@ -22,7 +22,7 @@ the project delivered to anyone in the future.
 from datetime import timedelta
 from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from apps.constants import ApiTokenAuthType
@@ -32,6 +32,13 @@ from apps.log_commons.token import CodeccTokenHandler, GrafanaTokenHandler, Toke
 from apps.log_commons.views import GetApiTokenViewSet
 
 
+@override_settings(
+    SESSION_ENGINE="django.contrib.sessions.backends.signed_cookies",
+    CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+        "login_db": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"},
+    },
+)
 class TestGrafanaApiToken(TestCase):
     """Grafana 数据源 token 鉴权"""
 
