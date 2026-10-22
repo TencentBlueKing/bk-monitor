@@ -33,7 +33,7 @@ import { useI18n } from 'vue-i18n';
 import { useCollectionExecution } from '../../composables/use-collection-execution';
 import { useCollectionResults } from '../../composables/use-collection-results';
 import { collectionTypeLabels, formatCollectionTime } from '../../utils/collection';
-import { createHistoryFilters } from '../../utils/collection-history';
+import { createHistoryFilters, formatExecutionDuration, hostColumnMinWidths } from '../../utils/collection-history';
 import {
   canViewHostResult,
   resultExecutionKey,
@@ -53,7 +53,7 @@ import { TraceCellSkeleton } from '@/pages/trace-explore/components/trace-explor
 
 import type { SelectionRange } from '../../types';
 import type { CollectionQueryState } from '../../types/collection';
-import type { CollectionResultSelection } from '../../types/collection-history';
+import type { CollectionExecutionColumn, CollectionResultSelection } from '../../types/collection-history';
 import type { CollectionHostResult, CollectionResultsState } from '../../types/collection-results';
 
 import './collection-history.scss';
@@ -170,35 +170,6 @@ export default defineComponent({
   render() {
     const { h, c } = this;
     const showSkeleton = h.loading.value && !h.rows.value.length;
-    const columns: TableProps['columns'] = [
-      { colKey: 'ip', title: this.t('目标 IP'), minWidth: 160, cell: 'ip' },
-      { colKey: 'processes', title: this.t('采集进程'), minWidth: 180, cell: 'processes' },
-      {
-        colKey: 'collection_type',
-        title: this.t('采集类型'),
-        minWidth: 150,
-        cell: (_, { row }) => collectionTypeLabels[row.collection_type] || '--',
-      },
-      {
-        colKey: 'started_at',
-        title: this.t('采集时间'),
-        width: 190,
-        cell: (_, { row }) => formatCollectionTime(row.started_at, this.timezone),
-      },
-      { colKey: 'task', title: this.t('采集任务名'), minWidth: 220, ellipsis: true, cell: 'task' },
-      {
-        colKey: 'status',
-        title: this.t('状态'),
-        width: 130,
-        cell: (_, { row }) => (
-          <CollectionExecutionStatus
-            status={row.status}
-            result
-          />
-        ),
-      },
-      { colKey: 'row-operation', title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
-    ];
     const resultLink = (row: CollectionHostResult, text: string) => (
       <span v-tippy={this.t(canViewHostResult(row) ? '查看当前主机的采集结果' : resultUnavailableReason(row))}>
         <Button
@@ -211,6 +182,73 @@ export default defineComponent({
         </Button>
       </span>
     );
+    const renderProcesses = (row: CollectionHostResult) => (
+      <span
+        class='collection-result-processes'
+        title={row.processes.map(item => `${item.process_name} (${item.pid})`).join('，')}
+      >
+        {row.processes.map(item => `${item.process_name} (${item.pid})`).join('，') || '--'}
+      </span>
+    );
+    // 执行范围下优先使用后端下发的列定义，缺省时沿用固定列
+    const hostColumns = this.state.execution ? h.hostColumns.value : null;
+    const renderHostCell = (column: CollectionExecutionColumn, row: CollectionHostResult) => {
+      const value = (row as unknown as Record<string, unknown>)[column.field];
+      // ip 列保留点击查看主机结果的交互，其余按后端下发的列类型渲染
+      if (column.field === 'ip') return resultLink(row, String(value ?? '--'));
+      if (column.type === 'process_list') return renderProcesses(row);
+      if (column.type === 'status')
+        return (
+          <CollectionExecutionStatus
+            status={row.status}
+            result
+          />
+        );
+      if (column.type === 'datetime') return value ? formatCollectionTime(value as number, this.timezone) : '--';
+      if (column.type === 'duration') return formatExecutionDuration(typeof value === 'number' ? value : null);
+      return value ? String(value) : '--';
+    };
+    const columns: TableProps['columns'] = hostColumns?.length
+      ? [
+          ...hostColumns.map<NonNullable<TableProps['columns']>[number]>(column => ({
+            colKey: column.field,
+            title: column.name,
+            minWidth: hostColumnMinWidths[column.type],
+            cell: (_, { row }) => renderHostCell(column, row as CollectionHostResult),
+            ...(column.type === 'status' ? { sorter: true } : {}),
+            ...(column.type === 'text' ? { ellipsis: true } : {}),
+          })),
+          { colKey: 'row-operation', title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
+        ]
+      : [
+          { colKey: 'ip', title: this.t('目标 IP'), minWidth: 160, cell: 'ip' },
+          { colKey: 'processes', title: this.t('采集进程'), minWidth: 180, cell: 'processes' },
+          {
+            colKey: 'collection_type',
+            title: this.t('采集类型'),
+            minWidth: 150,
+            cell: (_, { row }) => collectionTypeLabels[row.collection_type] || '--',
+          },
+          {
+            colKey: 'started_at',
+            title: this.t('采集时间'),
+            width: 190,
+            cell: (_, { row }) => formatCollectionTime(row.started_at, this.timezone),
+          },
+          { colKey: 'task', title: this.t('采集任务名'), minWidth: 220, ellipsis: true, cell: 'task' },
+          {
+            colKey: 'status',
+            title: this.t('状态'),
+            width: 130,
+            cell: (_, { row }) => (
+              <CollectionExecutionStatus
+                status={row.status}
+                result
+              />
+            ),
+          },
+          { colKey: 'row-operation', title: this.t('操作'), width: 176, fixed: 'right', cell: 'operations' },
+        ];
     return (
       <section class='collection-tab-panel collection-history-panel collection-results-panel'>
         <CollectionFilters
@@ -322,7 +360,7 @@ export default defineComponent({
                     }
                   : column
               )}
-              bkUiSettings={{ disabled: ['ip'], rowSize: 'mini' }}
+              bkUiSettings={{ disabled: columns.some(column => column.colKey === 'ip') ? ['ip'] : [], rowSize: 'mini' }}
               data={showSkeleton ? skeletonRows : this.tableRows}
               hover={!showSkeleton}
               rowKey='resultKey'
@@ -331,14 +369,7 @@ export default defineComponent({
               {{
                 empty: () => null,
                 ip: ({ row }: { row: CollectionHostResult }) => resultLink(row, row.ip),
-                processes: ({ row }: { row: CollectionHostResult }) => (
-                  <span
-                    class='collection-result-processes'
-                    title={row.processes.map(item => `${item.process_name} (${item.pid})`).join('，')}
-                  >
-                    {row.processes.map(item => `${item.process_name} (${item.pid})`).join('，') || '--'}
-                  </span>
-                ),
+                processes: ({ row }: { row: CollectionHostResult }) => renderProcesses(row),
                 task: ({ row }: { row: CollectionHostResult }) => (
                   <Button
                     v-tippy={this.t('查看本次任务执行详情')}

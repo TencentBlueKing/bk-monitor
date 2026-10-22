@@ -25,7 +25,7 @@
  */
 import { type PropType, computed, defineComponent, nextTick, shallowRef, watch } from 'vue';
 
-import { type TableProps, PrimaryTable } from '@blueking/tdesign-ui';
+import { type SortInfo, type TableProps, type TableSort, PrimaryTable } from '@blueking/tdesign-ui';
 import { Alert, Button, Message } from 'bkui-vue';
 import { useI18n } from 'vue-i18n';
 
@@ -126,14 +126,31 @@ export default defineComponent({
         props.filters.process_names.length ||
         props.filters.process_pids.length
     );
+    // tdesign 的 sorter: true 只负责图标与事件，本地排序需自行按 sortInfo 排序
+    const sortInfo = shallowRef<null | SortInfo>(null);
+    const tableRows = computed(() => {
+      const rows = h.rows.value.map(row => ({ ...row, executionKey: executionRowKey(row) }));
+      const info = sortInfo.value;
+      if (info?.sortBy !== 'started_at') return rows;
+      return rows.sort((a, b) => {
+        const diff = Number(a.started_at ?? 0) - Number(b.started_at ?? 0);
+        return info.descending ? -diff : diff;
+      });
+    });
+    function changeSort(value: TableSort) {
+      const info = Array.isArray(value) ? value[0] : value;
+      sortInfo.value = info?.sortBy ? info : null;
+    }
     return {
       t,
       h,
       c,
       filtered,
       scrollContainer,
+      tableRows,
       reset,
       loadVisiblePage,
+      changeSort,
     };
   },
   render() {
@@ -166,6 +183,7 @@ export default defineComponent({
         colKey: 'started_at',
         title: this.t('开始时间'),
         width: 200,
+        sorter: true,
         cell: (_, { row }) => formatCollectionTime(row.started_at, this.timezone),
       },
       {
@@ -264,18 +282,22 @@ export default defineComponent({
               ),
               operations: ({ row }: { row: CollectionExecution }) => (
                 <div class='collection-row-actions'>
-                  <Button
+                  {/* 禁用按钮不派发鼠标事件，tooltip 需挂在外层元素上 */}
+                  <span
                     v-tippy={this.t(
                       canViewExecution(row) ? '查看本次执行各主机的采集结果' : '本次采集暂无可查看的结果'
                     )}
-                    disabled={!canViewExecution(row)}
-                    theme='primary'
-                    text
-                    onClick={() => this.$emit('result', executionSelection(row), false)}
                   >
-                    {this.t('查看结果')}
-                  </Button>
-                  <Button
+                    <Button
+                      disabled={!canViewExecution(row)}
+                      theme='primary'
+                      text
+                      onClick={() => this.$emit('result', executionSelection(row), false)}
+                    >
+                      {this.t('查看结果')}
+                    </Button>
+                  </span>
+                  <span
                     v-tippy={this.t(
                       this.readonly
                         ? '暂无采集操作权限'
@@ -283,13 +305,16 @@ export default defineComponent({
                           ? '仅终止本次采集，保留原有执行计划'
                           : '使用历史配置重新执行本次采集'
                     )}
-                    disabled={this.readonly || c.busy.value}
-                    theme='primary'
-                    text
-                    onClick={() => c.requestAction(row.execution_status === 'running' ? 'cancel' : 'rerun', row)}
                   >
-                    {this.t(row.execution_status === 'running' ? '终止' : '重新执行')}
-                  </Button>
+                    <Button
+                      disabled={this.readonly || c.busy.value}
+                      theme='primary'
+                      text
+                      onClick={() => c.requestAction(row.execution_status === 'running' ? 'cancel' : 'rerun', row)}
+                    >
+                      {this.t(row.execution_status === 'running' ? '终止' : '重新执行')}
+                    </Button>
+                  </span>
                 </div>
               ),
             }}
@@ -302,15 +327,14 @@ export default defineComponent({
                   }
                 : column
             )}
-            data={
-              showSkeleton ? skeletonRows : h.rows.value.map(row => ({ ...row, executionKey: executionRowKey(row) }))
-            }
             filterValue={{
               execution_status: this.filters.status,
               schedule_type: this.filters.schedule_types,
             }}
+            data={showSkeleton ? skeletonRows : this.tableRows}
             filterRow={emptyResult ? () => null : undefined}
             hover={!showSkeleton}
+            needCustomScroll={false}
             rowKey='executionKey'
             size='small'
             onFilterChange={value =>
@@ -320,6 +344,7 @@ export default defineComponent({
                 schedule_types: (value.schedule_type || []) as string[],
               })
             }
+            onSortChange={this.changeSort}
           />
           {h.error.value && (
             <div class='collection-history-error'>
