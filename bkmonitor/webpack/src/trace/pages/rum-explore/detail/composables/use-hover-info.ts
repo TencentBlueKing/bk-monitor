@@ -30,7 +30,7 @@ import { useTippy } from 'vue-tippy';
 import type { IRumHoverInfo } from '../typings';
 
 /** hover 展示延迟（毫秒），与全局 popover 交互习惯一致 */
-const SHOW_DELAY = 0;
+const SHOW_DELAY = 500;
 
 const instance = shallowRef<null | ReturnType<typeof useTippy>>(null);
 /**
@@ -43,6 +43,7 @@ const instance = shallowRef<null | ReturnType<typeof useTippy>>(null);
 export function useHoverInfo() {
   const hoverData = shallowRef<IRumHoverInfo>(null);
   let delayTimer: null | ReturnType<typeof setTimeout> = null;
+  let isHover = true;
 
   function hide() {
     if (delayTimer) {
@@ -74,7 +75,7 @@ export function useHoverInfo() {
     instance.value = current;
     delayTimer = setTimeout(() => {
       delayTimer = null;
-      if (instance.value === current) {
+      if (instance.value === current && isHover) {
         current.show?.();
       } else {
         current.destroy?.();
@@ -84,15 +85,19 @@ export function useHoverInfo() {
 
   onBeforeUnmount(hide);
 
-  function hoverBindings(content: Element, hover?: IRumHoverInfo) {
+  function hoverBindings(content: Element, info?: IRumHoverInfo) {
     return {
-      /** 有 hover 数据的元素提示可交互（JSX spread 走 mergeProps，class 与元素自身类名合并） */
-      class: hover ? 'cursor-pointer' : undefined,
+      /** 有 info 数据的元素提示可交互（JSX spread 走 mergeProps，class 与元素自身类名合并） */
+      class: info ? 'cursor-pointer' : undefined,
       onMouseenter: (e: MouseEvent) => {
-        hoverData.value = hover;
-        if (hover) {
+        isHover = true;
+        hoverData.value = info;
+        if (info) {
           show(e, content);
         }
+      },
+      onMouseleave: () => {
+        isHover = false;
       },
     };
   }
