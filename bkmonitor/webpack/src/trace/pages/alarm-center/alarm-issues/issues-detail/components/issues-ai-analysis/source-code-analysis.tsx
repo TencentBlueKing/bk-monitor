@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { type PropType, computed, defineComponent, onBeforeUnmount, shallowRef, watchEffect } from 'vue';
+import { type PropType, computed, defineComponent, onBeforeUnmount, shallowRef, watch } from 'vue';
 
 import { Alert, Button, Message } from 'bkui-vue';
 import { Success } from 'bkui-vue/lib/icon';
@@ -81,12 +81,16 @@ export default defineComponent({
       };
     });
 
-    watchEffect(() => {
-      sourceAnalysisScene.value = props.show ? 'view' : 'overview';
-      if (props.detail?.id && props.show) {
-        getSourceAnalysisData({ bk_biz_id: props.detail.bk_biz_id, issue_id: props.detail.id });
-      }
-    });
+    watch(
+      () => [props.show, props.detail] as const,
+      ([show, detail]) => {
+        sourceAnalysisScene.value = show ? 'view' : 'overview';
+        if (detail?.id && show) {
+          getSourceAnalysisData({ bk_biz_id: detail.bk_biz_id, issue_id: detail.id });
+        }
+      },
+      { immediate: true }
+    );
 
     const handleAssigneeChange = () => {
       assigneeChangeLoading.value = true;

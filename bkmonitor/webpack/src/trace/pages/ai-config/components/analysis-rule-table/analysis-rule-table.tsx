@@ -353,7 +353,6 @@ export default defineComponent({
           title: row.is_enabled ? t('确定停用此规则') : t('确定启用此规则'),
           onConfirm: () => {
             const isEnabled = !row.is_enabled;
-            console.log(row.id);
             updateSourceAnalysisRule(row.id, { is_enabled: isEnabled })
               .then(data => {
                 resolve(!!data?.is_enabled);

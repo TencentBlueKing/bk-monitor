@@ -23,7 +23,7 @@
  * CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
  * IN THE SOFTWARE.
  */
-import { computed, reactive, shallowRef } from 'vue';
+import { computed, reactive, shallowRef, watch } from 'vue';
 
 import { createGlobalState } from '@vueuse/core';
 import { bkUiMessage } from 'trace/common/message';
@@ -59,38 +59,75 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
   const sourceAnalysisIsPending = computed(() => loopStatus.includes(sourceAnalysisData.value?.latest?.status));
   let timer = null;
 
-  const { run: overviewRun, signal: overviewSignal } = useRequestAbort(getIssueAiAnalysisOverview);
-  const { run: sourceRun, signal: sourceSignal } = useRequestAbort(getIssueSourceAnalysis);
+  const overviewRequest = useRequestAbort(getIssueAiAnalysisOverview);
+  const sourceRequest = useRequestAbort(getIssueSourceAnalysis);
+  let requestSequence = 0;
+  let activeContext: null | { params: AIAnalysisBaseParams } = null;
+
+  const clearSetTimeout = () => {
+    ++requestSequence;
+    clearTimeout(timer);
+    timer = null;
+    activeContext = null;
+    overviewRequest.abort();
+    sourceRequest.abort();
+    sourceAnalysisData.value = null;
+    loading.sourceAnalysis = false;
+    loading.retryAnalysis = false;
+  };
+
+  const getContext = ({ bk_biz_id, issue_id }: AIAnalysisBaseParams) => {
+    if (activeContext && (activeContext.params.bk_biz_id !== bk_biz_id || activeContext.params.issue_id !== issue_id)) {
+      clearSetTimeout();
+    }
+    activeContext ??= { params: { bk_biz_id, issue_id } };
+    return activeContext;
+  };
 
   const getSourceAnalysisData = async (params: AIAnalysisBaseParams) => {
+    const context = getContext(params);
+    const scene = sourceAnalysisScene.value;
+    const sequence = ++requestSequence;
+    const isCurrent = () =>
+      activeContext === context && sequence === requestSequence && scene === sourceAnalysisScene.value;
     clearTimeout(timer);
+    timer = null;
+    overviewRequest.abort();
+    sourceRequest.abort();
     if (!sourceAnalysisIsPending.value) {
       loading.sourceAnalysis = true;
     }
     try {
-      if (sourceAnalysisScene.value === 'overview') {
-        const data = await overviewRun(params);
-        if (overviewSignal?.aborted) return;
+      if (scene === 'overview') {
+        const data = await overviewRequest.run(context.params);
+        if (!isCurrent()) return;
         sourceAnalysisData.value = data.source_analysis;
       } else {
-        const data = await sourceRun(params);
-        if (sourceSignal?.aborted) return;
+        const data = await sourceRequest.run(context.params);
+        if (!isCurrent()) return;
         sourceAnalysisData.value = data;
       }
     } catch (err) {
+      if (!isCurrent()) return;
       console.info('err', err);
+    } finally {
+      if (isCurrent()) loading.sourceAnalysis = false;
     }
-    if (sourceAnalysisIsPending.value) {
+    if (isCurrent() && sourceAnalysisIsPending.value) {
       timer = setTimeout(() => {
-        getSourceAnalysisData(params);
+        if (isCurrent()) getSourceAnalysisData(context.params);
       }, 3000);
     }
-    loading.sourceAnalysis = false;
   };
 
-  const clearSetTimeout = () => {
-    clearTimeout(timer);
-  };
+  watch(
+    sourceAnalysisScene,
+    scene => {
+      // 完整报告卸载后恢复概览轮询；侧滑已清理时不再发起请求。
+      if (scene === 'overview' && activeContext) getSourceAnalysisData(activeContext.params);
+    },
+    { flush: 'sync' }
+  );
 
   /**
    * 去配置
@@ -105,11 +142,14 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
    * 立即分析（第一次分析才调用这个接口）
    */
   const handleStartAnalysis = async (params: AIAnalysisBaseParams) => {
+    const context = getContext(params);
     if (loading.retryAnalysis) return;
     loading.retryAnalysis = true;
-    sourceAnalysisData.value = await startIssueSourceAnalysis(params).finally(() => {
-      loading.retryAnalysis = false;
+    const data = await startIssueSourceAnalysis(params).finally(() => {
+      if (activeContext === context) loading.retryAnalysis = false;
     });
+    if (activeContext !== context) return;
+    sourceAnalysisData.value = data;
     if (sourceAnalysisIsPending.value) {
       await getSourceAnalysisData(params);
     }
@@ -121,14 +161,17 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
    * 2. 重新分析（重新分析时，不需要传递analysis_id）
    */
   const handleReanalyzeSourceAnalysis = async (params: AIAnalysisBaseParams | SourceAnalysisRetryParams) => {
+    const context = getContext(params);
     if (loading.retryAnalysis) return;
     loading.retryAnalysis = true;
     try {
       const options = { needMessage: false };
-      sourceAnalysisData.value =
+      const data =
         sourceAnalysisData.value.latest.status === 'failed'
           ? await retryIssueSourceAnalysis(params as SourceAnalysisRetryParams, options)
           : await reanalyzeIssueSourceAnalysis(params, options);
+      if (activeContext !== context) return;
+      sourceAnalysisData.value = data;
       bkUiMessage({ theme: 'success', message: t('分析任务已提交') });
       if (sourceAnalysisIsPending.value) {
         await getSourceAnalysisData({
@@ -137,6 +180,7 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
         });
       }
     } catch (err) {
+      if (activeContext !== context) return;
       const error = err?.data ?? err;
       const details = error?.error_details || (typeof error?.message === 'object' ? error.message : null);
       bkUiMessage({
@@ -149,7 +193,7 @@ export const useIssuesAiAnalysis = createGlobalState(() => {
           t('重新分析失败，请稍后重试'),
       });
     } finally {
-      loading.retryAnalysis = false;
+      if (activeContext === context) loading.retryAnalysis = false;
     }
   };
 

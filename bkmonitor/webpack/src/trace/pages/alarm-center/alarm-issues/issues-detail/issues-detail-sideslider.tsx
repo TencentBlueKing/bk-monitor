@@ -100,6 +100,7 @@ export default defineComponent({
     watch(
       () => [props.show, props.issueBizId, props.issueId],
       () => {
+        clearSetTimeout();
         if (timer) clearInterval(timer);
         timer = null;
         refreshInterval.value = -1;
@@ -129,6 +130,7 @@ export default defineComponent({
 
     // 组件被 v-if 卸载时兜底重置（如 alarmType 切换离开 ISSUES，show 来不及变 false）
     onUnmounted(() => {
+      clearSetTimeout();
       if (timer) clearInterval(timer);
       if (issueId.value === props.issueId && bizId.value === props.issueBizId) issuesDetailStore.reset();
     });

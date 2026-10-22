@@ -67,7 +67,7 @@ function harness({ status = 'success', submit = async () => analysis('pending'),
       'trace/common/message': message,
       'vue-i18n': i18n,
       '../services/issues-ai-analysis': services,
-      '@/hooks/useRequestAbort': { default: run => ({ run, signal: { aborted: false } }) },
+      '@/hooks/useRequestAbort': { default: run => ({ run, abort() {} }) },
     },
     {
       setTimeout: (callback, delay) => {
