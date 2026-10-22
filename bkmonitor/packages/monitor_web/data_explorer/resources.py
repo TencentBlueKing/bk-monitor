@@ -493,7 +493,7 @@ class GetGraphQueryConfig(Resource):
         service_instance_id_set = set()
         for dimensions in dimension_set:
             for key, value in dimensions:
-                if not str(value).isdigit():
+                if not str(value).isdecimal():
                     continue
                 if key == "bk_host_id":
                     host_id_set.add(value)

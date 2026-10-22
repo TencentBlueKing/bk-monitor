@@ -909,7 +909,7 @@ class GetVariableValue(Resource):
             result = [{"label": obj_id_to_obj_name.get(str(v), v), "value": v} for v in dimensions]
         elif dimension_field == "bk_target_service_instance_id":
             service_instances = api.cmdb.get_service_instance_by_id(
-                bk_biz_id=bk_biz_id, service_instance_ids=[v for v in dimensions if str(v).isdigit()]
+                bk_biz_id=bk_biz_id, service_instance_ids=[v for v in dimensions if str(v).isdecimal()]
             )
             id_to_names = {str(item.service_instance_id): item.name for item in service_instances}
             result = [{"label": id_to_names.get(str(v), v), "value": v} for v in dimensions]
