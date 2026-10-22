@@ -304,6 +304,50 @@ def test_sync_bkbase_v4_metadata_for_metric(create_or_delete_records, mocker):
 
 
 @pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("bk_base_data_id", [50012, 70012])
+def test_sync_bkbase_v4_metadata_for_same_table_in_different_tenants(create_or_delete_records, mocker, bk_base_data_id):
+    table_id = "1001_bkmonitor_time_series_50010.__default__"
+    bk_tenant_id = "other-tenant"
+    ds = models.DataSource.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        bk_data_id=50012,
+        data_name="data_link_test_metric",
+        mq_cluster_id=1,
+        mq_config_id=1,
+        etl_config="test",
+        is_custom_source=False,
+        created_from="bkdata",
+    )
+    models.ResultTable.objects.create(
+        bk_tenant_id=bk_tenant_id, table_id=table_id, bk_biz_id=1001, is_custom_table=False
+    )
+    models.DataSourceResultTable.objects.create(bk_tenant_id=bk_tenant_id, table_id=table_id, bk_data_id=ds.bk_data_id)
+    models.AccessVMRecord.objects.create(
+        bk_tenant_id=bk_tenant_id,
+        result_table_id=table_id,
+        vm_result_table_id="other_tenant_vm_test_metric",
+        bk_base_data_id=bk_base_data_id,
+    )
+    redis_client = mocker.patch("metadata.task.bkbase.bkbase_redis_client").return_value
+    redis_client.hgetall.return_value = redis_value_for_metric_when_cluster_not_exists
+    sync_kafka = mocker.patch("metadata.task.bkbase.sync_kafka_metadata")
+    sync_vm = mocker.patch("metadata.task.bkbase.sync_vm_metadata")
+
+    sync_bkbase_v4_metadata(f"databus_v4_dataid:{bk_base_data_id}")
+
+    sync_kafka.assert_called_once_with(
+        bk_tenant_id=bk_tenant_id,
+        kafka_info=json.loads(redis_value_for_metric_when_cluster_not_exists[b"kafka"]),
+        ds=ds,
+        bk_data_id=ds.bk_data_id,
+    )
+    sync_vm.assert_called_once_with(
+        bk_tenant_id=bk_tenant_id,
+        vm_info=json.loads(redis_value_for_metric_when_cluster_not_exists[b"vm"]),
+    )
+
+
+@pytest.mark.django_db(databases="__all__")
 def test_sync_bkbase_v4_metadata_for_log(create_or_delete_records, mocker):
     """
     测试计算平台元数据同步更新能力 -- 日志链路

@@ -27,6 +27,7 @@
 import { defineComponent, ref, watch, computed } from 'vue';
 
 import BklogPopover from '@/components/bklog-popover';
+import { useDialogVisible } from '@/global/overlay';
 import useLocale from '@/hooks/use-locale';
 import useStore from '@/hooks/use-store';
 
@@ -71,7 +72,14 @@ export default defineComponent({
     const currentFavorite = ref();
     const listMenuPopoverMap = ref({});
     const delData = ref({});
-    const delDialogShow = ref(false);
+    const {
+      visible: delDialogShow,
+      setVisible: setDelDialogVisible,
+      onValueChange: handleDelDialogChange,
+    } = useDialogVisible(false, {
+      id: 'retrieve-collect-delete-dialog',
+      group: 'retrieve-dialog',
+    });
     // 使用自定义 hook
     const { handleNewLink, handleDeleteApi, handleCreateCopy, handleUpdateFavorite } = useFavorite();
     /** 删除操作相关key list */
@@ -323,7 +331,7 @@ export default defineComponent({
               class='ml8'
               size='small'
               onClick={() => {
-                delDialogShow.value = false;
+                setDelDialogVisible(false);
               }}
             >
               {t('取消')}
@@ -334,7 +342,7 @@ export default defineComponent({
     };
     /** 关闭删除操作弹框，并清空待删除数据 */
     const closeDelDialog = () => {
-      delDialogShow.value = false;
+      setDelDialogVisible(false);
       delData.value = {};
     };
     /** 显示删除操作弹框 */
@@ -343,15 +351,7 @@ export default defineComponent({
         key: type,
         item,
       };
-      delDialogShow.value = true;
-    };
-    /** 弹框显隐同步：遮罩、Esc、右上角关闭都会触发，避免标志位停留在 true 导致弹框无法再次打开 */
-    const handleDelDialogChange = (value: boolean) => {
-      if (value) {
-        delDialogShow.value = true;
-      } else {
-        closeDelDialog();
-      }
+      setDelDialogVisible(true);
     };
     /** 确认删除 / 解散：无论接口成功或失败，都关闭弹框并复位标志位 */
     const handleDeleteConfirm = async (type: string, id: number, item: IFavoriteItem) => {

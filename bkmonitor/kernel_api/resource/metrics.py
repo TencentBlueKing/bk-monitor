@@ -18,7 +18,9 @@ from sqlparse import tokens as sql_tokens
 from bkmonitor.utils.request import get_request_tenant_id
 from bkm_space.utils import bk_biz_id_to_space_uid
 from core.drf_resource import api, resource
-from core.drf_resource.base import Resource, logger
+from core.drf_resource.base import logger
+from kernel_api.resource.mcp_response import MCPResource as Resource
+from kernel_api.resource.mcp_response import is_mcp_request
 from kernel_api.serializers.mixins import TimeSpanValidationPassThroughSerializer
 from metadata.models import DataSource, TimeSeriesGroup
 
@@ -168,6 +170,10 @@ class ExecuteRangeQueryResource(Resource):
     RequestSerializer = TimeSpanValidationPassThroughSerializer
 
     def perform_request(self, validated_request_data):
+        if is_mcp_request():
+            from kernel_api.resource.mcp_metrics_query import execute_range_query
+
+            return execute_range_query(validated_request_data)
         return resource.grafana.graph_promql_query(**validated_request_data)
 
 
@@ -225,4 +231,8 @@ class ExecuteSQLQueryResource(Resource):
             query_params["limit"],
         )
 
+        if is_mcp_request():
+            from kernel_api.resource.mcp_uq import query_uq
+
+            return query_uq("query_raw", query_params)
         return api.unify_query.query_raw(**query_params)

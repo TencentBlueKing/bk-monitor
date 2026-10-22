@@ -5,7 +5,8 @@ import posixpath
 
 from rest_framework import serializers
 
-from core.drf_resource import Resource, api
+from core.drf_resource import api
+from kernel_api.resource.mcp_response import MCPResource as Resource
 
 
 FILE_SEARCH_RESULT_LIMIT = 100

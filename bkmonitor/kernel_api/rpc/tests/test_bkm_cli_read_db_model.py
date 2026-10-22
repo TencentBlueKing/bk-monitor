@@ -402,6 +402,21 @@ def test_uptime_check_subscription_scoped_by_task_business(monkeypatch, task_exi
     assert checked == [{"id": 7, "bk_biz_id": 2}]
 
 
+def test_uptime_check_models_read_soft_deleted_rows():
+    """拨测删除只置 is_deleted，排障要看到已删任务和残留订阅，不能落到过滤软删的 objects。"""
+    from django.utils.module_loading import import_string
+
+    from kernel_api.rpc.functions.bkm_cli import db
+
+    for model_path in ("monitor.models.UptimeCheckTask", "monitor.models.UptimeCheckTaskSubscription"):
+        spec = db.ALLOWED_MODEL_SPECS[model_path]
+        model_cls = import_string(model_path)
+        assert spec.manager_name == "origin_objects"
+        assert getattr(model_cls, spec.manager_name).all().query.where.children == []
+        assert model_cls.objects.all().query.where.children
+        assert "is_deleted" in spec.fields
+
+
 def test_report_model_projection_fields_exist():
     """固定投影使用真实 ORM 字段，模型迁移时能直接报出漂移。"""
     from django.utils.module_loading import import_string
