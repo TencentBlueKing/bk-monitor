@@ -2189,6 +2189,34 @@ class ManifestChecksumTests(TestCase):
         )
         state.sync_actual_total(self.job)
 
+    def test_first_finalization_claim_reserves_the_merged_object_key(self):
+        claimed = state.claim_finalization(self.job.pk)
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.FINALIZING)
+        self.assertEqual(claimed.merged_object_key, self.job.merged_object_key)
+        self.assertRegex(
+            self.job.merged_object_key,
+            rf"^exports/{self.job.pk}/{ASYNC_APP_CODE}_1_\d{{14}}_[a-zA-Z0-9]{{10}}\.jsonl\.gz$",
+        )
+        self.assertIsNone(self.job.merged_bytes)
+        self.assertEqual(self.job.merged_checksum, "")
+
+    def test_finalization_claim_reuses_the_legacy_merged_object_key(self):
+        legacy_key = f"exports/{self.job.pk}/full.jsonl.gz"
+        ExportJob.objects.filter(pk=self.job.pk).update(merged_object_key=legacy_key)
+
+        with patch("apps.log_search.export.state.merged_name") as make_name:
+            claimed = state.claim_finalization(self.job.pk)
+            state.fail_finalization(self.job.pk, claimed.finalization_attempts, "upload failed")
+            retried = state.claim_finalization(self.job.pk)
+
+        make_name.assert_not_called()
+        self.assertEqual(claimed.merged_object_key, legacy_key)
+        self.assertEqual(retried.merged_object_key, legacy_key)
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.merged_object_key, legacy_key)
+
     def test_manifest_checksum_matches_the_uploaded_content(self):
         captured = []
         with (
@@ -2227,10 +2255,16 @@ class ManifestChecksumTests(TestCase):
             self.job.refresh_from_db()
             self.assertEqual(self.job.status, ExportJobStatus.RUNNING)
             self.assertEqual(self.job.finalization_attempts, 1)
+            reserved_key = self.job.merged_object_key
+            self.assertTrue(reserved_key)
             self.assertEqual(finalizing_jobs(10), [self.job.pk])
             self.assertEqual(finalize_export(self.job.pk).status, ExportJobStatus.SUCCESS)
 
         self.assertEqual(upload.call_count, 2)
+        self.assertEqual(
+            [call.kwargs["file_name"] for call in merge_storage.return_value.export_upload.call_args_list],
+            [reserved_key, reserved_key],
+        )
         self.assertEqual(ExportPart.objects.get(job=self.job).status, ExportPartStatus.SUCCESS)
         self.job.refresh_from_db()
         self.assertEqual(self.job.finalization_attempts, 2)
@@ -2275,6 +2309,8 @@ class ManifestChecksumTests(TestCase):
         ExportJob.objects.filter(pk=self.job.pk).update(finalization_started_at=timezone.now() - timedelta(seconds=10))
         self.assertEqual(finalizing_jobs(10), [self.job.pk])
         new_claim = state.claim_finalization(self.job.pk)
+        self.assertTrue(old_claim.merged_object_key)
+        self.assertEqual(old_claim.merged_object_key, new_claim.merged_object_key)
 
         self.assertIsNone(
             state.finalize_job(
@@ -2289,6 +2325,46 @@ class ManifestChecksumTests(TestCase):
         self.job.refresh_from_db()
         self.assertEqual(self.job.status, ExportJobStatus.FINALIZING)
         self.assertEqual(self.job.finalization_attempts, new_claim.finalization_attempts)
+
+    @override_settings(ASYNC_EXPORT_FINALIZATION_TIMEOUT=1, ASYNC_EXPORT_MERGE_TIMEOUT=1)
+    def test_stale_manifest_upload_matches_the_successful_retry(self):
+        objects = {}
+        manifest_uploads = []
+        storage = Mock()
+        storage.download_fileobj.side_effect = lambda key, fh: fh.write(b"part-bytes")
+
+        def upload(file_path, file_name):
+            content = Path(file_path).read_bytes()
+            if file_name == manifest_name(self.job):
+                manifest_uploads.append(content)
+                if len(manifest_uploads) == 1:
+                    # 新尝试成功后再写入旧清单，模拟旧上传延迟完成。
+                    ExportJob.objects.filter(pk=self.job.pk).update(
+                        finalization_started_at=timezone.now() - timedelta(seconds=10)
+                    )
+                    self.assertEqual(finalize_export(self.job.pk).status, ExportJobStatus.SUCCESS)
+            objects[file_name] = content
+
+        storage.export_upload.side_effect = upload
+        with (
+            patch("apps.log_search.export.scheduler.build_storage", return_value=storage),
+            patch("apps.log_search.export.merger.build_storage", return_value=storage),
+            patch("apps.log_search.export.storage.get_random_string", side_effect=["A" * 10, "B" * 10]) as random_name,
+        ):
+            self.assertIsNone(finalize_export(self.job.pk))
+
+        self.job.refresh_from_db()
+        self.assertEqual(self.job.status, ExportJobStatus.SUCCESS)
+        self.assertEqual(self.job.finalization_attempts, 2)
+        random_name.assert_called_once_with(length=10)
+        self.assertEqual(len(manifest_uploads), 2)
+        self.assertEqual(manifest_uploads[0], manifest_uploads[1])
+        content = objects[self.job.manifest_object_key]
+        self.assertEqual(self.job.manifest_bytes, len(content))
+        self.assertEqual(self.job.manifest_checksum, hashlib.sha256(content).hexdigest())
+        self.assertEqual(json.loads(content)["merged"]["object_key"], self.job.merged_object_key)
+        self.assertEqual(self.job.merged_bytes, len(objects[self.job.merged_object_key]))
+        self.assertEqual(self.job.merged_checksum, hashlib.sha256(objects[self.job.merged_object_key]).hexdigest())
 
     def test_cancel_during_finalization_keeps_the_job_canceled(self):
         def cancel_during_upload(file_path, file_name):
@@ -2348,6 +2424,7 @@ class MergedArtifactTests(TestCase):
         payload = {"part-1.jsonl.gz": gzip.compress(b'{"a":1}\n'), "part-2.jsonl.gz": gzip.compress(b'{"b":2}\n')}
         self._add_part(1, 0, 500, payload["part-1.jsonl.gz"])
         self._add_part(2, 500, 1000, payload["part-2.jsonl.gz"])
+        self.job = state.claim_finalization(self.job.pk)
         parts = list(state.leaf_parts(self.job).order_by("start_time", "part_no"))
 
         with patch("apps.log_search.export.merger.build_storage") as build_storage:

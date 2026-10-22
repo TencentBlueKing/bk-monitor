@@ -231,6 +231,26 @@ class ExportJobDetailTests(TestCase):
         ):
             return view.retrieve(request).data
 
+    def test_history_hides_reserved_merged_name(self):
+        self.job.status = ExportJobStatus.FINALIZING
+        self.job.merged_object_key = f"exports/{self.job.pk}/reserved.jsonl.gz"
+        for size, checksum in ((None, ""), (100, ""), (None, "checksum")):
+            with self.subTest(size=size, checksum=checksum):
+                self.job.merged_bytes = size
+                self.job.merged_checksum = checksum
+
+                self.assertEqual(sharded_job_history_item(self.job)["export_pkg_name"], "")
+
+    def test_history_shows_merged_name_after_metadata_is_saved(self):
+        self.job.status = ExportJobStatus.SUCCESS
+        self.job.merged_checksum = "checksum"
+        for name, size in (("named.jsonl.gz", 100), ("named.jsonl.gz", 0), ("full.jsonl.gz", 100)):
+            with self.subTest(name=name, size=size):
+                self.job.merged_object_key = f"exports/{self.job.pk}/{name}"
+                self.job.merged_bytes = size
+
+                self.assertEqual(sharded_job_history_item(self.job)["export_pkg_name"], name)
+
     def test_summary_counts_leaves_and_concurrent_stages(self):
         ExportPlan.objects.create(job=self.job, plan_version=1, planned_parts=5, status=ExportPlanStatus.SUCCESS)
         parent = self.part(1, status=ExportPartStatus.SPLIT)
