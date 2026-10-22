@@ -51,7 +51,7 @@ def merge_export_parts(job, parts):
     name = merged_name(job)
     digest = hashlib.sha256()
     with tempfile.TemporaryDirectory(prefix=f"bklog-export-merge-{job.pk}-") as directory:
-        path = Path(directory) / "full.jsonl.gz"
+        path = Path(directory) / Path(name).name
         with path.open("wb") as raw:
             writer = _DigestWriter(raw, digest)
             for part in parts:

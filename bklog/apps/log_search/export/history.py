@@ -19,6 +19,8 @@ We undertake not to change the open source license (MIT license) applicable to t
 the project delivered to anyone in the future.
 """
 
+from pathlib import PurePosixPath
+
 import arrow
 from django.db.models import CharField, Count, Value
 from django.utils import timezone
@@ -113,7 +115,7 @@ def sharded_job_history_item(job):
         "export_status": export_status,
         "error_msg": job.error_detail or (ExportErrorCode.label(job.error_code) if job.error_code else ""),
         "download_url": "",
-        "export_pkg_name": "full.jsonl.gz" if job.merged_object_key else "",
+        "export_pkg_name": PurePosixPath(job.merged_object_key).name,
         "export_pkg_size": max(round(job.merged_bytes / (1024 * 1024), 2), 0.01) if job.merged_bytes else None,
         "export_created_at": job.created_at,
         "export_created_by": job.created_by,

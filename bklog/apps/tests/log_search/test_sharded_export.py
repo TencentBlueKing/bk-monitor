@@ -50,6 +50,7 @@ from apps.utils.cos import QcloudCos
 from apps.iam import ActionEnum
 from apps.iam.handlers.drf import ViewBusinessPermission
 from apps.log_search.constants import (
+    ASYNC_APP_CODE,
     FEATURE_ASYNC_EXPORT_COMMON,
     FEATURE_ASYNC_EXPORT_EXTERNAL,
     WORKLOAD_ERROR_CODES,
@@ -2207,7 +2208,10 @@ class ManifestChecksumTests(TestCase):
         self.assertEqual(self.job.manifest_checksum, hashlib.sha256(content).hexdigest())
         self.assertEqual(self.job.manifest_object_key, manifest_name(self.job))
         # 合并产物也随任务落库
-        self.assertEqual(self.job.merged_object_key, merged_name(self.job))
+        self.assertEqual(
+            self.job.merged_object_key, merge_storage.return_value.export_upload.call_args.kwargs["file_name"]
+        )
+        self.assertEqual(json.loads(content)["merged"]["object_key"], self.job.merged_object_key)
         self.assertEqual(self.job.merged_bytes, len(b"part-bytes"))
         self.assertEqual(self.job.merged_checksum, hashlib.sha256(b"part-bytes").hexdigest())
 
@@ -2354,7 +2358,10 @@ class MergedArtifactTests(TestCase):
             )
             key, size, checksum = merge_export_parts(self.job, parts)
 
-        self.assertEqual(key, merged_name(self.job))
+        self.assertRegex(key, rf"^exports/{self.job.pk}/{ASYNC_APP_CODE}_1_\d{{14}}_[a-zA-Z0-9]{{10}}\.jsonl\.gz$")
+        self.assertEqual(
+            Path(build_storage.return_value.export_upload.call_args.kwargs["file_path"]).name, Path(key).name
+        )
         self.assertEqual(size, len(payload["part-1.jsonl.gz"]) + len(payload["part-2.jsonl.gz"]))
         self.assertEqual(checksum, hashlib.sha256(payload["part-1.jsonl.gz"] + payload["part-2.jsonl.gz"]).hexdigest())
         self.assertEqual(contents[key], payload["part-1.jsonl.gz"] + payload["part-2.jsonl.gz"])
@@ -2378,7 +2385,7 @@ class MergedArtifactTests(TestCase):
             link = download_link(self.job, "full")
         self.assertEqual(link["url"], "https://full-url")
         self.assertEqual(
-            build_storage.return_value.generate_download_url.call_args.kwargs["file_name"], merged_name(self.job)
+            build_storage.return_value.generate_download_url.call_args.kwargs["file_name"], self.job.merged_object_key
         )
 
 
