@@ -8,6 +8,7 @@ apigateway 要求 operationId 全局唯一，重复会在部署阶段被网关�
     python support-files/apigw/scripts/test_merge_resources.py
 """
 
+import ast
 import importlib.util
 from pathlib import Path
 
@@ -627,6 +628,30 @@ def test_log_collection_etl_preview_mcp_contract():
         "appVerifiedRequired": False,
         "resourcePermissionRequired": True,
     }
+
+
+@pytest.mark.parametrize(
+    ("operation", "resource_class"),
+    [
+        ("find_relations", "QueryMultiResourceRelationResource"),
+        ("find_relations_range", "QueryMultiResourceRelationRangeResource"),
+    ],
+)
+def test_relation_gateway_backend_matches_registered_resource(operation, resource_class):
+    """Compare independent gateway and server route declarations without loading services."""
+    backend_root = _RESOURCES_DIR.parents[2]
+    view = ast.parse((backend_root / "kernel_api/views/v4/relation.py").read_text())
+    routes = {}
+    for node in ast.walk(view):
+        if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name) or node.func.id != "ResourceRoute":
+            continue
+        endpoint = next(keyword.value for keyword in node.keywords if keyword.arg == "endpoint")
+        routes[node.args[1].id] = (ast.literal_eval(node.args[0]), ast.literal_eval(endpoint))
+    method, endpoint = routes[resource_class]
+    operation_data = _load_paths(_RESOURCES_DIR / "internal/user/relation_mcp.yaml")[f"/mcp/{operation}/"]["post"]
+    backend = operation_data["x-bk-apigateway-resource"]["backend"]
+    assert backend["method"].upper() == method
+    assert backend["path"] == f"/api/v4/relation/{endpoint}/"
 
 
 if __name__ == "__main__":
