@@ -28,6 +28,8 @@ import { isRef, ref, type Ref } from 'vue';
 import { debounce } from 'lodash-es';
 import tippy, { type Props, type Placement, type Instance } from 'tippy.js';
 
+import './pop-instance-util.scss';
+
 type PopInstanceUtilType = {
   refContent:
     | (() => HTMLElement | string)
@@ -41,6 +43,13 @@ type PopInstanceUtilType = {
   newInstance: boolean;
   tippyOptions: Partial<Props>;
   watchElement: Ref<HTMLElement>; // 添加需要监视的元素，能在元素高度变化时，自动更新 pop
+};
+
+export const markBklogTippy = (instances: Instance | Instance[]) => {
+  const instanceList = Array.isArray(instances) ? instances : [instances];
+  instanceList.forEach(instance => {
+    instance.popper.classList.add('bklog-tippy');
+  });
 };
 
 export default class PopInstanceUtil {
@@ -232,6 +241,7 @@ export default class PopInstanceUtil {
     const content = this.getContent();
     if (this.tippyInstance === null && content) {
       this.tippyInstance = tippy(target, this.getMergeTippyOptions()) as any;
+      markBklogTippy(this.tippyInstance);
     }
   }
 
