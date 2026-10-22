@@ -1832,7 +1832,7 @@ class SourceAnalysisRulePatchSerializer(SourceAnalysisRuleWriteSerializer):
 
 
 class ListSourceAnalysisBkciProjectsResource(SourceAnalysisBaseResource):
-    """查询当前用户可访问的蓝盾项目选项。"""
+    """查询当前用户可访问且已启用的蓝盾项目选项。"""
 
     class RequestSerializer(serializers.Serializer):
         bk_biz_id = serializers.IntegerField(label="业务 ID")
@@ -1845,6 +1845,8 @@ class ListSourceAnalysisBkciProjectsResource(SourceAnalysisBaseResource):
 
             options = []
             for project in projects:
+                if project.get("enabled") is not True:
+                    continue
                 # 蓝盾正式字段使用 camelCase；snake_case 仅用于兼容尚未升级的旧版本。
                 project_id = project.get("projectCode") or project.get("project_code")
                 project_name = project.get("projectName") or project.get("project_name")

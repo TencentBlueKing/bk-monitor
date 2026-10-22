@@ -267,8 +267,8 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
             api.devops,
             "list_user_project",
             return_value=[
-                {"projectCode": "project-a", "projectName": "Project A"},
-                {"projectCode": "project-b", "projectName": "Project B"},
+                {"projectCode": "project-a", "projectName": "Project A", "enabled": True},
+                {"projectCode": "project-b", "projectName": "Project B", "enabled": True},
             ],
         ):
             self.assertEqual(
@@ -286,12 +286,38 @@ class TestSourceAnalysisOptionsResources(SimpleTestCase):
         with patch.object(
             api.devops,
             "list_user_project",
-            return_value=[{"project_code": "legacy-project", "project_name": "Legacy Project"}],
+            return_value=[{"project_code": "legacy-project", "project_name": "Legacy Project", "enabled": True}],
         ):
             self.assertEqual(
                 ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2}),
                 {"total": 1, "list": [{"id": "legacy-project", "name": "Legacy Project"}]},
             )
+
+    def test_projects_only_include_explicitly_enabled_entries(self):
+        projects = [{"projectCode": "enabled-project", "projectName": "Enabled Project", "enabled": True}]
+        for index, value in enumerate((False, None, "false", "true", 0, 1)):
+            projects.append({"projectCode": f"other-{index}", "projectName": f"Other {index}", "enabled": value})
+        projects.append({"projectCode": "unknown-project", "projectName": "Unknown Project"})
+
+        with patch.object(api.devops, "list_user_project", return_value=projects):
+            self.assertEqual(
+                ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2}),
+                {"total": 1, "list": [{"id": "enabled-project", "name": "Enabled Project"}]},
+            )
+
+    def test_projects_return_empty_when_no_projects_are_enabled(self):
+        for projects in ([], [{"enabled": False}, {"enabled": None}, {}]):
+            with self.subTest(projects=projects), patch.object(api.devops, "list_user_project", return_value=projects):
+                self.assertEqual(
+                    ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2}),
+                    {"total": 0, "list": []},
+                )
+
+    def test_enabled_projects_still_require_display_fields(self):
+        for project in ({"enabled": True}, {"enabled": True, "projectCode": "project-a"}):
+            with self.subTest(project=project), patch.object(api.devops, "list_user_project", return_value=[project]):
+                with self.assertRaises(SourceAnalysisUpstreamUnavailableError):
+                    ListSourceAnalysisBkciProjectsResource().perform_request({"bk_biz_id": 2})
 
     def test_repositories_keep_git_alias_only(self):
         repositories = [
