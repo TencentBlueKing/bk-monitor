@@ -29,7 +29,6 @@ def setup_v3(monkeypatch):
         "credentials": {"app_code": "offline", "app_secret": "offline-only"},
         "system": {"id": "bk_monitorv3", "name": "Monitor"},
         "bk_tenant_id": "system",
-        "enable_v1_compat": False,
         "fallback_apply_url": "https://iam.example.test/saas/",
     }
     monkeypatch.setattr(config, "provider_options", lambda name, tenant: options)
@@ -67,7 +66,7 @@ def test_read_cache_survives_permission_instances_and_expires(setup_v3, monkeypa
     assert calls.call_count == 2
 
 
-@pytest.mark.parametrize("change", ["tenant", "code", "secret", "gateway", "system", "codec", "compat"])
+@pytest.mark.parametrize("change", ["tenant", "code", "secret", "gateway", "system", "codec"])
 def test_shared_client_isolation(setup_v3, change):
     first = config.build_provider("v3").client
     options = deepcopy(setup_v3)
@@ -82,8 +81,6 @@ def test_shared_client_isolation(setup_v3, change):
         options["system"]["id"] = "another-system"
     elif change == "codec":
         options["codec_kwargs"] = {"action_id_map": {"view_business": "other-action"}}
-    else:
-        options["enable_v1_compat"] = True
     assert config.build_provider("v3", tenant, options=options).client is not first
 
 
