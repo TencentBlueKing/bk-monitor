@@ -1,4 +1,4 @@
-"""图片渲染按 options 中的业务校验应用授权，并保留用户仪表盘权限校验。"""
+"""图片渲染仅对网关请求按 options 中的业务校验应用授权，保留仪表盘权限校验。"""
 
 import time
 from types import SimpleNamespace
@@ -20,7 +20,10 @@ def render_context(mocker):
         data={},
         content_type="application/json",
         HTTP_BK_APP_CODE="render-app",
+        HTTP_X_BKAPI_FROM="apigw",
+        HTTP_X_BKAPI_JWT="verified-jwt",
     )
+    request.jwt = SimpleNamespace(app=authentication.BkJWTClient.AttrDict(app_code="render-app"))
     request.biz_id = None
     request.user = SimpleNamespace(username="admin", tenant_id="tenant-a")
     request.skip_check = True
@@ -76,7 +79,7 @@ def test_allows_authorized_business_and_checks_dashboard(render_context, namespa
 
 def test_preserves_unconfigured_app_behavior(render_context):
     request, permission = render_context
-    request.META["HTTP_BK_APP_CODE"] = "unconfigured-app"
+    request.jwt.app["app_code"] = "unconfigured-app"
 
     assert validate_render(bk_biz_id=3)["options"]["bk_biz_id"] == 3
     permission.batch_is_allowed.assert_called_once()
@@ -85,8 +88,10 @@ def test_preserves_unconfigured_app_behavior(render_context):
 @pytest.mark.parametrize("header_app_code", [None, "unconfigured-app"])
 def test_uses_gateway_app_identity(render_context, header_app_code):
     request, _ = render_context
-    request.jwt = SimpleNamespace(app=SimpleNamespace(app_code="render-app"))
-    request.META = {} if header_app_code is None else {"HTTP_BK_APP_CODE": header_app_code}
+    if header_app_code is None:
+        request.META.pop("HTTP_BK_APP_CODE")
+    else:
+        request.META["HTTP_BK_APP_CODE"] = header_app_code
 
     with pytest.raises(PermissionDenied, match="access this business"):
         validate_render(bk_biz_id=3)
@@ -157,6 +162,9 @@ def test_loads_current_tenant_authorizations_on_first_request(render_context, mo
 
 def test_preserves_authenticated_bearer_token_authorization(render_context, mocker):
     request, permission = render_context
+    request.META.pop("HTTP_X_BKAPI_FROM")
+    request.META.pop("HTTP_X_BKAPI_JWT")
+    del request.jwt
     request.META["HTTP_AUTHORIZATION"] = "Bearer share-token"
     request.biz_id = 3
     record = SimpleNamespace(
@@ -176,9 +184,21 @@ def test_preserves_authenticated_bearer_token_authorization(render_context, mock
     permission.batch_is_allowed.assert_called_once()
 
 
-def test_bearer_header_alone_does_not_skip_app_authorization(render_context):
+def test_gateway_bearer_header_does_not_skip_app_authorization(render_context):
     request, _ = render_context
     request.META["HTTP_AUTHORIZATION"] = "Bearer unverified-token"
 
     with pytest.raises(PermissionDenied, match="access this business"):
         validate_render(bk_biz_id=3)
+
+
+@pytest.mark.parametrize("missing_header", ["HTTP_X_BKAPI_FROM", "HTTP_X_BKAPI_JWT"])
+def test_non_gateway_request_does_not_check_app_authorization(render_context, mocker, missing_header):
+    request, permission = render_context
+    request.META.pop(missing_header)
+    del request.jwt
+    check = mocker.patch.object(mail_report, "is_match_api_token")
+
+    assert validate_render(bk_biz_id=3)["options"]["bk_biz_id"] == 3
+    check.assert_not_called()
+    permission.batch_is_allowed.assert_called_once()
