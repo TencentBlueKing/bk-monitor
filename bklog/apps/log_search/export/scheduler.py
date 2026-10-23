@@ -137,7 +137,7 @@ def _inflight_by_index_set():
     return counts
 
 
-def dispatch_ready_parts(deadline=None):
+def dispatch_ready_parts(deadline=None, allow_retries=True):
     """
     按公平顺序投递分片。
 
@@ -146,6 +146,7 @@ def dispatch_ready_parts(deadline=None):
     （两个任务即 2+2），用不完的份额当轮让给后面的任务。
     oversized 分片另受单 Job 和环境上限约束，额度不足时先投同一个任务的普通分片。
     轮次有单调时钟预算：用尽后在两次写库之间收尾，避免单轮活过调度锁租约后与下一轮重叠放量。
+    allow_retries=False 只投首次执行的分片，失败分片留给定时轮次，保留周期性重试节奏。
     """
     jobs = list(
         ExportJob.objects.filter(status__in=[ExportJobStatus.READY, ExportJobStatus.RUNNING]).order_by(
@@ -215,6 +216,9 @@ def dispatch_ready_parts(deadline=None):
             if capacity <= 0:
                 break
             waiting_parts = ExportPart.objects.filter(job=job, status=ExportPartStatus.WAITING)
+            if not allow_retries:
+                # 补槽是秒级触发，重试若也走这里会在瞬时故障窗口内打满重试次数
+                waiting_parts = waiting_parts.filter(attempts=0)
             if oversized_inflight >= oversized_limit or job_oversized_inflight >= policy.oversized_parallelism:
                 # 额度不足：把 oversized 分片从候选里剔除，先投递同一个任务后面的普通分片
                 waiting_parts = waiting_parts.filter(oversized=False)
@@ -273,11 +277,12 @@ def dispatch_pending_parts(deadline=None):
 
     空槽只需补投一次，不必为了一个槽位重跑 recover/planning/notify 的全量扫描；
     额度与公平性仍由 dispatch_ready_parts 在调度锁内计算。
+    只投首次执行的分片，失败分片交给定时轮次重试，避免故障窗口内耗尽重试预算。
     """
     started = time.monotonic()
     if deadline is None:
         deadline = started + settings.ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS
-    dispatched = dispatch_ready_parts(deadline)
+    dispatched = dispatch_ready_parts(deadline, allow_retries=False)
     logger.info("[dispatch_pending_parts] dispatched=%s cost=%.3fs", len(dispatched), time.monotonic() - started)
     return dispatched
 

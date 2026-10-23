@@ -1771,6 +1771,39 @@ class SchedulerTests(TestCase):
     def test_dispatch_refuses_when_global_capacity_is_not_configured(self, send, _policy):
         self.assertEqual(dispatch_ready_parts(), [])
         send.assert_not_called()
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=1, global_parallelism=1),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_refill_round_skips_retried_parts(self, send, _policy):
+        """补槽是秒级触发：只投首次执行的分片，否则瞬时故障会在几秒内打满重试次数。"""
+        ExportPart.objects.filter(part_no=1).update(attempts=1)
+        dispatched = dispatch_pending_parts()
+        self.assertEqual(dispatched, [ExportPart.objects.get(part_no=2).pk])
+        self.assertEqual(ExportPart.objects.get(part_no=1).status, ExportPartStatus.WAITING)
+        self.assertEqual(send.call_count, 1)
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=1, global_parallelism=1),
+    )
+    @patch("apps.log_search.export.scheduler._send")
+    def test_periodic_round_still_retries_failed_parts(self, send, _policy):
+        """失败分片仍由定时轮次按原节奏重试，重试预算不被补槽提前消耗。"""
+        ExportPart.objects.filter(part_no=1).update(attempts=1)
+        self.assertEqual(dispatch_ready_parts(), [ExportPart.objects.get(part_no=1).pk])
+        self.assertEqual(ExportPart.objects.get(part_no=1).status, ExportPartStatus.DISPATCHED)
+        self.assertEqual(send.call_count, 1)
+
+    @patch("apps.log_search.export.scheduler.current_policy", return_value=build_policy())
+    @patch("apps.log_search.export.scheduler._send")
+    def test_refill_round_waits_when_only_retries_are_pending(self, send, _policy):
+        """只剩失败分片时补槽轮次不投递，交给定时轮次。"""
+        ExportPart.objects.update(attempts=1)
+        self.assertEqual(dispatch_pending_parts(), [])
+        send.assert_not_called()
         self.assertEqual(ExportPart.objects.filter(status=ExportPartStatus.WAITING).count(), 3)
 
     @patch(
@@ -2078,6 +2111,7 @@ class DispatchRefillTests(TestCase):
         """空槽只需要补投，不重跑 recover/planning 的全量扫描。"""
         self.assertEqual(dispatch_pending_parts(), [1, 2])
         dispatch.assert_called_once()
+        self.assertFalse(dispatch.call_args.kwargs["allow_retries"])
         planning.assert_not_called()
         recover.assert_not_called()
 
