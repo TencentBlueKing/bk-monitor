@@ -30,11 +30,20 @@ CATEGORY_ACTIONS = {
     "alert_handling": "using_alarm_handling_mcp",
     "log_collection": "using_log_collection_mcp",
     "log_extract": "using_log_extract_mcp",
+    "recording_rule": "view_recording_rule_v2",
     "metadata": "using_metadata_mcp",
 }
 
 # ops 没有登记 MCP Server 后缀权限；OpenClaw 自愈使用专用的用户身份隔离，
 # 两者都不能套普通业务级 IAM Action。
+
+# 同一领域内的写操作可使用独立的管理权限。
+TOOL_ACTIONS = {
+    "create_recording_rule": "manage_recording_rule_v2",
+    "update_recording_rule": "manage_recording_rule_v2",
+    "delete_recording_rule": "manage_recording_rule_v2",
+    "apply_recording_rule": "manage_recording_rule_v2",
+}
 
 # 显式维护公开 Source：新增 APIGW MCP YAML 必须经过评审，不能因文件名匹配就自动进入目录。
 SOURCE_FILES = {
@@ -59,6 +68,7 @@ SOURCE_FILES = {
         "log_collection_update_mcp.yaml",
     ),
     "log_extract": ("log_extract_mcp.yaml",),
+    "recording_rule": ("recording_rule_mcp.yaml",),
     "metadata": ("metadata_mcp.yaml",),
 }
 # 私有／专用 MCP 保留原入口，不进入 Tool Search 和 Unified 执行。
@@ -292,6 +302,13 @@ PUBLIC_TOOL_NAMES = {"apm_mcp_calculate_by_range": "calculate_by_range"}
 
 # 能力标签是人工评审的产品语义，不能根据 GET／POST 或函数名前缀猜测。
 CAPABILITIES = {
+    "preview_recording_rule": ("analysis",),
+    "create_recording_rule": ("mutation",),
+    "update_recording_rule": ("mutation",),
+    "delete_recording_rule": ("mutation",),
+    "get_recording_rule": ("detail",),
+    "apply_recording_rule": ("mutation",),
+    "list_recording_rules": ("discovery",),
     # 指标查询
     "list_time_series_groups": ("discovery",),
     "list_time_series_metrics": ("discovery",),
@@ -443,6 +460,13 @@ ADDITIONAL_IAM_ACTIONS = {
 
 # Tool Search 展示标题；工具描述本身仍来自 Source OpenAPI。
 TITLES = {
+    "preview_recording_rule": "预解析预计算规则",
+    "create_recording_rule": "新建预计算规则",
+    "update_recording_rule": "修改预计算规则",
+    "delete_recording_rule": "删除预计算规则",
+    "get_recording_rule": "查询预计算规则",
+    "apply_recording_rule": "下发预计算规则",
+    "list_recording_rules": "列出预计算规则",
     "list_time_series_groups": "列出时序分组",
     "list_time_series_metrics": "列出时序指标",
     "execute_range_query": "执行 PromQL 范围查询",
@@ -540,6 +564,11 @@ TITLES.update(
 
 # 参数应从哪些前置工具取得；这是调用建议，不是绕过最终校验的凭据。
 PREREQUISITES: dict[str, tuple[str, ...]] = {
+    "preview_recording_rule": ("list_recording_rules",),
+    "update_recording_rule": ("list_recording_rules",),
+    "delete_recording_rule": ("list_recording_rules",),
+    "get_recording_rule": ("list_recording_rules",),
+    "apply_recording_rule": ("list_recording_rules",),
     "list_time_series_metrics": ("list_time_series_groups",),
     "execute_range_query": ("list_time_series_groups", "list_time_series_metrics"),
     "execute_sql_query": ("list_time_series_groups",),
@@ -1096,7 +1125,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
                         input_schema=schema,
                         backend_method=str(backend.get("method") or method).upper(),
                         backend_path=str(backend.get("path") or api_path),
-                        iam_action=CATEGORY_ACTIONS.get(category, ""),
+                        iam_action=TOOL_ACTIONS.get(tool_name, CATEGORY_ACTIONS.get(category, "")),
                         prerequisites=PREREQUISITES.get(tool_name, ()),
                         risk=risk,
                         permission_exempt=tool_name in PERMISSION_EXEMPT_TOOL_NAMES,
@@ -1130,6 +1159,7 @@ def load_tool_registry(root: Path | None = None) -> ToolRegistry:
             {
                 "category_actions": CATEGORY_ACTIONS,
                 "additional_iam_actions": ADDITIONAL_IAM_ACTIONS,
+                "tool_actions": TOOL_ACTIONS,
                 "ignored_source_files": sorted(IGNORED_SOURCE_FILES),
                 "permission_exempt_tools": sorted(PERMISSION_EXEMPT_TOOL_NAMES),
                 "native_permissions": NATIVE_PERMISSIONS,

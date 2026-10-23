@@ -500,6 +500,14 @@ ADVANCED_OPTIONS = OrderedDict(
             "BK_DATA_RECORD_RULE_PROJECT_ID",
             slz.IntegerField(label="监控使用计算平台的预计算流程的公共项目ID", default=1),
         ),
+        (
+            "RECORD_RULE_V4_CONFIG",
+            slz.JSONField(
+                label="RecordingRule V4 配置",
+                default={"max_sources": 20, "max_rules": 20},
+                help_text="max_sources 为单 Flow 去重后的 source 上限，max_rules 为 group 中 rule 条数上限，均为正整数，默认 20。",
+            ),
+        ),
         ("METADATA_REQUEST_ES_TIMEOUT", slz.JSONField(label="metadata请求ES超时时间", default={"default": 10})),
         ("SKIP_INFLUXDB_TABLE_ID_LIST", slz.BooleanField(label="跳过写入influxdb的结果表列表", default=[])),
         ("ENABLE_UPTIMECHECK_TEST", slz.BooleanField(label="是否开启拨测联通性测试", default=True)),
