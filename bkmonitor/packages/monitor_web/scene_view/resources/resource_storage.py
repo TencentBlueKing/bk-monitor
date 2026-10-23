@@ -145,6 +145,7 @@ def apm_references(bk_tenant_id, bk_biz_id):
                     {
                         "bk_data_id": source.bk_data_id if source.bk_data_id > 0 else None,
                         "table_id": source.result_table_id,
+                        "is_shared": source.is_shared,
                     }
                     if source
                     else {"error": "应用数据源尚未登记"}

@@ -1,6 +1,7 @@
 """业务存储关联回归：真实 ORM 关联、租户边界、共存和批量查询。"""
 
 import json
+from concurrent.futures import Future
 from unittest import mock
 
 import pytest
@@ -235,6 +236,78 @@ def test_explicit_apm_table_does_not_expand_other_shared_tables():
     assert [row["result_table_id"] for row in result["items"]] == ["apm.first"]
 
 
+def test_apm_shared_and_business_bindings_resolve_their_actual_tenants():
+    from apm.models import ApmApplication
+    from apm.models.datasource import MetricDataSource, TraceDataSource
+    from monitor_web.scene_view.resources.resource_storage import apm_references
+
+    ApmApplication.objects.bulk_create(
+        [ApmApplication(bk_tenant_id="tenant-a", bk_biz_id=100, app_name="checkout", app_alias="结算")]
+    )
+    TraceDataSource.objects.bulk_create(
+        [
+            TraceDataSource(
+                bk_biz_id=100,
+                app_name="checkout",
+                bk_data_id=600051,
+                result_table_id="apm.shared_trace",
+                shared_datasource_id=1,
+            )
+        ]
+    )
+    MetricDataSource.objects.bulk_create(
+        [MetricDataSource(bk_biz_id=100, app_name="checkout", bk_data_id=600052, result_table_id="apm.metric")]
+    )
+    create_source(600051, ["apm.shared_trace"])
+    create_source(600052, ["apm.metric"], tenant="tenant-a")
+    create_source(600053, ["apm.shared_trace"], tenant="tenant-a")
+    create_cluster(51, "shared-es", kind="elasticsearch")
+    create_cluster(52, "business-es", kind="elasticsearch", tenant="tenant-a")
+    models.ESStorage.objects.bulk_create(
+        [
+            models.ESStorage(table_id="apm.shared_trace", index_set="shared_trace", storage_cluster_id=51),
+            models.ESStorage(
+                table_id="apm.shared_trace",
+                bk_tenant_id="tenant-a",
+                index_set="other_trace",
+                storage_cluster_id=52,
+            ),
+        ]
+    )
+    references = apm_references("tenant-a", 100)
+    serializer = QueryResourceStorageResource.RequestSerializer(
+        data={"bk_biz_id": 100, "bk_tenant_id": "tenant-a", "resources": references}
+    )
+    assert serializer.is_valid(), serializer.errors
+    references = serializer.validated_data["resources"]
+    connection = connections[models.DataSource.objects.db]
+    with CaptureQueriesContext(connection) as single:
+        result = query(references, tenant="tenant-a", selectors=[{"scene": "apm"}])
+    with CaptureQueriesContext(connection) as batch:
+        batch_result = query(
+            [{**reference, "resource_id": f"app-{index}"} for index in range(40) for reference in references],
+            tenant="tenant-a",
+            selectors=[{"scene": "apm"}],
+        )
+    assert batch_result["total"] == 80
+    assert len(single) == len(batch)
+    rows = {row["data_type"]: row for row in result["items"]}
+    assert rows["metric"]["bk_data_id"] == 600052
+    assert rows["trace"]["bk_data_id"] == 600051
+    assert rows["trace"]["errors"] == []
+    assert rows["trace"]["storages"][0]["cluster"]["cluster_name"] == "shared-es"
+    ordinary = query([ref(600051)], tenant="tenant-a")["items"][0]
+    assert ordinary["result_table_id"] is None and ordinary["errors"]
+
+
+def test_missing_explicit_data_source_does_not_use_another_tables_data_id():
+    create_source(600054, ["apm.metric"])
+    item = query([ref(600055, table_id="apm.metric", expand_tables=False)])["items"][0]
+    assert item["bk_data_id"] == 600055
+    assert item["result_table_id"] == "apm.metric"
+    assert "未找到数据源与结果表关联" in item["errors"]
+
+
 def test_split_tables_and_cmdb_relationships_are_retained():
     create_source(600006, ["custom.base", "custom.cpu"])
     create_source(600007, ["custom.cmdb"])
@@ -316,7 +389,7 @@ def test_runtime_deduplicates_shared_link_and_filters_other_tables():
         "metadata.resources.bkdata_link.QueryDataLinkMetadataResource._fetch_bkbase_metadata", return_value=payload
     ) as fetch:
         result = query([ref(600011)], include_runtime=True)
-    fetch.assert_called_once_with(600011, None, bk_tenant_id="system")
+    fetch.assert_called_once_with(600011, None, bk_tenant_id="system", timeout=3)
     assert result["items"][0]["runtime"]["bkbase"] == [
         {"result_table_id": "runtime.a", "kafka_shipper_topic_name": "topic_a"}
     ]
@@ -335,6 +408,46 @@ def test_runtime_failure_preserves_configuration_and_hides_exception_details():
     assert result["items"][0]["result_table_id"] == "runtime.failed"
     assert result["items"][0]["runtime"]["errors"]
     assert "private" not in json.dumps(result)
+
+
+def test_runtime_deadline_keeps_completed_results_and_marks_pending_requests():
+    create_source(600056, ["runtime.done"])
+    create_source(600057, ["runtime.pending"])
+    completed = Future()
+    completed.set_result({"branches": [{"result_table_id": "runtime.done"}]})
+    pending = Future()
+    executor = mock.Mock()
+    executor.submit.side_effect = [completed, pending]
+    with (
+        mock.patch("metadata.service.resource_storage.ThreadPoolExecutor", return_value=executor),
+        mock.patch("metadata.service.resource_storage.RUNTIME_TIMEOUT_SECONDS", 0),
+    ):
+        result = query([ref(600056, resource_id="1"), ref(600057, resource_id="2")], include_runtime=True)
+    assert result["items"][0]["runtime"]["bkbase"] == [{"result_table_id": "runtime.done"}]
+    assert result["items"][1]["result_table_id"] == "runtime.pending"
+    assert result["items"][1]["runtime"]["errors"] == [{"source": "bkbase", "message": "运行信息查询失败或超时"}]
+    executor.shutdown.assert_called_once_with(wait=False, cancel_futures=True)
+
+
+def test_runtime_bkbase_timeout_reaches_http_client():
+    from api.bkdata.default import GetDataLinkMetadataResource
+    from metadata.resources.bkdata_link import QueryDataLinkMetadataResource
+
+    client = GetDataLinkMetadataResource()
+    client.session.get = mock.Mock()
+    client.session.get.return_value.json.return_value = {"result": True, "code": 0, "data": {"branches": []}}
+    client.session.get.return_value.status_code = 200
+    with (
+        mock.patch("metadata.resources.bkdata_link.api.bkdata.get_data_link_metadata", side_effect=client.request),
+        mock.patch.object(client, "get_headers", return_value={}),
+        mock.patch.object(client, "full_request_data", side_effect=lambda data: data),
+    ):
+        result = QueryDataLinkMetadataResource()._fetch_bkbase_metadata(
+            600058, None, bk_tenant_id="tenant-a", timeout=3
+        )
+    assert result == {"branches": []}
+    assert client.bk_tenant_id == "tenant-a"
+    assert client.session.get.call_args.kwargs["timeout"] == 3
 
 
 @pytest.mark.parametrize(
@@ -671,6 +784,13 @@ def test_recording_rule_resolves_business_space_once():
     assert [row["resource_id"] for row in result["items"]] == ["1"]
 
 
+def test_recording_rule_excludes_soft_deleted_groups():
+    create_recording_rule(1, is_deleted=True)
+    create_recording_rule(2, desired_status="stopped")
+    result = query([], selectors=[{"scene": "recording_rule"}])
+    assert [row["resource_id"] for row in result["items"]] == ["2"]
+
+
 def test_recording_rule_keeps_partial_output_without_inventing_storage():
     rule = create_recording_rule(1, create_output=False, dst_vm_storage_name="")
     create_cluster(91, "vm-default")
@@ -723,7 +843,7 @@ def test_recording_rule_runtime_queries_output_table_once_and_only_on_current_pa
         return_value={"branches": [{"result_table_id": rule.dst_vm_table_id}, {"result_table_id": "other_business"}]},
     ) as fetch:
         result = query([], selectors=[{"scene": "recording_rule"}], include_runtime=True, page_size=1)
-    fetch.assert_called_once_with(None, rule.dst_vm_table_id, bk_tenant_id="system")
+    fetch.assert_called_once_with(None, rule.dst_vm_table_id, bk_tenant_id="system", timeout=3)
     assert result["total"] == 2 and len(result["items"]) == 1
     assert result["items"][0]["runtime"]["bkbase"] == [{"result_table_id": rule.dst_vm_table_id}]
 
@@ -735,7 +855,7 @@ def test_recording_rule_runtime_failure_keeps_saved_output_without_vm_record():
         side_effect=TimeoutError("private-host:1234 token=secret"),
     ) as fetch:
         item = query([], selectors=[{"scene": "recording_rule"}], include_runtime=True)["items"][0]
-    fetch.assert_called_once_with(None, rule.dst_vm_table_id, bk_tenant_id="system")
+    fetch.assert_called_once_with(None, rule.dst_vm_table_id, bk_tenant_id="system", timeout=3)
     assert item["storages"][0]["table"] == rule.dst_vm_table_id
     assert item["runtime"]["errors"] == [{"source": "bkbase", "message": "运行信息查询失败或超时"}]
     assert "private-host" not in json.dumps(item) and "secret" not in json.dumps(item)

@@ -19,6 +19,7 @@ class ResourceStorageReferenceSerializer(serializers.Serializer):
     table_id = serializers.CharField(allow_blank=True, required=False)
     expand_tables = serializers.BooleanField(default=False)
     is_builtin = serializers.BooleanField(default=False)
+    is_shared = serializers.BooleanField(default=False)
     error = serializers.CharField(required=False)
 
 

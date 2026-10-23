@@ -1,7 +1,7 @@
 """按已知资源关联批量查询存储，配置查询不访问或修改下游服务。"""
 
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, wait
 import logging
 
 from django.conf import settings
@@ -32,6 +32,7 @@ HOST_ETL_TYPES = {
 }
 IDENTITY_FIELDS = ("scene", "resource_id", "resource_name", "resource_status", "data_type")
 CLUSTER_FIELDS = ("cluster_id", "cluster_name", "display_name", "cluster_type", "is_default_cluster")
+RUNTIME_TIMEOUT_SECONDS = 5
 
 
 def builtin_data_ids():
@@ -76,7 +77,14 @@ class ResourceStorageQuery:
         if not scenes or "host" in scenes:
             references.extend(self.host_references())
         references = [ref for ref in references if matches_selector(ref, selectors)]
-        rows = self.resolve_references(references)
+        # APM 已绑定的共享池登记在默认租户，按保存的绑定分批解析；普通资源不跨租户回退。
+        references_by_tenant = defaultdict(list)
+        for ref in references:
+            tenant = DEFAULT_TENANT_ID if ref["scene"] == "apm" and ref.get("is_shared") else self.tenant
+            references_by_tenant[tenant].append(ref)
+        rows = []
+        for tenant, tenant_refs in references_by_tenant.items():
+            rows.extend(ResourceStorageQuery(tenant, self.biz).resolve_references(tenant_refs))
         if not scenes or "recording_rule" in scenes:
             rows.extend(self.recording_rule_rows(selectors))
         rows = self.add_derived_tables(rows)
@@ -214,7 +222,11 @@ class ResourceStorageQuery:
         space_type, space_id = bk_biz_id_to_space_uid(self.biz).split("__", 1)
         rules = (
             RecordRuleV4.objects.filter(
-                bk_tenant_id=self.tenant, space_type=space_type, space_id=space_id, deleted_at__isnull=True
+                bk_tenant_id=self.tenant,
+                space_type=space_type,
+                space_id=space_id,
+                is_deleted=False,
+                deleted_at__isnull=True,
             )
             .exclude(desired_status=RecordRuleV4DesiredStatus.DELETED.value)
             .only("id", "name", "desired_status", "table_id", "dst_vm_table_id", "dst_vm_storage_name")
@@ -278,11 +290,10 @@ class ResourceStorageQuery:
         rows = []
         for ref in references:
             source = by_id.get(ref.get("bk_data_id")) if ref.get("bk_data_id") else by_name.get(ref.get("data_name"))
-            target_mappings = by_data[source.bk_data_id] if source else []
+            data_id = ref.get("bk_data_id") or (source.bk_data_id if source else None)
+            target_mappings = by_data[data_id] if data_id else []
             if ref.get("table_id") and not ref.get("expand_tables"):
-                target_mappings = [
-                    m for m in by_table[ref["table_id"]] if not source or m.bk_data_id == source.bk_data_id
-                ]
+                target_mappings = [m for m in by_table[ref["table_id"]] if not data_id or m.bk_data_id == data_id]
             if target_mappings:
                 for mapping in target_mappings:
                     rows.append(
@@ -298,7 +309,7 @@ class ResourceStorageQuery:
                 row = self.make_row(
                     ref,
                     self.tenant,
-                    ref.get("bk_data_id") or (source.bk_data_id if source else None),
+                    data_id,
                     ref.get("table_id") or None,
                     source,
                 )
@@ -654,7 +665,9 @@ class ResourceStorageQuery:
                 ids.add(row["bk_data_id"])
             row_requests[index] = [("bkbase", data_id) for data_id in sorted(ids)]
             for key in row_requests[index]:
-                requests[key] = lambda data_id=key[1]: reader._fetch_bkbase_metadata(data_id, None, bk_tenant_id=tenant)
+                requests[key] = lambda data_id=key[1]: reader._fetch_bkbase_metadata(
+                    data_id, None, bk_tenant_id=tenant, timeout=3
+                )
             if not ids:
                 vm_tables = {
                     record.vm_result_table_id
@@ -668,7 +681,7 @@ class ResourceStorageQuery:
                     key = ("bkbase", "vm_result_table", vm_table)
                     row_requests[index].append(key)
                     requests[key] = lambda vm_table=vm_table: reader._fetch_bkbase_metadata(
-                        None, vm_table, bk_tenant_id=tenant
+                        None, vm_table, bk_tenant_id=tenant, timeout=3
                     )
             for storage in context["elasticsearch"][row["result_table_id"]]:
                 key = ("elasticsearch", storage.storage_cluster_id)
@@ -685,14 +698,22 @@ class ResourceStorageQuery:
             else:
                 requests[("elasticsearch", cluster_id)] = lambda: {"_error": True}
         results = {}
-        with ThreadPoolExecutor(max_workers=8) as executor:
+        executor = ThreadPoolExecutor(max_workers=8)
+        try:
             futures = {key: executor.submit(request) for key, request in requests.items()}
+            completed, _ = wait(futures.values(), timeout=RUNTIME_TIMEOUT_SECONDS)
             for key, future in futures.items():
+                if future not in completed:
+                    results[key] = {"_error": True}
+                    continue
                 try:
                     results[key] = future.result()
                 except Exception:
                     logger.exception("resource storage runtime query failed: tenant=%s target=%s", tenant, key)
                     results[key] = {"_error": True}
+        finally:
+            # 取消尚未开始的请求；在途请求有自己的 HTTP 超时，不等待它们拖住配置响应。
+            executor.shutdown(wait=False, cancel_futures=True)
         # 明确的字段白名单，避免下游新增字段或错误正文泄露地址/认证信息。
         branch_fields = (
             "result_table_id",
