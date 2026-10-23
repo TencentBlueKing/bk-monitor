@@ -46,7 +46,7 @@ systemctl restart grafana-server
 
 | 字段 | 值 |
 | --- | --- |
-| Base Url | `https://<监控平台域名>/query-api/rest/v2/grafana/bk_log_search/` |
+| Base Url | `https://<监控平台域名>/rest/v2/grafana/bk_log_search/` |
 | 蓝鲸监控 | 打开 |
 | Allowed cookies | 留空；需要多租户隔离时按需配置 |
 | 业务ID | 需要查询的业务 ID |
