@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Tencent is pleased to support the open source community by making 蓝鲸智云 - 监控平台 (BlueKing - Monitor) available.
 Copyright (C) 2017-2025 Tencent. All rights reserved.
@@ -8,14 +7,16 @@ Unless required by applicable law or agreed to in writing, software distributed 
 an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the
 specific language governing permissions and limitations under the License.
 """
-import collections
-from typing import Dict
 
+import collections
+
+from django.utils import timezone
 from django.utils.translation import gettext as _
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from bkmonitor.utils.request import get_request
+from bkmonitor.utils.user import get_global_user
 from monitor_web.models import FavoriteGroup, QueryHistory
 
 
@@ -110,39 +111,105 @@ class FavoriteSerializer(serializers.ModelSerializer):
         model = QueryHistory
         fields = ("id", "name", "config", "group_id", "create_user", "update_user", "update_time")
 
-    def update(self, instance, validated_data):
-        # 如果没有改变不需要执行
-        for field in ["name", "group_id", "config"]:
-            if field in validated_data and (field == "config" or validated_data[field] != getattr(instance, field)):
-                break
-        else:
-            return instance
+    @staticmethod
+    def _get_existing_names(biz_ids: set[int], query_types: set[str], names: set[str]) -> set[tuple]:
+        """一次查出给定业务、检索类型下已被占用的名称，返回 (bk_biz_id, type, name) 集合"""
+        if not biz_ids or not query_types or not names:
+            return set()
+        return set(
+            QueryHistory.objects.filter(bk_biz_id__in=biz_ids, type__in=query_types, name__in=names).values_list(
+                "bk_biz_id", "type", "name"
+            )
+        )
 
-        # 重名检查
-        if validated_data.get("name"):
-            # 重名检查
-            if (
-                instance.name != validated_data["name"]
-                and QueryHistory.objects.filter(
-                    bk_biz_id=instance.bk_biz_id, type=instance.type, name=validated_data["name"]
-                ).exists()
-            ):
-                raise ValidationError(_("收藏记录({})名称重复").format(validated_data["name"]))
+    @staticmethod
+    def _apply_changes(
+        instance, validated_data: dict, existing_names: set[tuple], pending_names: set[tuple] | None = None
+    ) -> set[str]:
+        """校验并就地修改 instance，不落库，返回本次实际变更的字段名集合"""
+        name = validated_data.get("name")
+        name_changed = "name" in validated_data and name != instance.name
+        group_changed = "group_id" in validated_data and validated_data["group_id"] != instance.group_id
+        config_changed = "config" in validated_data
+        if not (name_changed or group_changed or config_changed):
+            return set()
 
-            instance.name = validated_data["name"]
+        changed_fields = set()
+        if name:
+            name_key = (instance.bk_biz_id, instance.type, name)
+            # 名称已被其他记录占用，或同一批内重复改名
+            name_conflict = name_key in existing_names or (pending_names is not None and name_key in pending_names)
+            if instance.name != name and name_conflict:
+                raise ValidationError(_("收藏记录({})名称重复").format(name))
+            if pending_names is not None:
+                pending_names.add(name_key)
+            if name_changed:
+                instance.name = name
+                changed_fields.add("name")
 
-        if "config" in validated_data:
+        if config_changed:
             instance.config = validated_data["config"]
+            changed_fields.add("config")
 
-        if "group_id" in validated_data:
+        if group_changed:
             request = get_request()
             if instance.create_user != request.user.username and validated_data["group_id"] == 0:
                 raise ValidationError(_("只有创建者才能将收藏记录移动到个人收藏"))
 
             instance.group_id = validated_data["group_id"]
+            changed_fields.add("group_id")
+
+        # bulk_update 不会触发 Model.save()，审计字段需要手动维护
+        instance.update_user = get_global_user() or "system"
+        instance.update_time = timezone.now()
+        changed_fields.update({"update_user", "update_time"})
+        return changed_fields
+
+    def update(self, instance, validated_data):
+        name = validated_data.get("name")
+        existing_names = self._get_existing_names({instance.bk_biz_id}, {instance.type}, {name} if name else set())
+        if not self._apply_changes(instance, validated_data, existing_names):
+            return instance
 
         instance.save()
         return instance
+
+    @classmethod
+    def bulk_update(cls, instances: dict[int, QueryHistory], configs: list[dict]) -> int:
+        """
+        批量更新收藏记录，返回实际更新条数
+
+        :param instances: {收藏ID: 实例}，由调用方按权限范围查询后传入
+        :param configs: 待更新配置列表，元素包含 id，可选 name、group_id
+        """
+        # 重名检查：只查一次，覆盖所有涉及的业务与检索类型，避免遗漏
+        existing_names = set()
+        rename_names = {config["name"] for config in configs if config.get("name")}
+        if instances and rename_names:
+            existing_names = cls._get_existing_names(
+                {instance.bk_biz_id for instance in instances.values()},
+                {instance.type for instance in instances.values()},
+                rename_names,
+            )
+
+        pending_names: set[tuple] = set()
+        to_update = []
+        # 字段列表由 _apply_changes 返回，避免把未变更的字段（如大字段 config）写进 CASE WHEN
+        update_fields: set[str] = set()
+
+        for config in configs:
+            instance = instances.get(config["id"])
+            if instance is None:
+                continue
+
+            changed_fields = cls._apply_changes(instance, config, existing_names, pending_names)
+            if changed_fields:
+                update_fields |= changed_fields
+                to_update.append(instance)
+
+        if to_update:
+            QueryHistory.objects.bulk_update(to_update, sorted(update_fields))
+        return len(to_update)
 
 
 class GetFavoriteListSerializer(BaseFavoriteGroupListSerializer):
@@ -230,10 +297,12 @@ class BulkUpdateFavoriteSerializer(BaseFavoriteGroupListSerializer):
         )
         not_exists_group_id = group_ids - set(exists_group_ids)
         if not_exists_group_id:
-            raise ValidationError(_("收藏组({})不存在").format(",".join([str(group_id) for group_id in not_exists_group_id])))
+            raise ValidationError(
+                _("收藏组({})不存在").format(",".join([str(group_id) for group_id in not_exists_group_id]))
+            )
 
     @classmethod
-    def check_duplicate_name(cls, attrs: Dict):
+    def check_duplicate_name(cls, attrs: dict):
         """
         重名检查
         """
