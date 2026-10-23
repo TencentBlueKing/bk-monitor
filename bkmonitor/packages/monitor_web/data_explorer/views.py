@@ -292,10 +292,7 @@ class FavoriteViewSet(ModelViewSet):
         }
 
         # 批量更新收藏记录
-        for config in params["configs"]:
-            if config["id"] not in instances:
-                continue
-            FavoriteSerializer().update(instances[config["id"]], config)
+        FavoriteSerializer.bulk_update(instances, params["configs"])
         return Response()
 
     @action(methods=["POST"], detail=False)
