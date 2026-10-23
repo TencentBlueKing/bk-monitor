@@ -1078,7 +1078,8 @@ class ListCollectorsByHostGrayTest(TestCase):
                 lambda _self, rows: [{**row, "retention": 7} for row in rows],
             ),
             # 状态回读不是本用例的被测对象，桩掉避免打到真实节点管理
-            patch.object(HostCollectorHandler, "get_subscription_status_by_list", lambda _self, ids: []),
+            # master 起 get_subscription_status_by_list 多了 no_request / bk_tenant_id 关键字参数
+            patch.object(HostCollectorHandler, "get_subscription_status_by_list", lambda _self, ids, **_kw: []),
         ):
             rows = handler.list_collectors_by_host({"bk_biz_id": self.BK_BIZ_ID, "bk_host_id": self.BK_HOST_ID})
         return {row["collector_config_id"] for row in rows}
@@ -1128,7 +1129,7 @@ class ListCollectorsByHostGrayTest(TestCase):
                 lambda _self, rows: [{**row, "retention": 7} for row in rows],
             ),
             # 状态回读不是本用例的被测对象，桩掉避免打到真实节点管理
-            patch.object(HostCollectorHandler, "get_subscription_status_by_list", lambda _self, ids: []),
+            patch.object(HostCollectorHandler, "get_subscription_status_by_list", lambda _self, ids, **_kw: []),
         ):
             rows = handler.list_collectors_by_host({"bk_biz_id": self.BK_BIZ_ID, "bk_host_id": self.BK_HOST_ID})
         self.assertEqual({row["collector_config_id"] for row in rows}, {self.v3_collector.collector_config_id})
