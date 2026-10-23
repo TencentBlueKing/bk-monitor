@@ -38,6 +38,8 @@ import SliderHeader from '@/components/slider-header/slider-header';
 import type { CollectionResultSelection } from '../../types/collection-history';
 import type { CollectionHostResult, CollectionResultsState } from '../../types/collection-results';
 
+import './collection-result-detail.scss';
+
 export default defineComponent({
   name: 'CollectionResultDetail',
   props: {
@@ -74,7 +76,7 @@ export default defineComponent({
     const processes = row?.processes.map(item => `${item.process_name} (${item.pid})`).join('，') || '--';
     return (
       <Sideslider
-        width={this.fullscreen ? '100%' : 'min(1200px, 100vw)'}
+        width={this.fullscreen ? '100%' : '75%'}
         class='collection-result-detail'
         beforeClose={() => !this.busy}
         isShow={true}
@@ -89,7 +91,6 @@ export default defineComponent({
                   <>
                     <Button
                       class='collection-result-header-action'
-                      v-tippy={this.t(this.fullscreen ? '退出全屏' : '全屏查看采集结果')}
                       text
                       onClick={() => {
                         this.fullscreen = !this.fullscreen;
@@ -118,7 +119,6 @@ export default defineComponent({
                     </Button>
                     <Button
                       class='collection-result-header-action'
-                      v-tippy={this.t('复制当前采集结果链接，访问者需登录并具有业务权限')}
                       disabled={!row || !!d.error.value}
                       text
                       onClick={() => this.$emit('share')}
@@ -138,39 +138,36 @@ export default defineComponent({
                   <i />
                 </span>
                 <div class='collection-result-summary-fields'>
-                  <div>
+                  <div class='collection-result-summary-field'>
                     <label>{this.t('目标 IP')}：</label>
                     <span>{row?.ip || '--'}</span>
                   </div>
-                  <div>
+                  <div class='collection-result-summary-field'>
                     <label>{this.t('采集进程')}：</label>
                     <span title={processes}>{processes}</span>
                   </div>
-                  <div>
+                  <div class='collection-result-summary-field'>
                     <label>{this.t('采集类型')}：</label>
                     <span>{collectionTypeLabels[row?.collection_type] || '--'}</span>
                   </div>
-                  <div>
+                  <div class='collection-result-summary-field'>
                     <label>{this.t('采集任务')}：</label>
                     <Button
-                      v-tippy={{
-                        content: `${row?.task.name || ''} · ${this.t('查看本次任务执行详情')}`,
-                        allowHTML: false,
-                      }}
+                      class='collect-task-btn'
                       disabled={!row}
                       theme='primary'
                       text
                       onClick={() => this.$emit('execution', row)}
                     >
                       {row?.task.name || '--'}
-                      <i class='icon-monitor icon-a-NewPagexinkaiye' />
+                      <i class='icon-monitor icon-fenxiang' />
                     </Button>
                   </div>
-                  <div>
+                  <div class='collection-result-summary-field'>
                     <label>{this.t('采集时间')}：</label>
                     <span>{formatCollectionTime(row?.started_at, this.timezone)}</span>
                   </div>
-                  <div>
+                  <div class='collection-result-summary-field'>
                     <label>{this.t('状态')}：</label>
                     {row ? (
                       <CollectionExecutionStatus

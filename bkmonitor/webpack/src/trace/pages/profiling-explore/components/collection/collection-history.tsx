@@ -68,7 +68,6 @@ export default defineComponent({
       type: Array as PropType<string[]>,
       default: () => Object.keys(executionStatusLabels).filter(status => status !== 'outdate'),
     },
-    rangeError: { type: String, default: '' },
     revision: { type: Number, required: true },
     timezone: { type: String, required: true },
     readonly: { type: Boolean, default: false },
@@ -220,12 +219,6 @@ export default defineComponent({
               ),
             }}
             theme='warning'
-          />
-        )}
-        {this.rangeError && (
-          <Alert
-            theme='danger'
-            title={this.rangeError}
           />
         )}
         <div

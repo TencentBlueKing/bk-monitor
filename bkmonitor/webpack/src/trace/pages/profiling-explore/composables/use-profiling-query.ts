@@ -84,7 +84,6 @@ export function useProfilingQuery() {
   const collectionRevision = shallowRef(0);
   const collectionBusy = shallowRef(false);
   const collectionRange = shallowRef<null | SelectionRange>(null);
-  const collectionError = shallowRef('');
   const collectionActive = computed(
     () => state.value.view.tab === 'collection' && ['history', 'results'].includes(state.value.collection.tab)
   );
@@ -196,7 +195,7 @@ export function useProfilingQuery() {
           isEnableOptions: true,
           methods: [{ value: EMethod.eq, alias: '=' }],
         }));
-    } catch (e) {
+    } catch {
       if (!current.signal.aborted) labelError.value = t('标签加载失败，请重试');
     } finally {
       if (!current.signal.aborted) labelsLoading.value = false;
@@ -212,11 +211,9 @@ export function useProfilingQuery() {
         collectionRange.value = range;
         patch({ resolvedTimeRange: range });
         collectionRevision.value += 1;
-        collectionError.value = '';
         syncUrl();
-      } catch (e) {
+      } catch {
         collectionRange.value = null;
-        collectionError.value = t((e as Error).message);
       }
       return;
     }
@@ -624,7 +621,6 @@ export function useProfilingQuery() {
     collectionRevision,
     collectionBusy,
     collectionRange,
-    collectionError,
     collectionCreated,
     openCollectionResult,
     shareCollectionResult,

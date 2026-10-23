@@ -57,6 +57,8 @@ export default defineComponent({
     results: Boolean,
     // 表格列已提供状态筛选时，面板内不再重复展示
     statusFilter: { type: Boolean, default: true },
+    // 筛选变更后立即查询，无需点击查询按钮
+    autoQuery: Boolean,
   },
   emits: { change: (_value: CollectionHistoryFilters) => true, refresh: () => true },
   setup(props, { emit }) {
@@ -75,20 +77,24 @@ export default defineComponent({
       if (JSON.stringify(props.filters) === JSON.stringify(draft.value)) emit('refresh');
       else emit('change', { ...draft.value });
     }
+    function update(value: Partial<CollectionHistoryFilters>) {
+      draft.value = { ...draft.value, ...value };
+      if (props.autoQuery) submit();
+    }
     function reset() {
       draft.value = createHistoryFilters();
       processes.value = [];
       submit();
     }
-    return { t, draft, processes, submit, reset };
+    return { t, draft, processes, submit, update, reset };
   },
   render() {
     const { draft } = this;
     const options = (field: 'target' | 'task_name') =>
-      (this.candidates[field] || []).map((item, index) => (
+      (this.candidates[field] || []).map(item => (
         <Select.Option
           id={String(item.value)}
-          key={`${field}:${index}`}
+          key={`${field}:${item.value}`}
           name={item.alias || String(item.value)}
         />
       ));
@@ -105,7 +111,7 @@ export default defineComponent({
             inputSearch
             multiple
             onChange={ips => {
-              this.draft = { ...draft, ips: ips || [] };
+              this.update({ ips: ips || [] });
             }}
           >
             {options('target')}
@@ -120,7 +126,7 @@ export default defineComponent({
             filterable
             inputSearch
             onChange={value => {
-              this.draft = { ...draft, task_name: String(value || '') };
+              this.update({ task_name: String(value || '') });
             }}
           >
             {options('task_name')}
@@ -131,15 +137,15 @@ export default defineComponent({
           <Select
             loading={this.loading}
             modelValue={this.processes}
+            multiple-mode='tag'
             placeholder={this.t('进程名或 PID')}
-            allowCreate
-            collapseTags
+            allow-create
             filterable
             inputSearch
             multiple
             onChange={values => {
               this.processes = values || [];
-              this.draft = { ...draft, ...parseProcessSelection(this.processes) };
+              this.update(parseProcessSelection(this.processes));
             }}
           >
             {processCandidateOptions(this.candidates, this.processes).map(option => (
@@ -159,16 +165,15 @@ export default defineComponent({
               modelValue={draft.status || ALL_STATUS}
               type='capsule'
               onChange={status => {
-                this.draft = { ...draft, status: status === ALL_STATUS ? '' : String(status) };
+                this.update({ status: status === ALL_STATUS ? '' : String(status) });
               }}
             >
               {(this.results
-                ? ['', 'running', 'succeed', 'outdated']
+                ? ['', 'running', 'succeed', 'outdate']
                 : ['', 'running', 'succeed', 'partial_succeed', 'failed']
               ).map(status => (
                 <Radio.Button
                   key={status || ALL_STATUS}
-                  v-tippy={this.t('选择状态后点击查询生效')}
                   label={status || ALL_STATUS}
                 >
                   {status ? (

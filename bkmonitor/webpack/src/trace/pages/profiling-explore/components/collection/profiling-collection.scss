@@ -26,6 +26,7 @@
       color: #3a84ff;
     }
 
+    /* stylelint-disable-next-line selector-class-pattern */
     &.bk-tab-header--active {
       color: #3a84ff;
       background: #fff;
@@ -45,25 +46,6 @@
     height: 40px;
     margin-top: 2px;
     line-height: 40px;
-  }
-
-  .collection-tab-icon {
-    flex-shrink: 0;
-    width: 16px;
-    height: 16px;
-    background: currentcolor;
-    mask-repeat: no-repeat;
-    mask-position: center;
-
-    @each $tab in results, history, tasks {
-      &.is-#{$tab} {
-        mask-image: url('./assets/collection-tab-#{$tab}.svg');
-      }
-    }
-
-    &.is-tasks {
-      mask-position: 1.5px 0.5px;
-    }
   }
 }
 
@@ -381,6 +363,7 @@
   min-height: 438px;
 
   > .empty-status-container,
+  /* stylelint-disable-next-line selector-class-pattern */
   .t-table__empty {
     height: 396px;
   }
@@ -534,8 +517,8 @@
   }
 
   .collection-detail-actions {
-    height: 100%;
     gap: 0;
+    height: 100%;
     padding-right: 0;
     margin-left: 0;
   }
@@ -560,6 +543,7 @@
   background: #dcdee5;
 }
 
+/* stylelint-disable-next-line no-descending-specificity */
 .collection-detail-actions > span {
   display: flex;
   height: 100%;
@@ -594,11 +578,13 @@
     background: #f5f7fa;
   }
 
+  /* stylelint-disable-next-line no-descending-specificity */
   &:disabled {
     color: #c4c6cc;
     cursor: not-allowed;
   }
 
+  /* stylelint-disable-next-line no-descending-specificity */
   &:focus-visible {
     outline: 2px solid #3a84ff;
     outline-offset: -2px;

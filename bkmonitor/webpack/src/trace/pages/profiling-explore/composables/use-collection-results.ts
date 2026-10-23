@@ -74,7 +74,7 @@ export function useCollectionResults({
       row =>
         (!filters.ips.length || filters.ips.includes(row.ip)) &&
         (!filters.task_name || row.task.name.includes(filters.task_name)) &&
-        (!filters.status || (row.status === 'outdate' ? 'outdated' : row.status) === filters.status) &&
+        (!filters.status || row.status === filters.status) &&
         (!filters.process_names.length ||
           row.processes.some(process => contains(process.process_name, filters.process_names))) &&
         (!filters.process_pids.length ||
@@ -162,7 +162,17 @@ export function useCollectionResults({
     }
   }
 
-  watch([bizId, () => state.value.filters, () => state.value.execution, range, revision], refresh, { immediate: true });
+  watch(
+    [bizId, () => state.value.filters, () => state.value.execution, range, revision],
+    (next, prev) => {
+      // 执行范围内结果由前端按筛选过滤，筛选单独变化时无需重新请求
+      const othersChanged =
+        next.length !== prev.length || next.some((value, index) => index !== 1 && value !== prev[index]);
+      if (next[2] && !othersChanged) return;
+      refresh();
+    },
+    { immediate: true }
+  );
   watch(
     bizId,
     () => {

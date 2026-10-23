@@ -48,9 +48,9 @@ import type { CollectionResultSelection } from '../../types/collection-history';
 import './profiling-collection.scss';
 
 const collectionTabs = [
-  { name: 'results', label: 'Profiling 结果' },
-  { name: 'history', label: '采集任务历史' },
-  { name: 'tasks', label: '任务管理' },
+  { name: 'results', label: 'Profiling 结果', icon: 'icon-Profiling' },
+  { name: 'history', label: '采集任务历史', icon: 'icon-History' },
+  { name: 'tasks', label: '任务管理', icon: 'icon-shezhi1' },
 ] as const;
 
 export default defineComponent({
@@ -59,7 +59,6 @@ export default defineComponent({
     state: { type: Object as PropType<CollectionQueryState>, required: true },
     timezone: { type: String, required: true },
     range: { type: Array as unknown as PropType<SelectionRange>, default: null },
-    rangeError: { type: String, default: '' },
     revision: { type: Number, default: 0 },
   },
   emits: {
@@ -256,10 +255,7 @@ export default defineComponent({
                   key={tab.name}
                   label={() => (
                     <span class='collection-tab-label'>
-                      <span
-                        class={['collection-tab-icon', `is-${tab.name}`]}
-                        aria-hidden='true'
-                      />
+                      <i class={['icon-monitor', 'collection-tab-icon', tab.icon, `is-${tab.name}`]} />
                       {this.t(tab.label)}
                     </span>
                   )}
@@ -350,7 +346,6 @@ export default defineComponent({
                 bizId={this.bizId}
                 filters={state.history}
                 range={this.range}
-                rangeError={this.rangeError}
                 readonly={c.readonly}
                 revision={this.revision}
                 statusFilters={c.meta.value.execution_status_filters}
@@ -365,7 +360,6 @@ export default defineComponent({
                 key={this.bizId}
                 bizId={this.bizId}
                 range={this.range}
-                rangeError={this.rangeError}
                 readonly={c.readonly}
                 revision={this.revision}
                 selection={state.result}
