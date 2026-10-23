@@ -1811,6 +1811,24 @@ class SchedulerTests(TestCase):
         return_value=build_policy(index_parallelism=4, global_parallelism=4),
     )
     @patch("apps.log_search.export.scheduler._send")
+    def test_refill_share_ignores_jobs_with_only_retries(self, send, _policy):
+        """只剩重试分片的任务不占补槽份额，否则有活的任务被切小额度、空槽空转。"""
+        ExportPart.objects.filter(part_no__in=[1, 2, 3]).update(status=ExportPartStatus.DISPATCHED)
+        fresh = ExportPart.objects.create(job=self.job, part_no=4, plan_version=1, start_time=3000, end_time=4000)
+        retrying = create_job(
+            index_set_id=12, base_dict={}, end_time=1000, status=ExportJobStatus.RUNNING, plan_version=1
+        )
+        ExportPart.objects.create(job=retrying, part_no=1, plan_version=1, start_time=0, end_time=1000, attempts=1)
+
+        self.assertEqual(dispatch_pending_parts(), [fresh.pk])
+        self.assertEqual(send.call_count, 1)
+        self.assertEqual(ExportPart.objects.get(job=retrying).status, ExportPartStatus.WAITING)
+
+    @patch(
+        "apps.log_search.export.scheduler.current_policy",
+        return_value=build_policy(index_parallelism=4, global_parallelism=4),
+    )
+    @patch("apps.log_search.export.scheduler._send")
     def test_dispatch_stops_when_the_round_budget_is_exhausted(self, send, _policy):
         """预算已用尽时一个分片都不投，分片保持 WAITING 等下一个调度周期。"""
         self.assertEqual(dispatch_ready_parts(deadline=time.monotonic() - 1), [])
