@@ -26,6 +26,8 @@ def api_exception_handler(exc, context):
     """
     针对CustomException返回的错误进行特殊处理，增加了传递数据的特性
     """
+    from core.errors.recording_rule import RecordingRulePreviewError
+
     # 有些预期内的错误， 比如ValidationError， 不需要记录日志
     if not isinstance(exc, IGNORE_EXCEPTIONS):
         logger.exception(exc)
@@ -45,6 +47,9 @@ def api_exception_handler(exc, context):
         structured = {key: exc_data[key] for key in ("error_code", "next_actions") if key in exc_data}
         if structured:
             json_data["data"] = structured
+    if isinstance(exc, RecordingRulePreviewError):
+        # 只透传本地预解析构造的错误条目，不放开其他异常的上游原始 data。
+        json_data["data"] = {"errors": exc.data["errors"]}
 
     json_data["code"] = code
     json_data.pop("msg", None)

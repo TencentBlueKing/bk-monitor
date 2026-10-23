@@ -190,6 +190,17 @@ class RecordRuleV4Resolver:
     def build_runtime_record(self, spec_record: RecordRuleV4SpecRecord) -> dict[str, Any]:
         """将一条 spec record 解析成运行时 record payload。"""
 
+        resolved_payload = self.resolve_record(spec_record)
+        return {
+            "spec_record": spec_record,
+            **resolved_payload,
+            "resolved_payload": resolved_payload,
+            "content_hash": stable_hash(resolved_payload),
+        }
+
+    def resolve_record(self, spec_record: RecordRuleV4SpecRecord) -> dict[str, Any]:
+        """只读取查询和来源信息；同时供未落库配置预览与正式解析使用。"""
+
         check_result = self.run_check(spec_record)
         data = check_result.get("data") or []
         if not data:
@@ -203,22 +214,13 @@ class RecordRuleV4Resolver:
         src_result_table_configs = self.resolve_src_result_table_configs(src_vm_table_ids)
         labels = merge_labels(spec_record.spec.labels, spec_record.labels)
 
-        resolved_payload = {
+        return {
             "record_key": spec_record.record_key,
             "metricql": metricql,
             "labels": labels,
             "interval": spec_record.spec.interval,
             "src_vm_table_ids": src_vm_table_ids,
             "src_result_table_configs": src_result_table_configs,
-        }
-        return {
-            "spec_record": spec_record,
-            "metricql": metricql,
-            "labels": labels,
-            "src_vm_table_ids": src_vm_table_ids,
-            "src_result_table_configs": src_result_table_configs,
-            "resolved_payload": resolved_payload,
-            "content_hash": stable_hash(resolved_payload),
         }
 
     def run_check(self, spec_record: RecordRuleV4SpecRecord) -> dict[str, Any]:
