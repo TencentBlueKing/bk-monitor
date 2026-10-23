@@ -72,6 +72,7 @@ from apps.log_search.exceptions import (
 from apps.log_search.export import state
 from apps.log_search.export.config import (
     COORDINATOR_QUEUE,
+    DISPATCH_TASK_NAME,
     FINALIZE_QUEUE,
     PART_QUEUE,
     PART_TASK_NAME,
@@ -104,11 +105,13 @@ from apps.log_search.export.scheduler import (
     _inflight_by_index_set,
     _send,
     coordinate,
+    dispatch_pending_parts,
     dispatch_ready_parts,
     enqueue_finalization,
     enqueue_planning,
     finalize_export,
     finalizing_jobs,
+    request_parts_dispatch,
 )
 from apps.log_search.export.merger import merge_export_parts
 from apps.log_search.export.storage import (
@@ -121,6 +124,7 @@ from apps.log_search.export.storage import (
 )
 from apps.log_search.tasks.sharded_export import (
     coordinate_sharded_exports,
+    dispatch_sharded_export_parts,
     execute_sharded_export_part,
     finalize_sharded_export,
     notify_sharded_export,
@@ -204,6 +208,16 @@ class PolicyBoundsTests(SimpleTestCase):
                 policy = config._validated_policy({field: invalid})
                 self.assertEqual(getattr(policy, field), default)
             self.assertEqual(getattr(config._validated_policy({field: 3}), field), 3)
+
+    def test_default_part_size_is_60k_rows_and_128_mib(self):
+        """单片目标按 6 万条 / 128 MiB 规划；增量只影响新任务，存量任务沿用快照。"""
+        from apps.log_search.export import config
+
+        self.assertEqual(ExportPolicy().target_rows, 60_000)
+        self.assertEqual(ExportPolicy().target_bytes, 128 * 1024 * 1024)
+        legacy = {**ExportPolicy().snapshot(), "target_rows": 30_000, "target_bytes": 64 * 1024 * 1024}
+        self.assertEqual(config.policy_from_snapshot(legacy).target_rows, 30_000)
+        self.assertEqual(config.policy_from_snapshot(legacy).target_bytes, 64 * 1024 * 1024)
 
 
 class ChooseIntervalTests(SimpleTestCase):
@@ -868,6 +882,72 @@ class PartRunnerTests(TestCase):
         part.refresh_from_db()
         self.assertEqual(part.status, ExportPartStatus.WAITING)
         self.assertEqual(part.error_code, ExportErrorCode.SOFT_TIME_LIMIT_EXCEEDED)
+
+    @patch("apps.log_search.export.scheduler._send")
+    def test_run_part_requests_refill_after_release(self, send):
+        """分片结束即请求补槽，不必等下一个 10s 调度周期。"""
+        job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        part = ExportPart.objects.create(
+            job=job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.DISPATCHED,
+            task_id="task-1",
+        )
+        with (
+            patch("apps.log_search.export.worker.build_storage"),
+            patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
+            patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
+            patch("apps.log_search.export.worker._sha256", return_value="checksum"),
+        ):
+            api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
+            run_part(part.pk, "task-1")
+
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.SUCCESS)
+        send.assert_called_once_with(DISPATCH_TASK_NAME, queue=COORDINATOR_QUEUE)
+
+    @patch("apps.log_search.export.scheduler._send")
+    def test_run_part_skips_refill_for_rejected_claim(self, send):
+        """未占住槽位的重复投递不需要补槽。"""
+        job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        part = ExportPart.objects.create(
+            job=job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.WAITING,
+            task_id="task-1",
+        )
+        run_part(part.pk, "task-1")
+
+        send.assert_not_called()
+
+    @patch("apps.log_search.export.scheduler._send", side_effect=RuntimeError("broker down"))
+    def test_refill_publish_failure_keeps_part_result(self, send):
+        """补槽消息发不出去只影响时延，分片结果仍按栅栏落库，由定时扫描兜底。"""
+        job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        part = ExportPart.objects.create(
+            job=job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.DISPATCHED,
+            task_id="task-1",
+        )
+        with (
+            patch("apps.log_search.export.worker.build_storage"),
+            patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
+            patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
+            patch("apps.log_search.export.worker._sha256", return_value="checksum"),
+        ):
+            api.query_ts_raw_with_scroll.side_effect = [{"list": [{"v": 1}], "done": True}]
+            run_part(part.pk, "task-1")
+
+        part.refresh_from_db()
+        self.assertEqual(part.status, ExportPartStatus.SUCCESS)
+        self.assertEqual(send.call_count, 1)
 
 
 class PartArtifactLifecycleTests(TestCase):
@@ -1988,6 +2068,31 @@ class SchedulerTests(TestCase):
         self.assertEqual(_inflight_by_index_set(), {11: 1})
 
 
+class DispatchRefillTests(TestCase):
+    """分片结束后的补槽轮次只做投递，额度仍由调度锁内的轮次计算。"""
+
+    @patch("apps.log_search.export.scheduler.state.recover_stale_parts")
+    @patch("apps.log_search.export.scheduler.enqueue_planning")
+    @patch("apps.log_search.export.scheduler.dispatch_ready_parts", return_value=[1, 2])
+    def test_refill_round_only_dispatches_parts(self, dispatch, planning, recover):
+        """空槽只需要补投，不重跑 recover/planning 的全量扫描。"""
+        self.assertEqual(dispatch_pending_parts(), [1, 2])
+        dispatch.assert_called_once()
+        planning.assert_not_called()
+        recover.assert_not_called()
+
+    @patch("apps.log_search.export.scheduler._send")
+    def test_refill_request_uses_the_coordinator_queue(self, send):
+        request_parts_dispatch()
+        send.assert_called_once_with(DISPATCH_TASK_NAME, queue=COORDINATOR_QUEUE)
+
+    @patch("apps.log_search.export.scheduler._send", side_effect=RuntimeError("broker down"))
+    def test_publish_failure_is_logged_instead_of_raised(self, send):
+        """发布失败只影响补槽时延，不能把异常抛回分片执行。"""
+        request_parts_dispatch()
+        send.assert_called_once()
+
+
 @override_settings(USE_REDIS=True)
 class CoordinateLockTests(SimpleTestCase):
     """调度任务单轮互斥：上一轮没结束时跳过本轮，不重复发放额度。"""
@@ -2033,6 +2138,21 @@ class CoordinateLockTests(SimpleTestCase):
             coordinate_sharded_exports.run()
         coordinate.assert_not_called()
 
+    @patch("apps.log_search.tasks.sharded_export.dispatch_pending_parts")
+    @patch("apps.log_search.tasks.sharded_export.coordinate")
+    def test_refill_and_periodic_round_share_one_lock(self, coordinate, dispatch_pending):
+        """补槽轮次与定时轮次共用同一把锁，后到的一轮跳过，不会算出两份额度。"""
+        keys = []
+        cache = MagicMock()
+        cache.set.side_effect = lambda key, *args, **kwargs: keys.append(key) or True
+        with patch("apps.utils.lock.cache", cache):
+            dispatch_sharded_export_parts.run()
+            coordinate_sharded_exports.run()
+        self.assertEqual(len(keys), 2)
+        self.assertEqual(keys[0], keys[1])
+        dispatch_pending.assert_called_once_with()
+        coordinate.assert_called_once_with()
+
 
 class ControlPipelineTests(SimpleTestCase):
     """分片与合并复用导出队列，规划、调度与通知复用高优先级队列。"""
@@ -2057,6 +2177,14 @@ class ControlPipelineTests(SimpleTestCase):
             app.conf.beat_schedule[coordinate_sharded_exports.name]["options"],
             {"queue": settings.BK_LOG_HIGH_PRIORITY_QUEUE},
         )
+
+    def test_refill_task_reuses_high_priority_queue(self):
+        """补槽消息按常量名投递，任务名与队列必须和路由一致。"""
+        self.assertEqual(dispatch_sharded_export_parts.name, DISPATCH_TASK_NAME)
+        route = app.amqp.router.route(
+            dispatch_sharded_export_parts._get_exec_options(), dispatch_sharded_export_parts.name, args=(), kwargs={}
+        )
+        self.assertEqual(route["queue"].name, settings.BK_LOG_HIGH_PRIORITY_QUEUE)
 
     def test_notification_reuses_high_priority_queue(self):
         task = notify_sharded_export

@@ -36,6 +36,8 @@ from django.utils import timezone
 from apps.log_search.constants import ExportErrorCode, ExportJobStatus, ExportPartStatus, ExportSearchType
 from apps.log_search.export import state
 from apps.log_search.export.config import (
+    COORDINATOR_QUEUE,
+    DISPATCH_TASK_NAME,
     FINALIZE_QUEUE,
     FINALIZE_TASK_NAME,
     NOTIFY_QUEUE,
@@ -263,6 +265,30 @@ def dispatch_ready_parts(deadline=None):
             len(held_oversized_jobs),
         )
     return dispatched
+
+
+def dispatch_pending_parts(deadline=None):
+    """
+    分片释放槽位后触发的轻量轮次：只做投递。
+
+    空槽只需补投一次，不必为了一个槽位重跑 recover/planning/notify 的全量扫描；
+    额度与公平性仍由 dispatch_ready_parts 在调度锁内计算。
+    """
+    started = time.monotonic()
+    if deadline is None:
+        deadline = started + settings.ASYNC_EXPORT_COORDINATE_DEADLINE_SECONDS
+    dispatched = dispatch_ready_parts(deadline)
+    logger.info("[dispatch_pending_parts] dispatched=%s cost=%.3fs", len(dispatched), time.monotonic() - started)
+    return dispatched
+
+
+def request_parts_dispatch():
+    """分片释放槽位后请求补投一次；只发消息，发布失败由定时扫描兜底。"""
+    try:
+        _send(DISPATCH_TASK_NAME, queue=COORDINATOR_QUEUE)
+    except Exception as error:  # pylint: disable=broad-except
+        # 补槽失败不能影响分片结果，下一个调度周期仍会投递
+        logger.warning("[request_parts_dispatch] publish failed: %s", error)
 
 
 def finalizing_jobs(limit):
