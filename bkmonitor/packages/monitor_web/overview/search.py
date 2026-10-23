@@ -24,8 +24,6 @@ from bkmonitor.data_source.utils.apm import TraceDatasourceTarget, TraceQueryGua
 from bkmonitor.documents import AlertDocument
 from bkmonitor.iam import Permission
 from bkmonitor.iam.action import ActionEnum, ActionMeta
-from bkmonitor.iam.drf import filter_data_by_permission
-from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import StrategyModel
 from bkmonitor.models.bcs_cluster import BCSCluster
 from bkmonitor.utils.thread_backend import ThreadPool
@@ -35,6 +33,7 @@ from constants.data_source import DataSourceLabel, DataTypeLabel
 from core.drf_resource import api
 from core.errors.alert import AlertNotFoundError
 from monitor.models import UserConfig
+from monitor_web.overview.permissions import filter_viewable_apm_applications
 
 logger = logging.getLogger("monitor_web")
 
@@ -706,7 +705,7 @@ class TraceSearchItem(SearchItem):
                 checked_app_ids.add(app.application_id)
 
                 # 两条路径统一校验应用查看权限，无权限命中不进入快照，也不占用 TopK。
-                allowed_items: list[dict] = filter_data_by_permission(
+                allowed_items: list[dict] = filter_viewable_apm_applications(
                     bk_tenant_id=bk_tenant_id,
                     data=[
                         {
@@ -715,11 +714,6 @@ class TraceSearchItem(SearchItem):
                             "app_name": app.app_name,
                         }
                     ],
-                    actions=[ActionEnum.VIEW_APM_APPLICATION],
-                    resource_meta=ResourceEnum.APM_APPLICATION,
-                    id_field=lambda item: item["application_id"],
-                    instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
-                    mode="any",
                     username=username,
                 )
                 if not allowed_items:
@@ -788,14 +782,9 @@ class ApmApplicationSearchItem(SearchItem):
         ]
 
         # 过滤无权限的应用，并裁剪至目标数量
-        items = filter_data_by_permission(
+        items = filter_viewable_apm_applications(
             bk_tenant_id=bk_tenant_id,
             data=items,
-            actions=[ActionEnum.VIEW_APM_APPLICATION],
-            resource_meta=ResourceEnum.APM_APPLICATION,
-            id_field=lambda d: d["application_id"],
-            instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
-            mode="any",
             username=username,
         )[:limit]
 
@@ -849,14 +838,9 @@ class ApmServiceSearchItem(ApmApplicationSearchItem):
             return
 
         applications = cls._list_applications(bk_tenant_id, services)
-        allowed = filter_data_by_permission(
+        allowed = filter_viewable_apm_applications(
             bk_tenant_id=bk_tenant_id,
             data=applications,
-            actions=[ActionEnum.VIEW_APM_APPLICATION],
-            resource_meta=ResourceEnum.APM_APPLICATION,
-            id_field=lambda d: d["application_id"],
-            instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
-            mode="any",
             username=username,
         )
         allowed_keys = {(app["bk_biz_id"], app["app_name"]) for app in allowed}
