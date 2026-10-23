@@ -46,6 +46,8 @@
 }
 ```
 
+所有配置类型的 YAML / JSON 语法错误及不支持的文件扩展名，统一通过 `errors` 按完整文件路径返回。遇到首个文件解析错误时立即结束本次导入，后续保存、下发和全量清理均不执行。
+
 ### RecordingRule 配置
 
 `recording_rule/` 目录支持 RecordingRule V4 的 YAML / JSON 文件，一个文件可以包含多个 group。示例文件 `recording_rule/cpu.yaml`：

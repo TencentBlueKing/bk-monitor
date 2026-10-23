@@ -588,9 +588,7 @@ def import_code_config(bk_biz_id: int, app: str, configs: dict[str, str], overwr
             else:
                 raise ValueError(f"parse {path} error, only allow yaml or json files")
         except (ValueError, yaml.YAMLError) as error:
-            if path.startswith("recording_rule/"):
-                return {path: str(error)}
-            raise
+            return {path: str(error)}
 
         if path.startswith("rule/snippets/"):
             rule_snippets[path[len("rule/snippets/") :]] = config
