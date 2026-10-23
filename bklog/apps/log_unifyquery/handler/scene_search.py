@@ -322,7 +322,13 @@ class SceneUnifyQueryHandler(UnifyQueryHandler):
     # ------------------------------------------------------------------
 
     def _verify_scene_permission(self, result) -> None:
-        self.verify_result_table_search_permission((result or {}).get("result_table_id"))
+        payload = result if isinstance(result, dict) else {}
+        result_table_ids = payload.get("result_table_id")
+        if not result_table_ids:
+            # 仅兼容仍保留 DataAPI data 包装的响应；优先使用顶层结果，避免跳过鉴权。
+            data = payload.get("data")
+            result_table_ids = data.get("result_table_id") if isinstance(data, dict) else None
+        self.verify_result_table_search_permission(result_table_ids)
 
     def query_ts(self, search_dict, raise_exception=True):
         result = super().query_ts(search_dict, raise_exception=raise_exception)
