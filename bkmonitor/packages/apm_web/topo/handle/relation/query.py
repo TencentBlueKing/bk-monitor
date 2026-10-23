@@ -8,11 +8,15 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
+from api.unify_query.relation_result import IncompleteRelationError, is_incomplete_relation
 from apm_web.topo.handle.relation.define import Node, Relation, Source, SourceProvider
 from core.drf_resource import api
+
+logger = logging.getLogger("apm")
 
 
 @dataclass
@@ -28,8 +32,8 @@ class Q:
 
 class RelationQ:
     @classmethod
-    def query(cls, qs, expect_paths=None, fill_with_empty=False):
-        """Relation 接口普通查询"""
+    def query(cls, qs, expect_paths=None, fill_with_empty=False, skip_incomplete=False):
+        """查询完整关联；后台采集可显式跳过不完整分项，fill_with_empty 保持请求顺序。"""
 
         # 从查询参数提取业务 ID，用于数据查询鉴权
         bk_biz_ids: set[int] = set()
@@ -43,6 +47,18 @@ class RelationQ:
         response = api.unify_query.query_multi_resource_range(**query_params)
         res = []
         for item in response.get("data", []):
+            if is_incomplete_relation(item):
+                logger.warning(
+                    "incomplete relation query: partial=%s, partial_reason=%s, truncated=%s",
+                    item.get("partial", False),
+                    item.get("partial_reason", ""),
+                    item.get("truncated", False),
+                )
+                if not skip_incomplete:
+                    raise IncompleteRelationError()
+                if fill_with_empty:
+                    res.append(None)
+                continue
             if item.get("code") != 200:
                 if fill_with_empty:
                     res.append(None)

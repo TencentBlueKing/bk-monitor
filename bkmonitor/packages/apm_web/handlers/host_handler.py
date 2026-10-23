@@ -17,6 +17,7 @@ from django.utils.translation import gettext_lazy as _
 from opentelemetry.semconv.trace import SpanAttributes
 
 from api.cmdb.client import list_biz_hosts
+from api.unify_query.relation_result import IncompleteRelationError
 from apm_web.constants import HostAddressType
 from apm_web.models import CMDBServiceRelation
 from apm_web.topo.handle.relation.define import (
@@ -223,6 +224,9 @@ class HostHandler:
                         continue
                     res.append(i)
                     host_ids.append(i["bk_host_id"])
+            except IncompleteRelationError:
+                # Do not cache or present an incomplete host list as a complete result.
+                raise
             except Exception as e:  # pylint: disable=broad-except
                 logger.info(f"batch_list_application_hosts, {e}")
 

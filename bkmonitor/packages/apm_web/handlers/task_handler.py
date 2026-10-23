@@ -5,6 +5,7 @@ import time
 from collections import defaultdict
 from typing import Any, TypeVar
 
+from api.unify_query.relation_result import IncompleteRelationError
 from apm_web.handlers.log_handler import ServiceLogHandler, get_biz_index_sets_with_cache
 from apm_web.strategy.dispatch.entity import EntitySet
 from apm_web.topo.handle.relation.define import (
@@ -78,7 +79,11 @@ class ServiceLogTaskHandler:
                 query_count,
             )
 
-        return cls._merge_by_service(service_workloads, workload_indexes, service_indexes)
+        related_indexes = cls._merge_by_service(service_workloads, workload_indexes, service_indexes)
+        if failed_count and not related_indexes:
+            # No positive observation can refresh the cache. Keep its value and original TTL.
+            raise IncompleteRelationError()
+        return related_indexes
 
     @staticmethod
     def _fetch_app_workloads(entity_set: EntitySet, service_names: list[str]) -> dict[str, list[dict[str, Any]]]:
@@ -215,8 +220,8 @@ class ServiceLogTaskHandler:
 
     @staticmethod
     def _query_relations(relation_qs: list[dict[str, Any]]) -> tuple[list[Relation], int]:
-        """执行关系查询，并区分正常空结果与 UQ 分项失败。"""
-        query_results: list[Relation | None] = RelationQ.query(relation_qs, fill_with_empty=True)
+        """仅接收完整分项；失败、partial 和 truncated 不用于刷新关联缓存。"""
+        query_results: list[Relation | None] = RelationQ.query(relation_qs, fill_with_empty=True, skip_incomplete=True)
         aligned_results: list[Relation | None] = query_results[: len(relation_qs)]
         failed_count: int = len(relation_qs) - len(aligned_results) + sum(result is None for result in aligned_results)
         return [result for result in aligned_results if result is not None], failed_count
