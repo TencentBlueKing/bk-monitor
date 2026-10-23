@@ -28,6 +28,7 @@ import type {
   CollectionCandidate,
   CollectionCandidateField,
   CollectionExecution,
+  CollectionExecutionColumn,
   CollectionExecutionDetail,
   CollectionExecutionHost,
   CollectionExecutionKey,
@@ -195,6 +196,15 @@ export function restoreExecutionSelection(value?: CollectionResultSelection): Co
     finished_at: end,
   };
 }
+
+// 后端只下发列类型，最小宽度按类型兜底，避免动态列被内容挤压
+export const hostColumnMinWidths: Record<CollectionExecutionColumn['type'], number> = {
+  datetime: 180,
+  duration: 100,
+  process_list: 200,
+  status: 120,
+  text: 160,
+};
 
 export const canViewExecution = (value: CollectionExecution) =>
   ['succeed', 'partial_succeed'].includes(value.execution_status);

@@ -40,6 +40,7 @@ import {
 import { useCollectionCandidates } from './use-collection-candidates';
 
 import type { SelectionRange } from '../types';
+import type { CollectionExecutionColumn } from '../types/collection-history';
 import type { CollectionHostResult, CollectionResultsState } from '../types/collection-results';
 
 export function useCollectionResults({
@@ -59,6 +60,8 @@ export function useCollectionResults({
 }) {
   const { t } = useI18n();
   const records = shallowRef<CollectionHostResult[]>([]);
+  // 执行范围下后端下发的列定义；缺省时结果页沿用固定列
+  const hostColumns = shallowRef<CollectionExecutionColumn[] | null>(null);
   const loading = shallowRef(false);
   const error = shallowRef('');
   const hasMore = shallowRef(false);
@@ -93,8 +96,11 @@ export function useCollectionResults({
     error.value = '';
     try {
       const execution = state.value.execution;
-      const data = execution
-        ? executionResultRows(await getCollectionExecution(bizId.value, execution, current.signal))
+      const detail = execution ? await getCollectionExecution(bizId.value, execution, current.signal) : null;
+      if (current.signal.aborted) return;
+      hostColumns.value = detail?.host_columns?.length ? detail.host_columns : null;
+      const data = detail
+        ? executionResultRows(detail)
         : (await getCollectionResults(bizId.value, range.value, state.value.filters, offset, current.signal)).data;
       if (current.signal.aborted) return;
       const known = new Set(records.value.map(resultRowKey));
@@ -120,6 +126,7 @@ export function useCollectionResults({
     controller?.abort();
     loading.value = false;
     records.value = [];
+    hostColumns.value = null;
     offset = 0;
     hasMore.value = false;
     error.value = '';
@@ -180,6 +187,7 @@ export function useCollectionResults({
   return {
     rows,
     records,
+    hostColumns,
     loading,
     error,
     hasMore,

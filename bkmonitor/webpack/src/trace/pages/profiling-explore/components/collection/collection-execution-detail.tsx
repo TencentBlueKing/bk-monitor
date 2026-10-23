@@ -36,6 +36,7 @@ import {
   executionConfiguration,
   executionSelection,
   formatExecutionDuration,
+  hostColumnMinWidths,
 } from '../../utils/collection-history';
 import CollectionConfiguration from './collection-configuration';
 import CollectionExecutionSkeleton from './collection-execution-skeleton';
@@ -59,15 +60,6 @@ const fallbackHostColumns: CollectionExecutionColumn[] = [
   { field: 'finished_at', name: '结束时间', type: 'datetime' },
   { field: 'duration_ms', name: '耗时', type: 'duration' },
 ];
-
-// 后端只下发列类型，最小宽度按类型兜底，避免动态列被内容挤压
-const hostColumnMinWidths: Record<CollectionExecutionColumn['type'], number> = {
-  datetime: 180,
-  duration: 100,
-  process_list: 200,
-  status: 120,
-  text: 160,
-};
 
 export default defineComponent({
   name: 'CollectionExecutionDetail',
@@ -346,6 +338,7 @@ export default defineComponent({
                     <PrimaryTable
                       columns={columns}
                       data={c.hosts.value}
+                      needCustomScroll={false}
                       rowKey='bk_host_id'
                       size='small'
                       sort={c.hostSort.value ? { sortBy: 'status', descending: c.hostSort.value === 'desc' } : null}

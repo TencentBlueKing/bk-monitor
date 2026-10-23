@@ -152,9 +152,8 @@ export function useProfilingQuery() {
   function syncUrl() {
     if (!initialized || restoring || loading.value || disposed) return;
     try {
-      const range = bounds.value || resolveRange();
-      // 收藏读取 state 中的原始时间表达式；只有 URL 快照固定为绝对时间。
-      const snapshot = JSON.stringify({ ...state.value, timeRange: range, resolvedTimeRange: range });
+      // 时间表达式原样写入，刷新后仍能回填“近 N 分钟/小时”；resolvedTimeRange 记录本次绝对边界，供框选随相对时间平移。
+      const snapshot = JSON.stringify({ ...state.value, resolvedTimeRange: bounds.value || resolveRange() });
       if (snapshot === route.query.profiling || snapshot === writingQuery) return;
       writingQuery = snapshot;
       pendingWrites.add(snapshot);
@@ -196,7 +195,7 @@ export function useProfilingQuery() {
           isEnableOptions: true,
           methods: [{ value: EMethod.eq, alias: '=' }],
         }));
-    } catch (e) {
+    } catch (_e) {
       if (!current.signal.aborted) labelError.value = t('标签加载失败，请重试');
     } finally {
       if (!current.signal.aborted) labelsLoading.value = false;
