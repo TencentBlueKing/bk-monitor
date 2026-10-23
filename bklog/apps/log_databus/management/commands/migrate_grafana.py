@@ -3,19 +3,7 @@ import re
 import time
 
 from django.core.management.base import BaseCommand
-from django.conf import settings
-from apps.iam import Permission
-
 import bk_dataview.grafana.client as grafana_client
-from apps.iam.handlers import ActionEnum
-from apps.iam.management.commands.iam_upgrade_action_v2 import (
-    Command as IamMigrateCommand,
-)
-
-ACTIONS_TO_MIGRATE = [
-    ActionEnum.VIEW_DASHBOARD,
-    ActionEnum.MANAGE_DASHBOARD,
-]
 
 
 class Command(BaseCommand):
@@ -47,7 +35,6 @@ class Command(BaseCommand):
         grafana_url = options["grafana_url"]
         selected_biz = options["selected_biz"]
         stats_only = options["stats_only"]
-        # app_code = options["app_code"]
 
         # 从 bk_log 获取 grafana 配置数据
         grafana_data, extract_failed_biz, migration_stats = self.get_grafana_config(grafana_client, selected_biz)
@@ -63,9 +50,6 @@ class Command(BaseCommand):
         biz_to_org_mapping, convert_failed_biz = self.convert_bklog_grafana_config(grafana_url, grafana_data)
         # 写入配置数据到新 Grafana,由用户进行指定
         write_failed_biz = self.write_config_to_grafana(grafana_url, grafana_data, biz_to_org_mapping)
-
-        # 迁移权限 - 先不迁移权限
-        # self.migrate_permissions(app_code)
 
         # 集中展示错误信息
         self.show_error_info(extract_failed_biz, convert_failed_biz, write_failed_biz, migration_stats)
@@ -423,38 +407,6 @@ class Command(BaseCommand):
                 f"org {org_id} with folder_title {folder_title}: {resp.json()}"
             )
             self.record_error(failed_biz, biz_id, f"create dashboard failed: {resp.json()}")
-
-    # 权限迁移
-    def migrate_permissions(self, app_code):
-        """迁移权限信息"""
-        self.stdout.write("START migrate permissions")
-        migrate_command = IamMigrateCommand()
-        migrate_command.iam_client = Permission.get_iam_client(settings.BK_APP_TENANT_ID)
-        policies_by_actions = {}
-        for action in ACTIONS_TO_MIGRATE:
-            polices = migrate_command.query_polices(action.id)
-            policies_by_actions[action.id] = polices
-
-        for action in ACTIONS_TO_MIGRATE:
-            polices = policies_by_actions[action.id]
-            total = len(polices)
-            self.stdout.write(f"start migrate action: {action.id}, policy count: {total}")
-
-            progress = 0
-            resources = []
-
-            for police in polices:
-                resource = migrate_command.policy_to_resource(action, police)
-                resources.append(resource)
-
-            for resource in resources:
-                resource["system"] = app_code
-                resp = migrate_command.grant_resource(resource)
-                if resp is not None:
-                    progress += 1
-            self.stdout.write(f"migrate action: {action.id}, progress: {progress}/{total}")
-
-        self.stdout.write("END migrate permissions")
 
     # 统计展示
     def show_migration_stats(self, migration_stats):

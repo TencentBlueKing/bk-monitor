@@ -32,6 +32,7 @@ import type { IRumHoverInfo } from '../typings';
 /** hover 展示延迟（毫秒），与全局 popover 交互习惯一致 */
 const SHOW_DELAY = 0;
 
+const instance = shallowRef<null | ReturnType<typeof useTippy>>(null);
 /**
  * 详情区块标题的 hover-info 卡片控制 hook
  *
@@ -41,7 +42,6 @@ const SHOW_DELAY = 0;
  */
 export function useHoverInfo() {
   const hoverData = shallowRef<IRumHoverInfo>(null);
-  const instance = shallowRef<null | ReturnType<typeof useTippy>>(null);
   let delayTimer: null | ReturnType<typeof setTimeout> = null;
 
   function hide() {

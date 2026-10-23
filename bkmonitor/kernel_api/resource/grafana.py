@@ -15,7 +15,7 @@ from packages.monitor_web.grafana.resources.unify_query import (
 )
 from bkmonitor.utils.serializers import BkBizIdSerializer
 from packages.monitor_web.as_code.resources import ImportConfigResource
-from core.drf_resource import Resource
+from kernel_api.resource.mcp_response import MCPResource as Resource
 from bkmonitor.views import serializers
 
 logger = logging.getLogger(__name__)

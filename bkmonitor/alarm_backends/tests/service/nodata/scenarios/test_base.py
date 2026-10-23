@@ -8,6 +8,7 @@ an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express o
 specific language governing permissions and limitations under the License.
 """
 
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
@@ -21,16 +22,15 @@ from alarm_backends.service.nodata.scenarios.base import (
 )
 from alarm_backends.tests.service.nodata.mock import (
     generate_mock_hosts,
-    generate_mock_services,
     MockCheckResult,
     MockItem,
     MockStrategy,
 )
 from alarm_backends.tests.service.nodata.mock_settings import (
     ALARM_BACKENDS_CORE_CACHE_CMDB_HOSTMANAGER_REFRESH_BY_BIZ,
-    ALARM_BACKENDS_CORE_CACHE_CMDB_SERVICE_INSTANCE_MANAGER_REFRESH_BY_BIZ,
     ALARM_BACKENDS_CORE_DETECT_RESULT_CHECKRESULT,
     ALARM_BACKENDS_CORE_DETECT_RESULT_DIMENSIONRANGEFILTER_FILTER,
+    ALARM_BACKENDS_SERVICE_NODATA_SCENARIOS_BASE_API,
 )
 
 HOSTS_INFO = [
@@ -145,97 +145,24 @@ HOSTS_INFO = [
     },
 ]
 
-SERVICES_INFO = [
-    {
-        "service_instance_id": 1,
-        "name": "127.0.0.1_service1",
-        "ip": "127.0.0.1",
-        "topo": [
-            [
-                {
-                    "id": "module|111",
-                    "bk_obj_id": "module",
-                    "bk_inst_id": 111,
-                },
-                {
-                    "id": "set|11",
-                    "bk_obj_id": "set",
-                    "bk_inst_id": 11,
-                },
-                {
-                    "id": "biz|2",
-                    "bk_obj_id": "biz",
-                    "bk_inst_id": 2,
-                },
-            ],
-            [
-                {
-                    "id": "module|121",
-                    "bk_obj_id": "module",
-                    "bk_inst_id": 121,
-                },
-                {
-                    "id": "set|12",
-                    "bk_obj_id": "set",
-                    "bk_inst_id": 12,
-                },
-                {
-                    "id": "biz|2",
-                    "bk_obj_id": "biz",
-                    "bk_inst_id": 2,
-                },
-            ],
-        ],
-    },
-    {
-        "service_instance_id": 2,
-        "name": "127.0.0.2_service2",
-        "ip": "127.0.0.2",
-        "topo": [
-            [
-                {
-                    "id": "module|111",
-                    "bk_obj_id": "module",
-                    "bk_inst_id": 111,
-                },
-                {
-                    "id": "set|11",
-                    "bk_obj_id": "set",
-                    "bk_inst_id": 11,
-                },
-                {
-                    "id": "biz|2",
-                    "bk_obj_id": "biz",
-                    "bk_inst_id": 2,
-                },
-            ]
-        ],
-    },
-    {
-        "service_instance_id": 3,
-        "name": "127.0.0.3_service3",
-        "ip": "127.0.0.2",
-        "topo": [
-            [
-                {
-                    "id": "module|311",
-                    "bk_obj_id": "module",
-                    "bk_inst_id": 311,
-                },
-                {
-                    "id": "set|31",
-                    "bk_obj_id": "set",
-                    "bk_inst_id": 31,
-                },
-                {
-                    "id": "biz|2",
-                    "bk_obj_id": "biz",
-                    "bk_inst_id": 2,
-                },
-            ]
-        ],
-    },
+SERVICES = [
+    SimpleNamespace(service_instance_id=1, bk_module_id=111),
+    SimpleNamespace(service_instance_id=2, bk_module_id=111),
+    SimpleNamespace(service_instance_id=3, bk_module_id=311),
 ]
+
+MODULE_TOPO_LINK = {
+    f"module|{module_id}": [
+        SimpleNamespace(id=f"module|{module_id}"),
+        SimpleNamespace(id=f"set|{set_id}"),
+        SimpleNamespace(id="biz|2"),
+    ]
+    for module_id, set_id in [(111, 11), (121, 12), (311, 31)]
+}
+
+MOCK_CMDB_API = MagicMock()
+MOCK_CMDB_API.cmdb.get_service_instance_by_topo_node.return_value = SERVICES
+MOCK_CMDB_API.cmdb.get_topo_tree.return_value.convert_to_topo_link.return_value = MODULE_TOPO_LINK
 
 HISTORY_DIMENSIONS = {
     "md5_1": {
@@ -491,20 +418,14 @@ class TestServiceScenario(TestCase):
         self.item = MockItem(item_config, strategy)
         self.service_scenario = ServiceScenario(self.item)
 
-    @patch(
-        ALARM_BACKENDS_CORE_CACHE_CMDB_SERVICE_INSTANCE_MANAGER_REFRESH_BY_BIZ,
-        MagicMock(return_value=generate_mock_services(SERVICES_INFO)),
-    )
+    @patch(ALARM_BACKENDS_SERVICE_NODATA_SCENARIOS_BASE_API, MOCK_CMDB_API)
     def test_get_target_instances__topo_set(self):
         self.assertEqual(
             self.service_scenario.get_target_instances(),
             [{"bk_target_service_instance_id": "1"}, {"bk_target_service_instance_id": "2"}],
         )
 
-    @patch(
-        ALARM_BACKENDS_CORE_CACHE_CMDB_SERVICE_INSTANCE_MANAGER_REFRESH_BY_BIZ,
-        MagicMock(return_value=generate_mock_services(SERVICES_INFO)),
-    )
+    @patch(ALARM_BACKENDS_SERVICE_NODATA_SCENARIOS_BASE_API, MOCK_CMDB_API)
     def test_get_target_instances__topo_module(self):
         temp = self.service_scenario.item.target
         self.service_scenario.item.target = [

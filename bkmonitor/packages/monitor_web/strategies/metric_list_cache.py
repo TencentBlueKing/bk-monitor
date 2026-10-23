@@ -518,6 +518,8 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
         # 通过 time_series_group_name 的生成规则过滤掉插件类型的数据
         custom_ts_result = [i for i in custom_ts_result if i["time_series_group_name"] not in db_name_list]
 
+        self.merge_metric_dimensions(custom_ts_result)
+
         # 补充 APM 虚拟指标
         custom_ts_result = self.get_apm_extra_tables(custom_ts_result) + custom_ts_result
 
@@ -526,6 +528,27 @@ class CustomMetricCacheManager(BaseMetricCacheManager):
             self.process_logbeat_table(result)
             self.process_apm_table(result)
             yield result
+
+    @staticmethod
+    def merge_metric_dimensions(tables: list[dict[str, Any]]) -> None:
+        """同一数据源的同名指标跨 scope 合并维度，供缓存去重时保留的首条记录使用。"""
+        metrics: dict[tuple[int, int, str, str], tuple[dict, dict[str, dict]]] = {}
+        for table in tables:
+            for metric in table["metric_info_list"]:
+                if not metric:
+                    continue
+                key = (table["bk_biz_id"], table["time_series_group_id"], table["table_id"], metric["field_name"])
+                _, tags = metrics.setdefault(key, (metric, {}))
+                for tag in metric.get("tag_list", []):
+                    field_name: str = tag["field_name"]
+                    current: dict | None = tags.get(field_name)
+                    if current is None:
+                        tags[field_name] = dict(tag)
+                    elif not current.get("description") and tag.get("description"):
+                        current["description"] = tag["description"]
+
+        for metric, tags in metrics.values():
+            metric["tag_list"] = list(tags.values())
 
     @classmethod
     def process_apm_table(cls, table: dict):

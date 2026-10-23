@@ -788,9 +788,10 @@ class GetServiceInstanceByID(Resource):
         service_instance_ids = serializers.ListField(label="服务实例列表", child=serializers.IntegerField())
 
     def perform_request(self, validated_request_data):
+        if not validated_request_data["service_instance_ids"]:
+            return []
         params = {
             "bk_biz_id": validated_request_data["bk_biz_id"],
-            "with_name": True,
             "service_instance_ids": validated_request_data["service_instance_ids"],
         }
         service_instances = batch_request(client.list_service_instance_detail, params, limit=500)
@@ -1265,6 +1266,7 @@ class SearchDynamicGroup(Resource):
                                 "bk_biz_id": params["bk_biz_id"],
                                 "id": dg["id"],
                                 "fields": [instance_field],
+                                "page": {"sort": instance_field},
                             },
                         },
                     )
@@ -1327,7 +1329,12 @@ class ExecuteDynamicGroup(Resource):
 
         instances = batch_request(
             client.execute_dynamic_group,
-            params={"bk_biz_id": params["bk_biz_id"], "id": params["id"], "fields": fields},
+            params={
+                "bk_biz_id": params["bk_biz_id"],
+                "id": params["id"],
+                "fields": fields,
+                "page": {"sort": "bk_host_id" if params["bk_obj_id"] == "host" else "bk_set_id"},
+            },
         )
 
         if params["bk_obj_id"] == "host":
