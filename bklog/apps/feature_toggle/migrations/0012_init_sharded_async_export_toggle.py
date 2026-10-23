@@ -6,8 +6,8 @@ from django.db import migrations
 FEATURE_NAME = "feature_async_export_sharded"
 
 DEFAULT_CONFIG = {
-    "target_rows": 30000,
-    "target_bytes": 67108864,
+    "target_rows": 60000,
+    "target_bytes": 134217728,
     "split_factor": 2.0,
     "merge_factor": 1.5,
     "max_rows": 10000000,
