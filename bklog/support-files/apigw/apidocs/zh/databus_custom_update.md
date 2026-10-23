@@ -2,12 +2,6 @@
 
 更新自定义上报采集项的基础信息，并在传入存储集群时同步更新清洗规则与存储配置。
 
-后端路径：`POST /api/v1/databus/collectors/{collector_config_id}/custom_update/`，`Content-Type: application/json`。
-
-调用用户需具备该采集项的「管理采集项」权限。
-
-> 说明：不传 `storage_cluster_id` 时只更新采集项名称、分类、描述、展示状态、授权用户与归属索引集，不会改动清洗规则和存储配置。
-
 ## 请求参数
 
 ### 鉴权头
