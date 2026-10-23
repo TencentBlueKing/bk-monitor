@@ -110,16 +110,24 @@ class FavoriteSerializer(serializers.ModelSerializer):
         fields = ("id", "name", "config", "group_id", "create_user", "update_user", "update_time")
 
     @staticmethod
+    def _name_key(bk_biz_id: int, query_type: str, name: str) -> tuple:
+        """
+        名称唯一标识。name 字段在 MySQL 下使用大小写不敏感的 collation（utf8_general_ci），
+        因此这里用 casefold 归一化，保证内存中的批内判重与数据库查询语义保持一致
+        """
+        return (bk_biz_id, query_type, name.casefold())
+
+    @classmethod
     def _get_existing_names(
-        biz_ids: set[int], query_types: set[str], names: set[str], exclude_ids: set[int] | None = None
+        cls, biz_ids: set[int], query_types: set[str], names: set[str], exclude_ids: set[int] | None = None
     ) -> set[tuple]:
-        """一次查出给定业务、检索类型下已被占用的名称，返回 (bk_biz_id, type, name) 集合"""
+        """一次查出给定业务、检索类型下已被占用的名称，返回 (bk_biz_id, type, name.casefold()) 集合"""
         if not biz_ids or not query_types or not names:
             return set()
         queryset = QueryHistory.objects.filter(bk_biz_id__in=biz_ids, type__in=query_types, name__in=names)
         if exclude_ids:
             queryset = queryset.exclude(id__in=exclude_ids)
-        return set(queryset.values_list("bk_biz_id", "type", "name"))
+        return {cls._name_key(*values) for values in queryset.values_list("bk_biz_id", "type", "name")}
 
     @staticmethod
     def _apply_changes(instance, validated_data: dict) -> set[str]:
@@ -157,8 +165,12 @@ class FavoriteSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         name = validated_data.get("name")
         if name and name != instance.name:
-            name_key = (instance.bk_biz_id, instance.type, name)
-            if name_key in self._get_existing_names({instance.bk_biz_id}, {instance.type}, {name}):
+            name_key = self._name_key(instance.bk_biz_id, instance.type, name)
+            # 排除自身：仅调整名称大小写时，数据库中匹配到的会是记录自己
+            exclude_ids = {instance.id} if instance.id else None
+            if name_key in self._get_existing_names(
+                {instance.bk_biz_id}, {instance.type}, {name}, exclude_ids=exclude_ids
+            ):
                 raise ValidationError(_("收藏记录({})名称重复").format(name))
 
         if not self._apply_changes(instance, validated_data):
@@ -185,7 +197,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
         final_name_count: dict[tuple, int] = {}
         for instance_id, name in final_names.items():
             instance = instances[instance_id]
-            name_key = (instance.bk_biz_id, instance.type, name)
+            name_key = cls._name_key(instance.bk_biz_id, instance.type, name)
             final_name_count[name_key] = final_name_count.get(name_key, 0) + 1
 
         # 与批外记录重名：排除本批次自身，允许批内记录把名称腾给其它记录（链式/互换改名）
@@ -210,7 +222,7 @@ class FavoriteSerializer(serializers.ModelSerializer):
 
             name = config.get("name")
             if name and name != instance.name:
-                name_key = (instance.bk_biz_id, instance.type, name)
+                name_key = cls._name_key(instance.bk_biz_id, instance.type, name)
                 if final_name_count.get(name_key, 0) > 1 or name_key in occupied_names:
                     raise ValidationError(_("收藏记录({})名称重复").format(name))
 
