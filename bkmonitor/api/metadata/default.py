@@ -42,6 +42,13 @@ class MetadataBaseSerializer(serializers.Serializer):
         return attrs
 
 
+class QueryResourceStorageResource(MetaDataAPIGWResource):
+    """批量查询业务场景资源的结果表和存储关联。"""
+
+    action = "/app/metadata/query_resource_storage/"
+    method = "POST"
+
+
 class GetLabelResource(MetaDataAPIGWResource):
     """
     获取分类标签（一二级标签）
