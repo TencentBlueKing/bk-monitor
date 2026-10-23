@@ -64,6 +64,8 @@ export default defineComponent({
     range: { type: Array as unknown as PropType<SelectionRange>, default: null },
     rangeError: { type: String, default: '' },
     revision: { type: Number, default: 0 },
+    // 采集任务历史列表每次查询都重新解析时间，使相对时间取最新边界
+    resolveRange: { type: Function as PropType<() => SelectionRange>, default: undefined },
   },
   emits: {
     change: (_value: Partial<CollectionQueryState>) => true,
@@ -382,6 +384,7 @@ export default defineComponent({
                 range={this.range}
                 rangeError={this.rangeError}
                 readonly={c.readonly}
+                resolveRange={this.resolveRange}
                 revision={this.revision}
                 statusFilters={c.meta.value.execution_status_filters}
                 timezone={this.timezone}

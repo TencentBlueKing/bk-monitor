@@ -70,6 +70,8 @@ export default defineComponent({
     },
     rangeError: { type: String, default: '' },
     revision: { type: Number, required: true },
+    // 每次查询重新解析时间表达式，使「近 N 分钟/小时」取最新边界
+    resolveRange: { type: Function as PropType<() => SelectionRange>, default: undefined },
     timezone: { type: String, required: true },
     readonly: { type: Boolean, default: false },
   },
@@ -87,6 +89,7 @@ export default defineComponent({
       filters: computed(() => props.filters),
       range: computed(() => props.range),
       revision: computed(() => props.revision),
+      resolveRange: () => props.resolveRange?.(),
     });
     const c = useCollectionExecution({
       bizId: computed(() => props.bizId),
@@ -213,6 +216,7 @@ export default defineComponent({
           filters={this.filters}
           loading={h.candidateLoading.value}
           statusFilter={false}
+          autoQuery
           onChange={value => this.$emit('change', value)}
           onRefresh={h.refresh}
         />
