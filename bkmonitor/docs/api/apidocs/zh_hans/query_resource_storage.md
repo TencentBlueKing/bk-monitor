@@ -11,7 +11,8 @@
   "bk_biz_id": 100,
   "selectors": [
     {"scene": "bcs", "resource_ids": ["BCS-K8S-00001"], "data_types": ["k8s_metric", "custom_metric"]},
-    {"scene": "uptime_check", "resource_ids": ["12", "34"]}
+    {"scene": "uptime_check", "resource_ids": ["12", "34"]},
+    {"scene": "recording_rule", "resource_ids": ["56"], "data_types": ["metric"]}
   ],
   "include_runtime": false,
   "page": 1,
@@ -39,8 +40,11 @@
 | uptime_check | 拨测任务 ID | http、tcp、udp、icmp |
 | apm | 应用名称 app_name | metric、trace、log、profile |
 | host | 业务 ID，例如 "100" | base、process_perf、process_port、event |
+| recording_rule | V4 预计算规则组 ID | metric |
 
 全业务查询按普通插件、特殊采集项组织采集场景，不重复列出普通插件的全部采集项。显式指定 collect_config 时可查询普通采集项。仅查询业务实际关联的插件，不列举全部公共插件。未删除的停用资源仍然返回。
+
+recording_rule 仅支持 V4 规则组，旧版预计算规则不在查询范围内。按当前租户和业务对应空间查询，返回规则组保存的输出监控结果表、VM 结果表及目标 VM 存储。resource_status 使用规则组的 desired_status（running / stopped）；已申请删除或已完成删除的规则组不返回。
 
 ## 返回
 
@@ -106,6 +110,7 @@
 - 只有资源名但尚无物理表 ID 时，table 为 null，仍保留 resource_name 和 namespace。
 - CMDB 拆分行包含 source_result_table_id。仅展示明确的拆分记录、选项和存储绑定，不按表名后缀推断。
 - errors 表示该资源已知的缺失关联；已知 Data ID、结果表或集群标识仍保留。未知字段返回 null。
+- recording_rule 的输出没有采集 Data ID，bk_data_id 和 data_name 为 null，正常情况下 kafka 为空；不因缺少数据源关联而报错。目标 VM 存储来自规则组保存的 dst_vm_storage_name，VM 表来自 dst_vm_table_id；目标存储未登记时保留已知表名，不通过默认集群或查询集群推断。
 
 集群对象只包含 ID、名称、显示名、类型和默认标记。不返回地址、账号、密码、Token 或原始下游错误。非默认集群并不意味着业务独占。
 
@@ -129,12 +134,12 @@ AccessVMRecord 可能只说明查询映射。接口保留所有映射，并从 V
 
 实时结果单独返回，不覆盖配置或推断配置是否一致。共享 Data ID 下不属于当前结果表的其他分支不会混入当前行。
 
-先解析关联并分页，再按当前页批量读取存储、VM 绑定、集群和 Topic。组装响应行不执行 SQL。重复的 BKBase 链路只查询一次，同一 ES 集群的索引模式合并请求；不会逐资源调用链路详情接口。
+先解析关联并分页，再按当前页批量读取存储、VM 绑定、集群和 Topic。组装响应行不执行 SQL。重复的 BKBase 链路只查询一次；recording_rule 使用输出 VM 结果表 ID 查询运行信息并去重；同一 ES 集群的索引模式合并请求。不会逐资源调用链路详情接口。
 
 ## 内部接口
 
 SaaS 调用 `POST /app/metadata/query_resource_storage/`，网关转发到 `POST /api/v3/meta/query_resource_storage/`。此入口沿用内部应用鉴权，不直接接收页面透传的资源引用。
 
-内部请求在公共参数之外增加 bk_tenant_id 和 resources。每个 resource 包含 scene、resource_id、resource_name、resource_status、data_type，以及 bk_data_id / data_name / table_id 引用。expand_tables 指示是否展开该数据源已登记的结果表；is_builtin 仅用于固定内置 Data ID 的共享入口解析。已有明确 Data ID 时不会被数据名查询替代。BCS 与主机资源在 Metadata 内解析。
+内部请求在公共参数之外增加 bk_tenant_id 和 resources。每个 resource 包含 scene、resource_id、resource_name、resource_status、data_type，以及 bk_data_id / data_name / table_id 引用。expand_tables 指示是否展开该数据源已登记的结果表；is_builtin 仅用于固定内置 Data ID 的共享入口解析。已有明确 Data ID 时不会被数据名查询替代。BCS、主机与 recording_rule 资源在 Metadata 内解析。
 
 无需新增数据库表或迁移。发布时需同时更新 Metadata 网关资源和 SaaS API 客户端。

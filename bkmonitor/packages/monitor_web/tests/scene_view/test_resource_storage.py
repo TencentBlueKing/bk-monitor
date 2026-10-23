@@ -195,3 +195,27 @@ def test_apm_without_registered_source_keeps_resource_information():
     references = apm_references("system", 100)
     assert {item["data_type"] for item in references} == {"metric", "trace"}
     assert all(item["resource_id"] == "new" and item["error"] for item in references)
+
+
+def test_recording_rule_selector_is_forwarded_to_metadata_in_one_batch():
+    serializer = QueryResourceStorageSerializer(
+        data={
+            "bk_biz_id": 100,
+            "selectors": [{"scene": "recording_rule", "resource_ids": ["12"], "data_types": ["metric"]}],
+        }
+    )
+    assert serializer.is_valid(), serializer.errors
+    with (
+        mock.patch("monitor_web.scene_view.resources.resource_storage.get_request_tenant_id", return_value="tenant-a"),
+        mock.patch(
+            "monitor_web.scene_view.resources.resource_storage.api.metadata.query_resource_storage",
+            return_value={"items": []},
+        ) as batch,
+        CaptureQueriesContext(connections["default"]) as queries,
+    ):
+        QueryResourceStorageResource().perform_request(serializer.validated_data)
+    batch.assert_called_once()
+    assert batch.call_args.kwargs["resources"] == []
+    assert batch.call_args.kwargs["selectors"] == serializer.validated_data["selectors"]
+    assert batch.call_args.kwargs["bk_tenant_id"] == "tenant-a"
+    assert len(queries) == 0

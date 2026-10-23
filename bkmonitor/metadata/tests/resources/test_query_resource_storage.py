@@ -6,9 +6,11 @@ from unittest import mock
 import pytest
 from django.db import connections
 from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 
 from bkmonitor.views.resource_storage import QueryResourceStorageSerializer
 from metadata import models
+from metadata.models.record_rule.v4.models import RecordRuleV4
 from metadata.resources.resource_storage import QueryResourceStorageResource
 from metadata.service.resource_storage import ResourceStorageQuery
 
@@ -339,6 +341,8 @@ def test_runtime_failure_preserves_configuration_and_hides_exception_details():
     "payload",
     [
         {"bk_biz_id": 100, "selectors": [{"scene": "unknown"}]},
+        {"bk_biz_id": 100, "selectors": [{"scene": "recording_rule_v4"}]},
+        {"bk_biz_id": 100, "selectors": [{"scene": "recording_rule", "data_types": ["trace"]}]},
         {"bk_biz_id": 100, "selectors": [{"scene": "bcs", "data_types": ["trace"]}]},
         {"bk_biz_id": 100, "page": 0},
         {"bk_biz_id": 100, "page_size": 1001},
@@ -567,3 +571,171 @@ def test_uptime_same_business_queries_both_saved_storage_routes(settings, multi_
         ("12", 1011, "shared_topic"),
         ("34", 600045, "business_topic"),
     }
+
+
+def create_recording_rule(rule_id, create_output=True, **fields):
+    rule = RecordRuleV4(
+        **{
+            "id": rule_id,
+            "name": f"规则组 {rule_id}",
+            "bk_tenant_id": "system",
+            "space_type": "bkcc",
+            "space_id": "100",
+            "flow_name": f"rule_{rule_id}",
+            "table_id": f"recording_rule.group_{rule_id}",
+            "dst_vm_table_id": f"vm_rule_{rule_id}",
+            "dst_vm_storage_name": "vm-business-storage",
+            **fields,
+        }
+    )
+    RecordRuleV4.objects.bulk_create([rule])
+    if create_output:
+        models.ResultTable.objects.bulk_create(
+            [
+                models.ResultTable(
+                    table_id=rule.table_id,
+                    bk_tenant_id=rule.bk_tenant_id,
+                    table_name_zh=rule.name,
+                    is_custom_table=False,
+                    schema_type="fixed",
+                    default_storage="victoria_metrics",
+                    creator="test",
+                    last_modify_user="test",
+                )
+            ]
+        )
+    return rule
+
+
+def test_recording_rule_uses_v4_output_without_data_source_or_local_binding():
+    rule = create_recording_rule(1, desired_status="stopped")
+    create_cluster(91, "vm-query")
+    create_cluster(92, "vm-business-storage")
+    models.AccessVMRecord.objects.bulk_create(
+        [
+            models.AccessVMRecord(
+                result_table_id=rule.table_id,
+                bk_base_data_id=0,
+                vm_result_table_id=rule.dst_vm_table_id,
+                vm_cluster_id=91,
+            )
+        ]
+    )
+    models.RecordRule.objects.bulk_create(
+        [models.RecordRule(space_type="bkcc", space_id="100", table_id="legacy.rule", record_name="旧版规则")]
+    )
+    with mock.patch.object(ResourceStorageQuery, "add_runtime") as runtime:
+        result = query([], selectors=[])
+    runtime.assert_not_called()
+    assert result["total"] == 1
+    item = result["items"][0]
+    assert (item["scene"], item["resource_id"], item["resource_status"]) == ("recording_rule", "1", "stopped")
+    assert item["result_table_id"] == rule.table_id
+    assert item["result_table_name"] == rule.name
+    assert item["bk_data_id"] is None and item["data_name"] is None
+    assert item["kafka"] == [] and item["errors"] == []
+    assert {(s["role"], s["table"], s["cluster"]["cluster_id"]) for s in item["storages"]} == {
+        ("query", rule.dst_vm_table_id, 91),
+        ("storage", rule.dst_vm_table_id, 92),
+    }
+    assert not any(key.startswith("_") for key in item)
+    assert "private-storage" not in json.dumps(item)
+    assert "secret-" not in json.dumps(item)
+
+
+def test_recording_rule_filters_tenant_business_deleted_and_requested_groups():
+    rule = create_recording_rule(1, bk_tenant_id="tenant-a")
+    create_recording_rule(2, bk_tenant_id="tenant-b", table_id=rule.table_id, dst_vm_table_id=rule.dst_vm_table_id)
+    create_recording_rule(3, bk_tenant_id="tenant-a", space_id="200")
+    create_recording_rule(4, bk_tenant_id="tenant-a", deleted_at=timezone.now())
+    create_recording_rule(5, bk_tenant_id="tenant-a", desired_status="deleted")
+    create_recording_rule(6, bk_tenant_id="tenant-a")
+    create_cluster(91, "vm-business-storage", tenant="tenant-a")
+    create_cluster(92, "vm-business-storage", tenant="tenant-b")
+    result = query([], tenant="tenant-a", selectors=[{"scene": "recording_rule"}])
+    assert [row["resource_id"] for row in result["items"]] == ["1", "6"]
+    assert result["items"][0]["storages"][0]["cluster"]["cluster_id"] == 91
+    selected = query(
+        [], tenant="tenant-a", selectors=[{"scene": "recording_rule", "resource_ids": ["6"], "data_types": ["metric"]}]
+    )
+    assert [row["resource_id"] for row in selected["items"]] == ["6"]
+    assert query([], tenant="tenant-a", selectors=[{"scene": "recording_rule", "resource_ids": ["99"]}])["total"] == 0
+
+
+def test_recording_rule_resolves_business_space_once():
+    create_recording_rule(1, space_type="bkci", space_id="project-a")
+    create_recording_rule(2, space_type="bkci", space_id="project-b")
+    with mock.patch("bkm_space.utils.bk_biz_id_to_space_uid", return_value="bkci__project-a") as resolve:
+        result = query([], selectors=[{"scene": "recording_rule"}])
+    resolve.assert_called_once_with(100)
+    assert [row["resource_id"] for row in result["items"]] == ["1"]
+
+
+def test_recording_rule_keeps_partial_output_without_inventing_storage():
+    rule = create_recording_rule(1, create_output=False, dst_vm_storage_name="")
+    create_cluster(91, "vm-default")
+    item = query([], selectors=[{"scene": "recording_rule"}])["items"][0]
+    assert item["result_table_id"] == rule.table_id
+    assert item["errors"] == ["结果表元数据不存在"]
+    assert item["storages"] == [
+        {"type": "victoria_metrics", "table": rule.dst_vm_table_id, "role": "storage", "cluster": None}
+    ]
+    assert not models.ResultTable.objects.filter(table_id=rule.table_id).exists()
+    assert not models.AccessVMRecord.objects.filter(result_table_id=rule.table_id).exists()
+
+
+def test_recording_rule_storage_query_count_is_constant_and_row_assembly_is_sql_free():
+    for index in range(1, 41):
+        create_recording_rule(index)
+    create_cluster(91, "vm-business-storage")
+    connection = connections[RecordRuleV4.objects.db]
+    with CaptureQueriesContext(connection) as single:
+        query([], selectors=[{"scene": "recording_rule", "resource_ids": ["1"]}])
+    with CaptureQueriesContext(connection) as batch:
+        result = query([], selectors=[{"scene": "recording_rule"}])
+    assert result["total"] == 40
+    assert len(single) == len(batch)
+    assert not any(statement["sql"].lstrip().upper().startswith(("INSERT", "UPDATE", "DELETE")) for statement in batch)
+    service = ResourceStorageQuery("system", 100)
+    rows = service.recording_rule_rows([])
+    context = service.prefetch_storage("system", rows)
+    with CaptureQueriesContext(connection) as assembly:
+        for row in rows:
+            service.add_storage(row, context)
+    assert len(assembly) == 0
+
+
+def test_recording_rule_runtime_queries_output_table_once_and_only_on_current_page():
+    rule = create_recording_rule(1)
+    create_recording_rule(2)
+    models.AccessVMRecord.objects.bulk_create(
+        [
+            models.AccessVMRecord(
+                result_table_id=rule.table_id,
+                bk_base_data_id=0,
+                vm_result_table_id=rule.dst_vm_table_id,
+                vm_cluster_id=91,
+            )
+        ]
+    )
+    with mock.patch(
+        "metadata.resources.bkdata_link.QueryDataLinkMetadataResource._fetch_bkbase_metadata",
+        return_value={"branches": [{"result_table_id": rule.dst_vm_table_id}, {"result_table_id": "other_business"}]},
+    ) as fetch:
+        result = query([], selectors=[{"scene": "recording_rule"}], include_runtime=True, page_size=1)
+    fetch.assert_called_once_with(None, rule.dst_vm_table_id, bk_tenant_id="system")
+    assert result["total"] == 2 and len(result["items"]) == 1
+    assert result["items"][0]["runtime"]["bkbase"] == [{"result_table_id": rule.dst_vm_table_id}]
+
+
+def test_recording_rule_runtime_failure_keeps_saved_output_without_vm_record():
+    rule = create_recording_rule(1)
+    with mock.patch(
+        "metadata.resources.bkdata_link.QueryDataLinkMetadataResource._fetch_bkbase_metadata",
+        side_effect=TimeoutError("private-host:1234 token=secret"),
+    ) as fetch:
+        item = query([], selectors=[{"scene": "recording_rule"}], include_runtime=True)["items"][0]
+    fetch.assert_called_once_with(None, rule.dst_vm_table_id, bk_tenant_id="system")
+    assert item["storages"][0]["table"] == rule.dst_vm_table_id
+    assert item["runtime"]["errors"] == [{"source": "bkbase", "message": "运行信息查询失败或超时"}]
+    assert "private-host" not in json.dumps(item) and "secret" not in json.dumps(item)

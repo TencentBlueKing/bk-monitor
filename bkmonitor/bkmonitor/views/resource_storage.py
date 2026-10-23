@@ -12,6 +12,7 @@ SCENE_DATA_TYPES = {
     "uptime_check": ("http", "tcp", "udp", "icmp"),
     "apm": ("metric", "trace", "log", "profile"),
     "host": ("base", "process_perf", "process_port", "event"),
+    "recording_rule": ("metric",),
 }
 
 

@@ -77,6 +77,8 @@ class ResourceStorageQuery:
             references.extend(self.host_references())
         references = [ref for ref in references if matches_selector(ref, selectors)]
         rows = self.resolve_references(references)
+        if not scenes or "recording_rule" in scenes:
+            rows.extend(self.recording_rule_rows(selectors))
         rows = self.add_derived_tables(rows)
         unique = {}
         for row in rows:
@@ -106,6 +108,7 @@ class ResourceStorageQuery:
         for row in rows:
             row.pop("_tenant_id", None)
             row.pop("_source", None)
+            row.pop("_recording_rule_output", None)
         return {"items": rows, "total": total, "page": page, "page_size": page_size}
 
     @staticmethod
@@ -202,6 +205,39 @@ class ResourceStorageQuery:
             }
             for source in sources
         ]
+
+    def recording_rule_rows(self, selectors):
+        from bkm_space.utils import bk_biz_id_to_space_uid
+        from metadata.models.record_rule.constants import RecordRuleV4DesiredStatus
+        from metadata.models.record_rule.v4.models import RecordRuleV4
+
+        space_type, space_id = bk_biz_id_to_space_uid(self.biz).split("__", 1)
+        rules = (
+            RecordRuleV4.objects.filter(
+                bk_tenant_id=self.tenant, space_type=space_type, space_id=space_id, deleted_at__isnull=True
+            )
+            .exclude(desired_status=RecordRuleV4DesiredStatus.DELETED.value)
+            .only("id", "name", "desired_status", "table_id", "dst_vm_table_id", "dst_vm_storage_name")
+        )
+        rows = []
+        for rule in rules:
+            ref = {
+                "scene": "recording_rule",
+                "resource_id": str(rule.pk),
+                "resource_name": rule.name,
+                "resource_status": rule.desired_status,
+                "data_type": "metric",
+            }
+            if not matches_selector(ref, selectors):
+                continue
+            # V4 输出没有采集 Data ID / DSRT；Flow 负责创建下游表和存储绑定。
+            row = self.make_row(ref, self.tenant, None, rule.table_id or None, None)
+            row["_recording_rule_output"] = {
+                "table": rule.dst_vm_table_id or None,
+                "cluster_name": rule.dst_vm_storage_name or None,
+            }
+            rows.append(row)
+        return rows
 
     def resolve_references(self, references):
         if not references:
@@ -405,6 +441,11 @@ class ResourceStorageQuery:
         cluster_ids.update(record.cluster_id for records in context["cluster_history"].values() for record in records)
         cluster_ids.update(proxy.proxy_cluster_id for proxy in context["proxies"].values())
         cluster_names = {binding.vm_cluster_name for binding in bindings}
+        cluster_names.update(
+            row["_recording_rule_output"]["cluster_name"]
+            for row in rows
+            if row.get("_recording_rule_output", {}).get("cluster_name")
+        )
         cluster_names.update(proxy.instance_cluster_name for proxy in context["proxies"].values())
         # 只读取可展示的集群列，不装载认证配置。
         context["clusters"] = {
@@ -482,6 +523,19 @@ class ResourceStorageQuery:
                     "table": record.vm_result_table_id,
                     "role": "query",
                     "cluster": self.cluster(context, record.vm_cluster_id, cluster_type="victoria_metrics"),
+                },
+            )
+        output = row.get("_recording_rule_output")
+        if output:
+            append_unique(
+                row["storages"],
+                {
+                    "type": "victoria_metrics",
+                    "table": output["table"],
+                    "role": "storage",
+                    "cluster": self.cluster(context, name=output["cluster_name"], cluster_type="victoria_metrics")
+                    if output["cluster_name"]
+                    else None,
                 },
             )
         for binding in context["bindings"][table_id]:
@@ -601,6 +655,21 @@ class ResourceStorageQuery:
             row_requests[index] = [("bkbase", data_id) for data_id in sorted(ids)]
             for key in row_requests[index]:
                 requests[key] = lambda data_id=key[1]: reader._fetch_bkbase_metadata(data_id, None, bk_tenant_id=tenant)
+            if not ids:
+                vm_tables = {
+                    record.vm_result_table_id
+                    for record in context["vm"][row["result_table_id"]]
+                    if record.vm_result_table_id
+                }
+                output = row.get("_recording_rule_output")
+                if output and output["table"]:
+                    vm_tables.add(output["table"])
+                for vm_table in sorted(vm_tables):
+                    key = ("bkbase", "vm_result_table", vm_table)
+                    row_requests[index].append(key)
+                    requests[key] = lambda vm_table=vm_table: reader._fetch_bkbase_metadata(
+                        None, vm_table, bk_tenant_id=tenant
+                    )
             for storage in context["elasticsearch"][row["result_table_id"]]:
                 key = ("elasticsearch", storage.storage_cluster_id)
                 if key not in row_requests[index]:
