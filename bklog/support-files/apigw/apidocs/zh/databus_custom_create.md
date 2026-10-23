@@ -2,6 +2,8 @@
 
 创建自定义上报采集项，调用用户需具备业务下的「创建采集项」权限。
 
+创建时会同时创建（或复用）该采集项的索引集记录；未传 `storage_cluster_id` 时索引集处于未激活状态，不含清洗与存储配置，返回值中的 `index_set_id` 仍然有值。
+
 ## 请求参数
 
 ### 鉴权头
@@ -26,14 +28,14 @@
 | category_id                | string | 否       | 数据分类，默认 `application_check`                                                                          |
 | description                | string | 否       | 描述信息，不超过 64 个字符，默认取 `collector_config_name`                                                  |
 | data_link_id               | int    | 否       | 数据链路 ID，不传时按「业务私有链路 → 公共链路 → 默认链路」自动选择                                          |
-| storage_cluster_id         | int    | 否       | 存储集群 ID，传值时创建清洗规则与索引集；不传时仅创建采集项与数据管道                                        |
+| storage_cluster_id         | int    | 否       | 存储集群 ID，传值时创建清洗规则与存储配置；不传时仅创建采集项、数据管道和未激活的索引集记录                  |
 | retention                  | int    | 条件必选 | 数据保留天数，指定 ES 类型存储集群时必填                                                                    |
 | allocation_min_days        | int    | 条件必选 | n 天后的数据转入冷节点，仅集群开启冷热时生效，指定 ES 类型存储集群时必填                                     |
 | es_shards                  | int    | 否       | 索引分片数，最小 1，默认取部署配置 `BKAPP_ES_SHARDS`（默认 3）                                              |
 | storage_replies            | int    | 否       | 索引副本数，最小 0，默认取部署配置 `BKAPP_ES_REPLICAS`（默认 1）                                            |
-| etl_config                 | string | 否       | 清洗类型，可选 `bk_log_text`、`bk_log_json`、`bk_log_delimiter`、`bk_log_regexp`；需与 `etl_params`、`fields` 同时传入才生效 |
-| etl_params                 | dict   | 否       | 清洗参数，见下表；需与 `etl_config`、`fields` 同时传入才生效                                                |
-| fields                     | list   | 否       | 清洗字段，见下表；需与 `etl_config`、`etl_params` 同时传入才生效                                            |
+| etl_config                 | string | 否       | 清洗类型，可选 `bk_log_text`、`bk_log_json`、`bk_log_delimiter`、`bk_log_regexp`；未传时按 `bk_log_text` 处理 |
+| etl_params                 | dict   | 否       | 清洗参数，见下表；与 `fields` 均非空且传入 `storage_cluster_id` 时生效                                      |
+| fields                     | list   | 否       | 清洗字段，见下表；与 `etl_params` 均非空且传入 `storage_cluster_id` 时生效；传空列表视为不指定               |
 | owners                     | list   | 否       | 授权用户列表，授予采集项、索引集及所属业务的访问权限                                                        |
 | ignore_exists              | bool   | 否       | 同英文名采集项已存在时是否直接复用，默认 `false`（此时返回错误）；为 `true` 时复用并返回 `created=false`      |
 | auto_select_storage_cluster | bool  | 否       | 未传 `storage_cluster_id` 时是否自动选择业务可用的公共存储集群，默认 `false`；无可用集群时报错               |
@@ -153,14 +155,14 @@ OTLP 日志（使用内置清洗，不自定义字段）：
 | message             | string    | 描述信息                                                          |
 | data                | dict      | 创建结果                                                          |
 | data.collector_config_id | int  | 采集项 ID                                                         |
-| data.index_set_id   | int/null  | 索引集 ID，查询时使用；未传 `storage_cluster_id` 时为 `null`       |
+| data.index_set_id   | int       | 索引集 ID，创建时即生成并返回；未传 `storage_cluster_id` 时为未激活状态，尚不可用于检索 |
 | data.bk_data_id     | int       | 数据管道 ID                                                       |
 | data.created        | bool      | 是否本次新建，`ignore_exists=true` 复用已有采集项时为 `false`      |
 | data.bk_data_token  | string    | 上报 token，仅 `custom_type=otlp_log` 创建时返回                   |
 
 ## 注意事项
 
-- `collector_config_name_en` 业务内唯一，重复创建会返回错误；需要幂等时传 `ignore_exists=true`，此时只授予调用方对采集项与索引集的权限，不再授予业务访问权限。
-- `etl_config`、`etl_params`、`fields` 需同时传入才会覆盖默认清洗；只传其中之一不会生效，也不会报错。
+- `collector_config_name_en` 业务内唯一，重复创建会返回错误；需要幂等时传 `ignore_exists=true`，命中后仅向本次传入的 `owners` 授予采集项与索引集权限，不授予业务访问权限；未传 `owners` 时不会新增任何授权，调用方需确认自己已有访问权限。
+- 传入 `storage_cluster_id` 且 `etl_params`、`fields` 均非空时才会使用传入的清洗配置；`etl_config` 未传时按 `bk_log_text` 处理，`fields` 为空列表时按 `custom_type` 的默认清洗创建。
 - `custom_type=log` 默认按 `bk_log_text` 直接入库；`otlp_trace`、`otlp_log` 默认按 `bk_log_json` 并使用内置字段。
 - 指定 ES 类型存储集群时，`retention` 与 `allocation_min_days` 必填，缺失会返回参数校验错误。
