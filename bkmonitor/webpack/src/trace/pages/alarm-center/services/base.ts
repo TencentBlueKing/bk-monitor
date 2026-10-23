@@ -115,7 +115,10 @@ export abstract class AlarmService<S = AlarmType> {
     if (!data.length) {
       return { event_count: undefined, extend_info: undefined };
     }
-    const requestOptions = options?.signal ? { signal: options.signal } : {};
+    const requestOptions = {
+      needMessage: false,
+      ...(options?.signal ? { signal: options.signal } : {}),
+    };
     const params = { ids: data.map(item => item.id) };
     const eventCountPromise = (
       needEventCount ? alertEventCount(params, requestOptions).catch(() => {}) : Promise.resolve(undefined)
