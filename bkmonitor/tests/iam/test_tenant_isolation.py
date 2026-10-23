@@ -452,7 +452,6 @@ def test_real_v3_caches_are_per_client_and_thread_safe(monkeypatch, method, back
             "monitor",
             IdentityCodec(),
             bk_tenant_id=tenant,
-            enable_v1_compat=False,
         )
         for tenant, secret in [("tenant-a", "secret"), ("tenant-b", "secret"), ("tenant-a", "rotated")]
     ]

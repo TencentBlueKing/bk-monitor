@@ -27,7 +27,7 @@ paths:
                   description: Exact tool name. 精确工具名，不支持模糊匹配。
                 category:
                   type: string
-                  enum: [metrics, log, alert, event, apm, dashboard, relation, alert_handling, log_collection, log_extract, metadata]
+                  enum: [metrics, log, alert, event, apm, dashboard, relation, alert_handling, log_collection, log_extract, recording_rule, metadata]
                   description: Public tool domain, including query, management, extraction and metadata MCP families. 公开工具领域，覆盖查询、配置管理、日志提取与元数据 MCP 类别；内部 operation MCP 不进入目录。
                 capability:
                   type: string
@@ -219,7 +219,7 @@ paths:
                 bk_biz_id: {type: string, description: Target business/space ID. 目标业务 ID。}
                 category:
                   type: string
-                  enum: [metrics, log, alert, event, apm, dashboard, relation, alert_handling, log_collection, log_extract, metadata]
+                  enum: [metrics, log, alert, event, apm, dashboard, relation, alert_handling, log_collection, log_extract, recording_rule, metadata]
                   description: Public tool domain used to select the corresponding IAM action. 公开工具领域，用于选择对应的 IAM 权限点；内部 operation MCP 不进入 Unified 权限查询。
                 tool_name: {type: string, description: Exact underlying tool name. 底层工具精确名称。}
                 resource_context:

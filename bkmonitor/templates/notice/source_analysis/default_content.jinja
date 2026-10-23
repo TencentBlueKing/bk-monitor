@@ -1,0 +1,13 @@
+{% if succeeded %}{{gettext("你于 %(time)s 发起的源码关联分析已完成", time=triggered_at)}}
+
+{{gettext("分析结论")}}：{{description | safe}}
+{{gettext("置信度")}}：{% if high_confidence %}{{gettext("高")}}{% else %}{{gettext("证据不足")}}{% endif %}
+{% if commit_id %}{{gettext("责任提交")}}：{{commit_id | safe}}{% if author_name %} · {{author_name | safe}}{% endif %}
+{% endif %}
+{{gettext("查看完整报告")}}：{{detail_url | safe}}
+{% else %}{{gettext("你于 %(time)s 发起的源码关联分析失败", time=triggered_at)}}
+
+{{gettext("失败原因")}}：{% if local_failure %}{{gettext(failure_message)}}{% else %}{{failure_message | safe}}{% endif %}
+
+{{gettext("查看详情并重新分析")}}：{{detail_url | safe}}
+{% endif %}

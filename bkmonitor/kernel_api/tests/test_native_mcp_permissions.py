@@ -182,9 +182,12 @@ def log_args(**extra):
 def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     native = registry.get_tool_registry()
     tool = native.get("search_logs")
-    assert len(native) == 89
+    assert len(native) == 96
     assert sum(bool(tool.native_permission) for tool in native.list()) == 88
-    assert {tool.name for tool in native.list() if not tool.permission_exempt} == set(registry.NATIVE_PERMISSIONS)
+    assert {
+        tool.name for tool in native.list() if not tool.permission_exempt and tool.category != "recording_rule"
+    } == set(registry.NATIVE_PERMISSIONS)
+    assert all(tool.native_permission is None for tool in native.list(category="recording_rule"))
     assert native.get_by_backend("POST", "/api/v4/log_search/search_log/") is tool
     assert native.get_by_backend("GET", "/api/v4/log_search/search_log/") is None
     assert native.get_by_backend("POST", "/api/v4/log_search/search_log.json/") is tool
@@ -206,7 +209,7 @@ def test_catalog_defaults_and_opt_in_change_version(monkeypatch):
     assert all(not item.native_permission for item in legacy.list())
 
 
-def test_all_non_exempt_public_tools_have_reviewed_native_permissions():
+def test_tools_with_mcp_fallback_have_reviewed_native_permissions():
     catalog = registry.get_tool_registry()
     expected = {}
 
@@ -328,7 +331,10 @@ def test_all_non_exempt_public_tools_have_reviewed_native_permissions():
     add(("create_log_extract_task",), "create_client_log_task", "bk_log_search")
     add(("get_log_extract_download_url",), "download_client_log", "bk_log_search")
 
-    protected_tools = {tool.name for tool in catalog.list() if not tool.permission_exempt}
+    # RecordingRule directly uses its business view/manage actions and has no second permission fallback.
+    protected_tools = {
+        tool.name for tool in catalog.list() if not tool.permission_exempt and tool.category != "recording_rule"
+    }
     assert set(expected) == protected_tools == set(registry.NATIVE_PERMISSIONS)
     assert {
         name: tuple(
@@ -2191,8 +2197,8 @@ def test_mcp_first_fallback_matrix_and_english_logs(
 ):
     caplog.set_level(logging.INFO, logger=auth.__name__)
     io.iam.is_allowed.return_value = native_allowed
-    io.monitor.iam_client.is_allowed.side_effect = (
-        lambda query: legacy_allowed if query.action.id.startswith("using_") else native_allowed
+    io.monitor.iam_client.is_allowed.side_effect = lambda query: (
+        legacy_allowed if query.action.id.startswith("using_") else native_allowed
     )
     request = request_factory()
     request.META["HTTP_X_BKAPI_PERMISSION_ACTION"] = "using_dashboard_mcp"

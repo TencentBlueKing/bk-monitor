@@ -552,7 +552,6 @@ class Permission:
         from django.utils.functional import SimpleLazyObject
 
         from config.tools.iam_credentials import get_saas_setting
-        from bkmonitor.iam.backends.v3.compat import is_v1_compat_enabled
 
         # V3 资源 dispatcher 在 URLConf 导入时创建；推迟到首次调用，避免 migrate
         # 的 URL 检查阶段读取尚未准备好的 GlobalConfig。
@@ -564,7 +563,6 @@ class Permission:
                 system_id=settings.BK_IAM_SYSTEM_ID,
                 codec=MonitorV3Codec(),
                 bk_tenant_id=bk_tenant_id,
-                enable_v1_compat=is_v1_compat_enabled,
             )
         )
 

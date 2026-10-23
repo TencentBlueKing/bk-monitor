@@ -200,10 +200,15 @@ if locals()["RUN_VER"] == "open":
     # 从 apigw jwt 中获取 username 的 键
     APIGW_USER_USERNAME_KEY = "bk_username"
 
-    # PAASV2对外版不需要bkoauth,DISABLED_APPS加入bkoauth
-    INSTALLED_APPS = (
-        INSTALLED_APPS[0 : INSTALLED_APPS.index("bkoauth")] + INSTALLED_APPS[INSTALLED_APPS.index("bkoauth") + 1 :]
-    )
+    # Open 按需接入 SSM，复用 bkoauth 的用户 Token 持久化和后台续期。
+    # 配置基址（不含 /api/v1/auth/access-tokens）；未配置时保持原有禁用行为。
+    OAUTH_API_URL = os.getenv("OAUTH_API_URL") or locals().get("OAUTH_API_URL", "")
+    if OAUTH_API_URL:
+        BKAUTH_BACKEND_TYPE = "bk_token"
+        # bkoauth 优先读取同名环境变量，可覆盖默认 Cookie 映射。
+        OAUTH_COOKIES_PARAMS = {"bk_token": "bk_token"}
+    else:
+        INSTALLED_APPS = tuple(app for app in INSTALLED_APPS if app != "bkoauth")
 
     # 请求官方 API 默认版本号，可选值为："v2" 或 ""；其中，"v2"表示规范化API，
     # ""表示未规范化API.如果外面设置了该值则使用设置值,否则默认使用v2
@@ -356,6 +361,7 @@ ACTIVE_VIEWS = {
         "alert_v2": "fta_web.alert_v2.views",
         "assign": "fta_web.assign.views",
         "home": "fta_web.home.views",
+        "issue": "fta_web.issue.views",
     },
     "calendar": {"calendar": "calendars.views"},
     "apm_web": {
@@ -436,6 +442,9 @@ AIOPS_BIZ_WHITE_LIST = []
 
 # 是否开启AIOPS根因故障定位功能，业务白名单
 AIOPS_INCIDENT_BIZ_WHITE_LIST = []
+
+# Issue AI 分析业务白名单：空名单关闭，-1 表示全量开启
+ISSUE_AI_ANALYSIS_BIZ_WHITE_LIST = []
 
 # 是否由GSE分配dataid，默认是False，由监控自身来负责分配
 IS_ASSIGN_DATAID_BY_GSE = True
@@ -1280,6 +1289,8 @@ NEW_MONITOR_API_BASE_URL = os.getenv("BKAPP_NEW_MONITOR_API_BASE_URL", "")
 BKDATA_API_BASE_URL = os.getenv("BKAPP_BKDATA_API_BASE_URL", "")
 # RecordRule V4 Flow 专用网关，未配置时沿用公共 BKBase 网关
 BKDATA_RECORD_RULE_API_BASE_URL = os.getenv("BKAPP_BKDATA_RECORD_RULE_API_BASE_URL", "")
+# RecordingRule V4 动态配置的静态默认值，source 按实际 Flow 去重，rules 按 group 条数计数。
+RECORD_RULE_V4_CONFIG = {"max_sources": 20, "max_rules": 20}
 # bkdata api only for query data (not required)
 BKDATA_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_QUERY_API_BASE_URL", "")
 BKDATA_PROFILE_QUERY_API_BASE_URL = os.getenv("BKAPP_BKDATA_PROFILE_QUERY_API_BASE_URL", "")
@@ -1309,6 +1320,8 @@ BKCHAT_MANAGE_URL = os.getenv("BKAPP_BKCHAT_MANAGE_URL", "")
 
 # aidev的apigw地址
 AIDEV_API_BASE_URL = os.getenv("BKAPP_AIDEV_API_BASE_URL", "")
+# 跨环境资源查询可指定目标环境用户的 Token；未配置时沿用当前请求登录态。
+AIDEV_ACCESS_TOKEN = os.getenv("BKAPP_AIDEV_ACCESS_TOKEN", "").strip()
 
 # TAPD API 基础URL（部署环境通过 BKAPP_TAPD_API_BASE_URL / TAPD_API_BASE_URL 注入，公开仓不放默认主机）
 TAPD_API_BASE_URL = os.getenv("BKAPP_TAPD_API_BASE_URL", os.getenv("TAPD_API_BASE_URL", ""))
@@ -1363,6 +1376,11 @@ MAIL_REPORT_URL = urljoin(BK_MONITOR_HOST, "#/email-subscriptions")
 
 # 故障分析
 BK_INCIDENT_APIGW_URL = os.getenv("BKAPP_INCIDENT_APIGW_URL", "")
+# BKFara 源码分析使用独立 APIGW；联调环境由 BKFara 提供具体地址。
+BKFARA_APIGW_BASE_URL = os.getenv("BKAPP_BKFARA_APIGW_BASE_URL") or os.getenv("BKFARA_APIGW_BASE_URL", "")
+# 源码分析流水线访问监控的环境；部署阶段（prod/stag）不能区分目标集群。
+# 默认沿用模板的 bkte，BKOP 部署需显式配置为 bkop。
+BKAI_MCP_ENV = os.getenv("BKAPP_BKAI_MCP_ENV") or os.getenv("BKAI_MCP_ENV") or "bkte"
 # 是否开启故障分析功能，默认不开启
 ENABLE_BK_INCIDENT_PLUGIN = os.getenv("ENABLE_BK_INCIDENT_PLUGIN", "false").lower() == "true"
 # 是否打开故障通知

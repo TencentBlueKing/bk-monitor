@@ -29,6 +29,7 @@ from .home import *  # noqa
 from .issue import *  # noqa
 from .metric_list_cache import *  # noqa
 from .report import *  # noqa
+from .source_analysis import *  # noqa
 from .statistics import *  # noqa
 from .strategy import *  # noqa
 from .tapd import *  # noqa

@@ -613,6 +613,19 @@ class AuthenticationMiddleware(MiddlewareMixin):
                 return None
             permission_action_id = unified_tool.iam_action
             permission_action_source = "unified_tool_registry"
+        elif request.path.startswith("/api/v4/recording_rule_mcp/"):
+            # 预计算规则读写使用不同业务权限，不能只按 MCP Server 名称选权限。
+            from kernel_api.unified_mcp.registry import get_tool_registry
+
+            try:
+                recording_rule_tool = get_tool_registry().get_by_backend(request.method, request.path)
+            except Exception as exc:
+                log_mcp_event("routing_failed", request, level=logging.WARNING, error_type=type(exc).__name__)
+                return JsonResponse({"result": False, "message": "MCP routing is unavailable"}, status=503)
+            if recording_rule_tool is None:
+                return HttpResponseForbidden("Invalid RecordingRule MCP tool")
+            permission_action_id = recording_rule_tool.iam_action
+            permission_action_source = "tool_registry"
         elif mcp_server_name:
             permission_action_id = get_mcp_permission_action_by_server_name(mcp_server_name)
             if permission_action_id:
