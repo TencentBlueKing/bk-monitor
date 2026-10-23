@@ -1,4 +1,3 @@
-import logging
 import typing
 from collections import defaultdict
 from copy import deepcopy
@@ -9,9 +8,6 @@ from bkm_ipchooser import constants, types
 from bkm_ipchooser.api import BkApi
 from bkm_ipchooser.constants import InstanceType
 from bkm_ipchooser.query import resource
-from bkm_ipchooser.tools import batch_request
-
-logger = logging.getLogger("bkm_ipchooser")
 
 
 class TopoTool:
@@ -91,16 +87,13 @@ class TopoTool:
                 # 暂不统计非缓存数据，遇到不一致的情况需要触发缓存更新
                 ids_gby_module_id[host_topo_relation["bk_module_id"]].append(bk_host_id)
         else:
-            # 查询业务下所有服务实例（缓存5分钟）
-            cache_key = f"all_service_instance_detail:{bk_biz_id}"
-            service_instances: list[dict] = cache.get(cache_key)
-            if not service_instances:
-                service_instances = batch_request.batch_request(
-                    BkApi.list_service_instance_detail, params={"bk_biz_id": bk_biz_id}, limit=200
-                )
-                cache.set(cache_key, service_instances, 300)
-            for service_instance in service_instances:
-                ids_gby_module_id[service_instance["bk_module_id"]].append(service_instance["id"])
+            # 索引未命中时的明细拉取由 BkApi 实现方负责：IpChooserApi 内部会借
+            # get_service_instance_by_biz 拉取并构建分组（该函数自带 1 小时 cron 缓存，
+            # 且内部顺带回写索引），因此本层只消费结果，不再重复实现一套全量拉取。
+            # 索引读取或回退失败时不降级为 0，按原行为向上抛出，避免把故障显示成“无实例”。
+            module_index: dict[int, list[int]] = BkApi.get_service_instance_module_index(bk_biz_id) or {}
+            for module_id, service_instance_ids in module_index.items():
+                ids_gby_module_id[module_id].extend(service_instance_ids)
 
         # 统计拓扑树上的实例数量
         cls.fill_host_count_to_tree([topo_tree], ids_gby_module_id)
