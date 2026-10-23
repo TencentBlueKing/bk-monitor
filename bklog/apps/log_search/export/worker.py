@@ -40,6 +40,7 @@ from apps.log_search.constants import (
 from apps.log_search.export import state
 from apps.log_search.export.config import policy_from_snapshot
 from apps.log_search.export.planner import build_handler, encode_export_row
+from apps.log_search.export.scheduler import request_parts_dispatch
 from apps.log_search.export.storage import (
     UnsupportedExportStorage,
     artifact_name,
@@ -238,3 +239,6 @@ def run_part(part_id, task_id):
             error_detail=type(error).__name__,
             retryable=True,
         )
+    finally:
+        # 分片结束时槽位已经释放，立即请求补投，避免空等到下一个调度周期
+        request_parts_dispatch()

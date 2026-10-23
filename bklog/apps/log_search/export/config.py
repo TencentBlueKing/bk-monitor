@@ -12,6 +12,7 @@ FEATURE_ASYNC_EXPORT_SHARDED = "feature_async_export_sharded"
 
 PLAN_TASK_NAME = "apps.log_search.tasks.sharded_export.plan_sharded_export"
 PART_TASK_NAME = "apps.log_search.tasks.sharded_export.execute_sharded_export_part"
+DISPATCH_TASK_NAME = "apps.log_search.tasks.sharded_export.dispatch_sharded_export_parts"
 FINALIZE_TASK_NAME = "apps.log_search.tasks.sharded_export.finalize_sharded_export"
 NOTIFY_TASK_NAME = "apps.log_search.tasks.sharded_export.notify_sharded_export"
 
@@ -21,14 +22,16 @@ FINALIZE_QUEUE = "async_export"
 # 调度与通知走现有高优先级队列，避免被耗时导出任务阻塞。
 NOTIFY_QUEUE = settings.BK_LOG_HIGH_PRIORITY_QUEUE
 COORDINATOR_QUEUE = settings.BK_LOG_HIGH_PRIORITY_QUEUE
+# 补槽轮次与定时轮次共用同一把锁；锁被占用时本次触发直接跳过，由定时扫描兜底
+COORDINATE_LOCK_KEY = "celery_coordinate_sharded_exports"
 
 
 @dataclass(frozen=True)
 class ExportPolicy:
     """会影响任务行为的策略；创建任务时需完整保存为快照。"""
 
-    target_rows: int = 30_000
-    target_bytes: int = 64 * 1024 * 1024
+    target_rows: int = 60_000
+    target_bytes: int = 128 * 1024 * 1024
     split_factor: float = 2.0
     merge_factor: float = 1.5
     max_rows: int = 10_000_000

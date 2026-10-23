@@ -23,11 +23,18 @@ from blueapps.contrib.celery_tools.periodic import periodic_task
 from blueapps.core.celery.celery import app
 from django.conf import settings
 
-from apps.log_search.export.config import COORDINATOR_QUEUE, FINALIZE_QUEUE, NOTIFY_QUEUE, PART_QUEUE, PLAN_QUEUE
+from apps.log_search.export.config import (
+    COORDINATE_LOCK_KEY,
+    COORDINATOR_QUEUE,
+    FINALIZE_QUEUE,
+    NOTIFY_QUEUE,
+    PART_QUEUE,
+    PLAN_QUEUE,
+)
 from apps.log_search.export.notification import notify_terminal_job
 from apps.log_search.export.worker import run_part
 from apps.log_search.export.planner import run_planning
-from apps.log_search.export.scheduler import coordinate, finalize_export
+from apps.log_search.export.scheduler import coordinate, dispatch_pending_parts, finalize_export
 from apps.utils.lock import share_lock
 
 
@@ -66,11 +73,22 @@ def notify_sharded_export(job_id):
     notify_terminal_job(job_id)
 
 
+@app.task(
+    ignore_result=True,
+    queue=COORDINATOR_QUEUE,
+    soft_time_limit=settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT,
+)
+@share_lock(ttl=settings.ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT, identify=COORDINATE_LOCK_KEY)
+def dispatch_sharded_export_parts():
+    """分片结束后的补槽轮次；与定时轮次共用调度锁，锁被占用时交给下一个周期。"""
+    dispatch_pending_parts()
+
+
 @periodic_task(
     run_every=settings.ASYNC_EXPORT_COORDINATE_INTERVAL_SECONDS,
     options={"queue": COORDINATOR_QUEUE},
     soft_time_limit=settings.ASYNC_EXPORT_COORDINATE_SOFT_TIME_LIMIT,
 )
-@share_lock(ttl=settings.ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT)
+@share_lock(ttl=settings.ASYNC_EXPORT_COORDINATE_LOCK_TIMEOUT, identify=COORDINATE_LOCK_KEY)
 def coordinate_sharded_exports():
     coordinate()

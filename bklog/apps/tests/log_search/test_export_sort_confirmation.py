@@ -161,7 +161,8 @@ class ExportSortCreationTests(TestCase):
             patch("apps.log_search.export.planner.sample_rows", return_value=[b"row"]),
             patch("apps.log_search.export.planner.histogram", return_value={i * 60000: 50000 for i in range(20)}),
         ):
-            parts, total, _ = build_parts(job, build_policy())
+            # 显式固定规划目标：这里验证排序冻结后的多分片，不应随默认策略调整而变
+            parts, total, _ = build_parts(job, build_policy(target_rows=30_000))
         self.assertEqual(total, 1_000_000)
         self.assertEqual(len(parts), 20)
         self.assertEqual(sum(part.estimated_rows for part in parts), total)
