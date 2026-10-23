@@ -710,12 +710,69 @@ class PartRunnerTests(TestCase):
         self.assertEqual(size, sum(len(line.encode("utf-8")) + 1 for line in lines))
         self.assertEqual(api.query_ts_raw_with_scroll.call_count, 2)
 
-    def test_write_rows_stops_on_empty_batch(self):
+    def test_write_rows_stops_on_completed_empty_batch(self):
         with tempfile.TemporaryDirectory() as directory:
             with patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api:
-                api.query_ts_raw_with_scroll.side_effect = [{"list": [], "done": False}]
+                api.query_ts_raw_with_scroll.side_effect = [{"list": [], "done": True}]
                 rows, size = _write_rows(FakeHandler(), Path(directory) / "logs.jsonl", session_id="test-session")
         self.assertEqual((rows, size), (0, 0))
+
+    def test_write_rows_retries_empty_batches_without_resetting_session(self):
+        responses = [
+            {"list": [], "done": False},
+            {"list": [{"v": 1}], "done": False},
+            *[{"list": [], "done": False}] * 3,
+            {"list": [{"v": 2}], "done": True},
+        ]
+        with (
+            tempfile.TemporaryDirectory() as directory,
+            patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
+            patch("apps.log_search.export.worker.time.sleep") as sleep,
+        ):
+            api.query_ts_raw_with_scroll.side_effect = responses
+            payload = Path(directory) / "logs.jsonl"
+            rows, _ = _write_rows(FakeHandler(), payload, session_id="retry-session")
+            self.assertEqual(rows, 2)
+            self.assertEqual(len(payload.read_text().splitlines()), 2)
+            requests = [call.args[0] for call in api.query_ts_raw_with_scroll.call_args_list]
+            self.assertEqual([request["clear_cache"] for request in requests], [True] + [False] * 5)
+            self.assertEqual(sleep.call_count, 4)
+
+    def test_empty_batch_retry_exhaustion_fails_part_without_upload(self):
+        job = create_job(status=ExportJobStatus.RUNNING, end_time=1000)
+        part = ExportPart.objects.create(
+            job=job,
+            part_no=1,
+            start_time=0,
+            end_time=1000,
+            status=ExportPartStatus.RUNNING,
+            task_id="empty-task",
+            attempts=1,
+        )
+        with (
+            patch("apps.log_search.export.worker.state.claim_part", return_value=part),
+            patch("apps.log_search.export.worker.state.fail_part") as fail,
+            patch("apps.log_search.export.worker.request_parts_dispatch"),
+            patch("apps.log_search.export.worker.build_storage") as storage,
+            patch("apps.log_search.export.worker.build_handler", return_value=FakeHandler()),
+            patch("apps.log_unifyquery.handler.base.UnifyQueryApi") as api,
+            patch("apps.log_search.export.worker.time.sleep") as sleep,
+            patch("apps.log_search.export.worker._pack") as pack,
+            patch("apps.log_search.export.worker.state.complete_part") as complete,
+        ):
+            api.query_ts_raw_with_scroll.side_effect = [
+                {"list": [{"v": 1}], "done": False},
+                *[{"list": [], "done": False}] * 4,
+            ]
+            run_part(part.pk, part.task_id)
+            self.assertEqual(api.query_ts_raw_with_scroll.call_count, 5)
+            self.assertEqual(sleep.call_count, 3)
+            fail.assert_called_once()
+            self.assertEqual(fail.call_args.kwargs["error_code"], ExportErrorCode.UNIFY_QUERY_FAILED)
+            self.assertTrue(fail.call_args.kwargs["retryable"])
+            pack.assert_not_called()
+            storage.return_value.save.assert_not_called()
+            complete.assert_not_called()
 
     def test_pack_puts_single_log_member(self):
         with tempfile.TemporaryDirectory() as directory:
