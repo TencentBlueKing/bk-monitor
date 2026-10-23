@@ -395,6 +395,8 @@ class Permission:
         )
 
     def _application_data(self, action_ids, resources, *, mode=None):
+        # SaaS 全家桶会重新构造旧版 SDK 资源，统一在申请入口转换为引擎资源。
+        resources: list[FwResource] = [to_resource_instance(resource) for resource in resources]
         try:
             if isinstance(mode, InvalidAuthModeError):
                 raise mode
