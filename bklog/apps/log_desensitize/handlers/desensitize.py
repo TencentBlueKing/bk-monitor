@@ -40,6 +40,7 @@ from apps.log_desensitize.utils import expand_nested_data, path_aware_expand, re
 from apps.log_search.constants import CollectorScenarioEnum
 from apps.log_search.models import LogIndexSet, Scenario
 from apps.models import model_to_dict
+from apps.utils.log import logger
 import builtins
 
 
@@ -662,7 +663,18 @@ class DesensitizeRuleHandler:
         # 日志原文脱敏处理
         for _log in logs:
             _log, restore_metadata = path_aware_expand(_log, configured_paths)
-            log_content_tmp = copy.deepcopy(_log)
+
+            # 保存一份未处理之前的日志字段，用于日志原文处理
+            # 仅在需要时 deepcopy，并对超深嵌套做兜底保护
+            if text_fields:
+                try:
+                    log_content_tmp = copy.deepcopy(_log)
+                except RecursionError:
+                    logger.warning(
+                        "[desensitize] deepcopy failed due to deeply nested structure, "
+                        "falling back to shallow copy"
+                    )
+                    log_content_tmp = copy.copy(_log)
 
             result = desensitize_handler.transform_dict(_log)
 

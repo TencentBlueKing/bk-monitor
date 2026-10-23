@@ -453,3 +453,137 @@ class TestUnifyQueryHandlerEsDesensitize(TestCase):
         search_parsed = json.loads(search_result["body"])
         self.assertEqual(unify_parsed["player"]["id"], search_parsed["player"]["id"])
         self.assertEqual(unify_parsed["player"]["id"], "1***5")
+
+    # ==================================================================
+    # P0-1: fail-closed 端到端验证
+    # ==================================================================
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_oversized_json_fail_closed_end_to_end(self):
+        """超大 JSON + 子路径规则：整条字段被遮罩而非明文"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG])
+
+        handler = self._build_handler()
+        large_body = '{"player":{"id":"' + "x" * 70000 + '"}}'
+        result = handler._deal_query_result(
+            fake_unify_result_nested(body=large_body)
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_oversized_json_without_subpath_preserved_end_to_end(self):
+        """超大 JSON + 无子路径规则：保持原值"""
+        self._put_config(field_configs=[])
+
+        handler = self._build_handler()
+        large_body = '{"player":{"id":"' + "x" * 70000 + '"}}'
+        result = handler._deal_query_result(
+            fake_unify_result_nested(body=large_body)
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        self.assertEqual(logs[0]["body"], large_body)
+
+    # ==================================================================
+    # P0-2: 异常隔离端到端验证
+    # ==================================================================
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_deep_json_masked_by_prescan(self):
+        """一条极深 JSON 被预扫描拦截后遮罩，不影响同查询中其他日志"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG])
+
+        handler = self._build_handler()
+        deep_json = '{"a":' * 1100 + '"secret"' + '}' * 1100
+
+        result = handler._deal_query_result(
+            {
+                "total": 2,
+                "took": 10,
+                "list": [
+                    {
+                        "__index": "v2_2_bklog_test_es_20260927_0",
+                        "__doc_id": "deep",
+                        "dtEventTimeStamp": 1727452800000,
+                        "message": "deep",
+                        "body": deep_json,
+                    },
+                    {
+                        "__index": "v2_2_bklog_test_es_20260927_0",
+                        "__doc_id": "normal",
+                        "dtEventTimeStamp": 1727452800000,
+                        "message": "normal",
+                        "body": '{"player":{"id":"12345"}}',
+                    },
+                ],
+            }
+        )
+
+        logs = result["list"]
+        # 两条日志都返回
+        self.assertEqual(len(logs), 2)
+        # 正常日志正确脱敏
+        found_normal = [l for l in logs if l.get("message") == "normal"]
+        self.assertEqual(len(found_normal), 1)
+        self.assertIsInstance(found_normal[0]["body"], str)
+        parsed = json.loads(found_normal[0]["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
+        # 极深日志被预扫描拦截 → fail-closed 遮罩
+        found_deep = [l for l in logs if l.get("message") == "deep"]
+        self.assertEqual(len(found_deep), 1)
+        self.assertEqual(found_deep[0]["body"], "***MASKED***")
+
+    @override_settings(ESQUERY_WHITE_LIST=["bk_log"])
+    def test_log_desensitize_exception_isolation(self):
+        """_log_desensitize 异常被外层 try/except 捕获，不影响其他日志"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG])
+
+        handler = self._build_handler()
+        # 构造超深嵌套 dict，P1-1 深度截断 + deepcopy 兜底双重保护
+        deep_dict = {}
+        current = deep_dict
+        for i in range(15000):
+            current["n"] = {}
+            current = current["n"]
+        current["leaf"] = "target"
+
+        result = handler._deal_query_result(
+            {
+                "total": 2,
+                "took": 10,
+                "list": [
+                    {
+                        "__index": "v2_2_bklog_test_es_20260927_0",
+                        "__doc_id": "rogue",
+                        "dtEventTimeStamp": 1727452800000,
+                        "message": "rogue",
+                        "body": deep_dict,
+                    },
+                    {
+                        "__index": "v2_2_bklog_test_es_20260927_0",
+                        "__doc_id": "normal",
+                        "dtEventTimeStamp": 1727452800000,
+                        "message": "normal",
+                        "body": '{"player":{"id":"12345"}}',
+                    },
+                ],
+            }
+        )
+
+        logs = result["list"]
+        # 两条日志都返回
+        self.assertEqual(len(logs), 2)
+        # 正常日志正确脱敏
+        found_normal = [l for l in logs if l.get("message") == "normal"]
+        self.assertEqual(len(found_normal), 1)
+        self.assertIsInstance(found_normal[0]["body"], str)
+        parsed = json.loads(found_normal[0]["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
+        # 超深日志不中断、不丢失
+        found_rogue = [l for l in logs if l.get("message") == "rogue"]
+        self.assertEqual(len(found_rogue), 1)
+        self.assertIn("body", found_rogue[0])

@@ -806,7 +806,8 @@ class TestSearchHandlerDesensitize(TestCase):
         """缺失场景 2：多层 JSON 字符串嵌套端到端验证。
 
         body 是 JSON 字符串，其内部某字段值又是 JSON 字符串（多层嵌套），
-        脱敏应递归穿透所有层级，最终 body 仍为 JSON 字符串。
+        脱敏应递归穿透所有层级，最终 body 仍为 JSON 字符串，
+        且内层 inner 仍保持为 JSON 字符串（P1-2：容器类型不被破坏）。
         """
         inner_config = {
             "field_name": "body.inner.secret",
@@ -828,9 +829,10 @@ class TestSearchHandlerDesensitize(TestCase):
         parsed_body = json.loads(desensitized["body"])
         # outer 未配置脱敏，保持原值
         self.assertEqual(parsed_body["outer"], "hello")
-        # inner 在 restore 后变为嵌套 dict（path_aware_expand 递归解析了多层），
-        # secret 被脱敏
-        self.assertEqual(parsed_body["inner"]["secret"], "9***9")
+        # inner 仍为 JSON 字符串（类型未被破坏），secret 被脱敏
+        self.assertIsInstance(parsed_body["inner"], str)
+        parsed_inner = json.loads(parsed_body["inner"])
+        self.assertEqual(parsed_inner["secret"], "9***9")
 
     def test_json_string_top_level_field_with_regex_partial_match(self):
         """缺失场景 3：JSON 字符串顶层字段 + 正则匹配部分内容。
@@ -887,3 +889,138 @@ class TestSearchHandlerDesensitize(TestCase):
         self.assertEqual(len(logs), 1)
         # message 在 text_fields 中，自身脱敏规则生效
         self.assertEqual(logs[0]["message"], "He***********34")
+
+    # ==================================================================
+    # 补充 P0-1: fail-closed 端到端验证
+    # ==================================================================
+
+    def test_oversized_json_fail_closed_end_to_end(self):
+        """超大 JSON + 子路径规则：整条字段被遮罩而非明文"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG])
+
+        handler = self._build_handler()
+        large_body = '{"player":{"id":"' + "x" * 70000 + '"}}'
+        result = handler._deal_query_result(
+            fake_hits_nested(body=large_body)
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # 超大 + 子路径规则 → fail-closed
+        self.assertEqual(logs[0]["body"], "***MASKED***")
+
+    def test_oversized_json_without_subpath_preserved_end_to_end(self):
+        """超大 JSON + 无子路径规则：保持原值"""
+        self._put_config(field_configs=[])
+
+        handler = self._build_handler()
+        large_body = '{"player":{"id":"' + "x" * 70000 + '"}}'
+        result = handler._deal_query_result(
+            fake_hits_nested(body=large_body)
+        )
+
+        logs = result["list"]
+        self.assertEqual(len(logs), 1)
+        # 无子路径规则时保持原值
+        self.assertEqual(logs[0]["body"], large_body)
+
+    # ==================================================================
+    # P0-2: 异常隔离端到端验证
+    # ==================================================================
+
+    def test_deep_json_masked_by_prescan(self):
+        """一条极深 JSON 被预扫描拦截后遮罩，不影响同查询中其他日志"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG])
+
+        handler = self._build_handler()
+        # 构造包含两条日志的 ES 响应：一条正常、一条极深 JSON
+        normal_hit = {
+            "_index": "v2_2_bklog_test_es_20260927_0",
+            "_source": {
+                "dtEventTimeStamp": 1727452800000,
+                "message": "normal",
+                "body": '{"player":{"id":"12345"}}',
+            },
+        }
+        deep_json = '{"a":' * 1100 + '"secret"' + '}' * 1100
+        deep_hit = {
+            "_index": "v2_2_bklog_test_es_20260927_0",
+            "_source": {
+                "dtEventTimeStamp": 1727452800000,
+                "message": "deep",
+                "body": deep_json,
+            },
+        }
+
+        result = handler._deal_query_result(
+            {
+                "took": 10,
+                "hits": {"total": 2, "hits": [deep_hit, normal_hit]},
+            }
+        )
+
+        logs = result["list"]
+        # 两条日志都返回（不因一条失败而中断查询）
+        self.assertEqual(len(logs), 2)
+        # 正常日志正确脱敏
+        found_normal = [l for l in logs if l.get("message") == "normal"]
+        self.assertEqual(len(found_normal), 1)
+        self.assertIsInstance(found_normal[0]["body"], str)
+        parsed = json.loads(found_normal[0]["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
+        # 极深日志被预扫描拦截 → fail-closed 遮罩
+        found_deep = [l for l in logs if l.get("message") == "deep"]
+        self.assertEqual(len(found_deep), 1)
+        self.assertEqual(found_deep[0]["body"], "***MASKED***")
+
+    def test_log_desensitize_exception_isolation(self):
+        """_log_desensitize 异常被外层 try/except 捕获，不影响其他日志"""
+        self._put_config(field_configs=[NESTED_MASK_CONFIG])
+
+        handler = self._build_handler()
+        normal_hit = {
+            "_index": "v2_2_bklog_test_es_20260927_0",
+            "_source": {
+                "dtEventTimeStamp": 1727452800000,
+                "message": "normal",
+                "body": '{"player":{"id":"12345"}}',
+            },
+        }
+        # 构造超深嵌套 dict，P1-1 深度截断 + deepcopy 兜底双重保护
+        # 确保即使最深路径也不会抛异常，且不影响正常日志脱敏
+        deep_dict = {}
+        current = deep_dict
+        for i in range(15000):
+            current["n"] = {}
+            current = current["n"]
+        current["leaf"] = "target"
+
+        rogue_hit = {
+            "_index": "v2_2_bklog_test_es_20260927_0",
+            "_source": {
+                "dtEventTimeStamp": 1727452800000,
+                "message": "rogue",
+                "body": deep_dict,
+            },
+        }
+
+        result = handler._deal_query_result(
+            {
+                "took": 10,
+                "hits": {"total": 2, "hits": [rogue_hit, normal_hit]},
+            }
+        )
+
+        logs = result["list"]
+        # 两条日志都返回
+        self.assertEqual(len(logs), 2)
+        # 正常日志正确脱敏
+        found_normal = [l for l in logs if l.get("message") == "normal"]
+        self.assertEqual(len(found_normal), 1)
+        self.assertIsInstance(found_normal[0]["body"], str)
+        parsed = json.loads(found_normal[0]["body"])
+        self.assertEqual(parsed["player"]["id"], "1***5")
+        # 超深日志不中断、不丢失
+        found_rogue = [l for l in logs if l.get("message") == "rogue"]
+        self.assertEqual(len(found_rogue), 1)
+        self.assertIn("body", found_rogue[0])

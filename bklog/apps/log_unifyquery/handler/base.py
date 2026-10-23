@@ -660,7 +660,14 @@ class UnifyQueryHandler:
         for log in result_dict["list"]:
             log = merge_nested_data(log)
             if (self.field_configs or self.text_fields_field_configs) and self.is_desensitize:
-                log = self._log_desensitize(log)
+                try:
+                    log = self._log_desensitize(log)
+                except Exception as e:
+                    logger.error(
+                        "[desensitize] failed to desensitize log (doc_id=%s): %s",
+                        log.get("__doc_id", "unknown"),
+                        e,
+                    )
             log = self._add_cmdb_fields(log)
             log = self._add_bcs_cluster_fields(log)
             # 联合索引 增加索引集id信息
@@ -777,8 +784,18 @@ class UnifyQueryHandler:
 
         # 路径感知展开（支持 flattened / JSON 字符串子路径）
         log, restore_metadata = path_aware_expand(log, configured_paths)
-        # 保存一份未处理之前的log字段 用于脱敏之后的日志原文处理
-        log_content_tmp = copy.deepcopy(log)
+
+        # 保存一份未处理之前的 log 字段，用于脱敏之后的日志原文处理
+        # 延迟 deepcopy 到实际需要时，并对超深嵌套做兜底保护
+        if self.text_fields:
+            try:
+                log_content_tmp = copy.deepcopy(log)
+            except RecursionError:
+                logger.warning(
+                    "[desensitize] deepcopy failed due to deeply nested structure, "
+                    "falling back to shallow copy"
+                )
+                log_content_tmp = copy.copy(log)
 
         # 字段脱敏处理
         log = self.desensitize_handler.transform_dict(log)

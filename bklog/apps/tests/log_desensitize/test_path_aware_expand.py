@@ -23,7 +23,50 @@ import json
 
 from django.test import SimpleTestCase
 
-from apps.log_desensitize.utils import path_aware_expand, restore_by_metadata
+from apps.log_desensitize.utils import (
+    _estimate_json_depth,
+    path_aware_expand,
+    restore_by_metadata,
+)
+
+
+class TestEstimateJsonDepth(SimpleTestCase):
+    """_estimate_json_depth 单元测试（纯内存）"""
+
+    def test_flat_object(self):
+        """平坦 object：深度为 1"""
+        self.assertEqual(_estimate_json_depth('{"a":1}'), 1)
+        self.assertEqual(_estimate_json_depth('{"a":{"b":1}}'), 2)
+
+    def test_nested_depth(self):
+        """多层嵌套"""
+        s = '{"a":{"b":{"c":{"d":1}}}}'
+        self.assertEqual(_estimate_json_depth(s), 4)
+
+    def test_string_braces_excluded(self):
+        """字符串内的花括号不计入嵌套深度"""
+        s = '{"a":"{not_counted}","b":{"c":1}}'
+        # 最外层 + b.c 两层
+        self.assertEqual(_estimate_json_depth(s), 2)
+
+    def test_backslash_escape(self):
+        """反斜杠转义正确处理（含连续反斜杠）"""
+        # 字符串值为 "a\" 即 a\，末尾引号闭合
+        s = '{"key":"a\\\\","nested":{"v":1}}'
+        self.assertEqual(_estimate_json_depth(s), 2)
+
+    def test_empty_object(self):
+        """空 object"""
+        self.assertEqual(_estimate_json_depth("{}"), 1)
+
+    def test_string_with_braces(self):
+        """纯字符串（无花括号）"""
+        self.assertEqual(_estimate_json_depth('"hello"'), 0)
+
+    def test_deep_recursion_prevention(self):
+        """极深 JSON：扫描不爆炸"""
+        s = '{"a":' * 5000 + '"x"' + '}' * 5000
+        self.assertEqual(_estimate_json_depth(s), 5000)
 
 
 class TestPathAwareExpand(SimpleTestCase):
@@ -87,13 +130,32 @@ class TestPathAwareExpand(SimpleTestCase):
         self.assertIsNone(expanded["body.player.id"])
 
     def test_json_parse_failure(self):
-        """JSON 解析失败（形似 JSON 但内容非法）：保持原字符串值"""
+        """JSON 解析失败且存在子路径规则：fail-closed 整体遮罩"""
         data = {"body": '{"player":{"id":invalid_json}}'}
         paths = ["body.player.id"]
         expanded, metadata = path_aware_expand(data, paths)
 
-        # 形似 JSON object 但解析失败，应保持原值
+        # 该字段存在子路径规则（body.player.id），无法解析时必须 fail-closed
+        self.assertEqual(expanded["body"], "***MASKED***")
+        self.assertEqual(metadata["body"]["type"], "scalar")
+
+    def test_json_parse_failure_without_subpath_rules(self):
+        """JSON 解析失败但无子路径规则：保持原值（无泄露风险）"""
+        data = {"body": '{"player":{"id":invalid_json}}'}
+        paths = ["other.field"]
+        expanded, metadata = path_aware_expand(data, paths)
+
         self.assertEqual(expanded["body"], '{"player":{"id":invalid_json}}')
+        self.assertEqual(metadata["body"]["type"], "scalar")
+
+    def test_json_string_with_whitespace(self):
+        """JSON 字符串首尾带空白：strip 后仍能正确解析并展开"""
+        data = {"body": '  {"player":{"id":"789"}}  '}
+        paths = ["body.player.id"]
+        expanded, metadata = path_aware_expand(data, paths)
+
+        self.assertEqual(expanded["body.player.id"], "789")
+        self.assertEqual(metadata["body"]["type"], "json_string")
 
     def test_json_string_scalar_result(self):
         """JSON 字符串解析结果为标量（非 object）：保持原值"""
@@ -111,8 +173,8 @@ class TestPathAwareExpand(SimpleTestCase):
 
         self.assertEqual(expanded["body.players"], [{"id": "1"}, {"id": "2"}])
 
-    def test_max_depth_exceeded(self):
-        """超深嵌套：超过 max_depth 后停止展开，深层 key 不存在于 expanded 中"""
+    def test_max_depth_exceeded_without_rules(self):
+        """超深嵌套 + 无子路径规则：深度 > max_depth 的子树作为原子值保留，不丢失（P1-1）"""
         data = {}
         current = data
         for i in range(15):
@@ -120,24 +182,55 @@ class TestPathAwareExpand(SimpleTestCase):
             current["leaf"] = "value_{}".format(i)
             current = current["level"]
 
-        paths = ["{}leaf".format("level." * 15)]
+        # 配置路径在浅层，不涉及深层字段
+        paths = ["leaf"]
         expanded, __ = path_aware_expand(data, paths, max_depth=10)
 
-        # depth 0-10（≤ max_depth）的 leaf 应出现在 expanded 中
+        # depth 0-10 的 leaf 应出现在 expanded 中
         for i in range(11):
             key = "leaf" if i == 0 else "{}.leaf".format(".".join(["level"] * i))
             self.assertIn(key, expanded)
             self.assertEqual(expanded[key], "value_{}".format(i))
 
-        # depth 11+（> max_depth）的 leaf 不应出现
-        deep_key = "leaf" if 11 == 0 else "{}.leaf".format(".".join(["level"] * 11))
-        self.assertNotIn(deep_key, expanded)
+        # depth 11 的 level 子树作为原子值保留（含 depth 11+ 内容）
+        deep_level_key = ".".join(["level"] * 11)
+        self.assertIn(deep_level_key, expanded)
+        self.assertIsInstance(expanded[deep_level_key], dict)
+        self.assertIn("leaf", expanded[deep_level_key])
 
-    def test_max_json_bytes_exceeded(self):
-        """超大 JSON 字符串：超过 max_json_bytes 后跳过解析"""
+    def test_max_depth_exceeded_with_subpath_rules(self):
+        """超深嵌套 + 子路径规则在深度下限上：深度 > max_depth 且命中子路径时遮罩（P1-1）"""
+        data = {}
+        current = data
+        for i in range(15):
+            current["level"] = {}
+            current["leaf"] = "value_{}".format(i)
+            current = current["level"]
+
+        # 配置路径在深层（depth 12 的 leaf），超过 max_depth=10
+        paths = ["{}.leaf".format(".".join(["level"] * 12))]
+        expanded, __ = path_aware_expand(data, paths, max_depth=10)
+
+        # depth 11 的 level 字段有子路径规则且超限 → 遮罩
+        deep_level_key = ".".join(["level"] * 11)
+        self.assertIn(deep_level_key, expanded)
+        self.assertEqual(expanded[deep_level_key], "***MASKED***")
+
+    def test_max_json_bytes_exceeded_with_subpath(self):
+        """超大 JSON 字符串 + 存在子路径规则：fail-closed 整体遮罩"""
         large_json = '{"player":{"id":"' + "x" * 70000 + '"}}'
         data = {"body": large_json}
         paths = ["body.player.id"]
+        expanded, metadata = path_aware_expand(data, paths, max_json_bytes=65536)
+
+        self.assertEqual(expanded["body"], "***MASKED***")
+        self.assertEqual(metadata["body"]["type"], "scalar")
+
+    def test_max_json_bytes_exceeded_without_subpath(self):
+        """超大 JSON 字符串 + 无子路径规则：保持原值（无泄露风险）"""
+        large_json = '{"player":{"id":"' + "x" * 70000 + '"}}'
+        data = {"body": large_json}
+        paths = ["other.field"]
         expanded, metadata = path_aware_expand(data, paths, max_json_bytes=65536)
 
         self.assertEqual(expanded["body"], large_json)
@@ -204,6 +297,84 @@ class TestPathAwareExpand(SimpleTestCase):
         self.assertEqual(expanded["body.player.id"], "123")
         # dict 类型的子字段无条件递归展开（即使 name 不在配置路径中）
         self.assertEqual(expanded["body.player.name"], "alice")
+
+    # ------------------------------------------------------------------
+    # P0-2: 极深 JSON 不触发 RecursionError（预扫描保护）
+    # ------------------------------------------------------------------
+
+    def test_deep_json_no_recursion_error(self):
+        """极深 JSON 字符串（1100 层嵌套）不触发 RecursionError，fail-closed 遮罩"""
+
+        malicious_json = '{"a":' * 1100 + '"secret"' + '}' * 1100
+        data = {"body": malicious_json}
+        paths = ["body.secret"]
+        expanded, metadata = path_aware_expand(data, paths)
+
+        # 预扫描拦截深度超标 → fail-closed
+        self.assertEqual(expanded["body"], "***MASKED***")
+
+    def test_deep_json_no_recursion_error_without_rules(self):
+        """极深 JSON + 无子路径规则：保持原值"""
+        malicious_json = '{"a":' * 1100 + '"secret"' + '}' * 1100
+        data = {"body": malicious_json}
+        paths = ["other.field"]
+        expanded, metadata = path_aware_expand(data, paths)
+
+        self.assertEqual(expanded["body"], malicious_json)
+
+    # ------------------------------------------------------------------
+    # P0-1: JSON 字符串带空白能正确解析
+    # ------------------------------------------------------------------
+
+    def test_json_string_with_whitespace_and_configured_path(self):
+        """带空白的 JSON 字符串 + 子路径规则：正确解析脱敏"""
+        data = {"body": '  {"secret":"CLEAR"}  '}
+        paths = ["body.secret"]
+        expanded, metadata = path_aware_expand(data, paths)
+
+        self.assertIn("body.secret", expanded)
+        self.assertEqual(expanded["body.secret"], "CLEAR")
+        self.assertEqual(metadata["body"]["type"], "json_string")
+
+    # ------------------------------------------------------------------
+    # P0-3: 带点号真实 key 不崩溃
+    # ------------------------------------------------------------------
+
+    def test_dotted_key_conflict_no_crash(self):
+        """包含点号的真实 key 与路径冲突时不崩溃（安全网）"""
+        # JSON 字符串内同时有 a 和 a.b 两个 key
+        data = {"body": '{"a":"scalar","a.b":"secret"}'}
+        paths = ["body.a.b"]
+        expanded, metadata = path_aware_expand(data, paths)
+
+        self.assertIn("body.a", expanded)
+        self.assertIn("body.a.b", expanded)
+        # 展开阶段两个值都保留
+        self.assertEqual(expanded["body.a"], "scalar")
+        self.assertEqual(expanded["body.a.b"], "secret")
+
+    def test_dotted_key_conflict_restore_scalar_lost(self):
+        """点号 key 冲突后还原：子树优先，标量确定性丢失并记录 error
+
+        这是已文档化的已知限制（点号同时作为路径分隔符和 key 名）。
+        展开阶段保留两个值，还原阶段子树优先，标量 "scalar" 被丢弃。
+        """
+        data = {"body": '{"a":"scalar","a.b":"secret"}'}
+        paths = ["body.a.b"]
+        expanded, metadata = path_aware_expand(data, paths)
+
+        with self.assertLogs("apps.log_desensitize.utils", level="ERROR") as cm:
+            restored = restore_by_metadata(expanded, metadata)
+
+        self.assertIsInstance(restored["body"], str)
+        parsed = json.loads(restored["body"])
+        # 子树优先：a.b 还原为嵌套 {"a": {"b": "secret"}}，标量 "scalar" 丢失
+        self.assertEqual(parsed, {"a": {"b": "secret"}})
+        # 必须记录 error 日志，避免静默丢失
+        self.assertTrue(
+            any("path conflict" in msg for msg in cm.output),
+            "expected a path conflict error log, got: {}".format(cm.output),
+        )
 
 
 class TestRestoreByMetadata(SimpleTestCase):
