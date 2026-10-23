@@ -41,8 +41,8 @@
 | es_shards                  | int    | 否       | 索引分片数，最小 1，默认取部署配置 `BKAPP_ES_SHARDS`（默认 3）                                              |
 | storage_replies            | int    | 否       | 索引副本数，最小 0，默认取部署配置 `BKAPP_ES_REPLICAS`（默认 1）                                            |
 | etl_config                 | string | 否       | 清洗类型，可选 `bk_log_text`、`bk_log_json`、`bk_log_delimiter`、`bk_log_regexp`；未传时按 `bk_log_text` 处理 |
-| etl_params                 | dict   | 否       | 清洗参数，见下表；与 `fields` 均非空且传入 `storage_cluster_id` 时才会覆盖已有清洗配置                      |
-| fields                     | list   | 否       | 清洗字段，见下表；与 `etl_params` 均非空且传入 `storage_cluster_id` 时才会覆盖已有清洗配置；传空列表视为不覆盖 |
+| etl_params                 | dict   | 否       | 清洗参数，见下表；传入该字段（即使为 `{}` 也会被补成默认清洗参数）且 `fields` 为非空列表、同时传入 `storage_cluster_id` 时才会覆盖已有清洗配置 |
+| fields                     | list   | 否       | 清洗字段，见下表；传入非空列表且同时传入 `etl_params`、`storage_cluster_id` 时才会覆盖已有清洗配置；传空列表视为不覆盖 |
 | parent_index_set_ids       | list   | 否       | 归属索引集 ID 列表，与 `parent_index_set_names` 二选一；传空列表表示清空，不传表示不变                       |
 | parent_index_set_names     | list   | 否       | 归属索引集名称列表，与 `parent_index_set_ids` 二选一                                                        |
 | sort_fields                | list   | 否       | 上下文排序字段                                                                                              |
@@ -139,6 +139,6 @@
 
 - `collector_config_name_en`、`custom_type` 不支持修改；该接口仅更新采集项名称、分类、描述、展示状态、授权用户、归属索引集，以及传入 `storage_cluster_id` 时的清洗与存储配置。
 - 不传 `category_id` 时会被重置为 `application_check`；不传 `description` 时会被置为 `collector_config_name`；不传 `is_display` 时会被重置为 `true`。
-- 传入 `storage_cluster_id` 且 `etl_params`、`fields` 均非空时会覆盖已有清洗配置；`etl_config` 未传时按 `bk_log_text` 处理，已有 JSON 或分隔符清洗会被改为文本清洗。`fields` 为空列表或 `etl_params` 为空时沿用该采集项已有的清洗配置。
+- 传入 `storage_cluster_id`、`fields` 为非空列表，且 `etl_params` 已传入（即使为 `{}` 也会被补成默认清洗参数）时会覆盖已有清洗配置；`etl_config` 未传时按 `bk_log_text` 处理，已有 JSON 或分隔符清洗会被改为文本清洗。未传 `etl_params` 或 `fields` 为空列表时沿用该采集项已有的清洗配置。
 - 指定 ES 类型存储集群时，`retention` 与 `allocation_min_days` 必填，缺失会返回参数校验错误。
 - `owners` 仅新增授权，不回收历史授权。

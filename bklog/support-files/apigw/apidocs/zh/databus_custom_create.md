@@ -34,8 +34,8 @@
 | es_shards                  | int    | 否       | 索引分片数，最小 1，默认取部署配置 `BKAPP_ES_SHARDS`（默认 3）                                              |
 | storage_replies            | int    | 否       | 索引副本数，最小 0，默认取部署配置 `BKAPP_ES_REPLICAS`（默认 1）                                            |
 | etl_config                 | string | 否       | 清洗类型，可选 `bk_log_text`、`bk_log_json`、`bk_log_delimiter`、`bk_log_regexp`；未传时按 `bk_log_text` 处理 |
-| etl_params                 | dict   | 否       | 清洗参数，见下表；与 `fields` 均非空且传入 `storage_cluster_id` 时生效                                      |
-| fields                     | list   | 否       | 清洗字段，见下表；与 `etl_params` 均非空且传入 `storage_cluster_id` 时生效；传空列表视为不指定               |
+| etl_params                 | dict   | 否       | 清洗参数，见下表；传入该字段（即使为 `{}` 也会被补成默认清洗参数）、`fields` 为非空列表且传入 `storage_cluster_id` 时生效 |
+| fields                     | list   | 否       | 清洗字段，见下表；传入非空列表且同时传入 `etl_params`、`storage_cluster_id` 时生效；传空列表视为不指定         |
 | owners                     | list   | 否       | 授权用户列表，授予采集项、索引集及所属业务的访问权限                                                        |
 | ignore_exists              | bool   | 否       | 同英文名采集项已存在时是否直接复用，默认 `false`（此时返回错误）；为 `true` 时复用并返回 `created=false`      |
 | auto_select_storage_cluster | bool  | 否       | 未传 `storage_cluster_id` 时是否自动选择业务可用的公共存储集群，默认 `false`；无可用集群时报错               |
@@ -163,6 +163,6 @@ OTLP 日志（使用内置清洗，不自定义字段）：
 ## 注意事项
 
 - `collector_config_name_en` 业务内唯一，重复创建会返回错误；需要幂等时传 `ignore_exists=true`，命中后仅向本次传入的 `owners` 授予采集项与索引集权限，不授予业务访问权限；未传 `owners` 时不会新增任何授权，调用方需确认自己已有访问权限。
-- 传入 `storage_cluster_id` 且 `etl_params`、`fields` 均非空时才会使用传入的清洗配置；`etl_config` 未传时按 `bk_log_text` 处理，`fields` 为空列表时按 `custom_type` 的默认清洗创建。
+- 传入 `storage_cluster_id`、`fields` 为非空列表，且 `etl_params` 已传入（即使为 `{}` 也会被补成默认清洗参数）时才会使用传入的清洗配置；`etl_config` 未传时按 `bk_log_text` 处理。未传 `etl_params` 或 `fields` 为空列表时按 `custom_type` 的默认清洗创建。
 - `custom_type=log` 默认按 `bk_log_text` 直接入库；`otlp_trace`、`otlp_log` 默认按 `bk_log_json` 并使用内置字段。
 - 指定 ES 类型存储集群时，`retention` 与 `allocation_min_days` 必填，缺失会返回参数校验错误。
