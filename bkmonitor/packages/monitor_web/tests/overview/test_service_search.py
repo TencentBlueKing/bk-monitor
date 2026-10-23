@@ -42,7 +42,7 @@ def test_no_business_permission_does_not_query_services():
         mock.patch.object(ApmServiceSearchItem, "_get_allowed_bk_biz_ids", return_value=[]),
         mock.patch("monitor_web.overview.search.api.apm_api.search_service_names") as backend,
         mock.patch.object(ApmServiceSearchItem, "_list_applications") as list_apps,
-        mock.patch("monitor_web.overview.permissions.filter_data_by_permission") as permission,
+        mock.patch("monitor_web.overview.search.filter_data_by_permission") as permission,
     ):
         assert ApmServiceSearchItem.search("tenant", "user", "demo") is None
     backend.assert_not_called()
@@ -78,7 +78,7 @@ def test_empty_service_hits_skip_application_lookup():
         mock.patch.object(ApmServiceSearchItem, "_get_allowed_bk_biz_ids", return_value=[2, 3]),
         mock.patch("monitor_web.overview.search.api.apm_api.search_service_names", return_value=[]) as backend,
         mock.patch.object(ApmServiceSearchItem, "_list_applications") as list_apps,
-        mock.patch("monitor_web.overview.permissions.filter_data_by_permission") as permission,
+        mock.patch("monitor_web.overview.search.filter_data_by_permission") as permission,
     ):
         assert ApmServiceSearchItem.search("tenant", "user", "demo") is None
     backend.assert_called_once_with(bk_biz_ids=[2, 3], query="demo", limit=5)
@@ -99,7 +99,7 @@ def test_search_ranks_allowed_applications_first_and_keeps_denied():
         mock.patch("monitor_web.overview.search.api.apm_api.search_service_names", return_value=services) as backend,
         mock.patch.object(ApmServiceSearchItem, "_list_applications", return_value=applications) as list_apps,
         mock.patch(
-            "monitor_web.overview.permissions.filter_data_by_permission",
+            "monitor_web.overview.search.filter_data_by_permission",
             return_value=[applications[0], applications[2]],
         ) as permission,
         mock.patch.object(ApmServiceSearchItem, "_get_biz_name", side_effect=str),
@@ -130,7 +130,7 @@ def test_permission_denied_services_are_kept_after_allowed():
         mock.patch.object(ApmServiceSearchItem, "_get_allowed_bk_biz_ids", return_value=[2]),
         mock.patch("monitor_web.overview.search.api.apm_api.search_service_names", return_value=services),
         mock.patch.object(ApmServiceSearchItem, "_list_applications", return_value=applications),
-        mock.patch("monitor_web.overview.permissions.filter_data_by_permission", return_value=[applications[0]]),
+        mock.patch("monitor_web.overview.search.filter_data_by_permission", return_value=[applications[0]]),
         mock.patch.object(ApmServiceSearchItem, "_get_biz_name", side_effect=str),
     ):
         result = ApmServiceSearchItem.search("tenant", "user", "svc", limit=2)
@@ -145,7 +145,7 @@ def test_only_denied_applications_are_still_returned():
         mock.patch.object(ApmServiceSearchItem, "_get_allowed_bk_biz_ids", return_value=[2]),
         mock.patch("monitor_web.overview.search.api.apm_api.search_service_names", return_value=[service()]),
         mock.patch.object(ApmServiceSearchItem, "_list_applications", return_value=[app()]),
-        mock.patch("monitor_web.overview.permissions.filter_data_by_permission", return_value=[]),
+        mock.patch("monitor_web.overview.search.filter_data_by_permission", return_value=[]),
         mock.patch.object(ApmServiceSearchItem, "_get_biz_name", side_effect=str),
     ):
         result = ApmServiceSearchItem.search("tenant", "user", "demo")

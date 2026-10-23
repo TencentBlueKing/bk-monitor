@@ -105,9 +105,7 @@ class TestFavoriteApmServiceUsesCorrectApp:
                 side_effect=lambda app: per_app[app.application_id],
             ),
             # 权限过滤直通，便于断言归属字段
-            mock.patch(
-                "monitor_web.overview.permissions.filter_data_by_permission", side_effect=lambda **kw: kw["data"]
-            ),
+            mock.patch(f"{MODULE}.filter_data_by_permission", side_effect=lambda **kw: kw["data"]),
         ):
             mock_apm_objects.filter.return_value = configs
             mock_app_objects.filter.return_value = apps_qs

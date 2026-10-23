@@ -27,6 +27,9 @@ from bk_dataview.models import Dashboard, Org, Star, User
 from bk_dataview.permissions import GrafanaRole
 from bkm_space.api import SpaceApi
 from bkm_space.define import Space
+from bkmonitor.iam import ActionEnum
+from bkmonitor.iam.drf import filter_data_by_permission
+from bkmonitor.iam.resource import ResourceEnum
 from bkmonitor.models import StrategyModel
 from bkmonitor.models.base import Shield
 from bkmonitor.models.home import HomeAlarmGraphConfig
@@ -37,7 +40,6 @@ from core.drf_resource import Resource, api
 from core.errors.api import BKAPIError
 from monitor.models import UserConfig
 from monitor_web.grafana.permissions import DashboardPermission
-from monitor_web.overview.permissions import filter_viewable_apm_applications
 
 logger = logging.getLogger("monitor_web")
 
@@ -331,7 +333,15 @@ class GetFunctionShortcutResource(Resource):
                         )
 
                 # 过滤无权限的应用
-                items = filter_viewable_apm_applications(bk_tenant_id=get_request_tenant_id(), data=items)[:limit]
+                items = filter_data_by_permission(
+                    bk_tenant_id=get_request_tenant_id(),
+                    data=items,
+                    actions=[ActionEnum.VIEW_APM_APPLICATION],
+                    resource_meta=ResourceEnum.APM_APPLICATION,
+                    id_field=lambda d: d["application_id"],
+                    instance_create_func=ResourceEnum.APM_APPLICATION.create_instance_by_info,
+                    mode="any",
+                )[:limit]
             elif function == "log_retrieve":
                 try:
                     records = api.log_search.get_user_favorite_index_set(username=username, limit=limit)
