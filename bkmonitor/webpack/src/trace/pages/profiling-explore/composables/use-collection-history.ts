@@ -41,10 +41,13 @@ export function useCollectionHistory({
   filters,
   range,
   revision,
+  resolveRange,
 }: {
   bizId: Ref<number>;
   filters: Ref<CollectionHistoryFilters>;
   range: Ref<SelectionRange>;
+  // 重新解析时间表达式；相对时间在每次查询时取最新边界
+  resolveRange?: () => SelectionRange | undefined;
   revision: Ref<number>;
 }) {
   const { t } = useI18n();
@@ -55,28 +58,39 @@ export function useCollectionHistory({
   const candidateState = useCollectionCandidates(bizId, range);
   let controller: AbortController;
   let offset = 0;
+  // 本次查询实际使用的绝对时间；翻页沿用首屏边界，避免相对时间跨页漂移
+  let pageRange: null | SelectionRange = null;
+
+  // 时间表达式无效时回退到已提交的绝对范围，避免查询时抛错
+  function currentRange(): null | SelectionRange {
+    try {
+      return resolveRange?.() || range.value;
+    } catch {
+      return range.value;
+    }
+  }
 
   async function fetchPage() {
-    if (loading.value || !range.value) return;
+    const queryRange = pageRange;
+    if (loading.value || !queryRange) return;
     controller = new AbortController();
     const current = controller;
     loading.value = true;
     error.value = '';
     try {
-      const result = await getCollectionHistory(bizId.value, range.value, filters.value, offset, current.signal);
+      const result = await getCollectionHistory(bizId.value, queryRange, filters.value, offset, current.signal);
       if (current.signal.aborted) return;
       const known = new Set(rows.value.map(executionRowKey));
-      rows.value = [
-        ...rows.value,
-        ...result.data.filter(row => {
-          const key = executionRowKey(row);
-          if (known.has(key)) return false;
-          known.add(key);
-          return true;
-        }),
-      ];
+      const added = result.data.filter(row => {
+        const key = executionRowKey(row);
+        if (known.has(key)) return false;
+        known.add(key);
+        return true;
+      });
+      rows.value = [...rows.value, ...added];
       offset += result.data.length;
-      hasMore.value = result.data.length === 20;
+      // 整页都是已加载过的执行时不再自动补页，否则行数不增长会让滚动加载空转
+      hasMore.value = result.data.length === 20 && added.length > 0;
     } catch (e) {
       if (!current.signal.aborted) error.value = (e as Error)?.message || t('采集历史加载失败，请重试');
     } finally {
@@ -91,6 +105,8 @@ export function useCollectionHistory({
     offset = 0;
     hasMore.value = false;
     error.value = '';
+    // 每次重新查询都刷新时间边界；翻页沿用这里定下的范围
+    pageRange = currentRange();
     return fetchPage();
   }
 

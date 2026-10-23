@@ -55,6 +55,8 @@ export default defineComponent({
     },
     loading: Boolean,
     results: Boolean,
+    // 选中筛选值后立即查询，无须再点查询按钮
+    autoQuery: Boolean,
     // 表格列已提供状态筛选时，面板内不再重复展示
     statusFilter: { type: Boolean, default: true },
   },
@@ -75,12 +77,17 @@ export default defineComponent({
       if (JSON.stringify(props.filters) === JSON.stringify(draft.value)) emit('refresh');
       else emit('change', { ...draft.value });
     }
+    // 选中即写入草稿；autoQuery 面板直接提交，其余面板等用户点查询
+    function apply(patch: Partial<CollectionHistoryFilters>) {
+      draft.value = { ...draft.value, ...patch };
+      if (props.autoQuery) submit();
+    }
     function reset() {
       draft.value = createHistoryFilters();
       processes.value = [];
       submit();
     }
-    return { t, draft, processes, submit, reset };
+    return { t, draft, processes, submit, apply, reset };
   },
   render() {
     const { draft } = this;
@@ -105,7 +112,7 @@ export default defineComponent({
             inputSearch
             multiple
             onChange={ips => {
-              this.draft = { ...draft, ips: ips || [] };
+              this.apply({ ips: ips || [] });
             }}
           >
             {options('target')}
@@ -120,7 +127,7 @@ export default defineComponent({
             filterable
             inputSearch
             onChange={value => {
-              this.draft = { ...draft, task_name: String(value || '') };
+              this.apply({ task_name: String(value || '') });
             }}
           >
             {options('task_name')}
@@ -139,7 +146,7 @@ export default defineComponent({
             multiple
             onChange={values => {
               this.processes = values || [];
-              this.draft = { ...draft, ...parseProcessSelection(this.processes) };
+              this.apply(parseProcessSelection(this.processes));
             }}
           >
             {processCandidateOptions(this.candidates, this.processes).map(option => (

@@ -628,6 +628,8 @@ export function useProfilingQuery() {
     openCollectionResult,
     shareCollectionResult,
     bounds,
+    // 只解析不写页面状态，供采集历史列表每次查询刷新时间边界
+    resolveRange,
     patch,
     patchView,
     changeFilters,
