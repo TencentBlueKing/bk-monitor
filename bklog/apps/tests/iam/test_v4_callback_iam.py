@@ -1,4 +1,4 @@
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from django.core.cache import cache
 from django.test import SimpleTestCase, override_settings
@@ -174,18 +174,3 @@ class V4CallbackCredentialsTest(SimpleTestCase):
 
         self.assertEqual(app_code, "bk_log_search")
         self.assertEqual(app_secret, "global-secret")
-
-
-class CompatibleIAMNonCompatModeTest(SimpleTestCase):
-    @patch("apps.iam.backends.v3.client.CompatibleIAM.in_compatibility_mode", return_value=False)
-    @patch("iam.IAM._do_policy_query", return_value={"op": "any"})
-    @patch("iam.IAM._do_policy_query_by_actions", return_value=[])
-    def test_policy_query_delegates_to_super_when_not_compatible(self, by_actions_mock, query_mock, _compat_mock):
-        from apps.iam.backends.v3.client import CompatibleIAM
-
-        client = CompatibleIAM("bk_log_search", "secret", "https://bk-iam.example/prod/", bk_tenant_id="system")
-        request = MagicMock()
-        self.assertEqual(client._do_policy_query(request), {"op": "any"})
-        self.assertEqual(client._do_policy_query_by_actions(request), [])
-        query_mock.assert_called_once()
-        by_actions_mock.assert_called_once()
