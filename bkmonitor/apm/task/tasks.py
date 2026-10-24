@@ -375,9 +375,6 @@ def create_application_async(application_id, storage_config, options, cur_retry_
     # ApplicationConfig(application).refresh()   # 走节点管理的方式，这里太慢。暂时不下发，走周期的方式
     ApplicationConfig.refresh_k8s([application])
 
-    # 异步分派预计算任务
-    bmw_task_cron.apply_async(countdown=60)
-
 
 @app.task(ignore_result=True, queue="celery_cron")
 def bmw_task_cron():

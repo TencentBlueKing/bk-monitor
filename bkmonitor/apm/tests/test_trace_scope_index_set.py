@@ -493,7 +493,6 @@ class TestSyncTraceScopeIndexSet:
         mocker.patch("apm.task.tasks.ApmApplication.objects.get", return_value=application)
         mocker.patch("apm.task.tasks.EventReportHelper.report")
         mocker.patch("apm.task.tasks.ApplicationConfig.refresh_k8s")
-        mocker.patch("apm.task.tasks.bmw_task_cron.apply_async")
         delay = mocker.patch("apm.task.tasks.sync_trace_scope_index_set.delay")
         storage_config: dict[str, Any] = {"es_storage_cluster": 11}
         options: dict[str, Any] = {"is_enabled_trace": True}
