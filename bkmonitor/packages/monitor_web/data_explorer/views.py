@@ -292,10 +292,7 @@ class FavoriteViewSet(ModelViewSet):
         }
 
         # 批量更新收藏记录
-        for config in params["configs"]:
-            if config["id"] not in instances:
-                continue
-            FavoriteSerializer().update(instances[config["id"]], config)
+        FavoriteSerializer.bulk_update(instances, params["configs"])
         return Response()
 
     @action(methods=["POST"], detail=False)
@@ -311,7 +308,6 @@ class FavoriteViewSet(ModelViewSet):
         s = ShareFavoriteSerializer(data=request.data)
         s.is_valid(raise_exception=True)
 
-        bk_biz_id = s.validated_data["bk_biz_id"]
         favorite_type = s.validated_data["type"]
         share_bk_biz_ids = s.validated_data["share_bk_biz_ids"]
         duplicate_mode = s.validated_data["duplicate_mode"]
@@ -320,10 +316,13 @@ class FavoriteViewSet(ModelViewSet):
 
         # 检查是否有权限分享到目标业务
         permission = Permission()
-        for share_bk_biz_id in share_bk_biz_ids:
-            if permission.is_allowed_by_biz(bk_biz_id, ActionEnum.EXPLORE_METRIC):
-                continue
-            raise ValidationError(_("您没有权限分享到业务ID为{bk_biz_id}的业务").format(bk_biz_id=share_bk_biz_id))
+        unauthorized = [
+            share_bk_biz_id
+            for share_bk_biz_id in share_bk_biz_ids
+            if not permission.is_allowed_by_biz(share_bk_biz_id, ActionEnum.EXPLORE_METRIC)
+        ]
+        if unauthorized:
+            raise ValidationError(_("您没有权限分享到业务ID为{}的业务").format(",".join(map(str, unauthorized))))
 
         # 检查是否有重复的收藏记录
         duplicate_bk_biz_ids = set(

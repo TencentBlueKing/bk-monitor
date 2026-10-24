@@ -13,11 +13,13 @@ import itertools
 import json
 import logging
 from collections import defaultdict
+from typing import Any
 
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
 from rest_framework import serializers
 
+from apm_web.constants import DataStatus
 from apm_web.models import Application
 from apm_web.profile.constants import GRAFANA_LABEL_MAX_SIZE
 from apm_web.profile.doris.querier import APIType, QueryTemplate
@@ -172,20 +174,19 @@ class ListApplicationServicesResource(Resource):
         is_get_ebpf = serializers.BooleanField(required=False, default=False)
 
     @classmethod
-    def batch_query_profile_services_detail(cls, validated_data):
-        """
-        batch query profile services detail
-        """
-        service_map = defaultdict(dict)
-        bk_biz_id = validated_data["bk_biz_id"]
-        services = api.apm_api.query_profile_services_detail(**{"bk_biz_id": bk_biz_id})
+    def batch_query_profile_services_detail(
+        cls, validated_data: dict[str, Any]
+    ) -> dict[tuple[int, str], list[dict[str, Any]]]:
+        """按业务和应用归集性能分析服务明细。"""
+        service_map: defaultdict[tuple[int, str], list[dict[str, Any]]] = defaultdict(list)
+        services = api.apm_api.query_profile_services_detail(bk_biz_id=validated_data["bk_biz_id"])
 
         for obj in services:
-            service_map.setdefault((obj["bk_biz_id"], obj["app_name"]), list()).append(obj)
+            service_map[(obj["bk_biz_id"], obj["app_name"])].append(obj)
 
         return service_map
 
-    def perform_request(self, data):
+    def perform_request(self, data: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
         applications = Application.objects.filter(bk_biz_id=data["bk_biz_id"])
 
         apps = []
@@ -194,29 +195,18 @@ class ListApplicationServicesResource(Resource):
         service_map = self.batch_query_profile_services_detail(data)
         for application in applications:
             services = service_map.get((application.bk_biz_id, application.app_name), [])
-            # 如果曾经发现过 service，都认为是有数据应用
-            if len(services) > 0:
-                apps.append(
-                    {
-                        "bk_biz_id": application.bk_biz_id,
-                        "application_id": application.application_id,
-                        "description": application.description,
-                        "app_name": application.app_name,
-                        "app_alias": application.app_alias,
-                        "services": list({i["name"]: i for i in services}.values()),
-                    }
-                )
+            application_info = {
+                "bk_biz_id": application.bk_biz_id,
+                "application_id": application.application_id,
+                "description": application.description,
+                "app_name": application.app_name,
+                "app_alias": application.app_alias,
+                "services": list({i["name"]: i for i in services}.values()),
+            }
+            if application.profiling_data_status == DataStatus.NORMAL:
+                apps.append(application_info)
             else:
-                nodata_apps.append(
-                    {
-                        "bk_biz_id": application.bk_biz_id,
-                        "application_id": application.application_id,
-                        "description": application.description,
-                        "app_name": application.app_name,
-                        "app_alias": application.app_alias,
-                        "services": [],
-                    }
-                )
+                nodata_apps.append(application_info)
         if data.get("is_get_ebpf", False):
             deepflow_data = api.apm_api.query_ebpf_service_list(bk_biz_id=data["bk_biz_id"])
             # 查询 deepflow 集群和 service 装载入结果

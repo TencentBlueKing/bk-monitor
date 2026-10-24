@@ -1,0 +1,8 @@
+// 仅约束项目创建的 dark 浮层，避免选择器组件的全局样式覆盖默认留白。
+.bklog-tippy > .tippy-box[data-theme='dark'] {
+  padding: 0;
+
+  > .tippy-content {
+    padding: 5px 9px;
+  }
+}

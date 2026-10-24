@@ -37,7 +37,7 @@ def batch_request(
     params = params.copy()
     refresh_params = {
         "cmdb": lambda origin_params, _start, _limit: origin_params.update(
-            {"page": {"start": _start, "limit": _limit}}
+            {"page": {**origin_params.get("page", {}), "start": _start, "limit": _limit}}
         ),
         "nodeman": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "pagesize": _limit}),
         "metadata": lambda origin_params, _start, _limit: origin_params.update({"page": _start, "page_size": _limit}),
@@ -46,29 +46,30 @@ def batch_request(
         "job": lambda origin_params, _start, _limit: origin_params.update({"start": _start, "length": _limit}),
     }
 
-    data = []
     # 标识使用偏移量的系统
-    use_offset_app_list = ["cmdb", "bcs_cc", "job"]
-    start = 0 if app in use_offset_app_list else 1
+    use_offset = app in ["cmdb", "bcs_cc", "job"]
 
-    # 请求第一次获取总数
-    refresh_params[app](params, start, 1)
+    # 第一页同时获取总数
+    refresh_params[app](params, 0 if use_offset else 1, limit)
     result = func(params)
     if not result:
         return []
 
+    data = get_data(result)
     count = get_count(result)
+    if not count:
+        return data
+    data = list(data)
+    if count <= limit:
+        return data
 
-    if count is None or count == 0 or (app != "cmdb" and count == 1):
-        return get_data(result)
-
-    # 根据请求总数并发请求
+    # 根据请求总数并发请求剩余页
     pool = ThreadPool(thread_num)
     futures = []
-    while start <= (count if app in use_offset_app_list else math.ceil(count / limit)):
+    starts = range(limit, count, limit) if use_offset else range(2, math.ceil(count / limit) + 1)
+    for start in starts:
         refresh_params[app](params, start, limit)
         futures.append(pool.apply_async(func, args=(params.copy(),)))
-        start += limit if app in use_offset_app_list else 1
 
     pool.close()
     pool.join()

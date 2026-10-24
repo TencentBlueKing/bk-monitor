@@ -2043,6 +2043,14 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                 for group in group_list:
                     yield from self.get_plugin_ts_metric(group)
 
+        # 预计算输出不属于采集插件，也没有 TimeSeriesGroup，复用 Metadata 的结果表入口。
+        params = {"bk_tenant_id": self.bk_tenant_id, "with_option": False}
+        if self.bk_biz_id is not None:
+            params["bk_biz_id"] = self.bk_biz_id
+        for table in api.metadata.list_monitor_result_table(**params):
+            if table.get("table_type") == "recording_rule":
+                yield from self.get_pre_calculate_metric(table)
+
     def get_metrics_by_table(self, table):
         """
         处理不同类型的表数据， 根据influx_db_name的不同， 进行不同的处理
@@ -2074,7 +2082,7 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
                 yield from self.get_bkci_metric(table)
             elif table.get("table_type") == "plugin":
                 yield from self.get_plugin_metric(table)
-            elif influx_db_name.startswith("bkprecal_"):
+            elif table.get("table_type") == "recording_rule" or influx_db_name.startswith("bkprecal_"):
                 # 预聚合表
                 yield from self.get_pre_calculate_metric(table)
         except BaseException:  # noqa
@@ -2083,7 +2091,12 @@ class BkmonitorMetricCacheManager(BaseMetricCacheManager):
     def get_pre_calculate_metric(self, table):
         base_metric = self.get_base_dict(table)
         base_metric.update(
-            {"related_name": "bk_pre_cal", "related_id": "bk_pre_cal", "category_display": _("预计算指标")}
+            {
+                "bk_biz_id": table["bk_biz_id"],
+                "related_name": "bk_pre_cal",
+                "related_id": "bk_pre_cal",
+                "category_display": _("预计算指标"),
+            }
         )
         return self.get_field_metric_msg(table, base_metric)
 

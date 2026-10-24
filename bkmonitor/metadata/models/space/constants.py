@@ -100,6 +100,7 @@ class EtlConfigs(Enum):
     BK_UPTIMECHECK_UDP = "bk_uptimecheck_udp"
     BK_SYSTEM_PROC_PORT = "bk_system_proc_port"
     BK_SYSTEM_PROC = "bk_system_proc"
+    BK_GSE_SYSTEM_EVENT = "bk_gse_system_event"
     # 自定义多指标单表
     BK_STANDARD_V2_TIME_SERIES = "bk_standard_v2_time_series"
     BK_STANDARD_V2_EVENT = "bk_standard_v2_event"
@@ -131,6 +132,7 @@ class EtlConfigs(Enum):
         (BK_UPTIMECHECK_UDP, "bk_uptimecheck_udp"),
         (BK_SYSTEM_PROC_PORT, "bk_system_proc_port"),
         (BK_SYSTEM_PROC, "bk_system_proc"),
+        (BK_GSE_SYSTEM_EVENT, "bk_gse_system_event"),
         (BK_STANDARD_V2_TIME_SERIES, "bk_standard_v2_time_series"),
         (BK_EXPORTER, "bk_exporter"),
         (BK_STANDARD, "bk_standard"),
@@ -173,6 +175,7 @@ SYSTEM_BASE_DATA_ETL_CONFIGS = [
 
 # 日志/事件 类清洗类型
 LOG_EVENT_ETL_CONFIGS = [
+    EtlConfigs.BK_GSE_SYSTEM_EVENT.value,
     EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
     EtlConfigs.BK_FLAT_BATCH.value,
     EtlConfigs.BK_STANDARD_V2_EVENT.value,
