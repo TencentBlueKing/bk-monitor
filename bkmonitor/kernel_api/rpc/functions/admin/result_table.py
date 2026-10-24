@@ -48,6 +48,7 @@ RESULT_TABLE_FIELDS = [
     "bk_biz_id_alias",
     "label",
     "data_label",
+    "data_labels",
     "schema_type",
     "default_storage",
     "is_custom_table",
@@ -69,6 +70,7 @@ RESULT_TABLE_DETAIL_FIELDS = [
     "default_storage",
     "label",
     "data_label",
+    "data_labels",
     "labels",
     "is_custom_table",
     "is_builtin",
@@ -101,6 +103,7 @@ RESULT_TABLE_ORDERING_FIELDS = {
     "table_name_zh",
     "bk_biz_id",
     "data_label",
+    "data_labels",
     "label",
     "schema_type",
     "default_storage",
@@ -292,8 +295,10 @@ def _build_result_table_queryset(params: dict[str, Any], bk_tenant_id: str | Non
                 "table_id",
                 relation_queryset.values_list("bk_tenant_id", "table_id"),
             )
+    data_labels = normalize_string_list_filter(params, "data_label", "data_labels")
+    if data_labels:
+        queryset = queryset.filter(models.ResultTable.data_labels_query(data_labels))
     for singular_field, plural_field in [
-        ("data_label", "data_labels"),
         ("label", "labels"),
         ("schema_type", "schema_types"),
         ("default_storage", "default_storages"),

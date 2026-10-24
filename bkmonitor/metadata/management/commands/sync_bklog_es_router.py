@@ -129,7 +129,9 @@ class Command(BaseCommand):
         exist_rt_objs = models.ResultTable.objects.filter(table_id__in=tid_list)
         exist_tid_list, updated_rt_objs = [], []
         for obj in exist_rt_objs:
-            obj.data_label = tid_info[obj.table_id]["data_label"]
+            obj.data_labels = [label for label in tid_info[obj.table_id]["data_label"].split(",") if label]
+            if len(",".join(obj.data_labels)) <= models.ResultTable._meta.get_field("data_label").max_length:
+                obj.data_label = ",".join(obj.data_labels)
             updated_rt_objs.append(obj)
             exist_tid_list.append(obj.table_id)
 
@@ -145,7 +147,7 @@ class Command(BaseCommand):
         try:
             with atomic(config.DATABASE_CONNECTION_NAME):
                 models.ResultTable.objects.bulk_update(
-                    updated_rt_objs, ["data_label"], batch_size=BULK_UPDATE_BATCH_SIZE
+                    updated_rt_objs, ["data_label", "data_labels"], batch_size=BULK_UPDATE_BATCH_SIZE
                 )
                 models.ESStorage.objects.bulk_update(
                     updated_objs,
@@ -194,7 +196,8 @@ class Command(BaseCommand):
                     default_storage=models.ClusterInfo.TYPE_ES,
                     creator="system",
                     bk_biz_id=space_and_biz.get(info["space_uid"], 0),
-                    data_label=info["data_label"],
+                    data_label=info["data_label"] if len(info["data_label"]) <= 128 else "",
+                    data_labels=[label for label in info["data_label"].split(",") if label],
                 )
             )
             es_obj_list.append(

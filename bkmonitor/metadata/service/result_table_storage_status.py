@@ -281,6 +281,7 @@ def _serialize_result_table(result_table: models.ResultTable) -> dict[str, Any]:
         "table_name_zh": result_table.table_name_zh,
         "bk_biz_id": result_table.bk_biz_id,
         "data_label": result_table.data_label,
+        "data_labels": result_table.data_labels,
         "default_storage": result_table.default_storage,
         "is_enable": result_table.is_enable,
         "is_deleted": result_table.is_deleted,

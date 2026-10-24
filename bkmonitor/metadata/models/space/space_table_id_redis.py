@@ -145,9 +145,7 @@ class SpaceTableIDRedis:
             return logger.info("push redis data_label_to_result_table")
 
         # 组装data_label查询条件
-        data_label_query = Q(data_label__contains=data_labels[0])
-        for data_label in data_labels[1:]:
-            data_label_query |= Q(data_label__contains=data_label)
+        data_label_query = models.ResultTable.data_labels_query(data_labels)
 
         # 通过data_label查询结果表
         rt_dl_qs = models.ResultTable.objects.filter(
@@ -155,14 +153,13 @@ class SpaceTableIDRedis:
             is_deleted=False,
             is_enable=True,
             bk_tenant_id=bk_tenant_id,
-        ).values("table_id", "data_label")
+        ).values("table_id", "data_labels")
 
         # 组装数据
-        rt_dl_map = {}
+        rt_dl_map = {data_label: [] for data_label in data_labels}
         for data in rt_dl_qs:
-            # data_label可能存在逗号分割，需要拆分
             # 部分data_label可能不在data_labels中，需要过滤
-            for data_label in data["data_label"].split(","):
+            for data_label in data["data_labels"]:
                 if not data_label or data_label not in data_labels:
                     continue
                 rt_dl_map.setdefault(data_label, []).append(data["table_id"])
@@ -213,7 +210,7 @@ class SpaceTableIDRedis:
                 "db": db,
                 "measurement": "",  # 现阶段不关注存储类型
                 "storage_type": "bk_sql",
-                "data_label": record.data_label,
+                "data_label": ",".join(record.data_labels),
                 "labels": record.labels or {},
                 "fields": fields,
             }
@@ -452,7 +449,7 @@ class SpaceTableIDRedis:
             field_op="table_id__in",
             filter_data=table_ids,
             value_func="values",
-            value_field_list=["table_id", "schema_type", "data_label", "labels"],
+            value_field_list=["table_id", "schema_type", "data_labels", "labels"],
             other_filter=tenant_filter,
         )
         table_id_dict = {rt["table_id"]: rt for rt in rt_filter_data}
@@ -484,7 +481,7 @@ class SpaceTableIDRedis:
             detail["fields"] = table_id_fields.get(table_id) or []
             detail["measurement_type"] = measurement_type_dict.get(table_id) or ""
             detail["bcs_cluster_id"] = table_id_cluster_id.get(table_id) or ""
-            detail["data_label"] = table_id_dict.get(table_id, {}).get("data_label") or ""
+            detail["data_label"] = ",".join(table_id_dict.get(table_id, {}).get("data_labels") or [])
             detail["labels"] = table_id_dict.get(table_id, {}).get("labels") or {}
             detail["bk_data_id"] = table_id_data_id.get(table_id, 0)
             result[table_id] = detail
@@ -526,7 +523,7 @@ class SpaceTableIDRedis:
             for row in models.ResultTable.objects.filter(
                 bk_tenant_id=bk_tenant_id,
                 table_id__in=table_id_list,
-            ).values("table_id", "default_storage", "data_label", "labels")
+            ).values("table_id", "default_storage", "data_labels", "labels")
         }
         # ResultTable 的最终默认存储拥有最高判定优先级；不能用某个仍存在的 Storage，
         # 或 StorageClusterRecord.is_current，反向推断当前查询/写入存储。
@@ -621,7 +618,7 @@ class SpaceTableIDRedis:
             for row in models.ResultTable.objects.filter(
                 bk_tenant_id=bk_tenant_id,
                 table_id__in=origin_table_ids,
-            ).values("table_id", "data_label", "labels")
+            ).values("table_id", "data_labels", "labels")
         }
         origin_es_map = {
             row["table_id"]: row
@@ -782,7 +779,7 @@ class SpaceTableIDRedis:
 
             rt = rt_map.get(table_id, {})
             origin_rt = rt_map.get(source_table_id) or origin_rt_map.get(source_table_id) or {}
-            data_label = rt.get("data_label") or origin_rt.get("data_label") or ""
+            data_label = ",".join(rt.get("data_labels") or origin_rt.get("data_labels") or [])
             labels = rt.get("labels") or origin_rt.get("labels") or {}
             field_alias = field_alias_map.get(table_id) or field_alias_map.get(source_table_id) or {}
             # 顶层配置代表当前存储。ES/Doris 任一严格校验失败时都不返回该 table_id，
@@ -1638,7 +1635,7 @@ class SpaceTableIDRedis:
                 "bk_biz_id",
                 "table_id",
                 "schema_type",
-                "data_label",
+                "data_labels",
                 "bk_biz_id_alias",
                 "default_storage",
                 "is_deleted",
@@ -1890,7 +1887,7 @@ class SpaceTableIDRedis:
         )
 
         tids = models.ResultTable.objects.filter(is_deleted=False, is_enable=True, bk_tenant_id=bk_tenant_id).values(
-            "table_id", "data_label"
+            "table_id", "data_labels"
         )
 
         if table_id_list:
@@ -1911,25 +1908,22 @@ class SpaceTableIDRedis:
 
             # 组装查询条件
             new_data_label_list: list[str] = list(data_label_set)
-            data_label_qs: Q = Q(data_label__contains=new_data_label_list[0])
-            for data_label in new_data_label_list[1:]:
-                data_label_qs |= Q(data_label__contains=data_label)
+            data_label_qs = models.ResultTable.data_labels_query(new_data_label_list)
 
             tids = tids.filter(data_label_qs)
 
-        # 获取结果表对应的data_label，且data_label可能存在逗号分割
+        # 获取结果表对应的新标签列表
         # 如果参数传入data_label_list，data_label必须在data_label_set中
         data_labels = list(
             itertools.chain(
                 data_label
                 for tid in tids
-                if tid["data_label"]
-                for data_label in tid["data_label"].split(",")
+                for data_label in tid["data_labels"]
                 if data_label and (not data_label_set or data_label in data_label_set)
             )
         )
 
-        return list(set(data_labels))
+        return list(dict.fromkeys(data_labels + list(data_label_set)))
 
     def _refine_table_ids(self, table_id_list: list | None = None, bk_tenant_id: str | None = DEFAULT_TENANT_ID) -> set:
         """提取写入到influxdb或vm的结果表数据"""

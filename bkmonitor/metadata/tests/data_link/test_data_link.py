@@ -477,7 +477,7 @@ def test_compose_databus_monitor_labels_classifies_system_base_data_label_as_sys
     table = SimpleNamespace(
         bk_biz_id=0,
         label="os",
-        data_label="system_base",
+        data_labels=["system_base"],
         is_builtin=False,
         is_custom_table=True,
     )

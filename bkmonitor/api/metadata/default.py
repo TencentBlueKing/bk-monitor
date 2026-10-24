@@ -115,6 +115,7 @@ class CreateResultTableResource(MetaDataAPIGWResource):
         is_time_field_only = serializers.BooleanField(required=False, label="是否仅需要提供时间默认字段", default=False)
         time_option = serializers.DictField(required=False, label="时间字段选项配置", allow_null=True)
         data_label = serializers.CharField(required=False, label="数据标签")
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
 
 class ListResultTableResource(MetaDataAPIGWResource):
@@ -160,6 +161,7 @@ class ModifyResultTableResource(MetaDataAPIGWResource):
         time_option = serializers.DictField(required=False, label="时间字段选项配置", allow_null=True)
         is_reserved_check = serializers.BooleanField(required=False, label="是否进行保留字检查")
         data_label = serializers.CharField(required=False, label="数据标签")
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
 
 class GetDataIdResource(MetaDataAPIGWResource):
@@ -351,6 +353,7 @@ class CreateEventGroupResource(MetaDataAPIGWResource):
         label = serializers.CharField(label="分组标签")
         event_info_list = serializers.ListField(required=False, label="事件列表")
         data_label = serializers.CharField(required=False, label="数据标签")
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
 
 class ModifyEventGroupResource(MetaDataAPIGWResource):
@@ -369,6 +372,7 @@ class ModifyEventGroupResource(MetaDataAPIGWResource):
         event_info_list = serializers.ListField(required=False, label="事件列表", allow_empty=True)
         is_enable = serializers.BooleanField(required=False, label="是否启用")
         data_label = serializers.CharField(required=False, label="数据标签")
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
 
 class DeleteEventGroupResource(MetaDataAPIGWResource):
@@ -457,6 +461,7 @@ class CreateTimeSeriesGroupResource(MetaDataAPIGWResource):
         is_split_measurement = serializers.BooleanField(required=False, label="是否启动自动分表逻辑", default=True)
         additional_options = serializers.DictField(required=False, label="附带创建的ResultTableOption")
         data_label = serializers.CharField(required=False, label="数据标签")
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
         metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 
 
@@ -479,6 +484,7 @@ class ModifyTimeSeriesGroupResource(MetaDataAPIGWResource):
         enable_field_black_list = serializers.BooleanField(required=False, label="黑名单的启用状态")
         metric_info_list = serializers.ListField(required=False, label="metric信息")
         data_label = serializers.CharField(required=False, label="数据标签")
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
         options = serializers.DictField(required=False, label="结果表选项内容")
         metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 

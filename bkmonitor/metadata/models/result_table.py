@@ -107,6 +107,7 @@ class ResultTable(models.Model):
     label = models.CharField(verbose_name="结果表标签", max_length=128, default=Label.RESULT_TABLE_LABEL_OTHER)
     # 数据标签
     data_label: str = models.CharField("数据标签", max_length=128, default="", null=True, blank=True)  # pyright: ignore [reportAssignmentType]
+    data_labels = models.JSONField("数据标签列表", default=list, blank=True)
     labels = models.JSONField("扩展标签", default=dict, blank=True)
     is_builtin = models.BooleanField("是否内置", default=False)
     bk_biz_id_alias = models.CharField("业务ID别名", max_length=128, default="", null=True, blank=True)
@@ -115,6 +116,40 @@ class ResultTable(models.Model):
         verbose_name = "逻辑结果表"
         verbose_name_plural = "逻辑结果表"
         unique_together = ("table_id", "bk_tenant_id")
+
+    def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields")
+        # 旧调用方仍可以传入 CSV；读取和路由始终使用 data_labels。
+        if self._state.adding and not self.data_labels:
+            self.data_labels = [label for label in (self.data_label or "").split(",") if label]
+        elif update_fields is not None and "data_label" in update_fields and "data_labels" not in update_fields:
+            self.data_labels = [label for label in (self.data_label or "").split(",") if label]
+
+        if update_fields is None or {"data_label", "data_labels"}.intersection(update_fields):
+            data_label = ",".join(self.data_labels)
+            fits_legacy_field = len(data_label) <= self._meta.get_field("data_label").max_length
+            if fits_legacy_field:
+                self.data_label = data_label
+            elif self._state.adding:
+                self.data_label = ""
+            elif update_fields is not None and "data_label" in update_fields:
+                self.refresh_from_db(fields=["data_label"], using=kwargs.get("using"))
+            if update_fields is not None:
+                update_fields = set(update_fields) | {"data_labels"}
+                if fits_legacy_field:
+                    update_fields.add("data_label")
+                else:
+                    update_fields.discard("data_label")
+                kwargs["update_fields"] = update_fields
+        return super().save(*args, **kwargs)
+
+    @staticmethod
+    def data_labels_query(data_labels):
+        """匹配任意一个标签，保持 JSON 数组成员的精确匹配语义。"""
+        query = models.Q(pk__in=[])
+        for data_label in data_labels:
+            query |= models.Q(data_labels__contains=[data_label])
+        return query
 
     @classmethod
     def refresh_consul_influxdb_tableinfo(cls):
@@ -344,6 +379,7 @@ class ResultTable(models.Model):
         time_option=None,
         create_storage=True,
         data_label: str | None = None,
+        data_labels: list[str] | None = None,
         labels: dict[str, Any] | None = None,
         is_builtin=False,
         bk_biz_id_alias=None,
@@ -435,6 +471,9 @@ class ResultTable(models.Model):
                 datasource.is_platform_data_id = True
                 datasource.save()
 
+        if data_labels is None:
+            data_labels = [label for label in (data_label or "").split(",") if label]
+
         # 2. 创建逻辑结果表内容
         result_table = cls.objects.create(
             table_id=table_id,
@@ -447,7 +486,7 @@ class ResultTable(models.Model):
             last_modify_user=operator,
             bk_biz_id=bk_biz_id,
             label=label,
-            data_label=data_label or "",
+            data_labels=data_labels,
             labels=labels or {},
             is_builtin=is_builtin,
             bk_biz_id_alias=bk_biz_id_alias,
@@ -1324,6 +1363,7 @@ class ResultTable(models.Model):
         is_enable=None,
         time_option=None,
         data_label=None,
+        data_labels=None,
         labels=None,
         need_delete_storages=None,
         bk_biz_id_alias=None,
@@ -1674,9 +1714,21 @@ class ResultTable(models.Model):
             )
             self.bk_biz_id_alias = bk_biz_id_alias
 
+        previous_data_labels = self.data_labels
         # 是否需要修改数据标签
-        if data_label is not None:
-            self.data_label = data_label
+        if data_labels is not None:
+            self.data_labels = data_labels
+        elif data_label is not None:
+            self.data_labels = [label for label in data_label.split(",") if label]
+            if (
+                related_data_source.created_from == DataIdCreatedFromSystem.BKDATA.value
+                and related_data_source.etl_config in {EtlConfigs.BK_EXPORTER.value, EtlConfigs.BK_STANDARD.value}
+                and self.table_id.endswith(".__default__")
+            ):
+                # 插件编辑仍传入基础标签时，保留迁移追加的旧 RT 查询入口。
+                prefix = self.table_id.removesuffix("__default__")
+                legacy_aliases = [alias for alias in previous_data_labels if alias.startswith(prefix)]
+                self.data_labels = list(dict.fromkeys(self.data_labels + legacy_aliases))
 
         # 是否需要修改扩展标签
         if labels is not None:
@@ -2050,6 +2102,7 @@ class ResultTable(models.Model):
             "bk_data_id": self.data_source.bk_data_id if self.default_storage != ClusterInfo.TYPE_BKDATA else None,
             "is_enable": self.is_enable,
             "data_label": self.data_label,
+            "data_labels": self.data_labels,
             "labels": self.labels or {},
         }
 
@@ -2082,6 +2135,7 @@ class ResultTable(models.Model):
             "label": self.label,
             "is_enable": self.is_enable,
             "data_label": self.data_label,
+            "data_labels": self.data_labels,
             "labels": self.labels or {},
         }
 

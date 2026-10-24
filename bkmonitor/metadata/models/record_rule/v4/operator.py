@@ -525,7 +525,7 @@ class RecordRuleV4Operator:
             table_id=self.rule.table_id,
             bk_tenant_id=self.rule.bk_tenant_id,
         ).first()
-        previous_data_label = output_table.data_label if output_table else ""
+        previous_data_label = ",".join(output_table.data_labels) if output_table else ""
         output_created = RecordRuleV4OutputResources.ensure_group_output(self.rule)
         self.reload_rule()
         metric_fields_created = RecordRuleV4OutputResources.ensure_spec_metric_fields(self.rule, current_spec)

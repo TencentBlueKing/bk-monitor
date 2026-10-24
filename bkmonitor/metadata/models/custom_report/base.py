@@ -231,6 +231,7 @@ class CustomGroupBase(models.Model):
         default_storage_config=None,
         additional_options: dict | None = None,
         data_label: str | None = None,
+        data_labels: list[str] | None = None,
         bk_biz_id_alias: str | None = None,
         is_sync_db: bool = True,
         **kwargs,
@@ -344,6 +345,7 @@ class CustomGroupBase(models.Model):
             label=label,
             option=option,
             data_label=data_label,
+            data_labels=data_labels,
             bk_tenant_id=bk_tenant_id,
             bk_biz_id_alias=bk_biz_id_alias,
             is_sync_db=is_sync_db,
@@ -376,6 +378,7 @@ class CustomGroupBase(models.Model):
         max_rate=None,
         enable_field_black_list: bool | None = None,
         data_label: str | None = None,
+        data_labels: list[str] | None = None,
         options: dict[str, Any] | None = None,
     ):
         """
@@ -480,7 +483,7 @@ class CustomGroupBase(models.Model):
 
         # 这里之前在split的情况下是不做field_list的更新的 之前的背景是会动态更新指标 而不应该用户去设置指标
         # 但是如果用户需要修改元信息的时候 会出现该接口无法更新的情况 所以这里先去掉这个限制
-        if field_list is not None or data_label is not None or rt_options is not None:
+        if field_list is not None or data_label is not None or data_labels is not None or rt_options is not None:
             try:
                 rt = ResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id)
             except ResultTable.DoesNotExist:
@@ -491,6 +494,8 @@ class CustomGroupBase(models.Model):
                 modify_params.update({"field_list": field_list, "is_time_field_only": True, "is_reserved_check": False})
             if data_label is not None:
                 modify_params["data_label"] = data_label
+            if data_labels is not None:
+                modify_params["data_labels"] = data_labels
             if rt_options is not None:
                 modify_params["option"] = rt_options
 
@@ -546,9 +551,18 @@ class CustomGroupBase(models.Model):
 
         return True
 
+    def get_data_label_info(self):
+        try:
+            return ResultTable.objects.values("data_label", "data_labels").get(
+                table_id=self.table_id, bk_tenant_id=self.bk_tenant_id
+            )
+        except ResultTable.DoesNotExist:
+            return {"data_label": "", "data_labels": []}
+
     @property
     def data_label(self):
-        try:
-            return ResultTable.objects.get(table_id=self.table_id, bk_tenant_id=self.bk_tenant_id).data_label
-        except ResultTable.DoesNotExist:
-            return ""
+        return self.get_data_label_info()["data_label"]
+
+    @property
+    def data_labels(self):
+        return self.get_data_label_info()["data_labels"]
