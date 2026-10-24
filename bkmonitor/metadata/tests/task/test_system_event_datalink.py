@@ -5,6 +5,7 @@ import pytest
 from constants.common import DEFAULT_TENANT_ID
 from metadata import models
 from metadata.models.constants import BASE_EVENT_RESULT_TABLE_FIELD_MAP, DataIdCreatedFromSystem
+from metadata.models.space.constants import EtlConfigs
 from metadata.task import tenant
 from metadata.task.tasks import create_single_tenant_system_event_datalink
 
@@ -36,7 +37,7 @@ def system_event_records(settings, mocker):
         bk_data_id=1000,
         bk_tenant_id=DEFAULT_TENANT_ID,
         data_name="gse_system_event",
-        etl_config="bk_gse_system_event",
+        etl_config=EtlConfigs.BK_GSE_SYSTEM_EVENT.value,
         source_label="bk_monitor",
         type_label="event",
         is_platform_data_id=True,
