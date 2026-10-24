@@ -24,7 +24,7 @@
  * IN THE SOFTWARE.
  */
 
-import { Component, Emit, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
+import { Component, Emit, InjectReactive, Prop, Provide, Ref, Watch } from 'vue-property-decorator';
 import { Component as tsc } from 'vue-tsx-support';
 
 import { random } from 'monitor-common/utils';
@@ -47,9 +47,11 @@ import {
 import { type ExploreSubject, ExploreObserver, getEventLegendColorByType } from '../utils';
 import EventTableSkeleton from './event-table-skeleton';
 import ExploreExpandViewWrapper from './explore-expand-view-wrapper';
+import HostObserveSlider, { readHostSliderTarget } from './host-observe-slider';
 
 import type { EmptyStatusType } from '../../../components/empty-status/types';
 import type { KVFieldList } from './explore-kv-list';
+import type { SingleHostMonitorTarget } from 'monitor-common/utils/host-monitor-url';
 
 import './event-explore-table.scss';
 
@@ -130,6 +132,10 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   /** 刷新表格 */
   @Prop({ type: String, default: random(8) }) refreshTable: string;
   @Prop({ type: Array, default: () => [ExploreSourceTypeEnum.ALL] }) eventSourceType: ExploreSourceTypeEnum[];
+  /** 筛选时间范围，打开主机抽屉时作为初值 */
+  @InjectReactive('timeRange') exploreTimeRange: Array<number | string>;
+  @InjectReactive('timezone') exploreTimezone: string;
+  @InjectReactive('refreshInterval') exploreRefreshInterval: number;
   /** table loading 配置*/
   tableLoading = {
     /** table 骨架屏 loading */
@@ -180,6 +186,12 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   k8sSliderShow = false;
   k8sSliderUrl = '';
   k8sSliderSubTitle = '';
+  /** 主机监控抽屉。时间在打开时拷一份，抽屉内修改不回写检索条件。 */
+  hostSliderShow = false;
+  hostSliderTarget: null | SingleHostMonitorTarget = null;
+  hostSliderTimeRange: Array<number | string> = [];
+  hostSliderTimezone = '';
+  hostSliderRefreshInterval = -1;
 
   get tableColumns() {
     const column = this.getTableColumns();
@@ -264,6 +276,20 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
     this.k8sSliderUrl = url;
     this.k8sSliderSubTitle = subTitle;
     this.k8sSliderShow = true;
+    return true;
+  }
+
+  /** 单台主机监控链接改为抽屉。解析不到主机时返回 false，调用方继续新开页。 */
+  @Provide('openHostSlider')
+  handleOpenHostSlider(url: string) {
+    const target = readHostSliderTarget(url);
+    if (!target) return false;
+    this.hostSliderTarget = target;
+    this.hostSliderTimeRange = Array.isArray(this.exploreTimeRange) ? [...this.exploreTimeRange] : [];
+    this.hostSliderTimezone = this.exploreTimezone || '';
+    const interval = Number(this.exploreRefreshInterval);
+    this.hostSliderRefreshInterval = Number.isFinite(interval) ? interval : -1;
+    this.hostSliderShow = true;
     return true;
   }
 
@@ -605,7 +631,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
   handleContentPopoverClick(e: MouseEvent) {
     const link = (e.target as HTMLElement)?.closest?.('a[data-k8s-slider]') as HTMLAnchorElement;
     if (!link) return;
-    if (this.handleOpenK8sSlider(link.href, link.textContent?.trim())) {
+    if (this.handleOpenK8sSlider(link.href, link.textContent?.trim()) || this.handleOpenHostSlider(link.href)) {
       e.preventDefault();
       this.handlePopoverHide();
     }
@@ -615,7 +641,7 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
    * @description: 表格内链接点击，命中容器监控则拦截跳转改为侧滑
    */
   handleLinkClick(e: MouseEvent, url: string, alias?: string) {
-    if (this.handleOpenK8sSlider(url, alias)) {
+    if (this.handleOpenK8sSlider(url, alias) || this.handleOpenHostSlider(url)) {
       e.preventDefault();
       this.handlePopoverHide();
     }
@@ -977,6 +1003,21 @@ export default class EventExploreTable extends tsc<EventExploreTableProps, Event
           url={this.k8sSliderUrl}
           onShowChange={v => {
             this.k8sSliderShow = v;
+          }}
+        />
+        <HostObserveSlider
+          activeTab={this.hostSliderTarget?.activeTab || ''}
+          bkBizId={this.hostSliderTarget?.bkBizId || ''}
+          bkCloudId={this.hostSliderTarget?.bkCloudId || ''}
+          bkHostId={this.hostSliderTarget?.bkHostId || ''}
+          hostProcessName={this.hostSliderTarget?.hostProcessName || ''}
+          ip={this.hostSliderTarget?.ip || ''}
+          isShow={this.hostSliderShow}
+          refreshInterval={this.hostSliderRefreshInterval}
+          timeRange={this.hostSliderTimeRange}
+          timezone={this.hostSliderTimezone}
+          onShowChange={v => {
+            this.hostSliderShow = v;
           }}
         />
       </div>

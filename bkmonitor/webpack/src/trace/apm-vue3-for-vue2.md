@@ -34,28 +34,29 @@ handle.update({ timeRange: next }); // 增量推送 props，触发子应用响�
 handle.unmount(); // 宿主销毁前必须调用，否则内存泄漏
 ```
 
-`mountTraceExplore` / `mountTraceSlider` 用法完全一致。`mountTraceSlider` 的 props 为 `{ isShow, appName, bizId, traceId }`，事件 `sliderClose`。子应用的 Vue3 实例（router / pinia / i18n）由包内自行创建，
+`mountTraceExplore` / `mountTraceSlider` / `mountHostPanel` 用法完全一致。`mountTraceSlider` 的 props 为 `{ isShow, appName, bizId, traceId }`，事件 `sliderClose`。`mountHostPanel` 用于单台主机的系统指标和进程，props 为 `{ isShow, bkHostId, ip, bkCloudId, bkBizId, timeRange, timezone, refreshInterval, activeTab, hostProcessName }`，事件同样是 `sliderClose`。子应用的 Vue3 实例（router / pinia / i18n）由包内自行创建，
 宿主只需提供一个挂载节点。
 
 ## 2. 导出
 
-| 导出名 | 说明 |
-| --- | --- |
-| `mountAlarmCenter(el, options)` | 挂载告警中心，返回 `{ update, unmount }` |
-| `mountTraceExplore(el, options)` | 挂载 Trace 检索，返回 `{ update, unmount }` |
-| `mountTraceSlider(el, options)` | 挂载 Trace 详情侧滑，返回 `{ update, unmount }` |
-| `AlarmCenterApm` / `TraceExploreApm` / `TraceSliderApm` | 根组件，供已有 Vue3 应用直接渲染（需自备 router / pinia / i18n） |
-| 类型 | `MountOptions` / `MountHandle` / `BridgeProps` / `BridgeEmit` |
+| 导出名                                                                          | 说明                                                             |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `mountAlarmCenter(el, options)`                                                 | 挂载告警中心，返回 `{ update, unmount }`                         |
+| `mountTraceExplore(el, options)`                                                | 挂载 Trace 检索，返回 `{ update, unmount }`                      |
+| `mountTraceSlider(el, options)`                                                 | 挂载 Trace 详情侧滑，返回 `{ update, unmount }`                  |
+| `mountHostPanel(el, options)`                                                   | 挂载单台主机的系统指标和进程抽屉，返回 `{ update, unmount }`     |
+| `AlarmCenterApm` / `TraceExploreApm` / `TraceSliderApm` / `HostObservePanelApm` | 根组件，供已有 Vue3 应用直接渲染（需自备 router / pinia / i18n） |
+| 类型                                                                            | `MountOptions` / `MountHandle` / `BridgeProps` / `BridgeEmit`    |
 
 ## 3. 运行环境与依赖
 
 以下依赖被声明为 `external`，需可从宿主工程解析到（已列在本包 `dependencies` 中，正常安装即可获得）：
 
-| 依赖 | 用途 |
-| --- | --- |
-| `@blueking/bkui-library` | **Vue3 运行时**，包内所有 `vue` 导入都指向它 |
-| `monitor-api` / `monitor-common` / `monitor-ui` / `monitor-pc` / `monitor-static` | 蓝鲸监控工程内的请求层、公共能力与图标资源 |
-| `echarts` / `monaco-editor` / `dayjs` / `@prometheus-io/lezer-promql` | 体积较大且宿主通常已有 |
+| 依赖                                                                              | 用途                                         |
+| --------------------------------------------------------------------------------- | -------------------------------------------- |
+| `@blueking/bkui-library`                                                          | **Vue3 运行时**，包内所有 `vue` 导入都指向它 |
+| `monitor-api` / `monitor-common` / `monitor-ui` / `monitor-pc` / `monitor-static` | 蓝鲸监控工程内的请求层、公共能力与图标资源   |
+| `echarts` / `monaco-editor` / `dayjs` / `@prometheus-io/lezer-promql`             | 体积较大且宿主通常已有                       |
 
 > **Vue3 运行时不叫 `vue`**：包内不存在对裸 `vue` 的引用，运行时统一从 `@blueking/bkui-library`
 > （内容即 `export * from '@vue/runtime-dom'`）获取，因此 Vue2 宿主安装本包不会与自己的 `vue`（v2）冲突。
