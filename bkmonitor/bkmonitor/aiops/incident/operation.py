@@ -9,6 +9,7 @@ specific language governing permissions and limitations under the License.
 """
 
 from bkmonitor.documents.incident import IncidentDocument
+from bkmonitor.aiops.incident.consumption import strict_incident_delivery
 import logging
 import time
 from typing import Any
@@ -159,6 +160,8 @@ class IncidentOperationManager:
                 incident_document = cls._get_incident_document_with_retry(incident_id, sleep_time=0.5)
                 if not incident_document:
                     logger.warning(f"Failed to get incident document for incident {incident_id}, skip sending notice")
+                    if strict_incident_delivery.get():
+                        raise RuntimeError("incident document unavailable for notification")
                     return
 
             # 延迟导入避免循环依赖
@@ -192,6 +195,12 @@ class IncidentOperationManager:
                 operation_type=operation_type,
                 **kwargs,
             )
+            if strict_incident_delivery.get() and any(
+                not (all_results or {}).get(target["notice_way"], {}).get(receiver, {}).get("result")
+                for target in configured_targets
+                for receiver in target["receivers"]
+            ):
+                raise RuntimeError("incident notification delivery is incomplete")
             logger.info(
                 "[IncidentNotice][Result] incident_id=%s operation=%s channels=%s",
                 incident_id,
@@ -221,6 +230,8 @@ class IncidentOperationManager:
                     )
         except Exception as e:
             logger.exception(f"Failed to send incident notice for incident {incident_id}: {e}")
+            if strict_incident_delivery.get():
+                raise
 
     @classmethod
     def _record_notice_without_trigger(
