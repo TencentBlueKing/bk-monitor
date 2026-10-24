@@ -181,7 +181,7 @@ class ResultTableAndDataSource:
             # 通过数据标签获取监控结果表
             elif self.data_label:
                 table_id = models.ResultTable.objects.get(
-                    bk_tenant_id=self.bk_tenant_id, data_label=self.data_label
+                    bk_tenant_id=self.bk_tenant_id, data_labels__contains=[self.data_label]
                 ).table_id
 
             obj = models.DataSourceResultTable.objects.get(bk_tenant_id=self.bk_tenant_id, table_id=table_id)

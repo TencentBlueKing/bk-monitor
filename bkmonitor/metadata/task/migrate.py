@@ -219,7 +219,9 @@ def migrate_nano_log_table(
     )
 
     # 获取虚拟RT的data_label
-    virtual_data_labels = list(virtual_result_tables.values_list("data_label", flat=True))
+    virtual_data_labels = list(
+        {label for labels in virtual_result_tables.values_list("data_labels", flat=True) for label in labels}
+    )
 
     new_virtual_table_ids: set[str] = set()
     new_records_list = [

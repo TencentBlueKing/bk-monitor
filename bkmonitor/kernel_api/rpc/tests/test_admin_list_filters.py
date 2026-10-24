@@ -120,3 +120,31 @@ def test_custom_event_list_serializer_keeps_status():
     )
 
     assert custom_report._serialize_event_group(group)["status"] == "sleep"
+
+
+@pytest.mark.django_db(databases="__all__")
+@pytest.mark.parametrize("params", [{"data_label": "alias"}, {"data_labels": ["missing", "alias"]}])
+def test_admin_filters_match_any_array_label_and_ignore_legacy(params):
+    from kernel_api.rpc.functions.admin import es_storage, result_table, storage
+
+    from metadata import models
+
+    table = models.ResultTable.objects.create(
+        table_id="plugin.__default__",
+        bk_tenant_id="labels_test",
+        bk_biz_id=2,
+        is_custom_table=False,
+        data_labels=["primary", "alias"],
+    )
+    models.ResultTable.objects.filter(pk=table.pk).update(data_label="stale")
+    models.ResultTable.objects.create(
+        table_id="plugin.stale", bk_tenant_id=table.bk_tenant_id, is_custom_table=False, data_labels=["stale"]
+    )
+    models.ESStorage.objects.create(table_id=table.table_id, bk_tenant_id=table.bk_tenant_id, storage_cluster_id=0)
+    assert list(
+        result_table._build_result_table_queryset(params, table.bk_tenant_id).values_list("table_id", flat=True)
+    ) == [table.table_id]
+    assert storage._table_ids_by_data_filters(params, table.bk_tenant_id) == {table.table_id}
+    assert list(
+        es_storage._build_es_storage_queryset(params, table.bk_tenant_id).values_list("table_id", flat=True)
+    ) == [table.table_id]

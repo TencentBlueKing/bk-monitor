@@ -258,6 +258,7 @@ class CreateResultTableResource(Resource):
         time_option = serializers.DictField(required=False, label="时间字段选项配置", default=None)
         is_sync_db = serializers.BooleanField(required=False, label="是否需要同步创建真实表", default=True)
         data_label = serializers.CharField(required=False, label="数据标签", default="")
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
         labels = serializers.DictField(required=False, label="扩展标签", default=dict)
 
     def perform_request(self, request_data):
@@ -414,6 +415,7 @@ class ModifyResultTableResource(Resource):
         is_reserved_check = serializers.BooleanField(required=False, label="检查内置字段", default=True)
         time_option = serializers.DictField(required=False, label="时间字段选项配置", default=None, allow_null=True)
         data_label = serializers.CharField(required=False, label="数据标签", default=None)
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
         labels = serializers.DictField(required=False, label="扩展标签", default=None)
         need_delete_storages = serializers.DictField(required=False, label="需要删除的额外存储", default=None)
 
@@ -595,7 +597,7 @@ class IsDataLabelExistResource(Resource):
         if not data_label:
             raise ValueError(_("data_label不能为空"))
 
-        qs = models.ResultTable.objects.filter(data_label=data_label, bk_tenant_id=bk_tenant_id)
+        qs = models.ResultTable.objects.filter(data_labels__contains=[data_label], bk_tenant_id=bk_tenant_id)
         if bk_data_id:
             # 相同data_id的result_table使用的data_label允许重复
             table_ids = models.DataSourceResultTable.objects.filter(bk_data_id=bk_data_id).values_list(
@@ -1041,6 +1043,7 @@ class CreateEventGroupResource(Resource):
         operator = serializers.CharField(required=True, label="创建者")
         event_info_list = serializers.ListField(required=False, label="事件列表", default=None)
         data_label = serializers.CharField(label="数据标签", required=False, default="")
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
     def perform_request(self, validated_request_data):
         # 默认都是返回已经删除的内容
@@ -1058,6 +1061,7 @@ class ModifyEventGroupResource(Resource):
         event_info_list = serializers.ListField(required=False, label="事件列表", default=None)
         is_enable = serializers.BooleanField(required=False, label="是否启用事件分组", default=None)
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
 
     def perform_request(self, validated_request_data):
         try:  # 指定group_id的情况下，无需再次对租户ID进行过滤
@@ -1283,6 +1287,7 @@ class CreateTimeSeriesGroupResource(Resource):
         default_storage_config = serializers.DictField(required=False, label="默认存储参数")
         additional_options = serializers.DictField(required=False, label="附带创建的ResultTableOption")
         data_label = serializers.CharField(label="数据标签", required=False, default="")
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
         metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 
     def perform_request(self, validated_request_data):
@@ -1303,6 +1308,7 @@ class ModifyTimeSeriesGroupResource(Resource):
         metric_info_list = serializers.ListField(required=False, label="metric信息", default=None)
         enable_field_black_list = serializers.BooleanField(required=False, label="黑名单的启用状态", default=None)
         data_label = serializers.CharField(label="数据标签", required=False, default=None)
+        data_labels = serializers.ListField(child=serializers.CharField(), required=False, allow_empty=True)
         options = serializers.DictField(required=False, label="结果表选项内容", default=None)
         metric_group_dimensions = serializers.JSONField(required=False, label="指标分组的维度key配置")
 
@@ -3534,19 +3540,22 @@ class GetDataLabelsMapResource(Resource):
         bk_tenant_id = validated_request_data["bk_tenant_id"]
         data_labels_map = {}
         table_or_labels: list[str] = validated_request_data["table_or_labels"]
-        data_labels_queryset = models.ResultTable.objects.filter(
-            Q(
-                bk_biz_id__in=[0, validated_request_data["bk_biz_id"]],
-                data_label__in=table_or_labels,
-                bk_tenant_id=bk_tenant_id,
+        data_labels_queryset = (
+            models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id)
+            .filter(
+                (
+                    Q(bk_biz_id__in=[0, validated_request_data["bk_biz_id"]])
+                    & models.ResultTable.data_labels_query(table_or_labels)
+                )
+                | Q(table_id__in=table_or_labels)
             )
-            | Q(table_id__in=table_or_labels, bk_tenant_id=bk_tenant_id)
-        ).values("table_id", "data_label")
+            .values("table_id", "data_labels")
+        )
         for item in data_labels_queryset:
-            data_labels_map[item["table_id"]] = item["data_label"]
-            if item["data_label"]:
-                # 不为空才建立映射关系，避免写入 empty=empty，
-                data_labels_map[item["data_label"]] = item["data_label"]
+            # 表 ID 继续返回一个可查询的标签；传入标签本身时保持原标签。
+            data_labels_map[item["table_id"]] = next(iter(item["data_labels"]), "")
+            for data_label in item["data_labels"]:
+                data_labels_map[data_label] = data_label
         return data_labels_map
 
 

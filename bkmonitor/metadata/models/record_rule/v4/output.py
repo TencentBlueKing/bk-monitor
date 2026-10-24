@@ -87,9 +87,9 @@ class RecordRuleV4OutputResources:
                 result_table.table_name_zh = table_name_zh
                 update_fields.append("table_name_zh")
             # data_label 为空时不主动清空已有 ResultTable，仅在用户显式配置有效值时刷新。
-            if rule.data_label and result_table.data_label != rule.data_label:
-                result_table.data_label = rule.data_label
-                update_fields.append("data_label")
+            if rule.data_label and result_table.data_labels != [rule.data_label]:
+                result_table.data_labels = [rule.data_label]
+                update_fields.append("data_labels")
             if update_fields:
                 update_fields.append("last_modify_time")
                 result_table.save(update_fields=update_fields)

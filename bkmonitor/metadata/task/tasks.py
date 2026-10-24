@@ -1594,7 +1594,7 @@ def create_basereport_datalink_for_bkcc(
                     t["table_id"] for t in result_table_usage_mapping if t.get("data_label") == f"{extra_source}_system"
                 ]
                 models.ResultTable.objects.filter(table_id__in=extra_result_table_ids).update(
-                    data_label=f"{extra_source}_system"
+                    data_label=f"{extra_source}_system", data_labels=[f"{extra_source}_system"]
                 )
 
             for table in result_table_usage_mapping:
@@ -1613,6 +1613,7 @@ def create_basereport_datalink_for_bkcc(
                         bk_biz_id=bk_biz_id,
                         table_name_zh=table["table_name"],
                         data_label=table.get("data_label", ""),
+                        data_labels=[label for label in table.get("data_label", "").split(",") if label],
                         is_custom_table=False,
                         default_storage=models.ClusterInfo.TYPE_VM,
                         creator="system",

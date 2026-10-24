@@ -172,16 +172,16 @@ def _query_result_tables_by_inputs(
 
     normalized_data_labels = [data_label for data_label in (data_labels or []) if data_label]
     if normalized_data_labels:
-        data_label_query = Q(data_label__contains=normalized_data_labels[0])
+        data_label_query = Q(data_labels__contains=[normalized_data_labels[0]])
         for data_label in normalized_data_labels[1:]:
-            data_label_query |= Q(data_label__contains=data_label)
+            data_label_query |= Q(data_labels__contains=[data_label])
         input_filter |= data_label_query
 
     if not input_filter:
         return []
 
     queryset = models.ResultTable.objects.filter(query_filter & input_filter).values(
-        "table_id", "bk_biz_id", "data_label", "bk_tenant_id"
+        "table_id", "bk_biz_id", "data_labels", "bk_tenant_id"
     )
     return list(queryset)
 
@@ -291,7 +291,7 @@ def get_metadata_related_info(params: dict[str, Any]) -> dict[str, Any]:
     access_vm_record_queryset = models.AccessVMRecord.objects.filter(
         bk_tenant_id=bk_tenant_id, result_table_id__in=related_table_ids
     )
-    result_table_data_label_map = dict(result_table_queryset.values_list("table_id", "data_label"))
+    result_table_data_label_map = dict(result_table_queryset.values_list("table_id", "data_labels"))
     time_series_group_items = _values(
         time_series_group_queryset,
         [
@@ -308,7 +308,7 @@ def get_metadata_related_info(params: dict[str, Any]) -> dict[str, Any]:
         ["time_series_group_id"],
     )
     for item in time_series_group_items:
-        item["data_label"] = _serialize_value(result_table_data_label_map.get(item["table_id"]) or "")
+        item["data_label"] = _serialize_value(",".join(result_table_data_label_map.get(item["table_id"]) or []))
     event_group_items = _values(
         event_group_queryset,
         [
@@ -325,7 +325,7 @@ def get_metadata_related_info(params: dict[str, Any]) -> dict[str, Any]:
         ["event_group_id"],
     )
     for item in event_group_items:
-        item["data_label"] = _serialize_value(result_table_data_label_map.get(item["table_id"]) or "")
+        item["data_label"] = _serialize_value(",".join(result_table_data_label_map.get(item["table_id"]) or []))
 
     es_storage_items = [
         {
@@ -408,6 +408,7 @@ def get_metadata_related_info(params: dict[str, Any]) -> dict[str, Any]:
                 "is_deleted",
                 "label",
                 "data_label",
+                "data_labels",
                 "labels",
                 "is_custom_table",
             ],
@@ -528,9 +529,9 @@ def query_unify_query_redis_route(params: dict[str, Any]) -> dict[str, Any]:
             table_id__in=[reformat_table_id(table_id) for table_id in input_table_ids]
         )
     if input_data_labels:
-        data_label_query = Q(data_label__contains=input_data_labels[0])
+        data_label_query = Q(data_labels__contains=[input_data_labels[0]])
         for data_label in input_data_labels[1:]:
-            data_label_query |= Q(data_label__contains=data_label)
+            data_label_query |= Q(data_labels__contains=[data_label])
         result_table_filter |= data_label_query
 
     result_table_queryset = models.ResultTable.objects.filter(bk_tenant_id=bk_tenant_id).filter(result_table_filter)
@@ -542,6 +543,7 @@ def query_unify_query_redis_route(params: dict[str, Any]) -> dict[str, Any]:
             "table_name_zh",
             "bk_biz_id",
             "data_label",
+            "data_labels",
             "default_storage",
             "is_enable",
             "is_deleted",
@@ -555,7 +557,7 @@ def query_unify_query_redis_route(params: dict[str, Any]) -> dict[str, Any]:
     for result_table in result_tables:
         normalized_table_id = reformat_table_id(result_table["table_id"])
         result_table["normalized_table_id"] = normalized_table_id
-        labels = [item.strip() for item in (result_table.get("data_label") or "").split(",") if item.strip()]
+        labels = result_table["data_labels"]
         result_table["data_label_list"] = labels
         table_id_to_result_table[normalized_table_id] = result_table
         resolved_table_ids.add(normalized_table_id)
@@ -738,7 +740,7 @@ def refresh_unify_query_redis_route(params: dict[str, Any]) -> dict[str, Any]:
             + [
                 label.strip()
                 for result_table in related_result_tables
-                for label in (result_table.get("data_label") or "").split(",")
+                for label in result_table["data_labels"]
                 if label.strip()
             ]
             if data_label
@@ -1047,7 +1049,7 @@ def _build_es_route_detail_check(
     )
     actual_field_alias = _normalize_route_field_alias_map(route_detail.get("field_alias"))
 
-    expected_data_label = result_table.data_label if result_table else ""
+    expected_data_label = ",".join(result_table.data_labels) if result_table else ""
     checks = {
         "storage_id_match": route_detail.get("storage_id") == es_storage.storage_cluster_id,
         "db_match": (route_detail.get("db") or "") == (es_storage.index_set or ""),
@@ -1207,7 +1209,7 @@ def metadata_es_storage_check(params: dict[str, Any]) -> dict[str, Any]:
                     {
                         "table_id": virtual_table_id,
                         "table_name": virtual_rt.table_name_zh if virtual_rt else "",
-                        "data_label": virtual_rt.data_label if virtual_rt else "",
+                        "data_label": ",".join(virtual_rt.data_labels) if virtual_rt else "",
                         "index_set": virtual_es_storage.index_set or "",
                         "need_create_index": virtual_es_storage.need_create_index,
                     }
@@ -1219,14 +1221,8 @@ def metadata_es_storage_check(params: dict[str, Any]) -> dict[str, Any]:
                     "table_id": table_id,
                     "table_name": result_table.table_name_zh if result_table else "",
                     "bk_biz_id": result_table.bk_biz_id if result_table else None,
-                    "data_label": result_table.data_label if result_table else "",
-                    "data_labels": [
-                        label.strip()
-                        for label in (result_table.data_label or "").split(",")
-                        if result_table and label.strip()
-                    ]
-                    if result_table
-                    else [],
+                    "data_label": ",".join(result_table.data_labels) if result_table else "",
+                    "data_labels": result_table.data_labels if result_table else [],
                     "datasources": datasource_refs,
                     "is_enable": result_table.is_enable if result_table else None,
                     "is_deleted": result_table.is_deleted if result_table else None,
@@ -1529,7 +1525,7 @@ def metadata_custom_metric_check(params: dict[str, Any]) -> dict[str, Any]:
 
     data_label_route_items = _build_data_label_route_checks(
         table_id=table_id,
-        data_label=result_table.data_label if result_table else group.data_label,
+        data_label=",".join(result_table.data_labels) if result_table else "",
         bk_tenant_id=bk_tenant_id,
     )
     space_route = _build_space_route_check(table_id=table_id, bk_biz_id=resolved_bk_biz_id, bk_tenant_id=bk_tenant_id)
@@ -1561,7 +1557,8 @@ def metadata_custom_metric_check(params: dict[str, Any]) -> dict[str, Any]:
             "label": group.label,
             "is_enable": group.is_enable,
             "is_delete": group.is_delete,
-            "data_label": group.data_label,
+            "data_label": result_table.data_label if result_table else "",
+            "data_labels": result_table.data_labels if result_table else [],
             "is_auto_discovery": group.is_auto_discovery(),
             "is_split_measurement": group.is_split_measurement,
         },
@@ -1583,7 +1580,7 @@ def metadata_custom_metric_check(params: dict[str, Any]) -> dict[str, Any]:
             "table_id": table_id,
             "table_name": result_table.table_name_zh if result_table else "",
             "bk_biz_id": result_table.bk_biz_id if result_table else None,
-            "data_label": result_table.data_label if result_table else group.data_label,
+            "data_label": ",".join(result_table.data_labels) if result_table else "",
             "default_storage": result_table.default_storage if result_table else "",
             "is_enable": result_table.is_enable if result_table else None,
             "is_deleted": result_table.is_deleted if result_table else None,
@@ -1605,7 +1602,7 @@ def metadata_custom_metric_check(params: dict[str, Any]) -> dict[str, Any]:
                 "redis_key": redis_key,
                 "exists": raw_route_detail is not None,
                 "data_label_match": (route_detail.get("data_label") or "")
-                == ((result_table.data_label if result_table else group.data_label) or ""),
+                == ((",".join(result_table.data_labels) if result_table else "") or ""),
                 "stats": {
                     "route_field_count": len(rt_route_field_names),
                     "checked_metric_count": len(checked_metric_fields),
@@ -1976,6 +1973,7 @@ def metadata_bcs_cluster_related_info(params: dict[str, Any]) -> dict[str, Any]:
                 "is_deleted",
                 "label",
                 "data_label",
+                "data_labels",
                 "is_custom_table",
             ],
             ["table_id"],
