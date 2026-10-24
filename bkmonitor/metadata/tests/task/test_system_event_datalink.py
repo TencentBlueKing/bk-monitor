@@ -133,14 +133,14 @@ def test_create_system_event_reuses_base_event_configs(system_event_records, dat
     )
 
 
-def test_system_event_stops_transfer_before_applying_databus(system_event_records):
+def test_system_event_applies_databus_before_stopping_transfer(system_event_records):
     _, _, _, apply_api, delete_consul, _ = system_event_records
     submitted_databus = []
 
     def apply_configs(*, config, bk_tenant_id):
         for resource in config:
             if resource["kind"] == "Databus":
-                delete_consul.assert_called_once_with()
+                delete_consul.assert_not_called()
                 submitted_databus.append(resource)
         return {}
 
@@ -149,6 +149,7 @@ def test_system_event_stops_transfer_before_applying_databus(system_event_record
     create_single_tenant_system_event_datalink()
 
     assert len(submitted_databus) == 1
+    delete_consul.assert_called_once_with()
 
 
 def test_reapply_system_event_reuses_registered_data_id_and_components(system_event_records):
@@ -162,7 +163,7 @@ def test_reapply_system_event_reuses_registered_data_id_and_components(system_ev
 
     apply_api.assert_called_once()
     assert apply_api.call_args.kwargs["config"] == first_configs
-    delete_consul.assert_not_called()
+    delete_consul.assert_called_once_with()
     for model in (
         models.DataLink,
         models.DataIdConfig,
@@ -202,6 +203,57 @@ def test_failed_registration_keeps_legacy_system_event_source(system_event_recor
     assert datasource.created_from == DataIdCreatedFromSystem.BKGSE.value
     assert datasource.mq_cluster_id == 0
     delete_consul.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    "failure_step", ["compose_configs", "merge_existing_component_configs", "apply_data_link_with_retry"]
+)
+def test_failed_v4_apply_keeps_transfer_until_retry_succeeds(system_event_records, mocker, failure_step):
+    datasource, _, _, apply_api, delete_consul, push_router = system_event_records
+    failed_step = mocker.patch.object(models.DataLink, failure_step, side_effect=RuntimeError("V4 apply failed"))
+
+    with pytest.raises(RuntimeError, match="V4 apply failed"):
+        create_single_tenant_system_event_datalink()
+
+    datasource.refresh_from_db()
+    assert datasource.created_from == DataIdCreatedFromSystem.BKDATA.value
+    delete_consul.assert_not_called()
+    push_router.assert_not_called()
+    assert all(config["kind"] != "Databus" for call in apply_api.call_args_list for config in call.kwargs["config"])
+    mocker.stop(failed_step)
+    apply_api.reset_mock()
+
+    create_single_tenant_system_event_datalink()
+
+    apply_api.assert_called_once()
+    assert any(config["kind"] == "Databus" for config in apply_api.call_args.kwargs["config"])
+    delete_consul.assert_called_once_with()
+    push_router.assert_called_once()
+    assert models.DataIdConfig.objects.count() == 1
+    assert models.DataLink.objects.filter(bk_data_id=datasource.bk_data_id).count() == 1
+
+
+def test_failed_consul_cleanup_is_retried_after_v4_apply(system_event_records):
+    datasource, _, _, apply_api, delete_consul, push_router = system_event_records
+    delete_consul.side_effect = [RuntimeError("Consul cleanup failed"), None]
+
+    with pytest.raises(RuntimeError, match="Consul cleanup failed"):
+        create_single_tenant_system_event_datalink()
+
+    datasource.refresh_from_db()
+    assert datasource.created_from == DataIdCreatedFromSystem.BKDATA.value
+    assert any(config["kind"] == "Databus" for config in apply_api.call_args.kwargs["config"])
+    push_router.assert_not_called()
+    apply_api.reset_mock()
+
+    create_single_tenant_system_event_datalink()
+
+    apply_api.assert_called_once()
+    assert any(config["kind"] == "Databus" for config in apply_api.call_args.kwargs["config"])
+    assert delete_consul.call_count == 2
+    push_router.assert_called_once()
+    assert models.DataIdConfig.objects.count() == 1
+    assert models.DataLink.objects.filter(bk_data_id=datasource.bk_data_id).count() == 1
 
 
 def test_system_event_creation_skips_multi_tenant_mode(settings, mocker):

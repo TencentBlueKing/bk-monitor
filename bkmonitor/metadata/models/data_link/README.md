@@ -185,7 +185,8 @@ conditionalSink2 --> vmBinding3[VmStorageBinding]
 继续写入原 `gse_system_event` 结果表的 ES 集群和写入别名。
 计算平台业务 ID 默认取 `DEFAULT_BKDATA_BIZ_ID`，可通过 `data_bk_biz_id` 指定；
 单租户内置链路的 `kafka_cluster_name` 默认为空字符串，为空时使用默认 Kafka 集群，也可传入名称指定集群。
-重复执行会复用已注册的 Data ID 和链路组件。
+完整 V4 链路下发成功后才清理旧 Transfer 的 Consul 配置；组装或下发失败时保留旧配置。
+重复执行会复用已注册的 Data ID 和链路组件，并重试未完成的旧配置清理。
 
 日志链路的 `log_v4_data_link.doris_storage_config` 和自定义格式链路的
 `custom_format_v4_data_link.doris_storage_config` 均支持自定义分词规则，例如：

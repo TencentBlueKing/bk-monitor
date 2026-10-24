@@ -2369,11 +2369,9 @@ def create_single_tenant_system_event_datalink(data_bk_biz_id: int | None = None
             **kafka_cluster_filters,
         )
         datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
-        # 注册仅下发 DataId/DataSource；成功后停用旧 transfer，再由下方 apply_data_link 下发 Databus。
         datasource.register_to_bkbase(
             bk_biz_id=bk_biz_id, namespace=BKBASE_NAMESPACE_BK_LOG, bkbase_data_name=data_name
         )
-        datasource.delete_consul_config()
 
     data_link_ins, _ = DataLink.objects.update_or_create(
         bk_tenant_id=datasource.bk_tenant_id,
@@ -2391,6 +2389,9 @@ def create_single_tenant_system_event_datalink(data_bk_biz_id: int | None = None
         storage_cluster_name=es_storage.storage_cluster.cluster_name,
         bk_biz_id=bk_biz_id,
     )
+
+    # 完整链路下发成功后再停用旧 transfer；清理失败时，下次建链仍会重试清理。
+    datasource.delete_consul_config()
 
     SpaceTableIDRedis().push_table_id_detail(
         bk_tenant_id=datasource.bk_tenant_id, table_id_list=[table_id], is_publish=True
