@@ -45,6 +45,7 @@ from metadata.models.constants import (
 from metadata.models.data_link.constants import (
     BASEREPORT_SOURCE_SYSTEM,
     BASEREPORT_USAGES,
+    BKBASE_NAMESPACE_BK_LOG,
     BKBASE_NAMESPACE_BK_MONITOR,
 )
 from metadata.models.data_link.data_link import DataLink
@@ -2334,6 +2335,59 @@ def create_single_tenant_system_datalink(
 
     # 刷新结果表详情路由数据
     SpaceTableIDRedis().push_table_id_detail(bk_tenant_id=DEFAULT_TENANT_ID, table_id_list=table_ids, is_publish=True)
+
+
+def create_single_tenant_system_event_datalink(
+    data_bk_biz_id: int | None = None, kafka_cluster_name: str = "kafka_outer_default"
+):
+    """为单租户系统事件 Data ID 1000 创建 V4 清洗链路，复用已有结果表及 ES 存储。
+
+    Args:
+        data_bk_biz_id: 计算平台业务 ID，默认使用 DEFAULT_BKDATA_BIZ_ID。
+        kafka_cluster_name: 计算平台使用的消息队列集群名称。
+    """
+    if settings.ENABLE_MULTI_TENANT_MODE:
+        logger.info("create_single_tenant_system_event_datalink: multi tenant mode is enabled, return!")
+        return
+
+    bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID if data_bk_biz_id is None else data_bk_biz_id
+    datasource = DataSource.objects.get(bk_data_id=1000)
+    table_id = "gse_system_event"
+    es_storage = models.ESStorage.objects.get(bk_tenant_id=datasource.bk_tenant_id, table_id=table_id)
+    data_name = f"base_{bk_biz_id}_agent_event"
+
+    if datasource.created_from != DataIdCreatedFromSystem.BKDATA.value:
+        bkdata_mq_cluster = ClusterInfo.objects.get(
+            bk_tenant_id=datasource.bk_tenant_id,
+            cluster_type=ClusterInfo.TYPE_KAFKA,
+            cluster_name=kafka_cluster_name,
+        )
+        datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
+        datasource.register_to_bkbase(
+            bk_biz_id=bk_biz_id, namespace=BKBASE_NAMESPACE_BK_LOG, bkbase_data_name=data_name
+        )
+        datasource.delete_consul_config()
+
+    data_link_ins, _ = DataLink.objects.update_or_create(
+        bk_tenant_id=datasource.bk_tenant_id,
+        data_link_name=data_name,
+        defaults={
+            "data_link_strategy": DataLink.BASE_EVENT_V1,
+            "namespace": BKBASE_NAMESPACE_BK_LOG,
+            "bk_data_id": datasource.bk_data_id,
+            "table_ids": [table_id],
+        },
+    )
+    data_link_ins.apply_data_link(
+        data_source=datasource,
+        table_id=table_id,
+        storage_cluster_name=es_storage.storage_cluster.cluster_name,
+        bk_biz_id=bk_biz_id,
+    )
+
+    SpaceTableIDRedis().push_table_id_detail(
+        bk_tenant_id=datasource.bk_tenant_id, table_id_list=[table_id], is_publish=True
+    )
 
 
 def create_single_tenant_system_proc_datalink(

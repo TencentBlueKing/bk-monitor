@@ -173,6 +173,7 @@ SYSTEM_BASE_DATA_ETL_CONFIGS = [
 
 # 日志/事件 类清洗类型
 LOG_EVENT_ETL_CONFIGS = [
+    "bk_gse_system_event",
     EtlConfigs.BK_MULTI_TENANCY_AGENT_EVENT_ETL_CONFIG.value,
     EtlConfigs.BK_FLAT_BATCH.value,
     EtlConfigs.BK_STANDARD_V2_EVENT.value,
