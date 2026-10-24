@@ -39,6 +39,7 @@ from metadata.models.constants import (
     BASE_EVENT_RESULT_TABLE_FIELD_OPTION_MAP,
     BASE_EVENT_RESULT_TABLE_OPTION_MAP,
     BASEREPORT_RESULT_TABLE_FIELD_MAP,
+    GSE_SYSTEM_EVENT_TABLE_ID,
     SYSTEM_PROC_DATA_LINK_CONFIGS,
     DataIdCreatedFromSystem,
 )
@@ -2353,8 +2354,8 @@ def create_single_tenant_system_event_datalink(data_bk_biz_id: int | None = None
         return
 
     bk_biz_id = settings.DEFAULT_BKDATA_BIZ_ID if data_bk_biz_id is None else data_bk_biz_id
-    datasource = DataSource.objects.get(bk_data_id=1000)
-    table_id = "gse_system_event"
+    datasource = DataSource.objects.get(bk_data_id=settings.GSE_BASE_ALARM_DATAID)
+    table_id = GSE_SYSTEM_EVENT_TABLE_ID
     es_storage = models.ESStorage.objects.get(bk_tenant_id=datasource.bk_tenant_id, table_id=table_id)
     data_name = f"base_{bk_biz_id}_agent_event"
 
@@ -2368,6 +2369,7 @@ def create_single_tenant_system_event_datalink(data_bk_biz_id: int | None = None
             **kafka_cluster_filters,
         )
         datasource.mq_cluster_id = bkdata_mq_cluster.cluster_id
+        # 注册仅下发 DataId/DataSource；成功后停用旧 transfer，再由下方 apply_data_link 下发 Databus。
         datasource.register_to_bkbase(
             bk_biz_id=bk_biz_id, namespace=BKBASE_NAMESPACE_BK_LOG, bkbase_data_name=data_name
         )

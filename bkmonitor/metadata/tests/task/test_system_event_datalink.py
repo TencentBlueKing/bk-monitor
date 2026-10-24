@@ -133,6 +133,24 @@ def test_create_system_event_reuses_base_event_configs(system_event_records, dat
     )
 
 
+def test_system_event_stops_transfer_before_applying_databus(system_event_records):
+    _, _, _, apply_api, delete_consul, _ = system_event_records
+    submitted_databus = []
+
+    def apply_configs(*, config, bk_tenant_id):
+        for resource in config:
+            if resource["kind"] == "Databus":
+                delete_consul.assert_called_once_with()
+                submitted_databus.append(resource)
+        return {}
+
+    apply_api.side_effect = apply_configs
+
+    create_single_tenant_system_event_datalink()
+
+    assert len(submitted_databus) == 1
+
+
 def test_reapply_system_event_reuses_registered_data_id_and_components(system_event_records):
     _, _, _, apply_api, delete_consul, _ = system_event_records
     create_single_tenant_system_event_datalink()
